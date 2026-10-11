@@ -400,7 +400,7 @@ let glob (basePath: String) (pattern: String) : Result.Result<List<String>, Posi
       globMatchSegments patternSegs pathSegs))
 
 
-/// Watch a file for changes by polling its modification time.
+/// Portable fallback when kernel event queues are unavailable.
 /// Calls the callback each time the file changes. Stops when shouldStop returns true.
 /// Returns Error if the file becomes inaccessible.
 let watchLoop
@@ -423,7 +423,8 @@ let watchLoop
     | Error e -> Stdlib.Result.Result.Error e
 
 
-/// Watch a file for changes by polling its modification time.
+/// Watch file changes with kernel events where supported. The interval bounds
+/// how long a quiet file can delay checking shouldStop; it is not a stat period.
 /// Calls the callback each time the file changes. Stops when shouldStop returns true.
 /// Returns Error if the file becomes inaccessible.
 let watch
@@ -432,6 +433,19 @@ let watch
   (shouldStop: Unit -> Bool)
   (fn: Unit -> Unit)
   : Result.Result<Unit, Posix.Error> =
-  match getModifiedTime path with
-  | Ok mtime -> watchLoop path intervalMs mtime shouldStop fn
-  | Error e -> Stdlib.Result.Result.Error e
+  if intervalMs <= 0.0 then Error (Posix.Errors.fromErrno 22)
+  else if Runtime.targetOS () == "linux" then
+    match FileWatch.linux path (Stdlib.Float.toInt intervalMs) shouldStop fn with
+    | Ok () -> Ok ()
+    | Error e ->
+      // Kernel/procfs support can be absent in constrained hosts. The fallback
+      // still uses checked stat operations; never retry through an unsafe path.
+      if e == 38 || e == 95 || e == 2 then
+        match getModifiedTime path with
+        | Ok mtime -> watchLoop path intervalMs mtime shouldStop fn
+        | Error error -> Error error
+      else Error (Posix.Errors.fromErrno e)
+  else
+    match getModifiedTime path with
+    | Ok mtime -> watchLoop path intervalMs mtime shouldStop fn
+    | Error e -> Stdlib.Result.Result.Error e

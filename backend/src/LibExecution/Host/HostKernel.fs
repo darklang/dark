@@ -63,6 +63,14 @@ let machAbsoluteTime_raw (bytes : byte[]) =
   withBytes bytes (fun p -> int (call 40 0L 0L p 0L 0L 0L))
 let machTimebaseInfo_raw (bytes : byte[]) =
   withBytes bytes (fun p -> int (call 41 p 0L 0L 0L 0L 0L))
+let inotifyInit1_raw (flags : int) = int (call 42 (int64 flags) 0L 0L 0L 0L 0L)
+let inotifyAddWatch_raw (fd : int, path : string, mask : int) =
+  withText path (fun p -> int (call 43 (int64 fd) p (int64 mask) 0L 0L 0L))
+let ppoll_raw (bytes : byte[], count : int, timeout : byte[]) =
+  withBytes bytes (fun p -> withBytes timeout (fun t ->
+    int (call 44 p (int64 count) t 0L 8L 0L)))
+let pollDarwin_raw (bytes : byte[], count : int, timeoutMs : int) =
+  withBytes bytes (fun p -> int (call 45 p (int64 count) (int64 timeoutMs) 0L 0L 0L))
 let lseek_raw (fd : int, offset : int64, whence : int) =
   call 4 (int64 fd) offset (int64 whence) 0L 0L 0L
 let fstatat_raw (fd : int, path : string, buf : IntPtr, flags : int) =

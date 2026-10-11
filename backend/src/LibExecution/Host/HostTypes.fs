@@ -61,6 +61,10 @@ type PosixOp =
   | MachAbsoluteTime
   | MachTimebaseInfo
   | Nanosleep of seconds : int64 * nanos : int64
+  | InotifyInit1 of flags : int
+  | InotifyAddWatch of fd : FileDescriptor * path : string * mask : int
+  | Ppoll of descriptors : List<FileDescriptor * int> * timeoutMs : int
+  | PollDarwin of descriptors : List<FileDescriptor * int> * timeoutMs : int
   | Pread of fd : FileDescriptor * count : int * offset : int64
   | Pwrite of fd : FileDescriptor * data : byte[] * offset : int64
   | Open of path : string * flags : int * mode : int
@@ -260,6 +264,10 @@ let describeOperation (op : Operation) : string =
     | PosixOp.MachAbsoluteTime -> "mach_absolute_time"
     | PosixOp.MachTimebaseInfo -> "mach_timebase_info"
     | PosixOp.Nanosleep(seconds, nanos) -> $"nanosleep {seconds} {nanos}"
+    | PosixOp.InotifyInit1 flags -> $"inotify_init1 {flags}"
+    | PosixOp.InotifyAddWatch(fd, path, _) -> $"inotify_add_watch {fd} {path}"
+    | PosixOp.Ppoll(fds, timeout) -> $"ppoll {List.length fds} {timeout}"
+    | PosixOp.PollDarwin(fds, timeout) -> $"poll {List.length fds} {timeout}"
     | PosixOp.Mkstemp prefix -> $"mkstemp {prefix}"
     | PosixOp.Mkdtemp prefix -> $"mkdtemp {prefix}"
     | PosixOp.ListDir path -> $"listdir {path}"

@@ -5,6 +5,14 @@
 /// the kernel reports an error. Never retry close after EINTR.
 module Darklang.Stdlib.Cli.Syscall
 
+let inotifyInit1 (flags: Int) : Result.Result<Int, Int> = Builtin.syscallInotifyInit1 flags
+let inotifyAddWatch (fd: Int) (path: String) (mask: Int) : Result.Result<Int, Int> =
+  Builtin.syscallInotifyAddWatch fd path mask
+let ppoll (descriptors: List<(Int * Int)>) (timeoutMs: Int) : Result.Result<Blob, Int> =
+  Builtin.syscallPpoll descriptors timeoutMs
+let pollDarwin (descriptors: List<(Int * Int)>) (timeoutMs: Int) : Result.Result<Blob, Int> =
+  Builtin.syscallPollDarwin descriptors timeoutMs
+
 let clockGettime (clock: Int) : Result.Result<Blob, Int> = Builtin.syscallClockGettime clock
 let gettimeofday () : Result.Result<Blob, Int> = Builtin.syscallGettimeofday ()
 let machAbsoluteTime () : Result.Result<Blob, Int> = Builtin.syscallMachAbsoluteTime ()

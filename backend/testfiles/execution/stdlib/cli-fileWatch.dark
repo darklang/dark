@@ -1,0 +1,8 @@
+module Tests
+
+Stdlib.Cli.FileWatch.events [] 0 false false = Ok ((false, false))
+Stdlib.Cli.FileWatch.events [0uy] 1 false false = Error 5
+Stdlib.Cli.FileWatch.events [1uy,0uy,0uy,0uy,2uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy] 16 false false = Ok ((true, false))
+Stdlib.Cli.FileWatch.events [1uy,0uy,0uy,0uy,0uy,8uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy] 16 false false = Ok ((true, true))
+Stdlib.Cli.FileWatch.events [1uy,0uy,0uy,0uy,2uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,8uy,0uy,0uy,0uy] 16 false false = Error 5
+Stdlib.Cli.FileWatch.linux "/does-not-exist" 10 (fun _ -> true) (fun _ -> ()) = Ok ()

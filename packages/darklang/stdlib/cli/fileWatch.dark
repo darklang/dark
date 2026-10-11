@@ -1,0 +1,64 @@
+/// Kernel-event watching. Dark owns readiness/event decoding, interruption
+/// retries, callback coalescing, rearming after replacement, and cleanup.
+module Darklang.Stdlib.Cli.FileWatch
+
+let has (mask: Int) (flag: Int) : Bool = (mask / flag) % 2 == 1
+
+/// inotify_event headers are 16 bytes followed by a kernel-sized name field.
+/// A batch produces one notification; invalidation asks the caller to rearm.
+let events (bytes: List<UInt8>) (remaining: Int) (changed: Bool) (rearm: Bool)
+  : Result.Result<(Bool * Bool), Int> =
+  if remaining == 0 then Ok ((changed, rearm))
+  else if remaining < 16 then Error 5
+  else
+    KernelData.field bytes 4 4 |> Stdlib.Result.andThen (fun mask ->
+      KernelData.field bytes 12 4 |> Stdlib.Result.andThen (fun nameLength ->
+        let length = 16 + nameLength
+        if length > remaining then Error 5
+        else
+          let nextChanged = changed || (has mask 2) || (has mask 4) || (has mask 8) || (has mask 1024) || (has mask 2048) || (has mask 16384)
+          let nextRearm = rearm || (has mask 1024) || (has mask 2048) || (has mask 32768)
+          events (Stdlib.List.drop bytes length) (remaining - length) nextChanged nextRearm))
+
+let drain (fd: Int) : Result.Result<(Bool * Bool), Int> =
+  match Syscall.read fd 65536 with
+  | Error 4 -> drain fd
+  | Error 11 -> Ok ((false, false))
+  | Error e -> Error e
+  | Ok buffer -> events (Stdlib.Blob.toList buffer) (Stdlib.Blob.length buffer) false false
+
+let loop (fd: Int) (intervalMs: Int) (shouldStop: Unit -> Bool) (fn: Unit -> Unit)
+  : Result.Result<Bool, Int> =
+  if shouldStop () then Ok false
+  else
+    match Syscall.ppoll [ (fd, 1) ] intervalMs with
+    | Error 4 -> loop fd intervalMs shouldStop fn
+    | Error e -> Error e
+    | Ok record ->
+      KernelData.field (Stdlib.Blob.toList record) 6 2
+      |> Stdlib.Result.andThen (fun returned ->
+        if has returned 32 then Error 9
+        else if (has returned 8) || (has returned 16) then Error 5
+        else if has returned 1 then
+          drain fd |> Stdlib.Result.andThen (fun pair ->
+            let (changed, rearm) = pair
+            if changed then fn () else ()
+            if rearm then Ok true else loop fd intervalMs shouldStop fn)
+        else loop fd intervalMs shouldStop fn)
+
+let linux (path: String) (intervalMs: Int) (shouldStop: Unit -> Bool) (fn: Unit -> Unit)
+  : Result.Result<Unit, Int> =
+  if shouldStop () then Ok ()
+  else
+    match Syscall.inotifyInit1 526336 with
+    | Error e -> Error e
+    | Ok fd ->
+      let result =
+        Syscall.inotifyAddWatch fd path 3086
+        |> Stdlib.Result.andThen (fun _ -> loop fd intervalMs shouldStop fn)
+      let closed = Syscall.close fd
+      match result with
+      | Error e -> Error e
+      | Ok rearm ->
+        closed |> Stdlib.Result.andThen (fun _ ->
+          if rearm then linux path intervalMs shouldStop fn else Ok ())

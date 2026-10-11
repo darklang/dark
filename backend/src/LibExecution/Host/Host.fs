@@ -616,6 +616,33 @@ let private resolvePosix
   let read = Permission.AccessKind.Read
   let write = Permission.AccessKind.Write
   match op with
+  | HostTypes.PosixOp.InotifyInit1 flags ->
+    unchecked (attempt (fun () ->
+      HostPosix.inotifyInit1 flags |> Result.map (fun fd ->
+        match session with
+        | None -> Response.Fd fd
+        | Some owner ->
+          owner.Register { fd = fd; paths = []; reads = true; writes = false }
+          |> Response.Descriptor)))
+  | HostTypes.PosixOp.InotifyAddWatch(fd, path, mask) ->
+    guarded false path (fun path ->
+      withChecks
+        [ fileCheck read path
+          (Permission.Request.native "raw POSIX operation", "raw POSIX operation") ]
+        (attempt (fun () ->
+          HostPosix.inotifyAddWatch (rawDescriptor fd) path mask
+          |> Result.map (fun wd ->
+            session |> Option.iter (fun owner -> owner.WatchPath(rawDescriptor fd, path))
+            Response.Written wd))))
+  | HostTypes.PosixOp.Ppoll(fds, timeout)
+  | HostTypes.PosixOp.PollDarwin(fds, timeout) ->
+    let darwin = match op with HostTypes.PosixOp.PollDarwin _ -> true | _ -> false
+    withChecks
+      [ (Permission.Request.native "raw POSIX operation", "raw POSIX operation")
+        (Ok Permission.Request.clock, "waiting for descriptor events") ]
+      (blocking (fun () ->
+        HostPosix.pollDescriptors darwin (fds |> List.map (fun (fd, events) -> rawDescriptor fd, events)) timeout
+        |> Result.map Response.Bytes))
   | HostTypes.PosixOp.Chdir path ->
     resolveFile read path (fun path ->
       attempt (fun () -> HostPosix.chdir path |> unitOk))
@@ -723,7 +750,7 @@ let private resolvePosix
         let token =
           owner.Register
             { fd = fd
-              path = path
+              paths = [ path ]
               reads = accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR
               writes = accessMode = HostPosix.O_WRONLY || accessMode = HostPosix.O_RDWR }
         Response.Descriptor token
@@ -995,6 +1022,9 @@ let private descriptorUses (op : HostTypes.PosixOp) =
   let read fd = [ fd, Read ]
   let write fd = [ fd, Write ]
   match op with
+  | HostTypes.PosixOp.InotifyAddWatch(fd, _, _) -> [ fd, Metadata ]
+  | HostTypes.PosixOp.Ppoll(fds, _)
+  | HostTypes.PosixOp.PollDarwin(fds, _) -> fds |> List.map (fun (fd, _) -> fd, Metadata)
   | HostTypes.PosixOp.FdRead(fd, _)
   | HostTypes.PosixOp.DirectoryBytes(fd, _)
   | HostTypes.PosixOp.Pread(fd, _, _) -> read fd
@@ -1015,6 +1045,11 @@ let private descriptorUses (op : HostTypes.PosixOp) =
 
 let private mapDescriptors map (op : HostTypes.PosixOp) =
   match op with
+  | HostTypes.PosixOp.InotifyAddWatch(fd, path, mask) -> HostTypes.PosixOp.InotifyAddWatch(map fd, path, mask)
+  | HostTypes.PosixOp.Ppoll(fds, timeout) ->
+    HostTypes.PosixOp.Ppoll(fds |> List.map (fun (fd, events) -> map fd, events), timeout)
+  | HostTypes.PosixOp.PollDarwin(fds, timeout) ->
+    HostTypes.PosixOp.PollDarwin(fds |> List.map (fun (fd, events) -> map fd, events), timeout)
   | HostTypes.PosixOp.FdRead(fd, n) -> HostTypes.PosixOp.FdRead(map fd, n)
   | HostTypes.PosixOp.DirectoryBytes(fd, n) -> HostTypes.PosixOp.DirectoryBytes(map fd, n)
   | HostTypes.PosixOp.Pread(fd, n, offset) -> HostTypes.PosixOp.Pread(map fd, n, offset)
@@ -1039,7 +1074,7 @@ let private invalidDescriptor =
     { kind = FailureKind.Other; errno = 9
       message = "descriptor is closed, foreign, or incompatible with its open mode" }
 
-/// Called under the session lock; leases cannot be closed or reused until the
+/// Called under the descriptor leases; they cannot be closed or reused until the
 /// syscall completes. Current access is checked on every use, not just open.
 let private resolveSessionPosix
   (session : Option<HostDescriptors.Session>)
@@ -1073,7 +1108,7 @@ let private resolveSessionPosix
                   if entry.writes then Permission.AccessKind.Write
                   else Permission.AccessKind.Read
                 | Cleanup -> Exception.raiseInternal "cleanup has no resource check" []
-              (fileCheck access entry.path) :: checks
+              (entry.paths |> List.map (fileCheck access)) @ checks
           collect checks (Map.add token entry.fd bindings) raw rest
   match collect [] Map.empty false uses with
   | Error outcome -> Error outcome
@@ -1132,11 +1167,17 @@ let private performWithSession
                 // POSIX adapters are synchronous. Keep the descriptor lease
                 // through the kernel call, including close and multi-fd copy.
                 (execute resolved.execute).GetAwaiter().GetResult()
-          // Only descriptor leases and registration need the session lock.
-          // Sleeps must be asynchronous and must not freeze every owned fd.
-          let leases = descriptorUses posix <> [] || (match posix with HostTypes.PosixOp.Open _ -> true | _ -> false)
-          if leases then
-            Task.FromResult(match session with Some owner -> lock owner.Gate run | None -> run ())
+          let tokens =
+            descriptorUses posix |> List.choose (function
+              | HostTypes.FileDescriptor.Scoped token, _ -> Some token
+              | _ -> None)
+          if tokens <> [] then
+            // Waiting reads/polls must not occupy the interpreter's execution
+            // thread or serialize operations on unrelated owned descriptors.
+            Task.Run(fun () ->
+              match session with
+              | Some owner -> owner.WithLeases(tokens, run)
+              | None -> run ())
           else
             match resolve () with
             | Error outcome -> Task.FromResult outcome

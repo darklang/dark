@@ -153,6 +153,93 @@ let scopedDescriptorsRecheckAccessAndOwnership =
       System.IO.File.Delete path
   }
 
+let descriptorLeasesDoNotSerializeUnrelatedFiles =
+  testTask "a held descriptor lease does not block another owned descriptor" {
+    let entered = new System.Threading.ManualResetEventSlim(false)
+    let release = new System.Threading.ManualResetEventSlim(false)
+    let owner = new LibExecution.HostDescriptors.Session(fun _ -> Ok ())
+    let entry fd : LibExecution.HostDescriptors.Entry =
+      { fd = fd; paths = [ "/tmp/lease-test" ]; reads = true; writes = false }
+    let first = owner.Register(entry 100)
+    let second = owner.Register(entry 101)
+    let held = System.Threading.Tasks.Task.Run(fun () ->
+      owner.WithLeases([ first ], fun () ->
+        entered.Set()
+        release.Wait()))
+    try
+      Expect.isTrue (entered.Wait 2000) "first lease acquired"
+      let independent = System.Threading.Tasks.Task.Run(fun () ->
+        owner.WithLeases([ second ], fun () -> owner.Find second))
+      let! finished = System.Threading.Tasks.Task.WhenAny(independent, System.Threading.Tasks.Task.Delay 2000)
+      Expect.isTrue (obj.ReferenceEquals(finished, independent)) "second lease must not wait for first"
+      let! result = independent
+      Expect.isSome result "second capability stays valid"
+    finally
+      release.Set()
+      held.GetAwaiter().GetResult()
+      owner.Dispose()
+      entered.Dispose()
+      release.Dispose()
+  }
+
+let watchQueuesRetainScopedPathAuthority =
+  testTask "watch queue registration and reads retain current path authority" {
+    if System.OperatingSystem.IsLinux() then
+      let path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"dark-watch-{System.Guid.NewGuid()}")
+      System.IO.File.WriteAllText(path, "before")
+      let owner = LibExecution.Host.createDescriptorSession ()
+      let foreign = LibExecution.Host.createDescriptorSession ()
+      let access =
+        Permission.Policy.create
+          [ Permission.Rule.File(Permission.AccessKind.Read, only path)
+            Permission.Rule.Effect LibExecution.Effects.Effect.Clock ] []
+        |> Permission.Access.start
+      let denied = Permission.Access.start Permission.Policy.denyAll
+      let perform session access op =
+        LibExecution.Host.performInSession session Permission.NoRelax access (HT.Operation.Posix op)
+      try
+        let! opened = perform owner denied (HT.PosixOp.InotifyInit1 526336)
+        let fd =
+          match opened with
+          | HT.Outcome.Success(HT.Response.Descriptor token) -> HT.FileDescriptor.Scoped token
+          | other -> failtestf "expected owned empty event queue, got %A" other
+        let! rejected = perform owner denied (HT.PosixOp.InotifyAddWatch(fd, path, 2))
+        match rejected with
+        | HT.Outcome.Denied _ -> ()
+        | other -> failtestf "expected path denial, got %A" other
+        if not (System.IO.Directory.Exists "/proc/self/fd") then
+          skiptest "held-inode event registration requires real /proc/self/fd; the adapter fails closed without it"
+        let! added = perform owner access (HT.PosixOp.InotifyAddWatch(fd, path, 2))
+        match added with
+        | HT.Outcome.Success(HT.Response.Written wd) -> Expect.isGreaterThanOrEqual wd 0 "watch registered"
+        | other -> failtestf "expected scoped watch without Native, got %A" other
+        System.IO.File.WriteAllText(path, "after")
+        let! ready = perform owner access (HT.PosixOp.Ppoll([ fd, 1 ], 0))
+        match ready with
+        | HT.Outcome.Success(HT.Response.Bytes record) ->
+          Expect.equal record.Length 8 "raw pollfd"
+          Expect.equal (int record[6] &&& 1) 1 "queued change is readable"
+        | other -> failtestf "expected poll readiness, got %A" other
+        let! revoked = perform owner denied (HT.PosixOp.FdRead(fd, 4096))
+        match revoked with
+        | HT.Outcome.Denied _ -> ()
+        | other -> failtestf "queue read must recheck watched path, got %A" other
+        let! stolen = perform foreign access (HT.PosixOp.FdRead(fd, 4096))
+        match stolen with
+        | HT.Outcome.Failed failure -> Expect.equal failure.errno 9 "foreign queue is not owned"
+        | other -> failtestf "expected foreign capability rejection, got %A" other
+        let! changes = perform owner access (HT.PosixOp.FdRead(fd, 4096))
+        match changes with
+        | HT.Outcome.Success(HT.Response.Bytes bytes) -> Expect.isGreaterThanOrEqual bytes.Length 16 "raw inotify event"
+        | other -> failtestf "expected raw change records, got %A" other
+        let! closed = perform owner denied (HT.PosixOp.FdClose fd)
+        Expect.equal closed (HT.Outcome.Success HT.Response.Unit) "revocation does not prevent cleanup"
+      finally
+        owner.Dispose()
+        foreign.Dispose()
+        System.IO.File.Delete path
+  }
+
 let systemFactsDoNotGrantSensitiveQueries =
   testTask "host facts do not grant arbitrary sysctl or foreign affinity access" {
     let access = Permission.Access.start Permission.Policy.denyAll
@@ -550,6 +637,8 @@ let tests =
       httpServerBindUsesTheSuppliedAccess
       rawDescriptorsRequireNativeAtHostBoundary
       scopedDescriptorsRecheckAccessAndOwnership
+      descriptorLeasesDoNotSerializeUnrelatedFiles
+      watchQueuesRetainScopedPathAuthority
       systemFactsDoNotGrantSensitiveQueries
       rawClocksRequireClockPermission
       tempPrefixDoesNotAuthorizeARandomSibling

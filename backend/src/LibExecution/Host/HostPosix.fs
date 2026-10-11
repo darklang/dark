@@ -448,6 +448,47 @@ let private withLinuxMetadataDescriptor
 let private withLinuxMetadataPath path action =
   withLinuxMetadataDescriptor path (fun fd -> action $"/proc/self/fd/{fd}")
 
+let inotifyInit1 flags : Result<int, int * string> =
+  if isWasm then Managed.enosys ()
+  else
+    let fd = inotifyInit1_raw flags
+    if fd < 0 then failed () else Ok fd
+
+let inotifyAddWatch fd path mask : Result<int, int * string> =
+  if isWasm || isMac then Error((if isMac then 78 else 38), "inotify is unavailable")
+  else
+    withLinuxMetadataPath path (fun heldPath ->
+      // The final user entry was checked without following links. The internal
+      // procfd link names that held inode, so IN_DONT_FOLLOW must not inspect it.
+      let wd = inotifyAddWatch_raw (fd, heldPath, mask &&& ~~~0x02000000)
+      if wd < 0 then failed () else Ok wd)
+
+/// Marshal pollfd/timespec ABI only. Return every raw pollfd, including revents;
+/// interpreting readiness, retrying EINTR, and draining queues belong in Dark.
+let pollDescriptors darwin (fds : List<int * int>) timeoutMs : Result<byte[], int * string> =
+  if isWasm then Managed.enosys ()
+  elif timeoutMs < 0 || List.length fds > 1024
+       || List.exists (fun (_, events) -> events < 0 || events > 32767) fds then
+    Error(22, "invalid poll arguments")
+  else
+    let bytes = Array.zeroCreate<byte> (max 1 (List.length fds * 8))
+    fds |> List.iteri (fun index (fd, events) ->
+      BitConverter.GetBytes(fd).CopyTo(bytes, index * 8)
+      BitConverter.GetBytes(int16 events).CopyTo(bytes, index * 8 + 4))
+    let rc =
+      if darwin then pollDarwin_raw (bytes, List.length fds, timeoutMs)
+      else
+        let width = if isArm32 then 4 else 8
+        let timeout = Array.zeroCreate<byte> (width * 2)
+        if width = 4 then
+          BitConverter.GetBytes(timeoutMs / 1000).CopyTo(timeout, 0)
+          BitConverter.GetBytes((timeoutMs % 1000) * 1000000).CopyTo(timeout, width)
+        else
+          BitConverter.GetBytes(int64 (timeoutMs / 1000)).CopyTo(timeout, 0)
+          BitConverter.GetBytes(int64 ((timeoutMs % 1000) * 1000000)).CopyTo(timeout, width)
+        ppoll_raw (bytes, List.length fds, timeout)
+    if rc < 0 then failed () else Ok (bytes |> Array.take (List.length fds * 8))
+
 let chmod (path : string) (mode : int) : Result<unit, int * string> =
   if isWasm then
     Managed.enosys ()

@@ -63,8 +63,37 @@ let private clockUnit name op =
     | [| DUnit |] -> perform KTBlob vm op bytes
     | _ -> incorrectArgs ())
 
+let private poll name constructor =
+  make name
+    [ Param.make "descriptors" (TList(TTuple(TInt, TInt, []))) "fd and requested events"
+      integer "timeoutMs" ] TBlob KTBlob
+    (fun _ vm values ->
+      match values with
+      | [| DList(_, descriptors); DInt timeout |] ->
+        let descriptors = descriptors |> List.map (function
+          | DTuple(DInt fd, DInt events, []) -> intToDescriptor vm fd, intToInt32 vm events
+          | _ -> incorrectArgs ())
+        perform KTBlob vm (constructor(descriptors, intToInt32 vm timeout)) bytes
+      | _ -> incorrectArgs ())
+
 let fns () : List<BuiltInFn> =
-  [ clock "syscallClockGettime" [ integer "clock" ] (fun _ vm values ->
+  [ make "syscallInotifyInit1" [ integer "flags" ] TInt KTInt
+      (fun _ vm values ->
+        match values with
+        | [| DInt flags |] ->
+          perform KTInt vm (Op.PosixOp.InotifyInit1(intToInt32 vm flags))
+            (fun response -> Dval.int (Host.expectDescriptor response))
+        | _ -> incorrectArgs ())
+    make "syscallInotifyAddWatch"
+      [ integer "fd"; Param.make "path" TString "Checked path"; integer "mask" ] TInt KTInt
+      (fun _ vm values ->
+        match values with
+        | [| DInt fd; DString path; DInt mask |] ->
+          perform KTInt vm (Op.PosixOp.InotifyAddWatch(intToDescriptor vm fd, path, intToInt32 vm mask)) written
+        | _ -> incorrectArgs ())
+    poll "syscallPpoll" Op.PosixOp.Ppoll
+    poll "syscallPollDarwin" Op.PosixOp.PollDarwin
+    clock "syscallClockGettime" [ integer "clock" ] (fun _ vm values ->
       match values with
       | [| DInt id |] -> perform KTBlob vm (Op.PosixOp.ClockGettime(intToInt32 vm id)) bytes
       | _ -> incorrectArgs ())
