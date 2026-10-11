@@ -11,7 +11,8 @@ type ExecutionOutcome =
 
 
 /// Execute a command in the CLI (i.e. `Cli.execute "ls ."`)
-let execute (command: String) : ExecutionOutcome = Builtin.cliExecute command
+let execute (command: String) : ExecutionOutcome =
+  Process.executionOutcome (ChildIO.run "/bin/sh" ["-c", command] Stdlib.Option.Option.None)
 
 
 /// Execute a command in the CLI,

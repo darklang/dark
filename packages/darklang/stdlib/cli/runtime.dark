@@ -11,3 +11,18 @@ let delayTicks (ticks: Int) : Unit = Builtin.runtimeDelayTicks ticks
 
 /// Runtime executable identity, authorized as a read of the returned path.
 let executablePath () : String = Builtin.runtimeExecutablePath ()
+
+/// Launch/supervision and execution-owned handles are runtime units, not fork
+/// syscalls. All IO loops, capture limits and user deadlines are shared Dark.
+let childStart (program: String) (args: List<String>) (inheritTerminal: Bool) : Result.Result<Int, Int> =
+  Builtin.runtimeChildStart program args inheritTerminal
+let childDescriptors (child: Int) : Result.Result<List<Int>, Int> = Builtin.runtimeChildDescriptors child
+let childPoll (child: Int) : Result.Result<Stdlib.Option.Option<Int>, Int> = Builtin.runtimeChildPoll child
+let childWait (child: Int) : Result.Result<Int, Int> = Builtin.runtimeChildWait child
+let childKill (child: Int) : Result.Result<Unit, Int> = Builtin.runtimeChildKill child
+let childClose (child: Int) : Result.Result<Unit, Int> = Builtin.runtimeChildClose child
+let childClosePort (child: Int) (index: Int) : Result.Result<Unit, Int> = Builtin.runtimeChildClosePort child index
+// Two opaque byte cells preserve an interactive handle's output history. These
+// only get/set values: accumulation, truncation and decoding stay in Dark.
+let childBufferGet (child: Int) (index: Int) : Result.Result<Blob, Int> = Builtin.runtimeChildBufferGet child index
+let childBufferSet (child: Int) (index: Int) (bytes: Blob) : Result.Result<Unit, Int> = Builtin.runtimeChildBufferSet child index bytes

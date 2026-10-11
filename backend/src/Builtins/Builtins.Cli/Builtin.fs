@@ -11,10 +11,10 @@ let builtins () =
   Builtin.combine
     [ Libs.Directory.builtins ()
       Libs.Environment.builtins ()
-      Libs.Execution.builtins ()
       Libs.Output.builtins ()
       Libs.Stdin.builtins ()
       Libs.Terminal.builtins ()
       Libs.Posix.builtins ()
-      Libs.Syscall.builtins () ]
+      Libs.Syscall.builtins ()
+      Libs.RuntimeChild.builtins () ]
     fnRenames

@@ -124,19 +124,15 @@ type Operation =
     headers : List<string * string>
   /// Bind an HTTP listener and return an opaque host-owned handle.
   | HttpServerBind of port : int
-  /// Run to completion; the program is resolved against PATH at the boundary.
-  /// With a timeout, a child still running when it elapses is killed and the
-  /// operation fails with ETIMEDOUT.
-  | ProcessRun of program : string * args : List<string> * timeoutMs : Option<int>
-  /// Run to completion on THIS terminal: stdin, stdout and stderr are inherited
-  /// rather than captured, and only the exit code comes back. For programs that
-  /// draw, like an editor; a redirected one paints into a pipe.
-  | ProcessRunInteractive of program : string * args : List<string>
-  /// Start an interactive process owned by the host; the response is an
-  /// opaque handle id into the host's process table.
-  | ProcessSpawn of program : string * args : List<string>
-  | ProcessIO of handle : int64 * input : string
-  | ProcessTerminate of handle : int64
+  | ChildStart of program : string * args : List<string> * inheritTerminal : bool
+  | ChildDescriptors of handle : bigint
+  | ChildPoll of handle : bigint
+  | ChildWait of handle : bigint
+  | ChildKill of handle : bigint
+  | ChildClose of handle : bigint
+  | ChildClosePort of handle : bigint * index : int
+  | ChildBufferGet of handle : bigint * index : int
+  | ChildBufferSet of handle : bigint * index : int * bytes : byte[]
   | Posix of PosixOp
 
 // HTTP wire data. The error shape is inspired by Elm's HttpError
@@ -183,8 +179,9 @@ type Response =
   | Entries of List<string>
   | EnvValue of Option<string>
   | EnvEntries of List<string * string>
-  | ProcessOutcome of exitCode : int * stdout : string * stderr : string
-  | ProcessHandle of int64
+  | ChildHandle of bigint
+  | ChildDescriptors of List<bigint>
+  | ChildStatus of Option<int>
   | HttpServerHandle of int64
   /// Send-time failures (timeout, network, bad header) are guest-visible
   /// typed errors, not runtime errors, so they ride inside the response.
@@ -316,12 +313,15 @@ let describeOperation (op : Operation) : string =
   | Operation.HttpStreamOpen(_, method, url, _) ->
     $"http-stream {method} {redactUrl url}"
   | Operation.HttpServerBind port -> $"http-server-bind {port}"
-  | Operation.ProcessRun(program, _, _) -> $"process-run {program}"
-  | Operation.ProcessRunInteractive(program, _) ->
-    $"process-run-interactive {program}"
-  | Operation.ProcessSpawn(program, _) -> $"process-spawn {program}"
-  | Operation.ProcessIO(handle, _) -> $"process-io {handle}"
-  | Operation.ProcessTerminate handle -> $"process-terminate {handle}"
+  | Operation.ChildStart(program, _, _) -> $"child-start {program}"
+  | Operation.ChildDescriptors _ -> "child-descriptors"
+  | Operation.ChildPoll _ -> "child-poll"
+  | Operation.ChildWait _ -> "child-wait"
+  | Operation.ChildKill _ -> "child-kill"
+  | Operation.ChildClose _ -> "child-close"
+  | Operation.ChildClosePort _ -> "child-close-port"
+  | Operation.ChildBufferGet _ -> "child-buffer-get"
+  | Operation.ChildBufferSet _ -> "child-buffer-set"
   | Operation.Posix p -> $"posix {posix p}"
 
 /// Remove secrets from outcome details before they reach the default audit

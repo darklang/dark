@@ -6,16 +6,24 @@ type ProcessHandle = Int
 
 /// Spawn a new process and return a handle for interaction
 let spawn (command: String) : ProcessHandle =
-  Builtin.cliSpawnProcess command
+  Runtime.childStart "/bin/sh" ["-c", command] false |> Builtin.unwrap
+
+let executionOutcome (result: Result.Result<(Int * Blob * Blob), Int>) : Stdlib.Cli.ExecutionOutcome =
+  match result with
+  | Error e -> Stdlib.Cli.ExecutionOutcome { exitCode = -1, stdout = "", stderr = (Posix.Errors.fromErrno e).message }
+  | Ok ((code, output, error)) ->
+    Stdlib.Cli.ExecutionOutcome { exitCode = code,
+      stdout = Stdlib.String.fromBlobWithReplacement output,
+      stderr = Stdlib.String.fromBlobWithReplacement error }
 
 /// Send input to a process and read any available output (non-blocking)
 /// Use empty string for input to just read output without sending anything
 let communicate (handle: ProcessHandle) (input: String) : Stdlib.Cli.ExecutionOutcome =
-  Builtin.cliProcessIO handle input
+  executionOutcome (ChildIO.communicate handle input)
 
 /// Terminate a process and get final output
 let terminate (handle: ProcessHandle) : Stdlib.Cli.ExecutionOutcome =
-  Builtin.cliTerminateProcess handle
+  executionOutcome (ChildIO.terminate handle)
 
 
 // ─── Posix-based process execution (no bash, no shell) ───
@@ -42,7 +50,14 @@ let spawnAndWait
   (args: List<String>)
   (timeoutMs: Stdlib.Option.Option<Int>)
   : Result.Result<(Int * String * String), Posix.Error> =
-  Builtin.posixSpawnAndWait program args timeoutMs
+  ChildIO.run program args timeoutMs
+  |> Stdlib.Result.mapError (fun errno ->
+    if errno == (if KernelABI.mac () then 60 else 110) then
+      Posix.Error { errno = errno, message = "Process timed out" }
+    else Posix.Errors.fromErrno errno)
+  |> Stdlib.Result.map (fun result ->
+    let (code, output, error) = result
+    (code, Stdlib.String.fromBlobWithReplacement output, Stdlib.String.fromBlobWithReplacement error))
 
 
 /// Run a program with arguments and capture its output.
@@ -66,7 +81,7 @@ let runInteractive
   (program: String)
   (args: List<String>)
   : Result.Result<Int, Posix.Error> =
-  Builtin.posixSpawnInteractive program args
+  ChildIO.interactive program args |> Stdlib.Result.mapError Posix.Errors.fromErrno
 
 
 /// Run a program and return stdout as text, or stderr as error.
@@ -82,7 +97,7 @@ let exec (program: String) (args: List<String>) : Result.Result<String, String> 
 
       if err == "" then
         Stdlib.Result.Result.Error
-          $"Command failed with exit code {Stdlib.toString output.exitCode}"
+          $"Command failed with exit code {Posix.Errors.decimal output.exitCode}"
       else
         Stdlib.Result.Result.Error err)
 
@@ -98,7 +113,7 @@ let forceKill (pid: Int) : Result.Result<Unit, Posix.Error> =
 
 
 /// Run a program in a specific directory.
-// Note: uses sh -c because posixSpawnAndWait doesn't support a cwd parameter.
+// Uses sh -c because the minimal owned-launch primitive has no cwd parameter.
 // Ideally this would pass cwd directly to the child process (like Python's
 // subprocess.run(cwd=...)) without involving a shell.
 let runIn

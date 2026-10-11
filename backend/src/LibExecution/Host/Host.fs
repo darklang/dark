@@ -72,16 +72,6 @@ let expectEnvEntries (response : Response) : List<string * string> =
   | Response.EnvEntries entries -> entries
   | other -> unexpected other
 
-let expectProcessOutcome (response : Response) : int * string * string =
-  match response with
-  | Response.ProcessOutcome(exitCode, stdout, stderr) -> (exitCode, stdout, stderr)
-  | other -> unexpected other
-
-let expectProcessHandle (response : Response) : int64 =
-  match response with
-  | Response.ProcessHandle handle -> handle
-  | other -> unexpected other
-
 let expectHttpServerHandle (response : Response) : int64 =
   match response with
   | Response.HttpServerHandle handle -> handle
@@ -280,44 +270,6 @@ let private pathContainsLink (includeFinal : bool) (path : string) : bool =
   with _ ->
     true
 
-/// Expand `$HOME`/`${HOME}` in user-supplied input — a path, or a shell
-/// command line. Host-side sugar applied by the .NET file and process
-/// builtins (the posix twins are raw syscalls and take paths verbatim); the
-/// result is still checked by whichever operation uses it.
-let expandHome (input : string) : string =
-  let home =
-    (if System.OperatingSystem.IsWindows() then "USERPROFILE" else "HOME")
-    |> System.Environment.GetEnvironmentVariable
-    |> Option.ofObj
-    |> Option.defaultValue ""
-  input.Replace("${HOME}", home).Replace("$HOME", home)
-
-/// Prepare a user-supplied command line for the platform shell. Host-side
-/// input prep; the spawn it feeds is still checked at the boundary.
-let prepareShellCommand (command : string) : string * List<string> =
-  let command = expandHome command
-  if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
-    "cmd.exe", [ "/c"; command ]
-  else if
-    RuntimeInformation.IsOSPlatform OSPlatform.Linux
-    || RuntimeInformation.IsOSPlatform OSPlatform.OSX
-  then
-    let shell =
-      System.Environment.GetEnvironmentVariable "SHELL"
-      |> Option.ofObj
-      |> Option.defaultValue "/bin/bash"
-    shell, [ "-c"; command ]
-  else if System.OperatingSystem.IsBrowser() then
-    // Nothing here will run: `perform` refuses every process operation in the browser.
-    // It has to BUILD one though, because raising here produced an internal error with
-    // a .NET stack before an Operation existed, so the refusal that carries the readable
-    // message never got the chance to fire.
-    "sh", [ "-c"; command ]
-  else
-    Exception.raiseInternal
-      "Executing CLI commands is not supported for your operating system"
-      []
-
 /// Resolve a program name the way the OS would: absolute and
 /// separator-containing paths lexically, bare names against PATH. Both the
 /// permission check and the spawn receive this result, so lookup cannot
@@ -434,11 +386,6 @@ let private unitOk
   (result : Result<unit, int * string>)
   : Result<Response, int * string> =
   result |> Result.map (fun () -> Response.Unit)
-
-let private processOutcome
-  (result : Result<int * string * string, int * string>)
-  : Result<Response, int * string> =
-  result |> Result.map Response.ProcessOutcome
 
 let private fileCheck
   (access : Permission.AccessKind)
@@ -619,7 +566,7 @@ let private resolvePosix
     match session with
     | None -> Response.Fd fd
     | Some owner ->
-      owner.Register { fd = fd; paths = []; reads = true; writes = false }
+      owner.Register { fd = fd; paths = []; processes = []; reads = true; writes = false }
       |> Response.Descriptor
   match op with
   | HostTypes.PosixOp.InotifyInit1 flags ->
@@ -771,6 +718,7 @@ let private resolvePosix
           owner.Register
             { fd = fd
               paths = [ path ]
+              processes = []
               reads = accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR
               writes = accessMode = HostPosix.O_WRONLY || accessMode = HostPosix.O_RDWR }
         Response.Descriptor token
@@ -935,27 +883,10 @@ let private resolve (op : Operation) : Result<Resolved, string> =
     withChecks
       [ (Permission.Request.httpServer port, $"binding HTTP server port {port}") ]
       (attempt (fun () -> bindHttpServer port))
-  | Operation.ProcessRun(program, args, timeoutMs) ->
-    resolveProcess program args (fun program args ->
-      blocking (fun () -> HostProcess.run program args timeoutMs |> processOutcome))
-  | Operation.ProcessRunInteractive(program, args) ->
-    resolveProcess program args (fun program args ->
-      attempt (fun () ->
-        Ok(
-          Response.ProcessOutcome(HostProcess.runInteractive program args, "", "")
-        )))
-  | Operation.ProcessSpawn(program, args) ->
-    resolveProcess program args (fun program args ->
-      produce (fun () -> Response.ProcessHandle(HostProcess.spawn program args)))
-  | Operation.ProcessIO(handle, input) ->
-    unchecked (
-      blocking (fun () -> Ok(Response.ProcessOutcome(HostProcess.io handle input)))
-    )
-  | Operation.ProcessTerminate handle ->
-    unchecked (
-      produce (fun () -> Response.ProcessOutcome(HostProcess.terminate handle))
-    )
   | Operation.Posix op -> resolvePosix None op
+  | Operation.ChildStart _ | Operation.ChildDescriptors _ | Operation.ChildPoll _ | Operation.ChildWait _
+  | Operation.ChildKill _ | Operation.ChildClose _ | Operation.ChildClosePort _
+  | Operation.ChildBufferGet _ | Operation.ChildBufferSet _ -> Error "child operation requires execution ownership"
 
 // ── perform ───────────────────────────────────────────────────────────────────
 
@@ -1012,15 +943,10 @@ let private browserRefusal (op : Operation) : Option<Outcome> =
     None
   else
     match op with
-    | Operation.ProcessRun _
-    | Operation.ProcessRunInteractive _
-    | Operation.ProcessSpawn _
-    | Operation.ProcessIO _
-    | Operation.ProcessTerminate _ ->
-      Some(
-        Outcome.Rejected
-          "running another program is not available in the browser: a tab has no processes"
-      )
+    | Operation.ChildStart _ | Operation.ChildDescriptors _ | Operation.ChildPoll _ | Operation.ChildWait _
+    | Operation.ChildKill _ | Operation.ChildClose _ | Operation.ChildClosePort _
+    | Operation.ChildBufferGet _ | Operation.ChildBufferSet _ ->
+      Some(Outcome.Rejected "running another program is not available in the browser: a tab has no processes")
     // A failure rather than a rejection: `serve` already answers a failed bind with a
     // Result error, which the CLI prints. A rejection raises, and at the interactive
     // prompt a raise from a command ends the session, so the refusal took the tab with it.
@@ -1134,7 +1060,10 @@ let private resolveSessionPosix
                   if entry.writes then Permission.AccessKind.Write
                   else Permission.AccessKind.Read
                 | Cleanup -> Exception.raiseInternal "cleanup has no resource check" []
-              (entry.paths |> List.map (fileCheck access)) @ checks
+              (entry.paths |> List.map (fileCheck access))
+              @ (entry.processes |> List.map (fun (program, args) ->
+                Permission.Request.processSpawn program args, $"using child `{program}`"))
+              @ checks
           collect checks (Map.add token entry.fd bindings) raw rest
   // A scoped queue cannot retain authority for an unowned raw vnode: its
   // checked path is unknown. Fully raw calls remain available behind Native.
@@ -1165,6 +1094,23 @@ let private resolveSessionPosix
             |> List.filter (fun (request, _) ->
               Permission.Request.effect request <> LibExecution.Effects.Effect.Native)
           else resolved.checks
+        // Waiting for owned child IO is already authorized by that child's
+        // retained executable/argv grant, just like the managed launcher was.
+        // Raw descriptors and file/watch queues still require Clock. This keeps
+        // Process.run usable under a narrow process-only policy.
+        let ownedChildPoll =
+          match op with
+          | HostTypes.PosixOp.Ppoll(descriptors, _) | HostTypes.PosixOp.PollDarwin(descriptors, _) ->
+            descriptors <> [] && (descriptors |> List.forall (function
+              | HostTypes.FileDescriptor.Scoped token, _ ->
+                session |> Option.bind (fun owner -> owner.Find token)
+                |> Option.exists (fun entry -> entry.paths = [] && entry.processes <> [])
+              | _ -> false))
+          | _ -> false
+        let baseChecks =
+          if ownedChildPoll then baseChecks |> List.filter (fun (request, _) ->
+            Permission.Request.effect request <> LibExecution.Effects.Effect.Clock)
+          else baseChecks
         let execute () =
           match op, session with
           | HostTypes.PosixOp.FdClose(HostTypes.FileDescriptor.Scoped token), Some owner ->
@@ -1188,6 +1134,92 @@ let private performWithSession
       | Some refused -> Task.FromResult refused
       | None ->
         match op with
+        | Operation.ChildStart(program, args, inheritTerminal) ->
+          match session with
+          | None -> Task.FromResult invalidDescriptor
+          | Some owner ->
+            match resolveProcess program args (fun program args ->
+              blocking (fun () ->
+                HostProcess.startChild program args inheritTerminal
+                |> owner.RegisterChild |> Response.ChildHandle |> Ok)) with
+            | Error message -> Task.FromResult(Outcome.Rejected message)
+            | Ok resolved ->
+              match firstDenial relax access resolved.checks with
+              | Some denied -> Task.FromResult denied
+              | None -> execute resolved.execute
+        | Operation.ChildWait handle ->
+          let prepare () =
+            match session |> Option.bind (fun owner -> owner.FindChild handle) with
+            | None -> Error invalidDescriptor
+            | Some entry ->
+              match withChecks
+                      [ Permission.Request.processSpawn entry.child.program entry.child.args,
+                        $"waiting for child `{entry.child.program}`" ] (produce (fun () -> Response.Unit)) with
+              | Error message -> Error(Outcome.Rejected message)
+              | Ok resolved ->
+                match firstDenial relax access resolved.checks with
+                | Some denied -> Error denied
+                | None -> Ok(HostProcess.prepareChildWait entry.child)
+          Task.Run(fun () ->
+            try
+              let prepared = match session with
+                             | Some owner -> owner.WithChildLease(handle, prepare)
+                             | None -> prepare ()
+              match prepared with
+              | Error outcome -> outcome
+              | Ok wait -> Outcome.Success(Response.ChildStatus(Some (wait ())))
+            with e -> Outcome.Failed(classify e))
+        | Operation.ChildDescriptors handle | Operation.ChildPoll handle
+        | Operation.ChildKill handle | Operation.ChildClose handle
+        | Operation.ChildClosePort(handle, _) | Operation.ChildBufferGet(handle, _)
+        | Operation.ChildBufferSet(handle, _, _) ->
+          let run () =
+            match session |> Option.bind (fun owner -> owner.FindChild handle) with
+            | None -> invalidDescriptor
+            | Some entry ->
+              let checks =
+                match op with
+                | Operation.ChildClose _ | Operation.ChildClosePort _ -> []
+                | _ ->
+                  let request =
+                    match Permission.Request.processSpawn entry.child.program entry.child.args with
+                    | Ok request -> request
+                    | Error message -> Exception.raiseInternal "invalid retained process grant" [ "message", message ]
+                  [ request, $"using child `{entry.child.program}`" ]
+              match firstDenial relax access checks with
+              | Some denied -> denied
+              | None ->
+                try
+                  match op with
+                  | Operation.ChildDescriptors _ -> Outcome.Success(Response.ChildDescriptors entry.ports)
+                  | Operation.ChildPoll _ -> Outcome.Success(Response.ChildStatus(HostProcess.pollChild entry.child))
+                  | Operation.ChildKill _ ->
+                    HostProcess.killChild entry.child
+                    Outcome.Success Response.Unit
+                  | Operation.ChildClose _ ->
+                    session |> Option.iter (fun owner -> owner.CloseChild handle)
+                    Outcome.Success Response.Unit
+                  | Operation.ChildClosePort(_, index) ->
+                    match session with
+                    | Some owner ->
+                      match owner.CloseChildPort(handle, index) with
+                      | Ok () -> Outcome.Success Response.Unit
+                      | Error(errno, message) -> Outcome.Failed { kind = FailureKind.Other; errno = errno; message = message }
+                    | None -> invalidDescriptor
+                  | Operation.ChildBufferGet(_, index) ->
+                    if index < 0 || index > 1 then invalidDescriptor
+                    else Outcome.Success(Response.Bytes entry.buffers[index])
+                  | Operation.ChildBufferSet(_, index, bytes) ->
+                    if index < 0 || index > 1 then invalidDescriptor
+                    else
+                      entry.buffers[index] <- bytes
+                      Outcome.Success Response.Unit
+                  | _ -> Exception.raiseInternal "unexpected child operation" []
+                with e -> Outcome.Failed(classify e)
+          Task.Run(fun () ->
+            match session with
+            | Some owner -> owner.WithChildLease(handle, run)
+            | None -> run ())
         | Operation.Posix posix ->
           let resolve () = resolveSessionPosix session posix
           let run () =

@@ -164,7 +164,7 @@ let descriptorLeasesDoNotSerializeUnrelatedFiles =
     let release = new System.Threading.ManualResetEventSlim(false)
     let owner = new LibExecution.HostDescriptors.Session(fun _ -> Ok ())
     let entry fd : LibExecution.HostDescriptors.Entry =
-      { fd = fd; paths = [ "/tmp/lease-test" ]; reads = true; writes = false }
+      { fd = fd; paths = [ "/tmp/lease-test" ]; processes = []; reads = true; writes = false }
     let first = owner.Register(entry 100)
     let second = owner.Register(entry 101)
     let held = System.Threading.Tasks.Task.Run(fun () ->
@@ -185,6 +185,90 @@ let descriptorLeasesDoNotSerializeUnrelatedFiles =
       owner.Dispose()
       entered.Dispose()
       release.Dispose()
+  }
+
+let ownedChildrenRetainScopedProcessAuthority =
+  testTask "owned children and pipes recheck process grants and execution ownership" {
+    if System.OperatingSystem.IsLinux() || System.OperatingSystem.IsMacOS() then
+      let owner = LibExecution.Host.createDescriptorSession ()
+      let foreign = LibExecution.Host.createDescriptorSession ()
+      let program = "/bin/sh"
+      let args = [ "-c"; "read line; printf '%s' \"$line\"" ]
+      let access = Permission.Policy.create
+                     [ Permission.Rule.Process { executable = only program; args = only args } ] []
+                   |> Permission.Access.start
+      let denied = Permission.Access.start Permission.Policy.denyAll
+      let perform session access op = LibExecution.Host.performInSession session Permission.NoRelax access op
+      let ebadf outcome =
+        match outcome with
+        | HT.Outcome.Failed error -> Expect.equal error.errno 9 "foreign or closed token"
+        | other -> failtestf "expected EBADF, got %A" other
+      let revoked outcome =
+        match outcome with
+        | HT.Outcome.Denied _ -> ()
+        | other -> failtestf "expected current process permission denial, got %A" other
+      try
+        let! started = perform owner access (HT.Operation.ChildStart(program, args, false))
+        let child = match started with
+                    | HT.Outcome.Success(HT.Response.ChildHandle token) -> token
+                    | other -> failtestf "expected owned launch without Native/File permissions, got %A" other
+        let! ports = perform owner access (HT.Operation.ChildDescriptors child)
+        let stdin, stdout = match ports with
+                            | HT.Outcome.Success(HT.Response.ChildDescriptors [ stdin; stdout; _ ]) -> stdin, stdout
+                            | other -> failtestf "expected owned pipe descriptors, got %A" other
+        let! stolen = perform foreign (Permission.Access.start Permission.Policy.allowAll) (HT.Operation.ChildPoll child)
+        ebadf stolen
+        let! deniedPoll = perform owner denied (HT.Operation.ChildPoll child)
+        revoked deniedPoll
+        let! deniedRead = perform owner denied (HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)))
+        revoked deniedRead
+        let! written = perform owner access (HT.Operation.Posix(HT.PosixOp.FdWrite(HT.FileDescriptor.Scoped stdin, [| 104uy; 105uy; 10uy |])))
+        Expect.equal written (HT.Outcome.Success(HT.Response.Written 3)) "owned pipe write needs only the retained process grant"
+        do! System.Threading.Tasks.Task.Delay 100
+        let! read = perform owner access (HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)))
+        Expect.equal read (HT.Outcome.Success(HT.Response.Bytes [| 104uy;105uy |])) "raw bytes, no host capture algorithm"
+        let! closedPort = perform owner denied (HT.Operation.ChildClosePort(child, 0))
+        Expect.equal closedPort (HT.Outcome.Success HT.Response.Unit) "pipe cleanup needs no revoked grant"
+        let! closed = perform owner denied (HT.Operation.ChildClose child)
+        Expect.equal closed (HT.Outcome.Success HT.Response.Unit) "owned child cleanup needs no revoked grant"
+        let! stale = perform owner access (HT.Operation.ChildPoll child)
+        ebadf stale
+        let! staleFd = perform owner access (HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)))
+        ebadf staleFd
+      finally
+        owner.Dispose()
+        foreign.Dispose()
+  }
+
+let ownedChildWaitAllowsCleanup =
+  testTask "blocking child wait releases the child lease so cleanup can terminate it" {
+    if System.OperatingSystem.IsLinux() || System.OperatingSystem.IsMacOS() then
+      let owner = LibExecution.Host.createDescriptorSession ()
+      let all = Permission.Access.start Permission.Policy.allowAll
+      let denied = Permission.Access.start Permission.Policy.denyAll
+      let perform access op = LibExecution.Host.performInSession owner Permission.NoRelax access op
+      try
+        let! started = perform all (HT.Operation.ChildStart("/bin/sh", [ "-c"; "sleep 10" ], true))
+        let token = match started with
+                    | HT.Outcome.Success(HT.Response.ChildHandle token) -> token
+                    | other -> failtestf "expected launch, got %A" other
+        let child = owner.FindChild token |> Option.get
+        let waiting = perform all (HT.Operation.ChildWait token)
+        Expect.isTrue
+          (System.Threading.SpinWait.SpinUntil((fun () -> lock child.child.waitGate (fun () -> child.child.waiters > 0)), 2000))
+          "wait retains the managed supervisor before releasing the ownership lease"
+        let closing = perform denied (HT.Operation.ChildClose token)
+        let! winner = System.Threading.Tasks.Task.WhenAny(closing, System.Threading.Tasks.Task.Delay 2000)
+        Expect.isTrue (obj.ReferenceEquals(winner, closing)) "cleanup must not block behind the child wait"
+        let! closed = closing
+        Expect.equal closed (HT.Outcome.Success HT.Response.Unit) "cleanup after revocation"
+        let! finished = System.Threading.Tasks.Task.WhenAny(waiting, System.Threading.Tasks.Task.Delay 2000)
+        Expect.isTrue (obj.ReferenceEquals(finished, waiting)) "termination unblocks the retained waiter"
+        let! outcome = waiting
+        match outcome with
+        | HT.Outcome.Success(HT.Response.ChildStatus(Some _)) -> ()
+        | other -> failtestf "expected supervised completion, got %A" other
+      finally owner.Dispose()
   }
 
 let watchQueuesRetainScopedPathAuthority =
@@ -643,6 +727,8 @@ let tests =
       rawDescriptorsRequireNativeAtHostBoundary
       scopedDescriptorsRecheckAccessAndOwnership
       descriptorLeasesDoNotSerializeUnrelatedFiles
+      ownedChildrenRetainScopedProcessAuthority
+      ownedChildWaitAllowsCleanup
       watchQueuesRetainScopedPathAuthority
       systemFactsDoNotGrantSensitiveQueries
       rawClocksRequireClockPermission

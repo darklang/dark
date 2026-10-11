@@ -7,7 +7,12 @@ module OS =
     | MacOS
     | Windows
 
-  let getOS () : Stdlib.Result.Result<OS, String> = Builtin.cliGetOS ()
+  let getOS () : Stdlib.Result.Result<OS, String> =
+    match Runtime.targetOS () with
+    | "linux" -> Ok Linux
+    | "darwin" -> Ok MacOS
+    | "windows" -> Ok Windows
+    | _ -> Error "Unsupported operating system"
 
 
 module Architecture =
@@ -19,54 +24,13 @@ module Architecture =
     | Armv7l
 
   let getArchitecture () : Stdlib.Result.Result<Architecture, String> =
-    match OS.getOS () with
-    | Ok Linux ->
-      let arch = Stdlib.Cli.execute "uname -m"
-
-      if arch.exitCode == 0 then
-        let arch = arch.stdout |> Stdlib.String.trim
-
-        match arch with
-        | "x86_64" -> Stdlib.Result.Result.Ok Architecture.X86_64
-        | "aarch64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
-        | "arm" -> Stdlib.Result.Result.Ok Architecture.Arm
-        | "arm64" -> Stdlib.Result.Result.Ok Architecture.Arm64
-        | "armv7l" -> Stdlib.Result.Result.Ok Architecture.Armv7l
-        | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
-      else
-        Stdlib.Result.Result.Error arch.stderr
-
-    | Ok MacOS ->
-      let arch = Stdlib.Cli.execute "uname -m"
-
-      if arch.exitCode == 0 then
-        let arch = arch.stdout |> Stdlib.String.trim
-
-        match arch with
-        | "x86_64" -> Stdlib.Result.Result.Ok Architecture.X86_64
-        | "aarch64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
-        | "arm64" -> Stdlib.Result.Result.Ok Architecture.Arm64
-        | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
-      else
-        Stdlib.Result.Result.Error arch.stderr
-
-    | Ok Windows ->
-      let arch =
-        Stdlib.Cli.execute
-          "powershell.exe -Command \"$env:PROCESSOR_ARCHITECTURE\""
-
-      if arch.exitCode == 0 then
-        let arch = arch.stdout |> Stdlib.String.trim
-
-        match arch with
-        | "AMD64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
-        | "x86" -> Stdlib.Result.Result.Ok Architecture.X86_64
-        | "ARM64" -> Stdlib.Result.Result.Ok Architecture.Arm64
-        | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
-      else
-        Stdlib.Result.Result.Error arch.stderr
-
-    | Error e -> Stdlib.Result.Result.Error e
+    match Runtime.targetArchitecture () with
+    | "x64" -> Ok Architecture.X86_64
+    | "arm64" ->
+      if Runtime.targetOS () == "darwin" then Ok Architecture.Arm64
+      else Ok Architecture.Aarch64
+    | "arm" -> Ok Architecture.Arm
+    | _ -> Error "Unsupported architecture"
 
 
 module Shell =
@@ -81,7 +45,7 @@ module Shell =
   let getDefaultShell () : Stdlib.Result.Result<Shell, String> =
     match OS.getOS () with
     | Ok Linux ->
-      (Stdlib.Cli.executeWithStdOutOrStdErr "echo $SHELL")
+      (Stdlib.Result.Result.Ok (Stdlib.Option.withDefault (Stdlib.Cli.Env.get "SHELL") "/bin/bash"))
       |> Stdlib.Result.andThen (fun shell ->
         match Stdlib.String.trim shell with
         | "/bin/bash" -> Stdlib.Result.Result.Ok Shell.Bash
@@ -93,7 +57,7 @@ module Shell =
             "Unsupported shell, if you are on Linux please use Bash, Zsh, or Fish")
 
     | Ok MacOS ->
-      (Stdlib.Cli.executeWithStdOutOrStdErr "echo $SHELL")
+      (Stdlib.Result.Result.Ok (Stdlib.Option.withDefault (Stdlib.Cli.Env.get "SHELL") "/bin/bash"))
       |> Stdlib.Result.andThen (fun shell ->
         match Stdlib.String.trim shell with
         | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh

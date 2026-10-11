@@ -105,12 +105,6 @@ let private fileWriteEffect = set [ Effect.FileWrite ]
 /// a file's owner) is a read of that path, checked at the boundary.
 let private nativeEffects = set [ Effect.Native ]
 
-let private processOutcomeKT = KTTuple(VT.int, VT.string, [ VT.string ])
-
-let private processOutcomeOk (response : Host.Response) : Dval =
-  let exitCode, stdout, stderr = Host.expectProcessOutcome response
-  DTuple(Dval.int (bigint exitCode), DString stdout, [ DString stderr ])
-
 let fns () : List<BuiltInFn> =
   [ { name = fn "runtimeTargetOS" 0
       typeParams = []
@@ -350,72 +344,6 @@ let fns () : List<BuiltInFn> =
 
 
 
-    { name = fn "posixSpawnAndWait" 0
-      typeParams = []
-      parameters =
-        [ Param.make "program" TString "Path to the executable"
-          Param.make "args" (TList TString) "Arguments to pass"
-          Param.make
-            "timeoutMs"
-            (TypeReference.option TInt)
-            "Kill the child and fail with ETIMEDOUT after this many milliseconds; None waits" ]
-      returnType =
-        TypeReference.result
-          (TTuple(TInt, TString, [ TString ]))
-          (posixErrorTypeRef ())
-      description =
-        "Spawns a child process, waits for it to finish, returns (exitCode, stdout, stderr)."
-      fn =
-        (function
-        | _, vm, _, [| DString program; DList(_, args); timeout |] ->
-          let argStrs =
-            args
-            |> List.map (fun d ->
-              match d with
-              | DString s -> s
-              | _ -> incorrectArgs ())
-          let timeoutMs =
-            match timeout with
-            | DEnum(_, _, _, "Some", [ DInt ms ]) -> Some(intToInt32 vm ms)
-            | DEnum(_, _, _, "None", []) -> None
-            | _ -> incorrectArgs ()
-          let op = Host.Operation.ProcessRun(program, argStrs, timeoutMs)
-          asResult processOutcomeKT vm op processOutcomeOk
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.Process ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixSpawnInteractive" 0
-      typeParams = []
-      parameters =
-        [ Param.make "program" TString "Path to the executable"
-          Param.make "args" (TList TString) "Arguments to pass" ]
-      returnType = TypeReference.result TInt (posixErrorTypeRef ())
-      description =
-        "Runs a child process on this terminal, inheriting stdin/stdout/stderr, and "
-        + "returns its exit code. For programs that DRAW, like an editor: capturing "
-        + "their output would leave them painting into a pipe."
-      fn =
-        (function
-        | _, vm, _, [| DString program; DList(_, args) |] ->
-          let argStrs =
-            args
-            |> List.map (fun d ->
-              match d with
-              | DString s -> s
-              | _ -> incorrectArgs ())
-          let op = Host.Operation.ProcessRunInteractive(program, argStrs)
-          asResult KTInt vm op (fun response ->
-            let (exitCode, _, _) = Host.expectProcessOutcome response
-            Dval.int (bigint exitCode))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.Process ]
-      deprecated = NotDeprecated }
 
 
     { name = fn "syscallKill" 0

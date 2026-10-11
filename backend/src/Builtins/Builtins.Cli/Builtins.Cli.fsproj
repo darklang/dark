@@ -10,10 +10,10 @@
     <Compile Include="Libs/Directory.fs" />
     <Compile Include="Libs/Environment.fs" />
     <Compile Include="Libs/Output.fs" />
-    <Compile Include="Libs/Execution.fs" />
     <Compile Include="Libs/Stdin.fs" />
     <Compile Include="Libs/Posix.fs" />
     <Compile Include="Libs/Syscall.fs" />
+    <Compile Include="Libs/RuntimeChild.fs" />
     <Compile Include="Libs/TerminalText.fs" />
     <Compile Include="Libs/Terminal.fs" />
     <Compile Include="Builtin.fs" />

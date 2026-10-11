@@ -49,6 +49,9 @@ let read_raw (fd : int, bytes : byte[], count : int) =
 let write_raw (fd : int, bytes : byte[], count : int) =
   withBytes bytes (fun p -> int (call 2 (int64 fd) p (int64 count) 0L 0L 0L))
 let close_raw (fd : int) = int (call 3 (int64 fd) 0L 0L 0L 0L 0L)
+// Private launcher plumbing, not a guest generic-fcntl escape hatch.
+let fcntl_raw (fd : int, command : int, argument : int) =
+  int (call 48 (int64 fd) (int64 command) (int64 argument) 0L 0L 0L)
 let getcwdBytes_raw (bytes : byte[]) =
   withBytes bytes (fun p -> int (call 6 p (int64 bytes.Length) 0L 0L 0L 0L))
 let fcntlGetPath_raw (fd : int, bytes : byte[]) =
