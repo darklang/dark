@@ -448,6 +448,19 @@ let private withLinuxMetadataDescriptor
 let private withLinuxMetadataPath path action =
   withLinuxMetadataDescriptor path (fun fd -> action $"/proc/self/fd/{fd}")
 
+let fclonefileAt source path flags : Result<unit, int * string> =
+  if isWasm then Managed.enosys ()
+  elif not isMac then Error(38, "fclonefileat is unavailable")
+  else
+    let metadata = Array.zeroCreate<byte> 256
+    if fstat_raw (source, metadata) < 0 then failed ()
+    // A single-file capability must never authorize recursive directory clone.
+    elif int (BitConverter.ToUInt16(metadata, 4)) &&& 0o170000 <> 0o100000 then
+      Error(21, "file clone requires a regular source file")
+    else
+      withParent path (fun parent name ->
+        if fclonefileat_raw (source, parent, name, flags ||| 1) < 0 then failed () else Ok ())
+
 let inotifyInit1 flags : Result<int, int * string> =
   if isWasm then Managed.enosys ()
   else
@@ -488,6 +501,33 @@ let pollDescriptors darwin (fds : List<int * int>) timeoutMs : Result<byte[], in
           BitConverter.GetBytes(int64 ((timeoutMs % 1000) * 1000000)).CopyTo(timeout, width)
         ppoll_raw (bytes, List.length fds, timeout)
     if rc < 0 then failed () else Ok (bytes |> Array.take (List.length fds * 8))
+
+let kqueue () : Result<int, int * string> =
+  if isWasm then Managed.enosys ()
+  else
+    let fd = kqueue_raw ()
+    if fd < 0 then failed () else Ok fd
+
+let keventVnode fd (changes : List<int * int * int>) capacity timeoutMs : Result<byte[], int * string> =
+  if isWasm then Managed.enosys ()
+  elif capacity < 0 || capacity > 1024 || timeoutMs < 0 || List.length changes > 1024
+       || List.exists (fun (_, flags, mask) -> flags < 0 || flags > 65535 || mask < 0) changes then
+    Error(22, "invalid kevent arguments")
+  else
+    let input = Array.zeroCreate<byte> (max 1 (List.length changes * 32))
+    changes |> List.iteri (fun index (source, flags, mask) ->
+      BitConverter.GetBytes(int64 source).CopyTo(input, index * 32)
+      BitConverter.GetBytes(-4s).CopyTo(input, index * 32 + 8)
+      BitConverter.GetBytes(uint16 flags).CopyTo(input, index * 32 + 10)
+      BitConverter.GetBytes(mask).CopyTo(input, index * 32 + 12))
+    let output = Array.zeroCreate<byte> (max 1 (capacity * 32))
+    let timeout = Array.zeroCreate<byte> 16
+    BitConverter.GetBytes(int64 (timeoutMs / 1000)).CopyTo(timeout, 0)
+    BitConverter.GetBytes(int64 ((timeoutMs % 1000) * 1000000)).CopyTo(timeout, 8)
+    let count = kevent_raw (fd, input, List.length changes, output, capacity, timeout)
+    if count < 0 then failed ()
+    elif count > capacity then Error(5, "invalid kevent count")
+    else Ok (Array.take (count * 32) output)
 
 let chmod (path : string) (mode : int) : Result<unit, int * string> =
   if isWasm then

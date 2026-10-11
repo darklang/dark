@@ -79,6 +79,8 @@ let rawDescriptorsRequireNativeAtHostBoundary =
         HT.PosixOp.FdWrite(HT.FileDescriptor.Raw -1, [| 1uy |])
         HT.PosixOp.FdClose(HT.FileDescriptor.Raw -1)
         HT.PosixOp.Fstat(HT.FileDescriptor.Raw -1)
+        HT.PosixOp.Ppoll([ HT.FileDescriptor.Raw -1, 1 ], 0)
+        HT.PosixOp.KeventVnode(HT.FileDescriptor.Raw -1, [], 1, 0)
         HT.PosixOp.CopyFileRange(HT.FileDescriptor.Raw -1, HT.FileDescriptor.Raw -1, 1) ]
     for operation in operations do
       let! outcome =
@@ -125,6 +127,9 @@ let scopedDescriptorsRecheckAccessAndOwnership =
         | HT.Outcome.Success(HT.Response.Descriptor token) -> token
         | other -> failtestf "expected scoped open without Native, got %A" other
       let fd = HT.FileDescriptor.Scoped token
+      let! unownedVnode = perform owner all
+                           (HT.PosixOp.KeventVnode(fd, [ HT.FileDescriptor.Raw -1, 37, 127 ], 0, 0))
+      ebadf unownedVnode
       let! read = perform owner readOnly (HT.PosixOp.FdRead(fd, 3))
       match read with
       | HT.Outcome.Success(HT.Response.Bytes bytes) -> Expect.equal bytes [| 97uy; 98uy; 99uy |] "read bytes"

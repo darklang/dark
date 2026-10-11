@@ -435,7 +435,8 @@ let watch
   : Result.Result<Unit, Posix.Error> =
   if intervalMs <= 0.0 then Error (Posix.Errors.fromErrno 22)
   else if Runtime.targetOS () == "linux" then
-    match FileWatch.linux path (Stdlib.Float.toInt intervalMs) shouldStop fn with
+    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt intervalMs
+    match FileWatch.linux path waitMs shouldStop fn with
     | Ok () -> Ok ()
     | Error e ->
       // Kernel/procfs support can be absent in constrained hosts. The fallback
@@ -445,6 +446,10 @@ let watch
         | Ok mtime -> watchLoop path intervalMs mtime shouldStop fn
         | Error error -> Error error
       else Error (Posix.Errors.fromErrno e)
+  else if Runtime.targetOS () == "darwin" then
+    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt intervalMs
+    FileWatch.darwin path waitMs shouldStop fn
+    |> Stdlib.Result.mapError Posix.Errors.fromErrno
   else
     match getModifiedTime path with
     | Ok mtime -> watchLoop path intervalMs mtime shouldStop fn

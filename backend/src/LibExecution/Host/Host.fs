@@ -615,15 +615,29 @@ let private resolvePosix
   : Result<Resolved, string> =
   let read = Permission.AccessKind.Read
   let write = Permission.AccessKind.Write
+  let queue fd =
+    match session with
+    | None -> Response.Fd fd
+    | Some owner ->
+      owner.Register { fd = fd; paths = []; reads = true; writes = false }
+      |> Response.Descriptor
   match op with
   | HostTypes.PosixOp.InotifyInit1 flags ->
     unchecked (attempt (fun () ->
-      HostPosix.inotifyInit1 flags |> Result.map (fun fd ->
-        match session with
-        | None -> Response.Fd fd
-        | Some owner ->
-          owner.Register { fd = fd; paths = []; reads = true; writes = false }
-          |> Response.Descriptor)))
+      HostPosix.inotifyInit1 flags |> Result.map queue))
+  | HostTypes.PosixOp.Kqueue ->
+    unchecked (attempt (fun () -> HostPosix.kqueue () |> Result.map queue))
+  | HostTypes.PosixOp.KeventVnode(fd, changes, capacity, timeout) ->
+    let changes = changes |> List.map (fun (source, flags, mask) -> rawDescriptor source, flags, mask)
+    withChecks
+      [ (Permission.Request.native "raw POSIX operation", "raw POSIX operation")
+        (Ok Permission.Request.clock, "waiting for vnode events") ]
+      (blocking (fun () ->
+        HostPosix.keventVnode (rawDescriptor fd) changes capacity timeout
+        |> Result.map (fun bytes ->
+          session |> Option.iter (fun owner ->
+            owner.WatchDescriptors(rawDescriptor fd, changes |> List.map (fun (source, _, _) -> source)))
+          Response.Bytes bytes)))
   | HostTypes.PosixOp.InotifyAddWatch(fd, path, mask) ->
     guarded false path (fun path ->
       withChecks
@@ -698,6 +712,12 @@ let private resolvePosix
       HostPosix.copyFileRange (rawDescriptor source) (rawDescriptor destination) count |> Result.map Response.Offset)
   | HostTypes.PosixOp.CloneFile(source, destination) ->
     native (fun () -> HostPosix.cloneFile (rawDescriptor source) (rawDescriptor destination) |> unitOk)
+  | HostTypes.PosixOp.FclonefileAt(source, destination, flags) ->
+    guarded true destination (fun path ->
+      withChecks
+        [ fileCheck write path
+          (Permission.Request.native "raw POSIX operation", "raw POSIX operation") ]
+        (attempt (fun () -> HostPosix.fclonefileAt (rawDescriptor source) path flags |> unitOk)))
   | HostTypes.PosixOp.Ftruncate(fd, length) ->
     native (fun () -> HostPosix.ftruncate (rawDescriptor fd) length |> unitOk)
   | HostTypes.PosixOp.Fchmod(fd, mode) ->
@@ -1022,6 +1042,9 @@ let private descriptorUses (op : HostTypes.PosixOp) =
   let read fd = [ fd, Read ]
   let write fd = [ fd, Write ]
   match op with
+  | HostTypes.PosixOp.FclonefileAt(source, _, _) -> read source
+  | HostTypes.PosixOp.KeventVnode(queue, changes, _, _) ->
+    (queue, Metadata) :: (changes |> List.map (fun (fd, _, _) -> fd, Read))
   | HostTypes.PosixOp.InotifyAddWatch(fd, _, _) -> [ fd, Metadata ]
   | HostTypes.PosixOp.Ppoll(fds, _)
   | HostTypes.PosixOp.PollDarwin(fds, _) -> fds |> List.map (fun (fd, _) -> fd, Metadata)
@@ -1045,6 +1068,9 @@ let private descriptorUses (op : HostTypes.PosixOp) =
 
 let private mapDescriptors map (op : HostTypes.PosixOp) =
   match op with
+  | HostTypes.PosixOp.FclonefileAt(source, destination, flags) -> HostTypes.PosixOp.FclonefileAt(map source, destination, flags)
+  | HostTypes.PosixOp.KeventVnode(queue, changes, capacity, timeout) ->
+    HostTypes.PosixOp.KeventVnode(map queue, changes |> List.map (fun (fd, flags, mask) -> map fd, flags, mask), capacity, timeout)
   | HostTypes.PosixOp.InotifyAddWatch(fd, path, mask) -> HostTypes.PosixOp.InotifyAddWatch(map fd, path, mask)
   | HostTypes.PosixOp.Ppoll(fds, timeout) ->
     HostTypes.PosixOp.Ppoll(fds |> List.map (fun (fd, events) -> map fd, events), timeout)
@@ -1110,7 +1136,14 @@ let private resolveSessionPosix
                 | Cleanup -> Exception.raiseInternal "cleanup has no resource check" []
               (entry.paths |> List.map (fileCheck access)) @ checks
           collect checks (Map.add token entry.fd bindings) raw rest
-  match collect [] Map.empty false uses with
+  // A scoped queue cannot retain authority for an unowned raw vnode: its
+  // checked path is unknown. Fully raw calls remain available behind Native.
+  let unownedVnode =
+    match op with
+    | HostTypes.PosixOp.KeventVnode(HostTypes.FileDescriptor.Scoped _, changes, _, _) ->
+      changes |> List.exists (function HostTypes.FileDescriptor.Raw _, _, _ -> true | _ -> false)
+    | _ -> false
+  match (if unownedVnode then Error invalidDescriptor else collect [] Map.empty false uses) with
   | Error outcome -> Error outcome
   | Ok(checks, bindings, raw) ->
     let normalized =

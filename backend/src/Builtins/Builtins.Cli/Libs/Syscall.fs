@@ -77,7 +77,25 @@ let private poll name constructor =
       | _ -> incorrectArgs ())
 
 let fns () : List<BuiltInFn> =
-  [ make "syscallInotifyInit1" [ integer "flags" ] TInt KTInt
+  [ make "syscallKqueue" [ Param.make "unit" TUnit "" ] TInt KTInt
+      (fun _ vm values ->
+        match values with
+        | [| DUnit |] -> perform KTInt vm Op.PosixOp.Kqueue (Host.expectDescriptor >> Dval.int)
+        | _ -> incorrectArgs ())
+    make "syscallKeventVnode"
+      [ integer "queue"; Param.make "changes" (TList(TTuple(TInt, TInt, [ TInt ]))) "fd, flags, vnode mask"
+        integer "capacity"; integer "timeoutMs" ] TBlob KTBlob
+      (fun _ vm values ->
+        match values with
+        | [| DInt queue; DList(_, changes); DInt capacity; DInt timeout |] ->
+          let changes = changes |> List.map (function
+            | DTuple(DInt fd, DInt flags, [ DInt mask ]) ->
+              intToDescriptor vm fd, intToInt32 vm flags, intToInt32 vm mask
+            | _ -> incorrectArgs ())
+          perform KTBlob vm (Op.PosixOp.KeventVnode(intToDescriptor vm queue, changes,
+            intToInt32 vm capacity, intToInt32 vm timeout)) bytes
+        | _ -> incorrectArgs ())
+    make "syscallInotifyInit1" [ integer "flags" ] TInt KTInt
       (fun _ vm values ->
         match values with
         | [| DInt flags |] ->
@@ -169,6 +187,12 @@ let fns () : List<BuiltInFn> =
         | [| DInt source; DInt destination |] ->
           perform KTUnit vm
             (Op.PosixOp.CloneFile(intToDescriptor vm source, intToDescriptor vm destination)) unit
+        | _ -> incorrectArgs ())
+    make "syscallFclonefileAt" [ integer "source"; Param.make "destination" TString "Checked destination path"; integer "flags" ] TUnit KTUnit
+      (fun _ vm values ->
+        match values with
+        | [| DInt source; DString destination; DInt flags |] ->
+          perform KTUnit vm (Op.PosixOp.FclonefileAt(intToDescriptor vm source, destination, intToInt32 vm flags)) unit
         | _ -> incorrectArgs ())
     make "syscallFtruncate" [ integer "fd"; integer "length" ] TUnit KTUnit
       (fun _ vm values ->

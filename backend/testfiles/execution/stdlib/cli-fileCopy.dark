@@ -2,6 +2,7 @@ module Tests
 
 Stdlib.Cli.FileCopy.writeAt (fun _ _ -> Ok 1) (Stdlib.Blob.fromString "abc") 0 = Ok ()
 Stdlib.Cli.FileCopy.writeAt (fun _ _ -> Ok 0) (Stdlib.Blob.fromString "abc") 0 = Error 5
+Stdlib.Cli.Dir.withTemp (fun dir -> let destination = Stdlib.String.append dir "/not-a-file" in let copied = Stdlib.Cli.File.copy dir destination in (match copied with | Error e -> e.errno == 21 | Ok _ -> false) && (Stdlib.Cli.File.exists destination) == false) = Ok true
 Stdlib.Cli.FileCopy.writeAt (fun _ _ -> Ok 4) (Stdlib.Blob.fromString "abc") 0 = Error 5
 Stdlib.Cli.FileCopy.writeAt (fun _ _ -> Error 28) (Stdlib.Blob.fromString "abc") 0 = Error 28
 Stdlib.Cli.FileCopy.buffered (fun count offset -> if count != 65536 then Error 22 else if offset == 2 then Ok (Stdlib.Blob.fromString "abc") else if offset == 5 then Ok Stdlib.Blob.empty else Error 22) (fun _ offset -> if offset >= 2 && offset < 5 then Ok 1 else Error 22) 2 = Ok ()

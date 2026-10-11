@@ -48,6 +48,7 @@ type PosixOp =
   | DirectoryBytes of fd : FileDescriptor * count : int
   | CopyFileRange of source : FileDescriptor * destination : FileDescriptor * count : int
   | CloneFile of source : FileDescriptor * destination : FileDescriptor
+  | FclonefileAt of source : FileDescriptor * destination : string * flags : int
   | Ftruncate of fd : FileDescriptor * length : int64
   | Fchmod of fd : FileDescriptor * mode : int
   | Fsync of fd : FileDescriptor
@@ -65,6 +66,8 @@ type PosixOp =
   | InotifyAddWatch of fd : FileDescriptor * path : string * mask : int
   | Ppoll of descriptors : List<FileDescriptor * int> * timeoutMs : int
   | PollDarwin of descriptors : List<FileDescriptor * int> * timeoutMs : int
+  | Kqueue
+  | KeventVnode of queue : FileDescriptor * changes : List<FileDescriptor * int * int> * capacity : int * timeoutMs : int
   | Pread of fd : FileDescriptor * count : int * offset : int64
   | Pwrite of fd : FileDescriptor * data : byte[] * offset : int64
   | Open of path : string * flags : int * mode : int
@@ -268,6 +271,8 @@ let describeOperation (op : Operation) : string =
     | PosixOp.InotifyAddWatch(fd, path, _) -> $"inotify_add_watch {fd} {path}"
     | PosixOp.Ppoll(fds, timeout) -> $"ppoll {List.length fds} {timeout}"
     | PosixOp.PollDarwin(fds, timeout) -> $"poll {List.length fds} {timeout}"
+    | PosixOp.Kqueue -> "kqueue"
+    | PosixOp.KeventVnode(fd, changes, capacity, timeout) -> $"kevent-vnode {fd} {List.length changes} {capacity} {timeout}"
     | PosixOp.Mkstemp prefix -> $"mkstemp {prefix}"
     | PosixOp.Mkdtemp prefix -> $"mkdtemp {prefix}"
     | PosixOp.ListDir path -> $"listdir {path}"
@@ -277,6 +282,7 @@ let describeOperation (op : Operation) : string =
     | PosixOp.CopyFileRange(source, destination, _) ->
       $"copy-file-range {source} -> {destination}"
     | PosixOp.CloneFile(source, destination) -> $"clone {source} -> {destination}"
+    | PosixOp.FclonefileAt(source, destination, _) -> $"fclonefileat {source} -> {destination}"
     | PosixOp.Ftruncate(fd, _) -> $"ftruncate {fd}"
     | PosixOp.Fchmod(fd, _) -> $"fchmod {fd}"
     | PosixOp.Fsync fd -> $"fsync {fd}"

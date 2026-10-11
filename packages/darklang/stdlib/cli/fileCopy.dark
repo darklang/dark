@@ -78,6 +78,29 @@ let descriptors (source: Int) (destination: Int) (sourceInfo: KernelData.Metadat
       |> Stdlib.Result.andThen (fun _ ->
         Syscall.fchmod destination (sourceInfo.mode & 511)))
 
+let openDestination (sourceFd: Int) (destination: String) (sourceInfo: KernelData.Metadata)
+  : Result.Result<Unit, Posix.Error> =
+  // No O_TRUNC until the descriptor identity check above has succeeded.
+  let flags = 1 | KernelABI.openCreate ()
+  match Posix.openFile destination flags (sourceInfo.mode & 511) with
+  | Error e -> Error e
+  | Ok destinationFd ->
+    let copied = descriptors sourceFd destinationFd sourceInfo
+      |> Stdlib.Result.mapError Posix.Errors.fromErrno
+    let closed = Posix.fdClose destinationFd
+    finish copied closed
+
+let cloneDestination (sourceFd: Int) (destination: String) (sourceInfo: KernelData.Metadata)
+  : Result.Result<Unit, Posix.Error> =
+  match Syscall.fclonefileAt sourceFd destination 3 with
+  | Ok () -> Posix.chmod destination (sourceInfo.mode & 511)
+  | Error 4 -> cloneDestination sourceFd destination sourceInfo
+  | Error e ->
+    // fclonefileat creates a new entry. An existing destination (EEXIST)
+    // needs the same held-descriptor identity check as the buffered path.
+    if e == 17 || unsupported e then openDestination sourceFd destination sourceInfo
+    else Error (Posix.Errors.fromErrno e)
+
 /// Best-effort copy of a concurrently mutable file, not an atomic snapshot.
 /// Source metadata comes from the opened descriptor, not a second path lookup.
 let copy (source: String) (destination: String)
@@ -90,14 +113,10 @@ let copy (source: String) (destination: String)
       |> Stdlib.Result.andThen KernelData.metadata
       |> Stdlib.Result.mapError Posix.Errors.fromErrno
       |> Stdlib.Result.andThen (fun sourceInfo ->
-        // No O_TRUNC until the descriptor identity check above has succeeded.
-        let flags = 1 | KernelABI.openCreate ()
-        match Posix.openFile destination flags (sourceInfo.mode & 511) with
-        | Error e -> Error e
-        | Ok destinationFd ->
-          let copied = descriptors sourceFd destinationFd sourceInfo
-            |> Stdlib.Result.mapError Posix.Errors.fromErrno
-          let closed = Posix.fdClose destinationFd
-          finish copied closed)
+        if (sourceInfo.mode & 61440) == 16384
+           || (KernelABI.mac () && (sourceInfo.mode & 61440) != 32768) then
+          Error (Posix.Errors.fromErrno 21)
+        else if KernelABI.mac () then cloneDestination sourceFd destination sourceInfo
+        else openDestination sourceFd destination sourceInfo)
     let closed = Posix.fdClose sourceFd
     finish result closed

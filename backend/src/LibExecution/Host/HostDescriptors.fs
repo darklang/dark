@@ -82,6 +82,17 @@ type Session(close : int -> Result<unit, int * string>) =
         if lease.entry.fd = fd && not lease.closed then
           lease.entry <- { lease.entry with paths = List.distinct (path :: lease.entry.paths) })
 
+  /// The caller holds leases on the queue and every registered vnode. Keep
+  /// their resource checks attached to the queue after registration returns.
+  member _.WatchDescriptors(queue : int, sources : List<int>) : unit =
+    lock gate (fun () ->
+      let paths =
+        entries.Values |> Seq.filter (fun lease -> List.contains lease.entry.fd sources)
+        |> Seq.collect (fun lease -> lease.entry.paths) |> Seq.toList
+      for lease in entries.Values do
+        if lease.entry.fd = queue && not lease.closed then
+          lease.entry <- { lease.entry with paths = List.distinct (paths @ lease.entry.paths) })
+
   /// Consume ownership before close, including when close returns EINTR.
   member _.Consume(token : bigint) : unit =
     lock gate (fun () ->

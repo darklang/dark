@@ -5,6 +5,10 @@
 /// the kernel reports an error. Never retry close after EINTR.
 module Darklang.Stdlib.Cli.Syscall
 
+let kqueue () : Result.Result<Int, Int> = Builtin.syscallKqueue ()
+let keventVnode (queue: Int) (changes: List<(Int * Int * Int)>) (capacity: Int) (timeoutMs: Int)
+  : Result.Result<Blob, Int> = Builtin.syscallKeventVnode queue changes capacity timeoutMs
+
 let inotifyInit1 (flags: Int) : Result.Result<Int, Int> = Builtin.syscallInotifyInit1 flags
 let inotifyAddWatch (fd: Int) (path: String) (mask: Int) : Result.Result<Int, Int> =
   Builtin.syscallInotifyAddWatch fd path mask
@@ -80,6 +84,9 @@ let copyFileRange (source: Int) (destination: Int) (count: Int)
 
 let cloneFile (source: Int) (destination: Int) : Result.Result<Unit, Int> =
   Builtin.syscallCloneFile source destination
+
+let fclonefileAt (source: Int) (destination: String) (flags: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallFclonefileAt source destination flags
 
 let ftruncate (fd: Int) (length: Int) : Result.Result<Unit, Int> =
   Builtin.syscallFtruncate fd length

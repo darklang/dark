@@ -71,6 +71,10 @@ let ppoll_raw (bytes : byte[], count : int, timeout : byte[]) =
     int (call 44 p (int64 count) t 0L 8L 0L)))
 let pollDarwin_raw (bytes : byte[], count : int, timeoutMs : int) =
   withBytes bytes (fun p -> int (call 45 p (int64 count) (int64 timeoutMs) 0L 0L 0L))
+let kqueue_raw () = int (call 46 0L 0L 0L 0L 0L 0L)
+let kevent_raw (fd : int, changes : byte[], count : int, events : byte[], capacity : int, timeout : byte[]) =
+  withBytes changes (fun c -> withBytes events (fun e -> withBytes timeout (fun t ->
+    int (call 47 (int64 fd) c (int64 count) e (int64 capacity) t))))
 let lseek_raw (fd : int, offset : int64, whence : int) =
   call 4 (int64 fd) offset (int64 whence) 0L 0L 0L
 let fstatat_raw (fd : int, path : string, buf : IntPtr, flags : int) =
