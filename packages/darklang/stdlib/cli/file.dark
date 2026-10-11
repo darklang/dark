@@ -433,7 +433,7 @@ let watch
   (shouldStop: Unit -> Bool)
   (fn: Unit -> Unit)
   : Result.Result<Unit, Posix.Error> =
-  if intervalMs <= 0.0 then Error (Posix.Errors.fromErrno 22)
+  if intervalMs < 0.0 then Error (Posix.Errors.fromErrno 22)
   else if Runtime.targetOS () == "linux" then
     let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt intervalMs
     match FileWatch.linux path waitMs shouldStop fn with
