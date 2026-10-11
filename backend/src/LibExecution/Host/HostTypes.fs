@@ -51,7 +51,6 @@ type PosixOp =
   | FclonefileAt of source : FileDescriptor * destination : string * flags : int
   | Ftruncate of fd : FileDescriptor * length : int64
   | Fchmod of fd : FileDescriptor * mode : int
-  | Fsync of fd : FileDescriptor
   | Fstat of fd : FileDescriptor
   | Getentropy of count : int
   | UnameBytes
@@ -282,7 +281,6 @@ let describeOperation (op : Operation) : string =
     | PosixOp.FclonefileAt(source, destination, _) -> $"fclonefileat {source} -> {destination}"
     | PosixOp.Ftruncate(fd, _) -> $"ftruncate {fd}"
     | PosixOp.Fchmod(fd, _) -> $"fchmod {fd}"
-    | PosixOp.Fsync fd -> $"fsync {fd}"
     | PosixOp.Fstat fd -> $"fstat {fd}"
     | PosixOp.Getentropy count -> $"getentropy {count}"
     | PosixOp.Pread(fd, _, _) -> $"pread {fd}"

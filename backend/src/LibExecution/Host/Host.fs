@@ -669,8 +669,6 @@ let private resolvePosix
     native (fun () -> HostPosix.ftruncate (rawDescriptor fd) length |> unitOk)
   | HostTypes.PosixOp.Fchmod(fd, mode) ->
     native (fun () -> HostPosix.fchmod (rawDescriptor fd) mode |> unitOk)
-  | HostTypes.PosixOp.Fsync fd ->
-    native (fun () -> HostPosix.fsync (rawDescriptor fd) |> unitOk)
   | HostTypes.PosixOp.Fstat fd ->
     native (fun () -> HostPosix.fstat (rawDescriptor fd) |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Getentropy count ->
@@ -980,8 +978,7 @@ let private descriptorUses (op : HostTypes.PosixOp) =
   | HostTypes.PosixOp.FdWrite(fd, _)
   | HostTypes.PosixOp.Pwrite(fd, _, _)
   | HostTypes.PosixOp.Ftruncate(fd, _)
-  | HostTypes.PosixOp.Fchmod(fd, _)
-  | HostTypes.PosixOp.Fsync fd -> write fd
+  | HostTypes.PosixOp.Fchmod(fd, _) -> write fd
   | HostTypes.PosixOp.Fstat fd
   | HostTypes.PosixOp.FcntlGetPath fd
   | HostTypes.PosixOp.FdSeek(fd, _, _)
@@ -1009,7 +1006,6 @@ let private mapDescriptors map (op : HostTypes.PosixOp) =
   | HostTypes.PosixOp.Pwrite(fd, data, offset) -> HostTypes.PosixOp.Pwrite(map fd, data, offset)
   | HostTypes.PosixOp.Ftruncate(fd, n) -> HostTypes.PosixOp.Ftruncate(map fd, n)
   | HostTypes.PosixOp.Fchmod(fd, n) -> HostTypes.PosixOp.Fchmod(map fd, n)
-  | HostTypes.PosixOp.Fsync fd -> HostTypes.PosixOp.Fsync(map fd)
   | HostTypes.PosixOp.Fstat fd -> HostTypes.PosixOp.Fstat(map fd)
   | HostTypes.PosixOp.FcntlGetPath fd -> HostTypes.PosixOp.FcntlGetPath(map fd)
   | HostTypes.PosixOp.FdSeek(fd, offset, whence) -> HostTypes.PosixOp.FdSeek(map fd, offset, whence)

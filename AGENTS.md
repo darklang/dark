@@ -497,6 +497,11 @@ can't work that way. `multiUseAllowlist` is empty and `unusedAllowlist` has one 
 before adding to either, check whether a wrapper already exists that the new caller has
 simply not been pointed at, which is what a second `Builtin.x` reference usually means.
 
+The shared kernel StdLib is an intentional exception: private `syscallX` and
+`runtimeX` primitives are called directly from existing modules' `__` helpers.
+Do not add forwarding-only syscall/runtime packages to satisfy the reference-count
+rule. Every primitive still needs a real Dark caller; unused primitives are removed.
+
 ## Adding a CLI command (Darklang)
 
 1. `packages/darklang/cli/<name>.dark`

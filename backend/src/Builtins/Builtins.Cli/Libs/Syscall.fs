@@ -208,11 +208,6 @@ let fns () : List<BuiltInFn> =
           perform KTUnit vm
             (Op.PosixOp.Fchmod(intToDescriptor vm fd, intToInt32 vm mode)) unit
         | _ -> incorrectArgs ())
-    make "syscallFsync" [ integer "fd" ] TUnit KTUnit
-      (fun _ vm values ->
-        match values with
-        | [| DInt fd |] -> perform KTUnit vm (Op.PosixOp.Fsync(intToDescriptor vm fd)) unit
-        | _ -> incorrectArgs ())
     make "syscallFstat" [ integer "fd" ] TBlob KTBlob
       (fun _ vm values ->
         match values with

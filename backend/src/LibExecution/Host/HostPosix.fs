@@ -791,9 +791,6 @@ let ftruncate fd length =
 let fchmod fd mode =
   if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
   else unitResult (fchmod_raw (fd, mode))
-let fsync fd =
-  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
-  else unitResult (fsync_raw fd)
 
 let fstat fd : Result<byte[], int * string> =
   if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")

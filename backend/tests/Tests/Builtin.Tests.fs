@@ -246,6 +246,10 @@ let builtinAccessInPackageMatter =
       |> Seq.choose (fun name ->
         if Set.contains name multiUseAllowlist then
           None
+        elif name.StartsWith "syscall" || name.StartsWith "runtime" then
+          // Kernel/runtime leaves are private primitives, used directly by
+          // shared Dark implementations rather than forwarding-only packages.
+          None
         elif Set.contains name languageIdioms then
           None
         elif Set.contains name infixDispatched then

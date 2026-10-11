@@ -2390,7 +2390,19 @@ let private traitTests =
 let tests =
   testList
     "LibParser"
-    [ stackSafetyTests
+    [ testCase "private record types retain their type role" (fun _ ->
+        for name in [ "__Buffer"; "M.__Buffer"; "M.__Internal.__Buffer" ] do
+          let result = P.parse $"let __make () : {name} = {name} {{ size = 0 }}"
+          Expect.isEmpty result.diagnostics $"private record: {name}"
+          match result.parsed with
+          | Some(WT.SourceFile { declarations = [ WT.DFunction fn ] }) ->
+            match fn.returnType, fn.body with
+            | WT.TCustom _, WT.ERecord _ -> ()
+            | other -> failtest $"expected a named type and record: {other}"
+          | other -> failtest $"expected a function: {other}"
+        let call = P.parse "__make buffer.size"
+        Expect.isEmpty call.diagnostics "private lowercase functions remain calls")
+      stackSafetyTests
       unwrapTests
       parserStructureTests
       internalUnitTests

@@ -29,7 +29,7 @@ let currentDirectory () : String =
 
 
 /// Expand HOME only when requested; environment access remains policy checked.
-let expandPath (path: String) : String =
+let __expandPath (path: String) : String =
   if Stdlib.String.contains path "$HOME" || Stdlib.String.contains path "${HOME}" then
     let home = Stdlib.Option.withDefault (Stdlib.Env.get "HOME") ""
     path
@@ -38,7 +38,7 @@ let expandPath (path: String) : String =
   else path
 
 
-let fromPosixError (error: Posix.Error) : FileError =
+let __fromPosixError (error: Posix.Error) : FileError =
   if error.errno == 2 || error.errno == 20 then FileError.NotFound
   else if error.errno == 13 || error.errno == 1 || error.errno == 21 then FileError.OsAccessDenied
   else FileError.Other error.message
@@ -46,7 +46,7 @@ let fromPosixError (error: Posix.Error) : FileError =
 
 /// Full paths of the entries in the directory at <param path>.
 let listDirectory (path: String) : List<String> =
-  let expanded = expandPath path
+  let expanded = __expandPath path
   let full =
     if Path.isAbsolute expanded then Path.normalize expanded
     else Path.join [ currentDirectory (), expanded ] |> Path.normalize
@@ -57,23 +57,23 @@ let listDirectory (path: String) : List<String> =
 
 /// Is there a file or directory at <param path>?
 let pathExists (path: String) : Bool =
-  File.exists (expandPath path)
+  File.exists (__expandPath path)
 
 
 /// Is <param path> a directory?
 let isDirectory (path: String) : Bool =
-  Posix.isDirectory (expandPath path)
+  Posix.isDirectory (__expandPath path)
 
 
 /// Delete the file at <param path>.
 let deleteFile (path: String) : Result.Result<Unit, FileError> =
-  File.delete (expandPath path) |> Stdlib.Result.mapError fromPosixError
+  File.delete (__expandPath path) |> Stdlib.Result.mapError __fromPosixError
 
 
 /// Append <param content> to the file at <param path>, creating the file if
 /// it isn't there.
 let appendToFile (path: String) (content: String) : Result.Result<Unit, FileError> =
-  File.appendText (expandPath path) content |> Stdlib.Result.mapError fromPosixError
+  File.appendText (__expandPath path) content |> Stdlib.Result.mapError __fromPosixError
 
 
 // Get files in a directory - returns just filenames
@@ -121,14 +121,14 @@ let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
 
 /// Read an entire file as a Blob.
 let readFile (path: String) : Result.Result<Blob, FileError> =
-  File.readBytes (expandPath path) |> Stdlib.Result.mapError fromPosixError
+  File.readBytes (__expandPath path) |> Stdlib.Result.mapError __fromPosixError
 
 
 /// Write <param content> to <param path>, replacing whatever's there. The
 /// parent directory has to exist already; <fn writeFile> is this plus the
 /// mkdir.
 let overwriteFile (path: String) (content: Blob) : Result.Result<Unit, FileError> =
-  File.writeBytes (expandPath path) content |> Stdlib.Result.mapError fromPosixError
+  Stdlib.Cli.File.__writeBytes (__expandPath path) content |> Stdlib.Result.mapError __fromPosixError
 
 
 /// Read an entire file and decode it as UTF-8. Convenience over
