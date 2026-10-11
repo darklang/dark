@@ -1060,7 +1060,9 @@ gate_package_tests() {
   "$CLI" permissions clear
 
   set +e
-  "$CLI" test --force < /dev/null 2>&1 | sed 's/\x1b\[[0-9;]*m//g' > "$ROOT/test.log"
+  # Stream progress to CI as well as the log so its no-output timeout does not
+  # stop a running suite. Unbuffer sed so each test appears as it runs.
+  "$CLI" test --force < /dev/null 2>&1 | sed -u 's/\x1b\[[0-9;]*m//g' | tee "$ROOT/test.log"
   status=${PIPESTATUS[0]}
   set -e
 
