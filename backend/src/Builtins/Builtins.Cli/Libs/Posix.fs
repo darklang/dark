@@ -94,9 +94,6 @@ let private syscallResult
     | Error e ->
       Ply(Dval.resultError kt KTInt (Dval.int (bigint e.errno))))
 
-let private pathOk (response : Host.Response) : Dval =
-  DString(Host.expectPath response)
-
 let private fileEffects = set [ Effect.FileRead; Effect.FileWrite ]
 
 let private fileReadEffect = set [ Effect.FileRead ]
@@ -188,15 +185,16 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    { name = fn "posixGetcwd" 0
+    { name = fn "syscallGetcwd" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TypeReference.result TString (posixErrorTypeRef ())
-      description = "Returns the current working directory via kernel getcwd()"
+      parameters = [ Param.make "count" TInt "Maximum raw bytes" ]
+      returnType = TypeReference.result TBlob TInt
+      description = "One kernel getcwd call; no buffer growth or public decoding"
       fn =
         (function
-        | _, vm, _, [| DUnit |] ->
-          posixResult KTString vm HostTypes.PosixOp.Getcwd pathOk
+        | _, vm, _, [| DInt count |] ->
+          syscallResult KTBlob vm (HostTypes.PosixOp.GetcwdBytes(intToInt32 vm count))
+            (fun r -> Blob.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -291,22 +289,6 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DString path; DInt mode |] ->
           let op = HostTypes.PosixOp.Chmod(path, intToInt32 vm mode)
           syscallResult KTUnit vm op unitOk
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = fileWriteEffect
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixUtimesNow" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "File path" ]
-      returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Updates atime and mtime to now via kernel utimes(path, NULL)"
-      fn =
-        (function
-        | _, vm, _, [| DString path |] ->
-          posixResult KTUnit vm (HostTypes.PosixOp.UtimesNow path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

@@ -641,8 +641,10 @@ let private resolvePosix
               (attempt (fun () -> HostPosix.rename oldPath newPath |> unitOk))))))
   | HostTypes.PosixOp.Chmod(path, mode) ->
     posixPath write path (fun path -> HostPosix.chmod path mode |> unitOk)
-  | HostTypes.PosixOp.UtimesNow path ->
-    posixPath write path (HostPosix.utimesNow >> unitOk)
+  | HostTypes.PosixOp.UtimensAt(path, a, an, m, mn) ->
+    posixPath write path (fun path -> HostPosix.utimensAt path a an m mn |> unitOk)
+  | HostTypes.PosixOp.SetattrlistTimes(path, a, an, m, mn) ->
+    posixPath write path (fun path -> HostPosix.setattrlistTimes path a an m mn |> unitOk)
   | HostTypes.PosixOp.Symlink(target, linkPath) ->
     // The target is data stored in the link, not a resource being accessed;
     // creating the link is a write at linkPath.
@@ -724,13 +726,28 @@ let private resolvePosix
       let access = if writes then write else read
       posixPath access path (fun path ->
         HostPosix.openFile path flags mode |> Result.map (opened path))
-  | HostTypes.PosixOp.Getcwd ->
-    // Like `DirectoryCurrent`: the request depends on host state, and reading
-    // the working directory is a read of that path.
-    match HostPosix.getcwd () with
+  | HostTypes.PosixOp.GetcwdBytes count ->
+    // Authorize the exact kernel answer, not an earlier managed cwd snapshot.
+    // Decoding here is only for policy; public decoding remains in Dark.
+    match HostPosix.getcwdBytes count with
     | Error e -> Ok { checks = []; execute = attempt (fun () -> Error e) }
-    | Ok cwd ->
-      resolveFile read cwd (fun cwd -> produce (fun () -> Response.Path cwd))
+    | Ok bytes ->
+      let length = bytes |> Array.tryFindIndex ((=) 0uy) |> Option.defaultValue bytes.Length
+      let cwd = System.Text.Encoding.UTF8.GetString(bytes, 0, length)
+      resolveFile read cwd (fun _ -> produce (fun () -> Response.Bytes bytes))
+  | HostTypes.PosixOp.FcntlGetPath fd ->
+    // A directory may have been renamed since open. Check the returned path
+    // as well as the descriptor's original grant before releasing any bytes.
+    match HostPosix.fcntlGetPath (rawDescriptor fd) with
+    | Error e -> native (fun () -> Error e)
+    | Ok bytes ->
+      let length = bytes |> Array.tryFindIndex ((=) 0uy) |> Option.defaultValue bytes.Length
+      let path = System.Text.Encoding.UTF8.GetString(bytes, 0, length)
+      guarded false path (fun path ->
+        withChecks
+          [ (Permission.Request.native "raw POSIX operation", "raw POSIX operation")
+            fileCheck read path ]
+          (produce (fun () -> Response.Bytes bytes)))
   | HostTypes.PosixOp.Kill(pid, signal) ->
     native (fun () -> HostPosix.kill pid signal |> unitOk)
   | HostTypes.PosixOp.FdRead(fd, count) ->
@@ -970,6 +987,7 @@ let private descriptorUses (op : HostTypes.PosixOp) =
   | HostTypes.PosixOp.Fchmod(fd, _)
   | HostTypes.PosixOp.Fsync fd -> write fd
   | HostTypes.PosixOp.Fstat fd
+  | HostTypes.PosixOp.FcntlGetPath fd
   | HostTypes.PosixOp.FdSeek(fd, _, _)
   | HostTypes.PosixOp.Flock(fd, _) -> [ fd, Metadata ]
   | HostTypes.PosixOp.FdClose fd -> [ fd, Cleanup ]
@@ -989,6 +1007,7 @@ let private mapDescriptors map (op : HostTypes.PosixOp) =
   | HostTypes.PosixOp.Fchmod(fd, n) -> HostTypes.PosixOp.Fchmod(map fd, n)
   | HostTypes.PosixOp.Fsync fd -> HostTypes.PosixOp.Fsync(map fd)
   | HostTypes.PosixOp.Fstat fd -> HostTypes.PosixOp.Fstat(map fd)
+  | HostTypes.PosixOp.FcntlGetPath fd -> HostTypes.PosixOp.FcntlGetPath(map fd)
   | HostTypes.PosixOp.FdSeek(fd, offset, whence) -> HostTypes.PosixOp.FdSeek(map fd, offset, whence)
   | HostTypes.PosixOp.Flock(fd, operation) -> HostTypes.PosixOp.Flock(map fd, operation)
   | HostTypes.PosixOp.FdClose fd -> HostTypes.PosixOp.FdClose(map fd)

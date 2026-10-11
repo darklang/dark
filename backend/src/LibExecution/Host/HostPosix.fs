@@ -185,7 +185,20 @@ let lastError () : int * string =
   // Public Dark wrappers render errno. Host failures still carry diagnostic text.
   (errno, $"OS error {errno}")
 
-let getcwd () : Result<string, int * string> = Managed.getcwd ()
+let getcwdBytes (count : int) : Result<byte[], int * string> =
+  if isWasm then Managed.enosys ()
+  elif count <= 0 then Error(22, "invalid getcwd buffer")
+  else
+    let bytes = Array.zeroCreate<byte> count
+    let rc = getcwdBytes_raw bytes
+    if rc < 0 then Error(lastError ()) else Ok(Array.take rc bytes)
+
+let fcntlGetPath (fd : int) : Result<byte[], int * string> =
+  if isWasm then Managed.enosys ()
+  else
+    // XNU F_GETPATH has no length argument: its ABI requires MAXPATHLEN.
+    let bytes = Array.zeroCreate<byte> 1024
+    if fcntlGetPath_raw (fd, bytes) < 0 then Error(lastError ()) else Ok bytes
 
 let private components (path : string) : string[] =
   path.Split([| '/' |], StringSplitOptions.RemoveEmptyEntries)
@@ -454,30 +467,38 @@ let chmod (path : string) (mode : int) : Result<unit, int * string> =
       else
         failed ())
 
-/// Set timestamps without following the final component.
-let utimesNow (path : string) : Result<unit, int * string> =
-  if isWasm then
-    Managed.enosys ()
-  elif isMac then
-    withParent path (fun d n ->
-      let seconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-      let attrs = Array.zeroCreate<byte> 32
-      BitConverter.GetBytes(seconds).CopyTo(attrs, 0)
-      BitConverter.GetBytes(seconds).CopyTo(attrs, 16)
-      unitResult (setattrlistat_raw (d, n, attrs)))
+/// ABI marshalling only: Dark selects timestamps and the NOW sentinel.
+let utimensAt (path : string) (accessSec : int64) (accessNanos : int64)
+  (modifySec : int64) (modifyNanos : int64) : Result<unit, int * string> =
+  if isMac then Error(78, "Function not implemented")
+  elif isWasm then Managed.enosys ()
   else
-    // Bind the timestamp update to a held inode and reject final symlinks.
-    // The procfd path cannot be swapped for a different target by guest code.
-    withLinuxMetadataDescriptor path (fun fd ->
-      let rc = utimensat_raw (fd, "", IntPtr.Zero, AT_EMPTY_PATH)
-      if rc >= 0 then
-        Ok()
-      elif Marshal.GetLastPInvokeError() = 22 then
-        // AT_EMPTY_PATH was added in Linux 6.6. On older kernels use the
-        // procfd path to the same held inode, failing closed without procfs.
-        unitResult (utimensat_raw (-100, $"/proc/self/fd/{fd}", IntPtr.Zero, 0))
-      else
-        failed ())
+    let width = if isArm32 then 4 else 8
+    let times = Marshal.AllocHGlobal(width * 4)
+    try
+      [ accessSec; accessNanos; modifySec; modifyNanos ]
+      |> List.iteri (fun index value ->
+        if width = 4 then Marshal.WriteInt32(times, index * width, int value)
+        else Marshal.WriteInt64(times, index * width, value))
+      // Bind updates to a held inode and reject final symlinks.
+      withLinuxMetadataDescriptor path (fun fd ->
+        let rc = utimensat_raw (fd, "", times, AT_EMPTY_PATH)
+        if rc >= 0 then Ok()
+        elif Marshal.GetLastPInvokeError() = 22 then
+          unitResult (utimensat_raw (-100, $"/proc/self/fd/{fd}", times, 0))
+        else failed ())
+    finally Marshal.FreeHGlobal times
+
+let setattrlistTimes (path : string) (accessSec : int64) (accessNanos : int64)
+  (modifySec : int64) (modifyNanos : int64) : Result<unit, int * string> =
+  if isWasm || not isMac then Managed.enosys ()
+  else
+    withParent path (fun d n ->
+      // XNU attribute order is MODTIME followed by ACCTIME.
+      let times = Array.zeroCreate<byte> 32
+      [ modifySec; modifyNanos; accessSec; accessNanos ]
+      |> List.iteri (fun index value -> BitConverter.GetBytes(value).CopyTo(times, index * 8))
+      unitResult (setattrlistat_raw (d, n, times)))
 
 /// Extracts (mode, size, mtimeSec) from a struct stat buffer. Offsets are
 /// platform-specific (Linux vs macOS struct layouts differ).

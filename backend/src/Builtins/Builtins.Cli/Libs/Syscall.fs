@@ -40,11 +40,31 @@ let private unit (_ : Host.Response) = DUnit
 let private offset r = Dval.int (bigint (Host.expectOffset r))
 let private written r = Dval.int (bigint (Host.expectWritten r))
 
+let private timestamp name constructor : BuiltInFn =
+  { (make name
+      [ Param.make "path" TString "Checked path"
+        integer "accessSeconds"; integer "accessNanos"
+        integer "modifySeconds"; integer "modifyNanos" ] TUnit KTUnit
+      (fun _ vm values ->
+        match values with
+        | [| DString path; DInt a; DInt an; DInt m; DInt mn |] ->
+          perform KTUnit vm (constructor(path, intToInt64 vm a, intToInt64 vm an,
+            intToInt64 vm m, intToInt64 vm mn)) unit
+        | _ -> incorrectArgs ()))
+      with callEffects = set [ Effect.FileWrite ] }
+
 let fns () : List<BuiltInFn> =
-  [ make "syscallUname" [ Param.make "unit" TUnit "" ] TBlob KTBlob
+  [ timestamp "syscallUtimensAt" Op.PosixOp.UtimensAt
+    timestamp "syscallSetattrlistTimes" Op.PosixOp.SetattrlistTimes
+    make "syscallUname" [ Param.make "unit" TUnit "" ] TBlob KTBlob
       (fun _ vm values ->
         match values with
         | [| DUnit |] -> perform KTBlob vm Op.PosixOp.UnameBytes bytes
+        | _ -> incorrectArgs ())
+    make "syscallFcntlGetPath" [ integer "fd" ] TBlob KTBlob
+      (fun _ vm values ->
+        match values with
+        | [| DInt fd |] -> perform KTBlob vm (Op.PosixOp.FcntlGetPath(intToDescriptor vm fd)) bytes
         | _ -> incorrectArgs ())
     make "syscallSysctl"
       [ Param.make "mib" (TList TInt) "Read-only numeric key"; integer "count" ] TBlob KTBlob

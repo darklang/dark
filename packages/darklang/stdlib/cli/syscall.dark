@@ -5,6 +5,17 @@
 /// the kernel reports an error. Never retry close after EINTR.
 module Darklang.Stdlib.Cli.Syscall
 
+let getcwd (count: Int) : Result.Result<Blob, Int> = Builtin.syscallGetcwd count
+let fcntlGetPath (fd: Int) : Result.Result<Blob, Int> = Builtin.syscallFcntlGetPath fd
+
+let utimensAt (path: String) (accessSeconds: Int) (accessNanos: Int)
+  (modifySeconds: Int) (modifyNanos: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallUtimensAt path accessSeconds accessNanos modifySeconds modifyNanos
+
+let setattrlistTimes (path: String) (accessSeconds: Int) (accessNanos: Int)
+  (modifySeconds: Int) (modifyNanos: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallSetattrlistTimes path accessSeconds accessNanos modifySeconds modifyNanos
+
 /// One entropy call, up to 256 bytes. May return fewer bytes or EINTR.
 let getentropy (count: Int) : Result.Result<Blob, Int> =
   Builtin.syscallGetentropy count

@@ -12,6 +12,12 @@ module HT = LibExecution.HostTypes
 
 let private only (item : 'a) : Permission.Scope<'a> = Permission.Scope.Only item
 
+let private setTimesNow path =
+  if System.OperatingSystem.IsMacOS() then
+    let seconds = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+    LibExecution.HostPosix.setattrlistTimes path seconds 0L seconds 0L
+  else LibExecution.HostPosix.utimensAt path 0L 1073741823L 0L 1073741823L
+
 let private request (method : string) (url : string) : Permission.Request =
   match Permission.Request.http method url with
   | Ok request -> request
@@ -266,7 +272,7 @@ let posixWalkRefusesALinkMetAtOperationTime =
           originalMode
           "chmod did not reach the link target"
         Expect.isError
-          (LibExecution.HostPosix.utimesNow finalLink)
+          (setTimesNow finalLink)
           "utimes refuses a linked final component"
         Expect.equal
           (System.IO.File.GetLastWriteTimeUtc file)
@@ -275,7 +281,7 @@ let posixWalkRefusesALinkMetAtOperationTime =
         // The same operations on the real path work, through the same walk.
         System.IO.File.SetUnixFileMode(file, System.IO.UnixFileMode.None)
         Expect.isOk
-          (LibExecution.HostPosix.utimesNow file)
+          (setTimesNow file)
           "utimes works without file read permission"
         Expect.isOk
           (LibExecution.HostPosix.chmod file 0o600)

@@ -36,7 +36,8 @@ type PosixOp =
   | UnlinkAt of path : string * flags : int
   | Rename of oldPath : string * newPath : string
   | Chmod of path : string * mode : int
-  | UtimesNow of path : string
+  | UtimensAt of path : string * accessSec : int64 * accessNanos : int64 * modifySec : int64 * modifyNanos : int64
+  | SetattrlistTimes of path : string * accessSec : int64 * accessNanos : int64 * modifySec : int64 * modifyNanos : int64
   | Symlink of target : string * linkPath : string
   | ReadlinkBytes of path : string * count : int
   | Mkstemp of prefix : string
@@ -60,7 +61,8 @@ type PosixOp =
   | Open of path : string * flags : int * mode : int
   // Descriptor operations derive file requests from execution-owned tokens,
   // or Native for raw OS numbers. Path answers are checked as path reads.
-  | Getcwd
+  | GetcwdBytes of count : int
+  | FcntlGetPath of fd : FileDescriptor
   | Kill of pid : int * signal : int
   | FdRead of fd : FileDescriptor * count : int
   | FdSeek of fd : FileDescriptor * offset : int64 * whence : int
@@ -240,7 +242,8 @@ let describeOperation (op : Operation) : string =
     | PosixOp.UnlinkAt(path, flags) -> $"unlinkat {path} {flags}"
     | PosixOp.Rename(o, n) -> $"rename {o} -> {n}"
     | PosixOp.Chmod(path, _) -> $"chmod {path}"
-    | PosixOp.UtimesNow path -> $"utimes {path}"
+    | PosixOp.UtimensAt(path, _, _, _, _) -> $"utimensAt {path}"
+    | PosixOp.SetattrlistTimes(path, _, _, _, _) -> $"setattrlistTimes {path}"
     | PosixOp.Symlink(t, l) -> $"symlink {l} -> {t}"
     | PosixOp.ReadlinkBytes(path, count) -> $"readlinkat {path} {count}"
     | PosixOp.UnameBytes -> "uname"
@@ -263,7 +266,8 @@ let describeOperation (op : Operation) : string =
     | PosixOp.Pread(fd, _, _) -> $"pread {fd}"
     | PosixOp.Pwrite(fd, _, _) -> $"pwrite {fd}"
     | PosixOp.Open(path, _, _) -> $"open {path}"
-    | PosixOp.Getcwd -> "getcwd"
+    | PosixOp.GetcwdBytes _ -> "getcwd"
+    | PosixOp.FcntlGetPath _ -> "fcntlGetPath"
     | PosixOp.Kill(pid, signal) -> $"kill {pid} {signal}"
     | PosixOp.FdRead(fd, _) -> $"fd-read {fd}"
     | PosixOp.FdSeek(fd, _, _) -> $"fd-seek {fd}"

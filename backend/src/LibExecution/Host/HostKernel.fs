@@ -49,6 +49,10 @@ let read_raw (fd : int, bytes : byte[], count : int) =
 let write_raw (fd : int, bytes : byte[], count : int) =
   withBytes bytes (fun p -> int (call 2 (int64 fd) p (int64 count) 0L 0L 0L))
 let close_raw (fd : int) = int (call 3 (int64 fd) 0L 0L 0L 0L 0L)
+let getcwdBytes_raw (bytes : byte[]) =
+  withBytes bytes (fun p -> int (call 6 p (int64 bytes.Length) 0L 0L 0L 0L))
+let fcntlGetPath_raw (fd : int, bytes : byte[]) =
+  withBytes bytes (fun p -> int (call 36 (int64 fd) 50L p 0L 0L 0L))
 let lseek_raw (fd : int, offset : int64, whence : int) =
   call 4 (int64 fd) offset (int64 whence) 0L 0L 0L
 let fstatat_raw (fd : int, path : string, buf : IntPtr, flags : int) =

@@ -88,8 +88,7 @@ let stat (path: String) : Result.Result<StatResult, Error> =
 
 /// Get the current working directory
 let getCwd () : Result.Result<String, Error> =
-  Builtin.posixGetcwd ()
-  |> Errors.normalize
+  PathIO.getCwd ()
 
 /// Change the current working directory
 let chdir (path: String) : Result.Result<Unit, Error> =
@@ -123,8 +122,12 @@ let chmod (path: String) (mode: Int) : Result.Result<Unit, Error> =
 
 /// Update atime and mtime to now.
 let utimesNow (path: String) : Result.Result<Unit, Error> =
-  Builtin.posixUtimesNow path
-  |> Errors.normalize
+  let result =
+    if KernelABI.mac () then
+      let seconds = Stdlib.DateTime.toSeconds (Stdlib.DateTime.now ())
+      Syscall.setattrlistTimes path seconds 0 seconds 0
+    else Syscall.utimensAt path 0 1073741823 0 1073741823
+  result |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Create a symbolic link
 let symlink (target: String) (linkpath: String) : Result.Result<Unit, Error> =

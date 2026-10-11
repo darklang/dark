@@ -1,0 +1,3 @@
+module Tests
+if Stdlib.Cli.KernelABI.mac () then Stdlib.Cli.Syscall.setattrlistTimes "/definitely/missing/dark-time" 0 0 0 0 else Stdlib.Cli.Syscall.utimensAt "/definitely/missing/dark-time" 0 0 0 0 = Error 2
+Stdlib.Cli.Dir.withTemp (fun dir -> let path = Stdlib.Cli.Path.join [dir, "stamp"] in let _ = Stdlib.Cli.File.writeText path "x" in let _ = if Stdlib.Cli.KernelABI.mac () then Stdlib.Cli.Syscall.setattrlistTimes path 1234 0 5678 0 else Stdlib.Cli.Syscall.utimensAt path 1234 0 5678 0 in Stdlib.Cli.Posix.stat path |> Stdlib.Result.map (fun record -> record.mtimeSec)) = Ok (Ok 5678)
