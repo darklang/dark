@@ -9,9 +9,9 @@ module OS =
 
   let getOS () : Stdlib.Result.Result<OS, String> =
     match Runtime.targetOS () with
-    | "linux" -> Ok Linux
-    | "darwin" -> Ok MacOS
-    | "windows" -> Ok Windows
+    | "linux" -> Ok OS.OS.Linux
+    | "darwin" -> Ok OS.OS.MacOS
+    | "windows" -> Ok OS.OS.Windows
     | _ -> Error "Unsupported operating system"
 
 
@@ -25,11 +25,11 @@ module Architecture =
 
   let getArchitecture () : Stdlib.Result.Result<Architecture, String> =
     match Runtime.targetArchitecture () with
-    | "x64" -> Ok Architecture.X86_64
+    | "x64" -> Ok Architecture.Architecture.X86_64
     | "arm64" ->
-      if Runtime.targetOS () == "darwin" then Ok Architecture.Arm64
-      else Ok Architecture.Aarch64
-    | "arm" -> Ok Architecture.Arm
+      if Runtime.targetOS () == "darwin" then Ok Architecture.Architecture.Arm64
+      else Ok Architecture.Architecture.Aarch64
+    | "arm" -> Ok Architecture.Architecture.Arm
     | _ -> Error "Unsupported architecture"
 
 
@@ -48,10 +48,10 @@ module Shell =
       (Stdlib.Result.Result.Ok (Stdlib.Option.withDefault (Stdlib.Cli.Env.get "SHELL") "/bin/bash"))
       |> Stdlib.Result.andThen (fun shell ->
         match Stdlib.String.trim shell with
-        | "/bin/bash" -> Stdlib.Result.Result.Ok Shell.Bash
-        | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh
+        | "/bin/bash" -> Stdlib.Result.Result.Ok Shell.Shell.Bash
+        | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Shell.Zsh
         | shell when shell |> Stdlib.String.contains "/fish" ->
-          Stdlib.Result.Result.Ok Shell.Fish
+          Stdlib.Result.Result.Ok Shell.Shell.Fish
         | _ ->
           Stdlib.Result.Result.Error
             "Unsupported shell, if you are on Linux please use Bash, Zsh, or Fish")
@@ -60,18 +60,18 @@ module Shell =
       (Stdlib.Result.Result.Ok (Stdlib.Option.withDefault (Stdlib.Cli.Env.get "SHELL") "/bin/bash"))
       |> Stdlib.Result.andThen (fun shell ->
         match Stdlib.String.trim shell with
-        | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh
+        | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Shell.Zsh
         | shell when shell |> Stdlib.String.contains "/bin/bash" ->
-          Stdlib.Result.Result.Ok Shell.Bash
+          Stdlib.Result.Result.Ok Shell.Shell.Bash
         | shell when shell |> Stdlib.String.contains "/fish" ->
-          Stdlib.Result.Result.Ok Shell.Fish
+          Stdlib.Result.Result.Ok Shell.Shell.Fish
         | _ ->
           Stdlib.Result.Result.Error
             "Unsupported shell, if you are on MacOS please use Bash, Zsh, or Fish")
 
     | Ok Windows ->
       // TODO: Add support for Command Prompt
-      Stdlib.Result.Result.Ok Shell.PowerShell
+      Stdlib.Result.Result.Ok Shell.Shell.PowerShell
 
     | Error _ ->
       Stdlib.Result.Result.Error
@@ -94,7 +94,7 @@ module Host =
     match os, arch, defaultShell with
     | Ok os, Ok arch, Ok defaultShell ->
       Stdlib.Result.Result.Ok(
-        Host
+        Host.Host
           { os = os
             arch = arch
             defaultShell = defaultShell }

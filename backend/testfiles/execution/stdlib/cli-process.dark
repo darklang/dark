@@ -23,3 +23,7 @@ Stdlib.Cli.Process.runWithTimeout 5 "/bin/sh" ["-c", "sleep 1"] = Error "Process
 Builtin.runtimeChildPoll (-1) = Error 9
 Builtin.runtimeChildDescriptors (-1) = Error 9
 Builtin.runtimeChildClose (-1) = Error 9
+// Runtime host facts are composed in Dark, with qualified union constructors.
+Stdlib.Cli.OS.getOS () = Ok Stdlib.Cli.OS.OS.Linux
+(match Stdlib.Cli.Host.getRuntimeHost () with | Ok host -> host.os == Stdlib.Cli.OS.OS.Linux | Error _ -> false) = true
+(let handle = Stdlib.Cli.Process.spawn "exec 0<&-; printf ready; sleep 1" in let _ = Stdlib.Cli.Clock.sleepMilliseconds 100.0 in let response = Stdlib.Cli.Process.communicate handle "input" in let _ = Stdlib.Cli.Process.terminate handle in response.exitCode) = -1

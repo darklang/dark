@@ -11,7 +11,9 @@ let empty () : Buffer = Buffer { chunks = [], size = 0 }
 let append (buffer: Buffer) (bytes: Blob) : Buffer =
   let keep = minimum (67108864 - buffer.size) (Stdlib.Blob.length bytes)
   if keep <= 0 then buffer
-  else Buffer { chunks = Stdlib.List.push buffer.chunks (Stdlib.Blob.slice bytes 0 keep), size = buffer.size + keep }
+  else
+    let kept = if keep == Stdlib.Blob.length bytes then bytes else Stdlib.Blob.slice bytes 0 keep
+    Buffer { chunks = Stdlib.List.push buffer.chunks kept, size = buffer.size + keep }
 
 let bytes (buffer: Buffer) : Blob = Stdlib.Blob.concat (Stdlib.List.reverse buffer.chunks)
 
@@ -56,7 +58,8 @@ let write (fd: Int) (pending: Blob) : Result.Result<Blob, Int> =
   if length == 0 then Ok pending
   else
     let count = minimum length 65536
-    match Syscall.write fd (Stdlib.Blob.slice pending 0 count) with
+    let chunk = if count == length then pending else Stdlib.Blob.slice pending 0 count
+    match Syscall.write fd chunk with
     | Error 4 -> write fd pending
     | Error e -> if e == 11 || e == 35 then Ok pending else Error e
     | Ok written ->
