@@ -11,7 +11,6 @@ let builtins () =
   Builtin.combine
     [ Libs.Directory.builtins ()
       Libs.Environment.builtins ()
-      Libs.File.builtins ()
       Libs.Execution.builtins ()
       Libs.Output.builtins ()
       Libs.Stdin.builtins ()

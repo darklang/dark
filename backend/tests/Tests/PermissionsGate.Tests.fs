@@ -17,7 +17,7 @@ let clockCall () =
   eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ]
   |> PT2RT.Expr.toRT Map.empty 0 None
 
-// The gate denies before this raw descriptor reaches the builtin body.
+// Host derives Native from the raw OS number and denies before the kernel call.
 let nativeCall () =
   eApply (eBuiltinFn "syscallClose" 0) [] [ PT.EInt(gid (), -1I) ]
   |> PT2RT.Expr.toRT Map.empty 0 None
@@ -87,7 +87,7 @@ let nativeDenied =
     let! exeState = executionStateFor TestValues.pm false Map.empty
     let! actual =
       LibExecution.Execution.executeExpr (denyAll exeState) (nativeCall ())
-    expectDenied [ "syscallClose" ] actual
+    expectDenied [ "raw POSIX operation" ] actual
   }
 
 let nativeAllowedByAllowAll =

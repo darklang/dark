@@ -169,7 +169,7 @@ let fileOwner (path: String) : Result.Result<String, Error> =
   |> Stdlib.Result.andThen KernelData.metadata
   |> Stdlib.Result.mapError Errors.fromErrno
   |> Stdlib.Result.map (fun metadata ->
-    let uid = Stdlib.Int.toString metadata.uid
+    let uid = Errors.decimal metadata.uid
     match Accounts.lookup uid 0 with
     | Some name -> name
     | None -> uid)

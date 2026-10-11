@@ -44,8 +44,10 @@ let readBytes (path: String) : Result.Result<Blob, Posix.Error> =
   | Ok fd ->
     let result = Posix.fdReadAll fd []
 
-    let _ = Posix.fdClose fd
-    result
+    let closed = Posix.fdClose fd
+    match result with
+    | Error e -> Error e
+    | Ok bytes -> closed |> Stdlib.Result.map (fun _ -> bytes)
   | Error e -> Stdlib.Result.Result.Error e
 
 
@@ -190,8 +192,8 @@ let readLastLines
                 (Stdlib.List.drop lines (total - count))))
 
 
-/// Write text to a file, creating it if it doesn't exist or overwriting if it does.
-let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
+/// Write bytes, completing short writes and preserving the first I/O error.
+let writeBytes (path: String) (content: Blob) : Result.Result<Unit, Posix.Error> =
   let flags =
     (Posix.OpenFlags.wronly ())
     | (Posix.OpenFlags.creat ())
@@ -199,15 +201,18 @@ let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error
 
   match Posix.openFile path flags Posix.Modes.defaultFile with
   | Ok fd ->
-    let blob = Stdlib.String.toBlob content
-    let result = Posix.fdWrite fd blob
-
-    let _ = Posix.fdClose fd
+    let result = Posix.fdWrite fd content
+    let closed = Posix.fdClose fd
 
     match result with
-    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Ok _ -> closed
     | Error e -> Stdlib.Result.Result.Error e
   | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Write text to a file, creating it if it doesn't exist or overwriting if it does.
+let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
+  writeBytes path (Stdlib.String.toBlob content)
 
 
 /// Append text to a file, creating it if it doesn't exist.
@@ -222,10 +227,10 @@ let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Erro
     let blob = Stdlib.String.toBlob content
     let result = Posix.fdWrite fd blob
 
-    let _ = Posix.fdClose fd
+    let closed = Posix.fdClose fd
 
     match result with
-    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Ok _ -> closed
     | Error e -> Stdlib.Result.Result.Error e
   | Error e -> Stdlib.Result.Result.Error e
 

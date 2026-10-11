@@ -16,51 +16,7 @@ open Builtin.Shortcuts
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "directoryCurrent" 0
-      typeParams = []
-      parameters = [ Param.make "" TUnit "" ]
-      returnType = TString
-      description = "Returns the current working directory"
-      fn =
-        (function
-        | _, vm, _, [| DUnit |] ->
-          Interpreter.requestHost vm Host.Operation.DirectoryCurrent (fun outcome ->
-            match outcome with
-            | Ok response -> Ply(DString(Host.expectPath response))
-            | Error failure ->
-              Exception.raiseInternal
-                "reading the working directory failed"
-                [ "message", failure.message ])
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.FileRead ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "directoryList" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "" ]
-      returnType = TList TString
-      description = "Returns the directory at <param path>"
-      fn =
-        (function
-        | _, vm, _, [| DString path |] ->
-          let op = Host.Operation.DirectoryList(Host.expandHome path)
-          Interpreter.requestHost vm op (fun outcome ->
-            match outcome with
-            | Ok response ->
-              let entries = Host.expectEntries response
-              Ply(DList(VT.string, List.map DString entries))
-            | Error _ -> Ply(DList(VT.string, [])))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.FileRead ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "getCurrentExecutablePath" 0
+  [ { name = fn "getCurrentExecutablePath" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString
