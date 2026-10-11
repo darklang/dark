@@ -1045,10 +1045,9 @@ EOF
 
 # --- package-tests: every package test in packages/, through `dark test` ---------------------
 # The package suite as a person runs it, on a copy of the store, so a red package test fails CI
-# instead of waiting for someone to run `dark test` by hand. Gate, not an F# test: it is one long
-# command (about 8 minutes, most of it the CLI fixtures starting processes) with nothing to
-# assert but its own verdict, and the F# harness bounds every command at 2 minutes. CI runs it as
-# its own step with its own timeout, not from CI_GATES, whose per-gate bound is 5 minutes.
+# instead of waiting for someone to run `dark test` by hand. The F# harness limits each command
+# to 2 minutes, so this suite has its own CI step and timeout. It runs in build-cli using the
+# NativeAOT binary already built there, since every test starts a fresh process.
 #
 # `--force`: the result cache lives in the store, so a copied store brings its cached passes
 # along (24 of them on a dev store, measured). Configure this disposable instance

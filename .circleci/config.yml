@@ -258,20 +258,6 @@ jobs:
             fi
             timeout 20m scripts/run-backend-tests --published
 
-      # Every package test in packages/, through `dark test` on a copy of the store
-      - run:
-          name: Run package tests
-          command: |
-            if [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then
-              echo "node 1 runs the gates instead"
-              exit 0
-            fi
-            # Backend tests reload test-data.db and can update the shared package hashes.
-            # Refresh data.db with the published loader before the gate copies it.
-            scripts/build/reload-packages --published
-            CLI=backend/Build/out/Cli/Release/net10.0/publish/Cli \
-              timeout 20m scripts/testing/gates package-tests
-
       # Gate scripts covering what the F# suite structurally cannot
       - run:
           name: Gate scripts (the CI subset)
@@ -363,6 +349,14 @@ jobs:
       - run:
           name: First-day gate on the built CLI
           command: timeout 5m scripts/testing/gates first-day "$(ls clis/darklang-*-linux-x64)"
+
+      # Each package test starts a fresh process. Use the NativeAOT CLI built here
+      # to avoid paying managed-runtime startup for every test.
+      - run:
+          name: Run package tests
+          command: |
+            CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64" \
+              timeout 20m scripts/testing/gates package-tests
 
       - persist_to_workspace:
           root: "."
