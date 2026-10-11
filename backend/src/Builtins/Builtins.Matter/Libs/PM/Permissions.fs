@@ -19,12 +19,6 @@ module PolicyStore = LibDB.PolicyStore
 open Builtin.Shortcuts
 
 
-let private policyType : TypeReference =
-  TCustomType(NR.ok (PolicyToDT.Policy.typeName ()), [])
-
-let private ruleType : TypeReference =
-  TCustomType(NR.ok (PolicyToDT.Rule.typeName ()), [])
-
 let private policyAdminError () =
   RuntimeError.UncaughtException(
     "permission denied: policy changes require the trusted `dark permissions` command",
@@ -89,10 +83,13 @@ let private hostOnly
     if not state.canManagePolicies then policyAdminError ()
     impl state args)
 
-let private accountParam = Param.make "accountID" (TypeReference.option TUuid) ""
 let private locationParam = Param.make "location" TString "Logical function name"
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
+  let policyType = TCustomType(NR.ok (PolicyToDT.Policy.typeName ()), [])
+  let ruleType = TCustomType(NR.ok (PolicyToDT.Rule.typeName ()), [])
+  let accountParam = Param.make "accountID" (TypeReference.option TUuid) ""
+
   [ policyFn
       "pmPolicyGetInstance"
       [ Param.make "unit" TUnit "" ]
@@ -369,4 +366,4 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()) ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

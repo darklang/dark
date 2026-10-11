@@ -51,6 +51,26 @@ let private readExistingFile () : Map<string, string> =
     Map.empty
 
 
+/// Initialize refs from a complete source reload before storing its functions.
+/// Lowering needs these identities for trait operators and Result/Option unwraps,
+/// including on a fresh checkout where the hash file is still empty.
+let initializeFromOps (ops : List<LibExecution.ProgramTypes.PackageOp>) : unit =
+  let refs =
+    ops
+    |> List.choose (function
+      | LibExecution.ProgramTypes.PackageOp.SetName(loc, target, _) when
+        loc.owner = "Darklang"
+        ->
+        let (LibExecution.ProgramTypes.Hash hash) = target.hash
+        Some(
+          buildKey (target.kind.toString ()) (String.concat "." loc.modules) loc.name,
+          hash
+        )
+      | _ -> None)
+  // Keep aliases that are not source locations, as generate does below.
+  PackageRefs.setHashes (Map.ofList (Map.toList (readExistingFile ()) @ refs))
+
+
 /// Query the DB for all current Darklang-owned locations, make them this process's
 /// hashes, and, when `writeSourceFile`, write `package-ref-hashes.txt` in the source
 /// tree. Only a reload's FINAL state belongs in that file: every process in the
