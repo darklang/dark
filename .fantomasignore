@@ -1,3 +1,7 @@
+# Not part of the product, and not compiled, so it must not be reformatted: a format pass has
+# changed program meaning in this repo before now, and nothing here would catch it.
+later/
+
 # All .dark files
 # (in ./.vscode/* somewhere, we tell VS Code that .dark files are F# files,
 # so we get syntax highlighting of the near-equivalent syntax (for now),

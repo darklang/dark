@@ -50,10 +50,9 @@ def main() -> int:
     missing = [h for h in refs if db.execute(query, (h,)).fetchone()[0] > 0]
 
     # The seed must carry NO instance state. A seed built on a machine that has a branch ships that
-    # branch, and its `op_owners` rows (hundreds of thousands of them), to every install. `Seed.export`
-    # strips these; this is what holds it to that.
+    # branch to every install. `Seed.export` strips these; this is what holds it to that.
     dirty = []
-    for table in ("branches", "op_branches", "op_owners", "sync_bases", "config_v0"):
+    for table in ("branches", "op_branches", "config_v0"):
         try:
             n = db.execute(f"SELECT count(*) FROM seed.{table}").fetchone()[0]
         except sqlite3.OperationalError:

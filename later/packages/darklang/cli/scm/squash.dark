@@ -1,0 +1,96 @@
+/// `dark squash`: collapse the run of your own commits at the tip into one.
+///
+/// What it is for: a save can be its own commit, so a morning's work is forty of them. This is how
+/// that becomes one afterwards.
+///
+/// It mints no op and deletes no op. An op's id is its content hash and membership in a commit is
+/// `package_ops.commit_hash`, so this is an UPDATE of one column; `SCM.Commits.squashRun` says more.
+module Darklang.Cli.Squash
+
+/// The run at the tip that is safe to collapse: YOUR commits, oldest first.
+///
+/// A commit that is not yours came from somewhere else, and its ops are filed under the author's
+/// commit on purpose; sweeping it in would reattribute somebody else's work to you. So the walk
+/// stops at the first commit that is not yours, rather than skipping it and carrying on, because a
+/// run with a hole in it is not a parent chain.
+let runAtTip (state: Cli.AppState) : List<SCM.Commits.Commit> =
+  let me = Cli.Commit.commitAuthor state
+
+  let walk
+    (hash: String)
+    (acc: List<SCM.Commits.Commit>)
+    : List<SCM.Commits.Commit> =
+    if hash == "" then
+      acc
+    else
+      match SCM.Commits.byHashPrefix hash with
+      | None -> acc
+      | Some c ->
+        if c.author != me then
+          acc
+        else
+          walk c.parent (Stdlib.List.push acc c)
+
+  walk (SCM.PackageOps.parentCommitFor state.currentBranchId) []
+
+let help (_state: Cli.AppState) : String =
+  [ ""
+    "Usage: dark squash [message]"
+    ""
+    "Collapses the run of YOUR commits at the tip into one. A save can be"
+    "its own commit, and this is how a morning of them becomes one."
+    ""
+    "It stops at the first commit somebody else wrote: their ops are filed"
+    "under the author's commit on purpose."
+    ""
+    "  dark squash                   collapse them, with a generated message"
+    "  dark squash \"the morning\"      collapse them under your own message"
+    ""
+    "No op is minted, deleted or re-inserted; only which commit each op"
+    "names. `dark commits` afterwards shows the one."
+    "" ]
+  |> Stdlib.String.join "\n"
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [ "--help" ] ->
+    Stdlib.printLine (help state)
+    state
+  | _ ->
+    let run = runAtTip state
+
+    match run with
+    | [] ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          "nothing to squash -- the commit at the tip is not yours")
+      state
+    | [ _ ] ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint "nothing to squash -- one commit is already one commit")
+      state
+    | _ ->
+      let count = Stdlib.List.length run
+
+      let message =
+        match args with
+        | [] -> $"squashed {Stdlib.toString count} commits"
+        | _ -> Stdlib.String.join args " "
+
+      match SCM.Commits.squashRun run message (Cli.Commit.commitAuthor state) with
+      | Ok hash ->
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.success
+            $"✓ squashed {Stdlib.toString count} commits into {Stdlib.String.first hash 8}")
+
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"  {message}")
+        state
+      | Error e ->
+        Cli.printErr $"cannot squash: {e}"
+        { state with exitCode = 1 }
+
+let complete
+  (_state: Cli.AppState)
+  (_args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  []

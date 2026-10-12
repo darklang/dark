@@ -1,0 +1,45 @@
+// RESTORE: packages/darklang/tests/cli/outliner.dark
+// WAS: the `Formats` module of that file, six tests over the outliner's Markdown and OPML
+//      import/export, which moved to `later/packages/darklang/cli/outliner/` with the commands.
+// ANCHOR: after the `Confirm` module's last test (`declined`), before `module Persistence`.
+// WHEN: restoring `Cli.Outliner.Markdown` or `Cli.Outliner.Export`.
+// NOTE: these were testfile assertions (`x = y`) under
+//       `backend/testfiles/execution/cli/outliner.dark` until the package-test port; this is the
+//       ported `test <name> = ... |> Stdlib.Test.equal ...` form, which is what the tree runs now.
+
+module Formats =
+  let doc () : Darklang.Cli.Outliner.Document =
+    Darklang.Cli.Outliner.Markdown.import "# Trip\n\n- one\n  - [ ] two\n  - [x] three\n- four"
+
+  test markdownTitle =
+    (doc ()).title |> Stdlib.Test.equal "Trip"
+
+  // Markdown out and back is the identity, tasks included.
+  test markdownRoundTrip =
+    Darklang.Cli.Outliner.Markdown.export (doc ())
+    |> Stdlib.Test.equal "# Trip\n\n- one\n  - [ ] two\n  - [x] three\n- four"
+
+  // Tabs indent as well as spaces do.
+  test tabsIndent =
+    Darklang.Cli.Outliner.Markdown.export (Darklang.Cli.Outliner.Markdown.import "# T\n\n- a\n\t- b")
+    |> Stdlib.Test.equal "# T\n\n- a\n  - b"
+
+  // A file that skips a level still hangs off the nearest line above it.
+  test skippedLevel =
+    Darklang.Cli.Outliner.Markdown.export
+      (Darklang.Cli.Outliner.Markdown.import "# T\n\n- a\n      - deep")
+    |> Stdlib.Test.equal "# T\n\n- a\n  - deep"
+
+  // OPML round-trips through the parser that didn't exist until now.
+  test opmlRoundTrip =
+    (match Darklang.Cli.Outliner.Export.fromOpml (Darklang.Cli.Outliner.Export.toOpml (doc ())) with
+     | Ok back -> Darklang.Cli.Outliner.Markdown.export back
+     | Error e -> e)
+    |> Stdlib.Test.equal "# Trip\n\n- one\n  - [ ] two\n  - [x] three\n- four"
+
+  // Something that isn't OPML is an error, not an empty document.
+  test nonOpmlRejected =
+    (match Darklang.Cli.Outliner.Export.fromOpml "hello" with
+     | Ok _ -> "parsed"
+     | Error _ -> "rejected")
+    |> Stdlib.Test.equal "rejected"

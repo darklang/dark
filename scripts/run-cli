@@ -52,7 +52,7 @@ export GIT_COMMIT
 # context: 'tee' was screwing up our MCP server running through this script
 # so a --no-log argument is supported to skip logging to the file.
 # also skip the tee when stdout is a tty (interactive): the pipe makes stdout a
-# non-tty, which breaks full-screen TUIs (`dark apps`, `dark outliner`, …).
+# non-tty, which breaks full-screen TUIs (the workbench, `dark outliner`, …).
 #
 # exec, so signals reach the CLI rather than stopping at this wrapper. Without it a
 # terminated `run-cli` leaves the Cli child orphaned; one container accumulated 57.

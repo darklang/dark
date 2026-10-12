@@ -445,16 +445,6 @@ let conflictDetail (state: State) : String =
     $"name:       {dotted}\nkind:       {c.itemType}\nstatus:     {c.status}{why}{by}\n\nversions:\n{sides}"
   | None -> "(no conflict selected)"
 
-/// The selected app's detail (name/description + lifecycle hints). Placeholder actions for now.
-let appDetail (state: State) : String =
-  match Stdlib.List.getAt state.items state.selected with
-  | Some item ->
-    item.name
-    + "\n\n"
-    + "⏎ inspect    i install/uninstall    r start    s stop\n\n"
-    + "(each traces the matching `apps` subcommand in-frame - output opens in the reader)"
-  | None -> "(no app selected)"
-
 /// The selected run: where it stands, what it was given, and what it did to the world. The same
 /// answer `dark traces inspect <id>` gives, because it is the same row.
 let traceDetail (state: State) : String =
@@ -679,10 +669,6 @@ let previewLines (state: State) : List<String> =
     match state.preview with
     | Some p when p.key == previewKey state -> p.lines
     | _ -> matterPageLines state
-  else if state.activeView == vAI then
-    if state.ai.section == AiSection.Prompts then Stdlib.String.split (promptDetail state.selected) "\n"
-    else Stdlib.String.split (aiThreadDetail state.selected) "\n"
-  else if state.activeView == vApps then Stdlib.String.split (appDetail state) "\n"
   else if state.activeView == vTraces then Stdlib.String.split (traceDetail state) "\n"
   else if state.activeView == vDocs then Stdlib.String.split (docContent state) "\n"
   else

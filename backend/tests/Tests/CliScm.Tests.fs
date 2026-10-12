@@ -21,33 +21,6 @@ open TestUtils.TestUtils
 open Tests.CliTestHarness
 open Tests.CliDsl
 
-/// Code the CLI runs cannot point the unguarded HTTP transport at whatever it likes.
-///
-/// `httpGetUnsafeBytes` turns the SSRF guards off so a relay behind loopback or a tailnet is reachable at
-/// all. It is in the general builtin set, so a function pulled from a peer could call it -- and did: A
-/// authors a function that calls it, syncs, B pulls and runs it, and it reads a service on B's loopback.
-///
-/// What stops that now is the caller gate rather than an origin allowlist: every frame must be bundled
-/// first-party code. An expression typed at `eval` is not, which is the same position pulled code is in.
-let private unguardedTransportRefusesGuestCallers =
-  cliTest
-    "the unguarded transport refuses a caller that is not bundled code"
-    (fun state ->
-      task {
-        let! out =
-          runCli
-            state
-            [ "eval"
-              "match Builtin.httpGetUnsafeBytes \"http://127.0.0.1:9/x\" with | Ok _ -> \"REACHED\" | Error e -> e" ]
-
-        Expect.stringContains
-          out
-          "restricted to trusted first-party"
-          $"the refusal says why, got: {out}"
-        Expect.isFalse (out.Contains "REACHED") "and nothing was fetched"
-        return ()
-      })
-
 /// `dark diff` with no branch named answers about the DRAFT.
 let private bareDiffShowsTheDraft =
   cliTest "diff with no branch shows the draft" (fun state ->
@@ -275,36 +248,6 @@ let private switchRefusesAForeignId =
         Expect.isFalse
           (listed.Contains foreign)
           "no branch was started under the id's name"
-      })
-
-/// A branch that names content main already held (same body, another name) holds only the `SetName`:
-/// the `Add` is main's, since an op is identified by what it adds. The bundle must carry that Add
-/// anyway, or the receiver, whose main may not have it, gets a name pointing at nothing.
-let private aBundleCarriesTheContentItsNamesPointAt =
-  cliTestOnMain
-    "a branch bundle carries the Add for a body the branch borrowed from main"
-    (fun state ->
-      task {
-        do! fn state "Tests.Borrow.onMain" "() : Int64 = 5005L"
-        do! switch state "borrowbr"
-        let! _ =
-          runCli state [ "fn"; "Tests.Borrow.onBranch"; "() : Int64 = 5005L" ]
-        let! log = runCli state [ "log"; "borrowbr" ]
-        Expect.isFalse
-          (log.Contains "AddFn")
-          $"the branch holds only the SetName: {log}"
-
-        let exported = $"{LibConfig.Config.runDir}/bundle-borrow.json"
-        let! _ = runCli state [ "branch"; "export"; "borrowbr"; exported ]
-        let json = System.IO.File.ReadAllText exported
-        let ops =
-          System.Text.RegularExpressions.Regex.Matches(json, "\"blobHex\"").Count
-        Expect.equal
-          ops
-          2
-          $"the bundle carries the Add as well as the SetName: {json.Substring(0, min 200 json.Length)}"
-
-        do! archiveBranches state [ "borrowbr" ]
       })
 
 /// A merge into main commits what it landed. The branch's ops arrive uncommitted (a pulled branch, or
@@ -808,51 +751,6 @@ let private archivingAChildLandsOnItsParent =
         do! archiveBranches state [ "archparent" ]
       })
 
-let private aBundleCarriesItsCommits =
-  cliTestOnMain
-    "a branch bundle arrives with the author's commits, not as a draft"
-    (fun state ->
-      task {
-        do! switch state "committedbr"
-        let! shown = runCli state [ "eval"; "Builtin.scmCurrentBranch ()" ]
-        let sourceId =
-          System.Text.RegularExpressions.Regex.Match(shown, @"[0-9a-f-]{36}").Value
-        do! fn state "Tests.Carry.done" "() : Int64 = 7007L"
-        do! commit state "the author's own message"
-        do! switch state "main"
-
-        let exported = $"{LibConfig.Config.runDir}/bundle-commits.json"
-        let! _ = runCli state [ "branch"; "export"; "committedbr"; exported ]
-        let json = System.IO.File.ReadAllText exported
-        Expect.stringContains
-          json
-          "the author's own message"
-          "the bundle carries the commit"
-        let freshId = "1e51f3a2-9c4d-4b7a-8f61-2d3e4c5b6a71"
-        let retargeted =
-          json.Replace(sourceId, freshId).Replace("committedbr", "arrivedbr")
-        let path = $"{LibConfig.Config.runDir}/bundle-commits-arrived.json"
-        System.IO.File.WriteAllText(path, retargeted)
-
-        do! shows state [ "branch"; "import"; path ] "imported branch" "it imports"
-        // `switch`, not `--branch`: the harness runs the Dark entry only, and `--branch` moves the
-        // process in the F# entry, so a draft read here would be main's.
-        do! switch state "arrivedbr"
-        do!
-          shows
-            state
-            [ "status" ]
-            "clean"
-            "nothing on the arrived branch is a draft"
-        do!
-          shows
-            state
-            [ "commits"; "3" ]
-            "the author's own message"
-            "and the author's commit is there"
-
-        do! archiveBranches state [ "arrivedbr"; "committedbr" ]
-      })
 
 /// `discard` on a branch drops the BRANCH's work and leaves main's draft alone.
 ///
@@ -1412,43 +1310,6 @@ let private branchVerbsTakeTheNameYouSee =
           "a name we don't have is still an error"
     })
 
-/// A review queue is a branch you name, so the verbs have to resolve it like any other: `review
-/// import` stages under a minted id, and the typed queue name is not that id.
-let reviewQueueRoundTrips =
-  cliTestOnMain
-    "a review queue can be inspected and approved by the name you gave it"
-    (fun state ->
-      task {
-        do! switch state "rqsrc"
-        let! _ =
-          runCli state [ "fn"; "Tests.Rq.one"; "(x: Int64) : Int64 = x + 5L" ]
-        do! switch state "main"
-
-        let path = $"{LibConfig.Config.runDir}/rq-test-bundle.json"
-        let! _ = runCli state [ "sync"; "export"; path ]
-
-        // Asserted POSITIVELY. These three were `isFalse (contains "no review queue")`, which any other
-        // failure text passed, including a runtime error, and this is the only end-to-end cover of
-        // `dark review`.
-        let! staged = runCli state [ "review"; "import"; path; "rqueue" ]
-        Expect.stringContains
-          staged
-          "rqueue"
-          $"the queue is created by name: {staged}"
-        Expect.isFalse
-          (Option.isSome (looksLikeARuntimeFailure staged))
-          $"and importing it did not fail: {staged}"
-
-        let! shown = runCli state [ "review"; "rqueue" ]
-        Expect.isFalse
-          (Option.isSome (looksLikeARuntimeFailure shown))
-          $"and is inspectable by that name: {shown}"
-
-        let! approved = runCli state [ "review"; "approve"; "rqueue" ]
-        Expect.isFalse
-          (Option.isSome (looksLikeARuntimeFailure approved))
-          $"and approvable by it, which is the whole workflow: {approved}"
-      })
 
 let private otherBranchAnswersStayCurrent =
   cliTestOnMain
@@ -1975,92 +1836,6 @@ let private dependentsSeeTheBranchYouAreOn =
 let private recordConflictOn (branchIdExpr : string) (id : string) : string =
   $"""Darklang.SCM.Conflicts.record ({branchIdExpr}) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}"; owner = "Zz"; modules = "Confl"; name = "f"; itemType = "fn"; part = ""; kind = "same-name-different-hash"; candidates = []; autoResolvedTo = "bbb"; reason = "test"; status = "pending"; resolvedBy = "" }}]"""
 
-/// A branch bundle carrying an op this build cannot decode is imported anyway: the readable ops land,
-/// the unreadable one is stored raw and inert for a later build, and a note says so. That is what main
-/// sync does with such ops. Refusing the bundle left the branch absent altogether, which a branch three
-/// ops short still beats. A bundle that is not even well-formed (a blob that is not hex) is a different
-/// thing and is still refused. Built from a REAL export plus one such record.
-let private branchBundleKeepsWhatItCannotRead =
-  cliTestOnMain
-    "one undecodable op is stored inert and the rest of the bundle imports"
-    (fun state ->
-      task {
-        do! switch state "bundlebr"
-        let! shown = runCli state [ "eval"; "Builtin.scmCurrentBranch ()" ]
-        // `eval` prints `<Uuid: ...>`; the id is what the bundle carries.
-        let sourceId =
-          System.Text.RegularExpressions.Regex.Match(shown, @"[0-9a-f-]{36}").Value
-        Expect.equal
-          sourceId.Length
-          36
-          $"the branch id was read off eval's output: {shown}"
-        do! author state "Tests.Bundle.only" "(x: Int64) : Int64 = x + 1L"
-        do! switch state "main"
-
-        let exported = $"{LibConfig.Config.runDir}/bundle-partial.json"
-        let! _ = runCli state [ "branch"; "export"; "bundlebr"; exported ]
-        let json = System.IO.File.ReadAllText exported
-
-        // Retarget at a branch this store lacks, so "was it registered" is answerable.
-        let freshId = "0e51f3a2-9c4d-4b7a-8f61-2d3e4c5b6a70"
-        let retargeted =
-          json.Replace(sourceId, freshId).Replace("bundlebr", "importedbr")
-
-        // Valid hex, not a valid op: the deserializer rejects it. Appended rather than substituted, so
-        // every real op in the bundle stays valid: the partial case.
-        let bad =
-          """,{"blobHex":"ff3907","commit":"","id":"7c9e6679-7425-40de-944b-e07fc1f90ae7","ts":"2026-01-01T00:00:00.000Z"}"""
-        // The serializer emits fields alphabetically, so `parent` follows `ops` and the
-        // ops array does not end the document. Splice at the array's own close.
-        let marker = """],"parent":"""
-        let cut = retargeted.IndexOf marker
-        Expect.isGreaterThan
-          cut
-          0
-          "the exported bundle has an ops array followed by parent"
-        let partial = retargeted.Substring(0, cut) + bad + retargeted.Substring(cut)
-
-        let partialPath = $"{LibConfig.Config.runDir}/bundle-partial-bad.json"
-        System.IO.File.WriteAllText(partialPath, partial)
-
-        let! stdout, stderr, status =
-          runCliStreams state [ "branch"; "import"; partialPath ]
-        Expect.equal status 0 "the readable part of the bundle imports"
-        Expect.stringContains stdout "imported branch" "the bundle imports"
-        Expect.stringContains
-          stderr
-          "1 op(s) in this bundle"
-          "the unreadable record is reported on stderr"
-        Expect.stringContains
-          stderr
-          "They are kept, not dropped"
-          "the warning explains that the record is preserved"
-
-        let! listed = runCli state [ "branches" ]
-        Expect.isTrue
-          (listed.Contains "importedbr")
-          $"and the branch exists: {listed}"
-        // `switch`, not `--branch`: the flag is resolved and consumed in `Cli.fs` before Dark runs, so
-        // through this harness (which calls the Dark entry point directly) it moves nothing.
-        do! switch state "importedbr"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Bundle.only 1L" ]
-            "2"
-            "and its readable work runs"
-        do! switch state "main"
-
-        // The unreadable op is here, inert, on the branch: kept for a build that can read it.
-        let! kept =
-          Sql.query
-            "SELECT count(*) AS n FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
-           WHERE p.id = '7c9e6679-7425-40de-944b-e07fc1f90ae7' AND p.effective = 0"
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
-        Expect.equal kept 1L "the unreadable op is stored inert on the branch"
-
-        do! archiveBranches state [ "importedbr"; "bundlebr" ]
-      })
 
 /// A merge moves committed work onto main and there is no undo verb for it, so it asks first, and a
 /// stdin nobody is holding counts as no.
@@ -2458,38 +2233,6 @@ let private aBranchNeverSeesMainsDraft =
         do! archiveBranches state [ "dmask" ]
       })
 
-/// Editing a name whose live version a COLLEAGUE authored prints a one-line heads-up naming them
-/// and the commit it arrived in; editing your own version says nothing. The check reads the live
-/// binding's commit author before the save lands.
-let private editingAColleaguesVersionSaysSo =
-  cliTestOnMain
-    "an edit over a colleague's version gets a heads-up; over your own, silence"
-    (fun state ->
-      task {
-        do! fn state "Tests.PeerNote.f" "() : Int64 = 1L"
-        do! commit state "peer note v1"
-
-        let! ownEdit = runCli state [ "fn"; "Tests.PeerNote.f"; "() : Int64 = 2L" ]
-        Expect.isFalse
-          (ownEdit.Contains "note:")
-          "editing your own version prints no heads-up"
-        let! _ = runCli state [ "discard"; "Tests.PeerNote.f"; "-y" ]
-
-        // The same binding, now wearing a colleague's name, as a sync would leave it.
-        do!
-          execSql
-            "UPDATE commits SET author = 'colleague' WHERE message = 'peer note v1'"
-
-        let! peerEdit = runCli state [ "fn"; "Tests.PeerNote.f"; "() : Int64 = 3L" ]
-        Expect.stringContains
-          peerEdit
-          "note: colleague changed this"
-          "the heads-up names them"
-        Expect.stringContains peerEdit "peer note v1" "and the commit it arrived in"
-        let! _ = runCli state [ "discard"; "Tests.PeerNote.f"; "-y" ]
-        ()
-      })
-
 /// `dark commits` hides housekeeping (event-only commits: a branch archive or merge marker with no
 /// authored work) behind `--all`, and says how many it hid.
 let private commitsHideHousekeeping =
@@ -2765,9 +2508,7 @@ let tests : List<Test> =
     diffAndLogAnswerInJson
     mergeAsksBeforeItGoes
     mergeGatesAreDecidedInDark
-    branchBundleKeepsWhatItCannotRead
     bareDiffShowsTheDraft
-    unguardedTransportRefusesGuestCallers
     bareSubcommandDoesNotBecomeABranch
     dependentsSeeTheBranchYouAreOn
     bareMergeAndRebaseMeanThisBranch
@@ -2775,9 +2516,7 @@ let tests : List<Test> =
     branchReadsAnswerAboutTheBranch
     aBranchKnowsWhatFollowed
     switchRefusesAForeignId
-    aBundleCarriesTheContentItsNamesPointAt
     aMergeCommitsWhatItLands
-    aBundleCarriesItsCommits
     anUnbindRemovesANameThroughTheCli
     aDeprecationCommitsByEitherPath
     archivingABranchCommitsItsEvent
@@ -2799,7 +2538,6 @@ let tests : List<Test> =
     aBranchNeverSeesMainsDraft
     discardSparesInertOps
     mergeCommitsWhatASiblingStillTags
-    editingAColleaguesVersionSaysSo
     commitsHideHousekeeping
     commitsChainToTheirParent
     revertingToAnEarlierVersionTakesEffect

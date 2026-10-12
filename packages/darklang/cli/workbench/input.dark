@@ -5,29 +5,20 @@ module Darklang.Cli.Workbench
 
 let performInputAction (state: State) (inp: InputState) : Step =
   if inp.action == "commit" then
-    match state.accountId with
-    | Some _ ->
-      let author = Darklang.Cli.Commit.commitAuthor (classicState state)
-      match SCM.PackageOps.commitDraft author state.branchId inp.field.text with
-      | Ok _ ->
-        Step.Continue
-          { state with
-              input = Stdlib.Option.Option.None
-              items = reloadItems state
-              selected = 0
-              messageKind = MessageKind.Succeeded
-              message = "committed" }
-      | Error e ->
-        // `commitDraft`'s error IS the message; there is nothing to unwrap.
-        Step.Continue
-          { state with
-              input = Stdlib.Option.Option.Some { inp with prompt = "commit failed: " + e + " - esc"; field = Stdlib.Cli.UI.TextField.empty } }
-    | None ->
+    match SCM.PackageOps.commitDraft state.branchId inp.field.text with
+    | Ok _ ->
       Step.Continue
         { state with
-            input =
-              Stdlib.Option.Option.Some
-                { inp with prompt = "not logged in - run `login`, then retry - esc"; field = Stdlib.Cli.UI.TextField.empty } }
+            input = Stdlib.Option.Option.None
+            items = reloadItems state
+            selected = 0
+            messageKind = MessageKind.Succeeded
+            message = "committed" }
+    | Error e ->
+      // `commitDraft`'s error IS the message; there is nothing to unwrap.
+      Step.Continue
+        { state with
+            input = Stdlib.Option.Option.Some { inp with prompt = "commit failed: " + e + " - esc"; field = Stdlib.Cli.UI.TextField.empty } }
   else if inp.action == "discard" then
     // Destructive: only proceed on an explicit "y".
     if inp.field.text == "y" then
@@ -142,7 +133,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         Step.Continue
           { moved with
               input = Stdlib.Option.Option.None
-              items = itemsForView state.activeView parentId state.location state.ai.section state.matter.lens
+              items = itemsForView state.activeView parentId state.location state.matter.lens
               selected = 0
               filter = ""
               messageKind = MessageKind.Succeeded
@@ -192,25 +183,6 @@ let performInputAction (state: State) (inp: InputState) : Step =
         { state with
             input = Stdlib.Option.Option.None
             search = SearchState { hits = hits; selected = 0 } }
-  else if inp.action == "agent" then
-    // Agents view: run `agent ask <prompt>`, captured, and show the reply in the reader.
-    let text = Stdlib.String.trim inp.field.text
-    if text == "" then
-      Step.Continue { state with input = Stdlib.Option.Option.None }
-    else
-      let words = Stdlib.String.split text " " |> Stdlib.List.filter (fun w -> w != "")
-      let appState =
-        classicState state
-      let output =
-        captureOutput (fun () ->
-          Darklang.Cli.Registry.executeCommand "agent" appState (Stdlib.List.append [ "ask" ] words))
-      let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
-      Step.Continue
-        { state with
-            input = Stdlib.Option.Option.None
-            reading = Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.dimText ("ask: " + text)) + "\n\n" + shown)
-            readingIsCode = false
-            detailScroll = 0 }
   else if inp.action == "command" then
     // The `:` command bar - run any old-school CLI command inside the workbench and show its output in the
     // reader (captured via stdoutCapture, so it never touches the frame). If the first word isn't a known
@@ -262,17 +234,11 @@ let performInputAction (state: State) (inp: InputState) : Step =
               $"{cmd} isn't a command -- ran the line as a Dark expression instead. `?` lists commands.")
             + "\n\n"
             + body
-        // `config set devices.enabled true` should show up in the navbar now, not on next launch. The gate
-        // list is read from disk, so it's computed once rather than per frame; a config command is the one
-        // thing that can invalidate it.
-        let gated =
-          if cmd == "config" then recomputeGatedViews state else state.enabledGatedViews
         Step.Continue
           { state with
               input = Stdlib.Option.Option.None
               // Whatever ran may have changed what the item page shows, an approval for one.
               preview = Stdlib.Option.Option.None
-              enabledGatedViews = gated
               reading = Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.dimText ("$ " + text)) + "\n\n" + shown)
               readingIsCode = false
               detailScroll = 0 }

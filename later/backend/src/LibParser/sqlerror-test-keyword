@@ -1,0 +1,37 @@
+// RESTORE: the `sqlerror="msg"` testfile assertion keyword, across six files
+// WAS: a testfile line could read `expr = sqlerror="message"`, asserting that a `DB.query`
+//      lambda failed to compile to SQL with that message.
+// ANCHOR: every piece sat immediately beside its `error=` equivalent, which STAYS, so restoring
+//      is a matter of adding a second case next to each `TEError` arm. The pieces:
+//
+//   backend/src/LibParser/Parser.fs, in parseTestExpected, two arms beside the `error` ones:
+//     | TIdent "sqlerror", TEquals, TStringLit s -> (WT.TESqlError s, i + 3)
+//     | TIdent "sqlerror", TStringLit s, _ -> (WT.TESqlError s, i + 2)
+//   and its doc line read `an \`error="msg"\` / \`sqlerror="msg"\` marker`.
+//
+//   backend/src/LibParser/WrittenTypes.fs, a case on TestExpected:
+//     | TESqlError of string
+//
+//   backend/src/LibParser/Validation.fs, folded into the TEError arm:
+//     | WT.TEError _
+//     | WT.TESqlError _ -> []
+//
+//   backend/src/LibParser/TestModule.fs, two DU cases and two lowering arms:
+//     | WTExpectedSqlError of string
+//     | PTExpectedSqlError of string
+//     | WT.TESqlError msg -> WTExpectedSqlError(String.normalize msg)
+//     | WTExpectedSqlError msg -> return PTExpected.PTExpectedSqlError msg
+//
+//   backend/src/Builtins/Builtins.Language/Libs/Parser.fs, two arms that are now TEError:
+//     | WT.TESqlError _ -> [ expr t.actual ]
+//     | WT.TESqlError _ -> [ t.actual ]
+//
+//   backend/tests/Tests/LibExecution.Tests.fs, the branch that ran the assertion, comparing
+//   `LibExecution.RTQueryCompiler.errorTemplate + expectedSqlError` against the actual error.
+//
+// NOTE: the only testfile that ever used it is later/backend/testfiles/execution/cloud/db.dark,
+//       and the compiler whose errors it asserted is
+//       later/backend/src/LibExecution/RTQueryCompiler.fs.
+// ALSO: later/backend/src/LibSerialization/DvalReprInternalQueryable.fs is the row format those
+//       queries read and wrote.
+// WHEN: the molt, 2026-10-12

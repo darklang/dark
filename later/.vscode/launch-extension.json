@@ -1,0 +1,32 @@
+// RESTORE: .vscode/launch.json
+// WAS: the whole file: its only configuration was "Launch Extension"
+// ANCHOR: .vscode/launch.json is STILL THERE and still tracked; the molt emptied its
+//      `configurations` array rather than deleting the file. So MERGE this configuration into the
+//      live file's array. Do not copy this file over it: an earlier version of this header said
+//      the file was gone entirely, and following that clobbers whatever else has been added.
+// ALSO: later/vscode-extension/ is what it launched
+// WHEN: the first round of the molt, 2026-10-12
+//
+// The whole of .vscode/launch.json as it stood before the molt. Its only configuration was
+// "Launch Extension", which opens a second VS Code against vscode-extension/, now in later/.
+
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}", // open another instance of vs code
+      "args": ["--extensionDevelopmentPath=${workspaceRoot}/vscode-extension"],
+      "outFiles": ["${workspaceRoot}/vscode-extension/client/out/**/*.js"],
+      "autoAttachChildProcesses": true,
+      "preLaunchTask": { "type": "npm", "script": "watch" },
+      "internalConsoleOptions": "openOnSessionStart",
+      "env": { "DARKLANG_CLI_MODE": "debug" }
+    }
+  ]
+}

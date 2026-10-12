@@ -1,0 +1,54 @@
+// RESTORE: packages/darklang/scm/packageOpsCommits.dark
+// WAS: commitsArrivedRecently (the newest commits by authoring stamp, which was what a pull had just landed) and peerAuthoredCurrent (who authored the version a name binds, when it was not this instance, for the 'changed under you' heads-up)
+// ANCHOR: commitsArrivedRecently between commitsOnBranch and parentCommitFor; peerAuthoredCurrent last in the file
+// ALSO: later/packages/darklang/cli/packages/core.dark.peer-heads-up has the caller chain. Both answered questions that need a second person: with one author, peerAuthoredCurrent is always None and nothing called commitsArrivedRecently at all.
+// WHEN: the sync molt, 2026-10-12
+
+/// Who authored the version <param location> currently binds, when it was NOT this instance:
+/// `Some (author, commitSubject, minutesSinceItLandedHere)`. None when the live binding is
+/// yours, uncommitted, or the store holds no attribution for it. `dark fn` and friends use
+/// this for the "changed under you" heads-up before an edit replaces a colleague's version.
+let peerAuthoredCurrent
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<(String * String * Int64)> =
+  let mods = Stdlib.String.join location.modules "."
+
+  // main-scoped: the heads-up is about MAIN's live binding -- the version a sync landed and an
+  // edit is about to replace. A branch's own rebind of the name was authored by you, so no note.
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT c.author AS author, c.message AS message,
+              CAST((julianday('now') - julianday(p.created_at)) * 1440 AS INTEGER) AS mins
+       FROM locations l
+       JOIN package_ops p ON p.id = l.op_id
+       JOIN commits c ON c.hash = p.commit_hash
+       WHERE l.owner = @p0 AND l.modules = @p1 AND l.name = @p2
+         AND l.unlisted_at IS NULL AND l.source <> 'unbind'
+       LIMIT 1"
+      [ location.owner, mods, location.name ]
+  with
+  | Ok [ row ] ->
+    match
+      (Stdlib.Sqlite.textField row "author",
+       Stdlib.Sqlite.textField row "message",
+       Stdlib.Sqlite.intField row "mins")
+    with
+    | (Some author, Some message, Some mins) ->
+      if author == identity () then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some((author, message, mins))
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+/// The newest few commits by AUTHORING stamp, whoever authored them: what a pull just landed. The
+/// stamp, not the local rowid -- one pull adopts a batch of commit rows in whatever order the wire
+/// listed them, so rowid order within a pull is arbitrary, and the story led with housekeeping while
+/// the commit a person was waiting for sat below the fold.
+let commitsArrivedRecently (limit: Int64) : List<Commits.Commit> =
+  Stdlib.Sqlite.rowsP
+    (localDb ())
+    "SELECT c.hash, c.message, c.author, c.origin_ts, c.created_at, c.parent
+     FROM commits c ORDER BY c.origin_ts DESC LIMIT @p0"
+    [ Stdlib.toString limit ]
+    (fun row -> Commits.commitFromRow row)

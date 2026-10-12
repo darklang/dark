@@ -579,7 +579,6 @@ module TraitImpl =
 module PackageTest =
   type ExpectedError =
     | RuntimeError of String
-    | SqlCompilerError of String
 
   /// Named executable package content. It is deliberately not callable from
   /// production expressions; the test runner evaluates its body directly.
@@ -587,8 +586,7 @@ module PackageTest =
     { hash: Hash
       body: Expr
       description: String
-      expectedError: Option<ExpectedError>
-      testDBs: List<(String * TypeReference)> }
+      expectedError: Option<ExpectedError> }
 
 
 /// The kind of package item (function, type, value, trait, impl, or test)

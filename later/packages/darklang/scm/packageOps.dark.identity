@@ -1,0 +1,84 @@
+// RESTORE: packages/darklang/scm/packageOps.dark
+// WAS: the whole identity block: the comment on what an identity is, `storedIdentity`, `identity` (which minted one on first use), `identityProblem` and `setIdentity`
+// ANCHOR: between the op-log SQL section and the OpSummary type
+// ALSO: later/packages/darklang/commit-author-param and later/packages/darklang/cli/commit-author-display are everything that read it. With one person on one machine the name was the same string on every commit, so it carried no information; it had been doing one real job, bounding `dark squash`, and squash went too.
+// WHEN: the sync molt, 2026-10-12
+
+// Identity here is a NAME, not an authentication. There is no crypto and no proof: it is the string an
+// op's author is stamped with, trusted by convention, stored in per-install config. Anything that needs
+// to be un-forgeable needs something this is not.
+
+
+/// This instance's identity if it has a valid one, without minting or writing anything.
+///
+/// An instance is a STORE, not a person or a machine: two clones of a store are two instances. Copying a
+/// database copies its config, so the id is stamped with where it was minted and counts as missing when
+/// that no longer matches -- two stores sharing an id cannot tell each other's ops apart.
+///
+/// Gap: a store copied to the same PATH on another machine keeps its id. Closing that needs a hostname
+/// builtin that doesn't exist.
+let storedIdentity () : Stdlib.Option.Option<String> =
+  // The config keys still read `sync.identity`, because they are what existing stores hold and
+  // renaming them would lose every instance its id.
+  let stored = Stdlib.LocalStore.configGet "sync.identity"
+  let mintedAt = Stdlib.LocalStore.configGet "sync.identity.origin"
+
+  // Only an AUTO-MINTED id is ever replaced: a name set deliberately in the config is
+  // theirs and survives being copied.
+  let autoMinted = Stdlib.String.startsWith stored "inst-"
+
+  if (stored != "") && ((mintedAt == Stdlib.LocalStore.path ()) || (autoMinted |> Stdlib.Bool.not)) then
+    Stdlib.Option.Option.Some stored
+  else
+    Stdlib.Option.Option.None
+
+
+/// This instance's identity, minted and saved on first use. Something that only shows the identity
+/// reads `storedIdentity` instead, so looking never writes to the store.
+let identity () : String =
+  match storedIdentity () with
+  | Some stored -> stored
+  | None ->
+    let here = Stdlib.LocalStore.path ()
+    let generated = $"inst-{Stdlib.toString (Stdlib.Uuid.generate ())}"
+    Stdlib.LocalStore.configSet "sync.identity" generated
+    Stdlib.LocalStore.configSet "sync.identity.origin" here
+    generated
+
+
+/// Whether <param name> can be this instance's identity, and why not when it cannot.
+///
+/// Letters, digits, dot, dash and underscore. Narrow on purpose: it is a name you may retype on
+/// another machine, it shows in `dark commits` beside every commit you make, and the auto-minted
+/// `inst-<uuid>` fits well inside it.
+let identityProblem (name: String) : Stdlib.Option.Option<String> =
+  if name == "" then
+    Stdlib.Option.Option.Some "an identity can't be empty"
+  else
+    let bad =
+      name
+      |> Stdlib.String.toList
+      |> Stdlib.List.filter (fun c ->
+        let ok =
+          (Stdlib.Char.isAlphanumeric c)
+          || (c == '.')
+          || (c == '-')
+          || (c == '_')
+
+        Stdlib.Bool.not ok)
+
+    match bad with
+    | [] -> Stdlib.Option.Option.None
+    | c :: _ ->
+      let shown = Stdlib.toString c
+      Stdlib.Option.Option.Some
+        $"an identity can't contain \"{shown}\" -- letters, digits, dot, dash and underscore only"
+
+
+/// Set (or change) this instance's identity.
+let setIdentity (name: String) : Stdlib.Result.Result<Unit, String> =
+  match identityProblem name with
+  | Some why -> Stdlib.Result.Result.Error why
+  | None ->
+    let _ = Stdlib.LocalStore.configSet "sync.identity" name
+    Stdlib.Result.Result.Ok()

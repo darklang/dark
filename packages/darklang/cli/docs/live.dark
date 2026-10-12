@@ -15,20 +15,20 @@ Any module with these three is a view:
   type Model = { count: Int }
   type Msg = | Inc
   let init () : Model = Model { count = 0 }
-  let update (m: Model) (e: Darklang.Cli.Apps.Host.Event<Msg>) : Model = ...
+  let update (m: Model) (e: Darklang.Cli.LiveView.Host.Event<Msg>) : Model = ...
   let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
     Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.bold "counter"; ... ]
 
-  apps view My.Counter --live   open it, following your edits to `render` or anything it calls
-                                from another terminal and it repaints
+  ps --watch                    a live view: edit `render` or anything it calls from another
+                                terminal and it repaints
 
 Following an edit means this process drops its own caches, and that is off
 until you allow it, once: `dark permissions allow runtime`. Without it a live
 view or a live server says so and names that command.
 
 The tree `render` returns paints to the terminal, to a page, or to text, so
-the same view is a pane and a web page. Ctrl-S saves the model as a `val`;
-`apps view My.Counter --resume <val>` starts from it.
+the same view is a pane and a web page. Ctrl-S saves the model as a `val`, and
+the host can start a later run from it.
 
 ## A live server
 
@@ -48,18 +48,9 @@ small script that waits for word that the router moved, and survives the
 server restarting rather than going blank. A JSON or an image response is
 untouched. Not for production, and `docs/live.md` has the mechanism.
 
-## A live host on another machine
-
-  # there
-  dark --branch feature apps enable sync    pull the branch on an interval
-  dark --branch feature serve My.router
-  # here
-  config set live.autopush on               every save commits and pushes
-  # ... edit, save; the page there changes a few seconds later
-
 ## Live values in the editor
 
-The workbench and the LSP show `// = value` beside the calls in a function:
+The workbench shows `// = value` beside the calls in a function:
 its last recorded trace, replayed through the code as it is now. Edit a callee,
 the values follow, no new call needed. Any recorded trace will do: the default
 recording keeps every impure call, and the pure ones are recomputed.

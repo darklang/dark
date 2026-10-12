@@ -1,0 +1,65 @@
+// RESTORE: packages/darklang/scm/packageOpsBundles.dark
+// WAS: the relay-side bundle wrappers (relayStoreBranch, relayGetBranch, relayListBranches, relayListAllBranches) and bundleOpIds, whose only caller was `dark branch pull`
+// ANCHOR: between exportBranch and importBranch
+// CORRECTION: an earlier version of this header said both of those functions stay in the live tree.
+//      Neither does: the whole file is in later/, at the same path, as the NOTE below says. The
+//      anchor is a position within THAT file, not within anything live.
+// ALSO: later/packages/darklang/scm/branches.dark.relay has the SQL silo these called; later/packages/darklang/cli/scm/branch.dark.relay-pushpull has the commands
+// WHEN: the sync molt, 2026-10-12
+// NOTE: the file this came out of is ALSO in later/, at the same path under later/.
+//       Move the file back first, then apply this on top of it.
+
+// relay branch storage (silo wrappers over the F# store; used by the matter relay)
+
+
+// relay branch storage (silo wrappers over the F# store; used by the matter relay)
+/// Host a pushed branch bundle. `false` when the relay already holds a newer one and kept it.
+///
+/// The comparison is made here rather than in the silo because the bundle's shape is known here:
+/// the newest stamp among its ops, and how many there are.
+let relayStoreBranch (owner: String) (branchId: Uuid) (bundle: String) : Bool =
+  match Stdlib.Json.parse<BranchBundle> bundle with
+  | Ok b ->
+    let maxTs =
+      b.ops
+      |> Stdlib.List.map (fun op -> op.ts)
+      |> Stdlib.List.fold "" (fun acc ts ->
+        if SCM.Conflicts.stringGt ts acc then ts else acc)
+
+    Branches.relayStoreBundle
+      owner
+      branchId
+      bundle
+      maxTs
+      (Stdlib.Int.toInt64 (Stdlib.List.length b.ops)
+       |> Stdlib.Option.withDefault 0L)
+  | Error _ -> false
+
+let relayGetBranch (owner: String) (branchId: Uuid) : String =
+  Branches.relayGetBundle owner branchId
+
+let relayListBranches (owner: String) : String =
+  Stdlib.String.join (Branches.relayListBranches owner) "\n"
+
+
+/// `owner branch-id` per hosted bundle, one per line: the discovery listing `/branch/owners` serves.
+let relayListAllBranches () : String =
+  Branches.relayListOwners ()
+  |> Stdlib.List.map (fun entry ->
+    let (owner, _n) = entry
+
+    Branches.relayListBranches owner
+    |> Stdlib.List.map (fun bid -> $"{owner} {bid}"))
+  |> Stdlib.List.flatten
+  |> (fun lines -> Stdlib.String.join lines "\n")
+
+
+/// The op ids a branch bundle CARRIES, without importing it.
+///
+/// What `branch pull` records as held by the relay's bundle channel: the ops that actually came
+/// over the wire. The branch's own local ops are not in it, and recording those as sent is how a
+/// local-only commit went missing from a colleague's pull.
+let bundleOpIds (json: String) : List<String> =
+  match Stdlib.Json.parse<BranchBundle> json with
+  | Ok b -> b.ops |> Stdlib.List.map (fun op -> op.id)
+  | Error _ -> []

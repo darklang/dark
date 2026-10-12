@@ -15,7 +15,7 @@ module Darklang.Cli.TraceWatch
 
 /// The config key the command hands the function name over on.
 ///
-/// A view's `init` is called with no arguments (`Apps.Host.start`), so a view that is ABOUT
+/// A view's `init` is called with no arguments (`LiveView.Host.start`), so a view that is ABOUT
 /// something has to be told what. `Live.show` does the same with the same mechanism.
 val fnKey = "traces.watch.fn"
 
@@ -175,7 +175,7 @@ let reload
 
 
 let init () : Model =
-  let (accountID, _) = Cli.restoreSessionAccount ()
+  let accountID = Stdlib.Option.Option.None
   let branchId = SCM.PackageOps.currentBranch ()
 
   let fn = Stdlib.LocalStore.configGet fnKey
@@ -183,7 +183,7 @@ let init () : Model =
   reload accountID branchId fn 0 Stdlib.Option.Option.None
 
 
-let update (m: Model) (event: Apps.Host.Event<Msg>) : Model =
+let update (m: Model) (event: LiveView.Host.Event<Msg>) : Model =
   match event with
   // A tick reloads BOTH halves: a new trace may have arrived, and the code may have been saved
   // since the last paint. That is the whole live-programming property, and it costs one replay,

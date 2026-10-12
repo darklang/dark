@@ -4,7 +4,7 @@ module Darklang.Cli.Ops
 // value is a row in `package_ops`, and the package tree you browse is a projection of them.
 //
 // READ-ONLY, deliberately. Everything that CHANGES the log has a root command of its own -- `dark commit`,
-// `dark undo`, `dark merge`, `dark sync`, `dark branch` -- so there is one obvious place per verb rather
+// `dark undo`, `dark merge`, `dark branch` -- so there is one obvious place per verb rather
 // than a second surface hiding under `ops`.
 //
 // All op-log SQL is siloed in `SCM.PackageOps`; this file writes NO SQL, it only formats what that silo
@@ -99,7 +99,7 @@ let help (_state: AppState) : String =
     ""
     "  Changing the log has its own commands: `dark commit`,"
     "  `dark undo`, `dark propagate`,"
-    "  `dark branch`, `dark merge`, `dark rebase`, `dark sync`, `dark review`."
+    "  `dark branch`, `dark merge`, `dark rebase`."
     ""
     "`dark commits` groups the same log by commit; `dark show <id>` opens one op or commit." ]
   |> Stdlib.String.join "\n"
@@ -115,26 +115,8 @@ let movedFromOps (verb: String) : Stdlib.Option.Option<String> =
   | "rebase"
   | "diff"
   | "log"
-  | "resolve"
-  | "push"
-  | "pull"
-  | "sync"
-  | "connect"
-  | "whoami"
-  | "identity" -> Stdlib.Option.Option.Some $"dark {verb}"
-  | "login" -> Stdlib.Option.Option.Some "dark identity <name>"
-  | "status" -> Stdlib.Option.Option.Some "dark sync status"
-  | "export" -> Stdlib.Option.Option.Some "dark sync export <file>"
-  | "import" -> Stdlib.Option.Option.Some "dark sync import <file>"
-  | "review-pull" -> Stdlib.Option.Option.Some "dark review pull"
-  | "review-import" -> Stdlib.Option.Option.Some "dark review import <file>"
-  | "approve" -> Stdlib.Option.Option.Some "dark review approve <queue>"
-  | "reject" -> Stdlib.Option.Option.Some "dark review reject <queue>"
+  | "resolve" -> Stdlib.Option.Option.Some $"dark {verb}"
   | "archive" -> Stdlib.Option.Option.Some "dark branch archive <id>"
-  | "branch-export" -> Stdlib.Option.Option.Some "dark branch export <id> <file>"
-  | "branch-import" -> Stdlib.Option.Option.Some "dark branch import <file>"
-  | "branch-push" -> Stdlib.Option.Option.Some "dark branch push <id>"
-  | "branch-pull" -> Stdlib.Option.Option.Some "dark branch pull"
   | _ -> Stdlib.Option.Option.None
 
 let execute (state: AppState) (args: List<String>) : AppState =

@@ -1,0 +1,54 @@
+// RESTORE: packages/darklang/cli/workbench/scm-status.dark
+// WAS: the SyncFacts type and its five readers: emptySyncFacts, readSyncFacts, branchUnpushed, syncPushSummary, syncBranchStanding
+// ANCHOR: between the module's opening comment and the ScmStatus type. ScmStatus carried a `sync: SyncFacts` field, set from readSyncFacts in scmStatusFrom and from emptySyncFacts in emptyScmStatus; both are gone with it
+// ALSO: later/packages/darklang/cli/workbench/frame-assembly.dark.sync and loaders-misc.dark.sync are its readers
+// WHEN: the sync molt, 2026-10-12
+
+/// Local knowledge about the relay. None of these facts establish whether
+/// remote work is waiting to be pulled.
+type SyncFacts =
+  { relay: String
+    mainUnpushed: Int64
+    branchesUnpushed: List<(String * Int64)> }
+
+let emptySyncFacts () : SyncFacts =
+  SyncFacts { relay = ""; mainUnpushed = 0L; branchesUnpushed = [] }
+
+let readSyncFacts () : SyncFacts =
+  let relay = SCM.PackageOps.relay ()
+  if relay == "" then emptySyncFacts ()
+  else
+    SyncFacts
+      { relay = relay
+        mainUnpushed = SCM.Wire.unpushedCount relay
+        branchesUnpushed = SCM.Wire.unpushedBranches relay }
+
+/// Main and branch bundles travel on different channels. An absent branch
+/// count says nothing about main, which always uses its own counter.
+let branchUnpushed (facts: SyncFacts) (name: String) (isMain: Bool) : Int64 =
+  if isMain then facts.mainUnpushed
+  else
+    facts.branchesUnpushed
+    |> Stdlib.List.findFirst (fun pair -> let (n, _count) = pair in n == name)
+    |> Stdlib.Option.map (fun pair -> let (_n, count) = pair in count)
+    |> Stdlib.Option.withDefault 0L
+
+let syncPushSummary (facts: SyncFacts) : String =
+  if facts.relay == "" then ""
+  else
+    let branches = Stdlib.List.length facts.branchesUnpushed
+    if facts.mainUnpushed > 0L then
+      "↑ " + (Stdlib.toString facts.mainUnpushed) + " main ops to push"
+      + (if branches == 0 then "" else " · " + (plural branches "branch"))
+    else if branches > 0 then "↑ " + (plural branches "branch") + " to push"
+    else "nothing to push"
+
+let syncBranchStanding (facts: SyncFacts) (name: String) (isMain: Bool) : String =
+  if facts.relay == "" then ""
+  else
+    let count = branchUnpushed facts name isMain
+    if count == 0L then "no ops waiting to push"
+    else
+      // The same words `dark sync status` uses. Two renderers of one fact said "3 ops" and
+      // "3 op(s)", which is the sort of difference a reader notices and cannot explain.
+      $"{Cli.Text.plural (Stdlib.Int.fromInt64 count) "op"} not on the relay"

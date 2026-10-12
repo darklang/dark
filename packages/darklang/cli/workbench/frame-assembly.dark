@@ -22,23 +22,17 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
   // fail the same way when they're separate: the record is correct, and nobody looks. The navbar's badge
   // stays conflicts-only, since that's the entry it marks.
   //
-  // Worded as waiting rather than as sync: this counts conflicts and findings and says nothing about
-  // whether anything has been pushed or pulled.
   let needsYou = state.scmStatus.needsYou
   // The navbar's badge, off the same cached read as everything else on this row.
   let wip = state.scmStatus.changed
-  // The sync glance: what is waiting on you first, else where this instance stands with its relay.
-  let (syncColored, syncPlain) =
+  // The glance: what is waiting on you, or nothing.
+  let (glanceColored, glancePlain) =
     if needsYou > 0 then
       let t = "⚠ " + (Stdlib.toString needsYou) + " need you"
       (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink t, t)
     else
-      let facts = state.scmStatus.sync
-      let t = syncPushSummary facts
-      let waiting = (facts.mainUnpushed > 0L) || (Stdlib.Bool.not (Stdlib.List.isEmpty facts.branchesUnpushed))
-      let styled = if waiting then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow t else t
-      (styled, t)
-  // The header: the branch you are on, prominent; who and where, dim; and the sync glance,
+      ("", "")
+  // The header: the branch you are on, prominent; who and where, dim; and the glance,
   // right-aligned. The branch is named here and nowhere else, so the frame's title never
   // repeats it.
   let context =
@@ -52,25 +46,21 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
         let dim (s: String) : String = Stdlib.Cli.UI.Colors.dimText s
         let branchStyled =
           Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.purple) branch
-        let whoPlain = "    " + state.accountName + " @ " + state.instanceName
-        let whoNoInstancePlain = "    " + state.accountName
-        let fullLeftPlain = "  " + branch + whoPlain
-        let fullLeft = "  " + branchStyled + (dim whoPlain)
-        let noInstanceLeftPlain = "  " + branch + whoNoInstancePlain
-        let noInstanceLeft = "  " + branchStyled + (dim whoNoInstancePlain)
+        let wherePlain = "    " + state.instanceName
+        let fullLeftPlain = "  " + branch + wherePlain
+        let fullLeft = "  " + branchStyled + (dim wherePlain)
         let branchOnlyPlain = "  " + branch
         let branchOnly = "  " + branchStyled
 
         // Narrow terminals drop whole segments in priority order rather than letting the row
-        // overwrite itself: the instance goes first, then the account; the branch and the glance
-        // survive as long as anything does.
+        // overwrite itself: the instance goes first, then the glance; the branch survives as long
+        // as anything does.
         let fits (l: String) (rt: String) : Bool =
           (Stdlib.String.displayWidth l) + (Stdlib.String.displayWidth rt) + 4 <= r.cols
 
         let (leftLine, rightPlain, rightLine) =
-          if fits fullLeftPlain syncPlain then (fullLeft, syncPlain, syncColored)
-          else if fits noInstanceLeftPlain syncPlain then (noInstanceLeft, syncPlain, syncColored)
-          else if fits branchOnlyPlain syncPlain then (branchOnly, syncPlain, syncColored)
+          if fits fullLeftPlain glancePlain then (fullLeft, glancePlain, glanceColored)
+          else if fits branchOnlyPlain glancePlain then (branchOnly, glancePlain, glanceColored)
           else (branchOnly, "", "")
 
         Stdlib.List.flatten

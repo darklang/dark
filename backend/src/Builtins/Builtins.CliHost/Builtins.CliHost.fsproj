@@ -23,7 +23,6 @@
     <ProjectReference Include="../Builtins.Http.Server/Builtins.Http.Server.fsproj" />
     <ProjectReference Include="../Builtins.Matter/Builtins.Matter.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
-    <ProjectReference Include="../../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../../LibParser/LibParser.fsproj" />
     <ProjectReference Include="../../LibSerialization/LibSerialization.fsproj" />
   </ItemGroup>

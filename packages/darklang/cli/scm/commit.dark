@@ -266,13 +266,6 @@ let propagateAll (state: AppState) (r: Review) : Int =
     propagateOne state.currentBranchId b previous)
   |> Stdlib.List.fold 0 (fun acc n -> acc + n)
 
-/// Who a commit is recorded as. The sync identity, because that is what a peer sees the ops arrive
-/// under; the logged-in account name only when this instance has not been named yet.
-let commitAuthor (state: AppState) : String =
-  match SCM.PackageOps.identity () with
-  | "" -> state.accountName
-  | id -> id
-
 /// Commit only what `--include=` named, plus what it depends on. Two things differ from a whole-draft
 /// commit, both deliberate:
 ///
@@ -294,10 +287,9 @@ let commitSelected
         "that selection has nothing to commit -- `dark status` shows what the draft holds."
     else
       let moved = propagateAll state r
-      let author = commitAuthor state
 
       let parent = SCM.PackageOps.parentCommitFor state.currentBranchId
-      let hash = SCM.Commits.create message author (Stdlib.List.sort opIds) parent
+      let hash = SCM.Commits.create message (Stdlib.List.sort opIds) parent
       let committed = SCM.PackageOps.stampDraftOps hash opIds
 
       // A selection that matched rows and then committed none of them means the ids went stale between
@@ -326,7 +318,6 @@ let commit
   (message: String)
   : (String * Int64 * Int) =
   let moved = propagateAll state r
-  let author = commitAuthor state
 
   // Collapse BEFORE committing. Until now every version in the draft is reachable (`undo` steps through
   // them), but a commit is what other machines read, and five namings of one function -- four of them
@@ -334,7 +325,7 @@ let commit
   let _ = SCM.PackageOps.collapseDraft ()
 
   let parent = SCM.PackageOps.parentCommitFor state.currentBranchId
-  let hash = SCM.Commits.create message author (SCM.PackageOps.draftOpIds ()) parent
+  let hash = SCM.Commits.create message (SCM.PackageOps.draftOpIds ()) parent
   let committed = SCM.PackageOps.stampDraft hash
   (hash, committed, moved)
 

@@ -1,14 +1,14 @@
-start 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-start 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mApps[0m    [2m6 [0m[2mTraces[0m    [2m7 [0m[2mDocs[0m    [2m8 [0m[2mSync[0m [0m
+start 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+start 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mTraces[0m    [2m6 [0m[2mDocs[0m [0m
 start 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 start 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-start 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+start 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 start 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 start 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-start 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+start 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 start 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 start 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-start 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+start 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 start 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 start 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 start 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -38,17 +38,17 @@ start 36|[90m│[0m                                                           
 start 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 start 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 start 39|  [37m↑↓[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mopen[0m[2m · [0m[37ms[0m [2mswitch branch[0m[2m · [0m[37mb[0m [2mnew branch[0m[2m · [0m[37mc[0m [2mcommit[0m[2m · [0m[37mm[0m [2mmerge[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-tab 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-tab 1| [7m 1 Home [0m   [2m2 [0mCode    [2m3 [0mChanges    [2m4 [0mREPL    [2m5 [0mApps    [2m6 [0mTraces    [2m7 [0mDocs    [2m8 [0mSync [0m
+tab 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+tab 1| [7m 1 Home [0m   [2m2 [0mCode    [2m3 [0mChanges    [2m4 [0mREPL    [2m5 [0mTraces    [2m6 [0mDocs [0m
 tab 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 tab 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-tab 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+tab 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 tab 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-tab 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+tab 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 tab 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-tab 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+tab 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 tab 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -78,17 +78,17 @@ tab 36|[90m│[0m                                                             
 tab 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 tab 39|  [37m←→[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mgo[0m[2m · [0m[37m↓[0m [2mto view[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m`[0m [2mviews[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-down1 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-down1 1| [48;5;61m[37m[1m 1 Home [0m  [7m 2 Code [0m   [2m3 [0mChanges    [2m4 [0mREPL    [2m5 [0mApps    [2m6 [0mTraces    [2m7 [0mDocs    [2m8 [0mSync [0m
+down1 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+down1 1| [48;5;61m[37m[1m 1 Home [0m  [7m 2 Code [0m   [2m3 [0mChanges    [2m4 [0mREPL    [2m5 [0mTraces    [2m6 [0mDocs [0m
 down1 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 down1 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-down1 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+down1 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 down1 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 down1 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-down1 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+down1 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 down1 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 down1 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-down1 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+down1 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 down1 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 down1 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 down1 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -118,17 +118,17 @@ down1 36|[90m│[0m                                                           
 down1 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 down1 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 down1 39|  [37m←→[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mgo[0m[2m · [0m[37m↓[0m [2mto view[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m`[0m [2mviews[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-down2 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-down2 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0mCode   [7m 3 Changes [0m   [2m4 [0mREPL    [2m5 [0mApps    [2m6 [0mTraces    [2m7 [0mDocs    [2m8 [0mSync [0m
+down2 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+down2 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0mCode   [7m 3 Changes [0m   [2m4 [0mREPL    [2m5 [0mTraces    [2m6 [0mDocs [0m
 down2 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 down2 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-down2 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+down2 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 down2 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 down2 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-down2 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+down2 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 down2 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 down2 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-down2 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+down2 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 down2 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 down2 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 down2 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -158,17 +158,17 @@ down2 36|[90m│[0m                                                           
 down2 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 down2 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 down2 39|  [37m←→[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mgo[0m[2m · [0m[37m↓[0m [2mto view[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m`[0m [2mviews[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-right 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-right 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mApps[0m    [2m6 [0m[2mTraces[0m    [2m7 [0m[2mDocs[0m    [2m8 [0m[2mSync[0m [0m
+right 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+right 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mTraces[0m    [2m6 [0m[2mDocs[0m [0m
 right 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 right 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-right 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+right 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 right 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 right 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-right 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+right 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 right 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 right 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-right 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+right 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 right 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 right 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 right 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -198,17 +198,17 @@ right 36|[90m│[0m                                                           
 right 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 right 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 right 39|  [37m↑↓[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mopen[0m[2m · [0m[37ms[0m [2mswitch branch[0m[2m · [0m[37mb[0m [2mnew branch[0m[2m · [0m[37mc[0m [2mcommit[0m[2m · [0m[37mm[0m [2mmerge[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-up 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-up 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mApps[0m    [2m6 [0m[2mTraces[0m    [2m7 [0m[2mDocs[0m    [2m8 [0m[2mSync[0m [0m
+up 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+up 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mTraces[0m    [2m6 [0m[2mDocs[0m [0m
 up 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 up 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-up 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+up 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 up 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 up 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-up 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+up 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 up 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 up 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-up 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+up 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 up 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 up 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 up 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -238,17 +238,17 @@ up 36|[90m│[0m                                                              
 up 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 up 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 up 39|  [37m↑↓[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mopen[0m[2m · [0m[37ms[0m [2mswitch branch[0m[2m · [0m[37mb[0m [2mnew branch[0m[2m · [0m[37mc[0m [2mcommit[0m[2m · [0m[37mm[0m [2mmerge[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-left 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-left 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mApps[0m    [2m6 [0m[2mTraces[0m    [2m7 [0m[2mDocs[0m    [2m8 [0m[2mSync[0m [0m
+left 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+left 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mTraces[0m    [2m6 [0m[2mDocs[0m [0m
 left 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 left 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-left 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+left 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 left 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 left 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-left 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+left 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 left 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 left 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-left 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+left 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 left 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 left 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 left 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -278,8 +278,8 @@ left 36|[90m│[0m                                                            
 left 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 left 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 left 39|  [37m↑↓[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mopen[0m[2m · [0m[37ms[0m [2mswitch branch[0m[2m · [0m[37mb[0m [2mnew branch[0m[2m · [0m[37mc[0m [2mcommit[0m[2m · [0m[37mm[0m [2mmerge[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-enter 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-enter 1|  [2m1 [0m[2mHome[0m    [2m2 [0m[2mCode[0m   [48;5;61m[37m[1m 3 Changes [0m   [2m4 [0m[2mREPL[0m    [2m5 [0m[2mApps[0m    [2m6 [0m[2mTraces[0m    [2m7 [0m[2mDocs[0m    [2m8 [0m[2mSync[0m [0m
+enter 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+enter 1|  [2m1 [0m[2mHome[0m    [2m2 [0m[2mCode[0m   [48;5;61m[37m[1m 3 Changes [0m   [2m4 [0m[2mREPL[0m    [2m5 [0m[2mTraces[0m    [2m6 [0m[2mDocs[0m [0m
 enter 2|[90m╭[0m[90m─ [0m[2mmain[0m[90m ───────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 enter 3|[90m│[0m [32m✓ nothing uncommitted on this branch[0m                                                                                 [90m│[0m[0m
 enter 4|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -317,18 +317,18 @@ enter 35|[90m│[0m                                                           
 enter 36|[90m│[0m                                                                                                                      [90m│[0m[0m
 enter 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 enter 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
-enter 39|  [37m↑↓[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mopen[0m[2m · [0m[37mesc[0m [2m← Home[0m[2m · [0m[37mc[0m [2mcommit[0m[2m · [0m[37mx[0m [2mdiscard[0m[2m · [0m[37mu/d[0m [2mpush/pull[0m[2m · [0m[37m←→[0m [2mpane[0m[2m · [0m[37mS[0m [2mbranches[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-esc 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-esc 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mApps[0m    [2m6 [0m[2mTraces[0m    [2m7 [0m[2mDocs[0m    [2m8 [0m[2mSync[0m [0m
+enter 39|  [37m↑↓[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mopen[0m[2m · [0m[37mesc[0m [2m← Home[0m[2m · [0m[37mc[0m [2mcommit[0m[2m · [0m[37mx[0m [2mdiscard[0m[2m · [0m[37m←→[0m [2mpane[0m[2m · [0m[37mS[0m [2mbranches[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
+esc 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+esc 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mTraces[0m    [2m6 [0m[2mDocs[0m [0m
 esc 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 esc 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-esc 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+esc 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 esc 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 esc 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-esc 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+esc 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 esc 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 esc 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-esc 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+esc 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 esc 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 esc 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 esc 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -358,17 +358,17 @@ esc 36|[90m│[0m                                                             
 esc 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 esc 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 esc 39|  [37m↑↓[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mopen[0m[2m · [0m[37ms[0m [2mswitch branch[0m[2m · [0m[37mb[0m [2mnew branch[0m[2m · [0m[37mc[0m [2mcommit[0m[2m · [0m[37mm[0m [2mmerge[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-tab2 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-tab2 1| [7m 1 Home [0m   [2m2 [0mCode    [2m3 [0mChanges    [2m4 [0mREPL    [2m5 [0mApps    [2m6 [0mTraces    [2m7 [0mDocs    [2m8 [0mSync [0m
+tab2 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+tab2 1| [7m 1 Home [0m   [2m2 [0mCode    [2m3 [0mChanges    [2m4 [0mREPL    [2m5 [0mTraces    [2m6 [0mDocs [0m
 tab2 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 tab2 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-tab2 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+tab2 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 tab2 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab2 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-tab2 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+tab2 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 tab2 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab2 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-tab2 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+tab2 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 tab2 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab2 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab2 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -398,17 +398,17 @@ tab2 36|[90m│[0m                                                            
 tab2 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 tab2 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 tab2 39|  [37m←→[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mgo[0m[2m · [0m[37m↓[0m [2mto view[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m`[0m [2mviews[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-end 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-end 1| [7m 1 Home [0m   [2m2 [0mCode    [2m3 [0mChanges    [2m4 [0mREPL    [2m5 [0mApps    [2m6 [0mTraces    [2m7 [0mDocs    [2m8 [0mSync [0m
+end 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+end 1| [7m 1 Home [0m   [2m2 [0mCode    [2m3 [0mChanges    [2m4 [0mREPL    [2m5 [0mTraces    [2m6 [0mDocs [0m
 end 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 end 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-end 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+end 4|[90m│[0m [90m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 end 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 end 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-end 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+end 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 end 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 end 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-end 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+end 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 end 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 end 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 end 13|[90m│[0m                                                                                                                      [90m│[0m[0m

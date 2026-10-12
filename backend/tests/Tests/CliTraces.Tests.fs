@@ -1549,14 +1549,14 @@ let private testPermissionProfiles =
           System.IO.Directory.Delete(dir, true)
       })
 
-/// The four cases that dominate this file's time: about 34 of its 61 seconds.
+/// The cases that dominate this file's time.
 ///
-/// `Tests.CliSurface.everyCommandRefusesAWordItDoesNotKnow` and its flag sibling drive every registered command with
-/// something it does not take (12s between them), `Tests.CliScm.reviewQueueRoundTrips` is the only end-to-end cover of `dark review` (11s), and the two
-/// commit cases author, resolve and commit real items (6s each). They are the slowest AND among the most
-/// valuable here, which is why they are on by default and the lever skips them rather than the reverse:
+/// `Tests.CliSurface.everyCommandRefusesAWordItDoesNotKnow` and its flag sibling drive every registered
+/// command with something it does not take (12s between them), and the two commit cases author, resolve
+/// and commit real items (6s each). They are the slowest AND among the most valuable here, which is why
+/// they are on by default and the lever skips them rather than the reverse:
 ///
-///     DARK_FAST_TESTS=1 ./scripts/run-backend-tests     # ~34s cheaper, and blind to those four
+///     DARK_FAST_TESTS=1 ./scripts/run-backend-tests     # cheaper, and blind to these
 ///
 /// Ranked on warm runs: the frame-rendering cases look like 22s cold but are 2.5s warm.
 let private slowCliTests =
@@ -1571,12 +1571,11 @@ let private slowCliTests =
       Tests.CliScm.discardOnABranchLeavesMainsDraftAlone
       Tests.CliScm.committingOnABranchLeavesMainsDraftUncollapsed
       Tests.CliSurface.everyCommandAnswersWhenBare
-      Tests.CliScm.reviewQueueRoundTrips
       Tests.CliScm.partialCommitTakesOnlyWhatYouNamed
       Tests.CliScm.commitRefusesUnresolvedReferences ]
 
 /// Tracing costs more than anything else these tests do: it records every call's ARGUMENTS,
-/// so an `eval` pays to write whatever it materialises, and a page of sync ops is 2000
+/// so an `eval` pays to write whatever it materialises, and a page of ops is 2000
 /// records carrying hex-encoded blobs.
 ///
 /// So it is on only for the tests that are ABOUT tracing, and each of those carries the

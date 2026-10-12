@@ -76,18 +76,6 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
   | "show" :: name :: _ ->
     Commands.show name
     cliState
-  | [ "export" ] ->
-    Stdlib.printLine "Usage: outliner export <document> [--format md|opml] [--out <path>]"
-    cliState
-  | "export" :: name :: _ ->
-    Commands.export name (flag args "format" "md") (flag args "out" "")
-    cliState
-  | [ "import" ] ->
-    Stdlib.printLine "Usage: outliner import <path> [--title <name>]"
-    cliState
-  | "import" :: path :: _ ->
-    Commands.import path (flag args "title" "")
-    cliState
   | [ "add" ] ->
     Stdlib.printLine "Usage: outliner add <document> <text>"
     cliState
@@ -102,7 +90,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
     let word = Stdlib.List.head other |> Stdlib.Option.withDefault ""
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error $"outliner: unknown subcommand \"{word}\"")
-    Stdlib.printLine "Try: ls, show, add, export, import - or no arguments for the app."
+    Stdlib.printLine "Try: ls, show, add - or no arguments for the app."
     cliState
 
 
@@ -151,8 +139,6 @@ let help (_state: Darklang.Cli.AppState) : String =
     "  outliner ls                              List documents"
     "  outliner show <doc>                      Print one as a tree"
     "  outliner add <doc> <text>                Append a line"
-    "  outliner export <doc> [--format md|opml] [--out <path>]"
-    "  outliner import <path> [--title <name>]  Read Markdown or OPML"
   ] |> Stdlib.String.join "\n"
 
 
@@ -165,13 +151,13 @@ let complete
     Darklang.Cli.Completion.CompletionItem { value = value; display = value }
 
   match args with
-  | [] -> [ "ls", "show", "add", "export", "import" ] |> Stdlib.List.map item
+  | [] -> [ "ls", "show", "add" ] |> Stdlib.List.map item
   | [ word ] ->
-    [ "ls", "show", "add", "export", "import" ]
+    [ "ls", "show", "add" ]
     |> Stdlib.List.filter (fun c -> Stdlib.String.startsWith c word)
     |> Stdlib.List.map item
   | verb :: _ ->
-    if verb == "show" || verb == "add" || verb == "export" then
+    if verb == "show" || verb == "add" then
       match Store.load () with
       | Loaded data -> data.documents |> Stdlib.List.map (fun d -> item d.title)
       | Unreadable(_path, _reason) -> []

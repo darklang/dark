@@ -56,25 +56,6 @@ let configRoundTrips =
           "an unset key is not an empty value"
     })
 
-let scriptsRoundTrip =
-  instanceTest "a script can be added, listed and read back" (fun state ->
-    task {
-      do! run state [ "scripts"; "add"; "tests-probe"; "1L + 2L" ]
-      do! shows state [ "scripts"; "list" ] "tests-probe" "the listing names it"
-      do!
-        shows
-          state
-          [ "scripts"; "view"; "tests-probe" ]
-          "1L + 2L"
-          "and its content comes back unchanged"
-      do!
-        shows
-          state
-          [ "scripts"; "view"; "tests-nosuch" ]
-          "tests-nosuch"
-          "a script that isn't there names itself back"
-    })
-
 /// Regression: this crashed. `backups now` asked whether the store existed, that
 /// question went through the guarded file API, and the denial is an uncaught runtime
 /// error rather than a `false`. It goes through SQLite's online backup now, which is
@@ -108,21 +89,6 @@ let backupsRefusesToRestoreWhatIsNotThere =
           "restored"
           "restore names what it looked for"
     })
-
-let appsCatalogLists =
-  instanceTest "apps list-available names the catalog" (fun state ->
-    task {
-      do!
-        shows
-          state
-          [ "apps"; "list-available" ]
-          "Available apps:"
-          "the catalog lists something"
-    })
-
-let appsInstalledLists =
-  instanceTest "apps list answers on an instance with none" (fun state ->
-    task { do! sane state [ "apps"; "list" ] "the installed list answers" })
 
 let permissionsLists =
   instanceTest "permissions list names the effects the policy covers" (fun state ->
@@ -264,102 +230,6 @@ let unapprovingAnUnapprovedNameSaysSo =
     })
 
 
-let dbAndTracesAnswer =
-  instanceTest "db and traces answer without a canvas or a recording" (fun state ->
-    task {
-      do! sane state [ "db"; "list" ] "db list answers on an empty canvas"
-      do! sane state [ "traces"; "stats" ] "traces stats answers"
-    })
-
-
-/// A datastore is bound to the version of its row type it was made with, so changing the type leaves it
-/// behind: reads go on working and writes of the current type fail. Every surface a person meets says
-/// so by name, rather than a lexer error from `db set` or an internal dump from `DB.set`.
-///
-/// The field name is one nobody else uses, since a same-shaped record anywhere in the store IS this type.
-let aDatastoreLeftOnAnOlderRowTypeSaysSo =
-  instanceTest
-    "a datastore left on an older version of its row type says so, by name"
-    (fun state ->
-      task {
-        do! start state
-        do! run state [ "permissions"; "allow"; "all" ]
-        do! run state [ "type"; "Tests.DbRow.Zqx"; "{ zqxRowNote: String }" ]
-        do! run state [ "db"; "ZqxRowTest"; "Tests.DbRow.Zqx" ]
-        do!
-          run state [ "db"; "set"; "ZqxRowTest"; "a"; "{ zqxRowNote = \"first\" }" ]
-
-        // Positive before the change, so the line below is not just an absence of checking.
-        do!
-          evals
-            state
-            "(Darklang.SCM.DatabaseRowTypes.check ()).stale |> Stdlib.List.length"
-            "0"
-            "nothing is stale while the type is unchanged"
-
-        do!
-          run
-            state
-            [ "type"
-              "Tests.DbRow.Zqx"
-              "{ zqxRowNote: String; zqxRowCount: Int64 }" ]
-
-        // Examined a datastore at all: "no stale datastores" and "looked at none" print the same.
-        do!
-          evals
-            state
-            "(Darklang.SCM.DatabaseRowTypes.check ()).examined >= 1"
-            "true"
-            "the check examined the datastore"
-
-        let stale = "Datastore ZqxRowTest holds an older version of Tests.DbRow.Zqx"
-        do!
-          shows
-            state
-            [ "status" ]
-            stale
-            "dark status names the datastore and the type"
-        do! shows state [ "status" ] "the name now means" "and both versions"
-        do!
-          shows
-            state
-            [ "db"; "list" ]
-            "Tests.DbRow.Zqx (older version"
-            "db list names the old version"
-        do!
-          shows
-            state
-            [ "db"
-              "set"
-              "ZqxRowTest"
-              "b"
-              "{ zqxRowNote = \"x\"; zqxRowCount = 1L }" ]
-            stale
-            "db set refuses with the reason rather than failing to parse"
-        // And says so in its exit code: a refused write exited 0, so a script could not tell it from one.
-        let! _, refusedExit =
-          runCliWithExit
-            state
-            [ "db"
-              "set"
-              "ZqxRowTest"
-              "b"
-              "{ zqxRowNote = \"x\"; zqxRowCount = 1L }" ]
-        Expect.equal refusedExit 1L "a refused db set exits 1"
-        do!
-          showsAll
-            state
-            [ "eval"
-              "Stdlib.DB.set (Tests.DbRow.Zqx { zqxRowNote = \"x\"; zqxRowCount = 1L }) \"c\" ZqxRowTest" ]
-            [ "This datastore holds"; "Zqx (version"; "and was given" ]
-            "a write in code says which two versions, not an internal error"
-        do!
-          shows
-            state
-            [ "db"; "get"; "ZqxRowTest"; "a" ]
-            "first"
-            "the old rows still read"
-      })
 
 
 // ─── the log ──────────────────────────────────────────────────────────────
@@ -808,18 +678,18 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.update"
-            "(m: Int) (e: Darklang.Cli.Apps.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+            "(m: Int) (e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
         do!
           author
             "Tests.LiveView.render"
             "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version one\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ]"
 
         let view =
-          "Darklang.Cli.Apps.Model.View { name = \"live\"; title = \"Live\"; init = \"Tests.LiveView.init\"; update = \"Tests.LiveView.update\"; render = \"Tests.LiveView.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
+          "Darklang.Cli.LiveView.Model.View { name = \"live\"; title = \"Live\"; init = \"Tests.LiveView.init\"; update = \"Tests.LiveView.update\"; render = \"Tests.LiveView.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
         let! prepared =
           evalUnder
             state
-            $"Darklang.Cli.Apps.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
+            $"Darklang.Cli.LiveView.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
         let session =
           match prepared with
           | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
@@ -829,7 +699,7 @@ let private viewFollowsEdits =
         let! sizeDv = evalUnder state size
         let rowsOf (s : RT.Dval) =
           task {
-            let! rows = run "Darklang.Cli.Apps.Host.plainRows" [ s; sizeDv ]
+            let! rows = run "Darklang.Cli.LiveView.Host.plainRows" [ s; sizeDv ]
             return plainRows rows |> List.filter (fun r -> r <> "")
           }
         // The loop runs as a process; keys and store changes reach it through the scheduler's
@@ -837,7 +707,8 @@ let private viewFollowsEdits =
         let driver = loopDriver state
         let pushKey = pushKey driver
         let pushTick () = pushTick driver
-        let step (s : RT.Dval) = stepOn driver "Darklang.Cli.Apps.Host.step" [ s ]
+        let step (s : RT.Dval) =
+          stepOn driver "Darklang.Cli.LiveView.Host.step" [ s ]
 
         let! first = rowsOf session
         Expect.contains first "version one" "the first frame is the view's init"
@@ -968,19 +839,19 @@ let private modelSavesAndResumes =
       do!
         author
           "Tests.LiveSave.update"
-          "(m: Int) (e: Darklang.Cli.Apps.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+          "(m: Int) (e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
       do!
         author
           "Tests.LiveSave.render"
           "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m)"
 
       let view =
-        "Darklang.Cli.Apps.Model.View { name = \"s\"; title = \"S\"; init = \"Tests.LiveSave.init\"; update = \"Tests.LiveSave.update\"; render = \"Tests.LiveSave.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
+        "Darklang.Cli.LiveView.Model.View { name = \"s\"; title = \"S\"; init = \"Tests.LiveSave.init\"; update = \"Tests.LiveSave.update\"; render = \"Tests.LiveSave.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
 
       let! saved =
         evalUnder
           state
-          $"Darklang.Cli.Apps.Host.snapshot Darklang.SCM.Branch.mainBranchId ({view}) 5"
+          $"Darklang.Cli.LiveView.Host.snapshot Darklang.SCM.Branch.mainBranchId ({view}) 5"
       let name =
         match saved with
         | RT.DEnum(_, _, _, "Ok", [ RT.DString name ]) -> name
@@ -993,7 +864,7 @@ let private modelSavesAndResumes =
       let! resumed =
         evalUnder
           state
-          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"{name}\") false"
+          $"Darklang.Cli.LiveView.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"{name}\") false"
       let session =
         match resumed with
         | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
@@ -1001,7 +872,7 @@ let private modelSavesAndResumes =
       let! sizeDv =
         evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 6 }"
       let! rows =
-        callByName state "Darklang.Cli.Apps.Host.plainRows" [ session; sizeDv ]
+        callByName state "Darklang.Cli.LiveView.Host.plainRows" [ session; sizeDv ]
       Expect.contains
         (plainRows rows)
         "keys: 5"
@@ -1010,7 +881,7 @@ let private modelSavesAndResumes =
       let! missing =
         evalUnder
           state
-          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\") false"
+          $"Darklang.Cli.LiveView.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\") false"
       match missing with
       | RT.DEnum(_, _, _, "Error", [ RT.DString why ]) ->
         Expect.stringContains
@@ -1463,193 +1334,6 @@ let private pipeStagesCarryTheirValues =
       })
 
 
-/// A hint goes on the line its value came from, even when two lines are identical.
-///
-/// The hints are built by printing the function twice, once plain and once with values, and
-/// diffing. Finding where each changed line LIVES used to be a search of the document for a line
-/// with the same text, which cannot tell two identical lines apart: a function with two of them
-/// put both hints on the first and none on the second, and pushed the line after the pair off
-/// the end of the document, losing its hint entirely. Counting from the function's header in
-/// both the printed form and the document is exact.
-let private hintsLandOnTheRightIdenticalLine =
-  cliTestWithFreshTraces
-    "a hint lands on its own line when another line is identical to it"
-    (fun target ->
-      task {
-        let state = executionState target
-        let author = author target
-        do!
-          author
-            "Tests.Dup.twice"
-            ("(n: Int64): Int64 =\n"
-             + "  let a =\n"
-             + "    let v = (n * 2L)\n"
-             + "    v\n"
-             + "  let b =\n"
-             + "    let v = (n * 2L)\n"
-             + "    v\n"
-             + "  (a + b)")
-        let! ran = runCli target [ "eval"; "Tests.Dup.twice 5L" ]
-        Expect.stringContains ran "20" "the run happened"
-
-        let! hints =
-          evalUnder
-            state
-            """let bid = Darklang.SCM.Branch.mainBranchId
-let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
-let q = Darklang.LanguageTools.ProgramTypes.Search.SearchQuery { currentModule = ["Tests", "Dup"]; text = ""; searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants; entityTypes = []; exactMatch = false }
-let r = Darklang.LanguageTools.PackageManager.Search.search bid q
-let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; traits = []; impls = []; exprs = [] }
-let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
-r.fns
-|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor (Darklang.Cli.initState ()).accountID bid docLines item)
-|> Darklang.Stdlib.List.flatten
-|> Darklang.Stdlib.List.map (fun h -> Darklang.Stdlib.toString h.position.line)"""
-        let lines =
-          match hints with
-          | RT.DList(_, items) ->
-            items
-            |> List.map (fun i ->
-              match i with
-              | RT.DString l -> l
-              | other -> string other)
-            |> List.sort
-          | other -> failtest $"expected the hints, got {other}"
-
-        // One line each, so no line carries two and none is missing. Matching by text gave
-        // four hints across three lines, with one line holding two of them.
-        Expect.equal
-          (List.length lines)
-          (List.length (List.distinct lines))
-          $"every hint is on a line of its own, got {lines}"
-      })
-
-
-let private liveValuesReplayTheLastCall =
-  cliTestWithFreshTraces
-    "live values replay the last recorded call through the current code"
-    (fun target ->
-      task {
-        let state = executionState target
-        let author = author target
-        do! author "Tests.LiveVals.double" "(n: Int64): Int64 = (n * 2L)"
-        do!
-          author
-            "Tests.LiveVals.greet"
-            // `n + 1L` is here for the hints: an INFIX expression had no value in any trace Dark
-            // had ever taken until this branch, because the compiler marks the expression a
-            // replay should collect and the infix cases built their call by hand and never
-            // emitted the marker. The CLI shows them; this is the editor's half, which until now
-            // was only confirmed by the two paths sharing a replay rather than by an assertion.
-            ("(name: String): String =\n"
-             + "  let up = Stdlib.String.toUppercase name\n"
-             + "  let n = Tests.LiveVals.double 21L\n"
-             + "  let m = n + 1L\n"
-             + "  $\"hi {up} {Stdlib.toString m}\"")
-
-        // Nothing recorded yet: no values, and no error.
-        let! before = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
-        match before with
-        | RT.DString printed ->
-          Expect.isFalse
-            (printed.Contains "// =")
-            "no call recorded, so nothing beside the code"
-          Expect.stringContains printed "let greet" "the code itself still prints"
-        | other -> failtest $"expected the print, got {other}"
-
-        let! out = runCli target [ "eval"; "Tests.LiveVals.greet \"bob\"" ]
-        Expect.stringContains out "hi BOB 43" "the call ran"
-
-        let! after = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
-        match after with
-        | RT.DString printed ->
-          Expect.stringContains
-            printed
-            "Stdlib.String.toUppercase name // = \"BOB\""
-            "the recorded input flowed through the first call"
-          Expect.stringContains
-            printed
-            "double 21L // = 42"
-            "and the callee's result is beside its call"
-          Expect.isFalse
-            (printed.Contains "toString m // =")
-            "a call inside an interpolated string is left bare: a comment there would break the string"
-        | other -> failtest $"expected the print, got {other}"
-
-        // The LSP's hints: the same values, placed on the document's lines. The document is
-        // the module as the editor reads it (`fileSystem/read`), where the fns sit two columns
-        // in; `double` has a recorded call of its own, from the eval above.
-        let! hints =
-          evalUnder
-            state
-            """let bid = Darklang.SCM.Branch.mainBranchId
-let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
-let q = Darklang.LanguageTools.ProgramTypes.Search.SearchQuery { currentModule = ["Tests", "LiveVals"]; text = ""; searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants; entityTypes = []; exactMatch = false }
-let r = Darklang.LanguageTools.PackageManager.Search.search bid q
-let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; traits = []; impls = []; exprs = [] }
-let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
-r.fns
-|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor (Darklang.Cli.initState ()).accountID bid docLines item)
-|> Darklang.Stdlib.List.flatten
-|> Darklang.Stdlib.List.map (fun h -> (Darklang.Stdlib.toString h.position.line) + ":" + (Darklang.Stdlib.toString h.position.character) + " " + h.label)"""
-        let hints =
-          match hints with
-          | RT.DList(_, items) ->
-            items
-            |> List.map (fun i ->
-              match i with
-              | RT.DString s -> s
-              | other -> string other)
-            |> List.sort
-          | other -> failtest $"expected the hints, got {other}"
-        // The last one is the point of the extra line: `7:18 = 43` is `n + 1L`, an INFIX
-        // expression. Every other hint here is a CALL's value, and calls had hints before this
-        // branch. Without this row the editor's half of the headline feature is confirmed only
-        // by sharing a replay with the CLI rather than by anything asserting it.
-        Expect.equal
-          hints
-          [ "2:10 = 42"; "5:43 = \"BOB\""; "6:31 = 42"; "7:18 = 43" ]
-          "one hint per value at a line position, at the end of the document's line"
-
-        // The callee changes; the replay runs the current code on the same recorded input.
-        do! author "Tests.LiveVals.double" "(n: Int64): Int64 = (n * 3L)"
-        let! edited = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
-        match edited with
-        | RT.DString printed ->
-          Expect.stringContains
-            printed
-            "double 21L // = 63"
-            "the edit is in the values, with no new call"
-        | other -> failtest $"expected the print, got {other}"
-
-        // A version that fails at run time reports the failure and keeps what ran before it.
-        do! author "Tests.LiveVals.double" "(n: Int64): Int64 = (n / 0L)"
-        let! failed =
-          evalUnder
-            state
-            """match Darklang.Stdlib.Live.Values.replay (Darklang.Cli.initState ()).accountID Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = "Tests"; modules = ["LiveVals"]; name = "greet" }) with
-| Some v -> (false, Darklang.Stdlib.Dict.size v.byExpr, v.problem)
-| None -> (false, 0, Darklang.Stdlib.Option.Option.Some "no trace")"""
-        match failed with
-        | RT.DTuple(RT.DBool _placeholder,
-                    RT.DInt count,
-                    [ RT.DEnum(_, _, _, "Some", [ RT.DString problem ]) ]) ->
-          // The first slot is a literal `false` in both Dark arms, so asserting it was false
-          // could not fail and was testing nothing. `Values` no longer carries the run's own
-          // answer: the preview's business is the values inside the code, and `traces inspect`
-          // is where a trace's answer lives. The two assertions below are the real ones.
-          Expect.isGreaterThan
-            (RT.DarkInt.toBigInt count)
-            0I
-            "the values up to the failure are kept"
-          Expect.stringContains
-            problem
-            "divide by 0"
-            "and the problem is the runtime error"
-        | other -> failtest $"expected (false, n, Some problem), got {other}"
-      })
-
-
 /// A replay re-runs the whole recorded run, so a run past the limits is refused rather than
 /// replayed on a keystroke, and the workbench replays once per fn rather than once per key.
 let private liveValuesStayBounded =
@@ -1689,7 +1373,7 @@ let private liveValuesStayBounded =
         let! wb =
           evalUnder
             state
-            """let base = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId Darklang.Stdlib.Option.Option.None "t" "t" [] false
+            """let base = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId Darklang.Stdlib.Option.Option.None "t" false
 let s0 = { base with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module ["Tests", "LiveBound"] }
 let items = Darklang.Cli.Workbench.reloadItems s0
 let idx = (Darklang.Stdlib.List.findFirstIndex items (fun i -> i.name == "inc")) |> Darklang.Stdlib.Option.withDefault 0
@@ -1748,7 +1432,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.update"
-            "(m: Int64) (e: Darklang.Cli.Apps.Host.Event<Int64>): Int64 = m"
+            "(m: Int64) (e: Darklang.Cli.LiveView.Host.Event<Int64>): Int64 = m"
         do!
           author
             "Tests.LiveObs.render"
@@ -1799,17 +1483,17 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveOther.update"
-            "(m: Int64) (e: Darklang.Cli.Apps.Host.Event<Int64>): Int64 = m"
+            "(m: Int64) (e: Darklang.Cli.LiveView.Host.Event<Int64>): Int64 = m"
         do!
           author
             "Tests.LiveOther.render"
             "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text \"the other view\""
         let view =
-          "Darklang.Cli.Apps.Model.View { name = \"Tests.LiveOther\"; title = \"O\"; init = \"Tests.LiveOther.init\"; update = \"Tests.LiveOther.update\"; render = \"Tests.LiveOther.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
+          "Darklang.Cli.LiveView.Model.View { name = \"Tests.LiveOther\"; title = \"O\"; init = \"Tests.LiveOther.init\"; update = \"Tests.LiveOther.update\"; render = \"Tests.LiveOther.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
         let! prepared =
           evalUnder
             state
-            $"Darklang.Cli.Apps.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
+            $"Darklang.Cli.LiveView.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
         let session =
           match prepared with
           | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
@@ -1820,7 +1504,7 @@ let private observeAndShow =
         let rowsOf (s : RT.Dval) =
           task {
             let! rows =
-              callByName state "Darklang.Cli.Apps.Host.plainRows" [ s; sizeDv ]
+              callByName state "Darklang.Cli.LiveView.Host.plainRows" [ s; sizeDv ]
             return plainRows rows
           }
         let! before = rowsOf session
@@ -1842,7 +1526,7 @@ let private observeAndShow =
         | other -> failtest $"expected the shown view, got {other}"
 
         pushTick driver
-        let! session = stepOn driver "Darklang.Cli.Apps.Host.step" [ session ]
+        let! session = stepOn driver "Darklang.Cli.LiveView.Host.step" [ session ]
         let! after = rowsOf session
         Expect.contains after "count 3" "the host switched to the shown view"
         // The same wake carried the render's save, so the reload's toast wins over "showing".
@@ -1856,19 +1540,14 @@ let private observeAndShow =
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
-    scriptsRoundTrip
     backupsCanBeTaken
     backupsRefusesToRestoreWhatIsNotThere
-    appsCatalogLists
-    appsInstalledLists
     permissionsLists
     storeReadsRequirePackageRead
     approvedSqliteOnTheStoreRuns
     approvalsNameTheirDependencies
     anApprovedVersionIsWhatRuns
     unapprovingAnUnapprovedNameSaysSo
-    dbAndTracesAnswer
-    aDatastoreLeftOnAnOlderRowTypeSaysSo
     opsAndCommitsDescribeTheLog
     showTellsYouWhatACommitHolds
     constraintsAndConflictsReportQuiet
@@ -1887,9 +1566,7 @@ let tests : List<Test> =
           aFixedCalleeIsNotAdoptedThroughItsBrokenDependent
           devErrorPageCarriesTheListener
           devStreamReportsAnEditAfterTheServe
-          liveValuesReplayTheLastCall
           liveValuesStayBounded
-          hintsLandOnTheRightIdenticalLine
           pipeStagesCarryTheirValues
           previewPicksWhichRunToShow
           pipeStageValuesStayOutsideTheirDelimiters

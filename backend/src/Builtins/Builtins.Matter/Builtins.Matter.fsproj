@@ -8,7 +8,6 @@
     <None Include="paket.references" />
 
     <!-- DB -->
-    <Compile Include="Libs/DB.fs" />
 
     <!-- PM -->
     <Compile Include="Libs/PM/AtRestCheckGuard.fs" />
@@ -23,8 +22,6 @@
     <!-- Tracing (reader) -->
     <Compile Include="Libs/Traces.fs" />
 
-    <!-- Accounts -->
-    <Compile Include="Libs/Account.fs" />
     <Compile Include="Libs/Sqlite.fs" />
 
     <Compile Include="Builtin.fs" />
@@ -34,7 +31,6 @@
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../LibSerialization/LibSerialization.fsproj" />
-    <ProjectReference Include="../../LibCloud/LibCloud.fsproj" />
   </ItemGroup>
   <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

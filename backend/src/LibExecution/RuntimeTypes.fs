@@ -1907,7 +1907,7 @@ module RuntimeError =
 
     // punting these until DBs are supported again
     // - bring back this RTE where/when relevant "Attempting to access field '{fieldName}' of a Datastore (use `DB.*` standard library functions to interact with Datastores. Field access only work with records)"
-    // - in backend/src/LibCloud/SqlCompiler.fs:
+    // - in the old SqlCompiler.fs (gone with the cloud world):
     //   - 1223: | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
     //   - 1224: // return Error(RuntimeError.oldError (errStr + $"\n\nIn body: {body}"))
     //   - | SqlCompiler of SqlCompiler.Error // -- or maybe this should happen during PT2RT? hmm.
@@ -3825,11 +3825,6 @@ and Builtins =
 
 
 
-/// Every part of a user's program. Single-instance Dark today —
-/// no per-scope state, just the user-defined DB set.
-and Program = { dbs : Map<string, DB.T> }
-
-
 // Used for testing
 // CLEANUP maybe this belongs in Execution rather than RuntimeTypes?
 // and taken out of ExecutionState, where it's not really used?
@@ -3895,8 +3890,6 @@ and ExecutionState =
     notify : Notifier
 
     // -- Set per-execution --
-    program : Program
-
     /// The complete builtin set used to create this state; `fns.builtIn` and
     /// `values.builtIn` are interpreter-facing views.
     builtins : Builtins
@@ -3922,10 +3915,6 @@ and ExecutionState =
     /// Host-only permission to modify stored policies. Guest executions never
     /// receive it.
     canManagePolicies : bool
-
-    /// Host-only authority to use HTTP profiles that reach loopback and
-    /// private networks. Ordinary HTTP permission does not grant this.
-    canUsePrivateNetworkHttp : bool
 
     /// True for a bundled Darklang function trusted to call first-party-only
     /// builtins. Defaults to false.

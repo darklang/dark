@@ -6,55 +6,21 @@ module Darklang.Cli.Workbench
 // Named wrappers so every ViewDef field is a resolved function reference (inline lambdas leave the tuple's
 // type as `_` and block record coercion - same reason Registry.CommandHandler uses named refs throughout).
 let errorItems () : List<BodyItem> = loadErrorItems ()
-let cronItems () : List<BodyItem> = loadCronItems ()
-let calendarItems () : List<BodyItem> = []
 let errorDetailLines (state: State) : List<String> = Stdlib.String.split (errorDetail state) "\n"
-let cronDetailLines (state: State) : List<String> = Stdlib.String.split (cronDetail state) "\n"
-let calendarDetailLines (_state: State) : List<String> = []
-let syncViewItems () : List<BodyItem> = loadSyncItems ()
 
 /// Extension views in stable index order. Workspaces place them in navigation.
 let extensionViews () : List<ViewDef> =
   [ ViewDef
       { id = "errors"
         name = "Errors"
-        gateKey = ""
         behavior = ViewBehavior.Split
         loadItems = errorItems
         render = renderErrors
         detail = errorDetailLines
         hints = errorHints }
     ViewDef
-      { id = "crons"
-        name = "Crons"
-        gateKey = "crons.enabled"
-        behavior = ViewBehavior.Split
-        loadItems = cronItems
-        render = renderCrons
-        detail = cronDetailLines
-        hints = cronHints }
-    ViewDef
-      { id = "calendar"
-        name = "Calendar"
-        gateKey = "calendar.enabled"
-        behavior = ViewBehavior.List
-        loadItems = calendarItems
-        render = renderCalendar
-        detail = calendarDetailLines
-        hints = calendarHints }
-    ViewDef
-      { id = "sync"
-        name = "Sync"
-        gateKey = ""
-        behavior = ViewBehavior.Document
-        loadItems = syncViewItems
-        render = renderSync
-        detail = syncLines
-        hints = syncHints }
-    ViewDef
       { id = "builtins"
         name = "Builtins"
-        gateKey = "internal.enabled"
         behavior = ViewBehavior.Split
         loadItems = loadBuiltinItems
         render = renderBuiltins
@@ -63,7 +29,6 @@ let extensionViews () : List<ViewDef> =
     ViewDef
       { id = "processes"
         name = "Processes"
-        gateKey = ""
         behavior = ViewBehavior.Split
         loadItems = loadProcessItems
         render = renderProcesses

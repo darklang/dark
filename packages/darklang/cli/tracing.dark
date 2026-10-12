@@ -618,7 +618,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let fnName = Cli.TraceVerbs.canonicalFnName state.currentBranchId typed
     Stdlib.LocalStore.configSet Cli.TraceWatch.fnKey fnName
     let view =
-      Apps.Model.View
+      LiveView.Model.View
         { name = "traces-show"
           title = $"show: {fnName}"
           init = "Darklang.Cli.TraceWatch.init"
@@ -630,7 +630,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               "up/down pick a trace  |  esc quit  (nothing here performs an effect)" }
     // `--watch` IS the opt-in: a panel whose whole job is to repaint as traces arrive and as you
     // edit the code it is showing you.
-    match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None true with
+    match LiveView.Host.openView state.currentBranchId view Stdlib.Option.Option.None true with
     | Ok _ -> state
     | Error e ->
       Cli.printErr e

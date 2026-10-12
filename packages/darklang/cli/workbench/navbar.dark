@@ -46,8 +46,6 @@ let mkDest (view: Int) (section: Int) : Dest = Dest { view = view; section = sec
 /// Home (History, Branches), a row in the view (Conflicts), or a view you
 /// step to from its parent (`B` builtins from the tree, `E` errors from
 /// traces).
-/// Crons, Calendar and Devices are gated sketches and have no route from
-/// the nav at all now; they still render if something else lands there.
 val workspaces =
   [ Workspace { name = "Home"; dest = mkDest vHome 0; covers = [] }
     // Builtins are part of the tree - the bottom tier of it - not
@@ -59,25 +57,14 @@ val workspaces =
     Workspace { name = "Changes"; dest = mkDest vSCM 0; covers = [] }
     // Its own row, not a leaf of Code: you reach for it from anywhere, so it gets a number key.
     Workspace { name = "REPL"; dest = mkDest vScratch 0; covers = [] }
-    // Run starts work; Traces shows its results.
-    // Processes: what the scheduler is running right now; `P` from Apps.
-    Workspace
-      { name = "Apps"
-        dest = mkDest vApps 0
-        covers = [ extViewIndex "crons", extViewIndex "calendar", extViewIndex "processes" ] }
+    // Run starts work; Traces shows its results, and Processes is what the scheduler is running
+    // right now.
     Workspace
       { name = "Traces"
         dest = mkDest vTraces 0
-        covers = [ extViewIndex "errors" ] }
-    // AI has nothing real behind it yet, so it has no item: a view of sample
-    // data on the strip is a promise the product isn't keeping. The view and
-    // its code stay for when it is wired.
-    Workspace { name = "Docs"; dest = mkDest vDocs 0; covers = [] }
-    // This machine: its sync state (and, gated, the peers it syncs with).
-    Workspace
-      { name = "Sync"
-        dest = mkDest (extViewIndex "sync") 0
-        covers = [ vDevices ] } ]
+        covers =
+          [ extViewIndex "errors", extViewIndex "processes" ] }
+    Workspace { name = "Docs"; dest = mkDest vDocs 0; covers = [] } ]
 
 /// Can this account see `ws`'s view? A gated view drops out, and its item with it.
 ///
@@ -95,7 +82,7 @@ let visibleWorkspacesIn (vis: List<Int>) : List<(Int * Workspace)> =
 
 /// The section `view` is currently on, in `Dest` terms. Only AI has any.
 let sectionOf (state: State) (view: Int) : Int =
-  if view == vAI then aiSectionIndex state.ai.section else 0
+  0
 
 /// Where you are, as a destination.
 let activeDest (state: State) : Dest = mkDest state.activeView (sectionOf state state.activeView)
@@ -217,7 +204,6 @@ let goTo (state: State) (d: Dest) (stayInNavbar: Bool) : State =
   let point =
     { (returnPointOf state) with
         view = d.view
-        aiSection = if d.view == vAI then aiSectionAt d.section else state.ai.section
         lens = if d.view == vMatter then Lens.WholeTree else state.matter.lens
         filter = "" }
   let moved = moveToPoint state point true

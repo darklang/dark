@@ -10,15 +10,15 @@ This is a guide to the design and the main parts of the implementation. See [Uni
 test declaration -> WrittenTypes -> PT.PackageTest -> AddTest + SetName -> package store
 ```
 
-We added `PT.PackageTest` to store the test's body, description, any expected
-error, and any DBs declared for the test.
+We added `PT.PackageTest` to store the test's body, description and any expected
+error.
 
 A test is its own kind of package item. It can depend on functions, types and
 values, but nothing can call a test as a function.
 
-Most tests return `Stdlib.Test.Result.Pass` or `Fail`. Tests using `=> raises`
-or `=> sqlerror` pass when the body raises the expected error. If the body
-returns a value instead, the test fails.
+Most tests return `Stdlib.Test.Result.Pass` or `Fail`. A test using `=> raises`
+passes when the body raises the expected error. If the body returns a value
+instead, the test fails.
 
 Tests use the existing package machinery: `AddTest` records immutable content,
 and `SetName` binds a name to its hash. Tests are serialized, hashed, tracked,
@@ -35,8 +35,10 @@ Test definitions and run results live in separate tables:
 
 Test bodies are stored as PT and converted into interpreter instructions when they run. For package functions, those instructions are generated and stored ahead of time.
 
-Tests can declare private Dark databases with `[<DB>]` and use them through
-`Stdlib.DB`. Each run gets fresh DB IDs, and their data is deleted afterward.
+A test could declare private Dark databases with `[<DB>]` and use them through
+`Stdlib.DB`, each run getting fresh IDs and its rows deleted afterward. That went
+to `later/` with user databases: the form still parses, but there is no runtime
+behind it. `later/packages/darklang/tests/stdlib/db.dark` is the suite it served.
 
 ## What happens when you run `dark test run`
 
@@ -50,7 +52,7 @@ counts as one test, even when `Stdlib.Test.all` combines several checks. The
 command fails if any test fails or no tests match.
 
 The worker is the separate process running the test. It loads the saved version
-by hash, sets up any private DBs the test declares, and resets the test counter.
+by hash and resets the test counter.
 F# then converts the body into instructions and runs them through the normal
 Dark interpreter.
 
@@ -60,8 +62,8 @@ it, and `Stdlib.Test.counterValue` reads it. Tests that don't need to count
 evaluations leave it unused.
 
 The worker runs the test; Dark decides whether it passed. For an ordinary test,
-it checks for `Pass` or `Fail`. For `=> raises` or `=> sqlerror`, it checks that
-the expected error occurred.
+it checks for `Pass` or `Fail`. For `=> raises`, it checks that the expected
+error occurred.
 
 Errors are returned as structured data so Dark can inspect their type and details.
 
@@ -126,9 +128,6 @@ declaration still counts as one test.
 `=> raises` checks that the runtime error message exactly matches the expected
 text.
 
-`=> sqlerror` checks that a SQL compiler error occurs and its message exactly
-matches the expected text.
-
 In the terminal output from `dark test run`, failed assertions are shown as `FAIL`
 and unexpected runtime errors as `ERROR`, before the test's name.
 
@@ -157,8 +156,7 @@ runner also checks whether the result is safe to reuse.
 
 F# checks the test, the functions it calls and the values it uses. If it finds
 effects, changing state or behavior that depends on the branch or cannot finish
-the analysis, the test runs again. Tests with private DBs or expected errors
-always rerun.
+the analysis, the test runs again. Tests with expected errors always rerun.
 
 Only passing results can skip a run. Failed assertions are saved for display,
 but the test runs again next time. Runtime errors are not cached.

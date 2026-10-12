@@ -1,0 +1,47 @@
+// RESTORE: packages/darklang/scm/conflicts.dark
+// WAS: syncBases, hasSyncBases and recordAllSyncBases: the three readers and writers of the `sync_bases` table, which only the sync-import path ever used. The DETECTOR is untouched; it takes its bases as a parameter and branch merge passes branchBases.
+// ANCHOR: between branchBases and the `conflicts` table section
+// ALSO: later/packages/darklang/sync/packageOpsSync.dark is the caller.
+// CORRECTION: an earlier version of this header said the `sync_bases` TABLE was still in the schema
+//      and that Purge.fs and Seed.fs still cleared it. None of that is true any more: the table is
+//      in no live file, and it is carried as DDL by later/backend/migrations/sync-tables.sql.
+//      Declare it again when restoring, and re-add the clears.
+// WHEN: the sync molt, 2026-10-12
+
+/// The bases recorded for a SYNC SOURCE: the hashes this instance and that source last agreed on.
+let syncBases (sourceId: String) : List<NameBase> =
+  Stdlib.Sqlite.rowsP
+    (localDb ())
+    "SELECT owner, modules, name, base_hash FROM sync_bases WHERE source_id = @p0"
+    [ sourceId ]
+    baseFromRow
+
+/// Has this instance ever recorded agreement with <param sourceId>? A first sync has none, which is why a
+/// first sync can't (and shouldn't) report conflicts.
+let hasSyncBases (sourceId: String) : Bool =
+  let n =
+    Stdlib.Sqlite.scalarIntP
+      (localDb ())
+      "SELECT count(*) AS n FROM sync_bases WHERE source_id = @p0"
+      [ sourceId ]
+      "n"
+
+  (Stdlib.Option.withDefault n 0L) > 0L
+
+/// Record agreement with <param sourceId> for EVERY name this instance currently binds, in one statement.
+/// The bulk-import path: adopting a whole log wholesale is exactly "we now agree on everything I hold", and
+/// decoding every op blob in Dark just to narrow the list would cost far more than it buys.
+///
+/// main-scoped, on purpose: what was adopted folded into main, and the bases say what main and the
+/// source now agree on.
+let recordAllSyncBases (sourceId: String) : Unit =
+  let _ =
+    Stdlib.Sqlite.mustExec
+      (localDb ())
+      "INSERT INTO sync_bases (source_id, owner, modules, name, base_hash)
+       SELECT @p0, owner, modules, name, item_hash FROM locations WHERE unlisted_at IS NULL
+       ON CONFLICT(source_id, owner, modules, name)
+       DO UPDATE SET base_hash = excluded.base_hash, updated_at = datetime('now')"
+      [ sourceId ]
+
+  ()

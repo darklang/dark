@@ -1,0 +1,18 @@
+// RESTORE: packages/darklang/scm/branches.dark
+// WAS: `pruneAppliedTags`, which untagged a review branch's already-applied ops
+// ANCHOR: between the archive function and the listings section
+// ALSO: the review QUEUE it served was sync's whole-log import; see later/packages/darklang/sync/. Local branches never accumulate these tags, so nothing on this side needs it.
+// WHEN: the sync molt, 2026-10-12
+
+/// Untag a review branch's already-APPLIED ops. A whole-log review import tags every re-imported op to the
+/// queue, including ones already in main (the op row dedups, but the tag is new), which inflates the queue's
+/// diff/log/merge. Pruning leaves the genuinely-pending delta, and loses nothing: an applied op is in main.
+let pruneAppliedTags (branchId: Uuid) : Unit =
+  let _ =
+    Stdlib.Sqlite.mustExec
+      (localDb ())
+      "DELETE FROM op_branches
+       WHERE branch_id = @p0 AND op_id IN (SELECT id FROM package_ops WHERE applied = 1)"
+      [ Stdlib.toString branchId ]
+
+  ()

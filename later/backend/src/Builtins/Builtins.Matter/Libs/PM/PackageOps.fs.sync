@@ -1,0 +1,122 @@
+// RESTORE: backend/src/Builtins/Builtins.Matter/Libs/PM/PackageOps.fs
+// WAS: scmImportOps, scmStoreOps and scmExportPageJson: the three builtins behind a sync import, a relay recording a push, and the relay's export page
+// ANCHOR: between packageOpFromBlobOption and scmGetCommitNamedOps in the fns list
+// ALSO: later/packages/darklang/sync/ held their wrappers
+// WHEN: the sync molt, 2026-10-12
+
+// --- scmImportOps ---
+    // Bulk-import synced ops (id, op_blob-hex, origin_ts) in ONE transaction, then FOLD them
+    // so they take effect. The perf path for transport: Dark's per-op insert crawls on a real
+    // log, so hex-decode + bulk INSERT + fold live in F#. (Sync moves ops and they apply --
+    // no approval gate; that's a later effort.) Returns count newly inserted.
+    { name = fn "scmImportOps" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "commitHash"
+            TString
+            "commit the arriving ops into this commit (\"\" = leave uncommitted)"
+          Param.make
+            "records"
+            (TList(TTuple(TString, TString, [ TString ])))
+            "(id, blobHex, originTs) triples" ]
+      returnType = TypeReference.result TInt TString
+      description =
+        "Bulk-import synced ops in one transaction, then fold them in. Returns count inserted."
+      fn =
+        let resultOk = Dval.resultOk KTInt KTString
+        let resultError = Dval.resultError KTInt KTString
+        (function
+        | _, _, _, [| DString commitHash; DList(_, records) |] ->
+          uply {
+            try
+              let! n = LibDB.Inserts.importOpsBulk commitHash (opRecords records)
+              let! _ = LibDB.Seed.applyUnappliedOps () // fold the just-inserted (effective=1) ops
+              return resultOk (Dval.int (bigint n))
+            with ex ->
+              return resultError (Dval.string ex.Message)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageWrite ]
+      deprecated = NotDeprecated }
+
+// --- scmStoreOps ---
+    // RELAY store: bulk-insert ops + record ownership (owner) in one transaction, NO fold
+    // (a relay serves blobs, not projections). The perf path for a relay recording pushes.
+    { name = fn "scmStoreOps" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "owner"
+            TString
+            "the pusher's identity (\"\" = don't record ownership)"
+          Param.make
+            "records"
+            (TList(TTuple(TString, TString, [ TString ])))
+            "(id, blobHex, originTs) triples" ]
+      returnType = TypeReference.result TInt TString
+      description =
+        "Relay store: bulk-insert ops + record ownership, no fold. Returns count stored."
+      fn =
+        let resultOk = Dval.resultOk KTInt KTString
+        let resultError = Dval.resultError KTInt KTString
+        (function
+        | _, _, _, [| DString owner; DList(_, records) |] ->
+          uply {
+            try
+              let! n = LibDB.Inserts.storeOpsWithOwner owner (opRecords records)
+              return resultOk (Dval.int (bigint n))
+            with ex ->
+              return resultError (Dval.string ex.Message)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageWrite ]
+      deprecated = NotDeprecated }
+
+// --- scmExportPageJson ---
+    // One page of the sync wire format, rendered straight from the database.
+    { name = fn "scmExportPageJson" 0
+      typeParams = []
+      parameters =
+        [ Param.make "sinceSeq" TInt64 "Return ops after this rowid"
+          Param.make "limit" TInt64 "How many ops at most"
+          Param.make "formatVersion" TInt64 "Wire format version to declare"
+          Param.make "darkBuild" TString "Build that wrote this bundle"
+          Param.make "kernelHash" TString "ABI fingerprint of that build"
+          Param.make "owner" TString "This instance's identity" ]
+      returnType = TTuple(TString, TInt64, [])
+      description =
+        "One page of the sync wire format as JSON, plus the cursor to hand back. "
+        + "Reads and encodes the ops without turning any of them into Dark values."
+      fn =
+        function
+        | _,
+          _,
+          _,
+          [| DInt64 sinceSeq
+             DInt64 limit
+             DInt64 formatVersion
+             DString darkBuild
+             DString kernelHash
+             DString owner |] ->
+          uply {
+            let! (json, cursor) =
+              LibDB.Queries.exportPageJson
+                sinceSeq
+                limit
+                formatVersion
+                darkBuild
+                kernelHash
+                owner
+
+            return DTuple(DString json, DInt64 cursor, [])
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }

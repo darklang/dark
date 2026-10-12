@@ -453,7 +453,7 @@ module Execution =
 /// the request, compare, stop the listener.
 let private runFixture (test : Test) : Task<unit> =
   task {
-    let! exeState = executionStateFor pmPT true Map.empty
+    let! exeState = executionStateFor pmPT true
 
     let! handler = buildRouterForTest exeState test
 
@@ -501,7 +501,7 @@ let private runRequestsAgainst
   (requests : (string * byte[]) list)
   : Task<(string * byte[]) array> =
   task {
-    let! exeState = executionStateFor pmPT true Map.empty
+    let! exeState = executionStateFor pmPT true
     let test =
       { handlers =
           [ { version = Http; route = "/"; method = method; code = routerCode } ]
@@ -680,7 +680,7 @@ let private requestsAreProcesses =
 /// asserts that guard: the values are rejected without a socket ever opening.
 let private serveRejectsOutOfRangeArgs =
   testTask "serve rejects out-of-range port / maxBodyBytes with a Dark error" {
-    let! exeState = executionStateFor pmPT true Map.empty
+    let! exeState = executionStateFor pmPT true
 
     let runServe (source : string) : Task<Result<RT.Dval, string>> =
       task {

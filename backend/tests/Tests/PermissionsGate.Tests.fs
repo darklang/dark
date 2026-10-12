@@ -54,8 +54,7 @@ let private expectHostOnly
   (args : RT.Dval[])
   : System.Threading.Tasks.Task<unit> =
   task {
-    let! (exeState : RT.ExecutionState) =
-      executionStateFor TestValues.pm false Map.empty
+    let! (exeState : RT.ExecutionState) = executionStateFor TestValues.pm false
     let builtin = exeState.fns.builtIn[RT.FQFnName.builtin name 0]
     try
       let! _ = builtin.fn (struct (exeState, dummyVM (), [], args)) |> Ply.toTask
@@ -69,7 +68,7 @@ let private expectHostOnly
 
 let denied =
   testTask "an effectful builtin is denied by a deny-all policy" {
-    let! exeState = executionStateFor TestValues.pm false Map.empty
+    let! exeState = executionStateFor TestValues.pm false
     let! actual =
       LibExecution.Execution.executeExpr (denyAll exeState) (clockCall ())
     expectDenied [ "clock" ] actual
@@ -77,14 +76,14 @@ let denied =
 
 let allowed =
   testTask "the gate permits an effect under an allow-all policy" {
-    let! exeState = executionStateFor TestValues.pm false Map.empty // allow-all access
+    let! exeState = executionStateFor TestValues.pm false // allow-all access
     let! actual = LibExecution.Execution.executeExpr exeState (clockCall ())
     expectNotDenied actual
   }
 
 let nativeDenied =
   testTask "a native builtin is denied by restricted execution" {
-    let! exeState = executionStateFor TestValues.pm false Map.empty
+    let! exeState = executionStateFor TestValues.pm false
     let! actual =
       LibExecution.Execution.executeExpr (denyAll exeState) (nativeCall ())
     expectDenied [ "raw POSIX operation" ] actual
@@ -92,15 +91,14 @@ let nativeDenied =
 
 let nativeAllowedByAllowAll =
   testTask "allow-all explicitly permits a native builtin" {
-    let! exeState = executionStateFor TestValues.pm false Map.empty
+    let! exeState = executionStateFor TestValues.pm false
     let! actual = LibExecution.Execution.executeExpr exeState (nativeCall ())
     expectNotDenied actual
   }
 
 let newRunPolicyDenies =
   testTask "the run policy attenuates an allow-all instance" {
-    let! (exeState : RT.ExecutionState) =
-      executionStateFor TestValues.pm false Map.empty
+    let! (exeState : RT.ExecutionState) = executionStateFor TestValues.pm false
     let access =
       exeState.access
       |> LibExecution.Permissions.Access.restrict
@@ -144,7 +142,7 @@ let private runPackageFnWith
   (hash : string)
   : System.Threading.Tasks.Task<RT.ExecutionResult> =
   task {
-    let! exeState = executionStateFor pm false Map.empty // instance grants all
+    let! exeState = executionStateFor pm false // instance grants all
     return!
       LibExecution.Execution.executeFunction
         (configure exeState)
@@ -467,7 +465,7 @@ let guestCannotApprovePackages =
 
 let guestFileApiCannotReachPolicyStore =
   testTask "guest filesystem access cannot reach host policy state" {
-    let! exeState = executionStateFor TestValues.pm false Map.empty
+    let! exeState = executionStateFor TestValues.pm false
     let vm = dummyVM ()
     match LibDB.LocalFile.path "policies.bin" with
     | Error message -> Expect.equal 1 2 message
@@ -492,7 +490,7 @@ let guestFileApiCannotReachPolicyStore =
 
 let evaluatedNamedFnInContainerCannotWidenReentry =
   testTask "a named fn captures access before being nested in a container" {
-    let! exeState = executionStateFor TestValues.pm false Map.empty
+    let! exeState = executionStateFor TestValues.pm false
     let expr =
       eList [ eBuiltinFn "syscallGettimeofday" 0 ]
       |> PT2RT.Expr.toRT Map.empty 0 None
@@ -518,7 +516,7 @@ let evaluatedNamedFnInContainerCannotWidenReentry =
 let partiallyAppliedNamedFnCapturesAccess =
   testTask "a partial application captures access before escaping" {
     // Direct calls need no stamp; partial applications retain the caller's.
-    let! exeState = executionStateFor TestValues.pm false Map.empty
+    let! exeState = executionStateFor TestValues.pm false
     let expr =
       eApply (eBuiltinFn "int64Add" 0) [] [ eInt64 1L ]
       |> PT2RT.Expr.toRT Map.empty 0 None

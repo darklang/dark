@@ -1,0 +1,40 @@
+/// A live view: a named thing the terminal can paint and repaint as the store changes.
+///
+/// `Cli.LiveView.Host` runs one. `dark ps --watch` and `dark traces --watch` are the two in the
+/// tree; anything else that wants a panel that follows its own code builds a `View` the same way.
+module Darklang.Cli.LiveView.Model
+
+/// A live view: three fns held by NAME and resolved as the store changes (`Stdlib.Live`), never as
+/// values. `init : Unit -> 'model`, `update : 'model -> Cli.LiveView.Host.Event<'msg> -> 'model`,
+/// `render : 'model -> Stdlib.Cli.UI.Node.Node<'msg>`. The model stays in memory across an edit;
+/// `render` is a pure function of it.
+type View =
+  { /// What a caller names the view by.
+    name: String
+    /// The title bar.
+    title: String
+    init: String
+    update: String
+    render: String
+    /// Repaint every this many ms with a `Tick` event, for a view of something that moves on its
+    /// own (a process table); `None` for a view that only changes on a key or a save. A view
+    /// that sets this must match `Tick` in its `update`; nothing checks that before the first
+    /// tick, which would otherwise land as a runtime error under the view.
+    every: Stdlib.Option.Option<Int64>
+
+    /// The key line under the frame. `None` is the host's own ("esc quit | tab next field |
+    /// ..."), which is right for a view with fields to fill; a view that reads other keys, or
+    /// whose model is not worth saving, gives its own.
+    keys: Stdlib.Option.Option<String> }
+
+/// A view whose three fns are `<path>.init`, `.update` and `.render`, repainting on keys and
+/// saves only.
+let viewAt (name: String) (title: String) (path: String) : View =
+  View
+    { name = name
+      title = title
+      init = path + ".init"
+      update = path + ".update"
+      render = path + ".render"
+      every = Stdlib.Option.Option.None
+      keys = Stdlib.Option.Option.None }

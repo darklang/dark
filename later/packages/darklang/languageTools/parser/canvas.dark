@@ -1,0 +1,178 @@
+module Darklang.LanguageTools.Parser.Canvas
+
+// CLEANUP this hasn't been used in a while.
+// by the time we do use it, it'll likely need some notable adjustments.
+
+
+type WTCanvasModule =
+  { owner: String
+    name: List<String>
+    types: List<LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration>
+    values:
+      List<LanguageTools.WrittenTypes.ValueDeclaration.ValueDeclaration>
+    fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
+    // dbs, handlers
+    exprs: List<LanguageTools.WrittenTypes.Expr> }
+
+type PTCanvasModule =
+  { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
+    values:
+      List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+    fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+    // dbs, handlers
+    exprs: List<LanguageTools.ProgramTypes.Expr> }
+
+let parseDecls
+  (owner: String)
+  (canvasName: String)
+  (source: LanguageTools.WrittenTypes.ParsedFile)
+  : Stdlib.Result.Result<WTCanvasModule, String> =
+  match source with
+  | SourceFile source ->
+    let types =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Type t -> Stdlib.Option.Option.Some t
+        | _ -> Stdlib.Option.Option.None)
+
+    let values =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Value v -> Stdlib.Option.Option.Some v
+        | _ -> Stdlib.Option.Option.None)
+
+    let fns =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Function f -> Stdlib.Option.Option.Some f
+        | _ -> Stdlib.Option.Option.None)
+
+    let exprs = source.exprsToEval
+
+    Stdlib.Result.Result.Ok(
+      WTCanvasModule
+        { owner = owner
+          name = [ canvasName ]
+          types = types
+          values = values
+          fns = fns
+          exprs = exprs }
+    )
+
+  | _ -> Stdlib.Result.Result.Error "Invalid source file"
+
+
+let toPT
+  (ctx: NameResolver.NRContext)
+  (wt: WTCanvasModule)
+  : PTCanvasModule =
+  let ctx = { ctx with owner = wt.owner; currentModule = [] }
+
+  let (types, _) =
+    wt.types
+    |> Stdlib.List.map (fun t ->
+      LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+        ctx
+        t)
+    |> Stdlib.List.unzip
+
+  let (values, _) =
+    wt.values
+    |> Stdlib.List.map (fun v ->
+      WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
+        ctx
+        v)
+    |> Stdlib.List.unzip
+
+  let (fns, _) =
+    wt.fns
+    |> Stdlib.List.map (fun f ->
+      WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+        ctx
+        f)
+    |> Stdlib.List.unzip
+
+  let (exprs, _) =
+    wt.exprs
+    |> Stdlib.List.map (fun e ->
+      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+        ctx
+        LanguageTools.WrittenTypesToProgramTypes.defaultContext
+        e)
+    |> Stdlib.List.unzip
+
+  PTCanvasModule
+    { types = types
+      values = values
+      fns = fns
+      exprs = exprs }
+
+
+let parse
+  (ctx: NameResolver.NRContext)
+  (canvasName: String)
+  (filename: String)
+  (source: String)
+  : Stdlib.Result.Result<PTCanvasModule, String> =
+  match source |> LanguageTools.Parser.Parse.initialParse with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok parsedFile ->
+    match parseDecls ctx.owner canvasName parsedFile with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok moduleWT ->
+      let initialParse = toPT ctx moduleWT
+
+      // withExtras needs located items; derive each location from the
+      // written declaration's name (map2 pairs decls with their PT items,
+      // which toPT produced in the same order).
+      let locatedTypes =
+        (Stdlib.List.map2 moduleWT.types initialParse.types (fun decl entity ->
+          ProgramTypes.LocatedItem
+            { entity = entity
+              location =
+                ProgramTypes.PackageLocation
+                  { owner = moduleWT.owner
+                    modules = moduleWT.name
+                    name = decl.name.name } }))
+        |> Stdlib.Option.withDefault []
+
+      let locatedValues =
+        (Stdlib.List.map2 moduleWT.values initialParse.values (fun decl entity ->
+          ProgramTypes.LocatedItem
+            { entity = entity
+              location =
+                ProgramTypes.PackageLocation
+                  { owner = moduleWT.owner
+                    modules = moduleWT.name
+                    name = decl.name.name } }))
+        |> Stdlib.Option.withDefault []
+
+      let locatedFns =
+        (Stdlib.List.map2 moduleWT.fns initialParse.fns (fun decl entity ->
+          ProgramTypes.LocatedItem
+            { entity = entity
+              location =
+                ProgramTypes.PackageLocation
+                  { owner = moduleWT.owner
+                    modules = moduleWT.name
+                    name = decl.name.name } }))
+        |> Stdlib.Option.withDefault []
+
+      let pm =
+        ProgramTypes.PackageManager.withExtras
+          ctx.pm
+          locatedTypes
+          locatedValues
+          locatedFns
+
+      // Items are content-addressed, so the second (fully resolved) pass
+      // already carries the right hashes — no name-based adjustment needed.
+      let result = toPT { ctx with pm = pm } moduleWT
+
+      Stdlib.Result.Result.Ok result
+// MOVED: the cloud-canvas lowering (WTCanvasModule/PTCanvasModule, whose record still carried
+// '// dbs, handlers'). Nothing dispatched to it, including nothing in later/, and its own header
+// had said for a long while that it had not been used in a while.

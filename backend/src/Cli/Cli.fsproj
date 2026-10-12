@@ -133,7 +133,8 @@
          missing and touches nothing else. Without it, a store keeps whatever shape the seed it was born
          from had, and a binary carrying a new TABLE cannot run against it.
 
-         One resource per file, named `schema/<file>`: `EmbeddedResources.embeddedSchema` sorts them by
+         One resource per file, named `schema/<file>` (one file today, and the glob keeps working
+         if a stamped one joins it): `EmbeddedResources.embeddedSchema` sorts them by
          name and concatenates, which is the same order `LocalExec.Migrations` reads them from disk in.
          A glob, so adding a file to the directory is all adding a file takes. -->
     <EmbeddedResource Include="../../migrations/schema/*.sql">

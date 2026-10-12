@@ -1126,8 +1126,6 @@ module WrittenTypesToDarkTypes =
       match expected with
       | WT.RuntimeError message ->
         DEnum(errorType, errorType, [], "RuntimeError", [ DString message ])
-      | WT.SqlCompilerError message ->
-        DEnum(errorType, errorType, [], "SqlCompilerError", [ DString message ])
     DRecord(
       t,
       t,
@@ -1318,8 +1316,7 @@ module WrittenTypesToDarkTypes =
     | WT.DAssertion t ->
       match t.expected with
       | WT.TEExpr e -> [ expr t.actual; expr e ]
-      | WT.TEError _
-      | WT.TESqlError _ -> [ expr t.actual ]
+      | WT.TEError _ -> [ expr t.actual ]
 
   /// A declaration the `SourceFileDeclaration` DT has a case for, or None.
   ///
@@ -1355,8 +1352,7 @@ module WrittenTypesToDarkTypes =
         | WT.DAssertion t ->
           match t.expected with
           | WT.TEExpr e -> [ t.actual; e ]
-          | WT.TEError _
-          | WT.TESqlError _ -> [ t.actual ]
+          | WT.TEError _ -> [ t.actual ]
         | _ -> []
       let keptDeclarations =
         sf.declarations

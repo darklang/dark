@@ -23,11 +23,15 @@ module Rank =
       let (_, name) = pair
       name)
 
+  // A fixture, not a reading of the store: these are the (module, name) pairs the ranker is
+  // asked to order. `fromFile` no longer exists; it is kept because the case it carries is "a
+  // name the query spells only partly, in a module whose path does not spell it either", which
+  // is what puts it last. The module must not contain "file" or it scores on the path.
   let fileFns () : List<(String * String)> =
     [ ("Stdlib.Cli.FileSystem", "overwriteFile")
       ("Stdlib.Cli.FileSystem", "readFile")
       ("Stdlib.Cli.FileSystem", "readFileAsString")
-      ("Cli.Outliner.Export", "fromFile") ]
+      ("Cli.Outliner.Store", "fromFile") ]
 
 // Plain words find the camelCase name they spell.
 test plainWordsFindCamelCase =

@@ -662,7 +662,6 @@ let guestState
   { state with
       accountID = accountID
       canManagePolicies = false
-      canUsePrivateNetworkHttp = false
       packagePolicyOrigin =
         fun policyId -> originOfIn (get ()) accountID (fingerprint.Force()) policyId }
   |> Execution.setInstancePolicy instance

@@ -1,0 +1,17 @@
+// RESTORE: packages/darklang/cli/registry.dark
+// WAS: the command rows for push, pull, connect, whoami, identity, review, devices and sync, out of Registry.allCommands
+// ANCHOR: push/pull sat between the ('undeprecate', ...) row and ('backups', ...); connect/whoami/identity straight after ('backups', ...); review between ('traces', ...) and ('conflicts', ...); devices and sync between ('permissions', ...) and ('ops', ...)
+// ALSO: later/packages/darklang/cli/registry.dark.sync-accepts has the accepts* fns these rows name, and later/packages/darklang/cli/registry.dark.help-groups has the help categories
+// WHEN: the sync molt, 2026-10-12
+
+      ("push", "Push your ops to the relay", [], acceptsPush, Cli.Sync.executePushCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("pull", "Pull ops from the relay (they take effect)", [], acceptsPull, Cli.Sync.executePullCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("connect", "Remember a relay and push to it (the onboarding step)", [], acceptsConnect, Cli.Sync.executeConnectCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("whoami", "Show this instance's sync identity", [], acceptsWhoami, Cli.Sync.executeWhoamiCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("identity", "Name this instance (an id is minted automatically otherwise)", [], acceptsIdentity, Cli.Sync.executeIdentityCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("review", "Stage someone else's ops for op-level approval", [], acceptsReview, Cli.Sync.executeReviewCmd, Cli.Sync.helpReview, Cli.Sync.complete)
+      ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], acceptsDevices, Devices.execute, Devices.help, Devices.complete)
+      // CLEANUP(instances-command): `sync` mixes the verb (sync now) with instance management
+      // (connect / disconnect / status / fetch); those belong in a dedicated `instances` command so
+      // `dark sync` is just "pull now".
+      ("sync", "Push then pull against a relay (`sync setup` to get started)", [], acceptsSync, Cli.Setup.executeSyncCmd, Cli.Sync.help, Cli.Sync.complete)

@@ -64,7 +64,7 @@ let handleViewKey
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
   match key with
-  // shift+arrow is ten of them. See `repeatStep`: Home and PageUp are still there and he does
+  // shift+arrow is ten of them. See `repeatStep`: Home and End are still there and he does
   // not use them, and this asks for no fn key and takes no letter away from anything.
   | UpArrow -> if modifiers.shift then repeatStep state navUp 10 else navUp state
   | DownArrow -> if modifiers.shift then repeatStep state navDown 10 else navDown state
@@ -77,9 +77,6 @@ let handleViewKey
     if state.activeView == vHome then
       // Home: ⏎ goes to the thing the row is about - see `openHomeRow`.
       openHomeRow state
-    else if state.activeView == vApps then
-      // Apps: ⏎ opens the app - its status, target, and recent logs - in the reader (i toggles install).
-      runAppsSubcommand state "inspect"
     else if state.activeView == vDocs then
       // Docs: open the selected topic in the full-body reader (prose, not code). By name, not by index - the
       // list is filterable, see `selectedDocTopic`.
@@ -99,17 +96,6 @@ let handleViewKey
       Step.Continue
         { state with
             input = Stdlib.Option.Option.Some (InputState { prompt = "repl> "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "scratch" }) }
-    else if state.activeView == vAI then
-      // AI: ⏎ is the primary action. Prompts → use the prompt (fill the ask bar); Agents → open the thread.
-      if state.ai.section == AiSection.Prompts then
-        match Stdlib.List.getAt (demoPrompts ()) state.selected with
-        | Some p ->
-          let (_name, desc) = p
-          Step.Continue
-            { state with
-                input = Stdlib.Option.Option.Some (InputState { prompt = "ask the agent: "; field = Stdlib.Cli.UI.TextField.fromText desc; action = "agent" }) }
-        | None -> Step.Continue state
-      else openReader state (aiThreadDetail state.selected) false
     else if state.activeView == vTraces then
       // Traces: ⏎ opens the selected trace's detail.
       openReader state (traceDetail state) false
@@ -153,32 +139,17 @@ let handleViewKey
     goBack state
   | Home -> navTop state
   | End -> navBottom state
-  | PageUp -> documentPage state (0 - 1)
-  | PageDown -> documentPage state 1
   | Backspace ->
     // Up one module, whatever the history says. ← moves panes, so this is
     // the only key that means "the module above".
     ascend state
   | _ ->
     match keyChar with
-    // No vim motion. The arrows, Home/End and PageUp/PageDown above are the movement, and a
-    // second way to move costs six letters that actions want more.
+    // No vim motion. The arrows and Home/End above are the movement, and a second way to move
+    // costs six letters that actions want more.
     | Some "a" ->
-      // Changes, on a conflict row: acknowledge. AI: ask the agent. Devices: add an instance (placeholder).
+      // Changes, on a conflict row: acknowledge.
       if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "ok"
-      else if state.activeView == vAI then
-        Step.Continue
-          { state with
-              input =
-                Stdlib.Option.Option.Some
-                  (InputState { prompt = "ask the agent: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "agent" }) }
-      else if state.activeView == vDevices then
-        // `setup` asks questions, and the workbench owns the keyboard, so it cannot run in-frame. Say
-        // where it lives rather than pretending a key can do it.
-        Step.Continue
-          { state with
-              messageKind = MessageKind.Refused
-              message = "run `dark sync setup` from a shell to point this instance at a relay" }
       else Step.Continue state
     | Some "e" ->
       // Matter: edit the selected fn in place (prefill the editor from its source).
@@ -196,16 +167,8 @@ let handleViewKey
       else if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "theirs"
       else Step.Continue state
     | Some "o" ->
-      // Changes, on a conflict row: keep ours. Sync: ask the relay who else syncs with it - on a
-      // key, not on opening the view, because the relay may be down and the ask then waits out
-      // the connect timeout (see `syncPeerItems`).
+      // Changes, on a conflict row: keep ours.
       if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "ours"
-      else if state.activeView == (extViewIndex "sync") then
-        Step.Continue
-          { state with
-              items = loadSyncItemsWith (Stdlib.Option.Option.Some (syncPeerItems ()))
-              messageKind = MessageKind.Succeeded
-              message = "asked the relay" }
       else Step.Continue state
     | Some "v" ->
       if state.activeView == vMatter then startNew state "value" else Step.Continue state
@@ -239,26 +202,12 @@ let handleViewKey
           { state with
               input =
                 Stdlib.Option.Option.Some (InputState { prompt = "filter: "; field = Stdlib.Cli.UI.TextField.fromText state.filter; action = "filter" }) }
-    | Some "i" ->
-      // Apps: install/uninstall the selected app (also the primary ⏎ action).
-      if state.activeView == vApps then toggleInstall state else Step.Continue state
-    | Some "u" ->
-      // Changes and Sync: push to the relay. `u` for up, `d` for down, since `p` is the command
-      // prompt everywhere.
-      if (state.activeView == vSCM) || (state.activeView == (extViewIndex "sync")) then syncInFrame state "push"
-      else Step.Continue state
-    | Some "d" ->
-      if (state.activeView == vSCM) || (state.activeView == (extViewIndex "sync")) then syncInFrame state "pull"
-      else Step.Continue state
     | Some "c" ->
       if (state.activeView == vSCM) || (state.activeView == vHome) then
         Step.Continue
           { state with
               input =
                 Stdlib.Option.Option.Some (InputState { prompt = "commit message: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "commit" }) }
-      else if state.activeView == vDevices then
-        // Devices: c opens the real config (cli-config.json) in the reader; edits go through :config set.
-        openReader state (deviceConfigText ()) false
       else Step.Continue state
     | Some "x" ->
       // Matter: the traces that called the selected fn. REPL: x drops the
@@ -314,11 +263,8 @@ let handleViewKey
                 Stdlib.Option.Option.Some (InputState { prompt = "new branch name: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "branch-create" }) }
       else Step.Continue state
     | Some "s" ->
-      // Home: switch branch. Devices: sync now. Apps: stop.
+      // Home: switch branch.
       if state.activeView == vHome then openBranchPicker state
-      else if state.activeView == vDevices then runCommandInFrame state "sync" []
-      else if state.activeView == (extViewIndex "sync") then syncInFrame state "sync"
-      else if state.activeView == vApps then runAppsSubcommand state "stop"
       else Step.Continue state
     | Some "m" ->
       if state.activeView == vHome then
@@ -338,13 +284,14 @@ let handleViewKey
         Step.Continue (goTo state (mkDest builtins 0) false)
       else Step.Continue state
     | Some "E" ->
-      // Traces: the errors, the other half of what running software leaves behind. `6` comes back.
+      // Traces: the errors, the other half of what running software leaves behind. `5` comes back.
       if state.activeView == vTraces then
         Step.Continue (goTo state (mkDest (extViewIndex "errors") 0) false)
       else Step.Continue state
     | Some "P" ->
-      // Apps: the processes the scheduler is running, `dark ps` as a pane. `5` comes back.
-      if state.activeView == vApps then
+      // Traces: what the scheduler is running right NOW, where Traces is what it already ran.
+      // This key used to be on the Apps view, which is how Processes briefly had no route at all.
+      if state.activeView == vTraces then
         Step.Continue (goTo state (mkDest (extViewIndex "processes") 0) false)
       else Step.Continue state
     | Some "R" ->
@@ -400,7 +347,6 @@ let handleViewKey
                   Stdlib.Option.Option.Some
                     (InputState { prompt = "rebase " + b.name + " onto parent? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "rebase" }) }
         | None -> Step.Continue state
-      else if state.activeView == vApps then launchOrStartApp state
       else if state.activeView == vMatter then
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->

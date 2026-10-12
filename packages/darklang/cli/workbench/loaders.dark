@@ -212,7 +212,7 @@ let recentCommitRows (limit: Int64) : List<ScmJson.CommitRowJson> =
   SCM.Commits.recent limit
   |> Stdlib.List.map (fun c ->
     ScmJson.CommitRowJson
-      { hash = c.hash; message = c.message; author = c.author
+      { hash = c.hash; message = c.message
         ops = SCM.PackageOps.opCountIn c.hash })
 
 /// Recent commits across all branches, one line each, for the reader Home's
@@ -225,7 +225,7 @@ let commitListText () : String =
       let short = Stdlib.String.first c.hash 8
       let ops = Stdlib.toString c.ops
       "  " + (Stdlib.Cli.UI.Colors.dimText short) + "  " + c.message
-      + (Stdlib.Cli.UI.Colors.dimText ("  " + c.author + " · " + ops + (if ops == "1" then " op" else " ops"))))
+      + (Stdlib.Cli.UI.Colors.dimText ("  " + ops + (if ops == "1" then " op" else " ops"))))
   Stdlib.String.join
     (Stdlib.List.flatten [ [ Stdlib.Cli.UI.Colors.boldText "Recent commits, all branches", "" ], rows ])
     "\n"

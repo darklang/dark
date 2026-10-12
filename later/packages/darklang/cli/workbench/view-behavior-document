@@ -1,0 +1,69 @@
+// RESTORE: four workbench files
+// WAS: ViewBehavior.Document, isDocument, documentPage, and the six places that asked whether
+//      the active view was a document: navUp, navDown, navBottom, the post-command refresh in
+//      runCommandInFrame, the detail-width calculation in render.dark, and PageUp/PageDown.
+// ANCHOR: the DU case was last in ViewBehavior; isDocument sat between hasDetailPane and
+//      isSectioned; documentPage between navBottom and openReader; PageUp/PageDown were two arms
+//      of the key match.
+// ALSO: the Sync view was the only Document view there ever was; it is in
+//       later/packages/darklang/cli/workbench/views-misc.dark.sync.
+// WHEN: the molt, 2026-10-12
+
+// --- packages/darklang/cli/workbench/types.dark ---
+  /// One scrolling body with no cursor: ↑↓ and g/G move through the text.
+  /// E.g. Sync: one block of status.
+  | Document
+
+
+// --- packages/darklang/cli/workbench/types.dark ---
+let isDocument (state: State) : Bool =
+  viewBehavior state.activeView == ViewBehavior.Document
+
+
+
+// --- packages/darklang/cli/workbench/types.dark ---
+  /// One pane with a cursor over its rows and nothing to the right of it.
+  /// E.g. Devices.
+
+// --- packages/darklang/cli/workbench/nav.dark ---
+  if (isDocument state) || (state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second) then
+    Step.Continue { state with detailScroll = Stdlib.max 0 (state.detailScroll - 1) }
+
+// --- packages/darklang/cli/workbench/nav.dark ---
+  if (isDocument state) || (state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second) then
+    // Screen rows, not logical lines
+
+// --- packages/darklang/cli/workbench/nav.dark ---
+let navBottom (state: State) : Step =
+  if isDocument state then
+    Step.Continue { state with detailScroll = Stdlib.max 0 ((previewRowCount state) - 1) }
+  else
+  let maxIdx
+
+// --- packages/darklang/cli/workbench/nav.dark ---
+/// Page through a document using the same wrapped-row bounds as its renderer.
+let documentPage (state: State) (direction: Int) : Step =
+  if Stdlib.Bool.not (isDocument state) then Step.Continue state
+  else
+    let (_w, h) = Terminal.getSize ()
+    let page = Stdlib.max 1 (h - 5)
+    let last = Stdlib.max 0 ((previewRowCount state) - 1)
+    let scroll = Stdlib.max 0 (Stdlib.min last (state.detailScroll + direction * page))
+    Step.Continue { state with detailScroll = scroll }
+
+
+
+// --- packages/darklang/cli/workbench/nav.dark ---
+  // A document view's facts changed with the command. Refresh it now, so closing its output does
+  // not reveal the old ones.
+  let refreshed =
+    if isDocument refreshed then { refreshed with items = reloadItems refreshed }
+    else refreshed
+  openReader refreshed shown false
+
+// --- packages/darklang/cli/workbench/render.dark ---
+  let detail = if isDocument state then paneContent body else splitDetail
+
+// --- packages/darklang/cli/workbench/keys-view.dark ---
+  | PageUp -> documentPage state (0 - 1)
+  | PageDown -> documentPage state 1

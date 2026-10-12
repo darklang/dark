@@ -671,74 +671,6 @@ let importOpsBulk
   }
 
 
-/// RELAY store path: bulk-insert the pushed ops AND record ownership (op_id, owner) in ONE
-/// transaction. Unlike importOpsBulk this does NOT fold: a relay serves op blobs, not projections.
-/// The op_owners rows let it serve "your stuff" back by identity. Malformed records are skipped,
-/// and owner="" stores ops without recording ownership. Returns the count of newly-stored ops.
-let storeOpsWithOwner
-  (owner : string)
-  (records : List<string * string * string>)
-  : Task<int64> =
-  task {
-    if List.isEmpty records then
-      return 0L
-    else
-      let valid =
-        records
-        |> List.choose (fun (id, blobHex, originTs) ->
-          try
-            Some(
-              System.Guid.Parse id,
-              System.Convert.FromHexString blobHex,
-              originTs
-            )
-          with ex ->
-            System.Console.Error.WriteLine(
-              $"storeOpsWithOwner: skipping malformed record id={id}: {ex.Message}"
-            )
-            None)
-
-      if List.isEmpty valid then
-        return 0L
-      else
-        let opRows =
-          valid
-          |> List.map (fun (id, blob, ts) ->
-            [ "id", Sql.uuid id
-              "op_blob", Sql.bytes blob
-              "origin_ts", Sql.string ts ])
-
-        // `effective = 0`: in the log, NEVER folded into this store's own main. Queued-for-folding
-        // is not enough, since `growIfNeeded` folds everything `applied = 0 AND effective = 1` on
-        // the next startup. A client pushes its whole log, package tree included, and names bind
-        // last-writer-wins over the whole store -- `Darklang.Matter.router` among them -- so anyone
-        // who could write to a relay could change what that relay itself runs. Hosted ops are DATA:
-        // the relay serves the blobs back verbatim and its own code stays what its binary seeded.
-        let insertOps =
-          "INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts)
-           VALUES (@id, @op_blob, 0, 0, @origin_ts)"
-
-        let statements =
-          if owner = "" then
-            [ (insertOps, opRows) ]
-          else
-            let ownerRows =
-              valid
-              |> List.map (fun (id, _, _) ->
-                [ "op_id", Sql.uuid id; "owner", Sql.string owner ])
-
-            let insertOwners =
-              "INSERT OR IGNORE INTO op_owners (op_id, owner) VALUES (@op_id, @owner)"
-
-            [ (insertOps, opRows); (insertOwners, ownerRows) ]
-
-        // One transaction; the ops-insert counts come first (statement order), so truncate to the
-        // op rows to report NEW ops rather than owner rows.
-        let affected = Sql.executeTransactionSync statements
-        return affected |> List.truncate (List.length opRows) |> List.sumBy int64
-  }
-
-
 /// Commit every currently-uncommitted MAIN op into one commit. The package RELOAD path uses this:
 /// the `.dark` files on disk are the shipped baseline, not your uncommitted draft, so leaving them
 /// uncommitted would open every `dark status` on "5,000 items changed".
@@ -775,8 +707,8 @@ let commitAllAsBaseline (message : string) : Task<string> =
 
       do!
         Sql.query
-          "INSERT OR REPLACE INTO commits (hash, message, author, origin_ts)
-           VALUES (@hash, @message, 'system', @origin_ts)"
+          "INSERT OR REPLACE INTO commits (hash, message, origin_ts)
+           VALUES (@hash, @message, @origin_ts)"
         |> Sql.parameters
           [ "hash", Sql.string hash
             "message", Sql.string message

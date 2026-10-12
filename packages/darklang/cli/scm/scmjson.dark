@@ -124,7 +124,6 @@ type DepsJson =
 type CommitRowJson =
   { hash: String
     message: String
-    author: String
     ops: Int64 }
 
 /// One branch, as `dark branches --json` reports it.

@@ -1,0 +1,26 @@
+// RESTORE: packages/darklang/cli/workbench/views-misc.dark
+// WAS: renderAI: the AI view's body, agent threads and a prompts library over demo data
+// ANCHOR: first in the file, just under the module line, before renderCalendar
+// ALSO: later/packages/darklang/cli/workbench/loaders-misc.dark.ai has its loaders; the demo threads it read lived in later/packages/darklang/cli/apps/views/ai-chats.dark
+// WHEN: the sync molt, 2026-10-12
+
+/// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
+/// Prompts library + real managed-agent state come later.
+let renderAI (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  // Agents or Prompts - stepped inside the view (`7` again, `[`/`]`), tabs on the title.
+  let prompts = state.ai.section == AiSection.Prompts
+  let (previewTitle, empty) =
+    if prompts then ("Prompt", Stdlib.Cli.UI.Colors.dimText "no prompts")
+    else ("Thread", Stdlib.Cli.UI.Colors.dimText "no agents - press a to ask the agent")
+  let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
+  let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
+  let tabs = sectionTabs [ "Agents", "Prompts" ] (aiSectionIndex state.ai.section) listFocused
+  let trailer =
+    if Stdlib.List.isEmpty state.items then [ "(mock data)" ]
+    else Stdlib.List.append [ "(mock data)" ] (listTrailer state "thread")
+  splitListPreviewTitled
+    state
+    region
+    (tabs + (paneTrailer trailer))
+    (paneTitle previewTitle [] detailFocused)
+    empty

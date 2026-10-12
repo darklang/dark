@@ -1,0 +1,8 @@
+// RESTORE: packages/darklang/cli/registry.dark
+// WAS: the `db` command row and its argument grammar
+// ANCHOR: the row sat between ('delete', ...) and ('outliner', ...); acceptsDb above acceptsOutliner
+// ALSO: later/packages/darklang/cli/packages/db.dark, later/packages/darklang/stdlib/db.dark, later/backend/src/LibDB/UserDB.fs
+// WHEN: the sync molt, 2026-10-12
+
+      ("db", "Manage databases", [], acceptsDb, Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
+  let acceptsDb () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.nothing ()), ("view", Accepts.between 1 1 []), ("get", Accepts.between 2 2 []), ("delete", Accepts.between 2 2 []), ("drop", Accepts.between 1 1 []), ("set", Accepts.text 3), ("query", Accepts.text 2) ] (Accepts.upTo 2 []))

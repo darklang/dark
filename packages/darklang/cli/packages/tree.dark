@@ -23,18 +23,6 @@ val tocEntries =
     // Protocols & Integration
     TocEntry
       { category = "PROTOCOLS & INTEGRATION"
-        path = "Darklang.JsonRPC"
-        description = "JSON-RPC protocol" }
-    TocEntry
-      { category = "PROTOCOLS & INTEGRATION"
-        path = "Darklang.LanguageServerProtocol"
-        description = "LSP types" }
-    TocEntry
-      { category = "PROTOCOLS & INTEGRATION"
-        path = "Darklang.VSCode"
-        description = "VS Code extension" }
-    TocEntry
-      { category = "PROTOCOLS & INTEGRATION"
         path = "Darklang.GitHub"
         description = "GitHub integration" }
 

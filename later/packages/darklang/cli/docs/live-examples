@@ -1,0 +1,36 @@
+// RESTORE: three doc pages
+// WAS: `apps view` as the worked example of a live view (for-ai.dark and live.dark), the
+//      `--resume <val>` form, the `## A live host on another machine` section, and the
+//      `autopush` alias on the `live` topic.
+// ANCHOR: for-ai's was one line of the opening cheat sheet; live.dark's were the first example
+//      under the live-view section, the paragraph under it, and a whole section between the live
+//      server and live values; the alias was third in the `live` topic's list.
+// ALSO: `--resume` is still a real parameter of the view host; nothing surfaces it now.
+// WHEN: the sync molt, 2026-10-12
+
+// --- packages/darklang/cli/docs/for-ai.dark ---
+  apps view stats --live                          # a TUI app; your edits repaint it
+
+// --- packages/darklang/cli/docs/live.dark ---
+  apps view My.Counter --live   open it, following your edits to `render` or anything it calls
+                                from another terminal and it repaints
+
+// --- packages/darklang/cli/docs/live.dark ---
+The tree `render` returns paints to the terminal, to a page, or to text, so
+the same view is a pane and a web page. Ctrl-S saves the model as a `val`;
+`apps view My.Counter --resume <val>` starts from it.
+
+// --- packages/darklang/cli/docs/live.dark ---
+## A live host on another machine
+
+  # there
+  dark --branch feature apps enable sync    pull the branch on an interval
+  dark --branch feature serve My.router
+  # here
+  config set live.autopush on               every save commits and pushes
+  # ... edit, save; the page there changes a few seconds later
+
+
+
+// --- packages/darklang/cli/docs/command.dark ---
+          aliases = [ "views", "live-values", "autopush" ]

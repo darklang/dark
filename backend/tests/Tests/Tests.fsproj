@@ -45,7 +45,6 @@
 
     <!-- cloud stuff /-->
     <Compile Include="HttpServer.Tests.fs" />
-    <Compile Include="Toplevels.Tests.fs" />
     <Compile Include="CliInstance.fs" />
     <Compile Include="CliTestHarness.fs" />
     <Compile Include="CliDsl.fs" />
@@ -56,18 +55,15 @@
     <Compile Include="CliWorkspace.Tests.fs" />
     <Compile Include="CliJson.Tests.fs" />
     <Compile Include="CliAuthoring.Tests.fs" />
-    <Compile Include="CliSyncSurface.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
     <Compile Include="CliTraceVerbs.Tests.fs" />
     <Compile Include="CliScriptLowering.Tests.fs" />
-    <Compile Include="DvalReprInternalQueryable.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />
     <Compile Include="WrittenTypesLoweringParity.Tests.fs" />
     <Compile Include="Serialization.Binary.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
 
     <Compile Include="Blob.Tests.fs" />
-    <Compile Include="OpTransport.Tests.fs" />
     <Compile Include="PTConformance.Tests.fs" />
     <Compile Include="BranchOverlay.Tests.fs" />
     <Compile Include="Propagation.Tests.fs" />
@@ -76,9 +72,6 @@
     <Compile Include="Purge.Tests.fs" />
     <Compile Include="OpsProjections.Tests.fs" />
     <Compile Include="Lww.Tests.fs" />
-    <Compile Include="MultiInstanceHarness.fs" />
-    <Compile Include="MultiInstance.Tests.fs" />
-    <Compile Include="MultiInstanceDark.Tests.fs" />
     <Compile Include="Stream.Tests.fs" />
     <Compile Include="Permissions.Tests.fs" />
     <Compile Include="PackagePermissions.Tests.fs" />

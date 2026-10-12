@@ -1,0 +1,29 @@
+// RESTORE: packages/darklang/cli/registry.dark
+// WAS: the help categories that `commandGroups ()` listed for commands the molt removed, and the
+//      per-group entries it lost out of the groups that stayed.
+// ANCHOR: `commandGroups ()` is still there, just above the completion helpers; these are entries
+//      within its list, in this order.
+// ALSO: registry.dark.sync, registry.dark.apps, registry.dark.auth, registry.dark.db,
+//       registry.dark.scripts, registry.dark.squash and registry.dark.agent carry the command ROWS
+//       themselves. This fragment is only the help grouping, which an earlier version of
+//       registry.dark.sync pointed at as `registry.dark.sync-groups`, a file that was never
+//       written. This is that file, under a name that covers every round rather than just sync.
+// WHEN: written 2026-10-12, covering every round of the molt
+//
+// Four whole groups went, because every command in them went:
+
+      ("Sync", [ "sync", "push", "pull", "connect", "review", "whoami", "identity", "backups" ])
+      ("AI", [ "agent" ])
+      ("Network", [ "devices" ])
+      ("Apps", [ "apps" ])
+
+// And these entries left groups that stayed:
+//
+//   "Packages"   lost "db"
+//   "Changes"    lost "squash"
+//   "Execution"  lost "scripts"
+//   "Utilities"  lost "views"
+//
+// Note that "backups" was in the Sync group and the `backups` COMMAND stayed, so restoring the
+// Sync group verbatim is wrong: `backups` has to stay wherever the molt put it, or it ends up
+// listed twice.

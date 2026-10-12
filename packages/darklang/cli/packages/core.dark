@@ -96,39 +96,6 @@ let definitionFromArgs (args: List<String>) : String =
       joined
 
 
-/// The "changed under you" heads-up, computed BEFORE an edit lands (afterwards the live
-/// binding is already the new version): when the version being replaced was authored by a
-/// colleague, one line naming them, the commit it arrived in, and how long ago it landed
-/// here. None for your own versions and unattributed ones.
-let peerHeadsUpLine
-  (location: LanguageTools.ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<String> =
-  match SCM.PackageOps.peerAuthoredCurrent location with
-  | Some((author, message, mins)) ->
-    let who =
-      if Stdlib.String.startsWith author "inst-" then
-        Stdlib.String.slice author 0 13
-      else
-        author
-
-    let mins = if mins < 1L then 1L else mins
-
-    let age =
-      if mins < 120L then
-        (Stdlib.toString mins) + "m"
-      else if mins < 2880L then
-        (Stdlib.toString (mins / 60L)) + "h"
-      else
-        (Stdlib.toString (mins / 1440L)) + "d"
-
-    let subject = if message == "" then "no message" else message
-
-    Stdlib.Option.Option.Some(
-      Stdlib.Cli.UI.Colors.hint
-        $"  note: {who} changed this {age} ago ({subject}); your edit replaces their version"
-    )
-  | None -> Stdlib.Option.Option.None
-
 
 /// Every doc comment a declaration carries, as (part, text): its own, plus one per parameter,
 /// record field or enum case.
@@ -333,8 +300,6 @@ type Committed =
     followed: Propagate.Followed
     /// The save's own type error, named, if it has one.
     ownIssue: Stdlib.Option.Option<String>
-    /// One line when the version replaced was a colleague's.
-    peerHeadsUp: Stdlib.Option.Option<String>
     report: LanguageTools.AtRestTypeChecker.Report }
 
 
@@ -350,11 +315,6 @@ let commitAuthored
   let previousHashes = Propagate.getAllPreviousHashes branchId location kind
   let updates = Propagate.updatedItems branchId ops
   let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
-
-  // Read BEFORE the save: after it, the live binding IS the new version.
-  let peerHeadsUp =
-    if isUpdate then peerHeadsUpLine location
-    else Stdlib.Option.Option.None
 
   match SCM.PackageOps.addAuthored branchId ops with
   | Ok report ->
@@ -444,7 +404,6 @@ let commitAuthored
           boundHash = boundHash
           followed = followed
           ownIssue = ownIssue
-          peerHeadsUp = peerHeadsUp
           report = report })
   | Error msg -> Stdlib.Result.Result.Error msg
 
@@ -495,7 +454,6 @@ let saveAuthored
       let reverted = committed.reverted
       let followed = committed.followed
       let ownIssue = committed.ownIssue
-      let peerHeadsUp = committed.peerHeadsUp
       let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
 
       // A save is at most two lines. Line one: what happened, with a check when all is well and a
@@ -523,12 +481,7 @@ let saveAuthored
 
       Propagate.printFollowed followed
 
-      match peerHeadsUp with
-      | Some line -> Stdlib.printLine line
-      | None -> ()
-
-      // `live.autopush`: a save is a commit and a push when the mode is on. A no-op otherwise.
-      Cli.Sync.Autopush.afterAuthoring state
+      state
 
     | Error msg ->
       let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location

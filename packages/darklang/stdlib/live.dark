@@ -68,8 +68,8 @@ val describeAtMost = 500
 val showKey = "live.show"
 
 /// Point every host loop on this instance at <param view>, a module with `init`, `update` and
-/// `render` (what `dark apps view <Module.Path>` takes). An agent calls it after authoring the
-/// thing it wants you to look at; a `dark apps view` that is open switches to it on its next
+/// `render` (a view's module path). An agent calls it after authoring the
+/// thing it wants you to look at; a live view that is open switches to it on its next
 /// turn, and one started later opens on it when it is given no view of its own.
 let show (view: LanguageTools.ProgramTypes.PackageLocation) : Unit =
   Stdlib.LocalStore.configSet showKey (entryName view)

@@ -198,8 +198,7 @@ let private productionGuestWithOpenInstance
 let testGuestAuthorityInstallsApprovals =
   testTask "value evaluation: the guest authority installs package approvals" {
     // A state built by hand kept `createState`'s allow-all package lookup.
-    let! (initial : RT.ExecutionState) =
-      executionStateFor TestValues.pm false Map.empty
+    let! (initial : RT.ExecutionState) = executionStateFor TestValues.pm false
     let! (configured : RT.ExecutionState) = productionGuestWithOpenInstance initial
     Expect.isFalse
       (Permission.Policy.isAllowAll (
@@ -288,8 +287,7 @@ let testStoredValuesNeedNoHostEffects =
           pmRT
           LibExecution.Execution.noTracing
           sendException
-          notify
-          { dbs = Map.empty } with
+          notify with
           access = Permission.Access.start packageReadsOnly }
 
     let! stored =

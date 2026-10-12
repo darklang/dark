@@ -1,10 +1,16 @@
 module Darklang.Stdlib.Dict.Tests
 
-type Point = { x: Int64; y: Int64 }
+// `px`/`py` rather than `x`/`y` on purpose. A type is content-addressed, so
+// `{ x: Int64; y: Int64 }` IS every other record of that shape in the store, and
+// `Darklang.Language.Tests.Equality.ERec` is one. `nonStringKeysDifferentShapesCannotBeCompared`
+// asserts a rendered type NAME, and the renderer picks one name per hash, so sharing a shape with
+// another test file made that assertion depend on which binding won. These field names make the
+// shape unique to this file. `SameShape` below still matches it, which is what its own cases need.
+type Point = { px: Int64; py: Int64 }
 
 type PointAlias = Point
 
-type SameShape = { x: Int64; y: Int64 }
+type SameShape = { px: Int64; py: Int64 }
 
 type DifferentShape = { a: Int64; b: Int64 }
 
@@ -332,12 +338,12 @@ test nonStringKeysEveryKeyType =
         (Some 1L)
       |> Stdlib.Test.equal (Some "enum")
       Stdlib.Dict.get
-        (Dict { Point { x = 1L; y = 2L }: "record" })
-        (Point { x = 1L; y = 2L })
+        (Dict { Point { px = 1L; py = 2L }: "record" })
+        (Point { px = 1L; py = 2L })
       |> Stdlib.Test.equal (Some "record")
       Stdlib.Dict.get
-        (Dict { Point { x = 1L; y = 2L }: "record" })
-        (Point { x = 1L; y = 9L })
+        (Dict { Point { px = 1L; py = 2L }: "record" })
+        (Point { px = 1L; py = 9L })
       |> Stdlib.Test.equal None
       Stdlib.Dict.get
         (Dict { (Dict { 1L: "inner" }): "dict" })
@@ -389,33 +395,33 @@ test nonStringKeysFromListRejectsLambdaKey =
 
 test nonStringKeysIdentityMatchesEquality =
   Stdlib.Test.all
-    [ (Point { x = 1L; y = 2L }) == (PointAlias { x = 1L; y = 2L })
+    [ (Point { px = 1L; py = 2L }) == (PointAlias { px = 1L; py = 2L })
       |> Stdlib.Test.equal true
       Stdlib.Dict.``member``
-        (Dict { Point { x = 1L; y = 2L }: "p" })
-        (PointAlias { x = 1L; y = 2L })
+        (Dict { Point { px = 1L; py = 2L }: "p" })
+        (PointAlias { px = 1L; py = 2L })
       |> Stdlib.Test.equal true
       (Colour.Blue 1L) == (ColourAlias.Blue 1L) |> Stdlib.Test.equal true
       Stdlib.Dict.``member`` (Dict { Colour.Blue 1L: "c" }) (ColourAlias.Blue 1L)
       |> Stdlib.Test.equal true
-      (Point { x = 1L; y = 2L }) == (SameShape { x = 1L; y = 2L })
+      (Point { px = 1L; py = 2L }) == (SameShape { px = 1L; py = 2L })
       |> Stdlib.Test.equal true
       Stdlib.Dict.``member``
-        (Dict { Point { x = 1L; y = 2L }: "p" })
-        (SameShape { x = 1L; y = 2L })
+        (Dict { Point { px = 1L; py = 2L }: "p" })
+        (SameShape { px = 1L; py = 2L })
       |> Stdlib.Test.equal true ]
 
 test nonStringKeysDifferentShapesCannotBeCompared =
-  (Point { x = 1L; y = 2L }) == (DifferentShape { a = 1L; b = 2L })
+  (Point { px = 1L; py = 2L }) == (DifferentShape { a = 1L; b = 2L })
   => raises "Cannot perform equality check on Darklang.Stdlib.Dict.Tests.SameShape and Darklang.Stdlib.Dict.Tests.DifferentShape"
 
 test nonStringKeysRecordFieldOrder =
   Stdlib.Test.all
-    [ (Point { x = 1L; y = 2L }) == (Point { y = 2L; x = 1L })
+    [ (Point { px = 1L; py = 2L }) == (Point { py = 2L; px = 1L })
       |> Stdlib.Test.equal true
       Stdlib.Dict.``member``
-        (Dict { Point { x = 1L; y = 2L }: "p" })
-        (Point { y = 2L; x = 1L })
+        (Dict { Point { px = 1L; py = 2L }: "p" })
+        (Point { py = 2L; px = 1L })
       |> Stdlib.Test.equal true ]
 
 test nonStringKeysNestedDictOrder =
@@ -428,12 +434,12 @@ test nonStringKeysNestedDictOrder =
 test nonStringKeysDeepComposites =
   Stdlib.Test.all
     [ Stdlib.Dict.``member``
-        (Dict { ([ Point { x = 1L; y = 2L } ], "s"): "d" })
-        (([ Point { x = 1L; y = 2L } ], "s"))
+        (Dict { ([ Point { px = 1L; py = 2L } ], "s"): "d" })
+        (([ Point { px = 1L; py = 2L } ], "s"))
       |> Stdlib.Test.equal true
       Stdlib.Dict.``member``
-        (Dict { ([ Point { x = 1L; y = 2L } ], "s"): "d" })
-        (([ Point { x = 1L; y = 9L } ], "s"))
+        (Dict { ([ Point { px = 1L; py = 2L } ], "s"): "d" })
+        (([ Point { px = 1L; py = 9L } ], "s"))
       |> Stdlib.Test.equal false
       Stdlib.Dict.``member`` (Dict { [ [ 1L ] ]: "a" }) [ [ 1L ], [] ]
       |> Stdlib.Test.equal false

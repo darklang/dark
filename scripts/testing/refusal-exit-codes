@@ -48,9 +48,9 @@ clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 # Mirrors `notSweepable` and `unsafeWithArguments` in `backend/tests/Tests/CliSurface.Tests.fs`,
 # which carry the reason for each. Keep them in step: a command that takes over the screen, binds
 # a port, reaches the network or writes to the shared store must not be handed a real argument.
-SKIP="quit install uninstall update install-status serve outliner views text-editor apps login
-logout typecheck export-seed devices clear agent push pull sync connect review identity run-script
-fn val type module trait impl rename edit discard delete deprecate undeprecate undo resolve ack"
+SKIP="quit install uninstall update install-status serve outliner typecheck export-seed clear
+run-script fn val type module trait impl rename edit discard delete deprecate undeprecate undo
+resolve ack"
 
 COMMANDS=$("$CLI" help 2>/dev/null | clean | grep -oE '^  [a-z][a-z-]+' | tr -d ' ' | sort -u)
 if [[ -z "$COMMANDS" ]]; then

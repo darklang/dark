@@ -204,7 +204,7 @@ jobs:
       # Serialization.Tests.fs where the allowedTypes for serializers did not match
       # what tests expected (and what files were persisted in backend/testfiles/serialization-artifacts).
       # TODO: think through an alternative or more nuanced approach.
-      #- run: git restore-mtime
+      # - run: git restore-mtime
       - setup-app
       - attach_workspace: { at: "." }
       - run:
@@ -702,15 +702,6 @@ jobs:
       - darkcheckout
       - run: ./scripts/deployment/tag-release
 
-  # Publish VS Code Extension to the Marketplace
-  publish-vs-code-extension:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - attach_workspace: { at: "." }
-      - run: ./scripts/deployment/publish-vs-code-extension
-
 workflows:
   build-and-deploy:
     jobs:
@@ -727,12 +718,6 @@ workflows:
             - build-cli
 
       # Release jobs (only on main)
-      - publish-vs-code-extension:
-          filters:
-            branches:
-              only: main
-          requires: [ok-to-deploy]
-
       - tag-release:
           filters:
             branches:

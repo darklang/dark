@@ -116,7 +116,7 @@ let parseSingleTestFromFile
   (test : string)
   : Ply<Internal.Test.PTTest> =
   uply {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT true Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT true
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.Internal.Test.parseSingleTestFromFile ())
@@ -204,7 +204,7 @@ let makeTest versionName filename =
       skiptest $"underscore test - {testName}"
     else
       // Set up the canvas
-      let! exeState = executionStateFor pmPT true Map.empty
+      let! exeState = executionStateFor pmPT true
 
       // Parse the Dark code
       let! (test : Internal.Test.PTTest) =
@@ -865,7 +865,7 @@ module TimeoutTests =
 /// The GET-and-HEAD builtin refuses a write method rather than performing it as a read.
 let private readBuiltinRefusesAWriteMethod =
   testTask "httpClientRead answers BadMethod to POST" {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT true Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT true
     let request : RT.BuiltInFn =
       state.fns.builtIn[RT.FQFnName.builtin "httpClientRead" 0]
     let instrs : RT.Instructions =

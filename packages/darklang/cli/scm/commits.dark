@@ -6,24 +6,10 @@ module Darklang.Cli.Commits
 // a set of ops rather than a snapshot. That's why `show` takes either: a commit hash prints the ops it
 // committed, an op id prints that one op.
 
-/// How to show who wrote a commit.
-///
-/// "you" for this instance, which on a machine with one person is every row: an unnamed instance's
-/// identity is `inst-<uuid>`, and forty identical columns of it push the message off the edge. A
-/// colleague keeps their name; an unnamed colleague is shortened to something you can still tell apart.
-/// The conflict list makes the same comparison for the same reason.
-let authorLabel (author: String) : String =
-  if SCM.PackageOps.storedIdentity () == Stdlib.Option.Option.Some author then
-    "you"
-  else if Stdlib.String.startsWith author "inst-" then
-    Stdlib.String.slice author 0 13
-  else
-    author
-
-/// One display row: [short hash; ops committed; author; message].
+/// One display row: [short hash; ops committed; message].
 let commitRow (c: SCM.Commits.Commit) : List<String> =
   let ops = Stdlib.toString (SCM.PackageOps.opCountIn c.hash)
-  [ SCM.Conflicts.shortHash c.hash, ops, authorLabel c.author, c.message ]
+  [ SCM.Conflicts.shortHash c.hash, ops, c.message ]
 
 let executeList (state: AppState) (limit: Int64) (showAll: Bool) : AppState =
   // This branch's commits, not the store's: on a branch, main's commits are not "mine", and the workbench
@@ -66,7 +52,7 @@ let executeList (state: AppState) (limit: Int64) (showAll: Bool) : AppState =
     Cli.printOk header
 
     Stdlib.Cli.UI.Table.print
-      [ "commit", "ops", "author", "message" ]
+      [ "commit", "ops", "message" ]
       (commits |> Stdlib.List.map commitRow)
 
     if hidden > 0 then
@@ -102,7 +88,7 @@ let executeDetailed (state: AppState) (limit: Int64) (showAll: Bool) : AppState 
       Cli.printOk $"commit {SCM.Conflicts.shortHash c.hash}  {msg}"
 
       Stdlib.printLine
-        $"  by {c.author} at {c.originTs} -- {Cli.Text.plural (Stdlib.Int.fromInt64 n) "op"}"
+        $"  at {c.originTs} -- {Cli.Text.plural (Stdlib.Int.fromInt64 n) "op"}"
 
       SCM.PackageOps.opsInCommitLimited c.hash 50L
       |> Stdlib.List.iter (fun op ->
@@ -134,7 +120,6 @@ let commitRows (limit: Int64) : List<ScmJson.CommitRowJson> =
     ScmJson.CommitRowJson
       { hash = c.hash
         message = c.message
-        author = c.author
         ops = SCM.PackageOps.opCountIn c.hash })
 
 let execute (state: AppState) (args: List<String>) : AppState =
@@ -189,11 +174,11 @@ let execute (state: AppState) (args: List<String>) : AppState =
 let showCommit (state: AppState) (c: SCM.Commits.Commit) : Unit =
   let n = SCM.PackageOps.opCountIn c.hash
   let msg = if c.message == "" then "(no message)" else c.message
-  // The same short ids and author label the `commits` table shows, so a person can carry an id
-  // between the two without noticing they differ. Both ids still take a longer prefix on input.
+  // The same short ids the `commits` table shows, so a person can carry one between the two
+  // without noticing they differ. Both ids still take a longer prefix on input.
   Cli.printOk $"commit {SCM.Conflicts.shortHash c.hash}"
   Stdlib.printLine $"  {msg}"
-  Stdlib.printLine $"  by {authorLabel c.author} at {c.originTs}"
+  Stdlib.printLine $"  at {c.originTs}"
   Stdlib.printLine $"  {Cli.Text.plural (Stdlib.Int.fromInt64 n) "op"} in this commit"
 
   // The commit this one follows. Worth a line rather than a lookup: an id is derived from its parent as

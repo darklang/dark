@@ -1,0 +1,69 @@
+// RESTORE: five workbench files
+// WAS: the AI view and the Apps view, as they were wired into the frame
+// ANCHOR: chrome.dark had their render arms, blurbs and key hints; keys-view.dark had their
+//      Enter, a, i, s, P and r arms; loaders-misc.dark had loadAppItems and the AI arms of
+//      itemsForView; navbar.dark had the Apps workspace, which covered crons, calendar and
+//      processes (those three moved onto the Traces workspace); input.dark had the "agent"
+//      input action, which shelled out to the `agent` command.
+//      types.dark carried `AiSection`, `AiState`, `emptyAi`, `aiSectionIndex`, `aiSectionAt`,
+//      the `ai` field of State and the `aiSection` field of ReturnPoint; itemsForView took
+//      `aiSection` as its fourth parameter. Indices 6 and 7 are now reserved the way 2 and 5
+//      are, so no later view index moved.
+// ALSO: views-misc.dark.ai, loaders-misc.dark.ai and nav.dark.apps in this directory, and
+//      later/packages/darklang/cli/apps/ for the framework itself
+// WHEN: the sync molt, 2026-10-12
+
+// --- packages/darklang/cli/workbench/loaders-misc.dark ---
+/// Installed + available apps (for the Apps view). A filled dot marks installed; a hollow one available.
+let loadAppItems (branchId: Uuid) : List<BodyItem> =
+  let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
+  Darklang.Cli.Apps.Registry.available ()
+  |> Stdlib.List.map (fun a ->
+    let mark = if Stdlib.List.member slugs a.slug then "● " else "○ "
+    BodyItem { name = mark + a.name; kind = "app"; isModule = false; desc = a.description })
+
+
+
+// --- packages/darklang/cli/workbench/loaders-misc.dark ---
+/// The body items for a given view. Home lists the branch's state (see
+/// `loadHomeItems`); Matter the packages (with a Values lens); Changes this
+/// branch's uncommitted work; AI/Apps/Traces/Docs their own; Scratch
+/// render their own bodies (no list). The AI section and the lens come from
+/// the view states.
+
+// --- packages/darklang/cli/workbench/navbar.dark ---
+    // Run starts work; Traces shows its results.
+    // Processes: what the scheduler is running right now; `P` from Apps.
+    Workspace
+      { name = "Apps"
+        dest = mkDest vApps 0
+        covers = [ extViewIndex "crons", extViewIndex "calendar", extViewIndex "processes" ] }
+    Workspace
+      { name = "Traces"
+        dest = mkDest vTraces 0
+        covers = [ extViewIndex "errors" ] }
+    // AI has nothing real behind it yet, so it has no item: a view of sample
+    // data on the strip is a promise the product isn't keeping. The view and
+    // its code stay for when it is wired.
+    Workspace { name = "Docs"; dest = mkDest vDocs 0; covers = [] } ]
+
+// --- packages/darklang/cli/workbench/input.dark ---
+  else if inp.action == "agent" then
+    // Agents view: run `agent ask <prompt>`, captured, and show the reply in the reader.
+    let text = Stdlib.String.trim inp.field.text
+    if text == "" then
+      Step.Continue { state with input = Stdlib.Option.Option.None }
+    else
+      let words = Stdlib.String.split text " " |> Stdlib.List.filter (fun w -> w != "")
+      let appState =
+        classicState state
+      let output =
+        captureOutput (fun () ->
+          Darklang.Cli.Registry.executeCommand "agent" appState (Stdlib.List.append [ "ask" ] words))
+      let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
+      Step.Continue
+        { state with
+            input = Stdlib.Option.Option.None
+            reading = Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.dimText ("ask: " + text)) + "\n\n" + shown)
+            readingIsCode = false
+            detailScroll = 0 }

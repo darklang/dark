@@ -32,8 +32,6 @@
     }
   },
 
-  "postCreateCommand": "cd ${containerWorkspaceFolder} && ./scripts/package-extension.sh",
-
   /////////////////////////////////////////////////
   // From here down, the contents are supposed to represent the exact same
   // as we see in script/builder

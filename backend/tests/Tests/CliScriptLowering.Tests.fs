@@ -23,7 +23,7 @@ open TestUtils.TestUtils
 
 let private parse (code : string) : Task<CliScript.PTCliScriptModule> =
   task {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let! result = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
     match result with
     | Ok m -> return m
@@ -193,10 +193,9 @@ let private testMiddleStatementErrorStopsTheScript =
       + "0\n"
 
     let! mod' = parse code
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     // `execute` takes no branch here: the execution state already carries it.
-    let! result =
-      Cli.execute state mod' [] Map.empty (Cli.RunScript("t", code)) |> Ply.toTask
+    let! result = Cli.execute state mod' [] (Cli.RunScript("t", code)) |> Ply.toTask
 
     match result with
     | Ok dval -> failtest $"expected the failure to surface, got %A{dval}"
@@ -211,7 +210,7 @@ let private testTopLevelSequencing =
   |> List.map (fun (mode, isEval) ->
     let run code =
       task {
-        let! state = executionStateFor pmPT false Map.empty
+        let! state = executionStateFor pmPT false
         let! parsed =
           (if isEval then
              Cli.parseCliExpr state code
@@ -224,7 +223,7 @@ let private testTopLevelSequencing =
           | Error diags -> failtest $"Parse failed: %A{diags}"
         let source =
           if isEval then Cli.EvalExpression code else Cli.RunScript("t", code)
-        let! result = Cli.execute state mod' [] Map.empty source |> Ply.toTask
+        let! result = Cli.execute state mod' [] source |> Ply.toTask
         return result, state.test.sideEffectCount
       }
 
@@ -274,11 +273,10 @@ let private testTopLevelSequencing =
 let private scriptValueExecution =
   let accepts name code expected expectedEffects =
     testTask name {
-      let! state = executionStateFor pmPT false Map.empty
+      let! state = executionStateFor pmPT false
       let! script = parse code
       let! result =
-        Cli.execute state script [] Map.empty (Cli.RunScript("values", code))
-        |> Ply.toTask
+        Cli.execute state script [] (Cli.RunScript("values", code)) |> Ply.toTask
       Expect.equal result (Ok expected) "computed values reach their callers"
       Expect.equal state.test.sideEffectCount expectedEffects "initializers run once"
     }
@@ -314,35 +312,33 @@ let private scriptValueExecution =
       testTask "a failed initializer stops later effects" {
         let code =
           "val bad = 1L / 0L\nval later = Builtin.testIncrementSideEffectCounter 2L\nBuiltin.testIncrementSideEffectCounter 3L"
-        let! state = executionStateFor pmPT false Map.empty
+        let! state = executionStateFor pmPT false
         let! script = parse code
         let! result =
-          Cli.execute state script [] Map.empty (Cli.RunScript("values", code))
-          |> Ply.toTask
+          Cli.execute state script [] (Cli.RunScript("values", code)) |> Ply.toTask
         Expect.isError result "the initializer's error reaches the caller"
         Expect.equal state.test.sideEffectCount 0 "execution stops at the error"
       }
       testTask "cyclic initializers fail without substituting Unit" {
         let code = "val first = second\nval second = first\nfirst"
-        let! state = executionStateFor pmPT false Map.empty
+        let! state = executionStateFor pmPT false
         let! script = parse code
         let! result =
-          Cli.execute state script [] Map.empty (Cli.RunScript("values", code))
-          |> Ply.toTask
+          Cli.execute state script [] (Cli.RunScript("values", code)) |> Ply.toTask
         match result with
         | Error(RT.RuntimeError.ValueNotFound _, _) -> ()
         | other -> failtest $"Expected an unavailable cyclic value, got %A{other}"
       }
       testTask "initializers inherit script permissions" {
         let code = "val now = Builtin.syscallGettimeofday ()\nnow"
-        let! state = executionStateFor pmPT false Map.empty
+        let! state = executionStateFor pmPT false
         let! script = parse code
         let restricted =
           LibExecution.Execution.restrictRun
             LibExecution.Permissions.Policy.denyAll
             state
         let! result =
-          Cli.execute restricted script [] Map.empty (Cli.RunScript("values", code))
+          Cli.execute restricted script [] (Cli.RunScript("values", code))
           |> Ply.toTask
         Expect.isError result "a value initializer cannot bypass the run policy"
         Expect.isTrue

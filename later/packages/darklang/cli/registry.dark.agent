@@ -1,0 +1,30 @@
+// RESTORE: packages/darklang/cli/registry.dark, and backend/tests/Tests/CliSurface.Tests.fs
+// WAS: the `agent` command row, its argument grammar, its "AI" help group, and the six places the
+//      CLI surface sweep had to special-case it
+// ANCHOR: the row sat after ("ai", ...) in `Registry.allCommands`; `acceptsAgent` was in the
+//      Accepts module above `acceptsBackups`; the help group was last in the group list
+// ALSO: later/packages/darklang/cli/ai/agent.dark is the implementation. The sweep's exclusion is
+//       the part that is easy to miss: `agent` was excluded by `Set.add "agent" notSweepable` at
+//       SIX call sites rather than by being in `notSweepable`, because it also had to appear in
+//       `unsafeWithArguments`, and `staleExclusionsFail` asserts that every name in that set is a
+//       registered command. So restoring the row WITHOUT restoring the exclusions makes the sweep
+//       run `dark agent --help` for real, which asks a model.
+// WHEN: the agent molt, 2026-10-12
+
+// --- packages/darklang/cli/registry.dark: the row ---
+      ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], acceptsAgent, AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
+
+// --- packages/darklang/cli/registry.dark: the argument grammar ---
+  let acceptsAgent () : Accepts.Accepts = Accepts.text 0
+
+// --- packages/darklang/cli/registry.dark: the help group ---
+      ("AI", [ "agent" ])
+
+// --- backend/tests/Tests/CliSurface.Tests.fs: the reason it must not be RUN ---
+    [ "agent",
+      "asks a model: network, money, and `agent code` writes the answer into the store"
+
+// --- backend/tests/Tests/CliSurface.Tests.fs: the six exclusion sites ---
+// Each read `Set.add "agent" notSweepable` where it now reads `notSweepable`:
+//   the --help sweep, the stale-exclusion check, the bare sweep, the bad-argument sweep,
+//   the no-argument sweep, and the accounted-for check.

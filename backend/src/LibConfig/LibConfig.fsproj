@@ -9,6 +9,8 @@
     <None Include="paket.references" />
     <Compile Include="ConfigDsl.fs" />
     <Compile Include="Config.fs" />
+    <Compile Include="Dirs.fs" />
+    <Compile Include="File.fs" />
   </ItemGroup>
   
   <Target Name="EmbedGitHash" BeforeTargets="BeforeBuild">

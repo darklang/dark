@@ -278,14 +278,11 @@ module Blob =
       let orphans =
         allHashes |> List.filter (fun h -> not (Set.contains h referenced))
 
+      // User-DB rows used to hold blob references too; they left with user DBs.
       let mutable deleted = 0L
       for h in orphans do
         let! count =
-          Sql.query
-            """DELETE FROM package_blobs WHERE hash = @hash
-               AND NOT EXISTS (
-                 SELECT 1 FROM user_data_v0 WHERE instr(data, @hash) > 0
-               )"""
+          Sql.query "DELETE FROM package_blobs WHERE hash = @hash"
           |> Sql.parameters [ "hash", Sql.string h ]
           |> Sql.executeNonQueryAsync
         deleted <- deleted + int64 count

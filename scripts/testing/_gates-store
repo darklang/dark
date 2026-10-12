@@ -144,10 +144,9 @@ gate_first_day() {
 
   # 6b. An override you made, then YOUR OWN later edit: last-writer-wins as designed, and NOT a finding.
   #
-  # The superseded-decision report is for the daemon case: a PEER's edit beats your override while nobody
-  # is at the keyboard (`supersededOverrides` checks authorship through `op_owners`, which only a sync
-  # import writes). Your own later edit is a change of mind. The peer case needs two stores and lives in
-  # `MultiInstance.Tests.fs` (`supersededReportsCheckAuthorship`).
+  # The superseded-decision report was for the case where somebody else's edit beats your override
+  # while nobody is at the keyboard. Every op in a store is now yours, so `supersededOverrides` no
+  # longer asks whose it was, and your own later edit is a change of mind rather than a finding.
   CID=$(dark --branch main conflicts --json 2>/dev/null | grep -oE '"id":"[a-f0-9]+"' | head -1 | cut -d'"' -f4)
   dark --branch main conflicts override "$CID" B >/dev/null 2>&1 || true
   want "the override holds"      "yo "        --branch main eval 'FirstDay.Hello.greet "x"'
@@ -894,88 +893,6 @@ DARK
   echo "  is inherited by a branch, overridable there, and unaffected by that override."
 }
 
-# --- hosted-db: a served handler reads and writes a user DB, and its functions commit ---
-# Three things each stopped this on their own: `DB<T>` could not be written in saved code, the
-# at-rest checker read a DB's name as an unbound variable so nothing naming one could be
-# committed, and `serve` never loaded the DBs, so every request answered 500 "There is no variable
-# named". Each step below is the one that broke.
-gate_hosted_db() {
-  set -uo pipefail
-
-  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
-  ROOT=rundir/hosted-db
-  PORT=$(( 9200 + RANDOM % 300 ))
-  if command -v ss > /dev/null && ss -ltn 2>/dev/null | grep -q ":$PORT "; then
-    echo "port $PORT is already in use; re-run (the port is random per run)" >&2
-    exit 2
-  fi
-
-  rm -rf "$ROOT"; mkdir -p "$ROOT/home"
-  scripts/testing/_copy-store "$ROOT/data.db"
-  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
-  # The grants below go into the policy under HOME, so this gate has its own.
-  export DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home"
-
-  pass=0; fail=0
-  ok()   { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
-  bad()  { fail=$((fail+1)); printf '  FAIL %s\n       got: %s\n' "$1" "$(head -c 200 <<<"$2" | tr '\n' ' ')"; }
-  want() { if grep -qE "$2" <<<"$3"; then ok "$1"; else bad "$1" "$3"; fi; }
-  x()    { "$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
-
-  x type Stachu.HostedDb.Note "= { hostedDbGateNote: String }" > /dev/null
-  want "a DB is declared" "Created database" "$(x db HostedDbNotes Stachu.HostedDb.Note)"
-
-  saved=$(x module Stachu.HostedDb - <<'DARK'
-let countOf (book: DB<Note>) : Int = Stdlib.DB.count book
-
-let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  match Stdlib.HttpServer.getMethod req with
-  | "POST" ->
-    let note = Stdlib.String.fromBlobWithReplacement req.body
-    let _ = Stdlib.DB.set (Note { hostedDbGateNote = note }) note HostedDbNotes
-    Stdlib.Http.responseWithText $"signed, {Stdlib.toString (countOf HostedDbNotes)} so far" 201
-  | _ ->
-    Stdlib.DB.getAll HostedDbNotes
-    |> Stdlib.List.map (fun n -> n.hostedDbGateNote)
-    |> Stdlib.List.sort
-    |> (fun notes -> Stdlib.Http.responseWithText (Stdlib.String.join notes ",") 200)
-DARK
-)
-  want "a parameter typed DB<Note> saves" "Defined 2 declarations" "$saved"
-  want "the functions naming the DB type-check" '"verdict":"checked".*"failed":0' \
-    "$(x typecheck Stachu.HostedDb --json)"
-  want "and commit" "commit [0-9a-f]+ -- " "$(x commit 'hosted db' -y)"
-
-  x permissions allow http-server "$PORT" > /dev/null
-  x permissions approve Stachu.HostedDb.router -y > /dev/null
-
-  serve() {
-    "$CLI" serve Stachu.HostedDb.router --port "$PORT" > "$ROOT/serve$1.log" 2>&1 &
-    SPID=$!
-    trap 'kill $SPID 2>/dev/null' EXIT
-    for _ in $(seq 1 40); do
-      curl -s -o /dev/null --max-time 2 "http://localhost:$PORT/" && return 0
-      kill -0 $SPID 2>/dev/null || { echo "the server we started is not running"; cat "$ROOT/serve$1.log"; exit 2; }
-      sleep 1
-    done
-  }
-  get()  { curl -s --max-time 10 "http://localhost:$PORT/"; }
-  post() { curl -s --max-time 10 -X POST --data "$1" "http://localhost:$PORT/"; }
-
-  serve 1
-  want "a POST writes" "^signed, 1 so far$" "$(post alpha)"
-  want "a second one counts both" "^signed, 2 so far$" "$(post beta)"
-  want "a GET reads what was written" "^alpha,beta$" "$(get)"
-  kill $SPID; wait $SPID 2>/dev/null
-
-  serve 2
-  want "the rows outlive the server process" "^alpha,beta$" "$(get)"
-  kill $SPID; wait $SPID 2>/dev/null
-
-  echo "hosted-db: $pass ok, $fail failed"
-  [[ $fail -eq 0 ]]
-}
-
 # --- shipped-tree-typechecks: production packages pass the at-rest checker ----------------------
 # The checker gates what people commit, and nothing held the shipped tree to it, so one definite
 # error sat in `Cli.Registry.allCommands` and `dark typecheck --json` exited 1 on every branch: an
@@ -988,21 +905,37 @@ gate_shipped_tree_typechecks() {
 
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
   ROOT=rundir/shipped-tree-typechecks
-  FLOOR=5000
+  # What this guards is "the audit covered the tree", and the tree has to be counted OUTSIDE the
+  # report or the check is circular. An earlier version compared `checked` against the report's
+  # own `total`, which is just `length report.items`: a run that audited a quarter of the store
+  # would report a quarter and pass itself. The store is the authority, so count it.
+  #
+  # (The version before THAT was an absolute 5,000, which failed honestly but for the wrong
+  # reason the first time the tree shrank. A floor somebody has to lower is not a floor.)
+  FLOOR_FRACTION=0.95
 
   rm -rf "$ROOT"; mkdir -p "$ROOT/home" "$ROOT/logs"
   scripts/testing/_copy-store "$ROOT/data.db"
   sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
   export DARK_CONFIG_RUNDIR="$PWD/$ROOT/" DARK_CONFIG_DB_NAME=data.db HOME="$PWD/$ROOT/home"
 
+  # The store's own item count, which is what the report is measured against.
+  STORE_ITEMS=$(sqlite3 "$ROOT/data.db" \
+    "SELECT count(*) FROM locations WHERE unlisted_at IS NULL AND item_type <> 'module'")
+  if [[ -z "$STORE_ITEMS" || "$STORE_ITEMS" -lt 100 ]]; then
+    echo "shipped-tree-typechecks: the store has $STORE_ITEMS items, so there is nothing to audit" >&2
+    exit 2
+  fi
+
   set +e
   "$CLI" typecheck --all --json < /dev/null > "$ROOT/report.json" 2> "$ROOT/stderr.txt"
   rc=$?
   set -e
 
-  python3 - "$ROOT/report.json" "$rc" "$FLOOR" <<'EOF'
+  python3 - "$ROOT/report.json" "$rc" "$FLOOR_FRACTION" "$STORE_ITEMS" <<'EOF'
 import json, pathlib, re, sys
-path, rc, floor = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+path, rc = sys.argv[1], int(sys.argv[2])
+fraction, store_items = float(sys.argv[3]), int(sys.argv[4])
 try:
     report = json.load(open(path))
     assert len(report["items"]) == report["total"]
@@ -1036,8 +969,19 @@ for item in failed:
     print(f"  {item['name']}")
     for issue in item["issues"]:
         print(f"    {issue}")
-if checked < floor:
-    print(f"  checked fewer than {floor}: the audit did not run over the tree")
+total = report["total"]
+# Two comparisons, and they catch different things. The report against the STORE catches an audit
+# that never saw most of the tree; `checked` against the report catches one that saw it and
+# skipped it. `incomplete` counts as seen: an item the checker could not finish is not an item it
+# failed to visit, and folding the two together made a tree with a few incompletes report "the
+# audit did not run".
+if total < fraction * store_items:
+    print(f"  the report covers {total} items but the store holds {store_items}, "
+          f"under {fraction:.0%}: the audit did not reach the tree")
+    sys.exit(1)
+if checked + incomplete < fraction * len(items):
+    print(f"  checked {checked} (+{incomplete} incomplete) of {len(items)}, "
+          f"under {fraction:.0%}: the audit did not run over what it listed")
     sys.exit(1)
 sys.exit(1 if failed else 0)
 EOF

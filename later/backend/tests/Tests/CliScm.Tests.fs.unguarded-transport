@@ -1,0 +1,32 @@
+// RESTORE: backend/tests/Tests/CliScm.Tests.fs
+// WAS: unguardedTransportRefusesGuestCallers: the caller gate on the private-network HTTP transport, asserting an expression typed at `eval` is refused
+// ANCHOR: first test in the file, between the opens and bareDiffShowsTheDraft; its name came out of the test list
+// ALSO: later/backend/src/Builtins/Builtins.Http.Client/Libs/HttpClient.fs.sync-transport has requireBundledCaller, the gate it tested
+// WHEN: the sync molt, 2026-10-12
+
+/// Code the CLI runs cannot point the unguarded HTTP transport at whatever it likes.
+///
+/// `httpGetUnsafeBytes` turns the SSRF guards off so a relay behind loopback or a tailnet is reachable at
+/// all. It is in the general builtin set, so a function pulled from a peer could call it -- and did: A
+/// authors a function that calls it, syncs, B pulls and runs it, and it reads a service on B's loopback.
+///
+/// What stops that now is the caller gate rather than an origin allowlist: every frame must be bundled
+/// first-party code. An expression typed at `eval` is not, which is the same position pulled code is in.
+let private unguardedTransportRefusesGuestCallers =
+  cliTest
+    "the unguarded transport refuses a caller that is not bundled code"
+    (fun state ->
+      task {
+        let! out =
+          runCli
+            state
+            [ "eval"
+              "match Builtin.httpGetUnsafeBytes \"http://127.0.0.1:9/x\" with | Ok _ -> \"REACHED\" | Error e -> e" ]
+
+        Expect.stringContains
+          out
+          "restricted to trusted first-party"
+          $"the refusal says why, got: {out}"
+        Expect.isFalse (out.Contains "REACHED") "and nothing was fetched"
+        return ()
+      })

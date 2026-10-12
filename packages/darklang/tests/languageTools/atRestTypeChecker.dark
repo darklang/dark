@@ -2122,8 +2122,11 @@ module Ambiguity =
 // ----------------------------------------------------------------------------------
 
 module ProvisionalDiagnostics =
-  // Findings that still depend on unresolved types must remain warnings in the
-  // LSP output, even when a separate definite error makes the function Failed.
+  // A finding that still depends on unresolved types stays a WARNING even when a separate
+  // definite error makes the function Failed.
+  //
+  // The split is the CHECKER's, which is what these cases assert. How an editor renders the two
+  // severities is a separate question, and nothing in this tree answers it.
   let displayed (last: String) : String =
     let source =
       src [ "let f () : Int =", "  let g = fun y -> y y", "  " + last ]
@@ -2133,30 +2136,16 @@ module ProvisionalDiagnostics =
       let report = Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops
       match report.items with
       | [ item ] ->
-        let point = Darklang.LanguageTools.Parser.Point { row = 0; column = 0 }
-        let range =
-          Darklang.LanguageTools.Parser.Range { start = point; end_ = point }
-        let rendered =
-          Darklang.LanguageTools.LspServer.Diagnostics.itemDiagnostics range [] item
-        let severities =
-          rendered
-          |> Stdlib.List.map (fun diagnostic ->
-            match diagnostic.severity with
-            | Some Error -> "error"
-            | Some Warning -> "warning"
-            | _ -> "unexpected severity")
-          |> Stdlib.List.sort
-          |> Stdlib.String.join ","
         (verdictWord item.verdict) + ":" + (codesOf item.diagnostics)
-        + "/" + (codesOf item.warnings) + "/" + severities
+        + "/" + (codesOf item.warnings)
       | _ -> "expected one item"
 
   test warningsStayWarnings =
     Stdlib.Test.all
       [ displayed "1"
-        |> Stdlib.Test.equal "incomplete:/AmbiguousType,OccursCheckFailed/warning,warning"
+        |> Stdlib.Test.equal "incomplete:/AmbiguousType,OccursCheckFailed"
         displayed "\"wrong\""
-        |> Stdlib.Test.equal "failed:TypeMismatch/AmbiguousType,OccursCheckFailed/error,warning,warning" ]
+        |> Stdlib.Test.equal "failed:TypeMismatch/AmbiguousType,OccursCheckFailed" ]
 
 module Lets =
   // Generalizing the local identity lambda lets one call use Int and another use

@@ -343,43 +343,6 @@ module Confirm =
      | _ -> "other")
     |> Stdlib.Test.equal "declined"
 
-module Formats =
-  let doc () : Darklang.Cli.Outliner.Document =
-    Darklang.Cli.Outliner.Markdown.import "# Trip\n\n- one\n  - [ ] two\n  - [x] three\n- four"
-
-  test markdownTitle =
-    (doc ()).title |> Stdlib.Test.equal "Trip"
-
-  // Markdown out and back is the identity, tasks included.
-  test markdownRoundTrip =
-    Darklang.Cli.Outliner.Markdown.export (doc ())
-    |> Stdlib.Test.equal "# Trip\n\n- one\n  - [ ] two\n  - [x] three\n- four"
-
-  // Tabs indent as well as spaces do.
-  test tabsIndent =
-    Darklang.Cli.Outliner.Markdown.export (Darklang.Cli.Outliner.Markdown.import "# T\n\n- a\n\t- b")
-    |> Stdlib.Test.equal "# T\n\n- a\n  - b"
-
-  // A file that skips a level still hangs off the nearest line above it.
-  test skippedLevel =
-    Darklang.Cli.Outliner.Markdown.export
-      (Darklang.Cli.Outliner.Markdown.import "# T\n\n- a\n      - deep")
-    |> Stdlib.Test.equal "# T\n\n- a\n  - deep"
-
-  // OPML round-trips through the parser that didn't exist until now.
-  test opmlRoundTrip =
-    (match Darklang.Cli.Outliner.Export.fromOpml (Darklang.Cli.Outliner.Export.toOpml (doc ())) with
-     | Ok back -> Darklang.Cli.Outliner.Markdown.export back
-     | Error e -> e)
-    |> Stdlib.Test.equal "# Trip\n\n- one\n  - [ ] two\n  - [x] three\n- four"
-
-  // Something that isn't OPML is an error, not an empty document.
-  test nonOpmlRejected =
-    (match Darklang.Cli.Outliner.Export.fromOpml "hello" with
-     | Ok _ -> "parsed"
-     | Error _ -> "rejected")
-    |> Stdlib.Test.equal "rejected"
-
 module Persistence =
   // A file written before versioning had no `version`, no parent pointers and no marks. It has to be
   // migrated: the loader used to treat anything it couldn't parse as "start fresh", which quietly replaced

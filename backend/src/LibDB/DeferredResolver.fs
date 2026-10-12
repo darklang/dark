@@ -698,12 +698,5 @@ let reResolveTest
   : Ply<PT.PackageTest.PackageTest> =
   uply {
     let! body = reResolveExpr (owner :: modules) pm test.body
-    let! testDBs =
-      test.testDBs
-      |> Ply.List.mapSequentially (fun (name, typ) ->
-        uply {
-          let! typ = reResolveTypeRef (owner :: modules) pm typ
-          return name, typ
-        })
-    return { test with body = body; testDBs = testDBs }
+    return { test with body = body }
   }

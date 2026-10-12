@@ -1,0 +1,51 @@
+// RESTORE: backend/tests/Tests/Scheduler.Tests.fs
+// WAS: stdinTimerLeavesReadOutstanding: a stdin wait beaten by a timer leaves its read for the next wait. It drove `Builtin.stdinReadExactly`, which was the wire protocol's length-prefixed frame reader and left with sync.
+// ANCHOR: between the stdin-reader test above it and accessIsPerProcess; its name came out of the test list
+// ALSO: later/backend/src/Builtins/Builtins.Cli/Libs/Stdin.fs.sync has the builtin
+// WHEN: the sync molt, 2026-10-12
+
+let private stdinTimerLeavesReadOutstanding =
+  testTask
+    "a stdin wait a timer beat leaves its read for the next wait, which reads nothing more" {
+    Gates.reset ()
+    let! state = executionStateFor pmPT false Map.empty
+    let reads = ref 0
+    HE.sources.readStdin <- Some(fakeStdin 51L reads)
+    try
+      let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+      let! (timedOut : Scheduler.Process) =
+        spawn
+          s
+          state
+          "Stdlib.Host.await [ Stdlib.Host.EventSpec.StdinLine; Stdlib.Host.EventSpec.Timer 10L ]"
+      let! result = runOnThread s timedOut
+      match expectOk result "the timed wait" with
+      | RT.DEnum(_, _, _, "Timer", []) -> ()
+      | other -> failtest $"expected Timer, got {other}"
+
+      // A body asked for now would take the line already on its way: refused, not misread.
+      let! (wrongKind : Scheduler.Process) =
+        spawn s state "Builtin.stdinReadExactly 3"
+      let! result = runOnThread s wrongKind
+      match result with
+      | Error(RTE.UncaughtException(msg, _), _) when msg.Contains "outstanding" -> ()
+      | other ->
+        failtest $"expected a refusal naming the outstanding read, got {other}"
+
+      let! (line : Scheduler.Process) = spawn s state "Stdlib.Cli.Stdin.readLine ()"
+      let running = runOnThread s line
+      Gates.release 51L
+      let! result = running
+      Expect.equal
+        (expectOk result "the line")
+        (RT.DString "line 1")
+        "the outstanding read"
+      Expect.equal reads.Value 1 "one read, not one per wait"
+
+      let! (body : Scheduler.Process) = spawn s state "Builtin.stdinReadExactly 3"
+      let! result = runOnThread s body
+      Expect.equal (expectOk result "the body") (RT.DString "xxx") "a byte count"
+      Expect.equal reads.Value 2 "the body was a read of its own"
+    finally
+      HE.sources.readStdin <- None
+  }

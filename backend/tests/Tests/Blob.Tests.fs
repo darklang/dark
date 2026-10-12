@@ -24,7 +24,6 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PMBlob = LibDB.RuntimeTypes.Blob
 module Tracing = LibDB.Tracing
-module QueryableJson = LibSerialization.DvalReprInternalQueryable
 module Equals = LibExecution.Dval
 
 open Fumble
@@ -45,7 +44,6 @@ let private freshState () : RT.ExecutionState =
     Exe.noTracing
     (fun _ _ _ _ -> uply { return () })
     (fun _ _ _ _ -> uply { return () })
-    { dbs = Map.empty }
 
 let private dblobRef (dv : RT.Dval) : RT.BlobRef =
   match dv with
@@ -344,45 +342,6 @@ let fileReadMemoryBound =
   }
 
 
-// ─────────────────────────────────────────────────────────────────────
-// Queryable JSON roundtrips (User-DB row storage)
-// ─────────────────────────────────────────────────────────────────────
-
-let queryableJsonRoundtrip =
-  testTask "User-DB queryable JSON roundtrips a persistent blob dval" {
-    let types = { RT.Types.empty with package = pmRT.getType }
-    let threadID = System.Guid.NewGuid()
-    let original =
-      RT.DBlob(
-        RT.Persistent(
-          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          2048L
-        )
-      )
-    let! json = QueryableJson.toJsonStringV0 types threadID original |> Ply.toTask
-    Expect.stringContains json "\"type\":\"blob\"" "has blob envelope tag"
-    Expect.stringContains
-      json
-      "\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\""
-      "has the content hash"
-    let! restored =
-      QueryableJson.parseJsonV0 types threadID RT.TST.empty RT.TBlob json
-      |> Ply.toTask
-    Expect.equal restored original "persistent blob survives queryable JSON"
-  }
-
-let queryableJsonEphemeralRaises =
-  testTask "User-DB queryable JSON raises on ephemeral blob (promotion needed)" {
-    let types = { RT.Types.empty with package = pmRT.getType }
-    let threadID = System.Guid.NewGuid()
-    let ephemeral = Blob.newEphemeral [| 1uy; 2uy; 3uy |]
-    do!
-      expectThrows
-        "ephemeral blob in queryable JSON should raise (promote first)"
-        (fun () ->
-          QueryableJson.toJsonStringV0 types threadID ephemeral |> Ply.toTask)
-  }
-
 
 // ─────────────────────────────────────────────────────────────────────
 // Val-persistability guard (Dval.isPersistable)
@@ -543,41 +502,6 @@ let sweepDeletesOrphansButKeepsReferenced =
         |> Sql.executeStatementAsync
       cleanup.Wait()
   }
-let sweepKeepsUserDbBlobs =
-  testTask "sweep: nested User DB blob stays until its row is deleted" {
-    let bytes = uniquePayload "user-db-sweep"
-    let hash = Blob.sha256Hex bytes
-    let rowId = System.Guid.NewGuid()
-    let rowJson =
-      "{\"nested\":[{\"Some\":[{\"type\":\"blob\",\"hash\":\""
-      + hash
-      + "\",\"length\":"
-      + string bytes.Length
-      + "}]}]}"
-    let deleteRow () =
-      execSqlP "DELETE FROM user_data_v0 WHERE id = @id" [ "id", Sql.uuid rowId ]
-    try
-      do! PMBlob.insert hash bytes |> Ply.toTask
-      do!
-        execSqlP
-          """INSERT INTO user_data_v0
-             (id, table_tlid, user_version, dark_version, key, data)
-             VALUES (@id, 0, 0, 0, @key, @data)"""
-          [ "id", Sql.uuid rowId
-            "key", Sql.string (string rowId)
-            "data", Sql.string rowJson ]
-      let! _ = PMBlob.sweepOrphans () |> Ply.toTask
-      let! kept = PMBlob.get hash |> Ply.toTask
-      Expect.equal kept (Some bytes) "sweep preserves the nested row reference"
-      do! deleteRow ()
-      let! deleted = PMBlob.sweepOrphans () |> Ply.toTask
-      Expect.isGreaterThanOrEqual deleted 1L "the unreferenced blob is reclaimed"
-      let! gone = PMBlob.get hash |> Ply.toTask
-      Expect.isNone gone "deleting the row releases the blob"
-    finally
-      (deleteRow ()).GetAwaiter().GetResult()
-  }
-
 // Idempotence isn't a separate case — Expecto runs in parallel and
 // sweep mutates shared state, so a sibling could cause false failures.
 // The "second sweep returns 0" property would need test-isolation.
@@ -918,8 +842,6 @@ let tests =
       promoteSameBytesTwiceDedups
       promotedBlobResolvesViaReadBlobBytes
       fileReadMemoryBound
-      queryableJsonRoundtrip
-      queryableJsonEphemeralRaises
       persistableAcceptsPlainShapes
       persistableRejectsEphemeralBlob
       persistableRejectsStream
@@ -927,7 +849,6 @@ let tests =
       persistableAcceptsApplicableAndDDB
       persistableRejectsNestedBadShapes
       sweepDeletesOrphansButKeepsReferenced
-      sweepKeepsUserDbBlobs
       equalsEphemeralEphemeralSameUuid
       equalsEphemeralEphemeralSameBytesIsFalse
       equalsEphemeralPersistentSameBytesIsFalse

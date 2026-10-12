@@ -317,7 +317,7 @@ let t
     // the source for each width.
     let parseSrc (src : string) : Task<RT.Dval * List<PT.PackageOp>> =
       task {
-        let! parseExeState = executionStateFor basePM false Map.empty
+        let! parseExeState = executionStateFor basePM false
         // The branch to resolve names against: main, named rather than taken from the process.
         let args = NEList.ofList (RT.DUuid PT.BranchId.Main.Guid) [ RT.DString src ]
         let! parseResult =
@@ -351,7 +351,7 @@ let t
       : Task<string> =
       task {
         let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
-        let! ppExeState = executionStateFor enhancedPM false Map.empty
+        let! ppExeState = executionStateFor enhancedPM false
 
         let ppArgs =
           NEList.ofList
@@ -437,7 +437,7 @@ let tEval (name : string) (input : string) (expected : RT.Dval) =
     RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())
 
   testTask name {
-    let! parseExeState = executionStateFor pmPT false Map.empty
+    let! parseExeState = executionStateFor pmPT false
 
     let args = NEList.singleton (RT.DString input)
     let! parseResult =
@@ -449,7 +449,7 @@ let tEval (name : string) (input : string) (expected : RT.Dval) =
       let ptExpr = LibExecution.ProgramTypesToDarkTypes.Expr.fromDT exprDT
       let instructions =
         ptExpr |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None
-      let! exeState = executionStateFor pmPT false Map.empty
+      let! exeState = executionStateFor pmPT false
       let! actual = LibExecution.Execution.executeExpr exeState instructions
       match actual with
       | Ok result ->
@@ -478,7 +478,7 @@ let tEvalSourceFileFn
     )
 
   testTask name {
-    let! parseExeState = executionStateFor pmPT false Map.empty
+    let! parseExeState = executionStateFor pmPT false
 
     let args = NEList.ofList (RT.DUuid PT.BranchId.Main.Guid) [ RT.DString input ]
     let! parseResult =
@@ -508,7 +508,7 @@ let tEvalSourceFileFn
 
       match fnHashes with
       | [ hashStr ] ->
-        let! exeState = executionStateFor enhancedPM false Map.empty
+        let! exeState = executionStateFor enhancedPM false
         let! actual =
           LibExecution.Execution.executeFunction
             exeState
@@ -537,7 +537,7 @@ let parseForCliDval (input : string) =
       RT.FQFnName.fqPackage (
         PackageRefs.Fn.LanguageTools.Parser.CliScript.parseForCli ()
       )
-    let! parseExeState = executionStateFor pmPT false Map.empty
+    let! parseExeState = executionStateFor pmPT false
     let args =
       NEList.ofList
         // The branch to resolve names against.

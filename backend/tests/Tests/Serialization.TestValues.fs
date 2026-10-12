@@ -888,19 +888,9 @@ module ProgramTypes =
     { hash = hashPT
       body = PT.EBool(id, true)
       description = "native test"
-      expectedError = Some(PT.ExpectedError.RuntimeError "expected failure")
-      testDBs = [ "Items", PT.TString ] }
+      expectedError = Some(PT.ExpectedError.RuntimeError "expected failure") }
 
-  let sqlPackageTest =
-    { packageTest with
-        expectedError = Some(PT.ExpectedError.SqlCompilerError "unsupported field")
-        testDBs = [] }
-
-  let packageTests =
-    [ packageTest
-      sqlPackageTest
-      { packageTest with testDBs = [] }
-      { packageTest with testDBs = []; expectedError = None } ]
+  let packageTests = [ packageTest; { packageTest with expectedError = None } ]
 
   let packageLocation : PackageLocation =
     { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }

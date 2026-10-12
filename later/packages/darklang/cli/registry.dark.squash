@@ -1,0 +1,14 @@
+// RESTORE: packages/darklang/cli/registry.dark
+// WAS: the `squash` command row and its argument grammar
+// ANCHOR: the row sat between ('commits', ...) and ('commit', ...); acceptsSquash near the top of
+//      the Accepts module
+// ALSO: later/packages/darklang/cli/scm/squash.dark is the command and
+//       later/packages/darklang/scm/commits.dark.squash-run is the mechanism. The `identity` row
+//       that used to be carved here as well belongs to sync, not to squash: it is in
+//       later/packages/darklang/cli/registry.dark.sync, which has the row as it really stood
+//       (`Cli.Sync.executeIdentityCmd`, with `Cli.Sync.help`/`complete`). `identity` never had a
+//       module of its own, so do not restore it from here.
+// WHEN: the sync molt, 2026-10-12
+
+      ("squash", "Collapse your unpushed commits at the tip into one", [], acceptsSquash, Cli.Squash.execute, Cli.Squash.help, Cli.Squash.complete)
+  let acceptsSquash () : Accepts.Accepts = Accepts.freeText 0 []

@@ -6,8 +6,7 @@ module Darklang.Cli.Branch
 // `op_branches`; a branch's package manager is main's with those ops overlaid. Nothing here writes SQL --
 // all of it is siloed in `SCM.PackageOps` -- this file only parses arguments and formats what it returns.
 //
-// This file holds the lifecycle and registry surface (switch/list/archive, export and push/pull,
-// execute/help/complete). Merge and rebase are in branchMerge.dark, log and diff in
+// This file holds the lifecycle and registry surface (switch/list/archive, execute/help/complete). Merge and rebase are in branchMerge.dark, log and diff in
 // branchHistory.dark; all three files share this module.
 
 /// Where a branch id is, in words: `main`, or `branch "<name>"`. Main is never quoted and a branch
@@ -211,7 +210,7 @@ let parentOf (branchId: Uuid) : (Uuid * String) =
 
 /// `dark branch rename <branch> <new-name>`
 ///
-/// Possible at all only because a name is an alias now: op tags, per-name bases, relay bundles and parent
+/// Possible at all only because a name is an alias now: op tags, per-name bases, bundles and parent
 /// links all point at the id, so this is one UPDATE and nothing else moves. It could not be done when the
 /// name WAS the id.
 let executeRename (state: AppState) (branchRef: String) (newName: String) : AppState =
@@ -320,170 +319,6 @@ let executeArchive
       Cli.printErr $"couldn't archive: {e}"
       Cli.exitWith state false
 
-/// Export a branch as a portable bundle file (registry + frontier ops) -- move it to another machine.
-let executeExport (state: AppState) (branchRef: String) (path: String) : AppState =
-  match resolveRef branchRef with
-  | None -> Cli.exitWith state false
-  | Some branchId ->
-    match Stdlib.Cli.File.writeText path (SCM.PackageOps.exportBranch branchId) with
-    | Ok _ ->
-      Cli.printOk $"exported branch \"{branchRef}\" to {path}."
-      state
-    | Error _ ->
-      Cli.printErr $"couldn't write {path}."
-      Cli.exitWith state false
-
-/// Import a branch bundle file (from another machine): recreates the branch here (isolated from main).
-let executeImport (state: AppState) (path: String) : AppState =
-  match Stdlib.Cli.File.readText path with
-  | Ok json ->
-    match SCM.PackageOps.importBranch json with
-    | Ok msg ->
-      Cli.printOk msg
-      state
-    | Error e ->
-      Cli.printErr $"couldn't import: {e}"
-      Cli.exitWith state false
-  | Error _ ->
-    Cli.printErr $"couldn't read {path}."
-    Cli.exitWith state false
-
-/// Push a branch to a relay under your identity, so you can pull it on another machine.
-let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
-  if url == "" then
-    Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
-    Cli.exitWith state false
-  else
-    match resolveRef branchRef with
-    | None -> Cli.exitWith state false
-    | Some branchId ->
-      // No identity gate: an instance mints its own id on first use, so this can't be empty.
-      let id = SCM.PackageOps.identity ()
-      let bundle = Stdlib.String.toBlob (SCM.PackageOps.exportBranch branchId)
-
-      // The relay keys on the branch ID, not the name: two machines can each have a `fix-auth`, and
-      // they are different branches. The name travels inside the bundle, for display on the far end.
-      // The id is a `Uuid`; a URL is text, so this is one of the few places it becomes a string.
-      let branchParam = Stdlib.toString branchId
-
-      match Sync.relayPostTo url $"/branch/push?owner={id}&branch={branchParam}" bundle with
-      | Ok reply ->
-        // Read the confirmation rather than trusting the status: a 200 with a body this cannot
-        // read has not said it stored anything, and "pushed branch X" would be a claim rather than
-        // a report. Nothing is recorded either way here, so the cost of being wrong is only the
-        // message.
-        let text = Stdlib.String.trim (Stdlib.String.fromBlobWithReplacement reply)
-
-        if Stdlib.String.startsWith text "stored branch" then
-          // The relay's bundle channel holds these now; `sync status` asks. Not the relay's own key:
-          // see `Wire.branchChannel`.
-          SCM.Wire.rememberPushed (SCM.Wire.branchChannel url) (SCM.PackageOps.branchOpIds branchId)
-          Cli.printOk $"pushed branch \"{branchRef}\" to {url} as \"{id}\"."
-          state
-        else if Stdlib.String.startsWith text "kept the newer copy" then
-          // Not an error: the relay is holding a NEWER copy of this branch than the one just sent,
-          // which happens when another machine pushed and this one has not pulled yet. Replacing it
-          // would take that work off the relay.
-          Cli.printOk
-            $"{url} already holds a newer \"{branchRef}\"; nothing was replaced."
-
-          Cli.printHint
-            "  `dark branch pull` to take it, then push again if you still have something to add."
-          state
-        else
-          Cli.printErr
-            $"{url} answered, but not with anything this build can read as a confirmation, so the branch may not be there."
-
-          Cli.printHint "  `dark branch push` again once the relay is healthy."
-          Cli.exitWith state false
-      | Error e ->
-        Cli.printErr $"branch push failed: {e}"
-        Cli.exitWith state false
-
-/// Pull branches from a relay, yours by default or someone else's with <param owner>.
-///
-/// The relay stores every owner's branches side by side, which is what lets one of YOUR branches follow
-/// you between your own machines, and what lets you fetch a colleague's.
-///
-/// A pulled branch arrives like any other: isolated from main, yours to look at, merge or discard. It does
-/// NOT become the same branch as theirs -- a branch id is minted by whoever created it, so pulling gives
-/// you their ops under their id, and pushing it back is what shares your side.
-let executePullFrom (state: AppState) (url: String) (owner: String) : AppState =
-  if url == "" then
-    Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
-    Cli.exitWith state false
-  else
-    match Sync.relayGetAuthed url $"/branch/list?owner={owner}" with
-    | Ok listBody ->
-      // Every line the relay sends here goes back to it inside the next request's URL, and is printed
-      // if the import fails. A branch id is a uuid, so anything that is not one is discarded rather
-      // than echoed: the relay's own push handler refuses a non-id for the same reason ("keeps the
-      // branch table keyed on real ids"), and a broken relay answering with a page of HTML should not
-      // put a page of HTML in a URL or in your terminal.
-      let lines =
-        Stdlib.String.fromBlobWithReplacement listBody
-        |> Stdlib.String.split "\n"
-        |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
-        |> Stdlib.List.filter (fun s -> s != "")
-
-      let ids =
-        lines
-        |> Stdlib.List.filter (fun s ->
-          match Stdlib.Uuid.parse s with
-          | Ok _ -> true
-          | Error _ -> false)
-
-      let ignored = (Stdlib.List.length lines) - (Stdlib.List.length ids)
-
-      let _ =
-        if ignored > 0 then
-          Cli.printErr
-            $"{url} listed {Cli.Text.plural ignored "line"} that are not branch ids; ignoring them."
-        else
-          ()
-
-      if Stdlib.List.isEmpty ids then
-        Cli.printOk $"no branches for \"{owner}\" on {url}."
-        state
-      else
-        let failed =
-          ids
-          |> Stdlib.List.filter (fun bid ->
-            match Sync.relayGetAuthed url $"/branch/pull?owner={owner}&branch={bid}" with
-            | Ok bundleBody ->
-              match
-                SCM.PackageOps.importBranch
-                  (Stdlib.String.fromBlobWithReplacement bundleBody)
-              with
-              | Ok msg ->
-                // What came from the relay's bundle channel, that channel holds -- the ops that
-                // were IN the bundle, not every op the local branch happens to hold. Marking the
-                // whole branch told `sync status` the relay had work it had never been sent, and
-                // the next `branch push` skipped it: the colleague pulling that branch got a
-                // truncated history until someone pushed again by hand.
-                let _ =
-                  SCM.Wire.rememberPushed
-                    (SCM.Wire.branchChannel url)
-                    (SCM.PackageOps.bundleOpIds
-                      (Stdlib.String.fromBlobWithReplacement bundleBody))
-                Cli.printOk msg
-                false
-              | Error e ->
-                Cli.printErr $"import {bid} failed: {e}"
-                true
-            | Error e ->
-              Cli.printErr $"pull {bid} failed: {e}"
-              true)
-
-        Cli.exitWith state (Stdlib.List.isEmpty failed)
-    | Error e ->
-      Cli.printErr $"branch list failed: {e}"
-      Cli.exitWith state false
-
-/// Pull ALL your own branches from a relay.
-let executePull (state: AppState) (url: String) : AppState =
-  executePullFrom state url (SCM.PackageOps.identity ())
-
 /// The page for `dark branch` AND for the root commands that share this file's subject: `branches`,
 /// `switch`, `rebase`, `diff`, `log`, `resolve`. They are one thing seen from six angles, and the "Also
 /// at the root" block below is where each of them is documented. `merge` gets its own page
@@ -502,11 +337,6 @@ let help (_state: AppState) : String =
     "  dark branch archive <name> [-y]  discard a branch + its unmerged work"
     "  dark branch diff <name>       what it changes vs its parent"
     "  dark branch log <name>        its ops, oldest-first"
-    "  dark branch export <name> <f> write it to a file"
-    "  dark branch import <f>        recreate a branch here from that file"
-    "  dark branch push <name> [url] push a branch to a relay under your identity"
-    "  dark branch pull [url]        pull all your branches back from a relay"
-    "  dark branch pull --from <who> pull a COLLEAGUE's branches from the relay"
     ""
     "  Also at the root, because you reach for them constantly:"
     "  dark branches                 same as `dark branch list`"
@@ -554,34 +384,6 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "merge", id, "--dry-run" ] -> executeMergeDryRun state id
   | [ "rebase", id ] -> executeRebase state id
   | [ "resolve", id, name, choice ] -> executeResolve state id name choice
-  | [ "export", id, path ] -> executeExport state id path
-  | [ "import", path ] -> executeImport state path
-  | [ "push", id ] -> executePush state id (SCM.PackageOps.relay ())
-  // Guarded like `pull` is: an unguarded url argument takes any bare word, so a typo'd branch name
-  // in the url slot became the relay the push tried to reach.
-  | [ "push", id, url ] when looksLikeRelayUrl url -> executePush state id url
-  | [ "push", _id, arg ] ->
-    Cli.printErr $"`dark branch push` takes a relay url, and \"{arg}\" isn't one."
-    Cli.printHint "  to the relay you are connected to:  dark branch push <branch>"
-    Cli.printHint "  to another:                         dark branch push <branch> <url>"
-    { state with exitCode = 1 }
-  | [ "pull" ] -> executePull state (SCM.PackageOps.relay ())
-  | [ "pull", "--from", owner ] ->
-    executePullFrom state (SCM.PackageOps.relay ()) owner
-  // Both orders: the url reads naturally on either side of the flag.
-  | [ "pull", url, "--from", owner ] when looksLikeRelayUrl url ->
-    executePullFrom state url owner
-  | [ "pull", "--from", owner, url ] when looksLikeRelayUrl url ->
-    executePullFrom state url owner
-  | [ "pull", arg ] ->
-    if looksLikeRelayUrl arg then
-      executePull state arg
-    else
-      Cli.printErr $"`dark branch pull` takes a relay url, and \"{arg}\" isn't one."
-      Cli.printHint "  your own branches back from the relay:  dark branch pull"
-      Cli.printHint "  a colleague's:                          dark branch pull --from <who>"
-      Cli.printHint $"  switch to a branch you already have:    dark branch {arg}"
-      Cli.exitWith state false
   | [ id ] ->
     if Stdlib.List.member knownSubcommands id then
       // A subcommand with its arguments left off, which the typo check below deliberately does not catch
@@ -627,10 +429,7 @@ val knownSubcommands =
     "merge"
     "rebase"
     "resolve"
-    "export"
-    "import"
-    "push"
-    "pull" ]
+    "resolve" ]
 
 /// Words a git reflex types after `branch` that are questions or other tools' verbs, not names.
 /// (`switch`, `delete` and friends that ARE subcommands here live in `knownSubcommands` above.)
@@ -647,10 +446,6 @@ let looksLikeTypoedSubcommand (arg: String) : Stdlib.Option.Option<String> =
   |> Stdlib.List.findFirst (fun sub ->
     (sub != arg)
     && ((Stdlib.String.startsWith arg sub) || (Stdlib.String.startsWith sub arg)))
-
-/// Whether an argument is a relay URL rather than something else a person might have typed there.
-let looksLikeRelayUrl (arg: String) : Bool =
-  (Stdlib.String.startsWith arg "http://") || (Stdlib.String.startsWith arg "https://")
 
 /// `dark branches`
 let executeBranchesCmd (state: AppState) (args: List<String>) : AppState =
@@ -685,14 +480,10 @@ let complete
       "log"
       "merge"
       "rebase"
-      "push"
-      "resolve"
-      "export" ]
+      "resolve" ]
 
   let subcommands =
-    Stdlib.List.append
-      branchTakingSubcommands
-      [ "list", "current", "new", "pull", "import" ]
+    Stdlib.List.append branchTakingSubcommands [ "list", "current", "new" ]
 
   let branchNames =
     SCM.Branches.list ()

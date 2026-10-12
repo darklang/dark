@@ -2,7 +2,7 @@
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 # One entry point for the gate scripts: the end-to-end checks the F# suite structurally cannot
-# make (a published binary outside the tree, a TTY, a relay over HTTP, the LSP loop). What earns
+# make (a published binary outside the tree, a TTY, a real terminal). What earns
 # a gate its place is a PROCESS boundary, not a store -- F# owns stores fine, MultiInstance
 # copies one per instance. Each gate says which boundary it crosses, above its function.
 #
@@ -11,7 +11,7 @@
 #     gates ci          the CI subset, each bounded by its own `timeout 5m`
 #     gates all         every gate except gates-are-clean, which re-runs the rest itself
 #
-# The gates live beside this file in _gates-sync, _gates-ui, _gates-store and _gates-meta, one
+# The gates live beside this file in _gates-ui, _gates-store and _gates-meta, one
 # bash function each. `all` and `ci` give every gate its own PROCESS by re-invoking this
 # script, so a gate keeps its own `set -e`, its own traps and its own exit -- the same
 # isolation the standalone files had.
@@ -21,13 +21,6 @@ set -uo pipefail
 [[ -f scripts/testing/gates ]] || { echo "gates: run from the repo root" >&2; exit 2; }
 
 GATES=(
-  setup
-  relay-routes
-  sync-hostile-relay
-  sync-multi-instance
-  lsp-branches
-  lsp-typing
-  lsp-concurrent
   workbench-scm
   workbench-views
   first-day
@@ -38,7 +31,6 @@ GATES=(
   trait-checker-vs-dispatch
   trait-deprecation-is-per-branch
   trait-pin-across-branches
-  hosted-db
   package-tests
   shipped-tree-typechecks
   gates-are-clean
@@ -46,38 +38,32 @@ GATES=(
 
 # What CI runs, in one config line: the gates that need only the build CI already has.
 #
-# `lsp-branches` was added after it was found RED on main, having never once run in CI, and
-# leaking an LSP server that reached 42.6 GB over 28 hours. A gate nobody runs is not a gate, and
-# fixing it without running it leaves the next one to rot the same way. It costs 12s.
+# The lesson this list came from: a gate was found RED on main having never once run in CI,
+# leaking a server that reached 42.6 GB over 28 hours. A gate nobody runs is not a gate, and
+# fixing it without running it leaves the next one to rot the same way. So a new gate goes in
+# here unless there is a reason it cannot.
 #
 # first-day runs in CI but not from this list: it has its own step in the `build-cli` job, on the
 # binary that job builds. This list runs on the `build-backend` gates node, which has no clis/ and
 # only a plain `dotnet publish`, whose apphost cannot be copied into `~/.darklang/bin` on its own
 # the way first-day's installed-layout step copies the real single-file binary. Same reason the
-# allocation gate lives there. The sync gates stay out for their minutes.
+# allocation gate lives there.
 #
 # Measured locally, for comparison with the 5m per-gate bound CI applies:
-#   relay-routes 5s, workbench-views 14s, first-day 24s, workbench-scm 35s, lsp-branches 12s
+#   workbench-views 14s, first-day 24s, workbench-scm 35s
 #   trait-choice-survives-rival 6s, trait-deprecation-is-per-branch 10s,
 #   trait-checker-vs-dispatch 16s, trait-pin-across-branches 21s
 # These are durations, so they drift with whatever else is on the box; the trait four were taken
 # while another clone was running perf experiments. Treat them as orders of magnitude against the
 # 5m bound, not as a budget. A gate reporting 0s has not run at all.
-CI_GATES=(relay-routes workbench-scm workbench-views lsp-branches lsp-typing lsp-concurrent
+CI_GATES=(workbench-scm workbench-views
           trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
-          trait-deprecation-is-per-branch trait-pin-across-branches hosted-db
+          trait-deprecation-is-per-branch trait-pin-across-branches
           shipped-tree-typechecks)
 
 describe() {
   # shellcheck disable=SC2016  # the backticks are prose, not expansion
   case "$1" in
-    setup)                  echo '`dark sync setup`, end to end, own rundir' ;;
-    relay-routes)           echo "the relay's HTTP surface, given bad input" ;;
-    sync-hostile-relay)     echo 'the sync/branch CLIENTS, given a relay that lies' ;;
-    sync-multi-instance)    echo 'four instances, branches, review queues, agents' ;;
-    lsp-branches)           echo 'the `dark/*` branch surface, as an editor drives it' ;;
-    lsp-typing)             echo 'keystrokes are stored; the next request analyses once' ;;
-    lsp-concurrent)         echo 'a slow read does not hold up a fast one; a cancel stops the work' ;;
     workbench-scm)          echo 'the workbench SCM views with real work in the store' ;;
     workbench-views)        echo 'every workbench view, one session each' ;;
     first-day)              echo 'a published binary, empty home, whole SCM workflow' ;;
@@ -88,7 +74,6 @@ describe() {
     trait-checker-vs-dispatch) echo 'the at-rest checker and dispatch agree on which impls apply' ;;
     trait-deprecation-is-per-branch) echo 'deprecating an implementation is branch-aware, display and dispatch' ;;
     trait-pin-across-branches) echo 'a saved call keeps its implementation across a branch boundary' ;;
-    hosted-db)              echo 'a served handler reads and writes a user DB, and its functions commit' ;;
     package-tests)          echo 'every package test in packages/, through `dark test run` (CI: own step)' ;;
     shipped-tree-typechecks) echo 'production packages pass the at-rest checker; package-tests checks test sources' ;;
     gates-are-clean)        echo 'no gate touches the shared dev store (slow: re-runs the rest)' ;;
@@ -106,8 +91,6 @@ known() {
 # cheap and keeps the dispatch a name-mangle away.
 run_gate() {
   local name="$1"; shift
-  # shellcheck source=scripts/testing/_gates-sync
-  . scripts/testing/_gates-sync
   # shellcheck source=scripts/testing/_gates-ui
   . scripts/testing/_gates-ui
   # shellcheck source=scripts/testing/_gates-store
@@ -145,9 +128,8 @@ run_parallel() {  # run_parallel <bound|unbound> <name...> -- every gate at once
   # interleave, and each gate's own time is kept, since 0s is how a gate that never ran shows.
   #
   # What makes this safe is that a gate shares NOTHING it writes with another gate: its own
-  # process, its own rundir under rundir/, its own HOME where it touches `caps`, and ports that
-  # are random or its alone (the hostile relay's 9081-9089, relay-routes' 9095, sync-multi's
-  # random 9200-9499). That list is the whole claim, so a new gate that writes anywhere else has
+  # process, its own rundir under rundir/, its own HOME where it touches `caps`, and any port it
+  # takes is its alone. That list is the whole claim, so a new gate that writes anywhere else has
   # to be added to it or it breaks this mode. The one that did was not a rundir or a port but a
   # file in the SOURCE TREE: a package reload rewrote `package-ref-hashes.txt`, which every CLI
   # in the checkout reads at startup, and every gate running beside reload-is-reproducible
@@ -221,8 +203,6 @@ case "$cmd" in
     echo "  ci  runs serial; --parallel for the same thing at once, still each bounded by 5m."
     echo "  Run gates-are-clean only when a gate itself changes."
     echo
-    echo "hand tools, not gates: scripts/testing/matter-render-diff (render the relay's pages,"
-    echo "diff against golden HTML), scripts/testing/cross-machine (two real machines and a relay)."
     ;;
   all)
     NAMES=()

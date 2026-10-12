@@ -1,0 +1,24 @@
+// RESTORE: three files, one call each
+// WAS: the `live.autopush` call sites. Autopush made a save a commit AND a push; the whole mode
+//      lives in later/packages/darklang/cli/sync/autopush.dark.
+// ANCHOR: in packages/core.dark and packages/module.dark it was the LAST expression of the success
+//      arm, so removing it meant leaving a bare `state` behind to keep the arm's type. In
+//      workbench/authoring.dark it produced `pushedNote`, which is now the empty string.
+// ALSO: later/packages/darklang/cli/sync/ is the whole feature
+// WHEN: the sync molt, 2026-10-12
+
+// --- packages/darklang/cli/packages/core.dark ---
+      // `live.autopush`: a save is a commit and a push when the mode is on. A no-op otherwise.
+      Cli.Sync.Autopush.afterAuthoring state
+
+
+// --- packages/darklang/cli/packages/module.dark ---
+              // `live.autopush`: a save is a commit and a push when the mode is on. A no-op otherwise.
+              Cli.Sync.Autopush.afterAuthoring state
+
+
+// --- packages/darklang/cli/workbench/authoring.dark ---
+              // `live.autopush`: the save is a commit and a push when the mode is on; its one line
+              // joins the footer. `Nothing` when the mode is off.
+              let pushed = Cli.Sync.Autopush.describe (Cli.Sync.Autopush.pushDraftOn state.branchId)
+              let pushedNote = if pushed == "" then "" else "; " + pushed

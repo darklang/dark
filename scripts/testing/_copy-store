@@ -6,9 +6,12 @@
 # WAL into one consistent file, taking only a read lock -- safe against the shared dev store
 # the gates-are-clean gate watches.
 #
-# Callers strip config from the copy afterwards -- ALL of it, not just `current_branch`: the copy
-# inherits `sync.relay` and the write secret, so one sync-shaped command against it would reach the
-# REAL relay. A config-less store looks like a first run to the SETUP check, so no wizard blocks
+# Callers strip config from the copy afterwards -- ALL of it, not just `current_branch`. The
+# original reason was that the copy inherited `sync.relay` and the write secret, so one
+# sync-shaped command against it would reach the REAL relay; sync is gone, so that hazard is too.
+# Keep stripping anyway: a gate wants a store in a known state rather than whatever the dev store's
+# config happens to say, and the next thing to put a url in there will not announce itself.
+# A config-less store looks like a first run to the SETUP check, so no wizard blocks
 # startup; the greeting is separate (it follows commits/changes/relay), so a store with work in it
 # still greets "Welcome back".
 #

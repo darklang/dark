@@ -15,7 +15,7 @@ proc press {key} { sleep 1; send $key }
 set exe [lindex $argv 0]
 set env(DARK_CONFIG_RUNDIR) [lindex $argv 1]
 spawn $exe
-want " @ " "the workbench on startup"
+want "╭" "the workbench on startup"
 want "recent commits" "Home shows recent commits across branches"
 want "workbench quiet fixtur" "including the one this fixture made"
 # A runtime error prints instead of the frame; also reject the old permanent inspector.

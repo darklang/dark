@@ -667,51 +667,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stdinReadExactly" 0
-      typeParams = []
-      parameters =
-        [ Param.make
-            "length"
-            TInt
-            "The number of BYTES to read, as the input encodes them." ]
-      returnType = TString
-      description =
-        "Reads exactly <param length> bytes from the standard input and returns them as text. "
-        + "Raises if input ends first, or if the length ends inside a character."
-      fn =
-        (function
-        | _, vm, _, [| DInt lengthArg |] ->
-          // length must fit a native int and be non-negative; both bounds are
-          // "out of range" for this parameter, surfaced as a Dark error.
-          let length = intToInt32 vm lengthArg
-          if length < 0 then
-            RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
-          else
-            let ofResult (result : HE.StdinResult) : Dval =
-              match result with
-              | Ok(Some input) -> DString input
-              | Ok None ->
-                RuntimeError.UncaughtException(
-                  $"stdinReadExactly: input ended after 0 of {length} bytes",
-                  []
-                )
-                |> raiseRTE vm.threadID
-              | Error e ->
-                RuntimeError.UncaughtException($"stdinReadExactly: {e}", [])
-                |> raiseRTE vm.threadID
-            match parkOnStdin (HE.EventSpec.StdinBytes length) with
-            | Some wait ->
-              uply {
-                let! result = wait
-                return ofResult result
-              }
-            | None -> Ply(ofResult (readStdinFor (HE.StdinRequest.Bytes length)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.Stdin ]
-      deprecated = NotDeprecated }
-
 
     { name = fn "stdinReadAll" 0
       typeParams = []

@@ -1,0 +1,37 @@
+// RESTORE: backend/tests/Tests/CliScm.Tests.fs
+// WAS: editingAColleaguesVersionSaysSo, the test for the heads-up line when you edit a version somebody else authored
+// ANCHOR: between aBranchNeverSeesMainsDraft and commitsHideHousekeeping
+// ALSO: later/packages/darklang/cli/packages/core.dark.peer-heads-up has the mechanism it tested
+// WHEN: the sync molt, 2026-10-12
+
+/// Editing a name whose live version a COLLEAGUE authored prints a one-line heads-up naming them
+/// and the commit it arrived in; editing your own version says nothing. The check reads the live
+/// binding's commit author before the save lands.
+let private editingAColleaguesVersionSaysSo =
+  cliTestOnMain
+    "an edit over a colleague's version gets a heads-up; over your own, silence"
+    (fun state ->
+      task {
+        do! fn state "Tests.PeerNote.f" "() : Int64 = 1L"
+        do! commit state "peer note v1"
+
+        let! ownEdit = runCli state [ "fn"; "Tests.PeerNote.f"; "() : Int64 = 2L" ]
+        Expect.isFalse
+          (ownEdit.Contains "note:")
+          "editing your own version prints no heads-up"
+        let! _ = runCli state [ "discard"; "Tests.PeerNote.f"; "-y" ]
+
+        // The same binding, now wearing a colleague's name, as a sync would leave it.
+        do!
+          execSql
+            "UPDATE commits SET author = 'colleague' WHERE message = 'peer note v1'"
+
+        let! peerEdit = runCli state [ "fn"; "Tests.PeerNote.f"; "() : Int64 = 3L" ]
+        Expect.stringContains
+          peerEdit
+          "note: colleague changed this"
+          "the heads-up names them"
+        Expect.stringContains peerEdit "peer note v1" "and the commit it arrived in"
+        let! _ = runCli state [ "discard"; "Tests.PeerNote.f"; "-y" ]
+        ()
+      })

@@ -1600,7 +1600,6 @@ let packageTest
     let (keyword, message) =
       match expected with
       | RuntimeError message -> ("raises", message)
-      | SqlCompilerError message -> ("sqlerror", message)
     let expectation =
       $"=> {keyword} \"{PrettyPrinter.escapeSpecialCharacters message}\""
     $"{docComment}test {name} =\n{PrettyPrinter.indent body}\n{PrettyPrinter.indent expectation}"

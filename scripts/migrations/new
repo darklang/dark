@@ -11,9 +11,8 @@ set -euo pipefail
 # script exists:
 #
 #   1. backend/migrations/schema/<YYYYMMDD-HHMMSS>-<tag>.sql -- the shape a NEW store is born
-#      with. Hyphens, to match the numbered subsystem files beside it.
-#      Read in filename order and concatenated, so a stamped file applies after the numbered
-#      subsystem files, which is the right order for anything that builds on them.
+#      with. Read in filename order and concatenated, so a stamped file applies after
+#      `00-initial-schema.sql`, which is the right order for anything that builds on it.
 #
 #   2. a step in backend/src/LibDB/Releases.fs -- how the change reaches a store that ALREADY
 #      exists. `CREATE TABLE IF NOT EXISTS` no-ops against a table that is already there, so
@@ -23,8 +22,10 @@ set -euo pipefail
 #
 # Where to put WHAT:
 #   - a new TABLE or INDEX          -> the stamped .sql, and create it in the step too
-#   - a new COLUMN on an existing table -> that table's numbered subsystem file, so the table
-#     stays defined in one place, and `addColumnIfMissing` in the step
+#   - a new COLUMN on an existing table -> the table's declaration in 00-initial-schema.sql, so
+#     the table stays defined in one place, and `addColumnIfMissing` in the step. BOTH halves:
+#     twelve columns once lived only in a step, so a fresh store got them from the step rather
+#     than from the schema, and collapsing the schema is what finally surfaced it.
 #
 # The step's name is its identity in system_migrations_v0: renaming one re-runs it, and the
 # list is append-only for that reason.
@@ -40,8 +41,8 @@ esac
 
 NAME="$1"
 STAMP=$(date -u +%Y%m%d-%H%M%S)
-# Hyphens in the filename, to match the numbered subsystem files beside it; underscores in the
-# step name, to match the fourteen already in the list. Each names the other, so the pair greps.
+# Hyphens in the filename, to match `00-initial-schema.sql` beside it; underscores in the step
+# name. Each names the other, so the pair greps.
 STEP="$(date -u +%Y%m%d_%H%M%S)_${NAME}"
 TAG="${NAME//_/-}"
 SQL="backend/migrations/schema/${STAMP}-${TAG}.sql"
@@ -59,8 +60,8 @@ cat > "$SQL" <<EOF
 -- The from-scratch half. A new store gets this; an existing one gets the matching step
 -- "${STEP}" in backend/src/LibDB/Releases.fs.
 --
--- A new COLUMN belongs in its table's numbered file instead, so the table stays defined in one
--- place. This file is for a new table or index.
+-- A new COLUMN belongs in its table's declaration in 00-initial-schema.sql instead, so the table
+-- stays defined in one place. This file is for a new table or index.
 EOF
 
 # Inserted above the anchor, so the list stays append-only and nothing else in the file moves.

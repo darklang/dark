@@ -1,0 +1,13 @@
+// RESTORE: packages/darklang/cli/docs/command.dark
+// WAS: the `relay` doc topic's registry entry (aliases matter / server / sync-server)
+// ANCHOR: in allTopics, between the `packages` topic and the `scm` topic
+// ALSO: later/packages/darklang/cli/docs/relay.dark is the page it named
+// WHEN: the sync molt, 2026-10-12
+
+      DocTopic
+        { name = "relay"
+          description = "The optional sync server: setup, the write secret, smoke tests"
+          aliases = [ "matter", "server", "sync-server" ]
+          context = "cli"
+          content = Docs.Relay.content
+          subtopics = [] }

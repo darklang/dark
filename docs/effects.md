@@ -74,15 +74,6 @@ approval workflow uses logical names and shows short version identifiers; the
 diagnostic commands (`requirements`, `show`, `revoke-package`) also accept a
 full immutable hash.
 
-A few builtins are reserved for first-party code. `httpGetUnsafeBytes` — the
-SSRF-guards-off fetch the sync code uses to reach a peer on loopback/LAN —
-requires two things at once: the host capability `canUsePrivateNetworkHttp`,
-which only the outer `dark sync` state has (every `guestState` clears it), and
-a call chain in which every frame is a bundled Darklang function
-(`ExecutionState.isBundledPackageFn`, checked by `requireBundledCaller`). A
-third-party package cannot reach it even with a broad `http` grant, and
-neither can a `run` script that wraps it in a bundled helper.
-
 The CLI exposes the typed policy directly: `permissions allow http GET
 https://api.example.com/v1` adds a narrow rule, `permissions requirements
 <fn|hash>` shows permission requirements, and `permissions approve <fn>`
@@ -316,11 +307,13 @@ forgetting the check is unwritable at builtin call sites. The filesystem,
 directory, environment, process, and HTTP client builtins route through it;
 the host-owned process table (`LibExecution.HostProcess`) and the HTTP
 machinery with its streaming-response table (`LibExecution.HostHttp`) live
-behind it. An HTTP operation names one of two profiles: `Guest` (the host's
-configured guest client, `HostHttp.setGuestConfig`: timeouts and SSRF guards)
-or `Sync` (the loopback/LAN-capable transport, reachable only with
-`canUsePrivateNetworkHttp` from an all-bundled call chain), so configuration
-and client objects stay in host-owned state.
+behind it. An HTTP operation names a profile, of which there is one: `Guest`
+(the host's configured guest client, `HostHttp.setGuestConfig`: timeouts and
+SSRF guards), so configuration and client objects stay in host-owned state.
+The DU stays a DU so that a second configuration does not have to widen every
+call site again; there WAS a second, reachable only from an all-bundled call
+chain and only to reach a peer on loopback or a private range, and it left with
+the code that used it.
 
 Kernel primitives use the same boundary, with `HostPosix` and `HostKernel`
 owned by the host. Path operations check exact read/write requests; descriptors
@@ -387,11 +380,6 @@ Each operation:
 4. records a structured audit event;
 5. returns a structured result.
 
-The browser (WASM) host has no socket layer, so the DNS-level private-address
-guard the CLI's HTTP client applies cannot run there; the browser's own
-same-origin rules bound that host instead, and the REPL runs allow-all by
-design.
-
 HTTP redirects are disabled, executables are resolved before checking, and
 arguments preserve order. Raw OS descriptor numbers and arbitrary PIDs require
 the deliberately broad `Native` boundary. Execution-owned descriptor and child
@@ -457,10 +445,10 @@ here.
 bundled, trusted set, exempt from consumer approval. A malicious package could
 otherwise publish itself under `owner = "Darklang"` and look like built-in
 code, so before package operations are inserted the code looks at the owner on
-every operation, rejects `Darklang`-owned operations that come from guest or
-peer input, and allows only trusted internal seeding to create those entries.
-The check applies across normal writes, propagated updates, reverts, atomic
-undo, and sync batches. It protects the package APIs; the bundled set is
+every operation, rejects `Darklang`-owned operations that come from guest
+input, and allows only trusted internal seeding to create those entries.
+The check applies across normal writes, propagated updates, reverts and atomic
+undo. It protects the package APIs; the bundled set is
 still computed from the mutable `owner` column, so anything that can write the
 package database directly could forge trust. Moving that anchor into the
 protected policy store is part of the deferred sandbox work.

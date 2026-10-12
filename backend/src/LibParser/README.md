@@ -18,7 +18,7 @@ source
   ├─ Parser.parse                    recoverable WrittenTypes tree + syntax and
   │                                  structural diagnostics for tooling
   │  └─ Builtins.Language.WrittenTypesToDarkTypes → Dark WrittenTypes (Dvals)
-  │                                                   → Dark WT2PT (LSP, etc.)
+  │                                                   → Dark WT2PT (highlighter, etc.)
   └─ Parser.parseFor Mode            structural + file-purpose validation
      └─ ValidatedSourceFile          required by Package, TestModule, and CLI
         └─ WrittenTypesToProgramTypes → executable ProgramTypes

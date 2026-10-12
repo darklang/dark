@@ -118,12 +118,10 @@ type PosixOp =
 
 /// Which host HTTP configuration an operation runs under. `Guest` is the
 /// SSRF-guarded configuration every guest request uses (the host may replace
-/// it with `HostHttp.setGuestConfig`); `Sync` is the trusted tailnet pull the
-/// bundled sync code uses, which reaches loopback and private ranges.
+/// it with `HostHttp.setGuestConfig`). It is the only one; the DU stays so a
+/// second configuration does not have to widen every call site again.
 [<RequireQualifiedAccess>]
-type HttpProfile =
-  | Guest
-  | Sync
+type HttpProfile = | Guest
 
 /// One host action, with everything needed to both check and perform it.
 [<RequireQualifiedAccess>]

@@ -277,10 +277,7 @@ let workbenchState () : Darklang.Cli.Workbench.State =
   Darklang.Cli.Workbench.initialState
     Darklang.SCM.Branch.mainBranchId
     Stdlib.Option.Option.None
-    "test"
     "test-instance"
-    // Every gateable view on, so the gated ones get rendered too.
-    (Stdlib.List.range 0 40)
     false
 
 
@@ -379,7 +376,7 @@ let rendersPreview (viewIndex: Int) : Bool =
 test workbenchPreviewsRender =
   let broken =
     Darklang.Cli.Workbench.viewSpecs
-    |> Stdlib.List.map (fun spec -> let (i, _name, _gate) = spec in i)
+    |> Stdlib.List.map (fun spec -> Stdlib.Tuple2.first spec)
     |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (rendersPreview i))
 
   if Stdlib.List.isEmpty broken then
@@ -412,7 +409,7 @@ test workbenchEveryViewRenders =
   // just louder.
   let broken =
     Darklang.Cli.Workbench.viewSpecs
-    |> Stdlib.List.map (fun spec -> let (i, _name, _gate) = spec in i)
+    |> Stdlib.List.map (fun spec -> Stdlib.Tuple2.first spec)
     |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (rendersView i))
 
   if Stdlib.List.isEmpty broken then
@@ -445,6 +442,9 @@ test workbenchDiffLinesRenderThroughPipe =
 
 
 test workbenchModuleInspectPreviewsChildren =
+  // `LanguageTools` and its child `AtRestTypeChecker`, because the subject only has to be a
+  // module under `Darklang` that itself holds a child module. It used to be `LspExtension` and
+  // `FileSystemProvider`, which moved to `later/` with the Language Server.
   let location =
     Darklang.Cli.Packages.PackageLocation.Module [ "Darklang" ]
   let items =
@@ -452,7 +452,7 @@ test workbenchModuleInspectPreviewsChildren =
       Darklang.SCM.Branch.mainBranchId
       location
   let selected =
-    Stdlib.List.findFirstIndex items (fun item -> item.name == "LspExtension")
+    Stdlib.List.findFirstIndex items (fun item -> item.name == "LanguageTools")
     |> Stdlib.Option.withDefault 0
   let state =
     { (workbenchState ()) with
@@ -465,8 +465,8 @@ test workbenchModuleInspectPreviewsChildren =
     |> Stdlib.List.map Stdlib.Cli.Tui.Text.stripSgr
     |> Stdlib.String.join "\n"
   if
-    (Stdlib.String.contains plain "LspExtension/")
-    && (Stdlib.String.contains plain "FileSystemProvider/")
+    (Stdlib.String.contains plain "LanguageTools/")
+    && (Stdlib.String.contains plain "AtRestTypeChecker/")
     && (Stdlib.String.contains plain "modules · ")
     && (Stdlib.String.contains plain "enter")
   then
@@ -740,9 +740,9 @@ test workbenchNavbarNavigation =
   // Leaving and coming back by number returns to the view.
   let s7 = (wbChar (wbChar s6c "2").state "3").state
   let remembered = s7.activeView == Darklang.Cli.Workbench.vSCM
-  // Errors has no nav row: `E` from Traces opens it, Traces stays lit, `6` comes back.
+  // Errors has no nav row: `E` from Traces opens it, Traces stays lit, `5` comes back.
   let errors = Darklang.Cli.Workbench.extViewIndex "errors"
-  let s8 = (wbChar (wbChar s7 "6").state "E").state
+  let s8 = (wbChar (wbChar s7 "5").state "E").state
   let tracesRow =
     Stdlib.List.findFirstIndex
       (Darklang.Cli.Workbench.navbarRows s8 0 0)
@@ -751,7 +751,7 @@ test workbenchNavbarNavigation =
   let errorsCovered =
     (s8.activeView == errors)
     && (Darklang.Cli.Workbench.activeRow s8 (Darklang.Cli.Workbench.navbarRows s8 0 0) == tracesRow)
-    && ((wbChar s8 "6").state.activeView == Darklang.Cli.Workbench.vTraces)
+    && ((wbChar s8 "5").state.activeView == Darklang.Cli.Workbench.vTraces)
   // Assert q's action directly instead of smuggling it through `message`.
   let r9 = wbChar s7 "q"
   let quits = r9.action == WbAction.Exited
@@ -966,7 +966,7 @@ test workbenchViewsShowTheirChrome =
     // doesn't say. `2 Code` and `6 Traces` are numbered items on the strip,
     // which nothing else draws.
     [ (Darklang.Cli.Workbench.vSCM, "3 Changes", "nav: Changes is one numbered item")
-      (Darklang.Cli.Workbench.vTraces, "6 Traces", "nav: Traces is its own item, not Activity")
+      (Darklang.Cli.Workbench.vTraces, "5 Traces", "nav: Traces is its own item, not Activity")
       (Darklang.Cli.Workbench.vScratch, "to type", "REPL title row")
       (Darklang.Cli.Workbench.vMatter, "packages", "Code's root breadcrumb")
       (Darklang.Cli.Workbench.vHome, "recent commits", "Home's recent work")

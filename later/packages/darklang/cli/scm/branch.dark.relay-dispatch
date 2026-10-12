@@ -1,0 +1,47 @@
+// RESTORE: packages/darklang/cli/scm/branch.dark
+// WAS: the dispatch arms, help lines, completion entries and url guard that reached `dark branch push` / `pull`
+// ANCHOR: the help lines sat between the `branch import` line and the "Also at the root" block; the match arms between `| [ "import", path ]` and `| [ id ]`; "push"/"pull" at the end of knownSubcommands; looksLikeRelayUrl just above executeBranchesCmd
+// ALSO: later/packages/darklang/cli/scm/branch.dark.relay-pushpull has the three functions these reach
+// WHEN: the sync molt, 2026-10-12
+
+    "  dark branch push <name> [url] push a branch to a relay under your identity"
+    "  dark branch pull [url]        pull all your branches back from a relay"
+    "  dark branch pull --from <who> pull a COLLEAGUE's branches from the relay"
+
+
+  | [ "push", id ] -> executePush state id (SCM.PackageOps.relay ())
+  // Guarded like `pull` is: an unguarded url argument takes any bare word, so a typo'd branch name
+  // in the url slot became the relay the push tried to reach.
+  | [ "push", id, url ] when looksLikeRelayUrl url -> executePush state id url
+  | [ "push", _id, arg ] ->
+    Cli.printErr $"`dark branch push` takes a relay url, and \"{arg}\" isn't one."
+    Cli.printHint "  to the relay you are connected to:  dark branch push <branch>"
+    Cli.printHint "  to another:                         dark branch push <branch> <url>"
+    { state with exitCode = 1 }
+  | [ "pull" ] -> executePull state (SCM.PackageOps.relay ())
+  | [ "pull", "--from", owner ] ->
+    executePullFrom state (SCM.PackageOps.relay ()) owner
+  // Both orders: the url reads naturally on either side of the flag.
+  | [ "pull", url, "--from", owner ] when looksLikeRelayUrl url ->
+    executePullFrom state url owner
+  | [ "pull", "--from", owner, url ] when looksLikeRelayUrl url ->
+    executePullFrom state url owner
+  | [ "pull", arg ] ->
+    if looksLikeRelayUrl arg then
+      executePull state arg
+    else
+      Cli.printErr $"`dark branch pull` takes a relay url, and \"{arg}\" isn't one."
+      Cli.printHint "  your own branches back from the relay:  dark branch pull"
+      Cli.printHint "  a colleague's:                          dark branch pull --from <who>"
+      Cli.printHint $"  switch to a branch you already have:    dark branch {arg}"
+      Cli.exitWith state false
+
+
+    "import"
+    "push"
+    "pull" ]
+
+/// Whether an argument is a relay URL rather than something else a person might have typed there.
+let looksLikeRelayUrl (arg: String) : Bool =
+  (Stdlib.String.startsWith arg "http://") || (Stdlib.String.startsWith arg "https://")
+

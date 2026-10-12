@@ -236,26 +236,6 @@ module LocalAccess =
     else
       true // not ipv4 or ipv6, so banned
 
-  /// Ranges that remain blocked for trusted tailnet sync pulls: link-local,
-  /// cloud-metadata, GCP private endpoints, and 0.0.0.0. Loopback, RFC-1918,
-  /// and Tailscale's CGN range stay reachable so LAN peers can be used.
-  let private metadataOrLinkLocalV4 (ip : System.Net.IPAddress) : bool =
-    oneSixNine.Contains ip
-    || oneNineNineFour.Contains ip
-    || oneNineNineEight.Contains ip
-    || zero = ip
-
-  let metadataOrLinkLocal (ip : System.Net.IPAddress) : bool =
-    if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
-      if ip.IsIPv4MappedToIPv6 then
-        metadataOrLinkLocalV4 (ip.MapToIPv4())
-      else
-        ip.IsIPv6LinkLocal // ipv6 link-local / metadata
-    else if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork then
-      metadataOrLinkLocalV4 ip
-    else
-      true
-
   let bannedHost (host : string) : bool =
     let host = host.Trim().ToLower()
     let badIP =
@@ -304,16 +284,6 @@ let defaultConfig : Configuration =
     allowedIP = fun ip -> not (LocalAccess.bannedIp ip)
     allowedHost = fun host -> not (LocalAccess.bannedHost host) }
 
-/// Config for trusted tailnet SYNC pulls (`httpGetUnsafeBytes`). Unlike
-/// `defaultConfig` it reaches loopback / RFC-1918 / the Tailscale range so a
-/// peer's server is reachable — but it still blocks cloud-metadata +
-/// link-local, so even a sync pull can't be aimed at 169.254.169.254.
-let private syncConfig : Configuration =
-  { timeoutInMs = 30000
-    allowedIP = fun ip -> not (LocalAccess.metadataOrLinkLocal ip)
-    allowedHost = fun _ -> true }
-
-
 // ── profiles ──────────────────────────────────────────────────────────────────
 
 /// A configuration and the client built for it. Host-side only: operations
@@ -324,8 +294,6 @@ let private profileOf (config : Configuration) : Profile =
   { config = config; client = BaseClient.create config }
 
 let mutable private guest : Profile = profileOf defaultConfig
-
-let private sync : Profile = profileOf syncConfig
 
 /// Replace the guest configuration; the client is rebuilt and shared for the
 /// configuration's lifetime. A host that needs loopback reachable (a test
@@ -358,7 +326,6 @@ let devLoopbackConfig : Configuration =
 let profileFor (profile : HttpProfile) : Profile =
   match profile with
   | HttpProfile.Guest -> guest
-  | HttpProfile.Sync -> sync
 
 
 // ── request prep ──────────────────────────────────────────────────────────────

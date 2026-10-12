@@ -378,8 +378,7 @@ let rec private declarationStructureIssues
     let expectedIssues =
       match test.expected with
       | WT.TEExpr expr -> exprIssues false expr
-      | WT.TEError _
-      | WT.TESqlError _ -> []
+      | WT.TEError _ -> []
     exprIssues false test.actual @ expectedIssues
 
 /// Check mode-independent invariants required by WrittenTypes lowering.

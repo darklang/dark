@@ -1,0 +1,43 @@
+RESTORE: docs/live.md
+
+WAS: the "Prod follows a branch (demo 2)" section: a host following a branch over a relay, with
+`live.autopush` on the authoring side and the auto-sync daemon on the serving side.
+
+ANCHOR: between the Daemons section and "The agent channel".
+
+ALSO: later/packages/darklang/cli/sync/ is the feature, later/scripts/testing/demo2-live.sh is
+the walk it describes, and later/packages/darklang/cli/apps/ has the daemon that ran the pull
+loop. The branch-watch facts in the last paragraph are still true of a branch; only the way ops
+arrive from elsewhere has gone.
+
+WHEN: the sync molt, 2026-10-12
+
+## Prod follows a branch (demo 2)
+
+Host side: `dark --branch <b> serve <router>` and a pull loop (`dark apps enable sync`
+with `sync.branches all`, interval `apps.sync.intervalMs`). Local side: `dark config set
+live.autopush on`; every `fn`/`type`/`val`/`module` save then commits the draft under
+`auto: <n> ops, <first name>` and pushes (main with `push`, a branch with `branch push`).
+Type errors are committed on purpose: the host keeps its last good version and says why
+in its log, which is the same answer you get locally.
+
+`scripts/testing/demo2-live.sh` walks it in the container: a relay, A with autopush, B on
+the auto-sync daemon (`apps start sync`, every two seconds) and `serve`. Measured: A's save
+is B's page two to five seconds later; the broken save leaves B on the last good page with
+`[live] Demo.Site.router: still on the last good version; the newest has a type error:
+...` in its serve log; the fix follows. `--branch` walks the branch variant: A authors on
+a branch `site` with autopush (each save is a `branch push`), B has `sync.branches all`
+and serves `--branch site`; same three beats, same timings.
+
+Three facts on the host side make that walk work. A daemon is `dark apps daemon-main
+<slug>`, a command in the CLI's own state, so it has the host's capabilities (an `eval` is
+a guest and could not use its own sync transport); the entrypoint is applied in that
+frame, not through `Live.apply`, which would make it a guest root again. A branch's own
+ops are inert (`applied = 0`) and tagged onto the branch in the transaction that stores
+them, and `landedWhere`/`idsLandedSince` count a tagged op as landed once it is visible,
+so a branch watch sees the branch's saves. An op that lands from outside (the daemon's
+pull) reaches a long-lived branch process through the same invalidation a poll does
+(`LibDB.PackageManager`, the second `Caching.register`). Tests: `tests/CliWorkspace/live`,
+"a poll on a branch reports the branch's own saves" and "serve --branch follows edits made
+on the branch".
+

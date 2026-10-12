@@ -144,19 +144,6 @@ let branchDiffEntries (branchId: Uuid) : List<BranchDiffEntry> =
     (rank, e.name))
 
 
-let shortHashOr (h: String) : String =
-  if h == "" then "(none)" else Stdlib.String.first h 8
-
-
-let branchDiffLines (branchId: Uuid) : List<String> =
-  branchDiffEntries branchId
-  |> Stdlib.List.map (fun e ->
-    if e.change == "new" then
-      $"  + {e.name}  (new: {shortHashOr e.hash})"
-    else
-      $"  ~ {e.name}  ({shortHashOr e.parentHash} -> {shortHashOr e.hash})")
-
-
 /// The branch this process is on. This is an ID. Defined in `SCM.Branches`; this is the
 /// spelling most callers use.
 let currentBranch () : Uuid = Branches.current ()
@@ -255,13 +242,6 @@ let branchIsMerged (branchId: Uuid) : Bool =
   | _ -> false
 
 
-/// The ids of the ops tagged to <param branchId>: what a bundle of it carries.
-let branchOpIds (branchId: Uuid) : List<String> =
-  Stdlib.Sqlite.columnP
-    (localDb ())
-    "SELECT op_id FROM op_branches WHERE branch_id = @p0"
-    [ Stdlib.toString branchId ]
-    "op_id"
 
 
 /// The ops a merge moved off <param branchId>, read back off its merge events.

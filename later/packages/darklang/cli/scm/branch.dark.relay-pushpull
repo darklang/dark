@@ -1,0 +1,147 @@
+// RESTORE: packages/darklang/cli/scm/branch.dark
+// WAS: executePush, executePullFrom and executePull: `dark branch push` and `dark branch pull`, which move a branch through a relay.
+// CORRECTION: an earlier version of this header said branch export/import to a FILE stayed in the
+//      live tree and that only the relay half left. A later round took the file half too:
+//      executeExport and executeImport are both gone, carried by the sibling fragment
+//      later/packages/darklang/cli/scm/branch.dark.export-import. The ANCHOR below names
+//      executeImport, which means it names something that fragment holds, so restore that one
+//      first or the anchor has nothing to sit after.
+// ANCHOR: straight after executeImport (the file-based import) and straight before `help`, the page for `dark branch`
+// ALSO: later/packages/darklang/cli/scm/branch.dark.relay-dispatch has the match arms, the help lines and the completion entries that reached these
+// WHEN: the sync molt, 2026-10-12
+
+/// Push a branch to a relay under your identity, so you can pull it on another machine.
+let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
+  if url == "" then
+    Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
+    Cli.exitWith state false
+  else
+    match resolveRef branchRef with
+    | None -> Cli.exitWith state false
+    | Some branchId ->
+      // No identity gate: an instance mints its own id on first use, so this can't be empty.
+      let id = SCM.PackageOps.identity ()
+      let bundle = Stdlib.String.toBlob (SCM.PackageOps.exportBranch branchId)
+
+      // The relay keys on the branch ID, not the name: two machines can each have a `fix-auth`, and
+      // they are different branches. The name travels inside the bundle, for display on the far end.
+      // The id is a `Uuid`; a URL is text, so this is one of the few places it becomes a string.
+      let branchParam = Stdlib.toString branchId
+
+      match Sync.relayPostTo url $"/branch/push?owner={id}&branch={branchParam}" bundle with
+      | Ok reply ->
+        // Read the confirmation rather than trusting the status: a 200 with a body this cannot
+        // read has not said it stored anything, and "pushed branch X" would be a claim rather than
+        // a report. Nothing is recorded either way here, so the cost of being wrong is only the
+        // message.
+        let text = Stdlib.String.trim (Stdlib.String.fromBlobWithReplacement reply)
+
+        if Stdlib.String.startsWith text "stored branch" then
+          // The relay's bundle channel holds these now; `sync status` asks. Not the relay's own key:
+          // see `Wire.branchChannel`.
+          SCM.Wire.rememberPushed (SCM.Wire.branchChannel url) (SCM.PackageOps.branchOpIds branchId)
+          Cli.printOk $"pushed branch \"{branchRef}\" to {url} as \"{id}\"."
+          state
+        else if Stdlib.String.startsWith text "kept the newer copy" then
+          // Not an error: the relay is holding a NEWER copy of this branch than the one just sent,
+          // which happens when another machine pushed and this one has not pulled yet. Replacing it
+          // would take that work off the relay.
+          Cli.printOk
+            $"{url} already holds a newer \"{branchRef}\"; nothing was replaced."
+
+          Cli.printHint
+            "  `dark branch pull` to take it, then push again if you still have something to add."
+          state
+        else
+          Cli.printErr
+            $"{url} answered, but not with anything this build can read as a confirmation, so the branch may not be there."
+
+          Cli.printHint "  `dark branch push` again once the relay is healthy."
+          Cli.exitWith state false
+      | Error e ->
+        Cli.printErr $"branch push failed: {e}"
+        Cli.exitWith state false
+
+/// Pull branches from a relay, yours by default or someone else's with <param owner>.
+///
+/// The relay stores every owner's branches side by side, which is what lets one of YOUR branches follow
+/// you between your own machines, and what lets you fetch a colleague's.
+///
+/// A pulled branch arrives like any other: isolated from main, yours to look at, merge or discard. It does
+/// NOT become the same branch as theirs -- a branch id is minted by whoever created it, so pulling gives
+/// you their ops under their id, and pushing it back is what shares your side.
+let executePullFrom (state: AppState) (url: String) (owner: String) : AppState =
+  if url == "" then
+    Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
+    Cli.exitWith state false
+  else
+    match Sync.relayGetAuthed url $"/branch/list?owner={owner}" with
+    | Ok listBody ->
+      // Every line the relay sends here goes back to it inside the next request's URL, and is printed
+      // if the import fails. A branch id is a uuid, so anything that is not one is discarded rather
+      // than echoed: the relay's own push handler refuses a non-id for the same reason ("keeps the
+      // branch table keyed on real ids"), and a broken relay answering with a page of HTML should not
+      // put a page of HTML in a URL or in your terminal.
+      let lines =
+        Stdlib.String.fromBlobWithReplacement listBody
+        |> Stdlib.String.split "\n"
+        |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+        |> Stdlib.List.filter (fun s -> s != "")
+
+      let ids =
+        lines
+        |> Stdlib.List.filter (fun s ->
+          match Stdlib.Uuid.parse s with
+          | Ok _ -> true
+          | Error _ -> false)
+
+      let ignored = (Stdlib.List.length lines) - (Stdlib.List.length ids)
+
+      let _ =
+        if ignored > 0 then
+          Cli.printErr
+            $"{url} listed {Cli.Text.plural ignored "line"} that are not branch ids; ignoring them."
+        else
+          ()
+
+      if Stdlib.List.isEmpty ids then
+        Cli.printOk $"no branches for \"{owner}\" on {url}."
+        state
+      else
+        let failed =
+          ids
+          |> Stdlib.List.filter (fun bid ->
+            match Sync.relayGetAuthed url $"/branch/pull?owner={owner}&branch={bid}" with
+            | Ok bundleBody ->
+              match
+                SCM.PackageOps.importBranch
+                  (Stdlib.String.fromBlobWithReplacement bundleBody)
+              with
+              | Ok msg ->
+                // What came from the relay's bundle channel, that channel holds -- the ops that
+                // were IN the bundle, not every op the local branch happens to hold. Marking the
+                // whole branch told `sync status` the relay had work it had never been sent, and
+                // the next `branch push` skipped it: the colleague pulling that branch got a
+                // truncated history until someone pushed again by hand.
+                let _ =
+                  SCM.Wire.rememberPushed
+                    (SCM.Wire.branchChannel url)
+                    (SCM.PackageOps.bundleOpIds
+                      (Stdlib.String.fromBlobWithReplacement bundleBody))
+                Cli.printOk msg
+                false
+              | Error e ->
+                Cli.printErr $"import {bid} failed: {e}"
+                true
+            | Error e ->
+              Cli.printErr $"pull {bid} failed: {e}"
+              true)
+
+        Cli.exitWith state (Stdlib.List.isEmpty failed)
+    | Error e ->
+      Cli.printErr $"branch list failed: {e}"
+      Cli.exitWith state false
+
+/// Pull ALL your own branches from a relay.
+let executePull (state: AppState) (url: String) : AppState =
+  executePullFrom state url (SCM.PackageOps.identity ())

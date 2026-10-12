@@ -237,12 +237,10 @@ let expectedErrorCounterpart =
     let counterpart = findFsharp (fsharpTypesByName ()) "PackageTest.ExpectedError"
     Expect.equal counterpart (Some typeof<PT.ExpectedError>) "the mapped F# type"
     let fs = fsharpShape typeof<PT.ExpectedError>
-    let matching =
-      { kind = "union"
-        members = Map.ofList [ "RuntimeError", 1; "SqlCompilerError", 1 ] }
+    let matching = { kind = "union"; members = Map.ofList [ "RuntimeError", 1 ] }
     Expect.equal (drift "ExpectedError" fs matching) None "matching cases"
     let missingCase =
-      { matching with members = Map.remove "SqlCompilerError" matching.members }
+      { matching with members = Map.remove "RuntimeError" matching.members }
     Expect.isSome (drift "ExpectedError" fs missingCase) "a missing case still fails"
     let wrongArity =
       { matching with members = Map.add "RuntimeError" 2 matching.members }

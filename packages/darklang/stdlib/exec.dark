@@ -82,7 +82,7 @@ let list () : List<Summary> =
 /// shows across processes, as against `list`, which is this process's own table.
 type MachineProcess =
   { pid: Int64
-    /// What a system monitor shows: `dark serve :9090`, `dark sync`, `dark eval`.
+    /// What a system monitor shows: `dark serve :9090`, `dark eval`.
     title: String
     command: String
     branch: String

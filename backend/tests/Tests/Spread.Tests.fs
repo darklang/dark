@@ -108,7 +108,7 @@ let private uneven =
 
 let private inOrder =
   testTask "results come back in input order when the first chunk finishes last" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let code = $"Stdlib.List.map (Stdlib.List.range 1 40) {uneven}"
     let! (spread, moved) = delta spreads (fun () -> run state code)
     let! serial = runWith state false code
@@ -118,7 +118,7 @@ let private inOrder =
 
 let private siblings =
   testTask "filter, filterMap and indexedMap spread and agree with serial" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     for code in
       [ "Stdlib.List.filter (Stdlib.List.range 1 100) (fun i -> i % 3 == 0)"
         "Stdlib.List.filterMap (Stdlib.List.range 1 100) (fun i -> if i % 4 == 0 then Stdlib.Option.Option.Some (i * 2) else Stdlib.Option.Option.None)"
@@ -134,7 +134,7 @@ let private siblings =
 /// only after everything before it.
 let private errorAsSerial =
   testTask "an error is raised by the element that raises it serially, as serially" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let code =
       "Stdlib.List.map (Stdlib.List.range 1 40) (fun i -> if i == 35 then 1 / 0 else ("
       + uneven
@@ -151,7 +151,7 @@ let private errorAsSerial =
 /// The earliest error wins even when a later one is found first.
 let private earliestErrorWins =
   testTask "of two failing elements the earlier one raises, whichever fails first" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let code =
       "Stdlib.List.map (Stdlib.List.range 1 40) (fun i -> if i == 3 then (let _ = ("
       + uneven
@@ -169,7 +169,7 @@ let private earliestErrorWins =
 /// callable spread and caught by the refusal.
 let private effectsKeepOrder =
   testTask "a body that reaches an effect runs it in order, here" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
       "(let hidden = ((fun s -> Builtin.testTrace s), 0) in Stdlib.List.map (Stdlib.List.range 1 30) (fun i -> (let (trace, _) = hidden in if i % 7 == 0 then (let _ = trace (if i == 7 then \"7\" else if i == 14 then \"14\" else if i == 21 then \"21\" else \"28\") in i) else i * 2)))"
@@ -190,7 +190,7 @@ let private effectsKeepOrder =
 /// a second time, which is what this counts.
 let private namedFallbackIsRemembered =
   testTask "a named fn that fell back once is not spread again" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
       "(let xs = [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"] in (let _ = Stdlib.List.map xs Builtin.testTrace in Stdlib.List.map xs Builtin.testTrace))"
@@ -209,7 +209,7 @@ let private namedFallbackIsRemembered =
 /// or the refusal becomes the answer and the spread never falls back (`Spread`).
 let private refusalGetsThrough (call : string) =
   testTask $"an effect under {call} inside a spread falls back" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
       "(let hidden = ((fun s -> Builtin.testTrace s), 0) in Stdlib.List.map (Stdlib.List.range 1 30) (fun i -> (let (trace, _) = hidden in "
@@ -233,7 +233,7 @@ let private refusalGetsThrough (call : string) =
 /// so THEIR inner maps spread: four in all, the outer and three inner, never one per element.
 let private nestingIsBounded =
   testTask "a map inside a spread map does not spread again" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let code =
       "Stdlib.List.map (Stdlib.List.range 1 20) (fun i -> Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 50) (fun x -> x + i)))"
     let! (result, moved) = delta spreads (fun () -> run state code)
@@ -252,7 +252,7 @@ let private nestingIsBounded =
 
 let private watchedRunsDoNotSpread =
   testTask "a recorded or viewed run does not spread" {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false
     // Watched all the way down: a process asks its tracer for its own copy (`forProcess`).
     let tracing : RT.Tracing.Tracing = state.tracing
     let rec watching () : RT.Tracing.Tracing =
@@ -269,7 +269,7 @@ let private watchedRunsDoNotSpread =
 /// it.
 let private cancelledLeavesNothing =
   testTask "a cancelled spread map answers no list and leaves no chunk running" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
         "Stdlib.List.map (Stdlib.List.range 1 16) (fun i -> Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 3000000) (fun x -> x)))"
@@ -321,7 +321,7 @@ let private cancelledLeavesNothing =
 /// work: a fallback must not turn into one long uninterruptible step.
 let private fallbackIsPreempted =
   testTask "the serial rest after a fallback is preempted like any map" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
         "(let hidden = ((fun s -> Builtin.testTrace s), 0) in Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 400) (fun i -> (let (trace, _) = hidden in if i == 10 then (let _ = trace \"ten\" in i) else Stdlib.List.fold (Stdlib.List.range 1 2000) i (fun a x -> a + x)))))"
@@ -351,7 +351,7 @@ let private fallbackIsPreempted =
 /// has even finished starting the others: the fallback then continues inside the same step.
 let private syncFallbackIsPreempted =
   testTask "a fallback that lands at once is preempted like any map" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
         "(let hidden = ((fun s -> Builtin.testTrace s), 0) in Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 400) (fun i -> (let (trace, _) = hidden in (let _ = trace \"e\" in Stdlib.List.fold (Stdlib.List.range 1 2000) i (fun a x -> a + x))))))"
@@ -398,7 +398,7 @@ let private predicted () =
 /// host's are.
 let private predictingState () : Task<RT.ExecutionState> =
   task {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false
     return
       { state with
           fnPurity =
@@ -414,7 +414,7 @@ let private visibleEffectStartsNothing =
     do!
       predictingDuring (fun () ->
         task {
-          let! state = executionStateFor pmPT false Map.empty
+          let! state = executionStateFor pmPT false
           let code =
             "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 100) (fun i -> (let _ = (if i == 999 then Builtin.testTrace \"never\" else ()) in i * 2)))"
           let struct (_, impure0, _) = predicted ()
@@ -464,7 +464,7 @@ let private wrongPureFallsBack =
     do!
       predictingDuring (fun () ->
         task {
-          let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+          let! (state : RT.ExecutionState) = executionStateFor pmPT false
           let liar = { state with fnPurity = fun _ -> Ply RT.Purity.Pure }
           let code =
             "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 100) (fun i -> (let _ = Stdlib.DateTime.now () in i * 2)))"

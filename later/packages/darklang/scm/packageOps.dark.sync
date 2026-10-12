@@ -1,0 +1,68 @@
+// RESTORE: packages/darklang/scm/packageOps.dark
+// WAS: identityProblem and setIdentity (the `dark identity <name>` validator), relay and setRelay (the stored relay url), and the SyncPlan type.
+// CORRECTION: an earlier version of this header said `storedIdentity` and `identity` STAYED and
+//      that an op's author is still stamped with them. A later round of the same molt removed both,
+//      and the author with them. They are carried by the sibling fragment
+//      later/packages/darklang/scm/packageOps.dark.identity, which must come back WITH this one.
+//      Note that the two fragments overlap: both define identityProblem and setIdentity, so apply
+//      one and check before applying the other rather than inserting both.
+// ANCHOR: identityProblem through setRelay sat between `identity ()` and the SyncPlan type; SyncPlan sat between setRelay and the OpSummary type
+// ALSO: later/packages/darklang/cli/sync/ is the feature; later/packages/darklang/sync/packageOpsSync.dark is what built a SyncPlan
+// WHEN: the sync molt, 2026-10-12
+
+/// What a sync-import from <param sourceId> will reconcile. `conflicts` are detected but NOT yet recorded,
+/// and `names` are the names the import touches (they become the new bases once the fold lands).
+/// `bulk` means the import was ADOPTED WHOLESALE without per-name detection; `detected` says whether the
+/// detector actually ran, so a caller never reports "no conflicts" when it really means "didn't look".
+type SyncPlan =
+  { conflicts: List<Conflicts.Conflict>
+    bulk: Bool
+    detected: Bool }
+/// Whether <param name> can be an instance identity, and why not when it cannot.
+///
+/// An identity travels as a query parameter and comes back in the relay's owner listing, one owner
+/// per line. So a space makes that listing unparseable and every peer's automatic branch sync
+/// silently skips you, and an `&` is read as a second parameter, which files your ops under two
+/// owners and makes your branches unpullable by name. Neither fails loudly anywhere.
+///
+/// Letters, digits, dot, dash and underscore. Narrow on purpose: an identity is a name you retype on
+/// another machine, and the auto-minted `inst-<uuid>` fits well inside it.
+let identityProblem (name: String) : Stdlib.Option.Option<String> =
+  if name == "" then
+    Stdlib.Option.Option.Some "an identity can't be empty"
+  else
+    let bad =
+      name
+      |> Stdlib.String.toList
+      |> Stdlib.List.filter (fun c ->
+        let ok =
+          (Stdlib.Char.isAlphanumeric c)
+          || (c == '.')
+          || (c == '-')
+          || (c == '_')
+
+        Stdlib.Bool.not ok)
+
+    match bad with
+    | [] -> Stdlib.Option.Option.None
+    | c :: _ ->
+      let shown = Stdlib.toString c
+      Stdlib.Option.Option.Some
+        $"an identity can't contain \"{shown}\" -- letters, digits, dot, dash and underscore only, because it travels in a url and comes back in the relay's owner list"
+
+
+/// Set (or change) this instance's sync identity. Refuses one that cannot survive the round trip.
+let setIdentity (name: String) : Stdlib.Result.Result<Unit, String> =
+  match identityProblem name with
+  | Some why -> Stdlib.Result.Result.Error why
+  | None ->
+    let _ = Stdlib.LocalStore.configSet "sync.identity" name
+    Stdlib.Result.Result.Ok()
+
+
+/// The remembered default relay URL, or "" if none (so `dark sync` needs no url).
+let relay () : String = Stdlib.LocalStore.configGet "sync.relay"
+
+let setRelay (url: String) : Unit =
+  let _ = Stdlib.LocalStore.configSet "sync.relay" url
+  ()

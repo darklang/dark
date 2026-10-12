@@ -352,10 +352,7 @@ let extractFromValue (value : PT.PackageValue.PackageValue) : List<Dependency> =
 /// Everything a test's body refers to. Nothing can refer to a test, so a
 /// test only ever depends on things; it is never a dependency itself.
 let extractFromTest (test : PT.PackageTest.PackageTest) : List<Dependency> =
-  extract (
-    Expr test.body :: (test.testDBs |> List.map (fun (_, typ) -> TypeRef typ))
-  )
-  |> List.distinct
+  extract [ Expr test.body ] |> List.distinct
 
 
 /// Extract all references from a type definition

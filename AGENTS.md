@@ -1,8 +1,14 @@
 # Darklang Monorepo
 
-Darklang is a language, editor and infrastructure in one. This repo holds the F# runtime
-(`backend/`) and the Darklang standard library and CLI, written in Darklang itself
-(`packages/`).
+Darklang is a local CLI for managing a few repositories of your own code across your own
+machines: you navigate and edit a tree of package items by keyboard, and the language they are
+written in is Darklang. This repo holds the F# runtime (`backend/`) and the Darklang standard
+library and CLI, written in Darklang itself (`packages/`).
+
+It used to say "a language, editor and infrastructure in one", and that was true of a bigger
+product than this tree now contains. Anything hosted, networked or shared either does not exist
+here or does not exist yet: there is no relay, no sync, no accounts, no user databases and no
+editor extension. Do not build on the assumption that this is a cloud platform.
 
 ## Start the dev container first
 
@@ -164,13 +170,12 @@ only line that named the real place was the first one, `offside of context start
     ./scripts/run-backend-tests --find mergeFavoring  what matches, and how to run it
     ./scripts/testing/test-build-planning.py          tests of the build itself
     ./scripts/testing/gates list                      the gate scripts, one line each
-    ./scripts/testing/gates <name>                    one gate (setup, relay-routes, first-day, ...)
+    ./scripts/testing/gates <name>                    one gate (first-day, workbench-scm, ...)
     ./scripts/testing/gates ci                        the subset CI runs, each bounded by 5m. Serial;
-                                                      `--parallel` locally (2m50 -> 41s, measured)
+                                                      `--parallel` locally
     ./scripts/testing/gates all                       every gate except gates-are-clean, the slow
                                                       meta-gate that re-runs the rest itself. All at
-                                                      once (10m32 -> 4m20, measured; sync-multi-instance
-                                                      alone is 4m); `--serial` for the old way
+                                                      once (40s, measured); `--serial` for the old way
     ./scripts/perf/gate --published                   reference workload, allocation vs budget
     ./scripts/perf/gate                               the same, debug: reports, does NOT gate
     ./scripts/perf/suite                              six workloads, allocation per iteration
@@ -437,14 +442,13 @@ says nothing at all.
         Host/             #   the checked host boundary: the only code that may
                           #   touch the OS (enforced by tests/hostBoundary)
       LibParser/          # parser
-      LibDB/              # package DB, branches, SCM ops, user DB, SQLite
+      LibDB/              # package DB, branches, SCM ops, SQLite
                           # plumbing (LibDB.Sqlite), tracing recorder
       Builtins/           # Cli, CliHost, Http.Client, Http.Server, Language,
                           # Matter, Pure, Random, Time
     packages/darklang/    # .dark files
       cli/                # the CLI app: registry, loop, workbench, outliner, etc.
       scm/                # SCM library (branches, merge, conflicts, propagation, packageOps)
-      sync/               # sync, on top of SCM: wire codec, import planning, the hosted relay
       stdlib/             # standard library
         cli/stdin.dark    #   reads keys
         cli/tui/          #   paints: view types, frame diffing, terminal session
@@ -461,11 +465,22 @@ says nothing at all.
     scripts/testing/      # gates (the one runner) + _gates-* (the gates), fixtures/, hand tools
     benchmarks/           # the committed benchmark record, rendered to results.md
     scripts/              # everything else
+    later/                # NOT the product; see below. Mirrors the repo paths it came from.
+
+## later/
+
+A root-level directory holding code that is not part of the product. Nothing in it is built,
+loaded, tested, linted or formatted: the F# is out of `backend/fsdark.sln`, the `.dark` is outside
+`packages/` so the reload never sees it, and seven separate tools prune it (`_buildplan.py`,
+`_dev.py`, `format`, `shellchecker`, `yamllinter`, `.fantomasignore`, `.dockerignore`). It is
+allowed to rot. `later/README.md` is the whole story and the only place that needs to tell it.
+
+What it means for you: a name you grep for may exist only in there, in which case it is not a
+caller, not a definition and not evidence. `--include=*.dark` over the whole repo will find it.
 
 ## Logs (rundir/logs/)
 
     cli.log              # CLI runtime issues
-    lsp.log              # LSP input/output
     packages.log         # .dark loading from disk
     build.log            # the last scripts/dev/build
     watch.log            # a detached scripts/dev/watch
@@ -527,9 +542,9 @@ The decisions live in Dark; F# does what only F# can do (parse, hash, serialize,
       packageOps.dark          #   package_ops: the log, and branches as overlays
       branches.dark            #   branches, op_branches, branch_name_bases; canMerge lives here
       commits.dark             #   commits
-      conflicts.dark           #   conflicts, sync_bases; the base-agnostic detector
+      conflicts.dark           #   conflicts; the base-agnostic detector
       constraints.dark         #   standing findings (outdated usages)
-      propagation.dark         #   propagation_policy: pin and follow
+      propagation.dark         #   propagation_policy: who follows what moved
       draft.dark               #   one answer to "what have I changed"
       storeHealth.dark         #   what can be wrong with the STORE
 
@@ -556,33 +571,32 @@ rows, which is a second statement of the same table and still wants changing in 
 **A branch is an overlay, not a copy.** Its ops live in the same table, stored `effective = 0` and tagged in
 `op_branches`. A branch's package manager is main's with those ops layered on top.
 
-**A synced store's own log holds ops it cannot read.** A peer on a different build sends ops this
-binary's deserializer rejects. They are STORED and left unapplied deliberately, so a later build can
-apply them, which means they sit in the local log where every local reader meets them. So "off the
-wire it may be garbage, but the LOCAL log is ours, raise if it will not parse" is false. A reader
-that raises dies on the first such op and stays dead (`dark propagate pin` with a raw
-`BinaryFormatException`); a writer that deletes main's log and re-inserts what it read destroys them.
-The rule: ONE decoder, it returns an Option, every reader tolerates, and no writer deletes what it
-could not decode (`Inserts.wholeMainDeletes` excludes them by id).
+**A store's own log can hold ops it cannot read.** Written when ops arrived over a wire from a
+peer on a different build, which no longer happens in this tree; it still holds for any op this
+binary's deserializer rejects, including one an older build of this binary wrote. Such ops are
+STORED and left unapplied deliberately, so a later build can apply them, which means they sit in
+the local log where every local reader meets them. So "the LOCAL log is ours, raise if it will not
+parse" is false. A reader that raises dies on the first such op and stays dead (once seen as a raw
+`BinaryFormatException` out of a propagation command); a writer that deletes main's log and
+re-inserts what it read destroys them. The rule: ONE decoder, it returns an Option, every reader
+tolerates, and no writer deletes what it could not decode (`Inserts.wholeMainDeletes` excludes
+them by id).
 
-**A pull cursor can point past ops you do not have.** The cursor is a position in the RELAY's log, and
-nothing ties it to what you actually applied. `dark pull` then answers "Pulled 0 new op(s)" forever
-while `dark sync status` correctly says you are thousands of ops behind. The client rewinds on its own
-(relay-instance mismatch, or an empty bundle while the relay holds more ops than you), but the
-CAUSE is still there, and it is narrower than it looks. `LocalExec` calls `LibDB.Purge.purge ()` before
-a package reload: it wipes the store and re-authors every item from the `.dark` files on disk, and a
-colleague's ops are not in those files. Measured: 28,372 ops before a build, 12,692 after. `LocalExec`
-is dev tooling, so this is a dev-clone fact, not a product one, and we are deliberately not fixing it.
-If you sync with someone from a dev clone, expect to lose their ops on every build and to re-pull them.
+**A build eats ops that are not in `packages/`.** `LocalExec` calls `LibDB.Purge.purge ()` before a
+package reload: it wipes the store and re-authors every item from the `.dark` files on disk, so
+anything you authored by hand is gone. Measured once at 28,372 ops before a build and 12,692 after;
+the absolute numbers depend on the tree and are smaller now, the halving is the point. `LocalExec`
+is dev tooling, so this is a dev-clone fact rather than a product one, and we are deliberately not
+fixing it.
 
 **Authoring looks like the same bug and is not.** `WipRefresh.refresh` runs on EVERY author, in any
 binary, and it also deletes the whole non-branch log and re-inserts. The difference is where the
 re-insert reads from: `Queries.getWipOps` reads the DATABASE, and it carries the same
 `WHERE effective = 1 AND id NOT IN (SELECT op_id FROM op_branches)` as `Inserts.draftDeletes` and
-`Inserts.wholeMainDeletes`. Delete and read cover the same set, so a peer's op goes out and comes back.
-That symmetry is the whole safety property. Break it in either direction and authoring silently eats ops
-that arrived over the wire: without the id exclusion the undecodable ops go, and without `effective = 1`
-a self-hosted relay's hosted ops go.
+`Inserts.wholeMainDeletes`. Delete and read cover the same set, so an op goes out and comes back.
+That symmetry is the whole safety property. Break it in either direction and authoring silently eats
+ops: without the id exclusion the undecodable ones go, and without `effective = 1` anything stored
+inert goes.
 
 **This is the trap.** `locations` has NO `branch_id`. A branch has no rows there at all, so any read that
 goes straight to `locations` answers about MAIN while you are standing on a branch -- and it answers
@@ -650,8 +664,8 @@ authoring through `WipRefresh` goes down, is the one to watch. The parser's own 
 because the checker has not run yet.
 
 **The disk-load path records choices too, and it is the reason a reload rehashes so much.**
-`resolveTraitCalls` runs from `addAuthored` (so `dark fn`/`impl`/`module`, the editor and the
-LSP) and from `LocalExec.reloadPackages`, which authors `packages/` off disk. The reload path
+`resolveTraitCalls` runs from `addAuthored` (so `dark fn`/`impl`/`module` and the workbench)
+and from `LocalExec.reloadPackages`, which authors `packages/` off disk. The reload path
 does it in the same order the authoring path does, pins at the hashes in hand and then
 `computeRealHashes` to move them, and it prints how many ops moved. Recording a choice changes
 an item's content hash and every caller's hash moves with it, so the op count it reports is
@@ -670,8 +684,8 @@ highlighting. Check `(pe: WrittenTypes.PipeExpr)` against
 
 **Every switch over item kinds has five arms.** Types, values, fns, traits, impls.
 A new listing, codec, or CLI command that handles three of them silently drops the
-other two; `ls`, `tree`, `search`, completion, the workbench, the relay browser and
-the LSP all handle all five, and the names-only search builtins return six lists.
+other two; `ls`, `tree`, `search`, completion and the workbench all handle all
+five, and the names-only search builtins return six lists.
 `ProgramTypes.ItemKind.toString`/`fromString` is the one spelling of the kinds as
 strings, on both sides of the line (`PT.ItemKind` in F#, `LanguageTools.ProgramTypes`
 in Dark); they write the same `item_type` column, so change one and change both.
@@ -686,7 +700,8 @@ listing filters the folder out through `LanguageTools.PackageManager.Search.read
 and orders its sections by `Cli.Glyphs.kindOrder`. Five surfaces decided this for
 themselves at one point or another, and the one that forgot showed seventeen empty
 folders and no implementations. It lives in the package manager rather than in the CLI
-because the LSP needs it too.
+because every reader needs it, which was true of the LSP when the LSP was in this tree
+and is the reason to leave it where it is.
 
 **A bare trait name falls back to the stdlib.** `impl Add for Point` in any module
 means `Stdlib.Add` unless something closer is called Add (both resolvers,
@@ -718,19 +733,29 @@ package manager" at dispatch.
 
 ## Changing the schema
 
-**A `migrations/schema/*.sql` file is frozen once it has merged to main.** Those files declare the shape
-a FRESH store is born with, and they are read by every store that has ever been made from them. Editing
-one after it has merged makes the same filename mean two different things depending on when you pulled.
+**`migrations/schema/00-initial-schema.sql` is ONE file, edited in place.** It declares the shape a
+FRESH store is born with. It used to be fourteen numbered subsystem files, each frozen once merged, so
+that a filename meant the same thing in every store ever made from it. That rule was dropped when the
+molt made every pre-existing store unopenable anyway: a store older than the cut is not supported, and
+`dark` tells you to delete it and start again rather than pretending to upgrade it.
 
 So:
 
-- A NEW TABLE goes in a NEW numbered file (`10-executions.sql`), never appended to a merged one.
-- A file that has not merged yet is still yours: edit it in place until the PR lands.
-- A NEW COLUMN on an already-merged table is the one exception, and it takes both halves:
-  - declare it in the file that declares the table, for fresh stores, with a comment saying why;
+- A NEW TABLE or INDEX goes in a stamped file beside it (`scripts/migrations/new` makes one), or
+  straight into `00-initial-schema.sql` while the PR is unmerged. Filename order is still the apply
+  order, and a FK target must be declared before the table that references it.
+- A NEW COLUMN takes BOTH halves, and this is the one to get right:
+  - declare it on the table in `00-initial-schema.sql`, for fresh stores;
   - carry it to existing stores with a step in `LibDB/Releases.fs`.
-  There is no third option: a schema file only ever runs `CREATE TABLE` / `CREATE INDEX` /
-  `INSERT OR IGNORE` statements (`Releases.applySchemaTables`), so a patch file cannot `ALTER`.
+  A schema file only ever runs `CREATE TABLE` / `CREATE INDEX` / `INSERT OR IGNORE`
+  (`Releases.applySchemaTables`), so it cannot `ALTER`, and a step is the only thing that can.
+
+**Skipping the first half is invisible until somebody collapses the schema.** `addColumnIfMissing`
+runs on a FRESH store too -- the table exists, the column does not, so it adds it -- which means a
+column declared ONLY in a step still appears in a new store, and nothing ever says the schema file is
+incomplete. Twelve columns on `traces` and `trace_fn_calls` were in exactly that state, and the only
+thing that surfaced them was deleting the steps and watching a fresh store fail on `no such column:
+status`. If you add a column, grep the schema file for it before you call it done.
 
 Adding a file changes the schema hash, which drops and re-folds the projection tables. That is cheap and
 expected; canonical tables are never dropped, which is the reason a column needs the `Releases` step.
@@ -782,6 +807,22 @@ THE OUTPUT DISAGREED WITH THE FILE. A five-element list reported "10 reads", the
 name, a number in a string) and check the output moved. To test an edited module without
 re-approving, load it under a fresh module path, which needs `permissions approve` per function
 anyway since a fresh name has none.
+
+**An exclusion list that never fired looks exactly like one that did, and `find` will hand you
+one for free.** `scripts/linting/yamllinter` carried a prune list for years that had never
+excluded anything: the prunes sat AFTER the `-type f` test, which makes every one of them
+unreachable, so the walk descended into whatever was there. Nobody noticed until a move put a few
+hundred vendored yaml files in its path and it started failing on code nobody here wrote. In
+`find`, prunes come first: `find . \( -path ./x -o -name y \) -prune -o -type f -print`.
+
+The second half is the general one. A tool you have excluded something from is worth RUNNING once
+to see that the exclusion took, and worth giving a floor: this one now refuses a walk that matches
+fewer than three files, because "matched nothing" was not a floor at all while one of the two
+remaining files was enough to satisfy it. Two other checks on this tree had the same shape at the
+same time: `tests/builtin` scanned the whole repo for Dark callers including the directory that
+holds code nothing runs, so a builtin whose only wrapper had left went on looking alive; and a
+typecheck gate compared its report's coverage against a number from inside the same report, which
+is a check that cannot fail.
 
 **Never conclude an ABSENCE from output you truncated or filtered.** This is the one that gets
 through, because it produces a confident negative, and a negative is the result nobody re-checks:
@@ -843,23 +884,6 @@ failing rather than the server working. The same family: `2>&1` on a command who
 to parse as JSON merges a warning into the payload and the parse failure reads as a product bug.
 All of these presented as product failures here and all of them were the harness.
 
-**A wasm publish piped to `tail` looks like a 40-minute hang.** `dotnet publish` spawns MSBuild
-worker nodes with `/nodeReuse:true`. They inherit stdout and outlive the parent, so the pipe never
-closes, `tail` never gets EOF, and whatever error dotnet printed sits in its buffer unseen: the
-child exits, the shell stays, and `rundir/wasm-repl` stays empty with no exit code and no
-diagnostic. Run it to a FILE with node reuse off, and nothing else building in that container,
-since a Release wasm publish rebuilds the same project references and two of them fight over
-obj/bin:
-
-    MSBUILDDISABLENODEREUSE=1 dotnet publish backend/src/Wasm/Wasm.fsproj -c Release \
-      -o rundir/wasm-repl -nodeReuse:false > rundir/logs/wasm-publish.log 2>&1
-
-A real publish is 4 to 8 minutes and leaves hundreds of MB in `backend/Build/obj/Wasm` within the
-first couple of minutes; `obj` still tiny means it never got past restore, which is not slowness.
-Progress markers in the log, in order: restore, `Wasm -> ... Darklang.Wasm.dll`, `AOT'ing N
-assemblies`, then the emscripten link and `wasm-opt`, which is single-threaded and the long tail.
-(Diagnosed by the wasm-preview session, which named it from a one-line symptom.)
-
 **`backend/Build` is a container volume, so from the host it reads as EMPTY.** `ls`, `du` and
 `find` against it from the host return nothing at all, with no error, whether or not the binary is
 there. Everything here is driven through `./scripts/*` from the host, which is exactly the habit
@@ -912,13 +936,15 @@ resolution.** Switching branches makes the hash file stale, the documented fix i
 and the build that regenerates it runs the whole reload with the trait hashes still empty. So
 `NumericTraits` maps no operator to any trait, the at-rest checker correctly finds nothing to
 resolve, and the reload prints `Resolved trait calls: 0 op(s) moved` where the same tree prints
-4,586 once the file is populated. The second build is the one to believe. Two tells separate the
+some thousands once the file is populated. Do not compare against a remembered figure: the count
+moves with the tree, and it fell by about a fifth when the molt took code out. ZERO is the tell,
+not any particular number. The second build is the one to believe. Two tells separate the
 artifact from a real regression, and the duration is the clearer of them: the reload takes about
 20 seconds instead of about 100, because the expensive whole-tree check is finding nothing rather
 than not running.
 
 This cost an hour, most of it spent bisecting four innocent checker files, and it was only
-settled by putting a probe on a branch known to pin 4,586 and watching it report zero as well. A
+settled by putting a probe on a branch known to pin thousands and watching it report zero too. A
 branch cannot regress against itself, so the moment both trees agreed the cause had to be
 environmental. When a number collapses, test the instrument against a known-good tree BEFORE
 reading any diffs.
@@ -926,8 +952,9 @@ reading any diffs.
 If you need to tell a real zero from this one, the three counts inside `Decode.report` in
 `Builtins.Matter/Libs/PM/TraitCalls.fs` are what distinguish them: `rawItems` is what the checker
 returned, `decoded` is what matched the item pattern, and `withResolutions` is what carried
-anything. `rawItems=0` means the checker reported nothing; `rawItems=6817 decoded=5874
-withResolutions=916` is a healthy run.
+anything. `rawItems=0` means the checker reported nothing, and three numbers in the thousands with a
+non-zero `withResolutions` is a healthy run. The absolute values move with the size of the tree,
+so read the shape rather than matching the figures.
 
 **Name resolution in test files.** `backend/testfiles/` is parsed with owner "Tests", so
 `Darklang.*` names need full qualification or the `Stdlib.` shortcut. `Stdlib.Json.ParseError.toString`
@@ -1110,31 +1137,38 @@ application references in the driver's value position so they are stamped broad 
 captured values when changing applicable decoding; attenuating code references can lock
 down the entire CLI.
 
-## Scratch stores carry the real relay
+## A scratch store inherits config you did not mean to give it
 
-A copy of `rundir/data.db` inherits its config: `sync.relay`, the write secret, the push cursors. So a
-throwaway store is pointed at the PRODUCTION relay until you say otherwise, and one sync-shaped command
-reaches it. `dark review pull` with no url does exactly that, quietly, because the url is a stored default.
+A copy of `rundir/data.db` carries its config with it: which branch it is on, this instance's
+identity, and whatever else `config_v0` holds. So a throwaway store is not a fresh store, and the
+difference shows up as a test standing somewhere it did not expect to be.
 
     sqlite3 "$scratch/data.db" 'DELETE FROM config_v0;'   # all of it, not just current_branch
 
-There are THREE config stores, and that line only clears one: `config_v0` in sqlite, `cli-config.json`
-beside the db (instance id and name), and `$HOME/.darklang/capabilities.bin`.
+Clearing only `current_branch%` is the trap: it looks like isolation and is not.
 
-That third one is keyed on **HOME**, not `DARK_CONFIG_RUNDIR`, so an isolated store does NOT isolate it. A
+There are FOUR config stores, and that line only clears one: `config_v0` in sqlite,
+`cli-config.json` beside the db (instance id and name), `$HOME/.darklang/capabilities.bin`, and
+`credentials_v0` in `credentials.db` beside the store (`LibDB/Config.fs`). Copying a store
+DIRECTORY carries all of it; copying `data.db` alone does not, which is the shape to prefer for a
+scratch store. `credentials.db` is also not covered by `dark backups`, so a restored backup comes
+back without it. Nothing in the base tree writes a credential any more, since the only thing that
+did was the relay, but the store and its guard are still there: `Builtin.configGet` refuses a
+credential key rather than returning "", so a caller cannot read one and cannot mistake a refusal
+for "nothing configured".
+
+The capabilities one is keyed on **HOME**, not `DARK_CONFIG_RUNDIR`, so an isolated store does NOT isolate it. A
 `dark caps grant ...` in a throwaway store writes the real grant for the whole container. Worse, the file's
 ABSENCE is what makes the host permissive (`hostCaps` returns allCaps only while there is no file), so
 creating one narrows every process under that HOME. One `caps grant` from a sweep turns ten suite tests
 red with "capability denied: `sqliteQuery` needs file (read)", and the fix is to delete the file rather
 than to grant more. Set `HOME` as well as `DARK_CONFIG_RUNDIR` when a test touches `caps`.
 
-Clearing only `current_branch%` is the trap: it looks like isolation and leaves the relay wired up.
-
 **Your own experiments in the dev store break every gate that commits.** The gates start from a copy
 of `rundir/data.db`, and `dark commit` refuses a store holding unresolved references. So one
 throwaway item authored by hand, referring to something that never resolved, fails
-`workbench-scm` and `sync-multi-instance` with symptoms that look nothing like the cause: a
-fixture times out waiting for its own commit to appear. The gates guard against the CONFIG a
+`workbench-scm` with symptoms that look nothing like the cause: a fixture times out waiting for
+its own commit to appear. The gates guard against the CONFIG a
 copied store inherits and not against its draft. Author experiments into an isolated
 `DARK_CONFIG_RUNDIR`, or `dark discard -y` before running gates; `dark status` says whether the
 draft is clean.
@@ -1142,31 +1176,33 @@ draft is clean.
 One consequence worth knowing: an isolated store usually looks like a FIRST RUN, and Home shows its welcome
 PANEL instead of a row's detail, so a test waiting for anything a populated Home draws waits forever. Do not
 anchor a workbench test on the greeting either way: "Welcome, <name>" is on every Home, and the panel is the
-part that distinguishes a new instance. The header's `who @ where` (` @ `) is the stable "it started" marker.
+part that distinguishes a new instance. The stable "it started" marker is the frame's top border
+(`╭`), because it is the one thing every frame has at every size. It used to be the header's
+`who @ where` (` @ `), which four fixtures anchored on and which stopped existing the day accounts
+did. The replacement has to survive expect's default 80 columns, where there is no nav strip at all
+and the header is just the branch and the instance, so neither `1 Home` nor a fixed name works.
 
-## Standing up a relay in a test
+## Standing up a server in a test
 
-Two traps, both of which read as product bugs and are not:
+Two traps, both of which read as product bugs and are not. Written while the relay existed; they
+are about background processes in tests, so they outlived it and apply to anything a test starts,
+`dark serve` included.
 
-**A stray relay answers on the port you expected.** One left over from an earlier run holds the port with
-a secret you have forgotten, your new relay never binds, and every push comes back `HTTP 401: that write
-secret isn't the one this relay expects`. It looks exactly like broken auth. Do not reach for
-`pkill -f Matter.router`: it takes out every relay in the container, including one somebody is running
-by hand in tmux. Pick a port of your own, refuse to start if it is taken, trap the pid you started, and
-check that pid is the one alive:
+**A stray server answers on the port you expected.** One left over from an earlier run holds the
+port, your new one never binds, and every request gets the old one's answers. It looks exactly
+like the thing under test being wrong. Do not reach for `pkill -f <name>`: it takes out every one
+in the container, including one somebody is running by hand in tmux. Pick a port of your own,
+refuse to start if it is taken, trap the pid you started, and check that pid is the one alive:
 
     PORT=$(( 9200 + RANDOM % 300 ))
     ss -ltn | grep -q ":$PORT " && { echo "port $PORT in use; re-run"; exit 2; }
     ... start it ... & RPID=$!; trap 'kill $RPID 2>/dev/null' EXIT
-    kill -0 $RPID || { echo "the relay we started is not running"; exit 2; }
+    kill -0 $RPID || { echo "the server we started is not running"; exit 2; }
 
-**A bare `wait` also waits on the relay.** The relay is a background job of the same shell, and it never
-exits, so `wait` after a couple of parallel pushes hangs forever with no output and no CPU. Name the pids:
-`wait $PA $PB`. A hung script with an empty log looks like a hung PRODUCT, so this one is worth ruling
-out first.
-
-The sync-multi-instance gate (`scripts/testing/_gates-sync`) does both correctly and is the place
-to copy from.
+**A bare `wait` also waits on the server.** It is a background job of the same shell and it never
+exits, so `wait` after a couple of parallel requests hangs forever with no output and no CPU. Name
+the pids: `wait $PA $PB`. A hung script with an empty log looks like a hung PRODUCT, so this one is
+worth ruling out first.
 
 ## Interactive CLI testing
 
@@ -1227,12 +1263,11 @@ needs one works: `dark edit` really opens `$EDITOR`, and you drive it with more 
 Poll `capture-pane` in a loop rather than sleeping between steps; a command that shells out
 per invocation takes a second or more, and the pane is the only thing that tells you it is done.
 
-For a command that just asks QUESTIONS (`dark sync setup`, `dark conflicts walk`), reach for `script`
+For a command that just asks QUESTIONS (`dark conflicts walk`, `dark commit`), reach for `script`
 before `expect`. It gives a pty and takes the answers on stdin, so there is no pattern matching
 to get wrong:
 
-    printf 'name\nhttp://localhost:9099\n<secret>\n' \
-      | script -qec "$CLI sync setup" /dev/null
+    printf 'y\n' | script -qec "$CLI conflicts walk" /dev/null
 
 `expect` is worth it only when you must react to what comes back. Used for a plain question list it
 is easy to get subtly wrong, and the failure looks like the program hanging: an `expect` block with
@@ -1332,8 +1367,7 @@ between intermediate commits, and do not hand-apply what it would have done. Che
 formatting on every commit while more work is coming costs a cycle each time and changes
 nothing a reviewer sees. It reports `.dark` as `ignored`, so Dark is on you. Aim for 85
 there anyway. Some existing Dark files
-don't: `scm/packageOps.dark` and `sync/relay/protocol.dark` are written wider, and are not worth
-reflowing just to close the gap.
+don't: `scm/packageOps.dark` is written wider, and is not worth reflowing just to close the gap.
 
 ## Measuring text, and what may go native
 

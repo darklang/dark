@@ -1,0 +1,15 @@
+// RESTORE: packages/darklang/cli/workbench/detail.dark
+// WAS: `appDetail`, the Apps view's detail pane: the app's name and its lifecycle key hints
+// ANCHOR: between conflictDetail and traceDetail
+// ALSO: later/packages/darklang/cli/apps/ is the framework it belonged to
+// WHEN: the sync molt, 2026-10-12
+
+/// The selected app's detail (name/description + lifecycle hints). Placeholder actions for now.
+let appDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    item.name
+    + "\n\n"
+    + "⏎ inspect    i install/uninstall    r start    s stop\n\n"
+    + "(each traces the matching `apps` subcommand in-frame - output opens in the reader)"
+  | None -> "(no app selected)"

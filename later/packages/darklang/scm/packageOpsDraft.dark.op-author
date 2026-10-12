@@ -1,0 +1,43 @@
+// RESTORE: packages/darklang/scm/packageOpsDraft.dark
+// WAS: the per-op AUTHOR, read from `op_owners`, and the two branches of the superseded-override
+//      fold that asked whether an op was yours or a peer's. An empty author meant yours.
+// ANCHOR: the subselect was the third column of the superseded-overrides query; the `author`
+//      binding opened the fold step; the two `if author == ""` branches were in the Override and
+//      SetName arms.
+// NOTE: `op_owners` was never written once the relay's store path left, so `author` was always
+//      "" and the fold already behaved as the simplified version does. The table went with it.
+// WHEN: the sync molt, 2026-10-12
+
+// --- packages/darklang/scm/packageOpsDraft.dark ---
+        "SELECT id, op_blob,
+                (SELECT o.owner FROM op_owners o WHERE o.op_id = id LIMIT 1) AS author
+         FROM package_ops
+         WHERE effective = 1 ORDER BY origin_ts, rowid"
+
+// --- packages/darklang/scm/packageOpsDraft.dark ---
+            let author =
+              Stdlib.Sqlite.textField row "author" |> Stdlib.Option.withDefault ""
+
+            match Stdlib.Uuid.parse idStr with
+
+// --- packages/darklang/scm/packageOpsDraft.dark ---
+              | Some(Decision(_, loc, _, Override target)) ->
+                if author == "" then
+                  let h = hashOf target
+                  Stdlib.Dict.setOverridingDuplicates acc (decisionKey loc) (loc, h, h)
+                else
+                  // A peer's override displaces whatever record was open: from here on the standing
+                  // choice on this name is theirs, not yours.
+                  Stdlib.Dict.remove acc (decisionKey loc)
+              | Some(SetName(loc, target, _)) ->
+                match Stdlib.Dict.get acc (decisionKey loc) with
+                | None -> acc
+                | Some entry ->
+                  if author == "" then
+                    Stdlib.Dict.remove acc (decisionKey loc)
+                  else
+                    let (l, chosen, _live) = entry
+                    Stdlib.Dict.setOverridingDuplicates
+                      acc
+                      (decisionKey loc)
+                      (l, chosen, hashOf target)

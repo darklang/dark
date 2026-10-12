@@ -65,9 +65,6 @@ let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
     match Stdlib.Int.parse value with
     | Ok n when n >= 0 -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.Some $"{key} takes a whole number (0 = none), not {value}"
-  else if key == "live.autopush" then
-    if (value == "on") || (value == "off") then Stdlib.Option.Option.None
-    else Stdlib.Option.Option.Some "live.autopush is on or off"
   else if key == "trace.record" then
     if (value == "on") || (value == "off") then Stdlib.Option.Option.None
     else Stdlib.Option.Option.Some "trace.record is on or off"
@@ -115,26 +112,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     writeConfig updatedConfig
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} = {value}")
 
-    // Show the implied local URL for well-formed app port settings.
-    match Stdlib.String.split key "." with
-    | [ "apps", _, "port" ] ->
-      match Stdlib.Int.parse value with
-      | Ok port ->
-        if port >= 1 && port <= 65535 then
-          Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  → http://localhost:{value}")
-        else
-          ()
-      | Error _ -> ()
-    | _ -> ()
-
     state
 
   | ["list"] ->
     // List all common config keys
     [ "Common configuration keys:"
       ""
-      "  live.autopush            - Every save commits and pushes to the relay (on/off; default: off)"
-      "  apps.sync.intervalMs     - How often the sync daemon pulls from the relay (default: 5000)"
       "  exec.workers             - Scheduler worker threads (default: one per core)"
       "  exec.policy              - Expert: a Dark fn picking the next process (default: round robin)"
       "  exec.maxInstructions     - Expert: stop a process past this many instructions (default: none)"
@@ -185,9 +168,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   let configKeys =
-    [ "live.autopush"
-      "apps.sync.intervalMs"
-      "exec.workers"
+    [ "exec.workers"
       "exec.policy"
       "exec.maxInstructions"
       "exec.maxBytes"
@@ -212,9 +193,8 @@ let help (_state: Cli.AppState) : String =
     "  config list                - List common configuration keys"
     ""
     "Examples:"
-    "  config set live.autopush on"
-    "  config set apps.sync.intervalMs 2000"
-    "  config get trace.record"
+    "  config set trace.record on"
+    "  config get exec.workers"
     ""
     "`config list` names every key this reads, with its default." ]
   |> Stdlib.String.join "\n"

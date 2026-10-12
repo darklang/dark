@@ -27,7 +27,6 @@
     <Compile Include="PackageRefs.fs" />
     <!-- Static effects /-->
     <Compile Include="Effects.fs" />
-    <Compile Include="UnguardedOrigins.fs" />
     <!-- Host security /-->
     <Compile Include="Host/HostSecurity.fs" />
     <!-- Host boundary /-->
@@ -58,7 +57,6 @@
     <Compile Include="NumericTraits.fs" />
     <Compile Include="ProgramTypesAst.fs" />
     <Compile Include="CallGraph.fs" />
-    <Compile Include="RTQueryCompiler.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <!-- User+Runtime I/O /-->
     <Compile Include="DvalDecoder.fs" />

@@ -22,7 +22,7 @@ so read the first section below before the command list.
 
    A doc comment is not part of that: it is something said ABOUT the item, so
    editing one leaves the hash alone and repoints nobody. It is still a real
-   change that commits and syncs (an `UpdateDoc` op), and `view` shows it.
+   change that commits (an `UpdateDoc` op), and `view` shows it.
 
 A name is a separate thing from the item it points at. `Ux.Money.cents` is a
 binding, and editing the fn rebinds the name to the new version. That's why
@@ -185,41 +185,6 @@ the package tree you browse is derived from it and can be rebuilt.
 
 `ops` only READS. Every verb that changes the log is a root command.
 
-## Sync: the same work on your other machines
-
-Sync is optional and sits on top of everything above: it carries the op log
-between your instances through a relay. Nothing else here needs it.
-
-  connect <url>       remember a relay and push (do this once)
-  sync                push then pull -- what you run day to day
-  apps enable sync    set and forget: an auto-starting daemon syncs every 30s
-  config set sync.branches all
-                      sync moves every branch too, not just main
-  push / pull         one direction
-  sync status         are we in sync? (cheap, no transfer)
-  whoami              this instance's id
-  identity <name>     name it something readable
-
-  branch push <name>  put a branch on the relay
-  branch pull         bring your branches down on another machine
-
-  review pull [url] [queue]     stage someone's ops instead of applying them
-  review import <file> [queue]  same, from a bundle on disk
-  review <queue>                what's waiting in it
-  review approve <queue>        fold the queue into main
-  review reject <queue>         discard it
-
-A queue IS a branch, named by you (default "review"), so every branch verb
-works on it: `diff <queue>`, `log <queue>`, `conflicts branch <queue>`. The
-staged count is what's actually pending, not how much of the bundle was new to
-you -- a whole-log bundle is mostly ops you already have.
-
-DECISIONS TRAVEL, not just code. Version restores and constraint acks are
-ops, so they travel with their reasons.
-
-Branches are keyed by owner, so a branch follows YOU across machines: give
-both instances the same `identity`.
-
 ## For agents
 
 Every command that answers a question speaks `--json`, and it's the same data
@@ -256,6 +221,5 @@ committing would do without committing.
 
 ## What is not versioned here
 
-Runtime state, external files, and your local config (the relay url, your
-identity, the current branch) -- that last group is deliberately per-install
-and never syncs."""
+Runtime state, external files, and your local config (your identity, the
+current branch) -- that last group is deliberately per-install."""

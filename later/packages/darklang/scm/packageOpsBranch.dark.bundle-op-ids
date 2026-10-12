@@ -1,0 +1,13 @@
+// RESTORE: packages/darklang/scm/packageOpsBranch.dark
+// WAS: `branchOpIds`, the ids of the ops tagged to a branch
+// ANCHOR: between the predicate above it and the next listing helper
+// ALSO: its own doc said what it was for: 'what a bundle of it carries'. Bundles left with later/packages/darklang/scm/packageOpsBundles.dark and `dark branch export`/`import`.
+// WHEN: the sync molt, 2026-10-12
+
+/// The ids of the ops tagged to <param branchId>: what a bundle of it carries.
+let branchOpIds (branchId: Uuid) : List<String> =
+  Stdlib.Sqlite.columnP
+    (localDb ())
+    "SELECT op_id FROM op_branches WHERE branch_id = @p0"
+    [ Stdlib.toString branchId ]
+    "op_id"

@@ -1151,10 +1151,7 @@ module PackageTest =
           expectedError =
             test.expectedError
             |> Option.map (function
-              | WT.RuntimeError message -> PT.ExpectedError.RuntimeError message
-              | WT.SqlCompilerError message ->
-                PT.ExpectedError.SqlCompilerError message)
-          testDBs = [] }
+              | WT.RuntimeError message -> PT.ExpectedError.RuntimeError message) }
     }
 
 

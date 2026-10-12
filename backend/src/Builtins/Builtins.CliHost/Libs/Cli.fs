@@ -27,7 +27,6 @@ module Json = Builtins.Pure.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
 module Utils = Builtins.CliHost.Utils
-module Toplevels = LibCloud.Toplevels
 module Tracing = LibDB.Tracing
 module P = LibParser.Parser
 module WT = LibParser.WrittenTypes
@@ -40,15 +39,6 @@ module AstTransformer = LibDB.AstTransformer
 module PackageLocation = LibDB.PackageLocation
 module PolicyToDT = LibExecution.PermissionsToDarkTypes
 module PolicyStore = LibDB.PolicyStore
-
-
-/// Load all DBs from the global toplevel set.
-let loadDBs () : Ply<Map<string, RT.DB.T>> =
-  uply {
-    let! tls = Toplevels.loadAllDBs ()
-    let! program = Toplevels.toProgram tls
-    return program.dbs
-  }
 
 
 type CliTraceSource =
@@ -662,11 +652,9 @@ let childState
   (parentState : RT.ExecutionState)
   (pm : RT.PackageManager)
   (tracing : RT.Tracing.Tracing)
-  (program : Program)
   : RT.ExecutionState =
   { parentState with
       tracing = tracing
-      program = program
       types = { package = pm.getType }
       // The script's own traits are grafted onto `pm` too; dispatch reads them here.
       traits = { trait_ = pm.getTrait }
@@ -692,13 +680,10 @@ let executeWith
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
-  (dbs : Map<string, RT.DB.T>)
   (traceSource : CliTraceSource)
   (suppliedTracer : Option<Tracing.T>)
   : Ply<RT.ExecutionResult> =
   uply {
-    let (program : Program) = { dbs = dbs }
-
     let types =
       List.concat
         [ mod'.types |> List.map PT2RT.PackageType.toRT
@@ -825,11 +810,7 @@ let executeWith
     let evaluating = HashSet<RT.Hash>()
 
     let rec scriptState () : RT.ExecutionState =
-      childState
-        parentState
-        { pm with getValue = getValue }
-        tracer.executionTracing
-        program
+      childState parentState { pm with getValue = getValue } tracer.executionTracing
 
     and getValue (hash : RT.Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
       uply {
@@ -966,10 +947,9 @@ let execute
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (args : List<Dval>)
-  (dbs : Map<string, RT.DB.T>)
   (traceSource : CliTraceSource)
   : Ply<RT.ExecutionResult> =
-  executeWith parentState mod' args dbs traceSource None
+  executeWith parentState mod' args traceSource None
 
 /// Create a branch-specific execution state for parsing.
 ///
@@ -977,8 +957,7 @@ let execute
 /// callers can turn on the escape hatch per-invocation (e.g. when Dark-side
 /// `run --allow-harmful` reaches `cliParseAndExecuteScript`).
 let createBranchState (parentState : RT.ExecutionState) (allowHarmful : bool) =
-  let program : Program = { dbs = Map.empty }
-  let state = childState parentState pmRT Exe.noTracing program
+  let state = childState parentState pmRT Exe.noTracing
   { state with allowHarmful = allowHarmful }
 
 
@@ -1259,8 +1238,6 @@ let fns () : List<BuiltInFn> =
                       (parseCliScript branchState "CliScript" "" code)
                       code
 
-                  let! dbs = loadDBs ()
-
                   match parsedScript with
                   | Ok mod' ->
                     // `dark run` and `eval` start from the host's configured
@@ -1293,12 +1270,7 @@ let fns () : List<BuiltInFn> =
                           permissionWarnings = permissionSink
                           deniedRequests = denied }
                     let! execResult =
-                      execute
-                        exeState
-                        mod'
-                        scriptArgs
-                        dbs
-                        (RunScript(filename, code))
+                      execute exeState mod' scriptArgs (RunScript(filename, code))
                     let! violations =
                       match permissionSink with
                       | None -> Ply []
@@ -1585,7 +1557,6 @@ let fns () : List<BuiltInFn> =
                         )
                       )
                   | Ok mod' ->
-                    let! dbs = loadDBs ()
                     let viewState =
                       PolicyStore.guestState
                         exeState.accountID
@@ -1599,7 +1570,6 @@ let fns () : List<BuiltInFn> =
                           viewState
                           mod'
                           []
-                          dbs
                           (EvalExpression source)
                           (Some tracer)
                       with
@@ -1747,8 +1717,6 @@ let fns () : List<BuiltInFn> =
                   let! parsedScript =
                     prepareGuest (parseCliExpr branchState expression) expression
 
-                  let! dbs = loadDBs ()
-
                   match parsedScript with
                   | Ok mod' ->
                     // The expression runs under the host's configured
@@ -1763,9 +1731,7 @@ let fns () : List<BuiltInFn> =
                         (ownFns mod')
                         exeState
                     let exeState = { exeState with deniedRequests = denied }
-                    match!
-                      execute exeState mod' [] dbs (EvalExpression expression)
-                    with
+                    match! execute exeState mod' [] (EvalExpression expression) with
                     | Ok result ->
                       match result with
                       | DUnit -> return okNone ()

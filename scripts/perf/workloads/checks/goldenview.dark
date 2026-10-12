@@ -11,13 +11,16 @@
 //
 // Three sizes because the interesting bugs are in clipping and in rows that run out of room.
 
+// Two rows of Home carry a wall-clock age (`just now`, `1m ago`), read from the store this
+// runs against, so a regeneration minutes after a reload differs from one taken right after
+// it. That is the file's own noise and not a render change; the package-test port of this
+// check (`packages/darklang/tests/cli/golden.dark`) substitutes fixed Home rows to avoid it.
 let base =
   Darklang.Cli.Workbench.initialState
     Darklang.SCM.Branch.mainBranchId
     Stdlib.Option.Option.None
-    "perf"
     "perf-instance"
-    (Stdlib.List.range 0 40)
+    false
 
 let sizes =
   [ Stdlib.Cli.Tui.Size { width = 120; height = 40 }

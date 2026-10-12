@@ -250,8 +250,7 @@ let tests =
               | None -> failtest $"Unwrap fixture did not parse: {source}")
           let sample = unwrapSnippets @ sample
 
-          let! (exeState : RT.ExecutionState) =
-            executionStateFor pmPT false Map.empty
+          let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
           let parseFnName =
             RT.FQFnName.fqPackage (
               PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ()
@@ -316,7 +315,7 @@ let tests =
       // agree — the coverage that would have caught the earlier Dark-lowering breaks.
       testTask
         "F# and Dark lowerings agree under a real fn context (self-call, match-shadow)" {
-        let! (exeState : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+        let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
         let fsBuiltins = localBuiltIns pmPT
         let inCtxFn =
           RT.FQFnName.fqPackage (

@@ -588,16 +588,9 @@ let checkTest
   (testResult: LanguageTools.ProgramTypes.Hash)
   (test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : (Outcome * Model.Environment) =
-  let (scope, dbProblems) =
-    Stdlib.List.fold test.testDBs (Generate.emptyScope (), []) (fun (scope, found) (name, typ) ->
-      let (inner, problems) =
-        Types.fromReference (Dict {}) Stdlib.Option.Option.None typ
-      let locals =
-        Stdlib.Dict.setOverridingDuplicates
-          scope.locals
-          name
-          (Model.Binder.Mono(Model.Ty.TDB inner))
-      ({ scope with locals = locals }, Stdlib.List.append found problems))
+  // A test used to be able to declare private DBs, which bound each one's name in the body's
+  // scope as a `TDB`. That left with user databases; see `later/`.
+  let scope = Generate.emptyScope ()
   let (typ, constraints) =
     match NodeIds.problem test.body with
     | Some problem -> (Model.Ty.TError, Generate.report problem)
@@ -613,7 +606,6 @@ let checkTest
           (expected,
            Generate.check scope expected Site.TestBody test.body)
 
-  let constraints = Generate.all [ Generate.reports dbProblems, constraints ]
   let s = Solve.solve (Solve.start env) constraints
   let bodyId = LanguageTools.ProgramTypes.Expr.toID test.body
   (finish s (Stdlib.Option.Option.Some bodyId) (monomorphic typ), s.env)

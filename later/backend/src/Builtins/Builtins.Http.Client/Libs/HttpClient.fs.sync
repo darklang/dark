@@ -1,0 +1,184 @@
+// RESTORE: backend/src/Builtins/Builtins.Http.Client/Libs/HttpClient.fs
+// WAS: the five raw-bytes HTTP builtins the sync transport used: unsafe GET and POST, the deferred start/await pair, and the with-headers form. The three that stay (httpClientRead, httpClientRequest, httpClientStream) are the general client.
+// ANCHOR: between httpClientRequest and httpClientStream in the fns list
+// ALSO: later/packages/darklang/cli/sync/syncTransport.dark and later/packages/darklang/sync/wire.dark were the callers
+// WHEN: the sync molt, 2026-10-12
+
+// --- httpGetUnsafeBytes ---
+    // GET with SSRF guards OFF, returning raw BYTES — for pulling a peer's op wire over the tailnet.
+    // (The safe `httpClientRequest` bans loopback/RFC-1918/tailnet, which a peer's sync server sits behind;
+    // the Blob variant hands the body back as bytes for the caller to decode — `Stdlib.Blob.toString` for the
+    // JSON wire.) TRUSTED-CLI use: the caller IS the code author; used by `Sync.pull` / `dark sync fetch <url>`.
+    // Gated to first-party callers by `requireBundledCaller` below: though
+    // registered in the general builtin set, a third-party pulled package
+    // cannot call it, so its SSRF-guards-off reach is confined to the bundled
+    // sync code it exists for.
+    { name = fn "httpGetUnsafeBytes" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "uri"
+            TString
+            "URL to GET with SSRF guards OFF (loopback/RFC-1918/tailnet reachable)" ]
+      returnType = TypeReference.result TBlob TString
+      description =
+        "GET <param uri> with NO SSRF guards, returning the raw response body as "
+        + "Bytes (Ok) or a message (Error). A non-2xx status is an Error too: a "
+        + "peer's 404 page is not a store. For pulling a peer's store over the "
+        + "tailnet."
+      fn =
+        (function
+        | state, vm, _, [| DString uri |] ->
+          // SSRF guards off (loopback/RFC-1918/tailnet reachable): only the
+          // bundled sync code may call this, not a third-party package.
+          requireBundledCaller state vm "httpGetUnsafeBytes"
+          syncRequest vm "fetch" "GET" uri [] [||]
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }
+
+// --- httpGetUnsafeBytesStart ---
+    // Start a sync GET WITHOUT waiting for it, and collect it later.
+    //
+    // A pull is a chain of pages: fetch one, import it, fetch the next. Network and CPU are
+    // each about 40% of a pull, so done strictly in turn the total is their sum. With these
+    // two the client starts the next page's fetch as soon as it knows the cursor, imports
+    // the page in hand while that flies, and pays `max` instead.
+    //
+    // The caller gate is checked HERE, at start, so a refusal is immediate and loud; a
+    // policy refusal from the host surfaces at the await, out of the same typed surface.
+    { name = fn "httpGetUnsafeBytesStart" 0
+      typeParams = []
+      parameters =
+        [ Param.make "uri" TString "URL to begin GETting with SSRF guards OFF" ]
+      returnType = TypeReference.result TUuid TString
+      description =
+        "Begin a GET of <param uri> with NO SSRF guards and return a handle to collect "
+        + "it with `httpAwaitBytes`. The request is already in flight when this returns."
+      fn =
+        (function
+        | state, vm, _, [| DString uri |] ->
+          uply {
+            requireBundledCaller state vm "httpGetUnsafeBytesStart"
+            // Started, not awaited: `Ply.toTask` materializes the running request, so it
+            // is on the wire before this builtin returns.
+            let started =
+              PermissionCheck.performHost state vm (syncOp "GET" uri [] [||])
+              |> Ply.toTask
+            let handle = System.Guid.NewGuid()
+            pendingFetches[handle] <- started
+            return Dval.resultOk KTUuid KTString (DUuid handle)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }
+
+// --- httpAwaitBytes ---
+    // Collect a fetch begun by `httpGetUnsafeBytesStart`. Same result shape as
+    // `httpGetUnsafeBytes`, including treating a non-2xx as a failure rather than a body.
+    { name = fn "httpAwaitBytes" 0
+      typeParams = []
+      parameters =
+        [ Param.make "handle" TUuid "a handle from `httpGetUnsafeBytesStart`" ]
+      returnType = TypeReference.result TBlob TString
+      description =
+        "Wait for the fetch named by <param handle> and return its body (Ok) or an "
+        + "error message (Error). A handle may only be collected once."
+      fn =
+        (function
+        | _, _, _, [| DUuid handle |] ->
+          uply {
+            match pendingFetches.TryRemove handle with
+            | false, _ ->
+              return
+                Dval.resultError
+                  KTBlob
+                  KTString
+                  (DString
+                    "that fetch handle is unknown, or has already been collected")
+            | true, pending ->
+              let! response = pending
+              return fetchOutcome "fetch" response
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }
+
+// --- httpGetUnsafeBytesWithHeaders ---
+    // The read twin of `httpPostUnsafeBytes`. Separate from `httpGetUnsafeBytes` because
+    // that one's arity is part of its contract. Exists so a read can carry an Authorization
+    // header: a relay's branch endpoints hand back unmerged work, and a secret belongs in a
+    // header, not a logged query string.
+    { name = fn "httpGetUnsafeBytesWithHeaders" 0
+      typeParams = []
+      parameters =
+        [ Param.make "uri" TString "URL to GET with SSRF guards OFF"
+          Param.make
+            "headers"
+            (TList(TTuple(TString, TString, [])))
+            "request headers" ]
+      returnType = TypeReference.result TBlob TString
+      description =
+        "GET <param uri> with NO SSRF guards and the given <param headers>, returning the "
+        + "raw response body as Bytes (Ok) or an error message (Error)."
+      fn =
+        (function
+        | state, vm, _, [| DString uri; DList(_, headerList) |] ->
+          requireBundledCaller state vm "httpGetUnsafeBytesWithHeaders"
+          // The credential is attached HERE, not passed in: the write secret must not
+          // reach Dark, where a pulled package could read it.
+          let headers =
+            headerPairs headerList @ LibExecution.UnguardedOrigins.authHeadersFor uri
+          syncRequest vm "fetch" "GET" uri headers [||]
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }
+
+// --- httpPostUnsafeBytes ---
+    // The push half of the sync transport, mirror of `httpGetUnsafeBytes`: same caller
+    // gate, same profile. Body is sent as application/json (the wire codec).
+    { name = fn "httpPostUnsafeBytes" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "uri"
+            TString
+            "URL to POST with SSRF guards OFF (loopback/RFC-1918/tailnet reachable)"
+          Param.make "body" TBlob "request body, sent as application/json"
+          Param.make
+            "headers"
+            (TList(TTuple(TString, TString, [])))
+            "extra request headers, e.g. an Authorization for a relay that requires one" ]
+      returnType = TypeReference.result TBlob TString
+      description =
+        "POST <param body> to <param uri> with NO SSRF guards, returning the raw "
+        + "response body as Bytes (Ok) or an error message (Error). For pushing to a "
+        + "peer's store over the tailnet."
+      fn =
+        (function
+        | state, vm, _, [| DString uri; DBlob bodyRef; DList(_, headers) |] ->
+          requireBundledCaller state vm "httpPostUnsafeBytes"
+          // Caller headers go AFTER the content type so a caller cannot accidentally
+          // unset it. A relay write secret arrives as a header rather than in the query
+          // string, which would put it in every access log and proxy trace between here
+          // and there; the stored credential is attached here, not passed in -- see
+          // `httpGetUnsafeBytesWithHeaders`.
+          let allHeaders =
+            ("Content-Type", "application/json")
+            :: (headerPairs headers
+                @ LibExecution.UnguardedOrigins.authHeadersFor uri)
+          Blob.withBytes state bodyRef (fun body ->
+            syncRequest vm "push" "POST" uri allHeaders body)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }

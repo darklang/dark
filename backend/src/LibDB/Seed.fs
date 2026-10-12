@@ -109,15 +109,8 @@ let export (outputPath : string) : Task<unit> =
       -- All of them: main is not a row here, so there is nothing to preserve.
       DELETE FROM branches;
 
-      -- Ownership is a RELAY's index of which instance pushed which op: per-instance
-      -- by definition, and a fresh install has never been pushed to. Readers join
-      -- through package_ops, so stale rows fail to join silently -- and they are
-      -- large.
-      DELETE FROM op_owners;
-      DELETE FROM relay_branches;
-
-      -- A conflict is a finding about two peers' versions of one name. Same reasoning as `sync_bases`
-      -- below: inheriting the builder's would be inheriting an argument between machines you have never met.
+      -- A conflict is a finding about two versions of one name. Inheriting the builder's would be
+      -- inheriting an argument you were not part of.
       DELETE FROM conflicts;
 
       -- Execution traces are dev telemetry, never part of a seed. They dominate a dev store by size
@@ -131,19 +124,10 @@ let export (outputPath : string) : Task<unit> =
       -- ALL of it: `config_v0` is per-install by construction, and nothing needs a
       -- value to boot (`entry_point` unset falls back to the shipped CLI).
       --
-      -- A deny-list can't work: sync keys are named per peer (`sync.cursor.<url>`,
-      -- ...), unknowable in advance. Costs if shipped: a shared INSTANCE ID means
-      -- two peers that cannot sync or be told apart; a CURSOR skips ops the install
-      -- has never seen; a CURRENT BRANCH dangles; all leak the builder's addresses.
+      -- A deny-list can't work: the keys are not all knowable in advance. Costs if shipped: a
+      -- shared INSTANCE ID means two installs that cannot be told apart, and a CURRENT BRANCH
+      -- dangles.
       DELETE FROM config_v0;
-
-      -- A sync base is a RELATIONSHIP with a specific peer. A fresh install has none, and inheriting the
-      -- builder's would make it believe it had already agreed with machines it has never met.
-      DELETE FROM sync_bases;
-
-      -- Same reasoning: what a relay HOLDS of the builder's ops is the builder's relationship with that
-      -- relay. Shipped, every fresh install would believe that relay already had its ops and never push.
-      DELETE FROM sync_pushed;
 
       -- The builder's DRAFT: a seed is committed history by definition
       -- (`check-seed-carries-refs` asserts it), and an uncommitted op is instance
@@ -525,8 +509,6 @@ let evaluateAllValues
   (pm : RT.PackageManager)
   : Task<Result<unit, List<ValueEvaluationError>>> =
   task {
-    let program : RT.Program = { dbs = Map.empty }
-
     let notify _ _ _ _ = uply { return () }
     let sendException _ _ _ _ = uply { return () }
 
@@ -537,13 +519,7 @@ let evaluateAllValues
     // from retaining authority; this keeps the *evaluation* within the policy
     // and the consumer's approvals.
     let! exeState =
-      Execution.createState
-        builtins
-        pm
-        Execution.noTracing
-        sendException
-        notify
-        program
+      Execution.createState builtins pm Execution.noTracing sendException notify
       |> configureFor authority
 
     let maxPasses = 10

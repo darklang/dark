@@ -1,0 +1,14 @@
+// RESTORE: packages/darklang/cli/registry.dark
+// WAS: the `scripts` command row and its argument grammar
+// ANCHOR: the row sat between ('eval', ...) and the package verbs; acceptsScripts near the top of the Accepts module
+// ALSO: later/packages/darklang/cli/scripts.dark
+// ALSO: `PackageRefs.Type.Cli.script` in backend/src/LibExecution/PackageRefs.fs named
+//       `Cli.Scripts.Script`. It was left behind by the first round of this molt, where it
+//       showed up as `Warning: 1 PackageRefs items not found` on every package reload; it
+//       had no reader in F#, so nothing failed. Restore it as:
+//         let script = p [ "Cli"; "Scripts" ] "Script"
+//       in `module Type.Cli`, after `permissionDenied`.
+// WHEN: the sync molt, 2026-10-12
+
+      ("scripts", "Store, manage, and run Dark scripts", [], acceptsScripts, Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
+  let acceptsScripts () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.nothing ()), ("view", Accepts.between 1 1 []), ("add", Accepts.text 2), ("edit", Accepts.text 1), ("delete", Accepts.between 1 1 []), ("run", Accepts.between 1 1 []) ] (Accepts.nothing ()))

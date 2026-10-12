@@ -318,11 +318,11 @@ Declaration forms:
   passes only when evaluating the whole body raises that exact rendered runtime
   error. The `=> raises` clause is test syntax, not an expression or function
   call.
-- `test name = body => sqlerror "message"` expects exactly that specific
-  query-compiler message. Its standard preamble is only for display.
-- `[<DB>] type Name = T` declares a private DB schema for package tests in
-  that module and its descendants. Each test run gets a fresh empty DB, and
-  its rows are removed when execution ends. Such tests are never cached.
+- `[<DB>] type Name = T` parses, and lowers to a `TDB` type reference. It used to
+  declare a private DB schema for the package tests in that module and its
+  descendants; that went to `later/` with user databases, so nothing executes
+  against one. The form is still in the grammar because `TDB` is in the
+  serialization format, and therefore in the content hash.
 - `[<DB>] type Name = { field: T }` also defines a same-named record type for
   the rows: `Name { field = value }` constructs one, while bare `Name` refers
   to the DB. The alias form above remains available for a separate row type.
@@ -380,7 +380,7 @@ for the type. Duplicate member names are `VALIDATION-IMPL-METHODS`.
 
 Every package test execution starts in a fresh process and store snapshot.
 Isolation is runner behavior, with no declaration modifier or stored setting.
-Expected outcomes (`=> raises` and `=> sqlerror`) work across the worker boundary.
+The `=> raises` outcome works across the worker boundary.
 Proven-safe passing results may still be cached; `test run --force` executes every
 selected test again.
 
@@ -398,9 +398,11 @@ At the top level:
 - `val x = …` declares a test setup value; `let x = …` keeps its normal script
   expression meaning
 - `actual = expected` is a test assertion
-- expected forms may be `error "msg"` or `sqlerror "msg"`
-- `[<DB>] type X = T` declares a user DB; an inline record also defines the
-  same-named row type
+- the expected form may be `error "msg"`. There was a `sqlerror "msg"` form for the user-DB
+  query compiler's messages; it left with the compiler and no longer parses.
+- `[<DB>] type X = T` parses, and lowers to a `TDB` type reference. The runtime behind
+  it moved to `later/`, so nothing executes against it; the form is still in the grammar
+  because `TDB` is in the serialization format, and therefore in the content hash.
 
 ## Diagnostics
 
@@ -442,9 +444,9 @@ Post-parse validation uses these stable codes:
 | `VALIDATION-IMPL-METHODS` | an impl names the same member twice |
 
 `renderDiagnostic` renders code + position + message + a caret snippet +
-related locations + hint; the CLI uses it. The LSP wire (`parserParseDiagnostics`,
-range+message tuples) predates the structure — upgrading it to carry
-code/related is a pending Dark-side type change.
+related locations + hint; the CLI uses it. `parserParseDiagnostics` answers the older
+range+message tuples, which predate the structure; upgrading it to carry code/related is a
+pending Dark-side type change.
 
 ## Error recovery
 

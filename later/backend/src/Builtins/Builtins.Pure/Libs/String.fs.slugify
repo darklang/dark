@@ -1,0 +1,38 @@
+// RESTORE: backend/src/Builtins/Builtins.Pure/Libs/String.fs
+// WAS: the `stringSlugify` builtin: lowercase, drop anything outside a-z0-9, collapse runs to one hyphen
+// ANCHOR: between the append/normalize builtin above it and `stringReverse` below
+// ALSO: nothing: it is REPLACED rather than parked. `Stdlib.String.slugify` in packages/darklang/stdlib/string.dark does the same thing in Dark over Stdlib.Regex, and the eighteen cases in testfiles/execution/stdlib/string.dark now call that. Kept here only because the .NET regex semantics are the reference if the Dark one ever disagrees.
+// WHEN: the sync molt, 2026-10-12
+
+    // CLEANUP move implementation to Darklang, in package space, in darklang stdlib
+    // (RegEx support now available via Stdlib.Regex.*)
+    { name = fn "stringSlugify" 0
+      typeParams = []
+      parameters = [ Param.make "string" TString "" ]
+      returnType = TString
+      description =
+        "Turns a string into a prettified slug, including only lowercased "
+        + "alphanumeric characters, joined by hyphens"
+      fn =
+        (function
+        | _, _, _, [| DString s |] ->
+          // Should work the same as https://blog.tersmitten.nl/slugify/
+          // explicitly limit to (roman) alphanumeric for pretty urls
+          let toRemove = "([^a-z0-9\\s_-]|\x0b)+"
+          let toBeHyphenated = @"[-_\s]+"
+
+          let replace (pattern : string) (replacement : string) (input : string) =
+            Regex.Replace(input, pattern, replacement)
+
+          s
+          |> String.toLowercase
+          |> replace toRemove ""
+          |> String.trim
+          |> replace toBeHyphenated "-"
+          |> DString
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }

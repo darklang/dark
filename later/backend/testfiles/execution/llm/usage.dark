@@ -1,0 +1,100 @@
+// MOVED: was backend/testfiles/execution/llm/usage.dark
+// WAS: the only test of the LLM providers' token-count parsing (Anthropic and OpenAI usage
+//      blocks: a missing count reads as 0, a non-integer is an error).
+// READ THIS BEFORE RESTORING: these are assertions in the OLD testfile format (`actual =
+//      expected`), and the runner for that format is gone. The execution testfiles became
+//      package tests upstream, `LibParser/TestModule.fs` and `tests/Tests/LibExecution.Tests.fs`
+//      were deleted with the old runner, and nothing in the tree can execute this file.
+//      Upstream deleted it rather than porting it, which is why no ported version exists
+//      anywhere; it is kept here because the EXPECTATIONS are the only record of what those
+//      parsers should return. To use it, port each `x = y` line to
+//      `test <name> = x |> Stdlib.Test.equal y` under `packages/darklang/tests/llm/usage.dark`,
+//      alongside restoring `later/packages/darklang/llm/`.
+// WHEN: restoring `later/packages/darklang/llm/`.
+
+// A response's token counts are bookkeeping: a missing one reads as 0 rather
+// than losing the whole response, but one that isn't an integer is an error.
+module Anthropic =
+  let parse (usage: String) : String =
+    let body =
+      """{"id":"m","type":"message","role":"assistant","""
+      + """"content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn","""
+      + usage
+      + "}"
+
+    match Stdlib.AltJson.parse body with
+    | Ok json ->
+      match Darklang.LLM.Providers.Anthropic.parseExtendedResponse json with
+      | Ok r ->
+        r.content
+        + " "
+        + (Stdlib.toString r.usage.inputTokens)
+        + "/"
+        + (Stdlib.toString r.usage.outputTokens)
+        + "/"
+        + (Stdlib.toString r.usage.cacheReadTokens)
+      | Error e -> Darklang.LLM.Provider.ProviderError.toString e
+    | Error _ -> "bad json"
+
+  parse """"usage":{"input_tokens":10,"output_tokens":5}""" = "hi 10/5/0"
+  parse """"usage":{"input_tokens":10,"output_tokens":5,"cache_read_input_tokens":3}""" =
+    "hi 10/5/3"
+  parse """"usage":{}""" = "hi 0/0/0"
+  parse """"usage":{"input_tokens":null,"output_tokens":5}""" = "hi 0/5/0"
+  parse """"usage":{"input_tokens":1.5,"output_tokens":5}""" =
+    "Invalid response: Invalid JSON integer field: input_tokens"
+  parse """"usage":{"input_tokens":10,"output_tokens":5,"cache_read_input_tokens":2.5}""" =
+    "Invalid response: Invalid JSON integer field: cache_read_input_tokens"
+
+
+module OpenAI =
+  let usage (json: String) : String =
+    match Stdlib.AltJson.parse json with
+    | Ok(Object fields) ->
+      match Darklang.LLM.Providers.OpenAI.extractUsage fields with
+      | Ok u ->
+        (Stdlib.toString u.inputTokens)
+        + "/"
+        + (Stdlib.toString u.outputTokens)
+        + "/"
+        + (Stdlib.toString u.cacheReadTokens)
+      | Error e -> e
+    | _ -> "bad json"
+
+  usage """{"usage":{"prompt_tokens":10,"completion_tokens":5}}""" = "10/5/0"
+  usage
+    """{"usage":{"prompt_tokens":10,"completion_tokens":5,"prompt_tokens_details":{"cached_tokens":4}}}""" =
+    "10/5/4"
+  usage """{}""" = "0/0/0"
+  usage """{"usage":{"prompt_tokens":10.5}}""" =
+    "Invalid JSON integer field: prompt_tokens"
+
+
+// Moved here from backend/testfiles/execution/stdlib/alt-json.dark by the molt, which took the
+// LLM providers out of the live tree. These assert that AltJson's strict integer helpers surface
+// their error through a real caller, and that an integer past 2^53 survives a round trip.
+module IntegerCallers =
+  Darklang.LLM.Providers.OpenAI.extractUsage
+    [ ("usage", Json.Object [ ("prompt_tokens", Json.Float 1.5) ]) ] =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: prompt_tokens"
+
+  Darklang.LLM.Providers.Anthropic.extractUsage
+    [ ("usage",
+       Json.Object [ ("cache_creation_input_tokens", Json.Float 1.5) ]) ] =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: cache_creation_input_tokens"
+
+  let largeRequestMaxTokens () : Stdlib.Result.Result<Int, String> =
+    let request = Darklang.LLM.Provider.createRequest "unused"
+    let oversized = { request with maxTokens = 9007199254740992 }
+    let config =
+      Darklang.LLM.Providers.Anthropic.Config { apiKey = ""; baseUrl = "" }
+
+    match Darklang.LLM.Providers.Anthropic.buildExtendedRequest
+        config
+        oversized
+        Darklang.LLM.Provider.emptyExtensions
+    with
+    | Object fields -> Stdlib.AltJson.Helpers.getIntResult "max_tokens" fields
+    | _ -> Stdlib.Result.Result.Error "not an object"
+
+  largeRequestMaxTokens () = Stdlib.Result.Result.Ok 9007199254740992

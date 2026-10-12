@@ -1,0 +1,8 @@
+// RESTORE: packages/darklang/cli/tests/tests-runner.dark
+// WAS: the two registry rows for the workbench's Document-scroll and Sync-standing tests
+// ANCHOR: in the workbench group, between the Escape row and the Branch Picker row
+// ALSO: later/packages/darklang/cli/tests/tests-workbench.dark.sync has the tests
+// WHEN: the sync molt, 2026-10-12
+
+    ("Workbench Document Scroll", fun () -> testWorkbenchDocumentScroll ())
+    ("Workbench Sync Standing", fun () -> testWorkbenchSyncStanding ())

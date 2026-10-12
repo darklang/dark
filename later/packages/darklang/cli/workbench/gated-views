@@ -1,0 +1,132 @@
+// RESTORE: the gated-views mechanism, and the mock Calendar view it hid
+// WAS: a workbench view could declare a `gateKey`, and only showed when the gate was on. The gate
+//      asked whether the logged-in ACCOUNT was one of two named people (`val gatedViewAccounts =
+//      [ "stachu"; "feriel" ]`, `gateEnabled accountName`). Three views used it: Crons
+//      ("crons.enabled"), Calendar ("calendar.enabled") and Builtins ("internal.enabled").
+// ANCHOR: `State.enabledGatedViews` sat after `completionSel`; `ViewDef.gateKey` after `name`;
+//      `gateEnabled`, `gatedViews`, `recomputeGatedViews` and the filtering `visibleViews` sat
+//      between `viewLabel` and `workspaces` in types.dark. `baseViewSpecs` and `viewSpecs` carried
+//      a gate column per view, so both are tuples one element shorter now. `initialState` and
+//      `initialStateFrom` took an `enabledGatedViews` parameter, and `input.dark` recomputed it
+//      after a `:config` command.
+// NOTE: Crons and Builtins are plain visible views now, so nothing was lost there. The Calendar
+//      view was DELETED rather than kept here: it was mock data and said so in its own pane title
+//      ("July 2026 (mock data)"), its item and detail loaders both returned [], and a month grid
+//      of invented appointments is not worth restoring. `git log` has it if anybody wants it.
+// ALSO: the account the gate asked about went earlier in this molt; see
+//      later/packages/darklang/scm/packageOps.dark.identity
+// WHEN: the identity molt, 2026-10-12
+
+// --- packages/darklang/cli/workbench/types.dark ---
+    /// AI view: which section is showing. Picked in the navbar.
+    /// The gated views (Devices, Crons, Calendar, ...) enabled for this
+    /// account, computed once at launch from (see `viewSpecs` /
+    /// `gateEnabled`). Hidden gated views drop out of the navbar.
+    enabledGatedViews: List<Int>
+
+
+// --- packages/darklang/cli/workbench/types.dark ---
+    /// "" = always visible; anything else is a config key that must be on (see `gateEnabled`)
+    gateKey: String
+
+
+// --- packages/darklang/cli/workbench/types.dark ---
+/// Is this gate key switched on in the config?
+///
+/// Per key, so `config set crons.enabled on` turns one view on and nothing else. It used to ask
+/// whether the ACCOUNT was one of the two people building the thing, which stopped being a
+/// question anybody could answer when accounts left: no account meant no gated view, ever.
+let gateEnabled (key: String) : Bool =
+  match Darklang.Cli.Config.get key with
+  | Some v ->
+    let v = Stdlib.String.toLowercase (Stdlib.String.trim v)
+    (v == "on") || (v == "true") || (v == "1") || (v == "yes")
+  | None -> false
+
+
+
+// --- packages/darklang/cli/workbench/types.dark ---
+/// Built-in view indices and their optional gate keys. Extension views are
+/// appended by `viewSpecs`.
+// Indices 2 and 5 remain reserved for the former Inspect and Devices views,
+// keeping later indices stable without exposing either in the navbar.
+val baseViewSpecs =
+  [ (vHome, "")
+    (vMatter, "")
+    (vScratch, "")
+    (vSCM, "")
+    (vTraces, "")
+    (vDocs, "") ]
+
+// --- packages/darklang/cli/workbench/types.dark ---
+val viewSpecs =
+  let base =
+    baseViewSpecs
+    |> Stdlib.List.map (fun pair ->
+      let (i, g) = pair
+      (i, Frame.viewName i, g))
+  let exts =
+    extensionViews ()
+    |> Stdlib.List.indexedMap (fun i vd -> (baseViewCount + i, vd.name, vd.gateKey))
+  Stdlib.List.append base exts
+
+// --- packages/darklang/cli/workbench/types.dark ---
+/// Which gated views (Crons, Calendar, Builtins) the config has switched on.
+///
+/// Computed at launch rather than per frame: each key is a config read.
+let gatedViews () : List<Int> =
+  viewSpecs
+  |> Stdlib.List.filter (fun spec ->
+    let (_i, _n, g) = spec
+    (g != "") && (gateEnabled g))
+  |> Stdlib.List.map (fun spec ->
+    let (i, _n, _g) = spec
+    i)
+
+
+/// Re-read the gates for a running workbench.
+let recomputeGatedViews (state: State) : List<Int> =
+  gatedViews ()
+
+
+/// The view indices the navbar may show, in `viewSpecs` order. A view shows
+/// if it isn't gated, or it's gated and enabled for this account (see
+/// `enabledGatedViews`, recomputed on launch and after a config change).
+let visibleViews (state: State) : List<Int> =
+  viewSpecs
+  |> Stdlib.List.filter (fun spec ->
+    let (i, _n, g) = spec
+    (g == "") || (Stdlib.List.member state.enabledGatedViews i))
+  |> Stdlib.List.map (fun spec ->
+    let (i, _n, _g) = spec
+    i)
+
+// --- packages/darklang/cli/workbench/types.dark ---
+/// The display label for any view index.
+let viewLabel (idx: Int) : String =
+
+// --- packages/darklang/cli/workbench/viewdefs.dark ---
+let calendarItems () : List<BodyItem> = []
+
+
+// --- packages/darklang/cli/workbench/viewdefs.dark ---
+let calendarDetailLines (_state: State) : List<String> = []
+
+
+// --- packages/darklang/cli/workbench/viewdefs.dark ---
+    ViewDef
+      { id = "calendar"
+        name = "Calendar"
+        gateKey = "calendar.enabled"
+        behavior = ViewBehavior.List
+        loadItems = calendarItems
+        render = renderCalendar
+        detail = calendarDetailLines
+        hints = calendarHints }
+
+
+// --- packages/darklang/cli/workbench/viewdefs.dark ---
+        gateKey = ""
+        gateKey = "crons.enabled"
+        gateKey = "internal.enabled"
+        gateKey = ""

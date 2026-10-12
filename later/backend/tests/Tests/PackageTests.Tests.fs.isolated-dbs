@@ -1,0 +1,62 @@
+// RESTORE: backend/tests/Tests/PackageTests.Tests.fs
+// WAS: the `isolatedDBs` test, which authored a module declaring `[<DB>]` tables, ran three
+//      tests against them and asserted that each execution got fresh tables and that no rows
+//      survived in `user_data_v0`.
+// ANCHOR: between `let unknownHash` and `let isolatedObservations`.
+// ALSO: `tests` lists the test names; add `isolatedDBs` back to that list.
+// ALSO: `PackageTests.fs`'s `executeTestBody` minted the per-run DB ids this asserts, and
+//       `PT.PackageTest.testDBs` carried the schemas. Both left with user databases.
+// ALSO: the Random-effect fixtures in `outcomes` used `Stdlib.DB.generateKey ()` for a random
+//       36-character string; they now use `Stdlib.toString (Stdlib.Uuid.generate ())`, which
+//       carries the same `Random` effect. No need to change those back.
+// WHEN: restoring `later/packages/darklang/stdlib/db.dark` and the DB builtins.
+
+let isolatedDBs =
+  testTask "package test DBs are isolated and leave no user rows" {
+    let m = "PackageTestDBs"
+    do! cleanup m
+    let! authored =
+      authorIn
+        m
+        """[<DB>]
+type Items = { name: String }
+test writes =
+  let _ = Stdlib.DB.set (Items { name = "first" }) "key" Items
+  (Stdlib.DB.get "key" Items)
+  |> Stdlib.Test.equal (Some (Items { name = "first" }))
+test startsEmpty =
+  (Stdlib.DB.count Items) |> Stdlib.Test.equal 0
+test errorsAfterWrite =
+  let _ = Stdlib.DB.set (Items { name = "temporary" }) "key" Items
+  (1L / 0L)
+  => raises "Cannot divide by 0"
+"""
+
+    let tests =
+      authored
+      |> List.choose (function
+        | PT.PackageOp.AddTest test -> Some test
+        | _ -> None)
+    let types =
+      authored
+      |> List.choose (function
+        | PT.PackageOp.AddType typ -> Some typ
+        | _ -> None)
+    Expect.equal (List.length types) 1 "inline DB record creates a row type"
+    Expect.equal (List.length tests) 3 "three DB tests were authored"
+    for test in tests do
+      Expect.isNonEmpty test.testDBs "private schemas are stored on the test"
+
+    let! before = countSql "SELECT count(*) AS n FROM user_data_v0" []
+    let! writes = run m "writes"
+    let! startsEmpty = run m "startsEmpty"
+    let! again = run m "writes"
+    let! errorsAfterWrite = run m "errorsAfterWrite"
+    let! after = countSql "SELECT count(*) AS n FROM user_data_v0" []
+    Expect.equal writes "pass" "DB write and read work"
+    Expect.equal startsEmpty "pass" "the next test starts with an empty DB"
+    Expect.equal again "pass" "the same test can run again"
+    Expect.equal errorsAfterWrite "pass" "runtime errors still clean up test rows"
+    Expect.equal after before "test rows are removed"
+    do! cleanup m
+  }

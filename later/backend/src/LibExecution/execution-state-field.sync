@@ -1,0 +1,37 @@
+// RESTORE: the ExecutionState field canUsePrivateNetworkHttp, and its five sites
+// WAS: host-only authority to use an HTTP profile that reaches loopback and private
+//      networks. Only the sync transport's requireBundledCaller ever read it.
+// ANCHOR: declared in RuntimeTypes.fs between canManagePolicies and isBundledPackageFn;
+//      set true in Cli.fs and in CliTestHarness.fs, false in Execution.fs's default state
+//      and in PolicyStore.guestState, each time right beside canManagePolicies.
+// ALSO: later/backend/src/Builtins/Builtins.Http.Client/Libs/HttpClient.fs.sync-transport
+// WHEN: the sync molt, 2026-10-12
+
+// --- backend/src/LibExecution/RuntimeTypes.fs ---
+    /// Host-only authority to use HTTP profiles that reach loopback and
+    /// private networks. Ordinary HTTP permission does not grant this.
+    canUsePrivateNetworkHttp : bool
+
+
+
+// --- backend/src/Cli/Cli.fs ---
+          // The sync transport runs from many entry points -- the sync verbs, `branch
+          // push/pull`, the auto-sync daemon (launched as `eval`), and the workbench --
+          // so the host state grants it broadly. Guest isolation does not rest on this
+          // flag: `PolicyStore.guestState` always clears it, and `requireBundledCaller`
+          // additionally demands every frame be bundled Darklang code.
+          canUsePrivateNetworkHttp = true
+
+
+// --- backend/src/LibExecution/Execution.fs ---
+    canUsePrivateNetworkHttp = false
+
+
+
+// --- backend/src/LibDB/PolicyStore.fs ---
+      canManagePolicies = false
+      canUsePrivateNetworkHttp = false
+
+// --- backend/tests/Tests/CliTestHarness.fs ---
+          canManagePolicies = true
+          canUsePrivateNetworkHttp = true

@@ -257,7 +257,7 @@ def _describe_changes(files):
 def cmd_watch(args):
   import watchfiles
 
-  ignored = set(os.path.join(WATCH_ROOT, f) for f in [".git", "backend/Build"])
+  ignored = set(os.path.join(WATCH_ROOT, f) for f in [".git", "backend/Build", "later"])
   file_filter = watchfiles.DefaultFilter(ignore_paths=ignored)
 
   print(f"Watching {WATCH_ROOT}. Ctrl+C to stop.", flush=True)

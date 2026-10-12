@@ -27,9 +27,12 @@ spawn $exe
 # `SCM.Branch.list`). That makes Home the place to assert the DATA path -- one of those wired wrong takes
 # the workbench down on startup, so the assertions below are as much about the queries as the drawing.
 #
-# The startup marker is the header's `who @ where`, not a greeting: the welcome panel only appears on a
-# genuine first run, and this store has work in it.
-want " @ " "the workbench on startup"
+# The startup marker is the frame's top border, not a greeting: the welcome panel only appears on a
+# genuine first run, and this store has work in it. It has to be something every frame has at
+# expect's 80 columns, where there is no nav strip and the header is just the branch and the
+# instance -- the navbar's `1 Home` is not drawn at that width, and the instance name comes from
+# the hostname. It used to be the header's `who @ where`, which stopped existing when accounts did.
+want "╭" "the workbench on startup"
 
 want "needs attention" "Home summarizes what needs you"
 want "recent commits" "Home shows recent commits across branches"
@@ -39,12 +42,6 @@ want "branches" "and the branches"
 # 3 is the Changes view. It must show the draft rather than an empty state.
 press "3"
 want "WbScm.T.draft" "the draft item in the Changes view"
-
-# Sync is an ACTION here, not just a readout: `u` pushes, `d` pulls, through the same registered commands
-# the CLI runs. This store has no relay, so the answer is the one that says so rather than a failed push
-# against an empty url. Watching for it also proves the key is wired at all, which is the part that rots.
-press "u"
-want "(?i)no relay" "u offers to sync and says why it cannot"
 
 # Switch without leaving Changes or remembering the exact branch name.
 # The target is outside Home's summary cap, but must be in the full picker.
@@ -73,6 +70,6 @@ want "switched to main" "Enter returns to main"
 # `q`, not Escape: Escape means "step back" inside a view, so it does not leave from here.
 press "q"
 expect {
-  eof { puts "workbench: Home shows real SCM work, Changes lists the draft, and sync is actionable." }
+  eof { puts "workbench: Home shows real SCM work, Changes lists the draft, and the branch picker switches." }
   timeout { fail "q did not exit the workbench" }
 }

@@ -55,7 +55,6 @@ type AppState =
     /// entry point resolves it once.
     currentBranchId: Uuid
     accountID: Stdlib.Option.Option<Uuid>
-    accountName: String
     /// Retained presentation state while the main prompt owns an inline region.
     promptTerminal: Stdlib.Option.Option<Stdlib.Cli.Tui.TerminalSession.State>
     /// True when invoked from the command line (not the interactive REPL)
@@ -168,22 +167,6 @@ let commandOptions (commands: List<Registry.CommandHandler>) : List<String> =
   let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
   Stdlib.List.append allNames allAliases
 
-// Restore the persisted account from cli-config.json (written by
-// `login`). Returns (None, "") if the file is absent / the entry is
-// missing / the account no longer exists.
-let restoreSessionAccount () : (Stdlib.Option.Option<Uuid> * String) =
-  match Config.get "session.account_id" with
-  | None -> (Stdlib.Option.Option.None, "")
-  | Some idStr ->
-    match Stdlib.Uuid.parse idStr with
-    | Error _ -> (Stdlib.Option.Option.None, "")
-    | Ok id ->
-      match SCM.Account.getById id with
-      | None -> (Stdlib.Option.Option.None, "")
-      | Some account ->
-        (Stdlib.Option.Option.Some account.id, account.name)
-
-
 /// The branch this run starts on, `SCM.Branch.mainBranchId` for main.
 ///
 /// The three-tier resolution (`--branch` for this command, `DARK_BRANCH` for this shell, the
@@ -200,7 +183,8 @@ let resolveStartingBranch () : Uuid = SCM.PackageOps.currentBranch ()
 
 
 let initState () : AppState =
-  let (accountID, accountName) = restoreSessionAccount ()
+  // No accounts: approval scoping is the only thing that still takes one, and it takes None.
+  let accountID = Stdlib.Option.Option.None
   let branchId = resolveStartingBranch ()
   let commands = Registry.allCommands ()
   AppState
@@ -211,7 +195,6 @@ let initState () : AppState =
       pageStack = []
       currentBranchId = branchId
       accountID = accountID
-      accountName = accountName
       promptTerminal = Stdlib.Option.Option.None
       nonInteractive = false
       cachedHintInput = ""

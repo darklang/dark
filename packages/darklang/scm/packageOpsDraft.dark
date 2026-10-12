@@ -227,8 +227,7 @@ let supersededOverrides
     match
       Stdlib.Sqlite.query
         (localDb ())
-        "SELECT id, op_blob,
-                (SELECT o.owner FROM op_owners o WHERE o.op_id = id LIMIT 1) AS author
+        "SELECT id, op_blob
          FROM package_ops
          WHERE effective = 1 ORDER BY origin_ts, rowid"
     with
@@ -251,34 +250,18 @@ let supersededOverrides
             (Stdlib.Sqlite.textField row "id", Stdlib.Sqlite.bytesField row "op_blob")
           with
           | (Some idStr, Some blob) ->
-            let author =
-              Stdlib.Sqlite.textField row "author" |> Stdlib.Option.withDefault ""
-
             match Stdlib.Uuid.parse idStr with
             | Error _ -> acc
             | Ok id ->
               match tryDecodeOp id blob with
               | None -> acc
               | Some(Decision(_, loc, _, Override target)) ->
-                if author == "" then
-                  let h = hashOf target
-                  Stdlib.Dict.setOverridingDuplicates acc (decisionKey loc) (loc, h, h)
-                else
-                  // A peer's override displaces whatever record was open: from here on the standing
-                  // choice on this name is theirs, not yours.
-                  Stdlib.Dict.remove acc (decisionKey loc)
-              | Some(SetName(loc, target, _)) ->
+                let h = hashOf target
+                Stdlib.Dict.setOverridingDuplicates acc (decisionKey loc) (loc, h, h)
+              | Some(SetName(loc, _target, _)) ->
                 match Stdlib.Dict.get acc (decisionKey loc) with
                 | None -> acc
-                | Some entry ->
-                  if author == "" then
-                    Stdlib.Dict.remove acc (decisionKey loc)
-                  else
-                    let (l, chosen, _live) = entry
-                    Stdlib.Dict.setOverridingDuplicates
-                      acc
-                      (decisionKey loc)
-                      (l, chosen, hashOf target)
+                | Some _entry -> Stdlib.Dict.remove acc (decisionKey loc)
               | _ -> acc
           | _ -> acc)
 

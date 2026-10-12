@@ -1,0 +1,51 @@
+// RESTORE: backend/tests/Tests/LibExecution.Tests.fs and backend/tests/TestUtils/TestUtils.fs
+// WAS: setupDBs, which saved a testfile's declared DBs into toplevels_v0, and the per-test wipe
+//      of toplevels_v0 / user_data_v0 that isolated the `cloud/` testfile cases from each other
+// ANCHOR: setupDBs sat just under the `open TestUtils.TestUtils`; the wipe was the first thing
+//      inside the testTask, above `let rtDBs`; `if dbs <> [] then do! setupDBs dbs` sat under
+//      the "// Initialize" comment just before the left-hand side ran. The `/cloud` sequencing
+//      in the file walker went with later/backend/testfiles/execution/cloud/.
+// ALSO: later/backend/src/LibCloud/Toplevels.fs and Serialize.fs
+// WHEN: the user-DB molt, 2026-10-12
+
+// --- backend/tests/Tests/LibExecution.Tests.fs ---
+module Toplevels = LibCloud.Toplevels
+module Serialize = LibCloud.Serialize
+
+
+// --- backend/tests/Tests/LibExecution.Tests.fs ---
+let setupDBs (dbs : List<PT.DB.T>) : Task<unit> =
+  task {
+    let tls = dbs |> List.map (fun db -> db, Serialize.NotDeleted)
+    do! Toplevels.saveTLIDs tls
+  }
+
+// FUTURE: drop `RT.Program.dbs`. Canvas-era relic: toplevels_v0 is global, so the
+// per-canvas whitelist scopes nothing. DB builtins and Interpreter.VarNotFound would
+// do a cached `toplevels_v0` name lookup instead, and `executionStateFor` stops
+// taking `dbs`. Big enough for its own PR; the perf motivation is already gone.
+
+// --- backend/tests/Tests/LibExecution.Tests.fs ---
+      // Wipe per-test state when this test uses UserDB.
+      // Single-instance Dark — toplevels_v0 / user_data_v0 are global,
+      // so isolation between .dark testfile cases is "wipe +
+      // repopulate" (the surrounding testList is testSequenced so
+      // wipes don't race parallel writes).
+      if dbs <> [] then
+        do! Sql.query "DELETE FROM toplevels_v0" |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM user_data_v0" |> Sql.executeStatementAsync
+
+      let rtDBs
+
+// --- backend/tests/Tests/LibExecution.Tests.fs ---
+      // Initialize
+      if dbs <> [] then do! setupDBs dbs
+
+
+
+// --- backend/tests/TestUtils/TestUtils.fs ---
+module Toplevels = LibCloud.Toplevels
+
+
+// --- backend/src/LibExecution/RuntimeTypes.fs ---
+    // - in backend/src/LibCloud/SqlCompiler.fs:

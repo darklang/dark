@@ -69,29 +69,15 @@ let viewPrintsSource =
           "and --raw prints it without the trimmings"
     })
 
-let viewPrintsTestDefaultsAndSqlErrors =
-  instanceTest "view prints inherited test access and short SQL errors" (fun state ->
+let viewPrintsTestDefaults =
+  instanceTest "view prints inherited test access" (fun state ->
     task {
       do!
         shows
           state
-          [ "view"
-            "Darklang.Stdlib.DB.Tests.generatedKeyHas36Characters"
-            "--raw" ]
-          "test generatedKeyHas36Characters ="
+          [ "view"; "Darklang.Stdlib.Bool.Tests.andTruthTable"; "--raw" ]
+          "test andTruthTable ="
           "an unannotated test has no printed effect row"
-      do!
-        shows
-          state
-          [ "view"; "Darklang.Stdlib.DB.Tests.FindAll.rejectsInt8Query"; "--raw" ]
-          "=> sqlerror \"Only Int64 integer fields"
-          "SQL errors retain their short source form"
-      do!
-        lacks
-          state
-          [ "view"; "Darklang.Stdlib.DB.Tests.FindAll.rejectsInt8Query"; "--raw" ]
-          "You're using our new experimental Datastore query compiler"
-          "the display-only SQL preamble is absent from source"
     })
 
 let viewRefusesWhatIsNotThere =
@@ -344,7 +330,9 @@ let testsWithoutPurityProofAlwaysRun =
         )
       System.IO.File.WriteAllText(
         file,
-        "test randomKey = Stdlib.DB.generateKey () |> Stdlib.String.length |> Stdlib.Test.equal 36\n\n"
+        "test randomKey =\n"
+        + "  (Stdlib.toString (Stdlib.Uuid.generate ())) |> Stdlib.String.length\n"
+        + "  |> Stdlib.Test.equal 36\n\n"
         + "test dynamicCall =\n"
         + "  (let fn = (+)\n"
         + "   fn 1L 1L) |> Stdlib.Test.equal 2L\n"
@@ -1210,7 +1198,7 @@ let searchLeavesTestsOutUnlessAsked =
 /// <paramref name="row"/>, as one line of Dark for `eval`. Built from `initialState`, so no terminal.
 let private workbenchAt (modules : List<string>) (row : string) : string =
   let path = modules |> List.map (fun m -> $"\"{m}\"") |> String.concat ", "
-  "let st = Darklang.Cli.Workbench.initialState (Darklang.SCM.PackageOps.currentBranch ()) (Stdlib.Option.Option.None) \"T\" \"i\" [] false in "
+  "let st = Darklang.Cli.Workbench.initialState (Darklang.SCM.PackageOps.currentBranch ()) (Stdlib.Option.Option.None) \"i\" false in "
   + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in "
   + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems s0 } in "
   + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap s1.items (fun i it -> (i, it.name)) |> Stdlib.List.findFirst (fun (_, nm) -> nm == \"{row}\") |> Stdlib.Option.map (fun (i, _) -> i) |> Stdlib.Option.withDefault 0) }} in "
@@ -2034,7 +2022,7 @@ let tests : List<Test> =
   [ lsNamesWhatIsThere
     treeShowsDescendants
     viewPrintsSource
-    viewPrintsTestDefaultsAndSqlErrors
+    viewPrintsTestDefaults
     viewRefusesWhatIsNotThere
     viewListsAFunctionsTests
     testsFollowEditsAcrossOwners
