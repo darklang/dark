@@ -1,3 +1,4 @@
+// ---- moved from backend/testfiles/execution/language/custom-data/records.dark ----
 type Cols1 = { col1: Int64 }
 type Cols2 = { col1: Int64; col2: Int64 }
 
@@ -108,3 +109,16 @@ module Update =
 
     (let myRec = RecordForUpdate { x = 4L; y = 1L }
      { myRec with y = "2" }) = error="Failed to create updated record. Expected Int64 for field `y`, but got \"2\" (a String)"
+// ---- moved from backend/testfiles/execution/language/custom-data/record-field-acess.dark ----
+type MyRecord = { col1: Int64 }
+
+(let x = MyRecord { col1 = 1L } in x.col1) = 1L
+
+module Errors =
+  (let x = MyRecord { col1 = 1L } in x.___) = error="Field name is empty"
+
+  (let x = MyRecord { col1 = 1L } in x.fieldName) = error="Tried to access field `fieldName`, but it doesn't exist"
+
+  (Builtin.testRuntimeError "error").fieldName = error="Uncaught exception: error"
+
+  (let x = 6L in x.fieldName) = error="Attempting to perform field access of an Int64, but this only works with records and tuples"

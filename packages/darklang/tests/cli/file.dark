@@ -1,3 +1,4 @@
+// ---- moved from backend/testfiles/execution/cli/file.dark ----
 module WriteReadRoundtrip =
   let testContents () : String = "Test conrents"
 
@@ -17,3 +18,15 @@ module MissingFile =
      (Stdlib.Cli.File.createTemp () |> Builtin.unwrap) + "-does-not-exist"
    Stdlib.Cli.FileSystem.readFile missing) = Stdlib.Result.Result.Error
     Stdlib.Cli.FileSystem.FileError.NotFound
+
+// ---- moved from backend/testfiles/execution/cli/file.tests ----
+module WriteReadRoundtrip =
+  let testContents () : String = "Test conrents"
+
+  (let filename = (Stdlib.Cli.File.createTemp ()) |> Builtin.unwrap
+   let blob = Stdlib.Blob.fromString (testContents ())
+   do (Stdlib.Cli.FileSystem.writeFile filename blob) |> Builtin.unwrap
+
+   let readBack =
+     Stdlib.Cli.FileSystem.readFile filename |> Builtin.unwrap
+   Stdlib.Blob.toString readBack) = Stdlib.Result.Result.Ok(testContents ())
