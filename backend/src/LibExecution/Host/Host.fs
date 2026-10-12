@@ -895,9 +895,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.RuntimeHash ->
     // Public runtime identity, like the build hash or CPU count. Callers cannot
     // choose a path or read file contents through this operation.
-    unchecked (
-      attempt (fun () -> Ok(Response.Text(HostProcess.runtimeHash ())))
-    )
+    unchecked (attempt (fun () -> Ok(Response.Text(HostProcess.runtimeHash ()))))
   | Operation.EnvGet name ->
     withChecks
       [ envCheck read name ]

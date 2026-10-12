@@ -455,10 +455,7 @@ let cachedPassesRequireTheSameBuildAndJudge =
         runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
       let parts = key.Trim().Split(':')
       Expect.equal parts.Length 2 $"build and judge identities: {key}"
-      Expect.equal
-        parts[0].Length
-        64
-        "the runtime identity is a SHA-256 hash"
+      Expect.equal parts[0].Length 64 "the runtime identity is a SHA-256 hash"
       Expect.isTrue (parts[0] |> Seq.forall System.Uri.IsHexDigit) "hex hash"
       let! again =
         runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
