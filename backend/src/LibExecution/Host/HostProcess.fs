@@ -245,6 +245,35 @@ let killChild (child : Child) : unit =
 let currentExecutablePath () : string =
   System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
 
+/// Hash the executable and its installed runtime dependencies once per process.
+/// This works for both a single NativeAOT binary and a managed build with DLLs.
+let private runtimeHashValue =
+  lazy
+    (let executable = currentExecutablePath ()
+     let directory = Path.GetDirectoryName executable
+     let dependencies =
+       Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
+       |> Array.filter (fun path ->
+         path.EndsWith(".dll")
+         || path.EndsWith(".deps.json")
+         || path.EndsWith(".runtimeconfig.json")
+         || path.EndsWith(".dylib")
+         || (Path.GetFileName path).Contains(".so"))
+       |> Array.sort
+     use hash =
+       System.Security.Cryptography.IncrementalHash.CreateHash(
+         System.Security.Cryptography.HashAlgorithmName.SHA256
+       )
+     hash.AppendData(
+       System.Text.Encoding.UTF8.GetBytes RuntimeInformation.FrameworkDescription
+     )
+     for path in Array.append [| executable |] dependencies do
+       use file = File.OpenRead path
+       hash.AppendData(System.Security.Cryptography.SHA256.HashData file)
+     System.Convert.ToHexStringLower(hash.GetHashAndReset()))
+
+let runtimeHash () : string = runtimeHashValue.Value
+
 let mutable private processLauncher : Option<string> = None
 
 /// Configure at host startup when another executable provides the worker entry point.

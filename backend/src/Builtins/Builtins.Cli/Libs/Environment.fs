@@ -78,14 +78,29 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    { name = fn "getBuildId" 0
+    { name = fn "getRuntimeHash" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString
-      description = "Returns the unique identity of this runtime build"
+      description = "Hashes the installed runtime files for cache invalidation"
       fn =
         function
-        | _, _, [], [| DUnit |] -> uply { return DString LibConfig.Config.buildId }
+        | state, vm, [], [| DUnit |] ->
+          uply {
+            let! result =
+              LibExecution.PermissionCheck.performHost
+                state
+                vm
+                Host.Operation.RuntimeHash
+            match result with
+            | Ok(Host.Response.Text hash) -> return DString hash
+            | Error error ->
+              return
+                raiseRTE
+                  vm.threadID
+                  (RuntimeError.UncaughtException(error.message, []))
+            | _ -> return incorrectArgs ()
+          }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure

@@ -140,6 +140,7 @@ type Operation =
   /// so builtin assemblies never call host subsystems directly.
   | CurrentExecutablePath
   | ProcessLauncherPath of overrideVariable : Option<string>
+  | RuntimeHash
   | EnvGet of name : string
   | EnvList
   | HttpRequest of
@@ -354,6 +355,7 @@ let describeOperation (op : Operation) : string =
   | Operation.DirectoryList path -> $"dir-list {path}"
   | Operation.CurrentExecutablePath -> "current-executable-path"
   | Operation.ProcessLauncherPath _ -> "process-launcher-path"
+  | Operation.RuntimeHash -> "runtime-hash"
   | Operation.EnvGet name -> $"env-get {name}"
   | Operation.EnvList -> "env-list"
   | Operation.HttpRequest(_, method, url, _, _) -> $"http {method} {redactUrl url}"

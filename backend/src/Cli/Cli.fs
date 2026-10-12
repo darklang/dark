@@ -31,29 +31,6 @@ let private logError (message : string) : unit =
     ()
 
 // ---------------------
-// Version information
-// ---------------------
-
-type VersionInfo = { hash : string; buildDate : string; inDevelopment : bool }
-
-#if DEBUG
-let inDevelopment : bool = true
-#else
-let inDevelopment : bool = false
-#endif
-
-open System.Reflection
-
-let info () =
-  let buildAttributes =
-    Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyMetadataAttribute>()
-  // These two values are created during the build, in Cli.fsproj.
-  let buildDate = buildAttributes.Key
-  let gitHash = buildAttributes.Value
-  { hash = gitHash; buildDate = buildDate; inDevelopment = inDevelopment }
-
-
-// ---------------------
 // Execution
 // ---------------------
 

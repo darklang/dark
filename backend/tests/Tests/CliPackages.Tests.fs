@@ -455,8 +455,11 @@ let cachedPassesRequireTheSameBuildAndJudge =
         runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
       let parts = key.Trim().Split(':')
       Expect.equal parts.Length 2 $"build and judge identities: {key}"
-      let validId, _ = System.Guid.TryParse parts[0]
-      Expect.isTrue validId "the runtime identity is a build UUID, not a git commit"
+      Expect.equal
+        parts[0].Length
+        64
+        "the runtime identity is a SHA-256 hash"
+      Expect.isTrue (parts[0] |> Seq.forall System.Uri.IsHexDigit) "hex hash"
       let! again =
         runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
       Expect.equal again key "the build identity survives a new CLI process"

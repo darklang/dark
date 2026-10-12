@@ -144,8 +144,10 @@ A cached pass can only be reused when these still match:
   the cached result was checked against.
 
 The last two are explicit because the test hash alone does not capture them.
-Every rebuild currently gets a new build identity, even when the source has not
-changed, so unchanged rebuilds also invalidate cached results.
+The runtime hash includes the .NET version and hashes the executable and
+its installed dependencies. It changes when those files change, including
+uncommitted runtime edits. Rebuilding
+identical files keeps the same key; no separate build ID is generated.
 
 The hash changes when the code changes. But the same code can return a different
 result if a file, database value or network response changes. That's why the

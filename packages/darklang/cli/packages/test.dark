@@ -62,7 +62,7 @@ let cacheRuntime () : String =
       | Package hash -> LanguageTools.RuntimeTypes.hashToString hash
       | _ -> Stdlib.toString (Stdlib.Uuid.generate ())
     | _ -> Stdlib.toString (Stdlib.Uuid.generate ())
-  Cli.Installation.Helpers.buildId () + ":" + judge
+  Cli.Installation.Helpers.runtimeHash () + ":" + judge
 
 /// Only successful ordinary tests are reusable. Branch identity and the
 /// branch's current `Stdlib.Test.Result` binding are part of the key: neither

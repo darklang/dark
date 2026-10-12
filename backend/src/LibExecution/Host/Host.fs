@@ -892,6 +892,12 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       [ (Permission.Request.native "process launcher", "finding the process launcher") ]
       (attempt (fun () ->
         Ok(Response.Path(HostProcess.processLauncherPath overrideVariable))))
+  | Operation.RuntimeHash ->
+    // Public runtime identity, like the build hash or CPU count. Callers cannot
+    // choose a path or read file contents through this operation.
+    unchecked (
+      attempt (fun () -> Ok(Response.Text(HostProcess.runtimeHash ())))
+    )
   | Operation.EnvGet name ->
     withChecks
       [ envCheck read name ]
