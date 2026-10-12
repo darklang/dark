@@ -1,4 +1,4 @@
-/// `dark test`: run package tests, or author one with `test add`. Dark handles
+/// `dark test run`: run package tests, or author one with `test add`. Dark handles
 /// discovery, caching, judging, and printing. F# executes test bodies and
 /// checks cache safety using the shared call-graph analyzer.
 module Darklang.Cli.Packages.Test
@@ -19,7 +19,7 @@ type Counts =
     ran: Int }
 
 val usage =
-  "Usage: test [--force] [--jobs <count>] [name-or-module ...]\n       test add <location> <body> | <source-file> | -"
+  "Usage: test run [--force] [--jobs <count>] [name-or-module ...]\n       test add <location> <body> | <source-file> | -"
 
 let fullPath
   (item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
@@ -134,7 +134,7 @@ let storeOutcome
   ()
 
 /// The last result for this test on this branch, read without writing anything.
-/// A failed result is shown in views but is never reused by `dark test`.
+/// A failed result is shown in views but is never reused by `dark test run`.
 let lastOutcome
   (branchId: Uuid)
   (testHash: LanguageTools.ProgramTypes.Hash)
@@ -293,9 +293,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       addFailed state "test add needs a body after the location"
     else
       addTest state location definition
-  | _ -> runTests state args
+  | "run" :: runArgs -> runTests state runArgs
+  | [] ->
+    Stdlib.printLine (help state)
+    state
+  | _ ->
+    Stdlib.printLine usage
+    { state with exitCode = 1 }
 
-/// `dark test [--force] [--jobs <count>] [filters]`: run the matching tests, from the cache
+/// `dark test run [--force] [--jobs <count>] [filters]`: run the matching tests, from the cache
 /// where it allows, print each one, and fail the command if any failed or
 /// nothing matched.
 let runTests (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -490,9 +496,9 @@ let help (_state: Cli.AppState) : String =
     "Tests start in name order; results are printed as they finish."
     ""
     "Examples:"
-    "  test"
-    "  test MyApp.Math"
-    "  test --force MyApp.Math.doubles"
+    "  test run"
+    "  test run MyApp.Math"
+    "  test run --force MyApp.Math.doubles"
     ""
     "Adding a test:"
     "  test add MyApp.Math.Tests.doubles 'MyApp.Math.double 4L |> Stdlib.Test.equal 8L'"
@@ -503,18 +509,20 @@ let help (_state: Cli.AppState) : String =
     "  test keyLength = Stdlib.DB.generateKey () |> Stdlib.String.length |> Stdlib.Test.equal 36"
     "  EOF"
     "The body may be given alone or as a whole `test name = ...` declaration;"
-    "it lands in your draft like `fn` and `val`. Because `add` starts an"
-    "authoring command, filter a test named add by a longer name: `test Tests.add`." ]
+    "it lands in your draft like `fn` and `val`." ]
   |> Stdlib.String.join "\n"
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   match args with
-  | [ partial ] when Stdlib.String.startsWith "add" partial && partial != "" ->
-    [ Cli.Completion.simple "add" ]
-  | _ ->
-    match Stdlib.List.last args with
-    | Some partial when Stdlib.String.startsWith partial "-" ->
-      [ "--force", "--jobs" ]
-      |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag partial)
-      |> Stdlib.List.map Cli.Completion.simple
-    | _ -> []
+  | [] -> [ "run", "add" ] |> Stdlib.List.map Cli.Completion.simple
+  | "run" :: runArgs ->
+    let partial = Stdlib.Option.withDefault (Stdlib.List.last runArgs) ""
+    [ "--force", "--jobs" ]
+    |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag partial)
+    |> Stdlib.List.map Cli.Completion.simple
+  | "add" :: _ -> []
+  | [ partial ] ->
+    [ "run", "add" ]
+    |> Stdlib.List.filter (fun command -> Stdlib.String.startsWith command partial)
+    |> Stdlib.List.map Cli.Completion.simple
+  | _ -> []

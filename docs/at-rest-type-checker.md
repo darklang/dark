@@ -224,7 +224,7 @@ ordinary Darklang code, not an F# module with a builtin in front of it. There is
 
 ## Verification
 
-./scripts/run-cli test Darklang.LanguageTools.AtRestTypeChecker
+./scripts/run-cli test run Darklang.LanguageTools.AtRestTypeChecker
 ./scripts/run-cli typecheck
 
 `packages/darklang/tests/languageTools/atRestTypeChecker.dark` tests each rule and issue code. Cases use source parsed by

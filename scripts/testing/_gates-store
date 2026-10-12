@@ -1043,9 +1043,9 @@ sys.exit(1 if failed else 0)
 EOF
 }
 
-# --- package-tests: every package test in packages/, through `dark test` ---------------------
+# --- package-tests: every package test in packages/, through `dark test run` ---------------------
 # The package suite as a person runs it, on a copy of the store, so a red package test fails CI
-# instead of waiting for someone to run `dark test` by hand. The F# harness limits each command
+# instead of waiting for someone to run `dark test run` by hand. The F# harness limits each command
 # to 2 minutes, so this suite has its own CI step and timeout. It runs in build-cli using the
 # NativeAOT binary already built there, since every test starts a fresh process.
 #
@@ -1073,7 +1073,7 @@ gate_package_tests() {
   set +e
   # Stream progress to CI as well as the log so its no-output timeout does not
   # stop a running suite. Unbuffer sed so each test appears as it runs.
-  "$CLI" test --force < /dev/null 2>&1 | sed -u 's/\x1b\[[0-9;]*m//g' | tee "$ROOT/test.log"
+  "$CLI" test run --force < /dev/null 2>&1 | sed -u 's/\x1b\[[0-9;]*m//g' | tee "$ROOT/test.log"
   status=${PIPESTATUS[0]}
   set -e
 
@@ -1088,7 +1088,7 @@ gate_package_tests() {
   fi
 
   if [[ "$status" -ne 0 ]] || ! grep -q ' 0 failed' <<<"$verdict"; then
-    echo "package-tests: dark test exited $status; full output in $ROOT/test.log" >&2
+    echo "package-tests: dark test run exited $status; full output in $ROOT/test.log" >&2
     exit 1
   fi
 }

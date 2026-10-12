@@ -567,13 +567,6 @@ let private notSweepable =
       "devices" // shells out to `tailscale`
       "clear" ] // clears the screen, taking the sweep's own output with it
 
-/// Commands swept everywhere EXCEPT bare, with the reason bare is out of reach. Checked for
-/// registration with `notSweepable`, for the same reason.
-let private notSweepableBare : Map<string, string> =
-  Map.ofList
-    [ "test",
-      "bare, it runs every package test in the store, which is minutes; swept with a filter in the valid-argument table" ]
-
 /// Every `--help` opens with a sentence saying what the command IS.
 ///
 /// Not `Usage:`, which is syntax before purpose, and not `dark <name> - ...`, which repeats the name
@@ -614,11 +607,7 @@ let private everyExclusionIsReal =
       Expect.isGreaterThan (List.length commands) 20 "the registry was read"
 
       let stale =
-        Set.difference
-          (Set.unionMany
-            [ Set.add "agent" notSweepable
-              notSweepableBare |> Map.keys |> Set.ofSeq ])
-          (Set.ofList commands)
+        Set.difference (Set.add "agent" notSweepable) (Set.ofList commands)
 
       if not (Set.isEmpty stale) then
         Tests.failtestf
@@ -672,10 +661,7 @@ let everyCommandAnswersWhenBare =
         let mutable failures : List<string * string> = []
 
         for cmd in commands do
-          if
-            not (Set.contains cmd notSweepable)
-            && not (Map.containsKey cmd notSweepableBare)
-          then
+          if not (Set.contains cmd notSweepable) then
             let! outcome = runCliCatchingWithStatus state [ cmd ]
             let failure =
               match outcome with
@@ -890,12 +876,9 @@ let everyCommandSurvivesABranch =
                 match Map.tryFind cmd aWordIsNotAMistake with
                 | Some(WhatItMakes _) -> not (List.isEmpty extra)
                 | _ -> false
-              let skipBare =
-                List.isEmpty extra && Map.containsKey cmd notSweepableBare
               if
                 not (Set.contains cmd (Set.add "agent" notSweepable))
                 && not makesSomething
-                && not skipBare
               then
                 let! outcome = runCliCatching state (cmd :: extra)
                 match sweepFailure outcome with
@@ -1002,7 +985,7 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       // `find-values` above, rather than relying on the bare-name fallback to the stdlib.
       "impls", [ "Darklang.Stdlib.Add" ]
       // The sweep's own test, so this check does not depend on migrated suites.
-      "test", [ "Tests.Sweep.passes" ] ]
+      "test", [ "run"; "Tests.Sweep.passes" ] ]
 
 /// Commands that are safe to run BARE and must not be given real arguments, with the reason.
 ///

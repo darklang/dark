@@ -463,7 +463,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 |> Stdlib.List.filter (fun m -> Stdlib.Bool.not (Stdlib.List.member implPaths m)) }
         // Tests are left out unless asked for. A test is usually named after what
         // it tests, so every search for a function would also list its tests;
-        // `dark test <filter>` and `view --include-tests` are where to find them.
+        // `dark test run <filter>` and `view --include-tests` are where to find them.
         // Searched for anyway, so the hint below can say how many were left out.
         let showTests =
           parsed.includeTests

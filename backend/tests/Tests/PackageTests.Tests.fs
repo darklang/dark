@@ -1,7 +1,7 @@
 /// Package tests: `test name = body`, run by `pmExecuteTest`.
 ///
 /// These author real tests into the store and run them through the Dark wrapper
-/// (`LanguageTools.PackageManager.Test.execute`), the same path `dark test` takes.
+/// (`LanguageTools.PackageManager.Test.execute`), the same path `dark test run` takes.
 module Tests.PackageTests
 
 open Expecto

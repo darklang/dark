@@ -580,7 +580,7 @@ test workbenchRunTestsAreLastInInspect =
     hasWorkbenchHeading
     && (Stdlib.Bool.not hasListingHeading)
     && ((Stdlib.List.length testRows) == 1)
-    && (Stdlib.String.contains last "`:test` runs them")
+    && (Stdlib.String.contains last "`:test run` runs them")
   then
     Stdlib.Test.Result.Pass
   else

@@ -1,6 +1,6 @@
 # Backend test files
 
-Package tests live in `packages/darklang/tests` and run with `dark test`.
+Package tests live in `packages/darklang/tests` and run with `dark test run`.
 The old execution testfiles and their runner have been removed.
 
 This directory keeps the raw HTTP tests and shared test data:

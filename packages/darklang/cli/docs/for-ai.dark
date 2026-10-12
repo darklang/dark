@@ -85,7 +85,7 @@ One test at a time, quoting the body so the shell leaves `|>` alone:
 
   test add Me.Example.Tests.doubles 'Me.Example.double 4 |> Stdlib.Test.equal 8'
 
-Run all tests with `test`, or filter by name/module with `test Example`.
+Run all tests with `test run`, or filter by name/module with `test run Example`.
 `search` leaves tests out; add `--include-tests`, or `--test` for tests only.
 Tests use an allow-all instance policy for the test run and its disposable
 workers; the installation's saved policy is unchanged. Each called function's
@@ -98,7 +98,7 @@ Failed tests and expected-error tests rerun; so do tests with incomplete
 cache-safety analysis.
 `equal` and `notEqual` use branch-dependent formatting and rerun conservatively;
 use `expect` with a fixed message for checks that can be cached.
-`test --force` reruns cached tests.
+`test run --force` reruns cached tests.
 
 Tests with private `[<DB>]` tables may use DbRead and DbWrite when the called
 functions allow them. Tests with private DBs are not cached.
@@ -107,7 +107,7 @@ Every test execution runs in its own disposable process and store snapshot.
 Ordinary `test name = ...` declarations provide isolation automatically, including
 for tests that change the local store, branches, or environment. Safe cached
 passes can still be reused; a rerun always gets a fresh process and store.
-One starting snapshot is shared per `test` command, with a private writable
+One starting snapshot is shared per `test run` command, with a private writable
 copy for each executed test. A command answered entirely from cache creates
 no snapshot. Nested workers start from their calling test's current store.
 Use `Stdlib.Test.Process.run` only when a test needs custom process options or

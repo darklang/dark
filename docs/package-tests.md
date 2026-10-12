@@ -38,9 +38,11 @@ Test bodies are stored as PT and converted into interpreter instructions when th
 Tests can declare private Dark databases with `[<DB>]` and use them through
 `Stdlib.DB`. Each run gets fresh DB IDs, and their data is deleted afterward.
 
-## What happens when you run `dark test`
+## What happens when you run `dark test run`
 
-`dark test` runs all tests, or you can filter them by module or test name. It skips
+`dark test` shows help. Use `dark test run` to execute tests and `dark test add` to add one.
+
+`dark test run` runs all tests, or you can filter them by module or test name. It skips
 deprecated tests and starts them in name order, with up to four running at once
 (or fewer on smaller machines). Results are printed as tests finish. Use
 `--jobs <count>` to change the limit, or `--jobs 1` to run serially. Each declaration
@@ -65,7 +67,7 @@ Errors are returned as structured data so Dark can inspect their type and detail
 
 ## Isolation and permissions
 
-Before the first uncached test runs, `dark test` takes one snapshot of the package
+Before the first uncached test runs, `dark test run` takes one snapshot of the package
 store. SQLite's backup API creates the snapshot. The backup connection is then
 closed, leaving a complete database file that can be copied for each test.
 Each test that needs to run gets a fresh process, its own writable copy of the
@@ -127,7 +129,7 @@ text.
 `=> sqlerror` checks that a SQL compiler error occurs and its message exactly
 matches the expected text.
 
-In the terminal output from `dark test`, failed assertions are shown as `FAIL`
+In the terminal output from `dark test run`, failed assertions are shown as `FAIL`
 and unexpected runtime errors as `ERROR`, before the test's name.
 
 ## How caching works
@@ -168,7 +170,7 @@ The analyzer flags that possible call even when the test passes and no message i
 needed. Better analysis could allow those passing results to be cached.
 
 Reusing a cached result avoids starting a process or copying the store.
-`dark test --force` runs tests even if their results are cached. CI uses this flag
+`dark test run --force` runs tests even if their results are cached. CI uses this flag
 to run all package tests.
 
 ## How this fits with the old tests and CI

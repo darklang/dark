@@ -143,7 +143,7 @@ let terminalContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.
 
 /// The tests that call <param location> directly, each with its last stored
 /// result. Read-only: nothing runs here, and a test with no stored result for
-/// this build says so. Deprecated (deleted) tests are left out, as `dark test`
+/// this build says so. Deprecated (deleted) tests are left out, as `dark test run`
 /// leaves them out.
 ///
 /// <param cmdPrefix> is how the reader runs a command where these rows are
@@ -197,8 +197,8 @@ let testRows
       |> Stdlib.List.unique
     let runHint =
       match modules with
-      | [ only ] -> $"`{cmdPrefix}test {only}` runs them"
-      | _ -> $"`{cmdPrefix}test` runs them"
+      | [ only ] -> $"`{cmdPrefix}test run {only}` runs them"
+      | _ -> $"`{cmdPrefix}test run` runs them"
 
     Stdlib.List.flatten
       [ [ "", heading ]
@@ -779,7 +779,7 @@ let help (_state: AppState) : String =
     "Options (functions only):"
     "  --include-tests   Also list the tests that call the function, each with"
     "                    its last result for this build. Nothing is run;"
-    "                    `dark test` runs them."
+    "                    `dark test run` runs them."
     "  --ast             The ProgramTypes tree the parser built, before compilation."
     "  --instructions    The register-machine instructions the function actually runs."
     "                    Aliased as --instrs."

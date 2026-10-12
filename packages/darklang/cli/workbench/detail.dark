@@ -269,7 +269,7 @@ let testOutcomeLines
     [ Stdlib.Cli.UI.Colors.error "✗ error (this build)"
       Stdlib.Cli.UI.Colors.dimText ("  " + message) ]
   | None ->
-    [ Stdlib.Cli.UI.Colors.dimText "no result for this build -- `:test` runs it" ]
+    [ Stdlib.Cli.UI.Colors.dimText "no result for this build -- `:test run` runs it" ]
 
 /// Tests that exercise the selected function. Kept separate from `detailLines`
 /// so the Inspect page can put the action after source, access, and references.

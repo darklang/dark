@@ -377,7 +377,7 @@ let private applyAddFn
   }
 
 /// Apply a single AddTest op. Unlike a function, a test is stored as source
-/// only: it is compiled when `dark test` runs it, and the runtime package
+/// only: it is compiled when `dark test run` runs it, and the runtime package
 /// manager has no way to look one up, so nothing can call a test.
 let private applyAddTest
   (ctx : Ctx)

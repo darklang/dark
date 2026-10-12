@@ -115,7 +115,7 @@ let viewRefusesWhatIsNotThere =
 
 /// `view --include-tests` ends a function's view with the tests that call it, read from the result
 /// cache and never run. `Stdlib.Float.sqrt` has a package test in every store (`Stdlib.Float.Tests.sqrt`),
-/// and a fresh instance has never run `dark test`, so this is also the path where the cache table does
+/// and a fresh instance has never run `dark test run`, so this is also the path where the cache table does
 /// not exist yet -- which `view` must answer without creating it. Without the flag there is no section.
 let viewListsAFunctionsTests =
   instanceTest
@@ -129,7 +129,7 @@ let viewListsAFunctionsTests =
             [ "Tests:"
               "Darklang.Stdlib.Float.Tests.sqrt"
               "no result for this build"
-              "`dark test` runs them" ]
+              "`dark test run` runs them" ]
             "view names the function's tests, with no result before any run"
         do!
           lacks
@@ -182,20 +182,20 @@ let testsFollowEditsAcrossOwners =
       do!
         shows
           state
-          [ "test"; "Tests.TestFollow" ]
+          [ "test"; "run"; "Tests.TestFollow" ]
           "PASS Tests.TestFollow.halfOf8"
           "the test starts against the current function"
       do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 3L)"
       do!
         showsAll
           state
-          [ "test"; "Tests.TestFollow" ]
+          [ "test"; "run"; "Tests.TestFollow" ]
           [ "FAIL Tests.TestFollow.halfOf8"; "expected 4, got 2" ]
           "the test follows the edited function across owners"
       do!
         exits
           state
-          [ "test"; "Tests.TestFollow" ]
+          [ "test"; "run"; "Tests.TestFollow" ]
           1L
           "the changed result fails the command"
       do! discardAll state
@@ -233,13 +233,13 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
       do!
         shows
           state
-          [ "test"; "Tests.CacheT" ]
+          [ "test"; "run"; "Tests.CacheT" ]
           "1 ran, 0 cached"
           "the first run runs it"
       do!
         shows
           state
-          [ "test"; "Tests.CacheT" ]
+          [ "test"; "run"; "Tests.CacheT" ]
           "0 ran, 1 cached"
           "an unchanged test is answered from the cache"
 
@@ -248,7 +248,7 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
       do!
         showsAll
           state
-          [ "test"; "Tests.CacheT" ]
+          [ "test"; "run"; "Tests.CacheT" ]
           [ "FAIL Tests.CacheT.outerOf1"; "expected 2, got 3"; "1 ran, 0 cached" ]
           "a change to something the test reaches indirectly reruns it"
       do!
@@ -260,7 +260,7 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
       do!
         shows
           state
-          [ "test"; "Tests.CacheT" ]
+          [ "test"; "run"; "Tests.CacheT" ]
           "1 ran, 0 cached"
           "a failed result is shown but never reused"
 
@@ -274,7 +274,7 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
       do!
         showsAll
           state
-          [ "test"; "Tests.CacheT" ]
+          [ "test"; "run"; "Tests.CacheT" ]
           [ "PASS Tests.CacheT.outerOf1"; "1 ran, 0 cached" ]
           "a change to something the test calls directly reruns it"
       do! discardAll state
@@ -297,31 +297,35 @@ let cachedPassesStayOnTheirBranch =
       do! commit state "cacheable branch test"
 
       do!
-        shows state [ "test"; "Tests.CacheBranch" ] "1 ran, 0 cached" "main runs it"
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheBranch" ]
+          "1 ran, 0 cached"
+          "main runs it"
       do!
         shows
           state
-          [ "test"; "Tests.CacheBranch" ]
+          [ "test"; "run"; "Tests.CacheBranch" ]
           "0 ran, 1 cached"
           "main reuses it"
       do! switch state "cachebranch"
       do!
         shows
           state
-          [ "test"; "Tests.CacheBranch" ]
+          [ "test"; "run"; "Tests.CacheBranch" ]
           "1 ran, 0 cached"
           "the branch runs its own copy"
       do!
         shows
           state
-          [ "test"; "Tests.CacheBranch" ]
+          [ "test"; "run"; "Tests.CacheBranch" ]
           "0 ran, 1 cached"
           "the branch can reuse its own pass"
       do! onMain state
       do!
         shows
           state
-          [ "test"; "Tests.CacheBranch" ]
+          [ "test"; "run"; "Tests.CacheBranch" ]
           "0 ran, 1 cached"
           "main's pass remains"
       do! discardAll state
@@ -357,13 +361,13 @@ let testsWithoutPurityProofAlwaysRun =
       do!
         shows
           state
-          [ "test"; "Tests.CacheSafety" ]
+          [ "test"; "run"; "Tests.CacheSafety" ]
           "4 ran, 0 cached"
           "none of the tests is cached initially"
       do!
         shows
           state
-          [ "test"; "Tests.CacheSafety" ]
+          [ "test"; "run"; "Tests.CacheSafety" ]
           "4 ran, 0 cached"
           "effectful, incomplete, rendered, and expected-error tests run again"
       do! discardAll state
@@ -411,7 +415,7 @@ test notEqualMessage =
           do!
             showsAll
               state
-              [ "test"; "Tests.AssertionCache" ]
+              [ "test"; "run"; "Tests.AssertionCache" ]
               [ "2 passed, 0 failed"; "2 ran, 0 cached" ]
               "a passing test can have inspected a failed assertion"
         do!
@@ -423,13 +427,13 @@ test notEqualMessage =
         do!
           showsAll
             state
-            [ "test"; "Tests.AssertionCache" ]
+            [ "test"; "run"; "Tests.AssertionCache" ]
             [ "0 passed, 2 failed"; "type name changed"; "2 ran, 0 cached" ]
             "the renamed type must change both assertion messages"
         do!
           exits
             state
-            [ "test"; "Tests.AssertionCache" ]
+            [ "test"; "run"; "Tests.AssertionCache" ]
             1L
             "the failures exit nonzero"
         do! discardAll state
@@ -444,11 +448,15 @@ let cachedPassesRequireTheSameBuildAndJudge =
           state
           [ "test"; "add"; "Tests.CacheIdentity.passes"; "Stdlib.Test.pass ()" ]
       do!
-        shows state [ "test"; "Tests.CacheIdentity" ] "1 ran, 0 cached" "first run"
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheIdentity" ]
+          "1 ran, 0 cached"
+          "first run"
       do!
         shows
           state
-          [ "test"; "Tests.CacheIdentity" ]
+          [ "test"; "run"; "Tests.CacheIdentity" ]
           "0 ran, 1 cached"
           "same build and judge"
       let! key =
@@ -477,7 +485,7 @@ let cachedPassesRequireTheSameBuildAndJudge =
         do!
           shows
             state
-            [ "test"; "Tests.CacheIdentity" ]
+            [ "test"; "run"; "Tests.CacheIdentity" ]
             "1 ran, 0 cached"
             "the old pass cannot be reused"
       do!
@@ -488,7 +496,7 @@ let cachedPassesRequireTheSameBuildAndJudge =
       do!
         shows
           state
-          [ "test"; "--force"; "Tests.CacheIdentity" ]
+          [ "test"; "run"; "--force"; "Tests.CacheIdentity" ]
           "1 passed"
           "the runner uses its worker's exact hash, even if the branch rebinds its name"
       do! discardAll state
@@ -514,13 +522,13 @@ let testAddAuthorsATest =
       do!
         showsAll
           state
-          [ "test"; "Tests.AddT" ]
+          [ "test"; "run"; "Tests.AddT" ]
           [ "PASS Tests.AddT.doubles"; "1 passed" ]
           "and it runs"
       do!
         shows
           state
-          [ "test"; "Tests.AddT" ]
+          [ "test"; "run"; "Tests.AddT" ]
           "1 ran, 0 cached"
           "assertion formatting is conservatively rerun"
       do!
@@ -646,7 +654,7 @@ let isolatedTestDeclarations =
           do!
             showsAll
               state
-              [ "test"; "Tests.IsolatedDeclaration" ]
+              [ "test"; "run"; "Tests.IsolatedDeclaration" ]
               [ "3 passed, 1 failed"; counts; "isolated assertion detail" ]
               "stateful tests rerun in fresh stores while pure passes may be cached"
         do!
@@ -719,7 +727,7 @@ test nestedKeepsSavedEntry =
         do!
           showsAll
             state
-            [ "--safe"; "test"; "--force"; "Tests.EntryPoint" ]
+            [ "--safe"; "test"; "run"; "--force"; "Tests.EntryPoint" ]
             [ "2 passed, 0 failed"; "2 ran, 0 cached" ]
             "ordinary and nested workers keep the saved entry point"
         for args in
@@ -814,7 +822,12 @@ let packageTestsRespectParallelLimit =
             let running =
               runCliWithStatus
                 (Instance { instance with cli = wrapper })
-                [ "test"; "--force"; "--jobs"; string jobs; "Tests.Parallel" ]
+                [ "test"
+                  "run"
+                  "--force"
+                  "--jobs"
+                  string jobs
+                  "Tests.Parallel" ]
             let! barrierError =
               task {
                 try
@@ -868,6 +881,33 @@ let packageTestsRespectParallelLimit =
               "test writes did not reach the parent store"
       })
 
+let packageTestsRequireRun =
+  instanceTest "test shows help and requires run to execute tests" (fun state ->
+    task {
+      for args in [ [ "test" ]; [ "test"; "--help" ]; [ "test"; "run"; "--help" ] ] do
+        let! output, code = runCliWithStatus state args
+        Expect.equal code 0 "help succeeds"
+        Expect.stringContains output "Usage: test run" "help names the run command"
+        Expect.isFalse (output.Contains "Running:") "help starts no tests"
+        Expect.isFalse (output.Contains " ran,") "help reports no test results"
+      for args in
+        [ [ "test"; "Stdlib.Float" ]
+          [ "test"; "--force" ]
+          [ "test"; "--jobs"; "2" ] ] do
+        let! output, code = runCliWithStatus state args
+        Expect.equal code 1 "running tests requires the run subcommand"
+        Expect.isFalse
+          (output.Contains "Running:")
+          "invalid commands start no tests"
+      let! output, code =
+        runCliWithStatus state [ "test"; "run"; "Tests.NoSuchTestForRunCommand" ]
+      Expect.equal code 1 "a run with no matching tests fails"
+      Expect.stringContains
+        output
+        "No package tests matched."
+        "run reached discovery"
+    })
+
 let packageTestJobsRejectInvalidCounts =
   instanceTest "package tests reject invalid worker limits" (fun state ->
     task {
@@ -877,7 +917,7 @@ let packageTestJobsRejectInvalidCounts =
           [ "--jobs"; "-1" ]
           [ "--jobs"; "no" ]
           [ "--jobs=0" ] ] do
-        let! output, code = runCliWithStatus state ("test" :: args)
+        let! output, code = runCliWithStatus state ("test" :: "run" :: args)
         Expect.equal code 1 "invalid limits fail the command"
         Expect.stringContains
           output
@@ -918,7 +958,7 @@ test expected = 1L / 0L => raises "Cannot divide by 0"
           do!
             exits
               state
-              [ "test"; "--force"; "Tests.WorkerExit.passes" ]
+              [ "test"; "run"; "--force"; "Tests.WorkerExit.passes" ]
               0L
               "the test passes when its worker exits normally"
           let wrapper = System.IO.Path.Combine(instance.dir, "worker-exits-17")
@@ -946,7 +986,9 @@ test expected = 1L / 0L => raises "Cannot divide by 0"
           )
           let wrapped = Instance { instance with cli = wrapper }
           let! (output, code) =
-            runCliWithStatus wrapped [ "test"; "--force"; "Tests.WorkerExit" ]
+            runCliWithStatus
+              wrapped
+              [ "test"; "run"; "--force"; "Tests.WorkerExit" ]
           Expect.equal code 1 "a worker failure must fail the CLI command"
           Expect.stringContains
             output
@@ -993,7 +1035,7 @@ test expected = 1L / 0L => raises "Cannot divide by 0"
               let! (output, code) =
                 runCliWithStatus
                   wrapped
-                  [ "test"; "--force"; "Tests.WorkerExit." + target ]
+                  [ "test"; "run"; "--force"; "Tests.WorkerExit." + target ]
               Expect.equal code 1 "a missing result must fail the CLI command"
               for message in
                 [ "0 passed, 1 failed"; "worker stdout"; "worker stderr" ] do
@@ -1050,6 +1092,7 @@ test callerCeiling = Tests.PermissionUse.caller ()
           System.IO.File.Delete sourceFile
         let selected =
           [ "test"
+            "run"
             "--force"
             "Tests.PermissionUse.direct"
             "Tests.PermissionUse.isolated" ]
@@ -1107,25 +1150,25 @@ test callerCeiling = Tests.PermissionUse.caller ()
         do!
           shows
             state
-            [ "test"; "--force"; "Tests.PermissionUse.functionCeiling" ]
+            [ "test"; "run"; "--force"; "Tests.PermissionUse.functionCeiling" ]
             "function policy"
             "the tested function's ceiling applies"
         do!
           exits
             state
-            [ "test"; "--force"; "Tests.PermissionUse.functionCeiling" ]
+            [ "test"; "run"; "--force"; "Tests.PermissionUse.functionCeiling" ]
             1L
             "an instance grant cannot widen a function"
         do!
           shows
             state
-            [ "test"; "--force"; "Tests.PermissionUse.callerCeiling" ]
+            [ "test"; "run"; "--force"; "Tests.PermissionUse.callerCeiling" ]
             "function policy"
             "captured caller restrictions survive isolation"
         do!
           exits
             state
-            [ "test"; "--force"; "Tests.PermissionUse.callerCeiling" ]
+            [ "test"; "run"; "--force"; "Tests.PermissionUse.callerCeiling" ]
             1L
             "isolating a callback cannot widen its caller"
         do! discardAll state
@@ -2005,6 +2048,7 @@ let tests : List<Test> =
     isolatedTestDeclarations
     entryPointOverrideIsLocal
     packageTestsRespectParallelLimit
+    packageTestsRequireRun
     packageTestJobsRejectInvalidCounts
     isolatedTestsRejectUnsuccessfulWorkers
     testsUseInstanceAndFunctionPolicies

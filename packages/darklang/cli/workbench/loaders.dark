@@ -112,7 +112,7 @@ let moduleRows
           isModule = false
           desc = descOf shape })
   // A test's description is its last result for this build, read from the
-  // cache `dark test` writes. Nothing runs here.
+  // cache `dark test run` writes. Nothing runs here.
   let testItems =
     results.tests
     |> Stdlib.List.map (fun t ->

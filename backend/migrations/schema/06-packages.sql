@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS package_functions (
 );
 
 -- Tests are package content that nothing can call. Stored as source only;
--- Before executing a test, `dark test` compiles its stored body into interpreter instructions.
+-- Before executing a test, `dark test run` compiles its stored body into interpreter instructions.
 CREATE TABLE IF NOT EXISTS package_tests (
   hash TEXT PRIMARY KEY,
   pt_def BLOB NOT NULL,

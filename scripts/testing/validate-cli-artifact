@@ -237,7 +237,7 @@ for suite_process in /bin/bash /usr/bin/env; do
   suite_cli permissions allow process "$suite_process" > /dev/null 2>&1
 done
 suite_cli permissions allow native > /dev/null 2>&1
-suite_out=$(suite_cli test --force Darklang.Cli.Tests.TestSuite 2>&1) || suite_rc=$?
+suite_out=$(suite_cli test run --force Darklang.Cli.Tests.TestSuite 2>&1) || suite_rc=$?
 
 if [[ $suite_rc -ne 0 ]]; then
   echo "  FAIL suite (exit $suite_rc)"

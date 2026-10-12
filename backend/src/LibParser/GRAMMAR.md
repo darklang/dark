@@ -381,7 +381,7 @@ for the type. Duplicate member names are `VALIDATION-IMPL-METHODS`.
 Every package test execution starts in a fresh process and store snapshot.
 Isolation is runner behavior, with no declaration modifier or stored setting.
 Expected outcomes (`=> raises` and `=> sqlerror`) work across the worker boundary.
-Proven-safe passing results may still be cached; `test --force` executes every
+Proven-safe passing results may still be cached; `test run --force` executes every
 selected test again.
 
 ### Test classification
