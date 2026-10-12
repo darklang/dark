@@ -173,12 +173,14 @@ Materializing a package `val` does the same walk recursively: every uncaptured
 named function nested in its records, collections, closures, or partial
 arguments captures the loading frame before the value can escape.
 
-Two paths are deliberately *capability*-based rather than access-propagating:
-an HTTP **stream's IO leaf** checks the permission once when the request opens
-(`Operation.HttpStreamOpen`) and then serves chunks from a host-issued,
-execution-owned handle (`Host.httpStreamRead` makes no second decision); and
-raw **resource handles** (file descriptors, process handles) carry the
-all-or-nothing `Native` gate rather than a per-handle `Access`.
+Host-owned resources have distinct authorization lifetimes. An HTTP **stream's
+IO leaf** checks permission when the request opens (`Operation.HttpStreamOpen`)
+and then serves chunks from an execution-owned handle (`Host.httpStreamRead`
+makes no second decision). Scoped file descriptors and child handles retain
+their checked path/open-mode or executable/argument grants, and each subsequent
+operation checks those grants against the caller's current access. Raw OS
+descriptor numbers and arbitrary PIDs require `Native`. Closing owned resources
+remains permitted for cleanup after access has been narrowed.
 
 ## Permission requirements
 
@@ -306,7 +308,8 @@ behind `internal`; it would need to take the shared effect/policy types with it 
 
 The boundary is one door: `LibExecution.Host`. A converted builtin never
 touches the OS; it constructs an `Operation` — the full description of one
-host action — and hands it to `Host.perform`, which derives the exact
+host action — and hands it to `Host.perform` or the execution-scoped
+`Host.performInSession`, which derives the exact
 permission `Request` from that same value, checks it, and only then executes.
 The checked thing and the performed thing therefore cannot diverge, and
 forgetting the check is unwritable at builtin call sites. The filesystem,
@@ -319,20 +322,24 @@ or `Sync` (the loopback/LAN-capable transport, reachable only with
 `canUsePrivateNetworkHttp` from an all-bundled call chain), so configuration
 and client objects stay in host-owned state.
 
-The kernel-backed posix twins route through it too, with the POSIX host adapter
-(`LibExecution.HostPosix`) owned by the boundary: scoped posix operations
-(paths, env names, spawns) go through `Host.perform`; an answer that is a
-path (the working directory, the home directory, a file's owner, the running
-binary) is checked as a read of that path. Raw fds, pids and spawns are
-`Native`. Plain host facts (uname, pid, uid, cpu count) are effect-free and
-call `HostPosix` directly; the terminal size and the open() flag values are
-handed out by `Host` itself, so those builtins name only the door. Native-gated
-operations that do go
-through the boundary (fd reads, process I/O) are checked once, at the
-interpreter's gate; the boundary executes and audits them without a second
-decision. HTTP server binds
-also cross the boundary; the host returns an opaque listener handle only after
-the exact port request is allowed and the bind succeeds.
+Kernel primitives use the same boundary, with `HostPosix` and `HostKernel`
+owned by the host. Path operations check exact read/write requests; descriptors
+opened under those checks are returned as unguessable execution-local tokens.
+Every use checks ownership, open mode and current path access while a descriptor
+lease prevents close/reuse from redirecting a call in flight. Raw OS descriptors
+require `Native`; an owned token cannot be narrowed into an OS descriptor number.
+Child launch checks the resolved executable and ordered arguments, and later
+child/pipe operations check that retained process grant. A blocking child wait
+releases its ownership lease before waiting so cleanup can terminate the child.
+
+Returned working-directory and executable paths are authorized as reads of the
+actual answer. Account-file parsing performs an ordinary checked file read;
+the home-directory fallback also authorizes the candidate home path. Known host
+facts are available without `Native`, but arbitrary sysctl keys and another
+process's affinity require it. Open flags are Dark constants, and Dark computes
+CPU counts from the permitted kernel inputs. HTTP server binds also cross the
+boundary; the host returns an opaque listener handle only after the exact port
+request is allowed and the bind succeeds.
 
 Arbitrary SQLite SQL is deliberately `Native`, not scoped `FileRead` or
 `FileWrite`. SQLite statements can attach, vacuum into, or otherwise open paths
@@ -365,11 +372,12 @@ host-owned `~/.darklang/policy/` directory under any spelling, even under an
 allow-all file policy. Entry operations such as `readlink` may inspect the
 final symlink without following it. Temporary-file operations authorize the
 containing directory because the generated sibling name does not exist at
-check time. On POSIX the POSIX host adapter performs every path operation relative
+check time. On POSIX the host adapter performs path operations relative
 to a directory descriptor it reached by walking the components with
 `O_NOFOLLOW`, so a link swapped in between the check and the operation is
-met and refused at operation time rather than followed; on Windows the .NET
-calls run behind the lexical check alone.
+met and refused at operation time rather than followed. Retained managed host
+operations on other targets use lexical checks; they do not provide a fallback
+for every new kernel primitive. Unsupported operations remain unavailable.
 
 Each operation:
 
@@ -385,10 +393,10 @@ same-origin rules bound that host instead, and the REPL runs allow-all by
 design.
 
 HTTP redirects are disabled, executables are resolved before checking, and
-arguments preserve order. Raw integer file descriptors, PIDs, and process
-handles are explicitly `Native`: restricted code cannot use them without
-granting the deliberately broad native boundary. New APIs should use opaque,
-execution-owned handles so they can carry narrower access.
+arguments preserve order. Raw OS descriptor numbers and arbitrary PIDs require
+the deliberately broad `Native` boundary. Execution-owned descriptor and child
+tokens instead carry scoped grants, which are checked again on use. Tokens from
+another execution and unknown or closed tokens cannot name owned resources.
 
 ## Policy administration
 
@@ -551,29 +559,62 @@ handling at the host boundary.
 
 ### POSIX implementation
 
-The interpreter does not import libc. `HostKernel` marshals typed operations to
-a freestanding syscall transport with no dynamic dependencies. The transport
-has no path policy, allocation or account lookup; it returns kernel errno. Only
-trusted host modules can call it. Descriptor walks and no-follow opens remain
-inside the checked boundary, and no generic syscall or native pointer builtin
-is exposed to Darklang.
+The interpreter's POSIX bridge has no direct libc imports. `HostKernel` marshals
+typed operations to a freestanding transport with no dynamic dependencies. The
+transport enters the kernel and returns results or numeric errno; it contains
+no path policy, allocation, retry loops or account lookup. Only trusted host
+modules can call it. This removes the bridge's libc dependency, not dependencies
+of .NET, SQLite or other libraries. No generic syscall-number or native-pointer
+Builtin is exposed to Darklang, and there is no public fork primitive.
 
-Darklang implements glob matching, errno messages, temporary-entry collision
-retries, partial-write completion and account-file parsing, using the compiler's implementations as the
-source. Directory and stat record decoding stays in the host adapter because
-these records use platform-specific kernel ABIs. Environment changes and CPU
-counts use the interpreter process's .NET state. CPU counts therefore describe
-the CPUs available to this process, including affinity and quota restrictions.
+Existing public StdLib functions compose private `__` helpers in File, Process,
+Posix, Sys and DateTime. Helpers call `Builtin.syscallX` and `Builtin.runtimeX`
+directly; Builtins are already private and need no `__` prefix. There are no
+public syscall/runtime wrapper packages or separate algorithm modules.
 
-Account names for the current UID use .NET's process identity. Other owners are
-resolved from `/etc/passwd` in Darklang, through ordinary file-read permission
-checks; unknown or inaccessible names fall back to their numeric UID. Home
-lookup checks `HOME` first, then reads `/etc/passwd` and authorizes the candidate
-home path, with the framework account home as a fallback (including macOS
-directory-service users). NSS and directory-service account lookup for arbitrary UIDs is not
-emulated: those are library services, not kernel syscalls.
+Shared Dark code owns glob matching, errno messages, target ABI constants,
+directory/stat/clock/event record decoding, path-buffer growth, complete-write
+loops, interrupted-sleep retries, temporary-entry naming and account parsing.
+Adapters return initialized bytes and numeric errors. The trusted host retains
+authorization, no-follow descriptor walks, resource ownership and unavoidable
+ABI marshalling; decoding needed to authorize a kernel-returned path stays at
+that boundary too. Close consumes descriptor ownership even when it reports
+EINTR, so callers must not retry close.
+
+File copy tries kernel cloning/copying before a bounded 64 KiB positional-I/O
+fallback. It checks opened descriptor identities before truncating a destination
+and preserves file modes. Linux watches use inotify and ppoll; Darwin uses
+kqueue vnode events. Queue registrations retain their path grants, checked again
+on reads and waits. Linux held-inode registration fails closed without procfs,
+and the high-level file watcher can use its checked polling fallback.
+
+Dark owns child capture, interleaved stdin/stdout/stderr I/O, output limits,
+deadlines, UTF-8 decoding and interactive history. The interpreter uses .NET's
+process supervisor for launch and reaping; the runtime returns owned child/pipe
+tokens rather than implementing those algorithms. Two opaque byte cells retain
+history between calls on the existing integer ProcessHandle API; concatenation,
+limits and decoding stay in Dark. Closing resources remains permitted for
+cleanup, while other operations recheck retained authority.
+
+Environment reads use checked runtime environment access. Environment mutation
+functions and the libc-shaped public fnmatch entry point have been removed.
+Current-user lookup checks `LOGNAME` and `USER`, then parses `/etc/passwd` for
+the kernel UID. File-owner lookup uses stat UID and the same account file,
+falling back to the numeric UID when an authorized lookup finds no usable name.
+Home lookup checks `HOME`, then parses `/etc/passwd` and authorizes the candidate
+home path. There is no framework-account-home fallback, and NSS/directory-service
+lookup is not emulated. Policy denials raise before file access.
+
+CPU count is the number of set bits in this process's Linux affinity mask,
+Darwin's `hw.ncpu` sysctl value, or one in the browser. Linux cgroup CPU quotas
+are not separately queried. Shared clock logic uses kernel clocks and sleep
+primitives on Unix and runtime clock/delay inputs in the browser. DateTime
+construction is a pure representation conversion; today is computed in UTC.
+Darwin's current utimesNow implementation supplies whole-second timestamps.
 
 Unix builds require a C compiler; cross-runtime builds use the release
-toolchain's Zig compiler. MSBuild produces the shared transport for JIT builds
-and the static archive for NativeAOT. Windows and browser targets continue to
-use the existing managed filesystem implementation.
+toolchain's Zig compiler. MSBuild produces a shared transport for JIT builds and
+a static archive for NativeAOT. Platform-specific kernel operations are not
+universally available: raw stat and directory reads explicitly return ENOSYS on
+Windows/browser. Retained managed host operations do not establish complete
+compatibility for the migrated public filesystem APIs on those targets.
