@@ -52,7 +52,6 @@ let createState
   : RT.ExecutionState =
   { tracing = tracing
     test = noTestContext
-    testStoreSnapshot = None
     reportException = reportException
     notify = notify
 

@@ -74,6 +74,17 @@ policies. If all selected tests have reusable cached passes, no tests run and no
 snapshot is created.
 
 Tests start from the same snapshot, so one test's changes don't affect another.
+The Dark runner passes an explicit run handle to each execution. Test support
+owns that handle and its snapshot; neither is part of interpreter state.
+
+The CLI's `--entry-point` option selects the Dark worker by its exact function
+hash for this invocation. The saved entry point stays unchanged, so commands
+launched by the test still use it. The worker is a normal
+dependency of the runner, so its changes also invalidate cached results.
+The worker reads the request and writes the result. Native support executes the
+exact hash with inherited permissions and preserves runtime values and errors.
+The host layer only manages file snapshots and supervised child processes; it
+doesn't know the test protocol or how to configure a test store.
 
 Some tests use `Stdlib.Test.Process.run` to start another process and check its
 output or timeout behavior. That process gets a copy of the test's current

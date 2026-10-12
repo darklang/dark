@@ -1037,7 +1037,12 @@ let fns () : List<BuiltInFn> =
             (TFn(NEList.singleton (TVariable "a"), TVariable "b"))
             ""
             [ "argument" ]
-          Param.make "argument" (TVariable "a") "" ]
+          Param.make "argument" (TVariable "a") ""
+          Param.makeWithArgs
+            "worker"
+            (TFn(NEList.singleton (TList TString), TInt))
+            "The worker entry point"
+            [ "args" ] ]
       returnType =
         TypeReference.result
           (TTuple(
@@ -1058,7 +1063,10 @@ let fns () : List<BuiltInFn> =
              DInt columns
              DInt rows
              DApplicable(AppNamedFn callback)
-             argument |] ->
+             argument
+             DApplicable(AppNamedFn { name = FQFnName.Package(Hash workerHash)
+                                      argsSoFar = []
+                                      typeArgs = [] }) |] ->
           uply {
             let wrap caseName value =
               DEnum(
@@ -1092,12 +1100,9 @@ let fns () : List<BuiltInFn> =
                 | _ -> state.branchId.Guid
               match callback.name, callback.argsSoFar, callback.typeArgs with
               | FQFnName.Package(Hash hash), [], [] ->
-                let request =
-                  DTuple(
-                    DString hash,
-                    argument,
-                    [ state.accountID |> Option.map DUuid |> Dval.option KTUuid ]
-                  )
+                let request : LibDB.TestProcess.Request =
+                  { accountID = state.accountID
+                    target = LibDB.TestProcess.Target.TestCallback(hash, argument) }
                 let access =
                   match callback.access with
                   | None -> vm.activeAccess
@@ -1111,6 +1116,7 @@ let fns () : List<BuiltInFn> =
                     vm
                     access
                     branchId
+                    workerHash
                     request
                     (int timeout)
                     (int columns)

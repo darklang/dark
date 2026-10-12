@@ -154,10 +154,11 @@ let lastOutcome
 
 /// Run <param test> now, ignoring the cache, and say how it went.
 let runFresh
+  (run: LanguageTools.PackageManager.Test.Run)
   (branchId: Uuid)
   (test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : Outcome =
-  match LanguageTools.PackageManager.Test.execute branchId test.hash with
+  match LanguageTools.PackageManager.Test.executeInRun run branchId test.hash with
   | Ok Pass -> Outcome.Passed
   | Ok(Fail messages) -> Outcome.Failed messages
   | Error error ->
@@ -298,7 +299,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 /// where it allows, print each one, and fail the command if any failed or
 /// nothing matched.
 let runTests (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  LanguageTools.PackageManager.Test.withSnapshot (fun () -> runTestsWithSnapshot state args)
+  LanguageTools.PackageManager.Test.withStoreSnapshot (fun run -> runTestsInRun run state args)
 
 type RunOptions =
   { force: Bool
@@ -355,6 +356,7 @@ let finishTest
 /// Run up to `jobs` tests at once. Start the next whenever one finishes.
 /// Wait for all tests before closing the shared snapshot.
 let runSelected
+  (run: LanguageTools.PackageManager.Test.Run)
   (branchId: Uuid)
   (options: RunOptions)
   (cache: Stdlib.Option.Option<CacheContext>)
@@ -381,25 +383,26 @@ let runSelected
           test = item.entity
           outcome = outcome
           wasCached = true }
-      runSelected branchId options cache rest running (finishTest cache counts finished)
+      runSelected run branchId options cache rest running (finishTest cache counts finished)
     | None ->
       Stdlib.printLine $"Running: {fullPath item}"
       let handle = Stdlib.Exec.spawn (fun () ->
         FinishedTest
           { name = fullPath item
             test = item.entity
-            outcome = runFresh branchId item.entity
+            outcome = runFresh run branchId item.entity
             wasCached = false })
-      runSelected branchId options cache rest (Stdlib.List.push running handle) counts
+      runSelected run branchId options cache rest (Stdlib.List.push running handle) counts
   | _ ->
     if Stdlib.List.isEmpty running then
       counts
     else
       let (done, finished) = Stdlib.Exec.select running
       let running = Stdlib.List.filter running (fun handle -> handle.id != done.id)
-      runSelected branchId options cache remaining running (finishTest cache counts finished)
+      runSelected run branchId options cache remaining running (finishTest cache counts finished)
 
-let runTestsWithSnapshot
+let runTestsInRun
+  (run: LanguageTools.PackageManager.Test.Run)
   (state: Cli.AppState)
   (args: List<String>)
   : Cli.AppState =
@@ -442,6 +445,7 @@ let runTestsWithSnapshot
       Counts { passed = 0; failed = 0; cached = 0; ran = 0 }
     let counts =
       runSelected
+        run
         state.currentBranchId
         options
         (cacheContext state.currentBranchId)

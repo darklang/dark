@@ -14,7 +14,7 @@ open System.Runtime.InteropServices
 let private failwith (message : string) : 'a = raise (System.Exception message)
 
 /// Windows keeps descendants in a job even after the worker exits. The parent
-/// owns the job; the launcher joins it before it can start any test code.
+/// owns the job; the launcher joins it before it can start child processes.
 module private WindowsJob =
   [<Struct; StructLayout(LayoutKind.Sequential)>]
   type BasicLimits =
@@ -105,8 +105,8 @@ module private WindowsJob =
     check (TerminateJobObject(job.DangerousGetHandle(), 1u))
 
 /// Private CLI entry point. Establish ownership before starting the worker,
-/// including when a test substitutes a wrapper executable.
-let launchIsolatedWorker
+/// including when the caller substitutes a wrapper executable.
+let launchOwnedProcess
   (jobName : string)
   (program : string)
   (args : List<string>)
@@ -115,7 +115,7 @@ let launchIsolatedWorker
     match HostPosix.execInNewSession program args with
     | Error(_, message) ->
       System.Console.Error.WriteLine
-        $"Could not launch isolated test worker: {message}"
+        $"Could not launch child process worker: {message}"
       127
     | Ok() -> 0 // exec does not return on success
   elif System.OperatingSystem.IsWindows() then
@@ -128,7 +128,7 @@ let launchIsolatedWorker
     worker.WaitForExit()
     worker.ExitCode
   else
-    invalidOp "Isolated test processes are unsupported on this platform"
+    invalidOp "Supervised processes are unsupported on this platform"
 
 /// One managed launch and its supervised child. No capturing or waiting here:
 /// shared Dark consumes nonblocking owned pipe descriptors using syscall leaves.
@@ -245,15 +245,24 @@ let killChild (child : Child) : unit =
 let currentExecutablePath () : string =
   System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
 
-let mutable private isolatedTestLauncher : Option<string> = None
+let mutable private processLauncher : Option<string> = None
 
 /// Configure at host startup when another executable provides the worker entry point.
-let setIsolatedTestLauncher (path : string) : unit =
-  isolatedTestLauncher <- Some(Path.GetFullPath path)
+let setProcessLauncher (path : string) : unit =
+  processLauncher <- Some(Path.GetFullPath path)
 
 /// CLI hosts launch themselves unless startup configured a different executable.
-let isolatedTestLauncherPath () : string =
-  match isolatedTestLauncher with
+let processLauncherPath (overrideVariable : Option<string>) : string =
+  // Resolving the executable is part of the Native process operation, as PATH
+  // resolution is for ProcessRun. It does not add an EnvRead requirement.
+  let overridePath =
+    overrideVariable
+    |> Option.bind (fun name ->
+      match System.Environment.GetEnvironmentVariable name with
+      | null
+      | "" -> None
+      | path -> Some(Path.GetFullPath path))
+  match overridePath |> Option.orElse processLauncher with
   | None -> currentExecutablePath ()
   | Some path -> path
 
@@ -296,20 +305,19 @@ let private readCappedWithCancellation
     return builder.ToString()
   }
 
-/// One immutable baseline per run, created only when a test actually executes.
-/// File.Copy already uses filesystem cloning where supported, with a portable
-/// copy fallback. The store owner must finish and close its backup first.
-let testStoreSnapshot
+/// Prepare a file once and reuse it until disposal, without exposing its path.
+/// File.Copy uses filesystem cloning where supported, with a portable fallback.
+let fileSnapshot
   (snapshot : string -> Result<unit, string>)
-  : HostTypes.TestStoreSnapshot =
+  : HostTypes.FileSnapshot =
   let gate = obj ()
   let mutable disposed = false
   let mutable directory : Option<string> = None
   let baseline =
     lazy
-      (let dir = Directory.CreateTempSubdirectory("dark-test-run-").FullName
+      (let dir = Directory.CreateTempSubdirectory("dark-snapshot-").FullName
        directory <- Some dir
-       let path = Path.Combine(dir, "data.db")
+       let path = Path.Combine(dir, "baseline")
        snapshot path |> Result.map (fun () -> path))
   let close () =
     lock gate (fun () ->
@@ -326,11 +334,11 @@ let testStoreSnapshot
       with _ ->
         ())
   System.AppDomain.CurrentDomain.ProcessExit.AddHandler onExit
-  { new HostTypes.TestStoreSnapshot with
+  { new HostTypes.FileSnapshot with
       member _.CopyTo target =
         lock gate (fun () ->
           if disposed then
-            Error "The package test run has already ended"
+            Error "The file snapshot has already been closed"
           else
             try
               match baseline.Value with
@@ -347,23 +355,17 @@ let testStoreSnapshot
           System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit }
 
 
-/// Run one typed test callback in a disposable copy of the current store.
-/// Request/result bytes use the runtime codec; stdout is never the protocol.
-/// The deadline covers worker execution and output, after snapshot preparation.
-let runIsolatedTest
+/// Supervise a child and its descendants in a disposable directory. Preparation
+/// happens before the deadline, which covers both process exit and output pipes.
+let runInWorkspace
   (launcher : string)
-  (snapshot : string -> Result<unit, string>)
-  (branch : System.Guid)
-  (request : byte[])
-  (policyStore : byte[])
-  (access : byte[])
+  (prefix : string)
+  (prepare : string -> Result<HostTypes.ProcessWorkspace, string>)
   (timeoutMs : int)
-  (columns : int)
-  (rows : int)
   : Result<int * string * string * Option<byte[]> * List<string>, int * string> =
-  let dir = Directory.CreateTempSubdirectory("dark-test-").FullName
+  let dir = Directory.CreateTempSubdirectory(prefix).FullName
   let mutable child : System.Diagnostics.Process option = None
-  let jobName = "dark-test-" + System.Guid.NewGuid().ToString("N")
+  let jobName = "dark-process-" + System.Guid.NewGuid().ToString("N")
   let mutable job : Microsoft.Win32.SafeHandles.SafeFileHandle option = None
   use cancellation = new System.Threading.CancellationTokenSource()
   let stop () =
@@ -376,7 +378,7 @@ let runIsolatedTest
         | Ok()
         | Error(3, _) -> () // ESRCH: no group, including a launcher not yet ready
         | Error(_, message) ->
-          errors.Add $"Could not stop isolated test process group: {message}"
+          errors.Add $"Could not stop child process process group: {message}"
     match child with
     | Some p ->
       try
@@ -384,21 +386,21 @@ let runIsolatedTest
         // groups. Also handles cancellation before the launcher is ready.
         if not p.HasExited then p.Kill true
         if not (p.WaitForExit 5000) then
-          errors.Add "Isolated test worker did not exit after being killed"
+          errors.Add "Child process worker did not exit after being killed"
       with e ->
-        errors.Add $"Could not stop isolated test worker: {e.Message}"
+        errors.Add $"Could not stop child process worker: {e.Message}"
       try
         // The group survives its leader and catches reparented descendants.
         stopGroup p
       with e ->
-        errors.Add $"Could not stop isolated test process group: {e.Message}"
+        errors.Add $"Could not stop child process process group: {e.Message}"
     | None -> ()
     match job with
     | Some handle ->
       try
         WindowsJob.terminate handle
       with e ->
-        errors.Add $"Could not stop isolated test job: {e.Message}"
+        errors.Add $"Could not stop child process job: {e.Message}"
     | None -> ()
     List.ofSeq errors
   let removeDirectory () =
@@ -406,7 +408,7 @@ let runIsolatedTest
       Directory.Delete(dir, true)
       []
     with e ->
-      [ $"Could not remove isolated test directory {dir}: {e.Message}" ]
+      [ $"Could not remove child process directory {dir}: {e.Message}" ]
   let onCancel =
     System.ConsoleCancelEventHandler(fun _ _ -> stop () |> ignore<List<string>>)
   let onExit =
@@ -419,54 +421,26 @@ let runIsolatedTest
   let outcome =
     try
       try
-        match snapshot (Path.Combine(dir, "data.db")) with
+        match prepare dir with
         | Error message -> Error(-1, message)
-        | Ok() ->
-          let inputPath = Path.Combine(dir, "request.bin")
-          let resultPath = Path.Combine(dir, "result.bin")
-          File.WriteAllBytes(inputPath, request)
-          let policyDir = Directory.CreateDirectory(Path.Combine(dir, "policy"))
-          File.WriteAllBytes(
-            Path.Combine(policyDir.FullName, "policies.bin"),
-            policyStore
-          )
-          File.WriteAllBytes(Path.Combine(policyDir.FullName, "access.bin"), access)
-          let executable =
-            match
-              System.Environment.GetEnvironmentVariable "DARK_CLI_UNDER_TEST"
-            with
-            | null
-            | "" -> launcher
-            | path -> Path.GetFullPath path
+        | Ok spec ->
+          for directory in spec.directories do
+            Directory.CreateDirectory(Path.Combine(dir, directory))
+            |> ignore<DirectoryInfo>
+          for path, bytes in spec.files do
+            File.WriteAllBytes(Path.Combine(dir, path), bytes)
+          let resultPath = Path.Combine(dir, spec.resultFile)
           if System.OperatingSystem.IsWindows() then
             job <- Some(WindowsJob.create jobName)
           let psi =
             startInfo
               launcher
-              [ "--test-process-launch"
-                jobName
-                executable
-                "--branch"
-                string branch
-                "--test-worker"
-                inputPath
-                resultPath ]
+              ([ "--process-launch"; jobName; spec.program ] @ spec.arguments)
               true
-          // Keep platform/runtime variables but replace instance state.
-          for key in [ "DARK_MATTER_WRITE_SECRET"; "DARK_BRANCH" ] do
-            psi.Environment.Remove key |> ignore<bool>
-          for key, value in
-            [ "DARK_CONFIG_RUNDIR", dir + string Path.DirectorySeparatorChar
-              "DARK_CONFIG_DB_NAME", "data.db"
-              "HOME", dir
-              "XDG_CONFIG_HOME", Path.Combine(dir, "config")
-              "TMPDIR", Path.Combine(dir, "tmp")
-              "DARK_CLI_UNDER_TEST", executable
-              "COLUMNS", string columns
-              "LINES", string rows ] do
-            psi.Environment[key] <- value
-          Directory.CreateDirectory(psi.Environment["TMPDIR"])
-          |> ignore<DirectoryInfo>
+          for key, value in spec.environment do
+            match value with
+            | None -> psi.Environment.Remove key |> ignore<bool>
+            | Some value -> psi.Environment[key] <- value
           let p = System.Diagnostics.Process.Start psi
           child <- Some p
           p.StandardInput.Close()
@@ -482,21 +456,21 @@ let runIsolatedTest
           if not (finished.Wait timeoutMs) then
             Error(
               110,
-              $"Isolated test timed out after {timeoutMs} ms (worker or output still open)"
+              $"Child process timed out after {timeoutMs} ms (worker or output still open)"
             )
           else
             let result =
               if File.Exists resultPath then
                 if (FileInfo resultPath).Length > int64 maxCapturedOutput then
                   Exception.raiseInternal
-                    "Isolated test result exceeds the size limit"
+                    "Child process result exceeds the size limit"
                     []
                 Some(File.ReadAllBytes resultPath)
               else
                 None
             Ok(p.ExitCode, stdout.Result, stderr.Result, result)
       with e ->
-        Error(-1, $"Isolated test failed: {e.Message}")
+        Error(-1, $"Child process failed: {e.Message}")
     finally
       cancellation.Cancel()
       cleanupErrors <- stop ()
@@ -507,7 +481,7 @@ let runIsolatedTest
         with e ->
           cleanupErrors <-
             cleanupErrors
-            @ [ $"Could not dispose isolated test worker: {e.Message}" ]
+            @ [ $"Could not dispose child process worker: {e.Message}" ]
       | None -> ()
       child <- None
       job |> Option.iter (fun handle -> handle.Dispose())

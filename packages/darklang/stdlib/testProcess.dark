@@ -28,7 +28,9 @@ let run<'a, 'b>
   (callback: 'a -> 'b)
   (argument: 'a)
   : Stdlib.Result.Result<Output<'b>, String> =
-  Builtin.testRunIsolated options.branch options.timeoutMs options.columns options.rows callback argument
+  Builtin.testRunIsolated
+    options.branch options.timeoutMs options.columns options.rows
+    callback argument LanguageTools.PackageManager.Test.Worker.main
   |> Stdlib.Result.andThen (fun (result, stdout, stderr, exitCode, cleanupErrors) ->
     match result with
     | None ->

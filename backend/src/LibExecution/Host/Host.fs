@@ -887,6 +887,11 @@ let private resolve (op : Operation) : Result<Resolved, string> =
     // The answer is a path, so it is a read of that path.
     let path = HostProcess.currentExecutablePath ()
     resolveFile read path (fun path -> produce (fun () -> Response.Path path))
+  | Operation.ProcessLauncherPath overrideVariable ->
+    withChecks
+      [ (Permission.Request.native "process launcher", "finding the process launcher") ]
+      (attempt (fun () ->
+        Ok(Response.Path(HostProcess.processLauncherPath overrideVariable))))
   | Operation.EnvGet name ->
     withChecks
       [ envCheck read name ]
@@ -942,33 +947,21 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.ChildBufferGet _
   | Operation.ChildBufferSet _ ->
     Error "child operation requires execution ownership"
-  | Operation.TestStoreSnapshot snapshot ->
+  | Operation.FileSnapshot prepare ->
     withChecks
-      [ (Permission.Request.native "test baseline", "preparing a test baseline") ]
+      [ (Permission.Request.native "file snapshot", "preparing a file snapshot") ]
       (attempt (fun () ->
-        Ok(Response.TestStoreSnapshot(HostProcess.testStoreSnapshot snapshot))))
-  | Operation.IsolatedTest(snapshot,
-                           branch,
-                           request,
-                           policyStore,
-                           access,
-                           timeoutMs,
-                           columns,
-                           rows) ->
+        Ok(Response.FileSnapshot(HostProcess.fileSnapshot prepare))))
+  | Operation.ProcessRunInWorkspace(prefix, prepare, timeoutMs) ->
     withChecks
-      [ (Permission.Request.native "isolated test", "running an isolated test") ]
+      [ (Permission.Request.native "child process", "running a supervised process") ]
       (blocking (fun () ->
-        HostProcess.runIsolatedTest
-          (HostProcess.isolatedTestLauncherPath ())
-          snapshot
-          branch
-          request
-          policyStore
-          access
+        HostProcess.runInWorkspace
+          (HostProcess.processLauncherPath None)
+          prefix
+          prepare
           timeoutMs
-          columns
-          rows
-        |> Result.map Response.IsolatedTestOutcome))
+        |> Result.map Response.WorkspaceProcessOutcome))
 
 // ── perform ───────────────────────────────────────────────────────────────────
 

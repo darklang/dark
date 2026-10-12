@@ -6,11 +6,21 @@ open Prelude
 
 module Permission = LibExecution.Permissions
 
-/// A run's private baseline. Only the host can create it; callers can copy it
-/// into a worker directory and release it, without seeing its path.
-type TestStoreSnapshot =
+/// A lazily prepared file that can be copied until its scope is disposed.
+/// The producer must close the file before returning.
+type FileSnapshot =
   inherit System.IDisposable
   abstract CopyTo : target : string -> Result<unit, string>
+
+/// Launch a child in a disposable directory. The caller supplies its files and
+/// environment; the host owns the directory and process tree through cleanup.
+type ProcessWorkspace =
+  { program : string
+    arguments : List<string>
+    environment : List<string * Option<string>>
+    files : List<string * byte[]>
+    directories : List<string>
+    resultFile : string }
 
 /// OS numbers require Native; scoped tokens are owned by one execution.
 [<RequireQualifiedAccess>]
@@ -129,6 +139,7 @@ type Operation =
   /// The running binary's path: a read of that path, routed through the door
   /// so builtin assemblies never call host subsystems directly.
   | CurrentExecutablePath
+  | ProcessLauncherPath of overrideVariable : Option<string>
   | EnvGet of name : string
   | EnvList
   | HttpRequest of
@@ -155,19 +166,11 @@ type Operation =
   | ChildClosePort of handle : bigint * index : int
   | ChildBufferGet of handle : bigint * index : int
   | ChildBufferSet of handle : bigint * index : int * bytes : byte[]
-  /// Prepare a lazy baseline shared by this run's isolated tests.
-  | TestStoreSnapshot of snapshot : (string -> Result<unit, string>)
-  /// Native test infrastructure. The store owner supplies the online backup;
-  /// the host owns the directory, process, bounded output and cleanup.
-  | IsolatedTest of
-    snapshot : (string -> Result<unit, string>) *
-    branch : System.Guid *
-    request : byte[] *
-    policyStore : byte[] *
-    access : byte[] *
-    timeoutMs : int *
-    columns : int *
-    rows : int
+  | FileSnapshot of prepare : (string -> Result<unit, string>)
+  | ProcessRunInWorkspace of
+    prefix : string *
+    prepare : (string -> Result<ProcessWorkspace, string>) *
+    timeoutMs : int
   | Posix of PosixOp
 
 // HTTP wire data. The error shape is inspired by Elm's HttpError
@@ -217,8 +220,8 @@ type Response =
   | ChildHandle of bigint
   | ChildDescriptors of List<bigint>
   | ChildStatus of Option<int>
-  | TestStoreSnapshot of TestStoreSnapshot
-  | IsolatedTestOutcome of
+  | FileSnapshot of FileSnapshot
+  | WorkspaceProcessOutcome of
     exitCode : int *
     stdout : string *
     stderr : string *
@@ -350,6 +353,7 @@ let describeOperation (op : Operation) : string =
   | Operation.DirectoryCurrent -> "cwd"
   | Operation.DirectoryList path -> $"dir-list {path}"
   | Operation.CurrentExecutablePath -> "current-executable-path"
+  | Operation.ProcessLauncherPath _ -> "process-launcher-path"
   | Operation.EnvGet name -> $"env-get {name}"
   | Operation.EnvList -> "env-list"
   | Operation.HttpRequest(_, method, url, _, _) -> $"http {method} {redactUrl url}"
@@ -365,8 +369,8 @@ let describeOperation (op : Operation) : string =
   | Operation.ChildClosePort _ -> "child-close-port"
   | Operation.ChildBufferGet _ -> "child-buffer-get"
   | Operation.ChildBufferSet _ -> "child-buffer-set"
-  | Operation.IsolatedTest _ -> "isolated package test"
-  | Operation.TestStoreSnapshot _ -> "package test baseline"
+  | Operation.ProcessRunInWorkspace _ -> "process-run-in-workspace"
+  | Operation.FileSnapshot _ -> "file-snapshot"
   | Operation.Posix p -> $"posix {posix p}"
 
 /// Remove secrets from outcome details before they reach the default audit

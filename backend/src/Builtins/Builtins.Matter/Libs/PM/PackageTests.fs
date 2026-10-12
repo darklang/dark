@@ -44,11 +44,10 @@ let private cleanupTestDBs (dbs : List<PT.DB.T>) : Ply<unit> =
   }
 
 
-/// Give the test fresh DBs and a counter, then clean up after execution.
+/// Give the prepared worker state the test's private DBs, then clean up after execution.
 /// The caller handles conversion to Dark values and decides whether the test passed.
-let executeTestBody
-  (caller : ExecutionState)
-  (callerAccess : Permissions.Access)
+let private executeTestBody
+  (state : ExecutionState)
   (test : PT.PackageTest.PackageTest)
   : Ply<ExecutionResult> =
   uply {
@@ -58,16 +57,10 @@ let executeTestBody
       |> List.map (fun (name, typ) ->
         { tlid = gid (); name = name; version = 0; typ = typ })
     let program =
-      { caller.program with
+      { state.program with
           dbs =
             testDBs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList }
-    // Widen only the test instance policy. Caller and callee restrictions still apply.
-    let guest = LibDB.PolicyStore.testState caller.accountID caller
-    let state =
-      { guest with
-          access = guest.access |> Permissions.Access.constrainBy callerAccess
-          program = program
-          test = { guest.test with isPackageTest = true; sideEffectCount = 0 } }
+    let state = { state with program = program }
     // TODO: Store test instructions alongside PT, as functions do, to avoid
     // converting the body on every run. Verify that runtime upgrades regenerate
     // them and that expected-error tests still behave the same.
@@ -104,28 +97,102 @@ let reflectOutcome (result : ExecutionResult) : Dval =
   | Ok value -> Dval.resultOk dvalKT errorKT (RT2DT.Dval.toDT value)
   | Error(rte, _) -> Dval.resultError dvalKT errorKT (RT2DT.RuntimeError.toDT rte)
 
+/// Execute the serialized request under the transported permissions. Dark owns
+/// worker startup and files; this boundary preserves runtime values and errors.
+let private executeWorker
+  (pm : PT.PackageManager)
+  (caller : ExecutionState)
+  (requestBytes : byte[])
+  (accessBytes : byte[])
+  : Ply<Dval> =
+  uply {
+    let request = LibDB.TestProcess.Request.deserialize requestBytes
+    use accessStream = new System.IO.MemoryStream(accessBytes)
+    use reader = new System.IO.BinaryReader(accessStream)
+    let inherited =
+      LibSerialization.Binary.Serializers.Permissions.readExecutionAccess reader
+    // Set up both request kinds once. The test body only adds its private DBs.
+    let guest = LibDB.PolicyStore.testState request.accountID caller
+    let workerState =
+      { guest with
+          access =
+            guest.access
+            |> Permissions.Access.constrainBy inherited
+            |> Permissions.Access.constrainBy caller.access
+          test = { guest.test with isPackageTest = true; sideEffectCount = 0 } }
+    let! outcome =
+      uply {
+        match request.target with
+        | LibDB.TestProcess.Target.PackageTest hash ->
+          let! test = pm.getTest (PT.Hash hash)
+          let! result =
+            match test with
+            | None ->
+              Ply(Error(RuntimeError.VariableNotFound $"package test {hash}", []))
+
+            | Some test ->
+              // Execute the body directly: dispatching isolation again would recurse.
+              executeTestBody workerState test
+
+          return Ok(reflectOutcome result)
+        | LibDB.TestProcess.Target.TestCallback(hash, argument) ->
+          return!
+            Execution.executeFunction
+              workerState
+              (FQFnName.fqPackage hash)
+              []
+              (NEList.singleton argument)
+      }
+    let! value, code =
+      uply {
+        match outcome with
+        | Ok value -> return value, 0
+        | Error(error, stack) ->
+          let! rendered = Execution.runtimeErrorToString workerState error
+          let message =
+            match rendered with
+            | Ok(DString s) -> s
+            | _ -> string error
+          let! stackText = Execution.callStackString workerState stack
+          System.Console.Error.WriteLine($"{message}\n{stackText}")
+          return DString message, 1
+      }
+    let result =
+      DEnum(
+        Dval.resultType (),
+        Dval.resultType (),
+        [ ValueType.Unknown; ValueType.Known KTString ],
+        (if code = 0 then "Ok" else "Error"),
+        [ value ]
+      )
+    let bytes =
+      LibSerialization.Binary.Serialization.RT.Dval.serialize "test result" result
+    return DTuple(LibExecution.Blob.newEphemeral bytes, Dval.int (bigint code), [])
+  }
+
 /// Every package test executes its own hash in a fresh worker and store snapshot.
 let private executeIsolatedTest
   (caller : ExecutionState)
   (vm : VMState)
+  (runId : System.Guid)
+  (branchId : System.Guid)
+  (workerHash : string)
   (hash : string)
   : Ply<Dval> =
   uply {
     let guest = LibDB.PolicyStore.testState caller.accountID caller
     let access = guest.access |> Permissions.Access.constrainBy vm.activeAccess
-    let request =
-      DTuple(
-        DString hash,
-        DUnit,
-        [ caller.accountID |> Option.map DUuid |> Dval.option KTUuid; DBool true ]
-      )
+    let request : LibDB.TestProcess.Request =
+      { accountID = caller.accountID
+        target = LibDB.TestProcess.Target.PackageTest hash }
     let! outcome =
       LibDB.TestProcess.run
-        caller.testStoreSnapshot
+        (Some(LibDB.TestProcess.copyFromRun runId))
         guest
         vm
         access
-        caller.branchId.Guid
+        branchId
+        workerHash
         request
         120000
         80
@@ -174,14 +241,14 @@ let private executeIsolatedTest
 
 
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
-  [ { name = fn "pmTestWithSnapshot" 0
+  [ { name = fn "pmTestWithStoreSnapshot" 0
       typeParams = [ "a" ]
       parameters =
         [ Param.makeWithArgs
             "run"
-            (TFn(NEList.singleton TUnit, TVariable "a"))
+            (TFn(NEList.singleton TUuid, TVariable "a"))
             "The test run"
-            [ "unit" ] ]
+            [ "runId" ] ]
       returnType = TVariable "a"
       description =
         "Shares one starting store snapshot across a test run and cleans it up afterward."
@@ -197,21 +264,26 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 state
                 vm
                 access
-                (LibExecution.HostTypes.Operation.TestStoreSnapshot
+                (LibExecution.HostTypes.Operation.FileSnapshot
                   LibDB.Sqlite.Backup.toTestBaseline)
             match prepared with
-            | Ok(LibExecution.HostTypes.Response.TestStoreSnapshot snapshot) ->
-              use snapshot = snapshot
-              let scoped = { state with testStoreSnapshot = Some snapshot }
-              // The callback keeps the caller's permissions. Only worker setup
-              // uses the test instance policy, just as standalone execution does.
-              match!
-                Execution.executeApplicable1 scoped vm.activeAccess callback DUnit
-              with
-              | Ok value -> return value
-              | Error(error, stack) ->
-                vm.nestedCallStack <- stack
-                return raiseRTE vm.threadID error
+            | Ok(LibExecution.HostTypes.Response.FileSnapshot snapshot) ->
+              return!
+                LibDB.TestProcess.withStoreSnapshot snapshot (fun id ->
+                  uply {
+                    // Keep the callback's permissions and per-test counter unchanged.
+                    match!
+                      Execution.executeApplicable1
+                        state
+                        vm.activeAccess
+                        callback
+                        (DUuid id)
+                    with
+                    | Ok value -> return value
+                    | Error(error, stack) ->
+                      vm.nestedCallStack <- stack
+                      return raiseRTE vm.threadID error
+                  })
             | Error error ->
               return
                 raiseRTE
@@ -224,6 +296,27 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       previewable = Impure
       // The callback may write. Keep it in program order, rather than letting
       // the interpreter defer this scope as an asynchronous package read.
+      callEffects = set [ Effect.Native ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmTestWorkerExecute" 0
+      typeParams = []
+      parameters = [ Param.make "request" TBlob ""; Param.make "access" TBlob "" ]
+      returnType = TTuple(TBlob, TInt, [])
+      description =
+        "Executes a serialized test request with its inherited permissions and returns its serialized result and exit code."
+      fn =
+        (function
+        | state, vm, _, [| DBlob request; DBlob access |] ->
+          uply {
+            let! request = LibExecution.Blob.readBytes state request
+            let! access = LibExecution.Blob.readBytes state access
+            return!
+              executeWorker pm { state with access = vm.activeAccess } request access
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
 
@@ -336,10 +429,17 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmExecuteTest" 0
       typeParams = []
       parameters =
-        [ Param.make
+        [ Param.make "runId" TUuid "The run whose starting store to use"
+          Param.make "branchId" TUuid "The branch to execute on"
+          Param.make
             "testHash"
             (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-            "Hash of the package test to execute" ]
+            "Hash of the package test to execute"
+          Param.makeWithArgs
+            "worker"
+            (TFn(NEList.singleton (TList TString), TInt))
+            "The worker entry point"
+            [ "args" ] ]
       returnType =
         TypeReference.result
           (TCustomType(
@@ -364,7 +464,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "The Dark caller decides whether it passed."
       fn =
         (function
-        | exeState, vm, _, [| hashDval |] ->
+        | exeState,
+          vm,
+          _,
+          [| DUuid runId
+             DUuid branchId
+             hashDval
+             DApplicable(AppNamedFn { name = FQFnName.Package(Hash workerHash)
+                                      argsSoFar = []
+                                      typeArgs = [] }) |] ->
           uply {
             let (PT.Hash hashStr as hash) = PT2DT.Hash.fromDT hashDval
             match! pm.getTest hash with
@@ -373,7 +481,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 reflectOutcome (
                   Error(RuntimeError.VariableNotFound $"package test {hashStr}", [])
                 )
-            | Some _ -> return! executeIsolatedTest exeState vm hashStr
+            | Some _ ->
+              return!
+                executeIsolatedTest exeState vm runId branchId workerHash hashStr
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

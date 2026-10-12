@@ -18,7 +18,7 @@ let readConfig (key: String) : String =
 
 test snapshotScopeKeepsTestCounter =
   let _ = Stdlib.Test.incrementCounter ()
-  let _ = LanguageTools.PackageManager.Test.withSnapshot (fun () ->
+  let _ = LanguageTools.PackageManager.Test.withStoreSnapshot (fun _ ->
     Stdlib.Cli.Posix.sleep 25.0
     Stdlib.Test.incrementCounter ())
   Stdlib.Test.counterValue () |> Stdlib.Test.equal 2L

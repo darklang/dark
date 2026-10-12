@@ -44,7 +44,7 @@ let main (args : string array) : int =
     match System.Environment.GetEnvironmentVariable "DARK_TEST_CLI" with
     | null
     | "" -> ()
-    | path -> LibExecution.HostProcess.setIsolatedTestLauncher path
+    | path -> LibExecution.HostProcess.setProcessLauncher path
 
     // Most tests don't need trace data on disk; tests that DO check
     // trace contents (CliTraces) flip this to Detailed at their entry.

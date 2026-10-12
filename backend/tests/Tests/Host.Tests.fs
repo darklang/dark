@@ -894,6 +894,10 @@ let isolatedTestBoundsOutputCollection =
         | :? System.ArgumentException
         | :? System.IO.FileNotFoundException
         | :? System.IO.DirectoryNotFoundException -> false
+        | :? System.IO.IOException when System.OperatingSystem.IsLinux() ->
+          // The process can be reaped after opening stat but before reading it.
+          // If its entry still exists, keep polling rather than assume it exited.
+          System.IO.Directory.Exists $"/proc/{pid}"
       for label, redirect, ending, expectedCode in
         [ "inherited output", "", "exit 0", None
           "successful worker", ">/dev/null 2>&1", "exit 0", Some 0
@@ -904,8 +908,6 @@ let isolatedTestBoundsOutputCollection =
           System.IO.Directory.CreateTempSubdirectory("dark-worker-check-").FullName
         let script = System.IO.Path.Combine(dir, "worker")
         let pidFile = System.IO.Path.Combine(dir, "child.pid")
-        let previous =
-          System.Environment.GetEnvironmentVariable "DARK_CLI_UNDER_TEST"
         try
           let body =
             if label = "nested worker group" then
@@ -915,7 +917,7 @@ let isolatedTestBoundsOutputCollection =
                 $"echo $$ > '{pidFile}'\nsleep 30 &\necho $! >> '{pidFile}'\nwait\n"
               )
               let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
-              $"{quote launcher} --test-process-launch unused /bin/sh {quote nested} &\nwait\n"
+              $"{quote launcher} --process-launch unused /bin/sh {quote nested} &\nwait\n"
             else
               $"sleep 30 {redirect} &\necho $! > '{pidFile}'\n{ending}\n"
           System.IO.File.WriteAllText(script, "#!/bin/sh\n" + body)
@@ -923,18 +925,21 @@ let isolatedTestBoundsOutputCollection =
             script,
             System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
           )
-          System.Environment.SetEnvironmentVariable("DARK_CLI_UNDER_TEST", script)
           let outcome =
-            LibExecution.HostProcess.runIsolatedTest
+            LibExecution.HostProcess.runInWorkspace
               launcher
-              (fun _ -> Ok())
-              System.Guid.Empty
-              [||]
-              [||]
-              [||]
+              "dark-worker-check-"
+              (fun _ ->
+                Ok(
+                  { program = script
+                    arguments = []
+                    environment = []
+                    files = []
+                    directories = []
+                    resultFile = "result.bin" }
+                  : HT.ProcessWorkspace
+                ))
               2000
-              80
-              24
           match expectedCode, outcome with
           | None, Error(110, message) ->
             Expect.stringContains message "timed out" $"{label}: wait is bounded"
@@ -959,7 +964,6 @@ let isolatedTestBoundsOutputCollection =
               ))
               $"{label}: descendant must stop without test-side cleanup"
         finally
-          System.Environment.SetEnvironmentVariable("DARK_CLI_UNDER_TEST", previous)
           // Failure-only safety net: the assertion above must pass before this
           // cleanup runs, so it cannot hide a leaked descendant.
           if System.IO.File.Exists pidFile then
@@ -986,16 +990,11 @@ let isolatedTestPreservesFailureWhenCleanupFails =
       Error "original snapshot failure"
     try
       match
-        LibExecution.HostProcess.runIsolatedTest
+        LibExecution.HostProcess.runInWorkspace
           "unused launcher"
-          snapshot
-          System.Guid.Empty
-          [||]
-          [||]
-          [||]
+          "dark-worker-check-"
+          (fun dir -> snapshot (System.IO.Path.Combine(dir, "data.db")))
           1000
-          80
-          24
       with
       | Error(_, message) ->
         Expect.stringContains
@@ -1004,7 +1003,7 @@ let isolatedTestPreservesFailureWhenCleanupFails =
           "preserves the original failure"
         Expect.stringContains
           message
-          "Could not remove isolated test directory"
+          "Could not remove child process directory"
           "also reports cleanup"
       | other -> failtest $"expected both failures, got {other}"
     finally
@@ -1024,7 +1023,7 @@ let testRunSnapshot =
       System.IO.File.WriteAllText(path, source)
       Ok()
     try
-      use baseline = LibExecution.HostProcess.testStoreSnapshot backup
+      use baseline = LibExecution.HostProcess.fileSnapshot backup
       Expect.equal backups 0 "cached-only runs do not back up the store"
       let first = System.IO.Path.Combine(dir, "first.db")
       let second = System.IO.Path.Combine(dir, "second.db")
@@ -1044,7 +1043,7 @@ let testRunSnapshot =
       Expect.isError
         (baseline.CopyTo(System.IO.Path.Combine(dir, "late.db")))
         "closed scope"
-      use nextRun = LibExecution.HostProcess.testStoreSnapshot backup
+      use nextRun = LibExecution.HostProcess.fileSnapshot backup
       let next = System.IO.Path.Combine(dir, "next.db")
       Expect.equal (nextRun.CopyTo next) (Ok()) "next run gets its own baseline"
       Expect.equal backups 2 "a later run never reuses the old baseline"
@@ -1065,7 +1064,7 @@ let failedTestRunSnapshot =
       directory <- System.IO.Path.GetDirectoryName path
       System.IO.File.WriteAllText(path, "partial backup")
       Error "backup failed"
-    use baseline = LibExecution.HostProcess.testStoreSnapshot backup
+    use baseline = LibExecution.HostProcess.fileSnapshot backup
     Expect.equal
       (baseline.CopyTo "unused")
       (Error "backup failed")

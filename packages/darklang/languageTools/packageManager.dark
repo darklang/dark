@@ -286,11 +286,14 @@ module Function =
 
 
 module Test =
+  /// Valid only inside the withStoreSnapshot callback that created it.
+  type Run = { id: Uuid }
+
   /// Share a starting store across the tests executed by <param run>. Every
   /// test still gets a private writable copy and a fresh process. Cached-only
-  /// runs create no snapshot; the host cleans up even if the callback fails.
-  let withSnapshot (run: Unit -> 'a) : 'a =
-    Builtin.pmTestWithSnapshot run
+  /// runs create no snapshot; cleanup also runs if the callback fails.
+  let withStoreSnapshot (run: Run -> 'a) : 'a =
+    Builtin.pmTestWithStoreSnapshot (fun id -> run (Run { id = id }))
 
   /// Conservative proof that a passing result is reusable. Dynamic calls and
   /// branch-dependent rendering are not treated as cache-safe.
@@ -328,9 +331,12 @@ module Test =
   /// called-function approvals and ceilings: what it evaluated to,
   /// reflected, or the error it raised. Nothing is judged here; see `execute`.
   let executeBody
+    (run: Run)
+    (branchId: Uuid)
     (hash: ProgramTypes.Hash)
     : Stdlib.Result.Result<LanguageTools.RuntimeTypes.Dval, LanguageTools.RuntimeTypes.RuntimeError.Error> =
-    Builtin.pmExecuteTest hash
+    // Keep the worker in the dependency graph, just like the result checker.
+    Builtin.pmExecuteTest run.id branchId hash Worker.main
 
   /// <param value> as a `Stdlib.Test.Result`, or None if it is anything else. The
   /// enum's type is checked by hash, as <param branchId> sees `Stdlib.Test.Result`,
@@ -375,13 +381,14 @@ module Test =
   /// refused an effect, raised unexpectedly, returned a non-test value), not
   /// a failing assertion. <param branchId> is the branch names in error
   /// messages are resolved against.
-  let execute
+  let executeInRun
+    (run: Run)
     (branchId: Uuid)
     (hash: ProgramTypes.Hash)
     : Stdlib.Result.Result<Stdlib.Test.Result, LanguageTools.RuntimeTypes.RuntimeError.Error> =
     let expected =
       Stdlib.Option.andThen (get hash) (fun test -> test.expectedError)
-    match expected, executeBody hash with
+    match expected, executeBody run branchId hash with
     | Some expected, Ok value ->
       let actual = PrettyPrinter.RuntimeTypes.dval branchId value
       let expectedText =
@@ -426,6 +433,13 @@ module Test =
           )
         )
     | None, Error error -> Stdlib.Result.Result.Error error
+
+  /// Run one test without keeping a starting snapshot for subsequent tests.
+  let execute
+    (branchId: Uuid)
+    (hash: ProgramTypes.Hash)
+    : Stdlib.Result.Result<Stdlib.Test.Result, LanguageTools.RuntimeTypes.RuntimeError.Error> =
+    withStoreSnapshot (fun run -> executeInRun run branchId hash)
 
 
 /// Replace provisional hashes with SCC-aware content hashes, including references

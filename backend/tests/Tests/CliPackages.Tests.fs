@@ -480,6 +480,17 @@ let cachedPassesRequireTheSameBuildAndJudge =
             [ "test"; "Tests.CacheIdentity" ]
             "1 ran, 0 cached"
             "the old pass cannot be reused"
+      do!
+        fn
+          state
+          "Darklang.LanguageTools.PackageManager.Test.Worker.main"
+          "(_args: List<String>) : Int = 17"
+      do!
+        shows
+          state
+          [ "test"; "--force"; "Tests.CacheIdentity" ]
+          "1 passed"
+          "the runner uses its worker's exact hash, even if the branch rebinds its name"
       do! discardAll state
     })
 
@@ -570,14 +581,20 @@ let testRunUsesOneStartingStore =
           $"""let hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "{hash}"
 let branch = Darklang.SCM.Branch.mainBranchId
 let _ = Stdlib.LocalStore.configSet "baseline-witness" "before"
-let (first, second) = Darklang.LanguageTools.PackageManager.Test.withSnapshot (fun () ->
-  let first = Darklang.LanguageTools.PackageManager.Test.execute branch hash
+let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run ->
+  let first = Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash
   let _ = Stdlib.LocalStore.configSet "baseline-witness" "after"
-  let second = Darklang.LanguageTools.PackageManager.Test.execute branch hash
+  let second = Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash
   (first, second))
-let later = Darklang.LanguageTools.PackageManager.Test.withSnapshot (fun () ->
-  Darklang.LanguageTools.PackageManager.Test.execute branch hash)
-first == Ok (Stdlib.Test.pass ())
+let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run ->
+  Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash)
+let ended = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run -> run)
+let rejected =
+  match Darklang.LanguageTools.PackageManager.Test.executeInRun ended branch hash with
+  | Ok (Fail messages) -> Stdlib.String.contains (Stdlib.String.join messages " ") "already ended"
+  | _ -> false
+rejected
+&& first == Ok (Stdlib.Test.pass ())
 && second == Ok (Stdlib.Test.pass ())
 && later == Ok (Stdlib.Test.fail "starting store changed")
 && Stdlib.LocalStore.configGet "baseline-witness" == "after"
@@ -639,6 +656,90 @@ let isolatedTestDeclarations =
             "true"
             "the child's config did not leak into the parent"
         do! discardAll state
+      })
+
+let entryPointOverrideIsLocal =
+  instanceTest
+    "entry-point overrides leave the saved entry point unchanged"
+    (fun state ->
+      task {
+        do! start state
+        let instance =
+          match state with
+          | Instance i -> i
+          | _ -> failtest "requires a disposable CLI instance"
+        let source = System.IO.Path.Combine(instance.dir, "entry-point.dark")
+        System.IO.File.WriteAllText(
+          source,
+          """let saved (_args: List<String>) : Int =
+  Stdlib.printLine "saved entry point"
+  0
+let alternate (args: List<String>) : Int =
+  Stdlib.printLine (Stdlib.String.join args ",")
+  0
+let savedEntry () : String = Stdlib.LocalStore.configGet "entry_point"
+test keepsSavedEntry =
+  savedEntry () |> Stdlib.Test.equal "Tests.EntryPoint.saved"
+test nestedKeepsSavedEntry =
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) savedEntry () with
+  | Ok output -> output.result |> Stdlib.Test.equal (Ok "Tests.EntryPoint.saved")
+  | Error message -> Stdlib.Test.fail message
+"""
+        )
+        do!
+          exits
+            state
+            [ "module"; "Tests.EntryPoint"; source ]
+            0L
+            "author entry points"
+        do!
+          exits
+            state
+            [ "permissions"; "approve"; "Tests.EntryPoint.savedEntry" ]
+            0L
+            "approve the helper's store read"
+        do!
+          exits
+            state
+            [ "config"; "set-entry"; "Tests.EntryPoint.saved" ]
+            0L
+            "save the default"
+        do!
+          shows
+            state
+            [ "--entry-point"; "Tests.EntryPoint.alternate"; "one"; "two" ]
+            "one,two"
+            "the override gets only its own arguments"
+        do!
+          shows
+            state
+            []
+            "saved entry point"
+            "the next invocation uses the saved entry point"
+        do!
+          showsAll
+            state
+            [ "--safe"; "test"; "--force"; "Tests.EntryPoint" ]
+            [ "2 passed, 0 failed"; "2 ran, 0 cached" ]
+            "ordinary and nested workers keep the saved entry point"
+        for args in
+          [ [ "--entry-point" ]
+            [ "--entry-point"; "Tests.EntryPoint.missing" ]
+            [ "--entry-point"; "#invalid" ] ] do
+          let! code, stdout, stderr = Tests.CliInstance.runRaw instance args
+          Expect.equal
+            code
+            1
+            $"bad entry points fail instead of running the saved one: {stdout} {stderr}"
+          Expect.isFalse
+            (stdout.Contains "saved entry point")
+            "no fallback for an explicit override"
+        do!
+          shows
+            state
+            []
+            "saved entry point"
+            "failed overrides also leave the setting unchanged"
       })
 
 /// Pause workers to check that tests run in parallel without exceeding the limit.
@@ -833,7 +934,7 @@ test expected = 1L / 0L => raises "Cannot divide by 0"
             + " \"$@\"\n"
             + "rc=$?\n"
             + "for arg in \"$@\"; do\n"
-            + "  if [ \"$arg\" = --test-worker ] && [ \"$rc\" -eq 0 ]; then\n"
+            + "  if [ \"$arg\" = \"${DARK_CONFIG_RUNDIR}request.bin\" ] && [ \"$rc\" -eq 0 ]; then\n"
             + "    echo 17 >> "
             + quote witness
             + "\n"
@@ -841,10 +942,7 @@ test expected = 1L / 0L => raises "Cannot divide by 0"
           )
           System.IO.File.SetUnixFileMode(
             wrapper,
-            // Later cases rewrite this script to simulate different worker exits.
-            System.IO.UnixFileMode.UserRead
-            ||| System.IO.UnixFileMode.UserWrite
-            ||| System.IO.UnixFileMode.UserExecute
+            System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
           )
           let wrapped = Instance { instance with cli = wrapper }
           let! (output, code) =
@@ -869,19 +967,28 @@ test expected = 1L / 0L => raises "Cannot divide by 0"
           // A worker may exit before writing its result, even with exit code 0.
           // Dark must reject both cases and preserve the diagnostic output.
           for workerExit in [ 0; 23 ] do
+            // Keep each executable unchanged after launch; rewriting one can
+            // race with the OS releasing it and produce "Text file busy".
+            let wrapper =
+              System.IO.Path.Combine(instance.dir, $"worker-no-result-{workerExit}")
             System.IO.File.WriteAllText(
               wrapper,
               "#!/bin/sh\n"
               + "export DARK_CLI_UNDER_TEST="
               + quote wrapper
               + "\nfor arg in \"$@\"; do\n"
-              + "  if [ \"$arg\" = --test-worker ]; then\n"
+              + "  if [ \"$arg\" = \"${DARK_CONFIG_RUNDIR}request.bin\" ]; then\n"
               + "    echo 'worker stdout'\n    echo 'worker stderr' >&2\n"
               + $"    exit {workerExit}\n  fi\ndone\n"
               + "exec "
               + quote (System.IO.Path.GetFullPath instance.cli)
               + " \"$@\"\n"
             )
+            System.IO.File.SetUnixFileMode(
+              wrapper,
+              System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
+            )
+            let wrapped = Instance { instance with cli = wrapper }
             for target in [ "passes"; "expected" ] do
               let! (output, code) =
                 runCliWithStatus
@@ -1896,6 +2003,7 @@ let tests : List<Test> =
     testAddAuthorsATest
     testRunUsesOneStartingStore
     isolatedTestDeclarations
+    entryPointOverrideIsLocal
     packageTestsRespectParallelLimit
     packageTestJobsRejectInvalidCounts
     isolatedTestsRejectUnsuccessfulWorkers
