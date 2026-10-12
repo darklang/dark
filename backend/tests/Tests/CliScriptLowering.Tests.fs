@@ -334,7 +334,7 @@ let private scriptValueExecution =
         | other -> failtest $"Expected an unavailable cyclic value, got %A{other}"
       }
       testTask "initializers inherit script permissions" {
-        let code = "val now = Builtin.timeNowMs ()\nnow"
+        let code = "val now = Builtin.syscallGettimeofday ()\nnow"
         let! state = executionStateFor pmPT false Map.empty
         let! script = parse code
         let restricted =

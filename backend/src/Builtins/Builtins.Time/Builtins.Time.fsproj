@@ -11,8 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Libs/Time.fs" />
-    <Compile Include="Libs/DateTime.fs" />
+    <Compile Include="Libs/RuntimeClock.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <Import Project="..\..\..\.paket\Paket.Restore.targets" />

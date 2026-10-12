@@ -13,6 +13,21 @@ loads more is a clause, not a section. Anything longer belongs in `playbook.md` 
 
 ---
 
+## 2026-10-12: shared syscall StdLib (#5907)
+
+Published budget 11,072,152 -> 12,338,632; tolerance remains 3%. Three runs of the
+Linux x64 NativeAOT binary against a clean, seeded store measured 12,309,184,
+12,338,632 and 12,296,624 bytes. This gate measures the whole CLI invocation,
+including cold library loading, not just the list loop. Moving filesystem and
+clock algorithms out of F# Builtins and into shared Dark intentionally moves
+more package code onto that path. A same-binary control removing only the two
+clock reads measured 11,914,120 against 12,296,128 with them, isolating about
+0.38 MB of the added cost. The remaining overhead is not isolated by that
+control. The higher clean-store reading is the new baseline, not a larger
+tolerance or an exemption for this branch.
+
+---
+
 ## 2026-10-10: the argument check, and main's drift (#5888)
 
 Published budget 10,717,784 -> 11,072,152, the higher of two clean-store `--update` runs (11.07, 11.05).

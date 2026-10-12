@@ -12,6 +12,13 @@ module HT = LibExecution.HostTypes
 
 let private only (item : 'a) : Permission.Scope<'a> = Permission.Scope.Only item
 
+let private setTimesNow path =
+  if System.OperatingSystem.IsMacOS() then
+    let seconds = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+    LibExecution.HostPosix.setattrlistTimes path seconds 0L seconds 0L
+  else
+    LibExecution.HostPosix.utimensAt path 0L 1073741823L 0L 1073741823L
+
 let private request (method : string) (url : string) : Permission.Request =
   match Permission.Request.http method url with
   | Ok request -> request
@@ -66,6 +73,421 @@ let httpServerBindUsesTheSuppliedAccess =
     | other -> failtest $"expected an instance denial, got {other}"
   }
 
+let rawDescriptorsRequireNativeAtHostBoundary =
+  testTask "raw descriptors require Native before any kernel call" {
+    let operations =
+      [ HT.PosixOp.FdRead(HT.FileDescriptor.Raw -1, 1)
+        HT.PosixOp.FdWrite(HT.FileDescriptor.Raw -1, [| 1uy |])
+        HT.PosixOp.FdClose(HT.FileDescriptor.Raw -1)
+        HT.PosixOp.Fstat(HT.FileDescriptor.Raw -1)
+        HT.PosixOp.Ppoll([ HT.FileDescriptor.Raw -1, 1 ], 0)
+        HT.PosixOp.KeventVnode(HT.FileDescriptor.Raw -1, [], 1, 0)
+        HT.PosixOp.CopyFileRange(
+          HT.FileDescriptor.Raw -1,
+          HT.FileDescriptor.Raw -1,
+          1
+        ) ]
+    for operation in operations do
+      let! outcome =
+        LibExecution.Host.perform
+          Permission.NoRelax
+          (Permission.Access.start Permission.Policy.denyAll)
+          (HT.Operation.Posix operation)
+      match outcome with
+      | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _) -> ()
+      | other -> failtest $"expected denial before EBADF, got {other}"
+    let! allowed =
+      LibExecution.Host.perform
+        Permission.NoRelax
+        (Permission.Access.start Permission.Policy.allowAll)
+        (HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Raw -1, 1)))
+    match allowed with
+    | HT.Outcome.Failed failure ->
+      Expect.equal failure.errno 9 "authorized invalid fd reaches kernel"
+    | other -> failtest $"expected EBADF after authorization, got {other}"
+  }
+
+let scopedDescriptorsRecheckAccessAndOwnership =
+  testTask "scoped descriptors enforce mode, current access, ownership and close" {
+    let path =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-fd-{System.Guid.NewGuid()}"
+      )
+    System.IO.File.WriteAllText(path, "abc")
+    let owner = LibExecution.Host.createDescriptorSession ()
+    let foreign = LibExecution.Host.createDescriptorSession ()
+    let readOnly =
+      Permission.Policy.create
+        [ Permission.Rule.File(Permission.AccessKind.Read, only path) ]
+        []
+      |> Permission.Access.start
+    let denied = Permission.Access.start Permission.Policy.denyAll
+    let all = Permission.Access.start Permission.Policy.allowAll
+    let perform session access op =
+      LibExecution.Host.performInSession
+        session
+        Permission.NoRelax
+        access
+        (HT.Operation.Posix op)
+    let ebadf outcome =
+      match outcome with
+      | HT.Outcome.Failed failure ->
+        Expect.equal failure.errno 9 "invalid capability"
+      | other -> failtest $"expected EBADF, got {other}"
+    try
+      let! opened = perform owner readOnly (HT.PosixOp.Open(path, 0, 0))
+      let token =
+        match opened with
+        | HT.Outcome.Success(HT.Response.Descriptor token) -> token
+        | other -> failtestf "expected scoped open without Native, got %A" other
+      let fd = HT.FileDescriptor.Scoped token
+      let! unownedVnode =
+        perform
+          owner
+          all
+          (HT.PosixOp.KeventVnode(fd, [ HT.FileDescriptor.Raw -1, 37, 127 ], 0, 0))
+      ebadf unownedVnode
+      let! read = perform owner readOnly (HT.PosixOp.FdRead(fd, 3))
+      match read with
+      | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+        Expect.equal bytes [| 97uy; 98uy; 99uy |] "read bytes"
+      | other -> failtest $"expected scoped read, got {other}"
+      let! stat = perform owner readOnly (HT.PosixOp.Fstat fd)
+      match stat with
+      | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+        Expect.isNonEmpty bytes "raw stat record"
+      | other -> failtest $"expected scoped fstat, got {other}"
+      let! write = perform owner all (HT.PosixOp.FdWrite(fd, [| 0uy |]))
+      ebadf write
+      let! stolen = perform foreign all (HT.PosixOp.FdRead(fd, 1))
+      ebadf stolen
+      let! revoked = perform owner denied (HT.PosixOp.FdRead(fd, 1))
+      match revoked with
+      | HT.Outcome.Denied _ -> ()
+      | other -> failtest $"expected current-access denial, got {other}"
+      let! closed = perform owner denied (HT.PosixOp.FdClose fd)
+      Expect.equal
+        closed
+        (HT.Outcome.Success HT.Response.Unit)
+        "cleanup needs no new grant"
+      let! again = perform owner all (HT.PosixOp.FdClose fd)
+      ebadf again
+      let! stale = perform owner all (HT.PosixOp.Fstat fd)
+      ebadf stale
+    finally
+      owner.Dispose()
+      foreign.Dispose()
+      System.IO.File.Delete path
+  }
+
+let descriptorLeasesDoNotSerializeUnrelatedFiles =
+  testTask "a held descriptor lease does not block another owned descriptor" {
+    let entered = new System.Threading.ManualResetEventSlim(false)
+    let release = new System.Threading.ManualResetEventSlim(false)
+    let owner = new LibExecution.HostDescriptors.Session(fun _ -> Ok())
+    let entry fd : LibExecution.HostDescriptors.Entry =
+      { fd = fd
+        paths = [ "/tmp/lease-test" ]
+        processes = []
+        reads = true
+        writes = false }
+    let first = owner.Register(entry 100)
+    let second = owner.Register(entry 101)
+    let held =
+      System.Threading.Tasks.Task.Run(fun () ->
+        owner.WithLeases(
+          [ first ],
+          fun () ->
+            entered.Set()
+            release.Wait()
+        ))
+    try
+      Expect.isTrue (entered.Wait 2000) "first lease acquired"
+      let independent =
+        System.Threading.Tasks.Task.Run(fun () ->
+          owner.WithLeases([ second ], (fun () -> owner.Find second)))
+      let! finished =
+        System.Threading.Tasks.Task.WhenAny(
+          independent,
+          System.Threading.Tasks.Task.Delay 2000
+        )
+      Expect.isTrue
+        (obj.ReferenceEquals(finished, independent))
+        "second lease must not wait for first"
+      let! result = independent
+      Expect.isSome result "second capability stays valid"
+    finally
+      release.Set()
+      held.GetAwaiter().GetResult()
+      owner.Dispose()
+      entered.Dispose()
+      release.Dispose()
+  }
+
+let ownedChildrenRetainScopedProcessAuthority =
+  testTask "owned children and pipes recheck process grants and execution ownership" {
+    if System.OperatingSystem.IsLinux() || System.OperatingSystem.IsMacOS() then
+      let owner = LibExecution.Host.createDescriptorSession ()
+      let foreign = LibExecution.Host.createDescriptorSession ()
+      let program = "/bin/sh"
+      let args = [ "-c"; "read line; printf '%s' \"$line\"" ]
+      let access =
+        Permission.Policy.create
+          [ Permission.Rule.Process { executable = only program; args = only args } ]
+          []
+        |> Permission.Access.start
+      let denied = Permission.Access.start Permission.Policy.denyAll
+      let perform session access op =
+        LibExecution.Host.performInSession session Permission.NoRelax access op
+      let ebadf outcome =
+        match outcome with
+        | HT.Outcome.Failed error ->
+          Expect.equal error.errno 9 "foreign or closed token"
+        | other -> failtestf "expected EBADF, got %A" other
+      let revoked outcome =
+        match outcome with
+        | HT.Outcome.Denied _ -> ()
+        | other ->
+          failtestf "expected current process permission denial, got %A" other
+      try
+        let! started =
+          perform owner access (HT.Operation.ChildStart(program, args, false))
+        let child =
+          match started with
+          | HT.Outcome.Success(HT.Response.ChildHandle token) -> token
+          | other ->
+            failtestf
+              "expected owned launch without Native/File permissions, got %A"
+              other
+        let! ports = perform owner access (HT.Operation.ChildDescriptors child)
+        let stdin, stdout =
+          match ports with
+          | HT.Outcome.Success(HT.Response.ChildDescriptors [ stdin; stdout; _ ]) ->
+            stdin, stdout
+          | other -> failtestf "expected owned pipe descriptors, got %A" other
+        let! stolen =
+          perform
+            foreign
+            (Permission.Access.start Permission.Policy.allowAll)
+            (HT.Operation.ChildPoll child)
+        ebadf stolen
+        let! deniedPoll = perform owner denied (HT.Operation.ChildPoll child)
+        revoked deniedPoll
+        let! deniedRead =
+          perform
+            owner
+            denied
+            (HT.Operation.Posix(
+              HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)
+            ))
+        revoked deniedRead
+        let! written =
+          perform
+            owner
+            access
+            (HT.Operation.Posix(
+              HT.PosixOp.FdWrite(
+                HT.FileDescriptor.Scoped stdin,
+                [| 104uy; 105uy; 10uy |]
+              )
+            ))
+        Expect.equal
+          written
+          (HT.Outcome.Success(HT.Response.Written 3))
+          "owned pipe write needs only the retained process grant"
+        do! System.Threading.Tasks.Task.Delay 100
+        let! read =
+          perform
+            owner
+            access
+            (HT.Operation.Posix(
+              HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)
+            ))
+        Expect.equal
+          read
+          (HT.Outcome.Success(HT.Response.Bytes [| 104uy; 105uy |]))
+          "raw bytes, no host capture algorithm"
+        let! closedPort =
+          perform owner denied (HT.Operation.ChildClosePort(child, 0))
+        Expect.equal
+          closedPort
+          (HT.Outcome.Success HT.Response.Unit)
+          "pipe cleanup needs no revoked grant"
+        let! closed = perform owner denied (HT.Operation.ChildClose child)
+        Expect.equal
+          closed
+          (HT.Outcome.Success HT.Response.Unit)
+          "owned child cleanup needs no revoked grant"
+        let! stale = perform owner access (HT.Operation.ChildPoll child)
+        ebadf stale
+        let! staleFd =
+          perform
+            owner
+            access
+            (HT.Operation.Posix(
+              HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)
+            ))
+        ebadf staleFd
+      finally
+        owner.Dispose()
+        foreign.Dispose()
+  }
+
+let ownedChildWaitAllowsCleanup =
+  testTask "blocking child wait releases the child lease so cleanup can terminate it" {
+    if System.OperatingSystem.IsLinux() || System.OperatingSystem.IsMacOS() then
+      let owner = LibExecution.Host.createDescriptorSession ()
+      let all = Permission.Access.start Permission.Policy.allowAll
+      let denied = Permission.Access.start Permission.Policy.denyAll
+      let perform access op =
+        LibExecution.Host.performInSession owner Permission.NoRelax access op
+      try
+        let! started =
+          perform
+            all
+            (HT.Operation.ChildStart("/bin/sh", [ "-c"; "sleep 10" ], true))
+        let token =
+          match started with
+          | HT.Outcome.Success(HT.Response.ChildHandle token) -> token
+          | other -> failtestf "expected launch, got %A" other
+        let child = owner.FindChild token |> Option.get
+        let waiting = perform all (HT.Operation.ChildWait token)
+        Expect.isTrue
+          (System.Threading.SpinWait.SpinUntil(
+            (fun () -> lock child.child.waitGate (fun () -> child.child.waiters > 0)),
+            2000
+          ))
+          "wait retains the managed supervisor before releasing the ownership lease"
+        let closing = perform denied (HT.Operation.ChildClose token)
+        let! winner =
+          System.Threading.Tasks.Task.WhenAny(
+            closing,
+            System.Threading.Tasks.Task.Delay 2000
+          )
+        Expect.isTrue
+          (obj.ReferenceEquals(winner, closing))
+          "cleanup must not block behind the child wait"
+        let! closed = closing
+        Expect.equal
+          closed
+          (HT.Outcome.Success HT.Response.Unit)
+          "cleanup after revocation"
+        let! finished =
+          System.Threading.Tasks.Task.WhenAny(
+            waiting,
+            System.Threading.Tasks.Task.Delay 2000
+          )
+        Expect.isTrue
+          (obj.ReferenceEquals(finished, waiting))
+          "termination unblocks the retained waiter"
+        let! outcome = waiting
+        match outcome with
+        | HT.Outcome.Success(HT.Response.ChildStatus(Some _)) -> ()
+        | other -> failtestf "expected supervised completion, got %A" other
+      finally
+        owner.Dispose()
+  }
+
+let watchQueuesRetainScopedPathAuthority =
+  testTask "watch queue registration and reads retain current path authority" {
+    if System.OperatingSystem.IsLinux() then
+      let path =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-watch-{System.Guid.NewGuid()}"
+        )
+      System.IO.File.WriteAllText(path, "before")
+      let owner = LibExecution.Host.createDescriptorSession ()
+      let foreign = LibExecution.Host.createDescriptorSession ()
+      let access =
+        Permission.Policy.create
+          [ Permission.Rule.File(Permission.AccessKind.Read, only path)
+            Permission.Rule.Effect LibExecution.Effects.Effect.Clock ]
+          []
+        |> Permission.Access.start
+      let denied = Permission.Access.start Permission.Policy.denyAll
+      let perform session access op =
+        LibExecution.Host.performInSession
+          session
+          Permission.NoRelax
+          access
+          (HT.Operation.Posix op)
+      try
+        let! opened = perform owner denied (HT.PosixOp.InotifyInit1 526336)
+        let fd =
+          match opened with
+          | HT.Outcome.Success(HT.Response.Descriptor token) ->
+            HT.FileDescriptor.Scoped token
+          | other -> failtestf "expected owned empty event queue, got %A" other
+        let! rejected =
+          perform owner denied (HT.PosixOp.InotifyAddWatch(fd, path, 2))
+        match rejected with
+        | HT.Outcome.Denied _ -> ()
+        | other -> failtestf "expected path denial, got %A" other
+        if not (System.IO.Directory.Exists "/proc/self/fd") then
+          skiptest
+            "held-inode event registration requires real /proc/self/fd; the adapter fails closed without it"
+        let! added = perform owner access (HT.PosixOp.InotifyAddWatch(fd, path, 2))
+        match added with
+        | HT.Outcome.Success(HT.Response.Written wd) ->
+          Expect.isGreaterThanOrEqual wd 0 "watch registered"
+        | other -> failtestf "expected scoped watch without Native, got %A" other
+        System.IO.File.WriteAllText(path, "after")
+        let! ready = perform owner access (HT.PosixOp.Ppoll([ fd, 1 ], 0))
+        match ready with
+        | HT.Outcome.Success(HT.Response.Bytes record) ->
+          Expect.equal record.Length 8 "raw pollfd"
+          Expect.equal (int record[6] &&& 1) 1 "queued change is readable"
+        | other -> failtestf "expected poll readiness, got %A" other
+        let! revoked = perform owner denied (HT.PosixOp.FdRead(fd, 4096))
+        match revoked with
+        | HT.Outcome.Denied _ -> ()
+        | other -> failtestf "queue read must recheck watched path, got %A" other
+        let! stolen = perform foreign access (HT.PosixOp.FdRead(fd, 4096))
+        match stolen with
+        | HT.Outcome.Failed failure ->
+          Expect.equal failure.errno 9 "foreign queue is not owned"
+        | other -> failtestf "expected foreign capability rejection, got %A" other
+        let! changes = perform owner access (HT.PosixOp.FdRead(fd, 4096))
+        match changes with
+        | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+          Expect.isGreaterThanOrEqual bytes.Length 16 "raw inotify event"
+        | other -> failtestf "expected raw change records, got %A" other
+        let! closed = perform owner denied (HT.PosixOp.FdClose fd)
+        Expect.equal
+          closed
+          (HT.Outcome.Success HT.Response.Unit)
+          "revocation does not prevent cleanup"
+      finally
+        owner.Dispose()
+        foreign.Dispose()
+        System.IO.File.Delete path
+  }
+
+let systemFactsDoNotGrantSensitiveQueries =
+  testTask "host facts do not grant arbitrary sysctl or foreign affinity access" {
+    let access = Permission.Access.start Permission.Policy.denyAll
+    for op in
+      [ HT.PosixOp.SysctlBytes([ 1; 14 ], 256); HT.PosixOp.SchedGetaffinity(1, 128) ] do
+      let! outcome =
+        LibExecution.Host.perform Permission.NoRelax access (HT.Operation.Posix op)
+      match outcome with
+      | HT.Outcome.Denied _ -> ()
+      | other -> failtest $"expected Native denial before kernel query, got {other}"
+    let! local =
+      LibExecution.Host.perform
+        Permission.NoRelax
+        access
+        (HT.Operation.Posix(HT.PosixOp.SchedGetaffinity(0, 128)))
+    match local with
+    | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+      Expect.isNonEmpty bytes "local affinity mask"
+    | HT.Outcome.Failed failure ->
+      Expect.isTrue (failure.errno = 38 || failure.errno = 78) "unsupported target"
+    | other -> failtest $"local host fact must not need Native, got {other}"
+  }
+
 let tempPrefixDoesNotAuthorizeARandomSibling =
   testTask "mkstemp authorizes its containing directory, not its prefix" {
     let prefix = $"/tmp/dark-permission-{System.Guid.NewGuid()}-"
@@ -109,23 +531,26 @@ let readlinkMayInspectTheFinalSymlink =
         LibExecution.Host.perform
           Permission.NoRelax
           (Permission.Access.start policy)
-          (HT.Operation.Posix(HT.PosixOp.Readlink link))
+          (HT.Operation.Posix(HT.PosixOp.ReadlinkBytes(link, 4096)))
       match outcome with
-      | HT.Outcome.Success(HT.Response.Path actual) ->
-        Expect.equal actual target "readlink returns the stored target"
+      | HT.Outcome.Success(HT.Response.Bytes actual) ->
+        Expect.equal
+          actual
+          (System.Text.Encoding.UTF8.GetBytes target)
+          "readlink returns raw stored target bytes"
       | other -> failtest $"expected readlink success, got {other}"
     finally
       System.IO.Directory.Delete(directory, true)
   }
 
-let libcWalkRefusesALinkMetAtOperationTime =
+let posixWalkRefusesALinkMetAtOperationTime =
   testTask
-    "the libc bridge meets a link at operation time and refuses it, without the pre-check" {
+    "the POSIX host meets a link at operation time and refuses it, without the pre-check" {
     // The boundary's lexical pre-check can be raced: a component swapped for
     // a link after the check. The bridge walks the directories again with
     // O_NOFOLLOW at operation time, so calling it directly through a link,
     // as a race would, must fail rather than follow.
-    if LibExecution.HostLibc.isPosix then
+    if LibExecution.HostPosix.isPosix then
       let directory =
         System.IO.Path.Combine(
           System.IO.Path.GetTempPath(),
@@ -144,30 +569,30 @@ let libcWalkRefusesALinkMetAtOperationTime =
         |> ignore<System.IO.FileSystemInfo>
         let viaLink = System.IO.Path.Combine(link, "f")
         Expect.isError
-          (LibExecution.HostLibc.unlink viaLink)
+          (LibExecution.HostPosix.unlink viaLink)
           "unlink through a linked ancestor is refused by the walk"
         Expect.isTrue (System.IO.File.Exists file) "and the file is untouched"
         Expect.isError
-          (LibExecution.HostLibc.stat viaLink)
+          (LibExecution.HostPosix.stat viaLink)
           "stat through a linked ancestor is refused"
         Expect.isError
-          (LibExecution.HostLibc.listDir link)
+          (LibExecution.HostPosix.listDir link)
           "listing a linked directory entry is refused"
         Expect.throws
-          (fun () -> LibExecution.HostLibc.readAllBytes viaLink |> ignore<byte[]>)
+          (fun () -> LibExecution.HostPosix.readAllBytes viaLink |> ignore<byte[]>)
           "reading through a linked ancestor is refused"
         let originalMode = System.IO.File.GetUnixFileMode file
         let originalMtime = System.DateTime.UnixEpoch.AddDays 1.0
         System.IO.File.SetLastWriteTimeUtc(file, originalMtime)
         Expect.isError
-          (LibExecution.HostLibc.chmod finalLink 0o777)
+          (LibExecution.HostPosix.chmod finalLink 0o777)
           "chmod refuses a linked final component"
         Expect.equal
           (System.IO.File.GetUnixFileMode file)
           originalMode
           "chmod did not reach the link target"
         Expect.isError
-          (LibExecution.HostLibc.utimesNow finalLink)
+          (setTimesNow finalLink)
           "utimes refuses a linked final component"
         Expect.equal
           (System.IO.File.GetLastWriteTimeUtc file)
@@ -175,22 +600,20 @@ let libcWalkRefusesALinkMetAtOperationTime =
           "utimes did not reach the link target"
         // The same operations on the real path work, through the same walk.
         System.IO.File.SetUnixFileMode(file, System.IO.UnixFileMode.None)
+        Expect.isOk (setTimesNow file) "utimes works without file read permission"
         Expect.isOk
-          (LibExecution.HostLibc.utimesNow file)
-          "utimes works without file read permission"
-        Expect.isOk
-          (LibExecution.HostLibc.chmod file 0o600)
+          (LibExecution.HostPosix.chmod file 0o600)
           "chmod can recover a mode-000 file"
-        Expect.isOk (LibExecution.HostLibc.stat file) "stat on the real path"
+        Expect.isOk (LibExecution.HostPosix.stat file) "stat on the real path"
         Expect.equal
-          (LibExecution.HostLibc.listDir real |> Result.map Set.ofList)
+          (LibExecution.HostPosix.listDir real |> Result.map Set.ofList)
           (Ok(Set.ofList [ "f"; "final-link" ]))
           "listing on the real path"
         match
-          LibExecution.HostLibc.mkstemp (System.IO.Path.Combine(real, "tmp-"))
+          LibExecution.HostPosix.mkstemp (System.IO.Path.Combine(real, "tmp-"))
         with
         | Ok(fd, path) ->
-          LibExecution.HostLibc.fdClose fd |> ignore<Result<unit, int * string>>
+          LibExecution.HostPosix.fdClose fd |> ignore<Result<unit, int * string>>
           Expect.isTrue (System.IO.File.Exists path) "mkstemp created the file"
           Expect.equal
             (System.IO.Path.GetDirectoryName path)
@@ -198,14 +621,14 @@ let libcWalkRefusesALinkMetAtOperationTime =
             "mkstemp created it in the walked directory"
         | Error(_, message) -> failtest $"mkstemp failed: {message}"
         Expect.equal
-          (LibExecution.HostLibc.statEntry (System.IO.Path.Combine(real, "missing")))
+          (LibExecution.HostPosix.statEntry (System.IO.Path.Combine(real, "missing")))
           (Ok(false, false))
           "a missing entry is reported, not an error"
         Expect.equal
-          (LibExecution.HostLibc.statEntry real)
+          (LibExecution.HostPosix.statEntry real)
           (Ok(true, true))
           "a directory is reported as one"
-        Expect.isOk (LibExecution.HostLibc.unlink file) "unlink on the real path"
+        Expect.isOk (LibExecution.HostPosix.unlink file) "unlink on the real path"
         Expect.isFalse (System.IO.File.Exists file) "and it is gone"
       finally
         System.IO.Directory.Delete(directory, true)
@@ -282,6 +705,10 @@ let packageStoreAncestorsAreProtected =
       // Removing the parent is refused too.
       let! removed = perform (HT.Operation.Posix(HT.PosixOp.Rmdir rundir))
       expectRefused "rmdir the store's parent" removed
+      for flags in [ 0; 128; 512 ] do
+        let! unlinked =
+          perform (HT.Operation.Posix(HT.PosixOp.UnlinkAt(rundir, flags)))
+        expectRefused "unlinkat the store's parent" unlinked
       // Any ancestor, not just the immediate parent.
       let! rootMoved =
         perform (HT.Operation.Posix(HT.PosixOp.Rename(root, root + "-moved")))
@@ -318,7 +745,7 @@ let packageStoreAncestorsAreProtected =
 /// nothing to name.
 let rootDirectoryIsReadable =
   testTask "listing and stat work on the filesystem root" {
-    if LibExecution.HostLibc.isPosix then
+    if LibExecution.HostPosix.isPosix then
       let access = Permission.Access.start Permission.Policy.allowAll
       let perform op = LibExecution.Host.perform Permission.NoRelax access op
       let! listed = perform (HT.Operation.DirectoryList "/")
@@ -331,7 +758,7 @@ let rootDirectoryIsReadable =
         Expect.isTrue exists "/ exists"
         Expect.isTrue isDirectory "/ is a directory"
       | other -> failtest $"stat of / failed: {other}"
-      // Creating AT the root is refused before libc is reached: `/` is an
+      // Creating AT the root is refused before the kernel is reached: `/` is an
       // ancestor of the policy directory, so the boundary's guard answers.
       // Either refusal is fine; a success would mean the root case leaked
       // into an entry-creating operation.
@@ -342,14 +769,122 @@ let rootDirectoryIsReadable =
       | other -> failtest $"mkdir of / must not succeed, got {other}"
   }
 
+/// Exercise the syscall transport through real descriptor and filesystem behavior.
+let posixKernelRoundTrip =
+  test "POSIX descriptor and metadata operations round trip" {
+    if LibExecution.HostPosix.isPosix then
+      let parent =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-kernel-{System.Guid.NewGuid():N}"
+        )
+      System.IO.Directory.CreateDirectory parent |> ignore<System.IO.DirectoryInfo>
+      let ok result =
+        match result with
+        | Ok value -> value
+        | Error(errno, message) -> failtestf "errno %d: %s" errno message
+      let posix = LibExecution.HostPosix.O_RDWR ||| LibExecution.HostPosix.O_CREAT
+      let file = System.IO.Path.Combine(parent, "original")
+      let moved = System.IO.Path.Combine(parent, "renamed")
+      try
+        let fd = LibExecution.HostPosix.openFile file posix 0o600 |> ok
+        try
+          let bytes = [| 0uy; 255uy; 10uy; 42uy |]
+          Expect.equal
+            (LibExecution.HostPosix.fdWrite fd bytes |> ok)
+            4
+            "write count"
+          Expect.equal (LibExecution.HostPosix.fdSeek fd 0L 0 |> ok) 0L "seek"
+          Expect.equal (LibExecution.HostPosix.fdRead fd 4 |> ok) bytes "binary read"
+          LibExecution.HostPosix.flock fd LibExecution.HostPosix.LOCK_EX |> ok
+          LibExecution.HostPosix.flock fd LibExecution.HostPosix.LOCK_UN |> ok
+        finally
+          LibExecution.HostPosix.fdClose fd |> ignore<Result<unit, int * string>>
+        let mode, size, _ = LibExecution.HostPosix.stat file |> ok
+        Expect.equal size 4L "kernel stat size"
+        Expect.equal (mode &&& 0o777) 0o600 "kernel stat permissions"
+        Expect.equal
+          (LibExecution.HostPosix.fileOwner file |> ok)
+          (string (LibExecution.HostPosix.getuid ()))
+          "kernel stat uid"
+        LibExecution.HostPosix.rename file moved |> ok
+        let link = System.IO.Path.Combine(parent, "link")
+        LibExecution.HostPosix.symlink moved link |> ok
+        Expect.equal
+          (LibExecution.HostPosix.readlinkBytes link 4096 |> ok)
+          (System.Text.Encoding.UTF8.GetBytes moved)
+          "symlink bytes"
+        let directory =
+          LibExecution.HostPosix.mkdtemp (System.IO.Path.Combine(parent, "dir-"))
+          |> ok
+        Expect.equal
+          (LibExecution.HostPosix.listDir directory |> ok)
+          []
+          "empty directory"
+        Expect.equal
+          (LibExecution.HostPosix.listDir parent |> ok |> Set.ofList)
+          (Set.ofList [ "renamed"; "link"; System.IO.Path.GetFileName directory ])
+          "directory records"
+        LibExecution.HostPosix.syncDirectory parent
+        LibExecution.HostPosix.unlink link |> ok
+        LibExecution.HostPosix.unlink moved |> ok
+        LibExecution.HostPosix.rmdir directory |> ok
+        Expect.equal
+          (LibExecution.HostPosix.kill (LibExecution.HostPosix.getpid ()) 0 |> ok)
+          ()
+          "signal zero"
+        if System.OperatingSystem.IsMacOS() then
+          Expect.isNonEmpty
+            (LibExecution.HostPosix.sysctlBytes [ 1; 1 ] 256 |> ok)
+            "raw OS identity"
+        else
+          Expect.equal
+            (LibExecution.HostPosix.unameBytes () |> ok |> Array.length)
+            390
+            "raw utsname record"
+        match LibExecution.HostPosix.fdRead -1 1 with
+        | Error(errno, _) ->
+          Expect.equal errno 9 "negative kernel errno is mapped to EBADF"
+        | Ok _ -> failtest "invalid descriptor must fail"
+      finally
+        System.IO.Directory.Delete(parent, true)
+  }
+
+let rawClocksRequireClockPermission =
+  testTask "raw clocks and sleeps retain the Clock gate at Host" {
+    for operation in
+      [ HT.PosixOp.ClockGettime -1
+        HT.PosixOp.Gettimeofday
+        HT.PosixOp.MachAbsoluteTime
+        HT.PosixOp.MachTimebaseInfo
+        HT.PosixOp.Nanosleep(0L, 0L) ] do
+      let! outcome =
+        LibExecution.Host.perform
+          Permission.NoRelax
+          (Permission.Access.start Permission.Policy.denyAll)
+          (HT.Operation.Posix operation)
+      match outcome with
+      | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _) -> ()
+      | other -> failtest $"expected Clock denial before kernel errno, got {other}"
+  }
+
 let tests =
   testList
     "host"
-    [ auditRecordsOperationsAndDecisions
+    [ posixKernelRoundTrip
+      auditRecordsOperationsAndDecisions
       httpServerBindUsesTheSuppliedAccess
+      rawDescriptorsRequireNativeAtHostBoundary
+      scopedDescriptorsRecheckAccessAndOwnership
+      descriptorLeasesDoNotSerializeUnrelatedFiles
+      ownedChildrenRetainScopedProcessAuthority
+      ownedChildWaitAllowsCleanup
+      watchQueuesRetainScopedPathAuthority
+      systemFactsDoNotGrantSensitiveQueries
+      rawClocksRequireClockPermission
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink
-      libcWalkRefusesALinkMetAtOperationTime
+      posixWalkRefusesALinkMetAtOperationTime
       localPolicyPathsRejectTraversal
       packageStoreAncestorsAreProtected
       rootDirectoryIsReadable ]

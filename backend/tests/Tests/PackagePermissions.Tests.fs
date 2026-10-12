@@ -51,12 +51,12 @@ let private closureOf (fns : List<PT.PackageFn.PackageFn>) =
     fn.hash, (fn, LibExecution.CallGraph.analyzeFn Set.empty fn))
   |> Map.ofList
 
-/// Builtin effects for the review tests: `timeNowMs` is clock-only and
+/// Builtin effects for the review tests: `syscallGettimeofday` is clock-only and
 /// `fileRead` reads files; anything else is unknown (incomplete).
 let private testEffects : PackagePermissions.CallEffectsFor =
   fun (name, _version) ->
     match name with
-    | "timeNowMs" -> Some(Set.singleton Effect.Effect.Clock)
+    | "syscallGettimeofday" -> Some(Set.singleton Effect.Effect.Clock)
     | "fileRead" -> Some(Set.singleton Effect.Effect.FileRead)
     // `listMap` is classified and has no host effects. `None` would mean that
     // the builtin is unclassified and make the test incomplete for the wrong
@@ -71,9 +71,11 @@ let private callBuiltin (name : string) : PT.Expr =
 /// `v2` an identical-contract re-release, `wider` adds a file read, and
 /// `dynamic` applies a callback the static walk cannot follow.
 let private reviewUniverse =
-  [ unitFn "v1" (callBuiltin "timeNowMs")
-    unitFn "v2" (eLet (lpUnit ()) (eUnit ()) (callBuiltin "timeNowMs"))
-    unitFn "wider" (eStatement (callBuiltin "fileRead") (callBuiltin "timeNowMs"))
+  [ unitFn "v1" (callBuiltin "syscallGettimeofday")
+    unitFn "v2" (eLet (lpUnit ()) (eUnit ()) (callBuiltin "syscallGettimeofday"))
+    unitFn
+      "wider"
+      (eStatement (callBuiltin "fileRead") (callBuiltin "syscallGettimeofday"))
     unitFn "dynamic" (eApply (eVar "callback") [] [ eUnit () ])
     // A root with a dependency: reads a file itself and calls `v1` for the clock.
     unitFn
@@ -88,7 +90,8 @@ let private reviewUniverse =
       (eApply
         (ePackageFn "map-like")
         []
-        [ eArg 0; eLambda (gid ()) [ lpVar "x" ] (callBuiltin "timeNowMs") ]) ]
+        [ eArg 0
+          eLambda (gid ()) [ lpVar "x" ] (callBuiltin "syscallGettimeofday") ]) ]
   |> List.map (fun fn -> fn.hash, fn)
   |> Map.ofList
 
@@ -140,7 +143,7 @@ let deferredCodeRequirementsAreIncluded =
     let fn =
       { unitFn
           "returns-clock-callback"
-          (eLambda (gid ()) [ lpVar "unit" ] (callBuiltin "timeNowMs")) with
+          (eLambda (gid ()) [ lpVar "unit" ] (callBuiltin "syscallGettimeofday")) with
           returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TInt) }
     let result = Requirements.forFunction testEffects (closureOf [ fn ]) root
     Expect.isTrue result.complete "the closed call graph is complete"
@@ -294,7 +297,10 @@ let unusedNonCallbackParamsStayComplete =
     // The guard is the parameter's declared type, not merely being a variable,
     // so ordinary data arguments must not poison every caller's analysis.
     let root = PT.Hash "ordinary-args"
-    let fn = unitFn "ordinary-args" (eApply (eBuiltinFn "timeNowMs" 0) [] [ eArg 0 ])
+    let fn =
+      unitFn
+        "ordinary-args"
+        (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eArg 0 ])
     let result = Requirements.forFunction testEffects (closureOf [ fn ]) root
     Expect.isTrue result.complete "a non-function parameter is knowable"
     Expect.equal
@@ -317,7 +323,8 @@ let dependencyCallbacksDoNotMakeCallersIncomplete =
         (eApply
           (ePackageFn "escaping-helper")
           []
-          [ eArg 0; eLambda (gid ()) [ lpVar "x" ] (callBuiltin "timeNowMs") ])
+          [ eArg 0
+            eLambda (gid ()) [ lpVar "x" ] (callBuiltin "syscallGettimeofday") ])
     let result =
       Requirements.forFunction
         testEffects
@@ -445,13 +452,14 @@ let dictionaryKeysAreAnalyzed =
     let fn =
       unitFn
         "dict-key-effect"
-        (eDictOf [ (eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ], eInt64 1L) ])
+        (eDictOf
+          [ (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ], eInt64 1L) ])
     let names = (LibExecution.CallGraph.analyzeFn Set.empty fn).names
     Expect.isTrue
       (names
        |> List.exists (fun name ->
          match name with
-         | PT.FQFnName.Builtin b -> b.name = "timeNowMs"
+         | PT.FQFnName.Builtin b -> b.name = "syscallGettimeofday"
          | _ -> false))
       "the clock call in the key is reachable"
   }

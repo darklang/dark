@@ -40,9 +40,10 @@ let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
     |> PT.Hash
   { hash = uniqueHash; body = body; description = "" }
 
-/// `Builtin.timeNowMs ()`: the cheapest host effect that still needs a
+/// `Builtin.syscallGettimeofday ()`: the cheapest host effect that still needs a
 /// permission, so the test asserts the check and not the cost of the effect.
-let private clockCall : PT.Expr = eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ]
+let private clockCall : PT.Expr =
+  eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ]
 
 /// Store a value as WIP so its row exists with `rt_dval` NULL -- exactly the
 /// state `scmAddOps` and a synced-in op leave behind for evaluation to find.

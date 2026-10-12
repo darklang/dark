@@ -561,6 +561,12 @@ let validateLiterals (state : ParserState) : unit =
           "Single '}' in raw interpolated string text; use '}}' for a literal brace"
     | _ -> ()
 
+// Private type/module names retain their uppercase role after the __ prefix.
+// Private lowercase functions still leave .field to postfix parsing.
+let private isUpperIdentifier (name : string) =
+  let index = if name.StartsWith "__" then 2 else 0
+  name.Length > index && System.Char.IsUpper name[index]
+
 // qualified name: ident (. ident)*  → (modules, finalIdent, nextIndex)
 let parseQualified
   (state : ParserState)
@@ -581,7 +587,7 @@ let parseQualified
     // uppercase (a module); a lowercase ident's `.field` is postfix access,
     // left for parsePostfix to handle.
     match tok state k, tok state (k + 1) with
-    | TDot, TIdent s when cur.name.Length > 0 && System.Char.IsUpper cur.name[0] ->
+    | TDot, TIdent s when isUpperIdentifier cur.name ->
       mods.Add(cur, rng state k) // previous segment becomes a module, with the dot range
       cur <- { range = rng state (k + 1); name = s }
       k <- k + 2
@@ -2159,7 +2165,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
          jTA + 2)
       | _ -> (mods0, final0, jTA)
     let fullRange = span (rng state i) final.range
-    let finalIsUpper = final.name.Length > 0 && System.Char.IsUpper final.name[0]
+    let finalIsUpper = isUpperIdentifier final.name
     // `Type { … }` record literal (the whole qualified name is the type).
     // A record LITERAL is `{ }` or `{ field = … }`. `{ expr with … }` is NOT a
     // literal of this type — there the brace is a standalone update expression
@@ -2833,7 +2839,7 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
         | _ -> "_"))
      ),
      i + 1)
-  | TIdent name when name.Length > 0 && System.Char.IsUpper name[0] ->
+  | TIdent name when isUpperIdentifier name ->
     let (mods, final, j) = parseQualified state i
     if
       tok state j = TLt

@@ -122,8 +122,12 @@ let private suspendThenResume =
         let! e = latest ()
         Expect.equal e.status Traces.Suspended "and marked so"
         let! log = Traces.log e.id
+        // Sleep now reads the target ABI clock before entering nanosleep, so
+        // the prefix also contains clock inputs. Count UUID effects, not rows.
         Expect.equal
-          (List.length log)
+          (log
+           |> List.filter (fun (_, _, _, call) -> call.builtin = "uuidGenerate")
+           |> List.length)
           1
           "the log has the first uuid and nothing after the pause"
         // The interrupted run goes on (in the CLI it would have exited) and must not overwrite
@@ -621,7 +625,7 @@ let private replayEchoesAndRefuses =
         Expect.stringContains resumed uuid "the uuid came from the log"
         // A spawned process is a live handle the log cannot hand back. The grant lands in the
         // shared store, so it is taken back whatever happens.
-        let! _ = runCli state [ "permissions"; "allow"; "process"; "/bin/bash" ]
+        let! _ = runCli state [ "permissions"; "allow"; "process"; "/bin/sh" ]
         try
           let! _ =
             runCli
@@ -632,7 +636,7 @@ let private replayEchoesAndRefuses =
           let! logBefore = Traces.log spawned.id
           let! refused = runCli state [ "exec"; "resume"; prefixOf spawned ]
           Expect.stringContains refused "cannot resume past step" "the resume stops"
-          Expect.stringContains refused "cliSpawnProcess" "naming the call"
+          Expect.stringContains refused "runtimeChildStart" "naming the call"
           let! after = Traces.get spawned.id
           Expect.equal
             (after |> Option.map (fun e -> e.status))
@@ -644,7 +648,7 @@ let private replayEchoesAndRefuses =
             (List.length logBefore)
             "with its log as it was"
         finally
-          (runCli state [ "permissions"; "remove"; "process"; "/bin/bash" ]).Wait()
+          (runCli state [ "permissions"; "remove"; "process"; "/bin/sh" ]).Wait()
       })
 
 
@@ -1300,7 +1304,7 @@ let private secretsAreNotInTheLog =
               read.bytes "args",
               read.bytes "result")
           let envRows =
-            rows |> List.filter (fun (fn, _, _) -> fn = "environmentGet")
+            rows |> List.filter (fun (fn, _, _) -> fn = "runtimeEnvironmentGet")
           Expect.isNonEmpty envRows "the env read is in the log"
           for (_, _, result) in envRows do
             let dv =

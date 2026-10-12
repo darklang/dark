@@ -350,6 +350,16 @@ let tests =
             ("bare-none", [ "M" ], [], [], "None")
             ("bare-ok", [ "M" ], [], [], "Ok 5")
             ("bare-error", [ "M" ], [], [], "Error \"no\"")
+            ("private-qualified-function",
+             [ "M" ],
+             [],
+             [],
+             "Stdlib.Cli.Posix.__abiOpenAppend ()")
+            ("private-error-mapper",
+             [ "M" ],
+             [],
+             [],
+             "Error 1 |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno")
             ("internal-package-prefix",
              [ "M" ],
              [],

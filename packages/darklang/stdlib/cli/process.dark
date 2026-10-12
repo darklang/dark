@@ -6,16 +6,24 @@ type ProcessHandle = Int
 
 /// Spawn a new process and return a handle for interaction
 let spawn (command: String) : ProcessHandle =
-  Builtin.cliSpawnProcess command
+  Builtin.runtimeChildStart "/bin/sh" ["-c", command] false |> Builtin.unwrap
+
+let __executionOutcome (result: Result.Result<(Int * Blob * Blob), Int>) : Stdlib.Cli.ExecutionOutcome =
+  match result with
+  | Error e -> Stdlib.Cli.ExecutionOutcome { exitCode = -1, stdout = "", stderr = (Stdlib.Cli.Posix.__fromErrno e).message }
+  | Ok ((code, output, error)) ->
+    Stdlib.Cli.ExecutionOutcome { exitCode = code,
+      stdout = Stdlib.String.fromBlobWithReplacement output,
+      stderr = Stdlib.String.fromBlobWithReplacement error }
 
 /// Send input to a process and read any available output (non-blocking)
 /// Use empty string for input to just read output without sending anything
 let communicate (handle: ProcessHandle) (input: String) : Stdlib.Cli.ExecutionOutcome =
-  Builtin.cliProcessIO handle input
+  __executionOutcome (Stdlib.Cli.Process.__childCommunicate handle input)
 
 /// Terminate a process and get final output
 let terminate (handle: ProcessHandle) : Stdlib.Cli.ExecutionOutcome =
-  Builtin.cliTerminateProcess handle
+  __executionOutcome (Stdlib.Cli.Process.__childTerminate handle)
 
 
 // ─── Posix-based process execution (no bash, no shell) ───
@@ -42,7 +50,14 @@ let spawnAndWait
   (args: List<String>)
   (timeoutMs: Stdlib.Option.Option<Int>)
   : Result.Result<(Int * String * String), Posix.Error> =
-  Builtin.posixSpawnAndWait program args timeoutMs
+  Stdlib.Cli.Process.__childRun program args timeoutMs
+  |> Stdlib.Result.mapError (fun errno ->
+    if errno == (if Stdlib.Cli.Posix.__abiMac () then 60 else 110) then
+      Posix.Error { errno = errno, message = "Process timed out" }
+    else Stdlib.Cli.Posix.__fromErrno errno)
+  |> Stdlib.Result.map (fun result ->
+    let (code, output, error) = result
+    (code, Stdlib.String.fromBlobWithReplacement output, Stdlib.String.fromBlobWithReplacement error))
 
 
 /// Run a program with arguments and capture its output.
@@ -66,7 +81,7 @@ let runInteractive
   (program: String)
   (args: List<String>)
   : Result.Result<Int, Posix.Error> =
-  Builtin.posixSpawnInteractive program args
+  Stdlib.Cli.Process.__childInteractive program args |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno
 
 
 /// Run a program and return stdout as text, or stderr as error.
@@ -82,7 +97,7 @@ let exec (program: String) (args: List<String>) : Result.Result<String, String> 
 
       if err == "" then
         Stdlib.Result.Result.Error
-          $"Command failed with exit code {Stdlib.toString output.exitCode}"
+          $"Command failed with exit code {Stdlib.Cli.Posix.__decimal output.exitCode}"
       else
         Stdlib.Result.Result.Error err)
 
@@ -98,7 +113,7 @@ let forceKill (pid: Int) : Result.Result<Unit, Posix.Error> =
 
 
 /// Run a program in a specific directory.
-// Note: uses sh -c because posixSpawnAndWait doesn't support a cwd parameter.
+// Uses sh -c because the minimal owned-launch primitive has no cwd parameter.
 // Ideally this would pass cwd directly to the child process (like Python's
 // subprocess.run(cwd=...)) without involving a shell.
 let runIn
@@ -220,3 +235,203 @@ let waitFor (pid: Int) : Unit =
     waitFor pid
   else
     ()
+
+
+/// Shared child IO, output limits, retries and deadlines. Runtime leaves only
+/// launch/supervise owned children; descriptor leaves only attempt one syscall.
+
+type __ChildBuffer = { chunks: List<Blob>, size: Int }
+
+let __childEmpty () : __ChildBuffer = __ChildBuffer { chunks = [], size = 0 }
+
+let __childAppend (buffer: __ChildBuffer) (bytes: Blob) : __ChildBuffer =
+  let remaining = 67108864 - buffer.size
+  let length = Stdlib.Blob.length bytes
+  let keep = if remaining < length then remaining else length
+  if keep <= 0 then buffer
+  else
+    let kept = if keep == Stdlib.Blob.length bytes then bytes else Stdlib.Blob.slice bytes 0 keep
+    __ChildBuffer { chunks = Stdlib.List.push buffer.chunks kept, size = buffer.size + keep }
+
+let __childBytes (buffer: __ChildBuffer) : Blob = Stdlib.Blob.concat (Stdlib.List.reverse buffer.chunks)
+
+let __childPollChild (child: Int) : Result.Result<Stdlib.Option.Option<Int>, Int> =
+  match Builtin.runtimeChildPoll child with
+  | Error 4 -> __childPollChild child
+  | result -> result
+
+let __childWaitChild (child: Int) : Result.Result<Int, Int> =
+  match Builtin.runtimeChildWait child with
+  | Error 4 -> __childWaitChild child
+  | result -> result
+
+let __childKillChild (child: Int) : Result.Result<Unit, Int> =
+  match Builtin.runtimeChildKill child with
+  | Error 4 -> __childKillChild child
+  | result -> result
+
+let __childCloseChild (child: Int) : Result.Result<Unit, Int> =
+  match Builtin.runtimeChildClose child with
+  | Error 4 -> __childCloseChild child
+  | result -> result
+
+let __childFinish (child: Int) (result: Result.Result<'a, Int>) : Result.Result<'a, Int> =
+  let closed = __childCloseChild child
+  match result with
+  | Error e -> Error e
+  | Ok value -> closed |> Stdlib.Result.map (fun _ -> value)
+
+let __childRead (fd: Int) (eof: Bool) : Result.Result<(Blob * Bool), Int> =
+  if eof then Ok (((Stdlib.Blob.fromList []), true))
+  else
+    match Builtin.syscallRead fd 65536 with
+    | Error 4 -> __childRead fd false
+    | Error e -> if e == 11 || e == 35 then Ok (((Stdlib.Blob.fromList []), false)) else Error e
+    | Ok chunk -> Ok ((chunk, Stdlib.Blob.length chunk == 0))
+
+/// One write per turn, interleaved with both readers, so a child producing
+/// output while accepting a large input cannot deadlock on a full pipe.
+let __childWrite (fd: Int) (pending: Blob) : Result.Result<Blob, Int> =
+  let length = Stdlib.Blob.length pending
+  if length == 0 then Ok pending
+  else
+    let count = if length < 65536 then length else 65536
+    let chunk = if count == length then pending else Stdlib.Blob.slice pending 0 count
+    match Builtin.syscallWrite fd chunk with
+    | Error 4 -> __childWrite fd pending
+    | Error e -> if e == 11 || e == 35 then Ok pending else Error e
+    | Ok written ->
+      if written <= 0 || written > count then Error 5
+      else Ok (Stdlib.Blob.slice pending written (length - written))
+
+let __childPoll (fds: List<(Int * Int)>) (milliseconds: Int) : Result.Result<Unit, Int> =
+  let result = if Stdlib.Cli.Posix.__abiMac () then Builtin.syscallPollDarwin fds milliseconds else Builtin.syscallPpoll fds milliseconds
+  match result with
+  | Error 4 -> __childPoll fds milliseconds
+  | Error e -> Error e
+  | Ok _ -> Ok ()
+
+let __childDescriptors (stdin: Int) (stdout: Int) (stderr: Int) (pending: Blob) (outEOF: Bool) (errEOF: Bool) : List<(Int * Int)> =
+  let input = if Stdlib.Blob.length pending == 0 then [] else [(stdin, 4)]
+  let output = if outEOF then [] else [(stdout, 1)]
+  let error = if errEOF then [] else [(stderr, 1)]
+  Stdlib.List.append input (Stdlib.List.append output error)
+
+let __childCapture
+  (child: Int) (stdout: Int) (stderr: Int) (deadline: Stdlib.Option.Option<Int>)
+  (output: __ChildBuffer) (error: __ChildBuffer) (outEOF: Bool) (errEOF: Bool)
+  : Result.Result<(Int * Blob * Blob), Int> =
+  let remaining = match deadline with | None -> 100 | Some end_ -> end_ - Stdlib.DateTime.__monotonicMilliseconds ()
+  if remaining <= 0 then
+    let _ = __childKillChild child
+    Error (if Stdlib.Cli.Posix.__abiMac () then 60 else 110)
+  else
+    __childRead stdout outEOF |> Stdlib.Result.andThen (fun out ->
+      let (outChunk, outEOF) = out
+      __childRead stderr errEOF |> Stdlib.Result.andThen (fun err ->
+        let (errChunk, errEOF) = err
+        let output = __childAppend output outChunk
+        let error = __childAppend error errChunk
+        __childPollChild child |> Stdlib.Result.andThen (fun status ->
+          if outEOF && errEOF then
+            match status with
+            | Some code -> Ok ((code, __childBytes output, __childBytes error))
+            | None ->
+              match deadline with
+              | None -> __childWaitChild child |> Stdlib.Result.map (fun code -> (code, __childBytes output, __childBytes error))
+              | Some _ ->
+                let _ = Stdlib.DateTime.__sleepMilliseconds 10.0
+                __childCapture child stdout stderr deadline output error outEOF errEOF
+          else
+            let wait = if remaining < 100 then remaining else 100
+            __childPoll (__childDescriptors (-1) stdout stderr (Stdlib.Blob.fromList []) outEOF errEOF) wait
+            |> Stdlib.Result.andThen (fun _ -> __childCapture child stdout stderr deadline output error outEOF errEOF))))
+
+let __childRun (program: String) (args: List<String>) (timeoutMs: Stdlib.Option.Option<Int>) : Result.Result<(Int * Blob * Blob), Int> =
+  Builtin.runtimeChildStart program args false |> Stdlib.Result.andThen (fun child ->
+    let result = Builtin.runtimeChildDescriptors child |> Stdlib.Result.andThen (fun ports ->
+      match ports with
+      | [_stdin, stdout, stderr] ->
+        let closed = match Builtin.runtimeChildClosePort child 0 with | Error 4 -> Ok () | result -> result
+        closed |> Stdlib.Result.andThen (fun _ ->
+          let deadline = match timeoutMs with | None -> None | Some ms -> Some (Stdlib.DateTime.__monotonicMilliseconds () + ms)
+          __childCapture child stdout stderr deadline (__childEmpty ()) (__childEmpty ()) false false)
+      | _ -> Error 9)
+    __childFinish child result)
+
+let __childInteractive (program: String) (args: List<String>) : Result.Result<Int, Int> =
+  Builtin.runtimeChildStart program args true |> Stdlib.Result.andThen (fun child -> __childFinish child (__childWaitChild child))
+
+let __childNewline (bytes: Blob) : Bool =
+  let length = Stdlib.Blob.length bytes
+  length > 0 && (Stdlib.Blob.toList (Stdlib.Blob.slice bytes (length - 1) 1) == [10uy])
+
+/// Empty-input communication is immediately nonblocking. Input-driven calls
+/// wait in at most 100 polling turns; complete newline responses can finish
+/// earlier. Each turn drains both streams and advances a partial input write.
+let __childCommunicateLoop
+  (child: Int) (ports: (Int * Int * Int)) (pending: Blob)
+  (turns: Int) (output: __ChildBuffer) (error: __ChildBuffer) (eof: (Bool * Bool))
+  : Result.Result<(Int * Blob * Blob), Int> =
+  let (stdin, stdout, stderr) = ports
+  let (outEOF, errEOF) = eof
+  __childWrite stdin pending |> Stdlib.Result.andThen (fun pending ->
+    __childRead stdout outEOF |> Stdlib.Result.andThen (fun out ->
+      let (outChunk, outEOF) = out
+      __childRead stderr errEOF |> Stdlib.Result.andThen (fun err ->
+        let (errChunk, errEOF) = err
+        let output = __childAppend output outChunk
+        let error = __childAppend error errChunk
+        __childPollChild child |> Stdlib.Result.andThen (fun status ->
+          let code = match status with | Some code -> code | None -> 0
+          let complete = Stdlib.Blob.length pending == 0 && ((__childNewline outChunk) || (__childNewline errChunk))
+          if turns <= 0 || complete || (outEOF && errEOF) then Ok ((code, __childBytes output, __childBytes error))
+          else
+            __childPoll (__childDescriptors stdin stdout stderr pending outEOF errEOF) 100
+            |> Stdlib.Result.andThen (fun _ -> __childCommunicateLoop child ports pending (turns - 1) output error (outEOF, errEOF))))))
+
+let __childSaveHistory (child: Int) (index: Int) (chunk: Blob) : Result.Result<Unit, Int> =
+  Builtin.runtimeChildBufferGet child index |> Stdlib.Result.andThen (fun previous ->
+    let next = __childAppend (__childAppend (__childEmpty ()) previous) chunk
+    Builtin.runtimeChildBufferSet child index (__childBytes next))
+
+let __childCommunicate (child: Int) (input: String) : Result.Result<(Int * Blob * Blob), Int> =
+  Builtin.runtimeChildDescriptors child |> Stdlib.Result.andThen (fun ports ->
+    match ports with
+    | [stdin, stdout, stderr] ->
+      let pending = if input == "" then (Stdlib.Blob.fromList []) else Stdlib.Blob.fromString (Stdlib.String.append input "\n")
+      let turns = if input == "" then 0 else 100
+      __childCommunicateLoop child (stdin, stdout, stderr) pending turns (__childEmpty ()) (__childEmpty ()) (false, false)
+      |> Stdlib.Result.andThen (fun result ->
+        let (code, output, error) = result
+        __childSaveHistory child 0 output |> Stdlib.Result.andThen (fun _ ->
+          __childSaveHistory child 1 error |> Stdlib.Result.map (fun _ -> (code, output, error))))
+    | _ -> Error 9)
+
+/// After terminating the owned child, drain currently available bytes, not
+/// future output from an unowned grandchild retaining a pipe. Bound draining
+/// turns as well as stored bytes so such a grandchild cannot keep cleanup busy.
+let __childDrain (stdout: Int) (stderr: Int) (turns: Int) (output: __ChildBuffer) (error: __ChildBuffer) : Result.Result<(Blob * Blob), Int> =
+  if turns <= 0 then Ok ((__childBytes output, __childBytes error))
+  else
+    __childRead stdout false |> Stdlib.Result.andThen (fun out ->
+      let (outChunk, _outEOF) = out
+      __childRead stderr false |> Stdlib.Result.andThen (fun err ->
+        let (errChunk, _errEOF) = err
+        let output = __childAppend output outChunk
+        let error = __childAppend error errChunk
+        if Stdlib.Blob.length outChunk == 0 && Stdlib.Blob.length errChunk == 0 then Ok ((__childBytes output, __childBytes error))
+        else __childDrain stdout stderr (turns - 1) output error))
+
+let __childTerminate (child: Int) : Result.Result<(Int * Blob * Blob), Int> =
+  let result = __childKillChild child |> Stdlib.Result.andThen (fun _ ->
+    __childWaitChild child |> Stdlib.Result.andThen (fun code ->
+      Builtin.runtimeChildDescriptors child |> Stdlib.Result.andThen (fun ports ->
+        match ports with
+        | [_stdin, stdout, stderr] ->
+          Builtin.runtimeChildBufferGet child 0 |> Stdlib.Result.andThen (fun previousOut ->
+            Builtin.runtimeChildBufferGet child 1 |> Stdlib.Result.andThen (fun previousErr ->
+              __childDrain stdout stderr 1024 (__childAppend (__childEmpty ()) previousOut) (__childAppend (__childEmpty ()) previousErr)
+              |> Stdlib.Result.map (fun pair -> let (output, error) = pair in (code, output, error))))
+        | _ -> Error 9)))
+  __childFinish child result

@@ -15,7 +15,7 @@ val logFilePath =
   (Builtin.cliGetLogDir ()) + "/telemetry.jsonl"
 
 /// Returns monotonic millisecond timestamp (only differences are meaningful)
-let now () : Int = Builtin.timeNowMs ()
+let now () : Int = Stdlib.DateTime.__monotonicMilliseconds ()
 
 /// Compute elapsed ms between a start timestamp and now
 let elapsedMs (startMs: Int) : Int =

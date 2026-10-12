@@ -59,6 +59,8 @@ let createState
 
     program = program
 
+    descriptorSession = Host.createLazyDescriptorSession ()
+
     builtins = builtins
     types = { package = pm.getType }
     traits = { trait_ = pm.getTrait }

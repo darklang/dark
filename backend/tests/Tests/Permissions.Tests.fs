@@ -480,7 +480,7 @@ let materializedValuesCaptureCallablesRecursively =
   test "materialized values capture nested callables" {
     let denyAll = Permission.Access.start Permission.Policy.denyAll
     let named : RT.ApplicableNamedFn =
-      { name = RT.FQFnName.fqBuiltin "timeNowMs" 0
+      { name = RT.FQFnName.fqBuiltin "syscallGettimeofday" 0
         typeSymbolTable = RT.TST.empty
         typeArgs = []
         access = None

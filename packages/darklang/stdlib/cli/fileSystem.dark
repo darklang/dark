@@ -1,9 +1,4 @@
-/// File and directory operations, over the runtime's `file*` and `directory*`
-/// builtins.
-///
-/// `Stdlib.Cli.File` and `Stdlib.Cli.Dir` cover much of the same ground through
-/// posix syscalls, and carry an errno on failure. The two families haven't been
-/// merged; this is the one the CLI, LSP and agent tools call.
+/// User-facing file operations over shared Dark algorithms and kernel primitives.
 module Darklang.Stdlib.Cli.FileSystem
 
 
@@ -30,33 +25,55 @@ module FileError =
 
 /// The process's current working directory.
 let currentDirectory () : String =
-  Builtin.directoryCurrent ()
+  Posix.getCwd () |> Builtin.unwrap
+
+
+/// Expand HOME only when requested; environment access remains policy checked.
+let __expandPath (path: String) : String =
+  if Stdlib.String.contains path "$HOME" || Stdlib.String.contains path "${HOME}" then
+    let home = Stdlib.Option.withDefault (Stdlib.Env.get "HOME") ""
+    path
+    |> (fun p -> Stdlib.String.replaceAll p "${HOME}" home)
+    |> (fun p -> Stdlib.String.replaceAll p "$HOME" home)
+  else path
+
+
+let __fromPosixError (error: Posix.Error) : FileError =
+  if error.errno == 2 || error.errno == 20 then FileError.NotFound
+  else if error.errno == 13 || error.errno == 1 || error.errno == 21 then FileError.OsAccessDenied
+  else FileError.Other error.message
 
 
 /// Full paths of the entries in the directory at <param path>.
 let listDirectory (path: String) : List<String> =
-  Builtin.directoryList path
+  let expanded = __expandPath path
+  let full =
+    if Path.isAbsolute expanded then Path.normalize expanded
+    else Path.join [ currentDirectory (), expanded ] |> Path.normalize
+  match Posix.listDir full with
+  | Error _ -> []
+  | Ok names -> Stdlib.List.map names (fun name -> Path.join [ full, name ])
 
 
 /// Is there a file or directory at <param path>?
 let pathExists (path: String) : Bool =
-  Builtin.fileExists path
+  File.exists (__expandPath path)
 
 
 /// Is <param path> a directory?
 let isDirectory (path: String) : Bool =
-  Builtin.fileIsDirectory path
+  Posix.isDirectory (__expandPath path)
 
 
 /// Delete the file at <param path>.
 let deleteFile (path: String) : Result.Result<Unit, FileError> =
-  Builtin.fileDelete path
+  File.delete (__expandPath path) |> Stdlib.Result.mapError __fromPosixError
 
 
 /// Append <param content> to the file at <param path>, creating the file if
 /// it isn't there.
 let appendToFile (path: String) (content: String) : Result.Result<Unit, FileError> =
-  Builtin.fileAppendText path content
+  File.appendText (__expandPath path) content |> Stdlib.Result.mapError __fromPosixError
 
 
 // Get files in a directory - returns just filenames
@@ -104,14 +121,14 @@ let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
 
 /// Read an entire file as a Blob.
 let readFile (path: String) : Result.Result<Blob, FileError> =
-  Builtin.fileRead path
+  File.readBytes (__expandPath path) |> Stdlib.Result.mapError __fromPosixError
 
 
 /// Write <param content> to <param path>, replacing whatever's there. The
 /// parent directory has to exist already; <fn writeFile> is this plus the
 /// mkdir.
 let overwriteFile (path: String) (content: Blob) : Result.Result<Unit, FileError> =
-  Builtin.fileWrite content path
+  Stdlib.Cli.File.__writeBytes (__expandPath path) content |> Stdlib.Result.mapError __fromPosixError
 
 
 /// Read an entire file and decode it as UTF-8. Convenience over

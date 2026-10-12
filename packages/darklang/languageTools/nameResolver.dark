@@ -141,6 +141,8 @@ let resolveGenericName
         // an optional trailing apostrophe is allowed (`foo'`)
         let core =
           if Stdlib.String.endsWith name "'" then Stdlib.String.dropLast name 1 else name
+        let core =
+          if Stdlib.String.startsWith core "__" then Stdlib.String.dropFirst core 2 else core
         match Stdlib.String.toList core with
         | [] -> false
         | first :: rest ->

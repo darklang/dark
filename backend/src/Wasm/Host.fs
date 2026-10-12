@@ -516,7 +516,7 @@ module Cli =
   /// to construct on the browser (marked unsupported), but the decoder it would have called
   /// is linked into dotnet.native.wasm regardless, and brotli is less than half of gzip on the
   /// store. The caller passes the inflated size (the page reads it from `store.json`).
-  // F# lowers an `extern` through `failwith`, which Prelude bans; HostLibc shadows it too.
+  // F# lowers an `extern` through `failwith`, which Prelude bans; HostPosix shadows it too.
   let private failwith (s : string) : 'a = raise (System.Exception(s))
 
   [<Runtime.InteropServices.DllImport("libSystem.IO.Compression.Native",

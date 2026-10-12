@@ -1227,20 +1227,26 @@ let private parkedOnAHostOperation =
   testTask "a process waiting on the host is parked on the operation, and resumes" {
     let! state = executionStateFor pmPT false Map.empty
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    // A process run the host performs for the builtin; `waitFor` looks every 5 ms, so a
-    // third of a second is long enough to be seen parked.
+    // Shared Dark drains child pipes; the kernel-readiness leaf parks the VM.
     let! (p : Scheduler.Process) =
       spawn s state """(Stdlib.Cli.execute "sleep 0.3").exitCode"""
     let running = runOnThread s p
     waitFor "the process to park on the host" (fun () ->
       match p.status with
-      | Scheduler.Parked _ -> true
+      | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.Ppoll _)))
+      | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.PollDarwin _))) ->
+        true
       | _ -> false)
     match p.status with
-    | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.ProcessRun(_,
-                                                                                    args,
-                                                                                    _))) ->
-      Expect.equal (List.tryLast args) (Some "sleep 0.3") "parked on the run itself"
+    | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.Ppoll(descriptors,
+                                                                                                                    timeout))))
+    | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.PollDarwin(descriptors,
+                                                                                                                         timeout)))) ->
+      Expect.isNonEmpty descriptors "parked on owned child pipes"
+      Expect.equal
+        timeout
+        100
+        "bounded readiness wait, not a monolithic process Builtin"
     | other ->
       failtest $"expected the process parked on the host operation, got {other}"
     let! result = running

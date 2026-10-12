@@ -6,7 +6,13 @@ open Prelude
 
 module Permission = LibExecution.Permissions
 
-/// A flag for the C library's open() call, named rather than numbered.
+/// OS numbers require Native; scoped tokens are owned by one execution.
+[<RequireQualifiedAccess>]
+type FileDescriptor =
+  | Raw of int
+  | Scoped of bigint
+
+/// A flag for the kernel's openat() call, named rather than numbered.
 /// `Host.openFlag` turns it into the platform's number.
 [<RequireQualifiedAccess>]
 type OpenFlag =
@@ -17,48 +23,82 @@ type OpenFlag =
   | Truncate
   | Append
 
-/// Posix operations with a scoped resource (a path, env name, or spawn). The
-/// libc twins of the .NET operations exist because libc semantics differ (the
-/// libc environment vs the CLR cache, fork/exec details), so they keep their
-/// own operations rather than collapsing into the .NET-backed ones. Ambient
-/// Native-gated posix builtins (uname, getpid, ...) that carry no state do not
-/// appear here; they call `HostLibc` directly under the interpreter's Native
-/// gate.
+/// POSIX operations retain kernel semantics and descriptor handles while using
+/// the same scoped authorization as the interpreter's managed file operations.
+/// Scoped descriptor tokens carry checked file authority; raw OS numbers and
+/// unscoped process operations still require Native at the host boundary.
 [<RequireQualifiedAccess>]
 type PosixOp =
   | Chdir of path : string
-  | Setenv of name : string * value : string
-  | Unsetenv of name : string
-  | Getenv of name : string
   | Mkdir of path : string * mode : int
   | Rmdir of path : string
   | Unlink of path : string
+  | UnlinkAt of path : string * flags : int
   | Rename of oldPath : string * newPath : string
   | Chmod of path : string * mode : int
-  | UtimesNow of path : string
+  | UtimensAt of
+    path : string *
+    accessSec : int64 *
+    accessNanos : int64 *
+    modifySec : int64 *
+    modifyNanos : int64
+  | SetattrlistTimes of
+    path : string *
+    accessSec : int64 *
+    accessNanos : int64 *
+    modifySec : int64 *
+    modifyNanos : int64
   | Symlink of target : string * linkPath : string
-  | Readlink of path : string
+  | ReadlinkBytes of path : string * count : int
   | Mkstemp of prefix : string
   | Mkdtemp of prefix : string
   | ListDir of path : string
   | Stat of path : string
+  | StatBuffer of path : string
+  | DirectoryBytes of fd : FileDescriptor * count : int
+  | CopyFileRange of
+    source : FileDescriptor *
+    destination : FileDescriptor *
+    count : int
+  | CloneFile of source : FileDescriptor * destination : FileDescriptor
+  | FclonefileAt of source : FileDescriptor * destination : string * flags : int
+  | Ftruncate of fd : FileDescriptor * length : int64
+  | Fchmod of fd : FileDescriptor * mode : int
+  | Fstat of fd : FileDescriptor
+  | Getentropy of count : int
+  | UnameBytes
+  | SysctlBytes of mib : List<int> * count : int
+  | SchedGetaffinity of pid : int * count : int
+  | ClockGettime of clock : int
+  | Gettimeofday
+  | MachAbsoluteTime
+  | MachTimebaseInfo
+  | Nanosleep of seconds : int64 * nanos : int64
+  | InotifyInit1 of flags : int
+  | InotifyAddWatch of fd : FileDescriptor * path : string * mask : int
+  | Ppoll of descriptors : List<FileDescriptor * int> * timeoutMs : int
+  | PollDarwin of descriptors : List<FileDescriptor * int> * timeoutMs : int
+  | Kqueue
+  | KeventVnode of
+    queue : FileDescriptor *
+    changes : List<FileDescriptor * int * int> *
+    capacity : int *
+    timeoutMs : int
+  | Pread of fd : FileDescriptor * count : int * offset : int64
+  | Pwrite of fd : FileDescriptor * data : byte[] * offset : int64
   | Open of path : string * flags : int * mode : int
-  // Native-gated handle and process operations. They carry no scoped
-  // resource — the interpreter's ambient native gate authorized the builtin —
-  // but must execute where the handles and processes live: fds come from
-  // Open/Mkstemp, pids from `Operation.ProcessRun`. Getcwd, HomeDir and
-  // FileOwner answer with (or take) a path and are checked as reads of it;
-  // UserName is a plain host fact.
-  | Getcwd
+  // Descriptor operations derive file requests from execution-owned tokens,
+  // or Native for raw OS numbers. Path answers are checked as path reads.
+  | GetcwdBytes of count : int
+  | FcntlGetPath of fd : FileDescriptor
   | Kill of pid : int * signal : int
-  | FdRead of fd : int * count : int
-  | FdSeek of fd : int * offset : int64 * whence : int
-  | FdWrite of fd : int * data : byte[]
-  | FdClose of fd : int
-  | Flock of fd : int * operation : int
+  | FdRead of fd : FileDescriptor * count : int
+  | FdSeek of fd : FileDescriptor * offset : int64 * whence : int
+  | FdWrite of fd : FileDescriptor * data : byte[]
+  | FdClose of fd : FileDescriptor
+  | Flock of fd : FileDescriptor * operation : int
   | FileOwner of path : string
-  | UserName of uid : uint32
-  | HomeDir
+  | HomeDir of path : string
 
 /// Which host HTTP configuration an operation runs under. `Guest` is the
 /// SSRF-guarded configuration every guest request uses (the host may replace
@@ -100,19 +140,15 @@ type Operation =
     headers : List<string * string>
   /// Bind an HTTP listener and return an opaque host-owned handle.
   | HttpServerBind of port : int
-  /// Run to completion; the program is resolved against PATH at the boundary.
-  /// With a timeout, a child still running when it elapses is killed and the
-  /// operation fails with ETIMEDOUT.
-  | ProcessRun of program : string * args : List<string> * timeoutMs : Option<int>
-  /// Run to completion on THIS terminal: stdin, stdout and stderr are inherited
-  /// rather than captured, and only the exit code comes back. For programs that
-  /// draw, like an editor; a redirected one paints into a pipe.
-  | ProcessRunInteractive of program : string * args : List<string>
-  /// Start an interactive process owned by the host; the response is an
-  /// opaque handle id into the host's process table.
-  | ProcessSpawn of program : string * args : List<string>
-  | ProcessIO of handle : int64 * input : string
-  | ProcessTerminate of handle : int64
+  | ChildStart of program : string * args : List<string> * inheritTerminal : bool
+  | ChildDescriptors of handle : bigint
+  | ChildPoll of handle : bigint
+  | ChildWait of handle : bigint
+  | ChildKill of handle : bigint
+  | ChildClose of handle : bigint
+  | ChildClosePort of handle : bigint * index : int
+  | ChildBufferGet of handle : bigint * index : int
+  | ChildBufferSet of handle : bigint * index : int * bytes : byte[]
   | Posix of PosixOp
 
 // HTTP wire data. The error shape is inspired by Elm's HttpError
@@ -148,18 +184,20 @@ type HttpStreamHead =
   { handle : int64; statusCode : int; headers : List<string * string> }
 
 /// What a successful operation hands back. One vocabulary for the .NET and
-/// libc families: a posix `stat` and a .NET file read both answer here.
+/// POSIX families: a posix `stat` and a .NET file read both answer here.
 [<RequireQualifiedAccess>]
 type Response =
   | Bytes of byte[]
+  | KernelSleep of rc : int * remaining : byte[]
   | Unit
   | Stat of exists : bool * isDirectory : bool
   | Path of string
   | Entries of List<string>
   | EnvValue of Option<string>
   | EnvEntries of List<string * string>
-  | ProcessOutcome of exitCode : int * stdout : string * stderr : string
-  | ProcessHandle of int64
+  | ChildHandle of bigint
+  | ChildDescriptors of List<bigint>
+  | ChildStatus of Option<int>
   | HttpServerHandle of int64
   /// Send-time failures (timeout, network, bad header) are guest-visible
   /// typed errors, not runtime errors, so they ride inside the response.
@@ -167,6 +205,7 @@ type Response =
   | HttpStream of Result<HttpStreamHead, HttpRequestError>
   /// A raw file descriptor (posix open).
   | Fd of int
+  | Descriptor of bigint
   /// A descriptor and the path it was created at (posix mkstemp).
   | FdPath of fd : int * path : string
   | StatInfo of mode : int * size : int64 * mtimeSec : int64
@@ -187,7 +226,7 @@ type FailureKind =
 
 /// An OS-level failure after the policy check passed. Guest-visible as a
 /// Result error, unlike policy denials which are runtime errors. `errno` is
-/// the libc code when the failure came from libc, and -1 otherwise (a .NET
+/// the kernel errno when the failure came from a syscall, and -1 otherwise (a .NET
 /// exception) — it mirrors the Stdlib PosixError type.
 type Failure = { kind : FailureKind; errno : int; message : string }
 
@@ -223,23 +262,51 @@ let describeOperation (op : Operation) : string =
   let posix (p : PosixOp) : string =
     match p with
     | PosixOp.Chdir path -> $"chdir {path}"
-    | PosixOp.Setenv(name, _) -> $"setenv {name}"
-    | PosixOp.Unsetenv name -> $"unsetenv {name}"
-    | PosixOp.Getenv name -> $"getenv {name}"
     | PosixOp.Mkdir(path, _) -> $"mkdir {path}"
     | PosixOp.Rmdir path -> $"rmdir {path}"
     | PosixOp.Unlink path -> $"unlink {path}"
+    | PosixOp.UnlinkAt(path, flags) -> $"unlinkat {path} {flags}"
     | PosixOp.Rename(o, n) -> $"rename {o} -> {n}"
     | PosixOp.Chmod(path, _) -> $"chmod {path}"
-    | PosixOp.UtimesNow path -> $"utimes {path}"
+    | PosixOp.UtimensAt(path, _, _, _, _) -> $"utimensAt {path}"
+    | PosixOp.SetattrlistTimes(path, _, _, _, _) -> $"setattrlistTimes {path}"
     | PosixOp.Symlink(t, l) -> $"symlink {l} -> {t}"
-    | PosixOp.Readlink path -> $"readlink {path}"
+    | PosixOp.ReadlinkBytes(path, count) -> $"readlinkat {path} {count}"
+    | PosixOp.UnameBytes -> "uname"
+    | PosixOp.SysctlBytes(mib, count) -> $"sysctl {mib} {count}"
+    | PosixOp.SchedGetaffinity(pid, count) -> $"sched_getaffinity {pid} {count}"
+    | PosixOp.ClockGettime clock -> $"clock_gettime {clock}"
+    | PosixOp.Gettimeofday -> "gettimeofday"
+    | PosixOp.MachAbsoluteTime -> "mach_absolute_time"
+    | PosixOp.MachTimebaseInfo -> "mach_timebase_info"
+    | PosixOp.Nanosleep(seconds, nanos) -> $"nanosleep {seconds} {nanos}"
+    | PosixOp.InotifyInit1 flags -> $"inotify_init1 {flags}"
+    | PosixOp.InotifyAddWatch(fd, path, _) -> $"inotify_add_watch {fd} {path}"
+    | PosixOp.Ppoll(fds, timeout) -> $"ppoll {List.length fds} {timeout}"
+    | PosixOp.PollDarwin(fds, timeout) -> $"poll {List.length fds} {timeout}"
+    | PosixOp.Kqueue -> "kqueue"
+    | PosixOp.KeventVnode(fd, changes, capacity, timeout) ->
+      $"kevent-vnode {fd} {List.length changes} {capacity} {timeout}"
     | PosixOp.Mkstemp prefix -> $"mkstemp {prefix}"
     | PosixOp.Mkdtemp prefix -> $"mkdtemp {prefix}"
     | PosixOp.ListDir path -> $"listdir {path}"
     | PosixOp.Stat path -> $"stat {path}"
+    | PosixOp.StatBuffer path -> $"stat-bytes {path}"
+    | PosixOp.DirectoryBytes(fd, _) -> $"directory-bytes {fd}"
+    | PosixOp.CopyFileRange(source, destination, _) ->
+      $"copy-file-range {source} -> {destination}"
+    | PosixOp.CloneFile(source, destination) -> $"clone {source} -> {destination}"
+    | PosixOp.FclonefileAt(source, destination, _) ->
+      $"fclonefileat {source} -> {destination}"
+    | PosixOp.Ftruncate(fd, _) -> $"ftruncate {fd}"
+    | PosixOp.Fchmod(fd, _) -> $"fchmod {fd}"
+    | PosixOp.Fstat fd -> $"fstat {fd}"
+    | PosixOp.Getentropy count -> $"getentropy {count}"
+    | PosixOp.Pread(fd, _, _) -> $"pread {fd}"
+    | PosixOp.Pwrite(fd, _, _) -> $"pwrite {fd}"
     | PosixOp.Open(path, _, _) -> $"open {path}"
-    | PosixOp.Getcwd -> "getcwd"
+    | PosixOp.GetcwdBytes _ -> "getcwd"
+    | PosixOp.FcntlGetPath _ -> "fcntlGetPath"
     | PosixOp.Kill(pid, signal) -> $"kill {pid} {signal}"
     | PosixOp.FdRead(fd, _) -> $"fd-read {fd}"
     | PosixOp.FdSeek(fd, _, _) -> $"fd-seek {fd}"
@@ -247,8 +314,7 @@ let describeOperation (op : Operation) : string =
     | PosixOp.FdClose fd -> $"fd-close {fd}"
     | PosixOp.Flock(fd, _) -> $"flock {fd}"
     | PosixOp.FileOwner path -> $"file-owner {path}"
-    | PosixOp.UserName uid -> $"user-name {uid}"
-    | PosixOp.HomeDir -> "home-dir"
+    | PosixOp.HomeDir path -> $"home-dir {path}"
   match op with
   | Operation.FileRead path -> $"file-read {path}"
   | Operation.FileWrite(path, _) -> $"file-write {path}"
@@ -264,12 +330,15 @@ let describeOperation (op : Operation) : string =
   | Operation.HttpStreamOpen(_, method, url, _) ->
     $"http-stream {method} {redactUrl url}"
   | Operation.HttpServerBind port -> $"http-server-bind {port}"
-  | Operation.ProcessRun(program, _, _) -> $"process-run {program}"
-  | Operation.ProcessRunInteractive(program, _) ->
-    $"process-run-interactive {program}"
-  | Operation.ProcessSpawn(program, _) -> $"process-spawn {program}"
-  | Operation.ProcessIO(handle, _) -> $"process-io {handle}"
-  | Operation.ProcessTerminate handle -> $"process-terminate {handle}"
+  | Operation.ChildStart(program, _, _) -> $"child-start {program}"
+  | Operation.ChildDescriptors _ -> "child-descriptors"
+  | Operation.ChildPoll _ -> "child-poll"
+  | Operation.ChildWait _ -> "child-wait"
+  | Operation.ChildKill _ -> "child-kill"
+  | Operation.ChildClose _ -> "child-close"
+  | Operation.ChildClosePort _ -> "child-close-port"
+  | Operation.ChildBufferGet _ -> "child-buffer-get"
+  | Operation.ChildBufferSet _ -> "child-buffer-set"
   | Operation.Posix p -> $"posix {posix p}"
 
 /// Remove secrets from outcome details before they reach the default audit

@@ -43,7 +43,25 @@ let private inDateRange (vm : VMState) (f : unit -> Dval) : Ply<Dval> =
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "dateTimeParse" 0
+  [ { name = fn "dateTimeFromUnixTicks" 0
+      typeParams = []
+      parameters = [ Param.make "ticks" TInt "100ns ticks since Unix epoch" ]
+      returnType = TDateTime
+      description = "Pure DateTime representation conversion; no clock access"
+      fn =
+        (function
+        | _, vm, _, [| DInt ticks |] ->
+          inDateRange vm (fun () ->
+            intToInt64 vm ticks
+            |> Instant.FromUnixTimeTicks
+            |> DarkDateTime.fromInstant
+            |> DDateTime)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+    { name = fn "dateTimeParse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TypeReference.result TDateTime TString

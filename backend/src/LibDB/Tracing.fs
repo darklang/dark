@@ -339,7 +339,11 @@ module Redact =
   /// Builtins whose result is a secret the log must not keep. Their rows are written with no
   /// result at all.
   let secretResults : Set<string> =
-    Set.ofList [ "environmentGet"; "environmentGetAll" ]
+    Set.ofList
+      [ "environmentGet"
+        "environmentGetAll"
+        "runtimeEnvironmentGet"
+        "runtimeEnvironmentGetAll" ]
 
   /// Reads of a package item by its content hash. The answer is the item at that hash, and a
   /// traced type check reads the same items over and over: on one dev store these five were

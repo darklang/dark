@@ -14,12 +14,12 @@ module RTE = RT.RuntimeError
 
 // The gate enforces the active permission policies.
 let clockCall () =
-  eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ]
+  eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ]
   |> PT2RT.Expr.toRT Map.empty 0 None
 
-// The gate denies before this raw descriptor reaches the builtin body.
+// Host derives Native from the raw OS number and denies before the kernel call.
 let nativeCall () =
-  eApply (eBuiltinFn "posixFdClose" 0) [] [ PT.EInt(gid (), -1I) ]
+  eApply (eBuiltinFn "syscallClose" 0) [] [ PT.EInt(gid (), -1I) ]
   |> PT2RT.Expr.toRT Map.empty 0 None
 
 let private denyAllAccess =
@@ -87,7 +87,7 @@ let nativeDenied =
     let! exeState = executionStateFor TestValues.pm false Map.empty
     let! actual =
       LibExecution.Execution.executeExpr (denyAll exeState) (nativeCall ())
-    expectDenied [ "posixFdClose" ] actual
+    expectDenied [ "raw POSIX operation" ] actual
   }
 
 let nativeAllowedByAllowAll =
@@ -127,7 +127,7 @@ let private ceilingFn
     permissionCeiling = ceiling
     bounds = [] }
 
-let private clockBody = eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ]
+let private clockBody = eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ]
 
 let private pmWith (fns : List<PT.PackageFn.PackageFn>) : PT.PackageManager =
   let byHash = fns |> List.map (fun fn -> fn.hash, fn) |> Map.ofList
@@ -493,7 +493,9 @@ let guestFileApiCannotReachPolicyStore =
 let evaluatedNamedFnInContainerCannotWidenReentry =
   testTask "a named fn captures access before being nested in a container" {
     let! exeState = executionStateFor TestValues.pm false Map.empty
-    let expr = eList [ eBuiltinFn "timeNowMs" 0 ] |> PT2RT.Expr.toRT Map.empty 0 None
+    let expr =
+      eList [ eBuiltinFn "syscallGettimeofday" 0 ]
+      |> PT2RT.Expr.toRT Map.empty 0 None
     let! produced = LibExecution.Execution.executeExpr (denyAll exeState) expr
     match produced with
     | Ok(RT.DList(_, [ RT.DApplicable(RT.AppNamedFn namedFn) ])) ->
@@ -545,7 +547,7 @@ let partiallyAppliedNamedFnCapturesAccess =
 
 let private clockLambda = eLambda (gid ()) [ lpVar "unit" ] clockBody
 
-/// An unrestricted fn returning `fun () -> timeNowMs ()`.
+/// An unrestricted fn returning `fun () -> syscallGettimeofday ()`.
 let private lambdaProducer (hash : string) : PT.PackageFn.PackageFn =
   { ceilingFn hash None clockLambda with
       returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TInt) }
