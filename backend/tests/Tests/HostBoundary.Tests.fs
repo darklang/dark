@@ -53,8 +53,7 @@ let private bannedHostSubsystemTypes =
 /// "Checked host boundary"). Everything else on `HostPosix` opens a path, a
 /// descriptor, or an environment entry and must go through `Host.perform`.
 let private ambientHostPosixMembers =
-  Set.ofList
-    [ "getpid"; "getuid"; "get_LOCK_EX"; "get_LOCK_UN" ]
+  Set.ofList [ "getpid"; "getuid"; "get_LOCK_EX"; "get_LOCK_UN" ]
 
 /// System.Environment is banned member-by-member: NewLine and ProcessorCount
 /// are fine, the environment-variable accessors are host effects.
@@ -184,7 +183,10 @@ let rec private typeRefFullName
   if typeRef.ResolutionScope.Kind = HandleKind.TypeReference then
     // Nested Session/Entry members are part of the same trusted subsystem.
     typeRefFullName reader (TypeReferenceHandle.op_Explicit typeRef.ResolutionScope)
-  elif ns = "" then name else $"{ns}.{name}"
+  elif ns = "" then
+    name
+  else
+    $"{ns}.{name}"
 
 /// The outermost declaring type of a method, so closure classes attribute to
 /// their module.
@@ -213,7 +215,8 @@ let rec private bannedTarget (reader : MetadataReader) (handle : EntityHandle) =
       if
         (typeName = "LibExecution.HostPosix"
          && Set.contains memberName ambientHostPosixMembers)
-        || (typeName = "LibExecution.HostDescriptors" && memberName = "get_tokenFloor")
+        || (typeName = "LibExecution.HostDescriptors"
+            && memberName = "get_tokenFloor")
       then
         None
       elif
@@ -241,8 +244,11 @@ let rec private bannedTarget (reader : MetadataReader) (handle : EntityHandle) =
     let methodDef =
       reader.GetMethodDefinition(MethodDefinitionHandle.op_Explicit handle)
     let typeName = topLevelTypeName reader (methodDef.GetDeclaringType())
-    if typeName = "LibExecution.HostKernel"
-       || (typeName = "LibExecution.HostDescriptors" && reader.GetString methodDef.Name <> "get_tokenFloor") then
+    if
+      typeName = "LibExecution.HostKernel"
+      || (typeName = "LibExecution.HostDescriptors"
+          && reader.GetString methodDef.Name <> "get_tokenFloor")
+    then
       Some $"{typeName}::{reader.GetString methodDef.Name}"
     else
       None

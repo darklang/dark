@@ -234,6 +234,8 @@ let private writeFile (store : Store) : unit =
 /// Read the store before mutation. A present but invalid file is an error so a
 /// write cannot replace approvals and approved versions with an empty store.
 let private getForWrite () : Store =
+  // For the messages below: where the file actually is, which follows the store.
+  let where = LocalFile.path fileName |> Result.defaultValue fileName
   match LocalFile.read fileName with
   | LocalFile.Missing -> empty
   | LocalFile.Read bytes ->
@@ -241,17 +243,25 @@ let private getForWrite () : Store =
       fromBytes bytes
     with _ ->
       match storedVersion bytes with
+      // These three are store conditions, not internal errors: each is the state of a file the
+      // person can deal with once told, so each prints as its sentence. The path is the real one;
+      // the policy directory moves with the store, so `~/.darklang/policy` is not always it.
       | Some version when version > formatVersion ->
-        Exception.raiseInternal
-          $"The policy file was written by a newer Darklang (format {version}, this build reads {formatVersion}) and will not be overwritten. Upgrade, or move ~/.darklang/policy/policies.bin aside."
+        Exception.raiseStoreCondition
+          $"The policy file was written by a newer Darklang (format {version}, this build reads {formatVersion}) and will not be overwritten. Upgrade, or move {where} aside."
           []
       | _ ->
-        Exception.raiseInternal
-          "The policy file is damaged and will not be overwritten. Move ~/.darklang/policy/policies.bin aside (the approvals in it are lost) and retry."
+        Exception.raiseStoreCondition
+          $"The policy file is damaged and will not be overwritten. Move {where} aside (the approvals in it are lost) and retry."
           []
-  | LocalFile.Unreadable message ->
-    Exception.raiseInternal
-      $"The policy file exists but cannot be read ({message}); refusing to overwrite it."
+  | LocalFile.Unreadable error ->
+    // The reason in a few words, not the exception: interpolating it printed a .NET stack trace.
+    let why =
+      match error with
+      | :? System.UnauthorizedAccessException -> "permission denied"
+      | e -> e.Message
+    Exception.raiseStoreCondition
+      $"The policy file {where} exists but cannot be read ({why}); refusing to overwrite it."
       []
 
 /// One locked read-modify-write. The change may refuse (returning `Error`),

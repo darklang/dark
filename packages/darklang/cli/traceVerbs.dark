@@ -1034,6 +1034,7 @@ let showCode
   /// What `--iteration` was given, if anything: `map:2`, or `map:2,fold:2`.
   (iterationArg: Stdlib.Option.Option<String>)
   : AppState =
+  let accountID = state.accountID
   let branchId = state.currentBranchId
   let fnName = canonicalFnName branchId typed
   let entry = LanguageTools.ProgramTypes.parsePackageLocation fnName
@@ -1145,7 +1146,7 @@ let showCode
 
         let viewWith (focus: List<(Int64 * Int64)>) =
           let (collected, frames, frameValues, problem) =
-            Darklang.Tracing.Store.viewTraceTree state.accountID branchId trace.id focus
+            Darklang.Tracing.Store.viewTraceTree accountID branchId trace.id focus
 
           (collected, frames, frameValues, problem, loopsOf frames fnNames recorded selfHash)
 

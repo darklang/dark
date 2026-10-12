@@ -473,11 +473,12 @@ let aFailedImportLeavesNoCommit =
     "a"
     (fun a ->
       task {
+        use output = new OutputCapture()
         activate a
         let! (before : string) =
           darkOn
             "Stdlib.Sqlite.scalarInt (Stdlib.LocalStore.path ()) \"SELECT count(*) AS n FROM commits\" \"n\" |> Stdlib.Option.withDefault 0L |> Stdlib.toString"
-        // blobHex that is not hex: `scmImportOps` throws inside, and importFrom's error arm runs.
+        // The malformed record is skipped and reported; it must leave no empty commit.
         let! (result : string) =
           darkOn (
             "let op = Darklang.SCM.Wire.SyncOp { id = \"7c9e6679-7425-40de-944b-e07fc1f90ae9\"; blobHex = \"zznothex\"; ts = \"2026-01-01T00:00:00.000Z\"; author = \"peer-1\"; commit = \"\" } in "
@@ -490,6 +491,12 @@ let aFailedImportLeavesNoCommit =
           after
           before
           $"no commit row survives a failed import (import said: {result})"
+        output.Check(fun stdout stderr ->
+          Expect.equal stdout "" "the warning goes to stderr"
+          Expect.stringContains
+            stderr
+            "importOpsBulk: skipping malformed record id=7c9e6679-7425-40de-944b-e07fc1f90ae9:"
+            "the invalid hex record is reported")
       })
 
 let tests =

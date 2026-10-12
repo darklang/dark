@@ -630,12 +630,23 @@ let private guestTry
     | RuntimeErrorException(_, rte) ->
       return resultError (ExecutionError.toDT (toError rte))
     | e ->
-      return
-        resultError (
-          ExecutionError.toDT (
-            ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
+      // A store condition raised before the run starts (the approved-version check sits in
+      // lowering) is the same refusal it would be during the run, not an `Unhandled` crash.
+      match Exception.findStoreCondition e with
+      | Some condition ->
+        return
+          resultError (
+            ExecutionError.toDT (
+              toError (RT.RuntimeError.Condition condition.Message)
+            )
           )
-        )
+      | None ->
+        return
+          resultError (
+            ExecutionError.toDT (
+              ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
+            )
+          )
   }
 
 
@@ -1283,6 +1294,9 @@ let fns () : List<BuiltInFn> =
           _,
           [| accountIDDval; DUuid branchId; DString traceID; DList(_, focusRows) |] ->
           uply {
+            // Parsing and replay must use the same account as the invoking CLI or editor.
+            let exeState =
+              { exeState with accountID = C2DT.Option.fromDT D.uuid accountIDDval }
             // A view keeps the first and last few iterations of every site. Asking for one in
             // between is this: the same view again, keeping that one as well.
             let focus =

@@ -97,8 +97,10 @@ module Shortcuts =
   /// Capability tokens cannot be narrowed to OS descriptor numbers.
   let intToDescriptor (vm : VMState) (i : DarkInt) : HostTypes.FileDescriptor =
     let value = DarkInt.toBigInt i
-    if value >= HostDescriptors.tokenFloor then HostTypes.FileDescriptor.Scoped value
-    else HostTypes.FileDescriptor.Raw(intToInt32 vm i)
+    if value >= HostDescriptors.tokenFloor then
+      HostTypes.FileDescriptor.Scoped value
+    else
+      HostTypes.FileDescriptor.Raw(intToInt32 vm i)
 
   /// Converts a `float` to a `DInt`, truncating toward zero. NaN/Infinity have
   /// no Int representation, so `bigint f` would throw a host exception — surface

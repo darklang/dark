@@ -33,6 +33,42 @@ let pmPT = LibDB.PackageManager.pt
 let pmRT = LibDB.PackageManager.rt
 
 
+/// Capture the current flow's output when a test deliberately provokes diagnostics.
+/// Check stops capture before asserting. An earlier failure, or a failed output
+/// assertion, replays the diagnostics on disposal so the failure keeps its context.
+/// This must be constructed in the flow that prints, before starting child tasks.
+type OutputCapture() =
+  let mutable captured : Option<string * string * string> = None
+  let mutable checkedOutput = false
+
+  do
+    if not (NonBlockingConsole.startCapture ()) then
+      failtest "OutputCapture: this flow already has an output capture"
+
+  member private _.Stop() =
+    match captured with
+    | Some output -> output
+    | None ->
+      let output = NonBlockingConsole.stopCaptureEach ()
+      captured <- Some output
+      output
+
+  member this.Check(check : string -> string -> unit) : unit =
+    let _, stdout, stderr = this.Stop()
+    check stdout stderr
+    checkedOutput <- true
+
+  interface System.IDisposable with
+    member this.Dispose() =
+      let all, _, _ = this.Stop()
+      if not checkedOutput then NonBlockingConsole.writeErrInline all
+
+  interface System.IAsyncDisposable with
+    member this.DisposeAsync() =
+      (this :> System.IDisposable).Dispose()
+      ValueTask.CompletedTask
+
+
 // --- SQL plumbing, shared by the suites that assert on the store directly --------
 
 /// Run <param sql> against the active store, discarding any result.

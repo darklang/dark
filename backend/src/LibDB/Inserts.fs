@@ -628,7 +628,7 @@ let importOpsBulk
                 "commit_hash",
                 (if commitHash = "" then Sql.dbnull else Sql.string commitHash) ]
           with ex ->
-            System.Console.Error.WriteLine(
+            NonBlockingConsole.writeErrLine (
               $"importOpsBulk: skipping malformed record id={id}: {ex.Message}"
             )
             None)

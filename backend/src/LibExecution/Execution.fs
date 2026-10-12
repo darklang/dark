@@ -59,7 +59,7 @@ let createState
 
     program = program
 
-    descriptorSession = Host.createDescriptorSession ()
+    descriptorSession = Host.createLazyDescriptorSession ()
 
     builtins = builtins
     types = { package = pm.getType }
@@ -175,11 +175,46 @@ let outOfStackMessage =
   "Out of stack: went too deep, recursing through builtin callbacks "
   + "(List.map and the like) or comparing a deeply nested value"
 
+let rec private isOutOfMemory (ex : exn) : bool =
+  match ex with
+  | :? System.OutOfMemoryException -> true
+  | :? System.AggregateException as agg ->
+    agg.InnerExceptions |> Seq.exists isOutOfMemory
+  | _ -> not (isNull ex.InnerException) && isOutOfMemory ex.InnerException
+
+let mutable private exitingForMemory = 0
+
+/// Stop the process if <param ex> is the runtime running out of memory.
+///
+/// Every generic catch below turns an exception into a Dark runtime error, which Dark code can
+/// then catch. For running out of memory that is always wrong: a guard that reports one item as
+/// incomplete, or a whole batch as empty, hands back an answer that looks like a result, and a
+/// process whose scheduler thread swallowed it waits forever for work that died. So say what
+/// happened, once, and exit 4.
+let exitIfOutOfMemory (ex : exn) : unit =
+  if isOutOfMemory ex then
+    // Several processes usually run out at once; one line is enough.
+    if System.Threading.Interlocked.Exchange(&exitingForMemory, 1) = 0 then
+      try
+        System.Console.Error.WriteLine
+          "dark ran out of memory and stopped; whatever it was doing did not finish. Free some memory, or use a machine with more, and run it again."
+      with _ ->
+        ()
+    exit 4
+
 /// Recognize exceptions from stack checks, including wrappers added by sort comparers.
 let rec private isOutOfStack (ex : exn) : bool =
   match ex with
   | :? System.InsufficientExecutionStackException -> true
   | _ -> not (isNull ex.InnerException) && isOutOfStack ex.InnerException
+
+/// <param ex> as the runtime error it stands for, when it carries a store condition: something the
+/// person running the program can resolve once told. Not reported as an exception, since it is not a
+/// defect. Callers check `Exception.findStoreCondition` first.
+let storeCondition (ex : exn) : RTE.Error =
+  match Exception.findStoreCondition ex with
+  | Some condition -> RTE.Condition condition.Message
+  | None -> RTE.UncaughtException(ex.Message, [])
 
 let execute
   (exeState : RT.ExecutionState)
@@ -205,7 +240,10 @@ let execute
       | ex when isOutOfStack ex ->
         return
           Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
+      | ex when (Exception.findStoreCondition ex).IsSome ->
+        return Error(storeCondition ex, callStackFromVM vm)
       | ex ->
+        exitIfOutOfMemory ex
         let metadata : Metadata =
           Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
         do! exeState.reportException exeState vm metadata ex
@@ -332,11 +370,16 @@ let private uncaught
   (ex : exn)
   : Ply<RT.ExecutionResult> =
   uply {
-    let metadata : Metadata =
-      Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
-    do! exeState.reportException exeState vm metadata ex
-    let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-    return Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
+    exitIfOutOfMemory ex
+    match Exception.findStoreCondition ex with
+    | Some condition ->
+      return Error(RTE.Condition condition.Message, callStackFromVM vm)
+    | None ->
+      let metadata : Metadata =
+        Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
+      do! exeState.reportException exeState vm metadata ex
+      let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
+      return Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
   }
 
 

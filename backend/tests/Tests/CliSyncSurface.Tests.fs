@@ -19,22 +19,33 @@ open Tests.CliTestHarness
 open Tests.CliDsl
 
 
+/// `whoami` and `identity` are two spellings of one answer, and neither makes an identity: a fresh
+/// instance says it has none and says where one comes from, and goes on saying it however often
+/// you look. The two commands that DO mint are covered where they can be: `dark sync setup` by
+/// `gates setup`, which asserts the name it was given is stored and survives a re-run, and
+/// `dark sync status` by the sync gates, since it needs a relay to ask about.
+///
+/// A fresh instance has no id even though the template store is a copy of the dev store, because
+/// an auto-minted id is stamped with the path it was minted at and does not survive the copy. A
+/// developer who has given their own store a NAME will see this fail, and the message says what it
+/// got.
 let identityIsStableAndSharedBetweenBothNames =
-  instanceTest "whoami and identity name the same instance" (fun state ->
+  instanceTest "whoami and identity agree, and looking does not mint" (fun state ->
     task {
       let! whoami = runCli state [ "whoami" ]
       let! identity = runCli state [ "identity" ]
       Expect.stringContains
         whoami
-        "inst-"
-        $"whoami names an instance, got: {whoami}"
+        "no instance id yet"
+        $"a fresh instance has no id, got: {whoami}"
+      Expect.stringContains
+        whoami
+        "dark sync setup"
+        $"and says where one comes from, got: {whoami}"
       Expect.equal identity whoami $"identity is the same answer, got: {identity}"
 
       let! again = runCli state [ "whoami" ]
-      Expect.equal
-        again
-        whoami
-        $"and asking twice does not mint a new one, got: {again}"
+      Expect.equal again whoami $"and looking did not mint one, got: {again}"
     })
 
 /// Every verb, one test: what they have in common is the thing worth pinning. A
@@ -112,7 +123,7 @@ let pullKnowsItsOwnFlags =
         refuses
           state
           [ "pull"; "--nope" ]
-          "unknown flag"
+          "does not take `--nope`"
           "re-pulling"
           "an unknown flag is named, not read as a url"
       do! exits state [ "pull"; "--nope" ] 1L "and it is a failed command"
@@ -137,7 +148,7 @@ let syncTakesBranchesFlag =
           refuses
             state
             [ "sync"; "--nope" ]
-            "isn't a url"
+            "does not take `--nope`"
             "pushed"
             "an unknown flag is named rather than read as a url"
         do! exits state [ "sync"; "--nope" ] 1L "and it is a failed command"

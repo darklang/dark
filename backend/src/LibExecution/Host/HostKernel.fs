@@ -61,7 +61,8 @@ let clockGettime_raw (clock : int, bytes : byte[]) =
 let gettimeofday_raw (bytes : byte[]) =
   withBytes bytes (fun p -> int (call 38 p 0L 0L 0L 0L 0L))
 let nanosleep_raw (request : byte[], remaining : byte[]) =
-  withBytes request (fun a -> withBytes remaining (fun b -> int (call 39 a b 0L 0L 0L 0L)))
+  withBytes request (fun a ->
+    withBytes remaining (fun b -> int (call 39 a b 0L 0L 0L 0L)))
 let machAbsoluteTime_raw (bytes : byte[]) =
   withBytes bytes (fun p -> int (call 40 0L 0L p 0L 0L 0L))
 let machTimebaseInfo_raw (bytes : byte[]) =
@@ -70,14 +71,24 @@ let inotifyInit1_raw (flags : int) = int (call 42 (int64 flags) 0L 0L 0L 0L 0L)
 let inotifyAddWatch_raw (fd : int, path : string, mask : int) =
   withText path (fun p -> int (call 43 (int64 fd) p (int64 mask) 0L 0L 0L))
 let ppoll_raw (bytes : byte[], count : int, timeout : byte[]) =
-  withBytes bytes (fun p -> withBytes timeout (fun t ->
-    int (call 44 p (int64 count) t 0L 8L 0L)))
+  withBytes bytes (fun p ->
+    withBytes timeout (fun t -> int (call 44 p (int64 count) t 0L 8L 0L)))
 let pollDarwin_raw (bytes : byte[], count : int, timeoutMs : int) =
   withBytes bytes (fun p -> int (call 45 p (int64 count) (int64 timeoutMs) 0L 0L 0L))
 let kqueue_raw () = int (call 46 0L 0L 0L 0L 0L 0L)
-let kevent_raw (fd : int, changes : byte[], count : int, events : byte[], capacity : int, timeout : byte[]) =
-  withBytes changes (fun c -> withBytes events (fun e -> withBytes timeout (fun t ->
-    int (call 47 (int64 fd) c (int64 count) e (int64 capacity) t))))
+let kevent_raw
+  (
+    fd : int,
+    changes : byte[],
+    count : int,
+    events : byte[],
+    capacity : int,
+    timeout : byte[]
+  ) =
+  withBytes changes (fun c ->
+    withBytes events (fun e ->
+      withBytes timeout (fun t ->
+        int (call 47 (int64 fd) c (int64 count) e (int64 capacity) t))))
 let lseek_raw (fd : int, offset : int64, whence : int) =
   call 4 (int64 fd) offset (int64 whence) 0L 0L 0L
 let fstatat_raw (fd : int, path : string, buf : IntPtr, flags : int) =
@@ -117,7 +128,8 @@ let getuid_raw () = uint32 (call 20 0L 0L 0L 0L 0L 0L)
 let unameBytes_raw (bytes : byte[]) =
   withBytes bytes (fun p -> int (call 21 p 0L 0L 0L 0L 0L))
 let schedGetaffinity_raw (pid : int, bytes : byte[]) =
-  withBytes bytes (fun p -> int (call 35 (int64 pid) (int64 bytes.Length) p 0L 0L 0L))
+  withBytes bytes (fun p ->
+    int (call 35 (int64 pid) (int64 bytes.Length) p 0L 0L 0L))
 
 let getentropy_raw (bytes : byte[]) =
   withBytes bytes (fun ptr -> int (call 34 ptr (int64 bytes.Length) 0L 0L 0L 0L))
@@ -146,7 +158,8 @@ let fclonefileat_raw (source : int, parent : int, name : string, flags : int) =
   withText name (fun p ->
     int (call 33 (int64 source) (int64 parent) p (int64 flags) 0L 0L))
 let sysctl_raw (mib : byte[], buf : IntPtr, size : IntPtr) =
-  withBytes mib (fun p -> int (call 25 p (int64 (mib.Length / 4)) (pointer buf) (pointer size) 0L 0L))
+  withBytes mib (fun p ->
+    int (call 25 p (int64 (mib.Length / 4)) (pointer buf) (pointer size) 0L 0L))
 let setattrlistat_raw (fd : int, path : string, attrs : byte[]) =
   // ATTR_CMN_ACCTIME | ATTR_CMN_MODTIME; both set to the caller's timestamp.
   let attributes = Array.zeroCreate<byte> 24

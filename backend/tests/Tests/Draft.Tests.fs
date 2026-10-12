@@ -259,6 +259,7 @@ let collapseKeepsTheLastNamingOnly =
 /// committed work for being unparseable. It has to be spared, not skipped.
 let keepsAnOpItCannotRead =
   testTask "a rewrite spares the ops this build cannot decode" {
+    use output = new OutputCapture()
     let m = "DraftTestUnreadable"
     do! cleanup m
 
@@ -315,6 +316,15 @@ let keepsAnOpItCannotRead =
       |> Sql.executeNonQueryAsync
 
     do! cleanup m
+    output.Check(fun stdout stderr ->
+      Expect.equal stdout "" "the rebuild has no command output"
+      // The store warning is emitted only once per process.
+      if stderr <> "" then
+        Expect.stringContains stderr "format this build cannot read" "the alien op"
+        Expect.stringContains
+          stderr
+          "They are kept, not dropped"
+          "preserved for later")
   }
 
 
@@ -512,6 +522,7 @@ let private opIsInTheLog (id : System.Guid) : Task<bool> =
 /// opened by hand through `rebuildWith`.
 let aPullInsideARebuildsWindowSurvivesIt =
   testTask "a pull that lands inside a rebuild's window survives it, readable or not" {
+    use output = new OutputCapture()
     let m = "DraftTestRebuildPull"
     do! cleanup m
 
@@ -591,6 +602,15 @@ let aPullInsideARebuildsWindowSurvivesIt =
       |> Sql.parameters [ "id", Sql.uuid alienId ]
       |> Sql.executeNonQueryAsync
     do! cleanup m
+    output.Check(fun stdout stderr ->
+      Expect.equal stdout "" "the rebuild has no command output"
+      // The store warning is emitted only once per process.
+      if stderr <> "" then
+        Expect.stringContains stderr "format this build cannot read" "the alien op"
+        Expect.stringContains
+          stderr
+          "They are kept, not dropped"
+          "preserved for later")
   }
 
 /// `rewriteBy` chooses `keptIds` from its own read of the draft, before the rebuild reads anything, so

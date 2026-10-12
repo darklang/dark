@@ -79,7 +79,7 @@ let private bareSubcommandDoesNotBecomeABranch =
         shows
           state
           [ "branch"; "rename" ]
-          "missing its arguments"
+          "needs 2 arguments"
           "a subcommand with no arguments says so"
 
       let! after = runCli state [ "branches" ]
@@ -876,7 +876,7 @@ let discardOnABranchLeavesMainsDraftAlone =
 
         let! _ =
           runCli state [ "fn"; "Tests.DiscardIso.onBranch"; "() : Int64 = 2L" ]
-        let! discarded = runCli state [ "discard"; "--all"; "--yes" ]
+        let! discarded = runCli state [ "discard"; "--yes" ]
         Expect.stringContains discarded "onBranch" "it discarded the branch's item"
         Expect.isFalse
           (discarded.Contains "onMain")
@@ -899,7 +899,7 @@ let discardOnABranchLeavesMainsDraftAlone =
             "1"
             "main's draft survived the branch's discard"
 
-        let! _ = runCli state [ "discard"; "--all"; "--yes" ]
+        let! _ = runCli state [ "discard"; "--yes" ]
         ()
       })
 
@@ -951,7 +951,7 @@ let committingOnABranchLeavesMainsDraftUncollapsed =
         before
         "the branch's commit left main's draft exactly as it was"
 
-      let! _ = runCli state [ "discard"; "--all"; "--yes" ]
+      let! _ = runCli state [ "discard"; "--yes" ]
       ()
     })
 
@@ -1538,7 +1538,7 @@ let private crossOwnerPropagationIsBranchLocal =
 /// converted, which is exactly what typing branch ids was meant to make impossible and what a `String`
 /// field in a JSON record quietly reintroduces.
 ///
-/// `everyCommandSurvivesABogusArgument` does not reach this: `--json` is not a bogus argument.
+/// The refusal sweeps in `CliSurface.Tests.fs` do not reach this: `--json` is not a bogus argument.
 let private everyJsonSurfaceParses =
   cliTest "every --json surface emits parseable JSON" (fun state ->
     task {
@@ -1650,7 +1650,7 @@ let private editChangesAnItemWithoutRetypingIt =
           shows
             state
             [ "edit" ]
-            "usage: dark edit"
+            "`dark edit` needs an argument"
             "a bare `edit` says how to use it"
 
         do!
@@ -2023,12 +2023,18 @@ let private branchBundleKeepsWhatItCannotRead =
         let partialPath = $"{LibConfig.Config.runDir}/bundle-partial-bad.json"
         System.IO.File.WriteAllText(partialPath, partial)
 
-        do!
-          shows
-            state
-            [ "branch"; "import"; partialPath ]
-            "imported branch"
-            "the bundle imports"
+        let! stdout, stderr, status =
+          runCliStreams state [ "branch"; "import"; partialPath ]
+        Expect.equal status 0 "the readable part of the bundle imports"
+        Expect.stringContains stdout "imported branch" "the bundle imports"
+        Expect.stringContains
+          stderr
+          "1 op(s) in this bundle"
+          "the unreadable record is reported on stderr"
+        Expect.stringContains
+          stderr
+          "They are kept, not dropped"
+          "the warning explains that the record is preserved"
 
         let! listed = runCli state [ "branches" ]
         Expect.isTrue

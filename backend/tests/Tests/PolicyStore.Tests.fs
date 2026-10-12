@@ -65,7 +65,9 @@ let private callBuiltin (name : string) : PT.Expr =
 let private reviewUniverse =
   [ unitFn "v1" (callBuiltin "syscallGettimeofday")
     unitFn "v2" (eLet (lpUnit ()) (eUnit ()) (callBuiltin "syscallGettimeofday"))
-    unitFn "wider" (eStatement (callBuiltin "fileRead") (callBuiltin "syscallGettimeofday"))
+    unitFn
+      "wider"
+      (eStatement (callBuiltin "fileRead") (callBuiltin "syscallGettimeofday"))
     unitFn "dynamic" (eApply (eVar "callback") [] [ eUnit () ])
     // A root with a dependency: reads a file itself and calls `v1` for the clock.
     unitFn

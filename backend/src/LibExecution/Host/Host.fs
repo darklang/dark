@@ -27,8 +27,14 @@ type FailureKind = HostTypes.FailureKind
 type Failure = HostTypes.Failure
 type Outcome = HostTypes.Outcome
 
+// Keep construction inside the checked host even in optimized builds. Pure
+// executions need no descriptor dictionaries or child-resource bookkeeping.
+[<System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)>]
 let createDescriptorSession () : HostDescriptors.Session =
   new HostDescriptors.Session(HostPosix.fdClose)
+
+let createLazyDescriptorSession () : Lazy<HostDescriptors.Session> =
+  lazy (createDescriptorSession ())
 
 // ── response extractors ───────────────────────────────────────────────────────
 // A builtin knows which shape its operation produces; anything else is an
@@ -551,7 +557,8 @@ let private resolveHttp
 // path for symlink creation, and read-write for every mutating path op. The
 // raw handle and process-state ops also check Native here, independently of
 // the interpreter's ambient builtin gate.
-let private rawDescriptor = function
+let private rawDescriptor =
+  function
   | HostTypes.FileDescriptor.Raw fd -> fd
   | HostTypes.FileDescriptor.Scoped _ ->
     Exception.raiseInternal "scoped descriptor escaped normalization" []
@@ -566,24 +573,30 @@ let private resolvePosix
     match session with
     | None -> Response.Fd fd
     | Some owner ->
-      owner.Register { fd = fd; paths = []; processes = []; reads = true; writes = false }
+      owner.Register
+        { fd = fd; paths = []; processes = []; reads = true; writes = false }
       |> Response.Descriptor
   match op with
   | HostTypes.PosixOp.InotifyInit1 flags ->
-    unchecked (attempt (fun () ->
-      HostPosix.inotifyInit1 flags |> Result.map queue))
+    unchecked (attempt (fun () -> HostPosix.inotifyInit1 flags |> Result.map queue))
   | HostTypes.PosixOp.Kqueue ->
     unchecked (attempt (fun () -> HostPosix.kqueue () |> Result.map queue))
   | HostTypes.PosixOp.KeventVnode(fd, changes, capacity, timeout) ->
-    let changes = changes |> List.map (fun (source, flags, mask) -> rawDescriptor source, flags, mask)
+    let changes =
+      changes
+      |> List.map (fun (source, flags, mask) -> rawDescriptor source, flags, mask)
     withChecks
       [ (Permission.Request.native "raw POSIX operation", "raw POSIX operation")
         (Ok Permission.Request.clock, "waiting for vnode events") ]
       (blocking (fun () ->
         HostPosix.keventVnode (rawDescriptor fd) changes capacity timeout
         |> Result.map (fun bytes ->
-          session |> Option.iter (fun owner ->
-            owner.WatchDescriptors(rawDescriptor fd, changes |> List.map (fun (source, _, _) -> source)))
+          session
+          |> Option.iter (fun owner ->
+            owner.WatchDescriptors(
+              rawDescriptor fd,
+              changes |> List.map (fun (source, _, _) -> source)
+            ))
           Response.Bytes bytes)))
   | HostTypes.PosixOp.InotifyAddWatch(fd, path, mask) ->
     guarded false path (fun path ->
@@ -593,16 +606,23 @@ let private resolvePosix
         (attempt (fun () ->
           HostPosix.inotifyAddWatch (rawDescriptor fd) path mask
           |> Result.map (fun wd ->
-            session |> Option.iter (fun owner -> owner.WatchPath(rawDescriptor fd, path))
+            session
+            |> Option.iter (fun owner -> owner.WatchPath(rawDescriptor fd, path))
             Response.Written wd))))
   | HostTypes.PosixOp.Ppoll(fds, timeout)
   | HostTypes.PosixOp.PollDarwin(fds, timeout) ->
-    let darwin = match op with HostTypes.PosixOp.PollDarwin _ -> true | _ -> false
+    let darwin =
+      match op with
+      | HostTypes.PosixOp.PollDarwin _ -> true
+      | _ -> false
     withChecks
       [ (Permission.Request.native "raw POSIX operation", "raw POSIX operation")
         (Ok Permission.Request.clock, "waiting for descriptor events") ]
       (blocking (fun () ->
-        HostPosix.pollDescriptors darwin (fds |> List.map (fun (fd, events) -> rawDescriptor fd, events)) timeout
+        HostPosix.pollDescriptors
+          darwin
+          (fds |> List.map (fun (fd, events) -> rawDescriptor fd, events))
+          timeout
         |> Result.map Response.Bytes))
   | HostTypes.PosixOp.Chdir path ->
     resolveFile read path (fun path ->
@@ -632,7 +652,8 @@ let private resolvePosix
   | HostTypes.PosixOp.UtimensAt(path, a, an, m, mn) ->
     posixPath write path (fun path -> HostPosix.utimensAt path a an m mn |> unitOk)
   | HostTypes.PosixOp.SetattrlistTimes(path, a, an, m, mn) ->
-    posixPath write path (fun path -> HostPosix.setattrlistTimes path a an m mn |> unitOk)
+    posixPath write path (fun path ->
+      HostPosix.setattrlistTimes path a an m mn |> unitOk)
   | HostTypes.PosixOp.Symlink(target, linkPath) ->
     // The target is data stored in the link, not a resource being accessed;
     // creating the link is a write at linkPath.
@@ -656,56 +677,77 @@ let private resolvePosix
       HostPosix.directoryBytes (rawDescriptor fd) count |> Result.map Response.Bytes)
   | HostTypes.PosixOp.CopyFileRange(source, destination, count) ->
     native (fun () ->
-      HostPosix.copyFileRange (rawDescriptor source) (rawDescriptor destination) count |> Result.map Response.Offset)
+      HostPosix.copyFileRange
+        (rawDescriptor source)
+        (rawDescriptor destination)
+        count
+      |> Result.map Response.Offset)
   | HostTypes.PosixOp.CloneFile(source, destination) ->
-    native (fun () -> HostPosix.cloneFile (rawDescriptor source) (rawDescriptor destination) |> unitOk)
+    native (fun () ->
+      HostPosix.cloneFile (rawDescriptor source) (rawDescriptor destination)
+      |> unitOk)
   | HostTypes.PosixOp.FclonefileAt(source, destination, flags) ->
     guarded true destination (fun path ->
       withChecks
         [ fileCheck write path
           (Permission.Request.native "raw POSIX operation", "raw POSIX operation") ]
-        (attempt (fun () -> HostPosix.fclonefileAt (rawDescriptor source) path flags |> unitOk)))
+        (attempt (fun () ->
+          HostPosix.fclonefileAt (rawDescriptor source) path flags |> unitOk)))
   | HostTypes.PosixOp.Ftruncate(fd, length) ->
     native (fun () -> HostPosix.ftruncate (rawDescriptor fd) length |> unitOk)
   | HostTypes.PosixOp.Fchmod(fd, mode) ->
     native (fun () -> HostPosix.fchmod (rawDescriptor fd) mode |> unitOk)
   | HostTypes.PosixOp.Fstat fd ->
-    native (fun () -> HostPosix.fstat (rawDescriptor fd) |> Result.map Response.Bytes)
+    native (fun () ->
+      HostPosix.fstat (rawDescriptor fd) |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Getentropy count ->
-    unchecked (attempt (fun () -> HostPosix.getentropy count |> Result.map Response.Bytes))
+    unchecked (
+      attempt (fun () -> HostPosix.getentropy count |> Result.map Response.Bytes)
+    )
   | HostTypes.PosixOp.ClockGettime clock ->
-    withChecks [ (Ok Permission.Request.clock, "reading clock") ]
+    withChecks
+      [ (Ok Permission.Request.clock, "reading clock") ]
       (attempt (fun () -> HostPosix.clockGettime clock |> Result.map Response.Bytes))
   | HostTypes.PosixOp.Gettimeofday ->
-    withChecks [ (Ok Permission.Request.clock, "reading clock") ]
+    withChecks
+      [ (Ok Permission.Request.clock, "reading clock") ]
       (attempt (fun () -> HostPosix.gettimeofday () |> Result.map Response.Bytes))
   | HostTypes.PosixOp.MachAbsoluteTime ->
-    withChecks [ (Ok Permission.Request.clock, "reading clock") ]
+    withChecks
+      [ (Ok Permission.Request.clock, "reading clock") ]
       (attempt (fun () -> HostPosix.machAbsoluteTime () |> Result.map Response.Bytes))
   | HostTypes.PosixOp.MachTimebaseInfo ->
-    withChecks [ (Ok Permission.Request.clock, "reading clock") ]
+    withChecks
+      [ (Ok Permission.Request.clock, "reading clock") ]
       (attempt (fun () -> HostPosix.machTimebaseInfo () |> Result.map Response.Bytes))
   | HostTypes.PosixOp.Nanosleep(seconds, nanos) ->
-    withChecks [ (Ok Permission.Request.clock, "sleeping") ]
+    withChecks
+      [ (Ok Permission.Request.clock, "sleeping") ]
       (blocking (fun () ->
         let rc, remaining = HostPosix.nanosleep seconds nanos
         Ok(Response.KernelSleep(rc, remaining))))
   | HostTypes.PosixOp.UnameBytes ->
-    unchecked (attempt (fun () -> HostPosix.unameBytes () |> Result.map Response.Bytes))
+    unchecked (
+      attempt (fun () -> HostPosix.unameBytes () |> Result.map Response.Bytes)
+    )
   | HostTypes.PosixOp.SysctlBytes(mib, count) ->
     let run () = HostPosix.sysctlBytes mib count |> Result.map Response.Bytes
     // These are the host facts exposed by Sys. Other sysctl keys can expose
     // process/environment data and require unscoped Native authority.
     if List.contains mib [ [ 1; 1 ]; [ 1; 10 ]; [ 6; 1 ]; [ 6; 3 ] ] then
       unchecked (attempt run)
-    else native run
+    else
+      native run
   | HostTypes.PosixOp.SchedGetaffinity(pid, count) ->
     let run () = HostPosix.schedGetaffinity pid count |> Result.map Response.Bytes
     if pid = 0 then unchecked (attempt run) else native run
   | HostTypes.PosixOp.Pread(fd, count, offset) ->
-    native (fun () -> HostPosix.pread (rawDescriptor fd) count offset |> Result.map Response.Bytes)
+    native (fun () ->
+      HostPosix.pread (rawDescriptor fd) count offset |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Pwrite(fd, bytes, offset) ->
-    native (fun () -> HostPosix.pwrite (rawDescriptor fd) bytes offset |> Result.map Response.Written)
+    native (fun () ->
+      HostPosix.pwrite (rawDescriptor fd) bytes offset
+      |> Result.map Response.Written)
   | HostTypes.PosixOp.Open(path, flags, mode) ->
     let opened (path : string) (fd : int) : Response =
       match session with
@@ -717,8 +759,10 @@ let private resolvePosix
             { fd = fd
               paths = [ path ]
               processes = []
-              reads = accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR
-              writes = accessMode = HostPosix.O_WRONLY || accessMode = HostPosix.O_RDWR }
+              reads =
+                accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR
+              writes =
+                accessMode = HostPosix.O_WRONLY || accessMode = HostPosix.O_RDWR }
         Response.Descriptor token
     let accessMode = flags &&& 3
     let reads = accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR
@@ -742,7 +786,8 @@ let private resolvePosix
     match HostPosix.getcwdBytes count with
     | Error e -> Ok { checks = []; execute = attempt (fun () -> Error e) }
     | Ok bytes ->
-      let length = bytes |> Array.tryFindIndex ((=) 0uy) |> Option.defaultValue bytes.Length
+      let length =
+        bytes |> Array.tryFindIndex ((=) 0uy) |> Option.defaultValue bytes.Length
       let cwd = System.Text.Encoding.UTF8.GetString(bytes, 0, length)
       resolveFile read cwd (fun _ -> produce (fun () -> Response.Bytes bytes))
   | HostTypes.PosixOp.FcntlGetPath fd ->
@@ -751,7 +796,8 @@ let private resolvePosix
     match HostPosix.fcntlGetPath (rawDescriptor fd) with
     | Error e -> native (fun () -> Error e)
     | Ok bytes ->
-      let length = bytes |> Array.tryFindIndex ((=) 0uy) |> Option.defaultValue bytes.Length
+      let length =
+        bytes |> Array.tryFindIndex ((=) 0uy) |> Option.defaultValue bytes.Length
       let path = System.Text.Encoding.UTF8.GetString(bytes, 0, length)
       guarded false path (fun path ->
         withChecks
@@ -761,13 +807,17 @@ let private resolvePosix
   | HostTypes.PosixOp.Kill(pid, signal) ->
     native (fun () -> HostPosix.kill pid signal |> unitOk)
   | HostTypes.PosixOp.FdRead(fd, count) ->
-    native (fun () -> HostPosix.fdRead (rawDescriptor fd) count |> Result.map Response.Bytes)
+    native (fun () ->
+      HostPosix.fdRead (rawDescriptor fd) count |> Result.map Response.Bytes)
   | HostTypes.PosixOp.FdSeek(fd, offset, whence) ->
     native (fun () ->
-      HostPosix.fdSeek (rawDescriptor fd) offset whence |> Result.map Response.Offset)
+      HostPosix.fdSeek (rawDescriptor fd) offset whence
+      |> Result.map Response.Offset)
   | HostTypes.PosixOp.FdWrite(fd, data) ->
-    native (fun () -> HostPosix.fdWrite (rawDescriptor fd) data |> Result.map Response.Written)
-  | HostTypes.PosixOp.FdClose fd -> native (fun () -> HostPosix.fdClose (rawDescriptor fd) |> unitOk)
+    native (fun () ->
+      HostPosix.fdWrite (rawDescriptor fd) data |> Result.map Response.Written)
+  | HostTypes.PosixOp.FdClose fd ->
+    native (fun () -> HostPosix.fdClose (rawDescriptor fd) |> unitOk)
   | HostTypes.PosixOp.Flock(fd, operation) ->
     native (fun () -> HostPosix.flock (rawDescriptor fd) operation |> unitOk)
   | HostTypes.PosixOp.FileOwner path ->
@@ -882,9 +932,16 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       [ (Permission.Request.httpServer port, $"binding HTTP server port {port}") ]
       (attempt (fun () -> bindHttpServer port))
   | Operation.Posix op -> resolvePosix None op
-  | Operation.ChildStart _ | Operation.ChildDescriptors _ | Operation.ChildPoll _ | Operation.ChildWait _
-  | Operation.ChildKill _ | Operation.ChildClose _ | Operation.ChildClosePort _
-  | Operation.ChildBufferGet _ | Operation.ChildBufferSet _ -> Error "child operation requires execution ownership"
+  | Operation.ChildStart _
+  | Operation.ChildDescriptors _
+  | Operation.ChildPoll _
+  | Operation.ChildWait _
+  | Operation.ChildKill _
+  | Operation.ChildClose _
+  | Operation.ChildClosePort _
+  | Operation.ChildBufferGet _
+  | Operation.ChildBufferSet _ ->
+    Error "child operation requires execution ownership"
 
 // ── perform ───────────────────────────────────────────────────────────────────
 
@@ -941,10 +998,19 @@ let private browserRefusal (op : Operation) : Option<Outcome> =
     None
   else
     match op with
-    | Operation.ChildStart _ | Operation.ChildDescriptors _ | Operation.ChildPoll _ | Operation.ChildWait _
-    | Operation.ChildKill _ | Operation.ChildClose _ | Operation.ChildClosePort _
-    | Operation.ChildBufferGet _ | Operation.ChildBufferSet _ ->
-      Some(Outcome.Rejected "running another program is not available in the browser: a tab has no processes")
+    | Operation.ChildStart _
+    | Operation.ChildDescriptors _
+    | Operation.ChildPoll _
+    | Operation.ChildWait _
+    | Operation.ChildKill _
+    | Operation.ChildClose _
+    | Operation.ChildClosePort _
+    | Operation.ChildBufferGet _
+    | Operation.ChildBufferSet _ ->
+      Some(
+        Outcome.Rejected
+          "running another program is not available in the browser: a tab has no processes"
+      )
     // A failure rather than a rejection: `serve` already answers a failed bind with a
     // Result error, which the CLI prints. A rejection raises, and at the interactive
     // prompt a raise from a command ends the session, so the refusal took the tab with it.
@@ -960,7 +1026,11 @@ let private browserRefusal (op : Operation) : Option<Outcome> =
     | _ -> None
 
 
-type private DescriptorRight = Read | Write | Metadata | Cleanup
+type private DescriptorRight =
+  | Read
+  | Write
+  | Metadata
+  | Cleanup
 
 let private descriptorUses (op : HostTypes.PosixOp) =
   let read fd = [ fd, Read ]
@@ -971,7 +1041,8 @@ let private descriptorUses (op : HostTypes.PosixOp) =
     (queue, Metadata) :: (changes |> List.map (fun (fd, _, _) -> fd, Read))
   | HostTypes.PosixOp.InotifyAddWatch(fd, _, _) -> [ fd, Metadata ]
   | HostTypes.PosixOp.Ppoll(fds, _)
-  | HostTypes.PosixOp.PollDarwin(fds, _) -> fds |> List.map (fun (fd, _) -> fd, Metadata)
+  | HostTypes.PosixOp.PollDarwin(fds, _) ->
+    fds |> List.map (fun (fd, _) -> fd, Metadata)
   | HostTypes.PosixOp.FdRead(fd, _)
   | HostTypes.PosixOp.DirectoryBytes(fd, _)
   | HostTypes.PosixOp.Pread(fd, _, _) -> read fd
@@ -991,25 +1062,43 @@ let private descriptorUses (op : HostTypes.PosixOp) =
 
 let private mapDescriptors map (op : HostTypes.PosixOp) =
   match op with
-  | HostTypes.PosixOp.FclonefileAt(source, destination, flags) -> HostTypes.PosixOp.FclonefileAt(map source, destination, flags)
+  | HostTypes.PosixOp.FclonefileAt(source, destination, flags) ->
+    HostTypes.PosixOp.FclonefileAt(map source, destination, flags)
   | HostTypes.PosixOp.KeventVnode(queue, changes, capacity, timeout) ->
-    HostTypes.PosixOp.KeventVnode(map queue, changes |> List.map (fun (fd, flags, mask) -> map fd, flags, mask), capacity, timeout)
-  | HostTypes.PosixOp.InotifyAddWatch(fd, path, mask) -> HostTypes.PosixOp.InotifyAddWatch(map fd, path, mask)
+    HostTypes.PosixOp.KeventVnode(
+      map queue,
+      changes |> List.map (fun (fd, flags, mask) -> map fd, flags, mask),
+      capacity,
+      timeout
+    )
+  | HostTypes.PosixOp.InotifyAddWatch(fd, path, mask) ->
+    HostTypes.PosixOp.InotifyAddWatch(map fd, path, mask)
   | HostTypes.PosixOp.Ppoll(fds, timeout) ->
-    HostTypes.PosixOp.Ppoll(fds |> List.map (fun (fd, events) -> map fd, events), timeout)
+    HostTypes.PosixOp.Ppoll(
+      fds |> List.map (fun (fd, events) -> map fd, events),
+      timeout
+    )
   | HostTypes.PosixOp.PollDarwin(fds, timeout) ->
-    HostTypes.PosixOp.PollDarwin(fds |> List.map (fun (fd, events) -> map fd, events), timeout)
+    HostTypes.PosixOp.PollDarwin(
+      fds |> List.map (fun (fd, events) -> map fd, events),
+      timeout
+    )
   | HostTypes.PosixOp.FdRead(fd, n) -> HostTypes.PosixOp.FdRead(map fd, n)
-  | HostTypes.PosixOp.DirectoryBytes(fd, n) -> HostTypes.PosixOp.DirectoryBytes(map fd, n)
-  | HostTypes.PosixOp.Pread(fd, n, offset) -> HostTypes.PosixOp.Pread(map fd, n, offset)
+  | HostTypes.PosixOp.DirectoryBytes(fd, n) ->
+    HostTypes.PosixOp.DirectoryBytes(map fd, n)
+  | HostTypes.PosixOp.Pread(fd, n, offset) ->
+    HostTypes.PosixOp.Pread(map fd, n, offset)
   | HostTypes.PosixOp.FdWrite(fd, data) -> HostTypes.PosixOp.FdWrite(map fd, data)
-  | HostTypes.PosixOp.Pwrite(fd, data, offset) -> HostTypes.PosixOp.Pwrite(map fd, data, offset)
+  | HostTypes.PosixOp.Pwrite(fd, data, offset) ->
+    HostTypes.PosixOp.Pwrite(map fd, data, offset)
   | HostTypes.PosixOp.Ftruncate(fd, n) -> HostTypes.PosixOp.Ftruncate(map fd, n)
   | HostTypes.PosixOp.Fchmod(fd, n) -> HostTypes.PosixOp.Fchmod(map fd, n)
   | HostTypes.PosixOp.Fstat fd -> HostTypes.PosixOp.Fstat(map fd)
   | HostTypes.PosixOp.FcntlGetPath fd -> HostTypes.PosixOp.FcntlGetPath(map fd)
-  | HostTypes.PosixOp.FdSeek(fd, offset, whence) -> HostTypes.PosixOp.FdSeek(map fd, offset, whence)
-  | HostTypes.PosixOp.Flock(fd, operation) -> HostTypes.PosixOp.Flock(map fd, operation)
+  | HostTypes.PosixOp.FdSeek(fd, offset, whence) ->
+    HostTypes.PosixOp.FdSeek(map fd, offset, whence)
+  | HostTypes.PosixOp.Flock(fd, operation) ->
+    HostTypes.PosixOp.Flock(map fd, operation)
   | HostTypes.PosixOp.FdClose fd -> HostTypes.PosixOp.FdClose(map fd)
   | HostTypes.PosixOp.CopyFileRange(source, destination, n) ->
     HostTypes.PosixOp.CopyFileRange(map source, map destination, n)
@@ -1019,7 +1108,8 @@ let private mapDescriptors map (op : HostTypes.PosixOp) =
 
 let private invalidDescriptor =
   Outcome.Failed
-    { kind = FailureKind.Other; errno = 9
+    { kind = FailureKind.Other
+      errno = 9
       message = "descriptor is closed, foreign, or incompatible with its open mode" }
 
 /// Called under the descriptor leases; they cannot be closed or reused until the
@@ -1032,7 +1122,8 @@ let private resolveSessionPosix
   let rec collect checks bindings raw remaining =
     match remaining with
     | [] -> Ok(checks, bindings, raw)
-    | (HostTypes.FileDescriptor.Raw _, _) :: rest -> collect checks bindings true rest
+    | (HostTypes.FileDescriptor.Raw _, _) :: rest ->
+      collect checks bindings true rest
     | (HostTypes.FileDescriptor.Scoped token, right) :: rest ->
       match session |> Option.bind (fun owner -> owner.Find token) with
       | None -> Error invalidDescriptor
@@ -1041,8 +1132,10 @@ let private resolveSessionPosix
           match right with
           | Read -> entry.reads
           | Write -> entry.writes
-          | Metadata | Cleanup -> true
-        if not compatible then Error invalidDescriptor
+          | Metadata
+          | Cleanup -> true
+        if not compatible then
+          Error invalidDescriptor
         else
           let checks =
             match right with
@@ -1053,12 +1146,17 @@ let private resolveSessionPosix
                 | Read -> Permission.AccessKind.Read
                 | Write -> Permission.AccessKind.Write
                 | Metadata ->
-                  if entry.writes then Permission.AccessKind.Write
-                  else Permission.AccessKind.Read
-                | Cleanup -> Exception.raiseInternal "cleanup has no resource check" []
+                  if entry.writes then
+                    Permission.AccessKind.Write
+                  else
+                    Permission.AccessKind.Read
+                | Cleanup ->
+                  Exception.raiseInternal "cleanup has no resource check" []
               (entry.paths |> List.map (fileCheck access))
-              @ (entry.processes |> List.map (fun (program, args) ->
-                Permission.Request.processSpawn program args, $"using child `{program}`"))
+              @ (entry.processes
+                 |> List.map (fun (program, args) ->
+                   Permission.Request.processSpawn program args,
+                   $"using child `{program}`"))
               @ checks
           collect checks (Map.add token entry.fd bindings) raw rest
   // A scoped queue cannot retain authority for an unowned raw vnode: its
@@ -1066,18 +1164,28 @@ let private resolveSessionPosix
   let unownedVnode =
     match op with
     | HostTypes.PosixOp.KeventVnode(HostTypes.FileDescriptor.Scoped _, changes, _, _) ->
-      changes |> List.exists (function HostTypes.FileDescriptor.Raw _, _, _ -> true | _ -> false)
+      changes
+      |> List.exists (function
+        | HostTypes.FileDescriptor.Raw _, _, _ -> true
+        | _ -> false)
     | _ -> false
-  match (if unownedVnode then Error invalidDescriptor else collect [] Map.empty false uses) with
+  match
+    (if unownedVnode then
+       Error invalidDescriptor
+     else
+       collect [] Map.empty false uses)
+  with
   | Error outcome -> Error outcome
   | Ok(checks, bindings, raw) ->
     let normalized =
-      mapDescriptors (function
+      mapDescriptors
+        (function
         | HostTypes.FileDescriptor.Raw fd -> HostTypes.FileDescriptor.Raw fd
         | HostTypes.FileDescriptor.Scoped token ->
           match Map.tryFind token bindings with
           | Some fd -> HostTypes.FileDescriptor.Raw fd
-          | None -> Exception.raiseInternal "validated descriptor is missing" []) op
+          | None -> Exception.raiseInternal "validated descriptor is missing" [])
+        op
     match resolvePosix session normalized with
     | Error message -> Error(Outcome.Rejected message)
     | Ok resolved ->
@@ -1088,29 +1196,39 @@ let private resolveSessionPosix
           if uses <> [] && not raw then
             resolved.checks
             |> List.filter (fun (request, _) ->
-              Permission.Request.effect request <> LibExecution.Effects.Effect.Native)
-          else resolved.checks
+              Permission.Request.effect request
+              <> LibExecution.Effects.Effect.Native)
+          else
+            resolved.checks
         // Waiting for owned child IO is already authorized by that child's
         // retained executable/argv grant, just like the managed launcher was.
         // Raw descriptors and file/watch queues still require Clock. This keeps
         // Process.run usable under a narrow process-only policy.
         let ownedChildPoll =
           match op with
-          | HostTypes.PosixOp.Ppoll(descriptors, _) | HostTypes.PosixOp.PollDarwin(descriptors, _) ->
-            descriptors <> [] && (descriptors |> List.forall (function
-              | HostTypes.FileDescriptor.Scoped token, _ ->
-                session |> Option.bind (fun owner -> owner.Find token)
-                |> Option.exists (fun entry -> entry.paths = [] && entry.processes <> [])
-              | _ -> false))
+          | HostTypes.PosixOp.Ppoll(descriptors, _)
+          | HostTypes.PosixOp.PollDarwin(descriptors, _) ->
+            descriptors <> []
+            && (descriptors
+                |> List.forall (function
+                  | HostTypes.FileDescriptor.Scoped token, _ ->
+                    session
+                    |> Option.bind (fun owner -> owner.Find token)
+                    |> Option.exists (fun entry ->
+                      entry.paths = [] && entry.processes <> [])
+                  | _ -> false))
           | _ -> false
         let baseChecks =
-          if ownedChildPoll then baseChecks |> List.filter (fun (request, _) ->
-            Permission.Request.effect request <> LibExecution.Effects.Effect.Clock)
-          else baseChecks
+          if ownedChildPoll then
+            baseChecks
+            |> List.filter (fun (request, _) ->
+              Permission.Request.effect request <> LibExecution.Effects.Effect.Clock)
+          else
+            baseChecks
         let execute () =
           match op, session with
-          | HostTypes.PosixOp.FdClose(HostTypes.FileDescriptor.Scoped token), Some owner ->
-            owner.Consume token
+          | HostTypes.PosixOp.FdClose(HostTypes.FileDescriptor.Scoped token),
+            Some owner -> owner.Consume token
           | _ -> ()
           resolved.execute ()
         Ok { checks = scoped.checks @ baseChecks; execute = execute }
@@ -1134,10 +1252,14 @@ let private performWithSession
           match session with
           | None -> Task.FromResult invalidDescriptor
           | Some owner ->
-            match resolveProcess program args (fun program args ->
-              blocking (fun () ->
-                HostProcess.startChild program args inheritTerminal
-                |> owner.RegisterChild |> Response.ChildHandle |> Ok)) with
+            match
+              resolveProcess program args (fun program args ->
+                blocking (fun () ->
+                  HostProcess.startChild program args inheritTerminal
+                  |> owner.RegisterChild
+                  |> Response.ChildHandle
+                  |> Ok))
+            with
             | Error message -> Task.FromResult(Outcome.Rejected message)
             | Ok resolved ->
               match firstDenial relax access resolved.checks with
@@ -1148,9 +1270,14 @@ let private performWithSession
             match session |> Option.bind (fun owner -> owner.FindChild handle) with
             | None -> Error invalidDescriptor
             | Some entry ->
-              match withChecks
-                      [ Permission.Request.processSpawn entry.child.program entry.child.args,
-                        $"waiting for child `{entry.child.program}`" ] (produce (fun () -> Response.Unit)) with
+              match
+                withChecks
+                  [ Permission.Request.processSpawn
+                      entry.child.program
+                      entry.child.args,
+                    $"waiting for child `{entry.child.program}`" ]
+                  (produce (fun () -> Response.Unit))
+              with
               | Error message -> Error(Outcome.Rejected message)
               | Ok resolved ->
                 match firstDenial relax access resolved.checks with
@@ -1158,16 +1285,21 @@ let private performWithSession
                 | None -> Ok(HostProcess.prepareChildWait entry.child)
           Task.Run(fun () ->
             try
-              let prepared = match session with
-                             | Some owner -> owner.WithChildLease(handle, prepare)
-                             | None -> prepare ()
+              let prepared =
+                match session with
+                | Some owner -> owner.WithChildLease(handle, prepare)
+                | None -> prepare ()
               match prepared with
               | Error outcome -> outcome
-              | Ok wait -> Outcome.Success(Response.ChildStatus(Some (wait ())))
-            with e -> Outcome.Failed(classify e))
-        | Operation.ChildDescriptors handle | Operation.ChildPoll handle
-        | Operation.ChildKill handle | Operation.ChildClose handle
-        | Operation.ChildClosePort(handle, _) | Operation.ChildBufferGet(handle, _)
+              | Ok wait -> Outcome.Success(Response.ChildStatus(Some(wait ())))
+            with e ->
+              Outcome.Failed(classify e))
+        | Operation.ChildDescriptors handle
+        | Operation.ChildPoll handle
+        | Operation.ChildKill handle
+        | Operation.ChildClose handle
+        | Operation.ChildClosePort(handle, _)
+        | Operation.ChildBufferGet(handle, _)
         | Operation.ChildBufferSet(handle, _, _) ->
           let run () =
             match session |> Option.bind (fun owner -> owner.FindChild handle) with
@@ -1175,20 +1307,32 @@ let private performWithSession
             | Some entry ->
               let checks =
                 match op with
-                | Operation.ChildClose _ | Operation.ChildClosePort _ -> []
+                | Operation.ChildClose _
+                | Operation.ChildClosePort _ -> []
                 | _ ->
                   let request =
-                    match Permission.Request.processSpawn entry.child.program entry.child.args with
+                    match
+                      Permission.Request.processSpawn
+                        entry.child.program
+                        entry.child.args
+                    with
                     | Ok request -> request
-                    | Error message -> Exception.raiseInternal "invalid retained process grant" [ "message", message ]
+                    | Error message ->
+                      Exception.raiseInternal
+                        "invalid retained process grant"
+                        [ "message", message ]
                   [ request, $"using child `{entry.child.program}`" ]
               match firstDenial relax access checks with
               | Some denied -> denied
               | None ->
                 try
                   match op with
-                  | Operation.ChildDescriptors _ -> Outcome.Success(Response.ChildDescriptors entry.ports)
-                  | Operation.ChildPoll _ -> Outcome.Success(Response.ChildStatus(HostProcess.pollChild entry.child))
+                  | Operation.ChildDescriptors _ ->
+                    Outcome.Success(Response.ChildDescriptors entry.ports)
+                  | Operation.ChildPoll _ ->
+                    Outcome.Success(
+                      Response.ChildStatus(HostProcess.pollChild entry.child)
+                    )
                   | Operation.ChildKill _ ->
                     HostProcess.killChild entry.child
                     Outcome.Success Response.Unit
@@ -1199,19 +1343,27 @@ let private performWithSession
                     match session with
                     | Some owner ->
                       match owner.CloseChildPort(handle, index) with
-                      | Ok () -> Outcome.Success Response.Unit
-                      | Error(errno, message) -> Outcome.Failed { kind = FailureKind.Other; errno = errno; message = message }
+                      | Ok() -> Outcome.Success Response.Unit
+                      | Error(errno, message) ->
+                        Outcome.Failed
+                          { kind = FailureKind.Other
+                            errno = errno
+                            message = message }
                     | None -> invalidDescriptor
                   | Operation.ChildBufferGet(_, index) ->
-                    if index < 0 || index > 1 then invalidDescriptor
-                    else Outcome.Success(Response.Bytes entry.buffers[index])
+                    if index < 0 || index > 1 then
+                      invalidDescriptor
+                    else
+                      Outcome.Success(Response.Bytes entry.buffers[index])
                   | Operation.ChildBufferSet(_, index, bytes) ->
-                    if index < 0 || index > 1 then invalidDescriptor
+                    if index < 0 || index > 1 then
+                      invalidDescriptor
                     else
                       entry.buffers[index] <- bytes
                       Outcome.Success Response.Unit
                   | _ -> Exception.raiseInternal "unexpected child operation" []
-                with e -> Outcome.Failed(classify e)
+                with e ->
+                  Outcome.Failed(classify e)
           Task.Run(fun () ->
             match session with
             | Some owner -> owner.WithChildLease(handle, run)
@@ -1229,7 +1381,8 @@ let private performWithSession
                 // through the kernel call, including close and multi-fd copy.
                 (execute resolved.execute).GetAwaiter().GetResult()
           let tokens =
-            descriptorUses posix |> List.choose (function
+            descriptorUses posix
+            |> List.choose (function
               | HostTypes.FileDescriptor.Scoped token, _ -> Some token
               | _ -> None)
           if tokens <> [] then

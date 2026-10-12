@@ -734,7 +734,13 @@ type Scheduler(quantum : int64) =
     match ex with
     | RT.RuntimeErrorException(_, rte) ->
       this.Finish(p, Error(rte, Execution.callStackFromVM p.vm))
+    | ex when (Exception.findStoreCondition ex).IsSome ->
+      this.Finish(
+        p,
+        Error(Execution.storeCondition ex, Execution.callStackFromVM p.vm)
+      )
     | ex ->
+      Execution.exitIfOutOfMemory ex
       let metadata : Metadata =
         Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
       try

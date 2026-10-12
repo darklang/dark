@@ -186,15 +186,18 @@ let lastError () : int * string =
   (errno, $"OS error {errno}")
 
 let getcwdBytes (count : int) : Result<byte[], int * string> =
-  if isWasm then Managed.enosys ()
-  elif count <= 0 then Error(22, "invalid getcwd buffer")
+  if isWasm then
+    Managed.enosys ()
+  elif count <= 0 then
+    Error(22, "invalid getcwd buffer")
   else
     let bytes = Array.zeroCreate<byte> count
     let rc = getcwdBytes_raw bytes
     if rc < 0 then Error(lastError ()) else Ok(Array.take rc bytes)
 
 let fcntlGetPath (fd : int) : Result<byte[], int * string> =
-  if isWasm then Managed.enosys ()
+  if isWasm then
+    Managed.enosys ()
   else
     // XNU F_GETPATH has no length argument: its ABI requires MAXPATHLEN.
     let bytes = Array.zeroCreate<byte> 1024
@@ -293,8 +296,7 @@ let unlinkAt (path : string) (flags : int) : Result<unit, int * string> =
   else
     withParent path (fun d n -> unitResult (unlinkat_raw (d, n, flags)))
 
-let rmdir (path : string) : Result<unit, int * string> =
-  unlinkAt path AT_REMOVEDIR
+let rmdir (path : string) : Result<unit, int * string> = unlinkAt path AT_REMOVEDIR
 
 let unlink (path : string) : Result<unit, int * string> = unlinkAt path 0
 
@@ -314,15 +316,13 @@ let symlink (target : string) (linkpath : string) : Result<unit, int * string> =
 let readlinkBytes (path : string) (count : int) : Result<byte[], int * string> =
   if isWasm then
     Managed.enosys ()
-  elif count <= 0 then Error(22, "readlink count must be positive")
+  elif count <= 0 then
+    Error(22, "readlink count must be positive")
   else
     withParent path (fun d n ->
       let buf = Array.zeroCreate<byte> count
       let len = readlinkat_raw (d, n, buf, count)
-      if len < 0 then
-        failed ()
-      else
-        Ok(Array.take len buf))
+      if len < 0 then failed () else Ok(Array.take len buf))
 
 /// Six random name characters, as mkstemp uses.
 let private randomSuffix () : string =
@@ -406,7 +406,8 @@ let statBuffer (path : string) : Result<byte[], int * string> =
 
 /// One kernel directory read. No iteration, name filtering, or record decoding.
 let directoryBytes (fd : int) (count : int) : Result<byte[], int * string> =
-  if count < 0 then Error(22, "Invalid argument")
+  if count < 0 then
+    Error(22, "Invalid argument")
   elif isWasm || OperatingSystem.IsWindows() then
     Error(38, "kernel directory reads unavailable on this target")
   else
@@ -449,47 +450,65 @@ let private withLinuxMetadataPath path action =
   withLinuxMetadataDescriptor path (fun fd -> action $"/proc/self/fd/{fd}")
 
 let fclonefileAt source path flags : Result<unit, int * string> =
-  if isWasm then Managed.enosys ()
-  elif not isMac then Error(38, "fclonefileat is unavailable")
+  if isWasm then
+    Managed.enosys ()
+  elif not isMac then
+    Error(38, "fclonefileat is unavailable")
   else
     let metadata = Array.zeroCreate<byte> 256
-    if fstat_raw (source, metadata) < 0 then failed ()
+    if fstat_raw (source, metadata) < 0 then
+      failed ()
     // A single-file capability must never authorize recursive directory clone.
     elif int (BitConverter.ToUInt16(metadata, 4)) &&& 0o170000 <> 0o100000 then
       Error(21, "file clone requires a regular source file")
     else
       withParent path (fun parent name ->
-        if fclonefileat_raw (source, parent, name, flags ||| 1) < 0 then failed () else Ok ())
+        if fclonefileat_raw (source, parent, name, flags ||| 1) < 0 then
+          failed ()
+        else
+          Ok())
 
 let inotifyInit1 flags : Result<int, int * string> =
-  if isWasm then Managed.enosys ()
+  if isWasm then
+    Managed.enosys ()
   else
     let fd = inotifyInit1_raw flags
     if fd < 0 then failed () else Ok fd
 
 let inotifyAddWatch fd path mask : Result<int, int * string> =
-  if isWasm || isMac then Error((if isMac then 78 else 38), "inotify is unavailable")
+  if isWasm || isMac then
+    Error((if isMac then 78 else 38), "inotify is unavailable")
   else
     withLinuxMetadataPath path (fun heldPath ->
       // The final user entry was checked without following links. The internal
       // procfd link names that held inode, so IN_DONT_FOLLOW must not inspect it.
-      let wd = inotifyAddWatch_raw (fd, heldPath, mask &&& ~~~0x02000000)
+      let wd = inotifyAddWatch_raw (fd, heldPath, mask &&& ~~~ 0x02000000)
       if wd < 0 then failed () else Ok wd)
 
 /// Marshal pollfd/timespec ABI only. Return every raw pollfd, including revents;
 /// interpreting readiness, retrying EINTR, and draining queues belong in Dark.
-let pollDescriptors darwin (fds : List<int * int>) timeoutMs : Result<byte[], int * string> =
-  if isWasm then Managed.enosys ()
-  elif timeoutMs < 0 || List.length fds > 1024
-       || List.exists (fun (_, events) -> events < 0 || events > 32767) fds then
+let pollDescriptors
+  darwin
+  (fds : List<int * int>)
+  timeoutMs
+  : Result<byte[], int * string> =
+  if isWasm then
+    Managed.enosys ()
+  elif
+    timeoutMs < 0
+    || List.length fds > 1024
+    || List.exists (fun (_, events) -> events < 0 || events > 32767) fds
+  then
     Error(22, "invalid poll arguments")
   else
     let bytes = Array.zeroCreate<byte> (max 1 (List.length fds * 8))
-    fds |> List.iteri (fun index (fd, events) ->
+    fds
+    |> List.iteri (fun index (fd, events) ->
       BitConverter.GetBytes(fd).CopyTo(bytes, index * 8)
       BitConverter.GetBytes(int16 events).CopyTo(bytes, index * 8 + 4))
     let rc =
-      if darwin then pollDarwin_raw (bytes, List.length fds, timeoutMs)
+      if darwin then
+        pollDarwin_raw (bytes, List.length fds, timeoutMs)
       else
         let width = if isArm32 then 4 else 8
         let timeout = Array.zeroCreate<byte> (width * 2)
@@ -498,24 +517,41 @@ let pollDescriptors darwin (fds : List<int * int>) timeoutMs : Result<byte[], in
           BitConverter.GetBytes((timeoutMs % 1000) * 1000000).CopyTo(timeout, width)
         else
           BitConverter.GetBytes(int64 (timeoutMs / 1000)).CopyTo(timeout, 0)
-          BitConverter.GetBytes(int64 ((timeoutMs % 1000) * 1000000)).CopyTo(timeout, width)
+          BitConverter
+            .GetBytes(int64 ((timeoutMs % 1000) * 1000000))
+            .CopyTo(timeout, width)
         ppoll_raw (bytes, List.length fds, timeout)
-    if rc < 0 then failed () else Ok (bytes |> Array.take (List.length fds * 8))
+    if rc < 0 then failed () else Ok(bytes |> Array.take (List.length fds * 8))
 
 let kqueue () : Result<int, int * string> =
-  if isWasm then Managed.enosys ()
+  if isWasm then
+    Managed.enosys ()
   else
     let fd = kqueue_raw ()
     if fd < 0 then failed () else Ok fd
 
-let keventVnode fd (changes : List<int * int * int>) capacity timeoutMs : Result<byte[], int * string> =
-  if isWasm then Managed.enosys ()
-  elif capacity < 0 || capacity > 1024 || timeoutMs < 0 || List.length changes > 1024
-       || List.exists (fun (_, flags, mask) -> flags < 0 || flags > 65535 || mask < 0) changes then
+let keventVnode
+  fd
+  (changes : List<int * int * int>)
+  capacity
+  timeoutMs
+  : Result<byte[], int * string> =
+  if isWasm then
+    Managed.enosys ()
+  elif
+    capacity < 0
+    || capacity > 1024
+    || timeoutMs < 0
+    || List.length changes > 1024
+    || List.exists
+      (fun (_, flags, mask) -> flags < 0 || flags > 65535 || mask < 0)
+      changes
+  then
     Error(22, "invalid kevent arguments")
   else
     let input = Array.zeroCreate<byte> (max 1 (List.length changes * 32))
-    changes |> List.iteri (fun index (source, flags, mask) ->
+    changes
+    |> List.iteri (fun index (source, flags, mask) ->
       BitConverter.GetBytes(int64 source).CopyTo(input, index * 32)
       BitConverter.GetBytes(-4s).CopyTo(input, index * 32 + 8)
       BitConverter.GetBytes(uint16 flags).CopyTo(input, index * 32 + 10)
@@ -524,10 +560,11 @@ let keventVnode fd (changes : List<int * int * int>) capacity timeoutMs : Result
     let timeout = Array.zeroCreate<byte> 16
     BitConverter.GetBytes(int64 (timeoutMs / 1000)).CopyTo(timeout, 0)
     BitConverter.GetBytes(int64 ((timeoutMs % 1000) * 1000000)).CopyTo(timeout, 8)
-    let count = kevent_raw (fd, input, List.length changes, output, capacity, timeout)
+    let count =
+      kevent_raw (fd, input, List.length changes, output, capacity, timeout)
     if count < 0 then failed ()
     elif count > capacity then Error(5, "invalid kevent count")
-    else Ok (Array.take (count * 32) output)
+    else Ok(Array.take (count * 32) output)
 
 let chmod (path : string) (mode : int) : Result<unit, int * string> =
   if isWasm then
@@ -549,12 +586,23 @@ let chmod (path : string) (mode : int) : Result<unit, int * string> =
         failed ())
 
 /// ABI marshalling only: Dark selects timestamps and the NOW sentinel.
-let utimensAt (path : string) (accessSec : int64) (accessNanos : int64)
-  (modifySec : int64) (modifyNanos : int64) : Result<unit, int * string> =
-  if isMac then Error(78, "Function not implemented")
-  elif isWasm then Managed.enosys ()
-  elif isArm32 && ([ accessSec; accessNanos; modifySec; modifyNanos ]
-    |> List.exists (fun value -> value < int64 System.Int32.MinValue || value > int64 System.Int32.MaxValue)) then
+let utimensAt
+  (path : string)
+  (accessSec : int64)
+  (accessNanos : int64)
+  (modifySec : int64)
+  (modifyNanos : int64)
+  : Result<unit, int * string> =
+  if isMac then
+    Error(78, "Function not implemented")
+  elif isWasm then
+    Managed.enosys ()
+  elif
+    isArm32
+    && ([ accessSec; accessNanos; modifySec; modifyNanos ]
+        |> List.exists (fun value ->
+          value < int64 System.Int32.MinValue || value > int64 System.Int32.MaxValue))
+  then
     Error(75, "timestamp does not fit this kernel ABI")
   else
     let width = if isArm32 then 4 else 8
@@ -562,26 +610,38 @@ let utimensAt (path : string) (accessSec : int64) (accessNanos : int64)
     try
       [ accessSec; accessNanos; modifySec; modifyNanos ]
       |> List.iteri (fun index value ->
-        if width = 4 then Marshal.WriteInt32(times, index * width, int value)
-        else Marshal.WriteInt64(times, index * width, value))
+        if width = 4 then
+          Marshal.WriteInt32(times, index * width, int value)
+        else
+          Marshal.WriteInt64(times, index * width, value))
       // Bind updates to a held inode and reject final symlinks.
       withLinuxMetadataDescriptor path (fun fd ->
         let rc = utimensat_raw (fd, "", times, AT_EMPTY_PATH)
-        if rc >= 0 then Ok()
+        if rc >= 0 then
+          Ok()
         elif Marshal.GetLastPInvokeError() = 22 then
           unitResult (utimensat_raw (-100, $"/proc/self/fd/{fd}", times, 0))
-        else failed ())
-    finally Marshal.FreeHGlobal times
+        else
+          failed ())
+    finally
+      Marshal.FreeHGlobal times
 
-let setattrlistTimes (path : string) (accessSec : int64) (accessNanos : int64)
-  (modifySec : int64) (modifyNanos : int64) : Result<unit, int * string> =
-  if isWasm || not isMac then Managed.enosys ()
+let setattrlistTimes
+  (path : string)
+  (accessSec : int64)
+  (accessNanos : int64)
+  (modifySec : int64)
+  (modifyNanos : int64)
+  : Result<unit, int * string> =
+  if isWasm || not isMac then
+    Managed.enosys ()
   else
     withParent path (fun d n ->
       // XNU attribute order is MODTIME followed by ACCTIME.
       let times = Array.zeroCreate<byte> 32
       [ modifySec; modifyNanos; accessSec; accessNanos ]
-      |> List.iteri (fun index value -> BitConverter.GetBytes(value).CopyTo(times, index * 8))
+      |> List.iteri (fun index value ->
+        BitConverter.GetBytes(value).CopyTo(times, index * 8))
       unitResult (setattrlistat_raw (d, n, times)))
 
 /// Extracts (mode, size, mtimeSec) from a struct stat buffer. Offsets are
@@ -616,13 +676,15 @@ let stat (path : string) : Result<int * int64 * int64, int * string> =
 
 /// Single-call raw records; shared Dark code selects and decodes fields.
 let private clockRecord size call : Result<byte[], int * string> =
-  if isWasm then Managed.enosys ()
+  if isWasm then
+    Managed.enosys ()
   else
     let bytes = Array.zeroCreate<byte> size
     if call bytes < 0 then failed () else Ok bytes
 
 let clockGettime clock =
-  clockRecord (if isArm32 then 8 else 16) (fun bytes -> clockGettime_raw (clock, bytes))
+  clockRecord (if isArm32 then 8 else 16) (fun bytes ->
+    clockGettime_raw (clock, bytes))
 let gettimeofday () = clockRecord (if isArm32 then 8 else 16) gettimeofday_raw
 let machAbsoluteTime () = clockRecord 8 machAbsoluteTime_raw
 let machTimebaseInfo () = clockRecord 8 machTimebaseInfo_raw
@@ -632,9 +694,15 @@ let nanosleep (seconds : int64) (nanos : int64) : int * byte[] =
   let width = if isArm32 then 4 else 8
   let request = Array.zeroCreate<byte> (width * 2)
   let remaining = Array.zeroCreate<byte> (width * 2)
-  if isWasm then (-38, remaining)
-  elif seconds < 0L || nanos < 0L || nanos >= 1000000000L then (-22, remaining)
-  elif width = 4 && (seconds < int64 System.Int32.MinValue || seconds > int64 System.Int32.MaxValue) then
+  if isWasm then
+    (-38, remaining)
+  elif seconds < 0L || nanos < 0L || nanos >= 1000000000L then
+    (-22, remaining)
+  elif
+    width = 4
+    && (seconds < int64 System.Int32.MinValue
+        || seconds > int64 System.Int32.MaxValue)
+  then
     (-75, remaining)
   else
     if width = 4 then
@@ -644,27 +712,32 @@ let nanosleep (seconds : int64) (nanos : int64) : int * byte[] =
       BitConverter.GetBytes(seconds).CopyTo(request, 0)
       BitConverter.GetBytes(nanos).CopyTo(request, width)
     let rc = nanosleep_raw (request, remaining)
-    (if rc < 0 then -Marshal.GetLastPInvokeError() else rc), remaining
+    (if rc < 0 then - Marshal.GetLastPInvokeError() else rc), remaining
 
 let unameBytes () : Result<byte[], int * string> =
-  if isWasm then Managed.enosys ()
+  if isWasm then
+    Managed.enosys ()
   else
     let bytes = Array.zeroCreate<byte> 390
     if unameBytes_raw bytes < 0 then failed () else Ok bytes
 
 let sysctlBytes (mib : List<int>) (count : int) : Result<byte[], int * string> =
-  if isWasm then Managed.enosys ()
-  elif count <= 0 || List.isEmpty mib then Error(22, "invalid sysctl buffer")
+  if isWasm then
+    Managed.enosys ()
+  elif count <= 0 || List.isEmpty mib then
+    Error(22, "invalid sysctl buffer")
   else
     let mibBytes = mib |> List.map BitConverter.GetBytes |> Array.concat
     let buffer = Marshal.AllocHGlobal count
     let size = Marshal.AllocHGlobal IntPtr.Size
     try
       Marshal.WriteIntPtr(size, IntPtr count)
-      if sysctl_raw (mibBytes, buffer, size) < 0 then failed ()
+      if sysctl_raw (mibBytes, buffer, size) < 0 then
+        failed ()
       else
         let length = Marshal.ReadIntPtr(size).ToInt64()
-        if length < 0L || length > int64 count then Error(5, "invalid kernel record length")
+        if length < 0L || length > int64 count then
+          Error(5, "invalid kernel record length")
         else
           let bytes = Array.zeroCreate<byte> (int length)
           Marshal.Copy(buffer, bytes, 0, bytes.Length)
@@ -674,8 +747,10 @@ let sysctlBytes (mib : List<int>) (count : int) : Result<byte[], int * string> =
       Marshal.FreeHGlobal buffer
 
 let schedGetaffinity (pid : int) (count : int) : Result<byte[], int * string> =
-  if isWasm then Managed.enosys ()
-  elif count <= 0 then Error(22, "affinity count must be positive")
+  if isWasm then
+    Managed.enosys ()
+  elif count <= 0 then
+    Error(22, "affinity count must be positive")
   else
     let bytes = Array.zeroCreate<byte> count
     let length = schedGetaffinity_raw (pid, bytes)
@@ -775,25 +850,34 @@ let fdClose (fd : int) : Result<unit, int * string> =
   else Ok()
 
 let copyFileRange source destination count : Result<int64, int * string> =
-  if count < 0 then Error(22, "Invalid argument")
-  elif isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  if count < 0 then
+    Error(22, "Invalid argument")
+  elif isWasm || OperatingSystem.IsWindows() then
+    Error(38, "unavailable")
   else
     let rc = copyFileRange_raw (source, destination, count)
     if rc < 0L then failed () else Ok rc
 
 let cloneFile (source : int) (destination : int) : Result<unit, int * string> =
-  if isMac || isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
-  else unitResult (ioctl_raw (destination, 0x40049409UL, IntPtr source))
+  if isMac || isWasm || OperatingSystem.IsWindows() then
+    Error(38, "unavailable")
+  else
+    unitResult (ioctl_raw (destination, 0x40049409UL, IntPtr source))
 
 let ftruncate fd length =
-  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
-  else unitResult (ftruncate_raw (fd, length))
+  if isWasm || OperatingSystem.IsWindows() then
+    Error(38, "unavailable")
+  else
+    unitResult (ftruncate_raw (fd, length))
 let fchmod fd mode =
-  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
-  else unitResult (fchmod_raw (fd, mode))
+  if isWasm || OperatingSystem.IsWindows() then
+    Error(38, "unavailable")
+  else
+    unitResult (fchmod_raw (fd, mode))
 
 let fstat fd : Result<byte[], int * string> =
-  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  if isWasm || OperatingSystem.IsWindows() then
+    Error(38, "unavailable")
   else
     let bytes = Array.zeroCreate<byte> 256
     let rc = fstat_raw (fd, bytes)
@@ -801,8 +885,10 @@ let fstat fd : Result<byte[], int * string> =
 
 /// One entropy call. Dark owns filling/retry loops. Darwin caps requests at 256.
 let getentropy count : Result<byte[], int * string> =
-  if count < 0 || count > 256 then Error(22, "Invalid argument")
-  elif isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  if count < 0 || count > 256 then
+    Error(22, "Invalid argument")
+  elif isWasm || OperatingSystem.IsWindows() then
+    Error(38, "unavailable")
   else
     let bytes = Array.zeroCreate<byte> count
     let rc = getentropy_raw bytes
@@ -811,15 +897,18 @@ let getentropy count : Result<byte[], int * string> =
     else Ok(Array.take rc bytes)
 
 let pread fd count offset : Result<byte[], int * string> =
-  if count < 0 then Error(22, "Invalid argument")
-  elif isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  if count < 0 then
+    Error(22, "Invalid argument")
+  elif isWasm || OperatingSystem.IsWindows() then
+    Error(38, "unavailable")
   else
     let bytes = Array.zeroCreate<byte> count
     let rc = pread_raw (fd, bytes, offset)
     if rc < 0 then failed () else Ok(Array.take rc bytes)
 
 let pwrite fd bytes offset : Result<int, int * string> =
-  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  if isWasm || OperatingSystem.IsWindows() then
+    Error(38, "unavailable")
   else
     let rc = pwrite_raw (fd, bytes, offset)
     if rc < 0 then failed () else Ok rc

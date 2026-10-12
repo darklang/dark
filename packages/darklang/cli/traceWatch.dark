@@ -21,7 +21,8 @@ val fnKey = "traces.watch.fn"
 
 
 type Model =
-  { branchId: Uuid
+  { accountID: Stdlib.Option.Option<Uuid>
+    branchId: Uuid
     /// The function being watched, as the trace index names it.
     fn: String
     /// The traces that went through it, newest first.
@@ -56,6 +57,7 @@ type Msg = | Refresh
 /// Returns the reason in place of the source when there is nothing to show, so the panel always
 /// has something true in it rather than going blank.
 let annotate
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
   (fn: String)
   (trace: Stdlib.Option.Option<Darklang.Tracing.Trace>)
@@ -77,7 +79,7 @@ let annotate
         ([ $"{fn} resolves to a version this store cannot load" ],
          Stdlib.Option.Option.None)
       | Some fnDef ->
-        let (collected, stop) = Darklang.Tracing.Store.viewTrace branchId r.id
+        let (collected, stop) = Darklang.Tracing.Store.viewTrace accountID branchId r.id
         let problem = Cli.TraceVerbs.problemJson branchId r.id stop
 
         let values =
@@ -139,6 +141,7 @@ let clockFreeTime (created: String) : String =
 /// and a tick cannot drift apart in what they show.
 ///
 let reload
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
   (fn: String)
   (cursor: Int)
@@ -148,7 +151,7 @@ let reload
   let storeVersion = Stdlib.Live.version ()
   let traces = Darklang.Tracing.Store.wentThroughNamed branchId fn 25L
   let cursor = pickCursor (traces |> Stdlib.List.map (fun r -> r.id)) cursor keep
-  let (source, problem) = annotate branchId fn (Stdlib.List.getAt traces cursor)
+  let (source, problem) = annotate accountID branchId fn (Stdlib.List.getAt traces cursor)
 
   let traceLines =
     traces
@@ -160,7 +163,8 @@ let reload
       $"{mark}{id}  {status}{at}{Cli.Text.oneLineAt 40 r.input}")
 
   Model
-    { branchId = branchId
+    { accountID = accountID
+      branchId = branchId
       fn = fn
       traces = traces
       traceLines = traceLines
@@ -171,11 +175,12 @@ let reload
 
 
 let init () : Model =
+  let (accountID, _) = Cli.restoreSessionAccount ()
   let branchId = SCM.PackageOps.currentBranch ()
 
   let fn = Stdlib.LocalStore.configGet fnKey
 
-  reload branchId fn 0 Stdlib.Option.Option.None
+  reload accountID branchId fn 0 Stdlib.Option.Option.None
 
 
 let update (m: Model) (event: Apps.Host.Event<Msg>) : Model =
@@ -189,11 +194,11 @@ let update (m: Model) (event: Apps.Host.Event<Msg>) : Model =
     // Stay on the trace being read, not on its position in a list that grows from the top.
     let here =
       m.traces |> Stdlib.List.getAt m.cursor |> Stdlib.Option.map (fun r -> r.id)
-    reload m.branchId m.fn m.cursor here
+    reload m.accountID m.branchId m.fn m.cursor here
   | Key k ->
     match k.key with
-    | UpArrow -> reload m.branchId m.fn (m.cursor - 1) Stdlib.Option.Option.None
-    | DownArrow -> reload m.branchId m.fn (m.cursor + 1) Stdlib.Option.Option.None
+    | UpArrow -> reload m.accountID m.branchId m.fn (m.cursor - 1) Stdlib.Option.Option.None
+    | DownArrow -> reload m.accountID m.branchId m.fn (m.cursor + 1) Stdlib.Option.Option.None
     | _ -> m
 
 

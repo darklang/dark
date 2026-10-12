@@ -249,6 +249,13 @@ module Function =
     : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
     Builtin.pmGetFn hash
 
+  /// The fn at <param hash> with its body replaced by `()`, for a caller that only reads the
+  /// signature. Cheaper than `get`: the body is never converted into Dark values.
+  let getSignature
+    (hash: ProgramTypes.FQFnName.Package)
+    : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
+    Builtin.pmGetFnSignature hash
+
   /// Every name this fn is bound to on <param branchId>.
   let locations
     (branchId: Uuid)

@@ -52,8 +52,10 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt ticks |] ->
           inDateRange vm (fun () ->
-            intToInt64 vm ticks |> Instant.FromUnixTimeTicks
-            |> DarkDateTime.fromInstant |> DDateTime)
+            intToInt64 vm ticks
+            |> Instant.FromUnixTimeTicks
+            |> DarkDateTime.fromInstant
+            |> DDateTime)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

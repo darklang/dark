@@ -155,8 +155,8 @@ check "ls"             ""    ls
 check "ls a module"    ""    ls Darklang.Stdlib.List
 
 # The HTTP client's whole TLS stack, which is reflection-heavy and entirely
-# absent from every other check here.
-check "version check"  ""    version --check
+# absent from every other check here. Bare `version` is what asks GitHub.
+check "version check"  ""    version
 
 # Run it the way a user does: from outside the checkout entirely.
 #

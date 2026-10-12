@@ -218,7 +218,7 @@ module RuntimeTypes =
       RT.DApplicable(
         RT.AppLambda
           { exprId = 7UL
-            closedRegisters = []
+            closedRegisters = [||]
             typeSymbolTable = RT.TST.empty
             access =
               LibExecution.Permissions.Access.start

@@ -11,6 +11,7 @@ type private Capture() =
   member val All = System.Text.StringBuilder()
   member val Out = System.Text.StringBuilder()
   member val Err = System.Text.StringBuilder()
+  member val Active = true with get, set
 
 type private Private() =
 
@@ -117,7 +118,7 @@ type private Private() =
       let captured =
         lock captureLock (fun () ->
           let c = captureBuffer.Value
-          if isNull (box c) then
+          if isNull (box c) || not c.Active then
             false
           else
             c.All.Append(value) |> ignore
@@ -135,7 +136,8 @@ type private Private() =
   /// refusing is better than silently discarding the outer capture's output.
   static member StartCapture() : bool =
     lock captureLock (fun () ->
-      if isNull (box captureBuffer.Value) then
+      let c = captureBuffer.Value
+      if isNull (box c) || not c.Active then
         captureBuffer.Value <- Capture()
         true
       else
@@ -148,6 +150,9 @@ type private Private() =
       if isNull (box c) then
         ("", "", "")
       else
+        // Child tasks retain the AsyncLocal reference after their parent stops.
+        // Closing the buffer makes their later writes visible on the console.
+        c.Active <- false
         (c.All.ToString(), c.Out.ToString(), c.Err.ToString()))
 
 

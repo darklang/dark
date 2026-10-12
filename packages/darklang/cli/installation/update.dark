@@ -15,7 +15,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | _ :: _ ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.FlagParser.parseErrorsMessage parsed.errors))
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
   | [] ->
 
   let pinned = Cli.FlagParser.getOption parsed "--to"

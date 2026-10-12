@@ -652,14 +652,15 @@ let private psSeesTheWholeGroup =
 let private traceCarriesProcessAndSeq =
   testTask
     "a trace written by two processes on two workers keeps each one's calls apart" {
+    Trace.take () |> ignore<List<string>>
     let! state = executionStateFor pmPT false Map.empty
     let! instrs =
       instrsFor
         // Impure on purpose: only impure calls are recorded, so a pure loop would write a
         // trace with no rows in it and prove nothing about which process wrote what.
-        """(let shout (n: Int64) : Unit = Stdlib.printLine (Stdlib.toString n)
+        """(let record (n: Int64) : Unit = Builtin.testTrace (Stdlib.toString n)
             let loop (n: Int64) : Unit =
-              if n == 0L then () else (shout n
+              if n == 0L then () else (record n
                                        loop (n - 1L))
             loop 20L)"""
     LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
@@ -709,6 +710,7 @@ let private traceCarriesProcessAndSeq =
                 "each process's ordinals count from zero, on their own"
           })
     finally
+      Trace.take () |> ignore<List<string>>
       LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
   }
 
@@ -1232,13 +1234,19 @@ let private parkedOnAHostOperation =
     waitFor "the process to park on the host" (fun () ->
       match p.status with
       | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.Ppoll _)))
-      | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.PollDarwin _))) -> true
+      | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.PollDarwin _))) ->
+        true
       | _ -> false)
     match p.status with
-    | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.Ppoll(descriptors, timeout))))
-    | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.PollDarwin(descriptors, timeout)))) ->
+    | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.Ppoll(descriptors,
+                                                                                                                    timeout))))
+    | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.Posix(LibExecution.HostTypes.PosixOp.PollDarwin(descriptors,
+                                                                                                                         timeout)))) ->
       Expect.isNonEmpty descriptors "parked on owned child pipes"
-      Expect.equal timeout 100 "bounded readiness wait, not a monolithic process Builtin"
+      Expect.equal
+        timeout
+        100
+        "bounded readiness wait, not a monolithic process Builtin"
     | other ->
       failtest $"expected the process parked on the host operation, got {other}"
     let! result = running

@@ -493,7 +493,9 @@ let guestFileApiCannotReachPolicyStore =
 let evaluatedNamedFnInContainerCannotWidenReentry =
   testTask "a named fn captures access before being nested in a container" {
     let! exeState = executionStateFor TestValues.pm false Map.empty
-    let expr = eList [ eBuiltinFn "syscallGettimeofday" 0 ] |> PT2RT.Expr.toRT Map.empty 0 None
+    let expr =
+      eList [ eBuiltinFn "syscallGettimeofday" 0 ]
+      |> PT2RT.Expr.toRT Map.empty 0 None
     let! produced = LibExecution.Execution.executeExpr (denyAll exeState) expr
     match produced with
     | Ok(RT.DList(_, [ RT.DApplicable(RT.AppNamedFn namedFn) ])) ->

@@ -13,7 +13,7 @@ module Darklang.Cli.Commits
 /// colleague keeps their name; an unnamed colleague is shortened to something you can still tell apart.
 /// The conflict list makes the same comparison for the same reason.
 let authorLabel (author: String) : String =
-  if author == SCM.PackageOps.identity () then
+  if SCM.PackageOps.storedIdentity () == Stdlib.Option.Option.Some author then
     "you"
   else if Stdlib.String.startsWith author "inst-" then
     Stdlib.String.slice author 0 13
@@ -156,6 +156,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // A branch name is the thing people put here, because `dark log <branch>` takes one. Answering with
   // the help, or defaulting the count, would be answering plausibly rather than refusing.
   match (args, limit) with
+  | ([ n ], Some l) when l <= 0L ->
+    Cli.printErr $"`dark commits` takes a positive count; got {n}."
+    Cli.exitWith state false
   | ([ n ], None) ->
     Cli.printErr "`dark commits` takes a count, not a branch name."
     Cli.printHint "  this branch's commits:  dark commits"

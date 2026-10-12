@@ -73,7 +73,9 @@ let private callBuiltin (name : string) : PT.Expr =
 let private reviewUniverse =
   [ unitFn "v1" (callBuiltin "syscallGettimeofday")
     unitFn "v2" (eLet (lpUnit ()) (eUnit ()) (callBuiltin "syscallGettimeofday"))
-    unitFn "wider" (eStatement (callBuiltin "fileRead") (callBuiltin "syscallGettimeofday"))
+    unitFn
+      "wider"
+      (eStatement (callBuiltin "fileRead") (callBuiltin "syscallGettimeofday"))
     unitFn "dynamic" (eApply (eVar "callback") [] [ eUnit () ])
     // A root with a dependency: reads a file itself and calls `v1` for the clock.
     unitFn
@@ -88,7 +90,8 @@ let private reviewUniverse =
       (eApply
         (ePackageFn "map-like")
         []
-        [ eArg 0; eLambda (gid ()) [ lpVar "x" ] (callBuiltin "syscallGettimeofday") ]) ]
+        [ eArg 0
+          eLambda (gid ()) [ lpVar "x" ] (callBuiltin "syscallGettimeofday") ]) ]
   |> List.map (fun fn -> fn.hash, fn)
   |> Map.ofList
 
@@ -294,7 +297,10 @@ let unusedNonCallbackParamsStayComplete =
     // The guard is the parameter's declared type, not merely being a variable,
     // so ordinary data arguments must not poison every caller's analysis.
     let root = PT.Hash "ordinary-args"
-    let fn = unitFn "ordinary-args" (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eArg 0 ])
+    let fn =
+      unitFn
+        "ordinary-args"
+        (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eArg 0 ])
     let result = Requirements.forFunction testEffects (closureOf [ fn ]) root
     Expect.isTrue result.complete "a non-function parameter is knowable"
     Expect.equal
@@ -317,7 +323,8 @@ let dependencyCallbacksDoNotMakeCallersIncomplete =
         (eApply
           (ePackageFn "escaping-helper")
           []
-          [ eArg 0; eLambda (gid ()) [ lpVar "x" ] (callBuiltin "syscallGettimeofday") ])
+          [ eArg 0
+            eLambda (gid ()) [ lpVar "x" ] (callBuiltin "syscallGettimeofday") ])
     let result =
       Requirements.forFunction
         testEffects
@@ -445,7 +452,8 @@ let dictionaryKeysAreAnalyzed =
     let fn =
       unitFn
         "dict-key-effect"
-        (eDictOf [ (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ], eInt64 1L) ])
+        (eDictOf
+          [ (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ], eInt64 1L) ])
     let names = (LibExecution.CallGraph.analyzeFn Set.empty fn).names
     Expect.isTrue
       (names

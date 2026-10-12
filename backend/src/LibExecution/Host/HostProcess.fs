@@ -23,17 +23,27 @@ let disposeChild (child : Child) : unit =
   lock child.waitGate (fun () ->
     if not child.closing then
       child.closing <- true
-      try if not child.proc.HasExited then child.proc.Kill() with _ -> ()
+      try
+        if not child.proc.HasExited then child.proc.Kill()
+      with _ ->
+        ()
       // An already-authorized blocking wait must remain usable while cleanup
       // kills the child. Dispose the supervisor after its last waiter returns.
       if child.waiters = 0 then child.proc.Dispose())
 
-let startChild (program : string) (args : List<string>) (inheritTerminal : bool) : Child =
+let startChild
+  (program : string)
+  (args : List<string>)
+  (inheritTerminal : bool)
+  : Child =
   if System.OperatingSystem.IsWindows() || System.OperatingSystem.IsBrowser() then
-    raise (System.PlatformNotSupportedException("owned syscall child pipes require Unix"))
+    raise (
+      System.PlatformNotSupportedException("owned syscall child pipes require Unix")
+    )
   let psi = System.Diagnostics.ProcessStartInfo(program)
   psi.UseShellExecute <- false
-  for arg in args do psi.ArgumentList.Add arg
+  for arg in args do
+    psi.ArgumentList.Add arg
   psi.RedirectStandardInput <- not inheritTerminal
   psi.RedirectStandardOutput <- not inheritTerminal
   psi.RedirectStandardError <- not inheritTerminal
@@ -47,20 +57,21 @@ let startChild (program : string) (args : List<string>) (inheritTerminal : bool)
       handle.DangerousAddRef(&held)
       let fd = int (handle.DangerousGetHandle())
       let command = if System.OperatingSystem.IsMacOS() then 67 else 1030
-      let copy = HostKernel.fcntl_raw(fd, command, 0)
+      let copy = HostKernel.fcntl_raw (fd, command, 0)
       if copy < 0 then raise (System.ComponentModel.Win32Exception(-copy))
       duplicated.Add copy
-      let flags = HostKernel.fcntl_raw(copy, 3, 0)
+      let flags = HostKernel.fcntl_raw (copy, 3, 0)
       if flags < 0 then raise (System.ComponentModel.Win32Exception(-flags))
       let nonblocking = if System.OperatingSystem.IsMacOS() then 4 else 2048
-      let rc = HostKernel.fcntl_raw(copy, 4, flags ||| nonblocking)
+      let rc = HostKernel.fcntl_raw (copy, 4, flags ||| nonblocking)
       if rc < 0 then raise (System.ComponentModel.Win32Exception(-rc))
       copy
     finally
       if held then handle.DangerousRelease()
   try
     let descriptors =
-      if inheritTerminal then []
+      if inheritTerminal then
+        []
       else
         let descriptors =
           [ duplicate proc.StandardInput.BaseStream
@@ -72,11 +83,20 @@ let startChild (program : string) (args : List<string>) (inheritTerminal : bool)
         proc.StandardOutput.Dispose()
         proc.StandardError.Dispose()
         descriptors
-    { proc = proc; program = program; args = args; descriptors = descriptors
-      waitGate = obj (); waiters = 0; closing = false }
+    { proc = proc
+      program = program
+      args = args
+      descriptors = descriptors
+      waitGate = obj ()
+      waiters = 0
+      closing = false }
   with _ ->
-    for fd in duplicated do HostKernel.close_raw fd |> ignore<int>
-    try if not proc.HasExited then proc.Kill() with _ -> ()
+    for fd in duplicated do
+      HostKernel.close_raw fd |> ignore<int>
+    try
+      if not proc.HasExited then proc.Kill()
+    with _ ->
+      ()
     proc.Dispose()
     reraise ()
 
@@ -109,7 +129,10 @@ let setProcessTitle (title : string) : unit =
     try
       let comm =
         let bytes = System.Text.Encoding.UTF8.GetBytes title
-        if bytes.Length <= 15 then title
-        else System.Text.Encoding.UTF8.GetString(bytes, 0, 15)
+        if bytes.Length <= 15 then
+          title
+        else
+          System.Text.Encoding.UTF8.GetString(bytes, 0, 15)
       System.IO.File.WriteAllText("/proc/self/comm", comm)
-    with _ -> ()
+    with _ ->
+      ()

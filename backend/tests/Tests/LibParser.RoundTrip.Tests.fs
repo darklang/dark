@@ -202,7 +202,7 @@ module RoundTripExpect =
       |> List.collect (fun (k, v) -> collectUnresolved k.Dval @ collectUnresolved v)
     | RT.DApplicable(RT.AppLambda lambda) ->
       let closed =
-        lambda.closedRegisters
+        RT.Captures.toList lambda.closedRegisters
         |> List.collect (fun (_, value) -> collectUnresolved value)
       closed @ (lambda.argsSoFar |> List.collect collectUnresolved)
     | RT.DApplicable(RT.AppNamedFn namedFn) ->

@@ -21,19 +21,31 @@ let private make name parameters returnType body : BuiltInFn =
     deprecated = NotDeprecated }
 
 let fns () =
-  [ make "runtimeRealtimeTicks" [ Param.make "unit" TUnit "" ] TInt
+  [ make "runtimeRealtimeTicks" [ Param.make "unit" TUnit "" ] TInt (function
+      | _, _, _, [| DUnit |] ->
+        NodaTime.SystemClock.Instance.GetCurrentInstant().ToUnixTimeTicks()
+        |> bigint
+        |> Dval.int
+        |> Ply
+      | _ -> incorrectArgs ())
+    make
+      "runtimeMonotonicCounter"
+      [ Param.make "unit" TUnit "" ]
+      (TTuple(TInt, TInt, []))
       (function
        | _, _, _, [| DUnit |] ->
-         NodaTime.SystemClock.Instance.GetCurrentInstant().ToUnixTimeTicks()
-         |> bigint |> Dval.int |> Ply
+         Ply(
+           DTuple(
+             Dval.int (bigint (System.Diagnostics.Stopwatch.GetTimestamp())),
+             Dval.int (bigint System.Diagnostics.Stopwatch.Frequency),
+             []
+           )
+         )
        | _ -> incorrectArgs ())
-    make "runtimeMonotonicCounter" [ Param.make "unit" TUnit "" ] (TTuple(TInt, TInt, []))
-      (function
-       | _, _, _, [| DUnit |] ->
-         Ply(DTuple(Dval.int (bigint (System.Diagnostics.Stopwatch.GetTimestamp())),
-           Dval.int (bigint System.Diagnostics.Stopwatch.Frequency), []))
-       | _ -> incorrectArgs ())
-    make "runtimeDelayTicks" [ Param.make "ticks" TInt "100ns runtime timer ticks" ] TUnit
+    make
+      "runtimeDelayTicks"
+      [ Param.make "ticks" TInt "100ns runtime timer ticks" ]
+      TUnit
       (function
        | _, vm, _, [| DInt ticks |] ->
          uply {

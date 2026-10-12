@@ -330,7 +330,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Unknown topic: {topicName}")
         Stdlib.printLine ""
         Stdlib.printLine (Topics.formatTopicList ())
-        state
+        Cli.exitWith state false
 
 
 let help (_state: Cli.AppState) : String =

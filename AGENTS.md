@@ -506,7 +506,10 @@ rule. Every primitive still needs a real Dark caller; unused primitives are remo
 
 1. `packages/darklang/cli/<name>.dark`
 2. Implement `execute`, `help`, `complete`
-3. Register in `Registry.allCommands` in `cli/registry.dark`
+3. Register in `Registry.allCommands` in `cli/registry.dark`, with what it accepts on the command
+   line (`cli/accepts.dark`): its flags, value flags and how many words. The dispatcher checks
+   that before `execute` runs and refuses anything else with exit 1, so `execute` never sees an
+   unknown flag or a word too many and does not check for them itself.
 
 ## SCM / branches
 
@@ -750,8 +753,8 @@ trace's `status`, before trusting any number taken against a hand-authored fixtu
 intend to keep belongs in a file the walkthrough pipes in (`docs/walkthrough-fixture.dark`), so
 re-authoring it is one command rather than remembering what it was.
 
-**`Defined N declarations` is not evidence your edit took effect.** Two different mechanisms
-drop an edit while printing the same success line, so treat the line as "parsed", not "live":
+**`Defined N declarations` is not evidence your edit took effect.** An approved name can stay on
+its old body while printing the same success line, so treat the line as "parsed", not "live":
 
 - AN APPROVED NAME FOLLOWS THE APPROVED VERSION. `permissions approve` says so out loud
   ("the name follows this version"). Re-authoring does write the new body and does repoint the
@@ -761,12 +764,14 @@ drop an edit while printing the same success line, so treat the line as "parsed"
   `permissions approve Demo.Browser.overlapping` made the new one live immediately. A newly
   added name in the same file (a `val`) landed straight away, having no approval to pin it,
   which is what makes it confusing: part of the file takes effect and part does not.
-- A DOC-ONLY EDIT NEVER LANDS AT ALL, for an unrelated reason: doc comments are deliberately
-  excluded from the content hash (`Canonical.fs`), so the write produces nothing new to store.
-  Written up in `notes/doc-comment-edits-dropped-2026-10-02.md`.
+- A DOC-ONLY EDIT used to be the second way. Doc comments are deliberately excluded from the
+  content hash (`Canonical.fs`), so the save lands on the hash the item already had and the batch
+  stores nothing; `dark fn` says the change with an `UpdateDoc` op, and `dark module` (and so
+  `dark edit`) now does too, adding "; updated N doc comments" to the line. If a doc edit seems
+  not to land, that line is what says whether it was written.
 
-These are NOT the same bug, and the first one is not a bug at all once you know it. What they
-share is the output.
+The approval case is not a bug at all once you know it; what it shared with the old doc case was
+the output.
 
 The tell, and the useful part, because it works without knowing which one you are in: A COUNT IN
 THE OUTPUT DISAGREED WITH THE FILE. A five-element list reported "10 reads", the old body's

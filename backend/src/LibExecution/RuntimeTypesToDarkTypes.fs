@@ -712,6 +712,7 @@ module ApplicableLambda =
          DList(
            VT.tuple VT.int32 (VT.known (Dval.knownType ())) [],
            lambda.closedRegisters
+           |> Captures.toList
            |> List.map (fun (reg, dv) -> DTuple(DInt32 reg, Dval.toDT dv, []))
          ))
         ("typeSymbolTable",
@@ -732,6 +733,7 @@ module ApplicableLambda =
           fields
           |> D.field "closedRegisters"
           |> D.list (D.tuple2 D.int32 Dval.fromDT)
+          |> Captures.ofList
         typeSymbolTable =
           fields
           |> D.field "typeSymbolTable"
@@ -1906,6 +1908,8 @@ module RuntimeError =
       | RuntimeError.Trait e -> "Trait", [ Traits.toDT e ]
       | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
       | RuntimeError.SqlCompiler errMsg -> "SqlCompiler", [ DString errMsg ]
+      | RuntimeError.DBSetOfWrongType(expected, actual) ->
+        "DBSetOfWrongType", [ TypeReference.toDT expected; ValueType.toDT actual ]
       | RuntimeError.UncaughtException(msg, metadata) ->
         "UncaughtException",
         [ DString msg
@@ -1913,7 +1917,7 @@ module RuntimeError =
             VT.tuple VT.string (VT.known (Dval.knownType ())) [],
             metadata |> List.map (fun (k, v) -> DTuple(DString k, Dval.toDT v, []))
           ) ]
-      | e -> Exception.raiseInternal "Unhandled RuntimeError.Error" [ "e", e ]
+      | RuntimeError.Condition message -> "Condition", [ DString message ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1980,6 +1984,11 @@ module RuntimeError =
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
     | DEnum(_, _, [], "SqlCompiler", [ DString errMsg ]) ->
       RuntimeError.SqlCompiler errMsg
+    | DEnum(_, _, [], "DBSetOfWrongType", [ expected; actual ]) ->
+      RuntimeError.DBSetOfWrongType(
+        TypeReference.fromDT expected,
+        ValueType.fromDT actual
+      )
     | DEnum(_, _, [], "UncaughtException", [ DString msg; DList(_, metadata) ]) ->
       RuntimeError.UncaughtException(
         msg,
@@ -1989,4 +1998,6 @@ module RuntimeError =
           | DTuple(DString k, v, []) -> (k, v)
           | _ -> Exception.raiseInternal "Invalid metadata" [])
       )
+    | DEnum(_, _, [], "Condition", [ DString message ]) ->
+      RuntimeError.Condition message
     | _ -> Exception.raiseInternal "Invalid RuntimeError.Error" [ "d", d ]

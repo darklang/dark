@@ -1,0 +1,154 @@
+module Darklang.SCM.DatabaseRowTypes
+
+// A datastore is bound to the exact version of its row type it was made with: `dark db` stores the type's
+// hash, not its name. Change the type and the name moves to a new hash while the datastore stays on the
+// old one, so its rows still read but a value of the current type can no longer be written. Nothing moves
+// it along, because a datastore is not a package item and propagation only updates items.
+//
+// main-scoped, like `StoreHealth`: datastore declarations are not branch-scoped, and `locations` is main's.
+
+
+/// A datastore whose row type is no longer what its name means.
+type Stale =
+  { database: String
+    /// The name the datastore's row type had, when it still has one in the store's history.
+    typeName: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>
+    /// The version the datastore is bound to.
+    boundTo: LanguageTools.ProgramTypes.Hash
+    /// What that name means now. None when the name is gone too.
+    current: Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash>
+    /// Whether the store still holds that version's definition. Without it the rows cannot even be read:
+    /// a dev build's purge leaves datastores in place and deletes hand-authored types.
+    readable: Bool }
+
+
+let hashOfRow
+  (row: LanguageTools.ProgramTypes.TypeReference)
+  : Stdlib.Option.Option<String> =
+  match row with
+  | TCustomType(nr, _) ->
+    match nr.resolved with
+    | Ok resolved ->
+      match resolved.name with
+      | Package(Hash h) -> Stdlib.Option.Option.Some h
+      | _ -> Stdlib.Option.Option.None
+    | Error _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+
+let locationOf
+  (row: Dict<String, Stdlib.Sqlite.Value>)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+  match
+    (Stdlib.Sqlite.textField row "owner",
+     Stdlib.Sqlite.textField row "modules",
+     Stdlib.Sqlite.textField row "name")
+  with
+  | (Some owner, Some modules, Some name) ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = owner
+          modules = if modules == "" then [] else Stdlib.String.split modules "."
+          name = name }
+    )
+  | _ -> Stdlib.Option.Option.None
+
+
+/// What one look at the store found: how many datastores it examined, and which of them are stale.
+///
+/// The count is there so a caller can tell "nothing is stale" from "looked at nothing".
+type Report =
+  { examined: Int
+    stale: List<Stale> }
+
+
+/// Every datastore bound to a version of its row type that no name points at any more.
+///
+/// main-scoped: it reads `locations` directly, which is main's, and that is the right answer here because
+/// a datastore declaration is not branch-scoped either, so main's names are the ones it was bound through.
+let check (_unit: Unit) : Report =
+  let declared = LanguageTools.PackageManager.DB.declarations ()
+
+  let stale =
+    declared
+    |> Stdlib.List.filterMap (fun (database, row) ->
+      match hashOfRow row with
+      | None -> Stdlib.Option.Option.None
+      | Some h ->
+        let live =
+          Stdlib.Sqlite.scalarIntP
+            (localDb ())
+            "SELECT count(*) AS n FROM locations
+             WHERE item_hash = @p0 AND item_type = 'type' AND unlisted_at IS NULL"
+            [ h ]
+            "n"
+          |> Stdlib.Option.withDefault 0L
+
+        if live > 0L then
+          Stdlib.Option.Option.None
+        else
+          // The most recent name this version was bound to, skipping an unbind's tombstone.
+          let typeName =
+            Stdlib.Sqlite.queryOneP
+              (localDb ())
+              "SELECT owner, modules, name FROM locations
+               WHERE item_hash = @p0 AND item_type = 'type' AND source <> 'unbind'
+               ORDER BY rowid DESC LIMIT 1"
+              [ h ]
+            |> Stdlib.Option.andThen locationOf
+
+          let current =
+            match typeName with
+            | Some loc ->
+              Stdlib.Sqlite.queryOneP
+                (localDb ())
+                "SELECT item_hash FROM locations
+                 WHERE owner = @p0 AND modules = @p1 AND name = @p2
+                   AND item_type = 'type' AND unlisted_at IS NULL
+                 LIMIT 1"
+                [ loc.owner, Stdlib.String.join loc.modules ".", loc.name ]
+              |> Stdlib.Option.andThen (fun r -> Stdlib.Sqlite.textField r "item_hash")
+              |> Stdlib.Option.map (fun c -> LanguageTools.ProgramTypes.Hash.Hash c)
+            | None -> Stdlib.Option.Option.None
+
+          Stdlib.Option.Option.Some(
+            Stale
+              { database = database
+                typeName = typeName
+                boundTo = LanguageTools.ProgramTypes.Hash.Hash h
+                current = current
+                readable =
+                  (Stdlib.Sqlite.scalarIntP
+                    (localDb ())
+                    "SELECT count(*) AS n FROM package_types WHERE hash = @p0"
+                    [ h ]
+                    "n"
+                   |> Stdlib.Option.withDefault 0L)
+                  > 0L }
+          ))
+
+  Report { examined = Stdlib.List.length declared; stale = stale }
+
+
+let short (hash: LanguageTools.ProgramTypes.Hash) : String =
+  match hash with
+  | Hash h -> Stdlib.String.slice h 0 8
+
+
+/// One sentence a person can act on: which datastore, which two versions, and what still works.
+let describe (s: Stale) : String =
+  let reads =
+    if s.readable then
+      "Its rows still read"
+    else
+      "Its rows cannot be read either, since the store no longer holds that type"
+
+  match (s.typeName, s.current) with
+  | (Some loc, Some now) ->
+    let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+    $"Datastore {s.database} holds an older version of {name} ({short s.boundTo}); the name now means {short now}. {reads}, but writing the current {name} to it fails."
+  | (Some loc, None) ->
+    let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+    $"Datastore {s.database} holds {name} ({short s.boundTo}), and nothing is called {name} any more. {reads}; nothing can be written to it."
+  | (None, _) ->
+    $"Datastore {s.database} holds a type ({short s.boundTo}) that no longer has a name in this store. {reads}; nothing can be written to it."

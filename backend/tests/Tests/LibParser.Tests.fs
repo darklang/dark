@@ -232,6 +232,47 @@ let private parserStructureTests =
           | other -> failtest $"unexpected char pattern: {other}"
         | other -> failtest $"unexpected char pattern: {other}")
 
+      testCase "quoted graphemes are not mistaken for type variables" (fun _ ->
+        let grapheme = "Z̤͔ͧ̑̓"
+        let literal = $"'{grapheme}'"
+        let sources =
+          [ $"({literal})"
+            $"('a', {literal})"
+            $"['a', {literal}]"
+            $"let x = {literal}\nx"
+            $"fun x -> {literal}" ]
+        for source in sources do
+          Expect.isEmpty (P.parse source).diagnostics source
+          match LibParser.Lexer.tokenize source with
+          | Ok(tokens, diagnostics) ->
+            Expect.isEmpty diagnostics source
+            let chars =
+              tokens
+              |> List.choose (fun token ->
+                match token.token with
+                | Tok.TCharLit value -> Some value
+                | _ -> None)
+            Expect.contains chars (grapheme.Normalize()) source
+          | Error message -> failtest message)
+
+      testCase "combining characters in lists retain their values" (fun _ ->
+        let source = "['a', 'é', 'Z̤͔ͧ̑̓', 'ä͖̭̈̇', 'lͮ̒ͫ', 'ǧ̗͚̚', 'o̙̔ͮ̇͐̇']"
+        let result = P.parse source
+        Expect.isEmpty result.diagnostics "all combining literals parse"
+        match result.parsed with
+        | Some(WT.SourceFile { exprsToEval = [ WT.EList(_, elems, _, _) ] }) ->
+          let chars =
+            elems
+            |> List.map (fun (expr, _) ->
+              match expr with
+              | WT.EChar(_, Some(_, value), _, _) -> value
+              | other -> failtest $"expected char: {other}")
+          let expected =
+            [ "a"; "é"; "Z̤͔ͧ̑̓"; "ä͖̭̈̇"; "lͮ̒ͫ"; "ǧ̗͚̚"; "o̙̔ͮ̇͐̇" ]
+            |> List.map (fun (value : string) -> value.Normalize())
+          Expect.equal chars expected "normalized graphemes are preserved"
+        | other -> failtest $"expected list: {other}")
+
       testCase "parses a qualified function call" (fun _ ->
         match (P.parse "Stdlib.Int64.remainder 1L 2L").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EApply(_,
@@ -2406,20 +2447,42 @@ let tests =
         for name in [ "__helper"; "__helper_v0" ] do
           let result =
             (NR.resolveFnName
-              Set.empty PT.PackageManager.empty NR.OnMissing.Allow []
-              (WT.Unresolved(NEList.singleton name)) |> Ply.toTask).Result
-          Expect.equal result.resolved (Error PT.NameResolutionError.NotFound)
+              Set.empty
+              PT.PackageManager.empty
+              NR.OnMissing.Allow
+              []
+              (WT.Unresolved(NEList.singleton name))
+             |> Ply.toTask)
+              .Result
+          Expect.equal
+            result.resolved
+            (Error PT.NameResolutionError.NotFound)
             $"valid private function: {name}"
         for name in [ "__Buffer"; "__Buffer_v0" ] do
           let result =
-            (NR.resolveTypeName PT.PackageManager.empty NR.OnMissing.Allow []
-              (WT.Unresolved(NEList.singleton name)) |> Ply.toTask).Result
-          Expect.equal result.resolved (Error PT.NameResolutionError.NotFound)
+            (NR.resolveTypeName
+              PT.PackageManager.empty
+              NR.OnMissing.Allow
+              []
+              (WT.Unresolved(NEList.singleton name))
+             |> Ply.toTask)
+              .Result
+          Expect.equal
+            result.resolved
+            (Error PT.NameResolutionError.NotFound)
             $"valid private type: {name}"
         let invalid =
-          (NR.resolveFnName Set.empty PT.PackageManager.empty NR.OnMissing.Allow []
-            (WT.Unresolved(NEList.singleton "_helper")) |> Ply.toTask).Result
-        Expect.equal invalid.resolved (Error PT.NameResolutionError.InvalidName)
+          (NR.resolveFnName
+            Set.empty
+            PT.PackageManager.empty
+            NR.OnMissing.Allow
+            []
+            (WT.Unresolved(NEList.singleton "_helper"))
+           |> Ply.toTask)
+            .Result
+        Expect.equal
+          invalid.resolved
+          (Error PT.NameResolutionError.InvalidName)
           "a single underscore does not acquire the private-name convention")
       stackSafetyTests
       unwrapTests

@@ -652,6 +652,7 @@ let private requestsAreProcesses =
       }
       testTask
         "a handler that raises gets a 500 with the error, not a type complaint" {
+        use output = new OutputCapture()
         let! results = runRequestsAgainst pathRouter "GET" [ "/boom", [||] ]
         let results = Array.map textOf results
         Expect.stringContains (fst results[0]) "500" "a failed handler is a 500"
@@ -660,6 +661,12 @@ let private requestsAreProcesses =
           "The handler failed"
           "the body names the failure"
         Expect.stringContains (snd results[0]) "divide" "the body carries the error"
+        output.Check(fun stdout stderr ->
+          Expect.equal
+            stdout
+            "[HttpServer] the handler failed: Cannot divide by 0\n"
+            "the serve terminal carries the handler error too"
+          Expect.equal stderr "" "no other diagnostics")
       } ]
 
 

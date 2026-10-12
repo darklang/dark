@@ -122,11 +122,12 @@ let firstDivergence (a: String) (b: String) : Int =
 /// Off `side` and the recorded author, never off the candidate's position, so it stays true if the
 /// candidate order ever stops being local-first. A peer that named itself keeps its name; one that
 /// didn't is "theirs". <param me> is this instance's identity, read ONCE by the caller: it is a store
-/// read, and the alternative is one per candidate row.
-let whoseCandidate (me: String) (cand: SCM.Conflicts.Candidate) : String =
+/// read, and the alternative is one per candidate row. None when it has none yet, and then no peer is
+/// yours.
+let whoseCandidate (me: Stdlib.Option.Option<String>) (cand: SCM.Conflicts.Candidate) : String =
   if cand.side == "local" then "yours"
   else if cand.author == "" then "theirs"
-  else if cand.author == me then "yours"
+  else if Stdlib.Option.Option.Some cand.author == me then "yours"
   else cand.author
 
 /// The labels for a whole conflict's candidates. A MERGE conflict's incoming side carries the branch
@@ -135,7 +136,7 @@ let whoseCandidate (me: String) (cand: SCM.Conflicts.Candidate) : String =
 /// <param hereName> is the branch the listing is scoped to (main, usually). "yours"/"theirs" stays
 /// for sync, where it is true and useful.
 let candidateLabels
-  (me: String)
+  (me: Stdlib.Option.Option<String>)
   (hereName: String)
   (localBranchNames: List<String>)
   (c: SCM.Conflicts.Conflict)
@@ -175,7 +176,7 @@ let executeList (state: AppState) : AppState =
     Cli.printOk $"{n} pending"
 
     // Once for the whole list, not once per candidate row: all three are store reads.
-    let me = SCM.PackageOps.identity ()
+    let me = SCM.PackageOps.storedIdentity ()
     let hereName = SCM.PackageOps.branchName (SCM.Conflicts.onBranch ())
     let localBranchNames = SCM.Branches.list () |> Stdlib.List.map (fun b -> b.name)
 
@@ -266,7 +267,7 @@ let executeShow (state: AppState) (idPrefix: String) : AppState =
       Cli.printOk $"#{c.id}  {dotted}  [{c.part}] -- two wordings"
 
     // Once for both candidates, not once each: it is a store read.
-    let me = SCM.PackageOps.identity ()
+    let me = SCM.PackageOps.storedIdentity ()
 
     c.candidates
     |> Stdlib.List.indexedMap (fun i cand ->
@@ -585,7 +586,7 @@ let walkOne (state: AppState) (c: SCM.Conflicts.Conflict) (n: Int) (total: Int) 
   Cli.Stderr.ok $"  [{pos}]  {dotted}  [{c.itemType}]"
 
   // Once for both candidates; see `whoseCandidate`.
-  let me = SCM.PackageOps.identity ()
+  let me = Stdlib.Option.Option.Some (SCM.PackageOps.identity ())
 
   c.candidates
   |> Stdlib.List.indexedMap (fun i cand ->
@@ -735,7 +736,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
       (Stdlib.Cli.UI.Colors.error $"conflicts does not understand `{bad}`.")
 
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let stripped = ScmJson.stripJson args

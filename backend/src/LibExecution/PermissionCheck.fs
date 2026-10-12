@@ -177,7 +177,11 @@ let performHostWithAccess
   : Ply<Result<Host.Response, Host.Failure>> =
   uply {
     let! outcome =
-      Host.performInSession state.descriptorSession (relaxFor state vm) access op
+      Host.performInSession
+        state.descriptorSession.Value
+        (relaxFor state vm)
+        access
+        op
     match outcome with
     | Host.Outcome.Success response -> return Ok response
     | Host.Outcome.Failed failure -> return Error failure

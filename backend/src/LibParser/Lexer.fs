@@ -939,9 +939,16 @@ let tokenize
                  && (System.Char.IsLetterOrDigit input[typeVariableEndIndex]
                      || input[typeVariableEndIndex] = '_')) do
             typeVariableEndIndex <- typeVariableEndIndex + 1
-          // a closing quote right after the name means it was a char literal
+          // A quoted grapheme wins over a type variable. Combining marks are
+          // not identifier characters, so the name scan alone misses 'é'.
+          let graphemeEndIndex =
+            index
+            + 1
+            + (System.Globalization.StringInfo.GetNextTextElement(input, index + 1))
+              .Length
           if
-            typeVariableEndIndex < inputLength && input[typeVariableEndIndex] = '\''
+            (typeVariableEndIndex < inputLength && input[typeVariableEndIndex] = '\'')
+            || (graphemeEndIndex < inputLength && input[graphemeEndIndex] = '\'')
           then
             match scanString (index + 1) '\'' with
             | Ok endIndex ->

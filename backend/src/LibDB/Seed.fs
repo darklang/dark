@@ -235,7 +235,7 @@ let foldRead (rawOps : List<System.Guid * byte[]>) : Task<int64> =
       | _ when warnedAboutUnreadableOps -> ()
       | ids ->
         warnedAboutUnreadableOps <- true
-        System.Console.Error.WriteLine(
+        NonBlockingConsole.writeErrLine (
           $"note: {List.length ids} op(s) in this store were written in a format this build cannot "
           + "read, and are being skipped. They are kept, not dropped, so a later build can apply them."
         )

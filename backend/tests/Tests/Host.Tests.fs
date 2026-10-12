@@ -16,7 +16,8 @@ let private setTimesNow path =
   if System.OperatingSystem.IsMacOS() then
     let seconds = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds()
     LibExecution.HostPosix.setattrlistTimes path seconds 0L seconds 0L
-  else LibExecution.HostPosix.utimensAt path 0L 1073741823L 0L 1073741823L
+  else
+    LibExecution.HostPosix.utimensAt path 0L 1073741823L 0L 1073741823L
 
 let private request (method : string) (url : string) : Permission.Request =
   match Permission.Request.http method url with
@@ -81,7 +82,11 @@ let rawDescriptorsRequireNativeAtHostBoundary =
         HT.PosixOp.Fstat(HT.FileDescriptor.Raw -1)
         HT.PosixOp.Ppoll([ HT.FileDescriptor.Raw -1, 1 ], 0)
         HT.PosixOp.KeventVnode(HT.FileDescriptor.Raw -1, [], 1, 0)
-        HT.PosixOp.CopyFileRange(HT.FileDescriptor.Raw -1, HT.FileDescriptor.Raw -1, 1) ]
+        HT.PosixOp.CopyFileRange(
+          HT.FileDescriptor.Raw -1,
+          HT.FileDescriptor.Raw -1,
+          1
+        ) ]
     for operation in operations do
       let! outcome =
         LibExecution.Host.perform
@@ -104,21 +109,31 @@ let rawDescriptorsRequireNativeAtHostBoundary =
 
 let scopedDescriptorsRecheckAccessAndOwnership =
   testTask "scoped descriptors enforce mode, current access, ownership and close" {
-    let path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"dark-fd-{System.Guid.NewGuid()}")
+    let path =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-fd-{System.Guid.NewGuid()}"
+      )
     System.IO.File.WriteAllText(path, "abc")
     let owner = LibExecution.Host.createDescriptorSession ()
     let foreign = LibExecution.Host.createDescriptorSession ()
     let readOnly =
       Permission.Policy.create
-        [ Permission.Rule.File(Permission.AccessKind.Read, only path) ] []
+        [ Permission.Rule.File(Permission.AccessKind.Read, only path) ]
+        []
       |> Permission.Access.start
     let denied = Permission.Access.start Permission.Policy.denyAll
     let all = Permission.Access.start Permission.Policy.allowAll
     let perform session access op =
-      LibExecution.Host.performInSession session Permission.NoRelax access (HT.Operation.Posix op)
+      LibExecution.Host.performInSession
+        session
+        Permission.NoRelax
+        access
+        (HT.Operation.Posix op)
     let ebadf outcome =
       match outcome with
-      | HT.Outcome.Failed failure -> Expect.equal failure.errno 9 "invalid capability"
+      | HT.Outcome.Failed failure ->
+        Expect.equal failure.errno 9 "invalid capability"
       | other -> failtest $"expected EBADF, got {other}"
     try
       let! opened = perform owner readOnly (HT.PosixOp.Open(path, 0, 0))
@@ -127,16 +142,21 @@ let scopedDescriptorsRecheckAccessAndOwnership =
         | HT.Outcome.Success(HT.Response.Descriptor token) -> token
         | other -> failtestf "expected scoped open without Native, got %A" other
       let fd = HT.FileDescriptor.Scoped token
-      let! unownedVnode = perform owner all
-                           (HT.PosixOp.KeventVnode(fd, [ HT.FileDescriptor.Raw -1, 37, 127 ], 0, 0))
+      let! unownedVnode =
+        perform
+          owner
+          all
+          (HT.PosixOp.KeventVnode(fd, [ HT.FileDescriptor.Raw -1, 37, 127 ], 0, 0))
       ebadf unownedVnode
       let! read = perform owner readOnly (HT.PosixOp.FdRead(fd, 3))
       match read with
-      | HT.Outcome.Success(HT.Response.Bytes bytes) -> Expect.equal bytes [| 97uy; 98uy; 99uy |] "read bytes"
+      | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+        Expect.equal bytes [| 97uy; 98uy; 99uy |] "read bytes"
       | other -> failtest $"expected scoped read, got {other}"
       let! stat = perform owner readOnly (HT.PosixOp.Fstat fd)
       match stat with
-      | HT.Outcome.Success(HT.Response.Bytes bytes) -> Expect.isNonEmpty bytes "raw stat record"
+      | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+        Expect.isNonEmpty bytes "raw stat record"
       | other -> failtest $"expected scoped fstat, got {other}"
       let! write = perform owner all (HT.PosixOp.FdWrite(fd, [| 0uy |]))
       ebadf write
@@ -147,7 +167,10 @@ let scopedDescriptorsRecheckAccessAndOwnership =
       | HT.Outcome.Denied _ -> ()
       | other -> failtest $"expected current-access denial, got {other}"
       let! closed = perform owner denied (HT.PosixOp.FdClose fd)
-      Expect.equal closed (HT.Outcome.Success HT.Response.Unit) "cleanup needs no new grant"
+      Expect.equal
+        closed
+        (HT.Outcome.Success HT.Response.Unit)
+        "cleanup needs no new grant"
       let! again = perform owner all (HT.PosixOp.FdClose fd)
       ebadf again
       let! stale = perform owner all (HT.PosixOp.Fstat fd)
@@ -162,21 +185,36 @@ let descriptorLeasesDoNotSerializeUnrelatedFiles =
   testTask "a held descriptor lease does not block another owned descriptor" {
     let entered = new System.Threading.ManualResetEventSlim(false)
     let release = new System.Threading.ManualResetEventSlim(false)
-    let owner = new LibExecution.HostDescriptors.Session(fun _ -> Ok ())
+    let owner = new LibExecution.HostDescriptors.Session(fun _ -> Ok())
     let entry fd : LibExecution.HostDescriptors.Entry =
-      { fd = fd; paths = [ "/tmp/lease-test" ]; processes = []; reads = true; writes = false }
+      { fd = fd
+        paths = [ "/tmp/lease-test" ]
+        processes = []
+        reads = true
+        writes = false }
     let first = owner.Register(entry 100)
     let second = owner.Register(entry 101)
-    let held = System.Threading.Tasks.Task.Run(fun () ->
-      owner.WithLeases([ first ], fun () ->
-        entered.Set()
-        release.Wait()))
+    let held =
+      System.Threading.Tasks.Task.Run(fun () ->
+        owner.WithLeases(
+          [ first ],
+          fun () ->
+            entered.Set()
+            release.Wait()
+        ))
     try
       Expect.isTrue (entered.Wait 2000) "first lease acquired"
-      let independent = System.Threading.Tasks.Task.Run(fun () ->
-        owner.WithLeases([ second ], fun () -> owner.Find second))
-      let! finished = System.Threading.Tasks.Task.WhenAny(independent, System.Threading.Tasks.Task.Delay 2000)
-      Expect.isTrue (obj.ReferenceEquals(finished, independent)) "second lease must not wait for first"
+      let independent =
+        System.Threading.Tasks.Task.Run(fun () ->
+          owner.WithLeases([ second ], (fun () -> owner.Find second)))
+      let! finished =
+        System.Threading.Tasks.Task.WhenAny(
+          independent,
+          System.Threading.Tasks.Task.Delay 2000
+        )
+      Expect.isTrue
+        (obj.ReferenceEquals(finished, independent))
+        "second lease must not wait for first"
       let! result = independent
       Expect.isSome result "second capability stays valid"
     finally
@@ -194,46 +232,102 @@ let ownedChildrenRetainScopedProcessAuthority =
       let foreign = LibExecution.Host.createDescriptorSession ()
       let program = "/bin/sh"
       let args = [ "-c"; "read line; printf '%s' \"$line\"" ]
-      let access = Permission.Policy.create
-                     [ Permission.Rule.Process { executable = only program; args = only args } ] []
-                   |> Permission.Access.start
+      let access =
+        Permission.Policy.create
+          [ Permission.Rule.Process { executable = only program; args = only args } ]
+          []
+        |> Permission.Access.start
       let denied = Permission.Access.start Permission.Policy.denyAll
-      let perform session access op = LibExecution.Host.performInSession session Permission.NoRelax access op
+      let perform session access op =
+        LibExecution.Host.performInSession session Permission.NoRelax access op
       let ebadf outcome =
         match outcome with
-        | HT.Outcome.Failed error -> Expect.equal error.errno 9 "foreign or closed token"
+        | HT.Outcome.Failed error ->
+          Expect.equal error.errno 9 "foreign or closed token"
         | other -> failtestf "expected EBADF, got %A" other
       let revoked outcome =
         match outcome with
         | HT.Outcome.Denied _ -> ()
-        | other -> failtestf "expected current process permission denial, got %A" other
+        | other ->
+          failtestf "expected current process permission denial, got %A" other
       try
-        let! started = perform owner access (HT.Operation.ChildStart(program, args, false))
-        let child = match started with
-                    | HT.Outcome.Success(HT.Response.ChildHandle token) -> token
-                    | other -> failtestf "expected owned launch without Native/File permissions, got %A" other
+        let! started =
+          perform owner access (HT.Operation.ChildStart(program, args, false))
+        let child =
+          match started with
+          | HT.Outcome.Success(HT.Response.ChildHandle token) -> token
+          | other ->
+            failtestf
+              "expected owned launch without Native/File permissions, got %A"
+              other
         let! ports = perform owner access (HT.Operation.ChildDescriptors child)
-        let stdin, stdout = match ports with
-                            | HT.Outcome.Success(HT.Response.ChildDescriptors [ stdin; stdout; _ ]) -> stdin, stdout
-                            | other -> failtestf "expected owned pipe descriptors, got %A" other
-        let! stolen = perform foreign (Permission.Access.start Permission.Policy.allowAll) (HT.Operation.ChildPoll child)
+        let stdin, stdout =
+          match ports with
+          | HT.Outcome.Success(HT.Response.ChildDescriptors [ stdin; stdout; _ ]) ->
+            stdin, stdout
+          | other -> failtestf "expected owned pipe descriptors, got %A" other
+        let! stolen =
+          perform
+            foreign
+            (Permission.Access.start Permission.Policy.allowAll)
+            (HT.Operation.ChildPoll child)
         ebadf stolen
         let! deniedPoll = perform owner denied (HT.Operation.ChildPoll child)
         revoked deniedPoll
-        let! deniedRead = perform owner denied (HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)))
+        let! deniedRead =
+          perform
+            owner
+            denied
+            (HT.Operation.Posix(
+              HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)
+            ))
         revoked deniedRead
-        let! written = perform owner access (HT.Operation.Posix(HT.PosixOp.FdWrite(HT.FileDescriptor.Scoped stdin, [| 104uy; 105uy; 10uy |])))
-        Expect.equal written (HT.Outcome.Success(HT.Response.Written 3)) "owned pipe write needs only the retained process grant"
+        let! written =
+          perform
+            owner
+            access
+            (HT.Operation.Posix(
+              HT.PosixOp.FdWrite(
+                HT.FileDescriptor.Scoped stdin,
+                [| 104uy; 105uy; 10uy |]
+              )
+            ))
+        Expect.equal
+          written
+          (HT.Outcome.Success(HT.Response.Written 3))
+          "owned pipe write needs only the retained process grant"
         do! System.Threading.Tasks.Task.Delay 100
-        let! read = perform owner access (HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)))
-        Expect.equal read (HT.Outcome.Success(HT.Response.Bytes [| 104uy;105uy |])) "raw bytes, no host capture algorithm"
-        let! closedPort = perform owner denied (HT.Operation.ChildClosePort(child, 0))
-        Expect.equal closedPort (HT.Outcome.Success HT.Response.Unit) "pipe cleanup needs no revoked grant"
+        let! read =
+          perform
+            owner
+            access
+            (HT.Operation.Posix(
+              HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)
+            ))
+        Expect.equal
+          read
+          (HT.Outcome.Success(HT.Response.Bytes [| 104uy; 105uy |]))
+          "raw bytes, no host capture algorithm"
+        let! closedPort =
+          perform owner denied (HT.Operation.ChildClosePort(child, 0))
+        Expect.equal
+          closedPort
+          (HT.Outcome.Success HT.Response.Unit)
+          "pipe cleanup needs no revoked grant"
         let! closed = perform owner denied (HT.Operation.ChildClose child)
-        Expect.equal closed (HT.Outcome.Success HT.Response.Unit) "owned child cleanup needs no revoked grant"
+        Expect.equal
+          closed
+          (HT.Outcome.Success HT.Response.Unit)
+          "owned child cleanup needs no revoked grant"
         let! stale = perform owner access (HT.Operation.ChildPoll child)
         ebadf stale
-        let! staleFd = perform owner access (HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)))
+        let! staleFd =
+          perform
+            owner
+            access
+            (HT.Operation.Posix(
+              HT.PosixOp.FdRead(HT.FileDescriptor.Scoped stdout, 32)
+            ))
         ebadf staleFd
       finally
         owner.Dispose()
@@ -246,61 +340,98 @@ let ownedChildWaitAllowsCleanup =
       let owner = LibExecution.Host.createDescriptorSession ()
       let all = Permission.Access.start Permission.Policy.allowAll
       let denied = Permission.Access.start Permission.Policy.denyAll
-      let perform access op = LibExecution.Host.performInSession owner Permission.NoRelax access op
+      let perform access op =
+        LibExecution.Host.performInSession owner Permission.NoRelax access op
       try
-        let! started = perform all (HT.Operation.ChildStart("/bin/sh", [ "-c"; "sleep 10" ], true))
-        let token = match started with
-                    | HT.Outcome.Success(HT.Response.ChildHandle token) -> token
-                    | other -> failtestf "expected launch, got %A" other
+        let! started =
+          perform
+            all
+            (HT.Operation.ChildStart("/bin/sh", [ "-c"; "sleep 10" ], true))
+        let token =
+          match started with
+          | HT.Outcome.Success(HT.Response.ChildHandle token) -> token
+          | other -> failtestf "expected launch, got %A" other
         let child = owner.FindChild token |> Option.get
         let waiting = perform all (HT.Operation.ChildWait token)
         Expect.isTrue
-          (System.Threading.SpinWait.SpinUntil((fun () -> lock child.child.waitGate (fun () -> child.child.waiters > 0)), 2000))
+          (System.Threading.SpinWait.SpinUntil(
+            (fun () -> lock child.child.waitGate (fun () -> child.child.waiters > 0)),
+            2000
+          ))
           "wait retains the managed supervisor before releasing the ownership lease"
         let closing = perform denied (HT.Operation.ChildClose token)
-        let! winner = System.Threading.Tasks.Task.WhenAny(closing, System.Threading.Tasks.Task.Delay 2000)
-        Expect.isTrue (obj.ReferenceEquals(winner, closing)) "cleanup must not block behind the child wait"
+        let! winner =
+          System.Threading.Tasks.Task.WhenAny(
+            closing,
+            System.Threading.Tasks.Task.Delay 2000
+          )
+        Expect.isTrue
+          (obj.ReferenceEquals(winner, closing))
+          "cleanup must not block behind the child wait"
         let! closed = closing
-        Expect.equal closed (HT.Outcome.Success HT.Response.Unit) "cleanup after revocation"
-        let! finished = System.Threading.Tasks.Task.WhenAny(waiting, System.Threading.Tasks.Task.Delay 2000)
-        Expect.isTrue (obj.ReferenceEquals(finished, waiting)) "termination unblocks the retained waiter"
+        Expect.equal
+          closed
+          (HT.Outcome.Success HT.Response.Unit)
+          "cleanup after revocation"
+        let! finished =
+          System.Threading.Tasks.Task.WhenAny(
+            waiting,
+            System.Threading.Tasks.Task.Delay 2000
+          )
+        Expect.isTrue
+          (obj.ReferenceEquals(finished, waiting))
+          "termination unblocks the retained waiter"
         let! outcome = waiting
         match outcome with
         | HT.Outcome.Success(HT.Response.ChildStatus(Some _)) -> ()
         | other -> failtestf "expected supervised completion, got %A" other
-      finally owner.Dispose()
+      finally
+        owner.Dispose()
   }
 
 let watchQueuesRetainScopedPathAuthority =
   testTask "watch queue registration and reads retain current path authority" {
     if System.OperatingSystem.IsLinux() then
-      let path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"dark-watch-{System.Guid.NewGuid()}")
+      let path =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-watch-{System.Guid.NewGuid()}"
+        )
       System.IO.File.WriteAllText(path, "before")
       let owner = LibExecution.Host.createDescriptorSession ()
       let foreign = LibExecution.Host.createDescriptorSession ()
       let access =
         Permission.Policy.create
           [ Permission.Rule.File(Permission.AccessKind.Read, only path)
-            Permission.Rule.Effect LibExecution.Effects.Effect.Clock ] []
+            Permission.Rule.Effect LibExecution.Effects.Effect.Clock ]
+          []
         |> Permission.Access.start
       let denied = Permission.Access.start Permission.Policy.denyAll
       let perform session access op =
-        LibExecution.Host.performInSession session Permission.NoRelax access (HT.Operation.Posix op)
+        LibExecution.Host.performInSession
+          session
+          Permission.NoRelax
+          access
+          (HT.Operation.Posix op)
       try
         let! opened = perform owner denied (HT.PosixOp.InotifyInit1 526336)
         let fd =
           match opened with
-          | HT.Outcome.Success(HT.Response.Descriptor token) -> HT.FileDescriptor.Scoped token
+          | HT.Outcome.Success(HT.Response.Descriptor token) ->
+            HT.FileDescriptor.Scoped token
           | other -> failtestf "expected owned empty event queue, got %A" other
-        let! rejected = perform owner denied (HT.PosixOp.InotifyAddWatch(fd, path, 2))
+        let! rejected =
+          perform owner denied (HT.PosixOp.InotifyAddWatch(fd, path, 2))
         match rejected with
         | HT.Outcome.Denied _ -> ()
         | other -> failtestf "expected path denial, got %A" other
         if not (System.IO.Directory.Exists "/proc/self/fd") then
-          skiptest "held-inode event registration requires real /proc/self/fd; the adapter fails closed without it"
+          skiptest
+            "held-inode event registration requires real /proc/self/fd; the adapter fails closed without it"
         let! added = perform owner access (HT.PosixOp.InotifyAddWatch(fd, path, 2))
         match added with
-        | HT.Outcome.Success(HT.Response.Written wd) -> Expect.isGreaterThanOrEqual wd 0 "watch registered"
+        | HT.Outcome.Success(HT.Response.Written wd) ->
+          Expect.isGreaterThanOrEqual wd 0 "watch registered"
         | other -> failtestf "expected scoped watch without Native, got %A" other
         System.IO.File.WriteAllText(path, "after")
         let! ready = perform owner access (HT.PosixOp.Ppoll([ fd, 1 ], 0))
@@ -315,14 +446,19 @@ let watchQueuesRetainScopedPathAuthority =
         | other -> failtestf "queue read must recheck watched path, got %A" other
         let! stolen = perform foreign access (HT.PosixOp.FdRead(fd, 4096))
         match stolen with
-        | HT.Outcome.Failed failure -> Expect.equal failure.errno 9 "foreign queue is not owned"
+        | HT.Outcome.Failed failure ->
+          Expect.equal failure.errno 9 "foreign queue is not owned"
         | other -> failtestf "expected foreign capability rejection, got %A" other
         let! changes = perform owner access (HT.PosixOp.FdRead(fd, 4096))
         match changes with
-        | HT.Outcome.Success(HT.Response.Bytes bytes) -> Expect.isGreaterThanOrEqual bytes.Length 16 "raw inotify event"
+        | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+          Expect.isGreaterThanOrEqual bytes.Length 16 "raw inotify event"
         | other -> failtestf "expected raw change records, got %A" other
         let! closed = perform owner denied (HT.PosixOp.FdClose fd)
-        Expect.equal closed (HT.Outcome.Success HT.Response.Unit) "revocation does not prevent cleanup"
+        Expect.equal
+          closed
+          (HT.Outcome.Success HT.Response.Unit)
+          "revocation does not prevent cleanup"
       finally
         owner.Dispose()
         foreign.Dispose()
@@ -333,17 +469,22 @@ let systemFactsDoNotGrantSensitiveQueries =
   testTask "host facts do not grant arbitrary sysctl or foreign affinity access" {
     let access = Permission.Access.start Permission.Policy.denyAll
     for op in
-      [ HT.PosixOp.SysctlBytes([ 1; 14 ], 256)
-        HT.PosixOp.SchedGetaffinity(1, 128) ] do
-      let! outcome = LibExecution.Host.perform Permission.NoRelax access (HT.Operation.Posix op)
+      [ HT.PosixOp.SysctlBytes([ 1; 14 ], 256); HT.PosixOp.SchedGetaffinity(1, 128) ] do
+      let! outcome =
+        LibExecution.Host.perform Permission.NoRelax access (HT.Operation.Posix op)
       match outcome with
       | HT.Outcome.Denied _ -> ()
       | other -> failtest $"expected Native denial before kernel query, got {other}"
-    let! local = LibExecution.Host.perform Permission.NoRelax access
-                   (HT.Operation.Posix(HT.PosixOp.SchedGetaffinity(0, 128)))
+    let! local =
+      LibExecution.Host.perform
+        Permission.NoRelax
+        access
+        (HT.Operation.Posix(HT.PosixOp.SchedGetaffinity(0, 128)))
     match local with
-    | HT.Outcome.Success(HT.Response.Bytes bytes) -> Expect.isNonEmpty bytes "local affinity mask"
-    | HT.Outcome.Failed failure -> Expect.isTrue (failure.errno = 38 || failure.errno = 78) "unsupported target"
+    | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+      Expect.isNonEmpty bytes "local affinity mask"
+    | HT.Outcome.Failed failure ->
+      Expect.isTrue (failure.errno = 38 || failure.errno = 78) "unsupported target"
     | other -> failtest $"local host fact must not need Native, got {other}"
   }
 
@@ -393,7 +534,10 @@ let readlinkMayInspectTheFinalSymlink =
           (HT.Operation.Posix(HT.PosixOp.ReadlinkBytes(link, 4096)))
       match outcome with
       | HT.Outcome.Success(HT.Response.Bytes actual) ->
-        Expect.equal actual (System.Text.Encoding.UTF8.GetBytes target) "readlink returns raw stored target bytes"
+        Expect.equal
+          actual
+          (System.Text.Encoding.UTF8.GetBytes target)
+          "readlink returns raw stored target bytes"
       | other -> failtest $"expected readlink success, got {other}"
     finally
       System.IO.Directory.Delete(directory, true)
@@ -456,9 +600,7 @@ let posixWalkRefusesALinkMetAtOperationTime =
           "utimes did not reach the link target"
         // The same operations on the real path work, through the same walk.
         System.IO.File.SetUnixFileMode(file, System.IO.UnixFileMode.None)
-        Expect.isOk
-          (setTimesNow file)
-          "utimes works without file read permission"
+        Expect.isOk (setTimesNow file) "utimes works without file read permission"
         Expect.isOk
           (LibExecution.HostPosix.chmod file 0o600)
           "chmod can recover a mode-000 file"
@@ -692,9 +834,14 @@ let posixKernelRoundTrip =
           ()
           "signal zero"
         if System.OperatingSystem.IsMacOS() then
-          Expect.isNonEmpty (LibExecution.HostPosix.sysctlBytes [ 1; 1 ] 256 |> ok) "raw OS identity"
+          Expect.isNonEmpty
+            (LibExecution.HostPosix.sysctlBytes [ 1; 1 ] 256 |> ok)
+            "raw OS identity"
         else
-          Expect.equal (LibExecution.HostPosix.unameBytes () |> ok |> Array.length) 390 "raw utsname record"
+          Expect.equal
+            (LibExecution.HostPosix.unameBytes () |> ok |> Array.length)
+            390
+            "raw utsname record"
         match LibExecution.HostPosix.fdRead -1 1 with
         | Error(errno, _) ->
           Expect.equal errno 9 "negative kernel errno is mapped to EBADF"
@@ -706,11 +853,14 @@ let posixKernelRoundTrip =
 let rawClocksRequireClockPermission =
   testTask "raw clocks and sleeps retain the Clock gate at Host" {
     for operation in
-      [ HT.PosixOp.ClockGettime -1; HT.PosixOp.Gettimeofday
-        HT.PosixOp.MachAbsoluteTime; HT.PosixOp.MachTimebaseInfo
+      [ HT.PosixOp.ClockGettime -1
+        HT.PosixOp.Gettimeofday
+        HT.PosixOp.MachAbsoluteTime
+        HT.PosixOp.MachTimebaseInfo
         HT.PosixOp.Nanosleep(0L, 0L) ] do
       let! outcome =
-        LibExecution.Host.perform Permission.NoRelax
+        LibExecution.Host.perform
+          Permission.NoRelax
           (Permission.Access.start Permission.Policy.denyAll)
           (HT.Operation.Posix operation)
       match outcome with

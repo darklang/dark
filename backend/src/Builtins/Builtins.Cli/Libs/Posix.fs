@@ -91,8 +91,7 @@ let private syscallResult
   Interpreter.requestHost vm (Host.Operation.Posix op) (fun outcome ->
     match outcome with
     | Ok response -> Ply(Dval.resultOk kt KTInt (ok response))
-    | Error e ->
-      Ply(Dval.resultError kt KTInt (Dval.int (bigint e.errno))))
+    | Error e -> Ply(Dval.resultError kt KTInt (Dval.int (bigint e.errno))))
 
 let private fileEffects = set [ Effect.FileRead; Effect.FileWrite ]
 
@@ -170,7 +169,10 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt fd; DInt count |] ->
           let op =
-            HostTypes.PosixOp.DirectoryBytes(intToDescriptor vm fd, intToInt32 vm count)
+            HostTypes.PosixOp.DirectoryBytes(
+              intToDescriptor vm fd,
+              intToInt32 vm count
+            )
           syscallResult KTBlob vm op (fun r ->
             Blob.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
@@ -187,7 +189,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DInt count |] ->
-          syscallResult KTBlob vm (HostTypes.PosixOp.GetcwdBytes(intToInt32 vm count))
+          syscallResult
+            KTBlob
+            vm
+            (HostTypes.PosixOp.GetcwdBytes(intToInt32 vm count))
             (fun r -> Blob.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -244,7 +249,10 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DString path; DInt flags |] ->
           syscallResult
-            KTUnit vm (HostTypes.PosixOp.UnlinkAt(path, intToInt32 vm flags)) unitOk
+            KTUnit
+            vm
+            (HostTypes.PosixOp.UnlinkAt(path, intToInt32 vm flags))
+            unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -322,7 +330,9 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DString path; DInt count |] ->
-          syscallResult KTBlob vm
+          syscallResult
+            KTBlob
+            vm
             (HostTypes.PosixOp.ReadlinkBytes(path, intToInt32 vm count))
             (fun response -> Blob.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
@@ -379,7 +389,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DInt fd; DInt count |] ->
-          let op = HostTypes.PosixOp.FdRead(intToDescriptor vm fd, intToInt32 vm count)
+          let op =
+            HostTypes.PosixOp.FdRead(intToDescriptor vm fd, intToInt32 vm count)
           syscallResult KTBlob vm op (fun response ->
             Blob.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
@@ -559,7 +570,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
- ]
+    ]
 
 
 let builtins () : Builtins = Builtin.make [] (fns ())

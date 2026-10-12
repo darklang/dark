@@ -1,13 +1,14 @@
 /// Canonical serializers for content-addressable hashing.
 ///
 /// Produces deterministic bytes by skipping identity-irrelevant fields
-/// (AST node IDs, deprecated, originalName).
+/// (AST node IDs, deprecated, originalName, and doc comments).
 ///
-/// The doc comment is NOT one of them: what an item says about itself is not what it does, so two
+/// Doc comments are skipped on purpose: what an item says about itself is not what it does, so two
 /// bodies differing only in their docs are one item and a typo fix in a widely-called function
-/// repoints nobody. The current text is carried by the `Describe` op instead, which is what makes a
-/// doc-only edit representable at all -- ops are content-addressed, so an `AddFn` differing only in
-/// its docs would fold to nothing.
+/// repoints nobody. So a doc-only edit cannot travel as an `AddFn`, which would fold to the item
+/// already there. It travels as an `UpdateDoc` op, naming the location, the part of the declaration
+/// and the text it replaces; the authoring commands emit one when a save lands on the hash the name
+/// already had (`Packages.updateDocsThatChanged`). The `Describe` op this used to name is retired.
 /// Re-uses leaf serializers from the existing binary format.
 module rec LibSerialization.Hashing.Canonical
 

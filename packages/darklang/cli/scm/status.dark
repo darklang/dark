@@ -158,6 +158,17 @@ let executePretty (state: AppState) : AppState =
         (Stdlib.Cli.UI.Colors.dimText
           $"  {lead} in the op log itself, so a reload replays them unchanged.")
 
+  // A datastore left on an older version of its row type. Here for the same reason as store health:
+  // writes to it fail, and nothing else says why until somebody tries one.
+  match (SCM.DatabaseRowTypes.check ()).stale with
+  | [] -> ()
+  | stale ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.warning "datastores on an older row type:")
+
+    stale
+    |> Stdlib.List.iter (fun s ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"  {SCM.DatabaseRowTypes.describe s}"))
+
   state
 
 let execute (state: AppState) (args: List<String>) : AppState =
