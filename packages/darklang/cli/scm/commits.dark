@@ -13,7 +13,7 @@ module Darklang.Cli.Commits
 /// colleague keeps their name; an unnamed colleague is shortened to something you can still tell apart.
 /// The conflict list makes the same comparison for the same reason.
 let authorLabel (author: String) : String =
-  if author == SCM.PackageOps.identity () then
+  if SCM.PackageOps.storedIdentity () == Stdlib.Option.Option.Some author then
     "you"
   else if Stdlib.String.startsWith author "inst-" then
     Stdlib.String.slice author 0 13

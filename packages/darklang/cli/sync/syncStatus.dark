@@ -20,9 +20,9 @@ let setIdentity (state: AppState) (name: String) : AppState =
 
 /// Show this instance's sync identity.
 let executeWhoami (state: AppState) : AppState =
-  match SCM.PackageOps.identity () with
-  | "" -> Cli.printOk "no instance id yet (one is minted on first sync)."
-  | id -> Cli.printOk $"sync identity: {id}"
+  match SCM.PackageOps.storedIdentity () with
+  | None -> Cli.printOk "no instance id yet (`dark sync setup` names this instance; a sync mints one)."
+  | Some id -> Cli.printOk $"sync identity: {id}"
 
   state
 
@@ -106,6 +106,8 @@ module Status =
       unpulledFrom: List<String>
       /// A relay holding far fewer ops than this store, with nothing waiting: wiped or replaced.
       relayLooksReplaced: Bool
+      /// An id this run minted, because a status against a relay was the first thing to need one.
+      justMintedIdentity: Stdlib.Option.Option<String>
       problem: Stdlib.Option.Option<String> }
 
   let failed (url: String) (problem: String) : Model =
@@ -117,6 +119,7 @@ module Status =
         unpushedBranches = []
         unpulledFrom = []
         relayLooksReplaced = false
+        justMintedIdentity = Stdlib.Option.Option.None
         problem = Stdlib.Option.Option.Some problem }
 
   /// Ask the relay. Every read here; nothing in `render`.
@@ -132,6 +135,16 @@ module Status =
         match SCM.Wire.headDecode respBody with
         | Error _ -> failed url "Relay returned an unparseable head."
         | Ok theirs ->
+          // The one read here that is allowed to write, and only once the relay has ANSWERED: a
+          // status against a relay that is down must not leave an id behind, since `render` shows
+          // the failure instead of the line that says one was made. Minting here rather than
+          // leaving it to the first push puts the id in the answer, where it can be renamed. It
+          // comes first so everything below compares against a real id rather than an empty one.
+          let justMinted =
+            match SCM.PackageOps.storedIdentity () with
+            | Some _ -> Stdlib.Option.Option.None
+            | None -> Stdlib.Option.Option.Some (SCM.PackageOps.identity ())
+
           // Effective ops this relay is not known to hold. The same question `push` decides on.
           let unpushed = SCM.Wire.unpushedCount url
           let toSend = unpushed != 0L
@@ -161,7 +174,9 @@ module Status =
               let knownIds =
                 SCM.Branches.list () |> Stdlib.List.map (fun b -> Stdlib.toString b.id)
 
-              let me = SCM.PackageOps.identity ()
+              // Minted at the top of this branch if it was missing, so this is this instance's
+              // id; the default is only here because the read returns an option.
+              let me = Stdlib.Option.withDefault (SCM.PackageOps.storedIdentity ()) ""
 
               Stdlib.String.fromBlobWithReplacement body
               |> Stdlib.String.splitOnNewline
@@ -187,6 +202,7 @@ module Status =
               // branch's ops, so a small gap is normal; a large one is not). `pull` notices the new
               // instance and re-arms the push.
               relayLooksReplaced = (verdict == Verdict.InSync) && (theirs.count + 100L < mine.count)
+              justMintedIdentity = justMinted
               problem = Stdlib.Option.Option.None }
 
   type Msg = | Reload
@@ -227,6 +243,15 @@ module Status =
            |> Stdlib.List.map (fun owner ->
              hint $"the relay holds branches from \"{owner}\" you haven't pulled -- `dark branch pull --from {owner}`."))
 
+      let minted =
+        match m.justMintedIdentity with
+        | None -> []
+        | Some id ->
+          // Two lines, because one that carries a uuid and a command does not fit 80 columns and the
+          // id is the half that gets cut.
+          [ hint $"this instance had no id; it is now {id}."
+            hint "`dark identity <name>` renames it." ]
+
       let replaced =
         if m.relayLooksReplaced then
           [ hint "the relay holds far fewer ops than this store, yet nothing is waiting to send. If it was wiped or replaced, `dark pull` will notice and re-arm the push." ]
@@ -238,6 +263,7 @@ module Status =
           [ [ ok $"local: {Stdlib.toString m.local} ops"
               ok $"relay: {Stdlib.toString m.relay} ops"
               verdict ]
+            minted
             branchHints
             replaced ])
 

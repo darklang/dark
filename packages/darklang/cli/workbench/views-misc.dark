@@ -46,7 +46,10 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
   let off = Stdlib.Cli.UI.Colors.dimText "○"
 
   let relay = SCM.PackageOps.relay ()
-  let identity = SCM.PackageOps.identity ()
+  let identity =
+    match SCM.PackageOps.storedIdentity () with
+    | Some id -> id
+    | None -> Stdlib.Cli.UI.Colors.dimText "no identity yet (`dark sync setup` names this instance)"
   let ops = SCM.PackageOps.count ()
 
   let relayLines =
