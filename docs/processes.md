@@ -806,8 +806,8 @@ position it branched from. Its calls are `trace_fn_calls` under the same id.
   against the old I/O. Live values (`docs/live.md`) are this, one call at a
   time.
 - Three builtins declared with no effects read a host fact live and are not
-  recorded, by design: `cliTerminalColorEnabled` (the terminal's colour
-  support), `interpreterStatsEnableDetailedTiming` and `interpreterStatsGet`
+  recorded, by design: `posixIsatty` (whether a stream is a terminal),
+  `interpreterStatsEnableDetailedTiming` and `interpreterStatsGet`
   (dev instrumentation). A replay in another terminal renders for that
   terminal. Every other pure builtin answers the same twice on the same
   inputs; Dark's dict is an ordered map, so enumeration is deterministic.

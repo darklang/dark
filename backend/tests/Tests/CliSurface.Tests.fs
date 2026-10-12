@@ -141,6 +141,28 @@ let private stderrIsCapturedInOrder =
         "runCli keeps both streams, in order"
     })
 
+/// A failure is not the answer: `dark eval x | next` must not hand `next` an "Error:" or "DEBUG:"
+/// line as though it were the value.
+let private diagnosticsStayOffStdout =
+  cliTest
+    "eval's error and Builtin.debug go to stderr, not into the answer"
+    (fun target ->
+      task {
+        let! (out, err, status) = runCliStreams target [ "eval"; "1L / 0L" ]
+        Expect.equal status 1 "a raised eval exits 1"
+        Expect.equal out "" "a failed eval has no answer on stdout"
+        Expect.stringContains
+          err
+          "Error: Cannot divide by 0"
+          "the error is on stderr"
+
+        let! (out, err, status) =
+          runCliStreams target [ "eval"; "let _ = Builtin.debug \"lbl\" 5L in 7L" ]
+        Expect.equal status 0 "the eval succeeded"
+        Expect.equal out "7" "stdout is the value alone"
+        Expect.stringContains err "DEBUG: lbl: 5" "the debug line is on stderr"
+      })
+
 let private testHelpCommand =
   cliTest "help command" (fun state ->
     task {
@@ -2118,6 +2140,7 @@ let tests : List<Test> =
     timeoutBoundsSynchronousWork
     timeoutPreservesCapture
     stderrIsCapturedInOrder
+    diagnosticsStayOffStdout
     testHelpCommand
     everyCommandAnswersHelp
     workbenchViewsRender

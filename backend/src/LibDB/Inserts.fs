@@ -318,7 +318,7 @@ let rec insertAndApplyOpsWith
 
           updateStatements |> Sql.executeTransactionSync |> ignore<List<int>>
         with ex ->
-          System.Console.Error.WriteLine(
+          NonBlockingConsole.writeErrLine (
             $"Warning: Failed to mark {List.length insertedOpIds} ops as applied: {ex.Message}"
           )
 
@@ -692,7 +692,7 @@ let storeOpsWithOwner
               originTs
             )
           with ex ->
-            System.Console.Error.WriteLine(
+            NonBlockingConsole.writeErrLine (
               $"storeOpsWithOwner: skipping malformed record id={id}: {ex.Message}"
             )
             None)

@@ -23,9 +23,8 @@ relay_grants() {
 # deliberately unreachable: what matters is that setup stores what it was told and reports the
 # failed push instead of losing it.
 #
-# Gate, not an F#/.dark test: it runs under `script -qec`, which allocates a pty.
-# `stdinIsInteractive` is false on a pipe and the test binary's stdin is never a terminal, so on
-# a pipe the prompts block forever.
+# Gate, not an F#/.dark test: it runs under `script -qec`, which allocates a pty. The prompts ask only
+# when stdin is a terminal, and the test binary's stdin never is.
 gate_setup() {
   set -euo pipefail
 

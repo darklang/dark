@@ -137,7 +137,7 @@ module FnNameCache =
           |> Async.RunSynchronously
           |> Ok
         with ex ->
-          print $"[tracing] FnNameCache failed to resolve {hash}: {ex.Message}"
+          printErr $"[tracing] FnNameCache failed to resolve {hash}: {ex.Message}"
           Telemetry.event
             "trace.fnNameCacheResolveFailed"
             [ "hash", hash; "message", ex.Message ]
@@ -1045,7 +1045,7 @@ let private storeTrace
           match ex.InnerException with
           | null -> ""
           | e -> $" ({e.Message})"
-        System.Console.Error.WriteLine
+        NonBlockingConsole.writeErrLine
           $"[tracing] Failed to store trace: {ex.Message}{inner}"
         Telemetry.event
           "trace.storeFailed"

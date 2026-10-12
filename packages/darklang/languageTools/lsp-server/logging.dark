@@ -20,7 +20,7 @@ let logAndSendToClient (response: String) : Unit =
     |> Stdlib.List.length
     |> Stdlib.toString
 
-  Stdlib.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
+  Stdlib.printProtocol $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
 
 (*
   // These are (basically) the only things we're allowed to do before
