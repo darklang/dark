@@ -3150,7 +3150,6 @@ and parseTestDecl (state : ParserState) (i : int) : WT.Declaration * int =
   (WT.DTest
     { range = span keywordTest endRange
       name = nameId
-      effects = None
       body = body
       expectedError = expectedError
       keywordTest = keywordTest

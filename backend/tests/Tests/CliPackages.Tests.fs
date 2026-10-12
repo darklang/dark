@@ -463,7 +463,7 @@ let cachedPassesRequireTheSameBuildAndJudge =
       // Keep a real stored pass, but associate it with another runtime or judge.
       for oldKey in [ "old-build:" + parts[1]; parts[0] + ":old-judge" ] do
         let sql =
-          "UPDATE package_test_results_v1 "
+          "UPDATE package_test_results "
           + $"SET runtime_hash = '{oldKey}' "
           + $"WHERE runtime_hash = '{key.Trim()}'"
         do!

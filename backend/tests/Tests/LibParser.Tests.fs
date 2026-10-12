@@ -378,7 +378,6 @@ let private parserStructureTests =
           match m.declarations with
           | [ WT.DTest test ] ->
             Expect.equal test.name.name "divisionByZero" "test name"
-            Expect.isNone test.effects "tests have no independent effect row"
             Expect.equal
               (test.expectedError |> Option.map snd)
               (Some(WT.RuntimeError "Cannot divide by 0"))

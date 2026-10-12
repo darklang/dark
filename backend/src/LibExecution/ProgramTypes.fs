@@ -873,9 +873,6 @@ module PackageTest =
       /// Test-only datastores. IDs are minted for each execution, so a test
       /// cannot see another test's rows or the instance's user data.
       testDBs : List<string * TypeReference>
-      /// Legacy metadata retained for immutable stored hashes and wire compatibility.
-      /// Ignored at execution; new tests have no independent permission ceiling.
-      permissionCeiling : Option<Set<Effects.Effect>>
     }
 
 

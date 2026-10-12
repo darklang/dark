@@ -72,7 +72,7 @@ let ensureCache () : Unit =
   let _ =
     Stdlib.Sqlite.mustExec
       (cacheDb ())
-      "CREATE TABLE IF NOT EXISTS package_test_results_v1 (
+      "CREATE TABLE IF NOT EXISTS package_test_results (
          test_hash TEXT NOT NULL,
          runtime_hash TEXT NOT NULL,
          branch_id TEXT NOT NULL,
@@ -95,7 +95,7 @@ let storedOutcome
   match
     Stdlib.Sqlite.queryOneP
       (cacheDb ())
-      "SELECT outcome_json FROM package_test_results_v1
+      "SELECT outcome_json FROM package_test_results
        WHERE test_hash = @p0 AND runtime_hash = @p1
          AND branch_id = @p2 AND result_type_hash = @p3"
       [ hash, runtime, branch, resultType ] with
@@ -119,7 +119,7 @@ let storeOutcome
   let _ =
     Stdlib.Sqlite.mustExec
       (cacheDb ())
-      "INSERT INTO package_test_results_v1
+      "INSERT INTO package_test_results
          (test_hash, runtime_hash, branch_id, result_type_hash, outcome_json)
        VALUES (@p0, @p1, @p2, @p3, @p4)
        ON CONFLICT(test_hash, runtime_hash, branch_id, result_type_hash)
@@ -137,7 +137,7 @@ let lastOutcome
     Stdlib.Sqlite.queryOneP
       (cacheDb ())
       "SELECT 1 AS present FROM sqlite_master
-       WHERE type = 'table' AND name = 'package_test_results_v1'"
+       WHERE type = 'table' AND name = 'package_test_results'"
       []
   match cacheTable with
   | Some _ ->

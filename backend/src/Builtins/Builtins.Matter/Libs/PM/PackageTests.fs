@@ -68,6 +68,9 @@ let executeTestBody
           access = guest.access |> Permissions.Access.constrainBy callerAccess
           program = program
           test = { guest.test with isPackageTest = true; sideEffectCount = 0 } }
+    // TODO: Store test instructions alongside PT, as functions do, to avoid
+    // converting the body on every run. Verify that runtime upgrades regenerate
+    // them and that expected-error tests still behave the same.
     let instructions = PT2RT.Expr.toRT Map.empty 0 None test.body
     let! result =
       uply {

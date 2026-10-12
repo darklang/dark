@@ -247,10 +247,6 @@ test errorsAfterWrite =
     Expect.equal (List.length tests) 3 "three DB tests were authored"
     for test in tests do
       Expect.isNonEmpty test.testDBs "private schemas are stored on the test"
-      Expect.equal
-        test.permissionCeiling
-        None
-        "new tests have no independent permission ceiling"
 
     let! before = countSql "SELECT count(*) AS n FROM user_data_v0" []
     let! writes = run m "writes"

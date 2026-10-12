@@ -400,14 +400,13 @@ let private valueHashTests =
 let private testHashTests =
   testList
     "computeTestHash"
-    [ test "body, expected error, and permission ceiling are identity; docs are not" {
+    [ test "body, expected error, and private DB schemas are identity; docs are not" {
         let baseTest : PT.PackageTest.PackageTest =
           { hash = PT.Hash ""
             body = eInt64 7L
             description = "first wording"
             expectedError = None
-            testDBs = []
-            permissionCeiling = Some Set.empty }
+            testDBs = [] }
         let hash = Hashing.computeTestHash Hashing.Normal baseTest
         let docHash =
           Hashing.computeTestHash
@@ -425,12 +424,6 @@ let private testHashTests =
             Hashing.Normal
             { baseTest with
                 expectedError = Some(PT.ExpectedError.SqlCompilerError "boom") }
-        let effectHash =
-          Hashing.computeTestHash
-            Hashing.Normal
-            { baseTest with
-                permissionCeiling =
-                  Some(Set.singleton LibExecution.Effects.Effect.Clock) }
         let dbHash =
           Hashing.computeTestHash
             Hashing.Normal
@@ -445,7 +438,6 @@ let private testHashTests =
           expectedErrorHash
           sqlErrorHash
           "the expected error kind is part of the test identity"
-        Expect.notEqual hash effectHash "permission changes invalidate a test result"
         Expect.notEqual hash dbHash "test DB schemas invalidate a test result"
       } ]
 

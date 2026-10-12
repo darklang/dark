@@ -1424,13 +1424,7 @@ module TestDeclaration =
               ProgramTypes.PackageTest.ExpectedError.RuntimeError message
             | SqlCompilerError message ->
               ProgramTypes.PackageTest.ExpectedError.SqlCompilerError message)
-        testDBs = []
-        permissionCeiling =
-          test.effects
-          |> Stdlib.Option.map (fun names ->
-            names
-            |> Stdlib.List.filterMap (fun (_range, case) ->
-              LanguageTools.Permissions.effectOfCase case)) },
+        testDBs = [] },
       unresolvedNames)
 
 

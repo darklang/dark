@@ -588,9 +588,7 @@ module PackageTest =
       body: Expr
       description: String
       expectedError: Option<ExpectedError>
-      testDBs: List<(String * TypeReference)>
-      /// Legacy metadata for stored hashes; ignored when executing a test.
-      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>> }
+      testDBs: List<(String * TypeReference)> }
 
 
 /// The kind of package item (function, type, value, trait, impl, or test)

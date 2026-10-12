@@ -1661,11 +1661,7 @@ module PackageTest =
           test.testDBs
           |> List.map (fun (name, typ) ->
             DTuple(DString name, TypeReference.toDT typ, []))
-        )
-        "permissionCeiling",
-        test.permissionCeiling
-        |> Option.map Effects2DT.toDT
-        |> Dval.option (Effects2DT.knownType ()) ]
+        ) ]
     DRecord(typeName (), typeName (), [], Map fields)
 
   let fromDT (d : Dval) : PT.PackageTest.PackageTest =
@@ -1684,11 +1680,7 @@ module PackageTest =
           |> D.list (fun d ->
             match d with
             | DTuple(name, typ, []) -> D.string name, TypeReference.fromDT typ
-            | _ -> Exception.raiseInternal "Invalid test DB" [])
-        permissionCeiling =
-          fields
-          |> D.field "permissionCeiling"
-          |> C2DT.Option.fromDT Effects2DT.fromDT }
+            | _ -> Exception.raiseInternal "Invalid test DB" []) }
     | _ -> Exception.raiseInternal "Invalid PackageTest" []
 
 

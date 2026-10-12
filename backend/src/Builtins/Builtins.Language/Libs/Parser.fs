@@ -1135,10 +1135,6 @@ module WrittenTypesToDarkTypes =
       Map
         [ "range", rangeToDT test.range
           "name", identifierToDT WTRefs.valueIdentifier test.name
-          "effects",
-          test.effects
-          |> Option.map (List.map (fun id -> id.name, id.range) >> rangedNamesToDT)
-          |> Dval.option (KTList(rangedNamesVT ()))
           "body", exprToDT test.body
           "expectedError",
           (let contentsKT =

@@ -469,7 +469,6 @@ type ExpectedError =
 type TestDecl =
   { range : Range
     name : Identifier
-    effects : Option<List<Identifier>>
     body : Expr
     expectedError : Option<Range * ExpectedError>
     keywordTest : Range
@@ -753,7 +752,6 @@ module PackageTest =
   type PackageTest =
     { name : Name
       description : string
-      effects : Option<List<string>>
       body : Expr
       expectedError : Option<ExpectedError> }
 
@@ -1059,6 +1057,5 @@ let packageTest
   : PackageTest.PackageTest =
   { name = { owner = owner; modules = modules; name = test.name.name }
     description = test.description
-    effects = test.effects |> Option.map (List.map _.name)
     body = test.body
     expectedError = test.expectedError |> Option.map snd }

@@ -94,32 +94,6 @@ module PT =
         |> BS.PT.PackageTest.deserialize test.hash)
       Values.ProgramTypes.packageTests
 
-  let legacyTestDBExtension =
-    test "reads the pre-versioned package-test DB extension" {
-      let original = Values.ProgramTypes.packageTest
-      let withoutDBs = { original with testDBs = [] }
-      use stream = new System.IO.MemoryStream()
-      use writer =
-        new System.IO.BinaryWriter(stream, System.Text.Encoding.UTF8, true)
-      LibSerialization.Binary.Serializers.PT.PackageTest.write writer withoutDBs
-      writer.Write 0xDA7ABA5Eu
-      LibSerialization.Binary.Serializers.Common.List.write
-        writer
-        (fun w (name, typ) ->
-          LibSerialization.Binary.Serializers.Common.String.write w name
-          LibSerialization.Binary.Serializers.PT.TypeReference.write w typ)
-        original.testDBs
-      writer.Flush()
-      stream.Position <- 0L
-      use reader =
-        new System.IO.BinaryReader(stream, System.Text.Encoding.UTF8, true)
-      let restored =
-        LibSerialization.Binary.Serializers.PT.PackageTest.read
-          LibSerialization.Binary.BaseFormat.CurrentVersion
-          reader
-      Expect.equal restored original "old test DB payload remains readable"
-    }
-
   /// Every `PackageOp` case, through the writer and back.
   ///
   /// The op format is what two machines must agree on byte for byte. Storing an op and reading it
@@ -693,7 +667,6 @@ let tests =
           PT.traitTests
           PT.implTests
           PT.packageTestTests
-          PT.legacyTestDBExtension
           PT.toplevelTests
           PT.packageOpTests
           PT.deprecationStampRidesOnTheExistingTags

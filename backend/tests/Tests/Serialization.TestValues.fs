@@ -889,8 +889,7 @@ module ProgramTypes =
       body = PT.EBool(id, true)
       description = "native test"
       expectedError = Some(PT.ExpectedError.RuntimeError "expected failure")
-      testDBs = [ "Items", PT.TString ]
-      permissionCeiling = Some Set.empty }
+      testDBs = [ "Items", PT.TString ] }
 
   let sqlPackageTest =
     { packageTest with
@@ -901,7 +900,7 @@ module ProgramTypes =
     [ packageTest
       sqlPackageTest
       { packageTest with testDBs = [] }
-      { packageTest with testDBs = []; permissionCeiling = None } ]
+      { packageTest with testDBs = []; expectedError = None } ]
 
   let packageLocation : PackageLocation =
     { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }

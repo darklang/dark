@@ -1154,15 +1154,7 @@ module PackageTest =
               | WT.RuntimeError message -> PT.ExpectedError.RuntimeError message
               | WT.SqlCompilerError message ->
                 PT.ExpectedError.SqlCompilerError message)
-          testDBs = []
-          permissionCeiling =
-            test.effects
-            |> Option.map (fun names ->
-              names
-              |> List.choose (fun name ->
-                LibExecution.Effects.all
-                |> List.tryFind (fun effect -> $"%A{effect}" = name))
-              |> Set.ofList) }
+          testDBs = [] }
     }
 
 
