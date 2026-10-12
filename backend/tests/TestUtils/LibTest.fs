@@ -17,25 +17,6 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageRefs = LibExecution.PackageRefs
 
 
-let values : List<BuiltInValue> =
-  [ { name = value "testNan" 0
-      typ = TFloat
-      description = "Return a NaN"
-      body = DFloat(System.Double.NaN)
-      deprecated = NotDeprecated }
-
-    { name = value "testInfinity" 0
-      typ = TFloat
-      description = "Returns positive infitity"
-      body = DFloat(System.Double.PositiveInfinity)
-      deprecated = NotDeprecated }
-
-    { name = value "testNegativeInfinity" 0
-      typ = TFloat
-      description = "Returns negative infinity"
-      body = DFloat(System.Double.NegativeInfinity)
-      deprecated = NotDeprecated } ]
-
 /// Awaits a test can release by hand, so a scheduler test can decide the order things finish in.
 module Gates =
   let private gates =
@@ -195,32 +176,6 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    { name = fn "testToChar" 0
-      typeParams = []
-      parameters = [ Param.make "c" TString "" ]
-      returnType = TypeReference.option TChar
-      description = "Turns a string of length 1 into a character"
-      fn =
-        (function
-        | _, _, _, [| DString s |] ->
-          let chars = String.toEgcSeq s
-
-          if Seq.length chars = 1 then
-            chars
-            |> Seq.toList
-            |> (fun l -> l[0])
-            |> DChar
-            |> Dval.optionSome KTChar
-            |> Ply
-          else
-            Dval.optionNone KTChar |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "testIncrementSideEffectCounter" 0
       typeParams = []
       parameters =
@@ -240,21 +195,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "testSideEffectCount" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
-      description = "Return the value of the side-effect counter"
-      fn =
-        (function
-        | state, _, _, [| DUnit |] -> Ply(Dval.int64 state.test.sideEffectCount)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "testRaiseException" 0
       typeParams = []
       parameters = [ Param.make "message" TString "" ]
@@ -267,25 +207,6 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "testSetExpectedExceptionCount" 0
-      typeParams = []
-      parameters = [ Param.make "count" TInt64 "" ]
-      returnType = TUnit
-      description = "Set the expected exception count for the current test"
-      fn =
-        (function
-        | state, _, _, [| DInt64 count |] ->
-          uply {
-            state.test.expectedExceptionCount <- int count
-            return DUnit
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
-let builtins () = LibExecution.Builtin.make values (fns ())
+let builtins () = LibExecution.Builtin.make [] (fns ())

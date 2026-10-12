@@ -16,6 +16,7 @@ let resolveReplacementName
     | PackageValue h -> LanguageTools.PackageManager.Value.locations branchId h
     | PackageTrait h -> LanguageTools.PackageManager.Trait.locations branchId h
     | PackageTraitImpl h -> LanguageTools.PackageManager.TraitImpl.locations branchId h
+    | PackageTest h -> LanguageTools.PackageManager.Test.locations branchId h
   match Darklang.LanguageTools.PackageManager.pickLocation
           (PrettyPrinter.ProgramTypes.Context.toPickContext ctx)
           locs with
@@ -44,14 +45,18 @@ let rawSource
     let modulePath = Stdlib.List.append [ loc.owner ] loc.modules
     let results = Query.searchExactMatch branchId modulePath loc.name
 
-    match (results.fns, results.types, results.values) with
-    | (item :: _, _, _) ->
+    match (results.fns, results.types, results.values, results.tests) with
+    | (item :: _, _, _, _) ->
       Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageFn ctx item.entity)
-    | (_, item :: _, _) ->
+    | (_, item :: _, _, _) ->
       Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageType ctx item.entity)
-    | (_, _, item :: _) ->
+    | (_, _, item :: _, _) ->
       Stdlib.Result.Result.Ok(
         PrettyPrinter.ProgramTypes.packageValue ctx item.entity
+      )
+    | (_, _, _, item :: _) ->
+      Stdlib.Result.Result.Ok(
+        PrettyPrinter.ProgramTypes.packageTest ctx item.entity
       )
     | _ ->
       match (results.traits, results.impls) with
@@ -66,12 +71,13 @@ let rawSource
   match location with
   | Module _ ->
     Stdlib.Result.Result.Error
-      "--raw prints ONE declaration. Name a fn, type, value, trait or impl, not a module."
+      "--raw prints ONE declaration. Name a fn, type, value, trait, impl or test, not a module."
   | Type loc -> sourceOf loc
   | Value loc -> sourceOf loc
   | Function loc -> sourceOf loc
   | Trait loc -> sourceOf loc
   | Impl loc -> sourceOf loc
+  | Test loc -> sourceOf loc
 
 
 /// Print `rawSource`, or say why there is none.
@@ -135,13 +141,83 @@ let terminalContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.
   { PrettyPrinter.ProgramTypes.Context.forModule branchId modulePath with width = width }
 
 
-let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
+/// The tests that call <param location> directly, each with its last stored
+/// result. Read-only: nothing runs here, and a test with no stored result for
+/// this build says so. Deprecated (deleted) tests are left out, as `dark test`
+/// leaves them out.
+///
+/// <param cmdPrefix> is how the reader runs a command where these rows are
+/// shown: "dark " in a shell, ":" in the workbench's command bar.
+let testRows
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (cmdPrefix: String)
+  (heading: String)
+  : List<String> =
+  let depSets = Query.loadDeprecationSets branchId
+  let tests =
+    SCM.Deps.dependentsOf [ (location, kind) ]
+    |> Stdlib.List.filter (fun (hash, _, depKind) ->
+      depKind == LanguageTools.ProgramTypes.ItemKind.Test
+      && Stdlib.Bool.not (Query.isDeprecated depSets hash))
+    |> Stdlib.List.sortBy (fun (_, loc, _) ->
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc)
+
+  match tests with
+  | [] -> []
+  | _ ->
+    let passMark = Stdlib.Cli.UI.Colors.success "✓"
+    let failMark = Stdlib.Cli.UI.Colors.error "✗"
+    let noResult = Stdlib.Cli.UI.Colors.dimText "no result for this build"
+    let rows =
+      tests
+      |> Stdlib.List.map (fun (hash, loc, _) ->
+        let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+        let result =
+          match Packages.Test.lastOutcome branchId hash with
+          | Some Passed -> [ $"  {passMark} {name}" ]
+          | Some(Failed messages) ->
+            let first = Stdlib.Option.withDefault (Stdlib.List.head messages) ""
+            [ $"  {failMark} {name}"
+              Stdlib.Cli.UI.Colors.dimText $"      {first}" ]
+          | Some(RuntimeFailed message) ->
+            [ $"  {failMark} {name}"
+              Stdlib.Cli.UI.Colors.dimText $"      {message}" ]
+          | None -> [ $"  · {name}  {noResult}" ]
+        result)
+      |> Stdlib.List.flatten
+
+    // One module holds them all (the usual case): name it, so the hint runs
+    // exactly these.
+    let modules =
+      tests
+      |> Stdlib.List.map (fun (_, loc, _) ->
+        Stdlib.String.join (Stdlib.List.append [ loc.owner ] loc.modules) ".")
+      |> Stdlib.List.unique
+    let runHint =
+      match modules with
+      | [ only ] -> $"`{cmdPrefix}test {only}` runs them"
+      | _ -> $"`{cmdPrefix}test` runs them"
+
+    Stdlib.List.flatten
+      [ [ "", heading ]
+        Listing.capped rows Listing.defaultLimit (Listing.shouldCap false) "tests"
+        [ Stdlib.Cli.UI.Colors.dimText $"  {runHint}" ] ]
+
+
+/// <param includeTests> appends a function's tests (`view --include-tests`).
+let entityRows
+  (branchId: Uuid)
+  (location: PackageLocation)
+  (includeTests: Bool)
+  : List<String> =
   match location with
   | Module path ->
     // Names only. This listing prints each item's name and nothing else, so materializing every matched
     // item's full definition to read `.location.name` is work thrown away. Submodules come back already
     // reduced to the direct children of `path`.
-    let (directSubmodules, typeNames, valueNames, fnNames, traitNames, implNames) =
+    let (directSubmodules, typeNames, valueNames, fnNames, traitNames, implNames, testNames) =
       Query.allDirectDescendantNames branchId path
 
     let locationStr = Packages.formatLocation location
@@ -199,6 +275,7 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       sectionRows "value" "" valueNames
       sectionRows "function" "" fnNames
       sectionRows "impl" "" implNames
+      sectionRows "test" "" testNames
     ]
 
   | Type name ->
@@ -252,6 +329,15 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
         sourceRows highlighted
         [ "" ]
         permissionLines |> Stdlib.List.map Stdlib.Cli.UI.Colors.dimText
+        if includeTests then
+          testRows
+            branchId
+            name
+            LanguageTools.ProgramTypes.ItemKind.Fn
+            "dark "
+            (Display.getSectionHeader "test")
+        else
+          []
       ]
 
   | Value name ->
@@ -277,7 +363,6 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
           LanguageTools.ProgramTypes.ItemKind.Value
         sourceRows highlighted
       ]
-
 
   | Trait name ->
     let modulePath = Stdlib.List.append [name.owner] name.modules
@@ -323,9 +408,36 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
         sourceRows highlighted
       ]
 
+  | Test name ->
+    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let results = Query.searchExactMatch branchId modulePath name.name
 
-let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
-  entityRows branchId location |> Stdlib.printLines
+    match results.tests with
+    | [] ->
+      let locationStr = Packages.formatLocation location
+      [ $"Test '{locationStr}' not found." ]
+    | item :: _ ->
+      let ctx =
+        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+            preferredLocation = Stdlib.Option.Option.Some name }
+      let prettyPrinted = PrettyPrinter.ProgramTypes.packageTest ctx item.entity
+      let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+
+      Stdlib.List.flatten [
+        deprecationHeaderRowsFor
+          branchId
+          item.entity.hash
+          LanguageTools.ProgramTypes.ItemKind.Test
+        sourceRows highlighted
+      ]
+
+
+let viewEntity
+  (branchId: Uuid)
+  (location: PackageLocation)
+  (includeTests: Bool)
+  : Unit =
+  entityRows branchId location includeTests |> Stdlib.printLines
 
 
 /// What `view` shows. Source is the default and the only one that works for every kind of item; the
@@ -353,11 +465,14 @@ let modeName (mode: ViewMode) : String =
 
 /// Flags are accepted in any position, so `view --ast List.last` and `view List.last --ast` both work.
 /// Returns the path (if given) and the mode, or an error naming the bad flag.
+/// The path, the mode, and whether `--include-tests` was given.
 let parseArgs
   (args: List<String>)
-  : Stdlib.Result.Result<(Stdlib.Option.Option<String> * ViewMode), String> =
+  : Stdlib.Result.Result<(Stdlib.Option.Option<String> * ViewMode * Bool), String> =
   let isFlag (a: String) : Bool = Stdlib.String.startsWith a "-"
-  let flags = Stdlib.List.filter args (fun a -> isFlag a)
+  let includeTests = Stdlib.List.member args "--include-tests"
+  let flags =
+    Stdlib.List.filter args (fun a -> isFlag a && a != "--include-tests")
   let paths = Stdlib.List.filter args (fun a -> Stdlib.Bool.not (isFlag a))
 
   let modeResult =
@@ -375,10 +490,15 @@ let parseArgs
   match modeResult with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok mode ->
-    match paths with
-    | [] -> Stdlib.Result.Result.Ok((Stdlib.Option.Option.None, mode))
-    | [ p ] -> Stdlib.Result.Result.Ok((Stdlib.Option.Option.Some p, mode))
-    | _ -> Stdlib.Result.Result.Error "expected at most one path"
+    if includeTests && (mode != ViewMode.Source) then
+      // The other modes print one declaration for a machine or a debugger;
+      // a tests list in that output would break the pipe `--raw` exists for.
+      Stdlib.Result.Result.Error "`--include-tests` goes with the default view only"
+    else
+      match paths with
+      | [] -> Stdlib.Result.Result.Ok((Stdlib.Option.Option.None, mode, includeTests))
+      | [ p ] -> Stdlib.Result.Result.Ok((Stdlib.Option.Option.Some p, mode, includeTests))
+      | _ -> Stdlib.Result.Result.Error "expected at most one path"
 
 
 /// The function at a location, if the location names one. `--ast` and `--instructions` are function-only
@@ -407,6 +527,8 @@ let fnAt
   | Impl _ ->
     Stdlib.Result.Result.Error
       "that's an implementation; this view is for functions. Name one of its methods."
+  | Test _ ->
+    Stdlib.Result.Result.Error "that's a test; this view is for functions"
 
 
 /// The ProgramTypes tree, indented by depth. Node kinds are colored and payloads dimmed, so the shape
@@ -506,7 +628,7 @@ let viewCompiled
       | None ->
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.error "No compiled instructions stored for this function.")
-    | Source -> viewEntity branchId location
+    | Source -> viewEntity branchId location false
     | Raw -> printRaw branchId location
 
 
@@ -543,7 +665,8 @@ let resolveHashArg
      | Type -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Type loc)
      | Value -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Value loc)
      | Trait -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Trait loc)
-     | TraitImpl -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Impl loc))
+     | TraitImpl -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Impl loc)
+     | Test -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Test loc))
   | None ->
     Stdlib.Result.Result.Error
       $"no live name binds hash {Stdlib.String.first hash 8} -- `dark show {Stdlib.String.first hash 8}` reads it as an op."
@@ -562,6 +685,7 @@ let printTraceHint (branchId: Uuid) (location: PackageLocation) : Unit =
   | Value _ -> ()
   | Trait _ -> ()
   | Impl _ -> ()
+  | Test _ -> ()
   | Function loc ->
     let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
 
@@ -587,7 +711,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine (help state)
     { state with exitCode = 1 }
   | Ok parsed ->
-    let (pathArg, mode) = parsed
+    let (pathArg, mode, includeTests) = parsed
 
     let locationResult =
       match pathArg with
@@ -607,7 +731,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       { state with exitCode = 1 }
     | Ok location ->
       match mode with
-      | Source -> viewEntity branchId location
+      | Source -> viewEntity branchId location includeTests
       | Raw -> printRaw branchId location
       | _ -> viewCompiled branchId location mode
 
@@ -625,7 +749,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
   // Complete the path as before, and offer the view flags once something is typed. Flags are filtered
   // out of the path completion so `view List.last --a` completes the flag, not a package path.
   let flagCompletions (partial: String) : List<Completion.CompletionItem> =
-    [ "--raw", "--ast", "--instructions" ]
+    [ "--raw", "--ast", "--instructions", "--include-tests" ]
     |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
     |> Stdlib.List.map (fun name -> Completion.simple name)
 
@@ -641,8 +765,8 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 
 let help (_state: AppState) : String =
   [
-    "Usage: view [path] [--raw | --ast | --instructions]"
-    "View a function, type, value, trait, implementation or module."
+    "Usage: view [path] [--include-tests] [--raw | --ast | --instructions]"
+    "View a function, type, value, trait, implementation, test or module."
     ""
     "With path: View the specified item with syntax highlighting."
     "Without path: View current location."
@@ -653,6 +777,9 @@ let help (_state: AppState) : String =
     "                    item and writing it back is a pipe."
     ""
     "Options (functions only):"
+    "  --include-tests   Also list the tests that call the function, each with"
+    "                    its last result for this build. Nothing is run;"
+    "                    `dark test` runs them."
     "  --ast             The ProgramTypes tree the parser built, before compilation."
     "  --instructions    The register-machine instructions the function actually runs."
     "                    Aliased as --instrs."
@@ -663,6 +790,7 @@ let help (_state: AppState) : String =
     "  view Option                     - View the Option type"
     "  view Stdlib.List                - View contents of Stdlib.List module"
     "  view List.head --raw            - Print just the declaration"
+    "  view Float.add --include-tests  - Float.add and the tests that call it"
     "  view List.last --ast            - View List.last as a syntax tree"
     "  view List.map --instructions    - Disassemble List.map"
   ] |> Stdlib.String.join "\n"

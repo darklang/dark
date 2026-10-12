@@ -592,11 +592,55 @@ module private Operators =
         let result = requirementsOf [ deferringDisplay; caller ] "displays-unpinned"
         Expect.isFalse result.complete "the store decides at run time"
       } ]
+let testBodiesUseTransitiveCacheSafetyAnalysis =
+  testTask "cache safety checks a test body's transitive calls" {
+    let analyze (body : PT.Expr) : System.Threading.Tasks.Task<Requirements.Result> =
+      PackagePermissions.cacheSafetyForExpression loadFromUniverse testEffects body
+      |> Ply.toTask
+
+    let! (safe : Requirements.Result) = analyze (callBuiltin "listMap")
+    Expect.isTrue safe.complete "the pure builtin is classified"
+    Expect.isEmpty safe.requiredEffects "it requires no effects"
+
+    let! (effectful : Requirements.Result) =
+      analyze (eApply (ePackageFn "caller") [] [ eUnit () ])
+    Expect.isTrue effectful.complete "the package dependency is resolved"
+    Expect.equal
+      effectful.requiredEffects
+      (set [ Effect.Effect.Clock; Effect.Effect.FileRead ])
+      "transitive effects are included"
+
+    let! (dynamic : Requirements.Result) =
+      analyze (eApply (eVar "callback") [] [ eUnit () ])
+    Expect.isFalse dynamic.complete "dynamic calls cannot be certified cache-safe"
+
+    let! (missing : Requirements.Result) =
+      analyze (eApply (ePackageFn "missing") [] [ eUnit () ])
+    Expect.isFalse
+      missing.complete
+      "missing dependencies cannot be certified cache-safe"
+  }
+
+let cacheSafetyRejectsBranchDependentRendering =
+  testTask "a permission-free branch-dependent builtin is not cache-safe" {
+    let callEffectsFor (name, version) =
+      if name = "toRepr" then None else testEffects (name, version)
+    let! (result : Requirements.Result) =
+      PackagePermissions.cacheSafetyForExpression
+        loadFromUniverse
+        callEffectsFor
+        (callBuiltin "toRepr")
+      |> Ply.toTask
+    Expect.isFalse result.complete "rendering depends on the current branch"
+    Expect.isEmpty result.requiredEffects "this is not a permission effect"
+  }
 
 let tests =
   testList
     "packagePermissions"
     [ dictionaryKeysAreAnalyzed
+      cacheSafetyRejectsBranchDependentRendering
+      testBodiesUseTransitiveCacheSafetyAnalysis
       missingCodeIsIncomplete
       deferredCodeRequirementsAreIncluded
       packageValuesMakeAnalysisIncomplete

@@ -50,7 +50,7 @@ module ReadFile =
         let branchId = state.currentBranchId
         let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
 
-        // A leaf of any of the five kinds; a module path falls through to the search below.
+        // A leaf of any of the six kinds; a module path falls through to the search below.
         let entityContent =
           match LanguageTools.PackageManager.findAny branchId location with
           | Some((hash, kind)) -> PrettyPrinter.ProgramTypes.sourceOf ctx kind hash
@@ -237,6 +237,24 @@ module WriteFile =
           kind = LanguageTools.ProgramTypes.ItemKind.TraitImpl
           ops = ops
           unresolvedNames = unresolvedNames }
+    | Test testDecl ->
+      let location = locationOf testDecl.name.name
+      let (packageTest, unresolvedNames) =
+        LanguageTools.WrittenTypesToProgramTypes.TestDeclaration.toTestPT
+          ctx
+          testDecl
+      let packageTest =
+        { packageTest with hash = placeholder testDecl.name.name }
+      LoweredDecl
+        { location = location
+          kind = LanguageTools.ProgramTypes.ItemKind.Test
+          ops =
+            [ LanguageTools.ProgramTypes.PackageOp.AddTest packageTest
+              LanguageTools.ProgramTypes.PackageOp.SetName(
+                location,
+                ProgramTypes.Reference.PackageTest packageTest.hash,
+                Stdlib.Option.Option.None) ]
+          unresolvedNames = unresolvedNames }
     // `collectDecls` flattens submodules and never saves expressions.
     | SubModule _
     | Expr _ ->
@@ -263,6 +281,7 @@ module WriteFile =
       // The PM record carries no impl lookup; `pm` here is the persistent one anyway
       | TraitImpl ->
         LanguageTools.PackageManager.TraitImpl.find branchId location |> Stdlib.Option.isSome
+      | Test -> LanguageTools.PackageManager.Test.find branchId location |> Stdlib.Option.isSome
     Stdlib.Bool.not existing
 
 

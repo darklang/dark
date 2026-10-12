@@ -343,6 +343,7 @@ let rec private declarationStructureIssues
     )
     @ exprIssues true fn.body
   | WT.DValue value -> exprIssues false value.body
+  | WT.DTest test -> exprIssues false test.body
   | WT.DType _ -> []
   | WT.DTrait t ->
     // Duplicate method names would collapse to one record field.
@@ -368,8 +369,12 @@ let rec private declarationStructureIssues
   | WT.DTypeDB typ ->
     match typ.definition with
     | WT.TDAlias _ -> []
-    | _ -> [ issue typ.range DBShape "[<DB>] type must be a type alias" ]
-  | WT.DTest test ->
+    | WT.TDRecord _ when List.isEmpty typ.typeParams -> []
+    | WT.TDRecord _ ->
+      [ issue typ.range DBShape "[<DB>] inline record cannot have type parameters" ]
+    | WT.TDEnum _ ->
+      [ issue typ.range DBShape "[<DB>] type must be a type alias or record" ]
+  | WT.DAssertion test ->
     let expectedIssues =
       match test.expected with
       | WT.TEExpr expr -> exprIssues false expr
@@ -393,6 +398,15 @@ let rec private declarationPurposeIssues
   | WT.DType _
   | WT.DTrait _
   | WT.DImpl _ -> []
+  | WT.DTest test ->
+    match mode with
+    | Package -> []
+    | Test
+    | Script ->
+      [ issue
+          test.range
+          TestMode
+          "Named package tests are only allowed in package files" ]
   // WrittenTypes does not distinguish a file module header (`module A.B`),
   // which may be empty, from a block module (`module X =`), which may not. The
   // parser validates the block form while it still has that syntax detail.
@@ -413,10 +427,14 @@ let rec private declarationPurposeIssues
     | Script -> []
   | WT.DTypeDB typ ->
     match mode with
-    | Test -> []
+    | Test
+    | Package -> []
     | _ ->
-      [ issue typ.range DBMode "[<DB>] declarations are only allowed in test files" ]
-  | WT.DTest test ->
+      [ issue
+          typ.range
+          DBMode
+          "[<DB>] declarations are only allowed in test and package files" ]
+  | WT.DAssertion test ->
     match mode with
     | Test -> []
     | _ ->

@@ -156,21 +156,22 @@ let private makeRef
   (modules : string list)
   (name : string)
   : unit -> string =
-  let mutable cachedGen = -1
-  let mutable cached = ""
+  // Publish the generation and hash together: checker workers resolve refs concurrently.
+  // Separate writes let a reader see the new generation with an empty or stale hash.
+  let mutable cached = (-1, "")
 
   fun () ->
     let gen = currentGeneration ()
+    let (cachedGen, cachedHash) = System.Threading.Volatile.Read(&cached)
     if gen = cachedGen then
-      cached
+      cachedHash
     else
       let fqn = $"""{kind}/{String.concat "." modules}.{name}"""
       let h = getHashes ()
       match Map.tryFind fqn h with
       | Some hash ->
         record hash
-        cachedGen <- gen
-        cached <- hash
+        System.Threading.Volatile.Write(&cached, (gen, hash))
         hash
       | None ->
         if Map.isEmpty h then
@@ -202,6 +203,7 @@ module Type =
 
     let result = p [ "Result" ] "Result"
     let option = p [ "Option" ] "Option"
+    let test = p [ "Test" ] "Result"
 
 
     let sqliteValue = p [ "Sqlite" ] "Value"
@@ -348,6 +350,8 @@ module Type =
       let fnNormalParameter = p [ "FnDeclaration" ] "NormalParameter"
       let fnUnitParameter = p [ "FnDeclaration" ] "UnitParameter"
       let valueDeclaration = p [ "ValueDeclaration" ] "ValueDeclaration"
+      let testDeclaration = p [ "TestDeclaration" ] "TestDeclaration"
+      let testExpectedError = p [ "TestDeclaration" ] "ExpectedError"
       let moduleDeclaration = p [ "ModuleDeclaration" ] "ModuleDeclaration"
       let moduleDeclarationDeclaration = p [ "ModuleDeclaration" ] "Declaration"
       let typeDeclaration = p [ "TypeDeclaration" ] "TypeDeclaration"
@@ -513,6 +517,11 @@ module Type =
         let private p addl = p ("PackageFn" :: addl)
         let parameter = p [] "Parameter"
         let packageFn = p [] "PackageFn"
+
+      module PackageTest =
+        let private p addl = p ("PackageTest" :: addl)
+        let packageTest = p [] "PackageTest"
+        let expectedError = p [] "ExpectedError"
 
       module Search =
         let private p addl = p ("Search" :: addl)

@@ -14,8 +14,8 @@ let valueDesc (ctx: PrettyPrinter.ProgramTypes.Context) (body: LanguageTools.Pro
     else firstLine
   clipped
 
-/// The rows of a module for the Code list: its submodules, then types, values, fns, traits and
-/// implementations, by name. Names only; the Inspect pane says what each is.
+/// The rows of a module for the Code list: its submodules, then types, values, fns, traits,
+/// implementations and tests, by name. Names only; the Inspect pane says what each is.
 let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyItem> =
   moduleRows branchId location false
 
@@ -111,7 +111,24 @@ let moduleRows
           kind = "impl"
           isModule = false
           desc = descOf shape })
-  Stdlib.List.flatten [ moduleItems, typeItems, traitItems, valItems, fnItems, implItems ]
+  // A test's description is its last result for this build, read from the
+  // cache `dark test` writes. Nothing runs here.
+  let testItems =
+    results.tests
+    |> Stdlib.List.map (fun t ->
+      let status (_u: Unit) : String =
+        match Packages.Test.lastOutcome branchId t.entity.hash with
+        | Some Passed -> "passed"
+        | Some(Failed _) -> "failed"
+        | Some(RuntimeFailed _) -> "error"
+        | None -> "no result for this build"
+      BodyItem
+        { name = t.location.name
+          kind = "test"
+          isModule = false
+          desc = descOf status })
+  Stdlib.List.flatten
+    [ moduleItems, typeItems, traitItems, valItems, fnItems, implItems, testItems ]
 
 /// How many names the draft touches -- the same number the Changes list shows.
 ///
@@ -125,7 +142,7 @@ let wipItemCount () : Int =
   Stdlib.List.length (SCM.Draft.read ()).bindings
 
 /// The glyph a Changes row leads with, by what the row is: a fn, a type, a
-/// value, a removal, or a conflict waiting on you.
+/// value, a test, a removal, or a conflict waiting on you.
 let changeIcon (kind: String) : String =
   if kind == "conflict" then "⚠"
   else if kind == "removed" then "✕"
@@ -411,6 +428,10 @@ let changesSourceText (branchId: Uuid) (row: Stdlib.Option.Option<BodyItem>) : S
         match results.impls with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageImpl ctx i.entity
         | [] -> "(not found)"
+      else if kind == "test" then
+        match results.tests with
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageTest ctx i.entity
+        | [] -> "(not found)"
       else
         match results.fns with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
@@ -447,7 +468,8 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
       r.values |> Stdlib.List.map (fun i -> hit "val " i.location)
       r.fns |> Stdlib.List.map (fun i -> hit "fn  " i.location)
       r.traits |> Stdlib.List.map (fun i -> hit "trait" i.location)
-      r.impls |> Stdlib.List.map (fun i -> hit "impl" i.location) ]
+      r.impls |> Stdlib.List.map (fun i -> hit "impl" i.location)
+      r.tests |> Stdlib.List.map (fun i -> hit "test" i.location) ]
   |> Stdlib.List.sortBy rank
 
 /// How many references a list on the item page shows before pointing at `:deps`.
@@ -477,6 +499,8 @@ let referencesFrom
       results.traits |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Trait))
     else if item.kind == "impl" then
       results.impls |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.TraitImpl))
+    else if item.kind == "test" then
+      results.tests |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Test))
     else
       results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
   match picked with
@@ -495,7 +519,13 @@ let referencesFrom
         deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " + (Darklang.Cli.Deps.getName namesDict th))
     // Dependents - what uses this item.
     // The same Dark-side query `dark deps` uses, so the pane and the command cannot disagree.
-    let dependents = SCM.Deps.dependentsOf [ (loc, kind) ]
+    // Tests have their own final section on the Inspect page, with result and
+    // run information. Keep `used by` about production coupling instead of
+    // listing every test twice. The `dark deps` command remains comprehensive.
+    let dependents =
+      SCM.Deps.dependentsOf [ (loc, kind) ]
+      |> Stdlib.List.filter (fun (_hash, _location, dependentKind) ->
+        dependentKind != LanguageTools.ProgramTypes.ItemKind.Test)
     let dependentLines =
       if Stdlib.List.isEmpty dependents then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
       else
@@ -549,7 +579,8 @@ let readBadges (state: State) : (List<String> * List<String>) =
      Stdlib.List.flatten
        [ pick (results.fns |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name)))
          pick (results.types |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name)))
-         pick (results.values |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name))) ])
+         pick (results.values |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name)))
+         pick (results.tests |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name))) ])
 
 
 /// Carry the cached badge sets forward, re-reading only when something they depend on moved.

@@ -1,6 +1,6 @@
 module Tests.Builtin
 
-// Misc builtin tests that do not fit in LibExecution.tests.
+// Builtin registration, wrappers and descriptions.
 
 open Expecto
 open System.IO
@@ -68,9 +68,9 @@ let private allBuiltinNames () : List<string> =
 
 // -- Builtin access in package matter --
 //
-// Walk every .dark under packages/ and count textual references to
+// Walk every .dark under packages/ and count code references to
 // `Builtin.<name>` (or `Builtin.<name>_v<digits>`) for every registered
-// builtin. Anything with >1 textual reference must appear in the allowlist
+// builtin. Anything with >1 code reference must appear in the allowlist
 // below.
 //
 // A builtin should have one package wrapper, and callers should go through
@@ -149,69 +149,97 @@ let private findRepoRoot () : string =
       [ "cwd", Directory.GetCurrentDirectory() ]
 
 
-/// Read every .dark file under <root>, minus whole-line comments, as one string.
-/// Build output is skipped: it holds copies of files we've already read.
-let private darkTextUnder (root : string) : string =
+/// Read builtin references from code tokens, ignoring comments and literal text.
+/// Package tests contain expected error strings that name builtins. Counting
+/// those strings as callers would falsely report duplicate wrappers when tests
+/// move into packages/.
+/// Interpolated strings contain executable expressions, so scan those too using
+/// the same brace scanner as the parser (including nested strings and comments).
+let rec private builtinReferences (source : string) : List<string> =
+  let tokens =
+    match LibParser.Lexer.tokenize source with
+    | Ok(tokens, _) -> List.toArray tokens
+    | Error message -> failtest $"Cannot scan builtin references: {message}"
+
+  let found = ResizeArray<string>()
+  let scanInterpolation (text : string) =
+    let raw = text.StartsWith "$\"\"\""
+    let mutable index = if raw then 4 else 2
+    let limit = text.Length - (if raw then 3 else 1)
+    while index < limit do
+      if not raw && text[index] = '\\' then
+        index <- index + 2
+      elif index + 1 < limit && text[index] = '{' && text[index + 1] = '{' then
+        index <- index + 2
+      elif text[index] = '{' then
+        let close = LibParser.Lexer.findInterpExprClose text limit (index + 1)
+        if close < 0 then
+          failtest "Unclosed expression while scanning builtin references"
+        found.AddRange(
+          builtinReferences (text.Substring(index + 1, close - index - 1))
+        )
+        index <- close + 1
+      else
+        index <- index + 1
+
+  let tokenAt i = tokens[i].token
+  for i in 0 .. tokens.Length - 1 do
+    match tokenAt i with
+    | LibParser.Tokenizer.TInterpString -> scanInterpolation tokens[i].text
+    | LibParser.Tokenizer.TIdent "Builtin" when
+      i + 2 < tokens.Length && (i = 0 || tokenAt (i - 1) <> LibParser.Tokenizer.TDot)
+      ->
+      match tokenAt (i + 1), tokenAt (i + 2) with
+      | LibParser.Tokenizer.TDot, LibParser.Tokenizer.TIdent name -> found.Add name
+      | _ -> ()
+    | _ -> ()
+  List.ofSeq found
+
+
+/// Scan each file independently so unfinished literals cannot consume another
+/// file's code. Build output holds copies of source and is excluded.
+let private builtinReferencesUnder (root : string) : List<string> =
   Directory.EnumerateFiles(root, "*.dark", SearchOption.AllDirectories)
   |> Seq.filter (fun path ->
     let sep = Path.DirectorySeparatorChar
     not (path.Contains $"{sep}Build{sep}"))
-  |> Seq.map File.ReadAllText
-  |> String.concat "\n"
-  |> String.splitOnNewline
-  |> List.filter (fun line -> not ((line.TrimStart()).StartsWith "//"))
-  |> String.concat "\n"
+  |> Seq.collect (fun path ->
+    try
+      builtinReferences (File.ReadAllText path)
+    with e ->
+      failtest $"{path}: {e.Message}")
+  |> List.ofSeq
 
 
-/// Concatenate every .dark file under packages/ into one string, minus whole-line
-/// comments. Cached.
-///
-/// The comments go because the count below is textual: naming a builtin in a doc
-/// comment, which is a reasonable thing to do next to the one fn that wraps it,
-/// otherwise reads as a second caller and fails this test. Only lines that are
-/// entirely a comment are dropped, so a `//` inside a string literal can't swallow
-/// real code after it on the same line.
-let private packagesText : Lazy<string> =
-  lazy (darkTextUnder (Path.Combine(findRepoRoot (), "packages")))
+let private packagesReferences : Lazy<List<string>> =
+  lazy (builtinReferencesUnder (Path.Combine(findRepoRoot (), "packages")))
 
 
-/// Every .dark file in the repo, minus whole-line comments. Wider than
-/// `packagesText`: it also covers test files, perf workloads and sample
-/// scripts, which is the difference between "shipped once" and "dead".
-let private repoDarkText : Lazy<string> = lazy (darkTextUnder (findRepoRoot ()))
+/// Include legacy tests, perf workloads and scripts when checking for dead code.
+let private repoReferences : Lazy<List<string>> =
+  lazy (builtinReferencesUnder (findRepoRoot ()))
 
 
-/// How many times each builtin name appears as `Builtin.<name>` in a corpus.
-///
-/// One regex and one pass for the whole corpus, rather than a compiled regex per
-/// builtin name: there are about a thousand builtins and the corpus is megabytes,
-/// and asking the question one name at a time made these the two slowest tests in
-/// the suite by a wide margin.
-///
 /// `Builtin.foo_v0` counts towards `foo`, and towards a builtin actually named
-/// `foo_v0` if one exists. Both were true of the per-name patterns this replaced.
-let private referenceCounts (corpus : string) : Map<string, int> =
-  let token = Regex(@"Builtin\.([A-Za-z0-9_]+)", RegexOptions.Compiled)
+/// `foo_v0` if one exists, preserving the versioned-reference check.
+let private referenceCounts (references : List<string>) : Map<string, int> =
   let versionSuffix = Regex(@"_v[0-9]+$")
-
   let mutable counts = Map.empty
   let bump (name : string) =
     counts <-
       Map.add name (1 + (counts |> Map.tryFind name |> Option.defaultValue 0)) counts
 
-  for m in token.Matches corpus do
-    let name = m.Groups[1].Value
+  for name in references do
     bump name
     let stripped = versionSuffix.Replace(name, "")
     if stripped <> name then bump stripped
-
   counts
 
 let private packagesRefCounts : Lazy<Map<string, int>> =
-  lazy (referenceCounts packagesText.Value)
+  lazy (referenceCounts packagesReferences.Value)
 
 let private repoRefCounts : Lazy<Map<string, int>> =
-  lazy (referenceCounts repoDarkText.Value)
+  lazy (referenceCounts repoReferences.Value)
 
 let private countReferences (builtinName : string) : int =
   packagesRefCounts.Value |> Map.tryFind builtinName |> Option.defaultValue 0
@@ -237,6 +265,44 @@ let everyInfixExclusionIsReal =
         "excluded as infix-dispatched but not registered as a builtin: %s"
         (stale |> Set.toList |> List.sort |> String.concat ", ")
   }
+let builtinReferenceScanning =
+  testList
+    "builtin reference scanning"
+    [ for name, source, expected in
+        [ "comments",
+          "// Builtin.fake\nBuiltin.printLine (* Builtin.fake (* nested *) *) () // Builtin.fake",
+          [ "printLine" ]
+          "literal text",
+          "\"Builtin.fake \\\" // still a string\"\n\"\"\"Builtin.fake\"\"\"\nBuiltin.printLine ()",
+          [ "printLine" ]
+          "interpolation",
+          "$\"Builtin.fake {{Builtin.fake}} {Builtin.int64Add 1L 2L}\"",
+          [ "int64Add" ]
+          "raw interpolation",
+          "$\"\"\"Builtin.fake {{Builtin.fake}} {Builtin.printLine \"Builtin.fake\"}\"\"\"",
+          [ "printLine" ]
+          "nested interpolation",
+          "$\"outer {$\"inner {Builtin.printLine \"ok\"}\"}\"",
+          [ "printLine" ]
+          "qualified Dark names",
+          "Darklang.Example.Builtin.fake NotBuiltin.fake Builtin.real_v2",
+          [ "real_v2" ]
+          "function values and whitespace",
+          "let f = Builtin . int64Add\nBuiltin.int64Add 1L 2L",
+          [ "int64Add"; "int64Add" ] ] do
+        test name {
+          Expect.equal
+            (builtinReferences source)
+            expected
+            "only code references count"
+        }
+      test "versioned calls retain both counts" {
+        Expect.equal
+          (builtinReferences "Builtin.example_v2 () Builtin.example ()"
+           |> referenceCounts)
+          (Map.ofList [ "example", 2; "example_v2", 1 ])
+          "version suffixes contribute to the builtin's base name"
+      } ]
 
 
 let builtinAccessInPackageMatter =
@@ -267,7 +333,7 @@ let builtinAccessInPackageMatter =
          + lines
          + "\n\nWrap the builtin in one Dark package fn -- a Stdlib or Cli helper that names it, types it "
          + "and documents it -- and route the callers through that. `multiUseAllowlist` is for the cases "
-         + "where a wrapper is the wrong answer, and it is down to one entry; a new one needs its reason "
+         + "where a wrapper is the wrong answer, and it is empty; a new one needs its reason "
          + "written next to it.")
   }
 
@@ -283,10 +349,9 @@ let builtinAccessInPackageMatter =
 /// Each one needs a reason; without one, delete the builtin instead.
 let private unusedAllowlist : Set<string> =
   Set.ofList
-    [ // Test-harness escape hatch for the cases that expect an exception to
-      // reach the reporter. The harness still reads the count it sets; the
-      // testfile cases that set it are currently commented out.
-      "testSetExpectedExceptionCount"
+    [ // Script sequencing and value-initialization checks embed their Dark
+      // callers in CliScriptLowering.Tests.fs, outside this .dark-file scan.
+      "testIncrementSideEffectCounter"
       // Scheduler test fixtures: their callers are the Dark programs embedded as strings in
       // `Scheduler.Tests.fs`, which this scan of `.dark` files cannot see. A testfile cannot
       // use them: a gate blocks until F# releases it.
@@ -360,23 +425,20 @@ let descriptionsAreJoined =
       } ]
 
 
-/// `Builtin.<name>` spellings that are NOT a builtin call. Dark has its own `Builtin`
-/// modules and cases; the lookbehind below drops the qualified ones, and these bare
-/// ones can only be told apart by the file they sit in.
+/// Bare `Builtin` names that refer to Dark modules or cases, not F# builtins.
+/// Fully qualified occurrences have already been excluded by the token scan.
 let private notActuallyBuiltins : Set<string> =
   Set.ofList
     [ "tokenize" // semanticTokens.dark has its own `Builtin` module
       "toPT" // same, in writtenTypesToProgramTypes.dark
       "fullForReference" // FQValueName.Builtin
-      "Json" // `Builtin.Json.*`: a module under the builtin namespace, not a builtin
-      "X" ] // `Builtin.X` as prose, inside the for-ai docs
+      "Json" ] // `Builtin.Json.*`: a module under the builtin namespace
 
 
 /// Every builtin that package code names has to exist. A `Builtin.x` naming nothing
 /// builds fine and throws the moment someone reaches it.
 ///
-/// Textual, because a name resolving only when it RUNS is the hole being covered --
-/// there is no resolution step to hook.
+/// Scan syntax without executing it: name resolution at runtime is too late.
 let everyBuiltinPackagesCallExists =
   testTask "every builtin that package code calls exists" {
     let names (b : RT.Builtins) =
@@ -386,15 +448,8 @@ let everyBuiltinPackagesCallExists =
 
     let defined = allBuiltinSets () |> List.map names |> Set.unionMany
 
-    let regex =
-      Regex(
-        @"(?<![a-zA-Z0-9_.])Builtin\.([a-zA-Z][a-zA-Z0-9_]*)",
-        RegexOptions.Compiled
-      )
-
     let missing =
-      regex.Matches(packagesText.Value)
-      |> Seq.map (fun m -> m.Groups[1].Value)
+      packagesReferences.Value
       |> Set.ofSeq
       |> Set.filter (fun name ->
         not (Set.contains name defined)
@@ -569,6 +624,7 @@ let tests =
       oldFunctionsAreDeprecated
       builtinAccessInPackageMatter
       everyInfixExclusionIsReal
+      builtinReferenceScanning
       everyBuiltinIsReferenced
       descriptionsAreJoined
       everyBuiltinPackagesCallExists

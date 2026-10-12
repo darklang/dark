@@ -58,9 +58,10 @@ let getCurrentModulePath (location: PackageLocation) : List<String> =
   // An implementation's methods are ordinary fns in a module named for the implementation, so
   // the module you are "in" when you are at one INCLUDES its name. Without this, descending a
   // path past an implementation silently dropped that segment and `view Stdlib.Int64.Add.add`
-  // reported "Not found: Stdlib.Int64.add", a name nobody typed.
+  // reported "Not found: (+)", a name nobody typed.
   | Impl i ->
     Stdlib.List.append (Stdlib.List.append [i.owner] i.modules) [i.name]
+  | Test test -> Stdlib.List.append [test.owner] test.modules
 
 
 let applySegment
@@ -137,12 +138,15 @@ let resolveEntity
             match entityResults.impls with
             | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Impl item.location)
             | [] ->
-              // The path, not just "Not found": that same sentence otherwise covers a
-              // typo, an unauthored name, and a path resolved from somewhere unexpected.
-              let looked =
-                Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
+              match entityResults.tests with
+              | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Test item.location)
+              | [] ->
+                // The path, not just "Not found": that same sentence otherwise covers a
+                // typo, an unauthored name, and a path resolved from somewhere unexpected.
+                let looked =
+                  Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
 
-              Stdlib.Result.Result.Error $"Not found: {looked}"
+                Stdlib.Result.Result.Error $"Not found: {looked}"
 
 
 let applyPath
@@ -202,7 +206,7 @@ let getAvailableItems
   let currentPath = getCurrentModulePath location
   // Names only: completion shows a name and an icon, and materializing each item's full definition to
   // read `.location.name` was the single worst hitch while typing (115 ms at the store root).
-  let (submoduleNames, typeNames, valueNames, fnNames, traitNames, implNames) =
+  let (submoduleNames, typeNames, valueNames, fnNames, traitNames, implNames, testNames) =
     Query.allDirectDescendantNames branchId currentPath
 
   let moduleItems =
@@ -229,8 +233,13 @@ let getAvailableItems
     implNames
     |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Impl name)
 
+  let testItems =
+    testNames
+    |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Test name)
+
   let flatItems =
-    Stdlib.List.flatten [moduleItems, typeItems, fnItems, valueItems, traitItems, implItems]
+    Stdlib.List.flatten
+      [moduleItems, typeItems, fnItems, valueItems, traitItems, implItems, testItems]
   let allItems = flatItems |> Stdlib.List.sortBy (fun item -> item.value)
 
   // Primary results: filter by prefix if we have search text

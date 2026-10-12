@@ -48,6 +48,15 @@ CREATE TABLE IF NOT EXISTS package_functions (
   description TEXT NOT NULL DEFAULT ''         -- plain-text doc comment for SQL package search
 );
 
+-- Tests are package content that nothing can call. Stored as source only;
+-- Before executing a test, `dark test` compiles its stored body into interpreter instructions.
+CREATE TABLE IF NOT EXISTS package_tests (
+  hash TEXT PRIMARY KEY,
+  pt_def BLOB NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  description TEXT NOT NULL DEFAULT ''
+);
+
 -- Content-addressed bytes (Blob refs). Dedup comes for free via PK
 -- uniqueness; orphans reclaimed by `LibDB.RuntimeTypes.Blob.sweepOrphans`.
 CREATE TABLE IF NOT EXISTS package_blobs (

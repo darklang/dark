@@ -455,6 +455,7 @@ module ModuleDeclaration =
     | Value of ValueDeclaration.ValueDeclaration
     | Trait of TraitDeclaration.TraitDeclaration
     | Impl of ImplDeclaration.ImplDeclaration
+    | Test of TestDeclaration.TestDeclaration
     | SubModule of ModuleDeclaration.ModuleDeclaration
     // TODO: handle http handler and db
     | Expr of Expr
@@ -524,6 +525,25 @@ module ValueDeclaration =
       body: Expr
       description: String
       keywordVal: Range
+      symbolEquals: Range }
+
+
+// Named package tests
+module TestDeclaration =
+  type ExpectedError =
+    | RuntimeError of String
+    | SqlCompilerError of String
+
+  type TestDeclaration =
+    { range: Range
+      name: ValueIdentifier
+      effects: Option<List<(Range * String)>>
+      body: Expr
+      expectedError: Option<(Range * ExpectedError)>
+      description: String
+      keywordTest: Range
+      errorKindRange: Option<Range>
+      symbolOutcome: Option<Range>
       symbolEquals: Range }
 
 
@@ -625,6 +645,7 @@ module SourceFile =
     | Value of ValueDeclaration.ValueDeclaration
     | Trait of TraitDeclaration.TraitDeclaration
     | Impl of ImplDeclaration.ImplDeclaration
+    | Test of TestDeclaration.TestDeclaration
     | Module of ModuleDeclaration.ModuleDeclaration
 
   type SourceFile =

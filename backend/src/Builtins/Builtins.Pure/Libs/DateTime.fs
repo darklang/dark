@@ -395,7 +395,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DDateTime d |] ->
           DarkDateTime.T(d.Year, d.Month, d.Day, 0, 0, 0) |> DDateTime |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
+      sqlSpec = NotYetImplemented // PostgreSQL date_trunc is not available in SQLite
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }

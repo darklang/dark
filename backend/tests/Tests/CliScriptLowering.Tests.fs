@@ -194,8 +194,8 @@ let private testMiddleStatementErrorStopsTheScript =
 
     let! mod' = parse code
     let! state = executionStateFor pmPT false Map.empty
+    // `execute` takes no branch here: the execution state already carries it.
     let! result =
-      // `execute` takes no branch here: the execution state already carries it.
       Cli.execute state mod' [] Map.empty (Cli.RunScript("t", code)) |> Ply.toTask
 
     match result with

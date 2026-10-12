@@ -164,3 +164,32 @@ let read (reader : BinaryReader) : P.Policy =
   let allow = List.read reader readRule
   let deny = List.read reader readRule
   P.Policy.create allow deny
+
+/// Private host transport, paired with the worker binary from the same build.
+let writeExecutionAccess (writer : BinaryWriter) (access : P.Access) : unit =
+  List.write
+    writer
+    (fun writer (layer, policy) ->
+      match layer with
+      | P.Layer.Instance -> writer.Write 0uy
+      | P.Layer.Run -> writer.Write 1uy
+      | P.Layer.Package id ->
+        writer.Write 2uy
+        String.write writer id
+      | P.Layer.Function id ->
+        writer.Write 3uy
+        String.write writer id
+      write writer policy)
+    (P.Access.layers access)
+
+let readExecutionAccess (reader : BinaryReader) : P.Access =
+  List.read reader (fun reader ->
+    let layer =
+      match reader.ReadByte() with
+      | 0uy -> P.Layer.Instance
+      | 1uy -> P.Layer.Run
+      | 2uy -> P.Layer.Package(String.read reader)
+      | 3uy -> P.Layer.Function(String.read reader)
+      | tag -> raiseFormatError $"Invalid permission layer tag: {tag}"
+    layer, read reader)
+  |> P.Access.ofLayers

@@ -1,3 +1,7 @@
+/// TODO: port these `.test` fixtures to Dark package tests. A port was tried and
+/// removed: Dark has no socket API, so it needed a python3 bridge to send and
+/// receive raw bytes. Port them once Dark can do that over loopback.
+///
 /// Tests the CLI's `Http.serve` builtin against the fixtures in
 /// `testfiles/http-server/` (byte-exact `.test` files).
 ///

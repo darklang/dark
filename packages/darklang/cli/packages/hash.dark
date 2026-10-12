@@ -50,6 +50,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         | Impl loc ->
           LanguageTools.PackageManager.TraitImpl.find branchId loc
           |> Stdlib.Option.map (fun h -> ("impl", h))
+        | Test loc ->
+          LanguageTools.PackageManager.Test.find branchId loc
+          |> Stdlib.Option.map (fun h -> ("test", h))
 
       match found with
       | Some((kindStr, hash)) ->
@@ -71,7 +74,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let help (_state: Cli.AppState) : String =
   [ "Usage: hash [--long] <location>"
-    "Show the hash of a package type, function, or value."
+    "Show the hash of a package type, function, value, or test."
     "By default shows a short (8-char) hash; use --long or --full for the full hash."
     ""
     "The name is resolved the way `view` resolves it, so anything you can view,"

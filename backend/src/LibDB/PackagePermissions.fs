@@ -44,10 +44,39 @@ module Load =
               return None
           } }
 
-/// Load every package function reachable from `root`, analyze each body once,
-/// and return the closure keyed by hash. Approval covers this whole closure so
-/// dependencies remain available when entered at runtime.
-let loadClosure (load : Load) (root : PT.Hash) : Ply<Requirements.Closure> =
+/// Whether each package value `expr` references holds only data, read
+/// through `cache` so a value shared by several bodies is read once.
+let private inertValuesIn
+  (load : Load)
+  (cache : System.Collections.Generic.Dictionary<PT.Hash, bool>)
+  (expr : PT.Expr)
+  : Ply<Set<PT.Hash>> =
+  uply {
+    let mutable inert = Set.empty
+    for value in Calls.valueRefs expr do
+      let! isInert =
+        match cache.TryGetValue value with
+        | true, known -> Ply known
+        | false, _ ->
+          uply {
+            let! stored = load.value value
+            let isInert =
+              match stored with
+              | Some dval -> LibExecution.Dval.isInertData dval
+              | None -> false
+            cache[value] <- isInert
+            return isInert
+          }
+      if isInert then inert <- Set.add value inert
+    return inert
+  }
+
+/// Load every package function reachable from the given roots, analyzing each
+/// body once. Missing functions remain absent so requirements stay incomplete.
+let private loadClosureFrom
+  (load : Load)
+  (roots : List<PT.Hash>)
+  : Ply<Requirements.Closure> =
   uply {
     let loaded =
       System.Collections.Generic.Dictionary<PT.Hash, PT.PackageFn.PackageFn *
@@ -58,34 +87,13 @@ let loadClosure (load : Load) (root : PT.Hash) : Ply<Requirements.Closure> =
     // Whether each value referenced so far holds only data, read once.
     let valueIsInert = System.Collections.Generic.Dictionary<PT.Hash, bool>()
 
-    let inertValuesOf (fn : PT.PackageFn.PackageFn) : Ply<Set<PT.Hash>> =
-      uply {
-        let mutable inert = Set.empty
-        for value in Calls.valueRefs fn.body do
-          let! isInert =
-            match valueIsInert.TryGetValue value with
-            | true, known -> Ply known
-            | false, _ ->
-              uply {
-                let! stored = load.value value
-                let isInert =
-                  match stored with
-                  | Some dval -> LibExecution.Dval.isInertData dval
-                  | None -> false
-                valueIsInert[value] <- isInert
-                return isInert
-              }
-          if isInert then inert <- Set.add value inert
-        return inert
-      }
-
     let rec loadMember (h : PT.Hash) : Ply<unit> =
       uply {
         if visited.Add h then
           match! load.fn h with
           | None -> ()
           | Some fn ->
-            let! inertValues = inertValuesOf fn
+            let! inertValues = inertValuesIn load valueIsInert fn.body
             let calls = Calls.analyzeFn inertValues fn
             loaded[h] <- (fn, calls)
             for callee in calls.names do
@@ -97,8 +105,37 @@ let loadClosure (load : Load) (root : PT.Hash) : Ply<Requirements.Closure> =
               | PT.FQFnName.TraitMethod _ -> ()
       }
 
-    do! loadMember root
+    for root in roots do
+      do! loadMember root
     return loaded |> Seq.map (fun (KeyValue(h, entry)) -> h, entry) |> Map.ofSeq
+  }
+
+/// Load every package function reachable from `root`, analyze each body once,
+/// and return the closure keyed by hash. Approval covers this whole closure so
+/// dependencies remain available when entered at runtime.
+let loadClosure (load : Load) (root : PT.Hash) : Ply<Requirements.Closure> =
+  loadClosureFrom load [ root ]
+
+/// Check whether a passing test has no effects, unresolved calls, or known
+/// branch-dependent calls. Assertion helpers are analyzed like any other call:
+/// a passing test can inspect an assertion's failure message.
+let cacheSafetyForExpression
+  (load : Load)
+  (callEffectsFor : CallEffectsFor)
+  (body : PT.Expr)
+  : Ply<Requirements.Result> =
+  uply {
+    let! inertValues =
+      inertValuesIn load (System.Collections.Generic.Dictionary()) body
+    let calls = Calls.analyze Set.empty inertValues body
+    let roots =
+      calls.names
+      |> List.choose (function
+        | PT.FQFnName.Package hash -> Some hash
+        | PT.FQFnName.Builtin _
+        | PT.FQFnName.TraitMethod _ -> None)
+    let! closure = loadClosureFrom load roots
+    return Requirements.forExpression callEffectsFor closure calls
   }
 
 /// Analyze one immutable function using the explicit effect vocabulary.

@@ -15,6 +15,7 @@
     <Compile Include="Libs/PM/TraitCalls.fs" />
     <Compile Include="Libs/PM/PackageOps.fs" />
     <Compile Include="Libs/PM/Packages.fs" />
+    <Compile Include="Libs/PM/PackageTests.fs" />
     <Compile Include="Libs/PM/Seed.fs" />
     <Compile Include="Libs/PM/Permissions.fs" />
     <Compile Include="Libs/PM/Store.fs" />

@@ -48,6 +48,8 @@ let private compactWipOps (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
       | PT.PackageOp.AddTraitImpl _,
         PT.PackageOp.SetName(loc, PT.PackageTraitImpl _, _) ->
         Some(PackageLocation.toFQN loc, "impl")
+      | PT.PackageOp.AddTest _, PT.PackageOp.SetName(loc, PT.PackageTest _, _) ->
+        Some(PackageLocation.toFQN loc, "test")
       | _ -> None
 
     match key with
@@ -71,7 +73,9 @@ let private compactWipOps (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
          | PT.PackageOp.AddValue _, PT.PackageOp.SetName(_, PT.PackageValue _, _)
          | PT.PackageOp.AddTrait _, PT.PackageOp.SetName(_, PT.PackageTrait _, _)
          | PT.PackageOp.AddTraitImpl _,
-           PT.PackageOp.SetName(_, PT.PackageTraitImpl _, _) -> true
+           PT.PackageOp.SetName(_, PT.PackageTraitImpl _, _)
+         | PT.PackageOp.AddTest _, PT.PackageOp.SetName(_, PT.PackageTest _, _) ->
+           true
          | _ -> false
 
     if isPair then
@@ -138,6 +142,14 @@ let private reResolveAllItems
         let! reResolved =
           DR.reResolveImpl pm loc.owner loc.modules loc.name impl |> Ply.toTask
         result.Add(PT.PackageOp.AddTraitImpl reResolved)
+        result.Add(PT.PackageOp.SetName(loc, target, prev))
+        i <- i + 2
+
+      | Some(PT.PackageOp.AddTest test,
+             PT.PackageOp.SetName(loc, (PT.PackageTest _ as target), prev)) ->
+        let! reResolved =
+          DR.reResolveTest pm loc.owner loc.modules test |> Ply.toTask
+        result.Add(PT.PackageOp.AddTest reResolved)
         result.Add(PT.PackageOp.SetName(loc, target, prev))
         i <- i + 2
 

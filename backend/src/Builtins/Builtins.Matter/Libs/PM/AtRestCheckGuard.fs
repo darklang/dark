@@ -24,7 +24,9 @@ let private failureResult (typeArgs : List<ValueType>) (failure : Dval) : Dval =
   DEnum(Dval.resultType (), Dval.resultType (), typeArgs, "Error", [ failure ])
 
 
-let fns : List<BuiltInFn> =
+// Package loading also constructs builtins before refs exist, for parsing.
+// Read the types again when constructing the checker used after that load.
+let fns () : List<BuiltInFn> =
   let varA = TVariable "a"
   let varB = TVariable "b"
   let failureType = TCustomType(NameResolution.ok (checkFailureName ()), [])
@@ -90,4 +92,4 @@ let fns : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

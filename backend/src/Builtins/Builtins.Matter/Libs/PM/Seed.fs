@@ -10,7 +10,7 @@ module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "pmSeedExport" 0
       typeParams = []
       parameters = [ Param.make "outputPath" TString "" ]
@@ -38,4 +38,4 @@ let fns : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead; Effect.FileWrite; Effect.Native ]
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

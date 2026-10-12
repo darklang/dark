@@ -125,6 +125,7 @@ let toModuleDeclaration
   // have to live here now or a source file declaring either lowers to nothing.
   | Trait t -> WrittenTypes.ModuleDeclaration.Declaration.Trait t
   | Impl i -> WrittenTypes.ModuleDeclaration.Declaration.Impl i
+  | Test test -> WrittenTypes.ModuleDeclaration.Declaration.Test test
   | Module modul -> WrittenTypes.ModuleDeclaration.Declaration.SubModule modul
 
 

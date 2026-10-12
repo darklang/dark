@@ -258,18 +258,21 @@ module Requirements =
   /// from it is one that could not be loaded.
   type Closure = Map<PT.FQFnName.Package, PT.PackageFn.PackageFn * Analysis>
 
-  /// `forFunction`, for a caller that has already accounted for the callables it hands the root:
-  /// with `callbacksSupplied`, the root passing one of its own fn parameters on does not make it
-  /// incomplete. A list op deciding whether to spread does this, since it checks the arguments
-  /// it applies the root to. A bound implementation the caller owes is still incomplete.
-  let forFunctionWith
+  /// The requirements of a body, walking the package functions it references.
+  /// An incomplete walk must never be treated as effect-free.
+  ///
+  /// With `callbacksSupplied`, the body passing one of its own fn parameters on does not make it
+  /// incomplete: the caller has already accounted for the callables it hands it. A list op
+  /// deciding whether to spread does this, since it checks the arguments it applies the root to.
+  /// A bound implementation the caller owes is still incomplete.
+  let forExpressionWith
     (callbacksSupplied : bool)
     // Keyed by full builtin identity (name, version): two versions of a builtin
     // can carry different effects, and collapsing them by name alone would let a
     // requirement display or upgrade comparison use the wrong effect set.
     (callEffectsFor : string * int -> Option<Set<E.Effect>>)
     (closure : Closure)
-    (root : PT.FQFnName.Package)
+    (body : Analysis)
     : Result =
     let mutable visited = Set.empty
     let mutable requiredEffects = Set.empty
@@ -282,45 +285,65 @@ module Requirements =
         visited <- Set.add name visited
         match Map.tryFind name closure with
         | None -> incomplete ()
-        | Some(_, calls) ->
-          // `calls.escapesOwnCallback` is deliberately not consulted here; see
-          // the note on the field and on this module.
-          if not calls.complete then incomplete ()
-          for called in calls.names do
-            match called with
-            | PT.FQFnName.Package package when
-              Set.contains package calls.calledWithoutBounds
-              && (match Map.tryFind package closure with
-                  | Some(_, callee) -> callee.defersToTypeParam
-                  | None -> false)
-              ->
-              incomplete ()
-              visit package
-            | PT.FQFnName.Builtin builtin ->
-              // TODO consider specializing a scoped effect when the resource
-              // argument is a literal at the call site (a hardcoded path or
-              // URL), so approve-time review can show an exact rule instead
-              // of the bare effect. See docs/permissions-todos.md.
-              match callEffectsFor (builtin.name, builtin.version) with
-              | Some found -> requiredEffects <- Set.union requiredEffects found
-              | None -> incomplete ()
-            | PT.FQFnName.Package package -> visit package
-            // `analyze` replaces a trait call with the implementation it
-            // resolved to, so none reach here. Conservative if one does.
-            | PT.FQFnName.TraitMethod _ -> incomplete ()
+        | Some(_, calls) -> visitCalls calls
 
-    visit root
+    and visitCalls (calls : Analysis) : unit =
+      // `calls.escapesOwnCallback` is deliberately not consulted here; see the
+      // note on the field and on this module. Only the body's own is checked.
+      if not calls.complete then incomplete ()
+      for called in calls.names do
+        match called with
+        | PT.FQFnName.Package package when
+          Set.contains package calls.calledWithoutBounds
+          && (match Map.tryFind package closure with
+              | Some(_, callee) -> callee.defersToTypeParam
+              | None -> false)
+          ->
+          incomplete ()
+          visit package
+        | PT.FQFnName.Builtin builtin ->
+          // TODO consider specializing a scoped effect when the resource
+          // argument is a literal at the call site (a hardcoded path or
+          // URL), so approve-time review can show an exact rule instead
+          // of the bare effect. See docs/permissions-todos.md.
+          match callEffectsFor (builtin.name, builtin.version) with
+          | Some found -> requiredEffects <- Set.union requiredEffects found
+          | None -> incomplete ()
+        | PT.FQFnName.Package package -> visit package
+        // `analyze` replaces a trait call with the implementation it
+        // resolved to, so none reach here. Conservative if one does.
+        | PT.FQFnName.TraitMethod _ -> incomplete ()
 
-    // The approved root must account for callbacks and bound implementations
-    // supplied by its caller.
-    let rootOwesCaller =
+    visitCalls body
+
+    // The body must account for callbacks and bound implementations supplied
+    // by its caller.
+    let owesCaller =
+      (body.escapesOwnCallback && not callbacksSupplied) || body.defersToTypeParam
+
+    { requiredEffects = requiredEffects; complete = complete && not owesCaller }
+
+  /// `forExpressionWith`, for a body whose callbacks nobody has accounted for.
+  let forExpression
+    (callEffectsFor : string * int -> Option<Set<E.Effect>>)
+    (closure : Closure)
+    (body : Analysis)
+    : Result =
+    forExpressionWith false callEffectsFor closure body
+
+  /// `forFunction`, for a caller that has already accounted for the callables it hands the root;
+  /// see `forExpressionWith`.
+  let forFunctionWith
+    (callbacksSupplied : bool)
+    (callEffectsFor : string * int -> Option<Set<E.Effect>>)
+    (closure : Closure)
+    (root : PT.FQFnName.Package)
+    : Result =
+    let body =
       match Map.tryFind root closure with
-      | Some(_, calls) ->
-        (calls.escapesOwnCallback && not callbacksSupplied)
-        || calls.defersToTypeParam
-      | None -> false
-
-    { requiredEffects = requiredEffects; complete = complete && not rootOwesCaller }
+      | Some(_, calls) -> calls
+      | None -> Analysis.unresolved
+    forExpressionWith callbacksSupplied callEffectsFor closure body
 
   /// The requirements of `root`, walking `closure`. Because everything reachable
   /// from a member of a closure is reachable from its root, one loaded closure

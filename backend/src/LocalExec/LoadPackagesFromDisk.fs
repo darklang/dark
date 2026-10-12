@@ -38,15 +38,17 @@ let private parsePackageFile
   }
 
 
-/// Reads and parses all .dark files in `packages` dir,
-/// failing upon any individual failure
-let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
+/// Read package sources, optionally excluding tests directories and their helpers.
+/// Fail on parse or name-resolution errors in every included file.
+let load (includeTests : bool) (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
   uply {
     let filesWithContents =
       "/home/dark/app/packages"
       |> listDirectoryRecursive
       |> List.filter (String.contains "_" >> not)
       |> List.filter (fun x -> x |> String.endsWith ".dark")
+      |> List.filter (fun path ->
+        includeTests || not (String.contains "/tests/" path))
       |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
 
     // -- Phase 1: Initial parse (unresolved names allowed) --

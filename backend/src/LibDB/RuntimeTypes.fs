@@ -232,9 +232,10 @@ module Blob =
   /// materialised Dval in `package_values.rt_dval`. Returns the count
   /// of rows deleted.
   ///
-  /// Intentionally narrow: only scans `package_values`. Other tables
-  /// that might later hold Dvals (User DB rows, `trace_data`) will
-  /// need their own reference-collection pass.
+  /// Scans `package_values`, and conservatively retains hashes mentioned in
+  /// User DB JSON at deletion time. A matching ordinary string can retain an
+  /// extra blob, but a nested blob reference can never be swept as an orphan.
+  /// `trace_data` needs its own reference-collection pass.
   ///
   /// Idempotent: re-running after a clean sweep deletes nothing. Safe
   /// to run while the system is live — worst-case race is a concurrent
@@ -277,11 +278,17 @@ module Blob =
       let orphans =
         allHashes |> List.filter (fun h -> not (Set.contains h referenced))
 
+      let mutable deleted = 0L
       for h in orphans do
-        do!
-          Sql.query "DELETE FROM package_blobs WHERE hash = @hash"
+        let! count =
+          Sql.query
+            """DELETE FROM package_blobs WHERE hash = @hash
+               AND NOT EXISTS (
+                 SELECT 1 FROM user_data_v0 WHERE instr(data, @hash) > 0
+               )"""
           |> Sql.parameters [ "hash", Sql.string h ]
-          |> Sql.executeStatementAsync
+          |> Sql.executeNonQueryAsync
+        deleted <- deleted + int64 count
 
-      return int64 (List.length orphans)
+      return deleted
     }

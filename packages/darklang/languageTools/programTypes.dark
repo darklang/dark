@@ -576,15 +576,31 @@ module TraitImpl =
       methods: List<String * NameResolution<FQFnName.FQFnName>>
       description: String }
 
+module PackageTest =
+  type ExpectedError =
+    | RuntimeError of String
+    | SqlCompilerError of String
+
+  /// Named executable package content. It is deliberately not callable from
+  /// production expressions; the test runner evaluates its body directly.
+  type PackageTest =
+    { hash: Hash
+      body: Expr
+      description: String
+      expectedError: Option<ExpectedError>
+      testDBs: List<(String * TypeReference)>
+      /// Legacy metadata for stored hashes; ignored when executing a test.
+      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>> }
 
 
-/// The kind of package item (function, type, value, trait, or impl)
+/// The kind of package item (function, type, value, trait, impl, or test)
 type ItemKind =
   | Fn
   | Type
   | Value
   | Trait
   | TraitImpl
+  | Test
 
 module ItemKind =
   /// The spelling that goes in a database column, a URL and an op bundle. The one place it is
@@ -598,6 +614,7 @@ module ItemKind =
     | Value -> "value"
     | Trait -> "trait"
     | TraitImpl -> "impl"
+    | Test -> "test"
 
   /// `None` for anything `toString` would not have written. A blanket arm here is how a kind
   /// nobody anticipated becomes a function: the copy in `SCM.Deps` fell through to `Fn`.
@@ -608,6 +625,7 @@ module ItemKind =
     | "value" -> Stdlib.Option.Option.Some ItemKind.Value
     | "trait" -> Stdlib.Option.Option.Some ItemKind.Trait
     | "impl" -> Stdlib.Option.Option.Some ItemKind.TraitImpl
+    | "test" -> Stdlib.Option.Option.Some ItemKind.Test
     | _ -> Stdlib.Option.Option.None
 
 /// A reference to a specific package item by content hash.
@@ -619,6 +637,7 @@ type Reference =
   | PackageFn of Hash
   | PackageTrait of Hash
   | PackageTraitImpl of Hash
+  | PackageTest of Hash
 
 module Reference =
   let hash (r: Reference) : Hash =
@@ -628,6 +647,7 @@ module Reference =
     | PackageFn h -> h
     | PackageTrait h -> h
     | PackageTraitImpl h -> h
+    | PackageTest h -> h
 
   let kind (r: Reference) : ItemKind =
     match r with
@@ -636,6 +656,7 @@ module Reference =
     | PackageFn _ -> ItemKind.Fn
     | PackageTrait _ -> ItemKind.Trait
     | PackageTraitImpl _ -> ItemKind.TraitImpl
+    | PackageTest _ -> ItemKind.Test
 
   let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
     match k with
@@ -644,6 +665,7 @@ module Reference =
     | Fn -> Reference.PackageFn h
     | Trait -> Reference.PackageTrait h
     | TraitImpl -> Reference.PackageTraitImpl h
+    | Test -> Reference.PackageTest h
 
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers decide how loud to be.
@@ -723,6 +745,7 @@ type PackageOp =
   | AddFn of PackageFn.PackageFn
   | AddTrait of Trait.Trait
   | AddTraitImpl of TraitImpl.TraitImpl
+  | AddTest of PackageTest.PackageTest
   /// Bind a name (location) to a piece of content (target).
   ///
   /// `previous` is the hash this binding REPLACED, or None when the location was empty (or when whoever
@@ -790,6 +813,7 @@ module Search =
     | Value
     | Trait
     | TraitImpl
+    | Test
 
   /// How deep to search in the module hierarchy
   type SearchDepth =
@@ -821,7 +845,8 @@ module Search =
       values : List<LocatedItem<ProgramTypes.PackageValue.PackageValue>>
       fns : List<LocatedItem<ProgramTypes.PackageFn.PackageFn>>
       traits : List<LocatedItem<ProgramTypes.Trait.Trait>>
-      impls : List<LocatedItem<ProgramTypes.TraitImpl.TraitImpl>> }
+      impls : List<LocatedItem<ProgramTypes.TraitImpl.TraitImpl>>
+      tests : List<LocatedItem<ProgramTypes.PackageTest.PackageTest>> }
 
 
 
@@ -1078,6 +1103,7 @@ module SourceFile =
     | Trait of Trait.Trait
     /// The impl item; its method fns are separate `Function` declarations
     | Impl of TraitImpl.TraitImpl
+    | Test of PackageTest.PackageTest
     // db and handlers
     | Module of Definitions // re-evaluate if this makes sense to be here
 

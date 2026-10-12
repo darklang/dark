@@ -974,6 +974,15 @@ and hasNextStmt (state : ParserState) (col : int) (k : int) : bool =
   tok state k <> TEOF
   && (rng state k).start.column = col
   && tok state k <> TBar
+  // `=>` is deliberately lexed as adjacent `=` and `>` tokens. At the end of
+  // a package-test body it introduces the expected outcome, rather than a new
+  // statement in that body. Outside a test it remains unconsumed and is
+  // diagnosed by the enclosing parser.
+  && not (
+    tok state k = TEquals
+    && tok state (k + 1) = TGt
+    && (rng state k).end_ = (rng state (k + 1)).start
+  )
   && not (closesOrSeparates (tok state k))
 
 and parseMatch (state : ParserState) (i : int) : WT.Expr * int =
@@ -3075,6 +3084,76 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
         description = docOf state i },
      afterBody)
 
+// A named package test: `test name = body`, optionally followed by an
+// expected outcome: `=> raises "message"` or `=> sqlerror "message"`.
+// These words remain identifiers outside the outcome separator.
+and parseTestDecl (state : ParserState) (i : int) : WT.Declaration * int =
+  let keywordTest = rng state i
+  let nameId : WT.Identifier =
+    match tok state (i + 1) with
+    | TIdent name -> { range = rng state (i + 1); name = name }
+    | _ ->
+      errExpected state (i + 1) "a test name"
+      { range = rng state (i + 1); name = "_" }
+  let beforeEq =
+    if tok state (i + 2) = TColon then
+      errExpected
+        state
+        (i + 2)
+        "'='; tests use instance and called-function permissions"
+      let _, afterEffects = parseEffectRow state (i + 3)
+      afterEffects
+    else
+      i + 2
+  let (eq, afterEq) =
+    if tok state beforeEq = TEquals then
+      (rng state beforeEq, beforeEq + 1)
+    else
+      errExpected state beforeEq "'='"
+      (zeroWidthAtEnd (rng state beforeEq), beforeEq)
+  let (body, afterBody) = parseBlock state afterEq
+  let isOutcome =
+    tok state afterBody = TEquals
+    && tok state (afterBody + 1) = TGt
+    && (rng state afterBody).end_ = (rng state (afterBody + 1)).start
+  let (symbolOutcome, errorKindRange, expectedError, afterTest, endRange) =
+    if isOutcome then
+      let outcome = span (rng state afterBody) (rng state (afterBody + 1))
+      match tok state (afterBody + 2), tok state (afterBody + 3) with
+      | TIdent("raises" | "sqlerror" as kind), TStringLit message ->
+        let errorKindRange = rng state (afterBody + 2)
+        let messageRange = rng state (afterBody + 3)
+        let expected =
+          if kind = "sqlerror" then
+            WT.SqlCompilerError message
+          else
+            WT.RuntimeError message
+        (Some outcome,
+         Some errorKindRange,
+         Some(messageRange, expected),
+         afterBody + 4,
+         messageRange)
+      | TIdent("raises" | "sqlerror"), _ ->
+        errExpected state (afterBody + 3) "an expected error string"
+        (Some outcome, Some(rng state (afterBody + 2)), None, afterBody + 3, outcome)
+      | _ ->
+        errExpected state (afterBody + 2) "'raises' or 'sqlerror' after '=>'"
+        (Some outcome, None, None, afterBody + 2, outcome)
+    else
+      (None, None, None, afterBody, WT.exprRange body)
+  (WT.DTest
+    { range = span keywordTest endRange
+      name = nameId
+      effects = None
+      body = body
+      expectedError = expectedError
+      keywordTest = keywordTest
+      errorKindRange = errorKindRange
+      symbolOutcome = symbolOutcome
+      symbolEquals = eq
+      description = docOf state i },
+   afterTest)
+
 // `type Name [<'a>] = Definition`
 and parseTypeDecl (state : ParserState) (i : int) : WT.Declaration * int =
   let kwType = rng state i
@@ -3473,18 +3552,19 @@ and parseItemsBody
       state.declAnchor <- (rng state k).start.column
       (match tok state k, tok state (k + 1) with
        | TLBracket, TLt when isDbAttr state k && tok state (k + 5) = TType ->
-         // `[<DB>] type Name = AliasedType` — a user DB declaration
+         // Parse `[<DB>]` here; validation decides which source modes allow it.
          let (d, k2) = parseTypeDecl state (k + 5)
          (match d with
           | WT.DType t ->
             match t.definition with
-            | WT.TDAlias _ -> decls.Add(WT.DTypeDB t)
+            | WT.TDAlias _
+            | WT.TDRecord _ -> decls.Add(WT.DTypeDB t)
             | _ ->
               err
                 state
                 DiagnosticCode.expected
                 (k + 5)
-                "[<DB>] type must be a type alias"
+                "[<DB>] type must be a type alias or record"
               decls.Add(WT.DTypeDB t)
           | other -> decls.Add other)
          k <- k2
@@ -3550,6 +3630,14 @@ and parseItemsBody
          let (d, k2) = parseImplDecl state k
          decls.Add d
          k <- k2
+       | TIdent "test", TIdent _ when
+         tok state (k + 2) = TEquals
+         || tok state (k + 2) = TColon
+         || tok state (k + 2) = TIdent "raises"
+         ->
+         let (d, k2) = parseTestDecl state k
+         decls.Add d
+         k <- k2
        | TIdent "module", TIdent _ ->
          let kwModule = rng state k
          let moduleCol = (rng state k).start.column
@@ -3598,7 +3686,7 @@ and parseItemsBody
            let (expected, k3) = parseTestExpected state (k2 + 1)
            let endR = if k3 > 0 then rng state (k3 - 1) else rng state k2
            decls.Add(
-             WT.DTest
+             WT.DAssertion
                { range = span (WT.exprRange e) endR
                  actual = e
                  expected = expected }

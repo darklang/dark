@@ -17,6 +17,67 @@ open TestUtils.TestUtils
 
 module Seed = LibDB.Seed
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PackageRefs = LibExecution.PackageRefs
+
+let sourceRefsBeforeLowering =
+  test "a source reload initializes refs before lowering and refreshes builtin types" {
+    let optionHash = String.replicate 64 "a"
+    let resultHash = String.replicate 64 "b"
+    let checkFailureHash = String.replicate 64 "c"
+    let addHash = String.replicate 64 "d"
+    let named modules name target =
+      PT.PackageOp.SetName(
+        { owner = "Darklang"; modules = modules; name = name },
+        target,
+        None
+      )
+    try
+      PackageRefs.setHashes Map.empty
+      // Parsing constructs builtins before the first load has any refs.
+      Builtins.Matter.Libs.PM.AtRestCheckGuard.builtins () |> ignore<RT.Builtins>
+      LibDB.PackageRefsGenerator.initializeFromOps
+        [ named [ "Stdlib"; "Option" ] "Option" (PT.PackageType(PT.Hash optionHash))
+          named [ "Stdlib"; "Result" ] "Result" (PT.PackageType(PT.Hash resultHash))
+          named
+            [ "LanguageTools"; "AtRestTypeChecker" ]
+            "CheckFailure"
+            (PT.PackageType(PT.Hash checkFailureHash))
+          named [ "Stdlib" ] "Add" (PT.PackageTrait(PT.Hash addHash)) ]
+
+      Expect.equal
+        (PT2RT.InfixFnName.toRT PT.FQFnName.Unknown PT.ArithmeticPlus)
+        (RT.FQFnName.TraitMethod
+          { trait_ = RT.Hash addHash; method_ = "add"; implFn = RT.FQFnName.Unknown })
+        "operators must use trait dispatch on the first load"
+
+      let optionName = PT.FQTypeName.Package(PT.Hash optionHash)
+      let expected =
+        PT2RT.UnwrapReturnCheck.fromReturnType (
+          PT.TCustomType(PT.NameResolution.ok optionName, [ PT.TInt64 ])
+        )
+      let instructions : RT.Instructions =
+        { registerCount = 2; instructions = [ RT.Unwrap(1, 0, None) ]; resultIn = 1 }
+      Expect.equal
+        (PT2RT.UnwrapReturnCheck.applyToInstructions expected instructions)
+          .instructions
+        [ RT.Unwrap(1, 0, Some(RT.FQTypeName.fqPackage optionHash)) ]
+        "unwrap must retain its expected container type on the first load"
+
+      let guard = Builtins.Matter.Libs.PM.AtRestCheckGuard.builtins ()
+      Expect.equal
+        guard.fns[RT.FQFnName.builtin "atRestCheckGuarded" 0].returnType
+        (RT.TypeReference.result
+          (RT.TVariable "b")
+          (RT.TCustomType(
+            RT.NameResolution.ok (RT.FQTypeName.fqPackage checkFailureHash),
+            []
+          )))
+        "checker metadata must use the newly loaded type identities"
+    finally
+      PackageRefs.reloadHashes ()
+  }
 
 let private countRows (table : string) : Task<int64> =
   Sql.query $"SELECT COUNT(*) as n FROM {table}"
@@ -307,7 +368,7 @@ let durableReleaseCarriesForward =
 let registryCoversProjections =
   // The COUNT is in the name on purpose: adding a projection to the registry without adding it here
   // is exactly the drift this catches.
-  test "the projection registry covers exactly the 8 regenerable projections" {
+  test "the projection registry covers exactly the 9 regenerable projections" {
     Expect.equal
       (List.sort Seed.projectionTables)
       (List.sort
@@ -316,6 +377,7 @@ let registryCoversProjections =
           "package_values"
           "package_traits"
           "package_trait_impls"
+          "package_tests"
           "locations"
           "package_dependencies"
           "deprecations" ])
@@ -479,7 +541,8 @@ let tests =
   testSequenced
   <| testList
     "OpsProjections"
-    [ opHashingIsStable
+    [ sourceRefsBeforeLowering
+      opHashingIsStable
       opIdIsItsContentHash
       rebuildIsDeterministic
       refoldReproducesBindings

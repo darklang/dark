@@ -1125,6 +1125,47 @@ module PackageValue =
     }
 
 
+module PackageTest =
+  module Name =
+    let toLocation (name : WT.PackageTest.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+    let toModules (name : WT.PackageTest.Name) : List<string> =
+      name.owner :: name.modules
+
+  let toPT
+    (builtins : RT.Builtins)
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (test : WT.PackageTest.PackageTest)
+    : Ply<PT.PackageTest.PackageTest> =
+    uply {
+      let context =
+        { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
+      let! body = Expr.toPT builtins pm onMissing currentModule context test.body
+      return
+        { hash = Hash ""
+          description = test.description
+          body = body
+          expectedError =
+            test.expectedError
+            |> Option.map (function
+              | WT.RuntimeError message -> PT.ExpectedError.RuntimeError message
+              | WT.SqlCompilerError message ->
+                PT.ExpectedError.SqlCompilerError message)
+          testDBs = []
+          permissionCeiling =
+            test.effects
+            |> Option.map (fun names ->
+              names
+              |> List.choose (fun name ->
+                LibExecution.Effects.all
+                |> List.tryFind (fun effect -> $"%A{effect}" = name))
+              |> Set.ofList) }
+    }
+
+
 module PackageFn =
   module Name =
     let toLocation (name : WT.PackageFn.Name) : PT.PackageLocation =
