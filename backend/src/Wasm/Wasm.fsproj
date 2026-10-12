@@ -53,6 +53,15 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
 
+  <!-- The schema, for bringing a store the page restored from the browser's storage up to this
+       build (`Host.fs`, `upgradeRestored`). Same resource names as the CLI's
+       (`LibDB.CatchUpStore.schemaFrom`). -->
+  <ItemGroup>
+    <EmbeddedResource Include="../../migrations/schema/*.sql">
+      <LogicalName>schema/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
   <!-- The package snapshot (generated from the DB, see README) — force it into
        the published wwwroot; the static-web-assets pipeline skips it otherwise. -->
   <ItemGroup Condition="Exists('wwwroot/packages.snapshot')">

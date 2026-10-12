@@ -51,6 +51,7 @@
     <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="UpgradeKeep.fs" />
     <Compile Include="Releases.fs" />
+    <Compile Include="CatchUpStore.fs" />
     <Compile Include="Seed.fs" />
     <Compile Include="PackagePermissions.fs" />
 

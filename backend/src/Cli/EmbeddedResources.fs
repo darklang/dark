@@ -63,28 +63,8 @@ let private extractResource (resourceName : string) (targetPath : string) : unit
     stream.CopyTo(fileStream)
 
 /// The embedded schema, or None in a debug build that did not embed it.
-///
-/// One resource per file under `migrations/schema/`, concatenated in NAME order -- the same order
-/// `LocalExec.Migrations` reads them from disk in, and the order the statements need (FK targets
-/// before FK sources, across files as well as within one).
 let embeddedSchema () : Option<string> =
-  let assembly = Assembly.GetExecutingAssembly()
-
-  let names =
-    assembly.GetManifestResourceNames()
-    |> Array.filter (fun n -> n.StartsWith("schema/") && n.EndsWith(".sql"))
-    |> Array.sort
-
-  if Array.isEmpty names then
-    None
-  else
-    names
-    |> Array.map (fun name ->
-      use stream = assembly.GetManifestResourceStream(name)
-      use reader = new StreamReader(stream)
-      reader.ReadToEnd())
-    |> String.concat "\n"
-    |> Some
+  LibDB.CatchUpStore.schemaFrom (Assembly.GetExecutingAssembly())
 
 
 /// Extract a resource that was gzip-compressed at build time.
@@ -224,26 +204,12 @@ let upgradeLock (dbPath : string) : System.IDisposable =
   acquire ()
 
 
-/// Bindings this store holds that the embedded seed did not write, captured before an upgrade folds.
-///
-/// `locations.op_id` is the op the fold credited with each binding, so an op the seed does not carry is one
-/// authored here or pulled from a peer. Upgrading must not silently take those back: the seed's version of a
-/// name you edited is newer by stamp and would win LWW.
-///
-/// (owner, modules, name, item_type, item_hash, source). `source` separates a name you edited from one
-/// that merely followed it through propagation, which matters only for what gets reported: one edit to
-/// a core function repoints hundreds of callers.
-let mutable locallyAuthored
-  : List<string * string * string * string * string * string> =
-  []
+/// What this start's catch-up found authored here rather than by a build, for `Cli.fs` to put back
+/// after the fold (`LibDB.CatchUpStore.LocallyAuthored`).
+let mutable locallyAuthored : LibDB.CatchUpStore.LocallyAuthored = []
 
 
-/// Top up an existing store with this binary's embedded package ops.
-///
-/// The seed is a SQLite database, so this attaches it and copies rows across rather than deserializing:
-/// the op blobs are opaque here, and the fold afterwards is what gives them meaning. An op's id IS its
-/// content hash, so `INSERT OR IGNORE` skips everything this build shares with the store, and what lands
-/// is exactly what changed. The ops go in unapplied, the signal `Seed.growIfNeeded` looks for.
+/// Catch an existing store up to this binary's embedded package ops (`LibDB.CatchUpStore.fromRelease`).
 ///
 /// Failure is not fatal on purpose: a store that could not be topped up is no worse off than before. It
 /// answers whether it worked, so a failure leaves the store unstamped and the next start tries again.
@@ -256,106 +222,7 @@ let private reseedFromEmbedded (dbPath : string) : bool =
       extractGzippedResource "data.db.gz" temp
 
       if File.Exists temp then
-        use conn =
-          new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
-        conn.Open()
-
-        // Whether this seed has anything for this store, asked BEFORE touching it, so the backup
-        // below is taken only when the store is actually about to change.
-        use probe = conn.CreateCommand()
-        probe.CommandText <-
-          "ATTACH DATABASE $seed AS seed;
-           SELECT (SELECT COUNT(*) FROM seed.package_ops s
-                     WHERE NOT EXISTS (SELECT 1 FROM package_ops o WHERE o.id = s.id))
-                + (SELECT COUNT(*) FROM package_ops o
-                     WHERE o.effective = 0 AND o.id IN (SELECT id FROM seed.package_ops));"
-        probe.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
-        let pending = probe.ExecuteScalar() |> string |> int
-        use detach = conn.CreateCommand()
-        detach.CommandText <- "DETACH DATABASE seed;"
-        detach.ExecuteNonQuery() |> ignore<int>
-
-        if pending > 0 then
-          // Captured while `seed` is still attached and before anything folds, because afterwards the
-          // seed's own SetName may already have taken the name.
-          //
-          // Against the LEDGER, not against this seed: comparing against the current seed alone would
-          // call the entire previous package set locally authored.
-          //
-          // `extract` runs before migrations, so on an older store this table does not exist yet and
-          // every query against it is a startup crash. Declaring it here is the only place that can
-          // be true of both a fresh store and one that predates the ledger.
-          use ensure = conn.CreateCommand()
-          ensure.CommandText <-
-            "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY)"
-          ensure.ExecuteNonQuery() |> ignore<int>
-
-          use ledger = conn.CreateCommand()
-          ledger.CommandText <- "SELECT COUNT(*) FROM seed_ops"
-          let known = ledger.ExecuteScalar() |> string |> int
-
-          use mine = conn.CreateCommand()
-
-          if known = 0 then
-            // First run on a store that predates the ledger: nothing here can say which ops came
-            // from a build, so claim none rather than guess. Every upgrade after this has provenance.
-            locallyAuthored <- []
-          else
-            mine.CommandText <-
-              "SELECT owner, modules, name, item_type, item_hash, source
-               FROM locations
-               WHERE unlisted_at IS NULL
-                 AND op_id NOT IN (SELECT op_id FROM seed_ops)"
-            let held = ResizeArray()
-            use r = mine.ExecuteReader()
-            while r.Read() do
-              held.Add(
-                r.GetString 0,
-                r.GetString 1,
-                r.GetString 2,
-                r.GetString 3,
-                r.GetString 4,
-                r.GetString 5
-              )
-            r.Close()
-            locallyAuthored <- List.ofSeq held
-
-          // Record what THIS seed carries, whichever branch ran above.
-          use remember = conn.CreateCommand()
-          remember.CommandText <-
-            "ATTACH DATABASE $seed AS seed2;
-             INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM seed2.package_ops;
-             DETACH DATABASE seed2;"
-          remember.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
-          remember.ExecuteNonQuery() |> ignore<int>
-
-        use cmd = conn.CreateCommand()
-        // The seed's ops arrive COMMITTED, under its baseline commit, and have to stay that way:
-        // dropping `commit_hash` leaves them in the draft, so the first `dark status` after an upgrade
-        // reports thousands of items changed. Commit rows come first so the reference has a target.
-        cmd.CommandText <-
-          "ATTACH DATABASE $seed AS seed;
-           INSERT OR IGNORE INTO commits (hash, message, author, origin_ts)
-             SELECT hash, message, author, origin_ts FROM seed.commits;
-           INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts, commit_hash)
-             SELECT id, op_blob, 0, 1, origin_ts, commit_hash FROM seed.package_ops;
-           -- An op already PRESENT but INERT has to be woken up, and `INSERT OR IGNORE` cannot do it.
-           -- A relay stores what its clients push at `effective = 0`, and ops are content-addressed, so
-           -- a client pushing its package tree lands the SAME ids this seed carries: the insert above
-           -- skips them, the rows stay inert, and the binary dies with `FnNotFound` on its own router.
-           -- Only ops the seed contains, and only inert ones, are touched, so a client op the seed
-           -- knows nothing about stays hosted data.
-           UPDATE package_ops
-             SET effective = 1, applied = 0
-             WHERE effective = 0
-               AND id IN (SELECT id FROM seed.package_ops);
-           -- Main runs it now, so no branch may still claim it: an effective op is never tagged (see
-           -- `Branches.storeDeltaOpsStamped`). A review queue holding a peer's op that this build ships
-           -- has nothing left to review for it, and a tag left behind hid the op from main's draft.
-           DELETE FROM op_branches WHERE op_id IN (SELECT id FROM seed.package_ops);
-           DETACH DATABASE seed;"
-        cmd.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
-        cmd.ExecuteNonQuery() |> ignore<int>
+        locallyAuthored <- LibDB.CatchUpStore.fromRelease dbPath temp
       true
     with e ->
       System.Console.Error.WriteLine(
@@ -380,50 +247,8 @@ let inline private timed (label : string) (f : unit -> 'a) : 'a =
   timings.Add(label, System.Diagnostics.Stopwatch.GetTimestamp() - t0)
   r
 
-/// Which build last reconciled this store with its own embedded seed.
-///
-/// `reseedFromEmbedded` decompresses the whole embedded store to a temp file and diffs its ops
-/// against this one, to answer a question whose answer is almost always "nothing". On a
-/// NativeAOT build, where there is no JIT to hide behind, that is most of what `dark` spends
-/// before it does anything at all, on every command.
-///
-/// The seed is fixed per binary and the top-up only ever adds the binary's own ops, so a store
-/// this same build has already topped up cannot need topping up again. Nothing external can
-/// create that need.
-///
-/// The stamp lives IN the store rather than beside it, so it travels with the file: a store
-/// copied elsewhere reads as unstamped, which is the safe answer.
-let private stampTable =
-  "CREATE TABLE IF NOT EXISTS store_stamp_v0 (id INTEGER PRIMARY KEY CHECK (id = 0), build TEXT NOT NULL)"
-
-let private storeStamp (dbPath : string) : string option =
-  try
-    use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
-    conn.Open()
-    use cmd = conn.CreateCommand()
-    cmd.CommandText <- stampTable
-    cmd.ExecuteNonQuery() |> ignore<int>
-    use read = conn.CreateCommand()
-    read.CommandText <- "SELECT build FROM store_stamp_v0 WHERE id = 0"
-    match read.ExecuteScalar() with
-    | null -> None
-    | v -> Some(string v)
-  with _ ->
-    None // an unreadable store is not one we should claim is up to date
-
-let private recordStoreStamp (dbPath : string) (build : string) : unit =
-  try
-    use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
-    conn.Open()
-    use cmd = conn.CreateCommand()
-    cmd.CommandText <-
-      stampTable
-      + "; INSERT OR REPLACE INTO store_stamp_v0 (id, build) VALUES (0, $build)"
-    cmd.Parameters.AddWithValue("$build", build)
-    |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
-    cmd.ExecuteNonQuery() |> ignore<int>
-  with _ ->
-    () // failing to record it costs the next run the top-up it just did, nothing worse
+let private storeStamp = LibDB.CatchUpStore.storeStamp
+let private recordStoreStamp = LibDB.CatchUpStore.recordStoreStamp
 
 let extract () : unit =
   // On first run, decompress the embedded seed db to `~/.darklang/data.db`; afterwards the
