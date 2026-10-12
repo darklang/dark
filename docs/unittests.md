@@ -84,6 +84,9 @@ test still gets its own process and store. The summary distinguishes tests that
 ran from cached results. Assertions combined with `Stdlib.Test.all` count as one
 test declaration.
 
+Tests run in parallel, with up to four workers (limited by the available cores).
+Use `--jobs <count>` to change the limit, or `--jobs 1` for a serial run.
+
 Some tests deliberately contain invalid programs, so `dark typecheck` in a
 normal development store can report intentional test errors. Run the production
 check separately:

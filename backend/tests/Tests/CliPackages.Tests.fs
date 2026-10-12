@@ -641,6 +641,155 @@ let isolatedTestDeclarations =
         do! discardAll state
       })
 
+/// Pause workers to check that tests run in parallel without exceeding the limit.
+/// When one finishes, the next should start without waiting for the others.
+let packageTestsRespectParallelLimit =
+  instanceTest
+    "package tests overlap within the requested worker limit"
+    (fun state ->
+      task {
+        if LibExecution.HostLibc.isPosix then
+          do! start state
+          let instance =
+            match state with
+            | Instance i -> i
+            | _ -> failtest "requires a disposable CLI instance"
+          let source = System.IO.Path.Combine(instance.dir, "parallel.dark")
+          System.IO.File.WriteAllText(
+            source,
+            [ 1..5 ]
+            |> List.map (fun n ->
+              $"""test case{n} =
+  let before = Stdlib.LocalStore.configGet "parallel-witness"
+  let _ = Stdlib.LocalStore.configSet "parallel-witness" "child"
+  Stdlib.Test.expect (before == "") "another test changed my store"
+"""         )
+            |> String.concat "\n"
+          )
+          do! run state [ "module"; "Tests.Parallel"; source ]
+          // The runner needs no grants on the saved instance, even to spawn work.
+          do! run state [ "permissions"; "clear" ]
+          let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
+          for jobs in [ 1; 2 ] do
+            let barriers =
+              System.IO.Directory
+                .CreateDirectory(
+                  System.IO.Path.Combine(instance.dir, $"barriers-{jobs}")
+                )
+                .FullName
+            let wrapper =
+              System.IO.Path.Combine(instance.dir, $"worker-barrier-{jobs}")
+            System.IO.File.WriteAllText(
+              wrapper,
+              "#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
+              + quote wrapper
+              + "\nfor arg in \"$@\"; do\n"
+              + "  if [ \"$arg\" = \"${DARK_CONFIG_RUNDIR}request.bin\" ]; then\n"
+              + "    barrier="
+              + quote barriers
+              + "\n"
+              + "    touch \"$barrier/started-$$\"\n"
+              + "    while [ ! -f \"$barrier/release-$$\" ] && [ ! -f \"$barrier/release-all\" ]; do sleep 0.02; done\n"
+              + "  fi\ndone\nexec "
+              + quote (System.IO.Path.GetFullPath instance.cli)
+              + " \"$@\"\n"
+            )
+            System.IO.File.SetUnixFileMode(
+              wrapper,
+              System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
+            )
+            let started () = System.IO.Directory.GetFiles(barriers, "started-*")
+            let waitFor count =
+              task {
+                let deadline = System.Diagnostics.Stopwatch.StartNew()
+                while (started ()).Length < count
+                      && deadline.Elapsed.TotalSeconds < 30.0 do
+                  do! Task.Delay 20
+                Expect.equal
+                  (started ()).Length
+                  count
+                  "the expected workers reached the barrier"
+              }
+            let running =
+              runCliWithStatus
+                (Instance { instance with cli = wrapper })
+                [ "test"; "--force"; "--jobs"; string jobs; "Tests.Parallel" ]
+            let! barrierError =
+              task {
+                try
+                  do! waitFor jobs
+                  do! Task.Delay 200
+                  Expect.equal
+                    (started ()).Length
+                    jobs
+                    "no extra worker starts while all slots are occupied"
+                  let first =
+                    System.IO.Path
+                      .GetFileName((started ())[0])
+                      .Replace("started-", "release-")
+                  System.IO.File.WriteAllText(
+                    System.IO.Path.Combine(barriers, first),
+                    ""
+                  )
+                  do! waitFor (jobs + 1)
+                  do! Task.Delay 200
+                  Expect.equal
+                    (started ()).Length
+                    (jobs + 1)
+                    "only the freed slot is refilled"
+                  return None
+                with e ->
+                  return Some e
+              }
+            // Always unblock and collect the CLI before the instance is disposed.
+            System.IO.File.WriteAllText(
+              System.IO.Path.Combine(barriers, "release-all"),
+              ""
+            )
+            let! output, code = running
+            match barrierError with
+            | Some e -> return raise e
+            | None -> ()
+            Expect.equal code 0 $"parallel run succeeds: {output}"
+            Expect.stringContains
+              output
+              "5 passed, 0 failed; 5 ran, 0 cached"
+              "every declaration runs once"
+            Expect.equal (started ()).Length 5 "exactly five workers were launched"
+          // Ordinary eval still uses the saved deny-all policy. Grant only the
+          // read needed for this final check, after all test workers have exited.
+          do! run state [ "permissions"; "allow"; "package-read" ]
+          do!
+            evals
+              state
+              "Stdlib.LocalStore.configGet \"parallel-witness\" == \"\""
+              "true"
+              "test writes did not reach the parent store"
+      })
+
+let packageTestJobsRejectInvalidCounts =
+  instanceTest "package tests reject invalid worker limits" (fun state ->
+    task {
+      for args in
+        [ [ "--jobs" ]
+          [ "--jobs"; "0" ]
+          [ "--jobs"; "-1" ]
+          [ "--jobs"; "no" ]
+          [ "--jobs=0" ] ] do
+        let! output, code = runCliWithStatus state ("test" :: args)
+        Expect.equal code 1 "invalid limits fail the command"
+        Expect.stringContains
+          output
+          (if args = [ "--jobs" ] then
+             "`--jobs` needs a value"
+           else
+             "--jobs needs a positive whole number")
+          "explain the valid input"
+        Expect.isFalse
+          (output.Contains "Running:")
+          "no test starts with invalid options"
+    })
+
 let isolatedTestsRejectUnsuccessfulWorkers =
   instanceTest
     "isolated tests reject worker failures and missing results"
@@ -1747,6 +1896,8 @@ let tests : List<Test> =
     testAddAuthorsATest
     testRunUsesOneStartingStore
     isolatedTestDeclarations
+    packageTestsRespectParallelLimit
+    packageTestJobsRejectInvalidCounts
     isolatedTestsRejectUnsuccessfulWorkers
     testsUseInstanceAndFunctionPolicies
     workbenchShowsTests

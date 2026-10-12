@@ -41,7 +41,9 @@ Tests can declare private Dark databases with `[<DB>]` and use them through
 ## What happens when you run `dark test`
 
 `dark test` runs all tests, or you can filter them by module or test name. It skips
-deprecated tests and runs them one at a time in name order. Each declaration
+deprecated tests and starts them in name order, with up to four running at once
+(or fewer on smaller machines). Results are printed as tests finish. Use
+`--jobs <count>` to change the limit, or `--jobs 1` to run serially. Each declaration
 counts as one test, even when `Stdlib.Test.all` combines several checks. The
 command fails if any test fails or no tests match.
 
@@ -162,7 +164,7 @@ The old execution tests have moved to package tests, and their runner has been
 removed. Raw HTTP tests and backend integration tests still run in F#.
 
 The old runner shared one process and database and could run independent tests
-in parallel. Package tests currently run one at a time, each with its own process
+in parallel. Package tests also run in parallel, each with its own process
 and store. This keeps tests from affecting each other's store, but adds process
 startup and copying costs. CI uses the NativeAOT CLI to make startup faster.
 
