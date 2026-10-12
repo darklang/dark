@@ -1,199 +1,316 @@
-Stdlib.abs -5Q = 5Q
-Stdlib.abs 5Q = 5Q
+module Darklang.Stdlib.Int128.Tests
 
-Stdlib.abs -170141183460469231731687303715884105728Q = -170141183460469231731687303715884105728Q
+test abs =
+  Stdlib.Test.all
+    [ Stdlib.abs -5Q |> Stdlib.Test.equal 5Q
+      Stdlib.abs 5Q |> Stdlib.Test.equal 5Q
+      Stdlib.abs -170141183460469231731687303715884105728Q
+      |> Stdlib.Test.equal -170141183460469231731687303715884105728Q ]
 
-// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
-// reaches this type and that the type's own comparison holds at its extremes.
-Stdlib.max 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
-  170141183460469231731687303715884105727Q
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check
+// that it reaches this type and that the type's own comparison holds at its
+// extremes.
 
-Stdlib.min 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
-  -170141183460469231731687303715884105728Q
+test max =
+  Stdlib.max 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q
+  |> Stdlib.Test.equal 170141183460469231731687303715884105727Q
 
-Stdlib.clamp -100Q 0Q -1Q = -1Q
+test min =
+  Stdlib.min 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q
+  |> Stdlib.Test.equal -170141183460469231731687303715884105728Q
 
-(--5Q) = 5Q
-(-5Q) = -5Q
-(-0Q) = 0Q
-(--0Q) = 0Q
+test clamp =
+  Stdlib.clamp -100Q 0Q -1Q |> Stdlib.Test.equal -1Q
 
-(--170141183460469231731687303715884105728Q) = -170141183460469231731687303715884105728Q
-Stdlib.Int128.remainder 15Q 6Q = Stdlib.Result.Result.Ok 3Q
-Stdlib.Int128.remainder 20Q 8Q = Stdlib.Result.Result.Ok 4Q
-Stdlib.Int128.remainder -20Q 8Q = Stdlib.Result.Result.Ok -4Q
-Stdlib.Int128.remainder -20Q -8Q = Stdlib.Result.Result.Ok -4Q
-Stdlib.Int128.remainder -15Q 6Q = Stdlib.Result.Result.Ok -3Q
-Stdlib.Int128.remainder -170141183460469231731687303715884105728Q -1Q = Stdlib.Result.Result.Ok 0Q
-Stdlib.Int128.remainder 5Q 0Q = Stdlib.Result.Result.Error "Cannot divide by 0"
-(10Q + 9Q) = 19Q
-(88Q + 9Q) = 97Q
-(-1Q + 2Q) = 1Q
-(1Q + 0Q) = 1Q
-(-55Q + 55Q) = 0Q
-(55Q + 55Q) = 110Q
-(9223372036854775807Q + 2Q) = 9223372036854775809Q
+test negate =
+  Stdlib.Test.all
+    [ (--5Q) |> Stdlib.Test.equal 5Q
+      (-5Q) |> Stdlib.Test.equal -5Q
+      (-0Q) |> Stdlib.Test.equal 0Q
+      (--0Q) |> Stdlib.Test.equal 0Q
+      (--170141183460469231731687303715884105728Q)
+      |> Stdlib.Test.equal -170141183460469231731687303715884105728Q ]
 
-(170141183460469231731687303715884105726Q + 4Q) = -170141183460469231731687303715884105726Q
-(10Q - 9Q) = 1Q
-(88Q - 9Q) = 79Q
-(0Q - 1Q) = -1Q
-(1Q - 0Q) = 1Q
-(-55Q - -55Q) = 0Q
+/// A Result: the sign follows the dividend, and it is an Error only when the
+/// divisor is 0.
+test remainder =
+  Stdlib.Test.all
+    [ Stdlib.Int128.remainder 15Q 6Q |> Stdlib.Test.equal (Ok 3Q)
+      Stdlib.Int128.remainder 20Q 8Q |> Stdlib.Test.equal (Ok 4Q)
+      Stdlib.Int128.remainder -20Q 8Q |> Stdlib.Test.equal (Ok -4Q)
+      Stdlib.Int128.remainder -20Q -8Q |> Stdlib.Test.equal (Ok -4Q)
+      Stdlib.Int128.remainder -15Q 6Q |> Stdlib.Test.equal (Ok -3Q)
+      Stdlib.Int128.remainder -170141183460469231731687303715884105728Q -1Q
+      |> Stdlib.Test.equal (Ok 0Q)
+      Stdlib.Int128.remainder 5Q 0Q
+      |> Stdlib.Test.equal (Error "Cannot divide by 0") ]
 
-(-55Q - 170141183460469231731687303715884105726Q) = 170141183460469231731687303715884105675Q
-(8Q * 8Q) = 64Q
-(1Q * 0Q) = 0Q
+/// Wraps on overflow.
+test add =
+  Stdlib.Test.all
+    [ (10Q + 9Q) |> Stdlib.Test.equal 19Q
+      (88Q + 9Q) |> Stdlib.Test.equal 97Q
+      (-1Q + 2Q) |> Stdlib.Test.equal 1Q
+      (1Q + 0Q) |> Stdlib.Test.equal 1Q
+      (-55Q + 55Q) |> Stdlib.Test.equal 0Q
+      (55Q + 55Q) |> Stdlib.Test.equal 110Q
+      (9223372036854775807Q + 2Q) |> Stdlib.Test.equal 9223372036854775809Q
+      (170141183460469231731687303715884105726Q + 4Q)
+      |> Stdlib.Test.equal -170141183460469231731687303715884105726Q ]
 
-(10Q / 5Q) = 2Q
-(17Q / 3Q) = 5Q
-(-8Q / 5Q) = -1Q
-(0Q / 1Q) = 0Q
+/// Wraps on overflow.
+test subtract =
+  Stdlib.Test.all
+    [ (10Q - 9Q) |> Stdlib.Test.equal 1Q
+      (88Q - 9Q) |> Stdlib.Test.equal 79Q
+      (0Q - 1Q) |> Stdlib.Test.equal -1Q
+      (1Q - 0Q) |> Stdlib.Test.equal 1Q
+      (-55Q - -55Q) |> Stdlib.Test.equal 0Q
+      (-55Q - 170141183460469231731687303715884105726Q)
+      |> Stdlib.Test.equal 170141183460469231731687303715884105675Q ]
 
-(1Q / 0Q) = error="Cannot divide by 0"
-(-170141183460469231731687303715884105728Q / -1Q) = -170141183460469231731687303715884105728Q
-(20Q > 1Q) = true
+/// Wraps on overflow.
+test multiply =
+  Stdlib.Test.all
+    [ (8Q * 8Q) |> Stdlib.Test.equal 64Q
+      (1Q * 0Q) |> Stdlib.Test.equal 0Q ]
 
-(20Q > 170141183460469231731687303715884105727Q) = false
+test divide =
+  Stdlib.Test.all
+    [ (10Q / 5Q) |> Stdlib.Test.equal 2Q
+      (17Q / 3Q) |> Stdlib.Test.equal 5Q
+      (-8Q / 5Q) |> Stdlib.Test.equal -1Q
+      (0Q / 1Q) |> Stdlib.Test.equal 0Q
+      (-170141183460469231731687303715884105728Q / -1Q)
+      |> Stdlib.Test.equal -170141183460469231731687303715884105728Q ]
 
-(0Q >= 1Q) = false
-(1Q >= 0Q) = true
-(6Q >= 1Q) = true
-(6Q >= 8Q) = false
-(-5Q >= -20Q) = true
-(-20Q >= -1Q) = false
-(-20Q >= -20Q) = true
+test divideOfOneRejectsZero =
+  (1Q / 0Q)
+  => raises "Cannot divide by 0"
 
-(-170141183460469231731687303715884105728Q >= -20Q) = false
+test greaterThan =
+  Stdlib.Test.all
+    [ (20Q > 1Q) |> Stdlib.Test.equal true
+      (20Q > 170141183460469231731687303715884105727Q) |> Stdlib.Test.equal false ]
 
-(6Q <= 8Q) = true
-(10Q <= 1Q) = false
-(0Q <= 1Q) = true
-(1Q <= 0Q) = false
+test greaterThanOrEqualTo =
+  Stdlib.Test.all
+    [ (0Q >= 1Q) |> Stdlib.Test.equal false
+      (1Q >= 0Q) |> Stdlib.Test.equal true
+      (6Q >= 1Q) |> Stdlib.Test.equal true
+      (6Q >= 8Q) |> Stdlib.Test.equal false
+      (-5Q >= -20Q) |> Stdlib.Test.equal true
+      (-20Q >= -1Q) |> Stdlib.Test.equal false
+      (-20Q >= -20Q) |> Stdlib.Test.equal true
+      (-170141183460469231731687303715884105728Q >= -20Q)
+      |> Stdlib.Test.equal false ]
 
-(-170141183460469231731687303715884105728Q < 170141183460469231731687303715884105727Q) = true
+test lessThanOrEqualTo =
+  Stdlib.Test.all
+    [ (6Q <= 8Q) |> Stdlib.Test.equal true
+      (10Q <= 1Q) |> Stdlib.Test.equal false
+      (0Q <= 1Q) |> Stdlib.Test.equal true
+      (1Q <= 0Q) |> Stdlib.Test.equal false ]
 
-(6Q < 8Q) = true
-(10Q < 1Q) = false
-(0Q < 1Q) = true
-(1Q < 0Q) = false
+test lessThan =
+  Stdlib.Test.all
+    [ (-170141183460469231731687303715884105728Q < 170141183460469231731687303715884105727Q)
+      |> Stdlib.Test.equal true
+      (6Q < 8Q) |> Stdlib.Test.equal true
+      (10Q < 1Q) |> Stdlib.Test.equal false
+      (0Q < 1Q) |> Stdlib.Test.equal true
+      (1Q < 0Q) |> Stdlib.Test.equal false ]
 
-Stdlib.toString 0Q = "0"
-Stdlib.toString 1Q = "1"
-Stdlib.toString -1Q = "-1"
-Stdlib.toString -170141183460469231731687303715884105728Q = "-170141183460469231731687303715884105728"
-Stdlib.toString 170141183460469231731687303715884105727Q = "170141183460469231731687303715884105727"
+test toString =
+  Stdlib.Test.all
+    [ Stdlib.toString 0Q |> Stdlib.Test.equal "0"
+      Stdlib.toString 1Q |> Stdlib.Test.equal "1"
+      Stdlib.toString -1Q |> Stdlib.Test.equal "-1"
+      Stdlib.toString -170141183460469231731687303715884105728Q
+      |> Stdlib.Test.equal "-170141183460469231731687303715884105728"
+      Stdlib.toString 170141183460469231731687303715884105727Q
+      |> Stdlib.Test.equal "170141183460469231731687303715884105727" ]
 
-Stdlib.Int128.toFloat 2Q = 2.0
-Stdlib.Int128.toFloat 170141183460469231731687303715884105727Q = 170141183460469231731687303715884105727.0
-Stdlib.Int128.toFloat -170141183460469231731687303715884105728Q = -170141183460469231731687303715884105728.0
-Stdlib.Int128.toFloat -10Q = -10.0
+test toFloat =
+  Stdlib.Test.all
+    [ Stdlib.Int128.toFloat 2Q |> Stdlib.Test.equal 2.0
+      Stdlib.Int128.toFloat 170141183460469231731687303715884105727Q
+      |> Stdlib.Test.equal 170141183460469231731687303715884105727.0
+      Stdlib.Int128.toFloat -170141183460469231731687303715884105728Q
+      |> Stdlib.Test.equal -170141183460469231731687303715884105728.0
+      Stdlib.Int128.toFloat -10Q |> Stdlib.Test.equal -10.0 ]
 
-Stdlib.Int128.sqrt 4Q = 2.0
-Stdlib.Int128.sqrt 100Q = 10.0
-Stdlib.Int128.sqrt 86Q = 9.273618495495704
+test sqrt =
+  Stdlib.Test.all
+    [ Stdlib.Int128.sqrt 4Q |> Stdlib.Test.equal 2.0
+      Stdlib.Int128.sqrt 100Q |> Stdlib.Test.equal 10.0
+      Stdlib.Int128.sqrt 86Q |> Stdlib.Test.equal 9.273618495495704 ]
 
-(15Q % 5Q) = 0Q
-(15Q % 6Q) = 3Q
-(0Q % 15Q) = 0Q
-(-1Q % 2Q) = 1Q
-(-128Q % 53Q) = 31Q
-(127Q % 3Q) = 1Q
+/// `%` wraps into [0, b), and raises when b <= 0.
+test modulo =
+  Stdlib.Test.all
+    [ (15Q % 5Q) |> Stdlib.Test.equal 0Q
+      (15Q % 6Q) |> Stdlib.Test.equal 3Q
+      (0Q % 15Q) |> Stdlib.Test.equal 0Q
+      (-1Q % 2Q) |> Stdlib.Test.equal 1Q
+      (-128Q % 53Q) |> Stdlib.Test.equal 31Q
+      (127Q % 3Q) |> Stdlib.Test.equal 1Q ]
 
-(5Q % 0Q) = error="Cannot evaluate modulus against 0"
-(5Q % -5Q) = error="Cannot evaluate modulus against a negative number"
-// parse OK
-Stdlib.Int128.parse "0" = Stdlib.Result.Result.Ok 0Q
-Stdlib.Int128.parse "1" = Stdlib.Result.Result.Ok 1Q
-Stdlib.Int128.parse " 1" = Stdlib.Result.Result.Ok 1Q
-Stdlib.Int128.parse "1 " = Stdlib.Result.Result.Ok 1Q
-Stdlib.Int128.parse "+1" = Stdlib.Result.Result.Ok 1Q
-Stdlib.Int128.parse " +1 " = Stdlib.Result.Result.Ok 1Q
-Stdlib.Int128.parse "-1" = Stdlib.Result.Result.Ok -1Q
-Stdlib.Int128.parse "078" = Stdlib.Result.Result.Ok 78Q // "octal" format ignored
-Stdlib.Int128.parse "-00001" = Stdlib.Result.Result.Ok -1Q
-Stdlib.Int128.parse "170141183460469231731687303715884105727" = Stdlib.Result.Result.Ok 170141183460469231731687303715884105727Q
-Stdlib.Int128.parse "-170141183460469231731687303715884105728" = Stdlib.Result.Result.Ok -170141183460469231731687303715884105728Q
+test moduloRejectsZero =
+  (5Q % 0Q)
+  => raises "Cannot evaluate modulus against 0"
 
-// out of range
-Stdlib.Int128.parse "170141183460469231731687303715884105729" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.OutOfRange
-Stdlib.Int128.parse "-170141183460469231731687303715884105729" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.OutOfRange
+test moduloRejectsNegativeDivisor =
+  (5Q % -5Q)
+  => raises "Cannot evaluate modulus against a negative number"
 
-// bad format
-Stdlib.Int128.parse "1 2 3" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "+ 1" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "- 1" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "0xA" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "0x123" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "0b0100" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "pi" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "1.23E+04" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "1Q" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "one" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
-Stdlib.Int128.parse "XQV" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+test parse =
+  Stdlib.Test.all
+    [ // parse OK
+      Stdlib.Int128.parse "0" |> Stdlib.Test.equal (Ok 0Q)
+      Stdlib.Int128.parse "1" |> Stdlib.Test.equal (Ok 1Q)
+      Stdlib.Int128.parse " 1" |> Stdlib.Test.equal (Ok 1Q)
+      Stdlib.Int128.parse "1 " |> Stdlib.Test.equal (Ok 1Q)
+      Stdlib.Int128.parse "+1" |> Stdlib.Test.equal (Ok 1Q)
+      Stdlib.Int128.parse " +1 " |> Stdlib.Test.equal (Ok 1Q)
+      Stdlib.Int128.parse "-1" |> Stdlib.Test.equal (Ok -1Q)
+      // "octal" format ignored
+      Stdlib.Int128.parse "078" |> Stdlib.Test.equal (Ok 78Q)
+      Stdlib.Int128.parse "-00001" |> Stdlib.Test.equal (Ok -1Q)
+      Stdlib.Int128.parse "170141183460469231731687303715884105727"
+      |> Stdlib.Test.equal (Ok 170141183460469231731687303715884105727Q)
+      Stdlib.Int128.parse "-170141183460469231731687303715884105728"
+      |> Stdlib.Test.equal (Ok -170141183460469231731687303715884105728Q) ]
 
-Stdlib.Int128.fromInt8 0y = 0Q
-Stdlib.Int128.fromInt8 1y = 1Q
-Stdlib.Int128.fromInt8 127y = 127Q
-Stdlib.Int128.fromInt8 -128y = -128Q
+test parseOutOfRange =
+  Stdlib.Test.all
+    [ // out of range
+      Stdlib.Int128.parse "170141183460469231731687303715884105729"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.OutOfRange)
+      Stdlib.Int128.parse "-170141183460469231731687303715884105729"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.OutOfRange) ]
 
-Stdlib.Int128.fromUInt8 0uy = 0Q
-Stdlib.Int128.fromUInt8 1uy = 1Q
-Stdlib.Int128.fromUInt8 255uy = 255Q
+test parseBadFormat =
+  Stdlib.Test.all
+    [ // bad format
+      Stdlib.Int128.parse "1 2 3"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "+ 1"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "- 1"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "0xA"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "0x123"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "0b0100"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "pi"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "Darklang.Stdlib.Math.pi"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "1.23E+04"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse ""
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "1Q"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "one"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat)
+      Stdlib.Int128.parse "XQV"
+      |> Stdlib.Test.equal (Error Stdlib.Int128.ParseError.BadFormat) ]
 
-Stdlib.Int128.fromInt16 0s = 0Q
-Stdlib.Int128.fromInt16 1s = 1Q
-Stdlib.Int128.fromInt16 32767s = 32767Q
-Stdlib.Int128.fromInt16 -32768s = -32768Q
+test fromInt8 =
+  Stdlib.Test.all
+    [ Stdlib.Int128.fromInt8 0y |> Stdlib.Test.equal 0Q
+      Stdlib.Int128.fromInt8 1y |> Stdlib.Test.equal 1Q
+      Stdlib.Int128.fromInt8 127y |> Stdlib.Test.equal 127Q
+      Stdlib.Int128.fromInt8 -128y |> Stdlib.Test.equal -128Q ]
 
-Stdlib.Int128.fromUInt16 0us = 0Q
-Stdlib.Int128.fromUInt16 1us = 1Q
-Stdlib.Int128.fromUInt16 65535us = 65535Q
+test fromUInt8 =
+  Stdlib.Test.all
+    [ Stdlib.Int128.fromUInt8 0uy |> Stdlib.Test.equal 0Q
+      Stdlib.Int128.fromUInt8 1uy |> Stdlib.Test.equal 1Q
+      Stdlib.Int128.fromUInt8 255uy |> Stdlib.Test.equal 255Q ]
 
-Stdlib.Int128.fromInt32 0l = 0Q
-Stdlib.Int128.fromInt32 1l = 1Q
-Stdlib.Int128.fromInt32 2147483647l = 2147483647Q
-Stdlib.Int128.fromInt32 -2147483648l = -2147483648Q
+test fromInt16 =
+  Stdlib.Test.all
+    [ Stdlib.Int128.fromInt16 0s |> Stdlib.Test.equal 0Q
+      Stdlib.Int128.fromInt16 1s |> Stdlib.Test.equal 1Q
+      Stdlib.Int128.fromInt16 32767s |> Stdlib.Test.equal 32767Q
+      Stdlib.Int128.fromInt16 -32768s |> Stdlib.Test.equal -32768Q ]
 
-Stdlib.Int128.fromUInt32 0ul = 0Q
-Stdlib.Int128.fromUInt32 1ul = 1Q
-Stdlib.Int128.fromUInt32 4294967295ul = 4294967295Q
+test fromUInt16 =
+  Stdlib.Test.all
+    [ Stdlib.Int128.fromUInt16 0us |> Stdlib.Test.equal 0Q
+      Stdlib.Int128.fromUInt16 1us |> Stdlib.Test.equal 1Q
+      Stdlib.Int128.fromUInt16 65535us |> Stdlib.Test.equal 65535Q ]
 
-Stdlib.Int128.fromInt64 0L = 0Q
-Stdlib.Int128.fromInt64 1L = 1Q
-Stdlib.Int128.fromInt64 9223372036854775807L = 9223372036854775807Q
-Stdlib.Int128.fromInt64 -9223372036854775808L = -9223372036854775808Q
+test fromInt32 =
+  Stdlib.Test.all
+    [ Stdlib.Int128.fromInt32 0l |> Stdlib.Test.equal 0Q
+      Stdlib.Int128.fromInt32 1l |> Stdlib.Test.equal 1Q
+      Stdlib.Int128.fromInt32 2147483647l |> Stdlib.Test.equal 2147483647Q
+      Stdlib.Int128.fromInt32 -2147483648l |> Stdlib.Test.equal -2147483648Q ]
 
-Stdlib.Int128.fromUInt64 0UL = 0Q
-Stdlib.Int128.fromUInt64 1UL = 1Q
-Stdlib.Int128.fromUInt64 18446744073709551615UL = 18446744073709551615Q
+test fromUInt32 =
+  Stdlib.Test.all
+    [ Stdlib.Int128.fromUInt32 0ul |> Stdlib.Test.equal 0Q
+      Stdlib.Int128.fromUInt32 1ul |> Stdlib.Test.equal 1Q
+      Stdlib.Int128.fromUInt32 4294967295ul |> Stdlib.Test.equal 4294967295Q ]
 
-(12Q & 10Q) = 8Q
-(0Q & 0Q) = 0Q
-((-1Q) & 0Q) = 0Q
-((-1Q) & (-1Q)) = -1Q
+test fromInt64 =
+  Stdlib.Test.all
+    [ Stdlib.Int128.fromInt64 0L |> Stdlib.Test.equal 0Q
+      Stdlib.Int128.fromInt64 1L |> Stdlib.Test.equal 1Q
+      Stdlib.Int128.fromInt64 9223372036854775807L
+      |> Stdlib.Test.equal 9223372036854775807Q
+      Stdlib.Int128.fromInt64 -9223372036854775808L
+      |> Stdlib.Test.equal -9223372036854775808Q ]
 
-(12Q | 10Q) = 14Q
-(0Q | 0Q) = 0Q
-((-1Q) | 0Q) = -1Q
+test fromUInt64 =
+  Stdlib.Test.all
+    [ Stdlib.Int128.fromUInt64 0UL |> Stdlib.Test.equal 0Q
+      Stdlib.Int128.fromUInt64 1UL |> Stdlib.Test.equal 1Q
+      Stdlib.Int128.fromUInt64 18446744073709551615UL
+      |> Stdlib.Test.equal 18446744073709551615Q ]
 
-(12Q ^ 10Q) = 6Q
-(0Q ^ 0Q) = 0Q
-((-1Q) ^ (-1Q)) = 0Q
+test bitwiseAnd =
+  Stdlib.Test.all
+    [ (12Q & 10Q) |> Stdlib.Test.equal 8Q
+      (0Q & 0Q) |> Stdlib.Test.equal 0Q
+      ((-1Q) & 0Q) |> Stdlib.Test.equal 0Q
+      ((-1Q) & (-1Q)) |> Stdlib.Test.equal -1Q ]
 
-(~0Q) = -1Q
-(~(-1Q)) = 0Q
-(~1Q) = -2Q
+test bitwiseOr =
+  Stdlib.Test.all
+    [ (12Q | 10Q) |> Stdlib.Test.equal 14Q
+      (0Q | 0Q) |> Stdlib.Test.equal 0Q
+      ((-1Q) | 0Q) |> Stdlib.Test.equal -1Q ]
 
-(1Q << 2Q) = 4Q
-(0Q << 5Q) = 0Q
-(1Q << 0Q) = 1Q
-(5Q << 3Q) = 40Q
+test bitwiseXor =
+  Stdlib.Test.all
+    [ (12Q ^ 10Q) |> Stdlib.Test.equal 6Q
+      (0Q ^ 0Q) |> Stdlib.Test.equal 0Q
+      ((-1Q) ^ (-1Q)) |> Stdlib.Test.equal 0Q ]
 
-(8Q >> 2Q) = 2Q
-(0Q >> 5Q) = 0Q
-(1Q >> 0Q) = 1Q
-((-1Q) >> 1Q) = -1Q
-(40Q >> 3Q) = 5Q
+test bitwiseNot =
+  Stdlib.Test.all
+    [ (~0Q) |> Stdlib.Test.equal -1Q
+      (~(-1Q)) |> Stdlib.Test.equal 0Q
+      (~1Q) |> Stdlib.Test.equal -2Q ]
+
+test shiftLeft =
+  Stdlib.Test.all
+    [ (1Q << 2Q) |> Stdlib.Test.equal 4Q
+      (0Q << 5Q) |> Stdlib.Test.equal 0Q
+      (1Q << 0Q) |> Stdlib.Test.equal 1Q
+      (5Q << 3Q) |> Stdlib.Test.equal 40Q ]
+
+test shiftRight =
+  Stdlib.Test.all
+    [ (8Q >> 2Q) |> Stdlib.Test.equal 2Q
+      (0Q >> 5Q) |> Stdlib.Test.equal 0Q
+      (1Q >> 0Q) |> Stdlib.Test.equal 1Q
+      ((-1Q) >> 1Q) |> Stdlib.Test.equal -1Q
+      (40Q >> 3Q) |> Stdlib.Test.equal 5Q ]

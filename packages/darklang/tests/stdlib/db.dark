@@ -1,3 +1,5 @@
+module Darklang.Stdlib.DB.Tests
+
 // really simple data stores of Records
 type X = { x: String }
 
@@ -5,10 +7,8 @@ type X = { x: String }
 type XDB = X
 
 
-type Z = { x: Char }
-
 [<DB>]
-type ZDB = Z
+type ZDB = { x: Char }
 
 
 type XY = { x: String; y: String }
@@ -93,63 +93,80 @@ type TestNestedAliasRecord = AliasOfRecord
 
 
 module SetDoesUpsert =
-  (let old = Stdlib.DB.set (X { x = "hello" }) "hello" XDB
-   let newval = Stdlib.DB.set (X { x = "goodbye" }) "hello" XDB
-   Stdlib.DB.getAllWithKeys XDB) = Dict { "hello": X { x = "goodbye" } }
+  test setOverwritesExistingKey =
+    (let old = Stdlib.DB.set (X { x = "hello" }) "hello" XDB
+     let newval = Stdlib.DB.set (X { x = "goodbye" }) "hello" XDB
+     Stdlib.DB.getAllWithKeys XDB)
+    |> Stdlib.Test.equal (Dict { "hello": X { x = "goodbye" } })
 
 module SetCharUpserts =
-  (let old = Stdlib.DB.set (Z { x = 'a' }) "a" ZDB
-   let newval = Stdlib.DB.set (Z { x = 'b' }) "a" ZDB
-   Stdlib.DB.getAllWithKeys ZDB) = Dict { "a": Z { x = 'b' } }
+  test setOverwritesExistingCharKey =
+    (let old = Stdlib.DB.set (ZDB { x = 'a' }) "a" ZDB
+     let newval = Stdlib.DB.set (ZDB { x = 'b' }) "a" ZDB
+     Stdlib.DB.getAllWithKeys ZDB)
+    |> Stdlib.Test.equal (Dict { "a": ZDB { x = 'b' } })
 
 
 
 module Get =
   // return none for empty store
-  (Stdlib.DB.get "lol" XDB) = Stdlib.Option.Option.None
+  test emptyTableReturnsNone =
+    Stdlib.DB.get "lol" XDB |> Stdlib.Test.equal None
 
   // return none for invalid key
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "lol" XDB) = Stdlib.Option.Option.None
+  test missingKeyReturnsNone =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "lol" XDB)
+    |> Stdlib.Test.equal None
 
   // returns single value
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "key" XDB) = Stdlib
+  test existingKeyReturnsValue =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "key" XDB)
+    |> Stdlib.Test.equal (Stdlib
     .Option
     .Option
-    .Some(X { x = "hello" })
+    .Some(X { x = "hello" }))
 
   // returns correct value given reassigned entry
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB
-   let _ = Stdlib.DB.set (X { x = "goodbye" }) "key" XDB
-   Stdlib.DB.get "key" XDB) = Stdlib.Option.Option.Some(X { x = "goodbye" })
+  test updatedKeyReturnsLatestValue =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB
+     let _ = Stdlib.DB.set (X { x = "goodbye" }) "key" XDB
+     Stdlib.DB.get "key" XDB)
+    |> Stdlib.Test.equal (Some(X { x = "goodbye" }))
 
   // returns value given multiple entries
-  (let _ = Stdlib.DB.set (X { x = "pancake" }) "key1" XDB
-   let _ = Stdlib.DB.set (X { x = "waffle" }) "key2" XDB
-   let _ = Stdlib.DB.set (X { x = "scone" }) "key3" XDB
-   Stdlib.DB.get "key2" XDB) = Stdlib.Option.Option.Some(X { x = "waffle" })
+  test getSelectsRequestedKey =
+    (let _ = Stdlib.DB.set (X { x = "pancake" }) "key1" XDB
+     let _ = Stdlib.DB.set (X { x = "waffle" }) "key2" XDB
+     let _ = Stdlib.DB.set (X { x = "scone" }) "key3" XDB
+     Stdlib.DB.get "key2" XDB)
+    |> Stdlib.Test.equal (Some(X { x = "waffle" }))
 
 
 
 module NestedRecordFieldAccess =
   // can use lambda like (fun p -> p.details.numbers.age)
-  (let _ = Stdlib.DB.set (OuterRecord { name = "joe"; details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 41L } } }) "jjj" TestNestedRecord
+  test queriesNestedRecordField =
+    (let _ = Stdlib.DB.set (OuterRecord { name = "joe"; details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 41L } } }) "jjj" TestNestedRecord
 
-   let _ = Stdlib.DB.set (OuterRecord { name = "frank"; details = InnerRecord { numbers = VeryInnerRecord { age = 22L } } }) "fff" TestNestedRecord
+     let _ = Stdlib.DB.set (OuterRecord { name = "frank"; details = InnerRecord { numbers = VeryInnerRecord { age = 22L } } }) "fff" TestNestedRecord
 
-   let shouldBeJustJoe =
-     Stdlib.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41L)
+     let shouldBeJustJoe =
+       Stdlib.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41L)
 
-   Stdlib.List.length shouldBeJustJoe) = 1
+     Stdlib.List.length shouldBeJustJoe)
+    |> Stdlib.Test.equal 1
 
   // same as above, but with aliases
-  (let _ = Stdlib.DB.set (AliasOfRecord { name = "jeremy"; details = InnerRecord { numbers = VeryInnerRecord { age = 38L } } }) "ignored" TestNestedAliasRecord
+  test queriesNestedAliasedRecordField =
+    (let _ = Stdlib.DB.set (AliasOfRecord { name = "jeremy"; details = InnerRecord { numbers = VeryInnerRecord { age = 38L } } }) "ignored" TestNestedAliasRecord
 
-   let _ = Stdlib.DB.set (AliasOfRecord { name = "josephine"; details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 29L } } }) "alsoIgnored" TestNestedAliasRecord
+     let _ = Stdlib.DB.set (AliasOfRecord { name = "josephine"; details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 29L } } }) "alsoIgnored" TestNestedAliasRecord
 
-   let shouldBeJustJeremy =
-     Stdlib.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
+     let shouldBeJustJeremy =
+       Stdlib.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
 
-   Stdlib.List.length shouldBeJustJeremy) = 1
+     Stdlib.List.length shouldBeJustJeremy)
+    |> Stdlib.Test.equal 1
 
 
 
@@ -161,13 +178,13 @@ type RecordWithGenericThing = GenericThing<String>
 type TestRecordWithGenericThing = RecordWithGenericThing
 
 module AccessDataInGenericField =
-  (let _ = Stdlib.DB.set (RecordWithGenericThing { name = "joe" }) "jjj" TestRecordWithGenericThing
+  test queriesGenericStringField =
+    (let _ = Stdlib.DB.set (RecordWithGenericThing { name = "joe" }) "jjj" TestRecordWithGenericThing
 
-   let _ = Stdlib.DB.set (RecordWithGenericThing { name = "frank" }) "fff" TestRecordWithGenericThing
+     let _ = Stdlib.DB.set (RecordWithGenericThing { name = "frank" }) "fff" TestRecordWithGenericThing
 
-   Stdlib.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")) = [ RecordWithGenericThing
-                                                                                 { name =
-                                                                                     "joe" } ]
+     Stdlib.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe"))
+    |> Stdlib.Test.equal [ RecordWithGenericThing { name = "joe" } ]
 
 module AccessRecordInGenericField =
   type RecordThing = { nested: String }
@@ -176,17 +193,15 @@ module AccessRecordInGenericField =
   type TestDB = GenericThing<RecordThing>
 
 
-  (let _ = Stdlib.DB.set (GenericThing { name = RecordThing { nested = "joe" } }) "jjj" TestDB
+  test queriesGenericRecordField =
+    (let _ = Stdlib.DB.set (GenericThing { name = RecordThing { nested = "joe" } }) "jjj" TestDB
 
-   let _ = Stdlib.DB.set (GenericThing { name = RecordThing { nested = "frank" } }) "fff" TestDB
+     let _ = Stdlib.DB.set (GenericThing { name = RecordThing { nested = "frank" } }) "fff" TestDB
 
-   let nestedValue = RecordThing { nested = "joe" }
+     let nestedValue = RecordThing { nested = "joe" }
 
-   Stdlib.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
-                                                                  { name =
-                                                                      RecordThing
-                                                                        { nested =
-                                                                            "joe" } } ]
+     Stdlib.DB.query TestDB (fun p -> p.name == nestedValue))
+    |> Stdlib.Test.equal [ GenericThing { name = RecordThing { nested = "joe" } } ]
 
 module AccessEnumInGenericField =
   type EnumThing = A of String
@@ -195,73 +210,82 @@ module AccessEnumInGenericField =
   type EnumThingDB = GenericThing<EnumThing>
 
 
-  (let _ = Stdlib.DB.set (GenericThing { name = EnumThing.A "joe" }) "jjj" EnumThingDB
-   let _ = Stdlib.DB.set (GenericThing { name = EnumThing.A "frank" }) "fff" EnumThingDB
+  test queriesGenericEnumField =
+    (let _ = Stdlib.DB.set (GenericThing { name = EnumThing.A "joe" }) "jjj" EnumThingDB
+     let _ = Stdlib.DB.set (GenericThing { name = EnumThing.A "frank" }) "fff" EnumThingDB
 
-   let nestedValue = EnumThing.A "joe"
+     let nestedValue = EnumThing.A "joe"
 
-   Stdlib.DB.query EnumThingDB (fun p -> p.name == nestedValue)) = [ GenericThing
-                                                                       { name =
-                                                                           EnumThing.A
-                                                                             "joe" } ]
+     Stdlib.DB.query EnumThingDB (fun p -> p.name == nestedValue))
+    |> Stdlib.Test.equal [ GenericThing { name = EnumThing.A "joe" } ]
 
 
 module AddToTestEnumDBs =
-  (let _ =
-    Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+  test getAllReturnsEnumRecords =
+    (let _ =
+      Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
-   let _ =
-     Stdlib.DB.set
-       (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
-       "test2"
-       TestEnumDB
+     let _ =
+       Stdlib.DB.set
+         (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
+         "test2"
+         TestEnumDB
 
-   (Stdlib.DB.getAll TestEnumDB) |> Stdlib.List.sort) = [ EnumTestRecord
-                                                            { x = "goodbye"
-                                                              y = MyEnum.B }
-                                                          EnumTestRecord
-                                                            { x = "hello"
-                                                              y = MyEnum.A } ]
+     (Stdlib.DB.getAll TestEnumDB) |> Stdlib.List.sort)
+    |> Stdlib.Test.equal (
+      [ EnumTestRecord { x = "goodbye"; y = MyEnum.B }
+        EnumTestRecord { x = "hello"; y = MyEnum.A } ])
 
-  (let _ =
-    Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+  test getReturnsEnumRecord =
+    (let _ =
+      Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
-   let _ =
-     Stdlib.DB.set
-       (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
-       "test2"
-       TestEnumDB
+     let _ =
+       Stdlib.DB.set
+         (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
+         "test2"
+         TestEnumDB
 
-   (Stdlib.DB.get "test1" TestEnumDB)) = Stdlib.Option.Option.Some(
-    EnumTestRecord { x = "hello"; y = MyEnum.A }
-  )
+     (Stdlib.DB.get "test1" TestEnumDB))
+    |> Stdlib.Test.equal (
+      Stdlib.Option.Option.Some(EnumTestRecord { x = "hello"; y = MyEnum.A }))
 
-  (let test1 = Stdlib.DB.set MyEnum.A "test1" TestEnumDB2
-   let test2 = Stdlib.DB.set MyEnum.B "test2" TestEnumDB2
-   (Stdlib.DB.getAll TestEnumDB2) |> Stdlib.List.sort) = [ MyEnum.A, MyEnum.B ]
+  test getAllReturnsEnumValues =
+    (let test1 = Stdlib.DB.set MyEnum.A "test1" TestEnumDB2
+     let test2 = Stdlib.DB.set MyEnum.B "test2" TestEnumDB2
+     (Stdlib.DB.getAll TestEnumDB2) |> Stdlib.List.sort)
+    |> Stdlib.Test.equal [ MyEnum.A, MyEnum.B ]
 
-  (let test1 = Stdlib.DB.set MyEnum.C "test1" TestEnumDB2
-   let test2 = Stdlib.DB.set MyEnum.B "test2" TestEnumDB2
-   (Stdlib.DB.get "test1" TestEnumDB2)) = Stdlib.Option.Option.Some(MyEnum.C)
+  test getReturnsEnumValue =
+    (let test1 = Stdlib.DB.set MyEnum.C "test1" TestEnumDB2
+     let test2 = Stdlib.DB.set MyEnum.B "test2" TestEnumDB2
+     (Stdlib.DB.get "test1" TestEnumDB2))
+    |> Stdlib.Test.equal (Some(MyEnum.C))
 
-  (let test1 = Stdlib.DB.set MyEnum2.D "test1" TestEnumDB3
-   let test2 = Stdlib.DB.set MyEnum2.E "test2" TestEnumDB3
-   let test3 = Stdlib.DB.set (MyEnum2.F MyEnum.A) "test3" TestEnumDB3
-   (Stdlib.DB.getAll TestEnumDB3) |> Stdlib.List.sort) = [ MyEnum2.D
-                                                           MyEnum2.E
-                                                           MyEnum2.F MyEnum.A ]
+  test storesAndGetsNestedEnumVariants =
+    let _ = Stdlib.DB.set MyEnum2.D "test1" TestEnumDB3
+    let _ = Stdlib.DB.set MyEnum2.E "test2" TestEnumDB3
+    let _ = Stdlib.DB.set (MyEnum2.F(MyEnum.A)) "test3" TestEnumDB3
+    Stdlib.Test.all
+      [ Stdlib.DB.get "test1" TestEnumDB3 |> Stdlib.Test.equal (Some MyEnum2.D)
+        Stdlib.DB.get "test2" TestEnumDB3 |> Stdlib.Test.equal (Some MyEnum2.E)
+        Stdlib.DB.get "test3" TestEnumDB3
+        |> Stdlib.Test.equal (Some(MyEnum2.F(MyEnum.A)))
+        Stdlib.DB.getAll TestEnumDB3
+        |> Stdlib.List.sort
+        |> Stdlib.Test.equal [ MyEnum2.D, MyEnum2.E, MyEnum2.F MyEnum.A ] ]
 
   // Query by string field
-  (let _ = Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
-   (Stdlib.DB.query TestEnumDB (fun p -> p.x == "hello"))) = [ EnumTestRecord
-                                                                  { x = "hello"
-                                                                    y = MyEnum.A } ]
+  test queriesStringFieldInEnumRecord =
+    (let _ = Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+     (Stdlib.DB.query TestEnumDB (fun p -> p.x == "hello")))
+    |> Stdlib.Test.equal [ EnumTestRecord { x = "hello"; y = MyEnum.A } ]
 
   // Query by enum field
-  (let _ = Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
-   (Stdlib.DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
-                                                                   { x = "hello"
-                                                                     y = MyEnum.A } ]
+  test queriesEnumField =
+    (let _ = Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+     (Stdlib.DB.query TestEnumDB (fun p -> p.y == MyEnum.A)))
+    |> Stdlib.Test.equal [ EnumTestRecord { x = "hello"; y = MyEnum.A } ]
 
 
 
@@ -272,8 +296,10 @@ type MyTlid =
 type MyTlidDB = MyTlid
 
 module AddToTest =
-  (let test = Stdlib.DB.set (MyTlid { mytlid = 1234UL }) "test" MyTlidDB
-   (Stdlib.DB.getAll MyTlidDB)) = [ MyTlid { mytlid = 1234UL } ]
+  test storesAndGetsTlidField =
+    (let test = Stdlib.DB.set (MyTlid { mytlid = 1234UL }) "test" MyTlidDB
+     (Stdlib.DB.getAll MyTlidDB))
+    |> Stdlib.Test.equal [ MyTlid { mytlid = 1234UL } ]
 
 
 module Roundtrip =
@@ -328,9 +354,9 @@ module Roundtrip =
         uint128 = 340282366920938463463374607431768211455Z
         float = 3.0
         negZero = -0.0
-        nan = Builtin.testNan
-        infinity = Builtin.testInfinity
-        negInfinity = Builtin.testNegativeInfinity
+        nan = (0.0 / 0.0)
+        infinity = (1.0 / 0.0)
+        negInfinity = (-1.0 / 0.0)
         ``true`` = true
         ``false`` = false
         list = [ 1L, 2L, 3L ]
@@ -340,7 +366,7 @@ module Roundtrip =
         option = Stdlib.Option.Option.Some 5L
         record = MyTlid { mytlid = 1234UL }
         tuple = (1L, "hello")
-        emojiChar = (Builtin.testToChar "👍") |> Builtin.unwrap
+        emojiChar = '👍'
         uuid =
           (Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
           |> Builtin.unwrap
@@ -382,72 +408,96 @@ module Roundtrip =
         datetime = (Stdlib.DateTime.parse "2011-11-11T11:11:11Z") |> Builtin.unwrap
         unit = () }
 
-  // TODO: Add roundtrip for bytes (Bytes values not supported yet)
-  (let v = sample ()
-   let z = Stdlib.DB.set v "all" SampleDB
-   (z, Stdlib.DB.get "all" SampleDB)) =
-    (sample (), Stdlib.Option.Option.Some(sample ()))
+  // NaN never equals itself. Check the NaN field with isNaN and clear it before
+  // comparing the remaining fields.
+  test roundtripsSupportedFieldsIncludingNaN =
+    let expected = sample ()
+    let stored = Stdlib.DB.set expected "all" SampleDB
+    match Stdlib.DB.get "all" SampleDB with
+    | Some fetched ->
+      Stdlib.Test.all
+        [ { stored with nan = 0.0 } |> Stdlib.Test.equal { expected with nan = 0.0 }
+          { fetched with nan = 0.0 } |> Stdlib.Test.equal { expected with nan = 0.0 }
+          Stdlib.Test.expect (Stdlib.Float.isNaN stored.nan) "set should preserve NaN"
+          Stdlib.Test.expect (Stdlib.Float.isNaN fetched.nan) "get should preserve NaN" ]
+    | None -> Stdlib.Test.fail "get did not return the stored value"
 
-  // QueryEquality tests - moved inside Roundtrip module to access sample() and SampleDB
+  // QueryEquality tests - moved inside Roundtrip module to access sample() and
+  // SampleDB
 
   // Query by String field
-  (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
-   let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
-   (Stdlib.DB.query SampleDB (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe"))
-   |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe)) = [ "iNsEnSiTiVe" ]
+  test queriesStringField =
+    (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
+     let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
+     (Stdlib.DB.query SampleDB (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe"))
+     |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe))
+    |> Stdlib.Test.equal [ "iNsEnSiTiVe" ]
 
   // Query by Int64 field
-  (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
-   let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
-   (Stdlib.DB.query SampleDB (fun p -> p.int == 2L))
-   |> Stdlib.List.map (fun p -> p.int)) = [ 2L ]
+  test queriesInt64Field =
+    (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
+     let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
+     (Stdlib.DB.query SampleDB (fun p -> p.int == 2L))
+     |> Stdlib.List.map (fun p -> p.int))
+    |> Stdlib.Test.equal [ 2L ]
 
   // Query by Bool field
-  (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
-   let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
-   (Stdlib.DB.query SampleDB (fun p -> p.``true`` == true))
-   |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe)) = [ "iNsEnSiTiVe" ]
+  test queriesBoolField =
+    (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
+     let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
+     (Stdlib.DB.query SampleDB (fun p -> p.``true`` == true))
+     |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe))
+    |> Stdlib.Test.equal [ "iNsEnSiTiVe" ]
 
   // Query by Float field
-  (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
-   let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
-   (Stdlib.DB.query SampleDB (fun p -> p.float == 3.0))
-   |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe)) = [ "iNsEnSiTiVe" ]
+  test queriesFloatField =
+    (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
+     let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
+     (Stdlib.DB.query SampleDB (fun p -> p.float == 3.0))
+     |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe))
+    |> Stdlib.Test.equal [ "iNsEnSiTiVe" ]
 
   // Query by Int64 comparison
-  (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
-   let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
-   (Stdlib.DB.query SampleDB (fun p -> p.int > 2L))
-   |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe)) = [ "normal" ]
+  test comparesInt64Field =
+    (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
+     let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
+     (Stdlib.DB.query SampleDB (fun p -> p.int > 2L))
+     |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe))
+    |> Stdlib.Test.equal [ "normal" ]
 
   // Query by DateTime field (using partial evaluation of outer let)
-  (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
-   let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
-   let targetDate = (Stdlib.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap
-   (Stdlib.DB.query SampleDB (fun p -> p.datetime == targetDate))
-   |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe)) = [ "iNsEnSiTiVe" ]
+  test queriesDateTimeFieldWithCapturedValue =
+    (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
+     let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
+     let targetDate = (Stdlib.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap
+     (Stdlib.DB.query SampleDB (fun p -> p.datetime == targetDate))
+     |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe))
+    |> Stdlib.Test.equal [ "iNsEnSiTiVe" ]
 
   // Query by Char field
-  (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
-   let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
-   (Stdlib.DB.query SampleDB (fun p -> p.char == 'c'))
-   |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe)) = [ "iNsEnSiTiVe" ]
-
-
-// // module QueryEquality - tests moved to Roundtrip module above
-
-
+  test queriesCharField =
+    (let _ = Stdlib.DB.set (sample ()) "s1" SampleDB
+     let _ = Stdlib.DB.set (otherSample ()) "s2" SampleDB
+     (Stdlib.DB.query SampleDB (fun p -> p.char == 'c'))
+     |> Stdlib.List.map (fun p -> p.iNsEnSiTiVe))
+    |> Stdlib.Test.equal [ "iNsEnSiTiVe" ]
 
 // CLEANUP test ``ALL CAPS``
 // CLEANUP test partial evaluation of lists and tuples
-
+//
+// Both are now tested: ``ALL CAPS`` in RestoredSchemaCases, list and tuple partial
+// evaluation in PartialEvaluation.
 
 // // module ValueMissingColumnGivesGoodError =
 // //   // TYPESCLEANUP: can we test a missing column against the DB anymore?
-// //   // (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.runtimeError "Found but did not expect: [y]"
+// //   // Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB
+// //   // => raises "Found but did not expect: [y]"
+//
+// //   Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB
+// //   => raises
+// //     "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
-// //   (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) =
-// // = error="DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
+// // module QueryEquality - tests moved to Roundtrip module above
 
 
 
@@ -458,108 +508,136 @@ module Params =
   [<DB>]
   type ParamDB = Param<String>
 
-  (let _ = Stdlib.DB.set (Param { x = "hello"; b = 5L }) "key" ParamDB
-   Stdlib.DB.get "key" ParamDB) =
-    Stdlib.Option.Option.Some(Param { x = "hello"; b = 5L })
+  test roundtripsParameterizedRecord =
+    (let _ = Stdlib.DB.set (Param { x = "hello"; b = 5L }) "key" ParamDB
+     Stdlib.DB.get "key" ParamDB)
+    |> Stdlib.Test.equal (Some(Param { x = "hello"; b = 5L }))
 
 
 
 module GetAll =
-  (let _ = Stdlib.DB.set (SortedX { x = "hello"; sortBy = 0L }) "one" SortedXDB
-   let _ = Stdlib.DB.set (SortedX { x = "goodbye"; sortBy = 1L }) "two" SortedXDB
-   let _ = Stdlib.DB.set (SortedX { x = "howdy"; sortBy = 2L }) "three" SortedXDB
-   (Stdlib.DB.getAll SortedXDB) |> Stdlib.List.sortBy (fun x -> x.sortBy)) =
-    [ SortedX { x = "hello";  sortBy = 0L }
+  test returnsAllValues =
+    (let _ = Stdlib.DB.set (SortedX { x = "hello"; sortBy = 0L }) "one" SortedXDB
+     let _ = Stdlib.DB.set (SortedX { x = "goodbye"; sortBy = 1L }) "two" SortedXDB
+     let _ = Stdlib.DB.set (SortedX { x = "howdy"; sortBy = 2L }) "three" SortedXDB
+     (Stdlib.DB.getAll SortedXDB) |> Stdlib.List.sortBy (fun x -> x.sortBy))
+    |> Stdlib.Test.equal ([ SortedX { x = "hello";  sortBy = 0L }
       SortedX { x = "goodbye"; sortBy = 1L }
-      SortedX { x = "howdy"; sortBy = 2L } ]
+      SortedX { x = "howdy"; sortBy = 2L } ])
 
 
 module GetAllKeys =
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   (Stdlib.DB.keys XDB) |> Stdlib.List.sort) = [ "one", "two" ]
+  test returnsAllKeys =
+    (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+     (Stdlib.DB.keys XDB) |> Stdlib.List.sort)
+    |> Stdlib.Test.equal [ "one", "two" ]
 
 
 module GetAllWithKeys =
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   Stdlib.DB.getAllWithKeys XDB) =
-    Dict { "one": X { x = "hello" }; "two": X { x = "goodbye" } }
+  test returnsValuesByKey =
+    (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+     Stdlib.DB.getAllWithKeys XDB)
+    |> Stdlib.Test.equal (Dict { "one": X { x = "hello" }; "two": X { x = "goodbye" } })
 
 
 module GetManyWithKeys =
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   Stdlib.DB.getManyWithKeys [ "one", "two" ] XDB) =
-    Dict
+  test returnsRequestedValuesByKey =
+    (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+     Stdlib.DB.getManyWithKeys [ "one", "two" ] XDB)
+    |> Stdlib.Test.equal (Dict
       { "one": (X { x = "hello" })
-        "two": (X { x = "goodbye" }) }
+        "two": (X { x = "goodbye" }) })
 
 
 module GetExisting =
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   Stdlib.DB.getExisting [ "three", "two" ] XDB) = [ (X { x = "goodbye" }) ]
+  test skipsMissingKeys =
+    (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+     Stdlib.DB.getExisting [ "three", "two" ] XDB)
+    |> Stdlib.Test.equal [ (X { x = "goodbye" }) ]
 
 
 module GetMany =
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   Stdlib.DB.getMany [ "three", "two" ] XDB) = Stdlib.Option.Option.None
+  test returnsNoneWhenAnyKeyIsMissing =
+    (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+     Stdlib.DB.getMany [ "three", "two" ] XDB)
+    |> Stdlib.Test.equal None
 
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+  test returnsAllRequestedValues =
+    (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
 
-   (Stdlib.DB.getMany [ "one", "two" ] XDB)
-   |> Builtin.unwrap
-   |> Stdlib.List.sortBy (fun v -> v.x)) =
-    [ (X { x = "goodbye" })
-      (X { x = "hello" }) ]
+     (Stdlib.DB.getMany [ "one", "two" ] XDB)
+     |> Builtin.unwrap
+     |> Stdlib.List.sortBy (fun v -> v.x))
+    |> Stdlib.Test.equal ([ (X { x = "goodbye" })
+      (X { x = "hello" }) ])
 
 
 module Delete =
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let _ = Stdlib.DB.delete "one" XDB
-   Stdlib.DB.getAllWithKeys XDB) = Dict { }
+  test deletesExistingKey =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let _ = Stdlib.DB.delete "one" XDB
+     Stdlib.DB.getAllWithKeys XDB)
+    |> Stdlib.Test.equal (Dict { })
 
   // delete nothing
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let _ = Stdlib.DB.delete "two" XDB
-   Stdlib.DB.getAllWithKeys XDB) = Dict { "one": (X { x = "hello" }) }
+  test missingKeyDeletionLeavesRowsUnchanged =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let _ = Stdlib.DB.delete "two" XDB
+     Stdlib.DB.getAllWithKeys XDB)
+    |> Stdlib.Test.equal (Dict { "one": (X { x = "hello" }) })
 
   // deletes only one
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   let _ = Stdlib.DB.delete "one" XDB
-   Stdlib.DB.getAllWithKeys XDB) = Dict { "two": (X { x = "goodbye" }) }
+  test deletesOnlyRequestedKey =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+     let _ = Stdlib.DB.delete "one" XDB
+     Stdlib.DB.getAllWithKeys XDB)
+    |> Stdlib.Test.equal (Dict { "two": (X { x = "goodbye" }) })
 
 module DeleteAll =
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let _ = Stdlib.DB.deleteAll XDB
-   Stdlib.DB.getAll XDB) = []
+  test deletesSingleRow =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let _ = Stdlib.DB.deleteAll XDB
+     Stdlib.DB.getAll XDB)
+    |> Stdlib.Test.equal []
 
   // deletes all
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   let _ = Stdlib.DB.deleteAll XDB
-   Stdlib.DB.getAll XDB) = []
+  test deletesAllRows =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+     let _ = Stdlib.DB.deleteAll XDB
+     Stdlib.DB.getAll XDB)
+    |> Stdlib.Test.equal []
 
   // when empty
-  (let delete = Stdlib.DB.deleteAll XDB in Stdlib.DB.getAll XDB) = []
+  test deletingEmptyTableSucceeds =
+    (let delete = Stdlib.DB.deleteAll XDB in Stdlib.DB.getAll XDB)
+    |> Stdlib.Test.equal []
 
 module Count =
   // empty
-  Stdlib.DB.count XDB = 0
+  test emptyTableHasZeroRows =
+    Stdlib.DB.count XDB |> Stdlib.Test.equal 0
 
   // one entries
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB in Stdlib.DB.count XDB) = 1
+  test singleRowCountIsOne =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB in Stdlib.DB.count XDB)
+    |> Stdlib.Test.equal 1
 
   // multiple entries
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   let _ = Stdlib.DB.set (X { x = "howdy" }) "three" XDB
-   let _ = Stdlib.DB.set (X { x = "cheers" }) "four" XDB
-   Stdlib.DB.count XDB) = 4
+  test countsMultipleRows =
+    (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+     let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+     let _ = Stdlib.DB.set (X { x = "howdy" }) "three" XDB
+     let _ = Stdlib.DB.set (X { x = "cheers" }) "four" XDB
+     Stdlib.DB.count XDB)
+    |> Stdlib.Test.equal 4
 
 // ------------
 // SqlCompiler queries
@@ -598,12 +676,12 @@ let addFriend
   Stdlib.DB.set obj key PersonDB
 
 let prepFriends () : Unit =
-  (let _ = addFriend "ross" "Ross" 73L true "1967-05-12T00:00:00Z" 100.0 33L
-   let _ = addFriend "rachel" "Rachel" 65L true "1969-05-05T00:00:00Z" 82.0 27L
-   // Note spaces around Chandler, that's to test trim functions
-   let _ = addFriend "chandler" " Chandler " 72L true "1969-08-19T10:13:42Z" 83.0 45L
-   let _ = addFriend "cat" "GrumpyCat" 10L false "2012-04-04T00:00:00Z" 0.0 9L
-   ())
+  let _ = addFriend "ross" "Ross" 73L true "1967-05-12T00:00:00Z" 100.0 33L
+  let _ = addFriend "rachel" "Rachel" 65L true "1969-05-05T00:00:00Z" 82.0 27L
+  // Note spaces around Chandler, that's to test trim functions
+  let _ = addFriend "chandler" " Chandler " 72L true "1969-08-19T10:13:42Z" 83.0 45L
+  let _ = addFriend "cat" "GrumpyCat" 10L false "2012-04-04T00:00:00Z" 0.0 9L
+  ()
 
 let d (datestr: String) : DateTime =
   (Stdlib.DateTime.parse datestr) |> Builtin.unwrap
@@ -616,7 +694,6 @@ let friendsError (lambda: (Person -> Bool)) : List<Person> =
 
 let friends (lambda: (Person -> Bool)) : List<String> =
   let _ = prepFriends ()
-
   (Stdlib.DB.query PersonDB lambda)
   |> Stdlib.List.map (fun p -> p.name)
   |> Stdlib.List.sort
@@ -627,39 +704,62 @@ module FindAll =
   type T2 = { field2: Int64 }
   type T1 = { field1: T2 }
 
-  (friends (fun p -> true)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
+  test constantTrueMatchesAllRows =
+    friends (fun p -> true)
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // equality
-  (friends (fun p -> p.name == "Ross")) = [ "Ross" ]
-  (friends (fun p -> p.height == 73L)) = [ "Ross" ]
-  (friends (fun p -> p.human == false)) = [ "GrumpyCat" ]
-  (friends (fun p -> p.income == 100.0)) = [ "Ross" ]
+  test matchesStringField =
+    friends (fun p -> p.name == "Ross") |> Stdlib.Test.equal [ "Ross" ]
+  test matchesInt64Field =
+    friends (fun p -> p.height == 73L) |> Stdlib.Test.equal [ "Ross" ]
+  test matchesFalseBoolField =
+    friends (fun p -> p.human == false) |> Stdlib.Test.equal [ "GrumpyCat" ]
+  test matchesFloatField =
+    friends (fun p -> p.income == 100.0) |> Stdlib.Test.equal [ "Ross" ]
   // rossDOB() is partially evaluated before SQL compilation
-  (friends (fun p -> p.dob == (rossDOB ()))) = [ "Ross" ]
+  test matchesPartiallyEvaluatedDate =
+    friends (fun p -> p.dob == (rossDOB ())) |> Stdlib.Test.equal [ "Ross" ]
 
   // with condition
-  (friends (fun p -> p.height > 3L)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
+  test comparesHeight =
+    friends (fun p -> p.height > 3L)
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // boolean queries
-  (friends (fun p -> p.human)) = [ " Chandler ", "Rachel", "Ross" ]
+  test matchesBoolField =
+    friends (fun p -> p.human)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
   // string inequality works
-  (friends (fun p -> p.name != "")) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
+  test matchesNonemptyString =
+    friends (fun p -> p.name != "")
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // &&
-  (friends (fun p -> p.human && p.height > 66L)) = [ " Chandler ", "Ross" ]
+  test andMatchesBothConditions =
+    friends (fun p -> p.human && p.height > 66L)
+    |> Stdlib.Test.equal [ " Chandler ", "Ross" ]
 
   // ||
-  (friends (fun p -> p.human || p.height > 66L)) = [ " Chandler ", "Rachel", "Ross" ]
+  test orMatchesEitherCondition =
+    friends (fun p -> p.human || p.height > 66L)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining
-  (friends (fun p -> let x = 32L in p.height > x && true)) = [ " Chandler ", "Rachel", "Ross" ]
+  test inlinesLocalConstant =
+    friends (fun p -> let x = 32L in p.height > x && true)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining field access
-  (friends (fun p -> let x = p.height in true && x > 32L)) = [ " Chandler ", "Rachel", "Ross" ]
+  test inlinesLocalFieldAccess =
+    friends (fun p -> let x = p.height in true && x > 32L)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining package functions
-  (friends (fun p -> let x = p.height in true && (x > 32L))) = [ " Chandler ", "Rachel", "Ross" ]
+  test inlinesStdlibFunction =
+    friends (fun p -> let x = p.height in true && (x > 32L))
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining user functions
   let userAnd (a: Bool) (b: Bool) : Bool = Stdlib.Bool.``and`` a b
@@ -668,45 +768,65 @@ module FindAll =
     Stdlib.String.contains user.name str
 
   let userLessThan (a: Int64) (b: Int64) : Bool =
-    a < b
+    (a < b)
 
   let userAdd (a: Int64) (b: Int64) : Int64 = a + b
 
-  (friends (fun p -> userAnd (true || false) (p.height > 66L))) = [ " Chandler ", "Ross" ]
+  test inlinesUserBoolFunction =
+    friends (fun p -> userAnd (true || false) (p.height > 66L))
+    |> Stdlib.Test.equal [ " Chandler ", "Ross" ]
 
-  (friends (fun p -> let a = true in (userAnd (a && a) (p.height > 66L)))) = [ " Chandler ", "Ross" ]
+  test inlinesUserFunctionWithLocalBool =
+    friends (fun p -> let a = true in (userAnd (a && a) (p.height > 66L)))
+    |> Stdlib.Test.equal [ " Chandler ", "Ross" ]
 
-  (friends (fun p -> userAnd p.human true)) = [ " Chandler ", "Rachel", "Ross" ]
+  test inlinesUserFunctionWithFieldArgument =
+    friends (fun p -> userAnd p.human true)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
-  (friends (fun p -> userStringContains p "Chandler")) = [ " Chandler " ]
+  test inlinesUserStringFunction =
+    friends (fun p -> userStringContains p "Chandler")
+    |> Stdlib.Test.equal [ " Chandler " ]
 
-  (friends (fun p -> userLessThan p.height 65L)) = [ "GrumpyCat" ]
+  test inlinesUserComparisonFunction =
+    friends (fun p -> userLessThan p.height 65L)
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    (p.height == (userAdd 1L b) && (p.age == b)))) = [ "GrumpyCat" ]
+  test inlinesUserAdditionWithLocalArgument =
+    friends (fun p ->
+      let a = 1L
+      let b = 9L
+      (p.height == (userAdd 1L b) && (p.age == b)))
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    (p.height == (userAdd (b - 8L) b) && (p.age == b)))) = [ "GrumpyCat" ]
+  test inlinesUserAdditionWithComputedArgument =
+    friends (fun p ->
+      let a = 1L
+      let b = 9L
+      (p.height == (userAdd (b - 8L) b) && (p.age == b)))
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    (p.height == userAdd 6L (b - 5L)))) = [ "GrumpyCat" ]
+  test inlinesUserAdditionWithSubtraction =
+    friends (fun p ->
+      let a = 1L
+      let b = 9L
+      (p.height == userAdd 6L (b - 5L)))
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    (p.height == (userAdd (b - 5L) b) && (p.age == b)))) = []
+  test rejectsNonmatchingUserAddition =
+    friends (fun p ->
+      let a = 1L
+      let b = 9L
+      (p.height == (userAdd (b - 5L) b) && (p.age == b)))
+    |> Stdlib.Test.equal []
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    let c = userAdd 6L 4L
-    (p.height == c) && (p.age == b))) = [ "GrumpyCat" ]
+  test inlinesUserAdditionBoundToLocal =
+    friends (fun p ->
+      let a = 1L
+      let b = 9L
+      let c = userAdd 6L 4L
+      (p.height == c) && (p.age == b))
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
 
   // Tests for functions that are inlined 2-3 functions deep
@@ -719,243 +839,367 @@ module FindAll =
       (user.height < (height + 1L))
 
 
-  (friends (fun p -> nestedUserFn p 68L)) = [ "Rachel" ]
+  test inlinesNestedUserFunctions =
+    friends (fun p -> nestedUserFn p 68L) |> Stdlib.Test.equal [ "Rachel" ]
 
-  (friends (fun p -> anotherNestedUserFn p 68L)) = [ "Rachel" ]
+  test inlinesNestedStdlibAndUserFunctions =
+    friends (fun p -> anotherNestedUserFn p 68L)
+    |> Stdlib.Test.equal [ "Rachel" ]
 
 
   // pipes with operators
-  (friends (fun p -> p.height |> (*) 2L |> (<) 40L)) = [ "GrumpyCat" ]
+  test compilesPipedOperators =
+    friends (fun p -> p.height |> (*) 2L |> (<) 40L)
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
   // [test.db query with external variable] with DB Person
-  (let x = 11L in friends (fun p -> p.height < x)) = ["GrumpyCat"]
+  test capturesExternalQueryVariable =
+    (let x = 11L in friends (fun p -> p.height < x))
+    |> Stdlib.Test.equal ["GrumpyCat"]
 
   // fieldaccess
   type IntField = { x: Int64 }
 
-  (friends (fun p -> let obj = IntField { x = 42L } in p.height > obj.x)) = [ " Chandler ", "Rachel", "Ross" ]
+  test accessesLocalRecordField =
+    friends (fun p -> let obj = IntField { x = 42L } in p.height > obj.x)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
   // nested fieldaccess
-  (friends (fun p ->
-    let obj = T1 { field1 = T2 { field2 = 42L } } in p.height > obj.field1.field2)) = [ " Chandler ", "Rachel", "Ross" ]
+  test accessesNestedLocalRecordField =
+    friends (fun p ->
+      let obj = T1 { field1 = T2 { field2 = 42L } } in p.height > obj.field1.field2)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
-  // wrong type error
-  // TODO: Re-enable once RTQueryCompiler supports type checking.
-  // This requires passing DB schema info to validate that variables have
-  // compatible types when compared with DB fields.
-  // (let x = "not int"
-  //  friends (fun p -> p.height > x)) = sqlerror=
-  //   "Variable `x` should be an Int64. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int64)\nActual: a String: \"not int\""
+  // Queries reject variables whose types differ from the compared DB field,
+  // in either operand order.
+  test rejectsWrongComparisonType =
+    let x = "not int"
+    friends (fun p -> p.height > x)
+    => sqlerror "Query comparison for field `height` has an incompatible value"
+
+  test rejectsWrongComparisonTypeOnLeft =
+    friends (fun p -> "not int" < p.height)
+    => sqlerror "Query comparison for field `height` has an incompatible value"
 
   // lambda doesnt return a bool
-  friendsError (fun p -> "x") = sqlerror="Incorrect type in String \"x\", expected Bool, but got a String"
+  test rejectsQueryPredicateReturningString =
+    (friendsError (fun p -> "x"))
+    => sqlerror "Incorrect type in String \"x\", expected Bool, but got a String"
 
   // bad variable name
-  friendsError (fun p -> let x = 32L in true && p.height > y) = sqlerror="This variable is not defined: y"
+  test rejectsUndefinedQueryVariable =
+    (friendsError (fun p -> let x = 32L in true && p.height > y))
+    => sqlerror "This variable is not defined: y"
 
   // arbitrary-precision Int is not queryable yet (v1): comparing an Int field
   // rejects loudly, while the sized Int64 field compiles fine.
-  (Stdlib.DB.query IntFieldsDB (fun p -> p.big > 5)) = sqlerror="The arbitrary-precision Int type is not yet queryable in DB.query. Use a sized integer type (e.g. Int64) for fields you filter or sort on."
-  (Stdlib.DB.query IntFieldsDB (fun p -> p.sized > 5L)) = []
+  test rejectsArbitraryPrecisionIntQuery =
+    (Stdlib.DB.query IntFieldsDB (fun p -> p.big > 5))
+    => sqlerror "The arbitrary-precision Int type is not yet queryable in DB.query. Use a sized integer type (e.g. Int64) for fields you filter or sort on."
+  test allowsInt64QueryAlongsideBigInt =
+    Stdlib.DB.query IntFieldsDB (fun p -> p.sized > 5L) |> Stdlib.Test.equal []
 
   // non-Int64 fixed-width ints also reject loudly: only Int64 is wired through
   // as a real SQL number, so the rest would silently match nothing. Fail clearly
   // instead. (One per type; equality and arithmetic both go through the literal.)
-  (Stdlib.DB.query SizedIntsDB (fun p -> p.i8 == 5y)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
-  (Stdlib.DB.query SizedIntsDB (fun p -> p.u8 == 5uy)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
-  (Stdlib.DB.query SizedIntsDB (fun p -> p.i16 == 5s)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
-  (Stdlib.DB.query SizedIntsDB (fun p -> p.u16 == 5us)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
-  (Stdlib.DB.query SizedIntsDB (fun p -> p.i32 == 5l)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
-  (Stdlib.DB.query SizedIntsDB (fun p -> p.u32 + 1ul == 6ul)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
-  (Stdlib.DB.query SizedIntsDB (fun p -> p.u64 == 5UL)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
-  (Stdlib.DB.query SizedIntsDB (fun p -> p.i128 == 5Q)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
-  (Stdlib.DB.query SizedIntsDB (fun p -> p.u128 == 5Z)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  test rejectsInt8Query =
+    (Stdlib.DB.query SizedIntsDB (fun p -> p.i8 == 5y))
+    => sqlerror "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  test rejectsUInt8Query =
+    (Stdlib.DB.query SizedIntsDB (fun p -> p.u8 == 5uy))
+    => sqlerror "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  test rejectsInt16Query =
+    (Stdlib.DB.query SizedIntsDB (fun p -> p.i16 == 5s))
+    => sqlerror "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  test rejectsUInt16Query =
+    (Stdlib.DB.query SizedIntsDB (fun p -> p.u16 == 5us))
+    => sqlerror "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  test rejectsInt32Query =
+    (Stdlib.DB.query SizedIntsDB (fun p -> p.i32 == 5l))
+    => sqlerror "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  test rejectsUInt32ArithmeticQuery =
+    (Stdlib.DB.query SizedIntsDB (fun p -> p.u32 + 1ul == 6ul))
+    => sqlerror "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  test rejectsUInt64Query =
+    (Stdlib.DB.query SizedIntsDB (fun p -> p.u64 == 5UL))
+    => sqlerror "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  test rejectsInt128Query =
+    (Stdlib.DB.query SizedIntsDB (fun p -> p.i128 == 5Q))
+    => sqlerror "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  test rejectsUInt128Query =
+    (Stdlib.DB.query SizedIntsDB (fun p -> p.u128 == 5Z))
+    => sqlerror "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
 
   // storage is untouched: a >Int64 value round-trips through set/get fine
   // (it's only numeric *querying* that's restricted)
-  (let _ = Stdlib.DB.set (IntFields { big = 9223372036854775808; sized = 5L }) "k" IntFieldsDB
-   Stdlib.DB.get "k" IntFieldsDB) = Stdlib.Option.Option.Some(IntFields { big = 9223372036854775808; sized = 5L })
+  test roundtripsBigIntWithoutQuerying =
+    (let _ = Stdlib.DB.set (IntFields { big = 9223372036854775808; sized = 5L }) "k" IntFieldsDB
+     Stdlib.DB.get "k" IntFieldsDB)
+    |> Stdlib.Test.equal (Some(IntFields { big = 9223372036854775808; sized = 5L }))
 
   // sql injection
-  (friendsError (fun p -> "; select * from users;" == p.name)) = []
+  test treatsSqlInjectionAsString =
+    friendsError (fun p -> "; select * from users;" == p.name)
+    |> Stdlib.Test.equal []
 
 
 module CompiledFunctions =
-  (friends (fun p -> 90.0 < p.income)) = [ "Ross" ]
+  test compilesFloatLessThan =
+    friends (fun p -> (90.0 < p.income)) |> Stdlib.Test.equal [ "Ross" ]
 
-  (friends (fun p -> p.income <= 82.10)) = [ "GrumpyCat"
-                                                                         "Rachel" ]
+  test compilesFloatLessThanOrEqualTo =
+    friends (fun p -> (p.income <= 82.10))
+    |> Stdlib.Test.equal [ "GrumpyCat", "Rachel" ]
 
-  (friends (fun p -> p.income > 90.0)) = [ "Ross" ]
-
-
-  (friends (fun p -> (p.income / 2.0) == 50.0)) = [ "Ross" ]
-
-  (friends (fun p -> (p.income * 2.0) == 200.0)) = [ "Ross" ]
-
-  (friends (fun p -> (p.income ** 2.0) == 10000.0)) = [ "Ross" ]
-
-  (friends (fun p -> (p.income + 0.0) == 0.0)) = [ "GrumpyCat" ]
-
-  (friends (fun p -> (p.income - 3.0) == 80.0)) = [ " Chandler " ]
+  test compilesFloatGreaterThan =
+    friends (fun p -> (p.income > 90.0)) |> Stdlib.Test.equal [ "Ross" ]
 
 
-  (friends (fun p -> 82.10 >= p.income)) = [ "GrumpyCat"
-                                                                            "Rachel" ]
+  test compilesFloatDivide =
+    friends (fun p -> (p.income / 2.0) == 50.0)
+    |> Stdlib.Test.equal [ "Ross" ]
 
-  (friends (fun p -> p.height <= 65L)) = [ "GrumpyCat"
-                                                                       "Rachel" ]
+  test compilesFloatMultiply =
+    friends (fun p -> (p.income * 2.0) == 200.0)
+    |> Stdlib.Test.equal [ "Ross" ]
 
-  (friends (fun p -> p.height < 65L)) = [ "GrumpyCat" ]
+  test compilesFloatPower =
+    friends (fun p -> (p.income ** 2.0) == 10000.0)
+    |> Stdlib.Test.equal [ "Ross" ]
 
-  (friends (fun p -> p.height >= 65L)) = [ " Chandler "
-                                                                          "Rachel"
-                                                                          "Ross" ]
+  test compilesFloatAdd =
+    friends (fun p -> (p.income + 0.0) == 0.0)
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p -> p.height > 65L)) = [ " Chandler "
-                                                                 "Ross" ]
+  test compilesFloatSubtract =
+    friends (fun p -> (p.income - 3.0) == 80.0)
+    |> Stdlib.Test.equal [ " Chandler " ]
 
-  (friends (fun p -> (p.height + 1L) == 11L)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> (p.height - 3L) == 69L)) = [ " Chandler " ]
+  test compilesFloatGreaterThanOrEqualTo =
+    friends (fun p -> (82.10 >= p.income))
+    |> Stdlib.Test.equal [ "GrumpyCat", "Rachel" ]
 
-  (friends (fun p -> (p.height * 2L) == 146L)) = [ "Ross" ]
+  test compilesInt64LessThanOrEqualTo =
+    friends (fun p -> (p.height <= 65L))
+    |> Stdlib.Test.equal [ "GrumpyCat", "Rachel" ]
 
-  (friends (fun p -> (p.height / 2L) == 5L)) = [ "GrumpyCat" ]
+  test compilesInt64LessThan =
+    friends (fun p -> (p.height < 65L)) |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p -> (p.height ** 2L) == 100L)) = [ "GrumpyCat" ]
+  test compilesInt64GreaterThanOrEqualTo =
+    friends (fun p -> (p.height >= 65L))
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
-  (friends (fun p -> Stdlib.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
-  (friends (fun p -> Stdlib.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
-  // TODO: SQLite doesn't have a REVERSE function
-  // (friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")) = [ "Rachel" ]
+  test compilesInt64GreaterThan =
+    friends (fun p -> (p.height > 65L))
+    |> Stdlib.Test.equal [ " Chandler ", "Ross" ]
 
-  // TODO: SQLite's LENGTH counts characters, not EGCs so we made it non queriable for now
-  // (friends (fun p -> Stdlib.String.length p.name > 5I)) = [ " Chandler "
-  //                                                           "GrumpyCat"
-  //                                                           "Rachel" ]
-  (friends (fun p -> Stdlib.String.contains p.name "ROSS")) = []
+  test compilesInt64Add =
+    friends (fun p -> (p.height + 1L) == 11L)
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.String.contains p.name "R")) = [ "Rachel", "Ross" ]
+  test compilesInt64Subtract =
+    friends (fun p -> (p.height - 3L) == 69L)
+    |> Stdlib.Test.equal [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.String.contains p.name "ZZZ")) = []
+  test compilesInt64Multiply =
+    friends (fun p -> (p.height * 2L) == 146L)
+    |> Stdlib.Test.equal [ "Ross" ]
 
-  (friends (fun p -> Stdlib.String.contains p.name "")) = [ " Chandler "
-                                                            "GrumpyCat"
-                                                            "Rachel"
-                                                            "Ross" ]
+  test compilesInt64Divide =
+    friends (fun p -> (p.height / 2L) == 5L)
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.String.replaceAll p.name "handle" "he" == " Cher ")) = [ " Chandler " ]
+  test compilesInt64Power =
+    friends (fun p -> (p.height ** 2L) == 100L)
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.String.replaceAll p.name " " "Xx" == "XxChandlerXx")) = [ " Chandler " ]
+  test compilesStringToLowercase =
+    friends (fun p -> Stdlib.String.toLowercase p.name == "rachel")
+    |> Stdlib.Test.equal [ "Rachel" ]
+  test compilesStringToUppercase =
+    friends (fun p -> Stdlib.String.toUppercase p.name == "RACHEL")
+    |> Stdlib.Test.equal [ "Rachel" ]
+  // SQLite has no REVERSE function, so the query must reject stringReverse.
+  test rejectsStringReverseInSql =
+    friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")
+    => sqlerror "Function stringReverse is not supported in SQL queries"
 
-  (friends (fun p ->
-    Stdlib.String.replaceAll p.name "xxx" "notUsed" == " Chandler ")) = [ " Chandler " ]
+  // SQLite LENGTH counts characters rather than grapheme clusters, so stringLength
+  // is not queryable.
+  test rejectsGraphemeLengthInSql =
+    friends (fun p -> Stdlib.String.length p.name > 5)
+    => sqlerror "Function stringLength is not supported in SQL queries"
 
-  (friends (fun p -> Stdlib.String.trim p.name == "Chandler")) = [ " Chandler " ]
+  test stringContainsIsCaseSensitive =
+    friends (fun p -> Stdlib.String.contains p.name "ROSS")
+    |> Stdlib.Test.equal []
 
-  (friends (fun p -> Stdlib.String.trimStart p.name == "Chandler ")) = [ " Chandler " ]
+  test stringContainsMatchesSubstring =
+    friends (fun p -> Stdlib.String.contains p.name "R")
+    |> Stdlib.Test.equal [ "Rachel", "Ross" ]
 
-  (friends (fun p -> Stdlib.String.trimEnd p.name == " Chandler")) = [ " Chandler " ]
-  (friends (fun p -> Stdlib.Bool.not p.human)) = [ "GrumpyCat" ]
+  test stringContainsRejectsMissingSubstring =
+    friends (fun p -> Stdlib.String.contains p.name "ZZZ")
+    |> Stdlib.Test.equal []
 
-  (friends (fun p -> Stdlib.Bool.``and`` p.human p.human)) = [ " Chandler "
-                                                               "Rachel"
-                                                               "Ross" ]
+  test stringContainsEmptySubstringMatchesAll =
+    friends (fun p -> Stdlib.String.contains p.name "")
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
-  (friends (fun p -> Stdlib.Bool.``or`` p.human p.human)) = [ " Chandler "
-                                                              "Rachel"
-                                                              "Ross" ]
+  test compilesStringReplaceAll =
+    friends (fun p ->
+      Stdlib.String.replaceAll p.name "handle" "he" == " Cher ")
+    |> Stdlib.Test.equal [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.Bool.not (Stdlib.Bool.``and`` p.human p.human))) = [ "GrumpyCat" ]
+  test replacesWhitespaceInString =
+    friends (fun p ->
+      Stdlib.String.replaceAll p.name " " "Xx" == "XxChandlerXx")
+    |> Stdlib.Test.equal [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.Bool.``and`` p.human (Stdlib.Bool.not p.human))) = []
+  test replaceAllLeavesUnmatchedStringUnchanged =
+    friends (fun p ->
+      Stdlib.String.replaceAll p.name "xxx" "notUsed" == " Chandler ")
+    |> Stdlib.Test.equal [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.Bool.``or`` p.human (Stdlib.Bool.not p.human))) = [ " Chandler "
-                                                                                "GrumpyCat"
-                                                                                "Rachel"
-                                                                                "Ross" ]
+  test compilesStringTrim =
+    friends (fun p -> Stdlib.String.trim p.name == "Chandler")
+    |> Stdlib.Test.equal [ " Chandler " ]
 
-  // TODO: SQLite doesn't have a REVERSE function
-  // (friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")) = [ "Rachel" ]
+  test compilesStringTrimStart =
+    friends (fun p -> Stdlib.String.trimStart p.name == "Chandler ")
+    |> Stdlib.Test.equal [ " Chandler " ]
 
-  // (friends (fun p ->
-  //   Stdlib.String.reverse (
-  //     (Stdlib.String.toLowercase p.name) |> Stdlib.String.toUppercase
-  //   )
-  //   == "LEHCAR")) = [ "Rachel" ]
+  test compilesStringTrimEnd =
+    friends (fun p -> Stdlib.String.trimEnd p.name == " Chandler")
+    |> Stdlib.Test.equal [ " Chandler " ]
+  test compilesBoolNot =
+    friends (fun p -> Stdlib.Bool.not p.human)
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    Stdlib.DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ " Chandler "
-                                                                             "Rachel"
-                                                                             "Ross" ]
+  test compilesBoolAnd =
+    friends (fun p -> Stdlib.Bool.``and`` p.human p.human)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
-  (friends (fun p -> Stdlib.DateTime.lessThanOrEqualTo p.dob (rossDOB ()))) = [ "Ross" ]
+  test compilesBoolOr =
+    friends (fun p -> Stdlib.Bool.``or`` p.human p.human)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
-  (friends (fun p -> Stdlib.DateTime.lessThan p.dob (rossDOB ()))) = []
+  test compilesNegatedBoolAnd =
+    friends (fun p -> Stdlib.Bool.not (Stdlib.Bool.``and`` p.human p.human))
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    Stdlib.DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ "GrumpyCat" ]
+  test compilesBoolAndWithNegation =
+    friends (fun p -> Stdlib.Bool.``and`` p.human (Stdlib.Bool.not p.human))
+    |> Stdlib.Test.equal []
 
-  (friends (fun p -> Stdlib.DateTime.greaterThanOrEqualTo p.dob (rossDOB ()))) = [ " Chandler "
-                                                                                   "GrumpyCat"
-                                                                                   "Rachel"
-                                                                                   "Ross" ]
+  test compilesBoolOrWithNegation =
+    friends (fun p -> Stdlib.Bool.``or`` p.human (Stdlib.Bool.not p.human))
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
-  (friends (fun p -> Stdlib.DateTime.greaterThan p.dob (rossDOB ()))) = [ " Chandler "
-                                                                          "GrumpyCat"
-                                                                          "Rachel" ]
+  // The query must reject stringReverse, including calls around other string operations.
+  test rejectsNestedStringReverseInSql =
+    friends (fun p ->
+      Stdlib.String.reverse
+        (Stdlib.String.toUppercase (Stdlib.String.toLowercase p.name)) == "LEHCAR")
+    => sqlerror "Function stringReverse is not supported in SQL queries"
 
-  (friends (fun p ->
-    Stdlib.DateTime.lessThanOrEqualTo
-      p.dob
-      (Stdlib.DateTime.addSeconds (Stdlib.DateTime.now ()) 1))) = [ " Chandler "
-                                                                     "GrumpyCat"
-                                                                     "Rachel"
-                                                                     "Ross" ]
+  test compilesDateTimeLessThanOrEqualToLiteral =
+    friends (fun p ->
+      Stdlib.DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
-  (friends (fun p ->
-    Stdlib.DateTime.lessThanOrEqualTo
-      p.dob
-      (Stdlib.DateTime.subtractSeconds (Stdlib.DateTime.now ()) 1))) = [ " Chandler "
-                                                                          "GrumpyCat"
-                                                                          "Rachel"
-                                                                          "Ross" ]
+  test compilesDateTimeLessThanOrEqualToFunctionResult =
+    friends (fun p -> Stdlib.DateTime.lessThanOrEqualTo p.dob (rossDOB ()))
+    |> Stdlib.Test.equal [ "Ross" ]
 
-  // TODO: These use Postgres-specific date_part/date_trunc functions - not supported in SQLite
-  // (friends (fun p ->
-  //   Stdlib.DateTime.atStartOfDay p.dob == (d "1969-08-19T00:00:00Z"))) = [ " Chandler " ]
+  test compilesDateTimeLessThanFunctionResult =
+    friends (fun p -> Stdlib.DateTime.lessThan p.dob (rossDOB ()))
+    |> Stdlib.Test.equal []
 
-  // (friends (fun p -> Stdlib.DateTime.hour p.dob == 10L)) = [ " Chandler " ]
-  // (friends (fun p -> Stdlib.DateTime.day p.dob == 19L)) = [ " Chandler " ]
-  // (friends (fun p -> Stdlib.DateTime.minute p.dob == 13L)) = [ " Chandler " ]
-  // (friends (fun p -> Stdlib.DateTime.month p.dob == 8L)) = [ " Chandler " ]
-  // (friends (fun p -> Stdlib.DateTime.second p.dob == 42L)) = [ " Chandler " ]
+  test compilesDateTimeGreaterThanOrEqualToLiteral =
+    friends (fun p ->
+      Stdlib.DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
-  // (friends (fun p -> Stdlib.DateTime.year p.dob == 1969L)) = [ " Chandler "
-  //                                                              "Rachel" ]
+  test compilesDateTimeGreaterThanOrEqualToFunctionResult =
+    friends (fun p ->
+      Stdlib.DateTime.greaterThanOrEqualTo p.dob (rossDOB ()))
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
+
+  test compilesDateTimeGreaterThanFunctionResult =
+    friends (fun p -> Stdlib.DateTime.greaterThan p.dob (rossDOB ()))
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel" ]
+
+  test compilesDateTimeComparisonWithAddedSeconds =
+    friends (fun p ->
+      Stdlib.DateTime.lessThanOrEqualTo
+        p.dob
+        (Stdlib.DateTime.addSeconds (Stdlib.DateTime.now ()) 1))
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
+
+  test compilesDateTimeComparisonWithSubtractedSeconds =
+    friends (fun p ->
+      Stdlib.DateTime.lessThanOrEqualTo
+        p.dob
+        (Stdlib.DateTime.subtractSeconds (Stdlib.DateTime.now ()) 1))
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
+
+  // These date operations need SQL support that the SQLite query compiler does not provide.
+  test rejectsStartOfDayInSql =
+    friends (fun p ->
+      Stdlib.DateTime.atStartOfDay p.dob == d "1969-08-19T00:00:00Z")
+    => sqlerror "Function dateTimeAtStartOfDay is not supported in SQL queries"
+
+  test rejectsHourInSql =
+    friends (fun p -> Stdlib.DateTime.hour p.dob == 10)
+    => sqlerror "Function dateTimeHour is not supported in SQL queries"
+
+  test rejectsDayInSql =
+    friends (fun p -> Stdlib.DateTime.day p.dob == 19)
+    => sqlerror "Function dateTimeDay is not supported in SQL queries"
+
+  test rejectsMinuteInSql =
+    friends (fun p -> Stdlib.DateTime.minute p.dob == 13)
+    => sqlerror "Function dateTimeMinute is not supported in SQL queries"
+
+  test rejectsMonthInSql =
+    friends (fun p -> Stdlib.DateTime.month p.dob == 8)
+    => sqlerror "Function dateTimeMonth is not supported in SQL queries"
+
+  test rejectsSecondInSql =
+    friends (fun p -> Stdlib.DateTime.second p.dob == 42)
+    => sqlerror "Function dateTimeSecond is not supported in SQL queries"
+
+  test rejectsYearInSql =
+    friends (fun p -> Stdlib.DateTime.year p.dob == 1969)
+    => sqlerror "Function dateTimeYear is not supported in SQL queries"
 
   // Test package constants
   // Bool
-  (friends (fun p ->
-    Stdlib.Bool.``and`` p.human Darklang.Test.Values.boolValue)) = [ " Chandler "
-                                                                     "Rachel"
-                                                                     "Ross" ]
+  test compilesPackageBoolConstant =
+    friends (fun p ->
+      Stdlib.Bool.``and`` p.human Darklang.Test.Values.boolValue)
+    |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
   // Float
-  (friends (fun p ->
-    p.income <= Darklang.Test.Values.floatValue)) = [ "GrumpyCat" ]
+  test compilesPackageFloatConstant =
+    friends (fun p ->
+      (p.income <= Darklang.Test.Values.floatValue))
+    |> Stdlib.Test.equal [ "GrumpyCat" ]
 
   // Int64
-  (friends (fun p ->
-    p.height >= Darklang.Test.Values.int64Value)) = [ " Chandler "
-                                            "GrumpyCat"
-                                            "Rachel"
-                                            "Ross" ]
+  test compilesPackageInt64Constant =
+    friends (fun p ->
+      (p.height >= Darklang.Test.Values.int64Value))
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // String
-  (friends (fun p ->
-    Stdlib.String.contains p.name Darklang.Test.Values.stringValue)) = []
+  test compilesPackageStringConstant =
+    friends (fun p ->
+      Stdlib.String.contains p.name Darklang.Test.Values.stringValue)
+    |> Stdlib.Test.equal []
 
 
 module PartialEvaluation =
@@ -967,67 +1211,141 @@ module PartialEvaluation =
   type YL = { y: ZL }
 
   // fieldAccesses outside query
-  (let _ = prepFriends ()
-   let x = Y { y = Z { z = A { a = 5L } } }
+  test partiallyEvaluatesNestedExternalRecordField =
+    (let _ = prepFriends ()
+     let x = Y { y = Z { z = A { a = 5L } } }
 
-   ((Stdlib.DB.query PersonDB (fun p -> x.y.z.a < p.height))
-    |> Stdlib.List.map (fun p -> p.name)
-    |> Stdlib.List.sort)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
+     ((Stdlib.DB.query PersonDB (fun p -> x.y.z.a < p.height))
+      |> Stdlib.List.map (fun p -> p.name)
+      |> Stdlib.List.sort))
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // fieldAccesses inside query
-  (friends (fun p -> let x = Y { y = Z { z = A { a = 5L } } } in x.y.z.a < p.height)) = [ " Chandler "
-                                                                                          "GrumpyCat"
-                                                                                          "Rachel"
-                                                                                          "Ross" ]
+  test partiallyEvaluatesNestedLocalRecordField =
+    friends (fun p ->
+      let x = Y { y = Z { z = A { a = 5L } } } in x.y.z.a < p.height)
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
-  (friends (fun p ->
-    let x = YL { y = ZL { z = AL { a = [ 1L, 2L, 3L, 4L, 5L ] } } }
-    (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length x.y.z.a))) < p.height)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
+  test partiallyEvaluatesNestedLocalListLength =
+    friends (fun p ->
+      let x = YL { y = ZL { z = AL { a = [ 1L, 2L, 3L, 4L, 5L ] } } }
+      (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length x.y.z.a))) < p.height)
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // tuple destructuring inside query - requires tuple pattern support
-  (friends (fun p ->
-    let (a0, a1, a2, a3, ((b, c), d)) = (0L, 1L, 2L, 3L, ((5L, "aa"), 'a'))
-    b < p.height)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
+  test partiallyEvaluatesTupleDestructuring =
+    friends (fun p ->
+      let (a0, a1, a2, a3, ((b, c), d)) = (0L, 1L, 2L, 3L, ((5L, "aa"), 'a'))
+      b < p.height)
+    |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
 
 module QueryOne =
-  (let _ = prepFriends () in Stdlib.DB.queryOne PersonDB (fun p -> p.name == "bob")) = Stdlib.Option.Option.None
+  test returnsNoneWhenNoRowsMatch =
+    (let _ = prepFriends () in
+     Stdlib.DB.queryOne PersonDB (fun p -> p.name == "bob"))
+    |> Stdlib.Test.equal None
 
-  ((let _ = prepFriends ()
-    Stdlib.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
-   |> Stdlib.Option.map (fun v -> v.name)) = Stdlib.Option.Option.Some "Rachel"
+  test returnsMatchingRow =
+    (let _ = prepFriends ()
+      Stdlib.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
+     |> Stdlib.Option.map (fun v -> v.name)
+    |> Stdlib.Test.equal (Some "Rachel")
 
 
   // interpolated - outer let binding is partially evaluated
-  ((let _ = prepFriends ()
-    let test = "ache"
-    Stdlib.DB.queryOne PersonDB (fun p -> p.name == $"R{test}l"))
-   |> Stdlib.Option.map (fun v -> v.name)) = Stdlib.Option.Option.Some "Rachel"
+  test partiallyEvaluatesInterpolatedString =
+    (let _ = prepFriends ()
+      let test = "ache"
+      Stdlib.DB.queryOne PersonDB (fun p -> p.name == $"R{test}l"))
+     |> Stdlib.Option.map (fun v -> v.name)
+    |> Stdlib.Test.equal (Some "Rachel")
 
 
 module QueryWithKey =
   // none
-  (let _ = prepFriends ()
-   Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "bob")) = Dict { }
+  test returnsEmptyDictWhenNoRowsMatch =
+    (let _ = prepFriends ()
+     Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "bob"))
+    |> Stdlib.Test.equal (Dict { })
 
   // one
-  ((let _ = prepFriends ()
-    Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
-   |> Stdlib.Dict.toList
-   |> Stdlib.List.map (fun v -> (Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
+  test returnsMatchingRowWithKey =
+    (let _ = prepFriends ()
+      Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
+     |> Stdlib.Dict.toList
+     |> Stdlib.List.map (fun v -> (Stdlib.Tuple2.second v).name)
+    |> Stdlib.Test.equal [ "Rachel" ]
 
 module QueryCount =
   // none
-  (let _ = prepFriends ()
-   Stdlib.DB.queryCount PersonDB (fun p -> p.name == "bob")) = 0
+  test returnsZeroWhenNoRowsMatch =
+    (let _ = prepFriends ()
+     Stdlib.DB.queryCount PersonDB (fun p -> p.name == "bob"))
+    |> Stdlib.Test.equal 0
 
   // one
-  (let _ = prepFriends ()
-   Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L)) = 4
+  test countsMatchingRows =
+    (let _ = prepFriends ()
+     Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L))
+    |> Stdlib.Test.equal 4
 
-
-((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36
+test generatedKeyHas36Characters =
+  (Stdlib.DB.generateKey ())
+  |> Stdlib.String.length |> Stdlib.Test.equal 36
 
 
 module DBAsDictKey =
-  Dict { XDB: 1L } = error="Cannot use <Datastore: XDB> as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  test rejectsDBAsDictKey =
+    (Dict { XDB: 1L })
+    => raises "Cannot use <Datastore: XDB> as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+// Check an uppercase DB name.
+module RestoredSchemaCases =
+  [<DB>]
+  type CapitalFields = { ``ALL CAPS``: String }
+
+  test uppercaseFieldRoundTripAndQuery =
+    let row = CapitalFields { ``ALL CAPS`` = "value" }
+    let _ = Stdlib.DB.set row "key" CapitalFields
+    Stdlib.Test.all
+      [ Stdlib.DB.get "key" CapitalFields |> Stdlib.Test.equal (Some row)
+        Stdlib.DB.query CapitalFields (fun p -> p.``ALL CAPS`` == "value")
+        |> Stdlib.Test.equal [row] ]
+
+  test rejectsDifferentRecordShape =
+    Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB
+    => raises "This datastore holds Darklang.Stdlib.DB.Tests.X (version 47dbe919) and was given Darklang.Stdlib.DB.Tests.XY (version 7376072b). If that type changed after the datastore was made, the datastore is still on the old version: `dark status` says which"
+
+  test rejectsNestedComparisonType =
+    Stdlib.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age > "bad")
+    => sqlerror "Query comparison for field `details.numbers.age` has an incompatible value"
+
+  [<DB>]
+  type BinaryRows = { data: Blob; nested: List<Stdlib.Option.Option<Blob>> }
+
+  // CLEANUP: Dark compares blobs by identity, so compare blob fields as byte lists.
+  // Compare rows directly once blob equality compares content.
+  test roundtripsBinaryData =
+    let bytes = [0uy, 1uy, 127uy, 128uy, 255uy]
+    let blob = Stdlib.Blob.fromList bytes
+    let row = BinaryRows { data = blob; nested = [Some blob, None] }
+    let stored = Stdlib.DB.set row "binary" BinaryRows
+    let fetched = Stdlib.DB.get "binary" BinaryRows |> Builtin.unwrap
+    Stdlib.Test.all
+      [ Stdlib.Blob.toList stored.data |> Stdlib.Test.equal bytes
+        Stdlib.Blob.toList fetched.data |> Stdlib.Test.equal bytes
+        fetched.nested |> Stdlib.List.map (fun value -> Stdlib.Option.map value Stdlib.Blob.toList)
+        |> Stdlib.Test.equal [Some bytes, None] ]
+
+  [<DB>]
+  type PunctuationFields = { ``a.b``: String; ``a'b``: String }
+
+  test queriesPunctuationWithoutChangingFieldIdentity =
+    let row = PunctuationFields { ``a.b`` = "dot"; ``a'b`` = "quote" }
+    let _ = Stdlib.DB.set row "key" PunctuationFields
+    Stdlib.Test.all
+      [ Stdlib.DB.query PunctuationFields (fun p -> p.``a.b`` == "dot")
+        |> Stdlib.Test.equal [row]
+        Stdlib.DB.query PunctuationFields (fun p -> p.``a'b`` == "quote")
+        |> Stdlib.Test.equal [row] ]

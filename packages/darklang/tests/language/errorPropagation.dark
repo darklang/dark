@@ -1,36 +1,90 @@
+module Darklang.Language.Tests.ErrorPropagation
+
 module Error =
-  (Stdlib.Option.map2
-    (Stdlib.Option.Option.Some 10L)
-    "not an option"
-    (fun (a, b) -> "1")
-   ) = error="Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
+  test map2WrongArgRaises =
+    (Stdlib.Option.map2
+      (Stdlib.Option.Option.Some 10L)
+      "not an option"
+      (fun (a, b) -> "1"))
+    => raises
+      "Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
 
 
 // Check we get previous errors before later ones
-(Stdlib.List.map [ 1L, 2L, 3L, 4L, 5L ] (fun x -> Builtin.testRuntimeError "X"))
-|> Stdlib.List.fakeFunction = error="Uncaught exception: X"
+test earlierErrorFirst =
+  (Stdlib.List.map [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+    Stdlib.Test.raiseRuntimeError "X"))
+  |> Stdlib.List.fakeFunction
+  => raises "Uncaught exception: X"
+
 module ErrorPropagation =
-  Stdlib.List.head (Builtin.testRuntimeError "test") = error="Uncaught exception: test"
-  (if Builtin.testRuntimeError "test" then 5L else 6L) = error="Uncaught exception: test"
-  (Stdlib.List.head (Builtin.testRuntimeError "test")).field = error="Uncaught exception: test"
-  [ 5L, 6L, Stdlib.List.head (Builtin.testRuntimeError "test") ] = error="Uncaught exception: test"
-  [ 5L, 6L, Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
-  5L |> (+) (Builtin.testRuntimeError "test") |> (+) 3564L = error="Uncaught exception: test"
-  5L |> (+) (Builtin.testRuntimeError "test") = error="Uncaught exception: test"
-  ("test" |> Builtin.testRuntimeError) = error="Uncaught exception: test"
-  Stdlib.Option.Option.Some(Builtin.testRuntimeError "test") = error="Uncaught exception: test"
-  Stdlib.Result.Result.Error(Builtin.testRuntimeError "test") = error="Uncaught exception: test"
-  Stdlib.Result.Result.Ok(Builtin.testRuntimeError "test") = error="Uncaught exception: test"
+  test fnArg =
+    Stdlib.List.head (Stdlib.Test.raiseRuntimeError "test")
+    => raises "Uncaught exception: test"
+
+  test ifCondition =
+    (if Stdlib.Test.raiseRuntimeError "test" then 5L else 6L)
+    => raises "Uncaught exception: test"
+
+  test fieldAccessTarget =
+    (Stdlib.List.head (Stdlib.Test.raiseRuntimeError "test")).field
+    => raises "Uncaught exception: test"
+
+  test listElementCall =
+    [ 5L, 6L, Stdlib.List.head (Stdlib.Test.raiseRuntimeError "test") ]
+    => raises "Uncaught exception: test"
+
+  test listElement =
+    [ 5L, 6L, Stdlib.Test.raiseRuntimeError "test" ]
+    => raises "Uncaught exception: test"
+
+  test pipeStageThenMore =
+    5L |> (+) (Stdlib.Test.raiseRuntimeError "test") |> (+) 3564L
+    => raises "Uncaught exception: test"
+
+  test pipeStage =
+    5L |> (+) (Stdlib.Test.raiseRuntimeError "test")
+    => raises "Uncaught exception: test"
+
+  test pipeIntoRaise =
+    ("test" |> Stdlib.Test.raiseRuntimeError)
+    => raises "Uncaught exception: test"
+
+  test someArg =
+    Stdlib.Option.Option.Some(Stdlib.Test.raiseRuntimeError "test")
+    => raises "Uncaught exception: test"
+
+  test errorArg =
+    Stdlib.Result.Result.Error(Stdlib.Test.raiseRuntimeError "test")
+    => raises "Uncaught exception: test"
+
+  test okArg =
+    Stdlib.Result.Result.Ok(Stdlib.Test.raiseRuntimeError "test")
+    => raises "Uncaught exception: test"
+
   // pipe into error
-  ("test" |> Builtin.testRuntimeError |> (+) "3") = error="Uncaught exception: test"
+  test pipeIntoRaiseThenMore =
+    ("test" |> Stdlib.Test.raiseRuntimeError |> (+) "3")
+    => raises "Uncaught exception: test"
+
   type EPRec =
     { i: Int64
       m: Int64
       j: Int64
       n: Int64 }
 
-  EPRec
-    { i = Builtin.testRuntimeError "1"
-      m = 5L
-      j = Stdlib.List.head (Builtin.testRuntimeError "2")
-      n = 6L } = error="Uncaught exception: 1"
+  test recordFirstFieldErrorFirst =
+    EPRec
+      { i = Stdlib.Test.raiseRuntimeError "1"
+        m = 5L
+        j = Stdlib.List.head (Stdlib.Test.raiseRuntimeError "2")
+        n = 6L }
+    => raises "Uncaught exception: 1"
+
+  // An operand's error propagates through +.
+  test stringAddOperand =
+    "msg" + (1L / 0L) => raises "Cannot divide by 0"
+
+test fieldAccessOnRaise =
+  (Stdlib.Test.raiseRuntimeError "error").fieldName
+  => raises "Uncaught exception: error"

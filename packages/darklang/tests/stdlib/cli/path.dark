@@ -1,56 +1,80 @@
+module Darklang.Stdlib.Cli.Path.Tests
+
 // Path.basename
-Stdlib.Cli.Path.basename "/home/user/file.txt" = "file.txt"
-Stdlib.Cli.Path.basename "a/b/c" = "c"
-Stdlib.Cli.Path.basename "file.txt" = "file.txt"
-Stdlib.Cli.Path.basename "/" = ""
-Stdlib.Cli.Path.basename "/home/" = "home"
+test basename =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Path.basename "/home/user/file.txt" |> Stdlib.Test.equal "file.txt"
+      Stdlib.Cli.Path.basename "a/b/c" |> Stdlib.Test.equal "c"
+      Stdlib.Cli.Path.basename "file.txt" |> Stdlib.Test.equal "file.txt"
+      Stdlib.Cli.Path.basename "/" |> Stdlib.Test.equal ""
+      Stdlib.Cli.Path.basename "/home/" |> Stdlib.Test.equal "home" ]
 
 // Path.parent
-Stdlib.Cli.Path.parent "/home/user/file.txt" = "/home/user"
-Stdlib.Cli.Path.parent "a/b/c" = "a/b"
-Stdlib.Cli.Path.parent "file.txt" = "."
-Stdlib.Cli.Path.parent "/" = "/"
-Stdlib.Cli.Path.parent "/home" = "/"
-Stdlib.Cli.Path.parent "a/b/" = "a"
+test parent =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Path.parent "/home/user/file.txt" |> Stdlib.Test.equal "/home/user"
+      Stdlib.Cli.Path.parent "a/b/c" |> Stdlib.Test.equal "a/b"
+      Stdlib.Cli.Path.parent "file.txt" |> Stdlib.Test.equal "."
+      Stdlib.Cli.Path.parent "/" |> Stdlib.Test.equal "/"
+      Stdlib.Cli.Path.parent "/home" |> Stdlib.Test.equal "/"
+      Stdlib.Cli.Path.parent "a/b/" |> Stdlib.Test.equal "a" ]
 
 // Path.extension
-Stdlib.Cli.Path.extension "photo.jpg" = Stdlib.Option.Option.Some ".jpg"
-Stdlib.Cli.Path.extension "archive.tar.gz" = Stdlib.Option.Option.Some ".gz"
-Stdlib.Cli.Path.extension "Makefile" = Stdlib.Option.Option.None
-Stdlib.Cli.Path.extension ".hidden" = Stdlib.Option.Option.None
+test extension =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Path.extension "photo.jpg" |> Stdlib.Test.equal (Some ".jpg")
+      Stdlib.Cli.Path.extension "archive.tar.gz" |> Stdlib.Test.equal (Some ".gz")
+      Stdlib.Cli.Path.extension "Makefile" |> Stdlib.Test.equal None
+      Stdlib.Cli.Path.extension ".hidden" |> Stdlib.Test.equal None ]
 
 // Path.withExtension
-Stdlib.Cli.Path.withExtension "file.txt" ".md" = "file.md"
-Stdlib.Cli.Path.withExtension "file" ".md" = "file.md"
-Stdlib.Cli.Path.withExtension "/home/user/file.txt" ".md" = "/home/user/file.md"
+test withExtension =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Path.withExtension "file.txt" ".md" |> Stdlib.Test.equal "file.md"
+      Stdlib.Cli.Path.withExtension "file" ".md" |> Stdlib.Test.equal "file.md"
+      Stdlib.Cli.Path.withExtension "/home/user/file.txt" ".md"
+      |> Stdlib.Test.equal "/home/user/file.md" ]
 
 // Path.isAbsolute
-Stdlib.Cli.Path.isAbsolute "/home/user" = true
-Stdlib.Cli.Path.isAbsolute "home/user" = false
-Stdlib.Cli.Path.isAbsolute "/" = true
-Stdlib.Cli.Path.isAbsolute "" = false
+test isAbsolute =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Path.isAbsolute "/home/user" |> Stdlib.Test.equal true
+      Stdlib.Cli.Path.isAbsolute "home/user" |> Stdlib.Test.equal false
+      Stdlib.Cli.Path.isAbsolute "/" |> Stdlib.Test.equal true
+      Stdlib.Cli.Path.isAbsolute "" |> Stdlib.Test.equal false ]
 
 // Path.join
-Stdlib.Cli.Path.join ["home", "user", "file.txt"] = "home/user/file.txt"
-Stdlib.Cli.Path.join ["/home", "user"] = "/home/user"
-Stdlib.Cli.Path.join [] = ""
-Stdlib.Cli.Path.join ["", "a", "", "b"] = "a/b"
-Stdlib.Cli.Path.join ["a", "/b", "c"] = "/b/c"
-Stdlib.Cli.Path.join ["a/", "b"] = "a/b"
+test join =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Path.join [ "home", "user", "file.txt" ]
+      |> Stdlib.Test.equal "home/user/file.txt"
+      Stdlib.Cli.Path.join [ "/home", "user" ] |> Stdlib.Test.equal "/home/user"
+      Stdlib.Cli.Path.join [] |> Stdlib.Test.equal ""
+      Stdlib.Cli.Path.join [ "", "a", "", "b" ] |> Stdlib.Test.equal "a/b"
+      Stdlib.Cli.Path.join [ "a", "/b", "c" ] |> Stdlib.Test.equal "/b/c"
+      Stdlib.Cli.Path.join [ "a/", "b" ] |> Stdlib.Test.equal "a/b" ]
 
 // Path.normalize
-Stdlib.Cli.Path.normalize "/home/../lib/./foo" = "/lib/foo"
-Stdlib.Cli.Path.normalize "/a/b/c/../d" = "/a/b/d"
-Stdlib.Cli.Path.normalize "a/b/../c" = "a/c"
-Stdlib.Cli.Path.normalize "." = "."
-Stdlib.Cli.Path.normalize "/." = "/"
-Stdlib.Cli.Path.normalize "../a" = "../a"
-Stdlib.Cli.Path.normalize "../../a/b" = "../../a/b"
+test normalize =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Path.normalize "/home/../lib/./foo" |> Stdlib.Test.equal "/lib/foo"
+      Stdlib.Cli.Path.normalize "/a/b/c/../d" |> Stdlib.Test.equal "/a/b/d"
+      Stdlib.Cli.Path.normalize "a/b/../c" |> Stdlib.Test.equal "a/c"
+      Stdlib.Cli.Path.normalize "." |> Stdlib.Test.equal "."
+      Stdlib.Cli.Path.normalize "/." |> Stdlib.Test.equal "/"
+      Stdlib.Cli.Path.normalize "../a" |> Stdlib.Test.equal "../a"
+      Stdlib.Cli.Path.normalize "../../a/b" |> Stdlib.Test.equal "../../a/b" ]
 
 // Path.relativeTo
-Stdlib.Cli.Path.relativeTo "/home/user" "/home/lib" = Stdlib.Result.Result.Ok "../lib"
-Stdlib.Cli.Path.relativeTo "/a/b/c" "/a/b/c" = Stdlib.Result.Result.Ok "."
-Stdlib.Cli.Path.relativeTo "/a/b" "/a/b/c/d" = Stdlib.Result.Result.Ok "c/d"
-Stdlib.Cli.Path.relativeTo "/a/b/c/d" "/a/b" = Stdlib.Result.Result.Ok "../.."
+test relativeTo =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Path.relativeTo "/home/user" "/home/lib"
+      |> Stdlib.Test.equal (Ok "../lib")
+      Stdlib.Cli.Path.relativeTo "/a/b/c" "/a/b/c" |> Stdlib.Test.equal (Ok ".")
+      Stdlib.Cli.Path.relativeTo "/a/b" "/a/b/c/d" |> Stdlib.Test.equal (Ok "c/d")
+      Stdlib.Cli.Path.relativeTo "/a/b/c/d" "/a/b"
+      |> Stdlib.Test.equal (Ok "../..") ]
+
 // Path.resolve — absolute paths returned as-is (normalized)
-Stdlib.Cli.Path.resolve "/home/../tmp" = Stdlib.Result.Result.Ok "/tmp"
+test resolveAbsolutePath =
+  Stdlib.Cli.Path.resolve "/home/../tmp" |> Stdlib.Test.equal (Ok "/tmp")

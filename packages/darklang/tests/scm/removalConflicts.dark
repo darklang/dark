@@ -1,3 +1,5 @@
+module Darklang.SCM.Tests.RemovalConflicts
+
 // A rename ends the old name (`Unbind`), so "they renamed it while I changed it" is a divergence the
 // binding-vs-binding detector cannot see: a removal binds nothing.
 //
@@ -32,36 +34,45 @@ module Removals =
     Darklang.SCM.Conflicts.detectRemovals "me" "ada" local removals
 
 // They ended exactly what I hold. Nothing of mine is at stake, so nothing is recorded.
-(Removals.detect
-  [ Removals.mine "aaa" "2026-01-01T00:00:00.000Z" ]
-  [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
-|> Stdlib.List.length = 0
+test theyEndedWhatIHold =
+  (Removals.detect
+    [ Removals.mine "aaa" "2026-01-01T00:00:00.000Z" ]
+    [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
+  |> Stdlib.List.length
+  |> Stdlib.Test.equal 0
 
 // They ended a version I have SINCE replaced. That is the divergence.
-(Removals.detect
-  [ Removals.mine "bbb" "2026-01-03T00:00:00.000Z" ]
-  [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
-|> Stdlib.List.length = 1
+test theyEndedReplacedVersion =
+  (Removals.detect
+    [ Removals.mine "bbb" "2026-01-03T00:00:00.000Z" ]
+    [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
+  |> Stdlib.List.length
+  |> Stdlib.Test.equal 1
 
 // A removal of a name I don't have is not about me.
-(Removals.detect [] [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
-|> Stdlib.List.length = 0
+test removalOfUnheldName =
+  (Removals.detect [] [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
+  |> Stdlib.List.length
+  |> Stdlib.Test.equal 0
 
 // The recorded shape: one side is my version, the other is the removal, and the removal carries no hash.
-((Removals.detect
-   [ Removals.mine "bbb" "2026-01-03T00:00:00.000Z" ]
-   [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
- |> Stdlib.List.head
- |> Stdlib.Option.map (fun c ->
-   let sides = c.candidates |> Stdlib.List.map (fun cand -> (cand.removed, cand.hash))
-   (c.kind, sides, c.autoResolvedTo)))
-= Stdlib.Option.Option.Some(
-    ("removed-vs-edited", [ (false, "bbb"), (true, "") ], "bbb"))
+test recordedShape =
+  ((Removals.detect
+     [ Removals.mine "bbb" "2026-01-03T00:00:00.000Z" ]
+     [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
+   |> Stdlib.List.head
+   |> Stdlib.Option.map (fun c ->
+     let sides = c.candidates |> Stdlib.List.map (fun cand -> (cand.removed, cand.hash))
+     (c.kind, sides, c.autoResolvedTo)))
+  |> Stdlib.Test.equal
+    (Stdlib.Option.Option.Some(
+         ("removed-vs-edited", [ (false, "bbb"), (true, "") ], "bbb")))
 
 // Their removal is NEWER than my edit, so the fold leaves the name gone and the record says so.
-((Removals.detect
-   [ Removals.mine "bbb" "2026-01-01T00:00:00.000Z" ]
-   [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-05T00:00:00.000Z" ])
- |> Stdlib.List.head
- |> Stdlib.Option.map (fun c -> (c.autoResolvedTo, c.reason)))
-= Stdlib.Option.Option.Some(("", "removal is newer"))
+test newerRemovalWins =
+  ((Removals.detect
+     [ Removals.mine "bbb" "2026-01-01T00:00:00.000Z" ]
+     [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-05T00:00:00.000Z" ])
+   |> Stdlib.List.head
+   |> Stdlib.Option.map (fun c -> (c.autoResolvedTo, c.reason)))
+  |> Stdlib.Test.equal (Stdlib.Option.Option.Some(("", "removal is newer")))

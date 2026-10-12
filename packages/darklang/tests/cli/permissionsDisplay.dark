@@ -1,3 +1,5 @@
+module Darklang.Cli.Tests.PermissionsDisplay
+
 // The Workbench and `permissions show` share this renderer. Requirements are
 // not grants; exact resources are checked at runtime.
 
@@ -41,22 +43,24 @@ module PermissionsDisplay =
         approvedAs = [ "Acme.Client.fetch" ]
         instancePolicy = instancePolicy () }
 
-  (Darklang.Cli.Permissions.Command.renderAccessReport (approved ()))
-  = [ "access"
-      "  version: 12345678"
-      "  requires: http, clock"
-      "  analysis: complete"
-      "  author ceiling: {Http, Clock}"
-      "  consumer approval: approved for this account (rules below)"
-      "  approved as: Acme.Client.fetch"
-      "  package approval policy:"
-      "    http"
-      "    clock"
-      "  instance policy:"
-      "    http GET 'https://api.example.com:443/v1'"
-      "  run policy: selected when invoked (`--sandbox` denies all)"
-      "  effective: checked per operation: instance ∩ run ∩ package approval ∩ function ceiling"
-      "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ]
+  test approvedReport =
+    Darklang.Cli.Permissions.Command.renderAccessReport (approved ())
+    |> Stdlib.Test.equal
+      [ "access"
+          "  version: 12345678"
+          "  requires: http, clock"
+          "  analysis: complete"
+          "  author ceiling: {Http, Clock}"
+          "  consumer approval: approved for this account (rules below)"
+          "  approved as: Acme.Client.fetch"
+          "  package approval policy:"
+          "    http"
+          "    clock"
+          "  instance policy:"
+          "    http GET 'https://api.example.com:443/v1'"
+          "  run policy: selected when invoked (`--sandbox` denies all)"
+          "  effective: checked per operation: instance ∩ run ∩ package approval ∩ function ceiling"
+          "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ]
 
   let unapproved
     (unit: Unit)
@@ -70,16 +74,18 @@ module PermissionsDisplay =
         packagePolicy = Stdlib.Option.Option.None
         approvedAs = [] }
 
-  (Darklang.Cli.Permissions.Command.renderAccessReport (unapproved ()))
-  = [ "access"
-      "  version: 12345678"
-      "  requires: not fully known"
-      "  analysis: incomplete: some calls could not be followed, so their effects are not known here"
-      "  author ceiling: not declared (inherits caller limits)"
-      "  consumer approval: not approved for dependency use"
-      "  approved as: none"
-      "  instance policy:"
-      "    http GET 'https://api.example.com:443/v1'"
-      "  run policy: selected when invoked (`--sandbox` denies all)"
-      "  effective: blocked as a dependency; explicitly chosen entry points are treated as roots"
-      "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ]
+  test unapprovedReport =
+    Darklang.Cli.Permissions.Command.renderAccessReport (unapproved ())
+    |> Stdlib.Test.equal
+      [ "access"
+          "  version: 12345678"
+          "  requires: not fully known"
+          "  analysis: incomplete: some calls could not be followed, so their effects are not known here"
+          "  author ceiling: not declared (inherits caller limits)"
+          "  consumer approval: not approved for dependency use"
+          "  approved as: none"
+          "  instance policy:"
+          "    http GET 'https://api.example.com:443/v1'"
+          "  run policy: selected when invoked (`--sandbox` denies all)"
+          "  effective: blocked as a dependency; explicitly chosen entry points are treated as roots"
+          "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ]

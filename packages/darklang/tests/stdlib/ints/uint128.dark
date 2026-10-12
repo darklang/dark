@@ -1,137 +1,217 @@
-// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
-// reaches this type and that the type's own comparison holds at its extremes.
-Stdlib.max 10Z 1Z = 10Z
+module Darklang.Stdlib.UInt128.Tests
 
-Stdlib.min 340282366920938463463374607431768211455Z 0Z = 0Z
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check
+// that it reaches this type and that the type's own comparison holds at its
+// extremes.
 
-Stdlib.clamp 100Z 0Z 0Z = 0Z
+test max =
+  Stdlib.max 10Z 1Z |> Stdlib.Test.equal 10Z
 
-(10Z + 9Z) = 19Z
-(88Z + 9Z) = 97Z
-(1Z + 0Z) = 1Z
-(55Z + 55Z) = 110Z
-(9223372036854775807Z + 2Z) = 9223372036854775809Z
+test min =
+  Stdlib.min 340282366920938463463374607431768211455Z 0Z |> Stdlib.Test.equal 0Z
 
-(170141183460469231731687303715884105726Z + 4Z) = 170141183460469231731687303715884105730Z
+test clamp =
+  Stdlib.clamp 100Z 0Z 0Z |> Stdlib.Test.equal 0Z
 
-(340282366920938463463374607431768211455Z + 1Z) = 0Z
-(10Z - 9Z) = 1Z
-(88Z - 9Z) = 79Z
-(1Z - 0Z) = 1Z
+/// Wraps on overflow.
+test add =
+  Stdlib.Test.all
+    [ (10Z + 9Z) |> Stdlib.Test.equal 19Z
+      (88Z + 9Z) |> Stdlib.Test.equal 97Z
+      (1Z + 0Z) |> Stdlib.Test.equal 1Z
+      (55Z + 55Z) |> Stdlib.Test.equal 110Z
+      (9223372036854775807Z + 2Z) |> Stdlib.Test.equal 9223372036854775809Z
+      (170141183460469231731687303715884105726Z + 4Z)
+      |> Stdlib.Test.equal 170141183460469231731687303715884105730Z
+      (340282366920938463463374607431768211455Z + 1Z) |> Stdlib.Test.equal 0Z ]
 
-(8Z * 8Z) = 64Z
-(1Z * 0Z) = 0Z
+/// Wraps on overflow.
+test subtract =
+  Stdlib.Test.all
+    [ (10Z - 9Z) |> Stdlib.Test.equal 1Z
+      (88Z - 9Z) |> Stdlib.Test.equal 79Z
+      (1Z - 0Z) |> Stdlib.Test.equal 1Z ]
 
-(340282366920938463463374607431768211455Z * 2Z) = 340282366920938463463374607431768211454Z
-(10Z / 5Z) = 2Z
-(17Z / 3Z) = 5Z
-(0Z / 1Z) = 0Z
+/// Wraps on overflow.
+test multiply =
+  Stdlib.Test.all
+    [ (8Z * 8Z) |> Stdlib.Test.equal 64Z
+      (1Z * 0Z) |> Stdlib.Test.equal 0Z
+      (340282366920938463463374607431768211455Z * 2Z)
+      |> Stdlib.Test.equal 340282366920938463463374607431768211454Z ]
 
-(1Z / 0Z) = error="Cannot divide by 0"
-(20Z > 1Z) = true
+test divide =
+  Stdlib.Test.all
+    [ (10Z / 5Z) |> Stdlib.Test.equal 2Z
+      (17Z / 3Z) |> Stdlib.Test.equal 5Z
+      (0Z / 1Z) |> Stdlib.Test.equal 0Z ]
 
-((20Z) > (170141183460469231731687303715884105727Z)) = false
+test divideOfOneRejectsZero =
+  (1Z / 0Z)
+  => raises "Cannot divide by 0"
 
-(0Z >= 1Z) = false
-(1Z >= 0Z) = true
-(6Z >= 1Z) = true
-(6Z >= 8Z) = false
+test greaterThan =
+  Stdlib.Test.all
+    [ (20Z > 1Z) |> Stdlib.Test.equal true
+      ((20Z) > (170141183460469231731687303715884105727Z))
+      |> Stdlib.Test.equal false ]
 
-(6Z <= 8Z) = true
-(10Z <= 1Z) = false
-(0Z <= 1Z) = true
-(1Z <= 0Z) = false
+test greaterThanOrEqualTo =
+  Stdlib.Test.all
+    [ (0Z >= 1Z) |> Stdlib.Test.equal false
+      (1Z >= 0Z) |> Stdlib.Test.equal true
+      (6Z >= 1Z) |> Stdlib.Test.equal true
+      (6Z >= 8Z) |> Stdlib.Test.equal false ]
 
-(6Z < 8Z) = true
-(10Z < 1Z) = false
-(0Z < 1Z) = true
-(1Z < 0Z) = false
+test lessThanOrEqualTo =
+  Stdlib.Test.all
+    [ (6Z <= 8Z) |> Stdlib.Test.equal true
+      (10Z <= 1Z) |> Stdlib.Test.equal false
+      (0Z <= 1Z) |> Stdlib.Test.equal true
+      (1Z <= 0Z) |> Stdlib.Test.equal false ]
 
-Stdlib.toString 0Z = "0"
-Stdlib.toString 1Z = "1"
-Stdlib.toString 340282366920938463463374607431768211455Z = "340282366920938463463374607431768211455"
+test lessThan =
+  Stdlib.Test.all
+    [ (6Z < 8Z) |> Stdlib.Test.equal true
+      (10Z < 1Z) |> Stdlib.Test.equal false
+      (0Z < 1Z) |> Stdlib.Test.equal true
+      (1Z < 0Z) |> Stdlib.Test.equal false ]
 
-Stdlib.UInt128.toFloat 2Z = 2.0
-Stdlib.UInt128.toFloat 340282366920938463463374607431768211455Z = 340282366920938463463374607431768211455.0
+test toString =
+  Stdlib.Test.all
+    [ Stdlib.toString 0Z |> Stdlib.Test.equal "0"
+      Stdlib.toString 1Z |> Stdlib.Test.equal "1"
+      Stdlib.toString 340282366920938463463374607431768211455Z
+      |> Stdlib.Test.equal "340282366920938463463374607431768211455" ]
 
-Stdlib.UInt128.sqrt 4Z = 2.0
-Stdlib.UInt128.sqrt 100Z = 10.0
-Stdlib.UInt128.sqrt 86Z = 9.273618495495704
+test toFloat =
+  Stdlib.Test.all
+    [ Stdlib.UInt128.toFloat 2Z |> Stdlib.Test.equal 2.0
+      Stdlib.UInt128.toFloat 340282366920938463463374607431768211455Z
+      |> Stdlib.Test.equal 340282366920938463463374607431768211455.0 ]
 
-(15Z % 5Z) = 0Z
-(15Z % 6Z) = 3Z
-(0Z % 15Z) = 0Z
-(127Z % 3Z) = 1Z
+test sqrt =
+  Stdlib.Test.all
+    [ Stdlib.UInt128.sqrt 4Z |> Stdlib.Test.equal 2.0
+      Stdlib.UInt128.sqrt 100Z |> Stdlib.Test.equal 10.0
+      Stdlib.UInt128.sqrt 86Z |> Stdlib.Test.equal 9.273618495495704 ]
 
-(5Z % 0Z) = error="Cannot evaluate modulus against 0"
-// parses OK
-Stdlib.UInt128.parse "0" = Stdlib.Result.Result.Ok(0Z)
-Stdlib.UInt128.parse "1" = Stdlib.Result.Result.Ok(1Z)
-Stdlib.UInt128.parse " 1" = Stdlib.Result.Result.Ok(1Z)
-Stdlib.UInt128.parse "1 " = Stdlib.Result.Result.Ok(1Z)
-Stdlib.UInt128.parse "+1" = Stdlib.Result.Result.Ok(1Z)
-Stdlib.UInt128.parse " +1 " = Stdlib.Result.Result.Ok(1Z)
-Stdlib.UInt128.parse "078" = Stdlib.Result.Result.Ok(78Z) // "octal" format ignored
+/// `%` wraps into [0, b), and raises when b <= 0.
+test modulo =
+  Stdlib.Test.all
+    [ (15Z % 5Z) |> Stdlib.Test.equal 0Z
+      (15Z % 6Z) |> Stdlib.Test.equal 3Z
+      (0Z % 15Z) |> Stdlib.Test.equal 0Z
+      (127Z % 3Z) |> Stdlib.Test.equal 1Z ]
 
-Stdlib.UInt128.parse "170141183460469231731687303715884105727" =
-  Stdlib.Result.Result.Ok(170141183460469231731687303715884105727Z)
+test moduloRejectsZero =
+  (5Z % 0Z)
+  => raises "Cannot evaluate modulus against 0"
 
-Stdlib.UInt128.parse "170141183460469231731687303715884105729" =
-  Stdlib.Result.Result.Ok 170141183460469231731687303715884105729Z
+test parse =
+  Stdlib.Test.all
+    [ // parses OK
+      Stdlib.UInt128.parse "0" |> Stdlib.Test.equal (Ok 0Z)
+      Stdlib.UInt128.parse "1" |> Stdlib.Test.equal (Ok 1Z)
+      Stdlib.UInt128.parse " 1" |> Stdlib.Test.equal (Ok 1Z)
+      Stdlib.UInt128.parse "1 " |> Stdlib.Test.equal (Ok 1Z)
+      Stdlib.UInt128.parse "+1" |> Stdlib.Test.equal (Ok 1Z)
+      Stdlib.UInt128.parse " +1 " |> Stdlib.Test.equal (Ok 1Z)
+      // "octal" format ignored
+      Stdlib.UInt128.parse "078" |> Stdlib.Test.equal (Ok 78Z)
+      Stdlib.UInt128.parse "170141183460469231731687303715884105727"
+      |> Stdlib.Test.equal (Ok 170141183460469231731687303715884105727Z)
+      Stdlib.UInt128.parse "170141183460469231731687303715884105729"
+      |> Stdlib.Test.equal (Ok 170141183460469231731687303715884105729Z) ]
 
-// bad format
-Stdlib.UInt128.parse "1 2 3" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "+ 1" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "0xA" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "0x123" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "0b0100" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "pi" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "Stdlib.Math.pi" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "1.23E+04" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "1I" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "one" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
-Stdlib.UInt128.parse "XIV" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat
+test parseBadFormat =
+  Stdlib.Test.all
+    [ // bad format
+      Stdlib.UInt128.parse "1 2 3"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "+ 1"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "0xA"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "0x123"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "0b0100"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "pi"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "Stdlib.Math.pi"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "1.23E+04"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse ""
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "1I"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "one"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat)
+      Stdlib.UInt128.parse "XIV"
+      |> Stdlib.Test.equal (Error Stdlib.UInt128.ParseError.BadFormat) ]
 
-Stdlib.UInt128.fromUInt8 0uy = 0Z
-Stdlib.UInt128.fromUInt8 1uy = 1Z
-Stdlib.UInt128.fromUInt8 255uy = 255Z
+test fromUInt8 =
+  Stdlib.Test.all
+    [ Stdlib.UInt128.fromUInt8 0uy |> Stdlib.Test.equal 0Z
+      Stdlib.UInt128.fromUInt8 1uy |> Stdlib.Test.equal 1Z
+      Stdlib.UInt128.fromUInt8 255uy |> Stdlib.Test.equal 255Z ]
 
-Stdlib.UInt128.fromUInt16 0us = 0Z
-Stdlib.UInt128.fromUInt16 1us = 1Z
-Stdlib.UInt128.fromUInt16 65535us = 65535Z
+test fromUInt16 =
+  Stdlib.Test.all
+    [ Stdlib.UInt128.fromUInt16 0us |> Stdlib.Test.equal 0Z
+      Stdlib.UInt128.fromUInt16 1us |> Stdlib.Test.equal 1Z
+      Stdlib.UInt128.fromUInt16 65535us |> Stdlib.Test.equal 65535Z ]
 
-Stdlib.UInt128.fromUInt32 0ul = 0Z
-Stdlib.UInt128.fromUInt32 1ul = 1Z
-Stdlib.UInt128.fromUInt32 4294967295ul = 4294967295Z
+test fromUInt32 =
+  Stdlib.Test.all
+    [ Stdlib.UInt128.fromUInt32 0ul |> Stdlib.Test.equal 0Z
+      Stdlib.UInt128.fromUInt32 1ul |> Stdlib.Test.equal 1Z
+      Stdlib.UInt128.fromUInt32 4294967295ul |> Stdlib.Test.equal 4294967295Z ]
 
-Stdlib.UInt128.fromUInt64 0UL = 0Z
-Stdlib.UInt128.fromUInt64 1UL = 1Z
-Stdlib.UInt128.fromUInt64 18446744073709551615UL = 18446744073709551615Z
+test fromUInt64 =
+  Stdlib.Test.all
+    [ Stdlib.UInt128.fromUInt64 0UL |> Stdlib.Test.equal 0Z
+      Stdlib.UInt128.fromUInt64 1UL |> Stdlib.Test.equal 1Z
+      Stdlib.UInt128.fromUInt64 18446744073709551615UL
+      |> Stdlib.Test.equal 18446744073709551615Z ]
 
-(12Z & 10Z) = 8Z
-(0Z & 0Z) = 0Z
-(255Z & 0Z) = 0Z
-(255Z & 255Z) = 255Z
+test bitwiseAnd =
+  Stdlib.Test.all
+    [ (12Z & 10Z) |> Stdlib.Test.equal 8Z
+      (0Z & 0Z) |> Stdlib.Test.equal 0Z
+      (255Z & 0Z) |> Stdlib.Test.equal 0Z
+      (255Z & 255Z) |> Stdlib.Test.equal 255Z ]
 
-(12Z | 10Z) = 14Z
-(0Z | 0Z) = 0Z
-(255Z | 0Z) = 255Z
+test bitwiseOr =
+  Stdlib.Test.all
+    [ (12Z | 10Z) |> Stdlib.Test.equal 14Z
+      (0Z | 0Z) |> Stdlib.Test.equal 0Z
+      (255Z | 0Z) |> Stdlib.Test.equal 255Z ]
 
-(12Z ^ 10Z) = 6Z
-(0Z ^ 0Z) = 0Z
-(255Z ^ 255Z) = 0Z
+test bitwiseXor =
+  Stdlib.Test.all
+    [ (12Z ^ 10Z) |> Stdlib.Test.equal 6Z
+      (0Z ^ 0Z) |> Stdlib.Test.equal 0Z
+      (255Z ^ 255Z) |> Stdlib.Test.equal 0Z ]
 
-(~0Z) = 340282366920938463463374607431768211455Z
-(~340282366920938463463374607431768211455Z) = 0Z
-(~1Z) = 340282366920938463463374607431768211454Z
+test bitwiseNot =
+  Stdlib.Test.all
+    [ (~0Z) |> Stdlib.Test.equal 340282366920938463463374607431768211455Z
+      (~340282366920938463463374607431768211455Z) |> Stdlib.Test.equal 0Z
+      (~1Z) |> Stdlib.Test.equal 340282366920938463463374607431768211454Z ]
 
-(1Z << 2Z) = 4Z
-(0Z << 5Z) = 0Z
-(1Z << 0Z) = 1Z
-(5Z << 3Z) = 40Z
+test shiftLeft =
+  Stdlib.Test.all
+    [ (1Z << 2Z) |> Stdlib.Test.equal 4Z
+      (0Z << 5Z) |> Stdlib.Test.equal 0Z
+      (1Z << 0Z) |> Stdlib.Test.equal 1Z
+      (5Z << 3Z) |> Stdlib.Test.equal 40Z ]
 
-(8Z >> 2Z) = 2Z
-(0Z >> 5Z) = 0Z
-(1Z >> 0Z) = 1Z
-(40Z >> 3Z) = 5Z
+test shiftRight =
+  Stdlib.Test.all
+    [ (8Z >> 2Z) |> Stdlib.Test.equal 2Z
+      (0Z >> 5Z) |> Stdlib.Test.equal 0Z
+      (1Z >> 0Z) |> Stdlib.Test.equal 1Z
+      (40Z >> 3Z) |> Stdlib.Test.equal 5Z ]

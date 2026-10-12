@@ -1,3 +1,5 @@
+module Darklang.Cli.Tests.Propagate
+
 module DictionarySignatures =
   let same
     (key: Darklang.LanguageTools.ProgramTypes.TypeReference)
@@ -10,6 +12,11 @@ module DictionarySignatures =
         Darklang.LanguageTools.ProgramTypes.TypeReference.TInt))
       (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(key, value))
 
-DictionarySignatures.same Darklang.LanguageTools.ProgramTypes.TypeReference.TString Darklang.LanguageTools.ProgramTypes.TypeReference.TInt = true
-DictionarySignatures.same Darklang.LanguageTools.ProgramTypes.TypeReference.TInt Darklang.LanguageTools.ProgramTypes.TypeReference.TInt = false
-DictionarySignatures.same Darklang.LanguageTools.ProgramTypes.TypeReference.TString Darklang.LanguageTools.ProgramTypes.TypeReference.TBool = false
+test dictionarySignatures =
+  Stdlib.Test.all
+    [ DictionarySignatures.same Darklang.LanguageTools.ProgramTypes.TypeReference.TString Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+      |> Stdlib.Test.equal true
+      DictionarySignatures.same Darklang.LanguageTools.ProgramTypes.TypeReference.TInt Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+      |> Stdlib.Test.equal false
+      DictionarySignatures.same Darklang.LanguageTools.ProgramTypes.TypeReference.TString Darklang.LanguageTools.ProgramTypes.TypeReference.TBool
+      |> Stdlib.Test.equal false ]

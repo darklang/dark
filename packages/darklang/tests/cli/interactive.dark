@@ -24,6 +24,9 @@ let escape (s: String) : String =
   s
   |> Stdlib.String.replaceAll "\\" "\\\\"
   |> Stdlib.String.replaceAll "\"" "\\\""
+  |> Stdlib.String.replaceAll "$" "\\$"
+  |> Stdlib.String.replaceAll "[" "\\["
+  |> Stdlib.String.replaceAll "]" "\\]"
 
 
 /// A Tcl string literal. Built by concatenation rather than interpolation: an expect
@@ -40,11 +43,15 @@ let stepLine (step: Step) : String =
     // was wrong" with no screen attached.
     let complaint = quoted ("\nTIMED OUT waiting for: " + text)
 
-    "expect { "
+    // Expect's braced pattern/action form needs newlines. A single-line
+    // braced argument is treated as one pattern and silently times out.
+    "expect {\n  -exact "
     + (quoted text)
-    + " {} timeout { puts "
+    + " {}\n  timeout { puts "
     + complaint
-    + "; exit 2 } }"
+    + "; exit 2 }\n  eof { puts "
+    + (quoted ("\nEXITED BEFORE: " + text))
+    + "; exit 3 }\n}"
 
   | Send keys ->
     // A key pressed while a frame is still painting is dropped, and the symptom is the
@@ -79,11 +86,11 @@ let drive
       (Instance.env i)
       |> Stdlib.List.map (fun pair ->
         let (k, v) = pair
-        $"{k}={escape v}")
+        quoted ($"{k}={v}"))
       |> Stdlib.String.join " "
 
     let argString =
-      args |> Stdlib.List.map (fun a -> escape a) |> Stdlib.String.join " "
+      args |> Stdlib.List.map quoted |> Stdlib.String.join " "
 
     // The pane size is fixed so a layout assertion means the same thing on every machine;
     // the workbench refuses to start below its minimum.
@@ -91,13 +98,17 @@ let drive
       [ $"set timeout {Stdlib.toString timeoutSeconds}",
         "set env(LINES) 50",
         "set env(COLUMNS) 200",
-        $"spawn /usr/bin/env {envPrefix} {i.cli} {argString}" ]
+        $"spawn /usr/bin/env {envPrefix} {quoted i.cli} {argString}" ]
 
     let body = steps |> Stdlib.List.map (fun s -> stepLine s)
 
-    // `wait` rather than `expect eof`: a TUI that is still painting when the last step
-    // passes should be shut down, not waited on forever.
-    let footer = [ "close", "wait", "exit 0" ]
+    // Steps must leave the child ready to exit (send q for a TUI). EOF and
+    // successful exit are separate checks; neither may silently time out.
+    let footer =
+      [ "expect {\n  eof {}\n  timeout { puts \"TIMED OUT waiting for exit\"; exit 2 }\n}"
+        "set result [wait]"
+        "if {[llength $result] != 4 || [lindex $result 2] != 0 || [lindex $result 3] != 0} { puts \"CHILD EXIT FAILED: $result\"; exit 3 }"
+        "exit 0" ]
 
     let script =
       (Stdlib.List.append header (Stdlib.List.append body footer))
@@ -123,9 +134,9 @@ let expectSteps
   (args: List<String>)
   (steps: List<Step>)
   (timeoutSeconds: Int)
-  : TestResult =
+  : Stdlib.Test.Result =
   match drive i args steps timeoutSeconds with
-  | Ok _ -> TestResult.Pass
+  | Ok _ -> Stdlib.Test.Result.Pass
   | Error transcript ->
     let cmd = Stdlib.String.join args " "
-    TestResult.Fail $"interactive `{cmd}` did not do what was asked:\n{transcript}"
+    Stdlib.Test.fail $"interactive `{cmd}` did not do what was asked:\n{transcript}"

@@ -1,32 +1,42 @@
-Stdlib.Bool.and false false = false
-Stdlib.Bool.and false true = false
-Stdlib.Bool.and true false = false
-Stdlib.Bool.and true true = true
-Stdlib.Bool.and (8L >= 5L) (6L <= 8L) = true
+module Darklang.Stdlib.Bool.Tests
 
-(false && false) = false
-(false && true) = false
-(true && false) = false
-(true && true) = true
-((8L >= 5L) && (6L <= 8L)) = true
+test andTruthTable =
+  Stdlib.Test.all
+    [ Stdlib.Bool.and false false |> Stdlib.Test.equal false
+      Stdlib.Bool.and false true |> Stdlib.Test.equal false
+      Stdlib.Bool.and true false |> Stdlib.Test.equal false
+      Stdlib.Bool.and true true |> Stdlib.Test.equal true
+      Stdlib.Bool.and (8L >= 5L) (6L <= 8L) |> Stdlib.Test.equal true
+      (false && false) |> Stdlib.Test.equal false
+      (false && true) |> Stdlib.Test.equal false
+      (true && false) |> Stdlib.Test.equal false
+      (true && true) |> Stdlib.Test.equal true
+      ((8L >= 5L) && (6L <= 8L)) |> Stdlib.Test.equal true ]
 
-Stdlib.Bool.not false = true
-Stdlib.Bool.not true = false
+test notTruthTable =
+  Stdlib.Test.all
+    [ Stdlib.Bool.not false |> Stdlib.Test.equal true
+      Stdlib.Bool.not true |> Stdlib.Test.equal false ]
 
-Stdlib.Bool.or false false = false
-Stdlib.Bool.or true false = true
-Stdlib.Bool.or false true = true
-Stdlib.Bool.or true true = true
+test orTruthTable =
+  Stdlib.Test.all
+    [ Stdlib.Bool.or false false |> Stdlib.Test.equal false
+      Stdlib.Bool.or true false |> Stdlib.Test.equal true
+      Stdlib.Bool.or false true |> Stdlib.Test.equal true
+      Stdlib.Bool.or true true |> Stdlib.Test.equal true
+      (false || false) |> Stdlib.Test.equal false
+      (true || false) |> Stdlib.Test.equal true
+      (false || true) |> Stdlib.Test.equal true
+      (true || true) |> Stdlib.Test.equal true ]
 
-(false || false) = false
-(true || false) = true
-(false || true) = true
-(true || true) = true
+test xorTruthTable =
+  Stdlib.Test.all
+    [ Stdlib.Bool.xor false false |> Stdlib.Test.equal false
+      Stdlib.Bool.xor false true |> Stdlib.Test.equal true
+      Stdlib.Bool.xor true false |> Stdlib.Test.equal true
+      Stdlib.Bool.xor true true |> Stdlib.Test.equal false ]
 
-Stdlib.Bool.xor false false = false
-Stdlib.Bool.xor false true = true
-Stdlib.Bool.xor true false = true
-Stdlib.Bool.xor true true = false
-
-Stdlib.toString true = "true"
-Stdlib.toString false = "false"
+test toString =
+  Stdlib.Test.all
+    [ Stdlib.toString true |> Stdlib.Test.equal "true"
+      Stdlib.toString false |> Stdlib.Test.equal "false" ]

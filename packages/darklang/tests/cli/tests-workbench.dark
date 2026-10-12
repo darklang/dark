@@ -1,7 +1,7 @@
 /// Navigation regressions that need real key dispatch and populated views.
-module Darklang.Cli.Tests
+module Darklang.Cli.Tests.TestSuite
 
-let testWorkbenchHistoryRoundTrip () : TestResult =
+test workbenchHistoryRoundTrip =
   let base = workbenchState ()
   let hit = Darklang.Cli.Workbench.SearchHit
     { modules = [ "Darklang", "Stdlib", "List" ]
@@ -32,10 +32,10 @@ let testWorkbenchHistoryRoundTrip () : TestResult =
      && (parent.items == original.items)
      && (lens.matter.lens != tree.matter.lens)
      && (sameReturnPoint beforeLens tree)
-  then TestResult.Pass
-  else TestResult.Fail "search, modules and lenses must return in one Escape"
+  then Stdlib.Test.Result.Pass
+  else Stdlib.Test.fail "search, modules and lenses must return in one Escape"
 
-let testWorkbenchDocumentScroll () : TestResult =
+test workbenchDocumentScroll =
   let base = workbenchState ()
   let items =
     Stdlib.List.range 1 40 |> Stdlib.List.map (fun n ->
@@ -69,10 +69,10 @@ let testWorkbenchDocumentScroll () : TestResult =
      && (down.detailScroll == 1)
      && (top.detailScroll == 0)
      && visible
-  then TestResult.Pass
-  else TestResult.Fail "Sync must scroll all rows without focusing a preview"
+  then Stdlib.Test.Result.Pass
+  else Stdlib.Test.fail "Sync must scroll all rows without focusing a preview"
 
-let testWorkbenchSyncStanding () : TestResult =
+test workbenchSyncStanding =
   let main = Darklang.Cli.Workbench.SyncFacts
     { relay = "http://local.test"; mainUnpushed = 7L; branchesUnpushed = [] }
   let branch =
@@ -87,10 +87,10 @@ let testWorkbenchSyncStanding () : TestResult =
      && (Stdlib.String.contains branchSummary "1 branch")
      && (Darklang.Cli.Workbench.syncPushSummary clean == "nothing to push")
      && (Darklang.Cli.Workbench.syncPushSummary disconnected == "")
-  then TestResult.Pass
-  else TestResult.Fail "sync must distinguish channels and never infer pull status"
+  then Stdlib.Test.Result.Pass
+  else Stdlib.Test.fail "sync must distinguish channels and never infer pull status"
 
-let testWorkbenchBranchPicker () : TestResult =
+test workbenchBranchPicker =
   let base = workbenchState ()
   let opened = (wbChar base "S").state
   let opens = match opened.overlay with | Branches _ -> true | _ -> false
@@ -126,5 +126,5 @@ let testWorkbenchBranchPicker () : TestResult =
      && (cancelled.overlay == Darklang.Cli.Workbench.Overlay.NoOverlay)
      && (cancelled.branchId == base.branchId)
      && (cancelled.items == base.items)
-  then TestResult.Pass
-  else TestResult.Fail "picker must filter all branches, cancel and reject no matches"
+  then Stdlib.Test.Result.Pass
+  else Stdlib.Test.fail "picker must filter all branches, cancel and reject no matches"
