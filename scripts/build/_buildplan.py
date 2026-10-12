@@ -90,6 +90,15 @@ def mark(should, f):
     (f.endswith(".fsproj") or f.endswith(".sln")):
     should.backend_full_build = True
 
+  elif f.startswith("backend/migrations/upgrades/"):
+    # Compiled INTO LibDB: the build generates the registry of units from these directories, so a
+    # changed spec or shape is a build, not only a migration run.
+    if in_ci():
+      should.backend_full_build = True
+    else:
+      should.backend_quick_build = True
+    should.run_migrations = True
+
   elif f.startswith("backend/") and \
        (f.endswith(".fs") or f.endswith(".fsi")):
     if in_ci():

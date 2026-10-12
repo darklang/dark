@@ -28,6 +28,7 @@ module Registry =
   let acceptsUninstall () : Accepts.Accepts = Accepts.flagsOnly [ "-y", "--yes" ]
   let acceptsInstallStatus () : Accepts.Accepts = Accepts.nothing ()
   let acceptsVersion () : Accepts.Accepts = Accepts.flagsOnly [ "--local" ]
+  let acceptsStore () : Accepts.Accepts = (Accepts.subcommands [ ("upgrades", Accepts.nothing ()) ] (Accepts.nothing ()))
   let acceptsNav () : Accepts.Accepts = Accepts.upTo 1 []
   let acceptsLs () : Accepts.Accepts = Accepts.upTo 1 [ "--include-deprecated", "--versions" ]
   let acceptsBack () : Accepts.Accepts = Accepts.nothing ()
@@ -108,6 +109,7 @@ module Registry =
       ("uninstall", "Remove CLI installation", [], acceptsUninstall, Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
       ("install-status", "Show installation status", [], acceptsInstallStatus, Installation.Status.execute, Installation.Status.help, Installation.Status.complete)
       ("version", "Display CLI version", [ "--version", "-v" ], acceptsVersion, Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
+      ("store", "What this store is: who upgraded it, its formats, its backups", [], acceptsStore, Cli.Store.execute, Cli.Store.help, Cli.Store.complete)
       ("nav", "Navigate between owners, modules, and items", [ "cd" ], acceptsNav, Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
       ("ls", "List package contents", [ "dir" ], acceptsLs, Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
       ("back", "Go back to previous location", [], acceptsBack, Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
@@ -307,7 +309,7 @@ module Registry =
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
       ("Sync", [ "sync", "push", "pull", "connect", "review", "whoami", "identity", "backups" ])
       ("Execution", [ "run-script", "eval", "scripts", "ps", "traces" ])
-      ("Installation", [ "install", "update", "uninstall", "version" ])
+      ("Installation", [ "install", "update", "uninstall", "version", "store" ])
       ("AI", [ "agent" ])
       ("Security", [ "permissions" ])
       ("Network", [ "devices" ])

@@ -1,0 +1,4 @@
+# Retention never drops a pinned trace. Existing rows get 0, unpinned.
+
+after = ["20260924_000003_traces_parent_seq"]
+touches = ["traces"]

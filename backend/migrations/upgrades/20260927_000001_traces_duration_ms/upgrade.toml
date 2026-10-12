@@ -1,0 +1,5 @@
+# Wall clock for the whole run, from the recorder's own stopwatch. Existing rows get 0, as a run still
+# going does.
+
+after = ["20260926_000001_traces_result_value"]
+touches = ["traces"]

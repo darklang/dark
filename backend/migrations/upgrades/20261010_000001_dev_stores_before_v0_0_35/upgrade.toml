@@ -1,0 +1,7 @@
+# What a store last upgraded by a dev build between v0.0.34 and v0.0.35 lacks. `deprecations.origin_ts`
+# went into the base schema without an upgrade, so such a store's `deprecations` has no such column and
+# every command that reads it fails. `package_caps` held retired capability grants and nothing reads it.
+# Every release from v0.0.35 on already has this shape, so on those stores it does nothing.
+
+after = []
+touches = ["deprecations", "package_caps"]

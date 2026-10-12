@@ -1,0 +1,4 @@
+# The trace a run was forked from. NULL for a run that wasn't, which every existing row is.
+
+after = ["20260924_000001_traces_status"]
+touches = ["traces"]

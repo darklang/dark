@@ -1,0 +1,5 @@
+# A branch names the branch it was made from, so branches can sit on branches. Existing rows get
+# main's well-known id, which is what every branch made before this forked from.
+
+after = ["20260828_000001_package_ops_effective"]
+touches = ["branches"]

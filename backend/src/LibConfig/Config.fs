@@ -26,6 +26,27 @@ let buildHash : string =
   with _ ->
     "dev"
 
+/// Which release this binary is, and which it comes after, as `scripts/build/_release-tag` found them at
+/// build: `(Some "v0.0.74", Some "v0.0.74")` for a release, `(None, Some "v0.0.74")` for a build after
+/// it, `(None, None)` where the build saw no tags.
+let releaseTags : Option<string> * Option<string> =
+  let line (s : string) = if s.Trim() = "" then None else Some(s.Trim())
+  try
+    use stream =
+      System.Reflection.Assembly
+        .GetExecutingAssembly()
+        .GetManifestResourceStream("LibConfig.release-tag.txt")
+    if stream <> null then
+      use reader = new System.IO.StreamReader(stream)
+      match reader.ReadToEnd().Split('\n') |> List.ofArray with
+      | tag :: after :: _ -> (line tag, line after)
+      | [ tag ] -> (line tag, None)
+      | [] -> (None, None)
+    else
+      (None, None)
+  with _ ->
+    (None, None)
+
 // runDir is for runtime data (DB, logs, etc.) - separate from source code paths
 let runDir = absoluteDirOrCurrent "DARK_CONFIG_RUNDIR"
 

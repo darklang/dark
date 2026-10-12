@@ -449,8 +449,8 @@ says nothing at all.
         cli/stdin.dark    #   reads keys
         cli/tui/          #   paints: view types, frame diffing, terminal session
         cli/ui/           #   composes: widgets, layout, the palette
-    backend/migrations/   # schema/, the from-scratch shape; changes to an existing store go in
-                          # LibDB/Releases.fs
+    backend/migrations/   # schema/, the frozen base shape; upgrades/, one directory per change to
+                          # an existing store (LibDB/Upgrades.fs runs them)
     rundir/logs/          # log files
     scripts/dev/          # start, build, plan, status, watch, host-port
     scripts/build/        # the build itself; `_` ones are called by other scripts
@@ -514,9 +514,10 @@ rule. Every primitive still needs a real Dark caller; unused primitives are remo
 ## SCM / branches
 
 `package_ops` is canonical and append-only; an op's id IS its content hash. Everything else -- `locations`,
-`package_functions`, `package_dependencies`, `propagation_policy` -- is a projection you can drop and
-re-fold from the log. That is why a schema change to a projection costs nothing and a change to a canonical
-table needs `LibDB/Releases.fs`.
+`package_functions`, `package_dependencies` -- is a projection you can drop and
+re-fold from the log. In dev a schema change to a projection costs nothing, because LocalExec drops and re-folds
+them when the schema moves; a published dark does not, so an existing store keeps a projection's old shape too, and
+either kind of change needs an upgrade (`backend/migrations/upgrades/`).
 
 The decisions live in Dark; F# does what only F# can do (parse, hash, serialize, execute, store bytes).
 
@@ -526,7 +527,7 @@ The decisions live in Dark; F# does what only F# can do (parse, hash, serialize,
       commits.dark             #   commits
       conflicts.dark           #   conflicts, sync_bases; the base-agnostic detector
       constraints.dark         #   standing findings (outdated usages)
-      propagation.dark         #   propagation_policy: pin and follow
+      propagation.dark         #   every edit repoints its callers on the branch
       draft.dark               #   one answer to "what have I changed"
       storeHealth.dark         #   what can be wrong with the STORE
 
@@ -536,7 +537,7 @@ The decisions live in Dark; F# does what only F# can do (parse, hash, serialize,
     LibDB/Draft.fs             # discard / un-stage; the only code that edits `locations` outside the fold
     LibDB/Branches.fs          # branch tables + the merge MECHANISM (the gate is in Dark)
     LibDB/Propagation.fs       # the cascade: who depends on what moved
-    LibDB/Releases.fs          # shape changes to canonical tables on existing stores
+    LibDB/Upgrades.fs          # runs backend/migrations/upgrades/, the shape changes to existing stores
 
 **Last-writer-wins lives in `LibExecution/Lww.fs`, and asking it twice is the bug.** Two different things need
 the rule: the fold decides which binding survives, and conflict recording decides which side to NAME as
@@ -715,22 +716,17 @@ package manager" at dispatch.
 
 ## Changing the schema
 
-**A `migrations/schema/*.sql` file is frozen once it has merged to main.** Those files declare the shape
-a FRESH store is born with, and they are read by every store that has ever been made from them. Editing
-one after it has merged makes the same filename mean two different things depending on when you pulled.
+**Read `docs/store-upgrades.md` first.** It covers what happens when a dark opens a store, which tool
+to reach for, the blob format contract, how to test against old stores, and the traps. The rules:
 
-So:
-
-- A NEW TABLE goes in a NEW numbered file (`10-executions.sql`), never appended to a merged one.
-- A file that has not merged yet is still yours: edit it in place until the PR lands.
-- A NEW COLUMN on an already-merged table is the one exception, and it takes both halves:
-  - declare it in the file that declares the table, for fresh stores, with a comment saying why;
-  - carry it to existing stores with a step in `LibDB/Releases.fs`.
-  There is no third option: a schema file only ever runs `CREATE TABLE` / `CREATE INDEX` /
-  `INSERT OR IGNORE` statements (`Releases.applySchemaTables`), so a patch file cannot `ALTER`.
-
-Adding a file changes the schema hash, which drops and re-folds the projection tables. That is cheap and
-expected; canonical tables are never dropped, which is the reason a column needs the `Releases` step.
+- An upgrade is a directory, `backend/migrations/upgrades/<name>/`; `scripts/migrations/new <tag>`
+  makes one. Order comes from its `after`, and two upgrades touching one table must be ordered.
+- `backend/migrations/schema/*.sql` is frozen once merged: editing one changes fresh stores only.
+- Never rename an upgrade's directory; it is how every store remembers having run it.
+- Changing what a blob serializer writes or reads is a format bump, and never delete a file from
+  `backend/testfiles/serialization-artifacts/history/`.
+- `gates old-release-stores` is the only thing that exercises the shipped path. Run it after anything
+  here, and after a rebase.
 
 **Two branches adding an instruction both take the next tag.** An `Instruction` case needs a
 number in three places: `Opcode.index` (RuntimeTypes.fs) and the read and write halves of

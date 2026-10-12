@@ -1,0 +1,4 @@
+# When a run's status last changed. Existing rows get '': not recorded.
+
+after = ["20260924_000004_traces_pinned"]
+touches = ["traces"]

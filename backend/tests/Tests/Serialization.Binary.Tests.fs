@@ -587,53 +587,226 @@ module RT =
     }
 
 
+/// The golden corpus: committed bytes for every type the store keeps as a blob, so a change to what a
+/// serializer WRITES fails here rather than in a store. A format change that is not a bump (the op
+/// vocabulary changed at the source-control rewrite without the version moving, and every older op became
+/// unreadable while claiming the same version) is exactly what this catches.
+///
+/// Each type's test values are serialized and compared with `<prefix>.bin`, and must read back
+/// equal. Regenerate deliberately with DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y, and only alongside a
+/// version bump or a change to the test values, never to make a red go away.
 module ConsistentSerializationTests =
-  type Format =
-    { name : string
-      serializer : PT.DB.T -> byte array
-      deserializer : byte array -> PT.DB.T
+  /// One stored type: how to write its test values, and a check that each reads back as it was.
+  type Golden =
+    {
       prefix : string
-      suffix : string }
+      cases : unit -> List<byte array * (byte array -> unit)>
+      /// Decode bytes, whatever value they hold: what `history/` is checked with.
+      decodes : byte array -> unit
+    }
 
-  let formats =
-    [ { name = "BinarySerialization"
-        serializer = fun db -> BS.PT.Toplevel.serialize db.tlid db
-        deserializer = fun data -> BS.PT.Toplevel.deserialize 0UL data
-        prefix = "toplevels-binary"
-        suffix = ".bin" } ]
+  let private golden
+    (prefix : string)
+    (values : unit -> List<'a>)
+    (serialize : 'a -> byte array)
+    (deserialize : byte array -> 'a)
+    : Golden =
+    { prefix = prefix
+      cases =
+        fun () ->
+          values ()
+          |> List.map (fun v ->
+            (serialize v,
+             fun bytes -> Expect.equal (deserialize bytes) v $"{prefix} reads back"))
+      decodes = fun bytes -> deserialize bytes |> ignore<'a> }
 
-  let nameFor (f : Format) (version : string) (idx : int) =
-    $"{f.prefix}-{version}-{idx}{f.suffix}"
+  let goldens : List<Golden> =
+    [ golden
+        "toplevels-binary"
+        (fun () -> Values.ProgramTypes.toplevels)
+        (fun db -> BS.PT.Toplevel.serialize db.tlid db)
+        (BS.PT.Toplevel.deserialize 0UL)
+      golden
+        "pt-package-op"
+        (fun () -> Values.ProgramTypes.packageOps)
+        (BS.PT.PackageOp.serialize Values.uuid)
+        (BS.PT.PackageOp.deserialize Values.uuid)
+      golden
+        "pt-package-fn"
+        (fun () -> Values.ProgramTypes.packageFns)
+        (BS.PT.PackageFn.serialize Values.uuid)
+        (BS.PT.PackageFn.deserialize Values.uuid)
+      golden
+        "pt-package-type"
+        (fun () -> Values.ProgramTypes.packageTypes)
+        (BS.PT.PackageType.serialize Values.uuid)
+        (BS.PT.PackageType.deserialize Values.uuid)
+      golden
+        "pt-package-value"
+        (fun () -> Values.ProgramTypes.packageValues)
+        (BS.PT.PackageValue.serialize Values.uuid)
+        (BS.PT.PackageValue.deserialize Values.uuid)
+      golden
+        "pt-trait"
+        (fun () -> Values.ProgramTypes.traits)
+        (BS.PT.Trait.serialize Values.uuid)
+        (BS.PT.Trait.deserialize Values.uuid)
+      golden
+        "pt-trait-impl"
+        (fun () -> Values.ProgramTypes.impls)
+        (BS.PT.TraitImpl.serialize Values.uuid)
+        (BS.PT.TraitImpl.deserialize Values.uuid)
+      golden
+        "pt-package-location"
+        (fun () -> Values.ProgramTypes.packageLocations)
+        (BS.PT.PackageLocation.serialize Values.uuid)
+        (BS.PT.PackageLocation.deserialize Values.uuid)
+      golden
+        "rt-package-fn"
+        (fun () -> Values.RuntimeTypes.packageFns)
+        (BS.RT.PackageFn.serialize Values.uuid)
+        (BS.RT.PackageFn.deserialize Values.uuid)
+      golden
+        "rt-package-type"
+        (fun () -> Values.RuntimeTypes.packageTypes)
+        (BS.RT.PackageType.serialize Values.uuid)
+        (BS.RT.PackageType.deserialize Values.uuid)
+      golden
+        "rt-package-value"
+        (fun () -> Values.RuntimeTypes.packageValues)
+        (BS.RT.PackageValue.serialize Values.uuid)
+        (BS.RT.PackageValue.deserialize Values.uuid)
+      golden
+        "rt-instructions"
+        (fun () -> Values.RuntimeTypes.instructions)
+        (BS.RT.Instructions.serialize Values.uuid)
+        (BS.RT.Instructions.deserialize Values.uuid)
+      golden
+        "rt-dval"
+        (fun () -> Values.RuntimeTypes.vals)
+        (BS.RT.Dval.serialize Values.uuid)
+        (BS.RT.Dval.deserialize Values.uuid)
+      golden
+        "rt-debug-symbols"
+        (fun () -> Values.RuntimeTypes.debugSymbols)
+        (BS.RT.PackageFn.serializeDebugSymbols Values.uuid)
+        (BS.RT.PackageFn.deserializeDebugSymbols Values.uuid)
+      golden
+        "rt-value-type"
+        (fun () -> Values.RuntimeTypes.valueTypes)
+        BS.RT.ValueType.serialize
+        BS.RT.ValueType.deserialize ]
+
+  /// One file per type: every case's bytes, each behind its length as 4 bytes little-endian, in the
+  /// order the values are listed. One file rather than one per case keeps the corpus to a file a type.
+  let fileFor (g : Golden) = $"{g.prefix}.bin"
+
+  let pack (cases : List<byte array>) : byte array =
+    cases
+    |> List.collect (fun bytes ->
+      [ System.BitConverter.GetBytes(uint32 bytes.Length); bytes ])
+    |> Array.concat
+
+  let unpack (file : byte array) : List<byte array> =
+    let rec go (at : int) (acc : List<byte array>) =
+      if at >= file.Length then
+        List.rev acc
+      else
+        let n = int (System.BitConverter.ToUInt32(file, at))
+        go (at + 4 + n) (file[at + 4 .. at + 3 + n] :: acc)
+    go 0 []
+
+  /// Every version of each type's file ever committed, kept under its own hash. `<type>.bin` is
+  /// rewritten whenever a value changes, and when one is REMOVED the cases after it shift, so its old
+  /// bytes would be gone without anyone deleting anything; here they stay, and must go on decoding.
+  let historyDir = "history/"
+
+  let historyNameFor (g : Golden) (file : byte array) =
+    let digest = System.Security.Cryptography.SHA256.HashData file
+    $"{historyDir}{g.prefix}-{(System.Convert.ToHexString digest).ToLowerInvariant().Substring(0, 12)}.bin"
 
 
-  /// Generates the timestamped fixture files that pin the binary format. Regenerate
-  /// and commit them alongside any deliberate format or test-value change.
   let generateTestFiles () : unit =
-    formats
-    |> List.iter (fun f ->
-      Values.ProgramTypes.toplevels
-      |> List.iteri (fun i tl ->
-        let output = f.serializer tl
-        File.writefileBytes Config.Serialization (nameFor f "latest" i) output))
+    System.IO.Directory.CreateDirectory(Config.dir Config.Serialization + historyDir)
+    |> ignore<System.IO.DirectoryInfo>
+    goldens
+    |> List.iter (fun g ->
+      let file = g.cases () |> List.map fst |> pack
+      File.writefileBytes Config.Serialization (fileFor g) file
+      // Added, never replaced or removed.
+      let kept = historyNameFor g file
+      if not (File.fileExists Config.Serialization kept) then
+        File.writefileBytes Config.Serialization kept file)
 
 
-  // Each serialized toplevel must match its committed fixture. Regenerate
-  // intentionally changed fixtures with DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y.
+  /// One test per type, so a red names the type and the case. Each floors how many cases it examined:
+  /// a type whose values list went empty would otherwise pass over nothing.
   let testTestFiles =
-    formats
-    |> List.map (fun f ->
-      test "binary serialization matches the committed golden files" {
-        Values.ProgramTypes.toplevels
-        |> List.iteri (fun i tl ->
-          let serialized = f.serializer tl
-          Expect.equal (f.deserializer serialized) tl "roundtrip should work"
-          let golden =
-            File.readfileBytes Config.Serialization (nameFor f "latest" i)
+    goldens
+    |> List.map (fun g ->
+      test $"{g.prefix} writes its committed golden bytes, and reads them back" {
+        let cases = g.cases ()
+        Expect.isNonEmpty cases $"{g.prefix} has test values to examine"
+        let committed =
+          File.readfileBytes Config.Serialization (fileFor g) |> unpack
+        Expect.equal
+          (List.length committed)
+          (List.length cases)
+          $"{g.prefix}: as many committed cases as values (regenerate only with a version bump)"
+        List.zip cases committed
+        |> List.iteri (fun i ((bytes, readsBack), golden) ->
           Expect.equal
-            serialized
+            bytes
             golden
-            $"toplevel {i} matches its committed golden (regenerate if this change is intended)")
+            $"{g.prefix} case {i} writes what the committed file holds (regenerate only with a version bump)"
+          readsBack golden)
       })
+
+
+/// The other half of a format's contract. `testTestFiles` says today's writer produces these bytes;
+/// this says every golden ever committed still DECODES, whether or not any current value produces it.
+/// Only this catches a reader being removed together with its test value, which leaves the writer test
+/// nothing to compare.
+/// Never delete a file from `history/`; a red here means a reader was lost, not a stale file.
+let historyStillDecodes =
+  test "every golden ever committed still decodes" {
+    let files =
+      File.lsdir Config.Serialization ConsistentSerializationTests.historyDir
+      |> List.filter (fun f -> f.EndsWith ".bin")
+    let goldens = ConsistentSerializationTests.goldens
+    let decoded =
+      files
+      |> List.sumBy (fun f ->
+        // The longest prefix that names a type: `pt-trait-` also starts `pt-trait-impl-` files.
+        let g =
+          goldens
+          |> List.filter (fun g -> f.StartsWith(g.prefix + "-"))
+          |> List.sortByDescending (fun g -> g.prefix.Length)
+          |> List.tryHead
+        match g with
+        | None ->
+          Expect.isTrue
+            false
+            $"history/{f} names no golden type, so nothing checks it decodes"
+          0
+        | Some g ->
+          File.readfileBytes
+            Config.Serialization
+            (ConsistentSerializationTests.historyDir + f)
+          |> ConsistentSerializationTests.unpack
+          |> List.mapi (fun i bytes ->
+            try
+              g.decodes bytes
+            with e ->
+              Expect.isTrue
+                false
+                $"history/{f} case {i} no longer decodes as {g.prefix}: {e.Message}")
+          |> List.length)
+    Expect.isGreaterThanOrEqual
+      decoded
+      (goldens |> List.sumBy (fun g -> List.length (g.cases ())))
+      "history holds at least every current golden"
+  }
 
 
 let generateTestFiles () =
@@ -680,4 +853,5 @@ let tests =
           RT.closureAccessIsStripped
           RT.namedFnAccessIsStripped ]
 
-      testList "consistent serialization" ConsistentSerializationTests.testTestFiles ]
+      testList "consistent serialization" ConsistentSerializationTests.testTestFiles
+      testList "committed bytes stay readable" [ historyStillDecodes ] ]

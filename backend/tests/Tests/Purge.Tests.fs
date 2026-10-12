@@ -100,7 +100,6 @@ let purgeTablesAllExist =
 let private hashCoupledSurvivors =
   [ "commits" // canonical; a commit whose ops are gone is empty, not wrong
     "package_blobs" // content-addressed cache: hash IS the content
-    "package_caps" // ditto, keyed on the item's hash
     "schema_state_v0" // describes the SCHEMA, not the log
     "trace_fn_calls" // observations of past runs; deliberately outlive their code
     // Same: a run is a trace, and `entry_hash` records which handler served a request as a
@@ -163,14 +162,14 @@ let logStateProjectionsArePurged =
   }
 
 
-/// Every table the fold regenerates is purged. Derived from `Seed.projectionTables` rather than listed,
+/// Every table the fold regenerates is purged. Derived from `Upgrades.projectionTables` rather than listed,
 /// so it catches the next projection whatever its shape.
 let foldProjectionsArePurged =
   testTask "every table the fold regenerates is in Purge.tables" {
-    for t in LibDB.Seed.projectionTables do
+    for t in LibDB.Upgrades.projectionTables do
       Expect.isTrue
         (List.contains t Purge.tables)
-        $"`{t}` is a fold projection (Seed.projectionTables) and must be in Purge.tables: a projection \
+        $"`{t}` is a fold projection (Upgrades.projectionTables) and must be in Purge.tables: a projection \
           that outlives the log it was folded from is a stale claim."
   }
 

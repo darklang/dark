@@ -1,0 +1,6 @@
+# `propagation_policy` held the retired pin/follow projection. The base schema no longer declares it, so
+# fresh stores don't have it and older ones keep it, unread. This drops it from those, so an upgraded
+# store's shape equals a fresh one's and `gates old-release-stores` can fail on any difference.
+
+after = []
+touches = ["propagation_policy"]

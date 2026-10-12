@@ -1,0 +1,4 @@
+# Who made a commit. Existing rows get '', meaning "not recorded", which is true.
+
+after = ["20260828_000002_branches_parent_id"]
+touches = ["commits"]

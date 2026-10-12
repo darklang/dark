@@ -1946,6 +1946,14 @@ module PackageOp =
         let hash = LanguageTools.ProgramTypes.Reference.hash target
         $"Override #{id} {name} -> [{LanguageTools.ProgramTypes.hashToShort hash}]{why}"
       | Ack findingId -> $"Ack {findingId} {name}{why}"
+      | Propagation policy ->
+        let p =
+          match policy with
+          | Pin -> "pin"
+          | Follow -> "follow"
+          | Unset -> "unset"
+
+        $"Propagation {name} -> {p} (retired, no effect){why}"
     // A commit that lands a branch carries this op, so without an arm here `dark show` and
     // `dark commits` raise on exactly the commits a person most wants to read.
     | BranchEvent(eventBranchId, event, _at) ->

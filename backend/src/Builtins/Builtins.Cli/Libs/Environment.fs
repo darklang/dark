@@ -64,6 +64,29 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "getReleaseTags" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType =
+        TTuple(TypeReference.option TString, TypeReference.option TString, [])
+      description =
+        "Returns the release tag this CLI was built as (such as v0.0.74, or None for a build that is not a release), and the newest release tag at or before the commit it was built from (None if the build saw no tags)"
+      fn =
+        function
+        | _, _, [], [| DUnit |] ->
+          let opt (tag : Option<string>) =
+            match tag with
+            | Some t -> Dval.optionSome KTString (DString t)
+            | None -> Dval.optionNone KTString
+          let (isTag, after) = LibConfig.Config.releaseTags
+          Ply(DTuple(opt isTag, opt after, []))
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "getBuildHash" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]

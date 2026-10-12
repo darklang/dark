@@ -74,6 +74,7 @@
     <Compile Include="Propagation.Tests.fs" />
     <Compile Include="Draft.Tests.fs" />
     <Compile Include="Purge.Tests.fs" />
+    <Compile Include="Upgrades.Tests.fs" />
     <Compile Include="OpsProjections.Tests.fs" />
     <Compile Include="Lww.Tests.fs" />
     <Compile Include="MultiInstanceHarness.fs" />

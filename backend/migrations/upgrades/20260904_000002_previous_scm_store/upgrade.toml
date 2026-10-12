@@ -1,0 +1,10 @@
+# A store made under the previous SCM has `branch_ops`, its separate op log for branch structure.
+# Nothing reads it now, and NOTHING in it carries over -- not the branches, and not main's ops
+# either: its `package_ops` has a `branch_id NOT NULL` that this release's ops cannot be written
+# into. So the upgrade stops here, and `extract` puts the store back and says how to start fresh.
+#
+# Carrying on would stamp a store that can run nothing. Starting over is the person's call, so the
+# refusal offers it as a move, never a delete: the dark that made the store can still open it.
+
+after = ["20260904_000001_op_branches_source"]
+touches = ["branch_ops"]

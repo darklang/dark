@@ -375,22 +375,6 @@ let applyUnappliedOps () : Task<int64> =
   }
 
 
-/// The regenerable projections: every table the op-fold writes. `deprecations` is one: it's folded
-/// from `Deprecate`/`Undeprecate` ops (its `annotation_blob` reconstructs from the op), so it's
-/// regenerable and `export` strips it like the others. NOT `package_blobs` (canonical content that
-/// op-playback never writes), nor the op log / branch / commit / account state.
-let projectionTables : List<string> =
-  [ "package_functions"
-    "package_types"
-    "package_values"
-    "package_traits"
-    "package_trait_impls"
-    "locations"
-    "package_dependencies"
-    "deprecations" ]
-
-
-
 /// Drop every projection table and re-fold the whole `package_ops` log to rebuild them.
 ///
 /// The op log is canonical and untouched here; projections are a cache over it, so losing one costs only
@@ -408,7 +392,7 @@ let projectionTables : List<string> =
 let rebuildProjections () : Task<int64> =
   task {
     // 1. clear the regenerable projection tables (single source of truth = projectionTables).
-    for t in projectionTables do
+    for t in Upgrades.projectionTables do
       do! Sql.query $"DELETE FROM {t}" |> Sql.executeStatementAsync
     // 2. mark all ops unapplied so the fold reprocesses the whole log
     do! Sql.query "UPDATE package_ops SET applied = 0" |> Sql.executeStatementAsync
@@ -657,6 +641,37 @@ let evaluateAllValues
 
     if List.isEmpty lastErrors then return Ok() else return Error lastErrors
   }
+
+
+/// The package items this binary pins (`PackageRefs.pinned`) that the store does not hold, by name.
+/// Empty when the store can run this binary.
+///
+/// The question an upgrade has to answer before it calls a store current. The kernel resolves each pin by
+/// hash, so a store missing one can fail on the first command that needs it, whatever its schema says.
+///
+/// A binary that pins nothing is reported as missing everything, rather than as carrying it all: a check
+/// that examined nothing must not pass.
+let missingPins () : List<string> =
+  match LibExecution.PackageRefs.pinned () with
+  | [] -> [ "(this build pins no package items, so nothing could be checked)" ]
+  | pins ->
+    pins
+    |> List.filter (fun (name, hash) ->
+      let table =
+        match (name.Split '/' |> Array.head) with
+        | "fn" -> "package_functions"
+        | "type" -> "package_types"
+        | "value" -> "package_values"
+        | "trait" -> "package_traits"
+        | other ->
+          Exception.raiseInternal
+            "a pinned item of a kind missingPins does not know"
+            [ "kind", other; "pin", name ]
+      Sql.query $"SELECT 1 FROM {table} WHERE hash = @hash"
+      |> Sql.parameters [ "hash", Sql.string hash ]
+      |> Sql.executeExistsSync
+      |> not)
+    |> List.map fst
 
 
 /// The grow step for CLI/test startup: apply unapplied ops, generate package ref hashes, evaluate values.
