@@ -38,9 +38,8 @@ let private parsePackageFile
   }
 
 
-/// Read package sources, optionally excluding tests directories and their helpers.
-/// Fail on parse or name-resolution errors in every included file.
-let load (includeTests : bool) (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
+/// Read all package sources and fail on parse or name-resolution errors.
+let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
   uply {
     let filesWithContents =
       System.IO.Path.Combine(
@@ -50,8 +49,6 @@ let load (includeTests : bool) (builtins : RT.Builtins) : Ply<List<PT.PackageOp>
       |> listDirectoryRecursive
       |> List.filter (String.contains "_" >> not)
       |> List.filter (fun x -> x |> String.endsWith ".dark")
-      |> List.filter (fun path ->
-        includeTests || not (String.contains "/tests/" path))
       |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
 
     // -- Phase 1: Initial parse (unresolved names allowed) --

@@ -33,7 +33,7 @@ Test definitions and run results live in separate tables:
 - `package_tests`: Test definitions and descriptions, ready to read. This table can be rebuilt from `package_ops`.
 - `package_test_results`: Results from local runs, used to show previous outcomes and reuse cached passes. Results are not versioned or synced.
 
-Test bodies are stored as PT and converted into interpreter instructions when they run. For package functions, those instructions are generated and stored ahead of time
+Test bodies are stored as PT and converted into interpreter instructions when they run. For package functions, those instructions are generated and stored ahead of time.
 
 Tests can declare private Dark databases with `[<DB>]` and use them through
 `Stdlib.DB`. Each run gets fresh DB IDs, and their data is deleted afterward.
@@ -181,10 +181,11 @@ in parallel. Package tests also run in parallel, each with its own process
 and store. This keeps tests from affecting each other's store, but adds process
 startup and copying costs. CI uses the NativeAOT CLI to make startup faster.
 
-Package reloads include tests and their helpers by default. Some tests intentionally
-contain type errors, so `dark typecheck` can report those errors. CI typechecks
-production code in a separate store without tests and runs the package tests
-separately.
+Package reloads include tests and their helpers. Some tests intentionally contain
+type errors, so `dark typecheck` can report those errors. The CI audit checks the
+same loaded packages but excludes declarations named only under modules from
+`tests/` source directories. A declaration with a production name is still checked,
+even if a test module also names it. Package tests run separately.
 
 The old runner compared floats approximately and handled NaN and blob contents
 specially. Those assertions needed rewriting when the tests moved to Dark.

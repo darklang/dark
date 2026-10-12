@@ -980,13 +980,13 @@ DARK
 # The checker gates what people commit, and nothing held the shipped tree to it, so one definite
 # error sat in `Cli.Registry.allCommands` and `dark typecheck --json` exited 1 on every branch: an
 # exit code nobody could use. The floor on what was CHECKED is the other half: a run that audited
-# nothing would also report no failures. Load production sources into a fresh store: tests
-# directories include deliberately invalid programs and their helpers, checked by `package-tests`.
+# nothing would also report no failures. Load all packages normally; this audit
+# excludes names owned only by modules under tests/, where invalid programs are
+# intentional. `package-tests` checks those programs by running them.
 gate_shipped_tree_typechecks() {
   set -euo pipefail
 
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
-  LOCAL_EXEC="$PWD/${LOCAL_EXEC:-backend/Build/out/LocalExec/Debug/net10.0/LocalExec}"
   ROOT=rundir/shipped-tree-typechecks
   FLOOR=5000
 
@@ -995,51 +995,51 @@ gate_shipped_tree_typechecks() {
   sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
   export DARK_CONFIG_RUNDIR="$PWD/$ROOT/" DARK_CONFIG_DB_NAME=data.db HOME="$PWD/$ROOT/home"
 
-  "$LOCAL_EXEC" migrations run > "$ROOT/migrations.log" 2>&1 || {
-    cat "$ROOT/migrations.log"; return 1;
-  }
-  # A published CLI imports its bundled seed on first startup. Finish that before
-  # replacing the copy's packages, or startup would add the excluded tests back.
-  "$CLI" version --local > "$ROOT/startup.log" 2>&1 || {
-    cat "$ROOT/startup.log"; return 1;
-  }
-  # This mode never writes the checkout's shared package-ref-hashes.txt.
-  "$LOCAL_EXEC" reload-packages --production-only > "$ROOT/reload.log" 2>&1 || {
-    cat "$ROOT/reload.log"; return 1;
-  }
-  # Removing test implementations can change trait resolution and thus CLI hashes.
-  # Use the supported entry-point setting to resolve this store's CLI by name.
-  sqlite3 "$ROOT/data.db" "INSERT INTO config_v0(key, value) VALUES ('entry_point', 'Darklang.Cli.executeCliCommand');"
-
   set +e
-  "$CLI" typecheck --json < /dev/null > "$ROOT/report.json" 2> "$ROOT/stderr.txt"
+  "$CLI" typecheck --all --json < /dev/null > "$ROOT/report.json" 2> "$ROOT/stderr.txt"
   rc=$?
   set -e
 
-  if [[ $(sqlite3 "$ROOT/data.db" 'SELECT COUNT(*) FROM package_tests;') != 0 ]]; then
-    echo "shipped-tree-typechecks: the production audit store contains package tests" >&2
-    return 1
-  fi
-
   python3 - "$ROOT/report.json" "$rc" "$FLOOR" <<'EOF'
-import json, sys
+import json, pathlib, re, sys
 path, rc, floor = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 try:
     report = json.load(open(path))
+    assert len(report["items"]) == report["total"]
+    assert rc == (1 if report["failed"] else 0)
 except Exception as e:
-    print(f"shipped-tree-typechecks: no report to read ({e}); exit {rc}")
+    print(f"shipped-tree-typechecks: incomplete report ({e}); exit {rc}")
     sys.exit(1)
-failed = [i for i in report["items"] if i["verdict"] == "failed"]
-print(f"shipped-tree-typechecks: checked {report['checked']} of {report['total']}, "
-      f"failed {report['failed']}, incomplete {report['incomplete']}; exit {rc}")
+
+# Source directories define the audit scope, not a list of tolerated errors.
+# A shared declaration with any production alias is still audited.
+test_modules = set()
+for source in pathlib.Path("packages").rglob("*.dark"):
+    if "tests" in source.parts:
+        match = re.search(r"^module ([\w.]+)\s*$", source.read_text(), re.MULTILINE)
+        if not match:
+            sys.exit(f"shipped-tree-typechecks: no module in {source}")
+        test_modules.add(match[1] + ".")
+
+def test_only(item):
+    return all(any(name.startswith(module) for module in test_modules)
+               for name in item["name"].split(", "))
+
+items = [item for item in report["items"] if not test_only(item)]
+checked = sum(item["verdict"] == "checked" for item in items)
+failed = [item for item in items if item["verdict"] == "failed"]
+incomplete = sum(item["verdict"] == "incomplete" for item in items)
+print(f"shipped-tree-typechecks: checked {checked} of {len(items)}, "
+      f"failed {len(failed)}, incomplete {incomplete}; "
+      f"excluded {len(report['items']) - len(items)} test declarations")
 for item in failed:
     print(f"  {item['name']}")
     for issue in item["issues"]:
         print(f"    {issue}")
-if report["checked"] < floor:
+if checked < floor:
     print(f"  checked fewer than {floor}: the audit did not run over the tree")
     sys.exit(1)
-sys.exit(0 if rc == 0 and not failed else 1)
+sys.exit(1 if failed else 0)
 EOF
 }
 

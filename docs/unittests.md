@@ -95,9 +95,10 @@ check separately:
 scripts/testing/gates shipped-tree-typechecks
 ```
 
-That gate excludes test sources. It defaults to Debug binaries; when using
-published binaries, set both `CLI` and `LOCAL_EXEC` to matching executables using
-repository-relative paths.
+That gate checks the normal package load and excludes test modules from its
+verdict. Shared declarations with production names are still checked. It defaults
+to Debug; set `CLI` to a repository-relative published binary path to use that
+build instead.
 
 ## Avoiding conflicting runs
 
