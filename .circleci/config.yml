@@ -230,19 +230,20 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
-      # Setup database for tests that need it
+      # Run package loading with optimizations and reuse unchanged Release
+      # outputs during the solution publish.
       - run:
-          name: Build LocalExec for migrations (debug mode fine)
-          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+          name: Build LocalExec for migrations (Release)
+          command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false
       - run:
           name: Run migrations to create database
-          command: scripts/run-local-exec migrations run
+          command: scripts/run-local-exec --published migrations run
       - run:
           name: Load packages into database
-          command: scripts/build/reload-packages
+          command: scripts/build/reload-packages --published
       - run:
           name: Export the seed the publish embeds
-          command: scripts/run-local-exec export-seed rundir/seed.db
+          command: scripts/run-local-exec --published export-seed rundir/seed.db
 
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
 
@@ -256,7 +257,9 @@ jobs:
               echo "node 1 runs the gates instead"
               exit 0
             fi
-            timeout 20m scripts/run-backend-tests --published
+            # The package load above already exported this build's seed.
+            # Give tests their own copy instead of parsing the same sources again.
+            DARK_CONFIG_PACKAGES_SOURCE=seed timeout 20m scripts/run-backend-tests --published
 
       # Gate scripts covering what the F# suite structurally cannot
       - run:

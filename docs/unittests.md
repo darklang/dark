@@ -28,6 +28,9 @@ See the [testfiles README](../backend/testfiles/README.md) for the HTTP test fil
 Output goes to `rundir/logs/fsharp-tests.log`, with JUnit results in
 `rundir/test_results/backend.xml`.
 
+Local runs reload packages into a fresh test database. CI copies the seed built
+earlier in the job instead.
+
 ## Finding and filtering backend tests
 
 Use the discovery commands to find a group or case before choosing a filter:
