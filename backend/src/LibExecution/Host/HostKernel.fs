@@ -42,6 +42,27 @@ let private withBytes (bytes : byte[]) (f : int64 -> 'a) : 'a =
   finally
     pinned.Free()
 
+// Only the fresh worker launcher uses these; they are not guest primitives.
+let setsid_raw () = int (call 49 0L 0L 0L 0L 0L 0L)
+
+let private withTextVector (values : string list) (f : int64 -> 'a) : 'a =
+  let strings = values |> List.map Marshal.StringToCoTaskMemUTF8
+  let vector = Marshal.AllocHGlobal((strings.Length + 1) * IntPtr.Size)
+  try
+    strings
+    |> List.iteri (fun i ptr -> Marshal.WriteIntPtr(vector, i * IntPtr.Size, ptr))
+    Marshal.WriteIntPtr(vector, strings.Length * IntPtr.Size, IntPtr.Zero)
+    f (pointer vector)
+  finally
+    Marshal.FreeHGlobal vector
+    strings |> List.iter Marshal.FreeCoTaskMem
+
+let execve_raw (program : string, args : string list, environment : string list) =
+  withText program (fun path ->
+    withTextVector (program :: args) (fun argv ->
+      withTextVector environment (fun envp ->
+        int (call 50 path argv envp 0L 0L 0L))))
+
 let openat_raw (fd : int, path : string, flags : int, mode : int) =
   withText path (fun p -> int (call 0 (int64 fd) p (int64 flags) (int64 mode) 0L 0L))
 let read_raw (fd : int, bytes : byte[], count : int) =

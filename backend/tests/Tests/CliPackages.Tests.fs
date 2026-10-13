@@ -757,7 +757,7 @@ let packageTestsRespectParallelLimit =
     "package tests overlap within the requested worker limit"
     (fun state ->
       task {
-        if LibExecution.HostLibc.isPosix then
+        if LibExecution.HostPosix.isPosix then
           do! start state
           let instance =
             match state with
@@ -936,7 +936,7 @@ let isolatedTestsRejectUnsuccessfulWorkers =
     "isolated tests reject worker failures and missing results"
     (fun state ->
       task {
-        if LibExecution.HostLibc.isPosix then
+        if LibExecution.HostPosix.isPosix then
           do! start state
           do! run state [ "permissions"; "allow"; "native" ]
           let instance =

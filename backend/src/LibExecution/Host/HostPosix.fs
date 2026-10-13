@@ -8,12 +8,6 @@ open Microsoft.Win32.SafeHandles
 open Prelude
 open LibExecution.HostKernel
 
-// Private worker launcher; the remaining host calls use HostKernel.
-[<DllImport("libc", EntryPoint = "setsid", SetLastError = true)>]
-extern int private setsid_raw()
-[<DllImport("libc", EntryPoint = "execv", SetLastError = true)>]
-extern int private execv_raw(IntPtr path, IntPtr argv)
-
 // -- Platform detection ---------------------------------------------
 let private isMac = RuntimeInformation.IsOSPlatform OSPlatform.OSX
 let private isArm64 = RuntimeInformation.ProcessArchitecture = Architecture.Arm64
@@ -816,18 +810,14 @@ let execInNewSession
   elif setsid_raw () < 0 then
     Error(lastError ())
   else
-    let strings = (program :: arguments) |> List.map Marshal.StringToCoTaskMemUTF8
-    let argv = Marshal.AllocHGlobal((strings.Length + 1) * IntPtr.Size)
-    try
-      strings
-      |> List.iteri (fun i ptr -> Marshal.WriteIntPtr(argv, i * IntPtr.Size, ptr))
-      Marshal.WriteIntPtr(argv, strings.Length * IntPtr.Size, IntPtr.Zero)
-      execv_raw (strings[0], argv) |> ignore<int>
-      // A successful exec never returns.
-      Error(lastError ())
-    finally
-      Marshal.FreeHGlobal argv
-      strings |> List.iter Marshal.FreeCoTaskMem
+    let environment =
+      System.Environment.GetEnvironmentVariables()
+      |> Seq.cast<System.Collections.DictionaryEntry>
+      |> Seq.map (fun entry -> $"{entry.Key}={entry.Value}")
+      |> Seq.toList
+    execve_raw (program, arguments, environment) |> ignore<int>
+    // A successful exec never returns.
+    Error(lastError ())
 
 let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
   if count < 0 then
