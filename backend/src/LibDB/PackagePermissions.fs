@@ -32,8 +32,9 @@ module Load =
   /// The package store. A value's stored row is read as it is, so the answer
   /// for one fn can differ before and after `Seed.evaluateAllValues` has run:
   /// unevaluated, a value reference is incomplete.
+  /// Function definitions use the package manager's shared cache.
   let fromStore : Load =
-    { fn = LibDB.ProgramTypes.Fn.get
+    { fn = LibDB.PackageManager.pt.getFn
       value =
         fun (PT.Hash h) ->
           uply {
