@@ -1,0 +1,5 @@
+// Dark has no loop construct, so the natural form of a counted loop is tail recursion.
+let loop (i: Int) (n: Int) (acc: Int) : Int =
+  if i > n then acc else loop (i + 1) n ((acc + (i * i)) % 1000003)
+
+Stdlib.printLine ("result=" + (Stdlib.toString (loop 1 300000 0)))

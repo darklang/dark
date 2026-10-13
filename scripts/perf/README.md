@@ -48,6 +48,11 @@ iterating.
 - `fnprofile` ranks per-package-fn time and resolves hashes to names. Feed it three runs: it takes
   the minimum per call, and one run of it once misread a function by 20x.
 - `crosslang` runs the reference workload in node and python, for scale.
+- `workloads/crosslang/driver.py` is the wider version of that: eleven scenarios in Dark,
+  python, node and bash, interleaved, minimum of N rounds, with each language's own
+  hello-world differenced out. It needs `DARK_EXE` pointing at a published AOT binary, and
+  it asserts that all four languages printed the same `result=`, which is the only thing
+  that makes "equivalent program" a claim rather than a hope.
 - `view-telemetry.py` shows where a run's time went, from `rundir/logs/telemetry.jsonl`.
 - `_common` holds the shared shell helpers: where a published binary is, which mode it is, whether
   it is stale.
@@ -55,7 +60,7 @@ iterating.
 
 ## The workloads
 
-Three different contracts, which is why they are in three places:
+Four different contracts, which is why they are in four places:
 
 - `workloads/steady.dark` and `workloads/http-server.dark` are owned by a tool. `steady.dark` is the
   gated workload, named in `budget.json`, so changing it changes what the budget means. Do not edit
@@ -66,6 +71,9 @@ Three different contracts, which is why they are in three places:
 - `workloads/bench/` is staged into `rundir/perf-workloads/` by `bench`. These use raw `Builtin.`
   calls rather than the Dark wrappers on purpose: an A/B runs the same source against an older
   published binary, whose store may not carry today's wrapper.
+- `workloads/crosslang/` is the cross-language set: one program per scenario per language,
+  plus the two allocation harnesses and the driver above. Dark's rows need an AOT binary;
+  the three others are whatever the container has.
 - `workloads/probes/` is hand-run. One file per question (what a view costs, what a lambda
   application costs, where routing time goes, where spreading starts to pay). Run them with
   `./scripts/run-cli run <file>` and read the output; each file's header says what it answers and

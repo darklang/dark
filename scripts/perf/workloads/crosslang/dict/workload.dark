@@ -1,0 +1,18 @@
+let build (n: Int) : Dict<String, Int> =
+  Stdlib.List.fold (Stdlib.List.range 1 n) Stdlib.Dict.empty (fun acc i ->
+    Stdlib.Dict.set acc ("k" + (Stdlib.toString i)) i)
+
+let lookups (d: Dict<String, Int>) (n: Int) : Int =
+  Stdlib.List.fold (Stdlib.List.range 1 n) 0 (fun acc i ->
+    match Stdlib.Dict.get d ("k" + (Stdlib.toString i)) with
+    | Some v -> acc + v
+    | None -> acc)
+
+let work (n: Int) : Int =
+  let d = build n
+  lookups d n
+
+let repeat (times: Int) (n: Int) (acc: Int) : Int =
+  if times <= 0 then acc else repeat (times - 1) n (acc + (work n))
+
+Stdlib.printLine ("result=" + (Stdlib.toString (repeat 1000 50 0)))
