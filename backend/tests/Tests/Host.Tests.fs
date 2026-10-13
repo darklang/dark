@@ -9,6 +9,7 @@ open TestUtils.PTShortcuts
 module Permission = LibExecution.Permissions
 module LocalFile = LibDB.LocalFile
 module HT = LibExecution.HostTypes
+module HostHttp = LibExecution.HostHttp
 
 let private only (item : 'a) : Permission.Scope<'a> = Permission.Scope.Only item
 
@@ -1080,10 +1081,53 @@ let failedTestRunSnapshot =
       "partial baseline cleaned up"
   }
 
+/// Each opt-in widens the range it names and nothing else. Asserted as values rather than by
+/// installing a config, which is process-wide and would contradict the Dark table asserting
+/// these same addresses are refused by default.
+let httpWideningsAreScoped =
+  testTask "each HTTP opt-in widens only its own range" {
+    let ip (s : string) = System.Net.IPAddress.Parse s
+    let off = HostHttp.defaultConfig
+    let loopback = HostHttp.guestConfigWidenedBy [ HostHttp.loopbackWidening ]
+    let priv = HostHttp.guestConfigWidenedBy [ HostHttp.privateNetworkWidening ]
+    let both =
+      HostHttp.guestConfigWidenedBy
+        [ HostHttp.loopbackWidening; HostHttp.privateNetworkWidening ]
+
+    let loopbacks = [ "127.0.0.1"; "::1" ]
+    // 100.64/10 is RFC 6598 shared space, which mesh VPNs and carrier NAT assign from.
+    let privates =
+      [ "10.0.0.5"; "172.16.0.5"; "192.168.1.5"; "100.64.0.5"; "fd00::1" ]
+    let never = [ "169.254.169.254"; "0.0.0.0"; "fe80::1" ]
+
+    for a in loopbacks @ privates @ never do
+      Expect.isFalse (off.allowedIP (ip a)) $"default refuses {a}"
+    for a in loopbacks do
+      Expect.isTrue (loopback.allowedIP (ip a)) $"http.loopback allows {a}"
+      Expect.isFalse
+        (priv.allowedIP (ip a))
+        $"http.private does not imply loopback: {a}"
+    for a in privates do
+      Expect.isTrue (priv.allowedIP (ip a)) $"http.private allows {a}"
+      Expect.isFalse
+        (loopback.allowedIP (ip a))
+        $"http.loopback does not imply private: {a}"
+    for a in never do
+      Expect.isFalse (both.allowedIP (ip a)) $"no opt-in widens {a}"
+
+    // The host half moves with the IP half, or the literal a person types is refused.
+    Expect.isTrue (loopback.allowedHost "localhost") "http.loopback allows the name"
+    Expect.isTrue (priv.allowedHost "10.0.0.5") "http.private allows the literal"
+    Expect.isFalse
+      (priv.allowedHost "localhost")
+      "http.private does not allow localhost"
+  }
+
 let tests =
   testList
     "host"
     [ posixKernelRoundTrip
+      httpWideningsAreScoped
       testRunSnapshot
       failedTestRunSnapshot
       isolatedTestBoundsOutputCollection

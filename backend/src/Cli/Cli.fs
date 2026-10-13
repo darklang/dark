@@ -510,25 +510,32 @@ let private runCli (args : string[]) : int =
     // Stored setting beats the environment, because the environment is a container-wide default
     // and the stored value is a decision somebody made in this install. Anything other than
     // `on` leaves it off: an unreadable opt-in has not happened.
-    let loopbackRequested () : bool =
+    // `http.private` is the same shape, one range wider.
+    let requested (key : string) (envVar : string) : bool =
       let isOn (s : string) = s.Trim().ToLower() = "on"
       let stored =
         try
-          (LibDB.Config.get "http.loopback").Result
+          (LibDB.Config.get key).Result
         with _ ->
           None
       match stored with
       | Some v -> isOn v
       | None ->
-        match
-          System.Environment.GetEnvironmentVariable "DARK_CONFIG_HTTP_LOOPBACK"
-        with
+        match System.Environment.GetEnvironmentVariable envVar with
         | null
         | "" -> false
         | v -> isOn v
 
-    if loopbackRequested () then
-      LibExecution.HostHttp.setGuestConfig LibExecution.HostHttp.devLoopbackConfig
+    let widenings =
+      [ if requested "http.loopback" "DARK_CONFIG_HTTP_LOOPBACK" then
+          LibExecution.HostHttp.loopbackWidening
+        if requested "http.private" "DARK_CONFIG_HTTP_PRIVATE" then
+          LibExecution.HostHttp.privateNetworkWidening ]
+
+    if not (List.isEmpty widenings) then
+      LibExecution.HostHttp.setGuestConfig (
+        LibExecution.HostHttp.guestConfigWidenedBy widenings
+      )
 
 
     // Now safe to access LibConfig paths. Gated on DARK_TELEMETRY, the same switch the Dark side

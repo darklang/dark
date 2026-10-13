@@ -167,6 +167,12 @@ test disallowedHosts =
       get "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]" []
       |> Stdlib.Test.equal (errInvalidHost ())
       get "http://127.255.174.17" [] |> Stdlib.Test.equal (errInvalidHost ())
+      // The ranges `http.private` widens, in their default state.
+      get "http://10.0.0.5" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://172.16.0.5" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://192.168.1.5" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://100.64.0.5" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[fd00::1]" [] |> Stdlib.Test.equal (errInvalidHost ())
       get "http://metadata.google.internal" []
       |> Stdlib.Test.equal (errInvalidHost ())
       get "http://metadata" [] |> Stdlib.Test.equal (errInvalidHost ())
