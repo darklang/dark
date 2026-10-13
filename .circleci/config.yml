@@ -346,6 +346,13 @@ jobs:
           name: Check the reference workload is within its allocation budget
           command: scripts/perf/gate --published
 
+      # The gate above covers one list-shaped workload. This covers the other seven, against the
+      # baselines in budget.json, using the binary already built here. Narrow band on instructions
+      # because they are exactly reproducible, wide on allocation because it is not.
+      - run:
+          name: Compare every workload shape against its baseline
+          command: scripts/perf/suite --release --check
+
       # A fresh install of the binary just built: empty home, the whole SCM workflow, then the
       # layout the installer leaves. Here and not in `gates ci` because this is the only job with
       # the single-file binary people download; see CI_GATES in scripts/testing/gates. Nothing in

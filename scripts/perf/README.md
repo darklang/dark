@@ -55,8 +55,11 @@ because the same workload has three different right answers.
 
 ## The tools
 
-- `gate` is the CI assertion: `workloads/steady.dark`, allocation against `budget.json`.
-  `--published` is the real one; bare is debug and does not gate.
+- `gate` is the CI assertion for one workload: `workloads/steady.dark`, allocation against
+  `budget.json`. `--published` is the real one; bare is debug and does not gate.
+- `suite --release --check` asserts the other seven against baselines in the same file, and
+  `--update` pins new ones. Instructions carry the narrow band, allocation the wide one, and only
+  increases fail.
 - `suite` runs the seven shapes in `workloads/suite/`, allocation and time per iteration, with
   startup differenced out.
 - `bench` (and `_bench.py`) is repeatable CLI timing from a pinned store fixture. `bench ab`

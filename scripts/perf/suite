@@ -29,6 +29,8 @@ ITERS=200
 JSON_OUT=""
 RECORD=false
 RELEASE=false
+CHECK=false
+UPDATE=false
 NAMES=()
 
 while [[ $# -gt 0 ]]; do
@@ -37,6 +39,8 @@ while [[ $# -gt 0 ]]; do
     --json) JSON_OUT="$2"; shift 2 ;;
     --record) RECORD=true; shift ;;
     --release) RELEASE=true; shift ;;
+    --check) CHECK=true; shift ;;
+    --update) CHECK=true; UPDATE=true; shift ;;
     -*) echo "unknown flag: $1" >&2; exit 2 ;;
     *) NAMES+=("$1"); shift ;;
   esac
@@ -87,8 +91,8 @@ run_once() {
 # per-iteration figure.
 run_once "$SUITE/${NAMES[0]}.dark" 0 > /dev/null 2>&1 || true
 
-printf '%-12s %12s %12s %10s\n' workload "alloc/iter" "total alloc" "ms"
-printf '%-12s %12s %12s %10s\n' ------------ ------------ ------------ ----------
+printf '%-12s %12s %12s %10s %12s\n' workload "alloc/iter" "total alloc" "ms" "instr/iter"
+printf '%-12s %12s %12s %10s %12s\n' ------------ ------------ ------------ ---------- ------------
 
 results=""
 for name in "${NAMES[@]}"; do
@@ -98,24 +102,50 @@ for name in "${NAMES[@]}"; do
     exit 2
   fi
 
-  run_once "$script" 0 > /dev/null
+  out0=$(run_once "$script" 0)
   base=$(read_alloc)
 
   out=$(run_once "$script" "$ITERS")
   full=$(read_alloc)
   ms=$(sed -n 's/.*elapsed_ms=\([0-9]*\).*/\1/p' <<< "$out")
 
+  # Instructions, differenced like allocation. Exactly reproducible, so this is the column worth
+  # asserting on. Empty if a workload does not report counters, and the check then skips it.
+  instr0=$(sed -n 's/.*"instructions":\([0-9]*\).*/\1/p' <<< "$out0")
+  instrN=$(sed -n 's/.*"instructions":\([0-9]*\).*/\1/p' <<< "$out")
+
   body=$((full - base))
   per=$((body / ITERS))
-  printf '%-12s %12s %12s %10s\n' \
+  if [[ -n "$instr0" && -n "$instrN" ]]; then
+    instrPer=$(( (instrN - instr0) / ITERS ))
+  else
+    instrPer=""
+  fi
+  printf '%-12s %12s %12s %10s %12s\n' \
     "$name" \
     "$(python3 -c "print(f'{$per/1024:.2f} KB')")" \
     "$(python3 -c "print(f'{$body/1e6:.3f} MB')")" \
-    "${ms:-?}"
-  results="$results{\"workload\":\"$name\",\"iters\":$ITERS,\"bytesPerIter\":$per,\"bodyBytes\":$body,\"ms\":${ms:-null}},"
+    "${ms:-?}" \
+    "${instrPer:-?}"
+  results="$results{\"workload\":\"$name\",\"iters\":$ITERS,\"bytesPerIter\":$per,\"bodyBytes\":$body,\"ms\":${ms:-null},\"instructionsPerIter\":${instrPer:-null}},"
 done
 
 results="[${results%,}]"
+
+# `--check` compares this run against the baselines, `--update` pins it. Here rather than in its
+# own script so the comparison cannot disagree with the table printed above it.
+if [[ "$CHECK" == "true" ]]; then
+  SHAPES_JSON=$(mktemp)
+  echo "$results" > "$SHAPES_JSON"
+  if [[ "$UPDATE" == "true" ]]; then
+    python3 ./scripts/perf/_check-shapes.py "$SHAPES_JSON" scripts/perf/budget.json --update
+  else
+    python3 ./scripts/perf/_check-shapes.py "$SHAPES_JSON" scripts/perf/budget.json
+  fi
+  CHECK_RC=$?
+else
+  CHECK_RC=0
+fi
 
 if [[ -n "$JSON_OUT" ]]; then
   echo "$results" > "$JSON_OUT"
@@ -145,3 +175,5 @@ with open(history, "a") as f:
 print(f"appended {len(results)} rows ({mode}) at {stamp}")
 PY
 fi
+
+exit $CHECK_RC
