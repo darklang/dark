@@ -5,8 +5,8 @@
 // deliberately trivial, so the number is the framing around them, which is the part
 // `scripts/perf/suite` never touches.
 //
-//   ./scripts/run-cli run scripts/perf/workloads/route.dark
-//   for i in 1 2 3; do ./scripts/run-cli run scripts/perf/workloads/route.dark; done \
+//   ./scripts/run-cli run scripts/perf/workloads/probes/route.dark
+//   for i in 1 2 3; do ./scripts/run-cli run scripts/perf/workloads/probes/route.dark; done \
 //     | ./scripts/perf/fnprofile --divide 50
 //
 // `scripts/perf/http` measures a whole request including the socket, and is too noisy over a third

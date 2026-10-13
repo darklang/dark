@@ -179,7 +179,6 @@ only line that named the real place was the first one, `offside of context start
     ./scripts/perf/gate --published                   reference workload, allocation vs budget
     ./scripts/perf/gate                               the same, debug: reports, does NOT gate
     ./scripts/perf/suite                              six workloads, allocation per iteration
-    ./scripts/perf/checks                             by-hand interpreter and error-message checks
 
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
@@ -359,15 +358,20 @@ Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
     docs/perf/roadmap.md     what's worth doing next, ranked, with measured vs estimated marked
     docs/perf/history.md     the numbers round by round, and facts not worth re-deriving
 
+    scripts/perf/README.md   what each tool is, which workload it runs, and the recipes. Read
+                             this one first; it is the map.
     scripts/perf/gate --published   the CI assertion: one workload, allocation against a budget.
                              Bare (debug) there is no budget, so it reports and exits 2 rather
                              than looking like a check that passed
-    scripts/perf/suite       six workloads, allocation and time per iteration
-    scripts/perf/checks      by-hand interpreter and error-message checks
-    scripts/perf/http        a real server under concurrent load
+    scripts/perf/suite       seven workloads, allocation and time per iteration
     scripts/perf/bench       repeatable CLI timing, with an A/B mode
+    scripts/perf/http        a real server under concurrent load
+    scripts/perf/keystroke   one keypress in the interactive CLI, end to end (needs a TTY)
+    scripts/perf/first-sync  a whole first sync from an empty home
     scripts/perf/alloc-profile   allocation by type name
+    scripts/perf/fnprofile   per-package-fn time, ranked, hashes resolved to names
     scripts/perf/crosslang   the reference workload in node and python
+    scripts/perf/view-telemetry.py  where a run's time went
 
 The playbook is the one to read cold. Its recurring lesson: nearly all wasted effort came from
 trusting a measurement nobody had checked.

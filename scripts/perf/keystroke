@@ -8,7 +8,7 @@
 #   scripts/perf/keystroke 200 50       a size closer to a real terminal
 #
 # The headless half of the same question -- what building the view costs, without a terminal -- is
-# `scripts/perf/workloads/workbench.dark`, which repeats to ~3% and can be profiled. Reach for this
+# `scripts/perf/workloads/probes/workbench.dark`, which repeats to ~3% and can be profiled. Reach for this
 # one to see what the whole loop costs, and that one to find out why.
 #
 # Three traps, all of which produced confident wrong numbers before they were handled:

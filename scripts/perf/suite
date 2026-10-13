@@ -62,19 +62,10 @@ if [[ ${#NAMES[@]} -eq 0 ]]; then
   for f in "$SUITE"/*.dark; do NAMES+=("$(basename "$f" .dark)"); done
 fi
 
-# Bytes allocated by the process, from the last gc.stats line telemetry wrote.
+# Bytes allocated by the process. One parser for this, shared with `gate`: see
+# scripts/perf/_total-alloc.py.
 read_alloc() {
-  python3 -c '
-import json, sys
-last = None
-for line in open(sys.argv[1]):
-    r = json.loads(line)
-    if r.get("event") == "gc.stats":
-        last = r["ctx"]
-if last is None:
-    sys.exit("no gc.stats in telemetry")
-print(last["totalAllocatedBytes"])
-' "$TELEMETRY"
+  python3 ./scripts/perf/_total-alloc.py "$TELEMETRY"
 }
 
 # Trace detail off: with it on the interpreter holds every argument and result alive for the whole
@@ -83,6 +74,13 @@ run_once() {
   rm -f "$TELEMETRY"
   PERF_ITERS="$2" DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" run "$1"
 }
+
+# Every workload here reads its iteration count from `PERF_ITERS`, and reading an environment
+# variable needs the instance policy to say so. A fresh rundir denies it, so this tool failed in any
+# newly made clone -- printing its header, no rows, and exit 1, because the read_alloc that followed
+# the failed run died under `set -e`. Granted here rather than documented: it is this tool's own
+# requirement, it is scoped to the one variable, and it is idempotent.
+"$EXE" permissions allow env read PERF_ITERS > /dev/null 2>&1 || true
 
 # One throwaway run before anything is measured: against a cold store the first invocation seeds it,
 # and whichever workload ran first would absorb that into its *baseline*, reporting a negative

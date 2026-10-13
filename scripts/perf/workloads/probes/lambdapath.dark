@@ -13,7 +13,7 @@
 // call itself cancels. For the interpreter path, difference again against the same recursion with
 // no application in it, so what is left is the application alone.
 //
-//   ./scripts/run-cli run scripts/perf/workloads/lambdapath.dark
+//   ./scripts/run-cli run scripts/perf/workloads/probes/lambdapath.dark
 
 val iterations = 2000
 

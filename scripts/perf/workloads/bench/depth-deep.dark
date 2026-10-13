@@ -1,0 +1,14 @@
+// Staged and run by `scripts/perf/bench`. Raw `Builtin.` calls on purpose: see arith.dark.
+//
+// Same 4096 leaf calls, but all in one chain, so 4096 frames are live at the deepest point.
+let leaf (acc: Int) : Int =
+  acc + 1
+
+let chain (n: Int) (acc: Int) : Int =
+  if n <= 0 then acc else chain (n - 1) (leaf acc)
+
+let _warm = chain 32 0
+let t0 = Builtin.timeNowMs ()
+let r = chain 4096 0
+let t1 = Builtin.timeNowMs ()
+Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " leafCalls=" + (Stdlib.toString r))

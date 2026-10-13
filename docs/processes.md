@@ -475,7 +475,7 @@ it is better at: saying, about code, whether it can run across cores and why
 not. And
 `DARK_SPREAD_REPORT=1`, a diagnostic switch like `DARK_SCHEDULER`, which
 prints at exit how many spreads ran, fell back, and were predicted each way: the way to tell a run that
-spread from one that matched serial without spreading. `scripts/perf/workloads/spread.dark` is the grid the
+spread from one that matched serial without spreading. `scripts/perf/workloads/probes/spread.dark` is the grid the
 defaults came from.
 
 ## `Exec.spawn`, `await`, `awaitWithin`, `select`, `cancel`

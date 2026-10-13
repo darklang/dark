@@ -42,7 +42,7 @@ module Sched = LibExecution.Scheduler
 
 /// Interpreted instructions the REST of a list must be projected to take before it is worth
 /// spreading. Measured against a grid of body cost by element count
-/// (`scripts/perf/workloads/spread.dark`, AOT; `docs/perf/history.md`): forced spreading lost at
+/// (`scripts/perf/workloads/probes/spread.dark`, AOT; `docs/perf/history.md`): forced spreading lost at
 /// about 420 instructions of work, first won at about 1,700 (1.24x), and won 1.6 to 2.6x from
 /// 6,000 to 13,000 up. 10,000 sits clear of where it starts to pay. Negative turns spreading off, 0 spreads
 /// anything with at least `minRemaining` left (for tests). The CLI host sets it from

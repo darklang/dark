@@ -77,7 +77,7 @@ the same as the base commit's own AOT binary on the same box (10.7, 10.7, 10.8).
 
 All AOT, on this 48-core box at load average 8 to 13, so the times are relative only.
 
-The grid (`scripts/perf/workloads/spread.dark`), body cost by element count, with spreading FORCED
+The grid (`scripts/perf/workloads/probes/spread.dark`), body cost by element count, with spreading FORCED
 and no minimum chunk, against serial:
 
 - a 3-instruction body never paid at any length: 64 elements went from 47 to 408 us a map
@@ -101,7 +101,7 @@ same order; the difference is that a chunk carries many elements. Serial work al
 an instruction, which is what put the minimum chunk at 2,000: about 3% of a chunk's own
 allocation goes on starting it.
 
-`Canvas.compose`, unedited (`scripts/perf/workloads/spread-canvas.dark`, 50 rows of six styled
+`Canvas.compose`, unedited (`scripts/perf/workloads/probes/spread-canvas.dark`, 50 rows of six styled
 spans, 200 frames, two runs a side): 10.4 ms a frame serial, 5.5 spread, 1.97 -> 2.06 MB a frame
 (+4.6%). Every compose spread, none fell back.
 

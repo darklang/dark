@@ -1,4 +1,4 @@
-/// Operator fast-path checks from scripts/perf/workloads/checks/fastopcheck.dark.
+/// Operator fast-path checks. Ported from a by-hand perf check, which this replaced.
 /// Run without tracing, as in the original check.
 module Darklang.Language.Tests.FastOps
 

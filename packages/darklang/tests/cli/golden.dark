@@ -49,11 +49,9 @@ let goldenviewRender () : Unit =
   // Not a benchmark. `compose`, `composeRow`, `overlay` and `renderSegments` decide what a frame
   // actually looks like, and a performance change to any of them has to produce the same bytes.
   //
-  // `scripts/perf/checks` diffs this against `goldenview.expected` beside it. When the view itself
-  // changes, regenerate that file deliberately -- never to make the check pass:
-  //
-  //   ./scripts/run-cli run scripts/perf/workloads/checks/goldenview.dark \
-  //     > scripts/perf/workloads/checks/goldenview.expected
+  // The expected rows are inline below, and this test is the assertion: it replaced a hand-run
+  // check that diffed against a `.expected` file. When the view itself changes, regenerate the
+  // rows deliberately from the render, never edit them to make the test pass.
   //
   // Three sizes because the interesting bugs are in clipping and in rows that run out of room.
 
@@ -200,11 +198,8 @@ let goldenkeysRender () : Unit =
   // rendering after every key, which is where a change to *when* a handler computes something shows
   // up. Ten frames rather than one.
   //
-  // `scripts/perf/checks` diffs this against `goldenkeys.expected` beside it. When the keymap or the
-  // views change, regenerate that file deliberately -- never to make the check pass:
-  //
-  //   ./scripts/run-cli run scripts/perf/workloads/checks/goldenkeys.dark \
-  //     > scripts/perf/workloads/checks/goldenkeys.expected
+  // As above, the expected frames are inline. When the keymap or the views change, regenerate
+  // them deliberately, never to make the test pass.
 
   let loadedBase =
     Darklang.Cli.Workbench.initialState
