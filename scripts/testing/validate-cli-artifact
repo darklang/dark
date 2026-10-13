@@ -98,22 +98,51 @@ indent() {
   done
 }
 
+# A command that never answers must fail as itself, not as the step going quiet.
+# CI gives each step a pty, so anything gated on "is a human here?" answers yes
+# and then blocks on a read nobody will service; stdin from /dev/null settles
+# that. The watchdog is hand-rolled because `timeout` is GNU coreutils, the same
+# reason `realpath` is avoided above.
+CHECK_TIMEOUT=${CHECK_TIMEOUT:-120}
+
 # Run one command against one binary, in that binary's own home directory.
-# Echoes the combined output; returns the command's exit code.
+# Echoes the combined output; returns the command's exit code, or 124 on timeout.
 run_in_home() {
   local binary="$1" home="$2"
   shift 2
   mkdir -p "$home"
-  ( cd "$home" && HOME="$home" "$binary" "$@" 2>&1 )
+  (
+    cd "$home" || exit 127
+    HOME="$home" "$binary" "$@" < /dev/null 2>&1 &
+    local cmd=$!
+    ( sleep "$CHECK_TIMEOUT"; kill -9 "$cmd" 2> /dev/null ) 2> /dev/null &
+    local watchdog=$!
+    wait "$cmd" 2> /dev/null
+    local rc=$?
+    kill "$watchdog" 2> /dev/null
+    wait "$watchdog" 2> /dev/null || true
+    # 137 is our own SIGKILL: report it as a timeout rather than a crash.
+    [[ $rc -eq 137 ]] && rc=124
+    exit "$rc"
+  )
 }
 
 check() {
   local name="$1" expected="$2"
   shift 2
 
+  # Named before it runs. The result line cannot say which command hung.
+  echo "  run  $name"
+
   local out rc=0
   out=$(run_in_home "$ARTIFACT" "$WORKDIR/primary" "$@") || rc=$?
 
+  if [[ $rc -eq 124 ]]; then
+    echo "  FAIL $name (no answer in ${CHECK_TIMEOUT}s)"
+    echo "$out" | indent
+    failures=$((failures + 1))
+    return
+  fi
   if [[ $rc -ne 0 ]]; then
     echo "  FAIL $name (exit $rc)"
     echo "$out" | indent
@@ -175,7 +204,7 @@ echo "Outside the source tree (what a user actually gets):"
 OUTSIDE=$(mktemp -d /tmp/dark-artifact-outside.XXXXXX)
 cp "$ARTIFACT" "$OUTSIDE/dark"
 outside_rc=0
-outside_out=$( cd "$OUTSIDE" && HOME="$OUTSIDE" ./dark eval "1 + 2" 2>&1 ) || outside_rc=$?
+outside_out=$( cd "$OUTSIDE" && HOME="$OUTSIDE" ./dark eval "1 + 2" < /dev/null 2>&1 ) || outside_rc=$?
 if [[ $outside_rc -ne 0 || "$outside_out" != *"3"* ]]; then
   echo "  FAIL eval outside the checkout (exit $outside_rc)"
   echo "$outside_out" | tail -15 | indent
@@ -195,7 +224,7 @@ NAMED=$(mktemp -d /tmp/dark-artifact-store.XXXXXX)
 cp "$ARTIFACT" "$NAMED/dark"
 named_rc=0
 named_out=$( cd "$NAMED" && HOME="$NAMED" DARK_CONFIG_RUNDIR="$NAMED/named" \
-  ./dark eval "1 + 2" 2>&1 ) || named_rc=$?
+  ./dark eval "1 + 2" < /dev/null 2>&1 ) || named_rc=$?
 if [[ $named_rc -ne 0 || ! -f "$NAMED/named/data.db" ]]; then
   echo "  FAIL store follows DARK_CONFIG_RUNDIR (exit $named_rc)"
   echo "$named_out" | tail -15 | indent
