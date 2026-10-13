@@ -262,6 +262,31 @@ module LocalAccess =
       let mutable ip = null
       System.Net.IPAddress.TryParse(host, &ip) && isLoopback ip
 
+  /// The non-public ranges the guest default bans, minus the ones no opt-in widens: RFC 1918,
+  /// RFC 6598 shared space (`100.64.0.0/10`, which carrier NAT and mesh VPNs both assign from),
+  /// and IPv6 unique-local and site-local. Link-local, cloud-metadata and `0.0.0.0` stay banned.
+  let isPrivateNetwork (ip : System.Net.IPAddress) : bool =
+    if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
+      if ip.IsIPv4MappedToIPv6 then
+        bannedIPv4 (ip.MapToIPv4())
+        && not (System.Net.IPAddress.IsLoopback(ip.MapToIPv4()))
+      else
+        uniqueLocal.Contains ip || ip.IsIPv6SiteLocal
+    elif ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork then
+      bannedIPv4 ip
+      && not (System.Net.IPAddress.IsLoopback ip)
+      && not (oneSixNine.Contains ip)
+      && zero <> ip
+    else
+      false
+
+  /// A private-range address literal. There is no name half to widen: `bannedHost` refuses
+  /// `localhost` and otherwise only literals, so a LAN name is decided by `allowedIP` on
+  /// whatever it resolves to.
+  let isPrivateNetworkHost (host : string) : bool =
+    let mutable ip = null
+    System.Net.IPAddress.TryParse(host.Trim(), &ip) && isPrivateNetwork ip
+
   /// Disallow headers that would request the GCP Instance Metadata service.
   let hasInstanceMetadataHeader (headers : Headers) : bool =
     let eq = String.equalsCaseInsensitive
@@ -300,6 +325,27 @@ let mutable private guest : Profile = profileOf defaultConfig
 /// harness with an in-process server) sets it here before guest execution.
 let setGuestConfig (config : Configuration) : unit = guest <- profileOf config
 
+/// The pair of predicates a widening moves together: an IP, and the host literal that names it.
+/// Widening the IP alone leaves what a person types refused by `allowedHost`.
+type Widening = { ip : System.Net.IPAddress -> bool; host : string -> bool }
+
+let loopbackWidening : Widening =
+  { ip = LocalAccess.isLoopback; host = LocalAccess.isLoopbackHost }
+
+let privateNetworkWidening : Widening =
+  { ip = LocalAccess.isPrivateNetwork; host = LocalAccess.isPrivateNetworkHost }
+
+/// `defaultConfig` with the named ranges widened and nothing else.
+let guestConfigWidenedBy (widenings : List<Widening>) : Configuration =
+  { defaultConfig with
+      allowedIP =
+        fun ip ->
+          List.exists (fun w -> w.ip ip) widenings || defaultConfig.allowedIP ip
+      allowedHost =
+        fun host ->
+          List.exists (fun w -> w.host host) widenings
+          || defaultConfig.allowedHost host }
+
 /// `defaultConfig` with loopback reachable and NOTHING else widened: RFC-1918, Tailscale's CGN
 /// range, GCP private endpoints, link-local, cloud-metadata and 0.0.0.0 all stay blocked. Both
 /// predicates compose with the default rather than restating its ban list, so anything added
@@ -317,11 +363,7 @@ let setGuestConfig (config : Configuration) : unit = guest <- profileOf config
 /// `http LOCALHOST *`: a policy may say `all`, and guest code includes `darklang serve` handlers
 /// and package initialisation, which is what these guards exist to contain. A guard a broad grant
 /// switches off is not a guard.
-let devLoopbackConfig : Configuration =
-  { defaultConfig with
-      allowedIP = fun ip -> LocalAccess.isLoopback ip || defaultConfig.allowedIP ip
-      allowedHost =
-        fun host -> LocalAccess.isLoopbackHost host || defaultConfig.allowedHost host }
+let devLoopbackConfig : Configuration = guestConfigWidenedBy [ loopbackWidening ]
 
 let profileFor (profile : HttpProfile) : Profile =
   match profile with

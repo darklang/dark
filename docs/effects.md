@@ -315,6 +315,12 @@ call site again; there WAS a second, reachable only from an all-bundled call
 chain and only to reach a peer on loopback or a private range, and it left with
 the code that used it.
 
+Guest code reaches neither by default. `http.loopback` widens loopback and
+`http.private` widens RFC 1918, RFC 6598 shared space and IPv6 unique-local;
+both are off until set by name, and widen nothing else. A key is necessary and
+not sufficient: the instance policy still has to allow the URL, so a missing
+grant is a raise where a missing key is `Error(BadUrl(InvalidHost))`.
+
 Kernel primitives use the same boundary, with `HostPosix` and `HostKernel`
 owned by the host. Path operations check exact read/write requests; descriptors
 opened under those checks are returned as unguessable execution-local tokens.

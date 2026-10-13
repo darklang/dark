@@ -65,9 +65,11 @@ let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
     match Stdlib.Int.parse value with
     | Ok n when n >= 0 -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.Some $"{key} takes a whole number (0 = none), not {value}"
-  else if key == "trace.record" then
+  else if
+    Stdlib.List.``member`` [ "trace.record", "http.loopback", "http.private" ] key
+  then
     if (value == "on") || (value == "off") then Stdlib.Option.Option.None
-    else Stdlib.Option.Option.Some "trace.record is on or off"
+    else Stdlib.Option.Option.Some $"{key} is on or off"
   else
     Stdlib.Option.Option.None
 
@@ -125,6 +127,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "  exec.storePollMs         - How often a --live view looks for a change (default: 25; minimum 10)"
       "  http.requestTimeoutMs    - serve cancels a handler past this and answers 504 (default: 30000; 0 = none)"
       "  trace.record             - Keep a record of every run (on/off; default: off)"
+      "  http.loopback            - let your code reach 127.0.0.1 (on/off; default: off)"
+      "  http.private             - let your code reach private network addresses (on/off; default: off)"
       "  trace.keep               - How many traces to keep (a served request is one; default: 200; 0 = all)"
       "  trace.maxMb              - How many MB traces may hold, logs and captured bodies (default: 256; 0 = all)"
       ""
@@ -174,6 +178,8 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
       "exec.maxBytes"
       "exec.storePollMs"
       "trace.record"
+      "http.loopback"
+      "http.private"
       "trace.keep"
       "trace.maxMb"
       "http.requestTimeoutMs" ]
