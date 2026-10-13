@@ -13,6 +13,33 @@ loads more is a clause, not a section. Anything longer belongs in `playbook.md` 
 
 ---
 
+## 2026-10-13: backend CI setup
+
+On `a12a2bafb`, one local Linux ARM64 comparison of the actual CI setup sequence
+took 88.5s before and 83.8s after. Both runs used fresh build outputs and stores,
+with NuGet packages already downloaded. These are managed builds, matching the
+backend job, and exclude test execution and CI infrastructure time.
+
+| Step | Before | After |
+| --- | ---: | ---: |
+| Build the package loader | 28.4s | 30.2s |
+| Load packages | 17.9s | 13.5s |
+| Publish the solution | 41.8s | 39.7s |
+
+Setup now uses Release, and an unchanged Git hash no longer rewrites the embedded
+hash file. A fresh package load changes the embedded package references, so most
+assemblies still rebuild afterward; measuring compilation without that load
+overstates reuse. The solution also now builds `Builtins.Random` in Release.
+CI reuses the exported seed for backend tests, avoiding another package load.
+A separate startup comparison using the same single test took 13.8s with a disk
+reload and 2.4s with the seed; both ran one test and exited successfully.
+These timings are single local observations, not a whole-job CI speedup claim.
+The seed-based full suite passed 3,403 tests (4 ignored), exit 0. An earlier full
+run stalled after sequential testing began; the scheduler group and full rerun
+passed, but the cause of that stall was not established.
+
+---
+
 ## 2026-10-12: shared syscall StdLib (#5907)
 
 Published budget 11,072,152 -> 12,338,632; tolerance remains 3%. Three runs of the
