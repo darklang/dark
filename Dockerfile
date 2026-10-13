@@ -9,14 +9,16 @@
 # The copy allows developers to develop Dark directly without pulling a docker
 # image.
 #
-# You can make changes to this file in this repo, and then copy them to
-# darklang/dockerfile.
+# Change it here, then copy it over with that repo's own script:
 #
-# The CircleCI workflow is a little complicated. To actually use any changes to
-# the image, you need to change the sha used in config/circleci.yml. You can
-# find the new sha after pushing to darklang/dockerfile - the sha is generated
-# as part of that build. Search for DOCKERFILE_REPO for where to make that
-# change.
+#   cd ../dockerfile && ./clone-from-dark-repo.sh ../dark
+#
+# Commit and push there, and its CI builds and pushes `darklang/dark-base` and
+# `darklang/dark-build-base` tagged with that repo's short sha. Then bump BOTH
+# pins here, in .circleci/config.yml, under `.executors`: `in-container` uses
+# dark-base and `release-linux` uses dark-build-base. Bumping one and not the
+# other leaves the two images built from different revisions of this file.
+# Search DOCKERFILE_REPO for the spots.
 
 
 FROM ubuntu:24.04 AS dark-base

@@ -27,7 +27,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:f7f57dd
+      - image: darklang/dark-base:3e84785
 
   # Builds the linux release artifacts. Deliberately not dark-base:
   #
@@ -47,7 +47,8 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     docker:
-      - image: darklang/dark-build-base:f7f57dd
+      # DOCKERFILE_REPO: bumped in step with dark-base above; same source file.
+      - image: darklang/dark-build-base:3e84785
 
   # musl has to be built ON musl: cross-compiling to it from glibc is the part
   # that fights you, and this way clang, the loader and the libc all agree.
