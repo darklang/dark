@@ -10,7 +10,11 @@
     <DarkKernelExtension Condition="'$(DarkKernelExtension)' == ''">so</DarkKernelExtension>
     <DarkKernelLibrary>$(DarkKernelDirectory)/libdark_syscalls.$(DarkKernelExtension)</DarkKernelLibrary>
   </PropertyGroup>
-  <ItemGroup Condition="'$(DarkKernelEnabled)' == 'true' And '$(PublishAot)' != 'true'">
+  <!-- Exe only. This `None` item flows along project references, so an executable
+       collected one copy per reference and a single-file publish refused the
+       duplicate BundleRelativePath. P/Invoke looks beside the executable, so its
+       own copy is the only one that was ever used. -->
+  <ItemGroup Condition="'$(DarkKernelEnabled)' == 'true' And '$(PublishAot)' != 'true' And '$(OutputType)' == 'Exe'">
     <None Include="$(DarkKernelLibrary)" Link="libdark_syscalls.$(DarkKernelExtension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup Condition="'$(DarkKernelEnabled)' == 'true' And '$(PublishAot)' == 'true'">

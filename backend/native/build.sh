@@ -34,5 +34,7 @@ fi
 if [[ "$extension" == so ]]; then
   "${compiler[@]}" -shared -nostdlib -Wl,--no-undefined "$out/syscalls.o" -o "$out/libdark_syscalls.so"
 else
-  "${compiler[@]}" -dynamiclib -nostdlib -Wl,-install_name,@rpath/libdark_syscalls.dylib "$out/syscalls.o" -o "$out/libdark_syscalls.dylib"
+  # `-lSystem` because ld64 refuses `-dynamiclib -nostdlib` outright. Nothing is
+  # actually imported: syscalls.c traps through inline asm.
+  "${compiler[@]}" -dynamiclib -nostdlib -lSystem -Wl,-install_name,@rpath/libdark_syscalls.dylib "$out/syscalls.o" -o "$out/libdark_syscalls.dylib"
 fi

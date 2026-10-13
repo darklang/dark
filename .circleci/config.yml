@@ -520,16 +520,20 @@ jobs:
       # DllImport of "stat" worked everywhere we tested and threw on every
       # system below glibc 2.33, which is exactly the audience the low floor
       # exists to serve.
+      #
+      # Through the Dark wrappers, not the raw builtins: `syscallStatAt` returns an
+      # opaque blob, so only the Dark-side decode can tell a good stat from a bad one.
       - run:
-          name: Exercise libc-dependent builtins at the glibc floor
+          name: Exercise the syscall transport at the glibc floor
           command: |
             X64="$(ls clis/darklang-*-linux-x64)"
             # `eval` is guest code under the deny-by-default instance policy.
             # TODO: narrow to `file read /etc/hostname` (and whatever getcwd needs).
             "$X64" permissions allow all > /dev/null
-            "$X64" eval 'Builtin.posixStat "/etc/hostname"' | tee /tmp/stat.out
-            grep -q "Ok(" /tmp/stat.out
-            "$X64" eval 'Builtin.posixGetcwd ()' > /dev/null
+            "$X64" eval 'Stdlib.Cli.Posix.stat "/etc/hostname"' | tee /tmp/stat.out
+            grep -q "Ok(Stdlib.Cli.Posix.StatResult" /tmp/stat.out
+            "$X64" eval 'Stdlib.Cli.Posix.getCwd ()' | tee /tmp/cwd.out
+            grep -q 'Ok("/' /tmp/cwd.out
       - package-clis
 
   # The runtimes NativeAOT can't produce, built as ReadyToRun so that a tag
