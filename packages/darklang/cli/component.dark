@@ -53,20 +53,6 @@ type Component<'s> =
     onStoreChanged: 's -> Stdlib.Live.Change -> 's }
 
 
-/// Lift rows into a full-screen view. For components that think in lines rather than regions.
-let viewOfRows (rows: List<String>) : Stdlib.Cli.Tui.View =
-  Stdlib.Cli.Tui.View
-    { rows = rows
-      cursor = Stdlib.Cli.Tui.Cursor.Hidden
-      mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
-
-/// Lift a rendered string (newline-separated) into a full-screen view.
-let viewOfString (rendered: String) : Stdlib.Cli.Tui.View =
-  let rows =
-    if rendered == "" then [] else Stdlib.String.split rendered "\n"
-
-  viewOfRows rows
-
 /// The `save` for a component with nothing to persist. Named so it survives in retained state.
 let noSave (state: 's) : 's =
   state
@@ -89,18 +75,6 @@ let simple
     { view = view
       onKey = onKey
       save = save
-      refresh = noRefresh
-      onStoreChanged = ignoreStore }
-
-/// A component that persists nothing and derives nothing.
-let stateless
-  (view: 's -> Stdlib.Cli.Tui.Size -> Stdlib.Cli.Tui.View)
-  (onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s>)
-  : Component<'s> =
-  Component
-    { view = view
-      onKey = onKey
-      save = noSave
       refresh = noRefresh
       onStoreChanged = ignoreStore }
 

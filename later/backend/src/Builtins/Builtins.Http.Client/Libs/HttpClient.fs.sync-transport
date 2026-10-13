@@ -1,0 +1,122 @@
+// RESTORE: backend/src/Builtins/Builtins.Http.Client/Libs/HttpClient.fs
+// WAS: the whole private-network sync transport: requireBundledCaller (the confused-deputy check), headerPairs, fetchOutcome, syncOp, syncRequest and the pendingFetches table
+// ANCHOR: between parseHeaders and `open LibExecution.Builtin.Shortcuts`
+// ALSO: later/backend/src/Builtins/Builtins.Http.Client/Libs/HttpClient.fs.sync has the five builtins these served; later/backend/src/LibExecution/Host/HostHttp.fs.sync has the Sync profile and its widened IP rules; later/backend/src/LibExecution/execution-state-field.sync has the canUsePrivateNetworkHttp field
+// WHEN: the sync molt, 2026-10-12
+
+/// Refuse the private-network sync transport unless the host explicitly enabled
+/// it for this execution and every non-root frame is bundled Darklang code.
+/// Checking only the immediate caller is insufficient: an untrusted package can
+/// otherwise call a bundled wrapper and turn it into a confused deputy.
+let private requireBundledCaller
+  (state : ExecutionState)
+  (vm : VMState)
+  (builtinName : string)
+  : unit =
+  let rec fnOf (point : ExecutionPoint) : Option<FQFnName.Package> =
+    match point with
+    | ExecutionPoint.Function(FQFnName.Package p) -> Some p
+    | ExecutionPoint.Lambda(parent, _) -> fnOf parent
+    | _ -> None
+  let rec allBundled (frameID : System.Guid) (sawPackage : bool) : bool =
+    match vm.callFrames.TryGetValue frameID with
+    | false, _ -> false
+    | true, frame ->
+      let frameTrusted, sawPackage =
+        match fnOf frame.executionPoint with
+        | Some p -> state.isBundledPackageFn p, true
+        // Source-derived frames -- the host's own expression, and any lambda defined in it --
+        // are trusted here because the separate host capability above is what distinguishes
+        // `dark sync` from a guest `run`/`eval`. Requiring a PARENTLESS frame was too strict:
+        // the CLI reaches the transport through a lambda of its entry expression, whose parent
+        // is the source frame, so every sync command refused itself. A lambda inside a package
+        // fn is unaffected -- `fnOf` walks to that fn and checks it.
+        | None -> true, sawPackage
+      if not frameTrusted then
+        false
+      else
+        match frame.parent with
+        | ValueNone -> sawPackage
+        | ValueSome(parentID, _, _) -> allBundled parentID sawPackage
+  let trusted = state.canUsePrivateNetworkHttp && allBundled vm.currentFrameID false
+  if not trusted then
+    RuntimeError.UncaughtException(
+      $"permission denied: `{builtinName}` is restricted to trusted first-party (Darklang) code",
+      []
+    )
+    |> raiseUntargetedRTE
+
+
+/// Decode a Dark `List<(String, String)>` of request headers; anything not that shape is
+/// dropped. The lenient twin of `parseHeaders`, for the caller-gated sync family only.
+let private headerPairs (dvals : List<Dval>) : List<string * string> =
+  dvals
+  |> List.choose (fun h ->
+    match h with
+    | DTuple(DString k, DString v, []) -> Some(k, v)
+    | _ -> None)
+
+/// Shape a completed sync exchange: a 2xx body is Ok bytes; a non-2xx is a FAILURE, not a
+/// body -- Ok for anything that completed would hand the caller a relay's 400 as a
+/// successful fetch whose payload happens to be an error page, and `dark branch push`
+/// would print "pushed branch ..." for a 400 it never saw.
+let private fetchOutcome
+  (verb : string)
+  (response : Result<Host.Response, Host.Failure>)
+  : Dval =
+  match response with
+  // A `Failure` here is the host refusing the request -- a malformed url, or a policy denial.
+  // These builtins promise a `Result` and are swept with arguments a person would get wrong
+  // (`dark sync zzz-not-a-url`), so a refusal is an Error to report, never an exception that
+  // takes the command down. `httpClientRequest` keeps raising, since its own typed error
+  // surface already covers the cases it can meet.
+  | Error failure -> Dval.resultError KTBlob KTString (DString failure.message)
+  | Ok response ->
+    match Host.expectHttp response with
+    | Ok r when r.statusCode >= 200 && r.statusCode < 300 ->
+      Dval.resultOk KTBlob KTString (Blob.newEphemeral r.body)
+    | Ok r ->
+      let snippet =
+        try
+          let t = System.Text.Encoding.UTF8.GetString(r.body)
+          if t.Length > 200 then t.Substring(0, 200) + "..." else t
+        with _ ->
+          ""
+      Dval.resultError KTBlob KTString (DString $"HTTP {r.statusCode}: {snippet}")
+    | Error err ->
+      let reason =
+        match err with
+        | HostTypes.HttpRequestError.BadUrl _ -> "bad url"
+        | HostTypes.HttpRequestError.Timeout -> "timeout"
+        | HostTypes.HttpRequestError.BadHeader _ -> "bad header"
+        | HostTypes.HttpRequestError.NetworkError -> "network error"
+        | HostTypes.HttpRequestError.BadMethod -> "bad method"
+      Dval.resultError KTBlob KTString (DString $"{verb} failed: {reason}")
+
+/// One Sync-profile host request. The caller gate has already run; the instance policy
+/// scopes the URL.
+let private syncOp
+  (method : string)
+  (uri : string)
+  (headers : List<string * string>)
+  (body : byte array)
+  : Host.Operation =
+  Host.Operation.HttpRequest(HostTypes.HttpProfile.Sync, method, uri, headers, body)
+
+/// Name one Sync-profile request for the loop to perform, its outcome shaped by `fetchOutcome`.
+let private syncRequest
+  (vm : VMState)
+  (verb : string)
+  (method : string)
+  (uri : string)
+  (headers : List<string * string>)
+  (body : byte array)
+  : Ply<Dval> =
+  Interpreter.requestHost vm (syncOp method uri headers body) (fun outcome ->
+    Ply(fetchOutcome verb outcome))
+
+/// In-flight prefetches, keyed by a handle rather than by url: a pull can have the same
+/// url in flight twice, and a dictionary keyed by url would hand the second caller the
+/// first one's response.
+let private pendingFetches =
+  System.Collections.Concurrent.ConcurrentDictionary<System.Guid, Task<Result<Host.Response, Host.Failure>>>()

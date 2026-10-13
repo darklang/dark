@@ -3091,8 +3091,11 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
      afterBody)
 
 // A named package test: `test name = body`, optionally followed by an
-// expected outcome: `=> raises "message"` or `=> sqlerror "message"`.
-// These words remain identifiers outside the outcome separator.
+// expected outcome: `=> raises "message"`. The word remains an identifier
+// outside the outcome separator.
+//
+// There was a second form, for the user-DB query compiler's errors, which
+// left with the compiler. See `later/`.
 and parseTestDecl (state : ParserState) (i : int) : WT.Declaration * int =
   let keywordTest = rng state i
   let nameId : WT.Identifier =
@@ -3126,24 +3129,20 @@ and parseTestDecl (state : ParserState) (i : int) : WT.Declaration * int =
     if isOutcome then
       let outcome = span (rng state afterBody) (rng state (afterBody + 1))
       match tok state (afterBody + 2), tok state (afterBody + 3) with
-      | TIdent("raises" | "sqlerror" as kind), TStringLit message ->
+      | TIdent "raises", TStringLit message ->
         let errorKindRange = rng state (afterBody + 2)
         let messageRange = rng state (afterBody + 3)
-        let expected =
-          if kind = "sqlerror" then
-            WT.SqlCompilerError message
-          else
-            WT.RuntimeError message
+        let expected = WT.RuntimeError message
         (Some outcome,
          Some errorKindRange,
          Some(messageRange, expected),
          afterBody + 4,
          messageRange)
-      | TIdent("raises" | "sqlerror"), _ ->
+      | TIdent "raises", _ ->
         errExpected state (afterBody + 3) "an expected error string"
         (Some outcome, Some(rng state (afterBody + 2)), None, afterBody + 3, outcome)
       | _ ->
-        errExpected state (afterBody + 2) "'raises' or 'sqlerror' after '=>'"
+        errExpected state (afterBody + 2) "'raises' after '=>'"
         (Some outcome, None, None, afterBody + 2, outcome)
     else
       (None, None, None, afterBody, WT.exprRange body)
@@ -3492,15 +3491,13 @@ and parseEnumDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
   (WT.TDEnum(List.ofSeq cases), k)
 
 // Test-mode only: the expected side of an assertion `actual = expected`. Either
-// an `error="msg"` / `sqlerror="msg"` marker (also the bare `error "msg"` shape)
+// an `error="msg"` marker (also the bare `error "msg"` shape)
 // or a plain value expression. The message string is kept raw (the tokenizer has
 // already unescaped it); normalization happens in the lowering.
 and parseTestExpected (state : ParserState) (i : int) : WT.TestExpected * int =
   match tok state i, tok state (i + 1), tok state (i + 2) with
   | TIdent "error", TEquals, TStringLit s -> (WT.TEError s, i + 3)
-  | TIdent "sqlerror", TEquals, TStringLit s -> (WT.TESqlError s, i + 3)
   | TIdent "error", TStringLit s, _ -> (WT.TEError s, i + 2)
-  | TIdent "sqlerror", TStringLit s, _ -> (WT.TESqlError s, i + 2)
   | _ -> let (e, j) = parseExpr state i in (WT.TEExpr e, j)
 
 // `[<DB>]` attribute prefix on a type decl: 5 tokens. Parsing represents it;

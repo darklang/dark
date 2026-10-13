@@ -33,48 +33,24 @@ let private requireRunningPackageTest
     )
 
 
-/// Remove only the rows belonging to this execution's private DBs.
-let private cleanupTestDBs (dbs : List<PT.DB.T>) : Ply<unit> =
-  uply {
-    for db in dbs do
-      do!
-        Sql.query "DELETE FROM user_data_v0 WHERE table_tlid = @tlid"
-        |> Sql.parameters [ "tlid", Sql.id db.tlid ]
-        |> Sql.executeStatementAsync
-  }
-
-
-/// Give the prepared worker state the test's private DBs, then clean up after execution.
-/// The caller handles conversion to Dark values and decides whether the test passed.
+/// Run the test body. The caller handles conversion to Dark values and decides whether the
+/// test passed.
+///
+/// A test used to be able to declare private datastores with `[<DB>]`, which were minted per
+/// execution here and their rows deleted afterwards. That went to `later/` with user databases:
+/// the rows lived in a table this tree's schema no longer declares, and `Stdlib.DB` is no
+/// longer here to read them.
+/// `later/packages/darklang/tests/stdlib/db.dark` is the suite that exercised them.
 let private executeTestBody
   (state : ExecutionState)
   (test : PT.PackageTest.PackageTest)
   : Ply<ExecutionResult> =
   uply {
-    // Fresh IDs ensure each run sees only its own rows, including concurrent runs.
-    let testDBs : List<PT.DB.T> =
-      test.testDBs
-      |> List.map (fun (name, typ) ->
-        { tlid = gid (); name = name; version = 0; typ = typ })
-    let program =
-      { state.program with
-          dbs =
-            testDBs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList }
-    let state = { state with program = program }
     // TODO: Store test instructions alongside PT, as functions do, to avoid
     // converting the body on every run. Verify that runtime upgrades regenerate
     // them and that expected-error tests still behave the same.
     let instructions = PT2RT.Expr.toRT Map.empty 0 None test.body
-    let! result =
-      uply {
-        try
-          return! Execution.executeExpr state instructions
-        with e ->
-          do! cleanupTestDBs testDBs
-          return Exception.reraise e
-      }
-    do! cleanupTestDBs testDBs
-    return result
+    return! Execution.executeExpr state instructions
   }
 
 
@@ -338,7 +314,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let hash = PT2DT.Hash.fromDT hashDval
             match! pm.getTest hash with
             | None -> return DBool false
-            | Some test when not (List.isEmpty test.testDBs) -> return DBool false
             | Some test ->
               let cacheSafeCallEffectsFor (name, version) =
                 let key : FQFnName.Builtin = { name = name; version = version }

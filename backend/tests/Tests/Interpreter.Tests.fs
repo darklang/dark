@@ -30,7 +30,7 @@ let tCheckVM
     let vmState =
       ptExpr |> PT2RT.Expr.toRT Map.empty 0 None |> RT.VMState.createWithoutTLID
 
-    let! exeState = executionStateFor TestValues.pm false Map.empty
+    let! exeState = executionStateFor TestValues.pm false
 
     let! actual = LibExecution.Interpreter.execute exeState vmState |> Ply.toTask
     Expect.equal actual expectedInsts ""
@@ -46,7 +46,7 @@ let tFail name ptExpr expectedRte =
   testTask name {
     let instructions = ptExpr |> PT2RT.Expr.toRT Map.empty 0 None
 
-    let! exeState = executionStateFor TestValues.pm false Map.empty
+    let! exeState = executionStateFor TestValues.pm false
 
     let! actual = LibExecution.Execution.executeExpr exeState instructions
 
@@ -561,7 +561,7 @@ module Lambdas =
   /// Regression guard for moving `lambdaInstrCache` off VMState.
   let crossVM =
     testTask "cross-VM lambda invocation" {
-      let! exeState = executionStateFor TestValues.pm false Map.empty
+      let! exeState = executionStateFor TestValues.pm false
 
       // VM-A: evaluate `fn x -> x`, producing a DApplicable whose instructions
       // live in exeState.lambdaInstrCache after this call.
@@ -827,8 +827,7 @@ module SyncUnify =
 
   let agreesWithAsyncPath =
     testTask "sync unifier agrees with the async one, or declines" {
-      let! (exeState : RT.ExecutionState) =
-        executionStateFor TestValues.pm false Map.empty
+      let! (exeState : RT.ExecutionState) = executionStateFor TestValues.pm false
       let mutable asyncAccepted = 0
       let mutable answeredWhenAccepted = 0
 
@@ -1360,7 +1359,7 @@ module Reload =
       let! v1 =
         authorIntoMain $"module Darklang.{m}\n\nlet answer () : Int64 = {one}L"
       let h1 = hashBoundTo v1 "answer"
-      let! state = executionStateFor pmPT false Map.empty
+      let! state = executionStateFor pmPT false
       let held = applicableFor h1
       let! before = call state held
       Expect.equal before (RT.DInt64 one) "the first version answers"
@@ -1408,7 +1407,6 @@ module BoundMemo =
       LibExecution.Execution.noTracing
       (fun _ _ _ _ -> uply { return () })
       (fun _ _ _ _ -> uply { return () })
-      { dbs = Map.empty }
     |> LibExecution.Execution.setInstancePolicy
       LibExecution.Permissions.Policy.allowAll
 

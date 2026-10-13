@@ -1,0 +1,38 @@
+// RESTORE: backend/tests/Tests/CliWorkspace.Tests.fs
+// WAS: scriptsRoundTrip (a script added, listed and read back), appsCatalogLists and appsInstalledLists
+// ANCHOR: scriptsRoundTrip sat between the config test and the backups-now regression; the two apps tests between the backups test and permissionsLists. All three names came out of the test list.
+// ALSO: later/packages/darklang/cli/scripts.dark and later/packages/darklang/cli/apps/
+// WHEN: the sync molt, 2026-10-12
+
+let appsCatalogLists =
+  instanceTest "apps list-available names the catalog" (fun state ->
+    task {
+      do!
+        shows
+          state
+          [ "apps"; "list-available" ]
+          "Available apps:"
+          "the catalog lists something"
+    })
+
+let appsInstalledLists =
+  instanceTest "apps list answers on an instance with none" (fun state ->
+    task { do! sane state [ "apps"; "list" ] "the installed list answers" })
+let scriptsRoundTrip =
+  instanceTest "a script can be added, listed and read back" (fun state ->
+    task {
+      do! run state [ "scripts"; "add"; "tests-probe"; "1L + 2L" ]
+      do! shows state [ "scripts"; "list" ] "tests-probe" "the listing names it"
+      do!
+        shows
+          state
+          [ "scripts"; "view"; "tests-probe" ]
+          "1L + 2L"
+          "and its content comes back unchanged"
+      do!
+        shows
+          state
+          [ "scripts"; "view"; "tests-nosuch" ]
+          "tests-nosuch"
+          "a script that isn't there names itself back"
+    })

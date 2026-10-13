@@ -60,6 +60,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       && rm -rf /var/lib/apt/lists/*
 
 # Latest NPM (taken from https://deb.nodesource.com)
+#
+# Node is here for one reason: `scripts/perf/crosslang` runs the reference workload in node and
+# python to compare allocation per iteration. Nothing in the tree needs a global npm package any
+# more, so there are none; node itself is still a dependency of that perf tool, so it stays.
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
@@ -158,11 +162,6 @@ ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
 ############################
-# Frontend
-############################
-RUN sudo npm install -g prettier@3.0.2
-
-############################
 # Scripts to install files from the internet
 ############################
 
@@ -225,9 +224,6 @@ RUN /home/dark/install-dotnet \
   --arm64-sha256=1254141153d29b5b926e0e7b0b172a25f9c096b8ed6a182f54062c5e0b41384b30e10e2bf1ebe86ed0f58f4ff762203acd83bcf23fefb59c07af45332d794700 \
   --amd64-sha256=7adf40e8e5547970391cfbe474c3874c6918ce3575ac398f376c78502134e1c8a2fa3da9aca281fdaeda81671f56c851ebe9e74c5b57c5a298bd45deba63565d
 
-# WebAssembly build tools, for the browser REPL (backend/src/Wasm).
-RUN sudo dotnet workload install wasm-tools --version 10.0.109.1
-
 # formatting
 RUN dotnet tool install fantomas --version 6.2.3 -g
 
@@ -270,14 +266,6 @@ RUN set -e; \
 
 ENV PATH="$PATH:/home/dark/zig"
 
-
-############################
-# VSCE, used for publishing VS Code extension
-#
-# TODO reassess whether this should be done here,
-#   or in `publish-vs-code-extension`.
-############################
-RUN sudo npm install -g @vscode/vsce
 
 
 ############################

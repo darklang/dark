@@ -1,0 +1,103 @@
+// RESTORE: packages/darklang/scm/branches.dark
+// WAS: the relay-side branch storage silo: relayBundleStamp, relayStoreBundle, relayGetBundle, relayListOwners, relayListBranches, all of them SQL over the `relay_branches` table
+// ANCHOR: between `current ()` and the MergeRefusal type
+// ALSO: the `relay_branches` TABLE is NOT in the schema any more, and 03-branches.sql no longer
+//      exists: the numbered schema files were collapsed into 00-initial-schema.sql and this table
+//      was dropped from it. Its DDL is carried by later/backend/migrations/sync-tables.sql, which
+//      has to be applied in the same sitting as this fragment.
+// WHEN: the sync molt, 2026-10-12
+
+//  relay-side branch storage (a relay stores pushed branches by owner)
+// A relay is a dumb store: it holds branch BUNDLES keyed by (owner, branch) and hands them back. It never
+// folds or runs a branch. Re-push replaces.
+
+/// What the relay currently holds for (owner, branch): the newest op stamp, and how many ops.
+let relayBundleStamp (owner: String) (branchId: Uuid) : (String * Int64) =
+  match
+    Stdlib.Sqlite.queryOneP
+      (localDb ())
+      "SELECT COALESCE(max_ts,'') AS ts, COALESCE(op_count,0) AS n FROM relay_branches
+       WHERE owner = @p0 AND branch_id = @p1"
+      [ owner, Stdlib.toString branchId ]
+  with
+  | Some row ->
+    (Stdlib.Sqlite.textOr row "ts",
+     (Stdlib.Sqlite.intField row "n" |> Stdlib.Option.withDefault 0L))
+  | None -> ("", 0L)
+
+
+/// Store a pushed bundle, unless the relay already holds a NEWER one. `true` when it replaced.
+///
+/// One bundle per branch, replaced on every push, meant that pushing a stale copy of a branch served
+/// that copy to every peer: whoever pulled next lost the newest commits with nothing to tell them.
+/// Newest op stamp decides; op count breaks a tie, for a bundle rebuilt with more of the same.
+///
+/// The comparison is made HERE rather than in SQL because it is a rule, not a query: an equal
+/// bundle is a re-push of what is already there, which replaces nothing and is not a failure.
+let relayStoreBundle
+  (owner: String)
+  (branchId: Uuid)
+  (bundle: String)
+  (maxTs: String)
+  (opCount: Int64)
+  : Bool =
+  let (heldTs, heldCount) = relayBundleStamp owner branchId
+
+  // `stringGt`, not `>`: these are ISO stamps compared as TEXT, and `>` in Dark is numeric.
+  let newer =
+    (SCM.Conflicts.stringGt maxTs heldTs)
+    || ((maxTs == heldTs) && (opCount > heldCount))
+
+  // Nothing stored yet is not "older": the first push of a branch has nothing to lose to.
+  let firstOne = (heldTs == "") && (heldCount == 0L)
+
+  if newer || firstOne then
+    let _ =
+      Stdlib.Sqlite.mustExec
+        (localDb ())
+        "INSERT OR REPLACE INTO relay_branches (owner, branch_id, bundle, max_ts, op_count)
+         VALUES (@p0, @p1, @p2, @p3, @p4)"
+        [ owner,
+          Stdlib.toString branchId,
+          bundle,
+          maxTs,
+          Stdlib.toString opCount ]
+
+    true
+  else
+    // Equal is not a failure: re-pushing what the relay already has is a no-op, and the caller says
+    // so rather than reporting a loss.
+    (maxTs == heldTs) && (opCount == heldCount)
+
+
+/// The stored bundle for (owner, branch), or "" if the relay doesn't hold one.
+let relayGetBundle (owner: String) (branchId: Uuid) : String =
+  match
+    Stdlib.Sqlite.queryOneP
+      (localDb ())
+      "SELECT bundle FROM relay_branches WHERE owner = @p0 AND branch_id = @p1"
+      [ owner, Stdlib.toString branchId ]
+  with
+  | Some row -> Stdlib.Sqlite.textField row "bundle" |> Stdlib.Option.withDefault ""
+  | None -> ""
+
+/// Every owner with a hosted branch, with how many. What lets a client DISCOVER a colleague's push
+/// instead of hearing about it on Slack.
+let relayListOwners () : List<(String * Int64)> =
+  Stdlib.Sqlite.rowsP
+    (localDb ())
+    "SELECT owner, count(*) AS n FROM relay_branches GROUP BY owner ORDER BY owner"
+    []
+    (fun row ->
+      match (Stdlib.Sqlite.textField row "owner", Stdlib.Sqlite.intField row "n") with
+      | (Some o, Some n) -> Stdlib.Option.Option.Some((o, n))
+      | _ -> Stdlib.Option.Option.None)
+
+
+/// The branch ids an owner has pushed here ("pull all my branches").
+let relayListBranches (owner: String) : List<String> =
+  Stdlib.Sqlite.columnP
+    (localDb ())
+    "SELECT branch_id FROM relay_branches WHERE owner = @p0 ORDER BY branch_id"
+    [ owner ]
+    "branch_id"

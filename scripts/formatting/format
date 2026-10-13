@@ -82,6 +82,7 @@ is_allowed() {
 all_prettier_files() {
   find "$1" \
     \( -path ".git" \
+    -o -path "./later" \
     -o -path "backend" \
     -o -path "backend/static" \
     -o -path "./backend/static" \
@@ -103,6 +104,7 @@ all_prettier_files() {
 all_fsharp_files() {
   find "$1" \
     \( -path ".git" \
+    -o -path "./later" \
     -o -path "backend" \
     -o -path "backend/.paket" \
     -o -path "./backend/.paket" \
@@ -121,7 +123,7 @@ check_fantomas () {
 }
 
 check_prettier () {
-  xargs -0 npx prettier --list-different
+  xargs -0 -r npx prettier --list-different
 }
 
 format_fantomas() {
@@ -129,7 +131,7 @@ format_fantomas() {
 }
 
 format_prettier() {
-  xargs -0 npx prettier --write
+  xargs -0 -r npx prettier --write
 }
 
 do_fantomas() {

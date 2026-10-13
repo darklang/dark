@@ -1,0 +1,23 @@
+RESTORE: docs/effects.md
+
+WAS: the paragraph on builtins reserved for first-party code: `httpGetUnsafeBytes` needing both
+the `canUsePrivateNetworkHttp` host capability and an all-bundled call chain.
+
+ANCHOR: in the permissions section, between the paragraph on logical names and hashes and the one
+on `permissions allow http GET`.
+
+ALSO: later/backend/src/Builtins/Builtins.Http.Client/Libs/HttpClient.fs.sync-transport has
+requireBundledCaller, and later/backend/src/LibExecution/execution-state-field.sync has the
+capability. `isBundledPackageFn` STAYED: PermissionCheck and the package-policy lookup use it.
+
+WHEN: the sync molt, 2026-10-12
+
+A few builtins are reserved for first-party code. `httpGetUnsafeBytes` — the
+SSRF-guards-off fetch the sync code uses to reach a peer on loopback/LAN —
+requires two things at once: the host capability `canUsePrivateNetworkHttp`,
+which only the outer `dark sync` state has (every `guestState` clears it), and
+a call chain in which every frame is a bundled Darklang function
+(`ExecutionState.isBundledPackageFn`, checked by `requireBundledCaller`). A
+third-party package cannot reach it even with a broad `http` grant, and
+neither can a `run` script that wraps it in a bundled helper.
+

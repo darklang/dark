@@ -335,8 +335,8 @@ let private reseedFromEmbedded (dbPath : string) : bool =
         // reports thousands of items changed. Commit rows come first so the reference has a target.
         cmd.CommandText <-
           "ATTACH DATABASE $seed AS seed;
-           INSERT OR IGNORE INTO commits (hash, message, author, origin_ts)
-             SELECT hash, message, author, origin_ts FROM seed.commits;
+           INSERT OR IGNORE INTO commits (hash, message, origin_ts)
+             SELECT hash, message, origin_ts FROM seed.commits;
            INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts, commit_hash)
              SELECT id, op_blob, 0, 1, origin_ts, commit_hash FROM seed.package_ops;
            -- An op already PRESENT but INERT has to be woken up, and `INSERT OR IGNORE` cannot do it.

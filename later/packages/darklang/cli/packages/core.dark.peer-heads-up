@@ -1,0 +1,63 @@
+// RESTORE: packages/darklang/cli/packages/core.dark
+// WAS: peerHeadsUpLine: the 'changed under you' note, computed before an edit lands, naming who authored the version being replaced, the commit it arrived in, and how long ago
+// ANCHOR: first in core.dark, above the Committed record. The `peerHeadsUp` field of that record, its assignment in commitAuthored, and the print in the save path went with it.
+// ALSO: later/packages/darklang/scm/packageOpsCommits.dark.attribution has peerAuthoredCurrent, which it called. With one author there is never a colleague's version to replace.
+// WHEN: the sync molt, 2026-10-12
+
+/// The "changed under you" heads-up, computed BEFORE an edit lands (afterwards the live
+/// binding is already the new version): when the version being replaced was authored by a
+/// colleague, one line naming them, the commit it arrived in, and how long ago it landed
+/// here. None for your own versions and unattributed ones.
+let peerHeadsUpLine
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<String> =
+  match SCM.PackageOps.peerAuthoredCurrent location with
+  | Some((author, message, mins)) ->
+    let who =
+      if Stdlib.String.startsWith author "inst-" then
+        Stdlib.String.slice author 0 13
+      else
+        author
+
+    let mins = if mins < 1L then 1L else mins
+
+    let age =
+      if mins < 120L then
+        (Stdlib.toString mins) + "m"
+      else if mins < 2880L then
+        (Stdlib.toString (mins / 60L)) + "h"
+      else
+        (Stdlib.toString (mins / 1440L)) + "d"
+
+    let subject = if message == "" then "no message" else message
+
+    Stdlib.Option.Option.Some(
+      Stdlib.Cli.UI.Colors.hint
+        $"  note: {who} changed this {age} ago ({subject}); your edit replaces their version"
+    )
+  | None -> Stdlib.Option.Option.None
+
+
+// --- also removed from core.dark: the field, its assignment, and the print ---
+
+    /// One line when the version replaced was a colleague's.
+    peerHeadsUp: Stdlib.Option.Option<String>
+
+
+  // Read BEFORE the save: after it, the live binding IS the new version.
+  let peerHeadsUp =
+    if isUpdate then peerHeadsUpLine location
+    else Stdlib.Option.Option.None
+
+
+
+          peerHeadsUp = peerHeadsUp
+
+
+      let peerHeadsUp = committed.peerHeadsUp
+
+
+      match peerHeadsUp with
+      | Some line -> Stdlib.printLine line
+      | None -> ()
+

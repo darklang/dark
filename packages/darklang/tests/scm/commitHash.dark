@@ -5,46 +5,44 @@ module Darklang.SCM.Tests.CommitHash
 // (`draftOpIdsFor` sorts), and the last row records that `mintHash` itself does not sort, so if that ever
 // becomes true the sort has moved and `draftOpIdsFor`'s ORDER BY is dead.
 //
-// The branch is deliberately not an input. A commit is its message, author, stamp, ops and parent;
+// The branch is deliberately not an input. A commit is its message, stamp, ops and parent;
 // where it happens to sit is a property of the branch, not of the commit, so the same work committed
 // on two branches is the same commit.
 
 module MintHash =
   val ts = "2026-01-01T00:00:00.000Z"
 
-  let h (message: String) (author: String) (stamp: String) (ops: List<String>) (parent: String) : String =
-    Darklang.SCM.Commits.mintHash message author stamp ops parent
+  let h (message: String) (stamp: String) (ops: List<String>) (parent: String) : String =
+    Darklang.SCM.Commits.mintHash message stamp ops parent
 
   // Deterministic.
   test deterministic =
-    MintHash.h "m" "me" MintHash.ts [ "aabb", "ccdd" ] "0011"
-    |> Stdlib.Test.equal (MintHash.h "m" "me" MintHash.ts [ "aabb", "ccdd" ] "0011")
+    MintHash.h "m" MintHash.ts [ "aabb", "ccdd" ] "0011"
+    |> Stdlib.Test.equal (MintHash.h "m" MintHash.ts [ "aabb", "ccdd" ] "0011")
 
   // Sixteen hex characters.
   test sixteenHex =
-    Stdlib.String.length (MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011")
+    Stdlib.String.length (MintHash.h "m" MintHash.ts [ "aabb" ] "0011")
     |> Stdlib.Test.equal 16
 
   // Each input moved: a different id.
   test eachInputChangesId =
     Stdlib.Test.all
-      [ ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0022"))
+      [ ((MintHash.h "m" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" MintHash.ts [ "aabb" ] "0022"))
         |> Stdlib.Test.equal false
-        ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" "you" MintHash.ts [ "aabb" ] "0011"))
+        ((MintHash.h "m" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "n" MintHash.ts [ "aabb" ] "0011"))
         |> Stdlib.Test.equal false
-        ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "n" "me" MintHash.ts [ "aabb" ] "0011"))
+        ((MintHash.h "m" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" "2026-01-01T00:00:00.001Z" [ "aabb" ] "0011"))
         |> Stdlib.Test.equal false
-        ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" "me" "2026-01-01T00:00:00.001Z" [ "aabb" ] "0011"))
-        |> Stdlib.Test.equal false
-        ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" "me" MintHash.ts [ "aabb", "ccdd" ] "0011"))
+        ((MintHash.h "m" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" MintHash.ts [ "aabb", "ccdd" ] "0011"))
         |> Stdlib.Test.equal false ]
 
   // An empty commit is still deterministic.
   test emptyCommitDeterministic =
-    MintHash.h "m" "me" MintHash.ts [] "0011"
-    |> Stdlib.Test.equal (MintHash.h "m" "me" MintHash.ts [] "0011")
+    MintHash.h "m" MintHash.ts [] "0011"
+    |> Stdlib.Test.equal (MintHash.h "m" MintHash.ts [] "0011")
 
   // Not sorted here.
   test notSorted =
-    ((MintHash.h "m" "me" MintHash.ts [ "aabb", "ccdd" ] "0011") == (MintHash.h "m" "me" MintHash.ts [ "ccdd", "aabb" ] "0011"))
+    ((MintHash.h "m" MintHash.ts [ "aabb", "ccdd" ] "0011") == (MintHash.h "m" MintHash.ts [ "ccdd", "aabb" ] "0011"))
     |> Stdlib.Test.equal false

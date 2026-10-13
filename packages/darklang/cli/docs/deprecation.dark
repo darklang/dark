@@ -36,7 +36,7 @@ replacement or runtime-halt is wanted.
 
   --kind <k>                    superseded-by, harmful, or obsolete
   --replacement <name-or-hash>  Required for --kind superseded-by
-  -m, --message <text>          Free-form reason; shown in view/search/LSP
+  -m, --message <text>          Free-form reason; shown in view and search
   --yes, -y                     Skip confirmation prompt
   --dry-run                     Print what would happen; emit no ops
   --ignore-dependents           (delete only) proceed despite live dependents
@@ -50,7 +50,7 @@ Tests, sandboxes, and security research can opt out:
   run --allow-harmful fn <target> [args...]
   eval --allow-harmful <expr>
 
-`obsolete` and `superseded-by` do not halt. They surface in `view`/`ls`/LSP.
+`obsolete` and `superseded-by` do not halt. They surface in `view` and `ls`.
 
 ## Examples
 

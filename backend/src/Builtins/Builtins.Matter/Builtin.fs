@@ -12,8 +12,7 @@ let fnRenames : Builtin.FnRenames = []
 
 let builtins (pm : PT.PackageManager) : Builtins =
   Builtin.combine
-    [ // DB (UserDB, plus the raw general-purpose SQLite floor)
-      Libs.DB.builtins ()
+    [ // The raw general-purpose SQLite floor
       Libs.Sqlite.builtins ()
 
       // PM (package manager: packages, branches, ops)
@@ -26,9 +25,5 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PM.Store.builtins ()
 
       // Traces (reader surface)
-      Libs.Traces.builtins ()
-      // Live values: a function's last recorded call, run again, with every call's result
-
-      // Accounts
-      Libs.Account.builtins () ]
+      Libs.Traces.builtins () ]
     fnRenames

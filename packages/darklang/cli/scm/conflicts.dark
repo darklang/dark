@@ -125,30 +125,25 @@ let firstDivergence (a: String) (b: String) : Int =
 /// Whose version a candidate is, in the words all three views use.
 ///
 /// Off `side` and the recorded author, never off the candidate's position, so it stays true if the
-/// candidate order ever stops being local-first. A peer that named itself keeps its name; one that
-/// didn't is "theirs". <param me> is this instance's identity, read ONCE by the caller: it is a store
-/// read, and the alternative is one per candidate row. None when it has none yet, and then no peer is
-/// yours.
-let whoseCandidate (me: Stdlib.Option.Option<String>) (cand: SCM.Conflicts.Candidate) : String =
+/// candidate order ever stops being local-first. A side that named itself keeps its name (a merge
+/// names the BRANCH there); one that did not is "theirs".
+let whoseCandidate (cand: SCM.Conflicts.Candidate) : String =
   if cand.side == "local" then "yours"
   else if cand.author == "" then "theirs"
-  else if Stdlib.Option.Option.Some cand.author == me then "yours"
   else cand.author
 
 /// The labels for a whole conflict's candidates. A MERGE conflict's incoming side carries the branch
-/// name in `side` (sync's carries "incoming"), and both sides of a local merge are yours -- so
-/// "yours" against a branch name says nothing. Label the local side by WHERE it lives instead:
-/// <param hereName> is the branch the listing is scoped to (main, usually). "yours"/"theirs" stays
-/// for sync, where it is true and useful.
+/// name, and both sides of a local merge are yours -- so "yours" against a branch name says
+/// nothing. Label the local side by WHERE it lives instead: <param hereName> is the branch the
+/// listing is scoped to (main, usually).
 let candidateLabels
-  (me: Stdlib.Option.Option<String>)
   (hereName: String)
   (localBranchNames: List<String>)
   (c: SCM.Conflicts.Conflict)
   : List<String> =
-  // A merge conflict names the BRANCH as the incoming candidate's author (a sync conflict names a
-  // peer identity there). When the other side is one of this store's own branches, both versions
-  // are yours, and "yours vs tune" reads as three people; say WHERE instead: main vs the branch.
+  // A merge conflict names the BRANCH as the incoming candidate's author. When the other side is
+  // one of this store's own branches, both versions are yours, and "yours vs tune" reads as three
+  // people; say WHERE instead: main vs the branch.
   let isMergeShaped =
     c.candidates
     |> Stdlib.List.any (fun cand ->
@@ -161,7 +156,7 @@ let candidateLabels
        else if cand.author != "" then cand.author
        else cand.side)
     else
-      whoseCandidate me cand)
+      whoseCandidate cand)
 
 /// Indent a rendered block so it sits under its candidate line.
 let indentBlock (s: String) : String =
@@ -180,8 +175,7 @@ let executeList (state: AppState) : AppState =
     let n = Stdlib.toString (Stdlib.List.length cs)
     Cli.printOk $"{n} pending"
 
-    // Once for the whole list, not once per candidate row: all three are store reads.
-    let me = SCM.PackageOps.storedIdentity ()
+    // Once for the whole list, not once per candidate row: both are store reads.
     let hereName = SCM.PackageOps.branchName (SCM.Conflicts.onBranch ())
     let localBranchNames = SCM.Branches.list () |> Stdlib.List.map (fun b -> b.name)
 
@@ -192,7 +186,7 @@ let executeList (state: AppState) : AppState =
       // BOTH sides inline, in the order `override` takes them, so the list answers "does this matter"
       // without a second command. Each row says WHOSE and WHAT HAPPENED, rather than leaving both to a
       // legend printed after the rows it explains.
-      let whoseLabels = candidateLabels me hereName localBranchNames c
+      let whoseLabels = candidateLabels hereName localBranchNames c
 
       // The previews exist to SHOW the difference. Clipping both at the same column cut them at an
       // identical prefix (identical text labeled kept/lost reads as a tool bug), so the pair is
@@ -220,7 +214,7 @@ let executeList (state: AppState) : AppState =
         let label = if i == 0 then "A" else "B"
 
         let whose =
-          Stdlib.List.getAt whoseLabels i |> Stdlib.Option.withDefault (whoseCandidate me cand)
+          Stdlib.List.getAt whoseLabels i |> Stdlib.Option.withDefault (whoseCandidate cand)
 
         // "lost", not "over": the summary above already promises the losing version is kept rather than
         // dropped, and an abbreviation nobody expands is not a word.
@@ -271,16 +265,13 @@ let executeShow (state: AppState) (idPrefix: String) : AppState =
     else
       Cli.printOk $"#{c.id}  {dotted}  [{c.part}] -- two wordings"
 
-    // Once for both candidates, not once each: it is a store read.
-    let me = SCM.PackageOps.storedIdentity ()
-
     c.candidates
     |> Stdlib.List.indexedMap (fun i cand ->
       let label = if i == 0 then "A" else "B"
       let mark = if cand.hash == c.autoResolvedTo then "kept" else "lost"
       // "yours"/"theirs" is a rendering decision made HERE, against who this instance is. The record
       // keeps the raw identity, so `--json` can still tell two machines apart.
-      let who = whoseCandidate me cand
+      let who = whoseCandidate cand
 
       // A version is shown by rendering it; a WORDING is the thing itself, and a reader choosing
       // between two sentences needs the sentences, not the hashes of them.
@@ -590,14 +581,11 @@ let walkOne (state: AppState) (c: SCM.Conflicts.Conflict) (n: Int) (total: Int) 
   Cli.Stderr.line ""
   Cli.Stderr.ok $"  [{pos}]  {dotted}  [{c.itemType}]"
 
-  // Once for both candidates; see `whoseCandidate`.
-  let me = Stdlib.Option.Option.Some (SCM.PackageOps.identity ())
-
   c.candidates
   |> Stdlib.List.indexedMap (fun i cand ->
     let label = if i == 0 then "A" else "B"
     let mark = if cand.hash == c.autoResolvedTo then "kept" else "lost"
-    let who = whoseCandidate me cand
+    let who = whoseCandidate cand
     let header = $"    {label} ({mark})  {who}  stamped {cand.originTs}"
     $"{header}\n{indentBlock (renderItem state.currentBranchId c.itemType cand.hash c.name)}")
   |> Stdlib.List.iter (fun block -> Cli.Stderr.line block)

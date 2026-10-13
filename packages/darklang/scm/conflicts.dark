@@ -1,17 +1,17 @@
 module Darklang.SCM.Conflicts
 
-// The base-agnostic conflict DETECTOR, and the `conflicts` / `sync_bases` silo.
+// The base-agnostic conflict DETECTOR, and the `conflicts` silo.
 //
-// A conflict is a RECONCILIATION event: two divergent op sets folded against a common BASE -- a merge, a
-// rebase, or a sync-import -- where BOTH sides rebound the same name to DIFFERENT hashes since that base.
+// A conflict is a RECONCILIATION event: two divergent op sets folded against a common BASE -- a merge or
+// a rebase -- where BOTH sides rebound the same name to DIFFERENT hashes since that base.
 // Superseding your own earlier version is an update, so nothing here runs on the authoring hot path.
 //
-// BASE-AGNOSTIC on purpose: a branch merge supplies `branch_name_bases`, a sync-import supplies
-// `sync_bases`. One path, two base sources, so main-to-main sync is as conflict-aware as a branch merge.
+// BASE-AGNOSTIC on purpose: the detector takes its bases as a parameter, so a branch merge supplies
+// `branch_name_bases` and anything else that reconciles two op sets can supply its own.
 //
 // Detection never decides what APPLIES -- the fold's origin_ts LWW does. This decides what gets RECORDED.
 //
-// OWNS every statement against `conflicts` and `sync_bases`, plus the `locations` reads the detector needs.
+// OWNS every statement against `conflicts`, plus the `locations` reads the detector needs.
 // Does NOT read `package_ops`: that is `SCM.PackageOps`'s silo, which hands the op-log side here as plain
 // `Binding`s. One-way, PackageOps -> Conflicts.
 
@@ -465,44 +465,6 @@ let branchBases (branchId: Uuid) : List<NameBase> =
     "SELECT owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @p0"
     [ Stdlib.toString branchId ]
     baseFromRow
-
-/// The bases recorded for a SYNC SOURCE: the hashes this instance and that source last agreed on.
-let syncBases (sourceId: String) : List<NameBase> =
-  Stdlib.Sqlite.rowsP
-    (localDb ())
-    "SELECT owner, modules, name, base_hash FROM sync_bases WHERE source_id = @p0"
-    [ sourceId ]
-    baseFromRow
-
-/// Has this instance ever recorded agreement with <param sourceId>? A first sync has none, which is why a
-/// first sync can't (and shouldn't) report conflicts.
-let hasSyncBases (sourceId: String) : Bool =
-  let n =
-    Stdlib.Sqlite.scalarIntP
-      (localDb ())
-      "SELECT count(*) AS n FROM sync_bases WHERE source_id = @p0"
-      [ sourceId ]
-      "n"
-
-  (Stdlib.Option.withDefault n 0L) > 0L
-
-/// Record agreement with <param sourceId> for EVERY name this instance currently binds, in one statement.
-/// The bulk-import path: adopting a whole log wholesale is exactly "we now agree on everything I hold", and
-/// decoding every op blob in Dark just to narrow the list would cost far more than it buys.
-///
-/// main-scoped, on purpose: what was adopted folded into main, and the bases say what main and the
-/// source now agree on.
-let recordAllSyncBases (sourceId: String) : Unit =
-  let _ =
-    Stdlib.Sqlite.mustExec
-      (localDb ())
-      "INSERT INTO sync_bases (source_id, owner, modules, name, base_hash)
-       SELECT @p0, owner, modules, name, item_hash FROM locations WHERE unlisted_at IS NULL
-       ON CONFLICT(source_id, owner, modules, name)
-       DO UPDATE SET base_hash = excluded.base_hash, updated_at = datetime('now')"
-      [ sourceId ]
-
-  ()
 
 
 // the `conflicts` table (record / read / resolve)

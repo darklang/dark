@@ -6,9 +6,8 @@ entry names again. This is that something, and the rules a host follows once it 
 heard.
 
 `dark docs live` is the short, user-facing version of this document: a live
-view (`apps view <Module> --live`), a `serve --live`, a host on another machine
-following a branch, live values in the editor. This is the design and the
-rules a host follows.
+view (`dark ps --watch`, `dark traces --watch`), a `serve --live`, live values
+in the editor. This is the design and the rules a host follows.
 
 ---
 
@@ -198,17 +197,16 @@ A view of something that moves on its own (`ps --watch`) sets `View.every = Some
 the host then adds `Timer ms` to every wait and hands the view an `Event.Tick`, which its
 `update` must match. A view with `every = None` never sees a tick.
 
-The loop itself is `cli/apps/host.dark`. A `View` is three fns by name (`init : Unit ->
-'model`, `update : 'model -> Host.Event<'msg> -> 'model`, `render : 'model -> Node`), on an
-`App` as `Target.Views`, or any module with those three (`dark apps view My.Module --live`).
+The loop itself is `cli/liveview/host.dark`. A `View` is three fns by name (`init : Unit ->
+'model`, `update : 'model -> Host.Event<'msg> -> 'model`, `render : 'model -> Node`), named on a
+`LiveView.Model.View`, which is what `dark ps --watch` and `dark traces --watch` build.
 One turn: a store change that reaches the view's entries (`Live.affects`) re-resolves
 them through `LastGood` and re-renders, with a toast naming what moved; a key goes to
 the focused `Input` or `Button`, else to `update`. `render` failing at rest or at run
 keeps the last frame with the reason in a `Band` under it. The model is the only app
 state and survives every swap in memory; Ctrl-S snapshots it as a `val` under the render
 fn's module (`<Module>.Sessions.s<stamp>`, through the REPL's capture, the one path that
-knows which values have a literal form) and `dark apps view ... --resume <val>` starts
-from it. A tree taller than the pane is windowed: PageUp/PageDown move the window and
+knows which values have a literal form) and the host's `prepareWith` can start from it. A tree taller than the pane is windowed: PageUp/PageDown move the window and
 drop the focus, Tab pulls the focused node into view. `Live.call` (over `Builtin.applicableTryApply`)
 is how an RTE from user code becomes a value, and it runs the fn as the approval root
 of its call, as `serve` does the router: a fresh version of a view is not asked to be
@@ -217,7 +215,7 @@ approved again before it may print.
 The CLI's own loop (`cli/loop.dark`) waits through the same `await`, and hands a
 `StoreChanged` to the current page (`SubApp.onStoreChanged`, `Component.onStoreChanged`).
 The workbench re-reads its item list and the SCM picture and says what moved in the
-footer, so an edit from the LSP, an agent or a pull shows up in the detail pane while
+footer, so an edit from another process or an agent shows up in the detail pane while
 you look at it.
 
 Tests: `tests/CliWorkspace/live` drives the loop one turn at a time as a process on a
@@ -227,10 +225,9 @@ would. The guarantee the loop rests on (a parked process resumed after an edit f
 on the hash it started with; a fresh one gets the new) is `tests/scheduler`'s
 `editDoesNotReachAParkedProcess`.
 
-The workbench's `Processes` pane (`P` from Apps) is the process table (`Stdlib.Exec.list`)
-as a tree, with the selected process's stack (`Stdlib.Exec.inspect`) beside it: live's
-first consumer of the scheduler's data. Every workbench, `dark apps view` and daemon is
-a process; a slow `render` budget-yields, and keys typed during it are read after it,
+The workbench's `Processes` pane is the process table (`Stdlib.Exec.list`) as a tree, with the
+selected process's stack (`Stdlib.Exec.inspect`) beside it: live's first consumer of the
+scheduler's data. Every workbench, live view and daemon is a process; a slow `render` budget-yields, and keys typed during it are read after it,
 not lost: the runtime reads them as one chunk (its paste path), and the host loop hands
 `update` one key event per character, each carrying its own `char` and the chunk's key
 and modifiers, unless an `Input` has focus, which wants the chunk whole.
@@ -241,49 +238,24 @@ A save that puts a name back on a version it held before lands as a decision (a 
 
 ## Daemons
 
-A daemon that follows edits is a step, `step : 's -> 's`, run by `Cli.Apps.Runner`:
+A daemon that follows edits is a step, `step : 's -> 's`, run by `Cli.LiveView.Runner`:
 once per interval, waiting through `Host.await [StoreChanged; Timer]` in between, so an
 edit that reaches the step is resolved through `LastGood` before the next tick and a
-broken version is skipped with the reason in the log. The heartbeat example is on it
-(`apps.heartbeat.step` points it at a step of your own). A daemon written as one
+broken version is skipped with the reason in the log. A daemon written as one
 long-running fn cannot follow anything, scheduler or not: its frames call callees by
 hash, and only a name lookup (`Live`, `applicableByName`) sees a new binding, so the
-budget yield changes nothing for it. `dark apps` says `behind` when its entrypoint's
-hash moved since it started, and `dark apps restart <slug>` is the answer.
+budget yield changes nothing for it.
+
+Nothing in the tree launches a daemon today. The runner is here because it is one of the three
+live hosts (this, the view host above, and `serve` below), and the next thing that starts a
+background step should run on it rather than grow a fourth.
 
 A daemon's pidfile and log go under `~/.darklang/run`; when that cannot be written (a
-`~/.darklang` some other user created first, no home), `Stdlib.Cli.Daemon.runDir` falls
-back to the instance's rundir, then `/tmp/darklang-run`, probing with a real write so the
-launcher and the daemon agree on the answer.
-
-## Prod follows a branch (demo 2)
-
-Host side: `dark --branch <b> serve <router>` and a pull loop (`dark apps enable sync`
-with `sync.branches all`, interval `apps.sync.intervalMs`). Local side: `dark config set
-live.autopush on`; every `fn`/`type`/`val`/`module` save then commits the draft under
-`auto: <n> ops, <first name>` and pushes (main with `push`, a branch with `branch push`).
-Type errors are committed on purpose: the host keeps its last good version and says why
-in its log, which is the same answer you get locally.
-
-`scripts/testing/demo2-live.sh` walks it in the container: a relay, A with autopush, B on
-the auto-sync daemon (`apps start sync`, every two seconds) and `serve`. Measured: A's save
-is B's page two to five seconds later; the broken save leaves B on the last good page with
-`[live] Demo.Site.router: still on the last good version; the newest has a type error:
-...` in its serve log; the fix follows. `--branch` walks the branch variant: A authors on
-a branch `site` with autopush (each save is a `branch push`), B has `sync.branches all`
-and serves `--branch site`; same three beats, same timings.
-
-Three facts on the host side make that walk work. A daemon is `dark apps daemon-main
-<slug>`, a command in the CLI's own state, so it has the host's capabilities (an `eval` is
-a guest and could not use its own sync transport); the entrypoint is applied in that
-frame, not through `Live.apply`, which would make it a guest root again. A branch's own
-ops are inert (`applied = 0`) and tagged onto the branch in the transaction that stores
-them, and `landedWhere`/`idsLandedSince` count a tagged op as landed once it is visible,
-so a branch watch sees the branch's saves. An op that lands from outside (the daemon's
-pull) reaches a long-lived branch process through the same invalidation a poll does
-(`LibDB.PackageManager`, the second `Caching.register`). Tests: `tests/CliWorkspace/live`,
-"a poll on a branch reports the branch's own saves" and "serve --branch follows edits made
-on the branch".
+`~/.darklang` some other user created first, no home), the fallback is the instance's
+rundir, then `/tmp/darklang-run`, probing with a real write so the launcher and the daemon
+agree on the answer. `Stdlib.Cli.Daemon`, which held that rule as `runDir`, moved to
+`later/` with the apps framework that was its only caller, so this describes what a daemon
+mechanism should do rather than code you can call today.
 
 ## The agent channel
 
@@ -295,10 +267,8 @@ things are for the agent's side, both in `Stdlib.Live` and neither needs the age
 harness.
 
 `Live.show view` points every host loop on this instance at a view (a module with
-`init`, `update` and `render`, what `dark apps view <Module.Path>` takes): it writes
-`live.show` in the store's config (`config_v0`, never synced), which moves the store
-counter, so an open `dark apps view` wakes and switches on its next turn, and a bare
-`dark apps view` opens on it. The watch carries what `live.show` said at its last poll,
+`init`, `update` and `render`): it writes `live.show` in the store's config (`config_v0`),
+which moves the store counter, so an open live view wakes and switches on its next turn. The watch carries what `live.show` said at its last poll,
 so a poll that finds the counter moved and nothing landed can tell a show from a trace
 write and report only the show, as a change that touched nothing. A setting rather than
 an event on the queue, on purpose: an event reaches the loops that are running now, a
@@ -365,17 +335,13 @@ Where they show:
   with them; a skipped run is a comment line under the code. `dark traces show
   <fn> --watch` is the same thing as a panel of its own, with the traces to pick from and
   up/down to move between them (`cli/traceWatch.dark`).
-- The LSP. `textDocument/inlayHint` answers one hint per annotated line, placed at the
-  end of the document's line with the same text (`LspServer.InlayHints`). A document
-  edited away from the printed form gets fewer hints, never a wrong one. After a
-  `fileSystem/write` lands ops, the server sends `workspace/inlayHint/refresh`.
 
-All four go through `Live.Values.replay`, so none of them can drift into showing something the
+All three go through `Live.Values.replay`, so none of them can drift into showing something the
 others do not, and any recorded trace will do: there is no second setting to turn on first.
 
-The cost to know about: a hint request replays once per function in the document that has a
-recorded trace, and there is no cache shared between them. A big file with many recorded functions
-pays many replays. Each performs nothing, so it is CPU and not risk, up to a point: a replay holds
+The cost to know about: a request replays once per function shown that has a recorded trace,
+and there is no cache shared between them. A detail pane over many recorded functions pays
+many replays. Each performs nothing, so it is CPU and not risk, up to a point: a replay holds
 a frame for every call the recorded run made, so its memory grows with that run, and nothing but
 the limits above stops it. A store that records every run (`config/dev` does) makes the newest run
 through `List.map` whatever script or `eval` ran last, and dev stores hold runs of a minute or more.
@@ -384,26 +350,17 @@ through `List.map` whatever script or `eval` ran last, and dev stores hold runs 
 
 ```
 demo 1, TUI follows edits
-  terminal A:  dark apps view stats
-  terminal B:  edit Stats.render (workbench, LSP, or an agent), save
-  A repaints before the save has finished printing (about 460 ms end to end,
-  of which the live half is 8 ms; the rest is the authoring command).
-  terminal B:  save a version with a type error
+  terminal A:  dark ps --watch
+  terminal B:  spawn something, or cancel one
+  A repaints on the next turn without being asked.
+  terminal B:  edit a fn the view renders through, with a type error in it
   A keeps the last frame; a band under it shows the diagnostic.
   terminal B:  fix it
   A repaints, band gone.
 
-demo 2, prod follows a branch
-  host:        dark --branch <b> apps enable sync
-               dark --branch <b> serve Site.router --port 8080 --live
-  local:       dark config set live.autopush on
-               edit Site.page, save
-  ~2 s later:  curl http://<host>:8080/  -> new page
-  local:       save a broken Site.page
-               curl -> still the last good page; the host log has the diagnostic
 ```
 
-The local half of demo 2, by hand: `dark fn Demo.page '(): String = "v1"'`, `dark fn
+The same beats on one machine, by hand: `dark fn Demo.page '(): String = "v1"'`, `dark fn
 Demo.router '(req: Stdlib.Http.Request): Stdlib.Http.Response =
 Stdlib.Http.responseWithText (Demo.page ()) 200'`, `dark serve Demo.router --port 9095`;
 then `dark fn Demo.page '(): String = "v2"'` in another terminal and the next `curl` has

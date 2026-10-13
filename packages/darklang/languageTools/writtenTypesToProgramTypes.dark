@@ -1421,10 +1421,7 @@ module TestDeclaration =
           |> Stdlib.Option.map (fun (_, expected) ->
             match expected with
             | RuntimeError message ->
-              ProgramTypes.PackageTest.ExpectedError.RuntimeError message
-            | SqlCompilerError message ->
-              ProgramTypes.PackageTest.ExpectedError.SqlCompilerError message)
-        testDBs = [] },
+              ProgramTypes.PackageTest.ExpectedError.RuntimeError message) },
       unresolvedNames)
 
 

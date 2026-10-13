@@ -1,7 +1,8 @@
 /// SQLite schema bootstrap.
 ///
-/// `backend/migrations/schema/*.sql` is the canonical from-scratch shape of every table, split by
-/// subsystem and concatenated in FILENAME ORDER. We hash that concatenation and compare against
+/// `backend/migrations/schema/*.sql` is the canonical from-scratch shape of every table,
+/// concatenated in FILENAME ORDER. Today that is one file, `00-initial-schema.sql`, edited in
+/// place; the glob and the ordering stay because a later change may add a stamped file beside it. We hash that concatenation and compare against
 /// `schema_state_v0.hash`; if they differ (or the table is missing), drop the REGENERABLE
 /// PROJECTION tables only (`Seed.projectionTables`) and replay. The canonical op log, blobs,
 /// branches and commits survive, and the log re-folds into the fresh projections at startup -- so a
@@ -27,8 +28,8 @@ open System.IO
 open Microsoft.Data.Sqlite
 open Fumble
 open LibDB.Sqlite
-module File = LibCloud.File
-module Config = LibCloud.Config
+module File = LibConfig.File
+module Config = LibConfig.Dirs
 
 open Prelude
 
@@ -151,9 +152,10 @@ let private runSchemaBootstrap (sql : string) : unit =
       print
         "the schema changed the SHAPE of a canonical table, which this bootstrap can't apply in place."
       print
-        $"  Your {ops} op(s) are intact. Export them (`dark sync export <file>`), delete rundir/data.db,"
+        $"  Your {ops} op(s) are intact. Take a copy of rundir/data.db, delete it,"
       print
-        "  then start again and import. (A data-preserving migrator is designed and not built.)"
+        "  then start again. (A data-preserving migrator is designed and not built, and there is"
+      print "  no import command to bring the old ops across.)"
       reraise ()
     markOpsUnapplied ()
     writeHash want

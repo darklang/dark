@@ -1,0 +1,34 @@
+// RESTORE: backend/tests/Tests/CliPackages.Tests.fs
+// WAS: `viewPrintsTestDefaultsAndSqlErrors`, which drove `dark view --raw` over two tests in
+//      `Darklang.Stdlib.DB.Tests` and asserted that a `=> sqlerror` expectation prints in its
+//      short source form, without the display-only query-compiler preamble.
+// ANCHOR: between `viewPrintsTheDeclaration` and `viewRefusesWhatIsNotThere`.
+// ALSO: the test list below names it; the name there is `viewPrintsTestDefaults` now, which
+//       keeps the first of the two claims (an unannotated test prints no effect row) against
+//       `Darklang.Stdlib.Bool.Tests.andTruthTable`. Restoring this replaces that one.
+// WHEN: restoring `later/packages/darklang/tests/stdlib/db.dark` and the `sqlerror` expectation.
+
+let viewPrintsTestDefaultsAndSqlErrors =
+  instanceTest "view prints inherited test access and short SQL errors" (fun state ->
+    task {
+      do!
+        shows
+          state
+          [ "view"
+            "Darklang.Stdlib.DB.Tests.generatedKeyHas36Characters"
+            "--raw" ]
+          "test generatedKeyHas36Characters ="
+          "an unannotated test has no printed effect row"
+      do!
+        shows
+          state
+          [ "view"; "Darklang.Stdlib.DB.Tests.FindAll.rejectsInt8Query"; "--raw" ]
+          "=> sqlerror \"Only Int64 integer fields"
+          "SQL errors retain their short source form"
+      do!
+        lacks
+          state
+          [ "view"; "Darklang.Stdlib.DB.Tests.FindAll.rejectsInt8Query"; "--raw" ]
+          "You're using our new experimental Datastore query compiler"
+          "the display-only SQL preamble is absent from source"
+    })

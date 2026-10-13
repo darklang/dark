@@ -1,0 +1,58 @@
+// RESTORE: packages/darklang/scm/commits.dark, and the four other files named below
+// WAS: the DATA side of a commit's author: the `author` field of the Commit type, the `author`
+//      parameter of `mintHash` AND ITS PLACE IN THE HASH MATERIAL, the `author` parameter of
+//      `create`, the read in `commitFromRow`, and the `author` column in the INSERT and in three
+//      SELECTs.
+// ANCHOR: `author` was the third field of `Commit`, between `message` and `originTs`; the
+//      parameter was second in both `mintHash` and `create`, between `message` and `stamp`/`opIds`
+// ALSO: later/packages/darklang/cli/commit-author-display has the display side (authorLabel, the
+//       table column, the `by <author>` lines, CommitRowJson, the workbench rows).
+//       later/packages/darklang/scm/packageOpsCommits.dark.attribution has the two queries that
+//       asked WHO, which only ever answered with a second person in the store.
+//       The schema column was `author TEXT NOT NULL DEFAULT ''` on `commits`, and the same column
+//       sat in the commit INSERTs in backend/src/LibDB/Inserts.fs and
+//       backend/src/Cli/EmbeddedResources.fs.
+// WHEN: the identity molt, 2026-10-12
+//
+// READ THIS BEFORE RESTORING. The author was IN THE HASH MATERIAL, so putting it back changes the
+// id of every commit minted afterwards. Commits made since the molt hashed without it and keep the
+// ids they have, which means a store ends up with commits of both kinds and nothing marks which is
+// which. If attribution comes back, the safe shape is a column that is NOT in the hash; this
+// fragment is what the old shape was, not a recommendation to restore it as it stood.
+
+// --- type Commit: the third field, between `message` and `originTs` ---
+    author: String
+
+// --- mintHash: second parameter, and the material line ---
+let mintHash
+  (message: String)
+  (author: String)
+  (stamp: String)
+  (opIds: List<String>)
+  (parent: String)
+  : String =
+  let ops = Stdlib.String.join opIds ","
+  let material = $"{message}|{author}|{stamp}|{parent}|{ops}"
+  let digest = Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob material))
+  Stdlib.String.toLowercase (Stdlib.String.first digest 16)
+
+// --- create: second parameter, and the call it passes through ---
+let create
+  (message: String)
+  (author: String)
+  (opIds: List<String>)
+  (parent: String)
+  : String =
+  let stamp = nextStamp ()
+  let hash = mintHash message author stamp opIds parent
+
+// --- the INSERT ---
+      "INSERT OR REPLACE INTO commits (hash, message, author, origin_ts, parent)
+       VALUES (@p0, @p1, @p2, @p3, @p4)"
+      [ hash, message, author, stamp, parent ]
+
+// --- commitFromRow ---
+        author = Stdlib.Sqlite.textOr row "author"
+
+// --- the three SELECTs ---
+    "SELECT hash, message, author, origin_ts, created_at, parent FROM commits

@@ -385,7 +385,7 @@ Smaller, still open:
   is ~140 MB (measured on the 6.7 GB tree) and this would save most of it (estimate); hours of
   work, and it helps `ls` and search too
 - routing the store search's deserialization through the package manager's cache: ~4%
-  (estimate), but a long-lived process (the language server) would then hold every searched body
+  (estimate), but a long-lived process would then hold every searched body
   until invalidation. A live-set increase for an allocation win, so a design call, not a tweak
 
 Unexplained, kept so it does not vanish: one commit (making `NodeIds`'s per-node helpers top-level

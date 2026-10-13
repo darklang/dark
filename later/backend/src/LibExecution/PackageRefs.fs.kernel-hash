@@ -1,0 +1,30 @@
+// RESTORE: backend/src/LibExecution/PackageRefs.fs
+// WAS: kernelHash: one fingerprint for the pinned ABI, the sorted (name, hash) pairs hashed. It answered 'can another build read this', which only mattered when a bundle travelled between builds.
+// ANCHOR: last in the file, after the PackageRefs name table
+// ALSO: its two callers were the getKernelHash builtin (later/backend/src/Builtins/Builtins.Language/Libs/Reflection.fs.sync) and exportPageJson (later/backend/src/LibDB/Queries.fs.export-page). The comment at the top of PackageRefs.fs that referenced it was reworded.
+// WHEN: the sync molt, 2026-10-12
+
+/// A single fingerprint for the pinned ABI: the sorted (name, hash) pairs, hashed.
+///
+/// `darkBuild` (a git sha) says which COMMIT wrote something. It doesn't say what
+/// the PT shapes and the hashing actually were, which is the thing that decides
+/// whether another build can read it -- two commits can share an ABI, and a one-line
+/// change to a kernel type can break it. Someone holding nothing but a bundle and
+/// sqlite should be able to tell.
+///
+/// Sorted before hashing so it's stable regardless of file order, and short enough
+/// to eyeball.
+let kernelHash () : string =
+  let material =
+    getHashes ()
+    |> Map.toList
+    |> List.sortBy fst
+    |> List.map (fun (fqn, hash) -> $"{fqn}|{hash}")
+    |> String.concat "\n"
+
+  use sha = System.Security.Cryptography.SHA256.Create()
+  material
+  |> System.Text.Encoding.UTF8.GetBytes
+  |> sha.ComputeHash
+  |> System.Convert.ToHexString
+  |> fun s -> s.ToLowerInvariant().Substring(0, 16)

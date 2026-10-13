@@ -22,7 +22,7 @@ The checker is written in Darklang and lives in
 - `checkPackageOps` checks a batch of declarations.
 - `checkBranch` checks all visible declarations on a branch.
 
-Authoring, commits, propagation, the LSP, and `typecheck` use these functions.
+Authoring, commits, propagation, and `typecheck` use these functions.
 Checking follows parsing and name resolution.
 
 Three modules do the core work:
@@ -114,7 +114,7 @@ Lambdas have no declared return-type check.
 
 ### Authoring and commit
 
-`SCM.PackageOps.addAuthored` stabilizes hashes, stores the batch as WIP regardless of the verdict, and returns the report for display. It serves `fn`, `type`, `val`, `module`, Workbench saves, and the LSP filesystem provider.
+`SCM.PackageOps.addAuthored` stabilizes hashes, stores the batch as WIP regardless of the verdict, and returns the report for display. It serves `fn`, `type`, `val`, `module`, and Workbench saves.
 
 `SCM.PackageOps.commit` and `commitOpIds` re-check the committing ops as one batch and refuse `Failed`. `commit --allow-type-errors` overrides this;
 `--force` only skips the unresolved-references check. Re-checking matters because WIP changes: fixing `g` can make `f` pass. `Checked` and `Incomplete` both allow commit. Adapter failures produce `Incomplete`, so an adapter failure alone cannot block a save or commit.
@@ -127,16 +127,18 @@ The read-only `typecheck` command checks every visible type, value, and function
 
 ### Storage and future runtime checks
 
-`SCM.PackageOps.add` stores ops with final hashes that add no declaration, such as sync, rename, and deprecate, without checking or rejecting them.
+`SCM.PackageOps.add` stores ops with final hashes that add no declaration, such as rename and deprecate, without checking or rejecting them.
 
-The gate stays outside storage (`Builtin.scmAddOps`, `LibDB.Inserts`, and the `SCM.Commits` commit path) and merge, rebase, and sync, which move already-committed content. Synchronization, historical replay, propagation, and other storage callers must not reject data based on this checker. Future persisted verdicts will be regenerable and keyed by item hash and checker version.
+The gate stays outside storage (`Builtin.scmAddOps`, `LibDB.Inserts`, and the `SCM.Commits` commit path) and merge and rebase, which move already-committed content. Historical replay, propagation, and other storage callers must not reject data based on this checker. Future persisted verdicts will be regenerable and keyed by item hash and checker version.
 
 Skipping runtime checks is a separate rollout. It requires a `Checked` proof for the complete dependency closure under the same checker version. Failed, incomplete, missing, or stale proofs always keep runtime checks enabled.
 
-## Editor diagnostics
+## Diagnostics
 
-The language server checks syntax-clean documents on open, full-document change, and save. Definite diagnostics become LSP errors; checker warnings become LSP warnings, even when they belong to a `Failed` item. Each carries its issue code and the source `darklang-at-rest`. Diagnostics clear when the document checks
-cleanly or closes. During syntax errors, the parser reports diagnostics and the checker waits.
+The editor integration that consumed these moved to `later/`, so `typecheck` and the authoring
+commands are the readers today. What they get is unchanged: definite diagnostics are errors,
+checker warnings are warnings even when they belong to a `Failed` item, and each carries its
+issue code. During syntax errors, the parser reports diagnostics and the checker waits.
 
 Checker node IDs are not source locations. Diagnostics use declaration locations from `WrittenTypes`. Until lowering preserves stable source locations in `ProgramTypes`, issues point to the containing declaration body, or the type declaration for type issues. This is exact for a single-expression body such as `let invalid (x: Int) : String = x`, but only approximate for nested expressions.
 
@@ -215,10 +217,10 @@ ordinary Darklang code, not an F# module with a builtin in front of it. There is
 
 - Replacing name resolution or parsing.
 - Executing constants to discover their types.
-- Rejecting synchronized or historical package operations.
+- Rejecting historical package operations.
 - Inferring public function signatures; package functions already declare them.
 - Treating runtime values as static evidence without a declared or trusted signature.
-- Persisting source ranges in `ProgramTypes`. Editor diagnostics use the corresponding
+- Persisting source ranges in `ProgramTypes`. Diagnostics use the corresponding
   `WrittenTypes` declaration range; precise nested-expression mapping remains a
   separate lowering concern.
 

@@ -1635,15 +1635,12 @@ module PackageTest =
       let caseName, message =
         match expected with
         | PT.ExpectedError.RuntimeError message -> "RuntimeError", message
-        | PT.ExpectedError.SqlCompilerError message -> "SqlCompilerError", message
       DEnum(typeName (), typeName (), [], caseName, [ DString message ])
 
     let fromDT (d : Dval) : PT.ExpectedError =
       match d with
       | DEnum(_, _, [], "RuntimeError", [ DString message ]) ->
         PT.ExpectedError.RuntimeError message
-      | DEnum(_, _, [], "SqlCompilerError", [ DString message ]) ->
-        PT.ExpectedError.SqlCompilerError message
       | _ -> Exception.raiseInternal "Invalid test expected error" []
 
   let toDT (test : PT.PackageTest.PackageTest) : Dval =
@@ -1654,14 +1651,7 @@ module PackageTest =
         "expectedError",
         test.expectedError
         |> Option.map ExpectedError.toDT
-        |> Dval.option (ExpectedError.knownType ())
-        "testDBs",
-        DList(
-          VT.tuple (VT.known KTString) (VT.known (TypeReference.knownType ())) [],
-          test.testDBs
-          |> List.map (fun (name, typ) ->
-            DTuple(DString name, TypeReference.toDT typ, []))
-        ) ]
+        |> Dval.option (ExpectedError.knownType ()) ]
     DRecord(typeName (), typeName (), [], Map fields)
 
   let fromDT (d : Dval) : PT.PackageTest.PackageTest =
@@ -1673,14 +1663,7 @@ module PackageTest =
         expectedError =
           fields
           |> D.field "expectedError"
-          |> C2DT.Option.fromDT ExpectedError.fromDT
-        testDBs =
-          fields
-          |> D.field "testDBs"
-          |> D.list (fun d ->
-            match d with
-            | DTuple(name, typ, []) -> D.string name, TypeReference.fromDT typ
-            | _ -> Exception.raiseInternal "Invalid test DB" []) }
+          |> C2DT.Option.fromDT ExpectedError.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageTest" []
 
 

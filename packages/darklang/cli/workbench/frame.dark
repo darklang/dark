@@ -3,11 +3,12 @@
 /// See design main/notes/cli-ux/03A.
 module Darklang.Cli.Workbench.Frame
 
-/// Labels for stable built-in view indices. Index 2 stays reserved for the
-/// former Inspect view so later indices do not change.
+/// Labels for stable built-in view indices. Indices 2, 5, 6 and 7 stay reserved
+/// for the former Inspect, Devices, AI and Apps views so later indices do not
+/// change.
 val viewNames =
   [ "Home", "Matter", "(unused)", "REPL", "SCM"
-    "Devices", "AI", "Apps", "Traces", "Docs" ]
+    "(unused)", "(unused)", "(unused)", "Traces", "Docs" ]
 
 let viewName (i: Int) : String =
   Stdlib.List.getAt viewNames i |> Stdlib.Option.withDefault "Home"

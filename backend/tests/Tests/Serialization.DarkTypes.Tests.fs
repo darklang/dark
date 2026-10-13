@@ -6,8 +6,8 @@ open Prelude
 
 open TestUtils.TestUtils
 
-module File = LibCloud.File
-module Config = LibCloud.Config
+module File = LibConfig.File
+module Config = LibConfig.Dirs
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes

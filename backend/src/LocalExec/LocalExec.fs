@@ -93,8 +93,7 @@ module HandleCommand =
             PM.rt
             Execution.noTracing
             reportException
-            notify
-            { dbs = Map.empty } with
+            notify with
             access =
               LibExecution.Permissions.Access.start
                 LibExecution.Permissions.Policy.allowAll }
@@ -163,7 +162,7 @@ module HandleCommand =
           print
             $"WARNING: {opsBefore - opsAfter} op(s) did not survive this reload. A reload replaces \
               the log with what `packages/` produces; ops authored here or pulled from a relay are \
-              not in it. `dark push` or `dark sync export <file>` before reloading keeps them."
+              not in it, and nothing in the base tree sends them anywhere else first."
 
         return Ok()
     }
@@ -204,6 +203,400 @@ module HandleCommand =
 
   /// Scan `package_values.rt_dval` for referenced blob hashes and
   /// delete any `package_blobs` rows that aren't referenced.
+  /// What is reachable, from the entry points a person actually drives.
+  ///
+  /// Two questions nothing else here answers. Which package items can no code path reach, and
+  /// which builtins does no reachable item name. Both are asked of the STORE and of each item's
+  /// own body, so a grep's two standing failures do not apply: a comment or a doc example cannot
+  /// manufacture a reference, and a call spelled a different way in the source cannot hide one.
+  ///
+  /// The roots are the CLI's own entry points plus every ref the F# runtime resolves by name
+  /// (`PackageRefs`), because those are calls the graph cannot see. Anything reached only through
+  /// `eval` -- a demo tape, a testfile, a line a document tells you to type -- is invisible here
+  /// by construction, so an unreachable LISTING is a place to look rather than a verdict. The
+  /// stdlib is the obvious case: it exists to be called by code that is not in this tree, so most
+  /// of it is unreachable and correctly so. The report separates it for that reason.
+  let reachability () : Ply<Result<unit, string>> =
+    uply {
+      // The repo root: this runs from the source tree, which is the only place the test and doc
+      // text exists. `LibConfig.Dirs` knows where the tree is.
+      let root = LibConfig.Dirs.sourceRootDir
+
+      let! rows =
+        Sql.query
+          "SELECT item_hash, owner, modules, name, item_type FROM locations
+           WHERE unlisted_at IS NULL AND item_type <> 'module'"
+        |> Sql.executeAsync (fun read ->
+          (read.string "item_hash",
+           read.string "owner",
+           read.string "modules",
+           read.string "name",
+           read.string "item_type"))
+
+      let label (o : string) (m : string) (n : string) =
+        if m = "" then $"{o}.{n}" else $"{o}.{m}.{n}"
+
+      let nameOf =
+        rows |> List.map (fun (h, o, m, n, _) -> h, label o m n) |> Map.ofList
+
+      let byName =
+        rows |> List.map (fun (h, o, m, n, _) -> label o m n, h) |> Map.ofList
+
+      // Every ref the runtime looks up by name is a root: F# calls it directly, so no package
+      // item names it and the graph would call it dead.
+      let refRoots =
+        LibExecution.PackageRefs.allHashes ()
+        |> Set.filter (fun h -> Map.containsKey h nameOf)
+
+      let entryPoints =
+        [ "Darklang.Cli.executeCliCommand"
+          "Darklang.Cli.Registry.allCommands"
+          "Darklang.Cli.initState"
+          "Darklang.Cli.Workbench.execute" ]
+        |> List.choose (fun n -> Map.tryFind n byName)
+        |> Set.ofList
+
+      // A third kind of root: a fully-qualified name written as a STRING in Dark source and
+      // resolved at run time. The live-view host takes its callbacks that way
+      // (`init = "Darklang.Cli.TraceWatch.init"`), so no body references those functions and the
+      // walk calls the whole panel dead -- nine items of `ps --watch` and `traces --watch`, which
+      // both demonstrably work. Any `"Darklang.X.y"` in a .dark file counts.
+      let stringNamedRoots =
+        let re =
+          System.Text.RegularExpressions.Regex "\"(Darklang(?:\.[A-Za-z0-9_]+)+)\""
+
+        let dark =
+          if
+            System.IO.Directory.Exists(System.IO.Path.Combine(root, "packages"))
+          then
+            System.IO.Directory.EnumerateFiles(
+              System.IO.Path.Combine(root, "packages"),
+              "*.dark",
+              System.IO.SearchOption.AllDirectories
+            )
+            |> List.ofSeq
+          else
+            []
+
+        dark
+        |> List.collect (fun f ->
+          try
+            re.Matches(System.IO.File.ReadAllText f)
+            |> Seq.map (fun m -> m.Groups[1].Value)
+            |> List.ofSeq
+          with _ ->
+            [])
+        |> List.distinct
+        |> List.choose (fun n -> Map.tryFind n byName)
+        |> Set.ofList
+
+      print $"  {Set.count stringNamedRoots} root(s) named as strings in Dark source"
+      let roots = Set.unionMany [ refRoots; entryPoints; stringNamedRoots ]
+      print
+        $"roots: {Set.count roots} ({Set.count entryPoints} CLI entry point(s), {Set.count refRoots} PackageRefs)"
+
+      // A body's own references, by kind. `CallGraph.analyze` walks the PT expression, lambda
+      // bodies and dictionary keys included, which is the same walk the permission analyzer
+      // trusts.
+      let builtinsOf = System.Collections.Generic.Dictionary<string, Set<string>>()
+      let pkgRefsOf = System.Collections.Generic.Dictionary<string, Set<string>>()
+      let mutable analyzed = 0
+      let mutable missing = 0
+      let mutable incomplete = 0
+
+      // A body's VALUE references, which `Analysis.names` does not carry: it collects fn names
+      // only. Without these, `DemoData.HttpServerTest.router` reaches its three handlers through a
+      // `val` of them and the handlers read as unreachable.
+      let valueRefsOf = System.Collections.Generic.Dictionary<string, Set<string>>()
+
+      let record (h : string) (a : LibExecution.CallGraph.Analysis) =
+        analyzed <- analyzed + 1
+        if not a.complete then incomplete <- incomplete + 1
+
+        builtinsOf[h] <-
+          a.names
+          |> List.choose (function
+            | FQFnName.Builtin b -> Some $"{b.name}_v{b.version}"
+            | _ -> None)
+          |> Set.ofList
+
+        pkgRefsOf[h] <-
+          a.names
+          |> List.choose (function
+            | FQFnName.Package(Hash p) -> Some p
+            | _ -> None)
+          |> Set.ofList
+
+      // Values as well as functions. A `val` body can name a builtin and nothing else will:
+      // `Cli.Telemetry.logFilePath` is the only caller of `cliGetLogDir`, and a fn-only walk
+      // reports that builtin as having no caller at all.
+      for (h, _, _, _, t) in rows do
+        match t with
+        | "fn" ->
+          match! PM.pt.getFn (Hash h) with
+          | None -> missing <- missing + 1
+          | Some fn ->
+            record h (LibExecution.CallGraph.analyzeFn Set.empty fn)
+
+            valueRefsOf[h] <-
+              LibExecution.CallGraph.valueRefs fn.body |> Set.map (fun (Hash v) -> v)
+        | "value" ->
+          match! PM.pt.getValue (Hash h) with
+          | None -> missing <- missing + 1
+          | Some v ->
+            record h (LibExecution.CallGraph.analyze Set.empty Set.empty v.body)
+
+            valueRefsOf[h] <-
+              LibExecution.CallGraph.valueRefs v.body |> Set.map (fun (Hash x) -> x)
+        | _ -> ()
+
+      print
+        $"analyzed {analyzed} fn and value bodies ({missing} could not be loaded, {incomplete} statically incomplete)"
+      if analyzed = 0 then
+        return
+          Error "analyzed no bodies at all, so this report would be about nothing"
+      else
+
+        // The type and value edges the fold already recorded. A type is reached through them, never
+        // through a body's call list.
+        let! depRows =
+          Sql.query "SELECT item_hash, depends_on_hash FROM package_dependencies"
+          |> Sql.executeAsync (fun read ->
+            read.string "item_hash", read.string "depends_on_hash")
+
+        let deps = System.Collections.Generic.Dictionary<string, HashSet<string>>()
+
+        let addEdge (a : string) (b : string) =
+          match deps.TryGetValue a with
+          | true, s -> s.Add b |> ignore<bool>
+          | _ ->
+            let s = HashSet<string>()
+            s.Add b |> ignore<bool>
+            deps[a] <- s
+
+        for (a, b) in depRows do
+          addEdge a b
+
+        for KeyValue(a, ps) in pkgRefsOf do
+          for p in ps do
+            addEdge a p
+
+        for KeyValue(a, vs) in valueRefsOf do
+          for v in vs do
+            addEdge a v
+
+        let seen = HashSet<string>()
+        let stack = System.Collections.Generic.Stack<string>()
+        for r in roots do
+          stack.Push r
+
+        while stack.Count > 0 do
+          let h = stack.Pop()
+          if seen.Add h then
+            match deps.TryGetValue h with
+            | true, s ->
+              for n in s do
+                stack.Push n
+            | _ -> ()
+
+        let reached =
+          seen |> Seq.filter (fun h -> Map.containsKey h nameOf) |> Set.ofSeq
+        print $"reachable package items: {Set.count reached} of {List.length rows}"
+
+        let isLibrary (n : string) =
+          n.StartsWith "Darklang.Stdlib."
+          || n.StartsWith "Darklang.PrettyPrinter."
+          || n.StartsWith "Darklang.LanguageTools."
+          || n.StartsWith "Darklang.Internal."
+
+        let unreached =
+          rows
+          |> List.map (fun (h, o, m, n, t) -> h, label o m n, t)
+          |> List.filter (fun (h, _, _) -> not (Set.contains h reached))
+
+        let app, lib =
+          unreached |> List.partition (fun (_, n, _) -> not (isLibrary n))
+
+        // A fn nothing in `packages/` calls can still have a driver: a testfile, an F# test holding
+        // Dark source as a string, a demo tape, or a line a document tells you to type. All of those
+        // go through `eval`, so no package body names them and this walk cannot see them. Classify
+        // the unreachable list by whether its name appears in that text at all, because "only the
+        // tests use it" and "nothing uses it" are different findings and only the second is dead.
+        // Count per directory and print it. A total is not a floor: a directory that silently read
+        // as empty would have gone unnoticed behind the other four, which is how the first run of
+        // this reported eighteen testfile fixtures as named nowhere.
+        let readDir (dir : string) : string list =
+          let full = System.IO.Path.Combine(root, dir)
+          if System.IO.Directory.Exists full then
+            System.IO.Directory.EnumerateFiles(
+              full,
+              "*",
+              System.IO.SearchOption.AllDirectories
+            )
+            |> List.ofSeq
+          else
+            []
+
+        let driverParts =
+          [ "backend/testfiles"; "backend/tests"; "docs"; "scripts" ]
+          |> List.map (fun dir ->
+            let files = readDir dir
+            let text =
+              files
+              |> List.map (fun f ->
+                try
+                  System.IO.File.ReadAllText f
+                with _ ->
+                  "")
+              |> String.concat "\n"
+            dir, List.length files, text)
+
+        // Package PROSE, which is a driver of its own: a doc comment that says "run
+        // `dark eval 'Darklang.Cli.Ps.printAll ()'`" was the only caller that function had, and it was
+        // a real one. Comment lines only, or every definition would name itself.
+        let packageProse =
+          readDir "packages"
+          |> List.filter (fun f -> f.EndsWith ".dark")
+          |> List.map (fun f ->
+            try
+              System.IO.File.ReadAllLines f
+              |> Array.filter (fun l -> l.TrimStart().StartsWith "//")
+              |> String.concat "\n"
+            with _ ->
+              "")
+          |> String.concat "\n"
+
+        for (dir, n, text) in driverParts do
+          print $"  read {n} file(s), {text.Length} chars, from {dir}"
+          if n = 0 then
+            print
+              $"  WARNING: {dir} read as empty, so the split below is not trustworthy"
+
+        print $"  read {packageProse.Length} chars of comment text from packages/"
+
+        let driverText =
+          (driverParts |> List.map (fun (_, _, t) -> t) |> String.concat "\n")
+          + "\n"
+          + packageProse
+
+        // Does any of that text name this item? The last segment as a WHOLE WORD, not `.leaf`:
+        // `backend/testfiles` is parsed with owner `Tests`, so a testfile names a function BARE
+        // (`stringFn`, not `Test.stringFn`), and requiring the dot put five such fixtures on the
+        // list of things nothing anywhere references. A bare word over-reports instead -- `stamp`
+        // and `confirm` turn up in prose that has nothing to do with the function -- and that is
+        // the safe direction here: over-reporting keeps an item OFF the delete list, where
+        // under-reporting puts a live one on it.
+        let leafRe =
+          System.Collections.Generic.Dictionary<string, System.Text.RegularExpressions.Regex>()
+
+        let namedInDrivers (fullName : string) =
+          let leaf = fullName.Split '.' |> Array.last
+
+          if driverText.Contains fullName then
+            true
+          else
+            let re =
+              match leafRe.TryGetValue leaf with
+              | true, r -> r
+              | _ ->
+                let r =
+                  System.Text.RegularExpressions.Regex(
+                    @"\b" + System.Text.RegularExpressions.Regex.Escape leaf + @"\b",
+                    System.Text.RegularExpressions.RegexOptions.Compiled
+                  )
+
+                leafRe[leaf] <- r
+                r
+
+            re.IsMatch driverText
+
+        let drivenByTests, reachedByNothing =
+          app |> List.partition (fun (_, n, _) -> namedInDrivers n)
+
+        print ""
+        print $"UNREACHABLE application code: {List.length app} items"
+        print
+          $"  of those, named somewhere in tests/docs/demos: {List.length drivenByTests}"
+        print
+          $"  of those, named NOWHERE in the tree:           {List.length reachedByNothing}"
+        print ""
+        print "NAMED NOWHERE -- no package body, no test, no doc, no demo:"
+        reachedByNothing
+        |> List.sortBy (fun (_, n, _) -> n)
+        |> List.iter (fun (_, n, t) -> print $"  {t, -6} {n}")
+        print ""
+        print $"UNREACHABLE, application code, by module ({List.length app}):"
+        app
+        |> List.countBy (fun (_, n, _) ->
+          let parts = n.Split '.'
+          String.concat "." (Array.truncate (max 1 (parts.Length - 1)) parts))
+        |> List.sortByDescending snd
+        |> List.iter (fun (m, c) -> print $"  {c, 5}  {m}")
+        print ""
+        print
+          $"UNREACHABLE, library code ({List.length lib}): expected -- it exists for code outside this tree"
+        lib
+        |> List.countBy (fun (_, n, _) ->
+          let parts = n.Split '.'
+          String.concat
+            "."
+            (Array.truncate (min 3 (max 1 (parts.Length - 1))) parts))
+        |> List.sortByDescending snd
+        |> List.truncate 12
+        |> List.iter (fun (m, c) -> print $"  {c, 5}  {m}")
+
+        // Builtins: named by a reachable item, named only by an unreachable one, or named nowhere.
+        let namedByReachable =
+          builtinsOf
+          |> Seq.filter (fun kv -> Set.contains kv.Key reached)
+          |> Seq.collect (fun kv -> kv.Value)
+          |> Set.ofSeq
+
+        let namedAnywhere =
+          builtinsOf |> Seq.collect (fun kv -> kv.Value) |> Set.ofSeq
+        print ""
+        print $"builtins named by a REACHABLE item: {Set.count namedByReachable}"
+        print
+          $"builtins named only by an UNREACHABLE item: {Set.count (Set.difference namedAnywhere namedByReachable)}"
+
+        // The PRODUCT's builtins. `Builtins.all ()` also carries `TestUtils.LibTest`, which no
+        // shipped code may name, so counting those would report seven permanent orphans.
+        let all =
+          LibExecution.Builtin.combine
+            [ Builtins.Pure.Builtin.builtins ()
+              Builtins.Http.Client.Builtin.builtins ()
+              Builtins.Language.Builtin.builtins ()
+              Builtins.Cli.Builtin.builtins ()
+              Builtins.Time.Builtin.builtins ()
+              Builtins.Random.Builtin.builtins ()
+              Builtins.Matter.Builtin.builtins
+                LibExecution.ProgramTypes.PackageManager.empty
+              Builtins.CliHost.Builtin.builtins ()
+              Builtins.Http.Server.Builtin.builtins () ]
+            []
+          |> fun b ->
+            b.fns.Keys
+            |> Seq.map (fun (k : RT.FQFnName.Builtin) -> $"{k.name}_v{k.version}")
+            |> Set.ofSeq
+
+        if Set.isEmpty all then
+          print
+            "(could not enumerate the registered builtins, so 'named nowhere' is not reported)"
+        else
+          // An operator does not reach its builtin by name: the interpreter answers two operands of
+          // one numeric type directly (`FastOps.evalNumeric`), so `divide`, `bitwiseAnd`, `shiftLeft`
+          // and their fifteen siblings are called by F# and named by no body. `tests/builtin` knows
+          // the same class as `infixDispatched` and `languageIdioms`.
+          let nowhere = Set.difference all namedAnywhere
+          print
+            $"product builtins: {Set.count all}; named by no package body at all: {Set.count nowhere}"
+          print
+            "  (an operator builtin belongs here: the interpreter calls it, not a body)"
+          nowhere |> Set.toList |> List.sort |> List.iter (fun b -> print $"  {b}")
+
+        return Ok()
+    }
+
   let sweepBlobs () : Ply<Result<unit, string>> =
     uply {
       try
@@ -253,6 +646,11 @@ let main (args : string[]) : int =
         $"Exporting seed to {outputPath}"
         (HandleCommand.exportSeed outputPath)
 
+    | [ "reachability" ] ->
+      handleCommand
+        "reporting what is reachable from the CLI's entry points"
+        (HandleCommand.reachability ())
+
     | [ "pm-sweep-blobs" ] ->
       handleCommand
         "sweeping orphan package_blobs rows"
@@ -276,6 +674,7 @@ let main (args : string[]) : int =
       print "  migrations list"
       print "  export-seed <output-path>"
       print "  pm-sweep-blobs"
+      print "  reachability"
       print "  bench"
       print "  bench-render"
       NonBlockingConsole.wait ()

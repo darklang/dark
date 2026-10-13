@@ -1,0 +1,22 @@
+// RESTORE: backend/src/Builtins/Builtins.Language/Libs/Reflection.fs
+// WAS: the getKernelHash builtin: a fingerprint of the pinned ABI, which the wire protocol sent so two instances could refuse to exchange ops they could not both decode
+// ANCHOR: last in the fns list, after `reflect`. Its closing brace carried the list terminator, which `reflect` now carries.
+// ALSO: later/packages/darklang/sync/wire.dark was its only caller
+// WHEN: the sync molt, 2026-10-12
+
+// --- getKernelHash ---
+    { name = fn "getKernelHash" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description =
+        "A fingerprint of the pinned ABI: what PT shapes and hashing this build actually has"
+      fn =
+        (function
+        | _, _, [], [| DUnit |] ->
+          uply { return DString(LibExecution.PackageRefs.kernelHash ()) }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated } ]

@@ -1,0 +1,22 @@
+// RESTORE: packages/darklang/cli/apps/registry.dark
+// WAS: the Auto-sync daemon entry and the Sync status view entry, out of the app registry
+// ANCHOR: the daemon sat between the Text Editor app and the Dark Packages HTTP Server app; the view sat last in the Views target of the live-views app, after 'packages'
+// ALSO: later/packages/darklang/cli/apps/servers.dark.sync-daemon has the daemon they name
+// WHEN: the sync molt, 2026-10-12
+// NOTE: the file this came out of is ALSO in later/, at the same path under later/.
+//       Move the file back first, then apply this on top of it.
+
+    Model.App
+      { name = "Auto-sync"
+        slug = "sync"
+        description = "Set-and-forget: push and pull against your relay every 30s"
+        target = Model.Target.Daemon "Darklang.Cli.Apps.Servers.syncDaemon" }
+              Model.View
+                { name = "sync"
+                  title = "Sync status"
+                  init = "Darklang.Cli.Sync.Status.init"
+                  update = "Darklang.Cli.Sync.Status.update"
+                  render = "Darklang.Cli.Sync.Status.render"
+                  // A relay's count moves on its own; ask again every five seconds.
+                  every = Stdlib.Option.Option.Some 5000L
+                  keys = Stdlib.Option.Option.None } ] } ]

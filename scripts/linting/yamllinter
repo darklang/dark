@@ -4,20 +4,50 @@
 set -euo pipefail
 
 all_yaml_files() {
-  find ./* -type f \
-    \( -name "*.yml" \
-    -o -name "*.yaml" \) -print \
-    -o -path ".git" -prune \
-    -o -path "rundir" -prune \
-    -o -path "./rundir" -prune \
-    -o -path "backend/paket-files" -prune \
-    -o -path "./backend/paket-files" -prune \
-    -o -path ".circleci/config.yml" -prune
+  # Two things were wrong with the walk this replaced, and only one of them is the obvious one.
+  #
+  # The real bug was PATH SPELLING. It walked `find ./*`, which yields `./rundir`, while four of
+  # its six prunes were spelled without the `./` (`-path "rundir"`, `-path ".git"`,
+  # `-path "backend/paket-files"`, `-path ".circleci/config.yml"`). Those four could never match
+  # anything the walk produced. Two `./`-prefixed duplicates in the same list did match, which is
+  # why it looked like it worked. And `later` and `node_modules` were not in the list at all, so
+  # `later/vscode-extension/node_modules` got linted: a few hundred vendored yaml files nobody
+  # here wrote, with errors in them that are not ours to fix. Measured against this tree, the old
+  # expression returns 21 files, all 21 of them vendored, and NONE of the repo's own yaml.
+  #
+  # Prune order is NOT the bug, contrary to what an earlier version of this comment said. A
+  # prune after `-type f` works fine: a directory fails the `-type f` test and falls through to
+  # the `-o` prune branch. Both orders were checked in a sandbox and both prune correctly. The
+  # order here is the conventional one because it reads better, not because the other is broken.
+  find . \
+    \( -path ./.git \
+    -o -path ./later \
+    -o -path ./rundir \
+    -o -path ./clis \
+    -o -path ./backend/paket-files \
+    -o -path ./backend/Build \
+    -o -name node_modules \
+    \) -prune \
+    -o -type f \( -name "*.yml" -o -name "*.yaml" \) -print
 }
 
 if [[ "$#" -eq 1 ]]; then
   yamllint "$1"
 else
   echo "linting yaml files ..."
-  all_yaml_files | xargs yamllint
+  files=$(all_yaml_files)
+  # A check that the walk found the repo's own yaml, because a mistake in the prunes above
+  # presents as a clean run. A COUNT is the wrong instrument for this: the walk yields exactly
+  # three files today, so a `-lt 3` floor has no headroom and deleting one `.github` file would
+  # turn the linter into a hard failure. Name the file that matters instead. `.circleci/config.yml`
+  # is the one anybody actually edits, and the old walk pruned it by accident, so its presence is
+  # both the thing worth asserting and the exact regression worth guarding.
+  n=$(echo "$files" | grep -c . || true)
+  if [[ -z "$files" ]] || ! echo "$files" | grep -qx "./.circleci/config.yml"; then
+    echo "yamllinter: the walk matched $n file(s) and did not include ./.circleci/config.yml," >&2
+    echo "            which means the prune list is wrong" >&2
+    exit 2
+  fi
+  echo "$files" | xargs yamllint
+  echo "linted $n yaml file(s)"
 fi

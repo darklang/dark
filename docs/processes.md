@@ -130,7 +130,7 @@ view of the interpreter:
 There is one loop. `executeSync` runs frames until something has to be waited
 for and answers a `StepOutcome`; `awaitOf` turns the wait into `(wait,
 resume)` at the bail site. `executeSync` is that loop; an unscheduled run
-(`execute`: tests, the LSP, a host running a function itself) is
+(`execute`: tests, a host running a function itself) is
 `driveToEnd`, fifteen lines that await each `wait` in place and step again.
 Its budget is negative, so it never sees `StepBudget`. A wait is decided
 once, where it happens, and the scheduler and the plain run differ only in
@@ -496,7 +496,7 @@ order. It is redundant now: plain `List.map` spreads computation by itself
 (the next section), in chunks rather than a process per element, and reads
 run concurrently under it already.
 
-From a trace nobody scheduled (a test's `execute`, the LSP, an HTTP handler)
+From a trace nobody scheduled (a test's `execute`, an HTTP handler)
 `spawn` uses a process-wide scheduler with workers of its own
 (`Scheduler.CurrentOrShared`), started on first use, and `await` blocks that
 thread on the completion as any builtin wait would.
@@ -587,7 +587,7 @@ A builtin that touches the OS names the operation (`Interpreter.requestHost
 vm op next`) and the loop performs it; nothing is checked or awaited inside
 the body (in `Builtins.Cli`: `File`,
 `Directory`, `Environment`, `Execution`, `Posix`; in the HTTP client: the
-guest request and stream open, and the sync transport's GET and POST):
+guest request and the stream open):
 
 - The body puts the `Host.Operation` and a continuation on the VM
   (`VMState.pendingHostOp`, `pendingHostNext`; no record, same as an apply
@@ -612,10 +612,8 @@ guest request and stream open, and the sync transport's GET and POST):
   thread, before anything is performed, under the same access the body ran
   with.
 
-Two OS-facing calls still perform from inside the body, on purpose.
-`httpGetUnsafeBytesStart` starts a sync GET and hands back a handle for
-`httpAwaitBytes` to collect: the point is not to wait, so it has no
-continuation to give the loop. The HTTP server's bind is performed under the
+One OS-facing call still performs from inside the body, on purpose.
+The HTTP server's bind is performed under the
 child guest state's access, not the calling frame's, and `serve` then runs
 its listener in the same body; the bind is synchronous, so nothing parks
 there anyway.
@@ -878,8 +876,8 @@ The pieces:
 What a preview does not do: it does not write, it is not a trace, and it does not echo a logged
 print (that echo belongs to a resume, where somebody is taking the trace forward).
 
-**Everything that shows a value beside code comes through here.** `dark traces show`, the
-workbench's gutter and the LSP's inlay hints all call `Live.Values.replay`, which is the
+**Everything that shows a value beside code comes through here.** `dark traces show` and the
+workbench's gutter both call `Live.Values.replay`, which is the
 preview with the newest run that went through the function. There is no second mechanism; the
 one that used to re-run a single function on its recorded arguments, and perform its effects
 for real, is deleted (`docs/live.md`, "Live values").
@@ -889,9 +887,8 @@ for real, is deleted (`docs/live.md`, "Live values").
 Not built, and deliberately not. A half-answer to "move a run" is worse than
 none: a text bundle of the rows carries no code, no blobs and no argv, so it
 moves the traces whose log happens to be self-contained and quietly goes live
-early for the rest. The real version is part of synchronising traces (a route on
-the relay, or the sync transport carrying rows), and it should arrive with the
-rest of that design rather than ahead of it.
+early for the rest. The real version is part of a design for moving traces between
+machines, and it should arrive with the rest of that rather than ahead of it.
 ## `dark ps`
 
 `Stdlib.Exec.list/inspect/cancel` over `Builtin.execList/execInspect/execCancel`
@@ -938,10 +935,10 @@ sends KILL. `ps --watch` repaints both tables every half second with a cursor
 (`c`, `k`, Escape), and the workbench's Processes pane lists the machine's
 rows under its own.
 
-What a daemon is, in these terms: one OS process (`dark apps daemon-main
-<slug>`, so its title is `dark <slug>`), whose root process is the daemon's
+What a daemon is, in these terms: one OS process whose root process is the daemon's
 step loop; anything it spawns is a child in its own table. The registry
 outlives the CLI that started the daemon, since the daemon writes its own row.
+Nothing in the tree starts one today; the runner it would use is `cli/liveview/runner.dark`.
 
 ## The scheduling policy, in Dark
 
@@ -1005,7 +1002,6 @@ and says so.
 | sleep, timers | from the log, returning at once | the wait already happened |
 | package store read | from the log | replay-after-an-edit depends on it: prefix on the old results, live suffix on the current store |
 | package store write | from the log | landing an op twice is a duplicate or a conflict |
-| sync push, pull | from the log; a resume never pushes or pulls on its own | the push is on the server; a mid-replay pull lands ops the trace never saw |
 | permission prompt | not logged; re-checked every call, never replayed | a fork must not inherit an approval nobody gave it |
 | trace read, write | from the log; the live suffix records itself | a trace write during replay would write into the log being replayed |
 | native (FFI) | refuse unless declared pure | nothing is known about what it did |
@@ -1042,12 +1038,12 @@ What is deliberately not here, and where the seams are:
 - `sleep` parks on its timer task, not on a `Timer` event; `ps` says `sleep`.
 - `Event.ExecDone` carries only the id (a Dark enum cannot hold an untyped
   value); `Exec.await` is how a value comes back.
-- Traces moved to another machine are files; a relay route would be its own
-  change on the relay's own deploy.
+- Traces moved to another machine are files; a route that serves them would be its own
+  change.
 - The host's answer comes back through the task the loop parks on (the scheduler's
   `Completed` post), not as a `Response` event of its own. If a `Response` event is ever
   wanted (a remote host), `performRequested` is the one place to change.
-- `httpGetUnsafeBytesStart` performs inline on purpose (it exists not to wait); the HTTP
+- The HTTP
   server's bind performs inline under the child guest's access (`HttpServer.fs`).
 - `Exec.awaitWithin` uses `Task.Delay` with a cancellation source, not the queue's
   `Timer` event; same effect, one less path through the scheduler.
@@ -1119,14 +1115,14 @@ rest of this file is what the system does; this section is how to move around in
 
 Where live meets the scheduler, for whoever changes one side and has to walk the other:
 `Stdlib.Host.await` and its `EventSpec`/`Event` types (`stdlib/hostAwait.dark`), the host
-loop in `cli/apps/host.dark` and the workbench loop in `cli/loop.dark`; the store version
+loop in `cli/liveview/host.dark` and the workbench loop in `cli/loop.dark`; the store version
 source `HostEvents.sources.storeVersion`, installed from `Cli/Cli.fs` over
 `LibDB.Sqlite.DataVersion`; `Scheduler.SpawnApply` and `AwaitWithin` in `HttpServer.fs`; the
 test harness's `loopDriver`/`stepOn`/`pushKey`/`pushTick` over `Scheduler.PushEvent`;
 `cli/ps.dark` and the workbench's Processes pane over `Exec.list`/`inspect`/`cancel`; live
 values (`TraceExpr` and `storeExprResult` in `Interpreter.fs`, `Tracing.forProcess`,
-`LiveValues.fs`); and `Cli/Cli.fs`, where `apps daemon-main <slug>` sits beside
-main-through-the-scheduler and `DARK_SCHEDULER=off`.
+`LiveValues.fs`); and `Cli/Cli.fs`, where main-through-the-scheduler sits beside
+`DARK_SCHEDULER=off`.
 
 ### Rules that bite
 
@@ -1184,7 +1180,7 @@ main-through-the-scheduler and `DARK_SCHEDULER=off`.
   the reload): `tests/scheduler` (about 10 s, `testSequenced` because gates, trace and
   the fake key source are process-wide), `tests/LibExecution` (the stdlib testfiles,
   about 40 s), `tests/HttpClient` (4 s), `tests/CliWorkspace` (16 s, the workbench and
-  live), `tests/MultiInstance` (10 s, sync), `tests/builtin` (the one-wrapper rule),
+  live), `tests/builtin` (the one-wrapper rule),
   `tests/Interpreter/PermissionsGate`, `tests/permissions`, `tests/PermissionEscape`,
   `tests/blob`. `--groups` lists everything with counts.
 - Test-only builtins in `TestUtils/LibTest.fs`: `testGateWait n`, `testTrace s`,

@@ -291,11 +291,7 @@ let commitsIsAnArrayOfCommits =
       do! commit state "json commits fixture"
 
       do! isArray state [ "commits"; "--json" ]
-      do!
-        rowsHaveKeys
-          state
-          [ "commits"; "--json" ]
-          [ "author"; "hash"; "message"; "ops" ]
+      do! rowsHaveKeys state [ "commits"; "--json" ] [ "hash"; "message"; "ops" ]
     })
 
 let branchesIsAnArrayOfBranches =

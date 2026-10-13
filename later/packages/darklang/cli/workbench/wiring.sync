@@ -1,0 +1,98 @@
+// RESTORE: five workbench files, one or two lines each
+// WAS: the wiring that put the Devices view and the Sync view on screen
+// ANCHOR: nav.dark had syncInFrame just above launchOrStartApp; chrome.dark had the vDevices
+//      render arm, its blurb, its key hints, the u/d hints on Changes and the Sync help group;
+//      frame.dark named index 5 "Devices"; types.dark had `val vDevices = 5`, its gate key
+//      "devices.enabled" in baseViewSpecs and its List behavior; navbar.dark had the Sync
+//      workspace covering vDevices, last in the strip.
+//      Index 5 is now reserved the way index 2 is, so no later index moved.
+// ALSO: views-misc.dark.sync, loaders-misc.dark.sync, keys-view.dark.sync, viewdefs.dark.sync,
+//      scm-status.dark.sync and frame-assembly.dark.sync in this directory
+// WHEN: the sync molt, 2026-10-12
+
+// --- packages/darklang/cli/workbench/nav.dark ---
+  // Forced, not compared: the command may have been a pull, which lands committed ops and other people's
+  // conflicts without moving this branch's draft count.
+  let refreshed = forceScmRefresh state
+  // Sync's standing and activity changed with the command. Refresh the
+  // document now, so closing its output does not reveal the old facts.
+  let refreshed =
+
+// --- packages/darklang/cli/workbench/nav.dark ---
+/// `u`/`d` in the SCM view: push to the relay, pull from it, output in the reader.
+///
+/// Sync is an ACTION here, not just a readout: seeing that you are ahead and having to leave for a shell
+/// is how people stop pushing. It runs the same registered command the CLI does, so there is one
+/// implementation.
+///
+/// With no relay configured this says so instead of running: `push` would fail against an empty url, and
+/// the fix is a question-asking command that cannot run inside a frame the workbench owns.
+let syncInFrame (state: State) (verb: String) : Step =
+  if SCM.PackageOps.relay () == "" then
+    Step.Continue
+      { state with messageKind = MessageKind.Refused; message = "no relay yet - run `dark sync setup` from a shell to point this instance at one" }
+  else
+    runCommandInFrame state verb []
+
+
+
+
+// --- packages/darklang/cli/workbench/chrome.dark ---
+  else if state.activeView == vDevices then
+    renderDevices state region
+
+
+// --- packages/darklang/cli/workbench/chrome.dark ---
+  else if idx == vDevices then ("this instance's config, and the peers it syncs with", "part sketch")
+
+
+// --- packages/darklang/cli/workbench/chrome.dark ---
+    else if view == vDevices then
+      [ ("c", "config"), ("s", "sync now"), ("a", "setup") ]
+
+
+// --- packages/darklang/cli/workbench/chrome.dark ---
+            [ ("c", "commit"), ("x", "discard"), ("u/d", "push/pull") ]
+
+// --- packages/darklang/cli/workbench/chrome.dark ---
+    ("Changes", "⏎ source   c commit   x discard   u/d push/pull   o/t/a resolve the conflict under the cursor")
+
+// --- packages/darklang/cli/workbench/chrome.dark ---
+    ("Sync", "s sync now   u push   d pull   o other instances")
+
+
+// --- packages/darklang/cli/workbench/frame.dark ---
+/// Labels for stable built-in view indices. Index 2 stays reserved for the
+/// former Inspect view so later indices do not change.
+val viewNames =
+  [ "Home", "Matter", "(unused)", "REPL", "SCM"
+    "Devices", "AI", "Apps", "Traces", "Docs" ]
+
+// --- packages/darklang/cli/workbench/types.dark ---
+val vDevices = 5
+
+
+// --- packages/darklang/cli/workbench/types.dark ---
+    (vDevices, "devices.enabled")
+
+
+// --- packages/darklang/cli/workbench/types.dark ---
+let viewBehavior (view: Int) : ViewBehavior =
+  if view == vHome then ViewBehavior.SectionedList
+  else if view == vDevices then ViewBehavior.List
+  else
+
+// --- packages/darklang/cli/workbench/types.dark ---
+// Index 2 remains reserved for the former Inspect view, keeping later indices
+// stable without exposing Inspect in the navbar.
+
+// --- packages/darklang/cli/workbench/navbar.dark ---
+    // This machine: its sync state (and, gated, the peers it syncs with).
+    Workspace
+      { name = "Sync"
+        dest = mkDest (extViewIndex "sync") 0
+        covers = [ vDevices ] } ]
+
+// --- packages/darklang/cli/workbench/navbar.dark ---
+    Workspace { name = "Docs"; dest = mkDest vDocs 0; covers = [] }
+    Workspace { name = "Docs"; dest = mkDest vDocs 0; covers = [] } ]

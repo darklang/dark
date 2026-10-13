@@ -1,0 +1,16 @@
+module Darklang.Stdlib.Cli.UI.Spinner
+
+
+/// Run a function with a status message.
+/// Shows the message, runs the function, then shows "done".
+/// Note: not a real spinner — prints a static message. A real spinner
+/// would need background threads, which Dark doesn't support yet.
+let run (message: String) (fn: Unit -> 'a) : 'a =
+  Stdlib.print ($"{message}... ")
+  let result = fn ()
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.greenText "done")
+  result
+
+// MOVED: a self-declared stub -- 'not a real spinner, prints a static message' because 'Dark
+// doesn't support background threads yet'. That premise expired when the scheduler landed, and
+// nothing ever called it. Rewrite against Exec.spawn rather than restoring this.

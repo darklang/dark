@@ -400,13 +400,12 @@ let private valueHashTests =
 let private testHashTests =
   testList
     "computeTestHash"
-    [ test "body, expected error, and private DB schemas are identity; docs are not" {
+    [ test "body and expected error are identity; docs are not" {
         let baseTest : PT.PackageTest.PackageTest =
           { hash = PT.Hash ""
             body = eInt64 7L
             description = "first wording"
-            expectedError = None
-            testDBs = [] }
+            expectedError = None }
         let hash = Hashing.computeTestHash Hashing.Normal baseTest
         let docHash =
           Hashing.computeTestHash
@@ -419,26 +418,12 @@ let private testHashTests =
             Hashing.Normal
             { baseTest with
                 expectedError = Some(PT.ExpectedError.RuntimeError "boom") }
-        let sqlErrorHash =
-          Hashing.computeTestHash
-            Hashing.Normal
-            { baseTest with
-                expectedError = Some(PT.ExpectedError.SqlCompilerError "boom") }
-        let dbHash =
-          Hashing.computeTestHash
-            Hashing.Normal
-            { baseTest with testDBs = [ "Items", PT.TString ] }
         Expect.equal hash docHash "documentation does not invalidate a test result"
         Expect.notEqual hash bodyHash "body changes invalidate a test result"
         Expect.notEqual
           hash
           expectedErrorHash
           "expected errors invalidate a test result"
-        Expect.notEqual
-          expectedErrorHash
-          sqlErrorHash
-          "the expected error kind is part of the test identity"
-        Expect.notEqual hash dbHash "test DB schemas invalidate a test result"
       } ]
 
 

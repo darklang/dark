@@ -1,0 +1,65 @@
+// RESTORE: backend/tests/Tests/CliTraceVerbs.Tests.fs
+// WAS: the account-scoped setup of previewOfASpawnServesTheChildFromTheLog. It logged in as
+//      Stachu (saving and restoring cli-config.json around it), approved the function as that
+//      account, and asserted the ANONYMOUS account had no approval for it -- which was the
+//      point: an account's approval had to work while the host ExecutionState was anonymous.
+// ANCHOR: the config save/restore and the login were the first thing in the task, before
+//      `do! start state`; the negative assertion came straight after the approve.
+//      The test itself stayed: what it is about is that previewing a spawn serves the child
+//      from the LOG rather than rolling a fresh uuid, and that still holds.
+// ALSO: later/packages/darklang/cli/auth/ and later/packages/darklang/scm/account.dark.
+//       With accounts gone there is one (anonymous) account, so approvals are not scoped.
+// WHEN: the accounts molt, 2026-10-12
+
+      task {
+        // Account-scoped approval must work even though the host ExecutionState is anonymous.
+        // Restore the CLI session afterward so this test does not log later tests in.
+        let configPath =
+          System.IO.Path.Combine(LibConfig.Config.runDir, "cli-config.json")
+        let savedConfig =
+          if System.IO.File.Exists configPath then
+            Some(System.IO.File.ReadAllBytes configPath)
+          else
+            None
+        use _restoreConfig =
+          { new System.IDisposable with
+              member _.Dispose() =
+                match savedConfig with
+                | Some bytes -> System.IO.File.WriteAllBytes(configPath, bytes)
+                | None -> System.IO.File.Delete configPath }
+        do!
+          shows
+            state
+            [ "login"; "Stachu" ]
+            "Logged in as Stachu"
+            "selected an account"
+        do! start state
+
+        do!
+          shows
+            state
+            [ "permissions"; "approve"; "Tests.Prev.conc"; "--yes" ]
+            "approved Tests.Prev.conc"
+            "the selected account approved the function"
+        let! (LibExecution.ProgramTypes.Hash rootHash) =
+          findPackageFn "Tests.Prev.conc"
+        Expect.isFalse
+          (LibDB.PolicyStore.packagePolicies None |> Map.containsKey rootHash)
+          "the anonymous account has no approval for this function"
+
+
+// --- also removed: the negative assertion at the end of the same test ---
+// With one (anonymous) account there is nothing to borrow FROM, so this asserted the opposite of
+// what now holds: the approval the CLI makes IS the anonymous one, and an anonymous preview sees
+// it, correctly.
+
+        let! trace = latest ()
+        let! anonymous =
+          evalUnder
+            (executionState state)
+            $"""let (_, problem) = Darklang.Tracing.Store.viewTrace Stdlib.Option.Option.None Darklang.SCM.Branch.mainBranchId "{trace.id}" in
+                match problem with | Some _ -> true | None -> false"""
+        Expect.equal
+          anonymous
+          (RT.DBool true)
+          "anonymous preview cannot borrow the account's approval"

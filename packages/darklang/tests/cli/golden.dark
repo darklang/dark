@@ -61,9 +61,7 @@ let goldenviewRender () : Unit =
     Darklang.Cli.Workbench.initialState
       Darklang.SCM.Branch.mainBranchId
       Stdlib.Option.Option.None
-      "perf"
       "perf-instance"
-      (Stdlib.List.range 0 40)
       false
 
   let base = fixedHome loadedBase
@@ -93,8 +91,8 @@ let goldenviewRender () : Unit =
   Stdlib.printLine "-- end of golden view --"
 
 val goldenviewExpected =
-  [ "120x40 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "120x40 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+  [ "120x40 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "120x40 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mDocs\u001b[0m \u001b[0m"
     "120x40 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "120x40 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "120x40 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -133,7 +131,7 @@ val goldenviewExpected =
     "120x40 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "120x40 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "120x40 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "80x24 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "80x24 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
     "80x24 1|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "80x24 2|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                \u001b[90m│\u001b[0m\u001b[0m"
     "80x24 3|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m        \u001b[90m│\u001b[0m\u001b[0m"
@@ -212,9 +210,7 @@ let goldenkeysRender () : Unit =
     Darklang.Cli.Workbench.initialState
       Darklang.SCM.Branch.mainBranchId
       Stdlib.Option.Option.None
-      "perf"
       "perf-instance"
-      (Stdlib.List.range 0 40)
       false
 
   let base = fixedHome loadedBase
@@ -267,8 +263,8 @@ let goldenkeysRender () : Unit =
   Stdlib.printLine "-- golden keys done --"
 
 val goldenkeysExpected =
-  [ "start 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "start 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+  [ "start 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "start 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mDocs\u001b[0m \u001b[0m"
     "start 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "start 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "start 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -307,8 +303,8 @@ val goldenkeysExpected =
     "start 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "start 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "start 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "tab 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "tab 1| \u001b[7m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode    \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "tab 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "tab 1| \u001b[7m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode    \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mTraces    \u001b[2m6 \u001b[0mDocs \u001b[0m"
     "tab 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "tab 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "tab 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -347,8 +343,8 @@ val goldenkeysExpected =
     "tab 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "tab 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "tab 39|  \u001b[37m←→\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mgo\u001b[0m\u001b[2m · \u001b[0m\u001b[37m↓\u001b[0m \u001b[2mto view\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m`\u001b[0m \u001b[2mviews\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "down1 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "down1 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m  \u001b[7m 2 Code \u001b[0m   \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "down1 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "down1 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m  \u001b[7m 2 Code \u001b[0m   \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mTraces    \u001b[2m6 \u001b[0mDocs \u001b[0m"
     "down1 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "down1 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "down1 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -387,8 +383,8 @@ val goldenkeysExpected =
     "down1 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "down1 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "down1 39|  \u001b[37m←→\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mgo\u001b[0m\u001b[2m · \u001b[0m\u001b[37m↓\u001b[0m \u001b[2mto view\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m`\u001b[0m \u001b[2mviews\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "down2 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "down2 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode   \u001b[7m 3 Changes \u001b[0m   \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "down2 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "down2 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode   \u001b[7m 3 Changes \u001b[0m   \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mTraces    \u001b[2m6 \u001b[0mDocs \u001b[0m"
     "down2 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "down2 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "down2 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -427,8 +423,8 @@ val goldenkeysExpected =
     "down2 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "down2 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "down2 39|  \u001b[37m←→\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mgo\u001b[0m\u001b[2m · \u001b[0m\u001b[37m↓\u001b[0m \u001b[2mto view\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m`\u001b[0m \u001b[2mviews\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "right 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "right 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "right 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "right 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mDocs\u001b[0m \u001b[0m"
     "right 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "right 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "right 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -467,8 +463,8 @@ val goldenkeysExpected =
     "right 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "right 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "right 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "up 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "up 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "up 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "up 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mDocs\u001b[0m \u001b[0m"
     "up 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "up 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "up 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -507,8 +503,8 @@ val goldenkeysExpected =
     "up 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "up 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "up 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "left 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "left 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "left 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "left 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mDocs\u001b[0m \u001b[0m"
     "left 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "left 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "left 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -547,8 +543,8 @@ val goldenkeysExpected =
     "left 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "left 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "left 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "enter 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "enter 1|  \u001b[2m1 \u001b[0m\u001b[2mHome\u001b[0m    \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m   \u001b[48;5;61m\u001b[37m\u001b[1m 3 Changes \u001b[0m   \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "enter 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "enter 1|  \u001b[2m1 \u001b[0m\u001b[2mHome\u001b[0m    \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m   \u001b[48;5;61m\u001b[37m\u001b[1m 3 Changes \u001b[0m   \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mDocs\u001b[0m \u001b[0m"
     "enter 2|\u001b[90m╭\u001b[0m\u001b[90m─ \u001b[0m\u001b[2mmain\u001b[0m\u001b[90m ───────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "enter 3|\u001b[90m│\u001b[0m \u001b[32m✓ nothing uncommitted on this branch\u001b[0m                                                                                 \u001b[90m│\u001b[0m\u001b[0m"
     "enter 4|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
@@ -586,9 +582,9 @@ val goldenkeysExpected =
     "enter 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "enter 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "enter 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
-    "enter 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37mesc\u001b[0m \u001b[2m← Home\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mx\u001b[0m \u001b[2mdiscard\u001b[0m\u001b[2m · \u001b[0m\u001b[37mu/d\u001b[0m \u001b[2mpush/pull\u001b[0m\u001b[2m · \u001b[0m\u001b[37m←→\u001b[0m \u001b[2mpane\u001b[0m\u001b[2m · \u001b[0m\u001b[37mS\u001b[0m \u001b[2mbranches\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "esc 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "esc 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "enter 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37mesc\u001b[0m \u001b[2m← Home\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mx\u001b[0m \u001b[2mdiscard\u001b[0m\u001b[2m · \u001b[0m\u001b[37m←→\u001b[0m \u001b[2mpane\u001b[0m\u001b[2m · \u001b[0m\u001b[37mS\u001b[0m \u001b[2mbranches\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "esc 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "esc 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mDocs\u001b[0m \u001b[0m"
     "esc 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "esc 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "esc 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -627,8 +623,8 @@ val goldenkeysExpected =
     "esc 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "esc 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "esc 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "tab2 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "tab2 1| \u001b[7m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode    \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "tab2 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "tab2 1| \u001b[7m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode    \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mTraces    \u001b[2m6 \u001b[0mDocs \u001b[0m"
     "tab2 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "tab2 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "tab2 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
@@ -667,8 +663,8 @@ val goldenkeysExpected =
     "tab2 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
     "tab2 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
     "tab2 39|  \u001b[37m←→\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mgo\u001b[0m\u001b[2m · \u001b[0m\u001b[37m↓\u001b[0m \u001b[2mto view\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m`\u001b[0m \u001b[2mviews\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
-    "end 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
-    "end 1| \u001b[7m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode    \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "end 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
+    "end 1| \u001b[7m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode    \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mTraces    \u001b[2m6 \u001b[0mDocs \u001b[0m"
     "end 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
     "end 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
     "end 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"

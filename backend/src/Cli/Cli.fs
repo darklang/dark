@@ -51,8 +51,6 @@ let private builtinsLazy : Lazy<RT.Builtins> =
 
 
 let state (packageManager : RT.PackageManager) =
-  let program : RT.Program = { dbs = Map.empty }
-
   let notify
     (_state : RT.ExecutionState)
     (_vm : RT.VMState)
@@ -82,7 +80,6 @@ let state (packageManager : RT.PackageManager) =
     Exe.noTracing
     sendException
     notify
-    program
 
 
 
@@ -218,12 +215,6 @@ let execute
       { Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll state with
           // CLI control code may manage the instance policy.
           canManagePolicies = true
-          // The sync transport runs from many entry points -- the sync verbs, `branch
-          // push/pull`, the auto-sync daemon (launched as `eval`), and the workbench --
-          // so the host state grants it broadly. Guest isolation does not rest on this
-          // flag: `PolicyStore.guestState` always clears it, and `requireBundledCaller`
-          // additionally demands every frame be bundled Darklang code.
-          canUsePrivateNetworkHttp = true
           isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h
           // What a list op asks before spreading a package fn across cores (`LibExecution.Spread`).
           fnPurity =
@@ -568,30 +559,6 @@ let private runCli (args : string[]) : int =
 
     // Open the connection separately so its setup cost is measured on its own.
     Telemetry.time "cli.dbConnect" [] LibDB.Sqlite.Sql.warm
-
-    // The transport attaches the write secret itself: the credential must not reach
-    // Dark, where any code the CLI runs could read it. Keyed by ORIGIN so it matches
-    // however the caller spelled the url, and read per request because
-    // `dark sync setup` stores it and pushes in one process. (WHERE the transport may
-    // reach is the instance policy's decision now; the old origin allowlist is gone.)
-    let storedRelay () : Option<string> =
-      try
-        match (LibDB.Config.get "sync.relay").Result with
-        | Some url when url <> "" -> Some url
-        | _ -> None
-      with _ ->
-        None
-
-    LibExecution.UnguardedOrigins.setSecretLookup (fun origin ->
-      try
-        match storedRelay () with
-        | Some stored when
-          LibExecution.UnguardedOrigins.originOf stored = Some origin
-          ->
-          (LibDB.Config.get (LibDB.Config.secretPrefix + stored)).Result
-        | _ -> None
-      with _ ->
-        None)
 
     // Grow the database: apply any unapplied ops and evaluate values.
     let cliPackageManager =

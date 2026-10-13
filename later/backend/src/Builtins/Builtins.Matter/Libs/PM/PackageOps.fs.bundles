@@ -1,0 +1,177 @@
+// RESTORE: backend/src/Builtins/Builtins.Matter/Libs/PM/PackageOps.fs
+// WAS: scmContentOpId (the id of the Add op that adds a given content hash) and scmImportBranchOps (register a branch and store its ops inert and tagged). Both served the branch-bundle path.
+// ANCHOR: scmContentOpId between scmApplyMergedOps and scmRecordBranchMerged; scmImportBranchOps last in the fns list
+// ALSO: their only Dark caller was later/packages/darklang/scm/packageOpsBundles.dark. `tests/builtin` did not notice they were orphaned, because its reference scan read the whole repo including later/; that scan now prunes later/.
+// WHEN: the sync molt, 2026-10-12
+
+// --- scmContentOpId ---
+    { name = fn "scmContentOpId" 0
+      typeParams = []
+      parameters =
+        [ Param.make "kind" TString "'fn', 'type', 'value', 'trait' or 'impl'"
+          Param.make "hash" TString "the content hash" ]
+      returnType = TUuid
+      description =
+        "The id of the Add op that adds this content. An Add op is identified by what it adds, so the id follows from the kind and the hash alone; a branch bundle uses this to carry the content its names point at."
+      fn =
+        (function
+        | _, _, _, [| DString kind; DString hash |] ->
+          let tag =
+            // The tags `Hashing.contentOpHash` documents, all five of them: a branch holding
+            // a trait or an impl raised here on export.
+            match kind with
+            | "fn" -> 0uy
+            | "type" -> 1uy
+            | "value" -> 2uy
+            | "trait" -> 3uy
+            | "impl" -> 4uy
+            | other ->
+              Exception.raiseInternal
+                "scmContentOpId: unknown kind"
+                [ "kind", other ]
+          let (PT.Hash h) =
+            LibSerialization.Hashing.Hashing.contentOpHash tag (PT.Hash hash)
+          Ply(DUuid(System.Guid(System.Convert.FromHexString(h)[0..15])))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+// --- scmImportBranchOps ---
+    // IMPORT a branch (from a portable bundle): register it, store its ops effective=0 + tag the
+    // frontier (NOT folded into main), and re-derive the per-name bases against THIS instance's main
+    // (recordNameBases -- the base is the destination's fork point). Cross-instance "branches follow
+    // me". Returns count stored.
+    { name = fn "scmImportBranchOps" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid ""
+          Param.make "name" TString ""
+          Param.make "parent" TString ""
+          Param.make
+            "records"
+            (TList(TTuple(TString, TString, [ TString ])))
+            "(id, blobHex, originTs) triples" ]
+      returnType = TypeReference.result TInt TString
+      description =
+        "Import a branch bundle: register + store its ops effective=0 + tag + re-base. Returns count."
+      fn =
+        let resultOk = Dval.resultOk KTInt KTString
+        let resultError = Dval.resultError KTInt KTString
+        (function
+        | exeState,
+          vm,
+          _,
+          [| DUuid branchId; DString name; DString parentText; DList(_, records) |] ->
+          uply {
+            let branchId = PT.BranchId.Id branchId
+            // The parent arrives inside a peer's bundle, so it is text this process did not write.
+            // A value that is not an id means main, the same as a branch with no parent recorded;
+            // raising here would fail an import over a field that is only used for the parent link.
+            let parent =
+              PT.BranchId.Parse parentText |> Option.defaultValue PT.BranchId.Main
+            try
+              // An op this build cannot decode is stored RAW and inert rather than refusing the bundle,
+              // the way main sync stores such ops: present, a later build reads it. A branch three ops
+              // short does resolve differently than on the sender, but that holds for main sync too,
+              // and refusing would leave the branch absent altogether.
+              //
+              // The record's `ts` is the op's ORIGIN stamp and must survive; re-stamping locally would make
+              // this machine look like the author and resolve LWW by who imported last.
+              let parsed =
+                opRecords records
+                |> List.map (fun (id, hex, ts) ->
+                  (System.Guid.Parse id, System.Convert.FromHexString hex, ts))
+
+              // Shape first, then decode: the stored-inert note below claims ops were kept, and a
+              // malformed bundle is about to be refused whole.
+              if List.length parsed <> List.length records then
+                return
+                  resultError (
+                    Dval.string
+                      "a record was not an (id, blobHex, originTs) triple; nothing was imported"
+                  )
+              else
+
+                let decoded =
+                  parsed
+                  |> List.map (fun (id, blob, ts) ->
+                    ((id, blob, ts), BS.PT.PackageOp.tryDeserialize id blob))
+                let stamped =
+                  decoded
+                  |> List.choose (fun ((_, _, ts), op) ->
+                    op |> Option.map (fun op -> (op, ts)))
+                let rawRecords =
+                  decoded
+                  |> List.choose (fun (record, op) ->
+                    if Option.isNone op then Some record else None)
+
+                if not (List.isEmpty rawRecords) then
+                  NonBlockingConsole.writeErrLine (
+                    $"note: {List.length rawRecords} op(s) in this bundle were written in a format this build cannot "
+                    + "read, and are stored inert. They are kept, not dropped, so a later build can apply them."
+                  )
+
+                do! LibDB.Branches.createBranch branchId name parent
+                let ops = stamped |> List.map fst
+                // Tagged 'import', not 'op': these are somebody else's ops arriving, and the
+                // merge gate has to tell them from unreviewed work of your own.
+                let! nDecoded =
+                  LibDB.Branches.storeDeltaOpsStampedFrom "import" branchId stamped
+                let! nRaw = LibDB.Branches.storeDeltaBlobsStamped branchId rawRecords
+                let n = nDecoded + nRaw
+                // Re-derive bases against THIS instance's parent state (the bundle's bases don't travel).
+                do! LibDB.Branches.recordNameBases branchId parent ops
+
+                // Fold the content ops (Add*, never SetName) exactly as authoring
+                // onto a branch does -- see scmAddOps: the overlay binds names, not
+                // bodies, so without this the imported branch is unusable.
+                let contentOps =
+                  ops
+                  |> List.filter (fun op ->
+                    match op with
+                    | PT.PackageOp.AddValue _
+                    | PT.PackageOp.AddFn _
+                    | PT.PackageOp.AddType _
+                    | PT.PackageOp.AddTrait _
+                    | PT.PackageOp.AddTraitImpl _ -> true
+                    | _ -> false)
+                if not (List.isEmpty contentOps) then
+                  do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
+                  let builtins : Builtins =
+                    { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
+                  let! _ =
+                    LibDB.Seed.evaluateAllValues
+                      (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
+                        exeState.accountID
+                        vm.activeAccess)
+                      builtins
+                      LibDB.PackageManager.rt
+                  ()
+
+                // A merge event for this branch may already be in the log, folded against a store that
+                // had none of these ops (pull main, then pull the branch: the natural order). It
+                // DEFERRED itself for exactly this moment, so re-arm it and fold now rather than at
+                // the next startup, or the branch reads as live work that is already merged.
+                do! LibDB.Branches.undeferBranchEvents branchId
+                let! _ = LibDB.Seed.applyUnappliedOps ()
+
+                // An overlay this process is already holding predates the import, so drop it rather than
+                // let a memoized read answer for the branch as it was before its ops arrived.
+                if LibDB.PackageManager.currentBranchId () = branchId then
+                  let! all = LibDB.Branches.loadDeltaOps branchId
+                  LibDB.PackageManager.setBranchOverlay all
+                else
+                  LibDB.PackageManager.forgetBranch branchId
+                return resultOk (Dval.int (bigint (int n)))
+            with ex ->
+              return resultError (Dval.string ex.Message)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      // Importing a branch REGISTERS it, folds its content and records its name bases. Behind
+      // `dark branch pull` and `dark branch import`, both of which write.
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
+      deprecated = NotDeprecated }

@@ -1,0 +1,29 @@
+// RESTORE: packages/darklang/cli/config.dark
+// WAS: the `live.autopush` and `apps.sync.intervalMs` config keys: their validator, their lines
+//      in `config list`, their completions and their two worked examples.
+// ANCHOR: the validator between the numeric-key branch and the `trace.record` one; the two list
+//      lines at the top of the key list; the two completions at the head of configKeys; the two
+//      examples under "Examples:".
+// NOTE: both keys outlived their readers. `config set live.autopush on` went on saying "Set
+//       live.autopush = on" after the only two readers of it were removed from the authoring
+//       path, which is a setting that lies rather than one that is missing.
+// ALSO: later/packages/darklang/cli/sync/autopush.dark is the mode, and
+//       later/packages/darklang/cli/apps/servers.dark.sync-daemon the daemon.
+// WHEN: the sync molt, 2026-10-12
+
+  else if key == "live.autopush" then
+    if (value == "on") || (value == "off") then Stdlib.Option.Option.None
+    else Stdlib.Option.Option.Some "live.autopush is on or off"
+
+
+      "  live.autopush            - Every save commits and pushes to the relay (on/off; default: off)"
+      "  apps.sync.intervalMs     - How often the sync daemon pulls from the relay (default: 5000)"
+
+
+    [ "live.autopush"
+      "apps.sync.intervalMs"
+      "exec.workers"
+
+    "  config set live.autopush on"
+    "  config set apps.sync.intervalMs 2000"
+    "  config get trace.record"

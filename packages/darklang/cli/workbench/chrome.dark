@@ -31,12 +31,6 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
     renderRepl state region
   else if state.activeView == vSCM then
     renderScm state region
-  else if state.activeView == vDevices then
-    renderDevices state region
-  else if state.activeView == vAI then
-    renderAI state region
-  else if state.activeView == vApps then
-    splitListPreview state region "" "app" "Detail" (Stdlib.Cli.UI.Colors.dimText "no apps registered")
   else if state.activeView == vTraces then
     splitListPreview
       state
@@ -121,17 +115,12 @@ let viewBlurb (idx: Int) : (String * String) =
   else if idx == vScratch then
     ("evaluate expressions -- ⏎ to start typing, esc to stop; `let` binds for the session", "")
   else if idx == vSCM then ("changes, commits, branches, conflicts", "")
-  else if idx == vDevices then ("this instance's config, and the peers it syncs with", "part sketch")
-  else if idx == vAI then ("agent threads and prompts", "sample data")
-  else if idx == vApps then ("install, run and stop packaged apps", "")
   else if idx == vTraces then ("what ran recently - samples until something does", "")
   else if idx == vDocs then ("the CLI's docs, read without leaving", "")
   else
     match extensionViewAt idx with
     | Some vd ->
-      if vd.id == "errors" then ("real conflicts, plus samples for the rest", "part sample")
-      else if vd.id == "crons" then ("scheduled handlers", "sample data")
-      else if vd.id == "calendar" then ("nothing behind it yet", "sketch")
+      if vd.id == "errors" then ("unresolved conflicts", "")
       else if vd.id == "builtins" then ("every builtin, searchable", "")
       else ("", "")
     | None -> ("", "")
@@ -203,21 +192,14 @@ let hintsForView (state: State) (width: Int) : String =
         Stdlib.List.flatten
           [ [ ("↑↓", "move"), ("⏎", "open") ]
             backHint
-            [ ("c", "commit"), ("x", "discard"), ("u/d", "push/pull") ]
+            [ ("c", "commit"), ("x", "discard") ]
             paneHint ]
-    else if view == vDevices then
-      [ ("c", "config"), ("s", "sync now"), ("a", "setup") ]
-    else if view == vAI then
-      let enterHint = if state.ai.section == AiSection.Prompts then ("⏎", "use") else ("⏎", "open")
-      Stdlib.List.flatten [ [ ("↑↓", "move"), enterHint, ("[]", "section"), ("a", "ask") ], paneHint ]
-    else if view == vApps then
-      Stdlib.List.flatten [ [ ("↑↓", "move"), ("⏎", "inspect") ], backHint, [ ("i", "install"), ("r", "start"), ("s", "stop") ] ]
     else if view == vTraces then
       Stdlib.List.flatten
         [ [ ("↑↓", "move"), ("⏎", "open"), ("r", "resume"), ("p", "pin"), ("x", "delete") ]
           backHint
           paneHint
-          [ ("f", "filter"), ("E", "errors") ] ]
+          [ ("f", "filter"), ("E", "errors"), ("P", "processes") ] ]
     else if view == vDocs then
       Stdlib.List.flatten [ [ ("↑↓", "move"), ("⏎", "read") ], backHint, paneHint ]
     else
@@ -249,10 +231,8 @@ val helpGroups =
     ("Code", "e edit   n new fn   t new type   v new value   T new trait   I new impl   r rename   x traces   L lens   C changed   f filter   B builtins")
     ("REPL", "⏎ type (esc leaves the prompt)   f clear log   x clear session")
     ("Home", "⏎ open / switch to the row's branch   c commit   b new branch   s choose branch   m merge   r rebase   x delete branch")
-    ("Changes", "⏎ source   c commit   x discard   u/d push/pull   o/t/a resolve the conflict under the cursor")
-    ("Apps", "⏎ inspect   i install   r run   s stop")
-    ("Traces", "⏎ open   r resume   p pin   x delete   f filter   E errors")
-    ("Sync", "s sync now   u push   d pull   o other instances")
+    ("Changes", "⏎ source   c commit   x discard   o/t/a resolve the conflict under the cursor")
+    ("Traces", "⏎ open   r resume   p pin   x delete   f filter   E errors   P processes")
     ("Search", "↑↓ move   ⏎ jump   esc close")
     // Last, and spelled out, because it's the way back to the pre-workbench CLI. Anything you could type at
     // the prompt runs from the `:` bar; `p` hands you the prompt itself.

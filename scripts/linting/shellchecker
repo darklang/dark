@@ -24,6 +24,7 @@ echo "shellcheck bash files ..."
 # shellcheck disable=SC2038 # our filenames have no spaces
 find . \
   \( -name .git \
+  -o -name later \
   -o -name node_modules \
   -o -name rundir \
   -o -name Build \

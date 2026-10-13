@@ -75,7 +75,11 @@ def is_script(f):
 
 
 def mark(should, f):
-  if f == "backend/global.json" or \
+  if f.startswith("later/"):
+    # Not part of the product. Nothing under this path is built, loaded or linted.
+    should.unrouted.append(f)
+
+  elif f == "backend/global.json" or \
       f == "backend/.config/dotnet-tools.json" or \
       f == "backend/Directory.Build.props":
     should.fsharp_tool_restore = True
@@ -244,7 +248,7 @@ def keep(files, root="/home/dark/app"):
 
 # Directories that never hold build inputs. Walking them costs more than the
 # .gitignore match that would exclude them anyway.
-PRUNE = {".git", "node_modules", "obj", "bin"}
+PRUNE = {".git", "node_modules", "obj", "bin", "later"}
 
 
 def source_files(roots=None, root="."):

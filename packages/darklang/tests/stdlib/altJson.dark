@@ -33,20 +33,6 @@ let parseInt (text: String) : Stdlib.Option.Option<Int> =
   | Ok json -> Stdlib.AltJson.toInt json
   | Error _ -> None
 
-/// The `max_tokens` an oversized request carries once Anthropic's request
-/// builder has turned it into JSON.
-let largeRequestMaxTokens () : Stdlib.Result.Result<Int, String> =
-  let request = Darklang.LLM.Provider.createRequest "unused"
-  let oversized = { request with maxTokens = 9007199254740992 }
-  let config =
-    Darklang.LLM.Providers.Anthropic.Config { apiKey = ""; baseUrl = "" }
-  match Darklang.LLM.Providers.Anthropic.buildExtendedRequest
-      config
-      oversized
-      Darklang.LLM.Provider.emptyExtensions with
-  | Object fields -> Stdlib.AltJson.Helpers.getIntResult "max_tokens" fields
-  | _ -> Error "not an object"
-
 // tests
 test nullValues =
   Stdlib.Test.all
@@ -162,21 +148,25 @@ test intFieldHelpers =
       Stdlib.AltJson.Helpers.getIntOr "a" 0 [ ("a", Json.String "3") ]
       |> Stdlib.Test.equal (Error "Invalid JSON integer field: a") ]
 
-/// Callers that read integer fields from provider JSON refuse a non-integer.
-test integerCallers =
+/// Integer fields past 2^53, where a Float cannot hold the value exactly. `Json.Integer` is
+/// arbitrary-size and the strict reader refuses a Float, so these are the two claims that
+/// matter together: the big value survives, and the lossy spelling of it is an error rather
+/// than a silent rounding.
+///
+/// This replaces a set of cases that drove the same reader through the Anthropic and OpenAI
+/// clients, which moved to `later/`. The reader is the subject either way, and the round trip
+/// through text below is the part those cases could not reach.
+test largeIntegerFields =
   Stdlib.Test.all
-    [ Darklang.WIP.AI.OpenAI.Chat.parseUsage
-        [ ("completion_tokens_details",
-           Json.Object [ ("reasoning_tokens", Json.Float 1.5) ]) ]
-      |> Stdlib.Test.equal (Error "Invalid JSON integer field: reasoning_tokens")
-      Darklang.WIP.AI.Anthropic.Chat.parseResponse
-        (Json.Object
-          [ ("usage",
-             Json.Object [ ("cache_creation_input_tokens", Json.Float 1.5) ]) ])
-      |> Stdlib.Test.equal (
-        Error "Invalid JSON integer field: cache_creation_input_tokens"
-      )
-      largeRequestMaxTokens () |> Stdlib.Test.equal (Ok 9007199254740992) ]
+    [ Stdlib.AltJson.Helpers.getIntResult "a" [ ("a", Json.Integer 9007199254740993) ]
+      |> Stdlib.Test.equal (Ok 9007199254740993)
+      Stdlib.AltJson.Helpers.getIntResult "a" [ ("a", Json.Float 9007199254740992.0) ]
+      |> Stdlib.Test.equal (Error "Invalid JSON integer field: a")
+      // And through text, which is where a round trip could lose it: formatted, parsed, read back.
+      (match parse (format (Json.Object [ ("a", Json.Integer 9007199254740993) ])) with
+       | Ok(Object fields) -> Stdlib.AltJson.Helpers.getIntResult "a" fields
+       | _ -> Error "did not round trip")
+      |> Stdlib.Test.equal (Ok 9007199254740993) ]
 
 // TODO:
 // - strings with quotes in them

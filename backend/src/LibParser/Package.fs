@@ -100,21 +100,8 @@ let private wtModuleToOps
       |> Ply.List.mapSequentially (fun test ->
         uply {
           let currentModule = WT2PT.PackageTest.Name.toModules test.name
-          let! testDBs =
-            modul.dbs
-            |> List.filter (fun (path, _) ->
-              List.length path <= List.length currentModule
-              && List.take (List.length path) currentModule = path)
-            |> Ply.List.mapSequentially (fun (path, db) ->
-              uply {
-                let rowType = WT.dbRowTypeReference path db
-                let! typ =
-                  WT2PT.TypeReference.toPT pmWithTypes onMissing path rowType
-                return db.name.name, typ
-              })
-          let! ptTest =
+          return!
             WT2PT.PackageTest.toPT builtins pmWithTypes onMissing currentModule test
-          return { ptTest with testDBs = testDBs }
         })
 
     // Emit the original type ops once. The temporary overlay used stabilized

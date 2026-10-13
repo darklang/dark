@@ -95,7 +95,7 @@ let private interleaving =
   testTask "two processes that each await interleave in the order the awaits finish" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (a : Scheduler.Process) =
       spawn
@@ -143,7 +143,7 @@ Builtin.testTrace "b2"
 let private budgetYields =
   testTask "a tight loop parks on its budget and another process runs between slices" {
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // A Dark-level loop (a self-recursive nested fn runs in this VM's frames), long enough to
     // cost many slices, then a trace at the end.
@@ -184,7 +184,7 @@ let private aKey : RT.Dval =
 let private hostAwaitTimerOrKey =
   testTask
     "hostAwait [Key; Timer 10] answers Timer with no key, Key when one was pushed first" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     // A fake key source stands in for the terminal: it blocks until a gate opens and then
     // yields one key, which nothing does in this test, so only pushed keys arrive.
     Gates.reset ()
@@ -221,7 +221,7 @@ let private readKeyDoesNotBlock =
   testTask "readKey in one process does not stop a sleep in another" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     // The fake terminal: one key, once the test says so.
     HE.sources.readKey <-
       Some(fun () ->
@@ -281,7 +281,7 @@ let private readLineDoesNotBlock =
     "readLine in one process parks it, and a sleep in another finishes meanwhile" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let reads = ref 0
     HE.sources.readStdin <- Some(fakeStdin 50L reads)
     try
@@ -318,57 +318,11 @@ Builtin.testTrace "slept"
   }
 
 
-let private stdinTimerLeavesReadOutstanding =
-  testTask
-    "a stdin wait a timer beat leaves its read for the next wait, which reads nothing more" {
-    Gates.reset ()
-    let! state = executionStateFor pmPT false Map.empty
-    let reads = ref 0
-    HE.sources.readStdin <- Some(fakeStdin 51L reads)
-    try
-      let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-      let! (timedOut : Scheduler.Process) =
-        spawn
-          s
-          state
-          "Stdlib.Host.await [ Stdlib.Host.EventSpec.StdinLine; Stdlib.Host.EventSpec.Timer 10L ]"
-      let! result = runOnThread s timedOut
-      match expectOk result "the timed wait" with
-      | RT.DEnum(_, _, _, "Timer", []) -> ()
-      | other -> failtest $"expected Timer, got {other}"
-
-      // A body asked for now would take the line already on its way: refused, not misread.
-      let! (wrongKind : Scheduler.Process) =
-        spawn s state "Builtin.stdinReadExactly 3"
-      let! result = runOnThread s wrongKind
-      match result with
-      | Error(RTE.UncaughtException(msg, _), _) when msg.Contains "outstanding" -> ()
-      | other ->
-        failtest $"expected a refusal naming the outstanding read, got {other}"
-
-      let! (line : Scheduler.Process) = spawn s state "Stdlib.Cli.Stdin.readLine ()"
-      let running = runOnThread s line
-      Gates.release 51L
-      let! result = running
-      Expect.equal
-        (expectOk result "the line")
-        (RT.DString "line 1")
-        "the outstanding read"
-      Expect.equal reads.Value 1 "one read, not one per wait"
-
-      let! (body : Scheduler.Process) = spawn s state "Builtin.stdinReadExactly 3"
-      let! result = runOnThread s body
-      Expect.equal (expectOk result "the body") (RT.DString "xxx") "a byte count"
-      Expect.equal reads.Value 2 "the body was a read of its own"
-    finally
-      HE.sources.readStdin <- None
-  }
-
 
 let private accessIsPerProcess =
   testTask
     "a process runs under its state's access and a denial fails that process only" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let denied =
       LibExecution.Execution.restrictRun
         LibExecution.Permissions.Policy.denyAll
@@ -392,7 +346,7 @@ let private accessIsPerProcess =
 let private killWakesAParkedProcess =
   testTask "kill finishes a process parked on a builtin without waiting for it" {
     Gates.reset ()
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // Parks on a gate nobody will ever open.
     let! (stuck : Scheduler.Process) = spawn s state "Builtin.testGateWait 50L"
@@ -468,14 +422,14 @@ let private editDoesNotReachAParkedProcess =
           return PT2RT.Expr.toRT Map.empty 0 None expr
       }
 
-    let! before = executionStateFor (pmWith oldFn) false Map.empty
+    let! before = executionStateFor (pmWith oldFn) false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! oldInstrs = callEntry (pmWith oldFn)
     let parked = s.Spawn(before, (None, oldInstrs), Scheduler.EntryExpr, None)
     let running = runOnThread s parked
 
     // The edit lands while `parked` waits: the name now points at the new version.
-    let! after = executionStateFor (pmWith newFn) false Map.empty
+    let! after = executionStateFor (pmWith newFn) false
     let! newInstrs = callEntry (pmWith newFn)
     let fresh = s.Spawn(after, (None, newInstrs), Scheduler.EntryExpr, None)
     let! freshResult = s.Await fresh
@@ -552,7 +506,7 @@ let private timeAll
 
 let private workersUseCores =
   testTask "four CPU-bound processes are spread across four workers" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     // Long enough (about half a second each in Debug) that all four are still running when
     // the last is placed, so placement has four busy workers to choose between.
     let! instrs = instrsFor (spinProgram 40_000L)
@@ -592,7 +546,7 @@ let private workersUseCores =
 let private sharedStateAcrossWorkers =
   testTask
     "sixteen processes on four workers share one state's caches without corruption" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
         """(let step (i: Int64) : Int64 =
@@ -626,7 +580,7 @@ let private sharedStateAcrossWorkers =
 let private psSeesTheWholeGroup =
   testTask "ps and kill from the root see and reach a process on a worker" {
     Gates.reset ()
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let! instrs = instrsFor "Builtin.testGateWait 80L"
     do!
       withWorkers 2 (fun root ->
@@ -653,7 +607,7 @@ let private traceCarriesProcessAndSeq =
   testTask
     "a trace written by two processes on two workers keeps each one's calls apart" {
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
         // Impure on purpose: only impure calls are recorded, so a pure loop would write a
@@ -721,7 +675,7 @@ let private readsRunAtOnce =
   testTask "three reads under List.map are all in flight before anything waits" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
       spawn
@@ -755,7 +709,7 @@ let private writesKeepOrder =
     "a read in flight does not hold up the writes after it, which stay in order" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
       spawn
@@ -782,7 +736,7 @@ let private failedReadRaisesAtAwait =
   testTask "a read that fails raises where it is forced, naming the read" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
       spawn
@@ -815,7 +769,7 @@ let private unlookedReadFailsTheRunAtItsEnd =
     "a read nobody looks at is waited for at the end of the run, and its failure fails the run" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
       spawn
@@ -853,7 +807,7 @@ let private denialRaisesAtTheCall =
     "a read the policy denies raises at the call, before anything is in flight" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let denied =
       LibExecution.Execution.restrictRun
         LibExecution.Permissions.Policy.denyAll
@@ -883,7 +837,7 @@ let private inflightBoundHolds =
     let before = LibExecution.Interpreter.Promises.maxInflight
     LibExecution.Interpreter.Promises.maxInflight <- 2
     try
-      let! state = executionStateFor pmPT false Map.empty
+      let! state = executionStateFor pmPT false
       let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
       let! (p : Scheduler.Process) =
         spawn
@@ -923,7 +877,7 @@ let private spawnAwaitSelect =
   testTask "spawn runs on a worker; await and select collect it" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     do!
       withWorkers 2 (fun root ->
         task {
@@ -962,7 +916,7 @@ Stdlib.Exec.await slow"""
 let private spawnedErrorReachesAwait =
   testTask "a spawned process that fails raises at await, under the spawner's access" {
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     // Spawning is allowed and nothing else is, so the spawn itself goes through and the
     // child's read is what gets denied: the child inherits the spawner's access.
     let spawnOnly =
@@ -997,7 +951,7 @@ Stdlib.Exec.await h"""
 let private execDoneAnswersAFinishedProcess =
   testTask
     "Host.await [ExecDone id] returns for a process already over, and for one that failed" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     do!
       withWorkers 2 (fun root ->
         task {
@@ -1025,7 +979,7 @@ match (first, second) with
 let private httpGetIsARead =
   testTask
     "the HTTP client's GET and HEAD builtin is a read, and the request builtin is not" {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false
     let readsOnly (name : string) : bool =
       let b = state.fns.builtIn[RT.FQFnName.builtin name 0]
       LibExecution.Effects.readsOnly b.name.name b.callEffects
@@ -1046,7 +1000,7 @@ let private parkedInsideShowsTheLambda
   =
   testTask name {
     Gates.reset ()
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) = spawn s state code
     let running = runOnThread s p
@@ -1085,7 +1039,7 @@ let private parkedInsideMapShowsTheLambda =
 let private budgetYieldInsideMap =
   testTask "a tight loop inside a mapped lambda is preempted and the map finishes" {
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (mapping : Scheduler.Process) =
       spawn
@@ -1122,7 +1076,7 @@ let private budgetYieldInsideMap =
 
 let private errorInsideMapNamesTheLambda =
   testTask "an error inside a mapped lambda reports the lambda's frame" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
       spawn s state """Stdlib.List.map [ 1L ] (fun x -> x / 0L)"""
@@ -1154,7 +1108,7 @@ let private parkedInsideStreamMapShowsTheLambda =
 /// where the wait lands, in the scheduler's step and in a plain run.
 let private transformAfterTheSourceWaits =
   testTask "a transform over a stream that waits on the host runs as a frame" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let code =
       """Stdlib.Stream.toList (Stdlib.Stream.filter (Stdlib.Stream.map (Builtin.testSlowStream [ 1L; 2L; 3L; 4L ]) (fun x -> x * 10L)) (fun x -> x > 10L))"""
     let expected =
@@ -1179,7 +1133,7 @@ let private transformAfterTheSourceWaits =
 let private darkPolicyOrders =
   testTask "a Dark scheduling policy decides which runnable process is stepped" {
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let spinner (tag : string) =
       $"""(let spin (n: Int64) (acc: Int64) : Int64 =
               if n == 0L then acc else spin (n - 1L) (acc + n)
@@ -1225,7 +1179,7 @@ let private darkPolicyOrders =
 
 let private parkedOnAHostOperation =
   testTask "a process waiting on the host is parked on the operation, and resumes" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // Shared Dark drains child pipes; the kernel-readiness leaf parks the VM.
     let! (p : Scheduler.Process) =
@@ -1259,7 +1213,7 @@ let private parkedOnAHostOperation =
 let private cancelLetsTheWaitLand =
   testTask "cancel lets what a process waits on land, then stops it" {
     Gates.reset ()
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
       spawn s state "let _ = Builtin.testGateWait 60L in Builtin.testTrace \"after\""
@@ -1287,7 +1241,7 @@ let private childrenDieWithTheParent =
   testTask "a parent's end stops its children, unless spawned detached" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // Two children that would run forever; the parent finishes at once without awaiting them.
     let! (parent : Scheduler.Process) =
@@ -1328,7 +1282,7 @@ let private childrenDieWithTheParent =
 let private awaitWithinTimesOut =
   testTask "awaitWithin gives up on a slow child, which then can be cancelled" {
     Gates.reset ()
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
       spawn
@@ -1360,7 +1314,7 @@ let private awaitWithinTimesOut =
 let private killCascadesHard =
   testTask "ps kill of a parent reaches a child stuck on the host, at once" {
     Gates.reset ()
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (parent : Scheduler.Process) =
       spawn
@@ -1395,7 +1349,7 @@ Stdlib.Exec.await h"""
 let private capsEndARunaway =
   testTask
     "a process over exec.maxInstructions ends with the reason; ps shows what it ran" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let before = Scheduler.maxInstructions
     // Three slices' worth, so the cap is crossed after three refills.
@@ -1470,7 +1424,7 @@ let private registryListsAndForgets =
 
 let private byteCapEndsARunaway =
   testTask "a process over exec.maxBytes ends with a reason that names the cap" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let before = Scheduler.maxBytes
     Scheduler.maxBytes <- 1L
@@ -1501,7 +1455,7 @@ let private cancelCascadesSoftly =
   testTask
     "cancel of a parent lets the child's wait land, then stops it as cancelled" {
     Gates.reset ()
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (parent : Scheduler.Process) =
       spawn
@@ -1547,7 +1501,7 @@ let private cancelCascadesSoftly =
 
 let private cancelStopsAnEmptyLambdaMap =
   testTask "a cancel stops a map whose lambda runs no instructions" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // `fun x -> x` compiles to no instructions: each element is a frame pushed and returned. Long
     // enough to take seconds if nothing preempts it.
@@ -1577,7 +1531,7 @@ let private cancelStopsAnEmptyLambdaMap =
 
 let private cancelDuringOneLongCallIsNotOk =
   testTask "a cancel that lands during one long builtin call does not report success" {
-    let! state = executionStateFor pmPT false Map.empty
+    let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // One instruction that takes seconds: the slice cannot end until the call does.
     let! (p : Scheduler.Process) =
@@ -1608,7 +1562,6 @@ let tests =
         hostAwaitTimerOrKey
         readKeyDoesNotBlock
         readLineDoesNotBlock
-        stdinTimerLeavesReadOutstanding
         accessIsPerProcess
         killWakesAParkedProcess
         editDoesNotReachAParkedProcess

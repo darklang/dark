@@ -14,7 +14,7 @@ state resets between calls; package changes persist.
   typecheck                                       # audit declarations on the branch
   status                                          # inspect changes
   commit "message" -y                            # save them
-  apps view stats --live                          # a TUI app; your edits repaint it
+  ps --watch                                      # a live view; your edits repaint it
   ps                                              # what is running
   traces                                          # what ran, and what it did
   traces calls <fn>                               # the runs that went through a function
@@ -100,8 +100,7 @@ cache-safety analysis.
 use `expect` with a fixed message for checks that can be cached.
 `test run --force` reruns cached tests.
 
-Tests with private `[<DB>]` tables may use DbRead and DbWrite when the called
-functions allow them. Tests with private DBs are not cached.
+Tests may use the effects the called functions allow them.
 
 Every test execution runs in its own disposable process and store snapshot.
 Ordinary `test name = ...` declarations provide isolation automatically, including
@@ -116,13 +115,9 @@ must inspect a child's output, result, or exit status.
 To count evaluations or callbacks, use `Stdlib.Test.incrementCounter value` (returns
 the value unchanged) and `Stdlib.Test.counterValue ()`. The counter is
 in memory and starts at zero for each test execution, including reruns.
-These helpers work only in package tests, need no DB or host permissions,
-and make the test rerun rather than reuse a cached pass.
+These helpers work only in package tests, need no host permissions, and make
+the test rerun rather than reuse a cached pass.
 
-`[<DB>] type Items = { name: String }` defines both a private DB and its row
-type. Use `Items { name = "first" }` for a row and bare `Items` as the DB.
-The existing form `type Item = { name: String }; [<DB>] type Items = Item`
-remains valid when the row type needs a separate name.
 
 A test that expects a runtime error declares the expected outcome after its
 body; the body may be any expression and passes only when the rendered message
@@ -132,8 +127,6 @@ matches exactly:
     (1L / 0L)
     => raises "Cannot divide by 0"
 
-Use `=> sqlerror "message"` for a DB query-compiler error; it compares that
-specific compiler message exactly, while the standard preamble is only display text.
 
 ## Changing something that exists
 
@@ -264,29 +257,23 @@ Conflicts never block. Both sides converge on the same winner, the loser is
 kept, and `dark conflicts` is where you review it after.
   (see: docs scm)
 
-## Sync
+## Your history
 
-One relay, remembered, and explicit verbs. Nothing runs in the background.
-
-  dark sync setup                  # name this instance, point it at a relay, push once
-  dark sync                        # push then pull
-  dark push / dark pull            # one direction only
   dark commits                     # THIS branch's commits, newest first
-  dark review pull [queue]         # stage a peer's ops instead of applying them
+  dark ops                         # the op log itself
+  dark show <hash>                 # what one commit contains, or what one op does
 
-Ops are content-addressed, so pushing the same work twice changes nothing.
-Pulled code is ordinary package code: it does not run until you run it, and
-the unguarded HTTP transport it could reach is limited to the relay you
-configured, not whatever it asks for.
+Ops are content-addressed and the log is append-only, so nothing you have
+committed can be rewritten, only superseded.
   (see: docs scm)
 
 ## Live, and processes
 
-Running things follow your edits WHEN ASKED. `apps view <Module> --live` opens any module with
-`init`/`update`/`render` as a live view; save an edit to it or its callees and it
-repaints. `serve <router>` runs the newest router that passes its checks on every
-request with `--live`; a broken save keeps the previous one serving. The
-workbench and the LSP show `// = value` beside calls from the last recorded run.
+Running things follow your edits WHEN ASKED. `serve <router> --live` runs the
+newest router that passes its checks on every request; a broken save keeps the
+previous one serving. `ps --watch` and `traces --watch` are live views over the
+same host loop. The workbench shows `// = value` beside calls from the last
+recorded run.
 
 Every run is a process: reads run at once with no code change, writes keep
 order, `await x` waits here; `Exec.spawn`/`await`/`cancel` when you want control;

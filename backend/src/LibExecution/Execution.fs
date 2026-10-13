@@ -48,7 +48,6 @@ let createState
   (tracing : RT.Tracing.Tracing)
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
-  (program : RT.Program)
   : RT.ExecutionState =
   { tracing = tracing
     test = noTestContext
@@ -57,8 +56,6 @@ let createState
 
     lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
     packageFnCallCache = System.Collections.Concurrent.ConcurrentDictionary()
-
-    program = program
 
     descriptorSession = Host.createLazyDescriptorSession ()
 
@@ -94,8 +91,6 @@ let createState
     packagePolicyOrigin = fun _ -> None
 
     canManagePolicies = false
-
-    canUsePrivateNetworkHttp = false
 
     // Deny-all by default: only a host that knows its bundled set opts fns in.
     isBundledPackageFn = fun _ -> false

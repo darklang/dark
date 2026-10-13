@@ -743,7 +743,7 @@ let private applyBranchEvent
         | Some pid -> PT.BranchId.Parse pid = Some PT.BranchId.Main || pid = ""
 
       // A merge event routinely arrives BEFORE the bundle whose ops it names
-      // (`dark pull` before `dark branch pull`); folded then it would flip nothing
+      // (main's ops before a branch's); folded then it would flip nothing
       // and never be re-examined. So an event whose branch has no ops yet stays
       // deferred and the next fold takes it. Only when the branch EXISTS here: an
       // event for a never-shared branch folds to nothing, correctly.

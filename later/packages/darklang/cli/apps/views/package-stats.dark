@@ -1,0 +1,76 @@
+/// Package statistics as a `Node` tree: one `render` for the gallery's preview, the one-shot
+/// `views package-stats` print, and a live pane.
+module Darklang.Cli.Apps.Views.PackageStats
+
+type ModuleStats =
+  { name: String
+    fnCount: Int
+    typeCount: Int
+    valueCount: Int
+    submodules: Int }
+
+type Model = { stats: List<ModuleStats> }
+
+type Msg = | Refresh
+
+/// Demo data. The real counts want `SCM.Deps`-shaped silo reads per owner; not yet.
+let demoStats () : List<ModuleStats> =
+  [ ModuleStats { name = "Darklang.Stdlib"; fnCount = 247; typeCount = 42; valueCount = 18; submodules = 23 }
+    ModuleStats { name = "Darklang.Cli"; fnCount = 89; typeCount = 31; valueCount = 12; submodules = 15 }
+    ModuleStats { name = "Darklang.LanguageTools"; fnCount = 156; typeCount = 67; valueCount = 8; submodules = 19 }
+    ModuleStats { name = "Darklang.SCM"; fnCount = 43; typeCount = 14; valueCount = 5; submodules = 7 }
+    ModuleStats { name = "Darklang.PrettyPrinter"; fnCount = 38; typeCount = 9; valueCount = 3; submodules = 4 }
+    ModuleStats { name = "Darklang.Test"; fnCount = 34; typeCount = 8; valueCount = 2; submodules = 5 } ]
+
+let init () : Model = Model { stats = demoStats () }
+
+let update (m: Model) (event: Host.Event<Msg>) : Model =
+  match event with
+  | Msg Refresh -> init ()
+  | Key _ -> m
+  // Same as Refresh, and unreachable until this view declares an `every`.
+  | Tick -> init ()
+
+/// A proportion as a run of blocks, a cell in the table.
+let bar (value: Int) (maxVal: Int) (width: Int) : String =
+  let filled = if maxVal == 0 then 0 else (value * width) / maxVal
+  (Stdlib.String.repeat "█" filled) + (Stdlib.String.repeat "░" (width - filled))
+
+let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
+  let stats = m.stats
+  let total (f: ModuleStats -> Int) : Int = stats |> Stdlib.List.fold 0 (fun acc s -> acc + (f s))
+  let maxFns = stats |> Stdlib.List.fold 0 (fun acc s -> Stdlib.max acc s.fnCount)
+
+  let summary =
+    Stdlib.Cli.UI.Node.row
+      [ Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Success (Stdlib.Cli.UI.Node.text $" {Stdlib.toString (total (fun s -> s.fnCount))} fns ")
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Info (Stdlib.Cli.UI.Node.text $" {Stdlib.toString (total (fun s -> s.typeCount))} types ")
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Highlight (Stdlib.Cli.UI.Node.text $" {Stdlib.toString (total (fun s -> s.valueCount))} values ")
+        Stdlib.Cli.UI.Node.dim $" {Stdlib.toString (total (fun s -> s.submodules))} modules " ]
+
+  let rows =
+    stats
+    |> Stdlib.List.map (fun s ->
+      [ s.name
+        Stdlib.toString s.fnCount
+        Stdlib.toString s.typeCount
+        Stdlib.toString s.valueCount
+        Stdlib.toString s.submodules
+        bar s.fnCount maxFns 20 ])
+
+  Stdlib.Cli.UI.Node.column
+    [ Stdlib.Cli.UI.Node.row
+        [ Stdlib.Cli.UI.Node.bold "Package Statistics"
+          Stdlib.Cli.UI.Node.dim $"{Stdlib.toString (Stdlib.List.length stats)} top-level modules" ]
+      Stdlib.Cli.UI.Node.text ""
+      summary
+      Stdlib.Cli.UI.Node.text ""
+      Stdlib.Cli.UI.Node.table [ "MODULE", "FNS", "TYPES", "VALS", "MODS", "FUNCTIONS" ] rows
+      Stdlib.Cli.UI.Node.text ""
+      Stdlib.Cli.UI.Node.row
+        [ Stdlib.Cli.UI.Node.Node.Button("refresh", Msg.Refresh)
+          Stdlib.Cli.UI.Node.dim "Esc: quit" ] ]
+
+/// The gallery's rows: the tree, painted at the terminal's width.
+let rowsAtSize (size: Darklang.Stdlib.Cli.Tui.Size) : List<String> =
+  Stdlib.Cli.UI.Node.toLines (render (init ())) size.width

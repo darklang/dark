@@ -759,12 +759,3 @@ let writeTest
   | Some(PT.ExpectedError.RuntimeError message) ->
     w.Write(1uy)
     Common.String.write w message
-  | Some(PT.ExpectedError.SqlCompilerError message) ->
-    w.Write(2uy)
-    Common.String.write w message
-  Common.List.write
-    w
-    (fun w (name, typ) ->
-      Common.String.write w name
-      writeTypeReference mode w typ)
-    test.testDBs

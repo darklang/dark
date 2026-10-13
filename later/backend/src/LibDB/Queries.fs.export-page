@@ -1,0 +1,132 @@
+// RESTORE: backend/src/LibDB/Queries.fs
+// WAS: exportPageJson: one page of the sync wire format rendered straight from the database, the relay's whole answer to /sync/pull. Native because a page in Dark hex-encodes 2,000 blobs through interpreted calls.
+// ANCHOR: the first function in Queries.fs, above opBindsAName
+// ALSO: its only caller was the scmExportPageJson builtin, in later/backend/src/Builtins/Builtins.Matter/Libs/PM/PackageOps.fs.sync. It read op_owners for the author column, and that table has gone too.
+// WHEN: the sync molt, 2026-10-12
+
+/// Render one page of the sync wire format straight from the database: the relay's whole answer to
+/// `/sync/pull`. Returns the JSON and the cursor to hand back, which is the largest rowid on the page
+/// (or `sinceSeq` when the page is empty, so a client at the end does not rewind).
+///
+/// Native per AGENTS.md's operations-per-frame rule: a page in Dark hex-encodes
+/// 2,000 blobs through interpreted calls. The DECISIONS (cursor, page size,
+/// identity) stay in Dark; only the encoding is here.
+///
+/// Serves ops NOT TAGGED TO A BRANCH, which is the line between two populations that both sit at
+/// `effective = 0` and cannot be told apart by that column: ops a client PUSHED, which a relay stores
+/// inert on purpose and must serve back, and this store's OWN unmerged branch work, which must not
+/// leave through an unauthenticated route. `/sync/pull` needs no secret; reading a branch does. A
+/// self-hosted relay is also somebody's authoring instance, so the second population is real there.
+///
+/// This is the SECOND writer of that shape; `SCM.Wire.wireEncodeAt` is the first, and the relay picks
+/// between them per request, so a client meets both on the same endpoint. They have to agree field for
+/// field. `backend/testfiles/execution/scm/sync-wire.dark` compares the two envelopes; change one shape
+/// and change the other.
+let exportPageJson
+  (sinceSeq : int64)
+  (limit : int64)
+  (formatVersion : int64)
+  (darkBuild : string)
+  (kernelHash : string)
+  (owner : string)
+  : Task<string * int64> =
+  task {
+    let! rows =
+      Sql.query
+        """
+        SELECT p.id, p.op_blob, p.origin_ts AS ts, p.rowid AS seq,
+               (SELECT o.owner FROM op_owners o WHERE o.op_id = p.id LIMIT 1) AS author,
+               COALESCE(p.commit_hash, '') AS commit_id
+        FROM package_ops p
+        WHERE p.rowid > @sinceSeq
+          AND p.id NOT IN (SELECT op_id FROM op_branches)
+        ORDER BY p.rowid ASC LIMIT @limit
+        """
+      |> Sql.parameters [ "sinceSeq", Sql.int64 sinceSeq; "limit", Sql.int64 limit ]
+      |> Sql.executeAsync (fun read ->
+        (read.string "id",
+         read.bytes "op_blob",
+         read.stringOrNone "ts" |> Option.defaultValue "",
+         read.int64 "seq",
+         read.stringOrNone "author" |> Option.defaultValue "",
+         read.string "commit_id"))
+
+    let cursor =
+      rows |> List.fold (fun acc (_, _, _, seq, _, _) -> max acc seq) sinceSeq
+
+    // The commit rows the page's ops name, so the receiver can file each op under the author's commit.
+    // Rows, not a chain: see `SCM.Wire.SyncBundle.commits`.
+    let commitHashes =
+      rows
+      |> List.choose (fun (_, _, _, _, _, c) -> if c = "" then None else Some c)
+      |> List.distinct
+
+    let! commits =
+      if List.isEmpty commitHashes then
+        Task.FromResult []
+      else
+        Sql.query
+          """
+          SELECT hash, message, author, origin_ts, COALESCE(parent, '') AS parent
+          FROM commits WHERE hash IN (SELECT value FROM json_each(@hashes))
+          """
+        |> Sql.parameters
+          [ "hashes",
+            // Built by hand, not by `JsonSerializer.Serialize`: that is reflection-based, and a
+            // published build can have reflection stripped -- which would make every pull fail
+            // here, on the one path a relay serves most. A list of hashes needs no serializer.
+            // (`PackageOpPlayback` builds its id array the same way, for the same reason.)
+            Sql.string (
+              "["
+              + (commitHashes
+                 |> List.map (fun (h : string) -> "\"" + h.Replace("\"", "") + "\"")
+                 |> String.concat ",")
+              + "]"
+            ) ]
+        |> Sql.executeAsync (fun read ->
+          (read.string "hash",
+           read.string "message",
+           read.string "author",
+           read.string "origin_ts",
+           read.string "parent"))
+
+    let out = new System.IO.MemoryStream()
+
+    let render () =
+      use writer = new System.Text.Json.Utf8JsonWriter(out)
+      writer.WriteStartObject()
+      writer.WriteNumber("formatVersion", formatVersion)
+      writer.WriteString("darkBuild", darkBuild)
+      writer.WriteString("kernelHash", kernelHash)
+      writer.WriteString("owner", owner)
+      writer.WriteNumber("cursor", cursor)
+      writer.WriteStartArray("ops")
+
+      for (id, blob, ts, _, author, commit) in rows do
+        writer.WriteStartObject()
+        writer.WriteString("id", id)
+        // Lowercase hex, matching `Stdlib.Blob.toHex`, because clients decode it with the same rules.
+        writer.WriteString("blobHex", System.Convert.ToHexStringLower blob)
+        writer.WriteString("ts", ts)
+        writer.WriteString("author", author)
+        writer.WriteString("commit", commit)
+        writer.WriteEndObject()
+
+      writer.WriteEndArray()
+      writer.WriteStartArray("commits")
+
+      for (hash, message, author, originTs, parent) in commits do
+        writer.WriteStartObject()
+        writer.WriteString("hash", hash)
+        writer.WriteString("message", message)
+        writer.WriteString("author", author)
+        writer.WriteString("originTs", originTs)
+        writer.WriteString("parent", parent)
+        writer.WriteEndObject()
+
+      writer.WriteEndArray()
+      writer.WriteEndObject()
+
+    render ()
+    return (System.Text.Encoding.UTF8.GetString(out.ToArray()), cursor)
+  }

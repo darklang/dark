@@ -77,8 +77,8 @@ let matterSplitFor (state: State) : Int =
 
   // cursor (2) + glyph (2) + space (1) + trailing `/` and badges (4) + the inset and rule (2)
   let forNames = longest + 11
-  // The title on the edge is the module path, which outgrows the names under it: `Feriel ›
-  // ModelContextProtocol` over one short child. Room for it and its count too.
+  // The title on the edge is the module path, which outgrows the names under it: `Darklang ›
+  // LanguageTools › AtRestTypeChecker` over one short child. Room for it and its count too.
   let pathWidth = Stdlib.String.displayWidth (Stdlib.String.join (Packages.modulePathOf state.location) " › ")
   let needed = Stdlib.max forNames (pathWidth + 10)
   let pct = (needed * 100) / w
@@ -106,7 +106,7 @@ let previewInnerWidth (state: State) : Int =
   // Only the width matters here; the rows and position are placeholders.
   let body = Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 1; cols = w }
   let (_list, splitDetail, _rule, _collapsed) = paneGeometry body pct
-  let detail = if isDocument state then paneContent body else splitDetail
+  let detail = splitDetail
   // `renderScrollableLines` wraps one column short of its region.
   Stdlib.max 1 (detail.cols - 1)
 
@@ -256,14 +256,6 @@ let paneTrailer (parts: List<String>) : String = paneTrailerWith " · " parts
 let paneTitle (name: String) (parts: List<String>) (focused: Bool) : String =
   if name == "" then paneTrailerWith "" parts
   else (paneName name focused) + (paneTrailer parts)
-
-/// A view's sections as a row of words for its title - the one you are on
-/// bright, the rest dim. Only the (hidden) AI view has sections.
-let sectionTabs (names: List<String>) (active: Int) (focused: Bool) : String =
-  names
-  |> Stdlib.List.indexedMap (fun i n ->
-    if i == active then paneName n focused else Stdlib.Cli.UI.Colors.dimText n)
-  |> Stdlib.String.join "  "
 
 /// One run of the top edge, `width` columns: `─ title ───`, or all dashes for
 /// an empty title. The dashes are dim; the title keeps its own styling.

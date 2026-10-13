@@ -197,12 +197,18 @@ let rec private builtinReferences (source : string) : List<string> =
 
 
 /// Scan each file independently so unfinished literals cannot consume another
-/// file's code. Build output holds copies of source and is excluded.
+/// file's code.
+///
+/// Two directories are skipped. Build output holds copies of files already read. And `later/`
+/// holds code that is out of the product: it is not loaded, not built and not run, so a name
+/// mentioned only there is NOT a caller. That prune is the whole reason this check still works
+/// after the molt: without it, a builtin whose only Dark wrapper moved to `later/` would go on
+/// counting as called, which is precisely the case this test exists to catch.
 let private builtinReferencesUnder (root : string) : List<string> =
   Directory.EnumerateFiles(root, "*.dark", SearchOption.AllDirectories)
   |> Seq.filter (fun path ->
     let sep = Path.DirectorySeparatorChar
-    not (path.Contains $"{sep}Build{sep}"))
+    not (path.Contains $"{sep}Build{sep}") && not (path.Contains $"{sep}later{sep}"))
   |> Seq.collect (fun path ->
     try
       builtinReferences (File.ReadAllText path)
@@ -245,26 +251,6 @@ let private countReferences (builtinName : string) : int =
   packagesRefCounts.Value |> Map.tryFind builtinName |> Option.defaultValue 0
 
 
-/// Every name excluded as infix-dispatched is still a registered builtin.
-///
-/// `infixDispatched` is an exclusion list, and an exclusion nobody revisits is how
-/// a sweep quietly stops covering the thing it was written for: rename or retire a
-/// builtin and its name sits here forever, excusing nothing and hiding nothing,
-/// while the sweep it was carved out of no longer has a reason to skip anything.
-/// `notSweepable` in `CliSurface.Tests.fs` has had this check for the same reason;
-/// this is the second list learning it.
-let everyInfixExclusionIsReal =
-  test "every infix-dispatched exclusion is still a builtin" {
-    let registered = allBuiltinNames () |> Set.ofList
-    Expect.isGreaterThan (Set.count registered) 100 "the builtin sets were read"
-
-    let stale = Set.difference infixDispatched registered
-
-    if not (Set.isEmpty stale) then
-      Tests.failtestf
-        "excluded as infix-dispatched but not registered as a builtin: %s"
-        (stale |> Set.toList |> List.sort |> String.concat ", ")
-  }
 let builtinReferenceScanning =
   testList
     "builtin reference scanning"
@@ -364,6 +350,39 @@ let private unusedAllowlist : Set<string> =
       "testRead"
       "testSlowStream"
       "testFailingRead" ]
+
+
+/// Every name on every exclusion list is still a registered builtin.
+///
+/// These are exclusion lists, and an exclusion nobody revisits is how a sweep quietly stops
+/// covering the thing it was written for: rename or retire a builtin and its name sits here
+/// forever, excusing nothing and hiding nothing, while the sweep it was carved out of no longer
+/// has a reason to skip anything. `notSweepable` in `CliSurface.Tests.fs` has had this check for
+/// the same reason.
+///
+/// All four lists, not just `infixDispatched`, because a round of removals empties a builtin out
+/// from under whichever list happens to name it, and the three that had no check were the three
+/// where a stale name would have gone on reading as deliberate.
+let everyBuiltinExclusionIsReal =
+  test "every builtin exclusion list names only registered builtins" {
+    let registered = allBuiltinNames () |> Set.ofList
+    Expect.isGreaterThan (Set.count registered) 100 "the builtin sets were read"
+
+    let stale =
+      [ "infix-dispatched", infixDispatched
+        "a language idiom", languageIdioms
+        "deliberately multi-use", multiUseAllowlist
+        "deliberately unused", unusedAllowlist ]
+      |> List.collect (fun (why, names) ->
+        Set.difference names registered
+        |> Set.toList
+        |> List.map (fun n -> $"{n} (excluded as {why})"))
+
+    if not (List.isEmpty stale) then
+      Tests.failtestf
+        "excluded from the builtin sweeps but not registered as a builtin: %s"
+        (stale |> List.sort |> String.concat ", ")
+  }
 
 
 let everyBuiltinIsReferenced =
@@ -627,7 +646,7 @@ let tests =
     [ darkEffectTableMatchesRuntime
       oldFunctionsAreDeprecated
       builtinAccessInPackageMatter
-      everyInfixExclusionIsReal
+      everyBuiltinExclusionIsReal
       builtinReferenceScanning
       everyBuiltinIsReferenced
       descriptionsAreJoined

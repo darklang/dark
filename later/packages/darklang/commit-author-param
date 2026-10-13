@@ -1,0 +1,97 @@
+// RESTORE: the author parameter, through the whole commit chain
+// WAS: `Commits.create message AUTHOR opIds parent`, `mintHash`'s author in the hash material,
+//      `commitMainOps message FALLBACKAUTHOR opIds`, `commitDraft AUTHOR branchId message`, and
+//      `Cli.Commit.commitAuthor`, which answered "the identity, or the account name if unnamed".
+// ANCHOR: each one was a parameter in the position shown. The workbench's `:commit` ALSO gated on
+//      `state.accountId` being Some, and printed "not logged in - run `login`" otherwise: with
+//      accounts gone that gate could never pass, so the workbench could not commit at all.
+// NOTE: author was part of the commit hash material. Removing it changes the id a given commit
+//       gets. Existing commits keep the ids they have; new ones hash without it.
+// ALSO: later/packages/darklang/cli/commit-author-display has the display side, and
+//       later/packages/darklang/scm/packageOps.dark.identity the identity itself.
+// WHEN: the identity molt, 2026-10-12
+
+// --- packages/darklang/scm/packageOpsMerge.dark ---
+      let hash = Commits.create message author opIds parent
+
+// --- packages/darklang/scm/packageOpsMerge.dark ---
+let commitMainOps (message: String) (fallbackAuthor: String) (opIds: List<String>) : Unit =
+
+// --- packages/darklang/scm/packageOpsMerge.dark ---
+    let author =
+      match identity () with
+      | "" -> fallbackAuthor
+      | id -> id
+
+    let hash =
+      Commits.create
+        message
+        author
+        (Stdlib.List.sort toStamp)
+        (parentCommitFor SCM.Branch.mainBranchId)
+
+// --- packages/darklang/scm/packageOpsMerge.dark ---
+        commitMainOps $"merged branch \"{branchName branchId}\"" "merge" landed
+
+// --- packages/darklang/scm/packageOpsMerge.dark ---
+      commitMainOps $"archived branch \"{handle}\"" "archive" [ Stdlib.toString eventId ]
+
+// --- packages/darklang/scm/packageOpsMerge.dark ---
+let commitDraft
+  (author: String)
+  (branchId: Uuid)
+  (message: String)
+  : Stdlib.Result.Result<String, String> =
+
+// --- packages/darklang/cli/scm/commit.dark ---
+/// Who a commit is recorded as. The sync identity, because that is what a peer sees the ops arrive
+/// under; the logged-in account name only when this instance has not been named yet.
+let commitAuthor (state: AppState) : String =
+  match SCM.PackageOps.identity () with
+  | "" -> state.accountName
+  | id -> id
+
+
+
+// --- packages/darklang/cli/scm/commit.dark ---
+      let moved = propagateAll state r
+      let author = commitAuthor state
+
+      let parent
+
+// --- packages/darklang/cli/scm/commit.dark ---
+      let hash = SCM.Commits.create message author (Stdlib.List.sort opIds) parent
+
+// --- packages/darklang/cli/scm/commit.dark ---
+  let moved = propagateAll state r
+  let author = commitAuthor state
+
+  // Collapse BEFORE
+
+// --- packages/darklang/cli/scm/commit.dark ---
+  let hash = SCM.Commits.create message author (SCM.PackageOps.draftOpIds ()) parent
+
+// --- packages/darklang/cli/workbench/input.dark ---
+    match state.accountId with
+    | Some _ ->
+      let author = Darklang.Cli.Commit.commitAuthor (classicState state)
+      match SCM.PackageOps.commitDraft author state.branchId inp.field.text with
+      | Ok _ ->
+        Step.Continue
+          { state with
+              input = Stdlib.Option.Option.None
+              items = reloadItems state
+              selected = 0
+              messageKind = MessageKind.Succeeded
+              message = "committed" }
+      | Error e ->
+        // `commitDraft`'s error IS the message; there is nothing to unwrap.
+        Step.Continue
+          { state with
+              input = Stdlib.Option.Option.Some { inp with prompt = "commit failed: " + e + " - esc"; field = Stdlib.Cli.UI.TextField.empty } }
+    | None ->
+      Step.Continue
+        { state with
+            input =
+              Stdlib.Option.Option.Some
+                { inp with prompt = "not logged in - run `login`, then retry - esc"; field = Stdlib.Cli.UI.TextField.empty } }

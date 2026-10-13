@@ -1,0 +1,10 @@
+// RESTORE: packages/darklang/cli/registry.dark
+// WAS: the `login` and `logout` command rows and their argument grammars
+// ANCHOR: the rows sat between ('conflicts', ...) and ('permissions', ...); the accepts fns above acceptsPermissions
+// ALSO: later/packages/darklang/cli/auth/ and later/packages/darklang/scm/account.dark
+// WHEN: the sync molt, 2026-10-12
+
+      ("login", "Log into an account", [], acceptsLogin, Auth.Login.execute, Auth.Login.help, Auth.Login.complete)
+      ("logout", "Clear the active account", [], acceptsLogout, Auth.Logout.execute, Auth.Logout.help, Auth.Logout.complete)
+  let acceptsLogin () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsLogout () : Accepts.Accepts = Accepts.nothing ()

@@ -1,0 +1,35 @@
+// RESTORE: backend/tests/Tests/CliScm.Tests.fs
+// WAS: aBundleCarriesTheContentItsNamesPointAt: a branch naming content main already held carries the Add in its bundle anyway, so a receiver whose main lacks it does not get a name pointing at nothing
+// ANCHOR: between the branch-id refusal test and aMergeCommitsWhatItLands; its name came out of the test list
+// ALSO: later/packages/darklang/cli/scm/branch.dark.export-import and later/packages/darklang/scm/packageOpsBundles.dark. WARNING when restoring: this test writes a bundle to rundir and reads it back by path. rundir PERSISTS between runs, so after `branch export` was removed the test went on passing against the file a previous run had left there. Give it a path it creates and deletes, or assert the write happened.
+// WHEN: the sync molt, 2026-10-12
+
+/// A branch that names content main already held (same body, another name) holds only the `SetName`:
+/// the `Add` is main's, since an op is identified by what it adds. The bundle must carry that Add
+/// anyway, or the receiver, whose main may not have it, gets a name pointing at nothing.
+let private aBundleCarriesTheContentItsNamesPointAt =
+  cliTestOnMain
+    "a branch bundle carries the Add for a body the branch borrowed from main"
+    (fun state ->
+      task {
+        do! fn state "Tests.Borrow.onMain" "() : Int64 = 5005L"
+        do! switch state "borrowbr"
+        let! _ =
+          runCli state [ "fn"; "Tests.Borrow.onBranch"; "() : Int64 = 5005L" ]
+        let! log = runCli state [ "log"; "borrowbr" ]
+        Expect.isFalse
+          (log.Contains "AddFn")
+          $"the branch holds only the SetName: {log}"
+
+        let exported = $"{LibConfig.Config.runDir}/bundle-borrow.json"
+        let! _ = runCli state [ "branch"; "export"; "borrowbr"; exported ]
+        let json = System.IO.File.ReadAllText exported
+        let ops =
+          System.Text.RegularExpressions.Regex.Matches(json, "\"blobHex\"").Count
+        Expect.equal
+          ops
+          2
+          $"the bundle carries the Add as well as the SetName: {json.Substring(0, min 200 json.Length)}"
+
+        do! archiveBranches state [ "borrowbr" ]
+      })

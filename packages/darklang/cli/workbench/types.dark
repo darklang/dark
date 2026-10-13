@@ -31,14 +31,6 @@ type SearchHit =
     kind: String
     display: String }
 
-/// Which part of the AI view is showing. Picked in the navbar.
-type AiSection =
-  | Agents
-  | Prompts
-
-type AiState =
-  { section: AiSection }
-
 /// What the Matter view is showing: the whole tree, or values only (the Values lens, `L`).
 type Lens =
   | WholeTree
@@ -62,18 +54,6 @@ let onBranch (state: State) (branchId: Uuid) : State =
   let _ = SCM.PackageOps.selectBranch branchId
   { state with branchId = branchId }
 
-
-let emptyAi () : AiState =
-  AiState { section = AiSection.Agents }
-
-let aiSectionIndex (section: AiSection) : Int =
-  match section with
-  | Agents -> 0
-  | Prompts -> 1
-
-/// The inverse of `aiSectionIndex` (see `scmSectionAt`).
-let aiSectionAt (index: Int) : AiSection =
-  if index == 1 then AiSection.Prompts else AiSection.Agents
 
 let emptyMatter () : MatterState =
   MatterState { lens = Lens.WholeTree }
@@ -104,7 +84,6 @@ type ReturnPoint =
   { view: Int
     location: Packages.PackageLocation
     lens: Lens
-    aiSection: AiSection
     selected: Int
     filter: String }
 
@@ -207,7 +186,6 @@ type State =
     /// When Some, the multiline editor is open (authoring a fn body).
     editing: Stdlib.Option.Option<EditingState>
     accountId: Stdlib.Option.Option<Uuid>
-    accountName: String
     /// This instance's human name for the context line - config `instance.name` if set, else the machine
     /// hostname. Each instance also registers a UUID (`instance.id`) in config on first run.
     instanceName: String
@@ -232,12 +210,6 @@ type State =
     /// `:` command bar: which completion in the dropdown is highlighted (↑↓ move, tab accepts it). Reset to 0
     /// whenever the text changes.
     completionSel: Int
-    /// AI view: which section is showing. Picked in the navbar.
-    ai: AiState
-    /// The gated views (Devices, Crons, Calendar, ...) enabled for this
-    /// account, computed once at launch from (see `viewSpecs` /
-    /// `gateEnabled`). Hidden gated views drop out of the navbar.
-    enabledGatedViews: List<Int>
     /// Names of items with uncommitted edits, and of deprecated items in the current module.
     ///
     /// Cached rather than read in the renderer. Both are DB reads, the renderer runs on every keypress, and
@@ -310,14 +282,10 @@ type ViewBehavior =
   /// follow whichever has focus. E.g. Code: modules left, source right.
   | Split
   /// One pane with a cursor over its rows and nothing to the right of it.
-  /// E.g. Devices.
   | List
   /// A `List` whose rows include section headers, which the cursor skips.
   /// E.g. Home: "Branches", "History" and the rows under each.
   | SectionedList
-  /// One scrolling body with no cursor: ↑↓ and g/G move through the text.
-  /// E.g. Sync: one block of status.
-  | Document
 
 /// Everything needed to load and render an extension view. Navigation
 /// grouping is defined separately by `workspaces`.
@@ -326,8 +294,6 @@ type ViewDef =
     id: String
     /// navbar label
     name: String
-    /// "" = always visible; anything else marks the view gated (shown only to `gatedViewAccounts`)
-    gateKey: String
     behavior: ViewBehavior
     /// the selectable rows (for the shared cursor + list pane); Unit-in since extension views are self-contained
     loadItems: Unit -> List<BodyItem>
@@ -344,50 +310,23 @@ val vHome = 0
 val vMatter = 1
 val vScratch = 3
 val vSCM = 4
-val vDevices = 5
-val vAI = 6
-val vApps = 7
 val vTraces = 8
 val vDocs = 9
 // Extension indices are `baseViewCount + position in extensionViews`.
 val baseViewCount = 10
 
-/// Built-in view indices and their optional gate keys. Extension views are
-/// appended by `viewSpecs`.
-// Index 2 remains reserved for the former Inspect view, keeping later indices
-// stable without exposing Inspect in the navbar.
-val baseViewSpecs =
-  [ (vHome, "")
-    (vMatter, "")
-    (vScratch, "")
-    (vSCM, "")
-    (vDevices, "devices.enabled")
-    (vAI, "")
-    (vApps, "")
-    (vTraces, "")
-    (vDocs, "") ]
-
-/// Accounts that can see gated workbench views.
-val gatedViewAccounts = [ "stachu", "feriel" ]
-
-/// Does this account see the gated views?
-///
-/// One rule today: "is this one of the two people building it". A per-key config can
-/// come back when someone wants a third answer.
-let gateEnabled (accountName: String) : Bool =
-  Stdlib.List.member gatedViewAccounts (Stdlib.String.toLowercase accountName)
+/// Built-in view indices. Extension views are appended by `viewSpecs`.
+// Indices 2 and 5 remain reserved for the former Inspect and Devices views,
+// keeping later indices stable without exposing either in the navbar.
+val baseViewSpecs = [ vHome, vMatter, vScratch, vSCM, vTraces, vDocs ]
 
 /// Every view as `(absolute index, label, gate key)`, used for visibility and
 /// label lookup. `workspaces` separately defines navbar placement.
 val viewSpecs =
-  let base =
-    baseViewSpecs
-    |> Stdlib.List.map (fun pair ->
-      let (i, g) = pair
-      (i, Frame.viewName i, g))
+  let base = baseViewSpecs |> Stdlib.List.map (fun i -> (i, Frame.viewName i))
   let exts =
     extensionViews ()
-    |> Stdlib.List.indexedMap (fun i vd -> (baseViewCount + i, vd.name, vd.gateKey))
+    |> Stdlib.List.indexedMap (fun i vd -> (baseViewCount + i, vd.name))
   Stdlib.List.append base exts
 
 /// The extension `ViewDef` at an absolute view index (None for a built-in, or out of range).
@@ -400,7 +339,6 @@ let extensionViewAt (idx: Int) : Stdlib.Option.Option<ViewDef> =
 /// Single-column views never give focus to an invisible second pane.
 let viewBehavior (view: Int) : ViewBehavior =
   if view == vHome then ViewBehavior.SectionedList
-  else if view == vDevices then ViewBehavior.List
   else
     match extensionViewAt view with
     | Some vd -> vd.behavior
@@ -408,9 +346,6 @@ let viewBehavior (view: Int) : ViewBehavior =
 
 let hasDetailPane (state: State) : Bool =
   viewBehavior state.activeView == ViewBehavior.Split
-
-let isDocument (state: State) : Bool =
-  viewBehavior state.activeView == ViewBehavior.Document
 
 /// Does the list have section headers the cursor must step over?
 let isSectioned (state: State) : Bool =
@@ -422,35 +357,9 @@ let viewLabel (idx: Int) : String =
   | Some vd -> vd.name
   | None -> Frame.viewName idx
 
-/// Which gated views (Devices, Crons, Calendar, ...) this account has switched on.
-///
-/// Computed at launch (and again after a login change) rather than per frame.
-let gatedViewsFor (accountName: String) : List<Int> =
-  viewSpecs
-  |> Stdlib.List.filter (fun spec ->
-    let (_i, _n, g) = spec
-    (g != "") && (gateEnabled accountName))
-  |> Stdlib.List.map (fun spec ->
-    let (i, _n, _g) = spec
-    i)
-
-
-/// Re-read the gates for a running workbench.
-let recomputeGatedViews (state: State) : List<Int> =
-  gatedViewsFor state.accountName
-
-
-/// The view indices the navbar may show, in `viewSpecs` order. A view shows
-/// if it isn't gated, or it's gated and enabled for this account (see
-/// `enabledGatedViews`, recomputed on launch and after a config change).
+/// The view indices the navbar may show, in `viewSpecs` order.
 let visibleViews (state: State) : List<Int> =
-  viewSpecs
-  |> Stdlib.List.filter (fun spec ->
-    let (i, _n, g) = spec
-    (g == "") || (Stdlib.List.member state.enabledGatedViews i))
-  |> Stdlib.List.map (fun spec ->
-    let (i, _n, _g) = spec
-    i)
+  viewSpecs |> Stdlib.List.map (fun spec -> Stdlib.Tuple2.first spec)
 
 
 /// Run `f` with anything it writes to stdout captured, and hand back both its value and that output. The
@@ -484,4 +393,4 @@ let classicState (state: State) : Darklang.Cli.AppState =
   { (Darklang.Cli.initState ()) with
       currentBranchId = state.branchId
       accountID = state.accountId
-      accountName = state.accountName }
+      }

@@ -1,0 +1,46 @@
+// RESTORE: packages/darklang/tests/languageTools/atRestTypeChecker.dark
+// WAS: the `ProvisionalDiagnostics` module, which rendered the checker's findings through
+//      `LanguageTools.LspServer.Diagnostics.itemDiagnostics` and asserted the SEVERITIES the
+//      editor would show, as a third field on each expected string.
+// ANCHOR: before `module Lets`, after the "Local bindings, lambdas, and generalization" banner.
+// ALSO: the module stayed, in a form that asserts only the checker's own warning/error split
+//       (two fields instead of three). Restoring this replaces that version; keep whichever
+//       asserts the thing you care about, not both.
+// WHEN: restoring `later/packages/darklang/languageTools/lsp-server/`.
+
+module ProvisionalDiagnostics =
+  // Findings that still depend on unresolved types must remain warnings in the
+  // LSP output, even when a separate definite error makes the function Failed.
+  let displayed (last: String) : String =
+    let source =
+      src [ "let f () : Int =", "  let g = fun y -> y y", "  " + last ]
+    match parsePackageOps source with
+    | Error message -> message
+    | Ok ops ->
+      let report = Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops
+      match report.items with
+      | [ item ] ->
+        let point = Darklang.LanguageTools.Parser.Point { row = 0; column = 0 }
+        let range =
+          Darklang.LanguageTools.Parser.Range { start = point; end_ = point }
+        let rendered =
+          Darklang.LanguageTools.LspServer.Diagnostics.itemDiagnostics range [] item
+        let severities =
+          rendered
+          |> Stdlib.List.map (fun diagnostic ->
+            match diagnostic.severity with
+            | Some Error -> "error"
+            | Some Warning -> "warning"
+            | _ -> "unexpected severity")
+          |> Stdlib.List.sort
+          |> Stdlib.String.join ","
+        (verdictWord item.verdict) + ":" + (codesOf item.diagnostics)
+        + "/" + (codesOf item.warnings) + "/" + severities
+      | _ -> "expected one item"
+
+  test warningsStayWarnings =
+    Stdlib.Test.all
+      [ displayed "1"
+        |> Stdlib.Test.equal "incomplete:/AmbiguousType,OccursCheckFailed/warning,warning"
+        displayed "\"wrong\""
+        |> Stdlib.Test.equal "failed:TypeMismatch/AmbiguousType,OccursCheckFailed/error,warning,warning" ]

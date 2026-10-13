@@ -1,0 +1,48 @@
+// RESTORE: .vscode/tasks.json
+// WAS: the npm/esbuild watch task for the extension
+// ANCHOR: one entry of the "tasks" array; the rest of the file stayed
+// ALSO: later/vscode-extension/ is what it built
+// WHEN: the first round of the molt, 2026-10-12
+//
+// The VS Code task that built the extension, lifted out of .vscode/tasks.json by the molt.
+// It ran `npm watch` in vscode-extension/, which is in later/ now. Kept so that putting the
+// extension back does not mean rediscovering the esbuild problem matcher.
+
+    {
+      "type": "npm",
+      "script": "watch",
+      "isBackground": true,
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "never"
+      },
+      "problemMatcher": {
+        "owner": "esbuild",
+        "source": "esbuild",
+        "fileLocation": ["relative", "${workspaceFolder}/vscode-extension"],
+        "pattern": [
+          {
+            "regexp": "^✘ \\[ERROR\\] (.+)$",
+            "message": 1
+          },
+          {
+            "regexp": "^\\s+(.+):(\\d+):(\\d+):$",
+            "file": 1,
+            "line": 2,
+            "column": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "\\[watch\\] build started",
+          "endsPattern": "\\[watch\\] build (finished|failed)"
+        }
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/vscode-extension"
+      }
+    },

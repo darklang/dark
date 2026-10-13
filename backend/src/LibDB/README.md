@@ -1,6 +1,6 @@
 # LibDB
 
-SQLite-backed persistence for the package store, branches, the op log, user DBs, and traces. Companion to the in-memory `PT.PackageManager` in `LibExecution`.
+SQLite-backed persistence for the package store, branches, the op log, and traces. Companion to the in-memory `PT.PackageManager` in `LibExecution`.
 
 The model: `package_ops` is the source of truth, and everything else here is a projection folded from it. Items are content-addressed (SHA256-keyed); `locations` maps names to hashes and holds MAIN's bindings only. A branch is not a copy of anything: its ops sit in the same log at `effective = 0`, tagged in `op_branches`, and its package manager is main's with those ops overlaid.
 
@@ -18,7 +18,6 @@ Surface (most relevant first):
 - `Seed.fs`: seed export, and the startup grow that folds pending ops and evaluates values.
 - `Releases.fs`: shape changes to canonical tables on stores that already exist, which `CREATE TABLE IF NOT EXISTS` cannot carry.
 - `Caching.fs`: in-process caches over the store, and the one call that drops them all when ops fold.
-- `UserDB.fs`: runtime CRUD for user-defined Datastores (`Stdlib.DB.set` / `get` / etc.). Rows are global, keyed by `(table_tlid, key)`.
 - `Tracing.fs`: the per-execution trace recorder. Writes the trace row plus fn_call rows; `Builtins.Matter/Libs/Traces.fs` reads them back.
 
 The SCM verbs themselves (merge, rebase, conflict presentation, resolution) live in Dark, under `packages/darklang/scm/`. What stays here is what Dark cannot do: hashing, serialization, and the SQL that has to run mid-authoring.

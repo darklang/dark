@@ -1,0 +1,37 @@
+// RESTORE: the mock-data halves of three workbench views
+// WAS: the Crons view, whole (below), and five invented rows in the Errors view's loader with the
+//      detail-pane branch that said which rows were real. The Calendar view went the same way and
+//      was not kept; see later/packages/darklang/cli/workbench/gated-views.
+// ANCHOR: `loadCronItems` and `cronDetail` were in loaders-misc.dark between `errorDetail` and
+//      `loadBuiltinItems`; `renderCrons` and `cronHints` in views-misc.dark; the ViewDef in
+//      viewdefs.dark between "errors" and "builtins"; the navbar listed it under the Traces
+//      workspace's `covers`.
+// NOTE: what stayed in the Errors view is real: `SCM.Conflicts.pending ()`. What left invented
+//      HTTP 500s on /checkout, a test that "passes but shouldn't", and a perf regression, none of
+//      which this product can observe. The Crons view invented four jobs and a detail pane naming
+//      `Stachu.Backups.nightly` at a hash that has never existed.
+// WHEN: the identity molt, 2026-10-12
+
+// --- the Crons view's loaders ---
+/// The Crons view - scheduled jobs on this instance (mock until a Darklang.Cron value type + engine exist;
+/// see notes/cli-ux/22-things.md and classic Dark's cron model). Columns: status · name · schedule · last · next.
+let loadCronItems () : List<BodyItem> =
+  [ BodyItem { name = "●  nightly-backup    daily 02:00    14h ago ok    in 9h"; kind = "cron"; isModule = false; desc = "" }
+    BodyItem { name = "⏸  digest-email      weekly Mon     3d ago  ok    paused"; kind = "cron"; isModule = false; desc = "" }
+    BodyItem { name = "⚠  sync-metrics      every 1h       52m ago fail  in 8m"; kind = "cron"; isModule = false; desc = "" }
+    BodyItem { name = "○  cleanup-temp      every 12h      never         in 12h"; kind = "cron"; isModule = false; desc = "" } ]
+
+let cronDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    (Stdlib.Cli.UI.Colors.boldText item.name)
+    + "\n\n"
+    + "schedule : daily at 02:00  (EveryDay)\n"
+    + "handler  : Stachu.Backups.nightly  @9fa3…\n"
+    + "last run : 2026-07-24 02:00  ok  1.2s\n"
+    + "next run : 2026-07-25 02:00  (in 9h)\n"
+    + "state    : enabled · runs 41 · fails 0 · ● this instance\n\n"
+    + (Stdlib.Cli.UI.Colors.dimText "(mock data)")
+    + "\n\n"
+    + "r run-now   p pause/resume   t traces   e edit"
+  | None -> Stdlib.Cli.UI.Colors.dimText "no crons yet - declare a Darklang.Cron value"

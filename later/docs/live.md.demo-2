@@ -1,0 +1,20 @@
+RESTORE: docs/live.md
+
+WAS: demo 2 in "The demos": prod follows a branch, over a relay.
+
+ANCHOR: in the fenced block, after demo 1. The paragraph under it, which walked the local half by
+hand, STAYED: it needs no relay and is now introduced as "the same beats on one machine".
+
+ALSO: later/docs/live.md.prod-follows-a-branch has the section that explained it.
+
+WHEN: the sync molt, 2026-10-12
+
+
+demo 2, prod follows a branch
+  host:        dark --branch <b> apps enable sync
+               dark --branch <b> serve Site.router --port 8080 --live
+  local:       dark config set live.autopush on
+               edit Site.page, save
+  ~2 s later:  curl http://<host>:8080/  -> new page
+  local:       save a broken Site.page
+               curl -> still the last good page; the host log has the diagnostic

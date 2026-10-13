@@ -262,39 +262,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // CLEANUP move implementation to Darklang, in package space, in darklang stdlib
-    // (RegEx support now available via Stdlib.Regex.*)
-    { name = fn "stringSlugify" 0
-      typeParams = []
-      parameters = [ Param.make "string" TString "" ]
-      returnType = TString
-      description =
-        "Turns a string into a prettified slug, including only lowercased "
-        + "alphanumeric characters, joined by hyphens"
-      fn =
-        (function
-        | _, _, _, [| DString s |] ->
-          // Should work the same as https://blog.tersmitten.nl/slugify/
-          // explicitly limit to (roman) alphanumeric for pretty urls
-          let toRemove = "([^a-z0-9\\s_-]|\x0b)+"
-          let toBeHyphenated = @"[-_\s]+"
-
-          let replace (pattern : string) (replacement : string) (input : string) =
-            Regex.Replace(input, pattern, replacement)
-
-          s
-          |> String.toLowercase
-          |> replace toRemove ""
-          |> String.trim
-          |> replace toBeHyphenated "-"
-          |> DString
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
 
     { name = fn "stringReverse" 0
       typeParams = []

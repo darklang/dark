@@ -1,0 +1,52 @@
+// RESTORE: three Dark files
+// WAS: the readers of a store's declared user DBs. `PackageManager.DB.declarations` wrapped the
+//      `dbDeclarations` builtin; `Environment.databases` turned them into types so a body naming
+//      a DB typechecked; `dark status` warned about a datastore left on an older row type.
+// ANCHOR: PackageManager.DB sat between the Value and Function modules in packageManager.dark;
+//      Environment.databases just above `builtins`, and its result was the `dbs` field of the
+//      environment, which is now an empty Dict. The status warning was the last block of
+//      executePretty, after the store-health one.
+//      Model.Ty.TDB is still in the checker's type model, unused.
+// ALSO: later/packages/darklang/scm/databaseRowTypes.dark, later/packages/darklang/cli/packages/db.dark,
+//       later/backend/src/Builtins/Builtins.Matter/Libs/DB.fs (which defined dbDeclarations)
+// WHEN: the user-DB molt, 2026-10-12
+
+// --- packages/darklang/cli/scm/status.dark ---
+  // A datastore left on an older version of its row type. Here for the same reason as store health:
+  // writes to it fail, and nothing else says why until somebody tries one.
+  match (SCM.DatabaseRowTypes.check ()).stale with
+  | [] -> ()
+  | stale ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.warning "datastores on an older row type:")
+
+    stale
+    |> Stdlib.List.iter (fun s ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"  {SCM.DatabaseRowTypes.describe s}"))
+
+
+
+// --- packages/darklang/languageTools/packageManager.dark ---
+module DB =
+  /// Every declared DB, by name, with the type of the rows it holds.
+  ///
+  /// A DB is not a package item yet: `dark db` writes its declaration beside the store rather
+  /// than into it, so it has no hash and no name binding, and this is the only way to see one.
+  let declarations (_unit: Unit) : List<(String * ProgramTypes.TypeReference)> =
+    Builtin.dbDeclarations ()
+
+
+
+
+// --- packages/darklang/languageTools/atRestTypeChecker/environment.dark ---
+/// Every declared DB, as the type a body naming it reads. A row type that does not convert
+/// still declares a DB, so it reads as `DB<error>` rather than as an unknown name.
+let databases (_unit: Unit) : Dict<String, Model.Ty> =
+  LanguageTools.PackageManager.DB.declarations ()
+  |> Stdlib.List.fold Dict {} (fun found (name, row) ->
+    let (rowType, _) = Types.fromReference Dict {} Stdlib.Option.Option.None row
+    Stdlib.Dict.setOverridingDuplicates found name (Model.Ty.TDB rowType))
+
+
+
+// --- packages/darklang/languageTools/atRestTypeChecker/environment.dark ---
+      dbs = databases ()

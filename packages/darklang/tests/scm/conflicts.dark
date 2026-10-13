@@ -140,10 +140,10 @@ module BothMovedTheSameParent =
   // Two bindings that REPLACED the same hash have diverged, whatever the recorded base says. Both ops
   // carry what they replaced, so this needs no base at all.
   //
-  // The case it exists for: an instance that pushed but never pulled has no bases with that source
-  // (`dark connect` pushes without pulling), so its first pull records bases from what it is holding
-  // right now -- its own edit included -- and its own version then reads as the base. Only the incoming
-  // side looks like it moved, and it is never told it diverged while the other side is.
+  // The case it was written for was an instance whose recorded bases included its own edit, so only
+  // the incoming side looked like it had moved and it was never told it diverged while the other side
+  // was. That path moved to `later/` with sync; branch merge passes its own bases, and the detector
+  // stays base-agnostic because a wrong base is worse than none.
   //
   // No base at all: both replaced `parent`, so both moved.
   test sameParentDiverged =

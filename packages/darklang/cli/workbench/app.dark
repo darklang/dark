@@ -1,7 +1,7 @@
 /// The `workbench` SubApp: context, workspace nav, body, and key hints.
 /// `dark` with no arguments opens it.
 ///
-/// This module is split across files (Dark merges same-named modules; modelContextProtocol does the same).
+/// This module is split across files (Dark merges same-named modules; `languageTools` does the same).
 /// This file holds only the CLI integration surface: the SubApp wrapper and the command entry points.
 ///
 ///   types.dark            State and the other records, view indices, the view registry helpers
@@ -11,7 +11,7 @@
 ///   render.dark           shared frame primitives and the reader
 ///   home.dark             Home's full-width branch overview
 ///   views-scm-repl.dark   the SCM and REPL bodies
-///   views-misc.dark       Devices, AI, Calendar, Errors, Crons, Builtins
+///   views-misc.dark       Errors, Builtins, Processes
 ///   viewdefs.dark         the extension-view registry
 ///   navbar.dark          workspace definitions, the nav strip/overlay, and its keys
 ///   chrome.dark           body dispatch, editor, hints, and help overlay
@@ -107,18 +107,10 @@ let component () : Cli.Component.Component<Cli.Workbench.State> =
 let initialState
   (branchId: Uuid)
   (accountId: Stdlib.Option.Option<Uuid>)
-  (accountName: String)
   (instanceName: String)
-  (enabledGatedViews: List<Int>)
   (live: Bool)
   : State =
-  initialStateFrom
-    branchId
-    accountId
-    accountName
-    instanceName
-    enabledGatedViews
-    live
+  initialStateFrom branchId accountId instanceName live
     (SCM.Draft.read ())
 
 /// `initialState` over a draft already read. `execute` reads the draft once and hands the same
@@ -126,9 +118,7 @@ let initialState
 let initialStateFrom
   (branchId: Uuid)
   (accountId: Stdlib.Option.Option<Uuid>)
-  (accountName: String)
   (instanceName: String)
-  (enabledGatedViews: List<Int>)
   (live: Bool)
   (draft: SCM.Draft.Picture)
   : State =
@@ -147,7 +137,6 @@ let initialStateFrom
         input = Stdlib.Option.Option.None
         editing = Stdlib.Option.Option.None
         accountId = accountId
-        accountName = accountName
         instanceName = instanceName
         message = ""
         messageKind = MessageKind.Succeeded
@@ -157,8 +146,6 @@ let initialStateFrom
         wsLast = []
         back = []
         completionSel = 0
-        ai = emptyAi ()
-        enabledGatedViews = enabledGatedViews
         repl = emptyRepl ()
         matter = emptyMatter ()
         filter = ""
@@ -192,7 +179,6 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
   | Available ->
 
   let branchId = cliState.currentBranchId
-  let enabledGatedViews = gatedViewsFor cliState.accountName
   // Register this instance's UUID on first run (durable in cli-config.json).
   let _ =
     match Darklang.Cli.Config.get "instance.id" with
@@ -214,9 +200,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
     initialStateFrom
       branchId
       cliState.accountID
-      cliState.accountName
       instanceName
-      enabledGatedViews
       (Stdlib.List.member args "--live")
       draft
   // Seed the badge cache for the first frame; `presentState` keeps it fresh after that. The view peek needs no

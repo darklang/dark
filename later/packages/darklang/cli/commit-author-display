@@ -1,0 +1,64 @@
+// RESTORE: five files, the display side of a commit's author
+// WAS: `authorLabel` ("you" for this instance, a shortened `inst-<uuid>` for an unnamed
+//      colleague), the author column of the `dark commits` table and its header, the `by <author>`
+//      lines in `dark show`, the `author` field of CommitRowJson, and the author beside each
+//      commit in the workbench's Home rows and commit list.
+// ANCHOR: authorLabel and commitRow opened cli/scm/commits.dark; the header was the table's
+//      column list; the two `by` lines were in executeShow and the commit detail.
+// ALSO: later/packages/darklang/scm/commits.dark.author holds the carved `author` field of the
+//       Commit type and the `author` parameter of `create`/`mintHash`, including its place in the
+//       HASH MATERIAL, which is the part that makes restoring this a decision rather than an edit. With one person every row showed the same string.
+// WHEN: the identity molt, 2026-10-12
+
+// --- packages/darklang/cli/scm/commits.dark ---
+/// How to show who wrote a commit.
+///
+/// "you" for this instance, which on a machine with one person is every row: an unnamed instance's
+/// identity is `inst-<uuid>`, and forty identical columns of it push the message off the edge. A
+/// colleague keeps their name; an unnamed colleague is shortened to something you can still tell apart.
+/// The conflict list makes the same comparison for the same reason.
+let authorLabel (author: String) : String =
+  if SCM.PackageOps.storedIdentity () == Stdlib.Option.Option.Some author then
+    "you"
+  else if Stdlib.String.startsWith author "inst-" then
+    Stdlib.String.slice author 0 13
+  else
+    author
+
+/// One display row: [short hash; ops committed; author; message].
+let commitRow (c: SCM.Commits.Commit) : List<String> =
+  let ops = Stdlib.toString (SCM.PackageOps.opCountIn c.hash)
+  [ SCM.Conflicts.shortHash c.hash, ops, authorLabel c.author, c.message ]
+
+// --- packages/darklang/cli/scm/commits.dark ---
+      [ "commit", "ops", "author", "message" ]
+
+// --- packages/darklang/cli/scm/commits.dark ---
+        $"  by {c.author} at {c.originTs} -- {Cli.Text.plural (Stdlib.Int.fromInt64 n) "op"}"
+
+// --- packages/darklang/cli/scm/commits.dark ---
+        author = c.author
+
+
+// --- packages/darklang/cli/scm/commits.dark ---
+  // The same short ids and author label the `commits` table shows, so a person can carry an id
+  // between the two without noticing they differ. Both ids still take a longer prefix on input.
+
+// --- packages/darklang/cli/scm/commits.dark ---
+  Stdlib.printLine $"  by {authorLabel c.author} at {c.originTs}"
+
+// --- packages/darklang/cli/scm/scmjson.dark ---
+type CommitRowJson =
+  { hash: String
+    message: String
+    author: String
+    ops: Int64 }
+
+// --- packages/darklang/cli/workbench/home.dark ---
+        row c.message "home-commit" (c.author + " · " + (agoText c.originTs)))
+
+// --- packages/darklang/cli/workbench/loaders.dark ---
+      { hash = c.hash; message = c.message; author = c.author
+
+// --- packages/darklang/cli/workbench/loaders.dark ---
+      + (Stdlib.Cli.UI.Colors.dimText ("  " + c.author + " · " + ops + (if ops == "1" then " op" else " ops"))))

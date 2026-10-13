@@ -104,11 +104,8 @@ test raisesButReturned =
 test raisesSomethingElse =
   (1L / 0L)
   => raises "another message"
-test sqlerrorRejectsOrdinaryError =
-  (1L / 0L)
-  => sqlerror "Cannot divide by 0"
-let randomKey () :{Random} String = Stdlib.DB.generateKey ()
-let noRandom () :{} String = Stdlib.DB.generateKey ()
+let randomKey () :{Random} String = Stdlib.toString (Stdlib.Uuid.generate ())
+let noRandom () :{} String = Stdlib.toString (Stdlib.Uuid.generate ())
 let noClock () :{Random} Unit =
   let _ = Stdlib.DateTime.now ()
   ()
@@ -117,7 +114,7 @@ test randomGranted =
   |> Stdlib.String.length
   |> Stdlib.Test.equal 36
 test randomInherited =
-  (Stdlib.DB.generateKey ())
+  (Stdlib.toString (Stdlib.Uuid.generate ()))
   |> Stdlib.String.length
   |> Stdlib.Test.equal 36
 test randomDenied =
@@ -181,12 +178,6 @@ test clockDenied =
       "fail: expected the error `another message`, got `Cannot divide by 0`"
       "a different error fails, naming both"
 
-    let! wrongKind = run m "sqlerrorRejectsOrdinaryError"
-    Expect.equal
-      wrongKind
-      "fail: expected SQL compiler error `Cannot divide by 0`, got `Cannot divide by 0`"
-      "sqlerror requires a SQL compiler error, not just matching text"
-
     let! randomGranted = run m "randomGranted"
     Expect.equal
       randomGranted
@@ -211,57 +202,6 @@ let unknownHash =
     let! result = runHash (String.replicate 64 "0")
     Expect.equal result "error: VariableNotFound" "missing test"
   }
-
-let isolatedDBs =
-  testTask "package test DBs are isolated and leave no user rows" {
-    let m = "PackageTestDBs"
-    do! cleanup m
-    let! authored =
-      authorIn
-        m
-        """[<DB>]
-type Items = { name: String }
-test writes =
-  let _ = Stdlib.DB.set (Items { name = "first" }) "key" Items
-  (Stdlib.DB.get "key" Items)
-  |> Stdlib.Test.equal (Some (Items { name = "first" }))
-test startsEmpty =
-  (Stdlib.DB.count Items) |> Stdlib.Test.equal 0
-test errorsAfterWrite =
-  let _ = Stdlib.DB.set (Items { name = "temporary" }) "key" Items
-  (1L / 0L)
-  => raises "Cannot divide by 0"
-"""
-
-    let tests =
-      authored
-      |> List.choose (function
-        | PT.PackageOp.AddTest test -> Some test
-        | _ -> None)
-    let types =
-      authored
-      |> List.choose (function
-        | PT.PackageOp.AddType typ -> Some typ
-        | _ -> None)
-    Expect.equal (List.length types) 1 "inline DB record creates a row type"
-    Expect.equal (List.length tests) 3 "three DB tests were authored"
-    for test in tests do
-      Expect.isNonEmpty test.testDBs "private schemas are stored on the test"
-
-    let! before = countSql "SELECT count(*) AS n FROM user_data_v0" []
-    let! writes = run m "writes"
-    let! startsEmpty = run m "startsEmpty"
-    let! again = run m "writes"
-    let! errorsAfterWrite = run m "errorsAfterWrite"
-    let! after = countSql "SELECT count(*) AS n FROM user_data_v0" []
-    Expect.equal writes "pass" "DB write and read work"
-    Expect.equal startsEmpty "pass" "the next test starts with an empty DB"
-    Expect.equal again "pass" "the same test can run again"
-    Expect.equal errorsAfterWrite "pass" "runtime errors still clean up test rows"
-    Expect.equal after before "test rows are removed"
-    do! cleanup m
-  }
-
 
 let isolatedObservations =
   testTask "package test observations are local, ordered, and never cached" {
@@ -296,8 +236,7 @@ test failsAfterObservation =
 """
     for op in authored do
       match op with
-      | PT.PackageOp.AddTest test ->
-        Expect.isEmpty test.testDBs "observations need no private DB schema"
+      | PT.PackageOp.AddTest _ -> ()
       | _ -> ()
 
     let! counts = run m "counts"
@@ -380,7 +319,5 @@ test failsAfterObservation =
 // race other store-mutating backend tests.
 let tests =
   testSequenced (
-    testList
-      "PackageTests"
-      [ outcomes; unknownHash; isolatedDBs; isolatedObservations ]
+    testList "PackageTests" [ outcomes; unknownHash; isolatedObservations ]
   )

@@ -1,0 +1,174 @@
+// RESTORE: backend/tests/Tests/CliScm.Tests.fs
+// WAS: aBundleCarriesItsCommits, reviewQueueRoundTrips and branchBundleKeepsWhatItCannotRead: a branch bundle arriving with the author's commits rather than as a draft, a review queue resolved by the name you gave it, and a bundle carrying an op this build cannot decode being imported anyway with that op stored inert
+// ANCHOR: aBundleCarriesItsCommits sat after the archive tests and before the branch-discard test; reviewQueueRoundTrips between the bare-diff test and otherBranchAnswersStayCurrent; branchBundleKeepsWhatItCannotRead just after the recordConflictOn helper, which STAYED because the conflict tests still use it. All three names came out of the test list.
+// ALSO: later/packages/darklang/scm/packageOpsBundles.dark and later/packages/darklang/cli/sync/
+// WHEN: the sync molt, 2026-10-12
+
+/// A branch bundle carrying an op this build cannot decode is imported anyway: the readable ops land,
+/// the unreadable one is stored raw and inert for a later build, and a note says so. That is what main
+/// sync does with such ops. Refusing the bundle left the branch absent altogether, which a branch three
+/// ops short still beats. A bundle that is not even well-formed (a blob that is not hex) is a different
+/// thing and is still refused. Built from a REAL export plus one such record.
+let private branchBundleKeepsWhatItCannotRead =
+  cliTestOnMain
+    "one undecodable op is stored inert and the rest of the bundle imports"
+    (fun state ->
+      task {
+        do! switch state "bundlebr"
+        let! shown = runCli state [ "eval"; "Builtin.scmCurrentBranch ()" ]
+        // `eval` prints `<Uuid: ...>`; the id is what the bundle carries.
+        let sourceId =
+          System.Text.RegularExpressions.Regex.Match(shown, @"[0-9a-f-]{36}").Value
+        Expect.equal
+          sourceId.Length
+          36
+          $"the branch id was read off eval's output: {shown}"
+        do! author state "Tests.Bundle.only" "(x: Int64) : Int64 = x + 1L"
+        do! switch state "main"
+
+        let exported = $"{LibConfig.Config.runDir}/bundle-partial.json"
+        let! _ = runCli state [ "branch"; "export"; "bundlebr"; exported ]
+        let json = System.IO.File.ReadAllText exported
+
+        // Retarget at a branch this store lacks, so "was it registered" is answerable.
+        let freshId = "0e51f3a2-9c4d-4b7a-8f61-2d3e4c5b6a70"
+        let retargeted =
+          json.Replace(sourceId, freshId).Replace("bundlebr", "importedbr")
+
+        // Valid hex, not a valid op: the deserializer rejects it. Appended rather than substituted, so
+        // every real op in the bundle stays valid: the partial case.
+        let bad =
+          """,{"blobHex":"ff3907","commit":"","id":"7c9e6679-7425-40de-944b-e07fc1f90ae7","ts":"2026-01-01T00:00:00.000Z"}"""
+        // The serializer emits fields alphabetically, so `parent` follows `ops` and the
+        // ops array does not end the document. Splice at the array's own close.
+        let marker = """],"parent":"""
+        let cut = retargeted.IndexOf marker
+        Expect.isGreaterThan
+          cut
+          0
+          "the exported bundle has an ops array followed by parent"
+        let partial = retargeted.Substring(0, cut) + bad + retargeted.Substring(cut)
+
+        let partialPath = $"{LibConfig.Config.runDir}/bundle-partial-bad.json"
+        System.IO.File.WriteAllText(partialPath, partial)
+
+        let! stdout, stderr, status =
+          runCliStreams state [ "branch"; "import"; partialPath ]
+        Expect.equal status 0 "the readable part of the bundle imports"
+        Expect.stringContains stdout "imported branch" "the bundle imports"
+        Expect.stringContains
+          stderr
+          "1 op(s) in this bundle"
+          "the unreadable record is reported on stderr"
+        Expect.stringContains
+          stderr
+          "They are kept, not dropped"
+          "the warning explains that the record is preserved"
+
+        let! listed = runCli state [ "branches" ]
+        Expect.isTrue
+          (listed.Contains "importedbr")
+          $"and the branch exists: {listed}"
+        // `switch`, not `--branch`: the flag is resolved and consumed in `Cli.fs` before Dark runs, so
+        // through this harness (which calls the Dark entry point directly) it moves nothing.
+        do! switch state "importedbr"
+        do!
+          shows
+            state
+            [ "eval"; "Tests.Bundle.only 1L" ]
+            "2"
+            "and its readable work runs"
+        do! switch state "main"
+
+        // The unreadable op is here, inert, on the branch: kept for a build that can read it.
+        let! kept =
+          Sql.query
+            "SELECT count(*) AS n FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
+           WHERE p.id = '7c9e6679-7425-40de-944b-e07fc1f90ae7' AND p.effective = 0"
+          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+        Expect.equal kept 1L "the unreadable op is stored inert on the branch"
+
+        do! archiveBranches state [ "importedbr"; "bundlebr" ]
+      })
+/// A review queue is a branch you name, so the verbs have to resolve it like any other: `review
+/// import` stages under a minted id, and the typed queue name is not that id.
+let reviewQueueRoundTrips =
+  cliTestOnMain
+    "a review queue can be inspected and approved by the name you gave it"
+    (fun state ->
+      task {
+        do! switch state "rqsrc"
+        let! _ =
+          runCli state [ "fn"; "Tests.Rq.one"; "(x: Int64) : Int64 = x + 5L" ]
+        do! switch state "main"
+
+        let path = $"{LibConfig.Config.runDir}/rq-test-bundle.json"
+        let! _ = runCli state [ "sync"; "export"; path ]
+
+        // Asserted POSITIVELY. These three were `isFalse (contains "no review queue")`, which any other
+        // failure text passed, including a runtime error, and this is the only end-to-end cover of
+        // `dark review`.
+        let! staged = runCli state [ "review"; "import"; path; "rqueue" ]
+        Expect.stringContains
+          staged
+          "rqueue"
+          $"the queue is created by name: {staged}"
+        Expect.isFalse
+          (Option.isSome (looksLikeARuntimeFailure staged))
+          $"and importing it did not fail: {staged}"
+
+        let! shown = runCli state [ "review"; "rqueue" ]
+        Expect.isFalse
+          (Option.isSome (looksLikeARuntimeFailure shown))
+          $"and is inspectable by that name: {shown}"
+
+        let! approved = runCli state [ "review"; "approve"; "rqueue" ]
+        Expect.isFalse
+          (Option.isSome (looksLikeARuntimeFailure approved))
+          $"and approvable by it, which is the whole workflow: {approved}"
+      })
+let private aBundleCarriesItsCommits =
+  cliTestOnMain
+    "a branch bundle arrives with the author's commits, not as a draft"
+    (fun state ->
+      task {
+        do! switch state "committedbr"
+        let! shown = runCli state [ "eval"; "Builtin.scmCurrentBranch ()" ]
+        let sourceId =
+          System.Text.RegularExpressions.Regex.Match(shown, @"[0-9a-f-]{36}").Value
+        do! fn state "Tests.Carry.done" "() : Int64 = 7007L"
+        do! commit state "the author's own message"
+        do! switch state "main"
+
+        let exported = $"{LibConfig.Config.runDir}/bundle-commits.json"
+        let! _ = runCli state [ "branch"; "export"; "committedbr"; exported ]
+        let json = System.IO.File.ReadAllText exported
+        Expect.stringContains
+          json
+          "the author's own message"
+          "the bundle carries the commit"
+        let freshId = "1e51f3a2-9c4d-4b7a-8f61-2d3e4c5b6a71"
+        let retargeted =
+          json.Replace(sourceId, freshId).Replace("committedbr", "arrivedbr")
+        let path = $"{LibConfig.Config.runDir}/bundle-commits-arrived.json"
+        System.IO.File.WriteAllText(path, retargeted)
+
+        do! shows state [ "branch"; "import"; path ] "imported branch" "it imports"
+        // `switch`, not `--branch`: the harness runs the Dark entry only, and `--branch` moves the
+        // process in the F# entry, so a draft read here would be main's.
+        do! switch state "arrivedbr"
+        do!
+          shows
+            state
+            [ "status" ]
+            "clean"
+            "nothing on the arrived branch is a draft"
+        do!
+          shows
+            state
+            [ "commits"; "3" ]
+            "the author's own message"
+            "and the author's commit is there"
+
+        do! archiveBranches state [ "arrivedbr"; "committedbr" ]
+      })

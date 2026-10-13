@@ -1,0 +1,16 @@
+// RESTORE: packages/darklang/cli/ps.dark
+// WAS: `printAll`, which printed the process table and then every process in full
+// ANCHOR: between printShow and killById
+// ALSO: nothing. `dark ps` and `dark ps show <id>` both stay; this was the combined form, reachable only by typing the eval its own doc comment named, and nothing else in the tree called it.
+// WHEN: the sync molt, 2026-10-12
+
+/// The table, then every process in full: `dark eval 'Darklang.Cli.Ps.printAll ()'` from inside an
+/// eval is the one line that shows a parent and its child with both stacks.
+let printAll () : Unit =
+  let branchId = SCM.PackageOps.currentBranch ()
+  printList branchId
+  Stdlib.Exec.list ()
+  |> Stdlib.List.iter (fun p ->
+    Stdlib.printLine ""
+    let _shown = printShow branchId (Cli.Text.shortId p.id)
+    ())

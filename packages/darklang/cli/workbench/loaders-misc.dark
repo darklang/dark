@@ -1,57 +1,8 @@
-/// Reads for the remaining views: AI threads and prompts, things, conflicts, branches, docs, errors.
+/// Reads for the remaining views: things, conflicts, branches, docs, errors.
 ///
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-let loadAiThreadItems () : List<BodyItem> =
-  Darklang.Cli.Apps.Views.AiChats.demoThreads ()
-  |> Stdlib.List.map (fun t ->
-    BodyItem
-      { name = "[" + (Stdlib.String.toUppercase t.status) + "]  " + t.topic + "   " + t.branch
-        kind = t.status
-        isModule = false; desc = "" })
-
-/// The selected AI thread's detail (for the AI preview).
-let aiThreadDetail (selected: Int) : String =
-  match Stdlib.List.getAt (Darklang.Cli.Apps.Views.AiChats.demoThreads ()) selected with
-  | Some t ->
-    "topic:   " + t.topic + "\n"
-    + "status:  " + t.status + "\n"
-    + "branch:  " + t.branch + "\n"
-    + "cost:    " + t.cost + "   tokens: " + t.tokens + "   time: " + t.time + "\n\n"
-    + t.detail
-    + "\n\n"
-    + "(demo data · press a to ask the agent a new prompt)"
-  | None -> "(no thread selected)"
-
-/// A preview library of reusable prompts (the AI · Prompts subsection).
-let demoPrompts () : List<(String * String)> =
-  [ ("review-diff", "Review this diff for correctness, edge cases, and naming.")
-    ("explain-fn", "Explain what the selected function does and who calls it.")
-    ("gen-tests", "Generate tests for the selected function, including edge cases.")
-    ("name-this", "Suggest three clearer names for this item, each with a reason.")
-    ("port-to-dark", "Port this snippet to Darklang, using stdlib idioms.")
-    ("summarize-module", "Summarize this module: purpose, key fns, gotchas.") ]
-
-let loadPromptItems () : List<BodyItem> =
-  demoPrompts ()
-  |> Stdlib.List.map (fun p ->
-    let (name, _desc) = p
-    BodyItem { name = name; kind = "prompt"; isModule = false; desc = "" })
-
-/// The selected prompt's detail (for the AI · Prompts preview).
-let promptDetail (selected: Int) : String =
-  match Stdlib.List.getAt (demoPrompts ()) selected with
-  | Some p ->
-    let (name, desc) = p
-    (Stdlib.Cli.UI.Colors.boldText name)
-    + "\n\n"
-    + desc
-    + "\n\n"
-    + "⏎ use (fills the ask bar)  ·  e edit  ·  n new"
-    + "\n\n"
-    + (Stdlib.Cli.UI.Colors.dimText "(mock data)")
-  | None -> "(no prompt selected)"
 
 /// All package values for Tree's flat values-only lens.
 let loadThingItems (branchId: Uuid) : List<BodyItem> =
@@ -211,147 +162,6 @@ let loadDocBodyItems () : List<BodyItem> =
 
 /// The Errors view - the high-importance issues an operator running software on Dark cares about. Real
 /// conflicts (genuine) first, then a mock set of the other error kinds until those signals are wired.
-/// The Sync view's rows: this machine, what is not on the relay yet (main's
-/// standing, and the branches with ops to push), the other instances the
-/// relay knows, and what sync did lately.
-///
-/// Sections are header rows (kind `sync-sec`, drawn dim) over fact rows
-/// (kind `sync-row`: a label in `name`, the fact in `desc`), like Home. All
-/// of it is a local read, so opening the view is free and it renders
-/// offline. The other instances are the relay's to know, and asking it can
-/// block for the connect timeout when it is down, so that section is filled
-/// only on `o` (`syncPeerItems`), never on the transition into the view:
-/// `peers` is the relay's answer when it has been asked, else a hint row.
-let loadSyncItemsWith (peers: Stdlib.Option.Option<List<BodyItem>>) : List<BodyItem> =
-  let row (label: String) (fact: String) : BodyItem =
-    BodyItem { name = label; kind = "sync-row"; isModule = false; desc = fact }
-  let section (label: String) (rows: List<BodyItem>) : List<BodyItem> =
-    Stdlib.List.flatten
-      [ [ BodyItem { name = ""; kind = "sync-sec"; isModule = false; desc = "" }
-          BodyItem { name = label; kind = "sync-sec"; isModule = false; desc = "" } ]
-        rows ]
-  let facts = readSyncFacts ()
-  let relay = facts.relay
-  let identity =
-    Stdlib.Option.withDefault (SCM.PackageOps.storedIdentity ()) "none yet · `:sync setup` names this instance"
-  let scopeAll =
-    match Darklang.Cli.Config.get "sync.branches" with
-    | Some "all" -> true
-    | _ -> false
-
-  let machine =
-    if relay == "" then
-      [ row "identity" identity
-        row "relay" "none · `:sync setup` names this instance and connects one" ]
-    else
-      let secret =
-        if Darklang.Cli.Sync.hasRelaySecret relay then "secret stored" else "no secret: this instance can pull, not push"
-      let unpushed = facts.mainUnpushed
-      let waiting =
-        if unpushed == 0L then "no main ops waiting to push"
-        else (Stdlib.toString unpushed) + " op(s) to push"
-      let cursor = SCM.Wire.pullCursor relay
-      let pulled =
-        if cursor == 0L then "nothing pulled yet" else "pulled up to op " + (Stdlib.toString cursor)
-      [ row "identity" identity
-        row "relay" (relay + " · " + secret)
-        row "standing" (waiting + " · " + pulled)
-        row "scope" (if scopeAll then "every branch (sync.branches = all)" else "main only · `:config set sync.branches all` for every branch")
-        row "daemon" "`:apps status sync` · `:apps enable sync` syncs every 30s" ]
-
-  // What is not on the relay yet: main's standing always, then only the open branches holding
-  // ops the relay lacks, and one row counting the rest. A branch with nothing to push has
-  // nothing to say here, and Home is where branches are listed and picked. The scope caveat
-  // (automatic sync moves main only) is on the "scope" row above, once. No relay, no section:
-  // there is no standing to report.
-  let branches =
-    if relay == "" then []
-    else
-      let current = SCM.PackageOps.currentBranch ()
-      let open_ = SCM.Branch.list () |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
-      let mainRow =
-        row
-          ((branchMarker (SCM.Branch.isMain current)) + SCM.Branch.mainBranchName)
-          (syncBranchStanding facts SCM.Branch.mainBranchName true)
-      let waiting =
-        open_
-        |> Stdlib.List.filter (fun b -> (branchUnpushed facts b.name false) > 0L)
-        |> Stdlib.List.map (fun b ->
-          row ((branchMarker (b.id == current)) + b.name) (syncBranchStanding facts b.name false))
-      let rest = (Stdlib.List.length open_) - (Stdlib.List.length waiting)
-      let restRow =
-        if rest == 0 then []
-        else
-          let noun = if Stdlib.List.isEmpty waiting then "branch" else "other branch"
-          [ row "" ((plural rest noun) + " with nothing to push") ]
-      Stdlib.List.flatten [ [ mainRow ], waiting, restRow ]
-
-  let peerRows =
-    match peers with
-    | Some rows -> rows
-    | None ->
-      if relay == "" then [ row "" "connect a relay to see who else syncs with it" ]
-      else [ row "" "o asks the relay who else syncs with it" ]
-
-  let activity =
-    let entries = Darklang.Cli.Sync.recentActivity ()
-    if Stdlib.List.isEmpty entries then [ row "" "nothing yet · s syncs now" ]
-    else entries |> Stdlib.List.map (fun e -> row (agoText e.at) (e.verb + " " + e.detail))
-
-  Stdlib.List.flatten
-    [ section "this machine" machine
-      (if Stdlib.List.isEmpty branches then [] else section "branches" branches)
-      section "other instances" peerRows
-      section "recent activity" activity ]
-  |> Stdlib.List.drop 1
-
-let loadSyncItems () : List<BodyItem> = loadSyncItemsWith Stdlib.Option.Option.None
-
-/// The other instances the relay knows, as rows for the Sync view's "other
-/// instances" section: who has pushed a branch there, and how many of those
-/// this instance has not pulled. The one network call the view makes, and
-/// it is made on `o`, not on opening the view: with the relay down this
-/// waits out the connect timeout, and an unreachable relay is a row, not a
-/// crash.
-let syncPeerItems () : List<BodyItem> =
-  let row (label: String) (fact: String) : BodyItem =
-    BodyItem { name = label; kind = "sync-row"; isModule = false; desc = fact }
-  let relay = SCM.PackageOps.relay ()
-  // No identity yet means no owner on the relay is this instance.
-  let me = Stdlib.Option.withDefault (SCM.PackageOps.storedIdentity ()) ""
-  if relay == "" then
-    [ row "" "connect a relay to see who else syncs with it" ]
-  else
-    match Darklang.Cli.Sync.relayGetAuthed relay "/branch/owners" with
-    | Error e -> [ row "relay" ("unreachable: " + e) ]
-    | Ok body ->
-      let knownIds = SCM.Branch.list () |> Stdlib.List.map (fun b -> Stdlib.toString b.id)
-      let entries =
-        Stdlib.String.fromBlobWithReplacement body
-        |> Stdlib.String.splitOnNewline
-        |> Stdlib.List.filterMap (fun line ->
-          match Stdlib.String.split (Stdlib.String.trim line) " " with
-          // Double parens: `Some (a, b)` reads as Some with TWO fields, and this is Some of a pair.
-          | [ owner, bid ] ->
-            if owner == me then
-              Stdlib.Option.Option.None
-            else
-              Stdlib.Option.Option.Some((owner, bid))
-          | _ -> Stdlib.Option.Option.None)
-      let owners = entries |> Stdlib.List.map (fun pair -> let (o, _b) = pair in o) |> Stdlib.List.unique
-      if Stdlib.List.isEmpty owners then [ row "" "no other instance has pushed a branch to this relay" ]
-      else
-        owners
-        |> Stdlib.List.map (fun owner ->
-          let theirs = entries |> Stdlib.List.filter (fun pair -> let (o, _b) = pair in o == owner)
-          let notPulled =
-            theirs |> Stdlib.List.filter (fun pair -> let (_o, b) = pair in Stdlib.Bool.not (Stdlib.List.member knownIds b))
-            |> Stdlib.List.length
-          let fact =
-            (plural (Stdlib.List.length theirs) "branch") + " on the relay"
-            + (if notPulled == 0 then "" else " · " + (Stdlib.toString notPulled) + " not pulled · `:branch pull --from " + owner + "`")
-          row owner fact)
-
 let loadErrorItems () : List<BodyItem> =
   let conflicts =
     SCM.Conflicts.pending ()
@@ -362,58 +172,17 @@ let loadErrorItems () : List<BodyItem> =
           kind = "error"
           isModule = false
           desc = "" })
-  // Invented rows showing the shape of the thing. Tagged apart from the real conflicts above so the
-  // detail pane can say which one you are looking at.
-  let mock =
-    [ BodyItem { name = "⚠ 500         POST /checkout - 12 in the last hour"; kind = "error-sample"; isModule = false; desc = "" }
-      BodyItem { name = "✗ test        Stachu.Auth.login passes but shouldn't"; kind = "error-sample"; isModule = false; desc = "" }
-      BodyItem { name = "⚠ 500         GET /api/user/:id - 3 in the last hour"; kind = "error-sample"; isModule = false; desc = "" }
-      BodyItem { name = "✗ deprecated  Stdlib.List.oldMap still called by 4 fns"; kind = "error-sample"; isModule = false; desc = "" }
-      BodyItem { name = "⚠ perf        Stachu.report.build - 4.2s p95 (was 0.8s)"; kind = "error-sample"; isModule = false; desc = "" } ]
-  Stdlib.List.append conflicts mock
+  conflicts
 
 let errorDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
-    // The conflict rows are real; only the sample rows are invented.
-    let provenance =
-      if item.kind == "error-sample" then
-        Stdlib.Cli.UI.Colors.dimText "(mock data) - a real Errors view aggregates: test failures + tests that"
-      else
-        Stdlib.Cli.UI.Colors.dimText "this is a real recorded conflict. The rest of an Errors view aggregates:"
     (Stdlib.Cli.UI.Colors.boldText item.name)
     + "\n\n"
-    + provenance
-    + "\n"
-    + (Stdlib.Cli.UI.Colors.dimText "pass but shouldn't, HTTP 5xx on tracked endpoints, unresolved conflicts,")
-    + "\n"
-    + (Stdlib.Cli.UI.Colors.dimText "deprecations still in use, and perf regressions.")
+    + (Stdlib.Cli.UI.Colors.dimText "an unresolved conflict: two live versions of one name.")
     + "\n\n"
     + "⏎ open the source / trace     f filter by kind"
   | None -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ all clear - no errors"
-
-/// The Crons view - scheduled jobs on this instance (mock until a Darklang.Cron value type + engine exist;
-/// see notes/cli-ux/22-things.md and classic Dark's cron model). Columns: status · name · schedule · last · next.
-let loadCronItems () : List<BodyItem> =
-  [ BodyItem { name = "●  nightly-backup    daily 02:00    14h ago ok    in 9h"; kind = "cron"; isModule = false; desc = "" }
-    BodyItem { name = "⏸  digest-email      weekly Mon     3d ago  ok    paused"; kind = "cron"; isModule = false; desc = "" }
-    BodyItem { name = "⚠  sync-metrics      every 1h       52m ago fail  in 8m"; kind = "cron"; isModule = false; desc = "" }
-    BodyItem { name = "○  cleanup-temp      every 12h      never         in 12h"; kind = "cron"; isModule = false; desc = "" } ]
-
-let cronDetail (state: State) : String =
-  match Stdlib.List.getAt state.items state.selected with
-  | Some item ->
-    (Stdlib.Cli.UI.Colors.boldText item.name)
-    + "\n\n"
-    + "schedule : daily at 02:00  (EveryDay)\n"
-    + "handler  : Stachu.Backups.nightly  @9fa3…\n"
-    + "last run : 2026-07-24 02:00  ok  1.2s\n"
-    + "next run : 2026-07-25 02:00  (in 9h)\n"
-    + "state    : enabled · runs 41 · fails 0 · ● this instance\n\n"
-    + (Stdlib.Cli.UI.Colors.dimText "(mock data)")
-    + "\n\n"
-    + "r run-now   p pause/resume   t traces   e edit"
-  | None -> Stdlib.Cli.UI.Colors.dimText "no crons yet - declare a Darklang.Cron value"
 
 /// The traces this instance kept, for the Traces view. The same rows `dark traces` lists, in the
 /// same order; the id is the item name, so the detail pane can resolve it back with
@@ -441,24 +210,14 @@ let loadTraceBodyItems () : List<BodyItem> =
           $"{pin}{status}{ago}{t.entry}  {Cli.Text.oneLine t.input}" })
 
 
-/// Installed + available apps (for the Apps view). A filled dot marks installed; a hollow one available.
-let loadAppItems (branchId: Uuid) : List<BodyItem> =
-  let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
-  Darklang.Cli.Apps.Registry.available ()
-  |> Stdlib.List.map (fun a ->
-    let mark = if Stdlib.List.member slugs a.slug then "● " else "○ "
-    BodyItem { name = mark + a.name; kind = "app"; isModule = false; desc = a.description })
-
 /// The body items for a given view. Home lists the branch's state (see
 /// `loadHomeItems`); Matter the packages (with a Values lens); Changes this
-/// branch's uncommitted work; AI/Apps/Traces/Docs their own; Scratch/Devices
-/// render their own bodies (no list). The AI section and the lens come from
-/// the view states.
+/// branch's uncommitted work; Traces and Docs their own; Scratch renders its
+/// own body (no list). The lens comes from the view state.
 let itemsForView
   (view: Int)
   (branchId: Uuid)
   (location: Packages.PackageLocation)
-  (aiSection: AiSection)
   (matterLens: Lens)
   : List<BodyItem> =
   if view == vHome then loadHomeItems branchId
@@ -467,9 +226,6 @@ let itemsForView
     else if matterLens == Lens.Changed then loadChangedItems branchId
     else loadItems branchId location
   else if view == vSCM then loadChangedItems branchId
-  else if view == vAI then
-    if aiSection == AiSection.Prompts then loadPromptItems () else loadAiThreadItems ()
-  else if view == vApps then loadAppItems branchId
   else if view == vTraces then loadTraceBodyItems ()
   else if view == vDocs then loadDocBodyItems ()
   else
@@ -503,7 +259,7 @@ let applyFilter (items: List<BodyItem>) (filter: String) : List<BodyItem> =
 /// Switching to a DIFFERENT list is the other case, and those sites clear `filter` instead: a filter you
 /// typed for Changes has no business narrowing History.
 let reloadItems (state: State) : List<BodyItem> =
-  itemsForView state.activeView state.branchId state.location state.ai.section state.matter.lens
+  itemsForView state.activeView state.branchId state.location state.matter.lens
   |> applyFilter state.filter
 
 

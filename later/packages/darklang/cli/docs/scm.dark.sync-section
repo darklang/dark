@@ -1,0 +1,41 @@
+// RESTORE: packages/darklang/cli/docs/scm.dark
+// WAS: the `## Sync: the same work on your other machines` section of `dark docs scm`: connect, sync, the auto-sync daemon, push/pull, sync status, whoami, identity, branch push/pull, the five review verbs, and the two paragraphs on review queues being branches and on decisions travelling
+// ANCHOR: between the `ops` section and `## For agents`, both of which are still live
+// ALSO: later/packages/darklang/cli/sync/ is the feature. `dark identity` came BACK as a local command: the name is what a commit's author is, which has nothing to do with a relay.
+// WHEN: the sync molt, 2026-10-12
+
+## Sync: the same work on your other machines
+
+Sync is optional and sits on top of everything above: it carries the op log
+between your instances through a relay. Nothing else here needs it.
+
+  connect <url>       remember a relay and push (do this once)
+  sync                push then pull -- what you run day to day
+  apps enable sync    set and forget: an auto-starting daemon syncs every 30s
+  config set sync.branches all
+                      sync moves every branch too, not just main
+  push / pull         one direction
+  sync status         are we in sync? (cheap, no transfer)
+  whoami              this instance's id
+  identity <name>     name it something readable
+
+  branch push <name>  put a branch on the relay
+  branch pull         bring your branches down on another machine
+
+  review pull [url] [queue]     stage someone's ops instead of applying them
+  review import <file> [queue]  same, from a bundle on disk
+  review <queue>                what's waiting in it
+  review approve <queue>        fold the queue into main
+  review reject <queue>         discard it
+
+A queue IS a branch, named by you (default "review"), so every branch verb
+works on it: `diff <queue>`, `log <queue>`, `conflicts branch <queue>`. The
+staged count is what's actually pending, not how much of the bundle was new to
+you -- a whole-log bundle is mostly ops you already have.
+
+DECISIONS TRAVEL, not just code. Version restores and constraint acks are
+ops, so they travel with their reasons.
+
+Branches are keyed by owner, so a branch follows YOU across machines: give
+both instances the same `identity`.
+

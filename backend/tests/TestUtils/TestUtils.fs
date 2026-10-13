@@ -23,7 +23,6 @@ module D = LibExecution.DvalDecoder
 module PackageRefs = LibExecution.PackageRefs
 module Exe = LibExecution.Execution
 
-module Toplevels = LibCloud.Toplevels
 
 module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
@@ -193,12 +192,9 @@ let executionStateFor
   (pmPT : PT.PackageManager)
   // The bool is retained for existing call sites; HTTP config is process-wide.
   (_allowLocalHttpAccess : bool)
-  (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
   task {
     let domains = []
-
-    let program : RT.Program = { dbs = dbs }
 
     let testContext : RT.TestContext =
       { isPackageTest = false
@@ -245,7 +241,7 @@ let executionStateFor
     let builtins = localBuiltIns pmPT
     let state =
       let pmRT = PT2RT.PackageManager.toRT builtins.values pmPT
-      Exe.createState builtins pmRT Exe.noTracing exceptionReporter notifier program
+      Exe.createState builtins pmRT Exe.noTracing exceptionReporter notifier
       // Ordinary tests use allow-all; security tests install narrower access.
       |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
     let state = { state with test = testContext }
@@ -1030,7 +1026,7 @@ let interestingInts : List<string * int64> =
 
 // https://github.com/minimaxir/big-list-of-naughty-strings
 let naughtyStrings : List<string * string> =
-  LibCloud.File.readfile LibCloud.Config.Testdata "naughty-strings.txt"
+  LibConfig.File.readfile LibConfig.Dirs.Testdata "naughty-strings.txt"
   |> String.splitOnNewline
   |> List.mapWithIndex (fun i s -> $"naughty string line {i + 1}", s)
   // 139 is the Unicode BOM on line 140, which is tough to get .NET to put in a string
@@ -1200,7 +1196,7 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
     // use image bytes here to test for any weird bytes forms
     ("bytes2",
      // TODO: deeply nested data
-     (LibCloud.File.readfileBytes LibCloud.Config.Testdata "sample_image_bytes.png")
+     (LibConfig.File.readfileBytes LibConfig.Dirs.Testdata "sample_image_bytes.png")
      |> Dval.byteArrayToDvalList,
      (TList TUInt8))
     ("simple2Tuple",
@@ -1326,7 +1322,7 @@ let configureLogging
   builder
     .ClearProviders()
     .Services.AddLogging(fun loggingBuilder ->
-      loggingBuilder.AddFile($"{LibCloud.Config.logDir}{name}.log", append = false)
+      loggingBuilder.AddFile($"{LibConfig.Dirs.logDir}{name}.log", append = false)
       |> ignore<ILoggingBuilder>)
   |> ignore<IServiceCollection>
 
@@ -1368,7 +1364,7 @@ let unwrapExecutionResult
 
 let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())
@@ -1450,6 +1446,6 @@ let hashBoundTo (ops : List<PT.PackageOp>) (name : string) : PT.Hash =
 let evalDarkExpr (code : string) : Task<RT.ExecutionResult> =
   task {
     let! ptExpr = parsePTExpr code
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false
     return! Exe.executeExpr state (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
   }

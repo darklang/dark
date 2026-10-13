@@ -91,8 +91,8 @@ let purgeTablesAllExist =
 ///
 /// Two kinds, and they need opposite answers, so this cannot be automatic. A cache keyed on content
 /// (`type_checked`, `package_blobs`) stays TRUE across a reload, because a hash is its content. A claim
-/// about the log's STATE (`conflicts`, `sync_bases`) does not: replace the log and it describes something
-/// that never happened to it.
+/// about the log's STATE (`conflicts`) does not: replace the log and it describes something that
+/// never happened to it.
 ///
 /// So the guard is an allowlist. A new table with a hash column fails this until someone writes down which
 /// kind it is. That is the whole point: without the forced answer a table simply sits outside the
@@ -150,15 +150,15 @@ let hashCoupledTablesAreClassified =
 
 
 let logStateProjectionsArePurged =
-  testTask "conflicts and sync_bases are emptied by a purge" {
-    // Named rather than derived, because what makes these two different from `type_checked` is
-    // meaning, not shape. Left behind, they describe a log that no longer exists: the store reports
+  testTask "conflicts are emptied by a purge" {
+    // Named rather than derived, because what makes this different from `type_checked` is meaning,
+    // not shape. Left behind, it describes a log that no longer exists: the store reports
     // "1 conflict to review" and then shows neither version, since the ops it names are gone.
-    for t in [ "conflicts"; "sync_bases" ] do
+    for t in [ "conflicts" ] do
       Expect.isTrue
         (List.contains t Purge.tables)
-        $"`{t}` is in Purge.tables. It asserts something about the LOG (versions competed; a peer and I \
-          agreed), so replacing the log makes it false, and it reads as actionable while being neither \
+        $"`{t}` is in Purge.tables. It asserts something about the LOG (two versions competed), so \
+          replacing the log makes it false, and it reads as actionable while being neither \
           reviewable nor resolvable."
   }
 
@@ -183,15 +183,15 @@ let private seedSource () : string =
   )
 
 
-/// The seed is a fresh install's starting store, and these tables are one install's RELATIONSHIPS:
-/// with a relay (`sync_pushed`, `sync_bases`) and with itself (`config_v0`, which holds the relay url and
-/// its write secret). A seed built from a developer's store would otherwise ship that developer's
-/// relationships to everyone. Reads the export's SQL rather than trusting a list, so a per-install
-/// table added later is not silently left in.
+/// The seed is a fresh install's starting store, and these tables are one install's own
+/// state: who it is and which branch it is on (`config_v0`), and what it argued with
+/// itself about (`conflicts`). A seed built from a developer's store would otherwise ship
+/// all of that to everyone. Reads the export's SQL rather than trusting a list, so a
+/// per-install table added later is not silently left in.
 let seedExportStripsPerInstallState =
   test "Seed.export strips every per-install table" {
     let source = seedSource ()
-    for t in [ "sync_pushed"; "sync_bases"; "config_v0"; "conflicts"; "op_owners" ] do
+    for t in [ "config_v0"; "conflicts" ] do
       Expect.isTrue
         (source.Contains $"DELETE FROM {t};")
         $"`Seed.export` must strip `{t}`: it is one install's state, not the tree's"
@@ -229,7 +229,7 @@ let seedExportStripsTheBuildersDraft =
 /// store under test was built by this bootstrap, so agreement is the whole claim.
 let everyDeclaredTableExists =
   testTask "every table the schema files declare exists in the store" {
-    let dir = System.IO.Path.Combine(LibCloud.Config.migrationsDir, "schema")
+    let dir = System.IO.Path.Combine(LibConfig.Dirs.migrationsDir, "schema")
 
     let declared =
       System.IO.Directory.GetFiles(dir, "*.sql")

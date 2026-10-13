@@ -249,17 +249,6 @@ let printMachineShow (target: String) (json: Bool) : Bool =
     true
   | None -> false
 
-/// The table, then every process in full: `dark eval 'Darklang.Cli.Ps.printAll ()'` from inside an
-/// eval is the one line that shows a parent and its child with both stacks.
-let printAll () : Unit =
-  let branchId = SCM.PackageOps.currentBranch ()
-  printList branchId
-  Stdlib.Exec.list ()
-  |> Stdlib.List.iter (fun p ->
-    Stdlib.printLine ""
-    let _shown = printShow branchId (Cli.Text.shortId p.id)
-    ())
-
 
 /// The escape hatch, not the stdlib verb: a process stuck in a host call is ended without waiting
 /// for the call, so this is the one place the builtin is called by id.
@@ -338,7 +327,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
   | [ "--watch" ] ->
     let view =
-      Apps.Model.View
+      LiveView.Model.View
         { name = "ps"
           title = "processes"
           init = "Darklang.Cli.Ps.Watch.init"
@@ -349,7 +338,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
             Stdlib.Option.Option.Some "up/down move  |  c cancel  |  k kill  |  esc quit" }
     // `--watch` IS the opt-in: a panel whose whole job is to repaint. It follows the store for
     // the same reason it follows the clock.
-    match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None true with
+    match LiveView.Host.openView state.currentBranchId view Stdlib.Option.Option.None true with
     | Ok _ -> state
     | Error e ->
       Cli.printErr e
@@ -482,7 +471,7 @@ module Watch =
     | Some(Local(id, _)) ->
       { m with note = noteOf (stopLocal (Cli.Text.shortId id) hard) }
 
-  let update (m: Model) (event: Apps.Host.Event<Msg>) : Model =
+  let update (m: Model) (event: LiveView.Host.Event<Msg>) : Model =
     match event with
     | Tick | Msg Refresh -> clamp { m with rows = gather () }
     | Key k ->

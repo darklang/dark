@@ -34,7 +34,6 @@ let private buildState () : Task<RT.ExecutionState> =
     // Reuse the CLI's compiled functions and evaluated values. The generic
     // PT-to-RT adapter recompiles on every fetch, making checker tests much slower.
     let pmRT = LibDB.PackageManager.rt
-    let program : RT.Program = { dbs = Map.empty }
 
     let notify
       (_state : RT.ExecutionState)
@@ -90,9 +89,8 @@ let private buildState () : Task<RT.ExecutionState> =
     return
       { Exe.setInstancePolicy
           LibExecution.Permissions.Policy.allowAll
-          (Exe.createState builtins pmRT Exe.noTracing sendException notify program) with
+          (Exe.createState builtins pmRT Exe.noTracing sendException notify) with
           canManagePolicies = true
-          canUsePrivateNetworkHttp = true
           isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
   }
 

@@ -1,0 +1,31 @@
+// RESTORE: packages/darklang/cli/registry.dark
+// WAS: the command rows and argument grammars for `apps`, `views` and `text-editor`.
+//      (`ps` sat between `apps` and `text-editor` and STAYED; it is not an app.)
+// ANCHOR: views sat between ('conflicts', ...) and ('login', ...); apps and text-editor between ('ops', ...) and ('workbench', ...). acceptsViews sat above acceptsLogin; acceptsApps and acceptsTextEditor below acceptsOps.
+// ALSO: later/packages/darklang/cli/apps/ is the framework; the live-view host stayed as packages/darklang/cli/liveview/
+// WHEN: the sync molt, 2026-10-12
+
+      ("apps", "List, install, and manage apps (daemons, foreground, UI)", [], acceptsApps, Apps.Command.execute, Apps.Command.help, Apps.Command.complete)
+      ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], acceptsTextEditor, Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete)
+      ("views", "Browse and preview CLI views", [], acceptsViews, Apps.Views.App.execute, Apps.Views.App.help, Apps.Views.App.complete)
+  let acceptsApps () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.nothing ()), ("list-available", Accepts.nothing ()), ("available", Accepts.nothing ()), ("add", Accepts.between 1 1 []), ("remove", Accepts.between 1 1 []), ("run", Accepts.between 1 1 []), ("daemon-main", Accepts.between 1 1 []), ("restart", Accepts.between 1 1 []), ("stop", Accepts.between 1 1 []), ("logs", Accepts.between 1 1 []), ("inspect", Accepts.between 1 1 []), ("enable", Accepts.between 1 1 []), ("disable", Accepts.between 1 1 []), ("start", Accepts.between 1 1 [ "--live" ]), ("spawn", Accepts.between 1 1 [ "--live" ]), ("status", Accepts.upTo 1 []), ("view", (Accepts.withValues [ "--resume" ] (Accepts.upTo 2 [ "--live", "--dev", "--no-live" ]))) ] (Accepts.nothing ()))
+  let acceptsTextEditor () : Accepts.Accepts = Accepts.nothing ()
+  let acceptsViews () : Accepts.Accepts = Accepts.upTo 1 []
+
+
+// --- also removed: the help category, the Utilities entry, the screen-command names and
+//     the bare-`apps`-is-a-TUI special case in takesScreen ---
+
+      ("Apps", [ "apps" ])
+
+
+"builtins", "export-seed", "views", "workbench", "backups" ]) ]
+
+val screenCommands = [ "outliner", "text-editor", "views" ]
+
+    let canonical = (findCommandIn commands cmd).name
+    if canonical == "apps" then
+      // Bare `apps` opens the manager TUI; `apps <verb> ...` prints.
+      Stdlib.List.isEmpty args
+    else
+      Stdlib.List.member screenCommands canonical

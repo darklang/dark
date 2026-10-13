@@ -1,0 +1,155 @@
+// RESTORE: packages/darklang/cli/outliner/main.dark
+// WAS: the in-app export: the Export section (formats, picker, default path, exportTo), the
+//      ExportFormat and ExportPath screen cases, the `e` key on both the document picker and the
+//      editor, their two key handlers, exportPathRows, and their chrome and body arms.
+// ANCHOR: the Export section sat between the rename helpers and "Keys: the document picker";
+//      the key handlers under "// --- Keys: export ---"; exportPathRows just above chromeFor.
+// ALSO: later/packages/darklang/cli/outliner/export.dark (the format layer),
+//       later/packages/darklang/cli/outliner/markdown.dark, later/packages/darklang/opml/, and
+//       later/packages/darklang/cli/outliner/{app,commands}.dark.export-import for the CLI half.
+// WHEN: the outliner-export molt, 2026-10-12
+
+// --- Export ---
+
+val exportFormats = [ ("Markdown", ".md"), ("OPML", ".opml") ]
+
+let makeExportPicker () : Stdlib.Cli.UI.Picker.State =
+  Stdlib.Cli.UI.Picker.make
+    (exportFormats
+     |> Stdlib.List.map (fun pair ->
+       let (name, ext) = pair
+       $"{name}  ({ext})"))
+
+/// Where an export lands by default.
+///
+/// The home directory, not the working directory. The CLI's cwd is wherever the shell happened to be -
+/// which, for anyone working on Darklang, is the repo, and exports were quietly landing in it.
+let defaultExportPath (title: String) (ext: String) : String =
+  let safeTitle =
+    title |> Stdlib.String.replaceAll " " "-" |> Stdlib.String.toLowercase
+
+  match Stdlib.Cli.Unix.getHomeDirectory () with
+  | Ok home -> $"{home}/{safeTitle}{ext}"
+  | Error _ -> $"{safeTitle}{ext}"
+
+let exportTo (state: State) (path: String) (ext: String) : State =
+  let doc = activeDoc state
+  let content = if ext == ".opml" then Export.toOpml doc else Export.toMarkdown doc
+
+  match Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBlob content) with
+  | Ok _ -> say state $"wrote {path}"
+  | Error e -> complain state $"couldn't write {path}: {e}"
+
+
+
+
+  | ExportFormat of Stdlib.Cli.UI.Picker.State
+  | ExportPath of ext: String * Stdlib.Cli.UI.TextField.State
+
+
+  else if Stdlib.Cli.UI.Widget.isChar kp "e" then
+    match selected with
+    | None -> KeyResult.Continue state
+    | Some doc ->
+      KeyResult.Continue
+        { state with activeDocId = doc.id; screen = Screen.ExportFormat(makeExportPicker ()) }
+
+
+    if Stdlib.Cli.UI.Widget.isChar kp "e" then
+      KeyResult.Continue { (quiet state) with screen = Screen.ExportFormat(makeExportPicker ()) }
+    else if Stdlib.Cli.UI.Widget.isChar kp "g" then
+
+    | ExportFormat picker -> onExportFormatKey state picker kp
+    | ExportPath(ext, field) -> onExportPathKey state ext field kp
+
+
+      "Enter: open   n: new   r: rename   d: delete   e: export   Esc: quit"
+
+          "Enter: edit   o: line   Tab: indent   x: task   Space: fold   /: find   u: undo   e: export   g: docs   Esc: back"
+
+  | ExportFormat _ ->
+    Stdlib.Cli.UI.Chrome.frame $"Export: {(activeDoc state).title}" "EXPORT" "Enter: choose   Esc: cancel"
+  | ExportPath(_ext, _field) ->
+    Stdlib.Cli.UI.Chrome.withBadgeTone
+      (Stdlib.Cli.UI.Chrome.frame
+        $"Export: {(activeDoc state).title}"
+        "EXPORT"
+        "Enter: write   Esc: cancel")
+      Stdlib.Cli.UI.Chrome.Tone.Active
+
+
+  | ExportFormat picker -> Stdlib.Cli.UI.Picker.view picker region
+  | ExportPath(ext, field) -> exportPathRows ext field region
+
+
+// --- Keys: export ---
+
+let onExportFormatKey
+  (state: State)
+  (picker: Stdlib.Cli.UI.Picker.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : KeyResult =
+  match Stdlib.Cli.UI.Picker.onKey picker kp with
+  | Handled next -> KeyResult.Continue { state with screen = Screen.ExportFormat next }
+  | Emitted(next, msg) ->
+    match msg with
+    | Chose index ->
+      match Stdlib.List.getAt exportFormats index with
+      | Some pair ->
+        let (_name, ext) = pair
+        let doc = activeDoc state
+        let path = defaultExportPath doc.title ext
+
+        KeyResult.Continue
+          { state with
+              screen = Screen.ExportPath(ext, Stdlib.Cli.UI.TextField.fromText path) }
+      | None -> KeyResult.Continue state
+    | Cancelled -> KeyResult.Continue(backToDocument state)
+  | Ignored -> KeyResult.Continue state
+
+/// Return to the document the export was started from, with the cursor where it was.
+let backToDocument (state: State) : State =
+  match state.screen with
+  | Editing _ -> state
+  | _ ->
+    { state with screen = Screen.Editing(Editor.fromOutline (activeDoc state).outline) }
+
+let onExportPathKey
+  (state: State)
+  (ext: String)
+  (field: Stdlib.Cli.UI.TextField.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : KeyResult =
+  match Stdlib.Cli.UI.TextField.onKey field kp with
+  | Handled next -> KeyResult.Continue { state with screen = Screen.ExportPath(ext, next) }
+  | Emitted(next, msg) ->
+    match msg with
+    | Submitted path ->
+      let trimmed = Stdlib.String.trim path
+
+      if trimmed == "" then
+        KeyResult.Continue(complain state "a path, please")
+      else
+        KeyResult.Continue(backToDocument (exportTo state trimmed ext))
+    | Cancelled -> KeyResult.Continue(backToDocument state)
+  | Ignored -> KeyResult.Continue state
+
+
+
+
+let exportPathRows
+  (ext: String)
+  (field: Stdlib.Cli.UI.TextField.State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let format = if ext == ".opml" then "OPML" else "Markdown"
+
+  Stdlib.List.flatten
+    [ Stdlib.Cli.UI.Layout.at region 0 2 (Stdlib.Cli.UI.Colors.dimText $"Format: {format}")
+      Stdlib.Cli.UI.Layout.at region 2 2 (Stdlib.Cli.UI.Colors.dimText "Path:")
+      Stdlib.Cli.UI.Layout.at
+        region
+        3
+        2
+        (Stdlib.Cli.UI.TextField.renderInline field (Stdlib.max 8 (region.cols - 4))) ]
+

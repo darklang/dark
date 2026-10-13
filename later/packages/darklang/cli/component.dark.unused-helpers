@@ -1,0 +1,30 @@
+// RESTORE: packages/darklang/cli/component.dark
+// WAS: three Component helpers with no caller left: `viewOfRows` and `viewOfString`, which lift rows or a rendered string into a fullscreen view, and `stateless`, the constructor for a component that persists and derives nothing
+// ANCHOR: viewOfRows and viewOfString sat between the Component type and `noSave`; `stateless` between `simple` and the Session type
+// ALSO: the module itself STAYS: the outliner is a Cli.Component and uses `simple`, `present`, `launch` and the rest. Only these three lost their callers, with the apps framework.
+// WHEN: the sync molt, 2026-10-12
+
+/// A component that persists nothing and derives nothing.
+let stateless
+  (view: 's -> Stdlib.Cli.Tui.Size -> Stdlib.Cli.Tui.View)
+  (onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s>)
+  : Component<'s> =
+  Component
+    { view = view
+      onKey = onKey
+      save = noSave
+      refresh = noRefresh
+      onStoreChanged = ignoreStore }
+/// Lift rows into a full-screen view. For components that think in lines rather than regions.
+let viewOfRows (rows: List<String>) : Stdlib.Cli.Tui.View =
+  Stdlib.Cli.Tui.View
+    { rows = rows
+      cursor = Stdlib.Cli.Tui.Cursor.Hidden
+      mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
+
+/// Lift a rendered string (newline-separated) into a full-screen view.
+let viewOfString (rendered: String) : Stdlib.Cli.Tui.View =
+  let rows =
+    if rendered == "" then [] else Stdlib.String.split rendered "\n"
+
+  viewOfRows rows

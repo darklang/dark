@@ -126,11 +126,7 @@ let settleConflictByRemoval
 /// The workbench's commit. The CLI has its own path (`Cli.Commit`), which additionally offers
 /// `--allow-type-errors` and `--allow-unresolved`; there is no way to type a flag at the workbench's
 /// commit prompt, so this refuses outright rather than offering an override it cannot take.
-let commitDraft
-  (author: String)
-  (branchId: Uuid)
-  (message: String)
-  : Stdlib.Result.Result<String, String> =
+let commitDraft (branchId: Uuid) (message: String) : Stdlib.Result.Result<String, String> =
   let typeReport = typeCheckDraft branchId
 
   match typeReport.verdict with
@@ -154,7 +150,7 @@ let commitDraft
       // draft: ask afterwards and the answer is empty.
       let opIds = draftOpIdsFor branchId
       let parent = parentCommitFor branchId
-      let hash = Commits.create message author opIds parent
+      let hash = Commits.create message opIds parent
       let committed = stampDraftFor branchId hash
 
       if committed == 0L then
@@ -188,7 +184,7 @@ let discardDraftFor (branchId: Uuid) : Int =
 ///
 /// Exactly these ids, never "whatever is uncommitted": that would sweep a half-written fn into a commit
 /// about a branch.
-let commitMainOps (message: String) (fallbackAuthor: String) (opIds: List<String>) : Unit =
+let commitMainOps (message: String) (opIds: List<String>) : Unit =
   // "In the draft" here means landed on main and uncommitted -- NOT `draftWhere`, whose
   // op_branches exclusion would drop any op a sibling branch still tags. A merge lands
   // content-addressed ops that a review queue may genuinely share; they are main's now,
@@ -212,15 +208,9 @@ let commitMainOps (message: String) (fallbackAuthor: String) (opIds: List<String
   if Stdlib.List.isEmpty toStamp then
     ()
   else
-    let author =
-      match identity () with
-      | "" -> fallbackAuthor
-      | id -> id
-
     let hash =
       Commits.create
         message
-        author
         (Stdlib.List.sort toStamp)
         (parentCommitFor SCM.Branch.mainBranchId)
 
@@ -301,7 +291,7 @@ let mergeBranch (branchId: Uuid) : Stdlib.Result.Result<MergeOutcome, MergeError
             (moved |> Stdlib.List.map (fun id -> Stdlib.toString id))
             [ Stdlib.toString eventId ]
 
-        commitMainOps $"merged branch \"{branchName branchId}\"" "merge" landed
+        commitMainOps $"merged branch \"{branchName branchId}\"" landed
       else
         ()
 
@@ -411,16 +401,6 @@ let branchList (includeMerged: Bool) : String =
     (Stdlib.String.join shown "\n") + footer
 
 
-/// Present everything a branch changes vs its parent (+ new, ~ changed) -- the review-before-merge diff.
-let branchDiff (branchId: Uuid) : String =
-  match branchDiffLines branchId with
-  | [] -> $"\"{branchName branchId}\" changes nothing vs its parent."
-  | lines ->
-    let n = Stdlib.toString (Stdlib.List.length lines)
-    let body = Stdlib.String.join lines "\n"
-    $"\"{branchName branchId}\" changes {n} name(s) vs its parent:\n\n{body}"
-
-
 /// Resolve a conflicted name on a branch: choice = "mine" (keep the branch's) or "theirs" (take parent's).
 let resolveConflict
   (branchId: Uuid)
@@ -471,7 +451,7 @@ let archiveBranch (branchId: Uuid) : Stdlib.Result.Result<String, String> =
     // Exactly this event, by id. Committing "whatever is uncommitted" would sweep up a half-written fn
     // that has nothing to do with archiving a branch.
     let _ =
-      commitMainOps $"archived branch \"{handle}\"" "archive" [ Stdlib.toString eventId ]
+      commitMainOps $"archived branch \"{handle}\"" [ Stdlib.toString eventId ]
 
     Stdlib.Result.Result.Ok $"archived branch \"{handle}\"."
 

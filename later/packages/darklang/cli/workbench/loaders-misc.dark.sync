@@ -1,0 +1,146 @@
+// RESTORE: packages/darklang/cli/workbench/loaders-misc.dark
+// WAS: the Sync view's loaders: loadSyncItemsWith, loadSyncItems and syncPeerItems (the one network call the workbench made)
+// ANCHOR: between loadDocBodyItems and loadErrorItems
+// ALSO: later/packages/darklang/cli/workbench/views-misc.dark.sync renders what these loaded; keys-view.dark.sync has the `o` key that called syncPeerItems
+// WHEN: the sync molt, 2026-10-12
+
+/// The Sync view's rows: this machine, what is not on the relay yet (main's
+/// standing, and the branches with ops to push), the other instances the
+/// relay knows, and what sync did lately.
+///
+/// Sections are header rows (kind `sync-sec`, drawn dim) over fact rows
+/// (kind `sync-row`: a label in `name`, the fact in `desc`), like Home. All
+/// of it is a local read, so opening the view is free and it renders
+/// offline. The other instances are the relay's to know, and asking it can
+/// block for the connect timeout when it is down, so that section is filled
+/// only on `o` (`syncPeerItems`), never on the transition into the view:
+/// `peers` is the relay's answer when it has been asked, else a hint row.
+let loadSyncItemsWith (peers: Stdlib.Option.Option<List<BodyItem>>) : List<BodyItem> =
+  let row (label: String) (fact: String) : BodyItem =
+    BodyItem { name = label; kind = "sync-row"; isModule = false; desc = fact }
+  let section (label: String) (rows: List<BodyItem>) : List<BodyItem> =
+    Stdlib.List.flatten
+      [ [ BodyItem { name = ""; kind = "sync-sec"; isModule = false; desc = "" }
+          BodyItem { name = label; kind = "sync-sec"; isModule = false; desc = "" } ]
+        rows ]
+  let facts = readSyncFacts ()
+  let relay = facts.relay
+  let identity =
+    Stdlib.Option.withDefault (SCM.PackageOps.storedIdentity ()) "none yet · `:sync setup` names this instance"
+  let scopeAll =
+    match Darklang.Cli.Config.get "sync.branches" with
+    | Some "all" -> true
+    | _ -> false
+
+  let machine =
+    if relay == "" then
+      [ row "identity" identity
+        row "relay" "none · `:sync setup` names this instance and connects one" ]
+    else
+      let secret =
+        if Darklang.Cli.Sync.hasRelaySecret relay then "secret stored" else "no secret: this instance can pull, not push"
+      let unpushed = facts.mainUnpushed
+      let waiting =
+        if unpushed == 0L then "no main ops waiting to push"
+        else (Stdlib.toString unpushed) + " op(s) to push"
+      let cursor = SCM.Wire.pullCursor relay
+      let pulled =
+        if cursor == 0L then "nothing pulled yet" else "pulled up to op " + (Stdlib.toString cursor)
+      [ row "identity" identity
+        row "relay" (relay + " · " + secret)
+        row "standing" (waiting + " · " + pulled)
+        row "scope" (if scopeAll then "every branch (sync.branches = all)" else "main only · `:config set sync.branches all` for every branch")
+        row "daemon" "`:apps status sync` · `:apps enable sync` syncs every 30s" ]
+
+  // What is not on the relay yet: main's standing always, then only the open branches holding
+  // ops the relay lacks, and one row counting the rest. A branch with nothing to push has
+  // nothing to say here, and Home is where branches are listed and picked. The scope caveat
+  // (automatic sync moves main only) is on the "scope" row above, once. No relay, no section:
+  // there is no standing to report.
+  let branches =
+    if relay == "" then []
+    else
+      let current = SCM.PackageOps.currentBranch ()
+      let open_ = SCM.Branch.list () |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
+      let mainRow =
+        row
+          ((branchMarker (SCM.Branch.isMain current)) + SCM.Branch.mainBranchName)
+          (syncBranchStanding facts SCM.Branch.mainBranchName true)
+      let waiting =
+        open_
+        |> Stdlib.List.filter (fun b -> (branchUnpushed facts b.name false) > 0L)
+        |> Stdlib.List.map (fun b ->
+          row ((branchMarker (b.id == current)) + b.name) (syncBranchStanding facts b.name false))
+      let rest = (Stdlib.List.length open_) - (Stdlib.List.length waiting)
+      let restRow =
+        if rest == 0 then []
+        else
+          let noun = if Stdlib.List.isEmpty waiting then "branch" else "other branch"
+          [ row "" ((plural rest noun) + " with nothing to push") ]
+      Stdlib.List.flatten [ [ mainRow ], waiting, restRow ]
+
+  let peerRows =
+    match peers with
+    | Some rows -> rows
+    | None ->
+      if relay == "" then [ row "" "connect a relay to see who else syncs with it" ]
+      else [ row "" "o asks the relay who else syncs with it" ]
+
+  let activity =
+    let entries = Darklang.Cli.Sync.recentActivity ()
+    if Stdlib.List.isEmpty entries then [ row "" "nothing yet · s syncs now" ]
+    else entries |> Stdlib.List.map (fun e -> row (agoText e.at) (e.verb + " " + e.detail))
+
+  Stdlib.List.flatten
+    [ section "this machine" machine
+      (if Stdlib.List.isEmpty branches then [] else section "branches" branches)
+      section "other instances" peerRows
+      section "recent activity" activity ]
+  |> Stdlib.List.drop 1
+
+let loadSyncItems () : List<BodyItem> = loadSyncItemsWith Stdlib.Option.Option.None
+
+/// The other instances the relay knows, as rows for the Sync view's "other
+/// instances" section: who has pushed a branch there, and how many of those
+/// this instance has not pulled. The one network call the view makes, and
+/// it is made on `o`, not on opening the view: with the relay down this
+/// waits out the connect timeout, and an unreachable relay is a row, not a
+/// crash.
+let syncPeerItems () : List<BodyItem> =
+  let row (label: String) (fact: String) : BodyItem =
+    BodyItem { name = label; kind = "sync-row"; isModule = false; desc = fact }
+  let relay = SCM.PackageOps.relay ()
+  // No identity yet means no owner on the relay is this instance.
+  let me = Stdlib.Option.withDefault (SCM.PackageOps.storedIdentity ()) ""
+  if relay == "" then
+    [ row "" "connect a relay to see who else syncs with it" ]
+  else
+    match Darklang.Cli.Sync.relayGetAuthed relay "/branch/owners" with
+    | Error e -> [ row "relay" ("unreachable: " + e) ]
+    | Ok body ->
+      let knownIds = SCM.Branch.list () |> Stdlib.List.map (fun b -> Stdlib.toString b.id)
+      let entries =
+        Stdlib.String.fromBlobWithReplacement body
+        |> Stdlib.String.splitOnNewline
+        |> Stdlib.List.filterMap (fun line ->
+          match Stdlib.String.split (Stdlib.String.trim line) " " with
+          // Double parens: `Some (a, b)` reads as Some with TWO fields, and this is Some of a pair.
+          | [ owner, bid ] ->
+            if owner == me then
+              Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.Some((owner, bid))
+          | _ -> Stdlib.Option.Option.None)
+      let owners = entries |> Stdlib.List.map (fun pair -> let (o, _b) = pair in o) |> Stdlib.List.unique
+      if Stdlib.List.isEmpty owners then [ row "" "no other instance has pushed a branch to this relay" ]
+      else
+        owners
+        |> Stdlib.List.map (fun owner ->
+          let theirs = entries |> Stdlib.List.filter (fun pair -> let (o, _b) = pair in o == owner)
+          let notPulled =
+            theirs |> Stdlib.List.filter (fun pair -> let (_o, b) = pair in Stdlib.Bool.not (Stdlib.List.member knownIds b))
+            |> Stdlib.List.length
+          let fact =
+            (plural (Stdlib.List.length theirs) "branch") + " on the relay"
+            + (if notPulled == 0 then "" else " · " + (Stdlib.toString notPulled) + " not pulled · `:branch pull --from " + owner + "`")
+          row owner fact)

@@ -1,0 +1,34 @@
+// RESTORE: backend/src/Builtins/Builtins.CliHost/Libs/Cli.fs
+// RESTORE: backend/src/Builtins/Builtins.Http.Server/Libs/HttpServer.fs
+// WAS: the two places that loaded a store's declared user DBs into the program a handler or a
+//      script runs under. `dark serve`, `dark run` and `dark eval` all now run with no DBs.
+// ANCHOR: `loadDBs` and its `module Toplevels =` alias sat at the top of CliHost's Cli.fs, and
+//      its three `let! dbs = loadDBs ()` call sites are now `let dbs = Map.empty`. HttpServer's
+//      read sat just after `let invokerAccess = vm.activeAccess` in the serve builtin.
+// ALSO: later/backend/src/LibCloud/Toplevels.fs, later/backend/src/LibDB/UserDB.fs,
+//       later/backend/src/Builtins/Builtins.Matter/Libs/DB.fs
+// WHEN: the user-DB molt, 2026-10-12
+
+// --- backend/src/Builtins/Builtins.CliHost/Libs/Cli.fs ---
+/// Load all DBs from the global toplevel set.
+let loadDBs () : Ply<Map<string, RT.DB.T>> =
+  uply {
+    let! tls = Toplevels.loadAllDBs ()
+    let! program = Toplevels.toProgram tls
+    return program.dbs
+  }
+
+
+
+
+// --- backend/src/Builtins/Builtins.CliHost/Libs/Cli.fs ---
+module Toplevels = LibCloud.Toplevels
+
+
+// --- backend/src/Builtins/Builtins.Http.Server/Libs/HttpServer.fs ---
+    // The CLI's own state carries no DBs (`eval` and `run` load them per call), so a handler
+    // naming one failed with "There is no variable named". Read once, here: a DB declared while
+    // the server runs is not seen until it restarts, the same as plain `serve` pins its router.
+    let! declared = LibCloud.Toplevels.loadAllDBs ()
+    let! program = LibCloud.Toplevels.toProgram declared
+    let exeState = { exeState with program = program }

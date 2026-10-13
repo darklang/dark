@@ -1,197 +1,13 @@
-/// The remaining view bodies: Devices, AI, Calendar, Errors, Crons, Builtins, and their hint rows.
+/// The remaining view bodies: Errors, Builtins, Processes, and their hint rows.
 ///
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-/// Real config (from cli-config.json) as (key, value) pairs - backs the Devices "Configuration" section and
-/// the `c` reader. This is the actual persisted config, not mock.
-let configEntries () : List<(String * String)> =
-  Darklang.Cli.Config.readConfig () |> Stdlib.Dict.toList
-
-/// A short form of a config value for the inline summary (uuids etc. get truncated).
-let configValueOr (key: String) (fallback: String) : String =
-  match Darklang.Cli.Config.get key with
-  | Some v -> v
-  | None -> fallback
-
-/// The full config dump for the `c` reader on Devices: every persisted key/value plus how to change them.
-let deviceConfigText () : String =
-  let entries = configEntries ()
-  let rows =
-    if Stdlib.List.isEmpty entries then [ "  (no config set yet)" ]
-    else
-      entries
-      |> Stdlib.List.map (fun pair ->
-        let (k, v) = pair
-        "  " + k + "  =  " + v)
-  Stdlib.List.flatten
-    [ [ "Configuration  (rundir/cli-config.json)", "" ]
-      rows
-      [ ""
-        "Change a value with the command bar:"
-        "  :config set <key> <value>       e.g.  :config set instance.name major"
-        "  :config set calendar.enabled stachu     (per-account view gating)"
-        "  :config list                    show everything" ] ]
-  |> Stdlib.String.join "\n"
-
-/// The Devices view: this instance, the relay it talks to, and what it has.
-///
-/// Conflict resolution deliberately isn't here. This screen is the machinery -- where your code lives and
-/// how it travels. What arrived and what needs a decision is SCM's, and splitting them that way is why
-/// neither has to guess about the other.
-let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  let owner = if state.accountName == "" then "you" else state.accountName
-  let hdr = fun t -> Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.cyan) t
-  let on = Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "●"
-  let off = Stdlib.Cli.UI.Colors.dimText "○"
-
-  let relay = SCM.PackageOps.relay ()
-  let identity =
-    match SCM.PackageOps.storedIdentity () with
-    | Some id -> id
-    | None -> Stdlib.Cli.UI.Colors.dimText "no identity yet (`dark sync setup` names this instance)"
-  let ops = SCM.PackageOps.count ()
-
-  let relayLines =
-    if relay == "" then
-      [ "   " + off + "  " + (Stdlib.Cli.UI.Colors.dimText "no relay yet.")
-        "   " + (Stdlib.Cli.UI.Colors.dimText "`dark sync setup` asks for one, takes the secret without echoing it, and pushes once.") ]
-    else
-      let cursor = SCM.Wire.pullCursor relay
-      let pulled =
-        if cursor == 0L then
-          Stdlib.Cli.UI.Colors.dimText "nothing pulled from it yet"
-        else
-          Stdlib.Cli.UI.Colors.dimText ("caught up to op " + (Stdlib.toString cursor))
-      [ "   " + on + "  " + relay
-        "   " + (Stdlib.Cli.UI.Colors.dimText "as ") + identity + "     " + pulled ]
-
-  // Branches with their frontier sizes: how much work is sitting on each line of work.
-  let branches = SCM.Branch.list () |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
-
-  let branchLines =
-    if Stdlib.List.isEmpty branches then
-      [ "   " + (Stdlib.Cli.UI.Colors.dimText "no branches. everything is on main.") ]
-    else
-      branches
-      |> Stdlib.List.take 6
-      |> Stdlib.List.map (fun b ->
-        let marker = if b.id == state.branchId then Stdlib.Cli.UI.Colors.boldText b.name else Stdlib.Cli.UI.Colors.dimText b.name
-        "   " + marker + "     " + (Stdlib.Cli.UI.Colors.dimText ((Stdlib.toString b.ops) + (if b.ops == 1L then " op" else " ops"))))
-
-  titledLines
-    region
-    (paneTitle "Devices" [] false)
-    (Stdlib.List.flatten
-      [ [ hdr "This instance"
-          "   " + on + "  " + state.instanceName + " (" + owner + ")"
-          "   " + (Stdlib.Cli.UI.Colors.dimText ((Stdlib.toString ops) + " ops in the log"))
-          ""
-          hdr "Relay" ]
-        relayLines
-        [ ""
-          hdr "Branches" ]
-        branchLines
-        [ ""
-          hdr "Configuration  ·  cli-config.json"
-          "   " + (Stdlib.Cli.UI.Colors.dimText "instance.name  ") + state.instanceName
-          "   " + (Stdlib.Cli.UI.Colors.dimText "instance.id    ") + (Stdlib.String.slice (configValueOr "instance.id" "(unset)") 0 8) + (Stdlib.Cli.UI.Colors.dimText "...")
-          ""
-          Stdlib.Cli.UI.Colors.dimText "   s sync now  ·  a where setup lives  ·  c view/edit config     what arrived, and conflicts, live in SCM" ] ])
-
-
-/// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
-/// Prompts library + real managed-agent state come later.
-let renderAI (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  // Agents or Prompts - stepped inside the view (`7` again, `[`/`]`), tabs on the title.
-  let prompts = state.ai.section == AiSection.Prompts
-  let (previewTitle, empty) =
-    if prompts then ("Prompt", Stdlib.Cli.UI.Colors.dimText "no prompts")
-    else ("Thread", Stdlib.Cli.UI.Colors.dimText "no agents - press a to ask the agent")
-  let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
-  let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
-  let tabs = sectionTabs [ "Agents", "Prompts" ] (aiSectionIndex state.ai.section) listFocused
-  let trailer =
-    if Stdlib.List.isEmpty state.items then [ "(mock data)" ]
-    else Stdlib.List.append [ "(mock data)" ] (listTrailer state "thread")
-  splitListPreviewTitled
-    state
-    region
-    (tabs + (paneTrailer trailer))
-    (paneTitle previewTitle [] detailFocused)
-    empty
-
-/// The Calendar view (mock) - a month grid over cron fire-times + date-typed values, with today's agenda. A
-/// personal, login-gated view; greenfield, so this is a stand-in for the real system to come.
-let renderCalendar (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  let hdr = fun t -> Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.cyan) t
-  let today = Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.cyan) "[24]"
-  titledLines
-    region
-    (paneTitle "Calendar" [ "July 2026", "(mock data)" ] false)
-    [ hdr "   Mon   Tue   Wed   Thu   Fri   Sat   Sun"
-      ""
-      "          1     2     3     4     5     6"
-      "    7     8     9    10    11    12    13"
-      "   14    15    16    17    18    19    20"
-      "   21    22    23   " + today + "•   25•   26    27"
-      "   28    29    30    31"
-      ""
-      hdr "Today · Thu Jul 24"
-      "    02:00   nightly-backup       cron    ok"
-      "    08:00   sync-metrics         cron    next"
-      "    15:00   reMarkable review    event"
-      ""
-      Stdlib.Cli.UI.Colors.dimText "   • = scheduled     ←→ day   ↑↓ week   a agenda   ⏎ open" ]
-
-
-// ── Extension views: the composable registry ──
-// ViewDef handles loading and rendering; workspaces controls placement.
-
 let renderErrors (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   splitListPreview state region "Errors" "error" "Detail" (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ all clear - no errors")
 
-let renderCrons (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  splitListPreview state region "Crons" "cron" "Detail" (Stdlib.Cli.UI.Colors.dimText "no crons yet - declare a Darklang.Cron value")
-
-/// The Sync view: one column of facts under section labels (see
-/// `loadSyncItems`). Nothing to select, so no cursor; `s`, `u` and `d` act
-/// on the whole instance.
-let syncLines (state: State) : List<String> =
-  // One label column for the whole view, sized to the widest label: a branch name can outgrow
-  // the width the fixed labels ("identity", "standing") need, and a label that runs into its
-  // fact reads as one word.
-  let labelCol =
-    state.items
-    |> Stdlib.List.filter (fun it -> it.kind != "sync-sec")
-    |> Stdlib.List.map (fun it -> (Stdlib.String.displayWidth it.name) + 2)
-    |> Stdlib.List.fold 16 (fun acc n -> Stdlib.max acc n)
-  state.items
-  |> Stdlib.List.map (fun it ->
-    if it.kind == "sync-sec" then
-      if it.name == "" then "" else sectionHeading it.name
-    else
-      "  " + (Stdlib.String.padEndToWidth it.name labelCol)
-      + (Stdlib.Cli.UI.Colors.dimText it.desc))
-
-let renderSync (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  let lines = syncLines state
-  Stdlib.List.flatten
-    [ frameWithTitles region "" "" (0 - 1)
-      renderScrollableLines (paneContent region) 0 lines lines state.detailScroll ]
-
-let syncHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "scroll"), ("g/G", "top/bottom")
-    ("s", "sync now"), ("u", "push"), ("d", "pull"), ("o", "other instances") ]
-
 let errorHints (state: State) : List<(String * String)> =
   [ ("↑↓", "move"), ("f", "filter") ]
-
-let cronHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "move"), ("f", "filter") ]
-
-let calendarHints (state: State) : List<(String * String)> =
-  []
 
 let renderBuiltins (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   splitListPreview state region "Builtins" "builtin" "Signature" (Stdlib.Cli.UI.Colors.dimText "(no builtins)")
@@ -199,9 +15,7 @@ let renderBuiltins (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
 let builtinHints (state: State) : List<(String * String)> =
   [ ("↑↓", "move"), ("f", "filter") ]
 
-/// The internal-tier Builtins view - every F# builtin (real data, not mock), for the Darklang-internal
-/// experience. Gated on `internal.enabled` (config), so `config set internal.enabled stachu,feriel` turns the
-/// whole tier on for those two accounts and nobody else.
+/// The Builtins view: every F# builtin, with its signature.
 let loadBuiltinItems () : List<BodyItem> =
   LanguageTools.allBuiltinFns ()
   |> Stdlib.List.map (fun fn -> fn.name.name)
@@ -319,4 +133,4 @@ let processDetailLines (state: State) : List<String> =
           (d.frames |> Stdlib.List.map (fun ep -> Cli.Ps.executionPointText state.branchId ep))
 
 let processHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "select"), ("5", "back to Apps"), ("", "`dark ps cancel <id>` stops one; `dark ps --watch` for the live view") ]
+  [ ("↑↓", "select"), ("5", "back to Traces"), ("", "`dark ps cancel <id>` stops one; `dark ps --watch` for the live view") ]

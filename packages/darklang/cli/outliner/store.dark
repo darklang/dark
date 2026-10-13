@@ -101,7 +101,7 @@ let starterDocuments () : List<Document> =
         (5, "What else is here")
         (6, "Space folds a branch, / searches, u undoes")
         (7, "o adds a line below, O adds one underneath this one")
-        (8, "e exports to Markdown or OPML") ]
+        (8, "g goes back to the document list") ]
       [ (1, [ 2, 3, 4 ]), (5, [ 6, 7, 8 ]) ]
       [ 1, 5 ]
       9

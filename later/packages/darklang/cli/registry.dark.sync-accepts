@@ -1,0 +1,14 @@
+// RESTORE: packages/darklang/cli/registry.dark
+// WAS: the argument grammars for push, pull, connect, whoami, identity, review, devices and sync, out of the Accepts module
+// ANCHOR: push/pull just above acceptsBackups; connect/whoami/identity just below it; review above acceptsLogin; devices and sync below acceptsLogout
+// ALSO: later/packages/darklang/cli/registry.dark.sync has the rows that name them
+// WHEN: the sync molt, 2026-10-12
+
+  let acceptsPush () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsPull () : Accepts.Accepts = Accepts.upTo 1 [ "--all" ]
+  let acceptsConnect () : Accepts.Accepts = (Accepts.withValues [ "--secret" ] (Accepts.between 1 1 []))
+  let acceptsWhoami () : Accepts.Accepts = Accepts.nothing ()
+  let acceptsIdentity () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsReview () : Accepts.Accepts = (Accepts.subcommands [ ("pull", (Accepts.withValues [ "--from" ] (Accepts.upTo 2 []))), ("import", Accepts.between 1 2 []), ("approve", Accepts.upTo 1 []), ("reject", Accepts.upTo 1 [ "-y", "--yes" ]) ] (Accepts.between 1 1 []))
+  let acceptsDevices () : Accepts.Accepts = (Accepts.subcommands [ ("status", Accepts.nothing ()), ("serve", Accepts.between 1 1 []), ("ping", Accepts.between 1 1 []) ] (Accepts.nothing ()))
+  let acceptsSync () : Accepts.Accepts = (Accepts.everywhere [ "--branches" ] [] ((Accepts.subcommands [ ("setup", Accepts.nothing ()), ("status", Accepts.upTo 1 []), ("export", Accepts.between 1 1 []), ("import", Accepts.between 1 1 []) ] (Accepts.upTo 1 []))))

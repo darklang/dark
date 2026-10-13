@@ -859,21 +859,14 @@ module TraitImpl =
 /// only when evaluating it raises the specified error. Keeping
 /// tests distinct prevents production code from depending on them while still
 /// allowing the compiler and VM to share the ordinary expression pipeline.
-type ExpectedError =
-  | RuntimeError of string
-  | SqlCompilerError of string
+type ExpectedError = RuntimeError of string
 
 module PackageTest =
   type PackageTest =
-    {
-      hash : Hash
+    { hash : Hash
       body : Expr
       description : string
-      expectedError : Option<ExpectedError>
-      /// Test-only datastores. IDs are minted for each execution, so a test
-      /// cannot see another test's rows or the instance's user data.
-      testDBs : List<string * TypeReference>
-    }
+      expectedError : Option<ExpectedError> }
 
 
 /// What happened to a branch. A CLOSED set, so a type rather than a string. Both cases are MONOTONIC:

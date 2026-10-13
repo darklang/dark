@@ -1,0 +1,20 @@
+// RESTORE: packages/darklang/cli/workbench/frame-assembly.dark
+// WAS: the header row's sync glance, the right-aligned "N ops not on the relay" / "nothing to push"
+// ANCHOR: the `else` half of the `(syncColored, syncPlain)` binding, just above the `context` row.
+//      The `if needsYou > 0` half stayed; the variables are now `glanceColored` / `glancePlain`
+//      and the else arm is ("", ""), which the fitter already handled as "draw nothing".
+// ALSO: later/packages/darklang/cli/workbench/scm-status.dark.sync has syncPushSummary and the
+//      SyncFacts this read, and the `sync:` field of ScmStatus that carried it
+// WHEN: the sync molt, 2026-10-12
+
+  // The sync glance: what is waiting on you first, else where this instance stands with its relay.
+  let (syncColored, syncPlain) =
+    if needsYou > 0 then
+      let t = "⚠ " + (Stdlib.toString needsYou) + " need you"
+      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink t, t)
+    else
+      let facts = state.scmStatus.sync
+      let t = syncPushSummary facts
+      let waiting = (facts.mainUnpushed > 0L) || (Stdlib.Bool.not (Stdlib.List.isEmpty facts.branchesUnpushed))
+      let styled = if waiting then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow t else t
+      (styled, t)

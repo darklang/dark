@@ -166,14 +166,13 @@ let runFresh
       PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId error
     )
 
-/// Expected-error tests always rerun. Tests with private DBs also rerun so
-/// each execution starts with fresh tables.
+/// Expected-error tests always rerun.
 let mayCache
   (test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : Bool =
   match test.expectedError with
   | Some _ -> false
-  | None -> Stdlib.List.isEmpty test.testDBs
+  | None -> true
 
 /// Recheck the current cache-safety rule before reusing or storing a result.
 let isCacheable
@@ -263,16 +262,8 @@ let addTest
                   LanguageTools.WrittenTypesToProgramTypes.TestDeclaration.toTestPT
                     ctx
                     written
-                // Reauthoring a test keeps its private DB schemas. Tests use
-                // instance and called-function policies, with no ceiling of their own.
-                let packageTest =
-                  match LanguageTools.PackageManager.Test.find state.currentBranchId location with
-                  | Some hash ->
-                    match LanguageTools.PackageManager.Test.get hash with
-                    | Some old ->
-                      { packageTest with testDBs = old.testDBs }
-                    | None -> packageTest
-                  | None -> packageTest
+                // Tests use instance and called-function policies, with no ceiling of
+                // their own.
                 let ops =
                   [ LanguageTools.ProgramTypes.PackageOp.AddTest packageTest
                     LanguageTools.ProgramTypes.PackageOp.SetName(
@@ -506,7 +497,7 @@ let help (_state: Cli.AppState) : String =
     "  test add MyApp.Math.Tests.doubles - <<'EOF'"
     "  /// Doubling four gives eight."
     "  test doubles = MyApp.Math.double 4L |> Stdlib.Test.equal 8L"
-    "  test keyLength = Stdlib.DB.generateKey () |> Stdlib.String.length |> Stdlib.Test.equal 36"
+    "  test keyLength = Stdlib.Uuid.generate () |> Stdlib.toString |> Stdlib.String.length |> Stdlib.Test.equal 36"
     "  EOF"
     "The body may be given alone or as a whole `test name = ...` declaration;"
     "it lands in your draft like `fn` and `val`." ]

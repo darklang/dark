@@ -3,17 +3,15 @@ module Darklang.SCM.PackageOps
 // Authoring is live-on-write: `add` appends ops that take effect the moment they fold. `add` and
 // `getRecent` are the substrate everything else here is built on.
 //
-// This file is the substrate: authoring (`add`, `addAuthored`), this instance's identity, and the
-// relay it is pointed at. The rest of the module lives beside it, one file per subject:
+// This file is the substrate: authoring (`add`, `addAuthored`). The rest of the module lives
+// beside it, one file per subject:
 //
 //   packageOpsBindings   what an op says about a name, and what a name holds now
 //   packageOpsDraft      stamping a draft into a commit, and dropping one
 //   packageOpsRepoints   which dependents an edit would move
 //   packageOpsMerge      commit, merge, rebase, archive, settle a conflict
-//   packageOpsBundles    a branch as a bundle, for a relay to store and forward
 //   packageOpsBranch     branch registry and frontier reads
 //   packageOpsCommits    the commit rows themselves
-//   packageOpsSync       in `../sync/`, since sync sits on top of SCM
 //
 // Dark lets several files contribute to one module and see each other's definitions unqualified, so
 // the split is physical only: no new silo, and `package_ops` still has exactly one owner. It is a
@@ -181,108 +179,8 @@ let unbind
 
 
 // the op-log DATA-ACCESS SILO
-// This module OWNS every SQL query against `package_ops`. Callers (the `dark ops` CLI, doctor, sync) go
+// This module OWNS every SQL query against `package_ops`. Callers (the `dark ops` CLI, doctor) go
 // through the typed functions below and never hand-roll SQL. There should be no op-log SQL outside here.
-
-
-// Identity here is a NAME, not an authentication. There is no crypto and no proof: it is a string you
-// reuse across machines so a relay can attribute ops to you, trusted by convention, stored in per-install
-// config. Anything that needs to be un-forgeable needs something this is not.
-
-
-/// This instance's sync identity if it has a valid one, without minting or writing anything.
-///
-/// An instance is a STORE, not a person or a machine: two clones of a store are two instances. Copying a
-/// database copies its config, so the id is stamped with where it was minted and counts as missing when
-/// that no longer matches -- two peers sharing an id cannot sync or record a conflict against each other.
-///
-/// Gap: a store copied to the same PATH on another machine keeps its id. Closing that needs a hostname
-/// builtin that doesn't exist.
-let storedIdentity () : Stdlib.Option.Option<String> =
-  let stored = Stdlib.LocalStore.configGet "sync.identity"
-  let mintedAt = Stdlib.LocalStore.configGet "sync.identity.origin"
-
-  // Only an AUTO-MINTED id is ever replaced: a name someone chose deliberately (`dark identity alice`) is
-  // theirs and survives being copied.
-  let autoMinted = Stdlib.String.startsWith stored "inst-"
-
-  if (stored != "") && ((mintedAt == Stdlib.LocalStore.path ()) || (autoMinted |> Stdlib.Bool.not)) then
-    Stdlib.Option.Option.Some stored
-  else
-    Stdlib.Option.Option.None
-
-
-/// This instance's sync identity, minted and saved on first use. Something that only shows the identity
-/// reads `storedIdentity` instead, so looking never writes to the store.
-let identity () : String =
-  match storedIdentity () with
-  | Some stored -> stored
-  | None ->
-    let here = Stdlib.LocalStore.path ()
-    let generated = $"inst-{Stdlib.toString (Stdlib.Uuid.generate ())}"
-    Stdlib.LocalStore.configSet "sync.identity" generated
-    Stdlib.LocalStore.configSet "sync.identity.origin" here
-    generated
-
-
-/// Whether <param name> can be an instance identity, and why not when it cannot.
-///
-/// An identity travels as a query parameter and comes back in the relay's owner listing, one owner
-/// per line. So a space makes that listing unparseable and every peer's automatic branch sync
-/// silently skips you, and an `&` is read as a second parameter, which files your ops under two
-/// owners and makes your branches unpullable by name. Neither fails loudly anywhere.
-///
-/// Letters, digits, dot, dash and underscore. Narrow on purpose: an identity is a name you retype on
-/// another machine, and the auto-minted `inst-<uuid>` fits well inside it.
-let identityProblem (name: String) : Stdlib.Option.Option<String> =
-  if name == "" then
-    Stdlib.Option.Option.Some "an identity can't be empty"
-  else
-    let bad =
-      name
-      |> Stdlib.String.toList
-      |> Stdlib.List.filter (fun c ->
-        let ok =
-          (Stdlib.Char.isAlphanumeric c)
-          || (c == '.')
-          || (c == '-')
-          || (c == '_')
-
-        Stdlib.Bool.not ok)
-
-    match bad with
-    | [] -> Stdlib.Option.Option.None
-    | c :: _ ->
-      let shown = Stdlib.toString c
-      Stdlib.Option.Option.Some
-        $"an identity can't contain \"{shown}\" -- letters, digits, dot, dash and underscore only, because it travels in a url and comes back in the relay's owner list"
-
-
-/// Set (or change) this instance's sync identity. Refuses one that cannot survive the round trip.
-let setIdentity (name: String) : Stdlib.Result.Result<Unit, String> =
-  match identityProblem name with
-  | Some why -> Stdlib.Result.Result.Error why
-  | None ->
-    let _ = Stdlib.LocalStore.configSet "sync.identity" name
-    Stdlib.Result.Result.Ok()
-
-
-/// The remembered default relay URL, or "" if none (so `dark sync` needs no url).
-let relay () : String = Stdlib.LocalStore.configGet "sync.relay"
-
-let setRelay (url: String) : Unit =
-  let _ = Stdlib.LocalStore.configSet "sync.relay" url
-  ()
-
-
-/// What a sync-import from <param sourceId> will reconcile. `conflicts` are detected but NOT yet recorded,
-/// and `names` are the names the import touches (they become the new bases once the fold lands).
-/// `bulk` means the import was ADOPTED WHOLESALE without per-name detection; `detected` says whether the
-/// detector actually ran, so a caller never reports "no conflicts" when it really means "didn't look".
-type SyncPlan =
-  { conflicts: List<Conflicts.Conflict>
-    bulk: Bool
-    detected: Bool }
 
 
 /// A lightweight op-log row for display (no op_blob decode): what `dark ops` shows.
@@ -291,8 +189,9 @@ type OpSummary =
     sizeBytes: Int64
     ts: String
     /// The op itself, so a listing can say what the op DOES rather than how many bytes it
-    /// is. `None` for an op this build's deserializer cannot read, which a synced store
-    /// holds on purpose; the row still lists, it just cannot describe itself.
+    /// is. `None` for an op this build's deserializer cannot read, which a store that has
+    /// taken ops from elsewhere holds on purpose; the row still lists, it just cannot
+    /// describe itself.
     op: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> }
 
 

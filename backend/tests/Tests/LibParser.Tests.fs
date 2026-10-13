@@ -387,22 +387,6 @@ let private parserStructureTests =
           | other -> failtest $"test decl: {other}"
         | other -> failtest $"test decl: {other}")
 
-      testCase "sqlerror retains its distinct expected-error kind" (fun _ ->
-        let parsed =
-          P.parse
-            "module M =\n  test badQuery =\n    1\n    => sqlerror \"unsupported\""
-        Expect.isEmpty parsed.diagnostics "no diagnostics"
-        match parsed.parsed with
-        | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
-          match m.declarations with
-          | [ WT.DTest test ] ->
-            Expect.equal
-              (test.expectedError |> Option.map snd)
-              (Some(WT.SqlCompilerError "unsupported"))
-              "sqlerror stores only the specific compiler message"
-          | other -> failtest $"test decl: {other}"
-        | other -> failtest $"test decl: {other}")
-
       testCase "raises does not infer SQL errors from message text" (fun _ ->
         let parsed =
           P.parse

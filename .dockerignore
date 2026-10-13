@@ -32,5 +32,8 @@ config/local
 .claude/
 CLAUDE.md
 
+# Not part of the product
+later/
+
 # Legacy
 sqldump*.gz

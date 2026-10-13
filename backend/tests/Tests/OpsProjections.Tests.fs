@@ -438,12 +438,8 @@ let noCanonicalInDropSet =
         "branch_name_bases"
         "commits"
         "conflicts"
-        "sync_bases"
-        "config_v0" // the relay url, the write secret, the push cursors
-        "accounts_v0"
-        "user_data_v0"
-        "toplevels_v0"
-        "scripts_v0" ]
+        "config_v0" // this install's own settings: its identity, the branch it is on
+        "accounts_v0" ]
 
     // A name that does not exist asserts nothing, and reads exactly like one that does, so the
     // list is checked against the schema before it is used.

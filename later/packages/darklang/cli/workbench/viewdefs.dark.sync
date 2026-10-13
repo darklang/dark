@@ -1,0 +1,20 @@
+// RESTORE: packages/darklang/cli/workbench/viewdefs.dark
+// WAS: the Sync extension view's registry entry, and the named wrapper its loadItems field needed
+// ANCHOR: the wrapper was the last of the named wrappers, after calendarDetailLines; the ViewDef
+//      sat between the "calendar" one and the "builtins" one, so removing it shifts every later
+//      extension index down by one. Nothing refers to those by number (extViewIndex is by name).
+// ALSO: later/packages/darklang/cli/workbench/views-misc.dark.sync and loaders-misc.dark.sync
+// WHEN: the sync molt, 2026-10-12
+
+let syncViewItems () : List<BodyItem> = loadSyncItems ()
+
+
+    ViewDef
+      { id = "sync"
+        name = "Sync"
+        gateKey = ""
+        behavior = ViewBehavior.Document
+        loadItems = syncViewItems
+        render = renderSync
+        detail = syncLines
+        hints = syncHints }

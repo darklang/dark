@@ -46,14 +46,16 @@ test notDeclarations =
 // `module` header wraps the rest of the file into a DModule, which is the shape
 // of every package file on disk, and the serializer for a module's declarations
 // raised on the same cases. The authoring editor strips the module line before
-// parsing, so only the LSP and the highlighter hit this.
+// parsing, so only the highlighter hits this.
 test moduleHeadedFiles =
   Stdlib.Test.all
     [ shape "module Darklang.Foo\n\nvaloops = 1" |> Stdlib.Test.equal (1, 0)
       shape "module Darklang.Foo\n\nlet f (x: Int): Int = x"
       |> Stdlib.Test.equal (1, 0)
-      // `[<DB>] type X = ...` is a Test-only declaration that a real file can
-      // still contain.
+      // `[<DB>] type X = ...` still parses and still lowers to a `TDB` type reference, which
+      // is what this asserts. The runtime behind user DBs is in `later/`, so nothing executes
+      // against one; the form stays in the grammar because `TDB` is in the serialization
+      // format, and therefore in the content hash.
       shape "module Darklang.Foo\n\n[<DB>] type Counter = Int"
       |> Stdlib.Test.equal (1, 0) ]
 

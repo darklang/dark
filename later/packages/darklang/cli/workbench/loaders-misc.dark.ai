@@ -1,0 +1,55 @@
+// RESTORE: packages/darklang/cli/workbench/loaders-misc.dark
+// WAS: loadAiThreadItems, aiThreadDetail, demoPrompts, loadPromptItems and promptDetail: everything the AI view read
+// ANCHOR: first in the file, under the module line, before loadThingItems
+// ALSO: later/packages/darklang/cli/workbench/views-misc.dark.ai renders them; the demo threads came from later/packages/darklang/cli/apps/views/ai-chats.dark
+// WHEN: the sync molt, 2026-10-12
+
+let loadAiThreadItems () : List<BodyItem> =
+  Darklang.Cli.Apps.Views.AiChats.demoThreads ()
+  |> Stdlib.List.map (fun t ->
+    BodyItem
+      { name = "[" + (Stdlib.String.toUppercase t.status) + "]  " + t.topic + "   " + t.branch
+        kind = t.status
+        isModule = false; desc = "" })
+
+/// The selected AI thread's detail (for the AI preview).
+let aiThreadDetail (selected: Int) : String =
+  match Stdlib.List.getAt (Darklang.Cli.Apps.Views.AiChats.demoThreads ()) selected with
+  | Some t ->
+    "topic:   " + t.topic + "\n"
+    + "status:  " + t.status + "\n"
+    + "branch:  " + t.branch + "\n"
+    + "cost:    " + t.cost + "   tokens: " + t.tokens + "   time: " + t.time + "\n\n"
+    + t.detail
+    + "\n\n"
+    + "(demo data · press a to ask the agent a new prompt)"
+  | None -> "(no thread selected)"
+
+/// A preview library of reusable prompts (the AI · Prompts subsection).
+let demoPrompts () : List<(String * String)> =
+  [ ("review-diff", "Review this diff for correctness, edge cases, and naming.")
+    ("explain-fn", "Explain what the selected function does and who calls it.")
+    ("gen-tests", "Generate tests for the selected function, including edge cases.")
+    ("name-this", "Suggest three clearer names for this item, each with a reason.")
+    ("port-to-dark", "Port this snippet to Darklang, using stdlib idioms.")
+    ("summarize-module", "Summarize this module: purpose, key fns, gotchas.") ]
+
+let loadPromptItems () : List<BodyItem> =
+  demoPrompts ()
+  |> Stdlib.List.map (fun p ->
+    let (name, _desc) = p
+    BodyItem { name = name; kind = "prompt"; isModule = false; desc = "" })
+
+/// The selected prompt's detail (for the AI · Prompts preview).
+let promptDetail (selected: Int) : String =
+  match Stdlib.List.getAt (demoPrompts ()) selected with
+  | Some p ->
+    let (name, desc) = p
+    (Stdlib.Cli.UI.Colors.boldText name)
+    + "\n\n"
+    + desc
+    + "\n\n"
+    + "⏎ use (fills the ask bar)  ·  e edit  ·  n new"
+    + "\n\n"
+    + (Stdlib.Cli.UI.Colors.dimText "(mock data)")
+  | None -> "(no prompt selected)"

@@ -1,0 +1,25 @@
+// RESTORE: packages/darklang/tests/stdlib/altJson.dark
+// WAS: the `integerCallers` test and its `largeRequestMaxTokens` helper, which drove the strict
+//      integer reader through `Darklang.WIP.AI.OpenAI.Chat.parseUsage`,
+//      `Darklang.WIP.AI.Anthropic.Chat.parseResponse` and the Anthropic request builder.
+// ANCHOR: after `test nullValues`, before the `// TODO:` block above `test stringValues`.
+// ALSO: `test largeIntegerFields` was written to replace this coverage without the providers. If
+//       you restore these cases, keep that one: it carries the round trip through text, which
+//       these never reached.
+// WHEN: restoring `later/packages/darklang/wip/` or `later/packages/darklang/llm/`.
+
+/// Callers that read integer fields from provider JSON refuse a non-integer.
+test integerCallers =
+  Stdlib.Test.all
+    [ Darklang.WIP.AI.OpenAI.Chat.parseUsage
+        [ ("completion_tokens_details",
+           Json.Object [ ("reasoning_tokens", Json.Float 1.5) ]) ]
+      |> Stdlib.Test.equal (Error "Invalid JSON integer field: reasoning_tokens")
+      Darklang.WIP.AI.Anthropic.Chat.parseResponse
+        (Json.Object
+          [ ("usage",
+             Json.Object [ ("cache_creation_input_tokens", Json.Float 1.5) ]) ])
+      |> Stdlib.Test.equal (
+        Error "Invalid JSON integer field: cache_creation_input_tokens"
+      )
+      largeRequestMaxTokens () |> Stdlib.Test.equal (Ok 9007199254740992) ]

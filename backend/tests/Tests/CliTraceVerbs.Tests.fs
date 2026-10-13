@@ -1156,27 +1156,6 @@ let private previewOfASpawnServesTheChildFromTheLog =
     "previewing a run that spawned a process serves the child from the log, not the world"
     (fun state ->
       task {
-        // Account-scoped approval must work even though the host ExecutionState is anonymous.
-        // Restore the CLI session afterward so this test does not log later tests in.
-        let configPath =
-          System.IO.Path.Combine(LibConfig.Config.runDir, "cli-config.json")
-        let savedConfig =
-          if System.IO.File.Exists configPath then
-            Some(System.IO.File.ReadAllBytes configPath)
-          else
-            None
-        use _restoreConfig =
-          { new System.IDisposable with
-              member _.Dispose() =
-                match savedConfig with
-                | Some bytes -> System.IO.File.WriteAllBytes(configPath, bytes)
-                | None -> System.IO.File.Delete configPath }
-        do!
-          shows
-            state
-            [ "login"; "Stachu" ]
-            "Logged in as Stachu"
-            "selected an account"
         do! start state
         do!
           fn
@@ -1191,12 +1170,7 @@ let private previewOfASpawnServesTheChildFromTheLog =
             state
             [ "permissions"; "approve"; "Tests.Prev.conc"; "--yes" ]
             "approved Tests.Prev.conc"
-            "the selected account approved the function"
-        let! (LibExecution.ProgramTypes.Hash rootHash) =
-          findPackageFn "Tests.Prev.conc"
-        Expect.isFalse
-          (LibDB.PolicyStore.packagePolicies None |> Map.containsKey rootHash)
-          "the anonymous account has no approval for this function"
+            "the function is approved"
 
         let! ran = runCli state [ "eval"; "Tests.Prev.conc ()" ]
         let uuidIn (out : string) : string option =
@@ -1217,17 +1191,10 @@ let private previewOfASpawnServesTheChildFromTheLog =
           recorded
           "the child's value came from the log, so the spawned process previewed too"
         let! json = runCli state [ "traces"; "show"; "Tests.Prev.conc"; "--json" ]
-        Expect.stringContains json recorded "JSON preview uses the same account"
-        let! trace = latest ()
-        let! anonymous =
-          evalUnder
-            (executionState state)
-            $"""let (_, problem) = Darklang.Tracing.Store.viewTrace Stdlib.Option.Option.None Darklang.SCM.Branch.mainBranchId "{trace.id}" in
-                match problem with | Some _ -> true | None -> false"""
-        Expect.equal
-          anonymous
-          (RT.DBool true)
-          "anonymous preview cannot borrow the account's approval"
+        Expect.stringContains
+          json
+          recorded
+          "the JSON preview serves the same recorded value"
       })
 
 
@@ -1331,63 +1298,6 @@ let private secretsAreNotInTheLog =
       })
 
 
-/// Replay used to miss the CLI login and check approvals as an anonymous user.
-/// Check that it uses the logged-in account, even after switching accounts.
-let private replayUsesTheSelectedAccount =
-  instanceTest
-    "trace views use the logged-in account without sharing its approvals"
-    (fun state ->
-      task {
-        do! start state
-        do! run state [ "traces"; "record"; "on" ]
-        do! run state [ "permissions"; "allow"; "concurrency" ]
-        do! run state [ "login"; "Stachu" ]
-        do!
-          fn
-            state
-            "Tests.AccountReplay.uuid"
-            ("() : String =\n"
-             + "  let h = Stdlib.Exec.spawn (fun () -> Stdlib.toString (Stdlib.Uuid.generate ()))\n"
-             + "  Stdlib.Exec.await h")
-        do! commit state "account replay"
-        let! approved, approvalStatus =
-          runCliWithStatus
-            state
-            [ "permissions"; "approve"; "Tests.AccountReplay.uuid"; "--yes" ]
-        Expect.equal approvalStatus 0 approved
-        let! ran, runStatus =
-          runCliWithStatus state [ "eval"; "Tests.AccountReplay.uuid ()" ]
-        Expect.equal runStatus 0 ran
-        let uuid =
-          plain ran
-          |> fun output -> output.Split('\n')
-          |> Array.map (fun line -> line.Trim().Trim('"'))
-          |> Array.find (fun line -> System.Guid.TryParse(line) |> fst)
-        for extra in [ []; [ "--json" ] ] do
-          let! viewed, status =
-            runCliWithStatus
-              state
-              ([ "traces"; "show"; "Tests.AccountReplay.uuid" ] @ extra)
-          Expect.equal status 0 viewed
-          Expect.stringContains
-            viewed
-            uuid
-            "the selected account can replay its approved run"
-        do! run state [ "login"; "Paul" ]
-        let! denied = runCli state [ "traces"; "show"; "Tests.AccountReplay.uuid" ]
-        Expect.stringContains
-          denied
-          "permission denied"
-          "another account has no approval"
-        do! run state [ "login"; "Stachu" ]
-        let! restored =
-          runCli state [ "traces"; "show"; "Tests.AccountReplay.uuid" ]
-        Expect.stringContains
-          restored
-          uuid
-          "switching back restores access to the approval"
-      })
-
 
 let private psListsTheTree =
   cliTestWithFreshTraces
@@ -1424,10 +1334,12 @@ let private psListsTheTree =
       })
 
 
+/// Replay runs under the approvals the viewer holds. Its other half, that a second account's
+/// approval grants the viewer nothing, left with accounts in the molt: withdrawing the
+/// approval is no substitute, since the default policy already allows this body's effects.
 let private previewUsesTheViewersApprovals =
-  instanceTest "trace previews use the viewer's account approvals" (fun state ->
+  instanceTest "trace previews use the viewer's current approvals" (fun state ->
     task {
-      do! run state [ "login"; "Stachu" ]
       do! run state [ "traces"; "record"; "on" ]
       do!
         fn
@@ -1451,17 +1363,6 @@ let private previewUsesTheViewersApprovals =
           recorded
           "the viewer's approval applies to replay"
 
-      // A trace owner's approval must not grant another viewer its effects.
-      do! run state [ "login"; "Paul" ]
-      let! denied =
-        runCliPlain state [ "traces"; "show"; "Tests.PreviewAccount.value" ]
-      Expect.stringContains
-        denied
-        "permission denied"
-        "another account has no approval"
-      Expect.isFalse
-        (denied.Contains recorded)
-        "the refused replay supplies no value"
     })
 
 
@@ -1494,5 +1395,4 @@ let tests =
     secretsAreNotInTheLog
     spawnedChildReplays
     secretHeadersAreRedacted
-    replayUsesTheSelectedAccount
     psListsTheTree ]

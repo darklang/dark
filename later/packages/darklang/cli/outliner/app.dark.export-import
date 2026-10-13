@@ -1,0 +1,39 @@
+// RESTORE: packages/darklang/cli/outliner/app.dark and commands.dark, packages/darklang/cli/registry.dark
+// WAS: the `outliner export` and `outliner import` dispatch arms, usage lines, help lines,
+//      completions, and their two subcommands in acceptsOutliner
+// ANCHOR: the arms sat between `show` and `add` in app.dark's match; the help lines after the
+//      `outliner add` line; the completion verbs in two lists and one `if`.
+// ALSO: later/packages/darklang/cli/outliner/commands.dark.export-import has the commands,
+//       later/packages/darklang/cli/outliner/export.dark the format layer, and
+//       later/packages/darklang/opml/ the OPML parser. markdown.dark STAYED: the editor uses it.
+// WHEN: the outliner-export molt, 2026-10-12
+
+  | [ "export" ] ->
+    Stdlib.printLine "Usage: outliner export <document> [--format md|opml] [--out <path>]"
+    cliState
+  | "export" :: name :: _ ->
+    Commands.export name (flag args "format" "md") (flag args "out" "")
+    cliState
+  | [ "import" ] ->
+    Stdlib.printLine "Usage: outliner import <path> [--title <name>]"
+    cliState
+  | "import" :: path :: _ ->
+    Commands.import path (flag args "title" "")
+    cliState
+
+
+    Stdlib.printLine "Try: ls, show, add, export, import - or no arguments for the app."
+
+    "  outliner export <doc> [--format md|opml] [--out <path>]"
+    "  outliner import <path> [--title <name>]  Read Markdown or OPML"
+
+
+  | [] -> [ "ls", "show", "add", "export", "import" ] |> Stdlib.List.map item
+
+    [ "ls", "show", "add", "export", "import" ]
+
+    if verb == "show" || verb == "add" || verb == "export" then
+
+/// The outliner without the terminal: list, show, add, export, import.
+
+("add", Accepts.text 2), ("export", (Accepts.withValues [ "--format", "--out" ] (Accepts.between 1 1 []))), ("import", (Accepts.withValues [ "--title" ] (Accepts.between 1 1 [])))

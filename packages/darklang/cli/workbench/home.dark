@@ -75,7 +75,7 @@ let loadHomeItemsFrom (branchId: Uuid) (draft: SCM.Draft.Picture) : List<BodyIte
       SCM.Commits.recent 30L
       |> Stdlib.List.take homeCommitCap
       |> Stdlib.List.map (fun c ->
-        row c.message "home-commit" (c.author + " · " + (agoText c.originTs)))
+        row c.message "home-commit" (agoText c.originTs))
     let total = SCM.Commits.count ()
     let hiddenCommits = (Stdlib.Int.fromInt64 total) - homeCommitCap
     let more =

@@ -12,9 +12,9 @@
 /// touch packages produce conflicting hashes, and a rebase on GitHub cannot regenerate
 /// the file, so tracking it means a manual pull-reload-commit on every such branch.
 ///
-/// The consequence to know: `kernelHash` fingerprints what THIS build reloaded. Two
-/// machines on the same commit agree, because the hashes derive from the package sources
-/// in that commit. A store that has drifted does not, and nothing here detects that.
+/// The consequence to know: these hashes are what THIS build reloaded, derived from the
+/// package sources in this commit. A store that has drifted from them does not agree, and
+/// nothing here detects that.
 ///
 /// All bindings are `unit -> string` functions (via partial application of `p`) so
 /// that module initialization does not trigger file loading. This allows code that
@@ -124,6 +124,11 @@ let private getHashes () : Map<string, string> =
     hashCache <- Some h
     hashGeneration <- hashGeneration + 1
     h
+
+/// Every hash the runtime resolves by name. Read by tooling that has to treat an F#-side call as
+/// a root: nothing in `packages/` names these, so a reachability walk over package bodies alone
+/// reports them, and everything only they reach, as dead.
+let allHashes () : Set<string> = getHashes () |> Map.values |> Set.ofSeq
 
 let currentGeneration () : int =
   // Touch the cache first, so a lazy first load is reflected in the generation the caller records.
@@ -567,7 +572,6 @@ module Type =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"
     let unhandled = p [ "Cli"; "ExecutionError" ] "Unhandled"
     let permissionDenied = p [ "Cli"; "ExecutionError" ] "PermissionDenied"
-    let script = p [ "Cli"; "Scripts" ] "Script"
 
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats"
@@ -675,29 +679,3 @@ module Fn =
     module Test =
       let private p addl = p ("Test" :: addl)
       let parseSingleTestFromFile = p [] "parseSingleTestFromFile"
-
-
-/// A single fingerprint for the pinned ABI: the sorted (name, hash) pairs, hashed.
-///
-/// `darkBuild` (a git sha) says which COMMIT wrote something. It doesn't say what
-/// the PT shapes and the hashing actually were, which is the thing that decides
-/// whether another build can read it -- two commits can share an ABI, and a one-line
-/// change to a kernel type can break it. Someone holding nothing but a bundle and
-/// sqlite should be able to tell.
-///
-/// Sorted before hashing so it's stable regardless of file order, and short enough
-/// to eyeball.
-let kernelHash () : string =
-  let material =
-    getHashes ()
-    |> Map.toList
-    |> List.sortBy fst
-    |> List.map (fun (fqn, hash) -> $"{fqn}|{hash}")
-    |> String.concat "\n"
-
-  use sha = System.Security.Cryptography.SHA256.Create()
-  material
-  |> System.Text.Encoding.UTF8.GetBytes
-  |> sha.ComputeHash
-  |> System.Convert.ToHexString
-  |> fun s -> s.ToLowerInvariant().Substring(0, 16)

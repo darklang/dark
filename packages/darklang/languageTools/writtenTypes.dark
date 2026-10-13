@@ -532,7 +532,6 @@ module ValueDeclaration =
 module TestDeclaration =
   type ExpectedError =
     | RuntimeError of String
-    | SqlCompilerError of String
 
   type TestDeclaration =
     { range: Range

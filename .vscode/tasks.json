@@ -4,44 +4,6 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "type": "npm",
-      "script": "watch",
-      "isBackground": true,
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "never"
-      },
-      "problemMatcher": {
-        "owner": "esbuild",
-        "source": "esbuild",
-        "fileLocation": ["relative", "${workspaceFolder}/vscode-extension"],
-        "pattern": [
-          {
-            "regexp": "^✘ \\[ERROR\\] (.+)$",
-            "message": 1
-          },
-          {
-            "regexp": "^\\s+(.+):(\\d+):(\\d+):$",
-            "file": 1,
-            "line": 2,
-            "column": 3
-          }
-        ],
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "\\[watch\\] build started",
-          "endsPattern": "\\[watch\\] build (finished|failed)"
-        }
-      },
-      "options": {
-        "cwd": "${workspaceFolder}/vscode-extension"
-      }
-    },
-    {
       "label": "Dev DB",
       "type": "shell",
       "command": "./scripts/devcontainer/sqlite-monitor.sh",

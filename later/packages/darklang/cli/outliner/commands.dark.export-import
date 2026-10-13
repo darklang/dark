@@ -1,0 +1,65 @@
+// RESTORE: packages/darklang/cli/outliner/commands.dark
+// WAS: renderAs, export and import: the outliner's file in and out, over Markdown and OPML
+// ANCHOR: between `show` and `add` in commands.dark
+// ALSO: later/packages/darklang/cli/outliner/export.dark is the format layer, later/packages/darklang/opml/ the OPML parser, and later/packages/darklang/cli/outliner/app.dark.export-import the dispatch arms, help lines and completions
+// WHEN: the sync molt, 2026-10-12
+
+// --- export ---
+
+let renderAs (doc: Document) (format: String) : Stdlib.Result.Result<String, String> =
+  match Stdlib.String.toLowercase format with
+  | "md" -> Stdlib.Result.Result.Ok(Export.toMarkdown doc)
+  | "markdown" -> Stdlib.Result.Result.Ok(Export.toMarkdown doc)
+  | "opml" -> Stdlib.Result.Result.Ok(Export.toOpml doc)
+  | other -> Stdlib.Result.Result.Error $"unknown format \"{other}\" (md or opml)"
+
+/// `export <doc> [format] [path]`. Without a path it goes to stdout, so it can be piped.
+let export (name: String) (format: String) (path: String) : Unit =
+  match documents () with
+  | Error e -> printError e
+  | Ok data ->
+    match findDoc data.documents name with
+    | Error e -> printError e
+    | Ok doc ->
+      match renderAs doc format with
+      | Error e -> printError e
+      | Ok content ->
+        if path == "" then
+          Stdlib.printLine content
+        else
+          match Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBlob content) with
+          | Ok _ -> Stdlib.printLine $"wrote {path}"
+          | Error e -> printError $"couldn't write {path}: {e}"
+
+
+// --- import ---
+
+let import (path: String) (title: String) : Unit =
+  match documents () with
+  | Error e -> printError e
+  | Ok data ->
+    match Stdlib.Cli.FileSystem.readFile path with
+    | Error e ->
+      printError $"can't read {path}: {Stdlib.Cli.FileSystem.FileError.toString e}"
+    | Ok bytes ->
+      match Export.fromFile path (Stdlib.String.fromBlobWithReplacement bytes) with
+      | Error e -> printError e
+      | Ok imported ->
+        let doc =
+          Document
+            { id = data.nextDocId
+              title = if title == "" then imported.title else title
+              outline = imported.outline }
+
+        let saved =
+          Store.save
+            (Stdlib.List.append data.documents [ doc ])
+            doc.id
+            (data.nextDocId + 1)
+            (Store.stamp ())
+
+        match saved with
+        | Ok _ ->
+          let count = Stdlib.List.length (descendants doc.outline doc.outline.rootChildren)
+          Stdlib.printLine $"imported \"{doc.title}\" ({Stdlib.toString count} lines)"
+        | Error e -> printError $"couldn't save: {e}"

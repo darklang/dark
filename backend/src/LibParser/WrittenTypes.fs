@@ -462,9 +462,7 @@ type ValueDecl =
 /// `test name = body`, optionally followed by an expected error: a named
 /// package test. Unlike the legacy `actual = expected` testfile assertion,
 /// this is stored package content.
-type ExpectedError =
-  | RuntimeError of string
-  | SqlCompilerError of string
+type ExpectedError = RuntimeError of string
 
 type TestDecl =
   { range : Range
@@ -591,7 +589,6 @@ type ModuleDecl =
 and TestExpected =
   | TEExpr of Expr
   | TEError of string
-  | TESqlError of string
 
 /// A test assertion `actual = expected`; post-parse validation restricts it to Test source.
 and Assertion = { range : Range; actual : Expr; expected : TestExpected }

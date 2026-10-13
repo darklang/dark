@@ -18,6 +18,10 @@ backend/.paket/
 backend/Build/
 backend/src/**/obj
 backend/tests/**/obj
+# Same build output, under its moved path. The patterns above are anchored at `backend/`,
+# so moving a project into `later/` walked four obj artifacts out from under them and git
+# started tracking them.
+later/**/obj
 backend/static/dark_wasm/
 # WASM REPL build output (backend/src/Wasm) — generated, don't commit
 backend/src/Wasm/publish/
@@ -35,7 +39,7 @@ backend/src/LibExecution/package-ref-hashes.txt.*.tmp
 # from the amalgamation, cached locally + in CI.
 backend/src/Cli/lib/libe_sqlite3-*.a
 
-# Extension
+# Built VS Code extension packages.
 .vsix/*
 
 # Terraform

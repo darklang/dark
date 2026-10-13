@@ -1,14 +1,14 @@
-120x40 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
-120x40 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mApps[0m    [2m6 [0m[2mTraces[0m    [2m7 [0m[2mDocs[0m    [2m8 [0m[2mSync[0m [0m
+120x40 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
+120x40 1| [48;5;61m[37m[1m 1 Home [0m   [2m2 [0m[2mCode[0m    [2m3 [0m[2mChanges[0m    [2m4 [0m[2mREPL[0m    [2m5 [0m[2mTraces[0m    [2m6 [0m[2mDocs[0m [0m
 120x40 2|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 120x40 3|[90m│[0m   [2mthis branch[0m                                                                                                        [90m│[0m[0m
-120x40 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m                                                [90m│[0m[0m
+120x40 4|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m                                              [90m│[0m[0m
 120x40 5|[90m│[0m                                                                                                                      [90m│[0m[0m
 120x40 6|[90m│[0m   [2mrecent commits[0m                                                                                                     [90m│[0m[0m
-120x40 7|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                                                         [90m│[0m[0m
+120x40 7|[90m│[0m   package reload (baseline)  [2mjust now[0m                                                                                [90m│[0m[0m
 120x40 8|[90m│[0m                                                                                                                      [90m│[0m[0m
 120x40 9|[90m│[0m   [2mbranches[0m                                                                                                           [90m│[0m[0m
-120x40 10|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                                                        [90m│[0m[0m
+120x40 10|[90m│[0m   ● main                     [2mcurrent · just now[0m                                                                      [90m│[0m[0m
 120x40 11|[90m│[0m                                                                                                                      [90m│[0m[0m
 120x40 12|[90m│[0m                                                                                                                      [90m│[0m[0m
 120x40 13|[90m│[0m                                                                                                                      [90m│[0m[0m
@@ -38,16 +38,16 @@
 120x40 37|[90m│[0m                                                                                                                      [90m│[0m[0m
 120x40 38|[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[0m[0m
 120x40 39|  [37m↑↓[0m [2mmove[0m[2m · [0m[37m⏎[0m [2mopen[0m[2m · [0m[37ms[0m [2mswitch branch[0m[2m · [0m[37mb[0m [2mnew branch[0m[2m · [0m[37mc[0m [2mcommit[0m[2m · [0m[37mm[0m [2mmerge[0m[2m · [0m[37m/[0m [2msearch[0m[2m · [0m[37m:[0m [2mcmd[0m[2m · [0m[37mp[0m [2mprompt[0m[2m · [0m[37m?[0m [2mhelp[0m[2m · [0m[37mq[0m [2mquit[0m[0m
-80x24 0|  [1m[38;5;141mmain[0m[2m    perf @ perf-instance[0m[0m
+80x24 0|  [1m[38;5;141mmain[0m[2m    perf-instance[0m[0m
 80x24 1|[90m╭[0m[90m──────────────────────────────────────────────────────────────────────────────[0m[90m╮[0m[0m
 80x24 2|[90m│[0m   [2mthis branch[0m                                                                [90m│[0m[0m
-80x24 3|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit 1m ago[0m        [90m│[0m[0m
+80x24 3|[90m│[0m [38;5;141m┃ ● main[0m                     [2mnothing uncommitted · last commit just now[0m      [90m│[0m[0m
 80x24 4|[90m│[0m                                                                              [90m│[0m[0m
 80x24 5|[90m│[0m   [2mrecent commits[0m                                                             [90m│[0m[0m
-80x24 6|[90m│[0m   package reload (baseline)  [2msystem · 1m ago[0m                                 [90m│[0m[0m
+80x24 6|[90m│[0m   package reload (baseline)  [2mjust now[0m                                        [90m│[0m[0m
 80x24 7|[90m│[0m                                                                              [90m│[0m[0m
 80x24 8|[90m│[0m   [2mbranches[0m                                                                   [90m│[0m[0m
-80x24 9|[90m│[0m   ● main                     [2mcurrent · 1m ago[0m                                [90m│[0m[0m
+80x24 9|[90m│[0m   ● main                     [2mcurrent · just now[0m                              [90m│[0m[0m
 80x24 10|[90m│[0m                                                                              [90m│[0m[0m
 80x24 11|[90m│[0m                                                                              [90m│[0m[0m
 80x24 12|[90m│[0m                                                                              [90m│[0m[0m

@@ -72,7 +72,6 @@ let main (args : string array) : int =
         Tests.AnalysisTypes.tests
         Tests.Builtin.tests
         Tests.HostBoundary.tests
-        Tests.DvalReprInternalQueryable.tests
         Tests.LibParserRoundTrip.tests
         Tests.LibParser.tests
         Tests.WrittenTypesLoweringParity.tests
@@ -108,21 +107,16 @@ let main (args : string array) : int =
         // the rest of the CLI suites these need no sequencing.
         testList "CliJson" Tests.CliJson.tests
         testList "CliAuthoring" Tests.CliAuthoring.tests
-        testList "CliSyncSurface" Tests.CliSyncSurface.tests
         testList "CliWorkspace" Tests.CliWorkspace.tests
         testList "CliScmRegression" Tests.CliScmRegression.tests
         testList "CliPackages" Tests.CliPackages.tests
         Tests.CliScriptLowering.tests
-        Tests.Toplevels.tests
 
         // cross-cutting
         Tests.Blob.tests
-        Tests.OpTransport.tests
         Tests.Lww.tests
         Tests.BranchOverlay.tests
         Tests.OpsProjections.tests
-        Tests.MultiInstance.tests
-        Tests.MultiInstanceDark.tests
         Tests.Stream.tests
         Tests.Permissions.tests
         Tests.PackagePermissions.tests

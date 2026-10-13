@@ -1,0 +1,13 @@
+// RESTORE: packages/darklang/cli/workbench/render.dark
+// WAS: `sectionTabs`, a row of section names for a pane title with the active one bright
+// ANCHOR: between paneTitle and the top-edge run
+// ALSO: its only caller was the AI view, which left in the first round of the molt
+// WHEN: the sync molt, 2026-10-12
+
+/// A view's sections as a row of words for its title - the one you are on
+/// bright, the rest dim. Only the (hidden) AI view has sections.
+let sectionTabs (names: List<String>) (active: Int) (focused: Bool) : String =
+  names
+  |> Stdlib.List.indexedMap (fun i n ->
+    if i == active then paneName n focused else Stdlib.Cli.UI.Colors.dimText n)
+  |> Stdlib.String.join "  "

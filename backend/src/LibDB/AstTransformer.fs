@@ -530,11 +530,7 @@ let transformTest
   (mapping : HashMapping)
   (test : PT.PackageTest.PackageTest)
   : PT.PackageTest.PackageTest =
-  { test with
-      body = transformExpr mapping test.body
-      testDBs =
-        test.testDBs
-        |> List.map (fun (name, typ) -> name, transformTypeRef mapping typ) }
+  { test with body = transformExpr mapping test.body }
 
 let private transformTypeDefinition
   (mapping : HashMapping)

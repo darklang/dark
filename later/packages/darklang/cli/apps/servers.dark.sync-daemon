@@ -1,0 +1,61 @@
+// RESTORE: packages/darklang/cli/apps/servers.dark
+// WAS: syncTick and syncDaemon: the set-and-forget sync loop that `dark apps enable sync` ran
+// ANCHOR: the end of the file, straight after demoHttp
+// ALSO: later/packages/darklang/cli/apps/registry.dark.sync-app has the registry entry that named them, and later/packages/darklang/cli/sync/ is the feature
+// WHEN: the sync molt, 2026-10-12
+// NOTE: the file this came out of is ALSO in later/, at the same path under later/.
+//       Move the file back first, then apply this on top of it.
+
+/// One sync tick every <param intervalMs>, counter-bounded like `Examples.beat` (the unit's
+/// Restart=on-failure brings it back regardless). With no relay configured it waits quietly --
+/// enabling before `dark sync setup` is fine, and each tick re-reads the config so setup takes
+/// effect without a restart.
+let syncTick (name: String) (intervalMs: Int) (state: Cli.AppState) (remaining: Int) : Int =
+  if remaining <= 0 then
+    0
+  else
+    let url = SCM.PackageOps.relay ()
+
+    let nextState =
+      if url == "" then
+        state
+      else
+        Cli.Sync.executeSync state url
+
+    // Wait ON THE RELAY rather than on a timer: ask it to hold the request until its head moves,
+    // for at most one interval. A relay that supports it answers the moment somebody else's push
+    // lands, which is what turns "your edit is live in five seconds" into "in under a second".
+    //
+    // The interval is still the floor. An older relay ignores the parameters and answers at once,
+    // so the wait returning early WITHOUT the head having moved means "this relay does not hold
+    // requests", and the rest of the interval is slept as it always was. Without that a daemon
+    // pointed at an old relay would spin.
+    if url == "" then
+      Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat intervalMs)
+    else
+      let startedAt = Cli.Telemetry.now ()
+      let moved = Cli.Sync.waitForRelayHead url intervalMs
+      let elapsed = (Cli.Telemetry.now ()) - startedAt
+
+      if (Stdlib.Bool.not moved) && (elapsed < intervalMs) then
+        Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat (intervalMs - elapsed))
+      else
+        ()
+
+    syncTick name intervalMs nextState (remaining - 1)
+
+/// The set-and-forget sync loop: `dark apps enable sync` runs this as an auto-starting daemon.
+/// Each tick is exactly `dark sync` (push committed work, pull, print the story). A pull landing
+/// mid-edit is safe -- the two-machine runs drove live authoring under this exact loop. Interval:
+/// `apps.sync.intervalMs` in cli-config.json, default 30000.
+let syncDaemon (name: String) : Int =
+  let intervalMs = Config.getInt ("apps." + name + ".intervalMs") 30000
+
+  let _logged =
+    match Stdlib.Cli.Daemon.claimPidfile name with
+    | Error e -> Stdlib.printLine $"{name}: could not write pidfile: {e}"
+    | Ok _ ->
+      Stdlib.printLine
+        $"{name}: syncing every {Stdlib.toString intervalMs}ms (pid {Stdlib.toString (Stdlib.Cli.Sys.currentPid ())})"
+
+  syncTick name intervalMs (Cli.initState ()) 1000000000

@@ -1,0 +1,50 @@
+// RESTORE: packages/darklang/cli/workbench/keys-view.dark
+// WAS: every key the Devices view and the Sync view bound: `a` (setup), `o` (ask the relay who
+//      else syncs), `u`/`d` (push/pull), `c` (the config reader), `s` (sync now)
+// ANCHOR: each one was an arm of the big `match key with` over `Some "<letter>"`, in that order
+// ALSO: later/packages/darklang/cli/workbench/views-misc.dark.sync has the views themselves
+// WHEN: the sync molt, 2026-10-12
+
+      else if state.activeView == vDevices then
+        // `setup` asks questions, and the workbench owns the keyboard, so it cannot run in-frame. Say
+        // where it lives rather than pretending a key can do it.
+        Step.Continue
+          { state with
+              messageKind = MessageKind.Refused
+              message = "run `dark sync setup` from a shell to point this instance at a relay" }
+
+
+    | Some "o" ->
+      // Changes, on a conflict row: keep ours. Sync: ask the relay who else syncs with it - on a
+      // key, not on opening the view, because the relay may be down and the ask then waits out
+      // the connect timeout (see `syncPeerItems`).
+      if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "ours"
+      else if state.activeView == (extViewIndex "sync") then
+        Step.Continue
+          { state with
+              items = loadSyncItemsWith (Stdlib.Option.Option.Some (syncPeerItems ()))
+              messageKind = MessageKind.Succeeded
+              message = "asked the relay" }
+      else Step.Continue state
+
+
+    | Some "u" ->
+      // Changes and Sync: push to the relay. `u` for up, `d` for down, since `p` is the command
+      // prompt everywhere.
+      if (state.activeView == vSCM) || (state.activeView == (extViewIndex "sync")) then syncInFrame state "push"
+      else Step.Continue state
+    | Some "d" ->
+      if (state.activeView == vSCM) || (state.activeView == (extViewIndex "sync")) then syncInFrame state "pull"
+      else Step.Continue state
+
+
+      else if state.activeView == vDevices then
+        // Devices: c opens the real config (cli-config.json) in the reader; edits go through :config set.
+        openReader state (deviceConfigText ()) false
+
+
+      // Home: switch branch. Devices: sync now. Apps: stop.
+      if state.activeView == vHome then openBranchPicker state
+      else if state.activeView == vDevices then runCommandInFrame state "sync" []
+      else if state.activeView == (extViewIndex "sync") then syncInFrame state "sync"
+      else if state.activeView == vApps then runAppsSubcommand state "stop"

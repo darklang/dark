@@ -1,0 +1,49 @@
+// RESTORE: backend/src/LibExecution/Host/HostTypes.fs and Host/HostHttp.fs
+// WAS: the Sync HTTP profile: the one configuration that reached loopback, RFC-1918 and
+//      Tailscale's CGN range. Only the sync transport ever named it.
+// ANCHOR: the HttpProfile DU had a second case `Sync`, just under `Guest`;
+//      metadataOrLinkLocalV4 and its IPv6 wrapper metadataOrLinkLocal sat in LocalAccess
+//      between bannedIp and bannedHost; syncConfig under defaultConfig; `let private sync`
+//      under `let mutable private guest`; profileFor had a second arm.
+// ALSO: later/backend/src/Builtins/Builtins.Http.Client/Libs/HttpClient.fs.sync-transport
+//       has the builtins and the trust check that used this profile.
+// WHEN: the sync molt, 2026-10-12
+//
+// Below is the exact removed text, in file order.
+
+  /// Ranges that remain blocked for trusted tailnet sync pulls: link-local,
+  /// cloud-metadata, GCP private endpoints, and 0.0.0.0. Loopback, RFC-1918,
+  /// and Tailscale's CGN range stay reachable so LAN peers can be used.
+  let private metadataOrLinkLocalV4 (ip : System.Net.IPAddress) : bool =
+    oneSixNine.Contains ip
+    || oneNineNineFour.Contains ip
+    || oneNineNineEight.Contains ip
+    || zero = ip
+
+  let metadataOrLinkLocal (ip : System.Net.IPAddress) : bool =
+    if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
+      if ip.IsIPv4MappedToIPv6 then
+        metadataOrLinkLocalV4 (ip.MapToIPv4())
+      else
+        ip.IsIPv6LinkLocal // ipv6 link-local / metadata
+    else if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork then
+      metadataOrLinkLocalV4 ip
+    else
+      true
+
+/// Config for trusted tailnet SYNC pulls (`httpGetUnsafeBytes`). Unlike
+/// `defaultConfig` it reaches loopback / RFC-1918 / the Tailscale range so a
+/// peer's server is reachable — but it still blocks cloud-metadata +
+/// link-local, so even a sync pull can't be aimed at 169.254.169.254.
+let private syncConfig : Configuration =
+  { timeoutInMs = 30000
+    allowedIP = fun ip -> not (LocalAccess.metadataOrLinkLocal ip)
+    allowedHost = fun _ -> true }
+
+
+let private sync : Profile = profileOf syncConfig
+
+  | HttpProfile.Sync -> sync
+/// it with `HostHttp.setGuestConfig`); `Sync` is the trusted tailnet pull the
+/// bundled sync code uses, which reaches loopback and private ranges.
+  | Sync

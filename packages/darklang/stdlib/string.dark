@@ -106,10 +106,20 @@ impl Zero for String =
 let prepend (s1: String) (s2: String) : String = s2 + s1
 
 
-/// Turns a string into a prettified slug, including only lowercased
-/// alphanumeric characters, joined by hyphens
+/// Turns a string into a prettified slug: lowercase roman alphanumerics joined by hyphens.
+///
+/// Deliberately limited to a-z and 0-9, so the result is safe in a URL whatever went in. Anything
+/// else -- accents, emoji, combining marks, control characters -- is dropped rather than
+/// transliterated, and runs of spaces, underscores and hyphens collapse to one hyphen.
+///
+/// Was a builtin until `Stdlib.Regex` existed; its own comment had said for years that this
+/// belonged here. The vertical tab is called out separately because `\s` does not cover it.
 let slugify (s: String) : String =
-  Builtin.stringSlugify s
+  s
+  |> Stdlib.String.toLowercase
+  |> (fun lowered -> Stdlib.Regex.replaceAll lowered "([^a-z0-9\\s_-]|\\x0b)+" "")
+  |> Stdlib.String.trim
+  |> (fun trimmed -> Stdlib.Regex.replaceAll trimmed "[-_\\s]+" "-")
 
 
 /// Reverses <param string>

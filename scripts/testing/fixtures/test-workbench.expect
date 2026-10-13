@@ -37,10 +37,10 @@ proc want {pattern what} {
 spawn ./backend/Build/out/Cli/Debug/net10.0/Cli
 
 # 1. it opens on the workbench rather than the classic prompt
-# The header's `who @ where`, not a greeting: Home shows the welcome panel only on a genuine first run.
+# The frame's top border, not a greeting: Home shows the welcome panel only on a genuine first run.
 # `recent commits` is in the pattern because a section with nothing in it is not drawn at all: on a
 # store with no branches and nothing uncommitted, the commits are the only section Home has.
-want " @ " "the workbench on startup"
+want "╭" "the workbench on startup"
 want "(?i)(needs attention|recent commits|branches)" "the Home sections"
 
 # Every switch below goes to a view not yet visited: returning to one already seen does not reliably
@@ -75,7 +75,7 @@ want "56x12" "the size you need, not clipped off the end of it"
 # 5. and it comes back: growing the terminal repaints the whole frame, status line included
 stty rows 30 columns 100 < $spawn_out(slave,name)
 exec kill -WINCH [exp_pid]
-want " @ " "a full repaint once the terminal is big enough again"
+want "╭" "a full repaint once the terminal is big enough again"
 
 # 6. `q` leaves, and leaving exits the CLI: there is no classic prompt behind the workbench to fall back
 #    to. `q` rather than Escape, which steps back one level inside a view and never quits. A non-zero

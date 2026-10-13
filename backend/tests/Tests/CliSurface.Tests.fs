@@ -148,7 +148,6 @@ let private testHelpCommand =
       Expect.stringContains output "Packages:" "category header"
       Expect.stringContains output "Changes:" "changes header"
       Expect.stringContains output "Branches:" "branches header"
-      Expect.stringContains output "Sync:" "sync header"
       Expect.stringContains output "help" "help command"
       Expect.stringContains output "version" "version command"
       Expect.stringContains output "status" "status command"
@@ -214,7 +213,7 @@ let private sweepFailure (outcome : Result<string, string>) : Option<string> =
 
 /// One line, because `eval` takes the expression as a single argument.
 let private renderExpr (body : string) : string =
-  "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"test-instance\" [] false in "
+  "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"test-instance\" false in "
   + "let s = Darklang.Cli.Workbench.refreshScmStatus st st in "
   + "let frame = fun v w h -> (Darklang.Cli.Workbench.viewAtSize { s with activeView = v } (Darklang.Stdlib.Cli.Tui.Size { width = w; height = h })).rows in "
   + body
@@ -229,7 +228,7 @@ let private workbenchViewsRender =
           state
           [ "eval"
             renderExpr
-              "let renderable = Darklang.Cli.Workbench.viewSpecs |> Stdlib.List.filter (fun (v, _name, _gate) -> v != Darklang.Cli.Workbench.vDevices) in Stdlib.List.all renderable (fun (v, _name, _gate) -> Stdlib.List.length (frame v 120 40) == 40)" ]
+              "Stdlib.List.all Darklang.Cli.Workbench.viewSpecs (fun (v, _name) -> Stdlib.List.length (frame v 120 40) == 40)" ]
 
       Expect.stringContains
         output
@@ -248,7 +247,7 @@ let private hintRowKeepsTheWayOut =
     (fun state ->
       task {
         let lastRow (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"i\" [] false in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"i\" false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s1 = { s0 with activeView = 4 } in "
           + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
@@ -256,13 +255,12 @@ let private hintRowKeepsTheWayOut =
           // roomier panel than a draft, so a short frame loses the hints in one store.
           + $"Stdlib.String.join (Darklang.Cli.Workbench.viewAtSize s (Darklang.Stdlib.Cli.Tui.Size {{ width = {w}; height = 26 }})).rows \"\\n\""
 
-        // 168, not 160: the SCM row gained `u/d push/pull` when sync became an action here rather than a
-        // readout, and one more action is one less secondary global that fits. The rule under test is the
-        // ORDER things are dropped in, not the width at which dropping starts.
+        // The rule under test is the ORDER things are dropped in, not the width at which
+        // dropping starts.
         let! wide = runCli state [ "eval"; lastRow 168 ]
         Expect.stringContains
           wide
-          "views"
+          "prompt"
           "the full row advertises the secondary keys too"
 
         // Narrow enough that something has to go. Single words, not "? help": the key
@@ -290,18 +288,18 @@ let private hintRowKeepsTheWayOut =
 
 /// The header must not overwrite its own tail on a narrower terminal.
 ///
-/// It writes the left-hand text at column 0 and the sync glance right-aligned over the same row, so
+/// It writes the left-hand text at column 0 and the glance right-aligned over the same row, so
 /// anything the left side spills past the glance is lost. It drops whole segments in priority order
-/// instead (the instance first, then the account), so the branch survives far narrower.
+/// instead, the instance first, so the branch survives far narrower.
 let private headerKeepsTheBranchWhenNarrow =
   cliTest
-    "the header drops the instance before the account, and never the branch"
+    "the header drops the instance before the branch, and never the branch"
     (fun state ->
       task {
         // A deliberately long instance name, so the row is over-full whatever the shared
         // store holds: the test creates the condition rather than hoping.
         let row (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"inst-with-a-deliberately-long-name-for-this-test\" [] false in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"inst-with-a-deliberately-long-name-for-this-test\" false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s1 = { s0 with activeView = 4 } in "
           + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
@@ -310,19 +308,21 @@ let private headerKeepsTheBranchWhenNarrow =
         let! wide = runCli state [ "eval"; row 150 ]
         Expect.stringContains
           wide
-          "Stachu @ inst-with-a-deliberately-long-name-for-this-test"
-          "the full row shows who and where"
+          "inst-with-a-deliberately-long-name-for-this-test"
+          "the full row shows where you are"
         Expect.stringContains wide "main" "and the branch"
 
-        let! narrow = runCli state [ "eval"; row 70 ]
+        // 56 columns: two under what the row needs for a 48-character instance name beside a
+        // four-character branch. Narrower than about 50 and the workbench's too-small guard draws
+        // nothing at all, which would pass this assertion for the wrong reason.
+        let! narrow = runCli state [ "eval"; row 56 ]
         Expect.isFalse
           (narrow.Contains "inst-with-a-deliberately")
           "the instance is dropped to make room, rather than the row colliding"
-        Expect.stringContains narrow "Stachu" "the account survives, being shorter"
         Expect.stringContains
           narrow
           "main"
-          "and so does the branch, being worth more than either"
+          "and the branch survives, being worth more than the instance"
       })
 
 let private workbenchBranchActionsWork =
@@ -331,7 +331,7 @@ let private workbenchBranchActionsWork =
     (fun state ->
       task {
         let act (action : string) (text : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] false in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"t\" false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s = { s0 with activeView = 4 } in "
           + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\"; field = Stdlib.Cli.UI.TextField.fromText \"{text}\"; action = \"{action}\" }}) with "
@@ -369,7 +369,7 @@ let private mergeAndRebaseRefuseOnMain =
     (fun state ->
       task {
         let act (action : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] false in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"t\" false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s = { s0 with activeView = 4 } in "
           + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\"; field = Stdlib.Cli.UI.TextField.fromText \"y\"; action = \"{action}\" }}) with "
@@ -476,8 +476,8 @@ let private noWorkbenchRowOverflowsItsFrame =
 let private workbenchContextRowSaysWhereYouAre =
   cliTest "the workbench header names the branch, in every view" (fun state ->
     task {
-      // The header is the first row: the branch, then `who @ where`. The branch and the account are
-      // styled apart, so they are never adjacent in the string; each is matched on its own.
+      // The header is the first row: the branch, then the instance. The two are styled apart, so
+      // they are never adjacent in the string; each is matched on its own.
       let! output =
         runCli
           state
@@ -495,12 +495,9 @@ let private workbenchContextRowSaysWhereYouAre =
           state
           [ "eval"
             renderExpr
-              "Stdlib.String.contains (Stdlib.String.join (Stdlib.List.take (frame 0 120 40) 1) \"|\") \"Tester @ test-instance\"" ]
+              "Stdlib.String.contains (Stdlib.String.join (Stdlib.List.take (frame 0 120 40) 1) \"|\") \"test-instance\"" ]
 
-      Expect.stringContains
-        named
-        "true"
-        "and it names who you are and the instance you're on"
+      Expect.stringContains named "true" "and it names the instance you are on"
     })
 
 let private everyCommandAnswersHelp =
@@ -557,14 +554,8 @@ let private notSweepable =
       "install-status" // reports on the machine's install, which the harness is not
       "serve" // binds a port and blocks
       "outliner" // takes over the screen
-      "views" // ditto
-      "text-editor" // ditto
-      "apps" // starts and stops daemons
-      "login" // network, and writes credentials
-      "logout" // ditto
       "typecheck" // audits every declaration; swept with a module in CliJson.Tests.fs
       "export-seed" // takes its argument as a path and writes a multi-MB database there
-      "devices" // shells out to `tailscale`
       "clear" ] // clears the screen, taking the sweep's own output with it
 
 /// Every `--help` opens with a sentence saying what the command IS.
@@ -581,7 +572,7 @@ let private everyHelpLeadsWithASummary =
       let mutable bad : List<string> = []
 
       for cmd in commands do
-        if not (Set.contains cmd (Set.add "agent" notSweepable)) then
+        if not (Set.contains cmd (notSweepable)) then
           let! out = runCliCatching state [ cmd; "--help" ]
 
           match out with
@@ -606,8 +597,7 @@ let private everyExclusionIsReal =
       let! commands = registeredCommands state
       Expect.isGreaterThan (List.length commands) 20 "the registry was read"
 
-      let stale =
-        Set.difference (Set.add "agent" notSweepable) (Set.ofList commands)
+      let stale = Set.difference (notSweepable) (Set.ofList commands)
 
       if not (Set.isEmpty stale) then
         Tests.failtestf
@@ -771,9 +761,7 @@ let everyCommandRefusesAFlagItDoesNotHave =
     task {
       let! commands = registeredCommands state
       let swept =
-        commands
-        |> List.filter (fun c ->
-          not (Set.contains c (Set.add "agent" notSweepable)))
+        commands |> List.filter (fun c -> not (Set.contains c (notSweepable)))
       Expect.isGreaterThan (List.length swept) 40 "the registry was read"
       let mutable failures = []
 
@@ -800,10 +788,8 @@ let private aWordIsNotAMistake : Map<string, AWordIs> =
       "branch",
       WhatItMakes "names a new branch, starts it and moves the store onto it"
       "switch", WhatItMakes "ditto"
-      "identity", WhatItMakes "renames this instance"
       "commit",
-      WhatItMakes "the words are the commit message, and it commits the draft"
-      "squash", WhatItMakes "ditto, squashing what is unpushed" ]
+      WhatItMakes "the words are the commit message, and it commits the draft" ]
 
 let everyCommandRefusesAWordItDoesNotKnow =
   cliTestOnMain
@@ -812,9 +798,7 @@ let everyCommandRefusesAWordItDoesNotKnow =
       task {
         let! commands = registeredCommands state
         let swept =
-          commands
-          |> List.filter (fun c ->
-            not (Set.contains c (Set.add "agent" notSweepable)))
+          commands |> List.filter (fun c -> not (Set.contains c (notSweepable)))
         Expect.isGreaterThan (List.length swept) 40 "the registry was read"
         let mutable failures = []
 
@@ -876,10 +860,7 @@ let everyCommandSurvivesABranch =
                 match Map.tryFind cmd aWordIsNotAMistake with
                 | Some(WhatItMakes _) -> not (List.isEmpty extra)
                 | _ -> false
-              if
-                not (Set.contains cmd (Set.add "agent" notSweepable))
-                && not makesSomething
-              then
+              if not (Set.contains cmd (notSweepable)) && not makesSomething then
                 let! outcome = runCliCatching state (cmd :: extra)
                 match sweepFailure outcome with
                 | Some why -> failures <- ($"{cmd} {label}", why) :: failures
@@ -929,7 +910,7 @@ type private Seeded =
 
 /// The invocation a person would actually type, per command.
 ///
-/// `[]` means "bare IS the valid invocation" -- `status`, `whoami`, `branches` answer a question
+/// `[]` means "bare IS the valid invocation" -- `status`, `branches`, `commits` answer a question
 /// that needs no argument, and running them again here costs one dispatch and keeps the table
 /// complete rather than clever. Anything cheap and read-only is preferred: the sweep runs sixty
 /// commands, and one that takes ten seconds makes the whole thing something people skip.
@@ -944,7 +925,6 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "ls", [ "Darklang.Stdlib.List" ]
       "back", []
       "eval", [ "1L + 1L" ]
-      "scripts", [ "list" ]
       "view", [ seed.fn ]
       "tree", [ "Darklang.Stdlib"; "--depth"; "1" ]
       "search", [ "mergeFavoring" ]
@@ -952,10 +932,6 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "hash", [ seed.fn ]
       "status", [ "--json" ]
       "commits", [ "3"; "--json" ]
-      // Bare, because on the seed there is nothing of this instance's own that is unpushed, and
-      // "nothing to squash" is an ANSWER rather than a refusal. Giving it a message would be a
-      // fair question too; it would just do the same thing.
-      "squash", []
       "show", [ seed.commit ]
       "branch", [ "list" ]
       "branches", [ "--json" ]
@@ -968,13 +944,11 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "builtins", [ "listMap" ]
       "find-values", [ "Darklang.Stdlib.Option.Option" ]
       "docs", [ "scm" ]
-      "db", [ "list" ]
       "ops", [ "3" ]
       "ps", [ "--json" ]
       "traces", [ "inspect"; seed.run ]
       "conflicts", [ "list" ]
       "backups", [ "list" ]
-      "whoami", []
       "permissions", [ "show"; seed.fn ]
       // Scoped to a module that is clean. The shared store holds failing fixtures other tests
       // leave on purpose, so an audit of all of it rightly exits 1.
@@ -990,21 +964,11 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
 /// Commands that are safe to run BARE and must not be given real arguments, with the reason.
 ///
 /// Same rule as `notSweepable`: a bare entry is an exclusion nobody has justified. The reasons
-/// fall into four groups -- it reaches the network (and the relay url is a STORED default, so no
-/// argument is needed to reach production), it takes over the screen, it never returns, or it
-/// changes state the rest of the suite is standing on.
+/// fall into three groups -- it takes over the screen, it never returns, or it changes state the
+/// rest of the suite is standing on.
 let private unsafeWithArguments : Map<string, string> =
   Map.ofList
-    [ "agent",
-      "asks a model: network, money, and `agent code` writes the answer into the store"
-      "push", "the relay url is a stored default, so this reaches the real one"
-      "pull", "ditto"
-      "sync", "ditto, and `sync setup` is a question flow that reads stdin"
-      "connect",
-      "rewrites the store's relay, so every later sync-shaped command follows it"
-      "review", "`review pull` with no url reaches the stored relay, quietly"
-      "identity", "renames the instance, and the name goes out on the next push"
-      "run-script", "takes a path and executes whatever is at it"
+    [ "run-script", "takes a path and executes whatever is at it"
       "fn",
       "authors into the shared store; the seed above is the only fixture that should"
       "val", "ditto"
@@ -1020,7 +984,7 @@ let private unsafeWithArguments : Map<string, string> =
       "deprecate", "ditto, by the other door"
       "undeprecate", "puts one back"
       "undo", "steps a real item back a version"
-      "resolve", "writes a Resolve op, and an op syncs"
+      "resolve", "writes a Resolve op"
       "ack", "closes a finding other tests assert on" ]
 
 /// Seed the store, run every command with a known-good invocation, and check the drift both ways.
@@ -1083,7 +1047,7 @@ let everyCommandWorksWithValidArguments =
             Set.unionMany
               [ table |> Map.keys |> Set.ofSeq
                 unsafeWithArguments |> Map.keys |> Set.ofSeq
-                Set.add "agent" notSweepable ]
+                notSweepable ]
 
           let unaccounted = Set.difference (Set.ofList commands) accounted
           if not (Set.isEmpty unaccounted) then
@@ -1165,8 +1129,6 @@ let private nonexistentTargets : List<string * List<string>> =
     "log", [ "log"; "zzznope" ]
     "show", [ "show"; "zzznope" ]
     "branch archive", [ "branch"; "archive"; "zzznope" ]
-    "review approve", [ "review"; "approve"; "zzznope" ]
-    "review reject", [ "review"; "reject"; "zzznope" ]
     "conflicts show", [ "conflicts"; "show"; "zzznope" ]
     "conflicts branch", [ "conflicts"; "branch"; "zzznope" ]
     "constraints resolve", [ "constraints"; "resolve"; "zzznope" ]
@@ -1370,15 +1332,12 @@ let private documentedCommandsAreReal =
 /// cannot show. These commands used to ANSWER, at length and cheerfully, while doing something nobody
 /// asked for. Unguarded, `dark switch --help`
 /// starts a branch called "--help" and moves the store onto it, so the next `dark fn` authors on a
-/// branch that exists by accident; `dark identity --help` renames the instance to "--help", and the
-/// name goes out on the next push, so everyone else sees it before you do.
+/// branch that exists by accident.
 let private aDashLedArgumentIsNeverAName =
   cliTestOnMain
     "a dash-led argument is refused as a name rather than taken as one"
     (fun state ->
       task {
-        let! before = runCli state [ "whoami" ]
-
         for cmd in [ "switch"; "branch" ] do
           let! output = runCli state [ cmd; "--zzz-not-a-branch" ]
 
@@ -1395,16 +1354,6 @@ let private aDashLedArgumentIsNeverAName =
 
         let! where = runCli state [ "branch" ]
         Expect.stringContains where "main" "and it must not move you off main"
-
-        let! identityOut = runCli state [ "identity"; "--zzz-not-a-name" ]
-
-        Expect.stringContains
-          identityOut
-          "does not take `--zzz-not-a-name`"
-          "dark identity --zzz-not-a-name should refuse the name"
-
-        let! after = runCli state [ "whoami" ]
-        Expect.equal after before "and the instance identity is unchanged"
       })
 
 /// The two refusals the sweeps cannot run, because a mistake there costs something: a mistyped flag
@@ -1438,18 +1387,15 @@ let private costlyMistakesAreRefused =
       ()
     })
 
-/// `serve` and `apps` are not swept, because their success binds a port or takes the screen, so
-/// their refusals are checked here. A refusal that exits 0 is one a script cannot see, and these
-/// all did; `apps view <slug> --dev` also opened the view, taking the flag as its name.
+/// `serve` is not swept, because success binds a port, so its refusals are checked here. A
+/// refusal that exits 0 is one a script cannot see, and these all did.
 let private unsweptCommandsRefuseWithExit1 =
-  cliTestOnMain "serve and apps view refusals exit 1" (fun state ->
+  cliTestOnMain "serve refusals exit 1" (fun state ->
     task {
       let cases =
         [ [ "serve" ], "`dark serve` needs an argument"
           [ "serve"; "--live" ], "`dark serve` needs an argument"
-          [ "serve"; "Tests.NoSuch.router"; "--live" ], "is it defined"
-          [ "apps"; "view"; "Tests.NoSuch"; "--dev" ], "--dev is --live"
-          [ "apps"; "view"; "Tests.NoSuch"; "--zzz" ], "does not take `--zzz`" ]
+          [ "serve"; "Tests.NoSuch.router"; "--live" ], "is it defined" ]
 
       for args, expected in cases do
         let printed = String.concat " " args
@@ -1531,7 +1477,7 @@ let private workbenchEdit
   (replace : string)
   : string =
   let path = modules |> List.map darkString |> String.concat ", "
-  "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"i\" [] false in\n"
+  "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"i\" false in\n"
   + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in\n"
   + "let items = Darklang.Cli.Workbench.reloadItems st in\n"
   + $"match Stdlib.List.findFirst items (fun i -> i.name == {darkString item}) with\n"
@@ -1579,7 +1525,7 @@ let private workbenchNew
   (source : string)
   : string =
   let path xs = xs |> List.map darkString |> String.concat ", "
-  "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"i\" [] false in\n"
+  "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"i\" false in\n"
   + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module [ {path location} ] }} in\n"
   + $"match Darklang.Cli.Workbench.openNewEditor st {darkString kind} [ {path target} ] with\n"
   + "| Continue opened ->\n"
@@ -1752,11 +1698,11 @@ let private workbenchRefusalsAreMarkedAsRefusals =
   cliTest "the workbench marks a refusal as a refusal, not a success" (fun state ->
     task {
       let code =
-        "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"i\" [] false in\n"
+        "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"i\" false in\n"
         + "let st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\n"
         + "let kindOf = fun step -> match step with | Continue s -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\n"
         + "let input = fun action text -> Darklang.Cli.Workbench.InputState { prompt = \"\"; field = Stdlib.Cli.UI.TextField.fromText text; action = action } in\n"
-        + "Stdlib.String.join [ kindOf (Darklang.Cli.Workbench.performInputAction st (input \"author-fn\" \"Tests.\")), kindOf (Darklang.Cli.Workbench.performInputAction st (input \"search\" \"zzzWbNothingIsCalledThis\")), kindOf (Darklang.Cli.Workbench.resolveConflict st \"ok\"), kindOf (Darklang.Cli.Workbench.syncInFrame st \"push\") ] \"\\n\""
+        + "Stdlib.String.join [ kindOf (Darklang.Cli.Workbench.performInputAction st (input \"author-fn\" \"Tests.\")), kindOf (Darklang.Cli.Workbench.performInputAction st (input \"search\" \"zzzWbNothingIsCalledThis\")), kindOf (Darklang.Cli.Workbench.resolveConflict st \"ok\") ] \"\\n\""
 
       let! answer =
         task {
@@ -1766,15 +1712,14 @@ let private workbenchRefusalsAreMarkedAsRefusals =
         }
 
       let lines = answer.Split('\n')
-      Expect.equal lines.Length 4 $"four answers:\n{answer}"
+      Expect.equal lines.Length 3 $"three answers:\n{answer}"
 
       for (line, text) in
         Array.zip
           lines
           [| "need at least owner.Module"
              "no matches for"
-             "no conflict selected"
-             "no relay yet" |] do
+             "no conflict selected" |] do
         Expect.stringContains line text $"the message is the one meant:\n{answer}"
         Expect.stringContains
           line
