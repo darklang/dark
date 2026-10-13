@@ -15,6 +15,28 @@ iterating.
 
 `build-release-cli-exes.sh` writes the mode to `clis/<binary>.mode`. Read it rather than assuming.
 
+## Asking what one thing costs
+
+Before reaching for any of the tools below: `Darklang.LanguageTools.Perf.measure` takes a thunk and
+gives back allocation, time and the interpreter's counters, with whatever the thunk returned.
+
+    let harness = Perf.floor ()
+    let (raw, answer) = Perf.measure (fun () -> Stdlib.List.map input inc)
+    Perf.render (Perf.minus raw harness)
+
+`floor` is what `measure` costs when the thunk does nothing; subtract it or small readings are
+mostly harness. One primitive on purpose: a function against its replacement, one function across
+five input sizes, a survey of twenty builtins, are all loops over it, which is cheaper than
+curating input sets per function.
+
+From the command line, `dark eval --stats <expr>` prints the same block. Note what it measures:
+evaluating an expression parses and resolves it too, and for anything small that is most of the
+allocation, while the instruction count is execution only. Inside a script, `Perf.measure` brackets
+the work alone.
+
+Every measurement carries the build that produced it (`debug`, `release-r2r`, `release-aot`),
+because the same workload has three different right answers.
+
 ## The recipe
 
 1. `scripts/dev/build` and get the thing working first.

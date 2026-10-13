@@ -1,0 +1,123 @@
+/// What a piece of Dark costs: allocation, time, and the interpreter's counters, around a thunk.
+///
+/// One primitive on purpose. A function against its replacement, or one function across five input
+/// sizes, is a loop over <fn measure>. `scripts/perf/README.md` has the recipes.
+module Darklang.LanguageTools.Perf
+
+/// The fields this reads out of <fn InterpreterStats.get>'s JSON; the parser ignores the rest.
+type Counters =
+  { instructions: Int64
+    builtinCalls: Int64
+    packageCalls: Int64
+    framePushes: Int64
+    buildMode: String
+    statSets: Int64 }
+
+
+/// What one thunk cost.
+type Measurement =
+  { allocBytes: Int64
+    ms: Int
+    instructions: Int64
+    builtinCalls: Int64
+    packageCalls: Int64
+    framePushes: Int64
+
+    /// `debug`, `release-r2r` or `release-aot`. Carried on every measurement because those are up
+    /// to 3x and 5x apart, so a number without it cannot be compared with another number.
+    buildMode: String
+
+    /// 0 when these are the whole process (telemetry off), positive when they are the calling VM's
+    /// share of that many counter sets (telemetry on).
+    statSets: Int64 }
+
+
+let noCounters () : Counters =
+  Counters
+    { instructions = 0L
+      builtinCalls = 0L
+      packageCalls = 0L
+      framePushes = 0L
+      buildMode = "unknown"
+      statSets = 0L }
+
+
+/// The interpreter's counters as they stand now.
+let counters () : Counters =
+  match Stdlib.Json.parse<Counters> (InterpreterStats.get ()) with
+  | Ok c -> c
+  | Error _ -> noCounters ()
+
+
+/// Allocation, time and counters for one thunk, alongside what the thunk returned.
+///
+/// Includes this function's own cost, which is not small: see <fn floor>, and take it off with
+/// <fn minus>. The reset is process-wide, so measurements cannot nest.
+let measure (f: Unit -> 'a) : (Measurement * 'a) =
+  let _reset = InterpreterStats.reset ()
+  let allocBefore = InterpreterStats.allocatedBytes ()
+  let startMs = Stdlib.DateTime.__monotonicMilliseconds ()
+  let result = f ()
+  let elapsed = (Stdlib.DateTime.__monotonicMilliseconds ()) - startMs
+  let allocated = (InterpreterStats.allocatedBytes ()) - allocBefore
+  let c = counters ()
+
+  let m =
+    Measurement
+      { allocBytes = allocated
+        ms = elapsed
+        instructions = c.instructions
+        builtinCalls = c.builtinCalls
+        packageCalls = c.packageCalls
+        framePushes = c.framePushes
+        buildMode = c.buildMode
+        statSets = c.statSets }
+
+  (m, result)
+
+
+/// What <fn measure> costs when the thunk does nothing, so you can take it off a real reading.
+///
+/// Measured on a debug build: 1,400 instructions, 239 builtin calls, 89 frame pushes and about
+/// 76 KB, the counters exactly constant run to run. The first measurement in a process allocates
+/// about four times that, which is why this warms up before the reading it returns.
+let floor () : Measurement =
+  let (_warm, _) = measure (fun () -> ())
+  let (f, _) = measure (fun () -> ())
+  f
+
+
+/// <param m> with the harness floor taken off, clamped so a cheap thunk cannot report a negative.
+let minus (m: Measurement) (f: Measurement) : Measurement =
+  let atLeastZero64 (n: Int64) : Int64 = if n < 0L then 0L else n
+  let atLeastZero (n: Int) : Int = if n < 0 then 0 else n
+
+  { m with
+      allocBytes = atLeastZero64 (m.allocBytes - f.allocBytes)
+      ms = atLeastZero (m.ms - f.ms)
+      instructions = atLeastZero64 (m.instructions - f.instructions)
+      builtinCalls = atLeastZero64 (m.builtinCalls - f.builtinCalls)
+      packageCalls = atLeastZero64 (m.packageCalls - f.packageCalls)
+      framePushes = atLeastZero64 (m.framePushes - f.framePushes) }
+
+
+/// A measurement as a block of lines, for a terminal.
+let render (m: Measurement) : String =
+  let lines =
+    [ $"  build           {m.buildMode}"
+      $"  allocated       {Stdlib.toString m.allocBytes} bytes"
+      $"  time            {Stdlib.toString m.ms} ms"
+      $"  instructions    {Stdlib.toString m.instructions}"
+      $"  builtin calls   {Stdlib.toString m.builtinCalls}"
+      $"  package calls   {Stdlib.toString m.packageCalls}"
+      $"  frame pushes    {Stdlib.toString m.framePushes}" ]
+
+  let lines =
+    if m.statSets > 0L then
+      Stdlib.List.append
+        lines
+        [ $"  note            one VM's share of {Stdlib.toString m.statSets} counter sets" ]
+    else
+      lines
+
+  Stdlib.String.join lines "\n"
