@@ -83,23 +83,44 @@ let rec set
         else
           ""
 
-      let! data = dvalToDB threadID types dv
+      // Stage blob bytes while rewriting the value. Write the bytes and row in
+      // one transaction: the orphan sweeper must never see promoted bytes
+      // without the referencing row. Existing persistent blobs need no write.
+      let pendingBlobs = ResizeArray<string * byte[]>()
+      let stageBlob hash bytes =
+        pendingBlobs.Add(hash, bytes)
+        Ply(())
+      let! stored = LibExecution.Blob.promote stageBlob dv
+      let! data = dvalToDB threadID types stored
 
-      do!
-        Sql.query
-          $"INSERT INTO user_data_v0
+      let rowSql =
+        $"INSERT INTO user_data_v0
             (id, table_tlid, user_version, dark_version, key, data, updated_at)
           VALUES
             (@id, @tlid, @userVersion, @darkVersion, @key, @data, datetime('now'))
           {upsertQuery}"
-        |> Sql.parameters
-          [ "id", Sql.uuid id
-            "tlid", Sql.id db.tlid
-            "userVersion", Sql.int db.version
-            "darkVersion", Sql.int currentDarkVersion
-            "key", Sql.string key
-            "data", Sql.string data ]
-        |> Sql.executeStatementAsync
+      let rowParams =
+        [ "id", Sql.uuid id
+          "tlid", Sql.id db.tlid
+          "userVersion", Sql.int db.version
+          "darkVersion", Sql.int currentDarkVersion
+          "key", Sql.string key
+          "data", Sql.string data ]
+      if pendingBlobs.Count = 0 then
+        do! Sql.query rowSql |> Sql.parameters rowParams |> Sql.executeStatementAsync
+      else
+        let blobParams =
+          pendingBlobs
+          |> Seq.map (fun (hash, bytes) ->
+            [ "hash", Sql.string hash
+              "length", Sql.int64 (int64 bytes.Length)
+              "bytes", Sql.bytes bytes ])
+          |> Seq.toList
+        Sql.executeTransactionSync
+          [ "INSERT OR IGNORE INTO package_blobs (hash, length, bytes) VALUES (@hash, @length, @bytes)",
+            blobParams
+            rowSql, [ rowParams ] ]
+        |> ignore<List<int>>
 
       return Ok id
   }

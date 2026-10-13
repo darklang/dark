@@ -79,6 +79,7 @@ let hashAt
     | Value -> LanguageTools.PackageManager.Value.find branchId loc
     | Trait -> LanguageTools.PackageManager.Trait.find branchId loc
     | TraitImpl -> LanguageTools.PackageManager.TraitImpl.find branchId loc
+    | Test -> LanguageTools.PackageManager.Test.find branchId loc
 
   found |> Stdlib.Option.map LanguageTools.ProgramTypes.hashToString
 

@@ -1,0 +1,28 @@
+module Darklang.Cli.Tests.File
+
+// withTemp removes each temporary file after the check.
+module WriteReadRoundtrip =
+  let testContents () : String = "Test conrents"
+
+  // Check the write result as well as the bytes read back.
+  test roundtrip =
+    Stdlib.Cli.File.withTemp (fun filename ->
+      let blob = Stdlib.Blob.fromString (testContents ())
+      let written = Stdlib.Cli.FileSystem.writeFile filename blob
+      let readBack = Stdlib.Cli.FileSystem.readFile filename |> Builtin.unwrap
+      Stdlib.Test.all
+        [ written |> Stdlib.Test.equal (Stdlib.Result.Result.Ok())
+          Stdlib.Blob.toString readBack
+          |> Stdlib.Test.equal (Stdlib.Result.Result.Ok(testContents ())) ])
+    |> Builtin.unwrap
+
+module MissingFile =
+  // A missing file is `NotFound`, not `Other`: on Linux the open fails inside
+  // libc, and the errno has to survive the trip through the host boundary.
+  test missingFileIsNotFound =
+    Stdlib.Cli.File.withTemp (fun filename ->
+      let missing = filename + "-does-not-exist"
+      Stdlib.Cli.FileSystem.readFile missing
+      |> Stdlib.Test.equal
+        (Stdlib.Result.Result.Error Stdlib.Cli.FileSystem.FileError.NotFound))
+    |> Builtin.unwrap

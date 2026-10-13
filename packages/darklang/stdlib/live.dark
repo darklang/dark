@@ -112,6 +112,7 @@ let kindOf (target: LanguageTools.ProgramTypes.Reference) : LanguageTools.Progra
   | PackageFn _ -> LanguageTools.ProgramTypes.ItemKind.Fn
   | PackageTrait _ -> LanguageTools.ProgramTypes.ItemKind.Trait
   | PackageTraitImpl _ -> LanguageTools.ProgramTypes.ItemKind.TraitImpl
+  | PackageTest _ -> LanguageTools.ProgramTypes.ItemKind.Test
 
 /// The names an op binds or unbinds, if it does one of those.
 let touchedBy (op: LanguageTools.ProgramTypes.PackageOp) : List<Touched> =

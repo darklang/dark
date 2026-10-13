@@ -1,0 +1,79 @@
+module Darklang.Language.Tests.Basic
+
+test floats =
+  Stdlib.Test.all
+    [ (-0.0 * -1.0) |> Stdlib.Test.equal 0.0
+      (6.02e22 * -10.0) |> Stdlib.Test.equal -6.02e23 ]
+
+test letBoundVariable =
+  (let x = 5L
+   x)
+  |> Stdlib.Test.equal 5L
+
+test missingVariableRaises =
+  myvar => raises "There is no variable named: myvar"
+
+test and =
+  Stdlib.Test.all
+    [ (true && true) |> Stdlib.Test.equal true
+      (true && false) |> Stdlib.Test.equal false
+      (false && true) |> Stdlib.Test.equal false
+      (false && false) |> Stdlib.Test.equal false
+      (false && 5L) |> Stdlib.Test.equal false
+      //TODO bring back short-circuiting
+      // (false && Stdlib.Test.raiseRuntimeError "msg")
+      // |> Stdlib.Test.equal false
+      (true |> (&&) true) |> Stdlib.Test.equal true
+      (true |> (&&) false) |> Stdlib.Test.equal false
+      (false |> (&&) true) |> Stdlib.Test.equal false
+      (false |> (&&) false) |> Stdlib.Test.equal false ]
+
+test andEvaluatesRightOperand =
+  (true && Stdlib.Test.raiseRuntimeError "msg")
+  => raises "Uncaught exception: msg"
+
+test andRejectsNonBooleanRight =
+  (true && 5L) => raises "&& only supports Booleans"
+
+test andRaisesLeftOperandErrorFirst =
+  (Stdlib.Test.raiseRuntimeError "msg1" && Stdlib.Test.raiseRuntimeError "msg2")
+  => raises "Uncaught exception: msg1"
+
+test andRejectsNonBooleanLeft =
+  (5 && true) => raises "&& only supports Booleans"
+
+test or =
+  Stdlib.Test.all
+    [ (true || true) |> Stdlib.Test.equal true
+      (true || false) |> Stdlib.Test.equal true
+      (false || true) |> Stdlib.Test.equal true
+      (false || false) |> Stdlib.Test.equal false
+      (true || 5L) |> Stdlib.Test.equal true
+      (true |> (||) true) |> Stdlib.Test.equal true
+      (true |> (||) false) |> Stdlib.Test.equal true
+      (false |> (||) true) |> Stdlib.Test.equal true
+      (false |> (||) false) |> Stdlib.Test.equal false ]
+
+test orRejectsNonBooleanRight =
+  (false || 5L) => raises "|| only supports Booleans"
+
+test orRejectsNonBooleanLeft =
+  (5L || true) => raises "|| only supports Booleans"
+
+// TODO bring back short-circuiting
+// test orShortCircuits =
+//   (true || Stdlib.Test.raiseRuntimeError "msg") |> Stdlib.Test.equal true
+test orEvaluatesRightOperand =
+  (false || Stdlib.Test.raiseRuntimeError "msg")
+  => raises "Uncaught exception: msg"
+
+test orRaisesLeftOperandErrorFirst =
+  (Stdlib.Test.raiseRuntimeError "msg1" || Stdlib.Test.raiseRuntimeError "msg2")
+  => raises "Uncaught exception: msg1"
+
+test runtimeErrorRaises =
+  Stdlib.Test.raiseRuntimeError "runtime from syntax"
+  => raises "Uncaught exception: runtime from syntax"
+
+test mixedNumericEqualityRaises =
+  (5.7 != 6L) => raises "Cannot perform equality check on Float and Int64"

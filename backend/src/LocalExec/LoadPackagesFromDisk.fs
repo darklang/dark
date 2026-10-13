@@ -38,8 +38,7 @@ let private parsePackageFile
   }
 
 
-/// Reads and parses all .dark files in `packages` dir,
-/// failing upon any individual failure
+/// Read all package sources and fail on parse or name-resolution errors.
 let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
   uply {
     let filesWithContents =

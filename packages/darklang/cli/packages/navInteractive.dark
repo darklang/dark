@@ -129,7 +129,7 @@ let helpRowsAtWidth
     []
 
 
-/// The five leaf kinds of a result set as nav items, in `Glyphs.kindOrder`. `shortNames` is the
+/// The leaf kinds of a result set as nav items, in `Glyphs.kindOrder`. `shortNames` is the
 /// only thing a listing of one module and a search across the tree disagree about: a listing shows
 /// `map`, a search shows `Darklang.Stdlib.List.map`. The submodule row is each caller's own, because
 /// they ask different questions of `results`.
@@ -170,7 +170,12 @@ let leafNavItems
     |> Stdlib.List.map (fun i ->
       NavItem { name = nameOf i.location; entityType = EntityType.Impl; location = PackageLocation.Impl i.location })
 
-  Stdlib.List.flatten [ types, functions, values, traits, impls ]
+  let tests =
+    results.tests
+    |> Stdlib.List.map (fun test ->
+      NavItem { name = nameOf test.location; entityType = EntityType.Test; location = PackageLocation.Test test.location })
+
+  Stdlib.List.flatten [ types, functions, values, traits, impls, tests ]
 
 
 let buildNavItemsFromResults
@@ -275,7 +280,7 @@ let loadFocusRows
     Stdlib.List.flatten [ [ locationStr ], submoduleRows, typeRows ]
   | _ ->
     // Individual entities are typically small enough to show in full.
-    View.entityRows branchId location
+    View.entityRows branchId location false
 
 
 /// Refresh derived focus content after a state transition.
@@ -787,7 +792,10 @@ let performSearch (navState: State) : State =
       |> Stdlib.List.map (fun modulePath ->
         NavItem { name = Stdlib.String.join modulePath "."; entityType = EntityType.Module; location = PackageLocation.Module modulePath })
 
-    let searchItems = Stdlib.List.flatten [ moduleItems, leafNavItems results false ]
+    // No tests, as `dark search` leaves them out by default; this mode has no
+    // flag to ask for them, and browsing a module still lists its tests.
+    let withoutTests = { results with tests = [] }
+    let searchItems = Stdlib.List.flatten [ moduleItems, leafNavItems withoutTests false ]
 
     { navState with
         items = searchItems

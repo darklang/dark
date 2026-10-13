@@ -1,81 +1,109 @@
 # Unit tests
 
-The canonical description of the F# test suite: how to run some of it, what the filter
-flags do, and what used to go wrong. `AGENTS.md` has the short version.
+The repository has an F# backend suite and Dark package tests. This guide covers
+running and filtering them. See [Package tests](package-tests.md) for the design,
+including storage, isolation, permissions and caching.
 
-## Running them
+## Backend tests
 
-```
-scripts/run-backend-tests
-```
+The runner uses existing binaries, so build first. Use the published build for a
+full suite run:
 
-A full run is a few minutes and logs to `rundir/logs/fsharp-tests.log`. The entry point
-is `backend/tests/Tests/Tests.fs`; tests are not discovered automatically, they have to
-be added there.
-
-## Running some of them
-
-Finding what to run used to be the hard part, so start there rather than guessing at a
-filter:
-
-```
-scripts/run-backend-tests --groups              the test tree, with counts
-scripts/run-backend-tests --groups Interpreter  just that part of it
-scripts/run-backend-tests --find mergeFavoring  which tests match, and how to run them
+```sh
+scripts/dev/build --optimize
+scripts/run-backend-tests --published
 ```
 
-Neither touches the database or reloads packages, and both print the command that runs
-what they found. The underlying listing is slow, so it's cached until the next build.
+For a focused run, a Debug build is also useful:
 
-Then there are three filter flags, and they do three different things:
-
-```
---filter <path>            a prefix of the slash-separated path, from the root
---filter-test-list <sub>   substring, matches test lists, case-sensitive
---filter-test-case <sub>   substring, matches test cases, case-sensitive
+```sh
+scripts/dev/build
+scripts/run-backend-tests --filter tests/Interpreter
 ```
 
-Everything is nested under `testList "tests"`, so paths start with `tests/`.
-`--filter tests/Interpreter` runs 90 tests; `--filter Interpreter` runs none.
+The backend suite includes runtime, integration and raw HTTP tests. Its entry
+point is [Tests.fs](../backend/tests/Tests/Tests.fs); add new F# test groups there.
+See the [testfiles README](../backend/testfiles/README.md) for the HTTP test files.
 
-### Why this was worse than it looked
+Output goes to `rundir/logs/fsharp-tests.log`, with JUnit results in
+`rundir/test_results/backend.xml`.
 
-Three things compounded, and each hid the next.
+## Finding and filtering backend tests
 
-`--filter`'s help says it takes "a hierarchy that's slash (/) separated", but Expecto's
-default separator is a dot. So the filter you wrote after reading the help matched
-nothing. We now pass `JoinWith "/"` so the documented form is the working one.
+Use the discovery commands to find a group or case before choosing a filter:
 
-A filter that matches nothing was not an error. Expecto reports it as
-`0 tests run - Success!` and exits 0, so a filter with a typo in it looked exactly like
-a suite that passed. `run-backend-tests` now fails when a filter you supplied matched
-nothing.
+```sh
+scripts/run-backend-tests --groups              # test groups and counts
+scripts/run-backend-tests --groups Interpreter  # one part of the tree
+scripts/run-backend-tests --find mergeFavoring  # matching cases and run commands
+```
 
-A filter that matches LESS than you meant is still not an error, and cannot be. It is a
-substring match, so `--filter-test-case "stripping markers"` matches the test called
-"stripping markers leaves every jump landing on the same instruction" and not the one
-called "jumps land where they did with any number of markers", which was the sibling test
-in the same module added in the same commit. The run passed, honestly, about a subset.
-Two tests were written, one was verified, and the other reached a commit unexecuted; the
-full published suite is what found it.
+Discovery uses the Debug test binary, so it needs a Debug build even if you run
+full suites with `--published`. The list is cached until that binary changes.
 
-So read the COUNT the run prints, not just its colour. One test when you wrote two is the
-tell, and `--find <substring>` lists what a filter will match before you trust it.
+The runner supports three filters:
 
-`--list-tests`, the obvious way out, ignores every filter and prints ten thousand lines
-after a slow startup. That's what `--groups` and `--find` are for.
+```text
+--filter <path>            prefix of the full slash-separated test path
+--filter-test-list <text>  substring of a test-list name, case-sensitive
+--filter-test-case <text>  substring of a test-case name, case-sensitive
+```
 
-## Running two at once
+Full paths start with `tests/`. For example, `--filter tests/Interpreter` selects
+that group; `--filter Interpreter` does not. Add `--published` when running a
+filter against the published build.
 
-Two runs in the same clone destroy each other: they share `test-data.db`, the httpclient
-port, and a `killall -9 Tests`. `run-backend-tests` takes a lock and refuses instead.
+Check both the reported test count and the command's exit code. A filter matching
+nothing fails, but one matching fewer tests than intended can still pass.
 
-Two runs in different clones are fine. Each clone has its own container, and so its own
-PID namespace, bridge network and bind-mounted `rundir`. This was genuinely forbidden
-until recently, when every clone's scripts re-execed into whichever container was newest
-and four clones' runs really did land in one.
+## Package tests
 
-## Dark tests
+Package tests live in `packages/darklang/tests`. To run the full suite in a
+disposable installation:
 
-`backend/testfiles/README.md` covers the `.dark` test files, which are a separate thing
-from the F# tests here.
+```sh
+scripts/dev/build
+scripts/testing/gates package-tests
+```
+
+The gate defaults to the Debug CLI and forces every test to execute. To use a
+published CLI, set `CLI` to its repository-relative path. CI uses NativeAOT to
+reduce the cost of starting a worker for each test.
+
+The full output is saved to `rundir/package-tests/test.log`.
+
+To run a selected group against the current installation's packages:
+
+```sh
+scripts/run-cli test run Stdlib.Float
+scripts/run-cli test run --force Stdlib.Float
+```
+
+Filters match whole name segments. `--force` bypasses cached passes; each executed
+test still gets its own process and store. The summary distinguishes tests that
+ran from cached results. Assertions combined with `Stdlib.Test.all` count as one
+test declaration.
+
+Tests run in parallel, with up to four workers (limited by the available cores).
+Use `--jobs <count>` to change the limit, or `--jobs 1` for a serial run.
+
+Some tests deliberately contain invalid programs, so `dark typecheck` in a
+normal development store can report intentional test errors. Run the production
+check separately:
+
+```sh
+scripts/testing/gates shipped-tree-typechecks
+```
+
+That gate checks the normal package load and excludes test modules from its
+verdict. Shared declarations with production names are still checked. It defaults
+to Debug; set `CLI` to a repository-relative published binary path to use that
+build instead.
+
+## Avoiding conflicting runs
+
+Run only one backend suite at a time in a clone. Runs share the test database and
+HTTP ports, so the runner takes a lock and refuses a competing run. Use separate
+clones with their own dev containers for simultaneous backend suites.
+
+Finish a test run before rebuilding the binaries it is using.

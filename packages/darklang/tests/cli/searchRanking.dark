@@ -1,0 +1,74 @@
+module Darklang.Cli.Tests.SearchRanking
+
+// How `dark search` orders what the store matched. A person types words, not camelCase: `read file`
+// used to rank by "file" alone, so `overwriteFile` came before `readFile` and the Types section,
+// holding `ReadFileParams`, printed before any function. The plain-words cases are the fix; the
+// one-word and dotted cases are the ones that already worked and must not move.
+
+module Rank =
+  /// The names in the order search shows them, from a fixed set of candidates, so the answer does
+
+  /// not depend on what the store happens to hold.
+
+  let order (query: String) (candidates: List<(String * String)>) : List<String> =
+    candidates
+    |> Stdlib.List.sortBy (fun pair ->
+      let (modulePath, name) = pair
+      Darklang.Cli.Packages.Search.sortKey
+        query
+        "Darklang"
+        (Stdlib.String.split modulePath ".")
+        name)
+    |> Stdlib.List.map (fun pair ->
+      let (_, name) = pair
+      name)
+
+  let fileFns () : List<(String * String)> =
+    [ ("Stdlib.Cli.FileSystem", "overwriteFile")
+      ("Stdlib.Cli.FileSystem", "readFile")
+      ("Stdlib.Cli.FileSystem", "readFileAsString")
+      ("Cli.Outliner.Export", "fromFile") ]
+
+// Plain words find the camelCase name they spell.
+test plainWordsFindCamelCase =
+  Stdlib.Test.all
+    [ Rank.order "read file" (Rank.fileFns ())
+      |> Stdlib.Test.equal
+        [ "readFile", "readFileAsString", "overwriteFile", "fromFile" ]
+      Rank.order "write file" [ ("Stdlib.Cli.FileSystem", "overwriteFile"), ("Stdlib.Cli.FileSystem", "writeFile") ]
+      |> Stdlib.Test.equal [ "writeFile", "overwriteFile" ] ]
+
+// A section's best rank decides where it prints: a function spelled by the words beats a type that
+// only starts with them.
+test bestRankDecidesSection =
+  Stdlib.Test.all
+    [ Darklang.Cli.Packages.Search.nameRank "read file" "readFile"
+      |> Stdlib.Test.equal 0
+      Darklang.Cli.Packages.Search.nameRank "read file" "ReadFileParams"
+      |> Stdlib.Test.equal 2 ]
+
+// Verb then noun, where the name is the verb: `parse json` elaborates `parse`.
+test verbThenNoun =
+  Stdlib.Test.all
+    [ Darklang.Cli.Packages.Search.nameRank "parse json" "parse"
+      |> Stdlib.Test.equal 1
+      Darklang.Cli.Packages.Search.nameRank "parse json" "executeJsonFor"
+      |> Stdlib.Test.equal 3 ]
+
+// Already right, and unchanged: the item token still decides a one-word or dotted query.
+test itemTokenDecides =
+  Stdlib.Test.all
+    [ Rank.order "List.map" [ ("Stdlib.List", "map2"), ("Stdlib.List", "map"), ("Stdlib.List", "filterMap") ]
+      |> Stdlib.Test.equal [ "map", "map2", "filterMap" ]
+      Rank.order "list map" [ ("Stdlib.List", "map2"), ("Stdlib.List", "map") ]
+      |> Stdlib.Test.equal [ "map", "map2" ]
+      Rank.order "readFile" (Rank.fileFns ())
+      |> Stdlib.Test.equal
+        [ "readFile", "readFileAsString", "overwriteFile", "fromFile" ] ]
+
+// A one-word query joins to itself, so nameRank is matchRank there.
+test oneWordQuery =
+  Stdlib.Test.all
+    [ Darklang.Cli.Packages.Search.nameRank "map" "map"
+      |> Stdlib.Test.equal (Darklang.Cli.Packages.Search.matchRank "map" "map")
+      Darklang.Cli.Packages.Search.nameRank "map" "filterMap" |> Stdlib.Test.equal 3 ]

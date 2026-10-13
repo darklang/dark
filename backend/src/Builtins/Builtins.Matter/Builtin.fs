@@ -18,10 +18,11 @@ let builtins (pm : PT.PackageManager) : Builtins =
 
       // PM (package manager: packages, branches, ops)
       Libs.PM.Packages.builtins pm
-      Libs.PM.AtRestCheckGuard.builtins
+      Libs.PM.PackageTests.builtins pm
+      Libs.PM.AtRestCheckGuard.builtins ()
       Libs.PM.PackageOps.builtins pm
-      Libs.PM.Seed.builtins
-      Libs.PM.Permissions.builtins
+      Libs.PM.Seed.builtins ()
+      Libs.PM.Permissions.builtins ()
       Libs.PM.Store.builtins ()
 
       // Traces (reader surface)

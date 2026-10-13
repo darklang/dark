@@ -85,6 +85,14 @@ module PT =
       (fun (i : PT.TraitImpl.TraitImpl) ->
         i |> BS.PT.TraitImpl.serialize i.hash |> BS.PT.TraitImpl.deserialize i.hash)
       Values.ProgramTypes.impls
+  let packageTestTests =
+    Roundtripping.testRoundtripMany
+      "packageTests"
+      (fun test ->
+        test
+        |> BS.PT.PackageTest.serialize test.hash
+        |> BS.PT.PackageTest.deserialize test.hash)
+      Values.ProgramTypes.packageTests
 
   /// Every `PackageOp` case, through the writer and back.
   ///
@@ -438,9 +446,10 @@ module RT =
               argsSoFar = [] }
         )
       let bytes = value |> BS.RT.Dval.serialize "closure"
+      // Package tests bumped the format header to v6; the closure payload is unchanged.
       Expect.equal
         (System.Convert.ToHexString bytes)
-        "0500000021000000160007000000000000000201000000080500000000000000030000000E01780000"
+        "0600000021000000160007000000000000000201000000080500000000000000030000000E01780000"
         "the bytes a closure with captures serializes to"
       match BS.RT.Dval.deserialize "closure" bytes with
       | RT.DApplicable(RT.AppLambda lambda) ->
@@ -657,6 +666,7 @@ let tests =
           PT.packageFnTests
           PT.traitTests
           PT.implTests
+          PT.packageTestTests
           PT.toplevelTests
           PT.packageOpTests
           PT.deprecationStampRidesOnTheExistingTags

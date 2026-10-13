@@ -10,6 +10,7 @@ let getIcon (entityType: EntityType) : String =
   | Value -> Glyphs.value
   | Trait -> Glyphs.trait_
   | Impl -> Glyphs.impl_
+  | Test -> Glyphs.test
 
 
 /// Section header with icon for an entity type.

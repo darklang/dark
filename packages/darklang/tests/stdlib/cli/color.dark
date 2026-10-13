@@ -1,0 +1,42 @@
+// The one-shot colourisers. They used to be `Stdlib.Cli.UI.Color`, a module whose
+// names collided with the palette in `Colors` one letter away (`Color.red` a
+// function, `Colors.red` a code); they live in `Colors` now as `<name>Text`,
+// alongside the `boldText`/`dimText` that were already there.
+module Darklang.Stdlib.Cli.UI.Colors.Tests
+
+test foregroundColors =
+  Stdlib.Test.all
+    [ Stdlib.Cli.UI.Colors.redText "hi" |> Stdlib.Test.equal "\u001b[31mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.greenText "hi"
+      |> Stdlib.Test.equal "\u001b[32mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.yellowText "hi"
+      |> Stdlib.Test.equal "\u001b[33mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.blueText "hi" |> Stdlib.Test.equal "\u001b[34mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.magentaText "hi"
+      |> Stdlib.Test.equal "\u001b[35mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.cyanText "hi" |> Stdlib.Test.equal "\u001b[36mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.whiteText "hi"
+      |> Stdlib.Test.equal "\u001b[37mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.grayText "hi"
+      |> Stdlib.Test.equal "\u001b[90mhi\u001b[0m" ]
+
+test textStyles =
+  Stdlib.Test.all
+    [ Stdlib.Cli.UI.Colors.boldText "hi" |> Stdlib.Test.equal "\u001b[1mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.dimText "hi" |> Stdlib.Test.equal "\u001b[2mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.italicText "hi"
+      |> Stdlib.Test.equal "\u001b[3mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.underlineText "hi"
+      |> Stdlib.Test.equal "\u001b[4mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.strikethroughText "hi"
+      |> Stdlib.Test.equal "\u001b[9mhi\u001b[0m" ]
+
+test backgroundColors =
+  Stdlib.Test.all
+    [ Stdlib.Cli.UI.Colors.onRed "hi" |> Stdlib.Test.equal "\u001b[41mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.onGreen "hi" |> Stdlib.Test.equal "\u001b[42mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.onYellow "hi" |> Stdlib.Test.equal "\u001b[43mhi\u001b[0m"
+      Stdlib.Cli.UI.Colors.onBlue "hi" |> Stdlib.Test.equal "\u001b[44mhi\u001b[0m" ]
+
+test emptyText =
+  Stdlib.Cli.UI.Colors.redText "" |> Stdlib.Test.equal "\u001b[31m\u001b[0m"

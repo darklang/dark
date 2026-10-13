@@ -887,6 +887,15 @@ let private resolve (op : Operation) : Result<Resolved, string> =
     // The answer is a path, so it is a read of that path.
     let path = HostProcess.currentExecutablePath ()
     resolveFile read path (fun path -> produce (fun () -> Response.Path path))
+  | Operation.ProcessLauncherPath overrideVariable ->
+    withChecks
+      [ (Permission.Request.native "process launcher", "finding the process launcher") ]
+      (attempt (fun () ->
+        Ok(Response.Path(HostProcess.processLauncherPath overrideVariable))))
+  | Operation.RuntimeHash ->
+    // Public runtime identity, like the build hash or CPU count. Callers cannot
+    // choose a path or read file contents through this operation.
+    unchecked (attempt (fun () -> Ok(Response.Text(HostProcess.runtimeHash ()))))
   | Operation.EnvGet name ->
     withChecks
       [ envCheck read name ]
@@ -942,6 +951,21 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.ChildBufferGet _
   | Operation.ChildBufferSet _ ->
     Error "child operation requires execution ownership"
+  | Operation.FileSnapshot prepare ->
+    withChecks
+      [ (Permission.Request.native "file snapshot", "preparing a file snapshot") ]
+      (attempt (fun () ->
+        Ok(Response.FileSnapshot(HostProcess.fileSnapshot prepare))))
+  | Operation.ProcessRunInWorkspace(prefix, prepare, timeoutMs) ->
+    withChecks
+      [ (Permission.Request.native "child process", "running a supervised process") ]
+      (blocking (fun () ->
+        HostProcess.runInWorkspace
+          (HostProcess.processLauncherPath None)
+          prefix
+          prepare
+          timeoutMs
+        |> Result.map Response.WorkspaceProcessOutcome))
 
 // ── perform ───────────────────────────────────────────────────────────────────
 

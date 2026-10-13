@@ -26,6 +26,7 @@ use; it was a fifth name for `item`.
 ## Global flags
   --branch <name>   run ONE command on a branch, without switching to it
   --safe            ignore the stored entry point, run the shipped CLI
+  --entry-point <fn> run a package function for this invocation only; accepts a name or #hash
   --json            on any command that answers a question
 
 Branch context DOES persist: `dark switch <name>` moves you and the next `dark`

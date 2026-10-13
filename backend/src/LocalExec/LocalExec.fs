@@ -50,12 +50,12 @@ module HandleCommand =
       // Load all packages from disk as live ops (commit-free authoring: no init commit).
       // Note: values are stored with NULL rt_dval at this point.
       //
-      // Filled twice: resolving what a trait call or operator runs needs the at-rest checker,
-      // the hashes in `package-ref-hashes.txt` and the impl stamps, none of which exist until
-      // the tree is in. Without the second pass nothing the CLI ships records its impl, since
-      // resolution is reached from `addAuthored` and this path is not.
+      // The first fill makes the checker and trait implementations available. The second
+      // stores bodies with resolved trait calls. Initialize refs before BOTH fills: storing
+      // a function also lowers it, which needs the identities in that fill's source ops.
       let fill (commitBaseline : bool) (ops : List<PackageOp>) : Ply<unit> =
         uply {
+          LibDB.PackageRefsGenerator.initializeFromOps ops
           do! LibDB.Purge.purge ()
           let! _ = LibDB.Inserts.insertAndApplyOpsAsWip ops
           if commitBaseline then
@@ -74,10 +74,8 @@ module HandleCommand =
 
       do! fill false ops
 
-      // The checker is written in Dark, so resolving a call means executing Dark, which needs
-      // a state. Safe to build here and nowhere earlier: this is after the first `fill`, which
-      // is why the fill is done twice at all -- the checker's own package items, the ref hashes
-      // and the impl stamps have to be in the store before anything can ask it a question.
+      // The checker is written in Dark. Build its execution state after the first fill,
+      // when its package items, refs and trait implementations are available.
       let exeState =
         let notify _ _ _ _ = uply { return () }
         let reportException _ _ _ _ = uply { return () }
@@ -154,8 +152,9 @@ module HandleCommand =
         let! types = countDistinct "package_types"
         let! values = countDistinct "package_values"
         let! fns = countDistinct "package_functions"
+        let! tests = countDistinct "package_tests"
         print "Loaded packages from disk "
-        print $"{types} types, {values} values, and {fns} fns"
+        print $"{types} types, {values} values, {fns} fns, and {tests} tests"
 
         // Exact, not an estimate: the log now holds what `packages/` produces, so whatever the
         // count fell by is what a disk reload cannot reproduce.
@@ -239,8 +238,6 @@ let main (args : string[]) : int =
       handleCommand
         "Reload packages from `packages` directory"
         (HandleCommand.reloadPackages ())
-
-
 
     | [ "migrations"; "run" ] ->
       // Not "deleting the database": an unchanged schema hash makes this a no-op, and even a

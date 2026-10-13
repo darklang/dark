@@ -745,3 +745,26 @@ let writeImpl (mode : HashRefMode) (w : BinaryWriter) (i : PT.TraitImpl.TraitImp
       writeNameResolution (writeFQFnName mode) w nr)
     i.methods
   writeBounds mode w i.bounds
+/// The body, expected error and private DB schemas determine a test's identity.
+/// The name and description are metadata.
+let writeTest
+  (mode : HashRefMode)
+  (w : BinaryWriter)
+  (test : PT.PackageTest.PackageTest)
+  =
+  w.Write(5uy) // tag: test
+  writeExpr mode w test.body
+  match test.expectedError with
+  | None -> w.Write(0uy)
+  | Some(PT.ExpectedError.RuntimeError message) ->
+    w.Write(1uy)
+    Common.String.write w message
+  | Some(PT.ExpectedError.SqlCompilerError message) ->
+    w.Write(2uy)
+    Common.String.write w message
+  Common.List.write
+    w
+    (fun w (name, typ) ->
+      Common.String.write w name
+      writeTypeReference mode w typ)
+    test.testDBs

@@ -1,0 +1,48 @@
+module Darklang.Cli.Tests.IncludeParsing
+
+// `--include=` names what a partial commit takes, so the parse decides which ops get sealed under
+// somebody's message. It accepts repeats, commas, spaces and duplicates.
+//
+// Through `parseInclude` rather than `dark commit`: these are questions about a string, and a commit
+// per case would need a draft per case.
+
+module Include =
+  let parse (args: List<String>) : List<String> =
+    Darklang.Cli.Commit.parseInclude args
+
+// One flag, one name.
+test oneFlagOneName =
+  Include.parse [ "--include=A.b" ] |> Stdlib.Test.equal [ "A.b" ]
+
+// Comma-separated inside one flag.
+test commaSeparated =
+  Include.parse [ "--include=A.b,C.d" ] |> Stdlib.Test.equal [ "A.b", "C.d" ]
+
+// Repeated flags, flattened in order. `--include=A,B --include=C` is three names.
+test repeatedFlags =
+  Include.parse [ "--include=A.b,C.d", "--include=E.f" ]
+  |> Stdlib.Test.equal [ "A.b", "C.d", "E.f" ]
+
+// Spaces around a name are the shell's, not the user's intent.
+test spacesTrimmed =
+  Include.parse [ "--include=A.b, C.d" ] |> Stdlib.Test.equal [ "A.b", "C.d" ]
+
+// An empty entry is dropped rather than becoming a name nothing matches. A trailing comma is the
+// common way to produce one.
+test emptyEntriesDropped =
+  Include.parse [ "--include=A.b,,C.d," ] |> Stdlib.Test.equal [ "A.b", "C.d" ]
+
+// Named twice is named once: the closure is computed per name, and a duplicate would report the same
+// dependency being pulled in twice.
+test duplicatesDropped =
+  Include.parse [ "--include=A.b,A.b", "--include=A.b" ]
+  |> Stdlib.Test.equal [ "A.b" ]
+
+// Other flags are not includes.
+test otherFlagsIgnored =
+  Include.parse [ "-y", "--json", "--include=A.b", "--allow-type-errors" ]
+  |> Stdlib.Test.equal [ "A.b" ]
+
+// No flag, no names -- which is what makes a commit whole-draft rather than partial.
+test noFlagNoNames =
+  Include.parse [ "a message", "-y" ] |> Stdlib.Test.equal []

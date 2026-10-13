@@ -797,6 +797,28 @@ let kill (pid : int) (signal : int) : Result<unit, int * string> =
   else if kill_raw (pid, signal) < 0 then Error(lastError ())
   else Ok()
 
+/// Put the worker in its own process group so the parent can stop leftover
+/// descendants even after the worker exits.
+/// Replaces this launcher with the worker, keeping the same PID. That PID
+/// also identifies the process group the parent cleans up.
+let execInNewSession
+  (program : string)
+  (arguments : List<string>)
+  : Result<unit, int * string> =
+  if not isPosix then
+    Managed.enosys ()
+  elif setsid_raw () < 0 then
+    Error(lastError ())
+  else
+    let environment =
+      System.Environment.GetEnvironmentVariables()
+      |> Seq.cast<System.Collections.DictionaryEntry>
+      |> Seq.map (fun entry -> $"{entry.Key}={entry.Value}")
+      |> Seq.toList
+    execve_raw (program, arguments, environment) |> ignore<int>
+    // A successful exec never returns.
+    Error(lastError ())
+
 let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
   if count < 0 then
     Error(22, "Invalid argument") // EINVAL

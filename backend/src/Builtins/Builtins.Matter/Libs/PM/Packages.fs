@@ -77,7 +77,8 @@ let private persistPropagation
           | PT.PackageOp.AddFn _
           | PT.PackageOp.AddType _
           | PT.PackageOp.AddTrait _
-          | PT.PackageOp.AddTraitImpl _ -> true
+          | PT.PackageOp.AddTraitImpl _
+          | PT.PackageOp.AddTest _ -> true
           | _ -> false)
       if not (List.isEmpty contentOps) then
         do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
@@ -723,6 +724,18 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // Tests are a separate package namespace: discoverable and executable,
+    // but never returned as a callable production function.
+    findByLocationFn "pmFindTest" "test" PMPT.Test.find (fun branchPM loc ->
+      branchPM.findTest loc)
+
+    getByHashFn
+      "pmGetTest"
+      "test"
+      PT2DT.PackageTest.typeName
+      pm.getTest
+      PT2DT.PackageTest.toDT
+
     // Apply a fn a host resolved live, and get its failure back as a value. A host loop that shows
     // the last good frame with the error under it cannot let an RTE from user code unwind the loop;
     // this is the one place an RTE from an applied fn becomes a `Result`.
@@ -877,11 +890,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         TTuple(
           TList TString,
           TList TString,
-          [ TList TString; TList TString; TList TString; TList TString ]
+          [ TList TString
+            TList TString
+            TList TString
+            TList TString
+            TList TString ]
         )
       description =
         "Search, returning only names: (direct submodules, types, values, fns, "
-        + "traits, impls). Submodules are already reduced to the direct children of "
+        + "traits, impls, tests). Submodules are already reduced to the direct children of "
         + "the query's module and sorted."
       fn =
         function
@@ -904,7 +921,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 [ toDList (names results.values)
                   toDList (names results.fns)
                   toDList (names results.traits)
-                  toDList (names results.impls) ]
+                  toDList (names results.impls)
+                  toDList (names results.tests) ]
               )
           }
         | _ -> incorrectArgs ()
@@ -928,10 +946,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         TTuple(
           TList TString,
           nameAndHash,
-          [ nameAndHash; nameAndHash; nameAndHash; nameAndHash ]
+          [ nameAndHash; nameAndHash; nameAndHash; nameAndHash; nameAndHash ]
         )
       description =
-        "Search, returning (direct submodules, types, values, fns, traits, impls) "
+        "Search, returning (direct submodules, types, values, fns, traits, impls, "
+        + "tests) "
         + "as (name, hash) pairs. Like pmSearchNames but keeps each item's hash, "
         + "which listings need for deprecation marks."
       fn =
@@ -969,7 +988,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     v.hash)
                   pairs results.fns (fun (f : PT.PackageFn.PackageFn) -> f.hash)
                   pairs results.traits (fun (t : PT.Trait.Trait) -> t.hash)
-                  pairs results.impls (fun (i : PT.TraitImpl.TraitImpl) -> i.hash) ]
+                  pairs results.impls (fun (i : PT.TraitImpl.TraitImpl) -> i.hash)
+                  pairs results.tests (fun (test : PT.PackageTest.PackageTest) ->
+                    test.hash) ]
               )
           }
         | _ -> incorrectArgs ()
@@ -1049,6 +1070,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       pm.getTraitImplLocations
       PMPT.TraitImpl.getLocationsEverNamed
 
+    locationsByHashFn
+      "pmGetLocationsByTest"
+      "test"
+      PT.ItemKind.Test
+      pm.getTestLocations
+      PMPT.Test.getLocationsEverNamed
+
 
     // Restore a name to existing content with a distinct, stamped override op.
     // A bare SetName would deduplicate against its original binding and do nothing.
@@ -1063,7 +1091,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make
             "itemKind"
             (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
-            "fn, type, value, trait or impl"
+            "fn, type, value, trait, impl or test"
           Param.make
             "hash"
             (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
@@ -1099,6 +1127,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 | PT.ItemKind.TraitImpl ->
                   let! i = LibDB.PackageManager.pt.getTraitImpl hash
                   return Option.isSome i
+                | PT.ItemKind.Test ->
+                  let! test = LibDB.PackageManager.pt.getTest hash
+                  return Option.isSome test
               }
 
             if not exists then
@@ -1156,7 +1187,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make
             "sourceItemKind"
             (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
-            "fn, type, value, trait or impl"
+            "fn, type, value, trait, impl or test"
           Param.make
             "fromSourceHashes"
             (TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])))
@@ -1284,7 +1315,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make
             "itemKind"
             (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
-            "fn, type, value, trait or impl" ]
+            "fn, type, value, trait, impl or test" ]
       returnType =
         TypeReference.option (
           TTuple(

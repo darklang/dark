@@ -11,10 +11,13 @@ do
   case "${i}" in
     --test)
     TEST=true
-    shift
     ;;
     --published)
     PUBLISHED_FLAG=$i
+    ;;
+    *)
+    echo "Usage: $0 [--test] [--published]" >&2
+    exit 2
     ;;
   esac
 done
@@ -34,7 +37,7 @@ echo -e "Reloading packages ${grey}(${LOG_PACKAGES})${reset}"
 # Everything goes to the log because a reload is thousands of lines of parse progress. A FAILURE must
 # not go only there: this runs from other scripts, and a caller that sees "Reloading packages" and then
 # silence carries on against a store that hasn't changed. So the reason comes out on stderr, and exit 1.
-if ! ./scripts/run-local-exec $PUBLISHED_FLAG reload-packages > $LOG_PACKAGES 2>&1; then
+if ! ./scripts/run-local-exec $PUBLISHED_FLAG reload-packages > "$LOG_PACKAGES" 2>&1; then
   echo "Reloading packages FAILED. Last lines of ${LOG_PACKAGES}:" >&2
   grep -E "Exception:|error:|Failed to parse" "$LOG_PACKAGES" | head -20 >&2 || tail -20 "$LOG_PACKAGES" >&2
   exit 1

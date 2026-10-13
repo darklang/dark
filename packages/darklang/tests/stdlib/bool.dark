@@ -1,0 +1,42 @@
+module Darklang.Stdlib.Bool.Tests
+
+test andTruthTable =
+  Stdlib.Test.all
+    [ Stdlib.Bool.and false false |> Stdlib.Test.equal false
+      Stdlib.Bool.and false true |> Stdlib.Test.equal false
+      Stdlib.Bool.and true false |> Stdlib.Test.equal false
+      Stdlib.Bool.and true true |> Stdlib.Test.equal true
+      Stdlib.Bool.and (8L >= 5L) (6L <= 8L) |> Stdlib.Test.equal true
+      (false && false) |> Stdlib.Test.equal false
+      (false && true) |> Stdlib.Test.equal false
+      (true && false) |> Stdlib.Test.equal false
+      (true && true) |> Stdlib.Test.equal true
+      ((8L >= 5L) && (6L <= 8L)) |> Stdlib.Test.equal true ]
+
+test notTruthTable =
+  Stdlib.Test.all
+    [ Stdlib.Bool.not false |> Stdlib.Test.equal true
+      Stdlib.Bool.not true |> Stdlib.Test.equal false ]
+
+test orTruthTable =
+  Stdlib.Test.all
+    [ Stdlib.Bool.or false false |> Stdlib.Test.equal false
+      Stdlib.Bool.or true false |> Stdlib.Test.equal true
+      Stdlib.Bool.or false true |> Stdlib.Test.equal true
+      Stdlib.Bool.or true true |> Stdlib.Test.equal true
+      (false || false) |> Stdlib.Test.equal false
+      (true || false) |> Stdlib.Test.equal true
+      (false || true) |> Stdlib.Test.equal true
+      (true || true) |> Stdlib.Test.equal true ]
+
+test xorTruthTable =
+  Stdlib.Test.all
+    [ Stdlib.Bool.xor false false |> Stdlib.Test.equal false
+      Stdlib.Bool.xor false true |> Stdlib.Test.equal true
+      Stdlib.Bool.xor true false |> Stdlib.Test.equal true
+      Stdlib.Bool.xor true true |> Stdlib.Test.equal false ]
+
+test toString =
+  Stdlib.Test.all
+    [ Stdlib.toString true |> Stdlib.Test.equal "true"
+      Stdlib.toString false |> Stdlib.Test.equal "false" ]

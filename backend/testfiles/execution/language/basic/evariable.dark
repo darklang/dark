@@ -1,3 +1,0 @@
-(let x = 5L in x) = 5L
-
-myvar = error="There is no variable named: myvar"

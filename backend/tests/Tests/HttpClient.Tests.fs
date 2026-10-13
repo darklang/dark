@@ -1,3 +1,7 @@
+/// TODO: port these `.test` fixtures to Dark package tests. A port was tried and
+/// removed: Dark has no socket API, so it needed a python3 bridge to send and
+/// receive raw bytes. Port them once Dark can do that over loopback.
+///
 /// This module coordinates testing of our `HttpClient` builtin functions.
 ///
 /// There are a variety of http client tests located in `../testfiles/httpclient`.
@@ -742,6 +746,116 @@ module StreamDvalTests =
         } ]
 
 
+/// Deterministic replacement for the old httpbin smoke tests. This exercises
+/// the real send path against a transport double, including its version policy;
+/// TLS/QUIC negotiation itself remains the responsibility of the HTTP transport.
+module ProtocolPolicyTests =
+  open System.Net
+  open System.Net.Http
+  module HostHttp = LibExecution.HostHttp
+
+  let tests =
+    testList
+      "protocol policy"
+      [ for scheme in [ "http"; "https" ] do
+          for version in
+            [ HttpVersion.Version11; HttpVersion.Version20; HttpVersion.Version30 ] do
+            testTask $"{scheme} accepts HTTP {version} response" {
+              let mutable requests = 0
+              let handler =
+                { new HttpMessageHandler() with
+                    member _.SendAsync(request, _) =
+                      requests <- requests + 1
+                      Expect.equal
+                        request.RequestUri.Scheme
+                        scheme
+                        "scheme preserved"
+                      Expect.equal
+                        request.Version
+                        HttpVersion.Version30
+                        "offers HTTP/3"
+                      Expect.equal
+                        request.VersionPolicy
+                        HttpVersionPolicy.RequestVersionOrLower
+                        "allows HTTP/2 and HTTP/1.1 fallback"
+                      Task.FromResult(
+                        new HttpResponseMessage(
+                          HttpStatusCode.OK,
+                          Version = version,
+                          Content = new StringContent("ok")
+                        )
+                      ) }
+              let client = new HttpClient(handler)
+              try
+                let profile : HostHttp.Profile =
+                  { config =
+                      { timeoutInMs = 1000
+                        allowedIP = fun _ -> true
+                        allowedHost = fun _ -> true }
+                    client = client }
+                let! response =
+                  HostHttp.send profile "GET" $"{scheme}://fixture.test/" [] [||]
+                match response with
+                | Ok(response : LibExecution.HostTypes.HttpResponse) ->
+                  Expect.equal response.statusCode 200 "successful response"
+                  Expect.equal
+                    (UTF8.ofBytesUnsafe response.body)
+                    "ok"
+                    "body preserved"
+                | Error error -> failtest $"request failed: {error}"
+                Expect.equal requests 1 "the real send path used the transport"
+              finally
+                client.Dispose()
+            } ]
+
+
+/// The old google.com:79 assertion depended on the network dropping packets.
+/// This transport receives the request and waits for its real cancellation token;
+/// no DNS, proxy, firewall or remote service can decide the outcome.
+module TimeoutTests =
+  open System.Net.Http
+  open System.Threading
+  module HostHttp = LibExecution.HostHttp
+
+  let tests =
+    testList
+      "timeout"
+      [ for method in [ "GET"; "POST" ] do
+          testTask $"{method} reports Timeout when the transport never responds" {
+            let mutable requests = 0
+            let mutable cancelled = false
+            let handler =
+              { new HttpMessageHandler() with
+                  member _.SendAsync(request, cancellation) =
+                    task {
+                      requests <- requests + 1
+                      Expect.equal request.Method.Method method "method preserved"
+                      use _registration =
+                        cancellation.Register(fun () -> cancelled <- true)
+                      do! Task.Delay(Timeout.Infinite, cancellation)
+                      return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                    } }
+            let client = new HttpClient(handler)
+            try
+              let profile : HostHttp.Profile =
+                { config =
+                    { timeoutInMs = 1000
+                      allowedIP = fun _ -> true
+                      allowedHost = fun _ -> true }
+                  client = client }
+              let! result =
+                (HostHttp.send profile method "http://fixture.test/" [] [||])
+                  .WaitAsync(System.TimeSpan.FromSeconds 10.0)
+              match result with
+              | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
+              | other -> failtest $"expected Timeout, got {other}"
+              Expect.equal requests 1 "the request reached the controlled transport"
+              Expect.isTrue cancelled "the request deadline cancelled the transport"
+            finally
+              client.Dispose()
+          } ]
+
+
 /// Sequenced against ITSELF: `testSequencedGroup` runs these one at a time while still running
 /// alongside other groups.
 ///
@@ -769,7 +883,10 @@ let private readBuiltinRefusesAWriteMethod =
 
 let tests =
   [ versions |> List.map (fun v -> testList v (testsFromFiles v))
-    [ StreamDvalTests.tests; readBuiltinRefusesAWriteMethod ] ]
+    [ StreamDvalTests.tests
+      readBuiltinRefusesAWriteMethod
+      ProtocolPolicyTests.tests
+      TimeoutTests.tests ] ]
   |> List.concat
   |> testList "HttpClient"
   |> testSequencedGroup "httpclient"

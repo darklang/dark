@@ -6,6 +6,9 @@ module Darklang.Cli.Installation.Helpers
 /// the sync wire stamps it, and both mean the same thing by it.
 let buildHash () : String = Builtin.getBuildHash ()
 
+/// Hashes the installed runtime files; identical files keep the same cache key.
+let runtimeHash () : String = Builtin.getRuntimeHash ()
+
 let cliVersion () : String = "alpha-" + (buildHash ())
 
 /// The local version plus a check against the latest published release.

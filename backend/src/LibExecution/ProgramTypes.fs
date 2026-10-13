@@ -853,6 +853,29 @@ module TraitImpl =
     }
 
 
+/// A test is executable package content, but it is not a callable package function.
+/// Ordinarily its body must evaluate to `Stdlib.Test.Result`. When
+/// an expected error is present the body may have any type: execution passes
+/// only when evaluating it raises the specified error. Keeping
+/// tests distinct prevents production code from depending on them while still
+/// allowing the compiler and VM to share the ordinary expression pipeline.
+type ExpectedError =
+  | RuntimeError of string
+  | SqlCompilerError of string
+
+module PackageTest =
+  type PackageTest =
+    {
+      hash : Hash
+      body : Expr
+      description : string
+      expectedError : Option<ExpectedError>
+      /// Test-only datastores. IDs are minted for each execution, so a test
+      /// cannot see another test's rows or the instance's user data.
+      testDBs : List<string * TypeReference>
+    }
+
+
 /// What happened to a branch. A CLOSED set, so a type rather than a string. Both cases are MONOTONIC:
 /// applying one twice, or out of order, lands in the same place, so they need no stamp to arbitrate and
 /// can travel between machines with nothing to compare against. A rename would be last-writer-wins and
@@ -873,6 +896,7 @@ type PackageOp =
   | AddFn of fn : PackageFn.PackageFn
   | AddTrait of trait_ : Trait.Trait
   | AddTraitImpl of impl : TraitImpl.TraitImpl
+  | AddTest of test : PackageTest.PackageTest
 
   // Location operations - bind a name to a piece of content.
   // Content is identified by a Reference (hash + kind); the location is a
@@ -1025,13 +1049,14 @@ type PackageOp =
 //   | ...IntroducedButNotReferenced of ...
 
 
-/// The kind of package item (function, type, value, trait, or impl)
+/// The kind of package item (function, type, value, trait, impl, or test)
 and ItemKind =
   | Fn
   | Type
   | Value
   | Trait
   | TraitImpl
+  | Test
 
   /// Convert from database string representation
   static member fromString(s : string) : ItemKind =
@@ -1041,6 +1066,7 @@ and ItemKind =
     | "value" -> Value
     | "trait" -> Trait
     | "impl" -> TraitImpl
+    | "test" -> Test
     | _ -> Exception.raiseInternal $"Unknown item kind: {s}" []
 
   /// Convert to database string representation
@@ -1053,6 +1079,7 @@ and ItemKind =
     | Value -> "value"
     | Trait -> "trait"
     | TraitImpl -> "impl"
+    | Test -> "test"
 
 
 /// A reference to a specific package item by content hash.
@@ -1064,6 +1091,7 @@ and Reference =
   | PackageFn of Hash
   | PackageTrait of Hash
   | PackageTraitImpl of Hash
+  | PackageTest of Hash
 
   /// Extract the ItemKind (display helper).
   member this.kind : ItemKind =
@@ -1073,6 +1101,7 @@ and Reference =
     | PackageFn _ -> ItemKind.Fn
     | PackageTrait _ -> ItemKind.Trait
     | PackageTraitImpl _ -> ItemKind.TraitImpl
+    | PackageTest _ -> ItemKind.Test
 
   /// Extract the content Hash.
   member this.hash : Hash =
@@ -1081,7 +1110,8 @@ and Reference =
     | PackageValue h
     | PackageFn h
     | PackageTrait h
-    | PackageTraitImpl h -> h
+    | PackageTraitImpl h
+    | PackageTest h -> h
 
   /// Build a Reference from a hash + item kind (common SQL-boundary need).
   static member fromHashAndKind(h : Hash, k : ItemKind) : Reference =
@@ -1091,6 +1121,7 @@ and Reference =
     | ItemKind.Fn -> PackageFn h
     | ItemKind.Trait -> PackageTrait h
     | ItemKind.TraitImpl -> PackageTraitImpl h
+    | ItemKind.Test -> PackageTest h
 
 
 /// WHICH piece of prose an `UpdateDoc` sets: the declaration's own, or one named part of it.
@@ -1203,6 +1234,7 @@ module Search =
     | Value
     | Trait
     | TraitImpl
+    | Test
 
   /// How deep to search in the module hierarchy
   type SearchDepth =
@@ -1234,7 +1266,8 @@ module Search =
       values : List<LocatedItem<PackageValue.PackageValue>>
       fns : List<LocatedItem<PackageFn.PackageFn>>
       traits : List<LocatedItem<Trait.Trait>>
-      impls : List<LocatedItem<TraitImpl.TraitImpl>> }
+      impls : List<LocatedItem<TraitImpl.TraitImpl>>
+      tests : List<LocatedItem<PackageTest.PackageTest>> }
 
 /// Functionality written in Dark stored and managed outside of user space
 ///
@@ -1248,6 +1281,7 @@ type PackageManager =
     findFn : PackageLocation -> Ply<Option<FQFnName.Package>>
     findTrait : PackageLocation -> Ply<Option<FQTraitName.Package>>
     findTraitImpl : PackageLocation -> Ply<Option<Hash>>
+    findTest : PackageLocation -> Ply<Option<Hash>>
 
     search : Search.SearchQuery -> Ply<Search.SearchResults>
 
@@ -1257,6 +1291,7 @@ type PackageManager =
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
     getTrait : FQTraitName.Package -> Ply<Option<Trait.Trait>>
     getTraitImpl : Hash -> Ply<Option<TraitImpl.TraitImpl>>
+    getTest : Hash -> Ply<Option<PackageTest.PackageTest>>
 
     // Reverse lookups — returns ALL locations for a hash
     getTypeLocations : FQTypeName.Package -> Ply<List<PackageLocation>>
@@ -1264,6 +1299,7 @@ type PackageManager =
     getFnLocations : FQFnName.Package -> Ply<List<PackageLocation>>
     getTraitLocations : FQTraitName.Package -> Ply<List<PackageLocation>>
     getTraitImplLocations : Hash -> Ply<List<PackageLocation>>
+    getTestLocations : Hash -> Ply<List<PackageLocation>>
 
     /// Every impl of a trait this manager holds. Not filtered for liveness; the RT
     /// conversion checks each impl's location still binds it.
@@ -1289,6 +1325,7 @@ type PackageManager =
       findValue = fun _ -> Ply None
       findTrait = fun _ -> Ply None
       findTraitImpl = fun _ -> Ply None
+      findTest = fun _ -> Ply None
 
       search =
         fun _ ->
@@ -1298,13 +1335,15 @@ type PackageManager =
               values = []
               fns = []
               traits = []
-              impls = [] }
+              impls = []
+              tests = [] }
 
       getType = fun _ -> Ply None
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
       getTrait = fun _ -> Ply None
       getTraitImpl = fun _ -> Ply None
+      getTest = fun _ -> Ply None
 
       getTypeLocations = fun _ -> Ply []
       getValueLocations = fun _ -> Ply []
@@ -1315,6 +1354,7 @@ type PackageManager =
       impls = fun _ -> Ply []
       implsWithMethod = fun _ -> Ply []
       traitNames = fun () -> Ply(HashSet())
+      getTestLocations = fun _ -> Ply []
 
       init = uply { return () } }
 
@@ -1440,6 +1480,8 @@ type PackageManager =
       findTraitImpl = find implLocationToHash pm.findTraitImpl
       traitNames = traitNames
 
+      findTest = pm.findTest
+
       search = fun query -> pm.search query
 
       getType = get typeHashToType pm.getType
@@ -1447,6 +1489,7 @@ type PackageManager =
       getFn = get fnHashToFn pm.getFn
       getTrait = get traitHashToTrait pm.getTrait
       getTraitImpl = get implHashToImpl pm.getTraitImpl
+      getTest = pm.getTest
 
       getTypeLocations = locations typeHashToLocations pm.getTypeLocations
       getValueLocations = locations valueHashToLocations pm.getValueLocations
@@ -1478,6 +1521,8 @@ type PackageManager =
                 i.methods |> List.exists (fun (m, _) -> m = methodName))
             return own @ below
           }
+
+      getTestLocations = pm.getTestLocations
 
       init = pm.init }
 

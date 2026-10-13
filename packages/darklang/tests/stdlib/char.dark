@@ -1,0 +1,302 @@
+module Darklang.Stdlib.Char.Tests
+
+let smiley () : Char =
+  "😂" |> Stdlib.String.head |> Builtin.unwrap
+
+let hand () : Char =
+  "✋🏿" |> Stdlib.String.head |> Builtin.unwrap
+
+// `e` followed by a combining acute accent: one grapheme, two code units
+let eCombiningAcute () : Char =
+  "e\u0301" |> Stdlib.String.head |> Builtin.unwrap
+
+let family () : Char =
+  "👩‍👩‍👧‍👦" |> Stdlib.String.head |> Builtin.unwrap
+
+test toLowercase =
+  Stdlib.Test.all
+    [ Stdlib.Char.toLowercase 'A' |> Stdlib.Test.equal 'a'
+      Stdlib.Char.toLowercase 'a' |> Stdlib.Test.equal 'a'
+      Stdlib.Char.toLowercase 'Á' |> Stdlib.Test.equal 'á'
+      Stdlib.Char.toLowercase '3' |> Stdlib.Test.equal '3'
+      Stdlib.Char.toLowercase (smiley ()) |> Stdlib.Test.equal (smiley ())
+      Stdlib.Char.toLowercase 'Ż' |> Stdlib.Test.equal 'ż'
+      Stdlib.Char.toLowercase 'Ó' |> Stdlib.Test.equal 'ó'
+      Stdlib.Char.toLowercase 'Ł' |> Stdlib.Test.equal 'ł'
+      Stdlib.Char.toLowercase (hand ()) |> Stdlib.Test.equal (hand ())
+      Stdlib.Char.toLowercase 'Ჾ' |> Stdlib.Test.equal 'ჾ'
+      Stdlib.Char.toLowercase 'ჾ' |> Stdlib.Test.equal 'ჾ' ]
+
+test toUppercase =
+  Stdlib.Test.all
+    [ Stdlib.Char.toUppercase 'a' |> Stdlib.Test.equal 'A'
+      Stdlib.Char.toUppercase 'A' |> Stdlib.Test.equal 'A'
+      Stdlib.Char.toUppercase 'á' |> Stdlib.Test.equal 'Á'
+      Stdlib.Char.toUppercase '3' |> Stdlib.Test.equal '3'
+      Stdlib.Char.toUppercase (smiley ()) |> Stdlib.Test.equal (smiley ())
+      Stdlib.Char.toUppercase 'ż' |> Stdlib.Test.equal 'Ż'
+      Stdlib.Char.toUppercase 'ó' |> Stdlib.Test.equal 'Ó'
+      Stdlib.Char.toUppercase 'ł' |> Stdlib.Test.equal 'Ł'
+      Stdlib.Char.toUppercase (hand ()) |> Stdlib.Test.equal (hand ())
+      Stdlib.Char.toUppercase 'ჾ' |> Stdlib.Test.equal 'Ჾ'
+      Stdlib.Char.toUppercase 'Ჾ' |> Stdlib.Test.equal 'Ჾ' ]
+
+test isLowercase =
+  Stdlib.Test.all
+    [ Stdlib.Char.isLowercase 'a' |> Stdlib.Test.equal true
+      Stdlib.Char.isLowercase 'A' |> Stdlib.Test.equal false
+      Stdlib.Char.isLowercase 'á' |> Stdlib.Test.equal true
+      Stdlib.Char.isLowercase 'Á' |> Stdlib.Test.equal false
+      Stdlib.Char.isLowercase '3' |> Stdlib.Test.equal false
+      Stdlib.Char.isLowercase (smiley ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isLowercase 'ż' |> Stdlib.Test.equal true
+      Stdlib.Char.isLowercase 'Ż' |> Stdlib.Test.equal false
+      Stdlib.Char.isLowercase 'ó' |> Stdlib.Test.equal true
+      Stdlib.Char.isLowercase 'Ó' |> Stdlib.Test.equal false
+      Stdlib.Char.isLowercase 'ł' |> Stdlib.Test.equal true
+      Stdlib.Char.isLowercase 'Ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isLowercase (hand ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isLowercase 'ჾ' |> Stdlib.Test.equal true
+      Stdlib.Char.isLowercase 'Ჾ' |> Stdlib.Test.equal false ]
+
+test isUppercase =
+  Stdlib.Test.all
+    [ Stdlib.Char.isUppercase 'a' |> Stdlib.Test.equal false
+      Stdlib.Char.isUppercase 'A' |> Stdlib.Test.equal true
+      Stdlib.Char.isUppercase 'á' |> Stdlib.Test.equal false
+      Stdlib.Char.isUppercase 'Á' |> Stdlib.Test.equal true
+      Stdlib.Char.isUppercase '3' |> Stdlib.Test.equal false
+      Stdlib.Char.isUppercase (smiley ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isUppercase 'ż' |> Stdlib.Test.equal false
+      Stdlib.Char.isUppercase 'Ż' |> Stdlib.Test.equal true
+      Stdlib.Char.isUppercase 'ó' |> Stdlib.Test.equal false
+      Stdlib.Char.isUppercase 'Ó' |> Stdlib.Test.equal true
+      Stdlib.Char.isUppercase 'ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isUppercase 'Ł' |> Stdlib.Test.equal true
+      Stdlib.Char.isUppercase (hand ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isUppercase 'ჾ' |> Stdlib.Test.equal false
+      Stdlib.Char.isUppercase 'Ჾ' |> Stdlib.Test.equal true ]
+
+test isDigit =
+  Stdlib.Test.all
+    [ Stdlib.Char.isDigit 'a' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'A' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'á' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'Á' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit '0' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit '1' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit '2' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit '3' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit '4' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit '5' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit '6' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit '7' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit '8' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit '9' |> Stdlib.Test.equal true
+      Stdlib.Char.isDigit (smiley ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'ż' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'Ż' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'ó' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'Ó' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'Ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit (hand ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'ჾ' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit 'Ჾ' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit ' ' |> Stdlib.Test.equal false
+      Stdlib.Char.isDigit '\t' |> Stdlib.Test.equal false ]
+
+test isASCIILetter =
+  Stdlib.Test.all
+    [ Stdlib.Char.isASCIILetter 'a' |> Stdlib.Test.equal true
+      Stdlib.Char.isASCIILetter 'A' |> Stdlib.Test.equal true
+      Stdlib.Char.isASCIILetter 'á' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter 'Á' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter '3' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter ',' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter (smiley ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter 'ż' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter 'Ż' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter 'ó' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter 'Ó' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter 'ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter 'Ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter (hand ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter 'ჾ' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter 'Ჾ' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter ' ' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCIILetter '\t' |> Stdlib.Test.equal false ]
+
+test isASCII =
+  Stdlib.Test.all
+    [ Stdlib.Char.isASCII 'a' |> Stdlib.Test.equal true
+      Stdlib.Char.isASCII 'A' |> Stdlib.Test.equal true
+      Stdlib.Char.isASCII 'á' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII 'Á' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII '3' |> Stdlib.Test.equal true
+      Stdlib.Char.isASCII (smiley ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII 'ż' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII 'Ż' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII 'ó' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII 'Ó' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII 'ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII 'Ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII (hand ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII 'ჾ' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII 'Ჾ' |> Stdlib.Test.equal false
+      Stdlib.Char.isASCII ' ' |> Stdlib.Test.equal true
+      Stdlib.Char.isASCII '\t' |> Stdlib.Test.equal true
+      Stdlib.Char.isASCII (eCombiningAcute ()) |> Stdlib.Test.equal false ]
+
+test toAsciiCode =
+  Stdlib.Test.all
+    [ Stdlib.Char.toAsciiCode 'a' |> Stdlib.Test.equal (Some 97)
+      Stdlib.Char.toAsciiCode 'A' |> Stdlib.Test.equal (Some 65)
+      Stdlib.Char.toAsciiCode 'á' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'Á' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode '3' |> Stdlib.Test.equal (Some 51)
+      Stdlib.Char.toAsciiCode (smiley ()) |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'ż' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'Ż' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'ó' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'Ó' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'é' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'ÿ' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode (eCombiningAcute ()) |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode '~' |> Stdlib.Test.equal (Some 126)
+      Stdlib.Char.toAsciiCode '\t' |> Stdlib.Test.equal (Some 9)
+      Stdlib.Char.toAsciiCode 'ł' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'Ł' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode (hand ()) |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'ჾ' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode 'Ჾ' |> Stdlib.Test.equal None
+      Stdlib.Char.toAsciiCode ' ' |> Stdlib.Test.equal (Some 32)
+      Stdlib.Char.toAsciiCode '\t' |> Stdlib.Test.equal (Some 9) ]
+
+test isLessThan =
+  Stdlib.Test.all
+    [ Stdlib.Char.isLessThan 'a' 'b' |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan 'a' 'A' |> Stdlib.Test.equal false
+      Stdlib.Char.isLessThan 'b' 'A' |> Stdlib.Test.equal false
+      Stdlib.Char.isLessThan 'a' 'á' |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan 'b' 'á' |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan 'a' 'ჾ' |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan 'a' 'Ჾ' |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan 'a' 'ł' |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan 'a' 'Ł' |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan 'a' ' ' |> Stdlib.Test.equal false
+      Stdlib.Char.isLessThan 'a' '\t' |> Stdlib.Test.equal false
+      Stdlib.Char.isLessThan 'a' '1' |> Stdlib.Test.equal false
+      Stdlib.Char.isLessThan '2' '1' |> Stdlib.Test.equal false
+      Stdlib.Char.isLessThan 'a' (smiley ()) |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan 'a' (hand ()) |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan 'a' (family ()) |> Stdlib.Test.equal true
+      Stdlib.Char.isLessThan (smiley ()) (hand ()) |> Stdlib.Test.equal false ]
+
+test isGreaterThan =
+  Stdlib.Test.all
+    [ Stdlib.Char.isGreaterThan 'a' 'b' |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan 'a' 'A' |> Stdlib.Test.equal true
+      Stdlib.Char.isGreaterThan 'b' 'A' |> Stdlib.Test.equal true
+      Stdlib.Char.isGreaterThan 'a' 'á' |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan 'b' 'á' |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan 'a' 'ჾ' |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan 'a' 'Ჾ' |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan 'a' 'ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan 'a' 'Ł' |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan 'a' ' ' |> Stdlib.Test.equal true
+      Stdlib.Char.isGreaterThan 'a' '\t' |> Stdlib.Test.equal true
+      Stdlib.Char.isGreaterThan 'a' '1' |> Stdlib.Test.equal true
+      Stdlib.Char.isGreaterThan '2' '1' |> Stdlib.Test.equal true
+      Stdlib.Char.isGreaterThan 'a' (smiley ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan 'a' (hand ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan 'a' (family ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isGreaterThan (smiley ()) (hand ()) |> Stdlib.Test.equal true ]
+
+test toString =
+  Stdlib.Test.all
+    [ Stdlib.toString 'A' |> Stdlib.Test.equal "A"
+      Stdlib.toString 'a' |> Stdlib.Test.equal "a"
+      Stdlib.toString 'Á' |> Stdlib.Test.equal "Á"
+      Stdlib.toString '3' |> Stdlib.Test.equal "3"
+      Stdlib.toString (smiley ()) |> Stdlib.Test.equal "😂"
+      Stdlib.toString 'Ż' |> Stdlib.Test.equal "Ż"
+      Stdlib.toString 'Ó' |> Stdlib.Test.equal "Ó"
+      Stdlib.toString 'Ł' |> Stdlib.Test.equal "Ł"
+      Stdlib.toString (hand ()) |> Stdlib.Test.equal "✋🏿"
+      Stdlib.toString 'Ჾ' |> Stdlib.Test.equal "Ჾ"
+      Stdlib.toString 'ჾ' |> Stdlib.Test.equal "ჾ" ]
+
+test fromCodepoint =
+  Stdlib.Test.all
+    [ // Valid codepoints
+      Stdlib.Char.fromCodepoint 65 |> Stdlib.Test.equal (Some 'A')
+      Stdlib.Char.fromCodepoint 233 |> Stdlib.Test.equal (Some 'é')
+      // Non-BMP: pins the surrogate-pair path through ConvertFromUtf32. 0x1F602 = 😂
+      Stdlib.Char.fromCodepoint 128514 |> Stdlib.Test.equal (Some (smiley ()))
+      // Invalid: surrogate range (D800..DFFF) — reserved for UTF-16 surrogate pairs
+      Stdlib.Char.fromCodepoint 55296 |> Stdlib.Test.equal None
+      Stdlib.Char.fromCodepoint 56319 |> Stdlib.Test.equal None
+      Stdlib.Char.fromCodepoint 57343 |> Stdlib.Test.equal None
+      // Invalid: above Unicode max (0x10FFFF)
+      Stdlib.Char.fromCodepoint 1114112 |> Stdlib.Test.equal None
+      Stdlib.Char.fromCodepoint 2147483647 |> Stdlib.Test.equal None
+      Stdlib.Char.fromCodepoint -1 |> Stdlib.Test.equal None
+      Stdlib.Char.fromCodepoint -1000 |> Stdlib.Test.equal None ]
+
+test isLetter =
+  Stdlib.Test.all
+    [ Stdlib.Char.isLetter 'a' |> Stdlib.Test.equal true
+      Stdlib.Char.isLetter 'Z' |> Stdlib.Test.equal true
+      Stdlib.Char.isLetter 'é' |> Stdlib.Test.equal true
+      Stdlib.Char.isLetter 'ω' |> Stdlib.Test.equal true
+      Stdlib.Char.isLetter 'ż' |> Stdlib.Test.equal true
+      Stdlib.Char.isLetter 'ჾ' |> Stdlib.Test.equal true
+      Stdlib.Char.isLetter '3' |> Stdlib.Test.equal false
+      Stdlib.Char.isLetter ' ' |> Stdlib.Test.equal false
+      Stdlib.Char.isLetter '-' |> Stdlib.Test.equal false
+      Stdlib.Char.isLetter (smiley ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isLetter (hand ()) |> Stdlib.Test.equal false
+      Stdlib.Char.isLetter (family ()) |> Stdlib.Test.equal false ]
+
+test isWhitespace =
+  Stdlib.Test.all
+    [ Stdlib.Char.isWhitespace ' ' |> Stdlib.Test.equal true
+      Stdlib.Char.isWhitespace '\t' |> Stdlib.Test.equal true
+      Stdlib.Char.isWhitespace '\n' |> Stdlib.Test.equal true
+      Stdlib.Char.isWhitespace ' ' |> Stdlib.Test.equal true
+      Stdlib.Char.isWhitespace ("\r\n" |> Stdlib.String.head |> Builtin.unwrap)
+      |> Stdlib.Test.equal true
+      Stdlib.Char.isWhitespace 'a' |> Stdlib.Test.equal false
+      Stdlib.Char.isWhitespace '0' |> Stdlib.Test.equal false
+      Stdlib.Char.isWhitespace (smiley ()) |> Stdlib.Test.equal false ]
+
+test isAlphanumeric =
+  Stdlib.Test.all
+    [ Stdlib.Char.isAlphanumeric 'a' |> Stdlib.Test.equal true
+      Stdlib.Char.isAlphanumeric 'Z' |> Stdlib.Test.equal true
+      Stdlib.Char.isAlphanumeric 'é' |> Stdlib.Test.equal true
+      Stdlib.Char.isAlphanumeric 'ω' |> Stdlib.Test.equal true
+      Stdlib.Char.isAlphanumeric '7' |> Stdlib.Test.equal true
+      Stdlib.Char.isAlphanumeric '٧' |> Stdlib.Test.equal true
+      Stdlib.Char.isAlphanumeric '-' |> Stdlib.Test.equal false
+      Stdlib.Char.isAlphanumeric ' ' |> Stdlib.Test.equal false
+      Stdlib.Char.isAlphanumeric (smiley ()) |> Stdlib.Test.equal false ]
+
+test toCodepoint =
+  Stdlib.Test.all
+    [ // Single-scalar Chars return their codepoint.
+      Stdlib.Char.toCodepoint 'a' |> Stdlib.Test.equal (Some 97)
+      Stdlib.Char.toCodepoint 'A' |> Stdlib.Test.equal (Some 65)
+      Stdlib.Char.toCodepoint '3' |> Stdlib.Test.equal (Some 51)
+      Stdlib.Char.toCodepoint 'é' |> Stdlib.Test.equal (Some 233)
+      Stdlib.Char.toCodepoint 'ż' |> Stdlib.Test.equal (Some 380)
+      Stdlib.Char.toCodepoint (smiley ()) |> Stdlib.Test.equal (Some 128514)
+      // Multi-scalar Chars return None.
+      Stdlib.Char.toCodepoint (hand ()) |> Stdlib.Test.equal None
+      Stdlib.Char.toCodepoint (family ()) |> Stdlib.Test.equal None
+      // Round-trip BMP and non-BMP scalars.
+      Stdlib.Char.toCodepoint (Stdlib.Char.fromCodepoint 65 |> Builtin.unwrap)
+      |> Stdlib.Test.equal (Some 65)
+      Stdlib.Char.toCodepoint (Stdlib.Char.fromCodepoint 128514 |> Builtin.unwrap)
+      |> Stdlib.Test.equal (Some 128514) ]

@@ -31,29 +31,6 @@ let private logError (message : string) : unit =
     ()
 
 // ---------------------
-// Version information
-// ---------------------
-
-type VersionInfo = { hash : string; buildDate : string; inDevelopment : bool }
-
-#if DEBUG
-let inDevelopment : bool = true
-#else
-let inDevelopment : bool = false
-#endif
-
-open System.Reflection
-
-let info () =
-  let buildAttributes =
-    Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyMetadataAttribute>()
-  // These two values are created during the build, in Cli.fsproj.
-  let buildDate = buildAttributes.Key
-  let gitHash = buildAttributes.Value
-  { hash = gitHash; buildDate = buildDate; inDevelopment = inDevelopment }
-
-
-// ---------------------
 // Execution
 // ---------------------
 
@@ -110,27 +87,36 @@ let state (packageManager : RT.PackageManager) =
 
 
 
-/// A dotted package name (`Darklang.Stdlib.Exec.Policy.roundRobin`) as the function it names,
-/// or `None` when nothing in the store has it. Owner `Darklang` when the name has no owner.
+/// Resolve a dotted package name or an exact #hash. Names follow updates;
+/// hashes let an application keep its entry point at a specific version.
 let private resolvePackageFn (dotted : string) : Option<RT.FQFnName.FQFnName> =
-  match List.rev (dotted.Split('.') |> Array.toList) with
-  | name :: revRest ->
-    let owner, modules =
-      match List.rev revRest with
-      | o :: mods -> o, mods
-      | [] -> "Darklang", []
-    let location : PT.PackageLocation =
-      { owner = owner; modules = modules; name = name }
-    (LibDB.PackageManager.pt.findFn location).Result
-    |> Option.map (fun fqPkg ->
-      RT.FQFnName.Package(
-        LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT fqPkg
-      ))
-  | [] -> None
+  if dotted.StartsWith "#" then
+    let hash = dotted.Substring 1
+    if hash.Length <> 64 || not (Seq.forall System.Uri.IsHexDigit hash) then
+      None
+    else
+      (LibDB.PackageManager.pt.getFn (PT.Hash hash)).Result
+      |> Option.map (fun _ -> RT.FQFnName.fqPackage hash)
+  else
+    match List.rev (dotted.Split('.') |> Array.toList) with
+    | name :: revRest ->
+      let owner, modules =
+        match List.rev revRest with
+        | o :: mods -> o, mods
+        | [] -> "Darklang", []
+      let location : PT.PackageLocation =
+        { owner = owner; modules = modules; name = name }
+      (LibDB.PackageManager.pt.findFn location).Result
+      |> Option.map (fun fqPkg ->
+        RT.FQFnName.Package(
+          LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT fqPkg
+        ))
+    | [] -> None
+
 
 /// The CLI entry point is a stored, per-install pointer: `config_v0` key `entry_point`, a package
-/// location like `Darklang.Cli.executeCliCommand`, defaulting to the shipped CLI. Stored as a NAME
-/// (resolved to a hash here) so it follows the latest content. Any miss falls back to the default.
+/// location like `Darklang.Cli.executeCliCommand`, or an exact #hash.
+/// Names follow the latest content. Any miss falls back to the shipped CLI.
 let private resolveEntryPoint
   (settings : Map<string, string>)
   : RT.FQFnName.FQFnName =
@@ -250,6 +236,15 @@ let execute
     let safeMode = List.contains "--safe" args
     // Boot-level; strip it so it doesn't reach the entry-point fn as a command arg.
     let args = args |> List.filter (fun a -> a <> "--safe")
+    // A leading override applies only to this invocation. Child commands still
+    // use the installation's saved entry point, without any restore step.
+    let entryPoint, args =
+      match args with
+      | "--entry-point" :: name :: rest when not (name.StartsWith "-") ->
+        Some name, rest
+      | "--entry-point" :: _ ->
+        invalidOp "--entry-point needs a package function name or #hash"
+      | _ -> None, args
     let settings = startupSettings ()
     let fnName =
       if safeMode then
@@ -257,7 +252,12 @@ let execute
           "running in --safe mode: the shipped default CLI"
         RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
       else
-        resolveEntryPoint settings
+        match entryPoint with
+        | None -> resolveEntryPoint settings
+        | Some name ->
+          match resolvePackageFn name with
+          | Some fn -> fn
+          | None -> invalidOp $"Entry point not found: {name}"
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     // The CLI's top level is a process: the scheduler runs on this thread until it finishes,
@@ -427,7 +427,8 @@ let private processTitle (args : string list) : string =
     // `--branch` takes a value; `--trace` does NOT, so matching it here swallowed the
     // following argument and `dark --trace run app.dark` was titled `dark app.dark`.
     // The generic flag arm below drops it.
-    | "--branch" :: _ :: rest -> drop rest
+    | "--branch" :: _ :: rest
+    | "--entry-point" :: _ :: rest -> drop rest
     | flag :: rest when flag.StartsWith "--" -> drop rest
     | _ -> args
   let portOf (rest : string list) =
@@ -829,8 +830,7 @@ let private runCli (args : string[]) : int =
 
     let result =
       Telemetry.time "cli.execute" [] (fun () ->
-        let result = execute cliPackageManager (Array.toList args)
-        result.Result)
+        (execute cliPackageManager (Array.toList args)).Result)
 
     Telemetry.time "cli.consoleWait" [] NonBlockingConsole.wait
 
@@ -1059,7 +1059,10 @@ let main (args : string[]) : int =
       (fun () ->
         exitCode <-
           try
-            runCli args
+            match Array.toList args with
+            | "--process-launch" :: jobName :: program :: workerArgs ->
+              LibExecution.HostProcess.launchOwnedProcess jobName program workerArgs
+            | _ -> runCli args
           with e ->
             System.Console.Error.WriteLine
               $"Error starting Darklang CLI: {e.Message}"

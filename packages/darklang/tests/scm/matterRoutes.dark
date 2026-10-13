@@ -1,0 +1,241 @@
+module Darklang.SCM.Tests.MatterRoutes
+
+// The relay's HTTP handlers, called directly rather than over a socket.
+//
+// Every one of these is a `HttpRequest -> HttpResponse` that reads the local store, and Dark checks
+// none of that until the handler actually runs. A handler that passes a Uuid where the pretty-printer
+// wants a String loads, parses and deploys, and is only wrong at the moment someone clicks a function.
+// Serving a page is the only way to find out that it serves.
+//
+// So these assert the shape a browser cares about -- a 200 with the thing in it -- for the routes that
+// read packages. The sync and branch routes have their own coverage in `sync-wire.dark`; what is here
+// is the half that renders.
+
+module Helpers =
+  let req (url: String) : Darklang.Matter.HttpRequest =
+    Stdlib.Http.Request
+      { url = url
+        headers = []
+        body = Stdlib.String.toBlob "" }
+
+  let status (url: String) (h: Darklang.Matter.HttpRequest -> Darklang.Matter.HttpResponse) : Int =
+    (h (req url)).statusCode
+
+  let body (url: String) (h: Darklang.Matter.HttpRequest -> Darklang.Matter.HttpResponse) : String =
+    Stdlib.String.fromBlobWithReplacement (h (req url)).body
+
+  let bodyHas (url: String) (h: Darklang.Matter.HttpRequest -> Darklang.Matter.HttpResponse) (needle: String) : Bool =
+    Stdlib.String.contains (body url h) needle
+
+module Ping =
+  test pingOk =
+    Stdlib.Test.all
+      [ Helpers.status "/ping" Darklang.Matter.Relay.pingHandlerFn
+        |> Stdlib.Test.equal 200
+        Helpers.body "/ping" Darklang.Matter.Relay.pingHandlerFn
+        |> Stdlib.Test.equal "pong" ]
+
+module Landing =
+  test landingOk =
+    Helpers.status "/" Darklang.Matter.landingHandlerFn |> Stdlib.Test.equal 200
+
+  // The landing page lists the routes it serves, so it is also the closest thing to API docs.
+  test landingListsRoutes =
+    Helpers.bodyHas "/" Darklang.Matter.landingHandlerFn "/sync/pull"
+    |> Stdlib.Test.equal true
+
+module ModulePage =
+  test moduleOk =
+    Helpers.status "/m?name=Darklang.Stdlib.List" Darklang.Matter.moduleHandlerFn
+    |> Stdlib.Test.equal 200
+
+  // A module page is a list of links into the item page, which is what makes the item page reachable
+  // at all. If this stops naming members, browsing is over even though the page still renders.
+  test moduleLinksMembers =
+    Helpers.bodyHas "/m?name=Darklang.Stdlib.List" Darklang.Matter.moduleHandlerFn "List.map"
+    |> Stdlib.Test.equal true
+
+  // A module nobody has: a page saying so, not a failure -- and a status that says so too. Asserting
+  // the STATUS and not merely "does not raise", because a body reading "not found" behind a 200 is a
+  // lie to every link checker and monitor.
+  test missingModule =
+    Helpers.status "/m?name=Nope.Not.Here" Darklang.Matter.moduleHandlerFn
+    |> Stdlib.Test.equal 404
+
+module ItemPage =
+  // The handler has to RESPOND, not raise: it is only reached on the deployed relay, so a raise here
+  // is every function page answering 500 with nothing local saying so.
+  test itemResponds =
+    Helpers.status "/p?name=Darklang.Stdlib.List.map" Darklang.Matter.itemHandlerFn
+    |> Stdlib.Test.equal 200
+
+  // Rendering the source is the entire point of the page; a 200 holding "not found here" would pass a
+  // status check and still be broken. Asserted on the highlighted form, since the source is tokenized:
+  // the plain text "let map" no longer appears as one string.
+  test itemShowsSource =
+    Helpers.bodyHas
+      "/p?name=Darklang.Stdlib.List.map"
+      Darklang.Matter.itemHandlerFn
+      "<span class=\"f\">map</span>"
+    |> Stdlib.Test.equal true
+
+  // Types render through a different arm of the same match.
+  test typeItem =
+    Helpers.status "/p?name=Darklang.Stdlib.Option.Option" Darklang.Matter.itemHandlerFn
+    |> Stdlib.Test.equal 200
+
+  // Same again for an item: the page explains itself, and the status agrees with it.
+  test missingItem =
+    Helpers.status "/p?name=Nope.Not.Here" Darklang.Matter.itemHandlerFn
+    |> Stdlib.Test.equal 404
+
+module WriteAuth =
+  // The test runner clears DARK_MATTER_WRITE_SECRET in each worker.
+  // A relay without a configured secret must refuse writes.
+  test syncPushRefused =
+    (Darklang.SCM.Tests.MatterRoutes.Helpers.status "/sync/push" Darklang.Matter.Relay.pushHandlerFn) == 401
+    |> Stdlib.Test.equal true
+
+
+  test syncPushSaysNoWrites =
+    (Darklang.SCM.Tests.MatterRoutes.Helpers.bodyHas "/sync/push" Darklang.Matter.Relay.pushHandlerFn "accepts no writes") == true
+    |> Stdlib.Test.equal true
+
+
+  // Branch push is the other write, and it is easy to guard one and forget the
+  // other.
+  test branchPushRefused =
+    (Darklang.SCM.Tests.MatterRoutes.Helpers.status "/branch/push" Darklang.Matter.Relay.branchPushHandlerFn) == 401
+    |> Stdlib.Test.equal true
+
+
+  // Branch READS are not public either. A branch is unmerged work that has never
+  // been published, so listing or pulling one takes the same secret as writing.
+  // The package log stays open, since `/m` and `/p` already serve it as HTML and
+  // gating it would protect nothing.
+  test branchListRefused =
+    (Darklang.SCM.Tests.MatterRoutes.Helpers.status "/branch/list?owner=someone" Darklang.Matter.Relay.branchListHandlerFn) == 401
+    |> Stdlib.Test.equal true
+
+
+  test branchPullRefused =
+    (Darklang.SCM.Tests.MatterRoutes.Helpers.status "/branch/pull?owner=someone&branch=x" Darklang.Matter.Relay.branchPullHandlerFn) == 401
+    |> Stdlib.Test.equal true
+
+
+  // No DARK_MATTER_WRITE_SECRET in this harness, so the refusal is the
+  // relay-misconfigured one, passed through verbatim: telling the client "connect
+  // with the secret" would send it chasing a credential that cannot exist. The
+  // "branches are not public" wording is the credential case, which needs a
+  // configured secret to reach.
+  test branchListSaysNoWrites =
+    (Darklang.SCM.Tests.MatterRoutes.Helpers.bodyHas
+        "/branch/list?owner=someone"
+        Darklang.Matter.Relay.branchListHandlerFn
+        "accepts no writes") == true
+    |> Stdlib.Test.equal true
+
+
+  // A refused branch read must not leak what it was asked about.
+  test branchListHidesOwner =
+    (Darklang.SCM.Tests.MatterRoutes.Helpers.bodyHas
+        "/branch/list?owner=someone"
+        Darklang.Matter.Relay.branchListHandlerFn
+        "someone") == false
+    |> Stdlib.Test.equal true
+
+
+module Search =
+  test searchOk =
+    Stdlib.Test.all
+      [ Helpers.status "/search?q=map" Darklang.Matter.searchHandlerFn
+        |> Stdlib.Test.equal 200
+        Helpers.bodyHas "/search?q=map" Darklang.Matter.searchHandlerFn "List.map"
+        |> Stdlib.Test.equal true ]
+
+  // An empty query is a page, not an error and not a scan of everything.
+  test emptySearch =
+    Helpers.status "/search?q=" Darklang.Matter.searchHandlerFn
+    |> Stdlib.Test.equal 200
+
+  // Nothing matches: still a page.
+  test noSearchMatches =
+    Helpers.status "/search?q=zzzznotathing" Darklang.Matter.searchHandlerFn
+    |> Stdlib.Test.equal 200
+
+  // The one place on a read-only site where a visitor chooses what goes on the page. If this ever stops
+  // escaping, the search box becomes a way to put script on matter.darklang.com.
+  test searchEscapes =
+    Stdlib.Test.all
+      [ Helpers.bodyHas
+          "/search?q=<script>alert(1)</script>"
+          Darklang.Matter.searchHandlerFn
+          "<script>alert(1)</script>"
+        |> Stdlib.Test.equal false
+        Helpers.bodyHas
+          "/search?q=<script>alert(1)</script>"
+          Darklang.Matter.searchHandlerFn
+          "&lt;script&gt;"
+        |> Stdlib.Test.equal true ]
+
+module Publishers =
+  test ownersOk =
+    Stdlib.Test.all
+      [ Helpers.status "/owners" Darklang.Matter.ownersHandlerFn
+        |> Stdlib.Test.equal 200
+        Helpers.bodyHas "/owners" Darklang.Matter.ownersHandlerFn "Darklang"
+        |> Stdlib.Test.equal true ]
+
+module Stats =
+  test statsOk =
+    Helpers.status "/stats" Darklang.Matter.statsHandlerFn |> Stdlib.Test.equal 200
+
+  // Aggregates only. If this page ever names an instance, it is telling visitors who pushed what.
+  test statsAggregatesOnly =
+    Helpers.bodyHas "/stats" Darklang.Matter.statsHandlerFn "ops"
+    |> Stdlib.Test.equal true
+
+module ItemDetail =
+  // A function page earns its place by showing what calls it -- the direction you cannot get by reading
+  // the code in front of you.
+  test usedBy =
+    Helpers.bodyHas "/p?name=Darklang.Stdlib.List.map" Darklang.Matter.itemHandlerFn "Used by"
+    |> Stdlib.Test.equal true
+
+  // Doc comments carry `{{code}}` and `<param x>` markup. Raw, they reach the page as literal braces.
+  test docMarkup =
+    Helpers.bodyHas "/p?name=Darklang.Stdlib.List.map" Darklang.Matter.itemHandlerFn "{{"
+    |> Stdlib.Test.equal false
+
+  // Breadcrumbs: a deep page arrived at from search has to lead back up.
+  test breadcrumbs =
+    Helpers.bodyHas "/p?name=Darklang.Stdlib.List.map" Darklang.Matter.itemHandlerFn
+      "/m?name=Darklang.Stdlib"
+    |> Stdlib.Test.equal true
+
+module Highlighting =
+  // Source on the item page is tokenized, not dumped. Same semantic tokens the CLI colours, so a name
+  // reads the same in a terminal and in a browser.
+  test sourceTokenized =
+    Helpers.bodyHas
+      "/p?name=Darklang.Stdlib.List.map"
+      Darklang.Matter.itemHandlerFn
+      "<span class=\"k\">let</span>"
+    |> Stdlib.Test.equal true
+
+  // Escaping still happens, and per segment: escaping the whole line first would move every column after
+  // the first `<` and every token would wrap the wrong characters.
+  test escapingPerSegment =
+    Stdlib.Test.all
+      [ Stdlib.String.contains
+          (Darklang.Matter.highlightHtml "let f (x: String) : String = \"<script>\"")
+          "&lt;script&gt;"
+        |> Stdlib.Test.equal true
+        Stdlib.String.contains
+          (Darklang.Matter.highlightHtml "let f (x: String) : String = \"<script>\"")
+          "<script>"
+        |> Stdlib.Test.equal false ]
+
+  // Unparseable source still renders, escaped, rather than rendering nothing.
+  test unparseableSourceRenders =
+    Darklang.Matter.highlightHtml "«««" |> Stdlib.Test.equal "«««"

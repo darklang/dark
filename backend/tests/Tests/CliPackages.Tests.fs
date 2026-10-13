@@ -69,6 +69,31 @@ let viewPrintsSource =
           "and --raw prints it without the trimmings"
     })
 
+let viewPrintsTestDefaultsAndSqlErrors =
+  instanceTest "view prints inherited test access and short SQL errors" (fun state ->
+    task {
+      do!
+        shows
+          state
+          [ "view"
+            "Darklang.Stdlib.DB.Tests.generatedKeyHas36Characters"
+            "--raw" ]
+          "test generatedKeyHas36Characters ="
+          "an unannotated test has no printed effect row"
+      do!
+        shows
+          state
+          [ "view"; "Darklang.Stdlib.DB.Tests.FindAll.rejectsInt8Query"; "--raw" ]
+          "=> sqlerror \"Only Int64 integer fields"
+          "SQL errors retain their short source form"
+      do!
+        lacks
+          state
+          [ "view"; "Darklang.Stdlib.DB.Tests.FindAll.rejectsInt8Query"; "--raw" ]
+          "You're using our new experimental Datastore query compiler"
+          "the display-only SQL preamble is absent from source"
+    })
+
 let viewRefusesWhatIsNotThere =
   instanceTest "view refuses a name that holds nothing" (fun state ->
     task {
@@ -86,6 +111,1168 @@ let viewRefusesWhatIsNotThere =
           [ "view"; "Darklang.Nope.nope" ]
           1L
           "a failed view is a failed command"
+    })
+
+/// `view --include-tests` ends a function's view with the tests that call it, read from the result
+/// cache and never run. `Stdlib.Float.sqrt` has a package test in every store (`Stdlib.Float.Tests.sqrt`),
+/// and a fresh instance has never run `dark test run`, so this is also the path where the cache table does
+/// not exist yet -- which `view` must answer without creating it. Without the flag there is no section.
+let viewListsAFunctionsTests =
+  instanceTest
+    "view --include-tests lists the tests that call a function"
+    (fun state ->
+      task {
+        do!
+          showsAll
+            state
+            [ "view"; "Darklang.Stdlib.Float.sqrt"; "--include-tests" ]
+            [ "Tests:"
+              "Darklang.Stdlib.Float.Tests.sqrt"
+              "no result for this build"
+              "`dark test run` runs them" ]
+            "view names the function's tests, with no result before any run"
+        do!
+          lacks
+            state
+            [ "view"; "Darklang.Stdlib.Float.sqrt" ]
+            "Tests:"
+            "without the flag, view shows no tests"
+        do!
+          showsAll
+            state
+            [ "view"; "Darklang.Stdlib.List.head"; "--include-tests" ]
+            [ "Tests:"; "Darklang.Stdlib.List.Tests.head" ]
+            "view includes the ported tests for List.head"
+        // A stdlib function can gain tests at any time. Use a local fixture
+        // with a distinct body so it cannot share a tested function's hash.
+        do!
+          fn
+            state
+            "Tests.ViewTests.unreferenced"
+            "() : String = \"view --include-tests unreferenced fixture\""
+        let! withoutTests =
+          runCliPlain
+            state
+            [ "view"; "Tests.ViewTests.unreferenced"; "--include-tests" ]
+        Expect.stringContains withoutTests "let unreferenced" "the fixture exists"
+        Expect.isFalse
+          (withoutTests.Contains "Tests:")
+          $"a function no test calls has no tests section, got: {withoutTests}"
+        do!
+          exits
+            state
+            [ "view"; "Darklang.Stdlib.Float.sqrt"; "--raw"; "--include-tests" ]
+            1L
+            "--include-tests is refused alongside --raw"
+      })
+
+/// Package tests follow production edits across owners, just like other callers.
+let testsFollowEditsAcrossOwners =
+  instanceTest "tests follow production edits across owners" (fun state ->
+    task {
+      do! start state
+      do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 2L)"
+      do!
+        run
+          state
+          [ "test"
+            "add"
+            "Tests.TestFollow.halfOf8"
+            "Vendor.TestFollow.half 8L |> Stdlib.Test.equal 4L" ]
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.TestFollow" ]
+          "PASS Tests.TestFollow.halfOf8"
+          "the test starts against the current function"
+      do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 3L)"
+      do!
+        showsAll
+          state
+          [ "test"; "run"; "Tests.TestFollow" ]
+          [ "FAIL Tests.TestFollow.halfOf8"; "expected 4, got 2" ]
+          "the test follows the edited function across owners"
+      do!
+        exits
+          state
+          [ "test"; "run"; "Tests.TestFollow" ]
+          1L
+          "the changed result fails the command"
+      do! discardAll state
+    })
+
+/// The cache key includes the test's hash, but not a list of what the test uses.
+/// Propagation must therefore give it a new hash when a dependency changes,
+/// however deep. An edit two calls away must rerun it, not reuse the old pass.
+let cachedTestsRerunWhenWhatTheyUseChanges =
+  instanceTest "a cached test reruns when anything it uses changes" (fun state ->
+    task {
+      do! start state
+      let file =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-cache-test-{System.Guid.NewGuid():N}.dark"
+        )
+      System.IO.File.WriteAllText(
+        file,
+        "let inner (n: Int64) : Int64 = (n + 1L)\n\n"
+        + "let outer (n: Int64) : Int64 = Tests.CacheT.inner n\n\n"
+        + "test outerOf1 =\n"
+        + "  Stdlib.Test.expect (Tests.CacheT.outer 1L == 2L) \"expected 2, got 3\"\n"
+      )
+      do! run state [ "module"; "Tests.CacheT"; file ]
+      System.IO.File.Delete file
+
+      do!
+        shows
+          state
+          [ "view"; "Tests.CacheT.outerOf1"; "--raw" ]
+          "test outerOf1 ="
+          "a test needs no effect annotation to be cached"
+
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheT" ]
+          "1 ran, 0 cached"
+          "the first run runs it"
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheT" ]
+          "0 ran, 1 cached"
+          "an unchanged test is answered from the cache"
+
+      // Two calls away: the test names `outer`, and only `inner` changes.
+      do! fn state "Tests.CacheT.inner" "(n: Int64) : Int64 = (n + 2L)"
+      do!
+        showsAll
+          state
+          [ "test"; "run"; "Tests.CacheT" ]
+          [ "FAIL Tests.CacheT.outerOf1"; "expected 2, got 3"; "1 ran, 0 cached" ]
+          "a change to something the test reaches indirectly reruns it"
+      do!
+        shows
+          state
+          [ "view"; "Tests.CacheT.outer"; "--include-tests" ]
+          "expected 2, got 3"
+          "views still show the last failure"
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheT" ]
+          "1 ran, 0 cached"
+          "a failed result is shown but never reused"
+
+      // And directly: `outer 1` is now `inner 0`, which is 2 again, so the
+      // stored FAIL must not be handed back.
+      do!
+        fn
+          state
+          "Tests.CacheT.outer"
+          "(n: Int64) : Int64 = Tests.CacheT.inner (n - 1L)"
+      do!
+        showsAll
+          state
+          [ "test"; "run"; "Tests.CacheT" ]
+          [ "PASS Tests.CacheT.outerOf1"; "1 ran, 0 cached" ]
+          "a change to something the test calls directly reruns it"
+      do! discardAll state
+    })
+
+/// The same content hash can be visible on two branches, but the result was
+/// judged under one branch's bindings. Never borrow that pass for another.
+let cachedPassesStayOnTheirBranch =
+  instanceTest "cached passes are scoped to the current branch" (fun state ->
+    task {
+      do! start state
+      let file =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-cache-branch-{System.Guid.NewGuid():N}.dark"
+        )
+      System.IO.File.WriteAllText(file, "test passes = Stdlib.Test.pass ()\n")
+      do! run state [ "module"; "Tests.CacheBranch"; file ]
+      System.IO.File.Delete file
+      do! commit state "cacheable branch test"
+
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheBranch" ]
+          "1 ran, 0 cached"
+          "main runs it"
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheBranch" ]
+          "0 ran, 1 cached"
+          "main reuses it"
+      do! switch state "cachebranch"
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheBranch" ]
+          "1 ran, 0 cached"
+          "the branch runs its own copy"
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheBranch" ]
+          "0 ran, 1 cached"
+          "the branch can reuse its own pass"
+      do! onMain state
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheBranch" ]
+          "0 ran, 1 cached"
+          "main's pass remains"
+      do! discardAll state
+    })
+
+/// Effectful and dynamically-called code cannot be proved pure, even when a
+/// particular run happens to return the same result twice.
+let testsWithoutPurityProofAlwaysRun =
+  instanceTest "test caching fails closed on effects and dynamic calls" (fun state ->
+    task {
+      do! start state
+      let file =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-cache-safety-{System.Guid.NewGuid():N}.dark"
+        )
+      System.IO.File.WriteAllText(
+        file,
+        "test randomKey = Stdlib.DB.generateKey () |> Stdlib.String.length |> Stdlib.Test.equal 36\n\n"
+        + "test dynamicCall =\n"
+        + "  (let fn = (+)\n"
+        + "   fn 1L 1L) |> Stdlib.Test.equal 2L\n"
+        + "\ntest renderedValue =\n"
+        + "  let text = Stdlib.toRepr 1L\n"
+        + "  Stdlib.Test.equal text text\n"
+        + "\ntest expectedError =\n"
+        + "  (1L / 0L)\n"
+        + "  => raises \"Cannot divide by 0\"\n"
+      )
+      do! run state [ "module"; "Tests.CacheSafety"; file ]
+      System.IO.File.Delete file
+
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheSafety" ]
+          "4 ran, 0 cached"
+          "none of the tests is cached initially"
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheSafety" ]
+          "4 ran, 0 cached"
+          "effectful, incomplete, rendered, and expected-error tests run again"
+      do! discardAll state
+    })
+
+let assertionFailureMessagesAlwaysRun =
+  instanceTest
+    "assertion failure messages are never cached across a type rename"
+    (fun state ->
+      task {
+        do! start state
+        let file =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-assertion-cache-{System.Guid.NewGuid():N}.dark"
+          )
+        System.IO.File.WriteAllText(
+          file,
+          """type First = { cacheSafetyField: Int64 }
+test equalMessage =
+  match
+    Stdlib.Test.equal
+      (First { cacheSafetyField = 1L })
+      (First { cacheSafetyField = 2L })
+  with
+  | Pass -> Stdlib.Test.fail "expected an assertion failure"
+  | Fail messages ->
+    let text = Stdlib.String.join messages " "
+    Stdlib.Test.expect (Stdlib.String.contains text "First") "type name changed"
+test notEqualMessage =
+  match
+    Stdlib.Test.notEqual
+      (First { cacheSafetyField = 1L })
+      (First { cacheSafetyField = 1L })
+  with
+  | Pass -> Stdlib.Test.fail "expected an assertion failure"
+  | Fail messages ->
+    let text = Stdlib.String.join messages " "
+    Stdlib.Test.expect (Stdlib.String.contains text "First") "type name changed"
+"""
+        )
+        do! run state [ "module"; "Tests.AssertionCache"; file ]
+        System.IO.File.Delete file
+        for _ in 1..2 do
+          do!
+            showsAll
+              state
+              [ "test"; "run"; "Tests.AssertionCache" ]
+              [ "2 passed, 0 failed"; "2 ran, 0 cached" ]
+              "a passing test can have inspected a failed assertion"
+        do!
+          run
+            state
+            [ "rename"
+              "Tests.AssertionCache.First"
+              "Tests.AssertionCache.Second" ]
+        do!
+          showsAll
+            state
+            [ "test"; "run"; "Tests.AssertionCache" ]
+            [ "0 passed, 2 failed"; "type name changed"; "2 ran, 0 cached" ]
+            "the renamed type must change both assertion messages"
+        do!
+          exits
+            state
+            [ "test"; "run"; "Tests.AssertionCache" ]
+            1L
+            "the failures exit nonzero"
+        do! discardAll state
+      })
+
+let cachedPassesRequireTheSameBuildAndJudge =
+  instanceTest "cached passes from another build or judge rerun" (fun state ->
+    task {
+      do! start state
+      do!
+        run
+          state
+          [ "test"; "add"; "Tests.CacheIdentity.passes"; "Stdlib.Test.pass ()" ]
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheIdentity" ]
+          "1 ran, 0 cached"
+          "first run"
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.CacheIdentity" ]
+          "0 ran, 1 cached"
+          "same build and judge"
+      let! key =
+        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
+      let parts = key.Trim().Split(':')
+      Expect.equal parts.Length 2 $"build and judge identities: {key}"
+      Expect.equal parts[0].Length 64 "the runtime identity is a SHA-256 hash"
+      Expect.isTrue (parts[0] |> Seq.forall System.Uri.IsHexDigit) "hex hash"
+      let! again =
+        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
+      Expect.equal again key "the build identity survives a new CLI process"
+      // Keep a real stored pass, but associate it with another runtime or judge.
+      for oldKey in [ "old-build:" + parts[1]; parts[0] + ":old-judge" ] do
+        let sql =
+          "UPDATE package_test_results "
+          + $"SET runtime_hash = '{oldKey}' "
+          + $"WHERE runtime_hash = '{key.Trim()}'"
+        do!
+          exits
+            state
+            [ "eval"
+              "Stdlib.Sqlite.mustExec (Stdlib.LocalStore.path ()) "
+              + $"\"{sql}\" []" ]
+            0L
+            "move the stored pass to an older cache identity"
+        do!
+          shows
+            state
+            [ "test"; "run"; "Tests.CacheIdentity" ]
+            "1 ran, 0 cached"
+            "the old pass cannot be reused"
+      do!
+        fn
+          state
+          "Darklang.LanguageTools.PackageManager.Test.Worker.main"
+          "(_args: List<String>) : Int = 17"
+      do!
+        shows
+          state
+          [ "test"; "run"; "--force"; "Tests.CacheIdentity" ]
+          "1 passed"
+          "the runner uses its worker's exact hash, even if the branch rebinds its name"
+      do! discardAll state
+    })
+
+/// `test add` authors one test the way `fn` authors one function: a bare body or a whole
+/// declaration, into the draft, and it refuses a name that disagrees with its target rather
+/// than saving the test under the wrong one.
+let testAddAuthorsATest =
+  instanceTest "test add authors a test into the draft" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.AddT.double" "(n: Int64) : Int64 = (n + n)"
+      do!
+        shows
+          state
+          [ "test"
+            "add"
+            "Tests.AddT.doubles"
+            "Tests.AddT.double 4L |> Stdlib.Test.equal 8L" ]
+          "Created test Tests.AddT.doubles"
+          "a bare body becomes `test doubles = ...`"
+      do!
+        showsAll
+          state
+          [ "test"; "run"; "Tests.AddT" ]
+          [ "PASS Tests.AddT.doubles"; "1 passed" ]
+          "and it runs"
+      do!
+        shows
+          state
+          [ "test"; "run"; "Tests.AddT" ]
+          "1 ran, 0 cached"
+          "assertion formatting is conservatively rerun"
+      do!
+        exits
+          state
+          [ "test"
+            "add"
+            "Tests.AddT.doubles"
+            "test doubles :{} = Tests.AddT.double 4L |> Stdlib.Test.equal 8L" ]
+          1L
+          "a test cannot declare its own permission ceiling"
+      do!
+        exits
+          state
+          [ "test"
+            "add"
+            "Tests.AddT.doubles"
+            "test doubles = Tests.AddT.double 4L |> Stdlib.Test.equal 8L" ]
+          0L
+          "a complete test declaration is accepted"
+      do!
+        lacks
+          state
+          [ "view"; "Tests.AddT.doubles"; "--raw" ]
+          ":{}"
+          "tests are displayed without independent permission rows"
+      do!
+        exits
+          state
+          [ "test"
+            "add"
+            "Tests.AddT.other"
+            "test doubles = Stdlib.Test.pass ()" ]
+          1L
+          "a declaration named differently from its target is refused"
+      do! exits state [ "test"; "add" ] 1L "and so is a bare `test add`"
+      do! discardAll state
+    })
+
+let testRunUsesOneStartingStore =
+  instanceTest
+    "a test run shares its starting store but never its writes"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "permissions"; "allow"; "native" ]
+        let definition =
+          """test startingStore =
+  let before = Stdlib.LocalStore.configGet "baseline-witness"
+  let _ = Stdlib.LocalStore.configSet "baseline-witness" "child"
+  Stdlib.Test.expect (before == "before") "starting store changed"
+"""
+        do! run state [ "test"; "add"; "Tests.Baseline.startingStore"; definition ]
+        let! hashOutput =
+          runCli state [ "hash"; "Tests.Baseline.startingStore"; "--full" ]
+        let hash = hashOutput.Trim().Split(' ') |> Array.last
+        let expression =
+          $"""let hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "{hash}"
+let branch = Darklang.SCM.Branch.mainBranchId
+let _ = Stdlib.LocalStore.configSet "baseline-witness" "before"
+let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run ->
+  let first = Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash
+  let _ = Stdlib.LocalStore.configSet "baseline-witness" "after"
+  let second = Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash
+  (first, second))
+let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run ->
+  Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash)
+let ended = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run -> run)
+let rejected =
+  match Darklang.LanguageTools.PackageManager.Test.executeInRun ended branch hash with
+  | Ok (Fail messages) -> Stdlib.String.contains (Stdlib.String.join messages " ") "already ended"
+  | _ -> false
+rejected
+&& first == Ok (Stdlib.Test.pass ())
+&& second == Ok (Stdlib.Test.pass ())
+&& later == Ok (Stdlib.Test.fail "starting store changed")
+&& Stdlib.LocalStore.configGet "baseline-witness" == "after"
+"""
+        do!
+          evals
+            state
+            expression
+            "true"
+            "one frozen baseline per callback, private writes per test"
+        do! discardAll state
+      })
+
+let isolatedTestDeclarations =
+  instanceTest
+    "package tests run in fresh stores by default and retain safe caching"
+    (fun state ->
+      task {
+        do! start state
+        let add name body =
+          run state [ "test"; "add"; $"Tests.IsolatedDeclaration.{name}"; body ]
+        do!
+          add
+            "writes"
+            """test writes =
+  let before = Stdlib.LocalStore.configGet "isolated-declaration-witness"
+  let _ = Stdlib.LocalStore.configSet "isolated-declaration-witness" "child"
+  Stdlib.Test.equal before ""
+"""
+        do!
+          add
+            "expected"
+            """test expected =
+  1L / 0L => raises "Cannot divide by 0"
+"""
+        do!
+          add
+            "fails"
+            """test fails = Stdlib.Test.fail "isolated assertion detail"
+"""
+        do! add "pure" """test pure = Stdlib.Test.pass ()"""
+        do!
+          shows
+            state
+            [ "view"; "Tests.IsolatedDeclaration.expected"; "--raw" ]
+            "test expected"
+            "isolation needs no extra syntax"
+        for counts in [ "4 ran, 0 cached"; "3 ran, 1 cached" ] do
+          do!
+            showsAll
+              state
+              [ "test"; "run"; "Tests.IsolatedDeclaration" ]
+              [ "3 passed, 1 failed"; counts; "isolated assertion detail" ]
+              "stateful tests rerun in fresh stores while pure passes may be cached"
+        do!
+          evals
+            state
+            "Stdlib.LocalStore.configGet \"isolated-declaration-witness\" == \"\""
+            "true"
+            "the child's config did not leak into the parent"
+        do! discardAll state
+      })
+
+let entryPointOverrideIsLocal =
+  instanceTest
+    "entry-point overrides leave the saved entry point unchanged"
+    (fun state ->
+      task {
+        do! start state
+        let instance =
+          match state with
+          | Instance i -> i
+          | _ -> failtest "requires a disposable CLI instance"
+        let source = System.IO.Path.Combine(instance.dir, "entry-point.dark")
+        System.IO.File.WriteAllText(
+          source,
+          """let saved (_args: List<String>) : Int =
+  Stdlib.printLine "saved entry point"
+  0
+let alternate (args: List<String>) : Int =
+  Stdlib.printLine (Stdlib.String.join args ",")
+  0
+let savedEntry () : String = Stdlib.LocalStore.configGet "entry_point"
+test keepsSavedEntry =
+  savedEntry () |> Stdlib.Test.equal "Tests.EntryPoint.saved"
+test nestedKeepsSavedEntry =
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) savedEntry () with
+  | Ok output -> output.result |> Stdlib.Test.equal (Ok "Tests.EntryPoint.saved")
+  | Error message -> Stdlib.Test.fail message
+"""
+        )
+        do!
+          exits
+            state
+            [ "module"; "Tests.EntryPoint"; source ]
+            0L
+            "author entry points"
+        do!
+          exits
+            state
+            [ "permissions"; "approve"; "Tests.EntryPoint.savedEntry" ]
+            0L
+            "approve the helper's store read"
+        do!
+          exits
+            state
+            [ "config"; "set-entry"; "Tests.EntryPoint.saved" ]
+            0L
+            "save the default"
+        do!
+          shows
+            state
+            [ "--entry-point"; "Tests.EntryPoint.alternate"; "one"; "two" ]
+            "one,two"
+            "the override gets only its own arguments"
+        do!
+          shows
+            state
+            []
+            "saved entry point"
+            "the next invocation uses the saved entry point"
+        do!
+          showsAll
+            state
+            [ "--safe"; "test"; "run"; "--force"; "Tests.EntryPoint" ]
+            [ "2 passed, 0 failed"; "2 ran, 0 cached" ]
+            "ordinary and nested workers keep the saved entry point"
+        for args in
+          [ [ "--entry-point" ]
+            [ "--entry-point"; "Tests.EntryPoint.missing" ]
+            [ "--entry-point"; "#invalid" ] ] do
+          let! code, stdout, stderr = Tests.CliInstance.runRaw instance args
+          Expect.equal
+            code
+            1
+            $"bad entry points fail instead of running the saved one: {stdout} {stderr}"
+          Expect.isFalse
+            (stdout.Contains "saved entry point")
+            "no fallback for an explicit override"
+        do!
+          shows
+            state
+            []
+            "saved entry point"
+            "failed overrides also leave the setting unchanged"
+      })
+
+/// Pause workers to check that tests run in parallel without exceeding the limit.
+/// When one finishes, the next should start without waiting for the others.
+let packageTestsRespectParallelLimit =
+  instanceTest
+    "package tests overlap within the requested worker limit"
+    (fun state ->
+      task {
+        if LibExecution.HostPosix.isPosix then
+          do! start state
+          let instance =
+            match state with
+            | Instance i -> i
+            | _ -> failtest "requires a disposable CLI instance"
+          let source = System.IO.Path.Combine(instance.dir, "parallel.dark")
+          System.IO.File.WriteAllText(
+            source,
+            [ 1..5 ]
+            |> List.map (fun n ->
+              $"""test case{n} =
+  let before = Stdlib.LocalStore.configGet "parallel-witness"
+  let _ = Stdlib.LocalStore.configSet "parallel-witness" "child"
+  Stdlib.Test.expect (before == "") "another test changed my store"
+"""         )
+            |> String.concat "\n"
+          )
+          do! run state [ "module"; "Tests.Parallel"; source ]
+          // The runner needs no grants on the saved instance, even to spawn work.
+          do! run state [ "permissions"; "clear" ]
+          let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
+          for jobs in [ 1; 2 ] do
+            let barriers =
+              System.IO.Directory
+                .CreateDirectory(
+                  System.IO.Path.Combine(instance.dir, $"barriers-{jobs}")
+                )
+                .FullName
+            let wrapper =
+              System.IO.Path.Combine(instance.dir, $"worker-barrier-{jobs}")
+            System.IO.File.WriteAllText(
+              wrapper,
+              "#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
+              + quote wrapper
+              + "\nfor arg in \"$@\"; do\n"
+              + "  if [ \"$arg\" = \"${DARK_CONFIG_RUNDIR}request.bin\" ]; then\n"
+              + "    barrier="
+              + quote barriers
+              + "\n"
+              + "    touch \"$barrier/started-$$\"\n"
+              + "    while [ ! -f \"$barrier/release-$$\" ] && [ ! -f \"$barrier/release-all\" ]; do sleep 0.02; done\n"
+              + "  fi\ndone\nexec "
+              + quote (System.IO.Path.GetFullPath instance.cli)
+              + " \"$@\"\n"
+            )
+            System.IO.File.SetUnixFileMode(
+              wrapper,
+              System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
+            )
+            let started () = System.IO.Directory.GetFiles(barriers, "started-*")
+            let waitFor count =
+              task {
+                let deadline = System.Diagnostics.Stopwatch.StartNew()
+                while (started ()).Length < count
+                      && deadline.Elapsed.TotalSeconds < 30.0 do
+                  do! Task.Delay 20
+                Expect.equal
+                  (started ()).Length
+                  count
+                  "the expected workers reached the barrier"
+              }
+            let running =
+              runCliWithStatus
+                (Instance { instance with cli = wrapper })
+                [ "test"
+                  "run"
+                  "--force"
+                  "--jobs"
+                  string jobs
+                  "Tests.Parallel" ]
+            let! barrierError =
+              task {
+                try
+                  do! waitFor jobs
+                  do! Task.Delay 200
+                  Expect.equal
+                    (started ()).Length
+                    jobs
+                    "no extra worker starts while all slots are occupied"
+                  let first =
+                    System.IO.Path
+                      .GetFileName((started ())[0])
+                      .Replace("started-", "release-")
+                  System.IO.File.WriteAllText(
+                    System.IO.Path.Combine(barriers, first),
+                    ""
+                  )
+                  do! waitFor (jobs + 1)
+                  do! Task.Delay 200
+                  Expect.equal
+                    (started ()).Length
+                    (jobs + 1)
+                    "only the freed slot is refilled"
+                  return None
+                with e ->
+                  return Some e
+              }
+            // Always unblock and collect the CLI before the instance is disposed.
+            System.IO.File.WriteAllText(
+              System.IO.Path.Combine(barriers, "release-all"),
+              ""
+            )
+            let! output, code = running
+            match barrierError with
+            | Some e -> return raise e
+            | None -> ()
+            Expect.equal code 0 $"parallel run succeeds: {output}"
+            Expect.stringContains
+              output
+              "5 passed, 0 failed; 5 ran, 0 cached"
+              "every declaration runs once"
+            Expect.equal (started ()).Length 5 "exactly five workers were launched"
+          // Ordinary eval still uses the saved deny-all policy. Grant only the
+          // read needed for this final check, after all test workers have exited.
+          do! run state [ "permissions"; "allow"; "package-read" ]
+          do!
+            evals
+              state
+              "Stdlib.LocalStore.configGet \"parallel-witness\" == \"\""
+              "true"
+              "test writes did not reach the parent store"
+      })
+
+let packageTestsRequireRun =
+  instanceTest "test shows help and requires run to execute tests" (fun state ->
+    task {
+      for args in [ [ "test" ]; [ "test"; "--help" ]; [ "test"; "run"; "--help" ] ] do
+        let! output, code = runCliWithStatus state args
+        Expect.equal code 0 "help succeeds"
+        Expect.stringContains output "Usage: test run" "help names the run command"
+        Expect.isFalse (output.Contains "Running:") "help starts no tests"
+        Expect.isFalse (output.Contains " ran,") "help reports no test results"
+      for args in
+        [ [ "test"; "Stdlib.Float" ]
+          [ "test"; "--force" ]
+          [ "test"; "--jobs"; "2" ] ] do
+        let! output, code = runCliWithStatus state args
+        Expect.equal code 1 "running tests requires the run subcommand"
+        Expect.isFalse
+          (output.Contains "Running:")
+          "invalid commands start no tests"
+      let! output, code =
+        runCliWithStatus state [ "test"; "run"; "Tests.NoSuchTestForRunCommand" ]
+      Expect.equal code 1 "a run with no matching tests fails"
+      Expect.stringContains
+        output
+        "No package tests matched."
+        "run reached discovery"
+    })
+
+let packageTestJobsRejectInvalidCounts =
+  instanceTest "package tests reject invalid worker limits" (fun state ->
+    task {
+      for args in
+        [ [ "--jobs" ]
+          [ "--jobs"; "0" ]
+          [ "--jobs"; "-1" ]
+          [ "--jobs"; "no" ]
+          [ "--jobs=0" ] ] do
+        let! output, code = runCliWithStatus state ("test" :: "run" :: args)
+        Expect.equal code 1 "invalid limits fail the command"
+        Expect.stringContains
+          output
+          (if args = [ "--jobs" ] then
+             "`--jobs` needs a value"
+           else
+             "--jobs needs a positive whole number")
+          "explain the valid input"
+        Expect.isFalse
+          (output.Contains "Running:")
+          "no test starts with invalid options"
+    })
+
+let isolatedTestsRejectUnsuccessfulWorkers =
+  instanceTest
+    "isolated tests reject worker failures and missing results"
+    (fun state ->
+      task {
+        if LibExecution.HostPosix.isPosix then
+          do! start state
+          do! run state [ "permissions"; "allow"; "native" ]
+          let instance =
+            match state with
+            | Instance i -> i
+            | _ -> failtest "requires a disposable CLI instance"
+          let file = System.IO.Path.Combine(instance.dir, "worker-tests.dark")
+          System.IO.File.WriteAllText(
+            file,
+            """test passes =
+  Stdlib.Cli.Stdin.isInteractive () |> Stdlib.Test.equal false
+test fails =
+  Stdlib.printLine "{\"Pass\":[]}"
+  Stdlib.Test.fail "intentional isolation failure"
+test expected = 1L / 0L => raises "Cannot divide by 0"
+"""
+          )
+          do! run state [ "module"; "Tests.WorkerExit"; file ]
+          do!
+            exits
+              state
+              [ "test"; "run"; "--force"; "Tests.WorkerExit.passes" ]
+              0L
+              "the test passes when its worker exits normally"
+          let wrapper = System.IO.Path.Combine(instance.dir, "worker-exits-17")
+          let witness = System.IO.Path.Combine(instance.dir, "worker-exits")
+          let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
+          System.IO.File.WriteAllText(
+            wrapper,
+            "#!/bin/sh\n"
+            + "export DARK_CLI_UNDER_TEST="
+            + quote wrapper
+            + "\n"
+            + quote (System.IO.Path.GetFullPath instance.cli)
+            + " \"$@\"\n"
+            + "rc=$?\n"
+            + "for arg in \"$@\"; do\n"
+            + "  if [ \"$arg\" = \"${DARK_CONFIG_RUNDIR}request.bin\" ] && [ \"$rc\" -eq 0 ]; then\n"
+            + "    echo 17 >> "
+            + quote witness
+            + "\n"
+            + "    exit 17\n  fi\ndone\nexit \"$rc\"\n"
+          )
+          System.IO.File.SetUnixFileMode(
+            wrapper,
+            System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
+          )
+          let wrapped = Instance { instance with cli = wrapper }
+          let! (output, code) =
+            runCliWithStatus
+              wrapped
+              [ "test"; "run"; "--force"; "Tests.WorkerExit" ]
+          Expect.equal code 1 "a worker failure must fail the CLI command"
+          Expect.stringContains
+            output
+            "0 passed, 3 failed"
+            "passing, failing, and expected-error bodies cannot hide the worker exit"
+          Expect.stringContains
+            output
+            "Isolated test worker exited 17"
+            "exit is diagnosed"
+          Expect.stringContains
+            output
+            "intentional isolation failure"
+            "assertion failure is preserved"
+          Expect.equal
+            (System.IO.File.ReadAllLines witness)
+            [| "17"; "17"; "17" |]
+            "all workers produced a result and then exited unsuccessfully"
+          // A worker may exit before writing its result, even with exit code 0.
+          // Dark must reject both cases and preserve the diagnostic output.
+          for workerExit in [ 0; 23 ] do
+            // Keep each executable unchanged after launch; rewriting one can
+            // race with the OS releasing it and produce "Text file busy".
+            let wrapper =
+              System.IO.Path.Combine(instance.dir, $"worker-no-result-{workerExit}")
+            System.IO.File.WriteAllText(
+              wrapper,
+              "#!/bin/sh\n"
+              + "export DARK_CLI_UNDER_TEST="
+              + quote wrapper
+              + "\nfor arg in \"$@\"; do\n"
+              + "  if [ \"$arg\" = \"${DARK_CONFIG_RUNDIR}request.bin\" ]; then\n"
+              + "    echo 'worker stdout'\n    echo 'worker stderr' >&2\n"
+              + $"    exit {workerExit}\n  fi\ndone\n"
+              + "exec "
+              + quote (System.IO.Path.GetFullPath instance.cli)
+              + " \"$@\"\n"
+            )
+            System.IO.File.SetUnixFileMode(
+              wrapper,
+              System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
+            )
+            let wrapped = Instance { instance with cli = wrapper }
+            for target in [ "passes"; "expected" ] do
+              let! (output, code) =
+                runCliWithStatus
+                  wrapped
+                  [ "test"; "run"; "--force"; "Tests.WorkerExit." + target ]
+              Expect.equal code 1 "a missing result must fail the CLI command"
+              for message in
+                [ "0 passed, 1 failed"; "worker stdout"; "worker stderr" ] do
+                Expect.stringContains output message "missing-result diagnostics"
+
+      })
+
+
+let testsUseInstanceAndFunctionPolicies =
+  instanceTest
+    "tests allow effects by default while preserving package and function policies"
+    (fun state ->
+      task {
+        do! start state
+        let source =
+          """let clock () : Bool =
+  let _ = Stdlib.DateTime.now ()
+  true
+let restricted () :{} Bool =
+  let _ = Stdlib.DateTime.now ()
+  true
+let caller () :{Native} Stdlib.Test.Result =
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) Tests.PermissionUse.clock () with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    match output.result with
+    | Ok _ -> Stdlib.Test.pass ()
+    | Error message -> Stdlib.Test.fail message
+test direct = Tests.PermissionUse.clock () |> Stdlib.Test.equal true
+test isolated =
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) Tests.PermissionUse.clock () with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    match output.result with
+    | Ok value -> value |> Stdlib.Test.equal true
+    | Error message -> Stdlib.Test.fail message
+test functionCeiling = Tests.PermissionUse.restricted () |> Stdlib.Test.equal true
+test callerCeiling = Tests.PermissionUse.caller ()
+"""
+        let sourceFile =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-test-permissions-{System.Guid.NewGuid():N}.dark"
+          )
+        try
+          System.IO.File.WriteAllText(sourceFile, source)
+          do!
+            exits
+              state
+              [ "module"; "Tests.PermissionUse"; sourceFile ]
+              0L
+              "author functions and their tests"
+        finally
+          System.IO.File.Delete sourceFile
+        let selected =
+          [ "test"
+            "run"
+            "--force"
+            "Tests.PermissionUse.direct"
+            "Tests.PermissionUse.isolated" ]
+        do!
+          shows
+            state
+            selected
+            "package policy"
+            "unapproved functions are denied in either execution mode"
+        do! exits state selected 1L "denials fail the test run"
+        do!
+          run
+            state
+            [ "permissions"; "approve"; "Tests.PermissionUse.clock"; "--yes" ]
+        do!
+          shows
+            state
+            selected
+            "2 passed, 0 failed"
+            "the same approval permits ordinary and isolated calls"
+        do!
+          exits
+            state
+            selected
+            0L
+            "approved functions run under the test instance policy"
+        do! run state [ "permissions"; "deny"; "clock" ]
+        let! savedPolicy = runCliPlain state [ "permissions"; "list" ]
+        do!
+          shows
+            state
+            selected
+            "2 passed, 0 failed"
+            "ordinary and isolated tests allow clock even when the installation denies it"
+        do! exits state selected 0L "tests have an allow-all instance boundary"
+        let! afterTests = runCliPlain state [ "permissions"; "list" ]
+        Expect.equal afterTests savedPolicy "tests do not rewrite the saved policy"
+        do!
+          shows
+            state
+            [ "eval"; "Tests.PermissionUse.clock ()" ]
+            "instance policy"
+            "ordinary eval still uses the installation's denial"
+        do!
+          exits
+            state
+            [ "eval"; "Tests.PermissionUse.clock ()" ]
+            1L
+            "eval stays denied"
+        for name in [ "restricted"; "caller" ] do
+          do!
+            run
+              state
+              [ "permissions"; "approve"; "Tests.PermissionUse." + name; "--yes" ]
+        do!
+          shows
+            state
+            [ "test"; "run"; "--force"; "Tests.PermissionUse.functionCeiling" ]
+            "function policy"
+            "the tested function's ceiling applies"
+        do!
+          exits
+            state
+            [ "test"; "run"; "--force"; "Tests.PermissionUse.functionCeiling" ]
+            1L
+            "an instance grant cannot widen a function"
+        do!
+          shows
+            state
+            [ "test"; "run"; "--force"; "Tests.PermissionUse.callerCeiling" ]
+            "function policy"
+            "captured caller restrictions survive isolation"
+        do!
+          exits
+            state
+            [ "test"; "run"; "--force"; "Tests.PermissionUse.callerCeiling" ]
+            1L
+            "isolating a callback cannot widen its caller"
+        do! discardAll state
+      })
+
+/// Search leaves tests out unless asked: a test is usually named after what it tests, so
+/// every search for a function would list its tests too. Left out is not hidden, though:
+/// the output says how many matched, so a search with only test hits never reads as empty.
+let searchLeavesTestsOutUnlessAsked =
+  instanceTest "search leaves tests out unless asked" (fun state ->
+    task {
+      do!
+        lacks
+          state
+          [ "search"; "ceiling" ]
+          "Float.Tests.ceiling"
+          "a plain search lists no tests"
+      do!
+        shows
+          state
+          [ "search"; "ceilingRejectsNan" ]
+          "1 test matched; --include-tests shows them"
+          "and says what it left out"
+      do!
+        shows
+          state
+          [ "search"; "ceiling"; "--include-tests" ]
+          "Darklang.Stdlib.Float.Tests.ceilingRejectsNan"
+          "--include-tests lists them"
+      do!
+        shows
+          state
+          [ "search"; "ceiling"; "--test" ]
+          "Darklang.Stdlib.Float.Tests.ceilingRejectsNan"
+          "and --test asks for them by itself"
+    })
+
+/// A Code-view workbench state standing in <paramref name="modules"/>, with the cursor on the row named
+/// <paramref name="row"/>, as one line of Dark for `eval`. Built from `initialState`, so no terminal.
+let private workbenchAt (modules : List<string>) (row : string) : string =
+  let path = modules |> List.map (fun m -> $"\"{m}\"") |> String.concat ", "
+  "let st = Darklang.Cli.Workbench.initialState (Darklang.SCM.PackageOps.currentBranch ()) (Stdlib.Option.Option.None) \"T\" \"i\" [] false in "
+  + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in "
+  + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems s0 } in "
+  + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap s1.items (fun i it -> (i, it.name)) |> Stdlib.List.findFirst (fun (_, nm) -> nm == \"{row}\") |> Stdlib.Option.map (fun (i, _) -> i) |> Stdlib.Option.withDefault 0) }} in "
+
+/// The Code view lists a module's tests as rows of their own, and the Inspect pane shows a test's
+/// source and result, and a function's tests. Every row kind here used to fall through to "value",
+/// so a test row would have looked itself up as a value and shown "(not found)".
+let workbenchShowsTests =
+  instanceTest "the workbench lists and inspects tests" (fun state ->
+    task {
+      let floatTests = [ "Darklang"; "Stdlib"; "Float"; "Tests" ]
+      do!
+        evals
+          state
+          ((workbenchAt floatTests "ceiling")
+           + "Stdlib.List.map s.items (fun it -> it.kind + \":\" + it.name)")
+          "test:ceiling"
+          "a module's tests are rows of kind test"
+      do!
+        evals
+          state
+          ((workbenchAt floatTests "ceiling")
+           + "Stdlib.String.join (Darklang.Cli.Workbench.detailLines s) \"\\n\"")
+          "test ceiling ="
+          "the Inspect pane shows a test's source"
+      do!
+        evals
+          state
+          ((workbenchAt floatTests "ceiling")
+           + "match Stdlib.List.getAt s.items s.selected with "
+           + "| Some item -> Darklang.Cli.Workbench.itemMeta s item "
+           + "(Darklang.Cli.Packages.Query.searchExactMatch s.branchId "
+           + "(Darklang.Cli.Packages.modulePathOf s.location) item.name) "
+           + "| None -> \"\"")
+          "test ·"
+          "and the meta line calls it a test"
+      do!
+        evals
+          state
+          ((workbenchAt [ "Darklang"; "Stdlib"; "Float" ] "ceiling")
+           + "Stdlib.String.join (Darklang.Cli.Workbench.inspectPageLines s) \"\\n\"")
+          "Darklang.Stdlib.Float.Tests.ceiling"
+          "a function's Inspect pane lists the tests that call it"
+    })
+
+/// Renaming from the workbench ends the old name. It used to build the old location from the
+/// owner-first module path, so it unbound a name that did not exist and both names stayed bound.
+let workbenchRenameEndsTheOldName =
+  instanceTest "a workbench rename leaves one name, not two" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.WbRename.before" "() : Int64 = 7L"
+      do!
+        evals
+          state
+          ((workbenchAt [ "Tests"; "WbRename" ] "before")
+           + "match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState { prompt = \"\"; field = Stdlib.Cli.UI.TextField.fromText \"after\"; action = \"rename\" }) with | Continue s2 -> s2.message | _ -> \"no\"")
+          "renamed to after"
+          "the workbench says it renamed"
+      do! evals state "Tests.WbRename.after ()" "7" "the new name resolves"
+      do! notFound state "Tests.WbRename.before ()" "and the old name is gone"
+      do! discardAll state
     })
 
 let searchFindsByText =
@@ -847,8 +2034,28 @@ let tests : List<Test> =
   [ lsNamesWhatIsThere
     treeShowsDescendants
     viewPrintsSource
+    viewPrintsTestDefaultsAndSqlErrors
     viewRefusesWhatIsNotThere
+    viewListsAFunctionsTests
+    testsFollowEditsAcrossOwners
+    cachedTestsRerunWhenWhatTheyUseChanges
+    cachedPassesStayOnTheirBranch
+    testsWithoutPurityProofAlwaysRun
+    assertionFailureMessagesAlwaysRun
+    cachedPassesRequireTheSameBuildAndJudge
+    testAddAuthorsATest
+    testRunUsesOneStartingStore
+    isolatedTestDeclarations
+    entryPointOverrideIsLocal
+    packageTestsRespectParallelLimit
+    packageTestsRequireRun
+    packageTestJobsRejectInvalidCounts
+    isolatedTestsRejectUnsuccessfulWorkers
+    testsUseInstanceAndFunctionPolicies
+    workbenchShowsTests
+    workbenchRenameEndsTheOldName
     searchFindsByText
+    searchLeavesTestsOutUnlessAsked
     depsNamesWhatAnItemUses
     hashResolvesNamesLikeViewDoes
     hashLongIsTheShortOneSpelledOut

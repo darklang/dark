@@ -1,0 +1,83 @@
+module Darklang.Language.Tests.EArg
+
+let addTwo (earg1: Int) (earg2: Int): Int =
+  earg1 + earg2
+
+let shadowTest (shadowedEarg: Int): Int =
+  let shadowedEarg = 42
+  shadowedEarg  // This should be EVariable, not EArg after shadowing
+
+let argAndLocalVar (mixedEarg: Int): Int =
+  let localVarNotEarg = 10
+  // mixedEarg=EArg(0), localVarNotEarg=EVariable("localVarNotEarg")
+  (mixedEarg + localVarNotEarg)
+
+let nestedShadowing (eargOne: Int) (eargTwo: Int): Int =
+  let a =
+    let eargOne = 100
+    eargOne + eargTwo
+  a + eargOne
+
+let lambdaTest (eargX: Int) : Int =
+  let addX = (fun eargX -> eargX + 1)
+  let result = eargX + (addX eargX)
+  result
+
+let matchArgName (value: Int) : Int =
+  match value with
+  | 0 -> 100
+  | value -> value * 2
+
+let matchWithNestedShadowing (x: Int) (y: Int) : Int =
+  match x with
+  | 0 -> y
+  | x -> // This 'x' shadows the parameter
+    let y = x * 3  // This 'y' shadows the second parameter
+    match y with
+    | 6 -> 600
+    | y -> y + 10  // This 'y' shadows both parameter and let binding
+
+let matchWithNestedShadowing2 (x: Int) (y: Int) : Int =
+  match y with
+  | 0 -> y
+  | x -> x * 3  // This 'x' shadows the first parameter
+
+let tupleMatchWithArgShadowing (data: (Int * String)) : String =
+  match data with
+  | (0, result) -> result
+  | (1, data) -> data + "_modified"  // 'data' shadows the parameter
+  | (data, text) -> Stdlib.toString data + "_" + text  // 'data' shadows parameter
+
+test addTwoArguments =
+  addTwo 3 4 |> Stdlib.Test.equal 7
+
+test letShadowsArgument =
+  shadowTest 999 |> Stdlib.Test.equal 42
+
+test argumentAndLocalVariable =
+  argAndLocalVar 5 |> Stdlib.Test.equal 15
+
+test nestedLetShadowsArgument =
+  nestedShadowing 1 2 |> Stdlib.Test.equal 103
+
+test lambdaParameterShadowsArgument =
+  lambdaTest 10 |> Stdlib.Test.equal 21
+
+test matchPatternShadowsArgument =
+  Stdlib.Test.all
+    [ matchArgName 0 |> Stdlib.Test.equal 100
+      matchArgName 5 |> Stdlib.Test.equal 10 ]
+
+test nestedMatchShadowing =
+  Stdlib.Test.all
+    [ matchWithNestedShadowing 0 42 |> Stdlib.Test.equal 42
+      matchWithNestedShadowing 2 99 |> Stdlib.Test.equal 600
+      matchWithNestedShadowing 3 99 |> Stdlib.Test.equal 19
+      matchWithNestedShadowing2 5 0 |> Stdlib.Test.equal 0
+      matchWithNestedShadowing2 5 4 |> Stdlib.Test.equal 12 ]
+
+test tuplePatternShadowsArgument =
+  Stdlib.Test.all
+    [ tupleMatchWithArgShadowing (0, "hello") |> Stdlib.Test.equal "hello"
+      tupleMatchWithArgShadowing (1, "test") |> Stdlib.Test.equal "test_modified"
+      tupleMatchWithArgShadowing (5, "world") |> Stdlib.Test.equal "5_world" ]

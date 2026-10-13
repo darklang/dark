@@ -1,0 +1,714 @@
+/// Byte-for-byte ports of the two standalone workbench render checks.
+/// Expected frames are copied from the checked-in .expected files, not generated
+/// by the test.
+module Darklang.Cli.Tests.Golden
+
+let compare (render: Unit -> Unit) (expectedRows: List<String>) : Stdlib.Test.Result =
+  // Key handlers read the worker's fixed 80x24 terminal size; viewAtSize
+  // renders the original explicit sizes. Stdout contains frames only.
+  let output = Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) render ()
+  match output with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    let actualRows = Stdlib.String.split output.stdout "\n"
+    Stdlib.Test.all
+      [ Stdlib.Test.expect
+          (output.exitCode == 0)
+          $"Fixture failed: {output.stderr} {output.stdout}"
+        Stdlib.List.length actualRows
+        |> Stdlib.Test.equal (Stdlib.List.length expectedRows)
+        expectedRows
+        |> Stdlib.List.indexedMap (fun index expectedRow ->
+          Stdlib.List.getAt actualRows index |> Stdlib.Test.equal (Some expectedRow))
+        |> Stdlib.Test.all ]
+
+// fixedHome supplies stable Home rows, independent of branches and commit ages.
+// The child runs with COLUMNS=80, LINES=24 and detached stdin.
+// Expected rows come from goldenview.expected.
+let goldenviewRender () : Unit =
+  // Fixed view inputs: these screenshots test layout and key handling, not the
+  // developer's branches or how long ago the store was reloaded.
+  let homeItems () : List<Darklang.Cli.Workbench.BodyItem> =
+    let row (name: String) (kind: String) (desc: String) : Darklang.Cli.Workbench.BodyItem =
+      Darklang.Cli.Workbench.BodyItem { name = name; kind = kind; isModule = false; desc = desc }
+    [ Darklang.Cli.Workbench.homeHeader "this branch"
+      row "● main" "home-here" "nothing uncommitted · last commit 1m ago"
+      Darklang.Cli.Workbench.homeHeader ""
+      Darklang.Cli.Workbench.homeHeader "recent commits"
+      row "package reload (baseline)" "home-commit" "system · 1m ago"
+      Darklang.Cli.Workbench.homeHeader ""
+      Darklang.Cli.Workbench.homeHeader "branches"
+      row "● main" "home-branch" "current · 1m ago" ]
+
+  let fixedHome (s: Darklang.Cli.Workbench.State) : Darklang.Cli.Workbench.State =
+    if s.activeView == Darklang.Cli.Workbench.vHome then { s with items = homeItems () }
+    else s
+
+  // Every row of a workbench view at three sizes, for diffing a render change against.
+  //
+  // Not a benchmark. `compose`, `composeRow`, `overlay` and `renderSegments` decide what a frame
+  // actually looks like, and a performance change to any of them has to produce the same bytes.
+  //
+  // `scripts/perf/checks` diffs this against `goldenview.expected` beside it. When the view itself
+  // changes, regenerate that file deliberately -- never to make the check pass:
+  //
+  //   ./scripts/run-cli run scripts/perf/workloads/checks/goldenview.dark \
+  //     > scripts/perf/workloads/checks/goldenview.expected
+  //
+  // Three sizes because the interesting bugs are in clipping and in rows that run out of room.
+
+  let loadedBase =
+    Darklang.Cli.Workbench.initialState
+      Darklang.SCM.Branch.mainBranchId
+      Stdlib.Option.Option.None
+      "perf"
+      "perf-instance"
+      (Stdlib.List.range 0 40)
+      false
+
+  let base = fixedHome loadedBase
+
+  let sizes =
+    [ Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+      Stdlib.Cli.Tui.Size { width = 80; height = 24 }
+      Stdlib.Cli.Tui.Size { width = 40; height = 10 } ]
+
+  let dump (size: Stdlib.Cli.Tui.Size) : Unit =
+    let v = Darklang.Cli.Workbench.viewAtSize base size
+    let _ =
+      v.rows
+      |> Stdlib.List.indexedMap (fun i r ->
+        Stdlib.printLine
+          ((Stdlib.toString size.width)
+           + "x"
+           + (Stdlib.toString size.height)
+           + " "
+           + (Stdlib.toString i)
+           + "|"
+           + r))
+    ()
+
+  let _rendered = sizes |> Stdlib.List.map (fun s -> dump s)
+
+  Stdlib.printLine "-- end of golden view --"
+
+val goldenviewExpected =
+  [ "120x40 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "120x40 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "120x40 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "120x40 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "120x40 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "120x40 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "80x24 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "80x24 1|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "80x24 2|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 3|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m        \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 4|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 5|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                             \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 6|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                 \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 7|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 8|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                   \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 9|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 10|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 11|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 12|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 13|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 14|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 15|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 16|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 17|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 18|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 19|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 20|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 21|\u001b[90m│\u001b[0m                                                                              \u001b[90m│\u001b[0m\u001b[0m"
+    "80x24 22|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "80x24 23|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "40x10 0|"
+    "40x10 1|"
+    "40x10 2|"
+    "40x10 3|"
+    "40x10 4|           \u001b[2mterminal too small\u001b[0m\u001b[0m"
+    "40x10 5|        \u001b[2mresize to at least 56x12\u001b[0m\u001b[0m"
+    "40x10 6|"
+    "40x10 7|"
+    "40x10 8|"
+    "40x10 9|"
+    "-- end of golden view --"
+    "" ]
+
+test goldenview =
+  compare goldenviewRender goldenviewExpected
+
+// fixedHome supplies stable Home rows after each key press, independent of branches
+// and commit ages. The child runs with COLUMNS=80, LINES=24 and detached stdin.
+// Expected rows come from goldenkeys.expected.
+let goldenkeysRender () : Unit =
+  // Fixed view inputs: these screenshots test layout and key handling, not the
+  // developer's branches or how long ago the store was reloaded.
+  let homeItems () : List<Darklang.Cli.Workbench.BodyItem> =
+    let row (name: String) (kind: String) (desc: String) : Darklang.Cli.Workbench.BodyItem =
+      Darklang.Cli.Workbench.BodyItem { name = name; kind = kind; isModule = false; desc = desc }
+    [ Darklang.Cli.Workbench.homeHeader "this branch"
+      row "● main" "home-here" "nothing uncommitted · last commit 1m ago"
+      Darklang.Cli.Workbench.homeHeader ""
+      Darklang.Cli.Workbench.homeHeader "recent commits"
+      row "package reload (baseline)" "home-commit" "system · 1m ago"
+      Darklang.Cli.Workbench.homeHeader ""
+      Darklang.Cli.Workbench.homeHeader "branches"
+      row "● main" "home-branch" "current · 1m ago" ]
+
+  let fixedHome (s: Darklang.Cli.Workbench.State) : Darklang.Cli.Workbench.State =
+    if s.activeView == Darklang.Cli.Workbench.vHome then { s with items = homeItems () }
+    else s
+
+  // A workbench view after each key of a navigation sequence, for diffing a change against.
+  //
+  // `goldenview.dark` renders the initial state only, so it says nothing about the key handlers. This
+  // walks a sequence -- into the nav, along it, into a pane, back out, and through the overlays --
+  // rendering after every key, which is where a change to *when* a handler computes something shows
+  // up. Ten frames rather than one.
+  //
+  // `scripts/perf/checks` diffs this against `goldenkeys.expected` beside it. When the keymap or the
+  // views change, regenerate that file deliberately -- never to make the check pass:
+  //
+  //   ./scripts/run-cli run scripts/perf/workloads/checks/goldenkeys.dark \
+  //     > scripts/perf/workloads/checks/goldenkeys.expected
+
+  let loadedBase =
+    Darklang.Cli.Workbench.initialState
+      Darklang.SCM.Branch.mainBranchId
+      Stdlib.Option.Option.None
+      "perf"
+      "perf-instance"
+      (Stdlib.List.range 0 40)
+      false
+
+  let base = fixedHome loadedBase
+
+  let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+  let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false }
+
+  // Rendered as one line per row, prefixed by the step, so a diff names the key that broke it.
+  let render (label: String) (s: Darklang.Cli.Workbench.State) : Unit =
+    let v = Darklang.Cli.Workbench.viewAtSize s size
+
+    v.rows
+    |> Stdlib.List.indexedMap (fun i row ->
+      Stdlib.printLine (label + " " + (Stdlib.toString i) + "|" + row))
+    |> Stdlib.List.length
+    |> Stdlib.toString
+    |> (fun _ -> ())
+
+  // Applies one key and renders the result, carrying the state forward. `Exit` and `Launch` end the
+  // walk on the state they carry, so the sequence stays honest about where it actually got to.
+  let press
+    (s: Darklang.Cli.Workbench.State)
+    (label: String)
+    (k: Stdlib.Cli.Stdin.Key.Key)
+    : Darklang.Cli.Workbench.State =
+    let next =
+      match Darklang.Cli.Workbench.handleKey s k mods Stdlib.Option.Option.None with
+      | Continue s2 -> s2
+      | Exit s2 -> s2
+      | Launch(s2, _cmd) -> s2
+      | ToPrompt s2 -> s2
+
+    let next = fixedHome next
+    let _ = render label next
+    next
+
+  let _ = render "start" base
+
+  let s1 = press base "tab" Stdlib.Cli.Stdin.Key.Key.Tab
+  let s2 = press s1 "down1" Stdlib.Cli.Stdin.Key.Key.DownArrow
+  let s3 = press s2 "down2" Stdlib.Cli.Stdin.Key.Key.DownArrow
+  let s4 = press s3 "right" Stdlib.Cli.Stdin.Key.Key.RightArrow
+  let s5 = press s4 "up" Stdlib.Cli.Stdin.Key.Key.UpArrow
+  let s6 = press s5 "left" Stdlib.Cli.Stdin.Key.Key.LeftArrow
+  let s7 = press s6 "enter" Stdlib.Cli.Stdin.Key.Key.Enter
+  let s8 = press s7 "esc" Stdlib.Cli.Stdin.Key.Key.Escape
+  let s9 = press s8 "tab2" Stdlib.Cli.Stdin.Key.Key.Tab
+  let _s10 = press s9 "end" Stdlib.Cli.Stdin.Key.Key.End
+
+  Stdlib.printLine "-- golden keys done --"
+
+val goldenkeysExpected =
+  [ "start 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "start 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "start 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "start 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "start 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "start 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "start 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "start 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "start 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "start 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "start 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "start 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "tab 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "tab 1| \u001b[7m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode    \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "tab 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "tab 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "tab 39|  \u001b[37m←→\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mgo\u001b[0m\u001b[2m · \u001b[0m\u001b[37m↓\u001b[0m \u001b[2mto view\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m`\u001b[0m \u001b[2mviews\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "down1 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "down1 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m  \u001b[7m 2 Code \u001b[0m   \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "down1 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "down1 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down1 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "down1 39|  \u001b[37m←→\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mgo\u001b[0m\u001b[2m · \u001b[0m\u001b[37m↓\u001b[0m \u001b[2mto view\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m`\u001b[0m \u001b[2mviews\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "down2 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "down2 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode   \u001b[7m 3 Changes \u001b[0m   \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "down2 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "down2 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "down2 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "down2 39|  \u001b[37m←→\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mgo\u001b[0m\u001b[2m · \u001b[0m\u001b[37m↓\u001b[0m \u001b[2mto view\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m`\u001b[0m \u001b[2mviews\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "right 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "right 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "right 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "right 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "right 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "right 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "right 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "right 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "right 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "right 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "right 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "right 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "up 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "up 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "up 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "up 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "up 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "up 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "up 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "up 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "up 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "up 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "up 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "up 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "left 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "left 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "left 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "left 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "left 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "left 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "left 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "left 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "left 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "left 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "left 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "left 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "enter 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "enter 1|  \u001b[2m1 \u001b[0m\u001b[2mHome\u001b[0m    \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m   \u001b[48;5;61m\u001b[37m\u001b[1m 3 Changes \u001b[0m   \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "enter 2|\u001b[90m╭\u001b[0m\u001b[90m─ \u001b[0m\u001b[2mmain\u001b[0m\u001b[90m ───────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "enter 3|\u001b[90m│\u001b[0m \u001b[32m✓ nothing uncommitted on this branch\u001b[0m                                                                                 \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 4|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 6|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 7|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 9|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 10|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "enter 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "enter 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37mesc\u001b[0m \u001b[2m← Home\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mx\u001b[0m \u001b[2mdiscard\u001b[0m\u001b[2m · \u001b[0m\u001b[37mu/d\u001b[0m \u001b[2mpush/pull\u001b[0m\u001b[2m · \u001b[0m\u001b[37m←→\u001b[0m \u001b[2mpane\u001b[0m\u001b[2m · \u001b[0m\u001b[37mS\u001b[0m \u001b[2mbranches\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "esc 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "esc 1| \u001b[48;5;61m\u001b[37m\u001b[1m 1 Home \u001b[0m   \u001b[2m2 \u001b[0m\u001b[2mCode\u001b[0m    \u001b[2m3 \u001b[0m\u001b[2mChanges\u001b[0m    \u001b[2m4 \u001b[0m\u001b[2mREPL\u001b[0m    \u001b[2m5 \u001b[0m\u001b[2mApps\u001b[0m    \u001b[2m6 \u001b[0m\u001b[2mTraces\u001b[0m    \u001b[2m7 \u001b[0m\u001b[2mDocs\u001b[0m    \u001b[2m8 \u001b[0m\u001b[2mSync\u001b[0m \u001b[0m"
+    "esc 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "esc 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 4|\u001b[90m│\u001b[0m \u001b[38;5;141m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "esc 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "esc 39|  \u001b[37m↑↓\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mopen\u001b[0m\u001b[2m · \u001b[0m\u001b[37ms\u001b[0m \u001b[2mswitch branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mb\u001b[0m \u001b[2mnew branch\u001b[0m\u001b[2m · \u001b[0m\u001b[37mc\u001b[0m \u001b[2mcommit\u001b[0m\u001b[2m · \u001b[0m\u001b[37mm\u001b[0m \u001b[2mmerge\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "tab2 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "tab2 1| \u001b[7m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode    \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "tab2 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "tab2 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "tab2 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "tab2 39|  \u001b[37m←→\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mgo\u001b[0m\u001b[2m · \u001b[0m\u001b[37m↓\u001b[0m \u001b[2mto view\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m`\u001b[0m \u001b[2mviews\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "end 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf @ perf-instance\u001b[0m\u001b[0m"
+    "end 1| \u001b[7m 1 Home \u001b[0m   \u001b[2m2 \u001b[0mCode    \u001b[2m3 \u001b[0mChanges    \u001b[2m4 \u001b[0mREPL    \u001b[2m5 \u001b[0mApps    \u001b[2m6 \u001b[0mTraces    \u001b[2m7 \u001b[0mDocs    \u001b[2m8 \u001b[0mSync \u001b[0m"
+    "end 2|\u001b[90m╭\u001b[0m\u001b[90m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\u001b[0m\u001b[90m╮\u001b[0m\u001b[0m"
+    "end 3|\u001b[90m│\u001b[0m   \u001b[2mthis branch\u001b[0m                                                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "end 4|\u001b[90m│\u001b[0m \u001b[90m┃ ● main\u001b[0m                     \u001b[2mnothing uncommitted · last commit 1m ago\u001b[0m                                                \u001b[90m│\u001b[0m\u001b[0m"
+    "end 5|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 6|\u001b[90m│\u001b[0m   \u001b[2mrecent commits\u001b[0m                                                                                                     \u001b[90m│\u001b[0m\u001b[0m"
+    "end 7|\u001b[90m│\u001b[0m   package reload (baseline)  \u001b[2msystem · 1m ago\u001b[0m                                                                         \u001b[90m│\u001b[0m\u001b[0m"
+    "end 8|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 9|\u001b[90m│\u001b[0m   \u001b[2mbranches\u001b[0m                                                                                                           \u001b[90m│\u001b[0m\u001b[0m"
+    "end 10|\u001b[90m│\u001b[0m   ● main                     \u001b[2mcurrent · 1m ago\u001b[0m                                                                        \u001b[90m│\u001b[0m\u001b[0m"
+    "end 11|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 12|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 13|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 14|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 15|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 16|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 17|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 18|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 19|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 20|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 21|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 22|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 23|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 24|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 25|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 26|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 27|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 28|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 29|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 30|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 31|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 32|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 33|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 34|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 35|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 36|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 37|\u001b[90m│\u001b[0m                                                                                                                      \u001b[90m│\u001b[0m\u001b[0m"
+    "end 38|\u001b[90m╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯\u001b[0m\u001b[0m"
+    "end 39|  \u001b[37m←→\u001b[0m \u001b[2mmove\u001b[0m\u001b[2m · \u001b[0m\u001b[37m⏎\u001b[0m \u001b[2mgo\u001b[0m\u001b[2m · \u001b[0m\u001b[37m↓\u001b[0m \u001b[2mto view\u001b[0m\u001b[2m · \u001b[0m\u001b[37m/\u001b[0m \u001b[2msearch\u001b[0m\u001b[2m · \u001b[0m\u001b[37m:\u001b[0m \u001b[2mcmd\u001b[0m\u001b[2m · \u001b[0m\u001b[37mp\u001b[0m \u001b[2mprompt\u001b[0m\u001b[2m · \u001b[0m\u001b[37m`\u001b[0m \u001b[2mviews\u001b[0m\u001b[2m · \u001b[0m\u001b[37m?\u001b[0m \u001b[2mhelp\u001b[0m\u001b[2m · \u001b[0m\u001b[37mq\u001b[0m \u001b[2mquit\u001b[0m\u001b[0m"
+    "-- golden keys done --"
+    "" ]
+
+test goldenkeys =
+  compare goldenkeysRender goldenkeysExpected

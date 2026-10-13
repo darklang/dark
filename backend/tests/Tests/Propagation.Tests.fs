@@ -605,6 +605,40 @@ let valueMovesItsReaders =
   }
 
 
+/// A test is a graph leaf, but it still follows the production functions it
+/// exercises. Rehashing only that dependent is what turns the result cache into
+/// affected-test execution rather than a timestamp-based rerun.
+let functionMoveRehashesDependentTest =
+  testTask "a test gets a new hash when a referenced fn moves" {
+    let m = "PropTestPackageTest"
+    do! cleanup m
+
+    let! v1 =
+      authorIn
+        m
+        $"""let base' (x: Int64) : Int64 = (x + 1L)
+test usesBase = {m}.base' 1L |> Stdlib.Test.equal 2L"""
+
+    let! testBefore = liveBoundHash (loc m "usesBase")
+    Expect.isSome testBefore "the package test is bound after authoring"
+
+    let! v2 = authorIn m """let base' (x: Int64) : Int64 = (x + 100L)"""
+
+    let! repointed =
+      cascade (loc m "base'") (hashBoundTo v1 "base'") (hashBoundTo v2 "base'")
+
+    Expect.contains repointed "usesBase" "the cascade reports the affected test"
+
+    let! testAfter = liveBoundHash (loc m "usesBase")
+    Expect.notEqual
+      testAfter
+      testBefore
+      "the affected test has a new content hash and therefore misses its cache"
+
+    do! cleanup m
+  }
+
+
 /// A SetName binds its own name and no other.
 ///
 /// There is no rename op. Naming a hash somewhere new must therefore leave every other name for
@@ -687,5 +721,6 @@ let tests =
       secondPassIsSilent
       typeMovesItsUsers
       valueMovesItsReaders
+      functionMoveRehashesDependentTest
       namingElsewhereLeavesTheOldNameBound
       callersFoundByEitherNameOfOneBody ]

@@ -1,0 +1,145 @@
+module Darklang.Language.Tests.LetBindings
+
+test unusedBindingIsEvaluated =
+  (let x = Stdlib.Test.raiseRuntimeError "a" in 5L)
+  => raises "Uncaught exception: a"
+
+test bindingErrorSkipsBody =
+  (let x = Stdlib.Test.raiseRuntimeError "a" in Stdlib.Test.raiseRuntimeError "b")
+  => raises "Uncaught exception: a"
+
+test variables =
+  (let x = 5L
+   x)
+  |> Stdlib.Test.equal 5L
+
+test unitPattern =
+  (let () = Stdlib.Tuple2.first ((), 5L)
+   5L)
+  |> Stdlib.Test.equal 5L
+
+test tuples =
+  Stdlib.Test.all
+    [ (let (a, b) = (1L, 2L)
+       2L)
+      |> Stdlib.Test.equal 2L
+      (let (a, b) = (1L, 2L)
+       b)
+      |> Stdlib.Test.equal 2L
+      (let (a, b) = (1L, 2L)
+       (b, a))
+      |> Stdlib.Test.equal (2L, 1L)
+      (let (_, _) = (1L, 2L)
+       2L)
+      |> Stdlib.Test.equal 2L
+      (let (a, b, c) = (1L, 2L, 3L)
+       b)
+      |> Stdlib.Test.equal 2L
+      (let (a, b, c) = (1L, 2L, 3L)
+       (b, a))
+      |> Stdlib.Test.equal (2L, 1L)
+      (let (_, _, _) = (1L, 2L, 3L)
+       2L)
+      |> Stdlib.Test.equal 2L
+      // With multiple levels of nested destructuring
+      (let ((a, ((b, (c, d)), e)), f) = ((1L, ((2L, (3L, 4L)), 5L)), 6L)
+       c)
+      |> Stdlib.Test.equal 3L
+      (let ((a, ((b, cd), e)), f) = ((1L, ((2L, (3L, 4L)), 5L)), 6L)
+       cd)
+      |> Stdlib.Test.equal (3L, 4L) ]
+
+test tupleEvaluatesIgnoredElements =
+  (let (_, _, _) = (1L, 2L, Stdlib.Test.raiseRuntimeError "test") in 2L)
+  => raises "Uncaught exception: test"
+
+test tupleRaisesFirstElementError =
+  (let (_, _, _) =
+    (Stdlib.Test.raiseRuntimeError "test1",
+     2L,
+     Stdlib.Test.raiseRuntimeError "test2")
+   2L)
+  => raises "Uncaught exception: test1"
+
+test nesting =
+  (let x =
+    let y = 1L
+    let z = 2L
+    y + z
+
+   x)
+  |> Stdlib.Test.equal 3L
+
+test shadowing =
+  Stdlib.Test.all
+    [ (let x = 5L
+       let x = 6L
+       x)
+      |> Stdlib.Test.equal 6L
+      (let x = 35L
+       match 6L with
+       | x -> x)
+      |> Stdlib.Test.equal 6L
+      (let x = 35L
+       match Stdlib.Result.Result.Ok 6L with
+       | Ok x -> x)
+      |> Stdlib.Test.equal 6L
+      (let x = 35L
+       Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x -> x + 2L))
+      |> Stdlib.Test.equal [ 3L, 4L, 5L, 6L ]
+      (let x = 35L
+       match Stdlib.Result.Result.Ok 6L with
+       | Ok x -> (Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x -> x + 2L)))
+      |> Stdlib.Test.equal [ 3L, 4L, 5L, 6L ]
+      Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x ->
+        (let x = 35L
+         match Stdlib.Result.Result.Ok 6L with
+         | Ok x -> x + 2L))
+      |> Stdlib.Test.equal [ 8L, 8L, 8L, 8L ]
+      Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x ->
+        match Stdlib.Result.Result.Ok 6L with
+        | Ok x -> let x = 9L in x + 2L)
+      |> Stdlib.Test.equal [ 11L, 11L, 11L, 11L ]
+      Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x ->
+        (match Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok 6L) with
+         | Ok(Ok x) -> let x = 9L in x + 2L))
+      |> Stdlib.Test.equal [ 11L, 11L, 11L, 11L ] ]
+
+test wildcard =
+  Stdlib.Test.all
+    [ // Simple wildcard - should match any value without binding it
+      (let _ = 5L in 10L) |> Stdlib.Test.equal 10L
+      // Wildcard in tuple destructuring
+      (let (x, _) = (1L, 2L) in x) |> Stdlib.Test.equal 1L
+      (let (_, y) = (1L, 2L) in y) |> Stdlib.Test.equal 2L
+      (let (_, _) = (1L, 2L) in 5L) |> Stdlib.Test.equal 5L
+      // Multiple wildcards in tuple
+      (let (_, _, _) = (1L, 2L, 3L) in 10L) |> Stdlib.Test.equal 10L
+      (let (x, _, _) = (1L, 2L, 3L) in x) |> Stdlib.Test.equal 1L
+      (let (_, y, _) = (1L, 2L, 3L) in y) |> Stdlib.Test.equal 2L
+      (let (_, _, z) = (1L, 2L, 3L) in z) |> Stdlib.Test.equal 3L
+      // Nested wildcards in tuples
+      (let ((_, x), _) = ((1L, 2L), 3L) in x) |> Stdlib.Test.equal 2L
+      (let (_, (_, y)) = (1L, (2L, 3L)) in y) |> Stdlib.Test.equal 3L
+      // Wildcard with complex values
+      (let _ = [ 1L, 2L, 3L ] in "done") |> Stdlib.Test.equal "done" ]
+
+// Wildcard with side effects - the value should still be evaluated
+test wildcardValueIsEvaluated =
+  (let _ = Stdlib.Test.raiseRuntimeError "test" in 10L)
+  => raises "Uncaught exception: test"
+
+// The parser rejects _ in expression position because a wildcard does not bind a variable.
+test wildcardCannotBeRead =
+  Darklang.LanguageTools.Parser.Parse.diagnostics "(let _ = 5L in _)"
+  |> Stdlib.List.map (fun (_, message) -> message)
+  |> Stdlib.Test.equal [ "expected an expression, found '_'" ]
+
+test nonTupleDestructuringRaises =
+  (let (a, _) = 1 in a)
+  => raises "Could not deconstruct value 1 into pattern ([variable], _)"
+
+test wrongTupleArityRaises =
+  (let (a, _) = (1, 2, 3) in a)
+  => raises
+    "Could not deconstruct value (1, 2, 3) into pattern ([variable], _)"

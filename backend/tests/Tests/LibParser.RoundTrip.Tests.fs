@@ -50,6 +50,7 @@ module SourceFileAst =
     | Type of PT.PackageType.PackageType
     | Value of PT.PackageValue.PackageValue
     | Function of PT.PackageFn.PackageFn
+    | Test of PT.PackageTest.PackageTest
     | Module of Definitions
 
   type SourceFile = { declarations : List<Declaration>; exprsToEval : List<PT.Expr> }
@@ -74,6 +75,7 @@ module SourceFileAst =
     | RT.DEnum(_, _, _, "Type", [ t ]) -> Type(PT2DT.PackageType.fromDT t)
     | RT.DEnum(_, _, _, "Value", [ v ]) -> Value(PT2DT.PackageValue.fromDT v)
     | RT.DEnum(_, _, _, "Function", [ f ]) -> Function(PT2DT.PackageFn.fromDT f)
+    | RT.DEnum(_, _, _, "Test", [ test ]) -> Test(PT2DT.PackageTest.fromDT test)
     | RT.DEnum(_, _, _, "Module", [ m ]) -> Module(definitionsOfDval m)
     | _ -> Exception.raiseInternal "Invalid Declaration" []
 
@@ -135,6 +137,9 @@ module RoundTripExpect =
           | SourceFileAst.Function f ->
             [ $"decl {i} fn",
               canon (fun w -> Canonical.writeFn Canonical.Normal w f) ]
+          | SourceFileAst.Test test ->
+            [ $"decl {i} test",
+              canon (fun w -> Canonical.writeTest Canonical.Normal w test) ]
           | SourceFileAst.Module m ->
             definitionsCanon m
             |> List.map (fun (k, v) -> $"decl {i} module / {k}", v))
@@ -159,6 +164,9 @@ module RoundTripExpect =
         Some $"content {canon (fun w -> Canonical.writeTrait Canonical.Normal w t)}"
       | PT.PackageOp.AddTraitImpl i ->
         Some $"content {canon (fun w -> Canonical.writeImpl Canonical.Normal w i)}"
+      | PT.PackageOp.AddTest test ->
+        Some
+          $"content {canon (fun w -> Canonical.writeTest Canonical.Normal w test)}"
       // `previous` (the hash this binding replaced) is what makes a rebind distinguishable from a
       // fresh one; the round trip does not care which it was.
       | PT.PackageOp.SetName(loc, target, _previous) ->
@@ -169,6 +177,7 @@ module RoundTripExpect =
           | PT.Reference.PackageFn _ -> "fn"
           | PT.Reference.PackageTrait _ -> "trait"
           | PT.Reference.PackageTraitImpl _ -> "impl"
+          | PT.Reference.PackageTest _ -> "test"
         let path = String.concat "." (loc.owner :: loc.modules)
         Some $"bind {kind} {path}.{loc.name}"
       | _ -> None)
@@ -2848,6 +2857,25 @@ let functionDeclarations =
       false ]
   |> testList "function declarations"
 
+let testDeclarations =
+  [ t
+      "named package test"
+      "/// Checks the simplest assertion\ntest passes = true"
+      "/// Checks the simplest assertion\ntest passes = true"
+      []
+      []
+      []
+      false
+    t
+      "named package test expecting a runtime error"
+      "test divisionByZero =\n  1L / 0L\n  => raises \"Cannot divide by 0\""
+      "test divisionByZero =\n  1L / 0L\n  => raises \"Cannot divide by 0\""
+      []
+      []
+      []
+      false ]
+  |> testList "test declarations"
+
 let moduleDeclarations =
   [ t
       "simple module"
@@ -3002,5 +3030,6 @@ let tests =
       valueDeclarations
       exprs
       functionDeclarations
+      testDeclarations
       moduleDeclarations
       sourceFiles ]

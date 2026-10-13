@@ -7,6 +7,128 @@
 module LibExecution.HostProcess
 
 open Prelude
+open System.IO
+open System.Runtime.InteropServices
+
+// F# generates failwith inside P/Invoke stubs; Prelude bans the built-in one.
+let private failwith (message : string) : 'a = raise (System.Exception message)
+
+/// Windows keeps descendants in a job even after the worker exits. The parent
+/// owns the job; the launcher joins it before it can start child processes.
+module private WindowsJob =
+  [<Struct; StructLayout(LayoutKind.Sequential)>]
+  type BasicLimits =
+    { perProcessTime : int64
+      perJobTime : int64
+      flags : uint32
+      minWorkingSet : unativeint
+      maxWorkingSet : unativeint
+      activeProcesses : uint32
+      affinity : unativeint
+      priority : uint32
+      scheduling : uint32 }
+
+  [<Struct; StructLayout(LayoutKind.Sequential)>]
+  type IoCounters =
+    { readOperations : uint64
+      writeOperations : uint64
+      otherOperations : uint64
+      readBytes : uint64
+      writeBytes : uint64
+      otherBytes : uint64 }
+
+  [<Struct; StructLayout(LayoutKind.Sequential)>]
+  type ExtendedLimits =
+    { basic : BasicLimits
+      io : IoCounters
+      processMemory : unativeint
+      jobMemory : unativeint
+      peakProcessMemory : unativeint
+      peakJobMemory : unativeint }
+
+  [<DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)>]
+  extern nativeint private CreateJobObjectW(nativeint attributes, string name)
+
+  [<DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)>]
+  extern nativeint private OpenJobObjectW(
+    uint32 access,
+    bool inheritHandle,
+    string name
+  )
+
+  [<DllImport("kernel32.dll", SetLastError = true)>]
+  extern bool private SetInformationJobObject(
+    nativeint job,
+    int infoClass,
+    ExtendedLimits& limits,
+    uint32 length
+  )
+
+  [<DllImport("kernel32.dll", SetLastError = true)>]
+  extern bool private AssignProcessToJobObject(nativeint job, nativeint processHandle)
+
+  [<DllImport("kernel32.dll", SetLastError = true)>]
+  extern bool private TerminateJobObject(nativeint job, uint32 exitCode)
+
+  let private check success =
+    if not success then
+      raise (System.ComponentModel.Win32Exception(Marshal.GetLastPInvokeError()))
+
+  let private handle raw =
+    check (raw <> 0n)
+    new Microsoft.Win32.SafeHandles.SafeFileHandle(raw, true)
+
+  let create name =
+    let job = handle (CreateJobObjectW(0n, name))
+    try
+      let mutable limits = Unchecked.defaultof<ExtendedLimits>
+      limits <- { limits with basic = { limits.basic with flags = 0x2000u } } // KILL_ON_JOB_CLOSE
+      check (
+        SetInformationJobObject(
+          job.DangerousGetHandle(),
+          9,
+          &limits,
+          uint32 (Marshal.SizeOf<ExtendedLimits>())
+        )
+      )
+      job
+    with e ->
+      job.Dispose()
+      Exception.reraise e
+
+  let join name =
+    use job = handle (OpenJobObjectW(1u, false, name)) // JOB_OBJECT_ASSIGN_PROCESS
+    use worker = System.Diagnostics.Process.GetCurrentProcess()
+    check (AssignProcessToJobObject(job.DangerousGetHandle(), worker.Handle))
+
+  let terminate (job : Microsoft.Win32.SafeHandles.SafeFileHandle) =
+    check (TerminateJobObject(job.DangerousGetHandle(), 1u))
+
+/// Private CLI entry point. Establish ownership before starting the worker,
+/// including when the caller substitutes a wrapper executable.
+let launchOwnedProcess
+  (jobName : string)
+  (program : string)
+  (args : List<string>)
+  : int =
+  if HostPosix.isPosix then
+    match HostPosix.execInNewSession program args with
+    | Error(_, message) ->
+      System.Console.Error.WriteLine
+        $"Could not launch child process worker: {message}"
+      127
+    | Ok() -> 0 // exec does not return on success
+  elif System.OperatingSystem.IsWindows() then
+    WindowsJob.join jobName
+    let psi = System.Diagnostics.ProcessStartInfo(program)
+    psi.UseShellExecute <- false
+    for arg in args do
+      psi.ArgumentList.Add arg
+    use worker = System.Diagnostics.Process.Start psi
+    worker.WaitForExit()
+    worker.ExitCode
+  else
+    invalidOp "Supervised processes are unsupported on this platform"
 
 /// One managed launch and its supervised child. No capturing or waiting here:
 /// shared Dark consumes nonblocking owned pipe descriptors using syscall leaves.
@@ -122,6 +244,285 @@ let killChild (child : Child) : unit =
 /// Runtime executable identity, checked as a read of its returned path by Host.
 let currentExecutablePath () : string =
   System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
+
+/// Hash the executable and its installed runtime dependencies once per process.
+/// This works for both a single NativeAOT binary and a managed build with DLLs.
+let private runtimeHashValue =
+  lazy
+    (let executable = currentExecutablePath ()
+     let directory = Path.GetDirectoryName executable
+     let dependencies =
+       Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
+       |> Array.filter (fun path ->
+         path.EndsWith(".dll")
+         || path.EndsWith(".deps.json")
+         || path.EndsWith(".runtimeconfig.json")
+         || path.EndsWith(".dylib")
+         || (Path.GetFileName path).Contains(".so"))
+       |> Array.sort
+     use hash =
+       System.Security.Cryptography.IncrementalHash.CreateHash(
+         System.Security.Cryptography.HashAlgorithmName.SHA256
+       )
+     hash.AppendData(
+       System.Text.Encoding.UTF8.GetBytes RuntimeInformation.FrameworkDescription
+     )
+     for path in Array.append [| executable |] dependencies do
+       use file = File.OpenRead path
+       hash.AppendData(System.Security.Cryptography.SHA256.HashData file)
+     System.Convert.ToHexStringLower(hash.GetHashAndReset()))
+
+let runtimeHash () : string = runtimeHashValue.Value
+
+let mutable private processLauncher : Option<string> = None
+
+/// Configure at host startup when another executable provides the worker entry point.
+let setProcessLauncher (path : string) : unit =
+  processLauncher <- Some(Path.GetFullPath path)
+
+/// CLI hosts launch themselves unless startup configured a different executable.
+let processLauncherPath (overrideVariable : Option<string>) : string =
+  // Resolving the executable is part of the Native process operation, as PATH
+  // resolution is for ProcessRun. It does not add an EnvRead requirement.
+  let overridePath =
+    overrideVariable
+    |> Option.bind (fun name ->
+      match System.Environment.GetEnvironmentVariable name with
+      | null
+      | "" -> None
+      | path -> Some(Path.GetFullPath path))
+  match overridePath |> Option.orElse processLauncher with
+  | None -> currentExecutablePath ()
+  | Some path -> path
+
+let private startInfo
+  (program : string)
+  (args : List<string>)
+  (redirectInput : bool)
+  : System.Diagnostics.ProcessStartInfo =
+  let psi = System.Diagnostics.ProcessStartInfo()
+  psi.FileName <- program
+  for arg in args do
+    psi.ArgumentList.Add arg
+  psi.UseShellExecute <- false
+  psi.RedirectStandardInput <- redirectInput
+  psi.RedirectStandardOutput <- true
+  psi.RedirectStandardError <- true
+  psi.CreateNoWindow <- true
+  psi
+
+/// Captured child output is bounded so a flooding child cannot exhaust host
+/// memory: read to the cap, keep draining past it (so the child never blocks
+/// on a full pipe) but store no more. A resource limit, not a policy one.
+let private maxCapturedOutput = 64 * 1024 * 1024
+
+let private readCappedWithCancellation
+  (cancellation : System.Threading.CancellationToken)
+  (reader : System.IO.StreamReader)
+  : System.Threading.Tasks.Task<string> =
+  task {
+    let builder = System.Text.StringBuilder()
+    let buffer = Array.zeroCreate<char> 8192
+    let mutable reading = true
+    while reading do
+      let! n = reader.ReadAsync(System.Memory<char>(buffer), cancellation)
+      if n = 0 then
+        reading <- false
+      elif builder.Length < maxCapturedOutput then
+        builder.Append(buffer, 0, min n (maxCapturedOutput - builder.Length))
+        |> ignore<System.Text.StringBuilder>
+    return builder.ToString()
+  }
+
+/// Prepare a file once and reuse it until disposal, without exposing its path.
+/// File.Copy uses filesystem cloning where supported, with a portable fallback.
+let fileSnapshot
+  (snapshot : string -> Result<unit, string>)
+  : HostTypes.FileSnapshot =
+  let gate = obj ()
+  let mutable disposed = false
+  let mutable directory : Option<string> = None
+  let baseline =
+    lazy
+      (let dir = Directory.CreateTempSubdirectory("dark-snapshot-").FullName
+       directory <- Some dir
+       let path = Path.Combine(dir, "baseline")
+       snapshot path |> Result.map (fun () -> path))
+  let close () =
+    lock gate (fun () ->
+      disposed <- true
+      match directory with
+      | None -> ()
+      | Some dir ->
+        Directory.Delete(dir, true)
+        directory <- None)
+  let onExit =
+    System.EventHandler(fun _ _ ->
+      try
+        close ()
+      with _ ->
+        ())
+  System.AppDomain.CurrentDomain.ProcessExit.AddHandler onExit
+  { new HostTypes.FileSnapshot with
+      member _.CopyTo target =
+        lock gate (fun () ->
+          if disposed then
+            Error "The file snapshot has already been closed"
+          else
+            try
+              match baseline.Value with
+              | Error message -> Error message
+              | Ok path ->
+                File.Copy(path, target)
+                Ok()
+            with e ->
+              Error e.Message)
+      member _.Dispose() =
+        try
+          close ()
+        finally
+          System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit }
+
+
+/// Supervise a child and its descendants in a disposable directory. Preparation
+/// happens before the deadline, which covers both process exit and output pipes.
+let runInWorkspace
+  (launcher : string)
+  (prefix : string)
+  (prepare : string -> Result<HostTypes.ProcessWorkspace, string>)
+  (timeoutMs : int)
+  : Result<int * string * string * Option<byte[]> * List<string>, int * string> =
+  let dir = Directory.CreateTempSubdirectory(prefix).FullName
+  let mutable child : System.Diagnostics.Process option = None
+  let jobName = "dark-process-" + System.Guid.NewGuid().ToString("N")
+  let mutable job : Microsoft.Win32.SafeHandles.SafeFileHandle option = None
+  use cancellation = new System.Threading.CancellationTokenSource()
+  let stop () =
+    let errors = ResizeArray<string>()
+    let stopGroup (p : System.Diagnostics.Process) =
+      if HostPosix.isPosix then
+        // The launcher creates a group whose ID is its PID; that group remains
+        // addressable after the worker exits and its children are reparented.
+        match HostPosix.kill (-p.Id) 9 with
+        | Ok()
+        | Error(3, _) -> () // ESRCH: no group, including a launcher not yet ready
+        | Error(_, message) ->
+          errors.Add $"Could not stop child process process group: {message}"
+    match child with
+    | Some p ->
+      try
+        // Traverse while the worker is alive: nested workers may own separate
+        // groups. Also handles cancellation before the launcher is ready.
+        if not p.HasExited then p.Kill true
+        if not (p.WaitForExit 5000) then
+          errors.Add "Child process worker did not exit after being killed"
+      with e ->
+        errors.Add $"Could not stop child process worker: {e.Message}"
+      try
+        // The group survives its leader and catches reparented descendants.
+        stopGroup p
+      with e ->
+        errors.Add $"Could not stop child process process group: {e.Message}"
+    | None -> ()
+    match job with
+    | Some handle ->
+      try
+        WindowsJob.terminate handle
+      with e ->
+        errors.Add $"Could not stop child process job: {e.Message}"
+    | None -> ()
+    List.ofSeq errors
+  let removeDirectory () =
+    try
+      Directory.Delete(dir, true)
+      []
+    with e ->
+      [ $"Could not remove child process directory {dir}: {e.Message}" ]
+  let onCancel =
+    System.ConsoleCancelEventHandler(fun _ _ -> stop () |> ignore<List<string>>)
+  let onExit =
+    System.EventHandler(fun _ _ ->
+      stop () |> ignore<List<string>>
+      removeDirectory () |> ignore<List<string>>)
+  System.Console.CancelKeyPress.AddHandler onCancel
+  System.AppDomain.CurrentDomain.ProcessExit.AddHandler onExit
+  let mutable cleanupErrors = []
+  let outcome =
+    try
+      try
+        match prepare dir with
+        | Error message -> Error(-1, message)
+        | Ok spec ->
+          for directory in spec.directories do
+            Directory.CreateDirectory(Path.Combine(dir, directory))
+            |> ignore<DirectoryInfo>
+          for path, bytes in spec.files do
+            File.WriteAllBytes(Path.Combine(dir, path), bytes)
+          let resultPath = Path.Combine(dir, spec.resultFile)
+          if System.OperatingSystem.IsWindows() then
+            job <- Some(WindowsJob.create jobName)
+          let psi =
+            startInfo
+              launcher
+              ([ "--process-launch"; jobName; spec.program ] @ spec.arguments)
+              true
+          for key, value in spec.environment do
+            match value with
+            | None -> psi.Environment.Remove key |> ignore<bool>
+            | Some value -> psi.Environment[key] <- value
+          let p = System.Diagnostics.Process.Start psi
+          child <- Some p
+          p.StandardInput.Close()
+          let stdout = readCappedWithCancellation cancellation.Token p.StandardOutput
+          let stderr = readCappedWithCancellation cancellation.Token p.StandardError
+          // One deadline covers exit AND both pipes. A descendant can hold a
+          // pipe open after the worker exits, so waiting only for exit is unsafe.
+          let finished =
+            System.Threading.Tasks.Task.WhenAll
+              [| p.WaitForExitAsync(cancellation.Token)
+                 stdout :> System.Threading.Tasks.Task
+                 stderr :> System.Threading.Tasks.Task |]
+          if not (finished.Wait timeoutMs) then
+            Error(
+              110,
+              $"Child process timed out after {timeoutMs} ms (worker or output still open)"
+            )
+          else
+            let result =
+              if File.Exists resultPath then
+                if (FileInfo resultPath).Length > int64 maxCapturedOutput then
+                  Exception.raiseInternal
+                    "Child process result exceeds the size limit"
+                    []
+                Some(File.ReadAllBytes resultPath)
+              else
+                None
+            Ok(p.ExitCode, stdout.Result, stderr.Result, result)
+      with e ->
+        Error(-1, $"Child process failed: {e.Message}")
+    finally
+      cancellation.Cancel()
+      cleanupErrors <- stop ()
+      match child with
+      | Some p ->
+        try
+          p.Dispose()
+        with e ->
+          cleanupErrors <-
+            cleanupErrors
+            @ [ $"Could not dispose child process worker: {e.Message}" ]
+      | None -> ()
+      child <- None
+      job |> Option.iter (fun handle -> handle.Dispose())
+      job <- None
+      System.Console.CancelKeyPress.RemoveHandler onCancel
+      System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit
+      cleanupErrors <- cleanupErrors @ removeDirectory ()
+  match outcome with
+  | Ok(code, stdout, stderr, result) ->
+    Ok(code, stdout, stderr, result, cleanupErrors)
+  | Error(code, message) ->
+    Error(code, String.concat "\n" (message :: cleanupErrors))
 
 /// Trusted CLI presentation only, never a guest process primitive.
 let setProcessTitle (title : string) : unit =

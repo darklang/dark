@@ -414,20 +414,6 @@ let private showingACommitDoesNotFetchEveryOp =
         "the op list is capped and says so, rather than printing thousands"
     })
 
-/// Drive the Dark key handlers; the registry includes document-only views too.
-let private workbenchNavigationRegressions =
-  [ "testWorkbenchHistoryRoundTrip"
-    "testWorkbenchDocumentScroll"
-    "testWorkbenchSyncStanding"
-    "testWorkbenchBranchPicker"
-    "testWorkbenchPageBuiltOncePerSelection" ]
-  |> List.map (fun name ->
-    cliTest $"workbench regression: {name}" (fun state ->
-      task {
-        let! output = runCli state [ "eval"; $"Darklang.Cli.Tests.{name} ()" ]
-        Expect.stringContains output "TestResult.Pass" name
-      }))
-
 let private workbenchHandlesTerminalSizes =
   cliTest "the workbench frames a tiny terminal instead of breaking" (fun state ->
     task {
@@ -992,12 +978,14 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "permissions", [ "show"; seed.fn ]
       // Scoped to a module that is clean. The shared store holds failing fixtures other tests
       // leave on purpose, so an audit of all of it rightly exits 1.
-      "typecheck", [ "Darklang.Stdlib.List" ]
+      "typecheck", [ "Darklang.Stdlib.Bool" ]
       "workbench", []
       "commit", [ "--json" ]
       // Reads the implementations of a trait on the branch. Fully qualified, like `nav` and
       // `find-values` above, rather than relying on the bare-name fallback to the stdlib.
-      "impls", [ "Darklang.Stdlib.Add" ] ]
+      "impls", [ "Darklang.Stdlib.Add" ]
+      // The sweep's own test, so this check does not depend on migrated suites.
+      "test", [ "run"; "Tests.Sweep.passes" ] ]
 
 /// Commands that are safe to run BARE and must not be given real arguments, with the reason.
 ///
@@ -1051,10 +1039,14 @@ let everyCommandWorksWithValidArguments =
         do! CliDsl.fn state "Tests.Sweep.dep" "() : Int64 = 1L"
         do! CliDsl.fn state fnName "() : Int64 = Tests.Sweep.dep ()"
         do!
+          CliDsl.run
+            state
+            [ "test"; "add"; "Tests.Sweep.passes"; "Stdlib.Test.pass ()" ]
+        do!
           CliDsl.commitOnly
             state
             "cli-sweep fixture"
-            "Tests.Sweep.dep,Tests.Sweep.f"
+            "Tests.Sweep.dep,Tests.Sweep.f,Tests.Sweep.passes"
 
         // A branch that differs from main, for `diff` / `merge --dry-run` / `rebase --dry-run`.
         do! CliDsl.switch state branch
@@ -1619,20 +1611,6 @@ let private newInWorkbench
     | other -> return Tests.failtestf "the workbench save answered %A" other
   }
 
-/// The item page is cached on the workbench's state, so a save that leaves the item list as it was
-/// must still rebuild it. Under the CLI's authority for the same reason as `editInWorkbench`.
-let private workbenchPageFollowsYourSave =
-  cliTest "workbench: the item page shows a save made in its editor" (fun state ->
-    task {
-      match!
-        evalUnder
-          (executionState state)
-          "Darklang.Cli.Tests.testWorkbenchPageFollowsYourSave ()"
-      with
-      | RT.DEnum(_, _, _, "Pass", []) -> return ()
-      | other -> return Tests.failtestf "the page test answered %A" other
-    })
-
 /// An implementation that would take a trait's name is refused, as `dark impl` refuses it.
 ///
 /// Written in a module named for its type, an implementation lands on `<module>.<Trait>`, which is
@@ -1966,10 +1944,19 @@ let private staleApprovalIsARefusal =
       task {
         let name = "Tests.HonestApproval.stale"
         let! _ = runCli state [ "fn"; "/" + name; "(x: Int64) : Int64 = x + 6143L" ]
-        let! _ = runCli state [ "permissions"; "approve"; name ]
+        let! approved, approvalStatus =
+          runCliWithStatus state [ "permissions"; "approve"; name ]
+        Expect.equal approvalStatus 0 approved
 
         // Move the approval to a version this store never held: what a store reset leaves behind.
-        let account = (executionState state).accountID
+        // CLI commands restore the logged-in account; the host state may be anonymous.
+        let! viewer =
+          evalUnder (executionState state) "(Darklang.Cli.initState ()).accountID"
+        let account =
+          match viewer with
+          | RT.DEnum(_, _, _, "Some", [ RT.DUuid id ]) -> Some id
+          | RT.DEnum(_, _, _, "None", []) -> None
+          | other -> failtestf "unexpected CLI account: %A" other
         let current = LibDB.PolicyStore.approvedVersion account name
         Expect.isSome current "the approval landed"
         let gone = String.replicate 64 "e"
@@ -2139,6 +2126,4 @@ let tests : List<Test> =
     missingTargetsAreNamed
     traitRefusalsExitNonZero
     otherRefusalsExitNonZero
-    documentedCommandsAreReal
-    workbenchPageFollowsYourSave ]
-  @ workbenchNavigationRegressions
+    documentedCommandsAreReal ]

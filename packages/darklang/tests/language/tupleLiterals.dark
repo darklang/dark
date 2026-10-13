@@ -1,0 +1,84 @@
+module Darklang.Language.Tests.TupleLiterals
+
+test construction =
+  Stdlib.Test.all
+    [ (1L, 2L) |> Stdlib.Test.equal (1L, 2L)
+      (1L, 2L, 3L) |> Stdlib.Test.equal (1L, 2L, 3L)
+      (1L, 2L + 3L, 4L) |> Stdlib.Test.equal (1L, 5L, 4L)
+      // note: there is no upper limit set on Tuple size
+      (1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L)
+      |> Stdlib.Test.equal (1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L) ]
+
+test elementErrorRaises =
+  (1L, Stdlib.Test.raiseRuntimeError "test", 3L)
+  => raises "Uncaught exception: test"
+
+test firstElementErrorRaises =
+  (1L,
+   Stdlib.Test.raiseRuntimeError "error1",
+   Stdlib.Test.raiseRuntimeError "error2")
+  => raises "Uncaught exception: error1"
+
+// Tuple indices start at 1.
+test elementAccess =
+  Stdlib.Test.all
+    [ (1L, "two").1 |> Stdlib.Test.equal 1L
+      (1L, "two").2 |> Stdlib.Test.equal "two"
+      (1L, 2L, 3L, 4L).4 |> Stdlib.Test.equal 4L
+      (let t = (true, 'c', 3L) in t.3) |> Stdlib.Test.equal 3L
+      (let t = ((1L, 2L), 3L) in t.1.2) |> Stdlib.Test.equal 2L
+      (let t = ((1L, (2L, 3L)), 4L) in t.1.2.1) |> Stdlib.Test.equal 2L
+      (let t = (1L, 2L) in t.1 + t.2) |> Stdlib.Test.equal 3L
+      (let t = (1L, 2L) in (t.1 + t.2)) |> Stdlib.Test.equal 3L
+      (1L, 2L) .1 |> Stdlib.Test.equal 1L
+      (let t = (1L, (2L, 3L)) in t.2.2 |> (+) 10L) |> Stdlib.Test.equal 13L
+      (let t = (1L, 2L) in $"{Stdlib.toString t.1}-{Stdlib.toString t.2}")
+      |> Stdlib.Test.equal "1-2"
+      (Stdlib.List.map [ (1L, "a"), (2L, "b") ] (fun p -> p.2))
+      |> Stdlib.Test.equal [ "a", "b" ]
+      (let first = fun t -> t.1 in (first (1L, "a"), first ("b", 2L, true)))
+      |> Stdlib.Test.equal (1L, "b") ]
+
+test indexPastEndRaises =
+  (let t = (1L, 2L) in t.3)
+  => raises
+    "Tried to access element .3 of a tuple with 2 elements; tuple elements are numbered from .1"
+
+test indexZeroRaises =
+  (let t = (1L, 2L) in t.0)
+  => raises
+    "Tried to access element .0 of a tuple with 2 elements; tuple elements are numbered from .1"
+
+test namedFieldRaises =
+  (let t = (1L, 2L) in t.name)
+  => raises
+    "Tried to access element .name of a tuple with 2 elements; tuple elements are numbered from .1"
+
+test accessOnInt64Raises =
+  (let x = 6L in x.1)
+  => raises
+    "Attempting to perform field access of an Int64, but this only works with records and tuples"
+
+test leadingZeroIndexRaises =
+  (let t = (1L, 2L) in t.01)
+  => raises
+    "Tried to access element .01 of a tuple with 2 elements; tuple elements are numbered from .1"
+
+test hugeIndexRaises =
+  (let t = (1L, 2L) in t.99999999999999999999)
+  => raises
+    "Tried to access element .99999999999999999999 of a tuple with 2 elements; tuple elements are numbered from .1"
+
+test emptyFieldNameRaises =
+  (let t = (1L, 2L) in t.___) => raises "Field name is empty"
+
+// Resolve the package value before accessing its elements.
+module TupleVal =
+  val pair = (1L, ("a", true))
+
+  test packageValueElements =
+    Stdlib.Test.all
+      [ pair.1 |> Stdlib.Test.equal 1L
+        pair.2.1 |> Stdlib.Test.equal "a"
+        TupleVal.pair.2.2 |> Stdlib.Test.equal true
+        (let pair = (9L, 8L) in pair.1) |> Stdlib.Test.equal 9L ]

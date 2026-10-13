@@ -460,14 +460,14 @@ let pushTick (d : LoopDriver) : unit =
 
 /// Give each in-process test its own stored permissions as well as an ExecutionState.
 /// The policy-directory override is process-global, so callers must be sequenced.
-let withState (f : Target -> Task<unit>) : Task<unit> =
+let withState (f : Target -> Task<'a>) : Task<'a> =
   task {
     let policyDir = System.IO.Directory.CreateTempSubdirectory("dark-cli-policy-")
     let restore =
       LibExecution.HostSecurity.policyDirectoryForTesting policyDir.FullName
     try
       let! state = buildState ()
-      do! f (InProcess state)
+      return! f (InProcess state)
     finally
       restore.Dispose()
       policyDir.Delete true

@@ -1,0 +1,47 @@
+module Darklang.Language.Tests.Big
+
+test evaluatesMixedExpressions =
+  (let str = "a string to be used as the test case"
+   let blob = Stdlib.Blob.fromString str
+   let base64Encode = Stdlib.Base64.urlEncode blob
+   let hexEncode = Stdlib.Blob.toHex blob
+   let sl = Stdlib.String.length str
+   let bl = Stdlib.Blob.length blob
+   let t = true
+   let f = false
+
+   let r = (Stdlib.Bool.xor t f) |> Stdlib.Bool.not
+
+   let d0 = 1234567.987654
+   let d1 =
+     d0
+     |> (**) 2.1
+     |> (+) 1.0
+     |> Stdlib.Float.sqrt
+
+   let reverse = Stdlib.String.reverse str
+   let contains = Stdlib.String.contains "a string" str
+   let uuid = Stdlib.Uuid.parse "9c59ba07-1e20-4ce2-a2de-6a95391d67b2"
+
+   str
+   |> (+) "\nbase64Encode: "
+   |> (+) base64Encode
+   |> (+) "\nhex64Encode: "
+   |> (+) hexEncode
+   |> (+) "\nstring length: "
+   |> (+) (Stdlib.toString sl)
+   |> (+) "\nbytes length: "
+   |> (+) (Stdlib.toString bl)
+   |> (+) "\nbool: "
+   |> (+) (Stdlib.toString r)
+   |> (+) "\nfloat: "
+   |> (+) (Stdlib.toString d0)
+   |> (+) "\nanother double: "
+   |> (+) (Stdlib.toString d1)
+   |> (+) "\nstring reverse: "
+   |> (+) reverse
+   |> (+) "\nstring contains: "
+   |> (+) (Stdlib.toString contains)
+   |> (+) "\nuuid: "
+   |> (+) (Stdlib.toString (Builtin.unwrap uuid)))
+  |> Stdlib.Test.equal "a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.987654\nanother double: 2489377.5125913904\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"

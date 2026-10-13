@@ -1,6 +1,7 @@
 /* Typed kernel operations for the interpreter's checked host boundary.
  * No libc, errno TLS, allocation, path resolution, or policy in this library.
  * Results use the compiler's convention: success or negative kernel errno.
+ * Operations 49 and 50 are setsid/execve for supervised worker startup.
  * Operation IDs are private to HostKernel.fs, never a Darklang syscall API.
  */
 typedef long long i64;
@@ -66,19 +67,19 @@ static long trap(long number, long a, long b, long c, long d, long e, long f)
 #if defined(__APPLE__)
 static const short numbers[] = {463,3,4,6,199,470,-1,13,475,472,465,
     467,-1,474,473,131,344,54,37,20,24,-1,-1,-1,95,202,524,
-    -1,153,94,189,197,198,517,500,-1,92,-1,116,240,116,-89,-1,-1,-1,230,362,363,92};
+    -1,153,94,189,197,198,517,500,-1,92,-1,116,240,116,-89,-1,-1,-1,230,362,363,92,147,59};
 #elif defined(__x86_64__)
 static const short numbers[] = {257,0,1,3,8,262,79,81,258,263,264,
     268,280,266,267,73,217,16,62,39,102,63,437,452,74,-1,-1,
-    326,77,91,5,17,18,-1,318,204,-1,228,96,35,-1,-1,294,254,271,-1,-1,-1,72};
+    326,77,91,5,17,18,-1,318,204,-1,228,96,35,-1,-1,294,254,271,-1,-1,-1,72,112,59};
 #elif defined(__aarch64__)
 static const short numbers[] = {56,63,64,57,62,79,17,50,34,35,38,
     53,88,36,78,32,61,29,129,172,174,160,437,452,82,-1,-1,
-    285,46,52,80,67,68,-1,278,123,-1,113,169,101,-1,-1,26,27,73,-1,-1,-1,25};
+    285,46,52,80,67,68,-1,278,123,-1,113,169,101,-1,-1,26,27,73,-1,-1,-1,25,157,221};
 #elif defined(__arm__)
 static const short numbers[] = {322,3,4,6,140,327,183,133,323,328,329,
     333,348,331,332,143,217,54,37,20,24,122,437,452,118,-1,-1,
-    391,194,94,197,180,181,-1,384,242,-1,263,78,162,-1,-1,360,292,336,-1,-1,-1,55};
+    391,194,94,197,180,181,-1,384,242,-1,263,78,162,-1,-1,360,292,336,-1,-1,-1,55,66,11};
 #endif
 
 __attribute__((visibility("default")))
