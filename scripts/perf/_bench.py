@@ -96,94 +96,41 @@ SCENARIOS = {
 # These exist because measuring the interpreter by hand is how I burned a night: script runs that timed out
 # at 90s, 240s and 500s all later ran in under a second, because the box was busy and I'd bypassed the noise
 # gate by invoking run-cli directly. Behind a scenario, they inherit the gate.
-WORKLOADS = {
-    # List pipeline: package-call heavy, shallow recursion.
-    "steady": """
-let work (n: Int) : Int =
-  Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 n) (fun x -> x + 1))
 
-let repeat (times: Int) (n: Int) (acc: Int) : Int =
-  if times <= 0 then acc else repeat (times - 1) n (acc + (work n))
 
-let _warm = repeat 20 50 0
-let _reset = Builtin.interpreterStatsReset ()
-let t0 = Builtin.timeNowMs ()
-let result = repeat 200 50 0
-let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " stats=" + (Builtin.interpreterStatsGet ()))
-""",
-    # Arithmetic: builtin-call heavy, deep recursion. A deliberately different shape from `steady`, since
-    # the two disagree substantially on per-Apply cost.
-    "arith": """
-let hot (n: Int) (acc: Int) : Int =
-  if n <= 0 then
-    acc
-  else
-    let a = acc + 1
-    let b = a + 2
-    let c = b + 3
-    let d = c + 4
-    let e = d + 5
-    hot (n - 1) e
-
-let _warm = hot 200 0
-let _reset = Builtin.interpreterStatsReset ()
-let t0 = Builtin.timeNowMs ()
-let result = hot 4000 0
-let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " stats=" + (Builtin.interpreterStatsGet ()))
-""",
-}
-
-WORKLOADS["depth-shallow"] = """
-// Same total work as depth-deep, but the stack never gets deeper than ~50.
-// Three nested drivers of 16 keep level small; a single driver would itself recurse 4096 deep, which is
-// what made my first attempt at this comparison measure nothing.
-let leaf (acc: Int) : Int =
-  acc + 1
-
-let l1 (n: Int) (acc: Int) : Int =
-  if n <= 0 then acc else l1 (n - 1) (leaf acc)
-
-let l2 (n: Int) (acc: Int) : Int =
-  if n <= 0 then acc else l2 (n - 1) (l1 16 acc)
-
-let l3 (n: Int) (acc: Int) : Int =
-  if n <= 0 then acc else l3 (n - 1) (l2 16 acc)
-
-let _warm = l3 2 0
-let t0 = Builtin.timeNowMs ()
-let r = l3 16 0
-let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " leafCalls=" + (Stdlib.toString r))
-"""
-
-WORKLOADS["depth-deep"] = """
-// Same 4096 leaf calls, but all in one chain, so 4096 frames are live at the deepest point.
-let leaf (acc: Int) : Int =
-  acc + 1
-
-let chain (n: Int) (acc: Int) : Int =
-  if n <= 0 then acc else chain (n - 1) (leaf acc)
-
-let _warm = chain 32 0
-let t0 = Builtin.timeNowMs ()
-let r = chain 4096 0
-let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " leafCalls=" + (Stdlib.toString r))
-"""
 
 SCENARIOS["depth-shallow"] = ["run", "rundir/perf-workloads/depth-shallow.dark"]
 SCENARIOS["depth-deep"] = ["run", "rundir/perf-workloads/depth-deep.dark"]
 
 WORKLOAD_DIR = os.path.join(RUNDIR, "perf-workloads")
 
+# The workloads this tool runs, by scenario name. They are real files rather than strings in here,
+# so that one `steady` exists rather than two: the gate measures the same bytes this does.
+# `bench/` holds the ones only this tool runs; see scripts/perf/README.md.
+WORKLOAD_SOURCES = {
+    "steady": os.path.join(ROOT, "scripts/perf/workloads/steady.dark"),
+    "arith": os.path.join(ROOT, "scripts/perf/workloads/bench/arith.dark"),
+    "depth-shallow": os.path.join(ROOT, "scripts/perf/workloads/bench/depth-shallow.dark"),
+    "depth-deep": os.path.join(ROOT, "scripts/perf/workloads/bench/depth-deep.dark"),
+}
+
 
 def materialize_workloads():
+    """Copy each workload into the rundir the measured binary runs from.
+
+    Staged rather than run in place because a scenario path has to be stable across binaries, and
+    because the store a run uses is restored per run. A missing source is fatal here: silently
+    staging nothing would leave a scenario measuring a file that is not there, which reads as the
+    binary being broken.
+    """
     os.makedirs(WORKLOAD_DIR, exist_ok=True)
-    for name, src in WORKLOADS.items():
-        with open(os.path.join(WORKLOAD_DIR, f"{name}.dark"), "w") as f:
-            f.write(src.lstrip())
+    for name, src in WORKLOAD_SOURCES.items():
+        if not os.path.exists(src):
+            sys.exit(f"perf-bench: workload source missing: {src}")
+        with open(src) as f:
+            body = f.read()
+        with open(os.path.join(WORKLOAD_DIR, f"{name}.dark"), "w") as out:
+            out.write(body)
 
 
 # A run slower than this is assumed to have hit something pathological (a lock, a neighbour's compile

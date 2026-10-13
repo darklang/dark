@@ -80,17 +80,14 @@ echo
 echo "store    ${DARK_CONFIG_RUNDIR}"
 
 MODE=$([[ "$PUBLISHED" == "true" ]] && echo published || echo debug)
-python3 - "$BUDGET_FILE" "$TELEMETRY" "$UPDATE" "$MODE" <<'PY'
+# One parser for this, shared with `suite`: see scripts/perf/_total-alloc.py.
+MEASURED=$(python3 ./scripts/perf/_total-alloc.py "$TELEMETRY") || exit 2
+
+python3 - "$BUDGET_FILE" "$MEASURED" "$UPDATE" "$MODE" <<'PY'
 import json, sys
 
-budget_file, telemetry, update = sys.argv[1], sys.argv[2], sys.argv[3] == "true"
-
-allocs = [int(json.loads(l)["ctx"]["totalAllocatedBytes"])
-          for l in open(telemetry) if '"gc.stats"' in l]
-if not allocs:
-    print("perf/gate: no gc.stats event in telemetry -- did the workload run?")
-    sys.exit(2)
-measured = allocs[0]
+budget_file, update = sys.argv[1], sys.argv[3] == "true"
+measured = int(sys.argv[2])
 
 budget = json.load(open(budget_file))
 mode = sys.argv[4]

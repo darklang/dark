@@ -3,7 +3,7 @@
 // Run it twice, serial and forced, and compare cells:
 //
 //   dark config set exec.spreadCrossover -1     (then 0)
-//   DARK_CONFIG_TRACE_DETAIL=off dark run scripts/perf/workloads/spread.dark
+//   DARK_CONFIG_TRACE_DETAIL=off dark run scripts/perf/workloads/probes/spread.dark
 //
 // Recording has to be off: nothing spreads while a run is recorded. Each cell prints
 // (cost, count, reps, total milliseconds, total bytes); divide by reps, with bytes counted process-wide, so a

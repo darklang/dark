@@ -1,4 +1,4 @@
-/// Exact cases from `scripts/perf/workloads/checks/sgrcheck.dark`.
+/// Exact cases, ported from a by-hand perf check, which this replaced.
 module Darklang.Stdlib.Cli.Tui.Text.Tests.Sgr
 
 let colored (text: String) : String =

@@ -1,4 +1,4 @@
-/// Combined runtime cases from scripts/perf/workloads/checks/semantics.dark.
+/// Combined runtime cases. Ported from a by-hand perf check, which this replaced.
 module Darklang.Language.Tests.Semantics
 
 type Shape =

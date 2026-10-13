@@ -75,7 +75,7 @@ against each other was one line of insight when the json profile was flat:
     returns Result<Int,String>  5,202 B
 
 The two most-used types in the language cost 4-6x anything else, which produced three commits. That
-table is now `scripts/perf/workloads/costs.dark`; extend it rather than reinventing it, and note its
+table is now `scripts/perf/workloads/probes/costs.dark`; extend it rather than reinventing it, and note its
 harness floor (~200 B) when reading rows.
 
 ## 4. Distrust your own counters
@@ -168,7 +168,7 @@ more specific to the thing you're measuring.
 ## 7. Verify past the test suite, by hand
 
 The backend suite has **twice** passed while the interpreter returned a quietly wrong answer. For
-anything touching execution run `scripts/perf/checks` and read the output.
+anything touching execution run the package tests (`dark test run`) and read the output.
 
 Error paths deserve the most attention: they only run once something has already gone wrong, so a
 change can garble every message with every test green.
@@ -264,7 +264,7 @@ runs falls behind silently. Two rules keep that in check:
 - **One workload per subject, not one per question.** `view.dark` reports time, allocation and the
   per-fn profile from a single setup, because three files sharing a copy of that setup is three
   things to fix when `viewAtSize` changes. Same for `route.dark`.
-- **Anything that asserts goes in `workloads/checks/`, wired into `scripts/perf/checks`.** An
+- **Anything that asserts goes in `packages/darklang/tests/`, as a package test.** An
   assertion nobody runs is worse than no assertion: it reads like coverage and isn't. Everything at
   the top level is a hand instrument, and is expected to be re-pointed at whatever the code looks
   like when someone next needs it.

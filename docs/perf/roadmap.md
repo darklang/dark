@@ -6,14 +6,13 @@ Numbers are measured unless marked *(estimate)*.
     scripts/perf/suite              six workloads, allocation per iteration (--release for the shipped build)
     scripts/perf/http               a real server under concurrent load (-p client processes, default 4)
     scripts/perf/gate               the CI assertion, against a checked-in budget
-    scripts/perf/checks             by-hand semantics and error-message checks
     scripts/perf/bench              repeatable CLI timing, with an A/B mode
     scripts/perf/alloc-profile      allocation by type name
     scripts/perf/crosslang          the same workload in node and python
     scripts/perf/keystroke          what one keypress costs in the interactive CLI (needs a TTY)
-    ./scripts/run-cli run scripts/perf/workloads/optime.dark      time per operation (costs.dark's time twin)
-    ./scripts/run-cli run scripts/perf/workloads/costs.dark      per-operation cost table
-    ./scripts/run-cli run scripts/perf/workloads/workbench.dark  ms to build each workbench view
+    ./scripts/run-cli run scripts/perf/workloads/probes/optime.dark      time per operation (costs.dark's time twin)
+    ./scripts/run-cli run scripts/perf/workloads/probes/costs.dark      per-operation cost table
+    ./scripts/run-cli run scripts/perf/workloads/probes/workbench.dark  ms to build each workbench view
 
 Method and traps: `docs/perf/playbook.md`. Numbers round by round: `docs/perf/history.md`.
 
@@ -487,7 +486,7 @@ Worth stating clearly because it is a *different* target from rounds 1-4: those 
 the roadmap says plainly that allocation campaigns move allocation while time follows far less. This
 would be a wall-clock campaign against the per-operation cost of the loop -- dispatch, list
 construction, record field access -- and it needs an instrument that measures time per operation
-rather than bytes per workload. `scripts/perf/workloads/costs.dark` is the closest thing we have and
+rather than bytes per workload. `scripts/perf/workloads/probes/costs.dark` is the closest thing we have and
 it reports allocation.
 
 **Prefetch package items while something else is running.** Stachu's idea, filed with a size on it.
