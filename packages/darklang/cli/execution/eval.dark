@@ -55,8 +55,12 @@ let evaluate
 let execute (state: AppState) (args: List<String>) : AppState =
   let allowHarmful =
     Stdlib.List.member args "--allow-harmful"
+  // What the expression cost, net of the measuring harness itself: see Perf.floor.
+  let wantStats =
+    Stdlib.List.member args "--stats"
   let args =
-    args |> Stdlib.List.filter (fun a -> a != "--allow-harmful")
+    args
+    |> Stdlib.List.filter (fun a -> (a != "--allow-harmful") && (a != "--stats"))
 
   match args with
   | [] ->
@@ -69,14 +73,40 @@ let execute (state: AppState) (args: List<String>) : AppState =
       match args with
       | [ "-" ] -> Stdlib.Cli.Stdin.readAll ()
       | parts -> Stdlib.String.join parts " "
-    match evaluate state expr allowHarmful with
-    | Ok (Some s) ->
-      Stdlib.printLine s
-      state
-    | Ok None -> state
-    | Error message ->
-      Stdlib.printLine $"Error: {message}"
-      { state with exitCode = 1 }
+    let (stats, outcome) =
+      if wantStats then
+        let harness = LanguageTools.Perf.floor ()
+
+        let (raw, result) =
+          LanguageTools.Perf.measure (fun () -> evaluate state expr allowHarmful)
+
+        (Stdlib.Option.Option.Some(LanguageTools.Perf.minus raw harness), result)
+      else
+        (Stdlib.Option.Option.None, evaluate state expr allowHarmful)
+
+    let newState =
+      match outcome with
+      | Ok (Some s) ->
+        Stdlib.printLine s
+        state
+      | Ok None -> state
+      | Error message ->
+        Stdlib.printLine $"Error: {message}"
+        { state with exitCode = 1 }
+
+    match stats with
+    | Some m ->
+      let _ = Stdlib.printLine ""
+      let _ = Stdlib.printLine (LanguageTools.Perf.render m)
+      // TODO: report the phases instead of warning about them. `cliEvaluateExpression` already
+      // splits `parseCliExpr` from `execute`, so bracketing each would turn this line into two
+      // rows. F# on the eval path, so it wants its own change and its own measurement.
+      let _ =
+        Stdlib.printLine
+          "  (includes parsing and name resolution; Perf.measure in a script brackets execution alone)"
+
+      newState
+    | None -> newState
 
 
 let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
@@ -88,6 +118,11 @@ let help (_state: AppState) : String =
     "Usage: eval <expression>"
     "       eval -    (read expression from stdin, for multi-line input)"
     "Evaluate a Dark expression and display the result."
+    ""
+    "  --stats   also report what it cost: allocation, time, instructions, calls and"
+    "            frame pushes, net of the measuring harness, tagged with the build they"
+    "            came from. Inside a script, call Perf.measure instead: it measures the"
+    "            work rather than the whole process."
     ""
     "Examples:"
     "  eval 1 + 2                     - Arithmetic operations"

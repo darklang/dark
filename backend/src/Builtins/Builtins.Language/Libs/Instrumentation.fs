@@ -13,6 +13,20 @@ open Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 
+/// Which build produced the numbers below. Reported with them because Debug and Release are up to
+/// 3x apart and AOT and R2R about 5x on startup, so the same workload has three right answers.
+/// `IsDynamicCodeSupported` is false under NativeAOT and true wherever a JIT exists.
+let private buildMode : string =
+#if DEBUG
+  "debug"
+#else
+  if System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported then
+    "release-r2r"
+  else
+    "release-aot"
+#endif
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "interpreterStatsReset" 0
       typeParams = []
@@ -87,7 +101,9 @@ let fns () : List<BuiltInFn> =
         + "counts per opcode, and bytes and counts per named region of the Apply path (read the "
         + "fine-grained stages, not the totals -- see the note in the implementation). "
         + "When detailed timing is enabled, also includes per-builtin and per-package-fn "
-        + "cumulative nanoseconds and call counts."
+        + "cumulative nanoseconds and call counts. Also reports `buildMode`, so a number can "
+        + "say which build produced it, and `statSets`, which says whether these counters are "
+        + "the whole process or one VM's share."
       fn =
         (function
         | _, vm, _, [| DUnit |] ->
@@ -117,6 +133,14 @@ let fns () : List<BuiltInFn> =
           |> ignore<System.Text.StringBuilder>
           let dtStr = if s.detailedTiming then "true" else "false"
           sb.Append($",\"detailedTiming\":{dtStr}")
+          |> ignore<System.Text.StringBuilder>
+          sb.Append($",\"buildMode\":\"{buildMode}\"")
+          |> ignore<System.Text.StringBuilder>
+
+          // What the numbers above cover. Telemetry off: every VM shares one set, so 0 means the
+          // whole process. Telemetry on: one set per VM, so a positive count means this is the
+          // calling VM's share and `Cli.fs`'s exit dump is what totals them.
+          sb.Append($",\"statSets\":{InterpreterStatsSink.all.Count}")
           |> ignore<System.Text.StringBuilder>
 
           // Which opcode produced the garbage, which a flat allocation profile cannot answer.

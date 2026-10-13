@@ -1,0 +1,51 @@
+module Darklang.LanguageTools.Tests.Perf
+
+// The counters are exactly reproducible for a fixed workload, which is what makes these
+// assertions possible. Allocation and time are not, so nothing here asserts on them.
+
+test measureReturnsTheValue =
+  (LanguageTools.Perf.measure (fun () -> 6 + 7)) |> Stdlib.Tuple2.second
+  |> Stdlib.Test.equal 13
+
+// If this fails, the counters depend on something other than the work, and every number taken
+// with them is suspect.
+test countersAreReproducible =
+  (let first =
+    (LanguageTools.Perf.measure (fun () -> Stdlib.List.length (Stdlib.List.range 1 20)))
+    |> Stdlib.Tuple2.first
+
+   let second =
+     (LanguageTools.Perf.measure (fun () -> Stdlib.List.length (Stdlib.List.range 1 20)))
+     |> Stdlib.Tuple2.first
+
+   first.instructions == second.instructions)
+  |> Stdlib.Test.equal true
+
+// One frame push per lambda application, once the harness's 89 are off. This is what fails if the
+// floor subtraction stops working.
+test framePushesAreOnePerElement =
+  (let harness = LanguageTools.Perf.floor ()
+
+   let (raw, _) =
+     LanguageTools.Perf.measure (fun () ->
+       Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 50) (fun x -> x + 1)))
+
+   (LanguageTools.Perf.minus raw harness).framePushes)
+  |> Stdlib.Test.equal 50L
+
+test minusClampsAtZero =
+  (let big = LanguageTools.Perf.floor ()
+
+   let (small, _) = LanguageTools.Perf.measure (fun () -> ())
+
+   let clamped = LanguageTools.Perf.minus small big
+   (clamped.instructions >= 0L) && (clamped.allocBytes >= 0L))
+  |> Stdlib.Test.equal true
+
+test measurementCarriesItsBuild =
+  (let (m, _) = LanguageTools.Perf.measure (fun () -> ())
+
+   (m.buildMode == "debug")
+   || (m.buildMode == "release-aot")
+   || (m.buildMode == "release-r2r"))
+  |> Stdlib.Test.equal true
