@@ -7,6 +7,13 @@ version: 2.1
 # something to this file, there's an equivalent to be added there. CI doesn't run
 # compile itself; it drives _dotnet-wrapper directly, so the two can drift.
 
+# The build cache holds the nuget download directory only. Measured: restoring costs 1.5s
+# and saves 4.9s of `tool restore` + `paket restore`, so it earns about 3.4s a job.
+#
+# It used to also carry `backend/Build/obj`, which MSBuild ignores here because
+# `git restore-mtime` is commented out, so cached objects always look stale. The sqlite
+# archive caches in the release matrix are unrelated and stay.
+
 parameters:
   # The release matrix (NativeAOT, every OS) runs only on a pushed tag. Set this
   # to true to run it on every push to a branch as well, which is how it was
@@ -197,15 +204,6 @@ jobs:
     parallelism: 2
     steps:
       - darkcheckout
-      # Set the timestamp to the commit time. This allows timestamp-based build tools
-      # like .NET to use their incremental build feature. Without this, the checkout
-      # time is always newer than the cached object file, and files are always
-      # rebuilt
-      # Currently disabled, as it was causing issues failures within
-      # Serialization.Tests.fs where the allowedTypes for serializers did not match
-      # what tests expected (and what files were persisted in backend/testfiles/serialization-artifacts).
-      # TODO: think through an alternative or more nuanced approach.
-      # - run: git restore-mtime
       - setup-app
       - attach_workspace: { at: "." }
       - run:
@@ -213,22 +211,20 @@ jobs:
           command: |
             set -x
 
-      # The date is used to get a fresh cache each week
-      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
-      # SAME KEY as the save at the end of this job, which is not as obvious as it sounds:
-      # this restored v6 and saved v5 for long enough that someone wrote the note below
-      # about it failing often. It never hit, so `build-backend` recompiled the whole
-      # solution from scratch on every run, which is most of why it took three times what
-      # `build-cli` did.
+      - run: shasum backend/paket.lock backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v6-backend-{{ checksum "../checksum" }}
-            # No fallback on purpose: a partial cache from another week's key is worse
-            # than none, because MSBuild trusts it.
+            - v7-nuget-{{ checksum "../checksum" }}
+            # prefix match: an older lockfile's downloads still beat starting empty
+            - v7-nuget-
       - show-large-files-and-directories
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
+      - save_cache:
+          paths:
+            - /home/dark/.nuget
+          key: v7-nuget-{{ checksum "../checksum" }}
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
       # Run package loading with optimizations and reuse unchanged Release
@@ -247,6 +243,13 @@ jobs:
           command: scripts/run-local-exec --published export-seed rundir/seed.db
 
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
+
+      # Some suites spawn this published CLI once per command, so it pays JIT startup every
+      # time. Pointing `DARK_TEST_CLI` at a NativeAOT build instead was measured and does
+      # not pay for itself: the whole suite goes 438s to 378s, and publishing the AOT
+      # binary here costs 57s warm, 116s cold. 302s of that 438s is a sequenced in-process
+      # phase that spawns nothing, which is why halving the spawning suites moves so
+      # little. `build-cli` still does it, because it builds that binary anyway.
 
       # Bounded, so a wedged suite dies at a known point with its log intact rather than
       # running until CircleCI's job cap. The runner emits a heartbeat every 30s, so the
@@ -280,11 +283,6 @@ jobs:
 
       - assert-clean-worktree
       - show-large-files-and-directories
-      - save_cache:
-          paths:
-            - backend/Build/obj
-            - /home/dark/.nuget
-          key: v6-backend-{{ checksum "../checksum" }}
       - store_artifacts:
           path: rundir
           when: always
@@ -300,17 +298,20 @@ jobs:
       - darkcheckout
       - setup-app
       - attach_workspace: { at: "." }
-
-      # The date is used to get a fresh cache each week
-      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
-      - restore_cache:
-          keys:
-            - v5-cli-{{ checksum "../checksum" }}
-            # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
+      - run: shasum backend/paket.lock backend/global.json > ../checksum
+      - restore_cache:
+          keys:
+            - v7-nuget-{{ checksum "../checksum" }}
+            # prefix match: an older lockfile's downloads still beat starting empty
+            - v7-nuget-
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
+      - save_cache:
+          paths:
+            - /home/dark/.nuget
+          key: v7-nuget-{{ checksum "../checksum" }}
 
       # The CLI embeds the Sqlite data.db,
       # so we need to get a copy ready first.
@@ -367,11 +368,6 @@ jobs:
           paths:
             - clis
       - show-large-files-and-directories
-      - save_cache:
-          paths:
-            - backend/Build/obj
-            - /home/dark/.nuget
-          key: v5-cli-{{ checksum "../checksum" }}
       - store_artifacts:
           path: rundir
           when: always
@@ -405,10 +401,12 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
+      - run: shasum backend/paket.lock backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v5-cli-{{ checksum "../checksum" }}
+            - v7-nuget-{{ checksum "../checksum" }}
+            # prefix match: an older lockfile's downloads still beat starting empty
+            - v7-nuget-
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - run:
