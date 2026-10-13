@@ -67,6 +67,14 @@ while :; do
   base=$(( base + 10 ))
 done
 
+# `command not found` from the onboarding script does not say what to install.
+if ! command -v devcontainer > /dev/null; then
+  echo "scripts/dev/start needs the devcontainer CLI, which is not on PATH." >&2
+  echo "  npm install -g @devcontainers/cli" >&2
+  echo "Everything else here runs inside the container this starts, so nothing works without it." >&2
+  exit 1
+fi
+
 echo "Starting dev container for $DIR"
 echo "First run pulls and builds; expect a few minutes."
 

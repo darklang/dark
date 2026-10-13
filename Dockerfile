@@ -241,6 +241,8 @@ ENV NUGET_SCRATCH=/tmp/NuGetScratch
 # Zig,
 # for cross-compiling native libraries (e.g. SQLite) for the release CLIs.
 # TODO Occasionally, check https://ziglang.org/download to see if we're using the latest version
+# NOTE: `Dockerfile.build-base` pins 0.13.0 and says to keep these in step. They are not, so
+# release SQLite archives and local ones are built with different zig versions.
 ENV ZIG_VERSION=0.11.0
 ENV ZIG_ARM64_MINISIG="RUSGOq2NVecA2XPwbgbN5SvU46UcCmhhfcfrjVC+YvcwUcjAYfIXQmqE//df1Mes7iyGZvGoy2+PSJ8pog7QGLE+3nvP8gtlSAs="
 ENV ZIG_AMD64_MINISIG="RUSGOq2NVecA2X2did6P61CXthPLZEUwi07GDWQ2MWU58W+asm3v85+PRVHN5SljhdsKoAMmbg4fdyseAcbVZayGaV1Iv6chcgE="
@@ -249,18 +251,15 @@ RUN set -e; \
   case ${TARGETARCH} in \
   arm64) \
   ZIG_ARCH="aarch64"; \
-  ZIG_MINISIG=$ZIG_ARM64_MINISIG; \
   ;; \
   amd64) \
   ZIG_ARCH="x86_64"; \
-  ZIG_MINISIG=$AMD64_MINISIG; \
   ;; \
   *) exit 1;; \
   esac;  \
   curl -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz"; \
-  # TODO: verify signature
-  # RUN minisign -Vm zig.tar.xz -P "RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U" \
-  #   || (echo "Verification failed!" && exit 1)
+  # TODO: verify the download. Needs the .minisig fetched and minisign installed, not just the
+  # call; the values above are the published signatures.
   mkdir ~/zig; \
   tar -xf zig.tar.xz -C ~/zig; \
   rm zig.tar.xz; \

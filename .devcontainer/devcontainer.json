@@ -45,6 +45,8 @@
   },
 
   "runArgs": [
+    // Google's resolvers, not the host's, so names only a VPN or corporate resolver knows will
+    // not resolve in here. Drop these two pairs to inherit the host's instead.
     "--dns",
     "8.8.8.8",
     "--dns",
