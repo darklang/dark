@@ -1128,7 +1128,6 @@ let fns () : List<BuiltInFn> =
                     "Isolated tests require an unapplied, non-generic package function"
           }
         | _, _, _, _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
@@ -1333,7 +1332,6 @@ let fns () : List<BuiltInFn> =
                 })
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
@@ -1639,7 +1637,6 @@ let fns () : List<BuiltInFn> =
                         answerWithTree () (Some(ReplayStop.Unreplayable e.Message))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       // Reading a recorded run, and running pure code over it: the effects it would have made
       // are answered from the log, never performed.
@@ -1778,7 +1775,6 @@ let fns () : List<BuiltInFn> =
                 })
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }

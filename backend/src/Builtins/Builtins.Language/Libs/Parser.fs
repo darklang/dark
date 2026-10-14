@@ -1427,7 +1427,6 @@ let fns () : List<BuiltInFn> =
             | None -> Dval.optionNone pfKT
           Ply result
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -1453,7 +1452,6 @@ let fns () : List<BuiltInFn> =
             WrittenTypesToDarkTypes.diagnosticsToDT (P.parse sourceCode).diagnostics
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -1498,7 +1496,6 @@ let fns () : List<BuiltInFn> =
             let diagnostics = WrittenTypesToDarkTypes.diagnosticsToDT diagnostics
             Ply(Dval.resultError parsedFileKT diagnosticsKT diagnostics)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

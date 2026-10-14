@@ -113,7 +113,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 (stabilized |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -141,7 +140,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               Dval.list (packageOpKT ()) (resolved |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       // Reads the store's implementations and stamps, so two calls on either side of someone
       // else's `impl` do not agree.
       previewable = Impure
@@ -170,7 +168,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               |> Dval.list KTString
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -202,7 +199,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return Dval.list (KTTuple(VT.string, VT.list VT.string, [])) found
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -343,7 +339,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               return resultError (Dval.string ex.Message)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -362,7 +357,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [| DUnit |] ->
           uply { return DUuid (LibDB.PackageManager.currentBranchId ()).Guid }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -400,7 +394,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return DTuple(DUuid id.Guid, DBool created, [])
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -432,7 +425,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return DUuid branchId.Guid
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -459,7 +451,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return DBool(LibDB.Queries.opBindsAName bytes)
           }
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       // Impure though it performs nothing, like `packageOpFromBlobOption` below: the decoder
       // is this binary's, and a synced store holds ops some builds cannot read.
       previewable = Impure
@@ -500,7 +491,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             | None -> return Dval.optionNone (KTCustomType(packageOpTypeName (), []))
           }
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -544,7 +534,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               )
           }
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -612,7 +601,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               return Dval.resultError KTBool KTString (DString e.Message)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -635,7 +623,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return DUnit
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Runtime ]
       deprecated = NotDeprecated }
@@ -666,7 +653,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return DUuid eventId
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -707,7 +693,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               return Dval.resultError KTUnit KTString (DString ex.Message)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -737,7 +722,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return DUuid eventId
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -780,7 +764,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               return resultError (Dval.string ex.Message)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated } ]

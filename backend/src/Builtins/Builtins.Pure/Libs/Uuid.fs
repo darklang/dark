@@ -46,7 +46,6 @@ let fns () : List<BuiltInFn> =
           | true, x -> x |> DUuid |> resultOk |> Ply
           | _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -62,7 +61,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUuid uuid |] -> Ply(DString(string uuid))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

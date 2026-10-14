@@ -779,7 +779,6 @@ let fns () : List<BuiltInFn> =
         | _, vm, [ _typeToSerializeAs ], [| arg |] ->
           Ply(DString(writeJson (fun w -> serialize vm.threadID w arg)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -818,7 +817,6 @@ let fns () : List<BuiltInFn> =
                   (ParseError.toDT e)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

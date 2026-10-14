@@ -140,7 +140,6 @@ let private locationsByHashFn
             |> Dval.list (KTCustomType((PT2DT.PackageLocation.typeName ()), []))
         }
       | _ -> incorrectArgs ())
-    sqlSpec = NotQueryable
     previewable = Impure
     callEffects = set [ Effect.PackageRead ]
     deprecated = NotDeprecated }
@@ -188,7 +187,6 @@ let private findByLocationFn
             |> Dval.option (PT2DT.Hash.knownType ())
         }
       | _ -> incorrectArgs ())
-    sqlSpec = NotQueryable
     previewable = Impure
     callEffects = set [ Effect.PackageRead ]
     deprecated = NotDeprecated }
@@ -218,7 +216,6 @@ let private getByHashFn
             result |> Option.map toDT |> Dval.option (KTCustomType(typeName (), []))
         }
       | _ -> incorrectArgs ())
-    sqlSpec = NotQueryable
     previewable = Impure
     callEffects = set [ Effect.PackageRead ]
     deprecated = NotDeprecated }
@@ -304,7 +301,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               )
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -367,7 +363,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               )
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -441,7 +436,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   ))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -499,7 +493,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   ))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -552,7 +545,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   ))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -590,7 +582,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             | Error _ -> return Dval.optionNone KTUnit
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.Native ]
       deprecated = NotDeprecated }
@@ -674,7 +665,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             | [] -> return err "Empty router name"
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -718,7 +708,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             | None -> return err $"No function with hash {hash}"
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -809,7 +798,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               return err e.Message
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -837,7 +825,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return PT2DT.Search.SearchResults.toDT results
           }
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -872,7 +859,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 )
           }
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -926,7 +912,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               )
           }
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -994,7 +979,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               )
           }
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -1029,7 +1013,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 |> Dval.optionSome (RT2DT.Instructions.knownType ())
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -1167,7 +1150,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               return Dval.resultOk KTUnit KTString DUnit
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       // It authors an op. `Decision`/`Override` is a write whatever the name suggests, and this one
       // reaches `Inserts`, `storeDeltaOps` and `recordNameBases`.
@@ -1250,7 +1232,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               return Dval.resultError repointListKT KTString (DString errMsg)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects =
         set
@@ -1296,7 +1277,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               DTuple(hashListDval sets.allDeprecated, hashListDval sets.hidden, [])
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -1355,7 +1335,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   (DTuple(PT2DT.DeprecationKind.toDT kind, DString message, []))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -1392,7 +1371,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               |> fun rows -> DList(VT.tuple partKT VT.string [], rows)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated } ]

@@ -30,7 +30,6 @@ let fns () : List<BuiltInFn> =
               "Invalid regex pattern"
               [ "pattern", pattern; "error", e.Message ]
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -58,7 +57,6 @@ let fns () : List<BuiltInFn> =
               "Invalid regex pattern"
               [ "pattern", pattern; "error", e.Message ]
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -88,7 +86,6 @@ let fns () : List<BuiltInFn> =
               "Invalid regex pattern"
               [ "pattern", pattern; "error", e.Message ]
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -125,7 +122,6 @@ let fns () : List<BuiltInFn> =
           | :? RegexMatchTimeoutException ->
             Exception.raiseInternal "Regex timeout" [ "pattern", pattern ]
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -161,7 +157,6 @@ let fns () : List<BuiltInFn> =
           | :? RegexMatchTimeoutException ->
             Exception.raiseInternal "Regex timeout" [ "pattern", pattern ]
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -187,7 +182,6 @@ let fns () : List<BuiltInFn> =
               "Invalid regex pattern"
               [ "pattern", pattern; "error", e.Message ]
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

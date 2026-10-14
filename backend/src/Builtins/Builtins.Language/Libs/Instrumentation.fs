@@ -40,7 +40,6 @@ let fns () : List<BuiltInFn> =
           vm.stats.enabled <- true
           DUnit |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -63,7 +62,6 @@ let fns () : List<BuiltInFn> =
           vm.stats.detailedTiming <- enabled
           DUnit |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -85,7 +83,6 @@ let fns () : List<BuiltInFn> =
           // request's worth of work.
           Dval.dint64 (System.GC.GetTotalAllocatedBytes true) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -225,7 +222,6 @@ let fns () : List<BuiltInFn> =
           sb.Append("}") |> ignore<System.Text.StringBuilder>
           DString(sb.ToString()) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

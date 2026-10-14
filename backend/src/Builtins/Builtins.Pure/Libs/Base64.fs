@@ -49,7 +49,6 @@ let fns () : List<BuiltInFn> =
             with _ ->
               resultError (DString "Not a valid base64 string")
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -70,7 +69,6 @@ let fns () : List<BuiltInFn> =
           Blob.withBytes state ref (fun bytes ->
             Ply(DString(System.Convert.ToBase64String(bytes))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -97,7 +95,6 @@ let fns () : List<BuiltInFn> =
                 .Replace('/', '_')
             Ply(DString encoded))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

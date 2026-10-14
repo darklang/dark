@@ -34,7 +34,6 @@ let fns () : List<BuiltInFn> =
               | None -> Ply(Dval.optionNone KTString)
             | Error _ -> Ply(Dval.optionNone KTString))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.EnvRead ]
       deprecated = NotDeprecated }
@@ -58,7 +57,6 @@ let fns () : List<BuiltInFn> =
               |> Ply
             | Error _ -> Ply(Dval.stringDict KTString []))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.EnvRead ]
       deprecated = NotDeprecated }
@@ -73,7 +71,6 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, [], [| DUnit |] -> uply { return DString LibConfig.Config.buildHash }
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -102,7 +99,6 @@ let fns () : List<BuiltInFn> =
             | _ -> return incorrectArgs ()
           }
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

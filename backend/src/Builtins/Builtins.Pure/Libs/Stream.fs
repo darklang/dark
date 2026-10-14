@@ -133,7 +133,6 @@ let fns () : List<BuiltInFn> =
             return Stream.newFromIO inferredElem nextFn None
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -170,7 +169,6 @@ let fns () : List<BuiltInFn> =
             return Stream.wrapImpl (Unfold(step, ref initialState, elemType))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -197,7 +195,6 @@ let fns () : List<BuiltInFn> =
                 drivePull vm (fun r -> Ply(Dval.option elemKT r)) (Stream.pullNext s)
             }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -231,7 +228,6 @@ let fns () : List<BuiltInFn> =
             | None -> finish ()
           drivePull vm onPulled (Stream.pullNext s)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -277,7 +273,6 @@ let fns () : List<BuiltInFn> =
               Ply(Blob.newEphemeral bytes)
           drivePull vm onPulled (Stream.pullNext s)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -307,7 +302,6 @@ let fns () : List<BuiltInFn> =
             Stream.disposeImpl impl
           DUnit |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -344,7 +338,6 @@ let fns () : List<BuiltInFn> =
               Stream.wrapImpl (Mapped(src, narrowedBy vm.activeAccess app, elemType))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -370,7 +363,6 @@ let fns () : List<BuiltInFn> =
           // As `streamMap`.
           Stream.wrapImpl (Filtered(src, narrowedBy vm.activeAccess app)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -399,7 +391,6 @@ let fns () : List<BuiltInFn> =
             else int64 n
           Stream.wrapImpl (Take(src, clamped, ref clamped)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -427,7 +418,6 @@ let fns () : List<BuiltInFn> =
                   [ "got", other ])
           Stream.wrapImpl (Concat(ref impls)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

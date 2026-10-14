@@ -204,7 +204,6 @@ let fns () : List<BuiltInFn> =
           let jsonString = Serialize.writeJson (fun w -> Serialize.writeToken w jt)
           Ply(DString jsonString)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -224,7 +223,6 @@ let fns () : List<BuiltInFn> =
           | Ok jt -> jt |> Json.toDT |> Ok |> result |> Ply
           | Error e -> e |> ParseError.toDT |> Error |> result |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

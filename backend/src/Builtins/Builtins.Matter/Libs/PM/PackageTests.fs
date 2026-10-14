@@ -268,7 +268,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             | _ -> return Exception.raiseInternal "Invalid test snapshot response" []
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       // The callback may write. Keep it in program order, rather than letting
       // the interpreter defer this scope as an asynchronous package read.
@@ -291,7 +290,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               executeWorker pm { state with access = vm.activeAccess } request access
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
@@ -337,7 +335,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               return DBool(result.complete && Set.isEmpty result.requiredEffects)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -357,7 +354,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           let _ = System.Threading.Interlocked.Increment(&state.test.sideEffectCount)
           Ply value
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -378,7 +374,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           |> Dval.int64
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -396,7 +391,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           requireRunningPackageTest state "raiseRuntimeError"
           raiseUntargetedRTE (RuntimeError.UncaughtException(message, []))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -461,7 +455,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 executeIsolatedTest exeState vm runId branchId workerHash hashStr
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated } ]

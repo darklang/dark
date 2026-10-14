@@ -2839,51 +2839,6 @@ type Previewable =
   | Impure
 
 
-/// Used to mark whether a function has an equivalent that can be
-/// used within a Sqlite query.
-type SqlSpec =
-  /// Can be implemented, but we haven't yet
-  | NotYetImplemented
-
-  /// This is not a function which can be queried
-  | NotQueryable
-
-  /// A query function (it can't be called inside a query, but its argument can be a query)
-  | QueryFunction
-
-  /// Can be implemented by a given builtin operator with 1 arg (eg `@ x`)
-  | SqlUnaryOp of string
-
-  /// Can be implemented by a given builtin operator with 2 args (eg `x + y`)
-  | SqlBinOp of string
-
-  /// Can be implemented by a given builtin function
-  | SqlFunction of string
-
-  /// Can be implemented by a given builtin function with extra arguments that go first
-  | SqlFunctionWithPrefixArgs of string * List<string>
-
-  /// Can be implemented by a given builtin function with extra arguments that go last
-  | SqlFunctionWithSuffixArgs of string * List<string>
-
-  /// Can be implemented by given callback that receives 1 SQLified-string argument
-  /// | SqlCallback of (string -> string)
-  /// Can be implemented by given callback that receives 2 SQLified-string argument
-  | SqlCallback2 of (string -> string -> string)
-
-  member this.isQueryable() : bool =
-    match this with
-    | NotYetImplemented
-    | NotQueryable
-    | QueryFunction -> false
-    | SqlUnaryOp _
-    | SqlBinOp _
-    | SqlFunction _
-    | SqlFunctionWithPrefixArgs _
-    | SqlFunctionWithSuffixArgs _
-    | SqlCallback2 _ -> true
-
-
 module Tracing =
   /// Fired when a builtin call, or a package fn frame, completes. `ord` is the call's ordinal
   /// among the process's effectful builtin calls, handed out by `nextEffect` when the call was
@@ -3793,7 +3748,6 @@ type BuiltInFn =
     description : string
     previewable : Previewable
     deprecated : Deprecation<FQFnName.FQFnName>
-    sqlSpec : SqlSpec
     /// Conservative effects of invoking this builtin. Scoped host effects
     /// construct an exact `Permissions.Request` in their body.
     callEffects : Set<Effects.Effect>

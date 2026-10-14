@@ -1006,7 +1006,6 @@ let fns () : List<BuiltInFn> =
             logRequests
             onListening
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
       deprecated = NotDeprecated }
@@ -1075,7 +1074,6 @@ let fns () : List<BuiltInFn> =
             logRequests
             onListening
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
       deprecated = NotDeprecated } ]

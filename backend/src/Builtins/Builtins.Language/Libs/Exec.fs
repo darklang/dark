@@ -246,7 +246,6 @@ let fns () : List<BuiltInFn> =
           let rows = LibExecution.HostRegistry.list () |> List.map machineProcessToDT
           DList(ValueType.Known(machineProcessType ()), rows) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated
       // The table is not a trace; `TraceRead`/`TraceWrite` are borrowed because they are
@@ -266,7 +265,6 @@ let fns () : List<BuiltInFn> =
           let rows = snapshot () |> List.map summaryToDT
           DList(ValueType.Known(summaryType ()), rows) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -288,7 +286,6 @@ let fns () : List<BuiltInFn> =
           let detailType = KTCustomType(typ PackageRefs.Type.Stdlib.Exec.detail, [])
           Dval.option detailType (found |> Option.map detailToDT) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -306,7 +303,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] -> Dval.int (bigint Scheduler.defaultWorkers) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -337,7 +333,6 @@ let fns () : List<BuiltInFn> =
           let p = s.SpawnApply(state, f, DUnit, parent, vm.activeAccess)
           handleOf p.id |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.Concurrency ]
       deprecated = NotDeprecated }
@@ -371,7 +366,6 @@ let fns () : List<BuiltInFn> =
           p.detached <- true
           handleOf p.id |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.Concurrency ]
       deprecated = NotDeprecated }
@@ -405,7 +399,6 @@ let fns () : List<BuiltInFn> =
             | Some result -> Ply(resultOf vm result)
             | None -> noSuchProcess () |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -464,7 +457,6 @@ let fns () : List<BuiltInFn> =
             | Some result -> Ply(optionOf (Some(resultOf vm result)))
             | None -> noSuchProcess () |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -537,7 +529,6 @@ let fns () : List<BuiltInFn> =
                     Exception.raiseInternal "select: the winner is not a handle" []
               }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -564,7 +555,6 @@ let fns () : List<BuiltInFn> =
           let pid = pidOfHandle vm handle
           DBool(Scheduler.Scheduler.CurrentOrShared.Cancel pid) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.TraceWrite ]
       deprecated = NotDeprecated }
@@ -583,7 +573,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUuid id |] ->
           DBool(Scheduler.Scheduler.CurrentOrShared.Kill id) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.TraceWrite ]
       deprecated = NotDeprecated } ]

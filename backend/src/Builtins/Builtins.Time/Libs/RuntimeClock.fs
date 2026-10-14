@@ -15,7 +15,6 @@ let private make name parameters returnType body : BuiltInFn =
     returnType = returnType
     description = "Raw clock/event-loop runtime input; no Dark clock algorithms"
     fn = body
-    sqlSpec = NotQueryable
     previewable = Impure
     callEffects = set [ Effect.Clock ]
     deprecated = NotDeprecated }

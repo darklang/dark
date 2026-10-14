@@ -35,7 +35,6 @@ let fns () : List<BuiltInFn> =
                   "current executable path failed"
                   [ "message", failure.message ])
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       // The answer is a path, so it is a read of that path.
       callEffects = set [ Effect.FileRead ]

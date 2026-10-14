@@ -120,7 +120,6 @@ let fns () : List<BuiltInFn> =
             else "linux"
           Ply(DString os)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -137,7 +136,6 @@ let fns () : List<BuiltInFn> =
             System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
           Ply(DString(arch.ToString().ToLowerInvariant()))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -153,7 +151,6 @@ let fns () : List<BuiltInFn> =
           syscallResult KTBlob vm (HostTypes.PosixOp.StatBuffer path) (fun r ->
             Blob.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = fileReadEffect
       deprecated = NotDeprecated }
@@ -176,7 +173,6 @@ let fns () : List<BuiltInFn> =
           syscallResult KTBlob vm op (fun r ->
             Blob.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -195,7 +191,6 @@ let fns () : List<BuiltInFn> =
             (HostTypes.PosixOp.GetcwdBytes(intToInt32 vm count))
             (fun r -> Blob.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.FileRead ]
       deprecated = NotDeprecated }
@@ -211,7 +206,6 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DString path |] ->
           syscallResult KTUnit vm (HostTypes.PosixOp.Chdir path) unitOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = fileReadEffect
       deprecated = NotDeprecated }
@@ -232,7 +226,6 @@ let fns () : List<BuiltInFn> =
           let op = HostTypes.PosixOp.Mkdir(path, intToInt32 vm mode)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = fileWriteEffect
       deprecated = NotDeprecated }
@@ -254,7 +247,6 @@ let fns () : List<BuiltInFn> =
             (HostTypes.PosixOp.UnlinkAt(path, intToInt32 vm flags))
             unitOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = fileWriteEffect
       deprecated = NotDeprecated }
@@ -273,7 +265,6 @@ let fns () : List<BuiltInFn> =
           let op = HostTypes.PosixOp.Rename(oldpath, newpath)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = fileWriteEffect
       deprecated = NotDeprecated }
@@ -292,7 +283,6 @@ let fns () : List<BuiltInFn> =
           let op = HostTypes.PosixOp.Chmod(path, intToInt32 vm mode)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = fileWriteEffect
       deprecated = NotDeprecated }
@@ -314,7 +304,6 @@ let fns () : List<BuiltInFn> =
           let op = HostTypes.PosixOp.Symlink(target, linkpath)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = fileWriteEffect
       deprecated = NotDeprecated }
@@ -336,7 +325,6 @@ let fns () : List<BuiltInFn> =
             (HostTypes.PosixOp.ReadlinkBytes(path, intToInt32 vm count))
             (fun response -> Blob.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = fileReadEffect
       deprecated = NotDeprecated }
@@ -372,7 +360,6 @@ let fns () : List<BuiltInFn> =
           let op = HostTypes.PosixOp.Kill(intToInt32 vm pid, intToInt32 vm signal)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = nativeEffects
       deprecated = NotDeprecated }
@@ -394,7 +381,6 @@ let fns () : List<BuiltInFn> =
           syscallResult KTBlob vm op (fun response ->
             Blob.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -424,7 +410,6 @@ let fns () : List<BuiltInFn> =
           syscallResult KTInt vm op (fun response ->
             Dval.int (bigint (Host.expectOffset response)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -445,7 +430,6 @@ let fns () : List<BuiltInFn> =
             syscallResult KTInt vm op (fun response ->
               Dval.int (bigint (Host.expectWritten response))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -462,7 +446,6 @@ let fns () : List<BuiltInFn> =
           let op = HostTypes.PosixOp.FdClose(intToDescriptor vm fd)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -484,7 +467,6 @@ let fns () : List<BuiltInFn> =
           syscallResult KTInt vm op (fun response ->
             Dval.int (Host.expectDescriptor response))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = fileEffects
       deprecated = NotDeprecated }
@@ -506,7 +488,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] -> Dval.int (bigint (HostPosix.getpid ())) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -521,7 +502,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] -> Dval.int (bigint (HostPosix.getuid ())) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -541,7 +521,6 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DString home |] ->
           posixOption vm (HostTypes.PosixOp.HomeDir home) Host.expectOptionalText
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.FileRead ]
       deprecated = NotDeprecated }
@@ -564,7 +543,6 @@ let fns () : List<BuiltInFn> =
           let op = HostTypes.PosixOp.Flock(intToDescriptor vm fd, lockOp)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }

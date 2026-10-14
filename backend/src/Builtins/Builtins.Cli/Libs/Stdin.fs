@@ -612,7 +612,6 @@ let fns () : List<BuiltInFn> =
             }
           | _ -> Ply(readOneKey ())
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated }
@@ -643,7 +642,6 @@ let fns () : List<BuiltInFn> =
             }
           | None -> Ply(ofResult (readStdinFor HE.StdinRequest.Line))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated }
@@ -661,7 +659,6 @@ let fns () : List<BuiltInFn> =
           |> DBool
           |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated }
@@ -681,7 +678,6 @@ let fns () : List<BuiltInFn> =
           let input = System.Console.In.ReadToEnd()
           Ply(DString input)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated }
@@ -732,7 +728,6 @@ let fns () : List<BuiltInFn> =
             }
           | _ -> Ply(eventToDval vm (awaitBlocking specs))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       // Static, so the union of what any spec could need: a key is stdin, a store change is a
       // package read. A `[Timer 10]` alone still declares both; narrowing per call would need
       // the effect check to run inside the body, which nothing else does today.

@@ -28,7 +28,6 @@ let fns () : List<BuiltInFn> =
           print str
           Ply DUnit
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
@@ -49,7 +48,6 @@ let fns () : List<BuiltInFn> =
           NonBlockingConsole.writeErrLine str
           Ply DUnit
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       // Printing, like stdout: output to the person's own terminal, which the default policy
       // allows. A separate effect would put a log line behind a grant.
@@ -68,7 +66,6 @@ let fns () : List<BuiltInFn> =
           printInline str
           Ply DUnit
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
@@ -87,7 +84,6 @@ let fns () : List<BuiltInFn> =
           NonBlockingConsole.writeErrInline str
           Ply DUnit
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
@@ -107,7 +103,6 @@ let fns () : List<BuiltInFn> =
             System.Console.Write("\u001b[2J\u001b[H") // ANSI escape for non-Windows
           Ply DUnit
         | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
@@ -123,7 +118,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] -> DBool(NonBlockingConsole.startCapture ()) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
@@ -141,7 +135,6 @@ let fns () : List<BuiltInFn> =
           let captured = NonBlockingConsole.stopCapture ()
           Ply(DString captured)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
@@ -163,7 +156,6 @@ let fns () : List<BuiltInFn> =
             return DUnit
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated } ]

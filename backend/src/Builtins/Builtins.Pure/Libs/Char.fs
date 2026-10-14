@@ -40,7 +40,6 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DChar c |] -> Ply(DChar(c.ToUpper()))
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -57,7 +56,6 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DChar c |] -> Ply(DChar(c.ToLower()))
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -79,7 +77,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionNone KTInt |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -94,7 +91,6 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DChar c1; DChar c2 |] -> (c1 < c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -109,7 +105,6 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DChar c1; DChar c2 |] -> (c1 <= c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -124,7 +119,6 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DChar c1; DChar c2 |] -> (c1 > c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -139,7 +133,6 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DChar c1; DChar c2 |] -> (c1 >= c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -154,7 +147,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DChar c |] -> Ply(DString c)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -182,7 +174,6 @@ let fns () : List<BuiltInFn> =
             let s = System.Char.ConvertFromUtf32(int cp)
             Dval.optionSome KTChar (DChar s) |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -200,7 +191,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DChar c |] ->
           Ply(DBool(firstRuneIs System.Text.Rune.IsLetter c))
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -218,7 +208,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DChar c |] ->
           Ply(DBool(firstRuneIs System.Text.Rune.IsWhiteSpace c))
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -236,7 +225,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DChar c |] ->
           Ply(DBool(firstRuneIs System.Text.Rune.IsLetterOrDigit c))
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -258,7 +246,6 @@ let fns () : List<BuiltInFn> =
           | Some r -> Dval.optionSome KTInt (Dval.int (bigint r.Value)) |> Ply
           | None -> Dval.optionNone KTInt |> Ply
         | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

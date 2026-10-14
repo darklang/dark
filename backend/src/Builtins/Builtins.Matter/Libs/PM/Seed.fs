@@ -31,7 +31,6 @@ let fns () : List<BuiltInFn> =
               return resultError (DString ex.Message)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       // `Native` plus scoped write: export copies the package store and opens
       // SQLite inside LibDB, so a path rule alone cannot confine it.

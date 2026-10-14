@@ -18,7 +18,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] -> Ply(DUuid(System.Guid.NewGuid()))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable =
         // Similarly to DateTime.now, it's not particularly fun for this to change
         // when live programming, so `Impure` is the honest label

@@ -76,7 +76,6 @@ let fns () : List<BuiltInFn> =
 
           DList(VT.customType (builtinValue ()) [], vals) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -98,7 +97,6 @@ let fns () : List<BuiltInFn> =
 
           DList(VT.customType (builtinFn ()) [], fns) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -118,7 +116,6 @@ let fns () : List<BuiltInFn> =
             | false, _ -> None
           value |> Dval.option (KTCustomType(builtinFn (), [])) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -138,7 +135,6 @@ let fns () : List<BuiltInFn> =
             | false, _ -> None
           value |> Dval.option (KTCustomType(builtinValue (), [])) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

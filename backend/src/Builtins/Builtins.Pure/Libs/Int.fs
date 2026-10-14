@@ -92,7 +92,6 @@ let fns () : List<BuiltInFn> =
             let r = DarkInt.toBigInt a % m
             Ply(Dval.int (if r < bigZero then m + r else r))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -121,7 +120,6 @@ let fns () : List<BuiltInFn> =
           else
             DarkInt.toBigInt value % d |> Dval.int |> resultOk |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -136,7 +134,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.add a b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -151,7 +148,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.subtract a b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -166,7 +162,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.multiply a b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -202,7 +197,6 @@ let fns () : List<BuiltInFn> =
           else
             Ply(Dval.int (number ** (int exp)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -221,7 +215,6 @@ let fns () : List<BuiltInFn> =
           else
             Ply(Dval.dint (DarkInt.divide a b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -236,7 +229,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt a |] -> Ply(Dval.dint (DarkInt.negate a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -251,7 +243,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b > 0))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -267,7 +258,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b >= 0))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -282,7 +272,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b < 0))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -298,7 +287,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b <= 0))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -315,7 +303,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| (DInt _) as v |] -> Ply(DFloat(sqrt (float (Dval.asBigInt v))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -332,7 +319,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| (DInt _) as v |] -> Ply(DFloat(float (Dval.asBigInt v)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -352,7 +338,6 @@ let fns () : List<BuiltInFn> =
         // guard (shared with the Float builtins) so those don't throw a host exn.
         | _, vm, _, [| DFloat f |] -> roundedToInt vm f
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -379,7 +364,6 @@ let fns () : List<BuiltInFn> =
           | true, i -> i |> Dval.int |> resultOk |> Ply
           | false, _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -403,7 +387,6 @@ let fns () : List<BuiltInFn> =
             )
           )
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -421,7 +404,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a |] -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -436,7 +418,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt8 a |] -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -451,7 +432,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt16 a |] -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -466,7 +446,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a |] -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -481,7 +460,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt32 a |] -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -496,7 +474,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt32 a |] -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -512,7 +489,6 @@ let fns () : List<BuiltInFn> =
         // An Int64 is always in `DarkInt.Finite` range.
         | _, _, _, [| DInt64 a |] -> Dval.dint (DarkInt.Finite a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -527,7 +503,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt64 a |] -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -542,7 +517,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt128 a |] -> Dval.int (i128ToBig a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -557,7 +531,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt128 a |] -> Dval.int (u128ToBig a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -581,7 +554,6 @@ let fns () : List<BuiltInFn> =
             (fun b -> DInt8(sbyte b))
             v
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -602,7 +574,6 @@ let fns () : List<BuiltInFn> =
             (fun b -> DUInt8(byte b))
             v
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -623,7 +594,6 @@ let fns () : List<BuiltInFn> =
             (fun b -> DInt16(int16 b))
             v
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -644,7 +614,6 @@ let fns () : List<BuiltInFn> =
             (fun b -> DUInt16(uint16 b))
             v
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -665,7 +634,6 @@ let fns () : List<BuiltInFn> =
             (fun b -> DInt32(int32 b))
             v
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -686,7 +654,6 @@ let fns () : List<BuiltInFn> =
             (fun b -> DUInt32(uint32 b))
             v
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -708,7 +675,6 @@ let fns () : List<BuiltInFn> =
           Dval.optionSome someType (DInt64 a) |> Ply
         | _, _, _, [| DInt(DarkInt.Infinite _) |] -> Dval.optionNone someType |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -729,7 +695,6 @@ let fns () : List<BuiltInFn> =
             (fun b -> DUInt64(uint64 b))
             v
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -750,7 +715,6 @@ let fns () : List<BuiltInFn> =
             (fun b -> DInt128(bigToI128 b))
             v
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -771,7 +735,6 @@ let fns () : List<BuiltInFn> =
             (fun b -> DUInt128(bigToU128 b))
             v
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -787,7 +750,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DInt a; DInt b |] ->
           Ply(Dval.int (DarkInt.toBigInt a &&& DarkInt.toBigInt b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -803,7 +765,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DInt a; DInt b |] ->
           Ply(Dval.int (DarkInt.toBigInt a ||| DarkInt.toBigInt b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -819,7 +780,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DInt a; DInt b |] ->
           Ply(Dval.int (DarkInt.toBigInt a ^^^ DarkInt.toBigInt b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -834,7 +794,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt a |] -> Ply(Dval.int (-(DarkInt.toBigInt a) - bigOne))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -857,7 +816,6 @@ let fns () : List<BuiltInFn> =
           else
             Ply(Dval.int (DarkInt.toBigInt a <<< shift))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -880,7 +838,6 @@ let fns () : List<BuiltInFn> =
           else
             Ply(Dval.int (DarkInt.toBigInt a >>> shift))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
