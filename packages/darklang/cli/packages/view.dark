@@ -466,6 +466,22 @@ let modeName (mode: ViewMode) : String =
 /// Flags are accepted in any position, so `view --ast List.last` and `view List.last --ast` both work.
 /// Returns the path (if given) and the mode, or an error naming the bad flag.
 /// The path, the mode, and whether `--include-tests` was given.
+//
+// TODO: neither `--raw` nor `--include-tests` has earned its place, and both should be
+// settled rather than left.
+//
+// `--raw` prints one declaration with no chrome, for a pipe. That is a real need, and it
+// is not clear it is a MODE: the default view already decides what to print from what you
+// named, so the difference is presentation, and presentation is also what the colour and
+// the capping are. If the answer is "no decoration when stdout is not a terminal" then
+// `--raw` is a flag for overriding a detection, not a view of its own, and it belongs with
+// whatever we do about ANSI in piped output generally.
+//
+// `--include-tests` is one hardcoded filter on what a listing shows, and `view` on a module
+// mostly duplicates `ls` anyway (the keep-or-kill sheet calls ls / tree / view / moduleRows
+// four spellings of one listing). A filter belongs on that one listing, as something
+// general -- kinds, deprecation, tests -- not as a boolean threaded through this file in
+// four places. Deciding that is the prerequisite; this flag should not be extended first.
 let parseArgs
   (args: List<String>)
   : Stdlib.Result.Result<(Stdlib.Option.Option<String> * ViewMode * Bool), String> =
