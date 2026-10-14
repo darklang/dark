@@ -189,11 +189,21 @@ let nodeToString (node: Node) : String =
 ///
 /// Example: `comment "This is a comment"` produces `<!-- This is a comment -->`
 ///
-/// `--` is the only sequence that can escape a comment, and the grammar gives no way to escape it,
-/// so the content is rewritten rather than encoded: a string holding `-->` would close the comment
-/// early and spill the rest onto the page as markup.
+/// Text containing `--` could close the comment early, so each `--` is turned
+/// into `- -`. For example, `comment "a --> b"` produces `<!-- a - -> b -->`.
 let comment (s: String) : Node =
-  let safe = Stdlib.String.replaceAll s "--" "- -"
+  // Keep replacing until no `--` is left. One pass isn't enough: `---` becomes
+  // `- --`, which still has a `--` in it.
+  let breakDashes (t: String) : String =
+    if Stdlib.String.contains t "--" then
+      breakDashes (Stdlib.String.replaceAll t "--" "- -")
+    else
+      t
+
+  let safe = breakDashes s
+
+  // Don't remove the spaces. `<!-->` on its own is a complete comment, so text
+  // starting with `>` would end it immediately.
   stringNode $"<!-- {safe} -->"
 
 

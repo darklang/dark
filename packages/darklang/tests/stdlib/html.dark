@@ -40,15 +40,39 @@ test comment =
   Stdlib.Test.all
     [ (Stdlib.Html.comment "hello") |> nodeToString
       |> Stdlib.Test.equal "<!-- hello -->"
-      // `--` is the only sequence that can end a comment, and the grammar gives no
-      // way to escape it, so content carrying one is rewritten. Without this,
-      // everything after `-->` lands on the page as markup rather than staying
-      // inside the comment.
+      // Each `--` becomes `- -`, so text containing `-->` can't close the
+      // comment early.
       (Stdlib.Html.comment "a --> b") |> nodeToString
       |> Stdlib.Test.equal "<!-- a - -> b -->"
       (Stdlib.Html.comment "<script>alert(1)</script> -- and more")
       |> nodeToString
-      |> Stdlib.Test.equal "<!-- <script>alert(1)</script> - - and more -->" ]
+      |> Stdlib.Test.equal "<!-- <script>alert(1)</script> - - and more -->"
+      // Three or more hyphens in a row.
+      (Stdlib.Html.comment "---><script>alert(1)</script>") |> nodeToString
+      |> Stdlib.Test.equal "<!-- - - -><script>alert(1)</script> -->"
+      (Stdlib.Html.comment "---") |> nodeToString
+      |> Stdlib.Test.equal "<!-- - - - -->"
+      (Stdlib.Html.comment "-----") |> nodeToString
+      |> Stdlib.Test.equal "<!-- - - - - - -->"
+      (Stdlib.Html.comment "a --!> b") |> nodeToString
+      |> Stdlib.Test.equal "<!-- a - -!> b -->" ]
+
+// However many hyphens there are, the text inside the comment never ends up
+// with `--` in it.
+test commentNeverHoldsDoubleDash =
+  Stdlib.Test.all (
+    [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ]
+    |> Stdlib.List.map (fun n ->
+      let dashes = Stdlib.String.repeat "-" n
+      let html = (Stdlib.Html.comment $"{dashes}>x") |> nodeToString
+
+      // Strip `<!-- ` and ` -->` to get the text inside.
+      let inner =
+        html
+        |> Stdlib.String.dropFirst 5
+        |> Stdlib.String.dropLast 4
+
+      Stdlib.String.contains inner "--" |> Stdlib.Test.equal false))
 
 // -- testing HTML escaping
 test escapeHtml =
