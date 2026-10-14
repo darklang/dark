@@ -87,7 +87,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [| DBlob ref |] ->
           Blob.withBytes state ref (fun bytes ->
-            // Differs from Base64.encodeToUrlSafe as this version has padding
+            // URL-safe alphabet, and unlike most url-safe encoders this one keeps padding
             let encoded =
               System.Convert
                 .ToBase64String(bytes)

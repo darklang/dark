@@ -12,7 +12,6 @@
     <Compile Include="NEList.fs" />
     <Compile Include="Regex.fs" />
     <Compile Include="Tuple2.fs" />
-    <Compile Include="Base64.fs" />
     <Compile Include="UTF8.fs" />
     <Compile Include="String.fs" />
     <Compile Include="TextWidth.fs" />
