@@ -1,3 +1,116 @@
+// What `BuiltInFn.sqlSpec` held, as of 2026-10-13, when the field was deleted.
+//
+// The field no longer exists. `RT.BuiltInFn` used to carry a `sqlSpec : SqlSpec`,
+// and `getSqlSpec` below is the only thing that ever read it, together with the
+// user-DB builtins in
+// `later/backend/src/Builtins/Builtins.Matter/Libs/DB.fs`. Both of those are under
+// `later/`, so every builtin in the live tree was declaring a field that nothing
+// live could read. The field and the `SqlSpec` type are gone from
+// `backend/src/LibExecution/RuntimeTypes.fs`; this block is the record of what
+// they held, and `git log` has the rest.
+//
+// 728 builtins declared it. 365 said `NotQueryable` and 320 said
+// `NotYetImplemented`, which carry no information. The other 43 are below, keyed
+// the way `getSqlSpec` keys them: the builtin's own name, as `fn "<name>"
+// <version>` spells it under `backend/src/Builtins`. Every one of them is version
+// 0, and every one lives in `Builtins.Pure/Libs/`, so only the file is named here.
+//
+// When this comes back, the table belongs HERE, looked up by builtin name, rather
+// than as a field every builtin declaration in the tree carries for one consumer.
+//
+// `NoModule.fs` is where the polymorphic operator builtins live (`add`, `equals`,
+// ...), which is the set `getSqlSpec` reaches through `NumericTraits.tryInfix` for
+// an operator trait method.
+//
+// SqlBinOp (32)
+//
+//   dateTimeGreaterThan           >   DateTime.fs
+//   dateTimeLessThan              <   DateTime.fs
+//   dateTimeGreaterThanOrEqualTo  >=  DateTime.fs
+//   dateTimeLessThanOrEqualTo     <=  DateTime.fs
+//   floatAdd                      +   Float.fs
+//   floatSubtract                 -   Float.fs
+//   floatMultiply                 *   Float.fs
+//   floatDivide                   /   Float.fs
+//   floatGreaterThan              >   Float.fs
+//   floatGreaterThanOrEqualTo     >=  Float.fs
+//   floatLessThan                 <   Float.fs
+//   floatLessThanOrEqualTo        <=  Float.fs
+//   int64Add                      +   Int64.fs
+//   int64Subtract                 -   Int64.fs
+//   int64Multiply                 *   Int64.fs
+//   int64Divide                   /   Int64.fs
+//   int64Mod                      %   Int64.fs
+//   int64GreaterThan              >   Int64.fs
+//   int64GreaterThanOrEqualTo     >=  Int64.fs
+//   int64LessThan                 <   Int64.fs
+//   int64LessThanOrEqualTo        <=  Int64.fs
+//   equals                        =   NoModule.fs
+//   notEquals                     <>  NoModule.fs
+//   add                           +   NoModule.fs
+//   subtract                      -   NoModule.fs
+//   multiply                      *   NoModule.fs
+//   divide                        /   NoModule.fs
+//   modulo                        %   NoModule.fs
+//   greaterThan                   >   NoModule.fs
+//   greaterThanOrEqualTo          >=  NoModule.fs
+//   lessThan                      <   NoModule.fs
+//   lessThanOrEqualTo             <=  NoModule.fs
+//
+// SqlFunction (10)
+//
+//   boolNot            not      Bool.fs
+//   floatPower         POWER    Float.fs
+//   int64Power         POWER    Int64.fs
+//   power              POWER    NoModule.fs
+//   stringReplaceAll   replace  String.fs
+//   stringToUppercase  upper    String.fs
+//   stringToLowercase  lower    String.fs
+//   stringTrim         trim     String.fs
+//   stringTrimStart    ltrim    String.fs
+//   stringTrimEnd      rtrim    String.fs
+//
+// SqlCallback2 (1)
+//
+//   stringContains, in String.fs, verbatim, with the comment that sat above it:
+//
+//     // Emits a complete boolean fragment, so no Int value reaches the SqlCompiler.
+//     sqlSpec =
+//       SqlCallback2(fun lookingIn searchingFor ->
+//         $"(INSTR({lookingIn}, {searchingFor}) > 0)")
+//
+// No live builtin used `QueryFunction`, `SqlUnaryOp`, `SqlFunctionWithPrefixArgs` or
+// `SqlFunctionWithSuffixArgs`. `QueryFunction` was used by four of the `DB`
+// builtins in `later/.../Libs/DB.fs`, which still declare the field because
+// nothing under `later/` is compiled.
+//
+// Intent comments that went with the field, and would otherwise have been orphaned:
+//
+//   dateTimeYear, dateTimeMonth, dateTimeDay, dateTimeHour, dateTimeMinute and
+//   dateTimeSecond (DateTime.fs) each carried, above a `NotQueryable`:
+//     // `Int` isn't queryable yet; restore date_part('<part>') sqlSpec once it is
+//
+//   dateTimeAtStartOfDay (DateTime.fs), on its `NotYetImplemented`:
+//     // PostgreSQL date_trunc is not available in SQLite
+//
+//   dateTimeSubtract (DateTime.fs), above the declaration:
+//     // Note: the SQL here would be `EPOCH FROM (end - start)`, but we don't
+//     // currently support such a complex sqlSpec in Dark fns.
+//
+//   stringLength (String.fs), on its `NotYetImplemented`:
+//     // CLEANUP: Sqlite has "LENGTH" but that counts characters; if we can get
+//     // it to count EGCs, great
+//
+//   stringReverse (String.fs), on its `NotYetImplemented`:
+//     // SQLite has no EGC-aware reverse function
+//
+//   stringIndexOf (String.fs), above its `NotQueryable`:
+//     // `Int` isn't queryable in DB.query yet, and the compiler treats any spec
+//     // as active -- so mark NotQueryable rather than advertise a spec that fails
+//     // on the comparison literal. (String.contains has its own queryable Bool
+//     // builtin, so it's unaffected.) Restore once Int is queryable:
+//     //   SqlCallback2(fun str search -> $"(INSTR({str}, {search}) - 1)")
+
 /// Compiles RT Instructions (from lambdas) to SQL at runtime.
 ///
 /// TODO: Ideally this would operate at PT level rather than RT level,
