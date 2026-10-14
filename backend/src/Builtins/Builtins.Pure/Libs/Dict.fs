@@ -77,7 +77,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(_, _, o) |] -> Ply(Dval.int (bigint (Map.count o)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -99,7 +98,6 @@ let fns () : List<BuiltInFn> =
           )
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -117,7 +115,6 @@ let fns () : List<BuiltInFn> =
           // See `dictKeys`: a direct fold rather than a lazy sequence and its enumerator.
           DList(valueType, Map.foldBack (fun _ v acc -> v :: acc) o []) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -138,7 +135,6 @@ let fns () : List<BuiltInFn> =
           |> fun pairs -> DList(VT.tuple keyType valueType [], pairs)
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -165,7 +161,6 @@ let fns () : List<BuiltInFn> =
             addAllEntries vm.threadID keyType valueType Map.empty l
           DDict(keyType, valueType, map) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -201,7 +196,6 @@ let fns () : List<BuiltInFn> =
           | None ->
             TypeChecker.DvalCreator.optionNone (VT.dict VT.unknown VT.unknown) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -224,7 +218,6 @@ let fns () : List<BuiltInFn> =
           |> TypeChecker.DvalCreator.option vm.threadID VT.unknownTODO
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -244,7 +237,6 @@ let fns () : List<BuiltInFn> =
           LibExecution.RuntimeTypes.Dval.assertUsableDictKey key
           Ply(DBool(Map.containsKey (DictKey key) o))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -273,7 +265,6 @@ let fns () : List<BuiltInFn> =
               "Builtin.dictMerge input dicts somehow bypassed fn-arg type-checking"
               [ ("kt1", kt1); ("kt2", kt2); ("vt1", vt1); ("vt2", vt2) ]
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -303,7 +294,6 @@ let fns () : List<BuiltInFn> =
               TypeChecker.ThrowIfDuplicate
           DDict(kt, vt, map) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -334,7 +324,6 @@ let fns () : List<BuiltInFn> =
               TypeChecker.ReplaceValue
           DDict(kt, vt, map) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -353,7 +342,6 @@ let fns () : List<BuiltInFn> =
           LibExecution.RuntimeTypes.Dval.assertUsableDictKey k
           DDict(kt, vt, Map.remove (DictKey k) o) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

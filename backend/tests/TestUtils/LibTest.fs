@@ -71,7 +71,6 @@ let fns () : List<BuiltInFn> =
             return DUnit
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -92,7 +91,6 @@ let fns () : List<BuiltInFn> =
             return DInt64 n
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -120,7 +118,6 @@ let fns () : List<BuiltInFn> =
             }
           LibExecution.Stream.newFromIO (VT.known KTInt64) next None |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -140,7 +137,6 @@ let fns () : List<BuiltInFn> =
               |> raiseUntargetedRTE
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -156,7 +152,6 @@ let fns () : List<BuiltInFn> =
           Trace.record s
           Ply DUnit
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -171,7 +166,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString errorString |] ->
           raiseUntargetedRTE (RuntimeError.UncaughtException(errorString, []))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -189,7 +183,6 @@ let fns () : List<BuiltInFn> =
           state.test.sideEffectCount <- state.test.sideEffectCount + 1
           Ply(arg)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -204,7 +197,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString message |] -> raise (System.Exception message)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

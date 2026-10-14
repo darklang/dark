@@ -31,7 +31,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Ceiling |> roundedToInt vm
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -46,7 +45,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Ceiling |> roundedToInt vm
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -64,7 +62,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Floor |> roundedToInt vm
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -83,7 +80,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Floor |> roundedToInt vm
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -98,7 +94,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Round |> roundedToInt vm
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -114,7 +109,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Truncate |> roundedToInt vm
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -129,7 +123,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Sqrt a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -144,7 +137,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat base_; DFloat exp |] -> Ply(DFloat(base_ ** exp))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "POWER"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -159,7 +151,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a / b))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "/"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -174,7 +165,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a + b))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "+"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -189,7 +179,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a * b))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "*"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -204,7 +193,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a - b))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "-"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -219,7 +207,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp ">"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -234,7 +221,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp ">="
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -249,7 +235,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "<"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -264,7 +249,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "<="
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -280,7 +264,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Truncate |> roundedToInt vm
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -312,7 +295,6 @@ let fns () : List<BuiltInFn> =
           with :? System.FormatException ->
             ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -335,7 +317,6 @@ let fns () : List<BuiltInFn> =
             else floatToShortestString f
           Ply(DString result)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -350,7 +331,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DFloat f |] -> Ply(DBool(System.Double.IsNaN f))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -370,7 +350,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat a |] ->
           System.BitConverter.DoubleToInt64Bits a |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

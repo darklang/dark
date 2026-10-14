@@ -54,7 +54,6 @@ let fns () : List<BuiltInFn> =
         // interleaved with.
         | _, _, _, [| DUnit |] -> uply { return DString LibDB.Sqlite.currentDbPath }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -82,7 +81,6 @@ let fns () : List<BuiltInFn> =
             | Error e -> return Dval.resultError KTUnit KTString (DString e)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -103,7 +101,6 @@ let fns () : List<BuiltInFn> =
             | Error e -> return Dval.resultError KTUnit KTString (DString e)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -134,7 +131,6 @@ let fns () : List<BuiltInFn> =
               return DString(Option.defaultValue "" v)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -152,7 +148,6 @@ let fns () : List<BuiltInFn> =
             return DUnit
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -173,7 +168,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUnit |] ->
           uply { return Dval.int (bigint (LibDB.Sqlite.DataVersion.current ())) }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       // `PackageRead`, like every other question about the package store: `DbRead` is the scoped
       // effect for a user table, and this names no table.
@@ -214,7 +208,6 @@ let fns () : List<BuiltInFn> =
                 )
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
@@ -232,7 +225,6 @@ let fns () : List<BuiltInFn> =
             return DUnit
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       // Not a read: `Effects.readsOnly` would let a resume serve it instead of arming the watch.
       callEffects = set [ Effect.Runtime ]

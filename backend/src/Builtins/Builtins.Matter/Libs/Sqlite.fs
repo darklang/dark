@@ -259,7 +259,6 @@ let fns () : List<BuiltInFn> =
           requireSqlite state vm true path sql "sqliteExec"
           execImpl path sql (paramStrings ps)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native; Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -314,7 +313,6 @@ let fns () : List<BuiltInFn> =
                   [ "got", string other ])
           execBatchImpl path decoded
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native; Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
@@ -342,7 +340,6 @@ let fns () : List<BuiltInFn> =
           requireSqlite state vm false path sql "sqliteQuery"
           queryImpl path sql (paramStrings ps)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native; Effect.PackageRead ]
       deprecated = NotDeprecated } ]

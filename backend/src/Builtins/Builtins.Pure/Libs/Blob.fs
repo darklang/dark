@@ -27,7 +27,6 @@ let fns () : List<BuiltInFn> =
         | state, _, _, [| DBlob ref |] ->
           Blob.withBytes state ref (fun bs -> Ply(Dval.int (bigint bs.Length)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -44,7 +43,6 @@ let fns () : List<BuiltInFn> =
           let bs = System.Text.Encoding.UTF8.GetBytes(s)
           Blob.newEphemeral bs |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -68,7 +66,6 @@ let fns () : List<BuiltInFn> =
             with e ->
               Ply(err (DString($"Invalid UTF-8: {e.Message}"))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -88,7 +85,6 @@ let fns () : List<BuiltInFn> =
           Blob.withBytes state ref (fun bs ->
             Ply(DString(System.Convert.ToHexString(bs))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -111,7 +107,6 @@ let fns () : List<BuiltInFn> =
           with e ->
             err $"Invalid hex string: {e.Message}" |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -129,7 +124,6 @@ let fns () : List<BuiltInFn> =
           Blob.withBytes state ref (fun bs ->
             Ply(DString(System.Convert.ToBase64String(bs))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -160,7 +154,6 @@ let fns () : List<BuiltInFn> =
           with e ->
             err $"Invalid base64 string: {e.Message}" |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -190,7 +183,6 @@ let fns () : List<BuiltInFn> =
             return Blob.newEphemeral (collected.ToArray())
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -222,7 +214,6 @@ let fns () : List<BuiltInFn> =
               System.Array.Copy(bs, int safeStart, slice, 0, int safeLen)
             Ply(Blob.newEphemeral slice))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -239,7 +230,6 @@ let fns () : List<BuiltInFn> =
         | state, _, _, [| DBlob ref |] ->
           Blob.withBytes state ref (fun bs -> Ply(Dval.byteArrayToDvalList bs))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -257,7 +247,6 @@ let fns () : List<BuiltInFn> =
           let bs = Dval.dlistToByteArray items
           Blob.newEphemeral bs |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

@@ -47,7 +47,6 @@ let fns () : List<BuiltInFn> =
             let result = if result < 0us then m + result else result
             Ply(DUInt16(result))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -63,7 +62,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a + b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -78,7 +76,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a - b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -93,7 +90,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a * b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -115,7 +111,6 @@ let fns () : List<BuiltInFn> =
           let r = ((r % m) + m) % m
           uint16 r |> DUInt16 |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -134,7 +129,6 @@ let fns () : List<BuiltInFn> =
           else
             Ply(DUInt16(a / b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -149,7 +143,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -165,7 +158,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -180,7 +172,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -196,7 +187,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -211,7 +201,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a |] -> Ply(DString(string a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -226,7 +215,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a |] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -241,7 +229,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a |] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -272,7 +259,6 @@ let fns () : List<BuiltInFn> =
             ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
 
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -292,7 +278,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -307,7 +292,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt8 a |] -> DUInt16(uint16 a) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -327,7 +311,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -349,7 +332,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -369,7 +351,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -391,7 +372,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -411,7 +391,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -434,7 +413,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -454,7 +432,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -469,7 +446,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a &&& b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -484,7 +460,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a ||| b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -499,7 +474,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a ^^^ b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -514,7 +488,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a |] -> Ply(DUInt16(~~~a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -529,7 +502,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a <<< int b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -544,7 +516,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a >>> int b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

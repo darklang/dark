@@ -28,7 +28,6 @@ let fns () : List<BuiltInFn> =
           Blob.withBytes state ref (fun data ->
             Ply(Blob.newEphemeral (SHA256.HashData(System.ReadOnlySpan(data)))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -62,7 +61,6 @@ let fns () : List<BuiltInFn> =
               )
             )
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -79,7 +77,6 @@ let fns () : List<BuiltInFn> =
           Blob.withBytes state ref (fun data ->
             Ply(Blob.newEphemeral (SHA384.HashData(System.ReadOnlySpan data))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -97,7 +94,6 @@ let fns () : List<BuiltInFn> =
           Blob.withBytes state ref (fun data ->
             Ply(Blob.newEphemeral (MD5.HashData(System.ReadOnlySpan data))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -117,7 +113,6 @@ let fns () : List<BuiltInFn> =
               use hmac = new HMACSHA256(key)
               Ply(Blob.newEphemeral (hmac.ComputeHash(data)))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -137,7 +132,6 @@ let fns () : List<BuiltInFn> =
               use hmac = new HMACSHA1(key)
               Ply(Blob.newEphemeral (hmac.ComputeHash(data)))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

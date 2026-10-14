@@ -20,7 +20,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DBool b |] -> Ply(Dval.bool (not b))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "not"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

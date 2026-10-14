@@ -21,7 +21,6 @@ let fns () : List<BuiltInFn> =
             return DString repr
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -50,7 +49,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| dv |] ->
           dv |> LibExecution.RuntimeTypesToDarkTypes.Dval.toDT |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

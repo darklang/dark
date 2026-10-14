@@ -64,7 +64,6 @@ let private policyFn
     fn =
       (function
       | state, _, _, args -> impl state args)
-    sqlSpec = NotQueryable
     previewable = Impure
     callEffects = set [ Effect.Native ]
     deprecated = NotDeprecated }

@@ -57,7 +57,6 @@ let fns () : List<BuiltInFn> =
             |> DarkDateTime.fromInstant
             |> DDateTime)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -78,7 +77,6 @@ let fns () : List<BuiltInFn> =
           |> Dval.result KTDateTime KTString
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -106,7 +104,6 @@ let fns () : List<BuiltInFn> =
 
           str |> DString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -125,7 +122,6 @@ let fns () : List<BuiltInFn> =
           |> DString
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -141,7 +137,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DDateTime d |] ->
           (DarkDateTime.toDateTimeUtc d).ToString("yyyyMMdd") |> DString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -160,7 +155,6 @@ let fns () : List<BuiltInFn> =
             d + (NodaTime.Period.FromSeconds(intToInt64 vm s)) |> DDateTime)
         | _ -> incorrectArgs ())
       // `seconds` is an `Int`, not queryable in DB.query yet; restore SqlBinOp "+" once it is
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -184,7 +178,6 @@ let fns () : List<BuiltInFn> =
             d - (NodaTime.Period.FromSeconds(intToInt64 vm s)) |> DDateTime)
         | _ -> incorrectArgs ())
       // `seconds` is an `Int`, not queryable in DB.query yet; restore SqlBinOp "-" once it is
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -199,7 +192,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d1; DDateTime d2 |] -> Ply(DBool(d1 > d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp ">"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -214,7 +206,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d1; DDateTime d2 |] -> Ply(DBool(d1 < d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "<"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -229,7 +220,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d1; DDateTime d2 |] -> Ply(DBool(d1 >= d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp ">="
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -244,7 +234,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d1; DDateTime d2 |] -> Ply(DBool(d1 <= d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "<="
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -261,7 +250,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DDateTime d |] ->
           (DarkDateTime.toInstant d).ToUnixTimeSeconds() |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -282,7 +270,6 @@ let fns () : List<BuiltInFn> =
             |> DarkDateTime.fromInstant
             |> DDateTime)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -297,8 +284,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d |] -> d.Year |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      // `Int` isn't queryable yet; restore date_part('year') sqlSpec once it is
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -314,8 +299,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d |] -> d.Month |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      // `Int` isn't queryable yet; restore date_part('month') sqlSpec once it is
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -330,8 +313,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d |] -> d.Day |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      // `Int` isn't queryable yet; restore date_part('day') sqlSpec once it is
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -349,7 +330,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DDateTime d |] ->
           d.DayOfWeek |> int64 |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -364,8 +344,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d |] -> Ply(Dval.int (bigint d.Hour))
         | _ -> incorrectArgs ())
-      // `Int` isn't queryable yet; restore date_part('hour') sqlSpec once it is
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -380,8 +358,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d |] -> Ply(Dval.int (bigint d.Minute))
         | _ -> incorrectArgs ())
-      // `Int` isn't queryable yet; restore date_part('minute') sqlSpec once it is
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -396,8 +372,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d |] -> Ply(Dval.int (bigint d.Second))
         | _ -> incorrectArgs ())
-      // `Int` isn't queryable yet; restore date_part('second') sqlSpec once it is
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -413,7 +387,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DDateTime d |] ->
           DarkDateTime.T(d.Year, d.Month, d.Day, 0, 0, 0) |> DDateTime |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented // PostgreSQL date_trunc is not available in SQLite
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -421,9 +394,6 @@ let fns () : List<BuiltInFn> =
 
     // TODO: when we have timespans in Dark, deprecate this
     // in favor of a fn which returns a timespan rather than seconds
-    //
-    // Note: the SQL here would be `EPOCH FROM (end - start)`, but we don't
-    // currently support such a complex sqlSpec in Dark fns.
     { name = fn "dateTimeSubtract" 0
       typeParams = []
       parameters = [ Param.make "end" TDateTime ""; Param.make "start" TDateTime "" ]
@@ -436,7 +406,6 @@ let fns () : List<BuiltInFn> =
             (DarkDateTime.toInstant endDate) - (DarkDateTime.toInstant startDate)
           diff.TotalSeconds |> System.Math.Round |> roundedToInt vm
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -456,7 +425,6 @@ let fns () : List<BuiltInFn> =
           |> Dval.int
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -477,7 +445,6 @@ let fns () : List<BuiltInFn> =
             |> DarkDateTime.fromInstant
             |> DDateTime)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -495,7 +462,6 @@ let fns () : List<BuiltInFn> =
           inDateRange vm (fun () ->
             d + (NodaTime.Period.FromMilliseconds(intToInt64 vm ms)) |> DDateTime)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -513,7 +479,6 @@ let fns () : List<BuiltInFn> =
           inDateRange vm (fun () ->
             d - (NodaTime.Period.FromMilliseconds(intToInt64 vm ms)) |> DDateTime)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -529,7 +494,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d |] -> d.Millisecond |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -548,7 +512,6 @@ let fns () : List<BuiltInFn> =
 
           diff.TotalMilliseconds |> System.Math.Round |> roundedToInt vm
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

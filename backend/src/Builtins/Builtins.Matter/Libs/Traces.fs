@@ -237,7 +237,6 @@ let fns () : List<BuiltInFn> =
           |> DBool
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -262,7 +261,6 @@ let fns () : List<BuiltInFn> =
           )
           Ply DUnit
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       // Turning recording off hides what this process does, so it is a trace write, not nothing.
       callEffects = set [ Effect.TraceWrite ]
@@ -291,7 +289,6 @@ let fns () : List<BuiltInFn> =
             return rows |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -338,7 +335,6 @@ let fns () : List<BuiltInFn> =
             | None -> return Dval.optionNone (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -383,7 +379,6 @@ let fns () : List<BuiltInFn> =
             return rows |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -440,7 +435,6 @@ let fns () : List<BuiltInFn> =
               |> Dval.list (KTTuple(VT.string, VT.int, [ VT.int; VT.int ]))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -493,7 +487,6 @@ let fns () : List<BuiltInFn> =
               |> Dval.list (KTTuple(VT.string, VT.int, [ VT.int; VT.int ]))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -609,7 +602,6 @@ let fns () : List<BuiltInFn> =
             return hits |> List.rev |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -644,7 +636,6 @@ let fns () : List<BuiltInFn> =
                 return Dval.optionNone KTString
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -673,7 +664,6 @@ let fns () : List<BuiltInFn> =
             return Dval.int (bigint (List.length ids))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
@@ -700,7 +690,6 @@ let fns () : List<BuiltInFn> =
             return Dval.int (bigint count)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
@@ -727,7 +716,6 @@ let fns () : List<BuiltInFn> =
               return Dval.int 1I
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
@@ -746,7 +734,6 @@ let fns () : List<BuiltInFn> =
           Dval.int (bigint (LibDB.Tracing.TraceRetention.prune (Some keepN) None))
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
@@ -771,7 +758,6 @@ let fns () : List<BuiltInFn> =
             return Dval.option (KTCustomType(typeName, [])) row
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -804,7 +790,6 @@ let fns () : List<BuiltInFn> =
               | Error msg -> return Dval.resultError KTString KTString (DString msg)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
@@ -828,7 +813,6 @@ let fns () : List<BuiltInFn> =
               return DBool armed
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
@@ -875,7 +859,6 @@ let fns () : List<BuiltInFn> =
             return rows |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -907,7 +890,6 @@ let fns () : List<BuiltInFn> =
             return rows |> Dval.list (KTTuple(VT.string, VT.string, []))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -942,7 +924,6 @@ let fns () : List<BuiltInFn> =
             return rows |> Dval.list (KTTuple(VT.string, VT.int64, []))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
@@ -980,7 +961,6 @@ let fns () : List<BuiltInFn> =
             return rows |> Dval.list (KTTuple(VT.string, VT.int64, []))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated } ]

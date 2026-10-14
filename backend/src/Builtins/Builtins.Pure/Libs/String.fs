@@ -93,7 +93,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString text |] ->
           text |> TextWidth.ofString |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -110,7 +109,6 @@ let fns () : List<BuiltInFn> =
           // Ordinal so the ordering is the same on every machine; see the description.
           Ply(DInt64(int64 (System.String.CompareOrdinal(a, b))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -131,7 +129,6 @@ let fns () : List<BuiltInFn> =
           |> Dval.list KTChar
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -172,7 +169,6 @@ let fns () : List<BuiltInFn> =
           else
             Ply(DString(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "replace"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -187,7 +183,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s |] -> Ply(DString(String.toUppercase s))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "upper"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -202,7 +197,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s |] -> Ply(DString(String.toLowercase s))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "lower"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -218,7 +212,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString s |] ->
           s |> String.lengthInEgcs |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented // CLEANUP: Sqlite has "LENGTH" but that counts characters; if we can get it to count EGCs, great
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -237,7 +230,6 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DString s; DInt count |] ->
           DString(String.repeat s (intToInt32 vm count)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -256,7 +248,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString s1; DString s2 |] ->
           (s1 + s2) |> String.normalize |> DString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -273,7 +264,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString s |] ->
           String.toEgcSeq s |> Seq.rev |> String.concat "" |> DString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented // SQLite has no EGC-aware reverse function
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -324,7 +314,6 @@ let fns () : List<BuiltInFn> =
 
           parts |> List.map DString |> Dval.list KTString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -351,7 +340,6 @@ let fns () : List<BuiltInFn> =
           |> DString
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -379,7 +367,6 @@ let fns () : List<BuiltInFn> =
             let first = normalizeEgcIndex len countD
             egcSubstring s first len |> DString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -394,7 +381,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s |] -> Ply(DBool(s.Length = 0))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -424,7 +410,6 @@ let fns () : List<BuiltInFn> =
             let last = min (String.lengthInEgcs prefix) subjectLen
             Ply(DBool(egcSubstring subject 0 last = prefix))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -457,7 +442,6 @@ let fns () : List<BuiltInFn> =
 
           egcSubstring s first last |> DString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -476,7 +460,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString toTrim |] -> toTrim.Trim() |> DString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "trim"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -495,7 +478,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString toTrim |] -> Ply(DString(toTrim.TrimStart()))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "ltrim"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -514,7 +496,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString toTrim |] -> Ply(DString(toTrim.TrimEnd()))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "rtrim"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -531,7 +512,6 @@ let fns () : List<BuiltInFn> =
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
           Blob.newEphemeral theBytes |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -549,7 +529,6 @@ let fns () : List<BuiltInFn> =
           Blob.withBytes state ref (fun bytes ->
             Ply(DString(System.Text.Encoding.UTF8.GetString bytes)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -571,7 +550,6 @@ let fns () : List<BuiltInFn> =
           with _e ->
             Dval.optionNone KTString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -593,7 +571,6 @@ let fns () : List<BuiltInFn> =
             with _e ->
               Ply(Dval.optionNone KTString))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -615,10 +592,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString lookingIn; DString searchingFor |] ->
           Ply(DBool(lookingIn.Contains(searchingFor)))
         | _ -> incorrectArgs ())
-      // Emits a complete boolean fragment, so no Int value reaches the SqlCompiler.
-      sqlSpec =
-        SqlCallback2(fun lookingIn searchingFor ->
-          $"(INSTR({lookingIn}, {searchingFor}) > 0)")
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -654,12 +627,6 @@ let fns () : List<BuiltInFn> =
           let index = str.IndexOf(search)
           Ply(Dval.int (bigint index))
         | _ -> incorrectArgs ())
-      // `Int` isn't queryable in DB.query yet, and the compiler treats any spec as
-      // active — so mark NotQueryable rather than advertise a spec that fails on the
-      // comparison literal. (String.contains has its own queryable Bool builtin, so
-      // it's unaffected.) Restore once Int is queryable:
-      //   SqlCallback2(fun str search -> $"(INSTR({str}, {search}) - 1)")
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -718,7 +685,6 @@ let fns () : List<BuiltInFn> =
               egcIndex <- egcIndex + 1
             Ply(Dval.int (bigint foundAt))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -744,7 +710,6 @@ let fns () : List<BuiltInFn> =
           let index = str.LastIndexOf(search)
           Ply(Dval.int (bigint index))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -799,7 +764,6 @@ let fns () : List<BuiltInFn> =
               egcIndex <- egcIndex + 1
             Ply(Dval.int (bigint lastFound))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -822,7 +786,6 @@ let fns () : List<BuiltInFn> =
           |> Dval.list KTInt
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -854,7 +817,6 @@ let fns () : List<BuiltInFn> =
 
           count |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -877,7 +839,6 @@ let fns () : List<BuiltInFn> =
           | Some b -> Dval.optionSome KTUInt8 (DUInt8 b) |> Ply
           | None -> Dval.optionNone KTUInt8 |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

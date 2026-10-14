@@ -220,7 +220,6 @@ let fns () : List<BuiltInFn> =
                   Interpreter.requestApply vm app acc [ elem ] next)
             Interpreter.requestApply vm app init [ first ] next
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -265,7 +264,6 @@ let fns () : List<BuiltInFn> =
             // and a prefix can be narrower than the whole.
             Ply(mappedList vm (List.rev acc))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -337,7 +335,6 @@ let fns () : List<BuiltInFn> =
                   Interpreter.requestApply vm app index [ elem ] next
             Interpreter.requestApply vm app (Dval.int (bigint 0)) [ first ] next
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -378,7 +375,6 @@ let fns () : List<BuiltInFn> =
                   Interpreter.requestApply vm app elem [] next)
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -444,7 +440,6 @@ let fns () : List<BuiltInFn> =
                     Interpreter.requestApply vm app elem [] next)
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -480,7 +475,6 @@ let fns () : List<BuiltInFn> =
           // `KTTuple(a, b)` without naming it here.
           Ply(mappedList vm (List.rev acc))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -522,7 +516,6 @@ let fns () : List<BuiltInFn> =
             Interpreter.requestApply vm app a [ b ] next
           | _ -> Ply(mappedList vm [])
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -581,7 +574,6 @@ let fns () : List<BuiltInFn> =
                   Interpreter.requestApply vm app elem [] next
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -642,7 +634,6 @@ let fns () : List<BuiltInFn> =
                     Interpreter.requestApply vm app elem [] next)
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -688,7 +679,6 @@ let fns () : List<BuiltInFn> =
           else
             Ply(DList(VT.int, items))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -723,7 +713,6 @@ let fns () : List<BuiltInFn> =
                 | other -> raiseRTE vm.threadID (predicateNotBool other))
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -759,7 +748,6 @@ let fns () : List<BuiltInFn> =
 
           Ply(DBool(search items))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -796,7 +784,6 @@ let fns () : List<BuiltInFn> =
                 | other -> raiseRTE vm.threadID (predicateNotBool other))
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -811,7 +798,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DList(_, l) |] -> Ply(DBool(List.isEmpty l))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -826,7 +812,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DList(_, l) |] -> Ply(Dval.int (bigint l.Length))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -847,7 +832,6 @@ let fns () : List<BuiltInFn> =
           |> fun l -> DList(vt, l)
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -909,7 +893,6 @@ let fns () : List<BuiltInFn> =
             }
           | _ -> structural ()
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       // Impure, like `sortBy`: it can call a person's `Compare` implementation.
       previewable = Impure
       callEffects = Set.empty
@@ -937,7 +920,6 @@ let fns () : List<BuiltInFn> =
           | Error() ->
             Ply(TypeChecker.DvalCreator.list vm.threadID vt1 (List.append l1 l2))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -957,7 +939,6 @@ let fns () : List<BuiltInFn> =
           | Ok merged -> Ply(DList(merged, value :: l))
           | Error() -> Ply(TypeChecker.DvalCreator.list vm.threadID vt (value :: l))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -977,7 +958,6 @@ let fns () : List<BuiltInFn> =
           | Error() ->
             Ply(TypeChecker.DvalCreator.list vm.threadID vt (l @ [ value ]))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -1015,7 +995,6 @@ let fns () : List<BuiltInFn> =
           | Ok vt -> Ply(DList(vt, items))
           | Error() -> Ply(TypeChecker.DvalCreator.list vm.threadID VT.unknown items)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -1044,7 +1023,6 @@ let fns () : List<BuiltInFn> =
             | _ -> None
           Ply(TypeChecker.DvalCreator.option vm.threadID vt item)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -1062,7 +1040,6 @@ let fns () : List<BuiltInFn> =
           // type check is needed. Native because `map` and `filter` both end in a reverse.
           Ply(DList(vt, List.rev l))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }

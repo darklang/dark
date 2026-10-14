@@ -86,7 +86,6 @@ let fns () : List<BuiltInFn> =
               return failureWithMessage ex.Message
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

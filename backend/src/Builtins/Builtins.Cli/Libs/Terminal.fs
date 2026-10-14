@@ -123,7 +123,6 @@ let fns () : List<BuiltInFn> =
           let (width, height) = terminalSize ()
           DTuple(Dval.int (bigint width), Dval.int (bigint height), []) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -147,7 +146,6 @@ let fns () : List<BuiltInFn> =
             |> not
           DBool(not noColor && TerminalCapabilities.isOutputTerminal ()) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -162,7 +160,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, [], [| DUnit |] -> DString(LibConfig.Config.logDir) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -184,7 +181,6 @@ let fns () : List<BuiltInFn> =
           TerminalRestoreGuard.arm sequence
           Ply DUnit
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
@@ -201,7 +197,6 @@ let fns () : List<BuiltInFn> =
           TerminalRestoreGuard.disarm ()
           Ply DUnit
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
@@ -223,7 +218,6 @@ let fns () : List<BuiltInFn> =
           )
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -240,7 +234,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString text |] ->
           text |> TerminalText.styledWidth |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -259,7 +252,6 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DString text; DInt maxWidth |] ->
           DString(TerminalText.clipToWidth text (intToInt32 vm maxWidth)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -276,7 +268,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString text |] -> DString(TerminalText.stripSgr text) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -298,7 +289,6 @@ let fns () : List<BuiltInFn> =
           |> fun rows -> DList(VT.string, rows)
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -319,7 +309,6 @@ let fns () : List<BuiltInFn> =
             TerminalText.positionAfter text (intToInt32 vm maxWidth)
           DTuple(row |> bigint |> Dval.int, column |> bigint |> Dval.int, []) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -340,7 +329,6 @@ let fns () : List<BuiltInFn> =
           )
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

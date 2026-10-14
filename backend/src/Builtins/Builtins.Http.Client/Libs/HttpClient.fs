@@ -231,7 +231,6 @@ let fns () : List<BuiltInFn> =
               responseError (RequestError.toDT HostTypes.HttpRequestError.BadMethod)
             )
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Http ]
       deprecated = NotDeprecated }
@@ -264,7 +263,6 @@ let fns () : List<BuiltInFn> =
               reqHeaders
               body)
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Http ]
       deprecated = NotDeprecated }
@@ -359,7 +357,6 @@ let fns () : List<BuiltInFn> =
                       ("body", body) ]
                   Ply(resultOk (DRecord(typ, typ, [], Map fields))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Http ]
       deprecated = NotDeprecated } ]

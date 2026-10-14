@@ -26,7 +26,6 @@ let private make name parameters result _kt body : BuiltInFn =
     returnType = TypeReference.result result TInt
     description = "One kernel operation; numeric errno, no retries or decoding"
     fn = (fun struct (state, vm, _, values) -> body state vm values)
-    sqlSpec = NotQueryable
     previewable = Impure
     // Conditional file/Native authorization is derived from the descriptor
     // by Host. No ambient Native gate may reject a scoped file capability.
@@ -200,7 +199,6 @@ let fns () : List<BuiltInFn> =
                   )
                 | _ -> incorrectArgs ())
           | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Clock ]
       deprecated = NotDeprecated }

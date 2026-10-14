@@ -84,7 +84,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| a; b |] -> equalsBuiltinImpl vm a b |> Dval.bool |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "="
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -99,7 +98,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| a; b |] -> equalsBuiltinImpl vm a b |> not |> Dval.bool |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "<>"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -138,7 +136,6 @@ let fns () : List<BuiltInFn> =
       // runtime overflow semantics. Runtime evaluation wraps, but SQLite promotes
       // overflowing integer arithmetic to REAL for these add/sub/mul/div/pow specs.
       // DInt is arbitrary-precision, so it has no wrap behavior to preserve.
-      sqlSpec = SqlBinOp "+"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -168,7 +165,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a - b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "-"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -198,7 +194,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a * b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "*"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -264,7 +259,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a / b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "/"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -344,7 +338,6 @@ let fns () : List<BuiltInFn> =
         // error below, which through the operator reads as a missing `Modulo` impl.
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "%"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -419,7 +412,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat number; DFloat exp |] -> Ply(DFloat(number ** exp))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "POWER"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -443,7 +435,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat a |] -> Ply(DFloat(-a))
         | _, vm, _, [| a |] -> numericTypeError vm a a
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -469,7 +460,6 @@ let fns () : List<BuiltInFn> =
           Ply(Dval.int (DarkInt.toBigInt a &&& DarkInt.toBigInt b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -496,7 +486,6 @@ let fns () : List<BuiltInFn> =
           Ply(Dval.int (DarkInt.toBigInt a ||| DarkInt.toBigInt b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -523,7 +512,6 @@ let fns () : List<BuiltInFn> =
           Ply(Dval.int (DarkInt.toBigInt a ^^^ DarkInt.toBigInt b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -554,7 +542,6 @@ let fns () : List<BuiltInFn> =
           Ply(Dval.int (-(DarkInt.toBigInt a) - System.Numerics.BigInteger.One))
         | _, vm, _, [| a |] -> numericTypeError vm a a
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -585,7 +572,6 @@ let fns () : List<BuiltInFn> =
             Ply(Dval.int (DarkInt.toBigInt a <<< shift))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -616,7 +602,6 @@ let fns () : List<BuiltInFn> =
             Ply(Dval.int (DarkInt.toBigInt a >>> shift))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -643,7 +628,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a > b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp ">"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -671,7 +655,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a >= b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp ">="
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -698,7 +681,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a < b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "<"
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -726,7 +708,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a <= b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "<="
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -784,7 +765,6 @@ let fns () : List<BuiltInFn> =
           |> RuntimeError.Unwrap
           |> raiseRTE vm.threadID)
 
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }

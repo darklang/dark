@@ -48,7 +48,6 @@ let fns () : List<BuiltInFn> =
             let result = if result < 0y then m + result else result
             Ply(DInt8 result)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -80,7 +79,6 @@ let fns () : List<BuiltInFn> =
           else
             v % d |> DInt8 |> resultOk
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -95,7 +93,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a + b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -110,7 +107,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a - b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -125,7 +121,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a * b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -151,7 +146,6 @@ let fns () : List<BuiltInFn> =
             let r = if r >= m / bigint 2 then r - m else r
             int8 r |> DInt8 |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -171,7 +165,6 @@ let fns () : List<BuiltInFn> =
             // widen to int32 so -128y / -1y wraps on narrowing instead of throwing
             Ply(DInt8(int8 (int a / int b)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -186,7 +179,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a |] -> Ply(DInt8(-a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -201,7 +193,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -217,7 +208,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -232,7 +222,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -248,7 +237,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -263,7 +251,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a |] -> Ply(DString(string a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -278,7 +265,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a |] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -295,7 +281,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a |] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -324,7 +309,6 @@ let fns () : List<BuiltInFn> =
           | :? System.OverflowException ->
             ParseError.OutOfRange |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -344,7 +328,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -364,7 +347,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -384,7 +366,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -404,7 +385,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -424,7 +404,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -444,7 +423,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -464,7 +442,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -484,7 +461,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -504,7 +480,6 @@ let fns () : List<BuiltInFn> =
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -519,7 +494,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a &&& b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -534,7 +508,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a ||| b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -549,7 +522,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a ^^^ b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -564,7 +536,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a |] -> Ply(DInt8(~~~a))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -579,7 +550,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a <<< int b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -594,7 +564,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a >>> int b))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

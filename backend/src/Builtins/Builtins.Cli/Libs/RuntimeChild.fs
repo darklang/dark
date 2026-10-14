@@ -25,7 +25,6 @@ let private make name parameters result kt body : BuiltInFn =
           | Ok response -> Ply(Dval.resultOk kt KTInt (shape response))
           | Error error ->
             Ply(Dval.resultError kt KTInt (Dval.int (bigint error.errno)))))
-    sqlSpec = NotQueryable
     previewable = Impure
     // Host checks the retained executable/argv grant, including on pipe uses.
     callEffects = set [ Effect.Process ]
@@ -149,7 +148,6 @@ let fns () =
                     Dval.resultError KTUnit KTInt (Dval.int (bigint error.errno))
                   )))
           | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]

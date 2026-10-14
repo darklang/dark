@@ -29,7 +29,6 @@ let fns () : List<BuiltInFn> =
           let int8Result = lowerBound + (int8 resultInt)
           int8Result |> DInt8 |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
@@ -52,7 +51,6 @@ let fns () : List<BuiltInFn> =
           let uint8Result = lowerBound + (uint8 resultInt)
           uint8Result |> DUInt8 |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
@@ -74,7 +72,6 @@ let fns () : List<BuiltInFn> =
           |> DInt16
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
@@ -98,7 +95,6 @@ let fns () : List<BuiltInFn> =
           let uint16Result = lowerBound + (uint16 resultInt)
           Ply(DUInt16(uint16Result))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
@@ -117,7 +113,6 @@ let fns () : List<BuiltInFn> =
           let correction : int32 = 1
           lower + randomSeeded().Next(upper - lower + correction) |> DInt32 |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
@@ -141,7 +136,6 @@ let fns () : List<BuiltInFn> =
           let uint32Result = lowerBound + (uint32 resultInt)
           Ply(DUInt32(uint32Result))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
@@ -163,7 +157,6 @@ let fns () : List<BuiltInFn> =
           |> DInt64
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
@@ -192,7 +185,6 @@ let fns () : List<BuiltInFn> =
           let r = System.Numerics.BigInteger(buf) % range
           Dval.int (lower + r) |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
@@ -216,7 +208,6 @@ let fns () : List<BuiltInFn> =
           let uint64Result = lowerBound + (uint64 resultInt)
           Ply(DUInt64(uint64Result))
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
@@ -244,7 +235,6 @@ let fns () : List<BuiltInFn> =
           |> TypeChecker.DvalCreator.option vm.threadID optType
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
       previewable = Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated } ]
