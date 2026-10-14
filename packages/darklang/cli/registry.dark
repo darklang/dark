@@ -264,16 +264,23 @@ module Registry =
     Stdlib.printLine (summarised + aliasSuffix)
     state
 
-  // Command groups organized by category (shared between compact and detailed views)
+  // Command groups organized by category (shared between compact and detailed views).
+  //
+  // Every registered command belongs to exactly one group. A command in none of them is
+  // swept into an unnamed "Other:" bucket by `getDetailedCommandList`, which reads as a
+  // rendering accident rather than a category, and `getCompactCommandList` -- the welcome
+  // screen -- does not show it at all. `tests/cli/commandGroups.dark` fails when a newly
+  // registered command is in no group, and when a group names a command that is not.
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "deps", "val", "fn", "type", "trait", "impl", "impls", "module", "edit", "rename", "hash", "deprecate", "delete", "undeprecate" ])
+    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "test", "find-values", "deps", "val", "fn", "type", "trait", "impl", "impls", "module", "edit", "rename", "hash", "deprecate", "delete", "undeprecate" ])
       ("Changes",
        [ "status", "commit", "commits", "show", "discard", "undo", "conflicts", "constraints", "ack", "ops" ])
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
-      ("Execution", [ "run-script", "eval", "ps", "traces" ])
-      ("Installation", [ "install", "update", "uninstall", "version" ])
+      ("Execution", [ "run-script", "eval", "ps", "traces", "serve" ])
+      ("Installation", [ "install", "update", "uninstall", "version", "install-status" ])
       ("Security", [ "permissions" ])
-      ("Utilities", [ "clear", "help", "docs", "quit", "builtins", "export-seed", "workbench", "backups" ]) ]
+      ("Utilities",
+       [ "clear", "help", "docs", "quit", "builtins", "export-seed", "workbench", "outliner", "backups", "config" ]) ]
 
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
     let formattedCommands =
