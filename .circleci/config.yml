@@ -384,8 +384,6 @@ jobs:
   # fan-out rather than the single cross-compiling container that `build-cli`
   # uses for R2R.
   #
-  # Windows is not in this matrix. It keeps whatever `build-cli` gives it;
-  # `--mode=auto` falls back to R2R for win-* without the matrix knowing why.
   ##########################
 
   # Export the seed database once, and hand the same bytes to every build job.
@@ -539,9 +537,9 @@ jobs:
       - package-clis
 
   # The runtimes NativeAOT can't produce, built as ReadyToRun so that a tag
-  # still yields a complete set. Windows needs a Windows runner for AOT, and
-  # armv7's AOT runtime wants glibc symbols from well above our floor. Neither
-  # is a flag away, so both stay R2R and are built here rather than on main.
+  # still yields a complete set. armv7's AOT runtime wants glibc symbols from
+  # well above our floor, which is a runtime requirement rather than a
+  # toolchain gap, so it stays R2R and is built here rather than on main.
   build-cli-r2r-extras:
     executor: release-linux
     resource_class: xlarge
@@ -556,7 +554,7 @@ jobs:
             ./scripts/build/build-release-cli-exes.sh \
               --mode=r2r \
               --seed=rundir/seed.db \
-              --runtimes=win-x64,win-arm64,linux-arm
+              --runtimes=linux-arm
       - package-clis
 
   build-cli-linux-musl:

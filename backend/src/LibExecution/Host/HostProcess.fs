@@ -10,104 +10,9 @@ open Prelude
 open System.IO
 open System.Runtime.InteropServices
 
-// F# generates failwith inside P/Invoke stubs; Prelude bans the built-in one.
-let private failwith (message : string) : 'a = raise (System.Exception message)
-
-/// Windows keeps descendants in a job even after the worker exits. The parent
-/// owns the job; the launcher joins it before it can start child processes.
-module private WindowsJob =
-  [<Struct; StructLayout(LayoutKind.Sequential)>]
-  type BasicLimits =
-    { perProcessTime : int64
-      perJobTime : int64
-      flags : uint32
-      minWorkingSet : unativeint
-      maxWorkingSet : unativeint
-      activeProcesses : uint32
-      affinity : unativeint
-      priority : uint32
-      scheduling : uint32 }
-
-  [<Struct; StructLayout(LayoutKind.Sequential)>]
-  type IoCounters =
-    { readOperations : uint64
-      writeOperations : uint64
-      otherOperations : uint64
-      readBytes : uint64
-      writeBytes : uint64
-      otherBytes : uint64 }
-
-  [<Struct; StructLayout(LayoutKind.Sequential)>]
-  type ExtendedLimits =
-    { basic : BasicLimits
-      io : IoCounters
-      processMemory : unativeint
-      jobMemory : unativeint
-      peakProcessMemory : unativeint
-      peakJobMemory : unativeint }
-
-  [<DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)>]
-  extern nativeint private CreateJobObjectW(nativeint attributes, string name)
-
-  [<DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)>]
-  extern nativeint private OpenJobObjectW(
-    uint32 access,
-    bool inheritHandle,
-    string name
-  )
-
-  [<DllImport("kernel32.dll", SetLastError = true)>]
-  extern bool private SetInformationJobObject(
-    nativeint job,
-    int infoClass,
-    ExtendedLimits& limits,
-    uint32 length
-  )
-
-  [<DllImport("kernel32.dll", SetLastError = true)>]
-  extern bool private AssignProcessToJobObject(nativeint job, nativeint processHandle)
-
-  [<DllImport("kernel32.dll", SetLastError = true)>]
-  extern bool private TerminateJobObject(nativeint job, uint32 exitCode)
-
-  let private check success =
-    if not success then
-      raise (System.ComponentModel.Win32Exception(Marshal.GetLastPInvokeError()))
-
-  let private handle raw =
-    check (raw <> 0n)
-    new Microsoft.Win32.SafeHandles.SafeFileHandle(raw, true)
-
-  let create name =
-    let job = handle (CreateJobObjectW(0n, name))
-    try
-      let mutable limits = Unchecked.defaultof<ExtendedLimits>
-      limits <- { limits with basic = { limits.basic with flags = 0x2000u } } // KILL_ON_JOB_CLOSE
-      check (
-        SetInformationJobObject(
-          job.DangerousGetHandle(),
-          9,
-          &limits,
-          uint32 (Marshal.SizeOf<ExtendedLimits>())
-        )
-      )
-      job
-    with e ->
-      job.Dispose()
-      Exception.reraise e
-
-  let join name =
-    use job = handle (OpenJobObjectW(1u, false, name)) // JOB_OBJECT_ASSIGN_PROCESS
-    use worker = System.Diagnostics.Process.GetCurrentProcess()
-    check (AssignProcessToJobObject(job.DangerousGetHandle(), worker.Handle))
-
-  let terminate (job : Microsoft.Win32.SafeHandles.SafeFileHandle) =
-    check (TerminateJobObject(job.DangerousGetHandle(), 1u))
-
 /// Private CLI entry point. Establish ownership before starting the worker,
 /// including when the caller substitutes a wrapper executable.
 let launchOwnedProcess
-  (jobName : string)
   (program : string)
   (args : List<string>)
   : int =
@@ -118,15 +23,6 @@ let launchOwnedProcess
         $"Could not launch child process worker: {message}"
       127
     | Ok() -> 0 // exec does not return on success
-  elif System.OperatingSystem.IsWindows() then
-    WindowsJob.join jobName
-    let psi = System.Diagnostics.ProcessStartInfo(program)
-    psi.UseShellExecute <- false
-    for arg in args do
-      psi.ArgumentList.Add arg
-    use worker = System.Diagnostics.Process.Start psi
-    worker.WaitForExit()
-    worker.ExitCode
   else
     invalidOp "Supervised processes are unsupported on this platform"
 
@@ -394,8 +290,6 @@ let runInWorkspace
   : Result<int * string * string * Option<byte[]> * List<string>, int * string> =
   let dir = Directory.CreateTempSubdirectory(prefix).FullName
   let mutable child : System.Diagnostics.Process option = None
-  let jobName = "dark-process-" + System.Guid.NewGuid().ToString("N")
-  let mutable job : Microsoft.Win32.SafeHandles.SafeFileHandle option = None
   use cancellation = new System.Threading.CancellationTokenSource()
   let stop () =
     let errors = ResizeArray<string>()
@@ -423,13 +317,6 @@ let runInWorkspace
         stopGroup p
       with e ->
         errors.Add $"Could not stop child process process group: {e.Message}"
-    | None -> ()
-    match job with
-    | Some handle ->
-      try
-        WindowsJob.terminate handle
-      with e ->
-        errors.Add $"Could not stop child process job: {e.Message}"
     | None -> ()
     List.ofSeq errors
   let removeDirectory () =
@@ -459,12 +346,10 @@ let runInWorkspace
           for path, bytes in spec.files do
             File.WriteAllBytes(Path.Combine(dir, path), bytes)
           let resultPath = Path.Combine(dir, spec.resultFile)
-          if System.OperatingSystem.IsWindows() then
-            job <- Some(WindowsJob.create jobName)
           let psi =
             startInfo
               launcher
-              ([ "--process-launch"; jobName; spec.program ] @ spec.arguments)
+              ([ "--process-launch"; spec.program ] @ spec.arguments)
               true
           for key, value in spec.environment do
             match value with
@@ -513,8 +398,6 @@ let runInWorkspace
             @ [ $"Could not dispose child process worker: {e.Message}" ]
       | None -> ()
       child <- None
-      job |> Option.iter (fun handle -> handle.Dispose())
-      job <- None
       System.Console.CancelKeyPress.RemoveHandler onCancel
       System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit
       cleanupErrors <- cleanupErrors @ removeDirectory ()

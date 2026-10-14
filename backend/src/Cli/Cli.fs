@@ -1000,8 +1000,8 @@ let main (args : string[]) : int =
         exitCode <-
           try
             match Array.toList args with
-            | "--process-launch" :: jobName :: program :: workerArgs ->
-              LibExecution.HostProcess.launchOwnedProcess jobName program workerArgs
+            | "--process-launch" :: program :: workerArgs ->
+              LibExecution.HostProcess.launchOwnedProcess program workerArgs
             | _ -> runCli args
           with e ->
             System.Console.Error.WriteLine

@@ -20,7 +20,6 @@ Or download the file for your platform below, and run it from wherever you put i
 - Linux x64: `linux-x64` (Alpine and other musl distros: `linux-musl-x64`)
 - Linux ARM: `linux-arm64`, or `linux-arm` for 32-bit
 - macOS: `osx-arm64` on Apple silicon, `osx-x64` on Intel
-- Windows: `win-x64`, or `win-arm64`
 
 For example, on Linux x64:
 
