@@ -121,8 +121,8 @@ let export (outputPath : string) : Task<unit> =
       DELETE FROM trace_blobs;
       DELETE FROM traces;
 
-      -- ALL of it: `config_v0` is per-install by construction, and nothing needs a
-      -- value to boot (`entry_point` unset falls back to the shipped CLI).
+      -- ALL of it: `config_v0` is per-install by construction, and nothing in it is needed
+      -- to boot (every key has a default).
       --
       -- A deny-list can't work: the keys are not all knowable in advance. Costs if shipped: a
       -- shared INSTANCE ID means two installs that cannot be told apart, and a CURRENT BRANCH

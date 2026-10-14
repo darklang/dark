@@ -18,13 +18,13 @@ let path () : String = Builtin.localDbPath ()
 /// Read a setting. `""` when the key has never been set, which every caller treats as the default
 /// rather than as an error: a fresh install has none of them.
 ///
-/// Keys are namespaced by whoever owns them (`sync.*`, `current_branch`, `entry_point`), and the
+/// Keys are namespaced by whoever owns them (`sync.*`, `current_branch`, `exec.*`), and the
 /// namespace is the contract. `Seed.export` strips this table wholesale, so nothing here travels.
 let configGet (key: String) : String = Builtin.configGet key
 
 
-/// Write a setting. Local to this instance, always: this is where "which relay", "which branch" and
-/// "which entry point" live, and none of them is anybody else's business.
+/// Write a setting. Local to this instance, always: this is where "which relay" and "which branch"
+/// live, and neither is anybody else's business.
 let configSet (key: String) (value: String) : Unit = Builtin.configSet key value
 
 

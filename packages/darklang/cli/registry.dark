@@ -22,7 +22,7 @@ module Registry =
   // every start builds the table and only the command being run should pay for its declaration.
   let acceptsQuit () : Accepts.Accepts = Accepts.nothing ()
   let acceptsHelp () : Accepts.Accepts = Accepts.textBetween 0 1
-  let acceptsConfig () : Accepts.Accepts = (Accepts.subcommands [ ("get", Accepts.between 1 1 []), ("set", Accepts.textBetween 2 2), ("list", Accepts.nothing ()), ("entry", Accepts.nothing ()), ("set-entry", Accepts.textBetween 1 1) ] (Accepts.nothing ()))
+  let acceptsConfig () : Accepts.Accepts = (Accepts.subcommands [ ("get", Accepts.between 1 1 []), ("set", Accepts.textBetween 2 2), ("list", Accepts.nothing ()) ] (Accepts.nothing ()))
   let acceptsInstall () : Accepts.Accepts = Accepts.flagsOnly [ "-y", "--yes", "--uninstall-if-installed" ]
   let acceptsUpdate () : Accepts.Accepts = (Accepts.withValues [ "--to" ] (Accepts.flagsOnly [ "-y", "--yes" ]))
   let acceptsUninstall () : Accepts.Accepts = Accepts.flagsOnly [ "-y", "--yes" ]

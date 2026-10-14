@@ -654,9 +654,12 @@ let isolatedTestDeclarations =
         do! discardAll state
       })
 
-let entryPointOverrideIsLocal =
+/// `--entry-point` is for ONE invocation. Nothing is stored, so the only thing that can
+/// carry it to the next command is a bug; the test runner relies on that, spawning each
+/// parallel worker as `dark --entry-point #<hash>` (`LibDB.TestProcess`).
+let entryPointOverrideIsForOneInvocation =
   instanceTest
-    "entry-point overrides leave the saved entry point unchanged"
+    "an --entry-point override applies to that invocation only"
     (fun state ->
       task {
         do! start state
@@ -667,19 +670,9 @@ let entryPointOverrideIsLocal =
         let source = System.IO.Path.Combine(instance.dir, "entry-point.dark")
         System.IO.File.WriteAllText(
           source,
-          """let saved (_args: List<String>) : Int =
-  Stdlib.printLine "saved entry point"
-  0
-let alternate (args: List<String>) : Int =
+          """let alternate (args: List<String>) : Int =
   Stdlib.printLine (Stdlib.String.join args ",")
   0
-let savedEntry () : String = Stdlib.LocalStore.configGet "entry_point"
-test keepsSavedEntry =
-  savedEntry () |> Stdlib.Test.equal "Tests.EntryPoint.saved"
-test nestedKeepsSavedEntry =
-  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) savedEntry () with
-  | Ok output -> output.result |> Stdlib.Test.equal (Ok "Tests.EntryPoint.saved")
-  | Error message -> Stdlib.Test.fail message
 """
         )
         do!
@@ -687,19 +680,7 @@ test nestedKeepsSavedEntry =
             state
             [ "module"; "Tests.EntryPoint"; source ]
             0L
-            "author entry points"
-        do!
-          exits
-            state
-            [ "permissions"; "approve"; "Tests.EntryPoint.savedEntry" ]
-            0L
-            "approve the helper's store read"
-        do!
-          exits
-            state
-            [ "config"; "set-entry"; "Tests.EntryPoint.saved" ]
-            0L
-            "save the default"
+            "author an entry point"
         do!
           shows
             state
@@ -709,15 +690,9 @@ test nestedKeepsSavedEntry =
         do!
           shows
             state
-            []
-            "saved entry point"
-            "the next invocation uses the saved entry point"
-        do!
-          showsAll
-            state
-            [ "--safe"; "test"; "run"; "--force"; "Tests.EntryPoint" ]
-            [ "2 passed, 0 failed"; "2 ran, 0 cached" ]
-            "ordinary and nested workers keep the saved entry point"
+            [ "config"; "list" ]
+            "Common configuration keys"
+            "the next invocation is the shipped CLI again"
         for args in
           [ [ "--entry-point" ]
             [ "--entry-point"; "Tests.EntryPoint.missing" ]
@@ -726,16 +701,10 @@ test nestedKeepsSavedEntry =
           Expect.equal
             code
             1
-            $"bad entry points fail instead of running the saved one: {stdout} {stderr}"
+            $"a bad entry point fails instead of falling back to the CLI: {stdout} {stderr}"
           Expect.isFalse
-            (stdout.Contains "saved entry point")
+            (stdout.Contains "one,two")
             "no fallback for an explicit override"
-        do!
-          shows
-            state
-            []
-            "saved entry point"
-            "failed overrides also leave the setting unchanged"
       })
 
 /// Pause workers to check that tests run in parallel without exceeding the limit.
@@ -2034,7 +2003,7 @@ let tests : List<Test> =
     testAddAuthorsATest
     testRunUsesOneStartingStore
     isolatedTestDeclarations
-    entryPointOverrideIsLocal
+    entryPointOverrideIsForOneInvocation
     packageTestsRespectParallelLimit
     packageTestsRequireRun
     packageTestJobsRejectInvalidCounts

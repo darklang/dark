@@ -1,7 +1,8 @@
-/// `LibDB.Config` is the mutable, per-install local key/value store (`config_v0`): the CLI
-/// entry-point pointer and per-user settings. Deliberately NOT content-addressed and NOT synced.
+/// `LibDB.Config` is the mutable, per-install local key/value store (`config_v0`): the current
+/// branch, the sync settings and the scheduler knobs. Deliberately NOT content-addressed and NOT
+/// synced.
 ///
-/// These cover the get/set/upsert contract that boot-time entry-point resolution relies on.
+/// These cover the get/set/upsert contract the boot-time settings read relies on.
 module Tests.Config
 
 open System.Threading.Tasks

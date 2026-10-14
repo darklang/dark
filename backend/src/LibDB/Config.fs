@@ -1,8 +1,9 @@
-/// Mutable, per-install local config (key/value): the CLI entry-point pointer + per-user settings.
+/// Mutable, per-install local config (key/value): the current branch, the sync settings, the
+/// scheduler and tracing knobs.
 ///
-/// Deliberately NOT content-addressed and NOT synced. This is local mutable state -- an entry point
-/// every install sets for itself -- kept separate from the immutable op log by design (sync ships ops,
-/// never this table).
+/// Deliberately NOT content-addressed and NOT synced. This is local mutable state -- what one
+/// install chooses for itself -- kept separate from the immutable op log by design (sync ships
+/// ops, never this table).
 module LibDB.Config
 
 open System.Threading.Tasks
