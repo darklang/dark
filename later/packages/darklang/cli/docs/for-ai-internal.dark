@@ -1,0 +1,14 @@
+module Darklang.Cli.Docs.ForAIInternal
+
+let content () : String =
+  """# Darklang Internal Dev (Monorepo/F#)
+
+These docs moved to AGENTS.md, at the root of the monorepo. Read it directly:
+
+  cat AGENTS.md
+
+It covers starting the dev container, running several clones at once, ports, builds,
+tests, directory layout, and the language gotchas that cost people the most time.
+
+It lives in the repo rather than in here so that it still works when the build is
+broken or no container is running, which is exactly when you need it."""

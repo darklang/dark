@@ -20,6 +20,20 @@
 //       deliberately LEFT in the live tree. They are one-line defensive branches interleaved
 //       with the wasm guards, they cost nothing, and pulling them apart belongs with the wasm
 //       removal rather than here.
+// THE BUILD PLUMBING THAT WENT WITH IT, since none of it is a whole file:
+//   scripts/build/build-release-cli-exes.sh   win-x64 and win-arm64 out of ALL_RUNTIMES and
+//                                             out of the usage line; the `win-*` arm of
+//                                             rid_os_family; the AOT_CAPABLE comment rewritten
+//   .circleci/config.yml                      build-cli-r2r-extras built
+//                                             --runtimes=win-x64,win-arm64,linux-arm and now
+//                                             builds linux-arm alone; two comments above the
+//                                             release matrix explained the Windows fallback
+//   scripts/deployment/publish-github-release  a line reading: - Windows: `win-x64`, or `win-arm64`
+//   scripts/build-and-install-cli-on-host     the MINGW*|MSYS*|CYGWIN* arm of the RID detector
+//   scripts/build/build-sqlite.sh             a comment saying the windows .lib variants are
+//                                             not cross-compiled from this script
+//   install.sh                                refused Windows while pointing at the win-x64
+//                                             asset; it now says Linux and macOS only
 // WHEN: the reductions round, 2026-10-14
 
 /// Windows keeps descendants in a job even after the worker exits. The parent

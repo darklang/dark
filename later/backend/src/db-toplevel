@@ -1,0 +1,135 @@
+// RESTORE: several files; this covers the user-datastore TOPLEVEL, the declaration a
+//          `[<DB>] type X = ...` used to parse into. The TYPE REFERENCE `DB<Row>` is a
+//          separate carve, later/backend/src/db-type-reference; both come back together.
+// WAS: PT.DB.T and its RT/WT twins, the four converters between them, the Dark-side
+//      ProgramTypes.DB and its pretty printer, a PackageRefs entry, and the
+//      Toplevel.toTLID shim.
+// ANCHOR: each block below names the file it came from and what sat around it.
+// ALSO: later/backend/src/LibSerialization/Binary/Serializers/PT/Toplevel.fs is the whole
+//       serializer file, restorable by git mv plus its <Compile Include> line.
+//       later/backend/tests/Tests/Serialization.Binary.Tests.fs.golden-corpus is the
+//       byte-pinning mechanism that only ever covered this type.
+//       later/backend/testfiles/serialization-artifacts/toplevels-binary-latest-0.bin is
+//       the 145-byte fixture it compared against.
+// NOTE: Stdlib.DB went to later/ in the molt, so this had nothing left to parse into.
+//       Restoring it means restoring the datastore runtime first; the declaration on its
+//       own buys nothing.
+// WHEN: the reductions round, 2026-10-14
+
+// ---- backend/src/LibExecution/ProgramTypes.fs ----
+// sat near the end of the file, after the commented-out Canvas sketch
+// User things
+// --
+module DB =
+  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
+
+
+/// Compatibility shim: callers used to wrap a `DB.T` in `Toplevel.TLDB`
+/// and read tlids via `Toplevel.toTLID`. Handler / TLHandler are gone
+/// (Worker / Cron / REPL had no live consumers; HTTP went earlier with
+/// the BwdServer rewrite). `DB.T` IS the toplevel now — keep the
+/// `Toplevel.toTLID` accessor as a one-line shim so the noisier
+/// callsites don't all churn shape simultaneously.
+module Toplevel =
+  let toTLID (db : DB.T) : tlid = db.tlid
+
+// ---- backend/src/LibExecution/RuntimeTypes.fs ----
+// sat between the Dval section and the Builtins/ExecutionState block
+// User Space
+// ------------
+module DB =
+  // CLEANUP consider making typ a ValueType instead
+  type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
+
+// ---- backend/src/LibExecution/ProgramTypesToRuntimeTypes.fs ----
+// sat just before the Handler module
+// User stuff
+// --
+module DB =
+  let toRT (db : PT.DB.T) : RT.DB.T =
+    { tlid = db.tlid
+      name = db.name
+      version = db.version
+      typ = TypeReference.toRT db.typ }
+
+// ---- backend/src/LibExecution/ProgramTypesToDarkTypes.fs ----
+// sat just before the note about Branch and Commit having no converters
+// -- User stuff -- //
+
+module DB =
+  let typeName = Dval.memoTypeName PackageRefs.Type.LanguageTools.ProgramTypes.db
+
+  let toDT (db : PT.DB.T) : Dval =
+    let fields =
+      Map.empty
+      |> Map.add "tlid" (DUInt64(uint64 db.tlid))
+      |> Map.add "name" (DString db.name)
+      |> Map.add "version" (DInt32 db.version)
+      |> Map.add "typ" (TypeReference.toDT db.typ)
+    DRecord(typeName (), typeName (), [], fields)
+
+  let fromDT (d : Dval) : PT.DB.T =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { tlid = fields |> D.field "tlid" |> D.uInt64
+        name = fields |> D.field "name" |> D.string
+        version = fields |> D.field "version" |> D.int32
+        typ = fields |> D.field "typ" |> TypeReference.fromDT }
+    | _ -> Exception.raiseInternal "Invalid DB" []
+
+// ---- backend/src/LibParser/WrittenTypes.fs ----
+// sat just before the normalization comment block
+module DB =
+  type T = { name : string; version : int; typ : TypeReference }
+
+// ---- backend/src/LibParser/WrittenTypesToProgramTypes.fs ----
+// the last module in the file
+module DB =
+  let toPT
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (db : WT.DB.T)
+    : Ply<PT.DB.T> =
+    uply {
+      let! typ = TypeReference.toPT pm onMissing currentModule db.typ
+      return { tlid = gid (); name = db.name; version = db.version; typ = typ }
+
+// ---- backend/src/LibExecution/PackageRefs.fs ----
+// one line, in the LanguageTools.ProgramTypes block
+      let db = p [] "DB"
+
+// ---- backend/src/LibSerialization/Binary/Serialization.fs ----
+// sat at the end of the PT module, after the recovery-hole helper
+  module Toplevel =
+    let serialize id value = makeSerializer PT.Toplevel.write id value
+    let deserialize id data = makeDeserializer PT.Toplevel.read id data
+
+// ---- packages/darklang/languageTools/programTypes.dark ----
+// sat between SourceFile's Definitions and the SourceFile module
+// User/Canvas space
+type DB =
+  { tlid: TLID
+    name: String
+    version: Int32
+    typ: TypeReference }
+
+// ---- packages/darklang/prettyPrinter/programTypes.dark ----
+// sat just after customType
+let db
+  (ctx: Context)
+  (db: LanguageTools.ProgramTypes.DB)
+  : String =
+  let versionPart =
+    if db.version == 0l then
+      ""
+    else
+      $"_v{Stdlib.toString db.version}"
+
+  let doc =
+    Stdlib.Pretty.hang
+      2
+      (Stdlib.Pretty.text $"type {db.name}{versionPart} =")
+      [ typeReferenceDoc ctx db.typ ]
+  Stdlib.Pretty.render ctx.width doc
+

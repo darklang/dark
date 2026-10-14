@@ -1,0 +1,29 @@
+// RESTORE: packages/darklang/cli/docs/command.dark
+// WAS: the two DocTopic rows that registered the repo-facing pages, both marked
+//      context = "internal". The pages themselves are whole files beside this one:
+//      later/packages/darklang/cli/docs/{for-ai-internal,interactive-testing}.dark
+// ANCHOR: for-ai-internal was the second row in the list, right after for-ai;
+//         interactive-testing sat between deprecation and signatures.
+// NOTE: interactive-testing's content is NOT lost by deleting the page: it is in AGENTS.md
+//       now, beside the expect and tmux material, which is where repo-facing material
+//       belongs. Restoring the page would duplicate it rather than recover it.
+//       `context = "internal"` was only ever a LABEL printed in brackets, not a filter, so
+//       both pages were listed to anybody who typed `dark docs`. If internal pages come
+//       back, the context field has to actually hide them first.
+// WHEN: the reductions round, 2026-10-14
+
+      DocTopic
+        { name = "for-ai-internal"
+          description = "AI guide for monorepo/F# work"
+          aliases = [ "internal", "dev" ]
+          context = "internal"
+          content = Docs.ForAIInternal.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "interactive-testing"
+          description = "Interactive CLI testing & telemetry"
+          aliases = [ "testing", "telemetry", "expect", "perf" ]
+          context = "internal"
+          content = Docs.InteractiveTesting.content
+          subtopics = [] }

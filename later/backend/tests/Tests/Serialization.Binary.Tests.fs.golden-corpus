@@ -1,0 +1,120 @@
+// RESTORE: backend/tests/Tests/Serialization.Binary.Tests.fs, and the four plumbing
+//          lines listed at the bottom.
+// WAS: the only byte-for-byte pin on a serialization format in the tree. It serialized a
+//      value, compared the bytes against a committed fixture and failed if they differed,
+//      which is the only way to notice an accidental format change: a roundtrip test
+//      inside one process cannot see one, because both ends move together.
+// ANCHOR: ConsistentSerializationTests was the last module in the file, just before the
+//         top-level `generateTestFiles` and the `tests` list. Its two entries in that list
+//         were `PT.toplevelTests` (in the PT Roundtrip list) and a
+//         `testList "consistent serialization" ConsistentSerializationTests.testTestFiles`
+//         at the end.
+// WHY IT LEFT, AND WHY THIS IS WORTH READING BEFORE REBUILDING IT:
+//      it was pointed at exactly one type, PT.DB.T, the user-datastore toplevel, which was
+//      already dead. One fixture, 145 bytes. So the tree's only byte pin covered a thing
+//      nothing ships, while nothing pinned PackageOp or the five item kinds, which are what
+//      actually reach disk and go over a wire.
+//      Do NOT restore this as it was. The useful version points `formats` at the types we
+//      serialize for real. Serialization.TestValues.fs already holds fixture corpora for
+//      them (packageOps, packageFns, packageTypes, packageVals, traits, impls), so the work
+//      is wiring rather than invention: roughly two hours.
+// ALSO: later/backend/testfiles/serialization-artifacts/toplevels-binary-latest-0.bin is
+//       the fixture it compared against, and later/backend/src/db-toplevel is the type.
+//       Neither is needed to rebuild this against real types.
+// WHEN: the reductions round, 2026-10-14
+
+// ---- backend/tests/Tests/Serialization.Binary.Tests.fs ----
+// the mechanism, entire
+module ConsistentSerializationTests =
+  type Format =
+    { name : string
+      serializer : PT.DB.T -> byte array
+      deserializer : byte array -> PT.DB.T
+      prefix : string
+      suffix : string }
+
+  let formats =
+    [ { name = "BinarySerialization"
+        serializer = fun db -> BS.PT.Toplevel.serialize db.tlid db
+        deserializer = fun data -> BS.PT.Toplevel.deserialize 0UL data
+        prefix = "toplevels-binary"
+        suffix = ".bin" } ]
+
+  let nameFor (f : Format) (version : string) (idx : int) =
+    $"{f.prefix}-{version}-{idx}{f.suffix}"
+
+
+  /// Generates the timestamped fixture files that pin the binary format. Regenerate
+  /// and commit them alongside any deliberate format or test-value change.
+  let generateTestFiles () : unit =
+    formats
+    |> List.iter (fun f ->
+      Values.ProgramTypes.toplevels
+      |> List.iteri (fun i tl ->
+        let output = f.serializer tl
+        File.writefileBytes Config.Serialization (nameFor f "latest" i) output))
+
+
+  // Each serialized toplevel must match its committed fixture. Regenerate
+  // intentionally changed fixtures with DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y.
+  let testTestFiles =
+    formats
+    |> List.map (fun f ->
+      test "binary serialization matches the committed golden files" {
+        Values.ProgramTypes.toplevels
+        |> List.iteri (fun i tl ->
+          let serialized = f.serializer tl
+          Expect.equal (f.deserializer serialized) tl "roundtrip should work"
+          let golden =
+            File.readfileBytes Config.Serialization (nameFor f "latest" i)
+          Expect.equal
+            serialized
+            golden
+            $"toplevel {i} matches its committed golden (regenerate if this change is intended)")
+      })
+
+
+let generateTestFiles () =
+  // Enabled in dev so we can see changes as git diffs
+  // Disabled in CI so changes will fail the tests
+  if Config.serializationGenerateTestData then
+    ConsistentSerializationTests.generateTestFiles ()
+  ()
+
+// the roundtrip test that went with it, in the PT module
+  let toplevelTests =
+    Roundtripping.testRoundtripMany
+      "toplevels"
+      (fun tl ->
+        let tlid = PT.Toplevel.toTLID tl
+        tl |> BS.PT.Toplevel.serialize tlid |> BS.PT.Toplevel.deserialize tlid)
+      Values.ProgramTypes.toplevels
+
+// ---- backend/tests/Tests/Serialization.TestValues.fs ----
+// the fixture values, in the ProgramTypes module
+  let userDB : DB.T = { tlid = 0UL; name = "User"; version = 0; typ = typeReference }
+  let userDBs : List<DB.T> = [ userDB ]
+  let toplevels : List<DB.T> = [ userDB ]
+
+// ---- the plumbing, four places ----
+// backend/tests/Tests/Tests.fs, just before the HttpClient init in the test runner:
+    // Generate this so that we can see if the format has changed in a git diff
+    BinarySerialization.generateTestFiles ()
+
+// backend/src/LibConfig/Dirs.fs, three pieces: the directory, the Root case and its
+// arm in `dir`, and the env flag that decided whether to regenerate rather than assert.
+let serializationDir = $"{backendDir}testfiles/serialization-artifacts/"
+type Root =
+  | Serialization
+  ...
+  | Serialization -> serializationDir
+let serializationGenerateTestData =
+  bool "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA"
+
+// config/dev and config/circleci each carried one line:
+DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y    # dev
+DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=n    # circleci
+
+// scripts/build/_buildplan.py ignored the artifact directory so a regenerated fixture
+// did not trigger a rebuild:
+    "backend/testfiles/serialization-artifacts/",
