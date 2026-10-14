@@ -36,14 +36,6 @@ module Topics =
           subtopics = [] }
 
       DocTopic
-        { name = "for-ai-internal"
-          description = "AI guide for monorepo/F# work"
-          aliases = [ "internal", "dev" ]
-          context = "internal"
-          content = Docs.ForAIInternal.content
-          subtopics = [] }
-
-      DocTopic
         { name = "syntax"
           description = "Language syntax reference"
           aliases = [ "lang" ]
@@ -124,10 +116,12 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        // Not internal: `Stdlib.Cli.Tui` is shipped, and anyone building a full-screen app in
+        // Dark reads this to find out how a view, a frame and a session fit together.
         { name = "terminal-ui"
           description = "How the CLI draws: the Tui layer, and why it doesn't flicker"
           aliases = [ "tui" ]
-          context = "internal"
+          context = "cli"
           content = Docs.TerminalUI.content
           subtopics = [] }
 
@@ -214,14 +208,6 @@ module Topics =
           aliases = [ "deprecate", "delete" ]
           context = "cli"
           content = Docs.Deprecation.content
-          subtopics = [] }
-
-      DocTopic
-        { name = "interactive-testing"
-          description = "Interactive CLI testing & telemetry"
-          aliases = [ "testing", "telemetry", "expect", "perf" ]
-          context = "internal"
-          content = Docs.InteractiveTesting.content
           subtopics = [] }
 
       // `signatures` is a *live* topic: rendered by querying the package DB

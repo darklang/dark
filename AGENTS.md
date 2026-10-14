@@ -1249,7 +1249,35 @@ switching views, resize, the too-small guard, and quitting cleanly. None of it i
 the test suite -- the views render fine when called directly; what needs a terminal is the keyboard,
 the alternate screen and SIGWINCH.
 
-Telemetry lands in `rundir/logs/telemetry.jsonl`. Full guide: `docs interactive-testing`.
+### Telemetry from the interactive loop
+
+When `packages/darklang/cli/telemetry.dark` is loaded, the interactive loop appends JSON lines to
+`rundir/logs/telemetry.jsonl`, one per event:
+
+    {"event":"preInput","ms":169,"ctx":{}}
+    {"event":"readKey","ms":2014,"ctx":{"char":"h"}}
+    {"event":"render","ms":33,"ctx":{"page":"MainPrompt"}}
+
+The events, per loop iteration: `completionHint` (the ghosted suggestion), `render` (a page draw),
+`preInput` (all the work before blocking on a keystroke), `readKey` (time waiting for the person,
+so idle), `update` (state after a keystroke), `loopWork` (preInput + update, the non-idle total),
+`commandExec` (on Enter), `tabComplete`, and `session_start` as a marker.
+
+`preInput` is the one to read: it is the lag a person feels between pressing a key and seeing
+anything.
+
+    jq -r 'select(.event=="preInput") | .ms' rundir/logs/telemetry.jsonl
+
+    jq -r 'select(.event=="completionHint") | .ms' rundir/logs/telemetry.jsonl \
+      | awk '{s+=$1;n++} END{print s/n"ms"}'
+
+`scripts/perf/view-telemetry.py` reads the same file and is easier for a whole run.
+
+Three traps worth knowing when driving the loop under `expect`: give it about 3 seconds after
+spawn, because packages load before the first prompt; `send "x"` sends one character and the loop
+reads one at a time, so a sleep between them is what a real typing speed looks like; and the
+Release and AOT builds behave differently enough from Debug that a timing conclusion from one says
+nothing about the other.
 
 For poking at it by hand, or driving something `expect` would be awkward for -- an editor,
 a pager, anything that takes over the screen -- `tmux` is more reliable:
