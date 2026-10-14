@@ -10,9 +10,9 @@ let base =
     // Note the owner has no packages of its own, which is what an account usually looks like and
     // what `scripts/perf/keystroke` measures against the real CLI. An owner *with* packages sends
     // Home down a different and much dearer path -- see the `isFirstRun` note in the roadmap.
-    "perf"
     "perf-instance"
-    (Stdlib.List.range 0 40)
+    // not live: a --live view polls the store, which is not what is being timed here
+    false
 
 let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
 let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false }

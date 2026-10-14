@@ -39,9 +39,9 @@ let base =
     // Note the owner has no packages of its own, which is what an account usually looks like and
     // what `scripts/perf/keystroke` measures against the real CLI. An owner *with* packages sends
     // Home down a different and much dearer path -- see the `isFirstRun` note in the roadmap.
-    "perf"
     "perf-instance"
-    (Stdlib.List.range 0 40)
+    // not live: a --live view polls the store, which is not what is being timed here
+    false
 
 // 120x40 is the smallest size that lays out every pane; below it the workbench drops panes and the
 // numbers stop meaning what they look like they mean.

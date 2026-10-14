@@ -22,9 +22,9 @@ let base =
   Darklang.Cli.Workbench.initialState
     Darklang.SCM.Branch.mainBranchId
     Stdlib.Option.Option.None
-    "perf"
     "perf-instance"
-    (Stdlib.List.range 0 40)
+    // not live: a --live view polls the store, which is not what is being timed here
+    false
 
 let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
 
