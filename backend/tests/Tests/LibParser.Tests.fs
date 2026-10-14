@@ -1708,20 +1708,24 @@ let private lexicalFailureTests =
       mustDiagnose "empty lambda parameter list" "fun -> 1L"
       mustDiagnose "empty module body" "module X =\nlet y = 1L"
       mustDiagnose "anonymous record" "{ a = 1L }"
-      testCase "DB declarations reject enum schemas" (fun _ ->
-        let result = P.parseTestFile "[<DB>] type X = | A"
-        Expect.exists
-          result.diagnostics
-          (fun diagnostic ->
-            diagnostic.message = "[<DB>] type must be a type alias or record")
-          "DB shape diagnostic")
-      testCase "inline DB records cannot have type parameters" (fun _ ->
-        let result = P.parseTestFile "[<DB>] type X<'a> = { value: 'a }"
-        Expect.exists
-          result.diagnostics
-          (fun diagnostic ->
-            diagnostic.message = "[<DB>] inline record cannot have type parameters")
-          "DB type-parameter diagnostic")
+      // `[<DB>]` used to be a declaration form with shape rules of its own. User datastores
+      // are gone, so it is now exactly as special as any other unrecognised attribute:
+      // recovery diagnostics, and the type declaration behind it still lands. Asserted as an
+      // EQUIVALENCE rather than a diagnostic count, because the count belongs to how recovery
+      // happens to work and would fail this for the wrong reason when that changes.
+      testCase "the [<DB>] attribute is no longer special" (fun _ ->
+        // Recovery names the offending token, so the attribute's own name appears in one
+        // message. Substituting it is what makes the two comparable; without that the
+        // lists differ for a reason that has nothing to do with DB being special.
+        let messages (attr : string) =
+          (P.parse $"[<{attr}>] type Counter = Int").diagnostics
+          |> List.map (fun d -> d.message.Replace(attr, "<attr>"))
+        let db = messages "DB"
+        Expect.isNonEmpty db "[<DB>] is refused"
+        Expect.equal
+          db
+          (messages "Nonsense")
+          "[<DB>] is refused the same way any other unrecognised attribute is")
       mustDiagnose
         "misaligned match arm"
         "match x with\n  | Some x -> x\n    | None -> 0L"

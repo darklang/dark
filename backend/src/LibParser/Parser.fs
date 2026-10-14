@@ -3506,7 +3506,7 @@ and parseTestExpected (state : ParserState) (i : int) : WT.TestExpected * int =
 // `itemScope` distinguishes module declaration rules (values require `val`)
 // from script rules (a no-param `let x = …` is an expression that sequences
 // with what follows).
-// Test assertions and `[<DB>]` declarations are represented in every parse.
+// Test assertions are represented in every parse.
 // Validation later decides whether Script, Package, or Test source may contain
 // them. `itemScope` only distinguishes declaration-scope `let` from a script
 // binding.

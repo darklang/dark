@@ -318,14 +318,6 @@ Declaration forms:
   passes only when evaluating the whole body raises that exact rendered runtime
   error. The `=> raises` clause is test syntax, not an expression or function
   call.
-- `[<DB>] type Name = T` parses, and lowers to a `TDB` type reference. It used to
-  declare a private DB schema for the package tests in that module and its
-  descendants; that went to `later/` with user databases, so nothing executes
-  against one. The form is still in the grammar because `TDB` is in the
-  serialization format, and therefore in the content hash.
-- `[<DB>] type Name = { field: T }` also defines a same-named record type for
-  the rows: `Name { field = value }` constructs one, while bare `Name` refers
-  to the DB. The alias form above remains available for a separate row type.
 - `let x = e` is a local/script binding. At declaration scope it is rejected;
   use `val` for a value declaration.
 - `module A.B` is a file header and wraps the rest of the file.
@@ -400,9 +392,6 @@ At the top level:
 - `actual = expected` is a test assertion
 - the expected form may be `error "msg"`. There was a `sqlerror "msg"` form for the user-DB
   query compiler's messages; it left with the compiler and no longer parses.
-- `[<DB>] type X = T` parses, and lowers to a `TDB` type reference. The runtime behind
-  it moved to `later/`, so nothing executes against it; the form is still in the grammar
-  because `TDB` is in the serialization format, and therefore in the content hash.
 
 ## Diagnostics
 

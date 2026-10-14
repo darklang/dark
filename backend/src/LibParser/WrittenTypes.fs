@@ -603,7 +603,6 @@ and Declaration =
   | DTest of TestDecl
   /// A trailing expression inside a module body (`module M = … \n expr`).
   | DExpr of Expr
-  /// `[<DB>] type Name = RowType` — a test DB; an inline record also defines its row type.
   /// `actual = expected` assertion accepted only by Test validation.
   | DAssertion of Assertion
 
@@ -880,24 +879,6 @@ let packageType
         bounds = t.bounds |> List.map boundNorm
         definition = typeDefinitionNorm t.definition }
     description = t.description }
-
-/// The schema type for a `[<DB>]` declaration. An inline record defines a
-/// same-named row type, while an alias uses the referenced type unchanged.
-let dbRowTypeReference (modulePath : List<string>) (t : TypeDecl) : TypeReference =
-  match t.definition with
-  | TDAlias typ -> typ
-  | TDRecord _ ->
-    TCustom
-      { range = t.name.range
-        modules =
-          modulePath
-          |> List.map (fun name -> ({ range = synthRange; name = name }, synthRange))
-        typ = t.name
-        typeArgs = [] }
-  | TDEnum _ ->
-    Exception.raiseInternal
-      "[<DB>] type must be a type alias or record"
-      [ "name", t.name.name ]
 
 let packageValue
   (owner : string)

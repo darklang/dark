@@ -46,7 +46,7 @@ let private wtModuleToOps
 
     // Types in this file are not in `pm` yet. Give them real hashes in a
     // temporary overlay so functions, values, and tests can resolve same-file
-    // types, including inline [<DB>] row types. The overlay does not save ops.
+    // types. The overlay does not save ops.
     let nameBasedHash = PackageLocation.placeholderHash
     let typeOps : List<PT.PackageOp> =
       [ for (wtType, ptType) in List.zip modul.types types do

@@ -1452,8 +1452,8 @@ let fns () : List<BuiltInFn> =
 
     // CLEANUP: replace this with one parser that takes Package, Script, or Test.
     // The current F#-to-Dark conversion drops details needed for validation:
-    // `[<DB>] type T` becomes a normal type, and the test `1 = 1` becomes plain
-    // expressions. For now, validate here and return the same package tree.
+    // The test `1 = 1` becomes a plain expression. For now, validate here and return the
+    // same package tree.
     { name = fn "parserParsePackageToWrittenTypes" 0
       typeParams = []
       parameters = [ Param.make "sourceCode" TString "" ]
