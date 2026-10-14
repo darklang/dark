@@ -146,7 +146,7 @@ let executePretty (state: AppState) : AppState =
     if anyRefoldable then
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.dimText
-          "  `dark --safe <cmd>` boots the shipped CLI; a reload rebuilds the projections.")
+          "  these are in a projection, so a reload rebuilds them.")
 
     if anyCanonical then
       // "the rest" only when there IS a rest to be the rest of.

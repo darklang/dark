@@ -82,8 +82,8 @@ The Dark runner passes an explicit run handle to each execution. Test support
 owns that handle and its snapshot; neither is part of interpreter state.
 
 The CLI's `--entry-point` option selects the Dark worker by its exact function
-hash for this invocation. The saved entry point stays unchanged, so commands
-launched by the test still use it. The worker is a normal
+hash for this invocation. Nothing is stored, so commands launched by the test
+get the ordinary CLI. The worker is a normal
 dependency of the runner, so its changes also invalidate cached results.
 The worker reads the request and writes the result. Native support executes the
 exact hash with inherited permissions and preserves runtime values and errors.

@@ -85,7 +85,7 @@ let state (packageManager : RT.PackageManager) =
 
 
 /// Resolve a dotted package name or an exact #hash. Names follow updates;
-/// hashes let an application keep its entry point at a specific version.
+/// hashes pin a caller to one version, which is how the test runner names its worker.
 let private resolvePackageFn (dotted : string) : Option<RT.FQFnName.FQFnName> =
   if dotted.StartsWith "#" then
     let hash = dotted.Substring 1
@@ -111,29 +111,6 @@ let private resolvePackageFn (dotted : string) : Option<RT.FQFnName.FQFnName> =
     | [] -> None
 
 
-/// The CLI entry point is a stored, per-install pointer: `config_v0` key `entry_point`, a package
-/// location like `Darklang.Cli.executeCliCommand`, or an exact #hash.
-/// Names follow the latest content. Any miss falls back to the shipped CLI.
-let private resolveEntryPoint
-  (settings : Map<string, string>)
-  : RT.FQFnName.FQFnName =
-  let defaultFn = RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
-  try
-    match Map.tryFind "entry_point" settings with
-    | None
-    | Some "" -> defaultFn
-    | Some loc ->
-      match resolvePackageFn loc with
-      | Some fn -> fn
-      | None ->
-        System.Console.Error.WriteLine
-          $"entry point '{loc}' didn't resolve; running the default CLI"
-        defaultFn
-  with e ->
-    System.Console.Error.WriteLine
-      $"entry point lookup failed ({e.Message}); running the default CLI"
-    defaultFn
-
 /// The store-change source for the scheduler's poll: `LibDB.Sqlite.DataVersion`, one held
 /// connection per store, since `PRAGMA data_version` answers per connection.
 let private installStoreVersionSource () : unit =
@@ -141,14 +118,13 @@ let private installStoreVersionSource () : unit =
     Some LibDB.Sqlite.DataVersion.current
 
 /// The store's startup settings, read in one query (each `Config.get` is a round trip of about
-/// 8 KB, and the allocation gate counts startup): the entry point, the `exec.*` knobs and the
-/// `trace.*` caps. Empty when the store cannot answer. All are `dark config set`; no environment
-/// variable shadows any of them.
+/// 8 KB, and the allocation gate counts startup): the `exec.*` knobs and the `trace.*` caps.
+/// Empty when the store cannot answer. All are `dark config set`; no environment variable
+/// shadows any of them.
 let private startupSettings () : Map<string, string> =
   try
     (LibDB.Config.getMany
-      [ "entry_point"
-        "exec.workers"
+      [ "exec.workers"
         "exec.policy"
         "exec.maxInstructions"
         "exec.maxBytes"
@@ -176,7 +152,7 @@ let private workerCount (settings : Map<string, string>) : int =
 /// The scheduling policy, an expert setting: `exec.policy` names a Dark function
 /// (`Darklang.Stdlib.Exec.Policy.youngestFirst`, say) that is asked which runnable process to
 /// step next whenever there is a choice; unset, the scheduler round-robins in F# and never
-/// asks. A name that does not resolve is said and ignored, like a bad entry point.
+/// asks. A name that does not resolve is said and ignored.
 let private installPolicy
   (settings : Map<string, string>)
   (state : RT.ExecutionState)
@@ -221,14 +197,9 @@ let execute
             LibDB.PackagePermissions.purity
               LibDB.PackagePermissions.Load.fromStore
               state.fns.builtIn }
-    // `--safe` is the recovery floor: ignore the stored `entry_point` and run the shipped default
-    // CLI, so a custom root that resolves-but-misbehaves can always be escaped. (A bad pointer
-    // already falls back on its own.)
-    let safeMode = List.contains "--safe" args
-    // Boot-level; strip it so it doesn't reach the entry-point fn as a command arg.
-    let args = args |> List.filter (fun a -> a <> "--safe")
-    // A leading override applies only to this invocation. Child commands still
-    // use the installation's saved entry point, without any restore step.
+    // A leading override applies only to this invocation; nothing is stored, so there is
+    // nothing to restore afterwards. The test runner spawns its parallel workers this way
+    // (`LibDB.TestProcess`), by exact hash.
     let entryPoint, args =
       match args with
       | "--entry-point" :: name :: rest when not (name.StartsWith "-") ->
@@ -238,17 +209,12 @@ let execute
       | _ -> None, args
     let settings = startupSettings ()
     let fnName =
-      if safeMode then
-        System.Console.Error.WriteLine
-          "running in --safe mode: the shipped default CLI"
-        RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
-      else
-        match entryPoint with
-        | None -> resolveEntryPoint settings
-        | Some name ->
-          match resolvePackageFn name with
-          | Some fn -> fn
-          | None -> invalidOp $"Entry point not found: {name}"
+      match entryPoint with
+      | None -> RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
+      | Some name ->
+        match resolvePackageFn name with
+        | Some fn -> fn
+        | None -> invalidOp $"Entry point not found: {name}"
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     // The CLI's top level is a process: the scheduler runs on this thread until it finishes,
@@ -411,7 +377,7 @@ let private installAuditLog () : unit =
 
 /// The title a system monitor shows (`setProcessTitle`): `dark` plus the command, plus the one
 /// argument that tells commands of the same kind apart (a daemon's slug, a served port), within
-/// the kernel's 15 bytes. Global flags (`--branch <b>`, `--safe`) are skipped.
+/// the kernel's 15 bytes. Global flags (`--branch <b>`, `--entry-point <fn>`) are skipped.
 let private processTitle (args : string list) : string =
   let rec drop (args : string list) =
     match args with

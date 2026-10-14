@@ -527,8 +527,9 @@ CREATE TABLE IF NOT EXISTS trace_loops (
 
 -- Per-install local config. Nothing here is derived from the op log.
 
--- Mutable, per-install local config: the CLI entry-point pointer (`entry_point`) plus per-user
--- settings. Deliberately NOT content-addressed and NOT synced -- sync ships ops, never this table.
+-- Mutable, per-install local config: the current branch, the sync settings, the `exec.*` and
+-- `trace.*` knobs. Deliberately NOT content-addressed and NOT synced -- sync ships ops, never
+-- this table.
 CREATE TABLE IF NOT EXISTS config_v0 (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
