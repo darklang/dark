@@ -340,12 +340,13 @@ test toIntTruncatesWhereFloorRoundsDown =
 // IEEE 754 binary64 representations.
 test toBits =
   Stdlib.Test.all
-    [ Stdlib.Float.toBits 0.0 |> Stdlib.Test.equal 0
-      Stdlib.Float.toBits 0.5 |> Stdlib.Test.equal 4602678819172646912
-      Stdlib.Float.toBits 1.0 |> Stdlib.Test.equal 4607182418800017408
-      Stdlib.Float.toBits 2.0 |> Stdlib.Test.equal 4611686018427387904
-      Stdlib.Float.toBits (infinity ()) |> Stdlib.Test.equal 9218868437227405312
-      Stdlib.Float.toBits -0.0 |> Stdlib.Test.equal -9223372036854775808 ]
+    [ Stdlib.Float.toBits 0.0 |> Stdlib.Test.equal 0UL
+      Stdlib.Float.toBits 0.5 |> Stdlib.Test.equal 4602678819172646912UL
+      Stdlib.Float.toBits 1.0 |> Stdlib.Test.equal 4607182418800017408UL
+      Stdlib.Float.toBits 2.0 |> Stdlib.Test.equal 4611686018427387904UL
+      Stdlib.Float.toBits (infinity ()) |> Stdlib.Test.equal 9218868437227405312UL
+      Stdlib.Float.toBits -0.0 |> Stdlib.Test.equal 9223372036854775808UL
+      Stdlib.Float.toBits -1.0 |> Stdlib.Test.equal 13830554455654793216UL ]
 
 // Bit equality distinguishes signed zero and is reflexive for a fixed NaN.
 test toBitsDistinguishesSignedZero =
