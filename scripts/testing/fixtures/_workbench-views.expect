@@ -22,9 +22,11 @@ set env(DARK_CONFIG_RUNDIR) $rundir
 proc fail {msg} { puts "FAIL: $msg"; exit 1 }
 
 # key: the digit that selects the view. These numbers are taken from the nav strip the workbench
-# actually draws, not from the view indices, and the two diverge: indices 2, 5, 6 and 7 are
-# reserved for the former Inspect, Devices, AI and Apps views, so the digits are contiguous while
-# the indices are not.
+# actually draws, not from the view indices. The two used to diverge, because indices 2, 5, 6 and
+# 7 were held for views that had moved to `later/`; those holes are closed now and the two
+# happen to line up. Still read the digit off the strip rather than off the index: what a number
+# key does is a position in `Navbar.workspaces`, and a gated view drops out of the strip without
+# renumbering anything else.
 # The Docs pattern is the DESCRIPTION of the first topic, not a topic name, and both halves of
 # that matter. It used to name `deprecation`, `signatures` and `interactive-testing`, which are
 # the LAST three topics; traits adds one and scheduler added two, about twenty rows fit at CI's

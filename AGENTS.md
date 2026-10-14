@@ -276,14 +276,14 @@ So two rules, and the second is the one that saves you:
   narrow filter. If a run came back in under a second, check for a surviving `Tests` process
   before you believe a word of it.
 
-### Sweeping the CLI after a change
-
 ### Processes and live programming
 
 `docs/processes.md` is the scheduler: what a process is, the loop, reads in flight, `Exec.spawn`,
 executions (resume, fork, export), `dark ps`. `docs/live.md` is live programming: the host loop,
 `serve` following edits, the `Node` tree, live values. `dark docs processes` and `dark docs live`
 are the short forms.
+
+### Sweeping the CLI after a change
 
 A Dark call site is not type-checked until it executes, so a rename or a type change across
 `packages/` leaves holes a green suite cannot see. The bugs that get found here are found by
