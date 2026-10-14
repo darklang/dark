@@ -1083,14 +1083,6 @@ type Definitions =
     // TODO db and handlers
     exprs: List<Expr * List<String>> }
 
-// User/Canvas space
-type DB =
-  { tlid: TLID
-    name: String
-    version: Int32
-    typ: TypeReference }
-
-
 module SourceFile =
   type Declaration =
     | Type of PackageType.PackageType

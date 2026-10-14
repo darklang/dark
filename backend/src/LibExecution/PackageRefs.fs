@@ -543,7 +543,6 @@ module Type =
       let branchEventKind = p [] "BranchEventKind"
       let decisionKind = p [] "DecisionKind"
       let propagateRepoint = p [] "PropagateRepoint"
-      let db = p [] "DB"
 
     module AtRestTypeChecker =
       let private p addl = p ("AtRestTypeChecker" :: addl)

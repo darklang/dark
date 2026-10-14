@@ -1603,18 +1603,3 @@ the package stuff is all a projection of that
 
 
 
-// --
-// User things
-// --
-module DB =
-  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
-
-
-/// Compatibility shim: callers used to wrap a `DB.T` in `Toplevel.TLDB`
-/// and read tlids via `Toplevel.toTLID`. Handler / TLHandler are gone
-/// (Worker / Cron / REPL had no live consumers; HTTP went earlier with
-/// the BwdServer rewrite). `DB.T` IS the toplevel now — keep the
-/// `Toplevel.toTLID` accessor as a one-line shim so the noisier
-/// callsites don't all churn shape simultaneously.
-module Toplevel =
-  let toTLID (db : DB.T) : tlid = db.tlid

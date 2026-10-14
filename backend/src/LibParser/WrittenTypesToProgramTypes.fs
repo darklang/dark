@@ -1252,14 +1252,3 @@ module PackageFn =
 
 
 
-module DB =
-  let toPT
-    (pm : PT.PackageManager)
-    (onMissing : NR.OnMissing)
-    (currentModule : List<string>)
-    (db : WT.DB.T)
-    : Ply<PT.DB.T> =
-    uply {
-      let! typ = TypeReference.toPT pm onMissing currentModule db.typ
-      return { tlid = gid (); name = db.name; version = db.version; typ = typ }
-    }

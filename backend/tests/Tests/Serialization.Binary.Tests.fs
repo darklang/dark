@@ -108,14 +108,6 @@ module PT =
         |> BS.PT.PackageOp.deserialize (System.Guid.NewGuid()))
       Values.ProgramTypes.packageOps
 
-  let toplevelTests =
-    Roundtripping.testRoundtripMany
-      "toplevels"
-      (fun tl ->
-        let tlid = PT.Toplevel.toTLID tl
-        tl |> BS.PT.Toplevel.serialize tlid |> BS.PT.Toplevel.deserialize tlid)
-      Values.ProgramTypes.toplevels
-
   /// The deprecation stamp rides on tags 4 and 5 as a trailing field rather than on tags of its
   /// own, and that is only safe if two things hold.
   ///
@@ -596,63 +588,6 @@ module RT =
     }
 
 
-module ConsistentSerializationTests =
-  type Format =
-    { name : string
-      serializer : PT.DB.T -> byte array
-      deserializer : byte array -> PT.DB.T
-      prefix : string
-      suffix : string }
-
-  let formats =
-    [ { name = "BinarySerialization"
-        serializer = fun db -> BS.PT.Toplevel.serialize db.tlid db
-        deserializer = fun data -> BS.PT.Toplevel.deserialize 0UL data
-        prefix = "toplevels-binary"
-        suffix = ".bin" } ]
-
-  let nameFor (f : Format) (version : string) (idx : int) =
-    $"{f.prefix}-{version}-{idx}{f.suffix}"
-
-
-  /// Generates the timestamped fixture files that pin the binary format. Regenerate
-  /// and commit them alongside any deliberate format or test-value change.
-  let generateTestFiles () : unit =
-    formats
-    |> List.iter (fun f ->
-      Values.ProgramTypes.toplevels
-      |> List.iteri (fun i tl ->
-        let output = f.serializer tl
-        File.writefileBytes Config.Serialization (nameFor f "latest" i) output))
-
-
-  // Each serialized toplevel must match its committed fixture. Regenerate
-  // intentionally changed fixtures with DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y.
-  let testTestFiles =
-    formats
-    |> List.map (fun f ->
-      test "binary serialization matches the committed golden files" {
-        Values.ProgramTypes.toplevels
-        |> List.iteri (fun i tl ->
-          let serialized = f.serializer tl
-          Expect.equal (f.deserializer serialized) tl "roundtrip should work"
-          let golden =
-            File.readfileBytes Config.Serialization (nameFor f "latest" i)
-          Expect.equal
-            serialized
-            golden
-            $"toplevel {i} matches its committed golden (regenerate if this change is intended)")
-      })
-
-
-let generateTestFiles () =
-  // Enabled in dev so we can see changes as git diffs
-  // Disabled in CI so changes will fail the tests
-  if Config.serializationGenerateTestData then
-    ConsistentSerializationTests.generateTestFiles ()
-  ()
-
-
 let tests =
   testList
     "Binary Serialization"
@@ -667,7 +602,6 @@ let tests =
           PT.traitTests
           PT.implTests
           PT.packageTestTests
-          PT.toplevelTests
           PT.packageOpTests
           PT.deprecationStampRidesOnTheExistingTags
           PT.legacyRecoveryHoleTagRejected
@@ -688,6 +622,4 @@ let tests =
           RT.dictWithDbKeyRejectedOnRead
           RT.dictWithLambdaKeyRejectedOnRead
           RT.closureAccessIsStripped
-          RT.namedFnAccessIsStripped ]
-
-      testList "consistent serialization" ConsistentSerializationTests.testTestFiles ]
+          RT.namedFnAccessIsStripped ] ]

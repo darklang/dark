@@ -124,10 +124,6 @@ let testPackageFn
 
 
 
-let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
-  { tlid = gid (); name = name; typ = typ; version = 0 }
-
-
 
 /// Shared guest HTTP config: production SSRF guards with loopback enabled for
 /// the in-process mock server. The guest profile is process-wide.

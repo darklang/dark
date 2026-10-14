@@ -731,9 +731,7 @@ module ProgramTypes =
 
 
   // Handler test values are gone with the Handler delete.
-  let userDB : DB.T = { tlid = 0UL; name = "User"; version = 0; typ = typeReference }
 
-  let userDBs : List<DB.T> = [ userDB ]
 
   // TODO: serialize stdlib types?
   // (also make sure we roundtrip test them)
@@ -1006,4 +1004,3 @@ module ProgramTypes =
         "2026-01-01T00:00:00.000Z"
       ) ]
 
-  let toplevels : List<DB.T> = [ userDB ]

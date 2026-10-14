@@ -2838,12 +2838,6 @@ type PackageManager =
 
 
 // ------------
-// User Space
-// ------------
-module DB =
-  // CLEANUP consider making typ a ValueType instead
-  type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
-
 // ------------
 // Builtins, Execution State, Package Manager
 // A bunch of tangled things we need to `and` together

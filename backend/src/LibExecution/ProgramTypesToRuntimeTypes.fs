@@ -1692,16 +1692,6 @@ module PackageManager =
       init = pm.init }
 
 
-// --
-// User stuff
-// --
-module DB =
-  let toRT (db : PT.DB.T) : RT.DB.T =
-    { tlid = db.tlid
-      name = db.name
-      version = db.version
-      typ = TypeReference.toRT db.typ }
-
 // TODO: remove this eventually -- PT2RT should happen generally at dev-time
 // (in any case, params should be handled differntly - by index or something, not by name as loose symbols)
 module Handler =

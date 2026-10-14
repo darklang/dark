@@ -198,11 +198,6 @@ module PT =
       with _ ->
         false
 
-  module Toplevel =
-    let serialize id value = makeSerializer PT.Toplevel.write id value
-    let deserialize id data = makeDeserializer PT.Toplevel.read id data
-
-
 module RT =
   // TODO upstream, it might be better to serialize a slightly lower type,
   // since we'll always have the corresponding ID in any context we use this

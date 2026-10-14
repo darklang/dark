@@ -1476,24 +1476,6 @@ let customType
   Stdlib.Pretty.render ctx.width (customTypeDoc ctx d)
 
 
-let db
-  (ctx: Context)
-  (db: LanguageTools.ProgramTypes.DB)
-  : String =
-  let versionPart =
-    if db.version == 0l then
-      ""
-    else
-      $"_v{Stdlib.toString db.version}"
-
-  let doc =
-    Stdlib.Pretty.hang
-      2
-      (Stdlib.Pretty.text $"type {db.name}{versionPart} =")
-      [ typeReferenceDoc ctx db.typ ]
-  Stdlib.Pretty.render ctx.width doc
-
-
 
 /// `<'a: Show + Compare, 'b>`: each type param followed by its bounds, if any.
 let typeParamsWithBounds

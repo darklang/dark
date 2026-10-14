@@ -795,10 +795,6 @@ module PackageTraitImpl =
     }
 
 
-module DB =
-  type T = { name : string; version : int; typ : TypeReference }
-
-
 // --- normalization: raw parser syntax → package IR ---
 //
 // The parser produces one range-complete syntax tree. The package form is the
