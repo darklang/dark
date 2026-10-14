@@ -43,7 +43,13 @@ module Gates =
     |> List.ofSeq
     |> List.sort
 
-  let reset () : unit = gates.Clear()
+  /// Every gate released, then forgotten. Released, not just dropped: a test that failed
+  /// before releasing its read would otherwise leave it in flight for good, counted against
+  /// `Promises.maxInflight` by every test after it.
+  let reset () : unit =
+    for kv in gates do
+      kv.Value.TrySetResult() |> ignore<bool>
+    gates.Clear()
 
 
 /// What ran, in what order, across processes. Test-only.
@@ -89,6 +95,27 @@ let fns () : List<BuiltInFn> =
           uply {
             do! Gates.wait n
             return DInt64 n
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    /// `testRead`, landing as any value: a tuple to destructure, a record field of the wrong
+    /// type. Answers <param value> once the test releases the gate.
+    { name = fn "testReadOf" 0
+      typeParams = []
+      parameters =
+        [ Param.make "gate" TInt64 ""; Param.make "value" (TVariable "a") "" ]
+      returnType = TVariable "a"
+      description =
+        "A read in flight until the test releases its gate; answers the value."
+      fn =
+        (function
+        | _, _, _, [| DInt64 n; value |] ->
+          uply {
+            do! Gates.wait n
+            return value
           }
         | _ -> incorrectArgs ())
       previewable = Impure

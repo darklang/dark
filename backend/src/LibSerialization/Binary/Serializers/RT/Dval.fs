@@ -228,9 +228,11 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     // Streams are not persistable by design — lifetime is bounded by
     // the VM that produced them. Caller should drain to Blob first.
     raiseFormatError "Cannot serialize DStream — drain to a Blob first"
-  | DPromise _ ->
-    // Forced before any builtin and at the end of every run; nothing serializes one.
-    raiseFormatError "Cannot serialize a read still in flight"
+  // A read that has landed is its value. A trace is written once the run is over, by when
+  // every read it made has landed, and a closure handed to a builtin (`Exec.spawn`) can be
+  // logged holding one.
+  | DPromise p when p.Task.IsCompletedSuccessfully -> writeDvalImpl w p.Task.Result
+  | DPromise _ -> raiseFormatError "Cannot serialize a read still in flight"
   // Serialized as the decimal value (via DarkInt), so the wire format doesn't
   // depend on the Finite/Infinite representation.
   | DInt value ->

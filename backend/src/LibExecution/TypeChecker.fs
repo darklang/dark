@@ -924,20 +924,47 @@ module DvalCreator =
   //   In order to support this^, add another param or two so that direct [] interpretation is differentiated from calls to this from Builtins and other places.
   //   (or split this into 2 separate fns with clearer names)
   /// A list of <param items>, typed by what they agree on. The items are checked, not copied.
-  let list (threadID : ThreadID) (typ : ValueType) (items : List<Dval>) : Dval =
-    DList(listElementType threadID 0 typ items, items)
+  ///
+  /// Holding a read in flight, the list is a promise of its own (`Pending.built`), built
+  /// again from the values once they land: the element type is worked out then, and an
+  /// element of the wrong type raises then. The same holds for every creator here.
+  let rec list (threadID : ThreadID) (typ : ValueType) (items : List<Dval>) : Dval =
+    let made = DList(listElementType threadID 0 typ items, items)
+    if List.exists Pending.isPromise items then
+      made
+      |> Pending.built (fun _ ->
+        Ply(list threadID typ (List.map Pending.settled items)))
+    else
+      made
 
 
   // CLEANUP see notes in `list` above
-  let dict
+  let rec dict
     (threadID : ThreadID)
     (keyType : ValueType)
     (valueType : ValueType)
     (entries : List<Dval * Dval>)
     : Dval =
-    let struct (keyType, valueType, entries) =
+    let struct (kt, vt, made) =
       dictEntries threadID keyType valueType Map.empty entries
-    DDict(keyType, valueType, entries)
+    let made = DDict(kt, vt, made)
+    if List.exists (fun (_, v) -> Pending.isPromise v) entries then
+      made
+      |> Pending.built (fun _ ->
+        let landed = entries |> List.map (fun (k, v) -> (k, Pending.settled v))
+        Ply(dict threadID keyType valueType landed))
+    else
+      made
+
+  /// A list or dict a builtin built around reads, built again from the landed values, so its
+  /// element type is worked out and a value of the wrong type raises where it is waited for.
+  let recheck (threadID : ThreadID) (filled : Dval) : Ply<Dval> =
+    match filled with
+    | DList(vt, items) -> Ply(list threadID vt items)
+    | DDict(kt, vt, entries) ->
+      let entries = entries |> Map.toList |> List.map (fun (DictKey k, v) -> (k, v))
+      Ply(dict threadID kt vt entries)
+    | other -> Ply other
 
   let dictAddEntry
     (threadID : ThreadID)
@@ -993,7 +1020,23 @@ module DvalCreator =
         none
     | ValueType.Known _ -> DEnum(typeName, typeName, [ innerType ], "None", [])
 
-  let optionSome (threadID : ThreadID) (expected : ValueType) (dv : Dval) : Dval =
+  let rec optionSome
+    (threadID : ThreadID)
+    (expected : ValueType)
+    (dv : Dval)
+    : Dval =
+    match dv with
+    | DPromise _ ->
+      optionSomeNow threadID expected dv
+      |> Pending.built (fun _ ->
+        Ply(optionSome threadID expected (Pending.settled dv)))
+    | _ -> optionSomeNow threadID expected dv
+
+  and private optionSomeNow
+    (threadID : ThreadID)
+    (expected : ValueType)
+    (dv : Dval)
+    =
     let typeName = Dval.optionType ()
 
     let vt = Dval.toValueType dv
@@ -1463,7 +1506,31 @@ module DvalCreator =
             )
         }
 
-  let enum
+  let rec enum
+    (types : Types)
+    (threadID : ThreadID)
+    (tst : TypeSymbolTable)
+    (sourceTypeName : FQTypeName.FQTypeName)
+    (typeArgs : List<ValueType>)
+    (caseName : string)
+    (fields : List<Dval>)
+    : Ply<Dval> =
+    if List.exists Pending.isPromise fields then
+      let again _ =
+        enum
+          types
+          threadID
+          tst
+          sourceTypeName
+          typeArgs
+          caseName
+          (List.map Pending.settled fields)
+      enumNow types threadID tst sourceTypeName typeArgs caseName fields
+      |> Ply.map (Pending.built again)
+    else
+      enumNow types threadID tst sourceTypeName typeArgs caseName fields
+
+  and private enumNow
     (types : Types)
     (threadID : ThreadID)
     (tst : TypeSymbolTable)
@@ -1882,7 +1949,25 @@ module DvalCreator =
             finalTypeArgs
       }
 
-  let record
+  let rec record
+    (types : Types)
+    (threadID : ThreadID)
+    (tst : TypeSymbolTable)
+    (sourceTypeName : FQTypeName.FQTypeName)
+    (typeArgs : List<ValueType>)
+    (fields : List<string * Dval>)
+    : Ply<Dval> =
+    if List.exists (fun (_, v) -> Pending.isPromise v) fields then
+      let again _ =
+        fields
+        |> List.map (fun (n, v) -> (n, Pending.settled v))
+        |> record types threadID tst sourceTypeName typeArgs
+      recordNow types threadID tst sourceTypeName typeArgs fields
+      |> Ply.map (Pending.built again)
+    else
+      recordNow types threadID tst sourceTypeName typeArgs fields
+
+  and private recordNow
     (types : Types)
     (threadID : ThreadID)
     (tst : TypeSymbolTable)
@@ -1987,7 +2072,61 @@ module DvalCreator =
           )
       }
 
-  let recordUpdate
+  let rec recordUpdate
+    (types : Types)
+    (threadID : ThreadID)
+    (tst : TypeSymbolTable)
+    (sourceTypeName : FQTypeName.FQTypeName)
+    (resolvedTypeName : FQTypeName.FQTypeName)
+    (typeArgsBeforeUpdate : List<ValueType>)
+    (currentFields : Map<string, Dval>)
+    (fieldUpdates : List<string * Dval>)
+    : Ply<Dval> =
+    let holds (_, v) = Pending.isPromise v
+    if
+      List.exists holds fieldUpdates
+      || Map.exists (fun _ v -> Pending.isPromise v) currentFields
+    then
+      // Every field that was a read is checked again once landed, as an update.
+      let reads =
+        Map.toList currentFields @ fieldUpdates |> List.filter holds |> List.map fst
+      let again _ =
+        let current = Map.map Pending.settled currentFields
+        let updates = fieldUpdates |> List.map (fun (n, v) -> (n, Pending.settled v))
+        let merged = updates |> List.fold (fun m (n, v) -> Map.add n v m) current
+        reads
+        |> List.distinct
+        |> List.map (fun n -> (n, merged[n]))
+        |> recordUpdate
+          types
+          threadID
+          tst
+          sourceTypeName
+          resolvedTypeName
+          typeArgsBeforeUpdate
+          merged
+      recordUpdateNow
+        types
+        threadID
+        tst
+        sourceTypeName
+        resolvedTypeName
+        typeArgsBeforeUpdate
+        currentFields
+        fieldUpdates
+      |> Ply.map (Pending.built again)
+    else
+      recordUpdateNow
+        types
+        threadID
+        tst
+        sourceTypeName
+        resolvedTypeName
+        typeArgsBeforeUpdate
+        currentFields
+        fieldUpdates
+
+  and private recordUpdateNow
     (types : Types)
     (threadID : ThreadID)
     (tst : TypeSymbolTable)

@@ -298,95 +298,70 @@ state itself when it is off.
 
 ## Reads are concurrent
 
-The user-facing rule, in one paragraph: a call whose effects are all reads
-(a file, env, db, package or trace read; an HTTP GET or HEAD) that has to
-wait does not stop your program. You get its result back at
-once, as a read still in flight, and the program runs on; the first thing
-that looks at the value waits for it. Every write (`print`, `File.write`, a
-POST, a db write) runs when it is reached, in program order. So
+A call whose effects are all reads (a file, env, db, package or trace read; an
+HTTP GET or HEAD) that has to wait does not stop your program. You get its
+result back at once, as a read still in flight, and it is waited for only
+where the value is needed. Passing it to a Dark function, binding it,
+returning it, or storing it in a list, record, tuple, enum, dict value or
+closure does not wait. Every write (`print`, `File.write`, a POST, a db write)
+runs when it is reached, in program order. So
 
 ```
 let pages = List.map urls (fun u -> HttpClient.get u [])  // every GET in flight, at once
 Stdlib.printLine "fetching"                              // a write: runs now
-let first = List.head pages                              // looks at the list: waits for all
+let first = List.head pages                              // the first GET only
 Cli.FileSystem.writeFile out first.body                  // in order
 ```
 
-`Stdlib.await x` forces a read now rather than at its first use; it is the
-identity function, since calling anything with the value is what forces it,
-and it works on a list of reads as well as one. (`Exec.await h` is the one
-for a handle; the two share the word and not the module, since one function
-cannot be typed as both `'a -> 'a` and `Handle<'a> -> 'a`.)
+and a fold that pushes each response onto a list, a recursion that builds one,
+or a map pairing each url with its response all have every read in flight
+before the first is waited for.
 
-How it works (`Interpreter.Promises`, `RuntimeTypes.Promise`):
+Where it waits, which a second implementation has to match, since the order
+is observable (`let a = get bad` then `f a` runs `f`, prints included, and
+raises where `f` first uses `a`):
 
-- At the builtin call site, when the builtin's `Ply` is not finished and the
-  call is deferrable, the register gets a `DPromise` (the task, the builtin's
-  name and the frame's execution point) instead of the process parking. A
-  call is deferrable when every call of the builtin is a read
-  (`Effects.readsOnly`: its effects are all reads, or it is the HTTP
-  client's GET and HEAD builtin, `httpClientRead`, which `Effects.fs` names
-  since `http` stays one word in the permission language and a policy grants
-  a URL, not a method; `HttpClient.get`, `head`, and `request "GET"` go
-  through it). `Clock` and `Random` are not read effects either: reading
-  them never waits, and `sleep`, the one clock call that does, is a wait the
-  program means to take. A read that finishes synchronously (most file and db
-  reads in this tracetime) is never a promise; only a real wait is.
-- A promise is only ever at the top level of a register, a frame's result, or
-  a builtin's returned value. Every instruction that inspects, stores or
-  passes a value forces it first: `Apply` forces the callee and every
-  argument (so no builtin body ever sees one), record, enum, list, tuple, dict and string construction force
-  their parts, a closure forces what it closes over, `if`, `||`, `&&`, match
-  and let patterns force what they look at, and the end of a trace forces its
-  result. A bare `let x = ...` copies without looking, which is what keeps a
-  read in flight across the statements after it. Returning a promise from a
-  function is fine (a wrapper handing back its builtin's result); the return
-  type check lets it through, since the builtin's own return type was checked
-  when the value was made or is when it lands (`TypeChecker.tryUnifySync`,
-  `Dval.toValueType` says `Unknown`).
-- Forcing: the instruction does not run; `Promises.settle` replaces a landed
-  promise with its value and the instruction runs again at once, or, for one
-  still in flight, the frame stops with the counter on the instruction
-  (`FrameAwaitForce`) and the process parks on the task, exactly as it parks
-  on a builtin. Under a plain `execute` the task loop awaits it.
-- A read that failed raises at the force point, with the read's own error and
-  the frames it was called from added below the stack (`vm.nestedCallStack`),
-  so the report names both sites. A denial is raised at the call, before
-  anything is in flight: the ambient effect check runs before the body. A
-  read nothing ever looks at has no force point, so the end of the trace is
-  its force point: a trace does not end until every read it made has landed
-  (`VMState.pendingReads`, checked at the root frame's return), and the
-  first that failed fails the trace there, naming the read. The rule a JS
-  unhandled rejection follows: `let _ = HttpClient.get bad []` and code that
-  never reads it is a failed run, not a silent one. Reads that finish on the
-  calling thread raise at the call; only a real wait is deferred.
-- `List.map` is promise-aware (`mappedListOrPromise` in `Builtins.Pure`'s
-  `List.fs`): a lambda that returns a read in flight hands it back rather
-  than being forced at the end of its run, and the map's result is one
-  promise for the whole list, landing when every element has. Everything else
-  that applies a lambda gets the lambda's result forced. So `List.map urls
-  (fun u -> HttpClient.get u [])` is where the reads fan out; the same lambda
-  under `List.filter` would run them one by one.
-- The bound: at most `Promises.maxInflight` reads in flight per OS process,
-  256, fixed rather than a setting (past it the program is saturating
-  whatever it reads from). Past it a read is awaited in program order, so a
-  map over a hundred thousand urls does not open a hundred thousand sockets.
-- Tracing: the builtin's result is recorded when it lands (the recording is
-  inside the builtin's own `Ply`); the trace's `seq` is completion order. A
-  builtin that combined reads (`List.map`) records its value when the
-  combination lands. Under tracing an awaiting builtin's arguments are copied
-  before the wait, since the frame's argument buffer is reused once the frame
-  runs on.
-- Cost when nothing is in flight: one type test per operand on the
-  instructions above. The check lives in `tryUnifySync`, not in
-  `finishBuiltin`: a `match` on the result there costs 200 bytes per builtin
-  call (the `uply` arm's closure is built on every call).
+- a builtin's arguments, except a closure passed to a function parameter, and
+  a parameter the builtin declares `Param.moved`: one whose `'a` values it only
+  moves, never looks at. A moved `'a` takes a read as it is, a moved `List<'a>`
+  or `Dict<'a>` takes a container holding reads as it is (`List.length`,
+  `List.push`, `Dict.set`'s value, `List.map`'s list), and the result is
+  wrapped again along the return type
+- the callee of a call, unless it is a closure holding reads
+- a trait method's arguments; `if`, `&&`, `||`, string interpolation, dict keys
+- a `let` or `match` pattern, only where it looks at a value rather than
+  binding a name: `h :: _` on a mapped list waits for the head alone
+- `Stdlib.await x` (through the builtin `runtimeForce`), and the end of the run
 
-Measured: three reads under `List.map` are all in flight before anything
-waits, and the statement after the map runs while they are; two reads in
-program order with a write between them: the write runs before either lands;
-a failed read raises at `await` with "after the call" already run; the bound
-holds (`Scheduler.Tests.fs`, the reads group).
+How it works (`Interpreter.Promises`, `LibExecution.Pending`):
+
+- A read builtin whose `Ply` is not finished puts a `DPromise` in the
+  register instead of parking (`Effects.readsOnly`: all-read effects, or
+  `httpClientRead`, the GET and HEAD builtin, since `http` stays one word in
+  the permission language). A read that finishes synchronously (most file and
+  db reads in this tree) is never a promise.
+- A value built around reads is itself a `DPromise` whose `Shell` is the value
+  as built; its task lands as the value rebuilt by the same constructor, so a
+  read of the wrong type for a record field raises where the record is waited
+  for. So a value that is not a `DPromise` holds no read anywhere, and
+  equality, dict keys, serialization and the builtin boundary still test only
+  the top. A value whose reads have already landed is built plain.
+- Waiting parks the frame with the counter on the instruction
+  (`FrameAwaitForce`), as a builtin wait does. A failed read raises there with
+  its own error and its call site below the stack, the read inside a container
+  rather than the container. A read nothing waits for is waited for at the end
+  of the run (`VMState.pendingReads`), and fails the run if it failed.
+- `List.map` holds one read per element; `List.fold` passes its accumulator
+  on as it is; a builtin's callback runs under the access the builtin was
+  called with.
+- At most `Promises.maxInflight` (256) reads in flight per OS process; past
+  that a read is awaited in program order.
+- Tracing records a builtin's result when it lands, and a frame's arguments as
+  their values where they have landed.
+- With nothing in flight: one type test per operand of the instructions that
+  wait, and per argument of an `Apply`.
+
+Measured in `Scheduler.Tests.fs`, the reads group.
 
 ## Computation spreads by itself
 

@@ -770,6 +770,22 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // The identity: a builtin's arguments land before it runs, and that wait is the point.
+    { name = fn "runtimeForce" 0
+      typeParams = []
+      parameters = [ Param.make "value" (TVariable "a") "" ]
+      returnType = TVariable "a"
+      description =
+        "Returns <param value>, once it is a value: a read still in flight is waited for here"
+      fn =
+        (function
+        | _, _, _, [| value |] -> Ply value
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     ]
 
 

@@ -192,6 +192,7 @@ module Blob =
       match dv with
       | RT.DBlob(RT.Persistent(hash, _)) -> Set.add hash acc
       | RT.DBlob(RT.Ephemeral _) -> acc
+      | RT.DPromise p when p.Task.IsCompletedSuccessfully -> go acc p.Task.Result
       | RT.DStream _
       | RT.DPromise _
       | RT.DUnit

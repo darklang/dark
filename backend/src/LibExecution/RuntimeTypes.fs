@@ -1388,27 +1388,30 @@ and [<NoComparison>] Dval =
   /// their IO source.
   | DStream of StreamImpl * disposed : bool ref * lockObj : obj
 
-  /// A read in flight. The interpreter hands one back instead of parking the process when a
-  /// builtin whose effects are all reads has to wait; it is forced (the process parks on it) at
-  /// the first instruction that inspects, stores or passes the value, at `await`, and at the
-  /// end of the run. So one is only ever at the top level of a register, a frame's result or a
-  /// builtin's returned value, never inside a list, record, closure or dict, and no builtin body
-  /// ever receives one: they are forced before the call. `docs/processes.md`, "Reads are
+  /// A read in flight, or a value with one inside it (`Pending`). Handed back instead of
+  /// parking when a read builtin has to wait, and waited for only where its value is needed;
+  /// a value that is not one holds none at any depth. `docs/processes.md`, "Reads are
   /// concurrent".
   | DPromise of Promise
 
 
-/// A read in flight (`DPromise`): the task the builtin returned, and where it was called from,
-/// for the error at the force point and for `ps`. A class, so it compares by reference.
+/// A read in flight (`DPromise`): its task, and where it was called from, for the error at the
+/// force point and for `ps`. A class, so it compares by reference. `Shell`, for a value with
+/// reads inside, is that value as built (null for a plain read), which a pattern or a field
+/// access can look at without waiting.
 and Promise
   (
     task : System.Threading.Tasks.Task<Dval>,
     fn : FQFnName.FQFnName,
-    site : ExecutionPoint
+    site : ExecutionPoint,
+    shell : Dval
   ) =
+  new(task, fn, site) = Promise(task, fn, site, Unchecked.defaultof<Dval>)
   member _.Task = task
   member _.Fn = fn
   member _.Site = site
+  member _.Shell = shell
+  member _.HasShell = not (obj.ReferenceEquals(shell, null))
 
 
 /// Lazy sequence producer. [FromIO] is the leaf — a pull-based
@@ -1494,10 +1497,16 @@ and DvalTask = Ply<Dval>
 and ThreadID = uuid
 
 and BuiltInParam =
-  { name : string
+  {
+    name : string
     typ : TypeReference
     blockArgs : List<string>
-    description : string }
+    description : string
+    /// The body only moves the values this parameter's type variables stand for, never looks
+    /// at them (`Param.moved`), so a read in flight can stand in for one. Only meaningful on a
+    /// type of `'a`, `List<'a>` or `Dict<'a>`; `Builtin.Tests` holds every declaration to that.
+    moves : bool
+  }
 
   static member make
     (name : string)
@@ -1505,7 +1514,20 @@ and BuiltInParam =
     (description : string)
     : BuiltInParam =
     assert_ "make called on TFn" [ "name", name ] (not (typ.isFn ()))
-    { name = name; typ = typ; description = description; blockArgs = [] }
+    { name = name
+      typ = typ
+      description = description
+      blockArgs = []
+      moves = false }
+
+  /// `make`, for a parameter whose `'a` values the body only moves: stores, returns, counts or
+  /// hands to a callback, but never compares, hashes, sorts, prints or serializes.
+  static member moved
+    (name : string)
+    (typ : TypeReference)
+    (description : string)
+    : BuiltInParam =
+    { BuiltInParam.make name typ description with moves = true }
 
   static member makeWithArgs
     (name : string)
@@ -1514,7 +1536,11 @@ and BuiltInParam =
     (blockArgs : List<string>)
     : BuiltInParam =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
-    { name = name; typ = typ; description = description; blockArgs = blockArgs }
+    { name = name
+      typ = typ
+      description = description
+      blockArgs = blockArgs
+      moves = false }
 
 
 /// A lambda's captured values (`ApplicableLambda.closedRegisters`) as a list, for the cold
@@ -2319,6 +2345,10 @@ module Dval =
         | Some dv' -> return dv'
         | None ->
           match dv with
+          // A read that has landed is its value, rewritten like any other. One still in
+          // flight has nothing to rewrite yet.
+          | DPromise p when p.Task.IsCompletedSuccessfully ->
+            return! go p.Task.Result
           | DUnit
           | DBool _
           | DInt8 _
@@ -3074,6 +3104,11 @@ type CallFrame =
     /// With `continuation`: what to do with the builtin's final result once the chain ends (the
     /// trace record, if any). Null when nothing.
     mutable finish : Dval -> unit
+    /// With `continuation`: the access the builtin was applied under, which its continuation
+    /// runs under again, and so its next request. The callable's body runs builtins of its
+    /// own, each of which moves `vm.activeAccess`, so what is there when the frame returns is
+    /// the callable's last builtin's and not the one that asked.
+    mutable requestAccess : Permissions.Access
   }
 
 /// Synchronous regions of the Apply path that the allocation counters attribute to.
@@ -3593,7 +3628,8 @@ type VMState =
         typeSymbolTable = TST.empty
         parent = ValueNone
         continuation = Unchecked.defaultof<_>
-        finish = Unchecked.defaultof<_> }
+        finish = Unchecked.defaultof<_>
+        requestAccess = Unchecked.defaultof<_> }
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
@@ -3688,7 +3724,8 @@ type VMState =
           typeSymbolTable = TST.empty
           parent = ValueNone
           continuation = Unchecked.defaultof<_>
-          finish = Unchecked.defaultof<_> }
+          finish = Unchecked.defaultof<_>
+          requestAccess = Unchecked.defaultof<_> }
 
     vm.pooledRootFrame <- ValueSome rootCallFrame
     vm.callFrames.Clear()

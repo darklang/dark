@@ -70,7 +70,7 @@ let rec private addAllEntriesUnlessDuplicate
 let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict(varK, varA)) "" ]
+      parameters = [ Param.moved "dict" (TDict(varK, varA)) "" ]
       returnType = TInt
       description = "Returns the number of entries in <param dict>"
       fn =
@@ -84,7 +84,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictKeys" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict(varK, varA)) "" ]
+      parameters = [ Param.moved "dict" (TDict(varK, varA)) "" ]
       returnType = TList varK
       description = "Returns <param dict>'s keys in a <type List>, in key order"
       fn =
@@ -105,7 +105,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictValues" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict(varK, varA)) "" ]
+      parameters = [ Param.moved "dict" (TDict(varK, varA)) "" ]
       returnType = (TList varA)
       description =
         "Returns <param dict>'s values in a <type List>, ordered by their keys"
@@ -122,7 +122,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictToList" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict(varK, varA)) "" ]
+      parameters = [ Param.moved "dict" (TDict(varK, varA)) "" ]
       returnType = TList(TTuple(varK, varA, []))
       description =
         "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, "
@@ -204,7 +204,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "dictGet" 0
       typeParams = []
       parameters =
-        [ Param.make "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
+        [ Param.moved "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
       returnType = TypeReference.option varA
       description =
         "If the <param dict> contains <param key>, returns the corresponding "
@@ -226,7 +226,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "dictMember" 0
       typeParams = []
       parameters =
-        [ Param.make "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
+        [ Param.moved "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
       returnType = TBool
       description =
         "Returns {{true}} if the <param dict> contains an entry with <param "
@@ -245,8 +245,8 @@ let fns () : List<BuiltInFn> =
     { name = fn "dictMerge" 0
       typeParams = []
       parameters =
-        [ Param.make "left" (TDict(varK, varA)) ""
-          Param.make "right" (TDict(varK, varA)) "" ]
+        [ Param.moved "left" (TDict(varK, varA)) ""
+          Param.moved "right" (TDict(varK, varA)) "" ]
       returnType = TDict(varK, varA)
       description =
         "Returns a combined dictionary with both dictionaries' entries. If the "
@@ -273,9 +273,9 @@ let fns () : List<BuiltInFn> =
     { name = fn "dictSet" 0
       typeParams = [ "k"; "a" ]
       parameters =
-        [ Param.make "dict" (TDict(varK, varA)) ""
+        [ Param.moved "dict" (TDict(varK, varA)) ""
           Param.make "key" varK ""
-          Param.make "val" varA "" ]
+          Param.moved "val" varA "" ]
       returnType = TDict(varK, varA)
       description =
         "Returns a copy of <param dict> with the <param key> set to <param "
@@ -302,9 +302,9 @@ let fns () : List<BuiltInFn> =
     { name = fn "dictSetOverridingDuplicates" 0
       typeParams = [ "k"; "a" ]
       parameters =
-        [ Param.make "dict" (TDict(varK, varA)) ""
+        [ Param.moved "dict" (TDict(varK, varA)) ""
           Param.make "key" varK ""
-          Param.make "val" varA "" ]
+          Param.moved "val" varA "" ]
       returnType = TDict(varK, varA)
       description =
         "Returns a copy of <param dict> with the <param key> set to <param "
@@ -332,7 +332,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "dictRemove" 0
       typeParams = []
       parameters =
-        [ Param.make "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
+        [ Param.moved "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
       returnType = TDict(varK, varA)
       description =
         "If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged."
