@@ -67,8 +67,6 @@ module RuntimeTypes =
 
       RT.TCustomType(RTNR.ok (RT.FQTypeName.Package hashRT), [ RT.TBool ])
 
-      RT.TDB RT.TBool
-
       RT.TBlob
 
       RT.TVariable "test" ]
@@ -107,7 +105,6 @@ module RuntimeTypes =
 
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
 
-      known (RT.KnownType.KTDB ktUnit)
       known RT.KnownType.KTBlob ]
 
   let dvals () : List<RT.Dval> =
@@ -300,7 +297,6 @@ module ProgramTypes =
         TList TInt64
         TTuple(TBool, TBool, [ TBool ])
         TDict(TString, TBool)
-        TDB TBool
         TCustomType(NameResolution.ok (FQTypeName.Package hashPT), [ TBool ])
         TCustomType(NameResolution.ok (FQTypeName.Package hashPT), [ TBool ])
         TVariable "test"

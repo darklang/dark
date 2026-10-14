@@ -249,9 +249,7 @@ let writeTypeReference
     w.Write 15uy
     writeTypeReference mode w key
     writeTypeReference mode w value
-  | PT.TDB inner ->
-    w.Write 16uy
-    writeTypeReference mode w inner
+  // 16 was TDB, retired with user datastores
   | PT.TDateTime -> w.Write 17uy
   | PT.TChar -> w.Write 18uy
   | PT.TUuid -> w.Write 19uy

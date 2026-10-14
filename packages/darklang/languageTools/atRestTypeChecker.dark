@@ -27,7 +27,6 @@ type StaticType =
   | TDict of key: StaticType * value: StaticType
   | TCustom of LanguageTools.ProgramTypes.Hash * List<StaticType>
   | TFn of List<StaticType> * StaticType
-  | TDB of StaticType
   | TRigidVariable of String
   | TInferenceVariable of Int
 
@@ -364,7 +363,6 @@ let staticTypeToStringWith
     + Stdlib.String.join (Stdlib.List.map parameters recurse) ", "
     + ") -> "
     + recurse returnType
-  | TDB inner -> wrapped "DB" inner
   | TRigidVariable name -> "'" + name
   | TInferenceVariable _ -> "_"
 

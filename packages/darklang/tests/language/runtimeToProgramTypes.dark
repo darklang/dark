@@ -159,7 +159,7 @@ test recordsAndEnums =
             fakeType (),
             [],
             "Some",
-            [ Darklang.LanguageTools.RuntimeTypes.Dval.DDB "mydb" ]))
+            [ Darklang.LanguageTools.RuntimeTypes.Dval.DUuid (Stdlib.Uuid.generate ()) ]))
       )
       |> Stdlib.Test.equal true ]
 
@@ -167,10 +167,6 @@ test recordsAndEnums =
 test valuesWithoutLiteralSyntax =
   Stdlib.Test.all
     [ Stdlib.Result.isError (
-        promote (Darklang.LanguageTools.RuntimeTypes.Dval.DDB "mydb")
-      )
-      |> Stdlib.Test.equal true
-      Stdlib.Result.isError (
         promote (
           Darklang.LanguageTools.RuntimeTypes.Dval.DUuid (Stdlib.Uuid.generate ())
         )

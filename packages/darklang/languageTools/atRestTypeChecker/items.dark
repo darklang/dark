@@ -588,8 +588,6 @@ let checkTest
   (testResult: LanguageTools.ProgramTypes.Hash)
   (test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : (Outcome * Model.Environment) =
-  // A test used to be able to declare private DBs, which bound each one's name in the body's
-  // scope as a `TDB`. That left with user databases; see `later/`.
   let scope = Generate.emptyScope ()
   let (typ, constraints) =
     match NodeIds.problem test.body with

@@ -61,7 +61,6 @@ let variablesIn (typ: LanguageTools.ProgramTypes.TypeReference) : List<String> =
   | TVariable name -> [ name ]
   | TStream inner -> variablesIn inner
   | TList inner -> variablesIn inner
-  | TDB inner -> variablesIn inner
   | TDict(key, value) -> Stdlib.List.append (variablesIn key) (variablesIn value)
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten

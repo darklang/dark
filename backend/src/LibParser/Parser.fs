@@ -3500,16 +3500,6 @@ and parseTestExpected (state : ParserState) (i : int) : WT.TestExpected * int =
   | TIdent "error", TStringLit s, _ -> (WT.TEError s, i + 2)
   | _ -> let (e, j) = parseExpr state i in (WT.TEExpr e, j)
 
-// `[<DB>]` attribute prefix on a type decl: 5 tokens. Parsing represents it;
-// post-parse validation restricts it to Test source.
-// `[` `<` `DB` `>` `]`.
-and isDbAttr (state : ParserState) (i : int) : bool =
-  tok state i = TLBracket
-  && tok state (i + 1) = TLt
-  && tok state (i + 2) = TIdent "DB"
-  && tok state (i + 3) = TGt
-  && tok state (i + 4) = TRBracket
-
 // Parse declarations/expressions whose start column is >= minCol (offside): a
 // less-indented item ends the scope. Used for the file body and, recursively,
 // for nested `module X =` blocks, so module nesting is preserved (FQN paths).
@@ -3553,23 +3543,6 @@ and parseItemsBody
       setStmtCol state (rng state k).start.column
       state.declAnchor <- (rng state k).start.column
       (match tok state k, tok state (k + 1) with
-       | TLBracket, TLt when isDbAttr state k && tok state (k + 5) = TType ->
-         // Parse `[<DB>]` here; validation decides which source modes allow it.
-         let (d, k2) = parseTypeDecl state (k + 5)
-         (match d with
-          | WT.DType t ->
-            match t.definition with
-            | WT.TDAlias _
-            | WT.TDRecord _ -> decls.Add(WT.DTypeDB t)
-            | _ ->
-              err
-                state
-                DiagnosticCode.expected
-                (k + 5)
-                "[<DB>] type must be a type alias or record"
-              decls.Add(WT.DTypeDB t)
-          | other -> decls.Add other)
-         k <- k2
        | TVal, TIdent _ ->
          // `val x = …` is ALWAYS a value DECLARATION (the explicit value-decl
          // keyword), in a module or at file top level alike.

@@ -66,7 +66,6 @@ let dictKeyTypes (env: Model.Environment) (ty: Model.Ty) : List<Model.Ty> =
   | TDict(key, value) -> Stdlib.List.push (many [ key, value ]) key
   | TList inner -> dictKeyTypes env inner
   | TStream inner -> dictKeyTypes env inner
-  | TDB inner -> dictKeyTypes env inner
   | TTuple(first, second, rest) -> many (Stdlib.List.append [ first, second ] rest)
   | TFn(parameters, ret) -> many (Stdlib.List.push parameters ret)
   | TCustom(name, args) -> Stdlib.List.append (customDictKeys env name args) (many args)
@@ -149,7 +148,6 @@ let checkTypeStructure
   match ty with
   | TStream inner -> checkTypeStructure env at names found inner
   | TList inner -> checkTypeStructure env at names found inner
-  | TDB inner -> checkTypeStructure env at names found inner
   | TDict(key, value) ->
     let found = checkDictKey env at found key
     checkTypeStructures env at names found [ key, value ]
@@ -213,7 +211,6 @@ let aliasEdges
     | None -> found
   | TList inner -> aliasEdges env found inner
   | TStream inner -> aliasEdges env found inner
-  | TDB inner -> aliasEdges env found inner
   | TDict(key, value) -> aliasEdges env (aliasEdges env found key) value
   | TTuple(first, second, rest) ->
     aliasEdgesIn env (aliasEdges env (aliasEdges env found first) second) rest

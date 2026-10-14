@@ -43,8 +43,7 @@ module private FreeTVars =
     match tr with
     | TVariable name -> Set.add name acc
     | TList inner
-    | TStream inner
-    | TDB inner -> collect acc inner
+    | TStream inner -> collect acc inner
     | TDict(key, value) -> collect (collect acc key) value
     | TTuple(a, b, rest) ->
       let acc = collect acc a
@@ -268,8 +267,7 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTString
     | KTUuid
     | KTDateTime
-    | KTBlob
-    | KTDB _ -> true
+    | KTBlob -> true
     | KTList inner
     | KTStream inner -> isFullyKnown inner
     | KTDict(key, value) -> isFullyKnown key && isFullyKnown value
@@ -2076,8 +2074,7 @@ let rec private sameType (a : TypeReference) (b : TypeReference) : bool =
   | TCustomType(aName, aArgs), TCustomType(bName, bArgs) ->
     aName.resolved = bName.resolved && sameTypes aArgs bArgs
   | TStream x, TStream y
-  | TList x, TList y
-  | TDB x, TDB y -> sameType x y
+  | TList x, TList y -> sameType x y
   | TDict(aKey, aValue), TDict(bKey, bValue) ->
     sameType aKey bKey && sameType aValue bValue
   | TTuple(a1, a2, aRest), TTuple(b1, b2, bRest) ->

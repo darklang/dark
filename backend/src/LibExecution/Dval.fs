@@ -233,10 +233,7 @@ let rec isPersistable (dv : Dval) : bool =
   | DString _
   | DDateTime _
   | DUuid _
-  // DApplicable and DDB serialize successfully — lambdas store their
-  // instruction stream, DB handles store as a string identifier.
-  // Demo handlers persist lambdas as vals; user DBs rely on the DDB path.
-  | DDB _
+  // DApplicable serializes successfully: a lambda stores its instruction stream.
   | DBlob(Persistent _) -> true
 
   // A NAMED fn survives being stored: it is a name, and any process can resolve it. A lambda does
@@ -300,7 +297,6 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
 let rec isInertData (dv : Dval) : bool =
   match dv with
   | DApplicable _
-  | DDB _
   | DStream _
   | DPromise _ -> false
 
@@ -475,8 +471,6 @@ let rec equals (a : Dval) (b : Dval) : bool =
     | AppNamedFn a, AppNamedFn b -> a = b
     | _ -> false
 
-  | DDB a, DDB b -> a = b
-
   | DBlob refA, DBlob refB ->
     // Identity-based: same hash (Persistent) or same UUID (Ephemeral).
     // Different ephemerals never compare equal — promote first if you
@@ -522,7 +516,6 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DRecord _, _
   | DEnum _, _
   | DApplicable _, _
-  | DDB _, _
   | DBlob _, _
   | DStream _, _
   | DPromise _, _ -> false

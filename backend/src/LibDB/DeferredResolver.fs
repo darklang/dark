@@ -204,10 +204,6 @@ let rec private reResolveTypeRef
       let! value = reResolveTypeRef contextModules pm value
       return PT.TDict(key, value)
 
-    | PT.TDB inner ->
-      let! inner = reResolveTypeRef contextModules pm inner
-      return PT.TDB inner
-
     | PT.TTuple(first, second, rest) ->
       let! first = reResolveTypeRef contextModules pm first
       let! second = reResolveTypeRef contextModules pm second

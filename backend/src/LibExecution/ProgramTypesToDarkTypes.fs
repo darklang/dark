@@ -429,8 +429,6 @@ module TypeReference =
         [ NameResolution.toDT (FQTypeName.knownType ()) FQTypeName.toDT typeName
           DList(VT.known (knownType ()), List.map toDT typeArgs) ]
 
-      | PT.TDB inner -> "TDB", [ toDT inner ]
-
       | PT.TFn(args, ret) ->
         "TFn",
         [ DList(VT.known (knownType ()), args |> NEList.toList |> List.map toDT)
@@ -477,7 +475,6 @@ module TypeReference =
         List.map fromDT typeArgs
       )
 
-    | DEnum(_, _, [], "TDB", [ inner ]) -> PT.TDB(fromDT inner)
     | DEnum(_, _, [], "TFn", [ DList(_vtTODO, head :: tail); ret ]) ->
       PT.TFn(NEList.ofList head tail |> NEList.map fromDT, fromDT ret)
     | _ -> Exception.raiseInternal "Invalid TypeReference" []

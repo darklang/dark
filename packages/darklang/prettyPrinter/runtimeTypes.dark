@@ -363,7 +363,6 @@ let typeReference
     $"{argPart} -> {typeReference branchId ret}"
 
 
-  | TDB inner -> $"DB<{typeReference branchId inner}>"
 
   | TVariable varName -> "'" + varName
 
@@ -428,7 +427,6 @@ let knownType
 
     (typeName branchId name) + typeArgsPortion
 
-  | KTDB typ -> $"Datastore<{valueType branchId typ}>"
 
 
 let valueType
@@ -619,7 +617,6 @@ module Dval =
           |> Stdlib.String.join ", "
           |> fun parts -> $"<{parts}>"
       (RuntimeTypes.typeName branchId typeName) + typeArgsPart
-    | DDB _ -> "Datastore"
     | DApplicable (AppNamedFn _) -> "Function"
     | DApplicable (AppLambda _) -> "Lambda"
     | DBlobPersistent(_, _) -> "Blob"
@@ -850,7 +847,6 @@ module Dval =
 
     | DApplicable(AppLambda _lambda) -> txt "(lambda)"
 
-    | DDB name -> txt $"<{valueTypeName branchId dv}: {name}>"
 
 
 let dvalWith

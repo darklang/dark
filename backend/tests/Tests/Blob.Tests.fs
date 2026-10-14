@@ -421,13 +421,6 @@ let persistableRejectsStream =
     | None -> failtest "expected a reason"
   }
 
-let persistableAcceptsApplicableAndDDB =
-  test "isPersistable: DApplicable + DDB serialize successfully, accept both" {
-    Expect.isTrue
-      (Dval.isPersistable (RT.DDB "users"))
-      "DDB serialises via the existing binary path"
-  }
-
 let persistableRejectsNestedBadShapes =
   test "isPersistable: a bad leaf anywhere in a container poisons the whole" {
     let list =
@@ -846,7 +839,6 @@ let tests =
       persistableRejectsEphemeralBlob
       persistableRejectsStream
       persistableRejectsLambda
-      persistableAcceptsApplicableAndDDB
       persistableRejectsNestedBadShapes
       sweepDeletesOrphansButKeepsReferenced
       equalsEphemeralEphemeralSameUuid

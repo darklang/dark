@@ -125,7 +125,6 @@ type TypeReference =
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs: List<TypeReference>
 
-  | TDB of TypeReference
 
   // TODO: this should be an NEList
   | TFn of List<TypeReference> * TypeReference

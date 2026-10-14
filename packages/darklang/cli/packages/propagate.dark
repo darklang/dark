@@ -98,9 +98,6 @@ let typeReferenceEqual
     (typeReferenceEqual branchId keyA keyB)
     && (typeReferenceEqual branchId valueA valueB)
 
-  | (TDB innerA, TDB innerB) ->
-    typeReferenceEqual branchId innerA innerB
-
   | (TTuple (firstA, secondA, restA), TTuple (firstB, secondB, restB)) ->
     (typeReferenceEqual branchId firstA firstB)
     && (typeReferenceEqual branchId secondA secondB)

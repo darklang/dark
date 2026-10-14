@@ -1,7 +1,6 @@
 module Darklang.Stdlib.Json.Tests
 
 // Unsupported stuff:
-// - TDB
 // - TFn
 // None of these are supported as <> type args in the parser,
 // so do we really have to do anything here?

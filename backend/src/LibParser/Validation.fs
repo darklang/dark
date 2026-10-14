@@ -27,8 +27,6 @@ type IssueCode =
   | UnwrapRequiresFunction
   | PackageExpression
   | TestAssertion
-  | DBMode
-  | DBShape
   | TestMode
   | ImplMethods
 
@@ -46,8 +44,6 @@ module IssueCode =
     | EmptyRecordUpdate -> "VALIDATION-RECORD-UPDATE"
     | PackageExpression -> "VALIDATION-PACKAGE-EXPR"
     | TestAssertion -> "VALIDATION-TEST-ASSERTION"
-    | DBMode -> "VALIDATION-DB-MODE"
-    | DBShape -> "VALIDATION-DB-SHAPE"
     | TestMode -> "VALIDATION-TEST-MODE"
     | ImplMethods -> "VALIDATION-IMPL-METHODS"
 
@@ -366,14 +362,6 @@ let rec private declarationStructureIssues
          | WT.IAlias _ -> []))
   | WT.DModule modul -> modul.declarations |> List.collect declarationStructureIssues
   | WT.DExpr expr -> exprIssues false expr
-  | WT.DTypeDB typ ->
-    match typ.definition with
-    | WT.TDAlias _ -> []
-    | WT.TDRecord _ when List.isEmpty typ.typeParams -> []
-    | WT.TDRecord _ ->
-      [ issue typ.range DBShape "[<DB>] inline record cannot have type parameters" ]
-    | WT.TDEnum _ ->
-      [ issue typ.range DBShape "[<DB>] type must be a type alias or record" ]
   | WT.DAssertion test ->
     let expectedIssues =
       match test.expected with
@@ -424,15 +412,6 @@ let rec private declarationPurposeIssues
           TestAssertion
           "Test expressions must use 'actual = expected'" ]
     | Script -> []
-  | WT.DTypeDB typ ->
-    match mode with
-    | Test
-    | Package -> []
-    | _ ->
-      [ issue
-          typ.range
-          DBMode
-          "[<DB>] declarations are only allowed in test and package files" ]
   | WT.DAssertion test ->
     match mode with
     | Test -> []

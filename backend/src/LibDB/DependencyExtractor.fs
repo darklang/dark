@@ -103,8 +103,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.TVariable _ -> ()
 
       | PT.TStream inner
-      | PT.TList inner
-      | PT.TDB inner -> work.Push(TypeRef inner)
+      | PT.TList inner -> work.Push(TypeRef inner)
 
       | PT.TDict(key, value) ->
         work.Push(TypeRef key)

@@ -14,7 +14,6 @@ type Item =
   | Impl of List<string> * WT.ImplDecl
   | Test of List<string> * WT.TestDecl
   | Expr of List<string> * WT.Expr
-  | TypeDB of List<string> * WT.TypeDecl
   | Assertion of List<string> * WT.Assertion
 
 let rec private collectItems
@@ -35,7 +34,6 @@ let rec private collectItems
     | WT.DValue v -> [ Value(path, v) ]
     | WT.DTest test -> [ Test(path, test) ]
     | WT.DExpr e -> [ Expr(path, e) ]
-    | WT.DTypeDB t -> [ TypeDB(path, t) ]
     | WT.DAssertion t -> [ Assertion(path, t) ])
 
 let items (sf : WT.SourceFile) : List<Item> =

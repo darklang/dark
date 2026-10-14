@@ -46,7 +46,6 @@ let fromRuntimeType
     LanguageTools.ProgramTypes.TypeReference.TStream(fromRuntimeType inner)
   | TList inner ->
     LanguageTools.ProgramTypes.TypeReference.TList(fromRuntimeType inner)
-  | TDB inner -> LanguageTools.ProgramTypes.TypeReference.TDB(fromRuntimeType inner)
   | TTuple(first, second, rest) ->
     LanguageTools.ProgramTypes.TypeReference.TTuple(
       fromRuntimeType first,
@@ -93,7 +92,6 @@ let runtimeVariables (typ: LanguageTools.RuntimeTypes.TypeReference) : List<Stri
   | TVariable name -> [ name ]
   | TStream inner -> runtimeVariables inner
   | TList inner -> runtimeVariables inner
-  | TDB inner -> runtimeVariables inner
   | TDict(key, value) ->
     Stdlib.List.append (runtimeVariables key) (runtimeVariables value)
   | TTuple(first, second, rest) ->
@@ -582,7 +580,6 @@ let typeRefs (typ: LanguageTools.ProgramTypes.TypeReference) : List<LanguageTool
   match typ with
   | TStream inner -> typeRefs inner
   | TList inner -> typeRefs inner
-  | TDB inner -> typeRefs inner
   | TDict(key, value) -> Stdlib.List.append (typeRefs key) (typeRefs value)
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten

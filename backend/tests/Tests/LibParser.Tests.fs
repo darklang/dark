@@ -1201,26 +1201,14 @@ let private validationTests =
             (validationIssues Validation.Test sf)
             "test classification accepts the same tree"
         | None -> failtest "parser returned no tree")
-      testCase "DB syntax is also classified after parsing" (fun _ ->
-        let sf = sourceFile "[<DB>] type UserDB = String"
-        Expect.exists
-          (validationIssues Validation.Script sf)
-          (fun issue -> issue.code = Validation.DBMode)
-          "script classification rejects DB declarations"
-        Expect.isEmpty
-          (validationIssues Validation.Test sf)
-          "test classification accepts DB declarations"
-        Expect.isEmpty
-          (validationIssues Validation.Package sf)
-          "package classification accepts test DB declarations")
-      testCase "inline DB records are accepted in tests and packages" (fun _ ->
-        let sf = sourceFile "[<DB>] type Items = { name: String }"
-        Expect.isEmpty
-          (validationIssues Validation.Test sf)
-          "test classification accepts an inline DB record"
-        Expect.isEmpty
-          (validationIssues Validation.Package sf)
-          "package classification accepts an inline DB record")
+      // `[<DB>]` is no longer a thing the parser knows: user datastores are gone, so the
+      // attribute is an ordinary unrecognised token sequence rather than a declaration form
+      // with its own validation rules.
+      testCase "the [<DB>] attribute no longer parses as a declaration" (fun _ ->
+        let result = P.parse "[<DB>] type Items = String"
+        Expect.isNonEmpty
+          result.diagnostics
+          "[<DB>] is refused rather than quietly accepted")
       testCase
         "test classification rejects bare expressions and script lets"
         (fun _ ->
@@ -2024,8 +2012,7 @@ let private rangeInvariantTests =
     | WT.DExpr e -> [ e ]
     | WT.DModule m -> m.declarations |> List.collect declExprs
     | WT.DType _
-    | WT.DTrait _
-    | WT.DTypeDB _ -> []
+    | WT.DTrait _ -> []
     | WT.DImpl impl ->
       impl.members
       |> List.choose (fun m ->

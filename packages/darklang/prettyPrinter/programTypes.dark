@@ -397,7 +397,6 @@ let typeReferenceDocWithFnParens
       "Dict"
       [ typeReferenceDocWithFnParens ctx false key
         typeReferenceDocWithFnParens ctx false value ]
-  | TDB inner -> angled "DB" [ typeReferenceDocWithFnParens ctx false inner ]
 
   | TTuple(first, second, theRest) ->
     let parts =
@@ -504,9 +503,6 @@ let typeReferenceFlatAtPrecedence
     let typeNamePart = NameResolution.typeName ctx typ
 
     $"{typeNamePart}{argsPart}"
-
-  | TDB inner ->
-    $"DB<{typeReferenceFlatAtPrecedence ctx false inner}>"
 
   | TFn(args, ret) ->
     let argPart =

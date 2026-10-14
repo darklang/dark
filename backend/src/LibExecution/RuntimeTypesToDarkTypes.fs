@@ -347,8 +347,6 @@ module TypeReference =
         let args = args |> NEList.toList |> List.map toDT |> Dval.list (knownType ())
         "TFn", [ args; toDT ret ]
 
-      | TDB inner -> "TDB", [ toDT inner ]
-
 
     DEnum(typeName (), typeName (), [], caseName, fields)
 
@@ -392,8 +390,6 @@ module TypeReference =
 
     | DEnum(_, _, [], "TFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
       TFn(NEList.ofList (fromDT firstArg) (List.map fromDT otherArgs), fromDT ret)
-
-    | DEnum(_, _, [], "TDB", [ inner ]) -> TDB(fromDT inner)
 
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
 
@@ -591,8 +587,6 @@ module KnownType =
           |> Dval.list (ValueType.knownType ())
         "KTFn", [ args; ValueType.toDT ret ]
 
-      | KTDB d -> "KTDB", [ ValueType.toDT d ]
-
     DEnum(typeName (), typeName (), [], caseName, fields)
 
 
@@ -639,8 +633,6 @@ module KnownType =
           (List.map ValueType.fromDT otherArgs),
         ValueType.fromDT ret
       )
-    | DEnum(_, _, [], "KTDB", [ inner ]) -> KTDB(ValueType.fromDT inner)
-
     | _ -> Exception.raiseInternal "Invalid KnownType" []
 
 
@@ -853,8 +845,6 @@ module Dval =
 
     | DApplicable applicable -> mk "DApplicable" [ Applicable.toDT applicable ]
 
-    | DDB name -> mk "DDB" [ DString name ]
-
     // Inspectable but not round-trippable. The DT form carries only the
     // runtime id; the inline bytes stay on the original DBlob value.
     // `fromDT` raises on this case rather than rebuilding a blob that
@@ -946,8 +936,6 @@ module Dval =
 
     | DEnum(_, _, [], "DApplicable", [ applicable ]) ->
       DApplicable(Applicable.fromDT applicable)
-
-    | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
 
     | DEnum(_, _, [], "DBlobEphemeral", [ DUuid _ ]) ->
       // Reflected ephemeral blobs are inspectable but not round-trippable.

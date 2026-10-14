@@ -604,7 +604,6 @@ and Declaration =
   /// A trailing expression inside a module body (`module M = … \n expr`).
   | DExpr of Expr
   /// `[<DB>] type Name = RowType` — a test DB; an inline record also defines its row type.
-  | DTypeDB of TypeDecl
   /// `actual = expected` assertion accepted only by Test validation.
   | DAssertion of Assertion
 

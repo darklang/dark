@@ -130,7 +130,6 @@ let zonk (subst: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Model.Ty =
   match walk subst ty with
   | TStream inner -> Model.Ty.TStream(zonk subst inner)
   | TList inner -> Model.Ty.TList(zonk subst inner)
-  | TDB inner -> Model.Ty.TDB(zonk subst inner)
   | TTuple(first, second, rest) ->
     Model.Ty.TTuple(
       zonk subst first,
@@ -158,7 +157,6 @@ let substitute (mapping: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Model.Ty =
     | None -> ty
   | TStream inner -> Model.Ty.TStream(substitute mapping inner)
   | TList inner -> Model.Ty.TList(substitute mapping inner)
-  | TDB inner -> Model.Ty.TDB(substitute mapping inner)
   | TTuple(first, second, rest) ->
     Model.Ty.TTuple(
       substitute mapping first,
@@ -183,7 +181,6 @@ let varsInto (found: Dict<Model.Var, Bool>) (ty: Model.Ty) : Dict<Model.Var, Boo
   | TVar v -> Stdlib.Dict.setOverridingDuplicates found v true
   | TStream inner -> varsInto found inner
   | TList inner -> varsInto found inner
-  | TDB inner -> varsInto found inner
   | TTuple(first, second, rest) ->
     Stdlib.List.fold
       rest
@@ -220,7 +217,6 @@ let freeVarsInto
     freeVarsAll subst found rest
   | TDict(key, value) -> freeVarsInto subst (freeVarsInto subst found key) value
   | TStream inner -> freeVarsInto subst found inner
-  | TDB inner -> freeVarsInto subst found inner
   | _ -> found
 
 /// Collect unresolved inference variables from a list of types into the same set.
@@ -240,7 +236,6 @@ let hasError (ty: Model.Ty) : Bool =
   | TError -> true
   | TStream inner -> hasError inner
   | TList inner -> hasError inner
-  | TDB inner -> hasError inner
   | TTuple(first, second, rest) ->
     hasError first
     || hasError second
@@ -273,7 +268,6 @@ let occurs (subst: Dict<Model.Var, Model.Ty>) (v: Model.Var) (ty: Model.Ty) : Bo
     occurs subst v first || occurs subst v second || occursIn subst v rest
   | TDict(key, value) -> occurs subst v key || occurs subst v value
   | TStream inner -> occurs subst v inner
-  | TDB inner -> occurs subst v inner
   | _ -> false
 
 /// Check whether any type in the list contains v, following its substitutions.
@@ -304,7 +298,6 @@ let substituteRigid (mapping: Dict<String, Model.Ty>) (ty: Model.Ty) : Model.Ty 
   | TDict(key, value) ->
     Model.Ty.TDict(substituteRigid mapping key, substituteRigid mapping value)
   | TStream inner -> Model.Ty.TStream(substituteRigid mapping inner)
-  | TDB inner -> Model.Ty.TDB(substituteRigid mapping inner)
   | _ -> ty
 
 /// Replace named type parameters in each list element, preserving element order.
@@ -349,7 +342,6 @@ let headMatches (a: Model.Ty) (b: Model.Ty) : Bool =
   | (TDict(_, _), TDict(_, _)) -> true
   | (TTuple(_, _, _), TTuple(_, _, _)) -> true
   | (TFn(_, _), TFn(_, _)) -> true
-  | (TDB _, TDB _) -> true
   | _ -> a == b
 
 /// Is every part of <param ty> decided, so an implementation can be chosen against it?
@@ -426,9 +418,6 @@ let fromReferenceInto
   | TStream inner ->
     let (inner, found) = fromReferenceInto mapping at found inner
     (Model.Ty.TStream inner, found)
-  | TDB inner ->
-    let (inner, found) = fromReferenceInto mapping at found inner
-    (Model.Ty.TDB inner, found)
   | TTuple(first, second, rest) ->
     let (first, found) = fromReferenceInto mapping at found first
     let (second, found) = fromReferenceInto mapping at found second
@@ -701,7 +690,6 @@ let expandDeep
         | _ -> Stdlib.Result.Result.Ok(Model.Ty.TCustom(name, args))
   | TList inner -> Stdlib.Result.map (one inner) (fun t -> Model.Ty.TList t)
   | TStream inner -> Stdlib.Result.map (one inner) (fun t -> Model.Ty.TStream t)
-  | TDB inner -> Stdlib.Result.map (one inner) (fun t -> Model.Ty.TDB t)
   | TDict(key, value) ->
     match expandDeepAll env subst at seen [ key, value ] [] with
     | Ok [ key, value ] -> Stdlib.Result.Result.Ok(Model.Ty.TDict(key, value))
@@ -817,7 +805,6 @@ let typeVariablesThatReachValues
   | TVariable name -> [ name ]
   | TList inner -> recurse inner
   | TStream inner -> recurse inner
-  | TDB inner -> recurse inner
   | TDict(key, value) -> Stdlib.List.append (recurse key) (recurse value)
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten
@@ -870,7 +857,6 @@ let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTy
   match ty with
   | TFn(_, _) -> false
   | TStream _ -> false
-  | TDB _ -> false
   | TBlob -> false
   | TList inner -> isUsableDictKey env seen inner
   | TDict(key, value) ->
@@ -940,7 +926,6 @@ let isUsableDictKeyReference
   match typ with
   | TFn(_, _) -> false
   | TStream _ -> false
-  | TDB _ -> false
   | TBlob -> false
   | TList inner -> recurse inner
   | TDict(key, value) -> recurse key && recurse value
@@ -1003,7 +988,6 @@ let implApplies (self: Model.Ty) (subject: Model.Ty) : Bool =
 
   | (TList a, TList b) -> implApplies a b
   | (TStream a, TStream b) -> implApplies a b
-  | (TDB a, TDB b) -> implApplies a b
   | (TDict(ak, av), TDict(bk, bv)) -> (implApplies ak bk) && (implApplies av bv)
 
   | (TTuple(a1, a2, aRest), TTuple(b1, b2, bRest)) ->
@@ -1058,7 +1042,6 @@ let toStatic (ty: Model.Ty) : StaticType =
   | TBlob -> StaticType.TBlob
   | TStream inner -> StaticType.TStream(toStatic inner)
   | TList inner -> StaticType.TList(toStatic inner)
-  | TDB inner -> StaticType.TDB(toStatic inner)
   | TTuple(first, second, rest) ->
     StaticType.TTuple(
       toStatic first,

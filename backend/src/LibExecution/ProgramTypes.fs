@@ -382,7 +382,6 @@ type TypeReference =
   /// A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string
 
-  | TDB of TypeReference
 
 
 /// Expressions - the main part of the language.

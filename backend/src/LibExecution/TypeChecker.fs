@@ -448,9 +448,6 @@ let rec unifyValueType
                   | Ok tst -> r tst pathSoFar e a)
                 (Ok tst)
 
-        | TDB innerT, ValueType.Known(KTDB innerV) ->
-          return! r tst pathSoFar innerT innerV
-
         | _, _ -> return Error pathSoFar
       }
 

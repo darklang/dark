@@ -561,7 +561,7 @@ module RT =
         (RT.DDict(
           RT.ValueType.Unknown,
           RT.ValueType.Unknown,
-          Map [ RT.DictKey(RT.DDB "somedb"), RT.DUnit ]
+          Map [ RT.DictKey(RT.DBlob(RT.Persistent("h", 0L))), RT.DUnit ]
         ))
     }
 

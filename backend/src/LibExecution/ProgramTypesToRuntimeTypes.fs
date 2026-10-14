@@ -161,8 +161,6 @@ module TypeReference =
     | PT.TFn(paramTypes, returnType) ->
       RT.TFn(NEList.map toRT paramTypes, toRT returnType)
 
-    | PT.TDB typ -> RT.TDB(toRT typ)
-
   let rec toValueType (t : PT.TypeReference) : RT.ValueType =
     match t with
     | PT.TUnit -> RT.ValueType.Known RT.KTUnit
@@ -211,7 +209,6 @@ module TypeReference =
       RT.ValueType.Known(
         RT.KTFn(NEList.map toValueType paramTypes, toValueType returnType)
       )
-    | PT.TDB typ -> RT.ValueType.Known(RT.KTDB(toValueType typ))
 
 
 module InfixFnName =

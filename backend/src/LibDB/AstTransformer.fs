@@ -250,8 +250,6 @@ let rec private transformTypeRef
   | PT.TList inner -> PT.TList(transformTypeRef mapping inner)
   | PT.TDict(key, value) ->
     PT.TDict(transformTypeRef mapping key, transformTypeRef mapping value)
-  | PT.TDB inner -> PT.TDB(transformTypeRef mapping inner)
-
   | PT.TTuple(first, second, rest) ->
     PT.TTuple(
       transformTypeRef mapping first,
