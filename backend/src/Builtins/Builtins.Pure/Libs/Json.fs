@@ -721,7 +721,8 @@ let parse
     | TVariable _, _
     | TFn _, _
     | TBlob, _
-    | TStream _, _ -> (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
+    | TStream _, _ ->
+      (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
 
 
     // exhaust TypeReferences

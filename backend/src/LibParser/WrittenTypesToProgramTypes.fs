@@ -1246,7 +1246,3 @@ module PackageFn =
           bounds = bounds
           permissionCeiling = ceilingOf fn.effects }
     }
-
-
-
-

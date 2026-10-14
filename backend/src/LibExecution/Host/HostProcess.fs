@@ -12,10 +12,7 @@ open System.Runtime.InteropServices
 
 /// Private CLI entry point. Establish ownership before starting the worker,
 /// including when the caller substitutes a wrapper executable.
-let launchOwnedProcess
-  (program : string)
-  (args : List<string>)
-  : int =
+let launchOwnedProcess (program : string) (args : List<string>) : int =
   if HostPosix.isPosix then
     match HostPosix.execInNewSession program args with
     | Error(_, message) ->

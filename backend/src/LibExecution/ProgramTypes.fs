@@ -1599,6 +1599,3 @@ the package stuff is all a projection of that
 //     name: string
 //     location: Location
 //   }
-
-
-

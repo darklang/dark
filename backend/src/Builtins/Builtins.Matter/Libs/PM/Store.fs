@@ -110,8 +110,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "key" TString "" ]
       returnType = TString
-      description =
-        "Get a local config value (config_v0), or \"\" if unset."
+      description = "Get a local config value (config_v0), or \"\" if unset."
       fn =
         (function
         | _, _, _, [| DString key |] ->
