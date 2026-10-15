@@ -355,6 +355,15 @@ How it works (`Interpreter.Promises`, `LibExecution.Pending`):
   its own error and its call site below the stack, the read inside a container
   rather than the container. A read nothing waits for is waited for at the end
   of the run (`VMState.pendingReads`), and fails the run if it failed.
+- That is the loop's wait (`Promises.settle`). Code that runs under a `Ply`
+  waits through one other, `Interpreter.withValue`: a builtin's arguments
+  (`landWhere`), a lambda's patterns (`landThenRequest`) and a builtin's
+  continuations. It waits again when a read lands as another read, and raises
+  a failed one the same way.
+- A read's host operation is named as the body's first move. Once it has had
+  to wait, the read looks at nothing on the VM, since the process has run on
+  and whatever the VM holds is another builtin's (`performRequested`'s
+  `owns`). So a read's continuation answers a value, never another request.
 - `List.map` holds one read per element; `List.fold` passes its accumulator
   on as it is; a builtin's callback runs under the access the builtin was
   called with.
@@ -507,7 +516,7 @@ nested VM on the host stack, remains for the callers in the Edges section.)
   drives on when it lands.
 - `Interpreter.withValue` is for a continuation that has to look at the
   callable's result (a predicate, a key, a fold's accumulator): it waits for a
-  read still in flight first, through the same wait. `List.map` and its kin
+  read still in flight first. `List.map` and its kin
   carry the result along unlooked-at, so a read in a mapped lambda stays in
   flight and the list comes back as one promise. `filterMap` looks only at
   the case, through the shell, so `Some (get u)` keeps its read in flight.
