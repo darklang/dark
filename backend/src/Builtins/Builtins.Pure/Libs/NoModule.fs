@@ -8,6 +8,8 @@ module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module ValueType = LibExecution.ValueType
 module RTE = RuntimeError
+module Interpreter = LibExecution.Interpreter
+module Pending = LibExecution.Pending
 
 
 // Builtin types cannot express “both operands have the same numeric type,” so
@@ -72,6 +74,43 @@ let powUnsigned (bits : int) (number : bigint) (exp : bigint) : bigint =
   let m = System.Numerics.BigInteger.Pow(bigint 2, bits)
   let r = System.Numerics.BigInteger.ModPow(number, exp, m)
   ((r % m) + m) % m
+
+
+/// `unwrap` of a value with no read in flight at its top.
+let private unwrapLanded (vm : VMState) (dval : Dval) : Ply<Dval> =
+  match dval with
+
+  // Success: extract `Some` out of an Option
+  | DEnum(FQTypeName.Package(Hash id), _, _, "Some", [ value ]) when
+    id = PackageRefs.Type.Stdlib.option ()
+    ->
+    Ply value
+
+  // Success: extract `Ok` out of a Result
+  | DEnum(FQTypeName.Package(Hash id), _, _, "Ok", [ value ]) when
+    id = PackageRefs.Type.Stdlib.result ()
+    ->
+    Ply value
+
+  // Error: expected Some, got None
+  | DEnum(FQTypeName.Package(Hash id), _, _, "None", []) when
+    id = PackageRefs.Type.Stdlib.option ()
+    ->
+    RuntimeError.Unwraps.GotNone |> RuntimeError.Unwrap |> raiseRTE vm.threadID
+
+  // Error: expected Ok, got Error
+  | DEnum(FQTypeName.Package(Hash id), _, _, "Error", [ value ]) when
+    id = PackageRefs.Type.Stdlib.result ()
+    ->
+    RuntimeError.Unwraps.GotError value
+    |> RuntimeError.Unwrap
+    |> raiseRTE vm.threadID
+
+  // Error: single dval, but not an Option or Result
+  | otherDval ->
+    RuntimeError.Unwraps.NonOptionOrResult otherDval
+    |> RuntimeError.Unwrap
+    |> raiseRTE vm.threadID
 
 
 let fns () : List<BuiltInFn> =
@@ -715,49 +754,27 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "unwrap" 0
       typeParams = []
-      parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
+      parameters = [ Param.moved "value" (TVariable "optOrRes") "" ]
       returnType = TVariable "a"
       description =
         "Unwrap an Option or Result, returning the value or raising a RuntimeError if None"
       fn =
         (function
         | _, _, _, [||] -> incorrectArgs ()
-        | _, vm, _, [| dval |] ->
-          match dval with
-
-          // Success: extract `Some` out of an Option
+        | _, vm, _, [| DPromise _ as read |] ->
+          // A `Some` or `Ok` built around a read hands the read inside back through its shell,
+          // still in flight. Anything else is waited for: an error shows the value it got.
+          match Pending.peek read with
           | DEnum(FQTypeName.Package(Hash id), _, _, "Some", [ value ]) when
             id = PackageRefs.Type.Stdlib.option ()
             ->
             Ply value
-
-          // Success: extract `Ok` out of a Result
           | DEnum(FQTypeName.Package(Hash id), _, _, "Ok", [ value ]) when
             id = PackageRefs.Type.Stdlib.result ()
             ->
             Ply value
-
-          // Error: expected Some, got None
-          | DEnum(FQTypeName.Package(Hash id), _, _, "None", []) when
-            id = PackageRefs.Type.Stdlib.option ()
-            ->
-            RuntimeError.Unwraps.GotNone
-            |> RuntimeError.Unwrap
-            |> raiseRTE vm.threadID
-
-          // Error: expected Ok, got Error
-          | DEnum(FQTypeName.Package(Hash id), _, _, "Error", [ value ]) when
-            id = PackageRefs.Type.Stdlib.result ()
-            ->
-            RuntimeError.Unwraps.GotError value
-            |> RuntimeError.Unwrap
-            |> raiseRTE vm.threadID
-
-          // Error: single dval, but not an Option or Result
-          | otherDval ->
-            RuntimeError.Unwraps.NonOptionOrResult otherDval
-            |> RuntimeError.Unwrap
-            |> raiseRTE vm.threadID
+          | _ -> Interpreter.withValue vm read (fun landed -> unwrapLanded vm landed)
+        | _, vm, _, [| dval |] -> unwrapLanded vm dval
 
         // Error: multiple arguments
         | _, vm, _, multipleArgs ->

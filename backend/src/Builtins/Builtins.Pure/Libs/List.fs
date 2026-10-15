@@ -9,6 +9,7 @@ module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
 module Spread = LibExecution.Spread
+module Pending = LibExecution.Pending
 module RTE = RuntimeError
 
 
@@ -62,6 +63,43 @@ let private sortedByKey
     if c <> 0 then c else DvalComparator.compareDvalInt v1 v2)
   |> List.map (fun (struct (_, v)) -> v)
   |> fun l -> DList(vt, l)
+
+
+/// `sortedByKey`, for elements that may be reads in flight. The tie-break compares elements, so
+/// one whose key ties another's is waited for first; every other element stays in flight.
+let private sortedByKeyLanding
+  (vm : VMState)
+  (vt : ValueType)
+  (keyed : List<struct (Dval * Dval)>)
+  : Ply<Dval> =
+  if not (List.exists (fun (struct (_, v)) -> Pending.isPromise v) keyed) then
+    Ply(sortedByKey vt keyed)
+  else
+    let entries = Array.ofList keyed
+    let keyAt i =
+      let (struct (k, _)) = entries[i]
+      k
+    let byKey =
+      Array.init entries.Length (fun i -> i)
+      |> Array.sortWith (fun a b ->
+        DvalComparator.compareDvalInt (keyAt a) (keyAt b))
+    let tied = Array.zeroCreate<bool> entries.Length
+    for j in 1 .. byKey.Length - 1 do
+      if DvalComparator.compareDvalInt (keyAt byKey[j - 1]) (keyAt byKey[j]) = 0 then
+        tied[byKey[j - 1]] <- true
+        tied[byKey[j]] <- true
+    let rec landTied (i : int) : Ply<Dval> =
+      if i = entries.Length then
+        Ply(sortedByKey vt (List.ofArray entries))
+      else
+        match entries[i] with
+        | struct (k, (DPromise _ as v)) when tied[i] ->
+          Interpreter.withValue vm v (fun landed ->
+            entries[i] <- struct (k, landed)
+            // Again on the same element: what landed may be a read too.
+            landTied i)
+        | _ -> landTied (i + 1)
+    landTied 0
 
 
 /// The result of a `map`: its element type comes from the values the lambda returned.
@@ -312,7 +350,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "listSortBy" 0
       typeParams = []
       parameters =
-        [ Param.make "list" (TList varA) ""
+        [ Param.moved "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "elem" ] ]
       returnType = TList varA
       description =
@@ -337,7 +375,7 @@ let fns () : List<BuiltInFn> =
               Interpreter.withValue vm key (fun key ->
                 keyed <- struct (key, current) :: keyed
                 match rest with
-                | [] -> Ply(sortedByKey vt (List.rev keyed))
+                | [] -> sortedByKeyLanding vm vt (List.rev keyed)
                 | elem :: elemTail ->
                   current <- elem
                   rest <- elemTail
@@ -376,37 +414,43 @@ let fns () : List<BuiltInFn> =
             let mutable acc = []
             let mutable rest = tail
             let probe = Spread.probe state vm app
+            // Only the case is looked at, so an answer built around a read (`Some (get x)`) is
+            // matched through its shell and the read inside stays in flight. Anything else is
+            // waited for: it is either an Option once it lands or an error that shows it.
             let rec next (answer : Dval) : Ply<Dval> =
-              Interpreter.withValue vm answer (fun answer ->
-                match answer with
-                | DEnum(_, _, _, "Some", [ v ]) -> acc <- v :: acc
-                | DEnum(_, _, _, "None", []) -> ()
-                | other -> raiseRTE vm.threadID (notAnOption other)
-                match rest with
-                | [] -> Ply(mappedList vm (List.rev acc))
-                | elem :: elemTail ->
-                  if not (isNull probe) && probe.Ask rest then
-                    probe.Stop()
-                    uply {
-                      let! spread =
-                        Spread.run
-                          state
-                          vm
-                          "listFilterMap"
-                          (fun _ chunk -> [ DList(vt, chunk) ])
-                          app
-                          probe.PerElement
-                          rest
-                      acc <- List.rev spread.results @ acc
-                      match spread.leftover with
-                      | [] -> return mappedList vm (List.rev acc)
-                      | elem :: elemTail ->
-                        rest <- elemTail
-                        return! Interpreter.requestApply vm app elem [] next
-                    }
-                  else
-                    rest <- elemTail
-                    Interpreter.requestApply vm app elem [] next)
+              match Pending.peek answer with
+              | DEnum(_, _, _, ("Some" | "None"), _) as shell -> step shell
+              | _ -> Interpreter.withValue vm answer step
+            and step (answer : Dval) : Ply<Dval> =
+              match answer with
+              | DEnum(_, _, _, "Some", [ v ]) -> acc <- v :: acc
+              | DEnum(_, _, _, "None", []) -> ()
+              | other -> raiseRTE vm.threadID (notAnOption other)
+              match rest with
+              | [] -> Ply(mappedList vm (List.rev acc))
+              | elem :: elemTail ->
+                if not (isNull probe) && probe.Ask rest then
+                  probe.Stop()
+                  uply {
+                    let! spread =
+                      Spread.run
+                        state
+                        vm
+                        "listFilterMap"
+                        (fun _ chunk -> [ DList(vt, chunk) ])
+                        app
+                        probe.PerElement
+                        rest
+                    acc <- List.rev spread.results @ acc
+                    match spread.leftover with
+                    | [] -> return mappedList vm (List.rev acc)
+                    | elem :: elemTail ->
+                      rest <- elemTail
+                      return! Interpreter.requestApply vm app elem [] next
+                  }
+                else
+                  rest <- elemTail
+                  Interpreter.requestApply vm app elem [] next
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       previewable = Pure
