@@ -135,5 +135,9 @@ cd "$REPO_ROOT"
 
 echo ""
 echo "Installation complete!"
-echo "Restart your terminal or run: source ~/.bashrc (or ~/.zshrc)"
+case "${SHELL##*/}" in
+  zsh) echo "Restart your terminal or run: source ~/.zshrc" ;;
+  bash) echo "Restart your terminal or run: source ~/.bashrc" ;;
+  *) echo "Restart your terminal to load the updated PATH." ;;
+esac
 echo "Then you can use the 'dark' command globally."

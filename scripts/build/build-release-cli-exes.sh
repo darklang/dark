@@ -256,6 +256,8 @@ if [[ -n "$SEED_PATH" ]]; then
     cp "$SEED_PATH" rundir/seed.db
   fi
 else
+  # Export from this checkout, not from an older LocalExec or package store.
+  scripts/dev/build
   echo "Exporting seed for embedding..."
   sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
   scripts/run-local-exec export-seed rundir/seed.db

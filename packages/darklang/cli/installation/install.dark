@@ -29,10 +29,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
           state
         | Error e ->
           Stdlib.printLine (View.formatError e)
-          state
+          { state with exitCode = 1 }
       | Error e ->
         Stdlib.printLine (View.formatError $"Uninstall failed: {e}")
-        state
+        { state with exitCode = 1 }
     else
       Stdlib.printLine (View.formatSuccess "Already installed globally")
       state
@@ -53,10 +53,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
             state
           | Error e ->
             Stdlib.printLine (View.formatError e)
-            state
+            { state with exitCode = 1 }
         | Error e ->
           Stdlib.printLine (View.formatError $"Uninstall failed: {e}")
-          state
+          { state with exitCode = 1 }
       else
         let homeDir = Config.getDarklangHomeDir host
         let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `dark` rather than this portable executable.\n\nOr use --uninstall-if-installed to replace the existing installation."
@@ -80,7 +80,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           state
         | Error e ->
           Stdlib.printLine (View.formatError e)
-          state
+          { state with exitCode = 1 }
       else
         Stdlib.printLine "Installing globally..."
         match Installation.System.install host autoConfirm with
@@ -89,7 +89,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           state
         | Error e ->
           Stdlib.printLine (View.formatError e)
-          state
+          { state with exitCode = 1 }
 
 
 let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
