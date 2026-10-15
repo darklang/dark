@@ -96,8 +96,7 @@ let private sortedByKeyLanding
         | struct (k, (DPromise _ as v)) when tied[i] ->
           Interpreter.withValue vm v (fun landed ->
             entries[i] <- struct (k, landed)
-            // Again on the same element: what landed may be a read too.
-            landTied i)
+            landTied (i + 1))
         | _ -> landTied (i + 1)
     landTied 0
 

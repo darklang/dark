@@ -1256,6 +1256,51 @@ let private unwrapErrorShowsTheLandedValue =
     | other -> failtest $"expected GotError \"boom\", got {other}"
   }
 
+let private readsHostCallIsNotTheProcesssWait =
+  testTask "a GET in flight is not what a process parked on something else waits on" {
+    // A read's host call is handed back as a promise and the process runs on, so `ps` names
+    // what the process is actually parked on, not the GET. The test config lets a guest reach
+    // loopback by IP, and `*.localhost` is the name that resolves there.
+    installTestHttpConfig ()
+    let listener =
+      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+    listener.Start()
+    let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+    let received = TaskCompletionSource<unit>()
+    let answer = TaskCompletionSource<unit>()
+    let serving =
+      task {
+        use! client = listener.AcceptTcpClientAsync()
+        let stream = client.GetStream()
+        let buffer = Array.zeroCreate<byte> 4096
+        let! _ = stream.ReadAsync(buffer, 0, buffer.Length)
+        received.SetResult()
+        do! answer.Task
+        let response =
+          "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"B
+        do! stream.WriteAsync(response, 0, response.Length)
+      }
+    try
+      let! result =
+        runWith $"""let r = Stdlib.HttpClient.get "http://test.dlio.localhost:{port}/" []
+let x = Builtin.testRead 311L
+(x + 0L, Stdlib.Result.isOk r)""" (fun p ->
+          waitFor "the GET to reach the server" (fun () ->
+            received.Task.IsCompleted)
+          waitFor "the process to park on the read" (fun () -> isParked p)
+          match p.status with
+          | Scheduler.Parked(Scheduler.OnHost op) ->
+            failtest $"ps names the GET in flight as the wait: {op}"
+          | _ -> ()
+          Gates.release 311L
+          answer.SetResult())
+      expectValue (RT.DTuple(RT.DInt64 311L, RT.DBool true, [])) result
+      do! serving
+    finally
+      answer.TrySetResult() |> ignore<bool>
+      listener.Stop()
+  }
+
 let private dictValueOfTheWrongTypeRaises =
   testTask
     "a read set into a dict raises where it is waited for if its type is wrong" {
@@ -2137,6 +2182,7 @@ let tests =
         streamMapCarriesReads
         unwrapHandsBackTheReadInside
         unwrapErrorShowsTheLandedValue
+        readsHostCallIsNotTheProcesssWait
         dictValueOfTheWrongTypeRaises
         unlookedReadFailsTheRunAtItsEnd
         denialRaisesAtTheCall

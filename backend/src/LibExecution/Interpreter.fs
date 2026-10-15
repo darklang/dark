@@ -1120,11 +1120,19 @@ let inline private hostRequested (vm : VMState) : bool =
 /// from the loop rather than from inside the body: every host effect crosses that one line,
 /// `ps` can say which operation a process waits on, and the body is a value again. `next` may
 /// name another operation, or ask for an apply (`requestApply`); it is driven the same way.
+/// Except in a read: a read names its operation as its first move, and its `next` answers a
+/// value (`performRequested`).
 let requestHost
   (vm : VMState)
   (op : HostTypes.Operation)
   (next : Result<HostTypes.Response, HostTypes.Failure> -> Ply<Dval>)
   : Ply<Dval> =
+  // Only one is ever pending, since the interpreter takes it as soon as the body returns. Another
+  // still here is a request nobody took, which would be performed for the wrong builtin.
+  if not (obj.ReferenceEquals(vm.pendingHostOp, null)) then
+    Exception.raiseInternal
+      "a host operation was named while another was still pending"
+      [ "pending", vm.pendingHostOp; "named", op ]
   vm.pendingHostOp <- op
   vm.pendingHostNext <- next
   Ply DUnit
@@ -1132,9 +1140,16 @@ let requestHost
 /// Perform the host operation a body or continuation named, and drive its continuation: a
 /// further operation is performed in turn; the answer is what the body would have returned.
 /// `out` is the placeholder when a request is pending, and is handed back untouched otherwise.
+///
+/// `owns` says the process waits for this call. A read's does not: its wait is handed back as a
+/// promise and the process runs on, so once the operation has had to wait, nothing about it is
+/// written to the VM or read off it. What the VM holds then belongs to whatever the process is
+/// running now. So a read's continuation answers a value and never names another operation,
+/// which no read does.
 let rec private performRequested
   (exeState : ExecutionState)
   (vm : VMState)
+  (owns : bool)
   (out : Ply<Dval>)
   : Ply<Dval> =
   if hostRequested vm then
@@ -1145,8 +1160,8 @@ let rec private performRequested
     let performed =
       PermissionCheck.performHostWithAccess exeState vm vm.activeAccess op
     match Ply.trySync performed with
-    | ValueSome outcome -> performRequested exeState vm (next outcome)
-    | ValueNone ->
+    | ValueSome outcome -> performRequested exeState vm owns (next outcome)
+    | ValueNone when owns ->
       vm.hostInflight <- op
       uply {
         // Cleared on the way out however it goes. A denied or rejected operation raises from
@@ -1159,32 +1174,46 @@ let rec private performRequested
             finally
               vm.hostInflight <- Unchecked.defaultof<_>
           }
-        return! performRequested exeState vm (next outcome)
+        return! performRequested exeState vm owns (next outcome)
+      }
+    | ValueNone ->
+      uply {
+        let! outcome = performed
+        return! next outcome
       }
   else
     out
 
 
-/// For a builtin's continuation that has to look at the callable's result: `k` with the value,
-/// waiting for a read still in flight first (the interpreter parks the process on the wait and
-/// drives on when it lands). A continuation that only carries the result along (`List.map`) does
-/// not need this and keeps the read in flight.
-let withValue (vm : VMState) (dv : Dval) (k : Dval -> Ply<Dval>) : Ply<Dval> =
+/// `k` with `dv` once it is a value, for code that runs under a `Ply` (a builtin's
+/// continuation, a builtin's arguments, a lambda's patterns): a read in flight is waited for
+/// (the interpreter parks the process on the wait and drives on when it lands), and waited for
+/// again if what lands is a read too; a failed one raises here, naming the read below the
+/// stack. The interpreter loop's own wait is `Promises.settle`, which has no `Ply` to wait in.
+/// A continuation that only carries a result along (`List.map`) does not need this and keeps
+/// the read in flight.
+let rec withValue (vm : VMState) (dv : Dval) (k : Dval -> Ply<'a>) : Ply<'a> =
   match dv with
   | DPromise p ->
-    uply {
-      // Landed one way or the other, without the await itself throwing, so the read's failure
-      // is raised here, naming the read below the stack, and `k`'s own failures are its own.
-      let! landed =
-        p.Task.ContinueWith(
-          (fun (t : Task<Dval>) -> t),
-          TaskContinuationOptions.ExecuteSynchronously
-        )
-      if landed.IsCompletedSuccessfully then
-        return! k landed.Result
-      else
-        return raiseReadFailure vm p landed
-    }
+    let t = p.Task
+    if t.IsCompletedSuccessfully then
+      withValue vm t.Result k
+    elif t.IsCompleted then
+      raiseReadFailure vm p t
+    else
+      uply {
+        // Landed one way or the other, without the await itself throwing, so the read's
+        // failure is raised here and `k`'s own failures are its own.
+        let! landed =
+          t.ContinueWith(
+            (fun (t : Task<Dval>) -> t),
+            TaskContinuationOptions.ExecuteSynchronously
+          )
+        if landed.IsCompletedSuccessfully then
+          return! withValue vm landed.Result k
+        else
+          return raiseReadFailure vm p landed
+      }
   | v -> k v
 
 
@@ -1483,7 +1512,15 @@ let private invokeBuiltin
     let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
     // A body that named a host operation: performed here, its continuation driven; what comes
     // back is the body's real result, waited for like any other.
-    let body = performRequested exeState vm body
+    let body =
+      if hostRequested vm then
+        performRequested
+          exeState
+          vm
+          (not (Effects.readsOnly fn.name.name fn.callEffects))
+          body
+      else
+        body
 
     // `finishBuiltin` is top-level rather than a local closing over the eight values it needs, for the
     // same reason `completeBuiltin` is: the fallback arm below is a `uply`, so a local would be captured
@@ -1512,19 +1549,20 @@ let private invokeBuiltin
       // frame run on and refill it before this completes, so the trace would record the wrong
       // arguments; copy when they will be recorded.
       let allArgs = if recording then Array.copy allArgs else allArgs
+      // A read's wait may have been handed back as a promise that lands on another thread while
+      // the VM runs on, mid-way through some other builtin. So once it has waited it looks at
+      // nothing on the VM: a request there is that builtin's, not this one's (`performRequested`).
+      let owns = not (Effects.readsOnly fn.name.name fn.callEffects)
       uply {
         let! result = body
         // A host operation named after the body's first wait (a request read, then a file):
         // performed now, and its continuation's answer is the result.
         let! result =
-          if hostRequested vm then
-            performRequested exeState vm (Ply result)
+          if owns && hostRequested vm then
+            performRequested exeState vm true (Ply result)
           else
             Ply result
-        // A read never asks for an apply, and its wait may have been handed back as a promise
-        // that lands on another thread while the VM runs on, mid-way through some other
-        // builtin's callback chain. So a request on the VM then is that builtin's, not this one's.
-        if requested vm && not (Effects.readsOnly fn.name.name fn.callEffects) then
+        if owns && requested vm then
           // A request after the body's first wait (a stream that pulled from the network, then
           // has its transform to apply). The call site has moved on; the landing site, where
           // this result would have gone into the register, pushes the frame instead
@@ -1696,8 +1734,8 @@ let private argsHoldPromise (ctx : ApplyContext) : bool =
     | ValueSome(struct (dv, rest)) -> Pending.isPromise dv || inSeq rest
   List.exists Pending.isPromise ctx.applicable.argsSoFar || inSeq ctx.args
 
-/// `xs` as `asIs` says, waiting in order for each read it answers `ValueNone` for (by
-/// position from `i`). A failed read raises at its turn, naming the read.
+/// `xs` as `asIs` says, waiting in order (`withValue`) for each read it answers `ValueNone` for
+/// (by position from `i`). A failed read raises at its turn, naming the read.
 let rec private landWhere
   (vm : VMState)
   (asIs : int -> Dval -> Dval voption)
@@ -1710,19 +1748,8 @@ let rec private landWhere
   | x :: rest ->
     match asIs i x, x with
     | ValueSome v, _ -> landWhere vm asIs (i + 1) (v :: acc) rest
-    | ValueNone, DPromise p ->
-      uply {
-        let! t =
-          p.Task.ContinueWith(
-            (fun (t : Task<Dval>) -> t),
-            TaskContinuationOptions.ExecuteSynchronously
-          )
-        // Round again on the same position: what landed may be a promise too.
-        if t.IsCompletedSuccessfully then
-          return! landWhere vm asIs i acc (t.Result :: rest)
-        else
-          return raiseReadFailure vm p t
-      }
+    | ValueNone, DPromise _ ->
+      withValue vm x (fun landed -> landWhere vm asIs i acc (landed :: rest))
     | ValueNone, _ -> landWhere vm asIs (i + 1) (x :: acc) rest
 
 
@@ -3434,7 +3461,7 @@ and private drive
   : ApplyOutcome =
   // A continuation that named a host operation: performed, and what its continuation answers
   // is driven in its place (rare: the ordinary answer is a value or an apply request).
-  let out = if hostRequested vm then performRequested exeState vm out else out
+  let out = if hostRequested vm then performRequested exeState vm true out else out
   match Ply.trySync out with
   | ValueSome dv ->
     if requested vm then
