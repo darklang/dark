@@ -54,8 +54,9 @@ let forKind (kind: String) : String =
 
 
 /// The order a listing shows kinds in: what a module IS, then what it does, then the traits
-/// over them, then the tests of it. One place, so `dark ls`, `dark tree` and the workbench
-/// cannot drift apart; they did, and fixing it meant the same edit in three files.
+/// over them, then the tests of it. `dark ls` and the workbench's item page read it from here.
+/// `dark tree` and the workbench's Code list (`moduleRows`) still spell their own order, with
+/// traits before values and fns, so they can drift from this one until they read it too.
 val kindOrder = [ "module", "type", "fn", "val", "trait", "impl", "test" ]
 
 

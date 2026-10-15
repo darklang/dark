@@ -126,7 +126,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         // which breaks the string-eval form of serve; applicableByName sidesteps it.
         // TODO(serve-parser): fix the underlying parser (NI-literal in argument position) — pre-existing platform bug.
         // Resolve BEFORE announcing "Listening" so a bad router name reports cleanly, never a false start.
-        // This resolved VALUE is the whole router only under `--no-live`; the live server holds the
+        // This resolved VALUE is the whole router without `--live`; the live server holds the
         // location and resolves per request, and uses this one for the bind-time approval root.
         match Stdlib.Live.applicableByName state.currentBranchId parsed.routerPath with
         | Ok router ->

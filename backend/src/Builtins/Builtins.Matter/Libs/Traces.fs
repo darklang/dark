@@ -446,7 +446,7 @@ let fns () : List<BuiltInFn> =
         [ Param.make "traceLimit" TInt "Aggregate over the last N traces (e.g. 100)" ]
       returnType = TList(TTuple(TString, TInt, [ TInt; TInt ]))
       description =
-        "Aggregate fn-call timing across the last N traces. Returns (fnName, callCount, totalMs, maxMs) tuples sorted by totalMs desc. Lambdas are excluded (no fn_hash to bucket by); builtins included but always have 0ms duration."
+        "Aggregate fn-call timing across the last N traces. Returns (fnName, callCount, totalMs, maxMs) tuples sorted by totalMs desc. Lambdas are excluded (no fn_hash to bucket by); builtins included, with their measured duration."
       fn =
         (function
         | _, vm, _, [| DInt traceLimitArg |] ->

@@ -320,13 +320,9 @@ gate_reload_is_reproducible() {
 # through `addAuthored` with that op already in it.
 #
 # The property is "the checker and dispatch agree about which implementations APPLY". This gate
-# covers one way that has been broken, a deprecated implementation. There is a second, known and
-# NOT covered here: the checker matches an implementation by the head of its self type and the
-# runtime matches the type arguments too, so with `impl T for Option<Int64>` and
-# `impl T for Option<String>` the save pins whichever was authored LATER rather than the one that
-# fits, and the call then raises against a save that was green. A case for that belongs here, with
-# the fix, rather than in a gate of its own: one gate named for the property, a case per way it has
-# been broken, or the next instance needs a third name and nobody can find where the property lives.
+# has a case per way it has been broken: a deprecated implementation, and type arguments (the
+# checker once matched an implementation by the head of its self type alone). The next way it
+# breaks gets a case here too, not a gate of its own.
 gate_trait_checker_vs_dispatch() {
   set -euo pipefail
 

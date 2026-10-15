@@ -596,7 +596,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | Ok n -> Cli.TraceVerbs.fork prefix (Stdlib.Option.Option.Some n)
       | Error _ ->
         Cli.printErr
-          $"--at wants a position from the `pos` column of `traces inspect`, not {at}"
+          $"--at wants a step number, as `traces inspect` numbers its calls, not {at}"
         false
     Cli.exitWith state ok
   | [ "pin", prefix ] -> Cli.exitWith state (Cli.TraceVerbs.pin prefix true)
@@ -908,9 +908,6 @@ let executeListByFn
         state
 
 
-/// `traces hotspots [limit]` — across the last <limit> traces (default 100),
-/// aggregate per-fn timing: call count, total ms, max ms. Sort by total ms
-/// descending. The "where is my time going?" view.
 /// `traces fns [n] [--all]` -- which functions recent runs went through, most first.
 ///
 /// The other direction from `traces calls <fn>`. That one needs a function in mind; this one is
@@ -1057,6 +1054,9 @@ let executeFnCountsJson
     state
 
 
+/// `traces hotspots [limit]`: across the last <limit> traces (default 100), the time spent
+/// in each logged call: count, total ms, max ms, sorted by total. Only impure calls are
+/// logged, so every name it prints is a builtin.
 let executeHotspots
   (state: Cli.AppState)
   (traceLimit: Int)
@@ -1077,14 +1077,14 @@ let executeHotspots
       Stdlib.printLine
         $"Hotspots (last {Stdlib.toString traceLimit} traces, top {Stdlib.toString fnCount} {fnWord} by total ms):"
       Stdlib.printLine ""
-      Stdlib.printLine "  total ms │   max ms │ count │ fn"
-      Stdlib.printLine "  ─────────┼──────────┼───────┼─────────────────────────"
+      Stdlib.printLine "   total ms    max ms  count  fn"
+      Stdlib.printLine "  ---------  --------  -----  -------------------------"
       Stdlib.List.iter rows (fun row ->
         let (name, count, total, max) = row
         let totalStr = padNum total 9
         let maxStr = padNum max 8
         let countStr = padNum count 5
-        Stdlib.printLine $"  {totalStr} │ {maxStr} │ {countStr} │ {name}")
+        Stdlib.printLine $"  {totalStr}  {maxStr}  {countStr}  {name}")
       state
 
 
@@ -1162,7 +1162,7 @@ let executeFindJson
     state
 
 
-/// `traces find <pattern> --log` -- search-then-drill in one step: the newest matching run,
+/// `traces find <pattern> --inspect` -- search-then-drill in one step: the newest matching run,
 /// rendered as `traces inspect` would. If several match, the others are noted and you get the
 /// freshest.
 let executeFindInspect (state: Cli.AppState) (pattern: String) : Cli.AppState =
@@ -1543,7 +1543,7 @@ let formatFnCalls
 
 /// `traces inspect <trace> [flags]` -- one trace: what it was, what it answered, where it stands, and
 /// the sequence of impure calls it made. The ONE renderer for a single run, which is why `tail`
-/// and `find --log` come through here rather than printing their own: two renderers for one
+/// and `find --inspect` come through here rather than printing their own: two renderers for one
 /// thing drift.
 let executeInspect
   (state: Cli.AppState)
@@ -1910,7 +1910,7 @@ let help (_state: Cli.AppState) : String =
     "`--json` works on every verb that prints something: list, inspect, show, calls, find, stats,"
     "hotspots and follow. `dark ps --json` too."
     ""
-    "Flags for `inspect` and `tail`, combinable:"
+    "Flags for `inspect`, combinable:"
     "  --filter <pattern>            only logged calls whose name matches it"
     "  --exclude <pattern>           the ones whose name does not"
     "  --slow | --slow-ms <n>        only calls that took over 10ms, or over <n>ms"

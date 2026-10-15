@@ -47,6 +47,11 @@ builtin type already has implementations. Yours join with one `impl`.
   a missing check rather than a way around permissions. `docs permissions` has the
   effect names.
 
+  An implementation is checked against its trait when you save it: a method left
+  out, or one the trait does not declare, is `[ImplMethodSet]`; a method with the
+  wrong signature is `[ImplMethodSignature]`. Either is saved as a draft, and
+  `commit` refuses it.
+
 ## Bound a type parameter
   let describe<'a: ToString> (v: 'a) : String = "value: " + v.toString
   let biggest<'a: Compare + ToString> (xs: List<'a>) : String = ...
@@ -89,7 +94,8 @@ builtin type already has implementations. Yours join with one `impl`.
   Add Subtract Multiply Divide Modulo Power Negate    the operators `+ - * / % **` and `-x`
   BitwiseAnd BitwiseOr BitwiseXor BitwiseNot     `& | ^` and `~x`
   ShiftLeft ShiftRight                        `<<` and `>>`
-  Compare                            `< <= > >=`; also `Stdlib.max`, `min`, `clamp`
+  Compare                            `< <= > >=`; also `Stdlib.max`, `min`, `clamp`,
+                                     `abs`, and `List.sort` on a type of yours
   ToString                       `x.toString`, `Stdlib.toString x`
   Zero, One                      `Zero.zero<Int64> ()`; `Stdlib.sum seed xs` and
                                  `product seed xs` take a seed, so summing an
@@ -97,12 +103,15 @@ builtin type already has implementations. Yours join with one `impl`.
 
   Every builtin numeric type implements the arithmetic, comparison and bitwise
   operators; String implements Add (`"a" + "b"`) and Compare, so `"a" < "b"` works;
-  Char and DateTime implement Compare too.
+  Char and DateTime implement Compare too. Zero also covers String, List and Dict
+  (`""`, `[]`, `Dict { }`).
 
-  Two things worth knowing. Your own `impl Add for Int64` is stored, and a call on
-  two operands of one builtin numeric type does not reach it: those are added
-  directly. And `==` is not a trait: equality is structural for every value and no
-  type can say otherwise.
+  Two things worth knowing. Your own implementation of a stdlib trait for a builtin
+  type is stored, and whether it runs depends on the operator: `+ - *` and the
+  comparisons on two values of one builtin numeric type, and `-x` on one, are
+  answered directly and never reach it, while `/ % **`, the bitwise operators and
+  `toString` dispatch, so new calls run yours. And `==` is not a trait: equality
+  is structural for every value and no type can say otherwise.
   `docs operators` has the operator table.
 
 ## Which implementation a call runs
@@ -152,6 +161,9 @@ builtin type already has implementations. Yours join with one `impl`.
 
   Zero.zero has no argument to read a type from, so it cannot tell which type
   you mean. Name it: `Zero.zero<Int64> ...`
+
+  Int64 has more than one `describe`: 2 traits declare it. Say which one you mean,
+  as `SomeTrait.describe value`
 
   Cannot perform numeric operation on Int64 and Float
       both operands of an operator must be the same type"""

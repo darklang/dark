@@ -25,7 +25,7 @@ test clamp =
 test negate =
   Stdlib.Test.all
     [ (--5Q) |> Stdlib.Test.equal 5Q
-      (-5Q) |> Stdlib.Test.equal -5Q
+      (-(5Q)) |> Stdlib.Test.equal -5Q
       (-0Q) |> Stdlib.Test.equal 0Q
       (--0Q) |> Stdlib.Test.equal 0Q
       (--170141183460469231731687303715884105728Q)

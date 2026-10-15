@@ -77,10 +77,6 @@ module FQTraitName =
 
   type FQTraitName = Package of Package
 
-  let package (h : string) : Package = Hash h
-
-  let fqPackage (h : string) : FQTraitName = Package(Hash h)
-
 
 /// A Fully-Qualified Value Name
 ///

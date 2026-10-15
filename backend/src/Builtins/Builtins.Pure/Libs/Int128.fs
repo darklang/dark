@@ -127,9 +127,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO: add power function
-
-
     { name = fn "int128Power" 0
       typeParams = []
       parameters = [ Param.make "base" TInt128 ""; Param.make "exponent" TInt128 "" ]

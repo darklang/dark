@@ -6,7 +6,7 @@
 #
 #   scripts/perf/gate              the debug build's allocation, reported but NOT gated
 #   scripts/perf/gate --published  against the published one, as CI does. This is the gate.
-#   scripts/perf/gate --update     rewrite the published budget to what it measures
+#   scripts/perf/gate --published --update   rewrite the published budget to what it measures
 #
 # Allocation, not time: it doesn't care how loaded the machine is. It is not byte-identical either --
 # see docs/perf/playbook.md for the noise floor.
@@ -144,5 +144,5 @@ if measured > ceiling:
 
 if measured < limit * (1 - tolerance):
     under = (1 - measured / limit) * 100
-    print(f"{under:.1f}% under budget -- lower it with `scripts/perf/gate --update`.")
+    print(f"{under:.1f}% under budget -- lower it with `scripts/perf/gate --published --update`.")
 PY

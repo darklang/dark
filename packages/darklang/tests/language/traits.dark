@@ -391,10 +391,14 @@ module Rendering =
       [ Stdlib.min "apple" "banana" |> Stdlib.Test.equal "apple"
         Stdlib.max 'a' 'z' |> Stdlib.Test.equal 'z' ]
 
-  // A type with no Compare implementation is what the bound refuses
+  // Limits in either order; a value outside them comes back as the nearer one
   test clamp =
-    Stdlib.clamp 15 20 10 |> Stdlib.Test.equal 15
+    Stdlib.Test.all
+      [ Stdlib.clamp 15 20 10 |> Stdlib.Test.equal 15
+        Stdlib.clamp 25 20 10 |> Stdlib.Test.equal 20
+        Stdlib.clamp 5 10 20 |> Stdlib.Test.equal 10 ]
 
+  // A type with no Compare implementation is what the bound refuses
   test minOnBoolRaises =
     Stdlib.min true false
     => raises

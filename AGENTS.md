@@ -279,7 +279,7 @@ So two rules, and the second is the one that saves you:
 ### Processes and live programming
 
 `docs/processes.md` is the scheduler: what a process is, the loop, reads in flight, `Exec.spawn`,
-executions (resume, fork, export), `dark ps`. `docs/live.md` is live programming: the host loop,
+executions (resume, fork), `dark ps`. `docs/live.md` is live programming: the host loop,
 `serve` following edits, the `Node` tree, live values. `dark docs processes` and `dark docs live`
 are the short forms.
 
@@ -609,30 +609,30 @@ op log directly.
 
 ## Traits
 
-A trait is a package item (`PT.Trait`: type params, bounds, method signatures with
-optional ceilings); an impl is a package item (`PT.TraitImpl`: the trait, its type args,
-the self type, own params and bounds, methods as `(name, fn)` pairs). Two ops,
-`AddTrait` and `AddTraitImpl`; two tables, `package_traits` and `package_trait_impls(trait_hash)`;
-`FQTraitName` for references; binary format v4. The parser lowers `trait`/`impl` in
-`SourceFile.items` (F#) and `implWithOps` (Dark); both must agree on the impl's member
-path `<module>[.<Type>].<Trait>`, with the method fns as ordinary fns beneath it.
-Dispatch candidates come off the index (`PT2RT.ImplCandidate.ofPackageManager`),
-selection is `Traits.fs`, the checker validates traits and impls in `AtRestTypeChecker`
-(`ImplMethodSet`, `ImplMethodSignature`, `ImplExceedsCeiling`). The operators are the
-stdlib traits (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through
-`NumericTraits.fs`, whose hashes come from `PackageRefs.Trait`, so a new operator trait
-needs a ref and a regenerated `package-ref-hashes.txt`. `==` and `!=` are NOT traits: equality is
-structural for every value and lowers to its builtin. A type
-cannot override it, which is what keeps `List.member`, `List.unique`, `List.sort` and
-dict keys meaning the same thing as `==` -- dict keys have to be structural anyway, since
-F# hashes them inside its own `Map`. `Zero.zero`/`One.one` dispatch from an
-explicit type arg or the caller's bound, so a call to the impl fn clears the trait's
-type args first.
+A trait is a package item (`PT.Trait`: type params, bounds, method signatures with optional
+ceilings); an impl is a package item (`PT.TraitImpl`: the trait, its type args, the self
+type, own params and bounds, methods as `(name, fn)` pairs). Two ops, `AddTrait` and
+`AddTraitImpl`; two tables, `package_traits` and `package_trait_impls(trait_hash)`;
+`FQTraitName` for references; binary format v3 (`BaseFormat.fs` lists every version since).
+The parser lowers `trait`/`impl` in `SourceFile.items` (F#) and `implWithOps` (Dark); both
+must agree on the impl's member path `<module>[.<Type>].<Trait>`, with the method fns as
+ordinary fns beneath it. Dispatch candidates come off the index
+(`PT2RT.ImplCandidate.ofPackageManager`), selection is `Traits.fs`, the checker validates
+traits and impls in `AtRestTypeChecker` (`ImplMethodSet`, `ImplMethodSignature`;
+`ImplExceedsCeiling` is declared and not checked yet). The operators are the stdlib traits
+(`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through `NumericTraits.fs`, whose
+hashes come from `PackageRefs.Trait`, so a new operator trait needs a ref and a regenerated
+`package-ref-hashes.txt`. `==` and `!=` are NOT traits: equality is structural for every
+value and lowers to its builtin. A type cannot override it, which is what keeps
+`List.member`, `List.unique`, `List.sort` and dict keys meaning the same thing as `==` --
+dict keys have to be structural anyway, since F# hashes them inside its own `Map`.
+`Zero.zero`/`One.one` dispatch from an explicit type arg or the caller's bound, so a call to
+the impl fn clears the trait's type args first.
 
 **A trait call stores the implementation it resolved to.** `FQFnName.TraitMethod` carries
 `implFn`, the fn the chosen implementation names for that method, as a located reference;
 `EInfix` carries the same for an operator. It is written by `resolveTraitCalls`
-(`Builtins.Matter/Libs/PM/AtRestTypeChecker.fs`), which runs inside `addAuthored` BEFORE
+(`Builtins.Matter/Libs/PM/TraitCalls.fs`), which runs inside `addAuthored` BEFORE
 `stabilizeHashes`, since the choice is part of what the item is: the at-rest checker says which
 implementations apply at each call node (`Proof.resolutions`, keyed by the node the name is at),
 and the store says which is newer. It is hashed with the item and becomes an ordinary fn
@@ -1335,19 +1335,6 @@ Three things make the next one findable, all in place:
     .circleci/config.yml             `when: always` on store_artifacts, so a failing step
                                      still uploads rundir, and `timeout 20m` on the test
                                      step so it dies somewhere known
-
-## The testfile runner throws the error away
-
-`LibExecution.Tests.fs` compares a testfile's two sides. When either side RAISES, it used to call
-`msg None None`, which renders both as "(no Dval -- error we couldn't handle)" and discards the
-`RuntimeError`, so the test reported an empty Expecto message plus a multi-hundred-line dump of its
-own source AST. 61 errored tests in one run were all unreadable for this reason, and the error each
-one needed was sitting in the result value the whole time. It now says `left-hand side RAISED: <rte>`.
-
-Its sibling, found independently in the same session and NOT yet fixed: the same runner PASSES a
-line when both sides raise the SAME error. So both raise and it says pass and tells you nothing;
-one raises and it says fail and tells you nothing. If you are reading an errored or suspiciously
-passing testfile line, suspect the runner before the test.
 
 ## Testing code that moved from F# to Dark
 

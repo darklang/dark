@@ -179,9 +179,9 @@ let printList (branchId: Uuid) : Unit =
   printMachine ()
 
 
-/// One process in full. The short id names it, as everywhere else; <param full> adds the whole uuid.
-/// One process in full. `false` when it said why it could not, so the caller can exit non-zero:
-/// naming a process that is not there is a refusal, and a shell has only the code to read.
+/// One process in full; <param full> prints the whole uuid rather than the short id. `false`
+/// when it said why it could not, so the caller can exit non-zero: naming a process that is not
+/// there is a refusal, and a shell has only the code to read.
 let printShowWith (branchId: Uuid) (prefix: String) (full: Bool) : Bool =
   match find prefix with
   | Error e ->

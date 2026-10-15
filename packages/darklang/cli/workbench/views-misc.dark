@@ -84,7 +84,7 @@ let processTree (state: State) : Stdlib.Cli.UI.Node.Node<Unit> =
       (Stdlib.List.append
         [ Stdlib.Cli.UI.Node.table Cli.Ps.localColumns rows
           Stdlib.Cli.UI.Node.text ""
-          Stdlib.Cli.UI.Node.dim "the selected row's call stack is on the right; `dark ps show <id>` has all of it" ]
+          Stdlib.Cli.UI.Node.dim "the selected row's call stack is on the right" ]
         others)
 
 /// The table on the left, the selected process's stack on the right.

@@ -57,8 +57,8 @@ let moduleRows
     |> Stdlib.List.map (fun t ->
       let shape (_u: Unit) : String =
         match t.entity.declaration.definition with
-        | Record fields -> "record · " + (Stdlib.toString (Stdlib.List.length fields)) + " fields"
-        | Enum cases -> "enum · " + (Stdlib.toString (Stdlib.List.length cases)) + " cases"
+        | Record fields -> "record · " + (Cli.Text.plural (Stdlib.List.length fields) "field")
+        | Enum cases -> "enum · " + (Cli.Text.plural (Stdlib.List.length cases) "case")
         | Alias tr -> typeRef tr
       BodyItem
         { name = t.location.name
@@ -95,7 +95,7 @@ let moduleRows
     results.traits
     |> Stdlib.List.map (fun t ->
       let shape (_u: Unit) : String =
-        "trait · " + (Stdlib.toString (Stdlib.List.length t.entity.methods)) + " methods"
+        "trait · " + (Cli.Text.plural (Stdlib.List.length t.entity.methods) "method")
       BodyItem
         { name = t.location.name
           kind = "trait"
@@ -464,12 +464,12 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
     else if Stdlib.String.contains name needle then 2
     else 3
   Stdlib.List.flatten
-    [ r.types |> Stdlib.List.map (fun i -> hit "type" i.location)
-      r.values |> Stdlib.List.map (fun i -> hit "val " i.location)
-      r.fns |> Stdlib.List.map (fun i -> hit "fn  " i.location)
+    [ r.types |> Stdlib.List.map (fun i -> hit "type " i.location)
+      r.values |> Stdlib.List.map (fun i -> hit "val  " i.location)
+      r.fns |> Stdlib.List.map (fun i -> hit "fn   " i.location)
       r.traits |> Stdlib.List.map (fun i -> hit "trait" i.location)
-      r.impls |> Stdlib.List.map (fun i -> hit "impl" i.location)
-      r.tests |> Stdlib.List.map (fun i -> hit "test" i.location) ]
+      r.impls |> Stdlib.List.map (fun i -> hit "impl " i.location)
+      r.tests |> Stdlib.List.map (fun i -> hit "test " i.location) ]
   |> Stdlib.List.sortBy rank
 
 /// How many references a list on the item page shows before pointing at `:deps`.

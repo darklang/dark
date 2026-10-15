@@ -95,7 +95,7 @@ test divideOfOneRejectsZero =
 test negate =
   Stdlib.Test.all
     [ (--5s) |> Stdlib.Test.equal 5s
-      (-5s) |> Stdlib.Test.equal -5s
+      (-(5s)) |> Stdlib.Test.equal -5s
       (-0s) |> Stdlib.Test.equal 0s
       (--0s) |> Stdlib.Test.equal 0s
       (--32768s) |> Stdlib.Test.equal -32768s ]

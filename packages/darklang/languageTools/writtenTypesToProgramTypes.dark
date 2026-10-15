@@ -590,8 +590,9 @@ module Expr =
         (ProgramTypes.PipeExpr.EPipeLambda(gid (), pats, body), unresolvedNames)
 
       | EPipeEnum(_, typeName, (_, caseName), fields, _) ->
+        // `x |> Error` is a bare prelude case, as in `Error x`.
         let (typeName, typeArgs, typeNameUnresolvedNames) =
-          Identifiers.QualifiedType.toPT ctx typeName
+          Identifiers.QualifiedType.toPTForEnumCase ctx typeName caseName
 
         let (fields, fieldsUnresolvedNames) =
           fields

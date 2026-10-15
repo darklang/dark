@@ -63,6 +63,9 @@ let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
       "trace.maxMb" ]
   if Stdlib.List.``member`` numeric key then
     match Stdlib.Int.parse value with
+    // The boot ignores a poll under 10 ms (`Cli.fs`), so refuse it here rather than store it.
+    | Ok n when key == "exec.storePollMs" && n < 10 ->
+      Stdlib.Option.Option.Some $"{key} takes a whole number of ms, 10 or more, not {value}"
     | Ok n when n >= 0 -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.Some $"{key} takes a whole number (0 = none), not {value}"
   else if
