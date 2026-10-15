@@ -67,6 +67,8 @@ let checkpointWal (dbPath : string) : unit =
 /// that belongs to the machine that built it rather than to the package set (see the DELETEs below).
 let export (outputPath : string) : Task<unit> =
   task {
+    LibExecution.PackageRefs.validate ()
+
     let sourcePath = LibConfig.Config.dbPath
 
     if System.IO.File.Exists outputPath then System.IO.File.Delete outputPath

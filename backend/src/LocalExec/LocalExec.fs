@@ -27,6 +27,9 @@ module HandleCommand =
 
   let reloadPackages () : Ply<Result<unit, string>> =
     uply {
+      // Clear cached refs so an old file missing new refs won't block parsing.
+      // Keep the disk file to detect changes to protected type hashes.
+      LibExecution.PackageRefs.setHashes Map.empty
       // Load packages from disk, ensuring all parse well
       let! ops = LoadPackagesFromDisk.load (Builtins.all ())
 

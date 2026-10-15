@@ -34,7 +34,7 @@ static long trap(long number, long a, long b, long c, long d, long e, long f)
     register long x5 __asm__("x5") = f;
 #if defined(__APPLE__)
     register long x16 __asm__("x16") = number;
-    __asm__ volatile("svc #0x80; cneg x0, x0, cs" : "+r"(x0)
+    __asm__ volatile("svc #0x80\n\tcneg x0, x0, cs" : "+r"(x0)
         : "r"(x1), "r"(x2), "r"(x3), "r"(x4), "r"(x5), "r"(x16)
         : "memory", "cc");
 #else

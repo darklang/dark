@@ -185,7 +185,7 @@ let private makeRef
           // A non-empty file missing this ref is stale: a ref was added, or an older
           // binary regenerated it in place (`growIfNeeded` rewrites it).
           Exception.raiseInternal
-            $"PackageRefs: {kind} hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
+            $"PackageRefs: {fqn} hash not found. The hash file is stale; run `scripts/dev/build backend/global.json` to regenerate it."
             [ "fqn", fqn ]
 
 
@@ -678,3 +678,27 @@ module Fn =
     module Test =
       let private p addl = p ("Test" :: addl)
       let parseSingleTestFromFile = p [] "parseSingleTestFromFile"
+
+
+/// Missing or empty entries among the refs registered by this runtime.
+let missingNames (hashes : Map<string, string>) : List<string> =
+  [ "type", Type._lookup; "fn", Fn._lookup; "trait", Trait._lookup ]
+  |> List.collect (fun (kind, refs) ->
+    refs
+    |> Map.toList
+    |> List.choose (fun ((modules, name), _) ->
+      let fqn = kind + "/" + String.concat "." (modules @ [ name ])
+      match Map.tryFind fqn hashes with
+      | Some hash when not (System.String.IsNullOrWhiteSpace hash) -> None
+      | _ -> Some fqn))
+  |> List.sort
+
+/// Refuse to export a seed with refs that cannot support this runtime.
+let validate () : unit =
+  let missing = missingNames (getHashes ())
+  if not (List.isEmpty missing) then
+    Exception.raiseInternal
+      ("PackageRefs: missing hashes: "
+       + String.concat ", " missing
+       + ". Run `scripts/dev/build backend/global.json` before exporting a seed.")
+      [ "missing", missing ]

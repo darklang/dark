@@ -330,7 +330,10 @@ jobs:
       # compile check now: release artifacts come from the tag-driven
       # `release-clis` workflow, so cross-compiling all eight here was work
       # nothing consumed.
-      - run: ./scripts/build/build-release-cli-exes.sh
+      - run:
+          name: Export the seed for the CLI build
+          command: scripts/run-local-exec export-seed rundir/seed.db
+      - run: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db
 
       # Allocation for a fixed workload is steady enough to assert on and doesn't care how
       # loaded the box is, which is more than can be said for time. The store is freshly
