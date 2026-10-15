@@ -1151,15 +1151,17 @@ difference shows up as a test standing somewhere it did not expect to be.
 
 Clearing only `current_branch%` is the trap: it looks like isolation and is not.
 
-There are FOUR config stores, and that line only clears one: `config_v0` in sqlite,
-`cli-config.json` beside the db (instance id and name), `$HOME/.darklang/capabilities.bin`, and
-`credentials_v0` in `credentials.db` beside the store (`LibDB/Config.fs`). Copying a store
-DIRECTORY carries all of it; copying `data.db` alone does not, which is the shape to prefer for a
-scratch store. `credentials.db` is also not covered by `dark backups`, so a restored backup comes
-back without it. Nothing in the base tree writes a credential any more, since the only thing that
-did was the relay, but the store and its guard are still there: `Builtin.configGet` refuses a
-credential key rather than returning "", so a caller cannot read one and cannot mistake a refusal
-for "nothing configured".
+There are THREE config stores, and that line only clears one: `config_v0` in sqlite,
+`cli-config.json` beside the db (instance id and name), and `$HOME/.darklang/capabilities.bin`.
+Copying a store DIRECTORY carries all of it; copying `data.db` alone does not, which is the shape
+to prefer for a scratch store.
+
+There was briefly a fourth, `credentials_v0` in a `credentials.db` beside the store, holding the
+relay write secret where a `package-read` grant could not SELECT it. Nothing writes a credential
+now that the relay is in `later/`, so the file, the `configGet` guard that refused a credential
+key, and the two tests that pinned the separation went with it. The mechanism and the reasoning
+behind it are in `later/backend/src/LibDB/Config.fs.credentials`; read that before inventing a
+second one.
 
 The capabilities one is keyed on **HOME**, not `DARK_CONFIG_RUNDIR`, so an isolated store does NOT isolate it. A
 `dark caps grant ...` in a throwaway store writes the real grant for the whole container. Worse, the file's
