@@ -1122,9 +1122,8 @@ module DictKeyOrdering =
             (Some name)
             $"{name} is admissible, so it must compare without raising"
         else
-          Expect.isTrue
-            (List.contains name [ "DBlob" ])
-            $"unexpected inadmissible case: {name}")
+          // DBlob is the only one left; DDB was the other until user datastores went to later/.
+          Expect.equal name "DBlob" $"unexpected inadmissible case: {name}")
 
   let inadmissibleValuesPoisonTheirContainers =
     testCase "a container holding an inadmissible value is inadmissible" (fun _ ->

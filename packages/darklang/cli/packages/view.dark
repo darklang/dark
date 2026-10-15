@@ -463,10 +463,6 @@ let modeName (mode: ViewMode) : String =
   | Instructions -> "--instructions"
 
 
-/// Flags are accepted in any position, so `view --ast List.last` and `view List.last --ast` both work.
-/// Returns the path (if given) and the mode, or an error naming the bad flag.
-/// The path, the mode, and whether `--include-tests` was given.
-//
 // TODO: neither `--raw` nor `--include-tests` has earned its place, and both should be
 // settled rather than left.
 //
@@ -482,6 +478,10 @@ let modeName (mode: ViewMode) : String =
 // four spellings of one listing). A filter belongs on that one listing, as something
 // general -- kinds, deprecation, tests -- not as a boolean threaded through this file in
 // four places. Deciding that is the prerequisite; this flag should not be extended first.
+
+/// Flags are accepted in any position, so `view --ast List.last` and `view List.last --ast` both work.
+/// Returns the path (if one was given), the mode, and whether `--include-tests` was passed, or
+/// an error naming the bad flag.
 let parseArgs
   (args: List<String>)
   : Stdlib.Result.Result<(Stdlib.Option.Option<String> * ViewMode * Bool), String> =

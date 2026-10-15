@@ -4,7 +4,7 @@ Code that is not part of the product right now.
 
 Everything in here was moved out of the live tree during the molt, with its original repo path
 preserved underneath, so `git mv later/<path> <path>` puts a WHOLE FILE back exactly where it was.
-That is most of the directory but not all of it: 103 files are fragments carved out of files that
+That is most of the directory but not all of it: 117 files are fragments carved out of files that
 are still live, which come back by hand, and a few things were DELETED rather than moved, for which
 only `git log` has the content. Both exceptions are spelled out below. Nothing in here is built,
 loaded, tested or linted:
@@ -27,21 +27,28 @@ traps that are specific to this directory rather than to the code in it.
 
 ## What is in here
 
-457 files are tracked, and 4,426 files sit under `vscode-extension/` on disk of which only 65
+476 files are tracked, and 4,426 files sit under `vscode-extension/` on disk of which only 65
 are tracked: 4,096 of the untracked ones are its `node_modules`, which came along for the ride
 because the directory moved as a directory. Tracked, by area:
 
-    packages/             292 files   Dark code. The big one.
-    backend/               72 files   F#: three LibCloud modules, the Wasm project, the builtins
+    packages/             295 files   Dark code. The big one.
+    backend/               86 files   F#: three LibCloud modules, the Wasm project, the builtins
                                       whose only Dark wrapper left, and carved fragments.
     vscode-extension/      65 files   the VS Code extension's own source.
-    scripts/               11 files   the sync gates, the two relay hand tools, the demo script.
+    scripts/               13 files   the sync gates, the two relay hand tools, the demo script,
+                                      and two superseded test harnesses.
     docs/                   5 files   three are fragments of pages that are still live.
     experiments/            4 files
     user-code/              3 files
     .vscode/                2 files   the extension's launch and task configs.
     deploy/                 2 files   Dockerfile.matter and fly.toml, the relay's deployment.
     README.md                         this file.
+
+Every number above is a snapshot and goes stale the next time something is carved in here.
+`git ls-files later | wc -l` is the total, the same piped through
+`sed 's|^later/||' | awk -F/ 'NF==1{print "ROOT"} NF>1{print $1}' | sort | uniq -c` is the table,
+and `git grep -l 'RESTORE:' -- later | wc -l` is the fragment count, since a fragment is exactly
+a file carrying a `RESTORE:` header and a whole file is not.
 
 Under `packages/darklang/`, by subject: `sync/` (the wire codec, the import planner, the hosted
 relay), `cli/` (the commands and views that went with it), `scm/` (bundles, and the carved

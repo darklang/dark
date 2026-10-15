@@ -4,7 +4,7 @@ module Darklang.Cli.Tests.BuiltinGroups
 // no entry is uppercased by `getDisplayName` and sorted after every named group, so the drift is
 // invisible: the listing still renders, it just puts most of the stdlib in a tail of SHOUTING
 // headings. When this test was written, 49 of the 69 live prefixes had no entry -- `pm` with 57
-// builtins, `syscall` with 45, and the ten integer widths with 272 between them -- and 7 of the
+// builtins, `syscall` with 45, and the ten integer widths with 302 between them -- and 7 of the
 // 27 entries named a prefix no builtin carries any more.
 //
 // The bar is three. A prefix carrying one or two builtins is usually an artifact of

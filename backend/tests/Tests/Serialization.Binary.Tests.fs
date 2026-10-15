@@ -510,7 +510,6 @@ module RT =
         "Dict key that cannot be a key"
         $"{name} must be refused as a format error, not by the comparer's guard"
 
-  /// DB references are comparable but intentionally unsupported as keys.
   /// v4 added the bounds a call worked out to a stored applicable, and a v3 blob ends with the
   /// captured-access bool instead. A reader that takes the list anyway reads that bool as a
   /// length and then runs off the end of the blob, so every `rt_instrs` row written before this
@@ -554,10 +553,13 @@ module RT =
         "the reader consumed the blob exactly"
     }
 
-  let dictWithDbKeyRejectedOnRead =
-    test "a Dict keyed by a DB reference is refused on deserialize" {
+  /// Blob references are comparable but intentionally unsupported as keys. This case used to
+  /// be a `DDB`, which went to later/ with user datastores; a blob is the nearest live value
+  /// with the same property, so the arm goes on being exercised.
+  let dictWithBlobKeyRejectedOnRead =
+    test "a Dict keyed by a blob reference is refused on deserialize" {
       expectRefusedOnRead
-        "a DB reference"
+        "a blob reference"
         (RT.DDict(
           RT.ValueType.Unknown,
           RT.ValueType.Unknown,
@@ -619,7 +621,7 @@ let tests =
           RT.dvalTests
           RT.instructionsTests
           RT.v3ApplicableStillReads
-          RT.dictWithDbKeyRejectedOnRead
+          RT.dictWithBlobKeyRejectedOnRead
           RT.dictWithLambdaKeyRejectedOnRead
           RT.closureAccessIsStripped
           RT.namedFnAccessIsStripped ] ]

@@ -350,7 +350,7 @@ let noLibcImports =
     Expect.equal
       (importsIn typeof<LibExecution.HostTypes.Operation>.Assembly.Location
        |> List.sort)
-      ([ "dark_syscalls", "dark_syscall" ] |> List.sort)
+      [ "dark_syscalls", "dark_syscall" ]
       "every OS call goes through the syscall transport; there is no second native door"
     Expect.isEmpty
       (importsIn typeof<LibDB.LocalFile.ReadResult>.Assembly.Location)

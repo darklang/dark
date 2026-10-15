@@ -7,7 +7,7 @@ module Darklang.Cli.Builtins
 // first capital, so `int64Add` is `int64` and `sqliteQuery` is `sqlite`. A prefix with no
 // entry here is shown uppercased and sorted after every named group, which is how 49 of the
 // 69 live prefixes were being displayed -- including `pm` (57 builtins) and the whole integer
-// family (272 between them). `tests/cli/builtinGroups.dark` fails when a prefix carrying three
+// family (302 between them). `tests/cli/builtinGroups.dark` fails when a prefix carrying three
 // or more builtins has no entry, and when an entry here names a prefix no builtin carries.
 val knownGroups =
   [ ("int", "Int")

@@ -14,10 +14,10 @@ module Topics =
   // All available doc topics - maps name to (description, content-fn)
   // Content is stored in Docs submodules
 
-  /// Where a doc topic is relevant:
-  ///   "general"  - language docs, useful in any context
-  ///   "cli"      - CLI-specific workflow/commands
-  ///   "internal" - monorepo/F# development
+  /// Where a doc topic is relevant: "general" for language docs, useful anywhere, or
+  /// "cli" for CLI workflow and commands. There was a third, "internal", for monorepo and
+  /// F# work; those two pages are repo-facing and moved out of the shipped CLI, so no topic
+  /// carries it any more. See later/packages/darklang/cli/docs/command.dark.internal-topics.
   type DocTopic =
     { name: String
       description: String

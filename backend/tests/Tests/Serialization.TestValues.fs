@@ -726,7 +726,7 @@ module ProgramTypes =
     )
 
 
-  // Handler test values are gone with the Handler delete.
+  // Handler and user-datastore test values are gone with the toplevels that carried them.
 
 
   // TODO: serialize stdlib types?
