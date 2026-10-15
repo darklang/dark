@@ -137,8 +137,8 @@ let isFinite (f: Float) : Bool =
 let toInt (a: Float) : Int = Stdlib.Float.roundTowardsZero a
 
 
-/// Return <param a>'s IEEE 754 binary64 bits as a signed 64-bit value.
-let toBits (a: Float) : Int = Builtin.floatToBits a
+/// Return <param a>'s IEEE 754 binary64 bits as an unsigned 64-bit value.
+let toBits (a: Float) : UInt64 = Builtin.floatToBits a
 
 impl ToString for Float =
   /// Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`,
