@@ -5,13 +5,13 @@ module OS =
   type OS =
     | Linux
     | MacOS
-    | Windows
 
   let getOS () : Stdlib.Result.Result<OS, String> =
     match Builtin.runtimeTargetOS () with
     | "linux" -> Ok OS.OS.Linux
     | "darwin" -> Ok OS.OS.MacOS
-    | "windows" -> Ok OS.OS.Windows
+    | "windows" ->
+      Error "Dark does not support Windows. Linux and macOS only, including WSL."
     | _ -> Error "Unsupported operating system"
 
 
@@ -21,7 +21,6 @@ module Architecture =
     | Aarch64
     | Arm
     | Arm64
-    | Armv7l
 
   let getArchitecture () : Stdlib.Result.Result<Architecture, String> =
     match Builtin.runtimeTargetArchitecture () with
@@ -38,7 +37,6 @@ module Shell =
     | Bash
     | Zsh
     | Fish
-    | PowerShell
 
   /// Determines the default shell used by the current user.
   /// Returns  {{Ok <Shell>}} if successful, or {{Error}} with a message if the shell is unsupported or an error occurs.
@@ -68,10 +66,6 @@ module Shell =
         | _ ->
           Stdlib.Result.Result.Error
             "Unsupported shell, if you are on MacOS please use Bash, Zsh, or Fish")
-
-    | Ok Windows ->
-      // TODO: Add support for Command Prompt
-      Stdlib.Result.Result.Ok Shell.Shell.PowerShell
 
     | Error _ ->
       Stdlib.Result.Result.Error

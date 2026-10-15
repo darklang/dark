@@ -30,14 +30,7 @@ To run the CLI executable against the local package manager:
       let selfUpdateIfRelevant () : Stdlib.Result.Result<Unit, String> =
         // if not installed, ignore -- nothing to self-update
 
-        let configPath =
-          match (Stdlib.Cli.OS.getOS ()) with
-          | Ok Windows ->
-            let homeDirectory =
-              (Stdlib.Cli.PowerShell.getHomeDirectory ()) |> Builtin.unwrap
-
-            $"{homeDirectory}\\.darklang\\config.json"
-          | Ok Linux | Ok MacOS -> "$HOME/.darklang/config.json"
+        let configPath = "$HOME/.darklang/config.json"
 
 
         if Stdlib.Bool.not (Stdlib.Cli.FileSystem.pathExists configPath) then

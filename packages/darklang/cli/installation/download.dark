@@ -92,42 +92,20 @@ let replaceBinary
   let fresh = $"{target}.new"
   let dir = Stdlib.Cli.Path.parent target
 
-  match host.os with
-  | Windows ->
-    // Windows won't overwrite a running executable, but it will rename one, so the old binary steps
-    // aside to `.old` rather than being replaced in place.
-    //
-    // CLEANUP: no smoke test here yet, and this branch hasn't been run on Windows.
-    let old = $"{target}.old"
+  let steps =
+    Stdlib.Cli.executeWithUnitOrStdErr $"mkdir -p '{dir}'"
+    |> Stdlib.Result.andThen (fun _ -> Stdlib.Cli.Curl.downloadFileToPath url downloadTo)
+    |> Stdlib.Result.andThen (fun _ ->
+      Stdlib.Cli.executeWithUnitOrStdErr
+        $"gunzip -c '{downloadTo}' > '{fresh}' && chmod +x '{fresh}'")
+    |> Stdlib.Result.andThen (fun _ -> smokeTest fresh)
+    // A rename within one directory is atomic, and a running binary keeps its own inode, so the
+    // process doing this carries on unaffected.
+    |> Stdlib.Result.andThen (fun _ ->
+      Stdlib.Cli.executeWithUnitOrStdErr $"mv -f '{fresh}' '{target}'")
 
-    let steps =
-      Stdlib.Cli.PowerShell.ensureDirectoryExists dir
-      |> Stdlib.Result.andThen (fun _ -> Stdlib.Cli.Curl.downloadFileToPath url downloadTo)
-      |> Stdlib.Result.andThen (fun _ -> Stdlib.Cli.PowerShell.Gzip.unzipToFile downloadTo fresh)
-      |> Stdlib.Result.andThen (fun _ ->
-        Stdlib.Cli.executeWithUnitOrStdErr
-          $"powershell.exe -Command \"if (Test-Path -Path '{target}') {{ Move-Item -Force -Path '{target}' -Destination '{old}' }}; Move-Item -Force -Path '{fresh}' -Destination '{target}'\"")
-
-    let _cleaned = Stdlib.Cli.PowerShell.removeFile downloadTo
-    steps
-
-  | Linux | MacOS ->
-    let steps =
-      Stdlib.Cli.executeWithUnitOrStdErr $"mkdir -p '{dir}'"
-      |> Stdlib.Result.andThen (fun _ -> Stdlib.Cli.Curl.downloadFileToPath url downloadTo)
-      |> Stdlib.Result.andThen (fun _ ->
-        Stdlib.Cli.executeWithUnitOrStdErr
-          $"gunzip -c '{downloadTo}' > '{fresh}' && chmod +x '{fresh}'")
-      |> Stdlib.Result.andThen (fun _ -> smokeTest fresh)
-      // A rename within one directory is atomic, and a running binary keeps its own inode, so the
-      // process doing this carries on unaffected.
-      |> Stdlib.Result.andThen (fun _ ->
-        Stdlib.Cli.executeWithUnitOrStdErr $"mv -f '{fresh}' '{target}'")
-
-    let _cleaned = Stdlib.Cli.execute $"rm -f '{downloadTo}' '{fresh}'"
-    steps
-
-  | _ -> Stdlib.Result.Result.Error "Unsupported OS"
+  let _cleaned = Stdlib.Cli.execute $"rm -f '{downloadTo}' '{fresh}'"
+  steps
 
 
 /// Install a release (<param pinned>, or else the latest) to `~/.darklang/bin/dark`, record its
@@ -142,11 +120,7 @@ let installRelease
   let darklangHomeDir = Config.getDarklangHomeDir host
 
   let (binDir, target, configPath) =
-    match host.os with
-    | Windows ->
-      ($"{darklangHomeDir}\\bin\\", $"{darklangHomeDir}\\bin\\dark.exe", $"{darklangHomeDir}\\config.json")
-    | _ ->
-      ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark", $"{darklangHomeDir}/config.json")
+    ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark", $"{darklangHomeDir}/config.json")
 
   match releaseToInstall host pinned with
   | Error e -> Stdlib.Result.Result.Error e
@@ -160,11 +134,9 @@ let installRelease
           $"Installed {release.tag}, but couldn't record it in {configPath}: {e}"
       | Ok _ ->
         // The binary is in place by now, so a PATH we couldn't edit is worth a line, not a failure.
+        // Unexpanded on purpose: the line must match what `install.sh` writes, byte for byte.
         let pathResult =
-          match host.os with
-          | Windows -> Stdlib.Cli.PowerShell.addToPath binDir
-          // Unexpanded on purpose: the line must match what `install.sh` writes, byte for byte.
-          | _ -> Stdlib.Cli.Unix.addToPath host.defaultShell "$HOME/.darklang/bin/"
+          Stdlib.Cli.Unix.addToPath host.defaultShell "$HOME/.darklang/bin/"
 
         match pathResult with
         | Ok _ -> ()

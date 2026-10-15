@@ -93,6 +93,22 @@ module Releases =
     |> Stdlib.Option.map (fun a -> a.browser_download_url)
 
 
+  /// The runtime id whose asset this host wants, as the release matrix spells it.
+  ///
+  /// Its own function because `getDownloadUrl` fetches before it can be observed, so the
+  /// mapping had no test and drifted: it matched `Armv7l`, a case `getArchitecture` never
+  /// constructs, so 32-bit ARM answered "Unsupported OS or Arch" while `install.sh`
+  /// installed the same machine happily and CI published `linux-arm` for it every tag.
+  let platformId (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result<String, String> =
+    match host.os, host.arch with
+    | Linux, Arm -> "linux-arm" |> Stdlib.Result.Result.Ok
+    | Linux, Arm64 | Linux, Aarch64 -> "linux-arm64" |> Stdlib.Result.Result.Ok
+    | Linux, X86_64 -> "linux-x64" |> Stdlib.Result.Result.Ok
+    | MacOS, Arm64 -> "osx-arm64" |> Stdlib.Result.Result.Ok
+    | MacOS, X86_64 -> "osx-x64" |> Stdlib.Result.Result.Ok
+    | _, _ -> Stdlib.Result.Result.Error "Unsupported OS or Arch"
+
+
   /// Get the appropriate URL to download the latest release of the `darklang` cli exe,
   /// corresponding to the current OS and Architecture
   ///
@@ -101,18 +117,7 @@ module Releases =
     (host: Stdlib.Cli.Host.Host)
     (releaseTag: String)
     : Stdlib.Result.Result<String, String> =
-    let hostStr =
-      match host.os, host.arch with
-      | Linux, Armv7l -> "linux-arm" |> Stdlib.Result.Result.Ok
-      | Linux, Arm64 | Linux, Aarch64 -> "linux-arm64" |> Stdlib.Result.Result.Ok
-      | Linux, X86_64 -> "linux-x64" |> Stdlib.Result.Result.Ok
-      | MacOS, Arm64 -> "osx-arm64" |> Stdlib.Result.Result.Ok
-      | MacOS, X86_64 -> "osx-x64" |> Stdlib.Result.Result.Ok
-      | Windows, Arm64 -> "win-arm64" |> Stdlib.Result.Result.Ok
-      | Windows, Aarch64 | Windows, X86_64 -> "win-x64" |> Stdlib.Result.Result.Ok
-      | _, _ -> Stdlib.Result.Result.Error "Unsupported OS or Arch"
-
-    match hostStr with
+    match platformId host with
     | Ok hostStr ->
       let fetched =
         fetchString $"{darklangRepoBaseUrl}/releases/tags/{releaseTag}"
@@ -129,4 +134,4 @@ module Releases =
           Stdlib.Result.Result.Error "Couldn't parse release JSON string"
       | Error _e ->
         Stdlib.Result.Result.Error "Couldn't fetch release from GitHub API"
-    | Error _e -> Stdlib.Result.Result.Error "Couldn't determine host"
+    | Error e -> Stdlib.Result.Result.Error $"Couldn't determine host: {e}"
