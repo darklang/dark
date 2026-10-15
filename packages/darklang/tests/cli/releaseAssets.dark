@@ -24,8 +24,7 @@ module AssetForPlatform =
       asset "darklang-alpha-abc1234-linux-arm.gz"
       asset "darklang-alpha-abc1234-linux-musl-x64.gz"
       asset "darklang-alpha-abc1234-linux-x64.gz"
-      asset "darklang-alpha-abc1234-osx-arm64.gz"
-      asset "darklang-alpha-abc1234-win-x64.gz" ]
+      asset "darklang-alpha-abc1234-osx-arm64.gz" ]
 
   // The one that was wrong: arm64 must not be served the 32-bit build, and arm must not be
   // served the 64-bit one.
@@ -57,8 +56,10 @@ module AssetForPlatform =
              "https://example.com/darklang-alpha-abc1234-osx-arm64.gz") ]
 
   // A platform this release has no build for is None, not the first thing that looks close.
+  // `osx-x64` is a real runtime we publish, so this is the "a tag is missing one asset" case
+  // rather than "we do not build that at all".
   test missingPlatform =
-    Darklang.GitHub.Releases.assetUrlFor (assets ()) "win-arm64"
+    Darklang.GitHub.Releases.assetUrlFor (assets ()) "osx-x64"
     |> Stdlib.Test.equal Stdlib.Option.Option.None
 
   // An empty list, and an asset list that carries something other than a `.gz`.
@@ -70,3 +71,52 @@ module AssetForPlatform =
           [ asset "darklang-alpha-abc1234-linux-x64.tar" ]
           "linux-x64"
         |> Stdlib.Test.equal Stdlib.Option.Option.None ]
+
+
+// Which runtime id a host maps to. Every id here is one `ALL_RUNTIMES` publishes.
+module PlatformForHost =
+  // A function rather than a `val`: a `val` holding a custom type carries the type identity it
+  // was built against, and the testfile harness rebuilds the package set underneath it.
+  let host
+    (os: Stdlib.Cli.OS.OS)
+    (arch: Stdlib.Cli.Architecture.Architecture)
+    : Stdlib.Cli.Host.Host =
+    Stdlib.Cli.Host.Host
+      { os = os
+        arch = arch
+        defaultShell = Stdlib.Cli.Shell.Shell.Bash }
+
+  let idFor
+    (os: Stdlib.Cli.OS.OS)
+    (arch: Stdlib.Cli.Architecture.Architecture)
+    : Stdlib.Result.Result<String, String> =
+    Darklang.GitHub.Releases.platformId (PlatformForHost.host os arch)
+
+  test everySupportedHost =
+    Stdlib.Test.all
+      [ PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.Linux
+          Stdlib.Cli.Architecture.Architecture.Arm
+        |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "linux-arm")
+        PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.Linux
+          Stdlib.Cli.Architecture.Architecture.Aarch64
+        |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "linux-arm64")
+        PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.Linux
+          Stdlib.Cli.Architecture.Architecture.X86_64
+        |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "linux-x64")
+        PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.MacOS
+          Stdlib.Cli.Architecture.Architecture.Arm64
+        |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "osx-arm64")
+        PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.MacOS
+          Stdlib.Cli.Architecture.Architecture.X86_64
+        |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "osx-x64") ]
+
+  test unsupportedCombination =
+    PlatformForHost.idFor
+      Stdlib.Cli.OS.OS.MacOS
+      Stdlib.Cli.Architecture.Architecture.Arm
+    |> Stdlib.Test.equal (Stdlib.Result.Result.Error "Unsupported OS or Arch")

@@ -429,8 +429,6 @@ module TypeReference =
         [ NameResolution.toDT (FQTypeName.knownType ()) FQTypeName.toDT typeName
           DList(VT.known (knownType ()), List.map toDT typeArgs) ]
 
-      | PT.TDB inner -> "TDB", [ toDT inner ]
-
       | PT.TFn(args, ret) ->
         "TFn",
         [ DList(VT.known (knownType ()), args |> NEList.toList |> List.map toDT)
@@ -477,7 +475,6 @@ module TypeReference =
         List.map fromDT typeArgs
       )
 
-    | DEnum(_, _, [], "TDB", [ inner ]) -> PT.TDB(fromDT inner)
     | DEnum(_, _, [], "TFn", [ DList(_vtTODO, head :: tail); ret ]) ->
       PT.TFn(NEList.ofList head tail |> NEList.map fromDT, fromDT ret)
     | _ -> Exception.raiseInternal "Invalid TypeReference" []
@@ -2314,30 +2311,6 @@ module PackageOp =
         )
       )
     | _ -> None
-
-
-// -- User stuff -- //
-
-module DB =
-  let typeName = Dval.memoTypeName PackageRefs.Type.LanguageTools.ProgramTypes.db
-
-  let toDT (db : PT.DB.T) : Dval =
-    let fields =
-      Map.empty
-      |> Map.add "tlid" (DUInt64(uint64 db.tlid))
-      |> Map.add "name" (DString db.name)
-      |> Map.add "version" (DInt32 db.version)
-      |> Map.add "typ" (TypeReference.toDT db.typ)
-    DRecord(typeName (), typeName (), [], fields)
-
-  let fromDT (d : Dval) : PT.DB.T =
-    match d with
-    | DRecord(_, _, _, fields) ->
-      { tlid = fields |> D.field "tlid" |> D.uInt64
-        name = fields |> D.field "name" |> D.string
-        version = fields |> D.field "version" |> D.int32
-        typ = fields |> D.field "typ" |> TypeReference.fromDT }
-    | _ -> Exception.raiseInternal "Invalid DB" []
 
 
 // No Branch or Commit converters here, and not because either concept is gone: `dark commit` and the

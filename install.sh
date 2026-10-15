@@ -95,7 +95,7 @@ main() {
         *) fail "unsupported macOS architecture: $arch" ;;
       esac ;;
     MINGW* | MSYS* | CYGWIN* | Windows_NT)
-      fail "this script doesn't support Windows; download the win-x64 or win-arm64 asset from https://github.com/darklang/dark/releases" ;;
+      fail "Dark does not support Windows. Linux and macOS only, including WSL." ;;
     *)
       fail "unsupported operating system: $os" ;;
   esac

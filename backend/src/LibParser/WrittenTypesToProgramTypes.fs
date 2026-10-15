@@ -182,7 +182,6 @@ module TypeReference =
         // but lower to a dedicated PT case (not a package type reference).
         match q.modules, q.typ.name, q.typeArgs with
         | [], "Stream", [ inner ] -> return! toPT inner |> Ply.map PT.TStream
-        | [], "DB", [ inner ] -> return! toPT inner |> Ply.map PT.TDB
         | _ ->
           let! resolved =
             NR.resolveTypeName pm onMissing currentModule (qualifiedTypeName q)
@@ -1188,8 +1187,7 @@ module PackageFn =
     | PT.TVariable name when not (List.contains name acc) -> acc @ [ name ]
     | PT.TVariable _ -> acc
     | PT.TList inner
-    | PT.TStream inner
-    | PT.TDB inner -> collectTVars acc inner
+    | PT.TStream inner -> collectTVars acc inner
     | PT.TDict(key, value) -> collectTVars (collectTVars acc key) value
     | PT.TTuple(a, b, rest) ->
       let acc = collectTVars acc a
@@ -1247,19 +1245,4 @@ module PackageFn =
           typeParams = allTypeParams
           bounds = bounds
           permissionCeiling = ceilingOf fn.effects }
-    }
-
-
-
-
-module DB =
-  let toPT
-    (pm : PT.PackageManager)
-    (onMissing : NR.OnMissing)
-    (currentModule : List<string>)
-    (db : WT.DB.T)
-    : Ply<PT.DB.T> =
-    uply {
-      let! typ = TypeReference.toPT pm onMissing currentModule db.typ
-      return { tlid = gid (); name = db.name; version = db.version; typ = typ }
     }

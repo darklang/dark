@@ -235,7 +235,6 @@ module RoundTripExpect =
     | RT.DString _
     | RT.DDateTime _
     | RT.DUuid _
-    | RT.DDB _
     | RT.DBlob _
     | RT.DStream _
     | RT.DPromise _ -> []

@@ -213,7 +213,6 @@ let notePredictionFailure () =
 let rec private holdsNoCode (dv : Dval) : bool =
   match dv with
   | DApplicable _
-  | DDB _
   | DStream _
   | DPromise _ -> false
   | DList(_, items) -> listHoldsNoCode items

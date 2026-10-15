@@ -1,0 +1,114 @@
+// RESTORE: many files; this covers the user-datastore TYPE REFERENCE and the `[<DB>]`
+//          attribute that produced one. The TOPLEVEL declaration is a separate carve,
+//          later/backend/src/db-toplevel; both come back together or neither does.
+// WAS: four DU cases and a parsing path.
+//        PT.TypeReference.TDB, RT.TypeReference.TDB, RT.KnownType.KTDB, RT.Dval.DDB, and
+//        their Dark twins in languageTools/{programTypes,runtimeTypes,writtenTypes}.dark,
+//        plus the at-rest checker's own Model.Ty.TDB and StaticType.TDB.
+//        The `[<DB>]` attribute: Parser.isDbAttr and its branch, WT.DTypeDB,
+//        SourceFile.TypeDB, Package.PDB and the `dbs` field, Validation.DBMode/DBShape.
+// ANCHOR: these were ONE ARM EACH in about 75 matches over the four types, so there is no
+//         useful anchor per site. To restore: put each case back on its DU and let the F#
+//         compiler find every match that needs an arm. On the Dark side the compiler will
+//         NOT help, so grep every `match` over TypeReference, ValueType and Dval under
+//         packages/darklang/{languageTools,prettyPrinter,scm,cli} by hand. The blocks
+//         below are the sites that carried real logic rather than a recursion.
+// SERIALIZATION: four tag bytes are retired rather than renumbered, so restoring these
+//         moves nothing else. PT.TypeReference 16 (TDB), RT.TypeReference 23 (TDB),
+//         RT.ValueType 20 (KTDB), RT.Dval 23 (DDB). Each write site carries a comment
+//         saying the number is free. Canonical.fs wrote PT tag 16.
+// NOTE: removed because Stdlib.DB is in later/, so no value could ever be a DDB and no
+//       declaration could produce a TDB. Dropping support for old stores was explicitly
+//       in scope for this round.
+// WHEN: the reductions round, 2026-10-14
+
+// ---- backend/src/LibParser/Parser.fs ----
+// the attribute recogniser
+// `[<DB>]` attribute prefix on a type decl: 5 tokens. Parsing represents it;
+// post-parse validation restricts it to Test source.
+// `[` `<` `DB` `>` `]`.
+and isDbAttr (state : ParserState) (i : int) : bool =
+  tok state i = TLBracket
+  && tok state (i + 1) = TLt
+  && tok state (i + 2) = TIdent "DB"
+  && tok state (i + 3) = TGt
+  && tok state (i + 4) = TRBracket
+
+// ---- backend/src/LibParser/Parser.fs ----
+// its branch in parseItemsBody, the first arm of the declaration dispatch
+       | TLBracket, TLt when isDbAttr state k && tok state (k + 5) = TType ->
+         // Parse `[<DB>]` here; validation decides which source modes allow it.
+         let (d, k2) = parseTypeDecl state (k + 5)
+         (match d with
+          | WT.DType t ->
+            match t.definition with
+            | WT.TDAlias _
+            | WT.TDRecord _ -> decls.Add(WT.DTypeDB t)
+            | _ ->
+              err
+                state
+                DiagnosticCode.expected
+                (k + 5)
+                "[<DB>] type must be a type alias or record"
+              decls.Add(WT.DTypeDB t)
+          | other -> decls.Add other)
+         k <- k2
+
+// ---- backend/src/LibParser/Validation.fs ----
+// declarationStructureIssues: the shape rules
+  | WT.DTypeDB typ ->
+    match typ.definition with
+    | WT.TDAlias _ -> []
+    | WT.TDRecord _ when List.isEmpty typ.typeParams -> []
+    | WT.TDRecord _ ->
+      [ issue typ.range DBShape "[<DB>] inline record cannot have type parameters" ]
+    | WT.TDEnum _ ->
+      [ issue typ.range DBShape "[<DB>] type must be a type alias or record" ]
+
+// ---- backend/src/LibParser/Package.fs ----
+// packageItem; and a [<DB>] record was folded into `types` as a real package type
+  | WTSourceFile.TypeDB(path, t) ->
+    match path with
+    | _ :: _ -> PDB(path, t)
+    | [] -> PErr(t.range, noOwner "DB" t.name.name)
+
+// ---- packages/darklang/languageTools/writtenTypes.dark ----
+// the WT case, with its five ranges
+    | TDB of
+      Range *
+      keywordDB: Range *
+      symbolOpenAngle: Range *
+      typ: TypeReference *
+      symbolCloseAngle: Range
+
+// ---- packages/darklang/languageTools/semanticTokens.dark ----
+// the highlighter arm, which coloured the keyword and both angle brackets
+      | TDB(_r, rk, ro, t, rc) ->
+        // CLEANUP: maybe use typeArgs here, instead of seperate <, t, and >
+        [ [ makeToken rk TokenType.Keyword ]
+          [ makeToken ro TokenType.Symbol ]
+          (TypeReference.tokenize t)
+          [ makeToken rc TokenType.Symbol ] ]
+        |> Stdlib.List.flatten
+
+// ---- packages/darklang/languageTools/writtenTypesToProgramTypes.dark ----
+// TypeReference.toPT resolved DB<T> by SHAPE rather than by name, because resolving the
+// name "DB" answers "Not found". This sat inside the QualifiedName arm.
+      match qn.typeArgs with
+      | [ row ] when (Stdlib.List.isEmpty qn.modules) && (qn.typ.name == "DB") ->
+        let (rowType, unresolvedNames) = toPT ctx row
+        (ProgramTypes.TypeReference.TDB rowType, unresolvedNames)
+      | _ ->
+        ... the ordinary custom-type path, which is all that is left ...
+
+// ---- backend/src/LibParser/WrittenTypesToProgramTypes.fs ----
+// the F# twin of the same rule, in the qualified-name match
+        | [], "DB", [ inner ] -> return! toPT inner |> Ply.map PT.TDB
+
+// ---- backend/src/LibExecution/Traits.fs ----
+// DB was a dispatch head of its own, so a trait could be implemented for DB<_>.
+// Head.DB was a case of the Head DU; these three sites fed it.
+  | DB
+  | TDB _ -> Some Head.DB
+  | KTDB _ -> Head.DB
+  | TDB a, ValueType.Known(KTDB b) -> argsAgree a b

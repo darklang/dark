@@ -67,8 +67,6 @@ module RuntimeTypes =
 
       RT.TCustomType(RTNR.ok (RT.FQTypeName.Package hashRT), [ RT.TBool ])
 
-      RT.TDB RT.TBool
-
       RT.TBlob
 
       RT.TVariable "test" ]
@@ -107,7 +105,6 @@ module RuntimeTypes =
 
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
 
-      known (RT.KnownType.KTDB ktUnit)
       known RT.KnownType.KTBlob ]
 
   let dvals () : List<RT.Dval> =
@@ -300,7 +297,6 @@ module ProgramTypes =
         TList TInt64
         TTuple(TBool, TBool, [ TBool ])
         TDict(TString, TBool)
-        TDB TBool
         TCustomType(NameResolution.ok (FQTypeName.Package hashPT), [ TBool ])
         TCustomType(NameResolution.ok (FQTypeName.Package hashPT), [ TBool ])
         TVariable "test"
@@ -730,10 +726,8 @@ module ProgramTypes =
     )
 
 
-  // Handler test values are gone with the Handler delete.
-  let userDB : DB.T = { tlid = 0UL; name = "User"; version = 0; typ = typeReference }
+  // Handler and user-datastore test values are gone with the toplevels that carried them.
 
-  let userDBs : List<DB.T> = [ userDB ]
 
   // TODO: serialize stdlib types?
   // (also make sure we roundtrip test them)
@@ -1005,5 +999,3 @@ module ProgramTypes =
             System.Guid.Parse "3f2504e0-4f89-11d3-9a0c-0305e82c3300" ],
         "2026-01-01T00:00:00.000Z"
       ) ]
-
-  let toplevels : List<DB.T> = [ userDB ]

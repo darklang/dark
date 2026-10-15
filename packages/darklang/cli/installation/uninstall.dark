@@ -5,37 +5,19 @@ let removeDarklangDirectory
   (host: Stdlib.Cli.Host.Host)
   : Stdlib.Result.Result<Unit, String> =
   let darklangDir = Config.getDarklangHomeDir host
-
-  match host.os with
-  | Windows ->
-    Stdlib.Cli.PowerShell.removeFile darklangDir
-  | Linux | MacOS ->
-    Stdlib.Cli.Unix.removeDirectory darklangDir
+  Stdlib.Cli.Unix.removeDirectory darklangDir
 
 
 let runUninstall
   (host: Stdlib.Cli.Host.Host)
   : Stdlib.Result.Result<Unit, String> =
-  match host.os with
-  | Windows ->
-    let result =
-      (Stdlib.Cli.PowerShell.deleteAlias "dark")
-      |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
+  let result =
+    (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
+    |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
 
-    match result with
-    | Ok _ -> Stdlib.Result.Result.Ok()
-    | Error err ->
-      Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
-
-  | Linux | MacOS ->
-    let result =
-      (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
-      |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
-
-    match result with
-    | Ok _ -> Stdlib.Result.Result.Ok()
-    | Error err ->
-      Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
+  match result with
+  | Ok _ -> Stdlib.Result.Result.Ok()
+  | Error err -> Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
 
 // CLI interface functions
 let execute (state: AppState) (args: List<String>) : AppState =

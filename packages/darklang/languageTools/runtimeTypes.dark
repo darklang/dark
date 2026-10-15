@@ -90,7 +90,6 @@ type TypeReference =
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs: List<TypeReference>
   | TFn of List<TypeReference> * TypeReference
-  | TDB of TypeReference
   | TVariable of String
 
 type TypeSymbolTable = Dict<String, TypeReference>
@@ -125,7 +124,6 @@ type KnownType =
 
   | KTCustomType of FQTypeName.FQTypeName * typeArgs: List<ValueType>
 
-  | KTDB of ValueType
 
 type ValueType =
   | Unknown
@@ -321,7 +319,6 @@ type Dval =
   | DApplicable of Applicable
 
   // References
-  | DDB of String
 
   | DBlobPersistent of hash: String * length: Int
   | DBlobEphemeral of id: Uuid

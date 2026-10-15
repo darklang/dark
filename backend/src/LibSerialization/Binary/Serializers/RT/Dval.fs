@@ -58,9 +58,7 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
     w.Write 19uy
     NEList.write writeValueType w args
     writeValueType w ret
-  | KTDB vt ->
-    w.Write 20uy
-    writeValueType w vt
+  // 20 was KTDB, retired with user datastores
   | KTCustomType(fqTypeName, typeArgs) ->
     w.Write 21uy
     FQTypeName.write w fqTypeName
@@ -211,9 +209,7 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
   | DApplicable applicable ->
     w.Write 22uy
     writeApplicable w applicable
-  | DDB value ->
-    w.Write 23uy
-    String.write w value
+  // 23 was DDB, retired with user datastores
   | DBlob(Persistent(hash, length)) ->
     w.Write 24uy
     String.write w hash
@@ -286,7 +282,6 @@ and readKnownType (r : BinaryReader) : KnownType =
     let args = NEList.read readValueType r
     let ret = readValueType r
     KTFn(args, ret)
-  | 20uy -> KTDB(readValueType r)
   | 21uy ->
     let fqTypeName = FQTypeName.read r
     let typeArgs = List.read r readValueType
@@ -415,7 +410,6 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
     let fields = List.read r (readDval version)
     DEnum(sourceTypeName, runtimeTypeName, typeArgs, caseName, fields)
   | 22uy -> DApplicable(readApplicable version r)
-  | 23uy -> DDB(String.read r)
   | 24uy ->
     let hash = String.read r
     let length = r.ReadInt64()

@@ -48,9 +48,7 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) : unit =
     w.Write 19uy
     NEList.write write w argTypes
     write w returnType
-  | KTDB vt ->
-    w.Write 20uy
-    write w vt
+  // 20 was KTDB, retired with user datastores
   | KTCustomType(typeName, typeArgs) ->
     w.Write 21uy
     FQTypeName.write w typeName
@@ -100,7 +98,6 @@ and readKnownType (r : BinaryReader) : KnownType =
     let argTypes = NEList.read read r
     let returnType = read r
     KTFn(argTypes, returnType)
-  | 20uy -> KTDB(read r)
   | 21uy ->
     let typeName = FQTypeName.read r
     let typeArgs = List.read r read

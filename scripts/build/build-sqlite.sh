@@ -11,11 +11,10 @@
 #
 # The DllImport name in SQLitePCLRaw.provider.e_sqlite3 is "e_sqlite3"; the
 # archive base name matches that so DirectPInvoke binds the import. The .a
-# suffix is by Linux/Apple convention — Windows static libs would be .lib,
-# but we don't currently cross-compile the windows variants from this script
-# (the CLI's windows AOT build path is not active yet; adding it would mean
+# suffix is by Linux/Apple convention. Windows is not a supported runtime, so
+# there are no .lib variants here; if it ever comes back it would mean
 # adding win-x64/win-arm64 to the runtime map below AND adding matching
-# <NativeLibrary> ItemGroups to Cli.fsproj).
+# <NativeLibrary> ItemGroups to Cli.fsproj.
 #
 # Usage:
 #   ./scripts/build/build-sqlite.sh                                # current arch only

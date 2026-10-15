@@ -28,7 +28,6 @@ type Head =
   | Tuple
   | Fn
   | Stream
-  | DB
   | Any // a blanket impl's `'a`
 
 let private primHeadName (t : TypeReference) : Option<string> =
@@ -63,7 +62,6 @@ let headOfTypeReference (t : TypeReference) : Option<Head> =
   | TTuple _ -> Some Head.Tuple
   | TFn _ -> Some Head.Fn
   | TStream _ -> Some Head.Stream
-  | TDB _ -> Some Head.DB
   | TVariable _ -> Some Head.Any
   | prim -> primHeadName prim |> Option.map Head.Prim
 
@@ -92,7 +90,6 @@ let headOfKnownType (kt : KnownType) : Head =
   | KTList _ -> Head.List
   | KTTuple _ -> Head.Tuple
   | KTFn _ -> Head.Fn
-  | KTDB _ -> Head.DB
   | KTCustomType(FQTypeName.Package h, _) -> Head.Custom h
   | KTDict _ -> Head.Dict
 
@@ -106,7 +103,6 @@ let rec private argsAgree (t : TypeReference) (vt : ValueType) : bool =
   | _, ValueType.Unknown -> true
   | TList a, ValueType.Known(KTList b) -> argsAgree a b
   | TStream a, ValueType.Known(KTStream b) -> argsAgree a b
-  | TDB a, ValueType.Known(KTDB b) -> argsAgree a b
   | TDict(k, v), ValueType.Known(KTDict(k', v')) -> argsAgree k k' && argsAgree v v'
   | TTuple(a, b, rest), ValueType.Known(KTTuple(a', b', rest')) ->
     argsAgree a a'

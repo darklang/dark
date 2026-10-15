@@ -1091,7 +1091,6 @@ module DictKeyOrdering =
         "Case",
         []
       )
-      "DDB", RT.DDB "db"
       "DBlob", RT.DBlob(RT.Persistent("hash", 0L)) ]
 
   let allCasesAreDistinctKeys =
@@ -1123,22 +1122,21 @@ module DictKeyOrdering =
             (Some name)
             $"{name} is admissible, so it must compare without raising"
         else
-          Expect.isTrue
-            (List.contains name [ "DDB"; "DBlob" ])
-            $"unexpected inadmissible case: {name}")
+          // DBlob is the only one left; DDB was the other until user datastores went to later/.
+          Expect.equal name "DBlob" $"unexpected inadmissible case: {name}")
 
   let inadmissibleValuesPoisonTheirContainers =
     testCase "a container holding an inadmissible value is inadmissible" (fun _ ->
-      let db = RT.DDB "somedb"
+      let bad = RT.DBlob(RT.Persistent("hash", 0L))
       let isValid = LibExecution.RuntimeTypes.Dval.isUsableDictKey
-      let dictOfDb =
-        RT.DDict(VT.unknown, VT.unknown, Map [ RT.DictKey RT.DUnit, db ])
-      Expect.isFalse (isValid db) "a DB ref is not a key"
-      Expect.isFalse (isValid (RT.DList(VT.unknown, [ db ]))) "nor a list of one"
+      let dictOfBad =
+        RT.DDict(VT.unknown, VT.unknown, Map [ RT.DictKey RT.DUnit, bad ])
+      Expect.isFalse (isValid bad) "a blob is not a key"
+      Expect.isFalse (isValid (RT.DList(VT.unknown, [ bad ]))) "nor a list of one"
       Expect.isFalse
-        (isValid (RT.DTuple(RT.DUnit, db, [])))
+        (isValid (RT.DTuple(RT.DUnit, bad, [])))
         "nor a tuple holding one"
-      Expect.isFalse (isValid dictOfDb) "nor a dict holding one as a value"
+      Expect.isFalse (isValid dictOfBad) "nor a dict holding one as a value"
       Expect.isTrue
         (isValid (RT.DList(VT.unknown, [ RT.DInt64 1L ])))
         "a list of ordinary values is still a key")

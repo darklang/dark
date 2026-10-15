@@ -305,19 +305,22 @@ type ViewDef =
     hints: State -> List<(String * String)> }
 
 
-// ── Stable view indices; built-in labels match Frame.viewNames. ──
+// ── View indices; built-in labels match Frame.viewNames. ──
+//
+// Nothing persists one of these and no key names one: a number key picks a
+// position in `Navbar.workspaces`, and everything else goes through the names
+// below. So they are free to move, and four holes left for views that are now
+// in later/ (Inspect, Devices, AI, Apps) have been closed.
 val vHome = 0
 val vMatter = 1
-val vScratch = 3
-val vSCM = 4
-val vTraces = 8
-val vDocs = 9
+val vScratch = 2
+val vSCM = 3
+val vTraces = 4
+val vDocs = 5
 // Extension indices are `baseViewCount + position in extensionViews`.
-val baseViewCount = 10
+val baseViewCount = 6
 
 /// Built-in view indices. Extension views are appended by `viewSpecs`.
-// Indices 2 and 5 remain reserved for the former Inspect and Devices views,
-// keeping later indices stable without exposing either in the navbar.
 val baseViewSpecs = [ vHome, vMatter, vScratch, vSCM, vTraces, vDocs ]
 
 /// Every view as `(absolute index, label, gate key)`, used for visibility and

@@ -335,7 +335,6 @@ let withoutWrittenNames
       Stdlib.List.map args (fun a -> withoutWrittenNames a),
       withoutWrittenNames ret
     )
-  | TDB inner -> LanguageTools.RuntimeTypes.TypeReference.TDB(withoutWrittenNames inner)
   | other -> other
 
 let detectRivalImplementations (branchId: Uuid) : List<Finding> =

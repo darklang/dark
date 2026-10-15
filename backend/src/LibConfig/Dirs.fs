@@ -27,7 +27,6 @@ let logDir = Config.logDir
 
 let backendDir = $"{sourceRootDir}backend/"
 let testdataDir = $"{backendDir}testfiles/data/"
-let serializationDir = $"{backendDir}testfiles/serialization-artifacts/"
 let migrationsDir = $"{backendDir}migrations/"
 
 // --------------------
@@ -35,14 +34,12 @@ let migrationsDir = $"{backendDir}migrations/"
 // --------------------
 
 type Root =
-  | Serialization
   | Testdata
   | Migrations
   | NoCheck
 
 let dir (root : Root) : string =
   match root with
-  | Serialization -> serializationDir
   | Testdata -> testdataDir
   | Migrations -> migrationsDir
   | NoCheck -> ""
@@ -51,15 +48,3 @@ let dir (root : Root) : string =
 // -------------------------
 // Running the server
 // -------------------------
-
-
-
-// -------------------------
-// Serialization
-// -------------------------
-
-/// Generate data for serialization tests. We want this to be off in CI so that we
-/// don't overwrite the tests before running them. In dev environment, git will tell
-/// us if something has changed.
-let serializationGenerateTestData =
-  bool "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA"

@@ -176,14 +176,6 @@ module TypeReference =
           TypeReference.tokenize ret ]
         |> Stdlib.List.flatten
 
-      | TDB(_r, rk, ro, t, rc) ->
-        // CLEANUP: maybe use typeArgs here, instead of seperate <, t, and >
-        [ [ makeToken rk TokenType.Keyword ]
-          [ makeToken ro TokenType.Symbol ]
-          (TypeReference.tokenize t)
-          [ makeToken rc TokenType.Symbol ] ]
-        |> Stdlib.List.flatten
-
       | TVariable(_r, ra, (rv, _)) ->
         [ // '
           [ makeToken ra TokenType.Symbol ]

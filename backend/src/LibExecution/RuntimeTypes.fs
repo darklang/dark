@@ -218,12 +218,6 @@ type KnownType =
   /// `[z1, z2]` is allowed now but might not be allowed later
   | KTFn of args : NEList<ValueType> * ret : ValueType
 
-  /// At time of writing, all DBs are of a specific type, and DBs may only be
-  /// referenced directly, but we expect to eventually allow references to DBs
-  /// where the type may be unknown
-  /// List.head ([]: List<DB<'a>>) // KTDB (Unknown)
-  | KTDB of ValueType
-
   /// let n = None          // type args: [Unknown]
   /// let s = Some(5)       // type args: [Known KTInt64]
   /// let o = Ok (5)        // type args: [Known KTInt64, Unknown]
@@ -411,7 +405,6 @@ type TypeReference =
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference>
   | TVariable of string
-  | TDB of TypeReference
 
 
   member this.isFn() : bool =
@@ -452,8 +445,6 @@ type TypeReference =
       | TCustomType(_, ts) -> List.forall isConcrete ts
 
       | TFn(ts, t) -> NEList.forall isConcrete ts && isConcrete t
-
-      | TDB t -> isConcrete t
 
       | TVariable _ -> false
 
@@ -983,7 +974,7 @@ and [<CustomEquality; CustomComparison>] DictKey =
     | DDict _ -> 20
     | DRecord _ -> 21
     | DEnum _ -> 22
-    | DDB _ -> 23
+    // 23 was DDB, retired with user datastores; later tags keep their numbers
     | DBlob _ -> 24
     | DApplicable _ -> 25
     | DStream _ -> 26
@@ -1032,7 +1023,6 @@ and [<CustomEquality; CustomComparison>] DictKey =
       |> combine
     | DEnum(_, tn, _, caseName, fields) ->
       combine ((hash tn * 31 + hash caseName) * 31 + DictKey.hashList fields)
-    | DDB x -> combine (hash x)
     | DBlob x ->
       match x with
       | Persistent(h, l) -> combine (hash h * 31 + hash l)
@@ -1124,8 +1114,6 @@ and DvalOrdering private () =
       else
         let c = compare xCase yCase
         if c <> 0 then c else DvalOrdering.compareList mode xFields yFields
-
-    | DDB x, DDB y -> compare x y
 
     | DBlob x, DBlob y ->
       match x, y with
@@ -1369,9 +1357,6 @@ and [<NoComparison>] Dval =
     fields : List<Dval>
 
   | DApplicable of Applicable
-
-  // References
-  | DDB of name : string
 
   /// Byte sequence, immutable by convention. Ephemeral blobs carry their
   /// bytes inline (lifetime is GC); `Blob.readBytes` returns the array to
@@ -2262,10 +2247,6 @@ module Dval =
       // (probably forces us to make this fn async?)
       | AppNamedFn _named -> ValueType.Unknown
 
-    // CLEANUP follow up when DDB carries a typeReference (the name alone doesn't pin the
-    // element type, so it stays Unknown — permissive against any declared DB<_>).
-    | DDB _ -> ValueType.Unknown
-
     | DBlob _ -> ValueType.Known KTBlob
 
     | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
@@ -2281,7 +2262,6 @@ module Dval =
     | DApplicable _
     | DStream _
     | DPromise _
-    | DDB _
     | DBlob _ -> false
 
     | DList(_, items) -> List.forall isUsableDictKey items
@@ -2370,7 +2350,6 @@ module Dval =
           | DString _
           | DDateTime _
           | DUuid _
-          | DDB _
           | DStream _
           | DPromise _
           | DBlob _ -> return dv
@@ -2841,12 +2820,6 @@ type PackageManager =
 
 
 // ------------
-// User Space
-// ------------
-module DB =
-  // CLEANUP consider making typ a ValueType instead
-  type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
-
 // ------------
 // Builtins, Execution State, Package Manager
 // A bunch of tangled things we need to `and` together
@@ -4125,7 +4098,6 @@ module Types =
     | TCustomType(typ, args) -> TCustomType(typ, List.map r args)
 
     | TFn(args, ret) -> TFn(NEList.map r args, r ret)
-    | TDB inner -> TDB(r inner)
 
     | TVariable v ->
       if typeParams.Length = typeArguments.Length then
@@ -4275,8 +4247,7 @@ module TypeReference =
     | TList _
     | TDict _
     | TCustomType _
-    | TFn _
-    | TDB _ ->
+    | TFn _ ->
       uply {
         match! unwrapAlias types typeRef with
         | TStream inner ->
@@ -4310,10 +4281,6 @@ module TypeReference =
           let! args = args |> Ply.NEList.mapSequentially (toVT types tst)
           let! result = toVT types tst result
           return KTFn(args, result) |> ValueType.Known
-
-        | TDB inner ->
-          let! inner = toVT types tst inner
-          return ValueType.Known(KTDB inner)
 
         // An alias can unwrap to any of the cases handled without the builder above; those are
         // cheap, so recursing back into `toVT` costs nothing and keeps one copy of each rule.
@@ -4356,7 +4323,6 @@ module TypeReference =
     | KTCustomType(typeName, typeArgs) ->
       TCustomType(NameResolution.ok typeName, List.map fromVT typeArgs)
     | KTFn(args, ret) -> TFn(NEList.map fromVT args, fromVT ret)
-    | KTDB inner -> TDB(fromVT inner)
 
 
   /// Resolve type variables in a TypeReference using the TypeSymbolTable.
@@ -4399,7 +4365,6 @@ module TypeReference =
     | TTuple(first, second, rest) -> TTuple(r first, r second, List.map r rest)
     | TCustomType(typeName, typeArgs) -> TCustomType(typeName, List.map r typeArgs)
     | TFn(args, ret) -> TFn(NEList.map r args, r ret)
-    | TDB inner -> TDB(r inner)
 
 
 

@@ -147,14 +147,6 @@ module RoundtripTests =
           V.ProgramTypes.packageFns
           PT2DT.PackageFn.toDT
           PT2DT.PackageFn.fromDT
-          None
-
-        testRoundtripList
-          "PT.DB"
-          (pkg (PackageRefs.Type.LanguageTools.ProgramTypes.db ()))
-          V.ProgramTypes.userDBs
-          PT2DT.DB.toDT
-          PT2DT.DB.fromDT
           None ]
 
   module RuntimeTypes =

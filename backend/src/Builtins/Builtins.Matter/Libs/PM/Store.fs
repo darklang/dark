@@ -110,25 +110,13 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "key" TString "" ]
       returnType = TString
-      description =
-        "Get a local config value (config_v0), or \"\" if unset. Credential keys are refused; "
-        + "see `LibDB.Config.secretPrefix`."
+      description = "Get a local config value (config_v0), or \"\" if unset."
       fn =
         (function
         | _, _, _, [| DString key |] ->
           uply {
-            // Refused rather than returned empty: a silent "" would look like "no secret configured" and
-            // send an unauthenticated push, which fails in a way nobody would trace back to here.
-            if LibDB.Config.isSecretKey key then
-              return
-                RuntimeError.UncaughtException(
-                  $"`{key}` holds a credential and cannot be read from Dark. The transport attaches it.",
-                  []
-                )
-                |> raiseUntargetedRTE
-            else
-              let! v = LibDB.Config.get key
-              return DString(Option.defaultValue "" v)
+            let! v = LibDB.Config.get key
+            return DString(Option.defaultValue "" v)
           }
         | _ -> incorrectArgs ())
       previewable = Impure

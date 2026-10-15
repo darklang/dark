@@ -1,0 +1,63 @@
+// RESTORE: backend/src/LibDB/Sqlite.fs
+// WAS: tableStats and its TableStatsRow, a per-table disk/row breakdown of the store
+// ANCHOR: at the end of the file, after the RowReader instant/instantOrNone members
+// NOTE: it had no caller anywhere, later/ included, when it was carved. It also does not
+//       measure what its name says: diskBytes is the WHOLE database's byte count
+//       pro-rated by each table's share of total rows, so a table of 10 wide blobs and a
+//       table of 10 integers are reported the same size. If this comes back, read
+//       dbstat (SQLITE_ENABLE_DBSTAT_VTAB) per table instead of pro-rating.
+// WHEN: the reductions round, 2026-10-14
+
+type TableStatsRow =
+  { relation : string
+    diskBytes : int64
+    rows : int64
+    diskHuman : string
+    rowsHuman : string }
+
+let tableStats () : Ply<List<TableStatsRow>> =
+  uply {
+    let! pageCount =
+      Sql.query "PRAGMA page_count;"
+      |> Sql.executeRowAsync (fun r -> r.int64 "page_count")
+
+    let! pageSize =
+      Sql.query "PRAGMA page_size;"
+      |> Sql.executeRowAsync (fun r -> r.int64 "page_size")
+
+    let dbSizeBytes = pageCount * pageSize
+
+    let! tables =
+      Sql.query
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%';"
+      |> Sql.executeAsync (fun read -> read.string "name")
+
+    let humanize (n : int64) =
+      if n >= 1_000_000_000L then $"{n / 1_000_000_000L}G"
+      elif n >= 1_000_000L then $"{n / 1_000_000L}M"
+      elif n >= 1_000L then $"{n / 1_000L}k"
+      else string n
+
+    let! rowCounts =
+      tables
+      |> Ply.List.mapSequentially (fun table ->
+        uply {
+          let! rows =
+            Sql.query $"SELECT COUNT(*) as count FROM \"{table}\";"
+            |> Sql.executeRowAsync (fun read -> read.int64 "count")
+
+          return (table, rows)
+        })
+
+    let totalRows = rowCounts |> List.sumBy snd |> max 1L // prevent divide-by-zero
+
+    return
+      rowCounts
+      |> List.map (fun (table, rows) ->
+        let diskBytes = dbSizeBytes * rows / totalRows
+        { relation = table
+          diskBytes = diskBytes
+          rows = rows
+          diskHuman = humanize diskBytes
+          rowsHuman = humanize rows })
+  }

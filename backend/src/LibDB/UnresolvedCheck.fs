@@ -52,8 +52,7 @@ let rec private inTypeRef (t : PT.TypeReference) : List<string> =
   | PT.TVariable _ -> []
 
   | PT.TStream inner
-  | PT.TList inner
-  | PT.TDB inner -> inTypeRef inner
+  | PT.TList inner -> inTypeRef inner
 
   | PT.TDict(key, value) -> inTypeRef key @ inTypeRef value
 

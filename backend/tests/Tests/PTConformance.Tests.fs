@@ -109,8 +109,9 @@ let private findFsharp
     (fsharpName :: (fsharpName + ".T") :: principal)
     |> List.choose (fun c -> Map.tryFind c types)
 
-  // Prefer one that carries a shape: `DB` resolves to the module's static class as well as to `DB.T`,
-  // and the module class would compare as a shapeless alias against Dark's record.
+  // Prefer one that carries a shape: a name like `Foo` resolves to the module's static class as
+  // well as to `Foo.T`, and the module class would compare as a shapeless alias against Dark's
+  // record.
   match found |> List.tryFind (fun t -> isRecord t || isUnion t) with
   | Some t -> Some t
   | None -> List.tryHead found

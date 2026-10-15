@@ -33,9 +33,7 @@ let rec write (w : BinaryWriter) (t : TypeReference) : unit =
     w.Write 15uy
     write w key
     write w value
-  | TDB inner ->
-    w.Write 16uy
-    write w inner
+  // 16 was TDB, retired with user datastores
   | TDateTime -> w.Write 17uy
   | TChar -> w.Write 18uy
   | TUuid -> w.Write 19uy
@@ -82,7 +80,6 @@ let rec read (r : BinaryReader) : TypeReference =
     let key = read r
     let value = read r
     TDict(key, value)
-  | 16uy -> TDB(read r)
   | 17uy -> TDateTime
   | 18uy -> TChar
   | 19uy -> TUuid

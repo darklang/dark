@@ -124,10 +124,6 @@ let testPackageFn
 
 
 
-let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
-  { tlid = gid (); name = name; typ = typ; version = 0 }
-
-
 
 /// Shared guest HTTP config: production SSRF guards with loopback enabled for
 /// the in-process mock server. The guest profile is process-wide.
@@ -379,7 +375,6 @@ module Expect =
     | DDateTime _
     | DUuid _
     | DApplicable _
-    | DDB _
     | DBlob _
     | DStream _
     | DPromise _ -> true
@@ -592,7 +587,6 @@ module Expect =
       | DRecord _, _
       | DEnum _, _
       | DApplicable _, _
-      | DDB _, _
       | DBlob _, _
       | DStream _, _
       | DPromise _, _ -> check path actual expected
@@ -947,7 +941,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUuid _
     | DDateTime _
     | DApplicable _
-    | DDB _
     | DBlob _
     | DStream _
     | DPromise _ -> f dv
@@ -1057,7 +1050,6 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
     ("true", DBool true, TBool)
     ("false", DBool false, TBool)
     ("unit", DUnit, TUnit)
-    ("datastore", DDB "Visitors", TDB TInt64)
     // Ephemeral blobs are intentionally excluded here — the Dval
     // binary serializer raises on them; promote to Persistent first.
     ("blob_persistent",
@@ -1155,7 +1147,6 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
        KTString
        [ (Dval.int (bigint 1), DString "one"); (Dval.int (bigint 2), DString "two") ],
      TDict(TInt, TString))
-    ("db", DDB "Visitors", TDB TInt64)
     ("date",
      DDateTime(
        DarkDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")

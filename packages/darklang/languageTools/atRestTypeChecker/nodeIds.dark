@@ -201,7 +201,6 @@ let typeChildren
   match typ with
   | TStream inner -> [ inner ]
   | TList inner -> [ inner ]
-  | TDB inner -> [ inner ]
   | TDict(key, value) -> [ key, value ]
   | TTuple(first, second, rest) -> Stdlib.List.append [ first, second ] rest
   | TCustomType(_, typeArgs) -> typeArgs

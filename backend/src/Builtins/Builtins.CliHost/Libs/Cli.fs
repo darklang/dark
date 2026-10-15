@@ -119,8 +119,7 @@ let private declarationsToModule
       | WTSourceFile.Impl(memberPath, impl) ->
         wtImpls.Add(WT.packageImpl owner (baseModules @ memberPath) impl)
       | WTSourceFile.Expr(declPath, e) -> wtExprs.Add(baseModules @ declPath, e)
-      // DB/test decls are produced only by test-mode parsing, not the CLI path.
-      | WTSourceFile.TypeDB _
+      // Test decls are produced only by test-mode parsing, not the CLI path.
       | WTSourceFile.Test _
       | WTSourceFile.Assertion _ -> ()
 

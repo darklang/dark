@@ -1,0 +1,234 @@
+// RESTORE: several files; this is the Windows half of the CLI installer and the PowerShell
+//          shim it ran through.
+//            packages/darklang/stdlib/cli/host.dark          (OS.Windows, Shell.PowerShell)
+//            packages/darklang/cli/installation/config.dark   (1 arm)
+//            packages/darklang/cli/installation/download.dark (3 arms)
+//            packages/darklang/cli/installation/system.dark   (6 arms)
+//            packages/darklang/cli/installation/uninstall.dark (2 arms)
+//            packages/darklang/cli/installation/README.md     (a sketch in the prose)
+//            packages/darklang/github.dark                    (the two win-* asset ids)
+// ALSO: later/packages/darklang/stdlib/cli/powershell.dark is the whole shim, restorable by
+//       `git mv`. later/backend/src/LibExecution/Host/HostProcess.fs.windows-job is the
+//       kernel32 job-object code that supervised child processes there.
+// WAS: every `| Windows ->` arm in the installer, each of which paired a PowerShell call with
+//      the Unix call beside it, plus the `Windows` case on `OS.OS` and the `PowerShell` case on
+//      `Shell.Shell`.
+// ANCHOR: each arm sat as the first case of a `match host.os with` whose other case was the
+//         Unix one that survives. Restoring means putting the match back around the surviving
+//         expression; the blocks below give each one verbatim with the function it was in.
+// NOTE: the same commit that stopped publishing `win-x64` and `win-arm64` left this behind, so
+//       `dark update` on Windows resolved an asset no release carries. It could not have run
+//       anyway: `Builtin.runtimeTargetOS ()` returning "windows" is now an Error naming the
+//       reason, which is the sentence `install.sh` prints.
+//       Two things in here were already broken before the move, and are worth fixing rather
+//       than restoring as they stand:
+//         - `replaceBinary`'s Windows arm never called `smokeTest`, so Windows alone would
+//           install a binary it had not run once. Its own comment said it had never been run.
+//         - `Architecture.Armv7l` was a case nothing constructed, and `github.dark` matched on
+//           it for the `linux-arm` asset, so 32-bit ARM fell through to "Unsupported OS or
+//           Arch" while `install.sh` installed the same machine. That one is FIXED in the live
+//           tree rather than carved: the match now reads `Linux, Arm`.
+// WHEN: the reductions round, 2026-10-14
+
+
+// --- packages/darklang/stdlib/cli/host.dark ---------------------------------------------
+
+// In `module OS`, the third case and the third arm:
+
+  type OS =
+    | Linux
+    | MacOS
+    | Windows
+
+  let getOS () : Stdlib.Result.Result<OS, String> =
+    match Builtin.runtimeTargetOS () with
+    | "linux" -> Ok OS.OS.Linux
+    | "darwin" -> Ok OS.OS.MacOS
+    | "windows" -> Ok OS.OS.Windows
+    | _ -> Error "Unsupported operating system"
+
+// In `module Architecture`, the fifth case (constructed nowhere; see NOTE):
+
+    | Armv7l
+
+// In `module Shell`, the fourth case and its arm of `getDefaultShell`:
+
+  type Shell =
+    | Bash
+    | Zsh
+    | Fish
+    | PowerShell
+
+    | Ok Windows ->
+      // TODO: Add support for Command Prompt
+      Stdlib.Result.Result.Ok Shell.Shell.PowerShell
+
+
+// --- packages/darklang/cli/installation/config.dark -------------------------------------
+
+// `getDarklangHomeDir` was a match; it is now the Unix branch alone, and its `host` parameter
+// is unused as a result.
+
+let getDarklangHomeDir (host: Stdlib.Cli.Host.Host) : String =
+  match host.os with
+  | Windows ->
+    match Stdlib.Cli.PowerShell.getHomeDirectory () with
+    | Ok dir -> $"{dir}\\.darklang"
+    | Error _ -> "~\\.darklang"
+  | _ ->
+    match Stdlib.Cli.Unix.getHomeDirectory () with
+    | Ok dir -> $"{dir}/.darklang"
+
+
+// --- packages/darklang/cli/installation/download.dark -----------------------------------
+
+// `replaceBinary`. Note the missing smoke test, and that the whole `| _ -> Error` arm went
+// with it: with two OS cases, `| Linux | MacOS ->` is total.
+
+  match host.os with
+  | Windows ->
+    // Windows won't overwrite a running executable, but it will rename one, so the old binary steps
+    // aside to `.old` rather than being replaced in place.
+    //
+    // CLEANUP: no smoke test here yet, and this branch hasn't been run on Windows.
+    let old = $"{target}.old"
+
+    let steps =
+      Stdlib.Cli.PowerShell.ensureDirectoryExists dir
+      |> Stdlib.Result.andThen (fun _ -> Stdlib.Cli.Curl.downloadFileToPath url downloadTo)
+      |> Stdlib.Result.andThen (fun _ -> Stdlib.Cli.PowerShell.Gzip.unzipToFile downloadTo fresh)
+      |> Stdlib.Result.andThen (fun _ ->
+        Stdlib.Cli.executeWithUnitOrStdErr
+          $"powershell.exe -Command \"if (Test-Path -Path '{target}') {{ Move-Item -Force -Path '{target}' -Destination '{old}' }}; Move-Item -Force -Path '{fresh}' -Destination '{target}'\"")
+
+    let _cleaned = Stdlib.Cli.PowerShell.removeFile downloadTo
+    steps
+
+  | _ -> Stdlib.Result.Result.Error "Unsupported OS"
+
+// `installRelease`, the paths:
+
+  let (binDir, target, configPath) =
+    match host.os with
+    | Windows ->
+      ($"{darklangHomeDir}\\bin\\", $"{darklangHomeDir}\\bin\\dark.exe", $"{darklangHomeDir}\\config.json")
+    | _ ->
+      ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark", $"{darklangHomeDir}/config.json")
+
+// `installRelease`, the PATH edit:
+
+        let pathResult =
+          match host.os with
+          | Windows -> Stdlib.Cli.PowerShell.addToPath binDir
+          // Unexpanded on purpose: the line must match what `install.sh` writes, byte for byte.
+          | _ -> Stdlib.Cli.Unix.addToPath host.defaultShell "$HOME/.darklang/bin/"
+
+
+// --- packages/darklang/cli/installation/system.dark -------------------------------------
+
+// `getInstallationMode`:
+
+  let globalBinPath =
+    match host.os with
+    | Windows -> $"{darklangHomeDir}\\bin\\"
+    | _ -> $"{darklangHomeDir}/bin/"
+
+// `migratePortableData`:
+
+  match host.os with
+  | Windows -> Stdlib.Cli.PowerShell.copyFile portableDbPath globalDbPath
+  | _ -> Stdlib.Cli.Unix.copyFile portableDbPath globalDbPath
+
+// `globalInstallationExists`:
+
+  let globalBinPath =
+    match host.os with
+    | Windows -> $"{darklangHomeDir}\\bin\\dark.exe"
+    | _ -> $"{darklangHomeDir}/bin/dark"
+
+  match host.os with
+  | Windows -> Stdlib.Cli.PowerShell.fileExists globalBinPath
+  | _ -> Stdlib.Cli.Unix.fileExists globalBinPath
+
+// `installFromCurrentBinary`, the paths:
+
+  let globalBinDir =
+    match host.os with
+    | Windows -> $"{darklangHomeDir}\\bin\\"
+    | _ -> $"{darklangHomeDir}/bin/"
+
+  let globalBinaryPath =
+    match host.os with
+    | Windows -> $"{globalBinDir}dark.exe"
+    | _ -> $"{globalBinDir}dark"
+
+// `installFromCurrentBinary`, the copy:
+
+  let createDirsAndCopy =
+    match host.os with
+    | Windows ->
+      match Stdlib.Cli.PowerShell.ensureDirectoryExists globalBinDir with
+      | Ok _ -> Stdlib.Cli.PowerShell.copyFile currentBinaryPath globalBinaryPath
+      | Error e -> Stdlib.Result.Result.Error e
+    | _ ->
+      ... the Unix branch, which stays ...
+
+// `installFromCurrentBinary`, the config file:
+
+    let setupResult =
+      match host.os with
+      | Windows ->
+        match Stdlib.Cli.PowerShell.createFile configPath with
+        | Ok _ ->
+          match Config.updateVersion configPath "local-binary" with
+          | Ok _ -> Stdlib.Result.Result.Ok()
+          | Error e -> Stdlib.Result.Result.Error e
+        | Error e -> Stdlib.Result.Result.Error e
+      | _ ->
+        ... the Unix branch, which stays ...
+
+
+// --- packages/darklang/cli/installation/uninstall.dark ----------------------------------
+
+// `removeDarklangDirectory`:
+
+  match host.os with
+  | Windows ->
+    Stdlib.Cli.PowerShell.removeFile darklangDir
+  | Linux | MacOS ->
+    Stdlib.Cli.Unix.removeDirectory darklangDir
+
+// `runUninstall`:
+
+  match host.os with
+  | Windows ->
+    let result =
+      (Stdlib.Cli.PowerShell.deleteAlias "dark")
+      |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
+
+    match result with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error err ->
+      Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
+
+  | Linux | MacOS ->
+    ... the Unix branch, which stays ...
+
+
+// --- packages/darklang/github.dark ------------------------------------------------------
+
+      | Linux, Armv7l -> "linux-arm" |> Stdlib.Result.Result.Ok
+      | Windows, Arm64 -> "win-arm64" |> Stdlib.Result.Result.Ok
+      | Windows, Aarch64 | Windows, X86_64 -> "win-x64" |> Stdlib.Result.Result.Ok
+
+
+// --- packages/darklang/cli/installation/README.md ---------------------------------------
+
+        let configPath =
+          match (Stdlib.Cli.OS.getOS ()) with
+          | Ok Windows ->
+            let homeDirectory =
+              (Stdlib.Cli.PowerShell.getHomeDirectory ()) |> Builtin.unwrap
+
+            $"{homeDirectory}\\.darklang\\config.json"
+          | Ok Linux | Ok MacOS -> "$HOME/.darklang/config.json"

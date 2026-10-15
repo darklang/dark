@@ -52,13 +52,6 @@ detect_host_runtime() {
         *) echo "Unsupported macOS architecture: $arch" >&2; exit 1 ;;
       esac
       ;;
-    MINGW*|MSYS*|CYGWIN*)
-      case "$arch" in
-        x86_64)  echo "win-x64" ;;
-        aarch64) echo "win-arm64" ;;
-        *) echo "Unsupported Windows architecture: $arch" >&2; exit 1 ;;
-      esac
-      ;;
     *)
       echo "Unsupported OS: $os" >&2
       exit 1

@@ -1,0 +1,128 @@
+// RESTORE: backend/src/LibExecution/Host/HostProcess.fs
+// WAS: WindowsJob -- a private module wrapping five kernel32 P/Invokes (CreateJobObjectW,
+//      OpenJobObjectW, SetInformationJobObject, AssignProcessToJobObject, TerminateJobObject)
+//      plus the three structs they marshal. Windows has no process group, so owned child
+//      processes were kept in a Job Object with KILL_ON_JOB_CLOSE instead: the parent creates
+//      the job, the launcher joins it, and terminate kills every descendant.
+// ANCHOR: it sat between the private `failwith` shim at the top of the file and
+//         `launchOwnedProcess`. Three call sites went with it:
+//           - launchOwnedProcess: an `elif System.OperatingSystem.IsWindows()` branch that
+//             joined the job and then started the worker through ProcessStartInfo
+//           - the cleanup path: a `match job with Some handle -> WindowsJob.terminate handle`
+//           - the spawn path: `if System.OperatingSystem.IsWindows() then
+//             job <- Some(WindowsJob.create jobName)`, just after resultPath is bound
+// NOTE: this was the only kernel32 import in the tree. It came out with the Windows release
+//       builds, not on its own: the CLI's filesystem layer is posix-only by its own
+//       documentation (Builtins.Cli/Libs/Posix.fs, packages/darklang/stdlib/cli/posix.dark),
+//       and build-sqlite.sh produces no Windows archives, so a Windows binary could start and
+//       then fail to open a store. Putting Windows back means all three, not just this.
+// ALSO: the `OperatingSystem.IsWindows()` guards in HostPosix.fs and HostSecurity.fs were
+//       deliberately LEFT in the live tree. They are one-line defensive branches interleaved
+//       with the wasm guards, they cost nothing, and pulling them apart belongs with the wasm
+//       removal rather than here.
+// THE BUILD PLUMBING THAT WENT WITH IT, since none of it is a whole file:
+//   scripts/build/build-release-cli-exes.sh   win-x64 and win-arm64 out of ALL_RUNTIMES and
+//                                             out of the usage line; the `win-*` arm of
+//                                             rid_os_family; the AOT_CAPABLE comment rewritten
+//   .circleci/config.yml                      build-cli-r2r-extras built
+//                                             --runtimes=win-x64,win-arm64,linux-arm and now
+//                                             builds linux-arm alone; two comments above the
+//                                             release matrix explained the Windows fallback
+//   scripts/deployment/publish-github-release  a line reading: - Windows: `win-x64`, or `win-arm64`
+//   scripts/build-and-install-cli-on-host     the MINGW*|MSYS*|CYGWIN* arm of the RID detector
+//   scripts/build/build-sqlite.sh             a comment saying the windows .lib variants are
+//                                             not cross-compiled from this script
+//   install.sh                                refused Windows while pointing at the win-x64
+//                                             asset; it now says Linux and macOS only
+// WHEN: the reductions round, 2026-10-14
+
+/// Windows keeps descendants in a job even after the worker exits. The parent
+/// owns the job; the launcher joins it before it can start child processes.
+module private WindowsJob =
+  [<Struct; StructLayout(LayoutKind.Sequential)>]
+  type BasicLimits =
+    { perProcessTime : int64
+      perJobTime : int64
+      flags : uint32
+      minWorkingSet : unativeint
+      maxWorkingSet : unativeint
+      activeProcesses : uint32
+      affinity : unativeint
+      priority : uint32
+      scheduling : uint32 }
+
+  [<Struct; StructLayout(LayoutKind.Sequential)>]
+  type IoCounters =
+    { readOperations : uint64
+      writeOperations : uint64
+      otherOperations : uint64
+      readBytes : uint64
+      writeBytes : uint64
+      otherBytes : uint64 }
+
+  [<Struct; StructLayout(LayoutKind.Sequential)>]
+  type ExtendedLimits =
+    { basic : BasicLimits
+      io : IoCounters
+      processMemory : unativeint
+      jobMemory : unativeint
+      peakProcessMemory : unativeint
+      peakJobMemory : unativeint }
+
+  [<DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)>]
+  extern nativeint private CreateJobObjectW(nativeint attributes, string name)
+
+  [<DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)>]
+  extern nativeint private OpenJobObjectW(
+    uint32 access,
+    bool inheritHandle,
+    string name
+  )
+
+  [<DllImport("kernel32.dll", SetLastError = true)>]
+  extern bool private SetInformationJobObject(
+    nativeint job,
+    int infoClass,
+    ExtendedLimits& limits,
+    uint32 length
+  )
+
+  [<DllImport("kernel32.dll", SetLastError = true)>]
+  extern bool private AssignProcessToJobObject(nativeint job, nativeint processHandle)
+
+  [<DllImport("kernel32.dll", SetLastError = true)>]
+  extern bool private TerminateJobObject(nativeint job, uint32 exitCode)
+
+  let private check success =
+    if not success then
+      raise (System.ComponentModel.Win32Exception(Marshal.GetLastPInvokeError()))
+
+  let private handle raw =
+    check (raw <> 0n)
+    new Microsoft.Win32.SafeHandles.SafeFileHandle(raw, true)
+
+  let create name =
+    let job = handle (CreateJobObjectW(0n, name))
+    try
+      let mutable limits = Unchecked.defaultof<ExtendedLimits>
+      limits <- { limits with basic = { limits.basic with flags = 0x2000u } } // KILL_ON_JOB_CLOSE
+      check (
+        SetInformationJobObject(
+          job.DangerousGetHandle(),
+          9,
+          &limits,
+          uint32 (Marshal.SizeOf<ExtendedLimits>())
+        )
+      )
+      job
+    with e ->
+      job.Dispose()
+      Exception.reraise e
+
+  let join name =
+    use job = handle (OpenJobObjectW(1u, false, name)) // JOB_OBJECT_ASSIGN_PROCESS
+    use worker = System.Diagnostics.Process.GetCurrentProcess()
+    check (AssignProcessToJobObject(job.DangerousGetHandle(), worker.Handle))
+
+  let terminate (job : Microsoft.Win32.SafeHandles.SafeFileHandle) =
+    check (TerminateJobObject(job.DangerousGetHandle(), 1u))

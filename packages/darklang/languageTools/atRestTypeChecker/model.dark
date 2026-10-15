@@ -63,7 +63,6 @@ type Ty =
   | TDict of Ty * Ty
   | TCustom of LanguageTools.ProgramTypes.Hash * List<Ty>
   | TFn of List<Ty> * Ty
-  | TDB of Ty
   /// A declared type parameter such as 'a. While checking a generic definition,
   /// it must remain generic; the solver cannot choose a concrete type for it.
   | TRigid of String

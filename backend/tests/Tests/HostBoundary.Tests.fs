@@ -328,7 +328,7 @@ let onlyHostModulesTouchTheOS =
 
 /// Guard against reintroducing a libc import even inside a trusted module.
 let noLibcImports =
-  test "native imports use the syscall transport and Windows process jobs" {
+  test "native imports are the syscall transport and nothing else" {
     let importsIn assembly =
       use stream = System.IO.File.OpenRead assembly
       use pe = new PEReader(stream)
@@ -350,14 +350,8 @@ let noLibcImports =
     Expect.equal
       (importsIn typeof<LibExecution.HostTypes.Operation>.Assembly.Location
        |> List.sort)
-      ([ "dark_syscalls", "dark_syscall"
-         "kernel32.dll", "CreateJobObjectW"
-         "kernel32.dll", "OpenJobObjectW"
-         "kernel32.dll", "SetInformationJobObject"
-         "kernel32.dll", "AssignProcessToJobObject"
-         "kernel32.dll", "TerminateJobObject" ]
-       |> List.sort)
-      "POSIX uses the syscall transport; Windows imports only process job management"
+      [ "dark_syscalls", "dark_syscall" ]
+      "every OS call goes through the syscall transport; there is no second native door"
     Expect.isEmpty
       (importsIn typeof<LibDB.LocalFile.ReadResult>.Assembly.Location)
       "Policy persistence uses the host transport rather than libc imports"

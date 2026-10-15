@@ -3,12 +3,10 @@
 /// See design main/notes/cli-ux/03A.
 module Darklang.Cli.Workbench.Frame
 
-/// Labels for stable built-in view indices. Indices 2, 5, 6 and 7 stay reserved
-/// for the former Inspect, Devices, AI and Apps views so later indices do not
-/// change.
-val viewNames =
-  [ "Home", "Matter", "(unused)", "REPL", "SCM"
-    "(unused)", "(unused)", "(unused)", "Traces", "Docs" ]
+/// Labels for the built-in view indices, in order. These are internal: what a
+/// number key does is set by position in `Navbar.workspaces`, not by this list,
+/// so adding or removing a view here is not a change anybody types.
+val viewNames = [ "Home", "Matter", "REPL", "SCM", "Traces", "Docs" ]
 
 let viewName (i: Int) : String =
   Stdlib.List.getAt viewNames i |> Stdlib.Option.withDefault "Home"

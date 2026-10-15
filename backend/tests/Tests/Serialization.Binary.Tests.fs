@@ -108,14 +108,6 @@ module PT =
         |> BS.PT.PackageOp.deserialize (System.Guid.NewGuid()))
       Values.ProgramTypes.packageOps
 
-  let toplevelTests =
-    Roundtripping.testRoundtripMany
-      "toplevels"
-      (fun tl ->
-        let tlid = PT.Toplevel.toTLID tl
-        tl |> BS.PT.Toplevel.serialize tlid |> BS.PT.Toplevel.deserialize tlid)
-      Values.ProgramTypes.toplevels
-
   /// The deprecation stamp rides on tags 4 and 5 as a trailing field rather than on tags of its
   /// own, and that is only safe if two things hold.
   ///
@@ -518,7 +510,6 @@ module RT =
         "Dict key that cannot be a key"
         $"{name} must be refused as a format error, not by the comparer's guard"
 
-  /// DB references are comparable but intentionally unsupported as keys.
   /// v4 added the bounds a call worked out to a stored applicable, and a v3 blob ends with the
   /// captured-access bool instead. A reader that takes the list anyway reads that bool as a
   /// length and then runs off the end of the blob, so every `rt_instrs` row written before this
@@ -562,14 +553,17 @@ module RT =
         "the reader consumed the blob exactly"
     }
 
-  let dictWithDbKeyRejectedOnRead =
-    test "a Dict keyed by a DB reference is refused on deserialize" {
+  /// Blob references are comparable but intentionally unsupported as keys. This case used to
+  /// be a `DDB`, which went to later/ with user datastores; a blob is the nearest live value
+  /// with the same property, so the arm goes on being exercised.
+  let dictWithBlobKeyRejectedOnRead =
+    test "a Dict keyed by a blob reference is refused on deserialize" {
       expectRefusedOnRead
-        "a DB reference"
+        "a blob reference"
         (RT.DDict(
           RT.ValueType.Unknown,
           RT.ValueType.Unknown,
-          Map [ RT.DictKey(RT.DDB "somedb"), RT.DUnit ]
+          Map [ RT.DictKey(RT.DBlob(RT.Persistent("h", 0L))), RT.DUnit ]
         ))
     }
 
@@ -596,63 +590,6 @@ module RT =
     }
 
 
-module ConsistentSerializationTests =
-  type Format =
-    { name : string
-      serializer : PT.DB.T -> byte array
-      deserializer : byte array -> PT.DB.T
-      prefix : string
-      suffix : string }
-
-  let formats =
-    [ { name = "BinarySerialization"
-        serializer = fun db -> BS.PT.Toplevel.serialize db.tlid db
-        deserializer = fun data -> BS.PT.Toplevel.deserialize 0UL data
-        prefix = "toplevels-binary"
-        suffix = ".bin" } ]
-
-  let nameFor (f : Format) (version : string) (idx : int) =
-    $"{f.prefix}-{version}-{idx}{f.suffix}"
-
-
-  /// Generates the timestamped fixture files that pin the binary format. Regenerate
-  /// and commit them alongside any deliberate format or test-value change.
-  let generateTestFiles () : unit =
-    formats
-    |> List.iter (fun f ->
-      Values.ProgramTypes.toplevels
-      |> List.iteri (fun i tl ->
-        let output = f.serializer tl
-        File.writefileBytes Config.Serialization (nameFor f "latest" i) output))
-
-
-  // Each serialized toplevel must match its committed fixture. Regenerate
-  // intentionally changed fixtures with DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y.
-  let testTestFiles =
-    formats
-    |> List.map (fun f ->
-      test "binary serialization matches the committed golden files" {
-        Values.ProgramTypes.toplevels
-        |> List.iteri (fun i tl ->
-          let serialized = f.serializer tl
-          Expect.equal (f.deserializer serialized) tl "roundtrip should work"
-          let golden =
-            File.readfileBytes Config.Serialization (nameFor f "latest" i)
-          Expect.equal
-            serialized
-            golden
-            $"toplevel {i} matches its committed golden (regenerate if this change is intended)")
-      })
-
-
-let generateTestFiles () =
-  // Enabled in dev so we can see changes as git diffs
-  // Disabled in CI so changes will fail the tests
-  if Config.serializationGenerateTestData then
-    ConsistentSerializationTests.generateTestFiles ()
-  ()
-
-
 let tests =
   testList
     "Binary Serialization"
@@ -667,7 +604,6 @@ let tests =
           PT.traitTests
           PT.implTests
           PT.packageTestTests
-          PT.toplevelTests
           PT.packageOpTests
           PT.deprecationStampRidesOnTheExistingTags
           PT.legacyRecoveryHoleTagRejected
@@ -685,9 +621,7 @@ let tests =
           RT.dvalTests
           RT.instructionsTests
           RT.v3ApplicableStillReads
-          RT.dictWithDbKeyRejectedOnRead
+          RT.dictWithBlobKeyRejectedOnRead
           RT.dictWithLambdaKeyRejectedOnRead
           RT.closureAccessIsStripped
-          RT.namedFnAccessIsStripped ]
-
-      testList "consistent serialization" ConsistentSerializationTests.testTestFiles ]
+          RT.namedFnAccessIsStripped ] ]

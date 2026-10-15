@@ -10,7 +10,7 @@
 #   ./scripts/build/build-release-cli-exes.sh --mode=aot         # NativeAOT publish (see below)
 #   ./scripts/build/build-release-cli-exes.sh --seed=path/to.db  # Use a pre-exported seed
 #
-# Supported runtimes: linux-x64, linux-musl-x64, linux-arm64, linux-arm, osx-x64, osx-arm64, win-x64, win-arm64
+# Supported runtimes: linux-x64, linux-musl-x64, linux-arm64, linux-arm, osx-x64, osx-arm64
 #
 # Publish modes:
 #   r2r    ReadyToRun + single-file + trimmed. The explicit fast path.
@@ -94,14 +94,17 @@ release="alpha-$sha"
 export GIT_COMMIT="$sha"
 
 # All supported runtimes.
-ALL_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64 win-x64 win-arm64"
+ALL_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64"
 
-# Which runtimes we can NativeAOT at all. Windows is absent on purpose:
-# build-sqlite.sh produces no windows archives and Cli.fsproj has no windows
-# <NativeLibrary> items, so a win AOT publish fails at link. Adding windows
-# means zig emitting .lib for both arches plus matching fsproj items.
+# Which runtimes we can NativeAOT at all.
 #
-# linux-arm (armv7) is absent too. .NET 10's 32-bit ARM NativeAOT runtime
+# Windows is not a supported runtime at all any more, AOT or R2R: the CLI's
+# filesystem layer is posix-only by its own documentation, build-sqlite.sh
+# produces no Windows archives, and a win-* binary could therefore start and
+# then fail to open a store. See later/backend/src/LibExecution/Host/
+# HostProcess.fs.windows-job for what putting it back involves.
+#
+# linux-arm (armv7) is absent here but IS still built, as R2R. .NET 10's 32-bit ARM NativeAOT runtime
 # needs glibc symbols that only appeared in ~2.34, well above the floor we
 # target, so it can't be linked here at all. That's a runtime requirement
 # rather than a toolchain gap, so it isn't going to be fixed by better
@@ -116,7 +119,6 @@ rid_os_family() {
   case "$1" in
     linux-*) echo "linux" ;;
     osx-*)   echo "osx" ;;
-    win-*)   echo "win" ;;
     *)       echo "" ;;
   esac
 }

@@ -276,14 +276,14 @@ So two rules, and the second is the one that saves you:
   narrow filter. If a run came back in under a second, check for a surviving `Tests` process
   before you believe a word of it.
 
-### Sweeping the CLI after a change
-
 ### Processes and live programming
 
 `docs/processes.md` is the scheduler: what a process is, the loop, reads in flight, `Exec.spawn`,
 executions (resume, fork, export), `dark ps`. `docs/live.md` is live programming: the host loop,
 `serve` following edits, the `Node` tree, live values. `dark docs processes` and `dark docs live`
 are the short forms.
+
+### Sweeping the CLI after a change
 
 A Dark call site is not type-checked until it executes, so a rename or a type change across
 `packages/` leaves holes a green suite cannot see. The bugs that get found here are found by
@@ -1151,15 +1151,17 @@ difference shows up as a test standing somewhere it did not expect to be.
 
 Clearing only `current_branch%` is the trap: it looks like isolation and is not.
 
-There are FOUR config stores, and that line only clears one: `config_v0` in sqlite,
-`cli-config.json` beside the db (instance id and name), `$HOME/.darklang/capabilities.bin`, and
-`credentials_v0` in `credentials.db` beside the store (`LibDB/Config.fs`). Copying a store
-DIRECTORY carries all of it; copying `data.db` alone does not, which is the shape to prefer for a
-scratch store. `credentials.db` is also not covered by `dark backups`, so a restored backup comes
-back without it. Nothing in the base tree writes a credential any more, since the only thing that
-did was the relay, but the store and its guard are still there: `Builtin.configGet` refuses a
-credential key rather than returning "", so a caller cannot read one and cannot mistake a refusal
-for "nothing configured".
+There are THREE config stores, and that line only clears one: `config_v0` in sqlite,
+`cli-config.json` beside the db (instance id and name), and `$HOME/.darklang/capabilities.bin`.
+Copying a store DIRECTORY carries all of it; copying `data.db` alone does not, which is the shape
+to prefer for a scratch store.
+
+There was briefly a fourth, `credentials_v0` in a `credentials.db` beside the store, holding the
+relay write secret where a `package-read` grant could not SELECT it. Nothing writes a credential
+now that the relay is in `later/`, so the file, the `configGet` guard that refused a credential
+key, and the two tests that pinned the separation went with it. The mechanism and the reasoning
+behind it are in `later/backend/src/LibDB/Config.fs.credentials`; read that before inventing a
+second one.
 
 The capabilities one is keyed on **HOME**, not `DARK_CONFIG_RUNDIR`, so an isolated store does NOT isolate it. A
 `dark caps grant ...` in a throwaway store writes the real grant for the whole container. Worse, the file's
@@ -1249,7 +1251,35 @@ switching views, resize, the too-small guard, and quitting cleanly. None of it i
 the test suite -- the views render fine when called directly; what needs a terminal is the keyboard,
 the alternate screen and SIGWINCH.
 
-Telemetry lands in `rundir/logs/telemetry.jsonl`. Full guide: `docs interactive-testing`.
+### Telemetry from the interactive loop
+
+When `packages/darklang/cli/telemetry.dark` is loaded, the interactive loop appends JSON lines to
+`rundir/logs/telemetry.jsonl`, one per event:
+
+    {"event":"preInput","ms":169,"ctx":{}}
+    {"event":"readKey","ms":2014,"ctx":{"char":"h"}}
+    {"event":"render","ms":33,"ctx":{"page":"MainPrompt"}}
+
+The events, per loop iteration: `completionHint` (the ghosted suggestion), `render` (a page draw),
+`preInput` (all the work before blocking on a keystroke), `readKey` (time waiting for the person,
+so idle), `update` (state after a keystroke), `loopWork` (preInput + update, the non-idle total),
+`commandExec` (on Enter), `tabComplete`, and `session_start` as a marker.
+
+`preInput` is the one to read: it is the lag a person feels between pressing a key and seeing
+anything.
+
+    jq -r 'select(.event=="preInput") | .ms' rundir/logs/telemetry.jsonl
+
+    jq -r 'select(.event=="completionHint") | .ms' rundir/logs/telemetry.jsonl \
+      | awk '{s+=$1;n++} END{print s/n"ms"}'
+
+`scripts/perf/view-telemetry.py` reads the same file and is easier for a whole run.
+
+Three traps worth knowing when driving the loop under `expect`: give it about 3 seconds after
+spawn, because packages load before the first prompt; `send "x"` sends one character and the loop
+reads one at a time, so a sleep between them is what a real typing speed looks like; and the
+Release and AOT builds behave differently enough from Debug that a timing conclusion from one says
+nothing about the other.
 
 For poking at it by hand, or driving something `expect` would be awkward for -- an editor,
 a pager, anything that takes over the screen -- `tmux` is more reliable:

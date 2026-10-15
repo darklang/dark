@@ -150,7 +150,6 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
         r dval))
 
   // Not supported
-  | DDB _
   | DApplicable _
   | DBlob _
   | DStream _
@@ -722,8 +721,8 @@ let parse
     | TVariable _, _
     | TFn _, _
     | TBlob, _
-    | TStream _, _
-    | TDB _, _ -> (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
+    | TStream _, _ ->
+      (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
 
 
     // exhaust TypeReferences

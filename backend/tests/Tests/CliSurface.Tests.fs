@@ -249,7 +249,7 @@ let private hintRowKeepsTheWayOut =
         let lastRow (w : int) : string =
           "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"i\" false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
-          + "let s1 = { s0 with activeView = 4 } in "
+          + "let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
           + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
           // Tall enough that the hint row is always in frame: a clean tree renders a
           // roomier panel than a draft, so a short frame loses the hints in one store.
@@ -301,7 +301,7 @@ let private headerKeepsTheBranchWhenNarrow =
         let row (w : int) : string =
           "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"inst-with-a-deliberately-long-name-for-this-test\" false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
-          + "let s1 = { s0 with activeView = 4 } in "
+          + "let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
           + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
           + $"Stdlib.String.join (Stdlib.List.take (Darklang.Cli.Workbench.viewAtSize s (Darklang.Stdlib.Cli.Tui.Size {{ width = {w}; height = 4 }})).rows 1) \"\""
 
@@ -333,7 +333,7 @@ let private workbenchBranchActionsWork =
         let act (action : string) (text : string) : string =
           "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"t\" false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
-          + "let s = { s0 with activeView = 4 } in "
+          + "let s = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
           + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\"; field = Stdlib.Cli.UI.TextField.fromText \"{text}\"; action = \"{action}\" }}) with "
           + "| Continue ns -> ns.message | _ -> \"(exit)\""
 
@@ -371,7 +371,7 @@ let private mergeAndRebaseRefuseOnMain =
         let act (action : string) : string =
           "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"t\" false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
-          + "let s = { s0 with activeView = 4 } in "
+          + "let s = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
           + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\"; field = Stdlib.Cli.UI.TextField.fromText \"y\"; action = \"{action}\" }}) with "
           + "| Continue ns -> ns.message | _ -> \"(exit)\""
 

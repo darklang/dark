@@ -52,12 +52,32 @@ test moduleHeadedFiles =
     [ shape "module Darklang.Foo\n\nvaloops = 1" |> Stdlib.Test.equal (1, 0)
       shape "module Darklang.Foo\n\nlet f (x: Int): Int = x"
       |> Stdlib.Test.equal (1, 0)
-      // `[<DB>] type X = ...` still parses and still lowers to a `TDB` type reference, which
-      // is what this asserts. The runtime behind user DBs is in `later/`, so nothing executes
-      // against one; the form stays in the grammar because `TDB` is in the serialization
-      // format, and therefore in the content hash.
+      // `[<DB>]` used to be a declaration form of its own, lowering to a `TDB` type
+      // reference. User datastores are gone, so the parser no longer knows the attribute:
+      // it is now exactly as special as any other unrecognised one, which is the property
+      // asserted just below rather than here.
       shape "module Darklang.Foo\n\n[<DB>] type Counter = Int"
       |> Stdlib.Test.equal (1, 0) ]
+
+// `[<DB>]` is not a form any more. Asserting equivalence with a nonsense attribute rather
+// than a fixed diagnostic count, because the count belongs to how the recovery happens to
+// work and would make this test fail for the wrong reason the next time that changes.
+test dbAttributeIsNoLongerSpecial =
+  let dbDiags =
+    Darklang.LanguageTools.Parser.Parse.diagnostics
+      "module Darklang.Foo\n\n[<DB>] type Counter = Int"
+    |> Stdlib.List.map (fun (_r, m) -> m)
+  let nonsenseDiags =
+    Darklang.LanguageTools.Parser.Parse.diagnostics
+      "module Darklang.Foo\n\n[<Nonsense>] type Counter = Int"
+    |> Stdlib.List.map (fun (_r, m) -> m)
+  Stdlib.Test.all
+    [ // the type still lands, as it does under any stray attribute
+      shape "module Darklang.Foo\n\n[<Nonsense>] type Counter = Int"
+      |> Stdlib.Test.equal (1, 0)
+      // and DB is refused in the same breath, and in the same number of breaths
+      (Stdlib.List.length dbDiags > 0) |> Stdlib.Test.equal true
+      (Stdlib.List.length dbDiags) |> Stdlib.Test.equal (Stdlib.List.length nonsenseDiags) ]
 
 // A real declaration alongside an assignment-shaped line: the declaration
 // survives, the assertion's two sides join exprsToEval.

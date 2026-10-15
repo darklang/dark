@@ -1308,9 +1308,6 @@ module WrittenTypesToDarkTypes =
     | WT.DImpl impl -> [ DEnum(t, t, [], "Impl", [ implDeclToDT impl ]) ]
     | WT.DModule m -> [ DEnum(t, t, [], "SubModule", [ moduleDeclToDT path m ]) ]
     | WT.DExpr e -> [ expr e ]
-    // `[<DB>] type X = ...` is a type as far as anything reading this cares; the attribute sits outside the
-    // declaration's range anyway.
-    | WT.DTypeDB td -> [ DEnum(t, t, [], "Type", [ typeDeclToDT td ]) ]
     | WT.DTest test -> [ DEnum(t, t, [], "Test", [ testDeclToDT test ]) ]
     // Both sides of the assertion, so the highlighter still colours the whole line.
     | WT.DAssertion t ->
@@ -1320,7 +1317,7 @@ module WrittenTypesToDarkTypes =
 
   /// A declaration the `SourceFileDeclaration` DT has a case for, or None.
   ///
-  /// `DExpr` / `DTypeDB` / `DAssertion` have no case; returning None DROPS them rather
+  /// `DExpr` / `DAssertion` have no case; returning None DROPS them rather
   /// than raising: this feeds the highlighter and LSP, which are best-effort -- an
   /// uncoloured span beats an internal exception.
   let private sourceFileDeclarationToDT (d : WT.Declaration) : Option<Dval> =
@@ -1334,7 +1331,6 @@ module WrittenTypesToDarkTypes =
     | WT.DImpl impl -> Some(DEnum(t, t, [], "Impl", [ implDeclToDT impl ]))
     | WT.DTest test -> Some(DEnum(t, t, [], "Test", [ testDeclToDT test ]))
     | WT.DExpr _
-    | WT.DTypeDB _
     | WT.DAssertion _ -> None
 
   let parsedFileToDT (pf : WT.ParsedFile) : Dval =
@@ -1345,7 +1341,6 @@ module WrittenTypesToDarkTypes =
       // here: see `moduleItemsToDT`):
       //   DExpr   -> exprsToEval
       //   DAssertion -> both sides as exprs
-      //   DTypeDB -> its type declaration
       let asExprs (d : WT.Declaration) : List<WT.Expr> =
         match d with
         | WT.DExpr e -> [ e ]
@@ -1360,7 +1355,6 @@ module WrittenTypesToDarkTypes =
           match d with
           | WT.DExpr _
           | WT.DAssertion _ -> None
-          | WT.DTypeDB td -> Some(WT.DType td)
           | d -> Some d)
       let liftedExprs = sf.declarations |> List.collect asExprs
       let sf =
@@ -1458,8 +1452,8 @@ let fns () : List<BuiltInFn> =
 
     // CLEANUP: replace this with one parser that takes Package, Script, or Test.
     // The current F#-to-Dark conversion drops details needed for validation:
-    // `[<DB>] type T` becomes a normal type, and the test `1 = 1` becomes plain
-    // expressions. For now, validate here and return the same package tree.
+    // The test `1 = 1` becomes a plain expression. For now, validate here and return the
+    // same package tree.
     { name = fn "parserParsePackageToWrittenTypes" 0
       typeParams = []
       parameters = [ Param.make "sourceCode" TString "" ]

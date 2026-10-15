@@ -23,8 +23,9 @@ type private WTPackageModule =
     values : List<WT.PackageValue.PackageValue>
     traits : List<WT.PackageTrait.PackageTrait>
     impls : List<WT.PackageTraitImpl.PackageTraitImpl>
-    tests : List<WT.PackageTest.PackageTest>
-    dbs : List<List<string> * WT.TypeDecl> }
+    tests : List<WT.PackageTest.PackageTest> }
+
+
 /// Lower a WT package module to PackageOps (WT2PT lowering + AddX/SetName op
 /// generation).
 let private wtModuleToOps
@@ -45,7 +46,7 @@ let private wtModuleToOps
 
     // Types in this file are not in `pm` yet. Give them real hashes in a
     // temporary overlay so functions, values, and tests can resolve same-file
-    // types, including inline [<DB>] row types. The overlay does not save ops.
+    // types. The overlay does not save ops.
     let nameBasedHash = PackageLocation.placeholderHash
     let typeOps : List<PT.PackageOp> =
       [ for (wtType, ptType) in List.zip modul.types types do
@@ -151,7 +152,6 @@ type private PkgItem =
   | PTrait of WT.PackageTrait.PackageTrait
   | PImpl of WT.PackageTraitImpl.PackageTraitImpl
   | PTest of WT.PackageTest.PackageTest
-  | PDB of List<string> * WT.TypeDecl
   | PErr of WT.Range * string
 
 let private noOwner (kind : string) (name : string) : string =
@@ -185,10 +185,6 @@ let private packageItem (item : WTSourceFile.Item) : PkgItem =
     | [] -> PErr(test.range, noOwner "test" test.name.name)
   | WTSourceFile.Expr(_, e) ->
     PErr(WT.exprRange e, "expressions are not allowed in package files")
-  | WTSourceFile.TypeDB(path, t) ->
-    match path with
-    | _ :: _ -> PDB(path, t)
-    | [] -> PErr(t.range, noOwner "DB" t.name.name)
   | WTSourceFile.Assertion(_, t) ->
     PErr(t.range, "test assertions are not allowed in package files")
 
@@ -208,8 +204,6 @@ let private packageDecls
     items
     |> List.choose (function
       | PType t -> Some t
-      | PDB(owner :: modules, ({ definition = WT.TDRecord _ } as t)) ->
-        Some(WT.packageType owner modules t)
       | _ -> None)
   let values =
     items
@@ -231,11 +225,6 @@ let private packageDecls
     |> List.choose (function
       | PTest test -> Some test
       | _ -> None)
-  let dbs =
-    items
-    |> List.choose (function
-      | PDB(path, db) -> Some(path, db)
-      | _ -> None)
   let errors =
     items
     |> List.choose (function
@@ -246,8 +235,7 @@ let private packageDecls
      values = values
      traits = traits
      impls = impls
-     tests = tests
-     dbs = dbs },
+     tests = tests },
    errors)
 
 /// Parse + lower a package file: the nested module tree gives module-qualified

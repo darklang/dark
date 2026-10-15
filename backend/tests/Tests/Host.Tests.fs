@@ -918,7 +918,7 @@ let isolatedTestBoundsOutputCollection =
                 $"echo $$ > '{pidFile}'\nsleep 30 &\necho $! >> '{pidFile}'\nwait\n"
               )
               let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
-              $"{quote launcher} --process-launch unused /bin/sh {quote nested} &\nwait\n"
+              $"{quote launcher} --process-launch /bin/sh {quote nested} &\nwait\n"
             else
               $"sleep 30 {redirect} &\necho $! > '{pidFile}'\n{ending}\n"
           System.IO.File.WriteAllText(script, "#!/bin/sh\n" + body)

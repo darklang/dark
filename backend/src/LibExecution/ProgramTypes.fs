@@ -382,7 +382,6 @@ type TypeReference =
   /// A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string
 
-  | TDB of TypeReference
 
 
 /// Expressions - the main part of the language.
@@ -1600,21 +1599,3 @@ the package stuff is all a projection of that
 //     name: string
 //     location: Location
 //   }
-
-
-
-// --
-// User things
-// --
-module DB =
-  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
-
-
-/// Compatibility shim: callers used to wrap a `DB.T` in `Toplevel.TLDB`
-/// and read tlids via `Toplevel.toTLID`. Handler / TLHandler are gone
-/// (Worker / Cron / REPL had no live consumers; HTTP went earlier with
-/// the BwdServer rewrite). `DB.T` IS the toplevel now — keep the
-/// `Toplevel.toTLID` accessor as a one-line shim so the noisier
-/// callsites don't all churn shape simultaneously.
-module Toplevel =
-  let toTLID (db : DB.T) : tlid = db.tlid
