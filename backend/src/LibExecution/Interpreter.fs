@@ -396,6 +396,47 @@ let private inferTVarsFromDval
   | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
 
 
+/// Whether matching `pat` against `dv` must wait for a read: one sits where the pattern looks
+/// at a value, not where it binds a name. Shells are looked through.
+let rec private letNeedsValue (pat : LetPattern) (dv : Dval) : bool =
+  match pat with
+  | LPVariable _
+  | LPWildcard -> false
+  | _ ->
+    match dv with
+    | DPromise p when not p.HasShell -> true
+    | _ ->
+      match pat, Pending.peek dv with
+      | LPTuple(a, b, rest), DTuple(x, y, zs) ->
+        letNeedsValue a x
+        || letNeedsValue b y
+        || (List.length rest = List.length zs && List.exists2 letNeedsValue rest zs)
+      | _ -> false
+
+/// `letNeedsValue`, for a match pattern. A shape that does not fit just fails to match.
+let rec private matchNeedsValue (pat : MatchPattern) (dv : Dval) : bool =
+  match pat with
+  | MPVariable _ -> false
+  | MPOr ps -> ps |> NEList.toList |> List.exists (fun p -> matchNeedsValue p dv)
+  | _ ->
+    match dv with
+    | DPromise p when not p.HasShell -> true
+    | _ ->
+      let rec pairs (ps : List<MatchPattern>) (vs : List<Dval>) =
+        match ps, vs with
+        | p :: pRest, v :: vRest -> matchNeedsValue p v || pairs pRest vRest
+        | _ -> false
+      match pat, Pending.peek dv with
+      | MPList ps, DList(_, items) -> pairs ps items
+      | MPListCons(h, t), DList(vt, x :: rest) ->
+        matchNeedsValue h x || matchNeedsValue t (DList(vt, rest))
+      | MPTuple(a, b, rest), DTuple(x, y, zs) ->
+        pairs (a :: b :: rest) (x :: y :: zs)
+      | MPEnum(case, fields), DEnum(_, _, _, actual, fs) when case = actual ->
+        pairs fields fs
+      | _ -> false
+
+
 /// Bind a let pattern's variables into `registers`, returning whether it matched.
 ///
 /// Assigns as it walks rather than collecting `(Register * Dval)` pairs to assign afterwards, which
@@ -417,7 +458,7 @@ let rec private assignLetPattern
     | DUnit -> true
     | _ -> false
   | LPTuple(first, second, theRest) ->
-    match dv with
+    match Pending.peek dv with
     | DTuple(firstVal, secondVal, theRestVal) ->
       assignLetPattern registers first firstVal
       && assignLetPattern registers second secondVal
@@ -476,7 +517,6 @@ and checkAndExtractMatchPattern
   | MPVariable reg ->
     buf.Add(struct (reg, dv))
     true
-
   | MPUnit ->
     match dv with
     | DUnit -> true
@@ -542,20 +582,21 @@ and checkAndExtractMatchPattern
     | DString r -> l = r
     | _ -> false
 
+  // Structural patterns look through a shell; `matchNeedsValue` has checked it is enough.
   | MPList pats ->
-    match dv with
+    match Pending.peek dv with
     | DList(_, items) -> checkMatchPatternList buf pats items
     | _ -> false
 
   | MPListCons(head, tail) ->
-    match dv with
+    match Pending.peek dv with
     | DList(vt, headItem :: tailItems) ->
       checkAndExtractMatchPattern buf head headItem
-      && checkAndExtractMatchPattern buf tail (DList(vt, tailItems))
+      && checkAndExtractMatchPattern buf tail (Pending.wrap (DList(vt, tailItems)))
     | _ -> false
 
   | MPTuple(first, second, theRest) ->
-    match dv with
+    match Pending.peek dv with
     | DTuple(firstVal, secondVal, theRestVal) ->
       checkAndExtractMatchPattern buf first firstVal
       && checkAndExtractMatchPattern buf second secondVal
@@ -563,7 +604,7 @@ and checkAndExtractMatchPattern
     | _ -> false
 
   | MPEnum(caseName, fields) ->
-    match dv with
+    match Pending.peek dv with
     | DEnum(_, _, _, caseNameActual, fieldsActual) when caseName = caseNameActual ->
       checkMatchPatternList buf fields fieldsActual
     | _ -> false
@@ -661,7 +702,8 @@ let inline private takeFrame
       registers = Array.zeroCreate registerCount
       argBufs = Array.empty
       continuation = Unchecked.defaultof<_>
-      finish = Unchecked.defaultof<_> }
+      finish = Unchecked.defaultof<_>
+      requestAccess = Unchecked.defaultof<_> }
 
 /// Hand a popped frame back. Registers are cleared here rather than at reuse, so a pooled frame that
 /// never gets reused isn't holding a call's worth of Dvals alive.
@@ -852,6 +894,25 @@ let private assignRegisters
     let struct (reg, value) = assignments[i]
     r[reg] <- value
 
+/// A read landed badly: raise its failure at the force point, the read and its call site
+/// below the stack. For a container, the read inside it that failed.
+let private raiseReadFailure (vm : VMState) (p : Promise) (t : Task<Dval>) : 'a =
+  match Pending.readFailure p t with
+  | Pending.ReadFailed(read, failure) ->
+    vm.nestedCallStack <- [ read.Site; Function read.Fn ]
+    match failure with
+    | RuntimeErrorException(_, rte) -> raiseRTE vm.threadID rte
+    | ex -> raise ex
+  | ex -> raise ex
+
+/// A frame's arguments as a view records them: a landed read as its value. One in flight
+/// stays a promise, which the view renders once it lands.
+let private landedForTrace (args : List<Dval>) : List<Dval> =
+  if List.exists Pending.isPromise args then
+    List.map Pending.settled args
+  else
+    args
+
 /// Bind a lambda's parameters to its arguments, in lockstep.
 ///
 /// The `List.zip |> List.iter` this replaces built a pair per parameter and two closures per call.
@@ -871,9 +932,26 @@ let rec private bindLambdaParams
       match pat with
       | LPVariable extractTo -> r[extractTo] <- arg
       | _ ->
+        let arg =
+          match arg with
+          // Every path pushing a lambda frame parks on these first (`argForcingFor`,
+          // `landThenRequest`); one here is a path that skipped it.
+          | DPromise _ when letNeedsValue pat arg ->
+            Exception.raiseInternal
+              "a lambda's pattern was handed a read in flight that nothing waited for"
+              []
+          | _ -> arg
         if not (assignLetPattern r pat arg) then
           RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat)) |> raiseRTE vm.threadID
       bindLambdaParams vm r patRest argRest
+
+
+/// Whether a lambda's pattern must wait for any of `args` (`letNeedsValue`).
+let rec private lambdaArgsNeedWait (pats : List<LetPattern>) (args : List<Dval>) =
+  match pats, args with
+  | pat :: patRest, arg :: argRest ->
+    letNeedsValue pat arg || lambdaArgsNeedWait patRest argRest
+  | _ -> false
 
 
 /// The parts of an `Apply` that the call paths below all need.
@@ -1086,17 +1164,6 @@ let rec private performRequested
   else
     out
 
-
-/// A read landed badly: raise its failure here, at the force point, with the read and where it
-/// was called from below the stack. An RTE is raised as an RTE, anything else as itself.
-let private raiseReadFailure (vm : VMState) (p : Promise) (t : Task<Dval>) : 'a =
-  vm.nestedCallStack <- [ p.Site; Function p.Fn ]
-  match t.Exception with
-  | null -> raise (System.OperationCanceledException "a read was cancelled")
-  | agg ->
-    match agg.GetBaseException() with
-    | RuntimeErrorException(_, rte) -> raiseRTE vm.threadID rte
-    | ex -> raise ex
 
 /// For a builtin's continuation that has to look at the callable's result: `k` with the value,
 /// waiting for a read still in flight first (the interpreter parks the process on the wait and
@@ -1454,17 +1521,14 @@ let private invokeBuiltin
             performRequested exeState vm (Ply result)
           else
             Ply result
-        if requested vm then
+        // A read never asks for an apply, and its wait may have been handed back as a promise
+        // that lands on another thread while the VM runs on, mid-way through some other
+        // builtin's callback chain. So a request on the VM then is that builtin's, not this one's.
+        if requested vm && not (Effects.readsOnly fn.name.name fn.callEffects) then
           // A request after the body's first wait (a stream that pulled from the network, then
           // has its transform to apply). The call site has moved on; the landing site, where
           // this result would have gone into the register, pushes the frame instead
-          // (`landBuiltin`), and what records the chain's result waits for it on the VM. A
-          // read can not do this: its wait would have been handed back as a promise, with the
-          // request inside it and nothing to see it.
-          if Effects.readsOnly fn.name.name fn.callEffects then
-            Exception.raiseInternal
-              "requestApply after the first await of a read"
-              [ "builtin", fn.name.name ]
+          // (`landBuiltin`), and what records the chain's result waits for it on the VM.
           vm.pendingFinish <- finishFor exeState fn ord traceSw allArgs
           return result
         else
@@ -1534,6 +1598,7 @@ let private completeBuiltin
         boundImpls = [] }
     |> AppNamedFn
     |> DApplicable
+    |> Pending.wrap
     |> Ply
   else
     invokeBuiltin exeState vm fn tst ctx.typeArgs allArgs
@@ -1596,6 +1661,69 @@ let private tryFastOp
             | _ -> ValueNone
         | _ -> ValueNone
       | _ -> ValueNone
+
+
+let rec private anyPromiseInRegs (registers : Dval array) (regs : List<Register>) =
+  match regs with
+  | [] -> false
+  | r :: rest -> Pending.isPromise registers[r] || anyPromiseInRegs registers rest
+
+/// Whether any of these registers holds a read in flight.
+let private anyPromiseIn (registers : Dval array) (regs : NEList<Register>) : bool =
+  Pending.isPromise registers[regs.head] || anyPromiseInRegs registers regs.tail
+
+/// Builtin argument `i` as the body gets it without a wait, or `ValueNone`: a closure for a
+/// function parameter through its shell (applied, never looked inside); for a parameter
+/// declared `Param.moved`, a bare `'a` as it is and a `List<'a>` or `Dict<'a>` through its
+/// shell; any non-promise as it is.
+let private withoutWaiting (fn : BuiltInFn) (i : int) (dv : Dval) : Dval voption =
+  match dv with
+  | DPromise p ->
+    match List.tryItem i fn.parameters with
+    | Some { typ = TFn _ } when p.HasShell -> ValueSome p.Shell
+    | Some { moves = true; typ = TVariable _ } -> ValueSome dv
+    | Some { moves = true; typ = TList(TVariable _) }
+    | Some { moves = true; typ = TDict(_, TVariable _) } when p.HasShell ->
+      ValueSome p.Shell
+    | _ -> ValueNone
+  | _ -> ValueSome dv
+
+/// Whether a builtin call's arguments, applied earlier or now, include a read in flight.
+let private argsHoldPromise (ctx : ApplyContext) : bool =
+  let rec inSeq (a : ArgSeq) =
+    match ArgSeq.uncons a with
+    | ValueNone -> false
+    | ValueSome(struct (dv, rest)) -> Pending.isPromise dv || inSeq rest
+  List.exists Pending.isPromise ctx.applicable.argsSoFar || inSeq ctx.args
+
+/// `xs` as `asIs` says, waiting in order for each read it answers `ValueNone` for (by
+/// position from `i`). A failed read raises at its turn, naming the read.
+let rec private landWhere
+  (vm : VMState)
+  (asIs : int -> Dval -> Dval voption)
+  (i : int)
+  (acc : List<Dval>)
+  (xs : List<Dval>)
+  : Ply<List<Dval>> =
+  match xs with
+  | [] -> Ply(List.rev acc)
+  | x :: rest ->
+    match asIs i x, x with
+    | ValueSome v, _ -> landWhere vm asIs (i + 1) (v :: acc) rest
+    | ValueNone, DPromise p ->
+      uply {
+        let! t =
+          p.Task.ContinueWith(
+            (fun (t : Task<Dval>) -> t),
+            TaskContinuationOptions.ExecuteSynchronously
+          )
+        // Round again on the same position: what landed may be a promise too.
+        if t.IsCompletedSuccessfully then
+          return! landWhere vm asIs i acc (t.Result :: rest)
+        else
+          return raiseReadFailure vm p t
+      }
+    | ValueNone, _ -> landWhere vm asIs (i + 1) (x :: acc) rest
 
 
 /// The operator table, dispatched straight off the caller's registers for a known builtin name.
@@ -1725,6 +1853,20 @@ let rec private callBuiltinResolved
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
   : Ply<Dval> =
+  if argsHoldPromise ctx then
+    callBuiltinForcingArgs exeState vm currentFrame ctx fn resolvedTypeArgsVT
+  else
+    callBuiltinResolvedValues exeState vm currentFrame ctx fn resolvedTypeArgsVT
+
+/// `callBuiltinResolved` once every argument is as the body gets it.
+and private callBuiltinResolvedValues
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (ctx : ApplyContext)
+  (fn : BuiltInFn)
+  (resolvedTypeArgsVT : List<ValueType>)
+  : Ply<Dval> =
   match tryFastOp vm.threadID fn ctx with
   | ValueSome result ->
     // Counted, so `builtinCalls` still says how many builtin calls the program made.
@@ -1733,6 +1875,35 @@ let rec private callBuiltinResolved
     Ply result
   | ValueNone ->
     callBuiltinResolvedSlow exeState vm currentFrame ctx fn resolvedTypeArgsVT
+
+/// A builtin handed a read in flight (from a builtin's callback, or an earlier partial
+/// application): waited for here, in program order, as `withoutWaiting` says.
+and private callBuiltinForcingArgs
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (ctx : ApplyContext)
+  (fn : BuiltInFn)
+  (resolvedTypeArgsVT : List<ValueType>)
+  : Ply<Dval> =
+  let soFar = ctx.applicable.argsSoFar
+  let args = ArgSeq.toList { ctx.args with Prior = [] }
+  uply {
+    let! soFar = landWhere vm (withoutWaiting fn) 0 [] soFar
+    let! args = landWhere vm (withoutWaiting fn) (List.length soFar) [] args
+    let ctx =
+      { ctx with
+          applicable = { ctx.applicable with argsSoFar = soFar }
+          args = { Prior = args; Regs = ctx.args.Regs; Head = ValueNone; Tail = [] } }
+    let! result =
+      callBuiltinResolvedValues exeState vm currentFrame ctx fn resolvedTypeArgsVT
+    // What went in through a shell may come back out in the result, as deep as its type says.
+    return
+      Pending.wrapAlong
+        (TypeChecker.DvalCreator.recheck vm.threadID)
+        fn.returnType
+        result
+  }
 
 and private callBuiltinResolvedSlow
   (exeState : ExecutionState)
@@ -2128,6 +2299,7 @@ let private completePackage
         typeSymbolTable = tst }
     |> AppNamedFn
     |> DApplicable
+    |> Pending.wrap
     |> PartiallyApplied
   else
     // Inherit the outer frame's TST but shadow this fn's own free type-vars first, so the inner fn's
@@ -2167,7 +2339,7 @@ let private completePackage
         newFrameId
         vm.currentFrameID
         pkgEp
-        (ArgSeq.toList allArgs)
+        (landedForTrace (ArgSeq.toList allArgs))
     // Names only, and only when something is recording: this is what lets `traces calls <fn>`
     // find the runs that went through a function, where the call itself is not recorded.
     if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
@@ -2508,6 +2680,8 @@ let private callPackageResolved
     && List.isEmpty resolvedExplicitTypeArgsVT
     && ArgSeq.count ctx.args = NEList.length fn.parameters
     && not exeState.tracing.collectExprValues
+    // A read in flight goes through the frame, which parks on it.
+    && not (argsHoldPromise ctx)
     ->
     // Counted as a package call, since one happened. `framePushCount` is deliberately not bumped:
     // the gap between the two counters is what elision saves.
@@ -2682,6 +2856,30 @@ let requestApply
   vm.pendingMoreArgs <- moreArgs
   vm.pendingNext <- next
   Ply DUnit
+
+/// Apply `lambda` to `args` once the reads its patterns look at have landed: a request made
+/// after the wait, under `access`, which `drive` begins. The process parks on the wait.
+let private landThenRequest
+  (vm : VMState)
+  (pats : List<LetPattern>)
+  (lambda : ApplicableLambda)
+  (access : Permissions.Access)
+  (args : List<Dval>)
+  (next : Dval -> Ply<Dval>)
+  : Ply<Dval> =
+  let asIs i dv =
+    match List.tryItem i pats with
+    | Some pat when letNeedsValue pat dv -> ValueNone
+    | _ -> ValueSome dv
+  uply {
+    let! landed = landWhere vm asIs 0 [] args
+    vm.activeAccess <- access
+    match landed with
+    | first :: rest ->
+      return!
+        requestApply vm (AppLambda { lambda with argsSoFar = [] }) first rest next
+    | [] -> return DUnit
+  }
 
 
 
@@ -3026,7 +3224,7 @@ let inline private pushLambdaFrame
       newFrame.id
       vm.currentFrameID
       newFrame.executionPoint
-      (ArgSeq.toList allArgs)
+      (landedForTrace (ArgSeq.toList allArgs))
   vm.frameToPush <- ValueSome newFrame
   newFrame
 
@@ -3095,7 +3293,17 @@ let rec private beginRequest
         { appLambda with argsSoFar = ArgSeq.toList allArgs; access = access }
         |> AppLambda
         |> DApplicable
+        |> Pending.wrap
       drive exeState vm caller reg pcAfter next finish (next partial) direct
+    elif
+      lambdaArgsNeedWait
+        (FreeTVars.patternsOfLambda exprId foundLambda.patterns)
+        prior
+    then
+      // `fun (a, b) -> ...` handed a read in flight (a fold's accumulator).
+      let pats = FreeTVars.patternsOfLambda exprId foundLambda.patterns
+      let again = landThenRequest vm pats appLambda applying prior next
+      drive exeState vm caller reg pcAfter next finish again direct
     else
       // `pushLambdaFrame` reads the caller's counter for the return point; the request may come
       // mid-chain, from a `returnFromFrame`, where the counter already sits past the `Apply`.
@@ -3115,6 +3323,7 @@ let rec private beginRequest
       caller.programCounter <- savedPc
       frame.continuation <- next
       frame.finish <- finish
+      frame.requestAccess <- applying
       // From an `Apply` in the drain, the frame waits in `frameToPush` for the drain to stop;
       // from a frame return or a resumed wait, the loop is between frames and it goes on right
       // away.
@@ -3200,6 +3409,7 @@ let rec private beginRequest
       | PushFrame frame ->
         frame.continuation <- next
         frame.finish <- finish
+        frame.requestAccess <- applying
         if direct then pushFrame vm frame else vm.frameToPush <- ValueSome frame
         ApplyDone
       | PartiallyApplied dv
@@ -3230,6 +3440,9 @@ and private drive
     if requested vm then
       beginRequest exeState vm caller reg pcAfter finish direct
     else
+      // A builtin that applied a callable answers here, out of `wrapAlong`'s sight; a list it
+      // built from elements holding reads (`filter`) is held as a promise like any other.
+      let dv = Pending.built (TypeChecker.DvalCreator.recheck vm.threadID) dv
       if not (obj.ReferenceEquals(finish, null)) then finish dv
       caller.registers[reg] <- dv
       caller.programCounter <- pcAfter
@@ -3297,7 +3510,8 @@ let private applyInstructionForced
 
   let applicable =
     let thingToCall = registers[thingToCallReg]
-    match thingToCall with
+    // A closure holding reads is called through its shell, without waiting for them.
+    match Pending.peek thingToCall with
     | DApplicable applicable -> applicable
     | _ ->
       RTE.Applications.ExpectedApplicableButNot(
@@ -3349,7 +3563,35 @@ let private applyInstructionForced
       |> RTE.Apply
       |> raiseRTE vm.threadID
 
-    if argCount = paramCount then
+    let pats = FreeTVars.patternsOfLambda exprId foundLambda.patterns
+    if
+      argCount = paramCount
+      && not (List.isEmpty appLambda.argsSoFar)
+      && lambdaArgsNeedWait pats (ArgSeq.toList allArgs)
+    then
+      // An earlier partial application's argument is in no register to park on.
+      let next = fun v -> Ply v
+      let again =
+        landThenRequest
+          vm
+          pats
+          appLambda
+          currentFrame.access
+          (ArgSeq.toList allArgs)
+          next
+      let pc = currentFrame.programCounter + 1
+      outcome <-
+        drive
+          exeState
+          vm
+          currentFrame
+          putResultIn
+          pc
+          next
+          Unchecked.defaultof<_>
+          again
+          false
+    elif argCount = paramCount then
       pushLambdaFrame
         exeState
         vm
@@ -3374,6 +3616,7 @@ let private applyInstructionForced
         { appLambda with argsSoFar = ArgSeq.toList allArgs; access = access }
         |> AppLambda
         |> DApplicable
+        |> Pending.wrap
 
     recordStage vm ApplyStage.LambdaTotal lambdaTotalAlloc
 
@@ -3409,7 +3652,13 @@ let private applyInstructionForced
     // A function, not a `let mutable` here: the rest of this body has `uply` blocks in it, and a
     // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
     // branch or not. Written that way first, it cost the gate and a view build several percent each.
-    match tryFastOpDirect vm.threadID registers applicable typeArgs newArgRegs with
+    // An operator would take a read in flight as a value.
+    match
+      if anyPromiseIn registers newArgRegs then
+        ValueNone
+      else
+        tryFastOpDirect vm.threadID registers applicable typeArgs newArgRegs
+    with
     | ValueSome result ->
       if vm.stats.enabled then
         vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
@@ -3692,8 +3941,10 @@ let private applyInstructionForced
             ValueNone
 
         match earlyWrapper with
+        // Not with a read in flight: the wrapper's frame parks on it properly.
         | ValueSome(struct (biFn, callData)) when
           NEList.length newArgRegs = List.length biFn.parameters
+          && not (anyPromiseIn registers newArgRegs)
           ->
           // Counted, since a package call happened. The late elision in `callPackageResolved` does
           // the same; this path was added afterwards and missed it, so `packageCalls` under-reported
@@ -3814,10 +4065,68 @@ let inline private forceOperand
   | _ -> ApplyDone
 
 
-/// One `Apply`, once its operands are plain values. A read still in flight among them is settled
-/// first: every callee, builtin or not, gets values (`Stdlib.await x` is an identity function, and this
-/// is how it forces). One type test per operand; the rest only runs when one is a promise.
-/// Inlined into the drain, so the scan costs no call of its own.
+/// Which of an `Apply`'s arguments must land before the call. Calling a Dark function or a
+/// lambda is not a use of what it is given; the callee itself always lands.
+[<Struct>]
+type private ArgForcing =
+  /// None: a package function, or a lambda that only binds names.
+  | ForceNone
+  /// All: a trait method dispatches on its self argument's type.
+  | ForceAll
+  /// As `withoutWaiting` says.
+  | ForceBuiltin of builtin : BuiltInFn
+  /// The ones its patterns look at (`fun (a, b) -> ...`), if the call runs it.
+  | ForceLambda of lambda : LambdaImpl
+
+let inline private argForcingFor
+  (exeState : ExecutionState)
+  (callee : Dval)
+  : ArgForcing =
+  // A callee that is not found raises in `applyInstructionForced`, with its own message.
+  match callee with
+  | DApplicable(AppNamedFn named) ->
+    match named.name with
+    | FQFnName.Package _ -> ForceNone
+    | FQFnName.TraitMethod _ -> ForceAll
+    | FQFnName.Builtin b ->
+      let mutable found = Unchecked.defaultof<BuiltInFn>
+      if exeState.fns.builtIn.TryGetValue(b, &found) then
+        ForceBuiltin found
+      else
+        ForceAll
+  | DApplicable(AppLambda l) ->
+    let mutable found = Unchecked.defaultof<LambdaImpl>
+    if exeState.lambdaInstrCache.TryGetValue(l.exprId, &found) then
+      ForceLambda found
+    else
+      ForceNone
+  | _ -> ForceNone
+
+/// Whether argument `i` of this `Apply` (`soFar` applied before it) must land first.
+let private argMustLand
+  (forcing : ArgForcing)
+  (soFar : int)
+  (argCount : int)
+  (i : int)
+  (dv : Dval)
+  : bool =
+  match dv with
+  | DPromise _ ->
+    match forcing with
+    | ForceNone -> false
+    | ForceAll -> true
+    | ForceBuiltin fn -> (withoutWaiting fn (soFar + i) dv).IsNone
+    | ForceLambda lambda ->
+      // Only a call that runs the lambda binds its patterns.
+      soFar + argCount >= NEList.length lambda.patterns
+      && (match List.tryItem (soFar + i) (NEList.toList lambda.patterns) with
+          | Some pat -> letNeedsValue pat dv
+          | None -> false)
+  | _ -> false
+
+
+/// One `Apply`: the callee lands (unless it is a closure holding reads), then the arguments
+/// `argMustLand` says. One type test per operand when nothing is in flight. Inlined.
 let inline private applyInstruction
   (exeState : ExecutionState)
   (vm : VMState)
@@ -3828,16 +4137,29 @@ let inline private applyInstruction
   (typeArgs : List<TypeReference>)
   (newArgRegs : NEList<Register>)
   : ApplyOutcome =
-  let mutable forcing = forceOperand vm registers thingToCallReg
-  if forcing.IsDone then forcing <- forceOperand vm registers newArgRegs.head
-  // `head` then `tail`, not `NEList.toList`, which would cons on every `Apply`.
-  let mutable rest = newArgRegs.tail
-  while forcing.IsDone && not (List.isEmpty rest) do
-    match rest with
-    | reg :: tail ->
-      forcing <- forceOperand vm registers reg
-      rest <- tail
-    | [] -> ()
+  let mutable forcing =
+    match registers[thingToCallReg] with
+    | DPromise p when p.HasShell -> ApplyDone
+    | _ -> forceOperand vm registers thingToCallReg
+  if forcing.IsDone && anyPromiseIn registers newArgRegs then
+    let callee = Pending.peek registers[thingToCallReg]
+    let kind = argForcingFor exeState callee
+    let soFar =
+      match callee with
+      | DApplicable(AppLambda l) -> List.length l.argsSoFar
+      | DApplicable(AppNamedFn n) -> List.length n.argsSoFar
+      | _ -> 0
+    let argCount = NEList.length newArgRegs
+    let mutable i = 0
+    let mutable rest = NEList.toList newArgRegs
+    while forcing.IsDone && not (List.isEmpty rest) do
+      match rest with
+      | reg :: tail ->
+        if argMustLand kind soFar argCount i registers[reg] then
+          forcing <- forceOperand vm registers reg
+        i <- i + 1
+        rest <- tail
+      | [] -> ()
   if not forcing.IsDone then
     forcing
   else
@@ -3965,7 +4287,7 @@ let private tryBuildSync
   | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
     // A non-record here is a runtime error, which the async path raises. Declining keeps the error
     // construction in one place rather than duplicating it.
-    match registers[originalRecordReg] with
+    match Pending.peek registers[originalRecordReg] with
     | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
       let fieldUpdates = namedValuesOfRegisters registers fieldUpdates
 
@@ -4107,42 +4429,14 @@ let private runSyncInstructions
         else
           0L
 
-      // The fields it stores are forced first: a promise never enters a record or an enum. The
-      // lists are walked as they are; a `List.map` here would allocate on every record built.
+      // Fields are stored as they are (`DvalCreator`); only an update's starting record is
+      // looked at, through its shell if it has one.
       (match inst with
-       | CreateRecord(_, _, _, fields) ->
-         let mutable rest = fields
-         while not retry && not (List.isEmpty rest) do
-           match rest with
-           | (_, reg) :: tail ->
-             (match registers[reg] with
-              | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
-              | _ -> ())
-             rest <- tail
-           | [] -> ()
-       | CloneRecordWithUpdates(_, original, updates) ->
-         (match registers[original] with
-          | DPromise p -> parkOnRead vm registers original p &retry &force &forceReg
-          | _ -> ())
-         let mutable rest = updates
-         while not retry && not (List.isEmpty rest) do
-           match rest with
-           | (_, reg) :: tail ->
-             (match registers[reg] with
-              | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
-              | _ -> ())
-             rest <- tail
-           | [] -> ()
-       | CreateEnum(_, _, _, _, fields) ->
-         let mutable rest = fields
-         while not retry && not (List.isEmpty rest) do
-           match rest with
-           | reg :: tail ->
-             (match registers[reg] with
-              | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
-              | _ -> ())
-             rest <- tail
-           | [] -> ()
+       | CloneRecordWithUpdates(_, original, _) ->
+         match registers[original] with
+         | DPromise p when not p.HasShell ->
+           parkOnRead vm registers original p &retry &force &forceReg
+         | _ -> ()
        | _ -> ())
 
       // A landed operand runs the instruction again at once; one still in flight stops the
@@ -4185,7 +4479,8 @@ let private runSyncInstructions
       if fieldName = "" then
         RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE vm.threadID
       let handled =
-        match registers[recordReg] with
+        // Through a shell: the field is there whether or not its neighbours have landed.
+        match Pending.peek registers[recordReg] with
         | DRecord(_, _, _, fields) ->
           let mutable value = Unchecked.defaultof<Dval>
           if fields.TryGetValue(fieldName, &value) then
@@ -4213,7 +4508,13 @@ let private runSyncInstructions
         | DPromise p ->
           parkOnRead vm registers recordReg p &retry &force &forceReg
           false
-        | _ -> false
+        | _ ->
+          // No such field in the shell: maybe a receiver call (`p.show`), which wants the value.
+          match registers[recordReg] with
+          | DPromise p ->
+            parkOnRead vm registers recordReg p &retry &force &forceReg
+            false
+          | _ -> false
       if handled then
         counter <- counter + 1
       elif retry then
@@ -4348,7 +4649,8 @@ let private runSyncInstructions
         | LPVariable extractTo -> registers[extractTo] <- dv
         | _ ->
           match dv with
-          | DPromise p -> parkOnRead vm registers valueReg p &retry &force &forceReg
+          | DPromise p when letNeedsValue pat dv ->
+            parkOnRead vm registers valueReg p &retry &force &forceReg
           | _ ->
             match pat with
             | LPUnit ->
@@ -4483,7 +4785,8 @@ let private runSyncInstructions
         | MPVariable reg -> registers[reg] <- registers[valueReg]
         | _ ->
           match registers[valueReg] with
-          | DPromise p -> parkOnRead vm registers valueReg p &retry &force &forceReg
+          | DPromise p when matchNeedsValue pat registers[valueReg] ->
+            parkOnRead vm registers valueReg p &retry &force &forceReg
           | _ ->
             let buf = vm.matchBindings
             buf.Clear()
@@ -4505,31 +4808,19 @@ let private runSyncInstructions
 
       // == Working with Collections ==
       | CreateList(listReg, itemsToAddRegs) ->
-        let mutable rest = itemsToAddRegs
-        while not retry && not (List.isEmpty rest) do
-          match rest with
-          | reg :: tail ->
-            (match registers[reg] with
-             | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
-             | _ -> ())
-            rest <- tail
-          | [] -> ()
-        if not retry then
-          let itemsToAdd = readRegs registers itemsToAddRegs
-          registers[listReg] <-
-            TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
+        // Items are stored as they are; holding a read makes the list a promise.
+        let itemsToAdd = readRegs registers itemsToAddRegs
+        registers[listReg] <-
+          TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
       | CreateDict(dictReg, entries) ->
         let mutable rest = entries
         while not retry && not (List.isEmpty rest) do
           match rest with
-          | (keyReg, valueReg) :: tail ->
+          | (keyReg, _) :: tail ->
+            // A key is hashed, so it lands; values are stored as they are.
             (match registers[keyReg] with
              | DPromise p -> parkOnRead vm registers keyReg p &retry &force &forceReg
-             | _ ->
-               match registers[valueReg] with
-               | DPromise p ->
-                 parkOnRead vm registers valueReg p &retry &force &forceReg
-               | _ -> ())
+             | _ -> ())
             rest <- tail
           | [] -> ()
         if not retry then
@@ -4540,54 +4831,28 @@ let private runSyncInstructions
           registers[dictReg] <-
             TypeChecker.DvalCreator.dict vm.threadID VT.unknown VT.unknown entries
       | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
-        (match registers[firstReg] with
-         | DPromise p -> parkOnRead vm registers firstReg p &retry &force &forceReg
-         | _ ->
-           match registers[secondReg] with
-           | DPromise p ->
-             parkOnRead vm registers secondReg p &retry &force &forceReg
-           | _ -> ())
-        let mutable rest = theRestRegs
-        while not retry && not (List.isEmpty rest) do
-          match rest with
-          | reg :: tail ->
-            (match registers[reg] with
-             | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
-             | _ -> ())
-            rest <- tail
-          | [] -> ()
-        if not retry then
-          let first = registers[firstReg]
-          let second = registers[secondReg]
-          let theRest = readRegs registers theRestRegs
-          registers[tupleReg] <- DTuple(first, second, theRest)
+        // Parts are stored as they are; holding a read makes the tuple a promise.
+        let first = registers[firstReg]
+        let second = registers[secondReg]
+        let theRest = readRegs registers theRestRegs
+        registers[tupleReg] <- Pending.wrap (DTuple(first, second, theRest))
 
 
       // == Working with Custom Data ==
       // -- Enums --
       | CreateLambda(lambdaReg, impl) ->
-        // What it closes over is forced: a closure holds values, never a read in flight.
-        let mutable rest = impl.registersToCloseOver
-        while not retry && not (List.isEmpty rest) do
-          match rest with
-          | (parentReg, _) :: tail ->
-            (match registers[parentReg] with
-             | DPromise p ->
-               parkOnRead vm registers parentReg p &retry &force &forceReg
-             | _ -> ())
-            rest <- tail
-          | [] -> ()
-        if not retry then
-          exeState.lambdaInstrCache[impl.exprId] <- impl
+        // Captures are taken as they are; the body waits where it looks.
+        exeState.lambdaInstrCache[impl.exprId] <- impl
 
-          registers[lambdaReg] <-
-            { exprId = impl.exprId
-              closedRegisters = closedOver registers impl.registersToCloseOver
-              typeSymbolTable = currentFrame.typeSymbolTable
-              access = currentFrame.access
-              argsSoFar = [] }
-            |> AppLambda
-            |> DApplicable
+        registers[lambdaReg] <-
+          { exprId = impl.exprId
+            closedRegisters = closedOver registers impl.registersToCloseOver
+            typeSymbolTable = currentFrame.typeSymbolTable
+            access = currentFrame.access
+            argsSoFar = [] }
+          |> AppLambda
+          |> DApplicable
+          |> Pending.wrap
 
 
 
@@ -5046,7 +5311,7 @@ let private runRareOpcode
 
       registers[recordReg] <- record
     | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
-      let originalRecord = registers[originalRecordReg]
+      let originalRecord = Pending.peek registers[originalRecordReg]
 
       match originalRecord with
       | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
@@ -5172,6 +5437,8 @@ let private returnFromFrame
       // that answers, or asks for next, is what reaches the parent. The frame is handed back
       // first, since the continuation may push the next one.
       let finish = currentFrame.finish
+      // The continuation is the builtin's, so it runs under the builtin's access again.
+      vm.activeAccess <- currentFrame.requestAccess
       currentFrame.continuation <- Unchecked.defaultof<_>
       currentFrame.finish <- Unchecked.defaultof<_>
       returnFrame vm currentFrame

@@ -88,36 +88,6 @@ let private mappedList (vm : VMState) (items : List<Dval>) : Dval =
   | Error() -> TypeChecker.DvalCreator.list vm.threadID VT.unknown items
 
 
-/// `mappedList`, when some of the mapped values are reads still in flight (the lambda called a
-/// read builtin and returned its promise): one promise for the whole list, landing when every
-/// element has. This is what makes `List.map HttpClient.get urls` fetch them all at once; the
-/// list is forced at its first use, and every read is by then in flight.
-let private mappedListOrPromise (vm : VMState) (items : List<Dval>) : Dval =
-  if
-    items
-    |> List.exists (fun dv ->
-      match dv with
-      | DPromise _ -> true
-      | _ -> false)
-  then
-    let tasks =
-      items
-      |> List.map (fun dv ->
-        match dv with
-        | DPromise p -> p.Task
-        | dv -> System.Threading.Tasks.Task.FromResult dv)
-      |> Array.ofList
-    let site = vm.callFrames[vm.currentFrameID].executionPoint
-    let combined =
-      task {
-        let! values = System.Threading.Tasks.Task.WhenAll tasks
-        return mappedList vm (List.ofArray values)
-      }
-    DPromise(Promise(combined, FQFnName.fqBuiltin "listMap" 0, site))
-  else
-    mappedList vm items
-
-
 /// A `filterMap` function that returned something other than an `Option`.
 ///
 /// The Dark version matched `Some`/`None` and would fail with "No matching case found" on anything
@@ -191,8 +161,8 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "listFold" 0
       typeParams = []
       parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.make "init" varB ""
+        [ Param.moved "list" (TList varA) ""
+          Param.moved "init" varB ""
           Param.makeWithArgs
             "fn"
             (TFn(NEList.ofList varB [ varA ], varB))
@@ -205,8 +175,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, [], [| DList(_, items); init; DApplicable app |] ->
-          // The value built so far is forced before the next step (`withValue`): the lambda
-          // takes it as an argument.
+          // The value so far goes to the next step as it is: calling the lambda with a read
+          // in flight is not a use of it.
           match items with
           | [] -> Ply init
           | first :: tail ->
@@ -216,8 +186,7 @@ let fns () : List<BuiltInFn> =
               | [] -> Ply stepped
               | elem :: elemTail ->
                 rest <- elemTail
-                Interpreter.withValue vm stepped (fun acc ->
-                  Interpreter.requestApply vm app acc [ elem ] next)
+                Interpreter.requestApply vm app stepped [ elem ] next
             Interpreter.requestApply vm app init [ first ] next
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -227,7 +196,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listTake" 0
       typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
+      parameters = [ Param.moved "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
       description =
         "Returns the first <param count> values of <param list>, or all of them if there are fewer"
@@ -272,7 +241,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "listIndexedMap" 0
       typeParams = []
       parameters =
-        [ Param.make "list" (TList varA) ""
+        [ Param.moved "list" (TList varA) ""
           Param.makeWithArgs
             "fn"
             (TFn(NEList.doubleton TInt varA, varB))
@@ -285,8 +254,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [], [| DList(vt, items); DApplicable app |] ->
-          // Built back to front and reversed once. A read a lambda hands back stays in flight and
-          // the list comes back as one promise (`mappedListOrPromise`). Spread as `listMap` is; a
+          // Built back to front and reversed once. A read a lambda hands back stays in flight
+          // in the list, which the interpreter holds as a promise. Spread as `listMap` is; a
           // chunk is `listMap2shortest` over its indices and its elements, which is the same call.
           match items with
           | [] -> Ply(mappedList vm [])
@@ -298,7 +267,7 @@ let fns () : List<BuiltInFn> =
             let rec next (mapped : Dval) : Ply<Dval> =
               acc <- mapped :: acc
               match rest with
-              | [] -> Ply(mappedListOrPromise vm (List.rev acc))
+              | [] -> Ply(mappedList vm (List.rev acc))
               | elem :: elemTail ->
                 if not (isNull probe) && probe.Ask rest then
                   probe.Stop()
@@ -321,7 +290,7 @@ let fns () : List<BuiltInFn> =
                     acc <- List.rev spread.results @ acc
                     i <- start + int64 spread.leftoverIndex
                     match spread.leftover with
-                    | [] -> return mappedListOrPromise vm (List.rev acc)
+                    | [] -> return mappedList vm (List.rev acc)
                     | elem :: elemTail ->
                       rest <- elemTail
                       let index = Dval.int (bigint i)
@@ -383,7 +352,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "listFilterMap" 0
       typeParams = []
       parameters =
-        [ Param.make "list" (TList varA) ""
+        [ Param.moved "list" (TList varA) ""
           Param.makeWithArgs
             "fn"
             (TFn(NEList.singleton varA, TypeReference.option varB))
@@ -448,7 +417,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "listZipShortest" 0
       typeParams = []
       parameters =
-        [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
+        [ Param.moved "as" (TList varA) ""; Param.moved "bs" (TList varB) "" ]
       returnType = TList(TTuple(varA, varB, []))
       description =
         "Returns a list of parallel pairs from <param as> and <param bs>, stopping when either "
@@ -483,8 +452,8 @@ let fns () : List<BuiltInFn> =
     { name = fn "listMap2shortest" 0
       typeParams = []
       parameters =
-        [ Param.make "as" (TList varA) ""
-          Param.make "bs" (TList varB) ""
+        [ Param.moved "as" (TList varA) ""
+          Param.moved "bs" (TList varB) ""
           Param.makeWithArgs
             "fn"
             (TFn(NEList.doubleton varA varB, varC))
@@ -512,7 +481,7 @@ let fns () : List<BuiltInFn> =
                 restA <- tA
                 restB <- tB
                 Interpreter.requestApply vm app a [ b ] next
-              | _ -> Ply(mappedListOrPromise vm (List.rev acc))
+              | _ -> Ply(mappedList vm (List.rev acc))
             Interpreter.requestApply vm app a [ b ] next
           | _ -> Ply(mappedList vm [])
         | _ -> incorrectArgs ())
@@ -524,7 +493,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "listMap" 0
       typeParams = []
       parameters =
-        [ Param.make "list" (TList varA) ""
+        [ Param.moved "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "elem" ] ]
       returnType = TList varB
       description =
@@ -532,9 +501,9 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [], [| DList(vt, items); DApplicable app |] ->
-          // Built back to front and reversed once at the end. A lambda that
-          // returns a read still in flight hands it back as it is, and the list comes back as one
-          // promise (`mappedListOrPromise`). One continuation for the whole list, over two
+          // Built back to front and reversed once at the end. A read a lambda hands back stays
+          // in flight in the list, which the interpreter holds as a promise. One continuation
+          // for the whole list, over two
           // mutable cells, rather than a closure per element.
           //
           // Once the rest looks worth it, it is spread across cores (`LibExecution.Spread`), and
@@ -548,7 +517,7 @@ let fns () : List<BuiltInFn> =
             let rec next (mapped : Dval) : Ply<Dval> =
               acc <- mapped :: acc
               match rest with
-              | [] -> Ply(mappedListOrPromise vm (List.rev acc))
+              | [] -> Ply(mappedList vm (List.rev acc))
               | elem :: elemTail ->
                 if not (isNull probe) && probe.Ask rest then
                   probe.Stop()
@@ -564,7 +533,7 @@ let fns () : List<BuiltInFn> =
                         rest
                     acc <- List.rev spread.results @ acc
                     match spread.leftover with
-                    | [] -> return mappedListOrPromise vm (List.rev acc)
+                    | [] -> return mappedList vm (List.rev acc)
                     | elem :: elemTail ->
                       rest <- elemTail
                       return! Interpreter.requestApply vm app elem [] next
@@ -582,7 +551,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "listFilter" 0
       typeParams = []
       parameters =
-        [ Param.make "list" (TList varA) ""
+        [ Param.moved "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "elem" ] ]
       returnType = TList varA
       description =
@@ -687,7 +656,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "listAny" 0
       typeParams = []
       parameters =
-        [ Param.make "list" (TList varA) ""
+        [ Param.moved "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "elem" ] ]
       returnType = TBool
       description =
@@ -756,7 +725,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "listFindFirst" 0
       typeParams = []
       parameters =
-        [ Param.make "list" (TList varA) ""
+        [ Param.moved "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "elem" ] ]
       returnType = TypeReference.option varA
       description =
@@ -791,7 +760,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listIsEmpty" 0
       typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
+      parameters = [ Param.moved "list" (TList varA) "" ]
       returnType = TBool
       description = "Returns true if <param list> has no values"
       fn =
@@ -805,7 +774,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listLength" 0
       typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
+      parameters = [ Param.moved "list" (TList varA) "" ]
       returnType = TInt
       description = "Returns the number of values in <param list>"
       fn =
@@ -902,7 +871,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "listAppend" 0
       typeParams = []
       parameters =
-        [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varA) "" ]
+        [ Param.moved "as" (TList varA) ""; Param.moved "bs" (TList varA) "" ]
       returnType = TList varA
       description =
         "Returns a new list with all values in <param as> followed by all "
@@ -927,7 +896,8 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listPush" 0
       typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "value" varA "" ]
+      parameters =
+        [ Param.moved "list" (TList varA) ""; Param.moved "value" varA "" ]
       returnType = TList varA
       description = "Adds <param value> to the front of <param list>."
       fn =
@@ -946,7 +916,8 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listPushBack" 0
       typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "value" varA "" ]
+      parameters =
+        [ Param.moved "list" (TList varA) ""; Param.moved "value" varA "" ]
       returnType = TList varA
       description = "Adds <param value> to the back of <param list>."
       fn =
@@ -1002,7 +973,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listGetAt" 0
       typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
+      parameters = [ Param.moved "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TypeReference.option varA
       description =
         "Returns {{Some value}} at <param index> in <param list>, or {{None}} if out of bounds."
@@ -1030,7 +1001,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listReverse" 0
       typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
+      parameters = [ Param.moved "list" (TList varA) "" ]
       returnType = TList varA
       description = "Returns a reversed copy of <param list>."
       fn =

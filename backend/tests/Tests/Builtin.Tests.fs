@@ -348,6 +348,7 @@ let private unusedAllowlist : Set<string> =
       "testGateWait"
       "testTrace"
       "testRead"
+      "testReadOf"
       "testSlowStream"
       "testFailingRead" ]
 
@@ -640,6 +641,37 @@ let darkEffectTableMatchesRuntime =
   }
 
 
+/// `Param.moved` lets a read in flight through only on `'a`, `List<'a>` or
+/// `Dict<_, 'a>`; on any other type the interpreter ignores the flag, so a
+/// declaration there promises nothing.
+let movedParamsHaveSupportedTypes =
+  test "every moved builtin parameter is 'a, List<'a> or Dict<_, 'a>" {
+    let moved =
+      allBuiltinSets ()
+      |> List.collect (fun b -> b.fns.Values |> List.ofSeq)
+      |> List.collect (fun fn ->
+        fn.parameters |> List.filter (fun p -> p.moves) |> List.map (fun p -> fn, p))
+    Expect.isGreaterThan (List.length moved) 0 "some parameters are moved"
+
+    let unsupported =
+      moved
+      |> List.filter (fun (_, p) ->
+        match p.typ with
+        | RT.TVariable _
+        | RT.TList(RT.TVariable _)
+        | RT.TDict(_, RT.TVariable _) -> false
+        | _ -> true)
+      |> List.map (fun (fn, p) ->
+        $"  {fn.name.name}_v{fn.name.version} `{p.name}`: %A{p.typ}")
+
+    Expect.isEmpty
+      unsupported
+      ("These parameters are moved, but their type is not 'a, List<'a> or "
+       + "Dict<_, 'a>:\n"
+       + String.concat "\n" unsupported)
+  }
+
+
 let tests =
   testList
     "builtin"
@@ -650,6 +682,7 @@ let tests =
       builtinReferenceScanning
       everyBuiltinIsReferenced
       descriptionsAreJoined
+      movedParamsHaveSupportedTypes
       everyBuiltinPackagesCallExists
       everyCliHelpReturnsText
       storeScopedEffectsRequireTargetChecks

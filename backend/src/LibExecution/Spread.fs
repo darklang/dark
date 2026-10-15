@@ -517,15 +517,20 @@ let rec run
   (items : List<Dval>)
   : Ply<Outcome> =
   uply {
-    match! predict state app items with
-    | Purity.Impure ->
-      // Known to reach something a chunk would refuse: no chunk is started, and the list op runs
-      // the whole of it here, as it always did. Not asked again for this callable.
-      fellBack.TryAdd(keyOf app, 0uy) |> ignore<bool>
+    // A list holding reads in flight runs where it is: a chunk would carry the parent's
+    // reads into a child. About this list, not the callable, so it is not remembered.
+    if List.exists Pending.isPromise items then
       return { results = []; leftover = items; leftoverIndex = 0 }
-    | Purity.Pure
-    | Purity.Unknown ->
-      return! spreadChunks state vm builtinName chunkArgs app perElement items
+    else
+      match! predict state app items with
+      | Purity.Impure ->
+        // Known to reach something a chunk would refuse: no chunk is started, and the list op runs
+        // the whole of it here, as it always did. Not asked again for this callable.
+        fellBack.TryAdd(keyOf app, 0uy) |> ignore<bool>
+        return { results = []; leftover = items; leftoverIndex = 0 }
+      | Purity.Pure
+      | Purity.Unknown ->
+        return! spreadChunks state vm builtinName chunkArgs app perElement items
   }
 
 /// The spread itself, once the prediction has allowed it.

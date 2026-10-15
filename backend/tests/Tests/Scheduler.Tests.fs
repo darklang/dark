@@ -764,6 +764,418 @@ Stdlib.await a"""
   }
 
 
+/// `code` on a scheduler of its own; `during` runs once it is going, then the result.
+let private runWith
+  (code : string)
+  (during : Scheduler.Process -> unit)
+  : Task<RT.ExecutionResult> =
+  task {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) = spawn s state code
+    let running = runOnThread s p
+    try
+      during p
+    with e ->
+      // Say what the program did, not only what the test waited for in vain.
+      Gates.reset ()
+      let finished = running.Wait(System.TimeSpan.FromSeconds 5.0)
+      let outcome = if finished then $"{running.Result}" else "still running"
+      failtest $"{e.Message}\nthe program: {outcome}\nstatus: {p.status}"
+    return! running
+  }
+
+/// `runWith`: once `reads` are in flight and `trace` has been said, release the reads.
+let private runReleasing
+  (code : string)
+  (reads : List<int64>)
+  (trace : List<string>)
+  =
+  runWith code (fun _ ->
+    waitFor $"reads {reads} in flight" (fun () ->
+      Gates.waiting () = List.sort reads)
+    if not (List.isEmpty trace) then waitForTrace "the program ran on" trace
+    for r in reads do
+      Gates.release r)
+
+let private isParked (p : Scheduler.Process) =
+  match p.status with
+  | Scheduler.Parked _ -> true
+  | _ -> false
+
+/// The run failed with read `gate`'s own error, the read named below the stack.
+let private expectReadFailure (gate : int64) (result : RT.ExecutionResult) =
+  match result with
+  | Error(RTE.UncaughtException(msg, _), stack) ->
+    Expect.stringContains msg $"read {gate} failed" "the read's own error"
+    Expect.isTrue
+      (stack
+       |> List.exists (fun ep ->
+         match ep with
+         | RT.Function(RT.FQFnName.Builtin b) -> b.name = "testFailingRead"
+         | _ -> false))
+      $"the stack names the read: {stack}"
+  | other -> failtest $"expected read {gate}'s failure, got {other}"
+
+let private expectValue (expected : RT.Dval) (result : RT.ExecutionResult) =
+  Expect.equal (expectOk result "the program") expected "the result"
+
+
+let private callsDoNotWait =
+  testTask "a Dark function and a lambda handed a read in flight run before it lands" {
+    let! result =
+      runReleasing
+        """let a = Builtin.testRead 41L
+let b = Stdlib.Fun.identity a
+let _ = Builtin.testTrace "after the package call"
+let f (x: Int64) : Int64 =
+  (Builtin.testTrace "in the lambda"
+   x + 1L)
+f b"""
+        [ 41L ]
+        [ "after the package call"; "in the lambda" ]
+    expectValue (RT.DInt64 42L) result
+  }
+
+let private failedReadRaisesInsideTheCallee =
+  testTask
+    "a failed read handed to a function raises where it is used, after what ran first" {
+    let! result =
+      runReleasing
+        """let a = Builtin.testFailingRead 43L
+let f (x: Int64) : Int64 =
+  (Builtin.testTrace "in f"
+   x + 1L)
+f a"""
+        [ 43L ]
+        [ "in f" ]
+    expectReadFailure 43L result
+  }
+
+let private containersHoldReads =
+  testTask
+    "a list, tuple and closure hold reads; a pattern waits only for what it looks at" {
+    let! result =
+      runWith """let xs = [ Builtin.testRead 51L; Builtin.testRead 52L ]
+let t = (Builtin.testRead 53L, 7L)
+let f = fun () -> Stdlib.List.fold xs 0L (fun a b -> a + b)
+let (_, seven) = t
+let first =
+  match xs with
+  | h :: _ -> h
+  | [] -> 0L
+let _ = Builtin.testTrace "matched"
+let one = first + 0L
+let _ = Builtin.testTrace "head landed"
+one + seven + (f ())""" (fun _ ->
+        waitFor "reads in flight" (fun () -> Gates.waiting () = [ 51L; 52L; 53L ])
+        waitForTrace
+          "building, destructuring and matching did not wait"
+          [ "matched" ]
+        Gates.release 51L
+        waitForTrace "the head's read alone was enough" [ "head landed" ]
+        Expect.equal (Gates.waiting ()) [ 52L; 53L ] "the others are in flight"
+        Gates.release 52L
+        Gates.release 53L)
+    expectValue (RT.DInt64 161L) result
+  }
+
+let private mapHoldsOneReadPerElement =
+  testTask "List.map over reads holds one per element; the head waits for its own" {
+    let! result =
+      runWith """let xs = Stdlib.List.map [ 61L; 62L; 63L ] (fun n -> Builtin.testRead n)
+let first =
+  match xs with
+  | h :: _ -> h + 0L
+  | [] -> 0L
+let _ = Builtin.testTrace "first"
+first + Stdlib.List.fold xs 0L (fun a b -> a + b)""" (fun _ ->
+        waitFor "reads in flight" (fun () -> Gates.waiting () = [ 61L; 62L; 63L ])
+        Gates.release 61L
+        waitForTrace "the first element did not wait for the rest" [ "first" ]
+        Gates.release 63L
+        Gates.release 62L)
+    expectValue (RT.DInt64 247L) result
+  }
+
+let private foldPushKeepsReadsInFlight =
+  testTask
+    "a fold that pushes reads onto a list has every read in flight before any lands" {
+    let! result =
+      runReleasing
+        """let xs =
+  Stdlib.List.fold [ 71L; 72L; 73L ] [] (fun acc n -> Stdlib.List.push acc (Builtin.testRead n))
+let _ = Builtin.testTrace "folded"
+Stdlib.List.fold xs 0L (fun a b -> a + b)"""
+        [ 71L; 72L; 73L ]
+        [ "folded" ]
+    expectValue (RT.DInt64 216L) result
+  }
+
+let private lengthCountsReadsInFlight =
+  testTask "List.length counts a list of reads while every one is in flight" {
+    let! result =
+      runReleasing
+        """let xs = [ Builtin.testRead 161L; Builtin.testRead 162L; Builtin.testRead 163L ]
+let _ = Builtin.testTrace (Stdlib.toString (Stdlib.List.length xs))
+Stdlib.List.fold xs 0L (fun a b -> a + b)"""
+        [ 161L; 162L; 163L ]
+        [ "3" ]
+    expectValue (RT.DInt64 486L) result
+  }
+
+let private dictSetAndGetMoveARead =
+  testTask "Dict.set and Dict.get move a read value; only its use waits for it" {
+    let! result =
+      runReleasing
+        """let d = Stdlib.Dict.set (Dict { }) "a" (Builtin.testRead 171L)
+let got = Stdlib.Dict.get d "a"
+let _ = Builtin.testTrace "got"
+match got with
+| Some v -> v + 0L
+| None -> 0L"""
+        [ 171L ]
+        [ "got" ]
+    expectValue (RT.DInt64 171L) result
+  }
+
+let private zipShortestWaitsForTheHeadAlone =
+  testTask "List.zipShortest pairs reads; matching the head waits for its read alone" {
+    let! result =
+      runWith """let ps =
+  Stdlib.List.zipShortest
+    [ Builtin.testRead 181L; Builtin.testRead 182L ]
+    [ Builtin.testRead 183L; Builtin.testRead 184L ]
+let first =
+  match ps with
+  | (a, _) :: _ -> a + 0L
+  | [] -> 0L
+let _ = Builtin.testTrace "first"
+first""" (fun _ ->
+        waitFor "reads in flight" (fun () ->
+          Gates.waiting () = [ 181L; 182L; 183L; 184L ])
+        Gates.release 181L
+        waitForTrace "the other reads were not needed" [ "first" ]
+        Expect.equal (Gates.waiting ()) [ 182L; 183L; 184L ] "the rest in flight"
+        Gates.release 182L
+        Gates.release 183L
+        Gates.release 184L)
+    expectValue (RT.DInt64 181L) result
+  }
+
+let private dictSetWaitsForAReadKey =
+  testTask "Dict.set waits for a key that is a read, since it hashes the key" {
+    let! result =
+      runWith """let _ = Builtin.testTrace "before"
+let d = Stdlib.Dict.set (Dict { }) (Builtin.testReadOf 191L "k") 1L
+let _ = Builtin.testTrace "set"
+match Stdlib.Dict.get d "k" with
+| Some v -> v
+| None -> 0L""" (fun p ->
+        waitFor "the key's read" (fun () -> Gates.waiting () = [ 191L ])
+        waitForTrace "the program ran up to the set" [ "before" ]
+        waitFor "the process to park on the key" (fun () -> isParked p)
+        Expect.equal (Trace.take ()) [] "the set did not run before its key"
+        Gates.release 191L
+        waitForTrace "the set ran once the key landed" [ "set" ])
+    expectValue (RT.DInt64 1L) result
+  }
+
+let private destructuredParamParks =
+  testTask
+    "a lambda destructuring a read from a builtin's callback parks, it does not block" {
+    // Each step answers a read, so the next step's `(a, b)` has to look at one in flight.
+    let! result =
+      runWith """let (a, b) =
+  Stdlib.List.fold [ 10L; 20L ] (1L, 2L) (fun (a, b) n -> Builtin.testReadOf (110L + n) (a + n, b))
+a + b""" (fun p ->
+        waitFor "the first step's read" (fun () -> Gates.waiting () = [ 120L ])
+        waitFor "the process to park on it" (fun () -> isParked p)
+        Gates.release 120L
+        waitFor "the second step's read" (fun () -> Gates.waiting () = [ 130L ])
+        Gates.release 130L)
+    expectValue (RT.DInt64 33L) result
+  }
+
+let private destructuredPartialParks =
+  testTask
+    "a partial application holding a read its pattern needs parks when applied" {
+    let! result =
+      runWith """let h = fun (a, b) n -> a + b + n
+let k = h (Builtin.testReadOf 105L (1L, 2L))
+let _ = Builtin.testTrace "partial"
+k 3L""" (fun p ->
+        waitForTrace "applying part of it did not wait" [ "partial" ]
+        waitFor "the process to park on it" (fun () -> isParked p)
+        Gates.release 105L)
+    expectValue (RT.DInt64 6L) result
+  }
+
+let private recordFieldThroughShell =
+  testTask "a record field is read through the shell, waiting for that field alone" {
+    let! result =
+      runWith """let r =
+  Stdlib.HttpClient.Response
+    { statusCode = Builtin.testReadOf 95L 200
+      headers = Builtin.testReadOf 96L []
+      body = Stdlib.Blob.empty }
+let code = r.statusCode
+let _ = Builtin.testTrace "peeked"
+let c = code + 0
+let _ = Builtin.testTrace "code landed"
+(Stdlib.toString c) + (Stdlib.toString (Stdlib.List.length r.headers))""" (fun _ ->
+        waitForTrace "the field access did not wait" [ "peeked" ]
+        Gates.release 95L
+        waitForTrace "the field's own read was enough" [ "code landed" ]
+        Expect.equal (Gates.waiting ()) [ 96L ] "the other field is in flight"
+        Gates.release 96L)
+    expectValue (RT.DString "2000") result
+  }
+
+let private wrongTypeRaisesAtRebuild =
+  testTask
+    "a read of the wrong type for its field raises where the record is waited for" {
+    let! result =
+      runReleasing
+        """let r =
+  Stdlib.HttpClient.Response
+    { statusCode = Builtin.testReadOf 97L "nope"
+      headers = []
+      body = Stdlib.Blob.empty }
+let _ = Builtin.testTrace "built"
+Stdlib.await r"""
+        [ 97L ]
+        [ "built" ]
+    match result with
+    | Error(rte, _) ->
+      Expect.stringContains (string rte) "statusCode" "the field is named"
+    | Ok dv -> failtest $"expected a type error, got {dv}"
+  }
+
+let private moreHoldersOfReads =
+  testTask
+    "a dict value and a partial application hold a read without waiting for it" {
+    let! result =
+      runReleasing
+        """let d = Dict { "a": Builtin.testReadOf 98L 1L }
+let add = fun x y -> x + y
+let g = add (Builtin.testRead 103L)
+let _ = Builtin.testTrace "built"
+let v =
+  match Stdlib.Dict.get d "a" with
+  | Some v -> v
+  | None -> 0L
+v + g 1L"""
+        [ 98L; 103L ]
+        [ "built" ]
+    expectValue (RT.DInt64 105L) result
+  }
+
+let private nestedContainersHoldReads =
+  testTask
+    "a list of tuples holding reads: the head's first part waits for its own read" {
+    let! result =
+      runWith """let xs = [ (Builtin.testReadOf 101L 1L, 2L); (3L, Builtin.testReadOf 102L 4L) ]
+let first =
+  match xs with
+  | (a, _) :: _ -> a + 0L
+  | [] -> 0L
+let _ = Builtin.testTrace "first"
+first""" (fun _ ->
+        waitFor "reads in flight" (fun () -> Gates.waiting () = [ 101L; 102L ])
+        Gates.release 101L
+        waitForTrace "the other tuple's read was not needed" [ "first" ]
+        Gates.release 102L)
+    expectValue (RT.DInt64 1L) result
+  }
+
+let private operatorsWaitForReads =
+  testTask "==, an operator, && and || wait for a read" {
+    let! result =
+      runReleasing
+        """let a = Builtin.testRead 106L
+let b = Builtin.testRead 107L
+let t = Builtin.testReadOf 111L true
+let f = Builtin.testReadOf 112L false
+let _ = Builtin.testTrace "all in flight"
+if a == 106L && (f || t) then b + 1L else 0L"""
+        [ 106L; 107L; 111L; 112L ]
+        [ "all in flight" ]
+    expectValue (RT.DInt64 108L) result
+  }
+
+let private failedReadNamedFromNestedContainer =
+  testTask "a failed read in a tuple in a list is named where the list is needed" {
+    let! result =
+      runReleasing
+        """let xs = [ (1L, Builtin.testFailingRead 108L) ]
+let _ = Builtin.testTrace "built"
+Stdlib.List.length xs"""
+        [ 108L ]
+        [ "built" ]
+    expectReadFailure 108L result
+  }
+
+let private unlookedReadInAContainerFailsTheRun =
+  testTask "a failed read in a list nobody looks at still fails the run at its end" {
+    let! result =
+      runReleasing
+        """let xs = [ Builtin.testFailingRead 109L ]
+let _ = Builtin.testTrace "built"
+1L"""
+        [ 109L ]
+        [ "built" ]
+    expectReadFailure 109L result
+  }
+
+
+let private landedListKnowsItsElementType =
+  testTask "a list a read was pushed onto has the read's element type once it lands" {
+    let! result =
+      runReleasing
+        """let xs = Stdlib.List.push [] (Builtin.testRead 113L)
+let _ = Builtin.testTrace "pushed"
+Stdlib.List.append (Stdlib.await xs) [ "not an Int64" ]"""
+        [ 113L ]
+        [ "pushed" ]
+    match result with
+    | Error _ -> ()
+    | Ok dv -> failtest $"a List<Int64> took a String: {dv}"
+  }
+
+
+let private filterAndFindFirstHoldTheirReads =
+  testTask "filter and findFirst over reads answer lists equal to the landed values" {
+    let! result =
+      runReleasing
+        """let xs = [ Builtin.testRead 201L; Builtin.testRead 202L ]
+let kept = Stdlib.List.filter xs (fun _ -> true)
+let first = Stdlib.List.findFirst xs (fun _ -> true)
+let _ = Builtin.testTrace "filtered"
+(kept == [ 201L; 202L ]) && (first == Stdlib.Option.Option.Some 201L)"""
+        [ 201L; 202L ]
+        [ "filtered" ]
+    expectValue (RT.DBool true) result
+  }
+
+let private dictValueOfTheWrongTypeRaises =
+  testTask
+    "a read set into a dict raises where it is waited for if its type is wrong" {
+    let! result =
+      runReleasing
+        """let d = Stdlib.Dict.set (Dict { "a": 1L }) "b" (Builtin.testReadOf 211L "s")
+let _ = Builtin.testTrace "set"
+Stdlib.Dict.size (Stdlib.await d)"""
+        [ 211L ]
+        [ "set" ]
+    match result with
+    | Error _ -> ()
+    | Ok dv -> failtest $"a Dict<Int64> took a String: {dv}"
+  }
+
+
 let private unlookedReadFailsTheRunAtItsEnd =
   testTask
     "a read nobody looks at is waited for at the end of the run, and its failure fails the run" {
@@ -908,6 +1320,37 @@ Stdlib.Exec.await slow"""
           Expect.equal
             (expectOk result "the program")
             (RT.DString "slow")
+            "await's answer"
+        })
+  }
+
+
+let private spawnTakesACapturedRead =
+  testTask "a closure capturing a read in flight is spawned without waiting for it" {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false
+    do!
+      withWorkers 2 (fun root ->
+        task {
+          let! (p : Scheduler.Process) =
+            spawn
+              root
+              state
+              """let a = Builtin.testRead 81L
+let h = Stdlib.Exec.spawn (fun () -> a + 1L)
+let _ = Builtin.testTrace "spawned"
+Stdlib.Exec.await h"""
+          let running = runOnThread root p
+          waitFor "the read in flight" (fun () -> Gates.waiting () = [ 81L ])
+          waitForTrace
+            "spawn did not wait for what the closure captured"
+            [ "spawned" ]
+          Gates.release 81L
+          let! result = running
+          Expect.equal
+            (expectOk result "the program")
+            (RT.DInt64 82L)
             "await's answer"
         })
   }
@@ -1572,10 +2015,32 @@ let tests =
         readsRunAtOnce
         writesKeepOrder
         failedReadRaisesAtAwait
+        callsDoNotWait
+        failedReadRaisesInsideTheCallee
+        containersHoldReads
+        mapHoldsOneReadPerElement
+        foldPushKeepsReadsInFlight
+        lengthCountsReadsInFlight
+        dictSetAndGetMoveARead
+        zipShortestWaitsForTheHeadAlone
+        dictSetWaitsForAReadKey
+        destructuredParamParks
+        destructuredPartialParks
+        recordFieldThroughShell
+        wrongTypeRaisesAtRebuild
+        moreHoldersOfReads
+        nestedContainersHoldReads
+        operatorsWaitForReads
+        failedReadNamedFromNestedContainer
+        unlookedReadInAContainerFailsTheRun
+        landedListKnowsItsElementType
+        filterAndFindFirstHoldTheirReads
+        dictValueOfTheWrongTypeRaises
         unlookedReadFailsTheRunAtItsEnd
         denialRaisesAtTheCall
         inflightBoundHolds
         spawnAwaitSelect
+        spawnTakesACapturedRead
         spawnedErrorReachesAwait
         execDoneAnswersAFinishedProcess
         httpGetIsARead

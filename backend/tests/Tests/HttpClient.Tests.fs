@@ -823,16 +823,21 @@ module TimeoutTests =
       [ for method in [ "GET"; "POST" ] do
           testTask $"{method} reports Timeout when the transport never responds" {
             let mutable requests = 0
-            let mutable cancelled = false
+            // Set where the transport's wait is cancelled. A `Register` callback cannot say
+            // it reliably: callbacks run newest first, so `Task.Delay`'s resumes the handler,
+            // which disposes the registration before its own callback has run.
+            let cancelled = TaskCompletionSource<unit>()
             let handler =
               { new HttpMessageHandler() with
                   member _.SendAsync(request, cancellation) =
                     task {
                       requests <- requests + 1
                       Expect.equal request.Method.Method method "method preserved"
-                      use _registration =
-                        cancellation.Register(fun () -> cancelled <- true)
-                      do! Task.Delay(Timeout.Infinite, cancellation)
+                      try
+                        do! Task.Delay(Timeout.Infinite, cancellation)
+                      with :? System.OperationCanceledException as e ->
+                        cancelled.TrySetResult() |> ignore<bool>
+                        raise e
                       return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
                     } }
             let client = new HttpClient(handler)
@@ -850,7 +855,17 @@ module TimeoutTests =
               | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
               | other -> failtest $"expected Timeout, got {other}"
               Expect.equal requests 1 "the request reached the controlled transport"
-              Expect.isTrue cancelled "the request deadline cancelled the transport"
+              let! cancelledInTime =
+                task {
+                  try
+                    do! cancelled.Task.WaitAsync(System.TimeSpan.FromSeconds 5.0)
+                    return true
+                  with :? System.TimeoutException ->
+                    return false
+                }
+              Expect.isTrue
+                cancelledInTime
+                "the request deadline cancelled the transport"
             finally
               client.Dispose()
           } ]

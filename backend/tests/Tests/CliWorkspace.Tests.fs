@@ -153,6 +153,45 @@ let approvalsNameTheirDependencies =
       do! discardAll state
     })
 
+/// A builtin's callback runs under the access the builtin was called with on every step, not
+/// whatever its last inner builtin (here `List.push`'s entry access) left on the VM.
+let foldCallbackKeepsItsAccess =
+  instanceTest
+    "a fold's callback keeps the caller's access on every step"
+    (fun state ->
+      task {
+        do!
+          fn
+            state
+            "Tests.FoldAccess.stamp"
+            "(n: Int64) : Int64 = (let _ = Stdlib.DateTime.now () in n)"
+        do!
+          fn
+            state
+            "Tests.FoldAccess.run"
+            "() : String = \"fold-access-\" + Stdlib.toString (Stdlib.List.length (Stdlib.List.fold [ 1L, 2L, 3L ] [] (fun acc n -> Stdlib.List.push acc (Tests.FoldAccess.stamp n))))"
+        for name in [ "stamp"; "run" ] do
+          do!
+            run
+              state
+              [ "permissions"; "approve"; "Tests.FoldAccess." + name; "--yes" ]
+        do!
+          shows
+            state
+            [ "eval"; "Tests.FoldAccess.run ()" ]
+            "fold-access-3"
+            "every step of the fold read the clock"
+        do!
+          exits
+            state
+            [ "eval"; "Tests.FoldAccess.run ()" ]
+            0L
+            "and the run succeeded"
+        for name in [ "stamp"; "run" ] do
+          do! run state [ "permissions"; "unapprove"; "Tests.FoldAccess." + name ]
+        do! discardAll state
+      })
+
 /// Three store reads used to declare no effect, so `requirements` answered "effect-free" for
 /// every Dark function that reached the store through them. Each wrapper is the one Dark caller
 /// of its builtin, so asking about the wrapper is asking about the declaration.
@@ -1546,6 +1585,7 @@ let tests : List<Test> =
     storeReadsRequirePackageRead
     approvedSqliteOnTheStoreRuns
     approvalsNameTheirDependencies
+    foldCallbackKeepsItsAccess
     anApprovedVersionIsWhatRuns
     unapprovingAnUnapprovedNameSaysSo
     opsAndCommitsDescribeTheLog
