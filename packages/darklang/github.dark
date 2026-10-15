@@ -94,11 +94,7 @@ module Releases =
 
 
   /// The runtime id whose asset this host wants, as the release matrix spells it.
-  ///
-  /// Its own function because `getDownloadUrl` fetches before it can be observed, so the
-  /// mapping had no test and drifted: it matched `Armv7l`, a case `getArchitecture` never
-  /// constructs, so 32-bit ARM answered "Unsupported OS or Arch" while `install.sh`
-  /// installed the same machine happily and CI published `linux-arm` for it every tag.
+  /// Its own function so it can be tested; `getDownloadUrl` fetches before it is observable.
   let platformId (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result<String, String> =
     match host.os, host.arch with
     | Linux, Arm -> "linux-arm" |> Stdlib.Result.Result.Ok

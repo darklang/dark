@@ -73,8 +73,7 @@ module AssetForPlatform =
         |> Stdlib.Test.equal Stdlib.Option.Option.None ]
 
 
-// Which runtime id a host maps to. `getDownloadUrl` fetches before this is observable, so for a
-// long time nothing could see the mapping and it drifted.
+// Which runtime id a host maps to. Every id here is one `ALL_RUNTIMES` publishes.
 module PlatformForHost =
   // A function rather than a `val`: a `val` holding a custom type carries the type identity it
   // was built against, and the testfile harness rebuilds the package set underneath it.
@@ -87,41 +86,37 @@ module PlatformForHost =
         arch = arch
         defaultShell = Stdlib.Cli.Shell.Shell.Bash }
 
-  // The regression. `getArchitecture` returns `Arm` for 32-bit ARM and never `Armv7l`, which is
-  // what this matched, so an armv7 machine `install.sh` had just installed could not update
-  // itself. `linux-arm` is published on every tag by `build-cli-r2r-extras`.
-  test armv7GetsTheThirtyTwoBitBuild =
-    Darklang.GitHub.Releases.platformId
-      (PlatformForHost.host Stdlib.Cli.OS.OS.Linux Stdlib.Cli.Architecture.Architecture.Arm)
-    |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "linux-arm")
+  let idFor
+    (os: Stdlib.Cli.OS.OS)
+    (arch: Stdlib.Cli.Architecture.Architecture)
+    : Stdlib.Result.Result<String, String> =
+    Darklang.GitHub.Releases.platformId (PlatformForHost.host os arch)
 
-  // Every id here must be one the release matrix actually publishes; `ALL_RUNTIMES` in
-  // `scripts/build/build-release-cli-exes.sh` is the list.
   test everySupportedHost =
     Stdlib.Test.all
-      [ Darklang.GitHub.Releases.platformId
-          (PlatformForHost.host
-            Stdlib.Cli.OS.OS.Linux
-            Stdlib.Cli.Architecture.Architecture.Aarch64)
+      [ PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.Linux
+          Stdlib.Cli.Architecture.Architecture.Arm
+        |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "linux-arm")
+        PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.Linux
+          Stdlib.Cli.Architecture.Architecture.Aarch64
         |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "linux-arm64")
-        Darklang.GitHub.Releases.platformId
-          (PlatformForHost.host
-            Stdlib.Cli.OS.OS.Linux
-            Stdlib.Cli.Architecture.Architecture.X86_64)
+        PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.Linux
+          Stdlib.Cli.Architecture.Architecture.X86_64
         |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "linux-x64")
-        Darklang.GitHub.Releases.platformId
-          (PlatformForHost.host
-            Stdlib.Cli.OS.OS.MacOS
-            Stdlib.Cli.Architecture.Architecture.Arm64)
+        PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.MacOS
+          Stdlib.Cli.Architecture.Architecture.Arm64
         |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "osx-arm64")
-        Darklang.GitHub.Releases.platformId
-          (PlatformForHost.host
-            Stdlib.Cli.OS.OS.MacOS
-            Stdlib.Cli.Architecture.Architecture.X86_64)
+        PlatformForHost.idFor
+          Stdlib.Cli.OS.OS.MacOS
+          Stdlib.Cli.Architecture.Architecture.X86_64
         |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "osx-x64") ]
 
-  // A combination nothing produces is an error rather than a plausible-looking id.
   test unsupportedCombination =
-    Darklang.GitHub.Releases.platformId
-      (PlatformForHost.host Stdlib.Cli.OS.OS.MacOS Stdlib.Cli.Architecture.Architecture.Arm)
+    PlatformForHost.idFor
+      Stdlib.Cli.OS.OS.MacOS
+      Stdlib.Cli.Architecture.Architecture.Arm
     |> Stdlib.Test.equal (Stdlib.Result.Result.Error "Unsupported OS or Arch")
