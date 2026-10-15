@@ -60,7 +60,10 @@ test hyperbolic =
     [ Stdlib.Math.cosh 0.0 |> near 1.0
       Stdlib.Math.sinh 0.0 |> near 0.0
       Stdlib.Math.sinh 1.0 |> near 1.17520119364
-      Stdlib.Math.tanh 0.0 |> near 0.0 ]
+      Stdlib.Math.tanh 0.0 |> near 0.0
+      Stdlib.Math.tanh 1.0 |> near 0.761594155956
+      Stdlib.Math.tanh -1.0 |> near (-0.761594155956)
+      Stdlib.Math.tanh 20.0 |> near 1.0 ]
 
 test turns =
   Stdlib.Test.all

@@ -187,7 +187,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the hyperbolic tangent of <param angleInRadians>"
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Sinh a))
+        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Tanh a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
