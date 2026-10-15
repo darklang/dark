@@ -326,7 +326,11 @@ raises where `f` first uses `a`):
   moves, never looks at. A moved `'a` takes a read as it is, a moved `List<'a>`
   or `Dict<'a>` takes a container holding reads as it is (`List.length`,
   `List.push`, `Dict.set`'s value, `List.map`'s list), and the result is
-  wrapped again along the return type
+  wrapped again along the return type. A moved body that does look looks
+  through the shell and waits itself for what it cannot see: `unwrap` hands
+  back the read inside a `Some` or `Ok` and lands anything else before it
+  raises, and `List.sortBy` waits only for elements whose keys tie, since its
+  tie-break compares them
 - the callee of a call, unless it is a closure holding reads
 - a trait method's arguments; `if`, `&&`, `||`, string interpolation, dict keys
 - a `let` or `match` pattern, only where it looks at a value rather than
@@ -505,16 +509,17 @@ nested VM on the host stack, remains for the callers in the Edges section.)
   callable's result (a predicate, a key, a fold's accumulator): it waits for a
   read still in flight first, through the same wait. `List.map` and its kin
   carry the result along unlooked-at, so a read in a mapped lambda stays in
-  flight and the list comes back as one promise.
+  flight and the list comes back as one promise. `filterMap` looks only at
+  the case, through the shell, so `Some (get u)` keeps its read in flight.
 - A request is usually the body's first move, and the call site sees it.
   A body that had to wait first (a stream pulling from the network, then
   applying its transform) may still ask: its wait lands where its result
   would have gone into the register, and that landing (`landBuiltin`, in
   all three loops) pushes the frame instead and picks up what records the
-  chain's result from the VM (`pendingFinish`). Not for a read: its wait
-  would have been handed back as a promise with the request inside it, so
-  that raises `requestApply after the first await of a read`. A continuation
-  may await and then request; that is `drive`'s ordinary path.
+  chain's result from the VM (`pendingFinish`). Never for a read: its wait
+  may land on another thread, mid-way through another builtin's chain, so a
+  request on the VM then is that builtin's. A continuation may await and then
+  request; that is `drive`'s ordinary path.
 - The frame runs under the builtin's applying access narrowed by what the
   callable captured, exactly as `Apply` narrows a frame's. Errors inside the
   lambda propagate through the process's own frames, so the stack names the
@@ -532,9 +537,11 @@ Unfold/Mapped/Filtered`), and a pull is a step machine (`Stream.pull`):
 `Pulled` an element, `Apply` this callable to this element and continue, or
 `Wait` on native IO and continue. The pulling builtin (`next`, `toList`,
 `toBlob`) drives it: an `Apply` is a `requestApply`, so the transform runs
-as a frame of the pulling process, its answer forced (`withValue`) and
-handed back to the pull; a `Wait` is waited for, and a request after it is
-the landing case above. The builder's active access is folded into the
+as a frame of the pulling process and its answer handed back to the pull,
+waited for first (`withValue`) where the node looks at it (`filter`,
+`unfold`) and in flight where it does not (`map`), so a drained `map` of
+reads is a list of reads; `toBlob` waits for each byte. A `Wait` is waited
+for, and a request after it is the landing case above. The builder's active access is folded into the
 callable once, when the transform is built (`narrowedBy`), and the frame push
 narrows the puller's access by it, as `Apply` narrows any frame's. So a
 narrow producer's transform stays narrow under a wide consumer, and the

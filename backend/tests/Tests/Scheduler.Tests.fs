@@ -1160,6 +1160,102 @@ let _ = Builtin.testTrace "filtered"
     expectValue (RT.DBool true) result
   }
 
+let private filterMapKeepsReadsInFlight =
+  testTask "filterMap keeps a Some built around a read without waiting for the read" {
+    let! result =
+      runReleasing
+        """let xs =
+  Stdlib.List.filterMap [ 1L; 2L; 3L ] (fun n ->
+    if n == 2L then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some(Builtin.testRead (230L + n)))
+let _ = Builtin.testTrace "filterMapped"
+Stdlib.List.fold xs 0L (fun a b -> a + b)"""
+        [ 231L; 233L ]
+        [ "filterMapped" ]
+    expectValue (RT.DInt64 464L) result
+  }
+
+let private sortByKeyedThroughShells =
+  testTask "sortBy sorts on keys read through shells, the reads still in flight" {
+    let! result =
+      runReleasing
+        """let xs = [ ("b", Builtin.testRead 241L); ("a", Builtin.testRead 242L) ]
+let sorted = Stdlib.List.sortBy xs (fun (name, _) -> name)
+let _ = Builtin.testTrace "sorted"
+match sorted with
+| (_, v) :: _ -> v
+| [] -> 0L"""
+        [ 241L; 242L ]
+        [ "sorted" ]
+    expectValue (RT.DInt64 242L) result
+  }
+
+let private sortByWaitsForTiesAlone =
+  testTask "sortBy waits for elements whose keys tie, and only for those" {
+    // The tie-break compares the elements, so the two keyed 1 have to land; the one keyed 0
+    // does not.
+    let! result =
+      runWith """let xs =
+  [ (1L, Builtin.testReadOf 251L 9L)
+    (1L, Builtin.testReadOf 252L 3L)
+    (0L, Builtin.testReadOf 253L 5L) ]
+let sorted = Stdlib.List.sortBy xs (fun (k, _) -> k)
+let _ = Builtin.testTrace "sorted"
+sorted == [ (0L, 5L); (1L, 3L); (1L, 9L) ]""" (fun p ->
+        waitFor "reads in flight" (fun () ->
+          Gates.waiting () = [ 251L; 252L; 253L ])
+        waitFor "the process to park on a tie" (fun () -> isParked p)
+        Expect.equal (Trace.take ()) [] "the sort did not finish before its ties"
+        Gates.release 251L
+        Gates.release 252L
+        waitForTrace "the sort finished once the ties landed" [ "sorted" ]
+        Expect.equal (Gates.waiting ()) [ 253L ] "the untied read still in flight"
+        Gates.release 253L)
+    expectValue (RT.DBool true) result
+  }
+
+let private streamMapCarriesReads =
+  testTask "Stream.map drained to a list keeps every read in flight" {
+    let! result =
+      runReleasing
+        """let xs =
+  Stdlib.Stream.fromList [ 1L; 2L ]
+  |> Stdlib.Stream.map (fun n -> Builtin.testRead (260L + n))
+  |> Stdlib.Stream.toList
+let _ = Builtin.testTrace "drained"
+Stdlib.List.fold xs 0L (fun a b -> a + b)"""
+        [ 261L; 262L ]
+        [ "drained" ]
+    expectValue (RT.DInt64 523L) result
+  }
+
+let private unwrapHandsBackTheReadInside =
+  testTask "unwrap of a Some built around a read hands the read back in flight" {
+    let! result =
+      runReleasing
+        """let v = Builtin.unwrap (Stdlib.Option.Option.Some(Builtin.testRead 271L))
+let _ = Builtin.testTrace "unwrapped"
+let w = Builtin.unwrap (Builtin.testReadOf 272L (Stdlib.Option.Option.Some 1L))
+v + w"""
+        [ 271L; 272L ]
+        [ "unwrapped" ]
+    expectValue (RT.DInt64 272L) result
+  }
+
+let private unwrapErrorShowsTheLandedValue =
+  testTask "unwrap of an Error around a read raises with the value it landed as" {
+    let! result =
+      runReleasing
+        """Builtin.unwrap (Stdlib.Result.Result.Error(Builtin.testReadOf 281L "boom"))"""
+        [ 281L ]
+        []
+    match result with
+    | Error(RTE.Unwrap(RTE.Unwraps.GotError(RT.DString "boom")), _) -> ()
+    | other -> failtest $"expected GotError \"boom\", got {other}"
+  }
+
 let private dictValueOfTheWrongTypeRaises =
   testTask
     "a read set into a dict raises where it is waited for if its type is wrong" {
@@ -2035,6 +2131,12 @@ let tests =
         unlookedReadInAContainerFailsTheRun
         landedListKnowsItsElementType
         filterAndFindFirstHoldTheirReads
+        filterMapKeepsReadsInFlight
+        sortByKeyedThroughShells
+        sortByWaitsForTiesAlone
+        streamMapCarriesReads
+        unwrapHandsBackTheReadInside
+        unwrapErrorShowsTheLandedValue
         dictValueOfTheWrongTypeRaises
         unlookedReadFailsTheRunAtItsEnd
         denialRaisesAtTheCall

@@ -132,9 +132,14 @@ let newChunked
 type PullStep =
   /// This pull is done: the element, or `None` for exhausted.
   | Pulled of Option<Dval>
-  /// Apply the callable to the argument, then continue with what it answered (a value, not a
-  /// read still in flight: the puller forces it first).
-  | Apply of applicable : Applicable * arg : Dval * next : (Dval -> PullStep)
+  /// Apply the callable to the argument, then continue with what it answered. Where `looks`,
+  /// `next` looks at the answer, so the puller waits for a read in flight first; otherwise
+  /// `next` only carries it along (`Mapped`) and it stays in flight.
+  | Apply of
+    applicable : Applicable *
+    arg : Dval *
+    next : (Dval -> PullStep) *
+    looks : bool
   /// Native IO under way; continue with what it lands.
   | Wait of Ply.Ply<PullStep>
 
@@ -142,7 +147,8 @@ type PullStep =
 let rec private andThen (step : PullStep) (k : Option<Dval> -> PullStep) : PullStep =
   match step with
   | Pulled r -> k r
-  | Apply(app, arg, next) -> Apply(app, arg, (fun dv -> andThen (next dv) k))
+  | Apply(app, arg, next, looks) ->
+    Apply(app, arg, (fun dv -> andThen (next dv) k), looks)
   | Wait ply ->
     Wait(
       uply {
@@ -174,7 +180,7 @@ let rec private pull (impl : StreamImpl) : PullStep =
     Apply(
       step,
       state.Value,
-      fun result ->
+      (fun result ->
         match result with
         | DEnum(_, _, _, "Some", [ DTuple(elem, newState, []) ]) ->
           state.Value <- newState
@@ -183,14 +189,15 @@ let rec private pull (impl : StreamImpl) : PullStep =
         | other ->
           Exception.raiseInternal
             "streamUnfold step must return Option<(a, s)>"
-            [ "got", other ]
+            [ "got", other ]),
+      true
     )
 
   | Mapped(src, fn, _elemType) ->
     andThen (pull src) (fun upstream ->
       match upstream with
       | None -> Pulled None
-      | Some v -> Apply(fn, v, (fun mapped -> Pulled(Some mapped))))
+      | Some v -> Apply(fn, v, (fun mapped -> Pulled(Some mapped)), false))
 
   | Filtered(src, pred) ->
     andThen (pull src) (fun upstream ->
@@ -200,14 +207,15 @@ let rec private pull (impl : StreamImpl) : PullStep =
         Apply(
           pred,
           v,
-          fun answer ->
+          (fun answer ->
             match answer with
             | DBool true -> Pulled(Some v)
             | DBool false -> pull impl
             | other ->
               Exception.raiseInternal
                 "stream filter predicate returned non-Bool"
-                [ "got", other ]
+                [ "got", other ]),
+          true
         ))
 
   | Take(src, _n, remaining) ->

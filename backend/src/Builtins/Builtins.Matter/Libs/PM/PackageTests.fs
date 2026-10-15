@@ -456,7 +456,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           }
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
+      // Runs a whole test in a child process. As a package read alone the interpreter would
+      // overlap it, so a `List.map` over tests would start one child per element at once.
+      callEffects = set [ Effect.PackageRead; Effect.Native ]
       deprecated = NotDeprecated } ]
 
 

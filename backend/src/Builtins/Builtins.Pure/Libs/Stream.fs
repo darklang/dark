@@ -83,8 +83,9 @@ let private narrowedBy
 
 
 /// Drive a pull to its end from a builtin: a callable the stream hands back is applied as a
-/// frame of this process, its answer forced (a read still in flight is waited for) and handed
-/// back to the pull; native IO is waited for. `k` gets the pulled element.
+/// frame of this process and its answer handed back to the pull, waited for first where the
+/// pull looks at it (a `filter` predicate, an `unfold` step) and in flight where it does not (a
+/// `map`); native IO is waited for. `k` gets the pulled element, which can be a read in flight.
 let rec private drivePull
   (vm : VMState)
   (k : Option<Dval> -> Ply<Dval>)
@@ -92,9 +93,12 @@ let rec private drivePull
   : Ply<Dval> =
   match step with
   | Stream.Pulled r -> k r
-  | Stream.Apply(app, arg, next) ->
+  | Stream.Apply(app, arg, next, looks) ->
     Interpreter.requestApply vm app arg [] (fun dv ->
-      Interpreter.withValue vm dv (fun v -> drivePull vm k (next v)))
+      if looks then
+        Interpreter.withValue vm dv (fun v -> drivePull vm k (next v))
+      else
+        drivePull vm k (next dv))
   | Stream.Wait ply ->
     uply {
       let! landed = ply
@@ -260,6 +264,8 @@ let fns () : List<BuiltInFn> =
           let collected = new System.IO.MemoryStream()
           let rec onPulled (r : Option<Dval>) : Ply<Dval> =
             match r with
+            | Some(DPromise _ as read) ->
+              Interpreter.withValue vm read (fun b -> onPulled (Some b))
             | Some(DUInt8 b) ->
               collected.WriteByte b
               drivePull vm onPulled (Stream.pullNext s)

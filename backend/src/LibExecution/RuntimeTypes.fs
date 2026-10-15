@@ -1503,8 +1503,10 @@ and BuiltInParam =
     blockArgs : List<string>
     description : string
     /// The body only moves the values this parameter's type variables stand for, never looks
-    /// at them (`Param.moved`), so a read in flight can stand in for one. Only meaningful on a
-    /// type of `'a`, `List<'a>` or `Dict<'a>`; `Builtin.Tests` holds every declaration to that.
+    /// at them (`Param.moved`), so a read in flight can stand in for one. A body that does look
+    /// (`unwrap`, at the case) looks through the shell and waits itself for what it cannot see.
+    /// Only meaningful on a type of `'a`, `List<'a>` or `Dict<'a>`; `Builtin.Tests` holds every
+    /// declaration to that.
     moves : bool
   }
 
@@ -1521,7 +1523,8 @@ and BuiltInParam =
       moves = false }
 
   /// `make`, for a parameter whose `'a` values the body only moves: stores, returns, counts or
-  /// hands to a callback, but never compares, hashes, sorts, prints or serializes.
+  /// hands to a callback, but never compares, hashes, sorts, prints or serializes without
+  /// waiting for them first.
   static member moved
     (name : string)
     (typ : TypeReference)
