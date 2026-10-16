@@ -51,10 +51,11 @@ let view (traceID: String) : Stdlib.Option.Option<TraceData> =
   Builtin.tracesView traceID
 
 
-/// The trace's input as source text, for replay. {{None}} when the trace
-/// is missing or its input isn't a string (e.g. an HTTP Request record).
-let getInput (traceID: String) : Stdlib.Option.Option<String> =
-  Builtin.tracesGetInput traceID
+/// Read the saved source, arguments and options without loading the result.
+/// Returns None for a served request, for a trace recorded before invocations were
+/// saved, and for one whose saved invocation is incomplete or corrupt.
+let getScriptOrEvalInput (traceID: String) : Stdlib.Option.Option<ScriptOrEvalInput> =
+  Builtin.tracesGetScriptOrEvalInput traceID
 
 
 /// One trace by id, if it is still here.

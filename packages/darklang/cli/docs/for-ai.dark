@@ -70,6 +70,11 @@ never blocks: it means the checker lacked evidence, not that the declaration is
 wrong. `typecheck` summarizes the whole branch; `--all` also lists successful
 items, `--failed` or `--incomplete` lists only that verdict.
 
+## Running .dark files
+
+Use `run-script [options] file.dark [args...]` (`run` is an alias).
+See `docs scripts` for examples, arguments, exit codes and permissions.
+
 ## Package tests
 
 Tests are ordinary Dark declarations stored separately from production

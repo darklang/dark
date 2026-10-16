@@ -479,12 +479,13 @@ denied), and the CLI grammar accepts every shape the hint emits. Combined with
 the seeded default instance policy — a fresh install allows a guest run to
 load packages, compute, use the local store, and print, but denies the
 filesystem, network, processes, and the environment until granted — this
-gives a deny-by-default posture that is usable out of the box. At an
-interactive terminal, `run` turns an instance-layer denial into a question:
-allow the exact rule once (this run only, widening the instance layer in
-memory), allow it always (saved through the same path as `permissions
-allow`), or deny, and retries on allow. Non-interactive execution, `--sandbox`
-and `--warn-permissions` never prompt and never widen policy automatically.
+gives a deny-by-default posture that is usable out of the box. A denial stops
+the script; earlier effects may already have happened. For an instance-layer
+denial at an interactive terminal, `run` offers to save the exact rule for
+future runs or leave permissions unchanged. Saving permission still exits 1
+and does not restart the script. Run it again explicitly when ready.
+Non-interactive execution, `--sandbox` and `--warn-permissions` never prompt
+and never widen policy automatically.
 
 Every host operation is recorded to `rundir/logs/host-audit.jsonl` — one
 structured line with the operation summary and its policy decision (allowed,

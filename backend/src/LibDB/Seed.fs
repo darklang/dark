@@ -121,6 +121,7 @@ let export (outputPath : string) : Task<unit> =
       DELETE FROM trace_fns;
       DELETE FROM trace_loops;
       DELETE FROM trace_blobs;
+      DELETE FROM trace_cli_invocations;
       DELETE FROM traces;
 
       -- ALL of it: `config_v0` is per-install by construction, and nothing in it is needed
@@ -448,7 +449,7 @@ module EvaluationAuthority =
         let! bundled = LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
         let state =
           { state with isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
-          |> PolicyStore.guestState accountID Permission.Policy.allowAll [] []
+          |> PolicyStore.guestState accountID Permission.Policy.allowAll []
         return
           match narrowedBy with
           | None -> state

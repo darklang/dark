@@ -208,10 +208,12 @@ module Registry =
       | Some "help" -> true
       | _ -> false
 
+    // The script runner decides whether --help is an option or a script argument.
     let asksForHelp =
-      (Stdlib.List.contains args "--help")
-      || (Stdlib.List.contains args "-h")
-      || firstIsHelp
+      handler.name != "run-script"
+      && ((Stdlib.List.contains args "--help")
+          || (Stdlib.List.contains args "-h")
+          || firstIsHelp)
 
     if asksForHelp then
       executeCommandHelp name state
