@@ -340,6 +340,14 @@ let tests =
             ("bare-none", [ "M" ], [], [], "None")
             ("bare-ok", [ "M" ], [], [], "Ok 5")
             ("bare-error", [ "M" ], [], [], "Error \"no\"")
+            // Cover implicit and qualified pipe-enum names independently of the corpus.
+            ("pipe-bare-some", [ "M" ], [], [], "5 |> Some")
+            ("pipe-bare-error", [ "M" ], [], [], "\"no\" |> Error")
+            ("pipe-qualified-error",
+             [ "M" ],
+             [],
+             [],
+             "\"no\" |> Stdlib.Result.Result.Error")
             ("private-qualified-function",
              [ "M" ],
              [],
