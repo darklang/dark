@@ -202,6 +202,9 @@ jobs:
       - run:
           name: Test CI diagnostic collection
           command: python3 .circleci/test_collect_diagnostics.py
+      - run:
+          name: Test artifact validation timeouts
+          command: python3 .circleci/test_artifact_validation.py
 
   # Build server binaries and run tests
   # Cleanup: consider splitting into (1) build debug (2) prepare .db (3) build release
