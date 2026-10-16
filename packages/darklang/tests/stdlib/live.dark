@@ -29,12 +29,12 @@ test dedupeTouched =
           [ Stdlib.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
-                    { owner = "Demo"; modules = [ "M" ]; name = "a" }
+                    { owner = "Demo", modules = [ "M" ], name = "a" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn }
             Stdlib.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
-                    { owner = "Demo"; modules = [ "M" ]; name = "a" }
+                    { owner = "Demo", modules = [ "M" ], name = "a" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn } ]))
       |> Stdlib.Test.equal 1
 
@@ -45,12 +45,12 @@ test dedupeTouched =
           [ Stdlib.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
-                    { owner = "Demo"; modules = [ "M" ]; name = "a" }
+                    { owner = "Demo", modules = [ "M" ], name = "a" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn }
             Stdlib.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
-                    { owner = "Demo"; modules = [ "M" ]; name = "a" }
+                    { owner = "Demo", modules = [ "M" ], name = "a" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Type } ]))
       |> Stdlib.Test.equal 2
 
@@ -61,12 +61,12 @@ test dedupeTouched =
           [ Stdlib.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
-                    { owner = "Demo"; modules = [ "M" ]; name = "a" }
+                    { owner = "Demo", modules = [ "M" ], name = "a" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn }
             Stdlib.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
-                    { owner = "Demo"; modules = [ "M" ]; name = "b" }
+                    { owner = "Demo", modules = [ "M" ], name = "b" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn } ]))
       |> Stdlib.Test.equal 2
 
@@ -83,7 +83,7 @@ test dependents =
           [ Stdlib.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
-                    { owner = "Nobody"; modules = [ "Nothing" ]; name = "here" }
+                    { owner = "Nobody", modules = [ "Nothing" ], name = "here" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn } ]))
       |> Stdlib.Test.equal 1
 

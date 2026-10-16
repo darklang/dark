@@ -41,8 +41,8 @@ let private runDarkResult (code : string) : Task<Result<int64, string>> =
 
 /// A `PackageLocation` literal, as Dark source.
 let private darkLoc (m : string) (name : string) : string =
-  "(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\"; "
-  + $"modules = [\"{m}\"]; name = \"{name}\" }})"
+  "(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\", "
+  + $"modules = [\"{m}\"], name = \"{name}\" }})"
 
 
 /// Commit everything uncommitted on main, the way `dark commit` does.

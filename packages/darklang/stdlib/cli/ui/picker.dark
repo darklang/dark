@@ -23,13 +23,13 @@ type Msg =
   | Cancelled
 
 let make (labels: List<String>) : State =
-  State { labels = labels; selected = 0; scroll = 0 }
+  State { labels = labels, selected = 0, scroll = 0 }
 
 /// Rebuild with new labels, keeping the cursor where it was if it still exists.
 let withLabels (state: State) (labels: List<String>) : State =
   let count = Stdlib.List.length labels
   let selected = Stdlib.max 0 (Stdlib.min (count - 1) state.selected)
-  State { labels = labels; selected = selected; scroll = state.scroll }
+  State { labels = labels, selected = selected, scroll = state.scroll }
 
 let count (state: State) : Int =
   Stdlib.List.length state.labels

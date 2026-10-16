@@ -277,7 +277,7 @@ module Sse =
         applyLine d e i h line)
 
     if hasData then
-      Stdlib.Option.Option.Some(Event { data = data; eventType = eventType; id = id })
+      Stdlib.Option.Option.Some(Event { data = data, eventType = eventType, id = id })
     else
       Stdlib.Option.Option.None
 
@@ -313,7 +313,7 @@ module Sse =
         | Some event ->
           let nextState =
             ParseState
-              { lastId = event.id; currentLines = []; currentLine = [] }
+              { lastId = event.id, currentLines = [], currentLine = [] }
 
           Stdlib.Option.Option.Some((event, nextState))
         | None -> Stdlib.Option.Option.None
@@ -334,7 +334,7 @@ module Sse =
           | Some event ->
             let nextState =
               ParseState
-                { lastId = event.id; currentLines = []; currentLine = [] }
+                { lastId = event.id, currentLines = [], currentLine = [] }
 
             Stdlib.Option.Option.Some((event, nextState))
           | None ->
@@ -369,6 +369,6 @@ module Sse =
   /// flow to the consumer as their terminating blank lines arrive,
   /// so a slow LLM response surfaces tokens as they're produced.
   let parse (bytes: Stream<UInt8>) : Stream<Event> =
-    let initial = ParseState { lastId = ""; currentLines = []; currentLine = [] }
+    let initial = ParseState { lastId = "", currentLines = [], currentLine = [] }
     Stdlib.Stream.unfold<ParseState, Event> initial (fun state ->
       pullNextEvent bytes state)

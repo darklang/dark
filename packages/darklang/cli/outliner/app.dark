@@ -148,7 +148,7 @@ let complete
   (args: List<String>)
   : List<Darklang.Cli.Completion.CompletionItem> =
   let item (value: String) : Darklang.Cli.Completion.CompletionItem =
-    Darklang.Cli.Completion.CompletionItem { value = value; display = value }
+    Darklang.Cli.Completion.CompletionItem { value = value, display = value }
 
   match args with
   | [] -> [ "ls", "show", "add" ] |> Stdlib.List.map item

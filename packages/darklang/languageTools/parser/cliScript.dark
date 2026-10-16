@@ -137,7 +137,7 @@ let toPT
     List<WrittenTypes.UnresolvedName>)
   =
   let modules = if wt.name == "" then [] else [ wt.name ]
-  let ctx = { ctx with owner = wt.owner; currentModule = modules }
+  let ctx = { ctx with owner = wt.owner, currentModule = modules }
 
   // Process types and generate ops
   let (types, typeOps, typeUnresolvedNames) =
@@ -153,7 +153,7 @@ let toPT
 
       let location =
         ProgramTypes.PackageLocation
-          { owner = wt.owner; modules = modules; name = typeName }
+          { owner = wt.owner, modules = modules, name = typeName }
 
       let ops =
         [ ProgramTypes.PackageOp.AddType pt
@@ -175,7 +175,7 @@ let toPT
 
       let location =
         ProgramTypes.PackageLocation
-          { owner = wt.owner; modules = modules; name = valueName }
+          { owner = wt.owner, modules = modules, name = valueName }
 
       let ops =
         [ ProgramTypes.PackageOp.AddValue pv
@@ -197,7 +197,7 @@ let toPT
 
       let location =
         ProgramTypes.PackageLocation
-          { owner = wt.owner; modules = modules; name = fnName }
+          { owner = wt.owner, modules = modules, name = fnName }
 
       let ops =
         [ ProgramTypes.PackageOp.AddFn pf

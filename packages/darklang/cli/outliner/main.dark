@@ -40,7 +40,7 @@ type KeyResult =
 // --- Documents ---
 
 let activeDoc (state: State) : Document =
-  let fallback = Document { id = 0; title = "Untitled"; outline = emptyOutline () }
+  let fallback = Document { id = 0, title = "Untitled", outline = emptyOutline () }
 
   state.documents
   |> Stdlib.List.findFirst (fun d -> d.id == state.activeDocId)
@@ -96,14 +96,14 @@ let docAt (state: State) (index: Int) : Stdlib.Option.Option<Document> =
 // --- Status line ---
 
 let say (state: State) (message: String) : State =
-  { state with message = message; messageIsError = false }
+  { state with message = message, messageIsError = false }
 
 let complain (state: State) (message: String) : State =
-  { state with message = message; messageIsError = true }
+  { state with message = message, messageIsError = true }
 
 /// Clear the last message, so it belongs to one action rather than lingering.
 let quiet (state: State) : State =
-  { state with message = ""; messageIsError = false }
+  { state with message = "", messageIsError = false }
 
 
 // --- Screen transitions ---
@@ -119,7 +119,7 @@ let backToPicker (state: State) : State =
 
 let createDocument (state: State) : State =
   let doc =
-    Document { id = state.nextDocId; title = "Untitled"; outline = emptyOutline () }
+    Document { id = state.nextDocId, title = "Untitled", outline = emptyOutline () }
 
   let withDoc =
     { state with
@@ -146,7 +146,7 @@ let deleteDocument (state: State) (docId: Int) : State =
       else
         state.activeDocId
 
-    let next = { state with documents = remaining; activeDocId = activeId }
+    let next = { state with documents = remaining, activeDocId = activeId }
     { (say next "deleted") with screen = Screen.DocPicker(makeDocPicker next) }
 
 

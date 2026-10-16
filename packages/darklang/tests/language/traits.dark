@@ -5,7 +5,7 @@ module Darklang.Language.Tests.Traits
 // (`'a: Show`) are checked when a fn is entered.
 
 module Shapes =
-  type Point = { x: Int; y: Int }
+  type Point = { x: Int, y: Int }
 
   trait Show<'a> =
     let show (value: 'a) : String
@@ -30,7 +30,7 @@ module Shapes =
 
   // The impl's method is an ordinary fn under <Type>.<Trait>
   test implMethodIsFn =
-    Shapes.Point.Show.show (Shapes.Point { x = 1; y = 2 })
+    Shapes.Point.Show.show (Shapes.Point { x = 1, y = 2 })
     |> Stdlib.Test.equal "(1, 2)"
 
   // The impl is its own item, named `Shapes.Point.Show`; its methods are the fns
@@ -39,7 +39,7 @@ module Shapes =
   // Dispatch by the argument's type
   test dispatchByArgType =
     Stdlib.Test.all
-      [ Shapes.Show.show (Shapes.Point { x = 5; y = 6 })
+      [ Shapes.Show.show (Shapes.Point { x = 5, y = 6 })
         |> Stdlib.Test.equal "(5, 6)"
         Shapes.Show.show 7 |> Stdlib.Test.equal "7"
         Shapes.Show.show true |> Stdlib.Test.equal "yes" ]
@@ -47,7 +47,7 @@ module Shapes =
   // Inside a bounded generic fn
   test boundedGenericFn =
     Stdlib.Test.all
-      [ Shapes.display (Shapes.Point { x = 1; y = 2 })
+      [ Shapes.display (Shapes.Point { x = 1, y = 2 })
         |> Stdlib.Test.equal "value: (1, 2)"
         Shapes.display 5 |> Stdlib.Test.equal "value: 5" ]
 
@@ -56,7 +56,7 @@ module Shapes =
     Stdlib.Test.all
       [ Shapes.display [ 1, 2, 3 ] |> Stdlib.Test.equal "value: [1, 2, 3]"
         Shapes.Show.show [ [ true ], [] ] |> Stdlib.Test.equal "[[yes], []]"
-        Shapes.display [ Shapes.Point { x = 1; y = 2 } ]
+        Shapes.display [ Shapes.Point { x = 1, y = 2 } ]
         |> Stdlib.Test.equal "value: [(1, 2)]" ]
 
   // As a function value, and piped
@@ -64,18 +64,18 @@ module Shapes =
     Stdlib.Test.all
       [ ([ 1, 2 ] |> Stdlib.List.map Shapes.Show.show)
         |> Stdlib.Test.equal [ "1", "2" ]
-        ((Shapes.Point { x = 7; y = 8 }) |> Shapes.Show.show)
+        ((Shapes.Point { x = 7, y = 8 }) |> Shapes.Show.show)
         |> Stdlib.Test.equal "(7, 8)" ]
 
   // Receiver calls: `x.method` is the whole call for a one-argument method
   test receiverCalls =
     Stdlib.Test.all
-      [ (Shapes.Point { x = 1; y = 2 }).show |> Stdlib.Test.equal "(1, 2)"
+      [ (Shapes.Point { x = 1, y = 2 }).show |> Stdlib.Test.equal "(1, 2)"
         (9).show |> Stdlib.Test.equal "9" ]
 
   // A real field always wins over a method of the same name
   test fieldBeatsMethod =
-    (Shapes.Point { x = 1; y = 2 }).x |> Stdlib.Test.equal 1
+    (Shapes.Point { x = 1, y = 2 }).x |> Stdlib.Test.equal 1
 
   // A direct call reports the missing implementation at the method call.
   test noImplForDirectCallRaises =
@@ -93,30 +93,30 @@ module Shapes =
       "Float has no implementation of Darklang.Language.Tests.Traits.Shapes.Show. Write `impl Show for Float = ...`, or run `dark impls Show` to see which types do"
 
 module Multi =
-  type Vec = { dx: Int; dy: Int }
+  type Vec = { dx: Int, dy: Int }
 
   // The operators are the stdlib traits: `+` is `Stdlib.Add.add`. A user impl
   // makes `Vec + Vec` an ordinary expression.
   impl Stdlib.Add for Vec =
-    let add (a: Vec) (b: Vec) : Vec = Vec { dx = a.dx + b.dx; dy = a.dy + b.dy }
+    let add (a: Vec) (b: Vec) : Vec = Vec { dx = a.dx + b.dx, dy = a.dy + b.dy }
 
   let sum<'a: Stdlib.Add> (a: 'a) (b: 'a) (c: 'a) : 'a = a + b + c
 
   test operatorTraits =
     Stdlib.Test.all
-      [ (Multi.Vec { dx = 1; dy = 2 } + Multi.Vec { dx = 10; dy = 20 })
-        |> Stdlib.Test.equal (Multi.Vec { dx = 11; dy = 22 })
+      [ (Multi.Vec { dx = 1, dy = 2 } + Multi.Vec { dx = 10, dy = 20 })
+        |> Stdlib.Test.equal (Multi.Vec { dx = 11, dy = 22 })
         Stdlib.Add.add
-          (Multi.Vec { dx = 1; dy = 2 })
-          (Multi.Vec { dx = 10; dy = 20 })
-        |> Stdlib.Test.equal (Multi.Vec { dx = 11; dy = 22 })
+          (Multi.Vec { dx = 1, dy = 2 })
+          (Multi.Vec { dx = 10, dy = 20 })
+        |> Stdlib.Test.equal (Multi.Vec { dx = 11, dy = 22 })
         Multi.sum 1 2 3 |> Stdlib.Test.equal 6
         Multi.sum 1.5 2.5 3.0 |> Stdlib.Test.equal 7.0
         Multi.sum
-          (Multi.Vec { dx = 1; dy = 1 })
-          (Multi.Vec { dx = 2; dy = 2 })
-          (Multi.Vec { dx = 3; dy = 3 })
-        |> Stdlib.Test.equal (Multi.Vec { dx = 6; dy = 6 })
+          (Multi.Vec { dx = 1, dy = 1 })
+          (Multi.Vec { dx = 2, dy = 2 })
+          (Multi.Vec { dx = 3, dy = 3 })
+        |> Stdlib.Test.equal (Multi.Vec { dx = 6, dy = 6 })
         Multi.sum "a" "b" "c" |> Stdlib.Test.equal "abc" ]
 
   test boolHasNoAddRaises =
@@ -131,10 +131,10 @@ module Multi =
   // Receiver call on a two-argument method is a partial application
   test receiverPartialApplication =
     Stdlib.Test.all
-      [ ((Multi.Vec { dx = 1; dy = 2 }).add (Multi.Vec { dx = 1; dy = 1 }))
-        |> Stdlib.Test.equal (Multi.Vec { dx = 2; dy = 3 })
-        (Multi.Vec { dx = 1; dy = 2 }).add (Multi.Vec { dx = 1; dy = 1 })
-        |> Stdlib.Test.equal (Multi.Vec { dx = 2; dy = 3 }) ]
+      [ ((Multi.Vec { dx = 1, dy = 2 }).add (Multi.Vec { dx = 1, dy = 1 }))
+        |> Stdlib.Test.equal (Multi.Vec { dx = 2, dy = 3 })
+        (Multi.Vec { dx = 1, dy = 2 }).add (Multi.Vec { dx = 1, dy = 1 })
+        |> Stdlib.Test.equal (Multi.Vec { dx = 2, dy = 3 }) ]
 
 module Ambiguity =
   // Two traits with the same method name. Their SHAPES differ (Describe has a
@@ -206,7 +206,7 @@ module SortOrder =
   // `List.sort` orders a type that has its own `Compare` the way `<` does. This
   // one's order is the reverse of its structural order, and the tag is ignored by
   // `Compare`.
-  type Desc = { descKey: Int64; descTag: String }
+  type Desc = { descKey: Int64, descTag: String }
 
   impl Compare for Desc =
     let lessThan (a: Desc) (b: Desc) : Bool = a.descKey > b.descKey
@@ -216,29 +216,29 @@ module SortOrder =
 
   test customCompareOrder =
     Stdlib.Test.all
-      [ (SortOrder.Desc { descKey = 1L; descTag = "" }
-         < SortOrder.Desc { descKey = 2L; descTag = "" })
+      [ (SortOrder.Desc { descKey = 1L, descTag = "" }
+         < SortOrder.Desc { descKey = 2L, descTag = "" })
         |> Stdlib.Test.equal false
         Stdlib.List.sort
-          [ SortOrder.Desc { descKey = 1L; descTag = "" }
-            SortOrder.Desc { descKey = 3L; descTag = "" }
-            SortOrder.Desc { descKey = 2L; descTag = "" } ]
+          [ SortOrder.Desc { descKey = 1L, descTag = "" }
+            SortOrder.Desc { descKey = 3L, descTag = "" }
+            SortOrder.Desc { descKey = 2L, descTag = "" } ]
         |> Stdlib.Test.equal
-          [ SortOrder.Desc { descKey = 3L; descTag = "" }
-            SortOrder.Desc { descKey = 2L; descTag = "" }
-            SortOrder.Desc { descKey = 1L; descTag = "" } ] ]
+          [ SortOrder.Desc { descKey = 3L, descTag = "" }
+            SortOrder.Desc { descKey = 2L, descTag = "" }
+            SortOrder.Desc { descKey = 1L, descTag = "" } ] ]
 
   // Stable: values equal under `Compare` keep the order they came in, whatever their
   // structure.
   test stableSort =
     Stdlib.List.sort
-      [ SortOrder.Desc { descKey = 1L; descTag = "b" }
-        SortOrder.Desc { descKey = 2L; descTag = "x" }
-        SortOrder.Desc { descKey = 1L; descTag = "a" } ]
+      [ SortOrder.Desc { descKey = 1L, descTag = "b" }
+        SortOrder.Desc { descKey = 2L, descTag = "x" }
+        SortOrder.Desc { descKey = 1L, descTag = "a" } ]
     |> Stdlib.Test.equal
-      [ SortOrder.Desc { descKey = 2L; descTag = "x" }
-        SortOrder.Desc { descKey = 1L; descTag = "b" }
-        SortOrder.Desc { descKey = 1L; descTag = "a" } ]
+      [ SortOrder.Desc { descKey = 2L, descTag = "x" }
+        SortOrder.Desc { descKey = 1L, descTag = "b" }
+        SortOrder.Desc { descKey = 1L, descTag = "a" } ]
 
   // A type with no `Compare` of its own sorts structurally, as before.
   type Plain = { plainKey: Int64 }
@@ -255,21 +255,21 @@ module Equality =
   // `==` is NOT a trait: equality is structural, for every value, always. A type
   // cannot say what equal means for it, which is what keeps `List.contains`,
   // `List.unique`, `List.sort` and dict keys meaning the same thing as `==`.
-  type User = { id: Int64; name: String }
+  type User = { id: Int64, name: String }
 
   type Holder = { user: User }
 
   // Every field counts, including the one a custom equality would have ignored.
   test structuralEquality =
     Stdlib.Test.all
-      [ (Equality.User { id = 1L; name = "a" }
-         == Equality.User { id = 1L; name = "a" })
+      [ (Equality.User { id = 1L, name = "a" }
+         == Equality.User { id = 1L, name = "a" })
         |> Stdlib.Test.equal true
-        (Equality.User { id = 1L; name = "a" }
-         == Equality.User { id = 1L; name = "b" })
+        (Equality.User { id = 1L, name = "a" }
+         == Equality.User { id = 1L, name = "b" })
         |> Stdlib.Test.equal false
-        (Equality.User { id = 1L; name = "a" }
-         != Equality.User { id = 1L; name = "b" })
+        (Equality.User { id = 1L, name = "a" }
+         != Equality.User { id = 1L, name = "b" })
         |> Stdlib.Test.equal true
         (1 == 1) |> Stdlib.Test.equal true
         1 != 1 |> Stdlib.Test.equal false
@@ -286,46 +286,46 @@ module Equality =
   // elements.
   test containerEquality =
     Stdlib.Test.all
-      [ ([ Equality.User { id = 1L; name = "a" } ]
-         == [ Equality.User { id = 1L; name = "a" } ])
+      [ ([ Equality.User { id = 1L, name = "a" } ]
+         == [ Equality.User { id = 1L, name = "a" } ])
         |> Stdlib.Test.equal true
-        ([ Equality.User { id = 1L; name = "a" } ]
-         == [ Equality.User { id = 1L; name = "b" } ])
+        ([ Equality.User { id = 1L, name = "a" } ]
+         == [ Equality.User { id = 1L, name = "b" } ])
         |> Stdlib.Test.equal false
-        ([ Equality.User { id = 1L; name = "a" } ]
-         != [ Equality.User { id = 1L; name = "b" } ])
+        ([ Equality.User { id = 1L, name = "a" } ]
+         != [ Equality.User { id = 1L, name = "b" } ])
         |> Stdlib.Test.equal true ]
 
   // lengths first
   test lengthsFirst =
-    ([ Equality.User { id = 1L; name = "a" } ] == []) |> Stdlib.Test.equal false
+    ([ Equality.User { id = 1L, name = "a" } ] == []) |> Stdlib.Test.equal false
 
   // the same one level down: a tuple slot, a dict value, an Option payload, a record
   // field
   test nestedEquality =
     Stdlib.Test.all
-      [ ((1L, Equality.User { id = 1L; name = "a" })
-         == (1L, Equality.User { id = 1L; name = "a" }))
+      [ ((1L, Equality.User { id = 1L, name = "a" })
+         == (1L, Equality.User { id = 1L, name = "a" }))
         |> Stdlib.Test.equal true
-        ((1L, Equality.User { id = 1L; name = "a" })
-         == (1L, Equality.User { id = 1L; name = "b" }))
+        ((1L, Equality.User { id = 1L, name = "a" })
+         == (1L, Equality.User { id = 1L, name = "b" }))
         |> Stdlib.Test.equal false
         ((Stdlib.Dict.fromListOverwritingDuplicates
-            [ ("k", Equality.User { id = 1L; name = "a" }) ])
+            [ ("k", Equality.User { id = 1L, name = "a" }) ])
          == (Stdlib.Dict.fromListOverwritingDuplicates
-               [ ("k", Equality.User { id = 1L; name = "a" }) ]))
+               [ ("k", Equality.User { id = 1L, name = "a" }) ]))
         |> Stdlib.Test.equal true
-        (Stdlib.Option.Option.Some(Equality.User { id = 1L; name = "a" })
+        (Stdlib.Option.Option.Some(Equality.User { id = 1L, name = "a" })
          == Stdlib.Option.Option.None)
         |> Stdlib.Test.equal false
-        ([ [ Equality.User { id = 1L; name = "a" } ] ]
-         == [ [ Equality.User { id = 1L; name = "b" } ] ])
+        ([ [ Equality.User { id = 1L, name = "a" } ] ]
+         == [ [ Equality.User { id = 1L, name = "b" } ] ])
         |> Stdlib.Test.equal false
-        (Equality.Holder { user = Equality.User { id = 1L; name = "a" } }
-         == Equality.Holder { user = Equality.User { id = 1L; name = "a" } })
+        (Equality.Holder { user = Equality.User { id = 1L, name = "a" } }
+         == Equality.Holder { user = Equality.User { id = 1L, name = "a" } })
         |> Stdlib.Test.equal true
-        (Equality.Holder { user = Equality.User { id = 1L; name = "a" } }
-         == Equality.Holder { user = Equality.User { id = 1L; name = "b" } })
+        (Equality.Holder { user = Equality.User { id = 1L, name = "a" } }
+         == Equality.Holder { user = Equality.User { id = 1L, name = "b" } })
         |> Stdlib.Test.equal false ]
 
   // a list of builtin values, unchanged throughout
@@ -361,14 +361,14 @@ module Identities =
       [ Stdlib.sum 0L [ 1L, 2L, 3L ] |> Stdlib.Test.equal 6L
         Stdlib.sum 0.0 [] |> Stdlib.Test.equal 0.0
         Stdlib.product 1 [ 2, 3, 4 ] |> Stdlib.Test.equal 24
-        Stdlib.sum (Multi.Vec { dx = 0; dy = 0 })
-          [ Multi.Vec { dx = 1; dy = 2 }
-            Multi.Vec { dx = 3; dy = 4 } ]
-        |> Stdlib.Test.equal (Multi.Vec { dx = 4; dy = 6 }) ]
+        Stdlib.sum (Multi.Vec { dx = 0, dy = 0 })
+          [ Multi.Vec { dx = 1, dy = 2 }
+            Multi.Vec { dx = 3, dy = 4 } ]
+        |> Stdlib.Test.equal (Multi.Vec { dx = 4, dy = 6 }) ]
 
 module Rendering =
   // `ToString` is the trait behind every builtin type's `toString`
-  type Point = { x: Int64; y: Int64 }
+  type Point = { x: Int64, y: Int64 }
 
   impl Stdlib.ToString for Point =
     let toString (p: Point) : String =
@@ -376,8 +376,8 @@ module Rendering =
 
   test toStringTrait =
     Stdlib.Test.all
-      [ (Rendering.Point { x = 1L; y = 2L }).toString |> Stdlib.Test.equal "(1, 2)"
-        Stdlib.toString (Rendering.Point { x = 1L; y = 2L })
+      [ (Rendering.Point { x = 1L, y = 2L }).toString |> Stdlib.Test.equal "(1, 2)"
+        Stdlib.toString (Rendering.Point { x = 1L, y = 2L })
         |> Stdlib.Test.equal "(1, 2)"
         Stdlib.toString 42L |> Stdlib.Test.equal "42"
         Stdlib.toString true |> Stdlib.Test.equal "true"

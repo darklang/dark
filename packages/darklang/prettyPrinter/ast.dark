@@ -17,7 +17,7 @@ type Line =
 
 
 let line (depth: Int) (label: String) (detail: String) : Line =
-  Line { depth = depth; label = label; detail = detail }
+  Line { depth = depth, label = label, detail = detail }
 
 
 let clip (s: String) : String =

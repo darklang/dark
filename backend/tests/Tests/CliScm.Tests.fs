@@ -319,7 +319,7 @@ let private anUnbindRemovesANameThroughTheCli =
           runCli
             state
             [ "eval"
-              "Darklang.SCM.PackageOps.add (Builtin.scmCurrentBranch ()) [ Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\"; modules = [\"Gone\"]; name = \"f\" }, Stdlib.Option.Option.None) ]" ]
+              "Darklang.SCM.PackageOps.add (Builtin.scmCurrentBranch ()) [ Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [\"Gone\"], name = \"f\" }, Stdlib.Option.Option.None) ]" ]
         Expect.stringContains
           added
           "Ok"
@@ -1834,7 +1834,7 @@ let private dependentsSeeTheBranchYouAreOn =
 /// A `record` call as an eval expression. The candidates are empty because nothing
 /// here reads them; what is under test is which branch the row lands on.
 let private recordConflictOn (branchIdExpr : string) (id : string) : string =
-  $"""Darklang.SCM.Conflicts.record ({branchIdExpr}) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}"; owner = "Zz"; modules = "Confl"; name = "f"; itemType = "fn"; part = ""; kind = "same-name-different-hash"; candidates = []; autoResolvedTo = "bbb"; reason = "test"; status = "pending"; resolvedBy = "" }}]"""
+  $"""Darklang.SCM.Conflicts.record ({branchIdExpr}) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}", owner = "Zz", modules = "Confl", name = "f", itemType = "fn", part = "", kind = "same-name-different-hash", candidates = [], autoResolvedTo = "bbb", reason = "test", status = "pending", resolvedBy = "" }}]"""
 
 
 /// A merge moves committed work onto main and there is no undo verb for it, so it asks first, and a
@@ -2471,7 +2471,7 @@ let overrideByNameAnswersThePendingConflict =
       do! switch state "confl2"
 
       let record (id : string) (hash : string) =
-        $"""Darklang.SCM.Conflicts.record (Builtin.scmCurrentBranch ()) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}"; owner = "Tests"; modules = "Confl2"; name = "same"; itemType = "fn"; part = ""; kind = "same-name-different-hash"; candidates = []; autoResolvedTo = "{hash}"; reason = "test"; status = "pending"; resolvedBy = "" }}]"""
+        $"""Darklang.SCM.Conflicts.record (Builtin.scmCurrentBranch ()) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}", owner = "Tests", modules = "Confl2", name = "same", itemType = "fn", part = "", kind = "same-name-different-hash", candidates = [], autoResolvedTo = "{hash}", reason = "test", status = "pending", resolvedBy = "" }}]"""
 
       do! run state [ "eval"; record "r2first001" "aaa" ]
       do! run state [ "conflicts"; "ack"; "r2first001" ]

@@ -5,6 +5,6 @@ module Darklang.LanguageTools.Parser
 
 // TODO: these should be UInts of some size
 // (UInt8 might even be enough - how many lines are over 255chars?)
-type Point = { row: Int; column: Int }
+type Point = { row: Int, column: Int }
 
-type Range = { start: Point; end_: Point }
+type Range = { start: Point, end_: Point }

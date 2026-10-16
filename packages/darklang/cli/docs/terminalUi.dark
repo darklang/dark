@@ -12,7 +12,7 @@ and, more usefully, why it doesn't flicker.
 Three layers, and the separation is the whole point:
 
 1. A view is a value.
-   `Stdlib.Cli.Tui.View = { rows: List<String>; cursor: Cursor; mode: ViewMode }`. Rows are plain text plus SGR
+   `Stdlib.Cli.Tui.View = { rows: List<String>, cursor: Cursor, mode: ViewMode }`. Rows are plain text plus SGR
    styling only: no cursor movement, no clearing, no mode changes. Zero-based coordinates throughout.
 
 2. A frame is a diff.
@@ -20,7 +20,7 @@ Three layers, and the separation is the whole point:
    terminal updates.
 
 3. A session owns the effects.
-   `TerminalSession` holds `{ status; previousView; terminalSize }`, decides full-repaint vs diff,
+   `TerminalSession` holds `{ status, previousView, terminalSize }`, decides full-repaint vs diff,
    writes exactly once, and knows how to restore the terminal.
 
   packages/darklang/stdlib/cli/tui/
@@ -47,7 +47,7 @@ two shapes to know:
    emitting a message, never by having its state read.
 
 2. A component is a widget with a lifetime.
-   `Cli.Component = { view: 's -> Size -> View; onKey -> Step; save; refresh }`, and `Component.launch`
+   `Cli.Component = { view: 's -> Size -> View, onKey -> Step, save, refresh }`, and `Component.launch`
    owns the session: starting the terminal, presenting on every transition, tearing down, and re-taking the
    surface after another page borrowed it. Nothing should hand-write that again.
 

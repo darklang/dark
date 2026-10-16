@@ -247,7 +247,7 @@ let entityRows
         | Some name, owner :: modules ->
           let results = Query.searchExactMatch branchId parent name
           let itemName =
-            LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name }
+            LanguageTools.ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }
           let ctx =
             { terminalContext branchId parent with
                 preferredLocation = Stdlib.Option.Option.Some itemName }

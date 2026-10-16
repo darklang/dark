@@ -27,13 +27,13 @@ let globalKey (state: State) (keyChar: Stdlib.Option.Option<String>) : Stdlib.Op
       (Step.Continue
         { state with
             completionSel = 0
-            input = Stdlib.Option.Option.Some (InputState { prompt = ": "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "command" }) })
+            input = Stdlib.Option.Option.Some (InputState { prompt = ": ", field = Stdlib.Cli.UI.TextField.fromText "", action = "command" }) })
   | Some "/" ->
     // Search prompt - find any package item across the whole tree.
     Stdlib.Option.Option.Some
       (Step.Continue
         { state with
-            input = Stdlib.Option.Option.Some (InputState { prompt = "search "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "search" }) })
+            input = Stdlib.Option.Option.Some (InputState { prompt = "search ", field = Stdlib.Cli.UI.TextField.fromText "", action = "search" }) })
   | Some s ->
     match Stdlib.Int.parse s with
     | Ok n -> Stdlib.Option.Option.Some (Step.Continue (jumpToWorkspace state n))
@@ -54,7 +54,7 @@ let homeRowIs (state: State) (kind: String) : Bool =
 /// scroll and the filter, all of which indexed the list the lens just replaced.
 let withLens (state: State) (lens: Lens) : State =
   moveToPoint state
-    { (returnPointOf state) with lens = lens; selected = 0; filter = "" } true
+    { (returnPointOf state) with lens = lens, selected = 0, filter = "" } true
 
 /// Movement and view actions when no modal layer owns the key.
 let handleViewKey
@@ -95,7 +95,7 @@ let handleViewKey
       // Scratch: open the eval prompt; the result appends to the log.
       Step.Continue
         { state with
-            input = Stdlib.Option.Option.Some (InputState { prompt = "repl> "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "scratch" }) }
+            input = Stdlib.Option.Option.Some (InputState { prompt = "repl> ", field = Stdlib.Cli.UI.TextField.fromText "", action = "scratch" }) }
     else if state.activeView == vTraces then
       // Traces: ⏎ opens the selected trace's detail.
       openReader state (traceDetail state) false
@@ -196,18 +196,18 @@ let handleViewKey
       // Scratch: clear the log. Elsewhere: open a find-as-you-type filter for the current list.
       // The log and the session are separate: clearing the scrollback shouldn't silently unbind your names.
       if state.activeView == vScratch then
-        Step.Continue { state with repl = { state.repl with log = []; last = "" } }
+        Step.Continue { state with repl = { state.repl with log = [], last = "" } }
       else
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some (InputState { prompt = "filter: "; field = Stdlib.Cli.UI.TextField.fromText state.filter; action = "filter" }) }
+                Stdlib.Option.Option.Some (InputState { prompt = "filter: ", field = Stdlib.Cli.UI.TextField.fromText state.filter, action = "filter" }) }
     | Some "c" ->
       if (state.activeView == vSCM) || (state.activeView == vHome) then
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some (InputState { prompt = "commit message: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "commit" }) }
+                Stdlib.Option.Option.Some (InputState { prompt = "commit message: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "commit" }) }
       else Step.Continue state
     | Some "x" ->
       // Matter: the traces that called the selected fn. REPL: x drops the
@@ -246,21 +246,21 @@ let handleViewKey
             { state with
                 input =
                   Stdlib.Option.Option.Some
-                    (InputState { prompt = "delete branch " + b.name + "? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "branch-delete" }) }
+                    (InputState { prompt = "delete branch " + b.name + "? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "branch-delete" }) }
         | None -> Step.Continue state
       else if (state.activeView == vSCM) then
         Step.Continue
           { state with
               input =
                 Stdlib.Option.Option.Some
-                  (InputState { prompt = "discard ALL uncommitted? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "discard" }) }
+                  (InputState { prompt = "discard ALL uncommitted? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "discard" }) }
       else Step.Continue state
     | Some "b" ->
       if state.activeView == vHome then
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some (InputState { prompt = "new branch name: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "branch-create" }) }
+                Stdlib.Option.Option.Some (InputState { prompt = "new branch name: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "branch-create" }) }
       else Step.Continue state
     | Some "s" ->
       // Home: switch branch.
@@ -273,7 +273,7 @@ let handleViewKey
           Step.Continue
             { state with
                 input =
-                  Stdlib.Option.Option.Some (InputState { prompt = "merge " + b.name + " into parent? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "merge" }) }
+                  Stdlib.Option.Option.Some (InputState { prompt = "merge " + b.name + " into parent? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "merge" }) }
         | None -> Step.Continue state
       else Step.Continue state
     | Some "B" ->
@@ -299,7 +299,7 @@ let handleViewKey
       // something to reload, and pressing it when there is not costs one re-read.
       Step.Continue
         (forceScmRefresh
-          { state with items = reloadItems state; messageKind = MessageKind.Succeeded; message = "reloaded" })
+          { state with items = reloadItems state, messageKind = MessageKind.Succeeded, message = "reloaded" })
     | Some "p" ->
       // Traces: pin the run under the cursor, or unpin it. Retention drops the oldest runs as
       // they pile up, and the one you are reading is the one you least want dropped. In place,
@@ -312,7 +312,7 @@ let handleViewKey
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->
           match Cli.TraceVerbs.find item.name with
-          | Error m -> Step.Continue { state with messageKind = MessageKind.Refused; message = m }
+          | Error m -> Step.Continue { state with messageKind = MessageKind.Refused, message = m }
           | Ok run ->
             let wanted = Stdlib.Bool.not run.pinned
             if Darklang.Tracing.Store.setPinned run.id wanted then
@@ -324,7 +324,7 @@ let handleViewKey
                     message = $"{verb} {Cli.Text.shortIdText run.id}" }
             else
               Step.Continue
-                { state with messageKind = MessageKind.Refused; message = "that run is gone: it was dropped while you looked at it" }
+                { state with messageKind = MessageKind.Refused, message = "that run is gone: it was dropped while you looked at it" }
         | None -> Step.Continue state
       else Step.Continue state
     | Some "r" ->
@@ -345,7 +345,7 @@ let handleViewKey
             { state with
                 input =
                   Stdlib.Option.Option.Some
-                    (InputState { prompt = "rebase " + b.name + " onto parent? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "rebase" }) }
+                    (InputState { prompt = "rebase " + b.name + " onto parent? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "rebase" }) }
         | None -> Step.Continue state
       else if state.activeView == vMatter then
         match Stdlib.List.getAt state.items state.selected with
@@ -356,7 +356,7 @@ let handleViewKey
               { state with
                   input =
                     Stdlib.Option.Option.Some
-                      (InputState { prompt = "rename to: "; field = Stdlib.Cli.UI.TextField.fromText item.name; action = "rename" }) }
+                      (InputState { prompt = "rename to: ", field = Stdlib.Cli.UI.TextField.fromText item.name, action = "rename" }) }
         | None -> Step.Continue state
       else
         Step.Continue state
@@ -380,7 +380,7 @@ let handleKey
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
   // A transient toast lives for exactly one keypress: clear it here, so any key dismisses the last message.
-  let state = if state.message == "" then state else { state with messageKind = MessageKind.Succeeded; message = "" }
+  let state = if state.message == "" then state else { state with messageKind = MessageKind.Succeeded, message = "" }
 
   // An overlay is modal: it takes the key before anything else acts on it.
   match state.overlay with

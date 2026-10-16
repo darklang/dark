@@ -26,7 +26,7 @@ type PickContext =
 
 module PickContext =
   val empty =
-    PickContext { currentModule = []; preferredLocation = Stdlib.Option.Option.None }
+    PickContext { currentModule = [], preferredLocation = Stdlib.Option.Option.None }
 
 /// Count how many leading segments of two lists match.
 let countMatchingPrefix (a: List<String>) (b: List<String>) : Int =
@@ -115,7 +115,7 @@ module Type =
       match PackageManager.pickLocation PackageManager.PickContext.empty (locations branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
-          ProgramTypes.LocatedItem { entity = entity; location = location }
+          ProgramTypes.LocatedItem { entity = entity, location = location }
         )
       | None -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
@@ -228,7 +228,7 @@ module Value =
       match PackageManager.pickLocation PackageManager.PickContext.empty (locations branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
-          ProgramTypes.LocatedItem { entity = entity; location = location }
+          ProgramTypes.LocatedItem { entity = entity, location = location }
         )
       | None -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
@@ -270,7 +270,7 @@ module Function =
       match PackageManager.pickLocation PackageManager.PickContext.empty (locations branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
-          ProgramTypes.LocatedItem { entity = entity; location = location }
+          ProgramTypes.LocatedItem { entity = entity, location = location }
         )
       | None -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None

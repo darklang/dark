@@ -823,11 +823,11 @@ let isNegLitArg (state : ParserState) (k : int) : bool =
       || (rng state k).start.row <> (rng state (k - 1)).end_.row
       || (rng state k).start.column > (rng state (k - 1)).end_.column) // space before `-`
 
-// `;` used to separate list elements and list-pattern elements; `,` is the only
-// separator now. Report it precisely and keep parsing as if it had been a `,`, so
-// a file written in the old style yields one diagnostic per `;` instead of a
+// `;` used to separate collection elements and record fields; use `,` instead.
+// Newlines remain valid separators too. Report it precisely and keep parsing as
+// if it had been a `,`, so old-style files yield one diagnostic per `;` instead of a
 // cascade of recovery noise from the elements after it.
-let private errListSemicolon (state : ParserState) (i : int) (what : string) =
+let private errCollectionSemicolon (state : ParserState) (i : int) (what : string) =
   errFull
     state
     DiagnosticCode.expected
@@ -1280,7 +1280,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
         elems.Add(p, Some(rng state k2))
         k <- k2 + 1
       elif tok state k2 = TSemicolon then
-        errListSemicolon state k2 "list-pattern elements"
+        errCollectionSemicolon state k2 "list-pattern elements"
         elems.Add(p, Some(rng state k2))
         k <- k2 + 1
       else
@@ -2496,7 +2496,7 @@ and parseList (state : ParserState) (i : int) : WT.Expr * int =
         elems.Add(e, Some(rng state k2))
         k <- k2 + 1
       elif tok state k2 = TSemicolon then
-        errListSemicolon state k2 "list elements"
+        errCollectionSemicolon state k2 "list elements"
         elems.Add(e, Some(rng state k2))
         k <- k2 + 1
       else
@@ -2516,7 +2516,7 @@ and parseList (state : ParserState) (i : int) : WT.Expr * int =
         (zeroWidthAtEnd (rng state k), k)
     (WT.EList(span openB closeB, List.ofSeq elems, openB, closeB), p))
 
-// `Type { name = value ; … }`. `i` is the `{`.
+// `Type { name = value, … }`. `i` is the `{`.
 and parseRecord
   (state : ParserState)
   (typeName : WT.QualifiedTypeIdentifier)
@@ -2539,7 +2539,10 @@ and parseRecord
         setStmtCol state (rng state k).start.column
         let (value, k2) = parseExpr state (k + 2)
         fields.Add(span fnameR (WT.exprRange value), (fnameR, fname), value)
-        if tok state k2 = TSemicolon || tok state k2 = TComma then
+        if tok state k2 = TComma then
+          k <- k2 + 1
+        elif tok state k2 = TSemicolon then
+          errCollectionSemicolon state k2 "record fields"
           k <- k2 + 1
         elif k2 > k then
           if tok state k2 <> TRBrace then
@@ -2547,7 +2550,7 @@ and parseRecord
               state
               (WT.exprRange value)
               k2
-              "a comma, semicolon, or newline between record fields"
+              "a comma or newline between record fields"
           k <- k2
         else
           go <- false
@@ -2592,7 +2595,10 @@ and parseDict
           colonR,
           value
         )
-        if tok state k2 = TSemicolon || tok state k2 = TComma then
+        if tok state k2 = TComma then
+          k <- k2 + 1
+        elif tok state k2 = TSemicolon then
+          errCollectionSemicolon state k2 "dict entries"
           k <- k2 + 1
         elif k2 > kAfterKey then
           if tok state k2 <> TRBrace then
@@ -2600,7 +2606,7 @@ and parseDict
               state
               (WT.exprRange value)
               k2
-              "a comma, semicolon, or newline between dict entries"
+              "a comma or newline between dict entries"
           k <- k2
         else
           go <- false
@@ -2619,7 +2625,7 @@ and parseDict
      ),
      p))
 
-// record update `{ expr with name = value ; … }`. `i` is the `{`.
+// record update `{ expr with name = value, … }`. `i` is the `{`.
 and parseRecordUpdate (state : ParserState) (i : int) : WT.Expr * int =
   let openB = rng state i
   // fields are offside-delimited, same as parseRecord — suspend paren relaxation
@@ -2644,7 +2650,10 @@ and parseRecordUpdate (state : ParserState) (i : int) : WT.Expr * int =
         setStmtCol state (rng state k).start.column
         let (value, k2) = parseExpr state (k + 2)
         updates.Add((fnameR, fname), eqR, value)
-        if tok state k2 = TSemicolon || tok state k2 = TComma then
+        if tok state k2 = TComma then
+          k <- k2 + 1
+        elif tok state k2 = TSemicolon then
+          errCollectionSemicolon state k2 "record-update fields"
           k <- k2 + 1
         elif k2 > k then
           if tok state k2 <> TRBrace then
@@ -2652,7 +2661,7 @@ and parseRecordUpdate (state : ParserState) (i : int) : WT.Expr * int =
               state
               (WT.exprRange value)
               k2
-              "a comma, semicolon, or newline between record-update fields"
+              "a comma or newline between record-update fields"
           k <- k2
         else
           go <- false
@@ -3379,7 +3388,11 @@ and parseRecordDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
           typ = typ
           description = docOf state k
           symbolColon = colon }
-      if tok state k2 = TSemicolon || tok state k2 = TComma then
+      if tok state k2 = TComma then
+        fields.Add(field, Some(rng state k2))
+        k <- k2 + 1
+      elif tok state k2 = TSemicolon then
+        errCollectionSemicolon state k2 "record-type fields"
         fields.Add(field, Some(rng state k2))
         k <- k2 + 1
       elif k2 > k then
@@ -3389,7 +3402,7 @@ and parseRecordDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
             state
             (WT.typeReferenceRange typ)
             k2
-            "a comma, semicolon, or newline between record-type fields"
+            "a comma or newline between record-type fields"
         k <- k2
       else
         go <- false

@@ -136,21 +136,21 @@ let vstack (region: Region) (components: List<Component>) : List<Span> =
 let fixedSize (n: Int) (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
-        SizeRequest { minRows = n; minCols = 0; preferredRows = n; preferredCols = 0 }
+        SizeRequest { minRows = n, minCols = 0, preferredRows = n, preferredCols = 0 }
       render = renderFn }
 
 /// A flexible component: needs at least `min` rows, prefers `preferred`.
 let flex (min: Int) (preferred: Int) (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
-        SizeRequest { minRows = min; minCols = 0; preferredRows = preferred; preferredCols = 0 }
+        SizeRequest { minRows = min, minCols = 0, preferredRows = preferred, preferredCols = 0 }
       render = renderFn }
 
 /// A greedy component: wants all available space, min 1 row.
 let greedy (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
-        SizeRequest { minRows = 1; minCols = 0; preferredRows = 999; preferredCols = 0 }
+        SizeRequest { minRows = 1, minCols = 0, preferredRows = 999, preferredCols = 0 }
       render = renderFn }
 
 
@@ -211,19 +211,19 @@ let hstack (region: Region) (components: List<Component>) : List<Span> =
 let fixedWidth (n: Int) (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
-        SizeRequest { minRows = 1; minCols = n; preferredRows = 999; preferredCols = n }
+        SizeRequest { minRows = 1, minCols = n, preferredRows = 999, preferredCols = n }
       render = renderFn }
 
 /// A flexible-width component: needs at least `min` cols, prefers `preferred`.
 let flexWidth (min: Int) (preferred: Int) (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
-        SizeRequest { minRows = 1; minCols = min; preferredRows = 999; preferredCols = preferred }
+        SizeRequest { minRows = 1, minCols = min, preferredRows = 999, preferredCols = preferred }
       render = renderFn }
 
 /// A greedy-width component: wants all available width, min 1 col.
 let greedyWidth (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
-        SizeRequest { minRows = 1; minCols = 1; preferredRows = 999; preferredCols = 999 }
+        SizeRequest { minRows = 1, minCols = 1, preferredRows = 999, preferredCols = 999 }
       render = renderFn }

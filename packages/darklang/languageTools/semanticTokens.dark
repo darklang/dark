@@ -45,10 +45,10 @@ type TokenType =
 ///
 /// These tokens mean little without reference to a document where the
 /// 'ranges' live within.
-type SemanticToken = { range: Range; tokenType: TokenType }
+type SemanticToken = { range: Range, tokenType: TokenType }
 
 let makeToken (s: Range) (t: TokenType) : SemanticToken =
-  SemanticToken { range = s; tokenType = t }
+  SemanticToken { range = s, tokenType = t }
 
 
 module ModuleIdentifier =
@@ -229,7 +229,7 @@ module TypeDeclaration =
       |> Stdlib.List.map (fun (rf, sep) ->
         let (nameRange, _) = rf.name
 
-        let symSemicolon =
+        let symSeparator =
           match sep with
           | Some range -> [ makeToken range TokenType.Symbol ]
           | None -> []
@@ -237,7 +237,7 @@ module TypeDeclaration =
         [ [ makeToken nameRange TokenType.Property ]
           [ makeToken rf.symbolColon TokenType.Symbol ]
           TypeReference.tokenize rf.typ
-          symSemicolon ]
+          symSeparator ]
         |> Stdlib.List.flatten)
       |> Stdlib.List.flatten
 
@@ -876,7 +876,7 @@ module Expr =
         [ makeToken symbolCloseBrace TokenType.Symbol ] ]
       |> Stdlib.List.flatten
 
-    //{ RecordForUpdate { x = 4L; y = 1L } with y = 2L }
+    //{ RecordForUpdate { x = 4L, y = 1L } with y = 2L }
     | ERecordUpdate(range,
                     record,
                     updates,
@@ -899,7 +899,7 @@ module Expr =
           |> Stdlib.List.flatten)
         |> Stdlib.List.flatten
 
-      [ // { RecordForUpdate { x = 4L; y = 1L }
+      [ // { RecordForUpdate { x = 4L, y = 1L }
         record
         // with
         [ makeToken keywordWith TokenType.Keyword ]

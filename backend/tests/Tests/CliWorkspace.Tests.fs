@@ -355,7 +355,7 @@ let private getText (port : int) : Task<int * string> =
 /// The Dark source for a package location under `Tests`.
 let private locSource (modules : List<string>) (name : string) : string =
   let mods = modules |> List.map (fun m -> $"\"{m}\"") |> String.concat "; "
-  $"Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"Tests\"; modules = [{mods}]; name = \"{name}\" }}"
+  $"Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"Tests\", modules = [{mods}], name = \"{name}\" }}"
 
 /// A live server (`serve` without the command) for the router at <param routerLoc>, resolved
 /// on <param branchSource> (Dark source for the branch id), with the browser half (what
@@ -645,7 +645,7 @@ let private treeRendersTheSameEverywhere =
       let tree =
         "Darklang.Stdlib.Cli.UI.Node.column [ Darklang.Stdlib.Cli.UI.Node.bold \"Stats\", Darklang.Stdlib.Cli.UI.Node.table [ \"module\", \"fns\" ] [ [ \"Stdlib\", \"247\" ], [ \"Cli\", \"89\" ] ], Darklang.Stdlib.Cli.UI.Node.band Darklang.Stdlib.Cli.UI.Node.Severity.Error \"boom\", Darklang.Stdlib.Cli.UI.Node.row [ Darklang.Stdlib.Cli.UI.Node.text \"a\", Darklang.Stdlib.Cli.UI.Node.Node.Button (\"go\", 1L) ] ]"
       let region =
-        "Darklang.Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 10; cols = 40 }"
+        "Darklang.Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 10, cols = 40 }"
 
       let! rows =
         evalUnder
@@ -724,7 +724,7 @@ let private viewFollowsEdits =
             "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version one\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ]"
 
         let view =
-          "Darklang.Cli.LiveView.Model.View { name = \"live\"; title = \"Live\"; init = \"Tests.LiveView.init\"; update = \"Tests.LiveView.update\"; render = \"Tests.LiveView.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
+          "Darklang.Cli.LiveView.Model.View { name = \"live\", title = \"Live\", init = \"Tests.LiveView.init\", update = \"Tests.LiveView.update\", render = \"Tests.LiveView.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
         let! prepared =
           evalUnder
             state
@@ -734,7 +734,7 @@ let private viewFollowsEdits =
           | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
           | other -> failtest $"the view did not start: {other}"
 
-        let size = "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 8 }"
+        let size = "Darklang.Stdlib.Cli.Tui.Size { width = 40, height = 8 }"
         let! sizeDv = evalUnder state size
         let rowsOf (s : RT.Dval) =
           task {
@@ -885,7 +885,7 @@ let private modelSavesAndResumes =
           "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m)"
 
       let view =
-        "Darklang.Cli.LiveView.Model.View { name = \"s\"; title = \"S\"; init = \"Tests.LiveSave.init\"; update = \"Tests.LiveSave.update\"; render = \"Tests.LiveSave.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
+        "Darklang.Cli.LiveView.Model.View { name = \"s\", title = \"S\", init = \"Tests.LiveSave.init\", update = \"Tests.LiveSave.update\", render = \"Tests.LiveSave.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
 
       let! saved =
         evalUnder
@@ -909,7 +909,7 @@ let private modelSavesAndResumes =
         | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
         | other -> failtest $"the view did not resume: {other}"
       let! sizeDv =
-        evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 6 }"
+        evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40, height = 6 }"
       let! rows =
         callByName state "Darklang.Cli.LiveView.Host.plainRows" [ session; sizeDv ]
       Expect.contains
@@ -1195,7 +1195,7 @@ let private devErrorPageCarriesTheListener =
 /// The Dark source for an annotated print of a function: its live values, one per call at a
 /// line position, as `// = value` after the code.
 let private annotatedPrint (owner : string) (modul : string) (name : string) =
-  $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}"; modules = ["{modul}"]; name = "{name}" }}
+  $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}", modules = ["{modul}"], name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
   match Darklang.Stdlib.Live.Values.replay (Darklang.Cli.initState ()).accountID bid loc with
@@ -1215,7 +1215,7 @@ match Darklang.LanguageTools.PackageManager.Function.find bid loc with
 /// the annotated one, joined by a marker. The LSP finds its hints by zipping these line for line,
 /// so they must have the same number of lines whatever the code is.
 let private plainAndAnnotated (owner : string) (modul : string) (name : string) =
-  $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}"; modules = ["{modul}"]; name = "{name}" }}
+  $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}", modules = ["{modul}"], name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
   match Darklang.Stdlib.Live.Values.replay (Darklang.Cli.initState ()).accountID bid loc with
@@ -1386,7 +1386,7 @@ let private liveValuesStayBounded =
         Expect.stringContains out "42" "the call ran"
 
         let within (ms : string) (fns : string) =
-          $"""match Darklang.Stdlib.Live.Values.replayWithin {ms} {fns} (Darklang.Cli.initState ()).accountID Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests"; modules = ["LiveBound"]; name = "inc" }}) with
+          $"""match Darklang.Stdlib.Live.Values.replayWithin {ms} {fns} (Darklang.Cli.initState ()).accountID Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with
 | Some v -> (Darklang.Stdlib.Dict.size v.byExpr, Darklang.Stdlib.Option.withDefault v.skipped "")
 | None -> (-1, "no trace")"""
         let expectSkipped (label : string) (ms : string) (fns : string) =
@@ -1413,10 +1413,10 @@ let private liveValuesStayBounded =
           evalUnder
             state
             """let base = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId Darklang.Stdlib.Option.Option.None "t" false
-let s0 = { base with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module ["Tests", "LiveBound"] }
+let s0 = { base with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module ["Tests", "LiveBound"] }
 let items = Darklang.Cli.Workbench.reloadItems s0
 let idx = (Darklang.Stdlib.List.findFirstIndex items (fun i -> i.name == "inc")) |> Darklang.Stdlib.Option.withDefault 0
-let s = Darklang.Cli.Workbench.refresh base { s0 with items = items; selected = idx }
+let s = Darklang.Cli.Workbench.refresh base { s0 with items = items, selected = idx }
 let marked = { s with liveValues = Darklang.Stdlib.Dict.singleton "sentinel" "x" }
 let kept = Darklang.Cli.Workbench.refresh marked { marked with detailScroll = 1 }
 let reloaded = Darklang.Cli.Workbench.refresh kept (Darklang.Cli.Workbench.forceScmRefresh kept)
@@ -1528,7 +1528,7 @@ let private observeAndShow =
             "Tests.LiveOther.render"
             "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text \"the other view\""
         let view =
-          "Darklang.Cli.LiveView.Model.View { name = \"Tests.LiveOther\"; title = \"O\"; init = \"Tests.LiveOther.init\"; update = \"Tests.LiveOther.update\"; render = \"Tests.LiveOther.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
+          "Darklang.Cli.LiveView.Model.View { name = \"Tests.LiveOther\", title = \"O\", init = \"Tests.LiveOther.init\", update = \"Tests.LiveOther.update\", render = \"Tests.LiveOther.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
         let! prepared =
           evalUnder
             state
@@ -1539,7 +1539,7 @@ let private observeAndShow =
           | other -> failtest $"the view did not prepare: {other}"
         let driver = loopDriver state
         let! sizeDv =
-          evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 8 }"
+          evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40, height = 8 }"
         let rowsOf (s : RT.Dval) =
           task {
             let! rows =

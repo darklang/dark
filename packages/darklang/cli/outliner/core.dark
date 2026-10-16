@@ -77,7 +77,7 @@ let emptyOutline () : Outline =
 
 let emptyStructure () : TreeStructure =
   TreeStructure
-    { children = []; collapsed = false; parent = Stdlib.Option.Option.None }
+    { children = [], collapsed = false, parent = Stdlib.Option.Option.None }
 
 
 // --- Reading ---
@@ -85,7 +85,7 @@ let emptyStructure () : TreeStructure =
 let getContent (outline: Outline) (id: Int) : NodeContent =
   match Stdlib.Dict.get outline.nodes (k id) with
   | Some nc -> nc
-  | None -> NodeContent { text = ""; mark = Mark.Plain }
+  | None -> NodeContent { text = "", mark = Mark.Plain }
 
 let getNodeText (outline: Outline) (id: Int) : String =
   (getContent outline id).text
@@ -126,7 +126,7 @@ let setContent (outline: Outline) (id: Int) (nc: NodeContent) : Outline =
       nodes = Stdlib.Dict.setOverridingDuplicates outline.nodes (k id) nc }
 
 let addNode (outline: Outline) (id: Int) (text: String) : Outline =
-  let withContent = setContent outline id (NodeContent { text = text; mark = Mark.Plain })
+  let withContent = setContent outline id (NodeContent { text = text, mark = Mark.Plain })
   setStructure withContent id (emptyStructure ())
 
 let setNodeText (outline: Outline) (id: Int) (text: String) : Outline =

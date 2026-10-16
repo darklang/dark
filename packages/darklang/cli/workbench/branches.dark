@@ -39,9 +39,9 @@ let openBranchPicker (state: State) : Step =
 let switchWorkbenchBranch (state: State) (id: Uuid) (name: String) : State =
   let moved =
     onBranch
-      { state with overlay = Overlay.NoOverlay; input = Stdlib.Option.Option.None }
+      { state with overlay = Overlay.NoOverlay, input = Stdlib.Option.Option.None }
       id
-  let moved = { moved with filter = ""; detailScroll = 0 }
+  let moved = { moved with filter = "", detailScroll = 0 }
   let items = reloadItems moved
   let selected =
     if moved.activeView == vHome then
@@ -58,7 +58,7 @@ let switchWorkbenchBranch (state: State) (id: Uuid) (name: String) : State =
       | None -> 0
   forceScmRefresh
     (focusContent (fixSelection
-      { moved with items = items; selected = selected
+      { moved with items = items, selected = selected
                    messageKind = MessageKind.Succeeded
                    message = "switched to " + name }))
 
@@ -98,7 +98,7 @@ let handleBranchPickerKey
     match field with
     | Some field ->
       let selected = if field.text == picker.field.text then picker.selected else 0
-      keep { picker with field = field; selected = selected }
+      keep { picker with field = field, selected = selected }
     | None -> keep picker
 
 let renderBranchPicker
@@ -113,14 +113,14 @@ let renderBranchPicker
     Stdlib.Cli.UI.Layout.Region
       { top = screen.top + ((screen.rows - h) / 2)
         left = screen.left + ((screen.cols - w) / 2)
-        rows = h; cols = w }
+        rows = h, cols = w }
   Stdlib.List.flatten
     [ Stdlib.Cli.UI.Layout.clearRegion region
       Stdlib.Cli.UI.Box.panel region "Switch branch" true (fun inner ->
         let list =
           Stdlib.Cli.UI.Layout.Region
-            { top = inner.top + 2; left = inner.left
-              rows = Stdlib.max 0 (inner.rows - 3); cols = inner.cols }
+            { top = inner.top + 2, left = inner.left
+              rows = Stdlib.max 0 (inner.rows - 3), cols = inner.cols }
         let lines =
           choices |> Stdlib.List.indexedMap (fun i b ->
             let label = (branchMarker (b.id == state.branchId)) + b.name

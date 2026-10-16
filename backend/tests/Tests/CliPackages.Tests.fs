@@ -1168,7 +1168,7 @@ let searchLeavesTestsOutUnlessAsked =
 let private workbenchAt (modules : List<string>) (row : string) : string =
   let path = modules |> List.map (fun m -> $"\"{m}\"") |> String.concat ", "
   "let st = Darklang.Cli.Workbench.initialState (Darklang.SCM.PackageOps.currentBranch ()) (Stdlib.Option.Option.None) \"i\" false in "
-  + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in "
+  + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in "
   + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems s0 } in "
   + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap s1.items (fun i it -> (i, it.name)) |> Stdlib.List.findFirst (fun (_, nm) -> nm == \"{row}\") |> Stdlib.Option.map (fun (i, _) -> i) |> Stdlib.Option.withDefault 0) }} in "
 
@@ -1224,7 +1224,7 @@ let workbenchRenameEndsTheOldName =
         evals
           state
           ((workbenchAt [ "Tests"; "WbRename" ] "before")
-           + "match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState { prompt = \"\"; field = Stdlib.Cli.UI.TextField.fromText \"after\"; action = \"rename\" }) with | Continue s2 -> s2.message | _ -> \"no\"")
+           + "match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText \"after\", action = \"rename\" }) with | Continue s2 -> s2.message | _ -> \"no\"")
           "renamed to after"
           "the workbench says it renamed"
       do! evals state "Tests.WbRename.after ()" "7" "the new name resolves"
@@ -1811,7 +1811,7 @@ let twoWordingsForOneDocRecordAConflict =
           "Darklang.SCM.PackageOps.add (Builtin.scmCurrentBranch ()) "
           + "[Darklang.LanguageTools.ProgramTypes.PackageOp.UpdateDoc("
           + "Darklang.LanguageTools.ProgramTypes.PackageLocation "
-          + "{ owner = \"Tests\"; modules = [\"DocClash\"]; name = \"f\" }, "
+          + "{ owner = \"Tests\", modules = [\"DocClash\"], name = \"f\" }, "
           + "Darklang.LanguageTools.ProgramTypes.DocPart.WholeItem, "
           + "\"theirs, written somewhere else\", "
           + "Stdlib.Option.Option.Some (Darklang.LanguageTools.ProgramTypes.hashOfText "

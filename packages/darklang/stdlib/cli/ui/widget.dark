@@ -54,7 +54,7 @@ let press
   (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (char: Stdlib.Option.Option<String>)
   : KeyPress =
-  KeyPress { key = key; modifiers = modifiers; char = char }
+  KeyPress { key = key, modifiers = modifiers, char = char }
 
 /// Did this keypress type `c`?
 let isChar (kp: KeyPress) (c: String) : Bool =

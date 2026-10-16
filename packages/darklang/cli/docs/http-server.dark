@@ -42,7 +42,7 @@ Handlers are values; `routeRequest` dispatches to them by method and path.
 
 ## Request
 
-  type Stdlib.Http.Request = { url: String; headers: List<String * String>; body: Blob }
+  type Stdlib.Http.Request = { url: String, headers: List<String * String>, body: Blob }
 
 Method and path are NOT fields - they're derived:
 
@@ -73,7 +73,7 @@ Body first, status second - the reverse of what you might expect.
   | None -> Stdlib.Http.notFound ()
 
 `matchRoute pattern path` is the lower-level form. It returns a record, not an
-Option: `{ matched: Bool; vars: List<String * String> }`.
+Option: `{ matched: Bool, vars: List<String * String> }`.
 
 ## A worked example
 

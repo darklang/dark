@@ -5,7 +5,7 @@ module Darklang.Stdlib
 // and a type of your own joins by writing an impl:
 //
 //   impl Add for Vec =
-//     let add (a: Vec) (b: Vec) : Vec = Vec { x = a.x + b.x; y = a.y + b.y }
+//     let add (a: Vec) (b: Vec) : Vec = Vec { x = a.x + b.x, y = a.y + b.y }
 
 
 /// `a + b`

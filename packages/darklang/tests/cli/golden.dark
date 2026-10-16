@@ -30,7 +30,7 @@ let goldenviewRender () : Unit =
   // developer's branches or how long ago the store was reloaded.
   let homeItems () : List<Darklang.Cli.Workbench.BodyItem> =
     let row (name: String) (kind: String) (desc: String) : Darklang.Cli.Workbench.BodyItem =
-      Darklang.Cli.Workbench.BodyItem { name = name; kind = kind; isModule = false; desc = desc }
+      Darklang.Cli.Workbench.BodyItem { name = name, kind = kind, isModule = false, desc = desc }
     [ Darklang.Cli.Workbench.homeHeader "this branch"
       row "● main" "home-here" "nothing uncommitted · last commit 1m ago"
       Darklang.Cli.Workbench.homeHeader ""
@@ -65,9 +65,9 @@ let goldenviewRender () : Unit =
   let base = fixedHome loadedBase
 
   let sizes =
-    [ Stdlib.Cli.Tui.Size { width = 120; height = 40 }
-      Stdlib.Cli.Tui.Size { width = 80; height = 24 }
-      Stdlib.Cli.Tui.Size { width = 40; height = 10 } ]
+    [ Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+      Stdlib.Cli.Tui.Size { width = 80, height = 24 }
+      Stdlib.Cli.Tui.Size { width = 40, height = 10 } ]
 
   let dump (size: Stdlib.Cli.Tui.Size) : Unit =
     let v = Darklang.Cli.Workbench.viewAtSize base size
@@ -177,7 +177,7 @@ let goldenkeysRender () : Unit =
   // developer's branches or how long ago the store was reloaded.
   let homeItems () : List<Darklang.Cli.Workbench.BodyItem> =
     let row (name: String) (kind: String) (desc: String) : Darklang.Cli.Workbench.BodyItem =
-      Darklang.Cli.Workbench.BodyItem { name = name; kind = kind; isModule = false; desc = desc }
+      Darklang.Cli.Workbench.BodyItem { name = name, kind = kind, isModule = false, desc = desc }
     [ Darklang.Cli.Workbench.homeHeader "this branch"
       row "● main" "home-here" "nothing uncommitted · last commit 1m ago"
       Darklang.Cli.Workbench.homeHeader ""
@@ -210,8 +210,8 @@ let goldenkeysRender () : Unit =
 
   let base = fixedHome loadedBase
 
-  let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
-  let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false }
+  let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+  let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = false, shift = false }
 
   // Rendered as one line per row, prefixed by the step, so a diff names the key that broke it.
   let render (label: String) (s: Darklang.Cli.Workbench.State) : Unit =

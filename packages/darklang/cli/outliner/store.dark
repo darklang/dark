@@ -64,7 +64,7 @@ let migrateOutline (old: V1Outline) : Outline =
   { withRoots with nextId = old.nextId }
 
 let migrateDocument (old: V1Document) : Document =
-  Document { id = old.id; title = old.title; outline = migrateOutline old.outline }
+  Document { id = old.id, title = old.title, outline = migrateOutline old.outline }
 
 let migrateV1 (old: V1Data) : PersistedData =
   PersistedData
@@ -120,8 +120,8 @@ let starterDocuments () : List<Document> =
   let taskMarks =
     [ 2, 3, 5 ] |> Stdlib.List.fold tasks (fun acc id -> setMark acc id Mark.Todo)
 
-  [ Document { id = 1; title = "My Notes"; outline = notes }
-    Document { id = 2; title = "Tasks"; outline = taskMarks } ]
+  [ Document { id = 1, title = "My Notes", outline = notes }
+    Document { id = 2, title = "Tasks", outline = taskMarks } ]
 
 let starterData () : PersistedData =
   PersistedData
@@ -175,7 +175,7 @@ type Stamp =
 
 let stamp () : Stdlib.Option.Option<Stamp> =
   match Stdlib.Cli.Posix.stat (dataFilePath ()) with
-  | Ok st -> Stdlib.Option.Option.Some(Stamp { mtimeSec = st.mtimeSec; size = st.size })
+  | Ok st -> Stdlib.Option.Option.Some(Stamp { mtimeSec = st.mtimeSec, size = st.size })
   | Error _ -> Stdlib.Option.Option.None
 
 

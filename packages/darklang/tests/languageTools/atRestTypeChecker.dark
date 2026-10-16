@@ -109,7 +109,7 @@ let resolved (name: 'a) : Darklang.LanguageTools.ProgramTypes.NameResolution<'a>
       resolved =
         Stdlib.Result.Result.Ok(
           Darklang.LanguageTools.ProgramTypes.ResolvedName
-            { name = name; location = Stdlib.Option.Option.None }
+            { name = name, location = Stdlib.Option.Option.None }
         ) }
 
 let unresolved
@@ -146,7 +146,7 @@ let fnNamed
       parameters =
         Stdlib.List.map parameters (fun (n, t) ->
           Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
-            { name = n; typ = t; description = "" })
+            { name = n, typ = t, description = "" })
       returnType = returnType
       description = ""
       // This branch gives a fn BOUNDS (`'a: Compare`). The helper predates that
@@ -175,7 +175,7 @@ let declared
         Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
           // A type takes bounds on this branch too (`type Set<'a: Compare>`), and
           // this helper predates that. Same omission as `fnNamed` above.
-          { typeParams = typeParams; bounds = []; definition = definition }
+          { typeParams = typeParams, bounds = [], definition = definition }
       description = "" }
 
 let recordOf
@@ -184,7 +184,7 @@ let recordOf
   Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record(
     Stdlib.List.map fields (fun (n, t) ->
       Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField
-        { name = n; typ = t; description = "" })
+        { name = n, typ = t, description = "" })
   )
 
 let environmentWith
@@ -258,7 +258,7 @@ let valueNamed
   (body: Darklang.LanguageTools.ProgramTypes.Expr)
   : Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue =
   Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue
-    { hash = hash name; body = body; description = "" }
+    { hash = hash name, body = body, description = "" }
 
 let useValue (id: Int64) (name: String) : Darklang.LanguageTools.ProgramTypes.Expr =
   Darklang.LanguageTools.ProgramTypes.Expr.EValue(
@@ -612,15 +612,15 @@ module Constructors =
         check "let f (x: Int) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.Nope x" "f"
         |> Stdlib.Test.equal "failed:UnknownEnumCase"
         check
-          (src [ "type R = { a: Int; b: Int }", "let f (u: Unit) : R = R { a = 1 }" ])
+          (src [ "type R = { a: Int, b: Int }", "let f (u: Unit) : R = R { a = 1 }" ])
           "f"
         |> Stdlib.Test.equal "failed:MissingRecordField"
         check
-          (src [ "type R = { a: Int }", "let f (u: Unit) : R = R { a = 1; nope = 2 }" ])
+          (src [ "type R = { a: Int }", "let f (u: Unit) : R = R { a = 1, nope = 2 }" ])
           "f"
         |> Stdlib.Test.equal "failed:UnknownRecordField"
         check
-          (src [ "type R = { a: Int }", "let f (u: Unit) : R = R { a = 1; a = 2 }" ])
+          (src [ "type R = { a: Int }", "let f (u: Unit) : R = R { a = 1, a = 2 }" ])
           "f"
         |> Stdlib.Test.equal "failed:DuplicateRecordField"
         check
@@ -648,7 +648,7 @@ module Constructors =
 module Declarations =
   test duplicateMembersAndTypeParams =
     Stdlib.Test.all
-      [ check "type T = { field: Int; field: String }" "T"
+      [ check "type T = { field: Int, field: String }" "T"
         |> Stdlib.Test.equal "failed:DuplicateTypeMember"
         check "type E = | A | A" "E"
         |> Stdlib.Test.equal "failed:DuplicateTypeMember"
@@ -750,7 +750,7 @@ module Declarations =
           "f"
         |> Stdlib.Test.equal "checked:" ]
 
-  val pair = "type Pair<'a, 'b> = { first: 'a; second: 'b }"
+  val pair = "type Pair<'a, 'b> = { first: 'a, second: 'b }"
 
   test wrongTypeArgCount =
     Stdlib.Test.all
@@ -848,7 +848,7 @@ module DictKeys =
         |> Stdlib.Test.equal accepted
         key [] "'k"
         |> Stdlib.Test.equal accepted
-        key [ "type Handler = { name: String; run: Int -> Int }" ] "Handler"
+        key [ "type Handler = { name: String, run: Int -> Int }" ] "Handler"
         |> Stdlib.Test.equal rejected
         key [ "type Plain = { x: Int }" ] "Plain"
         |> Stdlib.Test.equal accepted
@@ -876,7 +876,7 @@ module DictKeys =
         key [] "((Int -> Int) * 'a)"
         |> Stdlib.Test.equal rejected
         key
-          [ "type Inner<'a> = { v: 'a; run: Int -> Int }", "type Outer = { i: Inner<Int> }" ]
+          [ "type Inner<'a> = { v: 'a, run: Int -> Int }", "type Outer = { i: Inner<Int> }" ]
           "Outer"
         |> Stdlib.Test.equal rejected
         key
@@ -913,7 +913,7 @@ module RecursivePhantomKeys =
   let swapped (typ: String) : String =
     DictKeys.key
       [ "type A<'a, 'b> = End | Next of B<'b, 'a>"
-        "type B<'a, 'b> = { value: 'a; next: List<A<'b, 'a>> }" ] typ
+        "type B<'a, 'b> = { value: 'a, next: List<A<'b, 'a>> }" ] typ
 
   test swappedAndStoredTypeArgs =
     Stdlib.Test.all
@@ -975,15 +975,15 @@ module InstantiatedDictKeys =
   // references that wrap the next type argument in List or in a function type.
   test recursiveDeclarations =
     Stdlib.Test.all
-      [ signature [ "type A<'a> = { next: List<B<'a>> }", "type B<'b> = { next: List<A<'b>>; items: Dict<'b, Int> }" ] "A<Int -> Int>"
+      [ signature [ "type A<'a> = { next: List<B<'a>> }", "type B<'b> = { next: List<A<'b>>, items: Dict<'b, Int> }" ] "A<Int -> Int>"
         |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
-        signature [ "type A<'a> = { next: List<B<'a>> }", "type B<'b> = { next: List<A<'b>>; items: Dict<'b, Int> }" ] "A<Int>"
+        signature [ "type A<'a> = { next: List<B<'a>> }", "type B<'b> = { next: List<A<'b>>, items: Dict<'b, Int> }" ] "A<Int>"
         |> Stdlib.Test.equal "checked:"
-        signature [ "type Node<'a> = { next: List<Node<List<'a>>>; items: Dict<'a, Int> }" ] "Node<Int -> Int>"
+        signature [ "type Node<'a> = { next: List<Node<List<'a>>>, items: Dict<'a, Int> }" ] "Node<Int -> Int>"
         |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
-        signature [ "type Node<'a> = { next: List<Node<List<'a>>>; items: Dict<'a, Int> }" ] "Node<Int>"
+        signature [ "type Node<'a> = { next: List<Node<List<'a>>>, items: Dict<'a, Int> }" ] "Node<Int>"
         |> Stdlib.Test.equal "checked:"
-        signature [ "type Node<'a> = { next: List<Node<'a -> Int>>; items: Dict<'a, Int> }" ] "Node<Int>"
+        signature [ "type Node<'a> = { next: List<Node<'a -> Int>>, items: Dict<'a, Int> }" ] "Node<Int>"
         |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
 
   let call (body: List<String>) : String =
@@ -1009,7 +1009,7 @@ module InstantiatedDictKeys =
         |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
         call [ "  let g = fun x -> make x", "  let _ = g 1", "  let _ = g \"ok\"", "  ()" ]
         |> Stdlib.Test.equal "checked:"
-        check (src [ "type R<'a> = { items: Dict<'a, Int>; value: 'a }", "let f () : Unit =", "  let _ = R { items = Dict {}; value = fun x -> x + 1 }", "  ()" ]) "f"
+        check (src [ "type R<'a> = { items: Dict<'a, Int>, value: 'a }", "let f () : Unit =", "  let _ = R { items = Dict {}, value = fun x -> x + 1 }", "  ()" ]) "f"
         |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
 
 // ----------------------------------------------------------------------------------
@@ -1204,7 +1204,7 @@ module Builtins =
             resolved (
               Darklang.LanguageTools.ProgramTypes.FQFnName.FQFnName.Builtin(
                 Darklang.LanguageTools.ProgramTypes.FQFnName.Builtin
-                  { name = "missing"; version = 0l }
+                  { name = "missing", version = 0l }
               )
             ),
             []
@@ -2050,7 +2050,7 @@ module Ambiguity =
   // unfixed leaves an unknown in the value's public type and is Incomplete.
   let found () : String =
     src
-      [ "type FoundValue<'a> = { path: String; value: 'a }"
+      [ "type FoundValue<'a> = { path: String, value: 'a }"
         "let source (u: Unit) : FoundValue<'a> = source u"
         "let f (u: Unit) : String ="
         "  let discovered = source ()"
@@ -2790,7 +2790,7 @@ module Batches =
         []
         (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum(
           [ Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase
-              { name = "Payload"; fields = []; description = "" } ]
+              { name = "Payload", fields = [], description = "" } ]
         ))
      let fns =
        Stdlib.List.map (Stdlib.List.range 1 300) (fun i ->
@@ -2848,7 +2848,7 @@ module Guarded =
       [ Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "first")
         Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "last") ]
       (Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure
-        { types = Dict {}; values = Dict {}; fns = Dict {} })
+        { types = Dict {}, values = Dict {}, fns = Dict {} })
 
   test loadsPendingDependencies =
     Stdlib.Test.all
@@ -3056,13 +3056,13 @@ module Invariants =
         |> Stdlib.Test.equal "failed:OccursCheckFailed"
         check "val f = fun x y -> ((if true then x else Builtin.unwrap y), x y)" "f"
         |> Stdlib.Test.equal "failed:OccursCheckFailed"
-        DictKeys.key [ "type Node<'a> = { value: 'a; kids: List<Node<'a>> }" ] "Node<Int>"
+        DictKeys.key [ "type Node<'a> = { value: 'a, kids: List<Node<'a>> }" ] "Node<Int>"
         |> Stdlib.Test.equal "checked:"
-        DictKeys.key [ "type Node<'a> = { value: 'a; kids: List<Node<'a>> }" ] "Node<Int -> Int>"
+        DictKeys.key [ "type Node<'a> = { value: 'a, kids: List<Node<'a>> }" ] "Node<Int -> Int>"
         |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
         DictKeys.key [ "type A = { next: List<B> }", "type B = { previous: List<A> }" ] "A"
         |> Stdlib.Test.equal "checked:"
-        DictKeys.key [ "type A = { next: List<B> }", "type B = { previous: List<A>; run: Int -> Int }" ] "A"
+        DictKeys.key [ "type A = { next: List<B> }", "type B = { previous: List<A>, run: Int -> Int }" ] "A"
         |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
 
 module DefiniteShapes =

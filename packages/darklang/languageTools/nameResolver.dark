@@ -161,7 +161,7 @@ let resolveGenericName
         | _ -> false
 
       let genericName =
-        GenericName { modules = modules; name = name; version = version }
+        GenericName { modules = modules, name = name, version = version }
 
       // Fold accumulator: (resolvedResult, matchedLocation). Once we
       // find a successful candidate we keep it; further candidates
@@ -190,7 +190,7 @@ let resolveGenericName
       let resolved =
         resolved
         |> Stdlib.Result.map (fun n ->
-             ProgramTypes.ResolvedName { name = n; location = location })
+             ProgramTypes.ResolvedName { name = n, location = location })
 
       let nr =
         ProgramTypes.NameResolution
@@ -384,8 +384,8 @@ module FnName =
             { ctx with onMissing = OnMissing.Allow }
             (WrittenTypes.Name.Unresolved(
               LanguageTools.Parser.Range
-                { start = LanguageTools.Parser.Point { row = 0; column = 0 }
-                  end_ = LanguageTools.Parser.Point { row = 0; column = 0 } },
+                { start = LanguageTools.Parser.Point { row = 0, column = 0 }
+                  end_ = LanguageTools.Parser.Point { row = 0, column = 0 } },
               modules))
         match traitNR.resolved with
         | Error _ -> Stdlib.Option.Option.None

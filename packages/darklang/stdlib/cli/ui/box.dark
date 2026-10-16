@@ -72,8 +72,8 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.S
       (Stdlib.List.range 1 (region.rows - 2))
       |> Stdlib.List.map (fun row ->
         let r = top1 + row
-        [ Layout.Span { row = r; col = left1; text = bar }
-          Layout.Span { row = r; col = rightCol; text = bar } ])
+        [ Layout.Span { row = r, col = left1, text = bar }
+          Layout.Span { row = r, col = rightCol, text = bar } ])
       |> Stdlib.List.flatten
 
   Stdlib.List.flatten

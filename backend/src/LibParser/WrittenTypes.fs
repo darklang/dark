@@ -296,7 +296,7 @@ and Expr =
     keywordLet : Range *
     symbolEquals : Range
   | EApply of Range * lhs : Expr * typeArgs : List<TypeReference> * args : List<Expr>
-  // each list element carries its trailing-separator (`;`/`,`) range, if any
+  // each list element carries its trailing `,` range, if any
   | EList of
     Range *
     contents : List<Expr * Option<Range>> *
@@ -335,7 +335,7 @@ and Expr =
     fields : List<Range * (Range * string) * Expr> *
     symbolOpenBrace : Range *
     symbolCloseBrace : Range
-  // `Dict { k = v; … }`: a dict literal. Syntactically like a record, but `Dict`
+  // `Dict { k: v, … }`: a dict literal. Syntactically like a record, but `Dict`
   // is a keyword (its own range), not a type name, so it's a distinct node.
   | EDict of
     Range *

@@ -7,7 +7,7 @@ module Darklang.Cli.Tests.TestSuite
 // ── Workbench canvas (spans -> rows) ──
 
 let canvasRegion () : Darklang.Stdlib.Cli.UI.Layout.Region =
-  Darklang.Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 4; cols = 10 }
+  Darklang.Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 4, cols = 10 }
 
 
 let canvasRow (spans: List<Darklang.Stdlib.Cli.UI.Layout.Span>) : String =
@@ -188,7 +188,7 @@ test textWrapAtWordsBreaksAtSpaces =
 // -- InlineFrame: relative addressing, the part that can wreck scrollback --
 
 let inlineView (rows: List<String>) : Stdlib.Cli.Tui.View =
-  Stdlib.Cli.Tui.View { rows = rows; cursor = Stdlib.Cli.Tui.Cursor.Hidden; mode = Stdlib.Cli.Tui.ViewMode.Inline }
+  Stdlib.Cli.Tui.View { rows = rows, cursor = Stdlib.Cli.Tui.Cursor.Hidden, mode = Stdlib.Cli.Tui.ViewMode.Inline }
 
 
 test inlineFrameEmitsNothingWhenUnchanged =
@@ -222,14 +222,14 @@ test inlineFrameMovesRelativeToPreviousCursor =
 // -- TerminalSession lifecycle, through the `Prepared` seam that exists so this needs no real terminal --
 
 let fullscreenView (rows: List<String>) : Stdlib.Cli.Tui.View =
-  Stdlib.Cli.Tui.View { rows = rows; cursor = Stdlib.Cli.Tui.Cursor.Hidden; mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
+  Stdlib.Cli.Tui.View { rows = rows, cursor = Stdlib.Cli.Tui.Cursor.Hidden, mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
 
 
 test sessionTakesAlternateScreenOnFirstPresent =
   let prepared =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize
       (Stdlib.Cli.Tui.TerminalSession.init ())
-      (Stdlib.Cli.Tui.Size { width = 20; height = 5 })
+      (Stdlib.Cli.Tui.Size { width = 20, height = 5 })
       (fullscreenView [ "hello" ])
 
   if Stdlib.String.contains prepared.output "\u001b[?1049h" then
@@ -239,7 +239,7 @@ test sessionTakesAlternateScreenOnFirstPresent =
 
 
 test sessionSecondIdenticalPresentIsSilent =
-  let size = Stdlib.Cli.Tui.Size { width = 20; height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 20, height = 5 }
   let view = fullscreenView [ "hello" ]
   let first =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize (Stdlib.Cli.Tui.TerminalSession.init ()) size view
@@ -254,7 +254,7 @@ test sessionSecondIdenticalPresentIsSilent =
 
 
 test sessionStopRestoresOnlyWhenRunning =
-  let size = Stdlib.Cli.Tui.Size { width = 20; height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 20, height = 5 }
   let started =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize
       (Stdlib.Cli.Tui.TerminalSession.init ())
@@ -284,7 +284,7 @@ let workbenchState () : Darklang.Cli.Workbench.State =
 /// Render one view and report whether it produced a plausible frame.
 let rendersView (viewIndex: Int) : Bool =
   let state = { (workbenchState ()) with activeView = viewIndex }
-  let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+  let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
   let view = Darklang.Cli.Workbench.viewAtSize state size
   // A frame is `height` rows, and a view that drew nothing at all is a bug even if it didn't crash.
   (Stdlib.List.length view.rows == 40)
@@ -301,7 +301,7 @@ let rendersMatterLens (lens: Darklang.Cli.Workbench.Lens) : Bool =
         activeView = Darklang.Cli.Workbench.vMatter
         matter = Darklang.Cli.Workbench.MatterState { lens = lens } }
 
-  let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+  let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
   let view = Darklang.Cli.Workbench.viewAtSize state size
 
   (Stdlib.List.length view.rows == 40)
@@ -332,7 +332,7 @@ let rendersMatterItemPage (path: List<String>) : Bool =
           selected = 0
           focus = Stdlib.Cli.UI.SplitPane.Focus.Second }
 
-    let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+    let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
     let view = Darklang.Cli.Workbench.viewAtSize state size
 
     (Stdlib.List.length view.rows == 40)
@@ -497,7 +497,7 @@ test workbenchPageBuiltOncePerSelection =
         preview =
           Stdlib.Option.Option.Some(
             Darklang.Cli.Workbench.PreviewCache
-              { key = Darklang.Cli.Workbench.previewKey onMap; lines = [ "planted" ] }
+              { key = Darklang.Cli.Workbench.previewKey onMap, lines = [ "planted" ] }
           ) }
   let scrolled =
     Darklang.Cli.Workbench.refresh planted { planted with detailScroll = 3 }
@@ -609,12 +609,12 @@ let wbPress
   (key: Stdlib.Cli.Stdin.Key.Key)
   (keyChar: Stdlib.Option.Option<String>)
   : WbResult =
-  let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false }
+  let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = false, shift = false }
   match Darklang.Cli.Workbench.handleKey state key mods keyChar with
-  | Continue s -> WbResult { state = s; action = WbAction.Continued }
-  | Exit s -> WbResult { state = s; action = WbAction.Exited }
-  | Launch(s, cmd) -> WbResult { state = s; action = WbAction.Launched cmd }
-  | ToPrompt s -> WbResult { state = s; action = WbAction.Prompted }
+  | Continue s -> WbResult { state = s, action = WbAction.Continued }
+  | Exit s -> WbResult { state = s, action = WbAction.Exited }
+  | Launch(s, cmd) -> WbResult { state = s, action = WbAction.Launched cmd }
+  | ToPrompt s -> WbResult { state = s, action = WbAction.Prompted }
 
 /// A printable key.
 let wbChar (state: Darklang.Cli.Workbench.State) (c: String) : WbResult =
@@ -782,7 +782,7 @@ test workbenchNavbarNavigation =
 
 /// Shorthand for a captured binding (one holding a value rather than an expression).
 let bound (name: String) (source: String) : Darklang.Cli.Repl.Binding =
-  Darklang.Cli.Repl.Binding { name = name; source = source; value = source; captured = true }
+  Darklang.Cli.Repl.Binding { name = name, source = source, value = source, captured = true }
 
 
 test replParsesLetBinding =
@@ -834,7 +834,7 @@ test replInjectsBindingChain =
 test replUncapturedRebindMovesLast =
   // An uncaptured binding holds an EXPRESSION, so it must sit after anything it references. Rebinding it in
   // place produced `let a = d` above `let d = ...`, which left `d` undefined and wedged the session.
-  let mk = (fun n s c -> Darklang.Cli.Repl.Binding { name = n; source = s; value = s; captured = c })
+  let mk = (fun n s c -> Darklang.Cli.Repl.Binding { name = n, source = s, value = s, captured = c })
   let after =
     Darklang.Cli.Repl.upsert
       [ mk "a" "1" true, mk "d" "Stdlib.DateTime.now ()" false ]
@@ -939,7 +939,7 @@ let viewShows (viewIndex: Int) (marker: String) : Bool =
   let state =
     Darklang.Cli.Workbench.focusNavbar
       { (workbenchState ()) with activeView = viewIndex }
-  let view = Darklang.Cli.Workbench.viewAtSize state (Stdlib.Cli.Tui.Size { width = 160; height = 40 })
+  let view = Darklang.Cli.Workbench.viewAtSize state (Stdlib.Cli.Tui.Size { width = 160, height = 40 })
   view.rows
   |> Stdlib.List.any (fun r -> Stdlib.String.contains (Stdlib.Cli.Tui.Text.stripSgr r) marker)
 
@@ -950,7 +950,7 @@ let contentShows (viewIndex: Int) (marker: String) : Bool =
   let state =
     Darklang.Cli.Workbench.focusContent
       { (workbenchState ()) with activeView = viewIndex }
-  let view = Darklang.Cli.Workbench.viewAtSize state (Stdlib.Cli.Tui.Size { width = 160; height = 40 })
+  let view = Darklang.Cli.Workbench.viewAtSize state (Stdlib.Cli.Tui.Size { width = 160, height = 40 })
   view.rows
   |> Stdlib.List.any (fun r -> Stdlib.String.contains (Stdlib.Cli.Tui.Text.stripSgr r) marker)
 
@@ -999,17 +999,17 @@ test workbenchHomeOverview =
         items =
           [ Darklang.Cli.Workbench.homeHeader "recent commits"
             Darklang.Cli.Workbench.BodyItem
-              { name = longTitle; kind = "home-commit"; isModule = false
+              { name = longTitle, kind = "home-commit", isModule = false
                 desc = "Alex · yesterday" } ]
         selected = 1 }
   let plain =
     (Darklang.Cli.Workbench.viewAtSize state
-      (Stdlib.Cli.Tui.Size { width = 120; height = 24 })).rows
+      (Stdlib.Cli.Tui.Size { width = 120, height = 24 })).rows
     |> Stdlib.List.map Stdlib.Cli.Tui.Text.stripSgr
     |> Stdlib.String.join "\n"
   let narrow =
     (Darklang.Cli.Workbench.viewAtSize state
-      (Stdlib.Cli.Tui.Size { width = 80; height = 24 })).rows
+      (Stdlib.Cli.Tui.Size { width = 80, height = 24 })).rows
     |> Stdlib.List.map Stdlib.Cli.Tui.Text.stripSgr
     |> Stdlib.String.join "\n"
   let right = (wbKey state Stdlib.Cli.Stdin.Key.Key.RightArrow).state
@@ -1020,14 +1020,14 @@ test workbenchHomeOverview =
       { state with activeView = Darklang.Cli.Workbench.vSCM }
   let nav =
     Darklang.Cli.Workbench.renderNavStrip scm 0 0
-      (Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 4; cols = 120 })
+      (Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 4, cols = 120 })
   let labels = nav |> Stdlib.List.map (fun span -> span.text) |> Stdlib.String.join " "
   let opened (kind: String) : Darklang.Cli.Workbench.State =
     let summary =
       { state with
           items =
             [ Darklang.Cli.Workbench.BodyItem
-                { name = "summary"; kind = kind; isModule = false; desc = "" } ]
+                { name = "summary", kind = kind, isModule = false, desc = "" } ]
           selected = 0 }
     (wbKey summary Stdlib.Cli.Stdin.Key.Key.Enter).state
   let openSummary (kind: String) : Darklang.Cli.Workbench.Dest =

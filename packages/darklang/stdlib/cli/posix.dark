@@ -83,7 +83,7 @@ let stat (path: String) : Result.Result<StatResult, Error> =
   |> Stdlib.Result.andThen Stdlib.Cli.Posix.__kernelMetadata
   |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno
   |> Stdlib.Result.map (fun metadata ->
-    StatResult { mode = metadata.mode; size = metadata.size
+    StatResult { mode = metadata.mode, size = metadata.size
                  mtimeSec = metadata.mtimeSec })
 
 /// Get the current working directory
@@ -355,7 +355,7 @@ let __kernelSignedField (bytes: List<UInt8>) (offset: Int) (width: Int)
     Ok (if n >= modulus / 2 then n - modulus else n)
 
 type __KernelMetadata =
-  { mode: Int; size: Int; mtimeSec: Int; uid: Int; device: Int; inode: Int }
+  { mode: Int, size: Int, mtimeSec: Int, uid: Int, device: Int, inode: Int }
 
 let __kernelMetadata (buffer: Blob) : Result.Result<__KernelMetadata, Int> =
   let bytes = Stdlib.Blob.toList buffer
@@ -371,8 +371,8 @@ let __kernelMetadata (buffer: Blob) : Result.Result<__KernelMetadata, Int> =
           |> Stdlib.Result.andThen (fun device ->
             __kernelField bytes (Stdlib.Cli.Posix.__abiStatInodeOffset ()) 8
             |> Stdlib.Result.map (fun inode ->
-              __KernelMetadata { mode = mode; size = size; mtimeSec = mtime; uid = uid
-                         device = device; inode = inode }))))))
+              __KernelMetadata { mode = mode, size = size, mtimeSec = mtime, uid = uid
+                         device = device, inode = inode }))))))
 
 /// Decode records within one read, consuming each record before the next.
 let __kernelEntriesWithLength (bytes: List<UInt8>) (remaining: Int)
@@ -762,7 +762,7 @@ let __writeAll
     | Ok count ->
       if count <= 0 || count > length then
         Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error {
-          errno = 5; message = "write made invalid progress" })
+          errno = 5, message = "write made invalid progress" })
       else if count == length then Stdlib.Result.Result.Ok (written + count)
       else
         let rest = Stdlib.Blob.slice bytes count (length - count)

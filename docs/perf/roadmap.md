@@ -550,8 +550,8 @@ fix is to stop content-hashing before resolution, using the location-derived pla
 
 **A type argument can be violated silently.**
 
-    type Box<'a> = { v: 'a; tag: String }
-    let b = Box<Int> { v = 1; tag = "t" }
+    type Box<'a> = { v: 'a, tag: String }
+    let b = Box<Int> { v = 1, tag = "t" }
     { b with v = "str" }        // succeeds, giving Box<Int> { v: "str" }
 
 The check that should catch it is dead. In four places in `TypeChecker.fs` the code matches `vt`,

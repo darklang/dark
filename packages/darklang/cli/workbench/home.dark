@@ -18,7 +18,7 @@ let ago (d: DateTime) : String =
 let isSectionHeader (item: BodyItem) : Bool = item.kind == "home-sec"
 
 let homeHeader (label: String) : BodyItem =
-  BodyItem { name = label; kind = "home-sec"; isModule = false; desc = "" }
+  BodyItem { name = label, kind = "home-sec", isModule = false, desc = "" }
 
 /// The same, for a stamp stored as text. A commit's `origin_ts` is a portable authoring stamp rather than
 /// a clock reading, so it arrives as a string; raw, it puts an ISO timestamp in the middle of a
@@ -44,7 +44,7 @@ let loadHomeItems (branchId: Uuid) : List<BodyItem> =
 /// `loadHomeItems` over a draft already read, so opening the workbench reads it once.
 let loadHomeItemsFrom (branchId: Uuid) (draft: SCM.Draft.Picture) : List<BodyItem> =
   let row (name: String) (kind: String) (desc: String) : BodyItem =
-    BodyItem { name = name; kind = kind; isModule = false; desc = desc }
+    BodyItem { name = name, kind = kind, isModule = false, desc = desc }
   let conflictCount = Stdlib.List.length draft.conflicts
   // The branch you are on: its uncommitted work in one line. ⏎ opens Changes.
   let here =

@@ -152,13 +152,13 @@ module Dict =
 
   let multEntries =
     t
-      "Dict { \"t\": true; \"f\": false }"
+      "Dict { \"t\": true, \"f\": false }"
       E.Dict.multEntries
       (Dval.stringDict RT.KTBool [ "t", RT.DBool true; "f", RT.DBool false ])
 
   let dupeKey =
     tFail
-      "Dict { \"t\": true; \"f\": false; \"t\": false }"
+      "Dict { \"t\": true, \"f\": false, \"t\": false }"
       E.Dict.dupeKey
       (RTE.Dict(RTE.Dicts.TriedToAddKeyAfterAlreadyPresent(RT.DString "t")))
 

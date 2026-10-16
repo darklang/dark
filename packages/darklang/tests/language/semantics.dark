@@ -6,7 +6,7 @@ type Shape =
   | Rect of Float * Float
   | Named of name: String * inner: Shape
 
-type Acct = { id: Int64; name: String; tags: List<String> }
+type Acct = { id: Int64, name: String, tags: List<String> }
 
 let area (s: Shape) : Float =
   match s with
@@ -37,7 +37,7 @@ test recursion = fib 18L |> Stdlib.Test.equal 2584L
 
 // Check the serialized JSON text and the whole record after the round trip.
 test recordJsonRoundtrip =
-  let acct = Acct { id = 7L; name = "ada"; tags = [ "x", "y" ] }
+  let acct = Acct { id = 7L, name = "ada", tags = [ "x", "y" ] }
   let json = Stdlib.Json.serialize<Acct> acct
   Stdlib.Test.all
     [ json

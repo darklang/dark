@@ -26,7 +26,7 @@ let base =
     // not live: a --live view polls the store, which is not what is being timed here
     false
 
-let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
 
 let viewN (i: Int) (s: Darklang.Cli.Workbench.State) (acc: Int) : Int =
   if i == 0 then

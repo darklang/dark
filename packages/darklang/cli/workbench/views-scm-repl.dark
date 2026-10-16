@@ -57,7 +57,7 @@ let bindSession (state: State) (name: String) (rhs: String) : (Stdlib.Option.Opt
       | Ok(Some v) -> Stdlib.String.trim v
       | _ -> rhs
     (Stdlib.Option.Option.Some(
-       Darklang.Cli.Repl.Binding { name = name; source = rhs; value = shown; captured = false }),
+       Darklang.Cli.Repl.Binding { name = name, source = rhs, value = shown, captured = false }),
      // Reason on its own line: on one line with the value it ran past the pane edge and got clipped mid-word
      // ("... DateTime has no "), losing the only part that explains the `~`.
      $"{name} = {shown}\nre-runs each eval: {reason}")
@@ -78,7 +78,7 @@ let bindSession (state: State) (name: String) (rhs: String) : (Stdlib.Option.Opt
     | Some source ->
       // Captured: the source IS the value, so both fields are the same literal.
       (Stdlib.Option.Option.Some(
-         Darklang.Cli.Repl.Binding { name = name; source = source; value = source; captured = true }),
+         Darklang.Cli.Repl.Binding { name = name, source = source, value = source, captured = true }),
        $"{name} = {source}")
     | None -> fallback (Stdlib.String.trim (Stdlib.String.dropFirst (Stdlib.String.trim out) 4))
 
@@ -118,7 +118,7 @@ let applyReplStatement (state: State) (stmt: String) : State =
                   bindings = Darklang.Cli.Repl.upsert state.repl.bindings binding
                   last = binding.value
                   log = logged } }
-      | None -> { state with repl = { state.repl with last = note; log = logged } }
+      | None -> { state with repl = { state.repl with last = note, log = logged } }
     | None ->
       let output = evalToString state text
       let resultLines =

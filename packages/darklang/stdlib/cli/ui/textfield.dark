@@ -29,14 +29,14 @@ type Msg =
   | Cancelled
 
 val empty =
-  State { text = ""; cursor = 0 }
+  State { text = "", cursor = 0 }
 
 let fromText (text: String) : State =
-  State { text = text; cursor = Stdlib.String.length text }
+  State { text = text, cursor = Stdlib.String.length text }
 
 /// Start with the cursor at the beginning rather than the end - for "edit this from the top" cases.
 let fromTextAtStart (text: String) : State =
-  State { text = text; cursor = 0 }
+  State { text = text, cursor = 0 }
 
 
 // --- Edits ---
@@ -60,7 +60,7 @@ let backspace (state: State) : State =
   else
     let before = Stdlib.String.slice state.text 0 (state.cursor - 1)
     let after = Stdlib.String.dropFirst state.text state.cursor
-    State { text = before + after; cursor = state.cursor - 1 }
+    State { text = before + after, cursor = state.cursor - 1 }
 
 /// Delete the character to the right of the cursor.
 let deleteForward (state: State) : State =

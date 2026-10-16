@@ -95,24 +95,24 @@ test emptySession =
   Stdlib.Test.all
     [ Darklang.Cli.Repl.withBindings [] "x + 1" |> Stdlib.Test.equal "x + 1"
       Darklang.Cli.Repl.withBindings
-        [ Darklang.Cli.Repl.Binding { name = "x"; source = "42"; value = "42"; captured = true } ]
+        [ Darklang.Cli.Repl.Binding { name = "x", source = "42", value = "42", captured = true } ]
         "x + 1"
       |> Stdlib.Test.equal "let x = 42\nx + 1" ]
 
 // Order is load-bearing: a later binding may refer to an earlier one.
 test bindingOrder =
   Darklang.Cli.Repl.withBindings
-    [ Darklang.Cli.Repl.Binding { name = "x"; source = "42"; value = "42"; captured = true }
-      Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; value = "x + 1"; captured = false } ]
+    [ Darklang.Cli.Repl.Binding { name = "x", source = "42", value = "42", captured = true }
+      Darklang.Cli.Repl.Binding { name = "y", source = "x + 1", value = "x + 1", captured = false } ]
     "y * 2"
   |> Stdlib.Test.equal "let x = 42\nlet y = x + 1\ny * 2"
 
 // Which is why a rebind keeps its position rather than moving to the end.
 test rebindKeepsPosition =
   (Darklang.Cli.Repl.upsert
-    [ Darklang.Cli.Repl.Binding { name = "x"; source = "1"; value = "1"; captured = true }
-      Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; value = "x + 1"; captured = false } ]
-    (Darklang.Cli.Repl.Binding { name = "x"; source = "99"; value = "99"; captured = true })
+    [ Darklang.Cli.Repl.Binding { name = "x", source = "1", value = "1", captured = true }
+      Darklang.Cli.Repl.Binding { name = "y", source = "x + 1", value = "x + 1", captured = false } ]
+    (Darklang.Cli.Repl.Binding { name = "x", source = "99", value = "99", captured = true })
    |> Stdlib.List.map (fun b -> b.name + "=" + b.source))
   |> Stdlib.Test.equal [ "x=99", "y=x + 1" ]
 

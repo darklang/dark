@@ -491,8 +491,8 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
       task {
         let expr =
           "match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId "
-          + "(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\"; "
-          + "modules = [ \"Stdlib\", \"Int128\" ]; name = \"sqrt\" }) with\n"
+          + "(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\", "
+          + "modules = [ \"Stdlib\", \"Int128\" ], name = \"sqrt\" }) with\n"
           + "| Some h -> [ Stdlib.Option.isSome (Darklang.LanguageTools.PackageManager.Function.get h), "
           + "Stdlib.Option.isSome (Darklang.LanguageTools.PackageManager.Function.get h) ]\n"
           + "| None -> []"

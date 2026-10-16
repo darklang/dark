@@ -9,13 +9,13 @@ let loc
   (name: String)
   : Darklang.LanguageTools.ProgramTypes.PackageLocation =
   Darklang.LanguageTools.ProgramTypes.PackageLocation
-    { owner = owner; modules = modules; name = name }
+    { owner = owner, modules = modules, name = name }
 
 let ctx
   (currentModule: List<String>)
   : Darklang.LanguageTools.PackageManager.PickContext =
   Darklang.LanguageTools.PackageManager.PickContext
-    { currentModule = currentModule; preferredLocation = None }
+    { currentModule = currentModule, preferredLocation = None }
 
 let preferCtx
   (currentModule: List<String>)

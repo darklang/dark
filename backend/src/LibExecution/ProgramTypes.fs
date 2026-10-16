@@ -980,7 +980,7 @@ type PackageOp =
   /// `Decision.id` fills for a name. `Inserts` and `Branches.restateReverts` stamp it.
   ///
   /// TODO: this wants to become a package VALUE of a broadly-known type, roughly
-  /// `{ text: String; about: PackageThing }`, so that examples, deprecation notes and a third
+  /// `{ text: String, about: PackageThing }`, so that examples, deprecation notes and a third
   /// party's annotations of code they do not own are all one mechanism.
   | UpdateDoc of
     location : PackageLocation *

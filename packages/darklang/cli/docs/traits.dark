@@ -9,7 +9,7 @@ trait (`+` is `Add`, `<` is `Compare`; `==` is not), as is `toString`, so every
 builtin type already has implementations. Yours join with one `impl`.
 
 ## Implement a trait that exists
-  type Point = { x: Int64; y: Int64 }
+  type Point = { x: Int64, y: Int64 }
 
   impl ToString for Point =
     let toString (p: Point) : String =
@@ -17,12 +17,12 @@ builtin type already has implementations. Yours join with one `impl`.
 
   impl Add for Point =
     let add (a: Point) (b: Point) : Point =
-      Point { x = a.x + b.x; y = a.y + b.y }
+      Point { x = a.x + b.x, y = a.y + b.y }
 
-  let p = Point { x = 1L; y = 2L }
+  let p = Point { x = 1L, y = 2L }
   ToString.toString p          // "(1, 2)"
   p.toString                   // the same call, receiver first
-  p + p                        // Point { x = 2L; y = 4L }
+  p + p                        // Point { x = 2L, y = 4L }
 
   A member can name a fn that already exists instead of declaring one:
     impl ToString for Point =

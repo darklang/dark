@@ -17,7 +17,7 @@ let loadThingItems (branchId: Uuid) : List<BodyItem> =
   |> Stdlib.List.map (fun i ->
     let full =
       Stdlib.String.join (Stdlib.List.flatten [ [ i.location.owner ], i.location.modules, [ i.location.name ] ]) "."
-    BodyItem { name = full; kind = "val"; isModule = false; desc = "" })
+    BodyItem { name = full, kind = "val", isModule = false, desc = "" })
 
 /// The source of the selected Thing (value), for the preview - looked up by its full path.
 let thingDetail (state: State) : String =
@@ -158,7 +158,7 @@ let selectedConflict (state: State) : Stdlib.Option.Option<SCM.Conflicts.Conflic
 let loadDocBodyItems () : List<BodyItem> =
   Docs.Command.Topics.allTopics ()
   |> Stdlib.List.map (fun t ->
-    BodyItem { name = t.name; kind = "doc"; isModule = false; desc = t.description })
+    BodyItem { name = t.name, kind = "doc", isModule = false, desc = t.description })
 
 /// The Errors view - the high-importance issues an operator running software on Dark cares about. Real
 /// conflicts (genuine) first, then a mock set of the other error kinds until those signals are wired.

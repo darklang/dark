@@ -86,7 +86,7 @@ module Editing =
       let beforeCursor = Stdlib.String.slice state.text 0 state.cursorPosition
       let afterCursor = Stdlib.String.dropFirst state.text (state.cursorPosition + 1)
       let newText = beforeCursor + afterCursor
-      { state with text = newText; historyIndex = -1 }
+      { state with text = newText, historyIndex = -1 }
     else
       state
 
@@ -120,7 +120,7 @@ module Editing =
   /// Set the prompt text and move cursor to end
   let setText (state: State) (text: String) : State =
     let textLength = Stdlib.String.length text
-    { state with text = text; cursorPosition = textLength }
+    { state with text = text, cursorPosition = textLength }
 
 
 module History =

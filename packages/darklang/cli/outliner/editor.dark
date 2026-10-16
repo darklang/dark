@@ -366,14 +366,14 @@ let applyFilter (state: State) (needle: String) : State =
   let revealed = revealAll state.outline hits
 
   let landed =
-    { state with outline = revealed; filter = needle; searching = Stdlib.Option.Option.None }
+    { state with outline = revealed, filter = needle, searching = Stdlib.Option.Option.None }
 
   match Stdlib.List.head hits with
   | Some _ -> cursorToIndex landed 0
   | None -> landed
 
 let clearFilter (state: State) : State =
-  { state with filter = ""; searching = Stdlib.Option.Option.None }
+  { state with filter = "", searching = Stdlib.Option.Option.None }
 
 
 // --- Keys ---

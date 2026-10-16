@@ -44,6 +44,14 @@ completed effects. `?` requires a function or lambda and is unsupported in SQL q
 ## Lists (comma separator)
   [1, 2, 3]
 
+## Dicts and records
+  Dict { "a": 1, "b": 2 }
+  type Point = { x: Int, y: Int }
+  Point { x = 1, y = 2 }
+  { point with x = 3, y = 4 }
+
+Fields and entries use commas or newlines. Semicolons are a parse error.
+
 ## Strings
   "hello" + " world"     // concat
   $"value: {x}"          // interpolation

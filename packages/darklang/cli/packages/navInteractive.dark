@@ -148,32 +148,32 @@ let leafNavItems
   let types =
     results.types
     |> Stdlib.List.map (fun t ->
-      NavItem { name = nameOf t.location; entityType = EntityType.Type; location = PackageLocation.Type t.location })
+      NavItem { name = nameOf t.location, entityType = EntityType.Type, location = PackageLocation.Type t.location })
 
   let functions =
     results.fns
     |> Stdlib.List.map (fun fn ->
-      NavItem { name = nameOf fn.location; entityType = EntityType.Function; location = PackageLocation.Function fn.location })
+      NavItem { name = nameOf fn.location, entityType = EntityType.Function, location = PackageLocation.Function fn.location })
 
   let values =
     results.values
     |> Stdlib.List.map (fun v ->
-      NavItem { name = nameOf v.location; entityType = EntityType.Value; location = PackageLocation.Value v.location })
+      NavItem { name = nameOf v.location, entityType = EntityType.Value, location = PackageLocation.Value v.location })
 
   let traits =
     results.traits
     |> Stdlib.List.map (fun t ->
-      NavItem { name = nameOf t.location; entityType = EntityType.Trait; location = PackageLocation.Trait t.location })
+      NavItem { name = nameOf t.location, entityType = EntityType.Trait, location = PackageLocation.Trait t.location })
 
   let impls =
     results.impls
     |> Stdlib.List.map (fun i ->
-      NavItem { name = nameOf i.location; entityType = EntityType.Impl; location = PackageLocation.Impl i.location })
+      NavItem { name = nameOf i.location, entityType = EntityType.Impl, location = PackageLocation.Impl i.location })
 
   let tests =
     results.tests
     |> Stdlib.List.map (fun test ->
-      NavItem { name = nameOf test.location; entityType = EntityType.Test; location = PackageLocation.Test test.location })
+      NavItem { name = nameOf test.location, entityType = EntityType.Test, location = PackageLocation.Test test.location })
 
   Stdlib.List.flatten [ types, functions, values, traits, impls, tests ]
 
@@ -187,7 +187,7 @@ let buildNavItemsFromResults
   let submodules =
     (Query.getDirectSubmodules results currentPathLength)
     |> Stdlib.List.map (fun name ->
-      NavItem { name = name; entityType = EntityType.Module; location = PackageLocation.Module (Stdlib.List.append modulePath [name]) })
+      NavItem { name = name, entityType = EntityType.Module, location = PackageLocation.Module (Stdlib.List.append modulePath [name]) })
 
   Stdlib.List.flatten [ submodules, leafNavItems results true ]
 
@@ -566,7 +566,7 @@ let start
       (viewAtSize navState size)
   with
   | Ok terminal ->
-    Session { state = navState; terminal = terminal }
+    Session { state = navState, terminal = terminal }
     |> Stdlib.Result.Result.Ok
   | Error message ->
     Stdlib.Result.Result.Error message
@@ -584,7 +584,7 @@ let presentAtSize
       size
       (viewAtSize navState size)
 
-  Session { state = navState; terminal = terminal }
+  Session { state = navState, terminal = terminal }
 
 
 /// Present the next navigation model while retaining renderer history.
@@ -790,7 +790,7 @@ let performSearch (navState: State) : State =
     let moduleItems =
       results.submodules
       |> Stdlib.List.map (fun modulePath ->
-        NavItem { name = Stdlib.String.join modulePath "."; entityType = EntityType.Module; location = PackageLocation.Module modulePath })
+        NavItem { name = Stdlib.String.join modulePath ".", entityType = EntityType.Module, location = PackageLocation.Module modulePath })
 
     // No tests, as `dark search` leaves them out by default; this mode has no
     // flag to ask for them, and browsing a module still lists its tests.

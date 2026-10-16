@@ -483,7 +483,7 @@ let jsonFailure (id: String) (msg: String) : Unit =
   Stdlib.printLine (
     ScmJson.conflictActionJson (
       ScmJson.ConflictActionJson
-        { id = id; ok = false; status = ""; resolvedTo = ""; error = msg }
+        { id = id, ok = false, status = "", resolvedTo = "", error = msg }
     )
   )
 
@@ -492,7 +492,7 @@ let jsonSuccess (id: String) (status: String) (resolvedTo: String) : Unit =
   Stdlib.printLine (
     ScmJson.conflictActionJson (
       ScmJson.ConflictActionJson
-        { id = id; ok = true; status = status; resolvedTo = resolvedTo; error = "" }
+        { id = id, ok = true, status = status, resolvedTo = resolvedTo, error = "" }
     )
   )
 

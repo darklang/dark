@@ -322,7 +322,7 @@ let private parserStructureTests =
         | other -> failtest $"lambda: {other}")
 
       testCase "parses a record literal" (fun _ ->
-        match (P.parse "Point { x = 1L; y = 2L }").parsed with
+        match (P.parse "Point { x = 1L, y = 2L }").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.ERecord(_, typeName, fields, _, _) ] }) ->
           Expect.equal typeName.typ.name "Point" "record type name"
           match fields with
@@ -533,7 +533,7 @@ let private parserStructureTests =
         | other -> failtest $"nested module file: {other}")
 
       testCase "parses type declarations (record / enum / alias)" (fun _ ->
-        match (P.parse "type Point = { x: Int64; y: Int64 }").parsed with
+        match (P.parse "type Point = { x: Int64, y: Int64 }").parsed with
         | Some(WT.SourceFile { declarations = [ WT.DType { definition = WT.TDRecord fields } ] }) ->
           Expect.equal (List.length fields) 2 "two record fields"
         | other -> failtest $"record type: {other}"
@@ -919,7 +919,7 @@ let private desugarTests =
           | other -> failtest $"expected a single unit placeholder, got: {other}"
         | other -> failtest $"expected a call with one type arg, got: {other}")
       testCase "`Dict { … }` lowers to EDict, not a record" (fun _ ->
-        match toPT (lowerExpr "Dict { \"a\": 1L; \"b\": 2L }") with
+        match toPT (lowerExpr "Dict { \"a\": 1L, \"b\": 2L }") with
         | PT.EDict(_, pairs) ->
           Expect.equal (List.length pairs) 2 "two dict entries"
         | other -> failtest $"expected EDict, got: {other}")
@@ -1583,13 +1583,51 @@ let private recoveryTests =
             "match xs with | [a, b] -> a"
             "Pair(1L, 2L)"
             "match pair with | Pair(a, b) -> a"
-            "Person { a = 1L; b = 2L }"
-            "Dict { \"a\": 1L; \"b\": 2L }"
-            "{ value with a = 1L; b = 2L }"
-            "type R = { a: Int64; b: String }" ] do
+            "Person { a = 1L, b = 2L }"
+            "Dict { \"a\": 1L, \"b\": 2L }"
+            "{ value with a = 1L, b = 2L }"
+            "type R = { a: Int64, b: String }" ] do
           Expect.isEmpty
             (P.parse source).diagnostics
             $"valid separators parse cleanly for {source}")
+
+      testCase "record and dict separators allow commas and newlines" (fun _ ->
+        for source in
+          [ "Point { x = 1L, y = 2L, }"
+            "Dict { 1L: [2L, 3L], 4L: [5L], }"
+            "{ point with x = 1L, y = 2L, }"
+            "type Point = { x: Int64, y: Int64, }"
+            "Point { x = 1L\n        y = 2L }"
+            "Dict { 1L: 2L\n       3L: 4L }"
+            "{ point with x = 1L\n             y = 2L }"
+            "type Point = { x: Int64\n               y: Int64 }"
+            "Point { x = Dict { 1L: 2L, 3L: 4L }, y = [5L, 6L] }"
+            "Dict { (1L, 2L): Point { x = 3L, y = 4L }, (5L, 6L): p }"
+            "Dict { \";\": \"a;b\", \"other\": \"c;d\" }"
+            "let f () : Unit = print 1L; print 2L" ] do
+          Expect.isEmpty
+            (P.parse source).diagnostics
+            $"valid separators parse cleanly: {source}")
+
+      testCase "record and dict semicolons diagnose without cascading" (fun _ ->
+        for source, what in
+          [ "Point { x = 1L; y = 2L; }", "record fields"
+            "Dict { 1L: 2L; 3L: 4L; }", "dict entries"
+            "{ point with x = 1L; y = 2L; }", "record-update fields"
+            "type Point = { x: Int64; y: Int64; }", "record-type fields" ] do
+          let diagnostics = (P.parse source).diagnostics
+          Expect.equal diagnostics.Length 2 "one diagnostic per semicolon"
+          for diagnostic in diagnostics do
+            Expect.equal
+              diagnostic.message
+              $"expected ',' between {what}, found ';'"
+              "specific separator message"
+            Expect.equal diagnostic.hint (Some "use ',' instead") "migration hint"
+            Expect.equal diagnostic.severity P.DiagError "old syntax is an error"
+            Expect.equal
+              source[diagnostic.range.start.column]
+              ';'
+              "the diagnostic points at the separator")
 
       testCase "empty record update `{ r with }` is rejected" (fun _ ->
         // an empty update lowers to a degenerate node in both WT2PTs — reject it
@@ -1895,7 +1933,7 @@ let private goldenDiagnosticsTests =
 let private fuzzTests =
   let seeds =
     [ "let f (x: Int64) : Int64 =\n  let y = x + 1L\n  y * 2L"
-      "module A.B\ntype T = { a: Int64; b: List<String> }\nlet v = T { a = 1L; b = [] }"
+      "module A.B\ntype T = { a: Int64, b: List<String> }\nlet v = T { a = 1L, b = [] }"
       "match xs with\n| [] -> 0L\n| h :: t -> h + (sum t)\n| _ -> $\"n {h} m\""
       "[1L, 2L] |> Stdlib.List.map (fun x -> x * 2L) |> (+) \"s\""
       "type E = | A of Int64 * String | B\nlet g () : E = A(1L, \"x\")" ]

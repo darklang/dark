@@ -214,7 +214,7 @@ test tokenizeTypeDeclaration =
           (TokenType.Symbol, (0, 23), (0, 24))
           (TokenType.TypeName, (0, 24), (0, 25))
           (TokenType.Symbol, (0, 25), (0, 26)) ]
-      "type MyRecord = { x: Int64; y: String }" |> tokenize
+      "type MyRecord = { x: Int64, y: String }" |> tokenize
       |> Stdlib.Test.equal
         [ (TokenType.Keyword, (0, 0), (0, 4))
           (TokenType.TypeName, (0, 5), (0, 13))
@@ -381,7 +381,7 @@ test tokenizeValueDeclaration =
           (TokenType.Number, (0, 26), (0, 27))
           (TokenType.Symbol, (0, 27), (0, 28))
           (TokenType.Symbol, (0, 28), (0, 29)) ]
-      "val dictValue = Dict { \"a\": 1L; \"b\": 2L }" |> tokenize
+      "val dictValue = Dict { \"a\": 1L, \"b\": 2L }" |> tokenize
       |> Stdlib.Test.equal
         [ (TokenType.Keyword, (0, 0), (0, 3))
           (TokenType.VariableName, (0, 4), (0, 13))
@@ -509,7 +509,7 @@ test tokenizeExpression =
           (TokenType.Keyword, (0, 7), (0, 12))
           (TokenType.Keyword, (0, 14), (0, 18))
           (TokenType.Symbol, (0, 18), (0, 19)) ]
-      "Dict { \"a\": 1L; \"b\": 2L }" |> tokenize
+      "Dict { \"a\": 1L, \"b\": 2L }" |> tokenize
       |> Stdlib.Test.equal
         [ (TokenType.Keyword, (0, 0), (0, 4))
           (TokenType.Symbol, (0, 5), (0, 6))
@@ -538,7 +538,7 @@ test tokenizeExpression =
       // Record/record-update tokenization regression coverage.
       // A previous .range-related RTE in this area makes this worth keeping
       // explicit.
-      "MyRecord {fieldOne = 1L; fieldTwo = 2L} " |> tokenize
+      "MyRecord {fieldOne = 1L, fieldTwo = 2L} " |> tokenize
       |> Stdlib.Test.equal
         [ (TokenType.TypeName, (0, 0), (0, 8))
           (TokenType.Symbol, (0, 9), (0, 10))
@@ -551,7 +551,7 @@ test tokenizeExpression =
           (TokenType.Number, (0, 36), (0, 37))
           (TokenType.Symbol, (0, 37), (0, 38))
           (TokenType.Symbol, (0, 38), (0, 39)) ]
-      "{ RecordForUpdate { x = true; y = false } with y = true }" |> tokenize
+      "{ RecordForUpdate { x = true, y = false } with y = true }" |> tokenize
       |> Stdlib.Test.equal
         [ (TokenType.TypeName, (0, 2), (0, 17))
           (TokenType.Symbol, (0, 18), (0, 19))
