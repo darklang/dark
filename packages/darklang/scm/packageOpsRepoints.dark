@@ -50,7 +50,7 @@ let namesAtContent (branchId: Uuid) (hash: String) (itemType: String) : List<Str
           Stdlib.Option.Option.None)
 
     let mainStill =
-      mainNames |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.``member`` reboundAway n))
+      mainNames |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.contains reboundAway n))
 
     Stdlib.List.unique (Stdlib.List.append mainStill branchNames)
 
@@ -165,7 +165,7 @@ let draftRepoints
     staleBySeed
     |> Stdlib.Dict.values
     |> Stdlib.List.flatten
-    |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.``member`` overlayHashes h))
+    |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains overlayHashes h))
     |> mainNamesForHashes
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc pair ->
       let (h, n) = pair
@@ -179,12 +179,12 @@ let draftRepoints
 
     let fromOverlay =
       overlay
-      |> Stdlib.List.filter (fun pair -> Stdlib.List.``member`` hashes (Stdlib.Tuple2.first pair))
+      |> Stdlib.List.filter (fun pair -> Stdlib.List.contains hashes (Stdlib.Tuple2.first pair))
       |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.second pair)
 
     let fromMain =
       hashes
-      |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.``member`` overlayHashes h))
+      |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains overlayHashes h))
       |> Stdlib.List.map (fun h -> Stdlib.Dict.get mainNames h |> Stdlib.Option.withDefault [])
       |> Stdlib.List.flatten
 
@@ -193,6 +193,6 @@ let draftRepoints
     |> Stdlib.List.map (fun n -> Repoint { name = n; uses = cause }))
   |> Stdlib.List.flatten
   |> Stdlib.List.filter (fun r ->
-    Stdlib.Bool.not (Stdlib.List.``member`` changedNames r.name))
+    Stdlib.Bool.not (Stdlib.List.contains changedNames r.name))
   |> Stdlib.List.uniqueBy (fun r -> r.name)
   |> Stdlib.List.sortBy (fun r -> r.name)

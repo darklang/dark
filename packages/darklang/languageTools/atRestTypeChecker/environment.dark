@@ -148,10 +148,10 @@ let builtinCallable
 
   let resultOnly =
     Stdlib.List.filter returnVariables (fun v ->
-      Stdlib.Bool.not (Stdlib.List.``member`` parameterVariables v))
+      Stdlib.Bool.not (Stdlib.List.contains parameterVariables v))
 
   let resultOnlyDeclared =
-    Stdlib.List.all resultOnly (fun v -> Stdlib.List.``member`` fn.typeParams v)
+    Stdlib.List.all resultOnly (fun v -> Stdlib.List.contains fn.typeParams v)
 
   if Stdlib.List.isEmpty parameterTypes then
     // The checker does not support builtin signatures with no parameters.
@@ -164,7 +164,7 @@ let builtinCallable
       (Stdlib.List.append parameterVariables returnVariables)
       |> Stdlib.List.unique
       |> Stdlib.List.filter (fun v ->
-        Stdlib.Bool.not (Stdlib.List.``member`` fn.typeParams v))
+        Stdlib.Bool.not (Stdlib.List.contains fn.typeParams v))
 
     signatureTemplate
       env
@@ -494,9 +494,9 @@ let withoutReplaced
       | Some old ->
         let keptElsewhere =
           (LanguageTools.PackageManager.TraitImpl.locations branchId old)
-          |> Stdlib.List.any (fun l -> Stdlib.Bool.not (Stdlib.List.member reboundLocations l))
+          |> Stdlib.List.any (fun l -> Stdlib.Bool.not (Stdlib.List.contains reboundLocations l))
 
-        if (Stdlib.List.member batchHashes old) || keptElsewhere then
+        if (Stdlib.List.contains batchHashes old) || keptElsewhere then
           Stdlib.Option.Option.None
         else
           Stdlib.Option.Option.Some old
@@ -510,7 +510,7 @@ let withoutReplaced
           Stdlib.Dict.map env.traitImpls (fun _ impls ->
             impls
             |> Stdlib.List.filter (fun (_, hash) ->
-              Stdlib.Bool.not (Stdlib.List.member replaced hash))) }
+              Stdlib.Bool.not (Stdlib.List.contains replaced hash))) }
 
 
 // --------------------

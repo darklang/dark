@@ -21,7 +21,7 @@ let help (_state: AppState) : String =
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let autoConfirm =
-    (Stdlib.List.member args "-y") || (Stdlib.List.member args "--yes")
+    (Stdlib.List.contains args "-y") || (Stdlib.List.contains args "--yes")
 
   let named =
     args |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Stdlib.String.startsWith a "-"))

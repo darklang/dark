@@ -253,7 +253,7 @@ module SortOrder =
 
 module Equality =
   // `==` is NOT a trait: equality is structural, for every value, always. A type
-  // cannot say what equal means for it, which is what keeps `List.member`,
+  // cannot say what equal means for it, which is what keeps `List.contains`,
   // `List.unique`, `List.sort` and dict keys meaning the same thing as `==`.
   type User = { id: Int64; name: String }
 

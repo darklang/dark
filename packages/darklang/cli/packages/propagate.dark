@@ -35,7 +35,7 @@ let getAllPreviousHashes
       |> Stdlib.List.reverse
       |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
       |> Stdlib.List.filter (fun h ->
-        Stdlib.Bool.not (Stdlib.List.``member`` fromMain h))
+        Stdlib.Bool.not (Stdlib.List.contains fromMain h))
 
     Stdlib.List.append fromBranch fromMain
 

@@ -459,17 +459,17 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 results.fns
                 |> Stdlib.List.filter (fun f ->
                   Stdlib.Bool.not
-                    (Stdlib.List.member implPaths (Stdlib.List.append [ f.location.owner ] f.location.modules)))
+                    (Stdlib.List.contains implPaths (Stdlib.List.append [ f.location.owner ] f.location.modules)))
               submodules =
                 results.submodules
-                |> Stdlib.List.filter (fun m -> Stdlib.Bool.not (Stdlib.List.member implPaths m)) }
+                |> Stdlib.List.filter (fun m -> Stdlib.Bool.not (Stdlib.List.contains implPaths m)) }
         // Tests are left out unless asked for. A test is usually named after what
         // it tests, so every search for a function would also list its tests;
         // `dark test run <filter>` and `view --include-tests` are where to find them.
         // Searched for anyway, so the hint below can say how many were left out.
         let showTests =
           parsed.includeTests
-          || Stdlib.List.member
+          || Stdlib.List.contains
             parsed.entityTypes
             LanguageTools.ProgramTypes.Search.EntityType.Test
         let hiddenTests = if showTests then 0 else Stdlib.List.length results.tests

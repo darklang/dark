@@ -310,7 +310,7 @@ let typeCheckOps
           (LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target))
       | _ -> acc)
 
-  // Dict, not `List.member`: the filter below tests every op against both sets,
+  // Dict, not `List.contains`: the filter below tests every op against both sets,
   // so a linear scan per op is O(ops x names) on a path `commit` and `merge` both
   // take. See `packageOpsBranch`.
   let liveTargets =
@@ -608,7 +608,7 @@ let discardDraftName
       SCM.Branches.ownFrontierOps branchId
       |> Stdlib.List.filter (fun entry ->
         let (id, op) = entry
-        (Stdlib.List.member uncommitted (Stdlib.toString id))
+        (Stdlib.List.contains uncommitted (Stdlib.toString id))
         && (Stdlib.Option.isSome (SCM.Branches.opBindsKey op key)))
       |> Stdlib.List.map (fun entry ->
         let (id, _) = entry

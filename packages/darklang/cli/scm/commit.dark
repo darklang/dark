@@ -65,7 +65,7 @@ let refuseUnknownFlags (args: List<String>) : Bool =
 
 let parseArgs (args: List<String>) : Args =
   let autoConfirm =
-    (Stdlib.List.member args "-y") || (Stdlib.List.member args "--yes")
+    (Stdlib.List.contains args "-y") || (Stdlib.List.contains args "--yes")
 
   // `-m` is accepted as a no-op marker: the message is positional, but a decade of git muscle
   // memory types `commit -m "msg"`, and refusing it risks the message. The token after `-m` is
@@ -81,8 +81,8 @@ let parseArgs (args: List<String>) : Args =
     { message = Stdlib.String.trim (Stdlib.String.join words " ")
       autoConfirm = autoConfirm
       include = parseInclude args
-      allowUnresolved = Stdlib.List.member args "--allow-unresolved"
-      allowTypeErrors = Stdlib.List.member args "--allow-type-errors" }
+      allowUnresolved = Stdlib.List.contains args "--allow-unresolved"
+      allowTypeErrors = Stdlib.List.contains args "--allow-type-errors" }
 
 let itemKindOf
   (itemType: String)
@@ -163,7 +163,7 @@ let previousHashesOfAll
            (historyIn ofBranchId
             |> Stdlib.List.reverse
             |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
-            |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.``member`` onMain h)))
+            |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains onMain h)))
            onMain)
       |> Stdlib.List.map LanguageTools.ProgramTypes.hashToString
 

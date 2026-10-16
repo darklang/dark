@@ -166,13 +166,13 @@ let check
         let flagName =
           (Stdlib.String.split a "=") |> Stdlib.List.head |> Stdlib.Option.withDefault a
 
-        if Stdlib.List.member s.valueFlags flagName then
+        if Stdlib.List.contains s.valueFlags flagName then
           walk name s rest words
         else
           Stdlib.Result.Result.Error $"`dark {name}` does not take `{flagName}`."
-      else if Stdlib.List.member s.flags a then
+      else if Stdlib.List.contains s.flags a then
         walk name s rest words
-      else if Stdlib.List.member s.valueFlags a then
+      else if Stdlib.List.contains s.valueFlags a then
         match rest with
         | _value :: afterValue -> walk name s afterValue words
         | [] -> Stdlib.Result.Result.Error $"`{a}` needs a value."

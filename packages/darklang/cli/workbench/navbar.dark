@@ -71,7 +71,7 @@ val workspaces =
 /// Takes `vis` rather than `state` because every caller is inside a loop over workspaces, and
 /// `visibleViews` is expensive enough that recomputing it per workspace dominated the navbar.
 let workspaceVisibleIn (vis: List<Int>) (ws: Workspace) : Bool =
-  Stdlib.List.member vis ws.dest.view
+  Stdlib.List.contains vis ws.dest.view
 
 let visibleWorkspacesIn (vis: List<Int>) : List<(Int * Workspace)> =
   workspaces
@@ -90,7 +90,7 @@ let activeDest (state: State) : Dest = mkDest state.activeView (sectionOf state 
 /// The item that is, or covers, `d`'s view; Home if none does.
 let workspaceOf (d: Dest) : Int =
   let holds (w: Workspace) : Bool =
-    (w.dest.view == d.view) || (Stdlib.List.member w.covers d.view)
+    (w.dest.view == d.view) || (Stdlib.List.contains w.covers d.view)
   match Stdlib.List.findFirstIndex (workspaces) holds with
   | Some i -> i
   | None -> 0

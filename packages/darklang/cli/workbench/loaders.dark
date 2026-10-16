@@ -188,7 +188,7 @@ let loadChangedItems (branchId: Uuid) : List<BodyItem> =
   let changed =
     SCM.PackageOps.draftBindingsFor branchId
     |> Stdlib.List.filter (fun b ->
-      Stdlib.Bool.not (Stdlib.List.member conflictNames (SCM.Conflicts.fqn b.owner b.modules b.name)))
+      Stdlib.Bool.not (Stdlib.List.contains conflictNames (SCM.Conflicts.fqn b.owner b.modules b.name)))
     |> (fun bindings -> Cli.Commit.previousHashesOfAll branchId bindings)
     |> Stdlib.List.map (fun (b, previous) ->
       let fqn = SCM.Conflicts.fqn b.owner b.modules b.name

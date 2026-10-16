@@ -134,7 +134,7 @@ let wantsAnotherLine (text: String) : Bool =
       |> Stdlib.List.head
       |> Stdlib.Option.withDefault ""
     (operators |> Stdlib.List.any (fun s -> Stdlib.String.endsWith lastLine s))
-    || (Stdlib.List.member keywords lastToken)
+    || (Stdlib.List.contains keywords lastToken)
 
 /// Recognize a top-level `let <name> = <expr>` typed at the REPL, returning (name, expr). Only a single
 /// simple name binds; anything else (a pattern, a `let` with no `=`, a bare expression) returns None and is

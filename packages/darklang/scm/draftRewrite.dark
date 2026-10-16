@@ -98,7 +98,7 @@ let surgicallyUndoable
   | AddTraitImpl _ -> true
   | AddTest _ -> true
   | SetName(_, target, _) ->
-    Stdlib.List.``member`` added (referenceHash target)
+    Stdlib.List.contains added (referenceHash target)
   | Decision(_, _, _, Override _) -> true
   | Decision(_, _, _, _) -> false
   | Unbind(_, _) -> false
@@ -204,7 +204,7 @@ let rewriteByAttempt
     let dropped =
       draft
       |> Stdlib.List.filter (fun d ->
-        Stdlib.Bool.not (Stdlib.List.``member`` keptIds d.id))
+        Stdlib.Bool.not (Stdlib.List.contains keptIds d.id))
     let count = Stdlib.List.length dropped
 
     if count == 0 then

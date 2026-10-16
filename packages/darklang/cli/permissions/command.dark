@@ -198,7 +198,7 @@ let policyLinesForHash (hash: String) : List<String> =
   | Some ceiling ->
     let row = LanguageTools.Permissions.ceilingRow (Stdlib.Option.Option.Some ceiling)
     let exceeding =
-      effects |> Stdlib.List.filter (fun e -> Stdlib.Bool.not (Stdlib.List.``member`` ceiling e))
+      effects |> Stdlib.List.filter (fun e -> Stdlib.Bool.not (Stdlib.List.contains ceiling e))
     let warning =
       if complete && Stdlib.Bool.not (Stdlib.List.isEmpty exceeding) then
         [ "  warning: the body requires "
@@ -784,7 +784,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let approvedNames =
       Command.approvedVersions state.accountID
       |> Stdlib.List.map (fun pair -> let (approvedName, _hash) = pair in approvedName)
-    if Stdlib.List.member_v0 approvedNames name then
+    if Stdlib.List.contains approvedNames name then
       Command.unapproveVersionFor state.accountID name
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.success

@@ -70,7 +70,7 @@ let visible (state: State) : List<VisibleNode> =
       |> Stdlib.List.fold hits (fun acc id ->
         Stdlib.List.append acc (ancestors state.outline id))
 
-    all |> Stdlib.List.filter (fun vn -> Stdlib.List.member keep vn.id)
+    all |> Stdlib.List.filter (fun vn -> Stdlib.List.contains keep vn.id)
 
 let cursorIndex (state: State) : Int =
   visible state

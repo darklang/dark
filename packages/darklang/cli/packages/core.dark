@@ -330,7 +330,7 @@ let commitAuthored
     // Decided here rather than before the save, because this is where the stabilized hash is
     // finally known: the one in hand until now is the parser's placeholder.
     let movedVersion =
-      Stdlib.Bool.not (Stdlib.List.member previousHashes boundHash)
+      Stdlib.Bool.not (Stdlib.List.contains previousHashes boundHash)
 
     let docOnly =
       (isUpdate && (Stdlib.Bool.not movedVersion))

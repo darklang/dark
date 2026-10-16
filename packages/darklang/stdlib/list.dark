@@ -77,8 +77,8 @@ let findFirstIndex (list: List<'a>) (fn: 'a -> Bool) : Option.Option<Int> =
 
 
 /// Returns {{true}} if <param value> is in the list
-let ``member`` (list: List<'a>) (value: 'a) : Bool =
-  Builtin.listMember list value
+let contains (list: List<'a>) (value: 'a) : Bool =
+  Builtin.listContains list value
 
 
 // TODO: inline as a nested helper fn once Dark supports local function definitions

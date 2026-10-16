@@ -556,7 +556,7 @@ let constraintVars (s: State) (c: Model.Constraint) : Dict<Model.Var, Bool> =
 /// scope, excluding the quantified variables made fresh at each use.
 let schemeFreeVars (s: State) (scheme: Model.Scheme) : Dict<Model.Var, Bool> =
   Stdlib.Dict.filter (Types.freeVars s.subst scheme.typ) (fun v _ ->
-    Stdlib.Bool.not (Stdlib.List.``member`` scheme.quantified v))
+    Stdlib.Bool.not (Stdlib.List.contains scheme.quantified v))
 
 /// Build a reusable type scheme after solving as much pending work as possible.
 /// Unknowns independent of the surrounding scope may vary at each use. Save
@@ -1668,7 +1668,7 @@ let newRecord
           declared
           |> Stdlib.List.map (fun f -> f.name)
           |> Stdlib.List.filter (fun name ->
-            Stdlib.Bool.not (Stdlib.List.``member`` supplied name))
+            Stdlib.Bool.not (Stdlib.List.contains supplied name))
 
         if Stdlib.List.isEmpty missing then
           s

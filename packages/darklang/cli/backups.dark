@@ -81,7 +81,7 @@ let executeNow (state: AppState) : AppState =
 let executeRestore (state: AppState) (name: String) (autoConfirm: Bool) : AppState =
   let source = $"{backupDir ()}/{name}"
 
-  if Stdlib.Bool.not (Stdlib.List.``member`` (list ()) name) then
+  if Stdlib.Bool.not (Stdlib.List.contains (list ()) name) then
     Cli.printErr $"no backup named \"{name}\"."
     Cli.printHint "  `dark backups` lists them."
     Cli.exitWith state false

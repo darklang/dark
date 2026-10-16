@@ -174,7 +174,7 @@ let selectTargets
   : (List<SCM.Constraints.Finding> * List<String>) =
   // `detectAll` re-runs detection so a prefix can match a finding that has never been listed; `pending`
   // is enough for `--all`, which means "everything currently outstanding".
-  if Stdlib.List.member ids "--all" then
+  if Stdlib.List.contains ids "--all" then
     ((SCM.Constraints.pending ()).findings, [])
   else
     let all = (SCM.Constraints.detectAll ()).findings
@@ -480,7 +480,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Cli.exitWith state false
     | Ok _ ->
 
-    if Stdlib.List.member args "--json" then
+    if Stdlib.List.contains args "--json" then
       executeJson state args
     else
       executeList state args

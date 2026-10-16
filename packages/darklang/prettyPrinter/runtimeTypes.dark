@@ -660,7 +660,7 @@ module Dval =
       let extra =
         pairs
         |> Stdlib.List.filter (fun pair ->
-          Stdlib.Bool.not (Stdlib.List.member order (Stdlib.Tuple2.first pair)))
+          Stdlib.Bool.not (Stdlib.List.contains order (Stdlib.Tuple2.first pair)))
 
       Stdlib.List.append ordered extra
 

@@ -587,7 +587,7 @@ let settleWording
 /// and its candidates are hashes of text rather than of items. Anything keyed on the live binding
 /// has to ask this first.
 let aboutABinding (kind: String) : Bool =
-  Stdlib.List.``member``
+  Stdlib.List.contains
     [ "same-name-different-hash", "independent-creation", "removed-vs-edited" ]
     kind
 

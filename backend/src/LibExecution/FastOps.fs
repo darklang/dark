@@ -40,7 +40,7 @@ let listLength = 12
 let dictGet = 13
 let dictSet = 14
 let strRepeat = 15
-let listMember = 16
+let listContains = 16
 let dictSetStrict = 17
 let strIsEmpty = 18
 let listIsEmpty = 19
@@ -177,7 +177,7 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
     ValueNone
 
 
-/// `List.member`: a list and a value of its element type.
+/// `List.contains`: a list and a value of its element type.
 ///
 /// Calls the same `Dval.equals` the builtin calls -- which is why that function moved into
 /// `LibExecution` from `Builtins.Pure.Libs.NoModule`: structural equality of two Dvals belongs
@@ -185,8 +185,8 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
 ///
 /// Keeps `==`'s behaviour on mismatched element types, which is to raise rather than answer false,
 /// by declining to the slow path when a merge fails.
-let evalListMember (tag : int) (items : List<Dval>) (value : Dval) : Dval voption =
-  if tag = listMember then
+let evalListContains (tag : int) (items : List<Dval>) (value : Dval) : Dval voption =
+  if tag = listContains then
     let vtValue = Dval.toValueType value
 
     let rec search (rest : List<Dval>) : Dval voption =
@@ -593,7 +593,7 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "dictSetOverridingDuplicates" dictSet
   put "dictSet" dictSetStrict
   put "stringRepeat" strRepeat
-  put "listMember" listMember
+  put "listContains" listContains
   put "stringIsEmpty" strIsEmpty
   put "listIsEmpty" listIsEmpty
   put "listPush" listPush

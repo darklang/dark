@@ -1786,13 +1786,13 @@ let private tryFastOpOn
       | DList(vt1, l1) ->
         match registers[secondReg] with
         | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
-        // `member` and `push` take a list and a bare value, so they are the entries whose second
+        // `contains` and `push` take a list and a bare value, so they are the entries whose second
         // operand is not constrained by the first's shape.
         | other ->
           if tag = FastOps.listPush then
             FastOps.evalListPush vt1 l1 other
           else
-            FastOps.evalListMember tag l1 other
+            FastOps.evalListContains tag l1 other
       | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]
       | _ -> ValueNone
 

@@ -203,7 +203,7 @@ let commitMainOps (message: String) (opIds: List<String>) : Unit =
         rows
         |> Stdlib.List.filterMap (fun row -> Stdlib.Sqlite.textField row "id")
 
-      opIds |> Stdlib.List.filter (fun id -> Stdlib.List.``member`` landed id)
+      opIds |> Stdlib.List.filter (fun id -> Stdlib.List.contains landed id)
 
   if Stdlib.List.isEmpty toStamp then
     ()

@@ -209,8 +209,8 @@ module Registry =
       | _ -> false
 
     let asksForHelp =
-      (Stdlib.List.member args "--help")
-      || (Stdlib.List.member args "-h")
+      (Stdlib.List.contains args "--help")
+      || (Stdlib.List.contains args "-h")
       || firstIsHelp
 
     if asksForHelp then
@@ -574,7 +574,7 @@ module Registry =
   /// Should the workbench run this command line on the real terminal instead of captured?
   /// `-y`/`--yes` is the universal "don't ask", so a line carrying it never needs the handoff.
   let needsTerminal (commands: List<CommandHandler>) (cmd: String) (args: List<String>) : Bool =
-    if (Stdlib.List.member args "-y") || (Stdlib.List.member args "--yes") then
+    if (Stdlib.List.contains args "-y") || (Stdlib.List.contains args "--yes") then
       false
     else
       let canonical = (findCommandIn commands cmd).name
@@ -582,13 +582,13 @@ module Registry =
         match Stdlib.List.head args with
         | Some first -> canonical + " " + first
         | None -> canonical
-      (Stdlib.List.member promptsForInput canonical)
-      || (Stdlib.List.member promptsForInput withFirst)
+      (Stdlib.List.contains promptsForInput canonical)
+      || (Stdlib.List.contains promptsForInput withFirst)
 
   /// Does this command line own the whole screen (a full-screen TUI)?
   let takesScreen (commands: List<CommandHandler>) (cmd: String) (args: List<String>) : Bool =
     let canonical = (findCommandIn commands cmd).name
-    Stdlib.List.member screenCommands canonical
+    Stdlib.List.contains screenCommands canonical
 
 module Commands =
   let parseAndExecute (state: AppState) (input: String) : AppState =

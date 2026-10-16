@@ -119,8 +119,8 @@ let resolveGenericName
         { originalName = given
           resolved = Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.InvalidName }
     | Some name ->
-      // split a `_v[n]` version suffix off the written name (`member_v0` →
-      // name `member`, version 0) — mirrors the F# resolver's
+      // split a `_v[n]` version suffix off the written name (`map_v2` →
+      // name `map`, version 2) — mirrors the F# resolver's
       // parseFnNameString; without this every suffixed call site fails to
       // resolve on the tooling path
       let (name, version) =

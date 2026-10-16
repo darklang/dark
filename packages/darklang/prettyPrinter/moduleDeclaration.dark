@@ -216,7 +216,7 @@ module ModuleDeclaration =
     // An impl's method fns print as its `let m = Fn` lines, not as fns of their own
     let implMethods = ModuleDeclaration.implMethodFnHashes p.impls
     let ownFns =
-      p.fns |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.``member`` implMethods f.hash))
+      p.fns |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.contains implMethods f.hash))
 
     let modulesWithTypesAndFns =
       Stdlib.List.fold ownFns modulesAfterTypes (fun modules f ->

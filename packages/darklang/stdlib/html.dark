@@ -159,7 +159,7 @@ let nodeToString (node: Node) : String =
         | None -> key)
       |> String.join " "
 
-    if (Stdlib.List.``member`` voidElements tag.name) then
+    if (Stdlib.List.contains voidElements tag.name) then
       match attributesText with
       | "" -> $"<{tag.name}>"
       | text -> $"<{tag.name} {text}>"

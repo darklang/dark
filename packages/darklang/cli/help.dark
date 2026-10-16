@@ -10,7 +10,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     let known =
       state.allCommandsCache
       |> Stdlib.List.any (fun cmd ->
-        cmd.name == commandName || Stdlib.List.member cmd.aliases commandName)
+        cmd.name == commandName || Stdlib.List.contains cmd.aliases commandName)
 
     if known then
       Registry.executeCommandHelp commandName state

@@ -84,7 +84,7 @@ let resolutionsFor (k: Kind) : List<String> =
 
 /// Is <param choice> a resolution this kind offers?
 let offersResolution (k: Kind) (choice: String) : Bool =
-  Stdlib.List.member (resolutionsFor k) choice
+  Stdlib.List.contains (resolutionsFor k) choice
 
 
 /// Which of two implementations of one trait for one type a call runs.

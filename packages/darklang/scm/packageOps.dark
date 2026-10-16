@@ -94,7 +94,7 @@ let takeBackFailedValues
     |> Stdlib.List.filterMap (fun op ->
       match op with
       | SetName(loc, _, _) ->
-        if Stdlib.List.``member`` failedLocations loc then
+        if Stdlib.List.contains failedLocations loc then
           Stdlib.Option.Option.None
         else
           Stdlib.Option.Option.Some(
@@ -161,9 +161,9 @@ let unbind
         LanguageTools.ProgramTypes.hashToString
           (LanguageTools.ProgramTypes.Reference.hash target)
 
-      Stdlib.List.``member`` bindings (loc, hash)
+      Stdlib.List.contains bindings (loc, hash)
     | AddValue v ->
-      Stdlib.List.``member`` hashes (LanguageTools.ProgramTypes.hashToString v.hash)
+      Stdlib.List.contains hashes (LanguageTools.ProgramTypes.hashToString v.hash)
     | _ -> false
 
   if SCM.Branch.isMain branchId then

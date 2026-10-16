@@ -213,7 +213,7 @@ let dependentsByName
           (fun row ->
             match Stdlib.Sqlite.textField row "item_hash" with
             | Some h ->
-              if Stdlib.List.member named h then
+              if Stdlib.List.contains named h then
                 Stdlib.Option.Option.None
               else
                 overlay

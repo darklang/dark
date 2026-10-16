@@ -341,10 +341,10 @@ let executeMergeCmd (state: AppState) (args: List<String>) : AppState =
     Stdlib.List.partition args (fun a -> Stdlib.String.startsWith a "-")
 
   let autoConfirm =
-    (Stdlib.List.member flags "-y") || (Stdlib.List.member flags "--yes")
+    (Stdlib.List.contains flags "-y") || (Stdlib.List.contains flags "--yes")
 
-  let allowTypeErrors = Stdlib.List.member flags "--allow-type-errors"
-  let dryRun = Stdlib.List.member flags "--dry-run"
+  let allowTypeErrors = Stdlib.List.contains flags "--allow-type-errors"
+  let dryRun = Stdlib.List.contains flags "--dry-run"
 
   let unknown =
     flags
