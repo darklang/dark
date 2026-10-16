@@ -1,0 +1,21 @@
+let gen (count: Int) (state: Int) (acc: List<Int>) : List<Int> =
+  if count <= 0 then
+    acc
+  else
+    let next = (state * 48271) % 2147483647
+    gen (count - 1) next (Stdlib.List.push acc next)
+
+let xs = gen 50000 1 []
+let sorted = Stdlib.List.sort xs
+
+let lo =
+  match Stdlib.List.head sorted with
+  | Some v -> v
+  | None -> 0
+
+let hi =
+  match Stdlib.List.last sorted with
+  | Some v -> v
+  | None -> 0
+
+Stdlib.printLine ("result=" + (Stdlib.toString (lo + hi + (Stdlib.List.length sorted))))

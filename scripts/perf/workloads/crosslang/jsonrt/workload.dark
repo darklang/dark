@@ -1,0 +1,14 @@
+type Item = { id: Int; name: String; tags: List<String>; active: Bool }
+
+let work (i: Int) : Int =
+  let item = Item { id = i; name = "item"; tags = ["a", "b", "c"]; active = true }
+  let s = Stdlib.Json.serialize<Item> item
+
+  match Stdlib.Json.parse<Item> s with
+  | Ok back -> (Stdlib.String.length s) + back.id
+  | Error _ -> 0
+
+let repeat (i: Int) (n: Int) (acc: Int) : Int =
+  if i > n then acc else repeat (i + 1) n (acc + (work i))
+
+Stdlib.printLine ("result=" + (Stdlib.toString (repeat 1 2000 0)))

@@ -1,0 +1,10 @@
+let work (n: Int) : Int =
+  let xs = Stdlib.List.range 1 n
+  let ys = Stdlib.List.map xs (fun x -> x + 1)
+  let zs = Stdlib.List.filter ys (fun x -> x % 2 == 0)
+  Stdlib.List.length zs
+
+let repeat (times: Int) (n: Int) (acc: Int) : Int =
+  if times <= 0 then acc else repeat (times - 1) n (acc + (work n))
+
+Stdlib.printLine ("result=" + (Stdlib.toString (repeat 2000 50 0)))
