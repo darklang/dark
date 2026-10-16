@@ -83,6 +83,24 @@ let private countRows (table : string) : Task<int64> =
   Sql.query $"SELECT COUNT(*) as n FROM {table}"
   |> Sql.executeRowAsync (fun read -> read.int64 "n")
 
+
+let removedPackageRefs =
+  testTask "package refs drop removed content and retain location-less aliases" {
+    let alias = "type/Tests.AliasWithoutLocation"
+    let removed = "type/Tests.RemovedDeclaration"
+    let optionHash = PackageRefs.Type.Stdlib.option ()
+    let! retained =
+      LibDB.PackageRefsGenerator.retainStoredReferences (
+        Map.ofList [ alias, optionHash; removed, String.replicate 64 "0" ]
+      )
+      |> Ply.toTask
+    Expect.equal
+      retained
+      (Map.ofList [ alias, optionHash ])
+      "an alias can share stored content, but an absent declaration cannot remain pinned"
+  }
+
+
 /// A content fingerprint of the projections: the sorted set of every projected item's hash. Two folds that
 /// produce the same fingerprint produced the same projections (down to identity), regardless of row order or
 /// nondeterministic columns like `location_id`.
@@ -538,6 +556,7 @@ let tests =
   <| testList
     "OpsProjections"
     [ sourceRefsBeforeLowering
+      removedPackageRefs
       opHashingIsStable
       opIdIsItsContentHash
       rebuildIsDeterministic
