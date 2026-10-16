@@ -51,8 +51,23 @@ gate_first_day() {
   # Absolute BEFORE the cd below: `$PWD` inside the subshell is the temp home, not the repo.
   ARTIFACT=$(readlink -f "$ARTIFACT")
 
-  HOMEDIR=$(mktemp -d)
-  trap 'rm -rf "$HOMEDIR"' EXIT
+  if [[ "${CIRCLECI:-}" == "true" ]]; then
+    mkdir -p rundir/first-day
+    HOMEDIR=$(mktemp -d "$PWD/rundir/first-day/home.XXXXXX")
+  else
+    HOMEDIR=$(mktemp -d)
+  fi
+  INSTALLED=
+  # shellcheck disable=SC2317  # reached via the EXIT trap
+  cleanup_first_day() {
+    local rc=$?
+    if [[ "$rc" -ne 0 && "${CIRCLECI:-}" == "true" ]]; then
+      echo "first-day: preserving failed stores for CI diagnostics"
+    else
+      rm -rf "$HOMEDIR" "${INSTALLED:-}"
+    fi
+  }
+  trap cleanup_first_day EXIT
 
   failures=0
 
@@ -183,8 +198,11 @@ gate_first_day() {
   # made, and no DARK_CONFIG_RUNDIR. Everything above starts from a rundir that does not exist yet,
   # which is not the state a person who ran the installer is in; a store directory that already
   # exists once shipped unseeded, and every command died with FnNotFound.
-  INSTALLED=$(mktemp -d)
-  trap 'rm -rf "$HOMEDIR" "$INSTALLED"' EXIT
+  if [[ "${CIRCLECI:-}" == "true" ]]; then
+    INSTALLED=$(mktemp -d "$PWD/rundir/first-day/installed.XXXXXX")
+  else
+    INSTALLED=$(mktemp -d)
+  fi
   mkdir -p "$INSTALLED/.darklang/bin"
   cp "$ARTIFACT" "$INSTALLED/.darklang/bin/dark"
   # shellcheck disable=SC2317  # reached through want, which calls `dark`

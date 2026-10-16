@@ -110,19 +110,58 @@ CHECK_TIMEOUT=${CHECK_TIMEOUT:-120}
 run_in_home() {
   local binary="$1" home="$2"
   shift 2
-  mkdir -p "$home"
+  mkdir -p "$home" || return 1
   (
     cd "$home" || exit 127
+    local cmd="" watchdog="" state
+    state=$(mktemp -d .artifact-check.XXXXXX) || exit 1
+    # shellcheck disable=SC2317  # reached through EXIT
+    cleanup_check() {
+      if [[ -n "$watchdog" ]]; then
+        kill "$watchdog" 2> /dev/null || true
+        wait "$watchdog" 2> /dev/null || true
+      fi
+      if [[ -n "$cmd" ]]; then
+        kill -KILL -- "-$cmd" 2> /dev/null || true
+        wait "$cmd" 2> /dev/null || true
+      fi
+      rm -rf "$state"
+    }
+    trap cleanup_check EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+
+    # Bash job control gives the command its own process group on Linux and
+    # macOS, without relying on GNU timeout or setsid. A timed-out command's
+    # children must not survive holding the captured-output pipe open either.
+    set -m
     HOME="$home" "$binary" "$@" < /dev/null 2>&1 &
-    local cmd=$!
-    ( sleep "$CHECK_TIMEOUT"; kill -9 "$cmd" 2> /dev/null ) 2> /dev/null &
-    local watchdog=$!
-    wait "$cmd" 2> /dev/null
-    local rc=$?
-    kill "$watchdog" 2> /dev/null
+    cmd=$!
+    (
+      # Stopping the watchdog must also stop and reap its sleep. Redirect BOTH
+      # streams: otherwise sleep inherits command substitution's output pipe,
+      # making every successful check wait the whole CHECK_TIMEOUT (120s).
+      # shellcheck disable=SC2317  # reached through EXIT
+      cleanup_timer() {
+        local timer
+        for timer in $(jobs -p); do kill "$timer" 2> /dev/null || true; done
+        wait 2> /dev/null || true
+      }
+      trap cleanup_timer EXIT
+      trap 'exit 0' TERM INT
+      sleep "$CHECK_TIMEOUT" &
+      wait "$!" || exit 0
+      touch "$state/timed-out"
+      kill -KILL -- "-$cmd" 2> /dev/null || true
+    ) > /dev/null 2>&1 &
+    watchdog=$!
+    local rc=0
+    wait "$cmd" 2> /dev/null || rc=$?
+    kill "$watchdog" 2> /dev/null || true
     wait "$watchdog" 2> /dev/null || true
-    # 137 is our own SIGKILL: report it as a timeout rather than a crash.
-    [[ $rc -eq 137 ]] && rc=124
+    watchdog=""
+    # Exit 137 can also be an independent SIGKILL; only our timer means timeout.
+    [[ -f "$state/timed-out" ]] && rc=124
     exit "$rc"
   )
 }

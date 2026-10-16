@@ -86,6 +86,26 @@ executors:
     resource_class: m4pro.medium
 
 commands:
+  # Complete logs/reports, compressed. The previous whole-rundir uploads
+  # retained gigabytes of disposable test databases. Log sizes are reported
+  # in manifest.json; diagnostic content is not truncated to meet a budget.
+  store-ci-diagnostics:
+    steps:
+      - run:
+          name: Snapshot databases used by failed checks
+          when: on_fail
+          # Check records select working databases, excluding successful gates
+          # and backups. SQLite backup includes committed WAL contents.
+          command: python3 .circleci/collect_diagnostics.py --failure-databases
+      - run:
+          name: Compress complete logs and test reports
+          when: always
+          command: python3 .circleci/collect_diagnostics.py
+      - store_artifacts:
+          path: rundir/ci-diagnostics
+      - store_test_results:
+          path: rundir/test_results
+
   # Every release build job finishes the same way, so it lives here once.
   #
   # The `rm` matters and is not tidying: the validator runs the binary out of
@@ -179,6 +199,12 @@ jobs:
       - run:
           name: Test the build's planning and readiness logic
           command: scripts/testing/test-build-planning.py
+      - run:
+          name: Test CI diagnostic collection
+          command: python3 .circleci/test_collect_diagnostics.py
+      - run:
+          name: Test artifact validation timeouts
+          command: python3 .circleci/test_artifact_validation.py
 
   # Build server binaries and run tests
   # Cleanup: consider splitting into (1) build debug (2) prepare .db (3) build release
@@ -205,7 +231,6 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - attach_workspace: { at: "." }
       - run:
           name: Setup backend build environment
           command: |
@@ -234,13 +259,13 @@ jobs:
           command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false
       - run:
           name: Run migrations to create database
-          command: scripts/run-local-exec --published migrations run
+          command: python3 .circleci/collect_diagnostics.py --run migrations -- scripts/run-local-exec --published migrations run
       - run:
           name: Load packages into database
-          command: scripts/build/reload-packages --published
+          command: python3 .circleci/collect_diagnostics.py --run packages -- scripts/build/reload-packages --published
       - run:
           name: Export the seed the publish embeds
-          command: scripts/run-local-exec --published export-seed rundir/seed.db
+          command: python3 .circleci/collect_diagnostics.py --run seed -- scripts/run-local-exec --published export-seed rundir/seed.db
 
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
 
@@ -263,7 +288,8 @@ jobs:
             fi
             # The package load above already exported this build's seed.
             # Give tests their own copy instead of parsing the same sources again.
-            DARK_CONFIG_PACKAGES_SOURCE=seed timeout 20m scripts/run-backend-tests --published
+            DARK_CONFIG_PACKAGES_SOURCE=seed python3 .circleci/collect_diagnostics.py \
+              --run backend-tests -- timeout 20m scripts/run-backend-tests --published
 
       # Gate scripts covering what the F# suite structurally cannot
       - run:
@@ -283,12 +309,7 @@ jobs:
 
       - assert-clean-worktree
       - show-large-files-and-directories
-      - store_artifacts:
-          path: rundir
-          when: always
-      - store_test_results:
-          path: rundir/test_results
-          when: always
+      - store-ci-diagnostics
 
   # Build cli binaries
   build-cli:
@@ -297,7 +318,6 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # For tests
       - run: shasum backend/paket.lock backend/global.json > ../checksum
@@ -320,10 +340,10 @@ jobs:
           command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
       - run:
           name: Run migrations to create database
-          command: scripts/run-local-exec migrations run
+          command: python3 .circleci/collect_diagnostics.py --run migrations -- scripts/run-local-exec migrations run
       - run:
           name: Load packages into database
-          command: scripts/build/reload-packages
+          command: python3 .circleci/collect_diagnostics.py --run packages -- scripts/build/reload-packages
 
       - assert-clean-worktree
       # Just the host build, on main as much as anywhere else. This is a
@@ -332,7 +352,7 @@ jobs:
       # nothing consumed.
       - run:
           name: Export the seed for the CLI build
-          command: scripts/run-local-exec export-seed rundir/seed.db
+          command: python3 .circleci/collect_diagnostics.py --run seed -- scripts/run-local-exec export-seed rundir/seed.db
       - run: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db
 
       # Allocation for a fixed workload is steady enough to assert on and doesn't care how
@@ -347,7 +367,7 @@ jobs:
       # Costs a couple of seconds: the binary is already built.
       - run:
           name: Check the reference workload is within its allocation budget
-          command: scripts/perf/gate --published
+          command: python3 .circleci/collect_diagnostics.py --run allocation -- scripts/perf/gate --published
 
       # A fresh install of the binary just built: empty home, the whole SCM workflow, then the
       # layout the installer leaves. Here and not in `gates ci` because this is the only job with
@@ -366,18 +386,9 @@ jobs:
             CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64" \
               timeout 20m scripts/testing/gates package-tests
 
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - clis
       - show-large-files-and-directories
-      - store_artifacts:
-          path: rundir
-          when: always
+      - store-ci-diagnostics
       - store_artifacts: { path: clis }
-      - store_test_results:
-          path: rundir/test_results
-          when: always
 
   ##########################
   # Release matrix (NativeAOT, fanned out by OS)
