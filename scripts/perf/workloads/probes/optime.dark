@@ -41,7 +41,7 @@
 // blunt about this -- and the minimum of several passes is the least noisy estimator available:
 // a pass can be slowed by the machine, never sped up by it.
 
-type Rec = { a: Int; b: String }
+type Rec = { a: Int, b: String }
 
 type Enum =
   | One of Int
@@ -49,15 +49,15 @@ type Enum =
 
 let plainFn (i: Int) : Int = i + 1
 let twoArgFn (i: Int) (j: Int) : Int = i + j
-let recFn (i: Int) : Rec = Rec { a = i; b = "x" }
+let recFn (i: Int) : Rec = Rec { a = i, b = "x" }
 let optFn (i: Int) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some i
 let listFn (i: Int) : List<Int> = [ i ]
 
-type Rec5 = { a: Int; b: Int; c: Int; d: Int; e: Int }
+type Rec5 = { a: Int, b: Int, c: Int, d: Int, e: Int }
 
 val preBuiltInt = 7
-val preBuilt = Rec { a = 1; b = "x" }
-val preBuilt5 = Rec5 { a = 1; b = 2; c = 3; d = 4; e = 5 }
+val preBuilt = Rec { a = 1, b = "x" }
+val preBuilt5 = Rec5 { a = 1, b = 2, c = 3, d = 4, e = 5 }
 
 val iterations = 10000
 
@@ -95,7 +95,7 @@ let saturate (n: Int) (acc: Int) : Int =
   if n == 0 then
     acc
   else
-    let r = Rec { a = n; b = "x" }
+    let r = Rec { a = n, b = "x" }
     let l = Stdlib.List.map [ 1, 2, 3, 4, 5 ] (fun x -> x + n)
     saturate
       (n - 1)
@@ -130,7 +130,7 @@ measure "call a trivial builtin (boolNot)     " (fun i -> if Builtin.boolNot tru
 measure "  the same, via its package wrapper  " (fun i -> if Stdlib.Bool.not true then 1 else 0)
 
 Stdlib.printLine "--- values"
-measure "build a 2-field record, read a field" (fun i -> (Rec { a = i; b = "x" }).a)
+measure "build a 2-field record, read a field" (fun i -> (Rec { a = i, b = "x" }).a)
 // Built once, outside the loop. The old row here was `(recFn i).a`, which is a package call plus a
 // record construction plus a field read, and cannot isolate any of the three -- it read as *cheaper*
 // than the bare package call above it, which is how the confound showed.
@@ -139,7 +139,7 @@ measure "build a 2-field record, read a field" (fun i -> (Rec { a = i; b = "x" }
 measure "load a val, read its field           " (fun i -> preBuilt.a)
 measure "load a val, read a 5-field's last    " (fun i -> preBuilt5.e)
 measure "update a record field                " (fun i ->
-  let r = Rec { a = i; b = "x" }
+  let r = Rec { a = i, b = "x" }
   ({ r with a = i + 1 }).a)
 measure "build a 1-field enum                 " (fun i ->
   match Enum.One i with

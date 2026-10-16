@@ -25,7 +25,7 @@ let loc
   (name: String)
   : Darklang.LanguageTools.ProgramTypes.PackageLocation =
   Darklang.LanguageTools.ProgramTypes.PackageLocation
-    { owner = owner; modules = modules; name = name }
+    { owner = owner, modules = modules, name = name }
 
 let short
   (currentModule: List<String>)
@@ -118,7 +118,7 @@ test collections =
       |> Stdlib.Test.equal "{ \"has-hyphen\": 1 }"
       pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("type", 1) ])
       |> Stdlib.Test.equal "{ \"type\": 1 }"
-      pp (Dict { 1L: "one"; 2L: "two" })
+      pp (Dict { 1L: "one", 2L: "two" })
       |> Stdlib.Test.equal "{ 1: \"one\", 2: \"two\" }"
       pp (Dict { (1L, "a"): true }) |> Stdlib.Test.equal "{ (1, \"a\"): true }" ]
 

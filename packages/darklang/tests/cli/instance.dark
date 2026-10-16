@@ -64,7 +64,7 @@ let create () : Stdlib.Result.Result<T, String> =
       if copy.exitCode != 0 then
         Stdlib.Result.Result.Error $"could not seed {dir} from {src}: {copy.stderr}"
       else
-        Stdlib.Result.Result.Ok(T { dir = dir; cli = cliBinary () })
+        Stdlib.Result.Result.Ok(T { dir = dir, cli = cliBinary () })
   else
     Stdlib.Result.Result.Error
       $"no store to seed an instance from at {src}; build first"

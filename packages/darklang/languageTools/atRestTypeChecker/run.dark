@@ -533,9 +533,9 @@ let baseFor (branchId: Uuid) (pool: Environment.Closure) : Stdlib.Option.Option<
 
     if closed then
       let (env, outcomes) = Items.checkValues env (Stdlib.Dict.values pool.values)
-      Stdlib.Option.Option.Some(Base { env = env; closed = true; pool = pool; values = outcomes })
+      Stdlib.Option.Option.Some(Base { env = env, closed = true, pool = pool, values = outcomes })
     else
-      Stdlib.Option.Option.Some(Base { env = env; closed = false; pool = pool; values = Dict {} })
+      Stdlib.Option.Option.Some(Base { env = env, closed = false, pool = pool, values = Dict {} })
   else
     Stdlib.Option.Option.None
 
@@ -563,7 +563,7 @@ let poolFor
       | Ok(Some v) -> Stdlib.Dict.setOverridingDuplicates found hash v
       | _ -> found)
 
-  Environment.Closure { types = types; values = values; fns = fns }
+  Environment.Closure { types = types, values = values, fns = fns }
 
 /// A query that selects everything on the branch.
 let everything () : LanguageTools.ProgramTypes.Search.SearchQuery =

@@ -1,18 +1,18 @@
 module Darklang.Language.Tests.Records
 
 type Cols1 = { col1: Int64 }
-type Cols2 = { col1: Int64; col2: Int64 }
+type Cols2 = { col1: Int64, col2: Int64 }
 
 // Distinct case names keep this type separate from other enums with the same shape,
 // so the runtime error has a stable type name.
 type AnEnum = | RecordTestA | RecordTestB | RecordTestC
 
 test construction =
-  Cols2 { col1 = 1L; col2 = 3L }
-  |> Stdlib.Test.equal (Cols2 { col1 = 1L; col2 = 3L })
+  Cols2 { col1 = 1L, col2 = 3L }
+  |> Stdlib.Test.equal (Cols2 { col1 = 1L, col2 = 3L })
 
 test fieldErrorRaises =
-  Cols2 { col1 = 2L; col2 = Stdlib.Test.raiseRuntimeError "test" }
+  Cols2 { col1 = 2L, col2 = Stdlib.Test.raiseRuntimeError "test" }
   => raises "Uncaught exception: test"
 
 module WithTypeArgs =
@@ -33,19 +33,19 @@ module WithTypeArgs =
 
 module InvalidCols =
   test duplicateFieldRaises =
-    Cols1 { col1 = 1L; col1 = 2L } => raises "Duplicate field `col1`"
+    Cols1 { col1 = 1L, col1 = 2L } => raises "Duplicate field `col1`"
 
   test emptyKeyRaises =
-    Cols2 { col1 = 2L; ___ = 3L } => raises "Empty key in record creation"
+    Cols2 { col1 = 2L, ___ = 3L } => raises "Empty key in record creation"
 
   test missingFieldRaises =
     Cols2 { col1 = 2L } => raises "Missing field `col2`"
 
   test unknownFieldRaises =
-    Cols2 { col1 = 2L; other = 3L } => raises "No field named `other`"
+    Cols2 { col1 = 2L, other = 3L } => raises "No field named `other`"
 
   test extraFieldRaises =
-    Cols2 { col1 = 2L; col2 = 3L; col3 = 4L } => raises "No field named `col3`"
+    Cols2 { col1 = 2L, col2 = 3L, col3 = 4L } => raises "No field named `col3`"
 
   test wrongFieldTypeRaises =
     Cols1 { col1 = "" }
@@ -70,11 +70,11 @@ module InvalidType =
       "Expected a record, but Darklang.Language.Tests.Records.AnEnum is not one"
 
 module Polymorphism =
-  type MyRecord<'a> = { col1: 'a; col2: Int64 }
+  type MyRecord<'a> = { col1: 'a, col2: Int64 }
 
   test typeArgFields =
     Stdlib.Test.all
-      [ (MyRecord { col1 = (); col2 = 1L }).col2 |> Stdlib.Test.equal 1L
+      [ (MyRecord { col1 = (), col2 = 1L }).col2 |> Stdlib.Test.equal 1L
         (MyRecord
           { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
             col2 = 1L })
@@ -91,28 +91,28 @@ module Nested =
     |> Stdlib.Test.equal 1L
 
 module Update =
-  type RecordForUpdate = { x: Int64; y: Int64 }
-  type RecordForUpdateMultiple = { x: Int64; y: Int64; z: Int64 }
+  type RecordForUpdate = { x: Int64, y: Int64 }
+  type RecordForUpdateMultiple = { x: Int64, y: Int64, z: Int64 }
 
   test updates =
     Stdlib.Test.all
-      [ ({ RecordForUpdate { x = 4L; y = 1L } with y = 2L })
-        |> Stdlib.Test.equal (RecordForUpdate { x = 4L; y = 2L })
-        (let myRec = RecordForUpdate { x = 4L; y = 1L }
+      [ ({ RecordForUpdate { x = 4L, y = 1L } with y = 2L })
+        |> Stdlib.Test.equal (RecordForUpdate { x = 4L, y = 2L })
+        (let myRec = RecordForUpdate { x = 4L, y = 1L }
          { myRec with y = 2L })
-        |> Stdlib.Test.equal (RecordForUpdate { x = 4L; y = 2L })
-        (let myRec = RecordForUpdate { x = 4L; y = 1L }
-         { myRec with y = 22L; y = 42L })
-        |> Stdlib.Test.equal (RecordForUpdate { x = 4L; y = 42L })
-        (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
-         { myRec with y = 2L; z = 42L })
-        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 4L; y = 2L; z = 42L })
-        (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
-         { myRec with z = 3L; x = 42L })
-        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 42L; y = 1L; z = 3L })
-        (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
-         { myRec with z = 3L; x = 42L; y = 11L })
-        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 42L; y = 11L; z = 3L }) ]
+        |> Stdlib.Test.equal (RecordForUpdate { x = 4L, y = 2L })
+        (let myRec = RecordForUpdate { x = 4L, y = 1L }
+         { myRec with y = 22L, y = 42L })
+        |> Stdlib.Test.equal (RecordForUpdate { x = 4L, y = 42L })
+        (let myRec = RecordForUpdateMultiple { x = 4L, y = 1L, z = 0L }
+         { myRec with y = 2L, z = 42L })
+        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 4L, y = 2L, z = 42L })
+        (let myRec = RecordForUpdateMultiple { x = 4L, y = 1L, z = 0L }
+         { myRec with z = 3L, x = 42L })
+        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 42L, y = 1L, z = 3L })
+        (let myRec = RecordForUpdateMultiple { x = 4L, y = 1L, z = 0L }
+         { myRec with z = 3L, x = 42L, y = 11L })
+        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 42L, y = 11L, z = 3L }) ]
 
   // An update of a record whose type argument is still unknown, inside a fn with
   // no type parameters, called from a fn whose type parameter has the record's
@@ -131,17 +131,17 @@ module Update =
 
   module Invalid =
     test unknownFieldRaises =
-      (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
-       { myRec with z = 3L; x = 42L; y = 11L; p = 10L })
+      (let myRec = RecordForUpdateMultiple { x = 4L, y = 1L, z = 0L }
+       { myRec with z = 3L, x = 42L, y = 11L, p = 10L })
       => raises "No field named `p`"
 
     test otherFieldRaises =
-      (let myRec = RecordForUpdate { x = 4L; y = 1L }
+      (let myRec = RecordForUpdate { x = 4L, y = 1L }
        { myRec with other = 2L })
       => raises "No field named `other`"
 
     test wrongFieldTypeRaises =
-      (let myRec = RecordForUpdate { x = 4L; y = 1L }
+      (let myRec = RecordForUpdate { x = 4L, y = 1L }
        { myRec with y = "2" })
       => raises
         "Failed to create updated record. Expected Int64 for field `y`, but got \"2\" (a String)"

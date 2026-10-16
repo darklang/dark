@@ -73,7 +73,7 @@ type SearchState =
     selected: Int }
 
 let emptySearch () : SearchState =
-  SearchState { hits = []; selected = 0 }
+  SearchState { hits = [], selected = 0 }
 
 
 /// Where you were, in enough detail to put you back there: the view, the tree
@@ -90,14 +90,14 @@ type ReturnPoint =
 /// A target the nav can open: a view and its section within that view. Coarser
 /// than a `ReturnPoint`, which is everything needed to land back exactly.
 /// `section` is meaningful for SCM and AI; it is zero for other views.
-type Dest = { view: Int; section: Int }
+type Dest = { view: Int, section: Int }
 
 
 /// What's drawn over the frame, and holding the keyboard while it is.
 ///
 /// One field avoids representing two overlays as open at once. The navbar is
 /// tracked by `State.focus`, because it is also a permanent column when wide.
-type BranchChoice = { id: Uuid; name: String; detail: String }
+type BranchChoice = { id: Uuid, name: String, detail: String }
 
 type BranchPicker =
   { choices: List<BranchChoice>
@@ -128,7 +128,7 @@ type ReplState =
     pending: String }
 
 let emptyRepl () : ReplState =
-  ReplState { log = []; bindings = []; last = ""; pending = "" }
+  ReplState { log = [], bindings = [], last = "", pending = "" }
 
 
 /// What the footer's message reports. Its own value rather than read off the text: the footer used

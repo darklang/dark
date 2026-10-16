@@ -54,4 +54,4 @@ let parseRelativeTo
     | None ->
       Stdlib.Result.Result.Ok
         (LanguageTools.ProgramTypes.PackageLocation
-          { owner = owner; modules = modules; name = name })
+          { owner = owner, modules = modules, name = name })

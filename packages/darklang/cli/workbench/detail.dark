@@ -648,7 +648,7 @@ let refreshPreview (next: State) : State =
     | Some p when p.key == key -> next
     | _ ->
       { next with
-          preview = Stdlib.Option.Option.Some(PreviewCache { key = key; lines = matterPageLines next }) }
+          preview = Stdlib.Option.Option.Some(PreviewCache { key = key, lines = matterPageLines next }) }
 
 /// The preview content for the selected item in the current view. One function so the preview pane, its
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.

@@ -192,10 +192,10 @@ Expression forms include:
 - pipes
 - statement sequences, separated by newlines or `;`
 
-Adjacent same-line items never imply a separator. Lists and list patterns use
-`,`; a `;` there is an error. Dicts, records, record updates, and record-type
-fields use `,` or `;`; constructor fields and constructor-pattern fields use
-`,`. A newline separates items in all of these forms.
+Adjacent same-line items never imply a separator. Lists, list patterns, dicts,
+records, record updates, and record-type fields use `,`; a `;` is an error.
+Constructor fields and constructor-pattern fields also use `,`. A newline
+separates items in all of these forms.
 
 For dotted names, lowercase steps are fields and uppercase steps are module path
 segments. A bare dotted name like `Stdlib.List.map` is itself a value/function
@@ -333,7 +333,7 @@ Modules nest. The path builds the package location: `owner.modules.name`.
 
 **Type declarations** — `type Name<'a> = …` is one of:
 
-- a **record**: `{ f: T; … }`;
+- a **record**: `{ f: T, … }`;
 - an **enum**: `| A | B of T` (after the first case each case requires a leading
   `|`);
 - an **alias** to another type: `type Id = String`, `type Pair = Int * Int`.
@@ -395,7 +395,7 @@ At the top level:
 
 ## Diagnostics
 
-Diagnostics are structured: `{ code; severity; range; message; related; hint }`.
+Diagnostics are structured: `{ code, severity, range, message, related, hint }`.
 Codes are stable identifiers (key on these, never on message text):
 
 | code | meaning |

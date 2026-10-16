@@ -118,23 +118,23 @@ let kindOf (target: LanguageTools.ProgramTypes.Reference) : LanguageTools.Progra
 let touchedBy (op: LanguageTools.ProgramTypes.PackageOp) : List<Touched> =
   match op with
   | SetName(location, target, _previous) ->
-    [ Touched { location = location; kind = kindOf target } ]
+    [ Touched { location = location, kind = kindOf target } ]
   | Unbind(location, _previous) ->
     // The kind is not on the op, and dependents are matched by kind, so every kind is walked.
-    [ Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Fn }
-      Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Type }
-      Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Value }
-      Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Trait }
-      Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.TraitImpl } ]
+    [ Touched { location = location, kind = LanguageTools.ProgramTypes.ItemKind.Fn }
+      Touched { location = location, kind = LanguageTools.ProgramTypes.ItemKind.Type }
+      Touched { location = location, kind = LanguageTools.ProgramTypes.ItemKind.Value }
+      Touched { location = location, kind = LanguageTools.ProgramTypes.ItemKind.Trait }
+      Touched { location = location, kind = LanguageTools.ProgramTypes.ItemKind.TraitImpl } ]
   // A name put back on a version it held before: content-addressed, a second `SetName` would be the
   // op that already exists, so the revert is a decision. It binds the name all the same.
   | Decision(_id, location, _reason, Override target) ->
-    [ Touched { location = location; kind = kindOf target } ]
+    [ Touched { location = location, kind = kindOf target } ]
   | _ -> []
 
 /// A change nobody can describe. Everything is affected.
 let unknownChange () : Change =
-  Change { ops = []; touched = []; unknown = true }
+  Change { ops = [], touched = [], unknown = true }
 
 /// Ask once. `None` when nothing landed in the op log since the last poll; a config write or a trace
 /// moves the counter too, and those are not changes to what runs. The one exception is `show`: a
@@ -175,12 +175,12 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
       let sincePassed = w.since != (SCM.PackageOps.storeNow ())
       let reported = if sincePassed then [] else w.reported
       let shownNow = Stdlib.LocalStore.configGet showKey
-      let next = { w with version = now; reported = reported; shown = shownNow }
+      let next = { w with version = now, reported = reported, shown = shownNow }
 
       // The store moved and no op landed: a config or trace write. Only a `show` is anyone's
       // business, and it is reported as a change that touched nothing; the host reads `shown`.
       if shownNow != w.shown then
-        (next, Stdlib.Option.Option.Some(Change { ops = []; touched = []; unknown = false }))
+        (next, Stdlib.Option.Option.Some(Change { ops = [], touched = [], unknown = false }))
       else
         (next, Stdlib.Option.Option.None)
     else
@@ -199,7 +199,7 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
             |> Stdlib.List.flatten
             |> dedupeTouched
 
-          Change { ops = landed; touched = touched; unknown = false }
+          Change { ops = landed, touched = touched, unknown = false }
 
       let (since, reported) = frontier ()
 
@@ -247,7 +247,7 @@ let dependents
           if Stdlib.List.member seen location then
             Stdlib.Option.Option.None
           else
-            Stdlib.Option.Option.Some(Touched { location = location; kind = kind }))
+            Stdlib.Option.Option.Some(Touched { location = location, kind = kind }))
       |> Stdlib.List.uniqueBy (fun t -> t.location)
 
     (found, Stdlib.List.append seen (found |> Stdlib.List.map (fun t -> t.location)))
@@ -373,7 +373,7 @@ let refresh (branchId: Uuid) (lg: LastGood) : LastGood =
     let moved = lg.hash != (Stdlib.Option.Option.Some newest)
 
     if Stdlib.Bool.not moved then
-      { lg with report = Stdlib.Option.Option.None; problem = Stdlib.Option.Option.None }
+      { lg with report = Stdlib.Option.Option.None, problem = Stdlib.Option.Option.None }
     else
       match LanguageTools.PackageManager.Function.get newest with
       | None ->
@@ -415,7 +415,7 @@ let applicable (lg: LastGood) : Stdlib.Result.Result<'a -> 'b, String> =
 let applicableByName (branchId: Uuid) (name: String) : Stdlib.Result.Result<'a -> 'b, String> =
   Builtin.applicableByName branchId name
 
-/// A dotted name as a location: `Owner.Module.fn` -> `{ owner; modules; name }`. `None` for a name
+/// A dotted name as a location: `Owner.Module.fn` -> `{ owner, modules, name }`. `None` for a name
 /// with fewer than two segments, which cannot be a package fn.
 let locationOfName
   (name: String)
@@ -428,7 +428,7 @@ let locationOfName
     | owner :: modules ->
       Stdlib.Option.Option.Some(
         LanguageTools.ProgramTypes.PackageLocation
-          { owner = owner; modules = modules; name = fnName })
+          { owner = owner, modules = modules, name = fnName })
     | [] -> Stdlib.Option.Option.None
   | [] -> Stdlib.Option.Option.None
 
@@ -514,7 +514,7 @@ module Router =
       lastGood: LastGood }
 
   let start (branchId: Uuid) (entry: LanguageTools.ProgramTypes.PackageLocation) : State =
-    State { watch = watch branchId; lastGood = refresh branchId (Stdlib.Live.start entry) }
+    State { watch = watch branchId, lastGood = refresh branchId (Stdlib.Live.start entry) }
 
   /// One request's worth of following: did the store move, does it reach the router, and if so
   /// which hash is the router now. A newly broken version is said once, on stdout, which is where a
@@ -534,7 +534,7 @@ module Router =
         | Some line -> Stdlib.printLine $"[live] {line}"
         | None -> ()
 
-        (State { watch = watch; lastGood = lg }, applicable lg)
+        (State { watch = watch, lastGood = lg }, applicable lg)
       else
         ({ s with watch = watch }, applicable s.lastGood)
 
@@ -550,7 +550,7 @@ let touchingOnly (entry: LanguageTools.ProgramTypes.PackageLocation) : Change =
   Change
     { ops = []
       touched =
-        [ Touched { location = entry; kind = LanguageTools.ProgramTypes.ItemKind.Fn } ]
+        [ Touched { location = entry, kind = LanguageTools.ProgramTypes.ItemKind.Fn } ]
       unknown = false }
 
 /// What a host that had never seen <param entry> would say about it now: `None` when the newest
@@ -704,7 +704,7 @@ let observe (branchId: Uuid) (view: LanguageTools.ProgramTypes.PackageLocation) 
       match initRte with
       | Some e -> Stdlib.Option.Option.Some e
       | None -> Stdlib.Option.Option.Some $"{entryName (inView "init")} has no version that type-checks"
-    Observation { report = report; render = ""; rte = rte }
+    Observation { report = report, render = "", rte = rte }
   | Some m ->
     let (picture, renderRte) =
       firstThatRuns
@@ -817,6 +817,6 @@ module Values =
         |> Stdlib.Dict.fromListOverwritingDuplicates
 
       Stdlib.Option.Option.Some(
-        Values { byExpr = byExpr; problem = problem; skipped = Stdlib.Option.Option.None }
+        Values { byExpr = byExpr, problem = problem, skipped = Stdlib.Option.Option.None }
       )
 

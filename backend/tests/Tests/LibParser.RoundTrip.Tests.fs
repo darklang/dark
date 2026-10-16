@@ -1144,7 +1144,7 @@ let typeDeclarations =
 
     t
       "record, 2 fields"
-      "type Person = {name: String; age: Int64}"
+      "type Person = {name: String, age: Int64}"
       "type Person =\n  { name: String\n    age: Int64 }"
       []
       []
@@ -1152,7 +1152,7 @@ let typeDeclarations =
       false
     t
       "record, 3 fields"
-      "type Person = {name: String; age: Int64; hasPet: Bool}"
+      "type Person = {name: String, age: Int64, hasPet: Bool}"
       "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool }"
       []
       []
@@ -1160,7 +1160,7 @@ let typeDeclarations =
       false
     t
       "record, 4 fields"
-      "type Person = {name: String; age: Int64; hasPet: Bool; pet: Pet}"
+      "type Person = {name: String, age: Int64, hasPet: Bool, pet: Pet}"
       "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }"
       [ pet ]
       []
@@ -1549,16 +1549,16 @@ let exprs =
       false
     t
       "string dict"
-      "Dict { \"a\": \"hello\"; \"b\": \"test\" }"
-      "Dict { \"a\": \"hello\"; \"b\": \"test\" }"
+      "Dict { \"a\": \"hello\", \"b\": \"test\" }"
+      "Dict { \"a\": \"hello\", \"b\": \"test\" }"
       []
       []
       []
       false
     t
       "longer dict"
-      "Dict { \"a\": 1L; \"b\": 2L; \"c\": 3L }"
-      "Dict { \"a\": 1L; \"b\": 2L; \"c\": 3L }"
+      "Dict { \"a\": 1L, \"b\": 2L, \"c\": 3L }"
+      "Dict { \"a\": 1L, \"b\": 2L, \"c\": 3L }"
       []
       []
       []
@@ -1575,8 +1575,8 @@ let exprs =
       false
     t
       "dict keyed by Int64"
-      "Dict { 1L: \"one\"; 2L: \"two\" }"
-      "Dict { 1L: \"one\"; 2L: \"two\" }"
+      "Dict { 1L: \"one\", 2L: \"two\" }"
+      "Dict { 1L: \"one\", 2L: \"two\" }"
       []
       []
       []
@@ -1639,16 +1639,16 @@ let exprs =
       true
     t
       "record, 2 fields"
-      "Person2 {name =\"John\"; age = 30L} "
-      "Person2 { name = \"John\"; age = 30L }"
+      "Person2 {name =\"John\", age = 30L} "
+      "Person2 { name = \"John\", age = 30L }"
       []
       []
       []
       true
     t
       "record, 3 fields"
-      "Tests.Person {name =\"John\"; age = 30L; hasPet = true} "
-      "Tests.Person { name = \"John\"; age = 30L; hasPet = true }"
+      "Tests.Person {name =\"John\", age = 30L, hasPet = true} "
+      "Tests.Person { name = \"John\", age = 30L, hasPet = true }"
       [ person ]
       []
       []
@@ -1657,7 +1657,7 @@ let exprs =
     t
       "record with newline as separator"
       "Tests.Person\n {name =\"John\"\n age = 30L\n hasPet = true} "
-      "Tests.Person { name = \"John\"; age = 30L; hasPet = true }"
+      "Tests.Person { name = \"John\", age = 30L, hasPet = true }"
       [ person ]
       []
       []
@@ -1666,8 +1666,8 @@ let exprs =
     // record with type args
     t
       "record with type args"
-      "Generic<Tests.Person> { x = Person { name = \"John\"; age = 30L; hasPet = true } }"
-      "Generic<Tests.Person> { x = Person { name = \"John\"; age = 30L; hasPet = true } }"
+      "Generic<Tests.Person> { x = Person { name = \"John\", age = 30L, hasPet = true } }"
+      "Generic<Tests.Person> { x = Person { name = \"John\", age = 30L, hasPet = true } }"
       [ person ]
       []
       []
@@ -1676,8 +1676,8 @@ let exprs =
     // record update
     t
       "record update 1"
-      "{ Tests.Person { name = \"John\"; age = 30L; hasPet = true } with age = 31L }"
-      "{ Tests.Person { name = \"John\"; age = 30L; hasPet = true } with age = 31L }"
+      "{ Tests.Person { name = \"John\", age = 30L, hasPet = true } with age = 31L }"
+      "{ Tests.Person { name = \"John\", age = 30L, hasPet = true } with age = 31L }"
       [ person ]
       []
       []
@@ -1700,21 +1700,21 @@ let exprs =
       true
     t
       "record update 3"
-      "{ person with age = 31L; hasPet = false }"
-      "{ person with age = 31L; hasPet = false }"
+      "{ person with age = 31L, hasPet = false }"
+      "{ person with age = 31L, hasPet = false }"
       [ person ]
       []
       []
       false
     t
       "record update 4"
-      """(let myRec = Tests.Person { name = "John"; age = 30L; hasPet = true }
+      """(let myRec = Tests.Person { name = "John", age = 30L, hasPet = true }
   { myRec with
       name = "Jane"
       age = 31L
       hasPet = false })"""
-      """let myRec = Tests.Person { name = "John"; age = 30L; hasPet = true }
-{ myRec with name = "Jane"; age = 31L; hasPet = false }"""
+      """let myRec = Tests.Person { name = "John", age = 30L, hasPet = true }
+{ myRec with name = "Jane", age = 31L, hasPet = false }"""
       [ person ]
       []
       []
@@ -2500,9 +2500,9 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "fn call with db reference"
-      """Stdlib.DB.set Tests.Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
+      """Stdlib.DB.set Tests.Person { name = "John", age = 30L, hasPet = true } "key" TestDB"""
       """Stdlib.DB.set
-  Tests.Person { name = "John"; age = 30L; hasPet = true }
+  Tests.Person { name = "John", age = 30L, hasPet = true }
   "key"
   TestDB"""
       [ person ]
@@ -2615,8 +2615,8 @@ let valueDeclarations =
       false
     t
       "dict, two entries"
-      "val dict = Dict { \"a\": \"hello\"; \"b\": \"test\" }"
-      "val dict = Dict { \"a\": \"hello\"; \"b\": \"test\" }"
+      "val dict = Dict { \"a\": \"hello\", \"b\": \"test\" }"
+      "val dict = Dict { \"a\": \"hello\", \"b\": \"test\" }"
       []
       []
       []
@@ -2655,8 +2655,8 @@ let valueDeclarations =
     // records
     t
       "record with fields"
-      "val myPerson = Tests.Person { name = \"Alice\"; age = 30L; hasPet = true }"
-      "val myPerson = Tests.Person { name = \"Alice\"; age = 30L; hasPet = true }"
+      "val myPerson = Tests.Person { name = \"Alice\", age = 30L, hasPet = true }"
+      "val myPerson = Tests.Person { name = \"Alice\", age = 30L, hasPet = true }"
       [ person ]
       []
       []

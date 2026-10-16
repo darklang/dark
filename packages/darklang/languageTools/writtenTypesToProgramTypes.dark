@@ -329,7 +329,7 @@ module TraitRef =
           [ typeArgsUnresolvedNames |> Stdlib.List.flatten
             [ (i.range, traitName.originalName, e) ] ]
       | _ -> typeArgsUnresolvedNames |> Stdlib.List.flatten
-    (ProgramTypes.TraitRef { trait_ = traitName; typeArgs = typeArgs }, unresolvedNames)
+    (ProgramTypes.TraitRef { trait_ = traitName, typeArgs = typeArgs }, unresolvedNames)
 
 
 module Bound =
@@ -340,7 +340,7 @@ module Bound =
     : (ProgramTypes.Bound * List<WrittenTypes.UnresolvedName>)
     =
     let (traitRef, unresolvedNames) = TraitRef.toPT ctx b.trait_
-    (ProgramTypes.Bound { param = b.param; trait_ = traitRef }, unresolvedNames)
+    (ProgramTypes.Bound { param = b.param, trait_ = traitRef }, unresolvedNames)
 
   let listToPT
     (ctx: NameResolver.NRContext)
@@ -1778,7 +1778,7 @@ let traitWithOps
   let pt = { pt with hash = locationPlaceholderHash ctx.owner ctx.currentModule traitName }
   let location =
     ProgramTypes.PackageLocation
-      { owner = ctx.owner; modules = ctx.currentModule; name = traitName }
+      { owner = ctx.owner, modules = ctx.currentModule, name = traitName }
   let ops =
     [ ProgramTypes.PackageOp.AddTrait pt
       ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageTrait pt.hash, Stdlib.Option.Option.None) ]
@@ -1806,7 +1806,7 @@ let implWithOps
       let pf = { pf with hash = locationPlaceholderHash ctx.owner memberPath fnName }
       let location =
         ProgramTypes.PackageLocation
-          { owner = ctx.owner; modules = memberPath; name = fnName }
+          { owner = ctx.owner, modules = memberPath, name = fnName }
       let ops =
         [ ProgramTypes.PackageOp.AddFn pf
           ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn pf.hash, Stdlib.Option.Option.None) ]
@@ -1838,7 +1838,7 @@ let implWithOps
       if Stdlib.List.member declaredMethodNames name then
         let location =
           ProgramTypes.PackageLocation
-            { owner = ctx.owner; modules = memberPath; name = name }
+            { owner = ctx.owner, modules = memberPath, name = name }
 
         let resolved =
           ProgramTypes.ResolvedName
@@ -1871,7 +1871,7 @@ let implWithOps
   let pi = { pi with hash = locationPlaceholderHash ctx.owner implModules implName }
   let location =
     ProgramTypes.PackageLocation
-      { owner = ctx.owner; modules = implModules; name = implName }
+      { owner = ctx.owner, modules = implModules, name = implName }
   let implOps =
     [ ProgramTypes.PackageOp.AddTraitImpl pi
       ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageTraitImpl pi.hash, Stdlib.Option.Option.None) ]
@@ -1901,7 +1901,7 @@ let moduleDeclarationWithOpsHelper
 
         let location =
           ProgramTypes.PackageLocation
-            { owner = ctx.owner; modules = ctx.currentModule; name = typeName }
+            { owner = ctx.owner, modules = ctx.currentModule, name = typeName }
 
         let ops =
           [ ProgramTypes.PackageOp.AddType pt
@@ -1931,7 +1931,7 @@ let moduleDeclarationWithOpsHelper
 
         let location =
           ProgramTypes.PackageLocation
-            { owner = ctx.owner; modules = ctx.currentModule; name = valueName }
+            { owner = ctx.owner, modules = ctx.currentModule, name = valueName }
 
         let ops =
           [ ProgramTypes.PackageOp.AddValue pv
@@ -1961,7 +1961,7 @@ let moduleDeclarationWithOpsHelper
 
         let location =
           ProgramTypes.PackageLocation
-            { owner = ctx.owner; modules = ctx.currentModule; name = fnName }
+            { owner = ctx.owner, modules = ctx.currentModule, name = fnName }
 
         let ops =
           [ ProgramTypes.PackageOp.AddFn pf
@@ -2139,7 +2139,7 @@ let declarationsToPT
 
     let location =
       ProgramTypes.PackageLocation
-        { owner = ctx.owner; modules = ctx.currentModule; name = typeName }
+        { owner = ctx.owner, modules = ctx.currentModule, name = typeName }
 
     let ops =
       [ ProgramTypes.PackageOp.AddType t
@@ -2157,7 +2157,7 @@ let declarationsToPT
 
     let location =
       ProgramTypes.PackageLocation
-        { owner = ctx.owner; modules = ctx.currentModule; name = valueName }
+        { owner = ctx.owner, modules = ctx.currentModule, name = valueName }
 
     let ops =
       [ ProgramTypes.PackageOp.AddValue v
@@ -2176,7 +2176,7 @@ let declarationsToPT
 
     let location =
       ProgramTypes.PackageLocation
-        { owner = ctx.owner; modules = ctx.currentModule; name = fnName }
+        { owner = ctx.owner, modules = ctx.currentModule, name = fnName }
 
     let ops =
       [ ProgramTypes.PackageOp.AddFn f
@@ -2204,7 +2204,7 @@ let declarationsToPT
             locationPlaceholderHash ctx.owner ctx.currentModule testName }
     let location =
       ProgramTypes.PackageLocation
-        { owner = ctx.owner; modules = ctx.currentModule; name = testName }
+        { owner = ctx.owner, modules = ctx.currentModule, name = testName }
     let ops =
       [ ProgramTypes.PackageOp.AddTest test
         ProgramTypes.PackageOp.SetName(
@@ -2262,7 +2262,7 @@ let parsedFileAsSourceFile
     let declarationsUnresolvedNames =
       results |> Stdlib.List.map (fun (_, _, unresolved) -> unresolved)
 
-    let exprCtx = { ctx with owner = ""; currentModule = [] }
+    let exprCtx = { ctx with owner = "", currentModule = [] }
     let (exprsToEval, exprsToEvalUnresolvedNames) =
       source.exprsToEval
       |> Stdlib.List.map (fun e ->

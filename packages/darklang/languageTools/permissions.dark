@@ -157,7 +157,7 @@ let ceilingRow (ceiling: Stdlib.Option.Option<List<Permissions.Effect>>) : Strin
     "{" + (Stdlib.String.join cases ", ") + "}"
 
 let empty () : Permissions.Policy =
-  Permissions.Policy { allow = []; deny = [] }
+  Permissions.Policy { allow = [], deny = [] }
 
 /// A POSIX absolute path or a Windows drive/UNC path.
 let isAbsolutePath (path: String) : Bool =

@@ -272,7 +272,7 @@ let openNewEditor (state: State) (kind: String) (targetModule: List<String>) : S
         editing =
           Stdlib.Option.Option.Some
             (EditingState
-              { kind = kind; nameStr = titleBase + where; targetModule = targetModule; buf = { buf with col = nameCol }; err = "" }) }
+              { kind = kind, nameStr = titleBase + where, targetModule = targetModule, buf = { buf with col = nameCol }, err = "" }) }
 
 /// Author a new item. The declaration is a BARE name (a qualified `let Owner.Mod.name` is a parse error), so the
 /// target module has to come from somewhere: use the current tree location if it's deep enough (owner.Module),
@@ -290,7 +290,7 @@ let startNew (state: State) (kind: String) : Step =
       { state with
           input =
             Stdlib.Option.Option.Some
-              (InputState { prompt = "save into module (owner.Module): "; field = Stdlib.Cli.UI.TextField.fromText prefill; action = "author-" + kind }) }
+              (InputState { prompt = "save into module (owner.Module): ", field = Stdlib.Cli.UI.TextField.fromText prefill, action = "author-" + kind }) }
 
 /// Open the editor on an existing fn, prefilled with its full current declaration (doc comments dropped).
 let openEditExisting (state: State) (item: BodyItem) : Step =
@@ -332,5 +332,5 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
       { state with
           editing =
             Stdlib.Option.Option.Some
-              (EditingState { kind = kind; nameStr = "Editing " + fullName; targetModule = modules; buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src); err = "" }) }
-  | None -> Step.Continue { state with messageKind = MessageKind.Refused; message = $"nothing to edit at {fullName}" }
+              (EditingState { kind = kind, nameStr = "Editing " + fullName, targetModule = modules, buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src), err = "" }) }
+  | None -> Step.Continue { state with messageKind = MessageKind.Refused, message = $"nothing to edit at {fullName}" }

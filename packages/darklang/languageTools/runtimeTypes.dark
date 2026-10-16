@@ -20,7 +20,7 @@ module FQTraitName =
   type FQTraitName = Package of Package
 
 module FQValueName =
-  type Builtin = { name: String; version: Int32 }
+  type Builtin = { name: String, version: Int32 }
   type Package = Hash
 
   type FQValueName =
@@ -28,7 +28,7 @@ module FQValueName =
     | Package of Package
 
 module FQFnName =
-  type Builtin = { name: String; version: Int32 }
+  type Builtin = { name: String, version: Int32 }
   type Package = Hash
 
   /// How much of a trait call's implementation is decided; the runtime's half of

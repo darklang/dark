@@ -25,7 +25,7 @@ type Outcome =
 /// Wrap a type in a scheme without making any of its unknowns generic.
 /// Those unknowns must be resolved before the declaration can be Checked.
 let monomorphic (t: Model.Ty) : Model.Scheme =
-  Model.Scheme { quantified = []; typ = t; constraints = [] }
+  Model.Scheme { quantified = [], typ = t, constraints = [] }
 
 /// Report an error encountered while running the checker as an Incomplete result.
 /// Attach the warning to at when a source node is available, and return no scheme.

@@ -80,7 +80,7 @@ let fromRuntimeType
 
     LanguageTools.ProgramTypes.TypeReference.TCustomType(
       LanguageTools.ProgramTypes.NameResolution
-        { originalName = name.originalName; resolved = resolved },
+        { originalName = name.originalName, resolved = resolved },
       Stdlib.List.map args (fun t -> fromRuntimeType t)
     )
 
@@ -460,7 +460,7 @@ let withBatch
               (Stdlib.List.pushBack existing (self, i.hash))
       | Error _ -> found)
 
-  { env with batchTraits = batchTraits; traitImpls = traitImpls }
+  { env with batchTraits = batchTraits, traitImpls = traitImpls }
 
 
 /// <param env> without the store's implementations that <param ops> rebind to something else.
@@ -751,7 +751,7 @@ let loadClosure
 
 /// A closure with nothing in it.
 let emptyClosure () : Closure =
-  Closure { types = Dict {}; values = Dict {}; fns = Dict {} }
+  Closure { types = Dict {}, values = Dict {}, fns = Dict {} }
 
 /// `loadClosure`, taking a declaration from <param pool> when it is there and from the store
 /// otherwise.

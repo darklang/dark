@@ -9,9 +9,9 @@ type UnresolvedName =
   (Parser.Range * List<String> * ProgramTypes.NameResolutionError)
 
 // Identifiers
-type ModuleIdentifier = { range: Range; name: String }
+type ModuleIdentifier = { range: Range, name: String }
 
-type TypeIdentifier = { range: Range; name: String }
+type TypeIdentifier = { range: Range, name: String }
 
 type QualifiedTypeIdentifier =
   {
@@ -22,11 +22,11 @@ type QualifiedTypeIdentifier =
     typeArgs: List<TypeReference.TypeReference>
   }
 
-type VariableIdentifier = { range: Range; name: String }
+type VariableIdentifier = { range: Range, name: String }
 
-type ValueIdentifier = { range: Range; name: String }
+type ValueIdentifier = { range: Range, name: String }
 
-type FnIdentifier = { range: Range; name: String }
+type FnIdentifier = { range: Range, name: String }
 
 type QualifiedFnIdentifier =
   {
@@ -157,7 +157,7 @@ type MatchPattern =
     symbolCloseQuote: Range
   | MPList of
     Range *
-    /// the Range corresponds to the `;` symbol
+    /// the Range corresponds to the `,` symbol
     contents: List<(MatchPattern * Stdlib.Option.Option<Range>)> *
     symbolOpenBracket: Range *
     symbolCloseBracket: Range
@@ -269,7 +269,7 @@ type Expr =
 
   | EList of
     Range *
-    /// the Range corresponds to the `;` symbol
+    /// the Range corresponds to the `,` symbol
     contents: List<(Expr * Stdlib.Option.Option<Range>)> *
     symbolOpenBracket: Range *
     symbolCloseBracket: Range
@@ -493,7 +493,7 @@ module TypeDeclaration =
 
   type Definition =
     | Alias of TypeReference.TypeReference
-    /// the Range corresponds to the `;` symbol
+    /// the Range corresponds to the `,` symbol
     | Record of List<(RecordField * Stdlib.Option.Option<Range>)>
     /// the Range corresponds to the `|` symbol
     | Enum of List<(Range * EnumCase)>

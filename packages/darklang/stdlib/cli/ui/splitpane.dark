@@ -48,9 +48,9 @@ let render
       let firstCols = (region.cols * firstPct) / 100
       let secondCols = region.cols - firstCols
       let firstRegion =
-        Layout.Region { top = region.top; left = region.left; rows = region.rows; cols = firstCols }
+        Layout.Region { top = region.top, left = region.left, rows = region.rows, cols = firstCols }
       let secondRegion =
-        Layout.Region { top = region.top; left = region.left + firstCols; rows = region.rows; cols = secondCols }
+        Layout.Region { top = region.top, left = region.left + firstCols, rows = region.rows, cols = secondCols }
       Stdlib.List.flatten
         [ Box.panel firstRegion titleFirst firstFocused renderFirst
           Box.panel secondRegion titleSecond secondFocused renderSecond ]
@@ -58,9 +58,9 @@ let render
       let firstRows = (region.rows * firstPct) / 100
       let secondRows = region.rows - firstRows
       let firstRegion =
-        Layout.Region { top = region.top; left = region.left; rows = firstRows; cols = region.cols }
+        Layout.Region { top = region.top, left = region.left, rows = firstRows, cols = region.cols }
       let secondRegion =
-        Layout.Region { top = region.top + firstRows; left = region.left; rows = secondRows; cols = region.cols }
+        Layout.Region { top = region.top + firstRows, left = region.left, rows = secondRows, cols = region.cols }
       Stdlib.List.flatten
         [ Box.panel firstRegion titleFirst firstFocused renderFirst
           Box.panel secondRegion titleSecond secondFocused renderSecond ]

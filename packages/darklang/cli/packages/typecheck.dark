@@ -119,7 +119,7 @@ let counts
   : Counts =
   items
   |> Stdlib.List.fold
-       (Counts { checkedCount = 0; failedCount = 0; incompleteCount = 0; unresolvedCount = 0 })
+       (Counts { checkedCount = 0, failedCount = 0, incompleteCount = 0, unresolvedCount = 0 })
        (fun acc item ->
          match (auditVerdict item, item.verdict) with
          | (Checked, _) -> { acc with checkedCount = acc.checkedCount + 1 }

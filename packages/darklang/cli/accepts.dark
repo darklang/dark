@@ -41,43 +41,43 @@ type Accepts =
 /// No words, and these flags.
 let flagsOnly (flags: List<String>) : Accepts =
   Accepts.Takes(
-    Shape { flags = flags; valueFlags = []; atLeast = 0; atMost = Stdlib.Option.Option.Some 0; wordsAreNotFlags = false }
+    Shape { flags = flags, valueFlags = [], atLeast = 0, atMost = Stdlib.Option.Option.Some 0, wordsAreNotFlags = false }
   )
 
 /// Takes nothing at all.
 let nothing () : Accepts =
   Accepts.Takes(
-    Shape { flags = []; valueFlags = []; atLeast = 0; atMost = Stdlib.Option.Option.Some 0; wordsAreNotFlags = false }
+    Shape { flags = [], valueFlags = [], atLeast = 0, atMost = Stdlib.Option.Option.Some 0, wordsAreNotFlags = false }
   )
 
 /// At most <param atMost> words, and these flags.
 let upTo (atMost: Int) (flags: List<String>) : Accepts =
   Accepts.Takes(
-    Shape { flags = flags; valueFlags = []; atLeast = 0; atMost = Stdlib.Option.Option.Some atMost; wordsAreNotFlags = false }
+    Shape { flags = flags, valueFlags = [], atLeast = 0, atMost = Stdlib.Option.Option.Some atMost, wordsAreNotFlags = false }
   )
 
 /// From <param atLeast> to <param atMost> words, and these flags.
 let between (atLeast: Int) (atMost: Int) (flags: List<String>) : Accepts =
   Accepts.Takes(
-    Shape { flags = flags; valueFlags = []; atLeast = atLeast; atMost = Stdlib.Option.Option.Some atMost; wordsAreNotFlags = false }
+    Shape { flags = flags, valueFlags = [], atLeast = atLeast, atMost = Stdlib.Option.Option.Some atMost, wordsAreNotFlags = false }
   )
 
 /// Any number of words, at least <param atLeast>, and these flags.
 let freeText (atLeast: Int) (flags: List<String>) : Accepts =
   Accepts.Takes(
-    Shape { flags = flags; valueFlags = []; atLeast = atLeast; atMost = Stdlib.Option.Option.None; wordsAreNotFlags = false }
+    Shape { flags = flags, valueFlags = [], atLeast = atLeast, atMost = Stdlib.Option.Option.None, wordsAreNotFlags = false }
   )
 
 /// Any number of words, at least <param atLeast>, every one of them a word: see `wordsAreNotFlags`.
 let text (atLeast: Int) : Accepts =
   Accepts.Takes(
-    Shape { flags = []; valueFlags = []; atLeast = atLeast; atMost = Stdlib.Option.Option.None; wordsAreNotFlags = true }
+    Shape { flags = [], valueFlags = [], atLeast = atLeast, atMost = Stdlib.Option.Option.None, wordsAreNotFlags = true }
   )
 
 /// From <param atLeast> to <param atMost> words, every one of them a word.
 let textBetween (atLeast: Int) (atMost: Int) : Accepts =
   Accepts.Takes(
-    Shape { flags = []; valueFlags = []; atLeast = atLeast; atMost = Stdlib.Option.Option.Some atMost; wordsAreNotFlags = true }
+    Shape { flags = [], valueFlags = [], atLeast = atLeast, atMost = Stdlib.Option.Option.Some atMost, wordsAreNotFlags = true }
   )
 
 /// Subcommands, each with its own arguments, and what the command takes without one.

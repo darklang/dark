@@ -415,7 +415,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
   let branchId = state.currentBranchId
   match args with
   | [] ->
-    [Completion.CompletionItem { display = "uses"; value = "uses" }, Completion.CompletionItem { display = "usedby"; value = "usedby" }]
+    [Completion.CompletionItem { display = "uses", value = "uses" }, Completion.CompletionItem { display = "usedby", value = "usedby" }]
   | ["uses"] ->
     Packages.Traversal.completePartialPath branchId state.packageData.currentLocation ""
   | ["usedby"] ->
@@ -428,7 +428,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
     let subcommands =
       ["uses", "usedby"]
       |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partialPath)
-      |> Stdlib.List.map (fun cmd -> Completion.CompletionItem { display = cmd; value = cmd })
+      |> Stdlib.List.map (fun cmd -> Completion.CompletionItem { display = cmd, value = cmd })
     let paths = Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
     Stdlib.List.append subcommands paths
   | _ -> []

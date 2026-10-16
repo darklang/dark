@@ -32,7 +32,7 @@ module FQTraitName =
   type FQTraitName = Package of Package
 
 module FQValueName =
-  type Builtin = { name: String; version: Int32 }
+  type Builtin = { name: String, version: Int32 }
   type Package = Hash
 
   type FQValueName =
@@ -40,7 +40,7 @@ module FQValueName =
     | Package of Package
 
 module FQFnName =
-  type Builtin = { name: String; version: Int32 }
+  type Builtin = { name: String, version: Int32 }
   type Package = Hash
 
   /// How much of a trait call's implementation the save could say. Three states, not
@@ -412,7 +412,7 @@ let parsePackageLocation (nameToParse: String): PackageLocation =
           name = "" }
   | [] ->
     // Empty name (shouldn't happen, but handle it)
-    PackageLocation { owner = ""; modules = []; name = "" }
+    PackageLocation { owner = "", modules = [], name = "" }
 
 type BranchID = Uuid
 

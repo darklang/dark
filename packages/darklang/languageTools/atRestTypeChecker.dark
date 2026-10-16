@@ -235,7 +235,7 @@ type CheckFailure =
 
 /// The report for nothing: no items, so trivially Checked.
 let emptyReport () : Report =
-  Report { verdict = Verdict.Checked; items = []; diagnostics = []; warnings = [] }
+  Report { verdict = Verdict.Checked, items = [], diagnostics = [], warnings = [] }
 
 /// Check package operations before they are persisted or presented as diagnostics.
 ///

@@ -1100,7 +1100,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
         (txt (NameResolution.typeName ctx typeName))
         (Stdlib.Pretty.concat (typeArgumentsDoc ctx typeArgs) (txt " "))
 
-    Stdlib.Pretty.concat head (wrapExprs "{" "}" ";" Stdlib.Pretty.line parts)
+    Stdlib.Pretty.concat head (wrapExprs "{" "}" "," Stdlib.Pretty.line parts)
 
   // Dicts and enum payloads break like the other collections. A lambda's body is nested and hard-lined,
   // since `fun x ->` followed by its body on the same line only reads well when the body is tiny, and
@@ -1114,7 +1114,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
           (Stdlib.Pretty.concat (exprDoc ctx key) (txt ": "))
           (exprDoc ctx value))
 
-    Stdlib.Pretty.concat (txt "Dict ") (wrapExprs "{" "}" ";" Stdlib.Pretty.line parts)
+    Stdlib.Pretty.concat (txt "Dict ") (wrapExprs "{" "}" "," Stdlib.Pretty.line parts)
 
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
     let typeNamePart = NameResolution.typeName ctx typeName
@@ -1241,7 +1241,7 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       |> Stdlib.List.map (fun pair ->
         let (key, value) = pair
         $"{expr ctx key}: {expr ctx value}")
-      |> Stdlib.String.join "; "
+      |> Stdlib.String.join ", "
       |> fun parts -> "{ " + parts + " }"
 
     $"Dict {pairPart}"
@@ -1332,7 +1332,7 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       |> Stdlib.List.map (fun pair ->
         let (fieldName, value) = pair
         $"{PrettyPrinter.formatFieldName fieldName} = {expr ctx value}")
-      |> Stdlib.String.join "; "
+      |> Stdlib.String.join ", "
 
     // TODO: don't always need the parens
 

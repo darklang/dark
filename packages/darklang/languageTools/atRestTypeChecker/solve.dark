@@ -688,7 +688,7 @@ let generalize
         (Types.warning IssueCode.UnsupportedConstruct
           (Stdlib.Option.Option.Some key) Context.DuplicateBindingId)
     let invalidScheme =
-      Model.Scheme { quantified = []; typ = Model.Ty.TError; constraints = [] }
+      Model.Scheme { quantified = [], typ = Model.Ty.TError, constraints = [] }
     { s with schemes = Stdlib.Dict.setOverridingDuplicates s.schemes key invalidScheme }
   else
     { s with schemes = Stdlib.Dict.set s.schemes key scheme }
@@ -777,7 +777,7 @@ type DeferredUse =
 /// update contributes both a record requirement and a type requirement for each field.
 let deferredUses (c: Model.Constraint) : List<DeferredUse> =
   let use (at: Int64) (subject: Model.Ty) (requirement: DeferredRequirement) : DeferredUse =
-    DeferredUse { at = at; subject = subject; site = Site.Expression; requirement = requirement }
+    DeferredUse { at = at, subject = subject, site = Site.Expression, requirement = requirement }
 
   match c with
   | Apply(at, callee, _, _) -> [ use at callee DeferredRequirement.CallableType ]

@@ -444,7 +444,7 @@ let pushKey (d : LoopDriver) (key : string) (char : string) : Task<unit> =
     let! read =
       evalUnder
         d.state
-        $"Darklang.Stdlib.Cli.Stdin.KeyRead.KeyRead {{ key = Darklang.Stdlib.Cli.Stdin.Key.Key.{key}; modifiers = Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers {{ alt = false; shift = false; ctrl = false }}; keyChar = \"{char}\"; repeat = 1 }}"
+        $"Darklang.Stdlib.Cli.Stdin.KeyRead.KeyRead {{ key = Darklang.Stdlib.Cli.Stdin.Key.Key.{key}, modifiers = Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers {{ alt = false, shift = false, ctrl = false }}, keyChar = \"{char}\", repeat = 1 }}"
     d.scheduler.PushEvent(LibExecution.HostEvents.HostEvent.Key read)
   }
 

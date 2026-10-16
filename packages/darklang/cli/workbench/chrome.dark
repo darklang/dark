@@ -254,7 +254,7 @@ let renderHelpOverlay (screen: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI
   let h = Stdlib.min (Stdlib.max 8 rows) (screen.rows - 2)
   let top = screen.top + ((Stdlib.max 0 (screen.rows - h)) / 2)
   let left = screen.left + ((Stdlib.max 0 (screen.cols - w)) / 2)
-  let region = Stdlib.Cli.UI.Layout.Region { top = top; left = left; rows = h; cols = w }
+  let region = Stdlib.Cli.UI.Layout.Region { top = top, left = left, rows = h, cols = w }
   Stdlib.List.flatten
     [ Stdlib.Cli.UI.Layout.clearRegion region
       Stdlib.Cli.UI.Box.panel region "Keys  ·  any key closes" true (fun inner ->

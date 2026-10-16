@@ -46,7 +46,7 @@ let mainDraftOps () : List<DraftOp> =
       []
 
   SCM.PackageOps.decodeOpRowEntries rows
-  |> Stdlib.List.map (fun (id, ts, op) -> DraftOp { id = id; ts = ts; op = op })
+  |> Stdlib.List.map (fun (id, ts, op) -> DraftOp { id = id, ts = ts, op = op })
 
 
 /// The content hashes the draft ADDS, so a naming can be told from a rename.

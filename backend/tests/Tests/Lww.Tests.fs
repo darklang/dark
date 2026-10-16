@@ -77,9 +77,9 @@ let private agreesWithTheTable =
 /// failure message because a name-resolution failure names the exact missing module and that is
 /// the whole diagnostic.
 let private darkBinding (ts : string) (hash : string) : string =
-  "(Darklang.SCM.Conflicts.Binding { owner = \"Zz\"; modules = \"Lww\"; "
-  + $"name = \"n\"; itemType = \"fn\"; hash = \"{hash}\"; originTs = \"{ts}\"; "
-  + "author = \"\"; previous = Stdlib.Option.Option.None })"
+  "(Darklang.SCM.Conflicts.Binding { owner = \"Zz\", modules = \"Lww\", "
+  + $"name = \"n\", itemType = \"fn\", hash = \"{hash}\", originTs = \"{ts}\", "
+  + "author = \"\", previous = Stdlib.Option.Option.None })"
 
 let private darkAgreesWithTheSameTable =
   testTask "the Dark rule answers the same table, row for row" {

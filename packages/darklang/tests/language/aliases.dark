@@ -3,15 +3,15 @@ module Darklang.Language.Tests.Aliases
 // simple alias
 type Id = String
 
-type Something = { ID: Id; Data: String }
+type Something = { ID: Id, Data: String }
 
 test simpleAlias =
-  Something { ID = "2"; Data = "test" }
-  |> Stdlib.Test.equal (Something { ID = "2"; Data = "test" })
+  Something { ID = "2", Data = "test" }
+  |> Stdlib.Test.equal (Something { ID = "2", Data = "test" })
 
 // CELANUP: would be better if this noted that `Id` is an alias for `String`
 test simpleAliasWrongTypeRaises =
-  Something { ID = 2L; Data = "test" }
+  Something { ID = 2L, Data = "test" }
   => raises
     "Failed to create record. Expected String for field `ID`, but got 2 (an Int64)"
 
@@ -91,7 +91,7 @@ module ResultAlias =
         |> Stdlib.Test.equal 0L ]
 
 module RecordWithTypeArgs =
-  type Inner<'a, 'b> = { a: 'a; b: 'b }
+  type Inner<'a, 'b> = { a: 'a, b: 'b }
 
   type Outer1<'a> = Inner<'a, Int64>
   type Outer2<'b> = Inner<String, 'b>
@@ -100,52 +100,52 @@ module RecordWithTypeArgs =
 
   test typeArgAliases =
     Stdlib.Test.all
-      [ (Outer1 { a = "test"; b = 5L })
-        |> Stdlib.Test.equal (Inner { a = "test"; b = 5L })
-        (Outer1 { a = "test"; b = 5L })
-        |> Stdlib.Test.equal (Outer2 { a = "test"; b = 5L })
-        getInnerField (Inner { a = "test"; b = 5L }) |> Stdlib.Test.equal 5L
-        getInnerField (Outer1 { a = "test"; b = 5L }) |> Stdlib.Test.equal 5L
-        getInnerField (Outer2 { a = "test"; b = 5L }) |> Stdlib.Test.equal 5L ]
+      [ (Outer1 { a = "test", b = 5L })
+        |> Stdlib.Test.equal (Inner { a = "test", b = 5L })
+        (Outer1 { a = "test", b = 5L })
+        |> Stdlib.Test.equal (Outer2 { a = "test", b = 5L })
+        getInnerField (Inner { a = "test", b = 5L }) |> Stdlib.Test.equal 5L
+        getInnerField (Outer1 { a = "test", b = 5L }) |> Stdlib.Test.equal 5L
+        getInnerField (Outer2 { a = "test", b = 5L }) |> Stdlib.Test.equal 5L ]
 
   // Explicit record type arguments are accepted, and field types are checked.
   test explicitTypeArgs =
-    Inner<String, Int64> { a = "test"; b = 5L }
-    |> Stdlib.Test.equal (Inner { a = "test"; b = 5L })
+    Inner<String, Int64> { a = "test", b = 5L }
+    |> Stdlib.Test.equal (Inner { a = "test", b = 5L })
 
   test explicitTypeArgMismatchRaises =
-    Inner<String, Int64> { a = "test"; b = "five" }
+    Inner<String, Int64> { a = "test", b = "five" }
     => raises
       "Failed to create record. Expected Int64 for field `b`, but got \"five\" (a String)"
 
   test outer2WrongFieldRaises =
-    Outer2 { a = 5L; b = 6L }
+    Outer2 { a = 5L, b = 6L }
     => raises
       "Failed to create record. Expected String for field `a`, but got 5 (an Int64)"
 
   test outer1WrongFieldRaises =
-    Outer1 { a = "a"; b = "b" }
+    Outer1 { a = "a", b = "b" }
     => raises
       "Failed to create record. Expected Int64 for field `b`, but got \"b\" (a String)"
 
 module RecordWithTypeArgsDifferentName =
-  type Inner<'a, 'b> = { a: 'a; b: 'b }
+  type Inner<'a, 'b> = { a: 'a, b: 'b }
   type LessInner<'b, 'a> = Inner<'a, 'b>
-  type Outer<'x> = LessInner<'x, Int64> // { a: 'x; b: Int64 }
-  type Outest<'y> = Outer<'y> // { a: 'y; b: Int64 }
-  type MostOutest = Outest<String> // { a: Int64; b: String }
+  type Outer<'x> = LessInner<'x, Int64> // { a: 'x, b: Int64 }
+  type Outest<'y> = Outer<'y> // { a: 'y, b: Int64 }
+  type MostOutest = Outest<String> // { a: Int64, b: String }
 
   test reorderedTypeArgs =
-    MostOutest { a = 5L; b = "string" }
-    |> Stdlib.Test.equal (Inner { a = 5L; b = "string" })
+    MostOutest { a = 5L, b = "string" }
+    |> Stdlib.Test.equal (Inner { a = 5L, b = "string" })
 
   test wrongFieldARaises =
-    MostOutest { a = "not allowed"; b = "string" }
+    MostOutest { a = "not allowed", b = "string" }
     => raises
       "Failed to create record. Expected Int64 for field `a`, but got \"not allow... (a String)"
 
   test wrongFieldBRaises =
-    MostOutest { a = 5L; b = 6L }
+    MostOutest { a = 5L, b = 6L }
     => raises
       "Failed to create record. Expected String for field `b`, but got 6 (an Int64)"
 
@@ -165,7 +165,7 @@ module RecordWithRecursiveTypeArgs =
               { a = 6L
                 b =
                   Stdlib.Result.Result.Ok(
-                    Inner { a = 7L; b = Stdlib.Result.Result.Error "test" }
+                    Inner { a = 7L, b = Stdlib.Result.Result.Error "test" }
                   ) }
           ) }
     |> Stdlib.Test.equal (
@@ -177,20 +177,20 @@ module RecordWithRecursiveTypeArgs =
                 { a = 6L
                   b =
                     Stdlib.Result.Result.Ok(
-                      Alias { a = 7L; b = Stdlib.Result.Result.Error "test" }
+                      Alias { a = 7L, b = Stdlib.Result.Result.Error "test" }
                     ) }
             ) }
     )
 
 module MultiNestedRecordAlias =
-  type Innest<'a, 'b, 'c> = { a: 'a; b: 'b; c: 'c }
+  type Innest<'a, 'b, 'c> = { a: 'a, b: 'b, c: 'c }
   type Nest1<'a, 'b> = Innest<'a, 'b, Int64>
   type Nest2<'a> = Nest1<'a, String>
   type Nest3 = Nest2<Int64>
 
   test multiNested =
-    Nest3 { a = 5L; b = "test"; c = 6L }
-    |> Stdlib.Test.equal (Innest { a = 5L; b = "test"; c = 6L })
+    Nest3 { a = 5L, b = "test", c = 6L }
+    |> Stdlib.Test.equal (Innest { a = 5L, b = "test", c = 6L })
 
 module EnumWithTypeArgs =
   type Inner<'a, 'b> =

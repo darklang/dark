@@ -127,7 +127,7 @@ let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
       let (segs, orderedSoFar, lastCol, rightmost) = acc
       let w = Tui.Text.styledWidth span.text
 
-      let seg = Segment { col = span.col; text = span.text; width = w }
+      let seg = Segment { col = span.col, text = span.text, width = w }
 
       let nextPlaced =
         if span.col >= rightmost then

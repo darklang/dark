@@ -27,7 +27,7 @@ let locationOf
   let mods = if modules == "" then [] else Stdlib.String.split modules "."
 
   LanguageTools.ProgramTypes.PackageLocation
-    { owner = owner; modules = mods; name = name }
+    { owner = owner, modules = mods, name = name }
 
 /// Everything <param source> references (forward dependencies), as (hash, kind).
 let dependenciesOf

@@ -300,7 +300,7 @@ let mergeBranch (branchId: Uuid) : Stdlib.Result.Result<MergeOutcome, MergeError
     // goes through as-is; translated, main's conflict list would never see them.
     let _ = Conflicts.record parent conflicts
 
-    (MergeOutcome { merged = n; conflicts = conflicts })
+    (MergeOutcome { merged = n, conflicts = conflicts })
     |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error(MergeError.Mechanism e)
 
@@ -362,7 +362,7 @@ let rebaseBranch (branchId: Uuid) : Stdlib.Result.Result<RebaseOutcome, String> 
     // branch's to answer and stays with it.
     let _ = Conflicts.record branchId conflicts
 
-    (RebaseOutcome { message = msg; conflicts = conflicts })
+    (RebaseOutcome { message = msg, conflicts = conflicts })
     |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e
 

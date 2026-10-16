@@ -1,24 +1,24 @@
 module Darklang.Language.Tests.Equality
 
-type ERec = { x: Int64; y: Int64 }
+type ERec = { x: Int64, y: Int64 }
 type ERec2 = ERec
-type ERecUInt64 = { x: UInt64; y: UInt64 }
+type ERecUInt64 = { x: UInt64, y: UInt64 }
 type ERec2UInt64 = ERecUInt64
-type ERecInt8 = { x: Int8; y: Int8 }
+type ERecInt8 = { x: Int8, y: Int8 }
 type ERec2Int8 = ERecInt8
-type ERecUInt8 = { x: UInt8; y: UInt8 }
+type ERecUInt8 = { x: UInt8, y: UInt8 }
 type ERec2UInt8 = ERecUInt8
-type ERecInt16 = { x: Int16; y: Int16 }
+type ERecInt16 = { x: Int16, y: Int16 }
 type ERec2Int16 = ERecInt16
-type ERecUInt16 = { x: UInt16; y: UInt16 }
+type ERecUInt16 = { x: UInt16, y: UInt16 }
 type ERec2UInt16 = ERecUInt16
-type ERecInt32 = { x: Int32; y: Int32 }
+type ERecInt32 = { x: Int32, y: Int32 }
 type ERec2Int32 = ERecInt32
-type ERecUInt32 = { x: UInt32; y: UInt32 }
+type ERecUInt32 = { x: UInt32, y: UInt32 }
 type ERec2UInt32 = ERecUInt32
-type ERecInt128 = { x: Int128; y: Int128 }
+type ERecInt128 = { x: Int128, y: Int128 }
 type ERec2Int128 = ERecInt128
-type ERecUInt128 = { x: UInt128; y: UInt128 }
+type ERecUInt128 = { x: UInt128, y: UInt128 }
 type ERec2UInt128 = ERecUInt128
 type EEnumInt8 = | E1 | E2 | E3 of Int8
 type EEnum2Int8 = EEnumInt8
@@ -197,83 +197,83 @@ test lambdas =
 
 test records =
   Stdlib.Test.all
-    [ (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { x = 6Q; y = 7Q })
+    [ (ERecInt128 { x = 6Q, y = 7Q } == ERecInt128 { x = 6Q, y = 7Q })
       |> Stdlib.Test.equal true
-      (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { y = 7Q; x = 6Q })
+      (ERecInt128 { x = 6Q, y = 7Q } == ERecInt128 { y = 7Q, x = 6Q })
       |> Stdlib.Test.equal true
-      (ERecInt128 { x = 6Q; y = 7Q } != ERecInt128 { x = 7Q; y = 6Q })
+      (ERecInt128 { x = 6Q, y = 7Q } != ERecInt128 { x = 7Q, y = 6Q })
       |> Stdlib.Test.equal true
-      (ERecInt128 { x = 6Q; y = 7Q } == ERec2Int128 { y = 7Q; x = 6Q })
+      (ERecInt128 { x = 6Q, y = 7Q } == ERec2Int128 { y = 7Q, x = 6Q })
       |> Stdlib.Test.equal true
-      (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { x = 6Z; y = 7Z })
+      (ERecUInt128 { x = 6Z, y = 7Z } == ERecUInt128 { x = 6Z, y = 7Z })
       |> Stdlib.Test.equal true
-      (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { y = 7Z; x = 6Z })
+      (ERecUInt128 { x = 6Z, y = 7Z } == ERecUInt128 { y = 7Z, x = 6Z })
       |> Stdlib.Test.equal true
-      (ERecUInt128 { x = 6Z; y = 7Z } != ERecUInt128 { x = 7Z; y = 6Z })
+      (ERecUInt128 { x = 6Z, y = 7Z } != ERecUInt128 { x = 7Z, y = 6Z })
       |> Stdlib.Test.equal true
-      (ERecUInt128 { x = 6Z; y = 7Z } == ERec2UInt128 { y = 7Z; x = 6Z })
+      (ERecUInt128 { x = 6Z, y = 7Z } == ERec2UInt128 { y = 7Z, x = 6Z })
       |> Stdlib.Test.equal true
-      (ERec { x = 6L; y = 7L } == ERec { x = 6L; y = 7L })
+      (ERec { x = 6L, y = 7L } == ERec { x = 6L, y = 7L })
       |> Stdlib.Test.equal true
-      (ERec { x = 6L; y = 7L } == ERec { y = 7L; x = 6L })
+      (ERec { x = 6L, y = 7L } == ERec { y = 7L, x = 6L })
       |> Stdlib.Test.equal true
-      (ERec { x = 6L; y = 7L } != ERec { x = 7L; y = 6L })
+      (ERec { x = 6L, y = 7L } != ERec { x = 7L, y = 6L })
       |> Stdlib.Test.equal true
-      (ERec { x = 6L; y = 7L } == ERec2 { y = 7L; x = 6L })
+      (ERec { x = 6L, y = 7L } == ERec2 { y = 7L, x = 6L })
       |> Stdlib.Test.equal true
-      (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { x = 6UL; y = 7UL })
+      (ERecUInt64 { x = 6UL, y = 7UL } == ERecUInt64 { x = 6UL, y = 7UL })
       |> Stdlib.Test.equal true
-      (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { y = 7UL; x = 6UL })
+      (ERecUInt64 { x = 6UL, y = 7UL } == ERecUInt64 { y = 7UL, x = 6UL })
       |> Stdlib.Test.equal true
-      (ERecUInt64 { x = 6UL; y = 7UL } != ERecUInt64 { x = 7UL; y = 6UL })
+      (ERecUInt64 { x = 6UL, y = 7UL } != ERecUInt64 { x = 7UL, y = 6UL })
       |> Stdlib.Test.equal true
-      (ERecUInt64 { x = 6UL; y = 7UL } == ERec2UInt64 { y = 7UL; x = 6UL })
+      (ERecUInt64 { x = 6UL, y = 7UL } == ERec2UInt64 { y = 7UL, x = 6UL })
       |> Stdlib.Test.equal true
-      (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { x = 6l; y = 7l })
+      (ERecInt32 { x = 6l, y = 7l } == ERecInt32 { x = 6l, y = 7l })
       |> Stdlib.Test.equal true
-      (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { y = 7l; x = 6l })
+      (ERecInt32 { x = 6l, y = 7l } == ERecInt32 { y = 7l, x = 6l })
       |> Stdlib.Test.equal true
-      (ERecInt32 { x = 6l; y = 7l } != ERecInt32 { x = 7l; y = 6l })
+      (ERecInt32 { x = 6l, y = 7l } != ERecInt32 { x = 7l, y = 6l })
       |> Stdlib.Test.equal true
-      (ERecInt32 { x = 6l; y = 7l } == ERec2Int32 { y = 7l; x = 6l })
+      (ERecInt32 { x = 6l, y = 7l } == ERec2Int32 { y = 7l, x = 6l })
       |> Stdlib.Test.equal true
-      (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { x = 6ul; y = 7ul })
+      (ERecUInt32 { x = 6ul, y = 7ul } == ERecUInt32 { x = 6ul, y = 7ul })
       |> Stdlib.Test.equal true
-      (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { y = 7ul; x = 6ul })
+      (ERecUInt32 { x = 6ul, y = 7ul } == ERecUInt32 { y = 7ul, x = 6ul })
       |> Stdlib.Test.equal true
-      (ERecUInt32 { x = 6ul; y = 7ul } != ERecUInt32 { x = 7ul; y = 6ul })
+      (ERecUInt32 { x = 6ul, y = 7ul } != ERecUInt32 { x = 7ul, y = 6ul })
       |> Stdlib.Test.equal true
-      (ERecUInt32 { x = 6ul; y = 7ul } == ERec2UInt32 { y = 7ul; x = 6ul })
+      (ERecUInt32 { x = 6ul, y = 7ul } == ERec2UInt32 { y = 7ul, x = 6ul })
       |> Stdlib.Test.equal true
-      (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { x = 6s; y = 7s })
+      (ERecInt16 { x = 6s, y = 7s } == ERecInt16 { x = 6s, y = 7s })
       |> Stdlib.Test.equal true
-      (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { y = 7s; x = 6s })
+      (ERecInt16 { x = 6s, y = 7s } == ERecInt16 { y = 7s, x = 6s })
       |> Stdlib.Test.equal true
-      (ERecInt16 { x = 6s; y = 7s } != ERecInt16 { x = 7s; y = 6s })
+      (ERecInt16 { x = 6s, y = 7s } != ERecInt16 { x = 7s, y = 6s })
       |> Stdlib.Test.equal true
-      (ERecInt16 { x = 6s; y = 7s } == ERec2Int16 { y = 7s; x = 6s })
+      (ERecInt16 { x = 6s, y = 7s } == ERec2Int16 { y = 7s, x = 6s })
       |> Stdlib.Test.equal true
-      (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { x = 6us; y = 7us })
+      (ERecUInt16 { x = 6us, y = 7us } == ERecUInt16 { x = 6us, y = 7us })
       |> Stdlib.Test.equal true
-      (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { y = 7us; x = 6us })
+      (ERecUInt16 { x = 6us, y = 7us } == ERecUInt16 { y = 7us, x = 6us })
       |> Stdlib.Test.equal true
-      (ERecUInt16 { x = 6us; y = 7us } != ERecUInt16 { x = 7us; y = 6us })
+      (ERecUInt16 { x = 6us, y = 7us } != ERecUInt16 { x = 7us, y = 6us })
       |> Stdlib.Test.equal true
-      (ERecUInt16 { x = 6us; y = 7us } == ERec2UInt16 { y = 7us; x = 6us })
+      (ERecUInt16 { x = 6us, y = 7us } == ERec2UInt16 { y = 7us, x = 6us })
       |> Stdlib.Test.equal true
-      (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { x = 6y; y = 7y })
+      (ERecInt8 { x = 6y, y = 7y } == ERecInt8 { x = 6y, y = 7y })
       |> Stdlib.Test.equal true
-      (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { y = 7y; x = 6y })
+      (ERecInt8 { x = 6y, y = 7y } == ERecInt8 { y = 7y, x = 6y })
       |> Stdlib.Test.equal true
-      (ERecInt8 { x = 6y; y = 7y } != ERecInt8 { x = 7y; y = 6y })
+      (ERecInt8 { x = 6y, y = 7y } != ERecInt8 { x = 7y, y = 6y })
       |> Stdlib.Test.equal true
-      (ERecInt8 { x = 6y; y = 7y } == ERec2Int8 { y = 7y; x = 6y })
+      (ERecInt8 { x = 6y, y = 7y } == ERec2Int8 { y = 7y, x = 6y })
       |> Stdlib.Test.equal true
-      (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { x = 6uy; y = 7uy })
+      (ERecUInt8 { x = 6uy, y = 7uy } == ERecUInt8 { x = 6uy, y = 7uy })
       |> Stdlib.Test.equal true
-      (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { y = 7uy; x = 6uy })
+      (ERecUInt8 { x = 6uy, y = 7uy } == ERecUInt8 { y = 7uy, x = 6uy })
       |> Stdlib.Test.equal true
-      (ERecUInt8 { x = 6uy; y = 7uy } != ERecUInt8 { x = 7uy; y = 6uy })
+      (ERecUInt8 { x = 6uy, y = 7uy } != ERecUInt8 { x = 7uy, y = 6uy })
       |> Stdlib.Test.equal true ]
 
 test enums =

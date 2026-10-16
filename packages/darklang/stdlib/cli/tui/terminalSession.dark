@@ -191,7 +191,7 @@ let normalizeView
             (Stdlib.max 0 (row - offset)),
           Stdlib.min (width - 1) (Stdlib.max 0 column))
 
-    { view with rows = visibleRows; cursor = cursor }
+    { view with rows = visibleRows, cursor = cursor }
 
 
 /// Prepare a complete view for presentation at a known terminal size.
@@ -346,7 +346,7 @@ let prepareStop (state: State) : Prepared =
     | RunningInline -> Ansi.wrapUpdate Ansi.restoreInlineModes
     | RunningFullscreen -> Ansi.wrapUpdate Ansi.restoreFullscreenModes
 
-  Prepared { state = init (); output = output }
+  Prepared { state = init (), output = output }
 
 
 /// Stop the session and restore terminal state with one stdout write.

@@ -42,7 +42,7 @@ module WrittenTypesToDarkTypes =
       pointTypeName (),
       pointTypeName (),
       [],
-      // `Point` is `{ row: Int; column: Int }` in WrittenTypes
+      // `Point` is `{ row: Int, column: Int }` in WrittenTypes
       Map [ "row", Dval.int (bigint p.row); "column", Dval.int (bigint p.column) ]
     )
 

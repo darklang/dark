@@ -154,7 +154,7 @@ type Followed =
     failure: Stdlib.Option.Option<String> }
 
 let nothingFollowed () : Followed =
-  Followed { names = []; broken = []; failure = Stdlib.Option.Option.None }
+  Followed { names = [], broken = [], failure = Stdlib.Option.Option.None }
 
 /// Repoint the dependents of <param location> at <param currentHash>, now, into the draft, and say
 /// what followed.
@@ -215,8 +215,8 @@ let repointNow
               (Stdlib.Tuple2.second pair, text))
           | _ -> Stdlib.Option.Option.None)
 
-      Followed { names = names; broken = broken; failure = Stdlib.Option.Option.None }
-    | Error e -> Followed { names = []; broken = []; failure = Stdlib.Option.Option.Some e }
+      Followed { names = names, broken = broken, failure = Stdlib.Option.Option.None }
+    | Error e -> Followed { names = [], broken = [], failure = Stdlib.Option.Option.Some e }
 
 /// A binding that existed before this save. Method functions count too.
 type UpdatedItem =
@@ -236,7 +236,7 @@ let updatedItems
       let kind = LanguageTools.ProgramTypes.Reference.kind reference
       let previous = getAllPreviousHashes branchId location kind
       if Stdlib.List.isEmpty previous then None
-      else Some(UpdatedItem { location = location; kind = kind; previous = previous })
+      else Some(UpdatedItem { location = location, kind = kind, previous = previous })
     | _ -> None)
   |> Stdlib.List.uniqueBy (fun item -> item.location)
 
@@ -251,7 +251,7 @@ let repointSaved (branchId: Uuid) (updates: List<UpdatedItem>) : Followed =
           (update.previous |> Stdlib.List.filter (fun h -> h != current))
           current update.kind
       | None ->
-        Followed { names = []; broken = []; failure = Some "A saved binding could not be resolved." }
+        Followed { names = [], broken = [], failure = Some "A saved binding could not be resolved." }
     let failure =
       match combined.failure with
       | Some _ -> combined.failure

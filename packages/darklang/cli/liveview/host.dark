@@ -217,7 +217,7 @@ let applyUpdate (s: Session<'model, 'msg>) (event: Event<'msg>) : Session<'model
   match Stdlib.Live.call s.update s.model with
   | Ok partial ->
     match Stdlib.Live.apply partial event with
-    | Ok model -> { s with model = model; toast = Stdlib.Option.Option.None }
+    | Ok model -> { s with model = model, toast = Stdlib.Option.Option.None }
     | Error rte -> { s with band = Stdlib.Option.Option.Some $"{s.view.update} failed: {rte}" }
   | Error e -> { s with band = Stdlib.Option.Option.Some e }
 
@@ -259,9 +259,9 @@ let onKey (s: Session<'model, 'msg>) (k: Stdlib.Cli.UI.Widget.KeyPress) : Sessio
   // Scrolling away drops the focus: the window follows the focused node, so keeping it would
   // pull the window straight back. Tab focuses again and brings the node into view.
   else if k.key == Stdlib.Cli.Stdin.Key.Key.PageDown then
-    { s with scroll = s.scroll + 10; focus = "" }
+    { s with scroll = s.scroll + 10, focus = "" }
   else if k.key == Stdlib.Cli.Stdin.Key.Key.PageUp then
-    { s with scroll = Stdlib.max 0 (s.scroll - 10); focus = "" }
+    { s with scroll = Stdlib.max 0 (s.scroll - 10), focus = "" }
   else
     let focused =
       match s.lastFrame with

@@ -14,7 +14,7 @@ let versionsOf
   | owner :: modules ->
     SCM.Propagation.authoringOrder (
       LanguageTools.ProgramTypes.PackageLocation
-        { owner = owner; modules = modules; name = name })
+        { owner = owner, modules = modules, name = name })
 
 
 /// Print the `--versions` rows under one name: each version's short hash, oldest first, the

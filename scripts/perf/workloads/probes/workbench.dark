@@ -45,5 +45,5 @@ let base =
 
 // 120x40 is the smallest size that lays out every pane; below it the workbench drops panes and the
 // numbers stop meaning what they look like they mean.
-let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
 Stdlib.List.iter (Stdlib.List.range 0 9) (fun i -> timeView i base size)

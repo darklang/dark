@@ -38,7 +38,7 @@ module Helpers =
 
   let base' (name: String) (hash: String) : Darklang.SCM.Conflicts.NameBase =
     Darklang.SCM.Conflicts.NameBase
-      { owner = "Zz"; modules = "W"; name = name; baseHash = hash }
+      { owner = "Zz", modules = "W", name = name, baseHash = hash }
 
   let detectCount
     (local: List<Darklang.SCM.Conflicts.Binding>)

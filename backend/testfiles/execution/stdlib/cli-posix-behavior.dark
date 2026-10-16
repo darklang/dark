@@ -13,17 +13,17 @@ Stdlib.Cli.Posix.__macMessage 999 = "Unknown error: 999"
 (Stdlib.Cli.Posix.__fromErrno 22).message = "Invalid argument"
 
 // A deterministic collision becomes success; non-collisions stop immediately.
-Stdlib.Cli.Posix.__tempRetry (fun remaining -> if remaining > 0 then Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17; message = "File exists" }) else Stdlib.Result.Result.Ok "created") 2 = Stdlib.Result.Result.Ok "created"
-Stdlib.Cli.Posix.__tempRetry (fun remaining -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 22; message = Stdlib.toString remaining })) 2 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 22; message = "2" })
-Stdlib.Cli.Posix.__tempRetry (fun remaining -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17; message = Stdlib.toString remaining })) 2 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17; message = "0" })
+Stdlib.Cli.Posix.__tempRetry (fun remaining -> if remaining > 0 then Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17, message = "File exists" }) else Stdlib.Result.Result.Ok "created") 2 = Stdlib.Result.Result.Ok "created"
+Stdlib.Cli.Posix.__tempRetry (fun remaining -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 22, message = Stdlib.toString remaining })) 2 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 22, message = "2" })
+Stdlib.Cli.Posix.__tempRetry (fun remaining -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17, message = Stdlib.toString remaining })) 2 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17, message = "0" })
 
 // Partial writes complete, zero-progress writes fail, and errors propagate.
 Stdlib.Cli.Posix.__writeAll (fun bytes -> Stdlib.Result.Result.Ok (if Stdlib.Blob.length bytes > 1 then 1 else Stdlib.Blob.length bytes)) (Stdlib.String.toBlob "abcd") 0 = Stdlib.Result.Result.Ok 4
-Stdlib.Cli.Posix.__writeAll (fun _ -> Stdlib.Result.Result.Ok 0) (Stdlib.String.toBlob "abc") 0 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 5; message = "write made invalid progress" })
+Stdlib.Cli.Posix.__writeAll (fun _ -> Stdlib.Result.Result.Ok 0) (Stdlib.String.toBlob "abc") 0 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 5, message = "write made invalid progress" })
 Stdlib.Cli.Posix.__writeAll (fun _ -> Stdlib.Result.Result.Ok 0) (Stdlib.String.toBlob "") 0 = Stdlib.Result.Result.Ok 0
-Stdlib.Cli.Posix.__writeAll (fun _ -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9; message = "Bad file descriptor" })) (Stdlib.String.toBlob "abc") 0 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9; message = "Bad file descriptor" })
+Stdlib.Cli.Posix.__writeAll (fun _ -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9, message = "Bad file descriptor" })) (Stdlib.String.toBlob "abc") 0 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9, message = "Bad file descriptor" })
 
 // Public wrappers invoke the checked host operations and format their results.
 Stdlib.Result.isOk (Stdlib.Cli.Posix.getCwd ()) = true
 Stdlib.Result.isOk (Stdlib.Cli.Posix.uname ()) = true
-Stdlib.Cli.Posix.fdRead -1 1 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9; message = "Bad file descriptor" })
+Stdlib.Cli.Posix.fdRead -1 1 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9, message = "Bad file descriptor" })

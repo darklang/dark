@@ -190,7 +190,7 @@ let draftRepoints
 
     Stdlib.List.append fromOverlay fromMain
     |> Stdlib.List.unique
-    |> Stdlib.List.map (fun n -> Repoint { name = n; uses = cause }))
+    |> Stdlib.List.map (fun n -> Repoint { name = n, uses = cause }))
   |> Stdlib.List.flatten
   |> Stdlib.List.filter (fun r ->
     Stdlib.Bool.not (Stdlib.List.``member`` changedNames r.name))

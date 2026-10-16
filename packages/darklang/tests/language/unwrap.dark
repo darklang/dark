@@ -260,7 +260,7 @@ let inRecord
   : Stdlib.Option.Option<Dict<String, Int>> =
   Some (Dict { "a": v? })
 
-type R = { a: Int; b: Int }
+type R = { a: Int, b: Int }
 let inUpdate (r: R) (v: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<R> =
   Some { r with b = v? }
 
@@ -279,9 +279,9 @@ test inExpressions =
   Stdlib.Test.all
     [ inRecord None |> Stdlib.Test.equal None
       inRecord (Some 1) |> Stdlib.Test.equal (Some (Dict { "a": 1 }))
-      inUpdate (R { a = 1; b = 2 }) (Some 5)
-      |> Stdlib.Test.equal (Some (R { a = 1; b = 5 }))
-      inUpdate (R { a = 1; b = 2 }) None |> Stdlib.Test.equal None
+      inUpdate (R { a = 1, b = 2 }) (Some 5)
+      |> Stdlib.Test.equal (Some (R { a = 1, b = 5 }))
+      inUpdate (R { a = 1, b = 2 }) None |> Stdlib.Test.equal None
       neg (Some 3) |> Stdlib.Test.equal (Some -3)
       neg None |> Stdlib.Test.equal None
       notted (Some true) |> Stdlib.Test.equal (Some false)

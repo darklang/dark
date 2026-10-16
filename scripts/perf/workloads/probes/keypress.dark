@@ -14,8 +14,8 @@ let base =
     // not live: a --live view polls the store, which is not what is being timed here
     false
 
-let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
-let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false }
+let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = false, shift = false }
 let key = Stdlib.Cli.Stdin.Key.Key.RightArrow
 
 let keyN (i: Int) (s: Darklang.Cli.Workbench.State) (acc: Int) : Int =

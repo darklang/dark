@@ -45,7 +45,7 @@ module Darklang.Stdlib.Http.Tests
 //   => raises "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
 //   Stdlib.Http.setCookie "myCookie" "myVal" { SameSite = 5 }
 //   => raises "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`"
-//   Stdlib.Http.setCookie "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" }
+//   Stdlib.Http.setCookie "myCookie" "myVal" {``Max-Age`` = 3600, SameSite = "allthesecures" }
 //   => raises "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
 //   Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"}
 //   => raises "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
@@ -62,7 +62,7 @@ let request
   (url: String)
   (headers: List<String * String>)
   : Stdlib.Http.Request =
-  Stdlib.Http.Request { url = url; headers = headers; body = Stdlib.Blob.empty }
+  Stdlib.Http.Request { url = url, headers = headers, body = Stdlib.Blob.empty }
 
 // Compare response builders with their expected fields.
 test responseBuilders =

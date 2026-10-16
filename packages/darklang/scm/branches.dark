@@ -446,7 +446,7 @@ let rebaseDetailed (branchId: Uuid) : Stdlib.Result.Result<Rebased, String> =
       | _ -> Stdlib.Option.Option.None)
     |> Stdlib.List.unique
 
-  let outcome = Rebased { diverged = changed; repointed = repointed }
+  let outcome = Rebased { diverged = changed, repointed = repointed }
 
   match updates with
   | [] -> Stdlib.Result.Result.Ok outcome

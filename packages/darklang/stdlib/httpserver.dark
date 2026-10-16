@@ -11,11 +11,11 @@ type Handler =
 
 /// A GET route, so a handler table reads as routes rather than record boilerplate.
 let get (route: String) (fn: Http.Request -> Http.Response) : Handler =
-  Handler { route = route; method = "GET"; handler = fn }
+  Handler { route = route, method = "GET", handler = fn }
 
 /// A POST route. See <fn Stdlib.HttpServer.get>.
 let post (route: String) (fn: Http.Request -> Http.Response) : Handler =
-  Handler { route = route; method = "POST"; handler = fn }
+  Handler { route = route, method = "POST", handler = fn }
 
 
 /// Result of matching a route pattern against a request path
@@ -81,9 +81,9 @@ let matchRouteSegments (routeSegs: List<RouteSegment>) (pathSegs: List<String>) 
   let pathLen = List.length pathSegs
 
   if (routeLen == 0) && (pathLen == 0) then
-    RouteMatch { matched = true; vars = [] }
+    RouteMatch { matched = true, vars = [] }
   else if routeLen != pathLen then
-    RouteMatch { matched = false; vars = [] }
+    RouteMatch { matched = false, vars = [] }
   else
     // Use zipShortest since we already checked lengths are equal
     let zipped = List.zipShortest routeSegs pathSegs
@@ -103,8 +103,8 @@ let matchRouteSegments (routeSegs: List<RouteSegment>) (pathSegs: List<String>) 
             | None -> Option.Option.None)
 
     match result with
-    | Some vars -> RouteMatch { matched = true; vars = vars }
-    | None -> RouteMatch { matched = false; vars = [] }
+    | Some vars -> RouteMatch { matched = true, vars = vars }
+    | None -> RouteMatch { matched = false, vars = [] }
 
 
 let matchRoute (routePattern: String) (requestPath: String) : RouteMatch =

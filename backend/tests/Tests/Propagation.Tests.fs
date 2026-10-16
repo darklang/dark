@@ -551,7 +551,7 @@ let typeMovesItsUsers =
     let! mkBefore = liveBoundHash (loc m "mk")
     Expect.isSome mkBefore "mk is bound after authoring"
 
-    let! v2 = authorIn m $"""type Rec = {{ a: Int64; b: Int64 }}"""
+    let! v2 = authorIn m $"""type Rec = {{ a: Int64, b: Int64 }}"""
 
     let recV1 = hashBoundTo v1 "Rec"
     let recV2 = hashBoundTo v2 "Rec"

@@ -65,7 +65,7 @@ let readText (path: String) : Result.Result<String, Posix.Error> =
       | Ok s -> Stdlib.Result.Result.Ok s
       | Error msg ->
         Stdlib.Result.Result.Error
-          (Posix.Error { errno = -1; message = $"File contents not valid UTF-8: {msg}" })
+          (Posix.Error { errno = -1, message = $"File contents not valid UTF-8: {msg}" })
     | Error e -> Stdlib.Result.Result.Error e
   | Error e -> Stdlib.Result.Result.Error e
 

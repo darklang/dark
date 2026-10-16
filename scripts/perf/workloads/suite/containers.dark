@@ -9,7 +9,7 @@ let iters () : Int =
     | Error _ -> 0
   | None -> 0
 
-type Boxed<'v> = { v: 'v; tag: String }
+type Boxed<'v> = { v: 'v, tag: String }
 
 let empties () : List<Int> = []
 
@@ -39,7 +39,7 @@ let work (n: Int) : Int =
     | Error _ -> 1
 
   // A parameterised record, which took the same slow path as Option and Result
-  let boxed = Boxed<Int> { v = a; tag = "t" }
+  let boxed = Boxed<Int> { v = a, tag = "t" }
 
   a + b + c + d + boxed.v
 
