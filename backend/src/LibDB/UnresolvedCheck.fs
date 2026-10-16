@@ -48,7 +48,7 @@ let rec private inTypeRef (t : PT.TypeReference) : List<string> =
   | PT.TString
   | PT.TUuid
   | PT.TDateTime
-  | PT.TBlob
+  | PT.TBytes
   | PT.TVariable _ -> []
 
   | PT.TStream inner

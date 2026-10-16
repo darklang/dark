@@ -99,7 +99,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.TString
       | PT.TUuid
       | PT.TDateTime
-      | PT.TBlob
+      | PT.TBytes
       | PT.TVariable _ -> ()
 
       | PT.TStream inner

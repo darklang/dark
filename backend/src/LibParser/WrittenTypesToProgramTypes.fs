@@ -154,7 +154,7 @@ module TypeReference =
       | WT.TString _ -> return PT.TString
       | WT.TDateTime _ -> return PT.TDateTime
       | WT.TUuid _ -> return PT.TUuid
-      | WT.TBlob _ -> return PT.TBlob
+      | WT.TBytes _ -> return PT.TBytes
 
       | WT.TList(_, _, _, inner, _) -> return! toPT inner |> Ply.map PT.TList
 

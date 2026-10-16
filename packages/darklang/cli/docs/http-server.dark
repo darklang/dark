@@ -42,7 +42,7 @@ Handlers are values; `routeRequest` dispatches to them by method and path.
 
 ## Request
 
-  type Stdlib.Http.Request = { url: String, headers: List<String * String>, body: Blob }
+  type Stdlib.Http.Request = { url: String, headers: List<String * String>, body: Bytes }
 
 Method and path are NOT fields - they're derived:
 
@@ -50,9 +50,9 @@ Method and path are NOT fields - they're derived:
   Stdlib.HttpServer.getPath req        # "/users/42"
   Stdlib.Http.parseQueryString req.url  # query string -> Dict
 
-`body` is a Blob. For text or JSON, convert first:
+`body` is a Bytes. For text or JSON, convert first:
 
-  let text = Stdlib.String.fromBlobWithReplacement req.body
+  let text = Stdlib.String.fromBytesWithReplacement req.body
 
 ## Response
 
@@ -62,7 +62,7 @@ Body first, status second - the reverse of what you might expect.
   Stdlib.Http.responseWithHtml "<h1>Hi</h1>" 200
   Stdlib.Http.responseWithJson jsonString 200
   Stdlib.Http.responseWithHeaders body 200 [ ("x-thing", "value") ]
-  Stdlib.Http.response bodyBlob 200          # the raw one; body is a Blob
+  Stdlib.Http.response bodyBytes 200          # the raw one; body is a Bytes
   Stdlib.Http.notFound ()
 
 ## Route params

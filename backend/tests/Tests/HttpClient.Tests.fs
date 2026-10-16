@@ -240,20 +240,6 @@ let makeTest versionName filename =
         let instrs = test.expected |> PT2RT.Expr.toRT Map.empty 0 None
         Exe.executeExpr exeState instrs
 
-      // Promote ephemeral blobs on both sides so two independently-built
-      // Blobs with identical bytes (different UUIDs) compare equal.
-      let noopInsert _ _ = uply { return () }
-      let promoteIfOk r =
-        task {
-          match r with
-          | Ok dv ->
-            let! p = LibExecution.Blob.promote noopInsert dv |> Ply.toTask
-            return Ok p
-          | Error _ -> return r
-        }
-      let! actual = promoteIfOk actual
-      let! expected = promoteIfOk expected
-
       // Normalize the `headers` field of an HttpClient.Response Dval by
       // sorting tuples by header key. The test webserver below uses
       // System.Net.HttpListener which emits headers in implementation-

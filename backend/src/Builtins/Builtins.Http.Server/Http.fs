@@ -14,7 +14,7 @@ module Exe = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module PackageRefs = LibExecution.PackageRefs
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 
 
 let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string> =
@@ -37,7 +37,7 @@ module Request =
       |> Dval.list headerType
 
     let fields =
-      [ "body", Blob.newEphemeral body; "headers", headers; "url", RT.DString uri ]
+      [ "body", Bytes.newEphemeral body; "headers", headers; "url", RT.DString uri ]
     RT.DRecord(typ, typ, [], Map fields)
 
 
@@ -57,7 +57,7 @@ module Response =
       let body = Map.get "body" fields
 
       match code, headers, body with
-      | Some(RT.DInt code), Some(RT.DList(_, headers)), Some(RT.DBlob bodyRef) ->
+      | Some(RT.DInt code), Some(RT.DList(_, headers)), Some(RT.DBytes bodyRef) ->
         let headers =
           headers
           |> List.fold
@@ -72,7 +72,7 @@ module Response =
 
         match headers with
         | Ok headers ->
-          let! body = Blob.readBytes state bodyRef
+          let! body = Bytes.readBytes state bodyRef
           // `statusCode` is an arbitrary-precision `Int`; narrowing a value
           // outside Int32 range with `int` would throw a host exception, so
           // reject it as an application error instead.
@@ -121,7 +121,7 @@ module Response =
           "  Darklang.Stdlib.Http.Response {"
           "    statusCode : Int"
           "    headers : List<String*String>"
-          "    body : Blob"
+          "    body : Bytes"
           "  }" ]
       return
         { statusCode = 500

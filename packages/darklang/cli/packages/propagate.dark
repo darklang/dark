@@ -86,7 +86,7 @@ let typeReferenceEqual
   | (TString, TString) -> true
   | (TDateTime, TDateTime) -> true
   | (TUuid, TUuid) -> true
-  | (TBlob, TBlob) -> true
+  | (TBytes, TBytes) -> true
 
   | (TStream innerA, TStream innerB) ->
     typeReferenceEqual branchId innerA innerB

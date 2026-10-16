@@ -234,7 +234,7 @@ module TypeReference =
       | TString _range -> (ProgramTypes.TypeReference.TString, [])
       | TDateTime _range -> (ProgramTypes.TypeReference.TDateTime, [])
       | TUuid _range -> (ProgramTypes.TypeReference.TUuid, [])
-      | TBlob _range -> (ProgramTypes.TypeReference.TBlob, [])
+      | TBytes _range -> (ProgramTypes.TypeReference.TBytes, [])
 
       | TStream(_range, _, _, typ, _) ->
         let (typ, unresolvedNames) = TypeReference.toPT ctx typ
@@ -1106,7 +1106,7 @@ module Expr =
           (ProgramTypes.Expr.EFnName(gid (), resolvedFnName, []), unresolvedNames)
       | Error _ ->
         // Qualified fn resolution failed. The parser emits EFnName for *any*
-        // qualified reference, including standalone VALUES (e.g. `Stdlib.Blob.empty`
+        // qualified reference, including standalone VALUES (e.g. `Stdlib.Bytes.empty`
         // — a `let`-value used as an argument), so fall back to value resolution
         // before giving up.
         let nameToResolve =
@@ -1482,7 +1482,7 @@ module FunctionDeclaration =
     | TString
     | TDateTime
     | TUuid
-    | TBlob -> acc
+    | TBytes -> acc
 
   let toPackageFnPT
     (ctx: NameResolver.NRContext)
@@ -1648,7 +1648,7 @@ module ImplDeclaration =
       | TString _ -> "String"
       | TDateTime _ -> "DateTime"
       | TUuid _ -> "Uuid"
-      | TBlob _ -> "Blob"
+      | TBytes _ -> "Bytes"
       | TStream(_, _, _, _, _) -> "Stream"
       | TList(_, _, _, _, _) -> "List"
       | TDict(_, _, _, _, _, _, _) -> "Dict"

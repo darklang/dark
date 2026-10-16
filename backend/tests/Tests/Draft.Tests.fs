@@ -535,13 +535,13 @@ let aPullInsideARebuildsWindowSurvivesIt =
       match peerOps with
       | op :: _ -> op
       | [] -> failtest "the peer source authored nothing"
-    let alienBlob =
+    let alienBytes =
       LibSerialization.Binary.Serialization.PT.PackageOp.serialize alienId peerOp
-    alienBlob[8] <- 200uy
+    alienBytes[8] <- 200uy
     Expect.isNone
       (LibSerialization.Binary.Serialization.PT.PackageOp.tryDeserialize
         alienId
-        alienBlob)
+        alienBytes)
       "the alien op really is undecodable"
 
     let records =
@@ -554,7 +554,7 @@ let aPullInsideARebuildsWindowSurvivesIt =
           ),
           Inserts.nextOriginTs ())))
       @ [ (string alienId,
-           System.Convert.ToHexString alienBlob,
+           System.Convert.ToHexString alienBytes,
            Inserts.nextOriginTs ()) ]
 
     // `scmImportOps`, which is what a pull runs.

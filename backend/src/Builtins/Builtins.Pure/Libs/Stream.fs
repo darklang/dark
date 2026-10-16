@@ -1,6 +1,6 @@
 /// Stream builtins. Surfaces the lazy, single-consumer `DStream`
 /// abstraction from `LibExecution.RuntimeTypes` to user code:
-/// `fromList`, `next`, `toList`, `toBlob`, `close`, and the transforms
+/// `fromList`, `next`, `toList`, `toBytes`, `close`, and the transforms
 /// `map` / `filter` / `take` / `concat`.
 ///
 /// Alternatives considered but not taken:
@@ -22,7 +22,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 module Interpreter = LibExecution.Interpreter
 module Permissions = LibExecution.Permissions
 module Stream = LibExecution.Stream
@@ -237,12 +237,12 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "streamToBlob" 0
+    { name = fn "streamToBytes" 0
       typeParams = []
       parameters = [ Param.make "stream" (TStream TUInt8) "" ]
-      returnType = TBlob
+      returnType = TBytes
       description =
-        "Drains a byte stream into a single ephemeral Blob, consuming <param stream>."
+        "Drains a byte stream into a single ephemeral Bytes, consuming <param stream>."
       fn =
         (function
         | _, _, _, [| DStream(FromIO(_, _, _, Some _), _, _) as s |] ->
@@ -256,7 +256,7 @@ let fns () : List<BuiltInFn> =
               match chunk with
               | Some buf -> collected.Write(buf, 0, buf.Length)
               | None -> keepGoing <- false
-            return Blob.newEphemeral (collected.ToArray())
+            return Bytes.newEphemeral (collected.ToArray())
           }
         | _, vm, _, [| DStream _ as s |] ->
           // Anything else (a transform chain, an in-memory stream) is pulled a byte at a time;
@@ -271,12 +271,12 @@ let fns () : List<BuiltInFn> =
               drivePull vm onPulled (Stream.pullNext s)
             | Some _ ->
               Exception.raiseInternal
-                "streamToBlob: expected Stream<UInt8> element"
+                "streamToBytes: expected Stream<UInt8> element"
                 []
             | None ->
               let bytes = collected.ToArray()
               collected.Dispose()
-              Ply(Blob.newEphemeral bytes)
+              Ply(Bytes.newEphemeral bytes)
           drivePull vm onPulled (Stream.pullNext s)
         | _ -> incorrectArgs ())
       previewable = Impure

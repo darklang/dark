@@ -139,7 +139,7 @@ module Fn =
 
 
 /// Content-addressed blob storage — bytes keyed by SHA-256 hash.
-module Blob =
+module Bytes =
   /// Look up bytes by hash. Returns [None] when the row doesn't exist.
   ///
   /// A blob a trace captured lives in `trace_blobs`, owned by that trace, so a read that misses
@@ -187,11 +187,11 @@ module Blob =
   /// Walk a Dval tree and collect every `Persistent` blob hash it
   /// references. Ephemeral blobs aren't rows in `package_blobs` — they
   /// live in the per-ExecutionState byte-store and don't need sweeping.
-  let private collectBlobHashes (dv : RT.Dval) : Set<string> =
+  let private collectBytesHashes (dv : RT.Dval) : Set<string> =
     let rec go (acc : Set<string>) (dv : RT.Dval) : Set<string> =
       match dv with
-      | RT.DBlob(RT.Persistent(hash, _)) -> Set.add hash acc
-      | RT.DBlob(RT.Ephemeral _) -> acc
+      | RT.DBytes(RT.Persistent(hash, _)) -> Set.add hash acc
+      | RT.DBytes(RT.Ephemeral _) -> acc
       | RT.DPromise p when p.Task.IsCompletedSuccessfully -> go acc p.Task.Result
       | RT.DStream _
       | RT.DPromise _
@@ -263,7 +263,7 @@ module Blob =
           (fun acc (valueHash, rtDvalBytes) ->
             try
               let pv = BS.RT.PackageValue.deserialize (Hash valueHash) rtDvalBytes
-              Set.union acc (collectBlobHashes pv.body)
+              Set.union acc (collectBytesHashes pv.body)
             with _ ->
               // Corrupt / stale row — don't let one bad row block the
               // sweep; skip and carry on.

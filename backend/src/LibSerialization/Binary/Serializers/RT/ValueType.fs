@@ -57,7 +57,7 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) : unit =
     w.Write 22uy
     write w keyType
     write w valueType
-  | KTBlob -> w.Write 23uy
+  | KTBytes -> w.Write 23uy
   | KTStream vt ->
     w.Write 24uy
     write w vt
@@ -106,7 +106,7 @@ and readKnownType (r : BinaryReader) : KnownType =
     let keyType = read r
     let valueType = read r
     KTDict(keyType, valueType)
-  | 23uy -> KTBlob
+  | 23uy -> KTBytes
   | 24uy -> KTStream(read r)
   | 25uy -> KTInt
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"

@@ -14,9 +14,9 @@ module Darklang.SCM.PackageOps
 /// reader touches one first.
 let tryDecodeOp
   (id: Uuid)
-  (blob: Blob)
+  (blob: Bytes)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.packageOpFromBlobOption id blob
+  Builtin.packageOpFromBytesOption id blob
 
 
 /// Whether an op binds a NAME, read from its tag without decoding it.
@@ -24,7 +24,7 @@ let tryDecodeOp
 /// Worth having only because of what it saves: an import decodes every arriving op to learn which names
 /// moved, and content ops (the `Add*` family, which are whole ASTs and so the expensive ones) move none.
 /// Asking first turns most of that decoding into a byte comparison.
-let opBindsAName (blob: Blob) : Bool = Builtin.packageOpBindsAName blob
+let opBindsAName (blob: Bytes) : Bool = Builtin.packageOpBindsAName blob
 
 
 /// (id text, ts, decoded op) per decodable row -- the one id/blob/ts decode behind every

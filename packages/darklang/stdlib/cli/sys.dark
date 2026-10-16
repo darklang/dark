@@ -52,14 +52,14 @@ let isRoot () : Bool =
 
 /// Host record selection, buffer growth and decoding shared by both engines.
 
-let __text (buffer: Blob) (offset: Int) (length: Int) : String =
-  Stdlib.Blob.toList buffer
+let __text (buffer: Bytes) (offset: Int) (length: Int) : String =
+  Stdlib.Bytes.toList buffer
   |> Stdlib.List.drop offset
   |> Stdlib.List.take length
   |> Stdlib.List.takeWhile (fun byte -> byte != 0uy)
-  |> Stdlib.String.fromBytesWithReplacement
+  |> Stdlib.String.fromByteListWithReplacement
 
-let __sysctlWith (mib: List<Int>) (count: Int) : Result.Result<Blob, Int> =
+let __sysctlWith (mib: List<Int>) (count: Int) : Result.Result<Bytes, Int> =
   match Builtin.syscallSysctl mib count with
   | Error e ->
     if e == 4 then __sysctlWith mib count
@@ -69,13 +69,13 @@ let __sysctlWith (mib: List<Int>) (count: Int) : Result.Result<Blob, Int> =
 
 let __sysctlText (mib: List<Int>) : Result.Result<String, Int> =
   __sysctlWith mib 256
-  |> Stdlib.Result.map (fun bytes -> __text bytes 0 (Stdlib.Blob.length bytes))
+  |> Stdlib.Result.map (fun bytes -> __text bytes 0 (Stdlib.Bytes.length bytes))
 
 let __countBits (value: Int) : Int =
   if value == 0 then 0
   else value % 2 + __countBits (value / 2)
 
-let __affinityWith (count: Int) : Result.Result<Blob, Int> =
+let __affinityWith (count: Int) : Result.Result<Bytes, Int> =
   match Builtin.syscallSchedGetaffinity 0 count with
   | Error e ->
     if e == 4 then __affinityWith count
@@ -90,10 +90,10 @@ let __cpuCount () : Result.Result<Int, Int> =
     if Builtin.runtimeTargetOS () == "browser" then Ok 1
     else if Stdlib.Cli.Posix.__abiMac () then
       __sysctlWith [6, 3] 4
-      |> Stdlib.Result.andThen (fun bytes -> Stdlib.Cli.Posix.__kernelField (Stdlib.Blob.toList bytes) 0 4)
+      |> Stdlib.Result.andThen (fun bytes -> Stdlib.Cli.Posix.__kernelField (Stdlib.Bytes.toList bytes) 0 4)
     else
       __affinityWith 128
       |> Stdlib.Result.map (fun bytes ->
-        Stdlib.List.fold (Stdlib.Blob.toList bytes) 0
+        Stdlib.List.fold (Stdlib.Bytes.toList bytes) 0
           (fun total byte -> total + __countBits (Stdlib.Int.fromUInt8 byte)))
   result |> Stdlib.Result.andThen (fun count -> if count > 0 then Ok count else Error 5)

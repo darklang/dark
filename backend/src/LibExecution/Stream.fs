@@ -83,7 +83,7 @@ let newFromIO
 /// Mint a DStream<UInt8> that can be drained bulk-wise via
 /// [readChunk]. The `nextChunk` callback fills up to `maxBytes` into
 /// a fresh byte[] and returns it (or None on exhaustion). Consumers
-/// that want full-chunk bytes — `streamToBlob`, SSE byte
+/// that want full-chunk bytes — `streamToBytes`, SSE byte
 /// accumulators — bypass per-byte Ply/Dval boxing by calling
 /// `readChunk` instead of `readNext`. The `next` path stays
 /// available so `streamNext` returns one DUInt8 at a time as before
@@ -296,9 +296,9 @@ let readNext (dv : Dval) : Ply.Ply<Option<Dval>> = runNative (pullNext dv)
 /// byte-wise pulls for streams that were built via [newFromIO] or
 /// that walk transform nodes (Take/Concat) where a chunk semantic
 /// isn't well-defined. Like [readNext], for streams that run no Dark
-/// code; `streamToBlob` drives the transform case itself.
+/// code; `streamToBytes` drives the transform case itself.
 ///
-/// Used by `streamToBlob` and SSE byte accumulators to amortise the
+/// Used by `streamToBytes` and SSE byte accumulators to amortise the
 /// Ply-continuation cost across whole chunks rather than paying it
 /// per byte.
 let readChunk (maxBytes : int) (dv : Dval) : Ply.Ply<Option<byte[]>> =

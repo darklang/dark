@@ -600,11 +600,11 @@ module HandleCommand =
         return Ok()
     }
 
-  let sweepBlobs () : Ply<Result<unit, string>> =
+  let sweepBytes () : Ply<Result<unit, string>> =
     uply {
       try
         print "Sweeping orphan package_blobs..."
-        let! deleted = LibDB.RuntimeTypes.Blob.sweepOrphans ()
+        let! deleted = LibDB.RuntimeTypes.Bytes.sweepOrphans ()
         print $"Deleted {deleted} orphan blob row(s)"
         return Ok()
       with ex ->
@@ -657,7 +657,7 @@ let main (args : string[]) : int =
     | [ "pm-sweep-blobs" ] ->
       handleCommand
         "sweeping orphan package_blobs rows"
-        (HandleCommand.sweepBlobs ())
+        (HandleCommand.sweepBytes ())
 
     | [ "bench" ] ->
       handleCommand

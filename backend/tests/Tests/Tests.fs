@@ -157,7 +157,7 @@ let main (args : string array) : int =
         Tests.CliScriptLowering.tests
 
         // cross-cutting
-        Tests.Blob.tests
+        Tests.Bytes.tests
         Tests.Lww.tests
         Tests.BranchOverlay.tests
         Tests.OpsProjections.tests
