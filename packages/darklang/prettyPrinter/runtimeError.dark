@@ -238,8 +238,8 @@ module RuntimeError =
       | UnsupportedKeyType (_keyType, key) ->
         [ ES.String "Cannot use "
           ES.FullValue key
-          ES.String " as a dict key. Functions, streams, database references,"
-          ES.String " blobs, and values containing them cannot be keys." ]
+          ES.String " as a dict key. Functions, streams,"
+          ES.String " and values containing them cannot be keys." ]
       | MismatchedKeyType (expectedType, actualType, actualKey) ->
         [ ES.String "This dict uses keys of type "
           ES.ValueType expectedType

@@ -235,7 +235,7 @@ module RoundTripExpect =
     | RT.DString _
     | RT.DDateTime _
     | RT.DUuid _
-    | RT.DBlob _
+    | RT.DBytes _
     | RT.DStream _
     | RT.DPromise _ -> []
 
@@ -784,7 +784,7 @@ let typeReferences =
       []
       false
     t "uuid alias" "type MyUuid = Uuid" "type MyUuid =\n  Uuid" [] [] [] false
-    t "blob alias" "type MyBlob = Blob" "type MyBlob =\n  Blob" [] [] [] false
+    t "blob alias" "type MyBytes = Bytes" "type MyBytes =\n  Bytes" [] [] [] false
     t
       "stream of primitive alias"
       "type MyStream = Stream<UInt8>"
@@ -795,8 +795,8 @@ let typeReferences =
       false
     t
       "stream of blob alias"
-      "type MyStream = Stream<Blob>"
-      "type MyStream =\n  Stream<Blob>"
+      "type MyStream = Stream<Bytes>"
+      "type MyStream =\n  Stream<Bytes>"
       []
       []
       []

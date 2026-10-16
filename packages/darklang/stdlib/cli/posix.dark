@@ -40,14 +40,14 @@ let openFile (path: String) (flags: Int) (mode: Int) : Result.Result<Int, Error>
 
 
 /// Read up to `count` bytes from an open file descriptor.
-let fdRead (fd: Int) (count: Int) : Result.Result<Blob, Error> =
+let fdRead (fd: Int) (count: Int) : Result.Result<Bytes, Error> =
   Builtin.syscallRead fd count
   |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno
 
 
 /// Write <param bytes> to an open file descriptor. Returns the number
 /// of bytes written.
-let fdWrite (fd: Int) (bytes: Blob) : Result.Result<Int, Error> =
+let fdWrite (fd: Int) (bytes: Bytes) : Result.Result<Int, Error> =
   Stdlib.Cli.Posix.__writeAll (fun chunk -> Builtin.syscallWrite fd chunk |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno) bytes 0
 
 
@@ -58,15 +58,15 @@ let fdClose (fd: Int) : Result.Result<Unit, Error> =
 
 
 /// Read all bytes from a file descriptor until EOF.
-/// Accumulates chunks (as Blobs) and concats once at EOF.
+/// Accumulates chunks (as Bytes) and concats once at EOF.
 let fdReadAll
   (fd: Int)
-  (acc: List<Blob>)
-  : Result.Result<Blob, Error> =
+  (acc: List<Bytes>)
+  : Result.Result<Bytes, Error> =
   (fdRead fd 4096)
   |> Stdlib.Result.andThen (fun chunk ->
-    if Stdlib.Blob.length chunk == 0 then
-      Stdlib.Result.Result.Ok(Stdlib.Blob.concat acc)
+    if Stdlib.Bytes.length chunk == 0 then
+      Stdlib.Result.Result.Ok(Stdlib.Bytes.concat acc)
     else
       fdReadAll fd (Stdlib.List.append acc [ chunk ]))
 
@@ -357,8 +357,8 @@ let __kernelSignedField (bytes: List<UInt8>) (offset: Int) (width: Int)
 type __KernelMetadata =
   { mode: Int; size: Int; mtimeSec: Int; uid: Int; device: Int; inode: Int }
 
-let __kernelMetadata (buffer: Blob) : Result.Result<__KernelMetadata, Int> =
-  let bytes = Stdlib.Blob.toList buffer
+let __kernelMetadata (buffer: Bytes) : Result.Result<__KernelMetadata, Int> =
+  let bytes = Stdlib.Bytes.toList buffer
   __kernelField bytes (Stdlib.Cli.Posix.__abiStatModeOffset ()) (Stdlib.Cli.Posix.__abiStatModeWidth ())
   |> Stdlib.Result.andThen (fun mode ->
     __kernelSignedField bytes (Stdlib.Cli.Posix.__abiStatSizeOffset ()) 8
@@ -391,7 +391,7 @@ let __kernelEntriesWithLength (bytes: List<UInt8>) (remaining: Int)
         let name = Stdlib.List.takeWhile nameBytes (fun byte -> byte != 0uy)
         if Stdlib.List.length name == Stdlib.List.length nameBytes then Error 5
         else
-          let name = Stdlib.String.fromBytesWithReplacement name
+          let name = Stdlib.String.fromByteListWithReplacement name
           let next =
             if name == "." || name == ".." then reversed
             else Stdlib.List.push reversed name
@@ -410,9 +410,9 @@ let __directoryReadAll (fd: Int) (reversed: List<String>)
   | Error e ->
     if e == 4 then __directoryReadAll fd reversed else Error e
   | Ok bytes ->
-    if Stdlib.Blob.length bytes == 0 then Ok (Stdlib.List.reverse reversed)
+    if Stdlib.Bytes.length bytes == 0 then Ok (Stdlib.List.reverse reversed)
     else
-      match Stdlib.Cli.Posix.__kernelEntries (Stdlib.Blob.toList bytes) reversed with
+      match Stdlib.Cli.Posix.__kernelEntries (Stdlib.Bytes.toList bytes) reversed with
       | Error e -> Error e
       | Ok next -> __directoryReadAll fd next
 
@@ -429,25 +429,25 @@ let __directoryList (path: String) : Result.Result<List<String>, Posix.Error> =
 
 /// Path buffer growth and text decoding over one-call kernel primitives.
 
-let __pathReadlinkWith (read: Int -> Result.Result<Blob, Int>) (count: Int)
-  : Result.Result<Blob, Int> =
+let __pathReadlinkWith (read: Int -> Result.Result<Bytes, Int>) (count: Int)
+  : Result.Result<Bytes, Int> =
   if count <= 0 then Error 22
   else
     match read count with
     | Error e ->
       if e == 4 then __pathReadlinkWith read count else Error e
     | Ok bytes ->
-      if Stdlib.Blob.length bytes < count then Ok bytes
+      if Stdlib.Bytes.length bytes < count then Ok bytes
       else if count >= 1048576 then Error (if Stdlib.Cli.Posix.__abiMac () then 63 else 36)
       else __pathReadlinkWith read (count * 2)
 
 let __pathReadlink (path: String) : Result.Result<String, Posix.Error> =
   __pathReadlinkWith (fun count -> Builtin.syscallReadlinkAt path count) 256
-  |> Stdlib.Result.map Stdlib.String.fromBlobWithReplacement
+  |> Stdlib.Result.map Stdlib.String.fromBytesWithReplacement
   |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno
 
-let __pathCwdWith (read: Int -> Result.Result<Blob, Int>) (count: Int)
-  : Result.Result<Blob, Int> =
+let __pathCwdWith (read: Int -> Result.Result<Bytes, Int>) (count: Int)
+  : Result.Result<Bytes, Int> =
   if count <= 0 then Error 22
   else
     match read count with
@@ -456,9 +456,9 @@ let __pathCwdWith (read: Int -> Result.Result<Blob, Int>) (count: Int)
       if count >= 1048576 then Error 34 else __pathCwdWith read (count * 2)
     | other -> other
 
-let __pathPathText (bytes: Blob) : String =
-  bytes |> Stdlib.Blob.toList |> Stdlib.List.takeWhile (fun byte -> byte != 0uy)
-  |> Stdlib.Blob.fromList |> Stdlib.String.fromBlobWithReplacement
+let __pathPathText (bytes: Bytes) : String =
+  bytes |> Stdlib.Bytes.toList |> Stdlib.List.takeWhile (fun byte -> byte != 0uy)
+  |> Stdlib.Bytes.fromList |> Stdlib.String.fromBytesWithReplacement
 
 let __pathGetCwd () : Result.Result<String, Posix.Error> =
   let bytes =
@@ -748,11 +748,11 @@ let __fromErrno (errno: Int) : Stdlib.Cli.Posix.Error =
 /// Complete a descriptor write when the kernel accepts only part of a buffer.
 
 let __writeAll
-  (write: Blob -> Result.Result<Int, Stdlib.Cli.Posix.Error>)
-  (bytes: Blob)
+  (write: Bytes -> Result.Result<Int, Stdlib.Cli.Posix.Error>)
+  (bytes: Bytes)
   (written: Int)
   : Result.Result<Int, Stdlib.Cli.Posix.Error> =
-  let length = Stdlib.Blob.length bytes
+  let length = Stdlib.Bytes.length bytes
   if length == 0 then Stdlib.Result.Result.Ok written
   else
     match write bytes with
@@ -765,7 +765,7 @@ let __writeAll
           errno = 5; message = "write made invalid progress" })
       else if count == length then Stdlib.Result.Result.Ok (written + count)
       else
-        let rest = Stdlib.Blob.slice bytes count (length - count)
+        let rest = Stdlib.Bytes.slice bytes count (length - count)
         __writeAll write rest (written + count)
 
 
@@ -791,20 +791,20 @@ let __accountLookup (uid: String) (index: Int) : Stdlib.Option.Option<String> =
 
 /// Collision retries for exclusive temporary-entry creation.
 
-let __tempEntropy (remaining: Int) (reversed: List<Blob>) : Result.Result<Blob, Int> =
-  if remaining == 0 then Ok (Stdlib.Blob.concat (Stdlib.List.reverse reversed))
+let __tempEntropy (remaining: Int) (reversed: List<Bytes>) : Result.Result<Bytes, Int> =
+  if remaining == 0 then Ok (Stdlib.Bytes.concat (Stdlib.List.reverse reversed))
   else
     match Builtin.syscallGetentropy remaining with
     | Error e -> if e == 4 then __tempEntropy remaining reversed else Error e
     | Ok bytes ->
-      let count = Stdlib.Blob.length bytes
+      let count = Stdlib.Bytes.length bytes
       if count <= 0 || count > remaining then Error 5
       else __tempEntropy (remaining - count) (Stdlib.List.push reversed bytes)
 
 let __tempCandidate (prefix: String) : Result.Result<String, Stdlib.Cli.Posix.Error> =
   __tempEntropy 12 []
   |> Stdlib.Result.mapError __fromErrno
-  |> Stdlib.Result.map (fun bytes -> Stdlib.String.append prefix (Stdlib.Blob.toHex bytes))
+  |> Stdlib.Result.map (fun bytes -> Stdlib.String.append prefix (Stdlib.Bytes.toHex bytes))
 
 let __tempRetry
   (create: Int -> Result.Result<'a, Stdlib.Cli.Posix.Error>)
@@ -848,6 +848,6 @@ let __uname () : Result.Result<(String * String * String), Posix.Error> =
     else
       Builtin.syscallUname ()
       |> Stdlib.Result.andThen (fun bytes ->
-        if Stdlib.Blob.length bytes < 390 then Error 5
+        if Stdlib.Bytes.length bytes < 390 then Error 5
         else Ok ((Stdlib.Cli.Sys.__text bytes 0 65, Stdlib.Cli.Sys.__text bytes 65 65, Stdlib.Cli.Sys.__text bytes 260 65)))
   result |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno

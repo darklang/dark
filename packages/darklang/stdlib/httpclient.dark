@@ -48,7 +48,7 @@ let toString (e: RequestError) : String =
 type Response =
   { statusCode: Int
     headers: List<(String * String)>
-    body: Blob }
+    body: Bytes }
 
 
 /// A streaming HTTP response. Headers arrive immediately; `body` is a
@@ -84,7 +84,7 @@ let request
   (method: String)
   (uri: String)
   (headers: List<(String * String)>)
-  (body: Blob)
+  (body: Bytes)
   : Stdlib.Result.Result<Response, RequestError> =
   match Stdlib.String.toUppercase method with
   | "GET" -> read "GET" uri headers
@@ -102,7 +102,7 @@ let get
 let post
   (uri: String)
   (headers: List<(String * String)>)
-  (body: Blob)
+  (body: Bytes)
   : Stdlib.Result.Result<Response, RequestError> =
   request "POST" uri headers body
 
@@ -110,17 +110,17 @@ let post
 let put
   (uri: String)
   (headers: List<(String * String)>)
-  (body: Blob)
+  (body: Bytes)
   : Stdlib.Result.Result<Response, RequestError> =
   request "PUT" uri headers body
 
 
 let options (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-  request "OPTIONS" uri [] Stdlib.Blob.empty
+  request "OPTIONS" uri [] Stdlib.Bytes.empty
 
 
 let delete (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-  request "DELETE" uri [] Stdlib.Blob.empty
+  request "DELETE" uri [] Stdlib.Bytes.empty
 
 
 let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
@@ -129,7 +129,7 @@ let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
 
 /// Make a streaming HTTP call to <param uri>. The response's body is
 /// a lazy `Stream<UInt8>` — bytes arrive as the server writes them.
-/// Drain with `Stdlib.Stream.toList`, `Stdlib.Stream.toBlob`, or
+/// Drain with `Stdlib.Stream.toList`, `Stdlib.Stream.toBytes`, or
 /// compose with `Stdlib.Stream.map` / `Stdlib.Stream.filter` etc.
 ///
 /// The underlying socket is released when the body stream drains to
@@ -197,11 +197,11 @@ module Sse =
   /// lines for the block we're currently assembling; `currentLine`
   /// is the byte buffer for the line we're currently reading.
   ///
-  /// TODO `currentLine` stays `List<UInt8>` (not `Blob`) because it's
+  /// TODO `currentLine` stays `List<UInt8>` (not `Bytes`) because it's
   /// accessed byte-by-byte during the parse — one append per byte and
-  /// frequent fold-over-bytes for the line scan. Blob.concat would
+  /// frequent fold-over-bytes for the line scan. Bytes.concat would
   /// reallocate the whole buffer on every append. Worth revisiting if
-  /// anyone profiles the SSE parser; could become Blob with an
+  /// anyone profiles the SSE parser; could become Bytes with an
   /// internal append-segments representation.
   type ParseState =
     { lastId: String
@@ -299,7 +299,7 @@ module Sse =
         else
           let tailLine =
             match
-              Stdlib.Blob.toString (Stdlib.Blob.fromList state.currentLine)
+              Stdlib.Bytes.toString (Stdlib.Bytes.fromList state.currentLine)
             with
             | Ok s -> s
             | Error _ -> ""
@@ -323,7 +323,7 @@ module Sse =
       if b == 10uy then
         let line =
           match
-            Stdlib.Blob.toString (Stdlib.Blob.fromList state.currentLine)
+            Stdlib.Bytes.toString (Stdlib.Bytes.fromList state.currentLine)
           with
           | Ok s -> s
           | Error _ -> ""

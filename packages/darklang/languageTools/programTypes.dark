@@ -114,7 +114,7 @@ type TypeReference =
   | TString
   | TDateTime
   | TUuid
-  | TBlob
+  | TBytes
   | TStream of TypeReference
 
   | TList of TypeReference
@@ -436,7 +436,7 @@ let hashToShort (hash: Hash) : String =
 /// canonical serialization and this is over the bytes of a string. Must agree with
 /// `LibExecution.ProgramTypes.Hash.ofText`, which is what reads it back.
 let hashOfText (text: String) : Hash =
-  (Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob text)))
+  (Stdlib.Bytes.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBytes text)))
   |> Stdlib.String.toLowercase
   |> Hash.Hash
 

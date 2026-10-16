@@ -9,7 +9,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 module RTToDT = LibExecution.RuntimeTypesToDarkTypes
 module BinarySer = LibSerialization.Binary.Serialization
 
@@ -436,9 +436,9 @@ module ReplayCheck =
     let leaf (dv : RT.Dval) : Ply.Ply<RT.Dval option> =
       uply {
         match dv with
-        | RT.DBlob(RT.Ephemeral eph) ->
+        | RT.DBytes(RT.Ephemeral eph) ->
           let n : int64 = System.Convert.ToInt64 eph.bytes.Length
-          return Some(RT.DBlob(RT.Persistent(Blob.sha256Hex eph.bytes, n)))
+          return Some(RT.DBytes(RT.Persistent(eph.contentHash.Value, n)))
         | RT.DStream(impl, _, _) -> return Some(RTToDT.Dval.streamStubDT impl)
         | RT.DApplicable _ -> return Some RT.DUnit
         | _ -> return None
@@ -701,7 +701,7 @@ module TraceStorage =
   /// Where `prepareDvalForStorage` keeps a blob captured after its trace was stored, such as a
   /// served response's body: in `trace_blobs` under that trace, counted in what it weighs. Only a
   /// blob the trace did not already hold adds to the weight.
-  let keepBlobIn (traceId : System.Guid) : string -> byte[] -> Ply.Ply<unit> =
+  let keepBytesIn (traceId : System.Guid) : string -> byte[] -> Ply.Ply<unit> =
     fun hash bytes ->
       uply {
         let! added =
@@ -769,7 +769,7 @@ module TraceStorage =
       let foundByAsk = System.Collections.Generic.Dictionary<string, string>()
       let keep (ev : CompletedEvent) : string =
         let bytes = serializeDval "trace_fn_calls.result" ev.result
-        let hash = Blob.sha256Hex bytes
+        let hash = Bytes.sha256Hex bytes
         results[hash] <- bytes
         hash
       let serializedEvents =
@@ -843,7 +843,7 @@ module TraceStorage =
           "DELETE FROM trace_loops WHERE trace_id = @traceId", [ traceIdParam ]
           "DELETE FROM trace_blobs WHERE trace_id = @traceId", [ traceIdParam ] ]
 
-      let blobStmt =
+      let bytesStmt =
         match blobs with
         | [] -> []
         | _ ->
@@ -928,7 +928,7 @@ module TraceStorage =
 
       let _ =
         Sql.executeTransactionSync (
-          baseStatements @ eventStmt @ fnStmt @ loopStmt @ blobStmt
+          baseStatements @ eventStmt @ fnStmt @ loopStmt @ bytesStmt
         )
       TraceRetention.run () |> ignore<int>
 
@@ -936,7 +936,7 @@ module TraceStorage =
 /// Rewrite a Dval for the trace-storage boundary:
 ///   - DStream → DStreamStub (the live pull fn closes over this VM's
 ///     exeState; draining would consume the user's stream).
-///   - DBlob(Ephemeral _) → DBlob(Persistent _), handing the bytes to <param keep> so the
+///   - DBytes(Ephemeral _) → DBytes(Persistent _), handing the bytes to <param keep> so the
 ///     trace survives the producing VM. The trace keeps them (`trace_blobs`), not the shared
 ///     `package_blobs`, which nothing collects.
 /// Recursion and container rebuilding are handled by `Dval.rewriteWith`,
@@ -946,13 +946,13 @@ let prepareDvalForStorage
   (keep : string -> byte[] -> Ply.Ply<unit>)
   (dv : RT.Dval)
   : Ply.Ply<RT.Dval> =
-  let promoteBlob = Blob.promoteEphemeralLeaf keep
+  let promoteBytes = Bytes.promoteEphemeralLeaf keep
   dv
   |> RT.Dval.rewriteWith (fun dv ->
     uply {
       match dv with
       | RT.DStream(impl, _, _) -> return Some(RTToDT.Dval.streamStubDT impl)
-      | _ -> return! promoteBlob dv
+      | _ -> return! promoteBytes dv
     })
 
 

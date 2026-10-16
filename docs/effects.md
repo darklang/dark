@@ -242,7 +242,7 @@ either: reading them never waits, so there is nothing to overlap, and
 `sleep`, the one clock call that does wait, is a wait the program means to
 take.
 
-Blob dereferencing is deliberately effect-free value materialization. An
+Bytes dereferencing is deliberately effect-free value materialization. An
 ephemeral blob carries its bytes; a persistent blob loads the same immutable
 bytes by content hash from the host-owned `package_blobs` store. The latter
 is ambient local storage, but does not require `PackageRead` or `FileRead`:
@@ -251,6 +251,10 @@ representation. This does not grant arbitrary SQL or filesystem access, and
 does not provide per-blob authorization or confidentiality within the local
 store. Operations that load or persist enclosing packages, traces, or database
 values retain their own permission checks.
+
+The two storage forms share content-based equality, hashing, and ordering.
+Comparisons use cached content hashes without storage access; saving a value
+does not change its comparison behavior. See [Bytes](bytes.md).
 
 Policies are allowlists with optional explicit denies:
 

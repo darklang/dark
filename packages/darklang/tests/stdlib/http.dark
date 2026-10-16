@@ -55,14 +55,14 @@ module Darklang.Stdlib.Http.Tests
 let responseView
   (response: Stdlib.Http.Response)
   : (Int * List<String * String> * Stdlib.Result.Result<String, String>) =
-  (response.statusCode, response.headers, Stdlib.Blob.toString response.body)
+  (response.statusCode, response.headers, Stdlib.Bytes.toString response.body)
 
 // Build a request with an empty body.
 let request
   (url: String)
   (headers: List<String * String>)
   : Stdlib.Http.Request =
-  Stdlib.Http.Request { url = url; headers = headers; body = Stdlib.Blob.empty }
+  Stdlib.Http.Request { url = url; headers = headers; body = Stdlib.Bytes.empty }
 
 // Compare response builders with their expected fields.
 test responseBuilders =
@@ -70,11 +70,11 @@ test responseBuilders =
     [ Stdlib.Http.badRequest "Your request resulted in an error"
       |> responseView
       |> Stdlib.Test.equal (400, [], Ok "Your request resulted in an error")
-      Stdlib.Http.response (Stdlib.Blob.fromString "test") 200
+      Stdlib.Http.response (Stdlib.Bytes.fromString "test") 200
       |> responseView
       |> Stdlib.Test.equal (200, [], Ok "test")
       Stdlib.Http.responseWithHeaders
-        (Stdlib.Blob.fromString "test")
+        (Stdlib.Bytes.fromString "test")
         [ ("Content-Type", "text/html; charset=utf-8") ]
         200
       |> responseView
@@ -89,7 +89,7 @@ test responseBuilders =
       Stdlib.Http.forbidden ()
       |> responseView
       |> Stdlib.Test.equal (403, [], Ok "")
-      Stdlib.Http.success (Stdlib.Blob.fromString "test")
+      Stdlib.Http.success (Stdlib.Bytes.fromString "test")
       |> responseView
       |> Stdlib.Test.equal (200, [], Ok "test")
       Stdlib.Http.responseWithHtml "test" 200

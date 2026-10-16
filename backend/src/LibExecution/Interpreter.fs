@@ -267,7 +267,7 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTString
     | KTUuid
     | KTDateTime
-    | KTBlob -> true
+    | KTBytes -> true
     | KTList inner
     | KTStream inner -> isFullyKnown inner
     | KTDict(key, value) -> isFullyKnown key && isFullyKnown value

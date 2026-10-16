@@ -1,15 +1,15 @@
 // Server-Sent Events parser. Exercises Stdlib.HttpClient.Sse.parse over
 // in-memory Stream<UInt8> bodies; no HTTP needed.
 //
-// Helper tests build byte streams from strings via blobFromString +
+// Helper tests build byte streams from strings via bytesFromString +
 // bytesToList + streamFromList; the parse result is drained back to
 // List<Event> for structural comparison.
 module Darklang.Stdlib.HttpClient.Sse.Tests
 
 let parse (source: String) : List<Stdlib.HttpClient.Sse.Event> =
   source
-  |> Stdlib.Blob.fromString
-  |> Stdlib.Blob.toList
+  |> Stdlib.Bytes.fromString
+  |> Stdlib.Bytes.toList
   |> Stdlib.Stream.fromList
   |> Stdlib.HttpClient.Sse.parse
   |> Stdlib.Stream.toList

@@ -27,7 +27,7 @@ let req =
   Stdlib.Http.Request
     { url = "GET /items/42?q=1 HTTP/1.1"
       headers = [ ("host", "localhost"), ("accept", "*/*") ]
-      body = Stdlib.Blob.empty }
+      body = Stdlib.Bytes.empty }
 
 let routeN (i: Int) (acc: Int) : Int =
   if i == 0 then

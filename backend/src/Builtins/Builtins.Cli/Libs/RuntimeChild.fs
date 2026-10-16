@@ -104,8 +104,8 @@ let fns () =
       "runtimeChildBufferGet"
       [ Param.make "handle" TInt "Owned child token"
         Param.make "index" TInt "Owned byte cell, 0 or 1" ]
-      TBlob
-      KTBlob
+      TBytes
+      KTBytes
       (function
        | [| DInt token; DInt index |] ->
          let index = DarkInt.toBigInt index
@@ -114,7 +114,7 @@ let fns () =
            if index >= 0I && index <= 1I then int index else -1
          ),
          (function
-         | Op.Response.Bytes bytes -> LibExecution.Blob.newEphemeral bytes
+         | Op.Response.Bytes bytes -> LibExecution.Bytes.newEphemeral bytes
          | _ -> incorrectArgs ())
        | _ -> incorrectArgs ())
     { name = fn "runtimeChildBufferSet" 0
@@ -124,15 +124,15 @@ let fns () =
           Param.make "index" TInt "Owned byte cell, 0 or 1"
           Param.make
             "bytes"
-            TBlob
+            TBytes
             "Replacement value; no concatenation or limit policy" ]
       returnType = TypeReference.result TUnit TInt
       description = "Replace one owned byte cell; Dark owns accumulation and limits"
       fn =
         (fun struct (state, vm, _, values) ->
           match values with
-          | [| DInt token; DInt index; DBlob reference |] ->
-            LibExecution.Blob.withBytes state reference (fun bytes ->
+          | [| DInt token; DInt index; DBytes reference |] ->
+            LibExecution.Bytes.withBytes state reference (fun bytes ->
               let index = DarkInt.toBigInt index
               let op =
                 Op.Operation.ChildBufferSet(

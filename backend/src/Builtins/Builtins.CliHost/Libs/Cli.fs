@@ -666,7 +666,7 @@ let childState
             implCandidatesByMethod = pm.implCandidatesByMethod
             implSelectionMemo = pm.implSelectionMemo
             implGeneration = pm.implGeneration }
-      blobs = { get = pm.getBlob; persist = pm.persistBlob } }
+      blobs = { get = pm.getBytes; persist = pm.persistBytes } }
 
 
 /// `execute`, with the tracer handed in rather than chosen here.
@@ -932,7 +932,7 @@ let executeWith
           match executionId, result with
           | Some id, Ok dv ->
             let! prepared =
-              Tracing.prepareDvalForStorage (Tracing.TraceStorage.keepBlobIn id) dv
+              Tracing.prepareDvalForStorage (Tracing.TraceStorage.keepBytesIn id) dv
             LibDB.Traces.setResult id prepared
             LibDB.Traces.setStatus id LibDB.Traces.Done
           | Some id, Error _ -> LibDB.Traces.setStatus id LibDB.Traces.Failed

@@ -25,9 +25,9 @@ let next (stream: Stream<'a>) : Stdlib.Option.Option<'a> =
 let toList (stream: Stream<'a>) : List<'a> = Builtin.streamToList<'a> stream
 
 
-/// Drains a byte stream into a Blob. Uses the chunked fast path when
+/// Drains a byte stream into a Bytes. Uses the chunked fast path when
 /// the source supports it (e.g. HttpClient.stream).
-let toBlob (stream: Stream<UInt8>) : Blob = Builtin.streamToBlob stream
+let toBytes (stream: Stream<UInt8>) : Bytes = Builtin.streamToBytes stream
 
 
 /// Closes <param stream>, releasing any IO resources its source held.

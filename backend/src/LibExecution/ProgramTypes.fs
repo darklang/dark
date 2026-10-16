@@ -356,7 +356,7 @@ type TypeReference =
   /// Immutable byte sequence. At runtime, represented as a reference
   /// to bytes held either in-process (ephemeral) or in the
   /// content-addressed `package_blobs` table (persistent).
-  | TBlob
+  | TBytes
 
   /// Lazy, single-consumer, non-persistable sequence of values of
   /// the given element type.

@@ -20,7 +20,7 @@ type StaticType =
   | TString
   | TUuid
   | TDateTime
-  | TBlob
+  | TBytes
   | TStream of StaticType
   | TList of StaticType
   | TTuple of StaticType * StaticType * List<StaticType>
@@ -337,7 +337,7 @@ let staticTypeToStringWith
   | TString -> "String"
   | TUuid -> "Uuid"
   | TDateTime -> "DateTime"
-  | TBlob -> "Blob"
+  | TBytes -> "Bytes"
   | TStream inner -> wrapped "Stream" inner
   | TList inner -> wrapped "List" inner
   | TTuple(first, second, rest) ->

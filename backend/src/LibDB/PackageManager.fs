@@ -919,8 +919,8 @@ let rt : RT.PackageManager =
     getTrait =
       withCache (fun (RT.Hash h) ->
         PMPT.Trait.get (PT.Hash h) |> Ply.map (Option.map PT2RT.Trait.toRT))
-    getBlob = PMRT.Blob.get
-    persistBlob = PMRT.Blob.insert
+    getBytes = PMRT.Bytes.get
+    persistBytes = PMRT.Bytes.insert
 
     // A deprecation is a fact about a hash, and a hash means the same thing on every branch, so
     // the set needs no branch key.

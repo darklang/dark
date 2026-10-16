@@ -56,7 +56,7 @@ type Ty =
   | TString
   | TUuid
   | TDateTime
-  | TBlob
+  | TBytes
   | TStream of Ty
   | TList of Ty
   | TTuple of Ty * Ty * List<Ty>

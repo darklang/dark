@@ -67,7 +67,7 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
     w.Write 22uy
     writeValueType w keyType
     writeValueType w valueType
-  | KTBlob -> w.Write 23uy
+  | KTBytes -> w.Write 23uy
   | KTStream vt ->
     w.Write 24uy
     writeValueType w vt
@@ -210,20 +210,20 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     w.Write 22uy
     writeApplicable w applicable
   // 23 was DDB, retired with user datastores
-  | DBlob(Persistent(hash, length)) ->
+  | DBytes(Persistent(hash, length)) ->
     w.Write 24uy
     String.write w hash
     w.Write length
-  | DBlob(Ephemeral eph) ->
+  | DBytes(Ephemeral eph) ->
     // The binary format only serializes persistent blob refs. Ephemeral
-    // bytes live inline on the runtime DBlob and are not addressable after
+    // bytes live inline on the runtime DBytes and are not addressable after
     // serialization, so callers must promote to Persistent first.
     raiseFormatError
       $"Cannot serialize ephemeral blob {eph.id}; promote to Persistent first"
   | DStream _ ->
     // Streams are not persistable by design — lifetime is bounded by
-    // the VM that produced them. Caller should drain to Blob first.
-    raiseFormatError "Cannot serialize DStream — drain to a Blob first"
+    // the VM that produced them. Caller should drain to Bytes first.
+    raiseFormatError "Cannot serialize DStream — drain to a Bytes first"
   // A read that has landed is its value. A trace is written once the run is over, by when
   // every read it made has landed, and a closure handed to a builtin (`Exec.spawn`) can be
   // logged holding one.
@@ -290,7 +290,7 @@ and readKnownType (r : BinaryReader) : KnownType =
     let keyType = readValueType r
     let valueType = readValueType r
     KTDict(keyType, valueType)
-  | 23uy -> KTBlob
+  | 23uy -> KTBytes
   | 24uy -> KTStream(readValueType r)
   | 25uy -> KTInt
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"
@@ -413,7 +413,7 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
   | 24uy ->
     let hash = String.read r
     let length = r.ReadInt64()
-    DBlob(Persistent(hash, length))
+    DBytes(Persistent(hash, length))
   | 25uy -> Dval.int (System.Numerics.BigInteger.Parse(String.read r))
   | b -> raiseFormatError $"Invalid Dval tag: {b}"
 

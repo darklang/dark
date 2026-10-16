@@ -38,8 +38,8 @@ let move (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
   Posix.rename src dst
 
 
-/// Read the entire contents of a file as a Blob.
-let readBytes (path: String) : Result.Result<Blob, Posix.Error> =
+/// Read the entire contents of a file as a Bytes.
+let readBytes (path: String) : Result.Result<Bytes, Posix.Error> =
   match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0 with
   | Ok fd ->
     let result = Posix.fdReadAll fd []
@@ -61,7 +61,7 @@ let readText (path: String) : Result.Result<String, Posix.Error> =
 
     match result with
     | Ok blob ->
-      match Stdlib.Blob.toString blob with
+      match Stdlib.Bytes.toString blob with
       | Ok s -> Stdlib.Result.Result.Ok s
       | Error msg ->
         Stdlib.Result.Result.Error
@@ -76,9 +76,9 @@ let readLines (path: String) : Result.Result<List<String>, Posix.Error> =
   |> Stdlib.Result.map (fun text -> Stdlib.String.splitOnNewline text)
 
 
-let countNewlines (blob: Blob) : Int =
+let countNewlines (blob: Bytes) : Int =
   blob
-  |> Stdlib.Blob.toList
+  |> Stdlib.Bytes.toList
   |> Stdlib.List.fold 0 (fun count byte ->
     if byte == 10uy then count + 1 else count)
 
@@ -100,17 +100,17 @@ let dropThroughFirstNewline (bytes: List<UInt8>) : List<UInt8> =
 let readFully
   (fd: Int)
   (count: Int)
-  (acc: List<Blob>)
-  : Result.Result<Blob, Posix.Error> =
+  (acc: List<Bytes>)
+  : Result.Result<Bytes, Posix.Error> =
   if count <= 0 then
-    Stdlib.Result.Result.Ok(Stdlib.Blob.concat acc)
+    Stdlib.Result.Result.Ok(Stdlib.Bytes.concat acc)
   else
     (Posix.fdRead fd count)
     |> Stdlib.Result.andThen (fun chunk ->
-      let received = Stdlib.Blob.length chunk
+      let received = Stdlib.Bytes.length chunk
       if received == 0 then
         // EOF: the file is shorter than the caller believed (it was truncated under us, say).
-        Stdlib.Result.Result.Ok(Stdlib.Blob.concat acc)
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.concat acc)
       else
         readFully fd (count - received) (Stdlib.List.append acc [ chunk ]))
 
@@ -120,11 +120,11 @@ let readTailChunks
   (cursor: Int)
   (requiredNewlines: Int)
   (foundNewlines: Int)
-  (chunks: List<Blob>)
-  : Result.Result<(Blob * Bool), Posix.Error> =
+  (chunks: List<Bytes>)
+  : Result.Result<(Bytes * Bool), Posix.Error> =
   if cursor <= 0 || foundNewlines >= requiredNewlines then
     Stdlib.Result.Result.Ok(
-      (Stdlib.Blob.concat chunks, cursor <= 0))
+      (Stdlib.Bytes.concat chunks, cursor <= 0))
   else
     let chunkSize = 1024
     let start = if cursor < chunkSize then 0 else cursor - chunkSize
@@ -165,16 +165,16 @@ let readLastLines
         |> Stdlib.Result.andThen (fun (blob, startedAtBeginning) ->
           let bytes =
             if startedAtBeginning then
-              Stdlib.Blob.toList blob
+              Stdlib.Bytes.toList blob
             else
               blob
-              |> Stdlib.Blob.toList
+              |> Stdlib.Bytes.toList
               |> dropThroughFirstNewline
 
           match
             bytes
-            |> Stdlib.Blob.fromList
-            |> Stdlib.Blob.toString
+            |> Stdlib.Bytes.fromList
+            |> Stdlib.Bytes.toString
           with
           | Error message ->
             Stdlib.Result.Result.Error
@@ -193,7 +193,7 @@ let readLastLines
 
 
 /// Write bytes, completing short writes and preserving the first I/O error.
-let __writeBytes (path: String) (content: Blob) : Result.Result<Unit, Posix.Error> =
+let __writeBytes (path: String) (content: Bytes) : Result.Result<Unit, Posix.Error> =
   let flags =
     (Posix.OpenFlags.wronly ())
     | (Posix.OpenFlags.creat ())
@@ -212,7 +212,7 @@ let __writeBytes (path: String) (content: Blob) : Result.Result<Unit, Posix.Erro
 
 /// Write text to a file, creating it if it doesn't exist or overwriting if it does.
 let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
-  __writeBytes path (Stdlib.String.toBlob content)
+  __writeBytes path (Stdlib.String.toBytes content)
 
 
 /// Append text to a file, creating it if it doesn't exist.
@@ -224,7 +224,7 @@ let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Erro
 
   match Posix.openFile path flags Posix.Modes.defaultFile with
   | Ok fd ->
-    let blob = Stdlib.String.toBlob content
+    let blob = Stdlib.String.toBytes content
     let result = Posix.fdWrite fd blob
 
     let closed = Posix.fdClose fd
@@ -325,7 +325,7 @@ let writeAtomic (path: String) (content: String) : Result.Result<Unit, Posix.Err
   |> Stdlib.Result.andThen (fun result ->
     let fd = Stdlib.Tuple2.first result
     let tmpPath = Stdlib.Tuple2.second result
-    let blob = Stdlib.String.toBlob content
+    let blob = Stdlib.String.toBytes content
     let writeResult = Posix.fdWrite fd blob
     let _ = Posix.fdClose fd
 
@@ -465,9 +465,9 @@ let __copyUnsupported (errno: Int) : Bool =
 /// Finish a positional write, including short writes and EINTR, without losing
 /// the offset. A successful zero write is an I/O error, not an infinite loop.
 let __copyWriteAt
-  (write: Blob -> Int -> Result.Result<Int, Int>)
-  (bytes: Blob) (offset: Int) : Result.Result<Unit, Int> =
-  let length = Stdlib.Blob.length bytes
+  (write: Bytes -> Int -> Result.Result<Int, Int>)
+  (bytes: Bytes) (offset: Int) : Result.Result<Unit, Int> =
+  let length = Stdlib.Bytes.length bytes
   if length == 0 then Ok ()
   else
     match write bytes offset with
@@ -475,19 +475,19 @@ let __copyWriteAt
     | Ok count ->
       if count <= 0 || count > length then Error 5
       else
-        let remaining = Stdlib.Blob.slice bytes count (length - count)
+        let remaining = Stdlib.Bytes.slice bytes count (length - count)
         __copyWriteAt write remaining (offset + count)
 
 /// Bounded-memory fallback, also used after partial kernel-copy progress.
 /// Read until actual EOF: virtual files can have a stat size of zero.
 let __copyBuffered
-  (read: Int -> Int -> Result.Result<Blob, Int>)
-  (write: Blob -> Int -> Result.Result<Int, Int>)
+  (read: Int -> Int -> Result.Result<Bytes, Int>)
+  (write: Bytes -> Int -> Result.Result<Int, Int>)
   (offset: Int) : Result.Result<Unit, Int> =
   match read 65536 offset with
   | Error e -> if e == 4 then __copyBuffered read write offset else Error e
   | Ok bytes ->
-    let length = Stdlib.Blob.length bytes
+    let length = Stdlib.Bytes.length bytes
     if length == 0 then Ok ()
     else
       __copyWriteAt write bytes offset
@@ -605,7 +605,7 @@ let __watchDrain (fd: Int) : Result.Result<(Bool * Bool), Int> =
   | Error 4 -> __watchDrain fd
   | Error 11 -> Ok ((false, false))
   | Error e -> Error e
-  | Ok buffer -> __watchEvents (Stdlib.Blob.toList buffer) (Stdlib.Blob.length buffer) false false
+  | Ok buffer -> __watchEvents (Stdlib.Bytes.toList buffer) (Stdlib.Bytes.length buffer) false false
 
 let __watchLoop (fd: Int) (intervalMs: Int) (shouldStop: Unit -> Bool) (fn: Unit -> Unit)
   : Result.Result<Bool, Int> =
@@ -615,7 +615,7 @@ let __watchLoop (fd: Int) (intervalMs: Int) (shouldStop: Unit -> Bool) (fn: Unit
     | Error 4 -> __watchLoop fd intervalMs shouldStop fn
     | Error e -> Error e
     | Ok record ->
-      Stdlib.Cli.Posix.__kernelField (Stdlib.Blob.toList record) 6 2
+      Stdlib.Cli.Posix.__kernelField (Stdlib.Bytes.toList record) 6 2
       |> Stdlib.Result.andThen (fun returned ->
         if __watchHas returned 32 then Error 9
         else if (__watchHas returned 8) || (__watchHas returned 16) then Error 5
@@ -667,7 +667,7 @@ let __watchVnodeLoop (queue: Int) (intervalMs: Int) (shouldStop: Unit -> Bool) (
     | Error 4 -> __watchVnodeLoop queue intervalMs shouldStop fn
     | Error e -> Error e
     | Ok buffer ->
-      __watchVnodeEvents (Stdlib.Blob.toList buffer) (Stdlib.Blob.length buffer) false false
+      __watchVnodeEvents (Stdlib.Bytes.toList buffer) (Stdlib.Bytes.length buffer) false false
       |> Stdlib.Result.andThen (fun pair ->
         let (changed, rearm) = pair
         if changed then fn () else ()
@@ -742,7 +742,7 @@ let __globClassEnd
   match bytes with
   | 58uy :: 93uy :: rest ->
     let name =
-      Stdlib.String.fromBytesWithReplacement (Stdlib.List.reverse reversedName)
+      Stdlib.String.fromByteListWithReplacement (Stdlib.List.reverse reversedName)
     Some ((name, rest))
   | c :: rest -> __globClassEnd rest (Stdlib.List.push reversedName c)
   | [] -> None
@@ -842,6 +842,6 @@ let __globMatchBytes
 /// Match the full string, including NUL bytes; this is not a C-string API.
 /// Wildcards retain the library's byte-based matching semantics.
 let __globMatches (pattern: String) (text: String) (pathname: Bool) : Bool =
-  let patternBytes = Stdlib.String.toBytes pattern
-  let textBytes = Stdlib.String.toBytes text
+  let patternBytes = Stdlib.String.toByteList pattern
+  let textBytes = Stdlib.String.toByteList text
   __globMatchBytes patternBytes textBytes pathname
