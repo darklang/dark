@@ -570,8 +570,8 @@ test workbenchRunTestsAreLastInInspect =
   let last =
     Stdlib.Option.withDefault (Stdlib.List.last nonblank) ""
 
-  let hasWorkbenchHeading = Stdlib.List.member nonblank "tests"
-  let hasListingHeading = Stdlib.List.member nonblank "⊢ Tests:"
+  let hasWorkbenchHeading = Stdlib.List.contains nonblank "tests"
+  let hasListingHeading = Stdlib.List.contains nonblank "⊢ Tests:"
   let testRows =
     nonblank
     |> Stdlib.List.filter (fun line -> Stdlib.String.contains line "Float.Tests.sqrt")

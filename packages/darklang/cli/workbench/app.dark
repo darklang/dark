@@ -201,7 +201,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
       branchId
       cliState.accountID
       instanceName
-      (Stdlib.List.member args "--live")
+      (Stdlib.List.contains args "--live")
       draft
   // Seed the badge cache for the first frame; `presentState` keeps it fresh after that. The view peek needs no
   // seeding - the first frame is Home, which has no `render` fn to peek at.

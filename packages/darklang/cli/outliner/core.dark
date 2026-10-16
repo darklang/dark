@@ -186,7 +186,7 @@ let setChildren
 /// Insert `newId` directly after `afterId`, or at the end when `afterId` isn't there -- never
 /// dropped, or the node would sit in the dicts unlisted: invisible, unreachable, saved to disk forever.
 let insertIdAfter (ids: List<Int>) (afterId: Int) (newId: Int) : List<Int> =
-  if Stdlib.List.member ids afterId then
+  if Stdlib.List.contains ids afterId then
     ids
     |> Stdlib.List.fold [] (fun acc id ->
       if id == afterId then

@@ -308,13 +308,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // don't have to enumerate their position. `--yes`/`-y` for destructive
   // confirmations; `--json` for output format; `--log` is find-only.
   let autoConfirm =
-    (Stdlib.List.member args "--yes") || (Stdlib.List.member args "-y")
-  let wantsJson = Stdlib.List.member args "--json"
+    (Stdlib.List.contains args "--yes") || (Stdlib.List.contains args "-y")
+  let wantsJson = Stdlib.List.contains args "--json"
   // `--full` lifts the per-value cap for `--json`. Refused by name without `--json`, because the
   // page caps a value at sixty characters to fit a line of code, which is a layout limit and not
   // one `--full` should quietly fight.
-  let wantsFull = Stdlib.List.member args "--full"
-  let wantsFindInspect = Stdlib.List.member args "--inspect"
+  let wantsFull = Stdlib.List.contains args "--full"
+  let wantsFindInspect = Stdlib.List.contains args "--inspect"
   // `--iteration map:2` picks which iteration of a loop the page shows, for `show`. Taken out
   // of `args` here with its value, the same way the boolean flags are, so the positional
   // patterns below do not have to know it can appear.
@@ -343,7 +343,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // "no trace whose id starts with --iteration", which sends someone who mistyped a flag off
   // looking for a trace.
   let iterationMissingValue =
-    (Stdlib.List.member args "--iteration") && (iteration == Stdlib.Option.Option.None)
+    (Stdlib.List.contains args "--iteration") && (iteration == Stdlib.Option.Option.None)
 
   let args =
     match iteration with
@@ -357,10 +357,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     { state with exitCode = 1 }
   // Refused by name rather than left to the positional patterns below, which would read it as
   // a trace id and answer something unrelated.
-  else if Stdlib.List.member args "--pass" then
+  else if Stdlib.List.contains args "--pass" then
     Cli.printErr "`--pass` is now `--iteration`: one run of a loop is an iteration"
     { state with exitCode = 1 }
-  else if (Stdlib.List.member args "--view") || (Stdlib.List.member args "--show") then
+  else if (Stdlib.List.contains args "--view") || (Stdlib.List.contains args "--show") then
     Cli.printErr "`traces find --inspect` opens the newest matching run"
     { state with exitCode = 1 }
   else
@@ -461,14 +461,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // needs it, so these arms name it rather than reading it out of the list.
   | [ "fns" ]
   | [ "fns", "--all" ] ->
-    let showAll = Stdlib.List.member args "--all"
+    let showAll = Stdlib.List.contains args "--all"
     if wantsJson then executeFnCountsJson state 100 showAll
     else executeFnCounts state 100 showAll
   | [ "fns", limitStr ]
   | [ "fns", limitStr, "--all" ] ->
     match Stdlib.Int.parse limitStr with
     | Ok limit ->
-      let showAll = Stdlib.List.member args "--all"
+      let showAll = Stdlib.List.contains args "--all"
       if wantsJson then executeFnCountsJson state limit showAll
       else executeFnCounts state limit showAll
     | Error _ ->

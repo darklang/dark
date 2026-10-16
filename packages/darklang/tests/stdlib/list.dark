@@ -49,7 +49,7 @@ test parallelMapOutlivesProcessTable =
 // both ways: against `List.map` every item reports exactly 2, and against
 // `parallelMap` the counts run 3 to 10.
 test parallelMapRunsConcurrently =
-  (Stdlib.List.member
+  (Stdlib.List.contains
     (Stdlib.List.parallelMap (Stdlib.List.range 1 8) (fun i ->
       let burn =
         Stdlib.List.map (Stdlib.List.range 1 30000) (fun x -> x + 1)
@@ -324,11 +324,11 @@ test map2shortest =
       Stdlib.List.map2shortest [ 1L, 2L, 3L ] [] (fun a b -> a - b)
       |> Stdlib.Test.equal [] ]
 
-test member =
+test contains =
   Stdlib.Test.all
-    [ Stdlib.List.member [ 1L, 2L, 3L ] 2L |> Stdlib.Test.equal true
-      Stdlib.List.member [ 1L, 2L, 3L ] 4L |> Stdlib.Test.equal false
-      Stdlib.List.member [] 1L |> Stdlib.Test.equal false ]
+    [ Stdlib.List.contains [ 1L, 2L, 3L ] 2L |> Stdlib.Test.equal true
+      Stdlib.List.contains [ 1L, 2L, 3L ] 4L |> Stdlib.Test.equal false
+      Stdlib.List.contains [] 1L |> Stdlib.Test.equal false ]
 
 test partition =
   Stdlib.Test.all

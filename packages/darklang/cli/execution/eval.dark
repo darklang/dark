@@ -54,10 +54,10 @@ let evaluate
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let allowHarmful =
-    Stdlib.List.member args "--allow-harmful"
+    Stdlib.List.contains args "--allow-harmful"
   // What the expression cost, net of the measuring harness itself: see Perf.floor.
   let wantStats =
-    Stdlib.List.member args "--stats"
+    Stdlib.List.contains args "--stats"
   let args =
     args
     |> Stdlib.List.filter (fun a -> (a != "--allow-harmful") && (a != "--stats"))

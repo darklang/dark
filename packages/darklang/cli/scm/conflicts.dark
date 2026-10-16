@@ -147,7 +147,7 @@ let candidateLabels
   let isMergeShaped =
     c.candidates
     |> Stdlib.List.any (fun cand ->
-      (cand.author != "") && (Stdlib.List.member localBranchNames cand.author))
+      (cand.author != "") && (Stdlib.List.contains localBranchNames cand.author))
 
   c.candidates
   |> Stdlib.List.map (fun cand ->

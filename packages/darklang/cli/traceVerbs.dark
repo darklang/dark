@@ -697,7 +697,7 @@ let insideFn
     | Some f ->
       if (f.kind == "function") && (f.callee == fnHash) then
         true
-      else if (f.kind == "function") && (Stdlib.Bool.not (Stdlib.List.member stdlibHashes f.callee)) then
+      else if (f.kind == "function") && (Stdlib.Bool.not (Stdlib.List.contains stdlibHashes f.callee)) then
         // Somebody else's code, so whatever is below it is on their page.
         false
       else if (f.parent == "") || (f.parent == f.id) then
@@ -826,7 +826,7 @@ let loopsOf
   sited
   |> Stdlib.List.fold [] (fun acc t ->
     let (k, _nm, _hash, _frame) = t
-    if Stdlib.List.member acc k then acc else Stdlib.List.append acc [ k ])
+    if Stdlib.List.contains acc k then acc else Stdlib.List.append acc [ k ])
   |> Stdlib.List.map (fun k ->
     // Reversed, since the fold above prepends. Harmless: `iterations` sorts by `ord` anyway, and
     // the name and hash are the same for every frame at one site.
@@ -976,7 +976,7 @@ let valuesOfFrame
   : Dict<String, String> =
   // Every line this loop's body ever wrote a value to, across all of its iterations.
   //
-  // Through a dict rather than `List.member` against the frame ids: a loop with two thousand
+  // Through a dict rather than `List.contains` against the frame ids: a loop with two thousand
   // iterations and six thousand values asks that question twelve million times otherwise, which
   // is seconds of a page that is supposed to be instant.
   let loopFrames =
@@ -1016,7 +1016,7 @@ let valuesOfFrame
     base'
     |> Stdlib.Dict.toList
     |> Stdlib.List.filter (fun pair ->
-      Stdlib.Bool.not (Stdlib.List.member ownedByLoop (Stdlib.Tuple2.first pair)))
+      Stdlib.Bool.not (Stdlib.List.contains ownedByLoop (Stdlib.Tuple2.first pair)))
 
   Stdlib.List.append outside mine
   |> Stdlib.Dict.fromListOverwritingDuplicates

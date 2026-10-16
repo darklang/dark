@@ -125,8 +125,8 @@ let commitRows (limit: Int64) : List<ScmJson.CommitRowJson> =
 let execute (state: AppState) (args: List<String>) : AppState =
   let wantsJson = ScmJson.wantsJson args
   let args = ScmJson.stripJson args
-  let detailed = Stdlib.List.member args "--detailed"
-  let showAll = Stdlib.List.member args "--all"
+  let detailed = Stdlib.List.contains args "--detailed"
+  let showAll = Stdlib.List.contains args "--all"
 
   let args =
     args |> Stdlib.List.filter (fun a -> a != "--detailed" && a != "--all")

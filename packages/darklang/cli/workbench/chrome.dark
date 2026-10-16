@@ -171,7 +171,7 @@ let hintsForView (state: State) (width: Int) : String =
             ("r", "rename")
             ("x", "traces")
             ("f", "filter") ]
-          (if Stdlib.List.member (visibleViews state) (extViewIndex "builtins") then [ ("B", "builtins") ] else [])
+          (if Stdlib.List.contains (visibleViews state) (extViewIndex "builtins") then [ ("B", "builtins") ] else [])
           paneHint ]
     else if view == vHome then
       let enter =

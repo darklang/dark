@@ -53,7 +53,7 @@ let duplicateDeclarationNames
           Stdlib.List.append modules [name]
           |> Stdlib.String.join "."
 
-        if Stdlib.List.member seen path then
+        if Stdlib.List.contains seen path then
           (seen, Stdlib.List.push duplicates path)
         else
           (Stdlib.List.push seen path, duplicates))
@@ -248,7 +248,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               // Name what did not, so a rejected declaration is something you find out now rather than
               // the next time you call it.
               // `declarationName` returns an Option, so unwrap with filterMap before comparing:
-              // `List.member` against a list of Options silently never matches, which would report
+              // `List.contains` against a list of Options silently never matches, which would report
               // every declaration as missing.
               // An impl's declaration name is `<Type>.<Trait>`; its SetName carries the
               // trait as the location's name, so compare on the last segment.
@@ -259,7 +259,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 |> Stdlib.List.filter (fun n ->
                   let leaf =
                     Stdlib.String.split n "." |> Stdlib.List.last |> Stdlib.Option.withDefault n
-                  Stdlib.Bool.not (Stdlib.List.member definedNames leaf))
+                  Stdlib.Bool.not (Stdlib.List.contains definedNames leaf))
 
               if Stdlib.List.isEmpty missing then
                 ()

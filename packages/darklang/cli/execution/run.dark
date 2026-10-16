@@ -67,15 +67,15 @@ let permissionWarningLines
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let allowHarmful =
-    Stdlib.List.member args "--allow-harmful"
+    Stdlib.List.contains args "--allow-harmful"
   // `dark run` respects the host's configured instance policy by default (same
   // as `eval`). `--sandbox` adds a deny-all run policy. This is runtime
   // authorization, not OS containment.
   let sandbox =
-    Stdlib.List.member args "--sandbox"
+    Stdlib.List.contains args "--sandbox"
   // `--warn-permissions` reports requests beyond the policy instead of denying them.
   let warnPermissions =
-    Stdlib.List.member args "--warn-permissions"
+    Stdlib.List.contains args "--warn-permissions"
   let args =
     args
     |> Stdlib.List.filter (fun a ->

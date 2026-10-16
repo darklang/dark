@@ -385,7 +385,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "rebase", id ] -> executeRebase state id
   | [ "resolve", id, name, choice ] -> executeResolve state id name choice
   | [ id ] ->
-    if Stdlib.List.member knownSubcommands id then
+    if Stdlib.List.contains knownSubcommands id then
       // A subcommand with its arguments left off, which the typo check below deliberately does not catch
       // (it excludes exact matches). Falling through to "switch to a branch called that" would CREATE a
       // branch named "rename" and move you onto it: a mistake that leaves state behind, which is the one
@@ -395,7 +395,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       // Help because the arguments were wrong is the refusal; only help someone ASKED for is an answer.
       Stdlib.printErrorLine (help state)
       Cli.exitWith state false
-    else if Stdlib.List.member commandShapedWords id then
+    else if Stdlib.List.contains commandShapedWords id then
       // A question-shaped word must not CHANGE STATE: `dark branch status` from a git reflex would
       // otherwise start a branch named "status" and switch onto it.
       Cli.printErr $"\"{id}\" reads like a command, not a branch name, so nothing was created."
@@ -454,7 +454,7 @@ let executeBranchesCmd (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine (ScmJson.branchesJson (branchRows ()))
     state
   else
-    executeList state (Stdlib.List.member args "--all")
+    executeList state (Stdlib.List.contains args "--all")
 
 /// `dark switch [<id>]`. No argument reports where you are rather than switching, so a bare `switch`
 /// can't silently move you to main.
@@ -502,7 +502,7 @@ let complete
   | [] -> matching (Stdlib.List.append branchNames subcommands) ""
   | [ partial ] -> matching (Stdlib.List.append branchNames subcommands) partial
   | [ sub, partial ] ->
-    if Stdlib.List.member branchTakingSubcommands sub then
+    if Stdlib.List.contains branchTakingSubcommands sub then
       matching (Stdlib.List.append branchNames [ SCM.Branch.mainBranchName ]) partial
     else
       []

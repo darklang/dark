@@ -617,7 +617,7 @@ module Expr =
           | Some _ -> true
           | None -> false
 
-        if isArgument || (Stdlib.List.``member`` context.localBindings name) then
+        if isArgument || (Stdlib.List.contains context.localBindings name) then
           (ProgramTypes.PipeExpr.EPipeVariable(gid (), name, []), [])
         else
           let resolvedFn =
@@ -660,7 +660,7 @@ module Expr =
             | Some _ -> true
             | None -> false
 
-          if isArgument || (Stdlib.List.``member`` context.localBindings fn.fn.name) then
+          if isArgument || (Stdlib.List.contains context.localBindings fn.fn.name) then
             (ProgramTypes.PipeExpr.EPipeVariable(gid (), fn.fn.name, args),
               unresolvedNames)
           else
@@ -909,7 +909,7 @@ module Expr =
       match Stdlib.Dict.get context.argMap var with
       | Some index -> (ProgramTypes.Expr.EArg(gid (), index), [])
       | None ->
-        if Stdlib.List.``member`` context.localBindings var then
+        if Stdlib.List.contains context.localBindings var then
           (ProgramTypes.Expr.EVariable (gid ()) var, [])
         else
           let asValue =
@@ -979,7 +979,7 @@ module Expr =
             match context.currentFnName with
             | Some qn ->
               match Stdlib.List.last qn with
-              | Some lastSeg when Stdlib.List.``member`` bindings lastSeg ->
+              | Some lastSeg when Stdlib.List.contains bindings lastSeg ->
                 Stdlib.Option.Option.None
               | _ -> context.currentFnName
             | None -> Stdlib.Option.Option.None
@@ -1100,7 +1100,7 @@ module Expr =
         // binding (let, lambda param, match pattern), treat as variable.
         // Otherwise keep the failed NR so DeferredResolver can refresh
         // once the target fn is created.
-        if Stdlib.List.``member`` context.localBindings fnName.fn.name then
+        if Stdlib.List.contains context.localBindings fnName.fn.name then
           (ProgramTypes.Expr.EVariable(gid (), fnName.fn.name), [])
         else
           (ProgramTypes.Expr.EFnName(gid (), resolvedFnName, []), unresolvedNames)
@@ -1162,7 +1162,7 @@ module Expr =
           | Some index ->
             Stdlib.Option.Option.Some (ProgramTypes.Expr.EArg(gid (), index))
           | None ->
-            if Stdlib.List.``member`` context.localBindings name then
+            if Stdlib.List.contains context.localBindings name then
               Stdlib.Option.Option.Some (ProgramTypes.Expr.EVariable(gid (), name))
             else
               Stdlib.Option.Option.None
@@ -1450,7 +1450,7 @@ module FunctionDeclaration =
     : List<String> =
     match tr with
     | TVariable name ->
-      if Stdlib.List.``member`` acc name then acc else Stdlib.List.append acc [ name ]
+      if Stdlib.List.contains acc name then acc else Stdlib.List.append acc [ name ]
     | TList inner -> collectTVarsInTypeRef acc inner
     | TStream inner -> collectTVarsInTypeRef acc inner
     | TDict(key, value) ->
@@ -1512,7 +1512,7 @@ module FunctionDeclaration =
       let withReturn = collectTVarsInTypeRef fromParams rtyp
       withReturn
       |> Stdlib.List.filter (fun n ->
-        Stdlib.Bool.not (Stdlib.List.``member`` explicitTypeParams n))
+        Stdlib.Bool.not (Stdlib.List.contains explicitTypeParams n))
     let typeParams = Stdlib.List.append explicitTypeParams implicitTypeParams
 
     let (body, bdUnresolvedNames) =
@@ -1835,7 +1835,7 @@ let implWithOps
     match nr.resolved with
     | Ok _ -> pair
     | Error _ ->
-      if Stdlib.List.member declaredMethodNames name then
+      if Stdlib.List.contains declaredMethodNames name then
         let location =
           ProgramTypes.PackageLocation
             { owner = ctx.owner; modules = memberPath; name = name }
@@ -1860,7 +1860,7 @@ let implWithOps
       let (_range, originalName, _err) = u
 
       match Stdlib.List.last originalName with
-      | Some last -> Stdlib.Bool.not (Stdlib.List.member declaredMethodNames last)
+      | Some last -> Stdlib.Bool.not (Stdlib.List.contains declaredMethodNames last)
       | None -> true)
 
   let (implModules, implName) =

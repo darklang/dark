@@ -36,7 +36,7 @@ test theBuiltinSetWasActuallyRead =
 test everySubstantialPrefixHasADisplayName =
   let known = BuiltinGroups.knownPrefixes ()
   BuiltinGroups.substantial 3
-  |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.List.member known p))
+  |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.List.contains known p))
   |> Stdlib.List.sort
   |> Stdlib.Test.equal []
 
@@ -44,7 +44,7 @@ test everySubstantialPrefixHasADisplayName =
 test noDisplayNameIsStale =
   let live = Stdlib.List.unique (BuiltinGroups.livePrefixes ())
   BuiltinGroups.knownPrefixes ()
-  |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.List.member live p))
+  |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.List.contains live p))
   |> Stdlib.List.sort
   |> Stdlib.Test.equal []
 

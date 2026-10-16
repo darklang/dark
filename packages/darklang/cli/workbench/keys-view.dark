@@ -280,7 +280,7 @@ let handleViewKey
       // Code: the builtins, the bottom tier of the tree. Gated, so only when this account can
       // see them; otherwise the key does nothing rather than opening a view that isn't there.
       let builtins = extViewIndex "builtins"
-      if (state.activeView == vMatter) && (Stdlib.List.member (visibleViews state) builtins) then
+      if (state.activeView == vMatter) && (Stdlib.List.contains (visibleViews state) builtins) then
         Step.Continue (goTo state (mkDest builtins 0) false)
       else Step.Continue state
     | Some "E" ->

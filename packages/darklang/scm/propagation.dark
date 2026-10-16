@@ -149,7 +149,7 @@ let authoringOrder
 
     Stdlib.List.append
       mainUpToFork
-      (fromBranch |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.member mainUpToFork h)))
+      (fromBranch |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains mainUpToFork h)))
 
 
 /// The version authored immediately before the one that's live now. None at the start of the sequence.

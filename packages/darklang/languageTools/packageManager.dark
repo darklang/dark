@@ -532,7 +532,7 @@ module Search =
   let readerSubmodules (submodules: List<String>) (implNames: List<String>) : List<String> =
     submodules
     |> Stdlib.List.filter (fun name ->
-      Stdlib.Bool.not (Stdlib.List.member implNames name))
+      Stdlib.Bool.not (Stdlib.List.contains implNames name))
 
 
   /// Search returning only names: (direct submodules, types, values, fns, traits, impls,

@@ -66,15 +66,15 @@ let counts (unit: Unit) : Counts =
   let fromDraft =
     pendingConstraints
     |> Stdlib.List.filter (fun f ->
-      (Stdlib.List.member draftNames (SCM.Constraints.fqnOf f.dependency))
-      || (Stdlib.List.member draftNames (SCM.Constraints.fqnOf f.usage)))
+      (Stdlib.List.contains draftNames (SCM.Constraints.fqnOf f.dependency))
+      || (Stdlib.List.contains draftNames (SCM.Constraints.fqnOf f.usage)))
 
   Counts
     { changed = Stdlib.List.length bindings
       followed =
         bindings
         |> Stdlib.List.filter (fun b ->
-          Stdlib.List.member propagated (SCM.Conflicts.fqn b.owner b.modules b.name))
+          Stdlib.List.contains propagated (SCM.Conflicts.fqn b.owner b.modules b.name))
         |> Stdlib.List.length
       removed = Stdlib.List.length (SCM.PackageOps.draftRemovals ())
       repoints = Stdlib.List.length (SCM.PackageOps.draftRepoints bindings)
@@ -88,7 +88,7 @@ let counts (unit: Unit) : Counts =
 /// The split the whole draft view turns on: an entry that followed your edit is otherwise indistinguishable
 /// from one you made.
 let followed (p: Picture) (b: SCM.Conflicts.Binding) : Bool =
-  Stdlib.List.member p.propagated (SCM.Conflicts.fqn b.owner b.modules b.name)
+  Stdlib.List.contains p.propagated (SCM.Conflicts.fqn b.owner b.modules b.name)
 
 /// How many of the changed names followed something rather than being edited by you.
 let followedCount (p: Picture) : Int =

@@ -165,7 +165,7 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
 
     let newIds =
       SCM.PackageOps.idsLandedSince w.branchId w.since sweepSince
-      |> Stdlib.List.filter (fun id -> Stdlib.Bool.not (Stdlib.List.member w.reported id))
+      |> Stdlib.List.filter (fun id -> Stdlib.Bool.not (Stdlib.List.contains w.reported id))
 
     // Ids first, then the blobs for the new ones only.
     let landed =
@@ -244,7 +244,7 @@ let dependents
       |> Stdlib.List.filterMap (fun d ->
         match d with
         | (_hash, location, kind) ->
-          if Stdlib.List.member seen location then
+          if Stdlib.List.contains seen location then
             Stdlib.Option.Option.None
           else
             Stdlib.Option.Option.Some(Touched { location = location; kind = kind }))
@@ -276,7 +276,7 @@ let affects (change: Change) (entry: LanguageTools.ProgramTypes.PackageLocation)
     true
   else
     let reached = dependents change.touched
-    (Stdlib.List.member reached entry) || ((Stdlib.List.length reached) > walkAtMost)
+    (Stdlib.List.contains reached entry) || ((Stdlib.List.length reached) > walkAtMost)
 
 
 // --- the last version that passed its checks ---
@@ -340,7 +340,7 @@ let calleeDeclarations
     | (h, kind) :: rest ->
       let hs = LanguageTools.ProgramTypes.hashToString h
 
-      if (Stdlib.List.member seen hs) || ((Stdlib.List.length found) >= calleesAtMost) then
+      if (Stdlib.List.contains seen hs) || ((Stdlib.List.length found) >= calleesAtMost) then
         walk rest seen found
       else
         let found =

@@ -50,7 +50,7 @@ To run the CLI executable against the local package manager:
               Installation.Install.installOrUpdateLatestRelease host)
           | Error e -> Stdlib.Result.Result.Error e
 
-  if Stdlib.List.member_v0 args "--skip-self-update" then
+  if Stdlib.List.contains args "--skip-self-update" then
     let newArgs =
       args |> Stdlib.List.filter (fun arg -> arg != "--skip-self-update")
 

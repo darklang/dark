@@ -52,13 +52,13 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
       |> Stdlib.List.indexedMap (fun i item ->
         let display = if item.desc == "" then displayOf item else fitName (displayOf item)
         let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
-        let isWip = anyWip && (Stdlib.List.member wipNames fullName)
+        let isWip = anyWip && (Stdlib.List.contains wipNames fullName)
         // A module is uncommitted work's when something under it is: the draft names are full
         // paths, so "under" is a prefix test.
         let holdsWip =
           item.isModule && anyWip
           && (wipNames |> Stdlib.List.any (fun n -> Stdlib.String.startsWith n (fullName + ".")))
-        let isDeprecated = anyDeprecated && (Stdlib.List.member deprecatedNames item.name)
+        let isDeprecated = anyDeprecated && (Stdlib.List.contains deprecatedNames item.name)
         let badges =
           (if isWip then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink " ●" else "")
           + (if isDeprecated then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow " ⚠" else "")
@@ -141,7 +141,7 @@ let accessSummaryLines (state: State) (hash: String) : List<String> =
     | None -> []
     | Some names ->
       let exceeding =
-        facts.effects |> Stdlib.List.filter (fun e -> Stdlib.Bool.not (Stdlib.List.``member`` names e))
+        facts.effects |> Stdlib.List.filter (fun e -> Stdlib.Bool.not (Stdlib.List.contains names e))
       let warning =
         if facts.complete && (Stdlib.Bool.not (Stdlib.List.isEmpty exceeding)) then
           [ factNote

@@ -598,7 +598,7 @@ let expandFrom
       | Alias target ->
         if Stdlib.List.length decl.typeParams != Stdlib.List.length args then
           blocked found (arityMismatch at ty name decl args)
-        else if Stdlib.List.``member`` seen name then
+        else if Stdlib.List.contains seen name then
           blocked found (
             warning IssueCode.AliasCycle at Context.AliasCycleReferenced
           )
@@ -674,7 +674,7 @@ let expandDeep
       | Some decl ->
         match decl.definition with
         | Alias target ->
-          if Stdlib.List.``member`` seen name then
+          if Stdlib.List.contains seen name then
             Stdlib.Result.Result.Error(
               warning IssueCode.AliasCycle at Context.AliasCycleReferenced
             )
@@ -785,7 +785,7 @@ let argsThatReachValues
     match Stdlib.List.zip typeParams args with
     | Some pairs ->
       pairs
-      |> Stdlib.List.filter (fun (p, _) -> Stdlib.List.``member`` used p)
+      |> Stdlib.List.filter (fun (p, _) -> Stdlib.List.contains used p)
       |> Stdlib.List.map (fun (_, arg) -> arg)
     // If the counts differ, retain all arguments so malformed input cannot hide
     // an invalid key type. Argument-count validation reports the mismatch separately.
@@ -878,7 +878,7 @@ let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTy
       let fieldsUsable =
         // Use if so a previously visited declaration's fields are not walked
         // again. Dark's boolean operators evaluate both operands.
-        if Stdlib.List.``member`` seen name then
+        if Stdlib.List.contains seen name then
           true
         else
           Stdlib.List.all (declarationFieldTypes decl) (fun t ->

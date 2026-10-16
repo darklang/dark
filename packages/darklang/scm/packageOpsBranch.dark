@@ -67,7 +67,7 @@ let parentBindings (parentId: Uuid) (names: List<String>) : List<Conflicts.Bindi
     let overlayKeys =
       overlay |> Stdlib.List.map (fun b -> Conflicts.bindingKey b.owner b.modules b.name)
 
-    // Dict, not `List.member`: `fromMain` is EVERY live binding, so a linear membership test per element is
+    // Dict, not `List.contains`: `fromMain` is EVERY live binding, so a linear membership test per element is
     // O(main x overlay) on a path every branch-aware read goes through. See `unknownRecords`.
     let overlayKeySet =
       overlayKeys

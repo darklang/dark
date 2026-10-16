@@ -138,7 +138,7 @@ let actualType
                     fn.typeParams
                     (implParams
                      |> Stdlib.List.filter (fun p ->
-                       Stdlib.Bool.not (Stdlib.List.member fn.typeParams p)))
+                       Stdlib.Bool.not (Stdlib.List.contains fn.typeParams p)))
                 parameters = Stdlib.List.map fn.parameters (fun p -> p.typ)
                 returnType = fn.returnType
                 needsTypeArgs = false
@@ -204,7 +204,7 @@ let check
 
     let missing =
       declared
-      |> Stdlib.List.filter (fun name -> Stdlib.Bool.not (Stdlib.List.member given name))
+      |> Stdlib.List.filter (fun name -> Stdlib.Bool.not (Stdlib.List.contains given name))
       |> Stdlib.List.map (fun name ->
         Types.definiteError
           IssueCode.ImplMethodSet
@@ -215,7 +215,7 @@ let check
 
     let extra =
       given
-      |> Stdlib.List.filter (fun name -> Stdlib.Bool.not (Stdlib.List.member declared name))
+      |> Stdlib.List.filter (fun name -> Stdlib.Bool.not (Stdlib.List.contains declared name))
       |> Stdlib.List.map (fun name ->
         Types.definiteError
           IssueCode.ImplMethodSet

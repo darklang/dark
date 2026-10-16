@@ -205,7 +205,7 @@ let changedItem
       name = name
       hash = b.hash
       change = changeKind branchId b previous
-      followed = Stdlib.List.member propagated name }
+      followed = Stdlib.List.contains propagated name }
 
 /// Right-pad to <param width> so a column of names lines up under each other.
 let pad (s: String) (width: Int) : String =
@@ -236,7 +236,7 @@ let conflictActionJson (a: ConflictActionJson) : String =
   Stdlib.Json.serialize<ConflictActionJson> a
 
 /// `--json` present?
-let wantsJson (args: List<String>) : Bool = Stdlib.List.member args "--json"
+let wantsJson (args: List<String>) : Bool = Stdlib.List.contains args "--json"
 
 /// Strip the flag so the rest of the parsing doesn't have to know about it.
 let stripJson (args: List<String>) : List<String> =

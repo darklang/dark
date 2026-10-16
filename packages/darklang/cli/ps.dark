@@ -81,7 +81,7 @@ let treeRowsWithIds (branchId: Uuid) (all: List<Stdlib.Exec.Summary>) : List<(Uu
   let isRoot (p: Stdlib.Exec.Summary) : Bool =
     match p.parent with
     | None -> true
-    | Some pid -> Stdlib.Bool.not (Stdlib.List.``member`` ids pid)
+    | Some pid -> Stdlib.Bool.not (Stdlib.List.contains ids pid)
   let under (depth: Int) (p: Stdlib.Exec.Summary) : List<(Uuid * List<String>)> =
     let children =
       all |> Stdlib.List.filter (fun c -> c.parent == Stdlib.Option.Option.Some p.id)
@@ -318,7 +318,7 @@ let printJson () : Unit =
 
 let execute (state: AppState) (args: List<String>) : AppState =
   // `--json` on anything `ps` prints: the flag is pulled out first so it can sit anywhere.
-  let wantsJson = Stdlib.List.member args "--json"
+  let wantsJson = Stdlib.List.contains args "--json"
   let args = args |> Stdlib.List.filter (fun a -> a != "--json")
 
   match args with
@@ -382,7 +382,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Error e ->
       Cli.printErr e
       { state with exitCode = 1 }
-  | [ verb ] when (Stdlib.List.member [ "show", "cancel", "kill" ] verb) ->
+  | [ verb ] when (Stdlib.List.contains [ "show", "cancel", "kill" ] verb) ->
     Cli.printErr $"ps {verb} needs an id prefix (or a pid) -- `dark ps` lists them"
     { state with exitCode = 1 }
   | "help" :: _ ->

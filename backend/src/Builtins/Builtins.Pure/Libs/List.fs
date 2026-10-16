@@ -730,7 +730,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "listMember" 0
+    { name = fn "listContains" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "value" varA "" ]
       returnType = TBool

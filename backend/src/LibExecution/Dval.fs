@@ -354,7 +354,7 @@ let inline private ensureSufficientExecutionStack () : unit =
 /// Structural equality. Walks two Dvals in parallel and returns
 /// true iff every reachable leaf compares equal.
 ///
-/// This is what `==` means: `List.member`, `List.unique`, `List.sort`
+/// This is what `==` means: `List.contains`, `List.unique`, `List.sort`
 /// and dict keys call it (or `DvalOrdering`) directly. Type errors
 /// (callers passing structurally-incompatible Dvals) return false
 /// rather than raising — the caller's responsibility to type-check

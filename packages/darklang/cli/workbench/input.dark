@@ -215,7 +215,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
       else if Darklang.Cli.Registry.needsTerminal appState.allCommandsCache cmd args then
         Step.Launch({ state with input = Stdlib.Option.Option.None }, text)
       else
-        let isKnown = Stdlib.List.member allNames cmd
+        let isKnown = Stdlib.List.contains allNames cmd
         let output =
           captureOutput (fun () ->
             if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args

@@ -27,12 +27,12 @@ module Groups =
   /// Registered, but in no group: these print under "Other:" and never on the welcome screen.
   let ungrouped () : List<String> =
     let g = grouped ()
-    registered () |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.member g n))
+    registered () |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.contains g n))
 
   /// Named by a group, but not registered: these are silently dropped from help.
   let phantom () : List<String> =
     let r = registered ()
-    grouped () |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.member r n))
+    grouped () |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.contains r n))
 
 
 // The floor. Without it the two tests below pass over an empty registry, which is exactly

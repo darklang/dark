@@ -486,7 +486,7 @@ let parseArgs
   (args: List<String>)
   : Stdlib.Result.Result<(Stdlib.Option.Option<String> * ViewMode * Bool), String> =
   let isFlag (a: String) : Bool = Stdlib.String.startsWith a "-"
-  let includeTests = Stdlib.List.member args "--include-tests"
+  let includeTests = Stdlib.List.contains args "--include-tests"
   let flags =
     Stdlib.List.filter args (fun a -> isFlag a && a != "--include-tests")
   let paths = Stdlib.List.filter args (fun a -> Stdlib.Bool.not (isFlag a))
@@ -652,7 +652,7 @@ let viewCompiled
 let looksLikeHex (s: String) : Bool =
   s
   |> Stdlib.String.toList
-  |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c || (Stdlib.List.member [ 'a', 'b', 'c', 'd', 'e', 'f' ] c))
+  |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c || (Stdlib.List.contains [ 'a', 'b', 'c', 'd', 'e', 'f' ] c))
 
 
 /// A 64-hex argument is an item HASH: every --json surface hands them out, and a

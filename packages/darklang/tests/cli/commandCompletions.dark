@@ -56,7 +56,7 @@ test unknownBranchMatchesNothing =
 
 // `main` is always a legitimate target for the branch-taking subcommands
 test mainIsAlwaysOffered =
-  ((BranchCompletion.values [ "switch", "mai" ]) |> Stdlib.List.member "main")
+  ((BranchCompletion.values [ "switch", "mai" ]) |> Stdlib.List.contains "main")
   |> Stdlib.Test.equal true
 
 // a subcommand that takes no branch gets no branch names

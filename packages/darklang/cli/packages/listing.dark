@@ -110,7 +110,7 @@ let listModule
   let childImplEntries =
     types
     |> Stdlib.List.map (fun (typeName, _hash) -> typeName)
-    |> Stdlib.List.filter (fun typeName -> Stdlib.List.member allSubmodules typeName)
+    |> Stdlib.List.filter (fun typeName -> Stdlib.List.contains allSubmodules typeName)
     |> Stdlib.List.map implsUnder
     |> Stdlib.List.flatten
 
@@ -181,8 +181,8 @@ let listModule
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
-  let includeDeprecated = Stdlib.List.member args "--include-deprecated"
-  let showVersions = Stdlib.List.member args "--versions"
+  let includeDeprecated = Stdlib.List.contains args "--include-deprecated"
+  let showVersions = Stdlib.List.contains args "--versions"
 
   let positional =
     args

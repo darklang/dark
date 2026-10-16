@@ -97,13 +97,13 @@ let draftDepsOf (pending: List<String>) (hashes: List<String>) : List<String> =
         WHERE item_hash IN ({quoted}) AND depends_on_hash != ''"
       []
       "h")
-    |> Stdlib.List.filter (fun h -> Stdlib.List.``member`` pending h)
+    |> Stdlib.List.filter (fun h -> Stdlib.List.contains pending h)
 
 /// One round of closure: referenced hashes with draft content or names not yet in acc.
 let closeStep (pending: List<String>) (acc: List<String>) : List<String> =
   let next =
     draftDepsOf pending acc
-    |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.``member`` acc h))
+    |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains acc h))
 
   Stdlib.List.append acc next
 
@@ -216,7 +216,7 @@ let contentIdIfWanted
 
   match target with
   | Some h ->
-    if Stdlib.List.``member`` wantedHashes h then
+    if Stdlib.List.contains wantedHashes h then
       Stdlib.Option.Option.Some e.id
     else
       Stdlib.Option.Option.None
@@ -232,7 +232,7 @@ let docIdIfWanted
   : Stdlib.Option.Option<String> =
   match e.op with
   | UpdateDoc(location, _, _, _, _) ->
-    if Stdlib.List.``member`` wantedFqns (fqnOf location) then
+    if Stdlib.List.contains wantedFqns (fqnOf location) then
       Stdlib.Option.Option.Some e.id
     else
       Stdlib.Option.Option.None
@@ -243,7 +243,7 @@ let docIdIfWanted
 let unknownNames (names: List<String>) : List<String> =
   let held = draftNamings () |> Stdlib.List.map (fun s -> s.fqn) |> Stdlib.List.unique
 
-  names |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.``member`` held n))
+  names |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.contains held n))
 
 /// The ops to commit for <param names>, and the FQNs that came along by closure.
 ///
@@ -260,7 +260,7 @@ let plan
     // Every naming for a requested name, not just the last: an intermediate naming left in the draft would
     // describe a version that is no longer what the name means, with nothing to collapse it later.
     let directly =
-      namings |> Stdlib.List.filter (fun s -> Stdlib.List.``member`` names s.fqn)
+      namings |> Stdlib.List.filter (fun s -> Stdlib.List.contains names s.fqn)
 
     let wantedHashes =
       closeOverDeps (directly |> Stdlib.List.map (fun s -> s.hash))
@@ -278,9 +278,9 @@ let plan
     let keptNamings =
       namings
       |> Stdlib.List.filter (fun s ->
-        (Stdlib.List.``member`` wantedHashes s.hash)
-        && ((Stdlib.List.``member`` names s.fqn)
-            || (Stdlib.List.``member`` reachableFqns s.fqn)))
+        (Stdlib.List.contains wantedHashes s.hash)
+        && ((Stdlib.List.contains names s.fqn)
+            || (Stdlib.List.contains reachableFqns s.fqn)))
 
     let namingIds = keptNamings |> Stdlib.List.map (fun s -> s.opId)
 
@@ -299,7 +299,7 @@ let plan
       keptNamings
       |> Stdlib.List.map (fun s -> s.fqn)
       |> Stdlib.List.unique
-      |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.``member`` names f))
+      |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.contains names f))
 
     (Stdlib.List.unique (Stdlib.List.append namingIds otherIds), pulledIn)
     |> Stdlib.Result.Result.Ok

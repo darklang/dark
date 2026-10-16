@@ -122,7 +122,7 @@ let printJson
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  let json = Stdlib.List.member args "--json"
+  let json = Stdlib.List.contains args "--json"
 
   let positional =
     args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "-" |> Stdlib.Bool.not)

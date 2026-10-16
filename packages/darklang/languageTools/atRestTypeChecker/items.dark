@@ -133,7 +133,7 @@ let finish
   let unsolved (t: Model.Ty) : List<Model.Var> =
     (Stdlib.Dict.keys (Types.freeVars s.subst t))
     |> Stdlib.List.filter (fun v ->
-      Stdlib.Bool.not (Stdlib.List.``member`` scheme.quantified v))
+      Stdlib.Bool.not (Stdlib.List.contains scheme.quantified v))
 
   // A definite error holds even if its displayed types still contain unknowns.
   // For other errors, unresolved expected or actual types leave the error uncertain.

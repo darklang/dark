@@ -473,7 +473,7 @@ means changing the representation.
 been quietly building the case for it. Rounds 1-4 optimised the interpreter for *allocation* and, by
 their own account, largely exhausted the easy classes. Round 5 has now found the same thing four
 times over in the CLI: there is no pathology, only volume. Measured here, per call: a 13-element
-tuple literal 465 us, `List.range 1 13` 175 us, `List.filter` over 13 Ints 215 us, `List.member` over
+tuple literal 465 us, `List.range 1 13` 175 us, `List.filter` over 13 Ints 215 us, `List.contains` over
 13 Ints 70 us, a 29-field record update 11 us. That is roughly **15-35 us per list element**, and it
 is the multiplier on every structural win in this round.
 

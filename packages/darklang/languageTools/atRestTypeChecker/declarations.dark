@@ -33,7 +33,7 @@ let prepareValueTypeParameters
             | Ok used ->
               let used =
                 Stdlib.List.filter decl.typeParams (fun param ->
-                  Stdlib.List.``member`` used param)
+                  Stdlib.List.contains used param)
               (used, failures)
             | Error failure ->
               (previous, Stdlib.Dict.set failures name (failureFinding failure))
@@ -527,7 +527,7 @@ let allDeclarationProblems
         |> Stdlib.List.map (fun m -> referencesOf env m)
         |> Stdlib.List.flatten
         |> Stdlib.List.filter (fun r ->
-          Stdlib.Bool.not (Stdlib.List.``member`` members r))
+          Stdlib.Bool.not (Stdlib.List.contains members r))
         |> Stdlib.List.unique
         |> Stdlib.List.map (fun r ->
           Stdlib.Option.withDefault (Stdlib.Dict.get declarationProblems r) [])

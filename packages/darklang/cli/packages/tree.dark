@@ -118,7 +118,7 @@ let execute (state: AppState) (args: List<String>): AppState =
   // Check for --toc flag
   let showToc = Stdlib.List.any args (fun arg -> arg == "--toc")
   let includeDeprecated =
-    Stdlib.List.member args "--include-deprecated"
+    Stdlib.List.contains args "--include-deprecated"
 
   if showToc then
     displayTableOfContents ()

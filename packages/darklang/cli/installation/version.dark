@@ -21,7 +21,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // a round trip and then prints "unable to check for updates". Measured at ~11s against a firewall that
   // drops rather than refuses, which is the shape of a CI runner.
   let line =
-    if Stdlib.List.member args "--local" then
+    if Stdlib.List.contains args "--local" then
       $"Darklang CLI {Helpers.cliVersion ()}"
     else
       Helpers.versionInfoWithUpdateCheck ()

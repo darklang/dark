@@ -3,7 +3,7 @@ module Darklang.Cli.Installation.Install
 
 /// Check if a flag is present in args (supports both --flag and -f forms)
 let hasFlag (args: List<String>) (longFlag: String) (shortFlag: String) : Bool =
-  (Stdlib.List.member args longFlag) || (Stdlib.List.member args shortFlag)
+  (Stdlib.List.contains args longFlag) || (Stdlib.List.contains args shortFlag)
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
@@ -12,7 +12,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   // Parse flags
   let autoConfirm = hasFlag args "--yes" "-y"
-  let uninstallFirst = Stdlib.List.member args "--uninstall-if-installed"
+  let uninstallFirst = Stdlib.List.contains args "--uninstall-if-installed"
 
   match currentMode with
   | Installed ->

@@ -61,7 +61,7 @@ let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
       "http.requestTimeoutMs"
       "trace.keep"
       "trace.maxMb" ]
-  if Stdlib.List.``member`` numeric key then
+  if Stdlib.List.contains numeric key then
     match Stdlib.Int.parse value with
     // The boot ignores a poll under 10 ms (`Cli.fs`), so refuse it here rather than store it.
     | Ok n when key == "exec.storePollMs" && n < 10 ->
@@ -69,7 +69,7 @@ let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
     | Ok n when n >= 0 -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.Some $"{key} takes a whole number (0 = none), not {value}"
   else if
-    Stdlib.List.``member`` [ "trace.record", "http.loopback", "http.private" ] key
+    Stdlib.List.contains [ "trace.record", "http.loopback", "http.private" ] key
   then
     if (value == "on") || (value == "off") then Stdlib.Option.Option.None
     else Stdlib.Option.Option.Some $"{key} is on or off"

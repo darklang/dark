@@ -343,5 +343,5 @@ module OrderPreservingDedup =
     Stdlib.List.fold
       [ "c", "a", "b", "a" ]
       []
-      (fun acc h -> if Stdlib.List.member acc h then acc else Stdlib.List.pushBack acc h)
+      (fun acc h -> if Stdlib.List.contains acc h then acc else Stdlib.List.pushBack acc h)
     |> Stdlib.Test.equal [ "c", "a", "b" ]
