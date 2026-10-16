@@ -729,6 +729,17 @@ position it branched from. Its calls are `trace_fn_calls` under the same id.
 `dark traces` lists them; `traces inspect|show|resume|fork|pin|rerun|delete`.
 `Darklang.Tracing.Store` is the Dark side.
 
+CLI input is stored as `Tracing.ScriptOrEvalInput`: either an eval expression or a script's
+filename, source, argument list and run switches. Recording and every replay mode use this same
+input. Arguments stay separate strings, so spaces, empty strings and flag-like
+values survive without shell quoting or reconstruction from a display label.
+`Trace.input` remains readable source for display; `Trace.scriptOrEvalInput` is the typed
+invocation. Legacy eval rows are decoded at the storage boundary. Old script rows
+lack arguments and run switches, so they remain inspectable but are refused for
+replay: reconstructing them could change their input or discard a sandbox. Host
+permission grants are never saved as part of the invocation; current policy is
+checked again.
+
 - Ctrl-C during a traced run: the CLI's handler cancels what the trace spawned
   and gives it a quarter of a second to land (`Cli.fs`,
   `stopChildrenPolitely`), stores the log as it stands, marks the trace

@@ -1,0 +1,80 @@
+module Darklang.Cli.Docs.Scripts
+
+let content () : String =
+  """# Running .dark scripts
+
+Save your code in a .dark file and run it with `dark run <file> [args...]`.
+`run-script` is another name for `run`.
+
+For example, save this as greet.dark:
+
+  match args with
+  | [ name ] ->
+    Stdlib.printLine ("Hello, " + name)
+    0
+  | _ ->
+    Stdlib.printLine "Usage: dark run greet.dark <name>"
+    2
+
+Then run it:
+
+  dark run greet.dark "Ada Lovelace"
+  # prints Hello, Ada Lovelace; exits 0
+  dark run greet.dark
+  # prints usage; exits 2
+
+No import or commit is needed. Declarations in the file can use each other and
+packages on the selected branch. Running the file does not save its declarations
+into your package tree.
+
+## Arguments
+
+`args` is available in top-level expressions as a List<String> containing the
+arguments after the file path, in order.
+It is [] when none are given. Use shell quotes to keep spaces in one argument,
+or `""` to pass an empty string.
+
+Script values and functions cannot be named args: that name is reserved for input.
+Function parameters and local `let` bindings may use it.
+
+You do not need a main function. If you write one, call it in the final expression,
+for example `main args`. Functions do not capture top-level variables, so pass any
+arguments they need explicitly.
+
+Put runner options before the file path. Everything after it is script input,
+including flags and `--`:
+
+  dark run --sandbox greet.dark Ada
+  dark run greet.dark --sandbox
+  # the second command greets the name --sandbox
+
+For a file path starting with a dash, use `dark run -- -name.dark`.
+
+## Results and exit codes
+
+Expressions run in order. Each must return Unit, except the last, which may return
+an Int exit code: 0 for success, or 1-255 for a portable failure code.
+Int64 is also accepted. A final Unit means success, so this is a complete script:
+
+  Stdlib.printLine "Hello"
+
+Empty files and files containing only declarations fail: add an expression to run.
+Parse errors, runtime errors, permission denials and missing files also exit nonzero.
+
+`dark eval '<expression>'` displays the result and exits 0 when evaluation succeeds,
+even if the result is a nonzero integer. Use a script to return an exit code.
+
+## Permissions
+
+Scripts use your installation's instance policy, just like eval. File, environment
+and HTTP access may need permission; see `dark permissions`. The script's own
+functions need no package approval. Package functions keep their usual approval
+requirements.
+
+A permission denial stops the script; earlier effects may already have happened.
+At an interactive terminal, you can save the rule for future runs. The script stays
+stopped, so you decide whether to run it again. Noninteractive runs show guidance
+without prompting.
+`--sandbox` adds a deny-all run policy; it does not provide OS isolation.
+See `dark help run-script` for all permission options.
+"""

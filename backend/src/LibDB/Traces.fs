@@ -24,6 +24,120 @@ module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module BinarySer = LibSerialization.Binary.Serialization
 
+/// Saved script options. Permission grants are not saved here.
+type ScriptOptions = { allowHarmful : bool; sandbox : bool; warnPermissions : bool }
+
+module ScriptOptions =
+  let defaults = { allowHarmful = false; sandbox = false; warnPermissions = false }
+
+  let typeName () =
+    RT.FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Tracing.scriptOptions ())
+
+  let toDT (options : ScriptOptions) : RT.Dval =
+    let tn = typeName ()
+    RT.DRecord(
+      tn,
+      tn,
+      [],
+      Map
+        [ "allowHarmful", RT.DBool options.allowHarmful
+          "sandbox", RT.DBool options.sandbox
+          "warnPermissions", RT.DBool options.warnPermissions ]
+    )
+
+  let tryFromDT (value : RT.Dval) : Option<ScriptOptions> =
+    match value with
+    | RT.DRecord(tn, _, [], fields) when tn = typeName () ->
+      match
+        Map.tryFind "allowHarmful" fields,
+        Map.tryFind "sandbox" fields,
+        Map.tryFind "warnPermissions" fields
+      with
+      | Some(RT.DBool allowHarmful),
+        Some(RT.DBool sandbox),
+        Some(RT.DBool warnPermissions) ->
+        Some
+          { allowHarmful = allowHarmful
+            sandbox = sandbox
+            warnPermissions = warnPermissions }
+      | _ -> None
+    | _ -> None
+
+/// The source, arguments and options for a CLI run and its replays.
+type ScriptOrEvalInput =
+  | EvalExpression of source : string * allowHarmful : bool
+  | RunScript of
+    filename : string *
+    source : string *
+    args : List<string> *
+    options : ScriptOptions
+
+module ScriptOrEvalInput =
+  let typeName () =
+    RT.FQTypeName.fqPackage (
+      LibExecution.PackageRefs.Type.Tracing.scriptOrEvalInput ()
+    )
+
+  let source (input : ScriptOrEvalInput) : string =
+    match input with
+    | EvalExpression(source, _)
+    | RunScript(_, source, _, _) -> source
+
+  let options (input : ScriptOrEvalInput) : ScriptOptions =
+    match input with
+    | EvalExpression(_, allowHarmful) ->
+      { ScriptOptions.defaults with allowHarmful = allowHarmful }
+    | RunScript(_, _, _, options) -> options
+
+  let toDT (input : ScriptOrEvalInput) : RT.Dval =
+    let tn = typeName ()
+    let case, fields =
+      match input with
+      | EvalExpression(source, allowHarmful) ->
+        "Eval", [ RT.DString source; RT.DBool allowHarmful ]
+      | RunScript(filename, source, args, options) ->
+        "Script",
+        [ RT.DString filename
+          RT.DString source
+          LibExecution.Dval.list RT.KTString (List.map RT.DString args)
+          ScriptOptions.toDT options ]
+    RT.DEnum(tn, tn, [], case, fields)
+
+  /// Older eval traces stored just the source text. Older script traces are
+  /// missing arguments and options, so we cannot safely replay them: guessing
+  /// could change the input or remove the sandbox.
+  let tryFromStored (entry : string) (value : RT.Dval) : Option<ScriptOrEvalInput> =
+    let rec strings reversed values =
+      match values with
+      | [] -> Some(List.rev reversed)
+      | RT.DString value :: rest -> strings (value :: reversed) rest
+      | _ -> None
+    match value with
+    | RT.DEnum(tn, _, [], "Eval", [ RT.DString source; RT.DBool allowHarmful ]) when
+      tn = typeName ()
+      ->
+      Some(EvalExpression(source, allowHarmful))
+    | RT.DEnum(tn,
+               _,
+               [],
+               "Script",
+               [ RT.DString filename; RT.DString source; RT.DList(_, args); options ]) when
+      tn = typeName ()
+      ->
+      match strings [] args, ScriptOptions.tryFromDT options with
+      | Some args, Some options -> Some(RunScript(filename, source, args, options))
+      | _ -> None
+    | RT.DString source when entry = "eval" -> Some(EvalExpression(source, false))
+    | _ -> None
+
+  let toTraceParams (input : ScriptOrEvalInput) =
+    let entry =
+      match input with
+      | EvalExpression _ -> "eval"
+      | RunScript(filename, _, _, _) -> $"run {filename}"
+    entry, "cli", toDT input
+
+
 type Status =
   | Running
   | Done
@@ -52,7 +166,7 @@ type Trace =
     /// `eval`, `run <file>`, or `GET /path`: what was run.
     entry : string
     inputName : string
-    /// The expression, the script's source, or the request: what `resume` runs again.
+    /// CLI input, source text from an older trace, or an HTTP request.
     input : RT.Dval
     status : Status
     /// The trace this was forked from, and the `seq` it branched at: the parent's log below
@@ -159,6 +273,25 @@ let setStatus (id : System.Guid) (status : Status) : unit =
       "status", Sql.string (Status.name status)
       "updated", Sql.string (now ()) ]
   |> Sql.executeStatementSync
+
+/// Read only the saved input, so a corrupt result cannot prevent a rerun.
+/// Return None if the input itself is corrupt.
+let getStoredInput (id : System.Guid) : Task<Option<string * RT.Dval>> =
+  task {
+    let! row =
+      Sql.query "SELECT handler_desc, input_value FROM traces WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        read.string "handler_desc", read.bytes "input_value")
+    return
+      row
+      |> Option.bind (fun (entry, bytes) ->
+        try
+          Some(entry, BinarySer.RT.Dval.deserialize "traces.input_value" bytes)
+        with ex ->
+          print $"[traces] Failed to decode saved input: {ex.Message}"
+          None)
+  }
 
 let get (id : System.Guid) : Task<Option<Trace>> =
   Sql.query $"SELECT {columns} FROM traces WHERE id = @id"
