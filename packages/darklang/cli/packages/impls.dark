@@ -29,6 +29,14 @@ let resolveTrait
   (state: Cli.AppState)
   (traitPath: String)
   : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
+  // An operator is the trait it lowers to, as in `dark search %`: `impls +` is `impls Add`.
+  // `==` and the Bool operators alias to fn names rather than traits, so they keep the symbol.
+  let traitPath =
+    match Packages.Search.operatorAlias traitPath with
+    | Some name when (Stdlib.String.first name 1) != (Stdlib.String.toLowercase (Stdlib.String.first name 1)) ->
+      name
+    | _ -> traitPath
+
   match traitHashAt state.currentBranchId state.packageData.currentLocation traitPath with
   | Ok h -> Stdlib.Result.Result.Ok h
   | Error msg ->

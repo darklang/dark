@@ -27,8 +27,8 @@ let private latest () : Task<Traces.Trace> =
     | [] -> return failtest "no execution was recorded"
   }
 
-/// A run's id as `dark traces` shows it: the first twelve characters (a trace id carries an
-/// inverted timestamp in front, so eight is not unique within a second).
+/// A run's id, longer than `dark traces` shows it: the first twelve characters (eight is what
+/// the CLI prints; twelve keeps the tests clear of a chance collision).
 let private prefixOf (e : Traces.Trace) : string = (string e.id).Substring(0, 12)
 
 let private latestPrefix () : Task<string> =

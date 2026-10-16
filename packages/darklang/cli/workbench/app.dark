@@ -217,8 +217,8 @@ let help (_state: Darklang.Cli.AppState) : String =
   [ "Usage: workbench [--live]"
     "Open the workbench - a framed, navigable view of your package tree."
     ""
-    "  --live  reload when something else changes the store. Without it a change is named in"
-    "          the footer and `R` reloads when you are ready."
+    "  --live  reload when something else changes the store. Without it nothing moves"
+    "          until you press `R`."
     ""
     "  The strip along the top is every place you can go: Left/Right walk it, Enter goes, Esc backs out."
     "  1-9 jump to a workspace    S switch branch    tab next pane    ` nav    / find    : command    ? keys    q quit" ]

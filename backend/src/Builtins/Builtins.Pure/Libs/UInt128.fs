@@ -96,9 +96,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO: add power function
-
-
     { name = fn "uint128Power" 0
       typeParams = []
       parameters =

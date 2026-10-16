@@ -892,7 +892,8 @@ type Instruction =
 
   /// Live values: hand the value now in `valueReg` to the tracer as the result of the source
   /// expression `exprId` (an `EApply`), when the tracer wants expression results. Emitted after
-  /// every call; a no-op when tracing is off, so it costs a dispatch and nothing else.
+  /// every call, then taken out by `DebugSymbols.split` into the symbol table before anything
+  /// runs; the interpreter never sees one.
   | TraceExpr of exprId : id * valueReg : Register
 
 and Instructions =

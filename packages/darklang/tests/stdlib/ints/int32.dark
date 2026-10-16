@@ -22,7 +22,7 @@ test clamp =
 test negate =
   Stdlib.Test.all
     [ (--5l) |> Stdlib.Test.equal 5l
-      (-5l) |> Stdlib.Test.equal -5l
+      (-(5l)) |> Stdlib.Test.equal -5l
       (-0l) |> Stdlib.Test.equal 0l
       (--0l) |> Stdlib.Test.equal 0l
       (-(-2147483648l)) |> Stdlib.Test.equal -2147483648l ]

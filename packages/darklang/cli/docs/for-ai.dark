@@ -271,9 +271,9 @@ committed can be rewritten, only superseded.
 
 Running things follow your edits WHEN ASKED. `serve <router> --live` runs the
 newest router that passes its checks on every request; a broken save keeps the
-previous one serving. `ps --watch` and `traces --watch` are live views over the
-same host loop. The workbench shows `// = value` beside calls from the last
-recorded run.
+previous one serving. `ps --watch` and `traces show <fn> --watch` are live
+views over the same host loop. The workbench shows `// = value` beside calls
+from the last recorded run.
 
 Every run is a process: reads run at once with no code change, writes keep
 order, `await x` waits here; `Exec.spawn`/`await`/`cancel` when you want control;

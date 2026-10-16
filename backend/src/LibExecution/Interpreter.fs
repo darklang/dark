@@ -5208,9 +5208,10 @@ let private receiverMethod
       // rather than by `select`. `select` breaks a tie by the stamp of the op that added the
       // implementation, which is the right answer for rivals of ONE trait (they share a
       // signature, so the pick is invisible) and the wrong one across two: `p.describe`
-      // would silently mean whichever trait was written later, where the checker refuses to
-      // save the call at all. The checker's rule is in `receiverMethodType`; this is its
-      // other half.
+      // would silently mean whichever trait was written later. The at-rest checker has no
+      // receiver-call rule of its own yet: it reports any receiver call on a value without
+      // that field as a field-access error, ambiguous or not, so this is the only place the
+      // ambiguity is named.
       let applicable = Traits.applicable candidates self
       let traits = applicable |> List.map (fun c -> c.trait_) |> List.distinct
       match traits with

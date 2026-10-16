@@ -32,10 +32,10 @@ the host can start a later run from it.
 
 ## A live server
 
-  serve My.router               every request runs the newest router that
+  serve My.router --live        every request runs the newest router that
                                 passes its checks; a broken save keeps the
-                                previous one serving and logs why
-  serve My.router --live        follow edits; the open page reloads when its code changes
+                                previous one serving and logs why, and an
+                                open page reloads when its code changes
   serve My.router               pin the version resolved at start
 
 Each request is a process: a slow handler holds up nobody, one past

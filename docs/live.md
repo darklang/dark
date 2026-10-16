@@ -6,7 +6,7 @@ entry names again. This is that something, and the rules a host follows once it 
 heard.
 
 `dark docs live` is the short, user-facing version of this document: a live
-view (`dark ps --watch`, `dark traces --watch`), a `serve --live`, live values
+view (`dark ps --watch`, `dark traces show <fn> --watch`), a `serve --live`, live values
 in the editor. This is the design and the rules a host follows.
 
 ---
@@ -128,8 +128,8 @@ The router's hash is the approval root, so the guest state is re-derived when th
 moves. A newly broken version is said once on stdout (`[live] <entry>: still on the
 last good version; the newest has a type error: <why>`), and the fix too (`[live] now
 on the new version of <entry>`), beside the `[HttpServer] ...` request lines; the
-wire keeps getting the last good one. Without `--live` the version resolved at start pins the
-version resolved at start. What a request answers when its handler is slow, raises or
+wire keeps getting the last good one. Without `--live` the version resolved at start serves
+until a restart. What a request answers when its handler is slow, raises or
 is stopped (504, 500, 503, and `http.requestTimeoutMs`) is in `docs/processes.md`, "An
 HTTP request is a process".
 
@@ -199,7 +199,7 @@ the host then adds `Timer ms` to every wait and hands the view an `Event.Tick`, 
 
 The loop itself is `cli/liveview/host.dark`. A `View` is three fns by name (`init : Unit ->
 'model`, `update : 'model -> Host.Event<'msg> -> 'model`, `render : 'model -> Node`), named on a
-`LiveView.Model.View`, which is what `dark ps --watch` and `dark traces --watch` build.
+`LiveView.Model.View`, which is what `dark ps --watch` and `dark traces show <fn> --watch` build.
 One turn: a store change that reaches the view's entries (`Live.affects`) re-resolves
 them through `LastGood` and re-renders, with a toast naming what moved; a key goes to
 the focused `Input` or `Button`, else to `update`. `render` failing at rest or at run
@@ -214,8 +214,8 @@ approved again before it may print.
 
 The CLI's own loop (`cli/loop.dark`) waits through the same `await`, and hands a
 `StoreChanged` to the current page (`SubApp.onStoreChanged`, `Component.onStoreChanged`).
-The workbench re-reads its item list and the SCM picture and says what moved in the
-footer, so an edit from another process or an agent shows up in the detail pane while
+Under `--live` the workbench re-reads its item list and the SCM picture and says what moved
+in the footer, so an edit from another process or an agent shows up in the detail pane while
 you look at it.
 
 Tests: `tests/CliWorkspace/live` drives the loop one turn at a time as a process on a
@@ -302,7 +302,7 @@ value beside a call is always the value of the code you are looking at.
 
 `Stdlib.Live.Values.replay accountID branchId location` uses the viewing account's current
 approvals (`None` selects anonymous approvals). It finds the newest recorded run that went
-through the function (`trace_fns`, the names-only index), replays THAT WHOLE RUN
+through the function (`trace_fns`, name and hash per function), replays THAT WHOLE RUN
 with every impure call answered from its own log and none performed, and returns `Values`:
 `byExpr`, the value of every call keyed by the id of the `EApply` that made it -- calls inside
 callees too, under their own ids -- and `problem`, the reason the replay stopped early if it did,
@@ -316,11 +316,14 @@ rather than one function called, **nothing is performed**: a handler that charge
 charge it again while you look at it. And because the pure code is recomputed rather than read
 back, **the values follow an edit**: change a callee, look again, and the numbers move.
 
-The runtime side is one instruction: `PT2RT` emits `TraceExpr(exprId, reg)` after every
-call, and the interpreter hands the register's value to `tracing.storeExprResult`, which
-is a no-op everywhere except under a preview's tracer (and is skipped outright when
-`skipTracing` is set, so the normal path pays a branch and nothing else). The RECORDER never
-sets it: a recorded trace stores no per-expression values, because the replay recomputes them.
+The runtime side is a symbol table, not an instruction. `PT2RT` emits a `TraceExpr(exprId,
+reg)` marker after every call and every infix, and `DebugSymbols.split` (`RuntimeTypes.fs`)
+takes them all back out into `exprAt`, keyed by the program counter of the instruction that
+produced the value. The table is stored in its own column and decoded only when something
+asks for it. When a view's tracer wants values (`collectExprValues`), the interpreter's
+`noteValue` looks up the counter and hands the register to `tracing.storeExprResult`. The
+RECORDER never asks: a recorded trace stores no per-expression values, because the replay
+recomputes them.
 
 Where they show:
 
@@ -360,9 +363,9 @@ demo 1, TUI follows edits
 
 ```
 
-The same beats on one machine, by hand: `dark fn Demo.page '(): String = "v1"'`, `dark fn
-Demo.router '(req: Stdlib.Http.Request): Stdlib.Http.Response =
-Stdlib.Http.responseWithText (Demo.page ()) 200'`, `dark serve Demo.router --port 9095`;
-then `dark fn Demo.page '(): String = "v2"'` in another terminal and the next `curl` has
-it; `dark fn Demo.page '(): String = 3'` leaves the page on v2 and prints the diagnostic
-in the serve terminal.
+The same beats on one machine, by hand: `dark fn Me.Demo.page '(): String = "v1"'`, `dark fn
+Me.Demo.router '(req: Stdlib.Http.Request): Stdlib.Http.Response =
+Stdlib.Http.responseWithText (Me.Demo.page ()) 200'`, `dark permissions allow http-server
+9095`, `dark serve Me.Demo.router --port 9095 --live`; then `dark fn Me.Demo.page '():
+String = "v2"'` in another terminal and the next `curl` has it; `dark fn Me.Demo.page '():
+String = 3'` leaves the page on v2 and prints the diagnostic in the serve terminal.

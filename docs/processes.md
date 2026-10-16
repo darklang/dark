@@ -69,12 +69,13 @@ ordinal", and "what should this effectful call DO":
 ```fsharp
 type Tracing =
   { ...
-    /// A resume: the log's answer for this call, by (process, ordinal).
-    replayEffect : int64 -> ReplayStep
-    /// A preview: the log's answer by (name, arguments), or `ValueNone` when the log
-    /// cannot answer, in which case the preview stops rather than performing anything.
-    previewEffect : Option<string -> Dval[] -> ReplayStep voption>
-    /// Which package functions a trace went through, names only, for `traces calls`.
+    /// A resume: the log's answer for this call, by (process, ordinal), checked against
+    /// the builtin's name and arguments.
+    replayEffect : int64 -> string -> Dval[] -> ReplayStep
+    /// A view: the log's answer by (name, arguments), or `ValueNone` when the log
+    /// cannot answer, in which case the view stops rather than performing anything.
+    viewEffect : Option<string -> Dval[] -> ReplayStep voption>
+    /// Which package functions a trace went through, name and hash, for `traces calls`.
     noteFunction : Hash -> unit }
 
 and ReplayStep =
@@ -86,9 +87,11 @@ and ReplayStep =
   | PerformOnce
   /// The log has run out; this call and everything after it is live.
   | PerformOnwards
+  /// The log has an answer here, for a different call: the resume stops.
+  | Diverged of message : string
 ```
 
-`previewEffect` is `None` on an ordinary run, so the cost on the hot path is one null test and
+`viewEffect` is `None` on an ordinary run, so the cost on the hot path is one null test and
 no allocation.
 
 ---
@@ -562,8 +565,7 @@ runs Dark code is pulled from a Dark process.
 Still through `Execution.executeApplicable`, on purpose: `Router.step` per
 request in `HttpServer.fs` (a poll and at most one check, on the thread that
 took the request, before the handler is spawned) and the `onListening`
-callback; `LiveValues.fs`, which runs a function for inspection, not as part
-of a program.
+callback.
 
 Tests (`Scheduler.Tests.fs`, the frames group): a process parked inside
 `List.map f` or a stream transform shows the lambda's frame in `ps` and
@@ -641,8 +643,7 @@ was most of a request's cost as a process.
 ## Traces
 
 `trace_fn_calls` rows carry `process_id`, `seq` and `ord`
-(`migrations/schema/08-traces.sql`; existing stores get the columns from
-`LibDB/Releases.fs`, with `''`, `0` and `-1` for old rows). `seq` is assigned
+(`migrations/schema/00-initial-schema.sql`, defaulting to `''`, `0` and `-1`). `seq` is assigned
 as calls complete, under the tracer's lock, across every process writing the
 trace: all the rows in `seq` order are the interleaving. `ord` is an effectful
 builtin call's ordinal among its process's effectful calls, taken when the
@@ -794,15 +795,14 @@ position it branched from. Its calls are `trace_fn_calls` under the same id.
   the new code, and the effects come from the log: the new pure code runs
   against the old I/O. Live values (`docs/live.md`) are this, one call at a
   time.
-- Three builtins declared with no effects read a host fact live and are not
-  recorded, by design: `cliTerminalColorEnabled` (the terminal's colour
-  support), `interpreterStatsEnableDetailedTiming` and `interpreterStatsGet`
-  (dev instrumentation). A replay in another terminal renders for that
-  terminal. Every other pure builtin answers the same twice on the same
-  inputs; Dark's dict is an ordered map, so enumeration is deterministic.
+- A builtin declared `Impure` with no effects (`cliTerminalColorEnabled`,
+  `interpreterStatsGet`, a stream pull) is logged and answered from the log
+  like any other, unless it only orchestrates (applies a callable, awaits);
+  `isLogged` in `Interpreter.fs` is the rule. Every pure builtin answers the
+  same twice on the same inputs; Dark's dict is an ordered map, so enumeration is deterministic.
   `uuidGenerate` declares `Random` and is in the log.
 
-Tested in `CliRuns.Tests.fs`: record and resume, fork at a position, suspend
+Tested in `CliTraceVerbs.Tests.fs`: record and resume, fork at a position, suspend
 mid-way and resume, replay after an edit, a spawn resuming with its child's
 own log, retention (the count cap sparing a suspended trace, the byte cap
 sparing the newest, the newest of each entry surviving the count cap), the
@@ -847,21 +847,23 @@ This is classic's Preview (`classic-dark/backend/src/LibExecution/Interpreter.fs
   which keeps order and tells two identical calls apart. A view cannot: add a call in the
   middle and every ordinal after it shifts, so an ordinal-keyed view would go blank from there.
   Classic keyed on `(fnname, id, hash)` for the same reason, and a name-and-arguments key still
-  answers every call you did not touch. Last write wins.
+  answers every call you did not touch. Each key holds a QUEUE and a lookup consumes one, so
+  the n-th identical call gets the n-th recorded answer; last-write-wins served one
+  `Uuid.generate ()` to every caller.
 
 The pieces:
 
-- `RT.Tracing.previewEffect`, consulted in `invokeBuiltin` before the ordinal replay. `None` on
+- `RT.Tracing.viewEffect`, consulted in `invokeBuiltin` before the ordinal replay. `None` on
   an ordinary run, so the cost there is one null test and no allocation.
-- `Tracing.createPreviewTracer`: the lookup table, the value collector, and `forProcess`
-  returning another preview tracer -- the CLI spawns each expression as its own process, and
+- `Tracing.createViewTracer`: the lookup table, the value collector, and `forProcess`
+  returning another view tracer -- the CLI spawns each expression as its own process, and
   handing back the default there would hand back a tracer that performs effects.
-- `cliPreviewRun`: one builtin that loads the log, replays, and hands back the values. No armed
-  mode and no shared slot, so two previews at once cannot take each other's log.
+- `cliViewTrace`: one builtin that loads the log, replays, and hands back the values. No armed
+  mode and no shared slot, so two views at once cannot take each other's log.
 - Two ways in, because a trace has two shapes. An `eval` or a `run <file>` replays its source. A
   served request's input is a record, so the row carries `entry_hash`, the handler that served
   it, and the preview applies that handler to the recorded request.
-- `trace_fns`: which functions a trace went through, names only, written while recording. Without it, "which runs went through this sub-router" is
+- `trace_fns`: which functions a trace went through, name and hash, written while recording. Without it, "which runs went through this sub-router" is
   unanswerable, because a package call is never recorded.
 
 What a preview does not do: it does not write, it is not a trace, and it does not echo a logged
@@ -986,7 +988,7 @@ and says so.
 | process run, exec | from the log | output is logged; re-running is a second `rm` or deploy |
 | process spawn | performed again; the new child replays the recorded child's rows | a recorded result names a process that no longer exists |
 | process IO, terminate | from the log; refuse past a handle that was alive at suspend | the subprocess died with the old trace; nothing to serve |
-| environment read | from the log | the value the trace saw; another machine's env differs |
+| environment read | performed again; the value is never stored | it is the secret kept out of the log, so a resume reads the resuming machine's environment |
 | environment write, chdir | from the log, then re-apply to the resuming process before going live | the live suffix assumes the env the old process set |
 | clock | from the log | time must not jump backwards then forwards inside one trace |
 | random | from the log | a fork that re-rolls is not a fork |
@@ -1009,8 +1011,6 @@ exception: re-apply what can be re-applied, refuse to cross what cannot.
 
 What is deliberately not here, and where the seams are:
 
-- `LiveValues.fs` applies a callable through `executeApplicable`, on a VM of
-  its own: it runs a function for inspection, not as part of a program.
 - A policy chooses which runnable process to step, not where a spawn lands:
   `Exec.spawn` goes to the least loaded worker, in F#.
 - A resume matches recorded processes to new ones by start order; a trace that
@@ -1074,7 +1074,7 @@ rest of this file is what the system does; this section is how to move around in
 - `LibExecution/Interpreter.fs`: `executeSync` is the loop, `awaitOf` turns a bail into
   a `StepOutcome`, `driveToEnd` is the unscheduled run; `invokeBuiltin` (the effect
   check, the replay lookup, `performRequested` for host requests, the read deferral
-  through `Promises.deferrable`/`tryMake`, `finishBuiltin`);
+  through `Promises.tryMake`, `finishBuiltin`);
   `requestApply`/`beginRequest`/`drive`/`landBuiltin` are the apply-request protocol (a
   builtin asks the loop to apply a callable as a frame);
   `requestHost`/`performRequested` are the host-request protocol (a builtin names a
@@ -1088,7 +1088,7 @@ rest of this file is what the system does; this section is how to move around in
   process run or process IO goes to the pool so the scheduler thread is free); only the
   HTTP arms are asynchronous, every file and libc call completes on the calling thread.
 - `LibDB/Tracing.fs` (`traceEffects`, `nextEffect`, `replayEffect`,
-  `createReplayTracer`) and `LibDB/Executions.fs` (`Replay.arm`): the effect-only log
+  `createReplayTracer`) and `LibDB/Traces.fs` (`Replay.arm`): the effect-only log
   and the armed replay `dark traces resume` uses; `Builtins.CliHost/Libs/Cli.fs` is where
   the CLI arms it and runs the input through its own `eval`/`run` paths.
 - `Builtins.Language/Libs/Exec.fs`: the ps and Exec builtins (`execList`, `execInspect`,
@@ -1096,12 +1096,11 @@ rest of this file is what the system does; this section is how to move around in
   `execCancel`, `execKill`), `summaryToDT`/`parkedToDT` (the RT-to-Dark mirror of
   `ProcessSummary`), and the policy chooser (the Dark policy called from the F# loop).
 - Dark: `stdlib/exec.dark` (the user surface and `ParkedOn`/`Summary`),
-  `stdlib/await.dark` (`Stdlib.await`/`awaitAll`), `stdlib/execPolicy.dark`,
+  `stdlib/await.dark` (`Stdlib.await`), `stdlib/execPolicy.dark`,
   `stdlib/hostAwait.dark`, `cli/ps.dark` (`treeRows` is the tree; the workbench's
-  Processes pane in `cli/workbench/views-misc.dark` paints the same rows),
-  `cli/exec.dark`, `stdlib/execution.dark`.
+  Processes pane in `cli/workbench/views-misc.dark` paints the same rows).
 - `Cli/Cli.fs`: `main` through the scheduler,
-  `execSettings`/`workerCount`/`installPolicy`, `installStoreVersionSource`, the Ctrl-C
+  `workerCount`/`installPolicy`, `installStoreVersionSource`, the Ctrl-C
   suspend, `DARK_SCHEDULER=off`.
 
 Where live meets the scheduler, for whoever changes one side and has to walk the other:
@@ -1111,8 +1110,8 @@ source `HostEvents.sources.storeVersion`, installed from `Cli/Cli.fs` over
 `LibDB.Sqlite.DataVersion`; `Scheduler.SpawnApply` and `AwaitWithin` in `HttpServer.fs`; the
 test harness's `loopDriver`/`stepOn`/`pushKey`/`pushTick` over `Scheduler.PushEvent`;
 `cli/ps.dark` and the workbench's Processes pane over `Exec.list`/`inspect`/`cancel`; live
-values (`TraceExpr` and `storeExprResult` in `Interpreter.fs`, `Tracing.forProcess`,
-`LiveValues.fs`); and `Cli/Cli.fs`, where main-through-the-scheduler sits beside
+values (`noteValue` and `storeExprResult` in `Interpreter.fs`, `DebugSymbols` in
+`RuntimeTypes.fs`, `Tracing.createViewTracer`); and `Cli/Cli.fs`, where main-through-the-scheduler sits beside
 `DARK_SCHEDULER=off`.
 
 ### Rules that bite

@@ -28,12 +28,14 @@ read, an HTTP GET or HEAD). Anything else runs in order.
   Stdlib.Exec.cancel h                                   // stop it, and its children
   Stdlib.List.parallelMap items fib                      // CPU-bound work across the cores
 
-A process spawned this way dies with its parent unless `Exec.spawnDetached`.
+A process spawned this way dies with its parent unless `Exec.spawnDetached`;
+either way it ends when the `dark` command it runs in exits.
 Spawning is the `concurrency` effect; a policy can forbid it.
 
 ## See what is running
 
-  ps                     every Dark process on this machine, then this one's own tree
+  ps                     this instance's own tree, then every other Dark
+                         process on this machine
   ps --watch             the same, repainting; up/down, c cancel, k kill, esc
   ps show <id> [--full]  one process: status, instructions, memory, call stack
   ps cancel <id> | <pid> stop it politely (what it has on the host finishes first)
@@ -91,19 +93,10 @@ and gets any other one you ask for, so nothing in a loop is out of reach however
 long it ran. The page always shows ONE iteration at a time and says which:
 several values on one line are several answers to one question.
 
-A big loop does NOT cost the same to open as a short one, and RECURSION is the
-expensive case. The count stays honest by keeping a marker per entry, and the
-cost of opening a page grows faster than the number of entries. Measured on a
-published build:
-
-  List.map over 2,000           0.6 s
-  the same 2,000 in two loops   5.8 s
-  fib 12   (465 calls)          0.8 s
-  fib 14 (1,219 calls)          3.7 s
-  fib 16 (3,193 calls)         23.5 s
-
-So a flat loop is fine at a few thousand, and a recursive function is not. This
-is a known problem rather than a surprise; see the follow-ups.
+Opening a page costs what replaying the run costs. The view keeps values for the
+first five and last five times round each call site, recursion included, and
+only counts the rest, so a recursive function falls out of the window like any
+loop rather than being the expensive case.
 
 Finding your way to a function, from either direction:
 
@@ -159,7 +152,8 @@ name, the name finds runs of this FUNCTION under any code.
 Nothing is recorded until you ask for it. Three ways: `dark traces record on`
 for this instance, `config set trace.record on` for the same setting by the
 other door, and `dark --trace <command>` for one command (`--no-trace` for the
-opposite).
+opposite). Only a script (`eval`, `run`) and a served request make a trace;
+other commands, such as `status` and `ls`, are never recorded.
 
 ## Knobs, all optional
 

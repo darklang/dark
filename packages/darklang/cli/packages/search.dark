@@ -14,10 +14,12 @@ val batchDisplayCap = 3
 // renamed there has to be renamed here.
 //
 // Four are not traits and say so by answering with a name instead: `==` and `!=` are structural
-// for every value, and `!`, `&&` and `||` are ordinary Bool functions.
+// for every value, and `!`, `&&` and `||` are ordinary Bool functions. `++` is no operator any
+// more; it lands on `Add`, since `+` is what joins strings now.
 let operatorAlias (query: String) : Stdlib.Option.Option<String> =
   match Stdlib.String.trim query with
   | "+" -> Stdlib.Option.Option.Some "Add"
+  | "++" -> Stdlib.Option.Option.Some "Add"
   | "-" -> Stdlib.Option.Option.Some "Subtract"
   | "*" -> Stdlib.Option.Option.Some "Multiply"
   | "/" -> Stdlib.Option.Option.Some "Divide"

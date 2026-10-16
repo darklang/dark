@@ -304,9 +304,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     finished
 
 let help (_state: Cli.AppState) : String =
-  [ "Audit all visible package types, values, functions, and tests on the current branch."
-    "The command is read-only and reports definite errors separately from checks"
-    "that are incomplete because the checker cannot yet prove them."
+  [ "Audit every visible package type, value, function, trait, implementation and test"
+    "on the current branch. The command is read-only and reports definite errors"
+    "separately from checks that are incomplete because the checker cannot yet prove them."
     ""
     usage
     ""

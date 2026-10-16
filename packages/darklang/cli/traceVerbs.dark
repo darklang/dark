@@ -169,8 +169,6 @@ type TraceWithCallsJson =
     calls: List<CallJson> }
 
 
-/// What `traces show --json` hands back: which trace was read, and what each expression in the
-/// code evaluated to, keyed by the expression's id. `problem` is set when the replay stopped.
 /// One iteration of a loop, for `--json`.
 type LoopIterationJson =
   { /// Which one this is, counting from 1.
@@ -182,7 +180,6 @@ type LoopIterationJson =
     values: Dict<String, String> }
 
 
-/// A loop, for `--json`.
 /// A function, named and identified, wherever `--json` points at one.
 ///
 /// Both halves, because they answer different questions and each one goes stale on its own. The
@@ -198,6 +195,7 @@ type FnRef =
     hash: String }
 
 
+/// A loop, for `--json`.
 type LoopJson =
   { /// `map`, `fold`, `map#2`. What `--iteration` takes.
     name: String
@@ -256,6 +254,8 @@ let problemJson
         advice = advice })
 
 
+/// What `traces show --json` hands back: which trace was read, and what each expression in the
+/// code evaluated to, keyed by the expression's id. `problem` is set when the replay stopped.
 type ValuesJson =
   { trace: String
     /// The function this page is of.
@@ -1193,7 +1193,10 @@ let showCode
           // "nothing called `map`" would read as "nothing INVOKED map", which is the opposite
           // of true: a loop is named after the function it was passed to, so the trace called
           // that function many times. What is missing is a LOOP by that name.
-          Cli.printErr $"no loop named `{bad}` here"
+          let badName =
+            Stdlib.String.split bad ":" |> Stdlib.List.head |> Stdlib.Option.withDefault bad
+
+          Cli.printErr $"no loop named `{badName}` here"
 
           if names == "" then
             Stdlib.printLine

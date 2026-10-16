@@ -172,25 +172,26 @@ operands must unify and nothing further is owed.
 
 ## Traits
 
-A trait and an impl are package items, read off the PT (`ImplEntry.ofImpl`) the way the
-runtime reads its dispatch candidates. `validateImpl` checks the method set
-(`ImplMethodSet`), each method fn against the trait's signature at the self type
-(`ImplMethodSignature`), and the impl fn's ceiling against the method's
-(`ImplExceedsCeiling`).
+A trait and an impl are package items. `Impls.check` (`atRestTypeChecker/impls.dark`)
+checks an impl's method set (`ImplMethodSet`) and each method fn against the trait's
+signature at the self type (`ImplMethodSignature`). Nothing compares an impl fn's
+ceiling with the trait method's: `ImplExceedsCeiling`, `AmbiguousImpl` and
+`UnboundTypeParameter` are declared and have no producer.
 
 - A `TraitMethod` call is typed from the trait's method, with the trait's first type
-  parameter as self (`traitMethodSignature`). A bounded signature adds one constraint per
+  parameter as self. A bounded signature adds one constraint per
   bound on the instantiated variable; an operator adds one for its trait on the operand type.
-- Constraints discharge at `finish`, after substitution. A concrete head needs exactly one
-  visible impl (`MissingImpl`, `AmbiguousImpl`; a blanket `impl<'a> T for 'a` loses to a
-  specific one). The item's own rigid parameter needs the bound declared on the item
-  (`UnboundTypeParameter`). An inference variable still unbound is a `ConstrainedType`
-  blocker, not a diagnostic.
-- A conditional impl owes its own bounds at the type it matched: `Show List<Option<Int>>`
-  against `impl<'a: Show> Show for List<'a>` owes `Show Option<Int>`, round by round until
-  the type is exhausted (`dischargeConstraints`).
-- `x.m`, where `x` is a record without a field `m`, falls back to the one visible impl
-  carrying a method `m` for `x`'s head type; no such impl keeps `UnknownRecordField`.
+- Constraints discharge at `finish`, after substitution. A concrete head needs a visible
+  impl (`MissingImpl`); two for one type are a rival pair that `dark constraints` reports,
+  and the newer one runs. A blanket `impl<'a> T for 'a` loses to a specific one. An
+  inference variable still unbound is a `ConstrainedType` blocker, not a diagnostic.
+- A conditional impl's own bounds are not discharged at save yet: a call that needs
+  `Show List<X>` against `impl<'a: Show> Show for List<'a>` saves clean when `X` has no
+  `Show`, and the bound is enforced when the call runs (`MissingImpl` then).
+- `x.m`, where `x` has no field `m`, is a receiver call at run time (the one visible impl
+  carrying a method `m` for `x`'s type), and the checker has no rule for it yet: `getField`
+  reports `UnknownRecordField` on a record and a field-access `TypeMismatch` on anything
+  else, so the save is a draft that `commit` refuses.
 - Visible means in `Environment.traitImpls`: every implementation bound on the branch in the
   store, plus the batch's own (`Environment.withBatch`). A trait the batch declares is read
   from the batch too (`batchTraits`), so a trait, its implementations and their callers can be
@@ -198,20 +199,7 @@ runtime reads its dispatch candidates. `validateImpl` checks the method set
   batch's own, the same code pinned or not depending on how its saves were batched, and nothing
   reported it (`gates trait-choice-any-batching`).
 - An authoring save that leaves any call unpinned says so, naming the items: a trait call still
-  `Unknown`, or a call into a bounded fn with no recorded bounds, which includes every piped one
-  (`EPipeFnCall` has no field for them).
-
-## Where this should live
-
-The checker is F# for throughput: it runs on every save, on every commit, and over the
-whole corpus for `typecheck` and batch validation. That is an argument from the shape
-of the work, not a measurement.
-
-It should eventually be Darklang, and the reason is not tidiness. Today the set of
-checks is fixed, and "our way is the way". The goal is that people can choose which
-at-rest checks apply to their packages and write their own. That needs the checks to be
-ordinary Darklang code, not an F# module with a builtin in front of it. There is a
-`CLEANUP` marker on the module saying so.
+  `Unknown`, or a call into a bounded fn with no recorded bounds.
 
 ## Non-goals
 

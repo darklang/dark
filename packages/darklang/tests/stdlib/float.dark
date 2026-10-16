@@ -111,7 +111,7 @@ test negate =
       (-(nan ())) |> Stdlib.Float.isNaN |> Stdlib.Test.equal true
       (-(infinity ())) |> Stdlib.Test.equal (negativeInfinity ())
       (--5.6) |> Stdlib.Test.equal 5.6
-      (-5.6) |> Stdlib.Test.equal -5.6
+      (-(5.6)) |> Stdlib.Test.equal -5.6
       (-0.0) |> Stdlib.Test.equal -0.0
       (--0.0) |> Stdlib.Test.equal 0.0 ]
 

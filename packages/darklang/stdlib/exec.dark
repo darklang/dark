@@ -118,7 +118,8 @@ let spawn (f: Unit -> 'a) : Handle<'a> =
 
 
 /// `spawn`, for a process that keeps running after the one that started it has finished (a
-/// background writer, a watcher). `cancel` still stops it.
+/// background writer, a watcher), until the `dark` command it runs in exits. `cancel` still
+/// stops it.
 let spawnDetached (f: Unit -> 'a) : Handle<'a> =
   Builtin.execSpawnDetached f
 
