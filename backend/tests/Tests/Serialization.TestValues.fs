@@ -67,7 +67,7 @@ module RuntimeTypes =
 
       RT.TCustomType(RTNR.ok (RT.FQTypeName.Package hashRT), [ RT.TBool ])
 
-      RT.TBlob
+      RT.TBytes
 
       RT.TVariable "test" ]
 
@@ -105,7 +105,7 @@ module RuntimeTypes =
 
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
 
-      known RT.KnownType.KTBlob ]
+      known RT.KnownType.KTBytes ]
 
   let dvals () : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.

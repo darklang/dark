@@ -242,7 +242,7 @@ let rec private transformTypeRef
   | PT.TString
   | PT.TUuid
   | PT.TDateTime
-  | PT.TBlob
+  | PT.TBytes
   | PT.TVariable _ -> typeRef
 
   | PT.TStream inner -> PT.TStream(transformTypeRef mapping inner)

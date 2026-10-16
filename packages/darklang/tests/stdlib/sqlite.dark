@@ -56,7 +56,7 @@ test createRead =
 // `Value` type carries blobs through rather than stringifying them; without an
 // accessor a caller matches the case by hand, which is where a stringified blob
 // comes from.
-test blobRoundTrip =
+test bytesRoundTrip =
   withDatabase (fun db ->
     let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
     let _ =
@@ -73,13 +73,13 @@ test blobRoundTrip =
       | Some v ->
         Stdlib.Sqlite.asBytes v
         |> Stdlib.Option.map (fun b ->
-          Stdlib.String.fromBytesWithReplacement (Stdlib.Blob.toList b))
+          Stdlib.String.fromByteListWithReplacement (Stdlib.Bytes.toList b))
       | None -> None
     | _ -> None)
     |> Stdlib.Test.equal (Some "hi"))
 
 // A TEXT cell is not a blob, and asking for one says so rather than coercing.
-test textIsNotBlob =
+test textIsNotBytes =
   Stdlib.Sqlite.asBytes (Stdlib.Sqlite.Value.Text "hi") |> Stdlib.Test.equal None
 
 // UPDATE + DELETE — final state after renaming id=1 and removing id=2 is just

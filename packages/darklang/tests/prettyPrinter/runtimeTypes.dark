@@ -309,3 +309,16 @@ test compactDvalKeepsDepth =
         (Darklang.LanguageTools.RuntimeTypes.reflect
           [ [ [ [ 1, 2 ], [ 3, 4 ] ], [ [ 5, 6 ] ] ], [ [ [ 7, 8 ] ] ] ])
       |> Stdlib.Test.equal "[[[..., ...], [...]], [[...]]]" ]
+
+// Users see the same type regardless of where its bytes are stored.
+test bytesHideStorage =
+  let persistent =
+    Darklang.LanguageTools.RuntimeTypes.Dval.DBytes Stdlib.Bytes.empty
+  Stdlib.Test.all
+    [ pp (Stdlib.Bytes.fromString "hello") |> Stdlib.Test.equal "<Bytes: 5 bytes>"
+      pp (Stdlib.Bytes.fromString "h") |> Stdlib.Test.equal "<Bytes: 1 byte>"
+      pp Stdlib.Bytes.empty |> Stdlib.Test.equal "<Bytes: 0 bytes>"
+      Darklang.PrettyPrinter.RuntimeTypes.dval
+        Darklang.SCM.Branch.mainBranchId
+        persistent
+      |> Stdlib.Test.equal "<Bytes: 0 bytes>" ]

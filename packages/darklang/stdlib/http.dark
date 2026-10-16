@@ -4,7 +4,7 @@ module Darklang.Stdlib.Http
 type Request =
   { url: String
     headers: List<String * String>
-    body: Blob }
+    body: Bytes }
 
 
 /// Parses a URL's query string into a dictionary, keeping the last value for
@@ -72,23 +72,23 @@ let urlDecode (s: String) : String =
   | [] -> ""
   | first :: rest ->
     rest
-    |> Stdlib.List.fold (Stdlib.String.toBytes first) (fun acc piece ->
+    |> Stdlib.List.fold (Stdlib.String.toByteList first) (fun acc piece ->
       let hex = Stdlib.String.slice piece 0 2
 
-      // The length check is not redundant: `Blob.fromHex ""` succeeds, so a `%`
+      // The length check is not redundant: `Bytes.fromHex ""` succeeds, so a `%`
       // at the very end of the string decodes to no bytes at all and vanishes.
       match
         (if (Stdlib.String.length hex) == 2 then
-           Stdlib.Blob.fromHex hex
+           Stdlib.Bytes.fromHex hex
          else
            Stdlib.Result.Result.Error "not an escape")
       with
       | Ok b ->
         Stdlib.List.append
-          (Stdlib.List.append acc (Stdlib.Blob.toList b))
-          (Stdlib.String.toBytes (Stdlib.String.dropFirst piece 2))
-      | Error _ -> Stdlib.List.append acc (Stdlib.String.toBytes ("%" + piece)))
-    |> Stdlib.String.fromBytesWithReplacement
+          (Stdlib.List.append acc (Stdlib.Bytes.toList b))
+          (Stdlib.String.toByteList (Stdlib.String.dropFirst piece 2))
+      | Error _ -> Stdlib.List.append acc (Stdlib.String.toByteList ("%" + piece)))
+    |> Stdlib.String.fromByteListWithReplacement
 
 
 module Request =
@@ -159,11 +159,11 @@ module Request =
 type Response =
   { statusCode: Int
     headers: List<String * String>
-    body: Blob }
+    body: Bytes }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param code> and <param response> body.
-let response (body: Blob) (statusCode: Int) : Stdlib.Http.Response =
+let response (body: Bytes) (statusCode: Int) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = []
@@ -173,7 +173,7 @@ let response (body: Blob) (statusCode: Int) : Stdlib.Http.Response =
 /// respond with HTTP status <param code>, <param response> body and
 /// <param headers>.
 let responseWithHeaders
-  (body: Blob)
+  (body: Bytes)
   (headers: List<String * String>)
   (statusCode: Int)
   : Stdlib.Http.Response =
@@ -184,7 +184,7 @@ let responseWithHeaders
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200 and <param response> body.
-let success (body: Blob) : Stdlib.Http.Response =
+let success (body: Bytes) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 200
       headers = []
@@ -200,7 +200,7 @@ let responseWithHtml
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/html; charset=utf-8") ]
-      body = body |> Stdlib.String.toBlob }
+      body = body |> Stdlib.String.toBytes }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
@@ -213,7 +213,7 @@ let responseWithText
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
-      body = Stdlib.String.toBlob text }
+      body = Stdlib.String.toBytes text }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200, <param response> body, with the
@@ -225,7 +225,7 @@ let responseWithJson
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "application/json") ]
-      body = Stdlib.String.toBlob json }
+      body = Stdlib.String.toBytes json }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{302}} status code and redirect to <param url>.
@@ -233,7 +233,7 @@ let redirectTo (url: String) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 302
       headers = [ ("Location", url) ]
-      body = Stdlib.Blob.empty }
+      body = Stdlib.Bytes.empty }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{400}} status code and <param response> body.
@@ -241,7 +241,7 @@ let badRequest (error: String) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 400
       headers = []
-      body = Stdlib.String.toBlob error }
+      body = Stdlib.String.toBytes error }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{404}} status code.
@@ -249,7 +249,7 @@ let notFound () : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 404
       headers = []
-      body = Stdlib.Blob.empty }
+      body = Stdlib.Bytes.empty }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{401}} status code.
@@ -257,7 +257,7 @@ let unauthorized () : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 401
       headers = []
-      body = Stdlib.Blob.empty }
+      body = Stdlib.Bytes.empty }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{403}} status code.
@@ -265,7 +265,7 @@ let forbidden () : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 403
       headers = []
-      body = Stdlib.Blob.empty }
+      body = Stdlib.Bytes.empty }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{500}} status code and <param error> body.
@@ -273,7 +273,7 @@ let serverError (error: String) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 500
       headers = []
-      body = Stdlib.String.toBlob error }
+      body = Stdlib.String.toBytes error }
 
 type Cookie =
   { expires: DateTime

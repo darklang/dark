@@ -1092,7 +1092,7 @@ module DictKeyOrdering =
         "Case",
         []
       )
-      "DBlob", RT.DBlob(RT.Persistent("hash", 0L)) ]
+      "DBytes", RT.DBytes(RT.Persistent("hash", 0L)) ]
 
   let allCasesAreDistinctKeys =
     testCase "every Dval case is a distinct dict key" (fun _ ->
@@ -1123,16 +1123,15 @@ module DictKeyOrdering =
             (Some name)
             $"{name} is admissible, so it must compare without raising"
         else
-          // DBlob is the only one left; DDB was the other until user datastores went to later/.
-          Expect.equal name "DBlob" $"unexpected inadmissible case: {name}")
+          failtest $"unexpected inadmissible case: {name}")
 
   let inadmissibleValuesPoisonTheirContainers =
     testCase "a container holding an inadmissible value is inadmissible" (fun _ ->
-      let bad = RT.DBlob(RT.Persistent("hash", 0L))
+      let bad = LibExecution.Stream.newFromIO VT.int64 (fun () -> Ply None) None
       let isValid = LibExecution.RuntimeTypes.Dval.isUsableDictKey
       let dictOfBad =
         RT.DDict(VT.unknown, VT.unknown, Map [ RT.DictKey RT.DUnit, bad ])
-      Expect.isFalse (isValid bad) "a blob is not a key"
+      Expect.isFalse (isValid bad) "a stream is not a key"
       Expect.isFalse (isValid (RT.DList(VT.unknown, [ bad ]))) "nor a list of one"
       Expect.isFalse
         (isValid (RT.DTuple(RT.DUnit, bad, [])))
@@ -1158,8 +1157,8 @@ module DictKeyOrdering =
       "signed zero", RT.DFloat 0.0, RT.DFloat -0.0
 
       "persistent blobs differing only in length",
-      RT.DBlob(RT.Persistent("samehash", 1L)),
-      RT.DBlob(RT.Persistent("samehash", 2L)) ]
+      RT.DBytes(RT.Persistent("samehash", 1L)),
+      RT.DBytes(RT.Persistent("samehash", 2L)) ]
 
   let private sameKey (a : RT.Dval) (b : RT.Dval) : bool =
     Map.containsKey (RT.DictKey a) (Map [ RT.DictKey b, () ])

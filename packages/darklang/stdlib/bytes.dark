@@ -1,0 +1,66 @@
+module Darklang.Stdlib.Bytes
+
+// Immutable binary data. Equal contents compare equal, whether in memory or saved.
+// Saving values handles persistence automatically; there is only one Bytes type.
+
+// TODO no Bytes literal syntax — embedding small binary data in source
+// today requires `Bytes.fromHex "..."` or `Bytes.fromString "..."`. A
+// `b"\x00\x01..."` form would be the natural fix, plus tokenizer +
+// parser + runtime literal handling. Cross-cutting language change.
+
+
+/// The empty Bytes.
+val empty = Builtin.bytesEmpty
+
+
+/// Returns the length of <param bytes> in bytes.
+let length (bytes: Bytes) : Int = Builtin.bytesLength bytes
+
+
+/// Concatenates a list of Bytes into a single Bytes.
+let concat (values: List<Bytes>) : Bytes = Builtin.bytesConcat values
+
+
+/// Copies <param length> bytes starting at <param start> into a new
+/// Bytes. Out-of-range slices are clamped.
+let slice (bytes: Bytes) (start: Int) (length: Int) : Bytes =
+  Builtin.bytesSlice bytes start length
+
+
+/// Hex (Base16) encodes <param bytes> using an uppercase alphabet.
+/// Complies with RFC 4648 section 8.
+let toHex (bytes: Bytes) : String = Builtin.bytesToHex bytes
+
+
+/// Parses <param s> as an uppercase or lowercase hex string into a Bytes.
+let fromHex (s: String) : Stdlib.Result.Result<Bytes, String> =
+  Builtin.bytesFromHex s
+
+
+/// Base64 encodes <param bytes> with standard alphabet + {{=}} padding.
+let toBase64 (bytes: Bytes) : String = Builtin.bytesToBase64 bytes
+
+
+/// Parses <param s> as a Base64 string (standard or URL-safe alphabet;
+/// padding optional) into a Bytes.
+let fromBase64 (s: String) : Stdlib.Result.Result<Bytes, String> =
+  Builtin.bytesFromBase64 s
+
+
+/// Decodes <param bytes> as UTF-8. Returns Error with a message if the
+/// bytes aren't valid UTF-8.
+let toString (bytes: Bytes) : Stdlib.Result.Result<String, String> =
+  Builtin.bytesToString bytes
+
+
+/// Encodes <param s> as UTF-8 bytes in a Bytes.
+let fromString (s: String) : Bytes = Builtin.bytesFromString s
+
+
+/// Escape hatch: expand a Bytes into a List<UInt8>. Prefer the Bytes
+/// module over this for new code.
+let toList (bytes: Bytes) : List<UInt8> = Builtin.bytesToList bytes
+
+
+/// Escape hatch: collect a List<UInt8> into a Bytes.
+let fromList (bytes: List<UInt8>) : Bytes = Builtin.bytesFromList bytes

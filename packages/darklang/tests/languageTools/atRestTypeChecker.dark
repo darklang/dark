@@ -845,12 +845,24 @@ module DictKeys =
 
   val accepted = "checked:"
 
-  test functionAndBlobKeysRejected =
+  test functionKeysRejectedAndBytesKeysAccepted =
     Stdlib.Test.all
       [ key [] "Int -> Int"
         |> Stdlib.Test.equal rejected
-        key [] "Blob"
-        |> Stdlib.Test.equal rejected ]
+        key [] "Bytes"
+        |> Stdlib.Test.equal accepted
+        key [] "List<Bytes>"
+        |> Stdlib.Test.equal accepted
+        key [ "type ByteKey = { payload: Bytes }" ] "ByteKey"
+        |> Stdlib.Test.equal accepted ]
+
+  test reflectedValuesStayWellTyped =
+    check
+      (src
+        [ "let f (u: Unit) : Darklang.LanguageTools.RuntimeTypes.Dval ="
+          "  Darklang.LanguageTools.RuntimeTypes.reflect (Stdlib.Bytes.fromString \"hello\")" ])
+      "f"
+    |> Stdlib.Test.equal accepted
 
   // Construct TStream directly because the parser has no source syntax for it.
   test structuredKeyTypes =
@@ -2060,10 +2072,10 @@ module Ambiguity =
     check (src [ "let f (u: Unit) : Int =", "  let _ = []", "  \"wrong\"" ]) "f"
     |> Stdlib.Test.equal "failed:TypeMismatch"
 
-  // A list cannot satisfy a Blob return type, regardless of its unknown element
+  // A list cannot satisfy a Bytes return type, regardless of its unknown element
   // type.
-  test listIsNotBlob =
-    check "let f (u: Unit) : Blob = []" "f"
+  test listIsNotBytes =
+    check "let f (u: Unit) : Bytes = []" "f"
     |> Stdlib.Test.equal "failed:TypeMismatch"
 
   // Preserve the definite return-type error alongside the warning that the match

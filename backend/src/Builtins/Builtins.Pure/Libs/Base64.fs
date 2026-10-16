@@ -9,14 +9,14 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TBlob TString
+      returnType = TypeReference.result TBytes TString
       description =
         "Base64 decodes a string. Works with both the URL-safe and standard "
         + "Base64 alphabets defined in [RFC "
@@ -24,8 +24,8 @@ let fns () : List<BuiltInFn> =
         + "[4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and "
         + "[5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
-        let resultOk r = Dval.resultOk KTBlob KTString r |> Ply
-        let resultError r = Dval.resultError KTBlob KTString r |> Ply
+        let resultOk r = Dval.resultOk KTBytes KTString r |> Ply
+        let resultError r = Dval.resultError KTBytes KTString r |> Ply
         (function
         | _, _, _, [| DString s |] ->
           let base64FromUrlEncoded (str : string) : string =
@@ -37,7 +37,7 @@ let fns () : List<BuiltInFn> =
             else initial
 
           if s = "" then
-            resultOk (Blob.newEphemeral [||])
+            resultOk (Bytes.newEphemeral [||])
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
             resultError (DString "Not a valid base64 string")
@@ -45,7 +45,7 @@ let fns () : List<BuiltInFn> =
             try
               let bytes =
                 s |> base64FromUrlEncoded |> System.Convert.FromBase64String
-              resultOk (Blob.newEphemeral bytes)
+              resultOk (Bytes.newEphemeral bytes)
             with _ ->
               resultError (DString "Not a valid base64 string")
         | _ -> incorrectArgs ())
@@ -56,7 +56,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "base64Encode" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "blob" TBytes "" ]
       returnType = TString
       description =
         "Base64 encodes <param blob> with {{=}} padding. Uses the standard "
@@ -65,8 +65,8 @@ let fns () : List<BuiltInFn> =
         + "[4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4)."
       fn =
         (function
-        | state, _, _, [| DBlob ref |] ->
-          Blob.withBytes state ref (fun bytes ->
+        | state, _, _, [| DBytes ref |] ->
+          Bytes.withBytes state ref (fun bytes ->
             Ply(DString(System.Convert.ToBase64String(bytes))))
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -76,7 +76,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "base64UrlEncode" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "blob" TBytes "" ]
       returnType = TString
       description =
         "Base64URL encodes <param blob> with {{=}} padding. Uses URL-safe "
@@ -85,8 +85,8 @@ let fns () : List<BuiltInFn> =
         + "[5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
-        | state, _, _, [| DBlob ref |] ->
-          Blob.withBytes state ref (fun bytes ->
+        | state, _, _, [| DBytes ref |] ->
+          Bytes.withBytes state ref (fun bytes ->
             // URL-safe alphabet, and unlike most url-safe encoders this one keeps padding
             let encoded =
               System.Convert

@@ -41,7 +41,7 @@ let fromRuntimeType
   | TString -> LanguageTools.ProgramTypes.TypeReference.TString
   | TUuid -> LanguageTools.ProgramTypes.TypeReference.TUuid
   | TDateTime -> LanguageTools.ProgramTypes.TypeReference.TDateTime
-  | TBlob -> LanguageTools.ProgramTypes.TypeReference.TBlob
+  | TBytes -> LanguageTools.ProgramTypes.TypeReference.TBytes
   | TStream inner ->
     LanguageTools.ProgramTypes.TypeReference.TStream(fromRuntimeType inner)
   | TList inner ->

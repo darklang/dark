@@ -106,9 +106,9 @@ let private unifiesTrivially (expected : TypeReference) (actual : ValueType) : b
         (match kt with
          | KTDateTime -> true
          | _ -> false)
-      | TBlob ->
+      | TBytes ->
         (match kt with
-         | KTBlob -> true
+         | KTBytes -> true
          | _ -> false)
       | _ -> false
 
@@ -333,7 +333,7 @@ let rec unifyValueType
         | TUuid, ValueType.Known KTUuid -> return Ok tst
         | TDateTime, ValueType.Known KTDateTime -> return Ok tst
 
-        | TBlob, ValueType.Known KTBlob -> return Ok tst
+        | TBytes, ValueType.Known KTBytes -> return Ok tst
 
         | TStream innerT, ValueType.Known(KTStream innerV) ->
           return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV

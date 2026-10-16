@@ -1,6 +1,6 @@
 # Benchmarks
 
-Allocation/timing micro-benchmarks for the Blob/Stream code paths.
+Allocation/timing micro-benchmarks for the Bytes/Stream code paths.
 
 ```sh
 ./scripts/run-local-exec bench         # run scenarios, append snapshot

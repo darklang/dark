@@ -314,7 +314,7 @@ let typeReference
 
   | TDateTime -> "DateTime"
 
-  | TBlob -> "Blob"
+  | TBytes -> "Bytes"
 
   | TStream inner -> $"Stream<{typeReference branchId inner}>"
 
@@ -395,7 +395,7 @@ let knownType
   | KTDateTime -> "DateTime"
   | KTUuid -> "Uuid"
 
-  | KTBlob -> "Blob"
+  | KTBytes -> "Bytes"
 
   | KTStream inner -> $"Stream<{valueType branchId inner}>"
 
@@ -619,8 +619,7 @@ module Dval =
       (RuntimeTypes.typeName branchId typeName) + typeArgsPart
     | DApplicable (AppNamedFn _) -> "Function"
     | DApplicable (AppLambda _) -> "Lambda"
-    | DBlobPersistent(_, _) -> "Blob"
-    | DBlobEphemeral _ -> "Blob"
+    | DBytes _ -> "Bytes"
     | DStreamStub vt -> $"Stream<{valueType branchId vt}>"
 
   /// The field names of a record type, in the order they were declared.
@@ -780,11 +779,12 @@ module Dval =
 
         braced "{" "}" parts
 
-    // Don't fetch the bytes for rendering -- payloads can be many MB.
-    | DBlobPersistent(hash, length) ->
-      let short = Stdlib.String.first hash 8
-      txt $"<Blob: {short}… {Stdlib.toString length} bytes>"
-    | DBlobEphemeral _ -> txt "<Blob: ephemeral>"
+    // Storage is an implementation detail. Length comes from metadata, so
+    // rendering never loads the payload.
+    | DBytes bytes ->
+      let n = Stdlib.Bytes.length bytes
+      let noun = if n == 1 then "byte" else "bytes"
+      txt $"<Bytes: {Stdlib.toString n} {noun}>"
 
     | DStreamStub _ -> txt "<stream: stub>"
 

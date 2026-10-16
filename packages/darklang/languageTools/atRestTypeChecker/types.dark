@@ -415,7 +415,7 @@ let fromReferenceInto
   | TChar -> (Model.Ty.TChar, found)
   | TUuid -> (Model.Ty.TUuid, found)
   | TDateTime -> (Model.Ty.TDateTime, found)
-  | TBlob -> (Model.Ty.TBlob, found)
+  | TBytes -> (Model.Ty.TBytes, found)
   | TStream inner ->
     let (inner, found) = fromReferenceInto mapping at found inner
     (Model.Ty.TStream inner, found)
@@ -849,7 +849,7 @@ let valueTypeParameters
   : List<String> =
   Stdlib.Option.withDefault (Stdlib.Dict.get env.valueTypeParameters name) []
 
-/// Check for types forbidden in dictionary keys: functions, streams, DBs, and blobs,
+/// Check for types forbidden in dictionary keys: functions and streams,
 /// including those stored inside containers, records, or enum payloads.
 /// Type variables are allowed here; more specific inferred or supplied types can
 /// be checked later. Missing declarations and TError do not add key errors because
@@ -858,7 +858,6 @@ let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTy
   match ty with
   | TFn(_, _) -> false
   | TStream _ -> false
-  | TBlob -> false
   | TList inner -> isUsableDictKey env seen inner
   | TDict(key, value) ->
     isUsableDictKey env seen key && isUsableDictKey env seen value
@@ -912,7 +911,8 @@ let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTy
   | TChar
   | TString
   | TUuid
-  | TDateTime -> true
+  | TDateTime
+  | TBytes -> true
 
 /// Check a declaration's field type for forbidden dictionary-key contents without
 /// first converting the full type. Follow custom declarations with the same cycle
@@ -927,7 +927,6 @@ let isUsableDictKeyReference
   match typ with
   | TFn(_, _) -> false
   | TStream _ -> false
-  | TBlob -> false
   | TList inner -> recurse inner
   | TDict(key, value) -> recurse key && recurse value
   | TTuple(first, second, rest) ->
@@ -1040,7 +1039,7 @@ let toStatic (ty: Model.Ty) : StaticType =
   | TString -> StaticType.TString
   | TUuid -> StaticType.TUuid
   | TDateTime -> StaticType.TDateTime
-  | TBlob -> StaticType.TBlob
+  | TBytes -> StaticType.TBytes
   | TStream inner -> StaticType.TStream(toStatic inner)
   | TList inner -> StaticType.TList(toStatic inner)
   | TTuple(first, second, rest) ->

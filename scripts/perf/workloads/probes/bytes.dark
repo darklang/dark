@@ -1,0 +1,43 @@
+// Allocation probe: run with the AOT CLI, as with the other perf probes.
+// Every row includes the fold and callback overhead. Compare rows to each other.
+// First comparisons construct one value each time, so warmup cannot cache its hash.
+
+// perf-probes-run runs a copy with this set to true: every row, fewer repetitions.
+let smoke = false
+
+let _smokeNotice =
+  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+
+let measure (label: String) (f: Int -> Int) : Unit =
+  let run (n: Int) : Int =
+    Stdlib.List.fold (Stdlib.List.range 1 n) 0 (fun acc i ->
+      if (f i) == -987654321 then acc + 1 else acc)
+  let _warm = run (if smoke then 2 else 50)
+  let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
+  let result = run (if smoke then 3 else 2000)
+  let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
+  Builtin.debug label ((after - before) / (if smoke then 3L else 2000L))
+  if result == 0 then () else Builtin.debug "unexpected result" result
+
+let probe (label: String) (text: String) : Unit =
+  let left = Stdlib.Bytes.fromString text
+  let right = Stdlib.Bytes.fromString text
+  measure (label + " create + length") (fun _ ->
+    Stdlib.Bytes.length (Stdlib.Bytes.fromString text))
+  measure (label + " create + self equality") (fun _ ->
+    let fresh = Stdlib.Bytes.fromString text
+    if fresh == fresh then 1 else 0)
+  measure (label + " create + first equality") (fun _ ->
+    let fresh = Stdlib.Bytes.fromString text
+    if fresh == right then 1 else 0)
+  // Warmup forces both hashes; this row measures subsequent comparisons.
+  measure (label + " cached equality") (fun _ -> if left == right then 1 else 0)
+
+let main () : Int64 =
+  measure "baseline" (fun i -> i)
+  probe "16 bytes" "0123456789abcdef"
+  probe "64 KiB" (Stdlib.String.repeat "x" 65536)
+  measure "baseline again" (fun i -> i)
+  0L
+
+main ()
