@@ -1,0 +1,39 @@
+#!/usr/bin/expect -f
+# Run the script in a terminal and choose "Allow future runs".
+# The backend test checks the output and exit code.
+set timeout 30
+
+proc fail {message} {
+  global spawn_id
+  puts stderr "Permission approval interaction failed: $message"
+  catch {exec kill -KILL [exp_pid]}
+  catch {close}
+  catch {wait}
+  exit 2
+}
+
+set cli [lindex $argv 0]
+set script [lindex $argv 1]
+spawn -noecho $cli run $script
+expect {
+  -re {\r?\n +(?:\x1b\[[0-9;]*m)*([0-9]+)(?:\x1b\[[0-9;]*m)*\. Allow future runs} {
+    set choice $expect_out(1,string)
+  }
+  timeout { fail "no save-permission option" }
+  eof { fail "exited before offering approval" }
+}
+expect {
+  "Enter number:" { send -- "$choice\r" }
+  timeout { fail "no selection prompt" }
+  eof { fail "exited before selection" }
+}
+expect {
+  eof {}
+  timeout { fail "did not exit after approval" }
+}
+set result [wait]
+if {[lindex $result 2] != 0 || [llength $result] != 4} {
+  puts stderr "Unexpected worker status: $result"
+  exit 2
+}
+exit [lindex $result 3]

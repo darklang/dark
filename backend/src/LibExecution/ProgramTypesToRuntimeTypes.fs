@@ -1687,25 +1687,3 @@ module PackageManager =
       implGeneration = fun () -> 0
 
       init = pm.init }
-
-
-// TODO: remove this eventually -- PT2RT should happen generally at dev-time
-// (in any case, params should be handled differntly - by index or something, not by name as loose symbols)
-module Handler =
-  let toRT (inputVars : Map<string, RT.Dval>) (expr : PT.Expr) : RT.Instructions =
-
-    let (initialInstrs, rcAfterInputVars, symbols)
-      : (List<RT.Instruction> * int * Map<string, int>) =
-      inputVars
-      |> Map.fold
-        (fun (instrs, rc, symbols) inputVarName inputVarVal ->
-          let instrs = instrs @ [ RT.LoadVal(rc, inputVarVal) ]
-          let symbols = Map.add inputVarName rc symbols
-          (instrs, rc + 1, Map.add inputVarName rc symbols))
-        ([], 0, Map.empty)
-
-    let exprInstrs = Expr.toRT symbols rcAfterInputVars None expr
-
-    { registerCount = exprInstrs.registerCount
-      instructions = initialInstrs @ exprInstrs.instructions
-      resultIn = exprInstrs.resultIn }

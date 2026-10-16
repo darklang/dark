@@ -634,17 +634,9 @@ let unapproveVersion (accountID : Option<Guid>) (location : string) : unit =
 let guestState
   (accountID : Option<Guid>)
   (runPolicy : P.Policy)
-  (sessionAllow : List<P.Rule>)
   (ownFns : List<RT.Hash>)
   (state : RT.ExecutionState)
   : RT.ExecutionState =
-  // Session-only rules widen this process's instance layer; they are not saved.
-  let instance =
-    match sessionAllow with
-    | [] -> instancePolicy ()
-    | extra ->
-      let allow, deny = P.Policy.rules (instancePolicy ())
-      P.Policy.create (allow @ extra) deny
   // Bundled membership is supplied by the host. Explicit approvals and the
   // script's own functions are added as normal package policies.
   let bundled = state.isBundledPackageFn
@@ -664,7 +656,7 @@ let guestState
       canManagePolicies = false
       packagePolicyOrigin =
         fun policyId -> originOfIn (get ()) accountID (fingerprint.Force()) policyId }
-  |> Execution.setInstancePolicy instance
+  |> Execution.setInstancePolicy (instancePolicy ())
   |> Execution.restrictRun runPolicy
   |> Execution.setPackagePolicies lookup
 
@@ -675,7 +667,7 @@ let testState
   (accountID : Option<Guid>)
   (state : RT.ExecutionState)
   : RT.ExecutionState =
-  guestState accountID P.Policy.allowAll [] [] state
+  guestState accountID P.Policy.allowAll [] state
   |> Execution.setInstancePolicy P.Policy.allowAll
 
 /// Disposable test workers and any CLI children they start use the same test
@@ -701,5 +693,5 @@ let rootState
   match roots with
   | [] -> state
   | _ ->
-    let guest = guestState state.accountID P.Policy.allowAll [] roots state
+    let guest = guestState state.accountID P.Policy.allowAll roots state
     { guest with access = guest.access |> P.Access.constrainBy invokerAccess }

@@ -36,6 +36,14 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "scripts"
+          description = "Run .dark files"
+          aliases = [ "script", "run-script", "run" ]
+          context = "cli"
+          content = Docs.Scripts.content
+          subtopics = [] }
+
+      DocTopic
         { name = "syntax"
           description = "Language syntax reference"
           aliases = [ "lang" ]

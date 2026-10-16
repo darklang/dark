@@ -37,19 +37,10 @@ module NRslv = LibParser.NameResolver
 module HashStabilization = LibDB.HashStabilization
 module AstTransformer = LibDB.AstTransformer
 module PackageLocation = LibDB.PackageLocation
-module PolicyToDT = LibExecution.PermissionsToDarkTypes
 module PolicyStore = LibDB.PolicyStore
 
 
-type CliTraceSource =
-  | RunScript of filename : string * code : string
-  | EvalExpression of expression : string
-
-module CliTraceSource =
-  let toTraceParams (source : CliTraceSource) =
-    match source with
-    | RunScript(filename, code) -> ($"run {filename}", "code", RT.DString code)
-    | EvalExpression expr -> ("eval", "expression", RT.DString expr)
+module ScriptOrEvalInput = LibDB.Traces.ScriptOrEvalInput
 
 
 module ParseError =
@@ -87,6 +78,7 @@ let private declarationsToModule
   (state : RT.ExecutionState)
   (owner : string)
   (scriptName : string)
+  (parameters : List<string>)
   (validated : Validation.ValidatedSourceFile)
   : Ply<Utils.CliScript.PTCliScriptModule> =
   uply {
@@ -369,15 +361,37 @@ let private declarationsToModule
         impls
         implLocations)
 
-    let emptyContext =
+    // Wrap script expressions as `fun args -> expression` so they can receive
+    // command-line arguments. Compile eval expressions directly.
+    let expressionContext =
       { WT2PT.Context.currentFnName = None
-        WT2PT.Context.argMap = Map.empty
+        WT2PT.Context.argMap =
+          parameters |> List.mapi (fun index name -> name, index) |> Map.ofList
         WT2PT.Context.localBindings = Set.empty }
     let! exprs =
       wtExprs
       |> List.ofSeq
       |> Ply.List.mapSequentially (fun (modules, e) ->
-        WT2PT.Expr.toPT builtins pm2 onMissing (owner :: modules) emptyContext e)
+        uply {
+          let! expr =
+            WT2PT.Expr.toPT
+              builtins
+              pm2
+              onMissing
+              (owner :: modules)
+              expressionContext
+              e
+          match parameters with
+          | [] -> return expr
+          | first :: rest ->
+            let parameter name = PT.LPVariable(gid (), name)
+            return
+              PT.ELambda(
+                gid (),
+                NEList.ofList (parameter first) (List.map parameter rest),
+                expr
+              )
+        })
 
     let emptyDefs : Utils.CliScript.Definitions =
       { types = []; values = []; fns = [] }
@@ -394,66 +408,109 @@ let private declarationsToModule
 /// Parse a whole CLI script with the hand-written parser, lowering `WT → PT`. One
 /// parser feeds both the editor (WrittenTypes directly) and execution (via this
 /// lowering).
-let parseCliScript
+let private parseCliSource
   (state : RT.ExecutionState)
   (owner : string)
   (scriptName : string)
+  (parameters : List<string>)
   (code : string)
   : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>> =
   uply {
     match P.parseFor Validation.Script code with
     | Error diagnostics -> return Error diagnostics
     | Ok validated ->
-      let! m = declarationsToModule state owner scriptName validated
-      // An `impl` whose trait or method fn did not resolve would otherwise vanish:
-      // dispatch only sees resolved candidates, and the first sign would be "no
-      // impl for Point" at the call. Name it here, at the declaration.
-      let implDecls =
+      // `args` holds the script's arguments, so a script can't declare its
+      // own `val args` or `let args` at the root. An `args` declared inside
+      // a module is allowed, because code outside the module names it with
+      // the module in front, e.g. `Util.args`.
+      let reservedDeclarations =
         validated
         |> Validation.ValidatedSourceFile.toWrittenTypes
         |> WTSourceFile.items
         |> List.choose (function
-          | WTSourceFile.Impl(_, impl) -> Some impl
+          | WTSourceFile.Value([], value) -> Some(value.name, "value")
+          | WTSourceFile.Fn([], fn) -> Some(fn.name, "function")
           | _ -> None)
-      let unresolved =
-        List.zip implDecls m.impls
-        |> List.collect (fun (decl, impl) ->
-          let traitProblem =
-            match impl.trait_.resolved with
-            | Error _ ->
-              let written = String.concat "." impl.trait_.originalName
-              [ ({ code = "RESOLVE-TRAIT"
-                   severity = P.DiagError
-                   range = decl.trait_.range
-                   message = $"Trait `{written}` couldn't be found"
-                   related = []
-                   hint =
-                     Some
-                       "name the trait in full, e.g. `Stdlib.Add`, or declare it above" }
-                : P.Diagnostic) ]
-            | Ok _ -> []
-          let methodProblems =
-            impl.methods
-            |> List.choose (fun (m, nr) ->
-              match nr.resolved with
+        |> List.choose (fun (name, kind) ->
+          if List.contains name.name parameters then
+            Some(
+              { code = "SCRIPT-RESERVED-NAME"
+                severity = P.DiagError
+                range = name.range
+                message =
+                  $"`{name.name}` contains script arguments; choose another name for this {kind}."
+                related = []
+                hint =
+                  Some
+                    "Read command-line arguments from `args`, or rename your declaration." }
+              : P.Diagnostic
+            )
+          else
+            None)
+      match reservedDeclarations with
+      | _ :: _ -> return Error reservedDeclarations
+      | [] ->
+        let! m = declarationsToModule state owner scriptName parameters validated
+        // An `impl` whose trait or method fn did not resolve would otherwise vanish:
+        // dispatch only sees resolved candidates, and the first sign would be "no
+        // impl for Point" at the call. Name it here, at the declaration.
+        let implDecls =
+          validated
+          |> Validation.ValidatedSourceFile.toWrittenTypes
+          |> WTSourceFile.items
+          |> List.choose (function
+            | WTSourceFile.Impl(_, impl) -> Some impl
+            | _ -> None)
+        let unresolved =
+          List.zip implDecls m.impls
+          |> List.collect (fun (decl, impl) ->
+            let traitProblem =
+              match impl.trait_.resolved with
               | Error _ ->
-                let written = String.concat "." nr.originalName
-                Some(
-                  { code = "RESOLVE-IMPL-METHOD"
-                    severity = P.DiagError
-                    range = decl.range
-                    message =
-                      $"Method `{m}` names `{written}`, which couldn't be found"
-                    related = []
-                    hint = None }
-                  : P.Diagnostic
-                )
-              | Ok _ -> None)
-          traitProblem @ methodProblems)
-      match unresolved with
-      | [] -> return Ok m
-      | diagnostics -> return Error diagnostics
+                let written = String.concat "." impl.trait_.originalName
+                [ ({ code = "RESOLVE-TRAIT"
+                     severity = P.DiagError
+                     range = decl.trait_.range
+                     message = $"Trait `{written}` couldn't be found"
+                     related = []
+                     hint =
+                       Some
+                         "name the trait in full, e.g. `Stdlib.Add`, or declare it above" }
+                  : P.Diagnostic) ]
+              | Ok _ -> []
+            let methodProblems =
+              impl.methods
+              |> List.choose (fun (m, nr) ->
+                match nr.resolved with
+                | Error _ ->
+                  let written = String.concat "." nr.originalName
+                  Some(
+                    { code = "RESOLVE-IMPL-METHOD"
+                      severity = P.DiagError
+                      range = decl.range
+                      message =
+                        $"Method `{m}` names `{written}`, which couldn't be found"
+                      related = []
+                      hint = None }
+                    : P.Diagnostic
+                  )
+                | Ok _ -> None)
+            traitProblem @ methodProblems)
+        match unresolved with
+        | [] -> return Ok m
+        | diagnostics -> return Error diagnostics
   }
+
+/// Script expressions receive `args` as a parameter to an internal entry function.
+/// Eval expressions have no script arguments.
+let parseCliScript
+  (state : RT.ExecutionState)
+  (owner : string)
+  (scriptName : string)
+  (code : string)
+  : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>> =
+  parseCliSource state owner scriptName [ "args" ] code
+
 
 /// Parse a single expression (the `eval` path): the script lowering with no
 /// module, so `let x = … in x` and short statement sequences also work; a
@@ -462,7 +519,18 @@ let parseCliExpr
   (state : RT.ExecutionState)
   (expression : string)
   : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>> =
-  parseCliScript state "" "" expression
+  parseCliSource state "" "" [] expression
+
+
+/// Use the recorded input kind to choose the parser, including on replay.
+let parseScriptOrEvalInput
+  (state : RT.ExecutionState)
+  (input : LibDB.Traces.ScriptOrEvalInput)
+  =
+  match input with
+  | LibDB.Traces.EvalExpression(source, _) -> parseCliExpr state source
+  | LibDB.Traces.RunScript(_, source, _, _) ->
+    parseCliScript state "CliScript" "" source
 
 
 module ExecutionError =
@@ -678,8 +746,7 @@ let childState
 let executeWith
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
-  (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
-  (traceSource : CliTraceSource)
+  (input : LibDB.Traces.ScriptOrEvalInput)
   (suppliedTracer : Option<Tracing.T>)
   : Ply<RT.ExecutionResult> =
   uply {
@@ -743,7 +810,7 @@ let executeWith
         (branchTraits @ traits)
       |> PackageManager.withExtraImpls scriptImpls
 
-    let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
+    let (traceDesc, inputName, inputValue) = ScriptOrEvalInput.toTraceParams input
 
     // A run IS a trace: one durable row, so it can be listed, suspended by Ctrl-C, resumed and
     // forked (`LibDB.Traces`). A resume armed by `dark traces resume` replays that run's log;
@@ -791,6 +858,7 @@ let executeWith
               traceDesc
               inputName
               inputValue
+              (Some input)
               LibDB.Traces.Running
               None
             tracer, Some id, None
@@ -849,6 +917,7 @@ let executeWith
         |> RuntimeError.CLI
         |> raiseUntargetedRTE
     | exprs ->
+      // Compile the entry functions; script arguments are supplied when calling them.
       let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
       // Initialize values before top-level expressions. Dependencies may run first.
       let valueInstrs =
@@ -868,7 +937,17 @@ let executeWith
       // Under the scheduler each expression is its own process, spawned from the CLI's
       // process and awaited: it budget-yields, `ps` lists it, and a `readKey` in it parks
       // instead of holding the thread. Without one (tests, the LSP) it runs inline.
-      let runOne (instr : RT.Instructions) : Ply<RT.ExecutionResult> =
+      let runOne
+        (mustReturnUnit : bool)
+        (instr : RT.Instructions)
+        : Ply<RT.ExecutionResult> =
+        let instr =
+          if mustReturnUnit then
+            { instr with
+                instructions =
+                  instr.instructions @ [ RT.CheckIfFirstExprIsUnit instr.resultIn ] }
+          else
+            instr
         match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
         | Some s, Some parent ->
           let child =
@@ -876,28 +955,49 @@ let executeWith
           uply { return! s.Await child }
         | _ -> uply { return! Exe.executeExpr state instr }
 
+      let runEntry =
+        match input with
+        | LibDB.Traces.EvalExpression _ -> runOne
+        | LibDB.Traces.RunScript(_, _, args, _) ->
+          let argument = Dval.list KTString (List.map DString args)
+          fun mustReturnUnit entry ->
+            uply {
+              // Creating the function supplies no arguments and runs no script code.
+              match! Exe.executeExpr state entry with
+              | Error _ as failed -> return failed
+              | Ok(DApplicable callable) ->
+                return!
+                  Exe.instructionsForApply callable argument |> runOne mustReturnUnit
+              | Ok value ->
+                return
+                  Exception.raiseInternal
+                    "A compiled script entry did not produce a function"
+                    [ "value", value ]
+            }
+
       // Awaited in order, and the first error ends the script.
-      let rec runInOrder (instrs : List<RT.Instructions>) : Ply<RT.ExecutionResult> =
+      let rec runInOrder
+        (executeExpression : bool -> RT.Instructions -> Ply<RT.ExecutionResult>)
+        (instrs : List<RT.Instructions>)
+        : Ply<RT.ExecutionResult> =
         uply {
           match instrs with
           | [] -> return Ok DUnit
-          | [ last ] -> return! runOne last
+          | [ last ] -> return! executeExpression false last
           | instr :: rest ->
             // Separate top-level expressions obey the same sequencing rule as
             // EStatement inside a block, including its runtime error and trace.
-            let instr =
-              { instr with
-                  instructions =
-                    instr.instructions @ [ RT.CheckIfFirstExprIsUnit instr.resultIn ] }
-            match! runOne instr with
+            match! executeExpression true instr with
             | Error _ as failed -> return failed
-            | Ok _ -> return! runInOrder rest
+            | Ok _ -> return! runInOrder executeExpression rest
         }
 
       let! result =
         uply {
           try
-            return! runInOrder (valueInstrs @ exprInstrs)
+            match! runInOrder runOne valueInstrs with
+            | Error _ as failed -> return failed
+            | Ok _ -> return! runInOrder runEntry exprInstrs
           with ex ->
             executionId
             |> Option.iter (fun id ->
@@ -945,10 +1045,9 @@ let executeWith
 let execute
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
-  (args : List<Dval>)
-  (traceSource : CliTraceSource)
+  (input : LibDB.Traces.ScriptOrEvalInput)
   : Ply<RT.ExecutionResult> =
-  executeWith parentState mod' args traceSource None
+  executeWith parentState mod' input None
 
 /// Create a branch-specific execution state for parsing.
 ///
@@ -965,6 +1064,31 @@ let createBranchState (parentState : RT.ExecutionState) (allowHarmful : bool) =
 let private ownFns (mod' : Utils.CliScript.PTCliScriptModule) : List<RT.Hash> =
   List.append mod'.fns mod'.submodules.fns
   |> List.map (fun (fn : PT.PackageFn.PackageFn) -> PT2RT.Hash.toRT fn.hash)
+
+/// Use the same run options when executing code and viewing its trace.
+let private createGuestState
+  (parentState : RT.ExecutionState)
+  (mod' : Utils.CliScript.PTCliScriptModule)
+  (input : LibDB.Traces.ScriptOrEvalInput)
+  : RT.ExecutionState =
+  let options = ScriptOrEvalInput.options input
+  let policy =
+    if options.sandbox then
+      LibExecution.Permissions.Policy.denyAll
+    else
+      LibExecution.Permissions.Policy.allowAll
+  let guest =
+    PolicyStore.guestState
+      parentState.accountID
+      policy
+      (ownFns mod')
+      { parentState with allowHarmful = options.allowHarmful }
+  { guest with
+      permissionWarnings =
+        if options.warnPermissions then
+          Some(ResizeArray<RT.PermissionViolation>())
+        else
+          None }
 
 /// Is there a stack a PERSON can read here?
 ///
@@ -1003,7 +1127,24 @@ let private printCallStack
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "testRunIsolated" 0
+  [ { name = fn "cliSplitScriptArguments" 0
+      typeParams = []
+      parameters = [ Param.make "args" (TList TString) "Arguments after run-script" ]
+      returnType = TTuple(TList TString, TList TString, [])
+      description = "Split runner options from the script path and its arguments."
+      fn =
+        (function
+        | _, _, [], [| DList(_, args) |] ->
+          let options, script =
+            args |> List.map D.string |> Utils.ScriptArguments.split
+          let strings values = Dval.list KTString (List.map DString values)
+          Ply(DTuple(strings options, strings script, []))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "testRunIsolated" 0
       typeParams = [ "a"; "b" ]
       parameters =
         [ Param.make "branch" (TypeReference.option TUuid) ""
@@ -1153,12 +1294,7 @@ let fns () : List<BuiltInFn> =
           Param.make
             "warnPermissions"
             TBool
-            "Warn-only permission mode: record caller-policy violations instead of denying them, while the instance policy remains mandatory"
-          Param.make
-            "sessionAllow"
-            (TList(TCustomType(NR.ok (PolicyToDT.Rule.typeName ()), [])))
-            ("Rules the interactive user allowed for this run only; they widen "
-             + "the instance layer in memory and are never saved") ]
+            "Warn-only permission mode: record caller-policy violations instead of denying them, while the instance policy remains mandatory" ]
       returnType =
         // Ok = (exitCode, violations); a violation is (resource, unmet aspect, via — the
         // package fn / lambda the access happened in, when known). Empty list = stayed
@@ -1190,8 +1326,7 @@ let fns () : List<BuiltInFn> =
              DList(_vtTODO, scriptArgs)
              DBool allowHarmful
              DBool sandbox
-             DBool warnPermissions
-             DList(_, sessionAllowDvals) |] ->
+             DBool warnPermissions |] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`. None passes through
@@ -1217,7 +1352,6 @@ let fns () : List<BuiltInFn> =
             // message, not fail opaquely at parse. Only the script *body* runs
             // under the guest state built below.
             let branchState = createBranchState exeState allowHarmful
-            let sessionAllow = sessionAllowDvals |> List.map PolicyToDT.Rule.fromDT
             // Denials raised under the guest state land here; a run that ends
             // on one is reported as `Denied` so the CLI can offer the rule.
             let denied = ResizeArray<RT.PermissionDenialRecord>()
@@ -1231,10 +1365,17 @@ let fns () : List<BuiltInFn> =
                   // and it buys nothing: one script runs per process, and two
                   // that declare the same thing share a hash anyway. The
                   // filename reaches traces via `RunScript`.
+                  let input =
+                    LibDB.Traces.RunScript(
+                      filename,
+                      code,
+                      List.map D.string scriptArgs,
+                      { allowHarmful = allowHarmful
+                        sandbox = sandbox
+                        warnPermissions = warnPermissions }
+                    )
                   let! parsedScript =
-                    prepareGuest
-                      (parseCliScript branchState "CliScript" "" code)
-                      code
+                    prepareGuest (parseScriptOrEvalInput branchState input) code
 
                   match parsedScript with
                   | Ok mod' ->
@@ -1243,32 +1384,12 @@ let fns () : List<BuiltInFn> =
                     // locked down (see PolicyStore.instancePolicy).
                     // `--warn-permissions` may relax the run and package policies, but the
                     // instance policy remains a hard maximum.
-                    let permissionSink =
-                      if warnPermissions then
-                        Some(ResizeArray<RT.PermissionViolation>())
-                      else
-                        None
-                    let runPolicy =
-                      if sandbox then
-                        LibExecution.Permissions.Policy.denyAll
-                      else
-                        LibExecution.Permissions.Policy.allowAll
-                    // Kept for diagnostics: the call-stack printer runs Dark
-                    // code (name lookups) that the guest policy may deny.
+                    // Error messages may need name lookups the script cannot make.
                     let hostState = exeState
-                    let guest =
-                      PolicyStore.guestState
-                        accountID
-                        runPolicy
-                        sessionAllow
-                        (ownFns mod')
-                        exeState
-                    let exeState =
-                      { guest with
-                          permissionWarnings = permissionSink
-                          deniedRequests = denied }
-                    let! execResult =
-                      execute exeState mod' scriptArgs (RunScript(filename, code))
+                    let guest = createGuestState exeState mod' input
+                    let permissionSink = guest.permissionWarnings
+                    let exeState = { guest with deniedRequests = denied }
+                    let! execResult = execute exeState mod' input
                     let! violations =
                       match permissionSink with
                       | None -> Ply []
@@ -1316,8 +1437,9 @@ let fns () : List<BuiltInFn> =
                       let! csString = Exe.callStackString hostState callStack
                       match ExecutionError.classify denied e with
                       | ExecutionError.Denied d ->
-                        // The CLI may offer to allow and retry; the stack is printed
-                        // only if the denial stands.
+                        // A permission error's stack is printed later, by Dark,
+                        // and only if the user doesn't allow the permission at
+                        // the prompt.
                         return
                           resultError (
                             ExecutionError.toDT (
@@ -1516,8 +1638,8 @@ let fns () : List<BuiltInFn> =
                 // Only a run whose input is source can be replayed from the CLI. A served
                 // request is a run too, and re-running one needs the server's handler, which
                 // is the next piece of this.
-                match run.input with
-                | DString source ->
+                match run.cli with
+                | Some input ->
                   let! log = LibDB.Traces.viewLog id
                   let collected =
                     System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>()
@@ -1535,7 +1657,7 @@ let fns () : List<BuiltInFn> =
                         accountID = accountID
                         branchId = PT.BranchId.Id branchId }
                   let branchState = createBranchState exeState false
-                  let! parsed = parseCliExpr branchState source
+                  let! parsed = parseScriptOrEvalInput branchState input
                   let values () =
                     lastByExpr
                     |> Seq.map (fun kv ->
@@ -1554,29 +1676,17 @@ let fns () : List<BuiltInFn> =
                         )
                       )
                   | Ok mod' ->
-                    let viewState =
-                      PolicyStore.guestState
-                        exeState.accountID
-                        LibExecution.Permissions.Policy.allowAll
-                        []
-                        (ownFns mod')
-                        exeState
+                    let viewState = createGuestState exeState mod' input
                     try
-                      match!
-                        executeWith
-                          viewState
-                          mod'
-                          []
-                          (EvalExpression source)
-                          (Some tracer)
-                      with
+                      match! executeWith viewState mod' input (Some tracer) with
                       | Ok _ -> return answerWithTree () None
                       | Error(rte, _) ->
                         return answerWithTree () (Some(ReplayStop.Raised rte))
                     with e ->
                       return
                         answerWithTree () (Some(ReplayStop.Unreplayable e.Message))
-                | requestDval ->
+                | None ->
+                  let requestDval = run.input
                   // A served request: its input is a record, so there is no source to re-run.
                   // The handler that served it was recorded on the row, so the view applies
                   // that to the request instead -- the same replay, a different way in.
@@ -1710,8 +1820,11 @@ let fns () : List<BuiltInFn> =
                   // guestTry so its exceptions hit the Unhandled net. `eval` is
                   // single-expression only; parse failures surface a precise
                   // diagnostic (no fallback).
+                  let input = LibDB.Traces.EvalExpression(expression, allowHarmful)
                   let! parsedScript =
-                    prepareGuest (parseCliExpr branchState expression) expression
+                    prepareGuest
+                      (parseScriptOrEvalInput branchState input)
+                      expression
 
                   match parsedScript with
                   | Ok mod' ->
@@ -1719,15 +1832,9 @@ let fns () : List<BuiltInFn> =
                     // deny-by-default policy; missing or corrupt policy state
                     // remains locked down.
                     let hostState = exeState
-                    let exeState =
-                      PolicyStore.guestState
-                        accountID
-                        LibExecution.Permissions.Policy.allowAll
-                        []
-                        (ownFns mod')
-                        exeState
+                    let exeState = createGuestState exeState mod' input
                     let exeState = { exeState with deniedRequests = denied }
-                    match! execute exeState mod' [] (EvalExpression expression) with
+                    match! execute exeState mod' input with
                     | Ok result ->
                       match result with
                       | DUnit -> return okNone ()
@@ -1756,8 +1863,9 @@ let fns () : List<BuiltInFn> =
                       let! csString = Exe.callStackString hostState callStack
                       match ExecutionError.classify denied e with
                       | ExecutionError.Denied d ->
-                        // The CLI may offer to allow and retry; the stack is printed
-                        // only if the denial stands.
+                        // A permission error's stack is printed later, by Dark,
+                        // and only if the user doesn't allow the permission at
+                        // the prompt.
                         return
                           resultError (
                             ExecutionError.toDT (
