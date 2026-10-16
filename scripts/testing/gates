@@ -93,6 +93,13 @@ known() {
 # cheap and keeps the dispatch a name-mangle away.
 run_gate() {
   local name="$1"; shift
+  # Record each gate separately, including when a surrounding timeout kills it.
+  # The collector snapshots only failed/interrupted gates' working databases.
+  if [[ "${CIRCLECI:-}" == "true" && "${CI_DIAGNOSTIC_GATE:-}" != "$name" ]]; then
+    CI_DIAGNOSTIC_GATE="$name" python3 .circleci/collect_diagnostics.py \
+      --run "gate-$name" -- "$0" "$name" "$@"
+    return $?
+  fi
   # shellcheck source=scripts/testing/_gates-ui
   . scripts/testing/_gates-ui
   # shellcheck source=scripts/testing/_gates-store
