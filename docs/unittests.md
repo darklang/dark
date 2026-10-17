@@ -28,6 +28,17 @@ See the [testfiles README](../backend/testfiles/README.md) for the HTTP test fil
 Output goes to `rundir/logs/fsharp-tests.log`, with JUnit results in
 `rundir/test_results/backend.xml`.
 
+CI runs the whole suite with `--split`, which is faster. Most tests run in parallel, but
+some must run one at a time (they share state inside the test process). Normally those
+wait until all the parallel tests finish. With `--split` they run at the same time instead,
+in a second test process with its own copy of the database and its own folder,
+`rundir/split-sequenced/`, so the two can't interfere.
+
+The second process's output is prefixed `[sequenced]`, logged to
+`rundir/logs/fsharp-tests-sequenced.log`, and reported in
+`rundir/test_results/backend-sequenced.xml`. `--split` doesn't take a filter. To run just
+one half, use `--kind sequenced` or `--kind parallel`.
+
 Local runs reload packages into a fresh test database. CI copies the seed built
 earlier in the job instead.
 

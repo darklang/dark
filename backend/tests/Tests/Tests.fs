@@ -35,11 +35,52 @@ let private parseShard (args : string array) : (int * int) option * string array
     | _ ->
       Exception.raiseInternal $"--shard {spec}: expected INDEX/TOTAL, like 0/4" []
 
+/// `--kind sequenced` or `--kind parallel` runs only that half of the suite, so
+/// `run-backend-tests --split` can run the two halves as two processes at the same time.
+/// Sequenced tests run one at a time because they share this process's state; they don't
+/// need the parallel tests to finish first. Tests in a `testSequencedGroup` count as
+/// parallel: they only wait for each other, and already run in the parallel phase.
+let private parseKind (args : string array) : bool option * string array =
+  match Array.tryFindIndex (fun a -> a = "--kind") args with
+  | None -> None, args
+  | Some i ->
+    if i + 1 >= args.Length then
+      Exception.raiseInternal "--kind needs an argument: sequenced or parallel" []
+    let sequenced =
+      match args[i + 1] with
+      | "sequenced" -> true
+      | "parallel" -> false
+      | other ->
+        Exception.raiseInternal $"--kind {other}: expected sequenced or parallel" []
+    Some sequenced, Array.append args[0 .. i - 1] args[i + 2 ..]
+
+/// Remove the tests not in `keep`, leaving the rest of the tree exactly as it was.
+/// Don't swap in Expecto's `Test.filter` or `fromFlatTests`: they rebuild the tree, which
+/// changes test names in the JUnit report, and a few full names contain characters XML
+/// can't hold, so CircleCI can't read the report.
+let rec private keepOnly
+  (keep : Set<string list>)
+  (path : string list)
+  (test : Test)
+  : Test option =
+  match test with
+  | TestCase _ -> if Set.contains path keep then Some test else None
+  | TestLabel(label, inner, state) ->
+    keepOnly keep (path @ [ label ]) inner
+    |> Option.map (fun t -> TestLabel(label, t, state))
+  | TestList(tests, state) ->
+    match List.choose (keepOnly keep path) tests with
+    | [] -> None
+    | kept -> Some(TestList(kept, state))
+  | Test.Sequenced(how, inner) ->
+    keepOnly keep path inner |> Option.map (fun t -> Test.Sequenced(how, t))
+
 
 [<EntryPoint>]
 let main (args : string array) : int =
   try
     let shard, args = parseShard args
+    let kind, args = parseKind args
     // Tests has no CLI worker entry point. Use the CLI selected by run-backend-tests.
     match System.Environment.GetEnvironmentVariable "DARK_TEST_CLI" with
     | null
@@ -61,6 +102,9 @@ let main (args : string array) : int =
       (fun msg -> System.Console.Error.WriteLine msg))
       .Result
     |> ignore<bool>
+
+    // Before any test touches the store: every CLI instance starts from this.
+    Tests.CliInstance.snapshotStore ()
 
     let tests =
       [ // core
@@ -152,7 +196,7 @@ let main (args : string array) : int =
         | _ -> t.name |> List.truncate 2 |> String.concat "/"
       int (TestUtils.TestUtils.stableHash key % uint32 total)
 
-    let toRun =
+    let sharded =
       match shard with
       | None -> all
       | Some(idx, total) ->
@@ -161,6 +205,23 @@ let main (args : string array) : int =
         |> Test.toTestCodeList
         |> List.filter (fun t -> ownedBy total t = idx)
         |> Test.fromFlatTests "/"
+
+    let toRun =
+      match kind with
+      | None -> sharded
+      | Some sequenced ->
+        print
+          $"""Running the {if sequenced then "sequenced" else "parallel"} tests."""
+        let keep =
+          sharded
+          |> Test.toTestCodeList
+          |> List.filter (fun t ->
+            match t.sequenced with
+            | Synchronous -> sequenced
+            | _ -> not sequenced)
+          |> List.map (fun t -> t.name)
+          |> Set.ofList
+        keepOnly keep [] sharded |> Option.defaultValue (TestList([], Normal))
 
     let exitCode =
       runTestsWithCLIArgs [ Allow_Duplicate_Names; JoinWith "/" ] args toRun

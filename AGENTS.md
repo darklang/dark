@@ -164,6 +164,9 @@ only line that named the real place was the first one, `offside of context start
 ## Tests
 
     ./scripts/run-backend-tests                       all of them, a few minutes
+    ./scripts/run-backend-tests --published --split   all of them, faster: the one-at-a-time
+                                                      tests run in a second process at the
+                                                      same time as the rest. What CI runs
     scripts/dev/build --optimize --test               the same, published and much faster
     ./scripts/run-backend-tests --groups              the tree, with counts
     ./scripts/run-backend-tests --groups Interpreter  just that part of it

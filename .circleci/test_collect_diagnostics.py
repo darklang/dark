@@ -124,6 +124,15 @@ class DiagnosticsTests(unittest.TestCase):
     self.assertEqual([p.relative_to(self.output / "databases").as_posix()
                       for p in saved], ["test-data.db.gz"])
 
+  def test_failed_split_run_saves_both_halves_stores(self):
+    self.database("test-data.db")
+    self.database("split-sequenced/test-data.db")
+    self.record("backend-tests")
+    diagnostics.failure_databases(self.root)
+    saved = sorted(p.relative_to(self.output / "databases").as_posix()
+                   for p in (self.output / "databases").rglob("*.gz"))
+    self.assertEqual(saved, ["split-sequenced/test-data.db.gz", "test-data.db.gz"])
+
   def test_successful_run_has_no_database_artifacts(self):
     self.database("test-data.db")
     rc = diagnostics.record_check(self.root, "backend-tests",
@@ -161,7 +170,9 @@ class DiagnosticsTests(unittest.TestCase):
     (self.root / "data.db").symlink_to(outside)
     diagnostics.failure_databases(self.root)
     results = json.loads((self.output / "databases.json").read_text())["databases"]
-    self.assertEqual(len(results), 3)
+    # 4, not 3: backend-tests lists two databases, and both are unavailable here (the
+    # main one is corrupt, and the split one was never created).
+    self.assertEqual(len(results), 4)
     self.assertTrue(all(r["status"].startswith("unavailable:") for r in results))
     self.assertEqual(list(self.output.rglob("*.db.gz")), [])
 

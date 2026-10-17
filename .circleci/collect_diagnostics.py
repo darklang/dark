@@ -32,7 +32,9 @@ CHECK_DATABASES = {
   "migrations": ["data.db"],
   "packages": ["data.db"],
   "seed": ["data.db"],
-  "backend-tests": ["test-data.db"],
+  # With `run-backend-tests --split`, the one-at-a-time tests get their own database
+  # (split-sequenced/test-data.db). When the tests fail, save it along with the main one.
+  "backend-tests": ["test-data.db", "split-sequenced/test-data.db"],
   "allocation": ["data.db"],
   "gate-workbench-scm": ["workbench-scm-test/data.db",
                          "workbench-scm-test-quiet/data.db"],

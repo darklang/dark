@@ -70,9 +70,13 @@ let private expectOk (result : RT.ExecutionResult) (what : string) : RT.Dval =
   | Ok dv -> dv
   | Error(rte, _) -> failtest $"{what} failed: {rte}"
 
-/// Poll until `cond`, or give up after five seconds.
+/// How long to wait for something before failing the test. Waits end as soon as it happens,
+/// so passing tests never wait this long; it is generous so a busy machine doesn't fail them.
+let private giveUpAfter = System.TimeSpan.FromSeconds 30.
+
+/// Poll until `cond`, or give up after `giveUpAfter`.
 let private waitFor (what : string) (cond : unit -> bool) : unit =
-  let deadline = System.DateTime.UtcNow.AddSeconds 5.
+  let deadline = System.DateTime.UtcNow + giveUpAfter
   while not (cond ()) && System.DateTime.UtcNow < deadline do
     Thread.Sleep 5
   if not (cond ()) then failtest $"gave up waiting for {what}"
@@ -82,7 +86,7 @@ let private waitFor (what : string) (cond : unit -> bool) : unit =
 /// one poll at a time.
 let private waitForTrace (what : string) (expected : List<string>) : unit =
   let mutable seen = []
-  let deadline = System.DateTime.UtcNow.AddSeconds 5.
+  let deadline = System.DateTime.UtcNow + giveUpAfter
   while seen <> expected && System.DateTime.UtcNow < deadline do
     seen <- seen @ Trace.take ()
     if seen <> expected then Thread.Sleep 5
@@ -1907,7 +1911,7 @@ let private killCascadesHard =
         """let h = Stdlib.Exec.spawn (fun () -> Builtin.testGateWait 62L)
 Stdlib.Exec.await h"""
     let running = runOnThread s parent
-    let deadline = System.DateTime.UtcNow.AddSeconds 5.
+    let deadline = System.DateTime.UtcNow + giveUpAfter
     while (match parent.status with
            | Scheduler.Parked _ -> false
            | _ -> true)
