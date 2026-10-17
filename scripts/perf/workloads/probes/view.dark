@@ -16,7 +16,14 @@
 // it perturbs everything after -- the interpreter's counters read the allocation counter twice per
 // builtin call, which inflates exactly the per-call figures the middle section is for.
 
-val iterations = 400
+// perf-probes-run runs a copy with this set to true: every case, fewer repetitions.
+let smoke = false
+
+let _smokeNotice =
+  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+
+let iterations = if smoke then 1 else 400
+let allocationIterations = if smoke then 1 else 10
 
 let base =
   Darklang.Cli.Workbench.initialState
@@ -37,15 +44,15 @@ let viewN (i: Int) (s: Darklang.Cli.Workbench.State) (acc: Int) : Int =
 
 // Allocation. Byte-deterministic for a fixed workload, so this is the number to compare across
 // sessions; the one above drifts with how loaded the machine is.
-let _warmAlloc = viewN 2 base 0
+let _warmAlloc = viewN (if smoke then 1 else 2) base 0
 let a0 = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
-let _alloc = viewN 10 base 0
+let _alloc = viewN allocationIterations base 0
 let a1 = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
 
 let _ =
   Stdlib.printLine
     ("bytes per view build: "
-     + (Stdlib.toString ((Stdlib.Int.fromInt64 (a1 - a0)) / 10)))
+     + (Stdlib.toString ((Stdlib.Int.fromInt64 (a1 - a0)) / allocationIterations)))
 
 // Time. Long enough that ~100 Hz sampling lands hundreds of samples inside it, so this is also the
 // section to run a sampling profiler against.
@@ -67,5 +74,5 @@ let _ =
 // Per-fn profile, over five views. Pipe into fnprofile with `--divide 5`.
 let _on = Darklang.LanguageTools.InterpreterStats.enableDetailedTiming true
 let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
-let _profile = viewN 5 base 0
+let _profile = viewN (if smoke then 1 else 5) base 0
 Stdlib.printLine (Darklang.LanguageTools.InterpreterStats.get ())

@@ -388,6 +388,19 @@ jobs:
 
       - show-large-files-and-directories
       - store-ci-diagnostics
+      # The binary is ~34 MB a build. Kept on main, and on any failure so the binary that
+      # failed can be run. A passing PR's is cheaper to rebuild locally: check out the
+      # branch, `scripts/dev/build`, export the seed, then `build-release-cli-exes.sh`.
+      # This one is linux-x64 only, so most reviewers could not run it anyway.
+      #
+      # No `when:` on the step, so it is skipped once anything has failed. The upload
+      # below runs either way: job #75213's did after its publish step failed.
+      - run:
+          name: Drop the CLI binary from passing PR builds
+          command: |
+            if [[ "$CIRCLE_BRANCH" != "main" ]]; then
+              rm -rf clis && mkdir clis
+            fi
       - store_artifacts: { path: clis }
 
   ##########################

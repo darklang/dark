@@ -91,8 +91,15 @@ Three different contracts, which is why they are in three places:
 - `workloads/probes/` is hand-run. One file per question (what a view costs, what a lambda
   application costs, where routing time goes, where spreading starts to pay). Run them with
   `./scripts/run-cli run <file>` and read the output; each file's header says what it answers and
-  how to read it. Nothing automated runs these, so a probe is only as good as the last person who
-  looked at it.
+  how to read it. The `perf-probes-run` gate checks every probe with fewer repetitions by
+  running a copy with its `let smoke = false` line set to true. It keeps every workload row,
+  list size, canvas size and workbench view; the operation probes use inputs on both sides of
+  their conditional examples. It also runs the allocation and profiling sections. Smoke output
+  is labelled and must not be used as a performance measurement. Run by hand, a probe keeps
+  its full repetitions. The switch is a constant rather than an environment variable because
+  reading one needs `env read`, which the default instance policy prompts for. The gate
+  reports elapsed seconds per probe to help identify slow checks. The separate AOT allocation
+  gate and its budget are unchanged.
 
 ## What is NOT here
 

@@ -12,7 +12,13 @@
 // `scripts/perf/http` measures a whole request including the socket, and is too noisy over a third
 // of a second to resolve a single change; this isolates routing and repeats to ~1%.
 
-val iterations = 3000
+// perf-probes-run runs a copy with this set to true: every case, fewer repetitions.
+let smoke = false
+
+let _smokeNotice =
+  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+
+let iterations = if smoke then 1 else 3000
 
 let hello (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   Stdlib.Http.responseWithText "hello" 200
@@ -38,7 +44,7 @@ let routeN (i: Int) (acc: Int) : Int =
 
 // Time, with nothing enabled: the interpreter's counters read the allocation counter twice per
 // builtin call, which inflates exactly the per-call figures this is for.
-let _warm = routeN 200 0
+let _warm = routeN (if smoke then 1 else 200) 0
 let t0 = Darklang.Cli.Telemetry.now ()
 let total = routeN iterations 0
 let elapsed = (Darklang.Cli.Telemetry.now ()) - t0
@@ -57,5 +63,5 @@ let _ =
 // Per-fn profile, over fifty routes. Last, because enabling detailed timing perturbs what follows.
 let _on = Darklang.LanguageTools.InterpreterStats.enableDetailedTiming true
 let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
-let _profile = routeN 50 0
+let _profile = routeN (if smoke then 1 else 50) 0
 Stdlib.printLine (Darklang.LanguageTools.InterpreterStats.get ())

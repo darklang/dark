@@ -4,6 +4,12 @@
 // The other half -- reading the key, diffing the frame, writing it -- needs a real TTY and lives in
 // `scripts/perf/keystroke`.
 
+// perf-probes-run runs a copy with this set to true: every case, fewer repetitions.
+let smoke = false
+
+let _smokeNotice =
+  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+
 let renderN
   (i: Int)
   (state: Darklang.Cli.Workbench.State)
@@ -22,15 +28,16 @@ let timeView
   (size: Stdlib.Cli.Tui.Size)
   : Unit =
   let state = { base with activeView = idx }
+  let iterations = if smoke then 1 else 3
   // One warm render first: the first touch of a view loads packages the rest of them reuse.
   let _warm = renderN 1 state size 0
   let t0 = Darklang.Cli.Telemetry.now ()
-  let _r = renderN 3 state size 0
+  let _r = renderN iterations state size 0
   let t1 = Darklang.Cli.Telemetry.now ()
 
   Stdlib.printLine
     ("view " + (Stdlib.toString idx) + ": "
-     + (Stdlib.toString ((t1 - t0) / 3)) + " ms/render")
+     + (Stdlib.toString ((t1 - t0) / iterations)) + " ms/render")
 
 let base =
   Darklang.Cli.Workbench.initialState

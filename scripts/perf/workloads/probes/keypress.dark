@@ -3,6 +3,12 @@
 // `scripts/perf/keystroke` says what a keypress costs end to end; this says where that went.
 // Run them together: the phases should account for the total bar stdin and the terminal write.
 
+// perf-probes-run runs a copy with this set to true: every case, fewer repetitions.
+let smoke = false
+
+let _smokeNotice =
+  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+
 let base =
   Darklang.Cli.Workbench.initialState
     Darklang.SCM.Branch.mainBranchId
@@ -44,21 +50,22 @@ let presentN
     let p = Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize sess size v
     presentN (i - 1) sess v (acc + (Stdlib.String.length p.output))
 
-let n = 10
+let n = if smoke then 1 else 10
+let warmups = if smoke then 1 else 2
 
-let _w1 = keyN 2 base 0
+let _w1 = keyN warmups base 0
 let a0 = Darklang.Cli.Telemetry.now ()
 let _k = keyN n base 0
 let a1 = Darklang.Cli.Telemetry.now ()
 
-let _w2 = viewN 2 base 0
+let _w2 = viewN warmups base 0
 let b0 = Darklang.Cli.Telemetry.now ()
 let _v = viewN n base 0
 let b1 = Darklang.Cli.Telemetry.now ()
 
 let view = Darklang.Cli.Workbench.viewAtSize base size
 let sess = Stdlib.Cli.Tui.TerminalSession.init ()
-let _w3 = presentN 2 sess view 0
+let _w3 = presentN warmups sess view 0
 let c0 = Darklang.Cli.Telemetry.now ()
 let _p = presentN n sess view 0
 let c1 = Darklang.Cli.Telemetry.now ()
