@@ -69,26 +69,31 @@ let private statusToDT (status : string) : Dval =
       Exception.raiseInternal "unknown run status" [ "status", other ]
   DEnum(tn, tn, [], case, [])
 
-/// A run's input as one line of text: the expression or the script's source as it was written.
-/// A served request is a record, not a string; it is named rather than dumped, since the whole
-/// thing is one `traces inspect` away and a table cell is 40 characters.
-/// A recorded dval as one line, for a table cell or a summary line. Shared by the input and
-/// the result, because the two want the same treatment.
-let private oneLineDval (label : string) (bytes : byte[]) : string =
-  match BinarySer.RT.Dval.deserialize label bytes with
-  | DString s -> s
-  | DRecord(_, _, _, fields) ->
-    let field name =
-      match Map.tryFind name fields with
-      | Some(DString s) -> Some s
-      | _ -> None
-    match field "method", field "url" with
-    | Some m, Some u -> $"{m} {u}"
-    | _ -> "(a request)"
-  | _ -> "(not source)"
+/// Show source text in summaries. Running it again uses Trace.scriptOrEvalInput,
+/// which also keeps the arguments and options.
+let private inputText
+  (input : Option<LibDB.Traces.ScriptOrEvalInput>)
+  (value : Dval)
+  : string =
+  match input with
+  | Some input -> LibDB.Traces.ScriptOrEvalInput.source input
+  | None ->
+    match value with
+    | DString source -> source
+    | DRecord(_, _, _, fields) ->
+      match Map.tryFind "method" fields, Map.tryFind "url" fields with
+      | Some(DString method), Some(DString url) -> $"{method} {url}"
+      | _ -> "(a request)"
+    | _ -> "(not source)"
 
 let private traceRowToDT (read : RowReader) : Dval =
   let tn = traceTypeName ()
+  let inputValue =
+    BinarySer.RT.Dval.deserialize "traces.input_value" (read.bytes "input_value")
+  let scriptOrEvalInput =
+    LibDB.Traces.ScriptOrEvalInput.tryFromStored
+      (read.string "handler_desc")
+      inputValue
   let parentKT = KTTuple(ValueType.Known KTString, ValueType.Known KTInt64, [])
   let parent =
     match read.stringOrNone "parent_id", read.int64OrNone "parent_seq" with
@@ -102,7 +107,12 @@ let private traceRowToDT (read : RowReader) : Dval =
     Map
       [ "id", DString(read.string "id")
         "entry", DString(read.string "handler_desc")
-        "input", DString(oneLineDval "traces.input_value" (read.bytes "input_value"))
+        "input", DString(inputText scriptOrEvalInput inputValue)
+        "scriptOrEvalInput",
+        (let kt = KTCustomType(LibDB.Traces.ScriptOrEvalInput.typeName (), [])
+         Dval.option
+           kt
+           (Option.map LibDB.Traces.ScriptOrEvalInput.toDT scriptOrEvalInput))
         // The value itself, not a rendering of it: Dark formats it, the way it formats a
         // recorded call's result.
         "result",
@@ -607,33 +617,32 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "tracesGetInput" 0
+    { name = fn "tracesGetScriptOrEvalInput" 0
       typeParams = []
-      parameters = [ Param.make "traceID" TString "The trace ID to get input from" ]
-      returnType = TypeReference.option TString
+      parameters =
+        [ Param.make "traceID" TString "The trace ID to get invocation from" ]
+      returnType =
+        TypeReference.option (
+          TCustomType(NR.ok (LibDB.Traces.ScriptOrEvalInput.typeName ()), [])
+        )
       description =
-        "Get the stored input code for a trace (eval / run only — HTTP traces, whose input is a Request record, return None)."
+        "Read a complete recorded CLI invocation without loading its result. Missing, corrupt, HTTP, and incomplete legacy script inputs return None."
       fn =
         (function
         | _, _, _, [| DString traceID |] ->
           uply {
-            let! row =
-              Sql.query "SELECT input_value FROM traces WHERE id = @traceId"
-              |> Sql.parameters [ "traceId", Sql.string traceID ]
-              |> Sql.executeRowOptionAsync (fun read -> read.bytes "input_value")
-
-            match row with
-            | None -> return Dval.optionNone KTString
-            | Some valueBytes ->
-              try
-                let dval =
-                  BinarySer.RT.Dval.deserialize "traces.input_value" valueBytes
-                match dval with
-                | DString code -> return Dval.optionSome KTString (DString code)
-                | _ -> return Dval.optionNone KTString
-              with ex ->
-                print $"[traces] Failed to parse input for replay: {ex.Message}"
-                return Dval.optionNone KTString
+            let inputType =
+              KTCustomType(LibDB.Traces.ScriptOrEvalInput.typeName (), [])
+            match System.Guid.TryParse traceID with
+            | false, _ -> return Dval.optionNone inputType
+            | true, id ->
+              let! row = LibDB.Traces.getStoredInput id
+              let input =
+                row
+                |> Option.bind (fun (entry, value) ->
+                  LibDB.Traces.ScriptOrEvalInput.tryFromStored entry value)
+                |> Option.map LibDB.Traces.ScriptOrEvalInput.toDT
+              return Dval.option inputType input
           }
         | _ -> incorrectArgs ())
       previewable = Impure

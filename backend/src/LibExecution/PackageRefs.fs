@@ -566,6 +566,8 @@ module Type =
     let fnCall = p [ "Tracing" ] "FnCall"
     let traceData = p [ "Tracing" ] "TraceData"
     let replayStop = p [ "Tracing" ] "ReplayStop"
+    let scriptOrEvalInput = p [ "Tracing" ] "ScriptOrEvalInput"
+    let scriptOptions = p [ "Tracing" ] "ScriptOptions"
 
   module Cli =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"

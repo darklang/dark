@@ -634,6 +634,17 @@ let private runCli (args : string[]) : int =
     // THIS process. Its delta ops (stored effective=0 in the shared log) overlay core for parse and
     // execute, so nothing is switched persistently. Both spellings, because every other CLI takes
     // either. A missing value is an ERROR, not a fall-through to `current_branch`.
+    // Global flags can come before the command or script path. Leave the path
+    // and its arguments alone, even when they look like global flags.
+    let args, scriptTail =
+      let split = Builtins.CliHost.Utils.ScriptArguments.split
+      let globalOptions, command = split (Array.toList args)
+      match command with
+      | ("run" | "run-script" as name) :: rest ->
+        let options, script = split rest
+        List.toArray (globalOptions @ [ name ] @ options), List.toArray script
+      | _ -> args, [||]
+
     let branchFlag =
       args
       |> Array.mapi (fun i a -> (i, a))
@@ -750,7 +761,9 @@ let private runCli (args : string[]) : int =
             (Array.sub args 0 i)
             (Array.sub args (i + width) (args.Length - i - width))
         | None -> args
-      withoutBranch |> Array.filter (fun a -> a <> "--trace" && a <> "--no-trace")
+      Array.append
+        (withoutBranch |> Array.filter (fun a -> a <> "--trace" && a <> "--no-trace"))
+        scriptTail
 
     LibDB.PackageManager.selectBranch (
       branchId |> Option.defaultValue PT.BranchId.Main

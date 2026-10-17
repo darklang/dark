@@ -147,6 +147,140 @@ let private testScriptDeclIdentity =
       "1" ]
 
 
+/// Check script arguments, runner options and exit codes through the CLI.
+let private testScriptContract =
+  instanceTest "script arguments and exit codes" (fun target ->
+    task {
+      let path =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-script-contract-{System.Guid.NewGuid()}.dark"
+        )
+      let cases =
+        [ "arguments reach closures and each top-level expression",
+          "let main (inputs: List<String>) : Int = if inputs == [\"a b\", \"\", \"é\"] then 7 else 1\nStdlib.printLine (Stdlib.String.join ((fun () -> args) ()) \",\")\nmain args",
+          [],
+          [ "a b"; ""; "é" ],
+          7L,
+          "a b,,é"
+          "local arguments shadow input",
+          "let args = [\"local\"]\nif args == [\"local\"] then 0 else 1",
+          [],
+          [ "original" ],
+          0L,
+          ""
+          "runner options before path and script flags after it",
+          "if args == [\"--sandbox\", \"--warn-permissions\", \"--allow-harmful\", \"--help\", \"-h\", \"--branch\", \"--trace\", \"--no-trace\", \"--\"] then 0 else 1",
+          [ "--sandbox"; "--branch"; "main"; "--trace" ],
+          [ "--sandbox"
+            "--warn-permissions"
+            "--allow-harmful"
+            "--help"
+            "-h"
+            "--branch"
+            "--trace"
+            "--no-trace"
+            "--" ],
+          0L,
+          ""
+          "global and runner options before path",
+          "if args == [\"--no-trace\"] then 0 else 1",
+          [ "--sandbox"; "--branch=main"; "--trace" ],
+          [ "--no-trace" ],
+          0L,
+          ""
+          "option terminator", "if args == [] then 0 else 1", [ "--" ], [], 0L, ""
+          "int64 exit code", "3L", [], [], 3L, "Script exited with code 3"
+          "definitions only",
+          "let main (inputs: List<String>) : Int = 0",
+          [],
+          [],
+          1L,
+          "main args"
+          "main is not auto-called",
+          "let main (inputs: List<String>) : Int = 0\nmain",
+          [],
+          [],
+          1L,
+          "A main function is not called automatically"
+          "wrong result", "true", [], [], 1L, "Script must finish" ]
+      try
+        for label, source, options, inputs, expectedExit, expectedOutput in cases do
+          System.IO.File.WriteAllText(path, source)
+          let! output, exitCode =
+            runCliWithExit target ([ "run-script" ] @ options @ [ path ] @ inputs)
+          Expect.equal exitCode expectedExit label
+          if expectedOutput <> "" then
+            Expect.stringContains output expectedOutput label
+        let! output, exitCode = runCliWithExit target [ "run"; "--sandbxo"; path ]
+        Expect.equal exitCode 1L "unknown runner options fail"
+        Expect.stringContains output "Unknown run-script option" "option guidance"
+        for options in [ [ "--sandbox"; "-h" ]; [ "--branch"; "main"; "--help" ] ] do
+          System.IO.File.WriteAllText(
+            path,
+            "Stdlib.printLine \"SHOULD_NOT_RUN\"\n9"
+          )
+          let! output, exitCode =
+            runCliWithExit target ([ "run" ] @ options @ [ path ])
+          Expect.equal exitCode 0L "help before the path succeeds"
+          Expect.stringContains output "Usage: run-script" "runner help"
+          Expect.isFalse
+            (output.Contains "SHOULD_NOT_RUN")
+            "help does not execute the script"
+      finally
+        System.IO.File.Delete path
+    })
+
+
+/// The approval prompt only appears in a terminal. Use a PTY to check that
+/// saving permission leaves the script stopped and does not repeat its output.
+let private testScriptInteractivePermissionApproval =
+  Tests.CliInstance.instanceTest
+    "script denial and interactive approval leave the run stopped"
+    (fun instance ->
+      task {
+        let path = System.IO.Path.Combine(instance.dir, "permission-approval.dark")
+        System.IO.File.WriteAllText(
+          path,
+          "Stdlib.printLine \"BEFORE_DENIAL\"\nlet _ = Stdlib.DateTime.now ()\nStdlib.printLine \"AFTER_APPROVAL\"\n0"
+        )
+        let! _, policyExit =
+          Tests.CliInstance.runWithExit instance [ "permissions"; "set"; "stdout" ]
+        Expect.equal policyExit 0L "only stdout is allowed"
+        let expectStopped (output : string) exitCode =
+          Expect.equal exitCode 1L output
+          Expect.equal (output.Split("BEFORE_DENIAL").Length - 1) 1 "runs once"
+          Expect.isFalse (output.Contains "AFTER_APPROVAL") "stops at denial"
+        let! output, exitCode =
+          Tests.CliInstance.runWithExit instance [ "run"; path ]
+        expectStopped output exitCode
+        Expect.isFalse
+          (output.Contains "Enter number:")
+          "redirected input does not prompt"
+
+        let! output, exitCode =
+          Tests.CliInstance.runWithExit
+            { instance with cli = "expect" }
+            [ System.IO.Path.Combine(
+                LibConfig.Dirs.sourceRootDir,
+                "scripts/testing/fixtures/script-permission-approval.expect"
+              )
+              System.IO.Path.GetFullPath instance.cli
+              path ]
+        expectStopped output exitCode
+        Expect.stringContains output "Permission saved" "the user approved the rule"
+
+        // Run again in a new process to check that the permission was saved.
+        let! output, exitCode =
+          Tests.CliInstance.runWithExit instance [ "run"; path ]
+        Expect.equal exitCode 0L output
+        Expect.stringContains
+          output
+          "AFTER_APPROVAL"
+          "a later explicit run completes"
+      })
+
+
 /// Advisory findings must not stop execution; runtime failures follow earlier effects.
 let private testAdvisoryScriptExecution =
   cliTest "run and eval execute without an at-rest gate" (fun target ->
@@ -1597,6 +1731,8 @@ let tests =
          testRunCases
          testEvalCases
          testScriptDeclIdentity
+         testScriptContract
+         testScriptInteractivePermissionApproval
          testAdvisoryScriptExecution
          testRuntimeChecksUseSelectedBranch
          testRuntimePackageArgumentError

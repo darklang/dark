@@ -21,14 +21,30 @@ type Status =
   | Suspended
 
 
+/// Options to use when running a script again. Permissions are checked each time.
+type ScriptOptions =
+  { allowHarmful: Bool
+    sandbox: Bool
+    warnPermissions: Bool }
+
+
+/// The saved source and options for eval or a script.
+/// Scripts also keep their filename and arguments as separate strings.
+type ScriptOrEvalInput =
+  | Eval of String * Bool
+  | Script of String * String * List<String> * ScriptOptions
+
+
 /// A run: one row of `traces`.
 type Trace =
   { id: String
     /// `eval`, `run <file>`, or `GET /path`: what ran.
     entry: String
-    /// The expression or the script's source, for the ones `resume` can run again; the
-    /// printed form of the request for a served one.
+    /// Source text or an HTTP request summary, for display.
+    /// Running CLI code again uses scriptOrEvalInput to keep its arguments and options.
     input: String
+    /// Saved input for eval or a script. HTTP requests are in TraceData.inputs.
+    scriptOrEvalInput: Stdlib.Option.Option<ScriptOrEvalInput>
     /// What the trace answered, once it has. `None` while it is still going, and for one that
     /// failed: there is no answer to show.
     result: Stdlib.Option.Option<LanguageTools.RuntimeTypes.Dval>
@@ -50,9 +66,7 @@ type Trace =
     updated: String }
 
 
-/// One named input to a handler invocation. For HTTP handlers the
-/// single input is a `Request` record; for `eval`/`run` it's the
-/// expression source string.
+/// Input to one run: a Request record for HTTP, or ScriptOrEvalInput for CLI code.
 type InputVar =
   { name: String
     value: LanguageTools.RuntimeTypes.Dval }

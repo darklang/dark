@@ -45,6 +45,233 @@ let private words (s : string) : string list =
   s.Split(' ', System.StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
 
 
+let private scriptOrEvalInputPersistence =
+  testTask "CLI inputs round-trip large argument lists and read legacy evals" {
+    // This size previously overflowed the decoder's stack.
+    let args = [ "a b"; ""; "--help"; "é"; "a\"b\\c" ] @ List.replicate 200_000 ""
+    let inputs =
+      [ Traces.EvalExpression("1L + 2L", true)
+        Traces.RunScript(
+          "a path/脚本.dark",
+          "args",
+          args,
+          { allowHarmful = true; sandbox = true; warnPermissions = true }
+        ) ]
+    for input in inputs do
+      let entry, _, value = Traces.ScriptOrEvalInput.toTraceParams input
+      let bytes =
+        LibSerialization.Binary.Serialization.RT.Dval.serialize
+          "test.cli-execution-input"
+          value
+      let restored =
+        LibSerialization.Binary.Serialization.RT.Dval.deserialize
+          "test.cli-execution-input"
+          bytes
+      Expect.equal
+        (Traces.ScriptOrEvalInput.tryFromStored entry restored)
+        (Some input)
+        "complete input round trip"
+    Expect.equal
+      (Traces.ScriptOrEvalInput.tryFromStored "eval" (RT.DString "42"))
+      (Some(Traces.EvalExpression("42", false)))
+      "legacy eval remains an eval"
+    let tn = Traces.ScriptOrEvalInput.typeName ()
+    let malformed =
+      RT.DEnum(
+        tn,
+        tn,
+        [],
+        "Script",
+        [ RT.DString "file"
+          RT.DString "0"
+          LibExecution.Dval.list RT.KTInt64 [ RT.DInt64 1L ]
+          Traces.ScriptOptions.toDT Traces.ScriptOptions.defaults ]
+      )
+    Expect.isNone
+      (Traces.ScriptOrEvalInput.tryFromStored "run file" malformed)
+      "invalid arguments cannot be silently dropped"
+  }
+
+
+let private scriptReplayKeepsInvocation =
+  cliTestWithFreshTraces
+    "CLI invocation preserves script arguments through view resume fork and rerun"
+    (fun state ->
+      task {
+        do!
+          fn
+            state
+            "Tests.ScriptReplay.describe"
+            "(inputs: List<String>) : String = Stdlib.String.join inputs \"|\""
+        let args = [ "a b"; ""; "--help"; "é"; "a\"b\\c" ]
+        let marker = String.concat "|" args + "|"
+        let code =
+          "let summary = Tests.ScriptReplay.describe args\n"
+          + "let uuid = Stdlib.Uuid.generate ()\n"
+          + "Stdlib.printLine (summary + \"|\" + Stdlib.toString uuid)\n7"
+        let path =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-replay-{System.Guid.NewGuid()}.dark"
+          )
+        let printed (output : string) =
+          (plain output).Split('\n')
+          |> Array.tryFind (fun line ->
+            line.StartsWith(marker, System.StringComparison.Ordinal))
+        try
+          System.IO.File.WriteAllText(path, code)
+          let! first, exitCode = runCliWithExit state ([ "run"; path ] @ args)
+          Expect.equal exitCode 7L "script result is its exit code"
+          let original = printed first
+          Expect.isSome original $"the original run prints its arguments: {first}"
+          let! (recorded : Traces.Trace) = latest ()
+          // Replay must use the saved source even after the file is deleted.
+          System.IO.File.Delete path
+          let prefix = prefixOf recorded
+          let! viewed =
+            runCliPlain
+              state
+              [ "traces"; "show"; "Tests.ScriptReplay.describe"; prefix; "--json" ]
+          use json = System.Text.Json.JsonDocument.Parse viewed
+          Expect.equal
+            (json.RootElement
+              .GetProperty("problem")
+              .GetProperty("None")
+              .GetArrayLength())
+            0
+            $"view finishes with the original arguments: {viewed}"
+          Expect.stringContains
+            viewed
+            "--help"
+            "the view reaches the argument values"
+          Expect.isNone (printed viewed) "view performs no print effects"
+          let! _ = runCli state [ "traces"; "fork"; prefix ]
+          let! (child : Traces.Trace) = latest ()
+          for id in [ prefix; prefixOf child ] do
+            let! output, exitCode = runCliWithExit state [ "traces"; "resume"; id ]
+            Expect.equal exitCode 7L "resume and fork retain script exit semantics"
+            Expect.stringContains
+              (plain output)
+              original.Value
+              "saved args and UUID"
+            Expect.stringContains output "[replayed]" "print is replayed"
+          let! reran, rerunExit = runCliWithExit state [ "traces"; "rerun"; prefix ]
+          Expect.equal rerunExit 7L "rerun preserves a nonzero script exit code"
+          Expect.isSome (printed reran) $"rerun passes the arguments: {reran}"
+          Expect.notEqual
+            (printed reran)
+            original
+            "rerun performs randomness for real"
+          let! (rerun : Traces.Trace) = latest ()
+          Expect.notEqual rerun.id recorded.id "rerun records a separate run"
+        finally
+          if System.IO.File.Exists path then System.IO.File.Delete path
+      })
+
+
+let private scriptReplayKeepsSandbox =
+  cliTestWithFreshTraces
+    "CLI invocation preserves the script sandbox on resume and rerun"
+    (fun state ->
+      task {
+        let path =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-sandbox-replay-{System.Guid.NewGuid()}.dark"
+          )
+        let code = "Stdlib.printLine \"SANDBOX_EFFECT\"\n0"
+        try
+          System.IO.File.WriteAllText(path, code)
+          let! _, firstExit = runCliWithExit state [ "run"; "--sandbox"; path ]
+          Expect.equal firstExit 1L "the original sandbox blocks stdout"
+          let! (recorded : Traces.Trace) = latest ()
+          System.IO.File.Delete path
+          for verb in [ "resume"; "rerun" ] do
+            let! output, exitCode =
+              runCliWithExit state [ "traces"; verb; prefixOf recorded ]
+            Expect.equal exitCode 1L $"{verb} cannot drop the sandbox"
+            Expect.stringContains output "run policy" $"{verb} keeps the denial"
+            Expect.isFalse
+              ((plain output).Split('\n')
+               |> Array.exists (fun line -> line = "SANDBOX_EFFECT"))
+              "the denied effect never runs"
+        finally
+          if System.IO.File.Exists path then System.IO.File.Delete path
+      })
+
+
+let private legacyScriptDoesNotGuessItsInput =
+  cliTestWithFreshTraces
+    "CLI invocation refuses incomplete legacy script rows without guessing"
+    (fun state ->
+      task {
+        let id = System.Guid.NewGuid()
+        let source = "Stdlib.printLine \"LEGACY_EFFECT\"\n0"
+        Traces.create
+          id
+          "run old.dark"
+          "code"
+          (RT.DString source)
+          Traces.Suspended
+          None
+        for verb in [ "resume"; "rerun" ] do
+          let! output, exitCode = runCliWithExit state [ "traces"; verb; string id ]
+          Expect.equal exitCode 1L "missing invocation data is a refusal"
+          Expect.isFalse
+            ((plain output).Split('\n')
+             |> Array.exists (fun line -> line = "LEGACY_EFFECT"))
+            "legacy source is never guessed into a live run"
+        let! (row : Option<Traces.Trace>) = Traces.get id
+        Expect.equal
+          (row |> Option.map (fun row -> row.status))
+          (Some Traces.Suspended)
+          "refusal preserves the recorded run"
+      })
+
+
+/// Rerunning needs the saved input, so a corrupt result should not stop it.
+let private rerunIsIndependentOfResult =
+  cliTestWithFreshTraces
+    "traces rerun survives a corrupt result and refuses corrupt input"
+    (fun state ->
+      task {
+        let typedScript =
+          Traces.RunScript(
+            "deleted.dark",
+            "if args == [\"saved input\", \"--trace\"] then 7 else 1",
+            [ "saved input"; "--trace" ],
+            { Traces.ScriptOptions.defaults with sandbox = true }
+          )
+        let cases =
+          [ "eval", RT.DString "42", 0L, "42"
+            let entry, _, value = Traces.ScriptOrEvalInput.toTraceParams typedScript
+            entry, value, 7L, "Script exited with code 7" ]
+        for entry, input, expectedExit, expectedOutput in cases do
+          let id = System.Guid.NewGuid()
+          Traces.create id entry "cli" input Traces.Suspended None
+          let corruptBytes = [| 0x00uy; 0x01uy; 0x02uy |]
+          let update column =
+            let _ =
+              Sql.executeTransactionSync
+                [ $"UPDATE traces SET {column} = @bad WHERE id = @id",
+                  [ [ "bad", Sql.bytes corruptBytes; "id", Sql.uuid id ] ] ]
+            ()
+          update "result_value"
+          let! output, exitCode =
+            runCliWithExit state [ "traces"; "rerun"; string id ]
+          Expect.equal exitCode expectedExit "rerun uses the intact invocation"
+          Expect.stringContains
+            output
+            expectedOutput
+            "the saved source and arguments execute"
+          update "input_value"
+          let! output, exitCode =
+            runCliWithExit state [ "traces"; "rerun"; string id ]
+          Expect.equal exitCode 1L "corrupt invocation is refused"
+          Expect.stringContains output "no CLI input" "refusal has useful guidance"
+      })
+
+
 let private recordThenResume =
   cliTestWithFreshTraces
     "a run is kept, and resume replays its effects rather than redoing them"
@@ -1367,7 +1594,12 @@ let private previewUsesTheViewersApprovals =
 
 
 let tests =
-  [ recordThenResume
+  [ scriptOrEvalInputPersistence
+    scriptReplayKeepsInvocation
+    scriptReplayKeepsSandbox
+    legacyScriptDoesNotGuessItsInput
+    rerunIsIndependentOfResult
+    recordThenResume
     forkDivergesAfterThePosition
     suspendThenResume
     replayAfterAnEdit

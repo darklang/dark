@@ -1,55 +1,13 @@
-/// Process entry: the --branch flag, and the split between a one-shot command and the interactive CLI.
+/// Run a command or start the interactive CLI.
+/// Startup has already handled global options.
 ///
 /// Part of `Darklang.Cli`.
 module Darklang.Cli
 
-/// Pull `--<flag> value` or `--<flag>=value` out of `args`, returning the value and the args without it.
-/// First occurrence wins; later ones are left alone as ordinary args.
-///
-/// `Some ""` means the flag was there with nothing after it, which is a caller's error to report rather than
-/// something to silently ignore. Either way the flag is consumed, so it can't fall through and be read as
-/// the command.
-let takeFlagValue (args: List<String>) (flag: String) : (Stdlib.Option.Option<String> * List<String>) =
-  let long = "--" + flag
-  let eq = long + "="
-  let (found, _takingNext, kept) =
-    args
-    |> Stdlib.List.fold (Stdlib.Option.Option.None, false, []) (fun state arg ->
-      let (found, takingNext, kept) = state
-      if takingNext then
-        (Stdlib.Option.Option.Some arg, false, kept)
-      else
-        match found with
-        | Some _ -> (found, false, Stdlib.List.pushBack kept arg)
-        | None ->
-          if arg == long then
-            (Stdlib.Option.Option.Some "", true, kept)
-          else if Stdlib.String.startsWith arg eq then
-            (Stdlib.Option.Option.Some(Stdlib.String.dropFirst arg (Stdlib.String.length eq)), false, kept)
-          else
-            (found, false, Stdlib.List.pushBack kept arg))
-  (found, kept)
-
-/// Strip a `--branch` that reached here, WITHOUT interpreting it.
-///
-/// `--branch` is resolved and consumed before Dark runs (`Cli.fs`: the flag, then `DARK_BRANCH`, then the
-/// stored branch, through `LibDB.BranchSelection`, which takes a name, a full id or an id prefix and
-/// refuses an ambiguous one). By the time argv reaches this fn the flag is gone, and `initState` reads the
-/// answer off the process.
-///
-/// So this only fires when something calls the Dark entry point directly -- in practice the test
-/// harness. Deliberately not acted on: resolving it here would be a second branch rule that can
-/// disagree with the F# one. A caller that wants a branch calls `switch`.
-let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<String>) =
-  let (_ignored, rest) = takeFlagValue args "branch"
-  (Stdlib.Option.Option.None, rest)
-
-
 let executeCliCommand (args: List<String>) : Int =
-  let (_unused, remainingArgs) = parseBranchFlag args
   let initialState = initState ()
 
-  match remainingArgs with
+  match args with
   | [] ->
     if initialState.telemetryEnabled then
       Telemetry.logSessionStart ()
