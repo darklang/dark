@@ -62,6 +62,9 @@ let main (args : string array) : int =
       .Result
     |> ignore<bool>
 
+    // Before any test touches the store: every CLI instance starts from this.
+    Tests.CliInstance.snapshotStore ()
+
     let tests =
       [ // core
         Tests.Prelude.tests

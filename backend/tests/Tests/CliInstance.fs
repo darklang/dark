@@ -62,6 +62,17 @@ let private backup (source : string) (dest : string) : unit =
   dst.Open()
   src.BackupDatabase dst
 
+let private pristineStore () : string =
+  System.IO.Path.Combine(instanceRoot (), "pristine.db")
+
+/// Copy the store before any test runs, and build the instance template from this copy. Built
+/// from the live store instead, it would include whatever earlier tests left behind, so every
+/// instance would start differently depending on which tests ran first.
+let snapshotStore () : unit =
+  System.IO.Directory.CreateDirectory(instanceRoot ())
+  |> ignore<System.IO.DirectoryInfo>
+  backup LibDB.Sqlite.currentDbPath (pristineStore ())
+
 /// A fresh directory, whatever was there before.
 let private freshDir (path : string) : string =
   if System.IO.Directory.Exists path then System.IO.Directory.Delete(path, true)
@@ -115,7 +126,11 @@ let private template : Lazy<string * string> =
      System.IO.Directory.CreateDirectory root |> ignore<System.IO.DirectoryInfo>
 
      let warm = freshDir (System.IO.Path.Combine(root, "template-warm"))
-     backup LibDB.Sqlite.currentDbPath (System.IO.Path.Combine(warm, "data.db"))
+     let pristine = pristineStore ()
+     if not (System.IO.File.Exists pristine) then
+       Expecto.Tests.failtest
+         "no store snapshot to build instances from (snapshotStore)"
+     backup pristine (System.IO.Path.Combine(warm, "data.db"))
 
      prepare warm [ "branches" ]
      prepare warm [ "permissions"; "allow"; "package-write" ]
