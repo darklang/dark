@@ -54,6 +54,27 @@ let private parseKind (args : string array) : bool option * string array =
         Exception.raiseInternal $"--kind {other}: expected sequenced or parallel" []
     Some sequenced, Array.append args[0 .. i - 1] args[i + 2 ..]
 
+/// Remove the tests not in `keep`, leaving the rest of the tree exactly as it was.
+/// Don't swap in Expecto's `Test.filter` or `fromFlatTests`: they rebuild the tree, which
+/// changes test names in the JUnit report, and a few full names contain characters XML
+/// can't hold, so CircleCI can't read the report.
+let rec private keepOnly
+  (keep : Set<string list>)
+  (path : string list)
+  (test : Test)
+  : Test option =
+  match test with
+  | TestCase _ -> if Set.contains path keep then Some test else None
+  | TestLabel(label, inner, state) ->
+    keepOnly keep (path @ [ label ]) inner
+    |> Option.map (fun t -> TestLabel(label, t, state))
+  | TestList(tests, state) ->
+    match List.choose (keepOnly keep path) tests with
+    | [] -> None
+    | kept -> Some(TestList(kept, state))
+  | Test.Sequenced(how, inner) ->
+    keepOnly keep path inner |> Option.map (fun t -> Test.Sequenced(how, t))
+
 
 [<EntryPoint>]
 let main (args : string array) : int =
@@ -191,13 +212,16 @@ let main (args : string array) : int =
       | Some sequenced ->
         print
           $"""Running the {if sequenced then "sequenced" else "parallel"} tests."""
-        sharded
-        |> Test.toTestCodeList
-        |> List.filter (fun t ->
-          match t.sequenced with
-          | Synchronous -> sequenced
-          | _ -> not sequenced)
-        |> Test.fromFlatTests "/"
+        let keep =
+          sharded
+          |> Test.toTestCodeList
+          |> List.filter (fun t ->
+            match t.sequenced with
+            | Synchronous -> sequenced
+            | _ -> not sequenced)
+          |> List.map (fun t -> t.name)
+          |> Set.ofList
+        keepOnly keep [] sharded |> Option.defaultValue (TestList([], Normal))
 
     let exitCode =
       runTestsWithCLIArgs [ Allow_Duplicate_Names; JoinWith "/" ] args toRun
