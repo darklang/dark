@@ -44,11 +44,8 @@ GATES=(
 # fixing it without running it leaves the next one to rot the same way. So a new gate goes in
 # here unless there is a reason it cannot.
 #
-# first-day runs in CI but not from this list: it has its own step in the `build-cli` job, on the
-# binary that job builds. This list runs on the `build-backend` gates node, which has no clis/ and
-# only a plain `dotnet publish`, whose apphost cannot be copied into `~/.darklang/bin` on its own
-# the way first-day's installed-layout step copies the real single-file binary. Same reason the
-# allocation gate lives there.
+# first-day is not in this list because it needs the binary's path, so `build-cli` runs it as its
+# own step. The gates below run later in that same job, against the same binary.
 #
 # Measured locally, for comparison with the 5m per-gate bound CI applies:
 #   workbench-views 14s, first-day 24s, workbench-scm 35s
@@ -225,9 +222,9 @@ case "$cmd" in
     fi
     ;;
   ci)
-    # Serial by default, because that is what CI wants: the gates run on node 1 of build-backend
-    # beside the suite on node 0, and finish minutes before it, so running them at once would
-    # shorten nothing a pull request waits on and would put nine CLIs on one xlarge node.
+    # Serial by default. In CI they run at the end of build-cli, which finishes before the backend
+    # tests anyway, so running them at once would not shorten a PR's wait, and would put nine CLIs
+    # on one machine.
     if [[ "${1:-}" == "--parallel" ]]; then
       run_parallel bound "${CI_GATES[@]}"
     else

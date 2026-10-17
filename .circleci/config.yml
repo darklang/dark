@@ -127,11 +127,11 @@ commands:
             for f in clis/darklang-*; do
               case "$f" in *.mode) ;; *) gzip -f "$f" ;; esac
             done
+      # No store_artifacts: the GitHub release is where these are downloaded from.
       - persist_to_workspace:
           root: "."
           paths:
             - clis
-      - store_artifacts: { path: clis }
 
   show-large-files-and-directories:
     steps:
@@ -211,8 +211,8 @@ jobs:
   build-backend:
     executor: in-container
     resource_class: xlarge
-    # Two nodes: 0 runs the suite, 1 runs the gate scripts, which used to sit behind the
-    # suite in the same chain. That split is the whole point here.
+    # One node, the suite. The gate scripts run in `build-cli`, which already has a loaded
+    # store and the shipped binary; a second node here repeated this whole prefix for them.
     #
     # The allocation gate is NOT here, though it was. This job publishes with a plain
     # `dotnet publish -c Release`, and the budget is recorded against a NativeAOT binary,
@@ -224,10 +224,6 @@ jobs:
     # divided, so one shard ends up carrying most of them and gates the job, while the others
     # finish early. It becomes worth turning on when the sequenced groups are small, which
     # means the remaining CLI suites moving onto `CliInstance`.
-    #
-    # Both nodes run the whole prefix. That costs credits and not time: they run at once, and
-    # passing the publish output through the workspace is slower than rebuilding it.
-    parallelism: 2
     steps:
       - darkcheckout
       - setup-app
@@ -282,23 +278,10 @@ jobs:
       - run:
           name: Run backend tests
           command: |
-            if [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then
-              echo "node 1 runs the gates instead"
-              exit 0
-            fi
             # The package load above already exported this build's seed.
             # Give tests their own copy instead of parsing the same sources again.
             DARK_CONFIG_PACKAGES_SOURCE=seed python3 .circleci/collect_diagnostics.py \
               --run backend-tests -- timeout 20m scripts/run-backend-tests --published
-
-      # Gate scripts covering what the F# suite structurally cannot
-      - run:
-          name: Gate scripts (the CI subset)
-          command: |
-            [[ "$CIRCLE_NODE_INDEX" == "1" ]] || exit 0
-            CLI=backend/Build/out/Cli/Release/net10.0/publish/Cli \
-              LOCAL_EXEC=backend/Build/out/LocalExec/Release/net10.0/publish/LocalExec \
-              timeout 15m scripts/testing/gates ci
 
       ## TODO: too many race conditions. Bring back later
       # Test package manager/cli integration works
@@ -385,6 +368,16 @@ jobs:
           command: |
             CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64" \
               timeout 20m scripts/testing/gates package-tests
+
+      # End-to-end checks on the shipped binary. Keep after the allocation check: the gates
+      # write to the store it measures.
+      - run:
+          name: Gate scripts (the CI subset)
+          command: |
+            CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64" \
+              timeout 15m scripts/testing/gates ci
+      # A gate must not write to the source tree; `gates all` runs them at once.
+      - assert-clean-worktree
 
       - show-large-files-and-directories
       - store-ci-diagnostics
