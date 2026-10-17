@@ -12,6 +12,15 @@
 // `cost` is the length of a fold inside the body, so a body is about three interpreted operations
 // per unit of cost; 0 is `i + 1`.
 
+// The gate checks that every probe executes; full repetitions are for manual measurements.
+let smoke =
+  match Stdlib.Env.get "DARK_PERF_SMOKE" with
+  | Some "1" -> true
+  | _ -> false
+
+let _smokeNotice =
+  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+
 let body (cost: Int) : Int -> Int =
   if cost == 0 then
     (fun i -> i + 1)
@@ -23,11 +32,12 @@ let cell (cost: Int) (count: Int) : Unit =
   let f = body cost
   let work = count * (if cost == 0 then 1 else cost)
   let wanted = 3000000 / work
-  let reps = if wanted < 3 then 3 else if wanted > 5000 then 5000 else wanted
+  // Keep every cost/count pair, including the largest body and list. Only repeat less.
+  let reps = if smoke then 1 else if wanted < 3 then 3 else if wanted > 5000 then 5000 else wanted
   let run (n: Int) : Int =
     Stdlib.List.fold (Stdlib.List.range 1 n) 0 (fun acc _ ->
       acc + Stdlib.List.length (Stdlib.List.map items f))
-  let _warm = run 2
+  let _warm = run (if smoke then 1 else 2)
   let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
   let t0 = Stdlib.DateTime.now ()
   let _r = run reps

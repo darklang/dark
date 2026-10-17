@@ -15,7 +15,16 @@
 //
 //   ./scripts/run-cli run scripts/perf/workloads/probes/lambdapath.dark
 
-val iterations = 2000
+// The gate checks that every probe executes; full repetitions are for manual measurements.
+let smoke =
+  match Stdlib.Env.get "DARK_PERF_SMOKE" with
+  | Some "1" -> true
+  | _ -> false
+
+let _smokeNotice =
+  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+
+let iterations = if smoke then 1 else 2000
 
 let now () : Int =
   Darklang.Cli.Telemetry.now ()
@@ -62,7 +71,7 @@ let perElement (label: String) (small: Int) (large: Int) (n: Int) : Unit =
 let small = Stdlib.List.range 1 50
 let large = Stdlib.List.range 1 250
 
-let _warm = saturate 40000 0
+let _warm = saturate (if smoke then 2 else 40000) 0
 
 // Builtin-applied: `fold` calls `executeApplicable2` once per element.
 let foldSmall = best (fun i -> Stdlib.List.fold small 0 (fun acc x -> acc + x))

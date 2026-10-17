@@ -2,6 +2,15 @@
 // `List.map` the concurrency surveys named, as a keystroke repaints it. Run serial and spread
 // as `spread.dark` says. Prints (frames, total milliseconds, total bytes).
 
+// The gate checks that every probe executes; full repetitions are for manual measurements.
+let smoke =
+  match Stdlib.Env.get "DARK_PERF_SMOKE" with
+  | Some "1" -> true
+  | _ -> false
+
+let _smokeNotice =
+  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+
 let frame =
   Stdlib.List.range 0 49
   |> Stdlib.List.map (fun row ->
@@ -18,12 +27,13 @@ let draw (n: Int) : Int =
     acc + Stdlib.List.length (Darklang.Stdlib.Cli.UI.Canvas.compose 160 50 frame))
 
 let main () : Unit =
-  let _warm = draw 5
+  let frames = if smoke then 1 else 200
+  let _warm = draw (if smoke then 1 else 5)
   let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
   let t0 = Stdlib.DateTime.now ()
-  let _r = draw 200
+  let _r = draw frames
   let t1 = Stdlib.DateTime.now ()
   let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
-  Builtin.debug "canvas" (200, Stdlib.DateTime.subtractMs t1 t0, after - before)
+  Builtin.debug "canvas" (frames, Stdlib.DateTime.subtractMs t1 t0, after - before)
 
 main ()

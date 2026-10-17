@@ -87,15 +87,14 @@ gate_gates_are_clean() {
 
 
 # --- perf-probes-run: every perf probe still starts -------------------------------------------
-# The probes under scripts/perf/workloads/probes/ have no caller. Nothing imports them, no test
-# names them, and CI does not run them, so when a signature moves underneath one it raises on its
-# first line and stays that way until somebody goes looking. Three of the nine were in that state
-# for long enough that nobody noticed: they passed five arguments to a `Workbench.initialState`
-# that had been narrowed to four.
+# The probes under scripts/perf/workloads/probes/ have no other automated caller. When a signature
+# moves underneath one it can raise on its first line and stay that way until somebody goes
+# looking. Three of the nine were in that state for long enough that nobody noticed: they passed
+# five arguments to a `Workbench.initialState` that had been narrowed to four.
 #
-# This does not time anything and asserts nothing about a number. It asserts that each probe runs
-# to completion, which is the property that was silently false. Reading a number from a probe is
-# still a by-hand job; `scripts/perf/suite` and `scripts/perf/gate` are the ones with budgets.
+# Run every probe in smoke mode: the same cases with fewer repetitions, not a benchmark. Log
+# elapsed seconds to identify slow checks, but assert only that each probe runs to completion.
+# Reading performance figures is still a by-hand job; `scripts/perf/gate` enforces the budget.
 #
 # Gate, not an F#/.dark test: a probe is a script run through the real CLI binary, which is a
 # process boundary the suite does not cross.
@@ -116,16 +115,19 @@ gate_perf_probes_run() {
     exit 1
   fi
 
+  echo "  smoke checks only; probe figures are not performance measurements"
   failed=()
   for p in "${probes[@]}"; do
-    out=$("$CLI" run-script "$p" 2>&1)
+    started=$SECONDS
+    out=$(DARK_PERF_SMOKE=1 "$CLI" run-script "$p" 2>&1)
     rc=$?
+    elapsed=$(( SECONDS - started ))
     if [[ $rc -ne 0 ]]; then
       failed+=("$p")
-      echo "  FAIL $p (exit $rc)"
-      echo "$out" | head -3 | sed 's/^/        /'
+      echo "  FAIL $p (exit $rc, ${elapsed}s)"
+      printf '%s\n' "$out" | sed 's/^/        /'
     else
-      echo "  ok   $p"
+      echo "  ok   $p (${elapsed}s)"
     fi
   done
 

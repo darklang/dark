@@ -59,7 +59,16 @@ val preBuiltInt = 7
 val preBuilt = Rec { a = 1; b = "x" }
 val preBuilt5 = Rec5 { a = 1; b = 2; c = 3; d = 4; e = 5 }
 
-val iterations = 10000
+// The gate checks that every probe executes; full repetitions are for manual measurements.
+let smoke =
+  match Stdlib.Env.get "DARK_PERF_SMOKE" with
+  | Some "1" -> true
+  | _ -> false
+
+let _smokeNotice =
+  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+
+let iterations = if smoke then 3 else 10000
 
 /// One timed pass of `f`, in milliseconds.
 ///
@@ -68,8 +77,10 @@ val iterations = 10000
 let onePass (f: Int -> Int) : Int =
   let t0 = Darklang.Cli.Telemetry.now ()
 
+  // Keep the match and comparisons taking both branches, even with few calls.
+  let inputs = if smoke then [ 1, 5, 1001 ] else Stdlib.List.range 1 iterations
   let _r =
-    Stdlib.List.fold (Stdlib.List.range 1 iterations) 0 (fun acc i ->
+    Stdlib.List.fold inputs 0 (fun acc i ->
       if (f i) == -987654321 then acc + 1 else acc)
 
   (Darklang.Cli.Telemetry.now ()) - t0
@@ -101,7 +112,7 @@ let saturate (n: Int) (acc: Int) : Int =
       (n - 1)
       (acc + r.a + (plainFn n) + (twoArgFn n 1) + (Stdlib.List.length l))
 
-let _saturated = saturate 40000 0
+let _saturated = saturate (if smoke then 2 else 40000) 0
 
 Stdlib.printLine "--- harness"
 measure "baseline (fold + lambda + compare)   " (fun i -> i)
