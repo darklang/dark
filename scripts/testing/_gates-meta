@@ -115,11 +115,25 @@ gate_perf_probes_run() {
     exit 1
   fi
 
+  # Each probe says `let smoke = false`; run a copy that says true. Exactly one such line, or
+  # the copy would silently run the full benchmark.
+  smoke_dir=$(mktemp -d)
+  trap 'rm -rf "$smoke_dir"' EXIT
+
   echo "  smoke checks only; probe figures are not performance measurements"
   failed=()
   for p in "${probes[@]}"; do
     started=$SECONDS
-    out=$(DARK_PERF_SMOKE=1 "$CLI" run-script "$p" 2>&1)
+    copy="$smoke_dir/$(basename "$p")"
+    if [[ $(grep -c '^let smoke = false$' "$p") -ne 1 ]]; then
+      failed+=("$p")
+      echo "  FAIL $p (needs exactly one 'let smoke = false' line)"
+      continue
+    fi
+    sed 's/^let smoke = false$/let smoke = true/' "$p" > "$copy"
+    # stdin from /dev/null: CI gives the step a pty, so a permission prompt would wait for an
+    # answer until the gate's timeout instead of failing here with the denial.
+    out=$("$CLI" run-script "$copy" < /dev/null 2>&1)
     rc=$?
     elapsed=$(( SECONDS - started ))
     if [[ $rc -ne 0 ]]; then

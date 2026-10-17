@@ -2,11 +2,8 @@
 // `List.map` the concurrency surveys named, as a keystroke repaints it. Run serial and spread
 // as `spread.dark` says. Prints (frames, total milliseconds, total bytes).
 
-// The gate checks that every probe executes; full repetitions are for manual measurements.
-let smoke =
-  match Stdlib.Env.get "DARK_PERF_SMOKE" with
-  | Some "1" -> true
-  | _ -> false
+// perf-probes-run runs a copy with this set to true: every case, fewer repetitions.
+let smoke = false
 
 let _smokeNotice =
   if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
