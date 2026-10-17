@@ -7,6 +7,8 @@ PUBLISHED=false
 PUBLISHED_FLAG=
 FORCE=false
 FILTERED=false
+SPLIT=false
+LISTING=false
 
 EXPECTO_ARGS=()
 
@@ -18,7 +20,12 @@ do
       PUBLISHED_FLAG=$i
       ;;
     --force) FORCE=true ;;
-    --filter|--filter-test-list|--filter-test-case|--run|--shard)
+    --split) SPLIT=true ;;
+    --list-tests)
+      LISTING=true # lists without running, so "no tests ran" is expected
+      EXPECTO_ARGS+=("${i}")
+      ;;
+    --filter|--filter-test-list|--filter-test-case|--run|--shard|--kind)
       FILTERED=true
       EXPECTO_ARGS+=("${i}")
       ;;
@@ -32,6 +39,13 @@ case "${1:-}" in
   --groups) exec python3.12 scripts/testing/_test-explorer.py groups "${@:2}" ;;
   --find)   exec python3.12 scripts/testing/_test-explorer.py find "${@:2}" ;;
 esac
+
+# --split runs the sequenced tests in a second process alongside the parallel ones. A
+# filter could leave either half empty, so it is whole-suite only.
+if [[ "$SPLIT" == "true" && "$FILTERED" == "true" ]]; then
+  echo "--split runs the whole suite; it does not take a filter, --shard or --kind." >&2
+  exit 1
+fi
 
 # Two runs in one clone destroy each other: same test-data.db, same httpclient port,
 # and the `killall -9 Tests` below would take out the other one's process.
@@ -179,6 +193,38 @@ if [[ -v CI ]]; then
   HEARTBEAT_PID=$!
 fi
 
+PRIORITY=()
+if [[ "$SPLIT" == "true" ]]; then
+  # The sequenced tests run one at a time because they share process state (the open store,
+  # captured console, trace settings), not because they need the parallel tests to finish
+  # first. So they get a process of their own: its own rundir (store, CLI instances, policy,
+  # logs), HOME and HttpClient port, so nothing it writes reaches the other half.
+  SEQ_RUNDIR="${DARK_CONFIG_RUNDIR}/split-sequenced"
+  SEQ_LOG="${LOGS}/fsharp-tests-sequenced.log"
+  SEQ_JUNIT="${DARK_CONFIG_RUNDIR}/test_results/backend-sequenced.xml" # beside the other
+  rm -rf "$SEQ_RUNDIR"
+  mkdir -p "$SEQ_RUNDIR/logs" "$SEQ_RUNDIR/home"
+  # Through SQLite, not cp: the store may still have writes in its WAL.
+  python3 -c 'import sqlite3, sys
+src, dst = sqlite3.connect(sys.argv[1]), sqlite3.connect(sys.argv[2])
+src.backup(dst)' "$DB_PATH" "$SEQ_RUNDIR/${DARK_CONFIG_DB_NAME}"
+
+  (
+    DARK_CONFIG_RUNDIR="$SEQ_RUNDIR" HOME="$SEQ_RUNDIR/home" \
+    DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT=$((DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT + 1)) \
+    DARK_CONFIG_TELEMETRY_EXPORTER=none \
+    "${EXE}" ${SPINNER} --colours "${COLOURS}" \
+      --junit-summary "${SEQ_JUNIT}" "${EXPECTO_ARGS[@]}" \
+      --kind sequenced < /dev/null 2>&1 | tee "${SEQ_LOG}" | sed -u 's/^/[sequenced] /'
+    exit "${PIPESTATUS[0]}"
+  ) &
+  SEQ_PID=$!
+
+  # The sequenced half is now the longer one, so the parallel half yields the CPU to it.
+  PRIORITY=(nice -n 10)
+  EXPECTO_ARGS+=(--kind parallel)
+fi
+
 set +e
 # stdin from /dev/null, unconditionally: CI gives this step a pty, so without it every test that
 # deliberately runs a confirming command bare (asserting the refusal) instead ASKS -- and blocks
@@ -186,8 +232,16 @@ set +e
 # surfaces are tested by the expect-driven gates, in their own processes); making it never a tty
 # means the suite behaves identically piped, in CI, and under tmux.
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
-"${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" < /dev/null 2>&1 | tee "${TEST_LOG}"
+"${PRIORITY[@]}" "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" < /dev/null 2>&1 | tee "${TEST_LOG}"
 STATUS=${PIPESTATUS[0]}
+LOGS_TO_CHECK=("${TEST_LOG}")
+if [[ "$SPLIT" == "true" ]]; then
+  wait "$SEQ_PID"
+  SEQ_STATUS=$?
+  [[ "$STATUS" -eq 0 ]] && STATUS=$SEQ_STATUS
+  LOGS_TO_CHECK+=("${SEQ_LOG}")
+  FILTERED=true # each half must have run something
+fi
 set -e
 
 kill "${HEARTBEAT_PID:-}" 2>/dev/null || true
@@ -197,13 +251,19 @@ kill "${HEARTBEAT_PID:-}" 2>/dev/null || true
 #
 # The count is THOUSANDS-SEPARATED once it passes a thousand, which only a shard ever is,
 # so a digits-only pattern here reads a passing shard as an empty one.
-if [[ "$STATUS" -eq 0 && "$FILTERED" == "true" ]]; then
-  if ! sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' -e 's/\r/\n/g' "${TEST_LOG}" \
+for log in "${LOGS_TO_CHECK[@]}"; do
+  [[ "$STATUS" -eq 0 && "$FILTERED" == "true" && "$LISTING" != "true" ]] || break
+  if ! sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' -e 's/\r/\n/g' "${log}" \
        | grep -qE "EXPECTO! [1-9][0-9,]* tests run"; then
     {
       echo
-      echo "Your filter matched no tests, so nothing ran. Reporting that as a"
-      echo "failure, because Expecto calls it a success."
+      if [[ "$SPLIT" == "true" ]]; then
+        echo "One half of the split ran no tests (${log}). Reporting that as a"
+        echo "failure, because Expecto calls it a success."
+      else
+        echo "Your filter matched no tests, so nothing ran. Reporting that as a"
+        echo "failure, because Expecto calls it a success."
+      fi
       echo
       echo "Find what to run:"
       echo "    scripts/run-backend-tests --groups          the tree, with counts"
@@ -211,6 +271,6 @@ if [[ "$STATUS" -eq 0 && "$FILTERED" == "true" ]]; then
     } >&2
     exit 1
   fi
-fi
+done
 
 exit "$STATUS"
