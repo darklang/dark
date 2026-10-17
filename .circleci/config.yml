@@ -298,7 +298,9 @@ jobs:
   # Build cli binaries
   build-cli:
     executor: in-container
-    resource_class: xlarge
+    # large (4 CPUs, 8 GB) costs half as much as xlarge. This job mostly uses 2-3 CPUs and
+    # under 3 GB, so it is only slower during short bursts of compiling.
+    resource_class: large
     steps:
       - darkcheckout
       - setup-app
