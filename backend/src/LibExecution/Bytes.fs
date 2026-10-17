@@ -1,6 +1,6 @@
-/// Runtime helpers for the `Blob` Dval type.
+/// Runtime helpers for the `Bytes` Dval type.
 ///
-/// `Blob`s carry a `BlobRef`: ephemeral blobs hold their bytes inline
+/// `Bytes` values carry a `BytesRef`: ephemeral bytes hold their bytes inline
 /// (lifetime is GC), persistent blobs hold a content hash backed by the
 /// content-addressed `package_blobs` table. This module owns minting,
 /// reading, and the leaf logic for ephemeral-to-persistent promotion
@@ -8,11 +8,11 @@
 ///
 /// Promotion runs at every persistence boundary; structural recursion
 /// over the surrounding Dval shape is delegated to [Dval.rewriteWith] in
-/// `RuntimeTypes.fs`. `Blob.promote` wires the leaf handler into
+/// `RuntimeTypes.fs`. `Bytes.promote` wires the leaf handler into
 /// `rewriteWith` for the val-commit / User-DB-write path; the trace path
 /// (`LibDB.Tracing.prepareDvalForStorage`) reuses the same leaf
 /// handler alongside its own stream-stub rewrite.
-module LibExecution.Blob
+module LibExecution.Bytes
 
 open Prelude
 
@@ -20,7 +20,7 @@ open LibExecution.RuntimeTypes
 
 
 /// SHA-256 of zero bytes. The well-known canonical hash backing
-/// `Builtin.blobEmpty`; short-circuited in [readBlobBytes] because
+/// `Builtin.bytesEmpty`; short-circuited in [readBytes] because
 /// Microsoft.Data.Sqlite/Fumble's `read.bytes` on a zero-length BLOB
 /// column returns None (not Some [||]) even when the row exists.
 /// We could seed the row via migration or LocalExec, but the read
@@ -38,25 +38,29 @@ let sha256Hex (bytes : byte[]) : string =
   System.Convert.ToHexStringLower(digest)
 
 
-/// Mint a fresh ephemeral blob holding [bytes] inline. Each mint gets a
-/// fresh identity (`id`), so two ephemerals with the same bytes are
-/// distinct values; the bytes are reachable only through the returned
-/// Dval, so GC reclaims them when it's collected. No store, no scope,
-/// and so no ExecutionState — minting needs no execution context.
+/// Keep bytes in memory without hashing or saving them yet. The content hash
+/// is computed once if equality, ordering, hashing, or persistence needs it.
+/// The inspection id does not affect value equality. GC reclaims the bytes
+/// when the value is no longer reachable; no execution context is needed.
 ///
 /// Takes ownership of [bytes]: the array is stored as-is (not copied),
 /// so the caller must not mutate it afterwards.
 let newEphemeral (bytes : byte[]) : Dval =
-  DBlob(Ephemeral { id = System.Guid.NewGuid(); bytes = bytes })
+  DBytes(
+    Ephemeral
+      { id = System.Guid.NewGuid()
+        bytes = bytes
+        contentHash = lazy (sha256Hex bytes) }
+  )
 
 
-/// Resolve a BlobRef to its bytes. Ephemerals carry their bytes inline;
+/// Resolve a BytesRef to its bytes. Ephemerals carry their bytes inline;
 /// persistent refs hit package_blobs via the ExecutionState's blob
-/// accessor. Shared by every builtin that dereferences a DBlob.
+/// accessor. Shared by every builtin that dereferences a DBytes.
 ///
 /// For ephemerals this returns the blob's own array, not a copy — treat
 /// the result as read-only; mutating it mutates the blob.
-let readBytes (state : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
+let readBytes (state : ExecutionState) (ref : BytesRef) : Ply.Ply<byte[]> =
   uply {
     match ref with
     | Ephemeral eph -> return eph.bytes
@@ -79,7 +83,7 @@ let readBytes (state : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
 /// enters `uply` to wait for the store. For a builtin body, so the common path is a value.
 let withBytes
   (state : ExecutionState)
-  (ref : BlobRef)
+  (ref : BytesRef)
   (k : byte[] -> Ply.Ply<Dval>)
   : Ply.Ply<Dval> =
   match ref with
@@ -92,9 +96,9 @@ let withBytes
     }
 
 
-/// [Dval.rewriteWith] leaf handler that promotes a `DBlob(Ephemeral _)`:
+/// [Dval.rewriteWith] leaf handler that promotes a `DBytes(Ephemeral _)`:
 /// hash the inline bytes, persist them via [insert], and return
-/// `Some(DBlob(Persistent _))`. Returns `None` for anything else so the
+/// `Some(DBytes(Persistent _))`. Returns `None` for anything else so the
 /// walker keeps descending. Can't fail to find bytes — they travel with
 /// the value.
 let promoteEphemeralLeaf
@@ -103,12 +107,12 @@ let promoteEphemeralLeaf
   : Ply.Ply<Dval option> =
   uply {
     match dv with
-    | DBlob(Ephemeral eph) ->
+    | DBytes(Ephemeral eph) ->
       let bs = eph.bytes
-      let h = sha256Hex bs
+      let h = eph.contentHash.Value
       let n : int64 = System.Convert.ToInt64 bs.Length
       do! insert h bs
-      return Some(DBlob(Persistent(h, n)))
+      return Some(DBytes(Persistent(h, n)))
     | _ -> return None
   }
 
@@ -120,7 +124,7 @@ let promoteEphemeralLeaf
 /// twice writes to `package_blobs` once.
 ///
 /// Called before serializing a Dval through a non-trace persistence
-/// boundary (val commit, User DB write). Plain `DBlob` writers
+/// boundary (val commit, User DB write). Plain `DBytes` writers
 /// (binary, JSON) still raise on ephemeral — promote first, serialize
 /// second. The trace path has its own walker in
 /// `LibDB.Tracing.prepareDvalForStorage` that also stubs streams; it

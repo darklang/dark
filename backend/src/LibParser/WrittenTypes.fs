@@ -105,7 +105,7 @@ and TypeReference =
   | TString of Range
   | TDateTime of Range
   | TUuid of Range
-  | TBlob of Range
+  | TBytes of Range
   | TList of
     Range *
     keywordList : Range *
@@ -154,7 +154,7 @@ let primTypes : List<string * (Range -> TypeReference)> =
     "String", TString
     "DateTime", TDateTime
     "Uuid", TUuid
-    "Blob", TBlob ]
+    "Bytes", TBytes ]
 
 let primTypeFromName (s : string) : Option<Range -> TypeReference> =
   primTypes |> List.tryPick (fun (n, ctor) -> if n = s then Some ctor else None)
@@ -671,7 +671,7 @@ let typeReferenceRange (t : TypeReference) : Range =
   | TString r
   | TDateTime r
   | TUuid r
-  | TBlob r
+  | TBytes r
   | TList(r, _, _, _, _)
   | TDict(r, _, _, _, _, _, _)
   | TVariable(r, _, _)
@@ -920,7 +920,7 @@ let typeReferenceHeadName (t : TypeReference) : string =
   | TString _ -> "String"
   | TDateTime _ -> "DateTime"
   | TUuid _ -> "Uuid"
-  | TBlob _ -> "Blob"
+  | TBytes _ -> "Bytes"
   | TList _ -> "List"
   | TDict _ -> "Dict"
   | TTuple _ -> "Tuple"

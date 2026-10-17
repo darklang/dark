@@ -7,7 +7,7 @@ open LibExecution.Effects
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 module Host = LibExecution.Host
 module Op = LibExecution.HostTypes
 module Interpreter = LibExecution.Interpreter
@@ -33,8 +33,8 @@ let private make name parameters result _kt body : BuiltInFn =
     deprecated = NotDeprecated }
 
 let private integer name = Param.make name TInt "Kernel scalar"
-let private blob name = Param.make name TBlob "Bytes"
-let private bytes r = Blob.newEphemeral (Host.expectBytes r)
+let private blob name = Param.make name TBytes "Bytes"
+let private bytes r = Bytes.newEphemeral (Host.expectBytes r)
 let private unit (_ : Host.Response) = DUnit
 let private offset r = Dval.int (bigint (Host.expectOffset r))
 let private written r = Dval.int (bigint (Host.expectWritten r))
@@ -67,13 +67,13 @@ let private timestamp name constructor : BuiltInFn =
       callEffects = set [ Effect.FileWrite ] }
 
 let private clock name parameters body =
-  { (make name parameters TBlob KTBlob body) with
+  { (make name parameters TBytes KTBytes body) with
       callEffects = set [ Effect.Clock ] }
 
 let private clockUnit name op =
   clock name [ Param.make "unit" TUnit "" ] (fun _ vm values ->
     match values with
-    | [| DUnit |] -> perform KTBlob vm op bytes
+    | [| DUnit |] -> perform KTBytes vm op bytes
     | _ -> incorrectArgs ())
 
 let private poll name constructor =
@@ -84,8 +84,8 @@ let private poll name constructor =
         (TList(TTuple(TInt, TInt, [])))
         "fd and requested events"
       integer "timeoutMs" ]
-    TBlob
-    KTBlob
+    TBytes
+    KTBytes
     (fun _ vm values ->
       match values with
       | [| DList(_, descriptors); DInt timeout |] ->
@@ -95,7 +95,7 @@ let private poll name constructor =
             | DTuple(DInt fd, DInt events, []) ->
               intToDescriptor vm fd, intToInt32 vm events
             | _ -> incorrectArgs ())
-        perform KTBlob vm (constructor (descriptors, intToInt32 vm timeout)) bytes
+        perform KTBytes vm (constructor (descriptors, intToInt32 vm timeout)) bytes
       | _ -> incorrectArgs ())
 
 let fns () : List<BuiltInFn> =
@@ -118,8 +118,8 @@ let fns () : List<BuiltInFn> =
           "fd, flags, vnode mask"
         integer "capacity"
         integer "timeoutMs" ]
-      TBlob
-      KTBlob
+      TBytes
+      KTBytes
       (fun _ vm values ->
         match values with
         | [| DInt queue; DList(_, changes); DInt capacity; DInt timeout |] ->
@@ -130,7 +130,7 @@ let fns () : List<BuiltInFn> =
                 intToDescriptor vm fd, intToInt32 vm flags, intToInt32 vm mask
               | _ -> incorrectArgs ())
           perform
-            KTBlob
+            KTBytes
             vm
             (Op.PosixOp.KeventVnode(
               intToDescriptor vm queue,
@@ -172,7 +172,7 @@ let fns () : List<BuiltInFn> =
     clock "syscallClockGettime" [ integer "clock" ] (fun _ vm values ->
       match values with
       | [| DInt id |] ->
-        perform KTBlob vm (Op.PosixOp.ClockGettime(intToInt32 vm id)) bytes
+        perform KTBytes vm (Op.PosixOp.ClockGettime(intToInt32 vm id)) bytes
       | _ -> incorrectArgs ())
     clockUnit "syscallGettimeofday" Op.PosixOp.Gettimeofday
     clockUnit "syscallMachAbsoluteTime" Op.PosixOp.MachAbsoluteTime
@@ -180,7 +180,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallNanosleep" 0
       typeParams = []
       parameters = [ integer "seconds"; integer "nanos" ]
-      returnType = TTuple(TInt, TBlob, [])
+      returnType = TTuple(TInt, TBytes, [])
       description = "One nanosleep attempt: raw status and remaining timespec"
       fn =
         (fun struct (_, vm, _, values) ->
@@ -195,7 +195,7 @@ let fns () : List<BuiltInFn> =
                 match outcome with
                 | Ok(Op.Response.KernelSleep(rc, remaining)) ->
                   Ply(
-                    DTuple(Dval.int (bigint rc), Blob.newEphemeral remaining, [])
+                    DTuple(Dval.int (bigint rc), Bytes.newEphemeral remaining, [])
                   )
                 | _ -> incorrectArgs ())
           | _ -> incorrectArgs ())
@@ -207,22 +207,22 @@ let fns () : List<BuiltInFn> =
     make
       "syscallUname"
       [ Param.make "unit" TUnit "" ]
-      TBlob
-      KTBlob
+      TBytes
+      KTBytes
       (fun _ vm values ->
         match values with
-        | [| DUnit |] -> perform KTBlob vm Op.PosixOp.UnameBytes bytes
+        | [| DUnit |] -> perform KTBytes vm Op.PosixOp.UnameBytes bytes
         | _ -> incorrectArgs ())
-    make "syscallFcntlGetPath" [ integer "fd" ] TBlob KTBlob (fun _ vm values ->
+    make "syscallFcntlGetPath" [ integer "fd" ] TBytes KTBytes (fun _ vm values ->
       match values with
       | [| DInt fd |] ->
-        perform KTBlob vm (Op.PosixOp.FcntlGetPath(intToDescriptor vm fd)) bytes
+        perform KTBytes vm (Op.PosixOp.FcntlGetPath(intToDescriptor vm fd)) bytes
       | _ -> incorrectArgs ())
     make
       "syscallSysctl"
       [ Param.make "mib" (TList TInt) "Read-only numeric key"; integer "count" ]
-      TBlob
-      KTBlob
+      TBytes
+      KTBytes
       (fun _ vm values ->
         match values with
         | [| DList(_, mib); DInt count |] ->
@@ -231,27 +231,36 @@ let fns () : List<BuiltInFn> =
             |> List.map (function
               | DInt n -> intToInt32 vm n
               | _ -> incorrectArgs ())
-          perform KTBlob vm (Op.PosixOp.SysctlBytes(mib, intToInt32 vm count)) bytes
+          perform
+            KTBytes
+            vm
+            (Op.PosixOp.SysctlBytes(mib, intToInt32 vm count))
+            bytes
         | _ -> incorrectArgs ())
     make
       "syscallSchedGetaffinity"
       [ integer "pid"; integer "count" ]
-      TBlob
-      KTBlob
+      TBytes
+      KTBytes
       (fun _ vm values ->
         match values with
         | [| DInt pid; DInt count |] ->
           perform
-            KTBlob
+            KTBytes
             vm
             (Op.PosixOp.SchedGetaffinity(intToInt32 vm pid, intToInt32 vm count))
             bytes
         | _ -> incorrectArgs ())
-    { (make "syscallGetentropy" [ integer "count" ] TBlob KTBlob (fun _ vm values ->
-        match values with
-        | [| DInt count |] ->
-          perform KTBlob vm (Op.PosixOp.Getentropy(intToInt32 vm count)) bytes
-        | _ -> incorrectArgs ())) with
+    { (make
+        "syscallGetentropy"
+        [ integer "count" ]
+        TBytes
+        KTBytes
+        (fun _ vm values ->
+          match values with
+          | [| DInt count |] ->
+            perform KTBytes vm (Op.PosixOp.Getentropy(intToInt32 vm count)) bytes
+          | _ -> incorrectArgs ())) with
         callEffects = set [ Effect.Random ] }
     make
       "syscallCopyFileRange"
@@ -334,21 +343,21 @@ let fns () : List<BuiltInFn> =
             (Op.PosixOp.Fchmod(intToDescriptor vm fd, intToInt32 vm mode))
             unit
         | _ -> incorrectArgs ())
-    make "syscallFstat" [ integer "fd" ] TBlob KTBlob (fun _ vm values ->
+    make "syscallFstat" [ integer "fd" ] TBytes KTBytes (fun _ vm values ->
       match values with
       | [| DInt fd |] ->
-        perform KTBlob vm (Op.PosixOp.Fstat(intToDescriptor vm fd)) bytes
+        perform KTBytes vm (Op.PosixOp.Fstat(intToDescriptor vm fd)) bytes
       | _ -> incorrectArgs ())
     make
       "syscallPread"
       [ integer "fd"; integer "count"; integer "offset" ]
-      TBlob
-      KTBlob
+      TBytes
+      KTBytes
       (fun _ vm values ->
         match values with
         | [| DInt fd; DInt count; DInt offset |] ->
           perform
-            KTBlob
+            KTBytes
             vm
             (Op.PosixOp.Pread(
               intToDescriptor vm fd,
@@ -364,8 +373,8 @@ let fns () : List<BuiltInFn> =
       KTInt
       (fun state vm values ->
         match values with
-        | [| DInt fd; DBlob reference; DInt offset |] ->
-          Blob.withBytes state reference (fun bytes ->
+        | [| DInt fd; DBytes reference; DInt offset |] ->
+          Bytes.withBytes state reference (fun bytes ->
             perform
               KTInt
               vm

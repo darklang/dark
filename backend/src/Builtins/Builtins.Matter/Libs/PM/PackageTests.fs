@@ -142,7 +142,7 @@ let private executeWorker
       )
     let bytes =
       LibSerialization.Binary.Serialization.RT.Dval.serialize "test result" result
-    return DTuple(LibExecution.Blob.newEphemeral bytes, Dval.int (bigint code), [])
+    return DTuple(LibExecution.Bytes.newEphemeral bytes, Dval.int (bigint code), [])
   }
 
 /// Every package test executes its own hash in a fresh worker and store snapshot.
@@ -275,16 +275,16 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "pmTestWorkerExecute" 0
       typeParams = []
-      parameters = [ Param.make "request" TBlob ""; Param.make "access" TBlob "" ]
-      returnType = TTuple(TBlob, TInt, [])
+      parameters = [ Param.make "request" TBytes ""; Param.make "access" TBytes "" ]
+      returnType = TTuple(TBytes, TInt, [])
       description =
         "Executes a serialized test request with its inherited permissions and returns its serialized result and exit code."
       fn =
         (function
-        | state, vm, _, [| DBlob request; DBlob access |] ->
+        | state, vm, _, [| DBytes request; DBytes access |] ->
           uply {
-            let! request = LibExecution.Blob.readBytes state request
-            let! access = LibExecution.Blob.readBytes state access
+            let! request = LibExecution.Bytes.readBytes state request
+            let! access = LibExecution.Bytes.readBytes state access
             return!
               executeWorker pm { state with access = vm.activeAccess } request access
           }

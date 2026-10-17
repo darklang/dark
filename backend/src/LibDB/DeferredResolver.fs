@@ -188,7 +188,7 @@ let rec private reResolveTypeRef
     | PT.TString
     | PT.TUuid
     | PT.TDateTime
-    | PT.TBlob
+    | PT.TBytes
     | PT.TVariable _ -> return typeRef
 
     | PT.TStream inner ->

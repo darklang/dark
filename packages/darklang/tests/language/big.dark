@@ -2,11 +2,11 @@ module Darklang.Language.Tests.Big
 
 test evaluatesMixedExpressions =
   (let str = "a string to be used as the test case"
-   let blob = Stdlib.Blob.fromString str
+   let blob = Stdlib.Bytes.fromString str
    let base64Encode = Stdlib.Base64.urlEncode blob
-   let hexEncode = Stdlib.Blob.toHex blob
+   let hexEncode = Stdlib.Bytes.toHex blob
    let sl = Stdlib.String.length str
-   let bl = Stdlib.Blob.length blob
+   let bl = Stdlib.Bytes.length blob
    let t = true
    let f = false
 

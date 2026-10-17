@@ -1,14 +1,14 @@
-// Stdlib.Base64 — decode returns Result<Blob, String>;
-// encode / urlEncode take Blob.
+// Stdlib.Base64 — decode returns Result<Bytes, String>;
+// encode / urlEncode take Bytes.
 module Darklang.Stdlib.Base64.Tests
 
 // CLEANUP: Dark compares blobs by identity, so these helpers compare byte lists.
 // Compare blobs directly and remove the helpers once blob equality compares content.
 let decodeBytes (text: String) : Stdlib.Result.Result<List<UInt8>, String> =
-  Stdlib.Base64.decode text |> Stdlib.Result.map Stdlib.Blob.toList
+  Stdlib.Base64.decode text |> Stdlib.Result.map Stdlib.Bytes.toList
 
 let bytesOf (text: String) : List<UInt8> =
-  Stdlib.Blob.toList (Stdlib.Blob.fromString text)
+  Stdlib.Bytes.toList (Stdlib.Bytes.fromString text)
 
 // Base64.decode
 test decode =
@@ -87,38 +87,38 @@ test decodeRejectsIncorrectPadding =
 // Base64.encode
 test encode =
   Stdlib.Test.all
-    [ Stdlib.Base64.encode (Stdlib.Blob.fromString "abcdef")
+    [ Stdlib.Base64.encode (Stdlib.Bytes.fromString "abcdef")
       |> Stdlib.Test.equal "YWJjZGVm"
-      Stdlib.Base64.encode (Stdlib.Blob.fromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
+      Stdlib.Base64.encode (Stdlib.Bytes.fromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
       |> Stdlib.Test.equal
         "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
-      Stdlib.Base64.encode (Stdlib.Blob.fromString "اختبار النص")
+      Stdlib.Base64.encode (Stdlib.Bytes.fromString "اختبار النص")
       |> Stdlib.Test.equal "2KfYrtiq2KjYp9ixINin2YTZhti1"
-      Stdlib.Base64.encode (Stdlib.Blob.fromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+      Stdlib.Base64.encode (Stdlib.Bytes.fromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
       |> Stdlib.Test.equal
         "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
-      Stdlib.Base64.encode (Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+      Stdlib.Base64.encode (Stdlib.Bytes.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
       |> Stdlib.Test.equal
         "8J+RsfCfkbHwn4+78J+RsfCfj7zwn5Gx8J+PvfCfkbHwn4++8J+RsfCfj78="
-      Stdlib.Base64.encode (Stdlib.Blob.fromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷")
+      Stdlib.Base64.encode (Stdlib.Bytes.fromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷")
       |> Stdlib.Test.equal
         "8J+RqOKAjeKdpO+4j+KAjfCfkovigI3wn5Go8J+RqeKAjfCfkanigI3wn5Gn4oCN8J+RpvCfj7PvuI/igI3imqfvuI/wn4e18J+Htw==" ]
 
 test urlEncode =
   Stdlib.Test.all
-    [ Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "abcdef")
+    [ Stdlib.Base64.urlEncode (Stdlib.Bytes.fromString "abcdef")
       |> Stdlib.Test.equal "YWJjZGVm"
-      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
+      Stdlib.Base64.urlEncode (Stdlib.Bytes.fromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
       |> Stdlib.Test.equal
         "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
-      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "اختبار النص")
+      Stdlib.Base64.urlEncode (Stdlib.Bytes.fromString "اختبار النص")
       |> Stdlib.Test.equal "2KfYrtiq2KjYp9ixINin2YTZhti1"
-      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+      Stdlib.Base64.urlEncode (Stdlib.Bytes.fromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
       |> Stdlib.Test.equal
         "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
-      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+      Stdlib.Base64.urlEncode (Stdlib.Bytes.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
       |> Stdlib.Test.equal
         "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
-      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷")
+      Stdlib.Base64.urlEncode (Stdlib.Bytes.fromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷")
       |> Stdlib.Test.equal
         "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw==" ]

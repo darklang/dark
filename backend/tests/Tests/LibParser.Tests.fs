@@ -1395,7 +1395,10 @@ let private typeTests =
         | o -> failtest $"String: {o}"
         match parsedType "Bool" with
         | WT.TBool _ -> ()
-        | o -> failtest $"Bool: {o}")
+        | o -> failtest $"Bool: {o}"
+        match parsedType "Bytes" with
+        | WT.TBytes _ -> ()
+        | o -> failtest $"Bytes: {o}")
       testCase "List<Int64>" (fun _ ->
         match parsedType "List<Int64>" with
         | WT.TList(_, _, _, WT.TInt64 _, _) -> ()

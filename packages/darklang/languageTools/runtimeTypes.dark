@@ -81,7 +81,7 @@ type TypeReference =
   | TString
   | TUuid
   | TDateTime
-  | TBlob
+  | TBytes
   | TStream of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TList of TypeReference
@@ -114,7 +114,7 @@ type KnownType =
   | KTString
   | KTUuid
   | KTDateTime
-  | KTBlob
+  | KTBytes
   | KTStream of ValueType
   | KTTuple of ValueType * ValueType * List<ValueType>
   | KTList of ValueType
@@ -320,8 +320,7 @@ type Dval =
 
   // References
 
-  | DBlobPersistent of hash: String * length: Int
-  | DBlobEphemeral of id: Uuid
+  | DBytes of Bytes
 
   | DStreamStub of elemType: ValueType
 

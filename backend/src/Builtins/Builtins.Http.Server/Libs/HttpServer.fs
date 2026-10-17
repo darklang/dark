@@ -591,7 +591,7 @@ let private handleRequest
               | Value dv ->
                 let! prepared =
                   Tracing.prepareDvalForStorage
-                    (Tracing.TraceStorage.keepBlobIn runId)
+                    (Tracing.TraceStorage.keepBytesIn runId)
                     dv
                   |> Ply.toTask
                 LibDB.Traces.setResult runId prepared

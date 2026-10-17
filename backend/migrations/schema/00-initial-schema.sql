@@ -277,8 +277,8 @@ CREATE TABLE IF NOT EXISTS package_tests (
   description TEXT NOT NULL DEFAULT ''
 );
 
--- Content-addressed bytes (Blob refs). Dedup comes for free via PK
--- uniqueness; orphans reclaimed by `LibDB.RuntimeTypes.Blob.sweepOrphans`.
+-- Content-addressed bytes (Bytes refs). Dedup comes for free via PK
+-- uniqueness; orphans reclaimed by `LibDB.RuntimeTypes.Bytes.sweepOrphans`.
 CREATE TABLE IF NOT EXISTS package_blobs (
   hash TEXT PRIMARY KEY,
   length INTEGER NOT NULL,
@@ -671,13 +671,13 @@ CREATE INDEX IF NOT EXISTS idx_package_ops_commit ON package_ops(commit_hash);
 --   column keeps its name). A traced type check reads the same items and gets the same small
 --   answers thousands of times; one stdlib-wide trace had 8,217 calls and 2,700 distinct results.
 -- - the blobs a trace captured: a request body, a file's bytes, anything an effect handed over as
---   a `Blob`.
+--   `Bytes`.
 --
 -- They used to be promoted into `package_blobs`, which is shared with package values and user
 -- data and which nothing collects, so retention removed the trace and kept the body forever:
 -- five traced 400 KB POSTs left 2.0 MB there, and none of it was counted by `trace.maxMb`.
 -- Content-addressed like `package_blobs`, so a read that misses there falls back to here
--- (`LibDB.RuntimeTypes.Blob.get`).
+-- (`LibDB.RuntimeTypes.Bytes.get`).
 CREATE TABLE IF NOT EXISTS trace_blobs (
   trace_id TEXT NOT NULL,
   hash     TEXT NOT NULL,

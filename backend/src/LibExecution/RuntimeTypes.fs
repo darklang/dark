@@ -185,7 +185,7 @@ type KnownType =
   | KTDateTime
 
   /// Immutable byte sequence.
-  | KTBlob
+  | KTBytes
 
   /// Lazy value sequence parameterised over element type.
   | KTStream of ValueType
@@ -395,7 +395,7 @@ type TypeReference =
   | TString
   | TUuid
   | TDateTime
-  | TBlob
+  | TBytes
   | TStream of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TList of TypeReference
@@ -433,7 +433,7 @@ type TypeReference =
       | TString
       | TUuid
       | TDateTime
-      | TBlob -> true
+      | TBytes -> true
 
       | TStream t -> isConcrete t
 
@@ -708,45 +708,64 @@ type StringSegment =
 /// store lookup: if the Dval is reachable, the bytes are reachable; when
 /// the Dval is collected, the bytes can be collected too.
 ///
-/// `id` is the blob's runtime identity. Dark equality and ordering for
-/// ephemeral blobs use this id (`NoModule.equals`, `List.compareDval`),
-/// not byte equality. `Blob.newEphemeral` mints a fresh id and takes
-/// ownership of the byte array, which callers must treat as immutable.
-///
-/// Custom `Equals`/`GetHashCode` key on `id`, so F# `=` (reachable on any
-/// Dval containing a blob) agrees with Dark equality and hashing never
-/// scans the byte array. `NoComparison` is required alongside
-/// `CustomEquality`; it costs nothing here, since F# structural comparison
-/// of blobs is never used — Dark ordering is hand-coded in `List.compareDval`
-/// (by `id`) and Dval itself is already `NoComparison`.
+/// `id` is only for runtime inspection. Value equality uses the same SHA-256
+/// content hash as persistent bytes, computed lazily and reused on promotion.
+/// `Bytes.newEphemeral` takes ownership of the array; callers must not mutate it.
 ///
 /// CLEANUP: `bytes` can still be mutated if a caller keeps or receives the
 /// array, and a hand-built record can reuse an `id`. Both are by
 /// convention — not reachable from Dark, only from future internal code.
 [<CustomEquality; NoComparison>]
-type EphemeralBlob =
+type EphemeralBytes =
   { id : uuid
-    bytes : byte[] }
+    bytes : byte[]
+    contentHash : Lazy<string> }
 
   override this.Equals(o : obj) : bool =
     match o with
-    | :? EphemeralBlob as other -> this.id = other.id
+    | :? EphemeralBytes as other ->
+      obj.ReferenceEquals(this, other)
+      || (this.bytes.Length = other.bytes.Length
+          && this.contentHash.Value = other.contentHash.Value)
     | _ -> false
-  override this.GetHashCode() : int = this.id.GetHashCode()
+  override this.GetHashCode() : int =
+    hash this.contentHash.Value * 31 + hash (int64 this.bytes.Length)
 
-/// Where the bytes of a DBlob live. Ephemeral refs carry their bytes
-/// inline ([EphemeralBlob]); persistent refs hold a content hash and
+/// Where the bytes of a DBytes live. Ephemeral refs carry their bytes
+/// inline ([EphemeralBytes]); persistent refs hold a content hash and
 /// resolve via the package manager's `blobs` lookup against
 /// `package_blobs`.
 ///
 /// TODO BEAM-style sub-blob sharing: add
-///   `| Subblob of parent: BlobRef * offset: int64 * length: int64`
-/// so `Bytes.slice` returns a view rather than copying. `readBlobBytes`
+///   `| Subblob of parent: BytesRef * offset: int64 * length: int64`
+/// so `Bytes.slice` returns a view rather than copying. `readBytes`
 /// would walk to the root; promotion would promote just the slice
 /// (default) or the parent. Skip until a profile shows slice-copy is hot.
-type BlobRef =
-  | Ephemeral of EphemeralBlob
+[<CustomEquality; NoComparison>]
+type BytesRef =
+  | Ephemeral of EphemeralBytes
   | Persistent of hash : string * length : int64
+
+  member this.ContentHash : string =
+    match this with
+    | Ephemeral e -> e.contentHash.Value
+    | Persistent(h, _) -> h
+
+  member this.Length : int64 =
+    match this with
+    | Ephemeral e -> int64 e.bytes.Length
+    | Persistent(_, length) -> length
+
+  // The content-addressed store already identifies immutable bytes by hash.
+  // Use that identity for both forms without fetching or persisting anything.
+  override this.Equals(o : obj) : bool =
+    match o with
+    | :? BytesRef as other ->
+      obj.ReferenceEquals(this, other)
+      || (this.Length = other.Length && this.ContentHash = other.ContentHash)
+    | _ -> false
+
+  override this.GetHashCode() : int = hash this.ContentHash * 31 + hash this.Length
 
 
 /// Where a frame is executing: the entry, a function, or a lambda inside one. Declared before
@@ -976,7 +995,7 @@ and [<CustomEquality; CustomComparison>] DictKey =
     | DRecord _ -> 21
     | DEnum _ -> 22
     // 23 was DDB, retired with user datastores; later tags keep their numbers
-    | DBlob _ -> 24
+    | DBytes _ -> 24
     | DApplicable _ -> 25
     | DStream _ -> 26
     | DPromise _ -> 27
@@ -1024,10 +1043,7 @@ and [<CustomEquality; CustomComparison>] DictKey =
       |> combine
     | DEnum(_, tn, _, caseName, fields) ->
       combine ((hash tn * 31 + hash caseName) * 31 + DictKey.hashList fields)
-    | DBlob x ->
-      match x with
-      | Persistent(h, l) -> combine (hash h * 31 + hash l)
-      | Ephemeral e -> combine (hash e.id)
+    | DBytes x -> combine (x.GetHashCode())
     | DApplicable _
     | DStream _
     | DPromise _ ->
@@ -1116,14 +1132,9 @@ and DvalOrdering private () =
         let c = compare xCase yCase
         if c <> 0 then c else DvalOrdering.compareList mode xFields yFields
 
-    | DBlob x, DBlob y ->
-      match x, y with
-      | Persistent(xh, xl), Persistent(yh, yl) ->
-        let c = compare xh yh
-        if c <> 0 then c else compare xl yl
-      | Ephemeral x, Ephemeral y -> compare x.id y.id
-      | Persistent _, Ephemeral _ -> -1
-      | Ephemeral _, Persistent _ -> 1
+    | DBytes x, DBytes y ->
+      let c = compare x.ContentHash y.ContentHash
+      if c <> 0 then c else compare x.Length y.Length
 
     | _ -> DvalOrdering.incompatible mode a b
 
@@ -1360,10 +1371,10 @@ and [<NoComparison>] Dval =
   | DApplicable of Applicable
 
   /// Byte sequence, immutable by convention. Ephemeral blobs carry their
-  /// bytes inline (lifetime is GC); `Blob.readBytes` returns the array to
+  /// bytes inline (lifetime is GC); `Bytes.readBytes` returns the array to
   /// in-engine consumers, which treat it as read-only. Persistent blobs
-  /// hold a content hash and resolve via `package_blobs`. See [BlobRef].
-  | DBlob of BlobRef
+  /// hold a content hash and resolve via `package_blobs`. See [BytesRef].
+  | DBytes of BytesRef
 
   /// Lazy, single-consumer, non-persistable sequence. The inner
   /// [StreamImpl] is the lazy tree (FromIO plus Mapped / Filtered /
@@ -1440,7 +1451,7 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// Optional `nextChunk` lets byte-stream producers avoid per-byte
   /// Ply/Dval boxing. `nextChunk maxBytes` fills up to `maxBytes` into
   /// a fresh byte[] and returns it (or None on exhaustion). Consumers
-  /// that want bulk bytes (`streamToBlob`, SSE-byte accumulator) take
+  /// that want bulk bytes (`streamToBytes`, SSE-byte accumulator) take
   /// this path; byte-by-byte `next` stays authoritative for element-
   /// wise pulls (`streamNext` on `Stream<UInt8>`). Non-byte streams
   /// leave this `None`.
@@ -2059,7 +2070,7 @@ module KnownVT =
   let string : ValueType = ValueType.Known KTString
   let dateTime : ValueType = ValueType.Known KTDateTime
   let uuid : ValueType = ValueType.Known KTUuid
-  let blob : ValueType = ValueType.Known KTBlob
+  let bytes : ValueType = ValueType.Known KTBytes
 
 
 // Functions for working with Dark runtime values
@@ -2248,7 +2259,7 @@ module Dval =
       // (probably forces us to make this fn async?)
       | AppNamedFn _named -> ValueType.Unknown
 
-    | DBlob _ -> ValueType.Known KTBlob
+    | DBytes _ -> ValueType.Known KTBytes
 
     | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
 
@@ -2258,12 +2269,13 @@ module Dval =
     | DPromise _ -> ValueType.Unknown
 
 
+  /// A key must mean what `==` means. Bytes compare by content, so they are keys;
+  /// the reflected `Dval` holds Bytes and is itself a key type. See docs/bytes.md.
   let rec isUsableDictKey (dv : Dval) : bool =
     match dv with
     | DApplicable _
     | DStream _
-    | DPromise _
-    | DBlob _ -> false
+    | DPromise _ -> false
 
     | DList(_, items) -> List.forall isUsableDictKey items
     | DTuple(a, b, rest) ->
@@ -2290,7 +2302,8 @@ module Dval =
     | DChar _
     | DString _
     | DDateTime _
-    | DUuid _ -> true
+    | DUuid _
+    | DBytes _ -> true
 
   let assertUsableDictKey (key : Dval) : unit =
     if not (isUsableDictKey key) then
@@ -2353,7 +2366,7 @@ module Dval =
           | DUuid _
           | DStream _
           | DPromise _
-          | DBlob _ -> return dv
+          | DBytes _ -> return dv
 
           | DList(vt, items) ->
             let! items' = walkItems items
@@ -2460,10 +2473,26 @@ module Dval =
     and walkDictEntries (m : DictMap) : Ply.Ply<DictMap> =
       uply {
         let mutable acc = m
+        let mutable rewrittenKeys : Map<DictKey, DictKey> = Map.empty
         for KeyValue(k, v) in m do
+          let! k' = go k.Dval
           let! v' = go v
+          if not (same k' k.Dval) then
+            rewrittenKeys <- Map.add k (DictKey k') rewrittenKeys
           if not (same v' v) then acc <- Map.add k v' acc
-        return acc
+        // Build a fresh map when keys change. Updating an equal key in place can
+        // retain the original key object, including bytes that still need saving.
+        // Rebuilding also preserves ordinary map semantics if rewritten keys collide.
+        if Map.isEmpty rewrittenKeys then
+          return acc
+        else
+          return
+            acc
+            |> Map.toSeq
+            |> Seq.map (fun (k, v) ->
+              let key = Map.tryFind k rewrittenKeys |> Option.defaultValue k
+              key, v)
+            |> Map.ofSeq
       }
 
     go dv
@@ -2682,12 +2711,12 @@ type PackageManager =
 
     /// Content-addressed blob bytes by SHA-256 hash. Returns [None]
     /// for missing hashes.
-    getBlob : string -> Ply<Option<byte[]>>
+    getBytes : string -> Ply<Option<byte[]>>
 
     /// Insert bytes into `package_blobs` keyed by SHA-256 hash. Uses
     /// INSERT OR IGNORE — same hash = same content (content-addressing
     /// invariant), so a second insert is a cheap no-op.
-    persistBlob : string -> byte[] -> Ply<unit>
+    persistBytes : string -> byte[] -> Ply<unit>
 
     /// Is this package fn hash marked Harmful? Only fns participate -- see
     /// `DeprecationKind.Harmful` for why.
@@ -2729,8 +2758,8 @@ type PackageManager =
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
       getTrait = (fun _ -> Ply None)
-      getBlob = (fun _ -> Ply None)
-      persistBlob = (fun _ _ -> uply { return () })
+      getBytes = (fun _ -> Ply None)
+      persistBytes = (fun _ _ -> uply { return () })
       isHarmful = (fun _ -> false)
       implCandidates = (fun _ _ -> Ply [])
       implCandidatesByMethod = (fun _ _ -> Ply [])
@@ -2810,8 +2839,8 @@ type PackageManager =
         fun id ->
           let mutable hit = Unchecked.defaultof<Option<Trait.Trait>>
           if traitMap.TryGetValue(id, &hit) then Ply hit else pm.getTrait id
-      getBlob = pm.getBlob
-      persistBlob = pm.persistBlob
+      getBytes = pm.getBytes
+      persistBytes = pm.persistBytes
       isHarmful = pm.isHarmful
       implCandidates = pm.implCandidates
       implCandidatesByMethod = pm.implCandidatesByMethod
@@ -3911,7 +3940,7 @@ and ExecutionState =
 
     /// Content-addressed persistent blob store (`package_blobs`).
     /// Ephemeral blobs carry their bytes inline and need no store;
-    /// promotion (see `Blob.promote`) writes them here.
+    /// promotion (see `Bytes.promote`) writes them here.
     ///
     /// Orphan reclaim TODOs (persistent blobs only):
     ///   - `package_blobs` orphan reclaim runs via the `pm-sweep-blobs`
@@ -3924,7 +3953,7 @@ and ExecutionState =
     ///   - No reverse-index table (`package_blob_refs`) — the sweep
     ///     is O(N+M). Fine at current scale; revisit at higher
     ///     package counts.
-    blobs : Blobs
+    blobs : BytesStore
 
     /// Escape hatch for `Harmful`-marked fns: when true, the interpreter
     /// still sees `fns.isHarmful` return true, but proceeds anyway (and
@@ -3973,12 +4002,12 @@ and Values =
   { builtIn : Dictionary<FQValueName.Builtin, BuiltInValue>
     package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
 
-/// Blob-byte access wired onto the ExecutionState. `get` resolves a
+/// Byte storage access wired onto the ExecutionState. `get` resolves a
 /// content-addressed hash to bytes (or None if the hash is missing);
 /// `persist` writes bytes to `package_blobs` via INSERT OR IGNORE.
 /// Needed inside builtins that manipulate blobs — eg.
-/// `Blob.toHex : Blob -> String` has to dereference its arg.
-and Blobs =
+/// `Bytes.toHex : Bytes -> String` has to dereference its arg.
+and BytesStore =
   { get : string -> Ply<Option<byte[]>>; persist : string -> byte[] -> Ply<unit> }
 
 and Functions =
@@ -4089,7 +4118,7 @@ module Types =
     | TString
     | TUuid
     | TDateTime
-    | TBlob -> typ
+    | TBytes -> typ
 
     | TStream t -> TStream(r t)
     | TTuple(t1, t2, rest) -> TTuple(r t1, r t2, List.map r rest)
@@ -4229,7 +4258,7 @@ module TypeReference =
     | TString -> Ply KnownVT.string
     | TUuid -> Ply KnownVT.uuid
     | TDateTime -> Ply KnownVT.dateTime
-    | TBlob -> Ply KnownVT.blob
+    | TBytes -> Ply KnownVT.bytes
 
     | TVariable name ->
       Ply(
@@ -4315,7 +4344,7 @@ module TypeReference =
     | KTString -> TString
     | KTUuid -> TUuid
     | KTDateTime -> TDateTime
-    | KTBlob -> TBlob
+    | KTBytes -> TBytes
     | KTStream inner -> TStream(fromVT inner)
     | KTList inner -> TList(fromVT inner)
     | KTDict(key, value) -> TDict(fromVT key, fromVT value)
@@ -4352,7 +4381,7 @@ module TypeReference =
     | TString
     | TUuid
     | TDateTime
-    | TBlob -> typ
+    | TBytes -> typ
 
     | TVariable name ->
       match TST.tryFind name tst |> ValueOption.toOption with

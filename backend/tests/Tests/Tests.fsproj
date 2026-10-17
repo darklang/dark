@@ -63,7 +63,7 @@
     <Compile Include="Serialization.Binary.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
 
-    <Compile Include="Blob.Tests.fs" />
+    <Compile Include="Bytes.Tests.fs" />
     <Compile Include="PTConformance.Tests.fs" />
     <Compile Include="BranchOverlay.Tests.fs" />
     <Compile Include="Propagation.Tests.fs" />

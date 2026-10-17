@@ -438,20 +438,20 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // and returns, which measured a fifth of the pull off on its own.
     { name = fn "packageOpBindsAName" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "a package_ops op_blob" ]
+      parameters = [ Param.make "blob" TBytes "a package_ops op_blob" ]
       returnType = TBool
       description =
         "Whether <param blob> is an op that binds a name (SetName or Decision), read from "
         + "its tag without decoding it. False for content ops and for anything unreadable."
       fn =
         function
-        | exeState, _, _, [| DBlob blobRef |] ->
+        | exeState, _, _, [| DBytes bytesRef |] ->
           uply {
-            let! bytes = LibExecution.Blob.readBytes exeState blobRef
+            let! bytes = LibExecution.Bytes.readBytes exeState bytesRef
             return DBool(LibDB.Queries.opBindsAName bytes)
           }
         | _ -> incorrectArgs ()
-      // Impure though it performs nothing, like `packageOpFromBlobOption` below: the decoder
+      // Impure though it performs nothing, like `packageOpFromBytesOption` below: the decoder
       // is this binary's, and a synced store holds ops some builds cannot read.
       previewable = Impure
       callEffects = Set.empty
@@ -461,9 +461,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // Decode one op_blob into a PackageOp, or None when this build cannot read it. Option rather
     // than raise, and deliberately with no raising variant: a synced store holds ops from other
     // builds in its own log on purpose, so every local reader meets them.
-    { name = fn "packageOpFromBlobOption" 0
+    { name = fn "packageOpFromBytesOption" 0
       typeParams = []
-      parameters = [ Param.make "id" TUuid ""; Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "id" TUuid ""; Param.make "blob" TBytes "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok (packageOpTypeName ()), []))
       description =
@@ -472,9 +472,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "fatal."
       fn =
         function
-        | exeState, _, _, [| DUuid id; DBlob blobRef |] ->
+        | exeState, _, _, [| DUuid id; DBytes bytesRef |] ->
           uply {
-            let! bytes = LibExecution.Blob.readBytes exeState blobRef
+            let! bytes = LibExecution.Bytes.readBytes exeState bytesRef
 
             let decoded =
               try

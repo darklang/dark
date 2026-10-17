@@ -553,18 +553,17 @@ module RT =
         "the reader consumed the blob exactly"
     }
 
-  /// Blob references are comparable but intentionally unsupported as keys. This case used to
-  /// be a `DDB`, which went to later/ with user datastores; a blob is the nearest live value
-  /// with the same property, so the arm goes on being exercised.
-  let dictWithBlobKeyRejectedOnRead =
-    test "a Dict keyed by a blob reference is refused on deserialize" {
-      expectRefusedOnRead
-        "a blob reference"
-        (RT.DDict(
+  /// Bytes are valid dict keys, so a saved Bytes key reads back as the same entry.
+  let dictWithBytesKeyRoundtrips =
+    test "a Dict keyed by a saved Bytes reference roundtrips" {
+      let dict =
+        RT.DDict(
           RT.ValueType.Unknown,
           RT.ValueType.Unknown,
-          Map [ RT.DictKey(RT.DBlob(RT.Persistent("h", 0L))), RT.DUnit ]
-        ))
+          Map [ RT.DictKey(RT.DBytes(RT.Persistent("h", 0L))), RT.DUnit ]
+        )
+      let back = dict |> BS.RT.Dval.serialize "dval" |> BS.RT.Dval.deserialize "dval"
+      Expect.isTrue (LibExecution.Dval.equals dict back) "the Bytes key survives"
     }
 
   /// Lambdas are neither valid nor comparable as keys.
@@ -621,7 +620,7 @@ let tests =
           RT.dvalTests
           RT.instructionsTests
           RT.v3ApplicableStillReads
-          RT.dictWithBlobKeyRejectedOnRead
+          RT.dictWithBytesKeyRoundtrips
           RT.dictWithLambdaKeyRejectedOnRead
           RT.closureAccessIsStripped
           RT.namedFnAccessIsStripped ] ]

@@ -28,7 +28,7 @@ let builtins () : Builtins =
 
       Libs.Math.builtins ()
 
-      Libs.Blob.builtins ()
+      Libs.Bytes.builtins ()
       Libs.Stream.builtins ()
 
       Libs.Char.builtins ()

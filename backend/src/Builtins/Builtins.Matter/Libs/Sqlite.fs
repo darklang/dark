@@ -30,7 +30,7 @@ open LibExecution.Effects
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 
 
 let private connStr (path : string) : string = $"Data Source={path}"
@@ -52,7 +52,7 @@ module Value =
       | :? int64 as i -> "Int", [ DInt64 i ]
       | :? double as f -> "Real", [ DFloat f ]
       | :? string as s -> "Text", [ DString s ]
-      | :? (byte[]) as b -> "Bytes", [ Blob.newEphemeral b ]
+      | :? (byte[]) as b -> "Bytes", [ Bytes.newEphemeral b ]
       | other -> "Text", [ DString(string other) ]
     DEnum(typeName, typeName, [], caseName, fields)
 
