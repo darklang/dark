@@ -127,11 +127,11 @@ commands:
             for f in clis/darklang-*; do
               case "$f" in *.mode) ;; *) gzip -f "$f" ;; esac
             done
+      # No store_artifacts: the GitHub release is where these are downloaded from.
       - persist_to_workspace:
           root: "."
           paths:
             - clis
-      - store_artifacts: { path: clis }
 
   show-large-files-and-directories:
     steps:
