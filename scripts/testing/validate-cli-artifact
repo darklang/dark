@@ -113,7 +113,9 @@ run_in_home() {
   mkdir -p "$home" || return 1
   (
     cd "$home" || exit 127
-    local cmd="" watchdog="" state
+    # Not `local`: the subshell already scopes these, and bash 3.2 (macOS) drops
+    # locals before the EXIT trap runs when this is called inside `$(...)`.
+    cmd="" watchdog="" state=""
     state=$(mktemp -d .artifact-check.XXXXXX) || exit 1
     # shellcheck disable=SC2317  # reached through EXIT
     cleanup_check() {
@@ -155,7 +157,7 @@ run_in_home() {
       kill -KILL -- "-$cmd" 2> /dev/null || true
     ) > /dev/null 2>&1 &
     watchdog=$!
-    local rc=0
+    rc=0
     wait "$cmd" 2> /dev/null || rc=$?
     kill "$watchdog" 2> /dev/null || true
     wait "$watchdog" 2> /dev/null || true

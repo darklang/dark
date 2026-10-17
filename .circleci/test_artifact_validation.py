@@ -79,6 +79,8 @@ exec /bin/sleep "$@"
       except ProcessLookupError:
         pass
       process.communicate()
+    # A broken EXIT trap still exits 0, so a green result is not enough.
+    self.assertNotRegex(output, r"validate-cli-artifact: line \d+:", output)
     return process.returncode, output, time.monotonic() - started
 
   def assert_process_stopped(self, pid):
