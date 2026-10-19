@@ -421,7 +421,7 @@ jobs:
   # embedded a corrupt seed into every artifact it produced.
   seed-db:
     executor: in-container
-    resource_class: xlarge
+    resource_class: large
     steps:
       - darkcheckout
       - setup-app
@@ -467,7 +467,7 @@ jobs:
   # gcc in dark-base rejects ilc's `--target=<triple>` and the link fails.
   build-cli-linux-glibc:
     executor: release-linux
-    resource_class: xlarge
+    resource_class: large
     steps:
       - checkout
       - attach_workspace: { at: "." }
@@ -568,7 +568,7 @@ jobs:
   # toolchain gap, so it stays R2R and is built here rather than on main.
   build-cli-r2r-extras:
     executor: release-linux
-    resource_class: xlarge
+    resource_class: large
     steps:
       - checkout
       - attach_workspace: { at: "." }
