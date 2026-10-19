@@ -637,6 +637,15 @@ jobs:
       # build-sqlite.sh writes to app/backend/src/Cli/lib relative to ~, so
       # the checkout has to live at ~/app here the same as it does in the
       # container. That's what working_directory on the executor is for.
+      #
+      # Restore the SQLite archive first: zig is only needed to build it, so on a cache
+      # hit zig isn't installed.
+      - run:
+          name: Hash build-sqlite.sh for cache key
+          command: shasum scripts/build/build-sqlite.sh > ../sqlite-checksum
+      - restore_cache:
+          keys:
+            - v1-sqlite-archives-macos-{{ checksum "../sqlite-checksum" }}
       - run:
           name: Install build dependencies
           command: |
@@ -651,16 +660,14 @@ jobs:
             curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
             bash dotnet-install.sh --version "$SDK" --install-dir "$HOME/.dotnet"
             echo 'export PATH="$HOME/.dotnet:$PATH"' >> "$BASH_ENV"
-            brew install zig
-            mkdir -p "$HOME/zig" && ln -sf "$(which zig)" "$HOME/zig/zig"
+            if [[ -f backend/src/Cli/lib/libe_sqlite3-osx-arm64.a ]]; then
+              echo "SQLite archive restored from cache; zig not needed."
+            else
+              HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install zig
+              mkdir -p "$HOME/zig" && ln -sf "$(which zig)" "$HOME/zig/zig"
+            fi
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run:
-          name: Hash build-sqlite.sh for cache key
-          command: shasum scripts/build/build-sqlite.sh > ../sqlite-checksum
-      - restore_cache:
-          keys:
-            - v1-sqlite-archives-macos-{{ checksum "../sqlite-checksum" }}
       - run:
           name: Build SQLite static archives (skips on cache hit)
           command: ./scripts/build/build-sqlite.sh --runtimes=osx-arm64
