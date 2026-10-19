@@ -1586,48 +1586,12 @@ let private recoveryTests =
             "Person { a = 1L, b = 2L }"
             "Dict { \"a\": 1L, \"b\": 2L }"
             "{ value with a = 1L, b = 2L }"
-            "type R = { a: Int64, b: String }" ] do
-          Expect.isEmpty
-            (P.parse source).diagnostics
-            $"valid separators parse cleanly for {source}")
-
-      testCase "record and dict separators allow commas and newlines" (fun _ ->
-        for source in
-          [ "Point { x = 1L, y = 2L, }"
-            "Dict { 1L: [2L, 3L], 4L: [5L], }"
-            "{ point with x = 1L, y = 2L, }"
-            "type Point = { x: Int64, y: Int64, }"
-            "Point { x = 1L\n        y = 2L }"
-            "Dict { 1L: 2L\n       3L: 4L }"
-            "{ point with x = 1L\n             y = 2L }"
-            "type Point = { x: Int64\n               y: Int64 }"
-            "Point { x = Dict { 1L: 2L, 3L: 4L }, y = [5L, 6L] }"
-            "Dict { (1L, 2L): Point { x = 3L, y = 4L }, (5L, 6L): p }"
-            "Dict { \";\": \"a;b\", \"other\": \"c;d\" }"
+            "type R = { a: Int64, b: String }"
+            "Person { a = 1L, b = 2L, }"
             "let f () : Unit = print 1L; print 2L" ] do
           Expect.isEmpty
             (P.parse source).diagnostics
-            $"valid separators parse cleanly: {source}")
-
-      testCase "record and dict semicolons diagnose without cascading" (fun _ ->
-        for source, what in
-          [ "Point { x = 1L; y = 2L; }", "record fields"
-            "Dict { 1L: 2L; 3L: 4L; }", "dict entries"
-            "{ point with x = 1L; y = 2L; }", "record-update fields"
-            "type Point = { x: Int64; y: Int64; }", "record-type fields" ] do
-          let diagnostics = (P.parse source).diagnostics
-          Expect.equal diagnostics.Length 2 "one diagnostic per semicolon"
-          for diagnostic in diagnostics do
-            Expect.equal
-              diagnostic.message
-              $"expected ',' between {what}, found ';'"
-              "specific separator message"
-            Expect.equal diagnostic.hint (Some "use ',' instead") "migration hint"
-            Expect.equal diagnostic.severity P.DiagError "old syntax is an error"
-            Expect.equal
-              source[diagnostic.range.start.column]
-              ';'
-              "the diagnostic points at the separator")
+            $"valid separators parse cleanly for {source}")
 
       testCase "empty record update `{ r with }` is rejected" (fun _ ->
         // an empty update lowers to a degenerate node in both WT2PTs — reject it
@@ -1882,6 +1846,18 @@ let private goldenDiagnosticsTests =
       golden
         "match x with | [a; b] -> a"
         [ "expected ',' between list-pattern elements, found ';'" ]
+      golden
+        "Point { x = 1L; y = 2L }"
+        [ "expected ',' between record fields, found ';'" ]
+      golden
+        "Dict { 1L: 2L; 3L: 4L }"
+        [ "expected ',' between dict entries, found ';'" ]
+      golden
+        "{ p with x = 1L; y = 2L }"
+        [ "expected ',' between record-update fields, found ';'" ]
+      golden
+        "type P = { x: Int64; y: Int64 }"
+        [ "expected ',' between record-type fields, found ';'" ]
       testCase "diagnostics carry stable codes, related spans, and hints" (fun _ ->
         match (P.parse "(1L + 2L").diagnostics with
         | [ d ] ->

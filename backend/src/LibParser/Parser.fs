@@ -823,10 +823,7 @@ let isNegLitArg (state : ParserState) (k : int) : bool =
       || (rng state k).start.row <> (rng state (k - 1)).end_.row
       || (rng state k).start.column > (rng state (k - 1)).end_.column) // space before `-`
 
-// `;` used to separate collection elements and record fields; use `,` instead.
-// Newlines remain valid separators too. Report it precisely and keep parsing as
-// if it had been a `,`, so old-style files yield one diagnostic per `;` instead of a
-// cascade of recovery noise from the elements after it.
+// Report a `;` used in place of `,`, then treat it as a `,` and keep parsing.
 let private errCollectionSemicolon (state : ParserState) (i : int) (what : string) =
   errFull
     state
