@@ -17,7 +17,7 @@ let basename (url: String) : Stdlib.Result.Result<String, String> =
 
 
 /// A release to install: its tag (`v0.0.54`) and the URL of the asset for this host.
-type ReleaseAsset = { tag: String; assetUrl: String }
+type ReleaseAsset = { tag: String, assetUrl: String }
 
 
 /// The release to install, <param pinned> or else the latest, and its asset for this OS and
@@ -34,7 +34,7 @@ let releaseToInstall
   tag
   |> Stdlib.Result.andThen (fun tag ->
     Darklang.GitHub.Releases.getDownloadUrl host tag
-    |> Stdlib.Result.map (fun url -> ReleaseAsset { tag = tag; assetUrl = url }))
+    |> Stdlib.Result.map (fun url -> ReleaseAsset { tag = tag, assetUrl = url }))
 
 
 /// Run a freshly downloaded binary against a COPY of this instance's store, and check it can evaluate

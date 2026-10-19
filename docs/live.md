@@ -275,7 +275,7 @@ an event on the queue, on purpose: an event reaches the loops that are running n
 setting also reaches the one you open next, and there is no session to scope it to until
 sessions persist.
 
-`Live.observe branchId view` is the view without a terminal: `{ report; render; rte }`.
+`Live.observe branchId view` is the view without a terminal: `{ report, render, rte }`.
 Each of `init` and `render` is taken at its newest version that passes its at-rest
 checks (the store's history is the memory, `versionsNewestFirst`; nothing is kept
 between calls), `init` runs for the model, `render` for the tree, and the tree goes

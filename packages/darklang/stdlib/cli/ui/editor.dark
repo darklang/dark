@@ -8,12 +8,12 @@ type Buf =
     col: Int }
 
 let emptyBuf () : Buf =
-  Buf { lines = [ "" ]; row = 0; col = 0 }
+  Buf { lines = [ "" ], row = 0, col = 0 }
 
 let fromText (text: String) : Buf =
   let ls = Stdlib.String.split text "\n"
   let lines = if Stdlib.List.isEmpty ls then [ "" ] else ls
-  Buf { lines = lines; row = 0; col = 0 }
+  Buf { lines = lines, row = 0, col = 0 }
 
 let toText (buf: Buf) : String =
   Stdlib.String.join buf.lines "\n"
@@ -41,7 +41,7 @@ let newline (buf: Buf) : Buf =
     buf.lines
     |> Stdlib.List.indexedMap (fun i l -> if i == buf.row then [ before, after ] else [ l ])
     |> Stdlib.List.flatten
-  Buf { lines = newLines; row = buf.row + 1; col = 0 }
+  Buf { lines = newLines, row = buf.row + 1, col = 0 }
 
 /// Insert a string that may contain newlines: split on "\n" and stitch with `newline` between segments.
 /// A string with no "\n" splits to one part -> identical to `insertChar`. This is what a paste routes through.
@@ -57,7 +57,7 @@ let backspace (buf: Buf) : Buf =
     let line = currentLine buf
     let before = Stdlib.String.slice line 0 (buf.col - 1)
     let after = Stdlib.String.slice line buf.col (Stdlib.String.length line)
-    Buf { lines = setLine buf.lines buf.row (before + after); row = buf.row; col = buf.col - 1 }
+    Buf { lines = setLine buf.lines buf.row (before + after), row = buf.row, col = buf.col - 1 }
   else if buf.row > 0 then
     let prev = Stdlib.List.getAt buf.lines (buf.row - 1) |> Stdlib.Option.withDefault ""
     let cur = currentLine buf
@@ -73,7 +73,7 @@ let backspace (buf: Buf) : Buf =
       |> Stdlib.List.map (fun p ->
         let (_i, l) = p
         l)
-    Buf { lines = newLines; row = buf.row - 1; col = newCol }
+    Buf { lines = newLines, row = buf.row - 1, col = newCol }
   else
     buf
 
@@ -86,7 +86,7 @@ let deleteForward (buf: Buf) : Buf =
   if buf.col < len then
     let before = Stdlib.String.slice line 0 buf.col
     let after = Stdlib.String.slice line (buf.col + 1) len
-    Buf { lines = setLine buf.lines buf.row (before + after); row = buf.row; col = buf.col }
+    Buf { lines = setLine buf.lines buf.row (before + after), row = buf.row, col = buf.col }
   else if buf.row < (Stdlib.List.length buf.lines) - 1 then
     let next = Stdlib.List.getAt buf.lines (buf.row + 1) |> Stdlib.Option.withDefault ""
     let newLines =
@@ -96,7 +96,7 @@ let deleteForward (buf: Buf) : Buf =
       |> Stdlib.List.map (fun p ->
         let (i, l) = p
         if i == buf.row then (line + next) else l)
-    Buf { lines = newLines; row = buf.row; col = buf.col }
+    Buf { lines = newLines, row = buf.row, col = buf.col }
   else
     buf
 
@@ -111,7 +111,7 @@ let moveLineEnd (buf: Buf) : Buf =
 let killToLineEnd (buf: Buf) : Buf =
   let line = currentLine buf
   let kept = Stdlib.String.slice line 0 buf.col
-  Buf { lines = setLine buf.lines buf.row kept; row = buf.row; col = buf.col }
+  Buf { lines = setLine buf.lines buf.row kept, row = buf.row, col = buf.col }
 
 let clampCol (buf: Buf) : Buf =
   let len = Stdlib.String.length (currentLine buf)
@@ -125,7 +125,7 @@ let moveLeft (buf: Buf) : Buf =
       (Stdlib.List.getAt buf.lines (buf.row - 1))
       |> Stdlib.Option.map (fun s -> Stdlib.String.length s)
       |> Stdlib.Option.withDefault 0
-    { buf with row = buf.row - 1; col = prevLen }
+    { buf with row = buf.row - 1, col = prevLen }
   else
     buf
 
@@ -134,7 +134,7 @@ let moveRight (buf: Buf) : Buf =
   if buf.col < len then
     { buf with col = buf.col + 1 }
   else if buf.row < (Stdlib.List.length buf.lines) - 1 then
-    { buf with row = buf.row + 1; col = 0 }
+    { buf with row = buf.row + 1, col = 0 }
   else
     buf
 

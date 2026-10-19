@@ -938,7 +938,7 @@ test editRoundTripsTypesAndValues =
         branchName
         "type"
         "/" + typeName
-        "{ a: Int64; b: String }" ]
+        "{ a: Int64, b: String }" ]
 
   let _ =
     runWithCommand [ "--branch", branchName, "val", "/" + valueName, "42L" ]

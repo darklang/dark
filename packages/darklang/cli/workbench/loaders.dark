@@ -51,7 +51,7 @@ let moduleRows
   let implNames = results.impls |> Stdlib.List.map (fun i -> i.location.name)
   let moduleItems =
     LanguageTools.PackageManager.Search.readerSubmodules subs implNames
-    |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "module"; isModule = true; desc = "" })
+    |> Stdlib.List.map (fun n -> BodyItem { name = n, kind = "module", isModule = true, desc = "" })
   let typeItems =
     results.types
     |> Stdlib.List.map (fun t ->
@@ -204,7 +204,7 @@ let loadChangedItems (branchId: Uuid) : List<BodyItem> =
   let removed =
     (SCM.Draft.read ()).removed
     |> Stdlib.List.map (fun fqn ->
-      BodyItem { name = fqn; kind = "removed"; isModule = false; desc = paint Stdlib.Cli.UI.Colors.red "removed" })
+      BodyItem { name = fqn, kind = "removed", isModule = false, desc = paint Stdlib.Cli.UI.Colors.red "removed" })
   Stdlib.List.flatten [ conflictRows, changed, removed ]
 
 /// History and Home share the same store-wide commit order.
@@ -212,7 +212,7 @@ let recentCommitRows (limit: Int64) : List<ScmJson.CommitRowJson> =
   SCM.Commits.recent limit
   |> Stdlib.List.map (fun c ->
     ScmJson.CommitRowJson
-      { hash = c.hash; message = c.message
+      { hash = c.hash, message = c.message
         ops = SCM.PackageOps.opCountIn c.hash })
 
 /// Recent commits across all branches, one line each, for the reader Home's
@@ -452,7 +452,7 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
   let hit (tag: String) (location: LanguageTools.ProgramTypes.PackageLocation) : SearchHit =
     let modules = Stdlib.List.append [ location.owner ] location.modules
     let full = Stdlib.String.join (Stdlib.List.append modules [ location.name ]) "."
-    SearchHit { modules = modules; name = location.name; kind = tag; display = "  " + tag + "  " + full }
+    SearchHit { modules = modules, name = location.name, kind = tag, display = "  " + tag + "  " + full }
   // Rank by how well the LEAF NAME matches, because the search also matches descriptions and those hits
   // otherwise interleave alphabetically with the real ones: searching `toUppercase` put
   // `Stdlib.String.toUppercase` sixth, behind `Stdlib.Blob.fromHex`, which matched on its description.
@@ -489,7 +489,7 @@ let referencesFrom
   (kind: String)
   (results: LanguageTools.ProgramTypes.Search.SearchResults)
   : String =
-  let item = BodyItem { name = leaf; kind = kind; isModule = false; desc = "" }
+  let item = BodyItem { name = leaf, kind = kind, isModule = false, desc = "" }
   let picked =
     if item.kind == "fn" then
       results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
@@ -599,7 +599,7 @@ let refreshBadges (previous: State) (next: State) : State =
     next
   else
     let (wip, deprecated) = readBadges next
-    { next with wipNames = wip; deprecatedNames = deprecated }
+    { next with wipNames = wip, deprecatedNames = deprecated }
 
 /// Re-read the SCM picture when anything that could have moved it did.
 ///
@@ -627,7 +627,7 @@ let refreshScmStatus (previous: State) (next: State) : State =
 /// Re-read the SCM picture whatever the counts say. For the actions that change it without moving an op
 /// count: an ack, and any command run in a frame (a pull lands other people's commits).
 let forceScmRefresh (state: State) : State =
-  { state with scmStatus = readScmStatus state.branchId; preview = Stdlib.Option.Option.None; liveFor = "" }
+  { state with scmStatus = readScmStatus state.branchId, preview = Stdlib.Option.Option.None, liveFor = "" }
 
 /// Run the selected `render` fn and hold its output, for the tree-native view peek.
 ///
@@ -662,7 +662,7 @@ let refreshLiveValues (next: State) : State =
       | _ -> Stdlib.Option.Option.None
 
   match selectedFn with
-  | None -> { next with liveValues = Stdlib.Dict.empty; liveFor = ""; liveNote = "" }
+  | None -> { next with liveValues = Stdlib.Dict.empty, liveFor = "", liveNote = "" }
   | Some entry ->
     // A scroll or a command-bar key moves neither, and a replay costs a whole recorded run.
     let key =
@@ -681,7 +681,7 @@ let refreshLiveValues (next: State) : State =
            Stdlib.Option.withDefault v.skipped "")
         | None -> (Stdlib.Dict.empty, "")
 
-      { next with liveValues = values; liveFor = key; liveNote = note }
+      { next with liveValues = values, liveFor = key, liveNote = note }
 
 let refreshPeek (next: State) : State =
   let peek =

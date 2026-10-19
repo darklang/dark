@@ -153,7 +153,7 @@ let handleReaderKey
   // Reader mode: ↑↓ scroll a line, PgUp/PgDn a screenful, Esc/q closes it.
   let scrollUp = Step.Continue { state with detailScroll = Stdlib.max 0 (state.detailScroll - 1) }
   let scrollDown = Step.Continue { state with detailScroll = state.detailScroll + 1 }
-  let close = Step.Continue { state with reading = Stdlib.Option.Option.None; detailScroll = 0 }
+  let close = Step.Continue { state with reading = Stdlib.Option.Option.None, detailScroll = 0 }
   // A page is the terminal height less the chrome, so it lands roughly where your eye already is. Reading a
   // 200-line doc one line at a time is not reading.
   let (_w, h) = Terminal.getSize ()
@@ -178,7 +178,7 @@ let handleReaderKey
             reading = Stdlib.Option.Option.None
             detailScroll = 0
             completionSel = 0
-            input = Stdlib.Option.Option.Some (InputState { prompt = ": "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "command" }) }
+            input = Stdlib.Option.Option.Some (InputState { prompt = ": ", field = Stdlib.Cli.UI.TextField.fromText "", action = "command" }) }
     | _ -> Step.Continue state
 
 

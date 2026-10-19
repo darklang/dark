@@ -104,7 +104,7 @@ let previewInnerWidth (state: State) : Int =
     if state.activeView == vMatter then matterSplitFor state
     else 55
   // Only the width matters here; the rows and position are placeholders.
-  let body = Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 1; cols = w }
+  let body = Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 1, cols = w }
   let (_list, splitDetail, _rule, _collapsed) = paneGeometry body pct
   let detail = splitDetail
   // `renderScrollableLines` wraps one column short of its region.

@@ -3,11 +3,13 @@ module Darklang.Cli.Docs.Records
 let content () : String =
   """# Records
 
+Fields use commas or newlines. Semicolons are a parse error.
+
 ## Define
-  type Person = { name: String; age: Int }
+  type Person = { name: String, age: Int }
 
 ## Construct (alignment matters!)
-  Person { name = "Jo"; age = 30 }    # OK
+  Person { name = "Jo", age = 30 }    # OK
   Person                                # OK
     { name = "Jo"
       age = 30 }
@@ -18,7 +20,7 @@ let content () : String =
   person.name
 
 ## Update
-  { person with age = 31 }
+  { person with name = "Jane", age = 31 }
 
 ## No pattern matching
   Records can't be destructured in match. Use a variable and access fields:

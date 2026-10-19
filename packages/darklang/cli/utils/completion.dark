@@ -7,17 +7,17 @@ type CompletionItem =
 
 /// Create a simple completion item where display equals value
 let simple (text: String) : CompletionItem =
-  CompletionItem { display = text; value = text }
+  CompletionItem { display = text, value = text }
 
 /// Create a completion item with an icon based on entity type
 let withIcon (entityType: Packages.EntityType) (text: String) : CompletionItem =
   let icon = Packages.Display.getIcon entityType
-  CompletionItem { display = icon + "  " + text; value = text }
+  CompletionItem { display = icon + "  " + text, value = text }
 
 /// Create a completion item with a description shown after the value
 let withDescription (text: String) (description: String) : CompletionItem =
   let display = text + "  " + (Stdlib.Cli.UI.Colors.dimText description)
-  CompletionItem { display = display; value = text }
+  CompletionItem { display = display, value = text }
 
 
 type ParsedInput =
@@ -31,24 +31,24 @@ let parseInput (input: String) : ParsedInput =
   let endsWithSpace = Stdlib.String.endsWith input " "
 
   if Stdlib.String.isEmpty trimmed then
-    ParsedInput { commandName = ""; args = []; isCompletingCommand = true }
+    ParsedInput { commandName = "", args = [], isCompletingCommand = true }
   else
     let words =
       (Stdlib.String.split trimmed " ")
       |> Stdlib.List.filter (fun s -> s != "")
 
     match words with
-    | [] -> ParsedInput { commandName = ""; args = []; isCompletingCommand = true }
+    | [] -> ParsedInput { commandName = "", args = [], isCompletingCommand = true }
     | [command] ->
       if endsWithSpace then
-        ParsedInput { commandName = command; args = []; isCompletingCommand = false }
+        ParsedInput { commandName = command, args = [], isCompletingCommand = false }
       else
-        ParsedInput { commandName = command; args = []; isCompletingCommand = true }
+        ParsedInput { commandName = command, args = [], isCompletingCommand = true }
     | command :: rest ->
       if endsWithSpace then
-        ParsedInput { commandName = command; args = Stdlib.List.append rest [""]; isCompletingCommand = false }
+        ParsedInput { commandName = command, args = Stdlib.List.append rest [""], isCompletingCommand = false }
       else
-        ParsedInput { commandName = command; args = rest; isCompletingCommand = false }
+        ParsedInput { commandName = command, args = rest, isCompletingCommand = false }
 
 
 let getPartialCompletion (parsed: ParsedInput) : String =

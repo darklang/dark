@@ -1705,8 +1705,8 @@ let liveBindingReadsTheBranchThenMain =
       (name : string)
       =
       $"(match Darklang.SCM.PackageOps.liveBindingFor {branch} "
-      + $"(Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"{owner}\"; "
-      + $"modules = [ \"{modules}\" ]; name = \"{name}\" }}) with "
+      + $"(Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"{owner}\", "
+      + $"modules = [ \"{modules}\" ], name = \"{name}\" }}) with "
       + "| Some b -> b.hash | None -> \"none\")"
     let main = darkBranch PT.BranchId.Main
 
@@ -1762,7 +1762,7 @@ let liveBindingsForAgreesWithTheOneNameRead =
       let mods =
         modules.Split('.') |> Array.map (fun m -> $"\"{m}\"") |> String.concat ", "
       "Darklang.LanguageTools.ProgramTypes.PackageLocation "
-      + $"{{ owner = \"Darklang\"; modules = [ {mods} ]; name = \"{name}\" }}"
+      + $"{{ owner = \"Darklang\", modules = [ {mods} ], name = \"{name}\" }}"
 
     let locs =
       [ loc "LiveBindMany" "foo"
@@ -1865,7 +1865,7 @@ let previousHashesOfAllAgreesWithTheOneNameRead =
 
     let loc (modName : string) =
       "Darklang.LanguageTools.ProgramTypes.PackageLocation "
-      + $"{{ owner = \"Darklang\"; modules = [ \"{modName}\" ]; name = \"foo\" }}"
+      + $"{{ owner = \"Darklang\", modules = [ \"{modName}\" ], name = \"foo\" }}"
 
     // "<batch history> same" per name, or both histories when they differ.
     let historiesFrom (branch : string) (modNames : List<string>) =

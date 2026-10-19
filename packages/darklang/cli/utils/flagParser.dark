@@ -30,7 +30,7 @@ type Parsed =
 
 
 val emptyParsed =
-  Parsed { flags = []; options = []; positionals = []; errors = [] }
+  Parsed { flags = [], options = [], positionals = [], errors = [] }
 
 
 // The canonical name for `token` if it matches an entry's name or an alias.

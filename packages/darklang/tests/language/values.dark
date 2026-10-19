@@ -55,8 +55,8 @@ module UserDefined =
         UserDefined.enumValue |> Stdlib.Test.equal (Stdlib.Option.Option.Some 5L)
         Ok 5L |> Stdlib.Test.equal (Stdlib.Result.Result.Ok 5L) ]
 
-  type MyRecord = { a: Bool; b: String }
-  val recordValue = MyRecord { a = true; b = "glasses" }
+  type MyRecord = { a: Bool, b: String }
+  val recordValue = MyRecord { a = true, b = "glasses" }
 
   test recordValueField =
     (Stdlib.Bool.not recordValue.a) |> Stdlib.Test.equal false

@@ -11,7 +11,7 @@
 // lambda application and an Int add per iteration) and every other row includes it. Compare rows to
 // each other, not to zero.
 
-type Rec = { a: Int; b: String }
+type Rec = { a: Int, b: String }
 
 type Enum =
   | One of Int
@@ -19,7 +19,7 @@ type Enum =
 
 let plainFn (i: Int) : Int = i + 1
 let twoArgFn (i: Int) (j: Int) : Int = i + j
-let recFn (i: Int) : Rec = Rec { a = i; b = "x" }
+let recFn (i: Int) : Rec = Rec { a = i, b = "x" }
 let optFn (i: Int) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some i
 let resFn (i: Int) : Stdlib.Result.Result<Int, String> = Stdlib.Result.Result.Ok i
 let listFn (i: Int) : List<Int> = [ i ]
@@ -91,9 +91,9 @@ let main () : Int64 =
     | Error _ -> 0)
 
   Builtin.debug "--- values" 0L
-  measure "build a 2-field record" (fun i -> (Rec { a = i; b = "x" }).a)
+  measure "build a 2-field record" (fun i -> (Rec { a = i, b = "x" }).a)
   measure "update a record field" (fun i ->
-    let r = Rec { a = i; b = "x" }
+    let r = Rec { a = i, b = "x" }
     ({ r with a = i + 1 }).a)
   measure "build a 1-field enum" (fun i ->
     match Enum.One i with

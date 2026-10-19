@@ -12,7 +12,7 @@ let completionPickerState (itemCount: Int) : CompletionPicker.State =
 
 
 test completionPickerTwoRows =
-  let size = Stdlib.Cli.Tui.Size { width = 80; height = 2 }
+  let size = Stdlib.Cli.Tui.Size { width = 80, height = 2 }
   let state = completionPickerState 3
   let layout = CompletionPicker.layoutAtSize state size
   let view = CompletionPicker.viewAtSize state size
@@ -36,10 +36,10 @@ test completionPickerNarrowHelp =
   let width = CompletionPicker.minimumWidth
   let help = CompletionPicker.helpTextAtWidth width
 
-  if CompletionPicker.supportsSize (Stdlib.Cli.Tui.Size { width = width; height = 2 })
+  if CompletionPicker.supportsSize (Stdlib.Cli.Tui.Size { width = width, height = 2 })
      && Stdlib.Bool.not
           (CompletionPicker.supportsSize
-            (Stdlib.Cli.Tui.Size { width = width - 1; height = 2 }))
+            (Stdlib.Cli.Tui.Size { width = width - 1, height = 2 }))
      && help == CompletionPicker.minimumHelpText
      && Stdlib.String.displayWidth help <= width
   then
@@ -50,7 +50,7 @@ test completionPickerNarrowHelp =
 
 
 test completionPickerLongList =
-  let size = Stdlib.Cli.Tui.Size { width = 80; height = 3 }
+  let size = Stdlib.Cli.Tui.Size { width = 80, height = 3 }
   let state = completionPickerState 5
   let layout = CompletionPicker.layoutAtSize state size
   let view = CompletionPicker.viewAtSize state size
@@ -69,7 +69,7 @@ test fullscreenRowCancelsDeferredWrap =
   let output =
     Stdlib.Cli.Tui.Frame.renderRowChangeAtWidth
       3
-      (Stdlib.Cli.Tui.Frame.RowChange { row = 0; content = "abc" })
+      (Stdlib.Cli.Tui.Frame.RowChange { row = 0, content = "abc" })
 
   if Stdlib.String.endsWith output "\r" then
     Stdlib.Test.Result.Pass

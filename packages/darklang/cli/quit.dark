@@ -12,7 +12,7 @@ let execute (state: AppState) (_args: List<String>) : AppState =
       match returnTo with
       | SubApp app -> Page.SubApp (app.onResume ())
       | other -> other
-    { cleared with currentPage = resumed; pageStack = rest }
+    { cleared with currentPage = resumed, pageStack = rest }
   | [] ->
     Stdlib.printLine "Goodbye!"
     { state with isExiting = true }

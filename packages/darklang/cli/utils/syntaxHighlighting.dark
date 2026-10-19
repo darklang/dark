@@ -87,8 +87,8 @@ let splitTokenByLine
 
       let newRange =
         { token.range with
-            start = { token.range.start with row = row; column = startCol }
-            end_ = { token.range.end_ with row = row; column = endCol } }
+            start = { token.range.start with row = row, column = startCol }
+            end_ = { token.range.end_ with row = row, column = endCol } }
 
       { token with range = newRange })
 

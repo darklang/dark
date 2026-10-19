@@ -34,7 +34,7 @@ let aTypeIsUsableByAFunctionAuthoredAfterIt =
           fn
             state
             "Tests.Auth.mk"
-            "let mk (): Tests.Auth.Pair =\n  Tests.Auth.Pair { left = 7401L; right = 7402L }"
+            "let mk (): Tests.Auth.Pair =\n  Tests.Auth.Pair { left = 7401L, right = 7402L }"
 
         do!
           evals
@@ -343,7 +343,7 @@ let traitsAreAuthoredListedAndDisambiguated =
         do!
           evals
             state
-            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })"
+            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L, y = 2L })"
             "alpha"
             "the implementation dispatches"
         do!
@@ -386,7 +386,7 @@ let traitsAreAuthoredListedAndDisambiguated =
             state
             [ "fn"
               "Tests.Tr.callsIt"
-              "() : String = Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })" ]
+              "() : String = Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L, y = 2L })" ]
         do!
           evals
             state
@@ -417,7 +417,7 @@ let traitsAreAuthoredListedAndDisambiguated =
         do!
           evals
             state
-            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })"
+            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L, y = 2L })"
             "beta"
             "the newer implementation runs"
         do!
@@ -476,7 +476,7 @@ let traitsAreAuthoredListedAndDisambiguated =
         do!
           evals
             state
-            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })"
+            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L, y = 2L })"
             // The surviving implementation was edited above, so a fresh call runs its current
             // version, which saved callers have followed automatically too.
             "gamma"

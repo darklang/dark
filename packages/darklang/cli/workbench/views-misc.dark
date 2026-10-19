@@ -20,7 +20,7 @@ let loadBuiltinItems () : List<BodyItem> =
   LanguageTools.allBuiltinFns ()
   |> Stdlib.List.map (fun fn -> fn.name.name)
   |> Stdlib.List.sort
-  |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "builtin"; isModule = false; desc = "" })
+  |> Stdlib.List.map (fun n -> BodyItem { name = n, kind = "builtin", isModule = false, desc = "" })
 
 let builtinDetailLines (state: State) : List<String> =
   match Stdlib.List.getAt state.items state.selected with

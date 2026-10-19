@@ -24,10 +24,10 @@ let hello (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   Stdlib.Http.responseWithText "hello" 200
 
 let handlers =
-  [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = hello }
-    Stdlib.HttpServer.Handler { route = "/items"; method = "GET"; handler = hello }
-    Stdlib.HttpServer.Handler { route = "/items/:id"; method = "GET"; handler = hello }
-    Stdlib.HttpServer.Handler { route = "/health"; method = "GET"; handler = hello } ]
+  [ Stdlib.HttpServer.Handler { route = "/hello", method = "GET", handler = hello }
+    Stdlib.HttpServer.Handler { route = "/items", method = "GET", handler = hello }
+    Stdlib.HttpServer.Handler { route = "/items/:id", method = "GET", handler = hello }
+    Stdlib.HttpServer.Handler { route = "/health", method = "GET", handler = hello } ]
 
 let req =
   Stdlib.Http.Request

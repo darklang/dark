@@ -356,7 +356,7 @@ let prepareDeclarations (env: Model.Environment) : Model.Environment =
               | None -> declarationFacts
             | Error failure ->
               Model.DeclarationFacts
-                { problems = [ failureFinding failure ]; references = [] }) }
+                { problems = [ failureFinding failure ], references = [] }) }
 
   { env with declarationProblems = allDeclarationProblems env }
 

@@ -82,7 +82,7 @@ let findByType
           let fullPath = buildPathFromLocation location.owner location.modules location.name
 
           Stdlib.Option.Option.Some(
-            FoundValue { path = fullPath; value = evaluatedValue }
+            FoundValue { path = fullPath, value = evaluatedValue }
           )
         | None -> Stdlib.Option.Option.None
       else

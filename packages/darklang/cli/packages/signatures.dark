@@ -74,7 +74,7 @@ let formatType
         fields
         |> Stdlib.List.map (fun f ->
           $"{f.name}: {PrettyPrinter.ProgramTypes.typeReference ctx f.typ}")
-        |> Stdlib.String.join "; "
+        |> Stdlib.String.join ", "
       $"{{ {parts} }}"
 
     | Enum cases ->

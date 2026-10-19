@@ -101,7 +101,7 @@ let locationOf
   let modules = if b.modules == "" then [] else Stdlib.String.split b.modules "."
 
   LanguageTools.ProgramTypes.PackageLocation
-    { owner = b.owner; modules = modules; name = b.name }
+    { owner = b.owner, modules = modules, name = b.name }
 
 /// The versions of this name that existed BEFORE the draft's current one -- what dependents may still be
 /// pointing at, and so what propagation has to repoint away from.

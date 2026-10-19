@@ -15,10 +15,10 @@ type Msg =
   | Declined
 
 let ask (question: String) : State =
-  State { question = question; detail = ""; danger = false }
+  State { question = question, detail = "", danger = false }
 
 let askDangerous (question: String) (detail: String) : State =
-  State { question = question; detail = detail; danger = true }
+  State { question = question, detail = detail, danger = true }
 
 
 let onKey (state: State) (kp: Widget.KeyPress) : Widget.Outcome<State, Msg> =

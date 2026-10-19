@@ -41,10 +41,10 @@ let withBadgeTone (f: Frame) (tone: Tone) : Frame =
   { f with badgeTone = tone }
 
 let withMessage (f: Frame) (message: String) : Frame =
-  { f with message = message; messageTone = Tone.Neutral }
+  { f with message = message, messageTone = Tone.Neutral }
 
 let withError (f: Frame) (message: String) : Frame =
-  { f with message = message; messageTone = Tone.Danger }
+  { f with message = message, messageTone = Tone.Danger }
 
 
 // --- Styling ---
@@ -120,7 +120,7 @@ let view
   : Tui.View =
   let width = Stdlib.max 1 size.width
   let height = Stdlib.max 1 size.height
-  let screen = Layout.Region { top = 1; left = 1; rows = height; cols = width }
+  let screen = Layout.Region { top = 1, left = 1, rows = height, cols = width }
   let region = bodyRegion size
 
   let titleSpans =

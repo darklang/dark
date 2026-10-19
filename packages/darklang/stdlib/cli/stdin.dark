@@ -522,7 +522,7 @@ module Key =
 
 module Modifiers =
   type Modifiers =
-    { alt: Bool; ctrl: Bool; shift: Bool }
+    { alt: Bool, ctrl: Bool, shift: Bool }
 
   let toString (m: Modifiers): String =
     let altPart =

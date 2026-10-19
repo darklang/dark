@@ -17,7 +17,7 @@ type Output<'a> =
 
 let defaults () : Options =
   Options
-    { branch = None; timeoutMs = 120000; columns = 80; rows = 24 }
+    { branch = None, timeoutMs = 120000, columns = 80, rows = 24 }
 
 /// Run a named, unapplied package function with explicit arguments. The default
 /// branch is the current test's branch. Stdin is EOF; stdout and stderr are
@@ -43,4 +43,4 @@ let run<'a, 'b>
         "\n"
       |> Error
     | Some result ->
-      Ok (Output { result = result; stdout = stdout; stderr = stderr; exitCode = exitCode; cleanupErrors = cleanupErrors }))
+      Ok (Output { result = result, stdout = stdout, stderr = stderr, exitCode = exitCode, cleanupErrors = cleanupErrors }))

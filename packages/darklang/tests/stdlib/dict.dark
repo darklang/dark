@@ -1,18 +1,18 @@
 module Darklang.Stdlib.Dict.Tests
 
 // `px`/`py` rather than `x`/`y` on purpose. A type is content-addressed, so
-// `{ x: Int64; y: Int64 }` IS every other record of that shape in the store, and
+// `{ x: Int64, y: Int64 }` IS every other record of that shape in the store, and
 // `Darklang.Language.Tests.Equality.ERec` is one. `nonStringKeysDifferentShapesCannotBeCompared`
 // asserts a rendered type NAME, and the renderer picks one name per hash, so sharing a shape with
 // another test file made that assertion depend on which binding won. These field names make the
 // shape unique to this file. `SameShape` below still matches it, which is what its own cases need.
-type Point = { px: Int64; py: Int64 }
+type Point = { px: Int64, py: Int64 }
 
 type PointAlias = Point
 
-type SameShape = { px: Int64; py: Int64 }
+type SameShape = { px: Int64, py: Int64 }
 
-type DifferentShape = { a: Int64; b: Int64 }
+type DifferentShape = { a: Int64, b: Int64 }
 
 type Colour =
   | Red
@@ -20,7 +20,7 @@ type Colour =
 
 type ColourAlias = Colour
 
-val valDict = Dict { 1L: "a"; 2L: "b" }
+val valDict = Dict { 1L: "a", 2L: "b" }
 
 test valDictKeys =
   Stdlib.Dict.keys valDict |> Stdlib.Test.equal [ 1L, 2L ]
@@ -33,11 +33,11 @@ test empty =
   Stdlib.Dict.empty |> Stdlib.Test.equal (Dict { })
 
 test literalRejectsDuplicateKeys =
-  Dict { "a": 1; "a": 2 }
+  Dict { "a": 1, "a": 2 }
   => raises "Cannot add two dictionary entries with the same key \"a\""
 
 test literalRejectsMixedValueTypes =
-  Dict { "a": 1l; "b": "two" }
+  Dict { "a": 1l, "b": "two" }
   => raises "Cannot add a String (\"two\") to a dict of Int32. Failed at key \"b\"."
 
 test filterMap =
@@ -45,13 +45,13 @@ test filterMap =
     [ Stdlib.Dict.filterMap (Dict { }) (fun key value -> 0L)
       |> Stdlib.Test.equal (Dict { })
       Stdlib.Dict.filterMap
-        (Dict { "a": "x"; "b": "y"; "c": "z" })
+        (Dict { "a": "x", "b": "y", "c": "z" })
         (fun key value ->
           if value == "y" then
             None
           else
             Some(key + value))
-      |> Stdlib.Test.equal (Dict { "c": "cz"; "a": "ax" }) ]
+      |> Stdlib.Test.equal (Dict { "c": "cz", "a": "ax" }) ]
 
 // CLEANUP figure out why this isn't failing on the `false` not being an option
 // test filterMapRejectsNonOptionResult =
@@ -67,15 +67,15 @@ test filterMap =
 test filter =
   Stdlib.Test.all
     [ Stdlib.Dict.filter
-        (Dict { "key1": "val1"; "key2": "val2" })
+        (Dict { "key1": "val1", "key2": "val2" })
         (fun k v -> k == "key1")
       |> Stdlib.Test.equal (Dict { "key1": "val1" })
-      Stdlib.Dict.filter (Dict { "key1": 1L; "key2": 3L }) (fun k v -> v < 2L)
+      Stdlib.Dict.filter (Dict { "key1": 1L, "key2": 3L }) (fun k v -> v < 2L)
       |> Stdlib.Test.equal (Dict { "key1": 1L })
       Stdlib.Dict.filter (Dict { }) (fun k v -> 0L) |> Stdlib.Test.equal (Dict { }) ]
 
 test filterRejectsNonBoolPredicate =
-  Stdlib.Dict.filter (Dict { "a": 1L; "b": 2L; "c": 3L }) (fun k v -> 2L)
+  Stdlib.Dict.filter (Dict { "a": 1L, "b": 2L, "c": 3L }) (fun k v -> 2L)
   => raises "Encountered a condition that must be a Bool, but got an Int64 (2)"
 
 test fromListOverwritingDuplicates =
@@ -83,9 +83,9 @@ test fromListOverwritingDuplicates =
     [ Stdlib.Dict.fromListOverwritingDuplicates [] |> Stdlib.Test.equal (Dict { })
       Stdlib.Dict.fromListOverwritingDuplicates
         [ ("duplicate_key", 1L), ("b", 2L), ("duplicate_key", 3L) ]
-      |> Stdlib.Test.equal (Dict { "b": 2L; "duplicate_key": 3L })
+      |> Stdlib.Test.equal (Dict { "b": 2L, "duplicate_key": 3L })
       Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1L), ("b", 2L), ("c", 3L) ]
-      |> Stdlib.Test.equal (Dict { "c": 3L; "b": 2L; "a": 1L })
+      |> Stdlib.Test.equal (Dict { "c": 3L, "b": 2L, "a": 1L })
       Stdlib.Dict.fromListOverwritingDuplicates [ (1L, 2L) ]
       |> Stdlib.Test.equal (Dict { 1L: 2L }) ]
 
@@ -97,13 +97,13 @@ test fromList =
   Stdlib.Test.all
     [ Stdlib.Dict.fromList [] |> Stdlib.Test.equal Some(Dict { })
       Stdlib.Dict.fromList [ ("a", 1L), ("b", 2L), ("c", 3L) ]
-      |> Stdlib.Test.equal Some(Dict { "c": 3L; "b": 2L; "a": 1L })
+      |> Stdlib.Test.equal Some(Dict { "c": 3L, "b": 2L, "a": 1L })
       // CLEANUP this test feels surprising - should it error or something?
       Stdlib.Dict.fromList
         [ ("duplicate_key", 1L), ("b", 2L), ("duplicate_key", 3L) ]
       |> Stdlib.Test.equal None
       Stdlib.Dict.fromList [ ("Content-Length", "0"), ("Server", "dark") ]
-      |> Stdlib.Test.equal Some(Dict { "Content-Length": "0"; "Server": "dark" })
+      |> Stdlib.Test.equal Some(Dict { "Content-Length": "0", "Server": "dark" })
       Stdlib.Dict.fromList [ (1L, 1L) ] |> Stdlib.Test.equal Some(Dict { 1L: 1L }) ]
 
 test get =
@@ -125,23 +125,23 @@ test map =
     [ Stdlib.Dict.map (Dict { }) (fun key value -> 0L)
       |> Stdlib.Test.equal (Dict { })
       Stdlib.Dict.map
-        (Dict { "key1": "val1"; "key2": "val2" })
+        (Dict { "key1": "val1", "key2": "val2" })
         (fun k x -> k + x)
-      |> Stdlib.Test.equal (Dict { "key2": "key2val2"; "key1": "key1val1" })
+      |> Stdlib.Test.equal (Dict { "key2": "key2val2", "key1": "key1val1" })
       Stdlib.Dict.map
-        (Dict { "key1": 5L; "key2": 3L; "key3": 3L })
+        (Dict { "key1": 5L, "key2": 3L, "key3": 3L })
         (fun k x ->
           Stdlib.Bool.and
             (x >= 1L)
             (x <= 4L)
         )
-      |> Stdlib.Test.equal (Dict { "key3": true; "key2": true; "key1": false })
-      Stdlib.Dict.map (Dict { "a": 1L; "b": 2L }) (fun k x -> x + 1L)
-      |> Stdlib.Test.equal (Dict { "b": 3L; "a": 2L }) ]
+      |> Stdlib.Test.equal (Dict { "key3": true, "key2": true, "key1": false })
+      Stdlib.Dict.map (Dict { "a": 1L, "b": 2L }) (fun k x -> x + 1L)
+      |> Stdlib.Test.equal (Dict { "b": 3L, "a": 2L }) ]
 
 test member =
   Stdlib.Test.all
-    [ Stdlib.Dict.member (Dict { "otherKey": 5L; "someKey": 5L }) "someKey"
+    [ Stdlib.Dict.member (Dict { "otherKey": 5L, "someKey": 5L }) "someKey"
       |> Stdlib.Test.equal true
       Stdlib.Dict.member (Dict { "otherKey": 5L }) "someKey"
       |> Stdlib.Test.equal false ]
@@ -150,14 +150,14 @@ test merge =
   Stdlib.Test.all
     [ Stdlib.Dict.merge (Dict { }) (Dict { }) |> Stdlib.Test.equal (Dict { })
       Stdlib.Dict.merge (Dict { "key1": "val1" }) (Dict { "key2": "val2" })
-      |> Stdlib.Test.equal (Dict { "key2": "val2"; "key1": "val1" })
+      |> Stdlib.Test.equal (Dict { "key2": "val2", "key1": "val1" })
       Stdlib.Dict.merge (Dict { "key1": "val_l" }) (Dict { "key1": "val_r" })
       |> Stdlib.Test.equal (Dict { "key1": "val_r" }) ]
 
 test set =
   Stdlib.Test.all
     [ Stdlib.Dict.set (Dict { "key1": "val1" }) "key2" "val2"
-      |> Stdlib.Test.equal (Dict { "key1": "val1"; "key2": "val2" })
+      |> Stdlib.Test.equal (Dict { "key1": "val1", "key2": "val2" })
       Stdlib.Dict.set (Dict { }) "key1" "val1"
       |> Stdlib.Test.equal (Dict { "key1": "val1" })
       Stdlib.Dict.set (Dict { }) "key1" 2L
@@ -168,11 +168,11 @@ test setRejectsExistingKey =
   => raises "Cannot add two dictionary entries with the same key \"key1\""
 
 test setRejectsExistingKeyAmongOthers =
-  Stdlib.Dict.set (Dict { "key1": "val1"; "key2": "val2" }) "key2" "newVal2"
+  Stdlib.Dict.set (Dict { "key1": "val1", "key2": "val2" }) "key2" "newVal2"
   => raises "Cannot add two dictionary entries with the same key \"key2\""
 
 test literalRejectsValueOfAnotherType =
-  Dict { "key1": "val1"; "key2": 2L }
+  Dict { "key1": "val1", "key2": 2L }
   => raises "Cannot add an Int64 (2) to a dict of String. Failed at key \"key2\"."
 
 test setRejectsWrongValueType =
@@ -182,7 +182,7 @@ test setRejectsWrongValueType =
 test setOverridingDuplicates =
   Stdlib.Test.all
     [ Stdlib.Dict.setOverridingDuplicates (Dict { "key1": "val1" }) "key2" "val2"
-      |> Stdlib.Test.equal (Dict { "key1": "val1"; "key2": "val2" })
+      |> Stdlib.Test.equal (Dict { "key1": "val1", "key2": "val2" })
       // (where this differs from .set)
       Stdlib.Dict.setOverridingDuplicates
         (Dict { "key1": "val1before" })
@@ -190,10 +190,10 @@ test setOverridingDuplicates =
         "val1after"
       |> Stdlib.Test.equal (Dict { "key1": "val1after" })
       Stdlib.Dict.setOverridingDuplicates
-        (Dict { "key1": "val1"; "key2": "val2" })
+        (Dict { "key1": "val1", "key2": "val2" })
         "key2"
         "newVal2"
-      |> Stdlib.Test.equal (Dict { "key1": "val1"; "key2": "newVal2" }) ]
+      |> Stdlib.Test.equal (Dict { "key1": "val1", "key2": "newVal2" }) ]
 
 test setOverridingDuplicatesRejectsWrongValueType =
   Stdlib.Dict.setOverridingDuplicates (Dict { "key1": "val1" }) "key2" 2L
@@ -207,13 +207,13 @@ test singleton =
 
 test size =
   Stdlib.Test.all
-    [ Stdlib.Dict.size (Dict { "a": 3L; "b": 1L; "c": 1L }) |> Stdlib.Test.equal 3
+    [ Stdlib.Dict.size (Dict { "a": 3L, "b": 1L, "c": 1L }) |> Stdlib.Test.equal 3
       Stdlib.Dict.size (Dict { }) |> Stdlib.Test.equal 0 ]
 
 test toList =
   Stdlib.Test.all
     [ Stdlib.Dict.toList (Dict { }) |> Stdlib.Test.equal []
-      Stdlib.Dict.toList (Dict { "a": 1L; "b": 2L; "c": 3L })
+      Stdlib.Dict.toList (Dict { "a": 1L, "b": 2L, "c": 3L })
       |> Stdlib.Test.equal [ ("a", 1L), ("b", 2L), ("c", 3L) ] ]
 
 test values =
@@ -221,7 +221,7 @@ test values =
 
 test remove =
   Stdlib.Test.all
-    [ Stdlib.Dict.remove (Dict { "key1": "val1"; "key2": "val2" }) "key1"
+    [ Stdlib.Dict.remove (Dict { "key1": "val1", "key2": "val2" }) "key1"
       |> Stdlib.Test.equal (Dict { "key2": "val2" })
       Stdlib.Dict.remove (Dict { "key1": "val1" }) "key1"
       |> Stdlib.Test.equal (Dict { })
@@ -231,13 +231,13 @@ test remove =
 
 test nonStringKeysInt =
   Stdlib.Test.all
-    [ Stdlib.Dict.get (Dict { 1L: "one"; 2L: "two" }) 2L
+    [ Stdlib.Dict.get (Dict { 1L: "one", 2L: "two" }) 2L
       |> Stdlib.Test.equal (Some "two")
       Stdlib.Dict.get (Dict { 1L: "one" }) 9L |> Stdlib.Test.equal None
       Stdlib.Dict.``member`` (Dict { 1L: "one" }) 1L |> Stdlib.Test.equal true
-      Stdlib.Dict.remove (Dict { 1L: "one"; 2L: "two" }) 1L
+      Stdlib.Dict.remove (Dict { 1L: "one", 2L: "two" }) 1L
       |> Stdlib.Test.equal (Dict { 2L: "two" })
-      Stdlib.Dict.keys (Dict { 2L: "two"; 1L: "one" })
+      Stdlib.Dict.keys (Dict { 2L: "two", 1L: "one" })
       |> Stdlib.Test.equal [ 1L, 2L ] ]
 
 test nonStringKeysTuple =
@@ -258,7 +258,7 @@ test nonStringKeysEnum =
   |> Stdlib.Test.equal (Some "some")
 
 test nonStringKeysOrdering =
-  Stdlib.Dict.keys (Dict { 10L: "a"; 9L: "b"; 100L: "c" })
+  Stdlib.Dict.keys (Dict { 10L: "a", 9L: "b", 100L: "c" })
   |> Stdlib.Test.equal [ 9L, 10L, 100L ]
 
 test nonStringKeysComputedKeys =
@@ -292,7 +292,7 @@ test nonStringKeysFloatKeys =
       (let inf = 1.0 / 0.0
        let ninf = -1.0 / 0.0
        let nan = Stdlib.Float.sqrt -1.0
-       Stdlib.Dict.keys (Dict { inf: 1L; ninf: 2L; 0.0: 3L; nan: 4L }))
+       Stdlib.Dict.keys (Dict { inf: 1L, ninf: 2L, 0.0: 3L, nan: 4L }))
       |> Stdlib.List.map (fun value ->
         if Stdlib.Float.isNaN value then "nan"
         else if value == (-1.0 / 0.0) then "negative infinity"
@@ -305,7 +305,7 @@ test nonStringKeysFloatKeys =
 test nonStringKeysEveryKeyType =
   Stdlib.Test.all
     [ Stdlib.Dict.get (Dict { (): "unit" }) () |> Stdlib.Test.equal (Some "unit")
-      Stdlib.Dict.get (Dict { true: "t"; false: "f" }) true
+      Stdlib.Dict.get (Dict { true: "t", false: "f" }) true
       |> Stdlib.Test.equal (Some "t")
       Stdlib.Dict.get (Dict { 1y: "i8" }) 1y |> Stdlib.Test.equal (Some "i8")
       Stdlib.Dict.get (Dict { 1uy: "u8" }) 1uy |> Stdlib.Test.equal (Some "u8")
@@ -338,12 +338,12 @@ test nonStringKeysEveryKeyType =
         (Some 1L)
       |> Stdlib.Test.equal (Some "enum")
       Stdlib.Dict.get
-        (Dict { Point { px = 1L; py = 2L }: "record" })
-        (Point { px = 1L; py = 2L })
+        (Dict { Point { px = 1L, py = 2L }: "record" })
+        (Point { px = 1L, py = 2L })
       |> Stdlib.Test.equal (Some "record")
       Stdlib.Dict.get
-        (Dict { Point { px = 1L; py = 2L }: "record" })
-        (Point { px = 1L; py = 9L })
+        (Dict { Point { px = 1L, py = 2L }: "record" })
+        (Point { px = 1L, py = 9L })
       |> Stdlib.Test.equal None
       Stdlib.Dict.get
         (Dict { (Dict { 1L: "inner" }): "dict" })
@@ -352,24 +352,24 @@ test nonStringKeysEveryKeyType =
 
 test nonStringKeysKeyOrdering =
   Stdlib.Test.all
-    [ Stdlib.Dict.keys (Dict { true: 1L; false: 2L })
+    [ Stdlib.Dict.keys (Dict { true: 1L, false: 2L })
       |> Stdlib.Test.equal [ false, true ]
-      Stdlib.Dict.keys (Dict { 'c': 1L; 'a': 2L }) |> Stdlib.Test.equal [ 'a', 'c' ]
-      Stdlib.Dict.keys (Dict { 2L: 1L; -3L: 2L; 0L: 3L })
+      Stdlib.Dict.keys (Dict { 'c': 1L, 'a': 2L }) |> Stdlib.Test.equal [ 'a', 'c' ]
+      Stdlib.Dict.keys (Dict { 2L: 1L, -3L: 2L, 0L: 3L })
       |> Stdlib.Test.equal [ -3L, 0L, 2L ]
       Stdlib.Dict.keys
-        (Dict { 9223372036854775808: 1L; 9223372036854775807: 2L; 0: 3L })
+        (Dict { 9223372036854775808: 1L, 9223372036854775807: 2L, 0: 3L })
       |> Stdlib.Test.equal [ 0, 9223372036854775807, 9223372036854775808 ]
-      Stdlib.Dict.keys (Dict { -9223372036854775809: 1L; 0: 2L })
+      Stdlib.Dict.keys (Dict { -9223372036854775809: 1L, 0: 2L })
       |> Stdlib.Test.equal [ -9223372036854775809, 0 ]
-      Stdlib.Dict.keys (Dict { [ 2L ]: 1L; [ 1L, 9L ]: 2L; []: 3L })
+      Stdlib.Dict.keys (Dict { [ 2L ]: 1L, [ 1L, 9L ]: 2L, []: 3L })
       |> Stdlib.Test.equal [ [], [ 1L, 9L ], [ 2L ] ] ]
 
 test nonStringKeysFromListInfersTypes =
   Stdlib.Test.all
     [ Stdlib.Dict.fromList [ (1L, "a"), (1L, "b") ] |> Stdlib.Test.equal None
       Stdlib.Dict.fromList [ (2L, "b"), (1L, "a") ]
-      |> Stdlib.Test.equal Some(Dict { 1L: "a"; 2L: "b" }) ]
+      |> Stdlib.Test.equal Some(Dict { 1L: "a", 2L: "b" }) ]
 
 test nonStringKeysFromListInfersKeyType =
   Stdlib.Dict.set
@@ -395,33 +395,33 @@ test nonStringKeysFromListRejectsLambdaKey =
 
 test nonStringKeysIdentityMatchesEquality =
   Stdlib.Test.all
-    [ (Point { px = 1L; py = 2L }) == (PointAlias { px = 1L; py = 2L })
+    [ (Point { px = 1L, py = 2L }) == (PointAlias { px = 1L, py = 2L })
       |> Stdlib.Test.equal true
       Stdlib.Dict.``member``
-        (Dict { Point { px = 1L; py = 2L }: "p" })
-        (PointAlias { px = 1L; py = 2L })
+        (Dict { Point { px = 1L, py = 2L }: "p" })
+        (PointAlias { px = 1L, py = 2L })
       |> Stdlib.Test.equal true
       (Colour.Blue 1L) == (ColourAlias.Blue 1L) |> Stdlib.Test.equal true
       Stdlib.Dict.``member`` (Dict { Colour.Blue 1L: "c" }) (ColourAlias.Blue 1L)
       |> Stdlib.Test.equal true
-      (Point { px = 1L; py = 2L }) == (SameShape { px = 1L; py = 2L })
+      (Point { px = 1L, py = 2L }) == (SameShape { px = 1L, py = 2L })
       |> Stdlib.Test.equal true
       Stdlib.Dict.``member``
-        (Dict { Point { px = 1L; py = 2L }: "p" })
-        (SameShape { px = 1L; py = 2L })
+        (Dict { Point { px = 1L, py = 2L }: "p" })
+        (SameShape { px = 1L, py = 2L })
       |> Stdlib.Test.equal true ]
 
 test nonStringKeysDifferentShapesCannotBeCompared =
-  (Point { px = 1L; py = 2L }) == (DifferentShape { a = 1L; b = 2L })
+  (Point { px = 1L, py = 2L }) == (DifferentShape { a = 1L, b = 2L })
   => raises "Cannot perform equality check on Darklang.Stdlib.Dict.Tests.SameShape and Darklang.Stdlib.Dict.Tests.DifferentShape"
 
 test nonStringKeysRecordFieldOrder =
   Stdlib.Test.all
-    [ (Point { px = 1L; py = 2L }) == (Point { py = 2L; px = 1L })
+    [ (Point { px = 1L, py = 2L }) == (Point { py = 2L, px = 1L })
       |> Stdlib.Test.equal true
       Stdlib.Dict.``member``
-        (Dict { Point { px = 1L; py = 2L }: "p" })
-        (Point { py = 2L; px = 1L })
+        (Dict { Point { px = 1L, py = 2L }: "p" })
+        (Point { py = 2L, px = 1L })
       |> Stdlib.Test.equal true ]
 
 test nonStringKeysNestedDictOrder =
@@ -434,18 +434,18 @@ test nonStringKeysNestedDictOrder =
 test nonStringKeysDeepComposites =
   Stdlib.Test.all
     [ Stdlib.Dict.``member``
-        (Dict { ([ Point { px = 1L; py = 2L } ], "s"): "d" })
-        (([ Point { px = 1L; py = 2L } ], "s"))
+        (Dict { ([ Point { px = 1L, py = 2L } ], "s"): "d" })
+        (([ Point { px = 1L, py = 2L } ], "s"))
       |> Stdlib.Test.equal true
       Stdlib.Dict.``member``
-        (Dict { ([ Point { px = 1L; py = 2L } ], "s"): "d" })
-        (([ Point { px = 1L; py = 9L } ], "s"))
+        (Dict { ([ Point { px = 1L, py = 2L } ], "s"): "d" })
+        (([ Point { px = 1L, py = 9L } ], "s"))
       |> Stdlib.Test.equal false
       Stdlib.Dict.``member`` (Dict { [ [ 1L ] ]: "a" }) [ [ 1L ], [] ]
       |> Stdlib.Test.equal false
       Stdlib.Dict.``member`` (Dict { [ [ 1L ], [] ]: "a" }) [ [ 1L ] ]
       |> Stdlib.Test.equal false
-      Stdlib.Dict.keys (Dict { [ [ 2L ] ]: 1L; [ [ 1L ], [ 3L ] ]: 2L })
+      Stdlib.Dict.keys (Dict { [ [ 2L ] ]: 1L, [ [ 1L ], [ 3L ] ]: 2L })
       |> Stdlib.Test.equal [ [ [ 1L ], [ 3L ] ], [ [ 2L ] ] ] ]
 
 test nonStringKeysRejectsLambdaInList =
@@ -461,7 +461,7 @@ test nonStringKeysRejectsLambdaInEnum =
   => raises "Cannot use Some((lambda)) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
 test nonStringKeysLiteralRejectsMixedKeyTypes =
-  Dict { 1L: "a"; "b": "c" }
+  Dict { 1L: "a", "b": "c" }
   => raises "This dict uses keys of type Int64, but \"b\" has type String."
 
 test nonStringKeysLiteralRejectsLambdaKey =
@@ -495,7 +495,7 @@ test nonStringKeysRemoveRejectsLambdaKey =
 // Supply the dict so the callback executes and its invalid Bool result is rejected.
 test filterMapRejectsNonOptionResult =
   Stdlib.Dict.filterMap
-    (Dict { "a": "x"; "b": "y"; "c": "z" })
+    (Dict { "a": "x", "b": "y", "c": "z" })
     (fun key value -> if value == "y" then false else Some(key + value))
   => raises "No matching case found for value false in match expression"
 

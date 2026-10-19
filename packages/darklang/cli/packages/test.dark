@@ -406,7 +406,7 @@ let runTestsInRun
   // Limit the default even on large machines: every slot owns a process and a
   // writable store copy. --jobs lets callers tune this or choose a serial run.
   let cores = Stdlib.Exec.workers ()
-  let defaults = RunOptions { force = false; jobs = (if cores < 4 then cores else 4); filters = [] }
+  let defaults = RunOptions { force = false, jobs = (if cores < 4 then cores else 4), filters = [] }
   match parseRunOptions defaults args with
   | Error message ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
@@ -439,7 +439,7 @@ let runTestsInRun
         || Stdlib.List.any options.filters (fun f -> selects f (fullPath item)))
 
     let initial =
-      Counts { passed = 0; failed = 0; cached = 0; ran = 0 }
+      Counts { passed = 0, failed = 0, cached = 0, ran = 0 }
     let counts =
       runSelected
         run

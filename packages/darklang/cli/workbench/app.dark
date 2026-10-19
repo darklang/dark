@@ -79,7 +79,7 @@ let onStoreChanged (state: State) (change: Stdlib.Live.Change) : State =
         Stdlib.String.join (Stdlib.Live.touchedNames change) ", "
 
     forceScmRefresh
-      { state with items = reloadItems state; messageKind = MessageKind.Succeeded; message = $"changed elsewhere: {names}" }
+      { state with items = reloadItems state, messageKind = MessageKind.Succeeded, message = $"changed elsewhere: {names}" }
   else
     // Quiet. Without `--live` you did not ask to hear about someone else's edit, and a footer
     // that keeps announcing one is the same interruption as the reload, minus the usefulness.
@@ -206,7 +206,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
   // Seed the badge cache for the first frame; `presentState` keeps it fresh after that. The view peek needs no
   // seeding - the first frame is Home, which has no `render` fn to peek at.
   let (wip, deprecated) = readBadges state
-  let state = { state with wipNames = wip; deprecatedNames = deprecated }
+  let state = { state with wipNames = wip, deprecatedNames = deprecated }
   // Seed the context row from the same draft Home was built from.
   let state = { state with scmStatus = scmStatusFrom branchId draft }
   // Launching is what enters the alternate screen and paints the first frame; from here on the renderer

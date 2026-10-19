@@ -24,8 +24,8 @@ let content () : String =
   (a, b)      tuple
 
 ## Records
-  type Person = { name: String; age: Int }
-  Person { name = "Jo"; age = 30 }
+  type Person = { name: String, age: Int }
+  Person { name = "Jo", age = 30 }
 
 ## Enums
   type Status = | Active | Inactive of String

@@ -92,11 +92,11 @@ let present (c: Component<'s>) (session: Session<'s>) (state: 's) : Session<'s> 
   let terminal =
     Stdlib.Cli.Tui.TerminalSession.presentAtSize session.terminal size (c.view state size)
 
-  Session { state = state; terminal = terminal }
+  Session { state = state, terminal = terminal }
 
 /// Carry the state forward without repainting - for steps that hand the terminal to someone else.
 let handOff (session: Session<'s>) (state: 's) : Session<'s> =
-  Session { state = state; terminal = session.terminal }
+  Session { state = state, terminal = session.terminal }
 
 let toSubApp (c: Component<'s>) (session: Session<'s>) : Cli.SubApp =
   Cli.SubApp
@@ -132,7 +132,7 @@ let toSubApp (c: Component<'s>) (session: Session<'s>) : Cli.SubApp =
           let terminal =
             Stdlib.Cli.Tui.TerminalSession.resumed (fun size -> c.view session.state size)
 
-          toSubApp c (Session { state = session.state; terminal = terminal })
+          toSubApp c (Session { state = session.state, terminal = terminal })
       onStoreChanged =
         fun change -> toSubApp c (present c session (c.onStoreChanged session.state change)) }
 
@@ -143,7 +143,7 @@ let launch (cliState: Cli.AppState) (c: Component<'s>) (init: 's) : Cli.AppState
 
   match Stdlib.Cli.Tui.TerminalSession.startAtSize size (c.view init size) with
   | Ok terminal ->
-    let session = Session { state = init; terminal = terminal }
+    let session = Session { state = init, terminal = terminal }
     { cliState with currentPage = Cli.Page.SubApp (toSubApp c session) }
   | Error message ->
     Stdlib.printLine message
@@ -159,7 +159,7 @@ let launchOrExit (cliState: Cli.AppState) (c: Component<'s>) (init: 's) : Cli.Ap
 
   match Stdlib.Cli.Tui.TerminalSession.startAtSize size (c.view init size) with
   | Ok terminal ->
-    let session = Session { state = init; terminal = terminal }
+    let session = Session { state = init, terminal = terminal }
     { cliState with currentPage = Cli.Page.SubApp (toSubApp c session) }
   | Error message ->
     Stdlib.printLine message

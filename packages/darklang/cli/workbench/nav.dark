@@ -60,7 +60,7 @@ let moveToPoint (state: State) (point: ReturnPoint) (recordHistory: Bool) : Stat
   let selected =
     Stdlib.max 0
       (Stdlib.min point.selected ((Stdlib.List.length items) - 1))
-  focusContent (fixSelection { restored with items = items; selected = selected })
+  focusContent (fixSelection { restored with items = items, selected = selected })
 
 /// What esc will return to, for the footer: the module you were in, or the
 /// view you came from; "" on Home with nowhere left to go.
@@ -186,7 +186,7 @@ let navUp (state: State) : Step =
         let s = selectableRow state.items target (0 - 1)
         if s > state.selected then state.selected else s
       else target
-    Step.Continue { state with selected = landed; detailScroll = 0 }
+    Step.Continue { state with selected = landed, detailScroll = 0 }
 
 /// Down: scroll the inspector when it's focused, else move the list selection down.
 let navDown (state: State) : Step =
@@ -203,16 +203,16 @@ let navDown (state: State) : Step =
         let s = selectableRow state.items target 1
         if s < state.selected then state.selected else s
       else target
-    Step.Continue { state with selected = landed; detailScroll = 0 }
+    Step.Continue { state with selected = landed, detailScroll = 0 }
 
 /// Jump to the top / bottom of the list (Home / End).
 let navTop (state: State) : Step =
   let top = if isSectioned state then selectableRow state.items 0 1 else 0
-  Step.Continue { state with selected = top; detailScroll = 0 }
+  Step.Continue { state with selected = top, detailScroll = 0 }
 
 let navBottom (state: State) : Step =
   let maxIdx = Stdlib.max 0 ((Stdlib.List.length state.items) - 1)
-  Step.Continue { state with selected = maxIdx; detailScroll = 0 }
+  Step.Continue { state with selected = maxIdx, detailScroll = 0 }
 
 /// Open the full-screen reader on `content`. `isCode` toggles syntax highlighting (true for source, false for
 /// docs/help/search/ops). Resets scroll.
@@ -226,7 +226,7 @@ let openReader (state: State) (content: String) (isCode: Bool) : Step =
 /// Resolve the selected conflict (Conflicts view): keep ours (local), theirs (incoming), or just acknowledge.
 let resolveConflict (state: State) (which: String) : Step =
   match selectedConflict state with
-  | None -> Step.Continue { state with messageKind = MessageKind.Refused; message = "no conflict selected" }
+  | None -> Step.Continue { state with messageKind = MessageKind.Refused, message = "no conflict selected" }
   | Some c ->
     // `Candidate.side` holds "local" / "incoming", so those are the only two labels that match. A label
     // that matches nothing yields "", and an empty hash reaching the resolver binds a live name to
@@ -257,7 +257,7 @@ let resolveConflict (state: State) (which: String) : Step =
     let refreshed = forceScmRefresh state
 
     Step.Continue
-      { refreshed with items = reloadItems refreshed; selected = 0; messageKind = kind; message = message }
+      { refreshed with items = reloadItems refreshed, selected = 0, messageKind = kind, message = message }
 
 /// Run a top-level command in-frame (captured) and show its output in the reader.
 let runCommandInFrame (state: State) (command: String) (args: List<String>) : Step =

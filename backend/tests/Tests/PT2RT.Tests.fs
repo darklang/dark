@@ -198,7 +198,7 @@ module Expr =
 
     let multEntries =
       t
-        "Dict { \"t\": true; \"f\": false }"
+        "Dict { \"t\": true, \"f\": false }"
         E.Dict.multEntries
         (5,
          [ RT.LoadVal(1, RT.DString "t")
@@ -210,7 +210,7 @@ module Expr =
 
     let dupeKey =
       t
-        "Dict { \"t\": true; \"f\": false; \"t\": false }"
+        "Dict { \"t\": true, \"f\": false, \"t\": false }"
         E.Dict.dupeKey
         (7,
          [ RT.LoadVal(1, RT.DString "t")

@@ -313,7 +313,7 @@ let printJson () : Unit =
     |> Stdlib.List.filter (fun m -> (Stdlib.Int.fromInt64 m.pid) != me)
   Stdlib.printLine
     (Stdlib.Json.serialize<PsSnapshot>
-      (PsSnapshot { thisInstance = processes; machine = machine }))
+      (PsSnapshot { thisInstance = processes, machine = machine }))
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
@@ -450,7 +450,7 @@ module Watch =
     // walks the rows in the order they are drawn.
     Stdlib.List.append local machine
 
-  let init () : Model = Model { rows = gather (); cursor = 0; note = "" }
+  let init () : Model = Model { rows = gather (), cursor = 0, note = "" }
 
   let clamp (m: Model) : Model =
     let n = Stdlib.List.length m.rows
@@ -476,8 +476,8 @@ module Watch =
     | Tick | Msg Refresh -> clamp { m with rows = gather () }
     | Key k ->
       match k.key with
-      | UpArrow -> clamp { m with cursor = m.cursor - 1; note = "" }
-      | DownArrow -> clamp { m with cursor = m.cursor + 1; note = "" }
+      | UpArrow -> clamp { m with cursor = m.cursor - 1, note = "" }
+      | DownArrow -> clamp { m with cursor = m.cursor + 1, note = "" }
       | _ ->
         match k.char with
         | Some "c" -> act m false

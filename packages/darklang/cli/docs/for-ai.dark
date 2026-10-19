@@ -374,6 +374,9 @@ Rules:
   args written after the fn come after it: `[1, 2] |> Stdlib.List.map toString`,
   `n |> (+) 1`. Wrap a complex left side in parens: (complex expr) |> fn
 - Lists: [1, 2, 3] (commas; a semicolon is a parse error)
+- Dicts and records use commas or newlines, never semicolons:
+  `Dict { "a": 1, "b": 2 }`, `Point { x = 1, y = 2 }`,
+  `type Point = { x: Int, y: Int }`, `{ point with x = 3, y = 4 }`.
 - Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
   double quotes; "a" is not 'a')
 - Tuples destructure inline in `let` and in lambda params:
@@ -403,7 +406,7 @@ Rules:
   there needs parens: `| A -> (a | b)`.
 
 ## Records
-  MyRecord { a = 1; b = 2 }
+  MyRecord { a = 1, b = 2 }
   # { must not be left of type name
 
 ## Enums

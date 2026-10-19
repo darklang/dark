@@ -292,7 +292,7 @@ let traceJson (branchId: Uuid) (trace: Darklang.Tracing.Trace) : TraceJson =
         trace.parent
         |> Stdlib.Option.map (fun p ->
           let (id, at) = p
-          ForkJson { trace = id; at = at })
+          ForkJson { trace = id, at = at })
       created = trace.created
       updated = trace.updated }
 
@@ -333,7 +333,7 @@ let printInspectJson (branchId: Uuid) (prefix: String) : Bool =
       | None -> []
     Stdlib.printLine
       (Stdlib.Json.serialize<TraceWithCallsJson>
-        (TraceWithCallsJson { trace = traceJson branchId trace; calls = calls }))
+        (TraceWithCallsJson { trace = traceJson branchId trace, calls = calls }))
     true
 
 
@@ -627,7 +627,7 @@ let showCodeJson
 
         LoopJson
           { name = loop.name
-            fn = FnRef { name = loop.fnName; hash = loop.fnHash }
+            fn = FnRef { name = loop.fnName, hash = loop.fnHash }
             count = Stdlib.List.length loop.iterations
             iterations = iterations })
 
@@ -635,7 +635,7 @@ let showCodeJson
       (Stdlib.Json.serialize<ValuesJson>
         (ValuesJson
           { trace = trace.id
-            fn = FnRef { name = fnName; hash = selfHash }
+            fn = FnRef { name = fnName, hash = selfHash }
             values = values
             loops = loopsJson
             problem = problemJson branchId trace.id problem }))

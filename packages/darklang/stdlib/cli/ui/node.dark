@@ -334,7 +334,7 @@ let toSpans (node: Node<'msg>) (region: Layout.Region) (focus: String) : List<La
 let toRows (node: Node<'msg>) (width: Int) (focus: String) : List<String> =
   let (rows, _) = measure node
   let w = Stdlib.max 1 width
-  let region = Layout.Region { top = 1; left = 1; rows = rows; cols = w }
+  let region = Layout.Region { top = 1, left = 1, rows = rows, cols = w }
   Canvas.compose w rows (toSpans node region focus) |> Stdlib.List.map Stdlib.String.trimEnd
 
 /// Paint <param node> as plain rows at <param width>, as tall as it measures: for printing a tree

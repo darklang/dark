@@ -8,7 +8,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   let parsed =
     Cli.FlagParser.parse
-      (Cli.FlagParser.Spec { flags = [ ("--yes", [ "-y" ]) ]; valueFlags = [ ("--to", []) ] })
+      (Cli.FlagParser.Spec { flags = [ ("--yes", [ "-y" ]) ], valueFlags = [ ("--to", []) ] })
       args
 
   match parsed.errors with

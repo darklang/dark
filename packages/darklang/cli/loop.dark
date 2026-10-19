@@ -22,7 +22,7 @@ let withModeHint (state: AppState) (view: Stdlib.Cli.Tui.View) : Stdlib.Cli.Tui.
     // The prompt's cursor is addressed against its own rows, so inserting a row above it moves it down one.
     match view.cursor with
     | Visible(row, column) ->
-      { view with rows = rows; cursor = Stdlib.Cli.Tui.Cursor.Visible(row + 1, column) }
+      { view with rows = rows, cursor = Stdlib.Cli.Tui.Cursor.Visible(row + 1, column) }
     | Hidden -> { view with rows = rows }
 
 
@@ -242,7 +242,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
           match returnTo with
           | SubApp app -> Page.SubApp (app.onResume ())
           | other -> other
-        { state with currentPage = resumed; pageStack = rest }
+        { state with currentPage = resumed, pageStack = rest }
       | [] ->
         // The workbench is the experience: leaving it leaves the CLI, no classic-prompt fallback.
         // (The classic prompt is only reachable via DARK_CLASSIC=1 at launch.)

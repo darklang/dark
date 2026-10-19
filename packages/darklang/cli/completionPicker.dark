@@ -241,7 +241,7 @@ let startAtSize
     match Stdlib.Cli.Tui.TerminalSession.startAtSize size (viewAtSize state size) with
     | Ok terminal ->
       Stdlib.Result.Result.Ok
-        (Session { state = state; terminal = terminal })
+        (Session { state = state, terminal = terminal })
     | Error message ->
       Stdlib.Result.Result.Error message
 
@@ -255,7 +255,7 @@ let presentAtSize
       session.terminal
       size
       (viewAtSize state size)
-  Session { state = state; terminal = terminal }
+  Session { state = state, terminal = terminal }
 
 /// Stop the session, erasing the picker region in the same update.
 ///
@@ -270,4 +270,4 @@ let stop (session: Session) : Session =
     }
   let terminal =
     Stdlib.Cli.Tui.TerminalSession.stopInlineWithView session.terminal cleared
-  Session { state = session.state; terminal = terminal }
+  Session { state = session.state, terminal = terminal }

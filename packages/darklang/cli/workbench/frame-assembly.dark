@@ -12,7 +12,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
   let h = if size.height < 8 then 24 else size.height
   let w = if size.width < 24 then 80 else size.width
   // Full height now: the last row used to be reserved for the CLI's status bar, and that's gone.
-  let screen = Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
+  let screen = Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = h, cols = w }
   let branch = state.scmStatus.branchName
   // Off the cached SCM status rather than a query here. This runs per keypress, and it drives both the
   // navbar's Changes badge and the context line, so it has to agree with what Home and the Changes view
@@ -212,7 +212,7 @@ let renderCommandCompletions (state: State) (screen: Stdlib.Cli.UI.Layout.Region
         let footerRow = screen.top + screen.rows - 1
         let top = Stdlib.max screen.top (footerRow - boxRows)
         // Full width so it fully covers the body band underneath (no bleed-through of the body's box borders).
-        let region = Stdlib.Cli.UI.Layout.Region { top = top; left = screen.left; rows = boxRows; cols = screen.cols }
+        let region = Stdlib.Cli.UI.Layout.Region { top = top, left = screen.left, rows = boxRows, cols = screen.cols }
         Stdlib.Cli.UI.Box.panel region "complete  ·  tab to accept" true (fun inner ->
           let rows =
             items
@@ -238,7 +238,7 @@ let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View 
       // width, so the single-line version lost its tail -- and the tail was the size you needed, which is
       // the only thing the message is for. Both lines fit in 24.
       let screen =
-        Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = size.height; cols = size.width }
+        Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = size.height, cols = size.width }
 
       let centred (text: String) (row: Int) : List<Stdlib.Cli.UI.Layout.Span> =
         let col =
