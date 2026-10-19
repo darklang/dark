@@ -184,16 +184,7 @@ let private parseSingleExpr (snippet : string) : Option<WT.Expr> =
   | _ -> None
 
 let tests =
-  // SEQUENCED, and not because these tests touch the store: they don't, they only
-  // read it. It's that resolving a name is a read of `locations`, and other tests in
-  // the parallel phase rewrite the op log and re-fold that projection out from under
-  // them. During such a window a lookup for something as ordinary as
-  // `Stdlib.printLine` misses, whichever side happened to ask, and the differential
-  // reports a lowering divergence that isn't one. That failure moves around with
-  // test timing and with which snippets the sample happens to land on, so it reads
-  // as a mysterious intermittent parser bug.
-  testSequenced
-  <| testList
+  testList
     "WrittenTypesLoweringParity"
     [ testTask "F# and Dark lowerings agree on corpus expressions (modulo node ids)" {
         let root =
