@@ -1387,7 +1387,41 @@ module Reload =
       Expect.equal after (RT.DInt64 one) "the held reference still answers as before"
     }
 
-  let tests = testList "Reload" [ heldReferencesKeepTheirHash ]
+  /// A lookup that started before an edit and finished after it must not leave what it read in
+  /// the cache the edit cleared, or the old answer comes back until something else drops it.
+  let lookupStillRunningAtAnEditIsNotKept =
+    let check
+      (name : string)
+      (makeCache : (string -> Ply<Option<int>>) -> (string -> Ply<Option<int>>))
+      (before : Option<int>)
+      =
+      testTask name {
+        let gate = System.Threading.Tasks.TaskCompletionSource<unit>()
+        let store = ref before
+        let lookup =
+          makeCache (fun _ ->
+            uply {
+              let seen = store.Value
+              do! gate.Task // the query is still running...
+              return seen
+            })
+        let running = lookup "k" |> Ply.toTask
+        store.Value <- Some 2 // ...when an edit changes the store and drops the caches
+        LibDB.Caching.invalidateAll ()
+        gate.SetResult()
+        let! _ = running
+        let! after = lookup "k" |> Ply.toTask
+        Expect.equal after (Some 2) "the next lookup sees the edit"
+      }
+    testList
+      "a lookup still running when the caches are dropped does not keep what it read"
+      [ check "a found answer" LibDB.Caching.withCache (Some 1)
+        check "a remembered miss" LibDB.Caching.withNegativeCache None ]
+
+  let tests =
+    testList
+      "Reload"
+      [ heldReferencesKeepTheirHash; lookupStillRunningAtAnEditIsNotKept ]
 
 
 /// A bounded fn remembers that its bounds held, so it does not prove them again on every call.

@@ -24,7 +24,7 @@ let register (clear : unit -> unit) : unit = clearActions.Add clear
 /// interpreter's impl selections) can tell that the store moved under it. Mutable
 /// because `Interlocked.Increment` needs a byref.
 let mutable private generationCounter = 0
-let generation () : int = generationCounter
+let generation () : int = System.Threading.Volatile.Read(&generationCounter)
 
 /// Drop every cache. Called whenever ops fold or `locations` is written directly.
 ///
@@ -35,6 +35,20 @@ let invalidateAll () : unit =
   System.Threading.Interlocked.Increment(&generationCounter) |> ignore<int>
   for clear in clearActions do
     clear ()
+
+/// A lookup can finish after a save clears the cache and put an old answer back.
+/// Check whether the cache was cleared while we were looking up the answer, and again
+/// after adding it. We might remove a newer answer too, but it can be looked up again.
+let private addIfStillCurrent
+  (cache : ConcurrentDictionary<'key, 'value>)
+  (generationAtStart : int)
+  (key : 'key)
+  (value : 'value)
+  : unit =
+  if generation () = generationAtStart then
+    cache.TryAdd(key, value) |> ignore<bool>
+    if generation () <> generationAtStart then
+      cache.TryRemove(key) |> ignore<bool * 'value>
 
 let withCache (f : 'key -> Ply<Option<'value>>) =
   // Holds the `Some` wrapper rather than the value, so a hit hands back the same option object instead
@@ -53,9 +67,10 @@ let withCache (f : 'key -> Ply<Option<'value>>) =
       Ply cached
     else
       uply {
+        let generationAtStart = generation ()
         let! result = f key
         match result with
-        | Some _ -> cache.TryAdd(key, result) |> ignore<bool>
+        | Some _ -> addIfStillCurrent cache generationAtStart key result
         | None -> ()
         return result
       }
@@ -76,7 +91,8 @@ let withNegativeCache (f : 'key -> Ply<Option<'value>>) =
       Ply cached
     else
       uply {
+        let generationAtStart = generation ()
         let! result = f key
-        cache.TryAdd(key, result) |> ignore<bool>
+        addIfStillCurrent cache generationAtStart key result
         return result
       }

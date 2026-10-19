@@ -421,7 +421,7 @@ jobs:
   # embedded a corrupt seed into every artifact it produced.
   seed-db:
     executor: in-container
-    resource_class: xlarge
+    resource_class: large
     steps:
       - darkcheckout
       - setup-app
@@ -467,7 +467,7 @@ jobs:
   # gcc in dark-base rejects ilc's `--target=<triple>` and the link fails.
   build-cli-linux-glibc:
     executor: release-linux
-    resource_class: xlarge
+    resource_class: large
     steps:
       - checkout
       - attach_workspace: { at: "." }
@@ -562,25 +562,24 @@ jobs:
             grep -q 'Ok("/' /tmp/cwd.out
       - package-clis
 
-  # The runtimes NativeAOT can't produce, built as ReadyToRun so that a tag
-  # still yields a complete set. armv7's AOT runtime wants glibc symbols from
-  # well above our floor, which is a runtime requirement rather than a
-  # toolchain gap, so it stays R2R and is built here rather than on main.
+  # The runtimes built as ReadyToRun instead of AOT:
+  # - linux-arm: AOT for armv7 needs a newer glibc than we support.
+  # - osx-x64: R2R doesn't need a Mac, so it's built here, where it costs far less.
   build-cli-r2r-extras:
     executor: release-linux
-    resource_class: xlarge
+    resource_class: large
     steps:
       - checkout
       - attach_workspace: { at: "." }
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - run:
-          name: R2R-publish the runtimes that can't do AOT
+          name: R2R-publish linux-arm and osx-x64
           command: |
             ./scripts/build/build-release-cli-exes.sh \
               --mode=r2r \
               --seed=rundir/seed.db \
-              --runtimes=linux-arm
+              --runtimes=linux-arm,osx-x64
       - package-clis
 
   build-cli-linux-musl:
@@ -638,6 +637,15 @@ jobs:
       # build-sqlite.sh writes to app/backend/src/Cli/lib relative to ~, so
       # the checkout has to live at ~/app here the same as it does in the
       # container. That's what working_directory on the executor is for.
+      #
+      # Restore the SQLite archive first: zig is only needed to build it, so on a cache
+      # hit zig isn't installed.
+      - run:
+          name: Hash build-sqlite.sh for cache key
+          command: shasum scripts/build/build-sqlite.sh > ../sqlite-checksum
+      - restore_cache:
+          keys:
+            - v1-sqlite-archives-macos-{{ checksum "../sqlite-checksum" }}
       - run:
           name: Install build dependencies
           command: |
@@ -652,34 +660,24 @@ jobs:
             curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
             bash dotnet-install.sh --version "$SDK" --install-dir "$HOME/.dotnet"
             echo 'export PATH="$HOME/.dotnet:$PATH"' >> "$BASH_ENV"
-            brew install zig
-            mkdir -p "$HOME/zig" && ln -sf "$(which zig)" "$HOME/zig/zig"
+            if [[ -f backend/src/Cli/lib/libe_sqlite3-osx-arm64.a ]]; then
+              echo "SQLite archive restored from cache; zig not needed."
+            else
+              HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install zig
+              mkdir -p "$HOME/zig" && ln -sf "$(which zig)" "$HOME/zig/zig"
+            fi
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - run:
-          name: Hash build-sqlite.sh for cache key
-          command: shasum scripts/build/build-sqlite.sh > ../sqlite-checksum
-      - restore_cache:
-          keys:
-            - v1-sqlite-archives-macos-{{ checksum "../sqlite-checksum" }}
-      - run:
           name: Build SQLite static archives (skips on cache hit)
-          command: ./scripts/build/build-sqlite.sh --runtimes=osx-arm64,osx-x64
+          command: ./scripts/build/build-sqlite.sh --runtimes=osx-arm64
       - save_cache:
           paths:
             - backend/src/Cli/lib
           key: v1-sqlite-archives-macos-{{ checksum "../sqlite-checksum" }}
-      # Deliberately two separate invocations, not one --mode=auto over both.
-      #
-      # osx-x64 from an arm64 Mac is cross-architecture. `auto` would pick AOT
-      # for it (same OS family passes the capability check) and then fail the
-      # whole release if ilc doesn't cooperate, which nobody has ever tested.
-      # An earlier version of this comment claimed auto would fall back; it
-      # would not. So Apple Silicon gets AOT and Intel gets R2R, and the
-      # release can't be held hostage to an unknown.
-      #
-      # Trying AOT for osx-x64 is worth doing once someone can verify the
-      # result on an Intel Mac. Until then this is the honest configuration.
+      # Only osx-arm64 (Apple Silicon) is built here. osx-x64 (Intel) is built in
+      # build-cli-r2r-extras, as R2R rather than AOT: CircleCI has no Intel Macs to test an
+      # AOT build on.
       - run:
           name: AOT-publish osx-arm64
           command: |
@@ -687,13 +685,6 @@ jobs:
               --mode=aot \
               --seed=rundir/seed.db \
               --runtimes=osx-arm64
-      - run:
-          name: R2R-publish osx-x64
-          command: |
-            ./scripts/build/build-release-cli-exes.sh \
-              --mode=r2r \
-              --seed=rundir/seed.db \
-              --runtimes=osx-x64
       - run:
           name: Validate the osx-arm64 artifact
           command: |
