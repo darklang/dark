@@ -219,9 +219,7 @@ let dbytesEphemeralDarkBridge =
     Expect.isTrue (obj.ReferenceEquals(restored, original)) "same live value"
     match dbytesRef original with
     | RT.Ephemeral eph ->
-      Expect.isFalse
-        eph.contentHash.IsValueCreated
-        "reflection does not force hashing"
+      Expect.isFalse eph.IsHashed "reflection does not force hashing"
     | _ -> failtest "reflection must not promote bytes"
   }
 
@@ -263,8 +261,7 @@ let byteLengthDoesNotReadStorage =
         |> Ply.toTask
       Expect.equal actual (RT.Dval.int 3I) "length comes from the reference"
     match dbytesRef inMemory with
-    | RT.Ephemeral eph ->
-      Expect.isFalse eph.contentHash.IsValueCreated "length does not hash bytes"
+    | RT.Ephemeral eph -> Expect.isFalse eph.IsHashed "length does not hash bytes"
     | _ -> failtest "length must not promote bytes"
   }
 
@@ -679,13 +676,13 @@ let byteHashingIsLazy =
     let ref = dbytesRef original
     match ref with
     | RT.Ephemeral e ->
-      Expect.isFalse e.contentHash.IsValueCreated "creating bytes does not hash them"
+      Expect.isFalse e.IsHashed "creating bytes does not hash them"
       Expect.equal ref.Length 3L "length is available without hashing"
       Expect.isTrue (Equals.equals original original) "reflexive equality"
-      Expect.isFalse e.contentHash.IsValueCreated "self-comparison does not hash"
+      Expect.isFalse e.IsHashed "self-comparison does not hash"
       let expectedHash = Bytes.sha256Hex e.bytes
       Expect.equal ref.ContentHash expectedHash "content hash matches storage format"
-      Expect.isTrue e.contentHash.IsValueCreated "hash is now cached"
+      Expect.isTrue e.IsHashed "hash is now cached"
       let mutable writes = 0
       let insert h bytes =
         writes <- writes + 1

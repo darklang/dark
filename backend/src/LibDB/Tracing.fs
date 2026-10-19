@@ -428,17 +428,15 @@ let private makeStoreFnResult
 /// store time to the frames a recorded call actually sits under.
 /// Whether the call a resume is about to answer is the call the log recorded at that step.
 module ReplayCheck =
-  /// The arguments as the recorder would have stored them, so the two sides compare like for
-  /// like: redacted the same way, an ephemeral blob by the hash its stored form names (nothing
-  /// is persisted), a stream as its stub. A function value compares equal to any other: what
-  /// it closes over is not something the log can be held to.
+  /// The arguments changed the way the trace changed them when it stored them, so a
+  /// call can be compared with its recording: secrets redacted, and streams replaced
+  /// by their stub. Bytes need no change, because saved and unsaved Bytes with the
+  /// same contents are already equal. Every function value is replaced by Unit, so
+  /// any function matches any other: the trace can't record what a function captures.
   let private asStored (builtin : string) (args : List<RT.Dval>) : List<RT.Dval> =
     let leaf (dv : RT.Dval) : Ply.Ply<RT.Dval option> =
       uply {
         match dv with
-        | RT.DBytes(RT.Ephemeral eph) ->
-          let n : int64 = System.Convert.ToInt64 eph.bytes.Length
-          return Some(RT.DBytes(RT.Persistent(eph.contentHash.Value, n)))
         | RT.DStream(impl, _, _) -> return Some(RTToDT.Dval.streamStubDT impl)
         | RT.DApplicable _ -> return Some RT.DUnit
         | _ -> return None

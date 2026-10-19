@@ -81,7 +81,7 @@ let private executeWorker
   (accessBytes : byte[])
   : Ply<Dval> =
   uply {
-    let request = LibDB.TestProcess.Request.deserialize requestBytes
+    let! request = LibDB.TestProcess.Request.deserialize requestBytes
     use accessStream = new System.IO.MemoryStream(accessBytes)
     use reader = new System.IO.BinaryReader(accessStream)
     let inherited =
@@ -140,8 +140,7 @@ let private executeWorker
         (if code = 0 then "Ok" else "Error"),
         [ value ]
       )
-    let bytes =
-      LibSerialization.Binary.Serialization.RT.Dval.serialize "test result" result
+    let! bytes = LibDB.TestProcess.WorkerResult.serialize result
     return DTuple(LibExecution.Bytes.newEphemeral bytes, Dval.int (bigint code), [])
   }
 

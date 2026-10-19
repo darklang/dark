@@ -33,7 +33,7 @@ let private make name parameters result _kt body : BuiltInFn =
     deprecated = NotDeprecated }
 
 let private integer name = Param.make name TInt "Kernel scalar"
-let private blob name = Param.make name TBytes "Bytes"
+let private bytesParam name = Param.make name TBytes "Bytes"
 let private bytes r = Bytes.newEphemeral (Host.expectBytes r)
 let private unit (_ : Host.Response) = DUnit
 let private offset r = Dval.int (bigint (Host.expectOffset r))
@@ -368,7 +368,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
     make
       "syscallPwrite"
-      [ integer "fd"; blob "bytes"; integer "offset" ]
+      [ integer "fd"; bytesParam "bytes"; integer "offset" ]
       TInt
       KTInt
       (fun state vm values ->

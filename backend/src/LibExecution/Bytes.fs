@@ -33,9 +33,7 @@ let emptyHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85
 /// SHA-256 hex digest of the given bytes — content-addressing for
 /// blob promotion.
 let sha256Hex (bytes : byte[]) : string =
-  use sha = System.Security.Cryptography.SHA256.Create()
-  let digest = sha.ComputeHash(bytes)
-  System.Convert.ToHexStringLower(digest)
+  System.Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData bytes)
 
 
 /// Keep bytes in memory without hashing or saving them yet. The content hash
@@ -46,12 +44,7 @@ let sha256Hex (bytes : byte[]) : string =
 /// Takes ownership of [bytes]: the array is stored as-is (not copied),
 /// so the caller must not mutate it afterwards.
 let newEphemeral (bytes : byte[]) : Dval =
-  DBytes(
-    Ephemeral
-      { id = System.Guid.NewGuid()
-        bytes = bytes
-        contentHash = lazy (sha256Hex bytes) }
-  )
+  DBytes(Ephemeral { id = System.Guid.NewGuid(); bytes = bytes; hash = null })
 
 
 /// Resolve a BytesRef to its bytes. Ephemerals carry their bytes inline;
@@ -109,7 +102,7 @@ let promoteEphemeralLeaf
     match dv with
     | DBytes(Ephemeral eph) ->
       let bs = eph.bytes
-      let h = eph.contentHash.Value
+      let h = eph.ContentHash
       let n : int64 = System.Convert.ToInt64 bs.Length
       do! insert h bs
       return Some(DBytes(Persistent(h, n)))
