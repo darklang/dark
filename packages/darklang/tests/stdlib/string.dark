@@ -206,29 +206,29 @@ test endsWith =
       Stdlib.String.endsWith "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🏳️‍⚧️‍️🇵🇷"
       |> Stdlib.Test.equal true ]
 
-// String.fromByteList, fromBytesWithReplacement and toBytes use List<UInt8>.
-// Convert blobs with Bytes.toList and keep the Result so decode errors fail the assertion.
+// fromByteListWithReplacement takes List<UInt8>, so convert the decoded Bytes with
+// Bytes.toList. Keep the Result so a decode error fails the assertion.
 test fromByteListWithReplacement =
   Stdlib.Test.all
     [ Stdlib.Base64.decode "w6I"
-      |> Stdlib.Result.map (fun blob ->
-        Stdlib.Bytes.toList blob |> Stdlib.String.fromByteListWithReplacement)
+      |> Stdlib.Result.map (fun bytes ->
+        Stdlib.Bytes.toList bytes |> Stdlib.String.fromByteListWithReplacement)
       |> Stdlib.Test.equal (Ok "â")
       Stdlib.Base64.decode "aGVsbG8g8J+YgA=="
-      |> Stdlib.Result.map (fun blob ->
-        Stdlib.Bytes.toList blob |> Stdlib.String.fromByteListWithReplacement)
+      |> Stdlib.Result.map (fun bytes ->
+        Stdlib.Bytes.toList bytes |> Stdlib.String.fromByteListWithReplacement)
       |> Stdlib.Test.equal (Ok "hello 😀")
       Stdlib.Base64.decode "ww=="
-      |> Stdlib.Result.map (fun blob ->
-        Stdlib.Bytes.toList blob |> Stdlib.String.fromByteListWithReplacement)
+      |> Stdlib.Result.map (fun bytes ->
+        Stdlib.Bytes.toList bytes |> Stdlib.String.fromByteListWithReplacement)
       |> Stdlib.Test.equal (Ok "�")
       Stdlib.Base64.decode "7aCA"
-      |> Stdlib.Result.map (fun blob ->
-        Stdlib.Bytes.toList blob |> Stdlib.String.fromByteListWithReplacement)
+      |> Stdlib.Result.map (fun bytes ->
+        Stdlib.Bytes.toList bytes |> Stdlib.String.fromByteListWithReplacement)
       |> Stdlib.Test.equal (Ok "���")
       Stdlib.Base64.decode "aMM="
-      |> Stdlib.Result.map (fun blob ->
-        Stdlib.Bytes.toList blob |> Stdlib.String.fromByteListWithReplacement)
+      |> Stdlib.Result.map (fun bytes ->
+        Stdlib.Bytes.toList bytes |> Stdlib.String.fromByteListWithReplacement)
       |> Stdlib.Test.equal (Ok "h�") ]
 
 test fromByteList =

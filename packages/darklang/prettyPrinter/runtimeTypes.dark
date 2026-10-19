@@ -558,6 +558,13 @@ let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
     $"({parts})"
 
 
+/// The first <param count> bytes of <param bytes> as spaced hex ("68 69"), or
+/// None for saved Bytes. It reads only bytes already in memory, never the
+/// store, so printing stays cheap.
+let bytesPreview (bytes: Bytes) (count: Int) : Stdlib.Option.Option<String> =
+  Builtin.bytesPreviewHex bytes count
+
+
 module Dval =
   let valueTypeName
         (branchId: Uuid)
@@ -779,12 +786,21 @@ module Dval =
 
         braced "{" "}" parts
 
-    // Storage is an implementation detail. Length comes from metadata, so
-    // rendering never loads the payload.
+    // Unsaved bytes are already in memory, so show the first 16 as hex, the way
+    // Node.js prints a Buffer. Saved bytes show only their length: a preview
+    // would load the whole value, which may be megabytes, from the store.
     | DBytes bytes ->
       let n = Stdlib.Bytes.length bytes
       let noun = if n == 1 then "byte" else "bytes"
-      txt $"<Bytes: {Stdlib.toString n} {noun}>"
+      let size = $"{Stdlib.toString n} {noun}"
+      match bytesPreview bytes 16 with
+      | Some hex ->
+        if n == 0 then
+          txt $"<Bytes: {size}>"
+        else
+          let more = if n > 16 then " ..." else ""
+          txt $"<Bytes: {size} {hex}{more}>"
+      | None -> txt $"<Bytes: {size}>"
 
     | DStreamStub _ -> txt "<stream: stub>"
 

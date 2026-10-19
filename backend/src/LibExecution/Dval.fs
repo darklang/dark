@@ -264,7 +264,8 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
     Some "stream values can't be stored in a `val` — drain to a Bytes or List first"
   | DPromise _ -> Some "a read still in flight can't be stored in a `val`"
   | DBytes(Ephemeral _) ->
-    Some "unsaved Bytes can't be stored in a `val`; they are saved before storing"
+    // Unreachable unless saving was skipped: Seed promotes the value first.
+    Some "the value still held unsaved Bytes after saving; this is a bug in Darklang"
   | DApplicable(AppLambda _) ->
     Some(
       "a lambda can't be stored in a `val` — its instructions belong to the execution that made it, "

@@ -89,6 +89,33 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "bytesPreviewHex" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes ""; Param.make "count" TInt "" ]
+      returnType = TypeReference.option TString
+      description =
+        "The first <param count> bytes of <param bytes> as lowercase hex pairs "
+        + "separated by spaces, or None when the bytes are saved. Never reads the "
+        + "store, so it is cheap enough to call while printing a value."
+      fn =
+        (function
+        | _, _, _, [| DBytes(Ephemeral eph); DInt count |] ->
+          let n =
+            max (bigint 0) (min (DarkInt.toBigInt count) (bigint eph.bytes.Length))
+          let hex =
+            eph.bytes
+            |> Array.truncate (int n)
+            |> Array.map (fun b -> b.ToString("x2"))
+            |> String.concat " "
+          Ply(Dval.optionSome KTString (DString hex))
+        | _, _, _, [| DBytes(Persistent _); DInt _ |] ->
+          Ply(Dval.optionNone KTString)
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "bytesFromHex" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]

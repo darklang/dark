@@ -242,7 +242,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "stream" (TStream TUInt8) "" ]
       returnType = TBytes
       description =
-        "Drains a byte stream into a single ephemeral Bytes, consuming <param stream>."
+        "Drains a byte stream into a single Bytes value, consuming <param stream>."
       fn =
         (function
         | _, _, _, [| DStream(FromIO(_, _, _, Some _), _, _) as s |] ->

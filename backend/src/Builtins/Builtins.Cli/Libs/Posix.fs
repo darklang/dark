@@ -419,7 +419,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fd" TInt "File descriptor to write to"
-          Param.make "blob" TBytes "Bytes to write" ]
+          Param.make "bytes" TBytes "Bytes to write" ]
       returnType = TypeReference.result TInt TInt
       description = "Writes bytes to a file descriptor. Returns bytes written."
       fn =

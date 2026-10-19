@@ -709,27 +709,45 @@ type StringSegment =
 /// the Dval is collected, the bytes can be collected too.
 ///
 /// `id` is only for runtime inspection. Value equality uses the same SHA-256
-/// content hash as persistent bytes, computed lazily and reused on promotion.
-/// `Bytes.newEphemeral` takes ownership of the array; callers must not mutate it.
+/// content hash as persistent bytes, computed the first time something needs it
+/// and reused on promotion. `Bytes.newEphemeral` takes ownership of the array;
+/// callers must not mutate it.
 ///
 /// CLEANUP: `bytes` can still be mutated if a caller keeps or receives the
 /// array, and a hand-built record can reuse an `id`. Both are by
 /// convention — not reachable from Dark, only from future internal code.
 [<CustomEquality; NoComparison>]
 type EphemeralBytes =
-  { id : uuid
+  {
+    id : uuid
     bytes : byte[]
-    contentHash : Lazy<string> }
+    /// Null until [ContentHash] first computes it. A plain field rather than a
+    /// `Lazy`, so bytes that are never compared allocate nothing for it. Two
+    /// threads asking at once both compute the same string, which is harmless.
+    mutable hash : string
+  }
+
+  /// SHA-256 of the bytes as lowercase hex, the same key `package_blobs` uses.
+  member this.ContentHash : string =
+    if isNull this.hash then
+      this.hash <-
+        System.Convert.ToHexStringLower(
+          System.Security.Cryptography.SHA256.HashData this.bytes
+        )
+    this.hash
+
+  /// Whether the hash has been computed yet. For tests.
+  member this.IsHashed : bool = not (isNull this.hash)
 
   override this.Equals(o : obj) : bool =
     match o with
     | :? EphemeralBytes as other ->
       obj.ReferenceEquals(this, other)
       || (this.bytes.Length = other.bytes.Length
-          && this.contentHash.Value = other.contentHash.Value)
+          && this.ContentHash = other.ContentHash)
     | _ -> false
   override this.GetHashCode() : int =
-    hash this.contentHash.Value * 31 + hash (int64 this.bytes.Length)
+    hash this.ContentHash * 31 + hash (int64 this.bytes.Length)
 
 /// Where the bytes of a DBytes live. Ephemeral refs carry their bytes
 /// inline ([EphemeralBytes]); persistent refs hold a content hash and
@@ -748,7 +766,7 @@ type BytesRef =
 
   member this.ContentHash : string =
     match this with
-    | Ephemeral e -> e.contentHash.Value
+    | Ephemeral e -> e.ContentHash
     | Persistent(h, _) -> h
 
   member this.Length : int64 =
@@ -756,8 +774,11 @@ type BytesRef =
     | Ephemeral e -> int64 e.bytes.Length
     | Persistent(_, length) -> length
 
-  // The content-addressed store already identifies immutable bytes by hash.
-  // Use that identity for both forms without fetching or persisting anything.
+  // Two BytesRefs are equal when they hold the same bytes, whether ephemeral or
+  // persistent. We compare hashes, so nothing is loaded from the store.
+  // This relies on the bytes never changing. Persistent bytes can't change.
+  // Ephemeral bytes could, if some F# code wrote to the array; nothing stops
+  // that yet.
   override this.Equals(o : obj) : bool =
     match o with
     | :? BytesRef as other ->
@@ -1132,9 +1153,20 @@ and DvalOrdering private () =
         let c = compare xCase yCase
         if c <> 0 then c else DvalOrdering.compareList mode xFields yFields
 
+    // Shorter Bytes come first. Bytes of the same length are ordered by hash,
+    // not by the bytes themselves, so comparing never has to load persistent
+    // bytes from the store, and only same-length Bytes are ever hashed. The
+    // order is the same every time, but within one length it is not the order
+    // you'd get comparing byte by byte.
+    //
+    // CLEANUP: Python, Go (`bytes.Compare`) and Erlang all order bytes by
+    // content, so a sorted list of Bytes here will surprise someone used to
+    // them. Byte order needs the persistent bytes loaded first, which this
+    // synchronous compare can't do; an explicit `Bytes.compare` that loads
+    // them would give it without changing how sort and dict keys work.
     | DBytes x, DBytes y ->
-      let c = compare x.ContentHash y.ContentHash
-      if c <> 0 then c else compare x.Length y.Length
+      let c = compare x.Length y.Length
+      if c <> 0 then c else compare x.ContentHash y.ContentHash
 
     | _ -> DvalOrdering.incompatible mode a b
 
@@ -2330,6 +2362,10 @@ module Dval =
   /// (compared with `obj.ReferenceEquals`) rather than reconstructing.
   /// Map containers in particular avoid the O(N log N) `Map.ofList`
   /// rebuild path.
+  ///
+  /// Dict keys whose type is a known scalar (a String or Int64 key, say) are
+  /// not passed to `f`: such a key holds nothing to rewrite, and every caller
+  /// rewrites only Bytes, streams or functions.
   let rewriteWith (f : Dval -> Ply.Ply<Dval option>) (dv : Dval) : Ply.Ply<Dval> =
     let inline same (a : obj) (b : obj) = obj.ReferenceEquals(a, b)
 
@@ -2380,7 +2416,7 @@ module Dval =
               return DTuple(a', b', rest')
 
           | DDict(kt, vt, entries) ->
-            let! entries' = walkDictEntries entries
+            let! entries' = walkDictEntries kt entries
             return (if same entries' entries then dv else DDict(kt, vt, entries'))
 
           | DRecord(src, rt, typeArgs, fields) ->
@@ -2468,19 +2504,44 @@ module Dval =
         return acc
       }
 
-    and walkDictEntries (m : DictMap) : Ply.Ply<DictMap> =
+    and walkDictEntries (kt : ValueType) (m : DictMap) : Ply.Ply<DictMap> =
+      let scalarKeys =
+        match kt with
+        | ValueType.Unknown -> false
+        | ValueType.Known known ->
+          match known with
+          | KTUnit
+          | KTBool
+          | KTInt8
+          | KTUInt8
+          | KTInt16
+          | KTUInt16
+          | KTInt32
+          | KTUInt32
+          | KTInt64
+          | KTUInt64
+          | KTInt128
+          | KTUInt128
+          | KTInt
+          | KTFloat
+          | KTChar
+          | KTString
+          | KTUuid
+          | KTDateTime -> true
+          | _ -> false
       uply {
         let mutable acc = m
         let mutable rewrittenKeys : Map<DictKey, DictKey> = Map.empty
         for KeyValue(k, v) in m do
-          let! k' = go k.Dval
+          if not scalarKeys then
+            let! k' = go k.Dval
+            if not (same k' k.Dval) then
+              rewrittenKeys <- Map.add k (DictKey k') rewrittenKeys
           let! v' = go v
-          if not (same k' k.Dval) then
-            rewrittenKeys <- Map.add k (DictKey k') rewrittenKeys
           if not (same v' v) then acc <- Map.add k v' acc
-        // Build a fresh map when keys change. Updating an equal key in place can
-        // retain the original key object, including bytes that still need saving.
-        // Rebuilding also preserves ordinary map semantics if rewritten keys collide.
+        // A rewritten key (ephemeral Bytes promoted to persistent) equals the
+        // key it replaces, so Map.add might keep the old, unsaved key object;
+        // F# doesn't document which one it keeps. Rebuild the map instead.
         if Map.isEmpty rewrittenKeys then
           return acc
         else

@@ -92,13 +92,16 @@ test equalityUsesContents =
 test collectionsUseContentEquality =
   let a = Stdlib.Bytes.fromString "hi"
   let b = Stdlib.Bytes.fromList [104uy, 105uy]
+  let x = Stdlib.Bytes.fromString "x"
   Stdlib.Test.all
     [ Stdlib.List.contains [a] b |> Stdlib.Test.equal true
       Stdlib.List.unique [a, b] |> Stdlib.List.length |> Stdlib.Test.equal 1
       Stdlib.List.unique [Stdlib.Bytes.empty, Stdlib.Bytes.fromString ""]
       |> Stdlib.List.length |> Stdlib.Test.equal 1
-      // Sorting must use the same equality as ==.
-      Stdlib.List.sort [a, b] |> Stdlib.Test.equal [b, a] ]
+      // Equal bytes survive a sort.
+      Stdlib.List.sort [a, b] |> Stdlib.Test.equal [b, a]
+      // The order of different bytes does not depend on the input order.
+      Stdlib.List.sort [a, x] |> Stdlib.Test.equal (Stdlib.List.sort [x, a]) ]
 
 // Reflection carries an opaque Bytes value, never a storage-specific tag.
 test reflectionUsesContents =
@@ -115,13 +118,36 @@ test dictionaryKeysUseContents =
   let same = Stdlib.Bytes.fromList [104uy, 105uy]
   let different = Stdlib.Bytes.fromString "ho"
   let dict = Dict { first: "found" }
+  let byEmpty = Dict { Stdlib.Bytes.empty: "empty" }
+  let overwritten =
+    Stdlib.Dict.fromListOverwritingDuplicates [(first, 1), (same, 2)]
   Stdlib.Test.all
     [ Stdlib.Dict.get dict same |> Stdlib.Test.equal (Some "found")
       Stdlib.Dict.get dict different |> Stdlib.Test.equal None
-      Stdlib.Dict.get (Dict { Stdlib.Bytes.empty: "empty" }) (Stdlib.Bytes.fromString "")
+      Stdlib.Dict.get byEmpty (Stdlib.Bytes.fromString "")
       |> Stdlib.Test.equal (Some "empty")
       Stdlib.Dict.fromList [(first, 1), (same, 2)] |> Stdlib.Test.equal None
-      Stdlib.Dict.get (Stdlib.Dict.fromListOverwritingDuplicates [(first, 1), (same, 2)]) first
-      |> Stdlib.Test.equal (Some 2)
+      Stdlib.Dict.get overwritten first |> Stdlib.Test.equal (Some 2)
       Stdlib.Dict.get (Dict { (first, 1): "nested" }) (same, 1)
       |> Stdlib.Test.equal (Some "nested") ]
+
+// A test whose error holds unsaved Bytes still reports that error.
+test duplicateKeyErrorHoldsBytes =
+  Dict { (Stdlib.Bytes.fromString "a"): 1, (Stdlib.Bytes.fromString "a"): 2 }
+  => raises "Cannot add two dictionary entries with the same key <Bytes: 1 byte 61>"
+
+let reversed (bytes: Bytes) : Bytes =
+  Stdlib.Bytes.fromList (Stdlib.List.reverse (Stdlib.Bytes.toList bytes))
+
+// Unsaved Bytes reach a test worker and come back with their contents readable.
+test workerCarriesUnsavedBytes =
+  let input = Stdlib.Bytes.fromString "abc"
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) reversed input with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    match output.result with
+    | Error message -> Stdlib.Test.fail message
+    | Ok bytes ->
+      Stdlib.Test.all
+        [ output.exitCode |> Stdlib.Test.equal 0
+          Stdlib.Bytes.toString bytes |> Stdlib.Test.equal (Ok "cba") ]

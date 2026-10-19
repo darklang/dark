@@ -216,6 +216,9 @@ let isEmpty (list: List<'a>) : Bool = Builtin.listIsEmpty list
 /// Returns a copy of <param list> with every value sorted in ascending order.
 /// A type with its own `Compare` implementation is ordered the way `<` orders it, and values
 /// equal under it keep their order; every other value is sorted structurally.
+/// `Bytes` values are sorted shortest first, then by their hash, not by their
+/// contents. The order is the same every time, but `[0x01]` does not
+/// necessarily come before `[0x02]`.
 /// Consider <fn sortBy> or <fn sortByComparator> if you need more
 /// control over the sorting process.
 let sort (list: List<'a>) : List<'a> = Builtin.listSort list
