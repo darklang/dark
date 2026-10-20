@@ -705,8 +705,9 @@ jobs:
       - run: ./scripts/deployment/publish-github-release
 
   #
-  # This is used as a no-op dependency for other jobs, to prevent "deploy things"
-  # from happening before the "build things" are done
+  # Does nothing itself. The workflow runs it only after every build job has
+  # passed, so a green ok-to-deploy on a commit means the whole build passed.
+  # scripts/deployment/release checks for that before releasing a commit.
   ok-to-deploy:
     executor: simple-executor
     steps:
@@ -715,13 +716,16 @@ jobs:
           command: "true"
 
   #
-  # Jobs to run on `main` after we've confirmed the build is OK
-  # Every green merge to main becomes a release, by tagging it
-  tag-release:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - run: ./scripts/deployment/tag-release
+  # Switched off. Main releases only when someone runs scripts/deployment/release.
+  #
+  # When switched on, this tags every green merge to main with the next v0.0.N,
+  # which releases it. To switch it on, uncomment this job and its entry under
+  # build-and-deploy below.
+  # tag-release:
+  #   executor: in-container
+  #   steps:
+  #     - darkcheckout
+  #     - run: ./scripts/deployment/tag-release
 
 workflows:
   build-and-deploy:
@@ -731,19 +735,20 @@ workflows:
       - build-backend
       - build-cli
 
-      # Gate for release jobs
+      # Passes only when all three above did. scripts/deployment/release checks
+      # it before tagging, and tag-release waits on it.
       - ok-to-deploy:
           requires:
             - static-checks
             - build-backend
             - build-cli
 
-      # Release jobs (only on main)
-      - tag-release:
-          filters:
-            branches:
-              only: main
-          requires: [ok-to-deploy]
+      # Release every green merge to main; see the tag-release job.
+      # - tag-release:
+      #     filters:
+      #       branches:
+      #         only: main
+      #     requires: [ok-to-deploy]
 
 
   # The NativeAOT release matrix. Normally tag-only; see the
@@ -792,7 +797,8 @@ workflows:
       # should: the artifacts are the point. Publishing on a branch push is
       # different, because publish-github-release creates a real GitHub
       # release, and without a tag it has no version to give it. Main gets
-      # its releases by tag-release pushing one, not through this filter.
+      # its releases by scripts/deployment/release pushing one, not through
+      # this filter.
       - publish-release-clis:
           filters:
             tags:

@@ -1,0 +1,72 @@
+#! /usr/bin/env bash
+
+# Release main: tag its newest commit with the next v0.0.N and push the tag. The
+# tag's own pipeline (release-clis) builds and publishes, so this is all a
+# release takes. Main doesn't release on merge unless the tag-release job is
+# switched back on in .circleci/config.yml.
+#
+# It pushes with your own git credentials, so it runs wherever you are (host or
+# dev container) rather than entering the container like most scripts here.
+
+set -euo pipefail
+
+for tool in git curl jq; do
+  command -v "$tool" >/dev/null || { echo "Needs $tool, which isn't installed."; exit 1; }
+done
+
+# Whichever remote points at darklang/dark, whatever this clone calls it.
+remote=$(git remote -v \
+  | awk '$3 == "(push)" && $2 ~ /github\.com[:\/]darklang\/dark(\.git)?$/ { print $1; exit }')
+if [ -z "$remote" ]; then
+  echo "No remote here points at darklang/dark. Add one, e.g."
+  echo "  git remote add upstream https://github.com/darklang/dark.git"
+  exit 1
+fi
+
+git fetch --quiet "$remote" main
+sha=$(git rev-parse FETCH_HEAD)
+echo "main is at $(git log -1 --format='%h "%s"' "$sha")"
+
+# CI runs ok-to-deploy only once every build job has passed, so a green one
+# means the whole build passed. When a job fails, ok-to-deploy never runs at
+# all, so its absence means either still running or failed; the other jobs'
+# statuses say which.
+statuses=$(curl -sS --fail \
+  "https://api.github.com/repos/darklang/dark/commits/$sha/statuses?per_page=100")
+state=$(jq -r '[.[] | select(.context == "ci/circleci: ok-to-deploy")][0].state // "missing"' \
+  <<<"$statuses")
+failed=$(jq -r 'group_by(.context) | map(max_by(.updated_at))
+  | map(select(.state == "failure" or .state == "error") | .context) | join(", ")' \
+  <<<"$statuses")
+if [ "$state" = success ]; then
+  echo "CI: passed"
+elif [ -n "$failed" ]; then
+  echo "CI failed on this commit ($failed). Not releasing it."
+  exit 1
+else
+  echo "CI hasn't finished on this commit yet. Try again when it has."
+  exit 1
+fi
+
+tags=$(git ls-remote --tags --refs "$remote" 'v0.0.*')
+
+existing=$(awk -v sha="$sha" '$1 == sha { sub("refs/tags/", "", $2); print $2 }' <<<"$tags")
+if [ -n "$existing" ]; then
+  echo "Already released as $existing."
+  exit 0
+fi
+
+last=$(awk '{ sub("refs/tags/", "", $2); print $2 }' <<<"$tags" \
+  | grep -E '^v0\.0\.[0-9]+$' | sort -V | tail -n 1)
+tag="v0.0.$((${last##*.} + 1))"
+echo "Last release: $last"
+
+read -r -p "Release this as $tag? [y/N] " answer
+[[ "$answer" =~ ^[yY] ]] || { echo "Nothing released."; exit 0; }
+
+git push "$remote" "$sha:refs/tags/$tag"
+
+echo
+echo "Pushed $tag. CircleCI builds and publishes it from here:"
+echo "  https://app.circleci.com/pipelines/github/darklang/dark"
+echo "  https://github.com/darklang/dark/releases"
