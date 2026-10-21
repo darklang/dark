@@ -1089,7 +1089,7 @@ let fns () : List<BuiltInFn> =
                     |> LibExecution.Permissions.Access.constrainBy captured
                 let! outcome =
                   LibDB.TestProcess.run
-                    None
+                    (LibDB.TestProcess.Copy LibDB.Sqlite.Backup.toTestBaseline)
                     state
                     vm
                     access

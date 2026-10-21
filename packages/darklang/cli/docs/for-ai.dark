@@ -102,13 +102,18 @@ use `expect` with a fixed message for checks that can be cached.
 
 Tests may use the effects the called functions allow them.
 
-Every test execution runs in its own disposable process and store snapshot.
+Every test execution runs in its own disposable process with an isolated store.
 Ordinary `test name = ...` declarations provide isolation automatically, including
 for tests that change the local store, branches, or environment. Safe cached
-passes can still be reused; a rerun always gets a fresh process and store.
-One starting snapshot is shared per `test run` command, with a private writable
-copy for each executed test. A command answered entirely from cache creates
-no snapshot. Nested workers start from their calling test's current store.
+passes can still be reused; each executed test starts from the run's snapshot.
+One starting snapshot is prepared per `test run` command. Tests share it read-only
+when possible. A refused write triggers a retry in a fresh process on a private
+writable copy; only the retry's result is used. If sharing fails, the test starts
+on a private copy. So a test that writes runs twice: its side effects outside
+the store happen twice, and a hang can take two timeouts to report. The summary
+line says how many tests reran. A command answered entirely from cache creates no
+snapshot.
+Nested workers start from their calling test's current store.
 Use `Stdlib.Test.Process.run` only when a test needs custom process options or
 must inspect a child's output, result, or exit status.
 

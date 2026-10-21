@@ -227,23 +227,65 @@ let private readCappedWithCancellation
     return builder.ToString()
   }
 
-/// Prepare a file once and reuse it until disposal, without exposing its path.
-/// File.Copy uses filesystem cloning where supported, with a portable fallback.
+/// Prepare a file once and reuse it until disposal. Readers that never write can
+/// share the file itself, read-only; anyone else gets a copy. File.Copy uses
+/// filesystem cloning where supported, with a portable fallback.
 let fileSnapshot
   (snapshot : string -> Result<unit, string>)
   : HostTypes.FileSnapshot =
   let gate = obj ()
   let mutable disposed = false
   let mutable directory : Option<string> = None
+  // Copies run outside the lock so that several can happen at once. Closing
+  // waits for them, since it deletes the file they read.
+  let mutable copying = 0
   let baseline =
     lazy
       (let dir = Directory.CreateTempSubdirectory("dark-snapshot-").FullName
        directory <- Some dir
        let path = Path.Combine(dir, "baseline")
        snapshot path |> Result.map (fun () -> path))
+  let readOnly =
+    lazy
+      (match baseline.Value with
+       | Error message -> Error message
+       | Ok _ when System.OperatingSystem.IsWindows() ->
+         Error "A shared snapshot needs Unix file modes"
+       | Ok path ->
+         File.SetUnixFileMode(path, UnixFileMode.UserRead)
+         // Privileged users may bypass file modes. Verify that writes are refused.
+         try
+           use _ = new FileStream(path, FileMode.Open, FileAccess.Write)
+           Error
+             "This user can write read-only files, so the snapshot can't be shared"
+         with :? System.UnauthorizedAccessException ->
+           let info = FileInfo path
+           Ok(path, info.Length, info.LastWriteTimeUtc))
+  // Once shared, the file must stay as it was: every later reader starts from it.
+  // Only something that makes it writable again can change it, and then copying
+  // and linking refuse rather than hand the change to everyone after.
+  let changed () =
+    readOnly.IsValueCreated
+    && (match readOnly.Value with
+        | Ok(path, length, written) ->
+          let info = FileInfo path
+          File.GetUnixFileMode path <> UnixFileMode.UserRead
+          || info.Length <> length
+          || info.LastWriteTimeUtc <> written
+        | Error _ -> false)
+  let usable () =
+    if disposed then
+      Error "The file snapshot has already been closed"
+    elif changed () then
+      Error
+        "The file snapshot changed after it was shared, so nothing can start from it"
+    else
+      Ok()
   let close () =
     lock gate (fun () ->
       disposed <- true
+      while copying > 0 do
+        System.Threading.Monitor.Wait gate |> ignore<bool>
       match directory with
       | None -> ()
       | Some dir ->
@@ -258,18 +300,47 @@ let fileSnapshot
   System.AppDomain.CurrentDomain.ProcessExit.AddHandler onExit
   { new HostTypes.FileSnapshot with
       member _.CopyTo target =
-        lock gate (fun () ->
-          if disposed then
-            Error "The file snapshot has already been closed"
-          else
+        let source =
+          lock gate (fun () ->
+            usable ()
+            |> Result.bind (fun () ->
+              try
+                baseline.Value
+                |> Result.map (fun path ->
+                  copying <- copying + 1
+                  path)
+              with e ->
+                Error e.Message))
+        match source with
+        | Error message -> Error message
+        | Ok path ->
+          try
             try
-              match baseline.Value with
-              | Error message -> Error message
-              | Ok path ->
-                File.Copy(path, target)
-                Ok()
+              File.Copy(path, target)
+              // A copy keeps the snapshot's mode, which is read-only once shared.
+              if not (System.OperatingSystem.IsWindows()) then
+                File.SetUnixFileMode(
+                  target,
+                  UnixFileMode.UserRead ||| UnixFileMode.UserWrite
+                )
+              Ok()
             with e ->
-              Error e.Message)
+              Error e.Message
+          finally
+            lock gate (fun () ->
+              copying <- copying - 1
+              System.Threading.Monitor.PulseAll gate)
+      member _.LinkTo target =
+        lock gate (fun () ->
+          usable ()
+          |> Result.bind (fun () ->
+            try
+              readOnly.Value
+              |> Result.map (fun (path, _, _) ->
+                File.CreateSymbolicLink(target, path) |> ignore<FileSystemInfo>)
+            with e ->
+              Error e.Message))
+      member _.Changed() = lock gate changed
       member _.Dispose() =
         try
           close ()

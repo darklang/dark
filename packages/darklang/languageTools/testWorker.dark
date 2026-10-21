@@ -21,8 +21,12 @@ let main (args: List<String>) : Int =
       Stdlib.printLine "Test worker requires a disposable test directory"
       1
     else
-      let branch = Darklang.SCM.PackageOps.currentBranch ()
-      let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.toString branch)
+      // The run's shared store already records its branch, and it is read-only:
+      // writing the same value again would fail and send the test to a copy.
+      let branch = Stdlib.toString (Darklang.SCM.PackageOps.currentBranch ())
+      let _ =
+        if Stdlib.LocalStore.configGet "current_branch" != branch then
+          Stdlib.LocalStore.configSet "current_branch" branch
       let access = read (Stdlib.Cli.Path.join [ dir, "access.bin" ])
       let (result, code) = execute (read requestPath) access
       match Stdlib.Cli.FileSystem.overwriteFile resultPath result with

@@ -296,7 +296,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 /// where it allows, print each one, and fail the command if any failed or
 /// nothing matched.
 let runTests (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  LanguageTools.PackageManager.Test.withStoreSnapshot (fun run -> runTestsInRun run state args)
+  LanguageTools.PackageManager.Test.withStoreSnapshot state.currentBranchId (fun run ->
+    runTestsInRun run state args)
 
 type RunOptions =
   { force: Bool
@@ -455,8 +456,14 @@ let runTestsInRun
       Stdlib.printLine "No package tests matched."
     else
       Stdlib.printLine ""
+      // Said only when it happened, so a run where every test started writing
+      // shows up here rather than only as a slower run.
+      let retried = LanguageTools.PackageManager.Test.retried run
+      let retriedNote =
+        if retried == 0 then ""
+        else $"; {Stdlib.toString retried} wrote to the store and reran on a copy"
       Stdlib.printLine
-        $"{Stdlib.toString counts.passed} passed, {Stdlib.toString counts.failed} failed; {Stdlib.toString counts.ran} ran, {Stdlib.toString counts.cached} cached"
+        $"{Stdlib.toString counts.passed} passed, {Stdlib.toString counts.failed} failed; {Stdlib.toString counts.ran} ran, {Stdlib.toString counts.cached} cached{retriedNote}"
 
     if counts.failed > 0 || total == 0 then
       { state with exitCode = 1 }
