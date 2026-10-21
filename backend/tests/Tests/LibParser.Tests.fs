@@ -1247,7 +1247,18 @@ let private validationTests =
 let private literalTests =
   testList
     "literals"
-    [ testCase "float literals preserve specified decimal precision" (fun _ ->
+    [ testCase "generated binary64 integer boundary literals" (fun _ ->
+        for offset in 0L .. 255L do
+          for sign in [ ""; "-" ] do
+            let source = sign + string (9007199254740992L + offset) + ".0"
+            let diagnostics = (P.parse source).diagnostics
+            if offset % 2L = 0L then
+              Expect.isEmpty diagnostics $"{source}: exactly representable integer"
+            else
+              Expect.isTrue
+                (diagnostics |> List.exists (fun d -> d.code = "PARSE-FLOAT-PRECISION"))
+                $"{source}: unrepresentable integer")
+      testCase "float literals preserve specified decimal precision" (fun _ ->
         for source in
           [ "10000000000000001.0"
             "10000000000000000.1"
@@ -1286,7 +1297,7 @@ let private literalTests =
           Expect.isEmpty result.diagnostics $"{source}: parses"
           match result.parsed with
           | Some(WT.SourceFile { exprsToEval = [ WT.EFloat(_, neg, whole, fraction) ] }) ->
-            let value = makeFloat (if neg then Negative else Positive) whole fraction
+            let value = Prelude.makeFloat (if neg then Prelude.Negative else Prelude.Positive) whole fraction
             Expect.equal
               (System.BitConverter.DoubleToUInt64Bits value)
               expectedBits
