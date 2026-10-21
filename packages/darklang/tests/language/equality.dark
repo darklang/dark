@@ -62,7 +62,7 @@ test scalars =
       (5us == 5us) |> Stdlib.Test.equal true
       (5us != 6us) |> Stdlib.Test.equal true
       (5.6 == 5.6) |> Stdlib.Test.equal true
-      (-55555555555555555555555555555.5 == -55555555555555555555555555555.5)
+      (-5.555555555555555e28 == -5.555555555555555e28)
       |> Stdlib.Test.equal true
       (5.6 != 5.7) |> Stdlib.Test.equal true
       ("asd" == "asd") |> Stdlib.Test.equal true
