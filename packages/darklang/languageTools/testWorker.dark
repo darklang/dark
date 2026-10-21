@@ -22,7 +22,14 @@ let main(args: List<String>): Int =
       1
     else
       // Stored in this private copy too, so a nested worker starts on the same branch.
-      let _ = Darklang.SCM.PackageOps.selectBranch(Darklang.SCM.PackageOps.currentBranch())
+      // The run's shared store already records its branch, and it is read-only:
+      // writing the same value again would fail and send the test to a copy.
+      let branch = Darklang.SCM.PackageOps.currentBranch()
+      let _ =
+        if Stdlib.LocalStore.configGet("current_branch") != Stdlib.toString(branch) then
+          Darklang.SCM.PackageOps.selectBranch(branch)
+        else
+          branch
       let access = read(Stdlib.Cli.Path.join([ dir, "access.bin" ]))
       let (result, code) = execute(read(requestPath), access)
       match Stdlib.Cli.FileSystem.overwriteFile(resultPath, result) with
