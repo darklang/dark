@@ -94,6 +94,27 @@ let private testEvalCases =
       "simple expr", [ "eval"; "2L + 3L" ], "5"
       "string concat", [ "eval"; "\"hello\" + \"world\"" ], "helloworld" ]
 
+let private testTerminalPrinterFallback =
+  cliTest "terminal values survive a missing pretty-printer" (fun target ->
+    task {
+      let state = executionState target
+      let printer = RT.Hash(LibExecution.PackageRefs.Fn.Cli.renderValue ())
+      let state =
+        { state with
+            fns =
+              { state.fns with
+                  package =
+                    fun hash ->
+                      if hash = printer then Ply None else state.fns.package hash } }
+      let! output = Exe.dvalToReprForTerminal state 80 false [] (Dval.int 42I)
+      Expect.stringStarts
+        output
+        "<pretty-print failed for dval:"
+        "fallback is shown"
+      Expect.stringContains output "FnNotFound" "the printer failure is included"
+      Expect.stringContains output "42" "the original value is still available"
+    })
+
 // ─── Script declaration identity ────────────────────────────────────
 
 /// A script's own types, values and fns are grafted into the package manager
@@ -232,8 +253,7 @@ let private testScriptContract =
     })
 
 
-/// The approval prompt only appears in a terminal. Use a PTY to check that
-/// saving permission leaves the script stopped and does not repeat its output.
+/// Use a terminal to check that saving permission does not restart the script.
 let private testScriptInteractivePermissionApproval =
   Tests.CliInstance.instanceTest
     "script denial and interactive approval leave the run stopped"
@@ -270,7 +290,7 @@ let private testScriptInteractivePermissionApproval =
         expectStopped output exitCode
         Expect.stringContains output "Permission saved" "the user approved the rule"
 
-        // Run again in a new process to check that the permission was saved.
+        // Check that the permission also applies in a new process.
         let! output, exitCode =
           Tests.CliInstance.runWithExit instance [ "run"; path ]
         Expect.equal exitCode 0L output
@@ -1733,6 +1753,7 @@ let tests =
          testStatusCommand
          testRunCases
          testEvalCases
+         testTerminalPrinterFallback
          testScriptDeclIdentity
          testScriptContract
          testScriptInteractivePermissionApproval

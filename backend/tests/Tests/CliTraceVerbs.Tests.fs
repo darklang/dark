@@ -45,7 +45,7 @@ let private words (s : string) : string list =
   s.Split(' ', System.StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
 
 
-/// A trace row holding this invocation, as the start of a CLI run writes one.
+/// Save a trace with optional CLI input.
 let private storeInvocation
   (input : Option<Traces.ScriptOrEvalInput>)
   : System.Guid =
@@ -91,7 +91,7 @@ let private scriptOrEvalInputPersistence =
         let! read = Traces.getCliInput served
         Expect.isNone read "so it has none to read"
 
-        // The table's CHECKs refuse an incomplete invocation before it is written.
+        // Reject incomplete or invalid invocation rows.
         let id = storeInvocation (Some script)
         for column, bad in
           [ "kind", Sql.string "nonsense"
@@ -109,7 +109,7 @@ let private scriptOrEvalInputPersistence =
         let! read = Traces.getCliInput id
         Expect.equal read (Some script) "and the invocation is left whole"
 
-        // Arguments the CHECKs cannot see into are refused on read, not defaulted.
+        // The reader must also reject malformed argument bytes.
         for bad in
           [ [| 0x01uy |]
             // One argument, one byte long, and that byte is not UTF-8.
@@ -156,7 +156,7 @@ let private scriptReplayKeepsInvocation =
           let original = printed first
           Expect.isSome original $"the original run prints its arguments: {first}"
           let! (recorded : Traces.Trace) = latest ()
-          // Replay must use the saved source even after the file is deleted.
+          // Replay must work without the original file.
           System.IO.File.Delete path
           let prefix = prefixOf recorded
           let! viewed =
@@ -204,7 +204,7 @@ let private scriptReplayKeepsInvocation =
       })
 
 
-/// Retention bounds a trace by its `bytes` column, so a script's saved arguments count.
+/// Saved arguments must count towards the trace's storage limit.
 let private invocationCountsTowardsTraceWeight =
   cliTestWithFreshTraces
     "a script's saved arguments count towards its trace's weight"
@@ -271,7 +271,7 @@ let private scriptReplayKeepsSandbox =
       })
 
 
-/// Resume calls a run a served request from the row's input name, not its entry text.
+/// Identify HTTP traces by input name, not display text.
 let private resumeNamesServedRequests =
   cliTestWithFreshTraces
     "resume tells a served request from a CLI run by its row, not its entry"
@@ -337,7 +337,7 @@ let private legacyScriptDoesNotGuessItsInput =
       })
 
 
-/// Rerunning needs the saved input, so a corrupt result should not stop it.
+/// Corrupt display data or results must not prevent rerunning intact input.
 let private rerunIsIndependentOfResult =
   cliTestWithFreshTraces
     "traces rerun survives a corrupt result and input value"

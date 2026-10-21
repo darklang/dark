@@ -1,15 +1,10 @@
--- What a CLI run was invoked with, so a replay uses the same source, arguments and options.
+-- Saves the source, arguments and options needed to replay a CLI run.
+-- Traces.create writes this row with the trace; delete them together.
+-- HTTP requests have traces, but no row in this CLI-only table.
+-- Older CLI traces also have no row here.
 --
--- One row per CLI run, written with its `traces` row by `Traces.create`. A trace with no row
--- here has nothing to replay with: a served request, or a run recorded before this table.
--- Plain columns rather than a Dval, whose stored type hash would go stale when the package
--- type is edited. The CHECKs refuse an incomplete row on write, so a reader never has to
--- guess a missing option (a sandboxed script replayed without its sandbox).
---
--- An existing store gets this table from `Releases.applySchemaTables`, which replays every
--- CREATE TABLE on startup, so it needs no step in backend/src/LibDB/Releases.fs.
---
--- Every path that deletes a trace deletes its row here too, like the other per-trace tables.
+-- Columns avoid storing Dval type hashes, which change when package types change.
+-- CHECKs reject missing options so replay cannot silently drop a sandbox.
 CREATE TABLE IF NOT EXISTS trace_cli_invocations (
   trace_id TEXT PRIMARY KEY,
   kind TEXT NOT NULL CHECK (kind IN ('eval', 'script')),

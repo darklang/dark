@@ -235,6 +235,24 @@ module FQFnName =
 
 
 
+module ExecutionPoint =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.RuntimeTypes.executionPoint ()
+    )
+
+  let knownType () = KTCustomType(typeName (), [])
+
+  let rec toDT (point : RuntimeTypes.ExecutionPoint) : Dval =
+    let caseName, fields =
+      match point with
+      | RuntimeTypes.Source -> "Source", []
+      | RuntimeTypes.Function name -> "Function", [ FQFnName.toDT name ]
+      | RuntimeTypes.Lambda(parent, expressionId) ->
+        "Lambda", [ toDT parent; DUInt64 expressionId ]
+    DEnum(typeName (), typeName (), [], caseName, fields)
+
+
 module NameResolutionError =
   let typeName () =
     FQTypeName.fqPackage (

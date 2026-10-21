@@ -258,7 +258,7 @@ let showFromTrace
         | None ->
           named
           |> Stdlib.List.findFirst (fun fn ->
-            Stdlib.String.contains trace.input fn)
+            Stdlib.String.contains (Darklang.Tracing.Format.inputText trace) fn)
 
     // One helper for both renderers, so neither end can learn something the other does not.
     let show (state: Cli.AppState) (fn: String) : Cli.AppState =
@@ -1561,12 +1561,13 @@ let executeInspect
     Stdlib.printLine $"  entry     {run.entry}"
     // All of the input, because this is the one place it can be read: a script's source is
     // several lines, and the table above it has already shown you the first forty characters.
-    let inputLines = Stdlib.String.split run.input "\n"
+    let input = Darklang.Tracing.Format.inputText run
+    let inputLines = Stdlib.String.split input "\n"
     let inputFitsOnTheLine =
       ((Stdlib.List.length inputLines) == 1)
-      && ((Stdlib.String.displayWidth run.input) <= 60)
+      && ((Stdlib.String.displayWidth input) <= 60)
     if inputFitsOnTheLine then
-      Stdlib.printLine $"  input     {run.input}"
+      Stdlib.printLine $"  input     {input}"
     else
       Stdlib.printLine "  input"
       Stdlib.List.iter inputLines (fun l -> Stdlib.printLine $"    {l}")
@@ -1669,8 +1670,7 @@ let executeInspect
     state
 
 
-/// Run the saved input again, including its writes and requests.
-/// This creates a new trace; recorded results are not reused.
+/// Rerun the saved input, including writes and requests.
 let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
   let input = Darklang.Tracing.Store.getScriptOrEvalInput traceID
   match input with

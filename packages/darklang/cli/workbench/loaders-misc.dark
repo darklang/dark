@@ -207,7 +207,8 @@ let loadTraceBodyItems () : List<BodyItem> =
           // A pin is the one thing about a trace you change from this pane, so the row has to
           // show it: `*` pinned, nothing otherwise, as the CLI table prints it.
           let pin = if t.pinned then "* " else "  "
-          $"{pin}{status}{ago}{t.entry}  {Cli.Text.oneLine t.input}" })
+          let input = Darklang.Tracing.Format.inputText t
+          $"{pin}{status}{ago}{t.entry}  {Cli.Text.oneLine input}" })
 
 
 /// The body items for a given view. Home lists the branch's state (see

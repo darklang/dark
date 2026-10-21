@@ -792,10 +792,7 @@ module TraceStorage =
       let blobs =
         blobs @ (results |> Seq.map (fun kv -> kv.Key, kv.Value) |> List.ofSeq)
 
-      // What this trace weighs, kept on its row: retention applies `trace.maxMb` from this
-      // column, never by summing `trace_fn_calls`, the table it exists to bound. A CLI
-      // run's invocation (`Traces.create` writes it; nothing here touches it) is added in
-      // the upsert below, from the row itself.
+      // Count input, calls and blobs here. The upsert adds the saved CLI input.
       let weight =
         int64 inputBytes.Length
         + (serializedEvents

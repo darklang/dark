@@ -740,7 +740,8 @@ It is plain columns rather than a stored `Tracing.ScriptOrEvalInput` value on
 purpose: a stored Dval carries its package type's hash, which moves whenever the
 type is edited, and every older row would stop decoding. The Dark value is built
 from the row when Dark asks for it (`Trace.scriptOrEvalInput`).
-`Trace.input` stays readable source for display.
+`Trace.input` holds the source or request as a structured value.
+`Tracing.Format.inputText` formats it for display.
 
 A trace with no invocation, or one whose arguments do not decode, is refused for
 replay rather than filled in with defaults: guessing could change the input or

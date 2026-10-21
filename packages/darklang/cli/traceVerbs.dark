@@ -108,7 +108,7 @@ let row (width: Int) (e: Darklang.Tracing.Trace) : List<String> =
     statusText e.status
     whenText e.created
     Cli.Text.oneLineAt 22 e.entry
-    Cli.Text.oneLineAt 22 e.input ]
+    Cli.Text.oneLineAt 22 (Darklang.Tracing.Format.inputText e) ]
 
 
 /// Any list of traces, as a table. The ONE renderer: `dark traces`, `traces list --fn`,
@@ -277,7 +277,7 @@ let traceJson (branchId: Uuid) (trace: Darklang.Tracing.Trace) : TraceJson =
   TraceJson
     { id = trace.id
       entry = trace.entry
-      input = trace.input
+      input = Darklang.Tracing.Format.inputText trace
       answered =
         trace.result
         |> Stdlib.Option.map (fun dv -> Darklang.Tracing.Format.compactDval branchId dv)
@@ -372,8 +372,7 @@ let movedSince
     | None -> Stdlib.Option.Option.None)
 
 
-/// Run the saved input through the same code as the original command.
-/// Resume uses the log to answer recorded calls; rerun makes those calls again.
+/// Run saved CLI input. Resume uses recorded results; rerun performs effects again.
 let executeScriptOrEval (state: AppState) (input: Darklang.Tracing.ScriptOrEvalInput) : AppState =
   match input with
   | Eval(source, allowHarmful) ->
@@ -406,7 +405,7 @@ let resume (state: AppState) (prefix: String) : AppState =
       { state with exitCode = 1 }
     | Some input ->
       if Darklang.Tracing.Store.armResume e.id then
-        Stdlib.printLine $"resuming {Cli.Text.shortIdText e.id}: {Cli.Text.oneLine e.input}"
+        Stdlib.printLine $"resuming {Cli.Text.shortIdText e.id}: {Cli.Text.oneLine (Darklang.Tracing.Format.inputText e)}"
         match movedSince state.currentBranchId e.id with
         | [] -> ()
         | moved ->
@@ -1272,9 +1271,10 @@ let showCode
                       |> Stdlib.String.join ", "))
             |> Stdlib.List.head
 
-          if trace.input != "" then
+          let input = Darklang.Tracing.Format.inputText trace
+          if input != "" then
             Stdlib.printLine
-              (Stdlib.Cli.UI.Colors.dimText $"given  {Cli.Text.oneLineAt 72 trace.input}")
+              (Stdlib.Cli.UI.Colors.dimText $"given  {Cli.Text.oneLineAt 72 input}")
 
           match argLine with
           | Some line ->

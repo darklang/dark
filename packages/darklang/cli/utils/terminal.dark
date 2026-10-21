@@ -40,9 +40,6 @@ let palette () : PrettyPrinter.Palette =
 
 
 /// A value rendered for this terminal: laid out for `width`, painted with the CLI's palette.
-///
-/// The CLI host calls this rather than the printer directly, because the palette is a `Cli.Colors`
-/// thing and the printer must not know about it.
 let renderValue
   (branchId: Uuid)
   (width: Int)
@@ -50,8 +47,6 @@ let renderValue
   (currentModule: List<String>)
   (dv: LanguageTools.RuntimeTypes.Dval)
   : String =
-  // Whether to color is decided by the host, not here: it is a fact about stdout and the environment,
-  // and asking for it from Dark needs an `env-read` permission the instance may not grant.
   let palette = if color then Terminal.palette () else PrettyPrinter.Palette.plain
 
   let opts =
