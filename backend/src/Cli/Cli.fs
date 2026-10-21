@@ -634,8 +634,7 @@ let private runCli (args : string[]) : int =
     // THIS process. Its delta ops (stored effective=0 in the shared log) overlay core for parse and
     // execute, so nothing is switched persistently. Both spellings, because every other CLI takes
     // either. A missing value is an ERROR, not a fall-through to `current_branch`.
-    // Global flags can come before the command or script path. Leave the path
-    // and its arguments alone, even when they look like global flags.
+    // Global flags stop at the script path; later flags belong to the script.
     let args, scriptTail =
       let split = Builtins.CliHost.Utils.ScriptArguments.split
       let globalOptions, command = split (Array.toList args)

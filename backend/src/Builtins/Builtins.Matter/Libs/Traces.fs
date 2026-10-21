@@ -29,12 +29,7 @@ let fnCallTypeName () = FQTypeName.fqPackage (TracesRefs.fnCall ())
 let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
 
 
-/// The columns `traceRowToDT` reads, from `traces` aliased `t` (see `fromTraces`).
-///
-/// Qualified rather than bare because `traces` and `trace_fn_calls` both have a `duration_ms` now
-/// -- one is the whole run, the other one call -- and a bare column list in a join between them is
-/// ambiguous. SQLite says so at run time, in a query no F# compiler looks at, which is a whole
-/// test run to find out.
+/// Columns read by traceRowToDT, qualified to avoid ambiguous names in joins.
 let private traceColumns : string =
   [ "id"
     "handler_desc"
@@ -53,7 +48,6 @@ let private traceColumns : string =
   |> String.concat ", "
   |> fun cs -> $"{cs}, {LibDB.Traces.ScriptOrEvalInput.selectColumns}"
 
-/// `traces` as `t`, with each run's invocation joined in for `traceColumns`.
 let private fromTraces : string =
   let join = LibDB.Traces.ScriptOrEvalInput.join "t"
   $"FROM traces t {join}"
@@ -71,23 +65,6 @@ let private statusToDT (status : string) : Dval =
       // here would be the two halves of one column disagreeing.
       Exception.raiseInternal "unknown run status" [ "status", other ]
   DEnum(tn, tn, [], case, [])
-
-/// Show source text in summaries. Running it again uses Trace.scriptOrEvalInput,
-/// which also keeps the arguments and options.
-let private inputText
-  (input : Option<LibDB.Traces.ScriptOrEvalInput>)
-  (value : Dval)
-  : string =
-  match input with
-  | Some input -> LibDB.Traces.ScriptOrEvalInput.source input
-  | None ->
-    match value with
-    | DString source -> source
-    | DRecord(_, _, _, fields) ->
-      match Map.tryFind "method" fields, Map.tryFind "url" fields with
-      | Some(DString method), Some(DString url) -> $"{method} {url}"
-      | _ -> "(a request)"
-    | _ -> "(not source)"
 
 let private traceRowToDT (read : RowReader) : Dval =
   let tn = traceTypeName ()
@@ -107,7 +84,7 @@ let private traceRowToDT (read : RowReader) : Dval =
     Map
       [ "id", DString(read.string "id")
         "entry", DString(read.string "handler_desc")
-        "input", DString(inputText scriptOrEvalInput inputValue)
+        "input", RT2DT.Dval.toDT inputValue
         "servedRequest",
         DBool(LibDB.Traces.isServedRequest (read.string "input_name"))
         "scriptOrEvalInput",

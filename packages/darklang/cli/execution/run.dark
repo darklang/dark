@@ -1,11 +1,27 @@
 module Darklang.Cli.Run
 
 
-/// Run the script and return its exit code and any permission warnings.
-/// `sandbox` adds a deny-all run policy. `warnPermissions` allows calls beyond
-/// the run and package policies and reports them, but the instance policy and
-/// function ceilings still apply. Warnings include the resource, reason and
-/// calling function when known.
+/// Unit succeeds; Int and Int64 supply the script's exit code.
+let exitCode
+  (value: LanguageTools.RuntimeTypes.Dval)
+  : Stdlib.Result.Result<Int, ExecutionError.ExecutionError> =
+  match value with
+  | DUnit -> Ok 0
+  | DInt code -> Ok code
+  | DInt64 code -> Ok (Stdlib.Int.fromInt64 code)
+  | _ ->
+    Error (
+      ExecutionError.ExecutionError.Runtime(
+        LanguageTools.RuntimeTypes.RuntimeError.Error.CLI (
+          LanguageTools.RuntimeTypes.RuntimeError.CLIs.Error.NonIntReturned value),
+        []))
+
+
+/// Run a script and return its exit code and permission warnings.
+/// Sandbox mode adds a deny-all run policy.
+/// Warning mode allows and reports calls outside the run and package policies.
+/// Instance policy and function limits still apply.
+/// Warnings include the resource, reason and caller when known.
 let parseAndExecute
   (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
@@ -16,15 +32,21 @@ let parseAndExecute
   : Stdlib.Result.Result<(Int *
                           List<(String * String * Stdlib.Option.Option<String>)>),
                          ExecutionError.ExecutionError> =
-  Builtin.cliParseAndExecuteScript
-    accountID
-    branchId
-    filename
-    code
-    args
-    options.allowHarmful
-    options.sandbox
-    options.warnPermissions
+  let result =
+    Builtin.cliParseAndExecuteScript
+      accountID
+      branchId
+      filename
+      code
+      args
+      options.allowHarmful
+      options.sandbox
+      options.warnPermissions
+  match result with
+  | Ok((value, warnings)) ->
+    let code = (exitCode value)?
+    Ok ((code, warnings))
+  | Error error -> Error error
 
 
 /// Format permission warnings for the terminal; return [] when there are none.
@@ -50,8 +72,7 @@ let permissionWarningLines
 //
 // For calling package fns, use `eval` instead.
 
-/// Find where runner options end and the script path begins.
-/// CLI startup uses the same rule when reading global options.
+/// Split runner options from the script path and its arguments.
 let splitArguments (args: List<String>) : (List<String> * List<String>) =
   Builtin.cliSplitScriptArguments args
 
@@ -74,7 +95,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         warnPermissions = false }
 
 
-/// Read the runner options. The script path and its arguments are already separate.
+/// Parse the options before the script path.
 let executeOptions
   (state: AppState)
   (flags: List<String>)
@@ -149,20 +170,14 @@ let allowAlways () : String = "Allow future runs (save to the instance policy)"
 let denyChoice () : String = "Deny"
 
 let printScriptError (state: AppState) (e: ExecutionError.ExecutionError) : AppState =
-  match e with
-  | Denied denied ->
-    if denied.callStack != "" then
-      Stdlib.printLine $"Error when executing Script. Call-stack:\n{denied.callStack}"
-    else
-      ()
-  | _ -> ()
+  ExecutionError.printCallStack state.currentBranchId "Script" e
   let pretty = ExecutionError.toString state.currentBranchId e
   Stdlib.printLine $"Script error: {pretty}"
   { state with exitCode = 1 }
 
-/// A permission denial stops the script. Saving permission is for a later run;
-/// restarting here could repeat earlier writes or requests. Only direct runs
-/// in a terminal can ask for approval, with sandbox and warning mode off.
+/// Run a script. On denial, offer to save permission for a later run.
+/// Never restart automatically: that could repeat writes or requests.
+/// Only direct terminal runs prompt, with sandbox and warning mode off.
 let runScript
   (state: AppState)
   (scriptPath: String)

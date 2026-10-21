@@ -45,11 +45,8 @@ module ScriptOptions =
           "warnPermissions", RT.DBool options.warnPermissions ]
     )
 
-/// The source, arguments and options for a CLI run and its replays.
-///
-/// Stored in `trace_cli_invocations`, never as a Dval: a stored Dval carries its
-/// package type's hash, which moves whenever the type is edited. `toDT` builds the Dark
-/// value only when Dark asks for one.
+/// Saved input for eval or a script.
+/// Stored in trace_cli_invocations so package type hash changes cannot break replay.
 type ScriptOrEvalInput =
   | EvalExpression of source : string * allowHarmful : bool
   | RunScript of
@@ -89,15 +86,14 @@ module ScriptOrEvalInput =
           ScriptOptions.toDT options ]
     RT.DEnum(tn, tn, [], case, fields)
 
-  /// The row's entry, input name and input value. The value is the source text, which
-  /// is what listings show; replay reads `trace_cli_invocations` instead.
+  /// Source text and labels for trace listings. Replay uses the saved invocation.
   let toTraceParams (input : ScriptOrEvalInput) =
     match input with
     | EvalExpression(source, _) -> "eval", "expression", RT.DString source
     | RunScript(filename, source, _, _) ->
       $"run {filename}", "code", RT.DString source
 
-  /// Arguments as a count, then each string length-prefixed. No Dval, so no type hash.
+  /// Encode the argument count followed by each length-prefixed string.
   let private encodeArgs (args : List<string>) : byte[] =
     use stream = new System.IO.MemoryStream()
     use writer = new System.IO.BinaryWriter(stream, System.Text.Encoding.UTF8)
@@ -110,8 +106,7 @@ module ScriptOrEvalInput =
   let private decodeArgs (bytes : byte[]) : Option<List<string>> =
     try
       use stream = new System.IO.MemoryStream(bytes)
-      // Strict: invalid bytes raise rather than becoming U+FFFD, which would replay
-      // different arguments than were given.
+      // Reject invalid UTF-8 so replay cannot silently change an argument.
       let strict = System.Text.UTF8Encoding(false, true)
       use reader = new System.IO.BinaryReader(stream, strict)
       let count = reader.ReadInt32()
@@ -123,8 +118,7 @@ module ScriptOrEvalInput =
     with _ ->
       None
 
-  /// What a trace query selects for the run's invocation, aliased `cli_kind` and so on so
-  /// no name collides with a `traces` column. Pair with `join`; `fromColumns` reads them.
+  /// Prefix invocation columns with `cli_` to avoid name clashes in joins.
   let selectColumns =
     [ "kind"
       "source"
@@ -136,11 +130,11 @@ module ScriptOrEvalInput =
     |> List.map (fun c -> $"cli.{c} AS cli_{c}")
     |> String.concat ", "
 
-  /// Joins each trace under <param alias> to its invocation, if it has one.
+  /// Join traces under <param alias> to their saved CLI input.
   let join (alias : string) : string =
     $"LEFT JOIN trace_cli_invocations cli ON cli.trace_id = {alias}.id"
 
-  /// The statement recording <param input> as what trace <param traceId> was invoked with.
+  /// SQL and parameters for saving a CLI invocation.
   let insertStatement (traceId : System.Guid) (input : ScriptOrEvalInput) =
     let flag (b : bool) = Sql.int (if b then 1 else 0)
     let kind, filename, args, sandbox, warnPermissions =
@@ -166,11 +160,8 @@ module ScriptOrEvalInput =
         "sandbox", sandbox
         "warnPermissions", warnPermissions ] ]
 
-  /// The CLI run a row recorded, or None for any other run. The table's CHECKs refuse
-  /// an incomplete row, but a malformed value is None too, never a default: guessing
-  /// could replay a sandboxed script without its sandbox.
+  /// Read saved CLI input, or None if any required field is missing or invalid.
   let fromColumns (read : RowReader) : Option<ScriptOrEvalInput> =
-    // Reading a value of the wrong type can raise; that is malformed too.
     try
       let flag (column : string) =
         match read.int64OrNone column with
@@ -210,8 +201,7 @@ module ScriptOrEvalInput =
       None
 
 
-/// The input name a served request is recorded under. The HTTP server writes it and
-/// readers ask `isServedRequest`, so the two cannot drift apart.
+/// Input name used when recording HTTP requests.
 let servedRequestInputName = "request"
 
 let isServedRequest (inputName : string) : bool = inputName = servedRequestInputName
@@ -245,9 +235,9 @@ type Trace =
     /// `eval`, `run <file>`, or `GET /path`: what was run.
     entry : string
     inputName : string
-    /// The source text for a CLI run, or the request for a served one.
+    /// Source text for CLI runs, or the HTTP request.
     input : RT.Dval
-    /// What a CLI run was invoked with, for replay. None for any other run.
+    /// Saved CLI input for replay; None for HTTP requests and older traces.
     cli : Option<ScriptOrEvalInput>
     status : Status
     /// The trace this was forked from, and the `seq` it branched at: the parent's log below
@@ -350,8 +340,7 @@ let private insertParams
     "created", Sql.string created
     "updated", Sql.string updated ]
 
-/// Record a run that has started, and what a CLI run was invoked with. The id IS the
-/// trace id: the recorder fills the same row in when the run ends.
+/// Create a trace and save its CLI invocation, if any, in the same transaction.
 let create
   (id : System.Guid)
   (entry : string)
@@ -377,8 +366,8 @@ let setStatus (id : System.Guid) (status : Status) : unit =
       "updated", Sql.string (now ()) ]
   |> Sql.executeStatementSync
 
-/// What a CLI run was invoked with, read without the result or the input value, so
-/// neither being corrupt can prevent a rerun.
+/// Read CLI input without decoding the trace's result or display value.
+/// Corrupt values there must not block a rerun.
 let getCliInput (id : System.Guid) : Task<Option<ScriptOrEvalInput>> =
   task {
     let! row =
@@ -526,9 +515,7 @@ let fork
             "SELECT COALESCE(MAX(seq), -1) + 1 AS n FROM trace_fn_calls WHERE trace_id = @t"
           |> Sql.parameters [ "t", Sql.uuid id ]
           |> Sql.executeRowAsync (fun read -> read.int64 "n")
-      // `entry_hash` comes across too: for a served request it is the only thing that says
-      // what to replay against, so a fork without it is a run nothing can look at. A CLI
-      // run's invocation is the same: its arguments and options.
+      // Copy the HTTP handler hash and CLI invocation so the child can be replayed.
       let counts =
         Sql.executeTransactionSync
           [ $"INSERT INTO traces

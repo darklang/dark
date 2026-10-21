@@ -59,7 +59,7 @@ module InvalidType =
     let branch = Darklang.SCM.PackageOps.currentBranch ()
     let source = "MyNonExistantType { col1 = 2L }"
     match Darklang.Cli.Eval.evaluateRaw None branch source [] false with
-    | Error(Runtime error) ->
+    | Error(Runtime(error, _)) ->
       Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString branch error
       |> Stdlib.Test.equal "MyNonExistantType not found"
     | _ -> Stdlib.Test.fail "expected a runtime error for an unknown record type"

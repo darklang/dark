@@ -53,6 +53,12 @@ module FQFnName =
     | Package of Package
     | TraitMethod of TraitMethod
 
+/// Where a call frame is executing.
+type ExecutionPoint =
+  | Source
+  | Function of FQFnName.FQFnName
+  | Lambda of parent: ExecutionPoint * exprId: UInt64
+
 type NameResolutionError =
   | NotFound
   | InvalidName

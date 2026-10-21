@@ -5,9 +5,8 @@ open Prelude
 
 module PT = LibExecution.ProgramTypes
 
-/// Separate options from the command or script path that follows them.
-/// Leave everything after that point unchanged, even arguments that look like flags.
-/// Both CLI startup and the Dark script runner use this rule.
+/// Split options from the command or script path.
+/// Keep arguments after the path unchanged, including flags.
 module ScriptArguments =
   let split (args : List<string>) : List<string> * List<string> =
     let rec loop options remaining =
@@ -33,6 +32,6 @@ module CliScript =
       traits : List<PT.Trait.Trait>
       impls : List<PT.TraitImpl.TraitImpl>
       submodules : Definitions
-      /// Eval expressions, or internal entry functions for a script.
+      /// Eval expressions or script functions that take `args`.
       exprs : List<PT.Expr>
     }

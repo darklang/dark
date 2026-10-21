@@ -371,8 +371,7 @@ let visibleViews (state: State) : List<Int> =
 ///
 /// Capturing is not optional in here. The workbench owns the whole screen, so a stray `printLine` from
 /// inside a command scrolls the alternate screen, and every frame after it lands that many rows off - which
-/// looks like two overlapping copies of the UI, not like a missing line. `cliEvaluateExpression` prints a
-/// three-line call-stack header on any runtime error, so this is reachable by typing a typo at the REPL.
+/// looks like two overlapping copies of the UI. Eval can print a call stack when a function fails.
 let captureOutputAnd (f: Unit -> 'a) : ('a * String) =
   // `stdoutCaptureStart` returns false when a capture is ALREADY open, and deliberately changes nothing in
   // that case - so we don't own the buffer and must not stop it. Calling stop regardless would hand the

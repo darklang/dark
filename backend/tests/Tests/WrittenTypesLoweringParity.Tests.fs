@@ -340,7 +340,7 @@ let tests =
             ("bare-none", [ "M" ], [], [], "None")
             ("bare-ok", [ "M" ], [], [], "Ok 5")
             ("bare-error", [ "M" ], [], [], "Error \"no\"")
-            // Cover implicit and qualified pipe-enum names independently of the corpus.
+            // Cover bare and qualified enum constructors in pipes.
             ("pipe-bare-some", [ "M" ], [], [], "5 |> Some")
             ("pipe-bare-error", [ "M" ], [], [], "\"no\" |> Error")
             ("pipe-qualified-error",

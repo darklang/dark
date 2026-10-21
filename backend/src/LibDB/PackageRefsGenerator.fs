@@ -51,8 +51,7 @@ let private readExistingFile () : Map<string, string> =
     Map.empty
 
 
-/// Keep location-less aliases only while their content still exists. A removed
-/// declaration must not survive every reload just because an old hash file had it.
+/// Keep aliases without locations only if their content is still in the store.
 let retainStoredReferences (refs : Map<string, string>) : Ply<Map<string, string>> =
   uply {
     let mutable retained = Map.empty
@@ -123,11 +122,7 @@ let generate (writeSourceFile : bool) : Ply<unit> =
         buildKey "trait" (String.concat "." modules) name)
       |> Set.ofList
 
-    // Union in whatever the existing file already knew. `_lookup` populates only as
-    // each `PackageRefs` module initializes, so a process that regenerates before
-    // touching them all (or an older binary predating a ref) would write a SHORTER
-    // file and drop refs. Below, an old key survives only if its location resolves
-    // or its stored content still exists.
+    // Include keys from disk: this process may not have registered every ref yet.
     let existingKeys =
       readExistingFile () |> Map.toList |> List.map fst |> Set.ofList
 
@@ -152,8 +147,7 @@ let generate (writeSourceFile : bool) : Ply<unit> =
 
     let dbMap = dbRows |> Map.ofList
 
-    // Preserve aliases without locations (e.g. RT types sharing PT hashes), but
-    // discard old pins whose content was removed from the package set.
+    // Keep stored aliases, but drop pins to content removed by the reload.
     let existingMap = readExistingFile ()
     let! storedAliases =
       existingMap
