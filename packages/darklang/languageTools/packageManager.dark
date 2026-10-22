@@ -288,11 +288,11 @@ module Test =
   let withStoreSnapshot (branchId: Uuid) (run: Run -> 'a) : 'a =
     Builtin.pmTestWithStoreSnapshot branchId (fun id -> run (Run { id = id }))
 
-  /// How many tests in <param run> wrote to the shared snapshot and so ran again
-  /// on a private copy. A handful is normal; nearly every test means something
-  /// writes at worker startup and the shared snapshot is saving nothing.
-  let retried (run: Run) : Int =
-    Builtin.pmTestRetries run.id
+  /// Whether the test <param hash> wrote to <param run>'s shared snapshot and so
+  /// ran again on a private copy. A handful per run is normal; nearly every test
+  /// means something writes at worker startup and the sharing is saving nothing.
+  let reran (run: Run) (hash: ProgramTypes.Hash) : Bool =
+    Builtin.pmTestReran run.id hash
 
   /// Conservative proof that a passing result is reusable. Dynamic calls and
   /// branch-dependent rendering are not treated as cache-safe.

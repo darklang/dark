@@ -57,9 +57,12 @@ module Request =
 let private runs =
   System.Collections.Concurrent.ConcurrentDictionary<System.Guid, Host.FileSnapshot>()
 
-/// How many tests in each run wrote to the shared store and ran again on a copy.
-let private retries =
-  System.Collections.Concurrent.ConcurrentDictionary<System.Guid, int>()
+type private TestHashes =
+  System.Collections.Concurrent.ConcurrentDictionary<string, unit>
+
+/// The tests in each run that wrote to the shared store and ran again on a copy.
+let private reruns =
+  System.Collections.Concurrent.ConcurrentDictionary<System.Guid, TestHashes>()
 
 let withStoreSnapshot
   (snapshot : Host.FileSnapshot)
@@ -73,14 +76,15 @@ let withStoreSnapshot
       return! run id
     finally
       runs.TryRemove id |> ignore<bool * Host.FileSnapshot>
-      retries.TryRemove id |> ignore<bool * int>
+      reruns.TryRemove id |> ignore<bool * TestHashes>
   }
 
-/// How many tests in the run have run again on a copy so far.
-let retriesIn (id : System.Guid) : int =
-  match retries.TryGetValue id with
-  | true, count -> count
-  | false, _ -> 0
+/// Whether the test with this hash wrote to the run's shared store and so ran
+/// again on a copy.
+let reranIn (id : System.Guid) (testHash : string) : bool =
+  match reruns.TryGetValue id with
+  | true, tests -> tests.ContainsKey testHash
+  | false, _ -> false
 
 let private changedInRun (id : System.Guid) : bool =
   match runs.TryGetValue id with
@@ -343,7 +347,10 @@ let run
           "The run's shared store changed while this test was reading it, so this \
            and every later test fail. Something running then made it writable."
     | Shared run when wrote ->
-      retries.AddOrUpdate(run, 1, (fun _ count -> count + 1)) |> ignore<int>
+      match request.target with
+      | Target.PackageTest testHash ->
+        reruns.GetOrAdd(run, (fun _ -> TestHashes()))[testHash] <- ()
+      | Target.TestCallback _ -> ()
       shared.Value <- false
       return! once (Copy(copyFromRun run))
     | _ -> return outcome

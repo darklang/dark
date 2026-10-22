@@ -96,12 +96,14 @@ not a general restriction on read-only WAL databases. The snapshot also records
 the run's branch and disables automatic publishing so workers need no startup
 writes for those settings.
 
-A test that writes therefore runs twice. Anything it does outside the store
-happens twice too, such as files it writes or processes it starts, and a writing
-test that hangs takes up to two timeouts before it is reported. The summary line
-says how many tests reran, as in `19 wrote to the store and reran on a copy`. A
-handful is normal. If nearly every test reran, something writes at worker startup
-and the shared snapshot is saving nothing.
+A test that writes therefore runs twice. Each attempt has its own home and
+temporary directory, deleted afterwards, so only what a test does outside them
+happens twice, such as writing to an absolute path or calling a real service. A
+writing test that hangs takes up to two timeouts before it is reported. Each test
+that reran is marked `(reran on a copy)` on its own line, and the summary line
+counts them, as in `19 wrote to the store and reran on a copy`. A handful is
+normal. If nearly every test reran, something writes at worker startup and the
+shared snapshot is saving nothing.
 
 The snapshot is protected only by its file mode, and tests run as the same user,
 so a test that made it writable again could change what every later test starts

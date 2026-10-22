@@ -57,7 +57,8 @@ module Backup =
   let toFile (target : string) : Result<unit, string> =
     copy connString (connStringFor target)
 
-  /// Create a complete database file to copy for each test.
+  /// Create a complete database file for tests: a test run's shared snapshot, or
+  /// a nested test worker's own store.
   /// Disable connection pooling so closing the backup flushes any WAL
   /// contents into that file before returning.
   let toTestBaseline (target : string) : Result<unit, string> =

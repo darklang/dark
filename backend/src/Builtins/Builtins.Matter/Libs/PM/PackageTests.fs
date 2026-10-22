@@ -398,16 +398,22 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    { name = fn "pmTestRetries" 0
+    { name = fn "pmTestReran" 0
       typeParams = []
-      parameters = [ Param.make "runId" TUuid "The test run" ]
-      returnType = TInt
+      parameters =
+        [ Param.make "runId" TUuid "The test run"
+          Param.make
+            "testHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "Hash of the package test" ]
+      returnType = TBool
       description =
-        "How many tests in the run wrote to the shared store and ran again on a copy."
+        "Whether the test wrote to the run's shared store and so ran again on a copy."
       fn =
         (function
-        | _, _, _, [| DUuid runId |] ->
-          LibDB.TestProcess.retriesIn runId |> bigint |> Dval.int |> Ply
+        | _, _, _, [| DUuid runId; hashDval |] ->
+          let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
+          LibDB.TestProcess.reranIn runId hash |> DBool |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       // Changes as tests finish, so keep it in program order.
