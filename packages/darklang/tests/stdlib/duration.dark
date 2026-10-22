@@ -1,40 +1,57 @@
-// Duration.parse: suffix-based short-duration parsing ("30s"/"5m"/"1h"/"2d")
-// into a number of seconds (arbitrary-precision Int).
+// Parse duration strings like "30s" and "5m" into durations in whole seconds.
 module Darklang.Stdlib.Duration.Tests
+
+let seconds (s: String) : Stdlib.Result.Result<Int, Stdlib.Duration.ParseError> =
+  Stdlib.Duration.parse s |> Stdlib.Result.map Stdlib.Duration.toSeconds
 
 // --- units ---
 test parseUnits =
   Stdlib.Test.all
-    [ Stdlib.Duration.parse "30s" |> Stdlib.Test.equal (Ok 30)
-      Stdlib.Duration.parse "5m" |> Stdlib.Test.equal (Ok 300)
-      Stdlib.Duration.parse "1h" |> Stdlib.Test.equal (Ok 3600)
-      Stdlib.Duration.parse "2d" |> Stdlib.Test.equal (Ok 172800)
-      Stdlib.Duration.parse "0s" |> Stdlib.Test.equal (Ok 0) ]
+    [ seconds "30s" |> Stdlib.Test.equal (Ok 30)
+      seconds "5m" |> Stdlib.Test.equal (Ok 300)
+      seconds "1h" |> Stdlib.Test.equal (Ok 3600)
+      seconds "2d" |> Stdlib.Test.equal (Ok 172800)
+      seconds "0s" |> Stdlib.Test.equal (Ok 0) ]
 
-// --- arbitrary precision: a value past Int64 range now parses (Int64.parse
-// would have rejected it as out-of-range) ---
+test parseReturnsDuration =
+  Stdlib.Duration.parse "5m"
+  |> Stdlib.Test.equal (Ok(Stdlib.Duration.fromSeconds 300))
+
+test parseNegative =
+  Stdlib.Test.all
+    [ seconds "-30s" |> Stdlib.Test.equal (Ok -30)
+      seconds "-5m" |> Stdlib.Test.equal (Ok -300)
+      seconds "-2d" |> Stdlib.Test.equal (Ok -172800) ]
+
+// Durations can be larger than Int64 allows.
 test parseBeyondInt64 =
-  Stdlib.Duration.parse "9223372036854775808s"
+  seconds "9223372036854775808s"
   |> Stdlib.Test.equal (Ok 9223372036854775808)
 
 // --- errors ---
-// too short (no unit)
 test parseRejectsMissingUnit =
   Stdlib.Test.all
     [ Stdlib.Duration.parse "5"
-      |> Stdlib.Test.equal
-        (Error "Duration too short: '5'; need a number + unit (s/m/h/d), e.g. 5m")
+      |> Stdlib.Test.equal (Error Stdlib.Duration.ParseError.MissingUnit)
+      Stdlib.Duration.parse "-5"
+      |> Stdlib.Test.equal (Error Stdlib.Duration.ParseError.MissingUnit)
+      Stdlib.Duration.parse ""
+      |> Stdlib.Test.equal (Error Stdlib.Duration.ParseError.MissingUnit) ]
+
+test parseRejectsInvalidNumber =
+  Stdlib.Test.all
+    [ Stdlib.Duration.parse "xm"
+      |> Stdlib.Test.equal (Error Stdlib.Duration.ParseError.InvalidNumber)
       Stdlib.Duration.parse "s"
-      |> Stdlib.Test.equal
-        (Error "Duration too short: 's'; need a number + unit (s/m/h/d), e.g. 5m") ]
+      |> Stdlib.Test.equal (Error Stdlib.Duration.ParseError.InvalidNumber)
+      Stdlib.Duration.parse "1.5h"
+      |> Stdlib.Test.equal (Error Stdlib.Duration.ParseError.InvalidNumber) ]
 
-// non-numeric number part
-test parseRejectsNonNumeric =
-  Stdlib.Duration.parse "xm"
-  |> Stdlib.Test.equal
-    (Error "Invalid duration 'xm'; need a number + unit (s/m/h/d), e.g. 5m")
-
-// unknown unit
 test parseRejectsUnknownUnit =
-  Stdlib.Duration.parse "5x"
-  |> Stdlib.Test.equal (Error "Unknown unit 'x' in '5x'; use s, m, h, or d")
+  Stdlib.Test.all
+    [ Stdlib.Duration.parse "5x"
+      |> Stdlib.Test.equal (Error Stdlib.Duration.ParseError.UnknownUnit)
+      Stdlib.Duration.parse "5ms"
+      |> Stdlib.Test.equal (Error Stdlib.Duration.ParseError.UnknownUnit)
+      Stdlib.Duration.parse "5s5"
+      |> Stdlib.Test.equal (Error Stdlib.Duration.ParseError.UnknownUnit) ]
