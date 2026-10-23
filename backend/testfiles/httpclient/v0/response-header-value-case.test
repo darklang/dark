@@ -1,0 +1,29 @@
+[expected-request]
+GET PATH HTTP/1.1
+Host: HOST
+Content-Length: 0
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-type: text/plain; charset=utf-8
+Content-Length: LENGTH
+ETag: "AbC123"
+
+Hello back
+
+[test]
+// Header names come back lowercase; values come back exactly as the server sent them.
+(let response = (Darklang.Stdlib.HttpClient.request "get" "http://URL" [] Stdlib.Blob.empty) |> Builtin.unwrap
+ let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> (Darklang.Stdlib.Tuple2.first h) != "date")
+ {response with headers = respHeaders}) ==
+   Darklang.Stdlib.HttpClient.Response
+    { statusCode = 200
+      headers =
+        [
+          ("server", "kestrel")
+          ("etag", "\"AbC123\"")
+          ("content-length", "LENGTH")
+          ("content-type", "text/plain; charset=utf-8")
+        ]
+      body = "Hello back" |> Darklang.Stdlib.String.toBlob}

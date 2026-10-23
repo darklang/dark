@@ -502,12 +502,13 @@ let private headersForAspNetResponse
   fromAspNetHeaders response.Headers @ fromAspNetHeaders response.Content.Headers
 
 
-/// Lowercase keys + values across a response-header list. Both the
-/// buffered and streaming paths surface the same flattened shape.
+/// Lowercase the names across a response-header list; values are kept as
+/// the server sent them. Both the buffered and streaming paths surface the
+/// same flattened shape.
 let private normalizeResponseHeaders
   (headers : List<string * string>)
   : List<string * string> =
-  headers |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
+  headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
 
 /// Match a send-time exception to the typed error the guest sees; anything

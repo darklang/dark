@@ -95,8 +95,7 @@ let headersType = TList(TTuple(TString, TString, []))
 
 let private headersToDval (headers : List<string * string>) : Dval =
   headers
-  |> List.map (fun (k, v) ->
-    DTuple(DString(String.toLowercase k), DString(String.toLowercase v), []))
+  |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
   |> Dval.list (KTTuple(VT.string, VT.string, []))
 
 /// Parse the Dval header list. A non-pair element is a type error (RTE); an
