@@ -12,8 +12,7 @@ type Error =
 let diagnostic (error : Error) : string * string =
   match error with
   | Overflow -> "PARSE-FLOAT-OVERFLOW", "Float literal overflows binary64"
-  | Underflow ->
-    "PARSE-FLOAT-UNDERFLOW", "Nonzero float literal underflows to zero"
+  | Underflow -> "PARSE-FLOAT-UNDERFLOW", "Nonzero float literal underflows to zero"
   | Precision ->
     "PARSE-FLOAT-PRECISION", "Float literal loses precision specified in the source"
   | Invalid -> "PARSE-FLOAT-INVALID", "Invalid float literal"
@@ -40,8 +39,7 @@ let private exponent (limit : int) (text : string) : Option<int> =
       None
     else
       let digit = int text[index] - int '0'
-      let value =
-        if value > (limit - digit) / 10 then limit else value * 10 + digit
+      let value = if value > (limit - digit) / 10 then limit else value * 10 + digit
       loop (index + 1) value
   if start = text.Length then None else loop start 0
 
@@ -50,11 +48,12 @@ let private binaryRatio (value : float) : bigint * bigint =
   let encodedExponent = int ((bits >>> 52) &&& 0x7ffUL)
   let fraction = bits &&& 0x000fffffffffffffUL
   let significand, power =
-    if encodedExponent = 0 then fraction, -1074
-    else fraction ||| 0x0010000000000000UL, encodedExponent - 1075
+    if encodedExponent = 0 then
+      fraction, -1074
+    else
+      fraction ||| 0x0010000000000000UL, encodedExponent - 1075
   let significand = bigint significand
-  if power >= 0 then significand <<< power, 1I
-  else significand, 1I <<< -power
+  if power >= 0 then significand <<< power, 1I else significand, 1I <<< -power
 
 let private preservesPrecision
   (value : float)
@@ -108,7 +107,8 @@ let parse (source : string) (value : float) : Result<string * string, Error> =
     | None -> Error Invalid
     | Some(whole, fraction) when
       whole + fraction = "" || not (digits whole && digits fraction)
-      -> Error Invalid
+      ->
+      Error Invalid
     | Some(whole, fraction) ->
       let coefficientText = trimLeadingZeros (whole + fraction)
       if System.Double.IsNaN value then

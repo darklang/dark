@@ -1256,7 +1256,8 @@ let private literalTests =
               Expect.isEmpty diagnostics $"{source}: exactly representable integer"
             else
               Expect.isTrue
-                (diagnostics |> List.exists (fun d -> d.code = "PARSE-FLOAT-PRECISION"))
+                (diagnostics
+                 |> List.exists (fun d -> d.code = "PARSE-FLOAT-PRECISION"))
                 $"{source}: unrepresentable integer")
       testCase "float literals preserve specified decimal precision" (fun _ ->
         for source in
@@ -1277,8 +1278,7 @@ let private literalTests =
             (pattern.diagnostics
              |> List.exists (fun d -> d.code = "PARSE-FLOAT-PRECISION"))
             $"{source}: pattern precision diagnostic"
-        for source in
-          [ "0.1"; "0.3"; "0.10000000000000001"; "10000000000000002.0" ] do
+        for source in [ "0.1"; "0.3"; "0.10000000000000001"; "10000000000000002.0" ] do
           Expect.isEmpty (P.parse source).diagnostics $"{source}: accepted")
       testCase "float range errors are independent of exponent spelling" (fun _ ->
         for source in [ "1e309"; "1e401"; "1e999999999999999999999" ] do
@@ -1297,7 +1297,11 @@ let private literalTests =
           Expect.isEmpty result.diagnostics $"{source}: parses"
           match result.parsed with
           | Some(WT.SourceFile { exprsToEval = [ WT.EFloat(_, neg, whole, fraction) ] }) ->
-            let value = Prelude.makeFloat (if neg then Prelude.Negative else Prelude.Positive) whole fraction
+            let value =
+              Prelude.makeFloat
+                (if neg then Prelude.Negative else Prelude.Positive)
+                whole
+                fraction
             Expect.equal
               (System.BitConverter.DoubleToUInt64Bits value)
               expectedBits
