@@ -65,6 +65,16 @@ let wrapImpl (impl : StreamImpl) : Dval =
   DStream(impl, disposed, Finalizer(impl, disposed) :> obj)
 
 
+/// [disposer], run at most once. A transform disposes its source without
+/// flipping the source DStream's flag, so its finalizer would run it again.
+let private once (disposer : (unit -> unit) option) : (unit -> unit) option =
+  disposer
+  |> Option.map (fun d ->
+    let ran = ref 0
+    fun () ->
+      if System.Threading.Interlocked.Exchange(&ran.contents, 1) = 0 then d ())
+
+
 /// Mint a fresh DStream from a pull function. Convenience wrapper
 /// over [wrapImpl] for the common FromIO case. [disposer], when
 /// `Some`, is called once when the stream is drained to completion,
@@ -77,7 +87,7 @@ let newFromIO
   (next : unit -> Ply.Ply<Option<Dval>>)
   (disposer : (unit -> unit) option)
   : Dval =
-  wrapImpl (FromIO(next, elemType, disposer, None))
+  wrapImpl (FromIO(next, elemType, once disposer, None))
 
 
 /// Mint a DStream<UInt8> that can be drained bulk-wise via
@@ -120,7 +130,7 @@ let newChunked
         carryPos.Value <- carryPos.Value + 1
         return Some(DUInt8 b)
     }
-  wrapImpl (FromIO(next, elemType, disposer, Some nextChunk))
+  wrapImpl (FromIO(next, elemType, once disposer, Some nextChunk))
 
 
 /// One pull through a stream, as far as it can go without the puller: what the puller has
@@ -234,9 +244,9 @@ let rec private pull (impl : StreamImpl) : PullStep =
           Pulled None)
 
   | Concat streams ->
-    // Pull from the head stream; when it's exhausted, drop it and
-    // try the next. Mutating the ref means future pulls don't
-    // re-enter a drained stream.
+    // Pull from the head stream; when it's exhausted, release it, drop
+    // it and try the next. Mutating the ref means future pulls don't
+    // re-enter a drained stream, and a close disposes only the rest.
     match streams.Value with
     | [] -> Pulled None
     | head :: tail ->
@@ -244,6 +254,7 @@ let rec private pull (impl : StreamImpl) : PullStep =
         match pulled with
         | Some _ -> Pulled pulled
         | None ->
+          disposeImpl head
           streams.Value <- tail
           pull impl)
 
