@@ -481,7 +481,7 @@ let traceDetail (state: State) : String =
           ""
           $"id      {trace.id}"
           $"status  {Cli.TraceVerbs.statusText trace.status}"
-          $"input   {Cli.Text.oneLineAt 60 trace.input}"
+          $"input   {Cli.Text.oneLineAt 60 (Darklang.Tracing.Format.inputText trace)}"
           $"started {Cli.TraceVerbs.whenText trace.created}" ]
       // The keys this pane answers to, then the two things it deliberately does not do. Forking
       // wants a position, and the position comes from reading the log, so it belongs to the

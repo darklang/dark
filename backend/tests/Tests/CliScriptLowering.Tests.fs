@@ -21,6 +21,15 @@ module CliScript = Builtins.CliHost.Utils.CliScript
 open TestUtils.TestUtils
 
 
+let private scriptInput code args =
+  LibDB.Traces.RunScript(
+    "test.dark",
+    code,
+    args,
+    LibDB.Traces.ScriptOptions.defaults
+  )
+
+
 let private parse (code : string) : Task<CliScript.PTCliScriptModule> =
   task {
     let! state = executionStateFor pmPT false
@@ -195,7 +204,7 @@ let private testMiddleStatementErrorStopsTheScript =
     let! mod' = parse code
     let! state = executionStateFor pmPT false
     // `execute` takes no branch here: the execution state already carries it.
-    let! result = Cli.execute state mod' [] (Cli.RunScript("t", code)) |> Ply.toTask
+    let! result = Cli.execute state mod' (scriptInput code []) |> Ply.toTask
 
     match result with
     | Ok dval -> failtest $"expected the failure to surface, got %A{dval}"
@@ -222,8 +231,11 @@ let private testTopLevelSequencing =
           | Ok mod' -> mod'
           | Error diags -> failtest $"Parse failed: %A{diags}"
         let source =
-          if isEval then Cli.EvalExpression code else Cli.RunScript("t", code)
-        let! result = Cli.execute state mod' [] source |> Ply.toTask
+          if isEval then
+            LibDB.Traces.EvalExpression(code, false)
+          else
+            scriptInput code []
+        let! result = Cli.execute state mod' source |> Ply.toTask
         return result, state.test.sideEffectCount
       }
 
@@ -275,8 +287,7 @@ let private scriptValueExecution =
     testTask name {
       let! state = executionStateFor pmPT false
       let! script = parse code
-      let! result =
-        Cli.execute state script [] (Cli.RunScript("values", code)) |> Ply.toTask
+      let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
       Expect.equal result (Ok expected) "computed values reach their callers"
       Expect.equal state.test.sideEffectCount expectedEffects "initializers run once"
     }
@@ -314,8 +325,7 @@ let private scriptValueExecution =
           "val bad = 1L / 0L\nval later = Builtin.testIncrementSideEffectCounter 2L\nBuiltin.testIncrementSideEffectCounter 3L"
         let! state = executionStateFor pmPT false
         let! script = parse code
-        let! result =
-          Cli.execute state script [] (Cli.RunScript("values", code)) |> Ply.toTask
+        let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
         Expect.isError result "the initializer's error reaches the caller"
         Expect.equal state.test.sideEffectCount 0 "execution stops at the error"
       }
@@ -323,8 +333,7 @@ let private scriptValueExecution =
         let code = "val first = second\nval second = first\nfirst"
         let! state = executionStateFor pmPT false
         let! script = parse code
-        let! result =
-          Cli.execute state script [] (Cli.RunScript("values", code)) |> Ply.toTask
+        let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
         match result with
         | Error(RT.RuntimeError.ValueNotFound _, _) -> ()
         | other -> failtest $"Expected an unavailable cyclic value, got %A{other}"
@@ -338,8 +347,7 @@ let private scriptValueExecution =
             LibExecution.Permissions.Policy.denyAll
             state
         let! result =
-          Cli.execute restricted script [] (Cli.RunScript("values", code))
-          |> Ply.toTask
+          Cli.execute restricted script (scriptInput code []) |> Ply.toTask
         Expect.isError result "a value initializer cannot bypass the run policy"
         Expect.isTrue
           (state.deniedRequests
@@ -348,10 +356,59 @@ let private scriptValueExecution =
           "the failure comes from the inherited run policy"
       } ]
 
+let private testScriptArgumentsAreInvocationSpecific =
+  testTask "a parsed script receives each invocation's arguments" {
+    let! (script : CliScript.PTCliScriptModule) = parse "args"
+    let! state = executionStateFor pmPT false
+    for args in [ []; [ "two"; ""; "a b"; "é" ] ] do
+      let! result = Cli.execute state script (scriptInput "args" args) |> Ply.toTask
+      Expect.equal
+        result
+        (Ok(LibExecution.Dval.list RT.KTString (List.map RT.DString args)))
+        "the same script receives the arguments supplied to this invocation"
+  }
+
+
+let private testScriptInputNamesAreReserved =
+  testTask "scripts reserve root args but allow qualified and local bindings" {
+    let! state = executionStateFor pmPT false
+    for code in [ "val args = 42\n0"; "let args () : Int = 42\n0" ] do
+      let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
+      match parsed with
+      | Error [ (diagnostic : LibParser.Parser.Diagnostic) ] ->
+        Expect.equal diagnostic.code "SCRIPT-RESERVED-NAME" "a targeted diagnostic"
+      | other -> failtest $"Expected a reserved-name error, got %A{other}"
+
+    for code in
+      [ "let count (args: List<String>) : Int = 0\ncount args"
+        "let count () : Int =\n  let args = 42\n  args\ncount ()"
+        "trait ReadArgs<'a> =\n  let args (v: 'a) : Int\nimpl ReadArgs for Int =\n  let args (v: Int) : Int = v\n0" ] do
+      let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
+      Expect.isOk parsed "parameters, local bindings and impl methods remain legal"
+
+    for code in
+      [ "module Nested =\n  let args () : Int = 42\nNested.args ()"
+        "module Nested =\n  val args = 42\nif args == [\"input\"] then Nested.args else 0" ] do
+      let! script = parse code
+      let! result =
+        Cli.execute state script (scriptInput code [ "input" ]) |> Ply.toTask
+      Expect.equal
+        result
+        (Ok(LibExecution.Dval.int 42I))
+        "qualified args declarations coexist with script input"
+
+    for code in [ "val args = 42\nargs"; "let args () : Int = 42\nargs ()" ] do
+      let! parsed = Cli.parseCliExpr state code |> Ply.toTask
+      Expect.isOk parsed "eval may declare values and functions named args"
+  }
+
+
 let tests =
   testList
     "CliScriptLowering"
-    [ scriptValueExecution
+    [ testScriptInputNamesAreReserved
+      testScriptArgumentsAreInvocationSpecific
+      scriptValueExecution
       testUnresolvedRefsDoNotCollide
       testIdenticalDeclarationsShareAHash
       testMutuallyRecursiveDeclarations

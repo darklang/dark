@@ -78,14 +78,6 @@ let private entryToDT (entry : Scheduler.Entry) : Dval =
   | Scheduler.EntryFunction name -> case "Function" [ RT2DT.FQFnName.toDT name ]
   | Scheduler.EntryExpr -> case "Expr" []
 
-let rec private executionPointToDT (ep : ExecutionPoint) : Dval =
-  let case = enumOf PackageRefs.Type.Stdlib.Exec.executionPoint
-  match ep with
-  | Source -> case "Source" []
-  | Function name -> case "Function" [ RT2DT.FQFnName.toDT name ]
-  | Lambda(parent, exprId) ->
-    case "Lambda" [ executionPointToDT parent; DInt64(int64 exprId) ]
-
 let summaryToDT (p : Scheduler.ProcessSummary) : Dval =
   recordOf
     PackageRefs.Type.Stdlib.Exec.summary
@@ -113,17 +105,11 @@ let private machineProcessType () =
   KTCustomType(typ PackageRefs.Type.Stdlib.Exec.machineProcess, [])
 
 let private detailToDT (p : Scheduler.ProcessSummary) : Dval =
-  let frames = p.frames |> List.map executionPointToDT
+  let frames = p.frames |> List.map RT2DT.ExecutionPoint.toDT
   recordOf
     PackageRefs.Type.Stdlib.Exec.detail
     [ "summary", summaryToDT p
-      "frames",
-      DList(
-        ValueType.Known(
-          KTCustomType(typ PackageRefs.Type.Stdlib.Exec.executionPoint, [])
-        ),
-        frames
-      ) ]
+      "frames", Dval.list (RT2DT.ExecutionPoint.knownType ()) frames ]
 
 /// A scheduling policy written in Dark, as the scheduler's `Chooser`: `fn` takes the runnable
 /// processes (`List<Stdlib.Exec.Summary>`, oldest first) and answers `Some id` to step next, or

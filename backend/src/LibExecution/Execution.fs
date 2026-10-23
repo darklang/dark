@@ -685,66 +685,32 @@ let executionPointToString
   (ep : RT.ExecutionPoint)
   : Ply<string> =
   uply {
-    // CLEANUP improve here
-    // let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
-    //   uply {
-    //     match fn with
-    //     | None -> return $"<Couldn't find package function {fn.id}>"
-    //     | Some fn ->
-    //       let fnName = string fn.id
-    //       let! exprString = exprString state fn.body exprId
-    //       return fnName + ": " + exprString
-    //   }
-
-    match ep with
-    | RT.Source -> return "Source"
-    | RT.Function(RT.FQFnName.Package _ as name) ->
-      let! prettyName = fnNameToString state name
-      return $"Package Function {prettyName}"
-    | RT.Function(RT.FQFnName.Builtin fnName) ->
-      return $"Builtin Function {fnName.name}" // TODO actually fetch the fn, etc
-    | RT.Function(RT.FQFnName.TraitMethod { trait_ = _; method_ = m; implFn = _ }) ->
-      return $"Trait Method {m}"
-    | RT.Lambda(_parent, exprId) -> return ("Lambda " + string exprId)
+    return!
+      callStringPrinter
+        state
+        (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.executionPoint ())
+        "execution point"
+        ep
+        [ RT2DT.ExecutionPoint.toDT ep ]
   }
 
 
-/// CLEANUPs
-/// - move this impl to darklang
-/// - consider accepting a VMState rather than the CallStack
-/// - generally tidy the output here
 let callStackString
   (state : RT.ExecutionState)
   (callStack : RT.CallStack)
   : Ply<string> =
   uply {
-    let! stringParts =
-      Ply.List.mapSequentially (fun ep -> executionPointToString state ep) callStack
-
-    let rec groupConsecutive acc current count remaining =
-      match remaining with
-      | [] ->
-        let countStr = if count = 1 then "" else $" (×{count})"
-        List.rev ((current + countStr) :: acc)
-      | head :: tail ->
-        if head = current then
-          groupConsecutive acc current (count + 1) tail
-        else
-          let countStr = if count = 1 then "" else $" (×{count})"
-          groupConsecutive ((current + countStr) :: acc) head 1 tail
-
-    let groupedParts =
-      match stringParts with
-      | [] -> []
-      | head :: tail -> groupConsecutive [] head 1 tail
-
-    let result =
-      groupedParts
-      |> List.fold
-        (fun acc part -> $"{acc}\n- {part}")
-        "Call stack (last call at bottom):"
-
-    return result
+    let frames =
+      callStack
+      |> List.map RT2DT.ExecutionPoint.toDT
+      |> Dval.list (RT2DT.ExecutionPoint.knownType ())
+    return!
+      callStringPrinter
+        state
+        (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.callStack ())
+        "call stack"
+        callStack
+        [ frames ]
   }
 
 

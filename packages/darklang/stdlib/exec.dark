@@ -61,10 +61,7 @@ type Summary =
 
 
 /// One activation on a process's stack.
-type ExecutionPoint =
-  | Source
-  | Function of LanguageTools.RuntimeTypes.FQFnName.FQFnName
-  | Lambda of parent: ExecutionPoint * exprId: Int64
+type ExecutionPoint = LanguageTools.RuntimeTypes.ExecutionPoint
 
 
 type Detail =

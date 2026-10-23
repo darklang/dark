@@ -29,14 +29,8 @@ let fnCallTypeName () = FQTypeName.fqPackage (TracesRefs.fnCall ())
 let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
 
 
-/// The columns of a run, as the Dark `Tracing.Trace` wants them.
-/// The columns `traceRowToDT` reads, qualified by the table or the alias they come from.
-///
-/// Qualified rather than bare because `traces` and `trace_fn_calls` both have a `duration_ms` now
-/// -- one is the whole run, the other one call -- and a bare column list in a join between them is
-/// ambiguous. SQLite says so at run time, in a query no F# compiler looks at, which is a whole
-/// test run to find out.
-let private traceColumnsOf (prefix : string) : string =
+/// Columns read by traceRowToDT, qualified to avoid ambiguous names in joins.
+let private traceColumns : string =
   [ "id"
     "handler_desc"
     "input_name"
@@ -50,10 +44,13 @@ let private traceColumnsOf (prefix : string) : string =
     "result_value"
     "entry_hash"
     "duration_ms" ]
-  |> List.map (fun c -> $"{prefix}.{c}")
+  |> List.map (fun c -> $"t.{c}")
   |> String.concat ", "
+  |> fun cs -> $"{cs}, {LibDB.Traces.ScriptOrEvalInput.selectColumns}"
 
-let private traceColumns = traceColumnsOf "traces"
+let private fromTraces : string =
+  let join = LibDB.Traces.ScriptOrEvalInput.join "t"
+  $"FROM traces t {join}"
 
 let private statusToDT (status : string) : Dval =
   let tn = statusTypeName ()
@@ -69,26 +66,11 @@ let private statusToDT (status : string) : Dval =
       Exception.raiseInternal "unknown run status" [ "status", other ]
   DEnum(tn, tn, [], case, [])
 
-/// A run's input as one line of text: the expression or the script's source as it was written.
-/// A served request is a record, not a string; it is named rather than dumped, since the whole
-/// thing is one `traces inspect` away and a table cell is 40 characters.
-/// A recorded dval as one line, for a table cell or a summary line. Shared by the input and
-/// the result, because the two want the same treatment.
-let private oneLineDval (label : string) (bytes : byte[]) : string =
-  match BinarySer.RT.Dval.deserialize label bytes with
-  | DString s -> s
-  | DRecord(_, _, _, fields) ->
-    let field name =
-      match Map.tryFind name fields with
-      | Some(DString s) -> Some s
-      | _ -> None
-    match field "method", field "url" with
-    | Some m, Some u -> $"{m} {u}"
-    | _ -> "(a request)"
-  | _ -> "(not source)"
-
 let private traceRowToDT (read : RowReader) : Dval =
   let tn = traceTypeName ()
+  let inputValue =
+    BinarySer.RT.Dval.deserialize "traces.input_value" (read.bytes "input_value")
+  let scriptOrEvalInput = LibDB.Traces.ScriptOrEvalInput.fromColumns read
   let parentKT = KTTuple(ValueType.Known KTString, ValueType.Known KTInt64, [])
   let parent =
     match read.stringOrNone "parent_id", read.int64OrNone "parent_seq" with
@@ -102,7 +84,14 @@ let private traceRowToDT (read : RowReader) : Dval =
     Map
       [ "id", DString(read.string "id")
         "entry", DString(read.string "handler_desc")
-        "input", DString(oneLineDval "traces.input_value" (read.bytes "input_value"))
+        "input", RT2DT.Dval.toDT inputValue
+        "servedRequest",
+        DBool(LibDB.Traces.isServedRequest (read.string "input_name"))
+        "scriptOrEvalInput",
+        (let kt = KTCustomType(LibDB.Traces.ScriptOrEvalInput.typeName (), [])
+         Dval.option
+           kt
+           (Option.map LibDB.Traces.ScriptOrEvalInput.toDT scriptOrEvalInput))
         // The value itself, not a rendering of it: Dark formats it, the way it formats a
         // recorded call's result.
         "result",
@@ -280,8 +269,8 @@ let fns () : List<BuiltInFn> =
             let! rows =
               Sql.query
                 $"SELECT {traceColumns}
-                  FROM traces
-                  ORDER BY timestamp DESC, rowid DESC
+                  {fromTraces}
+                  ORDER BY t.timestamp DESC, t.rowid DESC
                   LIMIT @limit"
               |> Sql.parameters [ "limit", Sql.int64 limit ]
               |> Sql.executeAsync traceRowToDT
@@ -307,7 +296,9 @@ let fns () : List<BuiltInFn> =
           uply {
             // One SELECT covers metadata + input — both live on the trace row.
             let! row =
-              Sql.query $"SELECT {traceColumns} FROM traces WHERE id = @traceId"
+              Sql.query
+                $"SELECT {traceColumns} {fromTraces}
+                  WHERE t.id = @traceId"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
               |> Sql.executeRowOptionAsync (fun read ->
                 {| id = read.string "id"
@@ -363,11 +354,10 @@ let fns () : List<BuiltInFn> =
               |> fun s -> s.Replace("%", @"\%")
               |> fun s -> s.Replace("_", @"\_")
             let pattern = $"%%{escaped}%%"
-            let cols = traceColumnsOf "t"
             let! rows =
               Sql.query
-                $"SELECT DISTINCT {cols}
-                  FROM traces t
+                $"SELECT DISTINCT {traceColumns}
+                  {fromTraces}
                   JOIN trace_fn_calls c ON t.id = c.trace_id
                   WHERE c.fn_hash LIKE @pattern ESCAPE '\\'
                   ORDER BY t.timestamp DESC, t.rowid DESC
@@ -529,8 +519,8 @@ let fns () : List<BuiltInFn> =
 
             let! traces =
               Sql.query
-                $"SELECT {traceColumns} FROM traces
-                  ORDER BY timestamp DESC, rowid DESC LIMIT 2000"
+                $"SELECT {traceColumns} {fromTraces}
+                  ORDER BY t.timestamp DESC, t.rowid DESC LIMIT 2000"
               |> Sql.executeAsync (fun read ->
                 {| id = read.string "id"
                    row = traceRowToDT read
@@ -607,33 +597,30 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "tracesGetInput" 0
+    { name = fn "tracesGetScriptOrEvalInput" 0
       typeParams = []
-      parameters = [ Param.make "traceID" TString "The trace ID to get input from" ]
-      returnType = TypeReference.option TString
+      parameters =
+        [ Param.make "traceID" TString "The trace ID to get invocation from" ]
+      returnType =
+        TypeReference.option (
+          TCustomType(NR.ok (LibDB.Traces.ScriptOrEvalInput.typeName ()), [])
+        )
       description =
-        "Get the stored input code for a trace (eval / run only — HTTP traces, whose input is a Request record, return None)."
+        "Read a recorded CLI invocation without loading its result. Served requests, and invocations that are missing, incomplete or corrupt, return None."
       fn =
         (function
         | _, _, _, [| DString traceID |] ->
           uply {
-            let! row =
-              Sql.query "SELECT input_value FROM traces WHERE id = @traceId"
-              |> Sql.parameters [ "traceId", Sql.string traceID ]
-              |> Sql.executeRowOptionAsync (fun read -> read.bytes "input_value")
-
-            match row with
-            | None -> return Dval.optionNone KTString
-            | Some valueBytes ->
-              try
-                let dval =
-                  BinarySer.RT.Dval.deserialize "traces.input_value" valueBytes
-                match dval with
-                | DString code -> return Dval.optionSome KTString (DString code)
-                | _ -> return Dval.optionNone KTString
-              with ex ->
-                print $"[traces] Failed to parse input for replay: {ex.Message}"
-                return Dval.optionNone KTString
+            let inputType =
+              KTCustomType(LibDB.Traces.ScriptOrEvalInput.typeName (), [])
+            match System.Guid.TryParse traceID with
+            | false, _ -> return Dval.optionNone inputType
+            | true, id ->
+              let! input = LibDB.Traces.getCliInput id
+              return
+                Dval.option
+                  inputType
+                  (Option.map LibDB.Traces.ScriptOrEvalInput.toDT input)
           }
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -685,6 +672,7 @@ let fns () : List<BuiltInFn> =
               [ ("DELETE FROM trace_fn_calls", [ [] ])
                 ("DELETE FROM trace_fns", [ [] ])
                 ("DELETE FROM trace_loops", [ [] ])
+                ("DELETE FROM trace_cli_invocations", [ [] ])
                 ("DELETE FROM traces", [ [] ]) ]
             |> ignore<List<int>>
             return Dval.int (bigint count)
@@ -752,7 +740,7 @@ let fns () : List<BuiltInFn> =
           uply {
             let typeName = traceTypeName ()
             let! row =
-              Sql.query $"SELECT {traceColumns} FROM traces WHERE id = @id"
+              Sql.query $"SELECT {traceColumns} {fromTraces} WHERE t.id = @id"
               |> Sql.parameters [ "id", Sql.string traceID ]
               |> Sql.executeRowOptionAsync traceRowToDT
             return Dval.option (KTCustomType(typeName, [])) row
@@ -841,11 +829,10 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString fnName; DString fnHash; DInt64 limit |] ->
           uply {
             let typeName = FQTypeName.fqPackage (TracesRefs.trace ())
-            let cols = traceColumnsOf "t"
             let! rows =
               Sql.query
-                $"SELECT {cols}
-                  FROM traces t
+                $"SELECT {traceColumns}
+                  {fromTraces}
                   JOIN trace_fns f ON f.trace_id = t.id
                   WHERE f.fn_name = @fn
                      OR (@hash <> '' AND f.fn_hash = @hash)

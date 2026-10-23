@@ -258,7 +258,7 @@ let showFromTrace
         | None ->
           named
           |> Stdlib.List.findFirst (fun fn ->
-            Stdlib.String.contains trace.input fn)
+            Stdlib.String.contains (Darklang.Tracing.Format.inputText trace) fn)
 
     // One helper for both renderers, so neither end can learn something the other does not.
     let show (state: Cli.AppState) (fn: String) : Cli.AppState =
@@ -1561,12 +1561,13 @@ let executeInspect
     Stdlib.printLine $"  entry     {run.entry}"
     // All of the input, because this is the one place it can be read: a script's source is
     // several lines, and the table above it has already shown you the first forty characters.
-    let inputLines = Stdlib.String.split run.input "\n"
+    let input = Darklang.Tracing.Format.inputText run
+    let inputLines = Stdlib.String.split input "\n"
     let inputFitsOnTheLine =
       ((Stdlib.List.length inputLines) == 1)
-      && ((Stdlib.String.displayWidth run.input) <= 60)
+      && ((Stdlib.String.displayWidth input) <= 60)
     if inputFitsOnTheLine then
-      Stdlib.printLine $"  input     {run.input}"
+      Stdlib.printLine $"  input     {input}"
     else
       Stdlib.printLine "  input"
       Stdlib.List.iter inputLines (fun l -> Stdlib.printLine $"    {l}")
@@ -1669,40 +1670,35 @@ let executeInspect
     state
 
 
-/// `traces rerun <id>` — re-evaluate a trace's recorded eval/run input, performing every effect
-/// again. `traces resume` is the other one: it answers the effects from the log.
-/// HTTP traces (input is a Request record, not a string) aren't supported;
-/// the row's input is fetched via `tracesGetInput` which returns None for
-/// non-string inputs. Each rerun is recorded as a trace of its own.
+/// Rerun the saved input, including writes and requests.
 let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
-  match Darklang.Tracing.Store.getInput traceID with
+  let input = Darklang.Tracing.Store.getScriptOrEvalInput traceID
+  match input with
   | None ->
     Cli.printErr
-      $"no kept trace has the id {traceID}, or its input is not something to evaluate"
+      $"no kept trace has the id {traceID}, or it has no CLI input to run again"
     Stdlib.printErrorLine
       (Stdlib.Cli.UI.Colors.dimText
-        "  a served request's input is a record, not source: `traces show <fn>` reads one instead")
+        "  inspect the recorded log, or run the original code again")
+    Stdlib.printErrorLine
+      (Stdlib.Cli.UI.Colors.dimText
+        $"  for a served request, `dark traces show <fn> {Cli.Text.shortIdText traceID}` shows what it did")
     Cli.exitWith state false
-  | Some code ->
-    Stdlib.printLine
-      $"rerunning {Cli.Text.shortIdText traceID}: {Cli.Text.oneLine code}"
+  | Some input ->
+    let source =
+      match input with
+      | Eval(source, _) -> source
+      | Script(_, source, _, _) -> source
+    Stdlib.printLine $"rerunning {Cli.Text.shortIdText traceID}: {Cli.Text.oneLine source}"
     Stdlib.printLine ""
-    match
-      Eval.evaluateRaw
-        state.accountID state.currentBranchId code [] false
-    with
-    | Ok outputOpt ->
-      match outputOpt with
-      | Some output -> Stdlib.printLine output
-      | None -> ()
+    let result = Cli.TraceVerbs.executeScriptOrEval state input
+    if result.exitCode == 0 then
       Stdlib.printLine ""
       Stdlib.printLine
         "rerun complete; it was kept as a trace of its own (`dark traces` lists it)"
-      state
-    | Error err ->
-      let pretty = Cli.ExecutionError.toString state.currentBranchId err
-      Cli.printErr $"the rerun failed: {pretty}"
-      { state with exitCode = 1 }
+    else
+      ()
+    result
 
 
 let executeClear (state: Cli.AppState) : Cli.AppState =

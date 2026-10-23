@@ -7,6 +7,70 @@ module Darklang.Cli.Tests.TracesRendering
 // setting has two doors onto one key -- is in `Tests/CliTraces.Tests.fs`, where a CLI harness
 // exists.
 
+module Input =
+  type Request = { method: String, url: String }
+  type IncompleteRequest = { method: String }
+
+  let trace
+    (input: Darklang.LanguageTools.RuntimeTypes.Dval)
+    : Darklang.Tracing.Trace =
+    Darklang.Tracing.Trace
+      { id = "trace"
+        entry = "eval"
+        input = input
+        scriptOrEvalInput = None
+        servedRequest = false
+        result = None
+        status = Darklang.Tracing.Status.Done
+        parent = None
+        pinned = false
+        durationMs = 0L
+        entryHash = None
+        created = ""
+        updated = "" }
+
+  test sourceText =
+    trace (Darklang.LanguageTools.RuntimeTypes.Dval.DString "1 + 2")
+    |> Darklang.Tracing.Format.inputText
+    |> Stdlib.Test.equal "1 + 2"
+
+  test savedSourceTakesPrecedence =
+    let recorded = trace (Darklang.LanguageTools.RuntimeTypes.Dval.DString "old")
+    let options =
+      Darklang.Tracing.ScriptOptions
+        { allowHarmful = false, sandbox = true, warnPermissions = false }
+    Stdlib.Test.all
+      [ { recorded with
+            scriptOrEvalInput =
+              Some (Darklang.Tracing.ScriptOrEvalInput.Eval("42", false)) }
+        |> Darklang.Tracing.Format.inputText
+        |> Stdlib.Test.equal "42"
+        { recorded with
+            scriptOrEvalInput =
+              Some (Darklang.Tracing.ScriptOrEvalInput.Script(
+                "file.dark", "main args", [ "hello" ], options)) }
+        |> Darklang.Tracing.Format.inputText
+        |> Stdlib.Test.equal "main args" ]
+
+  test requestSummary =
+    Request { method = "GET", url = "/orders" }
+    |> Darklang.LanguageTools.RuntimeTypes.reflect
+    |> trace
+    |> Darklang.Tracing.Format.inputText
+    |> Stdlib.Test.equal "GET /orders"
+
+  test missingRequestFields =
+    IncompleteRequest { method = "GET" }
+    |> Darklang.LanguageTools.RuntimeTypes.reflect
+    |> trace
+    |> Darklang.Tracing.Format.inputText
+    |> Stdlib.Test.equal "(a request)"
+
+  test unknownInput =
+    trace Darklang.LanguageTools.RuntimeTypes.Dval.DUnit
+    |> Darklang.Tracing.Format.inputText
+    |> Stdlib.Test.equal "(not source)"
+
 module IdWidth =
   // The shortest prefix that tells THESE ids apart. Eight unless two of them collide, which is
   // what makes a table narrow without ever being ambiguous.
@@ -291,3 +355,20 @@ module WatchCursor =
   test noRuns =
     Darklang.Cli.TraceWatch.pickCursor [] 4 Stdlib.Option.Option.None
     |> Stdlib.Test.equal 0
+
+
+module ReplayReasons =
+  test messages =
+    let cases =
+      [ (Darklang.Tracing.ReplayStop.InvalidId, "not an id")
+        (Darklang.Tracing.ReplayStop.TraceNotFound, "no run has this id")
+        (Darklang.Tracing.ReplayStop.InputNoLongerParses,
+         "the run's input no longer parses")
+        (Darklang.Tracing.ReplayStop.MissingHandler,
+         "this run has no source to replay and no handler recorded against it")
+        (Darklang.Tracing.ReplayStop.HostFailure "host error", "host error") ]
+    cases
+    |> Stdlib.List.map (fun (reason, expected) ->
+      Darklang.Tracing.Format.replayStop Darklang.SCM.Branch.mainBranchId reason
+      |> Stdlib.Test.equal (expected, None))
+    |> Stdlib.Test.all

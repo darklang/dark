@@ -1,0 +1,93 @@
+module Darklang.Cli.Tests.Scripts
+
+
+test unitSucceeds =
+  Darklang.Cli.Run.exitCode Darklang.LanguageTools.RuntimeTypes.Dval.DUnit
+  |> Stdlib.Test.equal (Ok 0)
+
+
+test integerExitCodes =
+  Stdlib.Test.all
+    [ Darklang.Cli.Run.exitCode (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 7)
+      |> Stdlib.Test.equal (Ok 7)
+      Darklang.Cli.Run.exitCode (Darklang.LanguageTools.RuntimeTypes.Dval.DInt64 3L)
+      |> Stdlib.Test.equal (Ok 3)
+      Darklang.Cli.Run.exitCode
+        (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 9223372036854775808)
+      |> Stdlib.Test.equal (Ok 9223372036854775808) ]
+
+
+test invalidResultKeepsValue =
+  let returned = Darklang.LanguageTools.RuntimeTypes.Dval.DBool true
+  match Darklang.Cli.Run.exitCode returned with
+  | Error (Runtime(CLI (NonIntReturned actual), [])) ->
+    actual |> Stdlib.Test.equal returned
+  | _ -> Stdlib.Test.fail "Expected a script result error with the returned value"
+
+
+module Eval =
+  let evaluate
+    (source: String)
+    : Stdlib.Result.Result<
+        Stdlib.Option.Option<String>, Darklang.Cli.ExecutionError.ExecutionError> =
+    Darklang.Cli.Eval.evaluateRaw
+      None Darklang.SCM.Branch.mainBranchId source [] false
+
+  test unitIsSilent =
+    evaluate "()" |> Stdlib.Test.equal (Ok None)
+
+  test stringsAreUnquoted =
+    evaluate "\"hello\\nworld\""
+    |> Stdlib.Test.equal (Ok (Some "hello\nworld"))
+
+  test otherValuesArePrinted =
+    evaluate "[1, 2]" |> Stdlib.Test.equal (Ok (Some "[1, 2]"))
+
+
+module CallStack =
+  let source () : Darklang.LanguageTools.RuntimeTypes.ExecutionPoint =
+    Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Source
+
+  let builtin () : Darklang.LanguageTools.RuntimeTypes.ExecutionPoint =
+    Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Function
+      (Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin
+        (Darklang.LanguageTools.RuntimeTypes.FQFnName.Builtin
+          { name = "intDivide", version = 0l }))
+
+  let render
+    (frames: List<Darklang.LanguageTools.RuntimeTypes.ExecutionPoint>)
+    : String =
+    Darklang.PrettyPrinter.RuntimeTypes.callStack
+      Darklang.SCM.Branch.mainBranchId frames
+
+  test emptyStack =
+    render [] |> Stdlib.Test.equal "Call stack (last call at bottom):"
+
+  test groupsOnlyConsecutiveFrames =
+    render [ source (), builtin (), builtin (), source () ]
+    |> Stdlib.Test.equal
+      "Call stack (last call at bottom):\n- Source\n- Builtin Function intDivide (×2)\n- Source"
+
+  test lambdaLabel =
+    Darklang.PrettyPrinter.RuntimeTypes.executionPoint
+      Darklang.SCM.Branch.mainBranchId
+      (Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(source (), 23UL))
+    |> Stdlib.Test.equal "Lambda 23"
+
+  test entryOnlyStacksAreHidden =
+    let lambda =
+      Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(source (), 23UL)
+    Stdlib.Test.all
+      [ Darklang.Cli.ExecutionError.hasReadableFrames [ source (), lambda ]
+        |> Stdlib.Test.equal false
+        Darklang.Cli.ExecutionError.hasReadableFrames [ source (), builtin () ]
+        |> Stdlib.Test.equal true ]
+
+
+  test processStacksUseTheSharedType =
+    let frame =
+      Stdlib.Exec.ExecutionPoint.Lambda(
+        Stdlib.Exec.ExecutionPoint.Source, 18446744073709551615UL)
+    Darklang.PrettyPrinter.RuntimeTypes.executionPoint
+      Darklang.SCM.Branch.mainBranchId frame
+    |> Stdlib.Test.equal "Lambda 18446744073709551615"

@@ -24,6 +24,189 @@ module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module BinarySer = LibSerialization.Binary.Serialization
 
+/// Saved script options. Permission grants are not saved here.
+type ScriptOptions = { allowHarmful : bool; sandbox : bool; warnPermissions : bool }
+
+module ScriptOptions =
+  let defaults = { allowHarmful = false; sandbox = false; warnPermissions = false }
+
+  let typeName () =
+    RT.FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Tracing.scriptOptions ())
+
+  let toDT (options : ScriptOptions) : RT.Dval =
+    let tn = typeName ()
+    RT.DRecord(
+      tn,
+      tn,
+      [],
+      Map
+        [ "allowHarmful", RT.DBool options.allowHarmful
+          "sandbox", RT.DBool options.sandbox
+          "warnPermissions", RT.DBool options.warnPermissions ]
+    )
+
+/// Saved input for eval or a script.
+/// Stored in trace_cli_invocations so package type hash changes cannot break replay.
+type ScriptOrEvalInput =
+  | EvalExpression of source : string * allowHarmful : bool
+  | RunScript of
+    filename : string *
+    source : string *
+    args : List<string> *
+    options : ScriptOptions
+
+module ScriptOrEvalInput =
+  let typeName () =
+    RT.FQTypeName.fqPackage (
+      LibExecution.PackageRefs.Type.Tracing.scriptOrEvalInput ()
+    )
+
+  let source (input : ScriptOrEvalInput) : string =
+    match input with
+    | EvalExpression(source, _)
+    | RunScript(_, source, _, _) -> source
+
+  let options (input : ScriptOrEvalInput) : ScriptOptions =
+    match input with
+    | EvalExpression(_, allowHarmful) ->
+      { ScriptOptions.defaults with allowHarmful = allowHarmful }
+    | RunScript(_, _, _, options) -> options
+
+  let toDT (input : ScriptOrEvalInput) : RT.Dval =
+    let tn = typeName ()
+    let case, fields =
+      match input with
+      | EvalExpression(source, allowHarmful) ->
+        "Eval", [ RT.DString source; RT.DBool allowHarmful ]
+      | RunScript(filename, source, args, options) ->
+        "Script",
+        [ RT.DString filename
+          RT.DString source
+          LibExecution.Dval.list RT.KTString (List.map RT.DString args)
+          ScriptOptions.toDT options ]
+    RT.DEnum(tn, tn, [], case, fields)
+
+  /// Source text and labels for trace listings. Replay uses the saved invocation.
+  let toTraceParams (input : ScriptOrEvalInput) =
+    match input with
+    | EvalExpression(source, _) -> "eval", "expression", RT.DString source
+    | RunScript(filename, source, _, _) ->
+      $"run {filename}", "code", RT.DString source
+
+  /// Encode the argument count followed by each length-prefixed string.
+  let private encodeArgs (args : List<string>) : byte[] =
+    use stream = new System.IO.MemoryStream()
+    use writer = new System.IO.BinaryWriter(stream, System.Text.Encoding.UTF8)
+    writer.Write(List.length args)
+    for arg in args do
+      writer.Write(arg)
+    writer.Flush()
+    stream.ToArray()
+
+  let private decodeArgs (bytes : byte[]) : Option<List<string>> =
+    try
+      use stream = new System.IO.MemoryStream(bytes)
+      // Reject invalid UTF-8 so replay cannot silently change an argument.
+      let strict = System.Text.UTF8Encoding(false, true)
+      use reader = new System.IO.BinaryReader(stream, strict)
+      let count = reader.ReadInt32()
+      if count < 0 then
+        None
+      else
+        let args = List.init count (fun _ -> reader.ReadString())
+        if stream.Position = stream.Length then Some args else None
+    with _ ->
+      None
+
+  /// Prefix invocation columns with `cli_` to avoid name clashes in joins.
+  let selectColumns =
+    [ "kind"
+      "source"
+      "filename"
+      "args"
+      "allow_harmful"
+      "sandbox"
+      "warn_permissions" ]
+    |> List.map (fun c -> $"cli.{c} AS cli_{c}")
+    |> String.concat ", "
+
+  /// Join traces under <param alias> to their saved CLI input.
+  let join (alias : string) : string =
+    $"LEFT JOIN trace_cli_invocations cli ON cli.trace_id = {alias}.id"
+
+  /// SQL and parameters for saving a CLI invocation.
+  let insertStatement (traceId : System.Guid) (input : ScriptOrEvalInput) =
+    let flag (b : bool) = Sql.int (if b then 1 else 0)
+    let kind, filename, args, sandbox, warnPermissions =
+      match input with
+      | EvalExpression _ -> "eval", Sql.dbnull, Sql.dbnull, Sql.dbnull, Sql.dbnull
+      | RunScript(filename, _, args, options) ->
+        "script",
+        Sql.string filename,
+        Sql.bytes (encodeArgs args),
+        flag options.sandbox,
+        flag options.warnPermissions
+    "INSERT INTO trace_cli_invocations
+      (trace_id, kind, source, filename, args, allow_harmful, sandbox, warn_permissions)
+     VALUES
+      (@traceId, @kind, @source, @filename, @args, @allowHarmful, @sandbox,
+       @warnPermissions)",
+    [ [ "traceId", Sql.uuid traceId
+        "kind", Sql.string kind
+        "source", Sql.string (source input)
+        "filename", filename
+        "args", args
+        "allowHarmful", flag (options input).allowHarmful
+        "sandbox", sandbox
+        "warnPermissions", warnPermissions ] ]
+
+  /// Read saved CLI input, or None if any required field is missing or invalid.
+  let fromColumns (read : RowReader) : Option<ScriptOrEvalInput> =
+    try
+      let flag (column : string) =
+        match read.int64OrNone column with
+        | Some 0L -> Some false
+        | Some 1L -> Some true
+        | _ -> None
+      match read.stringOrNone "cli_kind", read.stringOrNone "cli_source" with
+      | Some "eval", Some source ->
+        flag "cli_allow_harmful"
+        |> Option.map (fun allowHarmful -> EvalExpression(source, allowHarmful))
+      | Some "script", Some source ->
+        match
+          read.stringOrNone "cli_filename",
+          read.bytesOrNone "cli_args" |> Option.bind decodeArgs,
+          flag "cli_allow_harmful",
+          flag "cli_sandbox",
+          flag "cli_warn_permissions"
+        with
+        | Some filename,
+          Some args,
+          Some allowHarmful,
+          Some sandbox,
+          Some warnPermissions ->
+          Some(
+            RunScript(
+              filename,
+              source,
+              args,
+              { allowHarmful = allowHarmful
+                sandbox = sandbox
+                warnPermissions = warnPermissions }
+            )
+          )
+        | _ -> None
+      | _ -> None
+    with _ ->
+      None
+
+
+/// Input name used when recording HTTP requests.
+let servedRequestInputName = "request"
+
+let isServedRequest (inputName : string) : bool = inputName = servedRequestInputName
+
+
 type Status =
   | Running
   | Done
@@ -52,8 +235,10 @@ type Trace =
     /// `eval`, `run <file>`, or `GET /path`: what was run.
     entry : string
     inputName : string
-    /// The expression, the script's source, or the request: what `resume` runs again.
+    /// Source text for CLI runs, or the HTTP request.
     input : RT.Dval
+    /// Saved CLI input for replay; None for HTTP requests and older traces.
+    cli : Option<ScriptOrEvalInput>
     status : Status
     /// The trace this was forked from, and the `seq` it branched at: the parent's log below
     /// that position is the child's too.
@@ -85,6 +270,7 @@ let private readRow (read : RowReader) : Trace =
     inputName = read.string "input_name"
     input =
       BinarySer.RT.Dval.deserialize "traces.input_value" (read.bytes "input_value")
+    cli = ScriptOrEvalInput.fromColumns read
     status = Status.parse (read.string "status")
     parent =
       match read.uuidOrNone "parent_id", read.int64OrNone "parent_seq" with
@@ -100,8 +286,26 @@ let private readRow (read : RowReader) : Trace =
     updated = read.string "updated" }
 
 let private columns =
-  "id, handler_desc, input_name, input_value, status, parent_id, parent_seq, pinned, "
-  + "timestamp, updated, entry_hash, result_value, duration_ms"
+  [ "id"
+    "handler_desc"
+    "input_name"
+    "input_value"
+    "status"
+    "parent_id"
+    "parent_seq"
+    "pinned"
+    "timestamp"
+    "updated"
+    "entry_hash"
+    "result_value"
+    "duration_ms" ]
+  |> List.map (fun c -> $"traces.{c}")
+  |> String.concat ", "
+  |> fun cs -> $"{cs}, {ScriptOrEvalInput.selectColumns}"
+
+let private fromTraces =
+  let join = ScriptOrEvalInput.join "traces"
+  $"FROM traces {join}"
 
 /// A run that has started, before the recorder has anything to say about it. `root_tlid` is 0
 /// on every path that reaches here; the recorder's upsert fills in the rest.
@@ -136,21 +340,23 @@ let private insertParams
     "created", Sql.string created
     "updated", Sql.string updated ]
 
-/// Record a run that has started. The id IS the trace id: the recorder fills the same row in
-/// when the run ends.
+/// Create a trace and save its CLI invocation, if any, in the same transaction.
 let create
   (id : System.Guid)
   (entry : string)
   (inputName : string)
   (input : RT.Dval)
+  (cli : Option<ScriptOrEvalInput>)
   (status : Status)
   (parent : Option<System.Guid * int64>)
   : unit =
   let stamp = now ()
   let bytes = BinarySer.RT.Dval.serialize "traces.input_value" input
-  Sql.query insertSql
-  |> Sql.parameters (insertParams id entry inputName bytes status parent stamp stamp)
-  |> Sql.executeStatementSync
+  let trace =
+    insertSql, [ insertParams id entry inputName bytes status parent stamp stamp ]
+  let invocation = cli |> Option.map (ScriptOrEvalInput.insertStatement id)
+  Sql.executeTransactionSync (trace :: Option.toList invocation)
+  |> ignore<List<int>>
 
 let setStatus (id : System.Guid) (status : Status) : unit =
   Sql.query "UPDATE traces SET status = @status, updated = @updated WHERE id = @id"
@@ -160,15 +366,29 @@ let setStatus (id : System.Guid) (status : Status) : unit =
       "updated", Sql.string (now ()) ]
   |> Sql.executeStatementSync
 
+/// Read CLI input without decoding the trace's result or display value.
+/// Corrupt values there must not block a rerun.
+let getCliInput (id : System.Guid) : Task<Option<ScriptOrEvalInput>> =
+  task {
+    let! row =
+      Sql.query
+        $"SELECT {ScriptOrEvalInput.selectColumns}
+          FROM trace_cli_invocations cli WHERE cli.trace_id = @id"
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeRowOptionAsync ScriptOrEvalInput.fromColumns
+    return Option.flatten row
+  }
+
 let get (id : System.Guid) : Task<Option<Trace>> =
-  Sql.query $"SELECT {columns} FROM traces WHERE id = @id"
+  Sql.query $"SELECT {columns} {fromTraces} WHERE traces.id = @id"
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeRowOptionAsync readRow
 
 /// The most recent `limit`, newest first.
 let list (limit : int) : Task<List<Trace>> =
   Sql.query
-    $"SELECT {columns} FROM traces ORDER BY timestamp DESC, rowid DESC LIMIT @limit"
+    $"SELECT {columns} {fromTraces}
+      ORDER BY traces.timestamp DESC, traces.rowid DESC LIMIT @limit"
   |> Sql.parameters [ "limit", Sql.int limit ]
   |> Sql.executeAsync readRow
 
@@ -295,11 +515,10 @@ let fork
             "SELECT COALESCE(MAX(seq), -1) + 1 AS n FROM trace_fn_calls WHERE trace_id = @t"
           |> Sql.parameters [ "t", Sql.uuid id ]
           |> Sql.executeRowAsync (fun read -> read.int64 "n")
-      // `entry_hash` comes across too: for a served request it is the only thing that says
-      // what to replay against, so a fork without it is a run nothing can look at.
+      // Copy the HTTP handler hash and CLI invocation so the child can be replayed.
       let counts =
         Sql.executeTransactionSync
-          [ "INSERT INTO traces
+          [ $"INSERT INTO traces
               (id, root_tlid, handler_desc, timestamp, input_name, input_value, account_id,
                status, parent_id, parent_seq, pinned, updated, entry_hash, bytes)
              SELECT @child, root_tlid, handler_desc, @stamp, input_name, input_value,
@@ -309,6 +528,13 @@ let fork
                 "parent", Sql.uuid id
                 "cutoff", Sql.int64 cutoff
                 "stamp", Sql.string (now ()) ] ]
+            "INSERT INTO trace_cli_invocations
+              (trace_id, kind, source, filename, args, allow_harmful, sandbox,
+               warn_permissions)
+             SELECT @child, kind, source, filename, args, allow_harmful, sandbox,
+                    warn_permissions
+             FROM trace_cli_invocations WHERE trace_id = @parent",
+            [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ]
             "INSERT INTO trace_fn_calls
               (trace_id, call_id, parent_call_id, kind, fn_hash, lambda_expr_id, args, result,
                duration_ms, process_id, seq, ord)

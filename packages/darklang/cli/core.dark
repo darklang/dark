@@ -229,15 +229,16 @@ module ExecutionError =
     { error: LanguageTools.RuntimeTypes.RuntimeError.Error
       resource: String
       rule: Stdlib.Option.Option<String>
-      /// The rendered call stack, printed when the denial stands.
-      callStack: String }
+      callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint> }
 
   /// Boundary type for CLI command failures. Each variant carries its own
   /// structured payload — no flattening to strings at the boundary.
   type ExecutionError =
     | Parse of LanguageTools.Parser.CliScript.ParseError
     | TypeCheck of LanguageTools.AtRestTypeChecker.Report
-    | Runtime of LanguageTools.RuntimeTypes.RuntimeError.Error
+    | Runtime of
+        error: LanguageTools.RuntimeTypes.RuntimeError.Error *
+        callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>
     | Denied of PermissionDenied
     | Unhandled of Unhandled
 
@@ -245,7 +246,7 @@ module ExecutionError =
     match err with
     | Parse pe -> LanguageTools.Parser.CliScript.ParseError.toString pe
     | TypeCheck report -> Packages.AtRestCheck.scriptReport branchId report
-    | Runtime rte ->
+    | Runtime(rte, _) ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId rte
     | Denied denied ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId denied.error
@@ -258,6 +259,35 @@ module ExecutionError =
           |> Stdlib.List.map (fun (k, v) -> $"  {k}: {v}")
           |> Stdlib.String.join "\n"
         $"Internal error: {u.message}\n{lines}"
+
+  /// Skip entry-only stacks: they add no useful detail to a missing-name error.
+  let hasReadableFrames
+    (frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
+    : Bool =
+    Stdlib.List.any frames (fun frame ->
+      match frame with
+      | Function _ -> true
+      | _ -> false)
+
+  let printCallStack (branchId: Uuid) (what: String) (error: ExecutionError) : Unit =
+    let frames =
+      match error with
+      | Runtime(_, frames) -> frames
+      | Denied denial -> denial.callStack
+      | _ -> []
+    let show =
+      match error with
+      | Denied _ -> frames != []
+      | _ -> hasReadableFrames frames
+    if show then
+      let rendered = PrettyPrinter.RuntimeTypes.callStack branchId frames
+      let gap =
+        match error with
+        | Denied _ -> ""
+        | _ -> "\n"
+      Stdlib.printLine $"Error when executing {what}. Call-stack:\n{rendered}{gap}"
+    else
+      ()
 
 
 module View =

@@ -45,6 +45,347 @@ let private words (s : string) : string list =
   s.Split(' ', System.StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
 
 
+/// Save a trace with optional CLI input.
+let private storeInvocation
+  (input : Option<Traces.ScriptOrEvalInput>)
+  : System.Guid =
+  let id = System.Guid.NewGuid()
+  Traces.create id "eval" "expression" (RT.DString "") input Traces.Done None
+  id
+
+let private setColumn (id : System.Guid) (column : string) value : unit =
+  Sql.query
+    $"UPDATE trace_cli_invocations SET {column} = @value WHERE trace_id = @id"
+  |> Sql.parameters [ "value", value; "id", Sql.uuid id ]
+  |> Sql.executeStatementSync
+
+let private hasInvocation (id : System.Guid) : bool =
+  Sql.query "SELECT 1 AS n FROM trace_cli_invocations WHERE trace_id = @id"
+  |> Sql.parameters [ "id", Sql.uuid id ]
+  |> Sql.executeExistsSync
+
+let private scriptOrEvalInputPersistence =
+  cliTestWithFreshTraces
+    "CLI invocations round-trip through their table and incomplete ones are refused"
+    (fun _state ->
+      task {
+        let args = [ "a b"; ""; "--help"; "é"; "a\"b\\c" ]
+        let script =
+          Traces.RunScript(
+            "a path/脚本.dark",
+            "args",
+            args,
+            { allowHarmful = true; sandbox = true; warnPermissions = true }
+          )
+        for input in [ Traces.EvalExpression("1L + 2L", true); script ] do
+          let id = storeInvocation (Some input)
+          let! read = Traces.getCliInput id
+          Expect.equal read (Some input) "the invocation reads back whole"
+          let! row = Traces.get id
+          Expect.equal (row |> Option.bind _.cli) (Some input) "and through the row"
+
+        let served = storeInvocation None
+        Expect.isFalse
+          (hasInvocation served)
+          "a served request stores no invocation"
+        let! read = Traces.getCliInput served
+        Expect.isNone read "so it has none to read"
+
+        // Reject incomplete or invalid invocation rows.
+        let id = storeInvocation (Some script)
+        for column, bad in
+          [ "kind", Sql.string "nonsense"
+            "kind", Sql.string "eval"
+            "source", Sql.dbnull
+            "filename", Sql.dbnull
+            "args", Sql.dbnull
+            "allow_harmful", Sql.dbnull
+            "sandbox", Sql.dbnull
+            "sandbox", Sql.int 2
+            "warn_permissions", Sql.dbnull ] do
+          Expect.throws
+            (fun () -> setColumn id column bad)
+            $"the store refuses a missing or malformed {column}"
+        let! read = Traces.getCliInput id
+        Expect.equal read (Some script) "and the invocation is left whole"
+
+        // The reader must also reject malformed argument bytes.
+        for bad in
+          [ [| 0x01uy |]
+            // One argument, one byte long, and that byte is not UTF-8.
+            [| 0x01uy; 0x00uy; 0x00uy; 0x00uy; 0x01uy; 0xFFuy |] ] do
+          let id = storeInvocation (Some script)
+          setColumn id "args" (Sql.bytes bad)
+          let! read = Traces.getCliInput id
+          Expect.isNone read "malformed arguments are refused"
+
+        LibDB.Tracing.TraceRetention.deleteTraces [ string id ]
+        Expect.isFalse (hasInvocation id) "deleting a trace deletes its invocation"
+      })
+
+
+let private scriptReplayKeepsInvocation =
+  cliTestWithFreshTraces
+    "CLI invocation preserves script arguments through view resume fork and rerun"
+    (fun state ->
+      task {
+        do!
+          fn
+            state
+            "Tests.ScriptReplay.describe"
+            "(inputs: List<String>) : String = Stdlib.String.join inputs \"|\""
+        let args = [ "a b"; ""; "--help"; "é"; "a\"b\\c" ]
+        let marker = String.concat "|" args + "|"
+        let code =
+          "let summary = Tests.ScriptReplay.describe args\n"
+          + "let uuid = Stdlib.Uuid.generate ()\n"
+          + "Stdlib.printLine (summary + \"|\" + Stdlib.toString uuid)\n7"
+        let path =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-replay-{System.Guid.NewGuid()}.dark"
+          )
+        let printed (output : string) =
+          (plain output).Split('\n')
+          |> Array.tryFind (fun line ->
+            line.StartsWith(marker, System.StringComparison.Ordinal))
+        try
+          System.IO.File.WriteAllText(path, code)
+          let! first, exitCode = runCliWithExit state ([ "run"; path ] @ args)
+          Expect.equal exitCode 7L "script result is its exit code"
+          let original = printed first
+          Expect.isSome original $"the original run prints its arguments: {first}"
+          let! (recorded : Traces.Trace) = latest ()
+          // Replay must work without the original file.
+          System.IO.File.Delete path
+          let prefix = prefixOf recorded
+          let! viewed =
+            runCliPlain
+              state
+              [ "traces"; "show"; "Tests.ScriptReplay.describe"; prefix; "--json" ]
+          use json = System.Text.Json.JsonDocument.Parse viewed
+          Expect.equal
+            (json.RootElement
+              .GetProperty("problem")
+              .GetProperty("None")
+              .GetArrayLength())
+            0
+            $"view finishes with the original arguments: {viewed}"
+          Expect.stringContains
+            viewed
+            "--help"
+            "the view reaches the argument values"
+          Expect.isNone (printed viewed) "view performs no print effects"
+          let! _ = runCli state [ "traces"; "fork"; prefix ]
+          let! (child : Traces.Trace) = latest ()
+          for id in [ prefix; prefixOf child ] do
+            let! output, exitCode = runCliWithExit state [ "traces"; "resume"; id ]
+            Expect.equal exitCode 7L "resume and fork retain script exit semantics"
+            Expect.stringContains
+              (plain output)
+              original.Value
+              "saved args and UUID"
+            Expect.stringContains output "[replayed]" "print is replayed"
+          let! reran, rerunExit = runCliWithExit state [ "traces"; "rerun"; prefix ]
+          Expect.equal rerunExit 7L "rerun preserves a nonzero script exit code"
+          Expect.stringContains
+            reran
+            $"rerunning {prefix.Substring(0, 8)}: let summary"
+            "rerun previews the saved source"
+          Expect.isSome (printed reran) $"rerun passes the arguments: {reran}"
+          Expect.notEqual
+            (printed reran)
+            original
+            "rerun performs randomness for real"
+          let! (rerun : Traces.Trace) = latest ()
+          Expect.notEqual rerun.id recorded.id "rerun records a separate run"
+        finally
+          if System.IO.File.Exists path then System.IO.File.Delete path
+      })
+
+
+/// Saved arguments must count towards the trace's storage limit.
+let private invocationCountsTowardsTraceWeight =
+  cliTestWithFreshTraces
+    "a script's saved arguments count towards its trace's weight"
+    (fun state ->
+      task {
+        let path =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-trace-weight-{System.Guid.NewGuid()}.dark"
+          )
+        let argument = String.replicate 50_000 "x"
+        try
+          System.IO.File.WriteAllText(path, "0")
+          let! _, exitCode = runCliWithExit state [ "run"; path; argument ]
+          Expect.equal exitCode 0L "the script runs"
+          let! (recorded : Traces.Trace) = latest ()
+          let! bytes =
+            Sql.query
+              "SELECT t.bytes, LENGTH(i.args) AS args
+               FROM traces t JOIN trace_cli_invocations i ON i.trace_id = t.id
+               WHERE t.id = @id"
+            |> Sql.parameters [ "id", Sql.uuid recorded.id ]
+            |> Sql.executeRowAsync (fun read ->
+              read.int64 "bytes", read.int64 "args")
+          let weight, args = bytes
+          Expect.isGreaterThan args 50_000L "the argument is saved"
+          Expect.isGreaterThanOrEqual
+            weight
+            args
+            "and counted in the trace's weight"
+        finally
+          if System.IO.File.Exists path then System.IO.File.Delete path
+      })
+
+
+let private scriptReplayKeepsSandbox =
+  cliTestWithFreshTraces
+    "CLI invocation preserves the script sandbox on resume and rerun"
+    (fun state ->
+      task {
+        let path =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-sandbox-replay-{System.Guid.NewGuid()}.dark"
+          )
+        let code = "Stdlib.printLine \"SANDBOX_EFFECT\"\n0"
+        try
+          System.IO.File.WriteAllText(path, code)
+          let! _, firstExit = runCliWithExit state [ "run"; "--sandbox"; path ]
+          Expect.equal firstExit 1L "the original sandbox blocks stdout"
+          let! (recorded : Traces.Trace) = latest ()
+          System.IO.File.Delete path
+          for verb in [ "resume"; "rerun" ] do
+            let! output, exitCode =
+              runCliWithExit state [ "traces"; verb; prefixOf recorded ]
+            Expect.equal exitCode 1L $"{verb} cannot drop the sandbox"
+            Expect.stringContains output "run policy" $"{verb} keeps the denial"
+            Expect.isFalse
+              ((plain output).Split('\n')
+               |> Array.exists (fun line -> line = "SANDBOX_EFFECT"))
+              "the denied effect never runs"
+        finally
+          if System.IO.File.Exists path then System.IO.File.Delete path
+      })
+
+
+/// Identify HTTP traces by input name, not display text.
+let private resumeNamesServedRequests =
+  cliTestWithFreshTraces
+    "resume tells a served request from a CLI run by its row, not its entry"
+    (fun state ->
+      task {
+        let served = System.Guid.NewGuid()
+        Traces.create
+          served
+          "GET /orders"
+          Traces.servedRequestInputName
+          (RT.DString "")
+          None
+          Traces.Done
+          None
+        let! output, exitCode =
+          runCliWithExit state [ "traces"; "resume"; string served ]
+        Expect.equal exitCode 1L "a served request is not resumed"
+        Expect.stringContains
+          output
+          "was a served request (GET /orders)"
+          "resume names the request"
+        Expect.stringContains output "traces show <fn>" "and says where to look"
+
+        // A CLI row whose entry looks like a request path is still a CLI row.
+        let cli = System.Guid.NewGuid()
+        Traces.create cli "GET /orders" "code" (RT.DString "") None Traces.Done None
+        let! output, exitCode =
+          runCliWithExit state [ "traces"; "resume"; string cli ]
+        Expect.equal exitCode 1L "with no invocation it is refused"
+        Expect.isFalse
+          (output.Contains "served request (")
+          $"but not called a served request: {output}"
+      })
+
+
+let private legacyScriptDoesNotGuessItsInput =
+  cliTestWithFreshTraces
+    "CLI invocation refuses incomplete legacy script rows without guessing"
+    (fun state ->
+      task {
+        let id = System.Guid.NewGuid()
+        let source = "Stdlib.printLine \"LEGACY_EFFECT\"\n0"
+        Traces.create
+          id
+          "run old.dark"
+          "code"
+          (RT.DString source)
+          None
+          Traces.Suspended
+          None
+        for verb in [ "resume"; "rerun" ] do
+          let! output, exitCode = runCliWithExit state [ "traces"; verb; string id ]
+          Expect.equal exitCode 1L "missing invocation data is a refusal"
+          Expect.isFalse
+            ((plain output).Split('\n')
+             |> Array.exists (fun line -> line = "LEGACY_EFFECT"))
+            "legacy source is never guessed into a live run"
+        let! (row : Option<Traces.Trace>) = Traces.get id
+        Expect.equal
+          (row |> Option.map (fun row -> row.status))
+          (Some Traces.Suspended)
+          "refusal preserves the recorded run"
+      })
+
+
+/// Corrupt display data or results must not prevent rerunning intact input.
+let private rerunIsIndependentOfResult =
+  cliTestWithFreshTraces
+    "traces rerun survives a corrupt result and input value"
+    (fun state ->
+      task {
+        let typedScript =
+          Traces.RunScript(
+            "deleted.dark",
+            "if args == [\"saved input\", \"--trace\"] then 7 else 1",
+            [ "saved input"; "--trace" ],
+            { Traces.ScriptOptions.defaults with sandbox = true }
+          )
+        let cases =
+          [ Traces.EvalExpression("42", false), 0L, "42"
+            typedScript, 7L, "Script exited with code 7" ]
+        for input, expectedExit, expectedOutput in cases do
+          let id = System.Guid.NewGuid()
+          let entry, inputName, inputValue =
+            Traces.ScriptOrEvalInput.toTraceParams input
+          Traces.create
+            id
+            entry
+            inputName
+            inputValue
+            (Some input)
+            Traces.Suspended
+            None
+          let corruptBytes = [| 0x00uy; 0x01uy; 0x02uy |]
+          let update column =
+            let _ =
+              Sql.executeTransactionSync
+                [ $"UPDATE traces SET {column} = @bad WHERE id = @id",
+                  [ [ "bad", Sql.bytes corruptBytes; "id", Sql.uuid id ] ] ]
+            ()
+          update "result_value"
+          let! output, exitCode =
+            runCliWithExit state [ "traces"; "rerun"; string id ]
+          Expect.equal exitCode expectedExit "rerun uses the intact invocation"
+          Expect.stringContains
+            output
+            expectedOutput
+            "the saved source and arguments execute"
+          update "input_value"
+          let! _, exitCode = runCliWithExit state [ "traces"; "rerun"; string id ]
+          Expect.equal exitCode expectedExit "rerun does not need the input value"
+      })
+
+
 let private recordThenResume =
   cliTestWithFreshTraces
     "a run is kept, and resume replays its effects rather than redoing them"
@@ -54,6 +395,9 @@ let private recordThenResume =
         let! listed = runCli state [ "exec" ]
         Expect.stringContains listed "done" $"the run is listed, done ({first})"
         Expect.stringContains listed "eval" "with its entry"
+        Expect.isFalse
+          (listed.Contains "(not source)")
+          "the listing shows the source"
         let! prefix = latestPrefix ()
         let! resumed = runCli state [ "exec"; "resume"; prefix ]
         // The last line is the value; the first says what is being resumed.
@@ -1367,7 +1711,14 @@ let private previewUsesTheViewersApprovals =
 
 
 let tests =
-  [ recordThenResume
+  [ scriptOrEvalInputPersistence
+    scriptReplayKeepsInvocation
+    scriptReplayKeepsSandbox
+    legacyScriptDoesNotGuessItsInput
+    resumeNamesServedRequests
+    invocationCountsTowardsTraceWeight
+    rerunIsIndependentOfResult
+    recordThenResume
     forkDivergesAfterThePosition
     suspendThenResume
     replayAfterAnEdit
