@@ -402,47 +402,6 @@ let registryCoversProjections =
       "the registry's tables are exactly Seed.export's stripped projections (incl. deprecations)"
   }
 
-/// Two bodies under one NAME in a single authored batch.
-///
-/// Asserted here rather than in a `.dark` testfile because the question is answered by a Matter
-/// builtin (`pmDuplicateDeclarations`), and the testfile harness does not load Matter. This drives
-/// the F# that builtin wraps.
-///
-/// It matters because stabilization keys by name: a batch declaring one name twice would store one
-/// body under the other's hash, and whichever landed second would silently become the first.
-let duplicateDeclarationsAreNamed =
-  test "a batch declaring one name twice is named, and two names are not" {
-    let loc (name : string) : PT.PackageLocation =
-      { owner = "Test"; modules = [ "Dup" ]; name = name }
-
-    let fnOps (name : string) (body : string) : List<PT.PackageOp> =
-      let fn : PT.PackageFn.PackageFn =
-        { hash = PT.Hash ""
-          body = PT.EInt64(1UL, 1L)
-          typeParams = []
-          parameters =
-            NEList.singleton { name = "p"; typ = PT.TInt64; description = "" }
-          permissionCeiling = None
-          bounds = []
-          returnType = PT.TInt64
-          description = body }
-      [ PT.PackageOp.AddFn fn
-        PT.PackageOp.SetName(loc name, PT.Reference.PackageFn(PT.Hash ""), None) ]
-
-    Expect.equal
-      (LibDB.OpValidation.duplicateDeclarations (
-        fnOps "twice" "p1" @ fnOps "twice" "p2"
-      ))
-      [ "fn Test.Dup.twice" ]
-      "one name declared twice is reported once, with its kind"
-
-    Expect.equal
-      (LibDB.OpValidation.duplicateDeclarations (fnOps "one" "p1" @ fnOps "two" "p2"))
-      []
-      "two different names are not a duplicate"
-  }
-
-
 let noCanonicalInDropSet =
   // A schema change keeps your work: the bootstrap drops ONLY `projectionTables` and re-folds the op log, so
   // the authored, canonical data must NEVER appear in that drop-set. If it did, a schema bump would delete it.
@@ -565,7 +524,6 @@ let tests =
       originTsStrictlyIncreasing
       durableReleaseCarriesForward
       registryCoversProjections
-      duplicateDeclarationsAreNamed
       noCanonicalInDropSet
       schemaChangeKeepsWork
       everyPackageOpCaseIsPrintable ]

@@ -21,40 +21,6 @@ module PackageLocation = LibDB.PackageLocation
 open LibSerialization.Hashing
 
 
-/// The names that more than one declaration in <param ops> would bind, as
-/// "fn Owner.Module.name" strings. Empty when the batch is consistent.
-///
-/// Authoring has to reject these before `HashStabilization.computeRealHashes`, which
-/// keys items by FQN and would otherwise give two different bodies one content hash,
-/// storing one of them under the other's identity. Raw WIP legitimately holds
-/// successive edits to one name; `WipRefresh` compacts those before asking.
-let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
-  // Every Add* is immediately followed by the SetName that binds it, so a SetName
-  // preceded by its own Add* is exactly one declaration. The Add* half is never read
-  // here, only used to tell a declaration apart from a bare rename.
-  ops
-  |> List.pairwise
-  |> List.choose (fun (previous, op) ->
-    match previous, op with
-    | PT.PackageOp.AddType _, PT.PackageOp.SetName(loc, PT.PackageType _, _) ->
-      Some("type", PackageLocation.toFQN loc)
-    | PT.PackageOp.AddFn _, PT.PackageOp.SetName(loc, PT.PackageFn _, _) ->
-      Some("fn", PackageLocation.toFQN loc)
-    | PT.PackageOp.AddValue _, PT.PackageOp.SetName(loc, PT.PackageValue _, _) ->
-      Some("value", PackageLocation.toFQN loc)
-    | PT.PackageOp.AddTrait _, PT.PackageOp.SetName(loc, PT.PackageTrait _, _) ->
-      Some("trait", PackageLocation.toFQN loc)
-    | PT.PackageOp.AddTraitImpl _,
-      PT.PackageOp.SetName(loc, PT.PackageTraitImpl _, _) ->
-      Some("impl", PackageLocation.toFQN loc)
-    | PT.PackageOp.AddTest _, PT.PackageOp.SetName(loc, PT.PackageTest _, _) ->
-      Some("test", PackageLocation.toFQN loc)
-    | _ -> None)
-  |> List.countBy (fun declaration -> declaration)
-  |> List.filter (fun (_, count) -> count > 1)
-  |> List.map (fun ((kind, fqn), _) -> $"{kind} {fqn}")
-
-
 /// The hashes in <param ops> that more than one body claims, as ready-to-print
 /// messages. Empty when the batch is consistent.
 ///

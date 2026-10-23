@@ -139,6 +139,10 @@ run_in_home() {
     set -m
     HOME="$home" "$binary" "$@" < /dev/null 2>&1 &
     cmd=$!
+    # Only the fork needs job control; the group is fixed by now. Left on, bash
+    # prints "[1]+ Done ..." into the captured output whenever the command exits
+    # before `wait` reaps it.
+    set +m
     (
       # Stopping the watchdog must also stop and reap its sleep. Redirect BOTH
       # streams: otherwise sleep inherits command substitution's output pipe,

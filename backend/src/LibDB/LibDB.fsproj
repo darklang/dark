@@ -32,7 +32,6 @@
     <Compile Include="HashStabilization.fs" />
     <Compile Include="NameLookup.fs" />
     <Compile Include="DeferredResolver.fs" />
-    <Compile Include="UnresolvedCheck.fs" />
     <Compile Include="Docs.fs" />
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="OpValidation.fs" />

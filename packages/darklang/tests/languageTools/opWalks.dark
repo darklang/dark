@@ -1,0 +1,94 @@
+// The two walks over a batch of ops on the authoring and commit paths:
+// `PackageManager.duplicateDeclarations` and `UnresolvedNames.inOps`.
+module Darklang.LanguageTools.OpWalks.Tests
+
+
+let fnWithBody
+  (description: String)
+  (body: Darklang.LanguageTools.ProgramTypes.Expr)
+  : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+  Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+    { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash description
+      body = body
+      typeParams = []
+      parameters =
+        [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+            { name = "p"
+              typ = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64
+              description = "" } ]
+      returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64
+      description = description
+      permissionCeiling = Stdlib.Option.Option.None
+      bounds = [] }
+
+
+let declare
+  (name: String)
+  (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : List<Darklang.LanguageTools.ProgramTypes.PackageOp> =
+  [ Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn fn
+    Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
+      Darklang.LanguageTools.ProgramTypes.PackageLocation
+        { owner = "Test", modules = [ "Dup" ], name = name },
+      Darklang.LanguageTools.ProgramTypes.Reference.PackageFn fn.hash,
+      Stdlib.Option.Option.None
+    ) ]
+
+
+let one () : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EInt64(1L, 1L)
+
+
+/// A call to <param name>, which resolves to nothing.
+let unresolvedCall (name: String) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EFnName(
+    1L,
+    Darklang.LanguageTools.ProgramTypes.NameResolution
+      { originalName = Stdlib.String.split name "."
+        resolved =
+          Stdlib.Result.Result.Error
+            Darklang.LanguageTools.ProgramTypes.NameResolutionError.NotFound },
+    []
+  )
+
+
+// One name declared twice is reported once, with its kind; stabilization keys by
+// name, so such a batch would store one body under the other's hash.
+test oneNameTwiceIsADuplicate =
+  Darklang.LanguageTools.PackageManager.duplicateDeclarations (
+    Stdlib.List.concat
+      (declare "twice" (fnWithBody "p1" (one ())))
+      (declare "twice" (fnWithBody "p2" (one ())))
+  )
+  |> Stdlib.Test.equal [ "fn Test.Dup.twice" ]
+
+
+test twoNamesAreNotADuplicate =
+  Darklang.LanguageTools.PackageManager.duplicateDeclarations (
+    Stdlib.List.concat
+      (declare "one" (fnWithBody "p1" (one ())))
+      (declare "two" (fnWithBody "p2" (one ())))
+  )
+  |> Stdlib.Test.equal []
+
+
+// Each name once, in the order first found, against the content hash.
+test unresolvedNamesAreCollectedOnce =
+  let body =
+    Darklang.LanguageTools.ProgramTypes.Expr.EStatement(
+      1L,
+      unresolvedCall "Stdlib.List.hed",
+      Darklang.LanguageTools.ProgramTypes.Expr.EStatement(
+        1L,
+        unresolvedCall "Nope.x",
+        unresolvedCall "Stdlib.List.hed"
+      )
+    )
+  Darklang.LanguageTools.UnresolvedNames.inOps (declare "f" (fnWithBody "h1" body))
+  |> Stdlib.Test.equal [ ("h1", [ "Stdlib.List.hed", "Nope.x" ]) ]
+
+
+test anOpWithNothingUnresolvedIsLeftOut =
+  (declare "f" (fnWithBody "h1" (one ())))
+  |> Darklang.LanguageTools.UnresolvedNames.inOps
+  |> Stdlib.Test.equal []
