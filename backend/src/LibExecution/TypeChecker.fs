@@ -11,11 +11,6 @@ module RTE = RuntimeError
 type TypeCheckPathPart = RuntimeError.TypeChecking.TypeCheckPathPart
 type ReverseTypeCheckPath = RuntimeError.TypeChecking.ReverseTypeCheckPath
 
-/// Indicates what action to take when key is already in dictionary
-type OverwriteBehaviour =
-  | ReplaceValue
-  | ThrowIfDuplicate
-
 /// Synchronous answer for the unifications that need no recursion, no type lookup and no await: a
 /// concrete scalar against its own ValueType, or anything against `Unknown`. That is the overwhelming
 /// majority of calls, and type-checking arguments and results is a large share of what the interpreter
@@ -892,12 +887,9 @@ module DvalCreator =
     | [] -> struct (keyType, valueType, acc)
     | (k, v) :: rest ->
       Dval.assertUsableDictKey k
+      // Later entries replace earlier entries with the same key.
+      // The at-rest checker reports duplicate constant keys (`DuplicateDictKey`).
       let key = DictKey k
-
-      if Map.containsKey key acc then
-        RTE.Dicts.Error.TriedToAddKeyAfterAlreadyPresent k
-        |> RTE.Error.Dict
-        |> raiseRTE threadID
 
       let kt = Dval.toValueType k
       let keyType =
@@ -970,34 +962,25 @@ module DvalCreator =
     (entries : DictMap)
     (k : Dval)
     (v : Dval)
-    (overwrite : OverwriteBehaviour)
     : struct (ValueType * ValueType * DictMap) =
     Dval.assertUsableDictKey k
     let key = DictKey k
-
-    match overwrite with
-    | ThrowIfDuplicate when Map.containsKey key entries ->
-      RTE.Dicts.Error.TriedToAddKeyAfterAlreadyPresent k
-      |> RTE.Error.Dict
-      |> raiseRTE threadID
-    | ReplaceValue
-    | ThrowIfDuplicate ->
-      let kt = Dval.toValueType k
-      let keyType =
-        match VT.merge keyType kt with
-        | Ok merged -> merged
-        | Error() ->
-          RTE.Dicts.Error.MismatchedKeyType(keyType, kt, k)
-          |> RTE.Error.Dict
-          |> raiseRTE threadID
-
-      let vt = Dval.toValueType v
-      match VT.merge valueType vt with
-      | Ok merged -> struct (keyType, merged, Map.add key v entries)
+    let kt = Dval.toValueType k
+    let keyType =
+      match VT.merge keyType kt with
+      | Ok merged -> merged
       | Error() ->
-        RTE.Dicts.Error.TriedToAddMismatchedData(k, valueType, vt, v)
+        RTE.Dicts.Error.MismatchedKeyType(keyType, kt, k)
         |> RTE.Error.Dict
         |> raiseRTE threadID
+
+    let vt = Dval.toValueType v
+    match VT.merge valueType vt with
+    | Ok merged -> struct (keyType, merged, Map.add key v entries)
+    | Error() ->
+      RTE.Dicts.Error.TriedToAddMismatchedData(k, valueType, vt, v)
+      |> RTE.Error.Dict
+      |> raiseRTE threadID
 
   /// The `None` an unknown-typed lookup returns, kept rather than rebuilt: a dict miss returns
   /// one, and it is the same value every time. Keyed by the type name object, which `optionType`

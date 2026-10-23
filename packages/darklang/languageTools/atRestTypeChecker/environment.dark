@@ -322,7 +322,7 @@ let traitImpls (branchId: Uuid) : Dict<String, List<(Model.Ty * LanguageTools.Pr
       |> Stdlib.List.map (fun candidate ->
         ((tyOfRuntimeType candidate.self), candidate.source))
 
-    Stdlib.Dict.setOverridingDuplicates
+    Stdlib.Dict.set
       acc
       (LanguageTools.ProgramTypes.hashToString t.entity.hash)
       converted)
@@ -340,7 +340,7 @@ let infixTrait
       | Some((traitHash, method_, _)) ->
         Stdlib.Option.Option.Some((traitHash, method_))
 
-    Stdlib.Dict.setOverridingDuplicates acc (infixKey operation) found)
+    Stdlib.Dict.set acc (infixKey operation) found)
   |> (fun acc ->
     // The two UNARY operators, under keys no infix operator can collide with. They were left
     // on hand-written type predicates when the binary ones moved to implementation lookup,
@@ -348,14 +348,14 @@ let infixTrait
     // a rigid type variable, and a predicate asking "is this a signed numeric" says no to the
     // very thing the bound guarantees.
     let withNegate =
-      Stdlib.Dict.setOverridingDuplicates
+      Stdlib.Dict.set
         acc
         "unary -"
         (match LanguageTools.PackageManager.Trait.forNegate branchId with
          | None -> Stdlib.Option.Option.None
          | Some((h, m, _)) -> Stdlib.Option.Option.Some((h, m)))
 
-    Stdlib.Dict.setOverridingDuplicates
+    Stdlib.Dict.set
       withNegate
       "unary ~"
       (match LanguageTools.PackageManager.Trait.forBitwiseNot branchId with
@@ -431,7 +431,7 @@ let withBatch
   : Model.Environment =
   let batchTraits =
     Stdlib.List.fold traits env.batchTraits (fun found t ->
-      Stdlib.Dict.setOverridingDuplicates
+      Stdlib.Dict.set
         found
         (LanguageTools.ProgramTypes.hashToString t.hash)
         t)
@@ -454,7 +454,7 @@ let withBatch
             let (self, _) =
               Types.fromReference (Dict {}) (Stdlib.Option.Option.None) i.self
 
-            Stdlib.Dict.setOverridingDuplicates
+            Stdlib.Dict.set
               found
               key
               (Stdlib.List.pushBack existing (self, i.hash))
@@ -767,7 +767,7 @@ let loadClosureFrom
   : Closure =
   let seen =
     Stdlib.List.fold candidateRefs Dict {} (fun seen r ->
-      Stdlib.Dict.setOverridingDuplicates seen r true)
+      Stdlib.Dict.set seen r true)
 
   loadPendingDependencies
     (loadDependency pool env)
@@ -788,7 +788,7 @@ let loadClosureBeyond
   : Closure =
   let seen =
     Stdlib.List.fold candidateRefs Dict {} (fun seen r ->
-      Stdlib.Dict.setOverridingDuplicates seen r true)
+      Stdlib.Dict.set seen r true)
 
   let load
     (closure: Closure)
@@ -821,7 +821,7 @@ let loadPendingDependencies
     if Stdlib.Dict.``member`` seen next then
       loadPendingDependencies load seen rest closure
     else
-      let seen = Stdlib.Dict.setOverridingDuplicates seen next true
+      let seen = Stdlib.Dict.set seen next true
 
       // Fetching converts stored syntax into Dark values and can fail before the
       // reference walk begins. Catch errors from either step, leave that dependency
@@ -851,7 +851,7 @@ let loadDependency
       let refs = declarationRefs t.declaration
       (refs,
        { closure with
-           types = Stdlib.Dict.setOverridingDuplicates closure.types hash t })
+           types = Stdlib.Dict.set closure.types hash t })
     | None -> ([], closure)
   | PackageValue hash ->
     match LanguageTools.PackageManager.Value.get hash with
@@ -859,7 +859,7 @@ let loadDependency
       let refs = exprRefs env v.body
       (refs,
        { closure with
-           values = Stdlib.Dict.setOverridingDuplicates closure.values hash v })
+           values = Stdlib.Dict.set closure.values hash v })
     | None -> ([], closure)
   // Loaded without its body. A dependency is used for its signature only (`addFunctionSignature`,
   // and `Impls` reading a method's), and a Dark fn's types are all written out, so the body
@@ -875,7 +875,7 @@ let loadDependency
       let refs = signatureRefs fn
       (refs,
        { closure with
-           fns = Stdlib.Dict.setOverridingDuplicates closure.fns hash fn })
+           fns = Stdlib.Dict.set closure.fns hash fn })
     | None -> ([], closure)
   // A trait method call contributes a reference to its TRAIT (`functionNameRefs`), so this is
   // reached. The closure holds types, values and fns and not traits, and it does not need to:

@@ -310,9 +310,9 @@ module Equality =
         ((1L, Equality.User { id = 1L, name = "a" })
          == (1L, Equality.User { id = 1L, name = "b" }))
         |> Stdlib.Test.equal false
-        ((Stdlib.Dict.fromListOverwritingDuplicates
+        ((Stdlib.Dict.fromEntries
             [ ("k", Equality.User { id = 1L, name = "a" }) ])
-         == (Stdlib.Dict.fromListOverwritingDuplicates
+         == (Stdlib.Dict.fromEntries
                [ ("k", Equality.User { id = 1L, name = "a" }) ]))
         |> Stdlib.Test.equal true
         (Stdlib.Option.Option.Some(Equality.User { id = 1L, name = "a" })

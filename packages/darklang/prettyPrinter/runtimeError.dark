@@ -221,9 +221,6 @@ module RuntimeError =
 
     | Dict err ->
       match err with
-      | TriedToAddKeyAfterAlreadyPresent key ->
-        [ ES.String "Cannot add two dictionary entries with the same key "
-          ES.FullValue key ]
       | TriedToAddMismatchedData (key, expectedType, actualType, actualValue) ->
         [ ES.String "Cannot add "
           ES.IndefiniteArticle

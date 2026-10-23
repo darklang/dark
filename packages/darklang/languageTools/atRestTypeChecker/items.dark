@@ -83,7 +83,7 @@ let checkCoverage (s: Solve.State) : Solve.State =
   let nodesWithFindings =
     Stdlib.List.fold s.findings Dict {} (fun ids finding ->
       match finding.at with
-      | Some id -> Stdlib.Dict.setOverridingDuplicates ids id true
+      | Some id -> Stdlib.Dict.set ids id true
       | None -> ids)
 
   Stdlib.List.fold (Stdlib.List.reverse s.coverage) s (fun s c ->
@@ -261,14 +261,14 @@ let checkFunctionKnowing
   // A DB is read by its name, so it starts in scope; a parameter of the same name shadows it.
   let databases =
     env.dbs
-    |> Stdlib.Dict.toList
+    |> Stdlib.Dict.toEntries
     |> Stdlib.List.fold Dict {} (fun locals (name, t) ->
-      Stdlib.Dict.setOverridingDuplicates locals name (Model.Binder.Mono t))
+      Stdlib.Dict.set locals name (Model.Binder.Mono t))
 
   let locals =
     (Stdlib.List.zipShortest fn.parameters parameters)
     |> Stdlib.List.fold databases (fun locals (p, t) ->
-      Stdlib.Dict.setOverridingDuplicates locals p.name (Model.Binder.Mono t))
+      Stdlib.Dict.set locals p.name (Model.Binder.Mono t))
 
   // Named parameters and positional arguments use the signature's types. Self
   // calls use the same signature, and ? must agree with the declared return type.
@@ -359,7 +359,7 @@ let checkType (env: Model.Environment) (packageType: LanguageTools.ProgramTypes.
 /// Make a type declaration available by hash before checking references to it.
 let addType (env: Model.Environment) (t: LanguageTools.ProgramTypes.PackageType.PackageType) : Model.Environment =
   { env with
-      types = Stdlib.Dict.setOverridingDuplicates env.types t.hash t.declaration }
+      types = Stdlib.Dict.set env.types t.hash t.declaration }
 
 /// Make the declared signature available before checking function bodies, so
 /// callers and recursive functions can be checked regardless of their list order.
@@ -377,7 +377,7 @@ let addFunctionSignature
 
   { env with
       functions =
-        Stdlib.Dict.setOverridingDuplicates
+        Stdlib.Dict.set
           env.functions
           (LanguageTools.ProgramTypes.FQFnName.FQFnName.Package fn.hash)
           signature }
@@ -447,7 +447,7 @@ let checkValues
       | Ok p -> (Stdlib.List.push pending p, outcomes)
       | Error failure ->
         let outcome = checkerFailureOutcome (bodyNodeId value.body) failure
-        (pending, Stdlib.Dict.setOverridingDuplicates outcomes value.hash outcome))
+        (pending, Stdlib.Dict.set outcomes value.hash outcome))
 
   checkPendingValues env outcomes (Stdlib.List.reverse pending)
 
@@ -463,7 +463,7 @@ let checkPendingValues
   else
     let pendingHashes =
       Stdlib.List.fold pending Dict {} (fun waiting p ->
-        Stdlib.Dict.setOverridingDuplicates waiting p.value.hash true)
+        Stdlib.Dict.set waiting p.value.hash true)
 
     // Wait only for other values still in this batch. A self-reference cannot
     // become available by waiting; references with no usable scheme are reported
@@ -491,11 +491,11 @@ let checkPendingValues
           match outcome.scheme with
           | Some scheme ->
             let values =
-              Stdlib.Dict.setOverridingDuplicates env.values p.value.hash scheme
+              Stdlib.Dict.set env.values p.value.hash scheme
             { env with values = values }
           | None -> env
 
-        (env, Stdlib.Dict.setOverridingDuplicates outcomes p.value.hash outcome))
+        (env, Stdlib.Dict.set outcomes p.value.hash outcome))
 
     checkPendingValues env outcomes later
 

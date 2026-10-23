@@ -181,7 +181,7 @@ let bindingEntriesFromOpRows
   |> Stdlib.List.map (fun e ->
     let (_sortKey, k, w) = e
     (k, w))
-  |> Stdlib.Dict.fromListOverwritingDuplicates
+  |> Stdlib.Dict.fromEntries
   |> Stdlib.Dict.values
 
 
@@ -321,7 +321,7 @@ let liveBindingsOver
   let chainWords =
     chain
     |> Stdlib.List.map (fun w -> (Conflicts.bindingKey w.owner w.modules w.name, w))
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries
 
   let undecided =
     locs
@@ -370,12 +370,12 @@ let liveBindingsOver
 
   Stdlib.List.append
     (chainWords
-     |> Stdlib.Dict.toList
+     |> Stdlib.Dict.toEntries
      |> Stdlib.List.filterMap (fun kw ->
        let (k, w) = kw
        w.binding |> Stdlib.Option.map (fun b -> (k, b))))
     (fromMain |> Stdlib.List.map (fun b -> (Conflicts.bindingKey b.owner b.modules b.name, b)))
-  |> Stdlib.Dict.fromListOverwritingDuplicates
+  |> Stdlib.Dict.fromEntries
 
 
 /// <fn liveBindingFor> on the branch this process stands on.

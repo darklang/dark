@@ -1242,8 +1242,6 @@ module RuntimeError =
 
       let (caseName, fields) =
         match e with
-        | RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key ->
-          "TriedToAddKeyAfterAlreadyPresent", [ Dval.toDT key ]
         | RuntimeError.Dicts.TriedToAddMismatchedData(key,
                                                       expectedType,
                                                       actualType,
@@ -1265,8 +1263,6 @@ module RuntimeError =
 
     let fromDT (d : Dval) : RuntimeError.Dicts.Error =
       match d with
-      | DEnum(_, _, [], "TriedToAddKeyAfterAlreadyPresent", [ key ]) ->
-        RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent(Dval.fromDT key)
       | DEnum(_,
               _,
               [],

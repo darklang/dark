@@ -72,7 +72,7 @@ let parentBindings (parentId: Uuid) (names: List<String>) : List<Conflicts.Bindi
     let overlayKeySet =
       overlayKeys
       |> Stdlib.List.map (fun k -> (k, true))
-      |> Stdlib.Dict.fromListOverwritingDuplicates
+      |> Stdlib.Dict.fromEntries
 
     let untouched =
       fromMain
@@ -118,7 +118,7 @@ let branchDiffEntries (branchId: Uuid) : List<BranchDiffEntry> =
   let parentByKey =
     parentBinds
     |> Stdlib.List.map (fun b -> (Conflicts.bindingKey b.owner b.modules b.name, b.hash))
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries
 
   branchBinds
   |> Stdlib.List.filterMap (fun b ->
@@ -334,7 +334,7 @@ let branchHashHistories (branchId: Uuid) : Dict<String, List<String>> =
     // `dedup`, not `unique`/`uniqueBy`: both of those SORT, which would replace the authoring order
     // this function exists to return with lexicographic HASH order.
     (key, entries |> Stdlib.List.map (fun (_, hash) -> hash) |> Stdlib.List.dedup))
-  |> Stdlib.Dict.fromListOverwritingDuplicates
+  |> Stdlib.Dict.fromEntries
 
 
 /// A branch's OWN frontier ops, oldest-first: its authoring history, for `dark log <branch>` (the

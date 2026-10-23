@@ -1631,8 +1631,6 @@ module RuntimeError =
 
   module Dicts =
     type Error =
-      | TriedToAddKeyAfterAlreadyPresent of key : Dval
-
       | TriedToAddMismatchedData of
         key : Dval *
         expectedType : ValueType *
