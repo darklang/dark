@@ -131,6 +131,33 @@ let approvedSqliteOnTheStoreRuns =
         do! run state [ "permissions"; "unapprove"; "Tests.SqliteAppr.probe" ]
         do! discardAll state
       })
+
+/// A call on the store needs only package-read, because it is meant to stay in the store and,
+/// for `query`, only read. `VACUUM INTO` copied the store to any path, and `query` ran writes.
+let sqliteOnTheStoreStaysInIt =
+  instanceTest
+    "sqlite on the store can neither copy it out nor write through query"
+    (fun state ->
+      task {
+        let copy =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-store-copy-{System.Guid.NewGuid()}.db"
+          )
+        do!
+          evals
+            state
+            $"Stdlib.Sqlite.exec(Stdlib.LocalStore.path(), \"VACUUM INTO '{copy}'\")"
+            "(native) is not allowed"
+            "VACUUM INTO asks for native"
+        Expect.isFalse (System.IO.File.Exists copy) "and no copy was written"
+        do!
+          evals
+            state
+            "Stdlib.Sqlite.query(Stdlib.LocalStore.path(), \"DELETE FROM branches\")"
+            "readonly database"
+            "a write through query is refused"
+      })
 /// A dependency approved as part of a root's closure has no approved name, and it used to be
 /// listed as a bare hash. That listing is where the stale-approvals warning sends people, so a
 /// row nobody can identify was most of the problem.
@@ -1581,6 +1608,7 @@ let tests : List<Test> =
     permissionsLists
     storeReadsRequirePackageRead
     approvedSqliteOnTheStoreRuns
+    sqliteOnTheStoreStaysInIt
     approvalsNameTheirDependencies
     foldCallbackKeepsItsAccess
     anApprovedVersionIsWhatRuns
