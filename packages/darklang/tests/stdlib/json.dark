@@ -938,7 +938,7 @@ module Float =
         |> Stdlib.Test.equal "0.6666666666666666"
         Stdlib.Json.serialize<Float> 12345.67890 |> Stdlib.Test.equal "12345.6789"
         Stdlib.Json.serialize<Float> -12345.67890 |> Stdlib.Test.equal "-12345.6789"
-        Stdlib.Json.serialize<Float> 3.14159265358979323846
+        Stdlib.Json.serialize<Float> 3.141592653589793
         |> Stdlib.Test.equal "3.141592653589793"
         Stdlib.Json.serialize<Float> 1.618033988749895
         |> Stdlib.Test.equal "1.618033988749895"

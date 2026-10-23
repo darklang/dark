@@ -1247,7 +1247,75 @@ let private validationTests =
 let private literalTests =
   testList
     "literals"
-    [ testCase
+    [ testCase "generated binary64 integer boundary literals" (fun _ ->
+        for offset in 0L .. 255L do
+          for sign in [ ""; "-" ] do
+            let source = sign + string (9007199254740992L + offset) + ".0"
+            let diagnostics = (P.parse source).diagnostics
+            if offset % 2L = 0L then
+              Expect.isEmpty diagnostics $"{source}: exactly representable integer"
+            else
+              Expect.isTrue
+                (diagnostics
+                 |> List.exists (fun d -> d.code = "PARSE-FLOAT-PRECISION"))
+                $"{source}: unrepresentable integer")
+      testCase "float literals preserve specified decimal precision" (fun _ ->
+        for source in
+          [ "10000000000000001.0"
+            "10000000000000000.1"
+            "0.10000000000000000"
+            "9007199254740993.0"
+            "9007199254740995.0"
+            "1.7976931348623158e308"
+            "2.4703282292062328e-324" ] do
+          let result = P.parse source
+          Expect.isTrue
+            (result.diagnostics
+             |> List.exists (fun d -> d.code = "PARSE-FLOAT-PRECISION"))
+            $"{source}: precision diagnostic"
+          let pattern = P.parse $"match x with | {source} -> 1 | _ -> 0"
+          Expect.isTrue
+            (pattern.diagnostics
+             |> List.exists (fun d -> d.code = "PARSE-FLOAT-PRECISION"))
+            $"{source}: pattern precision diagnostic"
+        for source in [ "0.1"; "0.3"; "0.10000000000000001"; "10000000000000002.0" ] do
+          Expect.isEmpty (P.parse source).diagnostics $"{source}: accepted")
+      testCase "float range errors are independent of exponent spelling" (fun _ ->
+        for source in [ "1e309"; "1e401"; "1e999999999999999999999" ] do
+          Expect.isTrue
+            ((P.parse source).diagnostics
+             |> List.exists (fun d -> d.code = "PARSE-FLOAT-OVERFLOW"))
+            $"{source}: overflow diagnostic"
+        for source in [ "2e-324"; "1e-401"; "-1e-401"; "1e-999999999999999999999" ] do
+          Expect.isTrue
+            ((P.parse source).diagnostics
+             |> List.exists (fun d -> d.code = "PARSE-FLOAT-UNDERFLOW"))
+            $"{source}: underflow diagnostic")
+      testCase "float normalization preserves lowering and signed zero" (fun _ ->
+        let check source expectedBits =
+          let result = P.parse source
+          Expect.isEmpty result.diagnostics $"{source}: parses"
+          match result.parsed with
+          | Some(WT.SourceFile { exprsToEval = [ WT.EFloat(_, neg, whole, fraction) ] }) ->
+            let value =
+              Prelude.makeFloat
+                (if neg then Prelude.Negative else Prelude.Positive)
+                whole
+                fraction
+            Expect.equal
+              (System.BitConverter.DoubleToUInt64Bits value)
+              expectedBits
+              $"{source}: exact runtime bits"
+          | other -> failtest $"{source}: {other}"
+        check "0.000001e1" 0x3ee4f8b588e368f1UL
+        check "0.00000001e1" 0x3e7ad7f29abcaf48UL
+        check "00.0000001" 0x3e7ad7f29abcaf48UL
+        check "5e-324" 1UL
+        check "-0.0" 0x8000000000000000UL
+        check "0e999999999999999999999" 0UL
+        check ("1" + String.replicate 417 "0" + "e-401") 0x4341c37937e08000UL
+        check ("0." + String.replicate 416 "0" + "1e401") 0x3c9cd2b297d889bcUL)
+      testCase
         "positive min-magnitude sized ints diagnose (no silent wrap)"
         (fun _ ->
           // `128y` is NOT -128; the magnitude only fits when negated
