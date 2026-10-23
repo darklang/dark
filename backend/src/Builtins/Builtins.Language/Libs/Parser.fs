@@ -187,7 +187,7 @@ module WrittenTypesToDarkTypes =
     | WT.TString r -> builtin "TString" [ rangeToDT r ]
     | WT.TDateTime r -> builtin "TDateTime" [ rangeToDT r ]
     | WT.TUuid r -> builtin "TUuid" [ rangeToDT r ]
-    | WT.TBlob r -> builtin "TBlob" [ rangeToDT r ]
+    | WT.TBytes r -> builtin "TBytes" [ rangeToDT r ]
     | WT.TList(r, kw, openB, inner, closeB) ->
       builtin
         "TList"

@@ -1,94 +1,153 @@
-module Darklang.Stdlib.Blob.Tests
+module Darklang.Stdlib.Bytes.Tests
 
 // hex round of various UTF-8 strings (Arabic / emoji / long mixed).
 test toHexOfUtf8 =
   Stdlib.Test.all
-    [ Stdlib.Blob.fromString "اختبار النص" |> Stdlib.Blob.toHex
+    [ Stdlib.Bytes.fromString "اختبار النص" |> Stdlib.Bytes.toHex
       |> Stdlib.Test.equal "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
-      Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Blob.toHex
+      Stdlib.Bytes.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Bytes.toHex
       |> Stdlib.Test.equal
         "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
-      Stdlib.Blob.fromString
+      Stdlib.Bytes.fromString
         "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-      |> Stdlib.Blob.toHex
+      |> Stdlib.Bytes.toHex
       |> Stdlib.Test.equal
         "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD" ]
 
 // length
 test length =
   Stdlib.Test.all
-    [ Stdlib.Blob.fromString "hi" |> Stdlib.Blob.length |> Stdlib.Test.equal 2
-      Stdlib.Blob.fromString "" |> Stdlib.Blob.length |> Stdlib.Test.equal 0
-      Stdlib.Blob.empty |> Stdlib.Blob.length |> Stdlib.Test.equal 0 ]
+    [ Stdlib.Bytes.fromString "hi" |> Stdlib.Bytes.length |> Stdlib.Test.equal 2
+      Stdlib.Bytes.fromString "" |> Stdlib.Bytes.length |> Stdlib.Test.equal 0
+      Stdlib.Bytes.empty |> Stdlib.Bytes.length |> Stdlib.Test.equal 0 ]
 
 // fromString / toString roundtrip
 test stringRoundTrip =
-  Stdlib.Blob.fromString "hello" |> Stdlib.Blob.toString
+  Stdlib.Bytes.fromString "hello" |> Stdlib.Bytes.toString
   |> Stdlib.Test.equal (Ok "hello")
 
-// fromHex returns Result<Blob,String>; length of decoded deadbeef = 4 bytes
+// fromHex returns Result<Bytes,String>; length of decoded deadbeef = 4 bytes
 test fromHex =
-  Stdlib.Blob.fromHex "deadbeef" |> Stdlib.Result.map Stdlib.Blob.length
+  Stdlib.Bytes.fromHex "deadbeef" |> Stdlib.Result.map Stdlib.Bytes.length
   |> Stdlib.Test.equal (Ok 4)
 
 // hex roundtrip via wrapper
 test hexRoundTrip =
-  Stdlib.Blob.fromHex "48656c6c6f"
-  |> Stdlib.Result.andThen Stdlib.Blob.toString
+  Stdlib.Bytes.fromHex "48656c6c6f"
+  |> Stdlib.Result.andThen Stdlib.Bytes.toString
   |> Stdlib.Test.equal (Ok "Hello")
 
 // toHex roundtrip (uppercase output)
 test toHex =
   Stdlib.Test.all
-    [ Stdlib.Blob.fromString "ok" |> Stdlib.Blob.toHex |> Stdlib.Test.equal "6F6B"
-      Stdlib.Blob.fromString "Hi" |> Stdlib.Blob.toHex |> Stdlib.Test.equal "4869" ]
+    [ Stdlib.Bytes.fromString "ok" |> Stdlib.Bytes.toHex |> Stdlib.Test.equal "6F6B"
+      Stdlib.Bytes.fromString "Hi" |> Stdlib.Bytes.toHex |> Stdlib.Test.equal "4869" ]
 
 // base64 roundtrip
 test base64RoundTrip =
   Stdlib.Test.all
-    [ Stdlib.Blob.fromBase64 "aGVsbG8="
-      |> Stdlib.Result.andThen Stdlib.Blob.toString
+    [ Stdlib.Bytes.fromBase64 "aGVsbG8="
+      |> Stdlib.Result.andThen Stdlib.Bytes.toString
       |> Stdlib.Test.equal (Ok "hello")
-      Stdlib.Blob.fromString "hello" |> Stdlib.Blob.toBase64
+      Stdlib.Bytes.fromString "hello" |> Stdlib.Bytes.toBase64
       |> Stdlib.Test.equal "aGVsbG8=" ]
 
 // concat
 test concat =
-  [ Stdlib.Blob.fromString "foo"
-    Stdlib.Blob.fromString "-"
-    Stdlib.Blob.fromString "bar" ]
-  |> Stdlib.Blob.concat
-  |> Stdlib.Blob.toString
+  [ Stdlib.Bytes.fromString "foo"
+    Stdlib.Bytes.fromString "-"
+    Stdlib.Bytes.fromString "bar" ]
+  |> Stdlib.Bytes.concat
+  |> Stdlib.Bytes.toString
   |> Stdlib.Test.equal (Ok "foo-bar")
 
 // slice (middle three bytes of "abcdef" = "cde")
 test slice =
-  Stdlib.Blob.slice (Stdlib.Blob.fromString "abcdef") 2 3
-  |> Stdlib.Blob.toString
+  Stdlib.Bytes.slice (Stdlib.Bytes.fromString "abcdef") 2 3
+  |> Stdlib.Bytes.toString
   |> Stdlib.Test.equal (Ok "cde")
 
 // toList/fromList escape hatches
 test listConversions =
   Stdlib.Test.all
-    [ Stdlib.Blob.fromString "abc" |> Stdlib.Blob.toList
+    [ Stdlib.Bytes.fromString "abc" |> Stdlib.Bytes.toList
       |> Stdlib.Test.equal [ 97uy, 98uy, 99uy ]
-      Stdlib.Blob.fromList [ 97uy, 98uy, 99uy ] |> Stdlib.Blob.length
+      Stdlib.Bytes.fromList [ 97uy, 98uy, 99uy ] |> Stdlib.Bytes.length
       |> Stdlib.Test.equal 3 ]
 
-// Blob equality is identity-based: same hash (Persistent) or same
-// UUID (Ephemeral). Two freshly-built ephemerals with the same bytes
-// have distinct UUIDs, so they don't compare equal — promote both
-// sides via `Blob.promote` first if you need byte-equality.
-// (Stdlib.Blob.fromString "hi" == Stdlib.Blob.fromString "hi")
-// |> Stdlib.Test.equal true
+// Equality depends on contents, including for independently created values.
 test differentBytesAreNotEqual =
-  (Stdlib.Blob.fromString "hi" == Stdlib.Blob.fromString "bye")
+  (Stdlib.Bytes.fromString "hi" == Stdlib.Bytes.fromString "bye")
   |> Stdlib.Test.equal false
 
-test equalityUsesIdentity =
-  let blob = Stdlib.Blob.fromString "hi"
+test equalityUsesContents =
+  let bytes = Stdlib.Bytes.fromString "hi"
   Stdlib.Test.all
-    [ (blob == blob) |> Stdlib.Test.equal true
-      (blob == Stdlib.Blob.fromString "hi") |> Stdlib.Test.equal false
-      (Stdlib.Blob.toList blob == Stdlib.Blob.toList (Stdlib.Blob.fromString "hi"))
+    [ (bytes == bytes) |> Stdlib.Test.equal true
+      (bytes == Stdlib.Bytes.fromString "hi") |> Stdlib.Test.equal true
+      (Stdlib.Bytes.fromString "" == Stdlib.Bytes.empty) |> Stdlib.Test.equal true
+      ([bytes] == [Stdlib.Bytes.fromList [104uy, 105uy]])
       |> Stdlib.Test.equal true ]
+
+test collectionsUseContentEquality =
+  let a = Stdlib.Bytes.fromString "hi"
+  let b = Stdlib.Bytes.fromList [104uy, 105uy]
+  let x = Stdlib.Bytes.fromString "x"
+  Stdlib.Test.all
+    [ Stdlib.List.contains [a] b |> Stdlib.Test.equal true
+      Stdlib.List.unique [a, b] |> Stdlib.List.length |> Stdlib.Test.equal 1
+      Stdlib.List.unique [Stdlib.Bytes.empty, Stdlib.Bytes.fromString ""]
+      |> Stdlib.List.length |> Stdlib.Test.equal 1
+      // Equal bytes survive a sort.
+      Stdlib.List.sort [a, b] |> Stdlib.Test.equal [b, a]
+      // The order of different bytes does not depend on the input order.
+      Stdlib.List.sort [a, x] |> Stdlib.Test.equal (Stdlib.List.sort [x, a]) ]
+
+// Reflection carries an opaque Bytes value, never a storage-specific tag.
+test reflectionUsesContents =
+  let reflect = Darklang.LanguageTools.RuntimeTypes.reflect
+  Stdlib.Test.all
+    [ (reflect Stdlib.Bytes.empty == reflect (Stdlib.Bytes.fromString ""))
+      |> Stdlib.Test.equal true
+      (reflect (Stdlib.Bytes.fromString "hi")
+       == reflect (Stdlib.Bytes.fromList [104uy, 105uy]))
+      |> Stdlib.Test.equal true ]
+
+test dictionaryKeysUseContents =
+  let first = Stdlib.Bytes.fromString "hi"
+  let same = Stdlib.Bytes.fromList [104uy, 105uy]
+  let different = Stdlib.Bytes.fromString "ho"
+  let dict = Dict { first: "found" }
+  let byEmpty = Dict { Stdlib.Bytes.empty: "empty" }
+  let overwritten =
+    Stdlib.Dict.fromListOverwritingDuplicates [(first, 1), (same, 2)]
+  Stdlib.Test.all
+    [ Stdlib.Dict.get dict same |> Stdlib.Test.equal (Some "found")
+      Stdlib.Dict.get dict different |> Stdlib.Test.equal None
+      Stdlib.Dict.get byEmpty (Stdlib.Bytes.fromString "")
+      |> Stdlib.Test.equal (Some "empty")
+      Stdlib.Dict.fromList [(first, 1), (same, 2)] |> Stdlib.Test.equal None
+      Stdlib.Dict.get overwritten first |> Stdlib.Test.equal (Some 2)
+      Stdlib.Dict.get (Dict { (first, 1): "nested" }) (same, 1)
+      |> Stdlib.Test.equal (Some "nested") ]
+
+// A test whose error holds unsaved Bytes still reports that error.
+test duplicateKeyErrorHoldsBytes =
+  Dict { (Stdlib.Bytes.fromString "a"): 1, (Stdlib.Bytes.fromString "a"): 2 }
+  => raises "Cannot add two dictionary entries with the same key <Bytes: 1 byte 61>"
+
+let reversed (bytes: Bytes) : Bytes =
+  Stdlib.Bytes.fromList (Stdlib.List.reverse (Stdlib.Bytes.toList bytes))
+
+// Unsaved Bytes reach a test worker and come back with their contents readable.
+test workerCarriesUnsavedBytes =
+  let input = Stdlib.Bytes.fromString "abc"
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) reversed input with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    match output.result with
+    | Error message -> Stdlib.Test.fail message
+    | Ok bytes ->
+      Stdlib.Test.all
+        [ output.exitCode |> Stdlib.Test.equal 0
+          Stdlib.Bytes.toString bytes |> Stdlib.Test.equal (Ok "cba") ]

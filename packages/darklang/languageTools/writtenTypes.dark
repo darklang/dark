@@ -62,7 +62,7 @@ module TypeReference =
     | TString of Range
     | TDateTime of Range
     | TUuid of Range
-    | TBlob of Range
+    | TBytes of Range
 
     | TStream of
       Range *

@@ -11,24 +11,24 @@ test getMethod =
         (Stdlib.Http.Request
           { url = "/"
             headers = [ ("x-http-method", "POST") ]
-            body = Stdlib.Blob.empty })
+            body = Stdlib.Bytes.empty })
       |> Stdlib.Test.equal "POST"
       Stdlib.HttpServer.getMethod
         (Stdlib.Http.Request
           { url = "/"
             headers = [ ("X-Http-Method", "DELETE") ]
-            body = Stdlib.Blob.empty })
+            body = Stdlib.Bytes.empty })
       |> Stdlib.Test.equal "DELETE"
       // No header at all means GET, which is what a browser sends.
       Stdlib.HttpServer.getMethod
-        (Stdlib.Http.Request { url = "/", headers = [], body = Stdlib.Blob.empty })
+        (Stdlib.Http.Request { url = "/", headers = [], body = Stdlib.Bytes.empty })
       |> Stdlib.Test.equal "GET"
       // An unrelated header is not the method.
       Stdlib.HttpServer.getMethod
         (Stdlib.Http.Request
           { url = "/"
             headers = [ ("Accept", "text/html") ]
-            body = Stdlib.Blob.empty })
+            body = Stdlib.Bytes.empty })
       |> Stdlib.Test.equal "GET" ]
 
 // `get`/`post` build the Handler a record literal would, so a route table reads as
@@ -37,13 +37,13 @@ test routes =
   Stdlib.Test.all
     [ (Stdlib.HttpServer.get "/ping" (fun req ->
          Stdlib.Http.Response
-           { statusCode = 200, headers = [], body = Stdlib.Blob.empty })).route
+           { statusCode = 200, headers = [], body = Stdlib.Bytes.empty })).route
       |> Stdlib.Test.equal "/ping"
       (Stdlib.HttpServer.get "/ping" (fun req ->
          Stdlib.Http.Response
-           { statusCode = 200, headers = [], body = Stdlib.Blob.empty })).method
+           { statusCode = 200, headers = [], body = Stdlib.Bytes.empty })).method
       |> Stdlib.Test.equal "GET"
       (Stdlib.HttpServer.post "/ops" (fun req ->
          Stdlib.Http.Response
-           { statusCode = 200, headers = [], body = Stdlib.Blob.empty })).method
+           { statusCode = 200, headers = [], body = Stdlib.Bytes.empty })).method
       |> Stdlib.Test.equal "POST" ]

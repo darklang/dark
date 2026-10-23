@@ -1048,14 +1048,14 @@ let checkReachableKeyTypes
     match dictKey s at key with
     | Some s -> checkReachableKeyTypes s uses at seen rest
     | None ->
-      // Replacing a variable with Blob tests whether its value could make this
+      // Replacing a variable with a function type tests whether its value could make this
       // key invalid. Variables that do not affect validity need no further traversal.
       let variables =
         (Stdlib.Dict.keys (Types.freeVars s.subst key))
         |> Stdlib.List.filter (fun v ->
           Stdlib.Bool.not (Stdlib.Dict.``member`` seen v)
           && Stdlib.Bool.not (Types.isUsableDictKey s.env []
-            (Types.substitute (Dict { v: Model.Ty.TBlob }) key)))
+            (Types.substitute (Dict { v: (Model.Ty.TFn([Model.Ty.TUnit], Model.Ty.TUnit)) }) key)))
 
       let (s, seen, pending) =
         Stdlib.List.fold variables (s, seen, rest) (fun (s, seen, pending) v ->

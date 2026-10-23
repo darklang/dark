@@ -720,12 +720,12 @@ test uniqueByRejectsMixedElementTypes =
 // A key type a Dict cannot hold raises, rather than being compared by identity.
 test uniqueByRejectsFunctionKeys =
   Stdlib.List.uniqueBy [ 1L ] (fun _ -> (fun value -> value))
-  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 // and a value no Dict can key raises instead of being compared by identity.
 test dedupRejectsFunctionKeys =
   Stdlib.List.dedup [ (fun value -> value) ]
-  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test headEvaluatesElements =
   Stdlib.List.head [ Stdlib.Test.raiseRuntimeError "test" ]

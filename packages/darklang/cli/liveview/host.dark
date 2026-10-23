@@ -349,7 +349,7 @@ let snapshot (branchId: Uuid) (view: Model.View) (model: 'model) : Stdlib.Result
     // Through the REPL's capture, which turns a runtime value back into source: the ONE path that
     // knows which values have a literal form.
     match Repl.readCaptured (Repl.captureValue branchId model) with
-      | None -> Stdlib.Result.Result.Error "the model has no stored form (a stream, a lambda, an ephemeral blob inside it)"
+      | None -> Stdlib.Result.Result.Error "the model has no stored form (a stream, a lambda or unsaved Bytes inside it)"
       | Some source ->
         let name = Stdlib.Live.entryName location
         let fullSource = $"val {location.name} = {source}"

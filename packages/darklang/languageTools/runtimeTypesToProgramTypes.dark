@@ -144,6 +144,5 @@ let dvalToExpr
   | DUuid _ ->
     Stdlib.Result.Result.Error "Uuid has no literal expression (parse one with Stdlib.Uuid.parse)"
   | DApplicable _ -> Stdlib.Result.Result.Error "a function value has no source expression"
-  | DBlobPersistent(_hash, _length) -> Stdlib.Result.Result.Error "a blob has no literal expression"
-  | DBlobEphemeral _ -> Stdlib.Result.Result.Error "a blob has no literal expression"
+  | DBytes _ -> Stdlib.Result.Result.Error "bytes have no literal expression"
   | DStreamStub _ -> Stdlib.Result.Result.Error "a stream has no literal expression"

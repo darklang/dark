@@ -1,4 +1,4 @@
-module Builtins.Pure.Libs.Blob
+module Builtins.Pure.Libs.Bytes
 
 open System.Text
 
@@ -8,58 +8,57 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 
 
-// Blob dereferencing is value materialization, including reads of persistent
+// Bytes dereferencing is value materialization, including reads of persistent
 // bytes from the host-owned blob store. It has no call effect; see
 // docs/effects.md for the local-storage boundary and its limits.
 let fns () : List<BuiltInFn> =
   [
 
-    { name = fn "blobLength" 0
+    { name = fn "bytesLength" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TInt
-      description = "Returns the length of <param blob> in bytes."
+      description = "Returns the length of <param bytes> in bytes."
       fn =
         (function
-        | state, _, _, [| DBlob ref |] ->
-          Blob.withBytes state ref (fun bs -> Ply(Dval.int (bigint bs.Length)))
+        | _, _, _, [| DBytes ref |] -> Ply(Dval.int (bigint ref.Length))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "blobFromString" 0
+    { name = fn "bytesFromString" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TBlob
-      description = "Encodes <param s> as UTF-8 bytes in a fresh ephemeral Blob."
+      returnType = TBytes
+      description = "Encodes <param s> as UTF-8 bytes in Bytes."
       fn =
         (function
         | _, _, _, [| DString s |] ->
           let bs = System.Text.Encoding.UTF8.GetBytes(s)
-          Blob.newEphemeral bs |> Ply
+          Bytes.newEphemeral bs |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "blobToString" 0
+    { name = fn "bytesToString" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TypeReference.result TString TString
       description =
-        "Decodes <param blob> as UTF-8. Returns Error with a message if the bytes aren't valid UTF-8."
+        "Decodes <param bytes> as UTF-8. Returns Error with a message if the bytes aren't valid UTF-8."
       fn =
         let ok r = Dval.resultOk KTString KTString r
         let err r = Dval.resultError KTString KTString r
         (function
-        | state, _, _, [| DBlob ref |] ->
-          Blob.withBytes state ref (fun bs ->
+        | state, _, _, [| DBytes ref |] ->
+          Bytes.withBytes state ref (fun bs ->
             try
               let s = (new System.Text.UTF8Encoding(false, true)).GetString(bs)
               Ply(ok (DString s))
@@ -71,18 +70,18 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "blobToHex" 0
+    { name = fn "bytesToHex" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
       description =
-        "Hex (Base16) encodes <param blob> using an uppercase alphabet. "
+        "Hex (Base16) encodes <param bytes> using an uppercase alphabet. "
         + "Complies with [RFC 4648 section "
         + "8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."
       fn =
         (function
-        | state, _, _, [| DBlob ref |] ->
-          Blob.withBytes state ref (fun bs ->
+        | state, _, _, [| DBytes ref |] ->
+          Bytes.withBytes state ref (fun bs ->
             Ply(DString(System.Convert.ToHexString(bs))))
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -90,20 +89,47 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "blobFromHex" 0
+    { name = fn "bytesPreviewHex" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes ""; Param.make "count" TInt "" ]
+      returnType = TypeReference.option TString
+      description =
+        "The first <param count> bytes of <param bytes> as lowercase hex pairs "
+        + "separated by spaces, or None when the bytes are saved. Never reads the "
+        + "store, so it is cheap enough to call while printing a value."
+      fn =
+        (function
+        | _, _, _, [| DBytes(Ephemeral eph); DInt count |] ->
+          let n =
+            max (bigint 0) (min (DarkInt.toBigInt count) (bigint eph.bytes.Length))
+          let hex =
+            eph.bytes
+            |> Array.truncate (int n)
+            |> Array.map (fun b -> b.ToString("x2"))
+            |> String.concat " "
+          Ply(Dval.optionSome KTString (DString hex))
+        | _, _, _, [| DBytes(Persistent _); DInt _ |] ->
+          Ply(Dval.optionNone KTString)
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "bytesFromHex" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TBlob TString
+      returnType = TypeReference.result TBytes TString
       description =
-        "Parses <param s> as an uppercase or lowercase hex string into a fresh ephemeral Blob."
+        "Parses <param s> as an uppercase or lowercase hex string into Bytes."
       fn =
-        let ok b = Dval.resultOk KTBlob KTString b
-        let err s = Dval.resultError KTBlob KTString (DString s)
+        let ok b = Dval.resultOk KTBytes KTString b
+        let err s = Dval.resultError KTBytes KTString (DString s)
         (function
         | _, _, _, [| DString s |] ->
           try
             let bs = System.Convert.FromHexString(s)
-            ok (Blob.newEphemeral bs) |> Ply
+            ok (Bytes.newEphemeral bs) |> Ply
           with e ->
             err $"Invalid hex string: {e.Message}" |> Ply
         | _ -> incorrectArgs ())
@@ -112,16 +138,16 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "blobToBase64" 0
+    { name = fn "bytesToBase64" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
       description =
-        "Base64 encodes <param blob> using the standard alphabet (RFC 4648 section 4) with {{=}} padding."
+        "Base64 encodes <param bytes> using the standard alphabet (RFC 4648 section 4) with {{=}} padding."
       fn =
         (function
-        | state, _, _, [| DBlob ref |] ->
-          Blob.withBytes state ref (fun bs ->
+        | state, _, _, [| DBytes ref |] ->
+          Bytes.withBytes state ref (fun bs ->
             Ply(DString(System.Convert.ToBase64String(bs))))
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -129,15 +155,15 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "blobFromBase64" 0
+    { name = fn "bytesFromBase64" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TBlob TString
+      returnType = TypeReference.result TBytes TString
       description =
-        "Parses <param s> as a Base64 string (standard or URL-safe alphabet; padding optional) into a fresh ephemeral Blob."
+        "Parses <param s> as a Base64 string (standard or URL-safe alphabet; padding optional) into Bytes."
       fn =
-        let ok b = Dval.resultOk KTBlob KTString b
-        let err s = Dval.resultError KTBlob KTString (DString s)
+        let ok b = Dval.resultOk KTBytes KTString b
+        let err s = Dval.resultError KTBytes KTString (DString s)
         (function
         | _, _, _, [| DString s |] ->
           let normalized =
@@ -150,7 +176,7 @@ let fns () : List<BuiltInFn> =
             | _ -> base0
           try
             let bs = System.Convert.FromBase64String(normalized)
-            ok (Blob.newEphemeral bs) |> Ply
+            ok (Bytes.newEphemeral bs) |> Ply
           with e ->
             err $"Invalid base64 string: {e.Message}" |> Ply
         | _ -> incorrectArgs ())
@@ -159,12 +185,11 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "blobConcat" 0
+    { name = fn "bytesConcat" 0
       typeParams = []
-      parameters = [ Param.make "blobs" (TList TBlob) "" ]
-      returnType = TBlob
-      description =
-        "Concatenates a list of Blobs into a single fresh ephemeral Blob."
+      parameters = [ Param.make "values" (TList TBytes) "" ]
+      returnType = TBytes
+      description = "Concatenates a list of Bytes into a single Bytes."
       fn =
         (function
         | state, _, _, [| DList(_, items) |] ->
@@ -172,15 +197,15 @@ let fns () : List<BuiltInFn> =
             use collected = new System.IO.MemoryStream()
             for item in items do
               match item with
-              | DBlob ref ->
-                let! bs = Blob.readBytes state ref
+              | DBytes ref ->
+                let! bs = Bytes.readBytes state ref
                 collected.Write(bs, 0, bs.Length)
               | _ ->
                 return
                   Exception.raiseInternal
-                    "blobConcat: expected DBlob"
+                    "bytesConcat: expected DBytes"
                     [ "item", item ]
-            return Blob.newEphemeral (collected.ToArray())
+            return Bytes.newEphemeral (collected.ToArray())
           }
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -188,23 +213,23 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO copy-free slicing via a `Subblob` BlobRef variant (see
-    // RuntimeTypes.fs:BlobRef). Today's slice always allocates a
+    // TODO copy-free slicing via a `Subblob` BytesRef variant (see
+    // RuntimeTypes.fs:BytesRef). Today's slice always allocates a
     // fresh byte[]; fine at current sizes, wasteful for 100MB chunked
     // processing. Reopen when a profile flags slice-copy as hot.
-    { name = fn "blobSlice" 0
+    { name = fn "bytesSlice" 0
       typeParams = []
       parameters =
-        [ Param.make "blob" TBlob ""
+        [ Param.make "bytes" TBytes ""
           Param.make "start" TInt "zero-based, inclusive"
           Param.make "length" TInt "0 or more" ]
-      returnType = TBlob
+      returnType = TBytes
       description =
-        "Copies <param length> bytes starting at <param start> into a fresh ephemeral Blob. Out-of-range slices are clamped."
+        "Copies <param length> bytes starting at <param start> into Bytes. Out-of-range slices are clamped."
       fn =
         (function
-        | state, _, _, [| DBlob ref; DInt startD; DInt lenD |] ->
-          Blob.withBytes state ref (fun bs ->
+        | state, _, _, [| DBytes ref; DInt startD; DInt lenD |] ->
+          Bytes.withBytes state ref (fun bs ->
             let len = bigint bs.Length
             let safeStart = max (bigint 0) (min (DarkInt.toBigInt startD) len)
             let safeLen =
@@ -212,46 +237,46 @@ let fns () : List<BuiltInFn> =
             let slice = Array.zeroCreate<byte> (int safeLen)
             if safeLen > bigint 0 then
               System.Array.Copy(bs, int safeStart, slice, 0, int safeLen)
-            Ply(Blob.newEphemeral slice))
+            Ply(Bytes.newEphemeral slice))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "blobToBytes" 0
+    { name = fn "bytesToList" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TList TUInt8
       description =
-        "Expands <param blob> to a List<UInt8>. Escape hatch for code that hasn't migrated yet — prefer the Blob module for new code."
+        "Expands <param bytes> to a List<UInt8>. Escape hatch for code that hasn't migrated yet — prefer the Bytes module for new code."
       fn =
         (function
-        | state, _, _, [| DBlob ref |] ->
-          Blob.withBytes state ref (fun bs -> Ply(Dval.byteArrayToDvalList bs))
+        | state, _, _, [| DBytes ref |] ->
+          Bytes.withBytes state ref (fun bs -> Ply(Dval.byteArrayToDvalList bs))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "blobFromBytes" 0
+    { name = fn "bytesFromList" 0
       typeParams = []
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
-      returnType = TBlob
+      returnType = TBytes
       description =
-        "Collects a List<UInt8> into a fresh ephemeral Blob. Escape hatch for bridging old and new code."
+        "Collects a List<UInt8> into Bytes. Escape hatch for bridging old and new code."
       fn =
         (function
         | _, _, _, [| DList(_, items) |] ->
           let bs = Dval.dlistToByteArray items
-          Blob.newEphemeral bs |> Ply
+          Bytes.newEphemeral bs |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
-// TODO `blobEmpty` is the only BuiltInValue we ship. The pattern is
+// TODO `bytesEmpty` is the only BuiltInValue we ship. The pattern is
 // general — `intMaxInt64`, `uuidNil`, etc. could all live here — but
 // today it's a sample size of one, so the surrounding machinery isn't
 // well-exercised. Add a second use case before relying on it for
@@ -259,15 +284,15 @@ let fns () : List<BuiltInFn> =
 //
 // TODO general "Builtin bytes constant" pattern: a `seeds : List<byte[]>`
 // field on Builtins, with LocalExec-startup hashing + INSERT OR IGNORE
-// into `package_blobs`. Lets `Builtin.someBlobConstant` ship bytes from
+// into `package_blobs`. Lets `Builtin.someBytesConstant` ship bytes from
 // F# source without per-constant plumbing. Worth doing once we have
 // a second non-empty blob constant to motivate it.
 let values () : List<BuiltInValue> =
-  [ { name = LibExecution.Builtin.Shortcuts.value "blobEmpty" 0
-      typ = TBlob
-      description = "The empty Blob (zero bytes)."
+  [ { name = LibExecution.Builtin.Shortcuts.value "bytesEmpty" 0
+      typ = TBytes
+      description = "The empty Bytes (zero bytes)."
       deprecated = NotDeprecated
-      body = DBlob(Persistent(Blob.emptyHash, 0L)) } ]
+      body = DBytes(Persistent(Bytes.emptyHash, 0L)) } ]
 
 
 let builtins () = LibExecution.Builtin.make (values ()) (fns ())

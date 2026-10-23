@@ -375,7 +375,7 @@ module Expect =
     | DDateTime _
     | DUuid _
     | DApplicable _
-    | DBlob _
+    | DBytes _
     | DStream _
     | DPromise _ -> true
 
@@ -587,7 +587,7 @@ module Expect =
       | DRecord _, _
       | DEnum _, _
       | DApplicable _, _
-      | DBlob _, _
+      | DBytes _, _
       | DStream _, _
       | DPromise _, _ -> check path actual expected
 
@@ -941,7 +941,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUuid _
     | DDateTime _
     | DApplicable _
-    | DBlob _
+    | DBytes _
     | DStream _
     | DPromise _ -> f dv
     f dv
@@ -1053,13 +1053,13 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
     // Ephemeral blobs are intentionally excluded here — the Dval
     // binary serializer raises on them; promote to Persistent first.
     ("blob_persistent",
-     DBlob(
+     DBytes(
        Persistent(
          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
          1024L
        )
      ),
-     TBlob)
+     TBytes)
     ("string", DString "incredibly this was broken", TString)
     // Json.NET has a habit of converting things automatically based on the type in the string
     ("date string", DString "2018-09-14T00:31:41Z", TString)

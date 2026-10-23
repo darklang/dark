@@ -9,7 +9,7 @@
 /// be written as a literal: `captureValue` reflects the result back into source via
 /// `RuntimeTypesToProgramTypes.dvalToExpr`. That matters because the chain is re-run on every eval - without
 /// it, `let t = slowThing ()` would pay for `slowThing` again on every subsequent expression, and an effectful
-/// one would repeat its effect. Values with no literal syntax (functions, DBs, blobs, streams, datetimes,
+/// one would repeat its effect. Values with no literal syntax (functions, DBs, bytes, streams, datetimes,
 /// uuids, and floats with no literal form) fall back to holding the expression, which does re-run. The REPL
 /// marks those with a `~`.
 module Darklang.Cli.Repl

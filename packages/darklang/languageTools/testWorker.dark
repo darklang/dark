@@ -2,10 +2,10 @@
 module Darklang.LanguageTools.PackageManager.Test.Worker
 
 /// F# executes exact hashes and transports runtime values without losing their types.
-let execute (request: Blob) (access: Blob) : (Blob * Int) =
+let execute (request: Bytes) (access: Bytes) : (Bytes * Int) =
   Builtin.pmTestWorkerExecute request access
 
-let read (path: String) : Blob =
+let read (path: String) : Bytes =
   Builtin.unwrap (Stdlib.Cli.FileSystem.readFile path)
 
 let main (args: List<String>) : Int =

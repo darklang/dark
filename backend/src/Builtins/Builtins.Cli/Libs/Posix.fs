@@ -12,7 +12,7 @@ module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 open Builtin.Shortcuts
 
 
@@ -143,13 +143,13 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallStatAt" 0
       typeParams = []
       parameters = [ Param.make "path" TString "Checked, no-follow entry" ]
-      returnType = TypeReference.result TBlob TInt
+      returnType = TypeReference.result TBytes TInt
       description = "Raw kernel stat bytes; field decoding belongs in Dark"
       fn =
         (function
         | _, vm, _, [| DString path |] ->
-          syscallResult KTBlob vm (HostTypes.PosixOp.StatBuffer path) (fun r ->
-            Blob.newEphemeral (Host.expectBytes r))
+          syscallResult KTBytes vm (HostTypes.PosixOp.StatBuffer path) (fun r ->
+            Bytes.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = fileReadEffect
@@ -160,7 +160,7 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "fd" TInt "Directory descriptor"
           Param.make "count" TInt "Maximum raw bytes" ]
-      returnType = TypeReference.result TBlob TInt
+      returnType = TypeReference.result TBytes TInt
       description = "One getdents64/getdirentries64 call; no record decoding"
       fn =
         (function
@@ -170,8 +170,8 @@ let fns () : List<BuiltInFn> =
               intToDescriptor vm fd,
               intToInt32 vm count
             )
-          syscallResult KTBlob vm op (fun r ->
-            Blob.newEphemeral (Host.expectBytes r))
+          syscallResult KTBytes vm op (fun r ->
+            Bytes.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -180,16 +180,16 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallGetcwd" 0
       typeParams = []
       parameters = [ Param.make "count" TInt "Maximum raw bytes" ]
-      returnType = TypeReference.result TBlob TInt
+      returnType = TypeReference.result TBytes TInt
       description = "One kernel getcwd call; no buffer growth or public decoding"
       fn =
         (function
         | _, vm, _, [| DInt count |] ->
           syscallResult
-            KTBlob
+            KTBytes
             vm
             (HostTypes.PosixOp.GetcwdBytes(intToInt32 vm count))
-            (fun r -> Blob.newEphemeral (Host.expectBytes r))
+            (fun r -> Bytes.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.FileRead ]
@@ -314,16 +314,16 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "path" TString "Symlink path to read"
           Param.make "count" TInt "Maximum bytes" ]
-      returnType = TypeReference.result TBlob TInt
+      returnType = TypeReference.result TBytes TInt
       description = "One readlinkat call, with no growth or text decoding"
       fn =
         (function
         | _, vm, _, [| DString path; DInt count |] ->
           syscallResult
-            KTBlob
+            KTBytes
             vm
             (HostTypes.PosixOp.ReadlinkBytes(path, intToInt32 vm count))
-            (fun response -> Blob.newEphemeral (Host.expectBytes response))
+            (fun response -> Bytes.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = fileReadEffect
@@ -370,16 +370,16 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "fd" TInt "File descriptor to read from"
           Param.make "count" TInt "Max bytes to read" ]
-      returnType = TypeReference.result TBlob TInt
+      returnType = TypeReference.result TBytes TInt
       description =
-        "Reads up to count bytes from a file descriptor into an ephemeral Blob."
+        "Reads up to count bytes from a file descriptor into an ephemeral Bytes."
       fn =
         (function
         | _, vm, _, [| DInt fd; DInt count |] ->
           let op =
             HostTypes.PosixOp.FdRead(intToDescriptor vm fd, intToInt32 vm count)
-          syscallResult KTBlob vm op (fun response ->
-            Blob.newEphemeral (Host.expectBytes response))
+          syscallResult KTBytes vm op (fun response ->
+            Bytes.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -419,13 +419,13 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fd" TInt "File descriptor to write to"
-          Param.make "blob" TBlob "Bytes to write" ]
+          Param.make "bytes" TBytes "Bytes to write" ]
       returnType = TypeReference.result TInt TInt
       description = "Writes bytes to a file descriptor. Returns bytes written."
       fn =
         (function
-        | state, vm, _, [| DInt fd; DBlob ref |] ->
-          Blob.withBytes state ref (fun bytes ->
+        | state, vm, _, [| DInt fd; DBytes ref |] ->
+          Bytes.withBytes state ref (fun bytes ->
             let op = HostTypes.PosixOp.FdWrite(intToDescriptor vm fd, bytes)
             syscallResult KTInt vm op (fun response ->
               Dval.int (bigint (Host.expectWritten response))))

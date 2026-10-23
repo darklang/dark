@@ -1,7 +1,7 @@
 /// HTTP client builtins.
 ///
 /// Two builtins, two API surfaces:
-/// - `httpClientRequest` returns a Response with `body : Blob` —
+/// - `httpClientRequest` returns a Response with `body : Bytes` —
 ///   buffers the whole body up front; the simple/common case.
 /// - `httpClientStream` returns a StreamResponse with
 ///   `body : Stream<UInt8>` — lazy/chunked; for large bodies, SSE, etc.
@@ -15,9 +15,9 @@
 ///
 /// TODO collapse into a single builtin: `httpClientStream` becomes the only F#
 /// builtin, and `Stdlib.HttpClient.request` a Dark-side wrapper that streams,
-/// drains via `Stream.toBlob`, and repacks into a `Response`. Four gates before
+/// drains via `Stream.toBytes`, and repacks into a `Response`. Four gates before
 /// the collapse stops regressing existing callers:
-///   (1) a `body : Blob` param on the stream builtin (today it always sends `[||]`);
+///   (1) a `body : Bytes` param on the stream builtin (today it always sends `[||]`);
 ///   (2) a body-read timeout (`ResponseHeadersRead` means the cancel token only
 ///       covers header arrival, so a drain can hang indefinitely);
 ///   (3) drain-time error translation (an IOException during the drain must become
@@ -37,7 +37,7 @@ open LibExecution.Effects
 module VT = ValueType
 module RTE = RuntimeError
 module NR = LibExecution.RuntimeTypes.NameResolution
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 module Stream = LibExecution.Stream
 module Host = LibExecution.Host
 module PermissionCheck = LibExecution.PermissionCheck
@@ -188,7 +188,7 @@ let private guestRequest
           let fields =
             [ ("statusCode", Dval.int (bigint response.statusCode))
               ("headers", headersToDval response.headers)
-              ("body", Blob.newEphemeral response.body) ]
+              ("body", Bytes.newEphemeral response.body) ]
           Ply(resultOk (DRecord(typ, typ, [], Map fields))))
 
 let private responseResultType =
@@ -242,7 +242,7 @@ let fns () : List<BuiltInFn> =
         [ Param.make "method" TString ""
           Param.make "uri" TString ""
           Param.make "headers" headersType ""
-          Param.make "body" TBlob "" ]
+          Param.make "body" TBytes "" ]
       returnType = responseResultType
       description =
         "Make an HTTP call to <param uri>, in program order (a write). Returns a <type Result> "
@@ -253,8 +253,8 @@ let fns () : List<BuiltInFn> =
         | state,
           vm,
           _,
-          [| DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef |] ->
-          Blob.withBytes state bodyRef (fun body ->
+          [| DString method; DString uri; DList(_, reqHeaders); DBytes bodyRef |] ->
+          Bytes.withBytes state bodyRef (fun body ->
             guestRequest
               vm
               PackageRefs.Fn.Stdlib.HttpClient.request
@@ -274,7 +274,7 @@ let fns () : List<BuiltInFn> =
     //
     // The body is not buffered into a byte[]; the host opens the response and
     // keeps it in its stream table, and the DStream pulls chunks through the
-    // host-issued handle. Bulk consumers (`streamToBlob`) pull whole buffers
+    // host-issued handle. Bulk consumers (`streamToBytes`) pull whole buffers
     // via `nextChunk`; byte-wise consumers (`streamNext`) see one `DUInt8` at
     // a time synthesised from the same buffer.
     //
@@ -299,7 +299,7 @@ let fns () : List<BuiltInFn> =
       description =
         "Make a streaming HTTP call to <param uri>. Returns a <type "
         + "StreamResponse> whose `body` is a lazy <type Stream> that yields bytes "
-        + "as they arrive. Drain with `Builtin.streamToList`/`streamToBlob`, or "
+        + "as they arrive. Drain with `Builtin.streamToList`/`streamToBytes`, or "
         + "compose with `streamMap`/`streamFilter`/etc. The underlying HTTP "
         + "response is released when the stream is drained to completion or "
         + "`Builtin.streamClose`d."

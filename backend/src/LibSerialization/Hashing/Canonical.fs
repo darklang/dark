@@ -269,7 +269,7 @@ let writeTypeReference
     writeTypeReference mode w first
     writeTypeReference mode w second
     Common.List.write w (writeTypeReference mode) rest
-  | PT.TBlob -> w.Write 24uy
+  | PT.TBytes -> w.Write 24uy
   | PT.TStream inner ->
     w.Write 25uy
     writeTypeReference mode w inner

@@ -566,7 +566,7 @@ let private textOf (status : string, body : byte[]) : string * string =
 /// blob (`Http.Request.fromRequest`), which the handler reads back and the tracer promotes.
 /// Bytes are inline, so there is no shared state for concurrent requests to race over: this
 /// fires many overlapping body-echo requests and asserts each one gets ITS OWN body back.
-let private concurrentEphemeralBlobRequests =
+let private concurrentEphemeralBytesRequests =
   testTask "concurrent requests don't lose or cross ephemeral blob bodies" {
     // Distinct, non-trivial body per request so a lost/mis-tagged blob
     // shows up as a wrong or empty echo, not a coincidental match.
@@ -772,6 +772,6 @@ let tests =
     "HttpServer"
     (serveRejectsOutOfRangeArgs
      :: bindRetriesATakenPort
-     :: concurrentEphemeralBlobRequests
+     :: concurrentEphemeralBytesRequests
      :: requestsAreProcesses
      :: fileTestLists)

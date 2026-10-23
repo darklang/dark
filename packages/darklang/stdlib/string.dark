@@ -192,16 +192,16 @@ let fromChar (c: Char) : String = Stdlib.toString c
 /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
 /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
 let base64UrlEncode (s: String) : String =
-  let encoded = s |> Blob.fromString |> Base64.urlEncode
+  let encoded = s |> Bytes.fromString |> Base64.urlEncode
 
   String.replaceAll encoded "=" ""
 
 /// Base64 encodes a string. Uses {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
 /// [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) with padding.
 let base64Encode (s: String) : String =
-  // String.toBytes returns List<UInt8> for Http compatibility;
-  // Base64.encode takes Blob, so we go through Blob.fromString.
-  s |> Blob.fromString |> Base64.encode
+  // String.toByteList returns List<UInt8> for Http compatibility;
+  // Base64.encode takes Bytes, so we go through Bytes.fromString.
+  s |> Bytes.fromString |> Base64.encode
 
 
 /// Base64 decodes a string. The returned value is wrapped in {{Result}}.
@@ -212,8 +212,8 @@ let base64Encode (s: String) : String =
 /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
 let base64Decode (s: String) : Result.Result<String, String> =
   match Base64.decode s with
-  | Ok blob ->
-    match Blob.toString blob with
+  | Ok bytes ->
+    match Bytes.toString bytes with
     | Ok str -> Result.Result.Ok str
     | Error _ -> Result.Result.Error "Invalid UTF-8 string"
   | Error err -> Result.Result.Error err
@@ -222,7 +222,7 @@ let base64Decode (s: String) : Result.Result<String, String> =
 /// Take a string and hash it to a cryptographically-secure digest.
 /// Don't rely on either the size or the algorithm.
 let digest (s: String) : String =
-  let sha384Hash = Crypto.sha384 (Blob.fromString s)
+  let sha384Hash = Crypto.sha384 (Bytes.fromString s)
 
   sha384Hash |> Base64.urlEncode
 
@@ -415,39 +415,37 @@ let trimStart (str: String) : String = Builtin.stringTrimStart str
 let trimEnd (str: String) : String = Builtin.stringTrimEnd str
 
 
-// TODO retype these three to Blob (drop the List<UInt8> bridges) once
-// the Http server, CLI file ops, and the LSP logger no longer require
-// the byte-list shape. Prefer `Stdlib.String.toBlob` / the Blob-based
-// stringFromBlob{,WithReplacement} for new code.
+// Byte-list helpers for callers that need List<UInt8>. Prefer toBytes and
+// fromBytes when working with the Bytes type.
 
 /// Converts the given unicode string to a UTF8-encoded byte sequence.
-let toBytes (str: String) : List<UInt8> =
-  Blob.toList (toBlob str)
+let toByteList (str: String) : List<UInt8> =
+  Bytes.toList (toBytes str)
 
 
 /// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters.
-let fromBytesWithReplacement (bytes: List<UInt8>) : String =
-  fromBlobWithReplacement (Blob.fromList bytes)
+let fromByteListWithReplacement (bytes: List<UInt8>) : String =
+  fromBytesWithReplacement (Bytes.fromList bytes)
 
 
 /// Converts the UTF8-encoded byte sequence into a string
-let fromBytes (bytes: List<UInt8>) : Option.Option<String> =
-  Builtin.stringFromBytes bytes
+let fromByteList (bytes: List<UInt8>) : Option.Option<String> =
+  Builtin.stringFromByteList bytes
 
 
-/// Converts the given unicode string to a UTF8-encoded Blob.
-let toBlob (str: String) : Blob = Builtin.stringToBlob str
+/// Converts the given unicode string to a UTF8-encoded Bytes.
+let toBytes (str: String) : Bytes = Builtin.stringToBytes str
 
 
-/// Converts a UTF8-encoded Blob into a string. Invalid sequences are
+/// Converts a UTF8-encoded Bytes into a string. Invalid sequences are
 /// replaced.
-let fromBlobWithReplacement (blob: Blob) : String =
-  Builtin.stringFromBlobWithReplacement blob
+let fromBytesWithReplacement (bytes: Bytes) : String =
+  Builtin.stringFromBytesWithReplacement bytes
 
 
-/// Converts a UTF8-encoded Blob into a string. Returns None if the
+/// Converts a UTF8-encoded Bytes into a string. Returns None if the
 /// bytes aren't valid UTF-8.
-let fromBlob (blob: Blob) : Option.Option<String> = Builtin.stringFromBlob blob
+let fromBytes (bytes: Bytes) : Option.Option<String> = Builtin.stringFromBytes bytes
 
 
 /// Return the byte at <param index> in <param str>'s UTF-8 encoding.
