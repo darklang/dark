@@ -830,40 +830,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "pmOwnerHasItems" 0
-      typeParams = []
-      parameters =
-        [ Param.make "branchId" TUuid "Branch to look on"
-          Param.make "owner" TString "Owner to test" ]
-      returnType = TBool
-      description =
-        "Whether this owner has any listed item at all. A search would answer "
-        + "the same question by scanning `locations` four times; this is an "
-        + "equality seek on the owner index."
-      fn =
-        function
-        | _, _, _, [| DUuid branchId; DString owner |] ->
-          uply {
-            // `locations` has no branch column (a branch is an overlay), so the seek answers about
-            // MAIN. Ask the branch too when it says no, or the first item someone authors on a branch
-            // does not count as having any.
-            let! found = PMPT.ownerHasItems owner
-            if found then
-              return DBool true
-            else
-              return
-                DBool(
-                  LibDB.PackageManager.branchOwnerHasItems
-                    (branchOfParam branchId)
-                    owner
-                )
-          }
-        | _ -> incorrectArgs ()
-      previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
-
-
     { name = fn "pmSearchNames" 0
       typeParams = []
       parameters =

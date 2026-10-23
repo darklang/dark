@@ -195,6 +195,10 @@ The order that works:
                                          layer over branchDiffEntries, which is live and returns the
                                          same information as records; cli/scm/scmjson.dark and
                                          cli/scm/branchHistory.dark show how to render it.
+      SCM.PackageOps.opBindsAName      called by sync/packageOpsSync.dark:50. Carried, with its
+                                         builtin, by the four *.binds-a-name fragments.
+      SCM.PackageOps.getCommitNamedOps called by lsp-server/branches.dark:445. Carried, with its
+                                         builtin, by the three *.commit-named-ops fragments.
       vApps, vAI                       view indices, called by workbench/keys-view.dark.sync,
                                          nav.dark.apps and ai-and-apps.views. vDevices IS
                                          re-declared by wiring.sync; these two are declared nowhere.

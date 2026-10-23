@@ -169,35 +169,6 @@ module PT =
       with _ ->
         None
 
-    /// Does this op BIND A NAME, judged from its tag alone and without decoding it?
-    ///
-    /// The point is what it avoids. A sync import decodes every incoming op to work out which names
-    /// moved, but only `SetName` and `Decision` bind anything; `AddFn` and friends carry content and
-    /// answer "no name". They are also the expensive ones, being whole ASTs, so decoding them to
-    /// discover they say nothing was most of the cost of planning an import.
-    ///
-    /// `Unbind` (12) is deliberately not counted: it binds nothing, so the incoming side of the conflict
-    /// detector has no binding to compare against yours. A peer removing a name you edited is settled by
-    /// the fold's LWW rather than raised as a conflict. Open, and known.
-    ///
-    /// Reads the header for its length rather than assuming one, so a header change cannot silently
-    /// shift which byte is read. An unreadable or truncated blob answers `false`: the caller learns
-    /// nothing from it either way, and the one decoder is where a bad blob gets reported.
-    let bindsAName (data : byte[]) : bool =
-      try
-        use stream = new MemoryStream(data)
-        use reader = new BinaryReader(stream)
-        let _header = Header.read reader
-
-        // Tags from `PT.PackageOp.write`: 3 = SetName, 11 = Decision. Both are also the cheap ops to
-        // decode, so nothing is gained by narrowing further.
-        match reader.ReadByte() with
-        | 3uy
-        | 11uy -> true
-        | _ -> false
-      with _ ->
-        false
-
 module RT =
   // TODO upstream, it might be better to serialize a slightly lower type,
   // since we'll always have the corresponding ID in any context we use this

@@ -41,21 +41,6 @@ let opsInCommitLimited
       [ commitHash, Stdlib.toString limit ])
 
 
-/// The ops in a commit that name or deprecate something, capped at <param limit>, with the total count
-/// of those alongside.
-///
-/// Capped in F#: the init commit holds tens of thousands of ops, and turning them all into Dark values
-/// to render a twelve-line summary took over a second.
-///
-/// `Int` both ways, as the builtin declares. An `Int64` here is a runtime type error at the one call
-/// site, the workbench's commit detail, rather than anything the loader catches.
-let getCommitNamedOps
-  (commitHash: String)
-  (limit: Int)
-  : (List<LanguageTools.ProgramTypes.PackageOp> * Int) =
-  Builtin.scmGetCommitNamedOps commitHash limit
-
-
 /// How many ops a commit committed.
 let opCountIn (commitHash: String) : Int64 =
   Stdlib.Sqlite.scalarIntP

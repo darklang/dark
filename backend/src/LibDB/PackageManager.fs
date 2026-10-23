@@ -1022,21 +1022,6 @@ let branchLocationsFor
   |> Map.toList
   |> List.choose (fun (_, (loc, h)) -> if h = hash then Some loc else None)
 
-/// Has this branch bound anything under <param owner>? Main's answer comes from
-/// `locations`, which a branch never writes, so branch-only work must be counted
-/// here or the caller treats the owner as empty.
-///
-/// A list scan, deliberately: called per frame, the ops are already in memory and
-/// few, and only after main said no.
-let branchOwnerHasItems (branchId : PT.BranchId) (owner : string) : bool =
-  opsForBranch branchId
-  |> List.exists (fun op ->
-    match op with
-    | PT.PackageOp.SetName(loc, _, _)
-    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override _) ->
-      loc.owner = owner
-    | _ -> false)
-
 
 /// Every location this branch has EVER bound <param hash> to, live or superseded.
 /// `branchLocationsFor` answers only "what does this hash hold NOW"; superseded

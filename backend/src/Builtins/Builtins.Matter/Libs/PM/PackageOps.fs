@@ -430,34 +430,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Does this op bind a name, without decoding it?
-    //
-    // A sync import plans conflicts by decoding every incoming op and asking which name it moved. Only
-    // `SetName` and `Decision` move one; `AddFn` and friends carry content and answer nothing, and they
-    // are also the big ones, so nearly all of that decoding was spent producing "no". This reads the tag
-    // and returns, which measured a fifth of the pull off on its own.
-    { name = fn "packageOpBindsAName" 0
-      typeParams = []
-      parameters = [ Param.make "blob" TBlob "a package_ops op_blob" ]
-      returnType = TBool
-      description =
-        "Whether <param blob> is an op that binds a name (SetName or Decision), read from "
-        + "its tag without decoding it. False for content ops and for anything unreadable."
-      fn =
-        function
-        | exeState, _, _, [| DBlob blobRef |] ->
-          uply {
-            let! bytes = LibExecution.Blob.readBytes exeState blobRef
-            return DBool(LibDB.Queries.opBindsAName bytes)
-          }
-        | _ -> incorrectArgs ()
-      // Impure though it performs nothing, like `packageOpFromBlobOption` below: the decoder
-      // is this binary's, and a synced store holds ops some builds cannot read.
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     // Decode one op_blob into a PackageOp, or None when this build cannot read it. Option rather
     // than raise, and deliberately with no raising variant: a synced store holds ops from other
     // builds in its own log on purpose, so every local reader meets them.
@@ -496,47 +468,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-
-    { name = fn "scmGetCommitNamedOps" 0
-      typeParams = []
-      parameters =
-        [ Param.make "commitHash" TString "Commit hash"
-          Param.make "limit" TInt "How many ops to return" ]
-      returnType =
-        TTuple(TList(TCustomType(NR.ok (packageOpTypeName ()), [])), TInt, [])
-      description =
-        "The ops in a commit that name or deprecate something, capped at "
-        + "<param limit>, plus how many there are in total. A commit can hold "
-        + "tens of thousands of ops and a caller showing a summary wants a "
-        + "dozen, so the cap applies before they become Dark values."
-      fn =
-        function
-        | _, vm, _, [| DString commitHash; DInt limit |] ->
-          uply {
-            let! ops = LibDB.Queries.getCommitOps (PT.Hash commitHash)
-            let named =
-              ops
-              |> List.filter (fun op ->
-                match op with
-                | PT.PackageOp.SetName _
-                | PT.PackageOp.Unbind _
-                | PT.PackageOp.Deprecate _ -> true
-                | _ -> false)
-            let shown =
-              named
-              |> List.truncate (max 0 (intToInt32 vm limit))
-              |> List.map PT2DT.PackageOp.toDT
-            return
-              DTuple(
-                Dval.list (packageOpKT ()) shown,
-                Dval.int (bigint (List.length named)),
-                []
-              )
-          }
-        | _ -> incorrectArgs ()
-      previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
     // The REBUILD half of a draft rewrite, and the reason it is not in Dark: it re-mints every surviving
     // op's id (hashing) and re-inserts with the original stamps, then re-folds. The delete it performs
     // spares ops this build cannot decode, BY ID, which is the invariant that stops authoring eating a

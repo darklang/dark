@@ -1,6 +1,7 @@
 // RESTORE: backend/src/LibDB/Queries.fs
 // WAS: exportPageJson: one page of the sync wire format rendered straight from the database, the relay's whole answer to /sync/pull. Native because a page in Dark hex-encodes 2,000 blobs through interpreted calls.
-// ANCHOR: the first function in Queries.fs, above opBindsAName
+// ANCHOR: the first function in Queries.fs, above deserializeOp (and above opBindsAName, if
+//         later/backend/src/LibDB/Queries.fs.binds-a-name is back)
 // ALSO: its only caller was the scmExportPageJson builtin, in later/backend/src/Builtins/Builtins.Matter/Libs/PM/PackageOps.fs.sync. It read op_owners for the author column, and that table has gone too.
 // WHEN: the sync molt, 2026-10-12
 

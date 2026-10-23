@@ -572,32 +572,6 @@ let supersededBranchVersionsKeepTheirName =
     do! cleanupBranch bid
   }
 
-/// The first item someone authors on a BRANCH counts as having items.
-///
-/// The check is an index seek on `locations`, which a branch never writes to, so on its own it says
-/// "this owner has nothing" while their work sits on the branch -- and the workbench keeps offering
-/// the "you have nothing yet" panel to someone who has just written something.
-let branchAuthoringCountsAsHavingItems =
-  testTask "an owner's first item on a branch counts as having items" {
-    let! bid = freshBranch "owner-has-items" "owner-has-items"
-
-    // Store BEFORE asking. The overlay memoises per branch and this test writes ops behind its back
-    // (`scmAddOps` refreshes it; `storeDeltaOps` on its own does not), so asking first would cache an
-    // empty branch and then answer from that.
-    let! ops = parsePackageOps (namedSource "OwnerHasItems" 1)
-    let! _ = Branches.storeDeltaOps bid ops
-
-    Expect.isTrue
-      (PM.branchOwnerHasItems bid "Darklang")
-      "the branch's own binding counts"
-
-    Expect.isFalse
-      (PM.branchOwnerHasItems bid "SomeoneElse")
-      "and it is scoped to the owner asked about"
-
-    do! cleanupBranch bid
-  }
-
 let storeThenOverlay =
   testTask
     "a branch's ops round-trip through the store (effective=0) and overlay to resolve foo" {
@@ -2494,7 +2468,6 @@ let tests =
       undecodableBranchOpIsSkippedNotFatal
       overlaySearchAgreesWithFindFn
       supersededBranchVersionsKeepTheirName
-      branchAuthoringCountsAsHavingItems
       storeThenOverlay
       mergedBranchStaysAddressable
       concurrentCreateYieldsOneBranch
