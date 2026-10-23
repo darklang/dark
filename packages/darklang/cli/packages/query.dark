@@ -140,7 +140,7 @@ let hashListToDict
   hashes
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc hash ->
     let key = LanguageTools.ProgramTypes.hashToString hash
-    Stdlib.Dict.setOverridingDuplicates acc key true)
+    Stdlib.Dict.set acc key true)
 
 
 /// The deprecation sets, as <param branchId> sees them.

@@ -119,11 +119,11 @@ let getChildren
 
 let setStructure (outline: Outline) (id: Int) (s: TreeStructure) : Outline =
   { outline with
-      structure = Stdlib.Dict.setOverridingDuplicates outline.structure (k id) s }
+      structure = Stdlib.Dict.set outline.structure (k id) s }
 
 let setContent (outline: Outline) (id: Int) (nc: NodeContent) : Outline =
   { outline with
-      nodes = Stdlib.Dict.setOverridingDuplicates outline.nodes (k id) nc }
+      nodes = Stdlib.Dict.set outline.nodes (k id) nc }
 
 let addNode (outline: Outline) (id: Int) (text: String) : Outline =
   let withContent = setContent outline id (NodeContent { text = text, mark = Mark.Plain })

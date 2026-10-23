@@ -340,9 +340,10 @@ let parentHashesForBases (parentId: Uuid) (branchId: Uuid) : Dict<String, String
           | None -> ""
         (nameKey w.owner w.modules w.name, hash))
 
-  // Overlay last: `fromListOverwritingDuplicates` keeps the later entry, and the parent chain's own
-  // rebind is what a child forked from, not main's.
-  Stdlib.Dict.fromListOverwritingDuplicates (Stdlib.List.append fromMain overlay)
+  // The parent's hash for each name is main's, unless the parent branch changed
+  // it. `fromEntries` keeps the last entry for a name, so the parent's changes
+  // go second. A name the parent removed counts as a change too ("").
+  Stdlib.Dict.fromEntries (Stdlib.List.append fromMain overlay)
 
 
 /// Names the PARENT has moved since this branch forked, given bases and hashes already read: its current

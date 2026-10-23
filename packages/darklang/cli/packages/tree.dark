@@ -69,7 +69,7 @@ let displayTableOfContents (): Unit =
         | Some list -> list
         | None -> []
 
-      Stdlib.Dict.setOverridingDuplicates
+      Stdlib.Dict.set
         acc
         entry.category
         (Stdlib.List.append existing [ entry ]))

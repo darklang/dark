@@ -26,17 +26,31 @@ let get (dict: Dict<'k, 'v>) (key: 'k) : Stdlib.Option.Option<'v> =
   Builtin.dictGet dict key
 
 
-/// Returns a copy of <param dict> with the <param key> set to <param val>.
-/// Raises an error if <param key> is already in <param dict>; use
-/// <fn Dict.setOverridingDuplicates> to replace an existing value.
-let set (dict: Dict<'k, 'v>) (key: 'k) (``val``: 'v) : Dict<'k, 'v> =
-  Builtin.dictSet dict key ``val``
+/// Identifies a duplicate key reported by
+/// <fn Dict.insert>, <fn Dict.fromEntriesUnique> and <fn Dict.mergeUnique>.
+type DuplicateKey<'k> =
+  | DuplicateKey of 'k
 
 
-/// Returns a copy of <param dict> with the <param key> set to <param val>,
-/// replacing any existing value for <param key>.
-let setOverridingDuplicates (dict: Dict<'k, 'v>) (key: 'k) (``val``: 'v) : Dict<'k, 'v> =
-  Builtin.dictSetOverridingDuplicates dict key ``val``
+/// Returns a copy of <param dict> with the <param key> set to <param value>,
+/// replacing any existing value. Use <fn Dict.insert> to return an error
+/// if the key already exists.
+let set (dict: Dict<'k, 'v>) (key: 'k) (value: 'v) : Dict<'k, 'v> =
+  Builtin.dictSet dict key value
+
+
+/// Adds <param key> with <param value> and returns the new dictionary in {{Ok}},
+/// or {{Error (DuplicateKey key)}} if <param key> is already in <param dict>.
+/// <fn Dict.set> replaces the existing value instead.
+let insert
+  (dict: Dict<'k, 'v>)
+  (key: 'k)
+  (value: 'v)
+  : Result.Result<Dict<'k, 'v>, DuplicateKey<'k>> =
+  if Stdlib.Dict.``member`` dict key then
+    Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
+  else
+    Result.Result.Ok(Stdlib.Dict.set dict key value)
 
 
 /// If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged.
@@ -44,9 +58,38 @@ let remove (dict: Dict<'k, 'v>) (key: 'k) : Dict<'k, 'v> =
   Builtin.dictRemove dict key
 
 
-/// Returns a combined dictionary with both dictionaries' entries. If the same key exists in both <param left> and <param right>, it will have the value from <param right>.
+/// Combines <param left> and <param right>, using the value from <param right>
+/// for any key in both. Use <fn Dict.mergeUnique> to reject duplicate keys,
+/// or <fn Dict.mergeWith> to combine their values.
 let merge (left: Dict<'k, 'v>) (right: Dict<'k, 'v>) : Dict<'k, 'v> =
   Builtin.dictMerge left right
+
+
+/// Combines <param left> and <param right> and returns the dictionary in {{Ok}}.
+/// If a key appears in both, returns {{Error (DuplicateKey key)}} for the
+/// first duplicate in key order.
+let mergeUnique
+  (left: Dict<'k, 'v>)
+  (right: Dict<'k, 'v>)
+  : Result.Result<Dict<'k, 'v>, DuplicateKey<'k>> =
+  match
+    List.findFirst (Stdlib.Dict.keys right) (fun k -> Stdlib.Dict.``member`` left k)
+  with
+  | Some key -> Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
+  | None -> Result.Result.Ok(Stdlib.Dict.merge left right)
+
+
+/// Combines <param left> and <param right>. For each key in both,
+/// calls <param fn> with the key, left value, and right value to get the new value.
+let mergeWith
+  (left: Dict<'k, 'v>)
+  (right: Dict<'k, 'v>)
+  (fn: 'k -> 'v -> 'v -> 'v)
+  : Dict<'k, 'v> =
+  List.fold (Stdlib.Dict.toList right) left (fun acc (key, rightValue) ->
+    match Stdlib.Dict.get acc key with
+    | Some leftValue -> Stdlib.Dict.set acc key (fn key leftValue rightValue)
+    | None -> Stdlib.Dict.set acc key rightValue)
 
 
 /// Returns <param dict>'s keys in a <type List>, in key order
@@ -59,7 +102,8 @@ let values (dict: Dict<'k, 'v>) : List<'v> =
   Builtin.dictValues dict
 
 
-/// Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in key order. This function is the opposite of <fn Dict.fromList>
+/// Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in key order.
+/// Use <fn Dict.fromEntries> to turn the list back into a dictionary.
 let toList (dict: Dict<'k, 'v>) : List<('k * 'v)> =
   Builtin.dictToList dict
 
@@ -67,20 +111,37 @@ let toList (dict: Dict<'k, 'v>) : List<('k * 'v)> =
 /// Returns a <type dict> with <param entries>. Each value in <param entries>
 /// must be a {{(key, value)}} tuple.
 /// If <param entries> contains duplicate <var key>s, the last entry with that
-/// key will be used in the resulting dictionary (use <fn Dict.fromList> if you
-/// want to enforce unique keys).
+/// key is used. Use <fn Dict.fromEntriesUnique> to reject duplicates.
 /// This function is the opposite of <fn Dict.toList>.
-let fromListOverwritingDuplicates (entries: List<('k * 'v)>) : Dict<'k, 'v> =
-  Builtin.dictFromListOverwritingDuplicates entries
+let fromEntries (entries: List<('k * 'v)>) : Dict<'k, 'v> =
+  Builtin.dictFromEntries entries
 
 
-/// Each value in <param entries> must be a {{(key, value)}} tuple.
-/// If <param entries> contains no duplicate keys, returns {{Some <var dict>}}
-/// where <var dict> has <param entries>.
-/// Otherwise, returns {{None}} (use <fn Dict.fromListOverwritingDuplicates>
-/// if you want to overwrite duplicate keys).
-let fromList (entries: List<('k * 'v)>) : Stdlib.Option.Option<Dict<'k, 'v>> =
-  Builtin.dictFromList entries
+/// Builds a dictionary from <param entries> and returns it in {{Ok}}.
+/// Returns {{Error (DuplicateKey key)}} for the first repeated key encountered
+/// in list order. <fn Dict.fromEntries> keeps the last value for each key instead.
+let fromEntriesUnique
+  (entries: List<('k * 'v)>)
+  : Result.Result<Dict<'k, 'v>, DuplicateKey<'k>> =
+  let dict = Stdlib.Dict.fromEntries entries
+
+  if Stdlib.Dict.size dict == Stdlib.List.length entries then
+    Result.Result.Ok dict
+  else
+    // A duplicate exists; scan the entries again to find the first repeated key.
+    let (_, duplicate) =
+      List.fold entries (Dict { }, Option.Option.None) (fun (seen, found) (key, _) ->
+        match found with
+        | Some _ -> (seen, found)
+        | None ->
+          if Stdlib.Dict.``member`` seen key then
+            (seen, Option.Option.Some key)
+          else
+            (Stdlib.Dict.set seen key true, found))
+
+    match duplicate with
+    | Some key -> Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
+    | None -> Result.Result.Ok dict
 
 
 /// Returns {{true}} if the <param dict> contains an entry with <param key>,
@@ -97,7 +158,7 @@ let map (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> 'b) : Dict<'k, 'b> =
   dict
   |> Stdlib.Dict.toList
   |> List.map (fun (k, v) -> (k, fn k v))
-  |> Dict.fromListOverwritingDuplicates
+  |> Stdlib.Dict.fromEntries
 
 
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}.
@@ -112,7 +173,7 @@ let filter (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> Bool) : Dict<'k, 'v> =
   dict
   |> Stdlib.Dict.toList
   |> List.filter (fun (k, v) -> fn k v)
-  |> Dict.fromListOverwritingDuplicates
+  |> Stdlib.Dict.fromEntries
 
 
 /// Calls <param fn> on every entry in <param dict>, returning a <type dict> that drops some entries (filter) and transforms others (map).
@@ -129,4 +190,4 @@ let filterMap
     match fn k v with
     | None -> Option.Option.None
     | Some newValue -> Option.Option.Some ((k, newValue)))
-  |> Dict.fromListOverwritingDuplicates
+  |> Stdlib.Dict.fromEntries

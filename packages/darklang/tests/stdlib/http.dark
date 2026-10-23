@@ -126,7 +126,7 @@ test parseQueryString =
   Stdlib.Test.all
     [ Stdlib.Http.parseQueryString "https://darklang.com?x=6&x=7&myString=todo"
       |> Stdlib.Test.equal
-        (Stdlib.Dict.fromListOverwritingDuplicates
+        (Stdlib.Dict.fromEntries
           [ ("x", "7"), ("myString", "todo") ])
       // No query string → empty dict.
       Stdlib.Http.parseQueryString "https://darklang.com"
@@ -137,15 +137,15 @@ test parseQueryString =
       // Bare keys (no `=`) get empty-string values.
       Stdlib.Http.parseQueryString "https://darklang.com?flag"
       |> Stdlib.Test.equal
-        (Stdlib.Dict.fromListOverwritingDuplicates [ ("flag", "") ])
+        (Stdlib.Dict.fromEntries [ ("flag", "") ])
       // `=` inside a value is preserved.
       Stdlib.Http.parseQueryString "https://x?token=a=b"
       |> Stdlib.Test.equal
-        (Stdlib.Dict.fromListOverwritingDuplicates [ ("token", "a=b") ])
+        (Stdlib.Dict.fromEntries [ ("token", "a=b") ])
       // Keys and values are both decoded.
       Stdlib.Http.parseQueryString "https://x?q=List+map&n=A%2FB"
       |> Stdlib.Test.equal
-        (Stdlib.Dict.fromListOverwritingDuplicates
+        (Stdlib.Dict.fromEntries
           [ ("q", "List map"), ("n", "A/B") ]) ]
 
 test urlDecode =
@@ -223,19 +223,19 @@ test requestHeader =
 test parseHeaders =
   Stdlib.Test.all
     [ Stdlib.Http.parseHeaders "x: y"
-      |> Stdlib.Test.equal (Stdlib.Dict.fromListOverwritingDuplicates [ ("x", "y") ])
+      |> Stdlib.Test.equal (Stdlib.Dict.fromEntries [ ("x", "y") ])
       // Multi-line, CRLF-tolerant.
       Stdlib.Http.parseHeaders "Content-Type: text/plain\r\nContent-Length: 42"
       |> Stdlib.Test.equal
-        (Stdlib.Dict.fromListOverwritingDuplicates
+        (Stdlib.Dict.fromEntries
           [ ("Content-Type", "text/plain"), ("Content-Length", "42") ])
       // `:` inside the value is preserved.
       Stdlib.Http.parseHeaders "X-Url: https://x?a=b"
       |> Stdlib.Test.equal
-        (Stdlib.Dict.fromListOverwritingDuplicates [ ("X-Url", "https://x?a=b") ])
+        (Stdlib.Dict.fromEntries [ ("X-Url", "https://x?a=b") ])
       // Blank lines + whitespace tolerance.
       Stdlib.Http.parseHeaders "\n  Foo:  bar  \n\n"
       |> Stdlib.Test.equal
-        (Stdlib.Dict.fromListOverwritingDuplicates [ ("Foo", "bar") ])
+        (Stdlib.Dict.fromEntries [ ("Foo", "bar") ])
       // Empty input → empty dict.
       Stdlib.Http.parseHeaders "" |> Stdlib.Test.equal Stdlib.Dict.empty ]

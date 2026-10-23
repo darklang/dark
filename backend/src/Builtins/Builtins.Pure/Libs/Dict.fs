@@ -12,7 +12,6 @@ module Interpreter = LibExecution.Interpreter
 
 let varK = TVariable "k"
 let varA = TVariable "a"
-let varB = TVariable "b"
 
 
 let rec private addAllEntries
@@ -26,46 +25,10 @@ let rec private addAllEntries
   | [] -> struct (keyType, valueType, acc)
   | DTuple(k, value, []) :: rest ->
     let struct (keyType, valueType, acc) =
-      TypeChecker.DvalCreator.dictAddEntry
-        threadID
-        keyType
-        valueType
-        acc
-        k
-        value
-        TypeChecker.ReplaceValue
+      TypeChecker.DvalCreator.dictAddEntry threadID keyType valueType acc k value
     addAllEntries threadID keyType valueType acc rest
   | dv :: _ ->
-    Exception.raiseInternal
-      "Not pair tuples in fromListOverwritingDuplicates"
-      [ "dval", dv ]
-
-let rec private addAllEntriesUnlessDuplicate
-  (threadID : ThreadID)
-  (keyType : ValueType)
-  (valueType : ValueType)
-  (acc : DictMap)
-  (remaining : List<Dval>)
-  : Option<struct (ValueType * ValueType * DictMap)> =
-  match remaining with
-  | [] -> Some(struct (keyType, valueType, acc))
-  | DTuple(k, value, []) :: rest ->
-    LibExecution.RuntimeTypes.Dval.assertUsableDictKey k
-
-    if Map.containsKey (DictKey k) acc then
-      None
-    else
-      let struct (keyType, valueType, acc) =
-        TypeChecker.DvalCreator.dictAddEntry
-          threadID
-          keyType
-          valueType
-          acc
-          k
-          value
-          TypeChecker.ReplaceValue
-      addAllEntriesUnlessDuplicate threadID keyType valueType acc rest
-  | dv :: _ -> Exception.raiseInternal "Not pair tuples in fromList" [ "dval", dv ]
+    Exception.raiseInternal "Not pair tuples in fromEntries" [ "dval", dv ]
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
@@ -126,7 +89,7 @@ let fns () : List<BuiltInFn> =
       returnType = TList(TTuple(varK, varA, []))
       description =
         "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, "
-        + "in key order. This function is the opposite of <fn Dict.fromList>"
+        + "in key order. This function is the opposite of <fn Dict.fromEntries>"
       fn =
         (function
         | _, _, _, [| DDict(keyType, valueType, o) |] ->
@@ -140,17 +103,16 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dictFromListOverwritingDuplicates" 0
+    { name = fn "dictFromEntries" 0
       typeParams = [ "k"; "a" ]
       parameters = [ Param.make "entries" (TList(TTuple(varK, varA, []))) "" ]
       returnType = TDict(varK, varA)
       description =
         "Returns a <type dict> with <param entries>. Each value in <param "
         + "entries> must be a {{(key, value)}} tuple.\n\nIf <param entries> "
-        + "contains duplicate <var key>s, the last entry with that key will be "
-        + "used in the resulting dictionary (use <fn Dict.fromList> if you want "
-        + "to enforce unique keys).\n\nThis function is the opposite of <fn "
-        + "Dict.toList>."
+        + "contains duplicate <var key>s, the last entry with that key is used "
+        + "(use <fn Dict.fromEntriesUnique> to refuse duplicates).\n\nThis "
+        + "function is the opposite of <fn Dict.toList>."
       fn =
         (function
         | _, _, _, [| DList(_, []) |] ->
@@ -160,41 +122,6 @@ let fns () : List<BuiltInFn> =
           let struct (keyType, valueType, map) =
             addAllEntries vm.threadID keyType valueType Map.empty l
           DDict(keyType, valueType, map) |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "dictFromList" 0
-      typeParams = []
-      parameters = [ Param.make "entries" (TList(TTuple(varK, varB, []))) "" ]
-      returnType = TypeReference.option (TDict(varK, varB))
-      description =
-        "Each value in <param entries> must be a {{(key, value)}} tuple.\n\nIf "
-        + "<param entries> contains no duplicate keys, returns {{Some <var "
-        + "dict>}} where <var dict> has <param entries>.\n\nOtherwise, returns "
-        + "{{None}} (use <fn Dict.fromListOverwritingDuplicates> if you want to "
-        + "overwrite duplicate keys)."
-      fn =
-        (function
-        | _, vm, _, [| DList(_vtTODO, l) |] ->
-          match
-            addAllEntriesUnlessDuplicate
-              vm.threadID
-              VT.unknown
-              VT.unknown
-              Map.empty
-              l
-          with
-          | Some(struct (keyType, valueType, entries)) ->
-            DDict(keyType, valueType, entries)
-            |> TypeChecker.DvalCreator.optionSome
-              vm.threadID
-              (VT.dict keyType valueType)
-            |> Ply
-          | None ->
-            TypeChecker.DvalCreator.optionNone (VT.dict VT.unknown VT.unknown) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -275,53 +202,17 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.moved "dict" (TDict(varK, varA)) ""
           Param.make "key" varK ""
-          Param.moved "val" varA "" ]
+          Param.moved "value" varA "" ]
       returnType = TDict(varK, varA)
       description =
         "Returns a copy of <param dict> with the <param key> set to <param "
-        + "val>. If the key already exists in the Dict, an exception is raised."
-      fn =
-        (function
-        | _, vm, _, [| DDict(kt, vt, o); k; v |] ->
-          let struct (kt, vt, map) =
-            TypeChecker.DvalCreator.dictAddEntry
-              vm.threadID
-              kt
-              vt
-              o
-              k
-              v
-              TypeChecker.ThrowIfDuplicate
-          DDict(kt, vt, map) |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "dictSetOverridingDuplicates" 0
-      typeParams = [ "k"; "a" ]
-      parameters =
-        [ Param.moved "dict" (TDict(varK, varA)) ""
-          Param.make "key" varK ""
-          Param.moved "val" varA "" ]
-      returnType = TDict(varK, varA)
-      description =
-        "Returns a copy of <param dict> with the <param key> set to <param "
-        + "val>. If the key already exists in the Dict, the previous value is "
+        + "value>. If the key already exists in the Dict, the previous value is "
         + "overwritten."
       fn =
         (function
         | _, vm, _, [| DDict(kt, vt, o); k; v |] ->
           let struct (kt, vt, map) =
-            TypeChecker.DvalCreator.dictAddEntry
-              vm.threadID
-              kt
-              vt
-              o
-              k
-              v
-              TypeChecker.ReplaceValue
+            TypeChecker.DvalCreator.dictAddEntry vm.threadID kt vt o k v
           DDict(kt, vt, map) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure

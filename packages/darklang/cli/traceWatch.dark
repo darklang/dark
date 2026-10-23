@@ -88,7 +88,7 @@ let annotate
             let (id, dv) = pair
             (Stdlib.toString id,
              PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
-          |> Stdlib.Dict.fromListOverwritingDuplicates
+          |> Stdlib.Dict.fromEntries
 
         let ctx =
           { PrettyPrinter.ProgramTypes.Context.forBranch branchId with

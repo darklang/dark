@@ -632,6 +632,39 @@ module Constructors =
           "f"
         |> Stdlib.Test.equal "failed:TypeMismatch" ]
 
+  // Two keys written as the same constant are an error, compared as the runtime
+  // compares keys. A key known only at run time replaces, so it is not reported.
+  test duplicateDictKeys =
+    let dictFn (body: String) : String =
+      "let f (k: String) : Dict<String, Int64> = " + body
+    let floatFn (body: String) : String =
+      "let f (u: Unit) : Dict<Float, Int64> = " + body
+    Stdlib.Test.all
+      [ check (dictFn "Dict { \"a\": 1L, \"a\": 2L }") "f"
+        |> Stdlib.Test.equal "failed:DuplicateDictKey"
+        issues (dictFn "Dict { \"a\": 1L, \"b\": 2L, \"a\": 3L }") "f"
+        |> Stdlib.Test.equal [ "DuplicateDictKey: '\"a\"' is used as a key more than once" ]
+        check (floatFn "Dict { 1.0: 1L, 1.00: 2L }") "f"
+        |> Stdlib.Test.equal "failed:DuplicateDictKey"
+        check (floatFn "Dict { 0.0: 1L, -0.0: 2L }") "f"
+        |> Stdlib.Test.equal "failed:DuplicateDictKey"
+        check
+          "let f (u: Unit) : Dict<(Int64 * String), Int64> = Dict { (1L, \"a\"): 1L, (1L, \"a\"): 2L }"
+          "f"
+        |> Stdlib.Test.equal "failed:DuplicateDictKey"
+        check (dictFn "Dict { k: 1L, \"a\": 2L }") "f"
+        |> Stdlib.Test.equal "checked:"
+        check (dictFn "Dict { k: 1L, k: 2L }") "f" |> Stdlib.Test.equal "checked:"
+        check (dictFn "Dict { $\"{k}\": 1L, $\"{k}\": 2L }") "f"
+        |> Stdlib.Test.equal "checked:"
+        check (floatFn "Dict { 1.0: 1L, 1.5: 2L }") "f"
+        |> Stdlib.Test.equal "checked:"
+        // a string holding `", "` is one key, not the two it would spell unquoted
+        check
+          "let f (u: Unit) : Dict<List<String>, Int64> = Dict { [ \"a\\\", \\\"b\" ]: 1L, [ \"a\", \"b\" ]: 2L }"
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
   // Resolve 'a in Box<'a>.Box using the enclosing function's type parameters.
   test constructorUsesFunctionTypeParams =
     check
@@ -2838,7 +2871,7 @@ module Guarded =
             []
         (refs,
          { closure with
-             types = Stdlib.Dict.setOverridingDuplicates closure.types h typ })
+             types = Stdlib.Dict.set closure.types h typ })
     | _ -> ([], closure)
 
   let loaded () : Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure =

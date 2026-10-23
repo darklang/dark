@@ -147,7 +147,7 @@ let draftRepoints
         match (Stdlib.Sqlite.textField row "seed", Stdlib.Sqlite.textField row "hash") with
         | (Some seed, Some h) ->
           let rest = Stdlib.Dict.get acc seed |> Stdlib.Option.withDefault []
-          Stdlib.Dict.setOverridingDuplicates acc seed (Stdlib.List.push rest h)
+          Stdlib.Dict.set acc seed (Stdlib.List.push rest h)
         | _ -> acc)
 
   let overlay =
@@ -170,7 +170,7 @@ let draftRepoints
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc pair ->
       let (h, n) = pair
       let rest = Stdlib.Dict.get acc h |> Stdlib.Option.withDefault []
-      Stdlib.Dict.setOverridingDuplicates acc h (Stdlib.List.push rest n))
+      Stdlib.Dict.set acc h (Stdlib.List.push rest n))
 
   changed
   |> Stdlib.List.indexedMap (fun i b ->

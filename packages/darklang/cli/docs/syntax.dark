@@ -51,6 +51,9 @@ completed effects. `?` requires a function or lambda and is unsupported in SQL q
   { point with x = 3, y = 4 }
 
 Fields and entries use commas or newlines. Semicolons are a parse error.
+A key only known at run time replaces an earlier equal key, as
+`Stdlib.Dict.set` does; two keys written as the same constant are reported
+by the type checker (`dark typecheck`).
 
 ## Strings
   "hello" + " world"     // concat

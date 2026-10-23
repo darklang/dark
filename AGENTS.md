@@ -1007,7 +1007,12 @@ left side.
 against an `Option` of a 3-tuple parses and never matches; destructure first, then compare. Same
 family as the wildcard trap below.
 
-**`Stdlib.Dict.set` raises on an existing key.** Check-then-set, or use the merge helpers.
+**Dicts keep the last value on a duplicate key.** `Dict.set`, `fromEntries`, `merge`
+and dict literals all replace. To refuse instead, use `insert`, `fromEntriesUnique` or
+`mergeUnique`, which return `Error (DuplicateKey key)`; `mergeWith` takes a resolver.
+A literal that repeats a constant key (`Dict { "a": 1L, "a": 2L }`) gets a
+`DuplicateDictKey` error from the at-rest checker, like a record field given twice,
+but it still saves and still runs, keeping the last value.
 
 **A builtin's wrapper can lie about Int width.** A builtin returning `Result<Int, _>` wrapped as
 `Result<Int64, _>` loads clean and fails at the first call. Match the builtin's declared types

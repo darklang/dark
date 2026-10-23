@@ -326,7 +326,7 @@ let collapse () : Stdlib.Result.Result<Int, String> =
 
           match Stdlib.Dict.get acc key with
           | Some((_, standingHash)) when standingHash == hash -> acc
-          | _ -> Stdlib.Dict.setOverridingDuplicates acc key ((d.id, hash))
+          | _ -> Stdlib.Dict.set acc key ((d.id, hash))
         | _ -> acc)
 
     let keeperForName = draft |> Stdlib.List.fold Stdlib.Dict.empty step

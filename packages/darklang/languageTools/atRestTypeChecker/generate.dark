@@ -86,7 +86,7 @@ let duplicates (names: List<String>) : List<String> =
   let counts =
     Stdlib.List.fold names Dict {} (fun counts name ->
       let n = Stdlib.Option.withDefault (Stdlib.Dict.get counts name) 0
-      Stdlib.Dict.setOverridingDuplicates counts name (n + 1))
+      Stdlib.Dict.set counts name (n + 1))
 
   names
   |> Stdlib.List.unique
@@ -129,7 +129,7 @@ let bind
       if name == "_" then
         locals
       else
-        Stdlib.Dict.setOverridingDuplicates locals name (Model.Binder.Mono t))
+        Stdlib.Dict.set locals name (Model.Binder.Mono t))
 
   ({ scope with locals = locals }, duplicateBindings reportAt bindings)
 
@@ -146,7 +146,7 @@ let bindGeneralized
       if name == "_" then
         locals
       else
-        Stdlib.Dict.setOverridingDuplicates locals name (Model.Binder.Poly key))
+        Stdlib.Dict.set locals name (Model.Binder.Poly key))
 
   ({ scope with locals = locals }, duplicateBindings reportAt bindings)
 
@@ -1056,6 +1056,83 @@ let inferRecordUpdate
        Model.Constraint.UpdateRecord(id, recordType, slots)
        all valueChecks ])
 
+/// Turns a dict key written as a constant into a string, so repeated keys can be
+/// found with `duplicates` and the string shown in the finding. Returns {{None}}
+/// for a key only known at run time, such as a variable.
+///
+/// Two keys give the same string exactly when the runtime would treat them as
+/// the same key. Floats compare by value, so `1.0` matches `1.00` and `-0.0`
+/// matches `0.0`. Strings are quoted and escaped, so `[ "a\", \"b" ]` (one
+/// string) does not match `[ "a", "b" ]` (two). The type is left out because
+/// all keys of one dict share a type.
+///
+/// This copies the runtime's key equality, so a change to that (NaN keys, say)
+/// must be made here too.
+let constantDictKey
+  (expr: LanguageTools.ProgramTypes.Expr)
+  : Stdlib.Option.Option<String> =
+  let quote (q: String) (text: String) : String =
+    let escaped =
+      let backslashes = Stdlib.String.replaceAll text "\\" "\\\\"
+      Stdlib.String.replaceAll backslashes q ("\\" + q)
+    q + escaped + q
+
+  let joined
+    (parts: List<LanguageTools.ProgramTypes.Expr>)
+    : Stdlib.Option.Option<String> =
+    let keys = Stdlib.List.map parts (fun part -> constantDictKey part)
+    if Stdlib.List.all keys (fun k -> Stdlib.Option.isSome k) then
+      Stdlib.Option.Option.Some(
+        Stdlib.String.join (Stdlib.List.filterMap keys (fun k -> k)) ", ")
+    else
+      Stdlib.Option.Option.None
+
+  match expr with
+  | EUnit _ -> Stdlib.Option.Option.Some "()"
+  | EBool(_, b) -> Stdlib.Option.Option.Some(Stdlib.toString b)
+  | EInt8(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EUInt8(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EInt16(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EUInt16(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EInt32(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EUInt32(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EInt64(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EUInt64(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EInt128(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EUInt128(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EInt(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString n)
+  | EFloat(_, sign, whole, fraction) ->
+    let sign =
+      match sign with
+      | Negative -> "-"
+      | Positive -> ""
+    match Stdlib.Float.parse (sign + whole + "." + fraction) with
+    | Ok f ->
+      if f == 0.0 then
+        Stdlib.Option.Option.Some "0.0"
+      else
+        Stdlib.Option.Option.Some(Stdlib.toString f)
+    | Error _ -> Stdlib.Option.Option.None
+  | EChar(_, c) -> Stdlib.Option.Option.Some(quote "'" c)
+  | EString(_, segments) ->
+    let texts =
+      Stdlib.List.map segments (fun segment ->
+        match segment with
+        | StringText text -> Stdlib.Option.Option.Some text
+        | StringInterpolation _ -> Stdlib.Option.Option.None)
+    if Stdlib.List.all texts (fun t -> Stdlib.Option.isSome t) then
+      Stdlib.Option.Option.Some(
+        quote "\"" (Stdlib.String.join (Stdlib.List.filterMap texts (fun t -> t)) "")
+      )
+    else
+      Stdlib.Option.Option.None
+  | ETuple(_, first, second, rest) ->
+    joined (Stdlib.List.append [ first, second ] rest)
+    |> Stdlib.Option.map (fun k -> "(" + k + ")")
+  | EList(_, items) -> joined items |> Stdlib.Option.map (fun k -> "[" + k + "]")
+  | _ -> Stdlib.Option.Option.None
+
+
 /// Give all entries one shared key type and one shared value type. After checking
 /// the entries, require the key type to support dictionary keys; the solver can
 /// defer this requirement if the key type remains unknown.
@@ -1067,9 +1144,26 @@ let inferDict
   let key = var id Model.Role.DictKey
   let value = var id Model.Role.DictValue
 
+  // Only keys written as constants: one known only at run time replaces an earlier
+  // equal key when the dict is built, which is defined and not a mistake.
+  let problems =
+    entries
+    |> Stdlib.List.filterMap (fun (k, _) -> constantDictKey k)
+    |> duplicates
+    |> Stdlib.List.map (fun k ->
+      report (
+        Types.error
+          IssueCode.DuplicateDictKey
+          (at id)
+          (noType ())
+          (noType ())
+          (Context.Duplicate(k, DuplicateSite.InDictLiteral))
+      ))
+
   (Model.Ty.TDict(key, value),
    all
-     [ all
+     [ all problems
+       all
          (Stdlib.List.map entries (fun (k, _) -> check scope key Site.Expression k))
        all
          (Stdlib.List.map entries (fun (_, v) ->
@@ -1117,7 +1211,7 @@ let inferLetValue
         let recursiveScope =
           { scope with
               locals =
-                Stdlib.Dict.setOverridingDuplicates
+                Stdlib.Dict.set
                   scope.locals
                   name
                   (Model.Binder.Mono self) }

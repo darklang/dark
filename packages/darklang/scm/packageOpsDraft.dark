@@ -177,7 +177,7 @@ let propagatedNames () : List<String> =
         )
       | _ -> Stdlib.Option.Option.None)
     // Oldest first, so the later binder of a name overwrites the earlier: the LAST binder decides.
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries
     |> Stdlib.Dict.toList
     |> Stdlib.List.filterMap (fun (name, source) ->
       if source == "propagation" then Stdlib.Option.Option.Some name else Stdlib.Option.Option.None)
@@ -257,7 +257,7 @@ let supersededOverrides
               | None -> acc
               | Some(Decision(_, loc, _, Override target)) ->
                 let h = hashOf target
-                Stdlib.Dict.setOverridingDuplicates acc (decisionKey loc) (loc, h, h)
+                Stdlib.Dict.set acc (decisionKey loc) (loc, h, h)
               | Some(SetName(loc, _target, _)) ->
                 match Stdlib.Dict.get acc (decisionKey loc) with
                 | None -> acc
@@ -304,7 +304,7 @@ let typeCheckOps
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc op ->
       match op with
       | SetName(loc, target, _) ->
-        Stdlib.Dict.setOverridingDuplicates
+        Stdlib.Dict.set
           acc
           (decisionKey loc)
           (LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target))
@@ -317,7 +317,7 @@ let typeCheckOps
     liveTargetsByLocation
     |> Stdlib.Dict.values
     |> Stdlib.List.map (fun h -> (h, true))
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries
 
   let namedHashes =
     ops
@@ -329,7 +329,7 @@ let typeCheckOps
            true)
         )
       | _ -> Stdlib.Option.Option.None)
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries
 
   let liveOps =
     ops

@@ -7,9 +7,9 @@ type Request =
     body: Blob }
 
 
-/// Parse the query-string portion of a URL into a Dict. Duplicates resolve
-/// to the last-wins value (matches `Stdlib.Http.Request.queryParams`'s
-/// last-wins join when used with `Dict.fromListOverwritingDuplicates`).
+/// Parses a URL's query string into a dictionary, keeping the last value for
+/// each key. This matches `Stdlib.Http.Request.queryParams` combined with
+/// `Dict.fromEntries`.
 let parseQueryString (url: String) : Dict<String, String> =
   match Stdlib.String.split url "?" with
   | [] -> Stdlib.Dict.empty
@@ -30,7 +30,7 @@ let parseQueryString (url: String) : Dict<String, String> =
           Stdlib.Option.Option.Some(
             (Stdlib.Http.urlDecode key,
              Stdlib.Http.urlDecode (Stdlib.String.join rest "="))))
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries
 
 
 /// Parse a string of HTTP header lines (one `Name: value` per line, CR/LF or
@@ -52,7 +52,7 @@ let parseHeaders (s: String) : Dict<String, String> =
       | name :: rest ->
         let value = (Stdlib.String.join rest ":") |> Stdlib.String.trim
         Stdlib.Option.Option.Some((Stdlib.String.trim name, value)))
-  |> Stdlib.Dict.fromListOverwritingDuplicates
+  |> Stdlib.Dict.fromEntries
 
 
 /// Percent-decoding for one query-string field.

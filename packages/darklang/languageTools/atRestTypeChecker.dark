@@ -48,6 +48,7 @@ type IssueCode =
   | UnknownTupleElement
   | MissingRecordField
   | DuplicateRecordField
+  | DuplicateDictKey
   | UnknownEnumCase
   | EnumFieldCountMismatch
   | InvalidInfixOperand
@@ -126,6 +127,7 @@ type DuplicateSite =
   | InFunctionSignature
   | InRecordConstruction
   | InRecordUpdate
+  | InDictLiteral
   | InPattern
 
 /// What the checker could not pin down when it reports an ambiguous type.
@@ -383,6 +385,7 @@ let issueCodeToString (code: IssueCode) : String =
   | UnknownTupleElement -> "UnknownTupleElement"
   | MissingRecordField -> "MissingRecordField"
   | DuplicateRecordField -> "DuplicateRecordField"
+  | DuplicateDictKey -> "DuplicateDictKey"
   | UnknownEnumCase -> "UnknownEnumCase"
   | EnumFieldCountMismatch -> "EnumFieldCountMismatch"
   | InvalidInfixOperand -> "InvalidInfixOperand"
@@ -476,6 +479,7 @@ let duplicateSiteToString (site: DuplicateSite) : String =
   | InFunctionSignature -> "declared"
   | InRecordConstruction -> "specified"
   | InRecordUpdate -> "updated"
+  | InDictLiteral -> "used as a key"
   | InPattern -> "bound"
 
 
