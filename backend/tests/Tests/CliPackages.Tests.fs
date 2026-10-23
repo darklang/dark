@@ -577,14 +577,14 @@ let testRunUsesOneStartingStore =
           $"""let hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "{hash}"
 let branch = Darklang.SCM.Branch.mainBranchId
 let _ = Stdlib.LocalStore.configSet "baseline-witness" "before"
-let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run ->
+let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot branch (fun run ->
   let first = Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash
   let _ = Stdlib.LocalStore.configSet "baseline-witness" "after"
   let second = Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash
   (first, second))
-let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run ->
+let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot branch (fun run ->
   Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash)
-let ended = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run -> run)
+let ended = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot branch (fun run -> run)
 let rejected =
   match Darklang.LanguageTools.PackageManager.Test.executeInRun ended branch hash with
   | Ok (Fail messages) -> Stdlib.String.contains (Stdlib.String.join messages " ") "already ended"
@@ -736,6 +736,14 @@ let packageTestsRespectParallelLimit =
           // The runner needs no grants on the saved instance, even to spawn work.
           do! run state [ "permissions"; "clear" ]
           let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
+          // Every case writes, so each runs twice: on the run's shared store, which
+          // refuses the write, then on a copy of its own in the same slot. Hold only
+          // the first attempt, so a freed slot can only be refilled by the next
+          // test. Root can't share (it ignores read-only files), so there every
+          // launch is a first attempt.
+          let sharing = LibExecution.HostPosix.getuid () <> 0u
+          let firstAttempt =
+            if sharing then "[ -n \"$DARK_TEST_WRITE_MARKER\" ]" else "true"
           for jobs in [ 1; 2 ] do
             let barriers =
               System.IO.Directory
@@ -750,7 +758,9 @@ let packageTestsRespectParallelLimit =
               "#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
               + quote wrapper
               + "\nfor arg in \"$@\"; do\n"
-              + "  if [ \"$arg\" = \"${DARK_CONFIG_RUNDIR}request.bin\" ]; then\n"
+              + "  if [ \"$arg\" = \"${DARK_CONFIG_RUNDIR}request.bin\" ] && "
+              + firstAttempt
+              + "; then\n"
               + "    barrier="
               + quote barriers
               + "\n"
@@ -826,7 +836,12 @@ let packageTestsRespectParallelLimit =
               output
               "5 passed, 0 failed; 5 ran, 0 cached"
               "every declaration runs once"
-            Expect.equal (started ()).Length 5 "exactly five workers were launched"
+            Expect.equal (started ()).Length 5 "one first attempt per test"
+            if sharing then
+              Expect.stringContains
+                output
+                "5 wrote to the store and reran on a copy"
+                "the summary says every case reran on a copy"
           // Ordinary eval still uses the saved deny-all policy. Grant only the
           // read needed for this final check, after all test workers have exited.
           do! run state [ "permissions"; "allow"; "package-read" ]
@@ -837,6 +852,81 @@ let packageTestsRespectParallelLimit =
               "true"
               "test writes did not reach the parent store"
       })
+
+/// A test that only reads the store runs once, on the shared snapshot. If a worker
+/// ever wrote at startup, every test would run twice and still pass, so count the
+/// launches rather than trusting the results. One reader also starts a nested
+/// worker, which copies its store from the shared snapshot: the path that hung
+/// while the snapshot used WAL.
+let testsThatOnlyReadRunOnce =
+  instanceTest "package tests that only read the store run once" (fun state ->
+    task {
+      if LibExecution.HostPosix.isPosix then
+        do! start state
+        let instance =
+          match state with
+          | Instance i -> i
+          | _ -> failtest "requires a disposable CLI instance"
+        let source = System.IO.Path.Combine(instance.dir, "readers.dark")
+        System.IO.File.WriteAllText(
+          source,
+          [ 1..3 ]
+          |> List.map (fun n ->
+            $"""test reader{n} =
+  Stdlib.Test.expect (Stdlib.LocalStore.configGet "reader-witness" == "") "unexpected config"
+"""       )
+          |> String.concat "\n"
+          |> fun readers ->
+              readers
+              + """
+let echo (value: String) : String = value
+
+test readerWithChild =
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) echo "hello" with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output -> output.result |> Stdlib.Test.equal (Ok "hello")
+"""
+        )
+        do! run state [ "module"; "Tests.Readers"; source ]
+        do! run state [ "permissions"; "clear" ]
+        let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
+        let launches =
+          System.IO.Directory
+            .CreateDirectory(System.IO.Path.Combine(instance.dir, "launches"))
+            .FullName
+        let wrapper = System.IO.Path.Combine(instance.dir, "worker-counter")
+        System.IO.File.WriteAllText(
+          wrapper,
+          "#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
+          + quote wrapper
+          + "\nfor arg in \"$@\"; do\n"
+          + "  if [ \"$arg\" = \"${DARK_CONFIG_RUNDIR}request.bin\" ]; then\n"
+          + "    touch "
+          + quote launches
+          + "/launched-$$\n"
+          + "  fi\ndone\nexec "
+          + quote (System.IO.Path.GetFullPath instance.cli)
+          + " \"$@\"\n"
+        )
+        System.IO.File.SetUnixFileMode(
+          wrapper,
+          System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
+        )
+        let! output, code =
+          runCliWithStatus
+            (Instance { instance with cli = wrapper })
+            [ "test"; "run"; "--force"; "Tests.Readers" ]
+        Expect.equal code 0 $"the run succeeds: {output}"
+        Expect.stringContains
+          output
+          "4 passed, 0 failed; 4 ran, 0 cached"
+          "every reader passes"
+        Expect.isFalse (output.Contains "reran") $"no reader reran: {output}"
+        Expect.equal
+          (System.IO.Directory.GetFiles(launches, "launched-*").Length)
+          5
+          "one worker per test, and one for the nested run"
+    })
 
 let packageTestsRequireRun =
   instanceTest "test shows help and requires run to execute tests" (fun state ->
@@ -2005,6 +2095,7 @@ let tests : List<Test> =
     isolatedTestDeclarations
     entryPointOverrideIsForOneInvocation
     packageTestsRespectParallelLimit
+    testsThatOnlyReadRunOnce
     packageTestsRequireRun
     packageTestJobsRejectInvalidCounts
     isolatedTestsRejectUnsuccessfulWorkers

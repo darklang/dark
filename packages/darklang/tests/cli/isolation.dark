@@ -18,7 +18,8 @@ let readConfig (key: String) : String =
 
 test snapshotScopeKeepsTestCounter =
   let _ = Stdlib.Test.incrementCounter ()
-  let _ = LanguageTools.PackageManager.Test.withStoreSnapshot (fun _ ->
+  let branch = Darklang.SCM.PackageOps.currentBranch ()
+  let _ = LanguageTools.PackageManager.Test.withStoreSnapshot branch (fun _ ->
     Stdlib.Cli.Posix.sleep 25.0
     Stdlib.Test.incrementCounter ())
   Stdlib.Test.counterValue () |> Stdlib.Test.equal 2L
@@ -54,6 +55,21 @@ test stateAndEnvironmentAreIsolated =
           match clean with
           | Error message -> Stdlib.Test.fail message
           | Ok checked -> checked.result |> Stdlib.Test.equal (Ok true) ]
+
+/// Ignore the write error to check that the runner still detects it and retries
+/// on a writable copy. When sharing is unavailable, the test starts on a copy.
+test writingTestGetsItsOwnCopy =
+  let db = Stdlib.LocalStore.path ()
+  let _ =
+    Stdlib.Sqlite.exec
+      db
+      "INSERT OR REPLACE INTO config_v0 (key, value) VALUES ('isolation-probe', 'written')"
+  Stdlib.Sqlite.column
+    db
+    "SELECT value FROM config_v0 WHERE key = 'isolation-probe'"
+    "value"
+  |> Stdlib.Test.equal [ "written" ]
+
 
 let runtimeFailure () : Int =
   Stdlib.printLine (Stdlib.LocalStore.path ())

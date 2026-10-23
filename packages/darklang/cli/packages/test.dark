@@ -16,7 +16,8 @@ type Counts =
   { passed: Int
     failed: Int
     cached: Int
-    ran: Int }
+    ran: Int
+    reran: Int }
 
 val usage =
   "Usage: test run [--force] [--jobs <count>] [name-or-module ...]\n       test add <location> <body> | <source-file> | -"
@@ -181,7 +182,9 @@ let isCacheable
   mayCache test
   && LanguageTools.PackageManager.Test.isCacheSafe test.hash
 
-let printOutcome (name: String) (outcome: Outcome) : Unit =
+/// <param reran>: the test wrote to the shared store, so this is its run on a copy.
+let printOutcome (name: String) (outcome: Outcome) (reran: Bool) : Unit =
+  let name = if reran then $"{name} (reran on a copy)" else name
   match outcome with
   | Passed ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"PASS {name}")
@@ -296,7 +299,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 /// where it allows, print each one, and fail the command if any failed or
 /// nothing matched.
 let runTests (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  LanguageTools.PackageManager.Test.withStoreSnapshot (fun run -> runTestsInRun run state args)
+  LanguageTools.PackageManager.Test.withStoreSnapshot state.currentBranchId (fun run ->
+    runTestsInRun run state args)
 
 type RunOptions =
   { force: Bool
@@ -330,7 +334,8 @@ type FinishedTest =
   { name: String
     test: LanguageTools.ProgramTypes.PackageTest.PackageTest
     outcome: Outcome
-    wasCached: Bool }
+    wasCached: Bool
+    reran: Bool }
 
 let finishTest
   (cache: Stdlib.Option.Option<CacheContext>)
@@ -343,12 +348,13 @@ let finishTest
     | Some context, _ when isCacheable finished.test ->
       storeOutcome context finished.test.hash finished.outcome
     | _ -> ()
-  printOutcome finished.name finished.outcome
+  printOutcome finished.name finished.outcome finished.reran
   Counts
     { passed = counts.passed + (if isPassed finished.outcome then 1 else 0)
       failed = counts.failed + (if isPassed finished.outcome then 0 else 1)
       cached = counts.cached + (if finished.wasCached then 1 else 0)
-      ran = counts.ran + (if finished.wasCached then 0 else 1) }
+      ran = counts.ran + (if finished.wasCached then 0 else 1)
+      reran = counts.reran + (if finished.reran then 1 else 0) }
 
 /// Run up to `jobs` tests at once. Start the next whenever one finishes.
 /// Wait for all tests before closing the shared snapshot.
@@ -379,16 +385,19 @@ let runSelected
         { name = fullPath item
           test = item.entity
           outcome = outcome
-          wasCached = true }
+          wasCached = true
+          reran = false }
       runSelected run branchId options cache rest running (finishTest cache counts finished)
     | None ->
       Stdlib.printLine $"Running: {fullPath item}"
       let handle = Stdlib.Exec.spawn (fun () ->
+        let outcome = runFresh run branchId item.entity
         FinishedTest
           { name = fullPath item
             test = item.entity
-            outcome = runFresh run branchId item.entity
-            wasCached = false })
+            outcome = outcome
+            wasCached = false
+            reran = LanguageTools.PackageManager.Test.reran run item.entity.hash })
       runSelected run branchId options cache rest (Stdlib.List.push running handle) counts
   | _ ->
     if Stdlib.List.isEmpty running then
@@ -439,7 +448,7 @@ let runTestsInRun
         || Stdlib.List.any options.filters (fun f -> selects f (fullPath item)))
 
     let initial =
-      Counts { passed = 0, failed = 0, cached = 0, ran = 0 }
+      Counts { passed = 0, failed = 0, cached = 0, ran = 0, reran = 0 }
     let counts =
       runSelected
         run
@@ -455,8 +464,13 @@ let runTestsInRun
       Stdlib.printLine "No package tests matched."
     else
       Stdlib.printLine ""
+      // Said only when it happened, so a run where every test started writing
+      // shows up here rather than only as a slower run.
+      let reranNote =
+        if counts.reran == 0 then ""
+        else $"; {Stdlib.toString counts.reran} wrote to the store and reran on a copy"
       Stdlib.printLine
-        $"{Stdlib.toString counts.passed} passed, {Stdlib.toString counts.failed} failed; {Stdlib.toString counts.ran} ran, {Stdlib.toString counts.cached} cached"
+        $"{Stdlib.toString counts.passed} passed, {Stdlib.toString counts.failed} failed; {Stdlib.toString counts.ran} ran, {Stdlib.toString counts.cached} cached{reranNote}"
 
     if counts.failed > 0 || total == 0 then
       { state with exitCode = 1 }

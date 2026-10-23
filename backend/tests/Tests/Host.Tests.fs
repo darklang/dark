@@ -1056,6 +1056,81 @@ let testRunSnapshot =
       System.IO.Directory.Delete(dir, true)
   }
 
+let sharedTestRunSnapshot =
+  test "a shared baseline is read-only, and copies of it stay writable" {
+    let dir =
+      System.IO.Directory.CreateTempSubdirectory("test-baseline-share-").FullName
+    let mutable backups = 0
+    let backup (path : string) =
+      backups <- backups + 1
+      System.IO.File.WriteAllText(path, "initial store")
+      Ok()
+    let at name = System.IO.Path.Combine(dir, name)
+    try
+      use baseline = LibExecution.HostProcess.fileSnapshot backup
+      match baseline.LinkTo(at "first.db") with
+      | Error message ->
+        // Root writes read-only files anyway, so it must not be offered a link.
+        Expect.stringContains message "can write read-only files" "only root refuses"
+      | Ok() ->
+        Expect.equal
+          (System.IO.File.ReadAllText(at "first.db"))
+          "initial store"
+          "a link reads the baseline"
+        Expect.throwsT<System.UnauthorizedAccessException>
+          (fun () -> System.IO.File.WriteAllText(at "first.db", "test wrote here"))
+          "a link can't be written"
+        Expect.equal (baseline.LinkTo(at "second.db")) (Ok()) "linked again"
+      // Copies happen outside the snapshot's lock, so several can be made at once.
+      let copies =
+        [ 1..8 ]
+        |> List.map (fun n ->
+          System.Threading.Tasks.Task.Run(fun () ->
+            baseline.CopyTo(at $"copy{n}.db")))
+        |> List.map (fun copy -> copy.Result)
+      Expect.allEqual copies (Ok()) "every copy"
+      System.IO.File.WriteAllText(at "copy1.db", "test wrote here")
+      Expect.equal
+        (System.IO.File.ReadAllText(at "copy2.db"))
+        "initial store"
+        "a copy is writable, and its own"
+      Expect.equal backups 1 "one backup serves shares and copies"
+      baseline.Dispose()
+      Expect.isError (baseline.LinkTo(at "late.db")) "closed scope"
+    finally
+      System.IO.Directory.Delete(dir, true)
+  }
+
+let changedSharedSnapshot =
+  test "a shared baseline that is changed is neither linked nor copied again" {
+    let dir =
+      System.IO.Directory.CreateTempSubdirectory("test-baseline-changed-").FullName
+    let backup (path : string) =
+      System.IO.File.WriteAllText(path, "initial store")
+      Ok()
+    let at name = System.IO.Path.Combine(dir, name)
+    try
+      use baseline = LibExecution.HostProcess.fileSnapshot backup
+      match baseline.LinkTo(at "first.db") with
+      | Error message ->
+        Expect.stringContains message "can write read-only files" "only root refuses"
+      | Ok() ->
+        Expect.isFalse (baseline.Changed()) "unchanged after linking"
+        // The one way a reader can change it: make it writable again first.
+        System.IO.File.SetUnixFileMode(
+          at "first.db",
+          System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserWrite
+        )
+        System.IO.File.WriteAllText(at "first.db", "test wrote here")
+        Expect.isTrue (baseline.Changed()) "the change is noticed"
+        Expect.isError
+          (baseline.LinkTo(at "second.db"))
+          "no link to a changed baseline"
+        Expect.isError (baseline.CopyTo(at "copy.db")) "and no copy of it either"
+    finally
+      System.IO.Directory.Delete(dir, true)
+  }
+
 let failedTestRunSnapshot =
   test "a failed baseline is not retried and its partial directory is removed" {
     let mutable backups = 0
@@ -1129,6 +1204,8 @@ let tests =
     [ posixKernelRoundTrip
       httpWideningsAreScoped
       testRunSnapshot
+      sharedTestRunSnapshot
+      changedSharedSnapshot
       failedTestRunSnapshot
       isolatedTestBoundsOutputCollection
       isolatedTestPreservesFailureWhenCleanupFails

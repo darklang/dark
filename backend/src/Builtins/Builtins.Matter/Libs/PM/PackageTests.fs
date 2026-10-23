@@ -145,7 +145,9 @@ let private executeWorker
     return DTuple(LibExecution.Blob.newEphemeral bytes, Dval.int (bigint code), [])
   }
 
-/// Every package test executes its own hash in a fresh worker and store snapshot.
+/// Execute the test's hash in a fresh worker using the run's read-only snapshot
+/// when sharing is available. A refused write triggers a retry on a private copy;
+/// only the retry's result is used. If sharing fails, start on a private copy.
 let private executeIsolatedTest
   (caller : ExecutionState)
   (vm : VMState)
@@ -162,7 +164,7 @@ let private executeIsolatedTest
         target = LibDB.TestProcess.Target.PackageTest hash }
     let! outcome =
       LibDB.TestProcess.run
-        (Some(LibDB.TestProcess.copyFromRun runId))
+        (LibDB.TestProcess.Shared runId)
         guest
         vm
         access
@@ -219,7 +221,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "pmTestWithStoreSnapshot" 0
       typeParams = [ "a" ]
       parameters =
-        [ Param.makeWithArgs
+        [ Param.make "branchId" TUuid "The branch the run's tests execute on"
+          Param.makeWithArgs
             "run"
             (TFn(NEList.singleton TUuid, TVariable "a"))
             "The test run"
@@ -229,7 +232,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Shares one starting store snapshot across a test run and cleans it up afterward."
       fn =
         (function
-        | state, vm, _, [| DApplicable callback |] ->
+        | state, vm, _, [| DUuid branchId; DApplicable callback |] ->
           uply {
             let guest = LibDB.PolicyStore.testState state.accountID state
             let access =
@@ -239,8 +242,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 state
                 vm
                 access
-                (LibExecution.HostTypes.Operation.FileSnapshot
-                  LibDB.Sqlite.Backup.toTestBaseline)
+                (LibExecution.HostTypes.Operation.FileSnapshot(
+                  LibDB.TestProcess.createRunSnapshot branchId
+                ))
             match prepared with
             | Ok(LibExecution.HostTypes.Response.FileSnapshot snapshot) ->
               return!
@@ -392,6 +396,28 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "pmTestReran" 0
+      typeParams = []
+      parameters =
+        [ Param.make "runId" TUuid "The test run"
+          Param.make
+            "testHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "Hash of the package test" ]
+      returnType = TBool
+      description =
+        "Whether the test wrote to the run's shared store and so ran again on a copy."
+      fn =
+        (function
+        | _, _, _, [| DUuid runId; hashDval |] ->
+          let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
+          LibDB.TestProcess.reranIn runId hash |> DBool |> Ply
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      // Changes as tests finish, so keep it in program order.
+      callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
 
     { name = fn "pmExecuteTest" 0

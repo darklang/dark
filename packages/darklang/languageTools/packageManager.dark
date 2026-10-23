@@ -280,11 +280,19 @@ module Test =
   /// Valid only inside the withStoreSnapshot callback that created it.
   type Run = { id: Uuid }
 
-  /// Share a starting store across the tests executed by <param run>. Every
-  /// test still gets a private writable copy and a fresh process. Cached-only
-  /// runs create no snapshot; cleanup also runs if the callback fails.
-  let withStoreSnapshot (run: Run -> 'a) : 'a =
-    Builtin.pmTestWithStoreSnapshot (fun id -> run (Run { id = id }))
+  /// Prepare a starting store for tests on <param branchId> executed by <param run>.
+  /// Each test gets a fresh process and shares the read-only snapshot when possible.
+  /// A refused write triggers a retry on a private writable copy; only the retry's
+  /// result is used. If sharing fails, the test starts on a private copy.
+  /// Cached-only runs create no snapshot. Cleanup also runs if the callback fails.
+  let withStoreSnapshot (branchId: Uuid) (run: Run -> 'a) : 'a =
+    Builtin.pmTestWithStoreSnapshot branchId (fun id -> run (Run { id = id }))
+
+  /// Whether the test <param hash> wrote to <param run>'s shared snapshot and so
+  /// ran again on a private copy. A handful per run is normal; nearly every test
+  /// means something writes at worker startup and the sharing is saving nothing.
+  let reran (run: Run) (hash: ProgramTypes.Hash) : Bool =
+    Builtin.pmTestReran run.id hash
 
   /// Conservative proof that a passing result is reusable. Dynamic calls and
   /// branch-dependent rendering are not treated as cache-safe.
@@ -416,7 +424,7 @@ module Test =
     (branchId: Uuid)
     (hash: ProgramTypes.Hash)
     : Stdlib.Result.Result<Stdlib.Test.Result, LanguageTools.RuntimeTypes.RuntimeError.Error> =
-    withStoreSnapshot (fun run -> executeInRun run branchId hash)
+    withStoreSnapshot branchId (fun run -> executeInRun run branchId hash)
 
 
 /// Replace provisional hashes with SCC-aware content hashes, including references

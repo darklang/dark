@@ -57,7 +57,8 @@ module Backup =
   let toFile (target : string) : Result<unit, string> =
     copy connString (connStringFor target)
 
-  /// Create a complete database file to copy for each test.
+  /// Create a complete database file for tests: a test run's shared snapshot, or
+  /// a nested test worker's own store.
   /// Disable connection pooling so closing the backup flushes any WAL
   /// contents into that file before returning.
   let toTestBaseline (target : string) : Result<unit, string> =
@@ -127,23 +128,26 @@ module DataVersion =
 
 
 module Sql =
-  // Initialize connection with PRAGMA settings that can't be set in the connection string
-  let initializeConnection (props : Sql.SqlProps) : Sql.SqlProps =
-    props
-    |> Sql.query
-      @"
-      PRAGMA journal_mode=WAL;
-      PRAGMA synchronous=NORMAL;
-      PRAGMA busy_timeout=5000;
-      "
-    |> Sql.executeNonQuery
-    |> ignore<Result<int, exn>>
-
-    props
+  // Apply PRAGMA settings that aren't available in the connection string.
+  // Keep the existing journal mode for read-only stores: switching a shared test
+  // snapshot to WAL would trigger a write retry before the test starts.
+  let private initializeConnection (connString : string) : Sql.SqlProps =
+    try
+      use conn = new SqliteConnection(connString)
+      conn.Open()
+      let readOnly = SQLitePCL.raw.sqlite3_db_readonly (conn.Handle, "main") = 1
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <-
+        (if readOnly then "" else "PRAGMA journal_mode=WAL;")
+        + "PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;"
+      cmd.ExecuteNonQuery() |> ignore<int>
+    with _ ->
+      ()
+    Sql.connect connString
 
   // `mutable` only so tests can repoint LibDB at a fresh store (see `useStoreForTesting`). Production
   // never rebinds it: it stays the default `connString` store for the process's life.
-  let mutable connect = Sql.connect connString |> initializeConnection
+  let mutable connect = initializeConnection connString
 
   /// Force this module's initialization (first connection open + PRAGMA round trip)
   /// so the cost lands in its own span instead of inside whatever query runs first.
@@ -166,13 +170,13 @@ module Sql =
   let useStoreForTesting (path : string) : unit =
     connString <- connStringFor path
     currentDbPath <- path
-    connect <- Sql.connect connString |> initializeConnection
+    connect <- initializeConnection connString
 
   /// TEST-ONLY: restore the default store after `useStoreForTesting`.
   let resetStoreForTesting () : unit =
     connString <- defaultConnString
     currentDbPath <- LibConfig.Config.dbPath
-    connect <- Sql.connect connString |> initializeConnection
+    connect <- initializeConnection connString
 
   /// Count and time every SQL statement this process runs.
   ///
