@@ -21,10 +21,504 @@ module ParseError =
     | NotJson -> "Not JSON"
 
 
-let format (j: Json) : String = Builtin.altJsonFormat j
+/// Formats <param j> as JSON text, with no whitespace between tokens.
+let format (j: Json) : String = Format.document j
 
+/// Parses <param jsonString> as JSON. `//` and `/* */` comments are skipped
+/// wherever whitespace may go. A number with no `.`, `e` or `E` is an
+/// {{Integer}}, otherwise a {{Float}}.
 let parse (jsonString: String) : Result.Result<Json, ParseError.ParseError> =
-  Builtin.altJsonParse jsonString
+  match Parse.document (String.toCodepoints jsonString) with
+  | Some json -> Result.Result.Ok json
+  | None -> Result.Result.Error ParseError.ParseError.NotJson
+
+
+// ---------------------------------------------------------------------------
+// FORMAT
+// ---------------------------------------------------------------------------
+
+module Format =
+  /// Escaping is decided once for the whole document. A control character,
+  /// U+2028 or U+2029 can only occur inside a string, so one search of all
+  /// the strings together says whether any string needs escaping a character
+  /// at a time. Usually none does, and then every string is written with a
+  /// couple of builtin calls rather than a Dark step per character, which
+  /// costs more than the rest of the formatting put together.
+  let document (j: Json) : String =
+    let text = String.join (strings j []) ""
+    let plain = !(List.any rareEscapes (fun c -> String.contains text c))
+    value plain j
+
+
+  let value (plain: Bool) (j: Json) : String =
+    let str (s: String) : String = if plain then plainText s else stringText s
+
+    match j with
+    | Null -> "null"
+    | Bool b -> if b then "true" else "false"
+    | Integer i -> Stdlib.toString i
+    | Float n -> floatText n
+    | String s -> str s
+    | Array items ->
+      "[" + (String.join (List.map items (fun item -> value plain item)) ",") + "]"
+    | Object entries ->
+      let fields =
+        List.map entries (fun (k, v) -> (str k) + ":" + (value plain v))
+
+      "{" + (String.join fields ",") + "}"
+
+
+  /// Every key and string value in <param j>, prepended to <param acc>.
+  let strings (j: Json) (acc: List<String>) : List<String> =
+    match j with
+    | String s -> List.push acc s
+    | Array items -> List.fold items acc (fun a item -> strings item a)
+    | Object entries ->
+      List.fold entries acc (fun a (k, v) -> strings v (List.push a k))
+    | _ -> acc
+
+
+  /// The characters that need a `\u` escape: C0 controls, U+2028 and U+2029.
+  val rareEscapes =
+    List.append
+      (List.map (List.range 0 31) (fun cp -> codepointToString cp))
+      [ codepointToString 8232, codepointToString 8233 ]
+
+
+  /// <param s> as a JSON string literal, when it holds none of
+  /// <var rareEscapes>: only `\` and `"` can need escaping.
+  let plainText (s: String) : String =
+    let escaped =
+      if String.contains s "\\" || String.contains s "\"" then
+        String.replaceAll (String.replaceAll s "\\" "\\\\") "\"" "\\\""
+      else
+        s
+
+    "\"" + escaped + "\""
+
+
+  /// <param n> in .NET's round-trip notation, which is what this wrote when it
+  /// was a builtin: the shortest digits that parse back to <param n>, written
+  /// out in full while the leading digit's decimal exponent is in -4..16 and
+  /// as `1.5E+300` / `1E-07` otherwise. Non-finite values have no JSON form,
+  /// so they are written as the strings Json.serialize uses for them.
+  let floatText (n: Float) : String =
+    if Float.isNaN n then
+      "\"NaN\""
+    else if !(Float.isFinite n) then
+      if n > 0.0 then "\"Infinity\"" else "\"-Infinity\""
+    else
+      let (negative, digits, exponent) = shortestDigits n
+      let sign = if negative then "-" else ""
+
+      if digits == "" then
+        sign + "0"
+      else if exponent < -4 || exponent >= 17 then
+        let rest =
+          if String.length digits == 1 then
+            ""
+          else
+            "." + (String.dropFirst digits 1)
+
+        let expSign = if exponent < 0 then "-" else "+"
+        let magnitude =
+          Stdlib.toString (if exponent < 0 then 0 - exponent else exponent)
+
+        let padded =
+          if String.length magnitude == 1 then "0" + magnitude else magnitude
+
+        sign + (String.first digits 1) + rest + "E" + expSign + padded
+      else
+        let point = exponent + 1
+        let width = String.length digits
+
+        if point <= 0 then
+          sign + "0." + (String.repeat "0" (0 - point)) + digits
+        else if point >= width then
+          sign + digits + (String.repeat "0" (point - width))
+        else
+          sign + (String.first digits point) + "." + (String.dropFirst digits point)
+
+
+  /// Take apart <fn Float.toString>, which already holds the shortest
+  /// round-trip digits: the sign, the significant digits with no leading or
+  /// trailing zeros ("" for zero), and the decimal exponent of the first one.
+  let shortestDigits (n: Float) : (Bool * String * Int) =
+    let text = Stdlib.toString n
+    let negative = String.startsWith text "-"
+    let unsigned = if negative then String.dropFirst text 1 else text
+
+    let (mantissa, exp10) =
+      match String.split unsigned "e" with
+      | [ m, e ] ->
+        let e = if String.startsWith e "+" then String.dropFirst e 1 else e
+        (m, Int.parse e |> Result.withDefault 0)
+      | _ -> (unsigned, 0)
+
+    let (intPart, fracPart) =
+      match String.split mantissa "." with
+      | [ i, f ] -> (i, f)
+      | _ -> (mantissa, "")
+
+    let all = intPart + fracPart
+    let unpadded = dropLeadingZeros all
+    let digits = dropTrailingZeros unpadded
+    let leadingZeros = String.length all - String.length unpadded
+    (negative, digits, String.length intPart - 1 - leadingZeros + exp10)
+
+
+  let dropLeadingZeros (s: String) : String =
+    if String.startsWith s "0" then dropLeadingZeros (String.dropFirst s 1) else s
+
+  let dropTrailingZeros (s: String) : String =
+    if String.endsWith s "0" then dropTrailingZeros (String.dropLast s 1) else s
+
+
+  /// <param s> as a JSON string literal. Escapes what JSON requires (`"`, `\`
+  /// and C0 controls, with the short forms where JSON has them) and U+2028 and
+  /// U+2029, which JavaScript reads as line breaks; everything else is written
+  /// as itself.
+  let stringText (s: String) : String =
+    "\""
+    + (String.join (List.map (String.toCodepoints s) (fun cp -> escape cp)) "")
+    + "\""
+
+
+  let needsEscape (cp: Int) : Bool =
+    cp < 32 || cp == 34 || cp == 92 || cp == 8232 || cp == 8233
+
+
+  let escape (cp: Int) : String =
+    if cp == 34 then "\\\""
+    else if cp == 92 then "\\\\"
+    else if cp == 8 then "\\b"
+    else if cp == 12 then "\\f"
+    else if cp == 10 then "\\n"
+    else if cp == 13 then "\\r"
+    else if cp == 9 then "\\t"
+    else if needsEscape cp then "\\u" + (hex4 cp)
+    else codepointToString cp
+
+
+  /// <param cp> as four uppercase hex digits.
+  let hex4 (cp: Int) : String =
+    let digit (d: Int) : String = String.slice "0123456789ABCDEF" d (d + 1)
+    (digit ((cp / 4096) % 16))
+    + (digit ((cp / 256) % 16))
+    + (digit ((cp / 16) % 16))
+    + (digit (cp % 16))
+
+
+  let codepointToString (cp: Int) : String =
+    match Char.fromCodepoint cp with
+    | Some c -> Stdlib.toString c
+    | None -> ""
+
+
+// ---------------------------------------------------------------------------
+// PARSE
+// ---------------------------------------------------------------------------
+
+/// A recursive-descent parser over the input's codepoints. Every step takes
+/// what is left of the input and returns the value it read with what is left
+/// after it, or {{None}} when the input is not JSON there.
+module Parse =
+  /// The whole input is one value, with only whitespace and comments around it.
+  let document (cs: List<Int>) : Option.Option<Json> =
+    match skipTrivia cs with
+    | Some start ->
+      match value start with
+      | Some((json, rest)) ->
+        match skipTrivia rest with
+        | Some [] -> Option.Option.Some json
+        | _ -> Option.Option.None
+      | None -> Option.Option.None
+    | None -> Option.Option.None
+
+
+  let isWhitespace (c: Int) : Bool = c == 32 || c == 9 || c == 10 || c == 13
+
+  let isDigit (c: Int) : Bool = c >= 48 && c <= 57
+
+
+  /// Drop whitespace and comments. {{None}} when a comment is not one: a
+  /// block comment that never closes, or a line comment holding U+2028 or
+  /// U+2029, which System.Text.Json refused and so this does too.
+  let skipTrivia (cs: List<Int>) : Option.Option<List<Int>> =
+    match cs with
+    | c :: rest when isWhitespace c -> skipTrivia rest
+    | 47 :: 47 :: rest ->
+      match skipLineComment rest with
+      | Some after -> skipTrivia after
+      | None -> Option.Option.None
+    | 47 :: 42 :: rest ->
+      match skipBlockComment rest with
+      | Some after -> skipTrivia after
+      | None -> Option.Option.None
+    | _ -> Option.Option.Some cs
+
+
+  let skipLineComment (cs: List<Int>) : Option.Option<List<Int>> =
+    match cs with
+    | [] -> Option.Option.Some []
+    | c :: rest ->
+      if c == 10 || c == 13 then Option.Option.Some cs
+      else if c == 8232 || c == 8233 then Option.Option.None
+      else skipLineComment rest
+
+
+  let skipWhitespace (cs: List<Int>) : List<Int> =
+    match cs with
+    | c :: rest when isWhitespace c -> skipWhitespace rest
+    | _ -> cs
+
+
+  let skipBlockComment (cs: List<Int>) : Option.Option<List<Int>> =
+    match cs with
+    | [] -> Option.Option.None
+    | 42 :: 47 :: rest -> Option.Option.Some rest
+    | _ :: rest -> skipBlockComment rest
+
+
+  /// One value. <param cs> starts at its first codepoint.
+  let value (cs: List<Int>) : Option.Option<(Json * List<Int>)> =
+    match cs with
+    | 110 :: 117 :: 108 :: 108 :: rest -> Option.Option.Some((Json.Null, rest))
+    | 116 :: 114 :: 117 :: 101 :: rest ->
+      Option.Option.Some((Json.Bool true, rest))
+    | 102 :: 97 :: 108 :: 115 :: 101 :: rest ->
+      Option.Option.Some((Json.Bool false, rest))
+    | 34 :: rest ->
+      match stringRest rest [] with
+      | Some((s, after)) -> Option.Option.Some((Json.String s, after))
+      | None -> Option.Option.None
+    | 91 :: rest -> arrayRest rest
+    | 123 :: rest -> objectRest rest
+    | c :: _ when c == 45 || isDigit c -> number cs
+    | _ -> Option.Option.None
+
+
+  /// The rest of a string literal, after its opening quote. <param acc> holds
+  /// the codepoints read so far, newest first.
+  let stringRest
+    (cs: List<Int>)
+    (acc: List<Int>)
+    : Option.Option<(String * List<Int>)> =
+    match cs with
+    | [] -> Option.Option.None
+    | 34 :: rest ->
+      let text =
+        acc |> List.reverse |> List.map Format.codepointToString |> String.join ""
+
+      Option.Option.Some((text, rest))
+    | 92 :: escape :: rest ->
+      if escape == 34 || escape == 92 || escape == 47 then
+        stringRest rest (List.push acc escape)
+      else if escape == 98 then
+        stringRest rest (List.push acc 8)
+      else if escape == 102 then
+        stringRest rest (List.push acc 12)
+      else if escape == 110 then
+        stringRest rest (List.push acc 10)
+      else if escape == 114 then
+        stringRest rest (List.push acc 13)
+      else if escape == 116 then
+        stringRest rest (List.push acc 9)
+      else if escape == 117 then
+        match unicodeEscape rest with
+        | Some((cp, after)) -> stringRest after (List.push acc cp)
+        | None -> Option.Option.None
+      else
+        Option.Option.None
+    | c :: rest ->
+      if c < 32 then Option.Option.None else stringRest rest (List.push acc c)
+
+
+  /// The codepoint a `\u` escape names, after the `\u`. A high surrogate must
+  /// be followed by a `\u` low surrogate, and the pair is one codepoint; a
+  /// surrogate on its own names nothing a string can hold, so it is not JSON
+  /// here.
+  let unicodeEscape (cs: List<Int>) : Option.Option<(Int * List<Int>)> =
+    match hexUnit cs with
+    | Some((high, rest)) ->
+      if high >= 55296 && high <= 56319 then
+        match rest with
+        | 92 :: 117 :: afterU ->
+          match hexUnit afterU with
+          | Some((low, after)) ->
+            if low >= 56320 && low <= 57343 then
+              Option.Option.Some(
+                (65536 + (high - 55296) * 1024 + (low - 56320), after)
+              )
+            else
+              Option.Option.None
+          | None -> Option.Option.None
+        | _ -> Option.Option.None
+      else if high >= 56320 && high <= 57343 then
+        Option.Option.None
+      else
+        Option.Option.Some((high, rest))
+    | None -> Option.Option.None
+
+
+  /// Four hex digits, as a number.
+  let hexUnit (cs: List<Int>) : Option.Option<(Int * List<Int>)> =
+    match cs with
+    | a :: b :: c :: d :: rest ->
+      let values = [ hexDigit a, hexDigit b, hexDigit c, hexDigit d ]
+
+      if List.any values (fun h -> h < 0) then
+        Option.Option.None
+      else
+        Option.Option.Some(
+          (List.fold values 0 (fun total h -> total * 16 + h), rest)
+        )
+    | _ -> Option.Option.None
+
+
+  let hexDigit (c: Int) : Int =
+    if c >= 48 && c <= 57 then c - 48
+    else if c >= 65 && c <= 70 then c - 55
+    else if c >= 97 && c <= 102 then c - 87
+    else -1
+
+
+  /// A number: `-`? then `0` or a digit run not starting with 0, then an
+  /// optional fraction and exponent, each needing at least one digit.
+  let number (cs: List<Int>) : Option.Option<(Json * List<Int>)> =
+    let (sign, afterSign) =
+      match cs with
+      | 45 :: rest -> ([ 45 ], rest)
+      | _ -> ([], cs)
+
+    let integer =
+      match afterSign with
+      | 48 :: rest -> Option.Option.Some(([ 48 ], rest))
+      | c :: _ when isDigit c && c != 48 -> Option.Option.Some(digits afterSign [])
+      | _ -> Option.Option.None
+
+    match integer with
+    | None -> Option.Option.None
+    | Some((intDigits, afterInt)) ->
+      let fraction =
+        match afterInt with
+        | 46 :: rest ->
+          match digits rest [] with
+          | ([], _) -> Option.Option.None
+          | (fracDigits, after) ->
+            Option.Option.Some((List.append [ 46 ] fracDigits, after))
+        | _ -> Option.Option.Some(([], afterInt))
+
+      match fraction with
+      | None -> Option.Option.None
+      | Some((fracPart, afterFrac)) ->
+        let exponent =
+          match afterFrac with
+          | e :: rest when e == 101 || e == 69 ->
+            let (expSign, afterExpSign) =
+              match rest with
+              | s :: r when s == 43 || s == 45 -> ([ s ], r)
+              | _ -> ([], rest)
+
+            match digits afterExpSign [] with
+            | ([], _) -> Option.Option.None
+            | (expDigits, after) ->
+              Option.Option.Some(
+                (List.flatten [ [ e ], expSign, expDigits ], after)
+              )
+          | _ -> Option.Option.Some(([], afterFrac))
+
+        match exponent with
+        | None -> Option.Option.None
+        | Some((expPart, rest)) ->
+          let lexeme =
+            List.flatten [ sign, intDigits, fracPart, expPart ]
+            |> List.map Format.codepointToString
+            |> String.join ""
+
+          if List.isEmpty fracPart && List.isEmpty expPart then
+            match Int.parse lexeme with
+            | Ok i -> Option.Option.Some((Json.Integer i, rest))
+            | Error _ -> Option.Option.None
+          else
+            match Float.parse lexeme with
+            | Ok f -> Option.Option.Some((Json.Float f, rest))
+            | Error _ -> Option.Option.None
+
+
+  /// A run of digits, and what follows it.
+  let digits (cs: List<Int>) (acc: List<Int>) : (List<Int> * List<Int>) =
+    match cs with
+    | c :: rest when isDigit c -> digits rest (List.push acc c)
+    | _ -> (List.reverse acc, cs)
+
+
+  /// The rest of an array, after its `[`.
+  let arrayRest (cs: List<Int>) : Option.Option<(Json * List<Int>)> =
+    match skipTrivia cs with
+    | Some(93 :: rest) -> Option.Option.Some((Json.Array [], rest))
+    | Some start -> items start []
+    | None -> Option.Option.None
+
+
+  let items
+    (cs: List<Int>)
+    (acc: List<Json>)
+    : Option.Option<(Json * List<Int>)> =
+    match value cs with
+    | None -> Option.Option.None
+    | Some((item, afterItem)) ->
+      let acc = List.push acc item
+
+      match skipTrivia afterItem with
+      | Some(93 :: rest) -> Option.Option.Some((Json.Array(List.reverse acc), rest))
+      | Some(44 :: rest) ->
+        match skipTrivia rest with
+        | Some(93 :: _) -> Option.Option.None
+        | Some next -> items next acc
+        | None -> Option.Option.None
+      | _ -> Option.Option.None
+
+
+  /// The rest of an object, after its `{`.
+  let objectRest (cs: List<Int>) : Option.Option<(Json * List<Int>)> =
+    match skipTrivia cs with
+    | Some(125 :: rest) -> Option.Option.Some((Json.Object [], rest))
+    | Some start -> fields start []
+    | None -> Option.Option.None
+
+
+  let fields
+    (cs: List<Int>)
+    (acc: List<(String * Json)>)
+    : Option.Option<(Json * List<Int>)> =
+    match cs with
+    | 34 :: afterQuote ->
+      match stringRest afterQuote [] with
+      | None -> Option.Option.None
+      | Some((key, afterKey)) ->
+        // Only whitespace between a key and its colon: System.Text.Json
+        // refused a comment there, unlike everywhere else.
+        match skipWhitespace afterKey with
+        | 58 :: afterColon ->
+          match skipTrivia afterColon with
+          | None -> Option.Option.None
+          | Some start ->
+            match value start with
+            | None -> Option.Option.None
+            | Some((v, afterValue)) ->
+              let acc = List.push acc (key, v)
+
+              match skipTrivia afterValue with
+              | Some(125 :: rest) ->
+                Option.Option.Some((Json.Object(List.reverse acc), rest))
+              | Some(44 :: rest) ->
+                match skipTrivia rest with
+                | Some next -> fields next acc
+                | None -> Option.Option.None
+              | _ -> Option.Option.None
+        | _ -> Option.Option.None
+    | _ -> Option.Option.None
 
 
 /// Reads an exact JSON integer. A Float value is never silently truncated or
