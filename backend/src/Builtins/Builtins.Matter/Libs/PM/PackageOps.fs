@@ -147,63 +147,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "pmDuplicateDeclarations" 0
-      typeParams = []
-      parameters =
-        [ Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
-      returnType = TList TString
-      description =
-        "The names that more than one declaration in this batch would bind, as "
-        + "\"<kind> Owner.Module.name\" strings, for any of the five kinds. Stabilizing "
-        + "such a batch would store one body under the other's hash, so authoring "
-        + "surfaces refuse it."
-      fn =
-        (function
-        | _, _, _, [| DList(_vt, ops) |] ->
-          uply {
-            let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
-            return
-              LibDB.OpValidation.duplicateDeclarations ptOps
-              |> List.map Dval.string
-              |> Dval.list KTString
-          }
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "pmUnresolvedNames" 0
-      typeParams = []
-      parameters =
-        [ Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
-      returnType = TList(TTuple(TString, TList TString, []))
-      description =
-        "For each op still holding unresolved name references, its content hash and those names."
-      fn =
-        (function
-        | _, _, _, [| DList(_vt, ops) |] ->
-          uply {
-            // Reports; decides nothing. Whether an unresolved name should stop a commit is a decision, and
-            // decisions live in Dark -- see `Cli.Commit`.
-            let found =
-              ops
-              |> List.choose PT2DT.PackageOp.fromDT
-              |> List.choose LibDB.UnresolvedCheck.inOp
-              |> List.map (fun (hash, names) ->
-                DTuple(
-                  DString hash,
-                  Dval.list KTString (names |> List.map DString),
-                  []
-                ))
-            return Dval.list (KTTuple(VT.string, VT.list VT.string, [])) found
-          }
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
-
-
     { name = fn "scmAddOps" 0
       typeParams = []
       parameters =

@@ -439,12 +439,60 @@ let resolveTraitCalls
   Builtin.pmResolveTraitCalls ops
 
 
+/// One declaration, when <param op> is the `SetName` binding the `Add*` just before it:
+/// `"fn Owner.Module.name"`. A `SetName` without its own `Add*` is a bare rename.
+let __declaration
+  (previous: ProgramTypes.PackageOp)
+  (op: ProgramTypes.PackageOp)
+  : Stdlib.Option.Option<String> =
+  let named (kind: String) (loc: ProgramTypes.PackageLocation) : Stdlib.Option.Option<String> =
+    let fqn = Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
+    Stdlib.Option.Option.Some $"{kind} {fqn}"
+
+  match (previous, op) with
+  | (AddType _, SetName(loc, PackageType _, _)) -> named "type" loc
+  | (AddFn _, SetName(loc, PackageFn _, _)) -> named "fn" loc
+  | (AddValue _, SetName(loc, PackageValue _, _)) -> named "value" loc
+  | (AddTrait _, SetName(loc, PackageTrait _, _)) -> named "trait" loc
+  | (AddTraitImpl _, SetName(loc, PackageTraitImpl _, _)) -> named "impl" loc
+  | (AddTest _, SetName(loc, PackageTest _, _)) -> named "test" loc
+  | _ -> Stdlib.Option.Option.None
+
+
+let __declarations
+  (ops: List<ProgramTypes.PackageOp>)
+  (found: List<String>)
+  : List<String> =
+  match ops with
+  | previous :: rest ->
+    match rest with
+    | op :: _ ->
+      match __declaration previous op with
+      | Some d -> __declarations rest (Stdlib.List.push found d)
+      | None -> __declarations rest found
+    | [] -> Stdlib.List.reverse found
+  | [] -> Stdlib.List.reverse found
+
+
 /// Duplicate declaration names in <param ops>, formatted as
-/// `"fn Owner.Module.name"`. Reject before `stabilizeHashes`, which keys by name.
+/// `"fn Owner.Module.name"`, each once, in the order first declared. Reject
+/// before `stabilizeHashes`, which keys by name.
 let duplicateDeclarations
   (ops: List<ProgramTypes.PackageOp>)
   : List<String> =
-  Builtin.pmDuplicateDeclarations ops
+  let declarations = __declarations ops []
+  let counts =
+    Stdlib.List.fold declarations (Dict { }) (fun counts d ->
+      let n = Stdlib.Option.withDefault (Stdlib.Dict.get counts d) 0
+      Stdlib.Dict.setOverridingDuplicates counts d (n + 1))
+  let (duplicates, _) =
+    Stdlib.List.fold declarations ([], Dict { }) (fun (duplicates, reported) d ->
+      if (Stdlib.Dict.get counts d) == Stdlib.Option.Option.Some 1
+        || Stdlib.Dict.``member`` reported d then
+        (duplicates, reported)
+      else
+        (Stdlib.List.push duplicates d, Stdlib.Dict.setOverridingDuplicates reported d true))
+  Stdlib.List.reverse duplicates
 
 
 /// Find any item (type, fn, value, trait or impl) at a location.

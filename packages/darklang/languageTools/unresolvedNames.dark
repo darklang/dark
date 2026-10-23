@@ -1,0 +1,252 @@
+/// The names in a package item that still do not resolve.
+///
+/// Authoring is allowed to produce these, and that is not a bug: an item can reference something
+/// that has not been added yet, and `WipRefresh` re-resolves once it arrives. That covers "not
+/// resolved YET". This answers the other question -- what is STILL unresolved -- which is what
+/// commit needs, because commit is where work stops being a draft and becomes history other
+/// machines rely on.
+///
+/// A traversal, not a decision: it reports names and refuses nothing. Whether an unresolved name
+/// should stop a commit is decided in `Cli.Commit`. Shaped like F#'s `DeferredResolver`, which
+/// walks the same tree to REWRITE errors into resolutions; if you add an expression form, both
+/// should change.
+module Darklang.LanguageTools.UnresolvedNames
+
+
+/// One unresolved reference, as the user typed it (`Stdlib.List.hed`).
+let __fromNR (n: ProgramTypes.NameResolution<'a>) : List<String> =
+  match n.resolved with
+  | Ok _ -> []
+  | Error _ -> [ Stdlib.String.join n.originalName "." ]
+
+
+let __all (lists: List<List<String>>) : List<String> = Stdlib.List.flatten lists
+
+
+let __inTypeRef (t: ProgramTypes.TypeReference) : List<String> =
+  match t with
+  | TStream inner -> __inTypeRef inner
+  | TList inner -> __inTypeRef inner
+  | TDict(key, value) -> __all [ __inTypeRef key, __inTypeRef value ]
+  | TTuple(first, second, rest) ->
+    __all [ __inTypeRef first, __inTypeRef second, __inTypeRefs rest ]
+  | TCustomType(name, typeArgs) -> __all [ __fromNR name, __inTypeRefs typeArgs ]
+  | TFn(args, ret) -> __all [ __inTypeRefs args, __inTypeRef ret ]
+  | _ -> []
+
+
+// The list walks recurse directly rather than through `Stdlib.List.map`: a recursive walk
+// inside a builtin callback starts a nested interpreter run per level.
+let __inTypeRefs (ts: List<ProgramTypes.TypeReference>) : List<String> =
+  match ts with
+  | [] -> []
+  | t :: rest -> Stdlib.List.append (__inTypeRef t) (__inTypeRefs rest)
+
+
+let __inExpr (expr: ProgramTypes.Expr) : List<String> =
+  match expr with
+  | EString(_, segments) -> __inSegments segments
+
+  | EIf(_, cond, thenExpr, elseExpr) ->
+    let inElse =
+      match elseExpr with
+      | Some e -> __inExpr e
+      | None -> []
+    __all [ __inExpr cond, __inExpr thenExpr, inElse ]
+
+  | EPipe(_, lhs, parts) -> __all [ __inExpr lhs, __inPipeExprs parts ]
+
+  | EMatch(_, arg, cases) -> __all [ __inExpr arg, __inMatchCases cases ]
+
+  | ELet(_, _, value, body) -> __all [ __inExpr value, __inExpr body ]
+
+  | EList(_, items) -> __inExprs items
+
+  // As the F# walk: only the values, never the keys.
+  | EDict(_, pairs) -> __inExprs (Stdlib.List.map pairs (fun (_, e) -> e))
+
+  | ETuple(_, first, second, rest) ->
+    __all [ __inExpr first, __inExpr second, __inExprs rest ]
+
+  | EApply(_, fnExpr, typeArgs, args) ->
+    __all [ __inExpr fnExpr, __inTypeRefs typeArgs, __inExprs args ]
+
+  | EFnName(_, name, _) -> __fromNR name
+
+  | ELambda(_, _, body) -> __inExpr body
+
+  | EInfix(_, _, lhs, rhs, _) -> __all [ __inExpr lhs, __inExpr rhs ]
+
+  | ERecord(_, typeName, typeArgs, fields) ->
+    __all
+      [ __fromNR typeName
+        __inTypeRefs typeArgs
+        __inExprs (Stdlib.List.map fields (fun (_, e) -> e)) ]
+
+  | ERecordFieldAccess(_, record, _) -> __inExpr record
+
+  | ERecordUpdate(_, record, updates) ->
+    __all [ __inExpr record, __inExprs (Stdlib.List.map updates (fun (_, e) -> e)) ]
+
+  | EEnum(_, typeName, typeArgs, _, fields) ->
+    __all [ __fromNR typeName, __inTypeRefs typeArgs, __inExprs fields ]
+
+  | EValue(_, name) -> __fromNR name
+
+  | EUnwrap(_, operand) -> __inExpr operand
+
+  | EStatement(_, first, next) -> __all [ __inExpr first, __inExpr next ]
+
+  | _ -> []
+
+
+let __inExprs (exprs: List<ProgramTypes.Expr>) : List<String> =
+  match exprs with
+  | [] -> []
+  | e :: rest -> Stdlib.List.append (__inExpr e) (__inExprs rest)
+
+
+let __inSegments (segments: List<ProgramTypes.StringSegment>) : List<String> =
+  match segments with
+  | [] -> []
+  | seg :: rest ->
+    match seg with
+    | StringText _ -> __inSegments rest
+    | StringInterpolation e -> Stdlib.List.append (__inExpr e) (__inSegments rest)
+
+
+/// The pattern carries no names (`MPEnum` holds a bare case name), so only the guard and the
+/// right-hand side can contribute.
+let __inMatchCase (case_: ProgramTypes.MatchCase) : List<String> =
+  let inGuard =
+    match case_.whenCondition with
+    | Some e -> __inExpr e
+    | None -> []
+  __all [ inGuard, __inExpr case_.rhs ]
+
+
+let __inMatchCases (cases: List<ProgramTypes.MatchCase>) : List<String> =
+  match cases with
+  | [] -> []
+  | c :: rest -> Stdlib.List.append (__inMatchCase c) (__inMatchCases rest)
+
+
+let __inPipeExpr (pe: ProgramTypes.PipeExpr) : List<String> =
+  match pe with
+  | EPipeLambda(_, _, body) -> __inExpr body
+  | EPipeInfix(_, _, rhs, _) -> __inExpr rhs
+  | EPipeFnCall(_, name, typeArgs, args, _) ->
+    __all [ __fromNR name, __inTypeRefs typeArgs, __inExprs args ]
+  | EPipeEnum(_, typeName, _, fields) -> __all [ __fromNR typeName, __inExprs fields ]
+  | EPipeVariable(_, _, args) -> __inExprs args
+
+
+let __inPipeExprs (parts: List<ProgramTypes.PipeExpr>) : List<String> =
+  match parts with
+  | [] -> []
+  | p :: rest -> Stdlib.List.append (__inPipeExpr p) (__inPipeExprs rest)
+
+
+/// A bound's trait, and any types its type args name.
+let __inBounds (bounds: List<ProgramTypes.Bound>) : List<String> =
+  match bounds with
+  | [] -> []
+  | b :: rest ->
+    __all [ __fromNR b.trait_.trait_, __inTypeRefs b.trait_.typeArgs, __inBounds rest ]
+
+
+let __inParameters (ps: List<ProgramTypes.PackageFn.Parameter>) : List<String> =
+  __inTypeRefs (Stdlib.List.map ps (fun p -> p.typ))
+
+
+let __inTypeDeclaration
+  (d: ProgramTypes.TypeDeclaration.TypeDeclaration)
+  : List<String> =
+  let inDefinition =
+    match d.definition with
+    | Alias t -> __inTypeRef t
+    | Record fields -> __inTypeRefs (Stdlib.List.map fields (fun f -> f.typ))
+    | Enum cases ->
+      __inTypeRefs (
+        Stdlib.List.flatten (
+          Stdlib.List.map cases (fun c -> Stdlib.List.map c.fields (fun f -> f.typ))
+        )
+      )
+  __all [ __inBounds d.bounds, inDefinition ]
+
+
+/// Each name once, in the order first found.
+let __distinct (names: List<String>) : List<String> =
+  let (kept, _) =
+    Stdlib.List.fold names ([], Dict { }) (fun (kept, seen) name ->
+      if Stdlib.Dict.``member`` seen name then
+        (kept, seen)
+      else
+        (Stdlib.List.push kept name, Stdlib.Dict.setOverridingDuplicates seen name true))
+  Stdlib.List.reverse kept
+
+
+let __inMethods (methods: List<ProgramTypes.Trait.Method>) : List<String> =
+  match methods with
+  | [] -> []
+  | m :: rest ->
+    __all
+      [ __inParameters m.parameters
+        __inTypeRef m.returnType
+        __inBounds m.bounds
+        __inMethods rest ]
+
+
+/// What one op leaves unresolved: its content hash and those names, or None when it leaves
+/// nothing. Only the content-carrying ops can hold a reference: a `SetName` binds an existing
+/// hash, and the decision ops carry no expressions.
+let inOp
+  (op: ProgramTypes.PackageOp)
+  : Stdlib.Option.Option<(String * List<String>)> =
+  let found =
+    match op with
+    | AddFn fn ->
+      Stdlib.Option.Option.Some(
+        (ProgramTypes.hashToString fn.hash,
+         __all
+           [ __inExpr fn.body
+             __inParameters fn.parameters
+             __inTypeRef fn.returnType
+             __inBounds fn.bounds ])
+      )
+    | AddValue v ->
+      Stdlib.Option.Option.Some((ProgramTypes.hashToString v.hash, __inExpr v.body))
+    | AddType t ->
+      Stdlib.Option.Option.Some(
+        (ProgramTypes.hashToString t.hash, __inTypeDeclaration t.declaration)
+      )
+    | AddTrait t ->
+      let inMethods = __inMethods t.methods
+      Stdlib.Option.Option.Some(
+        (ProgramTypes.hashToString t.hash, __all [ inMethods, __inBounds t.bounds ])
+      )
+    | AddTraitImpl i ->
+      Stdlib.Option.Option.Some(
+        (ProgramTypes.hashToString i.hash,
+         __all
+           [ __fromNR i.trait_
+             __inTypeRef i.self
+             __inTypeRefs i.traitTypeArgs
+             __all (Stdlib.List.map i.methods (fun (_, nr) -> __fromNR nr))
+             __inBounds i.bounds ])
+      )
+    | AddTest test ->
+      Stdlib.Option.Option.Some((ProgramTypes.hashToString test.hash, __inExpr test.body))
+    | _ -> Stdlib.Option.Option.None
+
+  match found with
+  | Some((_, [])) -> Stdlib.Option.Option.None
+  | Some((hash, names)) -> Stdlib.Option.Option.Some((hash, __distinct names))
+  | None -> Stdlib.Option.Option.None
+
+
+/// For each op still holding unresolved name references, its content hash and those names.
+let inOps
+  (ops: List<ProgramTypes.PackageOp>)
+  : List<(String * List<String>)> =
+  Stdlib.List.filterMap ops (fun op -> inOp op)
