@@ -1,28 +1,48 @@
-/// Short-duration parsing. Suffix-based ("30s", "5m", "1h", "2d") so
-/// callers always state intent. Returns the duration in seconds.
+/// Durations in whole seconds. Parse strings like "30s", "5m", "1h" and "2d".
+/// A unit is required: "5" on its own is an error.
 module Darklang.Stdlib.Duration
 
 
-/// Parse a short duration string ("30s", "5m", "1h", "2d") into seconds.
-/// Bare numbers are rejected — every duration must end with a unit.
-let parse (s: String) : Stdlib.Result.Result<Int, String> =
-  let len = Stdlib.String.length s
-  if len < 2 then
-    Stdlib.Result.Result.Error
-      $"Duration too short: '{s}'; need a number + unit (s/m/h/d), e.g. 5m"
+/// A whole number of seconds. Can be negative.
+type Duration = { seconds: Int }
+
+
+type ParseError =
+  /// No unit was given, as in "5" or "".
+  | MissingUnit
+  /// The number is missing or isn't a whole number, as in "s", "xm" or "1.5h".
+  | InvalidNumber
+  /// The unit isn't s, m, h or d, as in "5x" or "5ms".
+  | UnknownUnit
+
+
+/// Create a <type Duration> from <param seconds> seconds.
+let fromSeconds (seconds: Int) : Duration = Duration { seconds = seconds }
+
+
+/// Get the number of seconds in <param d>.
+let toSeconds (d: Duration) : Int = d.seconds
+
+
+/// Parse a string like "30s", "5m", "1h", "2d" or "-5m" into a <type Duration>.
+/// The string must end with a unit: s, m, h or d.
+let parse (s: String) : Stdlib.Result.Result<Duration, ParseError> =
+  let number =
+    s
+    |> Stdlib.String.toList
+    |> Stdlib.List.takeWhile (fun c -> !Stdlib.Char.isLetter c)
+    |> Stdlib.String.fromList
+  let unit = Stdlib.String.dropFirst s (Stdlib.String.length number)
+  if Stdlib.String.isEmpty unit then
+    Stdlib.Result.Result.Error ParseError.MissingUnit
   else
-    let unit = Stdlib.String.last s 1
-    let numPart = Stdlib.String.dropLast s 1
-    match Stdlib.Int.parse numPart with
-    | Error _ ->
-      Stdlib.Result.Result.Error
-        $"Invalid duration '{s}'; need a number + unit (s/m/h/d), e.g. 5m"
+    match Stdlib.Int.parse number with
     | Ok n ->
       match unit with
-      | "s" -> Stdlib.Result.Result.Ok n
-      | "m" -> Stdlib.Result.Result.Ok(n * 60)
-      | "h" -> Stdlib.Result.Result.Ok(n * 3600)
-      | "d" -> Stdlib.Result.Result.Ok(n * 86400)
-      | _ ->
-        Stdlib.Result.Result.Error
-          $"Unknown unit '{unit}' in '{s}'; use s, m, h, or d"
+      | "s" -> Stdlib.Result.Result.Ok(fromSeconds n)
+      | "m" -> Stdlib.Result.Result.Ok(fromSeconds (n * 60))
+      | "h" -> Stdlib.Result.Result.Ok(fromSeconds (n * 3600))
+      | "d" -> Stdlib.Result.Result.Ok(fromSeconds (n * 86400))
+      | _ -> Stdlib.Result.Result.Error ParseError.UnknownUnit
+
+    | Error _ -> Stdlib.Result.Result.Error ParseError.InvalidNumber

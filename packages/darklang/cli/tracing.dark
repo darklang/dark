@@ -1719,11 +1719,22 @@ let executeClear (state: Cli.AppState) : Cli.AppState =
 /// Parse a CLI duration arg. `-`-prefixed inputs are reported as
 /// "unknown flag" rather than "Invalid duration" — same logic as
 /// `parsePositionalErr`. Otherwise delegates to `Stdlib.Duration.parse`.
-let parseDuration (s: String) : Stdlib.Result.Result<Int, String> =
+let parseDuration
+  (s: String)
+  : Stdlib.Result.Result<Stdlib.Duration.Duration, String> =
   if Stdlib.String.startsWith s "-" then
     Stdlib.Result.Result.Error $"unknown flag: {s}"
   else
-    Stdlib.Duration.parse s
+    match Stdlib.Duration.parse s with
+    | Ok d -> Stdlib.Result.Result.Ok d
+    | Error MissingUnit ->
+      Stdlib.Result.Result.Error
+        $"Duration '{s}' has no unit; need a number + unit (s/m/h/d), e.g. 5m"
+    | Error InvalidNumber ->
+      Stdlib.Result.Result.Error
+        $"Invalid duration '{s}'; need a number + unit (s/m/h/d), e.g. 5m"
+    | Error UnknownUnit ->
+      Stdlib.Result.Result.Error $"Unknown unit in '{s}'; use s, m, h, or d"
 
 
 /// `traces delete --before <duration>` — drop traces older than the
@@ -1736,11 +1747,11 @@ let executeClearBefore
   | Error msg ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
     { state with exitCode = 1 }
-  | Ok seconds ->
+  | Ok duration ->
     let now = Stdlib.DateTime.now ()
     // cleanup
     let cutoffDt =
-      Stdlib.DateTime.subtractSeconds now seconds
+      Stdlib.DateTime.subtractSeconds now (Stdlib.Duration.toSeconds duration)
     let cutoff = Stdlib.toString cutoffDt
     let count = Darklang.Tracing.Store.clearBefore cutoff
     match count with
