@@ -312,3 +312,58 @@ test parseErrors =
       // ..._double_ quotes
       parse """{ 'invalidName': 1}"""
       |> Stdlib.Test.equal (parseError ParseError.NotJson) ]
+
+let codepoint (cp: Int) : String =
+  match Stdlib.Char.fromCodepoint cp with
+  | Some c -> Stdlib.String.fromChar c
+  | None -> ""
+
+// Characters outside what JSON requires escaping are written as themselves.
+// Non-BMP ones used to come out as a `\u` surrogate pair; either form parses
+// back to the same string.
+test nonAsciiIsWrittenAsItself =
+  Stdlib.Test.all
+    [ format (Json.String "é中😀") |> Stdlib.Test.equal "\"é中😀\""
+      parse "\"\\uD83D\\uDE00\"" |> Stdlib.Test.equal (Ok(Json.String "😀"))
+      format (Json.String(codepoint 1)) |> Stdlib.Test.equal "\"\\u0001\"" ]
+
+// A surrogate escape with no partner names nothing a string can hold.
+test loneSurrogatesAreNotJson =
+  Stdlib.Test.all
+    [ parse "\"\\uD800\"" |> Stdlib.Test.equal (parseError ParseError.NotJson)
+      parse "\"\\uDC00\"" |> Stdlib.Test.equal (parseError ParseError.NotJson)
+      parse "\"\\uD83D\\u0041\""
+      |> Stdlib.Test.equal (parseError ParseError.NotJson) ]
+
+// No JSON form, so the strings Json.serialize uses for them.
+test nonFiniteFloats =
+  Stdlib.Test.all
+    [ format (Json.Float(0.0 / 0.0)) |> Stdlib.Test.equal "\"NaN\""
+      format (Json.Float(1.0 / 0.0)) |> Stdlib.Test.equal "\"Infinity\""
+      format (Json.Float(-1.0 / 0.0)) |> Stdlib.Test.equal "\"-Infinity\"" ]
+
+// The round-trip notation changes over at a leading-digit exponent outside
+// -4..16, whatever the number of digits.
+test floatNotation =
+  Stdlib.Test.all
+    [ format (Json.Float 1e16) |> Stdlib.Test.equal "10000000000000000"
+      format (Json.Float 1e17) |> Stdlib.Test.equal "1E+17"
+      format (Json.Float 74521832174354930.0)
+      |> Stdlib.Test.equal "74521832174354930"
+      format (Json.Float 0.0001) |> Stdlib.Test.equal "0.0001"
+      format (Json.Float 0.00001) |> Stdlib.Test.equal "1E-05"
+      format (Json.Float 5e-324) |> Stdlib.Test.equal "5E-324"
+      format (Json.Float -0.0) |> Stdlib.Test.equal "-0" ]
+
+// Comments go wherever whitespace does, except between a key and its colon,
+// and a line comment may not hold a line or paragraph separator.
+test commentPlacement =
+  Stdlib.Test.all
+    [ parse "{\"a\":/* c */1 // c\n}"
+      |> Stdlib.Test.equal (Ok(Json.Object [ ("a", Json.Integer 1) ]))
+      parse "{\"a\" /* c */:1}" |> Stdlib.Test.equal (parseError ParseError.NotJson)
+      parse "{\"a\"\n:1}"
+      |> Stdlib.Test.equal (Ok(Json.Object [ ("a", Json.Integer 1) ]))
+      parse ("// a" + (codepoint 8232) + "\n1")
+      |> Stdlib.Test.equal (parseError ParseError.NotJson)
+      parse "/* c" |> Stdlib.Test.equal (parseError ParseError.NotJson) ]
