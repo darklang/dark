@@ -1,0 +1,42 @@
+// RESTORE: backend/src/Builtins/Builtins.Matter/Libs/PM/PackageOps.fs
+// WAS: the `packageOpBindsAName` builtin, the Dark-callable form of the op-tag check
+// ANCHOR: between the `scmSelectBranch` and `packageOpFromBlobOption` entries in the fns list
+// ALSO: the binds-a-name carve is four fragments that come back together:
+//       later/backend/src/Builtins/Builtins.Matter/Libs/PM/PackageOps.fs.binds-a-name,
+//       later/backend/src/LibDB/Queries.fs.binds-a-name,
+//       later/backend/src/LibSerialization/Binary/Serialization.fs.binds-a-name,
+//       later/packages/darklang/scm/packageOpsBindings.dark.binds-a-name.
+//       The caller is later/packages/darklang/sync/packageOpsSync.dark (`bindingsFromWireRecords`),
+//       and the sync carve's ALSO chain says when that comes back.
+// NOTE: no caller was left in the live tree when it was carved; it went with the sync import it
+//       existed for. It is an optimisation, not a dependency of correctness: without it the import
+//       decodes every op and drops the ones that bind nothing, which its own comment measured at
+//       about a fifth of a pull.
+// WHEN: the builtins-reduction round, 2026-10-23
+
+    // Does this op bind a name, without decoding it?
+    //
+    // A sync import plans conflicts by decoding every incoming op and asking which name it moved. Only
+    // `SetName` and `Decision` move one; `AddFn` and friends carry content and answer nothing, and they
+    // are also the big ones, so nearly all of that decoding was spent producing "no". This reads the tag
+    // and returns, which measured a fifth of the pull off on its own.
+    { name = fn "packageOpBindsAName" 0
+      typeParams = []
+      parameters = [ Param.make "blob" TBlob "a package_ops op_blob" ]
+      returnType = TBool
+      description =
+        "Whether <param blob> is an op that binds a name (SetName or Decision), read from "
+        + "its tag without decoding it. False for content ops and for anything unreadable."
+      fn =
+        function
+        | exeState, _, _, [| DBlob blobRef |] ->
+          uply {
+            let! bytes = LibExecution.Blob.readBytes exeState blobRef
+            return DBool(LibDB.Queries.opBindsAName bytes)
+          }
+        | _ -> incorrectArgs ()
+      // Impure though it performs nothing, like `packageOpFromBlobOption` below: the decoder
+      // is this binary's, and a synced store holds ops some builds cannot read.
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }

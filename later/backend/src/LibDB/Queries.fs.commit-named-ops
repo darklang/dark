@@ -1,0 +1,34 @@
+// RESTORE: backend/src/LibDB/Queries.fs
+// WAS: `getCommitOps`, a commit's decodable ops in authored order; `scmGetCommitNamedOps` was its only caller
+// ANCHOR: between `getWipOpOriginTs` and `getCurrentDeprecation`
+// ALSO: the commit-named-ops carve is three fragments that come back together:
+//       later/backend/src/Builtins/Builtins.Matter/Libs/PM/PackageOps.fs.commit-named-ops,
+//       later/backend/src/LibDB/Queries.fs.commit-named-ops,
+//       later/packages/darklang/scm/packageOpsCommits.dark.commit-named-ops.
+//       The caller is later/packages/darklang/languageTools/lsp-server/branches.dark
+//       (`handleGetCommitOpsRequest`, the editor's `dark/scm/getCommitOps`).
+// WHEN: the builtins-reduction round, 2026-10-23
+
+/// The ops a commit committed, oldest first.
+///
+/// Ordered by `origin_ts` then rowid rather than `created_at`: `created_at` is local insert time, so a
+/// synced commit's ops would come back in arrival order rather than the order they were authored in.
+///
+/// Skips what this build cannot decode, like every other reader of the log: a commit can hold a peer's
+/// op on a newer format, and a listing is the last thing that should die because one is in the way.
+let getCommitOps (commitHash : Hash) : Task<List<PT.PackageOp>> =
+  task {
+    let (Hash commitHashStr) = commitHash
+    let! decoded =
+      Sql.query
+        """
+        SELECT id, op_blob
+        FROM package_ops
+        WHERE commit_hash = @commit_hash
+        ORDER BY origin_ts ASC, rowid ASC
+        """
+      |> Sql.parameters [ "commit_hash", Sql.string commitHashStr ]
+      |> Sql.executeAsync (fun read ->
+        BS.PT.PackageOp.tryDeserialize (read.uuid "id") (read.bytes "op_blob"))
+    return decoded |> List.choose (fun o -> o)
+  }

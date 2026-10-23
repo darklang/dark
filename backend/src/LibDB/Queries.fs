@@ -14,11 +14,6 @@ module BS = LibSerialization.Binary.Serialization
 
 
 
-/// Whether an op binds a name, read from its tag without decoding it. See
-/// `BS.PT.PackageOp.bindsAName` for why this is worth having.
-let opBindsAName (opBlob : byte[]) : bool = BS.PT.PackageOp.bindsAName opBlob
-
-
 /// Decode an op_blob into a PackageOp. The one F# primitive Dark needs to read STRUCTURED ops, since
 /// the binary format is not Dark-decodable; the query that selects the blobs is Dark. `id` is error
 /// context only.
@@ -386,31 +381,6 @@ let getWipOpOriginTs () : Task<Map<System.Guid, string>> =
         """
       |> Sql.executeAsync (fun read -> (read.uuid "id", read.string "origin_ts"))
     return Map.ofList rows
-  }
-
-
-/// The ops a commit committed, oldest first.
-///
-/// Ordered by `origin_ts` then rowid rather than `created_at`: `created_at` is local insert time, so a
-/// synced commit's ops would come back in arrival order rather than the order they were authored in.
-///
-/// Skips what this build cannot decode, like every other reader of the log: a commit can hold a peer's
-/// op on a newer format, and a listing is the last thing that should die because one is in the way.
-let getCommitOps (commitHash : Hash) : Task<List<PT.PackageOp>> =
-  task {
-    let (Hash commitHashStr) = commitHash
-    let! decoded =
-      Sql.query
-        """
-        SELECT id, op_blob
-        FROM package_ops
-        WHERE commit_hash = @commit_hash
-        ORDER BY origin_ts ASC, rowid ASC
-        """
-      |> Sql.parameters [ "commit_hash", Sql.string commitHashStr ]
-      |> Sql.executeAsync (fun read ->
-        BS.PT.PackageOp.tryDeserialize (read.uuid "id") (read.bytes "op_blob"))
-    return decoded |> List.choose (fun o -> o)
   }
 
 

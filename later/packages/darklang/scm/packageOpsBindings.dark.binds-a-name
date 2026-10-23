@@ -1,0 +1,18 @@
+// RESTORE: packages/darklang/scm/packageOpsBindings.dark
+// WAS: `SCM.PackageOps.opBindsAName`, the wrapper over `Builtin.packageOpBindsAName`
+// ANCHOR: between `tryDecodeOp` and `decodeOpRowEntries`
+// ALSO: the binds-a-name carve is four fragments that come back together:
+//       later/backend/src/Builtins/Builtins.Matter/Libs/PM/PackageOps.fs.binds-a-name,
+//       later/backend/src/LibDB/Queries.fs.binds-a-name,
+//       later/backend/src/LibSerialization/Binary/Serialization.fs.binds-a-name,
+//       later/packages/darklang/scm/packageOpsBindings.dark.binds-a-name.
+//       The caller is later/packages/darklang/sync/packageOpsSync.dark (`bindingsFromWireRecords`),
+//       and the sync carve's ALSO chain says when that comes back.
+// WHEN: the builtins-reduction round, 2026-10-23
+
+/// Whether an op binds a NAME, read from its tag without decoding it.
+///
+/// Worth having only because of what it saves: an import decodes every arriving op to learn which names
+/// moved, and content ops (the `Add*` family, which are whole ASTs and so the expensive ones) move none.
+/// Asking first turns most of that decoding into a byte comparison.
+let opBindsAName (blob: Blob) : Bool = Builtin.packageOpBindsAName blob

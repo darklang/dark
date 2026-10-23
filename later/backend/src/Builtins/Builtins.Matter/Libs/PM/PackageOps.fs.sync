@@ -1,6 +1,7 @@
 // RESTORE: backend/src/Builtins/Builtins.Matter/Libs/PM/PackageOps.fs
 // WAS: scmImportOps, scmStoreOps and scmExportPageJson: the three builtins behind a sync import, a relay recording a push, and the relay's export page
-// ANCHOR: between packageOpFromBlobOption and scmGetCommitNamedOps in the fns list
+// ANCHOR: between packageOpFromBlobOption and scmRebuildDraftKeeping in the fns list (and above
+//         scmGetCommitNamedOps, if PackageOps.fs.commit-named-ops is back)
 // ALSO: later/packages/darklang/sync/ held their wrappers
 // WHEN: the sync molt, 2026-10-12
 

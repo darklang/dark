@@ -479,14 +479,6 @@ let findAny
             | None -> Stdlib.Option.Option.None
 
 
-/// Whether <param owner> has any listed item at all.
-///
-/// `searchNames` would answer the same question, but it scans `locations` in full whatever it finds;
-/// this is an equality seek on the owner index.
-let ownerHasItems (branchId: Uuid) (owner: String) : Bool =
-  Builtin.pmOwnerHasItems branchId owner
-
-
 /// The deprecation IN EFFECT for this item on <param branchId>, if any: its
 /// kind and its message.
 ///
