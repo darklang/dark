@@ -101,6 +101,9 @@ let private hashCoupledSurvivors =
   [ "commits" // canonical; a commit whose ops are gone is empty, not wrong
     "package_blobs" // content-addressed cache: hash IS the content
     "package_caps" // ditto, keyed on the item's hash
+    // Created lazily by `dark test run`, so only some stores have it. A pass keyed on the test's
+    // hash, the runtime, the branch and the result type's binding stays true across a reload.
+    "package_test_results"
     "schema_state_v0" // describes the SCHEMA, not the log
     "trace_fn_calls" // observations of past runs; deliberately outlive their code
     // Same: a run is a trace, and `entry_hash` records which handler served a request as a
