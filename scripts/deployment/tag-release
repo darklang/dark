@@ -3,6 +3,11 @@
 
 # Tag a green main commit with the next v0.0.N. The tag's own pipeline
 # (release-clis) builds and publishes, same as a tag pushed by hand.
+#
+# CI only, and currently unused: the tag-release job that runs it is commented
+# out of .circleci/config.yml, so main releases only when someone runs
+# scripts/deployment/release. To release every green merge again, uncomment
+# both the job and its entry under build-and-deploy there.
 
 set -euo pipefail
 

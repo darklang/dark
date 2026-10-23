@@ -1,15 +1,12 @@
 # Releasing a new version of Darklang
 
-Releasing a version of darklang is relatively simple.
-
-## Tag the last commit of the month
-
-- Find the commit: `git log | grep -B 5 "Merge pull request" | less`
-- Tag the commit:
+Main doesn't release on merge. To release its newest commit, run this from anywhere you can push to darklang/dark:
 
 ```
-V=RELEASE_NUMBER && git tag -a release$V -m "Release $V - https://blog.darklang.com/darklang-release-$V/" COMMIT_SHA && git push origin release$V && git push origin release$V
+scripts/deployment/release
 ```
+
+It checks that CI passed on that commit, shows it with the next `v0.0.N`, and pushes that tag once you confirm. The tag starts CircleCI's `release-clis` workflow, which builds every platform and publishes the GitHub release. Any tag starting with `v` does the same, so pushing one by hand works too.
 
 ## Create the changelog
 
