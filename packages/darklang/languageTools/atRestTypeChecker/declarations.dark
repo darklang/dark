@@ -18,7 +18,7 @@ let prepareValueTypeParameters
   (failures: Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>)
   : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
   let declarations =
-    (Stdlib.Dict.toList env.types)
+    (Stdlib.Dict.toEntries env.types)
     |> Stdlib.List.filter (fun (_, decl) ->
       Stdlib.Bool.not (Stdlib.List.isEmpty decl.typeParams))
   let (parameters, failures, changed) =
@@ -104,7 +104,7 @@ let prepareDictKeyParameters
   (failures: Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>)
   : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
   let declarations =
-    (Stdlib.Dict.toList env.types)
+    (Stdlib.Dict.toEntries env.types)
     |> Stdlib.List.filter (fun (_, decl) -> Stdlib.Bool.not (Stdlib.List.isEmpty decl.typeParams))
   let (requirements, failures, changed) =
     Stdlib.List.fold declarations (env.dictKeyParameters, failures, false) (fun (requirements, failures, changed) (name, decl) ->

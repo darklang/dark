@@ -370,7 +370,7 @@ let liveBindingsOver
 
   Stdlib.List.append
     (chainWords
-     |> Stdlib.Dict.toList
+     |> Stdlib.Dict.toEntries
      |> Stdlib.List.filterMap (fun kw ->
        let (k, w) = kw
        w.binding |> Stdlib.Option.map (fun b -> (k, b))))

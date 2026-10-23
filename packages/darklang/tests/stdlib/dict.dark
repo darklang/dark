@@ -238,11 +238,18 @@ test size =
     [ Stdlib.Dict.size (Dict { "a": 3L, "b": 1L, "c": 1L }) |> Stdlib.Test.equal 3
       Stdlib.Dict.size (Dict { }) |> Stdlib.Test.equal 0 ]
 
-test toList =
+test toEntries =
   Stdlib.Test.all
-    [ Stdlib.Dict.toList (Dict { }) |> Stdlib.Test.equal []
-      Stdlib.Dict.toList (Dict { "a": 1L, "b": 2L, "c": 3L })
+    [ Stdlib.Dict.toEntries (Dict { }) |> Stdlib.Test.equal []
+      Stdlib.Dict.toEntries (Dict { "a": 1L, "b": 2L, "c": 3L })
       |> Stdlib.Test.equal [ ("a", 1L), ("b", 2L), ("c", 3L) ] ]
+
+test listAliases =
+  Stdlib.Test.all
+    [ Stdlib.Dict.toList (Dict { "b": 2L, "a": 1L })
+      |> Stdlib.Test.equal [ ("a", 1L), ("b", 2L) ]
+      Stdlib.Dict.fromList [ ("a", 1L), ("b", 2L), ("a", 3L) ]
+      |> Stdlib.Test.equal (Dict { "a": 3L, "b": 2L }) ]
 
 test values =
   Stdlib.Dict.values (Dict { "key1": "val1" }) |> Stdlib.Test.equal [ "val1" ]

@@ -86,7 +86,7 @@ let mergeWith
   (right: Dict<'k, 'v>)
   (fn: 'k -> 'v -> 'v -> 'v)
   : Dict<'k, 'v> =
-  List.fold (Stdlib.Dict.toList right) left (fun acc (key, rightValue) ->
+  List.fold (Stdlib.Dict.toEntries right) left (fun acc (key, rightValue) ->
     match Stdlib.Dict.get acc key with
     | Some leftValue -> Stdlib.Dict.set acc key (fn key leftValue rightValue)
     | None -> Stdlib.Dict.set acc key rightValue)
@@ -104,17 +104,28 @@ let values (dict: Dict<'k, 'v>) : List<'v> =
 
 /// Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in key order.
 /// Use <fn Dict.fromEntries> to turn the list back into a dictionary.
-let toList (dict: Dict<'k, 'v>) : List<('k * 'v)> =
-  Builtin.dictToList dict
+let toEntries (dict: Dict<'k, 'v>) : List<('k * 'v)> =
+  Builtin.dictToEntries dict
+
+
+/// Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in key order.
+/// Alias of <fn Dict.toEntries>.
+let toList (dict: Dict<'k, 'v>) : List<('k * 'v)> = Stdlib.Dict.toEntries dict
 
 
 /// Returns a <type dict> with <param entries>. Each value in <param entries>
 /// must be a {{(key, value)}} tuple.
 /// If <param entries> contains duplicate <var key>s, the last entry with that
 /// key is used. Use <fn Dict.fromEntriesUnique> to reject duplicates.
-/// This function is the opposite of <fn Dict.toList>.
+/// This function is the opposite of <fn Dict.toEntries>.
 let fromEntries (entries: List<('k * 'v)>) : Dict<'k, 'v> =
   Builtin.dictFromEntries entries
+
+
+/// Returns a <type dict> with <param entries>, keeping the last entry for a
+/// repeated key. Alias of <fn Dict.fromEntries>.
+let fromList (entries: List<('k * 'v)>) : Dict<'k, 'v> =
+  Stdlib.Dict.fromEntries entries
 
 
 /// Builds a dictionary from <param entries> and returns it in {{Ok}}.
@@ -156,14 +167,14 @@ let ``member`` (dict: Dict<'k, 'v>) (key: 'k) : Bool =
 /// Consider <fn Dict.filterMap> if you also want to drop some of the entries.
 let map (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> 'b) : Dict<'k, 'b> =
   dict
-  |> Stdlib.Dict.toList
+  |> Stdlib.Dict.toEntries
   |> List.map (fun (k, v) -> (k, fn k v))
   |> Stdlib.Dict.fromEntries
 
 
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}.
 let iter (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> Unit) : Unit =
-  dict |> Stdlib.Dict.toList |> List.iter (fun (k, v) -> fn k v)
+  dict |> Stdlib.Dict.toEntries |> List.iter (fun (k, v) -> fn k v)
 
 
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns a <type
@@ -171,7 +182,7 @@ let iter (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> Unit) : Unit =
 /// returned {{true}}.
 let filter (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> Bool) : Dict<'k, 'v> =
   dict
-  |> Stdlib.Dict.toList
+  |> Stdlib.Dict.toEntries
   |> List.filter (fun (k, v) -> fn k v)
   |> Stdlib.Dict.fromEntries
 
@@ -185,7 +196,7 @@ let filterMap
   (fn: 'k -> 'v -> Option.Option<'b>)
   : Dict<'k, 'b> =
   dict
-  |> Stdlib.Dict.toList
+  |> Stdlib.Dict.toEntries
   |> List.filterMap (fun (k, v) ->
     match fn k v with
     | None -> Option.Option.None

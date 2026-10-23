@@ -154,7 +154,7 @@ let execute (state: AppState) (args: List<String>): AppState =
         group
         (Stdlib.List.append existing [ fn ]))
 
-  let allGroups = Stdlib.Dict.toList grouped
+  let allGroups = Stdlib.Dict.toEntries grouped
 
   let sortedGroups = sortGroups allGroups
 

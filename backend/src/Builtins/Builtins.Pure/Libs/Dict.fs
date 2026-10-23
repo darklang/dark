@@ -83,7 +83,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dictToList" 0
+    { name = fn "dictToEntries" 0
       typeParams = []
       parameters = [ Param.moved "dict" (TDict(varK, varA)) "" ]
       returnType = TList(TTuple(varK, varA, []))
@@ -112,7 +112,7 @@ let fns () : List<BuiltInFn> =
         + "entries> must be a {{(key, value)}} tuple.\n\nIf <param entries> "
         + "contains duplicate <var key>s, the last entry with that key is used "
         + "(use <fn Dict.fromEntriesUnique> to refuse duplicates).\n\nThis "
-        + "function is the opposite of <fn Dict.toList>."
+        + "function is the opposite of <fn Dict.toEntries>."
       fn =
         (function
         | _, _, _, [| DList(_, []) |] ->

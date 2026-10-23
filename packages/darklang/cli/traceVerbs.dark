@@ -1014,7 +1014,7 @@ let valuesOfFrame
   // prevent, and a blank line is the honest answer.
   let outside =
     base'
-    |> Stdlib.Dict.toList
+    |> Stdlib.Dict.toEntries
     |> Stdlib.List.filter (fun pair ->
       Stdlib.Bool.not (Stdlib.List.contains ownedByLoop (Stdlib.Tuple2.first pair)))
 

@@ -770,7 +770,7 @@ module Dval =
       else
         let parts =
           d
-          |> Stdlib.Dict.toList
+          |> Stdlib.Dict.toEntries
           |> Stdlib.List.map (fun pair ->
             let (key, value) = pair
 
@@ -832,7 +832,7 @@ module Dval =
 
       let parts =
         o
-        |> Stdlib.Dict.toList
+        |> Stdlib.Dict.toEntries
         |> Dval.inDeclaredOrder (Dval.declaredFieldOrder typeName)
         |> Stdlib.List.map (fun pair ->
           let (key, value) = pair

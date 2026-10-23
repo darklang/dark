@@ -1301,7 +1301,7 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     match ctx.currentFunction with
     | Some((_fnName, argMap)) ->
       argMap
-      |> Stdlib.Dict.toList
+      |> Stdlib.Dict.toEntries
       |> Stdlib.List.findFirst (fun (name, idx) -> idx == index)
       |> Stdlib.Option.map (fun (name, _) -> name)
       |> Stdlib.Option.withDefault $"earg{Stdlib.toString index}"

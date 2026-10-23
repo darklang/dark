@@ -261,7 +261,7 @@ let checkFunctionKnowing
   // A DB is read by its name, so it starts in scope; a parameter of the same name shadows it.
   let databases =
     env.dbs
-    |> Stdlib.Dict.toList
+    |> Stdlib.Dict.toEntries
     |> Stdlib.List.fold Dict {} (fun locals (name, t) ->
       Stdlib.Dict.set locals name (Model.Binder.Mono t))
 

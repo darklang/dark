@@ -178,7 +178,7 @@ let propagatedNames () : List<String> =
       | _ -> Stdlib.Option.Option.None)
     // Oldest first, so the later binder of a name overwrites the earlier: the LAST binder decides.
     |> Stdlib.Dict.fromEntries
-    |> Stdlib.Dict.toList
+    |> Stdlib.Dict.toEntries
     |> Stdlib.List.filterMap (fun (name, source) ->
       if source == "propagation" then Stdlib.Option.Option.Some name else Stdlib.Option.Option.None)
 

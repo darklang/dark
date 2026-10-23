@@ -118,7 +118,7 @@ let groupedByModule (names: List<String>) : List<(String * List<String>)> =
     match Stdlib.Dict.get groups m with
     | Some leaves -> Stdlib.Dict.set groups m (Stdlib.List.push leaves leaf)
     | None -> Stdlib.Dict.set groups m [ leaf ])
-  |> Stdlib.Dict.toList
+  |> Stdlib.Dict.toEntries
   |> Stdlib.List.map (fun (m, leaves) -> (m, Stdlib.List.reverse leaves))
 
 

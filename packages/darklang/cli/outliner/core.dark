@@ -278,7 +278,7 @@ let matching (outline: Outline) (needle: String) : List<Int> =
     []
   else
     outline.nodes
-    |> Stdlib.Dict.toList
+    |> Stdlib.Dict.toEntries
     |> Stdlib.List.filter (fun pair ->
       let (_key, nc) = pair
       Stdlib.String.contains (Stdlib.String.toLowercase nc.text) lowered)
