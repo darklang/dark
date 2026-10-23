@@ -413,7 +413,21 @@ module Values =
   module Package =
     let mySpecialNumber =
       t "Test.mySpecialNumber" E.Values.Package.MySpecialNumber.usage (RT.DInt64 17L)
-    let tests = testList "Package" [ mySpecialNumber ]
+
+    /// A store value whose body is a call. The harness used to read it as `()`.
+    let storeValueThatIsACall =
+      testTask "a store value that is a call reads as its value" {
+        let! expected =
+          evalDarkExpr
+            "Stdlib.String.displayWidth(Darklang.Cli.CompletionPicker.minimumHelpText)"
+        let! actual = evalDarkExpr "Darklang.Cli.CompletionPicker.minimumWidth"
+        match expected, actual with
+        | Ok(RT.DInt _ as e), Ok a ->
+          Expect.equal a e "minimumWidth is the display width of minimumHelpText"
+        | _ -> return failtest $"unexpected results: {expected} and {actual}"
+      }
+
+    let tests = testList "Package" [ mySpecialNumber; storeValueThatIsACall ]
   let tests = testList "Values" [ Package.tests ]
 
 
