@@ -447,57 +447,16 @@ let checkBareMinMagnitude (state : ParserState) (i : int) : unit =
       []
       (Some $"write it negated: -{txt state i}")
 
-// whole/fraction decimal strings of a float literal at token `i`. The
-// double's shortest round-trip form is used when it's a plain decimal (the
-// usual case); when it needs an exponent (`1e300`, `0.00000001`) or isn't
-// finite-decimal at all, the SOURCE text is decimal-shifted instead — the
-// PT float representation is exponent-free strings, and an exponent leaking
-// into the whole part crashes `makeFloat` downstream.
+// Expressions and patterns validate the source's decimal precision before
+// constructing written digits. Formatting never determines literal acceptance
+// or the decimal representation used during lowering.
 let floatParts (state : ParserState) (i : int) (v : float) : string * string =
-  let r = (abs v).ToString("R", System.Globalization.CultureInfo.InvariantCulture)
-  let plainDecimal = r |> Seq.forall (fun c -> System.Char.IsDigit c || c = '.')
-  if plainDecimal then
-    match r.Split('.') with
-    | [| w; f |] -> (w, f)
-    | _ -> (r, "0")
-  else
-    // decimal-shift the literal text `mant[.frac][eE][+-]exp` (exact, no
-    // floating-point re-derivation)
-    let t = (txt state i).TrimStart('-')
-    let (mant, exp) =
-      match t.Split([| 'e'; 'E' |]) with
-      | [| m; e |] ->
-        let exponent =
-          match System.Int32.TryParse e with
-          | true, x when x >= -400 && x <= 400 -> x
-          | true, x ->
-            err
-              state
-              DiagnosticCode.intRange
-              i
-              $"Float exponent {x} is outside the supported range -400..400"
-            max -400 (min 400 x)
-          | _ ->
-            err
-              state
-              DiagnosticCode.intRange
-              i
-              "Float exponent is too large to represent"
-            0
-        (m, exponent)
-      | _ -> (t, 0)
-    let (w, f) =
-      match mant.Split('.') with
-      | [| w; f |] -> (w, f)
-      | _ -> (mant, "")
-    let digits = w + f
-    let pointPos = w.Length + exp
-    if pointPos <= 0 then
-      ("0", String.replicate (-pointPos) "0" + digits)
-    elif pointPos >= digits.Length then
-      (digits + String.replicate (pointPos - digits.Length) "0", "0")
-    else
-      (digits.Substring(0, pointPos), digits.Substring(pointPos))
+  match FloatLiteral.parse (txt state i) v with
+  | Ok parts -> parts
+  | Error error ->
+    let code, message = FloatLiteral.diagnostic error
+    err state code i message
+    "0", "0"
 
 // Reject invalid escapes / codepoints in string, char, and interpolated-string
 // literals (triple-quoted forms are raw, so skipped). A diagnostic here becomes a

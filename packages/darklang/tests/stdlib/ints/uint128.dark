@@ -88,7 +88,7 @@ test toFloat =
   Stdlib.Test.all
     [ Stdlib.UInt128.toFloat 2Z |> Stdlib.Test.equal 2.0
       Stdlib.UInt128.toFloat 340282366920938463463374607431768211455Z
-      |> Stdlib.Test.equal 340282366920938463463374607431768211455.0 ]
+      |> Stdlib.Test.equal 3.402823669209385e38 ]
 
 test sqrt =
   Stdlib.Test.all

@@ -60,8 +60,20 @@ out-of-range diagnostic, never a silent wrap.
 ### Float literals
 
 `digits[.digits][eE[±]exp]`. Lowered to exponent-free whole/fraction decimal
-strings (`1e300` → `1` + 300 zeros). Exponents outside `-400..400` are rejected
-because ProgramTypes stores expanded decimal strings rather than an exponent.
+strings (`1e300` → `1` + 300 zeros). A literal must preserve its specified decimal
+precision: converting the exact written value to binary64, then rounding the
+exact binary64 value back to the source's last decimal place, must recover the
+written value. Both conversions use nearest, ties-to-even rounding. Trailing
+zeros specify precision; the exponent shifts that precision position.
+
+`0.1` is accepted, while `10000000000000001.0` and `0.10000000000000000` lose
+specified precision and are errors. Overflow to infinity and nonzero underflow
+to zero are errors. Negative zero is preserved, and subnormals such as `5e-324`
+are accepted when they satisfy the precision rule. There is no arbitrary source
+exponent limit: large exponents can cancel large mantissas or fractional zeros.
+Normalization removes leading zeros from the whole part and does not depend on
+host float formatting. The same rules apply to float patterns. Runtime string
+parsing remains a separate operation.
 
 ### String literals
 
@@ -404,6 +416,10 @@ Codes are stable identifiers (key on these, never on message text):
 | `PARSE-UNCLOSED` | missing closing delimiter — the opener is in `related` |
 | `PARSE-ESCAPE` | invalid escape/codepoint in a literal |
 | `PARSE-INT-RANGE` | integer literal out of range (hint: the negated form) |
+| `PARSE-FLOAT-PRECISION` | binary64 conversion loses specified decimal precision |
+| `PARSE-FLOAT-OVERFLOW` | float literal rounds to infinity |
+| `PARSE-FLOAT-UNDERFLOW` | nonzero float literal rounds to zero |
+| `PARSE-FLOAT-INVALID` | malformed decimal float during recovery |
 | `PARSE-TOO-DEEP` | nesting beyond the recursion cap |
 | `PARSE-UNEXPECTED` | stray token inside a construct |
 | `PARSE-PIPE-SEGMENT` | pipe RHS isn't a valid segment |

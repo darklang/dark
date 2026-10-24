@@ -135,7 +135,7 @@ test toFloat =
   Stdlib.Test.all
     [ Stdlib.Int128.toFloat 2Q |> Stdlib.Test.equal 2.0
       Stdlib.Int128.toFloat 170141183460469231731687303715884105727Q
-      |> Stdlib.Test.equal 170141183460469231731687303715884105727.0
+      |> Stdlib.Test.equal 1.7014118346046923e38
       Stdlib.Int128.toFloat -170141183460469231731687303715884105728Q
       |> Stdlib.Test.equal -170141183460469231731687303715884105728.0
       Stdlib.Int128.toFloat -10Q |> Stdlib.Test.equal -10.0 ]

@@ -15,6 +15,7 @@
     <Compile Include="WrittenTypes.fs" />
     <Compile Include="Validation.fs" />
     <Compile Include="Lexer.fs" />
+    <Compile Include="FloatLiteral.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="NameResolver.fs" />
     <Compile Include="WrittenTypesToProgramTypes.fs" />

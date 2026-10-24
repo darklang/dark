@@ -211,7 +211,7 @@ test fromFloat =
     [ // fromFloat truncates toward zero, like Int.fromFloat; fromFloatRounded rounds
       Stdlib.Int64.fromFloat 3.9 |> Stdlib.Test.equal (Some 3L)
       Stdlib.Int64.fromFloat -3.9 |> Stdlib.Test.equal (Some -3L)
-      Stdlib.Int64.fromFloat 1000000000000000000000000000000.0
+      Stdlib.Int64.fromFloat 1e30
       |> Stdlib.Test.equal None
       Stdlib.Int64.fromFloat (0.0 / 0.0) |> Stdlib.Test.equal None
       Stdlib.Int64.fromFloat (1.0 / 0.0) |> Stdlib.Test.equal None
@@ -224,7 +224,7 @@ test fromFloatRounded =
   Stdlib.Test.all
     [ Stdlib.Int64.fromFloatRounded 3.9 |> Stdlib.Test.equal (Some 4L)
       Stdlib.Int64.fromFloatRounded -3.9 |> Stdlib.Test.equal (Some -4L)
-      Stdlib.Int64.fromFloatRounded 1000000000000000000000000000000.0
+      Stdlib.Int64.fromFloatRounded 1e30
       |> Stdlib.Test.equal None
       Stdlib.Int64.fromFloatRounded (0.0 / 0.0) |> Stdlib.Test.equal None
       Stdlib.Int64.fromFloatRounded (1.0 / 0.0) |> Stdlib.Test.equal None
