@@ -1,4 +1,4 @@
-// Stream — consumption (next/toList/toBlob/close) and transforms
+// Stream — consumption (next/toList/toBytes/close) and transforms
 // (map/filter/take/concat).
 module Darklang.Stdlib.Stream.Tests
 
@@ -25,11 +25,11 @@ test nextPullsHeadLeavesRest =
   let third = Stdlib.Stream.next s
   [ first, second, third ] |> Stdlib.Test.equal [ Some 7L, Some 8L, None ]
 
-// toBlob drains a Stream<UInt8> into a Blob
-test toBlobDrainsBytes =
+// toBytes drains a Stream<UInt8> into a Bytes
+test toBytesDrainsBytes =
   let s = Stdlib.Stream.fromList [ 104uy, 105uy ]
-  let b = Stdlib.Stream.toBlob s
-  Stdlib.Blob.toString b |> Stdlib.Test.equal (Ok "hi")
+  let b = Stdlib.Stream.toBytes s
+  Stdlib.Bytes.toString b |> Stdlib.Test.equal (Ok "hi")
 
 // close is idempotent; subsequent next returns None
 test closeIsIdempotent =
@@ -166,10 +166,10 @@ test transformsOverEmptySource =
   let taken = Stdlib.Stream.take filtered 5
   Stdlib.Stream.toList taken |> Stdlib.Test.equal []
 
-// Stream<Blob> round-trips via fromList/toList
+// Stream<Bytes> round-trips via fromList/toList
 test blobsRoundTripThroughStream =
-  let b1 = Stdlib.Blob.fromString "hi"
-  let b2 = Stdlib.Blob.fromString "there"
+  let b1 = Stdlib.Bytes.fromString "hi"
+  let b2 = Stdlib.Bytes.fromString "there"
   let s = Stdlib.Stream.fromList [ b1, b2 ]
   let result = Stdlib.Stream.toList s
   Stdlib.List.length result |> Stdlib.Test.equal 2

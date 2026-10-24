@@ -1,7 +1,7 @@
 /// Tests for the Stream Dval.
 ///
 /// Covers pull-only FromIO streams, transform nodes
-/// (Mapped/Filtered/Take/Concat), drain helpers (toList/toBlob),
+/// (Mapped/Filtered/Take/Concat), drain helpers (toList/toBytes),
 /// disposal, and the chunked bulk-drain fast path.
 module Tests.Stream
 
@@ -14,7 +14,7 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 module Stream = LibExecution.Stream
 module VT = LibExecution.ValueType
 module BS = LibSerialization.Binary.Serialization
@@ -174,13 +174,13 @@ let tstreamPtBinaryRoundtrip =
 
 let tstreamRtBinaryRoundtrip =
   test "RT.TStream roundtrips through the binary type-reference serializer" {
-    let original = RT.TStream RT.TBlob
+    let original = RT.TStream RT.TBytes
     let restored =
       binaryRoundtrip
         LibSerialization.Binary.Serializers.RT.TypeReference.write
         LibSerialization.Binary.Serializers.RT.TypeReference.read
         original
-    Expect.equal restored original "RT.TStream<Blob> roundtrips"
+    Expect.equal restored original "RT.TStream<Bytes> roundtrips"
   }
 
 let ktstreamBinaryRoundtrip =
@@ -208,9 +208,9 @@ let tstreamPtDarkBridge =
 
 let tstreamRtDarkBridge =
   test "RT.TStream roundtrips through the Dark-side bridge" {
-    let original = RT.TStream RT.TBlob
+    let original = RT.TStream RT.TBytes
     let restored = RT2DT.TypeReference.fromDT (RT2DT.TypeReference.toDT original)
-    Expect.equal restored original "RT.TStream<Blob> survives rt<->dark"
+    Expect.equal restored original "RT.TStream<Bytes> survives rt<->dark"
   }
 
 let ktstreamRtDarkBridge =

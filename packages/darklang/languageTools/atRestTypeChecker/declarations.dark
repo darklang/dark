@@ -72,8 +72,8 @@ let dictKeyTypes (env: Model.Environment) (ty: Model.Ty) : List<Model.Ty> =
   | _ -> []
 
 /// Find the declaration's type parameters that must accept only valid dictionary
-/// key types. A parameter needs this restriction if replacing it with Blob makes
-/// an otherwise usable key invalid.
+/// key types. A parameter needs this restriction if replacing it with a function
+/// type makes an otherwise usable key invalid.
 let dictKeyParametersFor
   (env: Model.Environment)
   (decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
@@ -87,12 +87,15 @@ let dictKeyParametersFor
     |> Stdlib.List.flatten
   Stdlib.List.filter decl.typeParams (fun param ->
     Stdlib.List.any keys (fun key ->
-      // Blob cannot be a dictionary key, so use it to test whether this parameter
-      // affects the key's validity. Phantom parameters store no value and will not
-      // fail this test. Keys that are already invalid are reported separately.
+      // A function can never be a dictionary key, so substitute one to test whether
+      // this parameter affects the key's validity. Phantom parameters store no
+      // value and will not fail this test. Keys that are already invalid are
+      // reported separately.
       if Types.isUsableDictKey env [] key then
-        Stdlib.Bool.not (Types.isUsableDictKey env []
-          (Types.substituteRigid (Stdlib.Dict.set Dict {} param Model.Ty.TBlob) key))
+        let neverAKey = Model.Ty.TFn([ Model.Ty.TUnit ], Model.Ty.TUnit)
+        let probe = Stdlib.Dict.set Dict {} param neverAKey
+        Stdlib.Bool.not
+          (Types.isUsableDictKey env [] (Types.substituteRigid probe key))
       else false))
 
 /// Propagate dictionary-key requirements through referenced declarations until

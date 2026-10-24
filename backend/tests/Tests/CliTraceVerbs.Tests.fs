@@ -564,7 +564,7 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
 
 /// A captured blob belongs to its trace: kept in `trace_blobs`, never the shared
 /// `package_blobs`, readable by hash like any blob, and gone when the trace goes.
-let private aTracesBlobsGoWithIt =
+let private aTracesBytesGoWithIt =
   cliTestWithFreshTraces
     "a blob a trace captured is kept with the trace and deleted with it"
     (fun state ->
@@ -573,7 +573,7 @@ let private aTracesBlobsGoWithIt =
           Sql.query "SELECT COUNT(*) AS n FROM package_blobs"
           |> Sql.executeRowAsync (fun read -> read.int64 "n")
         let! _ =
-          runCli state [ "eval"; "Stdlib.String.toBlob \"held by the trace\"" ]
+          runCli state [ "eval"; "Stdlib.String.toBytes \"held by the trace\"" ]
         let! e = latest ()
         let! kept =
           Sql.query "SELECT hash, bytes FROM trace_blobs WHERE trace_id = @t"
@@ -588,7 +588,7 @@ let private aTracesBlobsGoWithIt =
             (System.Text.Encoding.UTF8.GetString bytes)
             "held by the trace"
             "the answer's bytes are kept with the trace"
-          let! read = LibDB.RuntimeTypes.Blob.get hash |> Ply.toTask
+          let! read = LibDB.RuntimeTypes.Bytes.get hash |> Ply.toTask
           Expect.equal read (Some bytes) "and a read by hash finds them there"
         | other ->
           failtest $"expected one blob kept with the trace, got {List.length other}"
@@ -1440,7 +1440,7 @@ let tests =
     byteCapActsBelowFiftyTraces
     theFloorIsBounded
     hashReadsAreKeptOnceAndOutliveTheStore
-    aTracesBlobsGoWithIt
+    aTracesBytesGoWithIt
     deletingEveryTraceEmptiesEveryTraceTable
     replayEchoesAndRefuses
     secretsAreNotInTheLog

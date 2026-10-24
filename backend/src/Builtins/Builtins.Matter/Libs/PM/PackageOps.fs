@@ -433,9 +433,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // Decode one op_blob into a PackageOp, or None when this build cannot read it. Option rather
     // than raise, and deliberately with no raising variant: a synced store holds ops from other
     // builds in its own log on purpose, so every local reader meets them.
-    { name = fn "packageOpFromBlobOption" 0
+    { name = fn "packageOpFromBytesOption" 0
       typeParams = []
-      parameters = [ Param.make "id" TUuid ""; Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "id" TUuid ""; Param.make "blob" TBytes "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok (packageOpTypeName ()), []))
       description =
@@ -444,9 +444,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "fatal."
       fn =
         function
-        | exeState, _, _, [| DUuid id; DBlob blobRef |] ->
+        | exeState, _, _, [| DUuid id; DBytes bytesRef |] ->
           uply {
-            let! bytes = LibExecution.Blob.readBytes exeState blobRef
+            let! bytes = LibExecution.Bytes.readBytes exeState bytesRef
 
             let decoded =
               try

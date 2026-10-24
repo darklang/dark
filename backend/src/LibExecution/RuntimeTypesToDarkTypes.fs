@@ -325,7 +325,7 @@ module TypeReference =
       | TString -> "TString", []
       | TDateTime -> "TDateTime", []
       | TUuid -> "TUuid", []
-      | TBlob -> "TBlob", []
+      | TBytes -> "TBytes", []
       | TStream inner -> "TStream", [ toDT inner ]
 
       | TList inner -> "TList", [ toDT inner ]
@@ -372,7 +372,7 @@ module TypeReference =
     | DEnum(_, _, [], "TString", []) -> TString
     | DEnum(_, _, [], "TDateTime", []) -> TDateTime
     | DEnum(_, _, [], "TUuid", []) -> TUuid
-    | DEnum(_, _, [], "TBlob", []) -> TBlob
+    | DEnum(_, _, [], "TBytes", []) -> TBytes
     | DEnum(_, _, [], "TStream", [ inner ]) -> TStream(fromDT inner)
 
     | DEnum(_, _, [], "TTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
@@ -563,7 +563,7 @@ module KnownType =
       | KTString -> "KTString", []
       | KTUuid -> "KTUuid", []
       | KTDateTime -> "KTDateTime", []
-      | KTBlob -> "KTBlob", []
+      | KTBytes -> "KTBytes", []
       | KTStream inner -> "KTStream", [ ValueType.toDT inner ]
 
       | KTTuple(first, second, theRest) ->
@@ -610,7 +610,7 @@ module KnownType =
     | DEnum(_, _, [], "KTString", []) -> KTString
     | DEnum(_, _, [], "KTUuid", []) -> KTUuid
     | DEnum(_, _, [], "KTDateTime", []) -> KTDateTime
-    | DEnum(_, _, [], "KTBlob", []) -> KTBlob
+    | DEnum(_, _, [], "KTBytes", []) -> KTBytes
     | DEnum(_, _, [], "KTStream", [ inner ]) -> KTStream(ValueType.fromDT inner)
 
     | DEnum(_, _, [], "KTTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
@@ -845,13 +845,9 @@ module Dval =
 
     | DApplicable applicable -> mk "DApplicable" [ Applicable.toDT applicable ]
 
-    // Inspectable but not round-trippable. The DT form carries only the
-    // runtime id; the inline bytes stay on the original DBlob value.
-    // `fromDT` raises on this case rather than rebuilding a blob that
-    // cannot be read.
-    | DBlob(Ephemeral eph) -> mk "DBlobEphemeral" [ DUuid eph.id ]
-    | DBlob(Persistent(hash, length)) ->
-      mk "DBlobPersistent" [ DString hash; RuntimeTypes.Dval.int (bigint length) ]
+    // Carry the opaque value itself. Reflection neither reveals storage nor
+    // requires fetching or saving bytes, and fromDT preserves the live value.
+    | DBytes _ as bytes -> mk "DBytes" [ bytes ]
 
     // Streams render as a stub tag for LSP/reflection only — they
     // can't round-trip (no live pull fn on the other side).
@@ -937,17 +933,7 @@ module Dval =
     | DEnum(_, _, [], "DApplicable", [ applicable ]) ->
       DApplicable(Applicable.fromDT applicable)
 
-    | DEnum(_, _, [], "DBlobEphemeral", [ DUuid _ ]) ->
-      // Reflected ephemeral blobs are inspectable but not round-trippable.
-      // The DT form carries only the runtime id; the inline bytes remain on
-      // the original DBlob value. Rebuilding from this would create a blob
-      // that cannot be read, so callers must promote to Persistent before
-      // any DT round-trip.
-      Exception.raiseInternal
-        "Cannot rebuild an ephemeral blob from its reflected form; it contains only the blob id, not the bytes. Values that need to round-trip through DT must be promoted to Persistent first."
-        []
-    | DEnum(_, _, [], "DBlobPersistent", [ DString hash; length ]) ->
-      DBlob(Persistent(hash, D.int64FromInt length))
+    | DEnum(_, _, [], "DBytes", [ DBytes _ as bytes ]) -> bytes
 
     | DEnum(_, _, [], "DStreamStub", [ _elemType ]) ->
       Exception.raiseInternal
@@ -1215,6 +1201,7 @@ module RuntimeError =
             ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
+        | RuntimeError.Lists.CannotSort value -> "CannotSort", [ Dval.toDT value ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1231,6 +1218,8 @@ module RuntimeError =
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
         )
+      | DEnum(_, _, [], "CannotSort", [ value ]) ->
+        RuntimeError.Lists.CannotSort(Dval.fromDT value)
       | _ -> Exception.raiseInternal "Invalid Lists.Error" []
 
   module Dicts =

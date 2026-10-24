@@ -585,11 +585,11 @@ let evaluateAllValues
                   message = $"evaluation failed - {errorMsg}" }
               )
             | Ok dval ->
-              // Promote any ephemeral blobs inside the value to
-              // persistent so we can serialize. Streams remain
+              // Save any unsaved Bytes inside the value so it can be
+              // serialized. Streams remain
               // non-persistable and trip the [isPersistable] guard
               // below with a clear error.
-              let! dval = LibExecution.Blob.promote pm.persistBlob dval
+              let! dval = LibExecution.Bytes.promote pm.persistBytes dval
               let dval = stripCapturedAccess dval
 
               if not (LibExecution.Dval.isPersistable dval) then

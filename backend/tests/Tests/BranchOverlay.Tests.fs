@@ -2141,13 +2141,13 @@ let foldDoesNotStrandOpsItMadeEffective =
         "2026-01-01T00:00:00.000Z"
       )
     let eventId = LibDB.Inserts.computeOpHash event
-    let eventBlob = BS.PT.PackageOp.serialize eventId event
+    let eventBytes = BS.PT.PackageOp.serialize eventId event
     do!
       execSqlP
         "INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts)
          VALUES (@id, @blob, 0, 1, @ts)"
         [ "id", Sql.uuid eventId
-          "blob", Sql.bytes eventBlob
+          "blob", Sql.bytes eventBytes
           "ts", Sql.string "2026-01-01T00:00:00.000Z" ]
 
     let! _ = Seed.applyUnappliedOps ()
@@ -2421,13 +2421,13 @@ let unknownBranchEventStampsNothing =
         "2026-01-01T00:00:00.000Z"
       )
     let eventId = LibDB.Inserts.computeOpHash event
-    let eventBlob = BS.PT.PackageOp.serialize eventId event
+    let eventBytes = BS.PT.PackageOp.serialize eventId event
     do!
       execSqlP
         "INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts, commit_hash)
          VALUES (@id, @blob, 0, 1, @ts, 'stamp-guard-commit')"
         [ "id", Sql.uuid eventId
-          "blob", Sql.bytes eventBlob
+          "blob", Sql.bytes eventBytes
           "ts", Sql.string "2026-01-01T00:00:00.000Z" ]
 
     let! _ = Seed.applyUnappliedOps ()

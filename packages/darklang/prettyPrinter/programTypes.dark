@@ -470,7 +470,7 @@ let typeReferenceFlatAtPrecedence
   | TString -> "String"
   | TDateTime -> "DateTime"
   | TUuid -> "Uuid"
-  | TBlob -> "Blob"
+  | TBytes -> "Bytes"
 
   | TStream inner -> $"Stream<{typeReferenceFlatAtPrecedence ctx false inner}>"
 

@@ -427,7 +427,7 @@ test nonStringKeysFromEntriesUniqueInfersValueType =
 
 test nonStringKeysFromEntriesUniqueRejectsLambdaKey =
   Stdlib.Dict.fromEntriesUnique [ (1L, "a"), ((fun x -> x), "b") ]
-  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysIdentityMatchesEquality =
   Stdlib.Test.all
@@ -486,15 +486,15 @@ test nonStringKeysDeepComposites =
 
 test nonStringKeysRejectsLambdaInList =
   Dict { [ (fun x -> x) ]: 1L }
-  => raises "Cannot use [(lambda)] as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use [(lambda)] as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysRejectsLambdaInTuple =
   Dict { (1L, (fun x -> x)): 1L }
-  => raises "Cannot use (1, (lambda)) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (1, (lambda)) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysRejectsLambdaInEnum =
   Dict { (Stdlib.Option.Option.Some (fun x -> x)): 1L }
-  => raises "Cannot use Some((lambda)) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use Some((lambda)) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysLiteralRejectsMixedKeyTypes =
   Dict { 1L: "a", "b": "c" }
@@ -502,27 +502,27 @@ test nonStringKeysLiteralRejectsMixedKeyTypes =
 
 test nonStringKeysLiteralRejectsLambdaKey =
   Dict { (fun x -> x): 1L }
-  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysGetRejectsLambdaKey =
   Stdlib.Dict.get (Dict { 1L: "a" }) (fun x -> x)
-  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysSetRejectsLambdaKeyOnEmptyDict =
   Stdlib.Dict.set (Dict { }) (fun x -> x) 1L
-  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysSetRejectsLambdaKey =
   Stdlib.Dict.set (Dict { 1L: "a" }) (fun x -> x) "b"
-  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysMemberRejectsLambdaKey =
   Stdlib.Dict.``member`` (Dict { 1L: "a" }) (fun x -> x)
-  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysRemoveRejectsLambdaKey =
   Stdlib.Dict.remove (Dict { 1L: "a" }) (fun x -> x)
-  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 // Supply the dict so the callback executes and its invalid Bool result is rejected.
 test filterMapRejectsNonOptionResult =

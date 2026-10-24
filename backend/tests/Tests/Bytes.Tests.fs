@@ -1,9 +1,9 @@
-/// Tests for the Blob Dval.
+/// Tests for the Bytes Dval.
 ///
 /// Covers inline ephemeral-blob bytes, serialization roundtrips,
 /// promotion, memory-bound assertions, the val-persistability guard,
 /// the orphan sweeper, and the blob-equality semantics.
-module Tests.Blob
+module Tests.Bytes
 
 open Expecto
 
@@ -15,14 +15,14 @@ open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 module Stream = LibExecution.Stream
 module Exe = LibExecution.Execution
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-module PMBlob = LibDB.RuntimeTypes.Blob
+module PMBytes = LibDB.RuntimeTypes.Bytes
 module Tracing = LibDB.Tracing
 module Equals = LibExecution.Dval
 
@@ -45,17 +45,17 @@ let private freshState () : RT.ExecutionState =
     (fun _ _ _ _ -> uply { return () })
     (fun _ _ _ _ -> uply { return () })
 
-let private dblobRef (dv : RT.Dval) : RT.BlobRef =
+let private dbytesRef (dv : RT.Dval) : RT.BytesRef =
   match dv with
-  | RT.DBlob r -> r
-  | _ -> failtest $"expected DBlob, got {dv}"
+  | RT.DBytes r -> r
+  | _ -> failtest $"expected DBytes, got {dv}"
 
 let private ephemeralId (dv : RT.Dval) : System.Guid =
   match dv with
-  | RT.DBlob(RT.Ephemeral eph) -> eph.id
-  | _ -> failtest $"expected DBlob(Ephemeral _), got {dv}"
+  | RT.DBytes(RT.Ephemeral eph) -> eph.id
+  | _ -> failtest $"expected DBytes(Ephemeral _), got {dv}"
 
-let private mkEphemeral (bytes : byte[]) : RT.Dval = Blob.newEphemeral bytes
+let private mkEphemeral (bytes : byte[]) : RT.Dval = Bytes.newEphemeral bytes
 
 let private noopInsert : string -> byte[] -> Ply<unit> =
   fun _ _ -> uply { return () }
@@ -96,11 +96,11 @@ let ephemeralRoundtrip =
   testTask "ephemeral blob roundtrips its inline bytes" {
     let state = freshState ()
     let payload = [| 1uy; 2uy; 3uy; 4uy; 5uy |]
-    let dv = Blob.newEphemeral payload
+    let dv = Bytes.newEphemeral payload
     match dv with
-    | RT.DBlob(RT.Ephemeral _) -> ()
-    | _ -> failtest $"expected DBlob(Ephemeral _), got {dv}"
-    let! bytes = Blob.readBytes state (dblobRef dv) |> Ply.toTask
+    | RT.DBytes(RT.Ephemeral _) -> ()
+    | _ -> failtest $"expected DBytes(Ephemeral _), got {dv}"
+    let! bytes = Bytes.readBytes state (dbytesRef dv) |> Ply.toTask
     Expect.equal bytes payload "roundtripped bytes match original"
   }
 
@@ -108,24 +108,24 @@ let twoEphemeralsAreDistinct =
   testTask "two ephemeral blobs with same bytes have distinct handles" {
     let state = freshState ()
     let payload = [| 7uy; 7uy; 7uy |]
-    let dv1 = Blob.newEphemeral payload
-    let dv2 = Blob.newEphemeral payload
+    let dv1 = Bytes.newEphemeral payload
+    let dv2 = Bytes.newEphemeral payload
     Expect.notEqual (ephemeralId dv1) (ephemeralId dv2) "each mint gets a fresh uuid"
-    let! b1 = Blob.readBytes state (dblobRef dv1) |> Ply.toTask
-    let! b2 = Blob.readBytes state (dblobRef dv2) |> Ply.toTask
+    let! b1 = Bytes.readBytes state (dbytesRef dv1) |> Ply.toTask
+    let! b2 = Bytes.readBytes state (dbytesRef dv2) |> Ply.toTask
     Expect.equal b1 payload "first blob reads its bytes"
     Expect.equal b2 payload "second blob reads its bytes"
   }
 
 
 // ─────────────────────────────────────────────────────────────────────
-// Binary serialization — DBlob, TBlob, KTBlob
+// Binary serialization — DBytes, TBytes, KTBytes
 // ─────────────────────────────────────────────────────────────────────
 
-let persistentBlobBinaryRoundtrip =
-  test "DBlob(Persistent _) roundtrips through the binary serializer" {
+let persistentBytesBinaryRoundtrip =
+  test "DBytes(Persistent _) roundtrips through the binary serializer" {
     let original =
-      RT.DBlob(
+      RT.DBytes(
         RT.Persistent(
           "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           1024L
@@ -136,39 +136,39 @@ let persistentBlobBinaryRoundtrip =
     Expect.equal restored original "Persistent ref survives binary roundtrip"
   }
 
-let ephemeralBlobBinaryRaises =
-  test "DBlob(Ephemeral _) serialization raises; promote to persistent first" {
+let ephemeralBytesBinaryRaises =
+  test "DBytes(Ephemeral _) serialization raises; promote to persistent first" {
     let dv = mkEphemeral [| 1uy; 2uy; 3uy |]
     Expect.throws
       (fun () -> BS.RT.Dval.serialize "dval" dv |> ignore<byte[]>)
-      "ephemeral blob must raise on serialize — promote via `Blob.promote` first"
+      "ephemeral blob must raise on serialize — promote via `Bytes.promote` first"
   }
 
-let tblobBinaryRoundtrip =
-  test "TBlob roundtrips through PT and RT binary type-reference serializers" {
+let tbytesBinaryRoundtrip =
+  test "TBytes roundtrips through PT and RT binary type-reference serializers" {
     let pt =
       binaryRoundtrip
         LibSerialization.Binary.Serializers.PT.TypeReference.write
         LibSerialization.Binary.Serializers.PT.TypeReference.read
-        PT.TBlob
-    Expect.equal pt PT.TBlob "PT.TBlob roundtrips"
+        PT.TBytes
+    Expect.equal pt PT.TBytes "PT.TBytes roundtrips"
     let rt =
       binaryRoundtrip
         LibSerialization.Binary.Serializers.RT.TypeReference.write
         LibSerialization.Binary.Serializers.RT.TypeReference.read
-        RT.TBlob
-    Expect.equal rt RT.TBlob "RT.TBlob roundtrips"
+        RT.TBytes
+    Expect.equal rt RT.TBytes "RT.TBytes roundtrips"
   }
 
-let ktblobBinaryRoundtrip =
-  test "KTBlob roundtrips through the RT ValueType binary serializer" {
-    let original = RT.ValueType.Known RT.KTBlob
+let ktbytesBinaryRoundtrip =
+  test "KTBytes roundtrips through the RT ValueType binary serializer" {
+    let original = RT.ValueType.Known RT.KTBytes
     let restored =
       binaryRoundtrip
         LibSerialization.Binary.Serializers.RT.ValueType.write
         LibSerialization.Binary.Serializers.RT.ValueType.read
         original
-    Expect.equal restored original "KTBlob ValueType roundtrips"
+    Expect.equal restored original "KTBytes ValueType roundtrips"
   }
 
 
@@ -176,111 +176,186 @@ let ktblobBinaryRoundtrip =
 // Dark-side bridges (PT/RT/VT ↔ DT)
 // ─────────────────────────────────────────────────────────────────────
 
-let tblobPtDarkBridge =
-  test "PT.TBlob roundtrips through the Dark-side bridge" {
-    let restored = PT2DT.TypeReference.fromDT (PT2DT.TypeReference.toDT PT.TBlob)
-    Expect.equal restored PT.TBlob "PT.TBlob survives pt<->dark roundtrip"
+let tbytesPtDarkBridge =
+  test "PT.TBytes roundtrips through the Dark-side bridge" {
+    let restored = PT2DT.TypeReference.fromDT (PT2DT.TypeReference.toDT PT.TBytes)
+    Expect.equal restored PT.TBytes "PT.TBytes survives pt<->dark roundtrip"
   }
 
-let tblobRtDarkBridge =
-  test "RT.TBlob roundtrips through the Dark-side bridge" {
-    let restored = RT2DT.TypeReference.fromDT (RT2DT.TypeReference.toDT RT.TBlob)
-    Expect.equal restored RT.TBlob "RT.TBlob survives rt<->dark roundtrip"
+let tbytesRtDarkBridge =
+  test "RT.TBytes roundtrips through the Dark-side bridge" {
+    let restored = RT2DT.TypeReference.fromDT (RT2DT.TypeReference.toDT RT.TBytes)
+    Expect.equal restored RT.TBytes "RT.TBytes survives rt<->dark roundtrip"
   }
 
-let ktblobRtDarkBridge =
-  test "RT.KTBlob roundtrips through the Dark-side ValueType bridge" {
-    let original = RT.ValueType.Known RT.KTBlob
+let ktbytesRtDarkBridge =
+  test "RT.KTBytes roundtrips through the Dark-side ValueType bridge" {
+    let original = RT.ValueType.Known RT.KTBytes
     let restored = RT2DT.ValueType.fromDT (RT2DT.ValueType.toDT original)
-    Expect.equal restored original "KTBlob survives rt<->dark roundtrip"
+    Expect.equal restored original "KTBytes survives rt<->dark roundtrip"
   }
 
-let dblobPersistentDarkBridge =
-  test "DBlob(Persistent _) roundtrips through the rt<->dark dval bridge" {
+let dbytesPersistentDarkBridge =
+  test "DBytes(Persistent _) roundtrips through the rt<->dark dval bridge" {
     let original =
-      RT.DBlob(
+      RT.DBytes(
         RT.Persistent(
           "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           4096L
         )
       )
     let restored = RT2DT.Dval.fromDT (RT2DT.Dval.toDT original)
-    Expect.equal restored original "DBlob(Persistent) survives dval bridge"
+    Expect.equal restored original "DBytes(Persistent) survives dval bridge"
   }
 
-let dblobEphemeralDarkBridge =
-  // Ephemeral blobs render via `toDT` for LSP/reflection without a
-  // promotion side effect, but they don't round-trip: the inline bytes
-  // can't be rebuilt from the reflected id-only form, so `fromDT` raises
-  // (a one-way bridge, like DStreamStub). Promote to Persistent first if
-  // you need a value that survives the bridge.
-  test "DBlob(Ephemeral _) renders via toDT but fromDT raises (one-way)" {
+let dbytesEphemeralDarkBridge =
+  test "in-memory Bytes round-trip through reflection without saving or hashing" {
     let original = mkEphemeral [| 0xAAuy; 0xBBuy |]
     let dt = RT2DT.Dval.toDT original
     match dt with
-    | RT.DEnum(_, _, _, "DBlobEphemeral", _) -> ()
-    | _ -> failtest $"expected DBlobEphemeral DEnum, got {dt}"
-    Expect.throws
-      (fun () -> RT2DT.Dval.fromDT dt |> ignore<RT.Dval>)
-      "ephemeral blob must not round-trip through the dark-type bridge"
+    | RT.DEnum(_, _, _, "DBytes", [ RT.DBytes _ ]) -> ()
+    | _ -> failtest $"expected opaque DBytes reflection, got {dt}"
+    let restored = RT2DT.Dval.fromDT dt
+    Expect.isTrue (obj.ReferenceEquals(restored, original)) "same live value"
+    match dbytesRef original with
+    | RT.Ephemeral eph ->
+      Expect.isFalse eph.IsHashed "reflection does not force hashing"
+    | _ -> failtest "reflection must not promote bytes"
   }
 
+let reflectionIgnoresByteStorage =
+  testTask "equal Bytes have equal reflection before and after saving" {
+    let original = mkEphemeral [| 0xAAuy; 0xBBuy |]
+    let! saved = Bytes.promote noopInsert original |> Ply.toTask
+    let ephemeralDT = RT2DT.Dval.toDT original
+    let persistentDT = RT2DT.Dval.toDT saved
+    Expect.isTrue (Equals.equals ephemeralDT persistentDT) "reflected values agree"
+    Expect.equal ephemeralDT persistentDT "native reflected equality agrees"
+    Expect.equal (hash ephemeralDT) (hash persistentDT) "reflected hashes agree"
+    let! savedDT = Bytes.promote noopInsert ephemeralDT |> Ply.toTask
+    let restoredDT =
+      BS.RT.Dval.deserialize "dval" (BS.RT.Dval.serialize "dval" savedDT)
+    Expect.isTrue
+      (Equals.equals (RT2DT.Dval.fromDT restoredDT) original)
+      "saved reflected bytes round-trip with their contents intact"
+  }
+
+let byteLengthDoesNotReadStorage =
+  testTask "Bytes.length reads metadata without fetching or hashing the payload" {
+    let builtin =
+      (Builtins.Pure.Libs.Bytes.fns ())
+      |> List.find (fun fn -> fn.name.name = "bytesLength")
+      |> Option.defaultWith (fun () -> failtest "bytesLength builtin is missing")
+    let state = freshState ()
+    let state =
+      { state with
+          blobs =
+            { get = (fun _ -> failtest "length fetched the blob store")
+              persist = (fun _ _ -> failtest "length wrote the blob store") } }
+    let inMemory = mkEphemeral [| 1uy; 2uy; 3uy |]
+    // This payload intentionally does not exist in the store.
+    let saved = RT.DBytes(RT.Persistent("not-loaded", 3L))
+    for bytes in [ inMemory; saved ] do
+      let! actual =
+        builtin.fn (struct (state, Unchecked.defaultof<RT.VMState>, [], [| bytes |]))
+        |> Ply.toTask
+      Expect.equal actual (RT.Dval.int 3I) "length comes from the reference"
+    match dbytesRef inMemory with
+    | RT.Ephemeral eph -> Expect.isFalse eph.IsHashed "length does not hash bytes"
+    | _ -> failtest "length must not promote bytes"
+  }
+
+/// Printing calls this for every Bytes it shows, so it must never load saved
+/// bytes, and must copy only the prefix it was asked for.
+let peekDoesNotReadStorage =
+  testTask "bytesPeek copies only the prefix and never reads the store" {
+    let builtin =
+      (Builtins.Pure.Libs.Bytes.fns ())
+      |> List.find (fun fn -> fn.name.name = "bytesPeek")
+      |> Option.defaultWith (fun () -> failtest "bytesPeek is missing")
+    let state = freshState ()
+    let state =
+      { state with
+          blobs =
+            { get = (fun _ -> failtest "the preview fetched the blob store")
+              persist = (fun _ _ -> failtest "the preview wrote the blob store") } }
+    let call bytes =
+      builtin.fn (
+        struct (state,
+                Unchecked.defaultof<RT.VMState>,
+                [],
+                [| bytes; RT.Dval.int 16I |])
+      )
+      |> Ply.toTask
+    let big = mkEphemeral (Array.create 1_000_000 7uy)
+    match! call big with
+    | RT.DEnum(_, _, _, "Some", [ RT.DBytes(RT.Ephemeral prefix) ]) ->
+      Expect.equal prefix.bytes.Length 16 "only the prefix is copied"
+    | other -> failtest $"expected Some prefix, got {other}"
+    match dbytesRef big with
+    | RT.Ephemeral eph -> Expect.isFalse eph.IsHashed "the preview does not hash"
+    | _ -> failtest "the preview must not promote bytes"
+    // This payload intentionally does not exist in the store.
+    match! call (RT.DBytes(RT.Persistent("not-loaded", 3L))) with
+    | RT.DEnum(_, _, _, "None", []) -> ()
+    | other -> failtest $"expected None for saved bytes, got {other}"
+  }
 
 // ─────────────────────────────────────────────────────────────────────
 // package_blobs storage
 // ─────────────────────────────────────────────────────────────────────
 
-let packageBlobInsertLookup =
+let packageBytesInsertLookup =
   testTask "package_blobs: insert then get returns the same bytes" {
     let bytes = [| 10uy; 20uy; 30uy; 40uy; 50uy |]
     let hash = $"test-insert-lookup-{System.Guid.NewGuid()}"
-    do! PMBlob.insert hash bytes |> Ply.toTask
-    let! got = PMBlob.get hash |> Ply.toTask
+    do! PMBytes.insert hash bytes |> Ply.toTask
+    let! got = PMBytes.get hash |> Ply.toTask
     Expect.equal got (Some bytes) "get returns bytes for a freshly-inserted hash"
   }
 
-let packageBlobDedupesOnSameHash =
+let packageBytesDedupesOnSameHash =
   testTask "package_blobs: second insert under same hash is a no-op" {
     let bytes = [| 1uy; 1uy; 2uy; 3uy; 5uy; 8uy |]
     let hash = $"test-dedup-{System.Guid.NewGuid()}"
-    do! PMBlob.insert hash bytes |> Ply.toTask
+    do! PMBytes.insert hash bytes |> Ply.toTask
     // Different bytes under same hash must be ignored (content-addressing invariant).
-    do! PMBlob.insert hash [| 99uy; 99uy |] |> Ply.toTask
-    let! got = PMBlob.get hash |> Ply.toTask
+    do! PMBytes.insert hash [| 99uy; 99uy |] |> Ply.toTask
+    let! got = PMBytes.get hash |> Ply.toTask
     Expect.equal got (Some bytes) "INSERT OR IGNORE preserves the original bytes"
   }
 
-let packageBlobMissingHashReturnsNone =
+let packageBytesMissingHashReturnsNone =
   testTask "package_blobs: get on a missing hash returns None" {
-    let! got = PMBlob.get $"nonexistent-{System.Guid.NewGuid()}" |> Ply.toTask
+    let! got = PMBytes.get $"nonexistent-{System.Guid.NewGuid()}" |> Ply.toTask
     Expect.equal got None "missing hash yields None"
   }
 
 
 // ─────────────────────────────────────────────────────────────────────
-// promoteBlobs — ephemeral → persistent
+// promoteBytes — ephemeral → persistent
 // ─────────────────────────────────────────────────────────────────────
 
 let promotePersistsAndSwaps =
-  testTask "promoteBlobs: ephemeral -> persistent + row in package_blobs" {
+  testTask "promoteBytes: ephemeral -> persistent + row in package_blobs" {
     let payload = uniquePayload "promote-test"
-    let ephemeral = Blob.newEphemeral payload
-    let! promoted = Blob.promote PMBlob.insert ephemeral |> Ply.toTask
-    let expectedHash = Blob.sha256Hex payload
+    let ephemeral = Bytes.newEphemeral payload
+    let! promoted = Bytes.promote PMBytes.insert ephemeral |> Ply.toTask
+    let expectedHash = Bytes.sha256Hex payload
     match promoted with
-    | RT.DBlob(RT.Persistent(h, n)) ->
+    | RT.DBytes(RT.Persistent(h, n)) ->
       Expect.equal h expectedHash "hash matches SHA-256 of bytes"
       Expect.equal n (int64 payload.Length) "length matches"
     | _ -> failtest $"expected Persistent, got {promoted}"
-    let! row = PMBlob.get expectedHash |> Ply.toTask
+    let! row = PMBytes.get expectedHash |> Ply.toTask
     Expect.equal row (Some payload) "package_blobs row exists with our bytes"
   }
 
 let promoteThenSerializeRoundtrips =
-  testTask "promoteBlobs then binary serialize roundtrips cleanly" {
+  testTask "promoteBytes then binary serialize roundtrips cleanly" {
     let payload = uniquePayload "promote-serialize"
-    let ephemeral = Blob.newEphemeral payload
-    let! promoted = Blob.promote PMBlob.insert ephemeral |> Ply.toTask
+    let ephemeral = Bytes.newEphemeral payload
+    let! promoted = Bytes.promote PMBytes.insert ephemeral |> Ply.toTask
     let restored =
       BS.RT.Dval.deserialize "dval" (BS.RT.Dval.serialize "dval" promoted)
     Expect.equal
@@ -290,24 +365,24 @@ let promoteThenSerializeRoundtrips =
   }
 
 let promoteSameBytesTwiceDedups =
-  testTask "promoteBlobs: two ephemerals with identical bytes hit package_blobs once" {
+  testTask "promoteBytes: two ephemerals with identical bytes hit package_blobs once" {
     let payload = uniquePayload "dedup-test"
-    let eph1 = Blob.newEphemeral payload
-    let eph2 = Blob.newEphemeral payload
-    let! p1 = Blob.promote PMBlob.insert eph1 |> Ply.toTask
-    let! p2 = Blob.promote PMBlob.insert eph2 |> Ply.toTask
+    let eph1 = Bytes.newEphemeral payload
+    let eph2 = Bytes.newEphemeral payload
+    let! p1 = Bytes.promote PMBytes.insert eph1 |> Ply.toTask
+    let! p2 = Bytes.promote PMBytes.insert eph2 |> Ply.toTask
     Expect.equal p1 p2 "two promotions of identical bytes share the hash"
-    let! row = PMBlob.get (Blob.sha256Hex payload) |> Ply.toTask
+    let! row = PMBytes.get (Bytes.sha256Hex payload) |> Ply.toTask
     Expect.equal row (Some payload) "row still contains original bytes"
   }
 
-let promotedBlobResolvesViaReadBlobBytes =
-  testTask "readBlobBytes on a promoted blob reads from package_blobs" {
+let promotedBytesResolvesViaReadBytes =
+  testTask "readBytes on a promoted blob reads from package_blobs" {
     let state = freshState ()
     let payload = uniquePayload "resolve-test"
-    let ephemeral = Blob.newEphemeral payload
-    let! promoted = Blob.promote PMBlob.insert ephemeral |> Ply.toTask
-    let! bytes = Blob.readBytes state (dblobRef promoted) |> Ply.toTask
+    let ephemeral = Bytes.newEphemeral payload
+    let! promoted = Bytes.promote PMBytes.insert ephemeral |> Ply.toTask
+    let! bytes = Bytes.readBytes state (dbytesRef promoted) |> Ply.toTask
     Expect.equal bytes payload "persistent blob resolves back to its bytes"
   }
 
@@ -329,7 +404,7 @@ let fileReadMemoryBound =
     System.GC.Collect()
     let before = System.GC.GetTotalAllocatedBytes(precise = false)
     let! bytes = System.IO.File.ReadAllBytesAsync path
-    let _dv = Blob.newEphemeral bytes
+    let _dv = Bytes.newEphemeral bytes
     let delta = System.GC.GetTotalAllocatedBytes(precise = false) - before
     // Old List<UInt8> path allocated ~200x file size (10 MB -> ~2 GB). The bound
     // is 8x rather than 3x because GC noise plus adjacent-test bleed routinely
@@ -347,7 +422,7 @@ let fileReadMemoryBound =
 // Val-persistability guard (Dval.isPersistable)
 // ─────────────────────────────────────────────────────────────────────
 // Rejects shapes that can't round-trip through `package_values.rt_dval`: DStream,
-// DBlob(Ephemeral _), and a LAMBDA. A lambda serializes -- which is what made this look fine -- but
+// DBytes(Ephemeral _), and a LAMBDA. A lambda serializes -- which is what made this look fine -- but
 // it serializes as an exprId alone, and the instructions it names live in the `lambdaInstrCache` of
 // the execution that created it. A stored one therefore reads back fine and dies where it is
 // applied, in a later process, with `lambda not found`. A NAMED fn is a name and survives; so does a
@@ -364,7 +439,7 @@ let persistableAcceptsPlainShapes =
         RT.DInt64 42L
         RT.DString "hi"
         RT.DUuid(System.Guid.NewGuid())
-        RT.DBlob(RT.Persistent("deadbeef", 4L))
+        RT.DBytes(RT.Persistent("deadbeef", 4L))
         RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 1L; RT.DInt64 2L ])
         RT.DTuple(RT.DInt64 1L, RT.DString "a", [])
         Dval.stringDict RT.KTInt64 [ ("k", RT.DInt64 42L) ] ]
@@ -401,13 +476,13 @@ let persistableRejectsLambda =
   }
 
 
-let persistableRejectsEphemeralBlob =
-  test "isPersistable: ephemeral blob is not persistable (must promote)" {
+let persistableRejectsEphemeralBytes =
+  test "isPersistable: unsaved Bytes are not persistable (must be saved first)" {
     let dv = mkEphemeral [| 1uy; 2uy; 3uy |]
-    Expect.isFalse (Dval.isPersistable dv) "ephemeral blob rejected"
+    Expect.isFalse (Dval.isPersistable dv) "unsaved Bytes rejected"
     match Dval.nonPersistableReason dv with
     | Some reason ->
-      Expect.stringContains reason "ephemeral blob" "reason names the shape"
+      Expect.stringContains reason "unsaved Bytes" "reason names the shape"
     | None -> failtest "expected a reason"
   }
 
@@ -425,8 +500,8 @@ let persistableRejectsNestedBadShapes =
   test "isPersistable: a bad leaf anywhere in a container poisons the whole" {
     let list =
       RT.DList(
-        RT.ValueType.Known RT.KTBlob,
-        [ RT.DBlob(RT.Persistent("x", 1L)); mkEphemeral [| 9uy |] ]
+        RT.ValueType.Known RT.KTBytes,
+        [ RT.DBytes(RT.Persistent("x", 1L)); mkEphemeral [| 9uy |] ]
       )
     Expect.isFalse (Dval.isPersistable list) "list with ephemeral blob rejected"
 
@@ -449,18 +524,18 @@ let sweepDeletesOrphansButKeepsReferenced =
     // don't collide on content-addressed hashes.
     let salt = System.Guid.NewGuid().ToByteArray()
     let refBytes = Array.concat [ [| 0x11uy |]; salt ]
-    let refHash = Blob.sha256Hex refBytes
+    let refHash = Bytes.sha256Hex refBytes
     let orphanBytes = Array.concat [ [| 0x22uy |]; salt ]
-    let orphanHash = Blob.sha256Hex orphanBytes
-    let fakeHash = RT.Hash(Blob.sha256Hex salt)
+    let orphanHash = Bytes.sha256Hex orphanBytes
+    let fakeHash = RT.Hash(Bytes.sha256Hex salt)
     let (RT.Hash fakeHashStr) = fakeHash
 
     try
-      do! PMBlob.insert refHash refBytes |> Ply.toTask
-      do! PMBlob.insert orphanHash orphanBytes |> Ply.toTask
+      do! PMBytes.insert refHash refBytes |> Ply.toTask
+      do! PMBytes.insert orphanHash orphanBytes |> Ply.toTask
 
       // Plant a package_value row whose rt_dval references refHash.
-      let referencingDval = RT.DBlob(RT.Persistent(refHash, int64 refBytes.Length))
+      let referencingDval = RT.DBytes(RT.Persistent(refHash, int64 refBytes.Length))
       let pv : RT.PackageValue.PackageValue =
         { hash = fakeHash; body = referencingDval }
       let rtDvalBytes = BS.RT.PackageValue.serialize fakeHash pv
@@ -477,14 +552,14 @@ let sweepDeletesOrphansButKeepsReferenced =
             "rt_dval", Sql.bytes rtDvalBytes
             "value_type", Sql.bytes valueTypeBytes ]
 
-      let! deleted = PMBlob.sweepOrphans () |> Ply.toTask
+      let! deleted = PMBytes.sweepOrphans () |> Ply.toTask
       Expect.isGreaterThanOrEqual
         deleted
         1L
         "at least the orphan blob should have been swept"
-      let! refStill = PMBlob.get refHash |> Ply.toTask
+      let! refStill = PMBytes.get refHash |> Ply.toTask
       Expect.isSome refStill "referenced blob stays in package_blobs"
-      let! orphanStill = PMBlob.get orphanHash |> Ply.toTask
+      let! orphanStill = PMBytes.get orphanHash |> Ply.toTask
       Expect.isNone orphanStill "orphan blob was swept"
     finally
       // Clean up the planted package_values row even on assertion
@@ -501,60 +576,163 @@ let sweepDeletesOrphansButKeepsReferenced =
 
 
 // ─────────────────────────────────────────────────────────────────────
-// Blob equality — identity-based across ephemeral / persistent
-// ─────────────────────────────────────────────────────────────────────
-// `Dval.equals` is sync and identity-based for blobs: same-hash
-// (Persistent) or same-UUID (Ephemeral) compare equal; mixed cases —
-// distinct ephemerals with the same bytes, or ephemeral vs persistent
-// — return false. Callers that want byte-equality across ephemerals
-// promote both sides first.
+// Bytes value semantics are independent of storage. All comparisons use the
+// content hash already carried by persistent bytes and lazily cached in memory.
 
 let equalsEphemeralEphemeralSameUuid =
   test "blob equality: two refs to the same ephemeral UUID are equal" {
-    let dv = Blob.newEphemeral [| 0x01uy; 0x02uy |]
+    let dv = Bytes.newEphemeral [| 0x01uy; 0x02uy |]
     Expect.isTrue (Equals.equals dv dv) "same ephemeral handle compares equal"
   }
 
-let equalsEphemeralEphemeralSameBytesIsFalse =
-  test "blob equality: two distinct ephemerals with same bytes are unequal" {
+let equalsEphemeralEphemeralSameBytes =
+  test "blob equality: two distinct ephemerals with same bytes are equal" {
     let payload = [| 0x11uy; 0x22uy; 0x33uy |]
-    let a = Blob.newEphemeral payload
-    let b = Blob.newEphemeral payload
+    let a = Bytes.newEphemeral payload
+    let b = Bytes.newEphemeral payload
     Expect.notEqual (ephemeralId a) (ephemeralId b) "distinct UUIDs"
-    Expect.isFalse (Equals.equals a b) "ephemeral identity is by UUID, not by bytes"
+    Expect.isTrue (Equals.equals a b) "equal contents despite distinct UUIDs"
   }
 
-let equalsEphemeralPersistentSameBytesIsFalse =
-  test "blob equality: ephemeral vs persistent with same bytes are unequal" {
+let equalsEphemeralPersistentSameBytes =
+  test "blob equality: ephemeral vs persistent with same bytes are equal" {
     let payload = [| 0xDEuy; 0xADuy |]
-    let eph = Blob.newEphemeral payload
-    let per = RT.DBlob(RT.Persistent(Blob.sha256Hex payload, int64 payload.Length))
-    Expect.isFalse
-      (Equals.equals eph per)
-      "ephemeral and persistent never compare equal — promote first if needed"
+    let eph = Bytes.newEphemeral payload
+    let per = RT.DBytes(RT.Persistent(Bytes.sha256Hex payload, int64 payload.Length))
+    Expect.isTrue (Equals.equals eph per) "storage does not affect equality"
+    Expect.isTrue (Equals.equals per eph) "mixed-form equality is symmetric"
   }
 
 let equalsPersistentPersistentSameHash =
   test "blob equality: two Persistent refs with the same hash are equal" {
-    let a = RT.DBlob(RT.Persistent("cafebabe", 4L))
-    let b = RT.DBlob(RT.Persistent("cafebabe", 4L))
+    let a = RT.DBytes(RT.Persistent("cafebabe", 4L))
+    let b = RT.DBytes(RT.Persistent("cafebabe", 4L))
     Expect.isTrue (Equals.equals a b) "same hash + length = equal"
   }
 
 let equalsPersistentPersistentDifferentHashes =
   test "blob equality: Persistent refs with different hashes are unequal" {
-    let a = RT.DBlob(RT.Persistent("aaaa", 4L))
-    let b = RT.DBlob(RT.Persistent("bbbb", 4L))
+    let a = RT.DBytes(RT.Persistent("aaaa", 4L))
+    let b = RT.DBytes(RT.Persistent("bbbb", 4L))
     Expect.isFalse (Equals.equals a b) "different hashes = unequal"
   }
 
 let equalsEphemeralDifferentBytes =
   test "blob equality: two ephemerals with different bytes are unequal" {
-    let a = Blob.newEphemeral [| 0x00uy |]
-    let b = Blob.newEphemeral [| 0xFFuy |]
-    Expect.isFalse (Equals.equals a b) "distinct UUIDs = unequal"
+    let a = Bytes.newEphemeral [| 0x00uy |]
+    let b = Bytes.newEphemeral [| 0xFFuy |]
+    Expect.isFalse (Equals.equals a b) "different contents = unequal"
   }
 
+
+let byteValuesKeepSemanticsAfterSaving =
+  testTask "saving bytes preserves equality, hashing, ordering, and nested values" {
+    for payload in [ [||]; [| 0uy |]; [| 0uy; 255uy; 1uy |]; Array.create 4096 42uy ] do
+      let original = Bytes.newEphemeral payload
+      let equalCopy = Bytes.newEphemeral (Array.copy payload)
+      let! saved = Bytes.promote noopInsert original |> Ply.toTask
+      let restored =
+        BS.RT.Dval.deserialize "dval" (BS.RT.Dval.serialize "dval" saved)
+      let different = Bytes.newEphemeral (Array.append payload [| 7uy |])
+      for value in [ equalCopy; saved; restored ] do
+        Expect.isTrue (Equals.equals original value) "Dark equality ignores storage"
+        Expect.equal value original "F# structural equality agrees"
+        Expect.equal (hash value) (hash original) "equal values have equal hashes"
+        Expect.equal
+          (hash (RT.DictKey value))
+          (hash (RT.DictKey original))
+          "internal container hashing agrees"
+        Expect.equal
+          (RT.DvalOrdering.compareForDictKey original value)
+          0
+          "equal dict-key order"
+        Expect.equal
+          (RT.DvalOrdering.compareForDictKey value different)
+          (RT.DvalOrdering.compareForDictKey original different)
+          "dict-key order is unchanged by saving"
+        Expect.throws
+          (fun () -> RT.DvalOrdering.compareForSort original value |> ignore<int>)
+          "Bytes have no sort order"
+        let nested item = RT.DTuple(RT.DString "payload", item, [])
+        Expect.isTrue
+          (Equals.equals (nested original) (nested value))
+          "nested Dark equality ignores storage"
+        Expect.equal (nested value) (nested original) "nested F# equality agrees"
+        Expect.equal
+          (hash (nested value))
+          (hash (nested original))
+          "nested hashes agree"
+  }
+
+let byteKeysSurviveSaving =
+  testTask "Bytes dictionary keys support content lookup before and after saving" {
+    for payload in [ [||]; [| 0uy; 255uy; 128uy |]; Array.create 4096 42uy ] do
+      let original = Bytes.newEphemeral payload
+      let equalCopy = Bytes.newEphemeral (Array.copy payload)
+      let! savedKey = Bytes.promote PMBytes.insert original |> Ply.toTask
+      let wrappers : List<RT.Dval -> RT.Dval> =
+        [ (fun value -> value)
+          (fun value -> RT.DTuple(RT.DUnit, value, []))
+          (fun value -> RT.DList(RT.ValueType.Known RT.KTBytes, [ value ]))
+          RT2DT.Dval.toDT ]
+      for wrap in wrappers do
+        let key = wrap original
+        RT.Dval.assertUsableDictKey key
+        let entries = Map [ RT.DictKey key, RT.DString "found" ]
+        let dictionary =
+          RT.DDict(RT.Dval.toValueType key, RT.ValueType.Known RT.KTString, entries)
+        let! promoted = Bytes.promote PMBytes.insert dictionary |> Ply.toTask
+        let restored =
+          BS.RT.Dval.deserialize "dval" (BS.RT.Dval.serialize "dval" promoted)
+        Expect.isTrue
+          (Equals.equals dictionary restored)
+          "saving preserves the dictionary"
+        let! reflected =
+          RT2DT.Dval.toDT dictionary |> Bytes.promote PMBytes.insert |> Ply.toTask
+        let restoredReflection =
+          BS.RT.Dval.deserialize "dval" (BS.RT.Dval.serialize "dval" reflected)
+          |> RT2DT.Dval.fromDT
+        Expect.isTrue
+          (Equals.equals dictionary restoredReflection)
+          "reflected dictionaries preserve byte keys through saving and loading"
+        for candidate in [ dictionary; restored ] do
+          match candidate with
+          | RT.DDict(_, _, entries) ->
+            for lookup in [ original; equalCopy; savedKey ] do
+              let key = RT.DictKey(wrap lookup)
+              Expect.equal
+                (Map.tryFind key entries)
+                (Some(RT.DString "found"))
+                "content lookup"
+              let updated = Map.add key (RT.DString "updated") entries
+              Expect.equal (Map.count updated) 1 "equal content is the same key"
+          | _ -> failtest "expected a dictionary"
+  }
+
+let byteHashingIsLazy =
+  testTask "temporary bytes are hashed only when needed and reuse that hash on save" {
+    let original = Bytes.newEphemeral [| 1uy; 2uy; 3uy |]
+    let ref = dbytesRef original
+    match ref with
+    | RT.Ephemeral e ->
+      Expect.isFalse e.IsHashed "creating bytes does not hash them"
+      Expect.equal ref.Length 3L "length is available without hashing"
+      Expect.isTrue (Equals.equals original original) "reflexive equality"
+      Expect.isFalse e.IsHashed "self-comparison does not hash"
+      let expectedHash = Bytes.sha256Hex e.bytes
+      Expect.equal ref.ContentHash expectedHash "content hash matches storage format"
+      Expect.isTrue e.IsHashed "hash is now cached"
+      let mutable writes = 0
+      let insert h bytes =
+        writes <- writes + 1
+        Expect.equal h expectedHash "saving uses the cached content hash"
+        Expect.equal bytes e.bytes "saving preserves contents"
+        uply { return () }
+      let! saved = Bytes.promote insert original |> Ply.toTask
+      Expect.equal writes 1 "only saving writes to the store"
+      Expect.equal (dbytesRef saved).ContentHash expectedHash "saved hash agrees"
+    | _ -> failtest "expected in-memory bytes"
+  }
 
 // ─────────────────────────────────────────────────────────────────────
 // Dval.rewriteWith structural sharing
@@ -641,14 +819,14 @@ let rewriteWithNoOpOnPrimitivePreservesRef =
 
 
 // ─────────────────────────────────────────────────────────────────────
-// Blob.promote recurses into DApplicable closures
+// Bytes.promote recurses into DApplicable closures
 // ─────────────────────────────────────────────────────────────────────
 //
 // `Dval.rewriteWith` walks into AppLambda.closedRegisters /
 // AppLambda.argsSoFar / AppNamedFn.argsSoFar. A lambda closing over an
 // ephemeral blob must have its capture environment promoted along
 // with the rest of the value graph — otherwise the persisted closure
-// carries a DBlob(Ephemeral _) ref pointing at bytes that died with
+// carries a DBytes(Ephemeral _) ref pointing at bytes that died with
 // the producing VM.
 
 let private fakeAppLambda
@@ -679,47 +857,47 @@ let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
   )
 
 let promoteRewritesInsideClosedRegisters =
-  testTask "Blob.promote: ephemeral inside AppLambda.closedRegisters is promoted" {
+  testTask "Bytes.promote: ephemeral inside AppLambda.closedRegisters is promoted" {
     let payload = uniquePayload "promote-closure"
-    let ephemeral = Blob.newEphemeral payload
+    let ephemeral = Bytes.newEphemeral payload
     let dv = fakeAppLambda [ (1, ephemeral) ] []
-    let! promoted = Blob.promote PMBlob.insert dv |> Ply.toTask
+    let! promoted = Bytes.promote PMBytes.insert dv |> Ply.toTask
     match promoted with
     | RT.DApplicable(RT.AppLambda lambda) ->
       match RT.Captures.toList lambda.closedRegisters with
-      | [ (_, RT.DBlob(RT.Persistent(h, n))) ] ->
-        Expect.equal h (Blob.sha256Hex payload) "captured blob hash"
+      | [ (_, RT.DBytes(RT.Persistent(h, n))) ] ->
+        Expect.equal h (Bytes.sha256Hex payload) "captured blob hash"
         Expect.equal n (int64 payload.Length) "captured blob length"
       | _ -> failtest $"expected promoted ephemeral, got {lambda.closedRegisters}"
     | _ -> failtest $"expected DApplicable, got {promoted}"
   }
 
 let promoteRewritesInsideAppLambdaArgs =
-  testTask "Blob.promote: ephemeral inside AppLambda.argsSoFar is promoted" {
+  testTask "Bytes.promote: ephemeral inside AppLambda.argsSoFar is promoted" {
     let payload = uniquePayload "promote-applambda-args"
-    let ephemeral = Blob.newEphemeral payload
+    let ephemeral = Bytes.newEphemeral payload
     let dv = fakeAppLambda [] [ ephemeral ]
-    let! promoted = Blob.promote PMBlob.insert dv |> Ply.toTask
+    let! promoted = Bytes.promote PMBytes.insert dv |> Ply.toTask
     match promoted with
     | RT.DApplicable(RT.AppLambda lambda) ->
       match lambda.argsSoFar with
-      | [ RT.DBlob(RT.Persistent(h, _)) ] ->
-        Expect.equal h (Blob.sha256Hex payload) "argsSoFar blob promoted"
+      | [ RT.DBytes(RT.Persistent(h, _)) ] ->
+        Expect.equal h (Bytes.sha256Hex payload) "argsSoFar blob promoted"
       | _ -> failtest $"expected promoted ephemeral, got {lambda.argsSoFar}"
     | _ -> failtest $"expected DApplicable, got {promoted}"
   }
 
 let promoteRewritesInsideAppNamedFnArgs =
-  testTask "Blob.promote: ephemeral inside AppNamedFn.argsSoFar is promoted" {
+  testTask "Bytes.promote: ephemeral inside AppNamedFn.argsSoFar is promoted" {
     let payload = uniquePayload "promote-namedfn-args"
-    let ephemeral = Blob.newEphemeral payload
+    let ephemeral = Bytes.newEphemeral payload
     let dv = fakeAppNamedFn [ ephemeral ]
-    let! promoted = Blob.promote PMBlob.insert dv |> Ply.toTask
+    let! promoted = Bytes.promote PMBytes.insert dv |> Ply.toTask
     match promoted with
     | RT.DApplicable(RT.AppNamedFn fn) ->
       match fn.argsSoFar with
-      | [ RT.DBlob(RT.Persistent(h, _)) ] ->
-        Expect.equal h (Blob.sha256Hex payload) "argsSoFar blob promoted"
+      | [ RT.DBytes(RT.Persistent(h, _)) ] ->
+        Expect.equal h (Bytes.sha256Hex payload) "argsSoFar blob promoted"
       | _ -> failtest $"expected promoted ephemeral, got {fn.argsSoFar}"
     | _ -> failtest $"expected DApplicable, got {promoted}"
   }
@@ -806,7 +984,7 @@ let prepareStubsStreamInsideClosure =
 
 // `sweepOrphans` deletes any `package_blobs` row not referenced
 // by `package_values.rt_dval`. Without sequencing, the sweep test
-// can run concurrently with `packageBlobDedupesOnSameHash` (which
+// can run concurrently with `packageBytesDedupesOnSameHash` (which
 // inserts an unreferenced hash, then re-inserts under that hash
 // expecting `INSERT OR IGNORE` to win) — the sweep's DELETE
 // between the two inserts lets the second insert succeed with
@@ -815,38 +993,44 @@ let prepareStubsStreamInsideClosure =
 let tests =
   testSequenced
   <| testList
-    "blob"
+    "bytes"
     [ ephemeralRoundtrip
       twoEphemeralsAreDistinct
-      persistentBlobBinaryRoundtrip
-      ephemeralBlobBinaryRaises
-      tblobBinaryRoundtrip
-      ktblobBinaryRoundtrip
-      tblobPtDarkBridge
-      tblobRtDarkBridge
-      ktblobRtDarkBridge
-      dblobPersistentDarkBridge
-      dblobEphemeralDarkBridge
-      packageBlobInsertLookup
-      packageBlobDedupesOnSameHash
-      packageBlobMissingHashReturnsNone
+      persistentBytesBinaryRoundtrip
+      ephemeralBytesBinaryRaises
+      tbytesBinaryRoundtrip
+      ktbytesBinaryRoundtrip
+      tbytesPtDarkBridge
+      tbytesRtDarkBridge
+      ktbytesRtDarkBridge
+      dbytesPersistentDarkBridge
+      dbytesEphemeralDarkBridge
+      reflectionIgnoresByteStorage
+      byteLengthDoesNotReadStorage
+      peekDoesNotReadStorage
+      packageBytesInsertLookup
+      packageBytesDedupesOnSameHash
+      packageBytesMissingHashReturnsNone
       promotePersistsAndSwaps
       promoteThenSerializeRoundtrips
       promoteSameBytesTwiceDedups
-      promotedBlobResolvesViaReadBlobBytes
+      promotedBytesResolvesViaReadBytes
       fileReadMemoryBound
       persistableAcceptsPlainShapes
-      persistableRejectsEphemeralBlob
+      persistableRejectsEphemeralBytes
       persistableRejectsStream
       persistableRejectsLambda
       persistableRejectsNestedBadShapes
       sweepDeletesOrphansButKeepsReferenced
       equalsEphemeralEphemeralSameUuid
-      equalsEphemeralEphemeralSameBytesIsFalse
-      equalsEphemeralPersistentSameBytesIsFalse
+      equalsEphemeralEphemeralSameBytes
+      equalsEphemeralPersistentSameBytes
       equalsPersistentPersistentSameHash
       equalsPersistentPersistentDifferentHashes
       equalsEphemeralDifferentBytes
+      byteValuesKeepSemanticsAfterSaving
+      byteKeysSurviveSaving
+      byteHashingIsLazy
       rewriteWithNoOpPreservesOuterRef
       rewriteWithNoOpPreservesNestedRefs
       rewriteWithSingleChangePreservesSiblings

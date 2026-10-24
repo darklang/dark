@@ -50,7 +50,7 @@ let private primHeadName (t : TypeReference) : Option<string> =
   | TString -> Some "String"
   | TUuid -> Some "Uuid"
   | TDateTime -> Some "DateTime"
-  | TBlob -> Some "Blob"
+  | TBytes -> Some "Bytes"
   | _ -> None
 
 let headOfTypeReference (t : TypeReference) : Option<Head> =
@@ -85,7 +85,7 @@ let headOfKnownType (kt : KnownType) : Head =
   | KTString -> Head.Prim "String"
   | KTUuid -> Head.Prim "Uuid"
   | KTDateTime -> Head.Prim "DateTime"
-  | KTBlob -> Head.Prim "Blob"
+  | KTBytes -> Head.Prim "Bytes"
   | KTStream _ -> Head.Stream
   | KTList _ -> Head.List
   | KTTuple _ -> Head.Tuple

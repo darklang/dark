@@ -314,7 +314,7 @@ let typeReference
 
   | TDateTime -> "DateTime"
 
-  | TBlob -> "Blob"
+  | TBytes -> "Bytes"
 
   | TStream inner -> $"Stream<{typeReference branchId inner}>"
 
@@ -395,7 +395,7 @@ let knownType
   | KTDateTime -> "DateTime"
   | KTUuid -> "Uuid"
 
-  | KTBlob -> "Blob"
+  | KTBytes -> "Bytes"
 
   | KTStream inner -> $"Stream<{valueType branchId inner}>"
 
@@ -558,6 +558,19 @@ let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
     $"({parts})"
 
 
+/// The first <param count> bytes of <param bytes> as spaced hex ("68 69"), or
+/// None for saved Bytes. It reads only bytes already in memory, never the
+/// store, so printing stays cheap.
+let bytesPreview (bytes: Bytes) (count: Int) : Stdlib.Option.Option<String> =
+  Builtin.bytesPeek bytes count
+  |> Stdlib.Option.map (fun prefix ->
+    let hex = prefix |> Stdlib.Bytes.toHex |> Stdlib.String.toLowercase
+    let pairs =
+      Stdlib.List.range 0 ((Stdlib.Bytes.length prefix) - 1)
+      |> Stdlib.List.map (fun i -> Stdlib.String.slice hex (i * 2) (i * 2 + 2))
+    Stdlib.String.join pairs " ")
+
+
 module Dval =
   let valueTypeName
         (branchId: Uuid)
@@ -619,8 +632,7 @@ module Dval =
       (RuntimeTypes.typeName branchId typeName) + typeArgsPart
     | DApplicable (AppNamedFn _) -> "Function"
     | DApplicable (AppLambda _) -> "Lambda"
-    | DBlobPersistent(_, _) -> "Blob"
-    | DBlobEphemeral _ -> "Blob"
+    | DBytes _ -> "Bytes"
     | DStreamStub vt -> $"Stream<{valueType branchId vt}>"
 
   /// The field names of a record type, in the order they were declared.
@@ -780,11 +792,21 @@ module Dval =
 
         braced "{" "}" parts
 
-    // Don't fetch the bytes for rendering -- payloads can be many MB.
-    | DBlobPersistent(hash, length) ->
-      let short = Stdlib.String.first hash 8
-      txt $"<Blob: {short}… {Stdlib.toString length} bytes>"
-    | DBlobEphemeral _ -> txt "<Blob: ephemeral>"
+    // Unsaved bytes are already in memory, so show the first 16 as hex, the way
+    // Node.js prints a Buffer. Saved bytes show only their length: a preview
+    // would load the whole value, which may be megabytes, from the store.
+    | DBytes bytes ->
+      let n = Stdlib.Bytes.length bytes
+      let noun = if n == 1 then "byte" else "bytes"
+      let size = $"{Stdlib.toString n} {noun}"
+      match bytesPreview bytes 16 with
+      | Some hex ->
+        if n == 0 then
+          txt $"<Bytes: {size}>"
+        else
+          let more = if n > 16 then " ..." else ""
+          txt $"<Bytes: {size} {hex}{more}>"
+      | None -> txt $"<Bytes: {size}>"
 
     | DStreamStub _ -> txt "<stream: stub>"
 

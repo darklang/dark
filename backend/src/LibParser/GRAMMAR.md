@@ -296,7 +296,7 @@ that does not name a trait is `PARSE-BOUND`.
 ## Types
 
 Primitive types are `Unit Bool Int Int8…UInt128 Float Char String DateTime Uuid
-Blob` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<K, V>` have special
+Bytes` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<K, V>` have special
 syntax. Other uppercase names, including `Stream<T>` and `DB<T>`, are custom
 types with optional type arguments.
 

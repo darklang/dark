@@ -195,9 +195,9 @@ let stripCapturedAccess : Dval -> Dval =
 ///
 /// Rejected:
 /// - `DStream` — the pull fn is a closure bound to this exeState.
-/// - `DBlob(Ephemeral _)` — the bytes are VM-local (inline, GC-bound);
+/// - `DBytes(Ephemeral _)` — the bytes are VM-local (inline, GC-bound);
 ///   promote to `Persistent` first. Most call paths already promote
-///   (see `Blob.promote` for the val-commit / DB-write path and
+///   (see `Bytes.promote` for the val-commit / DB-write path and
 ///   `LibDB.Tracing.prepareDvalForStorage` for the trace path); this
 ///   branch is a safety net.
 ///
@@ -210,7 +210,7 @@ let rec isPersistable (dv : Dval) : bool =
   // here so the Seed.fs evaluator can report a clean reason instead
   // of surfacing a deep-stack raise.
   | DStream _ -> false
-  | DBlob(Ephemeral _) -> false
+  | DBytes(Ephemeral _) -> false
   // Never reaches storage: forced before any builtin, and `val`s are evaluated in a plain run
   // that forces at its end. Refused rather than raised on, in case one ever does.
   | DPromise _ -> false
@@ -234,7 +234,7 @@ let rec isPersistable (dv : Dval) : bool =
   | DDateTime _
   | DUuid _
   // DApplicable serializes successfully: a lambda stores its instruction stream.
-  | DBlob(Persistent _) -> true
+  | DBytes(Persistent _) -> true
 
   // A NAMED fn survives being stored: it is a name, and any process can resolve it. A lambda does
   // not. Its instructions live in `lambdaInstrCache`, keyed by an exprId that only the execution
@@ -261,11 +261,11 @@ let rec isPersistable (dv : Dval) : bool =
 let rec nonPersistableReason (dv : Dval) : Option<string> =
   match dv with
   | DStream _ ->
-    Some "stream values can't be stored in a `val` — drain to a Blob or List first"
+    Some "stream values can't be stored in a `val` — drain to a Bytes or List first"
   | DPromise _ -> Some "a read still in flight can't be stored in a `val`"
-  | DBlob(Ephemeral _) ->
-    Some
-      "ephemeral blob can't be stored in a `val` — promote to persistent (serialize) first"
+  | DBytes(Ephemeral _) ->
+    // Unreachable unless saving was skipped: Seed promotes the value first.
+    Some "the value still held unsaved Bytes after saving; this is a bug in Darklang"
   | DApplicable(AppLambda _) ->
     Some(
       "a lambda can't be stored in a `val` — its instructions belong to the execution that made it, "
@@ -318,7 +318,7 @@ let rec isInertData (dv : Dval) : bool =
   | DString _
   | DDateTime _
   | DUuid _
-  | DBlob _ -> true
+  | DBytes _ -> true
 
   | DList(_, items) -> items |> List.forall isInertData
   | DTuple(a, b, rest) ->
@@ -360,15 +360,9 @@ let inline private ensureSufficientExecutionStack () : unit =
 /// rather than raising — the caller's responsibility to type-check
 /// up front via VT.merge.
 ///
-/// Blob comparison is identity-based: same-hash Persistents are
-/// equal; same-UUID Ephemerals are equal; mixed cases (different
-/// Ephemerals, Ephemeral vs Persistent) are false even when bytes
-/// match. Byte-equality across freshly-built ephemerals would
-/// require dereferencing — for Persistents that's an async
-/// `package_blobs` lookup, which would force the entire `equals`
-/// surface to be Ply-shaped just for one rare case. Callers that
-/// want byte-equality across ephemerals should `Blob.promote` both
-/// sides first; same bytes → same hash → equal as Persistents.
+/// Bytes compare by content hash and length, independent of storage. Ephemeral
+/// bytes cache that hash lazily; persistent bytes already carry it. Comparison
+/// never loads or saves bytes and gives the same answer before and after saving.
 ///
 /// Streams compare by reference identity on their `lockObj`. Same
 /// handle → true (preserves reflexivity). Different handles → false;
@@ -471,14 +465,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
     | AppNamedFn a, AppNamedFn b -> a = b
     | _ -> false
 
-  | DBlob refA, DBlob refB ->
-    // Identity-based: same hash (Persistent) or same UUID (Ephemeral).
-    // Different ephemerals never compare equal — promote first if you
-    // want byte-equality.
-    match refA, refB with
-    | Persistent(h1, l1), Persistent(h2, l2) -> h1 = h2 && l1 = l2
-    | Ephemeral e1, Ephemeral e2 -> e1.id = e2.id
-    | _ -> false
+  | DBytes refA, DBytes refB -> refA.Equals refB
 
   | DStream(_, _, lockA), DStream(_, _, lockB) ->
     // Reference equality on lockObj — same-handle preserves
@@ -516,6 +503,6 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DRecord _, _
   | DEnum _, _
   | DApplicable _, _
-  | DBlob _, _
+  | DBytes _, _
   | DStream _, _
   | DPromise _, _ -> false

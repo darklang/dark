@@ -14,9 +14,9 @@ module Darklang.SCM.PackageOps
 /// reader touches one first.
 let tryDecodeOp
   (id: Uuid)
-  (blob: Blob)
+  (blob: Bytes)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.packageOpFromBlobOption id blob
+  Builtin.packageOpFromBytesOption id blob
 
 
 /// (id text, ts, decoded op) per decodable row -- the one id/blob/ts decode behind every

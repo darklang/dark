@@ -27,21 +27,59 @@ module DvalComparator =
     else Equal
 
 
-  let compareDval (dv1 : Dval) (dv2 : Dval) : Order =
+  /// Runs one comparison, turning what `DvalOrdering` raises into a Dark error.
+  let private guarded
+    (compare : Dval -> Dval -> int)
+    (dv1 : Dval)
+    (dv2 : Dval)
+    : int =
     try
-      order (DvalOrdering.compareForSort dv1 dv2) 0
-    with :? DvalComparisonException as e ->
+      compare dv1 dv2
+    with
+    | :? DvalComparisonException as e ->
       RuntimeError.Error.EqualityCheckOnIncompatibleTypes(
         Dval.toValueType e.Left,
         Dval.toValueType e.Right
       )
       |> raiseUntargetedRTE
+    | :? DvalUnsortableException as e ->
+      RuntimeError.Error.List(RuntimeError.Lists.CannotSort e.Value)
+      |> raiseUntargetedRTE
+
+  let compareDval (dv1 : Dval) (dv2 : Dval) : Order =
+    order (guarded DvalOrdering.compareForSort dv1 dv2) 0
 
   let compareDvalInt v1 v2 =
     match compareDval v1 v2 with
     | Greater -> 1
     | Less -> -1
     | Equal -> 0
+
+  /// .NET's sort wraps whatever a comparer raises in an InvalidOperationException,
+  /// so a Dark runtime error from a comparison (Bytes, a lambda) would surface as
+  /// an uncaught .NET one. Rethrow what the comparer raised.
+  let sortWith (cmp : 'a -> 'a -> int) (list : List<'a>) : List<'a> =
+    try
+      List.sortWith cmp list
+    with :? System.InvalidOperationException as e when not (isNull e.InnerException) ->
+      System.Runtime.ExceptionServices.ExceptionDispatchInfo
+        .Capture(e.InnerException)
+        .Throw()
+      []
+
+  let sortArrayWith (cmp : 'a -> 'a -> int) (arr : 'a[]) : 'a[] =
+    try
+      Array.sortWith cmp arr
+    with :? System.InvalidOperationException as e when not (isNull e.InnerException) ->
+      System.Runtime.ExceptionServices.ExceptionDispatchInfo
+        .Capture(e.InnerException)
+        .Throw()
+      [||]
+
+  /// For `List.unique`, which sorts only to group equal values, so Bytes are
+  /// allowed here and take the dict-key order.
+  let compareDvalIntForDedupe (v1 : Dval) (v2 : Dval) : int =
+    guarded DvalOrdering.compareForDedupe v1 v2
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -58,7 +96,7 @@ let private sortedByKey
   (keyed : List<struct (Dval * Dval)>)
   : Dval =
   keyed
-  |> List.sortWith (fun (struct (k1, v1)) (struct (k2, v2)) ->
+  |> DvalComparator.sortWith (fun (struct (k1, v1)) (struct (k2, v2)) ->
     let c = DvalComparator.compareDvalInt k1 k2
     if c <> 0 then c else DvalComparator.compareDvalInt v1 v2)
   |> List.map (fun (struct (_, v)) -> v)
@@ -81,7 +119,7 @@ let private sortedByKeyLanding
       k
     let byKey =
       Array.init entries.Length (fun i -> i)
-      |> Array.sortWith (fun a b ->
+      |> DvalComparator.sortArrayWith (fun a b ->
         DvalComparator.compareDvalInt (keyAt a) (keyAt b))
     let tied = Array.zeroCreate<bool> entries.Length
     for j in 1 .. byKey.Length - 1 do
@@ -840,7 +878,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DList(vt, l) |] ->
           List.distinct l
-          |> List.sortWith DvalComparator.compareDvalInt
+          |> DvalComparator.sortWith DvalComparator.compareDvalIntForDedupe
           |> fun l -> DList(vt, l)
           |> Ply
         | _ -> incorrectArgs ())
@@ -867,7 +905,7 @@ let fns () : List<BuiltInFn> =
         | exeState, vm, _, [| DList(vt, list) |] ->
           let structural () =
             list
-            |> List.sortWith DvalComparator.compareDvalInt
+            |> DvalComparator.sortWith DvalComparator.compareDvalInt
             |> (fun l -> DList(vt, l))
             |> Ply
           match vt, list with

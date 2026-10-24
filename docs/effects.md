@@ -242,15 +242,19 @@ either: reading them never waits, so there is nothing to overlap, and
 `sleep`, the one clock call that does wait, is a wait the program means to
 take.
 
-Blob dereferencing is deliberately effect-free value materialization. An
-ephemeral blob carries its bytes; a persistent blob loads the same immutable
-bytes by content hash from the host-owned `package_blobs` store. The latter
-is ambient local storage, but does not require `PackageRead` or `FileRead`:
-passing a blob to an effect-free function must work regardless of its storage
-representation. This does not grant arbitrary SQL or filesystem access, and
-does not provide per-blob authorization or confidentiality within the local
-store. Operations that load or persist enclosing packages, traces, or database
-values retain their own permission checks.
+Reading Bytes needs no permission. Unsaved bytes are held in memory. Saved
+bytes are loaded by their hash from the local `package_blobs` store, and that
+load needs neither `PackageRead` nor `FileRead`. A function with no effects
+must work the same whichever kind of Bytes it is given.
+
+This gives no other access: no SQL and no files. It also means saved bytes are
+not private: any code holding a Bytes value can read it. Loading or saving
+packages, traces or database values still checks its own permissions.
+
+Comparing Bytes never touches the store either. Two Bytes are equal when their
+contents are equal, whether saved or not. Unsaved bytes are hashed in memory the
+first time they are compared, and that hash is reused after. Saving a value does
+not change how it compares. See [Bytes](bytes.md).
 
 Policies are allowlists with optional explicit denies:
 

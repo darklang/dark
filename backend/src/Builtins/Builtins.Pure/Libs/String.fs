@@ -12,7 +12,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 
 /// The substring of `s` between cluster indices `first` and `last`, both already clamped to
 /// [0, length] with `first <= last`.
@@ -501,32 +501,32 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringToBlob" 0
+    { name = fn "stringToBytes" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
-      returnType = TBlob
-      description = "Converts the given unicode string to a UTF8-encoded Blob."
+      returnType = TBytes
+      description = "Converts the given unicode string to a UTF8-encoded Bytes."
       fn =
         (function
         | _, _, _, [| DString str |] ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
-          Blob.newEphemeral theBytes |> Ply
+          Bytes.newEphemeral theBytes |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringFromBlobWithReplacement" 0
+    { name = fn "stringFromBytesWithReplacement" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
       description =
-        "Converts the UTF8-encoded <param blob> into a string. Invalid sequences are replaced."
+        "Converts the UTF8-encoded <param bytes> into a string. Invalid sequences are replaced."
       fn =
         (function
-        | state, _, _, [| DBlob ref |] ->
-          Blob.withBytes state ref (fun bytes ->
+        | state, _, _, [| DBytes ref |] ->
+          Bytes.withBytes state ref (fun bytes ->
             Ply(DString(System.Text.Encoding.UTF8.GetString bytes)))
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -534,7 +534,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringFromBytes" 0
+    { name = fn "stringFromByteList" 0
       typeParams = []
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TypeReference.option TString
@@ -555,16 +555,16 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringFromBlob" 0
+    { name = fn "stringFromBytes" 0
       typeParams = []
-      parameters = [ Param.make "blob" TBlob "" ]
+      parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TypeReference.option TString
       description =
-        "Converts the UTF8-encoded <param blob> into a string. Returns None if the bytes aren't valid UTF-8."
+        "Converts the UTF8-encoded <param bytes> into a string. Returns None if the bytes aren't valid UTF-8."
       fn =
         (function
-        | state, _, _, [| DBlob ref |] ->
-          Blob.withBytes state ref (fun bytes ->
+        | state, _, _, [| DBytes ref |] ->
+          Bytes.withBytes state ref (fun bytes ->
             try
               let str = UTF8Encoding(false, true).GetString bytes
               Ply(Dval.optionSome KTString (DString str))

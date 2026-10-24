@@ -9,7 +9,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module Blob = LibExecution.Blob
+module Bytes = LibExecution.Bytes
 module RTToDT = LibExecution.RuntimeTypesToDarkTypes
 module BinarySer = LibSerialization.Binary.Serialization
 
@@ -428,17 +428,15 @@ let private makeStoreFnResult
 /// store time to the frames a recorded call actually sits under.
 /// Whether the call a resume is about to answer is the call the log recorded at that step.
 module ReplayCheck =
-  /// The arguments as the recorder would have stored them, so the two sides compare like for
-  /// like: redacted the same way, an ephemeral blob by the hash its stored form names (nothing
-  /// is persisted), a stream as its stub. A function value compares equal to any other: what
-  /// it closes over is not something the log can be held to.
+  /// The arguments changed the way the trace changed them when it stored them, so a
+  /// call can be compared with its recording: secrets redacted, and streams replaced
+  /// by their stub. Bytes need no change, because saved and unsaved Bytes with the
+  /// same contents are already equal. Every function value is replaced by Unit, so
+  /// any function matches any other: the trace can't record what a function captures.
   let private asStored (builtin : string) (args : List<RT.Dval>) : List<RT.Dval> =
     let leaf (dv : RT.Dval) : Ply.Ply<RT.Dval option> =
       uply {
         match dv with
-        | RT.DBlob(RT.Ephemeral eph) ->
-          let n : int64 = System.Convert.ToInt64 eph.bytes.Length
-          return Some(RT.DBlob(RT.Persistent(Blob.sha256Hex eph.bytes, n)))
         | RT.DStream(impl, _, _) -> return Some(RTToDT.Dval.streamStubDT impl)
         | RT.DApplicable _ -> return Some RT.DUnit
         | _ -> return None
@@ -701,7 +699,7 @@ module TraceStorage =
   /// Where `prepareDvalForStorage` keeps a blob captured after its trace was stored, such as a
   /// served response's body: in `trace_blobs` under that trace, counted in what it weighs. Only a
   /// blob the trace did not already hold adds to the weight.
-  let keepBlobIn (traceId : System.Guid) : string -> byte[] -> Ply.Ply<unit> =
+  let keepBytesIn (traceId : System.Guid) : string -> byte[] -> Ply.Ply<unit> =
     fun hash bytes ->
       uply {
         let! added =
@@ -769,7 +767,7 @@ module TraceStorage =
       let foundByAsk = System.Collections.Generic.Dictionary<string, string>()
       let keep (ev : CompletedEvent) : string =
         let bytes = serializeDval "trace_fn_calls.result" ev.result
-        let hash = Blob.sha256Hex bytes
+        let hash = Bytes.sha256Hex bytes
         results[hash] <- bytes
         hash
       let serializedEvents =
@@ -843,7 +841,7 @@ module TraceStorage =
           "DELETE FROM trace_loops WHERE trace_id = @traceId", [ traceIdParam ]
           "DELETE FROM trace_blobs WHERE trace_id = @traceId", [ traceIdParam ] ]
 
-      let blobStmt =
+      let bytesStmt =
         match blobs with
         | [] -> []
         | _ ->
@@ -928,7 +926,7 @@ module TraceStorage =
 
       let _ =
         Sql.executeTransactionSync (
-          baseStatements @ eventStmt @ fnStmt @ loopStmt @ blobStmt
+          baseStatements @ eventStmt @ fnStmt @ loopStmt @ bytesStmt
         )
       TraceRetention.run () |> ignore<int>
 
@@ -936,7 +934,7 @@ module TraceStorage =
 /// Rewrite a Dval for the trace-storage boundary:
 ///   - DStream → DStreamStub (the live pull fn closes over this VM's
 ///     exeState; draining would consume the user's stream).
-///   - DBlob(Ephemeral _) → DBlob(Persistent _), handing the bytes to <param keep> so the
+///   - DBytes(Ephemeral _) → DBytes(Persistent _), handing the bytes to <param keep> so the
 ///     trace survives the producing VM. The trace keeps them (`trace_blobs`), not the shared
 ///     `package_blobs`, which nothing collects.
 /// Recursion and container rebuilding are handled by `Dval.rewriteWith`,
@@ -946,13 +944,13 @@ let prepareDvalForStorage
   (keep : string -> byte[] -> Ply.Ply<unit>)
   (dv : RT.Dval)
   : Ply.Ply<RT.Dval> =
-  let promoteBlob = Blob.promoteEphemeralLeaf keep
+  let promoteBytes = Bytes.promoteEphemeralLeaf keep
   dv
   |> RT.Dval.rewriteWith (fun dv ->
     uply {
       match dv with
       | RT.DStream(impl, _, _) -> return Some(RTToDT.Dval.streamStubDT impl)
-      | _ -> return! promoteBlob dv
+      | _ -> return! promoteBytes dv
     })
 
 
