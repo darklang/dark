@@ -219,6 +219,12 @@ module RuntimeError =
         ES.Int (Stdlib.Int.fromInt32 index)
         ES.String "."]
 
+    | List (CannotSort value) ->
+      [ ES.String "Cannot sort "
+        ES.FullValue value
+        ES.String ". Bytes, functions and streams have no order;"
+        ES.String " use List.sortBy with a key that has one." ]
+
     | Dict err ->
       match err with
       | TriedToAddMismatchedData (key, expectedType, actualType, actualValue) ->

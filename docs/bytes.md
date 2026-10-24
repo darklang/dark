@@ -14,7 +14,7 @@ Freshly created bytes stay in memory. Saving a value containing bytes stores
 those bytes automatically. There is no separate user-facing persistent type
 or command for switching storage forms.
 
-Saving bytes does not change their equality, hash, or sort position. Equal
+Saving bytes does not change their equality or hash. Equal
 contents compare equal, including inside lists, records, and tuples. The
 normal value display shows the length and, for bytes still in memory, the first
 16 bytes as hex: `<Bytes: 5 bytes 68 65 6c 6c 6f>`. Saved bytes show only their
@@ -29,13 +29,14 @@ contents from storage.
 Internally, in-memory bytes are called ephemeral and saved bytes are persistent.
 Persistent values reference immutable data by its SHA-256 content hash and
 length. In-memory values calculate and cache that same hash when a comparison,
-hash, sort, or save needs it. Creating or reading temporary bytes does not
+hash, or save needs it. Creating or reading temporary bytes does not
 require hashing or saving them. Comparisons do not read from or write to storage.
 Trace replay checks reuse the cached hash too.
 
-Sorting puts shorter Bytes first. Bytes of the same length are ordered by
-content hash, not byte by byte, so only same-length values are ever hashed to
-sort them. The resulting order is stable across storage forms.
+Bytes cannot be sorted, like Go, Java and JS: `List.sort` raises rather than
+load saved bytes mid-sort or hand out a meaningless order. Pick one with
+`List.sortBy` (`Stdlib.Bytes.toHex` gives byte order). `List.unique` still
+works, using the dict-key order below.
 
 Bytes can be dictionary keys. Independently created bytes with the same contents
 find the same entry, including after saving and loading the dictionary. The first

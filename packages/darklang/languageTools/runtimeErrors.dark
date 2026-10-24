@@ -35,6 +35,8 @@ module Lists =
       expectedType: ValueType *
       actualType: ValueType *
       actualValue: Dval
+    /// A sort met a value with no order: Bytes, a function or a stream.
+    | CannotSort of value: Dval
 
 module Dicts =
   type Error =

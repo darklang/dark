@@ -265,6 +265,42 @@ let byteLengthDoesNotReadStorage =
     | _ -> failtest "length must not promote bytes"
   }
 
+/// Printing calls this for every Bytes it shows, so it must never load saved
+/// bytes, and must copy only the prefix it was asked for.
+let peekDoesNotReadStorage =
+  testTask "bytesPeek copies only the prefix and never reads the store" {
+    let builtin =
+      (Builtins.Pure.Libs.Bytes.fns ())
+      |> List.find (fun fn -> fn.name.name = "bytesPeek")
+      |> Option.defaultWith (fun () -> failtest "bytesPeek is missing")
+    let state = freshState ()
+    let state =
+      { state with
+          blobs =
+            { get = (fun _ -> failtest "the preview fetched the blob store")
+              persist = (fun _ _ -> failtest "the preview wrote the blob store") } }
+    let call bytes =
+      builtin.fn (
+        struct (state,
+                Unchecked.defaultof<RT.VMState>,
+                [],
+                [| bytes; RT.Dval.int 16I |])
+      )
+      |> Ply.toTask
+    let big = mkEphemeral (Array.create 1_000_000 7uy)
+    match! call big with
+    | RT.DEnum(_, _, _, "Some", [ RT.DBytes(RT.Ephemeral prefix) ]) ->
+      Expect.equal prefix.bytes.Length 16 "only the prefix is copied"
+    | other -> failtest $"expected Some prefix, got {other}"
+    match dbytesRef big with
+    | RT.Ephemeral eph -> Expect.isFalse eph.IsHashed "the preview does not hash"
+    | _ -> failtest "the preview must not promote bytes"
+    // This payload intentionally does not exist in the store.
+    match! call (RT.DBytes(RT.Persistent("not-loaded", 3L))) with
+    | RT.DEnum(_, _, _, "None", []) -> ()
+    | other -> failtest $"expected None for saved bytes, got {other}"
+  }
+
 // ─────────────────────────────────────────────────────────────────────
 // package_blobs storage
 // ─────────────────────────────────────────────────────────────────────
@@ -607,13 +643,16 @@ let byteValuesKeepSemanticsAfterSaving =
           (hash (RT.DictKey original))
           "internal container hashing agrees"
         Expect.equal
-          (RT.DvalOrdering.compareForSort original value)
+          (RT.DvalOrdering.compareForDictKey original value)
           0
-          "equal sort keys"
+          "equal dict-key order"
         Expect.equal
-          (RT.DvalOrdering.compareForSort value different)
-          (RT.DvalOrdering.compareForSort original different)
-          "ordering is unchanged by saving"
+          (RT.DvalOrdering.compareForDictKey value different)
+          (RT.DvalOrdering.compareForDictKey original different)
+          "dict-key order is unchanged by saving"
+        Expect.throws
+          (fun () -> RT.DvalOrdering.compareForSort original value |> ignore<int>)
+          "Bytes have no sort order"
         let nested item = RT.DTuple(RT.DString "payload", item, [])
         Expect.isTrue
           (Equals.equals (nested original) (nested value))
@@ -968,6 +1007,7 @@ let tests =
       dbytesEphemeralDarkBridge
       reflectionIgnoresByteStorage
       byteLengthDoesNotReadStorage
+      peekDoesNotReadStorage
       packageBytesInsertLookup
       packageBytesDedupesOnSameHash
       packageBytesMissingHashReturnsNone

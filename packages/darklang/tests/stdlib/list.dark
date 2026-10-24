@@ -708,6 +708,10 @@ test comparatorRejectsStringResult =
   Stdlib.List.sortByComparator [ 1L, 2L, 3L ] (fun _ _ -> "㧑༷釺")
   => raises "Cannot perform equality check on String and Int"
 
+test sortRefusesFunctions =
+  Stdlib.List.sort [ (fun x -> x), (fun y -> y) ]
+  => raises "Cannot sort (lambda). Bytes, functions and streams have no order; use List.sortBy with a key that has one."
+
 //TODO: better error message
 test takeWhileRejectsNonBoolCondition =
   Stdlib.List.takeWhile [ 1L, 2L, 3L, 4L ] (fun _ -> 0L - 1L)

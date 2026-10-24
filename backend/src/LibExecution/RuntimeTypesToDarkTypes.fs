@@ -1201,6 +1201,7 @@ module RuntimeError =
             ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
+        | RuntimeError.Lists.CannotSort value -> "CannotSort", [ Dval.toDT value ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1217,6 +1218,8 @@ module RuntimeError =
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
         )
+      | DEnum(_, _, [], "CannotSort", [ value ]) ->
+        RuntimeError.Lists.CannotSort(Dval.fromDT value)
       | _ -> Exception.raiseInternal "Invalid Lists.Error" []
 
   module Dicts =

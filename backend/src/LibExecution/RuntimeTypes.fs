@@ -155,6 +155,9 @@ module NameResolution =
 type private DvalComparisonMode =
   | ForDictKey
   | ForSort
+  /// `ForSort`, except that Bytes take the dict-key order instead of refusing:
+  /// `List.unique` sorts only to group equal values, so any total order will do.
+  | ForDedupe
 
 
 /// A KnownType represents the type of a dval.
@@ -1094,6 +1097,11 @@ and DvalComparisonException(left : Dval, right : Dval) =
   member _.Left = left
   member _.Right = right
 
+/// A sort reached a value that has no order: Bytes, a function or a stream.
+and DvalUnsortableException(value : Dval) =
+  inherit System.Exception()
+  member _.Value = value
+
 and DvalOrdering private () =
   static member private compare
     (mode : DvalComparisonMode)
@@ -1153,20 +1161,18 @@ and DvalOrdering private () =
         let c = compare xCase yCase
         if c <> 0 then c else DvalOrdering.compareList mode xFields yFields
 
-    // Shorter Bytes come first. Bytes of the same length are ordered by hash,
-    // not by the bytes themselves, so comparing never has to load persistent
-    // bytes from the store, and only same-length Bytes are ever hashed. The
-    // order is the same every time, but within one length it is not the order
-    // you'd get comparing byte by byte.
-    //
-    // CLEANUP: Python, Go (`bytes.Compare`) and Erlang all order bytes by
-    // content, so a sorted list of Bytes here will surprise someone used to
-    // them. Byte order needs the persistent bytes loaded first, which this
-    // synchronous compare can't do; an explicit `Bytes.compare` that loads
-    // them would give it without changing how sort and dict keys work.
+    // Bytes cannot be sorted. The only order available without loading saved
+    // bytes from the store is length, then content hash, which is stable but
+    // means nothing, so `List.sort` refuses rather than hand that out as an
+    // answer; Go, Java, JS and C# also leave byte arrays unordered. Dict keys
+    // and `List.unique` still need some total order, and use that one.
     | DBytes x, DBytes y ->
-      let c = compare x.Length y.Length
-      if c <> 0 then c else compare x.ContentHash y.ContentHash
+      match mode with
+      | DvalComparisonMode.ForSort -> raise (DvalUnsortableException a)
+      | DvalComparisonMode.ForDictKey
+      | DvalComparisonMode.ForDedupe ->
+        let c = compare x.Length y.Length
+        if c <> 0 then c else compare x.ContentHash y.ContentHash
 
     | _ -> DvalOrdering.incompatible mode a b
 
@@ -1176,7 +1182,14 @@ and DvalOrdering private () =
     (b : Dval)
     : int =
     match mode with
-    | DvalComparisonMode.ForSort -> raise (DvalComparisonException(a, b))
+    | DvalComparisonMode.ForSort
+    | DvalComparisonMode.ForDedupe ->
+      match a, b with
+      | (DApplicable _ | DStream _ | DPromise _), _ ->
+        raise (DvalUnsortableException a)
+      | _, (DApplicable _ | DStream _ | DPromise _) ->
+        raise (DvalUnsortableException b)
+      | _ -> raise (DvalComparisonException(a, b))
     | DvalComparisonMode.ForDictKey ->
       match a, b with
       | DApplicable _, _
@@ -1226,6 +1239,9 @@ and DvalOrdering private () =
 
   static member compareForDictKey (a : Dval) (b : Dval) : int =
     DvalOrdering.compare DvalComparisonMode.ForDictKey a b
+
+  static member compareForDedupe (a : Dval) (b : Dval) : int =
+    DvalOrdering.compare DvalComparisonMode.ForDedupe a b
 
 and DictMap = Map<DictKey, Dval>
 
@@ -1671,6 +1687,8 @@ module RuntimeError =
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
+      /// A sort met a value with no order: Bytes, a function or a stream.
+      | CannotSort of value : Dval
 
   module Dicts =
     type Error =

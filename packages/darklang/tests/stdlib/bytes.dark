@@ -98,10 +98,27 @@ test collectionsUseContentEquality =
       Stdlib.List.unique [a, b] |> Stdlib.List.length |> Stdlib.Test.equal 1
       Stdlib.List.unique [Stdlib.Bytes.empty, Stdlib.Bytes.fromString ""]
       |> Stdlib.List.length |> Stdlib.Test.equal 1
-      // Equal bytes survive a sort.
-      Stdlib.List.sort [a, b] |> Stdlib.Test.equal [b, a]
-      // The order of different bytes does not depend on the input order.
-      Stdlib.List.sort [a, x] |> Stdlib.Test.equal (Stdlib.List.sort [x, a]) ]
+      // `unique` does not depend on the input order either.
+      Stdlib.List.unique [a, x, b] |> Stdlib.Test.equal (Stdlib.List.unique [x, b, a]) ]
+
+// Bytes have no order, so sorting them refuses rather than inventing one.
+test sortRefusesBytes =
+  Stdlib.List.sort [Stdlib.Bytes.fromString "b", Stdlib.Bytes.fromString "a"]
+  => raises "Cannot sort <Bytes: 1 byte 62>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
+
+test sortByRefusesBytesKeys =
+  Stdlib.List.sortBy [ "b", "a" ] (fun s -> Stdlib.Bytes.fromString s)
+  => raises "Cannot sort <Bytes: 1 byte 62>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
+
+// A sort reaches Bytes inside a value only when everything before them ties.
+test sortOfValuesHoldingBytesComparesEarlierFieldsFirst =
+  Stdlib.List.sort [ (2L, Stdlib.Bytes.fromString "x"), (1L, Stdlib.Bytes.fromString "y") ]
+  |> Stdlib.List.map Stdlib.Tuple2.first
+  |> Stdlib.Test.equal [ 1L, 2L ]
+
+test sortOfValuesHoldingBytesRefusesOnATie =
+  Stdlib.List.sort [ (1L, Stdlib.Bytes.fromString "x"), (1L, Stdlib.Bytes.fromString "y") ]
+  => raises "Cannot sort <Bytes: 1 byte 78>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
 
 // Reflection carries an opaque Bytes value, never a storage-specific tag.
 test reflectionUsesContents =
@@ -119,22 +136,27 @@ test dictionaryKeysUseContents =
   let different = Stdlib.Bytes.fromString "ho"
   let dict = Dict { first: "found" }
   let byEmpty = Dict { Stdlib.Bytes.empty: "empty" }
-  let overwritten =
-    Stdlib.Dict.fromListOverwritingDuplicates [(first, 1), (same, 2)]
+  let overwritten = Stdlib.Dict.fromEntries [(first, 1), (same, 2)]
   Stdlib.Test.all
     [ Stdlib.Dict.get dict same |> Stdlib.Test.equal (Some "found")
       Stdlib.Dict.get dict different |> Stdlib.Test.equal None
       Stdlib.Dict.get byEmpty (Stdlib.Bytes.fromString "")
       |> Stdlib.Test.equal (Some "empty")
-      Stdlib.Dict.fromList [(first, 1), (same, 2)] |> Stdlib.Test.equal None
+      Stdlib.Dict.size overwritten |> Stdlib.Test.equal 1
       Stdlib.Dict.get overwritten first |> Stdlib.Test.equal (Some 2)
       Stdlib.Dict.get (Dict { (first, 1): "nested" }) (same, 1)
       |> Stdlib.Test.equal (Some "nested") ]
 
 // A test whose error holds unsaved Bytes still reports that error.
-test duplicateKeyErrorHoldsBytes =
-  Dict { (Stdlib.Bytes.fromString "a"): 1, (Stdlib.Bytes.fromString "a"): 2 }
-  => raises "Cannot add two dictionary entries with the same key <Bytes: 1 byte 61>"
+// Equal Bytes are one key: a literal keeps the last value, `fromEntriesUnique`
+// refuses.
+test duplicateBytesKeysAreOneKey =
+  let a = Stdlib.Bytes.fromString "a"
+  let alsoA = Stdlib.Bytes.fromList [97uy]
+  Stdlib.Test.all
+    [ Dict { (a): 1, (alsoA): 2 } |> Stdlib.Test.equal (Dict { (a): 2 })
+      Stdlib.Dict.fromEntriesUnique [ (a, 1), (alsoA, 2) ]
+      |> Stdlib.Test.equal (Error(Stdlib.Dict.DuplicateKey.DuplicateKey a)) ]
 
 let reversed (bytes: Bytes) : Bytes =
   Stdlib.Bytes.fromList (Stdlib.List.reverse (Stdlib.Bytes.toList bytes))

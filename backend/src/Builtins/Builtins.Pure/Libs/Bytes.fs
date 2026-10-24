@@ -89,27 +89,22 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesPreviewHex" 0
+    { name = fn "bytesPeek" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes ""; Param.make "count" TInt "" ]
-      returnType = TypeReference.option TString
+      returnType = TypeReference.option TBytes
       description =
-        "The first <param count> bytes of <param bytes> as lowercase hex pairs "
-        + "separated by spaces, or None when the bytes are saved. Never reads the "
-        + "store, so it is cheap enough to call while printing a value."
+        "The first <param count> bytes of <param bytes>, or None when the bytes "
+        + "are saved. Never reads the store, so it is cheap enough to call while "
+        + "printing a value."
       fn =
         (function
         | _, _, _, [| DBytes(Ephemeral eph); DInt count |] ->
           let n =
             max (bigint 0) (min (DarkInt.toBigInt count) (bigint eph.bytes.Length))
-          let hex =
-            eph.bytes
-            |> Array.truncate (int n)
-            |> Array.map (fun b -> b.ToString("x2"))
-            |> String.concat " "
-          Ply(Dval.optionSome KTString (DString hex))
-        | _, _, _, [| DBytes(Persistent _); DInt _ |] ->
-          Ply(Dval.optionNone KTString)
+          let prefix = Array.truncate (int n) eph.bytes
+          Ply(Dval.optionSome KTBytes (Bytes.newEphemeral prefix))
+        | _, _, _, [| DBytes(Persistent _); DInt _ |] -> Ply(Dval.optionNone KTBytes)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
