@@ -604,6 +604,56 @@ let private aTracesBlobsGoWithIt =
       })
 
 
+/// `traces delete --all` empties every per-trace table, not a list of them written once. The
+/// tables come from the schema, so a table added later is checked without touching this test.
+let private deletingEveryTraceEmptiesEveryTraceTable =
+  cliTestWithFreshTraces
+    "deleting every trace leaves nothing in any trace table"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.Prev.looped"
+            ("(n: Int) : Int =\n"
+             + "  Stdlib.List.range 1 n\n"
+             + "  |> Stdlib.List.map (fun i -> i * 2)\n"
+             + "  |> Stdlib.List.length")
+        do! commit state "looped"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.looped" ]
+        // A loop, a logged call and a captured blob, so every table has rows to leave behind.
+        let! _ = runCli state [ "eval"; "Tests.Prev.looped 4" ]
+        let! _ = runCli state [ "eval"; twoUuids ]
+        let! _ =
+          runCli state [ "eval"; "Stdlib.String.toBlob \"held by the trace\"" ]
+
+        let! tables =
+          Sql.query
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'trace%' ORDER BY name"
+          |> Sql.executeAsync (fun read -> read.string "name")
+        Expect.isGreaterThanOrEqual
+          (List.length tables)
+          5
+          $"the schema's trace tables were found: {tables}"
+
+        let countRows (table : string) =
+          Sql.query $"SELECT COUNT(*) AS n FROM {table}"
+          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+
+        for table in tables do
+          let! before = countRows table
+          Expect.isGreaterThan before 0L $"{table} has rows before the delete"
+
+        let! cleared = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
+        Expect.stringContains cleared "cleared 3 traces" "the delete ran"
+
+        for table in tables do
+          let! after = countRows table
+          Expect.equal after 0L $"{table} is empty after the delete"
+      })
+
+
 let private replayEchoesAndRefuses =
   cliTestWithFreshTraces
     "a resume echoes what the old run printed, and stops at a call it cannot reproduce"
@@ -1391,6 +1441,7 @@ let tests =
     theFloorIsBounded
     hashReadsAreKeptOnceAndOutliveTheStore
     aTracesBlobsGoWithIt
+    deletingEveryTraceEmptiesEveryTraceTable
     replayEchoesAndRefuses
     secretsAreNotInTheLog
     spawnedChildReplays

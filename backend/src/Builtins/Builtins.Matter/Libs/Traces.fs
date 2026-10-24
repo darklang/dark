@@ -678,16 +678,11 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           uply {
-            let! count =
-              Sql.query "SELECT COUNT(*) as c FROM traces"
-              |> Sql.executeRowAsync (fun read -> read.int64 "c")
-            Sql.executeTransactionSync
-              [ ("DELETE FROM trace_fn_calls", [ [] ])
-                ("DELETE FROM trace_fns", [ [] ])
-                ("DELETE FROM trace_loops", [ [] ])
-                ("DELETE FROM traces", [ [] ]) ]
-            |> ignore<List<int>>
-            return Dval.int (bigint count)
+            let! ids =
+              Sql.query "SELECT id FROM traces"
+              |> Sql.executeAsync (fun read -> read.string "id")
+            LibDB.Tracing.TraceRetention.deleteTraces ids
+            return Dval.int (bigint (List.length ids))
           }
         | _ -> incorrectArgs ())
       previewable = Impure
