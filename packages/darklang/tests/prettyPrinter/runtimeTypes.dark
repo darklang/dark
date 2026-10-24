@@ -112,11 +112,11 @@ test collections =
       pp (1, 2) |> Stdlib.Test.equal "(1, 2)"
       pp (1, "two", true) |> Stdlib.Test.equal "(1, \"two\", true)"
       pp Stdlib.Dict.empty |> Stdlib.Test.equal "{}"
-      pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1), ("b", 2) ])
+      pp (Stdlib.Dict.fromEntries [ ("a", 1), ("b", 2) ])
       |> Stdlib.Test.equal "{ \"a\": 1, \"b\": 2 }"
-      pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("has-hyphen", 1) ])
+      pp (Stdlib.Dict.fromEntries [ ("has-hyphen", 1) ])
       |> Stdlib.Test.equal "{ \"has-hyphen\": 1 }"
-      pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("type", 1) ])
+      pp (Stdlib.Dict.fromEntries [ ("type", 1) ])
       |> Stdlib.Test.equal "{ \"type\": 1 }"
       pp (Dict { 1L: "one", 2L: "two" })
       |> Stdlib.Test.equal "{ 1: \"one\", 2: \"two\" }"

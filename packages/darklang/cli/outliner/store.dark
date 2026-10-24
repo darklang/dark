@@ -46,14 +46,14 @@ type V1Data =
 let migrateOutline (old: V1Outline) : Outline =
   let withNodes =
     old.nodes
-    |> Stdlib.Dict.toList
+    |> Stdlib.Dict.toEntries
     |> Stdlib.List.fold (emptyOutline ()) (fun acc pair ->
       let (key, nc) = pair
       addNode acc (parseKey key) nc.text)
 
   let withChildren =
     old.structure
-    |> Stdlib.Dict.toList
+    |> Stdlib.Dict.toEntries
     |> Stdlib.List.fold withNodes (fun acc pair ->
       let (key, s) = pair
       let id = parseKey key

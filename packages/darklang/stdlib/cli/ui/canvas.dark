@@ -174,7 +174,7 @@ let compose (width: Int) (height: Int) (spans: List<Layout.Span>) : List<String>
             | Some existing -> existing
             | None -> []
 
-          Stdlib.Dict.setOverridingDuplicates acc span.row (Stdlib.List.append existing [ span ]))
+          Stdlib.Dict.set acc span.row (Stdlib.List.append existing [ span ]))
 
     Stdlib.List.range 0 (h - 1)
     |> Stdlib.List.map (fun row ->

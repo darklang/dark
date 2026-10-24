@@ -171,7 +171,7 @@ let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
       (unique, seen)
     else
       (push unique value,
-       Stdlib.Dict.setOverridingDuplicates seen uniqueValue true))
+       Stdlib.Dict.set seen uniqueValue true))
   |> fun (uniqueValues, _) -> uniqueValues
   |> sort
 
@@ -204,7 +204,7 @@ let dedup (list: List<'a>) : List<'a> =
     if Stdlib.Dict.``member`` seen value then
       (acc, seen)
     else
-      (push acc value, Stdlib.Dict.setOverridingDuplicates seen value true))
+      (push acc value, Stdlib.Dict.set seen value true))
   |> fun (acc, _) -> acc
   |> reverse
 
@@ -540,7 +540,7 @@ let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
 
       match Stdlib.Dict.get groups key with
       | Some elements ->
-        (Stdlib.Dict.setOverridingDuplicates groups key (push elements element), keys)
+        (Stdlib.Dict.set groups key (push elements element), keys)
       | None -> (Stdlib.Dict.set groups key [ element ], push keys key))
 
   keys

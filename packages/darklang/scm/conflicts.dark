@@ -196,12 +196,12 @@ let detect
   let localEntries =
     local |> Stdlib.List.map (fun b -> (bindingKey b.owner b.modules b.name, b))
 
-  let localByKey = Stdlib.Dict.fromListOverwritingDuplicates localEntries
+  let localByKey = Stdlib.Dict.fromEntries localEntries
 
   let baseEntries =
     bases |> Stdlib.List.map (fun b -> (bindingKey b.owner b.modules b.name, b.baseHash))
 
-  let baseByKey = Stdlib.Dict.fromListOverwritingDuplicates baseEntries
+  let baseByKey = Stdlib.Dict.fromEntries baseEntries
 
   incoming
   |> Stdlib.List.filterMap (fun inc ->
@@ -319,7 +319,7 @@ let detectRemovals
   let localByKey =
     local
     |> Stdlib.List.map (fun b -> (bindingKey b.owner b.modules b.name, b))
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries
 
   removals
   |> Stdlib.List.filterMap (fun rem ->

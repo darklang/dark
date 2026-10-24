@@ -288,7 +288,7 @@ this landed, and three of the five entries have now moved.
 ### Dicts: it is the map, not the call volume
 
 13.89 -> 12.60 KB/iteration (-9.3%) by making `dictAddEntry` return a struct tuple, take its key and
-value untupled, and replacing the fold-with-a-lambda in `Dict.fromListOverwritingDuplicates` with a
+value untupled, and replacing the fold-with-a-lambda in `Dict.fromEntries` with a
 top-level recursion.
 
 **The "dicts is volume" framing this item used to carry was wrong as a statement about allocation.**

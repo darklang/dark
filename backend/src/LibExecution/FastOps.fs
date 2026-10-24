@@ -41,7 +41,6 @@ let dictGet = 13
 let dictSet = 14
 let strRepeat = 15
 let listContains = 16
-let dictSetStrict = 17
 let strIsEmpty = 18
 let listIsEmpty = 19
 /// `Multiply.multiply`; only reached as a trait method.
@@ -266,32 +265,18 @@ let evalDictSet
   (k : Dval)
   (v : Dval)
   : Dval voption =
-  if (tag = dictSet || tag = dictSetStrict) && Dval.isUsableDictKey k then
-    // `Dict.set` raises on a key already present and `setOverridingDuplicates` does not, so the
-    // strict one declines to the slow path when the key is there and lets the builtin raise.
-    if tag = dictSetStrict && Map.containsKey (DictKey k) o then
-      ValueNone
-    else
-      // Declines when the value would not merge, rather than letting `dictAddEntry` raise. The slow
-      // path's *parameter* check catches a mismatched value first and reports it differently, and an
-      // error message that depends on whether tracing happens to be on is worse than anything this
-      // path is worth. Same reason `evalList` declines on a failed merge.
-      match VT.merge valueType (Dval.toValueType v) with
+  if tag = dictSet && Dval.isUsableDictKey k then
+    // Use the slow path for type mismatches so its parameter check reports the error.
+    // This keeps error messages the same with tracing on or off, as in `evalList`.
+    match VT.merge valueType (Dval.toValueType v) with
+    | Ok _ ->
+      match VT.merge keyType (Dval.toValueType k) with
       | Ok _ ->
-        match VT.merge keyType (Dval.toValueType k) with
-        | Ok _ ->
-          let struct (keyType, valueType, map) =
-            TypeChecker.DvalCreator.dictAddEntry
-              threadID
-              keyType
-              valueType
-              o
-              k
-              v
-              TypeChecker.ReplaceValue
-          ValueSome(DDict(keyType, valueType, map))
-        | Error() -> ValueNone
+        let struct (keyType, valueType, map) =
+          TypeChecker.DvalCreator.dictAddEntry threadID keyType valueType o k v
+        ValueSome(DDict(keyType, valueType, map))
       | Error() -> ValueNone
+    | Error() -> ValueNone
   else
     ValueNone
 
@@ -590,8 +575,7 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "boolNot" boolNot
   put "listLength" listLength
   put "dictGet" dictGet
-  put "dictSetOverridingDuplicates" dictSet
-  put "dictSet" dictSetStrict
+  put "dictSet" dictSet
   put "stringRepeat" strRepeat
   put "listContains" listContains
   put "stringIsEmpty" strIsEmpty

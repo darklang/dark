@@ -32,19 +32,19 @@ let candidatesFromOps
       match op with
       | AddType t ->
         { found with
-            types = Stdlib.Dict.setOverridingDuplicates found.types t.hash t }
+            types = Stdlib.Dict.set found.types t.hash t }
       | AddValue v ->
         { found with
-            values = Stdlib.Dict.setOverridingDuplicates found.values v.hash v }
+            values = Stdlib.Dict.set found.values v.hash v }
       | AddFn fn ->
-        { found with fns = Stdlib.Dict.setOverridingDuplicates found.fns fn.hash fn }
+        { found with fns = Stdlib.Dict.set found.fns fn.hash fn }
       | AddTraitImpl i ->
-        { found with impls = Stdlib.Dict.setOverridingDuplicates found.impls i.hash i }
+        { found with impls = Stdlib.Dict.set found.impls i.hash i }
       | AddTrait t ->
-        { found with traits = Stdlib.Dict.setOverridingDuplicates found.traits t.hash t }
+        { found with traits = Stdlib.Dict.set found.traits t.hash t }
       | AddTest test ->
         { found with
-            tests = Stdlib.Dict.setOverridingDuplicates found.tests test.hash test }
+            tests = Stdlib.Dict.set found.tests test.hash test }
       | _ -> found)
 
 /// Report only the declarations requested by the caller. Dependency values may
@@ -55,7 +55,7 @@ let reportCandidates
   : Report =
   let candidateSet =
     Stdlib.List.fold candidates Dict {} (fun found item ->
-      Stdlib.Dict.setOverridingDuplicates found item true)
+      Stdlib.Dict.set found item true)
 
   let items =
     results
@@ -250,7 +250,7 @@ let checkPackageOpsFrom
       (Stdlib.List.flatten [ valueBodyFailures, fnBodyFailures, testBodyFailures ])
       Dict {}
       (fun found (item, outcome) ->
-        Stdlib.Dict.setOverridingDuplicates found item outcome)
+        Stdlib.Dict.set found item outcome)
 
   let (impls, implRefs, implFailures) =
     collectItemReferences
@@ -322,14 +322,14 @@ let checkPackageOpsFrom
     | Some b ->
       if b.closed then
         Stdlib.List.fold (Stdlib.Dict.values dependencies.fns) b.pool.fns (fun found fn ->
-          Stdlib.Dict.setOverridingDuplicates found fn.hash fn)
+          Stdlib.Dict.set found fn.hash fn)
       else
         dependencies.fns
     | None -> dependencies.fns
 
   let batchFns =
     Stdlib.List.fold fns knownFns (fun found fn ->
-      Stdlib.Dict.setOverridingDuplicates found fn.hash fn)
+      Stdlib.Dict.set found fn.hash fn)
 
   let implChecked =
     impls
@@ -548,19 +548,19 @@ let poolFor
   let types =
     Stdlib.List.fold typeHashes Dict {} (fun found hash ->
       match guard (fun h -> LanguageTools.PackageManager.Type.get h) hash with
-      | Ok(Some t) -> Stdlib.Dict.setOverridingDuplicates found hash t
+      | Ok(Some t) -> Stdlib.Dict.set found hash t
       | _ -> found)
 
   let fns =
     Stdlib.List.fold fnHashes Dict {} (fun found hash ->
       match guard (fun h -> LanguageTools.PackageManager.Function.getSignature h) hash with
-      | Ok(Some fn) -> Stdlib.Dict.setOverridingDuplicates found hash fn
+      | Ok(Some fn) -> Stdlib.Dict.set found hash fn
       | _ -> found)
 
   let values =
     Stdlib.List.fold valueHashes Dict {} (fun found hash ->
       match guard (fun h -> LanguageTools.PackageManager.Value.get h) hash with
-      | Ok(Some v) -> Stdlib.Dict.setOverridingDuplicates found hash v
+      | Ok(Some v) -> Stdlib.Dict.set found hash v
       | _ -> found)
 
   Environment.Closure { types = types, values = values, fns = fns }

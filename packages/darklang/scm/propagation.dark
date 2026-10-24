@@ -257,4 +257,4 @@ let everBoundHashesFor
     |> Stdlib.List.groupByWithKey (fun (key, _) -> key)
     |> Stdlib.List.map (fun (key, rows) ->
       (key, rows |> Stdlib.List.map (fun (_, hash) -> hash)))
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries

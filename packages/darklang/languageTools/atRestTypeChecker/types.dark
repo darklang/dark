@@ -41,6 +41,7 @@ let isWarning (code: IssueCode) : Bool =
   | UnknownTupleElement
   | MissingRecordField
   | DuplicateRecordField
+  | DuplicateDictKey
   | UnknownEnumCase
   | EnumFieldCountMismatch
   | InvalidInfixOperand
@@ -178,7 +179,7 @@ let substitute (mapping: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Model.Ty =
 /// a set. Apply substitutions with zonk first if only unresolved variables are wanted.
 let varsInto (found: Dict<Model.Var, Bool>) (ty: Model.Ty) : Dict<Model.Var, Bool> =
   match ty with
-  | TVar v -> Stdlib.Dict.setOverridingDuplicates found v true
+  | TVar v -> Stdlib.Dict.set found v true
   | TStream inner -> varsInto found inner
   | TList inner -> varsInto found inner
   | TTuple(first, second, rest) ->
@@ -207,7 +208,7 @@ let freeVarsInto
   (ty: Model.Ty)
   : Dict<Model.Var, Bool> =
   match walk subst ty with
-  | TVar v -> Stdlib.Dict.setOverridingDuplicates found v true
+  | TVar v -> Stdlib.Dict.set found v true
   | TList inner -> freeVarsInto subst found inner
   | TCustom(_, args) -> freeVarsAll subst found args
   | TFn(parameters, ret) ->
@@ -473,7 +474,7 @@ let fromReference
 /// as a particular type from the body.
 let rigid (names: List<String>) : Dict<String, Model.Ty> =
   Stdlib.List.fold names Dict {} (fun mapping name ->
-    Stdlib.Dict.setOverridingDuplicates mapping name (Model.Ty.TRigid name))
+    Stdlib.Dict.set mapping name (Model.Ty.TRigid name))
 
 /// Pair declared parameter names with supplied type arguments in order.
 /// Return None if their counts differ, since no complete mapping can be made.
@@ -489,7 +490,7 @@ let bindParams
     | Some pairs ->
       Stdlib.Option.Option.Some(
         Stdlib.List.fold pairs Dict {} (fun mapping (name, t) ->
-          Stdlib.Dict.setOverridingDuplicates mapping name t)
+          Stdlib.Dict.set mapping name t)
       )
     | None -> Stdlib.Option.Option.None
 

@@ -575,7 +575,7 @@ let showCodeJson
       |> Stdlib.List.map (fun pair ->
         let (id, dv) = pair
         (Stdlib.toString id, Darklang.Tracing.Format.compactDvalTo branchId budget dv))
-      |> Stdlib.Dict.fromListOverwritingDuplicates
+      |> Stdlib.Dict.fromEntries
 
     // Which frames carry anything. Built once for the whole trace, not once per loop.
     //
@@ -591,7 +591,7 @@ let showCodeJson
       |> Stdlib.List.map (fun row ->
         let (fid, _, _) = row
         (fid, true))
-      |> Stdlib.Dict.fromListOverwritingDuplicates
+      |> Stdlib.Dict.fromEntries
 
     let loopsJson =
       loops
@@ -616,7 +616,7 @@ let showCodeJson
 
                 (Stdlib.toString exprId,
                  Darklang.Tracing.Format.compactDvalTo branchId budget dv))
-              |> Stdlib.Dict.fromListOverwritingDuplicates
+              |> Stdlib.Dict.fromEntries
 
             let p = Stdlib.toString (i + 1)
 
@@ -747,7 +747,7 @@ let loopsOf
       if (Stdlib.Dict.get acc k) != Stdlib.Option.Option.None then
         acc
       else
-        Stdlib.Dict.setOverridingDuplicates
+        Stdlib.Dict.set
           acc
           k
           (insideFn frames f.parent selfHash stdlibHashes 64))
@@ -766,7 +766,7 @@ let loopsOf
   let frameById =
     frames
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc f ->
-      Stdlib.Dict.setOverridingDuplicates acc f.id f)
+      Stdlib.Dict.set acc f.id f)
 
   // Where a loop gets its name: the function the lambda was passed TO, which is its parent
   // frame. `List.map` pushes a frame and applies the lambda inside it, and the frame carries the
@@ -821,7 +821,7 @@ let loopsOf
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc t ->
       let (k, _nm, _hash, _frame) = t
       let atK = Stdlib.Dict.get acc k |> Stdlib.Option.withDefault []
-      Stdlib.Dict.setOverridingDuplicates acc k (Stdlib.List.push atK t))
+      Stdlib.Dict.set acc k (Stdlib.List.push atK t))
 
   sited
   |> Stdlib.List.fold [] (fun acc t ->
@@ -982,7 +982,7 @@ let valuesOfFrame
   let loopFrames =
     loopFrameIds
     |> Stdlib.List.map (fun id -> (id, true))
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries
 
   let ownedByLoop =
     frameValues
@@ -1014,12 +1014,12 @@ let valuesOfFrame
   // prevent, and a blank line is the honest answer.
   let outside =
     base'
-    |> Stdlib.Dict.toList
+    |> Stdlib.Dict.toEntries
     |> Stdlib.List.filter (fun pair ->
       Stdlib.Bool.not (Stdlib.List.contains ownedByLoop (Stdlib.Tuple2.first pair)))
 
   Stdlib.List.append outside mine
-  |> Stdlib.Dict.fromListOverwritingDuplicates
+  |> Stdlib.Dict.fromEntries
 
 
 /// What `dark traces show <fn>` prints: the function's source, with `// = value` beside each
@@ -1215,7 +1215,7 @@ let showCode
             |> Stdlib.List.map (fun pair ->
               let (id, dv) = pair
               (Stdlib.toString id, PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
-            |> Stdlib.Dict.fromListOverwritingDuplicates
+            |> Stdlib.Dict.fromEntries
 
           // A chosen iteration replaces the values on the lines inside that loop.
           let values =

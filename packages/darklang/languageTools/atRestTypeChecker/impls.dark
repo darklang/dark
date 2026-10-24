@@ -98,7 +98,7 @@ let expectedType
       (Stdlib.List.zip trait_.typeParams (Stdlib.List.push args selfTy)
        |> Stdlib.Option.withDefault [])
       (Types.rigid method_.typeParams)
-      (fun mapping (name, t) -> Stdlib.Dict.setOverridingDuplicates mapping name t)
+      (fun mapping (name, t) -> Stdlib.Dict.set mapping name t)
 
   let (parameters, found) =
     Types.fromReferencesInto

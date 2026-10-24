@@ -18,7 +18,7 @@ let prepareValueTypeParameters
   (failures: Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>)
   : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
   let declarations =
-    (Stdlib.Dict.toList env.types)
+    (Stdlib.Dict.toEntries env.types)
     |> Stdlib.List.filter (fun (_, decl) ->
       Stdlib.Bool.not (Stdlib.List.isEmpty decl.typeParams))
   let (parameters, failures, changed) =
@@ -37,7 +37,7 @@ let prepareValueTypeParameters
               (used, failures)
             | Error failure ->
               (previous, Stdlib.Dict.set failures name (failureFinding failure))
-          (Stdlib.Dict.setOverridingDuplicates parameters name used,
+          (Stdlib.Dict.set parameters name used,
            failures, changed || previous != used))
   let env = { env with valueTypeParameters = parameters }
   if changed then prepareValueTypeParameters env failures else (env, failures)
@@ -104,7 +104,7 @@ let prepareDictKeyParameters
   (failures: Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>)
   : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
   let declarations =
-    (Stdlib.Dict.toList env.types)
+    (Stdlib.Dict.toEntries env.types)
     |> Stdlib.List.filter (fun (_, decl) -> Stdlib.Bool.not (Stdlib.List.isEmpty decl.typeParams))
   let (requirements, failures, changed) =
     Stdlib.List.fold declarations (env.dictKeyParameters, failures, false) (fun (requirements, failures, changed) (name, decl) ->
@@ -115,7 +115,7 @@ let prepareDictKeyParameters
           (requirements, Stdlib.Dict.set failures name (failureFinding failure), changed)
         | Ok required ->
           let previous = Stdlib.Option.withDefault (Stdlib.Dict.get requirements name) []
-          (Stdlib.Dict.setOverridingDuplicates requirements name required,
+          (Stdlib.Dict.set requirements name required,
            failures, changed || previous != required))
   let env = { env with dictKeyParameters = requirements }
   if changed then prepareDictKeyParameters env failures else (env, failures)
@@ -250,9 +250,9 @@ let reachesAliasCycle
           | _ -> []
         | None -> []
 
-      let expanding = Stdlib.Dict.setOverridingDuplicates expanding name true
+      let expanding = Stdlib.Dict.set expanding name true
       let (answer, known) = anyReachesAliasCycle env known expanding next
-      (answer, Stdlib.Dict.setOverridingDuplicates known name answer)
+      (answer, Stdlib.Dict.set known name answer)
 
 /// Follow alias references until one reaches a cycle, sharing cached answers
 /// between visits. Stop at the first cycle because only a yes/no result is needed.
@@ -410,14 +410,14 @@ let strongConnect
   let components =
     { components with
         index =
-          Stdlib.Dict.setOverridingDuplicates
+          Stdlib.Dict.set
             components.index node components.nextIndex
         lowLink =
-          Stdlib.Dict.setOverridingDuplicates
+          Stdlib.Dict.set
             components.lowLink node components.nextIndex
         nextIndex = components.nextIndex + 1
         stack = Stdlib.List.push components.stack node
-        onStack = Stdlib.Dict.setOverridingDuplicates components.onStack node true }
+        onStack = Stdlib.Dict.set components.onStack node true }
 
   let components = connectSuccessors env components node (referencesOf env node)
 
@@ -448,7 +448,7 @@ let connectSuccessors
             (indexOrZero components.lowLink successor)
         { components with
             lowLink =
-              Stdlib.Dict.setOverridingDuplicates components.lowLink node lowLink }
+              Stdlib.Dict.set components.lowLink node lowLink }
       else if Stdlib.Dict.``member`` components.onStack successor then
         // This dependency is still in an unfinished group. Use its discovery
         // index, as required for an edge to an already visited node in Tarjan's algorithm.
@@ -458,7 +458,7 @@ let connectSuccessors
             (indexOrZero components.index successor)
         { components with
             lowLink =
-              Stdlib.Dict.setOverridingDuplicates components.lowLink node lowLink }
+              Stdlib.Dict.set components.lowLink node lowLink }
       else
         components
 
@@ -544,7 +544,7 @@ let allDeclarationProblems
         | Error _ -> problems
 
       Stdlib.List.fold members declarationProblems (fun declarationProblems m ->
-        Stdlib.Dict.setOverridingDuplicates declarationProblems m problems))
+        Stdlib.Dict.set declarationProblems m problems))
 
 /// Return prepared facts when available. Otherwise inspect the declaration and
 /// its alias-cycle status on demand, without updating the environment's cache.
@@ -590,7 +590,7 @@ let visitAll
     if Stdlib.Dict.``member`` walked name then
       visitAll env at walked found rest
     else
-      let walked = Stdlib.Dict.setOverridingDuplicates walked name true
+      let walked = Stdlib.Dict.set walked name true
 
       match declarationFactsFor env name with
       | None -> visitAll env at walked found rest
@@ -622,7 +622,7 @@ let declarationProblemsFor
   | None ->
     let problems = collectDeclarationProblems env name
     let declarationProblems =
-      Stdlib.Dict.setOverridingDuplicates env.declarationProblems name problems
+      Stdlib.Dict.set env.declarationProblems name problems
     (problems, { env with declarationProblems = declarationProblems })
 
 /// Validate this use of a type: check its structure and dictionary keys, then add

@@ -111,7 +111,7 @@ let groupByModule
       match Stdlib.Dict.get acc key with
       | Some xs -> xs
       | None -> []
-    Stdlib.Dict.setOverridingDuplicates acc key (Stdlib.List.append existing [item]))
+    Stdlib.Dict.set acc key (Stdlib.List.append existing [item]))
 
 
 let trimRoot (root: String) (key: String) : String =

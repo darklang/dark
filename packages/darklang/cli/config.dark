@@ -113,7 +113,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | ["set", key, value] ->
     let config = readConfig ()
-    let updatedConfig = Stdlib.Dict.setOverridingDuplicates config key value
+    let updatedConfig = Stdlib.Dict.set config key value
     writeConfig updatedConfig
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} = {value}")
 

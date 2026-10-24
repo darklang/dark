@@ -443,7 +443,7 @@ let detectOutdatedUsagesOn (branchId: Uuid) : List<Finding> =
       |> Stdlib.List.fold Stdlib.Dict.empty (fun acc row ->
         let h = txt row "item_hash"
         let rest = Stdlib.Dict.get acc h |> Stdlib.Option.withDefault []
-        Stdlib.Dict.setOverridingDuplicates acc h (Stdlib.List.push rest row))
+        Stdlib.Dict.set acc h (Stdlib.List.push rest row))
 
     let edgesOf (b: Conflicts.Binding) : List<Dict<String, Stdlib.Sqlite.Value>> =
       Stdlib.Dict.get edgesByHash b.hash |> Stdlib.Option.withDefault []
@@ -520,7 +520,7 @@ let pending () : Detection =
   let ackedSet =
     ackedIds ()
     |> Stdlib.List.map (fun a -> (a, true))
-    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.fromEntries
 
   let detected = detectAll ()
 

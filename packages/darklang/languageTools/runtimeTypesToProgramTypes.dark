@@ -107,7 +107,7 @@ let dvalToExpr
   | DDict(_keyType, _valueType, entries) ->
     let converted =
       entries
-      |> Stdlib.Dict.toList
+      |> Stdlib.Dict.toEntries
       |> Stdlib.List.map (fun pair ->
         let (k, v) = pair
 
@@ -121,7 +121,7 @@ let dvalToExpr
   | DRecord(_runtimeTypeName, sourceTypeName, _typeArgs, fields) ->
     let converted =
       fields
-      |> Stdlib.Dict.toList
+      |> Stdlib.Dict.toEntries
       |> Stdlib.List.map (fun pair ->
         let (k, v) = pair
         match dvalToExpr branchId v with

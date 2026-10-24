@@ -156,11 +156,12 @@ module Dict =
       E.Dict.multEntries
       (Dval.stringDict RT.KTBool [ "t", RT.DBool true; "f", RT.DBool false ])
 
+  // "t" appears twice; when the dict is built, the second "t" replaces the first.
   let dupeKey =
-    tFail
+    t
       "Dict { \"t\": true, \"f\": false, \"t\": false }"
       E.Dict.dupeKey
-      (RTE.Dict(RTE.Dicts.TriedToAddKeyAfterAlreadyPresent(RT.DString "t")))
+      (Dval.stringDict RT.KTBool [ "t", RT.DBool false; "f", RT.DBool false ])
 
   let tests = testList "Dict" [ empty; simple; multEntries; dupeKey ]
 

@@ -814,7 +814,7 @@ module Values =
         |> Stdlib.List.map (fun pair ->
           let (id, v) = pair
           (Stdlib.toString id, v))
-        |> Stdlib.Dict.fromListOverwritingDuplicates
+        |> Stdlib.Dict.fromEntries
 
       Stdlib.Option.Option.Some(
         Values { byExpr = byExpr, problem = problem, skipped = Stdlib.Option.Option.None }

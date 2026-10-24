@@ -34,8 +34,8 @@ let updateVersion
 
   let updatedConfig =
     config
-    |> Stdlib.Dict.setOverridingDuplicates "version" versionToSet
-    |> Stdlib.Dict.setOverridingDuplicates "lastUpdateTimestamp" currentTimestamp
+    |> Stdlib.Dict.set "version" versionToSet
+    |> Stdlib.Dict.set "lastUpdateTimestamp" currentTimestamp
 
   let serializedConfig =
     updatedConfig

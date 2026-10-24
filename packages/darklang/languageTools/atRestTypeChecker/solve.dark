@@ -141,7 +141,7 @@ let markUnknownsAsError (s: State) (ty: Model.Ty) : State =
   { s with
       subst =
         Stdlib.List.fold vars s.subst (fun subst v ->
-          Stdlib.Dict.setOverridingDuplicates subst v Model.Ty.TError) }
+          Stdlib.Dict.set subst v Model.Ty.TError) }
 
 /// Mark unresolved variables across several dependent types as unavailable.
 let markAllUnknownsAsError (s: State) (tys: List<Model.Ty>) : State =
@@ -300,7 +300,7 @@ let unifyExpanded
 /// <param s> with <param v> assigned <param t>. Top-level rather than nested in `bindVar`, where
 /// it is a closure built on every binding.
 let bindTo (s: State) (v: Model.Var) (t: Model.Ty) : State =
-  { s with subst = Stdlib.Dict.setOverridingDuplicates s.subst v t }
+  { s with subst = Stdlib.Dict.set s.subst v t }
 
 /// Assign v to the other type while rejecting an assignment that would contain v
 /// within itself. Expand aliases before declaring such a cycle, since an alias
@@ -454,7 +454,7 @@ let instantiateFrom
       rest
       remaining
       (Stdlib.List.push args arg)
-      (Stdlib.Dict.setOverridingDuplicates mapping name arg)
+      (Stdlib.Dict.set mapping name arg)
 
 /// Give one use of a scheme fresh variables for every quantified parameter.
 /// Apply the same replacements to its saved requirements and solve them for this
@@ -463,7 +463,7 @@ let instantiate (s: State) (scheme: Model.Scheme) : (Model.Ty * State) =
   let (mapping, s) =
     Stdlib.List.fold scheme.quantified (Dict {}, s) (fun (mapping, s) v ->
       let (t, s) = fresh s
-      (Stdlib.Dict.setOverridingDuplicates mapping v t, s))
+      (Stdlib.Dict.set mapping v t, s))
 
   let s =
     Stdlib.List.fold scheme.constraints s (fun s c ->
@@ -689,7 +689,7 @@ let generalize
           (Stdlib.Option.Option.Some key) Context.DuplicateBindingId)
     let invalidScheme =
       Model.Scheme { quantified = [], typ = Model.Ty.TError, constraints = [] }
-    { s with schemes = Stdlib.Dict.setOverridingDuplicates s.schemes key invalidScheme }
+    { s with schemes = Stdlib.Dict.set s.schemes key invalidScheme }
   else
     { s with schemes = Stdlib.Dict.set s.schemes key scheme }
 
@@ -1060,7 +1060,7 @@ let checkReachableKeyTypes
       let (s, seen, pending) =
         Stdlib.List.fold variables (s, seen, rest) (fun (s, seen, pending) v ->
           let subject = Model.Ty.TVar v
-          let seen = Stdlib.Dict.setOverridingDuplicates seen v true
+          let seen = Stdlib.Dict.set seen v true
           let (s, pending) =
             Stdlib.List.fold uses (s, pending) (fun (s, pending) use ->
               if Types.walk s.subst use.subject != subject then
@@ -1305,7 +1305,7 @@ let callableFor
   | Some callable -> (callable, s)
   | None ->
     let (callable, env) = Environment.resolveCallable s.env fn
-    let callables = Stdlib.Dict.setOverridingDuplicates env.callables fn callable
+    let callables = Stdlib.Dict.set env.callables fn callable
     (callable, { s with env = { env with callables = callables } })
 
 /// Instantiate a checked package value's scheme, or read a builtin value's declared
@@ -1399,7 +1399,7 @@ let wouldContainItself
     (Stdlib.List.push waiting (v, unknowns contents))
     |> Stdlib.List.fold Dict {} (fun graph (c, inside) ->
       let known = Stdlib.Option.withDefault (Stdlib.Dict.get graph c) []
-      Stdlib.Dict.setOverridingDuplicates graph c (Stdlib.List.append inside known))
+      Stdlib.Dict.set graph c (Stdlib.List.append inside known))
 
   reaches edges v (Stdlib.Option.withDefault (Stdlib.Dict.get edges v) []) Dict {}
 
@@ -1425,7 +1425,7 @@ let reaches
         edges
         target
         (Stdlib.List.append more rest)
-        (Stdlib.Dict.setOverridingDuplicates seen next true)
+        (Stdlib.Dict.set seen next true)
 
 /// Report a call whose pending type relationships would create an infinite type.
 /// Retain unresolved types as evidence; Items keeps the finding as a warning
