@@ -1,10 +1,159 @@
 module Darklang.Stdlib.DateTime
 
 
+// A DateTime is a count of 100ns ticks since the Unix epoch, read and built by the two
+// builtins below. Apart from the three string formatters, everything else is arithmetic on that
+// count, over the proleptic Gregorian calendar. Follows Paul's compiler stdlib (`dateTime.dark`).
+
+let __ticks (date: DateTime) : Int = Builtin.dateTimeToUnixTicks date
+
+/// Raises "out-of-range value for type of Int" outside -9998-01-01 to 9999-12-31.
+let __fromTicks (ticks: Int) : DateTime = Builtin.dateTimeFromUnixTicks ticks
+
+let __ticksPerMillisecond () : Int = 10000
+let __ticksPerSecond () : Int = 10000000
+let __ticksPerMinute () : Int = 600000000
+let __ticksPerHour () : Int = 36000000000
+let __ticksPerDay () : Int = 864000000000
+
+/// `/` on Ints rounds toward zero; dates before 1970 need it to round down.
+let __floorDiv (value: Int) (divisor: Int) : Int = (value - value % divisor) / divisor
+
+let __daysSinceEpoch (date: DateTime) : Int =
+  __floorDiv (__ticks date) (__ticksPerDay ())
+
+let __ticksWithinDay (date: DateTime) : Int = __ticks date % __ticksPerDay ()
+
+/// Days since 1970-01-01 of a civil date.
+let __daysFromCivil (year: Int) (month: Int) (day: Int) : Int =
+  let y = if month <= 2 then year - 1 else year
+  let era = __floorDiv y 400
+  let yearOfEra = y - era * 400
+  let m = if month > 2 then month - 3 else month + 9
+  let dayOfYear = (153 * m + 2) / 5 + day - 1
+  let dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear
+  era * 146097 + dayOfEra - 719468
+
+/// (year, month, day) of a count of days since 1970-01-01.
+let __civilFromDays (days: Int) : (Int * Int * Int) =
+  let shifted = days + 719468
+  let era = __floorDiv shifted 146097
+  let dayOfEra = shifted - era * 146097
+  let yearOfEra =
+    (dayOfEra - dayOfEra / 1460 + dayOfEra / 36524 - dayOfEra / 146096) / 365
+  let dayOfYear = dayOfEra - (365 * yearOfEra + yearOfEra / 4 - yearOfEra / 100)
+  let mp = (5 * dayOfYear + 2) / 153
+  let day = dayOfYear - (153 * mp + 2) / 5 + 1
+  let month = if mp < 10 then mp + 3 else mp - 9
+  let year = if month <= 2 then yearOfEra + era * 400 + 1 else yearOfEra + era * 400
+  (year, month, day)
+
+/// A difference in whole units, computed in floating point as the host's durations do
+/// (days times units-per-day, plus the rest of the day) and rounded half to even.
+let __roundedDifference
+  (endDate: DateTime)
+  (startDate: DateTime)
+  (unitsPerDay: Int)
+  (nanosPerUnit: Float)
+  : Int =
+  let nanosPerDay = 86400000000000
+  let nanos = (__ticks endDate - __ticks startDate) * 100
+  let days = __floorDiv nanos nanosPerDay
+  let nanoOfDay = nanos % nanosPerDay
+  Stdlib.Float.round (
+    Stdlib.Int.toFloat (days * unitsPerDay)
+    + Stdlib.Int.toFloat nanoOfDay / nanosPerUnit
+  )
+
+let __digit (c: Char) : Stdlib.Option.Option<Int> =
+  match c with
+  | '0' -> Stdlib.Option.Option.Some 0
+  | '1' -> Stdlib.Option.Option.Some 1
+  | '2' -> Stdlib.Option.Option.Some 2
+  | '3' -> Stdlib.Option.Option.Some 3
+  | '4' -> Stdlib.Option.Option.Some 4
+  | '5' -> Stdlib.Option.Option.Some 5
+  | '6' -> Stdlib.Option.Option.Some 6
+  | '7' -> Stdlib.Option.Option.Some 7
+  | '8' -> Stdlib.Option.Option.Some 8
+  | '9' -> Stdlib.Option.Option.Some 9
+  | _ -> Stdlib.Option.Option.None
+
+let __number (digits: List<Char>) : Stdlib.Option.Option<Int> =
+  Stdlib.List.fold digits (Stdlib.Option.Option.Some 0) (fun acc c ->
+    match (acc, __digit c) with
+    | (Some n, Some d) -> Stdlib.Option.Option.Some(n * 10 + d)
+    | _ -> Stdlib.Option.Option.None)
+
+let __isLeapYear (year: Int) : Bool =
+  (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+
+let __daysInMonth (year: Int) (month: Int) : Int =
+  match month with
+  | 2 -> if __isLeapYear year then 29 else 28
+  | 4 -> 30
+  | 6 -> 30
+  | 9 -> 30
+  | 11 -> 30
+  | _ -> 31
+
+let __fromParts
+  (year: List<Char>)
+  (month: List<Char>)
+  (day: List<Char>)
+  (hour: List<Char>)
+  (minute: List<Char>)
+  (second: List<Char>)
+  (millisecond: List<Char>)
+  : Stdlib.Result.Result<DateTime, String> =
+  match
+    (__number year,
+     __number month,
+     __number day,
+     __number hour,
+     __number minute,
+     __number second,
+     __number millisecond)
+  with
+  | (Some y, Some mo, Some d, Some h, Some mi, Some s, Some ms) ->
+    if
+      y >= 1
+      && mo >= 1
+      && mo <= 12
+      && d >= 1
+      && d <= __daysInMonth y mo
+      && h <= 23
+      && mi <= 59
+      && s <= 59
+    then
+      let ticks =
+        __daysFromCivil y mo d * __ticksPerDay ()
+        + h * __ticksPerHour ()
+        + mi * __ticksPerMinute ()
+        + s * __ticksPerSecond ()
+        + ms * __ticksPerMillisecond ()
+      Stdlib.Result.Result.Ok(__fromTicks ticks)
+    else
+      Stdlib.Result.Result.Error "Invalid date format"
+  | _ -> Stdlib.Result.Result.Error "Invalid date format"
+
+
 /// Parses a string representing a date and time in the ISO 8601 format exactly {{" + ISO8601Format+ "}}
 /// (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}.
 let parse (s: String) : Stdlib.Result.Result<DateTime, String> =
-  Builtin.dateTimeParse s
+  match Stdlib.String.toList s with
+  | [ y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2, 'T', h1, h2, ':', mi1, mi2, ':', s1, s2, 'Z' ] ->
+    __fromParts [ y1, y2, y3, y4 ] [ mo1, mo2 ] [ d1, d2 ] [ h1, h2 ] [ mi1, mi2 ] [ s1, s2 ] []
+  | [ y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2, 'T', h1, h2, ':', mi1, mi2, ':', s1, s2, '.', f1, f2, f3, 'Z' ] ->
+    __fromParts
+      [ y1, y2, y3, y4 ]
+      [ mo1, mo2 ]
+      [ d1, d2 ]
+      [ h1, h2 ]
+      [ mi1, mi2 ]
+      [ s1, s2 ]
+      [ f1, f2, f3 ]
+  | _ -> Stdlib.Result.Result.Error "Invalid date format"
 
 
 impl ToString for DateTime =
@@ -32,32 +181,30 @@ let today () : DateTime = Stdlib.DateTime.__today ()
 
 /// Returns a <type DateTime> <param seconds> seconds after <param d>
 let addSeconds (d: DateTime) (seconds: Int) : DateTime =
-  Builtin.dateTimeAddSeconds d seconds
+  __fromTicks (__ticks d + seconds * __ticksPerSecond ())
 
 
 /// Returns a <type DateTime> <param seconds> seconds before <param d>
 let subtractSeconds (d: DateTime) (seconds: Int) : DateTime =
-  Builtin.dateTimeSubtractSeconds d seconds
+  __fromTicks (__ticks d - seconds * __ticksPerSecond ())
 
 
 /// Returns whether {{<param d1> > <param d2>}}
-let greaterThan (d1: DateTime) (d2: DateTime) : Bool =
-  Builtin.dateTimeGreaterThan d1 d2
+let greaterThan (d1: DateTime) (d2: DateTime) : Bool = __ticks d1 > __ticks d2
 
 
 /// Returns whether {{<param d1> < <param d2>}}
-let lessThan (d1: DateTime) (d2: DateTime) : Bool =
-  Builtin.dateTimeLessThan d1 d2
+let lessThan (d1: DateTime) (d2: DateTime) : Bool = __ticks d1 < __ticks d2
 
 
 /// Returns whether {{<param d1> >= <param d2>}}
 let greaterThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
-  Builtin.dateTimeGreaterThanOrEqualTo d1 d2
+  __ticks d1 >= __ticks d2
 
 
 /// Returns whether {{<param d1> <= <param d2>}}
 let lessThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
-  Builtin.dateTimeLessThanOrEqualTo d1 d2
+  __ticks d1 <= __ticks d2
 
 /// `d1 < d2` on DateTimes, by the four comparisons above.
 impl Compare for DateTime =
@@ -68,80 +215,82 @@ impl Compare for DateTime =
 
 
 /// Converts <param date> to an <type Int> representing seconds since the Unix epoch
-let toSeconds (date: DateTime) : Int = Builtin.dateTimeToSeconds date
+let toSeconds (date: DateTime) : Int = __floorDiv (__ticks date) (__ticksPerSecond ())
 
 
 /// Converts an <type Int> representing seconds since the Unix epoch into a <type DateTime>
 let fromSeconds (seconds: Int) : DateTime =
-  Builtin.dateTimeFromSeconds seconds
+  __fromTicks (seconds * __ticksPerSecond ())
 
 
 /// Returns the year portion of <param date> as an <type Int>
-let year (date: DateTime) : Int = Builtin.dateTimeYear date
+let year (date: DateTime) : Int = (__civilFromDays (__daysSinceEpoch date)).1
 
 
 /// Returns the month portion of <param date> as an <type Int> between {{1}} and {{12}}
-let month (date: DateTime) : Int = Builtin.dateTimeMonth date
+let month (date: DateTime) : Int = (__civilFromDays (__daysSinceEpoch date)).2
 
 
 /// Returns the day portion of <param date> as an <type Int>
-let day (date: DateTime) : Int = Builtin.dateTimeDay date
+let day (date: DateTime) : Int = (__civilFromDays (__daysSinceEpoch date)).3
 
 
 /// Returns the weekday of <param date> as an <type Int>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
-let weekday (date: DateTime) : Int = Builtin.dateTimeWeekday date
+let weekday (date: DateTime) : Int = (__daysSinceEpoch date + 3) % 7 + 1
 
 
 /// Returns the hour portion of <param date> as an <type Int>
-let hour (date: DateTime) : Int = Builtin.dateTimeHour date
+let hour (date: DateTime) : Int = __ticksWithinDay date / __ticksPerHour ()
 
 
 /// Returns the minute portion of <param date> as an <type Int>
-let minute (date: DateTime) : Int = Builtin.dateTimeMinute date
+let minute (date: DateTime) : Int =
+  (__ticksWithinDay date / __ticksPerMinute ()) % 60
 
 
 /// Returns the second portion of <param date> as an <type Int>
-let second (date: DateTime) : Int = Builtin.dateTimeSecond date
+let second (date: DateTime) : Int =
+  (__ticksWithinDay date / __ticksPerSecond ()) % 60
 
 
 /// Returns <type date> with the time set to midnight
 let atStartOfDay (date: DateTime) : DateTime =
-  Builtin.dateTimeAtStartOfDay date
+  __fromTicks (__daysSinceEpoch date * __ticksPerDay ())
 
 
 /// Returns the difference of the two dates, in seconds
 let subtract (d1: DateTime) (d2: DateTime) : Int =
-  Builtin.dateTimeSubtract d1 d2
+  __roundedDifference d1 d2 86400 1000000000.0
 
 
 /// Converts <param date> to an <type Int> representing milliseconds since the Unix epoch
 let toMilliseconds (date: DateTime) : Int =
-  Builtin.dateTimeToMilliseconds date
+  __floorDiv (__ticks date) (__ticksPerMillisecond ())
 
 
 /// Converts an <type Int> representing milliseconds since the Unix epoch into a <type DateTime>
 let fromMilliseconds (milliseconds: Int) : DateTime =
-  Builtin.dateTimeFromMilliseconds milliseconds
+  __fromTicks (milliseconds * __ticksPerMillisecond ())
 
 
 /// Returns a <type DateTime> <param milliseconds> milliseconds after <param d>
 let addMilliseconds (d: DateTime) (milliseconds: Int) : DateTime =
-  Builtin.dateTimeAddMilliseconds d milliseconds
+  __fromTicks (__ticks d + milliseconds * __ticksPerMillisecond ())
 
 
 /// Returns a <type DateTime> <param milliseconds> milliseconds before <param d>
 let subtractMilliseconds (d: DateTime) (milliseconds: Int) : DateTime =
-  Builtin.dateTimeSubtractMilliseconds d milliseconds
+  __fromTicks (__ticks d - milliseconds * __ticksPerMillisecond ())
 
 
 /// Returns the millisecond portion of <param date> as an <type Int> between {{0}} and {{999}}
 let millisecond (date: DateTime) : Int =
-  Builtin.dateTimeMillisecond date
+  (__ticksWithinDay date / __ticksPerMillisecond ()) % 1000
 
 
 /// Returns the difference of the two dates, in milliseconds
 let subtractMs (d1: DateTime) (d2: DateTime) : Int =
-  Builtin.dateTimeSubtractMs d1 d2
+  __roundedDifference d1 d2 86400000 1000000.0
 
 
 // Shared clock implementation.
@@ -199,7 +348,7 @@ let __monotonicMilliseconds () : Int =
 
 let __now () : DateTime =
   match __realtimeNanoseconds () with
-  | Ok ((seconds, nanos)) -> Builtin.dateTimeFromUnixTicks (seconds * 10000000 + nanos / 100)
+  | Ok ((seconds, nanos)) -> __fromTicks (seconds * 10000000 + nanos / 100)
   | Error e -> Builtin.unwrap (Error e)
 
 let __today () : DateTime =
