@@ -5,6 +5,10 @@
 --
 -- Columns avoid storing Dval type hashes, which change when package types change.
 -- CHECKs reject missing options so replay cannot silently drop a sandbox.
+///
+-- CLEANUP consider removing this layer.
+-- Perhaps we could encode this in an ExecutionPoint segment of a trace, instead?
+-- Or maybe this is consolidated with the other root-level trace table?
 CREATE TABLE IF NOT EXISTS trace_cli_invocations (
   trace_id TEXT PRIMARY KEY,
   kind TEXT NOT NULL CHECK (kind IN ('eval', 'script')),
