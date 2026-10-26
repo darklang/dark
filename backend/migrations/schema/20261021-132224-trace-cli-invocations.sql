@@ -5,7 +5,7 @@
 --
 -- Columns avoid storing Dval type hashes, which change when package types change.
 -- CHECKs reject missing options so replay cannot silently drop a sandbox.
-///
+--
 -- CLEANUP consider removing this layer.
 -- Perhaps we could encode this in an ExecutionPoint segment of a trace, instead?
 -- Or maybe this is consolidated with the other root-level trace table?
