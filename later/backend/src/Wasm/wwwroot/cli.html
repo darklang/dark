@@ -183,13 +183,25 @@
       }
       // What a tab can and cannot do, said once, before anyone finds it by hitting it. The
       // refusals in `Host.fs` say the same per call; this is the page saying it up front.
+      const notSaving = dark.restored().startsWith("newer");
       term.write([
         "\x1b[90mThis is the real CLI and package store, running in your browser tab.",
         "  works: eval, packages, branches and commits, and HTTP requests to hosts that allow",
         "         other sites to call them (CORS). Files and env vars live in the tab.",
         "  not here: running programs, `dark serve`, background `Exec.spawn`, push.",
-        "  nothing is saved: reloading the page starts from a fresh store.\x1b[0m",
-        "", ""].join("\r\n"));
+        notSaving
+          ? "  not saving: your work in this browser is from a newer version, kept for it as it is."
+          : "  your work is kept in this browser, and comes back when you reload.",
+        // Said whether or not storage is persistent: Safari deletes script-written storage after seven
+        // days of use without visiting the site, and nothing documents persistent storage escaping that.
+        ...(notSaving ? [] :
+          ["  the browser may clear it, though; Safari does after seven days without a visit.",
+           "  to start over: open this page with ?fresh (your work is set aside, not deleted)."]),
+        ...(dark.notice() ? ["", "  " + dark.notice()] : []),
+        "\x1b[0m"].join("\r\n") + "\r\n");
+      window.addEventListener("dark-save-failed", (ev) => {
+        term.write("\r\n\x1b[33mYour work in this tab is NOT being kept: " + ev.detail + "\x1b[0m\r\n");
+      });
       drainTimer = setInterval(drain, 25);
       const argv = argvFromUrl();
       const params = new URLSearchParams(location.search);
