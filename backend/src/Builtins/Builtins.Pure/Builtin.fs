@@ -44,7 +44,6 @@ let builtins () : Builtins =
       Libs.Base64.builtins ()
 
       Libs.Json.builtins ()
-      Libs.AltJson.builtins ()
 
       Libs.Crypto.builtins ()
       Libs.X509.builtins () ]
