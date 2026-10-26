@@ -118,7 +118,7 @@ let unresolvedInDraft (branchId: Uuid) : List<(String * List<String>)> =
   let ops = draftEntriesFor branchId |> Stdlib.List.map (fun e -> e.op)
   let bindings = draftBindingsFor branchId
 
-  Builtin.pmUnresolvedNames ops
+  LanguageTools.UnresolvedNames.inOps ops
   |> Stdlib.List.filterMap (fun (hash, names) ->
     // The draft binds the hash it just authored, so the name is usually right there.
     match bindings |> Stdlib.List.findFirst (fun b -> b.hash == hash) with
