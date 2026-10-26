@@ -120,3 +120,36 @@ module PlatformForHost =
       Stdlib.Cli.OS.OS.MacOS
       Stdlib.Cli.Architecture.Architecture.Arm
     |> Stdlib.Test.equal (Stdlib.Result.Result.Error "Unsupported OS or Arch")
+
+
+// Which release a build is. The tag is nowhere in the binary, so `dark version` finds it by the
+// build its assets are named after.
+module ReleaseForBuild =
+  // A function rather than a `val`, for the reason `PlatformForHost.host` gives.
+  let release (tag: String) (hash: String) : Darklang.GitHub.Releases.Release =
+    Darklang.GitHub.Releases.Release
+      { tag_name = tag
+        assets =
+          [ AssetForPlatform.asset $"darklang-alpha-{hash}-linux-x64.gz"
+            AssetForPlatform.asset $"darklang-alpha-{hash}-osx-arm64.gz" ] }
+
+  let releases () : List<Darklang.GitHub.Releases.Release> =
+    [ release "v0.0.104" "e76430be5c", release "v0.0.103" "0ab12cd34e" ]
+
+  // An asset carries ten characters of the hash and the CLI prints seven.
+  test buildFromAssetName =
+    Darklang.GitHub.Releases.buildOf (release "v0.0.104" "e76430be5c")
+    |> Stdlib.Test.equal (Stdlib.Option.Option.Some "alpha-e76430b")
+
+  test tagOfAnOlderRelease =
+    Darklang.GitHub.Releases.tagFor (releases ()) "alpha-0ab12cd"
+    |> Stdlib.Test.equal (Stdlib.Option.Option.Some "v0.0.103")
+
+  // A dev build is no release, and a release with no assets names no build.
+  test noReleaseForADevBuild =
+    Stdlib.Test.all
+      [ Darklang.GitHub.Releases.tagFor (releases ()) "alpha-1234567"
+        |> Stdlib.Test.equal Stdlib.Option.Option.None
+        Darklang.GitHub.Releases.buildOf
+          (Darklang.GitHub.Releases.Release { tag_name = "v0.0.1", assets = [] })
+        |> Stdlib.Test.equal Stdlib.Option.Option.None ]
