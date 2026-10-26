@@ -235,12 +235,15 @@ let addTest
       else
         $"test {location.name} = {definition}"
 
-    match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
+    let (tree, diagnostics) =
+      LanguageTools.Parser.Parse.parse LanguageTools.Parser.FileKind.Package fullSource
+
+    match tree with
     | None -> addFailed state "Failed to parse the test"
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
       if
-        Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
+        Errors.reportParseErrors diagnostics
       then
         { state with exitCode = 1 }
       else

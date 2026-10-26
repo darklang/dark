@@ -1,15 +1,24 @@
 module Darklang.LanguageTools.Parser.Parse
 
 
+/// The parser's tree for <param code> and its diagnostics, as (range, message) pairs. The tree is
+/// best-effort, {{None}} only if the tokenizer failed outright.
+let parse
+  (kind: Parser.FileKind)
+  (code: String)
+  : (Stdlib.Option.Option<WrittenTypes.ParsedFile> * List<(Parser.Range * String)>) =
+  Builtin.parse kind code
+
+
 /// The written-types tree for <param code>, or {{None}} if the tokenizer failed outright. Syntax errors
 /// short of that come back as a tree plus `diagnostics`.
 let toWrittenTypes (code: String) : Stdlib.Option.Option<WrittenTypes.ParsedFile> =
-  Builtin.parserParseToWrittenTypes code
+  (parse Parser.FileKind.Script code) |> Stdlib.Tuple2.first
 
 
 /// The parser's syntax diagnostics for <param code>, as (range, message) pairs. Empty on a clean parse.
 let diagnostics (code: String) : List<(Parser.Range * String)> =
-  Builtin.parserParseDiagnostics code
+  (parse Parser.FileKind.Script code) |> Stdlib.Tuple2.second
 
 
 let initialParse
@@ -109,7 +118,9 @@ let parsePTSourceFileWithOps
 let packageToWrittenTypes
   (source: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, List<(Parser.Range * String)>> =
-  Builtin.parserParsePackageToWrittenTypes source
+  match parse Parser.FileKind.Package source with
+  | (Some parsedFile, []) -> Stdlib.Result.Result.Ok parsedFile
+  | (_, diagnostics) -> Stdlib.Result.Result.Error diagnostics
 
 
 /// Convert a top-level declaration to a module member for shared lowering.

@@ -91,11 +91,13 @@ let saveEditing (state: State) (es: EditingState) : Step =
   match Packages.Location.parseRelativeTo (Packages.PackageLocation.Module targetMod) leaf with
   | Error e -> keepErr ("bad name: " + e)
   | Ok location ->
-    let diags = LanguageTools.Parser.Parse.diagnostics fullSource
+    let (tree, diags) =
+      LanguageTools.Parser.Parse.parse LanguageTools.Parser.FileKind.Package fullSource
+
     if Stdlib.Bool.not (Stdlib.List.isEmpty diags) then
       keepErr "parse error - fix it, then ^s"
     else
-      match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
+      match tree with
       | Some(SourceFile sourceFile) ->
         let pm = LanguageTools.PackageManager.pm ()
         let ctx =
