@@ -14,37 +14,37 @@ let sourceFileAtWidth
       match decl with
       | Module moduleDecl ->
         let prettyPrinted = PrettyPrinter.definitions ctx moduleDecl
-        acc |> Stdlib.List.push prettyPrinted
+        acc |> Stdlib.List.prepend prettyPrinted
 
       | Type typeDecl ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx typeDecl
-        acc |> Stdlib.List.push prettyPrinted
+        acc |> Stdlib.List.prepend prettyPrinted
 
       | Value valDecl ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx valDecl
-        acc |> Stdlib.List.push prettyPrinted
+        acc |> Stdlib.List.prepend prettyPrinted
 
       | Function fnDecl ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx fnDecl
-        acc |> Stdlib.List.push prettyPrinted
+        acc |> Stdlib.List.prepend prettyPrinted
 
       | Trait traitDecl ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageTrait ctx traitDecl
-        acc |> Stdlib.List.push prettyPrinted
+        acc |> Stdlib.List.prepend prettyPrinted
 
       | Impl implDecl ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageImpl ctx implDecl
-        acc |> Stdlib.List.push prettyPrinted
+        acc |> Stdlib.List.prepend prettyPrinted
 
       | Test testDecl ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageTest ctx testDecl
-        acc |> Stdlib.List.push prettyPrinted))
+        acc |> Stdlib.List.prepend prettyPrinted))
     |> Stdlib.List.reverse
 
   let exprsPart =
     (Stdlib.List.fold source.exprsToEval [] (fun acc expr ->
       let prettyPrinted = PrettyPrinter.ProgramTypes.expr ctx expr
-      acc |> Stdlib.List.push prettyPrinted))
+      acc |> Stdlib.List.prepend prettyPrinted))
     |> Stdlib.List.reverse
 
   [ declsPart, exprsPart ] |> Stdlib.List.flatten |> Stdlib.String.join "\n\n"

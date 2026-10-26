@@ -29,7 +29,7 @@ let notEquals = 7
 /// reverse. So the tag alone says which operand types an operator wants, and neither function
 /// needs a range check -- `equals` and `notEquals` are simply handled by both.
 let strAppend = 8
-let listAppend = 9
+let listConcat = 9
 /// One-argument tags. Same table: `eval1` handles these and the two-argument functions decline
 /// them, so nothing needs to know an operator's arity before looking it up.
 let intToString = 10
@@ -58,8 +58,8 @@ let bitwiseXor = 24
 let bitwiseNot = 25
 let shiftLeft = 26
 let shiftRight = 27
-/// `List.push`: a list and a value of its element type.
-let listPush = 28
+/// `List.prepend`: a list and a value of its element type.
+let listPrepend = 28
 
 /// `-x` on a signed builtin numeric; anything else declines and dispatches.
 let evalNegate (a : Dval) : Dval voption =
@@ -119,8 +119,7 @@ let evalStr (tag : int) (a : string) (b : string) : Dval voption =
     ValueNone
 
 
-/// The operator itself, for two `List`s. `push` and `pushBack` are defined in terms of `List.append`,
-/// so it carries far more traffic than its name suggests.
+/// `List.concat`, and the `@` operator that desugars to it, for two `List`s.
 ///
 /// Declines when the element types don't merge, rather than reporting the error itself: the slow
 /// path falls back to `DvalCreator.list` for a precise element-level message, and duplicating that
@@ -132,7 +131,7 @@ let evalList
   (vt2 : ValueType)
   (l2 : List<Dval>)
   : Dval voption =
-  if tag = listAppend then
+  if tag = listConcat then
     match ValueType.merge vt1 vt2 with
     | Ok merged -> ValueSome(DList(merged, List.append l1 l2))
     | Error() -> ValueNone
@@ -202,12 +201,12 @@ let evalListContains (tag : int) (items : List<Dval>) (value : Dval) : Dval vopt
     ValueNone
 
 
-/// `List.push`: <param value> on the front of a list whose element type is <param vt>.
+/// `List.prepend`: <param value> on the front of a list whose element type is <param vt>.
 ///
 /// The builtin's own answer when the types merge, without the general call path (argument array,
 /// parameter checks, result check). Every list a fold builds comes through here once per element.
 /// Declines when the types do not merge, so the builtin and its parameter check report it.
-let evalListPush
+let evalListPrepend
   (vt : ValueType)
   (items : List<Dval>)
   (value : Dval)
@@ -570,7 +569,7 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "equals" equals
   put "notEquals" notEquals
   put "stringAppend" strAppend
-  put "listAppend" listAppend
+  put "listConcat" listConcat
   put "intToString" intToString
   put "boolNot" boolNot
   put "listLength" listLength
@@ -580,5 +579,5 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "listContains" listContains
   put "stringIsEmpty" strIsEmpty
   put "listIsEmpty" listIsEmpty
-  put "listPush" listPush
+  put "listPrepend" listPrepend
   d

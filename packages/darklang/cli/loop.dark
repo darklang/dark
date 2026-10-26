@@ -18,7 +18,7 @@ let withModeHint (state: AppState) (view: Stdlib.Cli.Tui.View) : Stdlib.Cli.Tui.
   else
     let hintRow =
       Stdlib.Cli.UI.Colors.dimText "command prompt  ·  `quit` returns to the workbench"
-    let rows = Stdlib.List.push view.rows hintRow
+    let rows = Stdlib.List.prepend view.rows hintRow
     // The prompt's cursor is addressed against its own rows, so inserting a row above it moves it down one.
     match view.cursor with
     | Visible(row, column) ->
@@ -278,7 +278,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
           cmdName
           { state with
               currentPage = Page.MainPrompt
-              pageStack = Stdlib.List.append [ saved ] state.pageStack
+              pageStack = Stdlib.List.prepend state.pageStack saved
               nonInteractive = false }
           cmdArgs
       match launched.currentPage with
@@ -309,7 +309,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       // the inline prompt renders in normal scrollback; `quit` there pops back (see Quit.execute).
       newApp.onTerminate ()
       { state with
-          pageStack = Stdlib.List.append [ Page.SubApp newApp ] state.pageStack
+          pageStack = Stdlib.List.prepend state.pageStack (Page.SubApp newApp)
           currentPage = Page.MainPrompt }
 
 

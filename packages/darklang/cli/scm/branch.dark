@@ -483,7 +483,7 @@ let complete
       "resolve" ]
 
   let subcommands =
-    Stdlib.List.append branchTakingSubcommands [ "list", "current", "new" ]
+    Stdlib.List.concat branchTakingSubcommands [ "list", "current", "new" ]
 
   let branchNames =
     SCM.Branches.list ()
@@ -499,11 +499,11 @@ let complete
     |> Stdlib.List.map Completion.simple
 
   match args with
-  | [] -> matching (Stdlib.List.append branchNames subcommands) ""
-  | [ partial ] -> matching (Stdlib.List.append branchNames subcommands) partial
+  | [] -> matching (Stdlib.List.concat branchNames subcommands) ""
+  | [ partial ] -> matching (Stdlib.List.concat branchNames subcommands) partial
   | [ sub, partial ] ->
     if Stdlib.List.contains branchTakingSubcommands sub then
-      matching (Stdlib.List.append branchNames [ SCM.Branch.mainBranchName ]) partial
+      matching (Stdlib.List.append branchNames SCM.Branch.mainBranchName) partial
     else
       []
   | _ -> []

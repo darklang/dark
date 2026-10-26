@@ -190,11 +190,11 @@ let insertIdAfter (ids: List<Int>) (afterId: Int) (newId: Int) : List<Int> =
     ids
     |> Stdlib.List.fold [] (fun acc id ->
       if id == afterId then
-        Stdlib.List.append acc [ id, newId ]
+        Stdlib.List.concat acc [ id, newId ]
       else
-        Stdlib.List.append acc [ id ])
+        Stdlib.List.append acc id)
   else
-    Stdlib.List.append ids [ newId ]
+    Stdlib.List.append ids newId
 
 /// Swap two positions. Out-of-range indices leave the list alone rather than writing a 0 into it.
 let swapAt (ids: List<Int>) (i: Int) (j: Int) : List<Int> =
@@ -221,14 +221,14 @@ let descendants (outline: Outline) (ids: List<Int>) : List<Int> =
   ids
   |> Stdlib.List.fold [] (fun acc id ->
     let children = (getStructure outline id).children
-    Stdlib.List.append (Stdlib.List.append acc [ id ]) (descendants outline children))
+    Stdlib.List.concat (Stdlib.List.append acc id) (descendants outline children))
 
 let subtreeSize (outline: Outline) (id: Int) : Int =
   (Stdlib.List.length (descendants outline [ id ])) - 1
 
 /// The visible lines, in order, at their depths.
 ///
-/// Accumulates with `push` and reverses once. `List.append` inside the fold instead costs a copy of
+/// Accumulates with `prepend` and reverses once. `List.append` inside the fold instead costs a copy of
 /// everything accumulated so far per node -- 500 nodes ~0.11s, 2000 ~0.59s -- and this runs at least
 /// twice per keystroke.
 let flattenInto
@@ -254,7 +254,7 @@ let flattenInto
           childCount = childCount
           isCollapsed = s.collapsed }
 
-    let withNode = Stdlib.List.push soFar vn
+    let withNode = Stdlib.List.prepend soFar vn
 
     if s.collapsed then withNode else flattenInto outline s.children (depth + 1) withNode)
 
@@ -290,7 +290,7 @@ let matching (outline: Outline) (needle: String) : List<Int> =
 let ancestors (outline: Outline) (id: Int) : List<Int> =
   match findParentId outline id with
   | None -> []
-  | Some pid -> Stdlib.List.push (ancestors outline pid) pid
+  | Some pid -> Stdlib.List.prepend (ancestors outline pid) pid
 
 /// Expand every ancestor of every match, so a hit inside a collapsed branch is actually reachable.
 let revealAll (outline: Outline) (ids: List<Int>) : Outline =

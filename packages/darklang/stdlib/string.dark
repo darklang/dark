@@ -171,7 +171,7 @@ let splitN
     | Some i ->
       let before = String.first string i
       let rest = String.dropFirst string (i + String.length separator)
-      List.push (String.splitN rest separator (n - 1)) before
+      List.prepend (String.splitN rest separator (n - 1)) before
 
 
 /// Combines a list of strings with the provided separator

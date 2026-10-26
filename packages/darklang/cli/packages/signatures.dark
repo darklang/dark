@@ -98,7 +98,7 @@ let formatType
 
 
 let moduleKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-  (Stdlib.List.append [loc.owner] loc.modules) |> Stdlib.String.join "."
+  (Stdlib.List.prepend loc.modules loc.owner) |> Stdlib.String.join "."
 
 
 let groupByModule
@@ -111,7 +111,7 @@ let groupByModule
       match Stdlib.Dict.get acc key with
       | Some xs -> xs
       | None -> []
-    Stdlib.Dict.set acc key (Stdlib.List.append existing [item]))
+    Stdlib.Dict.set acc key (Stdlib.List.append existing item))
 
 
 let trimRoot (root: String) (key: String) : String =
@@ -141,7 +141,7 @@ let renderModule
     |> Stdlib.List.sortBy (fun i -> i.location.name)
     |> Stdlib.List.map (fun i -> $"{i.location.name} {formatFn ctx i.entity}")
 
-  let body = (Stdlib.List.append typeLines fnLines) |> Stdlib.String.join "\n"
+  let body = (Stdlib.List.concat typeLines fnLines) |> Stdlib.String.join "\n"
   $"{header}\n{body}"
 
 
@@ -227,7 +227,7 @@ let executeFiltered
     else Stdlib.Dict.empty
 
   let allKeys =
-    (Stdlib.List.append (Stdlib.Dict.keys fnsBy) (Stdlib.Dict.keys typesBy))
+    (Stdlib.List.concat (Stdlib.Dict.keys fnsBy) (Stdlib.Dict.keys typesBy))
     |> Stdlib.List.unique
     |> Stdlib.List.sort
 

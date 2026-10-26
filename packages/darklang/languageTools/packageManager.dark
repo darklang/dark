@@ -64,14 +64,14 @@ let pickLocation
   | [] -> Stdlib.Option.Option.None
   | [ single ] -> Stdlib.Option.Option.Some single
   | first :: rest ->
-    let firstPath = Stdlib.List.push first.modules first.owner
+    let firstPath = Stdlib.List.prepend first.modules first.owner
     let firstScore = countMatchingPrefix ctx.currentModule firstPath
     let firstLen = Stdlib.List.length firstPath
 
     let (_, _, bestLoc) =
       Stdlib.List.fold rest (firstScore, firstLen, first) (fun acc loc ->
         let (bestScore, bestLen, bestLoc) = acc
-        let locPath = Stdlib.List.push loc.modules loc.owner
+        let locPath = Stdlib.List.prepend loc.modules loc.owner
         let score = countMatchingPrefix ctx.currentModule locPath
         let len = Stdlib.List.length locPath
 

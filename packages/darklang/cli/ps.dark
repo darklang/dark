@@ -85,9 +85,9 @@ let treeRowsWithIds (branchId: Uuid) (all: List<Stdlib.Exec.Summary>) : List<(Uu
   let under (depth: Int) (p: Stdlib.Exec.Summary) : List<(Uuid * List<String>)> =
     let children =
       all |> Stdlib.List.filter (fun c -> c.parent == Stdlib.Option.Option.Some p.id)
-    Stdlib.List.append
-      [ (p.id, row branchId depth p) ]
+    Stdlib.List.prepend
       (children |> Stdlib.List.map (fun c -> under (depth + 1) c) |> Stdlib.List.flatten)
+      (p.id, row branchId depth p)
   all |> Stdlib.List.filter isRoot |> Stdlib.List.map (fun p -> under 0 p) |> Stdlib.List.flatten
 
 let treeRows (branchId: Uuid) (all: List<Stdlib.Exec.Summary>) : List<List<String>> =
@@ -448,7 +448,7 @@ module Watch =
       |> Stdlib.List.map (fun (id, cells) -> Row.Local(id, cells))
     // This instance first, the machine after, the same order as the printed tables: the cursor
     // walks the rows in the order they are drawn.
-    Stdlib.List.append local machine
+    Stdlib.List.concat local machine
 
   let init () : Model = Model { rows = gather (), cursor = 0, note = "" }
 
@@ -487,7 +487,7 @@ module Watch =
   let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
     let mark (i: Int) (cells: List<String>) : List<String> =
       match cells with
-      | first :: rest -> Stdlib.List.push rest ((if i == m.cursor then "> " else "  ") + first)
+      | first :: rest -> Stdlib.List.prepend rest ((if i == m.cursor then "> " else "  ") + first)
       | [] -> []
     let indexed = Stdlib.List.indexedMap m.rows (fun i r -> (i, r))
     let machineRows =

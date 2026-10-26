@@ -93,13 +93,13 @@ let runtimeVariables (typ: LanguageTools.RuntimeTypes.TypeReference) : List<Stri
   | TStream inner -> runtimeVariables inner
   | TList inner -> runtimeVariables inner
   | TDict(key, value) ->
-    Stdlib.List.append (runtimeVariables key) (runtimeVariables value)
+    Stdlib.List.concat (runtimeVariables key) (runtimeVariables value)
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten
-      (Stdlib.List.map (Stdlib.List.append [ first, second ] rest) runtimeVariables)
+      (Stdlib.List.map (Stdlib.List.concat [ first, second ] rest) runtimeVariables)
   | TFn(parameters, ret) ->
     Stdlib.List.flatten
-      (Stdlib.List.map (Stdlib.List.push parameters ret) runtimeVariables)
+      (Stdlib.List.map (Stdlib.List.prepend parameters ret) runtimeVariables)
   | TCustomType(_, args) ->
     Stdlib.List.flatten (Stdlib.List.map args runtimeVariables)
   | _ -> []
@@ -161,7 +161,7 @@ let builtinCallable
     // missing names so argument types can determine them. The check above has
     // already rejected undeclared variables that appear only in the return type.
     let undeclared =
-      (Stdlib.List.append parameterVariables returnVariables)
+      (Stdlib.List.concat parameterVariables returnVariables)
       |> Stdlib.List.unique
       |> Stdlib.List.filter (fun v ->
         Stdlib.Bool.not (Stdlib.List.contains fn.typeParams v))
@@ -169,7 +169,7 @@ let builtinCallable
     signatureTemplate
       env
       (Model.Signature
-        { typeParams = Stdlib.List.append fn.typeParams undeclared
+        { typeParams = Stdlib.List.concat fn.typeParams undeclared
           parameters = Stdlib.List.map parameterTypes (fun t -> fromRuntimeType t)
           returnType = fromRuntimeType fn.returnType
           needsTypeArgs = Stdlib.Bool.not (Stdlib.List.isEmpty resultOnly)
@@ -223,7 +223,7 @@ let resolveCallable
           (Model.Signature
             { // The trait's params first, self among them, then the method's own.
               typeParams =
-                Stdlib.List.append trait_.typeParams declared.typeParams
+                Stdlib.List.concat trait_.typeParams declared.typeParams
               parameters =
                 declared.parameters |> Stdlib.List.map (fun p -> p.typ)
               returnType = declared.returnType
@@ -457,7 +457,7 @@ let withBatch
             Stdlib.Dict.set
               found
               key
-              (Stdlib.List.pushBack existing (self, i.hash))
+              (Stdlib.List.append existing (self, i.hash))
       | Error _ -> found)
 
   { env with batchTraits = batchTraits, traitImpls = traitImpls }
@@ -547,7 +547,7 @@ let functionNameRefs
       else
         match LanguageTools.findBuiltinFn builtinName.name builtinName.version with
         | Some builtin ->
-          (Stdlib.List.push (Stdlib.List.map builtin.parameters (fun p -> p.``type``)) builtin.returnType)
+          (Stdlib.List.prepend (Stdlib.List.map builtin.parameters (fun p -> p.``type``)) builtin.returnType)
           |> Stdlib.List.map (fun t -> fromRuntimeType t)
           |> typeListRefs
         | None -> []
@@ -580,14 +580,14 @@ let typeRefs (typ: LanguageTools.ProgramTypes.TypeReference) : List<LanguageTool
   match typ with
   | TStream inner -> typeRefs inner
   | TList inner -> typeRefs inner
-  | TDict(key, value) -> Stdlib.List.append (typeRefs key) (typeRefs value)
+  | TDict(key, value) -> Stdlib.List.concat (typeRefs key) (typeRefs value)
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten
-      (Stdlib.List.map (Stdlib.List.append [ first, second ] rest) typeRefs)
+      (Stdlib.List.map (Stdlib.List.concat [ first, second ] rest) typeRefs)
   | TFn(parameters, ret) ->
-    Stdlib.List.flatten (Stdlib.List.map (Stdlib.List.push parameters ret) typeRefs)
+    Stdlib.List.flatten (Stdlib.List.map (Stdlib.List.prepend parameters ret) typeRefs)
   | TCustomType(name, args) ->
-    Stdlib.List.append
+    Stdlib.List.concat
       (typeNameRefs name)
       (Stdlib.List.flatten (Stdlib.List.map args typeRefs))
   | _ -> []
@@ -622,7 +622,7 @@ let pushRefs
   if Stdlib.List.isEmpty refs then
     acc
   else
-    Stdlib.List.fold refs acc (fun acc r -> Stdlib.List.push acc r)
+    Stdlib.List.fold refs acc (fun acc r -> Stdlib.List.prepend acc r)
 
 /// `exprRefsInto` over <param exprs> in order.
 let manyRefsInto
@@ -692,8 +692,8 @@ let exprRefsInto
     exprRefsInto
       env
       operand
-      (Stdlib.List.push
-        (Stdlib.List.push acc (LanguageTools.ProgramTypes.Reference.PackageType env.optionType))
+      (Stdlib.List.prepend
+        (Stdlib.List.prepend acc (LanguageTools.ProgramTypes.Reference.PackageType env.optionType))
         (LanguageTools.ProgramTypes.Reference.PackageType env.resultType))
   | _ -> acc
 
@@ -724,7 +724,7 @@ let pipeRefsInto
 /// Dependency functions are checked through these signatures, without walking their bodies.
 let signatureRefs (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn) : List<LanguageTools.ProgramTypes.Reference> =
   typeListRefs
-    (Stdlib.List.push (Stdlib.List.map fn.parameters (fun p -> p.typ)) fn.returnType)
+    (Stdlib.List.prepend (Stdlib.List.map fn.parameters (fun p -> p.typ)) fn.returnType)
 
 
 // --------------------
@@ -828,7 +828,7 @@ let loadPendingDependencies
       // unavailable, and continue loading the rest. Its users are checked later.
       match guard (fun reference -> load closure reference) next with
       | Ok((refs, loaded)) ->
-        loadPendingDependencies load seen (Stdlib.List.append refs rest) loaded
+        loadPendingDependencies load seen (Stdlib.List.concat refs rest) loaded
       | Error _ -> loadPendingDependencies load seen rest closure
 
 /// Fetch one declaration by hash, save it, and return the references to visit next.

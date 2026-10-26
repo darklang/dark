@@ -91,7 +91,7 @@ let constructors
       [ (Constructor.EmptyList, [])
         (Constructor.ConsList, [ element, Model.Ty.TList element ]) ]
   | TTuple(first, second, rest) ->
-    let fields = Stdlib.List.append [ first, second ] rest
+    let fields = Stdlib.List.concat [ first, second ] rest
     Stdlib.Option.Option.Some
       [ (Constructor.TupleOf(Stdlib.List.length fields), fields) ]
   | TCustom(name, args) ->
@@ -155,7 +155,7 @@ let specialize
     match constructor with
     | TupleOf n ->
       if n == 2 + Stdlib.List.length rest then
-        [ Stdlib.List.append [ first, second ] rest ]
+        [ Stdlib.List.concat [ first, second ] rest ]
       else
         []
     | _ -> []
@@ -182,7 +182,7 @@ let specializeRows
     | [] -> []
     | pattern :: rest ->
       Stdlib.List.map (specialize constructor fieldCount pattern) (fun fields ->
-        Stdlib.List.append fields rest))
+        Stdlib.List.concat fields rest))
   |> Stdlib.List.flatten
 
 /// Keep rows with a catch-all alternative in the first column, then remove that
@@ -270,7 +270,7 @@ let isExhaustiveByConstructors
       isExhaustive
         env
         subst
-        (Stdlib.List.append fieldTypes rest)
+        (Stdlib.List.concat fieldTypes rest)
         (specializeRows constructor (Stdlib.List.length fieldTypes) rows))
   // Constructors cannot be enumerated, or one is absent from the patterns.
   // The catch-all rows have already failed to establish coverage.
@@ -307,7 +307,7 @@ let findUncovered
               // No row accepts this constructor, so its fields and the remaining
               // columns can be left unspecified in the example.
               Stdlib.Option.Option.Some(
-                Stdlib.List.push
+                Stdlib.List.prepend
                   (replicate (Stdlib.List.length rest) Missing.Anything)
                   (Missing.Built(constructor, replicate fieldCount Missing.Anything))
               )
@@ -316,20 +316,20 @@ let findUncovered
                 env
                 subst
                 (depth - 1)
-                (Stdlib.List.append fieldTypes rest)
+                (Stdlib.List.concat fieldTypes rest)
                 specialized)
               |> Stdlib.Option.map (fun missing ->
                 // Rebuild the constructor from its field examples, followed by
                 // the examples for the original remaining columns.
                 let fields = Stdlib.List.take missing fieldCount
                 let remaining = Stdlib.List.drop missing fieldCount
-                Stdlib.List.push remaining (Missing.Built(constructor, fields))))
+                Stdlib.List.prepend remaining (Missing.Built(constructor, fields))))
       | None ->
         // Without enumerable constructors, check the catch-all rows and leave
         // this column unspecified in the diagnostic.
         (findUncovered env subst (depth - 1) rest (catchAllRows rows))
         |> Stdlib.Option.map (fun missing ->
-          Stdlib.List.push missing Missing.Anything)
+          Stdlib.List.prepend missing Missing.Anything)
 
 /// Return None when the unguarded cases cover the matched type. Otherwise return
 /// Some with a missing-value description, using Anything if no example is found.

@@ -1562,7 +1562,7 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
 // The bitwise levels follow Python's order rather than C's: they bind TIGHTER
 // than the comparisons, so `a & b == c` is `(a & b) == c` and not C's
 // `a & (b == c)`. Every pre-existing operator keeps its relative position.
-// `@` desugars to `Stdlib.List.append` (there is no WT infix for it); `**` is
+// `@` desugars to `Stdlib.List.concat` (there is no WT infix for it); `**` is
 // exponentiation and nests right: `2 ** 3 ** 2 = 2 ** (3 ** 2)`.
 and infixBindingPower (t : Token) : (int * bool) option =
   match t with
@@ -1640,7 +1640,7 @@ and parseInfixRhs
                modules =
                  [ ({ range = opRange; name = "Stdlib" }, opRange)
                    ({ range = opRange; name = "List" }, opRange) ]
-               fn = { range = opRange; name = "append" } }
+               fn = { range = opRange; name = "concat" } }
            WT.EApply(range, WT.EFnName(opRange, appendFn), [], [ left; right ])
          | _ -> WT.EInfix(range, (opRange, (infixOf opTok).Value), left, right))
       j <- k
@@ -2287,7 +2287,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       "'++' is not an operator; use '+' to join Strings"
     (WT.EError(rng state i), i + 1)
   | _ ->
-    // `::` parses in PATTERNS only; the expression-side way to prepend is `Stdlib.List.push` (or a
+    // `::` parses in PATTERNS only; the expression-side way to prepend is `Stdlib.List.prepend` (or a
     // literal). Volunteered here because the bare "expected an expression" reads as a typo, and the
     // recovery lookup costs an agent two calls every time.
     if txt state i = "::" then
@@ -2295,7 +2295,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
         state
         DiagnosticCode.expected
         i
-        "'::' is a pattern; to build a list in an expression use `Stdlib.List.push` or a literal"
+        "'::' is a pattern; to build a list in an expression use `Stdlib.List.prepend` or a literal"
     elif tok state i = TQuestion then
       // In `Ok (x)?`, there is no whitespace before `?`, but it cannot attach
       // here. Suggest parentheses around the expression instead.
@@ -2352,7 +2352,7 @@ and parseParen (state : ParserState) (i : int) : WT.Expr * int =
             modules =
               [ ({ range = opR; name = "Stdlib" }, opR)
                 ({ range = opR; name = "List" }, opR) ]
-            fn = { range = opR; name = "append" } }
+            fn = { range = opR; name = "concat" } }
         WT.EApply(r, WT.EFnName(opR, appendFn), [], [ va; vb ])
       | _ -> WT.EInfix(r, (opR, (infixOf opTok).Value), va, vb)
     (WT.ELambda(r, [ WT.LPVariable(z, "a"); WT.LPVariable(z, "b") ], body, z, z),

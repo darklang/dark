@@ -68,14 +68,14 @@ let splitStatements (text: String) : List<String> =
       let (acc, current) = state_
       if (Stdlib.String.trim line) == "" then
         // A blank line closes whatever was open.
-        if current == "" then (acc, "") else (Stdlib.List.pushBack acc current, "")
+        if current == "" then (acc, "") else (Stdlib.List.append acc current, "")
       else if (isContinuation line) && (current != "") then
         (acc, current + "\n" + line)
       else if current == "" then
         (acc, line)
       else
-        (Stdlib.List.pushBack acc current, line))
-  let all = if current == "" then acc else Stdlib.List.pushBack acc current
+        (Stdlib.List.append acc current, line))
+  let all = if current == "" then acc else Stdlib.List.append acc current
   all |> Stdlib.List.filter (fun s -> (Stdlib.String.trim s) != "")
 
 /// How many brackets `text` leaves open: `(`, `[` and `{` minus their closers, ignoring anything inside a
@@ -191,7 +191,7 @@ let upsert (bindings: List<Binding>) (b: Binding) : List<Binding> =
   if alreadyBound && b.captured then
     bindings |> Stdlib.List.map (fun x -> if x.name == b.name then b else x)
   else
-    Stdlib.List.pushBack withoutIt b
+    Stdlib.List.append withoutIt b
 
 /// Turn a runtime value back into source text, so a binding can hold the value rather than the expression
 /// that computed it. Returns `ok:<source>` or `err:<reason>` - a tagged string rather than a Result because

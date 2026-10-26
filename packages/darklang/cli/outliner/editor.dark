@@ -68,7 +68,7 @@ let visible (state: State) : List<VisibleNode> =
     let keep =
       hits
       |> Stdlib.List.fold hits (fun acc id ->
-        Stdlib.List.append acc (ancestors state.outline id))
+        Stdlib.List.concat acc (ancestors state.outline id))
 
     all |> Stdlib.List.filter (fun vn -> Stdlib.List.contains keep vn.id)
 
@@ -96,7 +96,7 @@ let cursorToIndex (state: State) (index: Int) : State =
 /// Snapshot before a change. Every mutation goes through this, so undo covers all of them.
 let remember (state: State) : State =
   { state with
-      history = Stdlib.List.take (Stdlib.List.push state.history state.outline) historyLimit
+      history = Stdlib.List.take (Stdlib.List.prepend state.history state.outline) historyLimit
       future = [] }
 
 let undo (state: State) : (State * String) =
@@ -107,7 +107,7 @@ let undo (state: State) : (State * String) =
       { state with
           outline = previous
           history = rest
-          future = Stdlib.List.push state.future state.outline }
+          future = Stdlib.List.prepend state.future state.outline }
 
     let landed =
       if exists previous restored.cursorId then
@@ -125,7 +125,7 @@ let redo (state: State) : (State * String) =
       { state with
           outline = next
           future = rest
-          history = Stdlib.List.push state.history state.outline }
+          history = Stdlib.List.prepend state.history state.outline }
 
     let landed =
       if exists next restored.cursorId then
@@ -187,7 +187,7 @@ let insertChild (state: State) : State =
     let children = getChildren withNode (Stdlib.Option.Option.Some vn.id)
 
     let placed =
-      setChildren withNode (Stdlib.Option.Option.Some vn.id) (Stdlib.List.append children [ id ])
+      setChildren withNode (Stdlib.Option.Option.Some vn.id) (Stdlib.List.append children id)
 
     { base_ with
         outline = setCollapsed { placed with nextId = id + 1 } vn.id false
@@ -227,7 +227,7 @@ let indent (state: State) : State =
             setChildren
               detached
               (Stdlib.Option.Option.Some newParent)
-              (Stdlib.List.append newSiblings [ vn.id ])
+              (Stdlib.List.append newSiblings vn.id)
 
           { base_ with outline = setCollapsed moved newParent false }
 

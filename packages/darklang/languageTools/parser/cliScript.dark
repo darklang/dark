@@ -223,7 +223,7 @@ let toPT
   let (submodules, submoduleOps, submoduleUnresolvedNames) =
     processDecls wt.submodules (fun m ->
       let (_, submoduleName) = m.name
-      let extendedModules = Stdlib.List.append modules [ submoduleName ]
+      let extendedModules = Stdlib.List.append modules submoduleName
 
       WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
         { ctx with currentModule = extendedModules }
@@ -263,7 +263,7 @@ let toPT
   (PTCliScriptModule
     { types = types
       values = values
-      fns = Stdlib.List.append fns implFns
+      fns = Stdlib.List.concat fns implFns
       traits = traits
       impls = impls
       submodules = submodules

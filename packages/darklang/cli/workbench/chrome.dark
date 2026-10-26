@@ -23,7 +23,7 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
       region
       (matterSplitFor state)
       state.focus
-      (paneTitle where (Stdlib.List.append [ lens ] (listTrailer state "item")) listFocused)
+      (paneTitle where (Stdlib.List.prepend (listTrailer state "item") lens) listFocused)
       (fun r -> renderTreeList state r)
       (paneTitle "Inspect" [] detailFocused)
       (fun r -> renderPreview state r)
@@ -207,8 +207,8 @@ let hintsForView (state: State) (width: Int) : String =
       match extensionViewAt view with
       | Some vd ->
         let h = vd.hints
-        Stdlib.List.append (h state) backHint
-      | None -> Stdlib.List.append [ ("↑↓", "move") ] backHint
+        Stdlib.List.concat (h state) backHint
+      | None -> Stdlib.List.prepend backHint ("↑↓", "move")
   // Fitted rather than concatenated. The droppable run is ordered cheapest-last, so this view's own actions
   // outlive the secondary global keys, and `?`/`q` outlive everything.
   // Home already lists `s switch branch`, so `S branches` would repeat it. Traces takes `p` for
@@ -219,7 +219,7 @@ let hintsForView (state: State) (width: Int) : String =
     else if view == vTraces then
       secondaryGlobal |> Stdlib.List.filter (fun pair -> let (k, _l) = pair in k != "p")
     else secondaryGlobal
-  Frame.formatHintsFitted (Stdlib.List.append ctx globals) essential width
+  Frame.formatHintsFitted (Stdlib.List.concat ctx globals) essential width
 
 /// The keymap, grouped, for the `?` overlay - (category, keys).
 val helpGroups =

@@ -910,7 +910,7 @@ let private foldPushKeepsReadsInFlight =
     let! result =
       runReleasing
         """let xs =
-  Stdlib.List.fold [ 71L; 72L; 73L ] [] (fun acc n -> Stdlib.List.push acc (Builtin.testRead n))
+  Stdlib.List.fold [ 71L; 72L; 73L ] [] (fun acc n -> Stdlib.List.prepend acc (Builtin.testRead n))
 let _ = Builtin.testTrace "folded"
 Stdlib.List.fold xs 0L (fun a b -> a + b)"""
         [ 71L; 72L; 73L ]
@@ -1139,9 +1139,9 @@ let private landedListKnowsItsElementType =
   testTask "a list a read was pushed onto has the read's element type once it lands" {
     let! result =
       runReleasing
-        """let xs = Stdlib.List.push [] (Builtin.testRead 113L)
+        """let xs = Stdlib.List.prepend [] (Builtin.testRead 113L)
 let _ = Builtin.testTrace "pushed"
-Stdlib.List.append (Stdlib.await xs) [ "not an Int64" ]"""
+Stdlib.List.concat (Stdlib.await xs) [ "not an Int64" ]"""
         [ 113L ]
         [ "pushed" ]
     match result with

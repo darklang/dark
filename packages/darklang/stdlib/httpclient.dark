@@ -304,7 +304,7 @@ module Sse =
             | Ok s -> s
             | Error _ -> ""
 
-          Stdlib.List.append state.currentLines [ tailLine ]
+          Stdlib.List.append state.currentLines tailLine
 
       if Stdlib.List.isEmpty pending then
         Stdlib.Option.Option.None
@@ -351,7 +351,7 @@ module Sse =
           let nextState =
             ParseState
               { lastId = state.lastId
-                currentLines = Stdlib.List.append state.currentLines [ line ]
+                currentLines = Stdlib.List.append state.currentLines line
                 currentLine = [] }
 
           pullNextEvent bytes nextState
@@ -360,7 +360,7 @@ module Sse =
           ParseState
             { lastId = state.lastId
               currentLines = state.currentLines
-              currentLine = Stdlib.List.append state.currentLine [ b ] }
+              currentLine = Stdlib.List.append state.currentLine b }
 
         pullNextEvent bytes nextState
 

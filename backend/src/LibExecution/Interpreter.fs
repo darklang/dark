@@ -1681,9 +1681,9 @@ let private tryFastOp
         | ValueSome(struct (DList(vt2, l2), tail)) when ArgSeq.isEmpty tail ->
           FastOps.evalList tag vt1 l1 vt2 l2
         | ValueSome(struct (value, tail)) when
-          ArgSeq.isEmpty tail && tag = FastOps.listPush
+          ArgSeq.isEmpty tail && tag = FastOps.listPrepend
           ->
-          FastOps.evalListPush vt1 l1 value
+          FastOps.evalListPrepend vt1 l1 value
         | _ -> ValueNone
       | ValueSome(struct (DDict(kt, vt, o), rest)) ->
         match ArgSeq.uncons rest with
@@ -1786,11 +1786,11 @@ let private tryFastOpOn
       | DList(vt1, l1) ->
         match registers[secondReg] with
         | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
-        // `contains` and `push` take a list and a bare value, so they are the entries whose second
+        // `contains` and `prepend` take a list and a bare value, so they are the entries whose second
         // operand is not constrained by the first's shape.
         | other ->
-          if tag = FastOps.listPush then
-            FastOps.evalListPush vt1 l1 other
+          if tag = FastOps.listPrepend then
+            FastOps.evalListPrepend vt1 l1 other
           else
             FastOps.evalListContains tag l1 other
       | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]

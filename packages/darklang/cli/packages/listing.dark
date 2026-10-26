@@ -78,7 +78,7 @@ let listModule
   let implsUnder
     (typeName: String)
     : List<(String * String * LanguageTools.ProgramTypes.Hash * List<String>)> =
-    let childPath = Stdlib.List.append modulePath [ typeName ]
+    let childPath = Stdlib.List.append modulePath typeName
     let (_subs, _t, _v, _f, _tr, childImpls, _te) =
       Query.allDirectDescendantNamesAndHashes branchId childPath
 
@@ -115,7 +115,7 @@ let listModule
     |> Stdlib.List.flatten
 
   let implEntries =
-    Stdlib.List.append ownImplEntries childImplEntries
+    Stdlib.List.concat ownImplEntries childImplEntries
     |> Stdlib.List.sortBy (fun entry ->
       let (traitName, typeName, _hash, _path) = entry
       typeName + "." + traitName)
@@ -207,7 +207,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | Impl i ->
         let asModule =
           PackageLocation.Module
-            (Stdlib.List.append (Stdlib.List.append [i.owner] i.modules) [i.name])
+            (Stdlib.List.append (Stdlib.List.prepend i.modules i.owner) i.name)
 
         listModule branchId asModule includeDeprecated showVersions
         state

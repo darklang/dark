@@ -443,7 +443,7 @@ let detectOutdatedUsagesOn (branchId: Uuid) : List<Finding> =
       |> Stdlib.List.fold Stdlib.Dict.empty (fun acc row ->
         let h = txt row "item_hash"
         let rest = Stdlib.Dict.get acc h |> Stdlib.Option.withDefault []
-        Stdlib.Dict.set acc h (Stdlib.List.push rest row))
+        Stdlib.Dict.set acc h (Stdlib.List.prepend rest row))
 
     let edgesOf (b: Conflicts.Binding) : List<Dict<String, Stdlib.Sqlite.Value>> =
       Stdlib.Dict.get edgesByHash b.hash |> Stdlib.Option.withDefault []

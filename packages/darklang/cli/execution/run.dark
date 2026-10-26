@@ -63,9 +63,9 @@ let permissionWarningLines
         match via with
         | Some fn -> $"  - {resource}: {needed} (in {fn})"
         | None -> $"  - {resource}: {needed}")
-    Stdlib.List.append
-      [ "warning: this run went beyond the configured permission policy:" ]
+    Stdlib.List.prepend
       entries
+      "warning: this run went beyond the configured permission policy:"
 
 
 // `run-script <path> [args...]` — execute a Dark script file.
@@ -245,7 +245,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
     let darkFiles =
       files |> Stdlib.List.filter (Stdlib.String.endsWith ".dark")
 
-    let allFiles = Stdlib.List.append directories darkFiles
+    let allFiles = Stdlib.List.concat directories darkFiles
     allFiles |> Stdlib.List.map Completion.simple
 
   | [ partialArg ] ->

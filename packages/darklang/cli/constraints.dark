@@ -197,7 +197,7 @@ let selectTargets
     let withoutAsValue =
       match Stdlib.List.findFirstIndex beforeWhy (fun a -> a == "--as") with
       | Some i ->
-        Stdlib.List.append
+        Stdlib.List.concat
           (Stdlib.List.take beforeWhy i)
           (Stdlib.List.drop beforeWhy (i + 2))
       | None -> beforeWhy

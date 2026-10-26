@@ -171,7 +171,7 @@ let runWithEnv
 
     (run
       "/usr/bin/env"
-      (Stdlib.List.append envArgs (Stdlib.List.append [ program ] args)))
+      (Stdlib.List.concat envArgs (Stdlib.List.prepend args program)))
     |> Stdlib.Result.mapError (fun e -> e.message)
 
 
@@ -251,7 +251,7 @@ let __childAppend (buffer: __ChildBuffer) (bytes: Bytes) : __ChildBuffer =
   if keep <= 0 then buffer
   else
     let kept = if keep == Stdlib.Bytes.length bytes then bytes else Stdlib.Bytes.slice bytes 0 keep
-    __ChildBuffer { chunks = Stdlib.List.push buffer.chunks kept, size = buffer.size + keep }
+    __ChildBuffer { chunks = Stdlib.List.prepend buffer.chunks kept, size = buffer.size + keep }
 
 let __childBytes (buffer: __ChildBuffer) : Bytes = Stdlib.Bytes.concat (Stdlib.List.reverse buffer.chunks)
 
@@ -315,7 +315,7 @@ let __childDescriptors (stdin: Int) (stdout: Int) (stderr: Int) (pending: Bytes)
   let input = if Stdlib.Bytes.length pending == 0 then [] else [(stdin, 4)]
   let output = if outEOF then [] else [(stdout, 1)]
   let error = if errEOF then [] else [(stderr, 1)]
-  Stdlib.List.append input (Stdlib.List.append output error)
+  Stdlib.List.concat input (Stdlib.List.concat output error)
 
 let __childCapture
   (child: Int) (stdout: Int) (stderr: Int) (deadline: Stdlib.Option.Option<Int>)

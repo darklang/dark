@@ -226,7 +226,7 @@ let dependentsByName
                     (LanguageTools.ProgramTypes.Hash.Hash oh, oloc, okind))
             | None -> Stdlib.Option.Option.None)
 
-      Stdlib.List.append mainResolved fromOverlay)
+      Stdlib.List.concat mainResolved fromOverlay)
   |> Stdlib.List.flatten
 
 
@@ -241,7 +241,7 @@ let dependentsOf
   targets
   |> Stdlib.List.map (fun target ->
     let (loc, kind) = target
-    Stdlib.List.push
+    Stdlib.List.prepend
       (renamedAwayNames loc kind |> Stdlib.List.map (fun old -> (old, kind)))
       (loc, kind))
   |> Stdlib.List.flatten

@@ -21,7 +21,7 @@ let parseRelativeTo
     else
       // Relative path - combine current path with relative path
       let relativeParts = Stdlib.String.split location "."
-      Stdlib.List.append currentPath relativeParts
+      Stdlib.List.concat currentPath relativeParts
 
   match parts with
   | [] -> Stdlib.Result.Result.Error "Empty location"

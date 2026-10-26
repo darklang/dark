@@ -90,7 +90,7 @@ let splitLongWord (word: String) (width: Int) : List<String> =
     let taken = Stdlib.String.length head
     // A wide glyph can make `clipToWidth` take fewer characters than columns; never take none.
     let step = Stdlib.max 1 taken
-    Stdlib.List.push (splitLongWord (Stdlib.String.dropFirst word step) width) head
+    Stdlib.List.prepend (splitLongWord (Stdlib.String.dropFirst word step) width) head
 
 
 /// Fold one word into the lines built so far.
@@ -108,10 +108,10 @@ let addWord
     // The word alone doesn't fit: split it, keeping the tail as the line in progress.
     match Stdlib.List.reverse (splitLongWord word width) with
     | [] -> (lines, "")
-    | last :: earlier -> (Stdlib.List.append lines (Stdlib.List.reverse earlier), last)
+    | last :: earlier -> (Stdlib.List.concat lines (Stdlib.List.reverse earlier), last)
   else
     let (wrapped, rest) = addWord [] "" word width
-    (Stdlib.List.append (Stdlib.List.append lines [ current ]) wrapped, rest)
+    (Stdlib.List.concat (Stdlib.List.append lines current) wrapped, rest)
 
 
 /// Break plain text at spaces where it can and inside a word where it must.
@@ -133,4 +133,4 @@ let wrapAtWords (text: String) (width: Int) : List<String> =
         let (soFar, inProgress) = acc
         addWord soFar inProgress word w)
 
-    if current == "" then lines else Stdlib.List.append lines [ current ]
+    if current == "" then lines else Stdlib.List.append lines current

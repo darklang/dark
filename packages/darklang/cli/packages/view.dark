@@ -40,9 +40,9 @@ let rawSource
     : Stdlib.Result.Result<String, String> =
     // `preferredLocation`, so a shared body is headed with the name asked for.
     let ctx =
-      { terminalContext branchId (Stdlib.List.push loc.modules loc.owner) with
+      { terminalContext branchId (Stdlib.List.prepend loc.modules loc.owner) with
           preferredLocation = Stdlib.Option.Option.Some loc }
-    let modulePath = Stdlib.List.append [ loc.owner ] loc.modules
+    let modulePath = Stdlib.List.prepend loc.modules loc.owner
     let results = Query.searchExactMatch branchId modulePath loc.name
 
     match (results.fns, results.types, results.values, results.tests) with
@@ -193,7 +193,7 @@ let testRows
     let modules =
       tests
       |> Stdlib.List.map (fun (_, loc, _) ->
-        Stdlib.String.join (Stdlib.List.append [ loc.owner ] loc.modules) ".")
+        Stdlib.String.join (Stdlib.List.prepend loc.modules loc.owner) ".")
       |> Stdlib.List.unique
     let runHint =
       match modules with
@@ -260,7 +260,7 @@ let entityRows
               | [] -> Stdlib.Option.Option.None
           match printed with
           | Some prettyPrinted ->
-            Stdlib.List.append (sourceRows (SyntaxHighlighting.highlightCode prettyPrinted)) [ "" ]
+            Stdlib.List.append (sourceRows (SyntaxHighlighting.highlightCode prettyPrinted)) ""
           | None -> []
         | _, _ -> []
 
@@ -279,7 +279,7 @@ let entityRows
     ]
 
   | Type name ->
-    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let modulePath = Stdlib.List.prepend name.modules name.owner
     let results = Query.searchExactMatch branchId modulePath name.name
 
     match results.types with
@@ -289,7 +289,7 @@ let entityRows
     | item :: _ ->
       // `preferredLocation`, so a shared body is headed with the name asked for.
       let ctx =
-        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+        { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
             preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
@@ -303,7 +303,7 @@ let entityRows
       ]
 
   | Function name ->
-    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let modulePath = Stdlib.List.prepend name.modules name.owner
     let results = Query.searchExactMatch branchId modulePath name.name
 
     match results.fns with
@@ -313,7 +313,7 @@ let entityRows
     | item :: _ ->
       // `preferredLocation`, so a shared body is headed with the name asked for.
       let ctx =
-        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+        { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
             preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
@@ -341,7 +341,7 @@ let entityRows
       ]
 
   | Value name ->
-    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let modulePath = Stdlib.List.prepend name.modules name.owner
     let results = Query.searchExactMatch branchId modulePath name.name
 
     match results.values with
@@ -351,7 +351,7 @@ let entityRows
     | item :: _ ->
       // `preferredLocation`, so a shared body is headed with the name asked for.
       let ctx =
-        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+        { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
             preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
@@ -365,7 +365,7 @@ let entityRows
       ]
 
   | Trait name ->
-    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let modulePath = Stdlib.List.prepend name.modules name.owner
     let results = Query.searchExactMatch branchId modulePath name.name
 
     match results.traits with
@@ -374,7 +374,7 @@ let entityRows
       [ $"Trait '{locationStr}' not found." ]
     | item :: _ ->
       let ctx =
-        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+        { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
             preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageTrait ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
@@ -387,7 +387,7 @@ let entityRows
       ]
 
   | Impl name ->
-    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let modulePath = Stdlib.List.prepend name.modules name.owner
     let results = Query.searchExactMatch branchId modulePath name.name
 
     match results.impls with
@@ -396,7 +396,7 @@ let entityRows
       [ $"Impl '{locationStr}' not found." ]
     | item :: _ ->
       let ctx =
-        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+        { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
             preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageImpl ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
@@ -409,7 +409,7 @@ let entityRows
       ]
 
   | Test name ->
-    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let modulePath = Stdlib.List.prepend name.modules name.owner
     let results = Query.searchExactMatch branchId modulePath name.name
 
     match results.tests with
@@ -418,7 +418,7 @@ let entityRows
       [ $"Test '{locationStr}' not found." ]
     | item :: _ ->
       let ctx =
-        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+        { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
             preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageTest ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
@@ -525,7 +525,7 @@ let fnAt
   : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
   match location with
   | Function name ->
-    let modulePath = Stdlib.List.append [ name.owner ] name.modules
+    let modulePath = Stdlib.List.prepend name.modules name.owner
     let results = Query.searchExactMatch branchId modulePath name.name
 
     match results.fns with

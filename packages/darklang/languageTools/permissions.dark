@@ -370,7 +370,7 @@ let tokens (text: String) : Stdlib.Option.Option<List<String>> =
     (active: Bool)
     : List<String> =
     if active then
-      Stdlib.List.push
+      Stdlib.List.prepend
         soFar
         (Stdlib.String.fromList (Stdlib.List.reverse current))
     else
@@ -402,23 +402,23 @@ let tokens (text: String) : Stdlib.Option.Option<List<String>> =
         else if s == "\\" then
           walk rest Permissions.TokenMode.EscapedBare current soFar true
         else
-          walk rest Permissions.TokenMode.Bare (Stdlib.List.push current c) soFar true
+          walk rest Permissions.TokenMode.Bare (Stdlib.List.prepend current c) soFar true
       | SingleQuoted ->
         if s == "'" then
           walk rest Permissions.TokenMode.Bare current soFar true
         else
-          walk rest Permissions.TokenMode.SingleQuoted (Stdlib.List.push current c) soFar true
+          walk rest Permissions.TokenMode.SingleQuoted (Stdlib.List.prepend current c) soFar true
       | DoubleQuoted ->
         if s == "\"" then
           walk rest Permissions.TokenMode.Bare current soFar true
         else if s == "\\" then
           walk rest Permissions.TokenMode.EscapedDouble current soFar true
         else
-          walk rest Permissions.TokenMode.DoubleQuoted (Stdlib.List.push current c) soFar true
+          walk rest Permissions.TokenMode.DoubleQuoted (Stdlib.List.prepend current c) soFar true
       | EscapedBare ->
-        walk rest Permissions.TokenMode.Bare (Stdlib.List.push current c) soFar true
+        walk rest Permissions.TokenMode.Bare (Stdlib.List.prepend current c) soFar true
       | EscapedDouble ->
-        walk rest Permissions.TokenMode.DoubleQuoted (Stdlib.List.push current c) soFar true
+        walk rest Permissions.TokenMode.DoubleQuoted (Stdlib.List.prepend current c) soFar true
 
   walk
     (Stdlib.String.toList (Stdlib.String.trim text))
@@ -459,10 +459,10 @@ let parse
         | Some((denied, rules)) ->
           if denied then
             Stdlib.Result.Result.Ok(
-              { policy with deny = Stdlib.List.append policy.deny rules })
+              { policy with deny = Stdlib.List.concat policy.deny rules })
           else
             Stdlib.Result.Result.Ok(
-              { policy with allow = Stdlib.List.append policy.allow rules }))
+              { policy with allow = Stdlib.List.concat policy.allow rules }))
 
 let isAll (scope: Permissions.Scope<'a>) : Bool =
   match scope with
@@ -556,6 +556,6 @@ let renderRule (rule: Permissions.Rule) : String =
   | Process rule -> Permissions.renderProcessRule rule
 
 let render (policy: Permissions.Policy) : List<String> =
-  Stdlib.List.append
+  Stdlib.List.concat
     (policy.allow |> Stdlib.List.map Permissions.renderRule)
     (policy.deny |> Stdlib.List.map (fun rule -> "deny " + Permissions.renderRule rule))

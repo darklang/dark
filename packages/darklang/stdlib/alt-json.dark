@@ -210,27 +210,27 @@ module Builder =
 
   /// Add a required string field
   let addString (fields: Fields) (key: String) (value: String) : Fields =
-    List.append fields [ (key, Json.String value) ]
+    List.append fields (key, Json.String value)
 
   /// Add a floating-point field
   let addFloat (fields: Fields) (key: String) (value: Float) : Fields =
-    List.append fields [ (key, Json.Float value) ]
+    List.append fields (key, Json.Float value)
 
   /// Add an integer field without converting it to Float
   let addInt (fields: Fields) (key: String) (value: Int) : Fields =
-    List.append fields [ (key, Json.Integer value) ]
+    List.append fields (key, Json.Integer value)
 
   /// Add a required bool field
   let addBool (fields: Fields) (key: String) (value: Bool) : Fields =
-    List.append fields [ (key, Json.Bool value) ]
+    List.append fields (key, Json.Bool value)
 
   /// Add a required JSON value field
   let addJson (fields: Fields) (key: String) (value: Json) : Fields =
-    List.append fields [ (key, value) ]
+    List.append fields (key, value)
 
   /// Add a required array field
   let addArray (fields: Fields) (key: String) (value: List<Json>) : Fields =
-    List.append fields [ (key, Json.Array value) ]
+    List.append fields (key, Json.Array value)
 
   /// Add an optional string field (only adds if Some)
   let addOptionalString
@@ -239,7 +239,7 @@ module Builder =
     (value: Option.Option<String>)
     : Fields =
     match value with
-    | Some v -> List.append fields [ (key, Json.String v) ]
+    | Some v -> List.append fields (key, Json.String v)
     | None -> fields
 
   /// Add an optional Float field (only adds if Some)
@@ -249,7 +249,7 @@ module Builder =
     (value: Option.Option<Float>)
     : Fields =
     match value with
-    | Some v -> List.append fields [ (key, Json.Float v) ]
+    | Some v -> List.append fields (key, Json.Float v)
     | None -> fields
 
   /// Add an optional integer field (only adds if Some)
@@ -269,7 +269,7 @@ module Builder =
     (value: Option.Option<Bool>)
     : Fields =
     match value with
-    | Some v -> List.append fields [ (key, Json.Bool v) ]
+    | Some v -> List.append fields (key, Json.Bool v)
     | None -> fields
 
   /// Add an optional JSON value field (only adds if Some)
@@ -279,7 +279,7 @@ module Builder =
     (value: Option.Option<Json>)
     : Fields =
     match value with
-    | Some v -> List.append fields [ (key, v) ]
+    | Some v -> List.append fields (key, v)
     | None -> fields
 
   /// Add an optional array field (only adds if Some)
@@ -289,7 +289,7 @@ module Builder =
     (value: Option.Option<List<Json>>)
     : Fields =
     match value with
-    | Some v -> List.append fields [ (key, Json.Array v) ]
+    | Some v -> List.append fields (key, Json.Array v)
     | None -> fields
 
   /// Convert fields to a JSON object

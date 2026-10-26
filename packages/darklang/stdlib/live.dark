@@ -250,7 +250,7 @@ let dependents
             Stdlib.Option.Option.Some(Touched { location = location, kind = kind }))
       |> Stdlib.List.uniqueBy (fun t -> t.location)
 
-    (found, Stdlib.List.append seen (found |> Stdlib.List.map (fun t -> t.location)))
+    (found, Stdlib.List.concat seen (found |> Stdlib.List.map (fun t -> t.location)))
 
   let walk
     (frontier: List<Touched>)
@@ -300,7 +300,7 @@ let start (entry: LanguageTools.ProgramTypes.PackageLocation) : LastGood =
       problem = Stdlib.Option.Option.None }
 
 let entryName (entry: LanguageTools.ProgramTypes.PackageLocation) : String =
-  let path = Stdlib.List.append [ entry.owner ] (Stdlib.List.append entry.modules [ entry.name ])
+  let path = Stdlib.List.prepend (Stdlib.List.append entry.modules entry.name) entry.owner
   Stdlib.String.join path "."
 
 /// Never chase callees further than this. A version that calls more than this many things is
@@ -345,12 +345,12 @@ let calleeDeclarations
       else
         let found =
           match declarationOf h kind with
-          | Some op -> Stdlib.List.push found op
+          | Some op -> Stdlib.List.prepend found op
           | None -> found
 
         // Only a fn's own edges lead further: a value's or a type's are in its declaration.
         let next = if kind == "fn" then SCM.Deps.dependenciesOf h else []
-        walk (Stdlib.List.append rest next) (Stdlib.List.push seen hs) found
+        walk (Stdlib.List.concat rest next) (Stdlib.List.prepend seen hs) found
 
   walk (SCM.Deps.dependenciesOf hash) [] []
 
@@ -383,7 +383,7 @@ let refresh (branchId: Uuid) (lg: LastGood) : LastGood =
                 $"{entryName lg.entry} points at a version the store does not have" }
       | Some fn ->
         let candidates =
-          Stdlib.List.push (calleeDeclarations newest) (LanguageTools.ProgramTypes.PackageOp.AddFn fn)
+          Stdlib.List.prepend (calleeDeclarations newest) (LanguageTools.ProgramTypes.PackageOp.AddFn fn)
 
         let report = LanguageTools.AtRestTypeChecker.checkPackageOps candidates
 
@@ -465,7 +465,7 @@ let issueText (issue: LanguageTools.AtRestTypeChecker.Issue) : String =
 
 /// The report's first issue as text, and how many more there are.
 let reportText (report: LanguageTools.AtRestTypeChecker.Report) : String =
-  let issues = Stdlib.List.append report.warnings report.diagnostics
+  let issues = Stdlib.List.concat report.warnings report.diagnostics
   let count = Stdlib.List.length issues
 
   let first =
@@ -602,7 +602,7 @@ let versionsNewestFirst
     | Some h -> [ LanguageTools.ProgramTypes.hashToString h ]
     | None -> []
 
-  Stdlib.List.append current (Stdlib.List.reverse (SCM.Propagation.authoringOrder loc))
+  Stdlib.List.concat current (Stdlib.List.reverse (SCM.Propagation.authoringOrder loc))
   |> Stdlib.List.dedup
   |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
 
@@ -616,7 +616,7 @@ let atRestFailure
   | Some fn ->
     let report =
       LanguageTools.AtRestTypeChecker.checkPackageOps
-        (Stdlib.List.append [ LanguageTools.ProgramTypes.PackageOp.AddFn fn ] (calleeDeclarations hash))
+        (Stdlib.List.prepend (calleeDeclarations hash) (LanguageTools.ProgramTypes.PackageOp.AddFn fn))
 
     match report.verdict with
     | Failed -> Stdlib.Option.Option.Some report
@@ -636,7 +636,7 @@ let observe (branchId: Uuid) (view: LanguageTools.ProgramTypes.PackageLocation) 
   let inView (name: String) : LanguageTools.ProgramTypes.PackageLocation =
     LanguageTools.ProgramTypes.PackageLocation
       { owner = view.owner
-        modules = Stdlib.List.append view.modules [ view.name ]
+        modules = Stdlib.List.append view.modules view.name
         name = name }
 
   // The newest version's at-rest report, if it failed, and the versions that pass, newest first.

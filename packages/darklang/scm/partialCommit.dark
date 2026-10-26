@@ -31,7 +31,7 @@ type Selected =
 /// `owner.modules.name` for a location, which is what a person types at `--include=`.
 let fqnOf (location: LanguageTools.ProgramTypes.PackageLocation) : String =
   let parts =
-    Stdlib.List.append [ location.owner ] (Stdlib.List.append location.modules [ location.name ])
+    Stdlib.List.prepend (Stdlib.List.append location.modules location.name) location.owner
 
   Stdlib.String.join parts "."
 
@@ -105,7 +105,7 @@ let closeStep (pending: List<String>) (acc: List<String>) : List<String> =
     draftDepsOf pending acc
     |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains acc h))
 
-  Stdlib.List.append acc next
+  Stdlib.List.concat acc next
 
 /// Close a hash set over draft dependencies.
 ///
@@ -119,7 +119,7 @@ let closeOverDeps (hashes: List<String>) : List<String> =
   // still needs to travel with callers that refer to it. The name filter in
   // `plan` keeps unrelated aliases of the same hash out of the selection.
   let pending =
-    Stdlib.List.append
+    Stdlib.List.concat
       (draftAddedHashes ())
       (draftNamings () |> Stdlib.List.map (fun s -> s.hash))
     |> Stdlib.List.unique
@@ -183,7 +183,7 @@ let closeOverDepFqns (names: List<String>) : List<String> =
               Stdlib.Option.Option.Some(o + "." + mid + n)
             | _ -> Stdlib.Option.Option.None))
       |> Stdlib.List.flatten
-    Stdlib.List.unique (Stdlib.List.append acc next)
+    Stdlib.List.unique (Stdlib.List.concat acc next)
 
   Stdlib.List.range 1 8
   |> Stdlib.List.fold (Stdlib.List.unique names) (fun acc _ -> step acc)
@@ -286,12 +286,12 @@ let plan
 
     // Content and deprecations for the same hashes (see `contentIdIfWanted`), plus the doc edits
     // for the names in play, which are selected by name rather than by hash.
-    let wantedFqns = Stdlib.List.unique (Stdlib.List.append names reachableFqns)
+    let wantedFqns = Stdlib.List.unique (Stdlib.List.concat names reachableFqns)
 
     let entries = SCM.PackageOps.draftEntries ()
 
     let otherIds =
-      Stdlib.List.append
+      Stdlib.List.concat
         (entries |> Stdlib.List.filterMap (fun e -> contentIdIfWanted wantedHashes e))
         (entries |> Stdlib.List.filterMap (fun e -> docIdIfWanted wantedFqns e))
 
@@ -301,7 +301,7 @@ let plan
       |> Stdlib.List.unique
       |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.contains names f))
 
-    (Stdlib.List.unique (Stdlib.List.append namingIds otherIds), pulledIn)
+    (Stdlib.List.unique (Stdlib.List.concat namingIds otherIds), pulledIn)
     |> Stdlib.Result.Result.Ok
 
   | missing ->

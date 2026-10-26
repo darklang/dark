@@ -6,13 +6,13 @@ let userFn () : Int64 = 6L
 test functions =
   Stdlib.Test.all
     [ (() |> userFn) |> Stdlib.Test.equal 6L
-      ([] |> Stdlib.List.push 2L) |> Stdlib.Test.equal [ 2L ]
+      ([] |> Stdlib.List.prepend 2L) |> Stdlib.Test.equal [ 2L ]
       // nested function
-      ([] |> Stdlib.List.push (1L + (1L + 3L))) |> Stdlib.Test.equal [ 5L ]
-      ([] |> Stdlib.List.push (1L + ((+) 1L 3L))) |> Stdlib.Test.equal [ 5L ] ]
+      ([] |> Stdlib.List.prepend (1L + (1L + 3L))) |> Stdlib.Test.equal [ 5L ]
+      ([] |> Stdlib.List.prepend (1L + ((+) 1L 3L))) |> Stdlib.Test.equal [ 5L ] ]
 
 test argErrorRaises =
-  ([] |> Stdlib.List.push (Stdlib.Test.raiseRuntimeError "err"))
+  ([] |> Stdlib.List.prepend (Stdlib.Test.raiseRuntimeError "err"))
   => raises "Uncaught exception: err"
 
 // general

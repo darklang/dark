@@ -420,7 +420,7 @@ Rules:
   | (Ok x, Ok y) -> ...      # tuple of constructors; parens optional, with or without a space
   | Some(Ok v) -> ...        # constructor of a constructor
   | Some((a, b)) -> ...      # constructor wrapping a tuple NEEDS its inner parens
-  # `::` is pattern-only; prepend in an expression with `Stdlib.List.push item list`
+  # `::` is pattern-only; prepend in an expression with `Stdlib.List.prepend list item`
 
 ## Troubleshooting
 If commands hang or fail silently, check logs:

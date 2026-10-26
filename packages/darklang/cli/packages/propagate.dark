@@ -37,7 +37,7 @@ let getAllPreviousHashes
       |> Stdlib.List.filter (fun h ->
         Stdlib.Bool.not (Stdlib.List.contains fromMain h))
 
-    Stdlib.List.append fromBranch fromMain
+    Stdlib.List.concat fromBranch fromMain
 
 
 /// Resolve a type hash to its location name for comparison purposes.
@@ -205,7 +205,7 @@ let repointNow
             byHash
             |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == h)
             |> Stdlib.Option.map (fun pair ->
-              let issues = Stdlib.List.append ir.warnings ir.diagnostics
+              let issues = Stdlib.List.concat ir.warnings ir.diagnostics
 
               let text =
                 match issues with
@@ -257,8 +257,8 @@ let repointSaved (branchId: Uuid) (updates: List<UpdatedItem>) : Followed =
       | Some _ -> combined.failure
       | None -> followed.failure
     Followed
-      { names = Stdlib.List.unique (Stdlib.List.append combined.names followed.names)
-        broken = Stdlib.List.unique (Stdlib.List.append combined.broken followed.broken)
+      { names = Stdlib.List.unique (Stdlib.List.concat combined.names followed.names)
+        broken = Stdlib.List.unique (Stdlib.List.concat combined.broken followed.broken)
         failure = failure })
 
 /// The save's second line, if it has one: who follows, or who broke. Wrapped at 80, indented.

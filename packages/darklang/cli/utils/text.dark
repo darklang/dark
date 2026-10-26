@@ -11,7 +11,7 @@ let wrap (width: Int) (indent: String) (text: String) : List<String> =
   match Stdlib.Cli.Tui.Text.wrapAtWords text room with
   | [] -> [ indent + text ]
   | first :: rest ->
-    Stdlib.List.append [ indent + first ] (rest |> Stdlib.List.map (fun l -> indent + l))
+    Stdlib.List.prepend (rest |> Stdlib.List.map (fun l -> indent + l)) (indent + first)
 
 /// Print <param text> wrapped at 80 columns, indented by <param indent>, in <param colour>.
 let printWrapped (colour: String -> String) (indent: String) (text: String) : Unit =

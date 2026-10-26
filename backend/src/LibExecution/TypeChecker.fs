@@ -846,7 +846,7 @@ let checkFnResult
 ///  i.e. we should not have `DList(Known KTInt64, [ DString("hi") ])`
 ///
 /// - similarly, we should fail when trying to merge `Dval`s with conflicting `ValueType`s
-///   i.e. `List.append [1] ["hi"]` should fail
+///   i.e. `List.concat [1] ["hi"]` should fail
 ///   because we can't merge `Known KTInt64` and `Known KTString`
 ///
 /// These functions are intended to help with both of these,

@@ -46,7 +46,7 @@ let parseInput (input: String) : ParsedInput =
         ParsedInput { commandName = command, args = [], isCompletingCommand = true }
     | command :: rest ->
       if endsWithSpace then
-        ParsedInput { commandName = command, args = Stdlib.List.append rest [""], isCompletingCommand = false }
+        ParsedInput { commandName = command, args = Stdlib.List.append rest "", isCompletingCommand = false }
       else
         ParsedInput { commandName = command, args = rest, isCompletingCommand = false }
 
@@ -66,8 +66,8 @@ let buildCompletedCommand (parsed: ParsedInput) (completion: String) : String =
   else
     // Replace last argument with completion
     let argsWithoutLast = Stdlib.List.dropLast parsed.args
-    let newArgs = Stdlib.List.append argsWithoutLast [completion]
-    let fullCommand = Stdlib.List.append [parsed.commandName] newArgs
+    let newArgs = Stdlib.List.append argsWithoutLast completion
+    let fullCommand = Stdlib.List.prepend newArgs parsed.commandName
     Stdlib.String.join fullCommand " "
 
 

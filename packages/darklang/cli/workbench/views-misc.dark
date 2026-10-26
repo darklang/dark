@@ -81,7 +81,7 @@ let processTree (state: State) : Stdlib.Cli.UI.Node.Node<Unit> =
           Stdlib.Cli.UI.Node.table Cli.Ps.machineColumns machine ]
 
     Stdlib.Cli.UI.Node.column
-      (Stdlib.List.append
+      (Stdlib.List.concat
         [ Stdlib.Cli.UI.Node.table Cli.Ps.localColumns rows
           Stdlib.Cli.UI.Node.text ""
           Stdlib.Cli.UI.Node.dim "the selected row's call stack is on the right" ]
@@ -128,7 +128,7 @@ let processDetailLines (state: State) : List<String> =
       match Stdlib.Exec.inspect p.id with
       | None -> [ "gone" ]
       | Some d ->
-        Stdlib.List.append
+        Stdlib.List.concat
           [ Cli.Ps.statusText state.branchId d.summary.status, "" ]
           (d.frames |> Stdlib.List.map (fun ep -> Cli.Ps.executionPointText state.branchId ep))
 

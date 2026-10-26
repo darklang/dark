@@ -63,12 +63,12 @@ let dictKeyTypes (env: Model.Environment) (ty: Model.Ty) : List<Model.Ty> =
   let many (types: List<Model.Ty>) : List<Model.Ty> =
     Stdlib.List.flatten (Stdlib.List.map types (dictKeyTypes env))
   match ty with
-  | TDict(key, value) -> Stdlib.List.push (many [ key, value ]) key
+  | TDict(key, value) -> Stdlib.List.prepend (many [ key, value ]) key
   | TList inner -> dictKeyTypes env inner
   | TStream inner -> dictKeyTypes env inner
-  | TTuple(first, second, rest) -> many (Stdlib.List.append [ first, second ] rest)
-  | TFn(parameters, ret) -> many (Stdlib.List.push parameters ret)
-  | TCustom(name, args) -> Stdlib.List.append (customDictKeys env name args) (many args)
+  | TTuple(first, second, rest) -> many (Stdlib.List.concat [ first, second ] rest)
+  | TFn(parameters, ret) -> many (Stdlib.List.prepend parameters ret)
+  | TCustom(name, args) -> Stdlib.List.concat (customDictKeys env name args) (many args)
   | _ -> []
 
 /// Find the declaration's type parameters that must accept only valid dictionary
@@ -134,7 +134,7 @@ let checkDictKey
   : List<Model.Finding> =
   if Types.isUsableDictKey env [] key then found
   else
-    Stdlib.List.push found
+    Stdlib.List.prepend found
       (Types.definiteError IssueCode.UnsupportedDictKeyType at
         Stdlib.Option.Option.None (Stdlib.Option.Option.Some key) Context.NoDetail)
 
@@ -155,8 +155,8 @@ let checkTypeStructure
     let found = checkDictKey env at found key
     checkTypeStructures env at names found [ key, value ]
   | TTuple(first, second, rest) ->
-    checkTypeStructures env at names found (Stdlib.List.append [ first, second ] rest)
-  | TFn(parameters, ret) -> checkTypeStructures env at names found (Stdlib.List.push parameters ret)
+    checkTypeStructures env at names found (Stdlib.List.concat [ first, second ] rest)
+  | TFn(parameters, ret) -> checkTypeStructures env at names found (Stdlib.List.prepend parameters ret)
   | TCustom(name, args) ->
     let (names, found) = checkTypeStructures env at names found args
 
@@ -164,14 +164,14 @@ let checkTypeStructure
     | None ->
       let problem =
         Types.warning IssueCode.MissingTypeDeclaration at (Context.TypeUnavailable name)
-      (names, Stdlib.List.push found problem)
+      (names, Stdlib.List.prepend found problem)
     | Some decl ->
       if Stdlib.List.length decl.typeParams != Stdlib.List.length args then
-        (names, Stdlib.List.push found (Types.arityMismatch at ty name decl args))
+        (names, Stdlib.List.prepend found (Types.arityMismatch at ty name decl args))
       else
         let found =
           Stdlib.List.fold (customDictKeys env name args) found (checkDictKey env at)
-        (Stdlib.List.push names name, found)
+        (Stdlib.List.prepend names name, found)
   | _ -> (names, found)
 
 /// `checkTypeStructure` over each of <param tys> in turn. Top-level rather than nested, where it
@@ -208,7 +208,7 @@ let aliasEdges
       match Types.declaration env hash with
       | Some decl ->
         match decl.definition with
-        | Alias _ -> Stdlib.List.push found hash
+        | Alias _ -> Stdlib.List.prepend found hash
         | _ -> found
       | None -> found
     | None -> found
@@ -293,7 +293,7 @@ let declarationFactsOf
 
   let found =
     if Stdlib.Option.withDefault (Stdlib.Dict.get cyclic name) false then
-      Stdlib.List.push
+      Stdlib.List.prepend
         found
         (Types.warning IssueCode.AliasCycle none Context.AliasCycleReferenced)
     else
@@ -355,7 +355,7 @@ let prepareDeclarations (env: Model.Environment) : Model.Environment =
             | Ok declarationFacts ->
               match Stdlib.Dict.get traversalFailures name with
               | Some problem ->
-                { declarationFacts with problems = Stdlib.List.push declarationFacts.problems problem }
+                { declarationFacts with problems = Stdlib.List.prepend declarationFacts.problems problem }
               | None -> declarationFacts
             | Error failure ->
               Model.DeclarationFacts
@@ -419,7 +419,7 @@ let strongConnect
           Stdlib.Dict.set
             components.lowLink node components.nextIndex
         nextIndex = components.nextIndex + 1
-        stack = Stdlib.List.push components.stack node
+        stack = Stdlib.List.prepend components.stack node
         onStack = Stdlib.Dict.set components.onStack node true }
 
   let components = connectSuccessors env components node (referencesOf env node)
@@ -476,16 +476,16 @@ let popComponent
   : Components =
   match components.stack with
   | [] ->
-    { components with completed = Stdlib.List.push components.completed members }
+    { components with completed = Stdlib.List.prepend components.completed members }
   | top :: rest ->
     let components =
       { components with
           stack = rest
           onStack = Stdlib.Dict.remove components.onStack top }
-    let members = Stdlib.List.push members top
+    let members = Stdlib.List.prepend members top
 
     if top == root then
-      { components with completed = Stdlib.List.push components.completed members }
+      { components with completed = Stdlib.List.prepend components.completed members }
     else
       popComponent components root members
 
@@ -536,7 +536,7 @@ let allDeclarationProblems
           Stdlib.Option.withDefault (Stdlib.Dict.get declarationProblems r) [])
         |> Stdlib.List.flatten
 
-      let problems = Stdlib.List.append own reached
+      let problems = Stdlib.List.concat own reached
       // Shared dependencies can contribute the same finding more than once.
       // Use dedup's equality comparisons because unique hashes findings and can
       // exhaust the stack on deeply nested types. Guard comparisons too; if they
@@ -600,10 +600,10 @@ let visitAll
       | Some declarationFacts ->
         let found =
           Stdlib.List.fold declarationFacts.problems found (fun found problem ->
-            Stdlib.List.push found { problem with at = at })
+            Stdlib.List.prepend found { problem with at = at })
 
         visitAll
-          env at walked found (Stdlib.List.append declarationFacts.references rest)
+          env at walked found (Stdlib.List.concat declarationFacts.references rest)
 
 /// Collect all problems reachable from one declaration without assigning a source
 /// node. The resulting list can be reused at different locations that reference it.
@@ -644,6 +644,6 @@ let validateType
 
     let found =
       Stdlib.List.fold problems found (fun found problem ->
-        Stdlib.List.push found { problem with at = at })
+        Stdlib.List.prepend found { problem with at = at })
 
     (found, env))

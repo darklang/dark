@@ -172,7 +172,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 "Press Ctrl+C to stop"
                 "" ]
 
-            Stdlib.printLines (Stdlib.List.append head (Stdlib.List.append hostLines tail))
+            Stdlib.printLines (Stdlib.List.concat head (Stdlib.List.concat hostLines tail))
 
           let served =
             match (parsed.live, Stdlib.Live.locationOfName parsed.routerPath) with
@@ -204,7 +204,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let help (_state: Cli.AppState) : String =
   [ "Start an HTTP server backed by a Darklang router."
     "" ]
-  |> Stdlib.List.append (usageLines ())
+  |> Stdlib.List.concat (usageLines ())
   |> Stdlib.String.join "\n"
 
 

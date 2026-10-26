@@ -201,7 +201,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
               // you were: a new item can be saved into a module below the one on screen.
               let there =
                 { state with
-                    location = Packages.PackageLocation.Module(Stdlib.List.append [ loc.owner ] loc.modules) }
+                    location = Packages.PackageLocation.Module(Stdlib.List.prepend loc.modules loc.owner) }
               let reloaded = reloadItems there
               let landed =
                 reloaded
@@ -295,7 +295,7 @@ let startNew (state: State) (kind: String) : Step =
 /// Open the editor on an existing fn, prefilled with its full current declaration (doc comments dropped).
 let openEditExisting (state: State) (item: BodyItem) : Step =
   let modules = Packages.modulePathOf state.location
-  let fullName = Stdlib.String.join (Stdlib.List.append modules [ item.name ]) "."
+  let fullName = Stdlib.String.join (Stdlib.List.append modules item.name) "."
   let results = Packages.Query.searchExactMatch state.branchId modules item.name
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch state.branchId
   // Prefill from the item's current source, per kind. `val` items save under the "value" kind (see saveEditing).

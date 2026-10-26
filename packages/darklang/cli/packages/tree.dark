@@ -72,7 +72,7 @@ let displayTableOfContents (): Unit =
       Stdlib.Dict.set
         acc
         entry.category
-        (Stdlib.List.append existing [ entry ]))
+        (Stdlib.List.append existing entry))
 
   // Display in order (use a list to preserve order)
   let categories =
@@ -109,9 +109,9 @@ let execute (state: AppState) (args: List<String>): AppState =
     | Some i ->
       match Stdlib.List.getAt args (i + 1) with
       | Some value ->
-        Stdlib.List.append
+        Stdlib.List.concat
           (Stdlib.List.take args i)
-          (Stdlib.List.push (Stdlib.List.drop args (i + 2)) $"--depth={value}")
+          (Stdlib.List.prepend (Stdlib.List.drop args (i + 2)) $"--depth={value}")
       | None -> args
     | None -> args
 
@@ -239,12 +239,12 @@ let displayTree
         |> Stdlib.List.sortBy (fun (name, _, _) -> name)
 
       moduleEntities
-      |> Stdlib.List.append typeEntities
-      |> Stdlib.List.append traitEntities
-      |> Stdlib.List.append valueEntities
-      |> Stdlib.List.append functionEntities
-      |> Stdlib.List.append implEntities
-      |> Stdlib.List.append testEntities
+      |> Stdlib.List.concat typeEntities
+      |> Stdlib.List.concat traitEntities
+      |> Stdlib.List.concat valueEntities
+      |> Stdlib.List.concat functionEntities
+      |> Stdlib.List.concat implEntities
+      |> Stdlib.List.concat testEntities
 
     // Display entities with appropriate icons
     let entitiesCount = Stdlib.List.length allEntities
@@ -272,7 +272,7 @@ let displayTree
       if (entityType == EntityType.Module || entityType == EntityType.Impl)
          && remainingDepth > 1 then
         let newPrefix = prefix + (if isLast then "    " else "│   ")
-        let newModulePath = Stdlib.List.append modulePath [name]
+        let newModulePath = Stdlib.List.append modulePath name
         let newLocation = PackageLocation.Module newModulePath
         displayTree
           branchId

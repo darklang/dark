@@ -115,7 +115,7 @@ let handleViewKey
             state
             (title
              + "\n\n"
-             + (Stdlib.List.append (detailLines state) (selectedFunctionTestRows state)
+             + (Stdlib.List.concat (detailLines state) (selectedFunctionTestRows state)
                 |> Stdlib.String.join "\n"))
             true
       | None -> descend state

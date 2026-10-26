@@ -74,7 +74,7 @@ let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
           kind = "branch"
           isModule = false
           desc = describe b.id b.ops })
-  Stdlib.List.append [ mainRow ] others
+  Stdlib.List.prepend others mainRow
 
 /// The branch list as reader text.
 let branchListText (currentBranchId: Uuid) : String =

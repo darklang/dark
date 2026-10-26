@@ -150,7 +150,7 @@ let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.C
           ""
       | None -> []
 
-    Stdlib.List.append treeSpans bandSpans)
+    Stdlib.List.concat treeSpans bandSpans)
 
 /// Run the view's `render` on the model. A clean render replaces the frame; a failed one keeps it
 /// and says why underneath. The at-rest verdict comes first: a version that failed its check is
@@ -336,7 +336,7 @@ let sessionLocation (view: Model.View) : Stdlib.Option.Option<LanguageTools.Prog
 
     LanguageTools.ProgramTypes.PackageLocation
       { owner = entry.owner
-        modules = Stdlib.List.append entry.modules [ "Sessions" ]
+        modules = Stdlib.List.append entry.modules "Sessions"
         name = "s" + stamp })
 
 /// Snapshot the model as a `val` in the store, so a later `--resume <name>` starts from it, on
@@ -434,9 +434,9 @@ let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
   let specs =
     match (s.view.every, s.toast) with
     | (Some ms, _) ->
-      Stdlib.List.pushBack watching (Stdlib.Host.EventSpec.Timer ms)
+      Stdlib.List.append watching (Stdlib.Host.EventSpec.Timer ms)
     | (None, Some _) ->
-      Stdlib.List.pushBack watching (Stdlib.Host.EventSpec.Timer toastMs)
+      Stdlib.List.append watching (Stdlib.Host.EventSpec.Timer toastMs)
     | (None, None) -> watching
 
   match Stdlib.Host.await specs with

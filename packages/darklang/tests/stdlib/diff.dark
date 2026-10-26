@@ -31,9 +31,9 @@ let refBuildTable
           else if above >= left then above
           else left
 
-        Stdlib.List.append row [ cell ])
+        Stdlib.List.append row cell)
 
-    Stdlib.List.append table [ nextRow ])
+    Stdlib.List.append table nextRow)
 
 let refTrace
   (oldLines: List<String>)
@@ -51,7 +51,7 @@ let refTrace
     if o == n then
       Stdlib.List.append
         (refTrace oldLines newLines table (i - 1) (j - 1))
-        [ Stdlib.Diff.DiffLine.Same o ]
+        (Stdlib.Diff.DiffLine.Same o)
     else
       let up = refTableGet table (j - 1) i
       let left = refTableGet table j (i - 1)
@@ -59,21 +59,21 @@ let refTrace
       if up >= left then
         Stdlib.List.append
           (refTrace oldLines newLines table i (j - 1))
-          [ Stdlib.Diff.DiffLine.Added n ]
+          (Stdlib.Diff.DiffLine.Added n)
       else
         Stdlib.List.append
           (refTrace oldLines newLines table (i - 1) j)
-          [ Stdlib.Diff.DiffLine.Removed o ]
+          (Stdlib.Diff.DiffLine.Removed o)
   else if j > 0 then
     let n = Stdlib.Option.withDefault (Stdlib.List.getAt newLines (j - 1)) ""
     Stdlib.List.append
       (refTrace oldLines newLines table i (j - 1))
-      [ Stdlib.Diff.DiffLine.Added n ]
+      (Stdlib.Diff.DiffLine.Added n)
   else
     let o = Stdlib.Option.withDefault (Stdlib.List.getAt oldLines (i - 1)) ""
     Stdlib.List.append
       (refTrace oldLines newLines table (i - 1) j)
-      [ Stdlib.Diff.DiffLine.Removed o ]
+      (Stdlib.Diff.DiffLine.Removed o)
 
 let refLines (oldText: String) (newText: String) : List<Stdlib.Diff.DiffLine> =
   let oldLines = Stdlib.String.split oldText "\n"

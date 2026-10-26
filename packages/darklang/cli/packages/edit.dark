@@ -25,7 +25,7 @@ let editorCommand () : String =
 
 /// The `/Owner.Mod` form `dark module` takes, built from the item's own location.
 let moduleArgFor (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-  let parts = Stdlib.List.append [ loc.owner ] loc.modules
+  let parts = Stdlib.List.prepend loc.modules loc.owner
   "/" + (Stdlib.String.join parts ".")
 
 

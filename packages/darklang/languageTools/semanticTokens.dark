@@ -950,7 +950,7 @@ module Expr =
     | EUnwrap(_, operand, question) ->
       Stdlib.List.append
         (Expr.tokenize operand)
-        [ makeToken question TokenType.Symbol ]
+        (makeToken question TokenType.Symbol)
 
     | ERecordFieldAccess(_range, expr, (r, fieldName), symbolDot) ->
       [ // person

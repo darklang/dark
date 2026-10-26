@@ -30,19 +30,22 @@ let tail (list: List<'a>) : Option.Option<List<'a>> =
 
 
 /// Returns a new list with all values in <param as> followed by all values in <param bs>,
-/// preserving the order
-let append (as_: List<'a>) (bs: List<'a>) : List<'a> =
-  Builtin.listAppend as_ bs
+/// preserving the order. The `@` operator desugars to this. To add one value, use
+/// <fn prepend> or <fn append>.
+let concat (as_: List<'a>) (bs: List<'a>) : List<'a> =
+  Builtin.listConcat as_ bs
 
 
-/// Add element <param value> to front of <type list> <param list>
-let push (list: List<'a>) (value: 'a) : List<'a> =
-  Builtin.listPush list value
+/// Adds <param value> to the front of <param list>.
+let prepend (list: List<'a>) (value: 'a) : List<'a> =
+  Builtin.listPrepend list value
 
 
-/// Add element <param val> to back of <type list> <param list>
-let pushBack (list: List<'a>) (value: 'a) : List<'a> =
-  Builtin.listPushBack list value
+/// Adds <param value> to the back of <param list>. Copies <param list>; to build a list
+/// one value at a time, <fn prepend> and <fn reverse> once at the end.
+/// To join two lists, use <fn concat>.
+let append (list: List<'a>) (value: 'a) : List<'a> =
+  Builtin.listAppend list value
 
 
 /// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
@@ -86,7 +89,7 @@ let repeatUnsafe (times: Int) (value: 'a) : List<'a> =
   if times <= 0 then
     []
   else
-    push (repeatUnsafe (times - 1) value) value
+    prepend (repeatUnsafe (times - 1) value) value
 
 
 /// Returns a list containing <param val> repeated <param times> times
@@ -135,8 +138,8 @@ let interpose (list: List<'a>) (sep: 'a) : List<'a> =
   | [ single ] -> [ single ]
   | head :: tail ->
     (interpose tail sep)
-    |> push sep
-    |> push head
+    |> prepend sep
+    |> prepend head
 
 
 /// Returns a list with the first value from <param l1> then the first value
@@ -150,8 +153,8 @@ let interleave (lA: List<'a>) (lB: List<'a>) : List<'a> =
     | [] -> lA
     | bHead :: bTail ->
       (interleave aTail bTail)
-      |> push bHead
-      |> push aHead
+      |> prepend bHead
+      |> prepend aHead
 
 
 /// Returns the passed list, with only unique values, where uniqueness is based
@@ -170,7 +173,7 @@ let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
     if Stdlib.Dict.``member`` seen uniqueValue then
       (unique, seen)
     else
-      (push unique value,
+      (prepend unique value,
        Stdlib.Dict.set seen uniqueValue true))
   |> fun (uniqueValues, _) -> uniqueValues
   |> sort
@@ -204,7 +207,7 @@ let dedup (list: List<'a>) : List<'a> =
     if Stdlib.Dict.``member`` seen value then
       (acc, seen)
     else
-      (push acc value, Stdlib.Dict.set seen value true))
+      (prepend acc value, Stdlib.Dict.set seen value true))
   |> fun (acc, _) -> acc
   |> reverse
 
@@ -266,11 +269,11 @@ module SortByComparatorHelpers =
         if result <= 0 then
           match merge xs right comparator with
           | Error msg -> Result.Result.Error msg
-          | Ok merged -> Result.Result.Ok(push merged x)
+          | Ok merged -> Result.Result.Ok(prepend merged x)
         else
           match merge left ys comparator with
           | Error msg -> Result.Result.Error msg
-          | Ok merged -> Result.Result.Ok(push merged y)
+          | Ok merged -> Result.Result.Ok(prepend merged y)
 
   let splitList (lst: List<'a>) : (List<'a> * List<'a>) =
     match lst with
@@ -278,7 +281,7 @@ module SortByComparatorHelpers =
     | [ x ] -> ([ x ], [])
     | x :: y :: xs ->
       let (left, right) = splitList xs
-      (push left x, push right y)
+      (prepend left x, prepend right y)
 
   let mergeSort
     (lst: List<'a>)
@@ -370,7 +373,7 @@ let dropLast (list: List<'a>) : List<'a> =
   | head :: tail ->
     match tail with
     | [] -> []
-    | _ -> push (dropLast tail) head
+    | _ -> prepend (dropLast tail) head
 
 
 /// Drops all but the first <param count> values from <param list>
@@ -384,7 +387,7 @@ let takeWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
   | [] -> []
   | head :: tail ->
     if (fn head) then
-      push (takeWhile tail fn) head
+      prepend (takeWhile tail fn) head
     else
       []
 
@@ -489,7 +492,7 @@ let unzip (pairs: List<('a * 'b)>) : (List<'a> * List<'b>) =
   | (a, b) :: tail ->
     let (firsts, seconds) = unzip tail
 
-    (push firsts a, push seconds b)
+    (prepend firsts a, prepend seconds b)
 
 
 /// Returns {{Some value}} at <param index> in <param list> if <param index> is
@@ -543,8 +546,8 @@ let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
 
       match Stdlib.Dict.get groups key with
       | Some elements ->
-        (Stdlib.Dict.set groups key (push elements element), keys)
-      | None -> (Stdlib.Dict.set groups key [ element ], push keys key))
+        (Stdlib.Dict.set groups key (prepend elements element), keys)
+      | None -> (Stdlib.Dict.set groups key [ element ], prepend keys key))
 
   keys
   |> reverse
@@ -564,9 +567,9 @@ let partition (ls: List<'a>) (f: 'a -> Bool) : (List<'a> * List<'a>) =
     let (trueList, falseList) = partition tail f
 
     if (f head) then
-      (push trueList head, falseList)
+      (prepend trueList head, falseList)
     else
-      (trueList, push falseList head)
+      (trueList, prepend falseList head)
 
 
 /// Applies the given function <param fn> to each element of the <param list>.
@@ -594,7 +597,7 @@ let chunkBySizeHelper
       if isEmpty taken then
         accum
       else
-        push accum taken
+        prepend accum taken
 
     chunkBySizeHelper rest size newAccum
 

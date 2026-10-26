@@ -190,7 +190,7 @@ let commandCompletions (state: State) (text: String) : List<Darklang.Cli.Complet
 let applyCompletionValue (text: String) (value: String) : String =
   match Stdlib.List.reverse (Stdlib.String.split text " ") with
   | _last :: revInit ->
-    Stdlib.String.join (Stdlib.List.append (Stdlib.List.reverse revInit) [ value ]) " "
+    Stdlib.String.join (Stdlib.List.append (Stdlib.List.reverse revInit) value) " "
   | [] -> value
 
 /// A live dropdown of command completions anchored just above the `:` input line - the "pretty typeahead" menu

@@ -64,9 +64,9 @@ let annotate
   : (List<String> * Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson>) =
   match trace with
   | None ->
-    (Stdlib.List.append
-       [ $"no recorded trace went through {fn} yet" ]
-       (Cli.TraceVerbs.whyEmpty "run something that calls it"),
+    (Stdlib.List.prepend
+       (Cli.TraceVerbs.whyEmpty "run something that calls it")
+       $"no recorded trace went through {fn} yet",
      Stdlib.Option.Option.None)
   | Some r ->
     let entry = LanguageTools.ProgramTypes.parsePackageLocation fn
@@ -226,7 +226,7 @@ let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
         |> Stdlib.List.filterMap (fun x -> x)
         |> Stdlib.List.map (fun line -> Stdlib.Cli.UI.Node.dim $"  {line}")
 
-      Stdlib.List.push
+      Stdlib.List.prepend
         rest
         (Stdlib.Cli.UI.Node.band Stdlib.Cli.UI.Node.Severity.Warning headline)
     | None -> []

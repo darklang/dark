@@ -808,7 +808,7 @@ let loopsOf
   // Both kinds carry the same `callSite`, which the replay fills in for each: a lambda's own
   // expression id, or a hash of the function's name. So this is one grouping key, not two.
   let sited =
-    Stdlib.List.append
+    Stdlib.List.concat
       (frames
        |> Stdlib.List.filter (fun f -> (f.kind == "function") && (f.callee == selfHash))
        |> Stdlib.List.map (fun f ->
@@ -827,12 +827,12 @@ let loopsOf
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc t ->
       let (k, _nm, _hash, _frame) = t
       let atK = Stdlib.Dict.get acc k |> Stdlib.Option.withDefault []
-      Stdlib.Dict.set acc k (Stdlib.List.push atK t))
+      Stdlib.Dict.set acc k (Stdlib.List.prepend atK t))
 
   sited
   |> Stdlib.List.fold [] (fun acc t ->
     let (k, _nm, _hash, _frame) = t
-    if Stdlib.List.contains acc k then acc else Stdlib.List.append acc [ k ])
+    if Stdlib.List.contains acc k then acc else Stdlib.List.append acc k)
   |> Stdlib.List.map (fun k ->
     // Reversed, since the fold above prepends. Harmless: `iterations` sorts by `ord` anyway, and
     // the name and hash are the same for every frame at one site.
@@ -887,12 +887,12 @@ let loopsOf
 
     Stdlib.List.append
       acc
-      [ Loop
-          { name = name
-            fnName = full
-            fnHash = hash
-            iterations = iterations
-            recorded = recorded } ])
+      (Loop
+        { name = name
+          fnName = full
+          fnHash = hash
+          iterations = iterations
+          recorded = recorded }))
 
 
 /// Which iteration of a loop a reader asked for, as a frame.
@@ -1024,7 +1024,7 @@ let valuesOfFrame
     |> Stdlib.List.filter (fun pair ->
       Stdlib.Bool.not (Stdlib.List.contains ownedByLoop (Stdlib.Tuple2.first pair)))
 
-  Stdlib.List.append outside mine
+  Stdlib.List.concat outside mine
   |> Stdlib.Dict.fromEntries
 
 

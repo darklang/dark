@@ -76,7 +76,7 @@ let deduplicate
       rest
       |> Stdlib.List.filter (fun other ->
         Stdlib.Bool.not(sameOrMirrored issue other))
-    Stdlib.List.push (deduplicate remaining) issue
+    Stdlib.List.prepend (deduplicate remaining) issue
 
 let issueLines
   (branchId: Uuid)
@@ -109,10 +109,10 @@ let printSaveReport
   | Checked -> ()
   | Failed ->
     let details =
-      Stdlib.List.append
+      Stdlib.List.concat
         (issueLines branchId report.diagnostics)
         (issueLines branchId report.warnings)
-    Stdlib.List.append
+    Stdlib.List.concat
       [ ""
         (Stdlib.Cli.UI.Colors.error
           ("Type check failed. Saved as a draft; "
@@ -121,10 +121,10 @@ let printSaveReport
     |> Stdlib.printLines
   | Incomplete ->
     let details =
-      Stdlib.List.append
+      Stdlib.List.concat
         (issueLines branchId report.diagnostics)
         (issueLines branchId report.warnings)
-    Stdlib.List.append
+    Stdlib.List.concat
       [ ""
         (Stdlib.Cli.UI.Colors.warning
           "Type check was incomplete; saved anyway:") ]
@@ -171,7 +171,7 @@ let scriptReport
           let code = LanguageTools.AtRestTypeChecker.issueCodeToString issue.code
           let message = LanguageTools.AtRestTypeChecker.issueToStringWith typeName issue
           "  - [" + code + "] " + message)
-      Stdlib.List.push issues (label + ":")
+      Stdlib.List.prepend issues (label + ":")
 
   let lines = Stdlib.List.flatten (Stdlib.List.map report.items itemLines)
-  Stdlib.String.join (Stdlib.List.push lines "Static type check failed:") "\n"
+  Stdlib.String.join (Stdlib.List.prepend lines "Static type check failed:") "\n"

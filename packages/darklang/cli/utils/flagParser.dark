@@ -52,19 +52,19 @@ let isFlagLike (token: String) : Bool =
 
 
 let addFlag (acc: Parsed) (name: String) : Parsed =
-  { acc with flags = Stdlib.List.append acc.flags [ name ] }
+  { acc with flags = Stdlib.List.append acc.flags name }
 
 
 let addOption (acc: Parsed) (name: String) (value: String) : Parsed =
-  { acc with options = Stdlib.List.append acc.options [ (name, value) ] }
+  { acc with options = Stdlib.List.append acc.options (name, value) }
 
 
 let addUnknown (acc: Parsed) (token: String) : Parsed =
-  { acc with errors = Stdlib.List.append acc.errors [ ParseError.UnknownFlag token ] }
+  { acc with errors = Stdlib.List.append acc.errors (ParseError.UnknownFlag token) }
 
 
 let addMissingValue (acc: Parsed) (token: String) : Parsed =
-  { acc with errors = Stdlib.List.append acc.errors [ ParseError.MissingValue token ] }
+  { acc with errors = Stdlib.List.append acc.errors (ParseError.MissingValue token) }
 
 
 let parseLoop (spec: Spec) (acc: Parsed) (remaining: List<String>) : Parsed =
@@ -86,7 +86,7 @@ let parseLoop (spec: Spec) (acc: Parsed) (remaining: List<String>) : Parsed =
         else
           parseLoop
             spec
-            { acc with positionals = Stdlib.List.append acc.positionals [ token ] }
+            { acc with positionals = Stdlib.List.append acc.positionals token }
             rest
 
 

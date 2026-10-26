@@ -52,7 +52,7 @@ let namesAtContent (branchId: Uuid) (hash: String) (itemType: String) : List<Str
     let mainStill =
       mainNames |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.contains reboundAway n))
 
-    Stdlib.List.unique (Stdlib.List.append mainStill branchNames)
+    Stdlib.List.unique (Stdlib.List.concat mainStill branchNames)
 
 
 /// Where MAIN says each of <param hashes> lives. LIST-valued per hash on purpose: identical content is the
@@ -147,7 +147,7 @@ let draftRepoints
         match (Stdlib.Sqlite.textField row "seed", Stdlib.Sqlite.textField row "hash") with
         | (Some seed, Some h) ->
           let rest = Stdlib.Dict.get acc seed |> Stdlib.Option.withDefault []
-          Stdlib.Dict.set acc seed (Stdlib.List.push rest h)
+          Stdlib.Dict.set acc seed (Stdlib.List.prepend rest h)
         | _ -> acc)
 
   let overlay =
@@ -170,7 +170,7 @@ let draftRepoints
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc pair ->
       let (h, n) = pair
       let rest = Stdlib.Dict.get acc h |> Stdlib.Option.withDefault []
-      Stdlib.Dict.set acc h (Stdlib.List.push rest n))
+      Stdlib.Dict.set acc h (Stdlib.List.prepend rest n))
 
   changed
   |> Stdlib.List.indexedMap (fun i b ->
@@ -188,7 +188,7 @@ let draftRepoints
       |> Stdlib.List.map (fun h -> Stdlib.Dict.get mainNames h |> Stdlib.Option.withDefault [])
       |> Stdlib.List.flatten
 
-    Stdlib.List.append fromOverlay fromMain
+    Stdlib.List.concat fromOverlay fromMain
     |> Stdlib.List.unique
     |> Stdlib.List.map (fun n -> Repoint { name = n, uses = cause }))
   |> Stdlib.List.flatten

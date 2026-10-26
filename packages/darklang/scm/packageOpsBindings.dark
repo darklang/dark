@@ -360,7 +360,7 @@ let liveBindingsOver
       |> Stdlib.List.filterMap Conflicts.bindingFromRow
       |> Stdlib.List.reverse
 
-  Stdlib.List.append
+  Stdlib.List.concat
     (chainWords
      |> Stdlib.Dict.toEntries
      |> Stdlib.List.filterMap (fun kw ->

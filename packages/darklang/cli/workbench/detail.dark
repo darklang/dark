@@ -51,7 +51,7 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
       state.items
       |> Stdlib.List.indexedMap (fun i item ->
         let display = if item.desc == "" then displayOf item else fitName (displayOf item)
-        let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
+        let fullName = Stdlib.String.join (Stdlib.List.append modPath item.name) "."
         let isWip = anyWip && (Stdlib.List.contains wipNames fullName)
         // A module is uncommitted work's when something under it is: the draft names are full
         // paths, so "under" is a prefix test.
@@ -149,9 +149,9 @@ let accessSummaryLines (state: State) (hash: String) : List<String> =
                + (Stdlib.String.join (exceeding |> Stdlib.List.map LanguageTools.Permissions.effectName) ", ")
                + " denied at runtime") ]
         else []
-      Stdlib.List.append
-        [ factRow "ceiling" (LanguageTools.Permissions.ceilingRow (Stdlib.Option.Option.Some names)) ]
+      Stdlib.List.prepend
         warning
+        (factRow "ceiling" (LanguageTools.Permissions.ceilingRow (Stdlib.Option.Option.Some names)))
   let approval =
     if facts.bundled then
       [ factRow "approval" ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "none needed") + (Stdlib.Cli.UI.Colors.dimText " · bundled Darklang code")) ]
@@ -174,7 +174,7 @@ let accessSummaryLines (state: State) (hash: String) : List<String> =
 /// run of 25 `name  desc` rows read as a dump; the kinds are how a person
 /// scans a module, so they are how it is laid out.
 let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
-  let path = Stdlib.List.append (Packages.modulePathOf state.location) [ item.name ]
+  let path = Stdlib.List.append (Packages.modulePathOf state.location) item.name
   let location = Packages.PackageLocation.Module path
   let allChildren = moduleContents state.branchId location
 
@@ -262,9 +262,9 @@ let testOutcomeLines
   match Packages.Test.lastOutcome branchId hash with
   | Some Passed -> [ Stdlib.Cli.UI.Colors.success "✓ passed (this build)" ]
   | Some(Failed messages) ->
-    Stdlib.List.append
-      [ Stdlib.Cli.UI.Colors.error "✗ failed (this build)" ]
+    Stdlib.List.prepend
       (messages |> Stdlib.List.map (fun m -> Stdlib.Cli.UI.Colors.dimText ("  " + m)))
+      (Stdlib.Cli.UI.Colors.error "✗ failed (this build)")
   | Some(RuntimeFailed message) ->
     [ Stdlib.Cli.UI.Colors.error "✗ error (this build)"
       Stdlib.Cli.UI.Colors.dimText ("  " + message) ]
@@ -372,7 +372,7 @@ let itemLines
     // A comment, so the highlighter above the access block colours it like the values.
     let sourceLines =
       if state.liveNote == "" then Stdlib.String.split src "\n"
-      else Stdlib.List.append (Stdlib.String.split src "\n") [ "", "// " + state.liveNote ]
+      else Stdlib.List.concat (Stdlib.String.split src "\n") [ "", "// " + state.liveNote ]
     match accessReport with
     | [] -> sourceLines
     | report -> Stdlib.List.flatten [ sourceLines, [ "" ], report ]
@@ -471,11 +471,11 @@ let traceDetail (state: State) : String =
           match logged with
           | [] -> [ "log: this trace touched nothing outside itself" ]
           | _ ->
-            Stdlib.List.append
-              [ $"log: {Cli.Text.plural (Stdlib.List.length logged) "call"} with effects" ]
+            Stdlib.List.prepend
               (Stdlib.List.take logged 12
                |> Stdlib.List.map (fun c ->
                  $"  {Stdlib.toString c.seq}  {c.fnName}"))
+              $"log: {Cli.Text.plural (Stdlib.List.length logged) "call"} with effects"
       let header =
         [ Stdlib.Cli.UI.Colors.boldText trace.entry
           ""
@@ -544,7 +544,7 @@ let tracesText (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | None -> "(nothing selected)"
   | Some item ->
-    let fullName = Stdlib.String.join (Stdlib.List.append (Packages.modulePathOf state.location) [ item.name ]) "."
+    let fullName = Stdlib.String.join (Stdlib.List.append (Packages.modulePathOf state.location) item.name) "."
     // `wentThrough`, not `listByFn`. The latter matches `trace_fn_calls.fn_hash`, which only
     // ever holds the name of an effectful BUILTIN, so it answers "no recorded calls" for every
     // function anyone writes: 26 traces went through `Demo.Orders.settle` and it found 0.
@@ -602,9 +602,9 @@ let inspectPageLines (state: State) : List<String> =
           else
             Stdlib.List.append
               srcPlain
-              [ Stdlib.Cli.UI.Colors.warning
-                  $"(syntax highlighting off: re-lexing produced {Stdlib.toString (Stdlib.List.length h)} lines, source has {Stdlib.toString (Stdlib.List.length srcPlain)})" ]
-        Stdlib.List.append highlighted access
+              (Stdlib.Cli.UI.Colors.warning
+                $"(syntax highlighting off: re-lexing produced {Stdlib.toString (Stdlib.List.length h)} lines, source has {Stdlib.toString (Stdlib.List.length srcPlain)})")
+        Stdlib.List.concat highlighted access
       // The order a reader wants: what this is, the code, what running it needs, who it touches.
       // The keys that act on it are in the footer, so they are not repeated here.
       let refs = Stdlib.String.split (referencesFrom state modulePath item.name item.kind results) "\n"

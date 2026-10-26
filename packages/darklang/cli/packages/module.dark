@@ -11,7 +11,7 @@ let collectDecls
     match decl with
     | SubModule modul ->
       let nestedModules =
-        Stdlib.List.append modules [ Stdlib.Tuple2.second modul.name ]
+        Stdlib.List.append modules (Stdlib.Tuple2.second modul.name)
       collectDecls nestedModules modul.declarations
     | _ -> [ (modules, decl) ])
   |> Stdlib.List.flatten
@@ -50,13 +50,13 @@ let duplicateDeclarationNames
       | None -> (seen, duplicates)
       | Some name ->
         let path =
-          Stdlib.List.append modules [name]
+          Stdlib.List.append modules name
           |> Stdlib.String.join "."
 
         if Stdlib.List.contains seen path then
-          (seen, Stdlib.List.push duplicates path)
+          (seen, Stdlib.List.prepend duplicates path)
         else
-          (Stdlib.List.push seen path, duplicates))
+          (Stdlib.List.prepend seen path, duplicates))
 
   Stdlib.List.unique duplicates
 

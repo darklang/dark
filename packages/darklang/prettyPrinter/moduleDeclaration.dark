@@ -35,7 +35,7 @@ module ModuleDeclaration =
       | [] ->
         { emptyModule with name = name }
 
-    Stdlib.List.append others [ add target ]
+    Stdlib.List.append others (add target)
 
   /// Put an item in the module tree at `modulePath`, creating the modules it names. `add` is
   /// what the item does to the module it lands in, which is the only thing that differs between
@@ -65,7 +65,7 @@ module ModuleDeclaration =
           { target with
               submodules = placeAt target.submodules submoduleNames rootless add }
 
-      Stdlib.List.append otherModules [ updated ]
+      Stdlib.List.append otherModules updated
 
   /// Put an item at the location its name has, or in a sentinel module when it has none.
   /// `kind` names the sentinels, `path` is the module path a location prints at, and `add` is
@@ -90,28 +90,28 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     : List<Module> =
-    withItem ms (LanguageTools.PackageManager.Type.locations branchId t.hash) "type" (fun l -> l.modules) (fun m -> { m with types = Stdlib.List.append m.types [ t ] })
+    withItem ms (LanguageTools.PackageManager.Type.locations branchId t.hash) "type" (fun l -> l.modules) (fun m -> { m with types = Stdlib.List.append m.types t })
 
   let withFn
     (branchId: Uuid)
     (ms: List<Module>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
-    withItem ms (LanguageTools.PackageManager.Function.locations branchId f.hash) "fn" (fun l -> l.modules) (fun m -> { m with fns = Stdlib.List.append m.fns [ f ] })
+    withItem ms (LanguageTools.PackageManager.Function.locations branchId f.hash) "fn" (fun l -> l.modules) (fun m -> { m with fns = Stdlib.List.append m.fns f })
 
   let withValue
     (branchId: Uuid)
     (ms: List<Module>)
     (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
-    withItem ms (LanguageTools.PackageManager.Value.locations branchId v.hash) "value" (fun l -> l.modules) (fun m -> { m with values = Stdlib.List.append m.values [ v ] })
+    withItem ms (LanguageTools.PackageManager.Value.locations branchId v.hash) "value" (fun l -> l.modules) (fun m -> { m with values = Stdlib.List.append m.values v })
 
   let withTrait
     (branchId: Uuid)
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.Trait.Trait)
     : List<Module> =
-    withItem ms (LanguageTools.PackageManager.Trait.locations branchId t.hash) "trait" (fun l -> l.modules) (fun m -> { m with traits = Stdlib.List.append m.traits [ t ] })
+    withItem ms (LanguageTools.PackageManager.Trait.locations branchId t.hash) "trait" (fun l -> l.modules) (fun m -> { m with traits = Stdlib.List.append m.traits t })
 
   /// An impl is named at `<module>[.<Type>].<Trait>`; printed at its location it
   /// would sit inside a module named for the trait, so it prints one level up, where
@@ -138,7 +138,7 @@ module ModuleDeclaration =
       match Stdlib.List.reverse location.modules with
       | last :: rest when last == selfHead -> Stdlib.List.reverse rest
       | _ -> location.modules
-    withItem ms (LanguageTools.PackageManager.TraitImpl.locations branchId i.hash) "impl" path (fun m -> { m with impls = Stdlib.List.append m.impls [ i ] })
+    withItem ms (LanguageTools.PackageManager.TraitImpl.locations branchId i.hash) "impl" path (fun m -> { m with impls = Stdlib.List.append m.impls i })
 
   /// The fns an impl's `let m = Fn` lines already print
   let implMethodFnHashes
@@ -164,7 +164,7 @@ module ModuleDeclaration =
     let (expr, modules) = e
 
     match modules with
-    | [] -> ModuleDeclaration.intoRootless ms "expression has no modules" (fun m -> { m with exprs = Stdlib.List.append m.exprs [ (expr, []) ] })
+    | [] -> ModuleDeclaration.intoRootless ms "expression has no modules" (fun m -> { m with exprs = Stdlib.List.append m.exprs (expr, []) })
 
     | firstModuleNamePart :: submoduleNames ->
       let (foundModuleMaybe, otherModules) =
@@ -177,7 +177,7 @@ module ModuleDeclaration =
               name = firstModuleNamePart
               exprs = [ (expr, []) ] }
 
-        Stdlib.List.append otherModules [ newModule ]
+        Stdlib.List.append otherModules newModule
 
       | [], submoduleNames ->
         let newModuleWithSubmodule =
@@ -185,21 +185,21 @@ module ModuleDeclaration =
               name = firstModuleNamePart
               submodules = withExpr [] (expr, submoduleNames) }
 
-        Stdlib.List.append otherModules [ newModuleWithSubmodule ]
+        Stdlib.List.append otherModules newModuleWithSubmodule
 
       | foundModule :: _, [] ->
         let updatedModule =
           { foundModule with
-              exprs = Stdlib.List.append foundModule.exprs [ (expr, []) ] }
+              exprs = Stdlib.List.append foundModule.exprs (expr, []) }
 
-        Stdlib.List.append otherModules [ updatedModule ]
+        Stdlib.List.append otherModules updatedModule
 
       | foundModule :: _, submoduleNames ->
         let updatedModule =
           { foundModule with
               submodules = withExpr foundModule.submodules (expr, submoduleNames) }
 
-        Stdlib.List.append otherModules [ updatedModule ]
+        Stdlib.List.append otherModules updatedModule
 
 
 

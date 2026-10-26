@@ -400,7 +400,7 @@ let typeReferenceDocWithFnParens
 
   | TTuple(first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first, second ] theRest)
+      (Stdlib.List.concat [ first, second ] theRest)
       // Preserve function types nested in the tuple.
       |> Stdlib.List.map (fun item -> typeReferenceDocWithFnParens ctx true item)
     let separator = Stdlib.Pretty.concat (txt " *") Stdlib.Pretty.line
@@ -425,7 +425,7 @@ let typeReferenceDocWithFnParens
   | TFn(args, ret) ->
     let parts =
       // Preserve nested functions rather than flattening the arrow chain.
-      (Stdlib.List.append args [ ret ])
+      (Stdlib.List.append args ret)
       |> Stdlib.List.map (fun a -> typeReferenceDocWithFnParens ctx true a)
     let doc =
       Stdlib.Pretty.group (
@@ -478,7 +478,7 @@ let typeReferenceFlatAtPrecedence
     $"List<{typeReferenceFlatAtPrecedence ctx false inner}>"
 
   | TTuple(first, second, theRest) ->
-    (Stdlib.List.append [ first, second ] theRest)
+    (Stdlib.List.concat [ first, second ] theRest)
     |> Stdlib.List.map (fun item ->
       typeReferenceFlatAtPrecedence ctx true item)
     |> Stdlib.String.join " * "
@@ -548,7 +548,7 @@ let letPattern (lp: LanguageTools.ProgramTypes.LetPattern) : String =
   | LPVariable(_id, name) -> name
   | LPWildcard _id -> "_"
   | LPTuple(_id, first, second, theRest) ->
-    (Stdlib.List.append [ first, second ] theRest)
+    (Stdlib.List.concat [ first, second ] theRest)
     |> Stdlib.List.map (fun item -> letPattern item)
     |> Stdlib.String.join ", "
     |> fun parts -> "(" + parts + ")"
@@ -592,7 +592,7 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
     $"{headPart} :: {tailPart}"
 
   | MPTuple(_, first, second, theRest) ->
-    (Stdlib.List.append [ first, second ] theRest)
+    (Stdlib.List.concat [ first, second ] theRest)
     |> Stdlib.List.map (fun item -> matchPattern item)
     |> Stdlib.String.join ", "
     |> fun parts -> "(" + parts + ")"
@@ -1082,7 +1082,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
   | ETuple(_id, first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first, second ] theRest)
+      (Stdlib.List.concat [ first, second ] theRest)
       |> Stdlib.List.map (fun i -> exprDoc ctx i)
     wrapExprs "(" ")" "," Stdlib.Pretty.softLine parts
 
@@ -1750,7 +1750,7 @@ let packageImpl
       | Ok r ->
         let declaredHere =
           match r.location with
-          | Some loc -> (Stdlib.List.append [ loc.owner ] loc.modules) == implPath
+          | Some loc -> (Stdlib.List.prepend loc.modules loc.owner) == implPath
           | None -> false
 
         if declaredHere then

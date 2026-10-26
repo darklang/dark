@@ -108,7 +108,7 @@ let add (name: String) (text: String) : Unit =
         setChildren
           withNode
           Stdlib.Option.Option.None
-          (Stdlib.List.append withNode.rootChildren [ id ])
+          (Stdlib.List.append withNode.rootChildren id)
 
       let updated = { doc with outline = { placed with nextId = id + 1 } }
 

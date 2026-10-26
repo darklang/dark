@@ -976,7 +976,7 @@ test workbenchViewsShowTheirChrome =
     [ (Darklang.Cli.Workbench.vSCM, "commit", "footer: Changes offers commit")
       (Darklang.Cli.Workbench.vHome, "merge", "footer: Home offers the branch verbs") ]
   let missing =
-    Stdlib.List.append
+    Stdlib.List.concat
       (checks
        |> Stdlib.List.filter (fun c -> let (v, marker, _label) = c in Stdlib.Bool.not (viewShows v marker))
        |> Stdlib.List.map (fun c -> let (_v, _m, label) = c in label))

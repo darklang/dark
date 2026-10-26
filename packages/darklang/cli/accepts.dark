@@ -90,9 +90,9 @@ let subcommands (named: List<(String * Accepts)>) (otherwise: Accepts) : Accepts
 /// <param accepts>, plus flags that take a value.
 let withValues (valueFlags: List<String>) (accepts: Accepts) : Accepts =
   match accepts with
-  | Takes s -> Accepts.Takes({ s with valueFlags = Stdlib.List.append s.valueFlags valueFlags })
+  | Takes s -> Accepts.Takes({ s with valueFlags = Stdlib.List.concat s.valueFlags valueFlags })
   | Subcommands(named, s) ->
-    Accepts.Subcommands(named, { s with valueFlags = Stdlib.List.append s.valueFlags valueFlags })
+    Accepts.Subcommands(named, { s with valueFlags = Stdlib.List.concat s.valueFlags valueFlags })
 
 /// <param accepts> with these flags accepted everywhere in it, every subcommand included: for a
 /// command that reads a flag like `--json` wherever it appears.
@@ -103,8 +103,8 @@ let everywhere
   : Accepts =
   let add (s: Shape) : Shape =
     { s with
-        flags = Stdlib.List.append s.flags flags
-        valueFlags = Stdlib.List.append s.valueFlags valueFlags }
+        flags = Stdlib.List.concat s.flags flags
+        valueFlags = Stdlib.List.concat s.valueFlags valueFlags }
 
   match accepts with
   | Takes s -> Accepts.Takes(add s)
@@ -160,7 +160,7 @@ let check
     | [] -> Stdlib.Result.Result.Ok(Stdlib.List.reverse words)
     | a :: rest ->
       if Stdlib.Bool.not (isFlag s a) then
-        walk name s rest (Stdlib.List.push words a)
+        walk name s rest (Stdlib.List.prepend words a)
       else if Stdlib.String.contains a "=" then
         // `--depth=1`: the name is everything before the first `=`.
         let flagName =
@@ -201,7 +201,7 @@ let check
         named
         |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == first)
         |> Stdlib.Option.map (fun pair ->
-          (first, Stdlib.Tuple2.second pair, Stdlib.List.append leadingFlags rest))
+          (first, Stdlib.Tuple2.second pair, Stdlib.List.concat leadingFlags rest))
       | [] -> Stdlib.Option.Option.None
 
     match picked with

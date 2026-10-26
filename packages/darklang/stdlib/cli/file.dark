@@ -112,7 +112,7 @@ let readFully
         // EOF: the file is shorter than the caller believed (it was truncated under us, say).
         Stdlib.Result.Result.Ok(Stdlib.Bytes.concat acc)
       else
-        readFully fd (count - received) (Stdlib.List.append acc [ chunk ]))
+        readFully fd (count - received) (Stdlib.List.append acc chunk))
 
 
 let readTailChunks
@@ -139,7 +139,7 @@ let readTailChunks
           start
           requiredNewlines
           (foundNewlines + countNewlines chunk)
-          (Stdlib.List.push chunks chunk)))
+          (Stdlib.List.prepend chunks chunk)))
 
 
 /// Read the last `count` lines without loading the whole file.
@@ -744,7 +744,7 @@ let __globClassEnd
     let name =
       Stdlib.String.fromByteListWithReplacement (Stdlib.List.reverse reversedName)
     Some ((name, rest))
-  | c :: rest -> __globClassEnd rest (Stdlib.List.push reversedName c)
+  | c :: rest -> __globClassEnd rest (Stdlib.List.prepend reversedName c)
   | [] -> None
 
 /// Interpret an escaped byte or a single-byte collating/equivalence symbol.

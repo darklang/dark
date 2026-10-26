@@ -84,10 +84,10 @@ let urlDecode (s: String) : String =
            Stdlib.Result.Result.Error "not an escape")
       with
       | Ok b ->
-        Stdlib.List.append
-          (Stdlib.List.append acc (Stdlib.Bytes.toList b))
+        Stdlib.List.concat
+          (Stdlib.List.concat acc (Stdlib.Bytes.toList b))
           (Stdlib.String.toByteList (Stdlib.String.dropFirst piece 2))
-      | Error _ -> Stdlib.List.append acc (Stdlib.String.toByteList ("%" + piece)))
+      | Error _ -> Stdlib.List.concat acc (Stdlib.String.toByteList ("%" + piece)))
     |> Stdlib.String.fromByteListWithReplacement
 
 
