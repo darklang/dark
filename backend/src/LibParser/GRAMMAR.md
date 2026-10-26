@@ -433,7 +433,7 @@ Post-parse validation uses these stable codes:
 | `VALIDATION-IMPL-METHODS` | an impl names the same member twice |
 
 `renderDiagnostic` renders code + position + message + a caret snippet +
-related locations + hint; the CLI uses it. `parserParseDiagnostics` answers the older
+related locations + hint; the CLI uses it. `Builtin.parse` answers the older
 range+message tuples, which predate the structure; upgrading it to carry code/related is a
 pending Dark-side type change.
 

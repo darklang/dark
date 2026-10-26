@@ -3756,25 +3756,44 @@ let private parseSyntaxWithRootScope
           hint = None })
     { result with diagnostics = lexDiagnostics @ result.diagnostics }
 
-/// Parse for tooling: return a recoverable tree and include mode-independent
-/// structural diagnostics after a clean syntax pass.
-let parse (source : string) : ParseResult =
+let private parseRecovering
+  (rootScope : ItemScope)
+  (validate : WT.SourceFile -> List<Validation.Issue>)
+  (source : string)
+  : ParseResult =
   try
-    let result = parseSyntaxWithRootScope ItemScope.Script source
+    let result = parseSyntaxWithRootScope rootScope source
     let syntaxDiagnostics = result.diagnostics
     // Validation owns checks that inspect the whole parsed syntax tree.
     // Run them only when parsing reports no errors, because placeholders inserted
     // during error recovery could otherwise produce misleading extra diagnostics.
-    let structuralDiagnostics =
+    let validationDiagnostics =
       match syntaxDiagnostics, result.parsed with
       | [], Some(WT.SourceFile sourceFile) ->
-        sourceFile
-        |> Validation.validateStructure
-        |> List.map diagnosticOfValidationIssue
+        sourceFile |> validate |> List.map diagnosticOfValidationIssue
       | _ -> []
-    { result with diagnostics = syntaxDiagnostics @ structuralDiagnostics }
+    { result with diagnostics = syntaxDiagnostics @ validationDiagnostics }
   with :? System.InsufficientExecutionStackException ->
     { parsed = None; diagnostics = [ stackExhaustionDiagnostic () ] }
+
+/// Parse for tooling: return a recoverable tree and include mode-independent
+/// structural diagnostics after a clean syntax pass.
+let parse (source : string) : ParseResult =
+  parseRecovering ItemScope.Script Validation.validateStructure source
+
+let private withPurpose (mode : Validation.Mode) (sourceFile : WT.SourceFile) =
+  Validation.validateStructure sourceFile
+  @ Validation.validatePurpose mode sourceFile
+
+/// `parse` with the Script purpose rules alongside the structural ones. The tree
+/// comes back either way.
+let parseScript (source : string) : ParseResult =
+  parseRecovering ItemScope.Script (withPurpose Validation.Script) source
+
+/// `parse` for a package file: declarations at the file root, and the Package
+/// purpose rules alongside the structural ones. The tree comes back either way.
+let parsePackage (source : string) : ParseResult =
+  parseRecovering ItemScope.Module (withPurpose Validation.Package) source
 
 /// Parse for execution: syntax, structural, and file-purpose validation run
 /// once, and only a validated source file can be returned on success.

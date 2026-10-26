@@ -1,6 +1,6 @@
 module Darklang.LanguageTools.Parser.Parse.Tests
 
-// `Builtin.parserParseToWrittenTypes` has to survive anything a person can type,
+// `Builtin.parse` has to survive anything a person can type,
 // because it runs on every keystroke-adjacent save in the authoring editor and
 // its failure mode is an uncaught internal exception that takes the whole CLI
 // down with it.

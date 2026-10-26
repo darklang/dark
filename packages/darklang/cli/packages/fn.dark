@@ -65,11 +65,14 @@ let createFnInline
         $"let {location.name} {definition}"
 
     // Parse the function definition
-    match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
+    let (tree, diagnostics) =
+      LanguageTools.Parser.Parse.parse LanguageTools.Parser.FileKind.Package fullSource
+
+    match tree with
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
-        (Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource))
+        (Errors.reportParseErrors diagnostics)
         || (Errors.reportTrailing sourceFile)
       let parsedFunction =
         if hasParseError then
