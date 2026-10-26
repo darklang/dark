@@ -167,14 +167,14 @@ let printItem
   | Failed ->
     if outputFilter.showFailed then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"failed: {label}")
-      Stdlib.List.append
+      Stdlib.List.concat
         (AtRestCheck.issueLines branchId item.diagnostics)
         (AtRestCheck.issueLines branchId item.warnings)
       |> Stdlib.printLines
   | Incomplete ->
     if outputFilter.showIncomplete then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"incomplete: {label}")
-      Stdlib.List.append
+      Stdlib.List.concat
         (AtRestCheck.issueLines branchId item.diagnostics)
         (AtRestCheck.issueLines branchId item.warnings)
       |> Stdlib.printLines
@@ -199,7 +199,7 @@ let jsonReport
     listed branchId outputFilter report.items
     |> Stdlib.List.map (fun (label, item) ->
       let issues =
-        Stdlib.List.append
+        Stdlib.List.concat
           (AtRestCheck.issueLines branchId item.diagnostics)
           (AtRestCheck.issueLines branchId item.warnings)
         |> Stdlib.List.map (fun l -> Stdlib.String.trim l)

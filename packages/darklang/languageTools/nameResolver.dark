@@ -63,7 +63,7 @@ let namesToTry
     match (given.modules, given.name) with
     | ("Stdlib" :: _, _) ->
       [ { given with
-            modules = Stdlib.List.append [ "Darklang" ] given.modules } ]
+            modules = Stdlib.List.prepend given.modules "Darklang" } ]
     | ([], "Result") -> [ { given with modules = [ "Darklang", "Stdlib", "Result" ] } ]
     | ([ "Result" ], "Result") ->
       [ { given with modules = [ "Darklang", "Stdlib", "Result" ] } ]
@@ -72,8 +72,8 @@ let namesToTry
       [ { given with modules = [ "Darklang", "Stdlib", "Option" ] } ]
     | _ -> []
 
-  let currentModule = Stdlib.List.append [ owner ] currentModule
-  Stdlib.List.append (namesToTryHelper currentModule given) addl
+  let currentModule = Stdlib.List.prepend currentModule owner
+  Stdlib.List.concat (namesToTryHelper currentModule given) addl
 
 // TODO we can do this without a helper function,
 // by removing the recursion and using a fold.
@@ -86,9 +86,9 @@ let namesToTryHelper
   | Some((allButLast, _last)) ->
     let newNameToTry =
       { given with
-          modules = Stdlib.List.append modulesToPrepend given.modules }
+          modules = Stdlib.List.concat modulesToPrepend given.modules }
 
-    Stdlib.List.append [ newNameToTry ] (namesToTryHelper allButLast given)
+    Stdlib.List.prepend (namesToTryHelper allButLast given) newNameToTry
 
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution.

@@ -317,12 +317,12 @@ let parseRunOptions
   | [ "--jobs" ] -> Error "--jobs needs a positive whole number"
   | arg :: rest when Stdlib.String.startsWith arg "--jobs=" ->
     let value = Stdlib.String.slice arg 7 (Stdlib.String.length arg)
-    parseRunOptions options (Stdlib.List.append [ "--jobs", value ] rest)
+    parseRunOptions options (Stdlib.List.concat [ "--jobs", value ] rest)
   | arg :: rest ->
     if Stdlib.String.startsWith arg "-" then
       Error $"Unknown option: {arg}"
     else
-      parseRunOptions { options with filters = Stdlib.List.push options.filters arg } rest
+      parseRunOptions { options with filters = Stdlib.List.prepend options.filters arg } rest
 
 /// Only the coordinator checks cache safety, writes the cache and prints results.
 /// Spawned processes run tests and return their outcomes.
@@ -389,7 +389,7 @@ let runSelected
             test = item.entity
             outcome = runFresh run branchId item.entity
             wasCached = false })
-      runSelected run branchId options cache rest (Stdlib.List.push running handle) counts
+      runSelected run branchId options cache rest (Stdlib.List.prepend running handle) counts
   | _ ->
     if Stdlib.List.isEmpty running then
       counts

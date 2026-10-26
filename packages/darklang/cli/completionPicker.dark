@@ -40,7 +40,7 @@ let create (promptText: String) (items: List<Completion.CompletionItem>) : State
     if parsed.isCompletingCommand then ""
     else
       let completedArgs = Stdlib.List.dropLast parsed.args
-      let parts = Stdlib.List.append [parsed.commandName] completedArgs
+      let parts = Stdlib.List.prepend completedArgs parsed.commandName
       (Stdlib.String.join parts " ") + " "
 
   State

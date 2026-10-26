@@ -180,7 +180,7 @@ let idsLandedSince (branchId: Uuid) (since: String) (andAtSince: Bool) : List<St
     ("SELECT id FROM package_ops WHERE "
      + visibleWhere branchId
      + $" AND {complete} AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid")
-    (Stdlib.List.append (visibleParams branchId) [ since ])
+    (Stdlib.List.append (visibleParams branchId) since)
     (fun row -> Stdlib.Sqlite.textField row "id")
 
 
@@ -289,7 +289,7 @@ let commitsOnBranch (branchId: Uuid) (limit: Int64) : List<Commits.Commit> =
   // Counted rather than written out: main's arm binds none and a branch's binds one, and a second copy
   // of that fact is a second thing to keep in step.
   let bound = ownedParams branchId
-  let params = Stdlib.List.append bound [ Stdlib.toString limit ]
+  let params = Stdlib.List.append bound (Stdlib.toString limit)
   let limitParam = "@p" + (Stdlib.toString (Stdlib.List.length bound))
 
   Stdlib.Sqlite.rowsP

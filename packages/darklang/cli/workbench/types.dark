@@ -330,7 +330,7 @@ val viewSpecs =
   let exts =
     extensionViews ()
     |> Stdlib.List.indexedMap (fun i vd -> (baseViewCount + i, vd.name))
-  Stdlib.List.append base exts
+  Stdlib.List.concat base exts
 
 /// The extension `ViewDef` at an absolute view index (None for a built-in, or out of range).
 let extensionViewAt (idx: Int) : Stdlib.Option.Option<ViewDef> =

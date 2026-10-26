@@ -198,7 +198,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
       let allNames =
         appState.allCommandsCache
         |> Stdlib.List.fold [] (fun acc h ->
-          Stdlib.List.append (Stdlib.List.append acc [ h.name ]) h.aliases)
+          Stdlib.List.concat (Stdlib.List.append acc h.name) h.aliases)
       let (cmd, args) =
         match words with
         | first :: rest -> (first, rest)

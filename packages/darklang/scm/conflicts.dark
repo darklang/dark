@@ -751,4 +751,4 @@ let detailLines (c: Conflict) : List<String> =
     else
       $"    auto-resolution: by {c.reason}"
 
-  Stdlib.List.append [ header ] (Stdlib.List.append candidateLines [ footer ])
+  Stdlib.List.prepend (Stdlib.List.append candidateLines footer) header

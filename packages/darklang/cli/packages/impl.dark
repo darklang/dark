@@ -18,7 +18,7 @@ let traitTakesTheName
   | Some _ ->
     Stdlib.Option.Option.Some(
       Stdlib.String.join
-        (Stdlib.List.append (Stdlib.List.append [ location.owner ] location.modules) [ location.name ])
+        (Stdlib.List.append (Stdlib.List.prepend location.modules location.owner) location.name)
         "."
     )
   | None -> Stdlib.Option.Option.None
@@ -138,8 +138,8 @@ let createImplInline
           let fullName =
             Stdlib.String.join
               (Stdlib.List.append
-                (Stdlib.List.append [ location.owner ] location.modules)
-                [ location.name ])
+                (Stdlib.List.prepend location.modules location.owner)
+                location.name)
               "."
 
           [ ""

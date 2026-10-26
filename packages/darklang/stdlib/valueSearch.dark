@@ -33,8 +33,8 @@ let buildPathFromLocation
   (modules: List<String>)
   (name: String)
   : String =
-  (Stdlib.List.append [ owner ] modules)
-  |> Stdlib.List.append [ name ]
+  (Stdlib.List.prepend modules owner)
+  |> Stdlib.List.append name
   |> Stdlib.String.join "."
 
 
@@ -73,7 +73,7 @@ let findByType
     match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Value.locations branchId valueHash) with
     | Some location ->
       // Check if it's in the target namespace
-      let valuePath = Stdlib.List.append [ location.owner ] location.modules
+      let valuePath = Stdlib.List.prepend location.modules location.owner
 
       if isValueInNamespace namespaceParts valuePath then
         // Evaluate the value

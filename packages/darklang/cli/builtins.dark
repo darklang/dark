@@ -119,7 +119,7 @@ let sortGroups
       Stdlib.Bool.not (isKnownGroup groupPrefix))
     |> Stdlib.List.sortBy (fun (groupPrefix, _) -> groupPrefix)
 
-  Stdlib.List.append knownInOrder unknown
+  Stdlib.List.concat knownInOrder unknown
 
 
 let execute (state: AppState) (args: List<String>): AppState =
@@ -152,7 +152,7 @@ let execute (state: AppState) (args: List<String>): AppState =
       Stdlib.Dict.set
         acc
         group
-        (Stdlib.List.append existing [ fn ]))
+        (Stdlib.List.append existing fn))
 
   let allGroups = Stdlib.Dict.toEntries grouped
 

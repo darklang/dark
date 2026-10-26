@@ -38,7 +38,7 @@ let execute (state: Cli.AppState) (_args: List<String>) : Cli.AppState =
   let results = Cli.Packages.Query.filterDeprecated raw depSets false
 
   let topLevels =
-    (Stdlib.List.append
+    (Stdlib.List.concat
       (results.fns |> Stdlib.List.map (fun i -> topLevelBucket i.location))
       (results.types |> Stdlib.List.map (fun i -> topLevelBucket i.location)))
     |> Stdlib.List.unique

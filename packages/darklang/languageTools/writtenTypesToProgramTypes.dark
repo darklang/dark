@@ -142,7 +142,7 @@ module Identifiers =
       let nameToResolve =
         Stdlib.List.append
           (Stdlib.List.map i.modules (fun (m, _) -> m.name))
-          [ i.typ |> Type.toPT ]
+          (i.typ |> Type.toPT)
       let typeName =
         NameResolver.TypeName.resolve
           ctx
@@ -195,7 +195,7 @@ module Identifiers =
       let nameToResolve =
         Stdlib.List.append
           (Stdlib.List.map i.modules (fun (m, _) -> m.name))
-          [ i.fn.name ]
+          i.fn.name
 
       let fnName =
         NameResolver.FnName.resolve
@@ -252,7 +252,7 @@ module TypeReference =
         let (valueType, valueUnresolvedNames) = TypeReference.toPT ctx valueType
 
         (ProgramTypes.TypeReference.TDict(keyType, valueType),
-         Stdlib.List.append keyUnresolvedNames valueUnresolvedNames)
+         Stdlib.List.concat keyUnresolvedNames valueUnresolvedNames)
 
       | TTuple(_range, first, _, second, theRest, _, _) ->
         let (first, firstUnresolvedNames) = TypeReference.toPT ctx first
@@ -317,7 +317,7 @@ module TraitRef =
     let nameToResolve =
       Stdlib.List.append
         (Stdlib.List.map i.modules (fun (m, _) -> m.name))
-        [ i.typ.name ]
+        i.typ.name
     let traitName =
       NameResolver.TraitName.resolve
         ctx
@@ -422,7 +422,7 @@ module Expr =
             Context
               { currentFnName = context.currentFnName
                 argMap = newArgMap
-                localBindings = Stdlib.List.push context.localBindings name }
+                localBindings = Stdlib.List.prepend context.localBindings name }
 
         (newContext, ProgramTypes.LetPattern.LPVariable(gid (), name))
       | LPTuple(_, first, _, second, rest, _, _) ->
@@ -433,7 +433,7 @@ module Expr =
           rest
           |> Stdlib.List.fold (context2, []) (fun (ctx, acc) (_, p) ->
             let (newCtx, ptPattern) = toPT ctx p
-            (newCtx, Stdlib.List.append acc [ ptPattern ]))
+            (newCtx, Stdlib.List.append acc ptPattern))
 
         (finalContext, ProgramTypes.LetPattern.LPTuple(gid (), first, second, rest))
 
@@ -450,7 +450,7 @@ module Expr =
         |> Stdlib.List.map (fun (pat, _) -> bindings pat)
         |> Stdlib.List.flatten
       | MPListCons(_, head, tail, _) ->
-        Stdlib.List.append (bindings head) (bindings tail)
+        Stdlib.List.concat (bindings head) (bindings tail)
       | MPTuple(_, first, _, second, rest, _, _) ->
         let restBindings =
           rest
@@ -564,7 +564,7 @@ module Expr =
             { currentFnName = context.currentFnName
               argMap = Stdlib.Dict.empty
               localBindings =
-                Stdlib.List.append
+                Stdlib.List.concat
                   context.localBindings
                   (Stdlib.Dict.keys context.argMap) }
         // Run patterns through LetPattern.toPT first so the lambda
@@ -582,7 +582,7 @@ module Expr =
           keptPats
           |> Stdlib.List.fold (lambdaContext, []) (fun (ctx, acc) p ->
             let (newCtx, ptPattern) = LetPattern.toPT ctx p
-            (newCtx, Stdlib.List.append acc [ ptPattern ]))
+            (newCtx, Stdlib.List.append acc ptPattern))
 
         let (body, unresolvedNames) =
           Expr.toPT ctx bodyContext body
@@ -684,7 +684,7 @@ module Expr =
               unresolvedNames)
           | Error e ->
             let unresolvedNames =
-              Stdlib.List.append unresolvedNames [ (fn.range, fnName.originalName, e) ]
+              Stdlib.List.append unresolvedNames (fn.range, fnName.originalName, e)
 
             (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args, []),
               unresolvedNames)
@@ -753,7 +753,7 @@ module Expr =
         (Stdlib.List.map contents (fun (_, k, _, v) ->
           let (k, kUnresolvedNames) = toPT ctx context k
           let (v, vUnresolvedNames) = toPT ctx context v
-          ((k, v), Stdlib.List.append kUnresolvedNames vUnresolvedNames)))
+          ((k, v), Stdlib.List.concat kUnresolvedNames vUnresolvedNames)))
         |> Stdlib.List.unzip
 
       (ProgramTypes.Expr.EDict(gid (), contents),
@@ -986,7 +986,7 @@ module Expr =
 
           let armContext =
             { context with
-                localBindings = Stdlib.List.append context.localBindings bindings
+                localBindings = Stdlib.List.concat context.localBindings bindings
                 argMap = armArgMap
                 currentFnName = armCurrentFnName }
 
@@ -1069,7 +1069,7 @@ module Expr =
           { currentFnName = context.currentFnName
             argMap = Stdlib.Dict.empty
             localBindings =
-              Stdlib.List.append
+              Stdlib.List.concat
                 context.localBindings
                 (Stdlib.Dict.keys context.argMap) }
       let keptPats =
@@ -1083,7 +1083,7 @@ module Expr =
         keptPats
         |> Stdlib.List.fold (lambdaContext, []) (fun (lctx, acc) p ->
           let (newCtx, ptPattern) = LetPattern.toPT lctx p
-          (newCtx, Stdlib.List.append acc [ ptPattern ]))
+          (newCtx, Stdlib.List.append acc ptPattern))
 
       let (body, unresolvedNames) =
         Expr.toPT ctx finalContext body
@@ -1112,7 +1112,7 @@ module Expr =
         let nameToResolve =
           Stdlib.List.append
             (Stdlib.List.map fnName.modules (fun (m, _) -> m.name))
-            [ fnName.fn.name ]
+            fnName.fn.name
 
         let asValue =
           NameResolver.ValueName.resolve
@@ -1211,7 +1211,7 @@ module Expr =
               (resolveAppliedName range fnName.fn.name, [])
             | _ -> toPT ctx context fn
 
-          let unresolvedNames = Stdlib.List.append baseUnresolved fnUnresolvedNames
+          let unresolvedNames = Stdlib.List.concat baseUnresolved fnUnresolvedNames
           (ProgramTypes.Expr.EApply(gid (), fnExpr, typeArgs, args), unresolvedNames)
 
     | EStatement (_, first, next) ->
@@ -1240,12 +1240,12 @@ module ModuleDeclaration =
     submodules
     |> Stdlib.List.fold init (fun acc m ->
       ProgramTypes.Definitions
-        { types = acc.types |> Stdlib.List.append m.types
-          values = acc.values |> Stdlib.List.append m.values
-          fns = acc.fns |> Stdlib.List.append m.fns
-          traits = acc.traits |> Stdlib.List.append m.traits
-          impls = acc.impls |> Stdlib.List.append m.impls
-          exprs = acc.exprs |> Stdlib.List.append m.exprs })
+        { types = acc.types |> Stdlib.List.concat m.types
+          values = acc.values |> Stdlib.List.concat m.values
+          fns = acc.fns |> Stdlib.List.concat m.fns
+          traits = acc.traits |> Stdlib.List.concat m.traits
+          impls = acc.impls |> Stdlib.List.concat m.impls
+          exprs = acc.exprs |> Stdlib.List.concat m.exprs })
 
 
 module TypeDeclaration =
@@ -1354,7 +1354,7 @@ module TypeDeclaration =
           d.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
         bounds = bounds
         definition = def },
-      Stdlib.List.append unresolvedNames boundUnresolved)
+      Stdlib.List.concat unresolvedNames boundUnresolved)
 
 
   let toPackageTypePT
@@ -1450,7 +1450,7 @@ module FunctionDeclaration =
     : List<String> =
     match tr with
     | TVariable name ->
-      if Stdlib.List.contains acc name then acc else Stdlib.List.append acc [ name ]
+      if Stdlib.List.contains acc name then acc else Stdlib.List.append acc name
     | TList inner -> collectTVarsInTypeRef acc inner
     | TStream inner -> collectTVarsInTypeRef acc inner
     | TDict(key, value) ->
@@ -1513,7 +1513,7 @@ module FunctionDeclaration =
       withReturn
       |> Stdlib.List.filter (fun n ->
         Stdlib.Bool.not (Stdlib.List.contains explicitTypeParams n))
-    let typeParams = Stdlib.List.append explicitTypeParams implicitTypeParams
+    let typeParams = Stdlib.List.concat explicitTypeParams implicitTypeParams
 
     let (body, bdUnresolvedNames) =
       // Build argument mapping from parameter names to indices
@@ -1526,7 +1526,7 @@ module FunctionDeclaration =
       let functionContext =
         Context
           { currentFnName =
-              Stdlib.Option.Option.Some (Stdlib.List.append ctx.currentModule [ fn.name.name ])
+              Stdlib.Option.Option.Some (Stdlib.List.append ctx.currentModule fn.name.name)
             argMap = argMap
             localBindings = [] }
       Expr.toPT ctx functionContext fn.body
@@ -1685,9 +1685,9 @@ module ImplDeclaration =
     let withType =
       match Stdlib.List.last currentModule with
       | Some last when last == typeName -> currentModule
-      | _ -> Stdlib.List.append currentModule [ typeName ]
+      | _ -> Stdlib.List.append currentModule typeName
 
-    Stdlib.List.append withType [ implDecl.trait_.typ.name ]
+    Stdlib.List.append withType implDecl.trait_.typ.name
 
   /// The method fns declared in the block, with the impl's type params and
   /// bounds prepended (a conditional impl's methods are generic over them).
@@ -1700,8 +1700,8 @@ module ImplDeclaration =
       | Method f ->
         Stdlib.Option.Option.Some
           { f with
-              typeParams = Stdlib.List.append implDecl.typeParams f.typeParams
-              bounds = Stdlib.List.append implDecl.bounds f.bounds }
+              typeParams = Stdlib.List.concat implDecl.typeParams f.typeParams
+              bounds = Stdlib.List.concat implDecl.bounds f.bounds }
       | Alias _ -> Stdlib.Option.Option.None)
 
   /// Each member as (method name, the fn name to resolve): a method declared in
@@ -1719,7 +1719,7 @@ module ImplDeclaration =
           | EFnName(_, q) ->
             Stdlib.List.append
               (q.modules |> Stdlib.List.map (fun (m, _) -> m.name))
-              [ q.fn.name ]
+              q.fn.name
           | EVariable(_, n) -> [ n ]
           | _ -> [ a.name.name ]
         (a.name.name, target))
@@ -1876,7 +1876,7 @@ let implWithOps
     [ ProgramTypes.PackageOp.AddTraitImpl pi
       ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageTraitImpl pi.hash, Stdlib.Option.Option.None) ]
 
-  (pi, fns, Stdlib.List.append fnOps implOps, Stdlib.List.append fnUnresolved implUnresolved)
+  (pi, fns, Stdlib.List.concat fnOps implOps, Stdlib.List.concat fnUnresolved implUnresolved)
 
 // Process a module declaration and generate both the Definitions and PackageOps
 let moduleDeclarationWithOpsHelper
@@ -2046,7 +2046,7 @@ let moduleDeclarationWithOpsHelper
         let (expr, unresolvedNames) =
           Expr.toPT ctx exprContext e
 
-        let fullPath = Stdlib.List.push ctx.currentModule ctx.owner
+        let fullPath = Stdlib.List.prepend ctx.currentModule ctx.owner
         Stdlib.Option.Option.Some(((expr, fullPath), unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
     |> Stdlib.List.unzip
@@ -2058,7 +2058,7 @@ let moduleDeclarationWithOpsHelper
       match d with
       | SubModule sm ->
         let (_, submoduleName) = sm.name
-        let subCtx = { ctx with currentModule = Stdlib.List.append ctx.currentModule [ submoduleName ] }
+        let subCtx = { ctx with currentModule = Stdlib.List.append ctx.currentModule submoduleName }
 
         let (defs, ops, unresolvedNames) =
           moduleDeclarationWithOpsHelper subCtx sm
@@ -2079,15 +2079,15 @@ let moduleDeclarationWithOpsHelper
     ModuleDeclaration.combineSubmodules submoduleDefs
 
   // Combine everything
-  let allTypes = Stdlib.List.append types combinedSubmoduleDefs.types
-  let allValues = Stdlib.List.append values combinedSubmoduleDefs.values
+  let allTypes = Stdlib.List.concat types combinedSubmoduleDefs.types
+  let allValues = Stdlib.List.concat values combinedSubmoduleDefs.values
   // Impl method fns last, so the written fns (direct, then nested) still line up
   // positionally with the lowered ones for the LSP's source mapping
   let allFns =
     Stdlib.List.flatten [ fns, combinedSubmoduleDefs.fns, implFns ]
-  let allTraits = Stdlib.List.append traits combinedSubmoduleDefs.traits
-  let allImpls = Stdlib.List.append impls combinedSubmoduleDefs.impls
-  let allExprs = Stdlib.List.append exprs combinedSubmoduleDefs.exprs
+  let allTraits = Stdlib.List.concat traits combinedSubmoduleDefs.traits
+  let allImpls = Stdlib.List.concat impls combinedSubmoduleDefs.impls
+  let allExprs = Stdlib.List.concat exprs combinedSubmoduleDefs.exprs
 
   let allOps =
     Stdlib.List.flatten

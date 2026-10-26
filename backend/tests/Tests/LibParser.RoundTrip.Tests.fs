@@ -3001,7 +3001,7 @@ two"""
   let helper (l: List<Int64>) (acc: List<Int64>): List<Int64> =
     match l with
     | [] -> acc
-    | head :: tail -> helper tail (Stdlib.List.push acc head)
+    | head :: tail -> helper tail (Stdlib.List.prepend acc head)
   helper list []"
       (RT.DList(
         LibExecution.ValueType.int64,

@@ -13,7 +13,7 @@ let sourceNameWithoutInternalPrefix (originalName: List<String>) : String =
   let sourceParts =
     match originalName with
     | "PACKAGE" :: "Darklang" :: "Stdlib" :: rest ->
-      Stdlib.List.push rest "Stdlib"
+      Stdlib.List.prepend rest "Stdlib"
     | "PACKAGE" :: rest -> rest
     | _ -> originalName
   Stdlib.String.join sourceParts "."
@@ -44,7 +44,7 @@ let stdlibSuggestion
       let location =
         LanguageTools.ProgramTypes.PackageLocation
           { owner = "Darklang"
-            modules = Stdlib.List.push modules "Stdlib"
+            modules = Stdlib.List.prepend modules "Stdlib"
             name = name }
       match LanguageTools.PackageManager.findAny branchId location with
       | Some _ ->

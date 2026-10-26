@@ -154,7 +154,7 @@ let approvalsNameTheirDependencies =
     })
 
 /// A builtin's callback runs under the access the builtin was called with on every step, not
-/// whatever its last inner builtin (here `List.push`'s entry access) left on the VM.
+/// whatever its last inner builtin (here `List.prepend`'s entry access) left on the VM.
 let foldCallbackKeepsItsAccess =
   instanceTest
     "a fold's callback keeps the caller's access on every step"
@@ -169,7 +169,7 @@ let foldCallbackKeepsItsAccess =
           fn
             state
             "Tests.FoldAccess.run"
-            "() : String = \"fold-access-\" + Stdlib.toString (Stdlib.List.length (Stdlib.List.fold [ 1L, 2L, 3L ] [] (fun acc n -> Stdlib.List.push acc (Tests.FoldAccess.stamp n))))"
+            "() : String = \"fold-access-\" + Stdlib.toString (Stdlib.List.length (Stdlib.List.fold [ 1L, 2L, 3L ] [] (fun acc n -> Stdlib.List.prepend acc (Tests.FoldAccess.stamp n))))"
         for name in [ "stamp"; "run" ] do
           do!
             run

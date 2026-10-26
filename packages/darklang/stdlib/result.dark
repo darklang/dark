@@ -172,13 +172,13 @@ let toOption
 let collect
   (results: List<Stdlib.Result.Result<'t, 'e>>)
   : Stdlib.Result.Result<List<'t>, 'e> =
-  // Built back to front with `push` and reversed once. `pushBack` copies the accumulator, so this
+  // Built back to front with `prepend` and reversed once. `append` copies the accumulator, so this
   // was quadratic in the list length: collecting 1,000 results did ~500,000 element copies.
   let folded =
     results
     |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
       match (acc, result) with
-      | (Ok acc, Ok result) -> Stdlib.Result.Result.Ok(Stdlib.List.push acc result)
+      | (Ok acc, Ok result) -> Stdlib.Result.Result.Ok(Stdlib.List.prepend acc result)
       | (Ok _, Error err) -> Stdlib.Result.Result.Error err
       | (Error err, _) -> Stdlib.Result.Result.Error err)
 
@@ -244,13 +244,13 @@ let join
 let combine
   (results: List<Stdlib.Result.Result<'t, 'e>>)
   : Stdlib.Result.Result<List<'t>, 'e> =
-  // Built back to front and reversed once, as `Option.combine` is: `pushBack` copies the
+  // Built back to front and reversed once, as `Option.combine` is: `append` copies the
   // accumulator every element, so this was quadratic in the list length.
   let folded =
     results
     |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
       match (acc, result) with
-      | (Ok acc, Ok result) -> Stdlib.Result.Result.Ok(Stdlib.List.push acc result)
+      | (Ok acc, Ok result) -> Stdlib.Result.Result.Ok(Stdlib.List.prepend acc result)
       | (Ok _, Error err) | (Error err, _) -> Stdlib.Result.Result.Error err)
 
   match folded with
@@ -267,7 +267,7 @@ let values
     |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
       match (acc, result) with
       | (Ok acc, Ok result) ->
-        Stdlib.Result.Result.Ok(Stdlib.List.push acc result)
+        Stdlib.Result.Result.Ok(Stdlib.List.prepend acc result)
       | (Ok _, Error _) -> acc
       | (Error err, _) -> Stdlib.Result.Result.Error err)
 

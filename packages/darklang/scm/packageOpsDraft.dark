@@ -395,7 +395,7 @@ let stampDraftFor (branchId: Uuid) (commitHash: String) : Int64 =
       (localDb ())
       ("UPDATE package_ops SET commit_hash = " + hashSlot + " WHERE id IN
           (SELECT p.id FROM package_ops p WHERE " + draftWhere branchId + ")")
-      (Stdlib.List.append params [ commitHash ])
+      (Stdlib.List.append params commitHash)
 
   n
 
@@ -442,7 +442,7 @@ let stampDraftOpsFor
 
     let rows =
       opIds
-      |> Stdlib.List.map (fun id -> Stdlib.List.append params [ commitHash, id ])
+      |> Stdlib.List.map (fun id -> Stdlib.List.concat params [ commitHash, id ])
 
     Stdlib.Sqlite.mustExecBatch
       (localDb ())

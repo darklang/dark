@@ -309,7 +309,7 @@ let letPattern
   | LPWildcard _ -> ([], nothing ())
   | LPUnit id -> ([], equal id Site.UnitLetPattern Model.Ty.TUnit expected)
   | LPTuple(id, first, second, rest) ->
-    let patterns = Stdlib.List.append [ first, second ] rest
+    let patterns = Stdlib.List.concat [ first, second ] rest
     let parts = Stdlib.List.indexedMap patterns (fun i _ -> part id i)
     let tuple = Model.Ty.TTuple(part id 0, part id 1, Stdlib.List.drop parts 2)
     let (bindings, constraints) = letPatterns parts patterns
@@ -368,13 +368,13 @@ let matchPattern
     let element = var id Model.Role.Element
     let (headBindings, headConstraints) = matchPattern element head
     let (tailBindings, tailConstraints) = matchPattern (Model.Ty.TList element) tail
-    (Stdlib.List.append headBindings tailBindings,
+    (Stdlib.List.concat headBindings tailBindings,
      all
        [ equal id Site.ListConsPattern (Model.Ty.TList element) expected
          headConstraints
          tailConstraints ])
   | MPTuple(id, first, second, rest) ->
-    let patterns = Stdlib.List.append [ first, second ] rest
+    let patterns = Stdlib.List.concat [ first, second ] rest
     let parts = Stdlib.List.indexedMap patterns (fun i _ -> part id i)
     let tuple = Model.Ty.TTuple(part id 0, part id 1, Stdlib.List.drop parts 2)
     let (bindings, constraints) = matchPatterns parts patterns
@@ -470,7 +470,7 @@ let orPattern
             |> Stdlib.Option.map (fun (_, firstType, _) ->
               equal id Site.OrPatternBinding firstType t))
 
-        Stdlib.List.append mismatch sameTypes)
+        Stdlib.List.concat mismatch sameTypes)
       |> Stdlib.List.flatten
 
     let constraints =
@@ -504,18 +504,18 @@ let patternIds (pattern: LanguageTools.ProgramTypes.MatchPattern) : List<Int64> 
   | MPString(id, _) -> [ id ]
   | MPVariable(id, _) -> [ id ]
   | MPList(id, patterns) ->
-    Stdlib.List.push (Stdlib.List.flatten (Stdlib.List.map patterns patternIds)) id
+    Stdlib.List.prepend (Stdlib.List.flatten (Stdlib.List.map patterns patternIds)) id
   | MPListCons(id, head, tail) ->
-    Stdlib.List.push (Stdlib.List.append (patternIds head) (patternIds tail)) id
+    Stdlib.List.prepend (Stdlib.List.concat (patternIds head) (patternIds tail)) id
   | MPTuple(id, first, second, rest) ->
-    Stdlib.List.push
+    Stdlib.List.prepend
       (Stdlib.List.flatten
-        (Stdlib.List.map (Stdlib.List.append [ first, second ] rest) patternIds))
+        (Stdlib.List.map (Stdlib.List.concat [ first, second ] rest) patternIds))
       id
   | MPEnum(id, _, fields) ->
-    Stdlib.List.push (Stdlib.List.flatten (Stdlib.List.map fields patternIds)) id
+    Stdlib.List.prepend (Stdlib.List.flatten (Stdlib.List.map fields patternIds)) id
   | MPOr(id, alternatives) ->
-    Stdlib.List.push
+    Stdlib.List.prepend
       (Stdlib.List.flatten (Stdlib.List.map alternatives patternIds))
       id
 
@@ -701,7 +701,7 @@ let inferLet
     // into the binding's reusable scheme.
     let inScope =
       match scope.returns with
-      | Some returnType -> Stdlib.List.push inScope (Model.Binder.Mono returnType)
+      | Some returnType -> Stdlib.List.prepend inScope (Model.Binder.Mono returnType)
       | None -> inScope
 
     let generalize =
@@ -740,7 +740,7 @@ let inferPipe
   let (resultType, reversed) =
     Stdlib.List.fold parts (lhsType, [ lhsConstraints ]) (fun (input, acc) p ->
       let (output, constraints) = inferPipePart scope input p
-      (output, Stdlib.List.push acc constraints))
+      (output, Stdlib.List.prepend acc constraints))
 
   (resultType, all (Stdlib.List.reverse reversed))
 
@@ -990,7 +990,7 @@ let inferTuple
     Stdlib.List.map restResults (fun (t, _) -> t)
    ),
    all
-     (Stdlib.List.append
+     (Stdlib.List.concat
        [ firstConstraints, secondConstraints ]
        (Stdlib.List.map restResults (fun (_, c) -> c))))
 
@@ -1127,7 +1127,7 @@ let constantDictKey
     else
       Stdlib.Option.Option.None
   | ETuple(_, first, second, rest) ->
-    joined (Stdlib.List.append [ first, second ] rest)
+    joined (Stdlib.List.concat [ first, second ] rest)
     |> Stdlib.Option.map (fun k -> "(" + k + ")")
   | EList(_, items) -> joined items |> Stdlib.Option.map (fun k -> "[" + k + "]")
   | _ -> Stdlib.Option.Option.None
@@ -1340,7 +1340,7 @@ let apply
 
   (result,
    all
-     [ Model.Constraint.Apply(id, callee, Stdlib.List.append known slots, result)
+     [ Model.Constraint.Apply(id, callee, Stdlib.List.concat known slots, result)
        all argChecks ])
 
 /// One unknown and one check per argument of call <param id>, numbered from <param index>, in
@@ -1365,8 +1365,8 @@ let argumentSlots
       id
       (index + 1)
       rest
-      (Stdlib.List.push slots (slot, site))
-      (Stdlib.List.push checks (check scope slot site arg))
+      (Stdlib.List.prepend slots (slot, site))
+      (Stdlib.List.prepend checks (check scope slot site arg))
 
 /// Generate operand checks for an infix operation. Boolean and string operations
 /// require their fixed types; equality requires matching operand types. Other
@@ -1570,7 +1570,7 @@ let inferPipePart
            all fieldChecks ])
     | Some hash ->
       let slots =
-        Stdlib.List.push
+        Stdlib.List.prepend
           (Stdlib.List.indexedMap fields (fun i _ ->
             (part id (i + 1), Site.Expression)))
           (input, Site.PipelineEnumInput)

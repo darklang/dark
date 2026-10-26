@@ -344,7 +344,7 @@ let staticTypeToStringWith
   | TList inner -> wrapped "List" inner
   | TTuple(first, second, rest) ->
     let parts =
-      Stdlib.List.append
+      Stdlib.List.concat
         [ recurse first, recurse second ]
         (Stdlib.List.map rest recurse)
     "(" + Stdlib.String.join parts " * " + ")"

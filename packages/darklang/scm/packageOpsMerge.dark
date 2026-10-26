@@ -133,7 +133,7 @@ let commitDraft (branchId: Uuid) (message: String) : Stdlib.Result.Result<String
   | Failed ->
     let count =
       Stdlib.List.length
-        (Stdlib.List.append typeReport.diagnostics typeReport.warnings)
+        (Stdlib.List.concat typeReport.diagnostics typeReport.warnings)
 
     Stdlib.Result.Result.Error(
       $"the at-rest type check found {Stdlib.toString count} definite error(s); "
@@ -289,7 +289,7 @@ let mergeBranch (branchId: Uuid) : Stdlib.Result.Result<MergeOutcome, MergeError
         let landed =
           Stdlib.List.append
             (moved |> Stdlib.List.map (fun id -> Stdlib.toString id))
-            [ Stdlib.toString eventId ]
+            (Stdlib.toString eventId)
 
         commitMainOps $"merged branch \"{branchName branchId}\"" landed
       else
@@ -336,7 +336,7 @@ let rebaseMessage (parentId: Uuid) (rebased: Branches.Rebased) : String =
       let listed = Stdlib.String.join names "\n  "
       [ $"it had moved names this branch calls; {n} caller(s) now point at the parent's version:\n  {listed}" ]
 
-  match Stdlib.List.append divergedPart repointedPart with
+  match Stdlib.List.concat divergedPart repointedPart with
   | [] ->
     $"already current with \"{parentName}\" -- nothing to reconcile; merge is ready"
   | parts ->
@@ -396,7 +396,7 @@ let branchList (includeMerged: Bool) : String =
 
         Stdlib.List.append
           (Stdlib.List.take lines cap)
-          [ $"+ {Stdlib.toString more} more -- `dark branches --all` lists every branch." ]
+          $"+ {Stdlib.toString more} more -- `dark branches --all` lists every branch."
 
     (Stdlib.String.join shown "\n") + footer
 

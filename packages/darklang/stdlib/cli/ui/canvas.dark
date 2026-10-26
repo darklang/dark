@@ -46,7 +46,7 @@ let overlay (existing: List<Segment>) (next: Segment) : List<Segment> =
       ((seg.col + seg.width) > next.col) && (seg.col < nextEnd))
 
   if Stdlib.Bool.not overlaps then
-    Stdlib.List.append existing [ next ]
+    Stdlib.List.append existing next
   else
 
   // `filterMap` rather than `map` into one-element lists and `flatten`: the branches here answer
@@ -70,7 +70,7 @@ let overlay (existing: List<Segment>) (next: Segment) : List<Segment> =
       else
         Stdlib.Option.Option.None)
 
-  Stdlib.List.append kept [ next ]
+  Stdlib.List.append kept next
 
 
 /// Render placed segments into one row, padding the gaps between them with spaces.
@@ -131,7 +131,7 @@ let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
 
       let nextPlaced =
         if span.col >= rightmost then
-          Stdlib.List.append segs [ seg ]
+          Stdlib.List.append segs seg
         else
           overlay segs seg
 
@@ -174,7 +174,7 @@ let compose (width: Int) (height: Int) (spans: List<Layout.Span>) : List<String>
             | Some existing -> existing
             | None -> []
 
-          Stdlib.Dict.set acc span.row (Stdlib.List.append existing [ span ]))
+          Stdlib.Dict.set acc span.row (Stdlib.List.append existing span))
 
     Stdlib.List.range 0 (h - 1)
     |> Stdlib.List.map (fun row ->

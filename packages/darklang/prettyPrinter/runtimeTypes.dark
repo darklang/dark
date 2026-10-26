@@ -128,7 +128,7 @@ let caseNameStandsAlone
         |> Stdlib.List.map (fun l ->
           Darklang.LanguageTools.PackageManager.countMatchingPrefix
             currentModule
-            (Stdlib.List.push l.modules l.owner))
+            (Stdlib.List.prepend l.modules l.owner))
         |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
         |> fun best -> best == 0
 
@@ -141,7 +141,7 @@ let caseNameStandsAlone
           locations
       with
       | Some l ->
-        let path = Stdlib.List.push l.modules l.owner
+        let path = Stdlib.List.prepend l.modules l.owner
         (path == [ "Darklang", "Stdlib", "Option" ] && l.name == "Option")
         || (path == [ "Darklang", "Stdlib", "Result" ] && l.name == "Result")
       | None -> false
@@ -314,12 +314,12 @@ let callStack
     (lines: List<String>)
     : List<String> =
     match remaining with
-    | [] -> Stdlib.List.reverse (Stdlib.List.push lines (label current count))
+    | [] -> Stdlib.List.reverse (Stdlib.List.prepend lines (label current count))
     | head :: rest ->
       if head == current then
         group rest current (count + 1) lines
       else
-        group rest head 1 (Stdlib.List.push lines (label current count))
+        group rest head 1 (Stdlib.List.prepend lines (label current count))
 
   let lines =
     match Stdlib.List.map frames (executionPoint branchId) with
@@ -365,7 +365,7 @@ let typeReference
   | TStream inner -> $"Stream<{typeReference branchId inner}>"
 
   | TTuple(first, second, theRest) ->
-    (Stdlib.List.append [ first, second ] theRest)
+    (Stdlib.List.concat [ first, second ] theRest)
     |> Stdlib.List.map (fun item -> typeReference branchId item)
     |> Stdlib.String.join " * "
     |> fun parts -> "(" + parts + ")"
@@ -446,7 +446,7 @@ let knownType
   | KTStream inner -> $"Stream<{valueType branchId inner}>"
 
   | KTTuple(t1, t2, trest) ->
-    (Stdlib.List.append [ t1, t2 ] trest)
+    (Stdlib.List.concat [ t1, t2 ] trest)
     |> Stdlib.List.map (fun item -> valueType branchId item)
     |> Stdlib.String.join " * "
     |> fun s -> $"({s})"
@@ -457,7 +457,7 @@ let knownType
     $"Dict<{k}, {v}>"
 
   | KTFn(argTypes, retType) ->
-    (Stdlib.List.push argTypes retType)
+    (Stdlib.List.prepend argTypes retType)
     |> Stdlib.List.map (fun vt -> valueType branchId vt)
     |> Stdlib.String.join " -> "
 
@@ -539,8 +539,8 @@ let declaredKnownType
     $"Dict<{k}, {v}>"
 
   | KTTuple(t1, t2, trest), Some(TTuple(d1, d2, drest)) ->
-    let items = Stdlib.List.append [ t1, t2 ] trest
-    let declaredItems = Stdlib.List.append [ d1, d2 ] drest
+    let items = Stdlib.List.concat [ t1, t2 ] trest
+    let declaredItems = Stdlib.List.concat [ d1, d2 ] drest
 
     if (Stdlib.List.length items) == (Stdlib.List.length declaredItems) then
       items
@@ -561,7 +561,7 @@ let declaredKnownType
       let ret =
         declaredValueType branchId (Stdlib.Option.Option.Some dRetType) retType
 
-      (Stdlib.List.push args ret) |> Stdlib.String.join " -> "
+      (Stdlib.List.prepend args ret) |> Stdlib.String.join " -> "
     else
       knownType branchId kt
 
@@ -598,7 +598,7 @@ let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
   | LPWildcard -> "_"
   | LPUnit -> "()"
   | LPTuple(first, second, theRest) ->
-    let parts = Stdlib.List.append [ first, second ] theRest
+    let parts = Stdlib.List.concat [ first, second ] theRest
     let parts = Stdlib.List.map parts (fun p -> letPattern p)
     let parts = Stdlib.String.join parts ", "
     $"({parts})"
@@ -646,7 +646,7 @@ module Dval =
     | DDateTime _ -> "DateTime"
     | DUuid _ -> "Uuid"
     | DTuple(first, second, theRest) ->
-      let types = Stdlib.List.append [ first, second ] theRest
+      let types = Stdlib.List.concat [ first, second ] theRest
       types
       |> Stdlib.List.map (fun item -> valueTypeName branchId item)
       |> Stdlib.String.join " * "
@@ -720,7 +720,7 @@ module Dval =
         |> Stdlib.List.filter (fun pair ->
           Stdlib.Bool.not (Stdlib.List.contains order (Stdlib.Tuple2.first pair)))
 
-      Stdlib.List.append ordered extra
+      Stdlib.List.concat ordered extra
 
 
   let makeSpaces (len: Int) : String =
@@ -813,7 +813,7 @@ module Dval =
 
     | DTuple(first, second, theRest) ->
       let parts =
-        (Stdlib.List.append [ first, second ] theRest) |> Stdlib.List.map (fun i -> child i)
+        (Stdlib.List.concat [ first, second ] theRest) |> Stdlib.List.map (fun i -> child i)
       bracketed "(" ")" parts
 
     | DList(_vt, l) ->

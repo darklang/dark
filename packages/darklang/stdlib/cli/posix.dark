@@ -68,7 +68,7 @@ let fdReadAll
     if Stdlib.Bytes.length chunk == 0 then
       Stdlib.Result.Result.Ok(Stdlib.Bytes.concat acc)
     else
-      fdReadAll fd (Stdlib.List.append acc [ chunk ]))
+      fdReadAll fd (Stdlib.List.append acc chunk))
 
 
 /// Seek to a byte offset from the start of an open file.
@@ -394,7 +394,7 @@ let __kernelEntriesWithLength (bytes: List<UInt8>) (remaining: Int)
           let name = Stdlib.String.fromByteListWithReplacement name
           let next =
             if name == "." || name == ".." then reversed
-            else Stdlib.List.push reversed name
+            else Stdlib.List.prepend reversed name
           __kernelEntriesWithLength (Stdlib.List.drop bytes length) (remaining - length) next)
 
 let __kernelEntries (bytes: List<UInt8>) (reversed: List<String>)
@@ -799,7 +799,7 @@ let __tempEntropy (remaining: Int) (reversed: List<Bytes>) : Result.Result<Bytes
     | Ok bytes ->
       let count = Stdlib.Bytes.length bytes
       if count <= 0 || count > remaining then Error 5
-      else __tempEntropy (remaining - count) (Stdlib.List.push reversed bytes)
+      else __tempEntropy (remaining - count) (Stdlib.List.prepend reversed bytes)
 
 let __tempCandidate (prefix: String) : Result.Result<String, Stdlib.Cli.Posix.Error> =
   __tempEntropy 12 []

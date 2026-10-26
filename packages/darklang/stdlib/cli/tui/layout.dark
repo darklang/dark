@@ -13,7 +13,7 @@ let blankRows (count: Int) : List<String> =
 let fitRows (height: Int) (rows: List<String>) : List<String> =
   let target = Stdlib.max 0 height
   let visible = Stdlib.List.take rows target
-  Stdlib.List.append
+  Stdlib.List.concat
     visible
     (blankRows (target - Stdlib.List.length visible))
 

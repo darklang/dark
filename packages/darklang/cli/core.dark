@@ -164,8 +164,8 @@ let jsonStr (s: String) : String =
 /// twice per process start was pure duplicate work, on every invocation including `dark version`.
 let commandOptions (commands: List<Registry.CommandHandler>) : List<String> =
   let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
-  let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
-  Stdlib.List.append allNames allAliases
+  let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.concat acc cmd.aliases)
+  Stdlib.List.concat allNames allAliases
 
 /// The branch this run starts on, `SCM.Branch.mainBranchId` for main.
 ///

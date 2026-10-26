@@ -30,7 +30,7 @@ let codesOf (issues: List<Darklang.LanguageTools.AtRestTypeChecker.Issue>) : Str
 let summary (report: Darklang.LanguageTools.AtRestTypeChecker.Report) : String =
   (verdictWord report.verdict)
   + ":"
-  + (codesOf (Stdlib.List.append report.diagnostics report.warnings))
+  + (codesOf (Stdlib.List.concat report.diagnostics report.warnings))
 
 let src (lines: List<String>) : String = Stdlib.String.join lines "\n"
 
@@ -67,7 +67,7 @@ let itemSummary
     | Some i ->
       (verdictWord i.verdict)
       + ":"
-      + (codesOf (Stdlib.List.append i.diagnostics i.warnings))
+      + (codesOf (Stdlib.List.concat i.diagnostics i.warnings))
     | None -> "no report for the declaration"
 
 /// Parse and check the source, then return the verdict and issue codes for `name`.
@@ -91,7 +91,7 @@ let issues (source: String) (name: String) : List<String> =
     | Some target ->
       match Stdlib.List.findFirst report.items (fun i -> i.item == target) with
       | Some i ->
-        (Stdlib.List.append i.diagnostics i.warnings)
+        (Stdlib.List.concat i.diagnostics i.warnings)
         |> Stdlib.List.map (fun issue ->
           (Darklang.LanguageTools.AtRestTypeChecker.issueCodeToString issue.code)
           + ": "
@@ -203,7 +203,7 @@ let outcomeSummary
   : String =
   (verdictWord outcome.verdict)
   + ":"
-  + (codesOf (Stdlib.List.append outcome.diagnostics outcome.warnings))
+  + (codesOf (Stdlib.List.concat outcome.diagnostics outcome.warnings))
 
 /// Check `fn` with the supplied type declarations available as dependencies.
 /// Return only the function's verdict and issue codes.
@@ -234,7 +234,7 @@ let checkPackageOpsSummary
   (fns: List<Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>)
   : String =
   let ops =
-    Stdlib.List.append
+    Stdlib.List.concat
       (Stdlib.List.map types (fun t ->
         Darklang.LanguageTools.ProgramTypes.PackageOp.AddType t))
       (Stdlib.List.map fns (fun f ->
@@ -838,7 +838,7 @@ module Declarations =
 module DictKeys =
   let key (declarations: List<String>) (keyType: String) : String =
     check
-      (src (Stdlib.List.append declarations [ $"let f (x: Dict<{keyType}, String>) : Unit = ()" ]))
+      (src (Stdlib.List.append declarations $"let f (x: Dict<{keyType}, String>) : Unit = ()"))
       "f"
 
   val rejected = "failed:UnsupportedDictKeyType"
@@ -993,7 +993,7 @@ module RecursivePhantomKeys =
 
 module InstantiatedDictKeys =
   let signature (declarations: List<String>) (typ: String) : String =
-    check (src (Stdlib.List.append declarations [ $"let f (x: {typ}) : Unit = ()" ])) "f"
+    check (src (Stdlib.List.append declarations $"let f (x: {typ}) : Unit = ()")) "f"
 
   test instantiatedSignatures =
     Stdlib.Test.all
@@ -1032,7 +1032,7 @@ module InstantiatedDictKeys =
         |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
 
   let call (body: List<String>) : String =
-    check (src (Stdlib.List.append
+    check (src (Stdlib.List.concat
       [ "let make<'a> (x: 'a) : Dict<'a, Int> = Dict { x: 1 }", "let f () : Unit =" ] body)) "f"
 
   test genericCallKeys =
@@ -1440,7 +1440,7 @@ module PostfixUnwrap =
   // type.
   let rows (body: List<String>) : String =
     src
-      (Stdlib.List.append
+      (Stdlib.List.concat
         [ "type IntRow = { item: Stdlib.Option.Option<Int> }"
           "type StringRow = { item: Stdlib.Option.Option<String> }"
           "type NestedRow = { item: Stdlib.Option.Option<Stdlib.Option.Option<Int>> }" ]
@@ -1486,7 +1486,7 @@ module PostfixUnwrap =
   // Calling it with NestedIntRow must not fix the type used for NestedStringRow.
   let nestedRows (body: List<String>) : String =
     src
-      (Stdlib.List.append
+      (Stdlib.List.concat
         [ "type NestedIntRow = { item: Stdlib.Option.Option<Stdlib.Option.Option<Int>> }"
           "type NestedStringRow = { item: Stdlib.Option.Option<Stdlib.Option.Option<String>> }" ]
         body)
@@ -1888,7 +1888,7 @@ module Patterns =
   // Use an abbreviated example such as Node(…) in the diagnostic.
   let tree (cases: List<String>) : String =
     src
-      (Stdlib.List.append
+      (Stdlib.List.concat
         [ "type Tree = | Node of Tree | Leaf", "let f (t: Tree) : Int =", "  match t with" ]
         cases)
 
@@ -1907,7 +1907,7 @@ module Patterns =
   // repeatedly expanding the recursive Tree type, then check the false cases.
   let treeAndBool (cases: List<String>) : String =
     src
-      (Stdlib.List.append
+      (Stdlib.List.concat
         [ "type Tree = | Node of Tree | Leaf"
           "let f (x: (Tree * Bool)) : Int ="
           "  match x with" ]
@@ -2310,7 +2310,7 @@ module Lets =
   // returns another function. Wait for invoke's argument to determine which.
   let invoked (callee: String) (declarations: List<String>) : String =
     src
-      (Stdlib.List.append
+      (Stdlib.List.concat
         declarations
         [ "let f (u: Unit) : Int ="
           "  let invoke = fun g -> g 1 2"
@@ -2750,7 +2750,7 @@ module Batches =
               )) ])
      let answer =
        checkPackageOpsSummary
-         (Stdlib.List.push chain holder)
+         (Stdlib.List.prepend chain holder)
          [ fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]
      answer == "failed:TypeMismatch"
      || answer == "failed:TypeMismatch,UnsupportedConstruct")
@@ -3142,7 +3142,7 @@ module ConcreteTypeArgImpls =
   let withImpl (body: List<String>) : String =
     check
       (src (
-        Stdlib.List.append
+        Stdlib.List.concat
           [ "trait Tag<'a> ="
             "  let tag (v: 'a) : String"
             "type Box<'a> = { concreteTypeArgImplsOnly: 'a }"

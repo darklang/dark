@@ -83,7 +83,7 @@ let parentBindings (parentId: Uuid) (names: List<String>) : List<Conflicts.Bindi
         | Some _ -> false
         | None -> true)
 
-    Stdlib.List.append untouched overlay
+    Stdlib.List.concat untouched overlay
 
 
 // the branch PREVIEW (what a merge would hit, before anything is recorded)

@@ -127,12 +127,12 @@ let collectTransitiveDependents
           (sourceLoc, refKind))
 
       let newProcessed =
-        Stdlib.List.append
+        Stdlib.List.concat
           processed
           (targets
            |> Stdlib.List.map (fun (loc, kind) ->
              $"{fqn loc}:{LanguageTools.ProgramTypes.ItemKind.toString kind}"))
-      let newAccumulated = Stdlib.List.append accumulated newDeps
+      let newAccumulated = Stdlib.List.concat accumulated newDeps
 
       collectTransitiveDependents newProcessed newDeps newAccumulated
 
@@ -430,7 +430,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
       |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partialPath)
       |> Stdlib.List.map (fun cmd -> Completion.CompletionItem { display = cmd, value = cmd })
     let paths = Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
-    Stdlib.List.append subcommands paths
+    Stdlib.List.concat subcommands paths
   | _ -> []
 
 

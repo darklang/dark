@@ -13,7 +13,7 @@ let branchChoices (current: Uuid) : List<BranchChoice> =
     |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
     |> Stdlib.List.sortBy (fun b -> Stdlib.String.toLowercase b.name)
     |> Stdlib.List.map (fun b -> choice b.id b.name)
-  Stdlib.List.push others (choice SCM.Branch.mainBranchId SCM.Branch.mainBranchName)
+  Stdlib.List.prepend others (choice SCM.Branch.mainBranchId SCM.Branch.mainBranchName)
 
 let matchingBranches (picker: BranchPicker) : List<BranchChoice> =
   let query = Stdlib.String.toLowercase (Stdlib.String.trim picker.field.text)

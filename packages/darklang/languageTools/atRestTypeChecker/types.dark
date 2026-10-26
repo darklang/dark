@@ -305,7 +305,7 @@ let substituteRigid (mapping: Dict<String, Model.Ty>) (ty: Model.Ty) : Model.Ty 
 let substituteRigidIn (mapping: Dict<String, Model.Ty>) (tys: List<Model.Ty>) : List<Model.Ty> =
   match tys with
   | [] -> []
-  | t :: rest -> Stdlib.List.push (substituteRigidIn mapping rest) (substituteRigid mapping t)
+  | t :: rest -> Stdlib.List.prepend (substituteRigidIn mapping rest) (substituteRigid mapping t)
 
 
 // --------------------
@@ -386,14 +386,14 @@ let fromReferenceInto
           IssueCode.UnresolvedTypeName
           at
           (Context.Unresolved name.originalName)
-      (Model.Ty.TError, Stdlib.List.push found problem)
+      (Model.Ty.TError, Stdlib.List.prepend found problem)
   | TVariable name ->
     match Stdlib.Dict.get mapping name with
     | Some t -> (t, found)
     | None ->
       let problem =
         warning IssueCode.UnknownDeclaredTypeVariable at (Context.Identifier name)
-      (Model.Ty.TError, Stdlib.List.push found problem)
+      (Model.Ty.TError, Stdlib.List.prepend found problem)
   | TString -> (Model.Ty.TString, found)
   | TList inner ->
     let (inner, found) = fromReferenceInto mapping at found inner
@@ -448,7 +448,7 @@ let fromReferencesInto
     let (reversed, found) =
       Stdlib.List.fold typs ([], found) (fun (converted, found) typ ->
         let (t, found) = fromReferenceInto mapping at found typ
-        (Stdlib.List.push converted t, found))
+        (Stdlib.List.prepend converted t, found))
     (Stdlib.List.reverse reversed, found)
 
 /// Convert several type references and return their types with any findings,
@@ -572,7 +572,7 @@ let blocked
   (found: List<Model.Finding>)
   (problem: Model.Finding)
   : (Model.Ty * List<Model.Finding>) =
-  (Model.Ty.TError, Stdlib.List.push found problem)
+  (Model.Ty.TError, Stdlib.List.prepend found problem)
 
 /// Expand outer aliases while carrying prior findings and the active alias path.
 /// seen detects recursive alias definitions. Records and enums keep their identity;
@@ -615,7 +615,7 @@ let expandFrom
             | None -> blocked found (arityMismatch at ty name decl args)
             | Some mapping ->
               let (target, found) = fromReferenceInto mapping at found target
-              expandFrom env subst at (Stdlib.List.push seen name) found target
+              expandFrom env subst at (Stdlib.List.prepend seen name) found target
       | Record _ ->
         if Stdlib.List.length decl.typeParams == Stdlib.List.length args then
           (ty, found)
@@ -687,7 +687,7 @@ let expandDeep
               )
             | Some mapping ->
               let (target, _) = fromReferenceInto mapping at [] target
-              expandDeep env subst at (Stdlib.List.push seen name) target
+              expandDeep env subst at (Stdlib.List.prepend seen name) target
         | _ -> Stdlib.Result.Result.Ok(Model.Ty.TCustom(name, args))
   | TList inner -> Stdlib.Result.map (one inner) (fun t -> Model.Ty.TList t)
   | TStream inner -> Stdlib.Result.map (one inner) (fun t -> Model.Ty.TStream t)
@@ -697,7 +697,7 @@ let expandDeep
     | Ok _ -> Stdlib.Result.Result.Ok ty
     | Error problem -> Stdlib.Result.Result.Error problem
   | TTuple(first, second, rest) ->
-    let parts = Stdlib.List.append [ first, second ] rest
+    let parts = Stdlib.List.concat [ first, second ] rest
 
     match expandDeepAll env subst at seen parts [] with
     | Ok(first :: second :: rest) ->
@@ -705,7 +705,7 @@ let expandDeep
     | Ok _ -> Stdlib.Result.Result.Ok ty
     | Error problem -> Stdlib.Result.Result.Error problem
   | TFn(parameters, ret) ->
-    match expandDeepAll env subst at seen (Stdlib.List.push parameters ret) [] with
+    match expandDeepAll env subst at seen (Stdlib.List.prepend parameters ret) [] with
     | Ok(ret :: parameters) ->
       Stdlib.Result.Result.Ok(Model.Ty.TFn(parameters, ret))
     | Ok _ -> Stdlib.Result.Result.Ok ty
@@ -727,7 +727,7 @@ let expandDeepAll
   | t :: rest ->
     match expandDeep env subst at seen t with
     | Ok expanded ->
-      expandDeepAll env subst at seen rest (Stdlib.List.push done expanded)
+      expandDeepAll env subst at seen rest (Stdlib.List.prepend done expanded)
     | Error problem -> Stdlib.Result.Result.Error problem
 
 /// Resolve outer aliases and return the resulting custom type's hash, arguments,
@@ -806,7 +806,7 @@ let typeVariablesThatReachValues
   | TVariable name -> [ name ]
   | TList inner -> recurse inner
   | TStream inner -> recurse inner
-  | TDict(key, value) -> Stdlib.List.append (recurse key) (recurse value)
+  | TDict(key, value) -> Stdlib.List.concat (recurse key) (recurse value)
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten
       [ recurse first
@@ -824,7 +824,7 @@ let typeVariablesThatReachValues
       | None -> args
     Stdlib.List.flatten (Stdlib.List.map reachable recurse)
   | TFn(parameters, ret) ->
-    Stdlib.List.append
+    Stdlib.List.concat
       (Stdlib.List.flatten (Stdlib.List.map parameters recurse))
       (recurse ret)
   | _ -> []
@@ -869,7 +869,7 @@ let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTy
     match declaration env name with
     | None -> true
     | Some decl ->
-      let expanding = Stdlib.List.push seen name
+      let expanding = Stdlib.List.prepend seen name
       let used = valueTypeParameters env name
 
       // Stop revisiting a declaration's fields, but still inspect supplied

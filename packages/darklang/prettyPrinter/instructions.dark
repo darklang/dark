@@ -42,7 +42,7 @@ let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
   | LPUnit -> "()"
   | LPTuple(first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first, second ] theRest)
+      (Stdlib.List.concat [ first, second ] theRest)
       |> Stdlib.List.map (fun p -> letPattern p)
       |> Stdlib.String.join ", "
     $"({parts})"
@@ -74,7 +74,7 @@ let matchPattern (pat: LanguageTools.RuntimeTypes.MatchPattern) : String =
   | MPListCons(head, tail) -> $"{matchPattern head} :: {matchPattern tail}"
   | MPTuple(first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first, second ] theRest)
+      (Stdlib.List.concat [ first, second ] theRest)
       |> Stdlib.List.map (fun p -> matchPattern p)
       |> Stdlib.String.join ", "
     $"({parts})"
@@ -191,7 +191,7 @@ let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instru
     $"{register v} ~ {matchPattern p}  else -> {target}"
   | MatchUnmatched v -> register v
   | CreateTuple(t, first, second, theRest) ->
-    let all = registers (Stdlib.List.append [ first, second ] theRest)
+    let all = registers (Stdlib.List.concat [ first, second ] theRest)
     $"{register t} <- ({all})"
   | CreateList(t, items) -> $"{register t} <- [{registers items}]"
   | CreateDict(t, entries) -> $"{register t} <- {{{registerPairs entries}}}"
@@ -226,7 +226,7 @@ let lambdas (instrs: LanguageTools.RuntimeTypes.Instructions) : List<LanguageToo
     match i with
     | CreateLambda(_, l) -> Stdlib.Option.Option.Some l
     | _ -> Stdlib.Option.Option.None)
-  |> Stdlib.List.map (fun l -> Stdlib.List.append [ l ] (lambdas l.instructions))
+  |> Stdlib.List.map (fun l -> Stdlib.List.prepend (lambdas l.instructions) l)
   |> Stdlib.List.flatten
 
 

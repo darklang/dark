@@ -111,7 +111,7 @@ let drive
         "exit 0" ]
 
     let script =
-      (Stdlib.List.append header (Stdlib.List.append body footer))
+      (Stdlib.List.concat header (Stdlib.List.concat body footer))
       |> Stdlib.String.join "\n"
 
     let path = $"{i.dir}/drive.exp"

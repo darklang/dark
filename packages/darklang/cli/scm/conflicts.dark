@@ -694,7 +694,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
   // Variadic, like `dark ack`: acking is bulk by design ("leave it, I have seen it" means one
   // thing for every conflict), and this sibling taking exactly one ref was a trap.
   | "ack" :: id :: rest ->
-    Stdlib.List.append [ id ] rest
+    Stdlib.List.prepend rest id
     |> Stdlib.List.fold state (fun st i -> executeAck st i)
   | [ "override", id, choice ] -> executeOverride state id choice
   | [ "branch", branchId ] -> executeBranchPreview state branchId

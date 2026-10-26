@@ -159,7 +159,7 @@ let previousHashesOfAll
       (if SCM.Branch.isMain branchId then
          onMain
        else
-         Stdlib.List.append
+         Stdlib.List.concat
            (historyIn ofBranchId
             |> Stdlib.List.reverse
             |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
@@ -174,7 +174,7 @@ let previousHashesOfAll
     // arbitrary older version. `fromMain` is newest-first already; the chain history is oldest-first,
     // hence the reverse.
     let previous =
-      Stdlib.List.append fromMain (Stdlib.List.reverse fromBranch)
+      Stdlib.List.concat fromMain (Stdlib.List.reverse fromBranch)
       |> Stdlib.List.dedup
       |> Stdlib.List.filter (fun h -> h != b.hash)
       |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
@@ -463,7 +463,7 @@ let refuseTypeErrors (parsed: Args) : Bool =
 
           Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"    {label}:")
 
-          Stdlib.List.append
+          Stdlib.List.concat
             (Packages.AtRestCheck.issueLines branchId item.diagnostics)
             (Packages.AtRestCheck.issueLines branchId item.warnings)
           |> Stdlib.List.iter (fun line ->
@@ -474,7 +474,7 @@ let refuseTypeErrors (parsed: Args) : Bool =
       // stand alone only when the checker could not produce items at all (an unavailable report).
       let _ =
         if Stdlib.List.isEmpty report.items then
-          Stdlib.List.append
+          Stdlib.List.concat
             (Packages.AtRestCheck.issueLines branchId report.diagnostics)
             (Packages.AtRestCheck.issueLines branchId report.warnings)
           |> Stdlib.List.iter (fun line ->

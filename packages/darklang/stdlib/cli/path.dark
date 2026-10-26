@@ -101,13 +101,13 @@ let normalize (path: String) : String =
       if part == ".." then
         match Stdlib.List.last acc with
         | Some prev ->
-          if prev == ".." then Stdlib.List.append acc [ ".." ]
+          if prev == ".." then Stdlib.List.append acc ".."
           else Stdlib.List.dropLast acc
         | None ->
           if isAbs then []
           else [ ".." ]
       else
-        Stdlib.List.append acc [ part ])
+        Stdlib.List.append acc part)
 
   let joined = Stdlib.String.join resolved "/"
 
@@ -169,7 +169,7 @@ let relativeTo
 
       let tail = Stdlib.List.drop toParts commonLen
 
-      let parts = Stdlib.List.append ups tail
+      let parts = Stdlib.List.concat ups tail
 
       if Stdlib.List.length parts == 0 then "."
       else Stdlib.String.join parts "/"))

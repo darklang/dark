@@ -84,12 +84,12 @@ let loadHomeItemsFrom (branchId: Uuid) (draft: SCM.Draft.Picture) : List<BodyIte
         [ row ("+ " + (plural hiddenCommits "more commit")) "home-more-commits"
             "⏎ list them" ]
     // Hide the section only when the whole store has no commits.
-    Stdlib.List.append commits more
+    Stdlib.List.concat commits more
   let openBranches =
     SCM.Branch.list () |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
   // Keep the current branch visible even when the rest of the list is capped.
   let ordered =
-    Stdlib.List.append
+    Stdlib.List.concat
       (openBranches |> Stdlib.List.filter (fun b -> b.id == branchId))
       (openBranches |> Stdlib.List.filter (fun b -> b.id != branchId))
   let branchRow (id: Uuid) (name: String) : BodyItem =
@@ -110,7 +110,7 @@ let loadHomeItemsFrom (branchId: Uuid) (draft: SCM.Draft.Picture) : List<BodyIte
       |> Stdlib.String.join " · "
     row ((branchMarker current) + name) "home-branch" desc
   let branches =
-    Stdlib.List.push
+    Stdlib.List.prepend
       (Stdlib.List.take ordered homeBranchCap |> Stdlib.List.map (fun b -> branchRow b.id b.name))
       (branchRow SCM.Branch.mainBranchId SCM.Branch.mainBranchName)
   let hidden = (Stdlib.List.length ordered) - homeBranchCap
@@ -122,12 +122,12 @@ let loadHomeItemsFrom (branchId: Uuid) (draft: SCM.Draft.Picture) : List<BodyIte
           "home-more" "⏎ choose a branch" ]
   let section (label: String) (rows: List<BodyItem>) : List<BodyItem> =
     if Stdlib.List.isEmpty rows then []
-    else Stdlib.List.append [ homeHeader "", homeHeader label ] rows
+    else Stdlib.List.concat [ homeHeader "", homeHeader label ] rows
   Stdlib.List.flatten
     [ section "needs attention" attention
       section "this branch" here
       section "recent commits" recent
-      section "branches" (Stdlib.List.append branches more) ]
+      section "branches" (Stdlib.List.concat branches more) ]
   |> Stdlib.List.drop 1
 
 /// The selected row's position among the rows of its own kind - the index the

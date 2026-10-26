@@ -35,7 +35,7 @@ let run<'a, 'b>
     match result with
     | None ->
       Stdlib.String.join
-        (Stdlib.List.append
+        (Stdlib.List.concat
           [ $"Isolated test exited {Stdlib.toString exitCode} without a result:"
             stdout
             stderr ]

@@ -116,7 +116,7 @@ let render (m: Measurement) : String =
     if m.statSets > 0L then
       Stdlib.List.append
         lines
-        [ $"  note            one VM's share of {Stdlib.toString m.statSets} counter sets" ]
+        $"  note            one VM's share of {Stdlib.toString m.statSets} counter sets"
     else
       lines
 

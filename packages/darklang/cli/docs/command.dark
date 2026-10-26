@@ -276,7 +276,7 @@ module Topics =
         ""
         "Start with: " + Stdlib.Cli.UI.Colors.command "docs for-ai" ]
 
-    (Stdlib.List.append (Stdlib.List.append header lines) footer)
+    (Stdlib.List.concat (Stdlib.List.concat header lines) footer)
     |> Stdlib.String.join "\n"
 
 

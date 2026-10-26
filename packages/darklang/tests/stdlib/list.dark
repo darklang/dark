@@ -61,15 +61,19 @@ test parallelMapRunsConcurrently =
     true)
   |> Stdlib.Test.equal true
 
-test append =
+test concat =
   Stdlib.Test.all
-    [ Stdlib.List.append [ 1L, 2L, 3L ] [ 4L, 5L, 6L ]
+    [ Stdlib.List.concat [ 1L, 2L, 3L ] [ 4L, 5L, 6L ]
       |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L, 5L, 6L ]
-      Stdlib.List.append [ 3L, 4L ] [ 5L, 6L ]
+      Stdlib.List.concat [ 3L, 4L ] [ 5L, 6L ]
       |> Stdlib.Test.equal [ 3L, 4L, 5L, 6L ]
-      Stdlib.List.append [ 1L ] [ 2L ]
+      Stdlib.List.concat [ 1L ] [ 2L ]
       |> Stdlib.Test.equal [ 1L, 2L ]
-      Stdlib.List.append [] [] |> Stdlib.Test.equal [] ]
+      Stdlib.List.concat [] [] |> Stdlib.Test.equal []
+      Stdlib.List.concat [ [ 1L ], [ 2L ] ] [ [ 3L ] ]
+      |> Stdlib.Test.equal [ [ 1L ], [ 2L ], [ 3L ] ]
+      ([ 1L, 2L ] @ [ 3L ]) |> Stdlib.Test.equal [ 1L, 2L, 3L ]
+      ([ [ 1L ] ] @ [ [ 2L ] ]) |> Stdlib.Test.equal [ [ 1L ], [ 2L ] ] ]
 
 test all =
   Stdlib.Test.all
@@ -210,7 +214,7 @@ test fold =
         accum + curr)
       |> Stdlib.Test.equal "xabcd"
       Stdlib.List.fold [ 1L, 2L, 3L, 4L, 5L ] [] (fun accum curr ->
-        Stdlib.List.pushBack accum (curr + 1L))
+        Stdlib.List.append accum (curr + 1L))
       |> Stdlib.Test.equal [ 2L, 3L, 4L, 5L, 6L ] ]
 
 test getAt =
@@ -344,16 +348,29 @@ test partition =
         | 2L -> false)
       |> Stdlib.Test.equal ([ 1L, 3L ], [ 2L ]) ]
 
-test push =
+test prepend =
   Stdlib.Test.all
-    [ Stdlib.List.pushBack [ 2L, 3L ] 1L
-      |> Stdlib.Test.equal [ 2L, 3L, 1L ]
-      Stdlib.List.pushBack [] 1L
-      |> Stdlib.Test.equal [ 1L ]
-      Stdlib.List.push [ 2L, 3L ] 1L
+    [ Stdlib.List.prepend [ 2L, 3L ] 1L
       |> Stdlib.Test.equal [ 1L, 2L, 3L ]
-      Stdlib.List.push [] 1L
-      |> Stdlib.Test.equal [ 1L ] ]
+      Stdlib.List.prepend [] 1L
+      |> Stdlib.Test.equal [ 1L ]
+      Stdlib.List.prepend [ [ 2L ] ] [ 1L ]
+      |> Stdlib.Test.equal [ [ 1L ], [ 2L ] ] ]
+
+test append =
+  Stdlib.Test.all
+    [ Stdlib.List.append [ 2L, 3L ] 1L
+      |> Stdlib.Test.equal [ 2L, 3L, 1L ]
+      Stdlib.List.append [] 1L
+      |> Stdlib.Test.equal [ 1L ]
+      // One item, even when it is a list: `append acc [ x ]` adds the list `[ x ]`, and
+      // to join two lists use `concat`
+      Stdlib.List.append [ [ 1L ] ] []
+      |> Stdlib.Test.equal [ [ 1L ], [] ]
+      Stdlib.List.fold [ 1L, 2L ] [] (fun acc x -> Stdlib.List.append acc [ x ])
+      |> Stdlib.Test.equal [ [ 1L ], [ 2L ] ]
+      Stdlib.List.fold [ 1L, 2L ] [] (fun acc x -> Stdlib.List.append acc x)
+      |> Stdlib.Test.equal [ 1L, 2L ] ]
 
 test randomElementOfSingletonOrEmptyList =
   Stdlib.Test.all

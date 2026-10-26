@@ -162,8 +162,8 @@ measure "build a tuple                        " (fun i ->
   a + b)
 
 Stdlib.printLine "--- lists"
-measure "cons onto a 3-list                   " (fun i -> Stdlib.List.length (Stdlib.List.push [ 1, 2, 3 ] i))
-measure "append two 3-lists                   " (fun i -> Stdlib.List.length (Stdlib.List.append [ 1, 2, 3 ] [ 4, 5, 6 ]))
+measure "cons onto a 3-list                   " (fun i -> Stdlib.List.length (Stdlib.List.prepend [ 1, 2, 3 ] i))
+measure "append two 3-lists                   " (fun i -> Stdlib.List.length (Stdlib.List.concat [ 1, 2, 3 ] [ 4, 5, 6 ]))
 // The get and set measurements include building the dictionary with `fromEntries`.
 // Compare them with each other and with `build a 2-entry dict` to account for that cost.
 measure "build a 2-entry dict                 " (fun i -> Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.fromEntries [ ("a", 1), ("b", 2) ])))

@@ -143,7 +143,7 @@ let private sortedByKeyLanding
 ///
 /// Same shape as `listFlatten`. Merge the element ValueTypes where they agree and build the list
 /// directly; where they do not, hand it to `DvalCreator.list`, which is the general path and reports
-/// the mismatch properly. Accumulating with `push`, which is what the Dark version did, merged the
+/// the mismatch properly. Accumulating with `prepend`, which is what the Dark version did, merged the
 /// same types one element at a time.
 let private mappedList (vm : VMState) (items : List<Dval>) : Dval =
   let merged =
@@ -278,7 +278,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, [], [| DList(_, items); DInt count |] ->
-          // The Dark version recursed one package call, one match and one `push` per element. There
+          // The Dark version recursed one package call, one match and one `prepend` per element. There
           // is no lambda here at all -- it is pure structure -- so nothing about it needed to be
           // interpreted.
           let n =
@@ -304,7 +304,7 @@ let fns () : List<BuiltInFn> =
               | [] -> ()
 
             // The element ValueType is merged from what was actually taken, not inherited from the
-            // source list. That is what the Dark version did -- it rebuilt the prefix with `push` --
+            // source list. That is what the Dark version did -- it rebuilt the prefix with `prepend` --
             // and a prefix can be narrower than the whole.
             Ply(mappedList vm (List.rev acc))
         | _ -> incorrectArgs ())
@@ -440,7 +440,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [], [| DList(vt, items); DApplicable app |] ->
-          // The Dark version recursed a package call, an Option match and a `push` per element on
+          // The Dark version recursed a package call, an Option match and a `prepend` per element on
           // top of the lambda application, and it is used widely enough for that to show up in a
           // profile of anything.
           //
@@ -506,7 +506,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, [], [| DList(_, listA); DList(_, listB) |] ->
-          // The Dark version recursed a package call, two matches and a `push` per element. There is
+          // The Dark version recursed a package call, two matches and a `prepend` per element. There is
           // no lambda here at all -- pairing is pure structure -- so unlike `map2shortest` this
           // needs no application per element either.
           let mutable acc = []
@@ -547,7 +547,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, [], [| DList(_, listA); DList(_, listB); DApplicable app |] ->
-          // The Dark version recursed with `pushBack`, which copies the accumulator every element,
+          // The Dark version recursed with `append`, which copies the accumulator every element,
           // so it was quadratic on top of the package call and the two-argument lambda application.
           // Built back to front and reversed once, as `listMap` and `listIndexedMap` do.
           match listA, listB with
@@ -723,7 +723,7 @@ let fns () : List<BuiltInFn> =
               current <- current - bigint 1
 
           // An empty range keeps an unknown element type, which is what the Dark version did: it
-          // returned the literal `[]`, and only `push` ever made it a `List<Int>`.
+          // returned the literal `[]`, and only `prepend` ever made it a `List<Int>`.
           if List.isEmpty items then
             Ply(DList(VT.unknown, []))
           else
@@ -949,7 +949,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "listAppend" 0
+    { name = fn "listConcat" 0
       typeParams = []
       parameters =
         [ Param.moved "as" (TList varA) ""; Param.moved "bs" (TList varA) "" ]
@@ -960,11 +960,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DList(vt1, l1); DList(vt2, l2) |] ->
-          // Both inputs are already-validated DLists, so their concatenation is valid iff their element
-          // types merge (O(1)) — no need to re-typecheck every element. This keeps `push` (= `append
-          // [x] list`), and therefore `map`/`filter`/`reverse`/every fold-built list op, O(n) instead of
-          // O(n²): re-validating the whole growing list on each push was quadratic. On a genuine type
-          // conflict, fall back to `DvalCreator.list` for the precise element-level error.
+          // Both lists are already valid, so the result is valid exactly when their element types
+          // merge, which is O(1). Re-checking every element would cost O(n) per call and make a list
+          // built by repeated concatenation O(n²). When the types conflict, `DvalCreator.list`
+          // re-checks the elements to name the one at fault.
           match VT.merge vt1 vt2 with
           | Ok merged -> Ply(DList(merged, List.append l1 l2))
           | Error() ->
@@ -975,7 +974,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "listPush" 0
+    { name = fn "listPrepend" 0
       typeParams = []
       parameters =
         [ Param.moved "list" (TList varA) ""; Param.moved "value" varA "" ]
@@ -995,7 +994,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "listPushBack" 0
+    { name = fn "listAppend" 0
       typeParams = []
       parameters =
         [ Param.moved "list" (TList varA) ""; Param.moved "value" varA "" ]
@@ -1004,7 +1003,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DList(vt, l); value |] ->
-          // Still O(n): a cons list has to be copied to append. Native for the same reason as `push`.
+          // Still O(n): a cons list has to be copied to append. Native for the same reason as `prepend`.
           match VT.merge vt (Dval.toValueType value) with
           | Ok merged -> Ply(DList(merged, l @ [ value ]))
           | Error() ->

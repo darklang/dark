@@ -3,11 +3,11 @@ module Darklang.Language.Tests.Lambdas
 // Separately written lambdas are unequal; a lambda equals itself.
 test lambdaEquality =
   Stdlib.Test.all
-    [ (Stdlib.List.push [] (fun x -> -4.611686018e+18)
+    [ (Stdlib.List.prepend [] (fun x -> -4.611686018e+18)
        == [ (fun x -> -4.611686018e+18) ])
       |> Stdlib.Test.equal false
       (let fn = fun x -> -4.611686018e+18
-       Stdlib.List.push [] fn == [ fn ])
+       Stdlib.List.prepend [] fn == [ fn ])
       |> Stdlib.Test.equal true ]
 
 test mapAndApply =

@@ -123,7 +123,7 @@ let createDocument (state: State) : State =
 
   let withDoc =
     { state with
-        documents = Stdlib.List.append state.documents [ doc ]
+        documents = Stdlib.List.append state.documents doc
         activeDocId = doc.id
         nextDocId = state.nextDocId + 1 }
 

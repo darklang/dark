@@ -27,7 +27,7 @@ let content () : String =
   - Integer / and ** can raise out-of-range runtime errors
   - Bitwise operators (& | ^ << >> ~) are traits; a Float operand says no implementation
   - Inside a match arm, `|` is the arm separator: write `| A -> (a | b)`
-  - List concat: use Stdlib.List.append
+  - List concat: use Stdlib.List.concat
 
 ## Enum errors
   - Option/Result expressions use bare `Some`, `None`, `Ok`, and `Error`

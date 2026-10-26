@@ -167,7 +167,7 @@ let shortenName
   (modules: List<String>)
   (name: String)
   : String =
-  let fullPath = Stdlib.List.push modules owner
+  let fullPath = Stdlib.List.prepend modules owner
 
   // `Option` / `Result` and nothing else: the resolver gives these an unconditional stdlib fallback.
   let isAlwaysBare =

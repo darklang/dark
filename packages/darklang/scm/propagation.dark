@@ -147,7 +147,7 @@ let authoringOrder
         | Some i -> Stdlib.List.take fromMain (i + 1)
         | None -> fromMain
 
-    Stdlib.List.append
+    Stdlib.List.concat
       mainUpToFork
       (fromBranch |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains mainUpToFork h)))
 

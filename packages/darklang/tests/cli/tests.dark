@@ -468,7 +468,7 @@ test harmfulGate =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let fnName = $"Tests.HarmGate.g{suffix}"
   let onMain (args: List<String>) : String =
-    runWithCommand (Stdlib.List.append [ "--branch", "main" ] args)
+    runWithCommand (Stdlib.List.concat [ "--branch", "main" ] args)
 
   let _ = onMain [ "fn", fnName, "(x: Int64) : Int64 = (x + 31L)" ]
 
@@ -639,18 +639,18 @@ test viewAst =
 
 
 test viewInstructions =
-  let output = runWithCommand ["view", "Stdlib.List.push", "--instructions"]
+  let output = runWithCommand ["view", "Stdlib.List.prepend", "--instructions"]
 
-  // `push` is a thin wrapper over a builtin, so it must load the builtin and apply it.
+  // `prepend` is a thin wrapper over a builtin, so it must load the builtin and apply it.
   if Stdlib.String.contains output "instructions"
     && Stdlib.String.contains output "registers"
     && Stdlib.String.contains output "LoadVal"
     && Stdlib.String.contains output "Apply"
-    && Stdlib.String.contains output "listPush"
+    && Stdlib.String.contains output "listPrepend"
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail $"Expected an instruction listing for List.push, got: {output}"
+    Stdlib.Test.fail $"Expected an instruction listing for List.prepend, got: {output}"
 
 
 test viewInstructionsShowsLambdas =
@@ -697,16 +697,16 @@ test viewCompilerViewsRejectNonFunctions =
 
 test viewFlagBeforePath =
   // Flags are position-independent; this is the ordering people actually type.
-  let output = runWithCommand ["view", "--ast", "Stdlib.List.push"]
+  let output = runWithCommand ["view", "--ast", "Stdlib.List.prepend"]
 
-  if Stdlib.String.contains output "push" && Stdlib.String.contains output "->" then
+  if Stdlib.String.contains output "prepend" && Stdlib.String.contains output "->" then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail $"Expected --ast to work before the path, got: {output}"
 
 
 test viewUnknownFlag =
-  let output = runWithCommand ["view", "Stdlib.List.push", "--nope"]
+  let output = runWithCommand ["view", "Stdlib.List.prepend", "--nope"]
 
   if Stdlib.String.contains output "does not take `--nope`"
     && Stdlib.String.contains output "dark view --help" then
@@ -728,10 +728,10 @@ test nativeListEdgeCases =
       ("Stdlib.List.getAt [] 0", "None")
       ("Stdlib.List.reverse [1,2,3]", "[3, 2, 1]")
       ("Stdlib.List.reverse []", "[]")
-      ("Stdlib.List.push [2,3] 1", "[1, 2, 3]")
-      ("Stdlib.List.push [] 1", "[1]")
-      ("Stdlib.List.pushBack [1,2] 3", "[1, 2, 3]")
-      ("Stdlib.List.pushBack [] 1", "[1]")
+      ("Stdlib.List.prepend [2,3] 1", "[1, 2, 3]")
+      ("Stdlib.List.prepend [] 1", "[1]")
+      ("Stdlib.List.append [1,2] 3", "[1, 2, 3]")
+      ("Stdlib.List.append [] 1", "[1]")
       ("Stdlib.List.flatten [[1,2],[3]]", "[1, 2, 3]")
       ("Stdlib.List.flatten []", "[]")
       ("Stdlib.List.flatten [[],[1],[]]", "[1]") ]
@@ -1074,7 +1074,7 @@ test editRefusesWhatItCannotEdit =
 test authoringAcceptsAQuotedSeparator =
   let branch = "cli-quoted-eq-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
-    runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
+    runWithCommand (Stdlib.List.concat [ "--branch", branch ] args)
 
   let body = "(x: Int64) : Int64 = (x * 2L)"
   let _ = runWithCommand [ "branch", "create", branch ]
@@ -1108,7 +1108,7 @@ test authoringAcceptsAQuotedSeparator =
 test authoringRefusesALowercaseModule =
   let branch = "cli-lowercase-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
-    runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
+    runWithCommand (Stdlib.List.concat [ "--branch", branch ] args)
 
   let _ = runWithCommand [ "branch", "create", branch ]
   let refused = run [ "fn", "/Tests.lower.f", "() : Int64 = 1L" ]
@@ -1175,7 +1175,7 @@ test treeRefusesWhatItCannotShow =
 test discardNeedsAnExplicitYes =
   let branch = "cli-discard-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
-    runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
+    runWithCommand (Stdlib.List.concat [ "--branch", branch ] args)
 
   let _ = runWithCommand [ "branch", "create", branch ]
   let _ = run [ "fn", "/Tests.Discard.a", "() : Int64 = 1L" ]

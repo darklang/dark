@@ -158,21 +158,21 @@ let fits (room: Int) (items: List<(Int * Mode * Doc)>) : Bool =
         | Flat -> Pretty.fits room rest
         | Break -> true
       | Concat(a, b) ->
-        Pretty.fits room (Stdlib.List.push (Stdlib.List.push rest ((i, m, b))) ((i, m, a)))
-      | Nest(j, x) -> Pretty.fits room (Stdlib.List.push rest ((i + j, m, x)))
-      | Group x -> Pretty.fits room (Stdlib.List.push rest ((i, m, x)))
+        Pretty.fits room (Stdlib.List.prepend (Stdlib.List.prepend rest ((i, m, b))) ((i, m, a)))
+      | Nest(j, x) -> Pretty.fits room (Stdlib.List.prepend rest ((i + j, m, x)))
+      | Group x -> Pretty.fits room (Stdlib.List.prepend rest ((i, m, x)))
 
 
 /// The output with the held-back line suffixes emitted, for where a line ends.
 let flushSuffixes (acc: List<String>) (pending: List<String>) : List<String> =
   match pending with
   | [] -> acc
-  | _ -> Stdlib.List.fold pending acc (fun a s -> Stdlib.List.push a s)
+  | _ -> Stdlib.List.fold pending acc (fun a s -> Stdlib.List.prepend a s)
 
 /// End the line: the held-back suffixes, the newline, then the next line's indentation.
 let breakLine (acc: List<String>) (pending: List<String>) (indent: Int) : List<String> =
-  Stdlib.List.push
-    (Stdlib.List.push (Pretty.flushSuffixes acc pending) "\n")
+  Stdlib.List.prepend
+    (Stdlib.List.prepend (Pretty.flushSuffixes acc pending) "\n")
     (Stdlib.String.repeat " " indent)
 
 
@@ -194,16 +194,16 @@ let renderLoop
     match d with
     | Empty -> Pretty.renderLoop width col acc pending rest
 
-    | LineSuffix s -> Pretty.renderLoop width col acc (Stdlib.List.pushBack pending s) rest
+    | LineSuffix s -> Pretty.renderLoop width col acc (Stdlib.List.append pending s) rest
 
     | Text s ->
-      Pretty.renderLoop width (col + (Stdlib.String.displayWidth s)) (Stdlib.List.push acc s) pending rest
+      Pretty.renderLoop width (col + (Stdlib.String.displayWidth s)) (Stdlib.List.prepend acc s) pending rest
 
     | Styled(opening, t, closing) ->
       Pretty.renderLoop
         width
         (col + (Stdlib.String.displayWidth t))
-        (Stdlib.List.push (Stdlib.List.push (Stdlib.List.push acc opening) t) closing)
+        (Stdlib.List.prepend (Stdlib.List.prepend (Stdlib.List.prepend acc opening) t) closing)
         pending
         rest
 
@@ -211,7 +211,7 @@ let renderLoop
 
     | Line ->
       match m with
-      | Flat -> Pretty.renderLoop width (col + 1) (Stdlib.List.push acc " ") pending rest
+      | Flat -> Pretty.renderLoop width (col + 1) (Stdlib.List.prepend acc " ") pending rest
       | Break -> Pretty.renderLoop width i (Pretty.breakLine acc pending i) [] rest
 
     | SoftLine ->
@@ -225,19 +225,19 @@ let renderLoop
         col
         acc
         pending
-        (Stdlib.List.push (Stdlib.List.push rest ((i, m, b))) ((i, m, a)))
+        (Stdlib.List.prepend (Stdlib.List.prepend rest ((i, m, b))) ((i, m, a)))
 
     | Nest(j, x) ->
-      Pretty.renderLoop width col acc pending (Stdlib.List.push rest ((i + j, m, x)))
+      Pretty.renderLoop width col acc pending (Stdlib.List.prepend rest ((i + j, m, x)))
 
     | Group x ->
       // The one decision this whole module exists to make.
-      let flat = Stdlib.List.push rest ((i, Mode.Flat, x))
+      let flat = Stdlib.List.prepend rest ((i, Mode.Flat, x))
 
       if Pretty.fits (width - col) flat then
         Pretty.renderLoop width col acc pending flat
       else
-        Pretty.renderLoop width col acc pending (Stdlib.List.push rest ((i, Mode.Break, x)))
+        Pretty.renderLoop width col acc pending (Stdlib.List.prepend rest ((i, Mode.Break, x)))
 
 
 /// Lay out `doc` for a page `width` columns wide.

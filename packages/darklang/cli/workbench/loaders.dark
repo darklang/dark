@@ -305,13 +305,13 @@ let renderDiffLines (lines: List<Stdlib.Diff.DiffLine>) (state: State) : List<St
       match dl with
       | Same _ ->
         let code = Stdlib.List.getAt newSide n |> Stdlib.Option.withDefault (textOf dl)
-        (o + 1, n + 1, Stdlib.List.append done_ [ "  " + code ])
+        (o + 1, n + 1, Stdlib.List.append done_ ("  " + code))
       | Added _ ->
         let code = Stdlib.List.getAt newSide n |> Stdlib.Option.withDefault (textOf dl)
-        (o, n + 1, Stdlib.List.append done_ [ wash Stdlib.Cli.UI.Colors.faintGreenBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.green + Stdlib.Cli.UI.Colors.bold) "+ ") code ])
+        (o, n + 1, Stdlib.List.append done_ (wash Stdlib.Cli.UI.Colors.faintGreenBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.green + Stdlib.Cli.UI.Colors.bold) "+ ") code))
       | Removed _ ->
         let code = Stdlib.List.getAt oldSide o |> Stdlib.Option.withDefault (textOf dl)
-        (o + 1, n, Stdlib.List.append done_ [ wash Stdlib.Cli.UI.Colors.faintRedBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.red + Stdlib.Cli.UI.Colors.bold) "- ") code ]))
+        (o + 1, n, Stdlib.List.append done_ (wash Stdlib.Cli.UI.Colors.faintRedBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.red + Stdlib.Cli.UI.Colors.bold) "- ") code)))
   out
 
 /// A real old-vs-new SOURCE diff for one draft item.
@@ -392,7 +392,7 @@ let changedItemDetail (state: State) : List<String> =
     let refs = Stdlib.String.split (referencesText state mods leaf item.kind) "\n"
     Stdlib.List.flatten
       [ diff
-        (if Stdlib.List.isEmpty access then [] else Stdlib.List.append [ "" ] access)
+        (if Stdlib.List.isEmpty access then [] else Stdlib.List.prepend access "")
         [ "" ]
         refs ]
 
@@ -450,8 +450,8 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
         exactMatch = false }
   let r = LanguageTools.PackageManager.Search.search branchId query
   let hit (tag: String) (location: LanguageTools.ProgramTypes.PackageLocation) : SearchHit =
-    let modules = Stdlib.List.append [ location.owner ] location.modules
-    let full = Stdlib.String.join (Stdlib.List.append modules [ location.name ]) "."
+    let modules = Stdlib.List.prepend location.modules location.owner
+    let full = Stdlib.String.join (Stdlib.List.append modules location.name) "."
     SearchHit { modules = modules, name = location.name, kind = tag, display = "  " + tag + "  " + full }
   // Rank by how well the LEAF NAME matches, because the search also matches descriptions and those hits
   // otherwise interleave alphabetically with the real ones: searching `toUppercase` put
@@ -538,13 +538,13 @@ let referencesFrom
           "  " + (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn here sLoc))
     // Capped: `List.map` has hundreds of dependents, and a page is for reading, not scrolling to
     // the end of. The command prints them all.
-    let fqn = Stdlib.String.join (Stdlib.List.append modulePath [ leaf ]) "."
+    let fqn = Stdlib.String.join (Stdlib.List.append modulePath leaf) "."
     let capped (n: Int) (lines: List<String>) : List<String> =
       if n <= referenceCap then lines
       else
         Stdlib.List.append
           (Stdlib.List.take lines referenceCap)
-          [ Stdlib.Cli.UI.Colors.dimText ("  + " + (Stdlib.toString (n - referenceCap)) + " more · :deps " + fqn + " lists them all") ]
+          (Stdlib.Cli.UI.Colors.dimText ("  + " + (Stdlib.toString (n - referenceCap)) + " more · :deps " + fqn + " lists them all"))
     // No item name here: `inspectPageLines` composes this under a page already headed by that
     // item's source, so including it printed the name twice on one screen.
     let heading (label: String) (n: Int) : String =
@@ -692,7 +692,7 @@ let refreshPeek (next: State) : State =
       | Some item ->
         if (Stdlib.Bool.not item.isModule) && (item.kind == "fn") && (item.name == "render") then
           let fullpath =
-            Stdlib.String.join (Stdlib.List.append (Packages.modulePathOf next.location) [ item.name ]) "."
+            Stdlib.String.join (Stdlib.List.append (Packages.modulePathOf next.location) item.name) "."
           captureOutput (fun () ->
             Eval.evaluateRaw next.accountId next.branchId (fullpath + " ()") [] false)
         else

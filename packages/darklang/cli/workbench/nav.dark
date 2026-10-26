@@ -39,7 +39,7 @@ let moveToPoint (state: State) (point: ReturnPoint) (recordHistory: Bool) : Stat
   let here = returnPointOf state
   let back =
     if recordHistory && (here != point) then
-      Stdlib.List.take (Stdlib.List.push state.back here) backCap
+      Stdlib.List.take (Stdlib.List.prepend state.back here) backCap
     else state.back
   let dest = mkDest point.view 0
   let ws = workspaceOf dest
@@ -55,7 +55,7 @@ let moveToPoint (state: State) (point: ReturnPoint) (recordHistory: Bool) : Stat
           Stdlib.List.append
             (state.wsLast |> Stdlib.List.filter (fun pair ->
               let (i, _d) = pair in i != ws))
-            [ (ws, dest) ] }
+            (ws, dest) }
   let items = reloadItems restored
   let selected =
     Stdlib.max 0
@@ -99,7 +99,7 @@ let descend (state: State) : Step =
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
     if item.isModule then
-      let path = Stdlib.List.append (Packages.modulePathOf state.location) [ item.name ]
+      let path = Stdlib.List.append (Packages.modulePathOf state.location) item.name
       let point =
         { (returnPointOf state) with
             location = Packages.PackageLocation.Module path

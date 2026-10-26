@@ -60,15 +60,15 @@ let listRecursive (path: String) : Result.Result<List<String>, Posix.Error> =
           match Posix.isSymlink fullPath with
           | Error e -> Stdlib.Result.Result.Error e
           | Ok true ->
-            Stdlib.Result.Result.Ok(Stdlib.List.push collected fullPath)
+            Stdlib.Result.Result.Ok(Stdlib.List.prepend collected fullPath)
           | Ok false ->
             if Posix.isDirectory fullPath then
               match listRecursive fullPath with
               | Ok subEntries ->
-                Stdlib.Result.Result.Ok(Stdlib.List.append subEntries collected)
+                Stdlib.Result.Result.Ok(Stdlib.List.concat subEntries collected)
               | Error e -> Stdlib.Result.Result.Error e
             else
-              Stdlib.Result.Result.Ok(Stdlib.List.push collected fullPath)
+              Stdlib.Result.Result.Ok(Stdlib.List.prepend collected fullPath)
         | Error e -> Stdlib.Result.Result.Error e)
 
     result |> Stdlib.Result.map (fun items -> Stdlib.List.reverse items)
@@ -129,18 +129,18 @@ let walk (path: String) : Result.Result<List<String>, Posix.Error> =
           match Posix.isSymlink fullPath with
           | Error e -> Stdlib.Result.Result.Error e
           | Ok true ->
-            Stdlib.Result.Result.Ok(Stdlib.List.push collected fullPath)
+            Stdlib.Result.Result.Ok(Stdlib.List.prepend collected fullPath)
           | Ok false ->
             if Posix.isDirectory fullPath then
               match walk fullPath with
               | Ok subEntries ->
                 Stdlib.Result.Result.Ok(
-                  Stdlib.List.append
+                  Stdlib.List.concat
                     subEntries
-                    (Stdlib.List.push collected fullPath))
+                    (Stdlib.List.prepend collected fullPath))
               | Error e -> Stdlib.Result.Result.Error e
             else
-              Stdlib.Result.Result.Ok(Stdlib.List.push collected fullPath)
+              Stdlib.Result.Result.Ok(Stdlib.List.prepend collected fullPath)
         | Error e -> Stdlib.Result.Result.Error e)
 
     result |> Stdlib.Result.map (fun items -> Stdlib.List.reverse items)

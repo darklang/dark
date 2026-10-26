@@ -30,7 +30,7 @@ let parsePath (pathStr: String) : List<PathSegment> =
       |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
 
     // If path ended with dot, add empty string to indicate completion at that level
-    let finalParts = if endsWithDot then Stdlib.List.append parts [""] else parts
+    let finalParts = if endsWithDot then Stdlib.List.append parts "" else parts
 
     let segments =
       finalParts
@@ -43,7 +43,7 @@ let parsePath (pathStr: String) : List<PathSegment> =
 
     if Stdlib.String.startsWith pathStr "/" then
       // Absolute path from root
-      Stdlib.List.append [PathSegment.Root] segments
+      Stdlib.List.prepend segments PathSegment.Root
     else
       segments
 
@@ -51,17 +51,17 @@ let parsePath (pathStr: String) : List<PathSegment> =
 let getCurrentModulePath (location: PackageLocation) : List<String> =
   match location with
   | Module path -> path
-  | Type t -> Stdlib.List.append [t.owner] t.modules
-  | Value v -> Stdlib.List.append [v.owner] v.modules
-  | Function f -> Stdlib.List.append [f.owner] f.modules
-  | Trait t -> Stdlib.List.append [t.owner] t.modules
+  | Type t -> Stdlib.List.prepend t.modules t.owner
+  | Value v -> Stdlib.List.prepend v.modules v.owner
+  | Function f -> Stdlib.List.prepend f.modules f.owner
+  | Trait t -> Stdlib.List.prepend t.modules t.owner
   // An implementation's methods are ordinary fns in a module named for the implementation, so
   // the module you are "in" when you are at one INCLUDES its name. Without this, descending a
   // path past an implementation silently dropped that segment and `view Stdlib.Int64.Add.add`
   // reported "Not found: (+)", a name nobody typed.
   | Impl i ->
-    Stdlib.List.append (Stdlib.List.append [i.owner] i.modules) [i.name]
-  | Test test -> Stdlib.List.append [test.owner] test.modules
+    Stdlib.List.append (Stdlib.List.prepend i.modules i.owner) i.name
+  | Test test -> Stdlib.List.prepend test.modules test.owner
 
 
 let applySegment
@@ -98,7 +98,7 @@ let resolveEntity
   (name: String)
   : Stdlib.Result.Result<PackageLocation, String> =
   // First see if it's a module
-  let modulePath = Stdlib.List.append basePath [name]
+  let modulePath = Stdlib.List.append basePath name
   let moduleResults = Query.allDirectDescendants branchId modulePath
 
   let isAModule = Query.hasContent moduleResults
@@ -144,7 +144,7 @@ let resolveEntity
                 // The path, not just "Not found": that same sentence otherwise covers a
                 // typo, an unauthored name, and a path resolved from somewhere unexpected.
                 let looked =
-                  Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
+                  Stdlib.String.join (Stdlib.List.append basePath name) "."
 
                 Stdlib.Result.Result.Error $"Not found: {looked}"
 
@@ -263,7 +263,7 @@ let getAvailableItems
         (searchModulesByPrefix branchId prefixText)
         |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Module name)
 
-      let combined = Stdlib.List.append primaryResults fallbackResults
+      let combined = Stdlib.List.concat primaryResults fallbackResults
       combined |> Stdlib.List.sortBy (fun item -> item.value)
   | _ ->
     primaryResults

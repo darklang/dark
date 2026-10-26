@@ -10,5 +10,5 @@ Stdlib.Cli.File.__watchLinux "/does-not-exist" 10 (fun _ -> true) (fun _ -> ()) 
 Stdlib.Cli.Dir.withTemp (fun dir -> let path = $"{dir}/watch" in let wrote = Stdlib.Cli.File.writeText path "x" in let watched = Stdlib.Cli.File.watch path 0.0 (fun () -> true) (fun () -> ()) in (wrote, watched) == (Ok (), Ok ())) = Ok true
 Stdlib.Cli.File.__watchVnodeEvents [] 0 false false = Ok ((false, false))
 Stdlib.Cli.File.__watchVnodeEvents [0uy] 1 false false = Error 5
-Stdlib.Cli.File.__watchVnodeEvents (Stdlib.List.append [1uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,252uy,255uy,0uy,0uy,2uy,0uy,0uy,0uy] (Stdlib.List.repeatUnsafe 16 0uy)) 32 false false = Ok ((true, false))
-Stdlib.Cli.File.__watchVnodeEvents (Stdlib.List.append [1uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,252uy,255uy,0uy,0uy,32uy,0uy,0uy,0uy] (Stdlib.List.repeatUnsafe 16 0uy)) 32 false false = Ok ((true, true))
+Stdlib.Cli.File.__watchVnodeEvents (Stdlib.List.concat [1uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,252uy,255uy,0uy,0uy,2uy,0uy,0uy,0uy] (Stdlib.List.repeatUnsafe 16 0uy)) 32 false false = Ok ((true, false))
+Stdlib.Cli.File.__watchVnodeEvents (Stdlib.List.concat [1uy,0uy,0uy,0uy,0uy,0uy,0uy,0uy,252uy,255uy,0uy,0uy,32uy,0uy,0uy,0uy] (Stdlib.List.repeatUnsafe 16 0uy)) 32 false false = Ok ((true, true))

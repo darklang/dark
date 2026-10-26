@@ -33,10 +33,10 @@ let buildTable (oldLines: List<String>) (newLines: List<String>) : List<List<Int
               else if above >= left then above
               else left
 
-            (rest, cell, Stdlib.List.push row cell)
+            (rest, cell, Stdlib.List.prepend row cell)
           | [] -> (prev, left, row))
 
-      (Stdlib.List.reverse row, Stdlib.List.push rows row))
+      (Stdlib.List.reverse row, Stdlib.List.prepend rows row))
 
   rows
 
@@ -64,9 +64,9 @@ let trace
   match (oldRev, newRev) with
   | ([], []) -> acc
   | ([], _) ->
-    Stdlib.List.fold newRev acc (fun acc n -> Stdlib.List.push acc (DiffLine.Added n))
+    Stdlib.List.fold newRev acc (fun acc n -> Stdlib.List.prepend acc (DiffLine.Added n))
   | (_, []) ->
-    Stdlib.List.fold oldRev acc (fun acc o -> Stdlib.List.push acc (DiffLine.Removed o))
+    Stdlib.List.fold oldRev acc (fun acc o -> Stdlib.List.prepend acc (DiffLine.Removed o))
   | (o :: oldRest, n :: newRest) ->
     let restRest = Stdlib.List.drop rest 1
 
@@ -79,7 +79,7 @@ let trace
         (Stdlib.List.drop prevRow 1)
         (rowAbove (i - 1))
         restRest
-        (Stdlib.List.push acc (DiffLine.Same o))
+        (Stdlib.List.prepend acc (DiffLine.Same o))
     else
       let up = Stdlib.Option.withDefault (Stdlib.List.head prevRow) 0
       let left = Stdlib.Option.withDefault (Stdlib.List.getAt row 1) 0
@@ -93,7 +93,7 @@ let trace
           prevRow
           (rowAbove i)
           restRest
-          (Stdlib.List.push acc (DiffLine.Added n))
+          (Stdlib.List.prepend acc (DiffLine.Added n))
       else
         trace
           width
@@ -103,7 +103,7 @@ let trace
           (Stdlib.List.drop row 1)
           (Stdlib.List.drop prevRow 1)
           rest
-          (Stdlib.List.push acc (DiffLine.Removed o))
+          (Stdlib.List.prepend acc (DiffLine.Removed o))
 
 /// Compute a line-based diff between two strings.
 let lines (oldText: String) (newText: String) : List<DiffLine> =

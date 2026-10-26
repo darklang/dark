@@ -147,7 +147,7 @@ let finish
         let among (t: Stdlib.Option.Option<Model.Ty>) : List<Model.Var> =
           Stdlib.List.flatten (Stdlib.List.map (Stdlib.Option.toList t) unsolved)
 
-        Stdlib.List.append (among finding.expected) (among finding.actual)
+        Stdlib.List.concat (among finding.expected) (among finding.actual)
 
   let diagnostics =
     Stdlib.List.filter findings (fun f -> Stdlib.Bool.not (Types.isWarning f.code))
@@ -155,7 +155,7 @@ let finish
   // Report these unresolved types once per source node. Solver-created unknowns
   // have no source node of their own, so use the declaration's body node instead.
   let origins =
-    (Stdlib.List.append
+    (Stdlib.List.concat
       (unsolved scheme.typ)
       (Stdlib.List.flatten (Stdlib.List.map diagnostics unsolvedIn)))
     |> Stdlib.List.map (fun v ->
@@ -172,7 +172,7 @@ let finish
         (Context.Ambiguous AmbiguousSubject.ItemType))
 
   let warnings =
-    Stdlib.List.append
+    Stdlib.List.concat
       (Stdlib.List.filter findings (fun f -> Types.isWarning f.code))
       ambiguities
 
@@ -180,7 +180,7 @@ let finish
   // when a separate, definite error makes the declaration Failed.
   let (diagnostics, provisional) =
     Stdlib.List.partition diagnostics (fun d -> Stdlib.List.isEmpty (unsolvedIn d))
-  let warnings = Stdlib.List.append warnings provisional
+  let warnings = Stdlib.List.concat warnings provisional
 
   let verdict =
     if Stdlib.Bool.not (Stdlib.List.isEmpty diagnostics) then Verdict.Failed
@@ -444,7 +444,7 @@ let checkValues
   let (pending, outcomes) =
     Stdlib.List.fold values ([], Dict {}) (fun (pending, outcomes) value ->
       match guard prepareValue value with
-      | Ok p -> (Stdlib.List.push pending p, outcomes)
+      | Ok p -> (Stdlib.List.prepend pending p, outcomes)
       | Error failure ->
         let outcome = checkerFailureOutcome (bodyNodeId value.body) failure
         (pending, Stdlib.Dict.set outcomes value.hash outcome))
@@ -553,7 +553,7 @@ let checkBatchWithEnv
   let (env, fnResults) =
     Stdlib.List.fold fns (env, []) (fun (env, results) fn ->
       let signatureTypes =
-        Stdlib.List.push
+        Stdlib.List.prepend
           (Stdlib.List.map fn.parameters (fun p -> p.typ))
           fn.returnType
 
@@ -574,7 +574,7 @@ let checkBatchWithEnv
             guardItem (bodyNodeId fn.body) env (fun env ->
               checkFunctionKnowing env fn duplicate)
       let item = LanguageTools.ProgramTypes.Reference.PackageFn fn.hash
-      (env, Stdlib.List.push results (item, outcome)))
+      (env, Stdlib.List.prepend results (item, outcome)))
 
   (env,
    Stdlib.List.flatten

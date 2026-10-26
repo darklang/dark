@@ -128,7 +128,7 @@ module History =
   let addCommand (state: State) (command: String) : State =
     let updatedHistory =
       if Stdlib.List.isEmpty state.commandHistory || Stdlib.List.head state.commandHistory != Stdlib.Option.Option.Some command then
-        Stdlib.List.append [command] state.commandHistory
+        Stdlib.List.prepend state.commandHistory command
       else
         state.commandHistory
     { state with

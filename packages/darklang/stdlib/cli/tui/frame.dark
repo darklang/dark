@@ -30,7 +30,7 @@ let changedRowsFrom
       if previous == next then
         changes
       else
-        Stdlib.List.push changes (RowChange { row = row, content = next })
+        Stdlib.List.prepend changes (RowChange { row = row, content = next })
 
     changedRowsFrom (row + 1) previousTail nextTail changes
   | _previous :: previousTail, [] ->
@@ -38,13 +38,13 @@ let changedRowsFrom
       (row + 1)
       previousTail
       []
-      (Stdlib.List.push changes (RowChange { row = row, content = "" }))
+      (Stdlib.List.prepend changes (RowChange { row = row, content = "" }))
   | [], next :: nextTail ->
     changedRowsFrom
       (row + 1)
       []
       nextTail
-      (Stdlib.List.push changes (RowChange { row = row, content = next }))
+      (Stdlib.List.prepend changes (RowChange { row = row, content = next }))
 
 
 /// Return complete rows whose content changed.
@@ -73,19 +73,19 @@ let fullRedrawRowsFrom
       (row + 1)
       previousTail
       nextTail
-      (Stdlib.List.push changes (RowChange { row = row, content = next }))
+      (Stdlib.List.prepend changes (RowChange { row = row, content = next }))
   | _previous :: previousTail, [] ->
     fullRedrawRowsFrom
       (row + 1)
       previousTail
       []
-      (Stdlib.List.push changes (RowChange { row = row, content = "" }))
+      (Stdlib.List.prepend changes (RowChange { row = row, content = "" }))
   | [], next :: nextTail ->
     fullRedrawRowsFrom
       (row + 1)
       []
       nextTail
-      (Stdlib.List.push changes (RowChange { row = row, content = next }))
+      (Stdlib.List.prepend changes (RowChange { row = row, content = next }))
 
 
 /// Return every next row plus empty changes for rows that disappeared.

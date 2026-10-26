@@ -205,7 +205,7 @@ let policyLinesForHash (hash: String) : List<String> =
           + Command.requirementSummary exceeding
           + ", which the ceiling denies at runtime" ]
       else []
-    Stdlib.List.append [ requirementsLine, $"function ceiling: {row}" ] warning
+    Stdlib.List.concat [ requirementsLine, $"function ceiling: {row}" ] warning
 
 /// A policy as rule lines; an empty policy is spelled out as `deny all`.
 let policyLines (policy: LanguageTools.Permissions.Policy) : List<String> =
@@ -246,14 +246,14 @@ let renderAccessReport (facts: Command.AccessReportFacts) : List<String> =
   let packageLines =
     match facts.packagePolicy with
     | Some policy ->
-      Stdlib.List.append
-        [ "  package approval policy:" ]
+      Stdlib.List.prepend
         (Command.indentedPolicyLines policy)
+        "  package approval policy:"
     | None -> []
   let instanceLines =
-    Stdlib.List.append
-      [ "  instance policy:" ]
+    Stdlib.List.prepend
       (Command.indentedPolicyLines facts.instancePolicy)
+      "  instance policy:"
   let effective =
     if facts.bundled then
       "checked per operation: instance ∩ run ∩ function ceiling"
@@ -496,9 +496,9 @@ let describeApprovalRules
   match rules with
   | None -> []
   | Some policy ->
-    Stdlib.List.append
-      [ "  approved under these rules (the package and everything it calls):" ]
+    Stdlib.List.prepend
       (Command.indentedPolicyLines policy)
+      "  approved under these rules (the package and everything it calls):"
 
 let approvalFailureText (failure: LanguageTools.Permissions.ApprovalFailure) : String =
   match failure with

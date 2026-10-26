@@ -35,7 +35,7 @@ val readEffects =
 
 /// Kept aligned with the host's defaultInstance by the CLI integration test.
 val defaultEffects =
-  Stdlib.List.append
+  Stdlib.List.concat
     Profiles.readEffects
     [ LanguageTools.Permissions.Effect.DbWrite
       LanguageTools.Permissions.Effect.TraceWrite
@@ -66,10 +66,10 @@ let usage (profile: Profiles.Profile) : String =
   + " [--yes]"
 
 val listing =
-  Stdlib.List.append
-    [ "Permission profiles (preview first; --yes applies):" ]
+  Stdlib.List.prepend
     (Profiles.all |> Stdlib.List.map (fun profile ->
       "  " + Profiles.usage profile + "\n    " + profile.description))
+    "Permission profiles (preview first; --yes applies):"
 
 /// Validate the complete command before constructing a policy. The root stays
 /// a single typed field, so quotes, spaces and semicolons cannot inject rules.
@@ -109,5 +109,5 @@ let resolve
               LanguageTools.Permissions.Rule.Effect
                 LanguageTools.Permissions.Effect.Runtime ]
         Stdlib.Result.Result.Ok
-          { policy with allow = Stdlib.List.append policy.allow rules }
+          { policy with allow = Stdlib.List.concat policy.allow rules }
     | _ -> Stdlib.Result.Result.Error ("usage: " + Profiles.usage profile)

@@ -31,8 +31,8 @@ test boolNot =
 test listLength =
   check "list length" (Stdlib.toString (Stdlib.List.length [ 1, 2, 3 ])) "3"
 
-test listAppend =
-  check "list append" (Stdlib.toString (Stdlib.List.length (Stdlib.List.append [ 1, 2 ] [ 3 ]))) "3"
+test listConcat =
+  check "list concat" (Stdlib.toString (Stdlib.List.length (Stdlib.List.concat [ 1, 2 ] [ 3 ]))) "3"
 
 test stringAppend =
   check "string append" ("a" + "b") "ab"

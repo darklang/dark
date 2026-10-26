@@ -36,7 +36,7 @@ let letPattern (pat: LanguageTools.ProgramTypes.LetPattern) : String =
   | LPUnit _ -> "()"
   | LPTuple(_, first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first, second ] theRest)
+      (Stdlib.List.concat [ first, second ] theRest)
       |> Stdlib.List.map (fun p -> letPattern p)
       |> Stdlib.String.join ", "
     $"({parts})"
@@ -70,7 +70,7 @@ let matchPattern (pat: LanguageTools.ProgramTypes.MatchPattern) : String =
   | MPListCons(_, head, tail) -> $"{matchPattern head} :: {matchPattern tail}"
   | MPTuple(_, first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first, second ] theRest)
+      (Stdlib.List.concat [ first, second ] theRest)
       |> Stdlib.List.map (fun p -> matchPattern p)
       |> Stdlib.String.join ", "
     $"({parts})"
@@ -142,20 +142,20 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
         match seg with
         | StringText t -> [ line (depth + 1) "Text" ("\"" + (clip t) + "\"") ]
         | StringInterpolation e ->
-          Stdlib.List.append
-            [ line (depth + 1) "Interpolation" "" ]
-            (expr ctx (depth + 2) e))
+          Stdlib.List.prepend
+            (expr ctx (depth + 2) e)
+            (line (depth + 1) "Interpolation" ""))
       |> Stdlib.List.flatten
-    Stdlib.List.append (here "String" "") segLines
+    Stdlib.List.concat (here "String" "") segLines
 
   | EIf(_, cond, thenExpr, elseExpr) ->
     let elseLines =
       match elseExpr with
       | None -> []
       | Some e ->
-        Stdlib.List.append
-          [ line (depth + 1) "else" "" ]
+        Stdlib.List.prepend
           (expr ctx (depth + 2) e)
+          (line (depth + 1) "else" "")
     Stdlib.List.flatten
       [ here "If" ""
         [ line (depth + 1) "cond" "" ]
@@ -169,7 +169,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
 
   | EList(_, items) ->
     let n = Stdlib.toString (Stdlib.List.length items)
-    Stdlib.List.append (here "List" $"{n} items") (children items)
+    Stdlib.List.concat (here "List" $"{n} items") (children items)
 
   | EDict(_, pairs) ->
     let n = Stdlib.toString (Stdlib.List.length pairs)
@@ -177,14 +177,14 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
       pairs
       |> Stdlib.List.map (fun pair ->
         let (key, value) = pair
-        Stdlib.List.append (expr ctx (depth + 1) key) (expr ctx (depth + 2) value))
+        Stdlib.List.concat (expr ctx (depth + 1) key) (expr ctx (depth + 2) value))
       |> Stdlib.List.flatten
-    Stdlib.List.append (here "Dict" $"{n} entries") pairLines
+    Stdlib.List.concat (here "Dict" $"{n} entries") pairLines
 
   | ETuple(_, first, second, theRest) ->
-    Stdlib.List.append
+    Stdlib.List.concat
       (here "Tuple" "")
-      (children (Stdlib.List.append [ first, second ] theRest))
+      (children (Stdlib.List.concat [ first, second ] theRest))
 
   | EApply(_, fn, typeArgs, args) ->
     Stdlib.List.flatten
@@ -195,17 +195,17 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
   | ELambda(_, pats, body) ->
     let ps =
       (Stdlib.List.map pats (fun p -> letPattern p)) |> Stdlib.String.join " "
-    Stdlib.List.append (here "Lambda" ps) (child body)
+    Stdlib.List.concat (here "Lambda" ps) (child body)
 
   | EInfix(_, op, lhs, rhs, _) ->
     let opStr = PrettyPrinter.ProgramTypes.infix op
     Stdlib.List.flatten [ here "Infix" opStr, child lhs, child rhs ]
 
   | ERecordFieldAccess(_, record, fieldName) ->
-    Stdlib.List.append (here "RecordFieldAccess" $".{fieldName}") (child record)
+    Stdlib.List.concat (here "RecordFieldAccess" $".{fieldName}") (child record)
 
   | EUnwrap(_, operand) ->
-    Stdlib.List.append (here "Unwrap" "?") (child operand)
+    Stdlib.List.concat (here "Unwrap" "?") (child operand)
 
   | EStatement(_, first, next) ->
     Stdlib.List.flatten [ here "Statement" "", child first, child next ]
@@ -219,9 +219,9 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
           match c.whenCondition with
           | None -> []
           | Some g ->
-            Stdlib.List.append
-              [ line (depth + 2) "when" "" ]
+            Stdlib.List.prepend
               (expr ctx (depth + 3) g)
+              (line (depth + 2) "when" "")
         Stdlib.List.flatten
           [ [ line (depth + 1) "case" (matchPattern c.pat) ]
             guardLines
@@ -233,7 +233,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
     | [ only ] ->
       let scrutinee =
         if only.detail == "" then only.label else $"{only.label} {only.detail}"
-      Stdlib.List.append (here "Match" $"on {scrutinee}, {n} cases") caseLines
+      Stdlib.List.concat (here "Match" $"on {scrutinee}, {n} cases") caseLines
     | argLines -> Stdlib.List.flatten [ here "Match" $"{n} cases", argLines, caseLines ]
 
   | ERecord(_, typeName, typeArgs, fields) ->
@@ -242,11 +242,11 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
       fields
       |> Stdlib.List.map (fun pair ->
         let (name, value) = pair
-        Stdlib.List.append
-          [ line (depth + 1) "field" name ]
-          (expr ctx (depth + 2) value))
+        Stdlib.List.prepend
+          (expr ctx (depth + 2) value)
+          (line (depth + 1) "field" name))
       |> Stdlib.List.flatten
-    Stdlib.List.append
+    Stdlib.List.concat
       (here "Record" (n + (typeArgsSuffix ctx typeArgs)))
       fieldLines
 
@@ -255,9 +255,9 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
       updates
       |> Stdlib.List.map (fun pair ->
         let (name, value) = pair
-        Stdlib.List.append
-          [ line (depth + 1) "field" name ]
-          (expr ctx (depth + 2) value))
+        Stdlib.List.prepend
+          (expr ctx (depth + 2) value)
+          (line (depth + 1) "field" name))
       |> Stdlib.List.flatten
     Stdlib.List.flatten
       [ here "RecordUpdate" "", child record, updateLines ]
@@ -265,7 +265,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
   | EEnum(_, typeName, typeArgs, caseName, fields) ->
     let n = PrettyPrinter.ProgramTypes.NameResolution.typeName ctx typeName
     let ta = typeArgsSuffix ctx typeArgs
-    Stdlib.List.append (here "Enum" $"{n}{ta}.{caseName}") (children fields)
+    Stdlib.List.concat (here "Enum" $"{n}{ta}.{caseName}") (children fields)
 
   | EPipe(_, lhs, parts) ->
     let n = Stdlib.toString (Stdlib.List.length parts)
@@ -280,37 +280,37 @@ let pipeExpr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (p: Language
   | EPipeLambda(_, pats, body) ->
     let ps =
       (Stdlib.List.map pats (fun p -> letPattern p)) |> Stdlib.String.join " "
-    Stdlib.List.append
-      [ line depth "PipeLambda" ps ]
+    Stdlib.List.prepend
       (expr ctx (depth + 1) body)
+      (line depth "PipeLambda" ps)
 
   | EPipeInfix(_, op, e, _) ->
     let opStr = PrettyPrinter.ProgramTypes.infix op
-    Stdlib.List.append
-      [ line depth "PipeInfix" opStr ]
+    Stdlib.List.prepend
       (expr ctx (depth + 1) e)
+      (line depth "PipeInfix" opStr)
 
   | EPipeFnCall(_, name, typeArgs, args, _) ->
     let n = PrettyPrinter.ProgramTypes.NameResolution.fnName ctx name
     let argLines =
       (Stdlib.List.map args (fun a -> expr ctx (depth + 1) a))
       |> Stdlib.List.flatten
-    Stdlib.List.append
-      [ line depth "PipeFnCall" (n + (typeArgsSuffix ctx typeArgs)) ]
+    Stdlib.List.prepend
       argLines
+      (line depth "PipeFnCall" (n + (typeArgsSuffix ctx typeArgs)))
 
   | EPipeEnum(_, typeName, caseName, fields) ->
     let n = PrettyPrinter.ProgramTypes.NameResolution.typeName ctx typeName
     let fieldLines =
       (Stdlib.List.map fields (fun f -> expr ctx (depth + 1) f))
       |> Stdlib.List.flatten
-    Stdlib.List.append [ line depth "PipeEnum" $"{n}.{caseName}" ] fieldLines
+    Stdlib.List.prepend fieldLines (line depth "PipeEnum" $"{n}.{caseName}")
 
   | EPipeVariable(_, varName, args) ->
     let argLines =
       (Stdlib.List.map args (fun a -> expr ctx (depth + 1) a))
       |> Stdlib.List.flatten
-    Stdlib.List.append [ line depth "PipeVariable" varName ] argLines
+    Stdlib.List.prepend argLines (line depth "PipeVariable" varName)
 
 
 /// A whole function: signature first, then the body tree.

@@ -53,14 +53,14 @@ let formatHintsFitted
       if stopped then
         (sofar, true)
       else
-        let candidate = Stdlib.List.append sofar [ p ]
+        let candidate = Stdlib.List.append sofar p
 
         if (Stdlib.String.displayWidth (plainOf candidate)) <= room then
           (candidate, false)
         else
           (sofar, true))
 
-  formatHints (Stdlib.List.append fitted keep)
+  formatHints (Stdlib.List.concat fitted keep)
 
 /// Render a one-row, pre-colored key-hint bar at the bottom of the body. The string is already styled
 /// (see `formatHints`), so this just indents + places it.

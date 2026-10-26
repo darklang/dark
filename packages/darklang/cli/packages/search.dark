@@ -185,7 +185,7 @@ let contextFor
   (branchId: Uuid)
   (item: LanguageTools.ProgramTypes.LocatedItem<'a>)
   : PrettyPrinter.ProgramTypes.Context =
-  let modulePath = Stdlib.List.append [item.location.owner] item.location.modules
+  let modulePath = Stdlib.List.prepend item.location.modules item.location.owner
   Signatures.rootContext branchId modulePath
 
 
@@ -258,23 +258,23 @@ let parseArgs (args: List<String>) : ParsedArgs =
       | "--type" ->
         Stdlib.List.append
           acc
-          [ LanguageTools.ProgramTypes.Search.EntityType.Type ]
+          LanguageTools.ProgramTypes.Search.EntityType.Type
       | "--fn" ->
-        Stdlib.List.append acc [ LanguageTools.ProgramTypes.Search.EntityType.Fn ]
+        Stdlib.List.append acc LanguageTools.ProgramTypes.Search.EntityType.Fn
       | "--val" ->
         Stdlib.List.append
           acc
-          [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
+          LanguageTools.ProgramTypes.Search.EntityType.Value
       | "--trait" ->
         Stdlib.List.append
           acc
-          [ LanguageTools.ProgramTypes.Search.EntityType.Trait ]
+          LanguageTools.ProgramTypes.Search.EntityType.Trait
       | "--impl" ->
         Stdlib.List.append
           acc
-          [ LanguageTools.ProgramTypes.Search.EntityType.TraitImpl ]
+          LanguageTools.ProgramTypes.Search.EntityType.TraitImpl
       | "--test" ->
-        Stdlib.List.append acc [ LanguageTools.ProgramTypes.Search.EntityType.Test ]
+        Stdlib.List.append acc LanguageTools.ProgramTypes.Search.EntityType.Test
       | _ -> acc)
 
   ParsedArgs
@@ -459,7 +459,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 results.fns
                 |> Stdlib.List.filter (fun f ->
                   Stdlib.Bool.not
-                    (Stdlib.List.contains implPaths (Stdlib.List.append [ f.location.owner ] f.location.modules)))
+                    (Stdlib.List.contains implPaths (Stdlib.List.prepend f.location.modules f.location.owner)))
               submodules =
                 results.submodules
                 |> Stdlib.List.filter (fun m -> Stdlib.Bool.not (Stdlib.List.contains implPaths m)) }
@@ -627,7 +627,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
       parsed.queryParts
       |> Stdlib.List.iter (fun query ->
-        let queryArgs = Stdlib.List.push flags query
+        let queryArgs = Stdlib.List.prepend flags query
         let _ = executeQuery state queryArgs
         ())
 

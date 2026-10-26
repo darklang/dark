@@ -170,7 +170,7 @@ let parseViewOptions
   | [ "--filter" ] ->
     Stdlib.Result.Result.Error "--filter requires a pattern (e.g. `--filter List.map`)"
   | [ "--exclude" ] ->
-    Stdlib.Result.Result.Error "--exclude requires a pattern (e.g. `--exclude listAppend`)"
+    Stdlib.Result.Result.Error "--exclude requires a pattern (e.g. `--exclude listConcat`)"
   | [ "--slow-ms" ] ->
     Stdlib.Result.Result.Error "--slow-ms requires a value (e.g. `--slow-ms 100`)"
   | unknown :: _ ->
@@ -489,11 +489,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   // `view` is `show` by another name, and people reach for both. An alias costs one arm.
   | "view" :: _ ->
-    execute state (Stdlib.List.push (Stdlib.List.drop rawArgs 1) "show")
+    execute state (Stdlib.List.prepend (Stdlib.List.drop rawArgs 1) "show")
 
   // An alias rather than a refusal: people reach for both words, and there is nothing to teach.
   | "details" :: _ ->
-    execute state (Stdlib.List.push (Stdlib.List.drop rawArgs 1) "inspect")
+    execute state (Stdlib.List.prepend (Stdlib.List.drop rawArgs 1) "inspect")
 
   // Refused BY NAME rather than falling through to "unknown subcommand", because whoever types
   // it read it somewhere we wrote.
@@ -1535,7 +1535,7 @@ let formatFnCalls
         let shown = Stdlib.List.take lines 40
         let rest = Stdlib.toString (count - 40)
         Stdlib.String.join
-          (Stdlib.List.pushBack
+          (Stdlib.List.append
             shown
             $"  ... {rest} more (--all for every one, or narrow with --filter / --slow)")
           "\n"

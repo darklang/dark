@@ -114,7 +114,7 @@ let vstack (region: Region) (components: List<Component>) : List<Span> =
       (c, rows)))
     |> Stdlib.Option.withDefault []
   // Collected as a list of lists and flattened once, rather than appended into an accumulator per
-  // child. `List.append` copies its left side, so appending each child's spans in turn copies every
+  // child. `List.concat` copies its left side, so appending each child's spans in turn copies every
   // span already placed -- and stacks nest, so a span three levels down was copied on the way out of
   // each one.
   let (_finalTop, chunks) =
@@ -128,7 +128,7 @@ let vstack (region: Region) (components: List<Component>) : List<Span> =
             left = region.left
             rows = rows
             cols = region.cols }
-      (currentTop + rows, Stdlib.List.push collected (c.render childRegion)))
+      (currentTop + rows, Stdlib.List.prepend collected (c.render childRegion)))
 
   chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
 
@@ -203,7 +203,7 @@ let hstack (region: Region) (components: List<Component>) : List<Span> =
             left = currentLeft
             rows = region.rows
             cols = cols }
-      (currentLeft + cols, Stdlib.List.push collected (c.render childRegion)))
+      (currentLeft + cols, Stdlib.List.prepend collected (c.render childRegion)))
 
   chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
 

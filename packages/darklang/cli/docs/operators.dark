@@ -57,7 +57,7 @@ let content () : String =
   NO @ operator
 
 ## List
-  NO operators -> Stdlib.List.append
+  @    concat, desugars to Stdlib.List.concat
 
 ## Pipe
   value |> fn

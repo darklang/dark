@@ -92,7 +92,7 @@ let packHelpRows
   match sections with
   | [] ->
     if current == "" then rows
-    else Stdlib.List.pushBack rows current
+    else Stdlib.List.append rows current
   | section :: remaining ->
     let candidate =
       if current == "" then section
@@ -105,7 +105,7 @@ let packHelpRows
         width
         sections
         ""
-        (Stdlib.List.pushBack rows current)
+        (Stdlib.List.append rows current)
     else
       let wrapped =
         Darklang.Stdlib.Cli.Tui.Text.wrapAtColumn section width
@@ -113,7 +113,7 @@ let packHelpRows
         width
         remaining
         ""
-        (Stdlib.List.append rows wrapped)
+        (Stdlib.List.concat rows wrapped)
 
 
 /// Fit navigation help into complete rows without truncating an action.
@@ -187,7 +187,7 @@ let buildNavItemsFromResults
   let submodules =
     (Query.getDirectSubmodules results currentPathLength)
     |> Stdlib.List.map (fun name ->
-      NavItem { name = name, entityType = EntityType.Module, location = PackageLocation.Module (Stdlib.List.append modulePath [name]) })
+      NavItem { name = name, entityType = EntityType.Module, location = PackageLocation.Module (Stdlib.List.append modulePath name) })
 
   Stdlib.List.flatten [ submodules, leafNavItems results true ]
 
@@ -500,7 +500,7 @@ let viewAtSize
           Stdlib.Cli.UI.Colors.hint (focusClip position)
         else
           Stdlib.Cli.UI.Colors.hint (focusClip ("─ " + position))
-      Stdlib.List.push visibleRows heading
+      Stdlib.List.prepend visibleRows heading
 
   let helpRows =
     let styledRows =
@@ -533,7 +533,7 @@ let viewAtSize
           + Stdlib.Cli.UI.Colors.dimText "│"
           + focusClip (" " + focusRow))
     else
-      Stdlib.List.append fittedItemRows fittedFocusRows
+      Stdlib.List.concat fittedItemRows fittedFocusRows
 
   let footerRuleRows =
     if regions.sideBySide then [ horizontalRule "─" ] else []

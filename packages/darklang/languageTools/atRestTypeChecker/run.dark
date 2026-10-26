@@ -102,13 +102,13 @@ let collectItemReferences
     Stdlib.List.fold items ([], [], []) (fun (readableItems, refs, failures) item ->
       match guard referencesOf item with
       | Ok found ->
-        (Stdlib.List.push readableItems item, Stdlib.List.push refs found, failures)
+        (Stdlib.List.prepend readableItems item, Stdlib.List.prepend refs found, failures)
       | Error failure ->
         let outcome = Items.checkerFailureOutcome (nodeIdOf item) failure
 
         (readableItems,
          refs,
-         Stdlib.List.push failures (referenceTo item, outcome)))
+         Stdlib.List.prepend failures (referenceTo item, outcome)))
 
   (Stdlib.List.reverse readableItems,
    Stdlib.List.flatten (Stdlib.List.reverse refs),
@@ -290,7 +290,7 @@ let checkPackageOpsFrom
   // Package values have no declared type signature. Check the bodies of dependency
   // values in this batch too, so their inferred types are available to their users.
   let batchValues =
-    Stdlib.List.append (Stdlib.Dict.values dependencies.values) values
+    Stdlib.List.concat (Stdlib.Dict.values dependencies.values) values
 
   let fromBase =
     match base with
@@ -415,7 +415,7 @@ let checkReferencesFrom
         | Ok None -> Stdlib.Result.Result.Error(CheckFailure.Failed "Declaration unavailable while loading branch candidates")
         | Error failure -> Stdlib.Result.Result.Error failure
       match loaded with
-      | Ok op -> (Stdlib.List.push ops op, failures)
+      | Ok op -> (Stdlib.List.prepend ops op, failures)
       | Error failure ->
         let outcome = Items.checkerFailureOutcome Stdlib.Option.Option.None failure
         let item =
@@ -425,9 +425,9 @@ let checkReferencesFrom
               diagnostics = outcome.diagnostics
               warnings = outcome.warnings
               resolutions = outcome.resolutions }
-        (ops, Stdlib.List.push failures item))
+        (ops, Stdlib.List.prepend failures item))
   let checked = checkPackageOpsFrom pool base branchId (Stdlib.List.reverse ops)
-  reportItems (Stdlib.List.append checked.items (Stdlib.List.reverse failures))
+  reportItems (Stdlib.List.concat checked.items (Stdlib.List.reverse failures))
 
 /// Check the declarations a search query selects. Fetch their hashes before loading their
 /// syntax trees, so checkReferences can catch each loading or conversion error separately
@@ -490,7 +490,7 @@ let checkQuery
       numbered
       |> Stdlib.List.filter (fun (i, _) -> i % lanes == lane)
       |> Stdlib.List.fold [] (fun done (i, chunk) ->
-        Stdlib.List.push done (i, checkReferencesFrom pool base branchId loadCandidate chunk)))
+        Stdlib.List.prepend done (i, checkReferencesFrom pool base branchId loadCandidate chunk)))
     |> Stdlib.List.flatten
     |> Stdlib.List.sortBy (fun (i, _) -> i)
     |> Stdlib.List.map (fun (_, report) -> report.items)

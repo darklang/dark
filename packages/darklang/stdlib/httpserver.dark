@@ -61,7 +61,7 @@ let matchSegment
       Option.Option.None
   | Variable name -> Option.Option.Some [ (name, pathSeg) ]
   | Wildcard name ->
-    let fullPath = String.join (List.append [ pathSeg ] remainingPath) "/"
+    let fullPath = String.join (List.prepend remainingPath pathSeg) "/"
     Option.Option.Some [ (name, fullPath) ]
 
 
@@ -99,7 +99,7 @@ let matchRouteSegments (routeSegs: List<RouteSegment>) (pathSegs: List<String>) 
             let (routeSeg, pathSeg) = pair
             match matchSegment routeSeg pathSeg [] with
             | Some newVars ->
-              Option.Option.Some (List.append vars newVars)
+              Option.Option.Some (List.concat vars newVars)
             | None -> Option.Option.None)
 
     match result with

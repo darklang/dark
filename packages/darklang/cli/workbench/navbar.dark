@@ -371,7 +371,7 @@ let renderNavStrip
       let (i, row) = pair
       let (text, width) = paint i row
       (col + width + gap,
-       Stdlib.List.append spans (Stdlib.Cli.UI.Layout.at region 0 col text)))
+       Stdlib.List.concat spans (Stdlib.Cli.UI.Layout.at region 0 col text)))
   spans
 
 /// The same rows as a centred overlay, vertical, for a terminal too narrow

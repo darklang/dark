@@ -96,9 +96,9 @@ let applyReplStatement (state: State) (stmt: String) : State =
     let echoLines =
       match Stdlib.String.split text "\n" with
       | first :: rest ->
-        Stdlib.List.append
-          [ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + first ]
+        Stdlib.List.prepend
           (rest |> Stdlib.List.map (fun l -> "  " + l))
+          ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + first)
       | [] -> [ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + text ]
     match Darklang.Cli.Repl.parseLetBinding text with
     | Some pair ->
@@ -109,7 +109,7 @@ let applyReplStatement (state: State) (stmt: String) : State =
       let noteLines =
         Stdlib.String.split note "\n" |> Stdlib.List.map (fun l -> "  " + (Stdlib.Cli.UI.Colors.dimText l))
       let logged =
-        Stdlib.List.append state.repl.log (Stdlib.List.append echoLines noteLines)
+        Stdlib.List.concat state.repl.log (Stdlib.List.concat echoLines noteLines)
       match bound with
       | Some binding ->
         { state with
@@ -129,7 +129,7 @@ let applyReplStatement (state: State) (stmt: String) : State =
           repl =
             { state.repl with
                 last = Stdlib.String.trim output
-                log = Stdlib.List.append state.repl.log (Stdlib.List.append echoLines resultLines) } }
+                log = Stdlib.List.concat state.repl.log (Stdlib.List.concat echoLines resultLines) } }
 
 /// The REPL view: the eval log on the left, the session on the right. ⏎
 /// opens the prompt; ⏎ there evaluates and appends to the log; `let x = ...`
@@ -183,11 +183,11 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
         else
           match Stdlib.String.split state.repl.pending "\n" with
           | first :: rest ->
-            Stdlib.List.append
-              [ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + first ]
+            Stdlib.List.prepend
               (rest |> Stdlib.List.map (fun l -> "  " + l))
+              ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + first)
           | [] -> []
-      let withPending = Stdlib.List.append all pending
+      let withPending = Stdlib.List.concat all pending
       let shown = withPending |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
       shown
       |> Stdlib.List.indexedMap (fun i l -> Stdlib.Cli.UI.Layout.at inner i 0 l)

@@ -115,7 +115,7 @@ Loosest to tightest; one table (`infixBindingPower`) drives the parser.
 | 5 | `^` | left | bitwise xor |
 | 6 | `&` | left | bitwise and |
 | 7 | `<< >>` | left | bitwise shifts |
-| 8 | `@` | right | list append → `Stdlib.List.append` |
+| 8 | `@` | right | list concat → `Stdlib.List.concat` |
 | 9 | `+ -` | left | `+` concatenates Strings too |
 | 10 | `* / %` | left | |
 | 11 | `**` | right | exponentiation (`2**3**2 = 2**(3**2)`) |

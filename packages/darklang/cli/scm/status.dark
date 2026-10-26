@@ -71,8 +71,8 @@ let executePretty (state: AppState) : AppState =
           $"""  {Cli.Text.plural s.constraints "standing constraint"} in the store -> `dark constraints`""")
   else
     let parts =
-      Stdlib.List.append
-        (Stdlib.List.append
+      Stdlib.List.concat
+        (Stdlib.List.concat
           (if s.changed == 0 then
              []
            else if s.followed == 0 then
@@ -85,7 +85,7 @@ let executePretty (state: AppState) : AppState =
              // What you did and what followed, separately; see `Summary.followed`.
              [ $"{Cli.Text.plural (s.changed - s.followed) "item"} changed, {Stdlib.toString s.followed} followed" ])
           (if s.removed == 0 then [] else [ $"{Cli.Text.plural s.removed "item"} removed" ]))
-        (Stdlib.List.append
+        (Stdlib.List.concat
           (if s.repoints == 0 then
              []
            else

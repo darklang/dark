@@ -328,7 +328,7 @@ raises where `f` first uses `a`):
   a parameter the builtin declares `Param.moved`: one whose `'a` values it only
   moves, never looks at. A moved `'a` takes a read as it is, a moved `List<'a>`
   or `Dict<'a>` takes a container holding reads as it is (`List.length`,
-  `List.push`, `Dict.set`'s value, `List.map`'s list), and the result is
+  `List.prepend`, `Dict.set`'s value, `List.map`'s list), and the result is
   wrapped again along the return type. A moved body that does look looks
   through the shell and waits itself for what it cannot see: `unwrap` hands
   back the read inside a `Some` or `Ok` and lands anything else before it

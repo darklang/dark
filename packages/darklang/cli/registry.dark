@@ -176,7 +176,7 @@ module Registry =
         |> Stdlib.List.filter (fun cmd ->
           Stdlib.List.any cmd.aliases (fun alias -> alias == name))
 
-      Stdlib.List.append nameMatches aliasMatches
+      Stdlib.List.concat nameMatches aliasMatches
 
     match allMatches with
     | [handler] -> handler
@@ -316,10 +316,10 @@ module Registry =
     let availableCommands = "Commands:"
 
     let groupsWithFooter =
-      Stdlib.List.append formattedGroups [ "", "Type 'help' for detailed command info" ]
+      Stdlib.List.concat formattedGroups [ "", "Type 'help' for detailed command info" ]
 
     let allLines =
-      Stdlib.List.append [ welcome, "", availableCommands, "" ] groupsWithFooter
+      Stdlib.List.concat [ welcome, "", availableCommands, "" ] groupsWithFooter
 
     Logo.combineLogoAndText Logo.logo allLines Stdlib.Cli.UI.Colors.logoColor
 
@@ -357,7 +357,7 @@ module Registry =
         let ungroupedGroup =
           let ungroupedLines = Stdlib.String.join ungroupedCommands "\n"
           $"Other:\n{ungroupedLines}"
-        Stdlib.List.append formattedGroups [ungroupedGroup]
+        Stdlib.List.append formattedGroups ungroupedGroup
 
     let groupsText = Stdlib.String.join finalGroups "\n\n"
 
@@ -389,7 +389,7 @@ module Registry =
         | None -> []
       // \u0000 can't occur in a typed token, so joining is unambiguous.
       Stdlib.String.join
-        (Stdlib.List.append [ loc, parsed.commandName ] completedArgs)
+        (Stdlib.List.concat [ loc, parsed.commandName ] completedArgs)
         "\u0000"
 
   /// The half of completion that depends only on the command and its *completed* arguments. For `nav`/`ls`

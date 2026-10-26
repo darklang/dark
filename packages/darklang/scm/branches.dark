@@ -343,7 +343,7 @@ let parentHashesForBases (parentId: Uuid) (branchId: Uuid) : Dict<String, String
   // The parent's hash for each name is main's, unless the parent branch changed
   // it. `fromEntries` keeps the last entry for a name, so the parent's changes
   // go second. A name the parent removed counts as a change too ("").
-  Stdlib.Dict.fromEntries (Stdlib.List.append fromMain overlay)
+  Stdlib.Dict.fromEntries (Stdlib.List.concat fromMain overlay)
 
 
 /// Names the PARENT has moved since this branch forked, given bases and hashes already read: its current
@@ -394,7 +394,7 @@ type Rebased =
 /// unblocked. The union of both halves of <fn rebaseDetailed>, for callers that want one list.
 let rebase (branchId: Uuid) : Stdlib.Result.Result<List<String>, String> =
   match rebaseDetailed branchId with
-  | Ok r -> Stdlib.Result.Result.Ok(Stdlib.List.unique (Stdlib.List.append r.diverged r.repointed))
+  | Ok r -> Stdlib.Result.Result.Ok(Stdlib.List.unique (Stdlib.List.concat r.diverged r.repointed))
   | Error e -> Stdlib.Result.Result.Error e
 
 

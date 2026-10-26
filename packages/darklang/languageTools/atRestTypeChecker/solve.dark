@@ -48,18 +48,18 @@ let start (env: Model.Environment) : State =
 
 /// Prepend one finding to the accumulated errors and warnings.
 let addFinding (s: State) (finding: Model.Finding) : State =
-  { s with findings = Stdlib.List.push s.findings finding }
+  { s with findings = Stdlib.List.prepend s.findings finding }
 
 /// Prepend a group of findings in the order supplied by the caller.
 let addFindings (s: State) (findings: List<Model.Finding>) : State =
   match findings with
   | [] -> s
-  | _ -> { s with findings = Stdlib.List.append findings s.findings }
+  | _ -> { s with findings = Stdlib.List.concat findings s.findings }
 
 /// Record which implementation a trait call resolved to. Prepended like a finding, and
 /// read back by Items in the order the solver saw the calls.
 let addResolution (s: State) (resolution: Model.Resolution) : State =
-  { s with resolutions = Stdlib.List.push s.resolutions resolution }
+  { s with resolutions = Stdlib.List.prepend s.resolutions resolution }
 
 /// Allocate an inference variable distinct from all earlier Fresh variables in this state.
 let fresh (s: State) : (Model.Ty * State) =
@@ -453,7 +453,7 @@ let instantiateFrom
       s
       rest
       remaining
-      (Stdlib.List.push args arg)
+      (Stdlib.List.prepend args arg)
       (Stdlib.Dict.set mapping name arg)
 
 /// Give one use of a scheme fresh variables for every quantified parameter.
@@ -582,7 +582,7 @@ let schemeFor
   // into the scheme, every one of those unknowns needs a fresh copy at each use.
   let pending =
     Stdlib.List.map
-      (Stdlib.List.append
+      (Stdlib.List.concat
         (Stdlib.List.reverse s.waiting)
         (Stdlib.List.reverse s.coverage))
       (fun c -> (c, constraintVars s c))
@@ -741,7 +741,7 @@ let solveOther (s: State) (c: Model.Constraint) : State =
   | NewEnum(at, typeName, typeArgs, caseName, fields, result) ->
     newEnum s at typeName typeArgs caseName fields result
   | Generalize(key, ty, scope) -> generalize s key ty scope
-  | Covers(_, _, _, _) -> { s with coverage = Stdlib.List.push s.coverage c }
+  | Covers(_, _, _, _) -> { s with coverage = Stdlib.List.prepend s.coverage c }
   | WellFormed(at, ty) -> validateType s at ty
   | _ ->
     match trySolveDeferred s c with
@@ -791,7 +791,7 @@ let deferredUses (c: Model.Constraint) : List<DeferredUse> =
           site = Site.RecordFieldAccess
           requirement = DeferredRequirement.FieldType(field, result) } ]
   | UpdateRecord(at, record, fields) ->
-    Stdlib.List.push (Stdlib.List.map fields (fun (name, typ) ->
+    Stdlib.List.prepend (Stdlib.List.map fields (fun (name, typ) ->
       DeferredUse
         { at = at
           subject = record
@@ -953,7 +953,7 @@ let queueDeferred (s: State) (c: Model.Constraint) : State =
         if Stdlib.List.any s.findings (fun previous -> previous == finding) then s
         else addFinding s finding)
 
-  { s with waiting = Stdlib.List.push s.waiting c }
+  { s with waiting = Stdlib.List.prepend s.waiting c }
 
 /// Count pending requirements plus arguments still waiting to be applied.
 /// A partially resolved call can make progress without removing its Apply requirement.
@@ -1070,9 +1070,9 @@ let checkReachableKeyTypes
                 | CallableType ->
                   (addFinding s (Types.definiteError IssueCode.UnsupportedDictKeyType
                     (Stdlib.Option.Option.Some at) (none ()) (some subject) Context.NoDetail), pending)
-                | FieldType(_, typ) -> (s, Stdlib.List.push pending typ)
-                | CaseFields(_, fields) -> (s, Stdlib.List.append fields pending)
-                | UnwrappedType typ -> (s, Stdlib.List.push pending typ)
+                | FieldType(_, typ) -> (s, Stdlib.List.prepend pending typ)
+                | CaseFields(_, fields) -> (s, Stdlib.List.concat fields pending)
+                | UnwrappedType typ -> (s, Stdlib.List.prepend pending typ)
                 | RecordType -> (s, pending)
                 | NumericType -> (s, pending))
           (s, seen, pending))
@@ -1124,7 +1124,7 @@ let reportUnsolvedConstraints (s: State) : State =
     | Apply(at, _, args, result) ->
       markAllUnknownsAsError
         (ambiguous at AmbiguousSubject.CalleeType)
-        (Stdlib.List.push (Stdlib.List.map args (fun (t, _) -> t)) result)
+        (Stdlib.List.prepend (Stdlib.List.map args (fun (t, _) -> t)) result)
     | Unwrap(at, fn, _, result) ->
       markUnknownsAsError
         (addFinding
@@ -1390,16 +1390,16 @@ let wouldContainItself
     |> Stdlib.List.filterMap (fun c ->
       match c with
       | Apply(_, callee, applied, gives) ->
-        contains callee (Stdlib.List.push (Stdlib.List.map applied (fun (t, _) -> t)) gives)
+        contains callee (Stdlib.List.prepend (Stdlib.List.map applied (fun (t, _) -> t)) gives)
       | Unwrap(_, _, subject, result) -> contains subject [ result ]
       | Propagate(_, operand, inner, _) -> contains operand [ inner ]
       | _ -> Stdlib.Option.Option.None)
 
   let edges =
-    (Stdlib.List.push waiting (v, unknowns contents))
+    (Stdlib.List.prepend waiting (v, unknowns contents))
     |> Stdlib.List.fold Dict {} (fun graph (c, inside) ->
       let known = Stdlib.Option.withDefault (Stdlib.Dict.get graph c) []
-      Stdlib.Dict.set graph c (Stdlib.List.append inside known))
+      Stdlib.Dict.set graph c (Stdlib.List.concat inside known))
 
   reaches edges v (Stdlib.Option.withDefault (Stdlib.Dict.get edges v) []) Dict {}
 
@@ -1424,7 +1424,7 @@ let reaches
       reaches
         edges
         target
-        (Stdlib.List.append more rest)
+        (Stdlib.List.concat more rest)
         (Stdlib.Dict.set seen next true)
 
 /// Report a call whose pending type relationships would create an infinite type.
@@ -1481,7 +1481,7 @@ let applyArguments
     | TVar v -> waitApplication s at v args result
     | TError ->
       markAllUnknownsAsError s
-        (Stdlib.List.push (Stdlib.List.map args (fun (t, _) -> t)) result)
+        (Stdlib.List.prepend (Stdlib.List.map args (fun (t, _) -> t)) result)
     | _ -> notCallable s nodeId callee args result
 
 /// Keep one pending call for each unknown callee, combining other calls to that
@@ -1497,7 +1497,7 @@ let waitApplication
   : State =
   let callee = Model.Ty.TVar v
 
-  if wouldContainItself s at v (Stdlib.List.push (Stdlib.List.map args (fun (t, _) -> t)) result) then
+  if wouldContainItself s at v (Stdlib.List.prepend (Stdlib.List.map args (fun (t, _) -> t)) result) then
     selfApplication s at callee args
   else
     let previous =
@@ -1568,7 +1568,7 @@ let notCallable
         Context.NoDetail)
 
   markAllUnknownsAsError s
-    (Stdlib.List.push (Stdlib.List.map args (fun (t, _) -> t)) result)
+    (Stdlib.List.prepend (Stdlib.List.map args (fun (t, _) -> t)) result)
 
 
 // --------------------
@@ -1622,7 +1622,7 @@ let newRecord
   | None ->
     markAllUnknownsAsError
       (missingType s at typeName)
-      (Stdlib.List.push (Stdlib.List.map fields (fun (_, t) -> t)) result)
+      (Stdlib.List.prepend (Stdlib.List.map fields (fun (_, t) -> t)) result)
   | Some((recordType, s)) ->
     let s = unify s nodeId Site.Expression recordType result
     let (found, s) = declarationFor s nodeId recordType
@@ -1717,7 +1717,7 @@ let newEnum
   match instantiateType s at typeName typeArgs with
   | None ->
     markAllUnknownsAsError
-      (missingType s at typeName) (Stdlib.List.push fieldTypes result)
+      (missingType s at typeName) (Stdlib.List.prepend fieldTypes result)
   | Some((enumType, s)) ->
     let s = unify s nodeId Site.Expression enumType result
     let (found, s) = declarationFor s nodeId enumType
@@ -1810,7 +1810,7 @@ let getField
   | TVar _ -> Stdlib.Option.Option.None
   | TError -> Stdlib.Option.Option.Some(markUnknownsAsError s result)
   | TTuple(first, second, rest) ->
-    let elements = Stdlib.List.append [ first, second ] rest
+    let elements = Stdlib.List.concat [ first, second ] rest
 
     match
       (tupleIndexOfFieldName field)

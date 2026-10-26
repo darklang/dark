@@ -16,12 +16,12 @@ type PackageLocation =
 let modulePathOf (location: PackageLocation) : List<String> =
   match location with
   | Module path -> path
-  | Type t -> Stdlib.List.append [ t.owner ] t.modules
-  | Value v -> Stdlib.List.append [ v.owner ] v.modules
-  | Function f -> Stdlib.List.append [ f.owner ] f.modules
-  | Trait t -> Stdlib.List.append [ t.owner ] t.modules
-  | Impl i -> Stdlib.List.append [ i.owner ] i.modules
-  | Test t -> Stdlib.List.append [ t.owner ] t.modules
+  | Type t -> Stdlib.List.prepend t.modules t.owner
+  | Value v -> Stdlib.List.prepend v.modules v.owner
+  | Function f -> Stdlib.List.prepend f.modules f.owner
+  | Trait t -> Stdlib.List.prepend t.modules t.owner
+  | Impl i -> Stdlib.List.prepend i.modules i.owner
+  | Test t -> Stdlib.List.prepend t.modules t.owner
 
 
 type EntityType =
@@ -110,9 +110,9 @@ let docsOfFn
     |> Stdlib.List.indexedMap (fun i p ->
       (LanguageTools.ProgramTypes.DocPart.Parameter i, p.description))
 
-  Stdlib.List.append
-    [ (LanguageTools.ProgramTypes.DocPart.WholeItem, fn.description) ]
+  Stdlib.List.prepend
     params
+    (LanguageTools.ProgramTypes.DocPart.WholeItem, fn.description)
 
 
 let docsOfType
@@ -130,9 +130,9 @@ let docsOfType
         (LanguageTools.ProgramTypes.DocPart.EnumCase c.name, c.description))
     | Alias _ -> []
 
-  Stdlib.List.append
-    [ (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description) ]
+  Stdlib.List.prepend
     nested
+    (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)
 
 
 /// Every doc these authored ops carry, for the item they declare.
@@ -150,7 +150,7 @@ let authoredDocs
       )
     | AddTrait t ->
       Stdlib.Option.Option.Some(
-        Stdlib.List.push
+        Stdlib.List.prepend
           (t.methods
            |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
           (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)
@@ -193,7 +193,7 @@ let currentDocs
     | Trait ->
       LanguageTools.PackageManager.Trait.get hash
       |> Stdlib.Option.map (fun t ->
-        Stdlib.List.push
+        Stdlib.List.prepend
           (t.methods
            |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
           (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
@@ -369,7 +369,7 @@ let commitAuthored
     let ownIssue =
       match report.verdict with
       | Failed ->
-        let issues = Stdlib.List.append report.warnings report.diagnostics
+        let issues = Stdlib.List.concat report.warnings report.diagnostics
 
         match issues with
         | [] -> Stdlib.Option.Option.Some "it failed the type check"

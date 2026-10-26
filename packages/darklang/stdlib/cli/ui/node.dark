@@ -238,7 +238,7 @@ let tableRows (columns: List<String>) (rows: List<List<String>>) : List<String> 
   let rule =
     widths |> Stdlib.List.map (fun w -> Stdlib.String.repeat "-" w) |> Stdlib.String.join "  "
 
-  Stdlib.List.append
+  Stdlib.List.concat
     [ Colors.boldText (line columns), Colors.dimText rule ]
     (rows |> Stdlib.List.map line)
 
@@ -269,7 +269,7 @@ let paint
         else
           let mark = if marker == "" then [] else Layout.at region top 0 (Colors.dimText marker)
           let spans = paint child (sub region top indent rows (region.cols - indent)) focus style
-          (top + rows, Stdlib.List.push collected (Stdlib.List.append mark spans)))
+          (top + rows, Stdlib.List.prepend collected (Stdlib.List.concat mark spans)))
 
     chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
 
@@ -321,7 +321,7 @@ let paint
             (left, collected)
           else
             let spans = paint child (sub region 0 left region.rows cols) focus style
-            (left + cols + 1, Stdlib.List.push collected spans))
+            (left + cols + 1, Stdlib.List.prepend collected spans))
 
       chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
 
