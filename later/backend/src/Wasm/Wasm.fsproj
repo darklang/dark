@@ -48,9 +48,19 @@
     <Compile Include="Output.fs" />
     <Compile Include="PmLookup.fs" />
     <Compile Include="Repl.fs" />
+    <Compile Include="CatchUpStore.fs" />
     <!-- The CLI host: the real store plus browser stand-ins for stdin/terminal -->
     <Compile Include="Host.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <!-- The schema, for bringing a store the page restored from the browser's storage up to this
+       build (`Host.fs`, `upgradeRestored`). Same resource names as the CLI's
+       (`CatchUpStore.schemaFrom`). -->
+  <ItemGroup>
+    <EmbeddedResource Include="../../migrations/schema/*.sql">
+      <LogicalName>schema/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <!-- The package snapshot (generated from the DB, see README) — force it into
