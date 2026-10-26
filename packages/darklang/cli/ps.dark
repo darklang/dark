@@ -98,7 +98,10 @@ let executionPointText (branchId: Uuid) (ep: Stdlib.Exec.ExecutionPoint) : Strin
   match ep with
   | Source -> "(the entry point)"
   | Function name -> PrettyPrinter.RuntimeTypes.fnName branchId name
-  | Lambda(parent, _exprId) -> $"a lambda in {executionPointText branchId parent}"
+  | Lambda(parent, _exprId, writtenIn) ->
+    match writtenIn with
+    | Some written -> $"a lambda in {executionPointText branchId written}"
+    | None -> $"a lambda in {executionPointText branchId parent}"
 
 
 /// The process whose id starts with `prefix`, when exactly one does.

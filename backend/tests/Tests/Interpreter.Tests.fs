@@ -457,7 +457,9 @@ module Lambdas =
               closedRegisters = [||]
               argsSoFar = []
               access = fullAccess
-              typeSymbolTable = RT.TST.empty }
+              typeSymbolTable = RT.TST.empty
+              expectedReturn = ValueNone
+              writtenIn = ValueSome RT.Source }
         ))
         (fun exeState _vm ->
           Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
@@ -477,7 +479,9 @@ module Lambdas =
               closedRegisters = [||]
               argsSoFar = []
               access = fullAccess
-              typeSymbolTable = RT.TST.empty }
+              typeSymbolTable = RT.TST.empty
+              expectedReturn = ValueNone
+              writtenIn = ValueSome RT.Source }
         ))
         (fun exeState _vm ->
           Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
@@ -492,7 +496,9 @@ module Lambdas =
               closedRegisters = [||]
               argsSoFar = [ RT.DInt64 1L ]
               access = fullAccess
-              typeSymbolTable = RT.TST.empty }
+              typeSymbolTable = RT.TST.empty
+              expectedReturn = ValueNone
+              writtenIn = ValueSome RT.Source }
         ))
 
     let fullyApplied =
@@ -512,7 +518,9 @@ module Lambdas =
               closedRegisters = [||]
               argsSoFar = []
               access = fullAccess
-              typeSymbolTable = RT.TST.empty }
+              typeSymbolTable = RT.TST.empty
+              expectedReturn = ValueNone
+              writtenIn = ValueSome RT.Source }
         ))
         (fun exeState _vm ->
           Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
@@ -536,7 +544,9 @@ module Lambdas =
                 RT.Captures.ofList [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
               argsSoFar = []
               access = fullAccess
-              typeSymbolTable = RT.TST.empty }
+              typeSymbolTable = RT.TST.empty
+              expectedReturn = ValueNone
+              writtenIn = ValueSome RT.Source }
         ))
         (fun exeState _vm ->
           Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
@@ -1583,6 +1593,53 @@ let callCrate () : String = {q}.guarded ({q}.Crate {{ crateDepth{r} = 1L }})"
   let tests = testList "BoundMemo" [ boundCheckFollowsImplementations ]
 
 
+/// `List.filter` only calls a builtin, so the interpreter usually skips it and calls
+/// the builtin directly. It doesn't skip it while collecting expression values. A bad
+/// callback must give the same error either way.
+module LambdaResultChecks =
+  let private run (collectExprValues : bool) (code : string) =
+    task {
+      let! ptExpr = parsePTExpr code
+      let! (state : RT.ExecutionState) = executionStateFor pmPT false
+      let state =
+        { state with
+            tracing = { state.tracing with collectExprValues = collectExprValues } }
+      return!
+        LibExecution.Execution.executeExpr
+          state
+          (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
+    }
+
+  let private failedParam (result : RT.ExecutionResult) =
+    match result with
+    | Error(RTE.Apply(RTE.Applications.LambdaResultNotExpectedType(fnName,
+                                                                   index,
+                                                                   name,
+                                                                   _,
+                                                                   _,
+                                                                   _,
+                                                                   _)),
+            _) -> Some(fnName, index, name)
+    | _ -> None
+
+  let sameWhetherOrNotWrapperIsSkipped =
+    testTask "List.filter checks its callback whether or not the wrapper is skipped" {
+      let code = "Stdlib.List.filter [ 1L, 2L ] (fun x -> 2L)"
+      let! skipped = run false code
+      let! viaFrame = run true code
+      let a = failedParam skipped
+      let b = failedParam viaFrame
+      Expect.isSome a $"skipped: expected a callback error, got {skipped}"
+      Expect.equal a b "the same error either way"
+      Expect.equal
+        (a |> Option.map (fun (_, i, n) -> (i, n)))
+        (Some(1, "f"))
+        "the param"
+    }
+
+  let tests = testList "LambdaResultChecks" [ sameWhetherOrNotWrapperIsSkipped ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -1610,4 +1667,5 @@ let tests =
       DictKeyOrdering.tests
       DeepValues.tests
       Reload.tests
-      BoundMemo.tests ]
+      BoundMemo.tests
+      LambdaResultChecks.tests ]

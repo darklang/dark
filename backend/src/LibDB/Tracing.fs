@@ -512,7 +512,7 @@ let rec private executionTracingFor
       storeFrameEntry =
         (fun _frameId _parentId ep _args ->
           match ep with
-          | RT.ExecutionPoint.Lambda(_, lambdaExprId) ->
+          | RT.ExecutionPoint.Lambda(_, lambdaExprId, _) ->
             let key = int64 lambdaExprId
             lock state.sync (fun () ->
               let mutable seen = 0
@@ -1205,7 +1205,7 @@ type ViewFrame =
 let siteKeyOf (ep : RT.ExecutionPoint) : int64 =
   match ep with
   | RT.ExecutionPoint.Source -> 0L
-  | RT.ExecutionPoint.Lambda(_, lambdaExprId) -> int64 lambdaExprId
+  | RT.ExecutionPoint.Lambda(_, lambdaExprId, _) -> int64 lambdaExprId
   | RT.ExecutionPoint.Function name -> int64 (hash name)
 
 

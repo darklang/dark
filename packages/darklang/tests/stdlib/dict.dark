@@ -64,17 +64,6 @@ test filterMap =
             Some(key + value))
       |> Stdlib.Test.equal (Dict { "c": "cz", "a": "ax" }) ]
 
-// CLEANUP figure out why this isn't failing on the `false` not being an option
-// test filterMapRejectsNonOptionResult =
-//   Stdlib.Dict.filterMap
-//     (fun key value ->
-//       if value == "y" then
-//         false
-//       else
-//         Some(key + value))
-//   => raises
-//     "Darklang.Stdlib.Option.map's 1st argument (`option`) should be a Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
-
 test filter =
   Stdlib.Test.all
     [ Stdlib.Dict.filter
@@ -87,7 +76,7 @@ test filter =
 
 test filterRejectsNonBoolPredicate =
   Stdlib.Dict.filter (Dict { "a": 1L, "b": 2L, "c": 3L }) (fun k v -> 2L)
-  => raises "Encountered a condition that must be a Bool, but got an Int64 (2)"
+  => raises "Darklang.Stdlib.Dict.filter's 2nd parameter `fn` returned Int64 (2), but should return Bool"
 
 test fromEntries =
   Stdlib.Test.all
@@ -240,7 +229,7 @@ test foldIntoDifferentType =
 
 test updateRejectsNonOptionResult =
   Stdlib.Dict.update (Dict { "a": 1L }) "c" (fun _ -> 0L)
-  => raises "No matching case found for value 0 in match expression"
+  => raises "Darklang.Stdlib.Dict.update's 3rd parameter `fn` returned Int64 (0), but should return Darklang.Stdlib.Option.Option<Int64>"
 
 test insert =
   Stdlib.Test.all
@@ -577,7 +566,7 @@ test filterMapRejectsNonOptionResult =
   Stdlib.Dict.filterMap
     (Dict { "a": "x", "b": "y", "c": "z" })
     (fun key value -> if value == "y" then false else Some(key + value))
-  => raises "No matching case found for value false in match expression"
+  => raises "Darklang.Stdlib.Dict.filterMap's 2nd parameter `fn` returned Bool (false), but should return Darklang.Stdlib.Option.Option<String>"
 
 test fromEntriesPropagatesElementError =
   Stdlib.Dict.fromEntries [ Stdlib.Test.raiseRuntimeError "err" ]

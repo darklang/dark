@@ -171,3 +171,83 @@ test nestedMapErrorKeepsBothLambdaFrames =
         |> Stdlib.Test.equal 0
         Stdlib.String.contains rendered "Cannot divide by 0"
         |> Stdlib.Test.equal true ]
+
+
+// A lambda passed to a fn must return what that fn expects. Here `applyTwice`
+// expects an Int64 back, so returning a String is an error.
+let applyTwice (f: 'a -> 'a) (x: 'a) : 'a = f (f x)
+
+test lambdaResultCheckedAgainstParameter =
+  applyTwice (fun _ -> "not an Int64") 1L
+  => raises "Darklang.Language.Tests.Lambdas.applyTwice's 1st parameter `f` returned String (\"not an Int64\"), but should return Int64"
+
+// The check stops once the fn returns. Here `keepFn` gives the lambda back, and
+// we can then call it with a String, even though `keepFn` used it with an Int64.
+let keepFn (f: 'a -> 'a) (x: 'a) : ('a -> 'a) =
+  let _ = f x
+  f
+
+test lambdaOutlivingItsFnIsNotHeldToItsTypes =
+  (let identity = keepFn (fun x -> x) 1L
+   identity "a")
+  |> Stdlib.Test.equal "a"
+
+// The call stack shows which fn each lambda was written in. Here there are two:
+// the one we wrote in `filterMapBadCallback`, and one `Dict.filterMap` uses inside.
+let filterMapBadCallback () : Int64 =
+  let _ = Stdlib.Dict.filterMap (Dict { "a": 1L }) (fun _ _ -> false)
+  0L
+
+test callStackNamesWhereEachLambdaWasWritten =
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) filterMapBadCallback () with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    let rendered = output.stdout + output.stderr
+    Stdlib.Test.all
+      [ Stdlib.String.contains rendered "- Lambda in Darklang.Stdlib.Dict.filterMap ("
+        |> Stdlib.Test.equal true
+        Stdlib.String.contains
+          rendered
+          "- Lambda in Darklang.Language.Tests.Lambdas.filterMapBadCallback ("
+        |> Stdlib.Test.equal true ]
+
+// `passAlong` accepts any Option back, but passes the lambda to
+// `requireIntOption`, which needs an Option of Int64. Both are checked, and the
+// error names `passAlong`, since that's the fn we called.
+let requireIntOption (f: Int64 -> Stdlib.Option.Option<Int64>) : Int64 =
+  match f 1L with
+  | Some _ -> 1L
+  | None -> 0L
+
+let passAlong (f: 'a -> Stdlib.Option.Option<'b>) (x: 'a) : Int64 = requireIntOption f
+
+test innerHelpersStricterTypeIsChecked =
+  passAlong (fun _ -> Stdlib.Option.Option.Some "wrong") 1L
+  => raises "Darklang.Language.Tests.Lambdas.passAlong's 1st parameter `f` returned Darklang.Stdlib.Option.Option<String> (Some(\"wrong\")), but should return Darklang.Stdlib.Option.Option<Int64>"
+
+// A parameter whose type is an alias of a function type is a callback too.
+type Check = Int64 -> Bool
+
+let countIf (p: Check) (x: Int64) : Int64 = if p x then 1L else 0L
+
+test aliasedCallbackParameterIsChecked =
+  countIf (fun _ -> 2L) 1L
+  => raises "Darklang.Language.Tests.Lambdas.countIf's 1st parameter `p` returned Int64 (2), but should return Bool"
+
+// A fn that recurses passing its callback on to itself keeps checking it at
+// every level, with one expectation rather than one per level.
+let countMatching (xs: List<Int64>) (p: Int64 -> Bool) : Int64 =
+  match xs with
+  | [] -> 0L
+  | x :: rest -> (if p x then 1L else 0L) + countMatching rest p
+
+test recursiveFnKeepsCheckingItsCallback =
+  countMatching [ 1L, 2L, 3L ] (fun x -> if x == 3L then 3L else true)
+  => raises "Darklang.Language.Tests.Lambdas.countMatching's 2nd parameter `p` returned Int64 (3), but should return Bool"
+
+// The fold starts with an empty dict. The first step returns a dict of Int64s, so
+// every later step must too. Returning a dict of Strings is an error.
+test foldAccumulatorKeepsItsType =
+  Stdlib.List.fold [ 1L, 2L ] (Dict { }) (fun acc x ->
+    if x == 1L then Stdlib.Dict.set acc "a" 1L else Dict { "b": "text" })
+  => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned Dict<String, String> ({ \"b\": \"text\" }), but should return Dict<String, Int64>"

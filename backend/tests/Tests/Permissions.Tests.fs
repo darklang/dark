@@ -503,7 +503,9 @@ let materializedValuesCaptureCallablesRecursively =
         closedRegisters = [||]
         typeSymbolTable = RT.TST.empty
         access = Permission.Access.start Permission.Policy.allowAll
-        argsSoFar = [] }
+        argsSoFar = []
+        expectedReturn = ValueNone
+        writtenIn = ValueNone }
     match
       LibExecution.Dval.captureValueAccess
         denyAll

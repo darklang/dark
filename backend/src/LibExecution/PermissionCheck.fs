@@ -207,7 +207,7 @@ let callerIsBundled (state : ExecutionState) (vm : VMState) : bool =
   let rec fnOf (point : ExecutionPoint) : Option<FQFnName.Package> =
     match point with
     | ExecutionPoint.Function(FQFnName.Package p) -> Some p
-    | ExecutionPoint.Lambda(parent, _) -> fnOf parent
+    | ExecutionPoint.Lambda(parent, _, _) -> fnOf parent
     | _ -> None
   let rec allBundled (frameID : System.Guid) (sawPackage : bool) : bool =
     match vm.callFrames.TryGetValue frameID with

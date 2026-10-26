@@ -406,7 +406,9 @@ module RT =
               access =
                 LibExecution.Permissions.Access.start
                   LibExecution.Permissions.Policy.allowAll
-              argsSoFar = [] }
+              argsSoFar = []
+              expectedReturn = ValueNone
+              writtenIn = ValueNone }
         )
       let decoded =
         value |> BS.RT.Dval.serialize "closure" |> BS.RT.Dval.deserialize "closure"
@@ -435,7 +437,9 @@ module RT =
               access =
                 LibExecution.Permissions.Access.start
                   LibExecution.Permissions.Policy.denyAll
-              argsSoFar = [] }
+              argsSoFar = []
+              expectedReturn = ValueNone
+              writtenIn = ValueNone }
         )
       let bytes = value |> BS.RT.Dval.serialize "closure"
       // Package tests bumped the format header to v6; the closure payload is unchanged.

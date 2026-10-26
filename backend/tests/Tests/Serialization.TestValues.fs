@@ -220,7 +220,9 @@ module RuntimeTypes =
             access =
               LibExecution.Permissions.Access.start
                 LibExecution.Permissions.Policy.denyAll
-            argsSoFar = [] }
+            argsSoFar = []
+            expectedReturn = ValueNone
+            writtenIn = ValueNone }
       )
       // RT.CUuid and RT.CDateTime don't exist in RT.Const
       // RT.CUuid uuid

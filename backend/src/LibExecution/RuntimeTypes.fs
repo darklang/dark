@@ -805,8 +805,13 @@ type ExecutionPoint =
   // Executing some function
   | Function of FQFnName.FQFnName
 
-  /// Executing some lambda
-  | Lambda of parent : ExecutionPoint * lambdaExprId : id
+  /// Executing some lambda. `parent` is the fn that called it. `writtenIn` is the fn
+  /// the lambda was written in, shown in call stacks. `writtenIn` is `None` if we
+  /// don't know, for example for a lambda loaded from storage.
+  | Lambda of
+    parent : ExecutionPoint *
+    lambdaExprId : id *
+    writtenIn : Option<ExecutionPoint>
 
 
 type Instruction =
@@ -1346,6 +1351,40 @@ and ApplicableLambda =
     access : Permissions.Access
 
     argsSoFar : List<Dval>
+
+    /// What this lambda should return, according to the fn it was passed to. Set when
+    /// the lambda is passed to a fn, and checked each time the lambda returns. Not
+    /// saved when the lambda is serialized, so a loaded lambda is not checked.
+    expectedReturn : LambdaReturnExpectation voption
+
+    /// The fn this lambda was written in, shown in call stacks. Not saved when the
+    /// lambda is serialized, so a loaded lambda has `ValueNone`.
+    writtenIn : ExecutionPoint voption
+  }
+
+/// What a lambda should return, according to the fn it was passed to. For example,
+/// a lambda passed to `List.filter` should return `Bool`.
+///
+/// The check only applies while that fn is running (`runId` and `frameId` say which
+/// call). If the fn returns the lambda or stores it, it can later be called with
+/// other types, so we stop checking it.
+///
+/// A lambda passed from one fn to another gets a check for each, linked through
+/// `outer`. All of them are checked, and the error names the outermost fn, which is
+/// the one the person actually called.
+and LambdaReturnExpectation =
+  {
+    fnName : FQFnName.FQFnName
+    paramIndex : int
+    paramName : string
+    returnType : TypeReference
+    /// Updated after each passing check. When `List.fold` starts from `Dict { }`, its
+    /// `'b` is a dict of unknown types; once the first result says what they are, we
+    /// keep that, so later checks don't have to work it out again.
+    mutable typeSymbolTable : TypeSymbolTable
+    runId : int64
+    frameId : uuid
+    outer : LambdaReturnExpectation voption
   }
 
 
@@ -1845,6 +1884,17 @@ module RuntimeError =
 
       | FnResultNotExpectedType of
         fnName : FQFnName.FQFnName *
+        declaredType : Option<TypeReference> *
+        expectedType : ValueType *
+        actualType : ValueType *
+        actualValue : Dval
+
+      /// A lambda passed to a fn returned the wrong type. For example, a lambda passed
+      /// to `List.filter` returned `2L` instead of a `Bool`.
+      | LambdaResultNotExpectedType of
+        fnName : FQFnName.FQFnName *
+        paramIndex : int *
+        paramName : string *
         declaredType : Option<TypeReference> *
         expectedType : ValueType *
         actualType : ValueType *
@@ -3106,6 +3156,14 @@ type PackageFnCallData =
 
     /// The last resolved consumer policy, paired with its owner.
     mutable policy : PackagePolicyMemo
+
+    /// The parameters that take a callback, as (index, name, what the callback should
+    /// return). Empty for most fns.
+    ///
+    /// Null until we've worked it out, which for some fns happens on the first call
+    /// (`Interpreter.resolveFnParams`). Use `Volatile` to read and write it, since
+    /// several threads share it.
+    mutable fnParams : (struct (int * string * TypeReference))[]
   }
 
 /// One activation of a function, lambda or the root script.
@@ -3165,6 +3223,10 @@ type CallFrame =
     /// the function purely to read one field, and binds it, which costs a continuation closure per return.
     /// `ValueNone` for the root frame and for lambdas, neither of which declares one.
     mutable expectedReturnType : TypeReference voption
+
+    /// For a lambda frame: what the lambda should return, according to the fn it was
+    /// passed to. `ValueNone` if there's nothing to check, or that fn already returned.
+    mutable expectedLambdaReturn : LambdaReturnExpectation voption
 
     /// What instruction index we are currently 'at'
     mutable programCounter : int
@@ -3540,6 +3602,11 @@ type InterpreterStats =
   member this.recordPackageFn(hash : string, elapsedTicks : int64) =
     this.addTiming this.packageFnTiming this.packageFnCounts hash elapsedTicks
 
+/// Source of `VMState.runId`. Global, so atomic, but taken once per VM run rather than per frame.
+module private VMRuns =
+  let private last = ref 0L
+  let next () : int64 = System.Threading.Interlocked.Increment(&last.contents)
+
 /// The mutable state of one execution.
 ///
 /// One VM belongs to one execution on one thread, which is what makes the mutable fields and the
@@ -3600,6 +3667,11 @@ type VMState =
     /// parallel, and a non-atomic shared increment hands two frames the same id, which silently drops one
     /// from `callFrames` and fails the parent lookup on return.
     mutable frameIdCounter : int64
+
+    /// A new number each time a VM is created or reused. Frame ids start over when a VM
+    /// is reused, so a frame id alone can point at the wrong frame. Pairing it with this
+    /// tells `LambdaReturnExpectation` whether the frame it saved is still the same one.
+    mutable runId : int64
 
     /// Instructions this VM may still run before the scheduler takes the thread back.
     ///
@@ -3704,6 +3776,7 @@ type VMState =
         access = Permissions.Access.denyAll
         instrData = rootInstrData
         expectedReturnType = ValueNone
+        expectedLambdaReturn = ValueNone
         boundImpls = []
         programCounter = 0
         registers = Array.zeroCreate instrs.registerCount
@@ -3729,6 +3802,7 @@ type VMState =
       stats = InterpreterStats.create ()
       frameToPush = ValueNone
       frameIdCounter = 0L
+      runId = VMRuns.next ()
       budget = -1L
       inflight = 0
       pendingReads = null
@@ -3799,6 +3873,7 @@ type VMState =
           executionPoint = Source
           instrData = instrData
           expectedReturnType = ValueNone
+          expectedLambdaReturn = ValueNone
           boundImpls = []
           programCounter = 0
           access = Permissions.Access.denyAll
@@ -3818,6 +3893,7 @@ type VMState =
     vm.rootInstrData <- struct (tlid, instrData)
     vm.frameToPush <- ValueNone
     vm.frameIdCounter <- 0L
+    vm.runId <- VMRuns.next ()
     vm.budget <- -1L
     vm.inflight <- 0
     vm.pendingReads <- null
@@ -3947,6 +4023,7 @@ and ExecutionState =
     /// invoked from another (e.g. an httpServerServe request handler VM).
     lambdaInstrCache :
       System.Collections.Concurrent.ConcurrentDictionary<id, LambdaImpl>
+
 
     /// Memoization of what a package-fn call needs (`PackageFnCallData`).
     /// Shared across VMs for the same reason as `lambdaInstrCache`.

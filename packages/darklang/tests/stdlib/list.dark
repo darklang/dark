@@ -652,7 +652,7 @@ test rejectsTuplesWithDifferentArity =
 
 test dropWhileRejectsNonBoolCondition =
   Stdlib.List.dropWhile [ 1L, 2L, 3L, 4L ] (fun _ -> 0L - 1L)
-  => raises "Encountered a condition that must be a Bool, but got an Int64 (-1)"
+  => raises "Darklang.Stdlib.List.dropWhile's 2nd parameter `fn` returned Int64 (-1), but should return Bool"
 
 test filterRejectsOptionCondition =
   Stdlib.List.filter [ 1L, 2L, 3L ] (fun item ->
@@ -660,11 +660,11 @@ test filterRejectsOptionCondition =
     | 1L -> None
     | 2L -> false
     | 3L -> true)
-  => raises "Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (None)"
+  => raises "Darklang.Stdlib.List.filter's 2nd parameter `f` returned Darklang.Stdlib.Option.Option<_> (None), but should return Bool"
 
 test filterRejectsStringCondition =
   Stdlib.List.filter [ true, false, true ] (fun _ -> "a")
-  => raises "Encountered a condition that must be a Bool, but got a String (\"a\")"
+  => raises "Darklang.Stdlib.List.filter's 2nd parameter `f` returned String (\"a\"), but should return Bool"
 
 test flattenRejectsScalarElements =
   Stdlib.List.flatten [ 1l, 2l, 3l ]
@@ -688,7 +688,7 @@ test interposeRejectsWrongSeparatorType =
 
 test partitionRejectsStringCondition =
   Stdlib.List.partition [ true, false, true ] (fun _ -> "a")
-  => raises "Encountered a condition that must be a Bool, but got a String (\"a\")"
+  => raises "Darklang.Stdlib.List.partition's 2nd parameter `f` returned String (\"a\"), but should return Bool"
 
 test partitionRejectsOptionCondition =
   Stdlib.List.partition [ 1L, 2L, 3L ] (fun item ->
@@ -696,17 +696,17 @@ test partitionRejectsOptionCondition =
     | 1L -> None
     | 2L -> false
     | 3L -> true)
-  => raises "Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (None)"
+  => raises "Darklang.Stdlib.List.partition's 2nd parameter `f` returned Darklang.Stdlib.Option.Option<_> (None), but should return Bool"
 
 // CLEANUP: it should be a type error on the function not returning an Int64
 test comparatorRejectsFloatResult =
   Stdlib.List.sortByComparator [ 3L, 1L, 2L ] (fun _ _ -> 0.1)
-  => raises "Cannot perform equality check on Float and Int"
+  => raises "Darklang.Stdlib.List.sortByComparator's 2nd parameter `fn` returned Float (0.1), but should return Int"
 
 // CLEANUP: it should be a type error on the function not returning an Int64
 test comparatorRejectsStringResult =
   Stdlib.List.sortByComparator [ 1L, 2L, 3L ] (fun _ _ -> "㧑༷釺")
-  => raises "Cannot perform equality check on String and Int"
+  => raises "Darklang.Stdlib.List.sortByComparator's 2nd parameter `fn` returned String (\"㧑༷釺\"), but should return Int"
 
 test sortRefusesFunctions =
   Stdlib.List.sort [ (fun x -> x), (fun y -> y) ]
@@ -715,7 +715,7 @@ test sortRefusesFunctions =
 //TODO: better error message
 test takeWhileRejectsNonBoolCondition =
   Stdlib.List.takeWhile [ 1L, 2L, 3L, 4L ] (fun _ -> 0L - 1L)
-  => raises "Encountered a condition that must be a Bool, but got an Int64 (-1)"
+  => raises "Darklang.Stdlib.List.takeWhile's 2nd parameter `fn` returned Int64 (-1), but should return Bool"
 
 test uniqueByRejectsMixedElementTypes =
   Stdlib.List.uniqueBy [ 6L, 2.0 ] (fun x -> x)
