@@ -71,12 +71,22 @@ module CallStack =
   test lambdaLabel =
     Darklang.PrettyPrinter.RuntimeTypes.executionPoint
       Darklang.SCM.Branch.mainBranchId
-      (Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(source (), 23UL))
+      (Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
+        source (), 23UL, Stdlib.Option.Option.None))
     |> Stdlib.Test.equal "Lambda 23"
+
+  // A lambda is shown with the fn it was written in, when that is known.
+  test lambdaLabelSaysWhereItWasWritten =
+    Darklang.PrettyPrinter.RuntimeTypes.executionPoint
+      Darklang.SCM.Branch.mainBranchId
+      (Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
+        builtin (), 23UL, Stdlib.Option.Option.Some(source ())))
+    |> Stdlib.Test.equal "Lambda in Source (23)"
 
   test entryOnlyStacksAreHidden =
     let lambda =
-      Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(source (), 23UL)
+      Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
+        source (), 23UL, Stdlib.Option.Option.None)
     Stdlib.Test.all
       [ Darklang.Cli.ExecutionError.hasReadableFrames [ source (), lambda ]
         |> Stdlib.Test.equal false
@@ -87,7 +97,9 @@ module CallStack =
   test processStacksUseTheSharedType =
     let frame =
       Stdlib.Exec.ExecutionPoint.Lambda(
-        Stdlib.Exec.ExecutionPoint.Source, 18446744073709551615UL)
+        Stdlib.Exec.ExecutionPoint.Source,
+        18446744073709551615UL,
+        Stdlib.Option.Option.None)
     Darklang.PrettyPrinter.RuntimeTypes.executionPoint
       Darklang.SCM.Branch.mainBranchId frame
     |> Stdlib.Test.equal "Lambda 18446744073709551615"

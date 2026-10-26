@@ -667,6 +667,7 @@ let inline private takeFrame
   (access : Permissions.Access)
   (instrData : InstrData)
   (expectedReturnType : TypeReference voption)
+  (expectedLambdaReturn : LambdaReturnExpectation voption)
   (typeSymbolTable : TypeSymbolTable)
   /// What the caller worked out for the callee's bounds; `[]` for everything unbounded.
   (boundImpls :
@@ -681,6 +682,7 @@ let inline private takeFrame
     f.access <- access
     f.instrData <- instrData
     f.expectedReturnType <- expectedReturnType
+    f.expectedLambdaReturn <- expectedLambdaReturn
     f.programCounter <- 0
     f.typeSymbolTable <- typeSymbolTable
     f.continuation <- Unchecked.defaultof<_>
@@ -694,6 +696,7 @@ let inline private takeFrame
       access = access
       instrData = instrData
       expectedReturnType = expectedReturnType
+      expectedLambdaReturn = expectedLambdaReturn
       programCounter = 0
       typeSymbolTable = typeSymbolTable
       boundImpls = boundImpls
@@ -709,6 +712,7 @@ let inline private returnFrame (vm : VMState) (frame : CallFrame) : unit =
   let count = frame.registers.Length
   if count > 0 then System.Array.Clear(frame.registers, 0, count)
   frame.typeSymbolTable <- TST.empty
+  frame.expectedLambdaReturn <- ValueNone
   let mutable free = Unchecked.defaultof<Stack<CallFrame>>
   if not (vm.framePool.TryGetValue(count, &free)) then
     free <- Stack()
@@ -731,6 +735,90 @@ let inline private nextFrameId (vm : VMState) : uuid =
     0uy,
     0uy
   )
+
+/// Whether the fn that set up this check is still running. Once it returns, its
+/// types no longer apply, so a lambda kept and called later is not checked.
+let inline private isLive (vm : VMState) (x : LambdaReturnExpectation) : bool =
+  x.runId = vm.runId && vm.callFrames.ContainsKey x.frameId
+
+/// Drops the checks whose fn has already returned, and gives back the rest.
+let rec private liveExpectation
+  (vm : VMState)
+  (e : LambdaReturnExpectation voption)
+  : LambdaReturnExpectation voption =
+  match e with
+  | ValueSome x -> if isLive vm x then e else liveExpectation vm x.outer
+  | ValueNone -> ValueNone
+
+/// Whether the lambda is already being checked for this same fn and parameter. This
+/// happens when a fn calls itself and passes its callback along. Without it, each
+/// level would add another copy of the same check.
+let private alreadyExpects
+  (vm : VMState)
+  (fnName : FQFnName.FQFnName)
+  (paramIndex : int)
+  (e : LambdaReturnExpectation voption)
+  : bool =
+  let mutable link = e
+  let mutable found = false
+  while not found && link.IsSome do
+    let x = link.Value
+    found <- x.paramIndex = paramIndex && x.fnName = fnName && isLive vm x
+    link <- x.outer
+  found
+
+/// When a lambda is passed to a fn, remember what that fn says the lambda should
+/// return, so we can check the lambda's result each time it is called.
+///
+/// For example, `List.filter` says its callback returns `Bool`, so a lambda passed
+/// to it that returns `2L` raises an error naming `List.filter`.
+///
+/// A lambda passed through several fns keeps a check for each one (`outer`). The
+/// checks last until `frameId` returns. A return type like `'b` that isn't known yet
+/// would accept anything, so we skip it.
+let private expectLambdaReturns
+  (vm : VMState)
+  (fnName : FQFnName.FQFnName)
+  (fnParams : (struct (int * string * TypeReference))[])
+  (args : Dval[])
+  (tst : TypeSymbolTable)
+  (frameId : uuid)
+  : unit =
+  // CLEANUP This check misses callbacks that take too many arguments. For example,
+  // in `List.filter xs (fun x y -> true)`, filter passes one argument, so the call
+  // returns a function waiting for `y` instead of a Bool, and nothing checks it.
+  // Removing partial application fixes this.
+  for k in 0 .. fnParams.Length - 1 do
+    let struct (i, name, ret) = fnParams[k]
+    let unbound =
+      match ret with
+      | TVariable v -> not (TST.containsKey v tst)
+      | _ -> false
+    if not unbound && i < args.Length then
+      match args[i] with
+      | DApplicable(AppLambda l) when
+        not (alreadyExpects vm fnName i l.expectedReturn)
+        ->
+        let e : LambdaReturnExpectation =
+          { fnName = fnName
+            paramIndex = i
+            paramName = name
+            returnType = ret
+            typeSymbolTable = tst
+            runId = vm.runId
+            frameId = frameId
+            outer = liveExpectation vm l.expectedReturn }
+        args[i] <- DApplicable(AppLambda { l with expectedReturn = ValueSome e })
+      | _ -> ()
+
+/// Whether a builtin takes a callback.
+let rec private hasFnParam (ps : List<BuiltInParam>) : bool =
+  match ps with
+  | [] -> false
+  | p :: rest ->
+    match p.typ with
+    | TFn _ -> true
+    | _ -> hasFnParam rest
 
 /// `Map.remove` rebuilds nodes along the search path even when the key isn't there.
 ///
@@ -1637,6 +1725,24 @@ let private completeBuiltin
     |> Pending.wrap
     |> Ply
   else
+    // Some stdlib fns, like `List.filter`, just call a builtin, so we skip the Dark fn
+    // and call the builtin directly. That skip also skips the code that sets up the
+    // callback check, so we do it here instead. Without this, a bad callback would only
+    // be caught when tracing is on, since tracing turns the skip off.
+    match ctx.applicable.name with
+    | FQFnName.Package hash when hasFnParam fn.parameters ->
+      let mutable callData = Unchecked.defaultof<PackageFnCallData>
+      if exeState.packageFnCallCache.TryGetValue(hash, &callData) then
+        let fnParams = System.Threading.Volatile.Read(&callData.fnParams)
+        if not (isNull fnParams) && fnParams.Length > 0 then
+          expectLambdaReturns
+            vm
+            ctx.applicable.name
+            fnParams
+            allArgs
+            tst
+            vm.currentFrameID
+    | _ -> ()
     invokeBuiltin exeState vm fn tst ctx.typeArgs allArgs
 
 
@@ -2213,6 +2319,17 @@ let private thinWrapperOf
     if exeState.fns.builtIn.TryGetValue(b, &bi) then ValueSome bi else ValueNone
 
 
+/// If this parameter takes a callback, returns its index, its name and what the
+/// callback should return. Otherwise `None`.
+let private callbackParam
+  (i : int)
+  (name : string)
+  (typ : TypeReference)
+  : (struct (int * string * TypeReference)) option =
+  match typ with
+  | TFn(_, ret) -> Some(struct (i, name, ret))
+  | _ -> None
+
 /// Cached data needed to enter a package function. Built once per function to
 /// avoid rebuilding its instructions and permission layers on every call.
 let private packageFnCallData
@@ -2241,7 +2358,26 @@ let private packageFnCallData
                       Permissions.Policy.allowEffects effects)
             )
         policy =
-          { owner = null; policy = Permissions.Policy.denyAll; isAllowAll = false } }
+          { owner = null; policy = Permissions.Policy.denyAll; isAllowAll = false }
+        // The parameters that take a callback. If a parameter has a named type, like
+        // `Check`, it might be a function, so we leave this null and work it out
+        // on the first call instead.
+        fnParams =
+          if
+            fn.parameters
+            |> NEList.toList
+            |> List.exists (fun p ->
+              match p.typ with
+              | TCustomType _ -> true
+              | _ -> false)
+          then
+            null
+          else
+            fn.parameters
+            |> NEList.toList
+            |> List.indexed
+            |> List.choose (fun (i, p) -> callbackParam i p.name p.typ)
+            |> Array.ofList }
     exeState.packageFnCallCache[fn.hash] <- d
     d
 
@@ -2383,6 +2519,7 @@ let private completePackage
         access
         callData.instrData
         (ValueSome fn.returnType)
+        ValueNone
         frameTst
         // What the caller recorded for this fn's bounds, with any entry that defers to the
         // CALLER's own type param resolved against the caller's frame. That is what threads a
@@ -2408,6 +2545,19 @@ let private completePackage
              | FQFnName.Unknown -> None))
 
     ArgSeq.fill frame.registers allArgs
+    let fnParams = System.Threading.Volatile.Read(&callData.fnParams)
+    if not (isNull fnParams) && fnParams.Length > 0 then
+      let fnName =
+        match pkgEp with
+        | Function n -> n
+        | _ -> applicable.name
+      expectLambdaReturns
+        vm
+        fnName
+        fnParams
+        frame.registers
+        frame.typeSymbolTable
+        frame.id
     recordStage vm ApplyStage.PkgFrame pkgFrameAlloc
     PushFrame frame
 
@@ -2683,8 +2833,32 @@ let private callPackageViaFrame
     }
 
 
-/// Run a package-fn call whose explicit type args are resolved.
-let private callPackageResolved
+/// Work out `PackageFnCallData.fnParams` for a fn with a parameter whose type might be an alias of
+/// a function type. Once per fn; every later call finds it set.
+let private resolveFnParams
+  (exeState : ExecutionState)
+  (fn : PackageFn.PackageFn)
+  (callData : PackageFnCallData)
+  : Ply<unit> =
+  uply {
+    let! found =
+      FreeTVars.paramsOfPackage fn
+      |> List.indexed
+      |> Ply.List.mapSequentially (fun (i, p) ->
+        uply {
+          let! typ =
+            match p.typ with
+            | TCustomType _ -> TypeReference.unwrapAlias exeState.types p.typ
+            | t -> Ply t
+          return callbackParam i p.name typ
+        })
+    let resolved = found |> List.choose (fun x -> x) |> Array.ofList
+    System.Threading.Volatile.Write(&callData.fnParams, resolved)
+  }
+
+
+/// Run a package-fn call whose explicit type args are resolved, and whose `fnParams` are known.
+let private callPackageResolvedReady
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
@@ -2743,6 +2917,39 @@ let private callPackageResolved
       }
   | _ ->
     callPackageViaFrame exeState vm currentFrame ctx fn resolvedExplicitTypeArgsVT
+
+
+/// Run a package-fn call whose explicit type args are resolved. On the first call, work
+/// out which parameters take a callback, so their results can be checked.
+let private callPackageResolved
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (ctx : ApplyContext)
+  (fn : PackageFn.PackageFn)
+  (resolvedExplicitTypeArgsVT : List<ValueType>)
+  : Ply<PackageOutcome> =
+  let callData = packageFnCallData exeState fn
+  if isNull (System.Threading.Volatile.Read(&callData.fnParams)) then
+    uply {
+      do! resolveFnParams exeState fn callData
+      return!
+        callPackageResolvedReady
+          exeState
+          vm
+          currentFrame
+          ctx
+          fn
+          resolvedExplicitTypeArgsVT
+    }
+  else
+    callPackageResolvedReady
+      exeState
+      vm
+      currentFrame
+      ctx
+      fn
+      resolvedExplicitTypeArgsVT
 
 
 /// Run a package-fn call, resolving its explicit type args first. Outside the computation expression for
@@ -3114,6 +3321,20 @@ let inline private recordedImpl
   | FQFnName.Unknown -> ValueNone
 
 
+/// Whether a cached execution point says the lambda was written where this one was.
+/// It always does, unless one of them was loaded from storage and doesn't know.
+let private sameWrittenIn
+  (cached : ExecutionPoint)
+  (writtenIn : ExecutionPoint voption)
+  : bool =
+  match cached with
+  | Lambda(_, _, Some w) ->
+    (match writtenIn with
+     | ValueSome w' -> System.Object.ReferenceEquals(w, w') || w = w'
+     | ValueNone -> false)
+  | Lambda(_, _, None) -> writtenIn.IsNone
+  | _ -> false
+
 /// Push the frame for applying `appLambda` to `allArgs` (a full application, checked by the
 /// caller), from `currentFrame`, with `access` (the applying frame's, narrowed by the lambda's
 /// capture). What the `Apply` instruction does for a lambda, and what a builtin's apply request
@@ -3153,17 +3374,24 @@ let inline private pushLambdaFrame
   // is not enough: `List.map` alternates between its own recursion and the caller's lambda, so
   // two expression ids interleave and a one-entry cache misses every time. A memo that thrashes
   // looks like a memo that does not help -- check the hit rate, not just the total.
+  //
+  // The cached point also says where the lambda was written (`sameWrittenIn`).
   let lambdaEp =
     let mutable hit = Unchecked.defaultof<struct (ExecutionPoint * ExecutionPoint)>
     if
       vm.lambdaEpCache.TryGetValue(exprId, &hit)
-      && (let struct (cachedParent, _) = hit
-          System.Object.ReferenceEquals(cachedParent, parentEp))
+      && (let struct (cachedParent, cachedEp) = hit
+          System.Object.ReferenceEquals(cachedParent, parentEp)
+          && sameWrittenIn cachedEp appLambda.writtenIn)
     then
       let struct (_, ep) = hit
       ep
     else
-      let ep = Lambda(parentEp, exprId)
+      let writtenIn =
+        match appLambda.writtenIn with
+        | ValueSome w -> Some w
+        | ValueNone -> None
+      let ep = Lambda(parentEp, exprId, writtenIn)
       vm.lambdaEpCache[exprId] <- struct (parentEp, ep)
       ep
   recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
@@ -3207,6 +3435,7 @@ let inline private pushLambdaFrame
       access
       lambdaInstrData
       ValueNone
+      (liveExpectation vm appLambda.expectedReturn)
       lambdaTst
       // A lambda body is part of the item that wrote it, so a trait call in it defers to
       // the same type params the enclosing frame resolved.
@@ -3956,7 +4185,11 @@ let private applyInstructionForced
             match thinWrapperCachedFor exeState pkg with
             | ValueSome biFn ->
               let mutable callData = Unchecked.defaultof<PackageFnCallData>
-              if exeState.packageFnCallCache.TryGetValue(pkg, &callData) then
+              // Also only once its callback parameters are known, which the long way does.
+              if
+                exeState.packageFnCallCache.TryGetValue(pkg, &callData)
+                && not (isNull (System.Threading.Volatile.Read(&callData.fnParams)))
+              then
                 ValueSome(struct (biFn, callData))
               else
                 ValueNone
@@ -4867,13 +5100,22 @@ let private runSyncInstructions
       | CreateLambda(lambdaReg, impl) ->
         // Captures are taken as they are; the body waits where it looks.
         exeState.lambdaInstrCache[impl.exprId] <- impl
+        // The fn this lambda is written in, for call stacks. If it's written inside
+        // another lambda, use the fn that lambda was written in.
+        let writtenIn =
+          match currentFrame.executionPoint with
+          | Lambda(_, _, Some outer) -> ValueSome outer
+          | Lambda(_, _, None) -> ValueNone
+          | ep -> ValueSome ep
 
         registers[lambdaReg] <-
           { exprId = impl.exprId
             closedRegisters = closedOver registers impl.registersToCloseOver
             typeSymbolTable = currentFrame.typeSymbolTable
             access = currentFrame.access
-            argsSoFar = [] }
+            argsSoFar = []
+            expectedReturn = ValueNone
+            writtenIn = writtenIn }
           |> AppLambda
           |> DApplicable
           |> Pending.wrap
@@ -5126,7 +5368,83 @@ let private frameReturnTypeCheckAsync
   }
 
 
-/// Type-check what a frame is returning, if it's a function frame.
+/// A quick check of the lambda's result against every fn it was passed to. `true`
+/// means it passed. `false` means we couldn't tell quickly, so the slower
+/// `lambdaReturnTypeCheckAsync` decides.
+let rec private lambdaLinksPassSync
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (e : LambdaReturnExpectation voption)
+  (resultOfFrame : Dval)
+  : bool =
+  match e with
+  | ValueNone -> true
+  | ValueSome x ->
+    let passes =
+      not (isLive vm x)
+      || (match
+            TypeChecker.tryUnifyWithAliasesSync
+              exeState.types
+              x.typeSymbolTable
+              x.returnType
+              resultOfFrame
+          with
+          | ValueSome tst ->
+            x.typeSymbolTable <- tst
+            true
+          | ValueNone -> false)
+    passes && lambdaLinksPassSync exeState vm x.outer resultOfFrame
+
+/// The full check of a lambda's result against every fn it was passed to. If it fails,
+/// the error names the outermost fn, the one the person called. The type it shows may
+/// come from a stricter fn further in.
+let private lambdaReturnTypeCheckAsync
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (e : LambdaReturnExpectation)
+  (resultOfFrame : Dval)
+  : System.Threading.Tasks.Task<unit> =
+  task {
+    let mutable link = ValueSome e
+    let mutable outermost = e
+    let mutable broken = ValueNone
+    while link.IsSome do
+      let x = link.Value
+      if isLive vm x then
+        outermost <- x
+        match!
+          Ply.toTask (
+            TypeChecker.unify
+              exeState.types
+              x.typeSymbolTable
+              x.returnType
+              resultOfFrame
+          )
+        with
+        | Ok tst -> x.typeSymbolTable <- tst
+        | Error _path -> broken <- ValueSome x
+      link <- x.outer
+    match broken with
+    | ValueNone -> ()
+    | ValueSome b ->
+      let! expectedVT =
+        Ply.toTask (TypeReference.toVT exeState.types b.typeSymbolTable b.returnType)
+      RuntimeError.Applications.LambdaResultNotExpectedType(
+        outermost.fnName,
+        outermost.paramIndex,
+        outermost.paramName,
+        Some b.returnType,
+        expectedVT,
+        Dval.toValueType resultOfFrame,
+        resultOfFrame
+      )
+      |> RuntimeError.Apply
+      |> raiseRTE vm.threadID
+  }
+
+
+/// Type-check what a frame is returning: a function frame against its declared return type, a
+/// lambda frame against the parameter it was passed to, if any.
 ///
 /// Deliberately *not* a computation expression: it returns an already-completed task in the ordinary
 /// case and hands back the rare async one otherwise. A `match!` sitting inside a nested match arm is
@@ -5141,8 +5459,23 @@ let private checkFrameReturnType
   : System.Threading.Tasks.Task<unit> =
   let retTcAlloc = allocNow vm
   match currentFrame.executionPoint with
-  | Source
-  | Lambda _ -> completedUnit
+  | Source -> completedUnit
+  | Lambda _ ->
+    match currentFrame.expectedLambdaReturn with
+    | ValueNone -> completedUnit
+    | ValueSome e ->
+      if
+        lambdaLinksPassSync
+          exeState
+          vm
+          currentFrame.expectedLambdaReturn
+          resultOfFrame
+      then
+        recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+        completedUnit
+      else
+        recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+        lambdaReturnTypeCheckAsync exeState vm e resultOfFrame
   | Function fnName ->
     // Recorded when the frame was pushed. Builtins never get a frame, so a Function frame always
     // carries one; the fallback keeps the match total rather than asserting.

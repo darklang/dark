@@ -512,6 +512,19 @@ module RuntimeError =
 
 
 
+      | LambdaResultNotExpectedType(fnName, paramIndex, paramName, declaredType, expectedType, actualType, actualValue) ->
+        [ ES.FunctionName fnName
+          ES.String "'s "
+          ES.Ordinal(paramIndex + 1)
+          ES.String " parameter "
+          ES.ParamName paramName
+          ES.String " returned "
+          ES.ValueType actualType
+          ES.String " ("
+          ES.FullValue actualValue
+          ES.String "), but should return "
+          ES.DeclaredValueType(declaredType, expectedType) ]
+
       | CannotApplyTypeArgsToLambda ->
         [ ES.String "Cannot apply type arguments to a lambda" ]
 

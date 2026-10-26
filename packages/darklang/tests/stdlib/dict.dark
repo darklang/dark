@@ -64,17 +64,6 @@ test filterMap =
             Some(key + value))
       |> Stdlib.Test.equal (Dict { "c": "cz", "a": "ax" }) ]
 
-// CLEANUP figure out why this isn't failing on the `false` not being an option
-// test filterMapRejectsNonOptionResult =
-//   Stdlib.Dict.filterMap
-//     (fun key value ->
-//       if value == "y" then
-//         false
-//       else
-//         Some(key + value))
-//   => raises
-//     "Darklang.Stdlib.Option.map's 1st argument (`option`) should be a Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
-
 test filter =
   Stdlib.Test.all
     [ Stdlib.Dict.filter
@@ -87,7 +76,7 @@ test filter =
 
 test filterRejectsNonBoolPredicate =
   Stdlib.Dict.filter (Dict { "a": 1L, "b": 2L, "c": 3L }) (fun k v -> 2L)
-  => raises "Encountered a condition that must be a Bool, but got an Int64 (2)"
+  => raises "Darklang.Stdlib.Dict.filter's 2nd parameter `fn` returned Int64 (2), but should return Bool"
 
 test fromEntries =
   Stdlib.Test.all
@@ -193,6 +182,54 @@ test mergeWith =
         (Dict { "k": "right" })
         (fun k l r -> k + ":" + l + ":" + r)
       |> Stdlib.Test.equal (Dict { "k": "k:left:right" }) ]
+
+test update =
+  Stdlib.Test.all
+    [ // Present key: the callback sees Some and its result replaces the value.
+      Stdlib.Dict.update (Dict { "a": 1L, "b": 2L }) "a" (fun v ->
+        match v with
+        | Some n -> Some(n + 10L)
+        | None -> Some 0L)
+      |> Stdlib.Test.equal (Dict { "a": 11L, "b": 2L })
+      // Absent key: the callback sees None, and Some adds the key.
+      Stdlib.Dict.update (Dict { "a": 1L }) "b" (fun v ->
+        match v with
+        | Some n -> Some(n + 10L)
+        | None -> Some 0L)
+      |> Stdlib.Test.equal (Dict { "a": 1L, "b": 0L })
+      // Returning None removes a present key.
+      Stdlib.Dict.update (Dict { "a": 1L, "b": 2L }) "a" (fun _ -> None)
+      |> Stdlib.Test.equal (Dict { "b": 2L })
+      // Returning None for an absent key leaves the dict unchanged.
+      Stdlib.Dict.update (Dict { "a": 1L }) "z" (fun _ -> None)
+      |> Stdlib.Test.equal (Dict { "a": 1L })
+      // Any key type works: Int64 and tuple keys.
+      Stdlib.Dict.update (Dict { 1L: "one", 2L: "two" }) 1L (fun v ->
+        match v with
+        | Some s -> Some(s + "!")
+        | None -> Some "new")
+      |> Stdlib.Test.equal (Dict { 1L: "one!", 2L: "two" })
+      Stdlib.Dict.update (Dict { (1L, "a"): "first" }) ((1L, "a")) (fun _ -> None)
+      |> Stdlib.Test.equal (Dict { }) ]
+
+test fold =
+  Stdlib.Test.all
+    [ Stdlib.Dict.fold (Dict { }) 0L (fun acc k v -> acc + v)
+      |> Stdlib.Test.equal 0L
+      Stdlib.Dict.fold (Dict { "a": 1L, "b": 2L, "c": 3L }) 0L (fun acc k v -> acc + v)
+      |> Stdlib.Test.equal 6L
+      // Entries are visited in key order, with (acc, key, value).
+      Stdlib.Dict.fold (Dict { "b": "2", "a": "1" }) "" (fun acc k v -> acc + k + v)
+      |> Stdlib.Test.equal "a1b2" ]
+
+test foldIntoDifferentType =
+  Stdlib.Dict.fold (Dict { "b": 2L, "a": 1L }) [] (fun acc k v ->
+    Stdlib.List.append acc [ k ])
+  |> Stdlib.Test.equal [ "a", "b" ]
+
+test updateRejectsNonOptionResult =
+  Stdlib.Dict.update (Dict { "a": 1L }) "c" (fun _ -> 0L)
+  => raises "Darklang.Stdlib.Dict.update's 3rd parameter `fn` returned Int64 (0), but should return Darklang.Stdlib.Option.Option<Int64>"
 
 test insert =
   Stdlib.Test.all
@@ -529,7 +566,7 @@ test filterMapRejectsNonOptionResult =
   Stdlib.Dict.filterMap
     (Dict { "a": "x", "b": "y", "c": "z" })
     (fun key value -> if value == "y" then false else Some(key + value))
-  => raises "No matching case found for value false in match expression"
+  => raises "Darklang.Stdlib.Dict.filterMap's 2nd parameter `fn` returned Bool (false), but should return Darklang.Stdlib.Option.Option<String>"
 
 test fromEntriesPropagatesElementError =
   Stdlib.Dict.fromEntries [ Stdlib.Test.raiseRuntimeError "err" ]

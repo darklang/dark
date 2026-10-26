@@ -110,7 +110,7 @@ expressions. Results are cached per run, including forward dependencies reached 
 
 Runtime rules check postfix `?`. A direct return annotation or final Option/Result constructor enables the check for mixing Option and Result; it does not expand aliases or follow helper calls.
 Declared functions also check their final return value, including aliases.
-Lambdas have no declared return-type check.
+Lambdas passed to a fn must return what that fn expects.
 
 ### Authoring and commit
 

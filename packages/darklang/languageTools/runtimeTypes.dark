@@ -57,7 +57,12 @@ module FQFnName =
 type ExecutionPoint =
   | Source
   | Function of FQFnName.FQFnName
-  | Lambda of parent: ExecutionPoint * exprId: UInt64
+  /// `parent` is the frame that called the lambda. `writtenIn` is the fn (or
+  /// `Source`) the lambda is written in, or `None` when that isn't known.
+  | Lambda of
+    parent: ExecutionPoint *
+    exprId: UInt64 *
+    writtenIn: Option<ExecutionPoint>
 
 type NameResolutionError =
   | NotFound

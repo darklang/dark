@@ -315,7 +315,9 @@ and readApplicableLambda (version : uint32) (r : BinaryReader) : ApplicableLambd
     typeSymbolTable = typeSymbolTable
     access =
       LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.denyAll
-    argsSoFar = argsSoFar }
+    argsSoFar = argsSoFar
+    expectedReturn = ValueNone
+    writtenIn = ValueNone }
 
 and readApplicableNamedFn (version : uint32) (r : BinaryReader) : ApplicableNamedFn =
   let name = FQFnName.read r

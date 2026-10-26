@@ -291,7 +291,14 @@ let executionPoint
   : String =
   match point with
   | Source -> "Source"
-  | Lambda(_, expressionId) -> $"Lambda {Stdlib.toString expressionId}"
+  | Lambda(_, expressionId, writtenIn) ->
+    // Named after the fn it is written in, not the fn that called it. The id tells
+    // two lambdas in one fn apart.
+    let id = Stdlib.toString expressionId
+    match writtenIn with
+    | Some(Function name) -> $"Lambda in {fnName branchId name} ({id})"
+    | Some Source -> $"Lambda in Source ({id})"
+    | _ -> $"Lambda {id}"
   | Function name ->
     match name with
     | Package _ -> $"Package Function {fnName branchId name}"

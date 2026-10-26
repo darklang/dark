@@ -58,6 +58,19 @@ let remove (dict: Dict<'k, 'v>) (key: 'k) : Dict<'k, 'v> =
   Builtin.dictRemove dict key
 
 
+/// Calls <param fn> with {{Some value}} if <param dict> contains <param key>, or
+/// {{None}} if it does not. If <param fn> returns {{Some newValue}}, sets <param key>
+/// to <var newValue>; if it returns {{None}}, removes <param key>.
+let update
+  (dict: Dict<'k, 'v>)
+  (key: 'k)
+  (fn: Option.Option<'v> -> Option.Option<'v>)
+  : Dict<'k, 'v> =
+  match fn (Stdlib.Dict.get dict key) with
+  | Some value -> Stdlib.Dict.set dict key value
+  | None -> Stdlib.Dict.remove dict key
+
+
 /// Combines <param left> and <param right>, using the value from <param right>
 /// for any key in both. Use <fn Dict.mergeUnique> to reject duplicate keys,
 /// or <fn Dict.mergeWith> to combine their values.
@@ -175,6 +188,14 @@ let map (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> 'b) : Dict<'k, 'b> =
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}.
 let iter (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> Unit) : Unit =
   dict |> Stdlib.Dict.toEntries |> List.iter (fun (k, v) -> fn k v)
+
+
+/// Folds <param dict> into a single value, by calling {{fn acc key value}} on each
+/// entry in key order, starting from <param init>.
+let fold (dict: Dict<'k, 'v>) (init: 'b) (fn: 'b -> 'k -> 'v -> 'b) : 'b =
+  // CLEANUP The lambda below adds a second call per entry, about 2x slower.
+  // A `dictFold` builtin would fix it, if real code ever needs it.
+  List.fold (Stdlib.Dict.toEntries dict) init (fun acc (k, v) -> fn acc k v)
 
 
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns a <type

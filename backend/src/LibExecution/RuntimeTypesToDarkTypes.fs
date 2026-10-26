@@ -248,8 +248,11 @@ module ExecutionPoint =
       match point with
       | RuntimeTypes.Source -> "Source", []
       | RuntimeTypes.Function name -> "Function", [ FQFnName.toDT name ]
-      | RuntimeTypes.Lambda(parent, expressionId) ->
-        "Lambda", [ toDT parent; DUInt64 expressionId ]
+      | RuntimeTypes.Lambda(parent, expressionId, writtenIn) ->
+        "Lambda",
+        [ toDT parent
+          DUInt64 expressionId
+          writtenIn |> C2DT.Option.toDT toDT (knownType ()) ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
 
@@ -751,7 +754,9 @@ module ApplicableLambda =
           |> Map.toList
           |> TST.ofList
         access = Permissions.Access.start Permissions.Policy.denyAll
-        argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
+        argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT
+        expectedReturn = ValueNone
+        writtenIn = ValueNone }
     | _ -> Exception.raiseInternal "Invalid ApplicableLambda" []
 
 
@@ -1592,6 +1597,25 @@ module RuntimeError =
             ValueType.toDT actualType
             Dval.toDT actualValue ]
 
+        | RuntimeError.Applications.LambdaResultNotExpectedType(fnName,
+                                                                paramIndex,
+                                                                paramName,
+                                                                declaredType,
+                                                                expectedType,
+                                                                actualType,
+                                                                actualValue) ->
+          "LambdaResultNotExpectedType",
+          [ FQFnName.toDT fnName
+            dintOfInt paramIndex
+            DString paramName
+            declaredType
+            |> C2DT.Option.toDT
+              TypeReference.toDT
+              (KTCustomType(TypeReference.typeName (), []))
+            ValueType.toDT expectedType
+            ValueType.toDT actualType
+            Dval.toDT actualValue ]
+
         | RuntimeError.Applications.CannotApplyTypeArgsToLambda ->
           "CannotApplyTypeArgsToLambda", []
 
@@ -1653,6 +1677,27 @@ module RuntimeError =
               [ fnName; declaredType; expectedType; actualType; actualValue ]) ->
         RuntimeError.Applications.FnResultNotExpectedType(
           FQFnName.fromDT fnName,
+          C2DT.Option.fromDT TypeReference.fromDT declaredType,
+          ValueType.fromDT expectedType,
+          ValueType.fromDT actualType,
+          Dval.fromDT actualValue
+        )
+
+      | DEnum(_,
+              _,
+              [],
+              "LambdaResultNotExpectedType",
+              [ fnName
+                paramIndex
+                paramName
+                declaredType
+                expectedType
+                actualType
+                actualValue ]) ->
+        RuntimeError.Applications.LambdaResultNotExpectedType(
+          FQFnName.fromDT fnName,
+          D.int paramIndex,
+          D.string paramName,
           C2DT.Option.fromDT TypeReference.fromDT declaredType,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,

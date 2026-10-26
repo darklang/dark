@@ -460,7 +460,9 @@ let persistableRejectsLambda =
             argsSoFar = []
             access =
               LibExecution.Permissions.Access.start
-                LibExecution.Permissions.Policy.denyAll }
+                LibExecution.Permissions.Policy.denyAll
+            expectedReturn = ValueNone
+            writtenIn = ValueNone }
       )
 
     Expect.isFalse (Dval.isPersistable lambda) "a lambda cannot be stored"
@@ -841,7 +843,9 @@ let private fakeAppLambda
         access =
           LibExecution.Permissions.Access.start
             LibExecution.Permissions.Policy.denyAll
-        argsSoFar = argsSoFar }
+        argsSoFar = argsSoFar
+        expectedReturn = ValueNone
+        writtenIn = ValueNone }
   )
 
 let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =

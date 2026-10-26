@@ -125,6 +125,8 @@ module Applications =
     | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
     | FnResultNotExpectedType of fnName : FQFnName.FQFnName * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
+    | LambdaResultNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+
     | CannotApplyTypeArgsToLambda
     | TooManyArgsForLambda of lambdaExprId: ID * expected: Int * actual: Int
 
