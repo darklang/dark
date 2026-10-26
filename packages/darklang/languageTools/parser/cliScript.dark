@@ -333,7 +333,7 @@ let restamp
   (stabilizedOps: List<ProgramTypes.PackageOp>)
   : List<'a> =
   (Stdlib.List.zip second first)
-  |> Stdlib.Option.mapWithDefault second (fun zipped ->
+  |> Stdlib.Result.mapWithDefault second (fun zipped ->
     zipped
     |> Stdlib.List.map (fun pair ->
       let (newItem, original) = pair
@@ -376,7 +376,7 @@ let parseFromWT
 
       let adjustedSubmodules =
         (Stdlib.List.zip result.submodules initialParse.submodules)
-        |> Stdlib.Option.mapWithDefault result.submodules (fun zipped ->
+        |> Stdlib.Result.mapWithDefault result.submodules (fun zipped ->
           zipped
           |> Stdlib.List.map (fun pair ->
             let (newSub, originalSub) = pair

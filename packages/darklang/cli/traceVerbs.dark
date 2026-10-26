@@ -1263,6 +1263,7 @@ let showCode
                   | [] -> Stdlib.Option.Option.None
                   | args ->
                     Stdlib.List.zip (fn.parameters |> Stdlib.List.map (fun p -> p.name)) args
+                    |> Stdlib.Result.toOption
                     |> Stdlib.Option.map (fun pairs ->
                       pairs
                       |> Stdlib.List.map (fun pair ->

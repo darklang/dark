@@ -98,7 +98,7 @@ let distributeRows (totalRows: Int) (requests: List<SizeRequest>) : List<Int> =
           else
             0
         minR + share))
-      |> Stdlib.Option.withDefault mins
+      |> Stdlib.Result.withDefault mins
 
 
 // --- Layout combinators ---
@@ -112,7 +112,7 @@ let vstack (region: Region) (components: List<Component>) : List<Span> =
   let pairs =
     (Stdlib.List.map2 components rowAllocs (fun c rows ->
       (c, rows)))
-    |> Stdlib.Option.withDefault []
+    |> Stdlib.Result.withDefault []
   // Collected as a list of lists and flattened once, rather than appended into an accumulator per
   // child. `List.concat` copies its left side, so appending each child's spans in turn copies every
   // span already placed -- and stacks nest, so a span three levels down was copied on the way out of
@@ -180,7 +180,7 @@ let distributeCols (totalCols: Int) (requests: List<SizeRequest>) : List<Int> =
           else
             0
         minC + share))
-      |> Stdlib.Option.withDefault mins
+      |> Stdlib.Result.withDefault mins
 
 
 /// Place components side by side within a region.
@@ -190,7 +190,7 @@ let hstack (region: Region) (components: List<Component>) : List<Span> =
   let colAllocs = distributeCols region.cols requests
   let pairs =
     (Stdlib.List.map2 components colAllocs (fun c cols -> (c, cols)))
-    |> Stdlib.Option.withDefault []
+    |> Stdlib.Result.withDefault []
   // Same as `vstack`: collect and flatten once rather than copying the accumulator per child.
   let (_finalLeft, chunks) =
     pairs

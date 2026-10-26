@@ -96,7 +96,7 @@ let expectedType
   let mapping =
     Stdlib.List.fold
       (Stdlib.List.zip trait_.typeParams (Stdlib.List.prepend args selfTy)
-       |> Stdlib.Option.withDefault [])
+       |> Stdlib.Result.withDefault [])
       (Types.rigid method_.typeParams)
       (fun mapping (name, t) -> Stdlib.Dict.set mapping name t)
 

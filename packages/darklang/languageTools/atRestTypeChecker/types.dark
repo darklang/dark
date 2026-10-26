@@ -487,12 +487,12 @@ let bindParams
     Stdlib.Option.Option.Some(Dict {})
   else
     match Stdlib.List.zip names args with
-    | Some pairs ->
+    | Ok pairs ->
       Stdlib.Option.Option.Some(
         Stdlib.List.fold pairs Dict {} (fun mapping (name, t) ->
           Stdlib.Dict.set mapping name t)
       )
-    | None -> Stdlib.Option.Option.None
+    | Error _ -> Stdlib.Option.Option.None
 
 /// Convert a declared field type using the type arguments supplied for its owner.
 /// Return the converted type and any findings, or TError with a count mismatch
@@ -784,13 +784,13 @@ let argsThatReachValues
     []
   else
     match Stdlib.List.zip typeParams args with
-    | Some pairs ->
+    | Ok pairs ->
       pairs
       |> Stdlib.List.filter (fun (p, _) -> Stdlib.List.contains used p)
       |> Stdlib.List.map (fun (_, arg) -> arg)
     // If the counts differ, retain all arguments so malformed input cannot hide
     // an invalid key type. Argument-count validation reports the mismatch separately.
-    | None -> args
+    | Error _ -> args
 
 /// Collect type-variable names that can describe values within this type.
 /// Use cached summaries for custom types to skip phantom arguments. If a custom
