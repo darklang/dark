@@ -54,7 +54,7 @@ let resolveTypeName
 /// Compare two lists element-wise; returns false if lengths differ.
 let listsEqual (xs: List<'a>) (ys: List<'a>) (eq: 'a -> 'a -> Bool) : Bool =
   let checks = Stdlib.List.map2 xs ys (fun a b -> eq a b)
-  let results = Stdlib.Option.withDefault checks []
+  let results = Stdlib.Result.withDefault checks []
   (Stdlib.List.length xs == Stdlib.List.length ys)
   && (Stdlib.List.all results (fun x -> x))
 

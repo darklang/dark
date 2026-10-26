@@ -1739,11 +1739,11 @@ let newEnum
               (Context.Identifier caseName))
         | Some case ->
           match Stdlib.List.zip case.fields fields with
-          | Some pairs ->
+          | Ok pairs ->
             Stdlib.List.fold pairs s (fun s (declared, (slot, site)) ->
               let (t, s) = fieldType s nodeId decl.typeParams args declared.typ
               unify s nodeId site t slot)
-          | None ->
+          | Error _ ->
             addFinding
               s
               (Types.definiteError
@@ -1989,13 +1989,13 @@ let enumPattern
               (Context.Identifier caseName))
         | Some case ->
           match Stdlib.List.zip case.fields fields with
-          | Some pairs ->
+          | Ok pairs ->
             Stdlib.Option.Option.Some(
               Stdlib.List.fold pairs s (fun s (declared, slot) ->
                 let (t, s) = fieldType s nodeId decl.typeParams args declared.typ
                 unify s nodeId Site.MatchPattern t slot)
             )
-          | None ->
+          | Error _ ->
             failWith
               s
               (Types.definiteError

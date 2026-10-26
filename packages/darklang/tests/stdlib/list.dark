@@ -311,11 +311,13 @@ test interpose =
 test map2 =
   Stdlib.Test.all
     [ Stdlib.List.map2 [ 10L, 20L, 30L ] [ 1L, 2L, 3L ] (fun a b -> a - b)
-      |> Stdlib.Test.equal (Some [ 9L, 18L, 27L ])
+      |> Stdlib.Test.equal (Ok [ 9L, 18L, 27L ])
       Stdlib.List.map2 [ 10L, 20L ] [ 1L, 2L, 3L ] (fun a b -> a - b)
-      |> Stdlib.Test.equal None
+      |> Stdlib.Test.equal (Error(Stdlib.List.LengthMismatch { left = 2, right = 3 }))
+      Stdlib.List.map2 [ 10L, 20L, 30L ] [ 1L ] (fun a b -> a - b)
+      |> Stdlib.Test.equal (Error(Stdlib.List.LengthMismatch { left = 3, right = 1 }))
       Stdlib.List.map2 [] [] (fun a b -> a - b)
-      |> Stdlib.Test.equal (Some []) ]
+      |> Stdlib.Test.equal (Ok []) ]
 
 test map2shortest =
   Stdlib.Test.all
@@ -577,11 +579,12 @@ test zipShortest =
 test zip =
   Stdlib.Test.all
     [ Stdlib.List.zip [ 10L, 20L, 30L ] [ 1L, 2L, 3L ]
-      |> Stdlib.Test.equal (Some [ (10L, 1L), (20L, 2L), (30L, 3L) ])
+      |> Stdlib.Test.equal (Ok [ (10L, 1L), (20L, 2L), (30L, 3L) ])
       Stdlib.List.zip [ 10L, 20L ] [ 1L, 2L, 3L ]
-      |> Stdlib.Test.equal None
-      Stdlib.List.zip [] []
-      |> Stdlib.Test.equal (Some []) ]
+      |> Stdlib.Test.equal (Error(Stdlib.List.LengthMismatch { left = 2, right = 3 }))
+      Stdlib.List.zip [ 10L, 20L, 30L ] [ 1L ]
+      |> Stdlib.Test.equal (Error(Stdlib.List.LengthMismatch { left = 3, right = 1 }))
+      Stdlib.List.zip [] [] |> Stdlib.Test.equal (Ok []) ]
 
 test groupByWithKey =
   Stdlib.Test.all

@@ -103,10 +103,10 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   let spacing = "    " // 4 spaces between logo and text
 
   match Stdlib.List.zip finalLogoLines finalTextLines with
-  | Some zipped ->
+  | Ok zipped ->
     zipped
     |> Stdlib.List.map (fun (logoLine, textLine) -> logoLine + spacing + textLine)
     |> Stdlib.String.join "\n"
-  | None ->
+  | Error _ ->
     // This should never happen since we ensured both lists are the same length
     ""
