@@ -51,6 +51,28 @@ let private readExistingFile () : Map<string, string> =
     Map.empty
 
 
+/// Keep aliases without locations only if their content is still in the store.
+let retainStoredReferences (refs : Map<string, string>) : Ply<Map<string, string>> =
+  uply {
+    let mutable retained = Map.empty
+    for KeyValue(key, hash) in refs do
+      let! exists =
+        Sql.query
+          """
+          SELECT EXISTS(
+            SELECT 1 FROM package_types WHERE hash = @hash
+            UNION ALL SELECT 1 FROM package_functions WHERE hash = @hash
+            UNION ALL SELECT 1 FROM package_traits WHERE hash = @hash
+            UNION ALL SELECT 1 FROM package_trait_impls WHERE hash = @hash
+          ) AS present
+          """
+        |> Sql.parameters [ "hash", Sql.string hash ]
+        |> Sql.executeRowAsync (fun read -> read.int64 "present" <> 0L)
+      if exists then retained <- Map.add key hash retained
+    return retained
+  }
+
+
 /// Initialize refs from a complete source reload before storing its functions.
 /// Lowering needs these identities for trait operators and Result/Option unwraps,
 /// including on a fresh checkout where the hash file is still empty.
@@ -100,11 +122,7 @@ let generate (writeSourceFile : bool) : Ply<unit> =
         buildKey "trait" (String.concat "." modules) name)
       |> Set.ofList
 
-    // Union in whatever the existing file already knew. `_lookup` populates only as
-    // each `PackageRefs` module initializes, so a process that regenerates before
-    // touching them all (or an older binary predating a ref) would write a SHORTER
-    // file and drop refs. Keys that no longer resolve are dropped below by the
-    // `List.choose` against the DB.
+    // Include keys from disk: this process may not have registered every ref yet.
     let existingKeys =
       readExistingFile () |> Map.toList |> List.map fst |> Set.ofList
 
@@ -129,9 +147,12 @@ let generate (writeSourceFile : bool) : Ply<unit> =
 
     let dbMap = dbRows |> Map.ofList
 
-    // Preserves entries not found in the DB (e.g. RT types that share hashes with PT types and aren't in
-    // locations), and, via `existingKeys` above, refs this process never registered.
+    // Keep stored aliases, but drop pins to content removed by the reload.
     let existingMap = readExistingFile ()
+    let! storedAliases =
+      existingMap
+      |> Map.filterWithIndex (fun key _ -> not (Map.containsKey key dbMap))
+      |> retainStoredReferences
 
     // Merge: DB values win, existing file fills gaps for referenced items
     let merged =
@@ -141,7 +162,7 @@ let generate (writeSourceFile : bool) : Ply<unit> =
         match Map.tryFind key dbMap with
         | Some hash -> Some(key, hash)
         | None ->
-          match Map.tryFind key existingMap with
+          match Map.tryFind key storedAliases with
           | Some hash -> Some(key, hash)
           | None -> None)
       |> List.sortBy fst

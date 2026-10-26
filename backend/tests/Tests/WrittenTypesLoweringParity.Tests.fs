@@ -340,6 +340,14 @@ let tests =
             ("bare-none", [ "M" ], [], [], "None")
             ("bare-ok", [ "M" ], [], [], "Ok 5")
             ("bare-error", [ "M" ], [], [], "Error \"no\"")
+            // Cover bare and qualified enum constructors in pipes.
+            ("pipe-bare-some", [ "M" ], [], [], "5 |> Some")
+            ("pipe-bare-error", [ "M" ], [], [], "\"no\" |> Error")
+            ("pipe-qualified-error",
+             [ "M" ],
+             [],
+             [],
+             "\"no\" |> Stdlib.Result.Result.Error")
             ("private-qualified-function",
              [ "M" ],
              [],

@@ -599,10 +599,11 @@ module RuntimeError =
     | CLI err ->
       match err with
       | NoExpressionsToExecute ->
-        [ ES.String "Nothing to evaluate (empty input or no top-level expression)" ]
+        [ ES.String "Nothing to evaluate. Add a final expression after your declarations. For a .dark script, use `main args` to call your function, or `0` to exit successfully. See `dark docs scripts`." ]
       | NonIntReturned returnedValue ->
-        [ ES.String "Script must return an Int (exit code); got "
-          ES.FullValue returnedValue ]
+        [ ES.String "Script must finish with an Int exit code (0 succeeds) or Unit; got "
+          ES.FullValue returnedValue
+          ES.String ". A main function is not called automatically: finish with `main args` to call it. See `dark docs scripts`." ]
 
     | SqlCompiler errMsg ->
       // Older serialized errors already contain the preamble.

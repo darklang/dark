@@ -108,7 +108,7 @@ let row (width: Int) (e: Darklang.Tracing.Trace) : List<String> =
     statusText e.status
     whenText e.created
     Cli.Text.oneLineAt 22 e.entry
-    Cli.Text.oneLineAt 22 e.input ]
+    Cli.Text.oneLineAt 22 (Darklang.Tracing.Format.inputText e) ]
 
 
 /// Any list of traces, as a table. The ONE renderer: `dark traces`, `traces list --fn`,
@@ -277,7 +277,7 @@ let traceJson (branchId: Uuid) (trace: Darklang.Tracing.Trace) : TraceJson =
   TraceJson
     { id = trace.id
       entry = trace.entry
-      input = trace.input
+      input = Darklang.Tracing.Format.inputText trace
       answered =
         trace.result
         |> Stdlib.Option.map (fun dv -> Darklang.Tracing.Format.compactDval branchId dv)
@@ -372,48 +372,54 @@ let movedSince
     | None -> Stdlib.Option.Option.None)
 
 
+/// Run saved CLI input. Resume uses recorded results; rerun performs effects again.
+let executeScriptOrEval (state: AppState) (input: Darklang.Tracing.ScriptOrEvalInput) : AppState =
+  match input with
+  | Eval(source, allowHarmful) ->
+    match Eval.evaluate state source allowHarmful with
+    | Ok(Some s) ->
+      Stdlib.printLine s
+      state
+    | Ok None -> state
+    | Error message ->
+      Cli.printErr $"Error: {message}"
+      { state with exitCode = 1 }
+  | Script(filename, source, args, options) ->
+    Run.runScript state filename source args options false
+
+
 let resume (state: AppState) (prefix: String) : AppState =
   match find prefix with
   | Error e ->
     Cli.printErr e
     { state with exitCode = 1 }
   | Ok e ->
-    if Darklang.Tracing.Store.armResume e.id then
-      Stdlib.printLine $"resuming {Cli.Text.shortIdText e.id}: {Cli.Text.oneLine e.input}"
-
-      match movedSince state.currentBranchId e.id with
-      | [] -> ()
-      | moved ->
+    match e.scriptOrEvalInput with
+    | None ->
+      if e.servedRequest then
+        Cli.printErr $"{Cli.Text.shortIdText e.id} was a served request ({e.entry}); resume only re-runs eval and scripts."
         Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.warning "  edited since this ran:")
-        Stdlib.List.iter moved (fun name ->
-          Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"    {name}"))
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.dimText
-            "  the log answers what already happened; everything after it runs the new code")
-      // An entry is `eval` or `run <file>`, as the host records them; a served request is a run
-      // too, but re-running one needs the server, so it is refused here rather than guessed at.
-      if e.entry == "eval" then
-        match Eval.evaluate state e.input false with
-        | Ok(Some s) ->
-          Stdlib.printLine s
-          state
-        | Ok None -> state
-        | Error message ->
-          Stdlib.printLine $"Error: {message}"
-          { state with exitCode = 1 }
-      else if Stdlib.String.startsWith e.entry "run " then
-        let filename = Stdlib.String.dropFirst e.entry 4
-        Run.runScript state filename e.input [] false false false [] 0
+          $"  `dark traces show <fn> {Cli.Text.shortIdText e.id}` shows what it did."
       else
-        Cli.printErr
-          $"{Cli.Text.shortIdText e.id} was a served request ({e.entry}); resume only re-runs `eval` and"
-        Stdlib.printLine
-          $"  `run <file>`. `dark traces show <fn> {Cli.Text.shortIdText e.id}` shows what it did."
-        { state with exitCode = 1 }
-    else
-      Cli.printErr $"{Cli.Text.shortIdText e.id} is gone: it was deleted while this command ran"
+        Cli.printErr $"{Cli.Text.shortIdText e.id} has no complete CLI invocation to resume; inspect its log or run the code again."
       { state with exitCode = 1 }
+    | Some input ->
+      if Darklang.Tracing.Store.armResume e.id then
+        Stdlib.printLine $"resuming {Cli.Text.shortIdText e.id}: {Cli.Text.oneLine (Darklang.Tracing.Format.inputText e)}"
+        match movedSince state.currentBranchId e.id with
+        | [] -> ()
+        | moved ->
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.warning "  edited since this ran:")
+          Stdlib.List.iter moved (fun name ->
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"    {name}"))
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.dimText
+              "  the log answers what already happened; everything after it runs the new code")
+        executeScriptOrEval state input
+      else
+        Cli.printErr $"{Cli.Text.shortIdText e.id} is gone: it was deleted while this command ran"
+        { state with exitCode = 1 }
 
 
 let fork (prefix: String) (at: Stdlib.Option.Option<Int64>) : Bool =
@@ -1265,9 +1271,10 @@ let showCode
                       |> Stdlib.String.join ", "))
             |> Stdlib.List.head
 
-          if trace.input != "" then
+          let input = Darklang.Tracing.Format.inputText trace
+          if input != "" then
             Stdlib.printLine
-              (Stdlib.Cli.UI.Colors.dimText $"given  {Cli.Text.oneLineAt 72 trace.input}")
+              (Stdlib.Cli.UI.Colors.dimText $"given  {Cli.Text.oneLineAt 72 input}")
 
           match argLine with
           | Some line ->

@@ -4,6 +4,21 @@
 module Darklang.Tracing.Format
 
 
+/// Source text for CLI runs, or a short HTTP request summary.
+let inputText (trace: Trace) : String =
+  match trace.scriptOrEvalInput with
+  | Some (Eval(source, _)) -> source
+  | Some (Script(_, source, _, _)) -> source
+  | None ->
+    match trace.input with
+    | DString source -> source
+    | DRecord(_, _, _, fields) ->
+      match (Stdlib.Dict.get fields "method", Stdlib.Dict.get fields "url") with
+      | (Some (DString method), Some (DString url)) -> $"{method} {url}"
+      | _ -> "(a request)"
+    | _ -> "(not source)"
+
+
 /// Right-align a number in a field `width` columns wide by prepending spaces.
 let padNum (n: Int) (width: Int) : String =
   Stdlib.String.padStartToWidth (Stdlib.toString n) width
@@ -99,7 +114,14 @@ let replayStop
   (stop: Darklang.Tracing.ReplayStop)
   : (String * Stdlib.Option.Option<String>) =
   match stop with
-  | Unreplayable message -> (message, Stdlib.Option.Option.None)
+  | InvalidId -> ("not an id", Stdlib.Option.Option.None)
+  | TraceNotFound -> ("no run has this id", Stdlib.Option.Option.None)
+  | InputNoLongerParses ->
+    ("the run's input no longer parses", Stdlib.Option.Option.None)
+  | MissingHandler ->
+    ("this run has no source to replay and no handler recorded against it",
+     Stdlib.Option.Option.None)
+  | HostFailure message -> (message, Stdlib.Option.Option.None)
   | Raised err ->
     let rendered = PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId err
 

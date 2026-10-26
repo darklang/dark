@@ -729,6 +729,27 @@ position it branched from. Its calls are `trace_fn_calls` under the same id.
 `dark traces` lists them; `traces inspect|show|resume|fork|pin|rerun|delete`.
 `Darklang.Tracing.Store` is the Dark side.
 
+A CLI run's invocation is a row in `trace_cli_invocations`, under the trace's id:
+whether it was an eval or a script, the source, and for a script its filename,
+argument list and run switches. Recording and every replay mode read this same
+row, and a fork copies it.
+Arguments stay separate strings, so spaces, empty strings and flag-like values
+survive without shell quoting or reconstruction from a display label.
+
+It is plain columns rather than a stored `Tracing.ScriptOrEvalInput` value on
+purpose: a stored Dval carries its package type's hash, which moves whenever the
+type is edited, and every older row would stop decoding. The Dark value is built
+from the row when Dark asks for it (`Trace.scriptOrEvalInput`).
+`Trace.input` holds the source or request as a structured value.
+`Tracing.Format.inputText` formats it for display.
+
+A trace with no invocation, or one whose arguments do not decode, is refused for
+replay rather than filled in with defaults: guessing could change the input or
+drop a sandbox. That includes traces recorded before the table existed. The
+table's CHECKs refuse an incomplete row when it is written.
+Host permission grants are never saved as part of the invocation; current policy
+is checked again.
+
 - Ctrl-C during a traced run: the CLI's handler cancels what the trace spawned
   and gives it a quarter of a second to land (`Cli.fs`,
   `stopChildrenPolitely`), stores the log as it stands, marks the trace

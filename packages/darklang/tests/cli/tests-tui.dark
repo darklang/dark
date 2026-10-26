@@ -921,8 +921,7 @@ test replCapturesRealValues =
 test workbenchCapturesStrayOutput =
   // The workbench owns the whole screen, so anything a command prints scrolls the alternate screen and every
   // frame after it lands that many rows off, which reads as two overlapping copies of the Stdlib.Cli.UI. It's easy to
-  // hit: `cliEvaluateExpression` prints a three-line call-stack header on any runtime error, so a typo at the
-  // REPL does it. `captureOutputAnd` returns the value AND the output, so a caller gets the result without
+  // hit: eval can print a call stack when a function fails. `captureOutputAnd` returns the value AND the output, so a caller gets the result without
   // letting the print through.
   let (value, out) =
     Darklang.Cli.Workbench.captureOutputAnd (fun () ->

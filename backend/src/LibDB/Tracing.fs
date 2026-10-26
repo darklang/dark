@@ -600,6 +600,7 @@ module TraceRetention =
           // outlives its trace with nothing that can ever read it again.
           "DELETE FROM trace_loops WHERE trace_id = @id", ps
           "DELETE FROM trace_blobs WHERE trace_id = @id", ps
+          "DELETE FROM trace_cli_invocations WHERE trace_id = @id", ps
           "DELETE FROM traces WHERE id = @id", ps ]
       |> ignore<List<int>>
 
@@ -791,8 +792,7 @@ module TraceStorage =
       let blobs =
         blobs @ (results |> Seq.map (fun kv -> kv.Key, kv.Value) |> List.ofSeq)
 
-      // What this trace weighs, kept on its row: retention applies `trace.maxMb` from this
-      // column, never by summing `trace_fn_calls`, the table it exists to bound.
+      // Count input, calls and blobs here. The upsert adds the saved CLI input.
       let weight =
         int64 inputBytes.Length
         + (serializedEvents
@@ -827,7 +827,11 @@ module TraceStorage =
            account_id = excluded.account_id,
            updated = excluded.updated,
            duration_ms = excluded.duration_ms,
-           bytes = excluded.bytes",
+           bytes = excluded.bytes
+             + COALESCE(
+                 (SELECT LENGTH(CAST(source AS BLOB)) + COALESCE(LENGTH(args), 0)
+                  FROM trace_cli_invocations WHERE trace_id = traces.id),
+                 0)",
           [ [ "id", Sql.string traceIdStr
               "handlerDesc", Sql.string handlerDesc
               "timestamp", Sql.string timestamp

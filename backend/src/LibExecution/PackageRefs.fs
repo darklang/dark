@@ -287,7 +287,6 @@ module Type =
       let parkedOn = p [] "ParkedOn"
       let status = p [] "Status"
       let summary = p [] "Summary"
-      let executionPoint = p [] "ExecutionPoint"
       let detail = p [] "Detail"
       let handle = p [] "Handle"
       let machineProcess = p [] "MachineProcess"
@@ -397,6 +396,7 @@ module Type =
 
       let nameResolutionError = p [] "NameResolutionError"
       let nameResolution = p [] "NameResolution"
+      let executionPoint = p [] "ExecutionPoint"
       let typeReference = p [] "TypeReference"
       let letPattern = p [] "LetPattern"
       let matchPattern = p [] "MatchPattern"
@@ -566,6 +566,8 @@ module Type =
     let fnCall = p [ "Tracing" ] "FnCall"
     let traceData = p [ "Tracing" ] "TraceData"
     let replayStop = p [ "Tracing" ] "ReplayStop"
+    let scriptOrEvalInput = p [ "Tracing" ] "ScriptOrEvalInput"
+    let scriptOptions = p [ "Tracing" ] "ScriptOptions"
 
   module Cli =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"
@@ -653,6 +655,8 @@ module Fn =
       let private p addl = p ("RuntimeTypes" :: addl)
       let dval = p [] "dval"
       let fnName = p [] "fnName"
+      let executionPoint = p [] "executionPoint"
+      let callStack = p [] "callStack"
       let typeReference = p [] "typeReference"
 
       module Dval =

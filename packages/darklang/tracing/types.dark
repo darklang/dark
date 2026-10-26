@@ -21,14 +21,30 @@ type Status =
   | Suspended
 
 
+/// Script options preserved for replay. Permissions are checked on each run.
+type ScriptOptions =
+  { allowHarmful: Bool
+    sandbox: Bool
+    warnPermissions: Bool }
+
+
+/// Saved eval source, or a script's source, filename, arguments and options.
+type ScriptOrEvalInput =
+  | Eval of String * Bool
+  | Script of String * String * List<String> * ScriptOptions
+
+
 /// A run: one row of `traces`.
 type Trace =
   { id: String
     /// `eval`, `run <file>`, or `GET /path`: what ran.
     entry: String
-    /// The expression or the script's source, for the ones `resume` can run again; the
-    /// printed form of the request for a served one.
-    input: String
+    /// Source text for CLI runs, or the HTTP request.
+    input: LanguageTools.RuntimeTypes.Dval
+    /// Saved CLI input for replay. HTTP request input is in TraceData.inputs.
+    scriptOrEvalInput: Stdlib.Option.Option<ScriptOrEvalInput>
+    /// True for an HTTP request.
+    servedRequest: Bool
     /// What the trace answered, once it has. `None` while it is still going, and for one that
     /// failed: there is no answer to show.
     result: Stdlib.Option.Option<LanguageTools.RuntimeTypes.Dval>
@@ -50,9 +66,7 @@ type Trace =
     updated: String }
 
 
-/// One named input to a handler invocation. For HTTP handlers the
-/// single input is a `Request` record; for `eval`/`run` it's the
-/// expression source string.
+/// A named input: source text for CLI runs, or a Request record for HTTP.
 type InputVar =
   { name: String
     value: LanguageTools.RuntimeTypes.Dval }
@@ -99,19 +113,14 @@ type TraceData =
     functionCalls: List<FnCall> }
 
 
-/// Why a replay stopped before the end of the code.
-///
-/// Two cases because two facts, and only F# knows which: either the replay got as far as
-/// running the code and the code raised, or it never got that far. The JUDGEMENT a reader
-/// needs on top of that -- is this my bug, or did the store move under the recording --
-/// is `ReplayStop.isDrift`, and it lives here because it is a decision rather than a fact.
+/// Why a replay stopped.
 type ReplayStop =
-  /// The replay ran and the code raised. The error is the one the run raised today, not the
-  /// one the original run raised; a recorded run that stopped is `Trace.status`, not this.
   | Raised of LanguageTools.RuntimeTypes.RuntimeError.Error
-  /// The replay never started: no such trace, a served request with no handler recorded, or
-  /// input that no longer parses. The string is for a person, since there is no error to show.
-  | Unreplayable of String
+  | InvalidId
+  | TraceNotFound
+  | InputNoLongerParses
+  | MissingHandler
+  | HostFailure of String
 
 
 module ReplayStop =
@@ -128,9 +137,6 @@ module ReplayStop =
   /// page is unhelpful rather than wrong.
   let isDrift (stop: ReplayStop) : Bool =
     match stop with
-    // Nothing to replay is itself the store having moved, except for the served-request gap,
-    // which is a missing feature. Both want "re-run it", so they answer the same here.
-    | Unreplayable _ -> true
     | Raised err ->
       match err with
       // A name that no longer resolves, or resolves to a hash that is gone.
@@ -142,3 +148,4 @@ module ReplayStop =
       // because deprecating something is a deliberate act someone takes after it has run.
       | DeprecatedItemHalted _ -> true
       | _ -> false
+    | _ -> true

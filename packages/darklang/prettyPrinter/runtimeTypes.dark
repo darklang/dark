@@ -284,6 +284,52 @@ let fnName
     $"{traitName}.{method}"
 
 
+/// A call frame, using the function's name when it is available.
+let executionPoint
+  (branchId: Uuid)
+  (point: LanguageTools.RuntimeTypes.ExecutionPoint)
+  : String =
+  match point with
+  | Source -> "Source"
+  | Lambda(_, expressionId) -> $"Lambda {Stdlib.toString expressionId}"
+  | Function name ->
+    match name with
+    | Package _ -> $"Package Function {fnName branchId name}"
+    | Builtin builtin -> $"Builtin Function {builtin.name}"
+    | TraitMethod method -> $"Trait Method {method.method_}"
+
+
+/// Show the stack in call order, grouping consecutive identical frames.
+let callStack
+  (branchId: Uuid)
+  (frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
+  : String =
+  let label (frame: String) (count: Int) : String =
+    if count == 1 then frame else $"{frame} (×{Stdlib.toString count})"
+
+  let group
+    (remaining: List<String>)
+    (current: String)
+    (count: Int)
+    (lines: List<String>)
+    : List<String> =
+    match remaining with
+    | [] -> Stdlib.List.reverse (Stdlib.List.push lines (label current count))
+    | head :: rest ->
+      if head == current then
+        group rest current (count + 1) lines
+      else
+        group rest head 1 (Stdlib.List.push lines (label current count))
+
+  let lines =
+    match Stdlib.List.map frames (executionPoint branchId) with
+    | [] -> []
+    | head :: rest -> group rest head 1 []
+
+  Stdlib.List.fold lines "Call stack (last call at bottom):" (fun text line ->
+    $"{text}\n- {line}")
+
+
 
 let typeReference
     (branchId: Uuid)

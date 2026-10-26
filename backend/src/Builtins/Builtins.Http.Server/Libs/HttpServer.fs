@@ -252,7 +252,6 @@ let private guestStateFor
         exeState.accountID
         LibExecution.Permissions.Policy.allowAll
         []
-        []
         exeState
     { guest with
         access =
@@ -548,7 +547,11 @@ let private handleRequest
               with _ ->
                 "(http request)"
             let tracer =
-              Tracing.createCliTracer traceID traceDesc "request" requestDval
+              Tracing.createCliTracer
+                traceID
+                traceDesc
+                LibDB.Traces.servedRequestInputName
+                requestDval
 
             // Resolved per request, not per server: this is what makes an edit show up on the next
             // request. For a fixed router it is a match on a constant.

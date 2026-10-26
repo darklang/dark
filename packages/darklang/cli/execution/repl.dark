@@ -198,7 +198,7 @@ let upsert (bindings: List<Binding>) (b: Binding) : List<Binding> =
 /// the caller reads this back out of the evaluator's printed result, where a `Result` would be ambiguous
 /// with a result that is itself a Result.
 ///
-/// That round trip works because `cliEvaluateExpression` returns a `DString` raw and unquoted rather than
+/// That round trip works because `Eval.evaluateRaw` returns a string raw and unquoted rather than
 /// through `dvalToRepr`. If that ever changes, `readCaptured` stops matching and every binding quietly falls
 /// back to holding its expression - slower and re-effectful, but not visibly broken, so it would be easy to
 /// miss.
