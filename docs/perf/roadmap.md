@@ -8,7 +8,7 @@ Numbers are measured unless marked *(estimate)*.
     scripts/perf/gate               the CI assertion, against a checked-in budget
     scripts/perf/bench              repeatable CLI timing, with an A/B mode
     scripts/perf/alloc-profile      allocation by type name
-    scripts/perf/crosslang          the same workload in node and python
+    scripts/perf/crosslang          the same small programs in Dark, python, node and bash
     scripts/perf/keystroke          what one keypress costs in the interactive CLI (needs a TTY)
     ./scripts/run-cli run scripts/perf/workloads/probes/optime.dark      time per operation (costs.dark's time twin)
     ./scripts/run-cli run scripts/perf/workloads/probes/costs.dark      per-operation cost table

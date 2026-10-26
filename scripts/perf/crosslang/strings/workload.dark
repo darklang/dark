@@ -1,0 +1,11 @@
+let work (i: Int) : Int =
+  let base = "field-" + (Stdlib.toString i)
+  let parts = Stdlib.List.map (Stdlib.List.range 1 8) (fun j -> base + ":" + (Stdlib.toString j))
+  let joined = Stdlib.String.join parts ","
+  let back = Stdlib.String.split joined ","
+  (Stdlib.String.length joined) + (Stdlib.List.length back)
+
+let repeat (i: Int) (n: Int) (acc: Int) : Int =
+  if i > n then acc else repeat (i + 1) n (acc + (work i))
+
+Stdlib.printLine ("result=" + (Stdlib.toString (repeat 1 5000 0)))

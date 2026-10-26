@@ -1,0 +1,6 @@
+let depth (n: Int) : Int = if n <= 0 then 0 else 1 + (depth (n - 1))
+
+let repeat (times: Int) (acc: Int) : Int =
+  if times <= 0 then acc else repeat (times - 1) (acc + (depth 5000))
+
+Stdlib.printLine ("result=" + (Stdlib.toString (repeat 50 0)))

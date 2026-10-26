@@ -1,0 +1,11 @@
+let text =
+  match Stdlib.Cli.File.readText "rundir/crosslang-lines.txt" with
+  | Ok t -> t
+  | Error _ -> ""
+
+let lines = Stdlib.String.splitOnNewline text
+
+let countOf (needle: String) : Int =
+  Stdlib.List.length (Stdlib.List.filter lines (fun l -> Stdlib.String.contains l needle))
+
+Stdlib.printLine ("result=" + (Stdlib.toString ((countOf "LEVEL=") + (countOf "ERROR"))))

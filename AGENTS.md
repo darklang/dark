@@ -373,7 +373,7 @@ Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
     scripts/perf/first-sync  a whole first sync from an empty home
     scripts/perf/alloc-profile   allocation by type name
     scripts/perf/fnprofile   per-package-fn time, ranked, hashes resolved to names
-    scripts/perf/crosslang   the reference workload in node and python
+    scripts/perf/crosslang   the same small programs in Dark, python, node and bash
     scripts/perf/view-telemetry.py  where a run's time went
 
 The playbook is the one to read cold. Its recurring lesson: nearly all wasted effort came from

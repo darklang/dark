@@ -1,0 +1,13 @@
+type Point = { x: Int, y: Int, label: String }
+
+let step (p: Point) : Point = { p with x = p.x + 1, y = p.y + 2 }
+
+let work (i: Int) : Int =
+  let p = Point { x = i, y = i + 1, label = "p" }
+  let q = step (step p)
+  q.x + q.y
+
+let repeat (i: Int) (n: Int) (acc: Int) : Int =
+  if i > n then acc else repeat (i + 1) n (acc + (work i))
+
+Stdlib.printLine ("result=" + (Stdlib.toString (repeat 1 20000 0)))

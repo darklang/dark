@@ -63,8 +63,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
 
 # Latest NPM (taken from https://deb.nodesource.com)
 #
-# Node is here for one reason: `scripts/perf/crosslang` runs the reference workload in node and
-# python to compare allocation per iteration. Nothing in the tree needs a global npm package any
+# Node is here for one reason: `scripts/perf/crosslang` runs the same small programs in Dark,
+# python, node and bash to compare them. Nothing in the tree needs a global npm package any
 # more, so there are none; node itself is still a dependency of that perf tool, so it stays.
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 

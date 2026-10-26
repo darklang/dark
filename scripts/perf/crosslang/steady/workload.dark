@@ -1,0 +1,9 @@
+// The same shape as scripts/perf/workloads/steady.dark, the gated workload, without its timing and
+// interpreter-stats scaffolding, so the other languages have something to stand beside it.
+let work (n: Int) : Int =
+  Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 n) (fun x -> x + 1))
+
+let repeat (times: Int) (n: Int) (acc: Int) : Int =
+  if times <= 0 then acc else repeat (times - 1) n (acc + (work n))
+
+Stdlib.printLine ("result=" + (Stdlib.toString (repeat 200 50 0)))
