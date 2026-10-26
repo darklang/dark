@@ -124,16 +124,27 @@ let private hasEmbeddedResource (resourceName : string) : bool =
 /// can be missing what was last committed. One per build it upgrades TO, and an existing one is kept:
 /// a start that retries after a failed step must not replace the store as it was with the store as
 /// the failure left it.
+///
+/// Named `data.db.before-upgrade-<when>-to-<build>`. The time comes first, in the shape `dark backups`
+/// gives its own, because `Backups.list` orders by the digits in a name: with the build's hash first,
+/// its digits read as the time and an upgrade backup sorted as newest whatever its age.
 let private backupBeforeUpgrade
   (dbPath : string)
   (build : string)
   : Result<string, string> =
   let dir = Path.Combine(Path.GetDirectoryName(dbPath), "backups")
   let tag = if build.Length > 12 then build.Substring(0, 12) else build
-  let target = Path.Combine(dir, $"data.db.before-upgrade-to-{tag}")
-  if File.Exists target then
-    Ok target
-  else
+  let suffix = $"-to-{tag}"
+  let existing =
+    if Directory.Exists dir then
+      Directory.GetFiles(dir, $"data.db.before-upgrade-*{suffix}") |> Array.tryHead
+    else
+      None
+  match existing with
+  | Some kept -> Ok kept
+  | None ->
+    let stamp = System.DateTime.UtcNow.ToString("yyyyMMddTHHmmssZ")
+    let target = Path.Combine(dir, $"data.db.before-upgrade-{stamp}{suffix}")
     let partial = target + ".partial"
     try
       Directory.CreateDirectory(dir) |> ignore<DirectoryInfo>

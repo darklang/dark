@@ -2,8 +2,8 @@ module Darklang.Cli.Backups
 
 // `dark backups`: see, make, and prune the copies of the store.
 //
-// The upgrade path writes one aside before it folds a new seed (one per calendar day, kept next to the
-// store), and nothing else prunes them. So the answer to "if this goes wrong, what can I go back to?"
+// The upgrade path writes one aside before it folds a new seed (one per build it upgrades to, kept
+// next to the store), and nothing else prunes them. So the answer to "if this goes wrong, what can I go back to?"
 // lives here rather than in `ls`, and so does the pruning.
 
 /// Where the upgrade path puts them: a `backups` directory beside the store.
@@ -16,8 +16,9 @@ let backupDir () : String =
 
 /// The backups, newest first BY STAMP, not by name. Three prefixes share this directory
 /// (`before-upgrade-`, `manual-`, `pre-restore-`), and a name sort groups by prefix before it looks
-/// at the stamp -- which made `prune` keep a January backup over this week's. Every name ends in
-/// its stamp (both stamp shapes sort correctly as text), so ordering by the digits alone is right.
+/// at the stamp -- which made `prune` keep a January backup over this week's. Every name's stamp
+/// comes before any other digits in it (an upgrade backup names its build after the stamp), so
+/// ordering by the digits alone is right.
 let list () : List<String> =
   let stampOf (n: String) : String =
     n |> Stdlib.String.toList |> Stdlib.List.filter Stdlib.Char.isDigit |> Stdlib.String.fromList
