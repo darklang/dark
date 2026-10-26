@@ -509,7 +509,12 @@ let parse
       | None -> raiseCantMatchWithType TChar j pathSoFar
 
 
-    | TString, JsonValueKind.String -> DString(j.GetString()) |> Ply
+    | TString, JsonValueKind.String ->
+      // A lone escaped surrogate is valid JSON, but no string can hold it.
+      try
+        DString(j.GetString()) |> Ply
+      with :? System.InvalidOperationException ->
+        raiseCantMatchWithType TString j pathSoFar |> Ply
 
     | TUuid, JsonValueKind.String ->
       try

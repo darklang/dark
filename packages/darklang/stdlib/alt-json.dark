@@ -21,10 +21,315 @@ module ParseError =
     | NotJson -> "Not JSON"
 
 
-let format (j: Json) : String = Builtin.altJsonFormat j
+/// Formats <param j> as JSON text, with no whitespace between tokens.
+let format (j: Json) : String =
+  match j with
+  | Null -> "null"
+  | Bool b -> if b then "true" else "false"
+  | Integer i -> Stdlib.toString i
+  | Float n -> Format.floatText n
+  | String s -> Format.stringText s
+  | Array items -> "[" + (String.join (List.map items format) ",") + "]"
+  | Object entries ->
+    let fields =
+      List.map entries (fun (k, v) -> (Format.stringText k) + ":" + (format v))
 
+    "{" + (String.join fields ",") + "}"
+
+
+/// Parses <param jsonString> as JSON. `//` and `/* */` comments are skipped
+/// wherever whitespace may go. A number with no `.`, `e` or `E` is an
+/// {{Integer}}, otherwise a {{Float}}.
 let parse (jsonString: String) : Result.Result<Json, ParseError.ParseError> =
-  Builtin.altJsonParse jsonString
+  match Parse.document jsonString with
+  | Some json -> Result.Result.Ok json
+  | None -> Result.Result.Error ParseError.ParseError.NotJson
+
+
+module Format =
+  /// <param s> as a JSON string literal. Escapes what JSON requires (`"`, `\`
+  /// and the C0 controls, with the short forms JSON has) and U+2028 and U+2029,
+  /// which JavaScript reads as line breaks; everything else is written as
+  /// itself.
+  let stringText (s: String) : String =
+    let escaped =
+      if Regex.isMatch s needsEscape then
+        let named =
+          List.fold namedEscapes s (fun acc (c, e) -> String.replaceAll acc c e)
+
+        Regex.findAll named control
+        |> List.unique
+        |> List.fold named (fun acc c -> String.replaceAll acc c (controlEscape c))
+      else
+        s
+
+    "\"" + escaped + "\""
+
+
+  /// A character <fn stringText> escapes.
+  val needsEscape = "[\"\\\\\\x00-\\x1F\\u2028\\u2029]"
+
+  /// A C0 control.
+  val control = "[\\x00-\\x1F]"
+
+  /// Each character with an escape of its own, and that escape. The backslash
+  /// is first, so the backslashes the others write are not escaped again.
+  val namedEscapes =
+    [ ("\\", "\\\\")
+      ("\"", "\\\"")
+      ("\b", "\\b")
+      ("\f", "\\f")
+      ("\n", "\\n")
+      ("\r", "\\r")
+      ("\t", "\\t")
+      ("\u2028", "\\u2028")
+      ("\u2029", "\\u2029") ]
+
+  /// The `\u` escape of a C0 control. Its UTF-8 is the one byte of its code,
+  /// so the escape is that byte in hex after two zeros.
+  let controlEscape (c: String) : String =
+    "\\u00" + String.toUppercase (Bytes.toHex (String.toBytes c))
+
+
+  /// <param n> in .NET's round-trip notation, which is what this wrote when it
+  /// was a builtin: the shortest digits that parse back to <param n>, written
+  /// out in full while the leading digit's decimal exponent is in -4..16 and
+  /// as `1.5E+300` / `1E-07` outside it. NaN and the infinities have no JSON
+  /// form, so they are written as the strings Json.serialize uses for them.
+  let floatText (n: Float) : String =
+    if Float.isNaN n then
+      "\"NaN\""
+    else if !(Float.isFinite n) then
+      if n > 0.0 then "\"Infinity\"" else "\"-Infinity\""
+    else
+      let (negative, digits, exponent) = shortestDigits n
+      let sign = if negative then "-" else ""
+
+      if digits == "" then
+        sign + "0"
+      else if exponent < -4 || exponent > 16 then
+        let rest =
+          if String.length digits == 1 then "" else "." + (String.dropFirst digits 1)
+
+        let expSign = if exponent < 0 then "-" else "+"
+        let magnitude = if exponent < 0 then 0 - exponent else exponent
+        // At least two exponent digits, as .NET writes them.
+        let shown = Stdlib.toString magnitude
+        let padded = String.padStart shown "0" 2 |> Result.withDefault shown
+        sign + (String.first digits 1) + rest + "E" + expSign + padded
+      else
+        let point = exponent + 1
+        let width = String.length digits
+
+        if point <= 0 then
+          sign + "0." + (String.repeat "0" (0 - point)) + digits
+        else if point >= width then
+          sign + digits + (String.repeat "0" (point - width))
+        else
+          sign + (String.first digits point) + "." + (String.dropFirst digits point)
+
+
+  /// Take apart <fn Float.toString>, which already holds the shortest
+  /// round-trip digits: the sign, the significant digits with no leading or
+  /// trailing zeros ("" for zero), and the decimal exponent of the first one.
+  let shortestDigits (n: Float) : (Bool * String * Int) =
+    let text = Stdlib.toString n
+    let negative = String.startsWith text "-"
+    let unsigned = if negative then String.dropFirst text 1 else text
+
+    let (mantissa, exp10) =
+      match String.split unsigned "e" with
+      | [ m, e ] ->
+        (m, Int.parse (String.replaceAll e "+" "") |> Result.withDefault 0)
+      | _ -> (unsigned, 0)
+
+    let (intPart, fracPart) =
+      match String.split mantissa "." with
+      | [ i, f ] -> (i, f)
+      | _ -> (mantissa, "")
+
+    let all = intPart + fracPart
+    let unpadded = Regex.replace all "^0+" ""
+    let digits = Regex.replace unpadded "0+$" ""
+    let leadingZeros = String.length all - String.length unpadded
+    (negative, digits, String.length intPart - 1 - leadingZeros + exp10)
+
+
+/// A parser over the input's tokens. A step takes the tokens left and returns
+/// the value it read with the tokens after it, or {{None}} where the input is
+/// not JSON.
+module Parse =
+  /// One token, a run of whitespace, or a comment. A line comment also stops
+  /// at U+2028 and U+2029, so one holding either leaves text that no token
+  /// covers: System.Text.Json refused those, and so does this.
+  val token =
+    String.join
+      [ "[ \\t\\n\\r]+"
+        "//[^\\n\\r\\u2028\\u2029]*"
+        "/\\*[\\s\\S]*?\\*/"
+        "\"(?:[^\"\\\\\\x00-\\x1F]|\\\\[\"\\\\/bfnrt]|\\\\u[0-9A-Fa-f]{4})*\""
+        "-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?"
+        "true|false|null|[{}\\[\\],:]" ]
+      "|"
+
+
+  /// The whole input is one value, with only whitespace and comments around
+  /// it. Text that no token covers is not JSON.
+  let document (text: String) : Option.Option<Json> =
+    let tokens = Regex.findAll text token
+
+    if String.join tokens "" != text then
+      None
+    else
+      let significant = List.filter tokens (fun t -> String.trim t != "")
+
+      match value (skipComments significant) with
+      | Some((json, rest)) when List.isEmpty (skipComments rest) -> Some json
+      | _ -> None
+
+
+  let skipComments (ts: List<String>) : List<String> =
+    match ts with
+    | t :: rest when String.startsWith t "/" -> skipComments rest
+    | _ -> ts
+
+
+  /// One value. <param ts> starts at its first token.
+  let value (ts: List<String>) : Option.Option<(Json * List<String>)> =
+    match ts with
+    | "null" :: rest -> Some((Json.Null, rest))
+    | "true" :: rest -> Some((Json.Bool true, rest))
+    | "false" :: rest -> Some((Json.Bool false, rest))
+    | "[" :: rest -> items (skipComments rest) []
+    | "{" :: rest -> fields (skipComments rest) []
+    | t :: rest ->
+      match text t with
+      | Some s -> Some((Json.String s, rest))
+      | None ->
+        match number t with
+        | Some n -> Some((n, rest))
+        | None -> None
+    | [] -> None
+
+
+  /// What a string token holds, with its escapes decoded. {{None}} for an
+  /// escaped surrogate with no partner, which names nothing a string can hold.
+  let text (t: String) : Option.Option<String> =
+    if Regex.isMatch t "^\"" then
+      let pieces = Regex.findAll t stringPiece |> List.map decode
+      let decoded = Option.values pieces
+
+      if List.length decoded == List.length pieces then
+        Some(String.join decoded "")
+      else
+        None
+    else
+      None
+
+
+  /// A run of plain text, a surrogate pair (D800-DBFF then DC00-DFFF), or one
+  /// escape. The quotes around a string token match none of these.
+  val stringPiece =
+    String.join
+      [ "[^\"\\\\]+"
+        "\\\\u[dD][89abAB][0-9a-fA-F]{2}\\\\u[dD][c-fC-F][0-9a-fA-F]{2}"
+        "\\\\u[0-9a-fA-F]{4}"
+        "\\\\." ]
+      "|"
+
+
+  /// The text one <var stringPiece> stands for.
+  let decode (piece: String) : Option.Option<String> =
+    if !(Regex.isMatch piece "^\\\\") then
+      Some piece
+    else if piece == "\\/" then
+      Some "/"
+    else
+      match List.findFirst Format.namedEscapes (fun (_, e) -> e == piece) with
+      | Some((c, _)) -> Some c
+      | None ->
+        match List.map (Regex.findAll piece "[0-9a-fA-F]{4}") hexValue with
+        | [ high, low ] ->
+          codepointText (
+            firstSupplementary
+            + (high - firstHighSurrogate) * surrogateSpan
+            + (low - firstLowSurrogate)
+          )
+        | [ unit ] -> codepointText unit
+        | _ -> None
+
+
+  /// {{None}} for a surrogate, which is not a scalar a string can hold.
+  let codepointText (codepoint: Int) : Option.Option<String> =
+    Char.fromCodepoint codepoint |> Option.map String.fromChar
+
+
+  /// Hex digits in order, so the index of a digit is its value.
+  val hexDigits = "0123456789ABCDEF"
+
+  let hexValue (digits: String) : Int =
+    List.fold (String.toList (String.toUppercase digits)) 0 (fun total d ->
+      let value =
+        String.indexOf hexDigits (String.fromChar d) |> Option.withDefault 0
+
+      total * (String.length hexDigits) + value)
+
+
+  /// A surrogate pair stands for the codepoint past the Basic Multilingual
+  /// Plane whose offset from U+10000 is the high half's ten bits followed by
+  /// the low half's.
+  val firstSupplementary = hexValue "10000"
+  val firstHighSurrogate = hexValue "D800"
+  val firstLowSurrogate = hexValue "DC00"
+  val surrogateSpan = hexValue "400"
+
+
+  let number (t: String) : Option.Option<Json> =
+    if Regex.isMatch t "[.eE]" then
+      Float.parse t |> Result.toOption |> Option.map (fun f -> Json.Float f)
+    else
+      Int.parse t |> Result.toOption |> Option.map (fun i -> Json.Integer i)
+
+
+  /// The rest of an array, after its `[`.
+  let items
+    (ts: List<String>)
+    (acc: List<Json>)
+    : Option.Option<(Json * List<String>)> =
+    match ts with
+    | "]" :: rest when List.isEmpty acc -> Some((Json.Array [], rest))
+    | _ ->
+      match value ts with
+      | None -> None
+      | Some((item, after)) ->
+        let acc = List.prepend acc item
+
+        match skipComments after with
+        | "]" :: rest -> Some((Json.Array(List.reverse acc), rest))
+        | "," :: rest -> items (skipComments rest) acc
+        | _ -> None
+
+
+  /// The rest of an object, after its `{`.
+  let fields
+    (ts: List<String>)
+    (acc: List<(String * Json)>)
+    : Option.Option<(Json * List<String>)> =
+    match ts with
+    | "}" :: rest when List.isEmpty acc -> Some((Json.Object [], rest))
+    // The colon straight after the key: System.Text.Json refused a comment
+    // there, unlike everywhere else.
+    | key :: ":" :: rest ->
+      match (text key, value (skipComments rest)) with
+      | (Some k, Some((v, after))) ->
+        let acc = List.prepend acc (k, v)
+
+        match skipComments after with
+        | "}" :: rest -> Some((Json.Object(List.reverse acc), rest))
+        | "," :: rest -> fields (skipComments rest) acc
+        | _ -> None
+      | _ -> None
+    | _ -> None
 
 
 /// Reads an exact JSON integer. A Float value is never silently truncated or
