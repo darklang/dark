@@ -86,7 +86,7 @@ let private hostModules =
 /// (or ambient-effect) check. Do not add entries; convert the family instead.
 let private allowlist : Set<string * string> =
   Set.ofList
-    [ // terminal capability sniffing reads $TERM and friends: host
+    [ // terminal probes (isatty, window size, $COLUMNS/$LINES): host
       // infrastructure for rendering, deliberately not policy-gated (the TUI
       // must detect capabilities even under deny-all to render the
       // permission prompt itself)
@@ -357,4 +357,18 @@ let noLibcImports =
       "Policy persistence uses the host transport rather than libc imports"
   }
 
-let tests = testList "hostBoundary" [ onlyHostModulesTouchTheOS; noLibcImports ]
+/// Pinned whole, so a new ungated name shows up in review.
+let ungatedEnvironmentIsExactlyTheTerminalConventions =
+  test "only TERM, CI and DARK_NO_INPUT are readable without an env-read grant" {
+    Expect.equal
+      LibExecution.Host.terminalConventions
+      (Set.ofList [ "TERM"; "CI"; "DARK_NO_INPUT" ])
+      "the ungated set changed"
+  }
+
+let tests =
+  testList
+    "hostBoundary"
+    [ onlyHostModulesTouchTheOS
+      noLibcImports
+      ungatedEnvironmentIsExactlyTheTerminalConventions ]

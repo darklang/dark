@@ -53,6 +53,7 @@ CHECK_DATABASES = {
   "gate-package-tests": ["package-tests/data.db"],
   "gate-shipped-tree-typechecks": ["shipped-tree-typechecks/data.db"],
   "gate-perf-probes-run": ["data.db"],
+  "gate-prompts-unattended": ["prompts-unattended-test/data.db"],
   "gate-gates-are-clean": ["data.db"],
 }
 

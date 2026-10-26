@@ -667,10 +667,10 @@ let private requestsAreProcesses =
         Expect.stringContains (snd results[0]) "divide" "the body carries the error"
         output.Check(fun stdout stderr ->
           Expect.equal
-            stdout
+            stderr
             "[HttpServer] the handler failed: Cannot divide by 0\n"
             "the serve terminal carries the handler error too"
-          Expect.equal stderr "" "no other diagnostics")
+          Expect.equal stdout "" "the handler error stays off stdout")
       } ]
 
 

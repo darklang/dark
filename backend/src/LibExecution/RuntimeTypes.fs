@@ -4558,4 +4558,6 @@ let consoleReporter : ExceptionReporter =
 
 let consoleNotifier : Notifier =
   fun _state _vm msg tags ->
-    uply { print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n" }
+    uply {
+      printErr $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
+    }

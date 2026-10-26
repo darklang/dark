@@ -13,7 +13,7 @@ let evaluateRaw
       Stdlib.Option.Option<String>,
       ExecutionError.ExecutionError> =
   let (width, _rows) = Terminal.getSize ()
-  let color = Terminal.colorEnabled ()
+  let color = Stdlib.Cli.Sys.isTerminal 1
   match
     Builtin.cliEvaluateExpression
       accountID branchId expr currentModule width color allowHarmful
@@ -86,7 +86,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         state
       | Ok None -> state
       | Error message ->
-        Stdlib.printLine $"Error: {message}"
+        Stdlib.printErrorLine $"Error: {message}"
         { state with exitCode = 1 }
 
     match stats with

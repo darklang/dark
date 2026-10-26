@@ -400,8 +400,8 @@ let private withLiveServer
         if bodyPassed then
           output.Check(fun stdout stderr ->
             let expected = expectedOutput |> List.map (fun s -> s + "\n")
-            Expect.equal stdout (String.concat "" expected) "server diagnostics"
-            Expect.equal stderr "" "no other server diagnostics")
+            Expect.equal stderr (String.concat "" expected) "server diagnostics"
+            Expect.equal stdout "" "the server's diagnostics stay off stdout")
       }
     try
       do! body port

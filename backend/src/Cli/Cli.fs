@@ -197,6 +197,10 @@ let execute
             LibDB.PackagePermissions.purity
               LibDB.PackagePermissions.Load.fromStore
               state.fns.builtIn }
+    // `--no-input` becomes `DARK_NO_INPUT`, one switch with one spelling.
+    if List.contains "--no-input" args then
+      System.Environment.SetEnvironmentVariable("DARK_NO_INPUT", "1")
+    let args = args |> List.filter (fun a -> a <> "--no-input")
     // A leading override applies only to this invocation; nothing is stored, so there is
     // nothing to restore afterwards. The test runner spawns its parallel workers this way
     // (`LibDB.TestProcess`), by exact hash.

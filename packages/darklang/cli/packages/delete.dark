@@ -111,10 +111,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
     match LanguageTools.ProgramTypes.ItemKind.fromString itemTypeStr with
     | None ->
-      Stdlib.printLine
+      Stdlib.printErrorLine
         (Stdlib.Cli.UI.Colors.error
           $"Error: '{itemTypeStr}' names neither an item kind nor a live item. Expected `delete <name>`, or `delete <fn|type|value|trait|impl|test> <name-or-hash>`.")
-      Stdlib.printLine "Usage: delete [fn|type|value|trait|impl|test] <name-or-hash> [options]"
+      Stdlib.printErrorLine "Usage: delete [fn|type|value|trait|impl|test] <name-or-hash> [options]"
       Cli.exitWith state false
     | Some itemKind ->
       match targetOpt with
@@ -125,12 +125,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         let currentLoc = state.packageData.currentLocation
         match Location.parseRelativeTo currentLoc target with
         | Error errMsg ->
-          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}: {errMsg}")
+          Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}: {errMsg}")
           Cli.exitWith state false
         | Ok targetLoc ->
           match Deprecate.resolveTarget branchId currentLoc itemKind target with
           | None ->
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}")
+            Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}")
             Cli.exitWith state false
           | Some _targetRef ->
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse

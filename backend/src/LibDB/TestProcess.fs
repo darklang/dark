@@ -251,7 +251,9 @@ let run
                   "TMPDIR", Some(path "tmp")
                   "DARK_CLI_UNDER_TEST", Some executable
                   "COLUMNS", Some(string columns)
-                  "LINES", Some(string rows) ]
+                  "LINES", Some(string rows)
+                  // The test compares a worker's styled stdout, which a pipe would strip.
+                  "CLICOLOR_FORCE", Some "1" ]
               directories = [ "policy"; "tmp" ]
               files =
                 [ "request.bin", request

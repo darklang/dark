@@ -363,6 +363,10 @@ let private withChecks
     | (Ok request, resource) :: rest -> collect ((request, resource) :: acc) rest
   collect [] checks
 
+/// Environment variables readable without an `env-read` grant. Each is not a secret and is needed
+/// under deny-all: the permission prompt has to know its terminal, and whether anyone is there.
+let terminalConventions : Set<string> = Set.ofList [ "TERM"; "CI"; "DARK_NO_INPUT" ]
+
 /// An operation authorized elsewhere, which only needs to run where the host
 /// state lives: a continuation on a host-issued handle (decided when the
 /// handle was created), a Native-gated builtin (decided by the interpreter's
@@ -896,6 +900,13 @@ let private resolve (op : Operation) : Result<Resolved, string> =
     // Public runtime identity, like the build hash or CPU count. Callers cannot
     // choose a path or read file contents through this operation.
     unchecked (attempt (fun () -> Ok(Response.Text(HostProcess.runtimeHash ()))))
+  | Operation.EnvGet name when terminalConventions.Contains name ->
+    unchecked (
+      produce (fun () ->
+        System.Environment.GetEnvironmentVariable name
+        |> Option.ofObj
+        |> Response.EnvValue)
+    )
   | Operation.EnvGet name ->
     withChecks
       [ envCheck read name ]

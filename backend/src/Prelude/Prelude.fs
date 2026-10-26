@@ -154,6 +154,9 @@ let printInline (string : string) : unit = NonBlockingConsole.writeInline string
 
 let print (string : string) : unit = NonBlockingConsole.writeLine string
 
+/// For everything that is not the answer to what was asked: diagnostics, warnings, progress.
+let printErr (string : string) : unit = NonBlockingConsole.writeErrLine string
+
 let printTime (string : string) : unit =
   let now = System.DateTime.UtcNow.ToString("mm:ss.ff")
   print $"{now} {string}"
@@ -193,7 +196,7 @@ let printMetadata (prefix : string) (metadata : Exception.Metadata) =
               "<%s.ToString failed: %s>"
               (if isNull v then "null" else v.GetType().Name)
               e.Message
-        print (sprintf "%s:  %s: %s" prefix k valueStr))
+        printErr (sprintf "%s:  %s: %s" prefix k valueStr))
       metadata
   with _ ->
     ()
@@ -204,11 +207,11 @@ let rec printException'
   (metadata : Exception.Metadata)
   (e : exn)
   : unit =
-  print $"{prefix}: error: {e.Message}"
+  printErr $"{prefix}: error: {e.Message}"
   printMetadata prefix metadata
   printMetadata prefix (Exception.toMetadata e)
-  print $"{prefix}: exceptionType: {e.GetType()}"
-  print $"{prefix}: {e.StackTrace}"
+  printErr $"{prefix}: exceptionType: {e.GetType()}"
+  printErr $"{prefix}: {e.StackTrace}"
   if not (isNull e.InnerException) then
     printException' $"prefex.inner[{count}]" (count + 1) [] e.InnerException
 

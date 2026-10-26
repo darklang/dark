@@ -32,7 +32,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ typePath ] ->
     match resolveTypeHash state.currentBranchId state.packageData.currentLocation typePath with
     | Error msg ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
+      Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error msg)
       Cli.exitWith state false
     | Ok typeHash ->
       let values = Stdlib.ValueSearch.findByType state.currentBranchId "" typeHash
@@ -48,7 +48,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ typePath, namespace_ ] ->
     match resolveTypeHash state.currentBranchId state.packageData.currentLocation typePath with
     | Error msg ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
+      Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error msg)
       Cli.exitWith state false
     | Ok typeHash ->
       let values = Stdlib.ValueSearch.findByType state.currentBranchId namespace_ typeHash

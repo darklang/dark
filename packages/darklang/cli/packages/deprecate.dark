@@ -222,7 +222,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Cli.exitWith state false
 
   | (_, None) ->
-    Stdlib.printLine
+    Stdlib.printErrorLine
       (Stdlib.Cli.UI.Colors.error
         "Error: Missing --kind. Use: superseded-by, harmful, or obsolete")
     Cli.exitWith state false
@@ -416,8 +416,8 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
 
     match resolved with
     | [] ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {target}")
-      Stdlib.printLine
+      Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {target}")
+      Stdlib.printErrorLine
         (Stdlib.Cli.UI.Colors.hint "  deprecated items are hidden; `dark ls --include-deprecated` shows them.")
 
       Cli.exitWith state false

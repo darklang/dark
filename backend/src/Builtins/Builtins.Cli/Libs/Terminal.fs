@@ -61,17 +61,6 @@ module TerminalRestoreGuard =
       System.Console.CancelKeyPress.Add(fun _ -> restoreToTerminal ())
 
 
-module TerminalCapabilities =
-  let isInputTerminal () : bool = not System.Console.IsInputRedirected
-
-  let isOutputTerminal () : bool = not System.Console.IsOutputRedirected
-
-  let terminalName () : string =
-    match System.Environment.GetEnvironmentVariable "TERM" with
-    | null -> ""
-    | value -> value
-
-
 /// Read one terminal dimension, preferring an explicit environment override.
 let private getDimension
   (envVar : string)
@@ -128,23 +117,24 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cliTerminalColorEnabled" 0
+    { name = fn "cliTerminalIsatty" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters = [ Param.make "fd" TInt "0 for stdin, 1 for stdout, 2 for stderr" ]
       returnType = TBool
       description =
-        "Whether output should carry color: false when NO_COLOR is set, or when "
-        + "stdout is redirected"
+        "isatty(3) for the standard descriptors: whether stdin (0), stdout (1) or stderr (2) is a "
+        + "terminal. False for any other descriptor."
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
-          // Per no-color.org, only a non-empty value counts: `NO_COLOR=` is how a
-          // wrapper re-enables color without having to unset the variable.
-          let noColor =
-            System.Environment.GetEnvironmentVariable "NO_COLOR"
-            |> System.String.IsNullOrEmpty
-            |> not
-          DBool(not noColor && TerminalCapabilities.isOutputTerminal ()) |> Ply
+        | _, vm, _, [| DInt fd |] ->
+          // .NET's redirection flags rather than an ioctl, so it works on macOS and Windows too.
+          let answer =
+            match intToInt32 vm fd with
+            | 0 -> not System.Console.IsInputRedirected
+            | 1 -> not System.Console.IsOutputRedirected
+            | 2 -> not System.Console.IsErrorRedirected
+            | _ -> false
+          DBool answer |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -310,26 +300,6 @@ let fns () : List<BuiltInFn> =
           DTuple(row |> bigint |> Dval.int, column |> bigint |> Dval.int, []) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "cliTerminalSessionInfo" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "A unit" ]
-      returnType = TTuple(TBool, TBool, [ TString ])
-      description = "Return (input is terminal, output is terminal, TERM value)"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] ->
-          DTuple(
-            TerminalCapabilities.isInputTerminal () |> DBool,
-            TerminalCapabilities.isOutputTerminal () |> DBool,
-            [ TerminalCapabilities.terminalName () |> DString ]
-          )
-          |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
 

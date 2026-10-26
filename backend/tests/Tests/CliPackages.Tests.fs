@@ -904,7 +904,7 @@ let isolatedTestsRejectUnsuccessfulWorkers =
           System.IO.File.WriteAllText(
             file,
             """test passes =
-  Stdlib.Cli.Stdin.isInteractive () |> Stdlib.Test.equal false
+  Stdlib.Cli.Sys.isTerminal 0 |> Stdlib.Test.equal false
 test fails =
   Stdlib.printLine "{\"Pass\":[]}"
   Stdlib.Test.fail "intentional isolation failure"

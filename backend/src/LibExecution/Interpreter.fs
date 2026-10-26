@@ -1407,13 +1407,13 @@ module ReplayPolicy =
     RuntimeError.UncaughtException($"cannot resume past step {ord}: {message}", [])
     |> raiseRTE vm.threadID
 
+  /// Replayed output goes back to the stream it went to.
+  let private stderrPrinters : Set<string> = set [ "printErrorLine"; "printError" ]
+
   /// The old run's output, told apart from the new run's: dimmed on a terminal, marked where
   /// dimming would be lost.
-  let private dim (s : string) : string =
-    if System.Console.IsOutputRedirected then
-      $"[replayed] {s}"
-    else
-      $"\u001b[2m{s}\u001b[0m"
+  let private dim (redirected : bool) (s : string) : string =
+    if redirected then $"[replayed] {s}" else $"\u001b[2m{s}\u001b[0m"
 
   /// Run before a logged call's result is handed back. Raises to stop the resume.
   let beforeServing
@@ -1436,9 +1436,12 @@ module ReplayPolicy =
     if Set.contains Effects.Effect.Stdout fn.callEffects then
       // The logged output, dimmed: the world saw it once; the person resuming sees where the
       // run had got to.
+      let toStderr = Set.contains name stderrPrinters
       for a in args do
         match a with
-        | DString s -> print (dim s)
+        | DString s when toStderr ->
+          printErr (dim System.Console.IsErrorRedirected s)
+        | DString s -> print (dim System.Console.IsOutputRedirected s)
         | _ -> ()
     if Set.contains Effects.Effect.FileRead fn.callEffects then
       match recordedAt with

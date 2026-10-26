@@ -14,6 +14,9 @@ proc fail {message} {
 
 set cli [lindex $argv 0]
 set script [lindex $argv 1]
+# This plays a person at a terminal, so CI must not say nobody is there.
+catch {unset env(CI)}
+catch {unset env(DARK_NO_INPUT)}
 spawn -noecho $cli run $script
 expect {
   -re {\r?\n +(?:\x1b\[[0-9;]*m)*([0-9]+)(?:\x1b\[[0-9;]*m)*\. Allow future runs} {

@@ -224,7 +224,7 @@ test fold =
 
 test foldIntoDifferentType =
   Stdlib.Dict.fold (Dict { "b": 2L, "a": 1L }) [] (fun acc k v ->
-    Stdlib.List.append acc [ k ])
+    Stdlib.List.append acc k)
   |> Stdlib.Test.equal [ "a", "b" ]
 
 test updateRejectsNonOptionResult =
