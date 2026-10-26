@@ -16,16 +16,26 @@ let cliVersion () : String = "alpha-" + (buildHash ())
 /// Costs a network round trip, which dominates the command. That's deliberate: both callers (`version`
 /// and `install-status`) exist to tell you whether your install is current, so the check is the point
 /// rather than a side errand. Worth knowing it's there before adding a third caller.
+///
+/// The same list names the release this binary is, when it is one: the tag is nowhere in the
+/// binary, only the build.
 let versionInfoWithUpdateCheck () : String =
   let currentVersion = cliVersion ()
-  match GitHub.Releases.getLatestReleaseBuildHash () with
-  | Ok latestVersion ->
-    if currentVersion == latestVersion then
-      "Darklang CLI " + currentVersion + " (up to date)"
-    else
-      "Darklang CLI " + currentVersion + " (latest: " + latestVersion + " - update available!)"
-  | Error _ ->
-    "Darklang CLI " + currentVersion + " (unable to check for updates)"
+  match GitHub.Releases.list () with
+  | Ok releases ->
+    let named (build: String) : String =
+      match GitHub.Releases.tagFor releases build with
+      | Some tag -> $"{tag}, {build}"
+      | None -> build
+
+    match Stdlib.List.head releases |> Stdlib.Option.andThen GitHub.Releases.buildOf with
+    | Some latestVersion ->
+      if currentVersion == latestVersion then
+        $"Darklang CLI {named currentVersion} (up to date)"
+      else
+        $"Darklang CLI {named currentVersion} (latest: {named latestVersion} - update available!)"
+    | None -> $"Darklang CLI {currentVersion} (unable to check for updates)"
+  | Error _ -> $"Darklang CLI {currentVersion} (unable to check for updates)"
 
 /// CLEANUP alias for `versionInfoWithUpdateCheck`, kept because `install-status` and the old_notes
 /// command still call it. Fold them over and delete this.

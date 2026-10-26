@@ -49,34 +49,51 @@ module Releases =
     | Error _e ->
       Stdlib.Result.Result.Error "Couldn't fetch releases list from GitHub API"
 
-  /// Get the build hash version from the latest release assets
-  /// Returns in CLI format (e.g. "alpha-abe74e7") for version comparison
-  let getLatestReleaseBuildHash () : Stdlib.Result.Result<String, String> =
-    match fetchString $"{darklangRepoBaseUrl}/releases" with
+  /// The published releases, newest first: the first hundred, which is the most GitHub
+  /// returns on one page.
+  let list () : Stdlib.Result.Result<List<Release>, String> =
+    match fetchString $"{darklangRepoBaseUrl}/releases?per_page=100" with
     | Ok releasesJsonString ->
       match Stdlib.Json.parse<List<Release>> releasesJsonString with
-      | Ok releases ->
-        match Stdlib.List.head releases with
-        | Some latestRelease ->
-          match Stdlib.List.head latestRelease.assets with
-          | Some firstAsset ->
-            // Asset name format: darklang-alpha-BUILDHASH-platform
-            let parts = Stdlib.String.split firstAsset.name "-"
-            match Stdlib.List.getAt parts 2 with
-            | Some hash ->
-              // Return in same format as CLI version (first 7 chars)
-              Stdlib.Result.Result.Ok $"alpha-{Stdlib.String.slice hash 0 7}"
-            | None ->
-              // Fallback to tag name if we can't parse hash
-              Stdlib.Result.Result.Ok latestRelease.tag_name
-          | None ->
-            // No assets, fallback to tag name
-            Stdlib.Result.Result.Ok latestRelease.tag_name
-        | None -> Stdlib.Result.Result.Error "No releases found"
+      | Ok releases -> Stdlib.Result.Result.Ok releases
       | Error _e ->
         Stdlib.Result.Result.Error "Couldn't parse releases JSON string"
     | Error _e ->
       Stdlib.Result.Result.Error "Couldn't fetch releases list from GitHub API"
+
+  /// The build a release shipped, in the form the CLI prints its own (`alpha-abe74e7`). Asset
+  /// names are `darklang-alpha-<build>-<platform>.gz`, and the CLI's own build is the first seven
+  /// characters of the same hash.
+  let buildOf (release: Release) : Stdlib.Option.Option<String> =
+    release.assets
+    |> Stdlib.List.head
+    |> Stdlib.Option.andThen (fun asset ->
+      Stdlib.List.getAt (Stdlib.String.split asset.name "-") 2)
+    |> Stdlib.Option.map (fun hash -> $"alpha-{Stdlib.String.slice hash 0 7}")
+
+  /// The tag of the release that shipped <param cliVersion> (`v0.0.104`), if one of these did.
+  /// The tag appears nowhere in the binary, so the build is the only way to find it.
+  let tagFor
+    (releases: List<Release>)
+    (cliVersion: String)
+    : Stdlib.Option.Option<String> =
+    releases
+    |> Stdlib.List.findFirst (fun r -> buildOf r == Stdlib.Option.Option.Some cliVersion)
+    |> Stdlib.Option.map (fun r -> r.tag_name)
+
+  /// Get the build hash version from the latest release assets
+  /// Returns in CLI format (e.g. "alpha-abe74e7") for version comparison, or the tag when the
+  /// release has no asset to read a build from.
+  let getLatestReleaseBuildHash () : Stdlib.Result.Result<String, String> =
+    match list () with
+    | Ok releases ->
+      match Stdlib.List.head releases with
+      | Some latestRelease ->
+        buildOf latestRelease
+        |> Stdlib.Option.withDefault latestRelease.tag_name
+        |> Stdlib.Result.Result.Ok
+      | None -> Stdlib.Result.Result.Error "No releases found"
+    | Error e -> Stdlib.Result.Result.Error e
 
 
   /// The asset for one platform id, matched by SUFFIX.
