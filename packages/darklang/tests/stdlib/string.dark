@@ -1238,14 +1238,6 @@ test head =
 //       Stdlib.String.head "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal (Some '🧟')
 //       Stdlib.String.head "👨‍❤️‍💋‍👨" |> Stdlib.Test.equal (Some '👨‍❤️‍💋‍👨') ]
 
-test articleFor =
-  Stdlib.Test.all
-    [ Stdlib.String.articleFor "apple" |> Stdlib.Test.equal "an"
-      Stdlib.String.articleFor "banana" |> Stdlib.Test.equal "a"
-      Stdlib.String.articleFor "🍍" |> Stdlib.Test.equal "a"
-      Stdlib.String.articleFor "🍊" |> Stdlib.Test.equal "a"
-      Stdlib.String.articleFor "" |> Stdlib.Test.equal "" ]
-
 test repeat =
   Stdlib.Test.all
     [ Stdlib.String.repeat "ab" 3 |> Stdlib.Test.equal "ababab"
@@ -1300,27 +1292,6 @@ test getByteAtMatchesToByteList =
   // Match the full UTF-8 encoding.
   Stdlib.String.getByteAt "héllo" 2
   |> Stdlib.Test.equal (Stdlib.List.getAt (Stdlib.String.toByteList "héllo") 2)
-
-test toOrdinal =
-  Stdlib.Test.all
-    [ Stdlib.String.toOrdinal 0 |> Stdlib.Test.equal "0th"
-      Stdlib.String.toOrdinal 1 |> Stdlib.Test.equal "1st"
-      Stdlib.String.toOrdinal 2 |> Stdlib.Test.equal "2nd"
-      Stdlib.String.toOrdinal 3 |> Stdlib.Test.equal "3rd"
-      Stdlib.String.toOrdinal 4 |> Stdlib.Test.equal "4th"
-      Stdlib.String.toOrdinal 11 |> Stdlib.Test.equal "11th"
-      Stdlib.String.toOrdinal 12 |> Stdlib.Test.equal "12th"
-      Stdlib.String.toOrdinal 13 |> Stdlib.Test.equal "13th"
-      Stdlib.String.toOrdinal 21 |> Stdlib.Test.equal "21st"
-      Stdlib.String.toOrdinal 22 |> Stdlib.Test.equal "22nd"
-      Stdlib.String.toOrdinal 23 |> Stdlib.Test.equal "23rd"
-      Stdlib.String.toOrdinal 101 |> Stdlib.Test.equal "101st"
-      Stdlib.String.toOrdinal 111 |> Stdlib.Test.equal "111th"
-      Stdlib.String.toOrdinal 112 |> Stdlib.Test.equal "112th"
-      Stdlib.String.toOrdinal 113 |> Stdlib.Test.equal "113th"
-      Stdlib.String.toOrdinal 1011 |> Stdlib.Test.equal "1011th"
-      Stdlib.String.toOrdinal -1 |> Stdlib.Test.equal "-1st"
-      Stdlib.String.toOrdinal -11 |> Stdlib.Test.equal "-11th" ]
 
 test slugify =
   Stdlib.Test.all

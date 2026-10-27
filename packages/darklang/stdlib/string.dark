@@ -14,25 +14,6 @@ let ellipsis (s: String) (length: Int) : String =
     s
 
 
-/// Returns 'a' or 'an' (the indefinite article) for a string, based on
-/// whether it begins with a vowel
-let articleFor (nextWord: String) : String =
-  let vowels = [ 'A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u' ]
-
-  match String.head nextWord with
-  | None -> ""
-  | Some c ->
-    if
-      String.length nextWord > 1
-      && (Bool.not (Char.isASCIILetter c))
-    then
-      articleFor (String.dropFirst nextWord 1)
-    else if List.contains vowels c then
-      "an"
-    else
-      "a"
-
-
 /// Returns {{true}} if <param s> is the empty string {{""}}
 let isEmpty (s: String) : Bool = Builtin.stringIsEmpty s
 
@@ -533,21 +514,6 @@ let stripSuffix (subject: String) (suffix: String) : Option.Option<String> =
     Option.Option.None
 
 
-/// Returns the plural form of <param word> by a simple English rule: words ending
-/// in -ch, -sh, -s, -x, or -z take "es" ({{branch}} -> {{branches}}); everything else
-/// takes "s" ({{instance}} -> {{instances}}). Does not handle irregulars ({{mouse}},
-/// {{child}}) or the -y -> -ies rule.
-let pluralize (word: String) : String =
-  if (String.endsWith word "ch")
-     || (String.endsWith word "sh")
-     || (String.endsWith word "s")
-     || (String.endsWith word "x")
-     || (String.endsWith word "z") then
-    $"{word}es"
-  else
-    $"{word}s"
-
-
 /// Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>,
 /// measured in UTF-16 code units. Returns {{None}} if <param searchFor> does not occur.
 /// The returned index is **not** suitable for arithmetic with {{first}}, {{dropFirst}},
@@ -601,24 +567,6 @@ let lastIndexOfEgc
 /// If <param count> is less than or equal to 0, returns an empty string.
 let repeat (string: String) (count: Int) : String =
   Builtin.stringRepeat string count
-
-
-/// Converts an integer <param n> to its ordinal representation as a string.
-let toOrdinal (n: Int) : String =
-  // `%` is Euclidean here (-1 % 10 = 9), so drop the sign first
-  let lastTwoDigits = (Stdlib.abs n) % 100
-
-  let suffix =
-    if lastTwoDigits >= 11 && lastTwoDigits <= 13 then
-      "th"
-    else
-      match lastTwoDigits % 10 with
-      | 1 -> "st"
-      | 2 -> "nd"
-      | 3 -> "rd"
-      | _ -> "th"
-
-  (Stdlib.toString n) + suffix
 
 
 /// Splits the given <param str> at each newline character and returns a list of substrings.

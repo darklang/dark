@@ -83,7 +83,7 @@ module RuntimeError =
           match segment with
           | String s -> s
           | Int i -> Stdlib.toString i
-          | Ordinal i -> Stdlib.String.toOrdinal i
+          | Ordinal i -> Stdlib.English.toOrdinal i
           | Count(i, singular, plural) ->
             let count = Stdlib.toString i
 
@@ -98,7 +98,7 @@ module RuntimeError =
             //Builtin.debug "prevSegments" prevSegments
             match Stdlib.List.head prevSegments with
             | None -> ""
-            | Some prev -> Stdlib.String.articleFor prev + " "
+            | Some prev -> Stdlib.English.articleFor prev + " "
 
           | FunctionName fn -> fnName branchId fn
 
