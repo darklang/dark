@@ -155,9 +155,6 @@ module NameResolution =
 type private DvalComparisonMode =
   | ForDictKey
   | ForSort
-  /// `ForSort`, except that Bytes take the dict-key order instead of refusing:
-  /// `List.unique` sorts only to group equal values, so any total order will do.
-  | ForDedupe
 
 
 /// A KnownType represents the type of a dval.
@@ -1170,12 +1167,11 @@ and DvalOrdering private () =
     // bytes from the store is length, then content hash, which is stable but
     // means nothing, so `List.sort` refuses rather than hand that out as an
     // answer; Go, Java, JS and C# also leave byte arrays unordered. Dict keys
-    // and `List.unique` still need some total order, and use that one.
+    // still need some total order, and use that one.
     | DBytes x, DBytes y ->
       match mode with
       | DvalComparisonMode.ForSort -> raise (DvalUnsortableException a)
-      | DvalComparisonMode.ForDictKey
-      | DvalComparisonMode.ForDedupe ->
+      | DvalComparisonMode.ForDictKey ->
         let c = compare x.Length y.Length
         if c <> 0 then c else compare x.ContentHash y.ContentHash
 
@@ -1187,8 +1183,7 @@ and DvalOrdering private () =
     (b : Dval)
     : int =
     match mode with
-    | DvalComparisonMode.ForSort
-    | DvalComparisonMode.ForDedupe ->
+    | DvalComparisonMode.ForSort ->
       match a, b with
       | (DApplicable _ | DStream _ | DPromise _), _ ->
         raise (DvalUnsortableException a)
@@ -1244,10 +1239,6 @@ and DvalOrdering private () =
 
   static member compareForDictKey (a : Dval) (b : Dval) : int =
     DvalOrdering.compare DvalComparisonMode.ForDictKey a b
-
-  static member compareForDedupe (a : Dval) (b : Dval) : int =
-    DvalOrdering.compare DvalComparisonMode.ForDedupe a b
-
 and DictMap = Map<DictKey, Dval>
 
 

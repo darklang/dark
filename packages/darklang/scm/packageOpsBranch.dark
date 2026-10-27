@@ -329,11 +329,11 @@ let branchHashHistories (branchId: Uuid) : Dict<String, List<String>> =
            (LanguageTools.ProgramTypes.Reference.hash target))
       )
     | _ -> Stdlib.Option.Option.None)
-  |> Stdlib.List.groupByWithKey (fun (key, _) -> key)
+  |> Stdlib.List.groupBy (fun (key, _) -> key)
   |> Stdlib.List.map (fun (key, entries) ->
-    // `dedup`, not `unique`/`uniqueBy`: both of those SORT, which would replace the authoring order
-    // this function exists to return with lexicographic HASH order.
-    (key, entries |> Stdlib.List.map (fun (_, hash) -> hash) |> Stdlib.List.dedup))
+    // `unique` keeps first occurrences in place, which is the authoring order this function exists
+    // to return.
+    (key, entries |> Stdlib.List.map (fun (_, hash) -> hash) |> Stdlib.List.unique))
   |> Stdlib.Dict.fromEntries
 
 

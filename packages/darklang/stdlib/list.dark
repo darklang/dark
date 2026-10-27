@@ -158,13 +158,14 @@ let interleave (lA: List<'a>) (lB: List<'a>) : List<'a> =
 
 
 /// Returns the passed list, with only unique values, where uniqueness is based
-/// on the result of <param fn>. Only one of each value will be returned, and the
-/// result is sorted, so the input order is not maintained.
+/// on the result of <param fn>. The first value for each {{fn value}} is kept,
+/// in the order it appeared.
 ///
 /// Keeps what it has seen in a <type Dict> keyed on {{fn value}} rather than
 /// scanning a list per element, so this is O(n log n) and not quadratic.
 /// Uniqueness is therefore decided by <type Dict> key comparison rather than by
-/// {{==}}: see <fn dedup> for where the two disagree.
+/// {{==}}: {{NaN}} collapses, and a {{fn value}} no <type Dict> can key (a
+/// lambda, a stream) raises.
 let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
   list
   |> fold ([], Dict { }) (fun (unique, seen) value ->
@@ -176,40 +177,13 @@ let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
       (prepend unique value,
        Stdlib.Dict.set seen uniqueValue true))
   |> fun (uniqueValues, _) -> uniqueValues
-  |> sort
-
-
-/// Returns the passed list, with only unique values.
-/// Only one of each value will be returned, but the
-/// order will not be maintained.
-let unique (list: List<'a>) : List<'a> = Builtin.listUnique list
-
-
-/// Returns <param list> with duplicates removed, KEEPING THE ORDER: the first occurrence
-/// of each value stays where it was.
-///
-/// <fn unique> sorts and <fn uniqueBy> does not maintain order, so neither can be used
-/// where the order carries meaning. A sequence in hash order looks exactly like one in
-/// authoring order, so getting that wrong surfaces much later, as a caller reading the
-/// wrong element.
-///
-/// Keeps what it has seen in a <type Dict> rather than scanning what it has kept per
-/// value, and pushes onto the front instead of the back, so it is O(n log n) rather
-/// than quadratic in both compares and copies.
-///
-/// That makes <type Dict> key comparison, not {{==}}, the notion of equality. Two
-/// differences, both narrow: {{NaN}} equals itself as a key and so collapses, where
-/// {{==}} reports it unequal and keeps both; and a value no <type Dict> can key (a
-/// lambda, a blob, a stream, a DB) raises rather than comparing by identity.
-let dedup (list: List<'a>) : List<'a> =
-  list
-  |> fold ([], Dict { }) (fun (acc, seen) value ->
-    if Stdlib.Dict.containsKey seen value then
-      (acc, seen)
-    else
-      (prepend acc value, Stdlib.Dict.set seen value true))
-  |> fun (acc, _) -> acc
   |> reverse
+
+
+/// Returns the passed list, with only unique values. The first occurrence of
+/// each value is kept, in the order it appeared; pipe into <fn sort> if you
+/// want them ordered. Values are compared with {{==}}.
+let unique (list: List<'a>) : List<'a> = Builtin.listUnique list
 
 
 /// Returns true if <param list> has no values
@@ -551,7 +525,7 @@ let randomElement (list: List<'a>) : Option.Option<'a> =
 /// For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
 /// is {{fn item -> item % 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
 /// Preserves the order of values and of the keys.
-let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
+let groupBy (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
   // Each group is looked up in a Dict rather than scanned for, and built back to front; the
   // keys are kept separately, in the order first seen, since a Dict lists its own sorted.
   let (groups, keys) =

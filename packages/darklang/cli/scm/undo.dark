@@ -13,7 +13,7 @@ module Darklang.Cli.Undo
 // On a branch, two things have to line up:
 //
 //   - the SEQUENCE is the branch's `SetName` ops in authoring order, from `branchHashHistoryFor`, which
-//     reads the ops directly and must NOT be deduped with `Stdlib.List.unique`/`uniqueBy` (both sort).
+//     reads the ops directly; it is deduped keeping first occurrences, never sorted.
 //   - `currentHash` must count a `Resolve` as a binding, since a rebind is one. If the sequence and the
 //     current position disagree about what is live, the walk oscillates rather than stepping back.
 //

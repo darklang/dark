@@ -314,11 +314,13 @@ test randomReachesEveryValue =
   Stdlib.Test.all
     [ (((Stdlib.List.range 1 100)
        |> Stdlib.List.map (fun x -> Stdlib.Int64.random 0L 1L)
-       |> Stdlib.List.unique))
+       |> Stdlib.List.unique
+       |> Stdlib.List.sort))
       |> Stdlib.Test.equal ([ 0L, 1L ])
       (((Stdlib.List.range 1 100)
        |> Stdlib.List.map (fun x -> Stdlib.Int64.random 0L 2L)
-       |> Stdlib.List.unique))
+       |> Stdlib.List.unique
+       |> Stdlib.List.sort))
       |> Stdlib.Test.equal ([ 0L, 1L, 2L ]) ]
 
 test sum =

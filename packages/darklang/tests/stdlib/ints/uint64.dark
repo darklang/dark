@@ -161,11 +161,13 @@ test randomReachesEveryValue =
   Stdlib.Test.all
     [ (((Stdlib.List.range 1 100)
        |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 0UL 1UL)
-       |> Stdlib.List.unique))
+       |> Stdlib.List.unique
+       |> Stdlib.List.sort))
       |> Stdlib.Test.equal ([ 0UL, 1UL ])
       (((Stdlib.List.range 1 100)
        |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 0UL 2UL)
-       |> Stdlib.List.unique))
+       |> Stdlib.List.unique
+       |> Stdlib.List.sort))
       |> Stdlib.Test.equal ([ 0UL, 1UL, 2UL ]) ]
 
 test sum =

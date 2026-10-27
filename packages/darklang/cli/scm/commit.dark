@@ -169,13 +169,12 @@ let previousHashesOfAll
 
     let fromBranch = if SCM.Branch.isMain current then [] else historyIn ofCurrent
 
-    // NEWEST FIRST, and `dedup` rather than `unique`, because the order is load-bearing: `changeKind`
-    // takes the HEAD as "the version this edit replaced". `unique` sorts, which would make the head an
-    // arbitrary older version. `fromMain` is newest-first already; the chain history is oldest-first,
-    // hence the reverse.
+    // NEWEST FIRST, and the order is load-bearing: `changeKind` takes the HEAD as "the version this
+    // edit replaced". `unique` keeps first occurrences, so the head stays the head. `fromMain` is
+    // newest-first already; the chain history is oldest-first, hence the reverse.
     let previous =
       Stdlib.List.concat fromMain (Stdlib.List.reverse fromBranch)
-      |> Stdlib.List.dedup
+      |> Stdlib.List.unique
       |> Stdlib.List.filter (fun h -> h != b.hash)
       |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
 

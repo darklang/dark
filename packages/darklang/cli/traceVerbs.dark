@@ -589,9 +589,6 @@ let showCodeJson
     // bounded number of them and `count` below already says how many there were. And it stops
     // every iteration scanning the whole value list for its own, which would be iterations times
     // values: 2000 x 12,000 on a 2000-iteration loop.
-    //
-    // A dict, not `List.unique`: `unique` folds with `member seen` over every element, so it is
-    // the number of values SQUARED, and 6,046 rows is eighteen million comparisons.
     let framesWithValues =
       frameValues
       |> Stdlib.List.map (fun row ->

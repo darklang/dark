@@ -195,6 +195,7 @@ let searchModulesByPrefix
       Stdlib.Option.Option.Some (Stdlib.List.take modulePath (idx + 1))
     | None -> Stdlib.Option.Option.None)
   |> Stdlib.List.unique
+  |> Stdlib.List.sort
   |> Stdlib.List.map (fun path -> Stdlib.String.join path ".")
 
 // Get all available items at a location for completion

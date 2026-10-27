@@ -226,7 +226,7 @@ let inOp
   | Some((_, [])) -> Stdlib.Option.Option.None
   | Some((hash, names)) ->
     let hash = ProgramTypes.hashToString hash
-    Stdlib.Option.Option.Some((hash, Stdlib.List.dedup names))
+    Stdlib.Option.Option.Some((hash, Stdlib.List.unique names))
   | None -> Stdlib.Option.Option.None
 
 

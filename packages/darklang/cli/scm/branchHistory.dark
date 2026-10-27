@@ -32,7 +32,7 @@ let executeDiff (state: AppState) (branchRef: String) (withSource: Bool) : AppSt
       Cli.printOk $"\"{branchRef}\" changes {n} vs its parent:"
 
       entries
-      |> Stdlib.List.groupByWithKey (fun e -> moduleOf e.name)
+      |> Stdlib.List.groupBy (fun e -> moduleOf e.name)
       |> Stdlib.List.iter (fun group ->
         let (modulePath, inModule) = group
         Stdlib.printLine ""

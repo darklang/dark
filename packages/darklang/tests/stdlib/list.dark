@@ -489,8 +489,7 @@ test takeWhile =
 
 test uniqueBy =
   Stdlib.Test.all
-    [ // it isn't specified which is the right value to keep when there are
-      // duplicates
+    [ // When `fn` collapses two values it is the FIRST that survives, where it was.
       Stdlib.List.uniqueBy [ 1L, 2L, 3L, 4L ] (fun x -> x / 2L)
       |> Stdlib.Test.equal [ 1L, 2L, 4L ]
       Stdlib.List.uniqueBy [ 1L, 2L, 3L, 4L ] (fun x -> x)
@@ -498,56 +497,51 @@ test uniqueBy =
       Stdlib.List.uniqueBy [ 1L, 1L, 1L, 1L ] (fun x -> x)
       |> Stdlib.Test.equal [ 1L ]
       Stdlib.List.uniqueBy [ 7L, 42L, 7L, 2L, 10L ] (fun x -> x)
-      |> Stdlib.Test.equal [ 2L, 7L, 10L, 42L ]
+      |> Stdlib.Test.equal [ 7L, 42L, 2L, 10L ]
       Stdlib.List.uniqueBy [] (fun x -> x)
       |> Stdlib.Test.equal []
-      // When `fn` collapses two values it is the FIRST that survives, then the
-      // result is sorted.
-      Stdlib.List.uniqueBy [ 30L, 31L, 10L, 11L ] (fun x -> x / 10L)
-      |> Stdlib.Test.equal [ 10L, 30L ] ]
+      Stdlib.List.uniqueBy [ 31L, 30L, 10L, 11L ] (fun x -> x / 10L)
+      |> Stdlib.Test.equal [ 31L, 10L ]
+      Stdlib.List.uniqueBy [ "bb", "a", "cc", "d" ] (fun s -> Stdlib.String.length s)
+      |> Stdlib.Test.equal [ "bb", "a" ] ]
 
 test unique =
   Stdlib.Test.all
-    [ Stdlib.List.unique [ 1L, 2L, 3L, 4L ]
-      |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L ]
+    [ // The FIRST occurrence is kept where it was; nothing is sorted.
+      Stdlib.List.unique [ 7L, 42L, 7L, 2L, 10L ]
+      |> Stdlib.Test.equal [ 7L, 42L, 2L, 10L ]
       Stdlib.List.unique [ 1L, 1L, 1L, 1L ]
       |> Stdlib.Test.equal [ 1L ]
-      Stdlib.List.unique [ 7L, 42L, 7L, 2L, 10L ]
-      |> Stdlib.Test.equal [ 2L, 7L, 10L, 42L ]
-      Stdlib.List.unique [] |> Stdlib.Test.equal [] ]
-
-test dedup =
-  Stdlib.Test.all
-    [ // `dedup` keeps the FIRST occurrence where it was. Compare the `unique` cases
-      // just above: same input, sorted output. That difference is the whole reason
-      // it exists.
-      Stdlib.List.dedup [ 7L, 42L, 7L, 2L, 10L ]
-      |> Stdlib.Test.equal [ 7L, 42L, 2L, 10L ]
-      Stdlib.List.dedup [ 1L, 1L, 1L, 1L ]
-      |> Stdlib.Test.equal [ 1L ]
-      Stdlib.List.dedup [ 1L, 2L, 3L, 4L ]
+      Stdlib.List.unique [ 1L, 2L, 3L, 4L ]
       |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L ]
-      Stdlib.List.dedup [] |> Stdlib.Test.equal []
-      Stdlib.List.dedup [ "b", "a", "b", "a" ]
+      Stdlib.List.unique [] |> Stdlib.Test.equal []
+      Stdlib.List.unique [ "b", "a", "b", "a" ]
       |> Stdlib.Test.equal [ "b", "a" ]
-      // Long enough that a dropped or doubled `reverse` shows up as order, not just
-      // as content.
-      Stdlib.List.dedup [ 5L, 1L, 4L, 1L, 3L, 5L, 2L ]
+      Stdlib.List.unique [ 5L, 1L, 4L, 1L, 3L, 5L, 2L ]
       |> Stdlib.Test.equal [ 5L, 1L, 4L, 3L, 2L ]
-      // Compound values work as the `seen` key, not just scalars.
-      Stdlib.List.dedup [ (2L, "b"), (1L, "a"), (2L, "b") ]
+      // Compound values, not just scalars.
+      Stdlib.List.unique [ (2L, "b"), (1L, "a"), (2L, "b") ]
       |> Stdlib.Test.equal [ (2L, "b"), (1L, "a") ]
-      Stdlib.List.dedup [ [ 2L ], [ 1L ], [ 2L ] ]
+      Stdlib.List.unique [ [ 2L ], [ 1L ], [ 2L ] ]
       |> Stdlib.Test.equal [ [ 2L ], [ 1L ] ] ]
 
-// `seen` is a Dict, so equality is Dict-key equality rather than `==`. Two places
-// that shows:
-// NaN is equal to itself as a key, where `==` reports it unequal, so the duplicate
-// collapses.
-test dedupTreatsNanAsOneDictionaryKey =
-  Stdlib.List.length
-    (Stdlib.List.dedup [ (0.0 / 0.0), (0.0 / 0.0) ])
-  |> Stdlib.Test.equal 1
+// Check that duplicates are removed from a large list of similar values.
+// The F# tests check hash collisions and the number of equality comparisons.
+test uniqueDeduplicatesSameShapedValues =
+  (Stdlib.List.range 1 3000)
+  |> Stdlib.List.map (fun i -> [ "owner", "modules", Stdlib.toString (i % 1500) ])
+  |> Stdlib.List.unique
+  |> Stdlib.List.length
+  |> Stdlib.Test.equal 1500
+
+// Equality is `==`, so NaN is unequal to itself and both are kept. `uniqueBy`
+// keys a Dict instead, where NaN is one key.
+test uniqueUsesEqualityNotDictKeys =
+  Stdlib.Test.all
+    [ Stdlib.List.length (Stdlib.List.unique [ (0.0 / 0.0), (0.0 / 0.0) ])
+      |> Stdlib.Test.equal 2
+      Stdlib.List.length (Stdlib.List.uniqueBy [ (0.0 / 0.0), (0.0 / 0.0) ] (fun x -> x))
+      |> Stdlib.Test.equal 1 ]
 
 test unzip =
   Stdlib.Test.all
@@ -586,38 +580,38 @@ test zip =
       |> Stdlib.Test.equal (Error(Stdlib.List.LengthMismatch { left = 3, right = 1 }))
       Stdlib.List.zip [] [] |> Stdlib.Test.equal (Ok []) ]
 
-test groupByWithKey =
+test groupBy =
   Stdlib.Test.all
-    [ Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+    [ Stdlib.List.groupBy [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
         (x % 2L))
       |> Stdlib.Test.equal
         [ (1L, [ 1L, 3L, 5L ]), (0L, [ 2L, 4L ]) ]
-      Stdlib.List.groupByWithKey
+      Stdlib.List.groupBy
         [ "apple", "banana", "avocado", "grape", "apricot" ]
         (fun word -> Stdlib.String.first word 1)
       |> Stdlib.Test.equal
         [ ("a", [ "apple", "avocado", "apricot" ])
           ("b", [ "banana" ])
           ("g", [ "grape" ]) ]
-      Stdlib.List.groupByWithKey [ 'a', 'b', 'c', 'a', 'b' ] (fun c -> c)
+      Stdlib.List.groupBy [ 'a', 'b', 'c', 'a', 'b' ] (fun c -> c)
       |> Stdlib.Test.equal
         [ ('a', [ 'a', 'a' ]), ('b', [ 'b', 'b' ]), ('c', [ 'c' ]) ]
-      Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+      Stdlib.List.groupBy [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
         (x % 2L) == 0L)
       |> Stdlib.Test.equal
         [ (false, [ 1L, 3L, 5L ]), (true, [ 2L, 4L ]) ]
-      Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+      Stdlib.List.groupBy [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
         ((x % 2L), "test"))
       |> Stdlib.Test.equal
         [ ((1L, "test"), [ 1L, 3L, 5L ])
           ((0L, "test"), [ 2L, 4L ]) ]
-      Stdlib.List.groupByWithKey [] (fun x -> x)
+      Stdlib.List.groupBy [] (fun x -> x)
       |> Stdlib.Test.equal []
       // Keys come out in the order first seen, not sorted.
-      Stdlib.List.groupByWithKey [ 3L, 1L, 3L, 2L, 1L, 3L ] (fun x -> x)
+      Stdlib.List.groupBy [ 3L, 1L, 3L, 2L, 1L, 3L ] (fun x -> x)
       |> Stdlib.Test.equal
         [ (3L, [ 3L, 3L, 3L ]), (1L, [ 1L, 1L ]), (2L, [ 2L ]) ]
-      Stdlib.List.groupByWithKey [ "b2", "a1", "b1", "c1", "a2" ] (fun s ->
+      Stdlib.List.groupBy [ "b2", "a1", "b1", "c1", "a2" ] (fun s ->
         Stdlib.String.first s 1)
       |> Stdlib.Test.equal
         [ ("b", [ "b2", "b1" ]), ("a", [ "a1", "a2" ]), ("c", [ "c1" ]) ] ]
@@ -746,9 +740,13 @@ test uniqueByRejectsFunctionKeys =
   Stdlib.List.uniqueBy [ 1L ] (fun _ -> (fun value -> value))
   => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
-// and a value no Dict can key raises instead of being compared by identity.
-test dedupRejectsFunctionKeys =
-  Stdlib.List.dedup [ (fun value -> value) ]
+// `unique` compares a lambda by identity, the way `==` does.
+test uniqueKeepsFunctions =
+  Stdlib.List.length (Stdlib.List.unique [ (fun value -> value) ])
+  |> Stdlib.Test.equal 1
+
+test uniqueByRejectsFunctionElementsAsKeys =
+  Stdlib.List.uniqueBy [ (fun value -> value) ] (fun f -> f)
   => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test headEvaluatesElements =

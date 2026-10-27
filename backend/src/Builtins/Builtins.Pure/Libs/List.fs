@@ -76,10 +76,6 @@ module DvalComparator =
         .Throw()
       [||]
 
-  /// For `List.unique`, which sorts only to group equal values, so Bytes are
-  /// allowed here and take the dict-key order.
-  let compareDvalIntForDedupe (v1 : Dval) (v2 : Dval) : int =
-    guarded DvalOrdering.compareForDedupe v1 v2
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -872,15 +868,20 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
       description =
-        "Returns the passed list, with only unique values. Only one of each "
-        + "value will be returned, but the order will not be maintained."
+        "Returns the passed list, with only unique values. The first occurrence "
+        + "of each value is kept, in the order it appeared."
       fn =
         (function
         | _, _, _, [| DList(vt, l) |] ->
-          List.distinct l
-          |> DvalComparator.sortWith DvalComparator.compareDvalIntForDedupe
-          |> fun l -> DList(vt, l)
-          |> Ply
+          let unique =
+            match l with
+            | []
+            | [ _ ] -> l
+            | _ ->
+              let seen =
+                System.Collections.Generic.HashSet<Dval>(Dval.equalityComparer)
+              List.filter seen.Add l
+          DList(vt, unique) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

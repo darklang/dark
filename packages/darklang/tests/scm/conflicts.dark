@@ -325,18 +325,15 @@ module Fqn =
         Darklang.SCM.Conflicts.bindingKey "Zz" "W" "f" |> Stdlib.Test.equal "Zz/W/f" ]
 
 module OrderPreservingDedup =
-  // `Stdlib.List.unique` and `uniqueBy` both SORT (their own docs say the order is not maintained), so
-  // neither can dedup a sequence whose order is the point. `PackageOps.branchHashHistoryFor` returns a
-  // name's versions oldest-first and is what `dark undo` steps through; sorting it there swaps the
-  // sequence for lexicographic hash order, which looks plausible and sends undo to the wrong version.
-  //
-  // Pinning the stdlib behaviour, so the day either of these starts preserving order the call sites that
-  // worked around it get revisited rather than silently double-correcting.
-  test uniqueSorts =
+  // `PackageOps.branchHashHistoryFor` returns a name's versions oldest-first and is what `dark undo`
+  // steps through, deduped with `Stdlib.List.unique`/`uniqueBy`. Sorting there would swap the
+  // sequence for lexicographic hash order, which looks plausible and sends undo to the wrong version,
+  // so pin that both keep first occurrences in place.
+  test uniqueKeepsOrder =
     Stdlib.Test.all
-      [ Stdlib.List.unique [ "c", "a", "b" ] |> Stdlib.Test.equal [ "a", "b", "c" ]
-        Stdlib.List.uniqueBy [ "c", "a", "b" ] (fun x -> x)
-        |> Stdlib.Test.equal [ "a", "b", "c" ] ]
+      [ Stdlib.List.unique [ "c", "a", "b", "a" ] |> Stdlib.Test.equal [ "c", "a", "b" ]
+        Stdlib.List.uniqueBy [ "c", "a", "b", "a" ] (fun x -> x)
+        |> Stdlib.Test.equal [ "c", "a", "b" ] ]
 
   // The order-preserving shape, which is what an authoring sequence needs.
   test orderPreservingDedup =
