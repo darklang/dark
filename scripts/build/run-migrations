@@ -21,7 +21,7 @@ done
 grey="\033[1;30m"
 reset="\033[0m"
 
-LOGS="${DARK_CONFIG_RUNDIR}/logs"
+LOGS="${DARK_HOME}/logs"
 MIGRATIONS_LOG="$LOGS/migrations.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then
@@ -43,8 +43,8 @@ fi
 
 # In seed mode: if data.db is missing or empty, copy from seed.db
 if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
-  DB_PATH="${DARK_CONFIG_RUNDIR}/${DARK_CONFIG_DB_NAME:-data.db}"
-  SEED_PATH="${DARK_CONFIG_RUNDIR}/seed.db"
+  DB_PATH="${DARK_HOME}/${DARK_CONFIG_DB_NAME:-data.db}"
+  SEED_PATH="${DARK_HOME}/seed.db"
   if [[ ! -f "$DB_PATH" ]] || [[ $(stat -c%s "$DB_PATH" 2>/dev/null || echo 0) -lt 1000000 ]]; then
     if [[ -f "$SEED_PATH" ]]; then
       echo "Copying seed.db as data.db"

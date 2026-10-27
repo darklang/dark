@@ -36,12 +36,12 @@ let private getDefaultDarklangDirectory () : string =
 
 /// Where this instance keeps its store, logs and local config.
 ///
-/// An explicit `DARK_CONFIG_RUNDIR` wins over the default. Overwriting it instead would
-/// mean every process on a machine shares one store, so a second instance -- a throwaway
-/// store to try something in, or two binaries measured against the same data -- could not
-/// be asked for at all.
+/// An explicit `DARK_HOME` wins over the default. Overwriting it instead would mean every
+/// process on a machine shares one store, so a second instance -- a throwaway store to try
+/// something in, a test's isolated worker, or two binaries measured against the same data --
+/// could not be asked for at all.
 let private getDarklangDirectory () : string =
-  match Environment.GetEnvironmentVariable "DARK_CONFIG_RUNDIR" with
+  match Environment.GetEnvironmentVariable "DARK_HOME" with
   | null
   | "" -> getDefaultDarklangDirectory ()
   | explicit -> explicit
@@ -381,7 +381,7 @@ let private reseedFromEmbedded (dbPath : string) : bool =
 
 
 /// Sub-timings for `extract`, in Stopwatch ticks. Collected rather than logged because `extract` runs
-/// before telemetry has an output path: it's what sets DARK_CONFIG_RUNDIR, where the log lives.
+/// before telemetry has an output path: it's what chooses the store directory, where the log lives.
 /// `Cli.Main` drains this once telemetry is up.
 let timings : ResizeArray<string * int64> = ResizeArray()
 
@@ -442,7 +442,9 @@ let extract () : unit =
   if timed "extract.hasResource" (fun () -> hasEmbeddedResource "data.db.gz") then
     let darklangDir = getDarklangDirectory ()
 
-    Environment.SetEnvironmentVariable("DARK_CONFIG_RUNDIR", darklangDir)
+    // Straight to `LibConfig`, not through the environment: a variable set here is inherited
+    // by every process this one starts, and another `dark` among them would open THIS store.
+    LibConfig.StoreLocation.set darklangDir
 
     let dbPath = Path.Combine(darklangDir, "data.db")
 

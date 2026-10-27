@@ -8,7 +8,7 @@
 
 # --- gates-are-clean: no gate may disturb the shared dev store ----------------------------------
 # Every gate builds its own store and points the CLI at it, and one mistake defeats that: the
-# container sets DARK_CONFIG_RUNDIR for every process, and it BEATS the `<home>/.darklang` path
+# container sets DARK_HOME for every process, and it BEATS the `<home>/.darklang` path
 # a published binary computes -- setting only HOME is not isolation. A gate that leaks writes
 # turns up later as unrelated flakes in other gates, so: fingerprint the store, run each other
 # gate, require the fingerprint identical afterwards. META-gate, SLOW (runs every other gate end
@@ -29,7 +29,7 @@ gate_gates_are_clean() {
   "
 
   # The capability grant is shared state too, and not in the store: `$HOME/.darklang/capabilities.bin`,
-  # keyed on HOME rather than DARK_CONFIG_RUNDIR. Its ABSENCE is what makes the host permissive, so a
+  # keyed on HOME rather than DARK_HOME. Its ABSENCE is what makes the host permissive, so a
   # gate that creates it narrows every later process.
   grant_state() {
     local f="$HOME/.darklang/capabilities.bin"
@@ -75,7 +75,7 @@ gate_gates_are_clean() {
   done
 
   if [[ "$failures" -gt 0 ]]; then
-    echo "$failures gate(s) wrote to shared state. A gate needs its own DARK_CONFIG_RUNDIR, and its own HOME"
+    echo "$failures gate(s) wrote to shared state. A gate needs its own DARK_HOME, and its own HOME"
     echo "too if it touches \`dark caps\` -- the capability grant is keyed on HOME."
   fi
   if [[ "$broken" -gt 0 ]]; then

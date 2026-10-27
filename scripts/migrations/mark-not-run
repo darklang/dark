@@ -17,7 +17,7 @@ set -euo pipefail
 
 [[ "$#" -eq 1 ]] || { echo "usage: $0 <part of a migration name>" >&2; exit 1; }
 
-DB="${DARK_CONFIG_RUNDIR}/${DARK_CONFIG_DB_NAME:-data.db}"
+DB="${DARK_HOME}/${DARK_CONFIG_DB_NAME:-data.db}"
 QUERY="FROM system_migrations_v0 WHERE name LIKE '%$1%'"
 
 matches=$(sqlite3 "$DB" "SELECT name $QUERY;" 2>/dev/null) || {

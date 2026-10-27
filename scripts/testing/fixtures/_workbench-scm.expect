@@ -19,7 +19,7 @@ proc want {pattern what} {
 proc press {key} { sleep 1; send $key }
 
 set exe [lindex $argv 0]
-set env(DARK_CONFIG_RUNDIR) [lindex $argv 1]
+set env(DARK_HOME) [lindex $argv 1]
 spawn $exe
 
 # Home IS the SCM summary: needs attention / current work / recent commits / branches all render on the landing

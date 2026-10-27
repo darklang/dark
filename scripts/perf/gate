@@ -77,7 +77,7 @@ echo
 
 # The store is measured too, not just the binary: a working rundir carrying your own ops allocates a
 # couple of percent more than a freshly loaded one, which is enough to read as a regression.
-echo "store    ${DARK_CONFIG_RUNDIR}"
+echo "store    ${DARK_HOME}"
 
 MODE=$([[ "$PUBLISHED" == "true" ]] && echo published || echo debug)
 # One parser for this, shared with `suite`: see scripts/perf/_total-alloc.py.
@@ -137,7 +137,7 @@ if measured > ceiling:
     print("workload reads 2.1 MB higher against a working dev store than against one the")
     print("published binary grew itself, which is 22% of the budget. CI is in the second")
     print("case, so re-run there before believing this. Locally:")
-    print("  HOME=$(mktemp -d) DARK_CONFIG_RUNDIR=<path that does not exist yet> \\")
+    print("  HOME=$(mktemp -d) DARK_HOME=<path that does not exist yet> \\")
     print("    scripts/perf/gate --published")
     print("docs/perf/playbook.md has the four readings and what each part of the gap was.")
     sys.exit(1)

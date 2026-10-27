@@ -210,7 +210,7 @@ because one broken prerequisite reports as a dozen unrelated gates.
 every gate at once, which is safe only because each has its own rundir, HOME and ports. It was
 off because of a file nobody had listed: a package reload rewrote
 `backend/src/LibExecution/package-ref-hashes.txt`, which every CLI in the checkout reads at
-startup whatever its `DARK_CONFIG_RUNDIR`, so every gate beside `reload-is-reproducible` died with
+startup whatever its `DARK_HOME`, so every gate beside `reload-is-reproducible` died with
 `FnNotFound`. A reload now leaves that file alone unless its contents change. A new gate that
 writes anywhere outside its own rundir breaks the parallel mode the same way.
 
@@ -1171,12 +1171,12 @@ key, and the two tests that pinned the separation went with it. The mechanism an
 behind it are in `later/backend/src/LibDB/Config.fs.credentials`; read that before inventing a
 second one.
 
-The capabilities one is keyed on **HOME**, not `DARK_CONFIG_RUNDIR`, so an isolated store does NOT isolate it. A
+The capabilities one is keyed on **HOME**, not `DARK_HOME`, so an isolated store does NOT isolate it. A
 `dark caps grant ...` in a throwaway store writes the real grant for the whole container. Worse, the file's
 ABSENCE is what makes the host permissive (`hostCaps` returns allCaps only while there is no file), so
 creating one narrows every process under that HOME. One `caps grant` from a sweep turns ten suite tests
 red with "capability denied: `sqliteQuery` needs file (read)", and the fix is to delete the file rather
-than to grant more. Set `HOME` as well as `DARK_CONFIG_RUNDIR` when a test touches `caps`.
+than to grant more. Set `HOME` as well as `DARK_HOME` when a test touches `caps`.
 
 **Your own experiments in the dev store break every gate that commits.** The gates start from a copy
 of `rundir/data.db`, and `dark commit` refuses a store holding unresolved references. So one
@@ -1184,7 +1184,7 @@ throwaway item authored by hand, referring to something that never resolved, fai
 `workbench-scm` with symptoms that look nothing like the cause: a fixture times out waiting for
 its own commit to appear. The gates guard against the CONFIG a
 copied store inherits and not against its draft. Author experiments into an isolated
-`DARK_CONFIG_RUNDIR`, or `dark discard -y` before running gates; `dark status` says whether the
+`DARK_HOME`, or `dark discard -y` before running gates; `dark status` says whether the
 draft is clean.
 
 One consequence worth knowing: an isolated store usually looks like a FIRST RUN, and Home shows its welcome

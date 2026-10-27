@@ -244,7 +244,7 @@ let run
               environment =
                 [ "DARK_MATTER_WRITE_SECRET", None
                   "DARK_BRANCH", None
-                  "DARK_CONFIG_RUNDIR", Some(dir + "/")
+                  "DARK_HOME", Some(dir + "/")
                   "DARK_CONFIG_DB_NAME", Some "data.db"
                   "HOME", Some dir
                   "XDG_CONFIG_HOME", Some(path "config")

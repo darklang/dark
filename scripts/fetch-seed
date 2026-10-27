@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SEED_URL="https://pub-d5f652ca1b90456f85840a19eafcb700.r2.dev/darklang-seeds/seeds/seed.db"
-RUNDIR="${DARK_CONFIG_RUNDIR:-rundir}"
+RUNDIR="${DARK_HOME:-rundir}"
 
 echo "Fetching latest seed from R2..."
 curl -L -o "${RUNDIR}/seed.db" "$SEED_URL"

@@ -43,8 +43,12 @@ let releaseToInstall
 /// A copy, because the question is whether the new binary works for this person, with their data:
 /// an older release can't read a store a newer one has written, and a release with a seeding bug
 /// fails only in a data directory that already exists (v0.0.50 to v0.0.54 did, every command). An
-/// empty store answers neither. `DARK_CONFIG_RUNDIR` keeps the run off the live store, which the new
-/// binary would otherwise open and migrate before we know whether we're keeping it.
+/// empty store answers neither.
+///
+/// The new binary runs from a copy in the same temp directory as the store, so it finds
+/// `<tmp>/.darklang` beside itself and never opens the live store, which it would otherwise migrate
+/// before we know whether we're keeping it. `DARK_HOME` is unset for the run, since it would beat
+/// that.
 let smokeTest (binaryPath: String) : Stdlib.Result.Result<Unit, String> =
   match Stdlib.Cli.executeWithStdOutOrStdErr "mktemp -d" with
   | Error e -> Stdlib.Result.Result.Error $"Couldn't make a directory to test the new binary in: {e}"
@@ -59,7 +63,7 @@ let smokeTest (binaryPath: String) : Stdlib.Result.Result<Unit, String> =
 
     let result =
       Stdlib.Cli.execute
-        $"mkdir -p '{rundir}' && {copyStore} && DARK_CONFIG_RUNDIR='{rundir}' '{binaryPath}' eval '1L + 2L' </dev/null 2>&1"
+        $"mkdir -p '{rundir}' && {copyStore} && cp '{binaryPath}' '{tmp}/dark' && env -u DARK_HOME '{tmp}/dark' eval '1L + 2L' </dev/null 2>&1"
 
     let _cleaned = Stdlib.Cli.execute $"rm -rf '{tmp}'"
 

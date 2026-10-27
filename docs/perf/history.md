@@ -500,8 +500,8 @@ Cheap to state, expensive to learn.
   between the two is a rough measure of what the fast path earns.
 - `String.Normalize` already fast-paths ASCII. An `Ascii.IsValid` pre-check in `String.normalize`
   measured as nothing. (And per the CRLF note above, such a check would have to exclude CR anyway.)
-- A published binary resolves its data and log directories relative to **its own location**, not
-  `DARK_CONFIG_RUNDIR`.
+- A published binary resolves its data and log directories from `DARK_HOME` when it is set, and
+  otherwise relative to **its own location**.
 - The first run against an empty store seeds it, which is hundreds of megabytes. Any measurement
   harness needs a throwaway run first.
 - Enabling telemetry costs ~6 ms on a one-shot command, so absolute latency needs it off and the

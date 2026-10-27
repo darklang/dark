@@ -17,7 +17,7 @@ log_user 0
 
 set exe [lindex $argv 0]
 set rundir [lindex $argv 1]
-set env(DARK_CONFIG_RUNDIR) $rundir
+set env(DARK_HOME) $rundir
 
 proc fail {msg} { puts "FAIL: $msg"; exit 1 }
 
