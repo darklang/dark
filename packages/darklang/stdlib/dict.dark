@@ -195,10 +195,19 @@ let containsKey (dict: Dict<'k, 'v>) (key: 'k) : Bool =
 /// dict> with values that have been transformed by {{fn}}, which operates on
 /// each key-value pair.
 /// Consider <fn Dict.filterMap> if you also want to drop some of the entries.
+/// To ignore the key, use <fn Dict.mapValues>.
 let map (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> 'b) : Dict<'k, 'b> =
   dict
   |> Stdlib.Dict.toEntries
   |> List.map (fun (k, v) -> (k, fn k v))
+  |> Stdlib.Dict.fromEntries
+
+
+/// Calls <param fn> on each value in <param dict>, keeping the keys.
+let mapValues (dict: Dict<'k, 'v>) (fn: 'v -> 'b) : Dict<'k, 'b> =
+  dict
+  |> Stdlib.Dict.toEntries
+  |> List.map (fun (k, v) -> (k, fn v))
   |> Stdlib.Dict.fromEntries
 
 

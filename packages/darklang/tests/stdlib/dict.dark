@@ -142,6 +142,27 @@ test map =
       Stdlib.Dict.map (Dict { "a": 1L, "b": 2L }) (fun k x -> x + 1L)
       |> Stdlib.Test.equal (Dict { "b": 3L, "a": 2L }) ]
 
+test mapValues =
+  Stdlib.Test.all
+    [ Stdlib.Dict.mapValues (Dict { }) (fun v -> 0L)
+      |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.mapValues (Dict { "a": 1L, "b": 2L }) (fun v -> v * 10L)
+      |> Stdlib.Test.equal (Dict { "a": 10L, "b": 20L })
+      // The values can change type; the keys stay as they are.
+      Stdlib.Dict.mapValues (Dict { 1L: 5L, 2L: 3L }) (fun v -> v > 4L)
+      |> Stdlib.Test.equal (Dict { 1L: true, 2L: false })
+      Stdlib.Dict.mapValues (Dict { (1L, "a"): "x", (1L, "b"): "y" }) (fun v ->
+        v + "!")
+      |> Stdlib.Test.equal (Dict { (1L, "a"): "x!", (1L, "b"): "y!" })
+      Stdlib.Dict.mapValues
+        (Dict { Colour.Red: [ 1L ], Colour.Blue 1L: [ 1L, 2L ] })
+        (fun v -> Stdlib.List.reverse v)
+      |> Stdlib.Test.equal (Dict { Colour.Red: [ 1L ], Colour.Blue 1L: [ 2L, 1L ] })
+      Stdlib.Dict.mapValues
+        (Dict { Point { px = 1L, py = 2L }: 1L })
+        (fun v -> (v, v))
+      |> Stdlib.Test.equal (Dict { Point { px = 1L, py = 2L }: (1L, 1L) }) ]
+
 test containsKey =
   Stdlib.Test.all
     [ Stdlib.Dict.containsKey (Dict { "otherKey": 5L, "someKey": 5L }) "someKey"
