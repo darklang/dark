@@ -841,9 +841,9 @@ module Dval =
             VT.known (knownType ()),
             VT.known (knownType ()),
             entries
-            |> Map.toList
-            |> List.map (fun (k, v) -> DictKey(toDT k.Dval), toDT v)
-            |> Map
+            |> DictMap.toList
+            |> List.map (fun (k, v) -> toDT k, toDT v)
+            |> DictMap.ofList
           ) ]
 
     | DRecord(runtimeTypeName, sourceTypeName, typeArgs, fields) ->
@@ -920,9 +920,9 @@ module Dval =
         ValueType.fromDT kt,
         ValueType.fromDT vt,
         map
-        |> Map.toList
-        |> List.map (fun (k, v) -> DictKey(fromDT k.Dval), fromDT v)
-        |> Map
+        |> DictMap.toList
+        |> List.map (fun (k, v) -> fromDT k, fromDT v)
+        |> DictMap.ofList
       )
 
     | DEnum(_,

@@ -197,18 +197,12 @@ let containsKey(dict: Dict<'k, 'v>, key: 'k): Bool =
 /// Consider <fn Dict.filterMap> if you also want to drop some of the entries.
 /// To ignore the key, use <fn Dict.mapValues>.
 let map(dict: Dict<'k, 'v>, fn: 'k -> 'v -> 'b): Dict<'k, 'b> =
-  dict
-  |> Stdlib.Dict.toEntries
-  |> List.map(fun (k, v) -> (k, fn(k, v)))
-  |> Stdlib.Dict.fromEntries
+  Builtin.dictMap(dict, fn)
 
 
 /// Calls <param fn> on each value in <param dict>, keeping the keys.
 let mapValues(dict: Dict<'k, 'v>, fn: 'v -> 'b): Dict<'k, 'b> =
-  dict
-  |> Stdlib.Dict.toEntries
-  |> List.map(fun (k, v) -> (k, fn(v)))
-  |> Stdlib.Dict.fromEntries
+  Stdlib.Dict.map(dict, fun _ v -> fn(v))
 
 
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}.
@@ -228,10 +222,7 @@ let fold(dict: Dict<'k, 'v>, init: 'b, fn: 'b -> 'k -> 'v -> 'b): 'b =
 /// dict> that contains only the entries of <param dict> for which <param fn>
 /// returned {{true}}.
 let filter(dict: Dict<'k, 'v>, fn: 'k -> 'v -> Bool): Dict<'k, 'v> =
-  dict
-  |> Stdlib.Dict.toEntries
-  |> List.filter(fun (k, v) -> fn(k, v))
-  |> Stdlib.Dict.fromEntries
+  Builtin.dictFilter(dict, fn)
 
 
 /// Calls <param fn> on every entry in <param dict>, returning a <type dict> that drops some entries (filter) and transforms others (map).

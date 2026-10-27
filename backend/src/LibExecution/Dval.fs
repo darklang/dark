@@ -37,26 +37,20 @@ let dict
   (entries : List<Dval * Dval>)
   : Dval =
   entries |> List.iter (fst >> RuntimeTypes.Dval.assertUsableDictKey)
-  DDict(
-    VT.known keyType,
-    VT.known valueType,
-    entries |> List.map (fun (k, v) -> DictKey k, v) |> Map
-  )
+  DDict(VT.known keyType, VT.known valueType, DictMap.ofList entries)
 
 let stringDict (valueType : KnownType) (entries : List<string * Dval>) : Dval =
   DDict(
     VT.string,
     VT.known valueType,
-    entries
-    |> List.fold (fun acc (k, v) -> Map.add (DictKey(DString k)) v acc) Map.empty
+    entries |> List.map (fun (k, v) -> DString k, v) |> DictMap.ofList
   )
 
 let stringDictFromMap (valueType : KnownType) (entries : Map<string, Dval>) : Dval =
   DDict(
     VT.string,
     VT.known valueType,
-    entries
-    |> Map.fold (fun acc k v -> Map.add (DictKey(DString k)) v acc) Map.empty
+    entries |> Map.toList |> List.map (fun (k, v) -> DString k, v) |> DictMap.ofList
   )
 
 
@@ -167,7 +161,7 @@ let rec mapCallables
   | DList(vt, items) -> DList(vt, List.map walk items)
   | DTuple(first, second, rest) ->
     DTuple(walk first, walk second, List.map walk rest)
-  | DDict(kt, vt, entries) -> DDict(kt, vt, Map.map walk entries)
+  | DDict(kt, vt, entries) -> DDict(kt, vt, DictMap.map walk entries)
   | DRecord(sourceType, runtimeType, typeArgs, fields) ->
     DRecord(sourceType, runtimeType, typeArgs, Map.map walk fields)
   | DEnum(sourceType, runtimeType, typeArgs, caseName, fields) ->
@@ -249,7 +243,7 @@ let rec isPersistable (dv : Dval) : bool =
   | DTuple(a, b, rest) ->
     isPersistable a && isPersistable b && List.forall isPersistable rest
   | DDict(_, _, entries) ->
-    entries |> Map.forall (fun k v -> isPersistable k.Dval && isPersistable v)
+    entries |> DictMap.forall (fun k v -> isPersistable k && isPersistable v)
   | DRecord(_, _, _, fields) -> fields |> Map.values |> Seq.forall isPersistable
   | DEnum(_, _, _, _, fields) -> fields |> List.forall isPersistable
 
@@ -276,9 +270,9 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
   | DTuple(a, b, rest) -> [ a; b ] @ rest |> List.tryPick nonPersistableReason
   | DDict(_, _, entries) ->
     entries
-    |> Map.toSeq
-    |> Seq.tryPick (fun (k, v) ->
-      match nonPersistableReason k.Dval with
+    |> DictMap.toList
+    |> List.tryPick (fun (k, v) ->
+      match nonPersistableReason k with
       | Some r -> Some r
       | None -> nonPersistableReason v)
   | DRecord(_, _, _, fields) ->
@@ -323,7 +317,7 @@ let rec isInertData (dv : Dval) : bool =
   | DTuple(a, b, rest) ->
     isInertData a && isInertData b && List.forall isInertData rest
   | DDict(_, _, entries) ->
-    entries |> Map.forall (fun k v -> isInertData k.Dval && isInertData v)
+    entries |> DictMap.forall (fun k v -> isInertData k && isInertData v)
   | DRecord(_, _, _, fields) -> fields |> Map.values |> Seq.forall isInertData
   | DEnum(_, _, _, _, fields) -> fields |> List.forall isInertData
 
@@ -415,11 +409,10 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
     Result.isOk (ValueType.merge keyTypeA keyTypeB)
     && Result.isOk (ValueType.merge valueTypeA valueTypeB)
-    && Map.count a = Map.count b
+    && DictMap.count a = DictMap.count b
     && (a
-        |> Map.toSeq
-        |> Seq.forall (fun (k, va) ->
-          match Map.find k b with
+        |> DictMap.forall (fun k va ->
+          match DictMap.tryFind k b with
           | Some vb -> r va vb
           | None -> false))
 
@@ -513,15 +506,13 @@ type private HashFrame = { value : Dval; mutable code : System.HashCode }
 
 
 /// Walks collections one item at a time to keep the work stack small.
-/// Keeps map iterators on that stack so `finally` can clean them up after an error.
+/// Keeps record iterators on that stack so `finally` can clean them up after an error.
 [<NoEquality; NoComparison>]
 type private HashWork =
   | HashValue of Dval
   | AddHash of HashFrame
   | HashList of HashFrame * List<Dval>
-  | HashDict of
-    HashFrame *
-    System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<DictKey, Dval>>
+  | HashDict of HashFrame * entries : (struct (Dval * Dval))[] * next : int
   | HashRecord of
     HashFrame *
     System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<string, Dval>>
@@ -643,7 +634,7 @@ let hash (dv : Dval) : int =
               | DList(_, xs) -> pending.Push(HashList(frame, xs))
               | DTuple(a, b, rest) -> pending.Push(HashList(frame, a :: b :: rest))
               | DDict(_, _, entries) ->
-                pending.Push(HashDict(frame, (entries :> seq<_>).GetEnumerator()))
+                pending.Push(HashDict(frame, entries.Entries, 0))
               | DRecord(_, name, _, fields) ->
                 frame.code.Add name
                 pending.Push(HashRecord(frame, (fields :> seq<_>).GetEnumerator()))
@@ -666,19 +657,19 @@ let hash (dv : Dval) : int =
             pending.Push(HashList(frame, rest))
             pending.Push(AddHash frame)
             pending.Push(HashValue x)
+        | HashDict(frame, entries, next) ->
+          pending.Pop() |> ignore<HashWork>
+          if next < entries.Length then
+            let struct (key, value) = entries[next]
+            pending.Push(HashDict(frame, entries, next + 1))
+            pending.Push(AddHash frame)
+            pending.Push(HashValue value)
+            pending.Push(AddHash frame)
+            pending.Push(HashValue key)
+          else
+            finish frame
         // An error can skip the normal Dispose() call. Keep the iterator on
         // the stack so `finally` can still find it and clean it up.
-        | HashDict(frame, entries) ->
-          if entries.MoveNext() then
-            let entry = entries.Current
-            pending.Push(AddHash frame)
-            pending.Push(HashValue entry.Value)
-            pending.Push(AddHash frame)
-            pending.Push(HashValue entry.Key.Dval)
-          else
-            pending.Pop() |> ignore<HashWork>
-            entries.Dispose()
-            finish frame
         | HashRecord(frame, fields) ->
           if fields.MoveNext() then
             let field = fields.Current
@@ -694,11 +685,11 @@ let hash (dv : Dval) : int =
     finally
       for work in pending do
         match work with
-        | HashDict(_, entries) -> entries.Dispose()
         | HashRecord(_, fields) -> fields.Dispose()
         | HashValue _
         | AddHash _
-        | HashList _ -> ()
+        | HashList _
+        | HashDict _ -> ()
 
 
 /// Uses Dark's equality rules, so NaN is unequal to itself.

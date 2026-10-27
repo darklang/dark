@@ -421,6 +421,27 @@ module RT =
       | _ -> failtest "expected a lambda"
     }
 
+  // A dict, byte for byte, on both sides of the size where its entries move from a sorted
+  // array to a tree. Either way they go on the wire as a count then each entry in key
+  // order; inserted out of order, so a writer that kept insertion order would fail it.
+  let dictsKeepTheirBytes =
+    test "a dict keeps its wire format, small or large" {
+      let entries n =
+        List.init n (fun i -> RT.DString $"k{(i * 7) % n}", RT.DInt64(int64 i))
+      let hex n =
+        LibExecution.Dval.dict RT.KTString RT.KTInt64 (entries n)
+        |> BS.RT.Dval.serialize "dict"
+        |> System.Convert.ToHexString
+      Expect.equal
+        (hex 3)
+        "060000002D00000013010E0108030E026B300800000000000000000E026B310801000000000000000E026B32080200000000000000"
+        "a 3-entry dict"
+      Expect.equal
+        (hex 30)
+        "06000000A001000013010E01081E0E026B300800000000000000000E026B31080D000000000000000E036B3130080A000000000000000E036B31310817000000000000000E036B31320806000000000000000E036B31330813000000000000000E036B31340802000000000000000E036B3135080F000000000000000E036B3136081C000000000000000E036B3137080B000000000000000E036B31380818000000000000000E036B31390807000000000000000E026B32081A000000000000000E036B32300814000000000000000E036B32310803000000000000000E036B32320810000000000000000E036B3233081D000000000000000E036B3234080C000000000000000E036B32350819000000000000000E036B32360808000000000000000E036B32370815000000000000000E036B32380804000000000000000E036B32390811000000000000000E026B330809000000000000000E026B340816000000000000000E026B350805000000000000000E026B360812000000000000000E026B370801000000000000000E026B38080E000000000000000E026B39081B00000000000000"
+        "a 30-entry dict"
+    }
+
   // A closure WITH captured values, byte for byte. The golden corpus and the roundtrip values
   // only carry closures that capture nothing, so neither would notice a change to how captures
   // go on the wire.
@@ -562,7 +583,7 @@ module RT =
         RT.DDict(
           RT.ValueType.Unknown,
           RT.ValueType.Unknown,
-          Map [ RT.DictKey(RT.DBytes(RT.Persistent("h", 0L))), RT.DUnit ]
+          RT.DictMap.ofList [ RT.DBytes(RT.Persistent("h", 0L)), RT.DUnit ]
         )
       let back = dict |> BS.RT.Dval.serialize "dval" |> BS.RT.Dval.deserialize "dval"
       Expect.isTrue (LibExecution.Dval.equals dict back) "the Bytes key survives"
@@ -586,7 +607,7 @@ module RT =
         (RT.DDict(
           RT.ValueType.Unknown,
           RT.ValueType.Unknown,
-          Map [ RT.DictKey lambda, RT.DUnit ]
+          RT.DictMap.ofList [ lambda, RT.DUnit ]
         ))
     }
 
@@ -615,7 +636,8 @@ let tests =
 
       testList
         "RT Roundtrip Tests"
-        [ RT.closureCapturesKeepTheirBytes
+        [ RT.dictsKeepTheirBytes
+          RT.closureCapturesKeepTheirBytes
           RT.packageTypeTests
           RT.packageValueTests
           RT.packageFnTests

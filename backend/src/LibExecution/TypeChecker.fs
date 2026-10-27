@@ -876,21 +876,18 @@ module DvalCreator =
         |> RTE.Error.List
         |> raiseRTE threadID
 
-  let rec private dictEntries
+  /// The key and value types `remaining` agree on; raises at the first entry that
+  /// does not.
+  let rec private dictEntryTypes
     (threadID : ThreadID)
     (keyType : ValueType)
     (valueType : ValueType)
-    (acc : DictMap)
     (remaining : List<Dval * Dval>)
-    : struct (ValueType * ValueType * DictMap) =
+    : struct (ValueType * ValueType) =
     match remaining with
-    | [] -> struct (keyType, valueType, acc)
+    | [] -> struct (keyType, valueType)
     | (k, v) :: rest ->
       Dval.assertUsableDictKey k
-      // Later entries replace earlier entries with the same key.
-      // The at-rest checker reports duplicate constant keys (`DuplicateDictKey`).
-      let key = DictKey k
-
       let kt = Dval.toValueType k
       let keyType =
         match VT.merge keyType kt with
@@ -903,11 +900,23 @@ module DvalCreator =
       let vt = Dval.toValueType v
 
       match VT.merge valueType vt with
-      | Ok merged -> dictEntries threadID keyType merged (Map.add key v acc) rest
+      | Ok merged -> dictEntryTypes threadID keyType merged rest
       | Error() ->
         RTE.Dicts.Error.TriedToAddMismatchedData(k, valueType, vt, v)
         |> RTE.Error.Dict
         |> raiseRTE threadID
+
+  /// A dict's entries, checked, and the types they agree on. Built in one go rather
+  /// than an insert per entry. Later entries replace earlier ones with the same key;
+  /// the at-rest checker reports duplicate constant keys (`DuplicateDictKey`).
+  let dictEntries
+    (threadID : ThreadID)
+    (keyType : ValueType)
+    (valueType : ValueType)
+    (entries : List<Dval * Dval>)
+    : struct (ValueType * ValueType * DictMap) =
+    let struct (kt, vt) = dictEntryTypes threadID keyType valueType entries
+    struct (kt, vt, DictMap.ofList entries)
 
   // CLEANUP consider skipping type-checking after N elements or after the type args are fully resolved, whichever comes last.
   //   In order to support this^, add another param or two so that direct [] interpretation is differentiated from calls to this from Builtins and other places.
@@ -934,8 +943,7 @@ module DvalCreator =
     (valueType : ValueType)
     (entries : List<Dval * Dval>)
     : Dval =
-    let struct (kt, vt, made) =
-      dictEntries threadID keyType valueType Map.empty entries
+    let struct (kt, vt, made) = dictEntries threadID keyType valueType entries
     let made = DDict(kt, vt, made)
     if List.exists (fun (_, v) -> Pending.isPromise v) entries then
       made
@@ -950,9 +958,7 @@ module DvalCreator =
   let recheck (threadID : ThreadID) (filled : Dval) : Ply<Dval> =
     match filled with
     | DList(vt, items) -> Ply(list threadID vt items)
-    | DDict(kt, vt, entries) ->
-      let entries = entries |> Map.toList |> List.map (fun (DictKey k, v) -> (k, v))
-      Ply(dict threadID kt vt entries)
+    | DDict(kt, vt, entries) -> Ply(dict threadID kt vt (DictMap.toList entries))
     | other -> Ply other
 
   let dictAddEntry
@@ -964,7 +970,6 @@ module DvalCreator =
     (v : Dval)
     : struct (ValueType * ValueType * DictMap) =
     Dval.assertUsableDictKey k
-    let key = DictKey k
     let kt = Dval.toValueType k
     let keyType =
       match VT.merge keyType kt with
@@ -976,7 +981,7 @@ module DvalCreator =
 
     let vt = Dval.toValueType v
     match VT.merge valueType vt with
-    | Ok merged -> struct (keyType, merged, Map.add key v entries)
+    | Ok merged -> struct (keyType, merged, DictMap.add k v entries)
     | Error() ->
       RTE.Dicts.Error.TriedToAddMismatchedData(k, valueType, vt, v)
       |> RTE.Error.Dict

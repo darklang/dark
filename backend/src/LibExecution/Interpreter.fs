@@ -1781,7 +1781,7 @@ let private tryFastOp
           else
             match ArgSeq.uncons tail with
             | ValueSome(struct (v, rest3)) when ArgSeq.isEmpty rest3 ->
-              FastOps.evalDictSet threadID tag kt vt o k v
+              FastOps.evalDictSet tag kt vt o k v
             | _ -> ValueNone
         | _ -> ValueNone
       | _ -> ValueNone
@@ -1887,14 +1887,7 @@ let private tryFastOpOn
     | [ secondReg; thirdReg ] ->
       match registers[argRegs.head] with
       | DDict(kt, vt, o) ->
-        FastOps.evalDictSet
-          threadID
-          tag
-          kt
-          vt
-          o
-          registers[secondReg]
-          registers[thirdReg]
+        FastOps.evalDictSet tag kt vt o registers[secondReg] registers[thirdReg]
       | _ -> ValueNone
 
     | _ -> ValueNone

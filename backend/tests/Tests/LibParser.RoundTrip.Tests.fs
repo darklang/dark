@@ -207,8 +207,8 @@ module RoundTripExpect =
     | RT.DEnum(_, _, _, _, fields) -> fields |> List.collect collectUnresolved
     | RT.DDict(_, _, entries) ->
       entries
-      |> Map.toList
-      |> List.collect (fun (k, v) -> collectUnresolved k.Dval @ collectUnresolved v)
+      |> RT.DictMap.toList
+      |> List.collect (fun (k, v) -> collectUnresolved k @ collectUnresolved v)
     | RT.DApplicable(RT.AppLambda lambda) ->
       let closed =
         RT.Captures.toList lambda.closedRegisters

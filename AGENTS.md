@@ -628,7 +628,8 @@ hashes come from `PackageRefs.Trait`, so a new operator trait needs a ref and a 
 `package-ref-hashes.txt`. `==` and `!=` are NOT traits: equality is structural for every
 value and lowers to its builtin. A type cannot override it, which is what keeps
 `List.contains`, `List.unique`, `List.sort` and dict keys meaning the same thing as `==` --
-dict keys have to be structural anyway, since F# hashes them inside its own `Map`.
+dict keys have to be structural anyway, since `DictMap` orders them inside the runtime,
+where nothing can call the interpreter.
 `Zero.zero`/`One.one` dispatch from an explicit type arg or the caller's bound, so a call to
 the impl fn clears the trait's type args first.
 

@@ -217,7 +217,8 @@ let rec private holdsNoCode (dv : Dval) : bool =
   | DPromise _ -> false
   | DList(_, items) -> listHoldsNoCode items
   | DTuple(a, b, rest) -> holdsNoCode a && holdsNoCode b && listHoldsNoCode rest
-  | DDict(_, _, entries) -> mapHoldsNoCode entries
+  | DDict(_, _, entries) ->
+    DictMap.forall (fun k v -> holdsNoCode k && holdsNoCode v) entries
   | DRecord(_, _, _, fields) -> mapHoldsNoCode fields
   | DEnum(_, _, _, _, fields) -> listHoldsNoCode fields
   | _ -> LibExecution.Dval.isInertData dv
@@ -227,16 +228,11 @@ and private listHoldsNoCode (items : List<Dval>) : bool =
   | [] -> true
   | x :: rest -> holdsNoCode x && listHoldsNoCode rest
 
-and private mapHoldsNoCode<'k when 'k : comparison> (m : Map<'k, Dval>) : bool =
+and private mapHoldsNoCode (m : Map<string, Dval>) : bool =
   let mutable ok = true
   let mutable e = (m :> seq<_>).GetEnumerator()
   while ok && e.MoveNext() do
-    let kv = e.Current
-    ok <-
-      holdsNoCode kv.Value
-      && (match box kv.Key with
-          | :? DictKey as k -> holdsNoCode k.Dval
-          | _ -> true)
+    ok <- holdsNoCode e.Current.Value
   ok
 
 let private both (a : Purity) (b : Purity) : Purity =
