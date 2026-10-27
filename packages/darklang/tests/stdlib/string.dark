@@ -390,30 +390,6 @@ test randomLength =
       |> Stdlib.Test.equal
         (Error "Expected `length` to be positive, but it was `-1`") ]
 
-test htmlEscape =
-  Stdlib.Test.all
-    [ // HTML escaping works reasonably
-      Stdlib.String.htmlEscape "test<>&\""
-      |> Stdlib.Test.equal "test&lt;&gt;&amp;&quot;"
-      // HTML escaping works reasonably
-      Stdlib.String.htmlEscape "<html><head></head><body><h1>This is f#</h1></body></html>"
-
-     |> Stdlib.Test.equal "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;This is f#&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
-      Stdlib.String.htmlEscape "<html><head><!-- head definitions go here --></head><body><!-- the content goes here --></body></html>"
-
-     |> Stdlib.Test.equal "&lt;html&gt;&lt;head&gt;&lt;!-- head definitions go here --&gt;&lt;/head&gt;&lt;body&gt;&lt;!-- the content goes here --&gt;&lt;/body&gt;&lt;/html&gt;"
-      Stdlib.String.htmlEscape "" |> Stdlib.Test.equal ""
-      Stdlib.String.htmlEscape "😄" |> Stdlib.Test.equal "😄"
-      Stdlib.String.htmlEscape "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-      Stdlib.String.htmlEscape "<html><head></head><body><h1>﷽﷽﷽﷽﷽</h1></body></html>"
-
-     |> Stdlib.Test.equal "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;﷽﷽﷽﷽﷽&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
-      Stdlib.String.htmlEscape "<head>🧟‍♀️🧟‍♂️</head>"
-      |> Stdlib.Test.equal "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
-      Stdlib.String.htmlEscape "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" ]
-
 test isEmpty =
   Stdlib.Test.all
     [ Stdlib.String.isEmpty "" |> Stdlib.Test.equal true
@@ -573,6 +549,96 @@ test splitFirst =
       Stdlib.String.splitFirst "ą́|b" "|" |> Stdlib.Test.equal (Some(("ą́", "b")))
       // Mid-grapheme search returns None: 🧑 alone is not a complete EGC of 🧑🏼‍💻.
       Stdlib.String.splitFirst "🧑🏼‍💻" "🧑" |> Stdlib.Test.equal None ]
+
+test filter =
+  Stdlib.Test.all
+    [ Stdlib.String.filter "a1b2c3" Stdlib.Char.isDigit |> Stdlib.Test.equal "123"
+      Stdlib.String.filter "a1b2c3" (fun c -> Stdlib.Bool.not (Stdlib.Char.isDigit c))
+      |> Stdlib.Test.equal "abc"
+      Stdlib.String.filter "" Stdlib.Char.isDigit |> Stdlib.Test.equal ""
+      Stdlib.String.filter "abc" (fun _ -> false) |> Stdlib.Test.equal ""
+      // Whole graphemes are kept or dropped, never split.
+      Stdlib.String.filter "a🧑🏼‍💻b" (fun c -> c != 'a')
+      |> Stdlib.Test.equal "🧑🏼‍💻b"
+      Stdlib.String.filter "żółw" (fun c -> c != 'ó') |> Stdlib.Test.equal "żłw" ]
+
+test filterMap =
+  Stdlib.Test.all
+    [ Stdlib.String.filterMap "a-b_c" (fun c ->
+        if c == '-' then None
+        else if c == '_' then Some ' '
+        else Some(Stdlib.Char.toUppercase c))
+      |> Stdlib.Test.equal "AB C"
+      Stdlib.String.filterMap "" (fun c -> Some c) |> Stdlib.Test.equal ""
+      Stdlib.String.filterMap "abc" (fun _ -> None) |> Stdlib.Test.equal ""
+      Stdlib.String.filterMap "x🧑🏼‍💻y" (fun c -> if c == 'x' then None else Some c)
+      |> Stdlib.Test.equal "🧑🏼‍💻y" ]
+
+test flatMap =
+  Stdlib.Test.all
+    [ Stdlib.String.flatMap "abc" (fun c ->
+        let s = Stdlib.String.fromChar c
+        s + s)
+      |> Stdlib.Test.equal "aabbcc"
+      Stdlib.String.flatMap "a\"b" (fun c ->
+        if c == '"' then "\\\"" else Stdlib.String.fromChar c)
+      |> Stdlib.Test.equal "a\\\"b"
+      Stdlib.String.flatMap "a b" (fun c -> if c == ' ' then "" else "x")
+      |> Stdlib.Test.equal "xx"
+      Stdlib.String.flatMap "" (fun _ -> "x") |> Stdlib.Test.equal ""
+      Stdlib.String.flatMap "żó" (fun c -> Stdlib.String.fromChar c + "|")
+      |> Stdlib.Test.equal "ż|ó|" ]
+
+test splitLast =
+  Stdlib.Test.all
+    [ Stdlib.String.splitLast "a|b" "|" |> Stdlib.Test.equal (Some(("a", "b")))
+      Stdlib.String.splitLast "a|b|c|d" "|"
+      |> Stdlib.Test.equal (Some(("a|b|c", "d")))
+      Stdlib.String.splitLast "archive.tar.gz" "."
+      |> Stdlib.Test.equal (Some(("archive.tar", "gz")))
+      Stdlib.String.splitLast "abc" "|" |> Stdlib.Test.equal None
+      Stdlib.String.splitLast "" "|" |> Stdlib.Test.equal None
+      Stdlib.String.splitLast "abc" "" |> Stdlib.Test.equal None
+      Stdlib.String.splitLast "|abc" "|" |> Stdlib.Test.equal (Some(("", "abc")))
+      Stdlib.String.splitLast "abc|" "|" |> Stdlib.Test.equal (Some(("abc", "")))
+      Stdlib.String.splitLast "||" "|" |> Stdlib.Test.equal (Some(("|", "")))
+      Stdlib.String.splitLast "a==b==c" "=="
+      |> Stdlib.Test.equal (Some(("a==b", "c")))
+      Stdlib.String.splitLast "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼🧑🏼‍💻x" "🧑🏼‍💻"
+      |> Stdlib.Test.equal (Some(("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼", "x")))
+      Stdlib.String.splitLast "żółw.ł" "." |> Stdlib.Test.equal (Some(("żółw", "ł")))
+      // Mid-grapheme search returns None: 🧑 alone is not a complete EGC of 🧑🏼‍💻.
+      Stdlib.String.splitLast "🧑🏼‍💻" "🧑" |> Stdlib.Test.equal None ]
+
+test stripPrefix =
+  Stdlib.Test.all
+    [ Stdlib.String.stripPrefix "--verbose" "--" |> Stdlib.Test.equal (Some "verbose")
+      Stdlib.String.stripPrefix "verbose" "--" |> Stdlib.Test.equal None
+      Stdlib.String.stripPrefix "abc" "" |> Stdlib.Test.equal (Some "abc")
+      Stdlib.String.stripPrefix "abc" "abc" |> Stdlib.Test.equal (Some "")
+      Stdlib.String.stripPrefix "ab" "abc" |> Stdlib.Test.equal None
+      Stdlib.String.stripPrefix "" "" |> Stdlib.Test.equal (Some "")
+      Stdlib.String.stripPrefix "" "a" |> Stdlib.Test.equal None
+      // Only the first occurrence is removed.
+      Stdlib.String.stripPrefix "aaa" "a" |> Stdlib.Test.equal (Some "aa")
+      Stdlib.String.stripPrefix "🧑🏼‍💻rest" "🧑🏼‍💻" |> Stdlib.Test.equal (Some "rest")
+      Stdlib.String.stripPrefix "żółw" "żó" |> Stdlib.Test.equal (Some "łw")
+      // "ą́" is "a" + combining acute; "a" alone is not a whole grapheme of it.
+      Stdlib.String.stripPrefix "ą́b" "a" |> Stdlib.Test.equal None
+      Stdlib.String.stripPrefix "🧑🏼‍💻" "🧑" |> Stdlib.Test.equal None ]
+
+test stripSuffix =
+  Stdlib.Test.all
+    [ Stdlib.String.stripSuffix "notes.txt" ".txt" |> Stdlib.Test.equal (Some "notes")
+      Stdlib.String.stripSuffix "notes.md" ".txt" |> Stdlib.Test.equal None
+      Stdlib.String.stripSuffix "abc" "" |> Stdlib.Test.equal (Some "abc")
+      Stdlib.String.stripSuffix "abc" "abc" |> Stdlib.Test.equal (Some "")
+      Stdlib.String.stripSuffix "bc" "abc" |> Stdlib.Test.equal None
+      Stdlib.String.stripSuffix "" "" |> Stdlib.Test.equal (Some "")
+      Stdlib.String.stripSuffix "aaa" "a" |> Stdlib.Test.equal (Some "aa")
+      Stdlib.String.stripSuffix "rest🧑🏼‍💻" "🧑🏼‍💻" |> Stdlib.Test.equal (Some "rest")
+      Stdlib.String.stripSuffix "żółw" "łw" |> Stdlib.Test.equal (Some "żó")
+      Stdlib.String.stripSuffix "🧑🏼‍💻" "💻" |> Stdlib.Test.equal None ]
 
 test splitN =
   Stdlib.Test.all
@@ -1148,14 +1214,6 @@ test head =
 //       Stdlib.String.head "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal (Some '🧟')
 //       Stdlib.String.head "👨‍❤️‍💋‍👨" |> Stdlib.Test.equal (Some '👨‍❤️‍💋‍👨') ]
 
-test articleFor =
-  Stdlib.Test.all
-    [ Stdlib.String.articleFor "apple" |> Stdlib.Test.equal "an"
-      Stdlib.String.articleFor "banana" |> Stdlib.Test.equal "a"
-      Stdlib.String.articleFor "🍍" |> Stdlib.Test.equal "a"
-      Stdlib.String.articleFor "🍊" |> Stdlib.Test.equal "a"
-      Stdlib.String.articleFor "" |> Stdlib.Test.equal "" ]
-
 test repeat =
   Stdlib.Test.all
     [ Stdlib.String.repeat "ab" 3 |> Stdlib.Test.equal "ababab"
@@ -1210,27 +1268,6 @@ test getByteAtMatchesToByteList =
   // Match the full UTF-8 encoding.
   Stdlib.String.getByteAt "héllo" 2
   |> Stdlib.Test.equal (Stdlib.List.getAt (Stdlib.String.toByteList "héllo") 2)
-
-test toOrdinal =
-  Stdlib.Test.all
-    [ Stdlib.String.toOrdinal 0 |> Stdlib.Test.equal "0th"
-      Stdlib.String.toOrdinal 1 |> Stdlib.Test.equal "1st"
-      Stdlib.String.toOrdinal 2 |> Stdlib.Test.equal "2nd"
-      Stdlib.String.toOrdinal 3 |> Stdlib.Test.equal "3rd"
-      Stdlib.String.toOrdinal 4 |> Stdlib.Test.equal "4th"
-      Stdlib.String.toOrdinal 11 |> Stdlib.Test.equal "11th"
-      Stdlib.String.toOrdinal 12 |> Stdlib.Test.equal "12th"
-      Stdlib.String.toOrdinal 13 |> Stdlib.Test.equal "13th"
-      Stdlib.String.toOrdinal 21 |> Stdlib.Test.equal "21st"
-      Stdlib.String.toOrdinal 22 |> Stdlib.Test.equal "22nd"
-      Stdlib.String.toOrdinal 23 |> Stdlib.Test.equal "23rd"
-      Stdlib.String.toOrdinal 101 |> Stdlib.Test.equal "101st"
-      Stdlib.String.toOrdinal 111 |> Stdlib.Test.equal "111th"
-      Stdlib.String.toOrdinal 112 |> Stdlib.Test.equal "112th"
-      Stdlib.String.toOrdinal 113 |> Stdlib.Test.equal "113th"
-      Stdlib.String.toOrdinal 1011 |> Stdlib.Test.equal "1011th"
-      Stdlib.String.toOrdinal -1 |> Stdlib.Test.equal "-1st"
-      Stdlib.String.toOrdinal -11 |> Stdlib.Test.equal "-11th" ]
 
 test slugify =
   Stdlib.Test.all

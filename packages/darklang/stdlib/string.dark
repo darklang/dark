@@ -14,25 +14,6 @@ let ellipsis (s: String) (length: Int) : String =
     s
 
 
-/// Returns 'a' or 'an' (the indefinite article) for a string, based on
-/// whether it begins with a vowel
-let articleFor (nextWord: String) : String =
-  let vowels = [ 'A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u' ]
-
-  match String.head nextWord with
-  | None -> ""
-  | Some c ->
-    if
-      String.length nextWord > 1
-      && (Bool.not (Char.isASCIILetter c))
-    then
-      articleFor (String.dropFirst nextWord 1)
-    else if List.contains vowels c then
-      "an"
-    else
-      "a"
-
-
 /// Returns {{true}} if <param s> is the empty string {{""}}
 let isEmpty (s: String) : Bool = Builtin.stringIsEmpty s
 
@@ -41,6 +22,30 @@ let isEmpty (s: String) : Bool = Builtin.stringIsEmpty s
 /// operation in <param fn> on each one.
 let map (s: String) (fn: Char -> Char) : String =
   s |> String.toList |> List.map fn |> String.fromList
+
+
+/// Keeps the Chars (EGC, not byte) of <param s> where <param fn> returns
+/// {{true}}, and removes the rest.
+/// Example: {{filter "a1b2" Char.isDigit}} returns {{"12"}}.
+let filter (s: String) (fn: Char -> Bool) : String =
+  s |> String.toList |> List.filter fn |> String.fromList
+
+
+/// Removes or changes each Char (EGC, not byte) of <param s>. When <param fn>
+/// returns {{None}}, the Char is removed; when it returns {{Some c}}, the Char
+/// is replaced by {{c}}.
+/// Example: turning {{"a-b"}} into {{"AB"}} by removing {{'-'}} and uppercasing
+/// the letters.
+let filterMap (s: String) (fn: Char -> Option.Option<Char>) : String =
+  s |> String.toList |> List.filterMap fn |> String.fromList
+
+
+/// Replaces each Char (EGC, not byte) of <param s> with a string. <param fn>
+/// can return an empty string to remove the Char, or several characters.
+/// Example: doubling each letter turns {{"abc"}} into {{"aabbcc"}}.
+let flatMap (s: String) (fn: Char -> String) : String =
+  let pieces = s |> String.toList |> List.map fn
+  String.join pieces ""
 
 
 /// Returns the list of Characters (EGC, not byte) in the string
@@ -152,6 +157,27 @@ let splitFirst
       Option.Option.Some((before, after))
 
 
+/// Splits <param string> in two at the **last** <param separator>.
+/// Example: {{splitLast "archive.tar.gz" "."}} returns
+/// {{Some ("archive.tar", "gz")}}.
+/// Returns {{None}} if <param separator> is not in the string, or is empty.
+/// See <fn splitFirst> to split at the first one instead.
+let splitLast
+  (string: String)
+  (separator: String)
+  : Option.Option<(String * String)> =
+  if separator == "" then
+    Option.Option.None
+  else
+    // lastIndexOfEgc (not lastIndexOf) because first / dropFirst / length are EGC-indexed.
+    match String.lastIndexOfEgc string separator with
+    | None -> Option.Option.None
+    | Some i ->
+      let before = String.first string i
+      let after = String.dropFirst string (i + String.length separator)
+      Option.Option.Some((before, after))
+
+
 /// Splits <param string> at <param separator> into **at most** <param n> pieces.
 /// The last piece retains any further occurrences of the separator intact —
 /// useful for parsing rows of structured data where the value field may contain
@@ -248,25 +274,6 @@ let random (length: Int) : Result.Result<String, String> =
       |> String.join ""
 
     Result.Result.Ok result
-
-
-/// Escape an untrusted string in order to include it safely in HTML output
-let htmlEscape (html: String) : String =
-  html
-  |> String.toList
-  |> List.map (fun c ->
-    match c with
-    | '<' -> "&lt;"
-    | '>' -> "&gt;"
-    | '&' -> "&amp;"
-    // include these for html-attribute-escaping
-    // even though they're not strictly necessary
-    // for html-escaping proper.
-    | '"' -> "&quot;"
-    // &apos; doesn't work in IE....
-    | ''' -> "&#x27;"
-    | _ -> String.fromChar c)
-  |> String.join ""
 
 
 /// Checks if <param lookingIn> contains <param searchingFor>.
@@ -464,19 +471,28 @@ let endsWith (subject: String) (suffix: String) : Bool =
   String.slice subject (String.length subject - String.length suffix) (String.length subject) == suffix
 
 
-/// Returns the plural form of <param word> by a simple English rule: words ending
-/// in -ch, -sh, -s, -x, or -z take "es" ({{branch}} -> {{branches}}); everything else
-/// takes "s" ({{instance}} -> {{instances}}). Does not handle irregulars ({{mouse}},
-/// {{child}}) or the -y -> -ies rule.
-let pluralize (word: String) : String =
-  if (String.endsWith word "ch")
-     || (String.endsWith word "sh")
-     || (String.endsWith word "s")
-     || (String.endsWith word "x")
-     || (String.endsWith word "z") then
-    $"{word}es"
+/// Removes <param prefix> from the start of <param subject>.
+/// Example: {{stripPrefix "--verbose" "--"}} returns {{Some "verbose"}}.
+/// Returns {{None}} if <param subject> does not start with <param prefix>.
+let stripPrefix (subject: String) (prefix: String) : Option.Option<String> =
+  let n = String.length prefix
+
+  if String.first subject n == prefix then
+    Option.Option.Some(String.dropFirst subject n)
   else
-    $"{word}s"
+    Option.Option.None
+
+
+/// Removes <param suffix> from the end of <param subject>.
+/// Example: {{stripSuffix "notes.txt" ".txt"}} returns {{Some "notes"}}.
+/// Returns {{None}} if <param subject> does not end with <param suffix>.
+let stripSuffix (subject: String) (suffix: String) : Option.Option<String> =
+  let n = String.length suffix
+
+  if String.last subject n == suffix then
+    Option.Option.Some(String.dropLast subject n)
+  else
+    Option.Option.None
 
 
 /// Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>,
@@ -532,24 +548,6 @@ let lastIndexOfEgc
 /// If <param count> is less than or equal to 0, returns an empty string.
 let repeat (string: String) (count: Int) : String =
   Builtin.stringRepeat string count
-
-
-/// Converts an integer <param n> to its ordinal representation as a string.
-let toOrdinal (n: Int) : String =
-  // `%` is Euclidean here (-1 % 10 = 9), so drop the sign first
-  let lastTwoDigits = (Stdlib.abs n) % 100
-
-  let suffix =
-    if lastTwoDigits >= 11 && lastTwoDigits <= 13 then
-      "th"
-    else
-      match lastTwoDigits % 10 with
-      | 1 -> "st"
-      | 2 -> "nd"
-      | 3 -> "rd"
-      | _ -> "th"
-
-  (Stdlib.toString n) + suffix
 
 
 /// Splits the given <param str> at each newline character and returns a list of substrings.

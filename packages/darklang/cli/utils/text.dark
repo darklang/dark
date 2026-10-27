@@ -55,10 +55,10 @@ let bytes (n: Int) : String =
     $"{Stdlib.toString (tenths / 10)}.{Stdlib.toString (tenths % 10)} MB"
 
 // "1 value" / "2 values": a count with its noun pluralized by the English rule in
-// `Stdlib.String.pluralize`, so no CLI message reads "1 value(s)". The linguistic rule lives in
+// `Stdlib.English.pluralize`, so no CLI message reads "1 value(s)". The linguistic rule lives in
 // stdlib; this just pairs it with a count.
 let plural (n: Int) (noun: String) : String =
   if n == 1 then
     $"{Stdlib.toString n} {noun}"
   else
-    $"{Stdlib.toString n} {Stdlib.String.pluralize noun}"
+    $"{Stdlib.toString n} {Stdlib.English.pluralize noun}"

@@ -80,7 +80,24 @@ test escapeHtml =
     [ Stdlib.Html.escapeHtml "<script>alert('xss')</script>"
       |> Stdlib.Test.equal "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;"
       Stdlib.Html.escapeHtml "a & b" |> Stdlib.Test.equal "a &amp; b"
-      Stdlib.Html.escapeHtml "\"quoted\"" |> Stdlib.Test.equal "&quot;quoted&quot;" ]
+      Stdlib.Html.escapeHtml "\"quoted\"" |> Stdlib.Test.equal "&quot;quoted&quot;"
+      Stdlib.Html.escapeHtml "test<>&\""
+      |> Stdlib.Test.equal "test&lt;&gt;&amp;&quot;"
+      // `&` is escaped first, so the `&` in `&lt;` is not escaped again.
+      Stdlib.Html.escapeHtml "<h1>Tom & Jerry</h1>"
+      |> Stdlib.Test.equal "&lt;h1&gt;Tom &amp; Jerry&lt;/h1&gt;"
+      Stdlib.Html.escapeHtml "<!-- comment -->"
+      |> Stdlib.Test.equal "&lt;!-- comment --&gt;"
+      Stdlib.Html.escapeHtml "" |> Stdlib.Test.equal ""
+      // Text that needs no escaping comes back unchanged, whole graphemes and all.
+      Stdlib.Html.escapeHtml "😄" |> Stdlib.Test.equal "😄"
+      Stdlib.Html.escapeHtml "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.Html.escapeHtml "<h1>﷽﷽﷽﷽﷽</h1>"
+      |> Stdlib.Test.equal "&lt;h1&gt;﷽﷽﷽﷽﷽&lt;/h1&gt;"
+      Stdlib.Html.escapeHtml "<head>🧟‍♀️🧟‍♂️</head>"
+      |> Stdlib.Test.equal "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
+      Stdlib.Html.escapeHtml "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" ]
 
 // text() should escape HTML
 test textEscapes =
