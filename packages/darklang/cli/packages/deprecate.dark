@@ -213,8 +213,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   match (parsed.itemType, parsed.kind) with
   | _ when Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(FlagParser.parseErrorsMessage(parsed.parseErrors)))
-    Stdlib.printLine(help(state))
+    Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
+    Stdlib.printErrorLine(help(state))
     Cli.exitWith(state, false)
 
   | (None, _) ->
@@ -232,7 +232,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
     match resolveKindAndTarget(branchId, currentLoc, first, parsed.target) with
     | Error msg ->
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.error(msg))
+      Cli.printErr(msg)
       Cli.exitWith(state, false)
     | Ok found ->
       let itemKind = found.itemKind
@@ -275,13 +275,13 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
         match replacementResult with
         | Error msg ->
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.error(msg))
+          Cli.printErr(msg)
           Cli.exitWith(state, false)
         | Ok replacementRef ->
 
         match parseKind(itemKind, kindStr, replacementRef) with
         | Error msg ->
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.error(msg))
+          Cli.printErr(msg)
           Cli.exitWith(state, false)
         | Ok deprecationKind ->
           let fullPath =
@@ -354,12 +354,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                     Stdlib.Cli.UI.Colors.success($"Deprecated {itemTypeStr} {fullPath}"))
                   state
                 | None ->
-                  Stdlib.printLine(
-                    (Stdlib.Cli.UI.Colors.error(
-                      $"Not deprecated, though the op was written. That is a bug in op restatement -- please report it.")))
+                  Cli.printErr($"Not deprecated, though the op was written. That is a bug in op restatement -- please report it.")
                   Cli.exitWith(state, false)
               | Error e ->
-                Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Deprecation failed: {e}"))
+                Cli.printErr($"Deprecation failed: {e}")
                 Cli.exitWith(state, false)
             else
               Cli.Stderr.line("Deprecation cancelled.")
@@ -393,10 +391,8 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
         "  puts a deprecated fn, type, value, trait, impl or test back on the shelf. `dark ls --include-deprecated` finds them.")))
     state
   | [] ->
-    Stdlib.printLine(
-      (Stdlib.Cli.UI.Colors.error(
-        "usage: dark undeprecate <name>   (also `dark restore <name>`)")))
-    Stdlib.printLine(
+    Cli.printErr("usage: dark undeprecate <name>   (also `dark restore <name>`)")
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.hint(
         "  puts a deprecated fn, type, value, trait, impl or test back on the shelf. `dark ls --include-deprecated` finds them.")))
     Cli.exitWith(state, false)
@@ -422,9 +418,8 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
 
       Cli.exitWith(state, false)
     | _ :: _ :: _ ->
-      Stdlib.printLine(
-        Stdlib.Cli.UI.Colors.error($"{target} names more than one kind of item"))
-      Stdlib.printLine(
+      Cli.printErr($"{target} names more than one kind of item")
+      Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint("  say which: `dark deprecate <fn|type|value|trait|impl> <name>`"))
 
       Cli.exitWith(state, false)
@@ -443,7 +438,7 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
 
       match standing() with
       | None ->
-        Stdlib.printLine(
+        Stdlib.printErrorLine(
           Stdlib.Cli.UI.Colors.hint($"{target} is not deprecated; nothing to undo."))
 
         state
@@ -459,16 +454,14 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
             Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Undeprecated {target}"))
             state
           | Some _ ->
-            Stdlib.printLine(
-              (Stdlib.Cli.UI.Colors.error(
-                $"Still deprecated, though the op was written. That is a bug in op restatement -- please report it.")))
+            Cli.printErr($"Still deprecated, though the op was written. That is a bug in op restatement -- please report it.")
 
             Cli.exitWith(state, false)
         | Error e ->
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Undeprecate failed: {e}"))
+          Cli.printErr($"Undeprecate failed: {e}")
           Cli.exitWith(state, false)
   | _ ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error("usage: dark undeprecate <name>"))
+    Cli.printErr("usage: dark undeprecate <name>")
     Cli.exitWith(state, false)
 
 

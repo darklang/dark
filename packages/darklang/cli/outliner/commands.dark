@@ -40,18 +40,21 @@ let findDoc(
       let names = many |> Stdlib.List.map(fun d -> d.title) |> Stdlib.String.join(", ")
       Stdlib.Result.Result.Error $"\"{needle}\" matches several: {names}"
 
-let printError(message: String): Unit =
-  Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+/// Says why on stderr, and hands back false so the command can fail.
+let printError(message: String): Bool =
+  Cli.printErr(message)
+  false
 
 
 // --- ls ---
 
-let ls(): Unit =
+let ls(): Bool =
   match documents() with
   | Error e -> printError(e)
   | Ok data ->
     if Stdlib.List.isEmpty(data.documents) then
       Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText("no documents"))
+      true
     else
       data.documents
       |> Stdlib.List.indexedMap(fun i doc ->
@@ -61,6 +64,7 @@ let ls(): Unit =
         let lines = Stdlib.Cli.UI.Colors.dimText($"({Stdlib.toString(count)} lines)")
         $"{active} {number}. {doc.title}  {lines}")
       |> Stdlib.printLines
+      true
 
 
 // --- show ---
@@ -79,7 +83,7 @@ let showRows(doc: Document): List<String> =
 
     $"{indent}{bullet} {vn.text}")
 
-let show(name: String): Unit =
+let show(name: String): Bool =
   match documents() with
   | Error e -> printError(e)
   | Ok data ->
@@ -89,12 +93,13 @@ let show(name: String): Unit =
       Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText(doc.title))
       Stdlib.printLine("")
       Stdlib.printLines(showRows(doc))
+      true
 
 
 // --- add ---
 
 /// Append a line to the end of a document's top level. The quickest possible capture.
-let add(name: String, text: String): Unit =
+let add(name: String, text: String): Bool =
   match documents() with
   | Error e -> printError(e)
   | Ok data ->
@@ -117,5 +122,7 @@ let add(name: String, text: String): Unit =
         |> Stdlib.List.map(fun d -> if d.id == doc.id then updated else d)
 
       match Store.save(documents, data.activeDocId, data.nextDocId, Store.stamp()) with
-      | Ok _ -> Stdlib.printLine($"added to \"{doc.title}\": {text}")
+      | Ok _ ->
+        Stdlib.printLine($"added to \"{doc.title}\": {text}")
+        true
       | Error e -> printError($"couldn't save: {e}")

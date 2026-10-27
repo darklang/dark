@@ -22,7 +22,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         "  dark val Me.Demo.answer '42'"
         "  dark val Me.Demo.message '\"hello world\"'"
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
 
       Cli.exitWith(state, false)
     else
@@ -96,7 +96,7 @@ let createValueInline(
             "  dark val Me.Demo.answer '42'"
             "  dark val Me.Demo.message '\"hello world\"'"
             ""
-          ] |> Stdlib.printLines
+          ] |> Cli.Stderr.lines
           Cli.exitWith(state, false)
     | None ->
       [
@@ -106,10 +106,10 @@ let createValueInline(
         "  dark val Me.Demo.answer '42'"
         "  dark val Me.Demo.message '\"hello world\"'"
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
       Cli.exitWith(state, false)
   | Error msg ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Invalid location: {msg}"))
+    Cli.printErr($"Invalid location: {msg}")
     Cli.exitWith(state, false)
 
 

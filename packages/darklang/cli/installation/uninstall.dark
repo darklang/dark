@@ -39,9 +39,9 @@ let execute(state: AppState, args: List<String>): AppState =
       Stdlib.printErrorLine(View.formatError(e))
       Cli.exitWith(state, false)
   | Portable ->
-    Stdlib.printLine(View.formatError("Cannot uninstall - running in portable mode"))
-    Stdlib.printLine("To remove this portable installation, simply delete the current directory")
-    state
+    Stdlib.printErrorLine(View.formatError("Cannot uninstall - running in portable mode"))
+    Stdlib.printErrorLine("To remove this portable installation, simply delete the current directory")
+    Cli.exitWith(state, false)
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =

@@ -64,9 +64,9 @@ let execute(state: AppState, args: List<String>): AppState =
 
   match named with
   | Error e ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(e))
+    Cli.printErr(e)
 
-    Stdlib.printLine(
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.dimText(
         "  `dark edit <name>` opens $EDITOR; with a <file> it applies that.")))
 
@@ -81,11 +81,9 @@ let execute(state: AppState, args: List<String>): AppState =
 
   match itemLocation(location) with
   | None ->
-    Stdlib.printLine(
-      (Stdlib.Cli.UI.Colors.error(
-        $"{name} is a module. `dark edit` takes one fn, type, value, trait, impl or test.")))
+    Cli.printErr($"{name} is a module. `dark edit` takes one fn, type, value, trait, impl or test.")
 
-    Stdlib.printLine(
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.dimText(
         "  `dark module /Some.Module <file>` edits a whole module at once.")))
 
@@ -103,10 +101,9 @@ let execute(state: AppState, args: List<String>): AppState =
   // which is what to point at.
   match Stdlib.Cli.Tui.TerminalSupport.current() with
   | Unavailable reason ->
-    Stdlib.printLine(
-      Stdlib.Cli.UI.Colors.error($"Cannot open an editor: {reason}."))
+    Cli.printErr($"Cannot open an editor: {reason}.")
 
-    Stdlib.printLine(
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.dimText(
         $"  `dark view {name} --raw > f`, change f, then `dark edit {name} f`.")))
 
@@ -141,10 +138,9 @@ let execute(state: AppState, args: List<String>): AppState =
 
       match Stdlib.Cli.Process.runInteractive(editor, [ path ]) with
       | Error e ->
-        Stdlib.printLine(
-          Stdlib.Cli.UI.Colors.error($"Could not run `{editor}`: {e.message}"))
+        Cli.printErr($"Could not run `{editor}`: {e.message}")
 
-        Stdlib.printLine(
+        Stdlib.printErrorLine(
           (Stdlib.Cli.UI.Colors.dimText(
             $"  Set $EDITOR, or edit {path} and run `dark edit {name} {path}`.")))
 
@@ -156,15 +152,14 @@ let execute(state: AppState, args: List<String>): AppState =
         Stdlib.printLine(
           $"`{editor}` exited {Stdlib.toString(code)}; nothing applied.")
 
-        Stdlib.printLine(
+        Stdlib.printErrorLine(
           Stdlib.Cli.UI.Colors.dimText($"  Your edit is still at {path}."))
 
         state
       | Ok _ ->
         match Stdlib.Cli.File.readText(path) with
         | Error e ->
-          Stdlib.printLine(
-            Stdlib.Cli.UI.Colors.error($"Could not read back {path}: {e.message}"))
+          Cli.printErr($"Could not read back {path}: {e.message}")
 
           Cli.exitWith(state, false)
         | Ok after ->
@@ -193,7 +188,7 @@ let execute(state: AppState, args: List<String>): AppState =
               if landed then
                 Stdlib.Cli.Dir.deleteRecursive(dir) |> Stdlib.Result.toOption
               else
-                Stdlib.printLine(
+                Stdlib.printErrorLine(
                   (Stdlib.Cli.UI.Colors.dimText(
                     $"  nothing landed; your edit is still at {path}")))
 

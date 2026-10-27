@@ -13,8 +13,8 @@ let execute(state: AppState, args: List<String>): AppState =
 
   match parsed.errors with
   | _ :: _ ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(Cli.FlagParser.parseErrorsMessage(parsed.errors)))
-    Stdlib.printLine(help(state))
+    Cli.printErr(Cli.FlagParser.parseErrorsMessage(parsed.errors))
+    Stdlib.printErrorLine(help(state))
     Cli.exitWith(state, false)
   | [] ->
 
@@ -32,8 +32,8 @@ let execute(state: AppState, args: List<String>): AppState =
     Stdlib.printLine(View.formatSuccess(message))
     state
   | Error e ->
-    Stdlib.printLine(View.formatError(e))
-    state
+    Stdlib.printErrorLine(View.formatError(e))
+    Cli.exitWith(state, false)
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =

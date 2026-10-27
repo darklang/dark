@@ -19,9 +19,9 @@ let execute(state: AppState, args: List<String>): AppState =
       Cli.printHint("  `dark help` lists them.")
       Cli.exitWith(state, false)
   | _ ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Usage: help [command]"))
-    Stdlib.printLine("Too many arguments. Use 'help' for general help or 'help <command>' for specific help.")
-    state
+    Cli.printErr("Usage: help [command]")
+    Stdlib.printErrorLine("Too many arguments. Use 'help' for general help or 'help <command>' for specific help.")
+    Cli.exitWith(state, false)
 
 
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =

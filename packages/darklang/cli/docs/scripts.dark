@@ -13,7 +13,7 @@ For example, save this as greet.dark:
     Stdlib.printLine("Hello, " + name)
     0
   | _ ->
-    Stdlib.printLine("Usage: dark run greet.dark <name>")
+    Stdlib.printErrorLine("Usage: dark run greet.dark <name>")
     2
 
 Then run it:
@@ -21,7 +21,7 @@ Then run it:
   dark run greet.dark "Ada Lovelace"
   # prints Hello, Ada Lovelace; exits 0
   dark run greet.dark
-  # prints usage; exits 2
+  # prints usage on stderr; exits 2
 
 No import or commit is needed. Declarations in the file can use each other and
 packages on the selected branch. Running the file does not save its declarations
@@ -64,6 +64,20 @@ Parse errors, runtime errors, permission denials and missing files also exit non
 
 `dark eval '<expression>'` displays the result and exits 0 when evaluation succeeds,
 even if the result is a nonzero integer. Use a script to return an exit code.
+
+## Output
+
+Stdout is the answer; stderr is everything else. Keep them apart and the script
+pipes cleanly: `dark run greet.dark Ada | next` hands `next` only the greeting.
+
+  Stdlib.printLine         stdout: what the script is for
+  Stdlib.printErrorLine    stderr: usage, refusals, progress, anything a person
+                           reads while it runs
+  Stdlib.Cli.Log.*         stderr, every level, with an [INFO]/[WARN]/... prefix
+
+Colour is decided per stream: none when that stream is a pipe or a file, style
+without colour under NO_COLOR, all of it under CLICOLOR_FORCE. Errors the runtime
+raises go to stderr too.
 
 ## Permissions
 

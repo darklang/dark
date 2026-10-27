@@ -268,7 +268,7 @@ let executeFiltered(
   Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(summary))
 
   if Stdlib.Bool.not(includeTypes) then
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("Use --types to include type definitions. `view <name>` shows source/docs."))
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use --types to include type definitions. `view <name>` shows source/docs."))
 
   state
 
@@ -289,9 +289,9 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     && (Stdlib.Bool.not(parsed.all))
 
   if Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) then
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(FlagParser.parseErrorsMessage(parsed.parseErrors)))
-    Stdlib.printLine(help(state))
-    state
+    Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
+    Stdlib.printErrorLine(help(state))
+    Cli.exitWith(state, false)
   else if isUnscoped then
     Darklang.Cli.Docs.StdlibOverview.execute(state, args)
   else

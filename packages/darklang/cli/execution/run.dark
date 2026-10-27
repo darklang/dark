@@ -110,9 +110,7 @@ let executeOptions(
     match script with
     | scriptPath :: scriptArgs ->
       if options.sandbox && options.warnPermissions then
-        Stdlib.printLine(
-          (Stdlib.Cli.UI.Colors.error(
-            "--sandbox and --warn-permissions cannot be combined: warn-only mode executes denied effects")))
+        Cli.printErr("--sandbox and --warn-permissions cannot be combined: warn-only mode executes denied effects")
         Cli.exitWith(state, false)
       else
         executeScript(state, scriptPath, scriptArgs, options)

@@ -8,8 +8,8 @@ let execute(state: AppState, args: List<String>): AppState =
 
   match unknown with
   | bad :: _ ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"version: unknown option `{bad}`"))
-    Stdlib.printLine(help(state))
+    Cli.printErr($"version: unknown option `{bad}`")
+    Stdlib.printErrorLine(help(state))
     Cli.exitWith(state, false)
   | [] ->
 

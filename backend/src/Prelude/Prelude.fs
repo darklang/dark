@@ -67,7 +67,7 @@ let identity a = a
 
 let debuG (msg : string) (a : 'a) : unit =
   // Don't deadlock when debugging
-  NonBlockingConsole.writeLine $"DEBUG: {msg} ({a})"
+  NonBlockingConsole.writeErrLine $"DEBUG: {msg} ({a})"
 
 let debug (msg : string) (a : 'a) : 'a =
   debuG msg a
@@ -76,12 +76,12 @@ let debug (msg : string) (a : 'a) : 'a =
 // Print the value of s, alongside with length and the bytes in the string
 let debugString (msg : string) (s : string) : string =
   let bytes = s |> System.Text.Encoding.UTF8.GetBytes |> System.BitConverter.ToString
-  NonBlockingConsole.writeLine $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
+  NonBlockingConsole.writeErrLine $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
   s
 
 let debuGByteArray (msg : string) (a : byte array) : unit =
   let bytes = a |> System.BitConverter.ToString
-  NonBlockingConsole.writeLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
+  NonBlockingConsole.writeErrLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
 
 
 let debugByteArray (msg : string) (a : byte array) : byte array =
@@ -90,14 +90,14 @@ let debugByteArray (msg : string) (a : byte array) : byte array =
 
 let debuGList (msg : string) (list : List<'a>) : unit =
   if list = [] then
-    NonBlockingConsole.writeLine $"DEBUG: {msg} (len 0, [])"
+    NonBlockingConsole.writeErrLine $"DEBUG: {msg} (len 0, [])"
   else
 
     [ $"DEBUG: {msg} (len {List.length list}, [" ]
     @ List.map (fun item -> $"  {item}") list
     @ [ $"])" ]
     |> String.concat "\n"
-    |> NonBlockingConsole.writeLine
+    |> NonBlockingConsole.writeErrLine
 
 let debugList (msg : string) (list : List<'a>) : List<'a> =
   debuGList msg list
@@ -105,13 +105,13 @@ let debugList (msg : string) (list : List<'a>) : List<'a> =
 
 let debuGSet (msg : string) (set : Set<'a>) : unit =
   if set = Set.empty then
-    NonBlockingConsole.writeLine $"DEBUG: {msg} (len 0, {{}})"
+    NonBlockingConsole.writeErrLine $"DEBUG: {msg} (len 0, {{}})"
   else
     [ $"DEBUG: {msg} (len {Set.count set}, {{" ]
     @ (set |> Set.toList |> List.map (fun item -> $"  {item}"))
     @ [ $"}})" ]
     |> String.concat "\n"
-    |> NonBlockingConsole.writeLine
+    |> NonBlockingConsole.writeErrLine
 
 let debugSet (msg : string) (set : Set<'a>) : Set<'a> =
   debuGSet msg set
@@ -119,13 +119,13 @@ let debugSet (msg : string) (set : Set<'a>) : Set<'a> =
 
 let debuGArray (msg : string) (array : 'a[]) : unit =
   if array.Length = 0 then
-    NonBlockingConsole.writeLine $"DEBUG: {msg} (len 0, [])"
+    NonBlockingConsole.writeErrLine $"DEBUG: {msg} (len 0, [])"
   else
     [ $"DEBUG: {msg} (len {array.Length}, [" ]
     @ (array |> Array.toList |> List.map (fun item -> $"  {item}"))
     @ [ $"])" ]
     |> String.concat "\n"
-    |> NonBlockingConsole.writeLine
+    |> NonBlockingConsole.writeErrLine
 
 let debugArray (msg : string) (array : 'a[]) : 'a[] =
   debuGArray msg array
@@ -133,13 +133,13 @@ let debugArray (msg : string) (array : 'a[]) : 'a[] =
 
 let debuGMap (msg : string) (map : Map<'k, 'v>) : unit =
   if map = Map.empty then
-    NonBlockingConsole.writeLine $"DEBUG: {msg} (len 0, [])"
+    NonBlockingConsole.writeErrLine $"DEBUG: {msg} (len 0, [])"
   else
     [ $"DEBUG: {msg} (len {Map.count map}, [" ]
     @ (Map.toList map |> List.map (fun (k, v) -> $"  ({k}, {v})"))
     @ [ $"])" ]
     |> String.concat "\n"
-    |> NonBlockingConsole.writeLine
+    |> NonBlockingConsole.writeErrLine
 
 let debugMap (msg : string) (map : Map<'k, 'v>) : Map<'k, 'v> =
   debuGMap msg map
@@ -147,7 +147,7 @@ let debugMap (msg : string) (map : Map<'k, 'v>) : Map<'k, 'v> =
 
 
 let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
-  NonBlockingConsole.writeLine $"DEBUG: {msg} {f v}"
+  NonBlockingConsole.writeErrLine $"DEBUG: {msg} {f v}"
   v
 
 let printInline (string : string) : unit = NonBlockingConsole.writeInline string
@@ -167,14 +167,14 @@ let printTime (string : string) : unit =
 let debugPly (msg : string) (a : Ply.Ply<'a>) : Ply.Ply<'a> =
   uply {
     let! a = a
-    NonBlockingConsole.writeLine $"DEBUG: {msg} ({a})"
+    NonBlockingConsole.writeErrLine $"DEBUG: {msg} ({a})"
     return a
   }
 
 let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
   task {
     let! a = a
-    NonBlockingConsole.writeLine $"DEBUG: {msg} ({a})"
+    NonBlockingConsole.writeErrLine $"DEBUG: {msg} ({a})"
     return a
   }
 

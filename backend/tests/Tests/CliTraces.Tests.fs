@@ -1139,10 +1139,15 @@ let private testExitCodes =
             [ "traces"; "nonsense" ], 1, "a subcommand that does not exist"
             [ "traces"; "list"; "-1" ], 1, "a limit that is not a count"
 
-            // An empty ANSWER is not a refusal: the question was asked and answered.
-            [ "traces"; "calls"; "Nothing.Ran.Through.This" ],
+            // An empty ANSWER is not a refusal: the question was asked and answered. A real
+            // function, which none of the runs above calls; a name that is no function at all
+            // is the refusal below.
+            [ "traces"; "calls"; "Darklang.Stdlib.Char.isASCIILetter" ],
             0,
             "a function no run went through"
+            [ "traces"; "calls"; "Nothing.Ran.Through.This" ],
+            1,
+            "a name that is no function"
             [ "traces" ], 0, "the listing"
             [ "ps" ], 0, "what is running"
             [ "traces"; "help" ], 0, "the help" ]

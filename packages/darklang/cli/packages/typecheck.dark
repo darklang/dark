@@ -223,22 +223,16 @@ let jsonReport(
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   let parsed = parseArgs(args)
   if Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) then
-    Stdlib.printLine(
-      (Stdlib.Cli.UI.Colors.error(
-        FlagParser.parseErrorsMessage(parsed.parseErrors))))
-    Stdlib.printLine(usage)
+    Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
+    Stdlib.printErrorLine(usage)
     Cli.exitWith(state, false)
   else if (Stdlib.List.length(parsed.positionals)) > 1 then
-    Stdlib.printLine(
-      (Stdlib.Cli.UI.Colors.error(
-        "Error: typecheck takes at most one module to scope the audit to")))
-    Stdlib.printLine(usage)
+    Cli.printErr("Error: typecheck takes at most one module to scope the audit to")
+    Stdlib.printErrorLine(usage)
     Cli.exitWith(state, false)
   else if parsed.conflictingFilters then
-    Stdlib.printLine((
-      Stdlib.Cli.UI.Colors.error(
-        "Error: --all cannot be combined with --failed or --incomplete")))
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(usage))
+    Cli.printErr("Error: --all cannot be combined with --failed or --incomplete")
+    Cli.printErr(usage)
     Cli.exitWith(state, false)
   else
     // A module scopes the audit to that subtree. Without one it is the whole branch, which
@@ -262,10 +256,15 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       report.verdict == LanguageTools.AtRestTypeChecker.Verdict.Incomplete
       && Stdlib.List.isEmpty(report.items)
     then
-      Stdlib.printLine((
-        Stdlib.Cli.UI.Colors.error(
-          "The type audit could not run, so nothing was checked:")))
-      Stdlib.printLines(AtRestCheck.issueLines(state.currentBranchId, report.warnings))
+      Cli.printErr("The type audit could not run, so nothing was checked:")
+      Cli.Stderr.lines(AtRestCheck.issueLines(state.currentBranchId, report.warnings))
+      { state with exitCode = 1 }
+    // A module exists only by holding something, so an audit of a named module that found
+    // nothing at all was handed a name that is not there. "checked 0" would read as a pass.
+    else if (Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.positionals))) && Stdlib.List.isEmpty(report.items) then
+      let named = Stdlib.String.join(parsed.positionals, " ")
+      Cli.printErr($"no module named {named} on this branch")
+      Cli.printHint("  `dark ls` lists what is here.")
       { state with exitCode = 1 }
     else if parsed.asJson then
       Stdlib.printLine(

@@ -46,6 +46,19 @@ let runWithCommand(args: List<String>): String =
   callOutput(result)
 
 
+// Both streams, for a command whose answer and diagnostics are asserted together: a save prints what
+// it saved on stdout and why it is only a draft on stderr.
+let runWithBothStreams(args: List<String>): String =
+  let argsString =
+    args
+    |> Stdlib.List.map(Stdlib.Cli.Process.shellQuote)
+    |> Stdlib.String.join(" ")
+  let command =
+    (Stdlib.Cli.Process.shellQuote(cliUnderTest())) + " " + argsString
+  let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", command)
+  Stdlib.String.trim(result.stdout + "\n" + result.stderr)
+
+
 // Pass input on stdin for commands such as conflicts walk.
 // Use a quoted argument to printf %s so input cannot change the shell command.
 let runWithStdinAndCommand(input: String, args: List<String>): String =
@@ -240,7 +253,7 @@ test moduleCommand =
     runWithCommand(
       [ "--branch", branchName, "eval", moduleName + ".quadruple(3)" ])
   let invalidOutput =
-    runWithCommand(
+    runWithBothStreams(
       [ "--branch"
         branchName
         "module"

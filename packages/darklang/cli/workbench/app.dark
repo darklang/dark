@@ -165,12 +165,12 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
     // dump raw escape sequences into the reader. Report and stop rather than falling
     // through to the prompt: the no-args path would print the same message twice, and
     // an explicit `dark wb` would stay silent.
-    Stdlib.printLine(
+    Stdlib.printErrorLine(
       Darklang.Stdlib.Cli.Tui.TerminalSupport.unavailableMessage(reason))
     // Say where to go next. Without a terminal this is a dead end otherwise, and the callers that land
     // here most often are scripts and agents, which have no way to guess that everything the workbench
     // does is also a command.
-    Stdlib.printLine(
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.hint(
         "  Everything it shows is a command too: `dark help`, or `dark docs for-ai`.")))
     { cliState with isExiting = true }

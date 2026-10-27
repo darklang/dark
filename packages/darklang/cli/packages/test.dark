@@ -207,8 +207,8 @@ let addFailed(
   state: Cli.AppState,
   message: String)
   : Cli.AppState =
-  Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
-  Stdlib.printLine(addUsage)
+  Cli.printErr(message)
+  Stdlib.printErrorLine(addUsage)
   { state with exitCode = 1 }
 
 /// `test add`: author one test at <param locationStr>. <param definition> is
@@ -412,8 +412,8 @@ let runTestsInRun(
   let defaults = RunOptions { force = false, jobs = (if cores < 4 then cores else 4), filters = [] }
   match parseRunOptions(defaults, args) with
   | Error message ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
-    Stdlib.printLine(usage)
+    Cli.printErr(message)
+    Stdlib.printErrorLine(usage)
     { state with exitCode = 1 }
   | Ok options ->
     ensureCache()
@@ -455,7 +455,7 @@ let runTestsInRun(
 
     let total = counts.passed + counts.failed
     if total == 0 then
-      Stdlib.printLine("No package tests matched.")
+      Cli.printErr("No package tests matched.")
     else
       Stdlib.printLine("")
       Stdlib.printLine(

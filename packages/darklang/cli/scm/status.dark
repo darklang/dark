@@ -66,7 +66,7 @@ let executePretty(state: AppState): AppState =
 
     // Nothing in a clean tree is yours, so say the constraints stand on their own.
     if s.constraints > 0 then
-      Stdlib.printLine(
+      Stdlib.printErrorLine(
         (Stdlib.Cli.UI.Colors.hint(
           $"""  {Cli.Text.plural(s.constraints, "standing constraint")} in the store -> `dark constraints`""")))
   else
@@ -100,13 +100,13 @@ let executePretty(state: AppState): AppState =
     if Stdlib.List.isEmpty(parts) then
       Cli.printOk(
         $"""draft: {Cli.Text.plural(Stdlib.Int.fromInt64(s.ops), "op")}, no changed names (no new version: restores, deprecations, docs, acks)""")
-      Stdlib.printLine(
+      Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint("  -> `dark commit` to review + commit (it asks first)"))
     else
       Cli.printOk($"""draft: {Stdlib.String.join(parts, ", ")}""")
 
     if s.conflicts > 0L then
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("  -> `dark conflicts` to review them"))
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  -> `dark conflicts` to review them"))
 
     // Split what this draft caused from what was already there: on a store with standing
     // constraints, one number reads as "your edit broke N things".
@@ -116,14 +116,14 @@ let executePretty(state: AppState): AppState =
           "none from this draft"
         else
           $"{Stdlib.toString(s.constraintsFromDraft)} from this draft"
-      Stdlib.printLine(
+      Stdlib.printErrorLine(
         (Stdlib.Cli.UI.Colors.hint(
           $"""  {Cli.Text.plural(s.constraints, "constraint")} outstanding, {mine} -> `dark constraints`""")))
 
     if (s.changed > 0) || (s.removed > 0) then
       // "it asks first": to a git reflex, commit is the one verb you do not run to look, and the
       // review screen is exactly where the names this line withholds live.
-      Stdlib.printLine(
+      Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint("  -> `dark commit` to review + commit (it asks first)"))
 
   // Store health, reported here rather than behind a verb: a check you have to remember to run is a check

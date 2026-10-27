@@ -6,7 +6,7 @@ type Stream =
 
 /// SGR escape sequences (`ESC [ ... m`): colour and text style.
 module Ansi =
-  // Lazy: building it at file init widens a static-init race on `Private` below.
+  // Lazy, so a process that never strips anything never compiles it.
   let private sgr =
     lazy
       System.Text.RegularExpressions.Regex(
@@ -69,7 +69,11 @@ type private Capture() =
   member val Err = System.Text.StringBuilder()
   member val Active = true with get, set
 
-type private Private() =
+// A module rather than a class with `static let`s. A class's statics are checked, not locked: a
+// second thread that reaches them while the first is still initialising them gets "static data being
+// accessed recursively". A module's values are set up by the runtime's type initialiser, which makes
+// that thread wait instead.
+module private Private =
 
   // It seems like printing on the Console can cause a deadlock. I observed that all
   // the tasks in the threadpool were blocking on Console.WriteLine, and that the
@@ -86,20 +90,20 @@ type private Private() =
   // Both streams go through the one queue. A stderr write that went straight to the console
   // would overtake stdout lines still waiting in the queue, so an error could print above the
   // output that led to it; it would also escape a capture window and the browser sink below.
-  static let isWasm = System.OperatingSystem.IsBrowser()
+  let isWasm = System.OperatingSystem.IsBrowser()
 
   // Where output goes in the browser, when the host has said. `System.Console.Out` there is a
   // SyncTextWriter, and a write through it from inside a resumed task continuation left the
   // interpreter's next await unable to suspend (a blocking wait, fatal on the one browser
   // thread). The browser host hands in a plain buffer instead and drains it from JS.
-  static let mutable browserSink : (string -> unit) option = None
+  let mutable browserSink : (string -> unit) option = None
 
 
-  static let mQueue : BlockingCollection = new BlockingCollection()
+  let mQueue : BlockingCollection = new BlockingCollection()
 
   // Decided per stream, here, because the colouring helpers can't know where a string will land.
-  static let forOut = lazy (Ansi.decide System.Console.IsOutputRedirected)
-  static let forErr = lazy (Ansi.decide System.Console.IsErrorRedirected)
+  let forOut = lazy (Ansi.decide System.Console.IsOutputRedirected)
+  let forErr = lazy (Ansi.decide System.Console.IsErrorRedirected)
 
   // When capturing, writes go to a buffer instead of the console queue. Used by the CLI to run a
   // command and show its output in-frame (the workbench's inline command bar) rather than to
@@ -114,15 +118,15 @@ type private Private() =
   //
   // StringBuilder is not thread-safe and a capturing flow can fan out, so every touch of the
   // buffer still goes through `captureLock`.
-  static let captureLock : obj = obj ()
+  let captureLock : obj = obj ()
 
-  static let captureBuffer = new System.Threading.AsyncLocal<Capture>()
+  let captureBuffer = new System.Threading.AsyncLocal<Capture>()
 
   // Use a lock so that wait() doesn't return until the thread has actually printed
   // (it would finish once it was removed from the queue)
-  static let mLock : obj = obj ()
+  let mLock : obj = obj ()
 
-  static do
+  do
     let f () =
       while true do
         let mutable wrote = false
@@ -157,15 +161,14 @@ type private Private() =
       thread.Name <- "Prelude.NonBlockingConsole printer"
       thread.Start()
 
-  static member wait() : unit =
+  let wait () : unit =
     let mutable shouldWait = true
     while shouldWait do
       lock mLock (fun () -> shouldWait <- mQueue.Count > 0)
 
-  static member SetBrowserSink(sink : string -> unit) : unit =
-    browserSink <- Some sink
+  let setBrowserSink (sink : string -> unit) : unit = browserSink <- Some sink
 
-  static member Write(stream : Stream, value : string) : unit =
+  let write (stream : Stream) (value : string) : unit =
     if isWasm then
       // The browser's terminal is the person's screen for both streams. Its `Console.Error` is
       // the devtools console, where a refusal would never be seen.
@@ -195,7 +198,7 @@ type private Private() =
   /// Begin a capture window for THIS flow. Returns false if one was already open here, in which case
   /// nothing changes: the caller must not assume it owns the buffer. Nesting isn't supported;
   /// refusing is better than silently discarding the outer capture's output.
-  static member StartCapture() : bool =
+  let startCapture () : bool =
     lock captureLock (fun () ->
       let c = captureBuffer.Value
       if isNull (box c) || not c.Active then
@@ -204,7 +207,7 @@ type private Private() =
       else
         false)
 
-  static member StopCapture() : string * string * string =
+  let stopCapture () : string * string * string =
     lock captureLock (fun () ->
       let c = captureBuffer.Value
       captureBuffer.Value <- Unchecked.defaultof<Capture>
@@ -219,26 +222,26 @@ type private Private() =
 
 let wait () : unit = Private.wait ()
 
-let writeInline (value : string) : unit = Private.Write(Out, value)
+let writeInline (value : string) : unit = Private.write Out value
 
-let writeLine (value : string) : unit = Private.Write(Out, value + "\n")
+let writeLine (value : string) : unit = Private.write Out (value + "\n")
 
-let writeErrInline (value : string) : unit = Private.Write(Err, value)
+let writeErrInline (value : string) : unit = Private.write Err value
 
 /// In order with everything already queued for stdout; see the queue's comment.
-let writeErrLine (value : string) : unit = Private.Write(Err, value + "\n")
+let writeErrLine (value : string) : unit = Private.write Err (value + "\n")
 
 /// Route subsequent output on BOTH streams into an in-memory buffer instead of the console.
 /// Returns false if a capture window was already open (the existing one is left untouched).
-let startCapture () : bool = Private.StartCapture()
+let startCapture () : bool = Private.startCapture ()
 
 /// Stop capturing and return everything written since `startCapture`, both streams in order.
 let stopCapture () : string =
-  let (all, _, _) = Private.StopCapture()
+  let (all, _, _) = Private.stopCapture ()
   all
 
 /// `(both, stdout, stderr)`.
-let stopCaptureEach () : string * string * string = Private.StopCapture()
+let stopCaptureEach () : string * string * string = Private.stopCapture ()
 
 /// Browser host only: route every write to <param sink> instead of `System.Console`.
-let setBrowserSink (sink : string -> unit) : unit = Private.SetBrowserSink sink
+let setBrowserSink (sink : string -> unit) : unit = Private.setBrowserSink sink

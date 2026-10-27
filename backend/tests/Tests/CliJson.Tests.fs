@@ -378,11 +378,16 @@ let typecheckScopesToAModule =
           (declared.Trim().Split('\n') |> Array.last)
           "every declaration under the module is audited"
 
-        // A module nobody has defined is not an error, it is an empty audit. A caller scoping to
-        // a name it got wrong should see zero rather than a refusal it has to special-case.
-        let! missing =
-          parsed state [ "typecheck"; "Darklang.NoSuchModule"; "--json" ]
-        Expect.equal (total missing) 0 "an unknown module audits nothing"
+        // A module exists only by holding something, so a name that audits nothing is not there,
+        // and "checked 0" would read as a pass. It is refused like any other --json not-found.
+        let! (out, err, code) =
+          runCliStreams state [ "typecheck"; "Darklang.NoSuchModule"; "--json" ]
+        Expect.equal out "" "an unknown module has no audit to print"
+        Expect.stringContains
+          err
+          "no module named Darklang.NoSuchModule"
+          "and says why"
+        Expect.notEqual code 0 "and fails"
       })
 
 

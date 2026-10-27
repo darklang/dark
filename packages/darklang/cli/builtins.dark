@@ -238,7 +238,7 @@ let execute(state: AppState, args: List<String>): AppState =
   |> Stdlib.printLines
 
   if Stdlib.Bool.not(withSigs) then
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("Use --with-sigs to see full function signatures, --with-purity to tag pure/impure"))
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use --with-sigs to see full function signatures, --with-purity to tag pure/impure"))
 
   state
 

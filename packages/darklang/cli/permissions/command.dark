@@ -343,7 +343,7 @@ let editPolicy(
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success(success))
     true
   | Error message ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+    Cli.printErr(message)
     false
 
 /// Parse rule arguments and pass them to <param edit>, or report invalid input.
@@ -354,7 +354,7 @@ let editRules(
   : Bool =
   match Command.parseRuleArgs(args) with
   | None ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(Command.invalidRule(args)))
+    Cli.printErr(Command.invalidRule(args))
     false
   | Some rules ->
     edit(rules)
@@ -455,12 +455,12 @@ let profile(args: List<String>): Bool =
   | _ ->
     match Command.takeYesFlag(args) with
     | (_, []) ->
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.error("profile needs a name"))
+      Cli.printErr("profile needs a name")
       false
     | (apply, name :: rest) ->
       match Profiles.resolve(name, rest) with
       | Error message ->
-        Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+        Cli.printErr(message)
         false
       | Ok policy ->
         Stdlib.printLine(
@@ -530,7 +530,7 @@ let approveReporting(
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success(accepted))
     (true, Stdlib.Option.Option.None)
   | Error(Refused message) ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+    Cli.printErr(message)
     if kept != "" then Stdlib.printLine(kept) else ()
     (false, Stdlib.Option.Option.None)
   | Error(ContractChanged diffs) -> (false, Stdlib.Option.Option.Some diffs)
@@ -543,12 +543,12 @@ let approveNamed(
   : Bool =
   match Command.parseApprovalRules(specs) with
   | Error message ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+    Cli.printErr(message)
     false
   | Ok rules ->
     match Command.latestVersion(state.currentBranchId, name) with
     | None ->
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"unknown function: {name}"))
+      Cli.printErr($"unknown function: {name}")
       false
     | Some hash ->
       let complete =
@@ -598,7 +598,7 @@ let updateNamed(
   let accountID = state.accountID
   match Command.parseApprovalRules(specs) with
   | Error message ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+    Cli.printErr(message)
     false
   | Ok givenRules ->
     match Command.approvedVersionOf(accountID, name) with
@@ -609,7 +609,7 @@ let updateNamed(
     | Some approved ->
       match Command.latestVersion(state.currentBranchId, name) with
       | None ->
-        Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"unknown function: {name}"))
+        Cli.printErr($"unknown function: {name}")
         false
       | Some latest ->
         if latest == approved then
@@ -680,7 +680,7 @@ let withVersion(
   : Bool =
   match Command.resolveVersionArg(state, target) with
   | None ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"unknown function: {target}"))
+    Cli.printErr($"unknown function: {target}")
     false
   | Some hash ->
     Stdlib.printLines(show(hash))
@@ -734,8 +734,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   // with nothing would replace the policy with deny-all).
   | [ subcommand ] when Stdlib.Option.isSome(Command.usageOf(subcommand)) ->
     let usage = Stdlib.Option.withDefault(Command.usageOf(subcommand), "")
-    Stdlib.printLine(
-      Stdlib.Cli.UI.Colors.error($"missing argument; usage: permissions {usage}"))
+    Cli.printErr($"missing argument; usage: permissions {usage}")
     Cli.exitWith(state, false)
   | "allow" :: rule ->
     Cli.exitWith(state, (Command.editRules(
@@ -763,15 +762,14 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     | (acceptWithoutPrompt, name :: rules) ->
       Cli.exitWith(state, Command.approveNamed(state, acceptWithoutPrompt, name, rules))
     | (_, []) ->
-      Stdlib.printLine(
-        Stdlib.Cli.UI.Colors.error("approve needs a function name"))
+      Cli.printErr("approve needs a function name")
       Cli.exitWith(state, false)
   | "update" :: rest ->
     match Command.takeYesFlag(rest) with
     | (acceptWithoutPrompt, name :: rules) ->
       Cli.exitWith(state, Command.updateNamed(state, acceptWithoutPrompt, name, rules))
     | (_, []) ->
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.error("update needs a function name"))
+      Cli.printErr("update needs a function name")
       Cli.exitWith(state, false)
   | [ "unapprove", name ] ->
     // An approval is keyed by the name as it was approved, so an unmatched name withdraws nothing;
@@ -786,9 +784,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           $"✓ {name} has no approved version; it follows the latest again")))
       state
     else
-      Stdlib.printLine((
-        Stdlib.Cli.UI.Colors.error(
-          $"{name} has no approved version; `permissions approved` lists the ones that do")))
+      Cli.printErr($"{name} has no approved version; `permissions approved` lists the ones that do")
       Cli.exitWith(state, false)
   | [ "approved" ] ->
     Command.printListOrNone(
@@ -803,9 +799,16 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     Cli.exitWith(state, (Command.withVersion(state, target, fun hash ->
       Command.accessReportLines(state.accountID, hash))))
   | [ "revoke-package", hash ] ->
-    Command.revokeHash(state.accountID, hash)
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.success("✓ package approval revoked"))
-    state
+    // Only a hash that was approved can be revoked; saying "revoked" about one that never was
+    // would report a release that did not happen.
+    if Stdlib.List.contains(Command.approvedHashes(state.accountID), hash) then
+      Command.revokeHash(state.accountID, hash)
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.success("✓ package approval revoked"))
+      state
+    else
+      Cli.printErr($"{hash} is not an approved package")
+      Cli.printHint("  `dark permissions approvals` lists the ones that are.")
+      Cli.exitWith(state, false)
   | [ "approvals" ] ->
     // Name the ones an approved version points at. The rest are dependencies approved as part of
     // some root's closure and have no name of their own, but a page of bare hashes gave no way to
@@ -819,10 +822,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       ()
     state
   | _ ->
-    Stdlib.printLine(
-      (Stdlib.Cli.UI.Colors.error(
-        "unknown permissions command: " + Stdlib.String.join(args, " "))))
-    Stdlib.printLine(Command.help(state))
+    Cli.printErr("unknown permissions command: " + Stdlib.String.join(args, " "))
+    Stdlib.printErrorLine(Command.help(state))
     Cli.exitWith(state, false)
 
 let complete(

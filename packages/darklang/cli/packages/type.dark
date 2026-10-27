@@ -22,7 +22,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         "  dark type Me.Demo.Status '| Active | Inactive'"
         "  dark type Me.Demo.User '{ name: String, age: Int }'"
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
 
       Cli.exitWith(state, false)
     else
@@ -95,7 +95,7 @@ let createTypeInline(
             "  dark type Me.Demo.Status '| Active | Inactive'"
             "  dark type Me.Demo.User '{ name: String, age: Int }'"
             ""
-          ] |> Stdlib.printLines
+          ] |> Cli.Stderr.lines
           Cli.exitWith(state, false)
     | None ->
       [
@@ -105,10 +105,10 @@ let createTypeInline(
         "  dark type Me.Demo.Status '| Active | Inactive'"
         "  dark type Me.Demo.User '{ name: String, age: Int }'"
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
       Cli.exitWith(state, false)
   | Error msg ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Invalid location: {msg}"))
+    Cli.printErr($"Invalid location: {msg}")
     Cli.exitWith(state, false)
 
 
