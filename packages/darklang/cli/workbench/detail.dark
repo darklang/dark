@@ -279,7 +279,7 @@ let selectedFunctionTestRows (state: State) : List<String> =
     let modulePath = Packages.modulePathOf state.location
     let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
     match results.fns with
-    | i :: _ ->
+    | [i, ...] ->
       // ":" not "dark ": the workbench owns the terminal, and its command
       // bar runs registered commands in-frame.
       Packages.View.testRows
@@ -343,31 +343,31 @@ let itemLines
       match item.kind with
       | "fn" ->
         match results.fns with
-        | i :: _ ->
+        | [i, ...] ->
           (PrettyPrinter.ProgramTypes.packageFn ctx i.entity,
            accessSummaryLines state (LanguageTools.ProgramTypes.hashToString i.entity.hash))
         | [] -> ("(not found)", [])
       | "type" ->
         match results.types with
-        | i :: _ -> (PrettyPrinter.ProgramTypes.packageType ctx i.entity, [])
+        | [i, ...] -> (PrettyPrinter.ProgramTypes.packageType ctx i.entity, [])
         | [] -> ("(not found)", [])
       | "trait" ->
         match results.traits with
-        | i :: _ -> (PrettyPrinter.ProgramTypes.packageTrait ctx i.entity, [])
+        | [i, ...] -> (PrettyPrinter.ProgramTypes.packageTrait ctx i.entity, [])
         | [] -> ("(not found)", [])
       | "impl" ->
         match results.impls with
-        | i :: _ -> (PrettyPrinter.ProgramTypes.packageImpl ctx i.entity, [])
+        | [i, ...] -> (PrettyPrinter.ProgramTypes.packageImpl ctx i.entity, [])
         | [] -> ("(not found)", [])
       | "test" ->
         match results.tests with
-        | i :: _ ->
+        | [i, ...] ->
           (PrettyPrinter.ProgramTypes.packageTest ctx i.entity,
            testOutcomeLines state.branchId i.entity.hash)
         | [] -> ("(not found)", [])
       | _ ->
         match results.values with
-        | i :: _ -> (PrettyPrinter.ProgramTypes.packageValue ctx i.entity, [])
+        | [i, ...] -> (PrettyPrinter.ProgramTypes.packageValue ctx i.entity, [])
         | [] -> ("(not found)", [])
     // A comment, so the highlighter above the access block colours it like the values.
     let sourceLines =

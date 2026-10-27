@@ -868,7 +868,7 @@ let f = fun () -> Stdlib.List.fold xs 0L (fun a b -> a + b)
 let (_, seven) = t
 let first =
   match xs with
-  | h :: _ -> h
+  | [h, ...] -> h
   | [] -> 0L
 let _ = Builtin.testTrace "matched"
 let one = first + 0L
@@ -892,7 +892,7 @@ let private mapHoldsOneReadPerElement =
       runWith """let xs = Stdlib.List.map [ 61L; 62L; 63L ] (fun n -> Builtin.testRead n)
 let first =
   match xs with
-  | h :: _ -> h + 0L
+  | [h, ...] -> h + 0L
   | [] -> 0L
 let _ = Builtin.testTrace "first"
 first + Stdlib.List.fold xs 0L (fun a b -> a + b)""" (fun _ ->
@@ -954,7 +954,7 @@ let private zipShortestWaitsForTheHeadAlone =
     [ Builtin.testRead 183L; Builtin.testRead 184L ]
 let first =
   match ps with
-  | (a, _) :: _ -> a + 0L
+  | [(a, _), ...] -> a + 0L
   | [] -> 0L
 let _ = Builtin.testTrace "first"
 first""" (fun _ ->
@@ -1084,7 +1084,7 @@ let private nestedContainersHoldReads =
       runWith """let xs = [ (Builtin.testReadOf 101L 1L, 2L); (3L, Builtin.testReadOf 102L 4L) ]
 let first =
   match xs with
-  | (a, _) :: _ -> a + 0L
+  | [(a, _), ...] -> a + 0L
   | [] -> 0L
 let _ = Builtin.testTrace "first"
 first""" (fun _ ->
@@ -1189,7 +1189,7 @@ let private sortByKeyedThroughShells =
 let sorted = Stdlib.List.sortBy xs (fun (name, _) -> name)
 let _ = Builtin.testTrace "sorted"
 match sorted with
-| (_, v) :: _ -> v
+| [(_, v), ...] -> v
 | [] -> 0L"""
         [ 241L; 242L ]
         [ "sorted" ]

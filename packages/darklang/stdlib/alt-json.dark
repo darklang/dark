@@ -190,19 +190,19 @@ module Parse =
 
   let skipComments (ts: List<String>) : List<String> =
     match ts with
-    | t :: rest when String.startsWith t "/" -> skipComments rest
+    | [t, ...rest] when String.startsWith t "/" -> skipComments rest
     | _ -> ts
 
 
   /// One value. <param ts> starts at its first token.
   let value (ts: List<String>) : Option.Option<(Json * List<String>)> =
     match ts with
-    | "null" :: rest -> Some((Json.Null, rest))
-    | "true" :: rest -> Some((Json.Bool true, rest))
-    | "false" :: rest -> Some((Json.Bool false, rest))
-    | "[" :: rest -> items (skipComments rest) []
-    | "{" :: rest -> fields (skipComments rest) []
-    | t :: rest ->
+    | ["null", ...rest] -> Some((Json.Null, rest))
+    | ["true", ...rest] -> Some((Json.Bool true, rest))
+    | ["false", ...rest] -> Some((Json.Bool false, rest))
+    | ["[", ...rest] -> items (skipComments rest) []
+    | ["{", ...rest] -> fields (skipComments rest) []
+    | [t, ...rest] ->
       match text t with
       | Some s -> Some((Json.String s, rest))
       | None ->
@@ -297,7 +297,7 @@ module Parse =
     (acc: List<Json>)
     : Option.Option<(Json * List<String>)> =
     match ts with
-    | "]" :: rest when List.isEmpty acc -> Some((Json.Array [], rest))
+    | ["]", ...rest] when List.isEmpty acc -> Some((Json.Array [], rest))
     | _ ->
       match value ts with
       | None -> None
@@ -305,8 +305,8 @@ module Parse =
         let acc = List.prepend acc item
 
         match skipComments after with
-        | "]" :: rest -> Some((Json.Array(List.reverse acc), rest))
-        | "," :: rest -> items (skipComments rest) acc
+        | ["]", ...rest] -> Some((Json.Array(List.reverse acc), rest))
+        | [",", ...rest] -> items (skipComments rest) acc
         | _ -> None
 
 
@@ -316,17 +316,17 @@ module Parse =
     (acc: List<(String * Json)>)
     : Option.Option<(Json * List<String>)> =
     match ts with
-    | "}" :: rest when List.isEmpty acc -> Some((Json.Object [], rest))
+    | ["}", ...rest] when List.isEmpty acc -> Some((Json.Object [], rest))
     // The colon straight after the key: System.Text.Json refused a comment
     // there, unlike everywhere else.
-    | key :: ":" :: rest ->
+    | [key, ":", ...rest] ->
       match (text key, value (skipComments rest)) with
       | (Some k, Some((v, after))) ->
         let acc = List.prepend acc (k, v)
 
         match skipComments after with
-        | "}" :: rest -> Some((Json.Object(List.reverse acc), rest))
-        | "," :: rest -> fields (skipComments rest) acc
+        | ["}", ...rest] -> Some((Json.Object(List.reverse acc), rest))
+        | [",", ...rest] -> fields (skipComments rest) acc
         | _ -> None
       | _ -> None
     | _ -> None

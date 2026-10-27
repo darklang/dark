@@ -23,7 +23,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [] ->
     Stdlib.printLine "Usage: hash <location>"
     state
-  | locationStr :: _ ->
+  | [locationStr, ...] ->
     let branchId = state.currentBranchId
 
     match Traversal.traverse branchId state.packageData.currentLocation locationStr with

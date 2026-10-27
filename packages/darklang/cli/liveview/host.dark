@@ -81,7 +81,7 @@ let resolveAll
 
     match problems with
     | [] -> Stdlib.Result.Result.Ok((initLg, updateLg, renderLg))
-    | first :: _ -> Stdlib.Result.Result.Error first
+    | [first, ...] -> Stdlib.Result.Result.Error first
   | _ ->
     Stdlib.Result.Result.Error
       $"a view's fns are dotted package names: {view.init}, {view.update}, {view.render}"

@@ -209,7 +209,7 @@ let repointNow
 
               let text =
                 match issues with
-                | issue :: _ -> Stdlib.Live.issueText issue
+                | [issue, ...] -> Stdlib.Live.issueText issue
                 | [] -> "it failed the type check"
 
               (Stdlib.Tuple2.second pair, text))
@@ -299,7 +299,7 @@ let followedNote (followed: Followed) : String =
       | [] -> ""
       | [ one ] -> $"; {one} follows"
       | names -> $"; {Stdlib.toString (Stdlib.List.length names)} dependents follow"
-    | (name, why) :: rest ->
+    | [(name, why), ...rest] ->
       let more =
         match rest with
         | [] -> ""

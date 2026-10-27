@@ -18,7 +18,7 @@ let singleton (value: 'a) : List<'a> =
 let head (list: List<'a>) : Option.Option<'a> =
   match list with
   | [] -> Option.Option.None
-  | head :: _ -> Option.Option.Some head
+  | [head, ...] -> Option.Option.Some head
 
 
 /// If <param list> contains at least one value, returns {{Some}} with a list of
@@ -26,11 +26,11 @@ let head (list: List<'a>) : Option.Option<'a> =
 let tail (list: List<'a>) : Option.Option<List<'a>> =
   match list with
   | [] -> Option.Option.None
-  | _ :: tail -> Option.Option.Some tail
+  | [_, ...tail] -> Option.Option.Some tail
 
 
 /// Returns a new list with all values in <param as> followed by all values in <param bs>,
-/// preserving the order. The `@` operator desugars to this. To add one value, use
+/// preserving the order. `[...as_, ...bs]` lowers to this. To add one value, use
 /// <fn prepend> or <fn append>.
 let concat (as_: List<'a>) (bs: List<'a>) : List<'a> =
   Builtin.listConcat as_ bs
@@ -52,7 +52,7 @@ let append (list: List<'a>) (value: 'a) : List<'a> =
 let last (list: List<'a>) : Option.Option<'a> =
   match list with
   | [] -> Option.Option.None
-  | head :: tail ->
+  | [head, ...tail] ->
     match tail with
     | [] -> Option.Option.Some head
     | _ -> last tail
@@ -136,7 +136,7 @@ let interpose (list: List<'a>) (sep: 'a) : List<'a> =
   match list with
   | [] -> []
   | [ single ] -> [ single ]
-  | head :: tail ->
+  | [head, ...tail] ->
     (interpose tail sep)
     |> prepend sep
     |> prepend head
@@ -148,10 +148,10 @@ let interpose (list: List<'a>) (sep: 'a) : List<'a> =
 let interleave (lA: List<'a>) (lB: List<'a>) : List<'a> =
   match lA with
   | [] -> lB
-  | aHead :: aTail ->
+  | [aHead, ...aTail] ->
     match lB with
     | [] -> lA
-    | bHead :: bTail ->
+    | [bHead, ...bTail] ->
       (interleave aTail bTail)
       |> prepend bHead
       |> prepend aHead
@@ -262,7 +262,7 @@ module SortByComparatorHelpers =
     match (left, right) with
     | ([], _) -> Result.Result.Ok right
     | (_, []) -> Result.Result.Ok left
-    | (x :: xs, y :: ys) ->
+    | ([x, ...xs], [y, ...ys]) ->
       match validate x y comparator with
       | Error msg -> Result.Result.Error msg
       | Ok result ->
@@ -279,7 +279,7 @@ module SortByComparatorHelpers =
     match lst with
     | [] -> ([], [])
     | [ x ] -> ([ x ], [])
-    | x :: y :: xs ->
+    | [x, y, ...xs] ->
       let (left, right) = splitList xs
       (prepend left x, prepend right y)
 
@@ -320,7 +320,7 @@ let sortByComparator
 let all (list: List<'a>) (fn: 'a -> Bool) : Bool =
   match list with
   | [] -> true
-  | head :: tail -> if (fn head) then all tail fn else false
+  | [head, ...tail] -> if (fn head) then all tail fn else false
 
 
 /// Return {{true}} if any elements in the list meet the function's criteria, else {{false}}
@@ -356,21 +356,21 @@ let drop (list: List<'a>) (count: Int) : List<'a> =
   else
     match list with
     | [] -> []
-    | _ :: tail -> drop tail (count - 1)
+    | [_, ...tail] -> drop tail (count - 1)
 
 
 /// Drops the longest prefix of <param list> which satisfies the predicate <param val>
 let dropWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
   match list with
   | [] -> []
-  | head :: tail -> if (fn head) then dropWhile tail fn else list
+  | [head, ...tail] -> if (fn head) then dropWhile tail fn else list
 
 
 /// Drops the last value from <param list>
 let dropLast (list: List<'a>) : List<'a> =
   match list with
   | [] -> []
-  | head :: tail ->
+  | [head, ...tail] ->
     match tail with
     | [] -> []
     | _ -> prepend (dropLast tail) head
@@ -385,7 +385,7 @@ let take (list: List<'a>) (count: Int) : List<'a> =
 let takeWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
   match list with
   | [] -> []
-  | head :: tail ->
+  | [head, ...tail] ->
     if (fn head) then
       prepend (takeWhile tail fn) head
     else
@@ -503,7 +503,7 @@ let zip
 let unzip (pairs: List<('a * 'b)>) : (List<'a> * List<'b>) =
   match pairs with
   | [] -> ([], [])
-  | (a, b) :: tail ->
+  | [(a, b), ...tail] ->
     let (firsts, seconds) = unzip tail
 
     (prepend firsts a, prepend seconds b)
@@ -577,7 +577,7 @@ let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
 let partition (ls: List<'a>) (f: 'a -> Bool) : (List<'a> * List<'a>) =
   match ls with
   | [] -> ([], [])
-  | head :: tail ->
+  | [head, ...tail] ->
     let (trueList, falseList) = partition tail f
 
     if (f head) then
@@ -590,7 +590,7 @@ let partition (ls: List<'a>) (f: 'a -> Bool) : (List<'a> * List<'a>) =
 let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
   match list with
   | [] -> ()
-  | head :: tail ->
+  | [head, ...tail] ->
     f head
     iter tail f
 
@@ -633,4 +633,4 @@ let chunkBySize
 let splitLast (l: List<'a>) : Option.Option<(List<'a> * 'a)> =
   match reverse l with
   | [] -> Option.Option.None
-  | head :: tail -> Option.Option.Some((reverse tail, head))
+  | [head, ...tail] -> Option.Option.Some((reverse tail, head))

@@ -35,7 +35,7 @@ let segmentsIn (have: List<String>) (want: List<String>) : Bool =
   else
     match have with
     | [] -> false
-    | _ :: rest -> segmentsIn rest want
+    | [_, ...rest] -> segmentsIn rest want
 
 /// Whether <param filter> selects the test named <param path>: the filter's
 /// dot-separated segments appear whole and in order in the test's full name.
@@ -281,13 +281,13 @@ let addTest
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [ "add" ] -> addFailed state "test add needs a location and a body"
-  | "add" :: location :: definitionParts ->
+  | ["add", location, ...definitionParts] ->
     let definition = Packages.definitionFromArgs definitionParts
     if Stdlib.String.isEmpty (Stdlib.String.trim definition) then
       addFailed state "test add needs a body after the location"
     else
       addTest state location definition
-  | "run" :: runArgs -> runTests state runArgs
+  | ["run", ...runArgs] -> runTests state runArgs
   | [] ->
     Stdlib.printLine (help state)
     state
@@ -312,16 +312,16 @@ let parseRunOptions
   : Stdlib.Result.Result<RunOptions, String> =
   match args with
   | [] -> Ok options
-  | "--force" :: rest -> parseRunOptions { options with force = true } rest
-  | "--jobs" :: value :: rest ->
+  | ["--force", ...rest] -> parseRunOptions { options with force = true } rest
+  | ["--jobs", value, ...rest] ->
     match Stdlib.Int.parse value with
     | Ok jobs when jobs > 0 -> parseRunOptions { options with jobs = jobs } rest
     | _ -> Error "--jobs needs a positive whole number"
   | [ "--jobs" ] -> Error "--jobs needs a positive whole number"
-  | arg :: rest when Stdlib.String.startsWith arg "--jobs=" ->
+  | [arg, ...rest] when Stdlib.String.startsWith arg "--jobs=" ->
     let value = Stdlib.String.slice arg 7 (Stdlib.String.length arg)
     parseRunOptions options (Stdlib.List.concat [ "--jobs", value ] rest)
-  | arg :: rest ->
+  | [arg, ...rest] ->
     if Stdlib.String.startsWith arg "-" then
       Error $"Unknown option: {arg}"
     else
@@ -365,7 +365,7 @@ let runSelected
   (counts: Counts)
   : Counts =
   match remaining with
-  | item :: rest when Stdlib.List.length running < options.jobs ->
+  | [item, ...rest] when Stdlib.List.length running < options.jobs ->
     let cachedResult =
       if options.force then
         Stdlib.Option.Option.None
@@ -509,12 +509,12 @@ let help (_state: Cli.AppState) : String =
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   match args with
   | [] -> [ "run", "add" ] |> Stdlib.List.map Cli.Completion.simple
-  | "run" :: runArgs ->
+  | ["run", ...runArgs] ->
     let partial = Stdlib.Option.withDefault (Stdlib.List.last runArgs) ""
     [ "--force", "--jobs" ]
     |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag partial)
     |> Stdlib.List.map Cli.Completion.simple
-  | "add" :: _ -> []
+  | ["add", ...] -> []
   | [ partial ] ->
     [ "run", "add" ]
     |> Stdlib.List.filter (fun command -> Stdlib.String.startsWith command partial)

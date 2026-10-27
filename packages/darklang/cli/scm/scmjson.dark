@@ -174,7 +174,7 @@ let changeKind
   : String =
   match previous with
   | [] -> "new"
-  | prev :: _ ->
+  | [prev, ...] ->
     if b.itemType != "fn" then
       "updated"
     else

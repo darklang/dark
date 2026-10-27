@@ -11,7 +11,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (help state)
     state
 
-  | location :: definitionParts ->
+  | [location, ...definitionParts] ->
     let inlineDefinition = Packages.definitionFromArgs definitionParts
 
     if Stdlib.String.isEmpty inlineDefinition then

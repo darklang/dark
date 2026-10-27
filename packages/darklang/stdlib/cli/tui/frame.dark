@@ -25,7 +25,7 @@ let changedRowsFrom
   match previousRows, nextRows with
   | [], [] ->
     Stdlib.List.reverse changes
-  | previous :: previousTail, next :: nextTail ->
+  | [previous, ...previousTail], [next, ...nextTail] ->
     let changes =
       if previous == next then
         changes
@@ -33,13 +33,13 @@ let changedRowsFrom
         Stdlib.List.prepend changes (RowChange { row = row, content = next })
 
     changedRowsFrom (row + 1) previousTail nextTail changes
-  | _previous :: previousTail, [] ->
+  | [_previous, ...previousTail], [] ->
     changedRowsFrom
       (row + 1)
       previousTail
       []
       (Stdlib.List.prepend changes (RowChange { row = row, content = "" }))
-  | [], next :: nextTail ->
+  | [], [next, ...nextTail] ->
     changedRowsFrom
       (row + 1)
       []
@@ -68,19 +68,19 @@ let fullRedrawRowsFrom
   match previousRows, nextRows with
   | [], [] ->
     Stdlib.List.reverse changes
-  | _previous :: previousTail, next :: nextTail ->
+  | [_previous, ...previousTail], [next, ...nextTail] ->
     fullRedrawRowsFrom
       (row + 1)
       previousTail
       nextTail
       (Stdlib.List.prepend changes (RowChange { row = row, content = next }))
-  | _previous :: previousTail, [] ->
+  | [_previous, ...previousTail], [] ->
     fullRedrawRowsFrom
       (row + 1)
       previousTail
       []
       (Stdlib.List.prepend changes (RowChange { row = row, content = "" }))
-  | [], next :: nextTail ->
+  | [], [next, ...nextTail] ->
     fullRedrawRowsFrom
       (row + 1)
       []

@@ -161,11 +161,12 @@ type MatchPattern =
     contents: List<(MatchPattern * Stdlib.Option.Option<Range>)> *
     symbolOpenBracket: Range *
     symbolCloseBracket: Range
+  /// `[head, ...tail]`, one node per head; every node in a chain shares the `...`
   | MPListCons of
     Range *
     head: MatchPattern *
     tail: MatchPattern *
-    symbolCons: Range
+    symbolDots: Range
   | MPTuple of
     Range *
     first: MatchPattern *

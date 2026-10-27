@@ -32,7 +32,7 @@ let executeCliCommand (args: List<String>) : Int =
       let workbenchState = Workbench.execute initialState []
       runInteractiveLoop workbenchState
   // Otherwise, execute command directly (shell already split args correctly)
-  | commandName :: commandArgs ->
+  | [commandName, ...commandArgs] ->
     let nonInteractiveState = { initialState with nonInteractive = true }
     let resultState = Registry.executeCommand commandName nonInteractiveState commandArgs
 

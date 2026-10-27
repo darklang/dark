@@ -228,7 +228,7 @@ let freeVarsAll
   : Dict<Model.Var, Bool> =
   match tys with
   | [] -> found
-  | t :: rest -> freeVarsAll subst (freeVarsInto subst found t) rest
+  | [t, ...rest] -> freeVarsAll subst (freeVarsInto subst found t) rest
 
 /// Check whether the type contains a TError placeholder from an earlier problem.
 /// Apply substitutions first so errors hidden behind inference variables are visible.
@@ -275,7 +275,7 @@ let occurs (subst: Dict<Model.Var, Model.Ty>) (v: Model.Var) (ty: Model.Ty) : Bo
 let occursIn (subst: Dict<Model.Var, Model.Ty>) (v: Model.Var) (tys: List<Model.Ty>) : Bool =
   match tys with
   | [] -> false
-  | t :: rest -> occurs subst v t || occursIn subst v rest
+  | [t, ...rest] -> occurs subst v t || occursIn subst v rest
 
 /// Replace named TRigid parameters throughout a type, leaving inference variables
 /// and unmapped parameters unchanged. Callers use this to supply a signature's
@@ -305,7 +305,7 @@ let substituteRigid (mapping: Dict<String, Model.Ty>) (ty: Model.Ty) : Model.Ty 
 let substituteRigidIn (mapping: Dict<String, Model.Ty>) (tys: List<Model.Ty>) : List<Model.Ty> =
   match tys with
   | [] -> []
-  | t :: rest -> Stdlib.List.prepend (substituteRigidIn mapping rest) (substituteRigid mapping t)
+  | [t, ...rest] -> Stdlib.List.prepend (substituteRigidIn mapping rest) (substituteRigid mapping t)
 
 
 // --------------------
@@ -700,13 +700,13 @@ let expandDeep
     let parts = Stdlib.List.concat [ first, second ] rest
 
     match expandDeepAll env subst at seen parts [] with
-    | Ok(first :: second :: rest) ->
+    | Ok([first, second, ...rest]) ->
       Stdlib.Result.Result.Ok(Model.Ty.TTuple(first, second, rest))
     | Ok _ -> Stdlib.Result.Result.Ok ty
     | Error problem -> Stdlib.Result.Result.Error problem
   | TFn(parameters, ret) ->
     match expandDeepAll env subst at seen (Stdlib.List.prepend parameters ret) [] with
-    | Ok(ret :: parameters) ->
+    | Ok([ret, ...parameters]) ->
       Stdlib.Result.Result.Ok(Model.Ty.TFn(parameters, ret))
     | Ok _ -> Stdlib.Result.Result.Ok ty
     | Error problem -> Stdlib.Result.Result.Error problem
@@ -724,7 +724,7 @@ let expandDeepAll
   : Stdlib.Result.Result<List<Model.Ty>, Model.Finding> =
   match tys with
   | [] -> Stdlib.Result.Result.Ok(Stdlib.List.reverse done)
-  | t :: rest ->
+  | [t, ...rest] ->
     match expandDeep env subst at seen t with
     | Ok expanded ->
       expandDeepAll env subst at seen rest (Stdlib.List.prepend done expanded)

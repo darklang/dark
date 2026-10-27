@@ -93,7 +93,7 @@ let packHelpRows
   | [] ->
     if current == "" then rows
     else Stdlib.List.append rows current
-  | section :: remaining ->
+  | [section, ...remaining] ->
     let candidate =
       if current == "" then section
       else current + " • " + section

@@ -2170,8 +2170,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "match, int list 2"
-      "match [1L, 2L, 3L] with\n| head :: tail ->\n \"pass\""
-      "match [1L, 2L, 3L] with\n| head :: tail -> \"pass\""
+      "match [1L, 2L, 3L] with\n| [head, ...tail] ->\n \"pass\""
+      "match [1L, 2L, 3L] with\n| [head, ...tail] -> \"pass\""
       []
       []
       []
@@ -3001,7 +3001,7 @@ two"""
   let helper (l: List<Int64>) (acc: List<Int64>): List<Int64> =
     match l with
     | [] -> acc
-    | head :: tail -> helper tail (Stdlib.List.prepend acc head)
+    | [head, ...tail] -> helper tail (Stdlib.List.prepend acc head)
   helper list []"
       (RT.DList(
         LibExecution.ValueType.int64,

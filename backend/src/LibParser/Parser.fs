@@ -116,7 +116,6 @@ let private isIntLit (t : Token) : bool =
   | TTrue
   | TFalse
   | TPlus
-  | TPlusPlus
   | TMinus
   | TStar
   | TStarStar
@@ -133,7 +132,6 @@ let private isIntLit (t : Token) : bool =
   | TType
   | TTrait
   | TImpl
-  | TCons
   | TColon
   | TComma
   | TSemicolon
@@ -169,7 +167,6 @@ let private isIntLit (t : Token) : bool =
   | TBitAnd
   | TBitXor
   | TBitNot
-  | TAt
   | TIdent _
   | TEOF -> false
 
@@ -1035,7 +1032,7 @@ and parseMatch (state : ParserState) (i : int) : WT.Expr * int =
 // or-level: `p1 | p2 | …` (stops at `->` / `when`)
 // top level: a bare tuple `a, b` (comma-separated, no parens); else an or-pattern
 // A full match-arm pattern. Precedence, matching F#: `|` (or) is LOOSEST, then
-// `,` (tuple), then `::` (cons). So `1, 2 | 3, 4` is `(1,2) | (3,4)` — an or of
+// `,` (tuple). So `1, 2 | 3, 4` is `(1,2) | (3,4)` — an or of
 // two tuples, NOT a 3-tuple with an or in the middle. Hence `|` is the OUTER
 // level here, wrapping tuples (`parsePatternTuple`).
 and parseMatchPattern (state : ParserState) (i : int) : WT.MatchPattern * int =
@@ -1053,21 +1050,21 @@ and parseMatchPattern (state : ParserState) (i : int) : WT.MatchPattern * int =
     (WT.MPOr(span (WT.mpRange first) (WT.mpRange (Seq.last pats)), List.ofSeq pats),
      k)
 
-// tuple level: `p1, p2, …` (bare — no parens). Elements are cons-patterns; `|`
+// tuple level: `p1, p2, …` (bare — no parens). Elements are base patterns; `|`
 // binds looser (handled above) so it can't appear as a bare tuple element.
 and parsePatternTuple (state : ParserState) (i : int) : WT.MatchPattern * int =
-  let (first, j) = parsePatternCons state i
+  let (first, j) = parsePatternBase state i
   if tok state j <> TComma then
     (first, j)
   else
     let comma = rng state j
-    let (second, k) = parsePatternCons state (j + 1)
+    let (second, k) = parsePatternBase state (j + 1)
     let rest = System.Collections.Generic.List<TokenRange * WT.MatchPattern>()
     let mutable m = k
     let mutable go = true
     while go && tok state m = TComma do
       let cr = rng state m
-      let (p, m2) = parsePatternCons state (m + 1)
+      let (p, m2) = parsePatternBase state (m + 1)
       rest.Add(cr, p)
       if m2 > m then m <- m2 else go <- false
     let z = zeroWidthAtEnd (WT.mpRange first) // bare tuple: no parens
@@ -1083,32 +1080,22 @@ and parsePatternTuple (state : ParserState) (i : int) : WT.MatchPattern * int =
      ),
      m)
 
-// or of cons-patterns, NO tuple — used for enum-ctor fields, where a bare `,`
+// or of base patterns, NO tuple — used for enum-ctor fields, where a bare `,`
 // separates FIELDS (`Case(a, b)` = two fields), not tuple elements.
 and parsePatternOr (state : ParserState) (i : int) : WT.MatchPattern * int =
-  let (first, j) = parsePatternCons state i
+  let (first, j) = parsePatternBase state i
   if tok state j = TBar then
     let pats = System.Collections.Generic.List<WT.MatchPattern>()
     pats.Add first
     let mutable k = j
     while tok state k = TBar do
-      let (p, k2) = parsePatternCons state (k + 1)
+      let (p, k2) = parsePatternBase state (k + 1)
       pats.Add p
       if k2 > k then k <- k2 else k <- k + 1
     (WT.MPOr(span (WT.mpRange first) (WT.mpRange (Seq.last pats)), List.ofSeq pats),
      k)
   else
     (first, j)
-
-// cons-level: `h :: t` (right-assoc)
-and parsePatternCons (state : ParserState) (i : int) : WT.MatchPattern * int =
-  let (head, j) = parsePatternBase state i
-  if tok state j = TCons then
-    let consR = rng state j
-    let (tail, k) = parsePatternCons state (j + 1)
-    (WT.MPListCons(span (WT.mpRange head) (WT.mpRange tail), head, tail, consR), k)
-  else
-    (head, j)
 
 and parsePatternBase (state : ParserState) (i : int) : WT.MatchPattern * int =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
@@ -1221,10 +1208,41 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
     let openB = rng state i
     let elems =
       System.Collections.Generic.List<WT.MatchPattern * Option<TokenRange>>()
+    // `...tail` binds the rest of the list, and a bare `...` ignores it; only the
+    // last element may be one
+    let mutable rest : Option<TokenRange * WT.MatchPattern> = None
+    // where the rest element is, until an element after it has been reported
+    let mutable restAt = -1
     let mutable k = i + 1
     let mutable go = true
     while go && tok state k <> TRBracket && tok state k <> TEOF do
-      let (p, k2) = parsePatternBase state k
+      let isRest = tok state k = TDotDotDot
+      if restAt >= 0 then
+        err
+          state
+          DiagnosticCode.unexpected
+          restAt
+          "'...' must be the last element of a list pattern"
+        restAt <- -1
+      // a bare `...` ignores the rest, the same as `..._`
+      let bareRest =
+        isRest && (tok state (k + 1) = TRBracket || tok state (k + 1) = TComma)
+      let (p, k2) =
+        if bareRest then
+          (WT.MPVariable(rng state k, "_"), k + 1)
+        else
+          parsePatternBase state (if isRest then k + 1 else k)
+      if isRest then
+        match p with
+        | WT.MPVariable _ -> ()
+        | _ ->
+          err
+            state
+            DiagnosticCode.unexpected
+            (k + 1)
+            "'...' takes a name for the rest of the list, or nothing to ignore it"
+        if Option.isNone rest then restAt <- k
+        rest <- Some(rng state k, p)
       if k2 = k then
         err
           state
@@ -1254,7 +1272,33 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
       else
         errUnclosed state k "]" "[" openB
         (zeroWidthAtEnd (rng state k), k)
-    (WT.MPList(span openB closeB, List.ofSeq elems, openB, closeB), p2)
+    match rest with
+    | None -> (WT.MPList(span openB closeB, List.ofSeq elems, openB, closeB), p2)
+    | Some(dotsR, tailPat) ->
+      // `[a, b, ...t]` is `a :: b :: t`, so it lowers through the cons node
+      let heads =
+        elems |> Seq.map fst |> Seq.truncate (elems.Count - 1) |> Seq.toList
+      if List.isEmpty heads then
+        err
+          state
+          DiagnosticCode.unexpected
+          i
+          "`[...t]` matches the same lists as `t`; write `t`"
+      let pat =
+        List.foldBack
+          (fun head tail ->
+            WT.MPListCons(
+              span (WT.mpRange head) (WT.mpRange tail),
+              head,
+              tail,
+              dotsR
+            ))
+          heads
+          tailPat
+      match pat with
+      | WT.MPListCons(_, head, tail, consR) ->
+        (WT.MPListCons(span openB closeB, head, tail, consR), p2)
+      | _ -> (pat, p2)
   | TIdent name when name.Length > 0 && System.Char.IsUpper name[0] ->
     // enum pattern: `[Mod.]Case [fieldPats…]` — last segment is the case
     let (mods, final, j) = parseQualified state i
@@ -1327,14 +1371,13 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
        ),
        k)
   | TIdent name -> (WT.MPVariable(rng state i, name), i + 1)
-  // TODO: Support `...` list rest patterns once WrittenTypes and ProgramTypes
-  // represent their binding and matching semantics.
+  // a rest element belongs to a list pattern, handled above
   | TDotDotDot ->
     err
       state
       DiagnosticCode.unexpected
       i
-      "'...' rest patterns are reserved but not supported"
+      "'...' only goes last inside a list pattern, as in `[head, ...tail]`"
     (WT.MPError(rng state i), i + 1)
   | _ ->
     errExpected state i "a pattern"
@@ -1579,13 +1622,12 @@ and infixBindingPower (t : Token) : (int * bool) option =
   | TBitAnd -> Some(6, false)
   | TShl
   | TShr -> Some(7, false)
-  | TAt -> Some(8, true)
   | TPlus
-  | TMinus -> Some(9, false)
+  | TMinus -> Some(8, false)
   | TStar
   | TSlash
-  | TPercent -> Some(10, false)
-  | TStarStar -> Some(11, true)
+  | TPercent -> Some(9, false)
+  | TStarStar -> Some(10, true)
   | _ -> None
 
 and parseInfix (state : ParserState) (i : int) : WT.Expr * int =
@@ -1632,17 +1674,7 @@ and parseInfixRhs
       let (right, k) =
         parseInfixRhs state (if rightAssoc then bp else bp + 1) rhs0 k0
       let range = span (WT.exprRange left) (WT.exprRange right)
-      left <-
-        (match opTok with
-         | TAt ->
-           let appendFn : WT.QualifiedFnIdentifier =
-             { range = opRange
-               modules =
-                 [ ({ range = opRange; name = "Stdlib" }, opRange)
-                   ({ range = opRange; name = "List" }, opRange) ]
-               fn = { range = opRange; name = "concat" } }
-           WT.EApply(range, WT.EFnName(opRange, appendFn), [], [ left; right ])
-         | _ -> WT.EInfix(range, (opRange, (infixOf opTok).Value), left, right))
+      left <- WT.EInfix(range, (opRange, (infixOf opTok).Value), left, right)
       j <- k
     | _ -> go <- false
   (left, j)
@@ -2275,28 +2307,10 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       state
       DiagnosticCode.unexpected
       i
-      $"'{txt state i}' is reserved but not supported by the expression grammar"
-    (WT.EError(rng state i), i + 1)
-  // `++` is still lexed so this can say what to write instead; without the token, `+` `+`
-  // errors at the second one, which reads as nonsense.
-  | TPlusPlus ->
-    err
-      state
-      DiagnosticCode.unexpected
-      i
-      "'++' is not an operator; use '+' to join Strings"
+      "'...' only goes inside a list, as in `[...a, ...b]`"
     (WT.EError(rng state i), i + 1)
   | _ ->
-    // `::` parses in PATTERNS only; the expression-side way to prepend is `Stdlib.List.prepend` (or a
-    // literal). Volunteered here because the bare "expected an expression" reads as a typo, and the
-    // recovery lookup costs an agent two calls every time.
-    if txt state i = "::" then
-      err
-        state
-        DiagnosticCode.expected
-        i
-        "'::' is a pattern; to build a list in an expression use `Stdlib.List.prepend` or a literal"
-    elif tok state i = TQuestion then
+    if tok state i = TQuestion then
       // In `Ok (x)?`, there is no whitespace before `?`, but it cannot attach
       // here. Suggest parentheses around the expression instead.
       let spaced = i = 0 || (rng state (i - 1)).end_ <> (rng state i).start
@@ -2334,8 +2348,7 @@ and parseParen (state : ParserState) (i : int) : WT.Expr * int =
   if tok state (i + 1) = TRParen then
     (WT.EUnit(span openP (rng state (i + 1))), i + 2)
   elif
-    (Option.isSome (infixOf (tok state (i + 1))) || tok state (i + 1) = TAt)
-    && tok state (i + 2) = TRParen
+    Option.isSome (infixOf (tok state (i + 1))) && tok state (i + 2) = TRParen
   then
     // operator section `(op)` → `fun a b -> a op b` (a 2-arg fn value)
     let opTok = tok state (i + 1)
@@ -2344,17 +2357,7 @@ and parseParen (state : ParserState) (i : int) : WT.Expr * int =
     let z = zeroWidthAtEnd opR
     let va = WT.EVariable(z, "a")
     let vb = WT.EVariable(z, "b")
-    let body =
-      match opTok with
-      | TAt ->
-        let appendFn : WT.QualifiedFnIdentifier =
-          { range = opR
-            modules =
-              [ ({ range = opR; name = "Stdlib" }, opR)
-                ({ range = opR; name = "List" }, opR) ]
-            fn = { range = opR; name = "concat" } }
-        WT.EApply(r, WT.EFnName(opR, appendFn), [], [ va; vb ])
-      | _ -> WT.EInfix(r, (opR, (infixOf opTok).Value), va, vb)
+    let body = WT.EInfix(r, (opR, (infixOf opTok).Value), va, vb)
     (WT.ELambda(r, [ WT.LPVariable(z, "a"); WT.LPVariable(z, "b") ], body, z, z),
      i + 3)
   else
@@ -2431,6 +2434,9 @@ and parseList (state : ParserState) (i : int) : WT.Expr * int =
   // `[ [a]\n (f x) ]` must not read as `[a] (f x)`). Mirrors parseRecord.
   withElementScope state (fun () ->
     let elems = System.Collections.Generic.List<WT.Expr * Option<TokenRange>>()
+    // which elements are `...e`, and the first `...`
+    let spreads = System.Collections.Generic.HashSet<int>()
+    let mutable firstDots = None
     let mutable k = i + 1
     let mutable go = true
     while go
@@ -2440,7 +2446,11 @@ and parseList (state : ParserState) (i : int) : WT.Expr * int =
       // each element is its own offside statement, so a wrapped element's args
       // don't grab the NEXT element (`[ f a\n f b ]` stays two elements)
       setStmtCol state (rng state k).start.column
-      let (e, k2) = parseExpr state k
+      let isSpread = tok state k = TDotDotDot
+      let (e, k2) = parseExpr state (if isSpread then k + 1 else k)
+      if isSpread then
+        spreads.Add elems.Count |> ignore
+        if Option.isNone firstDots then firstDots <- Some(rng state k)
       if k2 = k then
         err
           state
@@ -2470,7 +2480,58 @@ and parseList (state : ParserState) (i : int) : WT.Expr * int =
       else
         errUnclosed state k "]" "[" openB
         (zeroWidthAtEnd (rng state k), k)
-    (WT.EList(span openB closeB, List.ofSeq elems, openB, closeB), p))
+    let r = span openB closeB
+    match firstDots with
+    | None -> (WT.EList(r, List.ofSeq elems, openB, closeB), p)
+    | Some dotsR ->
+      (spreadList r openB closeB dotsR (List.ofSeq elems) (Set.ofSeq spreads), p))
+
+// `[a, ...b, c]` lowers to `Stdlib.List.flatten [[a], b, [c]]`, and `[...a, ...b]`
+// to `Stdlib.List.concat a b`: runs of plain elements become list literals and
+// each spread stands for itself.
+and spreadList
+  (r : TokenRange)
+  (openB : TokenRange)
+  (closeB : TokenRange)
+  (dotsR : TokenRange)
+  (elems : List<WT.Expr * Option<TokenRange>>)
+  (spreads : Set<int>)
+  : WT.Expr =
+  // a run of plain elements, collected in reverse, as one list literal
+  let literal (revRun : List<WT.Expr * Option<TokenRange>>) : List<WT.Expr> =
+    match List.rev revRun with
+    | [] -> []
+    | items ->
+      let first = WT.exprRange (fst (Seq.head items))
+      let last = WT.exprRange (fst (Seq.last items))
+      [ WT.EList(span first last, items, zeroWidthAtEnd first, last) ]
+  let (revSegments, revRun) =
+    elems
+    |> List.indexed
+    |> List.fold
+      (fun (revSegs, revRun) (ix, elem) ->
+        if Set.contains ix spreads then
+          (fst elem :: (literal revRun @ revSegs), [])
+        else
+          (revSegs, elem :: revRun))
+      ([], [])
+  let segments = List.rev (literal revRun @ revSegments)
+  // the call has no source of its own, so its name sits on the first `...`
+  let stdlibList (name : string) : WT.Expr =
+    WT.EFnName(
+      dotsR,
+      { range = dotsR
+        modules =
+          [ ({ range = dotsR; name = "Stdlib" }, dotsR)
+            ({ range = dotsR; name = "List" }, dotsR) ]
+        fn = { range = dotsR; name = name } }
+    )
+  match segments with
+  | [ only ] -> only
+  | [ a; b ] -> WT.EApply(r, stdlibList "concat", [], [ a; b ])
+  | _ ->
+    let items = segments |> List.map (fun e -> (e, None))
+    WT.EApply(r, stdlibList "flatten", [], [ WT.EList(r, items, openB, closeB) ])
 
 // `Type { name = value, … }`. `i` is the `{`.
 and parseRecord

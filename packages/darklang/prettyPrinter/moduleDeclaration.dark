@@ -31,7 +31,7 @@ module ModuleDeclaration =
 
     let target =
       match found with
-      | m :: _ -> m
+      | [m, ...] -> m
       | [] ->
         { emptyModule with name = name }
 
@@ -49,13 +49,13 @@ module ModuleDeclaration =
     match modulePath with
     | [] -> ModuleDeclaration.intoRootless ms rootless add
 
-    | firstModuleNamePart :: submoduleNames ->
+    | [firstModuleNamePart, ...submoduleNames] ->
       let (foundModuleMaybe, otherModules) =
         ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
 
       let target =
         match foundModuleMaybe with
-        | found :: _ -> found
+        | [found, ...] -> found
         | [] -> { emptyModule with name = firstModuleNamePart }
 
       let updated =
@@ -136,7 +136,7 @@ module ModuleDeclaration =
       |> Stdlib.Option.withDefault ""
     let path (location: LanguageTools.ProgramTypes.PackageLocation) : List<String> =
       match Stdlib.List.reverse location.modules with
-      | last :: rest when last == selfHead -> Stdlib.List.reverse rest
+      | [last, ...rest] when last == selfHead -> Stdlib.List.reverse rest
       | _ -> location.modules
     withItem ms (LanguageTools.PackageManager.TraitImpl.locations branchId i.hash) "impl" path (fun m -> { m with impls = Stdlib.List.append m.impls i })
 
@@ -166,7 +166,7 @@ module ModuleDeclaration =
     match modules with
     | [] -> ModuleDeclaration.intoRootless ms "expression has no modules" (fun m -> { m with exprs = Stdlib.List.append m.exprs (expr, []) })
 
-    | firstModuleNamePart :: submoduleNames ->
+    | [firstModuleNamePart, ...submoduleNames] ->
       let (foundModuleMaybe, otherModules) =
         ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
 
@@ -187,14 +187,14 @@ module ModuleDeclaration =
 
         Stdlib.List.append otherModules newModuleWithSubmodule
 
-      | foundModule :: _, [] ->
+      | [foundModule, ...], [] ->
         let updatedModule =
           { foundModule with
               exprs = Stdlib.List.append foundModule.exprs (expr, []) }
 
         Stdlib.List.append otherModules updatedModule
 
-      | foundModule :: _, submoduleNames ->
+      | [foundModule, ...], submoduleNames ->
         let updatedModule =
           { foundModule with
               submodules = withExpr foundModule.submodules (expr, submoduleNames) }
@@ -245,7 +245,7 @@ module ModuleDeclaration =
           let path =
             match path with
             | [] -> []
-            | _ :: rest -> rest
+            | [_, ...rest] -> rest
           withExpr modules ((expr, path)))
 
 

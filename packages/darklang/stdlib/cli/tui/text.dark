@@ -108,7 +108,7 @@ let addWord
     // The word alone doesn't fit: split it, keeping the tail as the line in progress.
     match Stdlib.List.reverse (splitLongWord word width) with
     | [] -> (lines, "")
-    | last :: earlier -> (Stdlib.List.concat lines (Stdlib.List.reverse earlier), last)
+    | [last, ...earlier] -> (Stdlib.List.concat lines (Stdlib.List.reverse earlier), last)
   else
     let (wrapped, rest) = addWord [] "" word width
     (Stdlib.List.concat (Stdlib.List.append lines current) wrapped, rest)

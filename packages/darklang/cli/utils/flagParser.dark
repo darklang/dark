@@ -71,11 +71,11 @@ let parseLoop (spec: Spec) (acc: Parsed) (remaining: List<String>) : Parsed =
   match remaining with
   | [] -> acc
 
-  | token :: rest ->
+  | [token, ...rest] ->
     match canonicalFor spec.valueFlags token with
     | Some name ->
       match rest with
-      | value :: tail -> parseLoop spec (addOption acc name value) tail
+      | [value, ...tail] -> parseLoop spec (addOption acc name value) tail
       | [] -> parseLoop spec (addMissingValue acc token) rest
     | None ->
       match canonicalFor spec.flags token with

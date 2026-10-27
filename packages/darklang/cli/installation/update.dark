@@ -12,7 +12,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       args
 
   match parsed.errors with
-  | _ :: _ ->
+  | [_, ...] ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.FlagParser.parseErrorsMessage parsed.errors))
     Stdlib.printLine (help state)
     Cli.exitWith state false

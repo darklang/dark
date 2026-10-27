@@ -86,7 +86,7 @@ let whenText (created: String) : String =
     match Stdlib.String.split created "." with
     | [] -> created
     | [ s ] -> s
-    | s :: _ -> s + "Z"
+    | [s, ...] -> s + "Z"
   match Stdlib.DateTime.parse whole with
   | Ok t -> Cli.RelativeTime.ago t
   | Error _ -> created
@@ -1194,7 +1194,7 @@ let showCode
             && ((chosenOf loop) == Stdlib.Option.Option.None))
 
         match (unknown, outOfRange) with
-        | (bad :: _, _) ->
+        | ([bad, ...], _) ->
           let names = loops |> Stdlib.List.map (fun loop -> loop.name) |> Stdlib.String.join ", "
           // "nothing called `map`" would read as "nothing INVOKED map", which is the opposite
           // of true: a loop is named after the function it was passed to, so the trace called
@@ -1211,7 +1211,7 @@ let showCode
             Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  its loops are: {names}")
 
           { state with exitCode = 1 }
-        | (_, loop :: _) ->
+        | (_, [loop, ...]) ->
           let n = Stdlib.toString (Stdlib.List.length loop.iterations)
           Cli.printErr $"`{loop.name}` ran {n} times, so that iteration does not exist"
           { state with exitCode = 1 }

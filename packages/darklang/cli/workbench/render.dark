@@ -14,7 +14,7 @@ let wrapRow (maxFit: Int) (line: String) : List<String> =
 
   match Stdlib.Cli.Tui.Text.wrapAtColumn line room with
   | [] -> [ "" ]
-  | first :: rest -> Stdlib.List.prepend (rest |> Stdlib.List.map (fun r -> "  " + r)) first
+  | [first, ...rest] -> Stdlib.List.prepend (rest |> Stdlib.List.map (fun r -> "  " + r)) first
 
 
 /// Render `lines` into `region` as a vertically-scrollable block: wrap each logical line to the pane

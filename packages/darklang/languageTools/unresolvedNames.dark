@@ -40,7 +40,7 @@ let inTypeRef (t: ProgramTypes.TypeReference) : List<String> =
 let inTypeRefs (ts: List<ProgramTypes.TypeReference>) : List<String> =
   match ts with
   | [] -> []
-  | t :: rest -> Stdlib.List.concat (inTypeRef t) (inTypeRefs rest)
+  | [t, ...rest] -> Stdlib.List.concat (inTypeRef t) (inTypeRefs rest)
 
 
 let inExpr (expr: ProgramTypes.Expr) : List<String> =
@@ -106,13 +106,13 @@ let inOptionalExpr (expr: Stdlib.Option.Option<ProgramTypes.Expr>) : List<String
 let inExprs (exprs: List<ProgramTypes.Expr>) : List<String> =
   match exprs with
   | [] -> []
-  | e :: rest -> Stdlib.List.concat (inExpr e) (inExprs rest)
+  | [e, ...rest] -> Stdlib.List.concat (inExpr e) (inExprs rest)
 
 
 let inSegments (segments: List<ProgramTypes.StringSegment>) : List<String> =
   match segments with
   | [] -> []
-  | seg :: rest ->
+  | [seg, ...rest] ->
     match seg with
     | StringText _ -> inSegments rest
     | StringInterpolation e -> Stdlib.List.concat (inExpr e) (inSegments rest)
@@ -123,7 +123,7 @@ let inSegments (segments: List<ProgramTypes.StringSegment>) : List<String> =
 let inMatchCases (cases: List<ProgramTypes.MatchCase>) : List<String> =
   match cases with
   | [] -> []
-  | c :: rest ->
+  | [c, ...rest] ->
     Stdlib.List.flatten
       [ inOptionalExpr c.whenCondition, inExpr c.rhs, inMatchCases rest ]
 
@@ -142,14 +142,14 @@ let inPipeExpr (pe: ProgramTypes.PipeExpr) : List<String> =
 let inPipeExprs (parts: List<ProgramTypes.PipeExpr>) : List<String> =
   match parts with
   | [] -> []
-  | p :: rest -> Stdlib.List.concat (inPipeExpr p) (inPipeExprs rest)
+  | [p, ...rest] -> Stdlib.List.concat (inPipeExpr p) (inPipeExprs rest)
 
 
 /// A bound's trait, and any types its type args name.
 let inBounds (bounds: List<ProgramTypes.Bound>) : List<String> =
   match bounds with
   | [] -> []
-  | b :: rest ->
+  | [b, ...rest] ->
     Stdlib.List.flatten
       [ inName b.trait_.trait_, inTypeRefs b.trait_.typeArgs, inBounds rest ]
 
@@ -177,7 +177,7 @@ let inTypeDeclaration
 let inMethods (methods: List<ProgramTypes.Trait.Method>) : List<String> =
   match methods with
   | [] -> []
-  | m :: rest ->
+  | [m, ...rest] ->
     Stdlib.List.flatten
       [ inParameters m.parameters
         inTypeRef m.returnType

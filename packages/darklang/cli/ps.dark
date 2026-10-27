@@ -269,7 +269,7 @@ let signalMachine
   | [] ->
     Stdlib.Result.Result.Error
       $"no Dark process on this machine has pid {pidText} -- `dark ps` lists them"
-  | m :: _ ->
+  | [m, ...] ->
     let signal = if hard then Stdlib.Cli.Posix.sigkill else Stdlib.Cli.Posix.sigint
     match Stdlib.Cli.Posix.kill pid signal with
     | Ok () ->
@@ -388,10 +388,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ verb ] when (Stdlib.List.contains [ "show", "cancel", "kill" ] verb) ->
     Cli.printErr $"ps {verb} needs an id prefix (or a pid) -- `dark ps` lists them"
     { state with exitCode = 1 }
-  | "help" :: _ ->
+  | ["help", ...] ->
     Stdlib.printLine (help state)
     state
-  | unknown :: _ ->
+  | [unknown, ...] ->
     Cli.printErr $"ps has no `{unknown}`. `dark ps help` lists what it does have."
     { state with exitCode = 1 }
   | _ ->
@@ -490,7 +490,7 @@ module Watch =
   let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
     let mark (i: Int) (cells: List<String>) : List<String> =
       match cells with
-      | first :: rest -> Stdlib.List.prepend rest ((if i == m.cursor then "> " else "  ") + first)
+      | [first, ...rest] -> Stdlib.List.prepend rest ((if i == m.cursor then "> " else "  ") + first)
       | [] -> []
     let indexed = Stdlib.List.indexedMap m.rows (fun i r -> (i, r))
     let machineRows =

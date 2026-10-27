@@ -75,7 +75,7 @@ let formatLocation (location: PackageLocation) : String =
 let definitionFromArgs (args: List<String>) : String =
   let withoutSeparator =
     match args with
-    | "=" :: rest -> rest
+    | ["=", ...rest] -> rest
     | parts -> parts
 
   match withoutSeparator with
@@ -373,7 +373,7 @@ let commitAuthored
 
         match issues with
         | [] -> Stdlib.Option.Option.Some "it failed the type check"
-        | issue :: rest ->
+        | [issue, ...rest] ->
           // The CODE as well as the message. `dark docs traits` names these codes, they are
           // what somebody searches for, and `dark module` prints them through
           // `AtRestCheck.printSaveReport`, so a `fn` or an `impl` dropping them made the two

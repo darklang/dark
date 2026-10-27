@@ -333,7 +333,7 @@ let bindingDiff
   let oldText =
     match previous with
     | [] -> ""
-    | prev :: _ ->
+    | [prev, ...] ->
       Cli.Conflicts.renderItem
         branchId
         b.itemType
@@ -386,7 +386,7 @@ let changedItemDetail (state: State) : List<String> =
     let access =
       if item.kind == "fn" then
         match (Packages.Query.searchExactMatch state.branchId mods leaf).fns with
-        | i :: _ -> accessSummaryLines state (LanguageTools.ProgramTypes.hashToString i.entity.hash)
+        | [i, ...] -> accessSummaryLines state (LanguageTools.ProgramTypes.hashToString i.entity.hash)
         | [] -> []
       else []
     let refs = Stdlib.String.split (referencesText state mods leaf item.kind) "\n"
@@ -414,27 +414,27 @@ let changesSourceText (branchId: Uuid) (row: Stdlib.Option.Option<BodyItem>) : S
     let src =
       if kind == "type" then
         match results.types with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageType ctx i.entity
+        | [i, ...] -> PrettyPrinter.ProgramTypes.packageType ctx i.entity
         | [] -> "(not found)"
       else if kind == "value" then
         match results.values with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
+        | [i, ...] -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
         | [] -> "(not found)"
       else if kind == "trait" then
         match results.traits with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageTrait ctx i.entity
+        | [i, ...] -> PrettyPrinter.ProgramTypes.packageTrait ctx i.entity
         | [] -> "(not found)"
       else if kind == "impl" then
         match results.impls with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageImpl ctx i.entity
+        | [i, ...] -> PrettyPrinter.ProgramTypes.packageImpl ctx i.entity
         | [] -> "(not found)"
       else if kind == "test" then
         match results.tests with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageTest ctx i.entity
+        | [i, ...] -> PrettyPrinter.ProgramTypes.packageTest ctx i.entity
         | [] -> "(not found)"
       else
         match results.fns with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
+        | [i, ...] -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
         | [] -> "(not found)"
     name + "  (" + kind + ", uncommitted)\n\n" + src
 

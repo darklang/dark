@@ -275,7 +275,7 @@ let check
                 else
                   match after.findings with
                   | [] -> (found, unreadable)
-                  | first :: _ ->
+                  | [first, ...] ->
                     let code = LanguageTools.AtRestTypeChecker.issueCodeToString first.code
                     (found, Stdlib.List.prepend unreadable (couldNot name $"the comparison gave {code}")))
 

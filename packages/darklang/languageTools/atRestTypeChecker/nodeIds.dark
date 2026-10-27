@@ -146,7 +146,7 @@ let findDuplicate
   : Stdlib.Option.Option<Int64> =
   match pending with
   | [] -> Stdlib.Option.Option.None
-  | node :: rest ->
+  | [node, ...rest] ->
     let (id, next) = children node
     let pending = Stdlib.List.concat next rest
     match id with

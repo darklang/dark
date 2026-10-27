@@ -696,7 +696,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
   | [ "show", id ] -> executeShow state id
   // Variadic, like `dark ack`: acking is bulk by design ("leave it, I have seen it" means one
   // thing for every conflict), and this sibling taking exactly one ref was a trap.
-  | "ack" :: id :: rest ->
+  | ["ack", id, ...rest] ->
     Stdlib.List.prepend rest id
     |> Stdlib.List.fold state (fun st i -> executeAck st i)
   | [ "override", id, choice ] -> executeOverride state id choice
@@ -727,7 +727,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
 
   // Printing help alone reads as an answer: a typo would look exactly like `conflicts --help`, a
   // command that ran and found nothing.
-  | bad :: _ ->
+  | [bad, ...] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error $"conflicts does not understand `{bad}`.")
 

@@ -61,7 +61,7 @@ let namesToTry
   // allowing local definitions to win first.
   let addl =
     match (given.modules, given.name) with
-    | ("Stdlib" :: _, _) ->
+    | (["Stdlib", ...], _) ->
       [ { given with
             modules = Stdlib.List.prepend given.modules "Darklang" } ]
     | ([], "Result") -> [ { given with modules = [ "Darklang", "Stdlib", "Result" ] } ]
@@ -145,7 +145,7 @@ let resolveGenericName
           if Stdlib.String.startsWith core "__" then Stdlib.String.dropFirst core 2 else core
         match Stdlib.String.toList core with
         | [] -> false
-        | first :: rest ->
+        | [first, ...rest] ->
           (Stdlib.Char.isASCIILetter first)
           && (rest
               |> Stdlib.List.all (fun c ->
@@ -157,7 +157,7 @@ let resolveGenericName
       // it. Mirrors the guard in LibParser's NameResolver.fs.
       let usesInternalPackagePrefix =
         match given with
-        | "PACKAGE" :: _ -> true
+        | ["PACKAGE", ...] -> true
         | _ -> false
 
       let genericName =
@@ -209,7 +209,7 @@ module TypeName =
       Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
-    | owner :: modules ->
+    | [owner, ...modules] ->
       let location =
         ProgramTypes.PackageLocation
           { owner = owner
@@ -241,7 +241,7 @@ module TraitName =
       Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
-    | owner :: modules ->
+    | [owner, ...modules] ->
       let location =
         ProgramTypes.PackageLocation
           { owner = owner
@@ -295,7 +295,7 @@ module ValueName =
       Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
-    | owner :: modules ->
+    | [owner, ...modules] ->
       if owner == "Builtin" && modules == [] then
         if builtinThingExists name.name then
           let fqn =
@@ -338,7 +338,7 @@ module FnName =
       Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
-    | owner :: modules ->
+    | [owner, ...modules] ->
       if owner == "Builtin" && modules == [] then
         let allBuiltins = LanguageTools.allBuiltinFns ()
         if Stdlib.List.findFirst allBuiltins (fun f -> f.name.name == name.name) != Stdlib.Option.Option.None then

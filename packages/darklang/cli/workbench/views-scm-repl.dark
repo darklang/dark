@@ -95,7 +95,7 @@ let applyReplStatement (state: State) (stmt: String) : State =
     // One log line per source line, so a wrapped expression keeps its shape in the scrollback.
     let echoLines =
       match Stdlib.String.split text "\n" with
-      | first :: rest ->
+      | [first, ...rest] ->
         Stdlib.List.prepend
           (rest |> Stdlib.List.map (fun l -> "  " + l))
           ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + first)
@@ -182,7 +182,7 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
           []
         else
           match Stdlib.String.split state.repl.pending "\n" with
-          | first :: rest ->
+          | [first, ...rest] ->
             Stdlib.List.prepend
               (rest |> Stdlib.List.map (fun l -> "  " + l))
               ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + first)

@@ -553,6 +553,17 @@ let letPattern (lp: LanguageTools.ProgramTypes.LetPattern) : String =
     |> Stdlib.String.join ", "
     |> fun parts -> "(" + parts + ")"
 
+/// Walks the cons chain of `[a, b, ...rest]`: the pattern it ends in, then its
+/// heads last to first.
+let matchPatternConsChain
+  (revHeads: List<LanguageTools.ProgramTypes.MatchPattern>)
+  (tail: LanguageTools.ProgramTypes.MatchPattern)
+  : List<LanguageTools.ProgramTypes.MatchPattern> =
+  match tail with
+  | MPListCons(_id, head, rest) ->
+    matchPatternConsChain (Stdlib.List.prepend revHeads head) rest
+  | _ -> Stdlib.List.prepend revHeads tail
+
 let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
   match mp with
   | MPVariable(_id, name) -> name
@@ -587,9 +598,19 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
     |> fun parts -> "[" + parts + "]"
 
   | MPListCons(_id, head, tail) ->
-    let headPart = matchPattern head
-    let tailPart = matchPattern tail
-    $"{headPart} :: {tailPart}"
+    // a cons chain prints as one list: `[a, b, ...rest]`, or `[a, b]` when it
+    // ends in a list pattern
+    match matchPatternConsChain [ head ] tail with
+    | [last, ...revHeads] ->
+      let lastParts =
+        match last with
+        | MPList(_id, items) -> Stdlib.List.map items (fun item -> matchPattern item)
+        | MPVariable(_id, "_") -> [ "..." ]
+        | _ -> [ "..." + matchPattern last ]
+      let headParts =
+        Stdlib.List.map (Stdlib.List.reverse revHeads) (fun h -> matchPattern h)
+      "[" + (Stdlib.String.join [ ...headParts, ...lastParts ] ", ") + "]"
+    | [] -> "[]"
 
   | MPTuple(_, first, second, theRest) ->
     (Stdlib.List.concat [ first, second ] theRest)
@@ -754,8 +775,8 @@ let docOfText (s: String) : Stdlib.Pretty.Doc =
 /// Binding power of an infix operator, and whether it associates right.
 ///
 /// Mirrors `infixBindingPower` in `LibParser/Parser.fs`, loosest to tightest:
-///   1 `||`  2 `&&`  3 comparisons  4 `|`  5 `^`  6 `&`  7 `<< >>`  8 `@` (right)
-///   9 `+ -`  10 `* / %`  11 `**` (right)
+///   1 `||`  2 `&&`  3 comparisons  4 `|`  5 `^`  6 `&`  7 `<< >>`
+///   8 `+ -`  9 `* / %`  10 `**` (right)
 /// If that table moves, this has to move with it, or the printer starts emitting parens that change
 /// what the parser builds.
 let infixPower (i: LanguageTools.ProgramTypes.Infix) : (Int * Bool) =
@@ -777,11 +798,11 @@ let infixPower (i: LanguageTools.ProgramTypes.Infix) : (Int * Bool) =
     | ShiftRight -> (7, false)
     | ArithmeticPlus
     | ArithmeticMinus
-    | StringConcat -> (9, false)
+    | StringConcat -> (8, false)
     | ArithmeticMultiply
     | ArithmeticDivide
-    | ArithmeticModulo -> (10, false)
-    | ArithmeticPower -> (11, true)
+    | ArithmeticModulo -> (9, false)
+    | ArithmeticPower -> (10, true)
 
 
 /// How tightly an expression binds, for deciding whether it needs parentheses inside a larger one.
@@ -1936,7 +1957,7 @@ module PackageOp =
       // the one op payload with no length limit at all.
       let firstLine =
         match Stdlib.String.split (Stdlib.String.trim text) "\n" with
-        | line :: _ -> line
+        | [line, ...] -> line
         | [] -> ""
 
       let summary =

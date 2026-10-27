@@ -394,10 +394,10 @@ type Deprecation<'name> =
 let parsePackageLocation (nameToParse: String): PackageLocation =
   let parts = Stdlib.String.split nameToParse "."
   match parts with
-  | owner :: rest ->
+  | [owner, ...rest] ->
     let rev = Stdlib.List.reverse rest
     match rev with
-    | name :: rest ->
+    | [name, ...rest] ->
       PackageLocation
         { owner = owner
           modules = Stdlib.List.reverse rest

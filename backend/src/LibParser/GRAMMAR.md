@@ -115,19 +115,20 @@ Loosest to tightest; one table (`infixBindingPower`) drives the parser.
 | 5 | `^` | left | bitwise xor |
 | 6 | `&` | left | bitwise and |
 | 7 | `<< >>` | left | bitwise shifts |
-| 8 | `@` | right | list concat → `Stdlib.List.concat` |
-| 9 | `+ -` | left | `+` concatenates Strings too |
-| 10 | `* / %` | left | |
-| 11 | `**` | right | exponentiation (`2**3**2 = 2**(3**2)`) |
-| 12 | application `f a b` | left | |
-| 13 | field access `x.field`, unwrap `x?` | left | tightest |
+| 8 | `+ -` | left | `+` concatenates Strings too |
+| 9 | `* / %` | left | |
+| 10 | `**` | right | exponentiation (`2**3**2 = 2**(3**2)`) |
+| 11 | application `f a b` | left | |
+| 12 | field access `x.field`, unwrap `x?` | left | tightest |
 
 The bitwise levels follow Python's order rather than C's: they bind *tighter*
 than the comparisons, so `a & b == c` is `(a & b) == c`.
 
-`...` is a reserved token but not a supported expression operator; it is also
-reserved for unsupported rest patterns. It produces an unsupported-syntax
-diagnostic. `def` is not reserved and lexes as a normal identifier.
+`...` spreads a list into a list literal: `[a, ...b, c]` lowers to
+`Stdlib.List.flatten [[a], b, [c]]`, and `[...a, ...b]` to `Stdlib.List.concat
+a b`. Anywhere else it is a diagnostic. `::` and `@` are not tokens: the lexer
+refuses each with the list form to write instead. `def` is not reserved and
+lexes as a normal identifier.
 
 ### `|` in a match
 
@@ -259,7 +260,10 @@ Pattern forms:
 - variables
 - tuples
 - lists
-- cons `h :: t`, right-associative
+- a rest element, last in a list: `[h, ...t]`, `[a, b, ...]`. It lowers to a
+  cons chain, so `[a, b, ...t]` is the same pattern as cons of `a` onto cons of
+  `b` onto `t`. `...` takes a name, or nothing to ignore the rest (the same
+  pattern as `..._`, and what the printer writes).
 - or-patterns `p1 | p2`
 - enum patterns with **unqualified** case names, such as `| Ok x`
 - unit

@@ -525,14 +525,20 @@ module MatchPattern =
         [ makeToken symbolRightBracket TokenType.Symbol ] ]
       |> Stdlib.List.flatten
 
-    | MPListCons(range, head, tail, symbolCons) ->
-      [ // head
-        tokenize head
-        // ::
-        [ makeToken symbolCons TokenType.Symbol ]
-        // tail
-        tokenize tail ]
-      |> Stdlib.List.flatten
+    | MPListCons(range, head, tail, symbolDots) ->
+      // `[a, b, ...rest]` is a chain of these sharing one `...`, so only the
+      // innermost emits it, keeping the tokens in source order. The node keeps
+      // no range for its brackets or commas, so those get no token.
+      let dots =
+        match tail with
+        | MPListCons(_, _, _, _) -> []
+        | _ -> [ makeToken symbolDots TokenType.Symbol ]
+      // a bare `...` is a `_` sitting on the dots themselves
+      let tailTokens =
+        match tail with
+        | MPVariable(r, "_") when r == symbolDots -> []
+        | _ -> tokenize tail
+      [ tokenize head, dots, tailTokens ] |> Stdlib.List.flatten
 
     | MPTuple(_range, first, symbolComma, second, rest, symbolOpenParen, symbolCloseParen) ->
       let rest =

@@ -421,7 +421,7 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
         (Stdlib.Cli.UI.Colors.hint "  deprecated items are hidden; `dark ls --include-deprecated` shows them.")
 
       Cli.exitWith state false
-    | _ :: _ :: _ ->
+    | [_, _, ...] ->
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.error $"{target} names more than one kind of item")
       Stdlib.printLine

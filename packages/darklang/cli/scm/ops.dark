@@ -152,7 +152,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Cli.printErr "`ops show` needs an op id. `dark ops` lists them."
     Cli.exitWith state false
   | [ "show", id ] -> executeShow state id
-  | verb :: _ ->
+  | [verb, ...] ->
     match movedFromOps verb with
     | Some target ->
       Cli.printErr $"`ops` only reads the log -- {verb} is `{target}`."

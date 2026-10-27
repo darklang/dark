@@ -817,7 +817,7 @@ let loadPendingDependencies
   : Closure =
   match pending with
   | [] -> closure
-  | next :: rest ->
+  | [next, ...rest] ->
     if Stdlib.Dict.containsKey seen next then
       loadPendingDependencies load seen rest closure
     else

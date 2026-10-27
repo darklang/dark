@@ -72,7 +72,7 @@ let resolvePackageHashWithOriginalName
   | [ single ] -> packageName single.owner single.modules single.name
   | _ ->
     match originalName with
-    | _ :: _ -> Stdlib.String.join originalName "."
+    | [_, ...] -> Stdlib.String.join originalName "."
     | [] -> resolvePackageHash ctx locations hash
 
 
@@ -322,7 +322,7 @@ let callStack
     : List<String> =
     match remaining with
     | [] -> Stdlib.List.reverse (Stdlib.List.prepend lines (label current count))
-    | head :: rest ->
+    | [head, ...rest] ->
       if head == current then
         group rest current (count + 1) lines
       else
@@ -331,7 +331,7 @@ let callStack
   let lines =
     match Stdlib.List.map frames (executionPoint branchId) with
     | [] -> []
-    | head :: rest -> group rest head 1 []
+    | [head, ...rest] -> group rest head 1 []
 
   Stdlib.List.fold lines "Call stack (last call at bottom):" (fun text line ->
     $"{text}\n- {line}")

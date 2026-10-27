@@ -1832,7 +1832,7 @@ module Patterns =
               "  match value with"
               "  | [] -> 0"
               "  | [ _ ] -> 1"
-              "  | _ :: _ :: _ -> 2" ])
+              "  | [_, _, ...] -> 2" ])
           "f"
         |> Stdlib.Test.equal "checked:"
         check
@@ -1840,9 +1840,9 @@ module Patterns =
             [ "let f (value: (List<String> * List<String>)) : Int ="
               "  match value with"
               "  | ([], []) -> 0"
-              "  | (_ :: _, []) -> 1"
-              "  | ([], _ :: _) -> 2"
-              "  | (_ :: _, _ :: _) -> 3" ])
+              "  | ([_, ...], []) -> 1"
+              "  | ([], [_, ...]) -> 2"
+              "  | ([_, ...], [_, ...]) -> 3" ])
           "f"
         |> Stdlib.Test.equal "checked:"
         check

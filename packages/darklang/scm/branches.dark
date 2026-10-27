@@ -469,7 +469,7 @@ let parseFqn (fqn: String) : Stdlib.Option.Option<(String * String * String)> =
   match Stdlib.String.split fqn "." with
   | [] -> Stdlib.Option.Option.None
   | [ _single ] -> Stdlib.Option.Option.None
-  | owner :: rest ->
+  | [owner, ...rest] ->
     // The LAST segment is the name; everything between owner and it is the module path.
     let n = Stdlib.List.length rest
     let modules = rest |> Stdlib.List.take (n - 1) |> (fun ms -> Stdlib.String.join ms ".")

@@ -46,23 +46,23 @@ let rawSource
     let results = Query.searchExactMatch branchId modulePath loc.name
 
     match (results.fns, results.types, results.values, results.tests) with
-    | (item :: _, _, _, _) ->
+    | ([item, ...], _, _, _) ->
       Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageFn ctx item.entity)
-    | (_, item :: _, _, _) ->
+    | (_, [item, ...], _, _) ->
       Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageType ctx item.entity)
-    | (_, _, item :: _, _) ->
+    | (_, _, [item, ...], _) ->
       Stdlib.Result.Result.Ok(
         PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       )
-    | (_, _, _, item :: _) ->
+    | (_, _, _, [item, ...]) ->
       Stdlib.Result.Result.Ok(
         PrettyPrinter.ProgramTypes.packageTest ctx item.entity
       )
     | _ ->
       match (results.traits, results.impls) with
-      | (item :: _, _) ->
+      | ([item, ...], _) ->
         Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageTrait ctx item.entity)
-      | (_, item :: _) ->
+      | (_, [item, ...]) ->
         Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageImpl ctx item.entity)
       | _ ->
         let where = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
@@ -244,7 +244,7 @@ let entityRows
       | _ ->
         let parent = Stdlib.List.dropLast path
         match Stdlib.List.last path, parent with
-        | Some name, owner :: modules ->
+        | Some name, [owner, ...modules] ->
           let results = Query.searchExactMatch branchId parent name
           let itemName =
             LanguageTools.ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }
@@ -253,10 +253,10 @@ let entityRows
                 preferredLocation = Stdlib.Option.Option.Some itemName }
           let printed =
             match results.types with
-            | item :: _ -> Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageType ctx item.entity)
+            | [item, ...] -> Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageType ctx item.entity)
             | [] ->
               match results.impls with
-              | item :: _ -> Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageImpl ctx item.entity)
+              | [item, ...] -> Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageImpl ctx item.entity)
               | [] -> Stdlib.Option.Option.None
           match printed with
           | Some prettyPrinted ->
@@ -286,7 +286,7 @@ let entityRows
     | [] ->
       let locationStr = Packages.formatLocation location
       [ $"Type '{locationStr}' not found." ]
-    | item :: _ ->
+    | [item, ...] ->
       // `preferredLocation`, so a shared body is headed with the name asked for.
       let ctx =
         { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
@@ -310,7 +310,7 @@ let entityRows
     | [] ->
       let locationStr = Packages.formatLocation location
       [ $"Function '{locationStr}' not found." ]
-    | item :: _ ->
+    | [item, ...] ->
       // `preferredLocation`, so a shared body is headed with the name asked for.
       let ctx =
         { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
@@ -348,7 +348,7 @@ let entityRows
     | [] ->
       let locationStr = Packages.formatLocation location
       [ $"Value '{locationStr}' not found." ]
-    | item :: _ ->
+    | [item, ...] ->
       // `preferredLocation`, so a shared body is headed with the name asked for.
       let ctx =
         { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
@@ -372,7 +372,7 @@ let entityRows
     | [] ->
       let locationStr = Packages.formatLocation location
       [ $"Trait '{locationStr}' not found." ]
-    | item :: _ ->
+    | [item, ...] ->
       let ctx =
         { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
             preferredLocation = Stdlib.Option.Option.Some name }
@@ -394,7 +394,7 @@ let entityRows
     | [] ->
       let locationStr = Packages.formatLocation location
       [ $"Impl '{locationStr}' not found." ]
-    | item :: _ ->
+    | [item, ...] ->
       let ctx =
         { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
             preferredLocation = Stdlib.Option.Option.Some name }
@@ -416,7 +416,7 @@ let entityRows
     | [] ->
       let locationStr = Packages.formatLocation location
       [ $"Test '{locationStr}' not found." ]
-    | item :: _ ->
+    | [item, ...] ->
       let ctx =
         { terminalContext branchId (Stdlib.List.prepend name.modules name.owner) with
             preferredLocation = Stdlib.Option.Option.Some name }
@@ -529,7 +529,7 @@ let fnAt
     let results = Query.searchExactMatch branchId modulePath name.name
 
     match results.fns with
-    | item :: _ -> Stdlib.Result.Result.Ok item.entity
+    | [item, ...] -> Stdlib.Result.Result.Ok item.entity
     | [] ->
       let loc = Packages.formatLocation location
       Stdlib.Result.Result.Error $"Function '{loc}' not found."

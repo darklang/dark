@@ -442,7 +442,7 @@ let orPattern
 
   match results with
   | [] -> ([], nothing ())
-  | (firstBindings, firstConstraints) :: rest ->
+  | [(firstBindings, firstConstraints), ...rest] ->
     let firstNames = Stdlib.List.sort (Stdlib.List.unique (names firstBindings))
 
     let agreement =
@@ -1357,7 +1357,7 @@ let argumentSlots
   : (List<(Model.Ty * Site)> * List<Model.Constraint>) =
   match args with
   | [] -> (Stdlib.List.reverse slots, Stdlib.List.reverse checks)
-  | arg :: rest ->
+  | [arg, ...rest] ->
     let slot = part id index
     let site = Site.FunctionArgument(Types.int64 index)
     argumentSlots
@@ -1435,7 +1435,7 @@ let inferPipePart
 
     let inputConstraint =
       match parameters with
-      | first :: _ -> equal id Site.PipelineInput first input
+      | [first, ...] -> equal id Site.PipelineInput first input
       | [] -> nothing ()
 
     // Supplying the pipeline input consumes the first parameter. Any remaining
@@ -1444,7 +1444,7 @@ let inferPipePart
       match parameters with
       | [ _ ] -> bodyType
       | [] -> bodyType
-      | _ :: rest -> Model.Ty.TFn(rest, bodyType)
+      | [_, ...rest] -> Model.Ty.TFn(rest, bodyType)
 
     (resultType,
      all

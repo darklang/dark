@@ -44,7 +44,7 @@ let render (missing: Missing) : String =
     | ConsList ->
       match fields with
       | [ Anything, Anything ] -> "a non-empty list"
-      | [ head, tail ] -> $"a list matching {render head} :: {render tail}"
+      | [ head, tail ] -> $"a list matching [{render head}, ...{render tail}]"
       | _ -> joined ()
     | TupleOf _ -> "(" + joined () + ")"
     | EnumCase name ->
@@ -143,8 +143,9 @@ let specialize
   | MPList(id, patterns) ->
     match (constructor, patterns) with
     | (EmptyList, []) -> [ [] ]
-    | (ConsList, head :: tail) ->
-      // Treat [a, b] as a :: [b], so list literals and cons patterns use the same check.
+    | (ConsList, [head, ...tail]) ->
+      // Treat [a, b] as a cons of a onto [b], so list literals and rest patterns use the
+      // same check.
       [ [ head, LanguageTools.ProgramTypes.MatchPattern.MPList(id, tail) ] ]
     | _ -> []
   | MPListCons(_, head, tail) ->
@@ -180,7 +181,7 @@ let specializeRows
   |> Stdlib.List.map (fun row ->
     match row with
     | [] -> []
-    | pattern :: rest ->
+    | [pattern, ...rest] ->
       Stdlib.List.map (specialize constructor fieldCount pattern) (fun fields ->
         Stdlib.List.concat fields rest))
   |> Stdlib.List.flatten
@@ -192,7 +193,7 @@ let catchAllRows (rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>) : L
   |> Stdlib.List.map (fun row ->
     match row with
     | [] -> []
-    | pattern :: rest ->
+    | [pattern, ...rest] ->
       (alternatives pattern)
       |> Stdlib.List.filterMap (fun p ->
         if isIrrefutable p then Stdlib.Option.Option.Some rest
@@ -223,7 +224,7 @@ let headsCoverAllConstructors
 
     Stdlib.List.any rows (fun row ->
       match row with
-      | head :: _ -> namesConstructor constructor fieldCount head
+      | [head, ...] -> namesConstructor constructor fieldCount head
       | [] -> false))
 
 /// Determine whether the rows cover every combination of values in types.
@@ -238,7 +239,7 @@ let isExhaustive
   match types with
   // With no columns left, any surviving row covers this combination of values.
   | [] -> Stdlib.Bool.not (Stdlib.List.isEmpty rows)
-  | ty :: rest ->
+  | [ty, ...rest] ->
     // These rows accept any value in the first column. If they cover the remaining
     // columns, coverage is complete without expanding this type's constructors.
     if isExhaustive env subst rest (catchAllRows rows) then
@@ -293,7 +294,7 @@ let findUncovered
     | [] ->
       if Stdlib.List.isEmpty rows then Stdlib.Option.Option.Some []
       else Stdlib.Option.Option.None
-    | ty :: rest ->
+    | [ty, ...rest] ->
       match constructors env subst ty with
       | Some cases ->
         Stdlib.List.fold cases None (fun found (constructor, fieldTypes) ->
@@ -355,5 +356,5 @@ let uncovered
     // Eight recursive search steps bound the attempt to describe a missing value.
     // This limit affects only the example; the coverage decision was made above.
     match findUncovered env subst 8 [ scrutinee ] rows with
-    | Some(first :: _) -> Stdlib.Option.Option.Some first
+    | Some([first, ...]) -> Stdlib.Option.Option.Some first
     | _ -> Stdlib.Option.Option.Some Missing.Anything

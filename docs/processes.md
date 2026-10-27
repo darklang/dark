@@ -337,7 +337,7 @@ raises where `f` first uses `a`):
 - the callee of a call, unless it is a closure holding reads
 - a trait method's arguments; `if`, `&&`, `||`, string interpolation, dict keys
 - a `let` or `match` pattern, only where it looks at a value rather than
-  binding a name: `h :: _` on a mapped list waits for the head alone
+  binding a name: `[h, ...]` on a mapped list waits for the head alone
 - `Stdlib.await x` (through the builtin `runtimeForce`), and the end of the run
 
 How it works (`Interpreter.Promises`, `LibExecution.Pending`):

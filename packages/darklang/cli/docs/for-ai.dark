@@ -383,6 +383,7 @@ Rules:
   args written after the fn come after it: `[1, 2] |> Stdlib.List.map toString`,
   `n |> (+) 1`. Wrap a complex left side in parens: (complex expr) |> fn
 - Lists: [1, 2, 3] (commas; a semicolon is a parse error)
+- Spread joins lists: `[x, ...xs]`, `[...a, ...b]`. There is no `::` or `@`.
 - Dicts and records use commas or newlines, never semicolons:
   `Dict { "a": 1, "b": 2 }`, `Point { x = 1, y = 2 }`,
   `type Point = { x: Int, y: Int }`, `{ point with x = 3, y = 4 }`.
@@ -392,7 +393,7 @@ Rules:
   `let (a, b) = pair`, `fun (name, done) -> ...`
 - Tuple elements by position, counting from 1: `pair.1`, `triple.3`,
   `nested.1.2`. `.0` and past-the-end are errors.
-- String concat: + (not @)
+- String concat: +
 - String interpolation: $"x = {expr}; total = {a + b}" -- does NOT auto-coerce
   non-strings; wrap with Stdlib.toString
 - Most operators are traits: `+ - * / % **` and `-x` are Add Subtract Multiply Divide Modulo
@@ -424,7 +425,7 @@ Rules:
   | (Ok x, Ok y) -> ...      # tuple of constructors; parens optional, with or without a space
   | Some(Ok v) -> ...        # constructor of a constructor
   | Some((a, b)) -> ...      # constructor wrapping a tuple NEEDS its inner parens
-  # `::` is pattern-only; prepend in an expression with `Stdlib.List.prepend list item`
+  | [x, ...rest] -> ...      # head and rest of a list; `...rest` goes last
 
 ## Troubleshooting
 If commands hang or fail silently, check logs:

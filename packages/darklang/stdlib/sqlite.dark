@@ -127,7 +127,7 @@ let bytesField (row: Dict<String, Value>) (col: String) : Stdlib.Option.Option<B
 /// The first row of <param sql> (or None if it returned no rows / errored).
 let queryOne (dbPath: String) (sql: String) : Stdlib.Option.Option<Dict<String, Value>> =
   match query dbPath sql with
-  | Ok(row :: _) -> Stdlib.Option.Option.Some row
+  | Ok([row, ...]) -> Stdlib.Option.Option.Some row
   | _ -> Stdlib.Option.Option.None
 
 /// Like <fn queryOne> but with injection-safe params.
@@ -137,7 +137,7 @@ let queryOneP
   (params: List<String>)
   : Stdlib.Option.Option<Dict<String, Value>> =
   match queryP dbPath sql params with
-  | Ok(row :: _) -> Stdlib.Option.Option.Some row
+  | Ok([row, ...]) -> Stdlib.Option.Option.Some row
   | _ -> Stdlib.Option.Option.None
 
 /// Column <param col> of every row of <param sql>, as a list of text (non-text/missing cells dropped).

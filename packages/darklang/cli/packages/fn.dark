@@ -8,7 +8,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   // fn SomeModule.myFn (param: Type): ReturnType = body
-  | location :: definitionParts ->
+  | [location, ...definitionParts] ->
     let inlineDefinition = Packages.definitionFromArgs definitionParts
 
     if Stdlib.String.isEmpty inlineDefinition then

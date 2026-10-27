@@ -35,13 +35,13 @@ let saturate (n: Int) (acc: Int) : Int =
 let walkApply (xs: List<Int>) (f: Int -> Int) (acc: Int) : Int =
   match xs with
   | [] -> acc
-  | head :: rest -> walkApply rest f (acc + (f head))
+  | [head, ...rest] -> walkApply rest f (acc + (f head))
 
 /// The same recursion with no application in it, to price the recursion itself.
 let walkOnly (xs: List<Int>) (acc: Int) : Int =
   match xs with
   | [] -> acc
-  | head :: rest -> walkOnly rest (acc + head)
+  | [head, ...rest] -> walkOnly rest (acc + head)
 
 let timeOf (body: Int -> Int) : Int =
   let t0 = now ()

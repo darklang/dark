@@ -14,7 +14,7 @@ let parseQueryString (url: String) : Dict<String, String> =
   match Stdlib.String.split url "?" with
   | [] -> Stdlib.Dict.empty
   | [_] -> Stdlib.Dict.empty
-  | _ :: queryParts ->
+  | [_, ...queryParts] ->
     (Stdlib.String.join queryParts "?")
     |> Stdlib.String.split "&"
     |> Stdlib.List.filterMap (fun param ->
@@ -25,7 +25,7 @@ let parseQueryString (url: String) : Dict<String, String> =
         // wants the two words, not the plus sign that carried the space.
         match Stdlib.String.split param "=" with
         | [] -> Stdlib.Option.Option.None
-        | key :: rest ->
+        | [key, ...rest] ->
           // `?a=b=c` gives key="a", value="b=c"
           Stdlib.Option.Option.Some(
             (Stdlib.Http.urlDecode key,
@@ -49,7 +49,7 @@ let parseHeaders (s: String) : Dict<String, String> =
       match Stdlib.String.split trimmed ":" with
       | [] -> Stdlib.Option.Option.None
       | [ _ ] -> Stdlib.Option.Option.None
-      | name :: rest ->
+      | [name, ...rest] ->
         let value = (Stdlib.String.join rest ":") |> Stdlib.String.trim
         Stdlib.Option.Option.Some((Stdlib.String.trim name, value)))
   |> Stdlib.Dict.fromEntries
@@ -70,7 +70,7 @@ let parseHeaders (s: String) : Dict<String, String> =
 let urlDecode (s: String) : String =
   match Stdlib.String.split (Stdlib.String.replaceAll s "+" " ") "%" with
   | [] -> ""
-  | first :: rest ->
+  | [first, ...rest] ->
     rest
     |> Stdlib.List.fold (Stdlib.String.toByteList first) (fun acc piece ->
       let hex = Stdlib.String.slice piece 0 2
@@ -101,13 +101,13 @@ module Request =
   let queryParams (req: Stdlib.Http.Request) : List<String * String> =
     match req.url |> Stdlib.String.split "?" with
     | [] -> []
-    | _ :: queryParts ->
+    | [_, ...queryParts] ->
       (Stdlib.String.join queryParts "?")
       |> Stdlib.String.split "&"
       |> Stdlib.List.map (fun param ->
         match Stdlib.String.split param "=" with
         | [] -> ("", "")
-        | key :: valueParts ->
+        | [key, ...valueParts] ->
           (Stdlib.Http.urlDecode key,
            Stdlib.Http.urlDecode (Stdlib.String.join valueParts "=")))
 
