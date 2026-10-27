@@ -390,30 +390,6 @@ test randomLength =
       |> Stdlib.Test.equal
         (Error "Expected `length` to be positive, but it was `-1`") ]
 
-test htmlEscape =
-  Stdlib.Test.all
-    [ // HTML escaping works reasonably
-      Stdlib.String.htmlEscape "test<>&\""
-      |> Stdlib.Test.equal "test&lt;&gt;&amp;&quot;"
-      // HTML escaping works reasonably
-      Stdlib.String.htmlEscape "<html><head></head><body><h1>This is f#</h1></body></html>"
-
-     |> Stdlib.Test.equal "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;This is f#&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
-      Stdlib.String.htmlEscape "<html><head><!-- head definitions go here --></head><body><!-- the content goes here --></body></html>"
-
-     |> Stdlib.Test.equal "&lt;html&gt;&lt;head&gt;&lt;!-- head definitions go here --&gt;&lt;/head&gt;&lt;body&gt;&lt;!-- the content goes here --&gt;&lt;/body&gt;&lt;/html&gt;"
-      Stdlib.String.htmlEscape "" |> Stdlib.Test.equal ""
-      Stdlib.String.htmlEscape "😄" |> Stdlib.Test.equal "😄"
-      Stdlib.String.htmlEscape "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-      Stdlib.String.htmlEscape "<html><head></head><body><h1>﷽﷽﷽﷽﷽</h1></body></html>"
-
-     |> Stdlib.Test.equal "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;﷽﷽﷽﷽﷽&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
-      Stdlib.String.htmlEscape "<head>🧟‍♀️🧟‍♂️</head>"
-      |> Stdlib.Test.equal "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
-      Stdlib.String.htmlEscape "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" ]
-
 test isEmpty =
   Stdlib.Test.all
     [ Stdlib.String.isEmpty "" |> Stdlib.Test.equal true

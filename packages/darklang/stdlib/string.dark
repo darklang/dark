@@ -276,25 +276,6 @@ let random (length: Int) : Result.Result<String, String> =
     Result.Result.Ok result
 
 
-/// Escape an untrusted string in order to include it safely in HTML output
-let htmlEscape (html: String) : String =
-  html
-  |> String.toList
-  |> List.map (fun c ->
-    match c with
-    | '<' -> "&lt;"
-    | '>' -> "&gt;"
-    | '&' -> "&amp;"
-    // include these for html-attribute-escaping
-    // even though they're not strictly necessary
-    // for html-escaping proper.
-    | '"' -> "&quot;"
-    // &apos; doesn't work in IE....
-    | ''' -> "&#x27;"
-    | _ -> String.fromChar c)
-  |> String.join ""
-
-
 /// Checks if <param lookingIn> contains <param searchingFor>.
 //
 // Uses the dedicated `stringContains` builtin (returns Bool, compiles to
