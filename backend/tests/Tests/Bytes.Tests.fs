@@ -640,8 +640,8 @@ let byteValuesKeepSemanticsAfterSaving =
         Expect.equal value original "F# structural equality agrees"
         Expect.equal (hash value) (hash original) "equal values have equal hashes"
         Expect.equal
-          (hash (RT.DictKey value))
-          (hash (RT.DictKey original))
+          (RT.DictKey.hash value)
+          (RT.DictKey.hash original)
           "internal container hashing agrees"
         Expect.equal
           (RT.DvalOrdering.compareForDictKey original value)
@@ -679,7 +679,7 @@ let byteKeysSurviveSaving =
       for wrap in wrappers do
         let key = wrap original
         RT.Dval.assertUsableDictKey key
-        let entries = Map [ RT.DictKey key, RT.DString "found" ]
+        let entries = RT.DictMap.ofList [ key, RT.DString "found" ]
         let dictionary =
           RT.DDict(RT.Dval.toValueType key, RT.ValueType.Known RT.KTString, entries)
         let! promoted = Bytes.promote PMBytes.insert dictionary |> Ply.toTask
@@ -700,13 +700,16 @@ let byteKeysSurviveSaving =
           match candidate with
           | RT.DDict(_, _, entries) ->
             for lookup in [ original; equalCopy; savedKey ] do
-              let key = RT.DictKey(wrap lookup)
+              let key = wrap lookup
               Expect.equal
-                (Map.tryFind key entries)
+                (RT.DictMap.tryFind key entries)
                 (Some(RT.DString "found"))
                 "content lookup"
-              let updated = Map.add key (RT.DString "updated") entries
-              Expect.equal (Map.count updated) 1 "equal content is the same key"
+              let updated = RT.DictMap.add key (RT.DString "updated") entries
+              Expect.equal
+                (RT.DictMap.count updated)
+                1
+                "equal content is the same key"
           | _ -> failtest "expected a dictionary"
   }
 
@@ -765,16 +768,14 @@ let rewriteWithNoOpPreservesNestedRefs =
       RT.DDict(
         RT.ValueType.Known RT.KTString,
         RT.ValueType.Unknown,
-        Map
-          [ RT.DictKey(RT.DString "a"), middle
-            RT.DictKey(RT.DString "b"), RT.DBool true ]
+        RT.DictMap.ofList [ RT.DString "a", middle; RT.DString "b", RT.DBool true ]
       )
     let! result = noopRewriteWith outer
     Expect.isTrue (obj.ReferenceEquals(result, outer)) "outer DDict ref preserved"
     // Reach into the result and verify the inner refs survived too.
     match result with
     | RT.DDict(_, _, m) ->
-      let a = m[RT.DictKey(RT.DString "a")]
+      let a = RT.DictMap.tryFind (RT.DString "a") m |> Option.get
       Expect.isTrue (obj.ReferenceEquals(a, middle)) "nested DTuple ref preserved"
       match a with
       | RT.DTuple(_, innerResult, _) ->

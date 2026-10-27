@@ -384,8 +384,7 @@ module Expect =
 
     | DList(_, items) -> List.all r items
     | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
-    | DDict(_, _, entries) ->
-      entries |> Map.toList |> List.all (fun (k, v) -> r k.Dval && r v)
+    | DDict(_, _, entries) -> entries |> DictMap.forall (fun k v -> r k && r v)
 
     | DRecord(_, _, _, fields) -> fields |> Map.values |> List.all r
     | DEnum(_, _, _, _, fields) -> fields |> List.all r
@@ -492,25 +491,25 @@ module Expect =
         List.iteri2 (fun i -> de ($"[{i}]" :: path)) theRestL theRestR
 
       | DDict(lKeyType, lType, ls), DDict(rKeyType, rType, rs) ->
-        check ("Length" :: path) (Map.count ls) (Map.count rs)
+        check ("Length" :: path) (DictMap.count ls) (DictMap.count rs)
 
         checkValueType ("KeyType" :: path) lKeyType rKeyType
         checkValueType ("Type" :: path) lType rType
 
         // check keys from ls are in both, check matching values
-        Map.iterWithIndex
-          (fun (key : DictKey) v1 ->
-            match Map.find key rs with
-            | Some v2 -> de (string key.Dval :: path) v1 v2
-            | None -> check (string key.Dval :: path) ls rs)
+        DictMap.iter
+          (fun key v1 ->
+            match DictMap.tryFind key rs with
+            | Some v2 -> de (string key :: path) v1 v2
+            | None -> check (string key :: path) ls rs)
           ls
 
         // check keys from rs are in both
-        Map.iterWithIndex
-          (fun (key : DictKey) _ ->
-            match Map.find key rs with
+        DictMap.iter
+          (fun key _ ->
+            match DictMap.tryFind key ls with
             | Some _ -> () // already checked
-            | None -> check (string key.Dval :: path) ls rs)
+            | None -> check (string key :: path) ls rs)
           rs
 
 
@@ -908,11 +907,9 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DList(_, items) -> List.map visit items |> ignore<List<unit>>
     | DDict(_, _, entries) ->
       entries
-      |> Map.toList
-      |> List.map (fun (k, v) ->
-        visit k.Dval
+      |> DictMap.iter (fun k v ->
+        visit k
         visit v)
-      |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
 

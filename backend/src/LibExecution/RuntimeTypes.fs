@@ -985,16 +985,10 @@ and DebugSymbols =
 
 and DvalMap = Map<string, Dval>
 
-/// A dict key is hashed and compared inside F#'s own `Map`, so the comparison is
-/// structural and cannot call the interpreter or await a `Ply`. Nothing a type says
-/// about equality can reach here.
-and [<CustomEquality; CustomComparison>] DictKey =
-  | DictKey of Dval
-
-  member this.Dval : Dval =
-    let (DictKey dv) = this
-    dv
-
+/// How a dict key is ordered and hashed (`DictMap`). Both are structural and run
+/// inside the runtime, so they cannot call the interpreter or await a `Ply`. Nothing a
+/// type says about equality can reach here.
+and DictKey private () =
   static member caseTag(dv : Dval) : int =
     match dv with
     | DUnit -> 0
@@ -1054,10 +1048,9 @@ and [<CustomEquality; CustomComparison>] DictKey =
     | DList(_, xs) -> combine (DictKey.hashList xs)
     | DTuple(x1, x2, xs) -> combine (DictKey.hashList (x1 :: x2 :: xs))
     | DDict(_, _, xs) ->
-      xs
-      |> Map.toList
-      |> List.fold
-        (fun acc (k, v) -> acc * 31 + DictKey.hash k.Dval * 31 + DictKey.hash v)
+      xs.Entries
+      |> Array.fold
+        (fun acc (struct (k, v)) -> acc * 31 + DictKey.hash k * 31 + DictKey.hash v)
         17
       |> combine
     | DRecord(_, tn, _, fields) ->
@@ -1080,19 +1073,6 @@ and [<CustomEquality; CustomComparison>] DictKey =
 
   static member private hashList(xs : List<Dval>) : int =
     List.fold (fun acc x -> acc * 31 + DictKey.hash x) 17 xs
-
-  override this.Equals(other : obj) : bool =
-    match other with
-    | :? DictKey as other -> DictKey.compare this.Dval other.Dval = 0
-    | _ -> false
-
-  override this.GetHashCode() : int = DictKey.hash this.Dval
-
-  interface System.IComparable with
-    member this.CompareTo(other : obj) : int =
-      match other with
-      | :? DictKey as other -> DictKey.compare this.Dval other.Dval
-      | _ -> Exception.raiseInternal "Compared a DictKey against a non-DictKey" []
 
 and DvalComparisonException(left : Dval, right : Dval) =
   inherit System.Exception()
@@ -1141,7 +1121,10 @@ and DvalOrdering private () =
 
     | DDict(_, _, x), DDict(_, _, y) ->
       System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
-      DvalOrdering.compareEntries mode (Map.toList x) (Map.toList y)
+      DvalOrdering.compareEntries
+        mode
+        (x.Entries |> Array.map (fun (struct (k, v)) -> (k, v)) |> List.ofArray)
+        (y.Entries |> Array.map (fun (struct (k, v)) -> (k, v)) |> List.ofArray)
 
     | DRecord(_, x, _, xFields), DRecord(_, y, _, yFields) ->
       System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
@@ -1151,8 +1134,8 @@ and DvalOrdering private () =
       else
         DvalOrdering.compareEntries
           mode
-          (Map.toList xFields |> List.map (fun (k, v) -> DictKey(DString k), v))
-          (Map.toList yFields |> List.map (fun (k, v) -> DictKey(DString k), v))
+          (Map.toList xFields |> List.map (fun (k, v) -> DString k, v))
+          (Map.toList yFields |> List.map (fun (k, v) -> DString k, v))
 
     | DEnum(_, xType, _, xCase, xFields), DEnum(_, yType, _, yCase, yFields) ->
       System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
@@ -1219,15 +1202,15 @@ and DvalOrdering private () =
 
   static member private compareEntries
     (mode : DvalComparisonMode)
-    (a : List<DictKey * Dval>)
-    (b : List<DictKey * Dval>)
+    (a : List<Dval * Dval>)
+    (b : List<Dval * Dval>)
     : int =
     match a, b with
     | [], [] -> 0
     | [], _ -> -1
     | _, [] -> 1
     | (xk, xv) :: xs, (yk, yv) :: ys ->
-      let c = DvalOrdering.compare mode xk.Dval yk.Dval
+      let c = DvalOrdering.compare mode xk yk
       if c <> 0 then
         c
       else
@@ -1239,7 +1222,90 @@ and DvalOrdering private () =
 
   static member compareForDictKey (a : Dval) (b : Dval) : int =
     DvalOrdering.compare DvalComparisonMode.ForDictKey a b
-and DictMap = Map<DictKey, Dval>
+
+
+/// A dict's entries, in key order (`DvalOrdering.compareForDictKey`).
+///
+/// Two shapes with one meaning. Most dicts are small, and for those a sorted array costs
+/// less per insert than a balanced tree: one copy of the array, against a new node per
+/// level. Lookups search it in place and allocate nothing. Past `DictMap.smallLimit`
+/// entries the copy costs more than the path, so the entries move to a tree, built in one
+/// pass from the array. Nothing outside `module DictMap` should care which shape a dict
+/// is in: equality, hashing, ordering and serialization all read the entries in key
+/// order, which is the same in both.
+and [<CustomEquality; NoComparison>] DictMap =
+  /// Sorted by key, no two keys equal, at most `DictMap.smallLimit` entries. Never
+  /// mutated once built.
+  | Small of entries : (struct (Dval * Dval))[]
+  /// More than `DictMap.smallLimit` entries when it was made, though removing can leave
+  /// fewer. `null` is the empty tree.
+  | Large of root : DictTree
+
+  /// The entries in key order. The `Small` array itself, so do not write to it.
+  member this.Entries : (struct (Dval * Dval))[] =
+    match this with
+    | Small entries -> entries
+    | Large root ->
+      let result = Array.zeroCreate (DictTree.count root)
+      DictTree.fill result 0 root |> ignore<int>
+      result
+
+  override this.Equals(other : obj) : bool =
+    match other with
+    | :? DictMap as other ->
+      let a = this.Entries
+      let b = other.Entries
+      a.Length = b.Length
+      && Array.forall2
+        (fun (struct (ak, av)) (struct (bk, bv)) ->
+          DvalOrdering.compareForDictKey ak bk = 0 && av = bv)
+        a
+        b
+    | _ -> false
+
+  override this.GetHashCode() : int =
+    this.Entries
+    |> Array.fold
+      (fun acc (struct (k, v)) -> (acc * 31 + DictKey.hash k) * 31 + hash v)
+      17
+
+
+/// A `DictMap.Large` dict's tree: balanced (AVL), keys compared with
+/// `DvalOrdering.compareForDictKey`, never mutated. Laid out as F#'s own `Map` lays out
+/// its tree, so a leaf is this class and an inner node is `DictTreeNode`, which keeps
+/// the leaves, half the nodes, small. `null` is the empty tree.
+and [<AllowNullLiteral>] DictTree(key : Dval, value : Dval, height : int) =
+  member _.Key = key
+  member _.Value = value
+  member _.Height = height
+
+  static member count(t : DictTree) : int =
+    match t with
+    | null -> 0
+    | :? DictTreeNode as n -> DictTree.count n.Left + 1 + DictTree.count n.Right
+    | _ -> 1
+
+  /// Writes the entries into `into` in key order from index `at`; returns the next index.
+  static member fill
+    (into : (struct (Dval * Dval))[])
+    (at : int)
+    (t : DictTree)
+    : int =
+    match t with
+    | null -> at
+    | :? DictTreeNode as n ->
+      let at = DictTree.fill into at n.Left
+      into[at] <- struct (n.Key, n.Value)
+      DictTree.fill into (at + 1) n.Right
+    | _ ->
+      into[at] <- struct (t.Key, t.Value)
+      at + 1
+
+and [<Sealed; AllowNullLiteral>] DictTreeNode
+  (key : Dval, value : Dval, left : DictTree, right : DictTree, height : int) =
+  inherit DictTree(key, value, height)
+  member _.Left = left
+  member _.Right = right
 
 
 /// Lambdas are a bit special:
@@ -1651,6 +1717,331 @@ module StreamImpl =
       match streams.Value with
       | [] -> ValueType.Unknown
       | first :: _ -> elemType first
+
+
+/// The algorithms of `DictTree`, after F#'s `MapTree`: the same rebalancing, so the
+/// same height bound.
+module private DictTreeOps =
+  let compareKeys (a : Dval) (b : Dval) : int = DvalOrdering.compareForDictKey a b
+
+  let height (t : DictTree) : int =
+    match t with
+    | null -> 0
+    | t -> t.Height
+
+  let make (l : DictTree) (k : Dval) (v : Dval) (r : DictTree) : DictTree =
+    let h = max (height l) (height r)
+    if h = 0 then DictTree(k, v, 1) else DictTreeNode(k, v, l, r, h + 1)
+
+  /// Only called on a side at least two taller than the other, so never on a leaf.
+  let asNode (t : DictTree) : DictTreeNode = t :?> DictTreeNode
+
+  let rebalance (t1 : DictTree) (k : Dval) (v : Dval) (t2 : DictTree) : DictTree =
+    let t1h = height t1
+    let t2h = height t2
+    if t2h > t1h + 2 then
+      let t2' = asNode t2
+      if height t2'.Left > t1h + 1 then
+        let t2l = asNode t2'.Left
+        make
+          (make t1 k v t2l.Left)
+          t2l.Key
+          t2l.Value
+          (make t2l.Right t2'.Key t2'.Value t2'.Right)
+      else
+        make (make t1 k v t2'.Left) t2'.Key t2'.Value t2'.Right
+    elif t1h > t2h + 2 then
+      let t1' = asNode t1
+      if height t1'.Right > t2h + 1 then
+        let t1r = asNode t1'.Right
+        make
+          (make t1'.Left t1'.Key t1'.Value t1r.Left)
+          t1r.Key
+          t1r.Value
+          (make t1r.Right k v t2)
+      else
+        make t1'.Left t1'.Key t1'.Value (make t1'.Right k v t2)
+    else
+      make t1 k v t2
+
+  let rec add (k : Dval) (v : Dval) (t : DictTree) : DictTree =
+    match t with
+    | null -> DictTree(k, v, 1)
+    | :? DictTreeNode as n ->
+      let c = compareKeys k n.Key
+      if c < 0 then rebalance (add k v n.Left) n.Key n.Value n.Right
+      elif c = 0 then DictTreeNode(k, v, n.Left, n.Right, n.Height)
+      else rebalance n.Left n.Key n.Value (add k v n.Right)
+    | leaf ->
+      let c = compareKeys k leaf.Key
+      if c < 0 then DictTreeNode(k, v, null, leaf, 2)
+      elif c = 0 then DictTree(k, v, 1)
+      else DictTreeNode(k, v, leaf, null, 2)
+
+  let rec tryFind (k : Dval) (t : DictTree) : Option<Dval> =
+    match t with
+    | null -> None
+    | t ->
+      let c = compareKeys k t.Key
+      if c = 0 then
+        Some t.Value
+      else
+        match t with
+        | :? DictTreeNode as n -> tryFind k (if c < 0 then n.Left else n.Right)
+        | _ -> None
+
+  /// The leftmost entry, and the tree without it.
+  let rec spliceOutMin (t : DictTree) : struct (Dval * Dval * DictTree) =
+    match t with
+    | :? DictTreeNode as n ->
+      match n.Left with
+      | null -> struct (n.Key, n.Value, n.Right)
+      | left ->
+        let struct (k, v, left') = spliceOutMin left
+        struct (k, v, make left' n.Key n.Value n.Right)
+    | leaf -> struct (leaf.Key, leaf.Value, null)
+
+  let rec remove (k : Dval) (t : DictTree) : DictTree =
+    match t with
+    | null -> null
+    | :? DictTreeNode as n ->
+      let c = compareKeys k n.Key
+      if c < 0 then
+        rebalance (remove k n.Left) n.Key n.Value n.Right
+      elif c = 0 then
+        match n.Left with
+        | null -> n.Right
+        | left ->
+          match n.Right with
+          | null -> left
+          | right ->
+            let struct (sk, sv, right') = spliceOutMin right
+            make left sk sv right'
+      else
+        rebalance n.Left n.Key n.Value (remove k n.Right)
+    | leaf -> if compareKeys k leaf.Key = 0 then null else leaf
+
+  /// A balanced tree of `entries[lo..hi]`, which are sorted: one node per entry and
+  /// nothing else, where inserting them one at a time would copy a path each.
+  let rec ofSorted
+    (entries : (struct (Dval * Dval))[])
+    (lo : int)
+    (hi : int)
+    : DictTree =
+    if lo > hi then
+      null
+    else
+      let mid = lo + ((hi - lo) >>> 1)
+      let struct (k, v) = entries[mid]
+      make (ofSorted entries lo (mid - 1)) k v (ofSorted entries (mid + 1) hi)
+
+
+/// Every read and write of a dict's entries goes through here, so the two shapes of
+/// `DictMap` stay invisible to everything else. Keys are compared with
+/// `DvalOrdering.compareForDictKey`; checking a key is usable is the caller's job.
+module DictMap =
+  /// The most entries a `Small` dict holds. An insert copies the whole array, 16 bytes
+  /// an entry, where the tree copies one node per level, so the array wins while it is
+  /// short. Measured by building dicts of 4 to 256 entries one insert at a time, AOT,
+  /// with limits of 8, 16, 24 and 32: 24 allocated the least or within 2% of the least
+  /// at every size.
+  [<Literal>]
+  let smallLimit = 24
+
+  let empty : DictMap = Small [||]
+
+  /// Entries already sorted with no two keys equal, in whichever shape fits.
+  let private ofSorted (entries : (struct (Dval * Dval))[]) : DictMap =
+    if entries.Length <= smallLimit then
+      Small entries
+    else
+      Large(DictTreeOps.ofSorted entries 0 (entries.Length - 1))
+
+  /// The index of `key` in `entries`, or the bitwise complement of where it would go.
+  let private search (entries : (struct (Dval * Dval))[]) (key : Dval) : int =
+    let mutable lo = 0
+    let mutable hi = entries.Length - 1
+    let mutable found = -1
+    while found < 0 && lo <= hi do
+      let mid = lo + ((hi - lo) >>> 1)
+      let struct (k, _) = entries[mid]
+      let c = DictTreeOps.compareKeys k key
+      if c = 0 then found <- mid
+      elif c < 0 then lo <- mid + 1
+      else hi <- mid - 1
+    if found >= 0 then found else ~~~lo
+
+  /// O(n) for a `Large` dict.
+  let count (d : DictMap) : int =
+    match d with
+    | Small entries -> entries.Length
+    | Large root -> DictTree.count root
+
+  let tryFind (key : Dval) (d : DictMap) : Option<Dval> =
+    match d with
+    | Small entries ->
+      let i = search entries key
+      if i >= 0 then
+        let struct (_, v) = entries[i]
+        Some v
+      else
+        None
+    | Large root -> DictTreeOps.tryFind key root
+
+  let containsKey (key : Dval) (d : DictMap) : bool =
+    match d with
+    | Small entries -> search entries key >= 0
+    | Large root -> Option.isSome (DictTreeOps.tryFind key root)
+
+  /// Replaces the value if `key` is already there, as `Map.add` does.
+  let add (key : Dval) (value : Dval) (d : DictMap) : DictMap =
+    match d with
+    | Small entries ->
+      let i = search entries key
+      if i >= 0 then
+        let copy = Array.copy entries
+        copy[i] <- struct (key, value)
+        Small copy
+      else
+        let at = ~~~i
+        let copy = Array.zeroCreate (entries.Length + 1)
+        Array.blit entries 0 copy 0 at
+        copy[at] <- struct (key, value)
+        Array.blit entries at copy (at + 1) (entries.Length - at)
+        ofSorted copy
+    | Large root -> Large(DictTreeOps.add key value root)
+
+  let remove (key : Dval) (d : DictMap) : DictMap =
+    match d with
+    | Small entries ->
+      let i = search entries key
+      if i < 0 then
+        d
+      else
+        let copy = Array.zeroCreate (entries.Length - 1)
+        Array.blit entries 0 copy 0 i
+        Array.blit entries (i + 1) copy i (entries.Length - i - 1)
+        Small copy
+    | Large root -> Large(DictTreeOps.remove key root)
+
+  /// Both dicts' entries; where a key is in both, `right`'s value. A few entries
+  /// going into a big tree are added one at a time, which copies a path each;
+  /// otherwise the two sorted runs are merged into one array in a single pass.
+  let union (left : DictMap) (right : DictMap) : DictMap =
+    let leftCount = count left
+    let rightCount = count right
+    if rightCount = 0 then
+      left
+    elif leftCount = 0 then
+      right
+    elif leftCount > smallLimit && rightCount * 8 <= leftCount then
+      let mutable acc = left
+      for struct (k, v) in right.Entries do
+        acc <- add k v acc
+      acc
+    else
+      let a = left.Entries
+      let b = right.Entries
+      let merged = Array.zeroCreate (a.Length + b.Length)
+      let mutable i = 0
+      let mutable j = 0
+      let mutable n = 0
+      while i < a.Length || j < b.Length do
+        let c =
+          if i = a.Length then
+            1
+          elif j = b.Length then
+            -1
+          else
+            let struct (ak, _) = a[i]
+            let struct (bk, _) = b[j]
+            DictTreeOps.compareKeys ak bk
+        if c < 0 then
+          merged[n] <- a[i]
+          i <- i + 1
+        else
+          merged[n] <- b[j]
+          j <- j + 1
+          if c = 0 then i <- i + 1
+        n <- n + 1
+      ofSorted (if n = merged.Length then merged else Array.sub merged 0 n)
+
+  /// From entries in any order. A key given twice keeps the LAST value, as repeated
+  /// `add`s would.
+  let ofList (entries : List<Dval * Dval>) : DictMap =
+    let arr = entries |> List.map (fun (k, v) -> struct (k, v)) |> Array.ofList
+    // Past `smallLimit`: built in one pass if the entries are already in key order, as
+    // a decoded dict's are, and one add each otherwise. Up to it: an insertion sort,
+    // which is stable (of two equal keys the later stays later) and allocation-free.
+    if arr.Length > smallLimit then
+      let mutable sorted = true
+      let mutable i = 1
+      while sorted && i < arr.Length do
+        let struct (a, _) = arr[i - 1]
+        let struct (b, _) = arr[i]
+        sorted <- DictTreeOps.compareKeys a b < 0
+        i <- i + 1
+      if sorted then
+        ofSorted arr
+      else
+        let mutable root = null
+        for struct (k, v) in arr do
+          root <- DictTreeOps.add k v root
+        Large root
+    else
+      for i in 1 .. arr.Length - 1 do
+        let item = arr[i]
+        let struct (key, _) = item
+        let mutable j = i - 1
+        while j >= 0
+              && (let struct (k, _) = arr[j] in DictTreeOps.compareKeys k key > 0) do
+          arr[j + 1] <- arr[j]
+          j <- j - 1
+        arr[j + 1] <- item
+      // Keep the last of each run of equal keys.
+      let mutable kept = 0
+      for i in 0 .. arr.Length - 1 do
+        let struct (key, _) = arr[i]
+        let isLastOfRun =
+          i = arr.Length - 1
+          || (let struct (next, _) = arr[i + 1] in
+              DictTreeOps.compareKeys key next <> 0)
+        if isLastOfRun then
+          arr[kept] <- arr[i]
+          kept <- kept + 1
+      Small(if kept = arr.Length then arr else Array.sub arr 0 kept)
+
+  // The traversals all read `Entries`: a small dict's own array, or a large one's
+  // entries copied out once, which costs less code than walking the tree each way.
+  let fold (f : 'acc -> Dval -> Dval -> 'acc) (state : 'acc) (d : DictMap) : 'acc =
+    Array.fold (fun acc (struct (k, v)) -> f acc k v) state d.Entries
+
+  let foldBack
+    (f : Dval -> Dval -> 'acc -> 'acc)
+    (d : DictMap)
+    (state : 'acc)
+    : 'acc =
+    Array.foldBack (fun (struct (k, v)) acc -> f k v acc) d.Entries state
+
+  let iter (f : Dval -> Dval -> unit) (d : DictMap) : unit =
+    Array.iter (fun (struct (k, v)) -> f k v) d.Entries
+
+  let forall (f : Dval -> Dval -> bool) (d : DictMap) : bool =
+    Array.forall (fun (struct (k, v)) -> f k v) d.Entries
+
+  let exists (f : Dval -> Dval -> bool) (d : DictMap) : bool =
+    Array.exists (fun (struct (k, v)) -> f k v) d.Entries
+
+  /// The values changed, the keys kept.
+  let map (f : Dval -> Dval) (d : DictMap) : DictMap =
+    d.Entries |> Array.map (fun (struct (k, v)) -> struct (k, f v)) |> ofSorted
+
+  let toList (d : DictMap) : List<Dval * Dval> =
+    foldBack (fun k v acc -> (k, v) :: acc) d []
+
+  let keys (d : DictMap) : List<Dval> = foldBack (fun k _ acc -> k :: acc) d []
+
+  let values (d : DictMap) : List<Dval> = foldBack (fun _ v acc -> v :: acc) d []
 
 
 /// Parse a field name as a 1-based tuple index; reject "0", "01" and non-digits.
@@ -2373,7 +2764,7 @@ module Dval =
     | DTuple(a, b, rest) ->
       isUsableDictKey a && isUsableDictKey b && List.forall isUsableDictKey rest
     | DDict(_, _, entries) ->
-      entries |> Map.forall (fun k v -> isUsableDictKey k.Dval && isUsableDictKey v)
+      entries |> DictMap.forall (fun k v -> isUsableDictKey k && isUsableDictKey v)
     | DRecord(_, _, _, fields) -> fields |> Map.forall (fun _ v -> isUsableDictKey v)
     | DEnum(_, _, _, _, fields) -> List.forall isUsableDictKey fields
 
@@ -2588,28 +2979,26 @@ module Dval =
           | KTDateTime -> true
           | _ -> false
       uply {
-        let mutable acc = m
-        let mutable rewrittenKeys : Map<DictKey, DictKey> = Map.empty
-        for KeyValue(k, v) in m do
-          if not scalarKeys then
-            let! k' = go k.Dval
-            if not (same k' k.Dval) then
-              rewrittenKeys <- Map.add k (DictKey k') rewrittenKeys
+        // Copied only once something changes, so an unchanged dict keeps its own entries.
+        let entries = m.Entries
+        let mutable copy : (struct (Dval * Dval))[] = null
+        for i in 0 .. entries.Length - 1 do
+          let struct (k, v) = entries[i]
+          let! k' = if scalarKeys then Ply(k) else go k
           let! v' = go v
-          if not (same v' v) then acc <- Map.add k v' acc
-        // A rewritten key (ephemeral Bytes promoted to persistent) equals the
-        // key it replaces, so Map.add might keep the old, unsaved key object;
-        // F# doesn't document which one it keeps. Rebuild the map instead.
-        if Map.isEmpty rewrittenKeys then
-          return acc
+          if not (same k' k && same v' v) then
+            if isNull copy then copy <- Array.copy entries
+            copy[i] <- struct (k', v')
+        // A rewritten key (ephemeral Bytes promoted to persistent) equals the key it
+        // replaces, so the order holds; rebuilding keeps the new key object either way.
+        if isNull copy then
+          return m
         else
           return
-            acc
-            |> Map.toSeq
-            |> Seq.map (fun (k, v) ->
-              let key = Map.tryFind k rewrittenKeys |> Option.defaultValue k
-              key, v)
-            |> Map.ofSeq
+            copy
+            |> Array.map (fun (struct (k, v)) -> (k, v))
+            |> List.ofArray
+            |> DictMap.ofList
       }
 
     go dv

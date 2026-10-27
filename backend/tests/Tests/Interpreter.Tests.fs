@@ -142,7 +142,8 @@ module String =
 
 
 module Dict =
-  let empty = t "Dict {}" E.Dict.empty (RT.DDict(VT.unknown, VT.unknown, Map.empty))
+  let empty =
+    t "Dict {}" E.Dict.empty (RT.DDict(VT.unknown, VT.unknown, RT.DictMap.empty))
 
   let simple =
     t
@@ -802,7 +803,7 @@ module SyncUnify =
       RT.DDict(
         RT.ValueType.Known RT.KTString,
         RT.ValueType.Known RT.KTInt64,
-        Map.empty
+        RT.DictMap.empty
       )
       RT.DTuple(RT.DInt64 1L, RT.DString "s", [])
       RT.DTuple(RT.DInt64 1L, RT.DString "s", [ RT.DBool true ]) ]
@@ -1064,7 +1065,7 @@ module DictKeyOrdering =
       "DUuid", RT.DUuid(System.Guid.NewGuid())
       "DList", RT.DList(VT.unknown, [])
       "DTuple", RT.DTuple(RT.DUnit, RT.DUnit, [])
-      "DDict", RT.DDict(VT.unknown, VT.unknown, Map.empty)
+      "DDict", RT.DDict(VT.unknown, VT.unknown, RT.DictMap.empty)
       "DRecord",
       RT.DRecord(
         RT.FQTypeName.Package(RT.Hash "t"),
@@ -1084,31 +1085,35 @@ module DictKeyOrdering =
 
   let allCasesAreDistinctKeys =
     testCase "every Dval case is a distinct dict key" (fun _ ->
-      let asMap =
-        oneOfEachCase |> List.map (fun (name, dv) -> RT.DictKey dv, name) |> Map
+      let asDict =
+        oneOfEachCase
+        |> List.map (fun (name, dv) -> dv, RT.DString name)
+        |> RT.DictMap.ofList
       Expect.equal
-        (Map.count asMap)
+        (RT.DictMap.count asDict)
         (List.length oneOfEachCase)
         "two Dval cases collapsed into one key — check DictKey.caseTag for a collision")
 
   let everyCaseFindsItself =
     testCase "every Dval case can be looked up again" (fun _ ->
-      let asMap =
-        oneOfEachCase |> List.map (fun (name, dv) -> RT.DictKey dv, name) |> Map
+      let asDict =
+        oneOfEachCase
+        |> List.map (fun (name, dv) -> dv, RT.DString name)
+        |> RT.DictMap.ofList
       for (name, dv) in oneOfEachCase do
         Expect.equal
-          (Map.tryFind (RT.DictKey dv) asMap)
-          (Some name)
+          (RT.DictMap.tryFind dv asDict)
+          (Some(RT.DString name))
           $"{name} must find itself")
 
   let admissibilityMatchesComparability =
     testCase "admissible keys are comparable; inadmissible ones are named" (fun _ ->
       for (name, dv) in oneOfEachCase do
         if LibExecution.RuntimeTypes.Dval.isUsableDictKey dv then
-          let asMap = Map [ RT.DictKey dv, name ]
+          let asDict = RT.DictMap.ofList [ dv, RT.DString name ]
           Expect.equal
-            (Map.tryFind (RT.DictKey dv) asMap)
-            (Some name)
+            (RT.DictMap.tryFind dv asDict)
+            (Some(RT.DString name))
             $"{name} is admissible, so it must compare without raising"
         else
           failtest $"unexpected inadmissible case: {name}")
@@ -1118,7 +1123,7 @@ module DictKeyOrdering =
       let bad = LibExecution.Stream.newFromIO VT.int64 (fun () -> Ply None) None
       let isValid = LibExecution.RuntimeTypes.Dval.isUsableDictKey
       let dictOfBad =
-        RT.DDict(VT.unknown, VT.unknown, Map [ RT.DictKey RT.DUnit, bad ])
+        RT.DDict(VT.unknown, VT.unknown, RT.DictMap.ofList [ RT.DUnit, bad ])
       Expect.isFalse (isValid bad) "a stream is not a key"
       Expect.isFalse (isValid (RT.DList(VT.unknown, [ bad ]))) "nor a list of one"
       Expect.isFalse
@@ -1149,7 +1154,7 @@ module DictKeyOrdering =
       RT.DBytes(RT.Persistent("samehash", 2L)) ]
 
   let private sameKey (a : RT.Dval) (b : RT.Dval) : bool =
-    Map.containsKey (RT.DictKey a) (Map [ RT.DictKey b, () ])
+    RT.DictMap.containsKey a (RT.DictMap.ofList [ b, RT.DUnit ])
 
   let identityAgreesWithEquality =
     testCase "key identity agrees with == on every pair but NaN" (fun _ ->
@@ -1266,7 +1271,7 @@ module ListUnique =
       let record source args = RT.DRecord(source, name, args, fields)
       let enum source args = RT.DEnum(source, name, args, "None", [])
       let dict key value =
-        RT.DDict(VT.float, VT.float, Map [ RT.DictKey(RT.DFloat key), value ])
+        RT.DDict(VT.float, VT.float, RT.DictMap.ofList [ RT.DFloat key, value ])
       let stream = LibExecution.Stream.newFromIO VT.unit (fun () -> Ply None) None
       let promise =
         RT.Promise(
@@ -1276,7 +1281,7 @@ module ListUnique =
         )
       let blob = LibExecution.Bytes.newEphemeral [| 1uy |]
       let dictWithKey key =
-        RT.DDict(VT.unknown, VT.unit, Map [ RT.DictKey key, RT.DUnit ])
+        RT.DDict(VT.unknown, VT.unit, RT.DictMap.ofList [ key, RT.DUnit ])
       let pairs =
         [ RT.DFloat 0.0, RT.DFloat -0.0
           RT.DList(VT.unknown, []), RT.DList(VT.int64, [])
@@ -1312,8 +1317,8 @@ module ListUnique =
             RT.DRecord(alias, name, [], Map [ "value", b ])
             RT.DEnum(name, name, [], "Some", [ a ]),
             RT.DEnum(alias, name, [], "Some", [ b ])
-            RT.DDict(VT.string, VT.unknown, Map [ RT.DictKey(RT.DString "k"), a ]),
-            RT.DDict(VT.string, VT.unknown, Map [ RT.DictKey(RT.DString "k"), b ]) ]
+            RT.DDict(VT.string, VT.unknown, RT.DictMap.ofList [ RT.DString "k", a ]),
+            RT.DDict(VT.string, VT.unknown, RT.DictMap.ofList [ RT.DString "k", b ]) ]
         for left, right in wrappers do
           Expect.isTrue (comparer.Equals(left, right)) "the pair compares equal"
           Expect.equal
@@ -1333,7 +1338,7 @@ module ListUnique =
         RT.DDict(
           VT.int64,
           VT.int64,
-          xs |> List.mapi (fun i x -> RT.DictKey(RT.DInt64(int64 i)), x) |> Map
+          xs |> List.mapi (fun i x -> RT.DInt64(int64 i), x) |> RT.DictMap.ofList
         )
       let record xs =
         RT.DRecord(
@@ -1460,7 +1465,7 @@ module ListUnique =
         RT.DDict(
           VT.string,
           VT.unknown,
-          Map [ RT.DictKey(RT.DString "a"), a; RT.DictKey(RT.DString "b"), b ]
+          RT.DictMap.ofList [ RT.DString "a", a; RT.DString "b", b ]
         ))
       (fun a b -> RT.DRecord(name, name, [], Map [ "a", a; "b", b ]))
       (fun a b -> RT.DEnum(name, name, [], "Node", [ a; b ]))
@@ -1520,6 +1525,173 @@ module ListUnique =
         nonReflexiveAndCompatible
         sharedSubtrees
         sharingDoesNotChangeHashes ]
+
+
+/// A dict's entries are a sorted array up to `DictMap.smallLimit` and a tree past it.
+/// Everything here checks that the reader cannot tell which: the same entries in the same
+/// order, equal, hashed alike and written as the same bytes.
+module DictShapes =
+  let private limit = RT.DictMap.smallLimit
+
+  let private isSmall (d : RT.DictMap) =
+    match d with
+    | RT.DictMap.Small _ -> true
+    | RT.DictMap.Large _ -> false
+
+  /// The same entries as a tree, however few: grown past the limit with fillers, then
+  /// the fillers removed.
+  let private asLarge (entries : List<RT.Dval * RT.Dval>) : RT.DictMap =
+    let fillers = List.init (limit + 1) (fun i -> RT.DString $"~filler{i}")
+    let grown =
+      entries @ List.map (fun k -> k, RT.DUnit) fillers
+      |> List.fold (fun acc (k, v) -> RT.DictMap.add k v acc) RT.DictMap.empty
+    let d = List.fold (fun acc k -> RT.DictMap.remove k acc) grown fillers
+    Expect.isFalse (isSmall d) "asLarge makes a large one"
+    d
+
+  /// Each node's stored height is right, and no node's sides differ by more than two,
+  /// the bound F#'s `Map` keeps. Returns the height.
+  let rec private checkBalanced (t : RT.DictTree) : int =
+    match t with
+    | null -> 0
+    | :? RT.DictTreeNode as n ->
+      let hl = checkBalanced n.Left
+      let hr = checkBalanced n.Right
+      Expect.isLessThanOrEqual (abs (hl - hr)) 2 "the sides differ by at most two"
+      Expect.equal n.Height (max hl hr + 1) "an inner node's stored height"
+      n.Height
+    | leaf ->
+      Expect.equal leaf.Height 1 "a leaf's stored height"
+      1
+
+  let private expectSame (reference : Map<int64, RT.Dval>) (d : RT.DictMap) msg =
+    match d with
+    | RT.DictMap.Large root -> checkBalanced root |> ignore<int>
+    | RT.DictMap.Small _ -> ()
+    Expect.equal
+      (RT.DictMap.toList d)
+      (reference |> Map.toList |> List.map (fun (k, v) -> RT.DInt64 k, v))
+      $"{msg}: entries, in key order"
+    Expect.equal (RT.DictMap.count d) reference.Count $"{msg}: count"
+
+  /// Inserts, overwrites and removes in a scrambled order, across the limit and back.
+  let agreesWithMapAcrossTheLimit =
+    testCase
+      "agrees with Map at every step, growing past the limit and shrinking"
+      (fun _ ->
+        let n = 301
+        // 37 is coprime with n, so this visits every key once, out of order.
+        let order = List.init n (fun i -> int64 ((i * 37) % n))
+        let mutable reference = Map.empty
+        let mutable d = RT.DictMap.empty
+        for k in order do
+          reference <- Map.add k (RT.DInt64(k * 10L)) reference
+          d <- RT.DictMap.add (RT.DInt64 k) (RT.DInt64(k * 10L)) d
+          expectSame reference d $"after adding {k}"
+          Expect.equal
+            (isSmall d)
+            (reference.Count <= limit)
+            "the shape follows the size"
+        for k in order do
+          reference <- Map.add k (RT.DString "again") reference
+          d <- RT.DictMap.add (RT.DInt64 k) (RT.DString "again") d
+        expectSame reference d "after overwriting every key"
+        for k in List.rev order do
+          Expect.equal
+            (RT.DictMap.tryFind (RT.DInt64 k) d)
+            (Some(RT.DString "again"))
+            $"{k} finds itself"
+          reference <- Map.remove k reference
+          d <- RT.DictMap.remove (RT.DInt64 k) d
+          expectSame reference d $"after removing {k}"
+          Expect.isFalse (RT.DictMap.containsKey (RT.DInt64 k) d) $"{k} is gone"
+        Expect.equal (RT.DictMap.count d) 0 "empty at the end")
+
+  let sameEntriesEitherShape =
+    testCase
+      "the same entries in either shape are equal, hash alike and save alike"
+      (fun _ ->
+        for n in [ 0; 1; 7; limit ] do
+          let entries =
+            List.init n (fun i -> RT.DString $"k{i}", RT.DInt64(int64 i))
+          let small = RT.DictMap.ofList entries
+          let large = asLarge entries
+          Expect.isTrue (isSmall small) "ofList makes a small one"
+          Expect.equal small large $"{n} entries: equal"
+          Expect.equal
+            (small.GetHashCode())
+            (large.GetHashCode())
+            $"{n} entries: same hash"
+          let dict d = RT.DDict(VT.string, VT.int64, d)
+          Expect.isTrue
+            (Dval.equals (dict small) (dict large))
+            $"{n} entries: Dval.equals"
+          Expect.equal
+            (LibSerialization.Binary.Serialization.RT.Dval.serialize
+              "dval"
+              (dict small))
+            (LibSerialization.Binary.Serialization.RT.Dval.serialize
+              "dval"
+              (dict large))
+            $"{n} entries: same bytes")
+
+  let ofListKeepsTheLastDuplicate =
+    testCase "ofList keeps the last value given for a key, small or large" (fun _ ->
+      // 9 gives 18 entries, three keys given three times each: small, with repeats.
+      for n in [ 9; limit + 3 ] do
+        let entries =
+          List.init n (fun i -> RT.DInt64(int64 (i % 3)), RT.DInt64(int64 i))
+          @ List.init n (fun i -> RT.DInt64(int64 (100 + i)), RT.DUnit)
+        let d = RT.DictMap.ofList entries
+        Expect.equal (isSmall d) (List.length entries <= limit) $"{n}: the shape"
+        let expected =
+          entries
+          |> List.fold (fun acc (k, v) -> RT.DictMap.add k v acc) RT.DictMap.empty
+        Expect.equal
+          (RT.DictMap.toList d)
+          (RT.DictMap.toList expected)
+          $"{n}: as adds"
+        Expect.equal
+          (RT.DictMap.tryFind (RT.DInt64 0L) d)
+          (Some(RT.DInt64(int64 (n - 1 - ((n - 1) % 3)))))
+          $"{n}: the last 0 wins")
+
+  let unionAgreesWithAdds =
+    testCase "union keeps the right side's value, whichever way it merges" (fun _ ->
+      let dict (keys : List<int>) (tag : string) =
+        keys
+        |> List.map (fun k -> RT.DInt64(int64 k), RT.DString $"{tag}{k}")
+        |> RT.DictMap.ofList
+      let range a b = List.init (b - a) (fun i -> a + i)
+      // small and small, small and small past the limit, a few keys into a big
+      // tree, two big trees overlapping, and either side empty
+      for left, right in
+        [ range 0 5, range 3 9
+          range 0 20, range 10 30
+          range 0 300, [ 7; 301; 150 ]
+          range 0 100, range 50 200
+          [], range 0 30
+          range 0 30, [] ] do
+        let l = dict left "l"
+        let r = dict right "r"
+        let expected = RT.DictMap.fold (fun acc k v -> RT.DictMap.add k v acc) l r
+        let actual = RT.DictMap.union l r
+        Expect.equal
+          (RT.DictMap.toList actual)
+          (RT.DictMap.toList expected)
+          $"{List.length left} into {List.length right}"
+        match actual with
+        | RT.DictMap.Large root -> checkBalanced root |> ignore<int>
+        | RT.DictMap.Small entries ->
+          Expect.isLessThanOrEqual entries.Length limit "a small result stays small")
+
+  let tests =
+    testList
+      "DictShapes"
+      [ agreesWithMapAcrossTheLimit
+        sameEntriesEitherShape
+        ofListKeepsTheLastDuplicate
+        unionAgreesWithAdds ]
 
 
 /// Deep equality, ordering, type merging, and substitution must fail the stack check.
@@ -1596,7 +1768,8 @@ module DeepValues =
             match i % 6 with
             | 0 -> RT.DList(VT.unknown, [ inner ])
             | 1 -> RT.DTuple(RT.DUnit, inner, [])
-            | 2 -> RT.DDict(VT.unit, VT.unknown, Map [ RT.DictKey RT.DUnit, inner ])
+            | 2 ->
+              RT.DDict(VT.unit, VT.unknown, RT.DictMap.ofList [ RT.DUnit, inner ])
             | 3 -> RT.DRecord(name, name, [], Map [ "value", inner ])
             | 4 -> RT.DEnum(name, name, [], "Value", [ inner ])
             | _ -> RT.DApplicable(RT.AppNamedFn { fn with argsSoFar = [ inner ] }))
@@ -1965,6 +2138,7 @@ let tests =
       AliasChecks.tests
       DictKeyOrdering.tests
       ListUnique.tests
+      DictShapes.tests
       DeepValues.tests
       Reload.tests
       BoundMemo.tests
