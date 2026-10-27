@@ -90,6 +90,10 @@ let private unifiesTrivially (expected : TypeReference) (actual : ValueType) : b
         (match kt with
          | KTFloat -> true
          | _ -> false)
+      | TDecimal ->
+        (match kt with
+         | KTDecimal -> true
+         | _ -> false)
       | TChar ->
         (match kt with
          | KTChar -> true
@@ -326,6 +330,7 @@ let rec unifyValueType
         | TInt, ValueType.Known KTInt -> return Ok tst
 
         | TFloat, ValueType.Known KTFloat -> return Ok tst
+        | TDecimal, ValueType.Known KTDecimal -> return Ok tst
 
         | TChar, ValueType.Known KTChar -> return Ok tst
         | TString, ValueType.Known KTString -> return Ok tst
@@ -725,6 +730,10 @@ let rec tryUnifySync
     | TFloat ->
       (match actual with
        | DFloat _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TDecimal ->
+      (match actual with
+       | DDecimal _ -> ValueSome tst
        | _ -> ValueNone)
     | TChar ->
       (match actual with

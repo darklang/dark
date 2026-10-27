@@ -196,6 +196,10 @@ module MatchPattern =
       Sign.write w sign
       String.write w whole
       String.write w fractional
+    | MPDecimal(id, value) ->
+      w.Write 23uy
+      w.Write id
+      Decimal.write w value
     | MPUnit id ->
       w.Write 16uy
       w.Write id
@@ -292,6 +296,9 @@ module MatchPattern =
       let whole = String.read r
       let fractional = String.read r
       MPFloat(id, sign, whole, fractional)
+    | 23uy ->
+      let id = r.ReadUInt64()
+      MPDecimal(id, Decimal.read r)
     | 16uy ->
       let id = r.ReadUInt64()
       MPUnit id
@@ -502,6 +509,10 @@ module Expr =
       Sign.write w sign
       String.write w whole
       String.write w fractional
+    | EDecimal(id, value) ->
+      w.Write 38uy
+      w.Write id
+      Decimal.write w value
     | EUnit id ->
       w.Write 14uy
       w.Write id
@@ -696,6 +707,9 @@ module Expr =
       let whole = String.read r
       let fractional = String.read r
       EFloat(id, sign, whole, fractional)
+    | 38uy ->
+      let id = r.ReadUInt64()
+      EDecimal(id, Decimal.read r)
     | 14uy ->
       let id = r.ReadUInt64()
       EUnit id

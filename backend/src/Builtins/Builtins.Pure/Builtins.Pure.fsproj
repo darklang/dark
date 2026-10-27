@@ -25,6 +25,7 @@
     <Compile Include="Libs/Int.fs" />
 
     <Compile Include="Libs/Float.fs" />
+    <Compile Include="Libs/Decimal.fs" />
 
     <Compile Include="Libs/Math.fs" />
 

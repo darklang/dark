@@ -65,6 +65,7 @@ let matchPattern (pat: LanguageTools.RuntimeTypes.MatchPattern) : String =
   | MPUInt128 i -> Stdlib.toString i
   | MPInt i -> Stdlib.toString i
   | MPFloat f -> Stdlib.toString f
+  | MPDecimal f -> Stdlib.toString f
   | MPChar c -> $"'{c}'"
   | MPString s -> $"\"{s}\""
   | MPList items ->
@@ -112,6 +113,7 @@ let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   | DInt64 i -> Stdlib.toString i
   | DInt i -> Stdlib.toString i
   | DFloat f -> Stdlib.toString f
+  | DDecimal f -> Stdlib.toString f
   | DList(_, items) -> $"[{Stdlib.toString (Stdlib.List.length items)} items]"
   | DDict(_, _, entries) ->
     let n = Stdlib.List.length (Stdlib.Dict.keys entries)

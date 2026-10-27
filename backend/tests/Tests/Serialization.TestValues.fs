@@ -210,6 +210,9 @@ module RuntimeTypes =
       RT.Dval.int (bigint System.Int64.MaxValue)
       RT.Dval.int (System.Numerics.BigInteger.Parse "123456789012345678901234567890")
       RT.DFloat(3.14159)
+      RT.DDecimal 19.99m
+      RT.DDecimal -1.10m
+      RT.DDecimal System.Decimal.MaxValue
       RT.DChar "A"
       RT.DString "Hello, World!"
       RT.DApplicable(
@@ -267,6 +270,7 @@ module ProgramTypes =
       MPChar(id, "w")
       MPString(id, "testing testing 123")
       MPFloat(id, Positive, "123", "456")
+      MPDecimal(id, 1.10m)
       MPUnit(id)
       MPTuple(id, MPInt64(id, 123), MPBool(id, true), [ MPUnit(id) ])
       MPList(id, [ MPInt64(id, 123) ])
@@ -709,6 +713,7 @@ module ProgramTypes =
       [ PT.EString(id, [ PT.StringText("string") ])
         PT.EUnit(id)
         PT.EFloat(id, Positive, "3", "14")
+        PT.EDecimal(id, -0.050m)
         PT.EChar(id, "c")
         PT.EUnit(id)
         PT.EUInt64(id, 3UL)

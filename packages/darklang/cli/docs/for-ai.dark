@@ -402,6 +402,8 @@ Rules:
   Operands must match (`1 + 2`, `1.0 + 2.0`; `1L + 2.0` is an error). `/` is
   integer division on ints, float on floats; `**` is power; a bare `1` is an
   arbitrary-precision `Int` and never overflows. `"a" + "b"` is `"ab"`.
+  `19.99m` is a `Decimal`: exact base-10, the type for money; `Stdlib.Decimal.round`,
+  `parse`, `toParts`.
 - Traits: `impl Add for Vec = let add (a: Vec) (b: Vec) : Vec = ...` gives Vec
   a `+`; `impl ToString for Point = let toString (p: Point) : String = ...`
   gives `p.toString`; your own with `trait Area<'a> = let area (s: 'a) : Float`.

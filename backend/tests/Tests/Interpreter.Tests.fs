@@ -1080,6 +1080,7 @@ module DictKeyOrdering =
       "DUInt128", RT.DUInt128(System.UInt128.op_Implicit 1u)
       "DInt", LibExecution.Dval.int 1I
       "DFloat", RT.DFloat 1.0
+      "DDecimal", RT.DDecimal 1.5m
       "DChar", RT.DChar "c"
       "DString", RT.DString "s"
       "DDateTime", RT.DDateTime(LibExecution.DarkDateTime.T(2026, 8, 31, 0, 0, 0))
@@ -1165,6 +1166,9 @@ module DictKeyOrdering =
       RT.DEnum(sourceB, runtimeName, [], "Case", [ RT.DInt64 1L ])
 
       "signed zero", RT.DFloat 0.0, RT.DFloat -0.0
+
+      // `==` and decimal's own Equals ignore scale; a dict key has to as well
+      "decimal scale", RT.DDecimal 1.10m, RT.DDecimal 1.1m
 
       "persistent blobs differing only in length",
       RT.DBytes(RT.Persistent("samehash", 1L)),

@@ -1280,6 +1280,35 @@ let private literalTests =
             $"{source}: pattern precision diagnostic"
         for source in [ "0.1"; "0.3"; "0.10000000000000001"; "10000000000000002.0" ] do
           Expect.isEmpty (P.parse source).diagnostics $"{source}: accepted")
+      testCase
+        "decimal literals keep their scale and refuse what they would round"
+        (fun _ ->
+          let parsed source =
+            match (P.parse source).parsed with
+            | Some(WT.SourceFile { exprsToEval = [ WT.EDecimal(_, d) ] }) -> Some d
+            | _ -> None
+          for (source, expected) in
+            [ "19.99m", "19.99"
+              "1.10m", "1.10"
+              "007.50m", "7.50"
+              "0m", "0"
+              "79228162514264337593543950335m", "79228162514264337593543950335"
+              "0.0000000000000000000000000001m", "0.0000000000000000000000000001" ] do
+            Expect.isEmpty (P.parse source).diagnostics $"{source}: accepted"
+            Expect.equal
+              (parsed source
+               |> Option.map (fun d ->
+                 d.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+              (Some expected)
+              $"{source}: value and scale"
+          for source in
+            [ "79228162514264337593543950336m"
+              "0.00000000000000000000000000001m"
+              "1.0000000000000000000000000000001m" ] do
+            Expect.isNonEmpty (P.parse source).diagnostics $"{source}: refused"
+          Expect.isNonEmpty
+            (P.parse "1.5mx").diagnostics
+            "glued suffix is one bad literal")
       testCase "float range errors are independent of exponent spelling" (fun _ ->
         for source in [ "1e309"; "1e401"; "1e999999999999999999999" ] do
           Expect.isTrue
@@ -2045,6 +2074,7 @@ let private rangeInvariantTests =
     | WT.EInt128 _
     | WT.EUInt128 _
     | WT.EFloat _
+    | WT.EDecimal _
     | WT.EChar _
     | WT.EVariable _
     | WT.EFnName _

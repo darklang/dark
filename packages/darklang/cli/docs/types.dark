@@ -6,6 +6,7 @@ let content () : String =
 ## Primitives
   Int    5, -42
   Float    3.14, -0.5
+  Decimal  19.99m, -0.05m   exact base-10: 0.1m + 0.2m is 0.3m. For money.
   String   "hello"
   Bool     true, false
   Char     'a'

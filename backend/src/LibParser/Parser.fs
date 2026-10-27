@@ -110,6 +110,7 @@ let private isIntLit (t : Token) : bool =
   | TInt128 _
   | TUInt128 _ -> true
   | TFloat _
+  | TDecimal _
   | TStringLit _
   | TCharLit _
   | TInterpString
@@ -177,6 +178,7 @@ let private canStartAtom (t : Token) : bool =
   isIntLit t
   || (match t with
       | TFloat _
+      | TDecimal _
       | TCharLit _
       | TTrue
       | TFalse
@@ -202,6 +204,7 @@ let private canStartPattern (t : Token) : bool =
       | TUnderscore
       | TMinus
       | TFloat _
+      | TDecimal _
       | TCharLit _
       | TTrue
       | TFalse
@@ -774,7 +777,8 @@ let isNegLitArg (state : ParserState) (k : int) : bool =
       | TInt16 _
       | TInt32 _
       | TInt128 _
-      | TFloat _ -> true
+      | TFloat _
+      | TDecimal _ -> true
       | _ -> false)
   && (rng state (k + 1)).start.row = (rng state k).end_.row
   && (rng state (k + 1)).start.column = (rng state k).end_.column // no space after `-`
@@ -1180,6 +1184,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
     | TFloat v ->
       let (whole, frac) = floatParts state (i + 1) v
       (WT.MPFloat(r, true, whole, frac), i + 2)
+    | TDecimal v -> (WT.MPDecimal(r, -v), i + 2)
     | _ ->
       errExpected state i "a pattern"
       (WT.MPError(rng state i), i + 1)
@@ -1187,6 +1192,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
     let r = rng state i
     let (whole, frac) = floatParts state i v
     (WT.MPFloat(r, v < 0.0, whole, frac), i + 1)
+  | TDecimal v -> (WT.MPDecimal(rng state i, v), i + 1)
   | TTrue -> (WT.MPBool(rng state i, true), i + 1)
   | TFalse -> (WT.MPBool(rng state i, false), i + 1)
   | TStringLit s ->
@@ -1826,7 +1832,7 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
     parsePostfix state (access inner innerDotR bR b) (i + 2)
   // Give invalid indices such as `t.1L` and `t.1e0` a specific diagnostic.
   | TDot,
-    (TInt _ | TInt64 _ | TInt128 _ | TInt8 _ | TInt16 _ | TInt32 _ | TUInt8 _ | TUInt16 _ | TUInt32 _ | TUInt64 _ | TUInt128 _ | TFloat _) ->
+    (TInt _ | TInt64 _ | TInt128 _ | TInt8 _ | TInt16 _ | TInt32 _ | TUInt8 _ | TUInt16 _ | TUInt32 _ | TUInt64 _ | TUInt128 _ | TFloat _ | TDecimal _) ->
     let text = txt state (i + 1)
     // The lexer already reports malformed literals such as `1.2L` or `300y`.
     if not state.toks[i + 1].lexError then
@@ -2080,6 +2086,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     | TFloat v ->
       let (whole, frac) = floatParts state (i + 1) v
       (WT.EFloat(r, true, whole, frac), i + 2)
+    | TDecimal v -> (WT.EDecimal(r, -v), i + 2)
     | _ ->
       // unary minus on a non-literal (`-x`, `-(expr)`, `-f x`) → `Builtin.negate`
       // applied to the whole application, so `-f x` groups as `-(f x)`, not `(-f) x`
@@ -2090,6 +2097,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     let r = rng state i
     let (whole, frac) = floatParts state i v
     (WT.EFloat(r, v < 0.0, whole, frac), i + 1)
+  | TDecimal v -> (WT.EDecimal(rng state i, v), i + 1)
   | TCharLit c ->
     let r = rng state i
     let (openQuote, contents, closeQuote) = literalTextRanges state i "'"

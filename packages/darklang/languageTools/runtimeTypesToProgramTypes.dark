@@ -83,6 +83,7 @@ let dvalToExpr
     | None ->
       Stdlib.Result.Result.Error
         "this float has no literal form (NaN, an infinity, or exponent notation)"
+  | DDecimal d -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EDecimal(gid (), d))
   | DChar c ->
     Stdlib.Result.Result.Ok(
       ProgramTypes.Expr.EChar(gid (), Stdlib.toString c))

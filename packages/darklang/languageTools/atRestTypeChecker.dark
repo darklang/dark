@@ -16,6 +16,7 @@ type StaticType =
   | TUInt128
   | TInt
   | TFloat
+  | TDecimal
   | TChar
   | TString
   | TUuid
@@ -335,6 +336,7 @@ let staticTypeToStringWith
   | TUInt128 -> "UInt128"
   | TInt -> "Int"
   | TFloat -> "Float"
+  | TDecimal -> "Decimal"
   | TChar -> "Char"
   | TString -> "String"
   | TUuid -> "Uuid"

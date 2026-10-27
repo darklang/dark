@@ -1,0 +1,142 @@
+module Darklang.Stdlib.Decimal.Tests
+
+// The reason the type exists: the same sum in Float is 0.30000000000000004
+test addIsExact =
+  Stdlib.Test.all
+    [ (0.1m + 0.2m) |> Stdlib.Test.equal 0.3m
+      Stdlib.toString (0.1m + 0.2m) |> Stdlib.Test.equal "0.3" ]
+
+test arithmetic =
+  Stdlib.Test.all
+    [ (19.99m - 0.99m) |> Stdlib.Test.equal 19m
+      (1.5m * 3m) |> Stdlib.Test.equal 4.5m
+      (10m / 4m) |> Stdlib.Test.equal 2.5m
+      (-(2.5m)) |> Stdlib.Test.equal -2.5m
+      (0m - 1.25m) |> Stdlib.Test.equal -1.25m ]
+
+test divideToTwentyEightPlaces =
+  Stdlib.toString (1m / 3m) |> Stdlib.Test.equal "0.3333333333333333333333333333"
+
+test divideByZeroRaises =
+  (1m / 0m) => raises "Cannot divide by 0"
+
+test overflowRaises =
+  (79228162514264337593543950335m + 1m)
+  => raises "Decimal result is out of range (larger than 79228162514264337593543950335)"
+
+test compare =
+  Stdlib.Test.all
+    [ (1.5m < 2m) |> Stdlib.Test.equal true
+      (2m <= 2.00m) |> Stdlib.Test.equal true
+      (-1m > -1.5m) |> Stdlib.Test.equal true
+      (Stdlib.max 1.10m 1.2m) |> Stdlib.Test.equal 1.2m
+      (Stdlib.abs -3.5m) |> Stdlib.Test.equal 3.5m ]
+
+// Scale is kept for printing and ignored by `==`, as in C#
+test scaleIsKeptButIgnoredByEquality =
+  Stdlib.Test.all
+    [ Stdlib.toString 1.10m |> Stdlib.Test.equal "1.10"
+      (1.10m == 1.1m) |> Stdlib.Test.equal true
+      Stdlib.Decimal.scale 1.10m |> Stdlib.Test.equal 2
+      Stdlib.toString (Stdlib.Decimal.normalize 1.100m) |> Stdlib.Test.equal "1.1"
+      Stdlib.toString (1.10m + 1m) |> Stdlib.Test.equal "2.10" ]
+
+test oneDictKeyAcrossScales =
+  Stdlib.Dict.get (Dict { 1.10m: "a" }) 1.1m
+  |> Stdlib.Test.equal (Stdlib.Option.Option.Some "a")
+
+test matchIgnoresScale =
+  (match 1.10m with
+   | 1.1m -> "matched"
+   | _ -> "no")
+  |> Stdlib.Test.equal "matched"
+
+test toString =
+  Stdlib.Test.all
+    [ Stdlib.toString 0m |> Stdlib.Test.equal "0"
+      Stdlib.toString 0.05m |> Stdlib.Test.equal "0.05"
+      Stdlib.toString -0.05m |> Stdlib.Test.equal "-0.05"
+      Stdlib.toString 123.456m |> Stdlib.Test.equal "123.456"
+      Stdlib.toString 79228162514264337593543950335m
+      |> Stdlib.Test.equal "79228162514264337593543950335"
+      Stdlib.toString 0.0000000000000000000000000001m
+      |> Stdlib.Test.equal "0.0000000000000000000000000001" ]
+
+test parts =
+  Stdlib.Test.all
+    [ Stdlib.Decimal.toParts 1.10m |> Stdlib.Test.equal (110, 2)
+      Stdlib.Decimal.toParts -0.5m |> Stdlib.Test.equal (-5, 1)
+      Stdlib.Decimal.fromParts 1999 2 |> Stdlib.Test.equal (Stdlib.Option.Option.Some 19.99m)
+      Stdlib.Decimal.fromParts 1 29 |> Stdlib.Test.equal Stdlib.Option.Option.None
+      Stdlib.Decimal.fromParts 1 -1 |> Stdlib.Test.equal Stdlib.Option.Option.None
+      Stdlib.Decimal.fromParts 79228162514264337593543950336 0
+      |> Stdlib.Test.equal Stdlib.Option.Option.None ]
+
+test parse =
+  Stdlib.Test.all
+    [ Stdlib.Decimal.parse "19.99" |> Stdlib.Test.equal (Stdlib.Result.Result.Ok 19.99m)
+      Stdlib.Decimal.parse "-1.10"
+      |> Stdlib.Result.map Stdlib.toString
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "-1.10")
+      Stdlib.Decimal.parse "1.5e3" |> Stdlib.Test.equal (Stdlib.Result.Result.Ok 1500m)
+      Stdlib.Decimal.parse "1e-5" |> Stdlib.Test.equal (Stdlib.Result.Result.Ok 0.00001m)
+      Stdlib.Decimal.parse "1e+16"
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Ok 10000000000000000m)
+      Stdlib.Decimal.parse ""
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Error Stdlib.Decimal.ParseError.BadFormat)
+      Stdlib.Decimal.parse "1."
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Error Stdlib.Decimal.ParseError.BadFormat)
+      Stdlib.Decimal.parse "abc"
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Error Stdlib.Decimal.ParseError.BadFormat)
+      // 29 places would have to be rounded, so it is refused
+      Stdlib.Decimal.parse "0.00000000000000000000000000001"
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Error Stdlib.Decimal.ParseError.OutOfRange)
+      Stdlib.Decimal.parse "79228162514264337593543950336"
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Error Stdlib.Decimal.ParseError.OutOfRange)
+      Stdlib.Decimal.parse "1e999999999"
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Error Stdlib.Decimal.ParseError.OutOfRange) ]
+
+test round =
+  Stdlib.Test.all
+    [ Stdlib.Decimal.round 2.345m 2 |> Stdlib.Test.equal 2.35m
+      Stdlib.Decimal.round -2.345m 2 |> Stdlib.Test.equal -2.35m
+      Stdlib.Decimal.round 2.344m 2 |> Stdlib.Test.equal 2.34m
+      Stdlib.Decimal.round 0.5m 0 |> Stdlib.Test.equal 1m
+      Stdlib.toString (Stdlib.Decimal.round 5m 2) |> Stdlib.Test.equal "5.00"
+      Stdlib.toString (Stdlib.Decimal.round (10m / 3m) 2) |> Stdlib.Test.equal "3.33" ]
+
+test roundRefusesBadPlaces =
+  Stdlib.Decimal.round 1m 29
+  => raises "Cannot unwrap Error: \"Decimal places must be between 0 and 28, got 29\""
+
+test truncate =
+  Stdlib.Test.all
+    [ Stdlib.Decimal.truncate 2.349m 2 |> Stdlib.Test.equal 2.34m
+      Stdlib.Decimal.truncate -2.349m 2 |> Stdlib.Test.equal -2.34m ]
+
+test conversions =
+  Stdlib.Test.all
+    [ Stdlib.Decimal.toInt -2.9m |> Stdlib.Test.equal -2
+      Stdlib.Decimal.toInt 19.99m |> Stdlib.Test.equal 19
+      Stdlib.Decimal.fromInt 42 |> Stdlib.Test.equal (Stdlib.Option.Option.Some 42m)
+      Stdlib.Decimal.toFloat 0.5m |> Stdlib.Test.equal 0.5
+      Stdlib.Decimal.fromFloat 0.1 |> Stdlib.Test.equal (Stdlib.Option.Option.Some 0.1m)
+      Stdlib.Decimal.fromFloat (0.0 / 0.0) |> Stdlib.Test.equal Stdlib.Option.Option.None ]
+
+test sumOfPrices =
+  Stdlib.sum 0m [ 19.99m, 5.01m, 0.10m ] |> Stdlib.Test.equal 25.10m
+
+test json =
+  Stdlib.Test.all
+    [ Stdlib.Json.serialize<Decimal> 19.90m |> Stdlib.Test.equal "19.90"
+      Stdlib.Json.parse<Decimal> "19.90"
+      |> Stdlib.Result.map Stdlib.toString
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Ok "19.90")
+      // a number Float would round past 2^53 comes through whole
+      Stdlib.Json.parse<Decimal> "9007199254740993.01"
+      |> Stdlib.Test.equal (Stdlib.Result.Result.Ok 9007199254740993.01m) ]
+
+test jsonRefusesWhatItWouldRound =
+  Stdlib.Json.parse<Decimal> "0.00000000000000000000000000001"
+  |> Stdlib.Result.isError
+  |> Stdlib.Test.equal true

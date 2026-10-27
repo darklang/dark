@@ -263,6 +263,7 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTUInt128
     | KTInt
     | KTFloat
+    | KTDecimal
     | KTChar
     | KTString
     | KTUuid
@@ -570,6 +571,11 @@ and checkAndExtractMatchPattern
   | MPFloat l ->
     match dv with
     | DFloat r -> l = r
+    | _ -> false
+  // decimal's `=` ignores scale, so `1.1m` matches 1.10m, the same answer as `==`
+  | MPDecimal l ->
+    match dv with
+    | DDecimal r -> l = r
     | _ -> false
   | MPChar l ->
     match dv with

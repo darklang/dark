@@ -95,6 +95,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.TUInt128
       | PT.TInt
       | PT.TFloat
+      | PT.TDecimal
       | PT.TChar
       | PT.TString
       | PT.TUuid
@@ -144,6 +145,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.MPUInt128 _
       | PT.MPInt _
       | PT.MPFloat _
+      | PT.MPDecimal _
       | PT.MPChar _
       | PT.MPString _
       | PT.MPVariable _ -> ()
@@ -207,6 +209,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.EUInt128 _
       | PT.EInt _
       | PT.EFloat _
+      | PT.EDecimal _
       | PT.EChar _
       | PT.EVariable _
       | PT.EArg _

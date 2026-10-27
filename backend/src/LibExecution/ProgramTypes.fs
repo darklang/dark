@@ -282,6 +282,9 @@ type MatchPattern =
 
   | MPFloat of id * Sign * string * string
 
+  /// The decimal itself; it carries the written scale, so `1.10m` stays 1.10.
+  | MPDecimal of id * decimal
+
   | MPChar of id * string
   | MPString of id * string
 
@@ -346,6 +349,7 @@ type TypeReference =
   | TInt
 
   | TFloat
+  | TDecimal
 
   | TChar
   | TString
@@ -402,6 +406,9 @@ type Expr =
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * whole : string * part : string
+
+  /// A decimal literal, `19.99m`. The value carries its written scale.
+  | EDecimal of id * decimal
 
   /// A character is an Extended Grapheme Cluster (hence why we use a string). This
   /// is equivalent to one screen-visible "character" in Unicode.
@@ -646,6 +653,7 @@ module Expr =
     | EChar(id, _)
     | EString(id, _)
     | EFloat(id, _, _, _)
+    | EDecimal(id, _)
     | EValue(id, _)
     | ELet(id, _, _, _)
     | EUnwrap(id, _)

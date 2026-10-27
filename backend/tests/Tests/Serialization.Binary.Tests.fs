@@ -385,6 +385,9 @@ module RT =
         System.Double.IsNaN f1 && System.Double.IsNaN f2
         ->
         true
+      // `=` on decimals ignores scale, so compare the bits: 1.10m must not come back 1.1m
+      | RT.DDecimal d1, RT.DDecimal d2 ->
+        System.Decimal.GetBits d1 = System.Decimal.GetBits d2
       | _ -> expected = actual
 
     testMany
@@ -442,10 +445,10 @@ module RT =
               writtenIn = ValueNone }
         )
       let bytes = value |> BS.RT.Dval.serialize "closure"
-      // Package tests bumped the format header to v6; the closure payload is unchanged.
+      // The first four bytes are the format version; the closure payload follows.
       Expect.equal
         (System.Convert.ToHexString bytes)
-        "0600000021000000160007000000000000000201000000080500000000000000030000000E01780000"
+        "0700000021000000160007000000000000000201000000080500000000000000030000000E01780000"
         "the bytes a closure with captures serializes to"
       match BS.RT.Dval.deserialize "closure" bytes with
       | RT.DApplicable(RT.AppLambda lambda) ->
