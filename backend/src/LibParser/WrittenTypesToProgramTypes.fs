@@ -833,11 +833,6 @@ module Expr =
         let patsNel = neListOrSingleton (PT.LPUnit(gid ())) ptPats
         return PT.EPipeLambda(id, patsNel, body)
 
-      | WT.EPipeInfix(_, (_, infixOp), first) ->
-        let id = gid ()
-        let! first = toPT context first
-        return PT.EPipeInfix(id, Infix.toPT infixOp, first, PT.FQFnName.Unknown)
-
       | WT.EPipeFnCall(_, q, typeArgs, args) ->
         let id = gid ()
         let name = qualifiedFnName q

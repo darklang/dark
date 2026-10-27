@@ -263,7 +263,7 @@ let mappedTransformsElements =
   testTask "stream: Mapped applies fn to each element in order" {
     do!
       evalsTo
-        "Stdlib.Stream.toList (Stdlib.Stream.map (Stdlib.Stream.fromList [1L, 2L, 3L]) (fun n -> n * 2L))"
+        "Stdlib.Stream.toList(Stdlib.Stream.map(Stdlib.Stream.fromList([1L, 2L, 3L]), fun n -> n * 2L))"
         (int64List [ 2L; 4L; 6L ])
         "1,2,3 -> *2"
   }
@@ -272,7 +272,7 @@ let filteredSkipsRejected =
   testTask "stream: Filtered skips elements whose predicate returns false" {
     do!
       evalsTo
-        "Stdlib.Stream.toList (Stdlib.Stream.filter (Stdlib.Stream.fromList [1L, 2L, 3L, 4L]) (fun n -> n % 2L == 0L))"
+        "Stdlib.Stream.toList(Stdlib.Stream.filter(Stdlib.Stream.fromList([1L, 2L, 3L, 4L]), fun n -> n % 2L == 0L))"
         (int64List [ 2L; 4L ])
         "evens only"
   }
@@ -281,7 +281,7 @@ let filteredAllRejected =
   testTask "stream: Filtered returns None when no element matches" {
     do!
       evalsTo
-        "Stdlib.Stream.next (Stdlib.Stream.filter (Stdlib.Stream.fromList [1L, 3L]) (fun n -> n % 2L == 0L))"
+        "Stdlib.Stream.next(Stdlib.Stream.filter(Stdlib.Stream.fromList([1L, 3L]), fun n -> n % 2L == 0L))"
         (Dval.optionNone RT.KTInt64)
         "all rejected = None"
   }
@@ -342,7 +342,7 @@ let composedTransformsAreLazy =
     // but not unboundedly: the pipeline is pull-driven, or this never returns.
     do!
       evalsTo
-        "Stdlib.Stream.toList (Stdlib.Stream.take (Stdlib.Stream.map (Stdlib.Stream.filter (Stdlib.Stream.unfold 0L (fun n -> Stdlib.Option.Option.Some((n + 1L, n + 1L)))) (fun n -> n % 2L == 0L)) (fun n -> n * 2L)) 3)"
+        "Stdlib.Stream.toList(Stdlib.Stream.take(Stdlib.Stream.map(Stdlib.Stream.filter(Stdlib.Stream.unfold(0L, fun n -> Stdlib.Option.Option.Some((n + 1L, n + 1L))), fun n -> n % 2L == 0L), fun n -> n * 2L), 3))"
         (int64List [ 4L; 8L; 12L ])
         "2,4,6 -> *2 -> 4,8,12; take 3 stops before the source diverges"
   }

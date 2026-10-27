@@ -1,35 +1,35 @@
 module Darklang.Cli.Installation.Status
 
 
-let execute (state: AppState) (args: List<String>) : AppState =
-  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
-  let currentMode = Installation.System.getInstallationMode ()
+let execute(state: AppState, args: List<String>): AppState =
+  let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
+  let currentMode = Installation.System.getInstallationMode()
 
-  let version = Helpers.getVersionInfo ()
+  let version = Helpers.getVersionInfo()
 
   let installationStatus =
     match currentMode with
     | Installed ->
-      let homeDir = Config.getDarklangHomeDir host
-      Stdlib.Cli.UI.Colors.success "Status: " + "Globally installed at " + homeDir + " and ready to use"
+      let homeDir = Config.getDarklangHomeDir(host)
+      Stdlib.Cli.UI.Colors.success("Status: ") + "Globally installed at " + homeDir + " and ready to use"
     | Portable ->
-      let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
-      Stdlib.Cli.UI.Colors.warning "Status: " + "Running in portable mode at " + currentDir + "/.darklang (run 'install' for global system-wide access)"
+      let currentDir = Stdlib.Cli.FileSystem.currentDirectory()
+      Stdlib.Cli.UI.Colors.warning("Status: ") + "Running in portable mode at " + currentDir + "/.darklang (run 'install' for global system-wide access)"
 
   let statusText =
-    Stdlib.Cli.UI.Colors.info "Version: " + version + "\n" +
+    Stdlib.Cli.UI.Colors.info("Version: ") + version + "\n" +
     installationStatus + "\n\n" +
-    "Type " + Stdlib.Cli.UI.Colors.hint "'help'" + " for available commands"
+    "Type " + Stdlib.Cli.UI.Colors.hint("'help'") + " for available commands"
 
-  Stdlib.printLine statusText
+  Stdlib.printLine(statusText)
   state
 
 
-let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [
     "Usage: status"
     "Show current CLI installation status."
@@ -37,4 +37,4 @@ let help (_state: AppState) : String =
     "Displays whether CLI is running in portable or global mode"
     "and shows installation location."
   ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")

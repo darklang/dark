@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.TerminalUI
 
-let content () : String =
+let content(): String =
   """# Terminal UI
 
 Every full-screen thing in the CLI - the workbench, nav, the editor, the outliner - and the inline

@@ -7,28 +7,28 @@ val newline = "\n"
 
 /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
 /// to it if the original string exceeds the given length. Otherwise, returns the original string.
-let ellipsis (s: String) (length: Int) : String =
-  if String.length s > length then
-    (String.slice s 0 length) + "..."
+let ellipsis(s: String, length: Int): String =
+  if String.length(s) > length then
+    (String.slice(s, 0, length)) + "..."
   else
     s
 
 
 /// Returns {{true}} if <param s> is the empty string {{""}}
-let isEmpty (s: String) : Bool = Builtin.stringIsEmpty s
+let isEmpty(s: String): Bool = Builtin.stringIsEmpty(s)
 
 
 /// Iterate over each Char (EGC, not byte) in the string, performing the
 /// operation in <param fn> on each one.
-let map (s: String) (fn: Char -> Char) : String =
-  s |> String.toList |> List.map fn |> String.fromList
+let map(s: String, fn: Char -> Char): String =
+  s |> String.toList |> List.map(fn) |> String.fromList
 
 
 /// Keeps the Chars (EGC, not byte) of <param s> where <param fn> returns
 /// {{true}}, and removes the rest.
 /// Example: {{filter "a1b2" Char.isDigit}} returns {{"12"}}.
-let filter (s: String) (fn: Char -> Bool) : String =
-  s |> String.toList |> List.filter fn |> String.fromList
+let filter(s: String, fn: Char -> Bool): String =
+  s |> String.toList |> List.filter(fn) |> String.fromList
 
 
 /// Removes or changes each Char (EGC, not byte) of <param s>. When <param fn>
@@ -36,46 +36,46 @@ let filter (s: String) (fn: Char -> Bool) : String =
 /// is replaced by {{c}}.
 /// Example: turning {{"a-b"}} into {{"AB"}} by removing {{'-'}} and uppercasing
 /// the letters.
-let filterMap (s: String) (fn: Char -> Option.Option<Char>) : String =
-  s |> String.toList |> List.filterMap fn |> String.fromList
+let filterMap(s: String, fn: Char -> Option.Option<Char>): String =
+  s |> String.toList |> List.filterMap(fn) |> String.fromList
 
 
 /// Replaces each Char (EGC, not byte) of <param s> with a string. <param fn>
 /// can return an empty string to remove the Char, or several characters.
 /// Example: doubling each letter turns {{"abc"}} into {{"aabbcc"}}.
-let flatMap (s: String) (fn: Char -> String) : String =
-  let pieces = s |> String.toList |> List.map fn
-  String.join pieces ""
+let flatMap(s: String, fn: Char -> String): String =
+  let pieces = s |> String.toList |> List.map(fn)
+  String.join(pieces, "")
 
 
 /// Returns the list of Characters (EGC, not byte) in the string
-let toList (s: String) : List<Char> = Builtin.stringToList s
+let toList(s: String): List<Char> = Builtin.stringToList(s)
 
 
 /// Replace all instances on <param searchFor> in <param s> with <param replaceWith>
-let replaceAll (s: String) (searchFor: String) (replaceWith: String) : String =
-  Builtin.stringReplaceAll s searchFor replaceWith
+let replaceAll(s: String, searchFor: String, replaceWith: String): String =
+  Builtin.stringReplaceAll(s, searchFor, replaceWith)
 
 
 /// Returns the string, uppercased
-let toUppercase (s: String) : String = Builtin.stringToUppercase s
+let toUppercase(s: String): String = Builtin.stringToUppercase(s)
 
 
 /// Returns the string, lowercased
-let toLowercase (s: String) : String = Builtin.stringToLowercase s
+let toLowercase(s: String): String = Builtin.stringToLowercase(s)
 
 
 // TODO: UInt?
 /// Returns the length of the string
-let length (s: String) : Int = Builtin.stringLength s
+let length(s: String): Int = Builtin.stringLength(s)
 
 
 /// Return the Unicode codepoints in <param s>.
-let toCodepoints (s: String) : List<Int> = Builtin.stringToCodepoints s
+let toCodepoints(s: String): List<Int> = Builtin.stringToCodepoints(s)
 
 
 /// Return the number of Unicode codepoints in <param s>.
-let codepointLength (s: String) : Int = Builtin.stringCodepointLength s
+let codepointLength(s: String): Int = Builtin.stringCodepointLength(s)
 
 
 /// How many cells <param s> occupies in a fixed-width grid.
@@ -87,15 +87,15 @@ let codepointLength (s: String) : Int = Builtin.stringCodepointLength s
 /// A property of the text rather than of any one medium, so the answer is the same in a terminal, a
 /// monospaced buffer or a fixed-width report. Plain text only: escape sequences aren't text, and
 /// `Cli.Tui.Text` handles rows that carry them.
-let displayWidth (s: String) : Int =
-  Builtin.stringDisplayWidth s
+let displayWidth(s: String): Int =
+  Builtin.stringDisplayWidth(s)
 
 
 /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
 ///
 /// Names the builtin rather than interpolating, because this is what `"a" + "b"` runs through
 /// (`impl Add for String` below) and the interpreter answers the builtin without a call.
-let append (s1: String) (s2: String) : String = Builtin.stringAppend s1 s2
+let append(s1: String, s2: String): String = Builtin.stringAppend(s1, s2)
 
 /// `"a" + "b"` is `"ab"`
 impl Add for String =
@@ -103,12 +103,12 @@ impl Add for String =
 
 /// ...and the empty string is what `+` starts from
 impl Zero for String =
-  let zero () : String = ""
+  let zero(): String = ""
 
 
 /// Concatenates the two strings by prepending <param s2> to <param s1> and
 /// returns the joined string
-let prepend (s1: String) (s2: String) : String = s2 + s1
+let prepend(s1: String, s2: String): String = s2 + s1
 
 
 /// Turns a string into a prettified slug: lowercase roman alphanumerics joined by hyphens.
@@ -119,41 +119,41 @@ let prepend (s1: String) (s2: String) : String = s2 + s1
 ///
 /// Was a builtin until `Stdlib.Regex` existed; its own comment had said for years that this
 /// belonged here. The vertical tab is called out separately because `\s` does not cover it.
-let slugify (s: String) : String =
+let slugify(s: String): String =
   s
   |> Stdlib.String.toLowercase
-  |> (fun lowered -> Stdlib.Regex.replaceAll lowered "([^a-z0-9\\s_-]|\\x0b)+" "")
+  |> (fun lowered -> Stdlib.Regex.replaceAll(lowered, "([^a-z0-9\\s_-]|\\x0b)+", ""))
   |> Stdlib.String.trim
-  |> (fun trimmed -> Stdlib.Regex.replaceAll trimmed "[-_\\s]+" "-")
+  |> (fun trimmed -> Stdlib.Regex.replaceAll(trimmed, "[-_\\s]+", "-"))
 
 
 /// Reverses <param string>
-let reverse (string: String) : String = Builtin.stringReverse string
+let reverse(string: String): String = Builtin.stringReverse(string)
 
 
 /// Splits a string at the separator, returning a list of strings without the separator.
 /// If the separator is not present, returns a list containing only the initial string.
-let split (string: String) (separator: String) : List<String> =
-  Builtin.stringSplit string separator
+let split(string: String, separator: String): List<String> =
+  Builtin.stringSplit(string, separator)
 
 
 /// Splits <param string> at the **first** occurrence of <param separator>, returning
 /// {{Some (before, after)}}. Unlike {{split}}, the {{after}} half retains any further
 /// occurrences of the separator — useful for parsing `key=value` rows where the value
 /// may itself contain `=`. Returns {{None}} if the separator is empty or not found.
-let splitFirst
-  (string: String)
-  (separator: String)
+let splitFirst(
+  string: String,
+  separator: String)
   : Option.Option<(String * String)> =
   if separator == "" then
     Option.Option.None
   else
     // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
-    match String.indexOfEgc string separator with
+    match String.indexOfEgc(string, separator) with
     | None -> Option.Option.None
     | Some i ->
-      let before = String.first string i
-      let after = String.dropFirst string (i + String.length separator)
+      let before = String.first(string, i)
+      let after = String.dropFirst(string, i + String.length(separator))
       Option.Option.Some((before, after))
 
 
@@ -162,19 +162,19 @@ let splitFirst
 /// {{Some ("archive.tar", "gz")}}.
 /// Returns {{None}} if <param separator> is not in the string, or is empty.
 /// See <fn splitFirst> to split at the first one instead.
-let splitLast
-  (string: String)
-  (separator: String)
+let splitLast(
+  string: String,
+  separator: String)
   : Option.Option<(String * String)> =
   if separator == "" then
     Option.Option.None
   else
     // lastIndexOfEgc (not lastIndexOf) because first / dropFirst / length are EGC-indexed.
-    match String.lastIndexOfEgc string separator with
+    match String.lastIndexOfEgc(string, separator) with
     | None -> Option.Option.None
     | Some i ->
-      let before = String.first string i
-      let after = String.dropFirst string (i + String.length separator)
+      let before = String.first(string, i)
+      let after = String.dropFirst(string, i + String.length(separator))
       Option.Option.Some((before, after))
 
 
@@ -183,48 +183,48 @@ let splitLast
 /// useful for parsing rows of structured data where the value field may contain
 /// the separator. If <param n> <= 1, the separator is empty, or the separator
 /// is not found, returns {{[string]}} unchanged.
-let splitN
-  (string: String)
-  (separator: String)
-  (n: Int)
+let splitN(
+  string: String,
+  separator: String,
+  n: Int)
   : List<String> =
   if n <= 1 || separator == "" then
     [ string ]
   else
     // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
-    match String.indexOfEgc string separator with
+    match String.indexOfEgc(string, separator) with
     | None -> [ string ]
     | Some i ->
-      let before = String.first string i
-      let rest = String.dropFirst string (i + String.length separator)
-      List.prepend (String.splitN rest separator (n - 1)) before
+      let before = String.first(string, i)
+      let rest = String.dropFirst(string, i + String.length(separator))
+      List.prepend(String.splitN(rest, separator, n - 1), before)
 
 
 /// Combines a list of strings with the provided separator
-let join (l: List<String>) (separator: String) : String =
-  Builtin.stringJoin l separator
+let join(l: List<String>, separator: String): String =
+  Builtin.stringJoin(l, separator)
 
 
 /// Returns the list of characters as a string
-let fromList (lst: List<Char>) : String =
-  join (List.map lst (fun c -> Stdlib.toString c)) ""
+let fromList(lst: List<Char>): String =
+  join(List.map(lst, fun c -> Stdlib.toString(c)), "")
 
 
 /// Converts a <type Char> to a <type String>
-let fromChar (c: Char) : String = Stdlib.toString c
+let fromChar(c: Char): String = Stdlib.toString(c)
 
 
 /// URLBase64 encodes a string without padding. Uses URL-safe encoding with
 /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
 /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
-let base64UrlEncode (s: String) : String =
+let base64UrlEncode(s: String): String =
   let encoded = s |> Bytes.fromString |> Base64.urlEncode
 
-  String.replaceAll encoded "=" ""
+  String.replaceAll(encoded, "=", "")
 
 /// Base64 encodes a string. Uses {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
 /// [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) with padding.
-let base64Encode (s: String) : String =
+let base64Encode(s: String): String =
   // String.toByteList returns List<UInt8> for Http compatibility;
   // Base64.encode takes Bytes, so we go through Bytes.fromString.
   s |> Bytes.fromString |> Base64.encode
@@ -236,10 +236,10 @@ let base64Encode (s: String) : String =
 /// sections](https://www.rfc-editor.org/rfc/rfc4648.html)
 /// [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
 /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-let base64Decode (s: String) : Result.Result<String, String> =
-  match Base64.decode s with
+let base64Decode(s: String): Result.Result<String, String> =
+  match Base64.decode(s) with
   | Ok bytes ->
-    match Bytes.toString bytes with
+    match Bytes.toString(bytes) with
     | Ok str -> Result.Result.Ok str
     | Error _ -> Result.Result.Error "Invalid UTF-8 string"
   | Error err -> Result.Result.Error err
@@ -247,15 +247,15 @@ let base64Decode (s: String) : Result.Result<String, String> =
 
 /// Take a string and hash it to a cryptographically-secure digest.
 /// Don't rely on either the size or the algorithm.
-let digest (s: String) : String =
-  let sha384Hash = Crypto.sha384 (Bytes.fromString s)
+let digest(s: String): String =
+  let sha384Hash = Crypto.sha384(Bytes.fromString(s))
 
   sha384Hash |> Base64.urlEncode
 
 
 /// Generate a random alphanumeric <type String> of length <param length>.
 /// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
-let random (length: Int) : Result.Result<String, String> =
+let random(length: Int): Result.Result<String, String> =
   if length < 0 then
     Result.Result.Error
       $"Expected `length` to be positive, but it was `{length |> Stdlib.toString}`"
@@ -265,13 +265,13 @@ let random (length: Int) : Result.Result<String, String> =
 
     let randomChar =
       fun _ ->
-        (let index = Stdlib.Int.random 0 ((String.length characters) - 1)
-         String.slice characters index (index + 1))
+        (let index = Stdlib.Int.random(0, (String.length(characters)) - 1)
+         String.slice(characters, index, index + 1))
 
     let result =
-      (List.range 0 (length - 1))
-      |> List.map (fun _ -> randomChar ())
-      |> String.join ""
+      (List.range(0, length - 1))
+      |> List.map(fun _ -> randomChar())
+      |> String.join("")
 
     Result.Result.Ok result
 
@@ -281,63 +281,63 @@ let random (length: Int) : Result.Result<String, String> =
 // Uses the dedicated `stringContains` builtin (returns Bool, compiles to
 // `INSTR(...) > 0`) rather than `indexOf != -1`, so it stays SQL-queryable
 // independent of `indexOf`'s now arbitrary-precision `Int` return.
-let contains (lookingIn: String) (searchingFor: String) : Bool =
-  Builtin.stringContains lookingIn searchingFor
+let contains(lookingIn: String, searchingFor: String): Bool =
+  Builtin.stringContains(lookingIn, searchingFor)
 
 
 /// Returns the substring of <param string> between the <param from> and <param to> indices.
 /// Negative indices start counting from the end of <param string>.
-let slice (string: String) (from: Int) (``to``: Int) : String =
-  Builtin.stringSlice string from ``to``
+let slice(string: String, from: Int, ``to``: Int): String =
+  Builtin.stringSlice(string, from, ``to``)
 
 
 /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string."
-let first (string: String) (characterCount: Int) : String =
+let first(string: String, characterCount: Int): String =
   if characterCount < 0 then
     ""
-  else if characterCount > String.length string then
+  else if characterCount > String.length(string) then
     string
   else
-    String.slice string 0 characterCount
+    String.slice(string, 0, characterCount)
 
 
 /// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string.
-let last (string: String) (characterCount: Int) : String =
+let last(string: String, characterCount: Int): String =
   if characterCount < 0 then
     ""
-  else if characterCount > String.length string then
+  else if characterCount > String.length(string) then
     string
   else
-    String.slice
-      string
-      (String.length string - characterCount)
-      (String.length string)
+    String.slice(
+      string,
+      String.length(string) - characterCount,
+      String.length(string))
 
 
 /// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
-let dropLast (string: String) (characterCount: Int) : String =
+let dropLast(string: String, characterCount: Int): String =
   if characterCount < 0 then
     string
-  else if characterCount > String.length string then
+  else if characterCount > String.length(string) then
     ""
   else
-    String.slice
-      string
-      0
-      (String.length string - characterCount)
+    String.slice(
+      string,
+      0,
+      String.length(string) - characterCount)
 
 
 /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
-let dropFirst (string: String) (characterCount: Int) : String =
-  Builtin.stringDropFirst string characterCount
+let dropFirst(string: String, characterCount: Int): String =
+  Builtin.stringDropFirst(string, characterCount)
 
 
 /// If <param string> is shorter than <param goalLength> characters, returns a
@@ -346,19 +346,19 @@ let dropFirst (string: String) (characterCount: Int) : String =
 /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>
 ///
 /// Counts characters, not display cells. To line up columns of text, use <fn padStartToWidth>.
-let padStart
-  (string: String)
-  (padWith: String)
-  (goalLength: Int)
+let padStart(
+  string: String,
+  padWith: String,
+  goalLength: Int)
   : Result.Result<String, String> =
-  if String.length padWith != 1 then
+  if String.length(padWith) != 1 then
     Result.Result.Error
       $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-  else if String.length string >= goalLength then
+  else if String.length(string) >= goalLength then
     Result.Result.Ok string
   else
-    let padCount = goalLength - String.length string
-    let pad = String.repeat padWith padCount
+    let padCount = goalLength - String.length(string)
+    let pad = String.repeat(padWith, padCount)
     Result.Result.Ok(pad + string)
 
 
@@ -368,19 +368,19 @@ let padStart
 /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>.
 ///
 /// Counts characters, not display cells. To line up columns of text, use <fn padEndToWidth>.
-let padEnd
-  (string: String)
-  (padWith: String)
-  (goalLength: Int)
+let padEnd(
+  string: String,
+  padWith: String,
+  goalLength: Int)
   : Result.Result<String, String> =
-  if String.length padWith != 1 then
+  if String.length(padWith) != 1 then
     Result.Result.Error
       $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-  else if String.length string >= goalLength then
+  else if String.length(string) >= goalLength then
     Result.Result.Ok string
   else
-    let padCount = goalLength - String.length string
-    let pad = String.repeat padWith padCount
+    let padCount = goalLength - String.length(string)
+    let pad = String.repeat(padWith, padCount)
     Result.Result.Ok(string + pad)
 
 
@@ -388,16 +388,16 @@ let padEnd
 ///
 /// This is the padding that lines up columns: `界` is one character two cells wide, so <fn padStart>
 /// leaves them ragged. Longer text comes back unclipped; styled text wants `Cli.Tui.Text.fitToWidth`.
-let padStartToWidth (s: String) (width: Int) : String =
-  let padding = width - (String.displayWidth s)
-  if padding <= 0 then s else (String.repeat " " padding) + s
+let padStartToWidth(s: String, width: Int): String =
+  let padding = width - (String.displayWidth(s))
+  if padding <= 0 then s else (String.repeat(" ", padding)) + s
 
 
 /// Pad <param s> with trailing spaces to at least <param width> display cells.
 /// See <fn padStartToWidth> for why this measures cells.
-let padEndToWidth (s: String) (width: Int) : String =
-  let padding = width - (String.displayWidth s)
-  if padding <= 0 then s else s + (String.repeat " " padding)
+let padEndToWidth(s: String, width: Int): String =
+  let padding = width - (String.displayWidth(s))
+  if padding <= 0 then s else s + (String.repeat(" ", padding))
 
 
 // TODO: re-write in dark
@@ -405,80 +405,80 @@ let padEndToWidth (s: String) (width: Int) : String =
 /// removed. 'whitespace' here means all Unicode characters with the
 /// {{White_Space}} property, which includes {{" "}}, {{"\t"}} and
 /// {{"\n"}}.
-let trim (str: String) : String = Builtin.stringTrim str
+let trim(str: String): String = Builtin.stringTrim(str)
 
 
 // TODO: re-write in dark
 /// Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
 /// here means all Unicode characters with the {{White_Space}} property, which
 /// includes {{" "}}, {{"\t"}} and {{"\n"}}.
-let trimStart (str: String) : String = Builtin.stringTrimStart str
+let trimStart(str: String): String = Builtin.stringTrimStart(str)
 
 
 // TODO: re-write in dark
 /// Returns a copy of <param str> with all trailing whitespace removed.
 /// 'whitespace' here means all Unicode characters with the {{White_Space}}
 /// property, which includes {{" "}}, {{"\t"}} and {{"\n"}}.
-let trimEnd (str: String) : String = Builtin.stringTrimEnd str
+let trimEnd(str: String): String = Builtin.stringTrimEnd(str)
 
 
 // Byte-list helpers for callers that need List<UInt8>. Prefer toBytes and
 // fromBytes when working with the Bytes type.
 
 /// Converts the given unicode string to a UTF8-encoded byte sequence.
-let toByteList (str: String) : List<UInt8> =
-  Bytes.toList (toBytes str)
+let toByteList(str: String): List<UInt8> =
+  Bytes.toList(toBytes(str))
 
 
 /// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters.
-let fromByteListWithReplacement (bytes: List<UInt8>) : String =
-  fromBytesWithReplacement (Bytes.fromList bytes)
+let fromByteListWithReplacement(bytes: List<UInt8>): String =
+  fromBytesWithReplacement(Bytes.fromList(bytes))
 
 
 /// Converts the UTF8-encoded byte sequence into a string
-let fromByteList (bytes: List<UInt8>) : Option.Option<String> =
-  Builtin.stringFromByteList bytes
+let fromByteList(bytes: List<UInt8>): Option.Option<String> =
+  Builtin.stringFromByteList(bytes)
 
 
 /// Converts the given unicode string to a UTF8-encoded Bytes.
-let toBytes (str: String) : Bytes = Builtin.stringToBytes str
+let toBytes(str: String): Bytes = Builtin.stringToBytes(str)
 
 
 /// Converts a UTF8-encoded Bytes into a string. Invalid sequences are
 /// replaced.
-let fromBytesWithReplacement (bytes: Bytes) : String =
-  Builtin.stringFromBytesWithReplacement bytes
+let fromBytesWithReplacement(bytes: Bytes): String =
+  Builtin.stringFromBytesWithReplacement(bytes)
 
 
 /// Converts a UTF8-encoded Bytes into a string. Returns None if the
 /// bytes aren't valid UTF-8.
-let fromBytes (bytes: Bytes) : Option.Option<String> = Builtin.stringFromBytes bytes
+let fromBytes(bytes: Bytes): Option.Option<String> = Builtin.stringFromBytes(bytes)
 
 
 /// Return the byte at <param index> in <param str>'s UTF-8 encoding.
 /// Returns {{None}} when <param index> is outside the encoding.
-let getByteAt (str: String) (index: Int) : Option.Option<UInt8> =
-  Builtin.stringGetByteAt str index
+let getByteAt(str: String, index: Int): Option.Option<UInt8> =
+  Builtin.stringGetByteAt(str, index)
 
 
 /// Checks if <param subject> starts with <param prefix>
-let startsWith (subject: String) (prefix: String) : Bool =
-  Builtin.stringStartsWith subject prefix
+let startsWith(subject: String, prefix: String): Bool =
+  Builtin.stringStartsWith(subject, prefix)
 
 
 /// Checks if <param subject> ends with <param suffix>
-let endsWith (subject: String) (suffix: String) : Bool =
-  String.slice subject (String.length subject - String.length suffix) (String.length subject) == suffix
+let endsWith(subject: String, suffix: String): Bool =
+  String.slice(subject, String.length(subject) - String.length(suffix), String.length(subject)) == suffix
 
 
 /// Removes <param prefix> from the start of <param subject>.
 /// Example: {{stripPrefix "--verbose" "--"}} returns {{Some "verbose"}}.
 /// Returns {{None}} if <param subject> does not start with <param prefix>.
-let stripPrefix (subject: String) (prefix: String) : Option.Option<String> =
-  let n = String.length prefix
+let stripPrefix(subject: String, prefix: String): Option.Option<String> =
+  let n = String.length(prefix)
 
-  if String.first subject n == prefix then
-    Option.Option.Some(String.dropFirst subject n)
+  if String.first(subject, n) == prefix then
+    Option.Option.Some(String.dropFirst(subject, n))
   else
     Option.Option.None
 
@@ -486,11 +486,11 @@ let stripPrefix (subject: String) (prefix: String) : Option.Option<String> =
 /// Removes <param suffix> from the end of <param subject>.
 /// Example: {{stripSuffix "notes.txt" ".txt"}} returns {{Some "notes"}}.
 /// Returns {{None}} if <param subject> does not end with <param suffix>.
-let stripSuffix (subject: String) (suffix: String) : Option.Option<String> =
-  let n = String.length suffix
+let stripSuffix(subject: String, suffix: String): Option.Option<String> =
+  let n = String.length(suffix)
 
-  if String.last subject n == suffix then
-    Option.Option.Some(String.dropLast subject n)
+  if String.last(subject, n) == suffix then
+    Option.Option.Some(String.dropLast(subject, n))
   else
     Option.Option.None
 
@@ -499,8 +499,8 @@ let stripSuffix (subject: String) (suffix: String) : Option.Option<String> =
 /// measured in UTF-16 code units. Returns {{None}} if <param searchFor> does not occur.
 /// The returned index is **not** suitable for arithmetic with {{first}}, {{dropFirst}},
 /// or {{slice}}, which are all EGC-indexed — for that, use {{indexOfEgc}}.
-let indexOf (str: String) (searchFor: String) : Option.Option<Int> =
-  let idx = Builtin.stringIndexOf str searchFor
+let indexOf(str: String, searchFor: String): Option.Option<Int> =
+  let idx = Builtin.stringIndexOf(str, searchFor)
   if idx == -1 then Option.Option.None else Option.Option.Some idx
 
 
@@ -509,19 +509,19 @@ let indexOf (str: String) (searchFor: String) : Option.Option<Int> =
 /// {{first}}, and {{dropFirst}}). Returns {{None}} if <param searchFor> does not occur.
 /// The match must begin and end on EGC boundaries — searching for a partial grapheme
 /// (e.g. a base codepoint inside a ZWJ sequence) will not match.
-let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int> =
-  let idx = Builtin.stringIndexOfEgc str searchFor
+let indexOfEgc(str: String, searchFor: String): Option.Option<Int> =
+  let idx = Builtin.stringIndexOfEgc(str, searchFor)
   if idx == -1 then Option.Option.None else Option.Option.Some idx
 
 
 /// Returns {{Some index}} of the last occurrence of <param searchFor> in <param str>,
 /// measured in UTF-16 code units. Returns {{None}} if <param searchFor> does not occur.
 /// For an EGC-indexed result, use {{lastIndexOfEgc}}.
-let lastIndexOf
-  (str: String)
-  (searchFor: String)
+let lastIndexOf(
+  str: String,
+  searchFor: String)
   : Option.Option<Int> =
-  let lastIndex = Builtin.stringLastIndexOf str searchFor
+  let lastIndex = Builtin.stringLastIndexOf(str, searchFor)
 
   if lastIndex == -1 then
     Option.Option.None
@@ -532,11 +532,11 @@ let lastIndexOf
 /// Returns {{Some index}} of the last occurrence of <param searchFor> in <param str>,
 /// measured in extended grapheme clusters. Returns {{None}} if <param searchFor>
 /// does not occur. The match must begin and end on EGC boundaries.
-let lastIndexOfEgc
-  (str: String)
-  (searchFor: String)
+let lastIndexOfEgc(
+  str: String,
+  searchFor: String)
   : Option.Option<Int> =
-  let lastIndex = Builtin.stringLastIndexOfEgc str searchFor
+  let lastIndex = Builtin.stringLastIndexOfEgc(str, searchFor)
 
   if lastIndex == -1 then
     Option.Option.None
@@ -546,18 +546,18 @@ let lastIndexOfEgc
 
 /// Returns the <param string> repeated for a specified <param count> times.
 /// If <param count> is less than or equal to 0, returns an empty string.
-let repeat (string: String) (count: Int) : String =
-  Builtin.stringRepeat string count
+let repeat(string: String, count: Int): String =
+  Builtin.stringRepeat(string, count)
 
 
 /// Splits the given <param str> at each newline character and returns a list of substrings.
 /// If the <param str> is empty, it returns an empty list.
-let splitOnNewline (str: String) : List<String> =
-  if str == "" then [] else String.split str "\n"
+let splitOnNewline(str: String): List<String> =
+  if str == "" then [] else String.split(str, "\n")
 
 
 /// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.
-let head (str: String) : Option.Option<Char> =
+let head(str: String): Option.Option<Char> =
   if str == "" then
     Option.Option.None
   else
@@ -566,29 +566,29 @@ let head (str: String) : Option.Option<Char> =
 
 /// Returns {{Some c}} for the character at <param index> (0-based, EGC, not
 /// byte), or {{None}} if <param index> is negative or past the end.
-let charAt (str: String) (index: Int) : Option.Option<Char> =
-  str |> String.toList |> List.getAt index
+let charAt(str: String, index: Int): Option.Option<Char> =
+  str |> String.toList |> List.getAt(index)
 
 
 /// Orders two strings: negative when <param a> sorts first, 0 when they are equal, positive
 /// when <param b> does. Only the sign is meaningful. Ordinal rather than language-aware, so
 /// two machines order the same pair the same way.
-let compare (a: String) (b: String) : Int64 = Builtin.stringCompare a b
+let compare(a: String, b: String): Int64 = Builtin.stringCompare(a, b)
 
 
 /// `"a" < "b"`, and with it `Stdlib.max`, `min` and `clamp` on Strings.
 impl Compare for String =
-  let lessThan (a: String) (b: String) : Bool = (Stdlib.String.compare a b) < 0L
+  let lessThan(a: String, b: String): Bool = (Stdlib.String.compare(a, b)) < 0L
 
-  let lessThanOrEqualTo (a: String) (b: String) : Bool =
-    (Stdlib.String.compare a b) <= 0L
+  let lessThanOrEqualTo(a: String, b: String): Bool =
+    (Stdlib.String.compare(a, b)) <= 0L
 
-  let greaterThan (a: String) (b: String) : Bool = (Stdlib.String.compare a b) > 0L
+  let greaterThan(a: String, b: String): Bool = (Stdlib.String.compare(a, b)) > 0L
 
-  let greaterThanOrEqualTo (a: String) (b: String) : Bool =
-    (Stdlib.String.compare a b) >= 0L
+  let greaterThanOrEqualTo(a: String, b: String): Bool =
+    (Stdlib.String.compare(a, b)) >= 0L
 
 
 /// A String is already text
 impl ToString for String =
-  let toString (s: String) : String = s
+  let toString(s: String): String = s

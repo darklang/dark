@@ -10,26 +10,26 @@ type Request =
 /// Parses a URL's query string into a dictionary, keeping the last value for
 /// each key. This matches `Stdlib.Http.Request.queryParams` combined with
 /// `Dict.fromEntries`.
-let parseQueryString (url: String) : Dict<String, String> =
-  match Stdlib.String.split url "?" with
+let parseQueryString(url: String): Dict<String, String> =
+  match Stdlib.String.split(url, "?") with
   | [] -> Stdlib.Dict.empty
   | [_] -> Stdlib.Dict.empty
   | _ :: queryParts ->
-    (Stdlib.String.join queryParts "?")
-    |> Stdlib.String.split "&"
-    |> Stdlib.List.filterMap (fun param ->
+    (Stdlib.String.join(queryParts, "?"))
+    |> Stdlib.String.split("&")
+    |> Stdlib.List.filterMap(fun param ->
       if param == "" then
         Stdlib.Option.Option.None
       else
         // Decoded, like `Request.queryParams`: a caller reading `?q=List+map`
         // wants the two words, not the plus sign that carried the space.
-        match Stdlib.String.split param "=" with
+        match Stdlib.String.split(param, "=") with
         | [] -> Stdlib.Option.Option.None
         | key :: rest ->
           // `?a=b=c` gives key="a", value="b=c"
           Stdlib.Option.Option.Some(
-            (Stdlib.Http.urlDecode key,
-             Stdlib.Http.urlDecode (Stdlib.String.join rest "="))))
+            (Stdlib.Http.urlDecode(key),
+             Stdlib.Http.urlDecode(Stdlib.String.join(rest, "=")))))
     |> Stdlib.Dict.fromEntries
 
 
@@ -37,21 +37,21 @@ let parseQueryString (url: String) : Dict<String, String> =
 /// LF separated) into a Dict. Duplicates resolve to the last-wins value.
 /// Header names are kept verbatim — case-insensitive lookup is the caller's
 /// responsibility (see `String.equalsCaseInsensitive`).
-let parseHeaders (s: String) : Dict<String, String> =
+let parseHeaders(s: String): Dict<String, String> =
   s
-  |> Stdlib.String.replaceAll "\r\n" "\n"
-  |> Stdlib.String.split "\n"
-  |> Stdlib.List.filterMap (fun line ->
-    let trimmed = Stdlib.String.trim line
+  |> Stdlib.String.replaceAll("\r\n", "\n")
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.filterMap(fun line ->
+    let trimmed = Stdlib.String.trim(line)
     if trimmed == "" then
       Stdlib.Option.Option.None
     else
-      match Stdlib.String.split trimmed ":" with
+      match Stdlib.String.split(trimmed, ":") with
       | [] -> Stdlib.Option.Option.None
       | [ _ ] -> Stdlib.Option.Option.None
       | name :: rest ->
-        let value = (Stdlib.String.join rest ":") |> Stdlib.String.trim
-        Stdlib.Option.Option.Some((Stdlib.String.trim name, value)))
+        let value = (Stdlib.String.join(rest, ":")) |> Stdlib.String.trim
+        Stdlib.Option.Option.Some((Stdlib.String.trim(name), value)))
   |> Stdlib.Dict.fromEntries
 
 
@@ -67,27 +67,27 @@ let parseHeaders (s: String) : Dict<String, String> =
 ///
 /// A `%` that does not start two hex digits is passed through as itself rather
 /// than dropped. A search box is allowed to contain a percent sign.
-let urlDecode (s: String) : String =
-  match Stdlib.String.split (Stdlib.String.replaceAll s "+" " ") "%" with
+let urlDecode(s: String): String =
+  match Stdlib.String.split(Stdlib.String.replaceAll(s, "+", " "), "%") with
   | [] -> ""
   | first :: rest ->
     rest
-    |> Stdlib.List.fold (Stdlib.String.toByteList first) (fun acc piece ->
-      let hex = Stdlib.String.slice piece 0 2
+    |> Stdlib.List.fold(Stdlib.String.toByteList(first), fun acc piece ->
+      let hex = Stdlib.String.slice(piece, 0, 2)
 
       // The length check is not redundant: `Bytes.fromHex ""` succeeds, so a `%`
       // at the very end of the string decodes to no bytes at all and vanishes.
       match
-        (if (Stdlib.String.length hex) == 2 then
-           Stdlib.Bytes.fromHex hex
+        (if (Stdlib.String.length(hex)) == 2 then
+           Stdlib.Bytes.fromHex(hex)
          else
            Stdlib.Result.Result.Error "not an escape")
       with
       | Ok b ->
-        Stdlib.List.concat
-          (Stdlib.List.concat acc (Stdlib.Bytes.toList b))
-          (Stdlib.String.toByteList (Stdlib.String.dropFirst piece 2))
-      | Error _ -> Stdlib.List.concat acc (Stdlib.String.toByteList ("%" + piece)))
+        Stdlib.List.concat(
+          Stdlib.List.concat(acc, Stdlib.Bytes.toList(b)),
+          Stdlib.String.toByteList(Stdlib.String.dropFirst(piece, 2)))
+      | Error _ -> Stdlib.List.concat(acc, Stdlib.String.toByteList("%" + piece)))
     |> Stdlib.String.fromByteListWithReplacement
 
 
@@ -98,18 +98,18 @@ module Request =
   /// (base64 padding and any nested query string do), and requiring exactly two
   /// pieces dropped the whole field on the floor: `?q=a=b` read as though `q`
   /// had never been sent.
-  let queryParams (req: Stdlib.Http.Request) : List<String * String> =
-    match req.url |> Stdlib.String.split "?" with
+  let queryParams(req: Stdlib.Http.Request): List<String * String> =
+    match req.url |> Stdlib.String.split("?") with
     | [] -> []
     | _ :: queryParts ->
-      (Stdlib.String.join queryParts "?")
-      |> Stdlib.String.split "&"
-      |> Stdlib.List.map (fun param ->
-        match Stdlib.String.split param "=" with
+      (Stdlib.String.join(queryParts, "?"))
+      |> Stdlib.String.split("&")
+      |> Stdlib.List.map(fun param ->
+        match Stdlib.String.split(param, "=") with
         | [] -> ("", "")
         | key :: valueParts ->
-          (Stdlib.Http.urlDecode key,
-           Stdlib.Http.urlDecode (Stdlib.String.join valueParts "=")))
+          (Stdlib.Http.urlDecode(key),
+           Stdlib.Http.urlDecode(Stdlib.String.join(valueParts, "="))))
 
   /// The value of <param key>, matched case-INSENSITIVELY, as HTTP requires: a client
   /// may send `Authorization`, `authorization` or `AUTHORIZATION` and all three mean the
@@ -118,29 +118,29 @@ module Request =
   ///
   /// The first match wins. A repeated header is legal and means a list, which no caller
   /// here wants yet; taking the first is the same choice <fn queryParam> makes.
-  let header
-    (req: Stdlib.Http.Request)
-    (key: String)
+  let header(
+    req: Stdlib.Http.Request,
+    key: String)
     : Stdlib.Option.Option<String> =
-    let wanted = Stdlib.String.toLowercase key
+    let wanted = Stdlib.String.toLowercase(key)
 
     req.headers
-    |> Stdlib.List.filterMap (fun pair ->
+    |> Stdlib.List.filterMap(fun pair ->
       let (k, v) = pair
 
-      if (Stdlib.String.toLowercase k) == wanted then
+      if (Stdlib.String.toLowercase(k)) == wanted then
         Stdlib.Option.Option.Some v
       else
         Stdlib.Option.Option.None)
     |> Stdlib.List.head
 
-  let queryParam
-    (req: Stdlib.Http.Request)
-    (key: String)
+  let queryParam(
+    req: Stdlib.Http.Request,
+    key: String)
     : Stdlib.Option.Option<String> =
     let found =
-      (Stdlib.Http.Request.queryParams req)
-      |> Stdlib.List.filterMap (fun pair ->
+      (Stdlib.Http.Request.queryParams(req))
+      |> Stdlib.List.filterMap(fun pair ->
         match pair with
         | (k, v) ->
           if k == key then
@@ -153,7 +153,7 @@ module Request =
     | [] -> Stdlib.Option.Option.None
     | [ v ] -> Stdlib.Option.Option.Some v
     // TODO: something else?
-    | items -> Stdlib.Option.Option.Some(Stdlib.String.join items ",")
+    | items -> Stdlib.Option.Option.Some(Stdlib.String.join(items, ","))
 
 
 type Response =
@@ -163,7 +163,7 @@ type Response =
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param code> and <param response> body.
-let response (body: Bytes) (statusCode: Int) : Stdlib.Http.Response =
+let response(body: Bytes, statusCode: Int): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = []
@@ -172,10 +172,10 @@ let response (body: Bytes) (statusCode: Int) : Stdlib.Http.Response =
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param code>, <param response> body and
 /// <param headers>.
-let responseWithHeaders
-  (body: Bytes)
-  (headers: List<String * String>)
-  (statusCode: Int)
+let responseWithHeaders(
+  body: Bytes,
+  headers: List<String * String>,
+  statusCode: Int)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -184,7 +184,7 @@ let responseWithHeaders
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200 and <param response> body.
-let success (body: Bytes) : Stdlib.Http.Response =
+let success(body: Bytes): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 200
       headers = []
@@ -193,9 +193,9 @@ let success (body: Bytes) : Stdlib.Http.Response =
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200, <param response> body, with the
 /// Content-Type header set to "text/html; charset=utf-8".
-let responseWithHtml
-  (body: String)
-  (statusCode: Int)
+let responseWithHtml(
+  body: String,
+  statusCode: Int)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -206,30 +206,30 @@ let responseWithHtml
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200, <param response> body, with the
 /// Content-Type header set to "text/plain; charset=utf-8".
-let responseWithText
-  (text: String)
-  (statusCode: Int)
+let responseWithText(
+  text: String,
+  statusCode: Int)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
-      body = Stdlib.String.toBytes text }
+      body = Stdlib.String.toBytes(text) }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200, <param response> body, with the
 /// Content-Type header set to "application/json".
-let responseWithJson
-  (json: String)
-  (statusCode: Int)
+let responseWithJson(
+  json: String,
+  statusCode: Int)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "application/json") ]
-      body = Stdlib.String.toBytes json }
+      body = Stdlib.String.toBytes(json) }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{302}} status code and redirect to <param url>.
-let redirectTo (url: String) : Stdlib.Http.Response =
+let redirectTo(url: String): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 302
       headers = [ ("Location", url) ]
@@ -237,15 +237,15 @@ let redirectTo (url: String) : Stdlib.Http.Response =
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{400}} status code and <param response> body.
-let badRequest (error: String) : Stdlib.Http.Response =
+let badRequest(error: String): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 400
       headers = []
-      body = Stdlib.String.toBytes error }
+      body = Stdlib.String.toBytes(error) }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{404}} status code.
-let notFound () : Stdlib.Http.Response =
+let notFound(): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 404
       headers = []
@@ -253,7 +253,7 @@ let notFound () : Stdlib.Http.Response =
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{401}} status code.
-let unauthorized () : Stdlib.Http.Response =
+let unauthorized(): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 401
       headers = []
@@ -261,7 +261,7 @@ let unauthorized () : Stdlib.Http.Response =
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{403}} status code.
-let forbidden () : Stdlib.Http.Response =
+let forbidden(): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 403
       headers = []
@@ -269,11 +269,11 @@ let forbidden () : Stdlib.Http.Response =
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{500}} status code and <param error> body.
-let serverError (error: String) : Stdlib.Http.Response =
+let serverError(error: String): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 500
       headers = []
-      body = Stdlib.String.toBytes error }
+      body = Stdlib.String.toBytes(error) }
 
 type Cookie =
   { expires: DateTime

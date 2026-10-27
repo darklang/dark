@@ -13,35 +13,35 @@ val compactHelpText = "↑↓ move  Enter select  Esc cancel"
 val minimumHelpText = "↑↓ Enter Esc"
 
 val minimumHeight = 2
-val minimumWidth = Stdlib.String.displayWidth minimumHelpText
+val minimumWidth = Stdlib.String.displayWidth(minimumHelpText)
 
 type Layout =
   { itemCapacity: Int
     showScrollIndicator: Bool }
 
-let supportsSize (size: Stdlib.Cli.Tui.Size) : Bool =
+let supportsSize(size: Stdlib.Cli.Tui.Size): Bool =
   size.height >= minimumHeight && size.width >= minimumWidth
 
 val unsupportedSizeMessage =
-  $"Completion picker requires at least {Stdlib.toString minimumWidth} columns and {Stdlib.toString minimumHeight} rows."
+  $"Completion picker requires at least {Stdlib.toString(minimumWidth)} columns and {Stdlib.toString(minimumHeight)} rows."
 
-let helpTextAtWidth (width: Int) : String =
-  if Stdlib.String.displayWidth fullHelpText <= width then
+let helpTextAtWidth(width: Int): String =
+  if Stdlib.String.displayWidth(fullHelpText) <= width then
     fullHelpText
-  else if Stdlib.String.displayWidth compactHelpText <= width then
+  else if Stdlib.String.displayWidth(compactHelpText) <= width then
     compactHelpText
   else
     minimumHelpText
 
 /// Create picker state from completions
-let create (promptText: String) (items: List<Completion.CompletionItem>) : State =
-  let parsed = Completion.parseInput promptText
+let create(promptText: String, items: List<Completion.CompletionItem>): State =
+  let parsed = Completion.parseInput(promptText)
   let commandPrefix =
     if parsed.isCompletingCommand then ""
     else
-      let completedArgs = Stdlib.List.dropLast parsed.args
-      let parts = Stdlib.List.prepend completedArgs parsed.commandName
-      (Stdlib.String.join parts " ") + " "
+      let completedArgs = Stdlib.List.dropLast(parsed.args)
+      let parts = Stdlib.List.prepend(completedArgs, parsed.commandName)
+      (Stdlib.String.join(parts, " ")) + " "
 
   State
     { items = items
@@ -50,48 +50,48 @@ let create (promptText: String) (items: List<Completion.CompletionItem>) : State
       commandPrefix = commandPrefix }
 
 /// Get the currently selected item's value (what gets inserted)
-let getSelectedValue (state: State) : Stdlib.Option.Option<String> =
-  match Stdlib.List.getAt state.items state.selectedIndex with
+let getSelectedValue(state: State): Stdlib.Option.Option<String> =
+  match Stdlib.List.getAt(state.items, state.selectedIndex) with
   | Some item -> Stdlib.Option.Option.Some item.value
   | None -> Stdlib.Option.Option.None
 
 /// Reserve the help row and fit completion items and a scroll indicator above it.
-let layoutAtSize
-  (state: State)
-  (size: Stdlib.Cli.Tui.Size)
+let layoutAtSize(
+  state: State,
+  size: Stdlib.Cli.Tui.Size)
   : Layout =
-  let itemCount = Stdlib.List.length state.items
-  let availableRows = Stdlib.max minimumHeight size.height
+  let itemCount = Stdlib.List.length(state.items)
+  let availableRows = Stdlib.max(minimumHeight, size.height)
   let helpRowHeight = 1
   let withoutIndicator =
-    Stdlib.max 1 (availableRows - helpRowHeight)
+    Stdlib.max(1, availableRows - helpRowHeight)
   let initialCapacity =
-    Stdlib.min maxVisibleItems withoutIndicator
+    Stdlib.min(maxVisibleItems, withoutIndicator)
   let showScrollIndicator =
     itemCount > initialCapacity && availableRows >= 3
   let indicatorHeight = if showScrollIndicator then 1 else 0
 
   Layout {
     itemCapacity =
-      Stdlib.max
-        1
-        (Stdlib.min
-          maxVisibleItems
-          (availableRows - helpRowHeight - indicatorHeight))
+      Stdlib.max(
+        1,
+        (Stdlib.min(
+          maxVisibleItems,
+          availableRows - helpRowHeight - indicatorHeight)))
     showScrollIndicator = showScrollIndicator
   }
 
 /// Number of item rows available at this terminal size.
-let visibleCapacity
-  (state: State)
-  (size: Stdlib.Cli.Tui.Size)
+let visibleCapacity(
+  state: State,
+  size: Stdlib.Cli.Tui.Size)
   : Int =
-  (layoutAtSize state size).itemCapacity
+  (layoutAtSize(state, size)).itemCapacity
 
 
-let effectiveOffset (state: State) (capacity: Int) : Int =
-  let itemCount = Stdlib.List.length state.items
-  let maxOffset = Stdlib.max 0 (itemCount - capacity)
+let effectiveOffset(state: State, capacity: Int): Int =
+  let itemCount = Stdlib.List.length(state.items)
+  let maxOffset = Stdlib.max(0, itemCount - capacity)
   let desired =
     if state.selectedIndex < state.scrollOffset then
       state.selectedIndex
@@ -100,52 +100,52 @@ let effectiveOffset (state: State) (capacity: Int) : Int =
     else
       state.scrollOffset
 
-  Stdlib.min maxOffset (Stdlib.max 0 desired)
+  Stdlib.min(maxOffset, Stdlib.max(0, desired))
 
 
 /// Build the complete inline completion region without terminal I/O.
-let viewAtSize
-  (state: State)
-  (size: Stdlib.Cli.Tui.Size)
+let viewAtSize(
+  state: State,
+  size: Stdlib.Cli.Tui.Size)
   : Stdlib.Cli.Tui.View =
-  let width = Stdlib.max 1 size.width
-  let layout = layoutAtSize state size
+  let width = Stdlib.max(1, size.width)
+  let layout = layoutAtSize(state, size)
   let capacity = layout.itemCapacity
-  let offset = effectiveOffset state capacity
-  let itemCount = Stdlib.List.length state.items
-  let visibleCount = Stdlib.min capacity itemCount
+  let offset = effectiveOffset(state, capacity)
+  let itemCount = Stdlib.List.length(state.items)
+  let visibleCount = Stdlib.min(capacity, itemCount)
 
   let visibleItems =
     state.items
-    |> Stdlib.List.drop offset
-    |> Stdlib.List.take visibleCount
+    |> Stdlib.List.drop(offset)
+    |> Stdlib.List.take(visibleCount)
 
   let itemRows =
     visibleItems
-    |> Stdlib.List.indexedMap (fun visibleIndex item ->
+    |> Stdlib.List.indexedMap(fun visibleIndex item ->
       let isSelected =
         (offset + visibleIndex) == state.selectedIndex
 
       if isSelected then
-        Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.completionSelection item.display
+        Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.completionSelection, item.display)
       else
         item.display)
 
   let indicatorRows =
     if layout.showScrollIndicator then
-      let start = Stdlib.toString (offset + 1)
-      let endIndex = Stdlib.toString (offset + visibleCount)
-      let total = Stdlib.toString itemCount
-      [ Stdlib.Cli.UI.Colors.dimText $"({start}-{endIndex} of {total})" ]
+      let start = Stdlib.toString(offset + 1)
+      let endIndex = Stdlib.toString(offset + visibleCount)
+      let total = Stdlib.toString(itemCount)
+      [ Stdlib.Cli.UI.Colors.dimText($"({start}-{endIndex} of {total})") ]
     else
       []
 
   let helpRows =
-    [ Stdlib.Cli.UI.Colors.dimText (helpTextAtWidth width) ]
+    [ Stdlib.Cli.UI.Colors.dimText(helpTextAtWidth(width)) ]
   let rows =
-    Stdlib.List.flatten [ itemRows, indicatorRows, helpRows ]
-    |> Stdlib.List.map (fun row ->
-      Stdlib.Cli.Tui.Text.clipToWidth row width)
+    Stdlib.List.flatten([ itemRows, indicatorRows, helpRows ])
+    |> Stdlib.List.map(fun row ->
+      Stdlib.Cli.Tui.Text.clipToWidth(row, width))
 
   Stdlib.Cli.Tui.View {
     rows = rows
@@ -158,7 +158,7 @@ let viewAtSize
 ///
 /// Takes no capacity, unlike `moveDownWithCapacity`: moving up can only ever pull the offset down, and
 /// `effectiveOffset` re-clamps against the live size at render time anyway.
-let moveUp (state: State) : State =
+let moveUp(state: State): State =
   if state.selectedIndex > 0 then
     let newIndex = state.selectedIndex - 1
 
@@ -172,8 +172,8 @@ let moveUp (state: State) : State =
     state
 
 /// Move selection down, keeping it within a viewport of `capacity` rows.
-let moveDownWithCapacity (capacity: Int) (state: State) : State =
-  let itemCount = Stdlib.List.length state.items
+let moveDownWithCapacity(capacity: Int, state: State): State =
+  let itemCount = Stdlib.List.length(state.items)
 
   if state.selectedIndex < (itemCount - 1) then
     let newIndex = state.selectedIndex + 1
@@ -198,31 +198,31 @@ type KeyResult =
   | Unavailable of message: String
 
 /// Handle a key press in the picker
-let handleKeyAtSize
-  (state: State)
-  (size: Stdlib.Cli.Tui.Size)
-  (key: Stdlib.Cli.Stdin.Key.Key)
+let handleKeyAtSize(
+  state: State,
+  size: Stdlib.Cli.Tui.Size,
+  key: Stdlib.Cli.Stdin.Key.Key)
   : KeyResult =
-  if Stdlib.Bool.not (supportsSize size) then
+  if Stdlib.Bool.not(supportsSize(size)) then
     KeyResult.Unavailable unsupportedSizeMessage
   else
-    let capacity = visibleCapacity state size
+    let capacity = visibleCapacity(state, size)
     match key with
     | UpArrow ->
       KeyResult.Continue
-        (moveUp state)
+        (moveUp(state))
     | DownArrow ->
       KeyResult.Continue
-        (moveDownWithCapacity capacity state)
+        (moveDownWithCapacity(capacity, state))
     | Enter ->
-      match getSelectedValue state with
+      match getSelectedValue(state) with
       | Some value -> KeyResult.SelectItem value
       | None -> KeyResult.Cancel
     | Escape -> KeyResult.Cancel
     | _ -> KeyResult.Continue state
 
 /// Build the completed command text from selection
-let buildCompletedCommand (state: State) (selection: String) : String =
+let buildCompletedCommand(state: State, selection: String): String =
   state.commandPrefix + selection
 
 
@@ -231,37 +231,37 @@ type Session =
   { state: State
     terminal: Stdlib.Cli.Tui.TerminalSession.State }
 
-let startAtSize
-  (state: State)
-  (size: Stdlib.Cli.Tui.Size)
+let startAtSize(
+  state: State,
+  size: Stdlib.Cli.Tui.Size)
   : Stdlib.Result.Result<Session, String> =
-  if Stdlib.Bool.not (supportsSize size) then
+  if Stdlib.Bool.not(supportsSize(size)) then
     Stdlib.Result.Result.Error unsupportedSizeMessage
   else
-    match Stdlib.Cli.Tui.TerminalSession.startAtSize size (viewAtSize state size) with
+    match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, viewAtSize(state, size)) with
     | Ok terminal ->
       Stdlib.Result.Result.Ok
         (Session { state = state, terminal = terminal })
     | Error message ->
       Stdlib.Result.Result.Error message
 
-let presentAtSize
-  (session: Session)
-  (state: State)
-  (size: Stdlib.Cli.Tui.Size)
+let presentAtSize(
+  session: Session,
+  state: State,
+  size: Stdlib.Cli.Tui.Size)
   : Session =
   let terminal =
-    Stdlib.Cli.Tui.TerminalSession.presentAtSize
-      session.terminal
-      size
-      (viewAtSize state size)
+    Stdlib.Cli.Tui.TerminalSession.presentAtSize(
+      session.terminal,
+      size,
+      viewAtSize(state, size))
   Session { state = state, terminal = terminal }
 
 /// Stop the session, erasing the picker region in the same update.
 ///
 /// Selection, cancel, and Ctrl-C all release the region this way: the picker
 /// leaves nothing behind, and the prompt re-anchors where the region began.
-let stop (session: Session) : Session =
+let stop(session: Session): Session =
   let cleared =
     Stdlib.Cli.Tui.View {
       rows = []
@@ -269,5 +269,5 @@ let stop (session: Session) : Session =
       mode = Stdlib.Cli.Tui.ViewMode.Inline
     }
   let terminal =
-    Stdlib.Cli.Tui.TerminalSession.stopInlineWithView session.terminal cleared
+    Stdlib.Cli.Tui.TerminalSession.stopInlineWithView(session.terminal, cleared)
   Session { state = session.state, terminal = terminal }

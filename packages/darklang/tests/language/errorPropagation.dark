@@ -2,48 +2,48 @@ module Darklang.Language.Tests.ErrorPropagation
 
 module Error =
   test map2WrongArgRaises =
-    (Stdlib.Option.map2
-      (Stdlib.Option.Option.Some 10L)
-      "not an option"
-      (fun (a, b) -> "1"))
+    (Stdlib.Option.map2(
+      Stdlib.Option.Option.Some 10L,
+      "not an option",
+      fun (a, b) -> "1"))
     => raises
       "Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
 
 
 // Check we get previous errors before later ones
 test earlierErrorFirst =
-  (Stdlib.List.map [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
-    Stdlib.Test.raiseRuntimeError "X"))
+  (Stdlib.List.map([ 1L, 2L, 3L, 4L, 5L ], fun x ->
+    Stdlib.Test.raiseRuntimeError("X")))
   |> Stdlib.List.fakeFunction
   => raises "Uncaught exception: X"
 
 module ErrorPropagation =
   test fnArg =
-    Stdlib.List.head (Stdlib.Test.raiseRuntimeError "test")
+    Stdlib.List.head(Stdlib.Test.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
 
   test ifCondition =
-    (if Stdlib.Test.raiseRuntimeError "test" then 5L else 6L)
+    (if Stdlib.Test.raiseRuntimeError("test") then 5L else 6L)
     => raises "Uncaught exception: test"
 
   test fieldAccessTarget =
-    (Stdlib.List.head (Stdlib.Test.raiseRuntimeError "test")).field
+    (Stdlib.List.head(Stdlib.Test.raiseRuntimeError("test"))).field
     => raises "Uncaught exception: test"
 
   test listElementCall =
-    [ 5L, 6L, Stdlib.List.head (Stdlib.Test.raiseRuntimeError "test") ]
+    [ 5L, 6L, Stdlib.List.head(Stdlib.Test.raiseRuntimeError("test")) ]
     => raises "Uncaught exception: test"
 
   test listElement =
-    [ 5L, 6L, Stdlib.Test.raiseRuntimeError "test" ]
+    [ 5L, 6L, Stdlib.Test.raiseRuntimeError("test") ]
     => raises "Uncaught exception: test"
 
   test pipeStageThenMore =
-    5L |> (+) (Stdlib.Test.raiseRuntimeError "test") |> (+) 3564L
+    5L |> (fun v -> v + (Stdlib.Test.raiseRuntimeError("test"))) |> (fun v -> v + 3564L)
     => raises "Uncaught exception: test"
 
   test pipeStage =
-    5L |> (+) (Stdlib.Test.raiseRuntimeError "test")
+    5L |> (fun v -> v + (Stdlib.Test.raiseRuntimeError("test")))
     => raises "Uncaught exception: test"
 
   test pipeIntoRaise =
@@ -51,20 +51,20 @@ module ErrorPropagation =
     => raises "Uncaught exception: test"
 
   test someArg =
-    Stdlib.Option.Option.Some(Stdlib.Test.raiseRuntimeError "test")
+    Stdlib.Option.Option.Some(Stdlib.Test.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
 
   test errorArg =
-    Stdlib.Result.Result.Error(Stdlib.Test.raiseRuntimeError "test")
+    Stdlib.Result.Result.Error(Stdlib.Test.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
 
   test okArg =
-    Stdlib.Result.Result.Ok(Stdlib.Test.raiseRuntimeError "test")
+    Stdlib.Result.Result.Ok(Stdlib.Test.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
 
   // pipe into error
   test pipeIntoRaiseThenMore =
-    ("test" |> Stdlib.Test.raiseRuntimeError |> (+) "3")
+    ("test" |> Stdlib.Test.raiseRuntimeError |> (fun v -> v + "3"))
     => raises "Uncaught exception: test"
 
   type EPRec =
@@ -75,9 +75,9 @@ module ErrorPropagation =
 
   test recordFirstFieldErrorFirst =
     EPRec
-      { i = Stdlib.Test.raiseRuntimeError "1"
+      { i = Stdlib.Test.raiseRuntimeError("1")
         m = 5L
-        j = Stdlib.List.head (Stdlib.Test.raiseRuntimeError "2")
+        j = Stdlib.List.head(Stdlib.Test.raiseRuntimeError("2"))
         n = 6L }
     => raises "Uncaught exception: 1"
 
@@ -86,5 +86,5 @@ module ErrorPropagation =
     "msg" + (1L / 0L) => raises "Cannot divide by 0"
 
 test fieldAccessOnRaise =
-  (Stdlib.Test.raiseRuntimeError "error").fieldName
+  (Stdlib.Test.raiseRuntimeError("error")).fieldName
   => raises "Uncaught exception: error"

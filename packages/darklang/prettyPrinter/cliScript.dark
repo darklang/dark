@@ -1,58 +1,58 @@
 module Darklang.PrettyPrinter.ProgramTypes
 
-let sourceFileAtWidth
-  (branchId: Uuid)
-  (width: Int)
-  (source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
+let sourceFileAtWidth(
+  branchId: Uuid,
+  width: Int,
+  source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
   : String =
   // The parser supplies the owner separately, so print names from the root.
   let ctx =
-    { PrettyPrinter.ProgramTypes.Context.forModule branchId [] with width = width }
+    { PrettyPrinter.ProgramTypes.Context.forModule(branchId, []) with width = width }
 
   let declsPart =
-    (Stdlib.List.fold source.declarations [] (fun acc decl ->
+    (Stdlib.List.fold(source.declarations, [], fun acc decl ->
       match decl with
       | Module moduleDecl ->
-        let prettyPrinted = PrettyPrinter.definitions ctx moduleDecl
-        acc |> Stdlib.List.prepend prettyPrinted
+        let prettyPrinted = PrettyPrinter.definitions(ctx, moduleDecl)
+        acc |> Stdlib.List.prepend(prettyPrinted)
 
       | Type typeDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx typeDecl
-        acc |> Stdlib.List.prepend prettyPrinted
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageType(ctx, typeDecl)
+        acc |> Stdlib.List.prepend(prettyPrinted)
 
       | Value valDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx valDecl
-        acc |> Stdlib.List.prepend prettyPrinted
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue(ctx, valDecl)
+        acc |> Stdlib.List.prepend(prettyPrinted)
 
       | Function fnDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx fnDecl
-        acc |> Stdlib.List.prepend prettyPrinted
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn(ctx, fnDecl)
+        acc |> Stdlib.List.prepend(prettyPrinted)
 
       | Trait traitDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageTrait ctx traitDecl
-        acc |> Stdlib.List.prepend prettyPrinted
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageTrait(ctx, traitDecl)
+        acc |> Stdlib.List.prepend(prettyPrinted)
 
       | Impl implDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageImpl ctx implDecl
-        acc |> Stdlib.List.prepend prettyPrinted
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageImpl(ctx, implDecl)
+        acc |> Stdlib.List.prepend(prettyPrinted)
 
       | Test testDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageTest ctx testDecl
-        acc |> Stdlib.List.prepend prettyPrinted))
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageTest(ctx, testDecl)
+        acc |> Stdlib.List.prepend(prettyPrinted)))
     |> Stdlib.List.reverse
 
   let exprsPart =
-    (Stdlib.List.fold source.exprsToEval [] (fun acc expr ->
-      let prettyPrinted = PrettyPrinter.ProgramTypes.expr ctx expr
-      acc |> Stdlib.List.prepend prettyPrinted))
+    (Stdlib.List.fold(source.exprsToEval, [], fun acc expr ->
+      let prettyPrinted = PrettyPrinter.ProgramTypes.expr(ctx, expr)
+      acc |> Stdlib.List.prepend(prettyPrinted)))
     |> Stdlib.List.reverse
 
-  [ declsPart, exprsPart ] |> Stdlib.List.flatten |> Stdlib.String.join "\n\n"
+  [ declsPart, exprsPart ] |> Stdlib.List.flatten |> Stdlib.String.join("\n\n")
 
 
 /// Print a source file using the standard source width.
-let sourceFile
-  (branchId: Uuid)
-  (source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
+let sourceFile(
+  branchId: Uuid,
+  source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
   : String =
-  PrettyPrinter.ProgramTypes.sourceFileAtWidth branchId 80 source
+  PrettyPrinter.ProgramTypes.sourceFileAtWidth(branchId, 80, source)

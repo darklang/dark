@@ -45,7 +45,7 @@ type Kind =
   /// implementation usually arrives by sync while nobody is looking. Deprecate one to settle it.
   | RivalImplementations
 
-let kindToString (k: Kind) : String =
+let kindToString(k: Kind): String =
   match k with
   | StaleUsage -> "stale-usage"
   | KindChanged -> "kind-changed"
@@ -53,7 +53,7 @@ let kindToString (k: Kind) : String =
   | RivalImplementations -> "rival-implementations"
 
 /// The other direction, for reading a kind back out of storage or a CLI argument.
-let kindFromString (s: String) : Stdlib.Option.Option<Kind> =
+let kindFromString(s: String): Stdlib.Option.Option<Kind> =
   match s with
   | "stale-usage" -> Stdlib.Option.Option.Some(Kind.StaleUsage)
   | "kind-changed" -> Stdlib.Option.Option.Some(Kind.KindChanged)
@@ -66,7 +66,7 @@ let kindFromString (s: String) : Stdlib.Option.Option<Kind> =
 /// Acking is uniform across kinds -- "leave it, I've seen it" is the same answer whatever the finding is --
 /// so it can be a bulk verb. Resolving is not: it means something different per kind, so `dark constraints
 /// resolve` checks this list before doing anything.
-let resolutionsFor (k: Kind) : List<String> =
+let resolutionsFor(k: Kind): List<String> =
   match k with
   | StaleUsage -> [ "repoint" ]
   // Nothing automatic. Following this one means rewriting the usage to call a function where it used to
@@ -83,8 +83,8 @@ let resolutionsFor (k: Kind) : List<String> =
   | RivalImplementations -> []
 
 /// Is <param choice> a resolution this kind offers?
-let offersResolution (k: Kind) (choice: String) : Bool =
-  Stdlib.List.contains (resolutionsFor k) choice
+let offersResolution(k: Kind, choice: String): Bool =
+  Stdlib.List.contains(resolutionsFor(k), choice)
 
 
 /// Which of two implementations of one trait for one type a call runs.
@@ -130,8 +130,8 @@ type Finding =
     detail: FindingDetail }
 
 
-let fqnOf (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-  let mods = Stdlib.String.join loc.modules "."
+let fqnOf(loc: LanguageTools.ProgramTypes.PackageLocation): String =
+  let mods = Stdlib.String.join(loc.modules, ".")
   if mods == "" then $"{loc.owner}.{loc.name}" else $"{loc.owner}.{mods}.{loc.name}"
 
 
@@ -144,15 +144,15 @@ let fqnOf (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
 /// <param discriminator> is whatever makes this finding a DIFFERENT one from the next: the version a
 /// usage is on, or another kind-specific discriminator. Kept as text so a kind with no hashes can key on
 /// something else and still get a stable id.
-let findingId
-  (usage: LanguageTools.ProgramTypes.PackageLocation)
-  (dependency: LanguageTools.ProgramTypes.PackageLocation)
-  (discriminator: String)
+let findingId(
+  usage: LanguageTools.ProgramTypes.PackageLocation,
+  dependency: LanguageTools.ProgramTypes.PackageLocation,
+  discriminator: String)
   : String =
-  let raw = $"{fqnOf usage}|{fqnOf dependency}|{discriminator}"
+  let raw = $"{fqnOf(usage)}|{fqnOf(dependency)}|{discriminator}"
 
-  let digest = Stdlib.Bytes.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBytes raw))
-  Stdlib.String.toLowercase (Stdlib.String.first digest 8)
+  let digest = Stdlib.Bytes.toHex(Stdlib.Crypto.sha256(Stdlib.String.toBytes(raw)))
+  Stdlib.String.toLowercase(Stdlib.String.first(digest, 8))
 
 
 /// Every live item whose recorded dependency edge points at a version that is no longer current.
@@ -163,14 +163,14 @@ let findingId
 ///
 /// main-scoped, on purpose: this is a property of the STORE, of what main's log binds and depends on,
 /// not of the branch the process stands on.
-let detectOutdatedUsages () : List<Finding> =
+let detectOutdatedUsages(): List<Finding> =
   // Stale (name, version) pairs first, then the edges and live usages behind them. The obvious
   // join, from each live usage to its edges, looks every edge's name up: one lookup per edge in
   // the store, on the common path where none is stale. MATERIALIZED and CROSS JOIN hold that
   // order against the planner, which otherwise drives from the ORDER BY. The ORDER BY's tail
   // restates the order the obvious join produced, so ties come out as they always did.
-  Stdlib.Sqlite.rowsP
-    (localDb ())
+  Stdlib.Sqlite.rowsP(
+    localDb(),
     "WITH stale AS MATERIALIZED (
        SELECT t.depends_on_owner AS o, t.depends_on_modules AS m, t.depends_on_name AS n,
               t.depends_on_hash AS h, cur.item_hash AS ch, cur.item_type AS ct, cur.rowid AS crow
@@ -195,23 +195,23 @@ let detectOutdatedUsages () : List<Finding> =
        AND l.item_hash = pd.item_hash AND l.unlisted_at IS NULL
      ORDER BY l.owner, l.modules, l.name, l.item_type, l.rowid,
               pd.depends_on_hash, pd.depends_on_item_type,
-              pd.depends_on_owner, pd.depends_on_modules, pd.depends_on_name, s.ct, s.crow"
-    []
-    (fun row ->
-      let txt (col: String) : String =
-        Stdlib.Sqlite.textField row col |> Stdlib.Option.withDefault ""
+              pd.depends_on_owner, pd.depends_on_modules, pd.depends_on_name, s.ct, s.crow",
+    [],
+    fun row ->
+      let txt(col: String): String =
+        Stdlib.Sqlite.textField(row, col) |> Stdlib.Option.withDefault("")
 
-      let usage = Deps.locationOf (txt "owner") (txt "modules") (txt "name")
+      let usage = Deps.locationOf(txt("owner"), txt("modules"), txt("name"))
 
       let dependency =
-        Deps.locationOf (txt "d_owner") (txt "d_modules") (txt "d_name")
+        Deps.locationOf(txt("d_owner"), txt("d_modules"), txt("d_name"))
 
-      let using = LanguageTools.ProgramTypes.Hash.Hash(txt "using_hash")
+      let using = LanguageTools.ProgramTypes.Hash.Hash(txt("using_hash"))
 
       // Same query answers both: a name whose current binding differs from the one this usage recorded.
       // WHICH finding it is depends on whether the kind moved too.
       let kind =
-        if (txt "current_type") == (txt "d_type") then
+        if (txt("current_type")) == (txt("d_type")) then
           Kind.StaleUsage
         else
           Kind.KindChanged
@@ -220,18 +220,18 @@ let detectOutdatedUsages () : List<Finding> =
         Finding
           { kind = kind
             id =
-              findingId
-                usage
-                dependency
-                (LanguageTools.ProgramTypes.hashToString using)
+              findingId(
+                usage,
+                dependency,
+                LanguageTools.ProgramTypes.hashToString(using))
             usage = usage
-            usageKind = Deps.kindOf (txt "item_type")
+            usageKind = Deps.kindOf(txt("item_type"))
             dependency = dependency
-            dependencyKind = Deps.kindOf (txt "d_type")
+            dependencyKind = Deps.kindOf(txt("d_type"))
             detail =
               FindingDetail.Versions(
                 using,
-                LanguageTools.ProgramTypes.Hash.Hash(txt "current_hash")
+                LanguageTools.ProgramTypes.Hash.Hash(txt("current_hash"))
               ) }
       ))
 
@@ -247,13 +247,13 @@ let detectOutdatedUsages () : List<Finding> =
 ///
 /// Deliberately NOT scoped to a branch: a constraint is a property of the STORE, so a branch filter would
 /// make an ack given on main stop counting the moment you switched.
-let ackedIds () : List<String> =
-  Stdlib.Sqlite.column
-    (localDb ())
+let ackedIds(): List<String> =
+  Stdlib.Sqlite.column(
+    localDb(),
     "SELECT id FROM conflicts
      WHERE status = 'acked'
-       AND kind NOT IN ('same-name-different-hash', 'independent-creation')"
-    "id"
+       AND kind NOT IN ('same-name-different-hash', 'independent-creation')",
+    "id")
 
 
 /// A deliberate OVERRIDE of yours that a later ordinary edit undid.
@@ -265,22 +265,22 @@ let ackedIds () : List<String> =
 /// The `Finding` fields are the stale-usage ones reused: `dependency` is the location ITSELF, because the
 /// thing whose version moved is this name rather than something it calls. That is the one field here that
 /// reads oddly, and it is why `line` in the CLI prints this kind separately.
-let detectSupersededDecisions () : Stdlib.Result.Result<List<Finding>, String> =
-  SCM.PackageOps.supersededOverrides ()
-  |> Stdlib.Result.map (fun entries ->
+let detectSupersededDecisions(): Stdlib.Result.Result<List<Finding>, String> =
+  SCM.PackageOps.supersededOverrides()
+  |> Stdlib.Result.map(fun entries ->
     entries
-    |> Stdlib.List.map (fun entry ->
+    |> Stdlib.List.map(fun entry ->
       let (loc, chosen, live) = entry
 
       // The item's REAL kind, from the live binding: a hardcoded Fn feeds `--json` the wrong kind for a
       // decision on a type or value.
       let kind =
-        SCM.Propagation.kindAt loc
-        |> Stdlib.Option.withDefault LanguageTools.ProgramTypes.ItemKind.Fn
+        SCM.Propagation.kindAt(loc)
+        |> Stdlib.Option.withDefault(LanguageTools.ProgramTypes.ItemKind.Fn)
 
       Finding
         { kind = Kind.DecisionSuperseded
-          id = findingId loc loc chosen
+          id = findingId(loc, loc, chosen)
           usage = loc
           usageKind = kind
           dependency = loc
@@ -311,33 +311,33 @@ let detectSupersededDecisions () : Stdlib.Result.Result<List<Finding>, String> =
 /// spellings of one type (`Point`, `Tests.Tr.Point`) are then equal, and so is their printed
 /// form: the printer only falls back to the written name when a hash is bound to several
 /// names, which content addressing makes common (any two types of one shape share a hash).
-let withoutWrittenNames
-  (t: LanguageTools.RuntimeTypes.TypeReference)
+let withoutWrittenNames(
+  t: LanguageTools.RuntimeTypes.TypeReference)
   : LanguageTools.RuntimeTypes.TypeReference =
   match t with
-  | TStream inner -> LanguageTools.RuntimeTypes.TypeReference.TStream(withoutWrittenNames inner)
+  | TStream inner -> LanguageTools.RuntimeTypes.TypeReference.TStream(withoutWrittenNames(inner))
   | TTuple(first, second, rest) ->
     LanguageTools.RuntimeTypes.TypeReference.TTuple(
-      withoutWrittenNames first,
-      withoutWrittenNames second,
-      Stdlib.List.map rest (fun r -> withoutWrittenNames r)
+      withoutWrittenNames(first),
+      withoutWrittenNames(second),
+      Stdlib.List.map(rest, fun r -> withoutWrittenNames(r))
     )
-  | TList inner -> LanguageTools.RuntimeTypes.TypeReference.TList(withoutWrittenNames inner)
+  | TList inner -> LanguageTools.RuntimeTypes.TypeReference.TList(withoutWrittenNames(inner))
   | TDict(k, v) ->
-    LanguageTools.RuntimeTypes.TypeReference.TDict(withoutWrittenNames k, withoutWrittenNames v)
+    LanguageTools.RuntimeTypes.TypeReference.TDict(withoutWrittenNames(k), withoutWrittenNames(v))
   | TCustomType(nr, args) ->
     LanguageTools.RuntimeTypes.TypeReference.TCustomType(
       { nr with originalName = [] },
-      Stdlib.List.map args (fun a -> withoutWrittenNames a)
+      Stdlib.List.map(args, fun a -> withoutWrittenNames(a))
     )
   | TFn(args, ret) ->
     LanguageTools.RuntimeTypes.TypeReference.TFn(
-      Stdlib.List.map args (fun a -> withoutWrittenNames a),
-      withoutWrittenNames ret
+      Stdlib.List.map(args, fun a -> withoutWrittenNames(a)),
+      withoutWrittenNames(ret)
     )
   | other -> other
 
-let detectRivalImplementations (branchId: Uuid) : List<Finding> =
+let detectRivalImplementations(branchId: Uuid): List<Finding> =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = []
@@ -346,46 +346,46 @@ let detectRivalImplementations (branchId: Uuid) : List<Finding> =
         entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Trait ]
         exactMatch = false }
 
-  let traits = (LanguageTools.PackageManager.Search.search branchId query).traits
+  let traits = (LanguageTools.PackageManager.Search.search(branchId, query)).traits
 
   traits
-  |> Stdlib.List.map (fun t ->
+  |> Stdlib.List.map(fun t ->
     // The self type as printed, and as compared. A name resolution carries the name as
     // WRITTEN (`Point` here, `Scratch.Shapes.Point` there) beside the hash it resolved to,
     // so structural equality says two spellings of one type differ, and so can the
     // printed form when the hash has several names. Compare with the names dropped.
     let candidates =
-      LanguageTools.PackageManager.Trait.impls branchId t.entity.hash
-      |> Stdlib.List.map (fun c ->
+      LanguageTools.PackageManager.Trait.impls(branchId, t.entity.hash)
+      |> Stdlib.List.map(fun c ->
         (c,
-         (PrettyPrinter.RuntimeTypes.typeReference branchId c.self,
-          PrettyPrinter.RuntimeTypes.typeReference branchId (withoutWrittenNames c.self))))
+         (PrettyPrinter.RuntimeTypes.typeReference(branchId, c.self),
+          PrettyPrinter.RuntimeTypes.typeReference(branchId, withoutWrittenNames(c.self)))))
 
     // Pairs (i, j) with i before j and the same self type; each pair once.
     candidates
-    |> Stdlib.List.indexedMap (fun i c -> (i, c))
-    |> Stdlib.List.map (fun (i, cPair) ->
+    |> Stdlib.List.indexedMap(fun i c -> (i, c))
+    |> Stdlib.List.map(fun (i, cPair) ->
       let (c, cSelf) = cPair
       let (selfStr, selfKey) = cSelf
       candidates
-      |> Stdlib.List.indexedMap (fun j d -> (j, d))
-      |> Stdlib.List.filterMap (fun (j, dPair) ->
+      |> Stdlib.List.indexedMap(fun j d -> (j, d))
+      |> Stdlib.List.filterMap(fun (j, dPair) ->
         let (d, dSelf) = dPair
         let (_, dKey) = dSelf
         if j > i && dKey == selfKey then
-          let locOf (h: LanguageTools.ProgramTypes.Hash) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-            LanguageTools.PackageManager.pickLocation
-              LanguageTools.PackageManager.PickContext.empty
-              (LanguageTools.PackageManager.TraitImpl.locations branchId h)
-          match locOf c.source, locOf d.source with
+          let locOf(h: LanguageTools.ProgramTypes.Hash): Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+            LanguageTools.PackageManager.pickLocation(
+              LanguageTools.PackageManager.PickContext.empty,
+              LanguageTools.PackageManager.TraitImpl.locations(branchId, h))
+          match locOf(c.source), locOf(d.source) with
           | Some mine, Some other ->
-            let cHash = LanguageTools.ProgramTypes.hashToString c.source
-            let dHash = LanguageTools.ProgramTypes.hashToString d.source
+            let cHash = LanguageTools.ProgramTypes.hashToString(c.source)
+            let dHash = LanguageTools.ProgramTypes.hashToString(d.source)
 
             let choice =
               if c.stamp == "" && d.stamp == "" then
                 RivalChoice.Neither
-              else if SCM.Conflicts.beats c.stamp cHash d.stamp dHash then
+              else if SCM.Conflicts.beats(c.stamp, cHash, d.stamp, dHash) then
                 RivalChoice.Mine
               else
                 RivalChoice.Theirs
@@ -393,7 +393,7 @@ let detectRivalImplementations (branchId: Uuid) : List<Finding> =
             Stdlib.Option.Option.Some(
               Finding
                 { kind = Kind.RivalImplementations
-                  id = findingId mine t.location $"{selfStr}|{fqnOf other}"
+                  id = findingId(mine, t.location, $"{selfStr}|{fqnOf(other)}")
                   usage = mine
                   usageKind = LanguageTools.ProgramTypes.ItemKind.TraitImpl
                   dependency = t.location
@@ -416,73 +416,71 @@ let detectRivalImplementations (branchId: Uuid) : List<Finding> =
 /// Three reads whatever the branch holds: the chain, every edge out of what it binds, and what
 /// each dependency means now. Asked per binding and per edge, a branch re-decoded its whole chain
 /// once for every edge.
-let detectOutdatedUsagesOn (branchId: Uuid) : List<Finding> =
-  if SCM.Branch.isMain branchId then
+let detectOutdatedUsagesOn(branchId: Uuid): List<Finding> =
+  if SCM.Branch.isMain(branchId) then
     []
   else
-    let chain = PackageOps.chainBindingEntries branchId
-    let bindings = chain |> Stdlib.List.filterMap (fun w -> w.binding)
+    let chain = PackageOps.chainBindingEntries(branchId)
+    let bindings = chain |> Stdlib.List.filterMap(fun w -> w.binding)
 
-    let txt (row: Dict<String, Stdlib.Sqlite.Value>) (col: String) : String =
-      Stdlib.Sqlite.textField row col |> Stdlib.Option.withDefault ""
+    let txt(row: Dict<String, Stdlib.Sqlite.Value>, col: String): String =
+      Stdlib.Sqlite.textField(row, col) |> Stdlib.Option.withDefault("")
 
     // Each binding's edges in rowid order, which is the order its own `item_hash = ?` read gave.
     let edgesByHash =
-      Stdlib.Sqlite.rowsOrEmptyP
-        (localDb ())
+      Stdlib.Sqlite.rowsOrEmptyP(
+        localDb(),
         "SELECT item_hash, depends_on_owner AS d_owner, depends_on_modules AS d_modules,
                 depends_on_name AS d_name, depends_on_item_type AS d_type,
                 depends_on_hash AS using_hash
          FROM package_dependencies
          WHERE item_hash IN (SELECT value FROM json_each(@p0))
-         ORDER BY rowid"
-        [ Stdlib.Json.serialize<List<String>> (
-            bindings |> Stdlib.List.map (fun b -> b.hash)
-          ) ]
+         ORDER BY rowid",
+        [ Stdlib.Json.serialize<List<String>>(bindings |> Stdlib.List.map(fun b -> b.hash)) ])
       |> Stdlib.List.reverse
-      |> Stdlib.List.fold Stdlib.Dict.empty (fun acc row ->
-        let h = txt row "item_hash"
-        let rest = Stdlib.Dict.get acc h |> Stdlib.Option.withDefault []
-        Stdlib.Dict.set acc h (Stdlib.List.prepend rest row))
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc row ->
+        let h = txt(row, "item_hash")
+        let rest = Stdlib.Dict.get(acc, h) |> Stdlib.Option.withDefault([])
+        Stdlib.Dict.set(acc, h, Stdlib.List.prepend(rest, row)))
 
-    let edgesOf (b: Conflicts.Binding) : List<Dict<String, Stdlib.Sqlite.Value>> =
-      Stdlib.Dict.get edgesByHash b.hash |> Stdlib.Option.withDefault []
+    let edgesOf(b: Conflicts.Binding): List<Dict<String, Stdlib.Sqlite.Value>> =
+      Stdlib.Dict.get(edgesByHash, b.hash) |> Stdlib.Option.withDefault([])
 
     let live =
-      PackageOps.liveBindingsOver
-        branchId
-        chain
+      PackageOps.liveBindingsOver(
+        branchId,
+        chain,
         (bindings
-         |> Stdlib.List.map (fun b -> edgesOf b)
+         |> Stdlib.List.map(fun b -> edgesOf(b))
          |> Stdlib.List.flatten
-         |> Stdlib.List.map (fun row ->
-           Deps.locationOf (txt row "d_owner") (txt row "d_modules") (txt row "d_name")))
+         |> Stdlib.List.map(fun row ->
+           Deps.locationOf(txt(row, "d_owner"), txt(row, "d_modules"), txt(row, "d_name")))))
 
     bindings
-    |> Stdlib.List.map (fun b ->
-      edgesOf b
-      |> Stdlib.List.filterMap (fun row ->
-        let (owner, modules, name) = (txt row "d_owner", txt row "d_modules", txt row "d_name")
-        let dependency = Deps.locationOf owner modules name
+    |> Stdlib.List.map(fun b ->
+      edgesOf(b)
+      |> Stdlib.List.filterMap(fun row ->
+        let (owner, modules, name) = (txt(row, "d_owner"), txt(row, "d_modules"), txt(row, "d_name"))
+        let dependency = Deps.locationOf(owner, modules, name)
 
-        match Stdlib.Dict.get live (Conflicts.bindingKey owner modules name) with
+        match Stdlib.Dict.get(live, Conflicts.bindingKey(owner, modules, name)) with
         | None -> Stdlib.Option.Option.None
         | Some cur ->
-          if cur.hash == (txt row "using_hash") then
+          if cur.hash == (txt(row, "using_hash")) then
             Stdlib.Option.Option.None
           else
-            let usage = Deps.locationOf b.owner b.modules b.name
-            let using = LanguageTools.ProgramTypes.Hash.Hash(txt row "using_hash")
+            let usage = Deps.locationOf(b.owner, b.modules, b.name)
+            let using = LanguageTools.ProgramTypes.Hash.Hash(txt(row, "using_hash"))
 
             Stdlib.Option.Option.Some(
               Finding
                 { kind =
-                    if cur.itemType == (txt row "d_type") then Kind.StaleUsage else Kind.KindChanged
-                  id = findingId usage dependency (txt row "using_hash")
+                    if cur.itemType == (txt(row, "d_type")) then Kind.StaleUsage else Kind.KindChanged
+                  id = findingId(usage, dependency, txt(row, "using_hash"))
                   usage = usage
-                  usageKind = Deps.kindOf b.itemType
+                  usageKind = Deps.kindOf(b.itemType)
                   dependency = dependency
-                  dependencyKind = Deps.kindOf (txt row "d_type")
+                  dependencyKind = Deps.kindOf(txt(row, "d_type"))
                   detail =
                     FindingDetail.Versions(using, LanguageTools.ProgramTypes.Hash.Hash cur.hash) }
             )))
@@ -498,43 +496,43 @@ type Detection =
     /// One sentence per detector that could not run. Empty is the normal case.
     blocked: List<String> }
 
-let detectAll () : Detection =
+let detectAll(): Detection =
   // Detection and acknowledgement are independent of dependency upgrades.
   let (decisions, decisionsBlocked) =
-    match detectSupersededDecisions () with
+    match detectSupersededDecisions() with
     | Ok fs -> (fs, [])
     | Error e -> ([], [ e ])
 
   Detection
     { findings =
-        Stdlib.List.flatten
-          [ detectOutdatedUsages ()
-            detectOutdatedUsagesOn (PackageOps.currentBranch ())
+        Stdlib.List.flatten(
+          [ detectOutdatedUsages()
+            detectOutdatedUsagesOn(PackageOps.currentBranch())
             decisions
-            detectRivalImplementations (PackageOps.currentBranch ()) ]
+            detectRivalImplementations(PackageOps.currentBranch()) ])
       blocked = decisionsBlocked }
 
 
 /// Findings that have not been acknowledged.
-let pending () : Detection =
+let pending(): Detection =
   let ackedSet =
-    ackedIds ()
-    |> Stdlib.List.map (fun a -> (a, true))
+    ackedIds()
+    |> Stdlib.List.map(fun a -> (a, true))
     |> Stdlib.Dict.fromEntries
 
-  let detected = detectAll ()
+  let detected = detectAll()
 
   // Blockers pass through: an ack answers a finding, and a detector that never ran produced none.
   Detection
     { findings =
         detected.findings
-        |> Stdlib.List.filter (fun s ->
+        |> Stdlib.List.filter(fun s ->
           let isAcked =
-            match Stdlib.Dict.get ackedSet s.id with
+            match Stdlib.Dict.get(ackedSet, s.id) with
             | Some _ -> true
             | None -> false
 
-          Stdlib.Bool.not isAcked)
+          Stdlib.Bool.not(isAcked))
       blocked = detected.blocked }
 
 
@@ -542,10 +540,10 @@ let pending () : Detection =
 /// machine you typed it on re-reports forever everywhere else, and differently on each of them.
 ///
 /// The fold writes the `conflicts` row, so that table is derived rather than a second source of truth.
-let ack
-  (branchId: Uuid)
-  (s: Finding)
-  (note: String)
+let ack(
+  branchId: Uuid,
+  s: Finding,
+  note: String)
   : Stdlib.Result.Result<Unit, String> =
   // The default has to name the finding it answers. Only StaleUsage is a use of something else; for
   // the other two `dependency` IS the name itself, and "stale use of X" describes nothing that happened.
@@ -554,10 +552,10 @@ let ack
       note
     else
       match s.kind with
-      | StaleUsage -> $"stale use of {fqnOf s.dependency}"
-      | KindChanged -> $"{fqnOf s.dependency} is a different kind of item now"
-      | DecisionSuperseded -> $"decision on {fqnOf s.usage} superseded"
-      | RivalImplementations -> $"{fqnOf s.usage} is one of two implementations of {fqnOf s.dependency}"
+      | StaleUsage -> $"stale use of {fqnOf(s.dependency)}"
+      | KindChanged -> $"{fqnOf(s.dependency)} is a different kind of item now"
+      | DecisionSuperseded -> $"decision on {fqnOf(s.usage)} superseded"
+      | RivalImplementations -> $"{fqnOf(s.usage)} is one of two implementations of {fqnOf(s.dependency)}"
 
   let op =
     LanguageTools.ProgramTypes.PackageOp.Decision(
@@ -573,6 +571,6 @@ let ack
       LanguageTools.ProgramTypes.DecisionKind.Ack s.id
     )
 
-  match SCM.PackageOps.add branchId [ op ] with
+  match SCM.PackageOps.add(branchId, [ op ]) with
   | Ok _ -> Stdlib.Result.Result.Ok(())
   | Error e -> Stdlib.Result.Result.Error e

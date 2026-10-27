@@ -1000,7 +1000,7 @@ Dark namespace. Write `Stdlib.List.map` or `Darklang.Stdlib.List.map`, never
 match arm the bare case is fine, since the matched value's type resolves it.
 
 **Cross-module pipes.** Dark parses pipes greedily, so
-`Stdlib.List.length xs |> Stdlib.toString` raises "Pipe: LongIdent". Parenthesize the
+`Stdlib.List.length(xs) |> Stdlib.toString` raises "Pipe: LongIdent". Parenthesize the
 left side.
 
 **A literal inside a tuple pattern silently falls through.** `| Some(_, _, "propagation") ->`
@@ -1062,9 +1062,9 @@ error, so it waits until you press the key that reaches it.
 **`nonInteractive` means "run as `dark <cmd>`", not "no terminal".** `AppState.nonInteractive`
 is set for any command given on the command line (entry.dark), so it's true even with a
 perfectly good terminal in front of you. To decide whether a TUI can start, ask
-`Stdlib.Cli.Tui.TerminalSupport.current ()`.
+`Stdlib.Cli.Tui.TerminalSupport.current()`.
 
-**Nested functions.** Only the fully annotated form works: `let helper (x: Int) : Int = ...`.
+**Nested functions.** Only the fully annotated form works: `let helper(x: Int): Int = ...`.
 It desugars to a local lambda, can close over outer bindings and can call itself, but mutual
 recursion between nested functions isn't supported. There's no `rec` keyword; top-level
 functions are self-recursive already.
@@ -1109,10 +1109,10 @@ hang the call well past its timeout. If you pipe real input and it gets dropped,
 forces it through.
 
 **For deep tree walks in Dark, avoid recursion inside builtin callbacks.** For example,
-`Stdlib.List.map children (fun child -> visit child)` starts a nested interpreter run at
+`Stdlib.List.map(children, fun child -> visit(child))` starts a nested interpreter run at
 each level and can fail with "Out of stack". Use direct recursion or an explicit work list.
 
-**`let f () = <a literal>` rebuilds it on every call.** A nullary function whose body is a constant is
+**`let f() = <a literal>` rebuilds it on every call.** A nullary function whose body is a constant is
 not a constant; `val` is evaluated once. If the body doesn't depend on anything, make it a `val`.
 
 **Except on the at-rest checker's path, where a `val` is a bug.** The checker runs inside
@@ -1129,7 +1129,7 @@ trusted seed builds can therefore hide permission failures and freeze build-mach
 state. Use a function for environment-dependent work. `PermissionEscape.Tests` checks
 shipped values under guest policy.
 
-**A forwarding wrapper has no frame.** `let map list fn = Builtin.listMap list fn`
+**A forwarding wrapper has no frame.** `let map(list, fn) = Builtin.listMap(list, fn)`
 is elided on both the first call and the cached `Apply` path. Both must establish
 `vm.activeAccess`, the wrapper's package policy and its ceiling. A wrapper is thin only
 when its signature exactly matches the builtin; `sameType` even compares type-variable
@@ -1139,8 +1139,8 @@ names, so tests must use the builtin's `'a` and `'b`. All paths share
 **A permission test must make the value in one frame and run it in another.** Deferred
 values keep their producer's restrictions and intersect them with the runner's. A broad
 driver must call the producer and pass the value into a separate restricted runner;
-otherwise the producer inherits the restriction and the test proves nothing. Load partial-
-application references in the driver's value position so they are stamped broad first.
+otherwise the producer inherits the restriction and the test proves nothing. Load function
+references in the driver's value position so they are stamped broad first.
 
 **Seeded package values are code, not captured authority.** A function reference stored in a seeded `val` must use `access = None` (`Seed.stripCapturedAccess`); otherwise it can decode as deny-all. Static approval follows a reference to a package value only when its stored value holds no code (`Dval.isInertData`); a value holding a function, or one not evaluated yet, stays incomplete.
 
@@ -1226,9 +1226,9 @@ diff, and after two or three interactions the renderer stops re-emitting enough 
 catch, so asserting deeper measures the renderer rather than the view. That makes `expect` and
 `tmux` the wrong instrument for content. The right one is the function that produces the rows:
 
-    dark eval 'Darklang.Cli.Workbench.moduleRows Darklang.SCM.Branch.mainBranchId
-                 (Darklang.Cli.Packages.PackageLocation.Module ["Darklang", "Stdlib", "Int64"]) false
-               |> Stdlib.List.map (fun r -> r.kind)'
+    dark eval 'Darklang.Cli.Workbench.moduleRows(Darklang.SCM.Branch.mainBranchId,
+                 Darklang.Cli.Packages.PackageLocation.Module ["Darklang", "Stdlib", "Int64"], false)
+               |> Stdlib.List.map(fun r -> r.kind)'
 
 That turns a question about pixels into a question about a list, and then into a COUNT you can
 predict before you look. The Code view was drawing seventeen implementations and seventeen folders

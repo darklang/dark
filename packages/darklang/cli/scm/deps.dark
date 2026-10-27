@@ -27,33 +27,33 @@ type HashedItem =
 /// while rendering. `[]` gives the fully-qualified form, which is what a standalone list wants. A caller
 /// that knows where the reader is standing should say so: reading one item's references from inside a
 /// module, the path back up to the root is the noise it looks like.
-let resolveNamesIn
-  (_branchId: Uuid)
-  (currentModule: List<String>)
-  (itemHashes: List<LanguageTools.ProgramTypes.Hash>)
+let resolveNamesIn(
+  _branchId: Uuid,
+  currentModule: List<String>,
+  itemHashes: List<LanguageTools.ProgramTypes.Hash>)
   : Dict<String, String> =
-  (SCM.Deps.resolveLocations itemHashes)
-  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemHash, location) ->
-    let h = Darklang.LanguageTools.ProgramTypes.hashToString itemHash
+  (SCM.Deps.resolveLocations(itemHashes))
+  |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc (itemHash, location) ->
+    let h = Darklang.LanguageTools.ProgramTypes.hashToString(itemHash)
     let displayName =
-      PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn currentModule location
-    Stdlib.Dict.set acc h displayName)
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn(currentModule, location)
+    Stdlib.Dict.set(acc, h, displayName))
 
 /// A displayable name for an item, from a dict `resolveNamesIn` built, falling back to the hash.
-let getName
-  (namesDict: Dict<String, String>)
-  (hash: LanguageTools.ProgramTypes.Hash)
+let getName(
+  namesDict: Dict<String, String>,
+  hash: LanguageTools.ProgramTypes.Hash)
   : String =
-  let h = Darklang.LanguageTools.ProgramTypes.hashToString hash
+  let h = Darklang.LanguageTools.ProgramTypes.hashToString(hash)
 
-  match Stdlib.Dict.get namesDict h with
+  match Stdlib.Dict.get(namesDict, h) with
   | Some name -> name
   | None -> h
 
 
 /// The dotted name of a location, as the dependency listings spell it.
-let fqnOf (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-  let mods = Stdlib.String.join loc.modules "."
+let fqnOf(loc: LanguageTools.ProgramTypes.PackageLocation): String =
+  let mods = Stdlib.String.join(loc.modules, ".")
   if mods == "" then $"{loc.owner}.{loc.name}" else $"{loc.owner}.{mods}.{loc.name}"
 
 /// Is this reference to a version that is no longer what the name means?
@@ -61,47 +61,47 @@ let fqnOf (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
 /// The reason to look at a dependency list at all, and what `dark constraints` will report about you
 /// later. False when the name is bound to nothing, which is not the same as being current but is also
 /// not a stale reference.
-let isBehind
-  (loc: LanguageTools.ProgramTypes.PackageLocation)
-  (targetHash: LanguageTools.ProgramTypes.Hash)
+let isBehind(
+  loc: LanguageTools.ProgramTypes.PackageLocation,
+  targetHash: LanguageTools.ProgramTypes.Hash)
   : Bool =
-  match SCM.Propagation.currentHash loc with
+  match SCM.Propagation.currentHash(loc) with
   | Some now -> now != targetHash
   | None -> false
 
 /// Display dependents: what uses this entity.
-let showDependents
-  (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
-  (targetKind: LanguageTools.ProgramTypes.ItemKind)
-  (entityName: String)
-  (cap: Bool)
+let showDependents(
+  targetLoc: LanguageTools.ProgramTypes.PackageLocation,
+  targetKind: LanguageTools.ProgramTypes.ItemKind,
+  entityName: String,
+  cap: Bool)
   : Unit =
-  let dependents = SCM.Deps.dependentsOf [ (targetLoc, targetKind) ]
+  let dependents = SCM.Deps.dependentsOf([ (targetLoc, targetKind) ])
 
   match dependents with
   | [] ->
-    Stdlib.printLine $"No dependents found for {entityName}"
+    Stdlib.printLine($"No dependents found for {entityName}")
   | deps ->
-    let count = Stdlib.List.length deps
-    Stdlib.printLine $"Found {Stdlib.toString count} dependents of {entityName}:"
-    Stdlib.printLine ""
+    let count = Stdlib.List.length(deps)
+    Stdlib.printLine($"Found {Stdlib.toString(count)} dependents of {entityName}:")
+    Stdlib.printLine("")
 
     deps
     // Grouped by module and capped, like every other long listing. Four hundred flat rows whose only
     // difference is the last segment is a list you scroll past rather than read.
-    |> Stdlib.List.map (fun (_sourceHash, sourceLoc, _refType) ->
-      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sourceLoc)
+    |> Stdlib.List.map(fun (_sourceHash, sourceLoc, _refType) ->
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(sourceLoc))
     |> Listing.groupedByModule
-    |> fun groups -> Listing.cappedGroups groups Listing.defaultLimit cap "dependents"
+    |> fun groups -> Listing.cappedGroups(groups, Listing.defaultLimit, cap, "dependents")
     |> Stdlib.printLines
 
 
 /// Transitive traversal, collecting dependents via batched FQN-keyed queries. Each level's results carry
 /// their own location, so the next level feeds straight back in without a hash -> location round-trip.
-let collectTransitiveDependents
-  (processed: List<String>)
-  (pending: List<Item>)
-  (accumulated: List<Item>)
+let collectTransitiveDependents(
+  processed: List<String>,
+  pending: List<Item>,
+  accumulated: List<Item>)
   : List<Item> =
   let fqn = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
   match pending with
@@ -109,73 +109,73 @@ let collectTransitiveDependents
   | _ ->
     let toProcess =
       pending
-      |> Stdlib.List.filter (fun (loc, kind) ->
-        let key = $"{fqn loc}:{LanguageTools.ProgramTypes.ItemKind.toString kind}"
-        Stdlib.Bool.not (Stdlib.List.contains processed key))
+      |> Stdlib.List.filter(fun (loc, kind) ->
+        let key = $"{fqn(loc)}:{LanguageTools.ProgramTypes.ItemKind.toString(kind)}"
+        Stdlib.Bool.not(Stdlib.List.contains(processed, key)))
 
     match toProcess with
     | [] -> accumulated
     | targets ->
-      let batchResults = SCM.Deps.dependentsOf targets
+      let batchResults = SCM.Deps.dependentsOf(targets)
 
       // Each result already carries its own location, so this level's dependents are
       // next level's targets with no hash -> location round-trip in between.
       let newDeps =
         batchResults
-        |> Stdlib.List.map (fun result ->
+        |> Stdlib.List.map(fun result ->
           let (_sourceHash, sourceLoc, refKind) = result
           (sourceLoc, refKind))
 
       let newProcessed =
-        Stdlib.List.concat
-          processed
+        Stdlib.List.concat(
+          processed,
           (targets
-           |> Stdlib.List.map (fun (loc, kind) ->
-             $"{fqn loc}:{LanguageTools.ProgramTypes.ItemKind.toString kind}"))
-      let newAccumulated = Stdlib.List.concat accumulated newDeps
+           |> Stdlib.List.map(fun (loc, kind) ->
+             $"{fqn(loc)}:{LanguageTools.ProgramTypes.ItemKind.toString(kind)}")))
+      let newAccumulated = Stdlib.List.concat(accumulated, newDeps)
 
-      collectTransitiveDependents newProcessed newDeps newAccumulated
+      collectTransitiveDependents(newProcessed, newDeps, newAccumulated)
 
 
 /// Get all transitive dependents of one or more targets.
-let getTransitiveDependentsFor (_branchId: Uuid) (targets: List<Item>) : List<Item> =
-  collectTransitiveDependents [] targets []
+let getTransitiveDependentsFor(_branchId: Uuid, targets: List<Item>): List<Item> =
+  collectTransitiveDependents([], targets, [])
   |> Stdlib.List.unique
 
 
 /// Get all transitive dependents (everything that could break if this changes).
-let getTransitiveDependents
-  (branchId: Uuid)
-  (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
-  (targetKind: LanguageTools.ProgramTypes.ItemKind)
+let getTransitiveDependents(
+  branchId: Uuid,
+  targetLoc: LanguageTools.ProgramTypes.PackageLocation,
+  targetKind: LanguageTools.ProgramTypes.ItemKind)
   : List<Item> =
-  getTransitiveDependentsFor branchId [ (targetLoc, targetKind) ]
+  getTransitiveDependentsFor(branchId, [ (targetLoc, targetKind) ])
 
 
 /// Display all transitive dependents: everything that could break if this changes.
-let showTransitiveDependents
-  (branchId: Uuid)
-  (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
-  (targetKind: LanguageTools.ProgramTypes.ItemKind)
-  (entityName: String)
-  (cap: Bool)
+let showTransitiveDependents(
+  branchId: Uuid,
+  targetLoc: LanguageTools.ProgramTypes.PackageLocation,
+  targetKind: LanguageTools.ProgramTypes.ItemKind,
+  entityName: String,
+  cap: Bool)
   : Unit =
-  let allDependents = getTransitiveDependents branchId targetLoc targetKind
+  let allDependents = getTransitiveDependents(branchId, targetLoc, targetKind)
 
   match allDependents with
   | [] ->
-    Stdlib.printLine $"Nothing depends on {entityName}"
+    Stdlib.printLine($"Nothing depends on {entityName}")
   | deps ->
-    let count = Stdlib.List.length deps
-    Stdlib.printLine $"Found {Stdlib.toString count} items that could break if {entityName} changes:"
-    Stdlib.printLine ""
+    let count = Stdlib.List.length(deps)
+    Stdlib.printLine($"Found {Stdlib.toString(count)} items that could break if {entityName} changes:")
+    Stdlib.printLine("")
 
     // Grouped by module and capped, same reasoning as `showDependents`.
     deps
-    |> Stdlib.List.map (fun (sourceLoc, _refType) ->
-      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sourceLoc)
+    |> Stdlib.List.map(fun (sourceLoc, _refType) ->
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(sourceLoc))
     |> Listing.groupedByModule
-    |> fun groups -> Listing.cappedGroups groups Listing.defaultLimit cap "dependents"
+    |> fun groups -> Listing.cappedGroups(groups, Listing.defaultLimit, cap, "dependents")
     |> Stdlib.printLines
 
 
@@ -184,61 +184,61 @@ let showTransitiveDependents
 /// Read off the EDGE, not looked up from the hash. The edge records the name the reference was resolved
 /// by; a hash lookup answers "what is called this hash", which differs whenever two names share content --
 /// and has no answer once the dependency has moved on, which is precisely when you're asking.
-let showDependencies
-  (sourceHash: LanguageTools.ProgramTypes.Hash)
-  (entityName: String)
-  (cap: Bool)
+let showDependencies(
+  sourceHash: LanguageTools.ProgramTypes.Hash,
+  entityName: String,
+  cap: Bool)
   : Unit =
-  match SCM.Deps.dependencyEdges sourceHash with
-  | [] -> Stdlib.printLine $"No dependencies found for {entityName}"
+  match SCM.Deps.dependencyEdges(sourceHash) with
+  | [] -> Stdlib.printLine($"No dependencies found for {entityName}")
   | deps ->
-    let count = Stdlib.List.length deps
-    Stdlib.printLine $"Found {Stdlib.toString count} dependencies of {entityName}:"
-    Stdlib.printLine ""
+    let count = Stdlib.List.length(deps)
+    Stdlib.printLine($"Found {Stdlib.toString(count)} dependencies of {entityName}:")
+    Stdlib.printLine("")
 
     deps
-    |> Stdlib.List.map (fun edge ->
+    |> Stdlib.List.map(fun edge ->
       let (targetHash, refKind, loc) = edge
-      let kind = LanguageTools.ProgramTypes.ItemKind.toString refKind
+      let kind = LanguageTools.ProgramTypes.ItemKind.toString(refKind)
 
       let behind =
-        if isBehind loc targetHash then
+        if isBehind(loc, targetHash) then
           let h =
-            LanguageTools.ProgramTypes.hashToString targetHash |> Stdlib.String.slice 0 8
+            LanguageTools.ProgramTypes.hashToString(targetHash) |> Stdlib.String.slice(0, 8)
 
           $"  (on {h}, no longer current)"
         else
           ""
 
-      $"  [{kind}] {fqnOf loc}{behind}")
-    |> fun rows -> Listing.capped rows Listing.defaultLimit cap "dependencies"
+      $"  [{kind}] {fqnOf(loc)}{behind}")
+    |> fun rows -> Listing.capped(rows, Listing.defaultLimit, cap, "dependencies")
     |> Stdlib.printLines
 
 
 /// Resolve a path to (hash, location, kind, displayName).
 /// Carries the location so dependents queries can stay FQN-keyed and
 /// avoid cross-namespace false positives from content-hash collisions.
-let resolvePath
-  (branchId: Uuid)
-  (currentLocation: Packages.PackageLocation)
-  (pathArg: String)
+let resolvePath(
+  branchId: Uuid,
+  currentLocation: Packages.PackageLocation,
+  pathArg: String)
   : Stdlib.Result.Result<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * String * LanguageTools.ProgramTypes.ItemKind), String> =
-  match Packages.Traversal.traverse branchId currentLocation pathArg with
+  match Packages.Traversal.traverse(branchId, currentLocation, pathArg) with
   | Error errMsg -> Stdlib.Result.Result.Error errMsg
   | Ok loc ->
     // Traits and impls carry dependency rows like anything else (`DependencyExtractor`), so all
     // five kinds are real questions here. Written once: four copies of this is how the two newest
     // kinds came to raise "No matching case found" instead of answering.
-    let resolved
-      (itemLoc: LanguageTools.ProgramTypes.PackageLocation)
-      (kind: LanguageTools.ProgramTypes.ItemKind)
-      (hashOpt: Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash>)
+    let resolved(
+      itemLoc: LanguageTools.ProgramTypes.PackageLocation,
+      kind: LanguageTools.ProgramTypes.ItemKind,
+      hashOpt: Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash>)
       : Stdlib.Result.Result<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * String * LanguageTools.ProgramTypes.ItemKind), String> =
-      let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation itemLoc
+      let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(itemLoc)
       match hashOpt with
       | Some hash -> Stdlib.Result.Result.Ok((hash, itemLoc, name, kind))
       | None ->
-        let kindName = LanguageTools.ProgramTypes.ItemKind.toString kind
+        let kindName = LanguageTools.ProgramTypes.ItemKind.toString(kind)
         Stdlib.Result.Result.Error $"No {kindName} found at {name}"
 
     match loc with
@@ -246,92 +246,92 @@ let resolvePath
       Stdlib.Result.Result.Error
         "Cannot show dependencies for a module, only for a fn, type, value, trait, impl or test"
     | Function l ->
-      resolved l LanguageTools.ProgramTypes.ItemKind.Fn
-        (LanguageTools.PackageManager.Function.find branchId l)
+      resolved(l, LanguageTools.ProgramTypes.ItemKind.Fn,
+        LanguageTools.PackageManager.Function.find(branchId, l))
     | Type l ->
-      resolved l LanguageTools.ProgramTypes.ItemKind.Type
-        (LanguageTools.PackageManager.Type.find branchId l)
+      resolved(l, LanguageTools.ProgramTypes.ItemKind.Type,
+        LanguageTools.PackageManager.Type.find(branchId, l))
     | Value l ->
-      resolved l LanguageTools.ProgramTypes.ItemKind.Value
-        (LanguageTools.PackageManager.Value.find branchId l)
+      resolved(l, LanguageTools.ProgramTypes.ItemKind.Value,
+        LanguageTools.PackageManager.Value.find(branchId, l))
     | Trait l ->
-      resolved l LanguageTools.ProgramTypes.ItemKind.Trait
-        (LanguageTools.PackageManager.Trait.find branchId l)
+      resolved(l, LanguageTools.ProgramTypes.ItemKind.Trait,
+        LanguageTools.PackageManager.Trait.find(branchId, l))
     | Impl l ->
-      resolved l LanguageTools.ProgramTypes.ItemKind.TraitImpl
-        (LanguageTools.PackageManager.TraitImpl.find branchId l)
+      resolved(l, LanguageTools.ProgramTypes.ItemKind.TraitImpl,
+        LanguageTools.PackageManager.TraitImpl.find(branchId, l))
     | Test l ->
-      resolved l LanguageTools.ProgramTypes.ItemKind.Test
-        (LanguageTools.PackageManager.Test.find branchId l)
+      resolved(l, LanguageTools.ProgramTypes.ItemKind.Test,
+        LanguageTools.PackageManager.Test.find(branchId, l))
 
 
 /// One dependency edge as the machine-readable shape, read off the EDGE (see `showDependencies`).
-let edgeJson
-  (edge: (LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.ItemKind * LanguageTools.ProgramTypes.PackageLocation))
+let edgeJson(
+  edge: (LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.ItemKind * LanguageTools.ProgramTypes.PackageLocation))
   : ScmJson.DependencyJson =
   let (targetHash, refKind, loc) = edge
 
   ScmJson.DependencyJson
-    { name = fqnOf loc
-      kind = LanguageTools.ProgramTypes.ItemKind.toString refKind
-      hash = LanguageTools.ProgramTypes.hashToString targetHash
-      behind = isBehind loc targetHash }
+    { name = fqnOf(loc)
+      kind = LanguageTools.ProgramTypes.ItemKind.toString(refKind)
+      hash = LanguageTools.ProgramTypes.hashToString(targetHash)
+      behind = isBehind(loc, targetHash) }
 
 /// `dark deps <path> --json`: what it uses and what uses it, in one object.
 ///
 /// Both directions at once, plus which references are already behind -- what "what breaks if I change
 /// this" actually needs.
-let executeJson
-  (state: AppState)
-  (sourceHash: LanguageTools.ProgramTypes.Hash)
-  (loc: LanguageTools.ProgramTypes.PackageLocation)
-  (kind: LanguageTools.ProgramTypes.ItemKind)
-  (entityName: String)
+let executeJson(
+  state: AppState,
+  sourceHash: LanguageTools.ProgramTypes.Hash,
+  loc: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  entityName: String)
   : AppState =
-  let dependencies = SCM.Deps.dependencyEdges sourceHash |> Stdlib.List.map edgeJson
+  let dependencies = SCM.Deps.dependencyEdges(sourceHash) |> Stdlib.List.map(edgeJson)
 
   let dependents =
-    SCM.Deps.dependentsOf [ (loc, kind) ]
-    |> Stdlib.List.map (fun d ->
+    SCM.Deps.dependentsOf([ (loc, kind) ])
+    |> Stdlib.List.map(fun d ->
       let (h, dLoc, dKind) = d
-      edgeJson ((h, dKind, dLoc)))
+      edgeJson((h, dKind, dLoc)))
 
-  Stdlib.printLine (
-    ScmJson.depsJson (
+  Stdlib.printLine((
+    ScmJson.depsJson((
       ScmJson.DepsJson
         { item = entityName
           dependencies = dependencies
           dependents = dependents }
-    )
-  )
+    ))
+  ))
 
   state
 
-let execute (state: AppState) (args: List<String>) : AppState =
+let execute(state: AppState, args: List<String>): AppState =
   // Flags: --deep (transitive), --all (don't cap the listing), --json
-  let wantsJson = ScmJson.wantsJson args
-  let args = ScmJson.stripJson args
-  let deep = Stdlib.List.contains args "--deep"
-  let all = Stdlib.List.contains args Listing.allFlag
-  let cap = Listing.shouldCap all
+  let wantsJson = ScmJson.wantsJson(args)
+  let args = ScmJson.stripJson(args)
+  let deep = Stdlib.List.contains(args, "--deep")
+  let all = Stdlib.List.contains(args, Listing.allFlag)
+  let cap = Listing.shouldCap(all)
   let filteredArgs =
-    args |> Stdlib.List.filter (fun arg -> arg != "--deep" && arg != Listing.allFlag)
+    args |> Stdlib.List.filter(fun arg -> arg != "--deep" && arg != Listing.allFlag)
   let branchId = state.currentBranchId
 
   // Any OTHER `--flag` is a mistake, not a path. Unrefused it reaches the lookup as though it were a
   // package name and answers "Not found", which reads as "no such package" about a flag.
   let unknownFlags =
-    filteredArgs |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--")
+    filteredArgs |> Stdlib.List.filter(fun a -> Stdlib.String.startsWith(a, "--"))
 
-  if Stdlib.Bool.not (Stdlib.List.isEmpty unknownFlags) then
-    let f = Stdlib.String.join unknownFlags " "
-    Cli.printErr $"deps doesn't understand {f}. The flags are --deep and --json."
-    Cli.exitWith state false
+  if Stdlib.Bool.not(Stdlib.List.isEmpty(unknownFlags)) then
+    let f = Stdlib.String.join(unknownFlags, " ")
+    Cli.printErr($"deps doesn't understand {f}. The flags are --deep and --json.")
+    Cli.exitWith(state, false)
   else
 
   match filteredArgs with
   | [] ->
-    [ Stdlib.Cli.UI.Colors.error "Usage: deps <subcommand> <path>"
+    [ Stdlib.Cli.UI.Colors.error("Usage: deps <subcommand> <path>")
       ""
       "Subcommands:"
       "  uses <path>         - Show what the item uses (dependencies)"
@@ -340,101 +340,101 @@ let execute (state: AppState) (args: List<String>) : AppState =
       "Options:"
       "  --deep              - Show transitive dependents (everything that could break)"
       "  --all               - Show every row; listings are capped at 20 otherwise" ]
-    |> Stdlib.List.iter (fun l -> Stdlib.printErrorLine l)
-    Cli.exitWith state false
+    |> Stdlib.List.iter(fun l -> Stdlib.printErrorLine(l))
+    Cli.exitWith(state, false)
 
   | ["uses", pathArg] ->
-    match resolvePath branchId state.packageData.currentLocation pathArg with
+    match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
     | Error errMsg ->
       // Name what you ASKED for, not just where the path stopped resolving: "Not found: Zzz" is true and
       // unhelpful when you typed `Zzz.Nope.nope`, and both together tell a typo from a missing name.
-      Cli.printErr $"Cannot show deps for {pathArg}: {errMsg}"
-      Cli.exitWith state false
+      Cli.printErr($"Cannot show deps for {pathArg}: {errMsg}")
+      Cli.exitWith(state, false)
     | Ok result ->
       let (hash, loc, name, entityType) = result
 
       // Honoured on EVERY arm, not just the bare one: an agent that asked for JSON must not get a table.
       if wantsJson then
-        executeJson state hash loc entityType name
+        executeJson(state, hash, loc, entityType, name)
       else
 
-      showDependencies hash name cap
+      showDependencies(hash, name, cap)
       state
 
   | ["usedby", pathArg] ->
-    match resolvePath branchId state.packageData.currentLocation pathArg with
+    match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
     | Error errMsg ->
       // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
-      Cli.printErr $"Cannot show deps for {pathArg}: {errMsg}"
-      Cli.exitWith state false
+      Cli.printErr($"Cannot show deps for {pathArg}: {errMsg}")
+      Cli.exitWith(state, false)
     | Ok result ->
       let (hash, loc, name, entityType) = result
 
       // Same as the `uses` arm.
       if wantsJson then
-        executeJson state hash loc entityType name
+        executeJson(state, hash, loc, entityType, name)
       else
 
       if deep then
-        showTransitiveDependents branchId loc entityType name cap
+        showTransitiveDependents(branchId, loc, entityType, name, cap)
       else
-        showDependents loc entityType name cap
+        showDependents(loc, entityType, name, cap)
 
       state
 
   | [pathArg] ->
     // Default to showing both uses and usedby
-    match resolvePath branchId state.packageData.currentLocation pathArg with
+    match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
     | Error errMsg ->
       // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
-      Cli.printErr $"Cannot show deps for {pathArg}: {errMsg}"
-      Cli.exitWith state false
+      Cli.printErr($"Cannot show deps for {pathArg}: {errMsg}")
+      Cli.exitWith(state, false)
     | Ok result ->
       let (hash, loc, name, entityType) = result
 
       if wantsJson then
-        executeJson state hash loc entityType name
+        executeJson(state, hash, loc, entityType, name)
       else
 
-      showDependencies hash name cap
-      Stdlib.printLine ""
+      showDependencies(hash, name, cap)
+      Stdlib.printLine("")
 
       if deep then
-        showTransitiveDependents branchId loc entityType name cap
+        showTransitiveDependents(branchId, loc, entityType, name, cap)
       else
-        showDependents loc entityType name cap
+        showDependents(loc, entityType, name, cap)
 
       state
 
   | _ ->
-    Stdlib.printErrorLine (help state)
-    Cli.exitWith state false
+    Stdlib.printErrorLine(help(state))
+    Cli.exitWith(state, false)
 
 
-let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   let branchId = state.currentBranchId
   match args with
   | [] ->
     [Completion.CompletionItem { display = "uses", value = "uses" }, Completion.CompletionItem { display = "usedby", value = "usedby" }]
   | ["uses"] ->
-    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation ""
+    Packages.Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
   | ["usedby"] ->
-    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation ""
+    Packages.Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
   | ["uses", partialPath] ->
-    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
+    Packages.Traversal.completePartialPath(branchId, state.packageData.currentLocation, partialPath)
   | ["usedby", partialPath] ->
-    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
+    Packages.Traversal.completePartialPath(branchId, state.packageData.currentLocation, partialPath)
   | [partialPath] ->
     let subcommands =
       ["uses", "usedby"]
-      |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partialPath)
-      |> Stdlib.List.map (fun cmd -> Completion.CompletionItem { display = cmd, value = cmd })
-    let paths = Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
-    Stdlib.List.concat subcommands paths
+      |> Stdlib.List.filter(fun cmd -> Stdlib.String.startsWith(cmd, partialPath))
+      |> Stdlib.List.map(fun cmd -> Completion.CompletionItem { display = cmd, value = cmd })
+    let paths = Packages.Traversal.completePartialPath(branchId, state.packageData.currentLocation, partialPath)
+    Stdlib.List.concat(subcommands, paths)
   | _ -> []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [
     "Usage: deps [subcommand] <path> [--deep] [--all]"
     "Show dependencies and dependents of a fn, type, value, trait or impl."
@@ -455,4 +455,4 @@ let help (_state: AppState) : String =
     "  deps usedby Stdlib.List.map       - Show what uses List.map"
     "  deps usedby Stdlib.Option --deep  - Show everything that could break if Option changes"
   ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")

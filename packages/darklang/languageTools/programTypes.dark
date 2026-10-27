@@ -335,7 +335,7 @@ type Expr =
   | ESelf of ID
 
 module Expr =
-  let toID (expr: Expr) : ID =
+  let toID(expr: Expr): ID =
     match expr with
     | EUnit id
     | EBool(id, _)
@@ -391,16 +391,16 @@ type Deprecation<'name> =
   | DeprecatedBecause of String
 
 
-let parsePackageLocation (nameToParse: String): PackageLocation =
-  let parts = Stdlib.String.split nameToParse "."
+let parsePackageLocation(nameToParse: String): PackageLocation =
+  let parts = Stdlib.String.split(nameToParse, ".")
   match parts with
   | owner :: rest ->
-    let rev = Stdlib.List.reverse rest
+    let rev = Stdlib.List.reverse(rest)
     match rev with
     | name :: rest ->
       PackageLocation
         { owner = owner
-          modules = Stdlib.List.reverse rest
+          modules = Stdlib.List.reverse(rest)
           name = name }
     | [] ->
       // CLEANUP: This case should be handled better
@@ -419,14 +419,14 @@ type BranchID = Uuid
 /// Content-addressed hash for package items (hex-encoded SHA-256)
 type Hash = | Hash of String
 
-let hashToString (hash: Hash) : String =
+let hashToString(hash: Hash): String =
   match hash with
   | Hash h -> h
 
 /// First 8 hex chars, for human-readable display
-let hashToShort (hash: Hash) : String =
-  let h = hashToString hash
-  Stdlib.String.first h 8
+let hashToShort(hash: Hash): String =
+  let h = hashToString(hash)
+  Stdlib.String.first(h, 8)
 
 /// The hash of a piece of PROSE, which is not content and so is not hashed the way an item is.
 ///
@@ -435,8 +435,8 @@ let hashToShort (hash: Hash) : String =
 /// indistinguishable in a column, and deliberately not the same function: an item hash is over a
 /// canonical serialization and this is over the bytes of a string. Must agree with
 /// `LibExecution.ProgramTypes.Hash.ofText`, which is what reads it back.
-let hashOfText (text: String) : Hash =
-  (Stdlib.Bytes.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBytes text)))
+let hashOfText(text: String): Hash =
+  (Stdlib.Bytes.toHex(Stdlib.Crypto.sha256(Stdlib.String.toBytes(text))))
   |> Stdlib.String.toLowercase
   |> Hash.Hash
 
@@ -602,7 +602,7 @@ module ItemKind =
   /// written on this side, because it is a round trip: a second copy that disagreed about `impl`
   /// versus `traitImpl` would read back someone else's rows as the wrong kind. It has to agree
   /// with `PT.ItemKind.toString` in F#, which writes the same column from the fold.
-  let toString (k: ItemKind) : String =
+  let toString(k: ItemKind): String =
     match k with
     | Fn -> "fn"
     | Type -> "type"
@@ -613,7 +613,7 @@ module ItemKind =
 
   /// `None` for anything `toString` would not have written. A blanket arm here is how a kind
   /// nobody anticipated becomes a function: the copy in `SCM.Deps` fell through to `Fn`.
-  let fromString (s: String) : Stdlib.Option.Option<ItemKind> =
+  let fromString(s: String): Stdlib.Option.Option<ItemKind> =
     match s with
     | "fn" -> Stdlib.Option.Option.Some ItemKind.Fn
     | "type" -> Stdlib.Option.Option.Some ItemKind.Type
@@ -635,7 +635,7 @@ type Reference =
   | PackageTest of Hash
 
 module Reference =
-  let hash (r: Reference) : Hash =
+  let hash(r: Reference): Hash =
     match r with
     | PackageType h -> h
     | PackageValue h -> h
@@ -644,7 +644,7 @@ module Reference =
     | PackageTraitImpl h -> h
     | PackageTest h -> h
 
-  let kind (r: Reference) : ItemKind =
+  let kind(r: Reference): ItemKind =
     match r with
     | PackageType _ -> ItemKind.Type
     | PackageValue _ -> ItemKind.Value
@@ -653,7 +653,7 @@ module Reference =
     | PackageTraitImpl _ -> ItemKind.TraitImpl
     | PackageTest _ -> ItemKind.Test
 
-  let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
+  let fromHashAndKind(h: Hash, k: ItemKind): Reference =
     match k with
     | Type -> Reference.PackageType h
     | Value -> Reference.PackageValue h
@@ -714,24 +714,24 @@ type DocPart =
 module DocPart =
   /// The part a stored key names ("item", "record-field:x", "parameter:0"), or None for one this
   /// build cannot read. Must agree with `LibDB.Docs.partKey`, which writes them.
-  let fromKey (key: String) : Stdlib.Option.Option<DocPart> =
-    match Stdlib.String.split key ":" with
+  let fromKey(key: String): Stdlib.Option.Option<DocPart> =
+    match Stdlib.String.split(key, ":") with
     | [ "item" ] -> Stdlib.Option.Option.Some DocPart.WholeItem
     | [ "record-field", name ] -> Stdlib.Option.Option.Some(DocPart.RecordField name)
     | [ "enum-case", name ] -> Stdlib.Option.Option.Some(DocPart.EnumCase name)
     | [ "parameter", index ] ->
-      Stdlib.Int.parse index
+      Stdlib.Int.parse(index)
       |> Stdlib.Result.toOption
-      |> Stdlib.Option.map (fun i -> DocPart.Parameter i)
+      |> Stdlib.Option.map(fun i -> DocPart.Parameter i)
     | _ -> Stdlib.Option.Option.None
 
   /// How it reads in a listing: which part of the declaration is being described.
-  let describe (p: DocPart) : String =
+  let describe(p: DocPart): String =
     match p with
     | WholeItem -> "the item"
     | RecordField name -> $"field {name}"
     | EnumCase name -> $"case {name}"
-    | Parameter index -> $"parameter {Stdlib.toString (index + 1)}"
+    | Parameter index -> $"parameter {Stdlib.toString(index + 1)}"
 
 
 type PackageOp =
@@ -874,44 +874,44 @@ module PackageManager =
 
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
-  let withExtras
-    (pm: PackageManager.PackageManager)
-    (types: List<LocatedItem<PackageType.PackageType>>)
-    (values: List<LocatedItem<PackageValue.PackageValue>>)
-    (fns: List<LocatedItem<PackageFn.PackageFn>>)
+  let withExtras(
+    pm: PackageManager.PackageManager,
+    types: List<LocatedItem<PackageType.PackageType>>,
+    values: List<LocatedItem<PackageValue.PackageValue>>,
+    fns: List<LocatedItem<PackageFn.PackageFn>>)
     : PackageManager.PackageManager =
     PackageManager.PackageManager
       { findType =
           fun (branchId, location) ->
-            match types |> Stdlib.List.findFirst (fun t -> t.location == location) with
+            match types |> Stdlib.List.findFirst(fun t -> t.location == location) with
             | Some t -> Stdlib.Option.Option.Some t.entity.hash
-            | None -> pm.findType (branchId, location)
+            | None -> pm.findType((branchId, location))
         findValue =
           fun (branchId, location) ->
-            match values |> Stdlib.List.findFirst (fun v -> v.location == location) with
+            match values |> Stdlib.List.findFirst(fun v -> v.location == location) with
             | Some v -> Stdlib.Option.Option.Some v.entity.hash
-            | None -> pm.findValue (branchId, location)
+            | None -> pm.findValue((branchId, location))
         findFn =
           fun (branchId, location) ->
-            match fns |> Stdlib.List.findFirst (fun f -> f.location == location) with
+            match fns |> Stdlib.List.findFirst(fun f -> f.location == location) with
             | Some f -> Stdlib.Option.Option.Some f.entity.hash
-            | None -> pm.findFn (branchId, location)
+            | None -> pm.findFn((branchId, location))
 
         getType =
           fun id ->
-            match types |> Stdlib.List.findFirst (fun t -> t.entity.hash == id) with
+            match types |> Stdlib.List.findFirst(fun t -> t.entity.hash == id) with
             | Some t -> Stdlib.Option.Option.Some t.entity
-            | None -> pm.getType id
+            | None -> pm.getType(id)
         getValue =
           fun id ->
-            match values |> Stdlib.List.findFirst (fun v -> v.entity.hash == id) with
+            match values |> Stdlib.List.findFirst(fun v -> v.entity.hash == id) with
             | Some v -> Stdlib.Option.Option.Some v.entity
-            | None -> pm.getValue id
+            | None -> pm.getValue(id)
         getFn =
           fun id ->
-            match fns |> Stdlib.List.findFirst (fun f -> f.entity.hash == id) with
+            match fns |> Stdlib.List.findFirst(fun f -> f.entity.hash == id) with
             | Some f -> Stdlib.Option.Option.Some f.entity
-            | None -> pm.getFn id
+            | None -> pm.getFn(id)
 
         findTrait = pm.findTrait
         getTrait = pm.getTrait
@@ -920,62 +920,62 @@ module PackageManager =
 
 
   /// Create a PackageManager from PackageOps, combining with an existing PM
-  let withExtraOps
-    (basePM: PackageManager.PackageManager)
-    (ops: List<PackageOp>)
+  let withExtraOps(
+    basePM: PackageManager.PackageManager,
+    ops: List<PackageOp>)
     : PackageManager.PackageManager =
     let typesByID =
       ops
-      |> Stdlib.List.filterMap (fun op ->
+      |> Stdlib.List.filterMap(fun op ->
         match op with
         | AddType t -> Stdlib.Option.Option.Some((t.hash, t))
         | _ -> Stdlib.Option.Option.None)
 
     let valuesByID =
       ops
-      |> Stdlib.List.filterMap (fun op ->
+      |> Stdlib.List.filterMap(fun op ->
         match op with
         | AddValue v -> Stdlib.Option.Option.Some((v.hash, v))
         | _ -> Stdlib.Option.Option.None)
 
     let fnsByID =
       ops
-      |> Stdlib.List.filterMap (fun op ->
+      |> Stdlib.List.filterMap(fun op ->
         match op with
         | AddFn f -> Stdlib.Option.Option.Some((f.hash, f))
         | _ -> Stdlib.Option.Option.None)
 
     let traitsByID =
       ops
-      |> Stdlib.List.filterMap (fun op ->
+      |> Stdlib.List.filterMap(fun op ->
         match op with
         | AddTrait t -> Stdlib.Option.Option.Some((t.hash, t))
         | _ -> Stdlib.Option.Option.None)
 
     let traitLocationMap =
       ops
-      |> Stdlib.List.filterMap (fun op ->
+      |> Stdlib.List.filterMap(fun op ->
         match op with
         | SetName (loc, PackageTrait hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let typeLocationMap =
       ops
-      |> Stdlib.List.filterMap (fun op ->
+      |> Stdlib.List.filterMap(fun op ->
         match op with
         | SetName (loc, PackageType hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let valueLocationMap =
       ops
-      |> Stdlib.List.filterMap (fun op ->
+      |> Stdlib.List.filterMap(fun op ->
         match op with
         | SetName (loc, PackageValue hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let fnLocationMap =
       ops
-      |> Stdlib.List.filterMap (fun op ->
+      |> Stdlib.List.filterMap(fun op ->
         match op with
         | SetName (loc, PackageFn hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
@@ -985,90 +985,90 @@ module PackageManager =
       { findType =
           fun (branchId, location) ->
             match typeLocationMap
-                  |> Stdlib.List.findFirst (fun tuple ->
+                  |> Stdlib.List.findFirst(fun tuple ->
                     let (loc, _) = tuple
                     loc == location) with
             | Some tuple ->
               let (_, id) = tuple
               Stdlib.Option.Option.Some id
-            | None -> basePM.findType (branchId, location)
+            | None -> basePM.findType((branchId, location))
 
         findValue =
           fun (branchId, location) ->
             match valueLocationMap
-                  |> Stdlib.List.findFirst (fun tuple ->
+                  |> Stdlib.List.findFirst(fun tuple ->
                     let (loc, _) = tuple
                     loc == location) with
             | Some tuple ->
               let (_, id) = tuple
               Stdlib.Option.Option.Some id
-            | None -> basePM.findValue (branchId, location)
+            | None -> basePM.findValue((branchId, location))
 
         findFn =
           fun (branchId, location) ->
             match fnLocationMap
-                  |> Stdlib.List.findFirst (fun tuple ->
+                  |> Stdlib.List.findFirst(fun tuple ->
                     let (loc, _) = tuple
                     loc == location) with
             | Some tuple ->
               let (_, id) = tuple
               Stdlib.Option.Option.Some id
-            | None -> basePM.findFn (branchId, location)
+            | None -> basePM.findFn((branchId, location))
 
         getType =
           fun id ->
             match typesByID
-                  |> Stdlib.List.findFirst (fun tuple ->
+                  |> Stdlib.List.findFirst(fun tuple ->
                     let (tid, _) = tuple
                     tid == id) with
             | Some tuple ->
               let (_, t) = tuple
               Stdlib.Option.Option.Some t
-            | None -> basePM.getType id
+            | None -> basePM.getType(id)
 
         getValue =
           fun id ->
             match valuesByID
-                  |> Stdlib.List.findFirst (fun tuple ->
+                  |> Stdlib.List.findFirst(fun tuple ->
                     let (vid, _) = tuple
                     vid == id) with
             | Some tuple ->
               let (_, v) = tuple
               Stdlib.Option.Option.Some v
-            | None -> basePM.getValue id
+            | None -> basePM.getValue(id)
 
         getFn =
           fun id ->
             match fnsByID
-                  |> Stdlib.List.findFirst (fun tuple ->
+                  |> Stdlib.List.findFirst(fun tuple ->
                     let (fid, _) = tuple
                     fid == id) with
             | Some tuple ->
               let (_, f) = tuple
               Stdlib.Option.Option.Some f
-            | None -> basePM.getFn id
+            | None -> basePM.getFn(id)
 
         findTrait =
           fun (branchId, location) ->
             match traitLocationMap
-                  |> Stdlib.List.findFirst (fun tuple ->
+                  |> Stdlib.List.findFirst(fun tuple ->
                     let (loc, _) = tuple
                     loc == location) with
             | Some tuple ->
               let (_, id) = tuple
               Stdlib.Option.Option.Some id
-            | None -> basePM.findTrait (branchId, location)
+            | None -> basePM.findTrait((branchId, location))
 
         getTrait =
           fun id ->
             match traitsByID
-                  |> Stdlib.List.findFirst (fun tuple ->
+                  |> Stdlib.List.findFirst(fun tuple ->
                     let (tid, _) = tuple
                     tid == id) with
             | Some tuple ->
               let (_, t) = tuple
               Stdlib.Option.Option.Some t
-            | None -> basePM.getTrait id
+            | None -> basePM.getTrait(id)
 
         search = basePM.search }
 

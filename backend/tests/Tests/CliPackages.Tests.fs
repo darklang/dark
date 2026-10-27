@@ -164,7 +164,7 @@ let testsFollowEditsAcrossOwners =
           [ "test"
             "add"
             "Tests.TestFollow.halfOf8"
-            "Vendor.TestFollow.half 8L |> Stdlib.Test.equal 4L" ]
+            "Vendor.TestFollow.half(8L) |> Stdlib.Test.equal(4L)" ]
       do!
         shows
           state
@@ -201,10 +201,10 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
         )
       System.IO.File.WriteAllText(
         file,
-        "let inner (n: Int64) : Int64 = (n + 1L)\n\n"
-        + "let outer (n: Int64) : Int64 = Tests.CacheT.inner n\n\n"
-        + "test outerOf1 =\n"
-        + "  Stdlib.Test.expect (Tests.CacheT.outer 1L == 2L) \"expected 2, got 3\"\n"
+        "let inner(n: Int64): Int64 = (n + 1L)\n\nlet outer(n: Int64): Int64 = Tests.CacheT.inner(n)\n\ntest outerOf1 =\n  Stdlib.Test.expect(Tests.CacheT.outer(1L) == 2L, \"expected 2, got 3\")\n"
+        + ""
+        + ""
+        + ""
       )
       do! run state [ "module"; "Tests.CacheT"; file ]
       System.IO.File.Delete file
@@ -256,7 +256,7 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
         fn
           state
           "Tests.CacheT.outer"
-          "(n: Int64) : Int64 = Tests.CacheT.inner (n - 1L)"
+          "(n: Int64): Int64 = Tests.CacheT.inner(n - 1L)"
       do!
         showsAll
           state
@@ -277,7 +277,7 @@ let cachedPassesStayOnTheirBranch =
           System.IO.Path.GetTempPath(),
           $"dark-cache-branch-{System.Guid.NewGuid():N}.dark"
         )
-      System.IO.File.WriteAllText(file, "test passes = Stdlib.Test.pass ()\n")
+      System.IO.File.WriteAllText(file, "test passes = Stdlib.Test.pass()\n")
       do! run state [ "module"; "Tests.CacheBranch"; file ]
       System.IO.File.Delete file
       do! commit state "cacheable branch test"
@@ -330,18 +330,18 @@ let testsWithoutPurityProofAlwaysRun =
         )
       System.IO.File.WriteAllText(
         file,
-        "test randomKey =\n"
-        + "  (Stdlib.toString (Stdlib.Uuid.generate ())) |> Stdlib.String.length\n"
-        + "  |> Stdlib.Test.equal 36\n\n"
-        + "test dynamicCall =\n"
-        + "  (let fn = (+)\n"
-        + "   fn 1L 1L) |> Stdlib.Test.equal 2L\n"
-        + "\ntest renderedValue =\n"
-        + "  let text = Stdlib.toRepr 1L\n"
-        + "  Stdlib.Test.equal text text\n"
-        + "\ntest expectedError =\n"
-        + "  (1L / 0L)\n"
-        + "  => raises \"Cannot divide by 0\"\n"
+        "test randomKey =\n  (Stdlib.toString(Stdlib.Uuid.generate())) |> Stdlib.String.length\n  |> Stdlib.Test.equal(36)\n\ntest dynamicCall =\n  (let fn = (+)\n   fn(1L, 1L)) |> Stdlib.Test.equal(2L)\n\ntest renderedValue =\n  let text = Stdlib.toRepr(1L)\n  Stdlib.Test.equal(text, text)\n\ntest expectedError =\n  (1L / 0L)\n  => raises \"Cannot divide by 0\"\n"
+        + ""
+        + ""
+        + ""
+        + ""
+        + ""
+        + ""
+        + ""
+        + ""
+        + ""
+        + ""
+        + ""
       )
       do! run state [ "module"; "Tests.CacheSafety"; file ]
       System.IO.File.Delete file
@@ -377,24 +377,24 @@ let assertionFailureMessagesAlwaysRun =
           """type First = { cacheSafetyField: Int64 }
 test equalMessage =
   match
-    Stdlib.Test.equal
-      (First { cacheSafetyField = 1L })
-      (First { cacheSafetyField = 2L })
+    Stdlib.Test.equal(
+      First { cacheSafetyField = 1L },
+      First { cacheSafetyField = 2L })
   with
-  | Pass -> Stdlib.Test.fail "expected an assertion failure"
+  | Pass -> Stdlib.Test.fail("expected an assertion failure")
   | Fail messages ->
-    let text = Stdlib.String.join messages " "
-    Stdlib.Test.expect (Stdlib.String.contains text "First") "type name changed"
+    let text = Stdlib.String.join(messages, " ")
+    Stdlib.Test.expect(Stdlib.String.contains(text, "First"), "type name changed")
 test notEqualMessage =
   match
-    Stdlib.Test.notEqual
-      (First { cacheSafetyField = 1L })
-      (First { cacheSafetyField = 1L })
+    Stdlib.Test.notEqual(
+      First { cacheSafetyField = 1L },
+      First { cacheSafetyField = 1L })
   with
-  | Pass -> Stdlib.Test.fail "expected an assertion failure"
+  | Pass -> Stdlib.Test.fail("expected an assertion failure")
   | Fail messages ->
-    let text = Stdlib.String.join messages " "
-    Stdlib.Test.expect (Stdlib.String.contains text "First") "type name changed"
+    let text = Stdlib.String.join(messages, " ")
+    Stdlib.Test.expect(Stdlib.String.contains(text, "First"), "type name changed")
 """
         )
         do! run state [ "module"; "Tests.AssertionCache"; file ]
@@ -434,7 +434,7 @@ let cachedPassesRequireTheSameBuildAndJudge =
       do!
         run
           state
-          [ "test"; "add"; "Tests.CacheIdentity.passes"; "Stdlib.Test.pass ()" ]
+          [ "test"; "add"; "Tests.CacheIdentity.passes"; "Stdlib.Test.pass()" ]
       do!
         shows
           state
@@ -448,13 +448,13 @@ let cachedPassesRequireTheSameBuildAndJudge =
           "0 ran, 1 cached"
           "same build and judge"
       let! key =
-        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
+        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime()" ]
       let parts = key.Trim().Split(':')
       Expect.equal parts.Length 2 $"build and judge identities: {key}"
       Expect.equal parts[0].Length 64 "the runtime identity is a SHA-256 hash"
       Expect.isTrue (parts[0] |> Seq.forall System.Uri.IsHexDigit) "hex hash"
       let! again =
-        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
+        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime()" ]
       Expect.equal again key "the build identity survives a new CLI process"
       // Keep a real stored pass, but associate it with another runtime or judge.
       for oldKey in [ "old-build:" + parts[1]; parts[0] + ":old-judge" ] do
@@ -466,8 +466,8 @@ let cachedPassesRequireTheSameBuildAndJudge =
           exits
             state
             [ "eval"
-              "Stdlib.Sqlite.mustExec (Stdlib.LocalStore.path ()) "
-              + $"\"{sql}\" []" ]
+              "Stdlib.Sqlite.mustExec(Stdlib.LocalStore.path(), "
+              + $"\"{sql}\", [])" ]
             0L
             "move the stored pass to an older cache identity"
         do!
@@ -504,7 +504,7 @@ let testAddAuthorsATest =
           [ "test"
             "add"
             "Tests.AddT.doubles"
-            "Tests.AddT.double 4L |> Stdlib.Test.equal 8L" ]
+            "Tests.AddT.double(4L) |> Stdlib.Test.equal(8L)" ]
           "Created test Tests.AddT.doubles"
           "a bare body becomes `test doubles = ...`"
       do!
@@ -525,7 +525,7 @@ let testAddAuthorsATest =
           [ "test"
             "add"
             "Tests.AddT.doubles"
-            "test doubles :{} = Tests.AddT.double 4L |> Stdlib.Test.equal 8L" ]
+            "test doubles :{} = Tests.AddT.double(4L) |> Stdlib.Test.equal(8L)" ]
           1L
           "a test cannot declare its own permission ceiling"
       do!
@@ -534,7 +534,7 @@ let testAddAuthorsATest =
           [ "test"
             "add"
             "Tests.AddT.doubles"
-            "test doubles = Tests.AddT.double 4L |> Stdlib.Test.equal 8L" ]
+            "test doubles = Tests.AddT.double(4L) |> Stdlib.Test.equal(8L)" ]
           0L
           "a complete test declaration is accepted"
       do!
@@ -546,10 +546,7 @@ let testAddAuthorsATest =
       do!
         exits
           state
-          [ "test"
-            "add"
-            "Tests.AddT.other"
-            "test doubles = Stdlib.Test.pass ()" ]
+          [ "test"; "add"; "Tests.AddT.other"; "test doubles = Stdlib.Test.pass()" ]
           1L
           "a declaration named differently from its target is refused"
       do! exits state [ "test"; "add" ] 1L "and so is a bare `test add`"
@@ -565,9 +562,9 @@ let testRunUsesOneStartingStore =
         do! run state [ "permissions"; "allow"; "native" ]
         let definition =
           """test startingStore =
-  let before = Stdlib.LocalStore.configGet "baseline-witness"
-  let _ = Stdlib.LocalStore.configSet "baseline-witness" "child"
-  Stdlib.Test.expect (before == "before") "starting store changed"
+  let before = Stdlib.LocalStore.configGet("baseline-witness")
+  let _ = Stdlib.LocalStore.configSet("baseline-witness", "child")
+  Stdlib.Test.expect(before == "before", "starting store changed")
 """
         do! run state [ "test"; "add"; "Tests.Baseline.startingStore"; definition ]
         let! hashOutput =
@@ -576,24 +573,24 @@ let testRunUsesOneStartingStore =
         let expression =
           $"""let hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "{hash}"
 let branch = Darklang.SCM.Branch.mainBranchId
-let _ = Stdlib.LocalStore.configSet "baseline-witness" "before"
-let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run ->
-  let first = Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash
-  let _ = Stdlib.LocalStore.configSet "baseline-witness" "after"
-  let second = Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash
+let _ = Stdlib.LocalStore.configSet("baseline-witness", "before")
+let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(fun run ->
+  let first = Darklang.LanguageTools.PackageManager.Test.executeInRun(run, branch, hash)
+  let _ = Stdlib.LocalStore.configSet("baseline-witness", "after")
+  let second = Darklang.LanguageTools.PackageManager.Test.executeInRun(run, branch, hash)
   (first, second))
-let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run ->
-  Darklang.LanguageTools.PackageManager.Test.executeInRun run branch hash)
-let ended = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot (fun run -> run)
+let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(fun run ->
+  Darklang.LanguageTools.PackageManager.Test.executeInRun(run, branch, hash))
+let ended = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(fun run -> run)
 let rejected =
-  match Darklang.LanguageTools.PackageManager.Test.executeInRun ended branch hash with
-  | Ok (Fail messages) -> Stdlib.String.contains (Stdlib.String.join messages " ") "already ended"
+  match Darklang.LanguageTools.PackageManager.Test.executeInRun(ended, branch, hash) with
+  | Ok (Fail messages) -> Stdlib.String.contains(Stdlib.String.join(messages, " "), "already ended")
   | _ -> false
 rejected
-&& first == Ok (Stdlib.Test.pass ())
-&& second == Ok (Stdlib.Test.pass ())
-&& later == Ok (Stdlib.Test.fail "starting store changed")
-&& Stdlib.LocalStore.configGet "baseline-witness" == "after"
+&& first == Ok (Stdlib.Test.pass())
+&& second == Ok (Stdlib.Test.pass())
+&& later == Ok (Stdlib.Test.fail("starting store changed"))
+&& Stdlib.LocalStore.configGet("baseline-witness") == "after"
 """
         do!
           evals
@@ -616,9 +613,9 @@ let isolatedTestDeclarations =
           add
             "writes"
             """test writes =
-  let before = Stdlib.LocalStore.configGet "isolated-declaration-witness"
-  let _ = Stdlib.LocalStore.configSet "isolated-declaration-witness" "child"
-  Stdlib.Test.equal before ""
+  let before = Stdlib.LocalStore.configGet("isolated-declaration-witness")
+  let _ = Stdlib.LocalStore.configSet("isolated-declaration-witness", "child")
+  Stdlib.Test.equal(before, "")
 """
         do!
           add
@@ -629,9 +626,9 @@ let isolatedTestDeclarations =
         do!
           add
             "fails"
-            """test fails = Stdlib.Test.fail "isolated assertion detail"
+            """test fails = Stdlib.Test.fail("isolated assertion detail")
 """
-        do! add "pure" """test pure = Stdlib.Test.pass ()"""
+        do! add "pure" """test pure = Stdlib.Test.pass()"""
         do!
           shows
             state
@@ -648,7 +645,7 @@ let isolatedTestDeclarations =
         do!
           evals
             state
-            "Stdlib.LocalStore.configGet \"isolated-declaration-witness\" == \"\""
+            "Stdlib.LocalStore.configGet(\"isolated-declaration-witness\") == \"\""
             "true"
             "the child's config did not leak into the parent"
         do! discardAll state
@@ -670,8 +667,8 @@ let entryPointOverrideIsForOneInvocation =
         let source = System.IO.Path.Combine(instance.dir, "entry-point.dark")
         System.IO.File.WriteAllText(
           source,
-          """let alternate (args: List<String>) : Int =
-  Stdlib.printLine (Stdlib.String.join args ",")
+          """let alternate(args: List<String>): Int =
+  Stdlib.printLine(Stdlib.String.join(args, ","))
   0
 """
         )
@@ -726,9 +723,9 @@ let packageTestsRespectParallelLimit =
             [ 1..5 ]
             |> List.map (fun n ->
               $"""test case{n} =
-  let before = Stdlib.LocalStore.configGet "parallel-witness"
-  let _ = Stdlib.LocalStore.configSet "parallel-witness" "child"
-  Stdlib.Test.expect (before == "") "another test changed my store"
+  let before = Stdlib.LocalStore.configGet("parallel-witness")
+  let _ = Stdlib.LocalStore.configSet("parallel-witness", "child")
+  Stdlib.Test.expect(before == "", "another test changed my store")
 """         )
             |> String.concat "\n"
           )
@@ -833,7 +830,7 @@ let packageTestsRespectParallelLimit =
           do!
             evals
               state
-              "Stdlib.LocalStore.configGet \"parallel-witness\" == \"\""
+              "Stdlib.LocalStore.configGet(\"parallel-witness\") == \"\""
               "true"
               "test writes did not reach the parent store"
       })
@@ -904,10 +901,10 @@ let isolatedTestsRejectUnsuccessfulWorkers =
           System.IO.File.WriteAllText(
             file,
             """test passes =
-  Stdlib.Cli.Sys.isTerminal 0 |> Stdlib.Test.equal false
+  Stdlib.Cli.Sys.isTerminal(0) |> Stdlib.Test.equal(false)
 test fails =
-  Stdlib.printLine "{\"Pass\":[]}"
-  Stdlib.Test.fail "intentional isolation failure"
+  Stdlib.printLine("{\"Pass\":[]}")
+  Stdlib.Test.fail("intentional isolation failure")
 test expected = 1L / 0L => raises "Cannot divide by 0"
 """
           )
@@ -1008,29 +1005,29 @@ let testsUseInstanceAndFunctionPolicies =
       task {
         do! start state
         let source =
-          """let clock () : Bool =
-  let _ = Stdlib.DateTime.now ()
+          """let clock(): Bool =
+  let _ = Stdlib.DateTime.now()
   true
-let restricted () :{} Bool =
-  let _ = Stdlib.DateTime.now ()
+let restricted():{} Bool =
+  let _ = Stdlib.DateTime.now()
   true
-let caller () :{Native} Stdlib.Test.Result =
-  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) Tests.PermissionUse.clock () with
-  | Error message -> Stdlib.Test.fail message
+let caller():{Native} Stdlib.Test.Result =
+  match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), Tests.PermissionUse.clock, ()) with
+  | Error message -> Stdlib.Test.fail(message)
   | Ok output ->
     match output.result with
-    | Ok _ -> Stdlib.Test.pass ()
-    | Error message -> Stdlib.Test.fail message
-test direct = Tests.PermissionUse.clock () |> Stdlib.Test.equal true
+    | Ok _ -> Stdlib.Test.pass()
+    | Error message -> Stdlib.Test.fail(message)
+test direct = Tests.PermissionUse.clock() |> Stdlib.Test.equal(true)
 test isolated =
-  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) Tests.PermissionUse.clock () with
-  | Error message -> Stdlib.Test.fail message
+  match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), Tests.PermissionUse.clock, ()) with
+  | Error message -> Stdlib.Test.fail(message)
   | Ok output ->
     match output.result with
-    | Ok value -> value |> Stdlib.Test.equal true
-    | Error message -> Stdlib.Test.fail message
-test functionCeiling = Tests.PermissionUse.restricted () |> Stdlib.Test.equal true
-test callerCeiling = Tests.PermissionUse.caller ()
+    | Ok value -> value |> Stdlib.Test.equal(true)
+    | Error message -> Stdlib.Test.fail(message)
+test functionCeiling = Tests.PermissionUse.restricted() |> Stdlib.Test.equal(true)
+test callerCeiling = Tests.PermissionUse.caller()
 """
         let sourceFile =
           System.IO.Path.Combine(
@@ -1090,13 +1087,13 @@ test callerCeiling = Tests.PermissionUse.caller ()
         do!
           shows
             state
-            [ "eval"; "Tests.PermissionUse.clock ()" ]
+            [ "eval"; "Tests.PermissionUse.clock()" ]
             "instance policy"
             "ordinary eval still uses the installation's denial"
         do!
           exits
             state
-            [ "eval"; "Tests.PermissionUse.clock ()" ]
+            [ "eval"; "Tests.PermissionUse.clock()" ]
             1L
             "eval stays denied"
         for name in [ "restricted"; "caller" ] do
@@ -1167,10 +1164,10 @@ let searchLeavesTestsOutUnlessAsked =
 /// <paramref name="row"/>, as one line of Dark for `eval`. Built from `initialState`, so no terminal.
 let private workbenchAt (modules : List<string>) (row : string) : string =
   let path = modules |> List.map (fun m -> $"\"{m}\"") |> String.concat ", "
-  "let st = Darklang.Cli.Workbench.initialState (Darklang.SCM.PackageOps.currentBranch ()) (Stdlib.Option.Option.None) \"i\" false in "
+  "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.PackageOps.currentBranch(), Stdlib.Option.Option.None, \"i\", false) in "
   + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in "
-  + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems s0 } in "
-  + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap s1.items (fun i it -> (i, it.name)) |> Stdlib.List.findFirst (fun (_, nm) -> nm == \"{row}\") |> Stdlib.Option.map (fun (i, _) -> i) |> Stdlib.Option.withDefault 0) }} in "
+  + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems(s0) } in "
+  + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap(s1.items, fun i it -> (i, it.name)) |> Stdlib.List.findFirst(fun (_, nm) -> nm == \"{row}\") |> Stdlib.Option.map(fun (i, _) -> i) |> Stdlib.Option.withDefault(0)) }} in "
 
 /// The Code view lists a module's tests as rows of their own, and the Inspect pane shows a test's
 /// source and result, and a function's tests. Every row kind here used to fall through to "value",
@@ -1183,24 +1180,24 @@ let workbenchShowsTests =
         evals
           state
           ((workbenchAt floatTests "ceiling")
-           + "Stdlib.List.map s.items (fun it -> it.kind + \":\" + it.name)")
+           + "Stdlib.List.map(s.items, fun it -> it.kind + \":\" + it.name)")
           "test:ceiling"
           "a module's tests are rows of kind test"
       do!
         evals
           state
           ((workbenchAt floatTests "ceiling")
-           + "Stdlib.String.join (Darklang.Cli.Workbench.detailLines s) \"\\n\"")
+           + "Stdlib.String.join(Darklang.Cli.Workbench.detailLines(s), \"\\n\")")
           "test ceiling ="
           "the Inspect pane shows a test's source"
       do!
         evals
           state
           ((workbenchAt floatTests "ceiling")
-           + "match Stdlib.List.getAt s.items s.selected with "
-           + "| Some item -> Darklang.Cli.Workbench.itemMeta s item "
-           + "(Darklang.Cli.Packages.Query.searchExactMatch s.branchId "
-           + "(Darklang.Cli.Packages.modulePathOf s.location) item.name) "
+           + "match Stdlib.List.getAt(s.items, s.selected) with "
+           + "| Some item -> Darklang.Cli.Workbench.itemMeta(s, item, "
+           + "Darklang.Cli.Packages.Query.searchExactMatch(s.branchId, "
+           + "Darklang.Cli.Packages.modulePathOf(s.location), item.name)) "
            + "| None -> \"\"")
           "test ·"
           "and the meta line calls it a test"
@@ -1208,7 +1205,7 @@ let workbenchShowsTests =
         evals
           state
           ((workbenchAt [ "Darklang"; "Stdlib"; "Float" ] "ceiling")
-           + "Stdlib.String.join (Darklang.Cli.Workbench.inspectPageLines s) \"\\n\"")
+           + "Stdlib.String.join(Darklang.Cli.Workbench.inspectPageLines(s), \"\\n\")")
           "Darklang.Stdlib.Float.Tests.ceiling"
           "a function's Inspect pane lists the tests that call it"
     })
@@ -1224,11 +1221,11 @@ let workbenchRenameEndsTheOldName =
         evals
           state
           ((workbenchAt [ "Tests"; "WbRename" ] "before")
-           + "match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText \"after\", action = \"rename\" }) with | Continue s2 -> s2.message | _ -> \"no\"")
+           + "match Darklang.Cli.Workbench.performInputAction(s, Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(\"after\"), action = \"rename\" }) with | Continue s2 -> s2.message | _ -> \"no\"")
           "renamed to after"
           "the workbench says it renamed"
-      do! evals state "Tests.WbRename.after ()" "7" "the new name resolves"
-      do! notFound state "Tests.WbRename.before ()" "and the old name is gone"
+      do! evals state "Tests.WbRename.after()" "7" "the new name resolves"
+      do! notFound state "Tests.WbRename.before()" "and the old name is gone"
       do! discardAll state
     })
 
@@ -1390,7 +1387,7 @@ let authoringRoundTrips =
           [ "view"; "Tests.Round.answer" ]
           "42"
           "view shows what was just authored"
-      do! evals state "Tests.Round.answer ()" "42" "and it runs"
+      do! evals state "Tests.Round.answer()" "42" "and it runs"
       do! shows state [ "hash"; "Tests.Round.answer" ] "fn " "and it has a hash"
       do! discardAll state
     })
@@ -1413,7 +1410,7 @@ let deleteAndRestore =
       do! start state
       do! fn state "Tests.Retire.f" "() : Int64 = 50505L"
       do! commit state "add f"
-      do! evals state "Tests.Retire.f ()" "50505" "it runs before the delete"
+      do! evals state "Tests.Retire.f()" "50505" "it runs before the delete"
 
       do!
         showsAnyCase
@@ -1430,7 +1427,7 @@ let deleteAndRestore =
       do!
         evals
           state
-          "Tests.Retire.f ()"
+          "Tests.Retire.f()"
           "50505"
           "and it still runs, because callers still resolve it"
 
@@ -1490,7 +1487,7 @@ let deprecateAndUndeprecate =
           [ "view"; "Tests.Dep.old" ]
           "deprecated"
           "the badge shows on the item"
-      do! evals state "Tests.Dep.old ()" "1" "a deprecated item still runs"
+      do! evals state "Tests.Dep.old()" "1" "a deprecated item still runs"
 
       do! run state [ "undeprecate"; "Tests.Dep.old" ]
       do!
@@ -1513,12 +1510,12 @@ let aDocOnlyEditKeepsTheVersionAndStillLands =
       task {
         do! start state
         do! fn state "Tests.Docs.f" "() : Int64 = 7L"
-        do! fn state "Tests.Docs.caller" "() : Int64 = Tests.Docs.f () + 1L"
+        do! fn state "Tests.Docs.caller" "(): Int64 = Tests.Docs.f() + 1L"
         do! commit state "add f and its caller"
 
         let! before = runCliPlain state [ "hash"; "Tests.Docs.f" ]
 
-        do! fn state "Tests.Docs.f" "/// Returns seven.\nlet f (): Int64 =\n  7L"
+        do! fn state "Tests.Docs.f" "/// Returns seven.\nlet f(): Int64 =\n  7L"
 
         let! after = runCliPlain state [ "hash"; "Tests.Docs.f" ]
         Expect.equal
@@ -1534,7 +1531,7 @@ let aDocOnlyEditKeepsTheVersionAndStillLands =
             "and the new text is what you read"
         do! shows state [ "ops" ] "UpdateDoc" "the op log says what happened"
         do! dirty state "an uncommitted doc edit is not a clean tree"
-        do! evals state "Tests.Docs.caller ()" "8" "its caller is untouched"
+        do! evals state "Tests.Docs.caller()" "8" "its caller is untouched"
 
         do! commit state "document f"
         do!
@@ -1554,7 +1551,7 @@ let aBranchesDocEditStaysOnTheBranch =
       task {
         do! start state
         do! fn state "Tests.DocsBr.f" "() : Int64 = 3L"
-        do! fn state "Tests.DocsBr.f" "/// Main's wording.\nlet f (): Int64 =\n  3L"
+        do! fn state "Tests.DocsBr.f" "/// Main's wording.\nlet f(): Int64 =\n  3L"
         do! commit state "add f, documented"
 
         do! switch state "docsbr"
@@ -1562,7 +1559,7 @@ let aBranchesDocEditStaysOnTheBranch =
           fn
             state
             "Tests.DocsBr.f"
-            "/// The branch's wording.\nlet f (): Int64 =\n  3L"
+            "/// The branch's wording.\nlet f(): Int64 =\n  3L"
         do!
           shows
             state
@@ -1704,7 +1701,7 @@ let aParametersDocEditLands =
         fn
           state
           "Tests.ParamDocs.scale"
-          "/// scales\nlet scale (/// the multiplier\n           factorly: Int64) : Int64 =\n  factorly"
+          "/// scales\nlet scale(/// the multiplier\n           factorly: Int64): Int64 =\n  factorly"
       do! commit state "add scale"
 
       let! before = runCliPlain state [ "hash"; "Tests.ParamDocs.scale" ]
@@ -1713,7 +1710,7 @@ let aParametersDocEditLands =
         fn
           state
           "Tests.ParamDocs.scale"
-          "/// scales\nlet scale (/// what to multiply by\n           factorly: Int64) : Int64 =\n  factorly"
+          "/// scales\nlet scale(/// what to multiply by\n           factorly: Int64): Int64 =\n  factorly"
 
       let! after = runCliPlain state [ "hash"; "Tests.ParamDocs.scale" ]
       Expect.equal
@@ -1767,7 +1764,7 @@ let twoNamesHoldingOneItemHaveTheirOwnDocs =
         fn
           state
           "Tests.DocOne.f"
-          "/// what the first name means\nlet f (): Int64 =\n  5301L"
+          "/// what the first name means\nlet f(): Int64 =\n  5301L"
 
       do!
         shows
@@ -1803,19 +1800,19 @@ let twoWordingsForOneDocRecordAConflict =
           fn
             state
             "Tests.DocClash.f"
-            "/// ours, written here\nlet f (): Int64 =\n  5101L"
+            "/// ours, written here\nlet f(): Int64 =\n  5101L"
         do! commit state "add f, documented"
 
         // What a peer's op looks like on arrival: it names a predecessor nobody here ever wrote.
         let theirs =
-          "Darklang.SCM.PackageOps.add (Builtin.scmCurrentBranch ()) "
-          + "[Darklang.LanguageTools.ProgramTypes.PackageOp.UpdateDoc("
-          + "Darklang.LanguageTools.ProgramTypes.PackageLocation "
-          + "{ owner = \"Tests\", modules = [\"DocClash\"], name = \"f\" }, "
-          + "Darklang.LanguageTools.ProgramTypes.DocPart.WholeItem, "
-          + "\"theirs, written somewhere else\", "
-          + "Stdlib.Option.Option.Some (Darklang.LanguageTools.ProgramTypes.hashOfText "
-          + "\"a text this store never had\"), Stdlib.Option.Option.None)]"
+          "Darklang.SCM.PackageOps.add(Builtin.scmCurrentBranch(), [Darklang.LanguageTools.ProgramTypes.PackageOp.UpdateDoc(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [\"DocClash\"], name = \"f\" }, Darklang.LanguageTools.ProgramTypes.DocPart.WholeItem, \"theirs, written somewhere else\", Stdlib.Option.Option.Some (Darklang.LanguageTools.ProgramTypes.hashOfText(\"a text this store never had\")), Stdlib.Option.Option.None)])"
+          + ""
+          + ""
+          + ""
+          + ""
+          + ""
+          + ""
+          + ""
 
         do! run state [ "eval"; theirs ]
 
@@ -1893,10 +1890,7 @@ let authoringWithoutADocDoesNotClearOne =
       task {
         do! start state
         do!
-          fn
-            state
-            "Tests.DocKeep.f"
-            "/// what it is for\nlet f (): Int64 =\n  5201L"
+          fn state "Tests.DocKeep.f" "/// what it is for\nlet f(): Int64 =\n  5201L"
         do! commit state "add f, documented"
 
         do! fn state "Tests.DocKeep.f" "() : Int64 = 5201L"
@@ -1932,7 +1926,7 @@ let reAuthoringTheSameSourceSurvivesTheCommit =
             [ "view"; "Tests.Twice.f" ]
             "4901"
             "the name still holds what was authored"
-        do! evals state "Tests.Twice.f ()" "4901" "and it still runs"
+        do! evals state "Tests.Twice.f()" "4901" "and it still runs"
         do! discardAll state
       })
 
@@ -1952,7 +1946,7 @@ let aVersionMovedAndMovedBackKeepsTheLastNaming =
         do!
           evals
             state
-            "Tests.ThereAndBack.f ()"
+            "Tests.ThereAndBack.f()"
             "4902"
             "the name holds the version it was put back to"
         do! discardAll state
@@ -1976,7 +1970,7 @@ let renameIsVisibleToEverythingThatReads =
             "3"
             "view finds it at the new name"
         do! shows state [ "hash"; "Tests.Ren.after" ] "fn " "hash does too"
-        do! evals state "Tests.Ren.after ()" "3" "and it runs there"
+        do! evals state "Tests.Ren.after()" "3" "and it runs there"
         do!
           shows
             state

@@ -1,4 +1,4 @@
 module Darklang.Stdlib.Fun
 
 
-let identity (value: 'a) : 'a = value
+let identity(value: 'a): 'a = value

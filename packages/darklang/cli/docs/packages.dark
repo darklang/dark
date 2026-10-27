@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.Packages
 
-let content () : String =
+let content(): String =
   """# Packages
 
 ## Structure
@@ -21,8 +21,8 @@ let content () : String =
   val name          # create value
 
 ## Use
-  Stdlib.List.map list fn
-  Stdlib.Json.parse<T> str
+  Stdlib.List.map(list, fn)
+  Stdlib.Json.parse<T>(str)
 
 `PACKAGE.` is internal runtime/debug notation and is never valid in Dark source
 or search queries. Write `Stdlib.List.map` (preferred) or the full source name

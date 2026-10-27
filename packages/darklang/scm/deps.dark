@@ -15,35 +15,35 @@ module Darklang.SCM.Deps
 // either raise, or this should return a `Result` or an `Option` and make the six callers say what
 // they want done. Left as a default for now because the column has one writer, so it cannot
 // currently fire; this is the one place to change when that stops being true.
-let kindOf (s: String) : LanguageTools.ProgramTypes.ItemKind =
-  LanguageTools.ProgramTypes.ItemKind.fromString s
-  |> Stdlib.Option.withDefault LanguageTools.ProgramTypes.ItemKind.Fn
+let kindOf(s: String): LanguageTools.ProgramTypes.ItemKind =
+  LanguageTools.ProgramTypes.ItemKind.fromString(s)
+  |> Stdlib.Option.withDefault(LanguageTools.ProgramTypes.ItemKind.Fn)
 
-let locationOf
-  (owner: String)
-  (modules: String)
-  (name: String)
+let locationOf(
+  owner: String,
+  modules: String,
+  name: String)
   : LanguageTools.ProgramTypes.PackageLocation =
-  let mods = if modules == "" then [] else Stdlib.String.split modules "."
+  let mods = if modules == "" then [] else Stdlib.String.split(modules, ".")
 
   LanguageTools.ProgramTypes.PackageLocation
     { owner = owner, modules = mods, name = name }
 
 /// Everything <param source> references (forward dependencies), as (hash, kind).
-let dependenciesOf
-  (source: LanguageTools.ProgramTypes.Hash)
+let dependenciesOf(
+  source: LanguageTools.ProgramTypes.Hash)
   : List<(LanguageTools.ProgramTypes.Hash * String)> =
-  let h = LanguageTools.ProgramTypes.hashToString source
+  let h = LanguageTools.ProgramTypes.hashToString(source)
 
-  Stdlib.Sqlite.rowsP
-    (localDb ())
+  Stdlib.Sqlite.rowsP(
+    localDb(),
     "SELECT DISTINCT depends_on_hash, depends_on_item_type
-     FROM package_dependencies WHERE item_hash = @p0"
-    [ h ]
-    (fun row ->
+     FROM package_dependencies WHERE item_hash = @p0",
+    [ h ],
+    fun row ->
       match
-        (Stdlib.Sqlite.textField row "depends_on_hash",
-         Stdlib.Sqlite.textField row "depends_on_item_type")
+        (Stdlib.Sqlite.textField(row, "depends_on_hash"),
+         Stdlib.Sqlite.textField(row, "depends_on_item_type"))
       with
       | (Some dh, Some dk) ->
         Stdlib.Option.Option.Some((LanguageTools.ProgramTypes.Hash.Hash dh, dk))
@@ -54,34 +54,34 @@ let dependenciesOf
 /// Computed ONCE per call that needs it and passed down. `chainBindings` is a recursive walk up the
 /// parent chain over every op the chain holds, so asking it per dependent turns one query into one per
 /// caller of the thing you asked about.
-let branchOverlayBindings
-  ()
+let branchOverlayBindings(
+  )
   : List<(String * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
-  match SCM.PackageOps.currentBranch () with
-  | id when SCM.Branch.isMain id -> []
+  match SCM.PackageOps.currentBranch() with
+  | id when SCM.Branch.isMain(id) -> []
   | branch ->
-    SCM.PackageOps.chainBindings branch
-    |> Stdlib.List.map (fun b ->
-      (b.hash, locationOf b.owner b.modules b.name, kindOf b.itemType))
+    SCM.PackageOps.chainBindings(branch)
+    |> Stdlib.List.map(fun b ->
+      (b.hash, locationOf(b.owner, b.modules, b.name), kindOf(b.itemType)))
 
 
 /// The hash <param loc> holds as a <param kind> on the current branch, if anything.
-let hashAt
-  (loc: LanguageTools.ProgramTypes.PackageLocation)
-  (kind: LanguageTools.ProgramTypes.ItemKind)
+let hashAt(
+  loc: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind)
   : Stdlib.Option.Option<String> =
-  let branchId = SCM.PackageOps.currentBranch ()
+  let branchId = SCM.PackageOps.currentBranch()
 
   let found =
     match kind with
-    | Fn -> LanguageTools.PackageManager.Function.find branchId loc
-    | Type -> LanguageTools.PackageManager.Type.find branchId loc
-    | Value -> LanguageTools.PackageManager.Value.find branchId loc
-    | Trait -> LanguageTools.PackageManager.Trait.find branchId loc
-    | TraitImpl -> LanguageTools.PackageManager.TraitImpl.find branchId loc
-    | Test -> LanguageTools.PackageManager.Test.find branchId loc
+    | Fn -> LanguageTools.PackageManager.Function.find(branchId, loc)
+    | Type -> LanguageTools.PackageManager.Type.find(branchId, loc)
+    | Value -> LanguageTools.PackageManager.Value.find(branchId, loc)
+    | Trait -> LanguageTools.PackageManager.Trait.find(branchId, loc)
+    | TraitImpl -> LanguageTools.PackageManager.TraitImpl.find(branchId, loc)
+    | Test -> LanguageTools.PackageManager.Test.find(branchId, loc)
 
-  found |> Stdlib.Option.map LanguageTools.ProgramTypes.hashToString
+  found |> Stdlib.Option.map(LanguageTools.ProgramTypes.hashToString)
 
 
 /// Names that dependents wrote for what <param loc> holds now, and that no longer hold it: what a
@@ -93,15 +93,15 @@ let hashAt
 ///
 /// Follows only the content <param loc> holds NOW, so an edge written against an older version
 /// under the old name (renamed, then edited) is still not found.
-let renamedAwayNames
-  (loc: LanguageTools.ProgramTypes.PackageLocation)
-  (kind: LanguageTools.ProgramTypes.ItemKind)
+let renamedAwayNames(
+  loc: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind)
   : List<LanguageTools.ProgramTypes.PackageLocation> =
-  match hashAt loc kind with
+  match hashAt(loc, kind) with
   | None -> []
   | Some h ->
-    Stdlib.Sqlite.rowsP
-      (localDb ())
+    Stdlib.Sqlite.rowsP(
+      localDb(),
       "SELECT DISTINCT depends_on_owner, depends_on_modules, depends_on_name
        FROM package_dependencies
        WHERE depends_on_hash = @p0
@@ -109,33 +109,33 @@ let renamedAwayNames
          AND depends_on_owner IS NOT NULL
          AND NOT (depends_on_owner = @p2
                   AND depends_on_modules = @p3
-                  AND depends_on_name = @p4)"
+                  AND depends_on_name = @p4)",
       [ h
-        LanguageTools.ProgramTypes.ItemKind.toString kind
+        LanguageTools.ProgramTypes.ItemKind.toString(kind)
         loc.owner
-        Stdlib.String.join loc.modules "."
-        loc.name ]
-      (fun row ->
+        Stdlib.String.join(loc.modules, ".")
+        loc.name ],
+      fun row ->
         match
-          (Stdlib.Sqlite.textField row "depends_on_owner",
-           Stdlib.Sqlite.textField row "depends_on_modules",
-           Stdlib.Sqlite.textField row "depends_on_name")
+          (Stdlib.Sqlite.textField(row, "depends_on_owner"),
+           Stdlib.Sqlite.textField(row, "depends_on_modules"),
+           Stdlib.Sqlite.textField(row, "depends_on_name"))
         with
-        | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(locationOf o m n)
+        | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(locationOf(o, m, n))
         | _ -> Stdlib.Option.Option.None)
-    |> Stdlib.List.filter (fun old -> hashAt old kind != Stdlib.Option.Option.Some h)
+    |> Stdlib.List.filter(fun old -> hashAt(old, kind) != Stdlib.Option.Option.Some h)
 
 
 /// `dependentsOf` for exactly the names given, by the name each edge recorded.
-let dependentsByName
-  (targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
+let dependentsByName(
+  targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
-  let overlay = branchOverlayBindings ()
+  let overlay = branchOverlayBindings()
 
   targets
-  |> Stdlib.List.map (fun target ->
+  |> Stdlib.List.map(fun target ->
     let (loc, kind) = target
-    let modules = Stdlib.String.join loc.modules "."
+    let modules = Stdlib.String.join(loc.modules, ".")
 
     // TWO queries, not a join and not one per caller.
     //
@@ -149,8 +149,8 @@ let dependentsByName
     // handful and on main is none.
     let mainResolved =
       // main-scoped: main's half, by join; the overlay half below answers for the branch.
-      Stdlib.Sqlite.rowsP
-        (localDb ())
+      Stdlib.Sqlite.rowsP(
+        localDb(),
         "SELECT DISTINCT l.item_hash, l.item_type, l.owner, l.modules, l.name
          FROM package_dependencies pd
          JOIN locations l ON l.item_hash = pd.item_hash AND l.unlisted_at IS NULL
@@ -158,23 +158,23 @@ let dependentsByName
            AND pd.depends_on_owner = @p1
            AND pd.depends_on_modules = @p2
            AND pd.depends_on_name = @p3
-         ORDER BY l.item_hash"
-        [ LanguageTools.ProgramTypes.ItemKind.toString kind, loc.owner, modules, loc.name ]
-        (fun row ->
+         ORDER BY l.item_hash",
+        [ LanguageTools.ProgramTypes.ItemKind.toString(kind), loc.owner, modules, loc.name ],
+        fun row ->
           match
-            (Stdlib.Sqlite.textField row "item_hash",
-             Stdlib.Sqlite.textField row "item_type",
-             Stdlib.Sqlite.textField row "owner",
-             Stdlib.Sqlite.textField row "modules",
-             Stdlib.Sqlite.textField row "name")
+            (Stdlib.Sqlite.textField(row, "item_hash"),
+             Stdlib.Sqlite.textField(row, "item_type"),
+             Stdlib.Sqlite.textField(row, "owner"),
+             Stdlib.Sqlite.textField(row, "modules"),
+             Stdlib.Sqlite.textField(row, "name"))
           with
           | (Some h, Some k, Some o, Some m, Some n) ->
             Stdlib.Option.Option.Some(
-              (LanguageTools.ProgramTypes.Hash.Hash h, locationOf o m n, kindOf k)
+              (LanguageTools.ProgramTypes.Hash.Hash h, locationOf(o, m, n), kindOf(k))
             )
           | _ -> Stdlib.Option.Option.None)
 
-    if Stdlib.List.isEmpty overlay then
+    if Stdlib.List.isEmpty(overlay) then
       mainResolved
     else
       // Main's row for a name the chain has REBOUND is main's version of that caller, not this branch's:
@@ -183,50 +183,50 @@ let dependentsByName
       // rebound keeps the other.
       let mainResolved =
         mainResolved
-        |> Stdlib.List.filter (fun d ->
+        |> Stdlib.List.filter(fun d ->
           match d with
           | (h, dloc, _) ->
-            let hs = LanguageTools.ProgramTypes.hashToString h
+            let hs = LanguageTools.ProgramTypes.hashToString(h)
             overlay
-            |> Stdlib.List.findFirst (fun entry ->
+            |> Stdlib.List.findFirst(fun entry ->
               match entry with
               | (oh, oloc, _) -> (oloc == dloc) && (oh != hs))
             |> Stdlib.Option.isNone)
 
       let named =
         mainResolved
-        |> Stdlib.List.map (fun d ->
+        |> Stdlib.List.map(fun d ->
           match d with
-          | (h, _, _) -> LanguageTools.ProgramTypes.hashToString h)
+          | (h, _, _) -> LanguageTools.ProgramTypes.hashToString(h))
 
       let fromOverlay =
-        Stdlib.Sqlite.rowsP
-          (localDb ())
+        Stdlib.Sqlite.rowsP(
+          localDb(),
           "SELECT DISTINCT pd.item_hash
            FROM package_dependencies pd
            WHERE pd.depends_on_item_type = @p0
              AND pd.depends_on_owner = @p1
              AND pd.depends_on_modules = @p2
              AND pd.depends_on_name = @p3
-           ORDER BY pd.item_hash"
-          [ LanguageTools.ProgramTypes.ItemKind.toString kind, loc.owner, modules, loc.name ]
-          (fun row ->
-            match Stdlib.Sqlite.textField row "item_hash" with
+           ORDER BY pd.item_hash",
+          [ LanguageTools.ProgramTypes.ItemKind.toString(kind), loc.owner, modules, loc.name ],
+          fun row ->
+            match Stdlib.Sqlite.textField(row, "item_hash") with
             | Some h ->
-              if Stdlib.List.contains named h then
+              if Stdlib.List.contains(named, h) then
                 Stdlib.Option.Option.None
               else
                 overlay
-                |> Stdlib.List.findFirst (fun entry ->
+                |> Stdlib.List.findFirst(fun entry ->
                   match entry with
                   | (oh, _, _) -> oh == h)
-                |> Stdlib.Option.map (fun entry ->
+                |> Stdlib.Option.map(fun entry ->
                   match entry with
                   | (oh, oloc, okind) ->
                     (LanguageTools.ProgramTypes.Hash.Hash oh, oloc, okind))
             | None -> Stdlib.Option.Option.None)
 
-      Stdlib.List.concat mainResolved fromOverlay)
+      Stdlib.List.concat(mainResolved, fromOverlay))
   |> Stdlib.List.flatten
 
 
@@ -235,38 +235,38 @@ let dependentsByName
 /// name is still found -- which is the case propagation cares about. A name the target's content was
 /// renamed away from counts as the target's (`renamedAwayNames`), or a rename would orphan every
 /// dependent written before it.
-let dependentsOf
-  (targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
+let dependentsOf(
+  targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
   targets
-  |> Stdlib.List.map (fun target ->
+  |> Stdlib.List.map(fun target ->
     let (loc, kind) = target
-    Stdlib.List.prepend
-      (renamedAwayNames loc kind |> Stdlib.List.map (fun old -> (old, kind)))
-      (loc, kind))
+    Stdlib.List.prepend(
+      renamedAwayNames(loc, kind) |> Stdlib.List.map(fun old -> (old, kind)),
+      (loc, kind)))
   |> Stdlib.List.flatten
   |> dependentsByName
 
 
 /// The name `locations` gives this hash, if any.
-let mainLocationOf
-  (h: String)
+let mainLocationOf(
+  h: String)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
   match
     // main-scoped, on purpose: what MAIN names this hash; the overlay's names come from `branchOverlayBindings`.
-    Stdlib.Sqlite.queryOneP
-      (localDb ())
+    Stdlib.Sqlite.queryOneP(
+      localDb(),
       "SELECT owner, modules, name FROM locations
-       WHERE item_hash = @p0 AND unlisted_at IS NULL LIMIT 1"
-      [ h ]
+       WHERE item_hash = @p0 AND unlisted_at IS NULL LIMIT 1",
+      [ h ])
   with
   | Some row ->
     (match
-      (Stdlib.Sqlite.textField row "owner",
-       Stdlib.Sqlite.textField row "modules",
-       Stdlib.Sqlite.textField row "name")
+      (Stdlib.Sqlite.textField(row, "owner"),
+       Stdlib.Sqlite.textField(row, "modules"),
+       Stdlib.Sqlite.textField(row, "name"))
      with
-     | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(locationOf o m n)
+     | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(locationOf(o, m, n))
      | _ -> Stdlib.Option.Option.None)
   | None -> Stdlib.Option.Option.None
 
@@ -279,24 +279,24 @@ let mainLocationOf
 /// content is one item, so a hash is routinely live at several names, and preferring the branch's would
 /// relabel a main item whose body you happened to duplicate on a branch. Right content, wrong label, which
 /// is worse than the gap.
-let resolveLocations
-  (hashes: List<LanguageTools.ProgramTypes.Hash>)
+let resolveLocations(
+  hashes: List<LanguageTools.ProgramTypes.Hash>)
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation)> =
   let overlay =
-    branchOverlayBindings ()
-    |> Stdlib.List.map (fun entry ->
+    branchOverlayBindings()
+    |> Stdlib.List.map(fun entry ->
       match entry with
       | (h, loc, _) -> (h, loc))
 
   hashes
-  |> Stdlib.List.filterMap (fun hash ->
-    let h = LanguageTools.ProgramTypes.hashToString hash
+  |> Stdlib.List.filterMap(fun hash ->
+    let h = LanguageTools.ProgramTypes.hashToString(hash)
 
-    match mainLocationOf h with
+    match mainLocationOf(h) with
     | Some loc -> Stdlib.Option.Option.Some((hash, loc))
     | None ->
-      match overlay |> Stdlib.List.findFirst (fun pair -> Stdlib.Tuple2.first pair == h) with
-      | Some pair -> Stdlib.Option.Option.Some((hash, Stdlib.Tuple2.second pair))
+      match overlay |> Stdlib.List.findFirst(fun pair -> Stdlib.Tuple2.first(pair) == h) with
+      | Some pair -> Stdlib.Option.Option.Some((hash, Stdlib.Tuple2.second(pair)))
       | None -> Stdlib.Option.Option.None)
 
 
@@ -306,27 +306,27 @@ let resolveLocations
 /// That matters exactly when the dependency has moved on: its old hash is unlisted, so resolving it through
 /// `locations` finds nothing and the edge silently disappears -- which is the one case a caller asking
 /// "what am I behind on" actually cares about.
-let dependencyEdges
-  (source: LanguageTools.ProgramTypes.Hash)
+let dependencyEdges(
+  source: LanguageTools.ProgramTypes.Hash)
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.ItemKind * LanguageTools.ProgramTypes.PackageLocation)> =
-  let h = LanguageTools.ProgramTypes.hashToString source
+  let h = LanguageTools.ProgramTypes.hashToString(source)
 
-  Stdlib.Sqlite.rowsP
-    (localDb ())
+  Stdlib.Sqlite.rowsP(
+    localDb(),
     "SELECT DISTINCT depends_on_hash, depends_on_item_type,
             depends_on_owner, depends_on_modules, depends_on_name
-     FROM package_dependencies WHERE item_hash = @p0"
-    [ h ]
-    (fun row ->
+     FROM package_dependencies WHERE item_hash = @p0",
+    [ h ],
+    fun row ->
       match
-        (Stdlib.Sqlite.textField row "depends_on_hash",
-         Stdlib.Sqlite.textField row "depends_on_item_type",
-         Stdlib.Sqlite.textField row "depends_on_owner",
-         Stdlib.Sqlite.textField row "depends_on_modules",
-         Stdlib.Sqlite.textField row "depends_on_name")
+        (Stdlib.Sqlite.textField(row, "depends_on_hash"),
+         Stdlib.Sqlite.textField(row, "depends_on_item_type"),
+         Stdlib.Sqlite.textField(row, "depends_on_owner"),
+         Stdlib.Sqlite.textField(row, "depends_on_modules"),
+         Stdlib.Sqlite.textField(row, "depends_on_name"))
       with
       | (Some dh, Some dk, Some o, Some m, Some n) ->
         Stdlib.Option.Option.Some(
-          (LanguageTools.ProgramTypes.Hash.Hash dh, kindOf dk, locationOf o m n)
+          (LanguageTools.ProgramTypes.Hash.Hash dh, kindOf(dk), locationOf(o, m, n))
         )
       | _ -> Stdlib.Option.Option.None)

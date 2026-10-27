@@ -3,17 +3,17 @@ module Darklang.Stdlib.Bool
 
 /// Returns the inverse of <param b>: {{true}} if <param b>
 /// is {{false}} and {{false}} if <param b> is {{true}}
-let not (b: Bool) : Bool = Builtin.boolNot b
+let not(b: Bool): Bool = Builtin.boolNot(b)
 
 /// Returns {{true}} if both <param a> and <param b> are {{true}}
-let ``and`` (a: Bool) (b: Bool) : Bool = a && b
+let ``and``(a: Bool, b: Bool): Bool = a && b
 
 /// Returns {{true}} if either <param a> is true or <param b> is {{true}}
-let ``or`` (a: Bool) (b: Bool) : Bool = a || b
+let ``or``(a: Bool, b: Bool): Bool = a || b
 
 /// Returns {{true}} if exactly one of <param a> and <param b> is {{true}}. Returns {{false}} if both are {{true}} or neither is {{true}}
-let xor (a: Bool) (b: Bool) : Bool = if a then Stdlib.Bool.not b else b
+let xor(a: Bool, b: Bool): Bool = if a then Stdlib.Bool.not(b) else b
 
 impl ToString for Bool =
   /// Returns {{"true"}} or {{"false"}}
-  let toString (b: Bool) : String = if b then "true" else "false"
+  let toString(b: Bool): String = if b then "true" else "false"

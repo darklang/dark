@@ -34,13 +34,13 @@ type BuiltinFunction =
 
 /// Every builtin fn this runtime has. The list is built fresh on each call,
 /// so hold onto it if you're looking up more than one name.
-let allBuiltinFns () : List<BuiltinFunction> =
-  Builtin.getAllBuiltinFns ()
+let allBuiltinFns(): List<BuiltinFunction> =
+  Builtin.getAllBuiltinFns()
 
 /// Look up a builtin function's metadata by name and version.
 /// Fetch only that builtin's metadata; return None if it does not exist.
-let findBuiltinFn (name: String) (version: Int32) : Stdlib.Option.Option<BuiltinFunction> =
-  Builtin.getBuiltinFn name version
+let findBuiltinFn(name: String, version: Int32): Stdlib.Option.Option<BuiltinFunction> =
+  Builtin.getBuiltinFn(name, version)
 
 /// A Darklang builtin value
 type BuiltinValue =
@@ -49,10 +49,10 @@ type BuiltinValue =
     ``type``: RuntimeTypes.TypeReference }
 
 /// Every builtin value this runtime has. Built fresh on each call.
-let allBuiltinValues () : List<BuiltinValue> =
-  Builtin.getAllBuiltinValues ()
+let allBuiltinValues(): List<BuiltinValue> =
+  Builtin.getAllBuiltinValues()
 
 /// Look up a builtin value's metadata by name and version.
 /// Fetch only its name, description, and declared type; return None if it does not exist.
-let findBuiltinValue (name: String) (version: Int32) : Stdlib.Option.Option<BuiltinValue> =
-  Builtin.getBuiltinValue name version
+let findBuiltinValue(name: String, version: Int32): Stdlib.Option.Option<BuiltinValue> =
+  Builtin.getBuiltinValue(name, version)

@@ -29,11 +29,11 @@ module PickContext =
     PickContext { currentModule = [], preferredLocation = Stdlib.Option.Option.None }
 
 /// Count how many leading segments of two lists match.
-let countMatchingPrefix (a: List<String>) (b: List<String>) : Int =
+let countMatchingPrefix(a: List<String>, b: List<String>): Int =
   match (a, b) with
   | (aHead :: aTail, bHead :: bTail) ->
     if aHead == bHead then
-      1 + (countMatchingPrefix aTail bTail)
+      1 + (countMatchingPrefix(aTail, bTail))
     else
       0
   | _ -> 0
@@ -41,9 +41,9 @@ let countMatchingPrefix (a: List<String>) (b: List<String>) : Int =
 /// Given a list of locations for a hash, pick the best one using context.
 /// Scoring: most matching prefix segments with currentModule, then shortest path,
 /// then original ordering (SQL order: branch priority, commit status, recency).
-let pickLocation
-  (ctx: PickContext)
-  (locations: List<ProgramTypes.PackageLocation>)
+let pickLocation(
+  ctx: PickContext,
+  locations: List<ProgramTypes.PackageLocation>)
   : Stdlib.Option.Option<ProgramTypes.PackageLocation> =
   // The asked-for name wins outright when it is one of the candidates. Only then: a
   // preference for a name this hash is not bound to would be a lie, and the scoring
@@ -52,7 +52,7 @@ let pickLocation
     match ctx.preferredLocation with
     | Some p ->
       locations
-      |> Stdlib.List.findFirst (fun l ->
+      |> Stdlib.List.findFirst(fun l ->
         (l.owner == p.owner) && (l.modules == p.modules) && (l.name == p.name))
     | None -> Stdlib.Option.Option.None
 
@@ -64,16 +64,16 @@ let pickLocation
   | [] -> Stdlib.Option.Option.None
   | [ single ] -> Stdlib.Option.Option.Some single
   | first :: rest ->
-    let firstPath = Stdlib.List.prepend first.modules first.owner
-    let firstScore = countMatchingPrefix ctx.currentModule firstPath
-    let firstLen = Stdlib.List.length firstPath
+    let firstPath = Stdlib.List.prepend(first.modules, first.owner)
+    let firstScore = countMatchingPrefix(ctx.currentModule, firstPath)
+    let firstLen = Stdlib.List.length(firstPath)
 
     let (_, _, bestLoc) =
-      Stdlib.List.fold rest (firstScore, firstLen, first) (fun acc loc ->
+      Stdlib.List.fold(rest, (firstScore, firstLen, first), fun acc loc ->
         let (bestScore, bestLen, bestLoc) = acc
-        let locPath = Stdlib.List.prepend loc.modules loc.owner
-        let score = countMatchingPrefix ctx.currentModule locPath
-        let len = Stdlib.List.length locPath
+        let locPath = Stdlib.List.prepend(loc.modules, loc.owner)
+        let score = countMatchingPrefix(ctx.currentModule, locPath)
+        let len = Stdlib.List.length(locPath)
 
         if score > bestScore then
           (score, len, loc)
@@ -86,33 +86,33 @@ let pickLocation
 
 
 module Type =
-  let find
-    (branchId: Uuid)
-    (location: ProgramTypes.PackageLocation)
+  let find(
+    branchId: Uuid,
+    location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQTypeName.Package> =
-    Builtin.pmFindType branchId location
+    Builtin.pmFindType(branchId, location)
 
-  let get
-    (hash: ProgramTypes.FQTypeName.Package)
+  let get(
+    hash: ProgramTypes.FQTypeName.Package)
     : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
-    Builtin.pmGetType hash
+    Builtin.pmGetType(hash)
 
   /// Every name this type is bound to on <param branchId>. More than one
   /// when structurally identical types share a hash.
-  let locations
-    (branchId: Uuid)
-    (hash: ProgramTypes.FQTypeName.Package)
+  let locations(
+    branchId: Uuid,
+    hash: ProgramTypes.FQTypeName.Package)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByType branchId hash
+    Builtin.pmGetLocationsByType(branchId, hash)
 
-  let getWithLocation
-    (branchId: Uuid)
-    (hash: ProgramTypes.FQTypeName.Package)
+  let getWithLocation(
+    branchId: Uuid,
+    hash: ProgramTypes.FQTypeName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
-    match get hash with
+    match get(hash) with
     | Some entity ->
-      match PackageManager.pickLocation PackageManager.PickContext.empty (locations branchId hash) with
+      match PackageManager.pickLocation(PackageManager.PickContext.empty, locations(branchId, hash)) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity, location = location }
@@ -122,31 +122,31 @@ module Type =
 
 
 module Trait =
-  let find
-    (branchId: Uuid)
-    (location: ProgramTypes.PackageLocation)
+  let find(
+    branchId: Uuid,
+    location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQTraitName.Package> =
-    Builtin.pmFindTrait branchId location
+    Builtin.pmFindTrait(branchId, location)
 
-  let get
-    (hash: ProgramTypes.FQTraitName.Package)
+  let get(
+    hash: ProgramTypes.FQTraitName.Package)
     : Stdlib.Option.Option<ProgramTypes.Trait.Trait> =
-    Builtin.pmGetTrait hash
+    Builtin.pmGetTrait(hash)
 
   /// Every name this trait is bound to on <param branchId>.
-  let locations
-    (branchId: Uuid)
-    (hash: ProgramTypes.FQTraitName.Package)
+  let locations(
+    branchId: Uuid,
+    hash: ProgramTypes.FQTraitName.Package)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByTrait branchId hash
+    Builtin.pmGetLocationsByTrait(branchId, hash)
 
   /// The impls of a trait bound on <param branchId>: what `Trait.method x` can
   /// dispatch to.
-  let impls
-    (branchId: Uuid)
-    (traitHash: ProgramTypes.FQTraitName.Package)
+  let impls(
+    branchId: Uuid,
+    traitHash: ProgramTypes.FQTraitName.Package)
     : List<RuntimeTypes.ImplCandidate> =
-    Builtin.pmImplCandidates branchId traitHash
+    Builtin.pmImplCandidates(branchId, traitHash)
 
   /// The trait an operator is, the method it maps to, and the impls bound on <param branchId>.
   ///
@@ -156,76 +156,76 @@ module Trait =
   /// The operator-to-trait table is not duplicated here on purpose. It lives once in F#
   /// (`NumericTraits.ofInfix`), which is also what the lowering uses, so the checker and the
   /// runtime cannot come to disagree about what `+` means.
-  let forInfix
-    (branchId: Uuid)
-    (operation: ProgramTypes.InfixFnName)
+  let forInfix(
+    branchId: Uuid,
+    operation: ProgramTypes.InfixFnName)
     : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
-    Builtin.pmInfixImplCandidates branchId operation
+    Builtin.pmInfixImplCandidates(branchId, operation)
 
   /// The same for unary minus, which `InfixFnName` has no case for because it is not infix.
-  let forNegate
-    (branchId: Uuid)
+  let forNegate(
+    branchId: Uuid)
     : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
-    Builtin.pmNegateImplCandidates branchId
+    Builtin.pmNegateImplCandidates(branchId)
 
   /// And for `~x`.
-  let forBitwiseNot
-    (branchId: Uuid)
+  let forBitwiseNot(
+    branchId: Uuid)
     : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
-    Builtin.pmBitwiseNotImplCandidates branchId
+    Builtin.pmBitwiseNotImplCandidates(branchId)
 
 
 module TraitImpl =
-  let find
-    (branchId: Uuid)
-    (location: ProgramTypes.PackageLocation)
+  let find(
+    branchId: Uuid,
+    location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.Hash> =
-    Builtin.pmFindTraitImpl branchId location
+    Builtin.pmFindTraitImpl(branchId, location)
 
-  let get (hash: ProgramTypes.Hash) : Stdlib.Option.Option<ProgramTypes.TraitImpl.TraitImpl> =
-    Builtin.pmGetTraitImpl hash
+  let get(hash: ProgramTypes.Hash): Stdlib.Option.Option<ProgramTypes.TraitImpl.TraitImpl> =
+    Builtin.pmGetTraitImpl(hash)
 
   /// Every name this impl is bound to on <param branchId>.
-  let locations
-    (branchId: Uuid)
-    (hash: ProgramTypes.Hash)
+  let locations(
+    branchId: Uuid,
+    hash: ProgramTypes.Hash)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByTraitImpl branchId hash
+    Builtin.pmGetLocationsByTraitImpl(branchId, hash)
 
 
 module Value =
   /// Find stored values whose runtime value type matches exactly.
-  let findByValueType
-    (valueType: RuntimeTypes.ValueType)
+  let findByValueType(
+    valueType: RuntimeTypes.ValueType)
     : List<ProgramTypes.Hash> =
-    Builtin.pmFindValuesByValueType valueType
+    Builtin.pmFindValuesByValueType(valueType)
 
-  let find
-    (branchId: Uuid)
-    (location: ProgramTypes.PackageLocation)
+  let find(
+    branchId: Uuid,
+    location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQValueName.Package> =
-    Builtin.pmFindValue branchId location
+    Builtin.pmFindValue(branchId, location)
 
-  let get
-    (hash: ProgramTypes.FQValueName.Package)
+  let get(
+    hash: ProgramTypes.FQValueName.Package)
     : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
-    Builtin.pmGetValue hash
+    Builtin.pmGetValue(hash)
 
   /// Every name this value is bound to on <param branchId>.
-  let locations
-    (branchId: Uuid)
-    (hash: ProgramTypes.FQValueName.Package)
+  let locations(
+    branchId: Uuid,
+    hash: ProgramTypes.FQValueName.Package)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByValue branchId hash
+    Builtin.pmGetLocationsByValue(branchId, hash)
 
-  let getWithLocation
-    (branchId: Uuid)
-    (hash: ProgramTypes.FQValueName.Package)
+  let getWithLocation(
+    branchId: Uuid,
+    hash: ProgramTypes.FQValueName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
-    match get hash with
+    match get(hash) with
     | Some entity ->
-      match PackageManager.pickLocation PackageManager.PickContext.empty (locations branchId hash) with
+      match PackageManager.pickLocation(PackageManager.PickContext.empty, locations(branchId, hash)) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity, location = location }
@@ -235,39 +235,39 @@ module Value =
 
 
 module Function =
-  let find
-    (branchId: Uuid)
-    (location: ProgramTypes.PackageLocation)
+  let find(
+    branchId: Uuid,
+    location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQFnName.Package> =
-    Builtin.pmFindFn branchId location
+    Builtin.pmFindFn(branchId, location)
 
-  let get
-    (hash: ProgramTypes.FQFnName.Package)
+  let get(
+    hash: ProgramTypes.FQFnName.Package)
     : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
-    Builtin.pmGetFn hash
+    Builtin.pmGetFn(hash)
 
   /// The fn at <param hash> with its body replaced by `()`, for a caller that only reads the
   /// signature. Cheaper than `get`: the body is never converted into Dark values.
-  let getSignature
-    (hash: ProgramTypes.FQFnName.Package)
+  let getSignature(
+    hash: ProgramTypes.FQFnName.Package)
     : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
-    Builtin.pmGetFnSignature hash
+    Builtin.pmGetFnSignature(hash)
 
   /// Every name this fn is bound to on <param branchId>.
-  let locations
-    (branchId: Uuid)
-    (hash: ProgramTypes.FQFnName.Package)
+  let locations(
+    branchId: Uuid,
+    hash: ProgramTypes.FQFnName.Package)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByFn branchId hash
+    Builtin.pmGetLocationsByFn(branchId, hash)
 
-  let getWithLocation
-    (branchId: Uuid)
-    (hash: ProgramTypes.FQFnName.Package)
+  let getWithLocation(
+    branchId: Uuid,
+    hash: ProgramTypes.FQFnName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
-    match get hash with
+    match get(hash) with
     | Some entity ->
-      match PackageManager.pickLocation PackageManager.PickContext.empty (locations branchId hash) with
+      match PackageManager.pickLocation(PackageManager.PickContext.empty, locations(branchId, hash)) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity, location = location }
@@ -283,60 +283,60 @@ module Test =
   /// Share a starting store across the tests executed by <param run>. Every
   /// test still gets a private writable copy and a fresh process. Cached-only
   /// runs create no snapshot; cleanup also runs if the callback fails.
-  let withStoreSnapshot (run: Run -> 'a) : 'a =
-    Builtin.pmTestWithStoreSnapshot (fun id -> run (Run { id = id }))
+  let withStoreSnapshot(run: Run -> 'a): 'a =
+    Builtin.pmTestWithStoreSnapshot(fun id -> run(Run { id = id }))
 
   /// Conservative proof that a passing result is reusable. Dynamic calls and
   /// branch-dependent rendering are not treated as cache-safe.
-  let isCacheSafe (hash: ProgramTypes.Hash) : Bool =
-    Builtin.pmTestIsCacheSafe hash
+  let isCacheSafe(hash: ProgramTypes.Hash): Bool =
+    Builtin.pmTestIsCacheSafe(hash)
 
   /// The result type as this branch currently binds it. Judging an ordinary
   /// test depends on this binding, even when the test's own hash is unchanged.
-  let resultTypeHash (branchId: Uuid) : Stdlib.Option.Option<ProgramTypes.Hash> =
-    Type.find
-      branchId
+  let resultTypeHash(branchId: Uuid): Stdlib.Option.Option<ProgramTypes.Hash> =
+    Type.find(
+      branchId,
       (ProgramTypes.PackageLocation
         { owner = "Darklang"
           modules = [ "Stdlib", "Test" ]
-          name = "Result" })
+          name = "Result" }))
 
-  let find
-    (branchId: Uuid)
-    (location: ProgramTypes.PackageLocation)
+  let find(
+    branchId: Uuid,
+    location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.Hash> =
-    Builtin.pmFindTest branchId location
+    Builtin.pmFindTest(branchId, location)
 
-  let get
-    (hash: ProgramTypes.Hash)
+  let get(
+    hash: ProgramTypes.Hash)
     : Stdlib.Option.Option<ProgramTypes.PackageTest.PackageTest> =
-    Builtin.pmGetTest hash
+    Builtin.pmGetTest(hash)
 
-  let locations
-    (branchId: Uuid)
-    (hash: ProgramTypes.Hash)
+  let locations(
+    branchId: Uuid,
+    hash: ProgramTypes.Hash)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByTest branchId hash
+    Builtin.pmGetLocationsByTest(branchId, hash)
 
   /// Run this test's body with an allow-all test instance policy and ordinary
   /// called-function approvals and ceilings: what it evaluated to,
   /// reflected, or the error it raised. Nothing is judged here; see `execute`.
-  let executeBody
-    (run: Run)
-    (branchId: Uuid)
-    (hash: ProgramTypes.Hash)
+  let executeBody(
+    run: Run,
+    branchId: Uuid,
+    hash: ProgramTypes.Hash)
     : Stdlib.Result.Result<LanguageTools.RuntimeTypes.Dval, LanguageTools.RuntimeTypes.RuntimeError.Error> =
     // Keep the worker in the dependency graph, just like the result checker.
-    Builtin.pmExecuteTest run.id branchId hash Worker.main
+    Builtin.pmExecuteTest(run.id, branchId, hash, Worker.main)
 
   /// <param value> as a `Stdlib.Test.Result`, or None if it is anything else. The
   /// enum's type is checked by hash, as <param branchId> sees `Stdlib.Test.Result`,
   /// so a look-alike `Pass`/`Fail` enum from elsewhere is not taken for one.
-  let asTestResult
-    (branchId: Uuid)
-    (value: LanguageTools.RuntimeTypes.Dval)
+  let asTestResult(
+    branchId: Uuid,
+    value: LanguageTools.RuntimeTypes.Dval)
     : Stdlib.Option.Option<Stdlib.Test.Result> =
-    let testType = resultTypeHash branchId
+    let testType = resultTypeHash(branchId)
     match value, testType with
     | DEnum(Package(Hash actual), _, [], caseName, fields), Some(Hash expected) ->
       if actual == expected then
@@ -351,11 +351,11 @@ module Test =
           match fields with
           | [ DList(_, messages) ] ->
             let strings =
-              Stdlib.List.filterMap messages (fun m ->
+              Stdlib.List.filterMap(messages, fun m ->
                 match m with
                 | DString s -> Stdlib.Option.Option.Some s
                 | _ -> Stdlib.Option.Option.None)
-            if Stdlib.List.length strings == Stdlib.List.length messages then
+            if Stdlib.List.length(strings) == Stdlib.List.length(messages) then
               Stdlib.Option.Option.Some(Stdlib.Test.Result.Fail strings)
             else
               Stdlib.Option.Option.None
@@ -372,35 +372,35 @@ module Test =
   /// refused an effect, raised unexpectedly, returned a non-test value), not
   /// a failing assertion. <param branchId> is the branch names in error
   /// messages are resolved against.
-  let executeInRun
-    (run: Run)
-    (branchId: Uuid)
-    (hash: ProgramTypes.Hash)
+  let executeInRun(
+    run: Run,
+    branchId: Uuid,
+    hash: ProgramTypes.Hash)
     : Stdlib.Result.Result<Stdlib.Test.Result, LanguageTools.RuntimeTypes.RuntimeError.Error> =
     let expected =
-      Stdlib.Option.andThen (get hash) (fun test -> test.expectedError)
-    match expected, executeBody run branchId hash with
+      Stdlib.Option.andThen(get(hash), fun test -> test.expectedError)
+    match expected, executeBody(run, branchId, hash) with
     | Some expected, Ok value ->
-      let actual = PrettyPrinter.RuntimeTypes.dval branchId value
+      let actual = PrettyPrinter.RuntimeTypes.dval(branchId, value)
       let expectedText =
         match expected with
         | RuntimeError message -> $"error `{message}`"
       Stdlib.Result.Result.Ok(
-        Stdlib.Test.fail $"expected the {expectedText}, got the value {actual}"
+        Stdlib.Test.fail($"expected the {expectedText}, got the value {actual}")
       )
     | Some expected, Error error ->
       let actual =
-        PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId error
+        PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, error)
       match expected with
       | RuntimeError message ->
         if actual == message then
-          Stdlib.Result.Result.Ok(Stdlib.Test.pass ())
+          Stdlib.Result.Result.Ok(Stdlib.Test.pass())
         else
           Stdlib.Result.Result.Ok(
-            Stdlib.Test.fail $"expected the error `{message}`, got `{actual}`"
+            Stdlib.Test.fail($"expected the error `{message}`, got `{actual}`")
           )
     | None, Ok value ->
-      match asTestResult branchId value with
+      match asTestResult(branchId, value) with
       | Some result -> Stdlib.Result.Result.Ok result
       | None ->
         Stdlib.Result.Result.Error(
@@ -412,19 +412,19 @@ module Test =
     | None, Error error -> Stdlib.Result.Result.Error error
 
   /// Run one test without keeping a starting snapshot for subsequent tests.
-  let execute
-    (branchId: Uuid)
-    (hash: ProgramTypes.Hash)
+  let execute(
+    branchId: Uuid,
+    hash: ProgramTypes.Hash)
     : Stdlib.Result.Result<Stdlib.Test.Result, LanguageTools.RuntimeTypes.RuntimeError.Error> =
-    withStoreSnapshot (fun run -> executeInRun run branchId hash)
+    withStoreSnapshot(fun run -> executeInRun(run, branchId, hash))
 
 
 /// Replace provisional hashes with SCC-aware content hashes, including references
 /// between items in the batch.
-let stabilizeHashes
-  (ops: List<ProgramTypes.PackageOp>)
+let stabilizeHashes(
+  ops: List<ProgramTypes.PackageOp>)
   : List<ProgramTypes.PackageOp> =
-  Builtin.pmStabilizeHashes ops
+  Builtin.pmStabilizeHashes(ops)
 
 
 /// Write onto each trait-method call the implementation it resolves to, so a saved item goes on
@@ -433,83 +433,83 @@ let stabilizeHashes
 ///
 /// Before `stabilizeHashes`, so a pin at a placeholder hash moves with everything else. A call
 /// whose self type is only known at run time (inside a bounded generic) comes back unchanged.
-let resolveTraitCalls
-  (ops: List<ProgramTypes.PackageOp>)
+let resolveTraitCalls(
+  ops: List<ProgramTypes.PackageOp>)
   : List<ProgramTypes.PackageOp> =
-  Builtin.pmResolveTraitCalls ops
+  Builtin.pmResolveTraitCalls(ops)
 
 
 /// One declaration, when <param op> is the `SetName` binding the `Add*` just
 /// before it: `"fn Owner.Module.name"`. A `SetName` without its own `Add*` is a
 /// bare rename.
-let declaration
-  (previous: ProgramTypes.PackageOp)
-  (op: ProgramTypes.PackageOp)
+let declaration(
+  previous: ProgramTypes.PackageOp,
+  op: ProgramTypes.PackageOp)
   : Stdlib.Option.Option<String> =
-  let named
-    (kind: String)
-    (loc: ProgramTypes.PackageLocation)
+  let named(
+    kind: String,
+    loc: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<String> =
-    let path = Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]
-    let fqn = Stdlib.String.join path "."
+    let path = Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ])
+    let fqn = Stdlib.String.join(path, ".")
     Stdlib.Option.Option.Some $"{kind} {fqn}"
 
   match (previous, op) with
-  | (AddType _, SetName(loc, PackageType _, _)) -> named "type" loc
-  | (AddFn _, SetName(loc, PackageFn _, _)) -> named "fn" loc
-  | (AddValue _, SetName(loc, PackageValue _, _)) -> named "value" loc
-  | (AddTrait _, SetName(loc, PackageTrait _, _)) -> named "trait" loc
-  | (AddTraitImpl _, SetName(loc, PackageTraitImpl _, _)) -> named "impl" loc
-  | (AddTest _, SetName(loc, PackageTest _, _)) -> named "test" loc
+  | (AddType _, SetName(loc, PackageType _, _)) -> named("type", loc)
+  | (AddFn _, SetName(loc, PackageFn _, _)) -> named("fn", loc)
+  | (AddValue _, SetName(loc, PackageValue _, _)) -> named("value", loc)
+  | (AddTrait _, SetName(loc, PackageTrait _, _)) -> named("trait", loc)
+  | (AddTraitImpl _, SetName(loc, PackageTraitImpl _, _)) -> named("impl", loc)
+  | (AddTest _, SetName(loc, PackageTest _, _)) -> named("test", loc)
   | _ -> Stdlib.Option.Option.None
 
 
 /// Duplicate declaration names in <param ops>, formatted as
 /// `"fn Owner.Module.name"`, each once, in the order first declared. Reject
 /// before `stabilizeHashes`, which keys by name.
-let duplicateDeclarations
-  (ops: List<ProgramTypes.PackageOp>)
+let duplicateDeclarations(
+  ops: List<ProgramTypes.PackageOp>)
   : List<String> =
   let declarations =
-    Stdlib.List.zipShortest ops (Stdlib.List.drop ops 1)
-    |> Stdlib.List.filterMap (fun (previous, op) -> declaration previous op)
+    Stdlib.List.zipShortest(ops, Stdlib.List.drop(ops, 1))
+    |> Stdlib.List.filterMap(fun (previous, op) -> declaration(previous, op))
   let counts =
-    Stdlib.List.fold declarations (Dict { }) (fun counts d ->
-      let n = Stdlib.Option.withDefault (Stdlib.Dict.get counts d) 0
-      Stdlib.Dict.set counts d (n + 1))
+    Stdlib.List.fold(declarations, Dict { }, fun counts d ->
+      let n = Stdlib.Option.withDefault(Stdlib.Dict.get(counts, d), 0)
+      Stdlib.Dict.set(counts, d, n + 1))
   declarations
-  |> Stdlib.List.filter (fun d ->
-    (Stdlib.Dict.get counts d) != Stdlib.Option.Option.Some 1)
+  |> Stdlib.List.filter(fun d ->
+    (Stdlib.Dict.get(counts, d)) != Stdlib.Option.Option.Some 1)
   |> Stdlib.List.unique
 
 
 /// Find any item (type, fn, value, trait or impl) at a location.
 /// Returns the hash and what kind of item it is.
-let findAny
-  (branchId: Uuid)
-  (location: ProgramTypes.PackageLocation)
+let findAny(
+  branchId: Uuid,
+  location: ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<(ProgramTypes.Hash * ProgramTypes.ItemKind)> =
-  match Type.find branchId location with
+  match Type.find(branchId, location) with
   | Some hash ->
     Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Type))
   | None ->
-    match Function.find branchId location with
+    match Function.find(branchId, location) with
     | Some hash ->
       Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Fn))
     | None ->
-      match Value.find branchId location with
+      match Value.find(branchId, location) with
       | Some hash ->
         Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Value))
       | None ->
-        match Trait.find branchId location with
+        match Trait.find(branchId, location) with
         | Some hash ->
           Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Trait))
         | None ->
-          match TraitImpl.find branchId location with
+          match TraitImpl.find(branchId, location) with
           | Some hash ->
             Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.TraitImpl))
           | None ->
-            match Test.find branchId location with
+            match Test.find(branchId, location) with
             | Some hash ->
               Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Test))
             | None -> Stdlib.Option.Option.None
@@ -524,20 +524,20 @@ let findAny
 ///
 /// Deprecation keys on CONTENT, so this answers about the hash rather than
 /// about a name: every name bound to that content shares the answer.
-let currentDeprecation
-  (branchId: Uuid)
-  (hash: ProgramTypes.Hash)
-  (itemKind: ProgramTypes.ItemKind)
+let currentDeprecation(
+  branchId: Uuid,
+  hash: ProgramTypes.Hash,
+  itemKind: ProgramTypes.ItemKind)
   : Stdlib.Option.Option<ProgramTypes.DeprecationKind * String> =
-  Builtin.pmGetCurrentDeprecation branchId hash itemKind
+  Builtin.pmGetCurrentDeprecation(branchId, hash, itemKind)
 
 
 module Search =
-  let search
-    (branchId: Uuid)
-    (query: ProgramTypes.Search.SearchQuery)
+  let search(
+    branchId: Uuid,
+    query: ProgramTypes.Search.SearchQuery)
     : ProgramTypes.Search.SearchResults =
-    let searchResults = Builtin.pmSearch branchId query
+    let searchResults = Builtin.pmSearch(branchId, query)
 
     ProgramTypes.Search.SearchResults
       { submodules = searchResults.submodules
@@ -557,10 +557,10 @@ module Search =
   /// -- `dark ls`, `dark tree`, `dark view`, the workbench and the editor's tree view -- so what
   /// counts as a submodule is decided once rather than five times. It lives beside `search`
   /// because it is a fact about search results, and because the editor cannot reach into the CLI.
-  let readerSubmodules (submodules: List<String>) (implNames: List<String>) : List<String> =
+  let readerSubmodules(submodules: List<String>, implNames: List<String>): List<String> =
     submodules
-    |> Stdlib.List.filter (fun name ->
-      Stdlib.Bool.not (Stdlib.List.contains implNames name))
+    |> Stdlib.List.filter(fun name ->
+      Stdlib.Bool.not(Stdlib.List.contains(implNames, name)))
 
 
   /// Search returning only names: (direct submodules, types, values, fns, traits, impls,
@@ -571,18 +571,18 @@ module Search =
   /// per item. Submodules come back already reduced to the direct children of the query's module, because
   /// doing that reduction in Dark means walking every module path under the store root.
 
-  let searchNames
-    (branchId: Uuid)
-    (query: ProgramTypes.Search.SearchQuery)
+  let searchNames(
+    branchId: Uuid,
+    query: ProgramTypes.Search.SearchQuery)
     : (List<String> * List<String> * List<String> * List<String> * List<String> * List<String> * List<String>) =
-    Builtin.pmSearchNames branchId query
+    Builtin.pmSearchNames(branchId, query)
 
 
   /// Like `searchNames`, but keeps each item's hash. Listings need it for the deprecation mark; completion
   /// doesn't, and pays nothing for it.
-  let searchNamesAndHashes
-    (branchId: Uuid)
-    (query: ProgramTypes.Search.SearchQuery)
+  let searchNamesAndHashes(
+    branchId: Uuid,
+    query: ProgramTypes.Search.SearchQuery)
     : (List<String> *
        List<(String * ProgramTypes.Hash)> *
        List<(String * ProgramTypes.Hash)> *
@@ -590,19 +590,19 @@ module Search =
        List<(String * ProgramTypes.Hash)> *
        List<(String * ProgramTypes.Hash)> *
        List<(String * ProgramTypes.Hash)>) =
-    Builtin.pmSearchNamesAndHashes branchId query
+    Builtin.pmSearchNamesAndHashes(branchId, query)
 
 /// Create a PackageManager
-let pm () : ProgramTypes.PackageManager.PackageManager =
+let pm(): ProgramTypes.PackageManager.PackageManager =
   ProgramTypes.PackageManager.PackageManager
     { findType =
-        fun (branchId, location) -> PackageManager.Type.find branchId location
+        fun (branchId, location) -> PackageManager.Type.find(branchId, location)
       findValue =
-        fun (branchId, location) -> PackageManager.Value.find branchId location
+        fun (branchId, location) -> PackageManager.Value.find(branchId, location)
       findFn =
-        fun (branchId, location) -> PackageManager.Function.find branchId location
+        fun (branchId, location) -> PackageManager.Function.find(branchId, location)
       findTrait =
-        fun (branchId, location) -> PackageManager.Trait.find branchId location
+        fun (branchId, location) -> PackageManager.Trait.find(branchId, location)
 
       getFn = PackageManager.Function.get
       getValue = PackageManager.Value.get
@@ -610,4 +610,4 @@ let pm () : ProgramTypes.PackageManager.PackageManager =
       getTrait = PackageManager.Trait.get
 
       search =
-        fun (branchId, query) -> PackageManager.Search.search branchId query }
+        fun (branchId, query) -> PackageManager.Search.search(branchId, query) }

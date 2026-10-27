@@ -47,11 +47,11 @@ type Enum =
   | One of Int
   | Two of String * Int
 
-let plainFn (i: Int) : Int = i + 1
-let twoArgFn (i: Int) (j: Int) : Int = i + j
-let recFn (i: Int) : Rec = Rec { a = i, b = "x" }
-let optFn (i: Int) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some i
-let listFn (i: Int) : List<Int> = [ i ]
+let plainFn(i: Int): Int = i + 1
+let twoArgFn(i: Int, j: Int): Int = i + j
+let recFn(i: Int): Rec = Rec { a = i, b = "x" }
+let optFn(i: Int): Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some i
+let listFn(i: Int): List<Int> = [ i ]
 
 type Rec5 = { a: Int, b: Int, c: Int, d: Int, e: Int }
 
@@ -63,7 +63,7 @@ val preBuilt5 = Rec5 { a = 1, b = 2, c = 3, d = 4, e = 5 }
 let smoke = false
 
 let _smokeNotice =
-  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+  if smoke then Stdlib.printLine("SMOKE CHECK: figures are not performance measurements") else ()
 
 let iterations = if smoke then 3 else 10000
 
@@ -71,27 +71,27 @@ let iterations = if smoke then 3 else 10000
 ///
 /// The accumulator is never added to, for the reason `costs.dark` gives: summing the results made
 /// each row depend on how large its own accumulator grew, so the harness measured the arithmetic.
-let onePass (f: Int -> Int) : Int =
-  let t0 = Darklang.Cli.Telemetry.now ()
+let onePass(f: Int -> Int): Int =
+  let t0 = Darklang.Cli.Telemetry.now()
 
   // Keep the match and comparisons taking both branches, even with few calls.
-  let inputs = if smoke then [ 1, 5, 1001 ] else Stdlib.List.range 1 iterations
+  let inputs = if smoke then [ 1, 5, 1001 ] else Stdlib.List.range(1, iterations)
   let _r =
-    Stdlib.List.fold inputs 0 (fun acc i ->
-      if (f i) == -987654321 then acc + 1 else acc)
+    Stdlib.List.fold(inputs, 0, fun acc i ->
+      if (f(i)) == -987654321 then acc + 1 else acc)
 
-  (Darklang.Cli.Telemetry.now ()) - t0
+  (Darklang.Cli.Telemetry.now()) - t0
 
-let measure (label: String) (f: Int -> Int) : Unit =
+let measure(label: String, f: Int -> Int): Unit =
   // Warm first: the first call through a function loads and converts it.
-  let _warm = onePass f
-  let a = onePass f
-  let b = onePass f
-  let c = onePass f
-  let best = Stdlib.min a (Stdlib.min b c)
+  let _warm = onePass(f)
+  let a = onePass(f)
+  let b = onePass(f)
+  let c = onePass(f)
+  let best = Stdlib.min(a, Stdlib.min(b, c))
   // Nanoseconds per call, from milliseconds over `iterations`.
   let ns = (best * 1000000) / iterations
-  Stdlib.printLine (label + "  " + (Stdlib.toString ns) + " ns")
+  Stdlib.printLine(label + "  " + (Stdlib.toString(ns)) + " ns")
 
 /// Run the process hot before the first row is timed.
 ///
@@ -99,106 +99,106 @@ let measure (label: String) (f: Int -> Int) : Unit =
 /// the row -- the same expression reads 1.1 us slower near the top of the table than at the end. This
 /// exercises the paths the table shares (a fold, a lambda, package and builtin calls, a record, a
 /// list) enough times to saturate that before any of it counts.
-let saturate (n: Int) (acc: Int) : Int =
+let saturate(n: Int, acc: Int): Int =
   if n == 0 then
     acc
   else
     let r = Rec { a = n, b = "x" }
-    let l = Stdlib.List.map [ 1, 2, 3, 4, 5 ] (fun x -> x + n)
-    saturate
-      (n - 1)
-      (acc + r.a + (plainFn n) + (twoArgFn n 1) + (Stdlib.List.length l))
+    let l = Stdlib.List.map([ 1, 2, 3, 4, 5 ], fun x -> x + n)
+    saturate(
+      n - 1,
+      acc + r.a + (plainFn(n)) + (twoArgFn(n, 1)) + (Stdlib.List.length(l)))
 
-let _saturated = saturate (if smoke then 2 else 40000) 0
+let _saturated = saturate((if smoke then 2 else 40000), 0)
 
-Stdlib.printLine "--- harness"
-measure "baseline (fold + lambda + compare)   " (fun i -> i)
+Stdlib.printLine("--- harness")
+measure("baseline (fold + lambda + compare)   ", fun i -> i)
 
-Stdlib.printLine "--- calls"
-measure "load a val (an Int)                  " (fun i -> preBuiltInt)
-measure "call a 1-arg fn                      " (fun i -> plainFn i)
-measure "call a 2-arg fn                      " (fun i -> twoArgFn i 1)
-measure "apply a lambda                       " (fun i -> (fun x -> x + 1) i)
+Stdlib.printLine("--- calls")
+measure("load a val (an Int)                  ", fun i -> preBuiltInt)
+measure("call a 1-arg fn                      ", fun i -> plainFn(i))
+measure("call a 2-arg fn                      ", fun i -> twoArgFn(i, 1))
+measure("apply a lambda                       ", fun i -> (fun x -> x + 1)(i))
 // The same builtin reached both ways, twice over. The gap in each pair is what is left of the
 // package-call machinery after the thin-wrapper elision has taken what it can.
 //
 // The "via its package wrapper" row used to sit under `boolNot` while measuring `String.length`,
 // which reads as though it pairs with the row above it. It does not, and that is exactly the misread
 // the header warns about -- the pairs are adjacent now.
-measure "call a builtin directly              " (fun i -> Builtin.stringLength "hello")
-measure "  the same, via its package wrapper  " (fun i -> Stdlib.String.length "hello")
+measure("call a builtin directly              ", fun i -> Builtin.stringLength("hello"))
+measure("  the same, via its package wrapper  ", fun i -> Stdlib.String.length("hello"))
 // `stringLength` counts grapheme clusters, so the pair above carries its body as well. `boolNot` has
 // no body worth the name and is on the interpreter's operator fast path, so this pair is the call
 // machinery on its own, with and without a wrapper around it.
 // A wrapper called with an EXPLICIT type argument. The thin-wrapper elision declines when
 // `typeArgs` is non-empty, so this pair is the un-elided cost of the same forwarding.
-measure "builtin with a type arg              " (fun i -> Stdlib.String.length (Builtin.jsonSerialize<Int> i))
-measure "  the same, via its package wrapper  " (fun i -> Stdlib.String.length (Stdlib.Json.serialize<Int> i))
-measure "call a trivial builtin (boolNot)     " (fun i -> if Builtin.boolNot true then 1 else 0)
-measure "  the same, via its package wrapper  " (fun i -> if Stdlib.Bool.not true then 1 else 0)
+measure("builtin with a type arg              ", fun i -> Stdlib.String.length(Builtin.jsonSerialize<Int>(i)))
+measure("  the same, via its package wrapper  ", fun i -> Stdlib.String.length(Stdlib.Json.serialize<Int>(i)))
+measure("call a trivial builtin (boolNot)     ", fun i -> if Builtin.boolNot(true) then 1 else 0)
+measure("  the same, via its package wrapper  ", fun i -> if Stdlib.Bool.not(true) then 1 else 0)
 
-Stdlib.printLine "--- values"
-measure "build a 2-field record, read a field" (fun i -> (Rec { a = i, b = "x" }).a)
+Stdlib.printLine("--- values")
+measure("build a 2-field record, read a field", fun i -> (Rec { a = i, b = "x" }).a)
 // Built once, outside the loop. The old row here was `(recFn i).a`, which is a package call plus a
 // record construction plus a field read, and cannot isolate any of the three -- it read as *cheaper*
 // than the bare package call above it, which is how the confound showed.
 // A `val` is a package value, and loading one is most of what these two rows cost. Subtract the
 // `load a val` row for the field read itself, which is ~25 ns and nothing like what these look like.
-measure "load a val, read its field           " (fun i -> preBuilt.a)
-measure "load a val, read a 5-field's last    " (fun i -> preBuilt5.e)
-measure "update a record field                " (fun i ->
+measure("load a val, read its field           ", fun i -> preBuilt.a)
+measure("load a val, read a 5-field's last    ", fun i -> preBuilt5.e)
+measure("update a record field                ", fun i ->
   let r = Rec { a = i, b = "x" }
   ({ r with a = i + 1 }).a)
-measure "build a 1-field enum                 " (fun i ->
+measure("build a 1-field enum                 ", fun i ->
   match Enum.One i with
   | One v -> v
   | Two(_, v) -> v)
-measure "build an Option                      " (fun i ->
-  match optFn i with
+measure("build an Option                      ", fun i ->
+  match optFn(i) with
   | Some v -> v
   | None -> 0)
-measure "build a tuple                        " (fun i ->
+measure("build a tuple                        ", fun i ->
   let (a, b) = (i, i + 1)
   a + b)
 
-Stdlib.printLine "--- lists"
-measure "cons onto a 3-list                   " (fun i -> Stdlib.List.length (Stdlib.List.prepend [ 1, 2, 3 ] i))
-measure "append two 3-lists                   " (fun i -> Stdlib.List.length (Stdlib.List.concat [ 1, 2, 3 ] [ 4, 5, 6 ]))
+Stdlib.printLine("--- lists")
+measure("cons onto a 3-list                   ", fun i -> Stdlib.List.length(Stdlib.List.prepend([ 1, 2, 3 ], i)))
+measure("append two 3-lists                   ", fun i -> Stdlib.List.length(Stdlib.List.concat([ 1, 2, 3 ], [ 4, 5, 6 ])))
 // The get and set measurements include building the dictionary with `fromEntries`.
 // Compare them with each other and with `build a 2-entry dict` to account for that cost.
-measure "build a 2-entry dict                 " (fun i -> Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.fromEntries [ ("a", 1), ("b", 2) ])))
-measure "dict get, 2 entries                  " (fun i -> Stdlib.Option.withDefault (Stdlib.Dict.get (Stdlib.Dict.fromEntries [ ("a", 1), ("b", 2) ]) "a") 0)
-measure "dict set, onto 2 entries             " (fun i -> Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.set (Stdlib.Dict.fromEntries [ ("a", 1), ("b", 2) ]) "c" 3)))
-measure "range 1..5                           " (fun i -> Stdlib.List.length (Stdlib.List.range 1 5))
-measure "map over 5                           " (fun i -> Stdlib.List.length (Stdlib.List.map [ 1, 2, 3, 4, 5 ] (fun x -> x + i)))
-measure "fold over 5                          " (fun i -> Stdlib.List.fold [ 1, 2, 3, 4, 5 ] 0 (fun acc x -> acc + x))
-measure "filter over 5                        " (fun i -> Stdlib.List.length (Stdlib.List.filter [ 1, 2, 3, 4, 5 ] (fun x -> x > 2)))
-measure "contains over 5                      " (fun i -> if Stdlib.List.contains [ 1, 2, 3, 4, 5 ] 3 then 1 else 0)
-measure "any over 5                           " (fun i ->
-  if Stdlib.List.any [ 1, 2, 3, 4, 5 ] (fun x -> x > 4) then 1 else 0)
-measure "findFirst over 5                     " (fun i ->
-  match Stdlib.List.findFirst [ 1, 2, 3, 4, 5 ] (fun x -> x > 4) with
+measure("build a 2-entry dict                 ", fun i -> Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.fromEntries([ ("a", 1), ("b", 2) ]))))
+measure("dict get, 2 entries                  ", fun i -> Stdlib.Option.withDefault(Stdlib.Dict.get(Stdlib.Dict.fromEntries([ ("a", 1), ("b", 2) ]), "a"), 0))
+measure("dict set, onto 2 entries             ", fun i -> Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(Stdlib.Dict.fromEntries([ ("a", 1), ("b", 2) ]), "c", 3))))
+measure("range 1..5                           ", fun i -> Stdlib.List.length(Stdlib.List.range(1, 5)))
+measure("map over 5                           ", fun i -> Stdlib.List.length(Stdlib.List.map([ 1, 2, 3, 4, 5 ], fun x -> x + i)))
+measure("fold over 5                          ", fun i -> Stdlib.List.fold([ 1, 2, 3, 4, 5 ], 0, fun acc x -> acc + x))
+measure("filter over 5                        ", fun i -> Stdlib.List.length(Stdlib.List.filter([ 1, 2, 3, 4, 5 ], fun x -> x > 2)))
+measure("contains over 5                      ", fun i -> if Stdlib.List.contains([ 1, 2, 3, 4, 5 ], 3) then 1 else 0)
+measure("any over 5                           ", fun i ->
+  if Stdlib.List.any([ 1, 2, 3, 4, 5 ], fun x -> x > 4) then 1 else 0)
+measure("findFirst over 5                     ", fun i ->
+  match Stdlib.List.findFirst([ 1, 2, 3, 4, 5 ], fun x -> x > 4) with
   | Some v -> v
   | None -> 0)
-measure "build a 5-element literal            " (fun i -> Stdlib.List.length [ i, i, i, i, i ])
+measure("build a 5-element literal            ", fun i -> Stdlib.List.length([ i, i, i, i, i ]))
 
-Stdlib.printLine "--- strings"
-measure "concat two strings                   " (fun i -> Stdlib.String.length ("ab" + "cd"))
-measure "repeat one char 8 times             " (fun i -> Stdlib.String.length (Stdlib.String.repeat " " 8))
-measure "Int to String                        " (fun i -> Stdlib.String.length (Stdlib.toString i))
+Stdlib.printLine("--- strings")
+measure("concat two strings                   ", fun i -> Stdlib.String.length("ab" + "cd"))
+measure("repeat one char 8 times             ", fun i -> Stdlib.String.length(Stdlib.String.repeat(" ", 8)))
+measure("Int to String                        ", fun i -> Stdlib.String.length(Stdlib.toString(i)))
 
-Stdlib.printLine "--- control flow"
+Stdlib.printLine("--- control flow")
 // What an `Int` operator costs now that the interpreter evaluates it rather than calling a builtin.
 // The `Apply` instruction is still there, so this is what a compile-time opcode would be aiming at.
-measure "add two Ints                         " (fun i -> i + 1)
-measure "compare two Ints                     " (fun i -> if i < 1000 then 1 else 0)
-measure "if/else                              " (fun i -> if i > 1000 then 1 else 0)
-measure "match on an Int                      " (fun i ->
+measure("add two Ints                         ", fun i -> i + 1)
+measure("compare two Ints                     ", fun i -> if i < 1000 then 1 else 0)
+measure("if/else                              ", fun i -> if i > 1000 then 1 else 0)
+measure("match on an Int                      ", fun i ->
   match i with
   | 1 -> 1
   | _ -> 0)
 
 // Repeated last as well as first: the first row absorbs one-time costs, so the honest floor is this.
-Stdlib.printLine "--- harness, again"
-measure "load a val (an Int), at the end      " (fun i -> preBuiltInt)
-measure "baseline again, at the end           " (fun i -> i)
+Stdlib.printLine("--- harness, again")
+measure("load a val (an Int), at the end      ", fun i -> preBuiltInt)
+measure("baseline again, at the end           ", fun i -> i)

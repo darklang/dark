@@ -32,7 +32,7 @@ let private propagationLeavesBranchWorkAlone =
       task {
         do! start state
         do! fn state "Tests.Casc.base" "() : Int64 = 20L"
-        do! fn state "Tests.Casc.caller" "() : Int64 = Tests.Casc.base ()"
+        do! fn state "Tests.Casc.caller" "(): Int64 = Tests.Casc.base()"
         do! commit state "casc base"
 
         do! switch state "cascbr"
@@ -42,15 +42,11 @@ let private propagationLeavesBranchWorkAlone =
         // The edit whose cascade used to reach main's caller and bind main's body here.
         do! fn state "Tests.Casc.base" "() : Int64 = 30L"
         do!
-          evals state "Tests.Casc.caller ()" "777" "the branch keeps its own caller"
+          evals state "Tests.Casc.caller()" "777" "the branch keeps its own caller"
 
         do! onMain state
         do!
-          evals
-            state
-            "Tests.Casc.caller ()"
-            "20"
-            "and main still calls its own base"
+          evals state "Tests.Casc.caller()" "20" "and main still calls its own base"
         do! archiveBranches state [ "cascbr" ]
       })
 
@@ -66,7 +62,7 @@ let private rebaseIgnoresMainsDraft =
         do! commit state "reb v1"
 
         do! switch state "rebbr"
-        do! fn state "Tests.Reb.user" "() : Int64 = Tests.Reb.root ()"
+        do! fn state "Tests.Reb.user" "(): Int64 = Tests.Reb.root()"
         do! commit state "branch user"
 
         // Main edits the dependency and does NOT commit it.
@@ -80,8 +76,8 @@ let private rebaseIgnoresMainsDraft =
         // Both answers come from the same committed version. The bug left the branch calling 222
         // through its caller while `root` still read 111: inconsistent with itself.
         do!
-          evals state "Tests.Reb.root ()" "111" "the branch sees the committed root"
-        do! evals state "Tests.Reb.user ()" "111" "and its caller agrees with it"
+          evals state "Tests.Reb.root()" "111" "the branch sees the committed root"
+        do! evals state "Tests.Reb.user()" "111" "and its caller agrees with it"
 
         do! start state
         do! archiveBranches state [ "rebbr" ]
@@ -179,7 +175,7 @@ let private branchDiscardKeepsCommittedWork =
         do! switch state "discardkeep"
         do! fn state "Tests.DiscardKeep.f" "() : Int64 = 1L"
         do! commit state "f v1 on branch"
-        do! evals state "Tests.DiscardKeep.f ()" "1" "the committed version runs"
+        do! evals state "Tests.DiscardKeep.f()" "1" "the committed version runs"
 
         // A second, UNCOMMITTED edit: this is what discard is allowed to take.
         do! fn state "Tests.DiscardKeep.f" "() : Int64 = 2L"
@@ -188,13 +184,13 @@ let private branchDiscardKeepsCommittedWork =
         do!
           evals
             state
-            "Tests.DiscardKeep.f ()"
+            "Tests.DiscardKeep.f()"
             "1"
             "the draft edit is gone and the committed version is back"
         do!
           lacks
             state
-            [ "eval"; "Tests.DiscardKeep.f ()" ]
+            [ "eval"; "Tests.DiscardKeep.f()" ]
             "not found"
             "the name itself survives the discard"
 
@@ -249,14 +245,14 @@ let private partialCommitTakesNewNameForCommittedContent =
           fn
             state
             "Tests.SharedCommit.caller"
-            "() : Int64 = Tests.SharedCommit.dep () + 1L"
+            "(): Int64 = Tests.SharedCommit.dep() + 1L"
 
         do!
           commitOnly
             state
             "caller and its dependency name"
             "Tests.SharedCommit.caller"
-        do! evals state "Tests.SharedCommit.caller ()" "19328" "the caller runs"
+        do! evals state "Tests.SharedCommit.caller()" "19328" "the caller runs"
         do!
           shows
             state
@@ -289,13 +285,13 @@ let private discardSeesWhatUndoWrote =
       do! commit state "undo v2"
 
       do! run state [ "undo"; "Tests.Undo.f" ]
-      do! evals state "Tests.Undo.f ()" "1" "undo staged the older version"
+      do! evals state "Tests.Undo.f()" "1" "undo staged the older version"
 
       do! discardName state "Tests.Undo.f"
       do!
         evals
           state
-          "Tests.Undo.f ()"
+          "Tests.Undo.f()"
           "2"
           "discarding it puts the committed version back"
       do! clean state "and the draft is empty"
@@ -384,7 +380,7 @@ let private renameMovesANameNotItsContent =
     task {
       do! start state
       do! fn state "Tests.Rn.old" "() : Int64 = 42L"
-      do! fn state "Tests.Rn.caller" "() : Int64 = Tests.Rn.old ()"
+      do! fn state "Tests.Rn.caller" "(): Int64 = Tests.Rn.old()"
       do! commit state "rn base"
 
       do!
@@ -393,9 +389,9 @@ let private renameMovesANameNotItsContent =
           [ "rename"; "Tests.Rn.old"; "Tests.Rn.renamed" ]
           "renamed"
           "it says what it did"
-      do! evals state "Tests.Rn.renamed ()" "42" "the new name holds the content"
-      do! evals state "Tests.Rn.caller ()" "42" "the caller is untouched"
-      do! notFound state "Tests.Rn.old ()" "and the old name is gone"
+      do! evals state "Tests.Rn.renamed()" "42" "the new name holds the content"
+      do! evals state "Tests.Rn.caller()" "42" "the caller is untouched"
+      do! notFound state "Tests.Rn.old()" "and the old name is gone"
 
       do! start state
     })
@@ -426,8 +422,8 @@ let private renameRefusesTheBadCases =
           "and renaming onto a live name is refused"
 
       // Neither refusal moved anything.
-      do! evals state "Tests.Rn2.a ()" "1" "the source name is untouched"
-      do! evals state "Tests.Rn2.b ()" "2" "and so is the occupied one"
+      do! evals state "Tests.Rn2.a()" "1" "the source name is untouched"
+      do! evals state "Tests.Rn2.b()" "2" "and so is the occupied one"
       do! start state
     })
 
@@ -442,10 +438,10 @@ let private theEverydayLoop =
     task {
       do! start state
       do! fn state "Tests.Day.cents" "(d: Int64) : Int64 = d * 100L"
-      do! fn state "Tests.Day.total" "(a: Int64) : Int64 = Tests.Day.cents a"
+      do! fn state "Tests.Day.total" "(a: Int64): Int64 = Tests.Day.cents(a)"
 
       // Live on write: no build step between authoring and running it.
-      do! evals state "Tests.Day.total 3L" "300" "the new code runs immediately"
+      do! evals state "Tests.Day.total(3L)" "300" "the new code runs immediately"
       do! dirty state "and it is a draft until committed"
 
       do! commit state "money helpers"
@@ -453,7 +449,7 @@ let private theEverydayLoop =
 
       // An edit to a dependency repoints its callers, in the draft, before any commit.
       do! fn state "Tests.Day.cents" "(d: Int64) : Int64 = d * 1000L"
-      do! evals state "Tests.Day.total 3L" "3000" "the caller followed the edit"
+      do! evals state "Tests.Day.total(3L)" "3000" "the caller followed the edit"
       do! dirty state "the repoint is staged, not committed"
 
       do! commit state "cents in mills"
@@ -461,7 +457,7 @@ let private theEverydayLoop =
       do!
         evals
           state
-          "Tests.Day.total 3L"
+          "Tests.Day.total(3L)"
           "3000"
           "with the new behaviour still in place"
     })
@@ -477,15 +473,15 @@ let private theBranchLoop =
 
       do! switch state "looper"
       do! shows state [ "branch" ] "looper" "switch says where you are"
-      do! fn state "Tests.Loop.mine" "() : Int64 = Tests.Loop.shared () + 1L"
+      do! fn state "Tests.Loop.mine" "(): Int64 = Tests.Loop.shared() + 1L"
       do! commit state "branch work"
-      do! evals state "Tests.Loop.mine ()" "2" "the branch resolves main's names"
+      do! evals state "Tests.Loop.mine()" "2" "the branch resolves main's names"
 
       do! onMain state
-      do! notFound state "Tests.Loop.mine ()" "main cannot see the branch's work"
+      do! notFound state "Tests.Loop.mine()" "main cannot see the branch's work"
 
       do! merge state "looper"
-      do! evals state "Tests.Loop.mine ()" "2" "until it is merged"
+      do! evals state "Tests.Loop.mine()" "2" "until it is merged"
     })
 
 /// The refusals a person meets by typing something reasonable that is not available. Each of these

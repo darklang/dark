@@ -4,14 +4,14 @@
 /// Part of `Darklang.Cli`.
 module Darklang.Cli
 
-let executeCliCommand (args: List<String>) : Int =
-  let initialState = initState ()
+let executeCliCommand(args: List<String>): Int =
+  let initialState = initState()
 
   match args with
   | [] ->
     if initialState.telemetryEnabled then
-      Telemetry.logSessionStart ()
-      let _ = LanguageTools.InterpreterStats.reset ()
+      Telemetry.logSessionStart()
+      let _ = LanguageTools.InterpreterStats.reset()
       ()
 
     // `dark` with no args opens the workbench — that's the experience now, no chooser. DARK_CLASSIC=1 is the
@@ -21,23 +21,23 @@ let executeCliCommand (args: List<String>) : Int =
     // No screen clear or scroll region: the prompt is an inline Tui region that keeps scrollback,
     // and the workbench owns the alternate screen through its own terminal session.
     let classic =
-      match Stdlib.Env.get "DARK_CLASSIC" with
+      match Stdlib.Env.get("DARK_CLASSIC") with
       | Some "1" -> true
       | _ -> false
 
     if classic then
-      Stdlib.printLine (View.formatWelcome ())
-      runInteractiveLoop initialState
+      Stdlib.printLine(View.formatWelcome())
+      runInteractiveLoop(initialState)
     else
-      let workbenchState = Workbench.execute initialState []
-      runInteractiveLoop workbenchState
+      let workbenchState = Workbench.execute(initialState, [])
+      runInteractiveLoop(workbenchState)
   // Otherwise, execute command directly (shell already split args correctly)
   | commandName :: commandArgs ->
     let nonInteractiveState = { initialState with nonInteractive = true }
-    let resultState = Registry.executeCommand commandName nonInteractiveState commandArgs
+    let resultState = Registry.executeCommand(commandName, nonInteractiveState, commandArgs)
 
     // If the command launched a full-screen SubApp (a TUI like `apps` / `outliner`), hand off to the
     // interactive loop so it actually runs, instead of exiting the instant the command returns.
     match resultState.currentPage with
-    | SubApp _ -> runInteractiveLoop resultState
+    | SubApp _ -> runInteractiveLoop(resultState)
     | _ -> resultState.exitCode

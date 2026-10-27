@@ -10,7 +10,7 @@ type ParseError =
 
 
 module ParseError =
-  let toString (err: ParseError) : String =
+  let toString(err: ParseError): String =
     match err with
     | Message msg -> msg
 
@@ -39,17 +39,17 @@ type PTCliScriptModule =
     submodules: List<LanguageTools.ProgramTypes.Definitions>
     exprs: List<LanguageTools.ProgramTypes.Expr> }
 
-let parseDecls
-  (owner: String)
-  (scriptName: String)
-  (diagnostics: List<(LanguageTools.Parser.Range * String)>)
-  (source: LanguageTools.WrittenTypes.ParsedFile)
+let parseDecls(
+  owner: String,
+  scriptName: String,
+  diagnostics: List<(LanguageTools.Parser.Range * String)>,
+  source: LanguageTools.WrittenTypes.ParsedFile)
   : Stdlib.Result.Result<WTCliScriptModule, ParseError> =
   // A parse error blocks declaration extraction — the recovered tree would be broken.
   match diagnostics with
   | (range, message) :: _ ->
     let rendered =
-      $"Parse error at line {Stdlib.toString (range.start.row + 1)}, column {Stdlib.toString range.start.column}: {message}"
+      $"Parse error at line {Stdlib.toString(range.start.row + 1)}, column {Stdlib.toString(range.start.column)}: {message}"
 
     Stdlib.Result.Result.Error(ParseError.Message rendered)
 
@@ -59,42 +59,42 @@ let parseDecls
     | SourceFile source ->
       let types =
         source.declarations
-        |> Stdlib.List.filterMap (fun decl ->
+        |> Stdlib.List.filterMap(fun decl ->
           match decl with
           | Type t -> Stdlib.Option.Option.Some t
           | _ -> Stdlib.Option.Option.None)
 
       let values =
         source.declarations
-        |> Stdlib.List.filterMap (fun decl ->
+        |> Stdlib.List.filterMap(fun decl ->
           match decl with
           | Value v -> Stdlib.Option.Option.Some v
           | _ -> Stdlib.Option.Option.None)
 
       let fns =
         source.declarations
-        |> Stdlib.List.filterMap (fun decl ->
+        |> Stdlib.List.filterMap(fun decl ->
           match decl with
           | Function f -> Stdlib.Option.Option.Some f
           | _ -> Stdlib.Option.Option.None)
 
       let traits =
         source.declarations
-        |> Stdlib.List.filterMap (fun decl ->
+        |> Stdlib.List.filterMap(fun decl ->
           match decl with
           | Trait t -> Stdlib.Option.Option.Some t
           | _ -> Stdlib.Option.Option.None)
 
       let impls =
         source.declarations
-        |> Stdlib.List.filterMap (fun decl ->
+        |> Stdlib.List.filterMap(fun decl ->
           match decl with
           | Impl i -> Stdlib.Option.Option.Some i
           | _ -> Stdlib.Option.Option.None)
 
       let submodules =
         source.declarations
-        |> Stdlib.List.filterMap (fun decl ->
+        |> Stdlib.List.filterMap(fun decl ->
           match decl with
           | Module m -> Stdlib.Option.Option.Some m
           | _ -> Stdlib.Option.Option.None)
@@ -116,22 +116,22 @@ let parseDecls
 
 
 /// Helper to process a list of declarations and split results into separate lists (entities, ops, unresolved names)
-let processDecls
-  (items: List<'a>)
-  (processFn: 'a -> ('entity * List<ProgramTypes.PackageOp> * List<WrittenTypes.UnresolvedName>))
+let processDecls(
+  items: List<'a>,
+  processFn: 'a -> ('entity * List<ProgramTypes.PackageOp> * List<WrittenTypes.UnresolvedName>))
   : (List<'entity> * List<List<ProgramTypes.PackageOp>> * List<List<WrittenTypes.UnresolvedName>>) =
-  let results = items |> Stdlib.List.map processFn
+  let results = items |> Stdlib.List.map(processFn)
 
-  let entities = results |> Stdlib.List.map (fun (e, _, _) -> e)
-  let ops = results |> Stdlib.List.map (fun (_, ops, _) -> ops)
-  let unresolvedNames = results |> Stdlib.List.map (fun (_, _, u) -> u)
+  let entities = results |> Stdlib.List.map(fun (e, _, _) -> e)
+  let ops = results |> Stdlib.List.map(fun (_, ops, _) -> ops)
+  let unresolvedNames = results |> Stdlib.List.map(fun (_, _, u) -> u)
 
   (entities, ops, unresolvedNames)
 
 
-let toPT
-  (ctx: NameResolver.NRContext)
-  (wt: WTCliScriptModule)
+let toPT(
+  ctx: NameResolver.NRContext,
+  wt: WTCliScriptModule)
   : (PTCliScriptModule *
     List<ProgramTypes.PackageOp> *
     List<WrittenTypes.UnresolvedName>)
@@ -141,15 +141,15 @@ let toPT
 
   // Process types and generate ops
   let (types, typeOps, typeUnresolvedNames) =
-    processDecls wt.types (fun t ->
+    processDecls(wt.types, fun t ->
       let typeName = t.name.name
 
       let (pt, unresolvedNames) =
-        LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-          ctx
-          t
+        LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT(
+          ctx,
+          t)
 
-      let pt = { pt with hash = WrittenTypesToProgramTypes.locationPlaceholderHash wt.owner modules typeName }
+      let pt = { pt with hash = WrittenTypesToProgramTypes.locationPlaceholderHash(wt.owner, modules, typeName) }
 
       let location =
         ProgramTypes.PackageLocation
@@ -163,15 +163,15 @@ let toPT
 
   // Process values and generate ops
   let (values, valueOps, valueUnresolvedNames) =
-    processDecls wt.values (fun v ->
+    processDecls(wt.values, fun v ->
       let valueName = v.name.name
 
       let (pv, unresolvedNames) =
-        WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-          ctx
-          v
+        WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT(
+          ctx,
+          v)
 
-      let pv = { pv with hash = WrittenTypesToProgramTypes.locationPlaceholderHash wt.owner modules valueName }
+      let pv = { pv with hash = WrittenTypesToProgramTypes.locationPlaceholderHash(wt.owner, modules, valueName) }
 
       let location =
         ProgramTypes.PackageLocation
@@ -185,15 +185,15 @@ let toPT
 
   // Process functions and generate ops
   let (fns, fnOps, fnUnresolvedNames) =
-    processDecls wt.fns (fun f ->
+    processDecls(wt.fns, fun f ->
       let fnName = f.name.name
 
       let (pf, unresolvedNames) =
-        WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-          ctx
-          f
+        WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT(
+          ctx,
+          f)
 
-      let pf = { pf with hash = WrittenTypesToProgramTypes.locationPlaceholderHash wt.owner modules fnName }
+      let pf = { pf with hash = WrittenTypesToProgramTypes.locationPlaceholderHash(wt.owner, modules, fnName) }
 
       let location =
         ProgramTypes.PackageLocation
@@ -207,63 +207,63 @@ let toPT
 
   // Process traits and generate ops
   let (traits, traitOps, traitUnresolvedNames) =
-    processDecls wt.traits (fun t ->
-      WrittenTypesToProgramTypes.traitWithOps ctx t)
+    processDecls(wt.traits, fun t ->
+      WrittenTypesToProgramTypes.traitWithOps(ctx, t))
 
   // Process impls: each is its item plus the method fns beneath it
   let implResults =
-    wt.impls |> Stdlib.List.map (fun i -> WrittenTypesToProgramTypes.implWithOps ctx i)
-  let impls = implResults |> Stdlib.List.map (fun (i, _, _, _) -> i)
+    wt.impls |> Stdlib.List.map(fun i -> WrittenTypesToProgramTypes.implWithOps(ctx, i))
+  let impls = implResults |> Stdlib.List.map(fun (i, _, _, _) -> i)
   let implFns =
-    implResults |> Stdlib.List.map (fun (_, fns, _, _) -> fns) |> Stdlib.List.flatten
-  let implOps = implResults |> Stdlib.List.map (fun (_, _, ops, _) -> ops)
-  let implUnresolvedNames = implResults |> Stdlib.List.map (fun (_, _, _, u) -> u)
+    implResults |> Stdlib.List.map(fun (_, fns, _, _) -> fns) |> Stdlib.List.flatten
+  let implOps = implResults |> Stdlib.List.map(fun (_, _, ops, _) -> ops)
+  let implUnresolvedNames = implResults |> Stdlib.List.map(fun (_, _, _, u) -> u)
 
   // Process submodules recursively with ops
   let (submodules, submoduleOps, submoduleUnresolvedNames) =
-    processDecls wt.submodules (fun m ->
+    processDecls(wt.submodules, fun m ->
       let (_, submoduleName) = m.name
-      let extendedModules = Stdlib.List.append modules submoduleName
+      let extendedModules = Stdlib.List.append(modules, submoduleName)
 
-      WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
-        { ctx with currentModule = extendedModules }
-        m)
+      WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper(
+        { ctx with currentModule = extendedModules },
+        m))
 
 
   let (exprs, unresolvedNamesInExprs) =
     wt.exprs
-    |> Stdlib.List.map (fun e ->
-      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-        ctx
-        LanguageTools.WrittenTypesToProgramTypes.defaultContext
-        e)
+    |> Stdlib.List.map(fun e ->
+      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT(
+        ctx,
+        LanguageTools.WrittenTypesToProgramTypes.defaultContext,
+        e))
     |> Stdlib.List.unzip
 
   // Collect all ops
   let allOps =
-    Stdlib.List.flatten
+    Stdlib.List.flatten(
       [ typeOps |> Stdlib.List.flatten
         valueOps |> Stdlib.List.flatten
         fnOps |> Stdlib.List.flatten
         traitOps |> Stdlib.List.flatten
         implOps |> Stdlib.List.flatten
-        submoduleOps |> Stdlib.List.flatten ]
+        submoduleOps |> Stdlib.List.flatten ])
 
   // Collect all unresolved names
   let unresolvedNames =
-    Stdlib.List.flatten
+    Stdlib.List.flatten(
       [ typeUnresolvedNames |> Stdlib.List.flatten
         valueUnresolvedNames |> Stdlib.List.flatten
         fnUnresolvedNames |> Stdlib.List.flatten
         traitUnresolvedNames |> Stdlib.List.flatten
         implUnresolvedNames |> Stdlib.List.flatten
         submoduleUnresolvedNames |> Stdlib.List.flatten
-        unresolvedNamesInExprs |> Stdlib.List.flatten ]
+        unresolvedNamesInExprs |> Stdlib.List.flatten ])
 
   (PTCliScriptModule
     { types = types
       values = values
-      fns = Stdlib.List.concat fns implFns
+      fns = Stdlib.List.concat(fns, implFns)
       traits = traits
       impls = impls
       submodules = submodules
@@ -274,10 +274,10 @@ let toPT
 
 /// Find the stabilized identity corresponding to one provisional first-pass
 /// declaration. Hash stabilization preserves operation order.
-let stabilizedHash
-  (original: ProgramTypes.Reference)
-  (provisionalOps: List<ProgramTypes.PackageOp>)
-  (stabilizedOps: List<ProgramTypes.PackageOp>)
+let stabilizedHash(
+  original: ProgramTypes.Reference,
+  provisionalOps: List<ProgramTypes.PackageOp>,
+  stabilizedOps: List<ProgramTypes.PackageOp>)
   : ProgramTypes.Hash =
   match (provisionalOps, stabilizedOps) with
   | (provisional :: provisionalRest, stabilized :: stabilizedRest) ->
@@ -313,82 +313,82 @@ let stabilizedHash
     match references with
     | Some((before, after)) ->
       if before == original then
-        ProgramTypes.Reference.hash after
+        ProgramTypes.Reference.hash(after)
       else
-        stabilizedHash original provisionalRest stabilizedRest
-    | None -> stabilizedHash original provisionalRest stabilizedRest
-  | _ -> ProgramTypes.Reference.hash original
+        stabilizedHash(original, provisionalRest, stabilizedRest)
+    | None -> stabilizedHash(original, provisionalRest, stabilizedRest)
+  | _ -> ProgramTypes.Reference.hash(original)
 
 
 /// Name-resolves + lowers an ALREADY-PARSED WrittenTypes file. The LSP parses
 /// and feeds the result here directly (no re-parse).
 /// The second pass's items with the hashes their first-pass counterparts stabilized to, matched
 /// by position. When the two passes disagree on how many there are, the second pass's stand.
-let restamp
-  (second: List<'a>)
-  (first: List<'a>)
-  (reference: 'a -> ProgramTypes.Reference)
-  (withHash: 'a -> ProgramTypes.Hash -> 'a)
-  (provisionalOps: List<ProgramTypes.PackageOp>)
-  (stabilizedOps: List<ProgramTypes.PackageOp>)
+let restamp(
+  second: List<'a>,
+  first: List<'a>,
+  reference: 'a -> ProgramTypes.Reference,
+  withHash: 'a -> ProgramTypes.Hash -> 'a,
+  provisionalOps: List<ProgramTypes.PackageOp>,
+  stabilizedOps: List<ProgramTypes.PackageOp>)
   : List<'a> =
-  (Stdlib.List.zip second first)
-  |> Stdlib.Result.mapWithDefault second (fun zipped ->
+  (Stdlib.List.zip(second, first))
+  |> Stdlib.Result.mapWithDefault(second, fun zipped ->
     zipped
-    |> Stdlib.List.map (fun pair ->
+    |> Stdlib.List.map(fun pair ->
       let (newItem, original) = pair
-      withHash newItem (stabilizedHash (reference original) provisionalOps stabilizedOps)))
+      withHash(newItem, stabilizedHash(reference(original), provisionalOps, stabilizedOps))))
 
 
-let parseFromWT
-  (ctx: NameResolver.NRContext)
-  (scriptName: String)
-  (diagnostics: List<(LanguageTools.Parser.Range * String)>)
-  (parsedFile: WrittenTypes.ParsedFile)
+let parseFromWT(
+  ctx: NameResolver.NRContext,
+  scriptName: String,
+  diagnostics: List<(LanguageTools.Parser.Range * String)>,
+  parsedFile: WrittenTypes.ParsedFile)
   : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), ParseError> =
-    match parseDecls ctx.owner scriptName diagnostics parsedFile with
+    match parseDecls(ctx.owner, scriptName, diagnostics, parsedFile) with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
       // First pass: parse and generate ops (allowing unresolved names)
       let (initialParse, provisionalFirstPassOps, _) =
-        toPT { ctx with onMissing = NameResolver.OnMissing.Allow } moduleWT
+        toPT({ ctx with onMissing = NameResolver.OnMissing.Allow }, moduleWT)
 
       // Stabilize first-pass ops so PM has real content-addressed hashes
-      let firstPassOps = LanguageTools.PackageManager.stabilizeHashes provisionalFirstPassOps
+      let firstPassOps = LanguageTools.PackageManager.stabilizeHashes(provisionalFirstPassOps)
 
       // Create PM with stabilized first pass ops for second pass
-      let pm = ProgramTypes.PackageManager.withExtraOps ctx.pm firstPassOps
+      let pm = ProgramTypes.PackageManager.withExtraOps(ctx.pm, firstPassOps)
 
       // Second pass: re-parse with updated PackageManager
-      let (result, _, unresolvedNames) = toPT { ctx with pm = pm } moduleWT
+      let (result, _, unresolvedNames) = toPT({ ctx with pm = pm }, moduleWT)
 
       let ops = provisionalFirstPassOps
       let stable = firstPassOps
 
-      let restampDefs (newDefs: ProgramTypes.Definitions) (originalDefs: ProgramTypes.Definitions) : ProgramTypes.Definitions =
+      let restampDefs(newDefs: ProgramTypes.Definitions, originalDefs: ProgramTypes.Definitions): ProgramTypes.Definitions =
         ProgramTypes.Definitions
-          { types = restamp newDefs.types originalDefs.types (fun t -> ProgramTypes.Reference.PackageType t.hash) (fun t h -> { t with hash = h }) ops stable
-            values = restamp newDefs.values originalDefs.values (fun v -> ProgramTypes.Reference.PackageValue v.hash) (fun v h -> { v with hash = h }) ops stable
-            fns = restamp newDefs.fns originalDefs.fns (fun f -> ProgramTypes.Reference.PackageFn f.hash) (fun f h -> { f with hash = h }) ops stable
-            traits = restamp newDefs.traits originalDefs.traits (fun t -> ProgramTypes.Reference.PackageTrait t.hash) (fun t h -> { t with hash = h }) ops stable
-            impls = restamp newDefs.impls originalDefs.impls (fun i -> ProgramTypes.Reference.PackageTraitImpl i.hash) (fun i h -> { i with hash = h }) ops stable
+          { types = restamp(newDefs.types, originalDefs.types, (fun t -> ProgramTypes.Reference.PackageType t.hash), (fun t h -> { t with hash = h }), ops, stable)
+            values = restamp(newDefs.values, originalDefs.values, (fun v -> ProgramTypes.Reference.PackageValue v.hash), (fun v h -> { v with hash = h }), ops, stable)
+            fns = restamp(newDefs.fns, originalDefs.fns, (fun f -> ProgramTypes.Reference.PackageFn f.hash), (fun f h -> { f with hash = h }), ops, stable)
+            traits = restamp(newDefs.traits, originalDefs.traits, (fun t -> ProgramTypes.Reference.PackageTrait t.hash), (fun t h -> { t with hash = h }), ops, stable)
+            impls = restamp(newDefs.impls, originalDefs.impls, (fun i -> ProgramTypes.Reference.PackageTraitImpl i.hash), (fun i h -> { i with hash = h }), ops, stable)
             exprs = newDefs.exprs }
 
       let adjustedSubmodules =
-        (Stdlib.List.zip result.submodules initialParse.submodules)
-        |> Stdlib.Result.mapWithDefault result.submodules (fun zipped ->
+        (Stdlib.List.zip(result.submodules, initialParse.submodules))
+        |> Stdlib.Result.mapWithDefault(result.submodules, fun zipped ->
           zipped
-          |> Stdlib.List.map (fun pair ->
+          |> Stdlib.List.map(fun pair ->
             let (newSub, originalSub) = pair
-            restampDefs newSub originalSub))
+            restampDefs(newSub, originalSub)))
 
       let adjusted =
         PTCliScriptModule
-          { types = restamp result.types initialParse.types (fun t -> ProgramTypes.Reference.PackageType t.hash) (fun t h -> { t with hash = h }) ops stable
-            values = restamp result.values initialParse.values (fun v -> ProgramTypes.Reference.PackageValue v.hash) (fun v h -> { v with hash = h }) ops stable
-            fns = restamp result.fns initialParse.fns (fun f -> ProgramTypes.Reference.PackageFn f.hash) (fun f h -> { f with hash = h }) ops stable
-            traits = restamp result.traits initialParse.traits (fun t -> ProgramTypes.Reference.PackageTrait t.hash) (fun t h -> { t with hash = h }) ops stable
-            impls = restamp result.impls initialParse.impls (fun i -> ProgramTypes.Reference.PackageTraitImpl i.hash) (fun i h -> { i with hash = h }) ops stable
+          { types = restamp(result.types, initialParse.types, (fun t -> ProgramTypes.Reference.PackageType t.hash), (fun t h -> { t with hash = h }), ops, stable)
+            values = restamp(result.values, initialParse.values, (fun v -> ProgramTypes.Reference.PackageValue v.hash), (fun v h -> { v with hash = h }), ops, stable)
+            fns = restamp(result.fns, initialParse.fns, (fun f -> ProgramTypes.Reference.PackageFn f.hash), (fun f h -> { f with hash = h }), ops, stable)
+            traits = restamp(result.traits, initialParse.traits, (fun t -> ProgramTypes.Reference.PackageTrait t.hash), (fun t h -> { t with hash = h }), ops, stable)
+            impls = restamp(result.impls, initialParse.impls, (fun i -> ProgramTypes.Reference.PackageTraitImpl i.hash), (fun i h -> { i with hash = h }), ops, stable)
             submodules = adjustedSubmodules
             exprs = result.exprs }
 
@@ -397,28 +397,28 @@ let parseFromWT
 
 /// Parse from source, then name-resolve + lower. Used by the parse-error test
 /// harness; the LSP uses `parseFromWT` directly with an already-parsed tree.
-let parse
-  (ctx: NameResolver.NRContext)
-  (scriptName: String)
-  (filename: String)
-  (source: String)
+let parse(
+  ctx: NameResolver.NRContext,
+  scriptName: String,
+  filename: String,
+  source: String)
   : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), ParseError> =
   match source |> LanguageTools.Parser.Parse.initialParse with
   | Error e -> Stdlib.Result.Result.Error(ParseError.Message e)
   | Ok parsedFile ->
-    parseFromWT ctx scriptName (Parse.diagnostics source) parsedFile
+    parseFromWT(ctx, scriptName, Parse.diagnostics(source), parsedFile)
 
 
 /// Single-shot parse for CLI use: creates PM and NRContext internally
 /// so that lambdas in the PM stay within the same execution context.
-let parseForCli
-  (branchId: Uuid)
-  (owner: String)
-  (scriptName: String)
-  (filename: String)
-  (source: String)
+let parseForCli(
+  branchId: Uuid,
+  owner: String,
+  scriptName: String,
+  filename: String,
+  source: String)
   : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), ParseError> =
-  let pm = LanguageTools.PackageManager.pm ()
+  let pm = LanguageTools.PackageManager.pm()
 
   let ctx =
     NameResolver.NRContext
@@ -428,25 +428,25 @@ let parseForCli
         owner = owner
         currentModule = [] }
 
-  parse ctx scriptName filename source
+  parse(ctx, scriptName, filename, source)
 
 
-let pmWithExtras
-  (ctx: NameResolver.NRContext)
-  (scriptName: String)
-  (filename: String)
-  (source: String)
+let pmWithExtras(
+  ctx: NameResolver.NRContext,
+  scriptName: String,
+  filename: String,
+  source: String)
   : Stdlib.Result.Result<ProgramTypes.PackageManager.PackageManager, ParseError> =
   // The range-complete parser, matching the rest of the LSP.
-  match Parse.toWrittenTypes source with
+  match Parse.toWrittenTypes(source) with
   | None -> Stdlib.Result.Result.Error(ParseError.Message "parse failed")
   | Some parsedFile ->
     match
-      parseDecls ctx.owner scriptName (Parse.diagnostics source) parsedFile
+      parseDecls(ctx.owner, scriptName, Parse.diagnostics(source), parsedFile)
     with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
-      let (_, ops, _) = toPT ctx moduleWT
+      let (_, ops, _) = toPT(ctx, moduleWT)
 
-      (ProgramTypes.PackageManager.withExtraOps ctx.pm ops)
+      (ProgramTypes.PackageManager.withExtraOps(ctx.pm, ops))
       |> Stdlib.Result.Result.Ok

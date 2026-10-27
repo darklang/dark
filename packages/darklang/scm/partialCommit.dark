@@ -29,52 +29,52 @@ type Selected =
     opId: String }
 
 /// `owner.modules.name` for a location, which is what a person types at `--include=`.
-let fqnOf (location: LanguageTools.ProgramTypes.PackageLocation) : String =
+let fqnOf(location: LanguageTools.ProgramTypes.PackageLocation): String =
   let parts =
-    Stdlib.List.prepend (Stdlib.List.append location.modules location.name) location.owner
+    Stdlib.List.prepend(Stdlib.List.append(location.modules, location.name), location.owner)
 
-  Stdlib.String.join parts "."
+  Stdlib.String.join(parts, ".")
 
 /// The namings the draft holds, newest LAST, one entry per op (not per name -- a name edited twice has two,
 /// and both have to be committed together or the earlier one is left behind describing a version nobody has).
-let draftNamings () : List<Selected> =
-  SCM.PackageOps.draftEntries ()
-  |> Stdlib.List.filterMap (fun e ->
+let draftNamings(): List<Selected> =
+  SCM.PackageOps.draftEntries()
+  |> Stdlib.List.filterMap(fun e ->
     match e.op with
     | Decision(_, location, _, Override target)
     | SetName(location, target, _) ->
       let itemType =
-        LanguageTools.ProgramTypes.ItemKind.toString (LanguageTools.ProgramTypes.Reference.kind target)
+        LanguageTools.ProgramTypes.ItemKind.toString(LanguageTools.ProgramTypes.Reference.kind(target))
 
       Stdlib.Option.Option.Some(
         Selected
-          { fqn = fqnOf location
+          { fqn = fqnOf(location)
             itemType = itemType
             hash =
-              LanguageTools.ProgramTypes.hashToString
-                (LanguageTools.ProgramTypes.Reference.hash target)
+              LanguageTools.ProgramTypes.hashToString(
+                LanguageTools.ProgramTypes.Reference.hash(target))
             opId = e.id }
       )
     | _ -> Stdlib.Option.Option.None)
 
 /// The content hashes the draft ADDS. The dependency closure also includes draft
 /// names for existing content: committing the content does not commit a new name.
-let draftAddedHashes () : List<String> =
-  SCM.PackageOps.draftEntries ()
-  |> Stdlib.List.filterMap (fun e ->
+let draftAddedHashes(): List<String> =
+  SCM.PackageOps.draftEntries()
+  |> Stdlib.List.filterMap(fun e ->
     match e.op with
     | AddFn f ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString f.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(f.hash))
     | AddType t ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString t.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
     | AddValue v ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString v.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(v.hash))
     | AddTrait t ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString t.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
     | AddTraitImpl i ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString i.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(i.hash))
     | AddTest test ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString test.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(test.hash))
     | _ -> Stdlib.Option.Option.None)
 
 /// What <param hashes> reference, restricted to <param pending> (draft content or names).
@@ -84,56 +84,56 @@ let draftAddedHashes () : List<String> =
 ///
 /// `pending` is a parameter: computing it decodes every draft blob, and the set can't change mid-closure
 /// (see `closeOverDeps`).
-let draftDepsOf (pending: List<String>) (hashes: List<String>) : List<String> =
-  if Stdlib.List.isEmpty hashes then
+let draftDepsOf(pending: List<String>, hashes: List<String>): List<String> =
+  if Stdlib.List.isEmpty(hashes) then
     []
   else
     let quoted =
-      hashes |> Stdlib.List.map (fun h -> $"'{h}'") |> Stdlib.String.join ", "
+      hashes |> Stdlib.List.map(fun h -> $"'{h}'") |> Stdlib.String.join(", ")
 
-    (Stdlib.Sqlite.columnP
-      (localDb ())
+    (Stdlib.Sqlite.columnP(
+      localDb(),
       $"SELECT DISTINCT depends_on_hash AS h FROM package_dependencies
-        WHERE item_hash IN ({quoted}) AND depends_on_hash != ''"
-      []
-      "h")
-    |> Stdlib.List.filter (fun h -> Stdlib.List.contains pending h)
+        WHERE item_hash IN ({quoted}) AND depends_on_hash != ''",
+      [],
+      "h"))
+    |> Stdlib.List.filter(fun h -> Stdlib.List.contains(pending, h))
 
 /// One round of closure: referenced hashes with draft content or names not yet in acc.
-let closeStep (pending: List<String>) (acc: List<String>) : List<String> =
+let closeStep(pending: List<String>, acc: List<String>): List<String> =
   let next =
-    draftDepsOf pending acc
-    |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains acc h))
+    draftDepsOf(pending, acc)
+    |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(acc, h)))
 
-  Stdlib.List.concat acc next
+  Stdlib.List.concat(acc, next)
 
 /// Close a hash set over draft dependencies.
 ///
 /// Folded a bounded number of times rather than recursed to a fixpoint, and the bound is the termination
 /// argument: each round either adds a hash the draft holds or changes nothing, so the draft's own size is
 /// more rounds than can ever be needed. A cycle therefore can't hang it.
-let closeOverDeps (hashes: List<String>) : List<String> =
+let closeOverDeps(hashes: List<String>): List<String> =
   // Read ONCE, then passed down: it decodes every blob in the draft, and both the round count and every
   // round need it, so asking per use is N+1 full decodes of the draft to commit a subset of it.
   // A new name may point at content already committed under another name. It
   // still needs to travel with callers that refer to it. The name filter in
   // `plan` keeps unrelated aliases of the same hash out of the selection.
   let pending =
-    Stdlib.List.concat
-      (draftAddedHashes ())
-      (draftNamings () |> Stdlib.List.map (fun s -> s.hash))
+    Stdlib.List.concat(
+      draftAddedHashes(),
+      draftNamings() |> Stdlib.List.map(fun s -> s.hash))
     |> Stdlib.List.unique
-  let rounds = Stdlib.List.length pending + 1
+  let rounds = Stdlib.List.length(pending) + 1
 
-  Stdlib.List.range 1 rounds
-  |> Stdlib.List.fold (Stdlib.List.unique hashes) (fun acc _ -> closeStep pending acc)
+  Stdlib.List.range(1, rounds)
+  |> Stdlib.List.fold(Stdlib.List.unique(hashes), fun acc _ -> closeStep(pending, acc))
 
 /// The names <param names> depend on, transitively, by NAME rather than by content hash.
 ///
 /// `package_dependencies` records edges as owner/modules/name, which is what makes this able to
 /// tell "B is a dependency of A" from "B happens to have A's body". Bounded the same way
 /// `closeOverDeps` is bounded, and for the same reason.
-let closeOverDepFqns (names: List<String>) : List<String> =
+let closeOverDepFqns(names: List<String>): List<String> =
   // Through the DRAFT first, then main's `locations`. A branch's items have no `locations` row --
   // that is the name isolation -- so joining it alone found nothing on a branch, and the closure
   // returned the caller without the dependency whose name it needs.
@@ -141,82 +141,82 @@ let closeOverDepFqns (names: List<String>) : List<String> =
   // The fallback read IS main-scoped, and correctly: it answers for names the draft does not touch,
   // which are main's by definition. What the draft holds is answered above it, branch and all.
   let draftHashes =
-    draftNamings () |> Stdlib.List.map (fun s -> (s.fqn, s.hash))
+    draftNamings() |> Stdlib.List.map(fun s -> (s.fqn, s.hash))
 
-  let step (acc: List<String>) : List<String> =
+  let step(acc: List<String>): List<String> =
     let next =
       acc
-      |> Stdlib.List.map (fun fqn ->
+      |> Stdlib.List.map(fun fqn ->
         let viaDraft =
           draftHashes
-          |> Stdlib.List.findFirst (fun pair -> let (f, _) = pair in f == fqn)
-          |> Stdlib.Option.map (fun pair -> let (_, h) = pair in h)
+          |> Stdlib.List.findFirst(fun pair -> let (f, _) = pair in f == fqn)
+          |> Stdlib.Option.map(fun pair -> let (_, h) = pair in h)
 
-        let byHash (hash: String) : List<Dict<String, Stdlib.Sqlite.Value>> =
-          Stdlib.Sqlite.rowsOrEmptyP
-            (SCM.localDb ())
+        let byHash(hash: String): List<Dict<String, Stdlib.Sqlite.Value>> =
+          Stdlib.Sqlite.rowsOrEmptyP(
+            SCM.localDb(),
             "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
              FROM package_dependencies d
-             WHERE d.item_hash = @p0 AND d.depends_on_name <> ''"
-            [ hash ]
+             WHERE d.item_hash = @p0 AND d.depends_on_name <> ''",
+            [ hash ])
 
         (match viaDraft with
-         | Some hash -> byHash hash
+         | Some hash -> byHash(hash)
          | None ->
-           Stdlib.Sqlite.rowsOrEmptyP
-             (SCM.localDb ())
+           Stdlib.Sqlite.rowsOrEmptyP(
+             SCM.localDb(),
              "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
               FROM package_dependencies d
               JOIN locations l ON l.item_hash = d.item_hash
               WHERE l.owner || '.' || (CASE WHEN l.modules = '' THEN '' ELSE l.modules || '.' END)
                     || l.name = @p0
-                AND d.depends_on_name <> ''"
-             [ fqn ])
-          |> Stdlib.List.filterMap (fun row ->
+                AND d.depends_on_name <> ''",
+             [ fqn ]))
+          |> Stdlib.List.filterMap(fun row ->
             match
-              (Stdlib.Sqlite.textField row "o",
-               Stdlib.Sqlite.textField row "m",
-               Stdlib.Sqlite.textField row "n")
+              (Stdlib.Sqlite.textField(row, "o"),
+               Stdlib.Sqlite.textField(row, "m"),
+               Stdlib.Sqlite.textField(row, "n"))
             with
             | (Some o, Some m, Some n) ->
               let mid = if m == "" then "" else m + "."
               Stdlib.Option.Option.Some(o + "." + mid + n)
             | _ -> Stdlib.Option.Option.None))
       |> Stdlib.List.flatten
-    Stdlib.List.unique (Stdlib.List.concat acc next)
+    Stdlib.List.unique(Stdlib.List.concat(acc, next))
 
-  Stdlib.List.range 1 8
-  |> Stdlib.List.fold (Stdlib.List.unique names) (fun acc _ -> step acc)
+  Stdlib.List.range(1, 8)
+  |> Stdlib.List.fold(Stdlib.List.unique(names), fun acc _ -> step(acc))
 
 
 /// The op id of <param e>, when it carries CONTENT (or a deprecation) for one of <param wantedHashes>.
 ///
 /// Deprecations are keyed on content rather than on a name, so they travel with the hash.
-let contentIdIfWanted
-  (wantedHashes: List<String>)
-  (e: SCM.PackageOps.DraftEntry)
+let contentIdIfWanted(
+  wantedHashes: List<String>,
+  e: SCM.PackageOps.DraftEntry)
   : Stdlib.Option.Option<String> =
-  let hashOf (h: LanguageTools.ProgramTypes.Hash) : String =
-    LanguageTools.ProgramTypes.hashToString h
+  let hashOf(h: LanguageTools.ProgramTypes.Hash): String =
+    LanguageTools.ProgramTypes.hashToString(h)
 
   let target =
     match e.op with
-    | AddFn f -> Stdlib.Option.Option.Some(hashOf f.hash)
-    | AddType t -> Stdlib.Option.Option.Some(hashOf t.hash)
-    | AddValue v -> Stdlib.Option.Option.Some(hashOf v.hash)
-    | AddTrait t -> Stdlib.Option.Option.Some(hashOf t.hash)
-    | AddTraitImpl i -> Stdlib.Option.Option.Some(hashOf i.hash)
-    | AddTest test -> Stdlib.Option.Option.Some(hashOf test.hash)
+    | AddFn f -> Stdlib.Option.Option.Some(hashOf(f.hash))
+    | AddType t -> Stdlib.Option.Option.Some(hashOf(t.hash))
+    | AddValue v -> Stdlib.Option.Option.Some(hashOf(v.hash))
+    | AddTrait t -> Stdlib.Option.Option.Some(hashOf(t.hash))
+    | AddTraitImpl i -> Stdlib.Option.Option.Some(hashOf(i.hash))
+    | AddTest test -> Stdlib.Option.Option.Some(hashOf(test.hash))
     // A `Reference`, not a `Hash`: deprecations key on content, and the hash is inside the reference.
     | Deprecate(target, _, _, _) ->
-      Stdlib.Option.Option.Some(hashOf (LanguageTools.ProgramTypes.Reference.hash target))
+      Stdlib.Option.Option.Some(hashOf(LanguageTools.ProgramTypes.Reference.hash(target)))
     | Undeprecate(target, _) ->
-      Stdlib.Option.Option.Some(hashOf (LanguageTools.ProgramTypes.Reference.hash target))
+      Stdlib.Option.Option.Some(hashOf(LanguageTools.ProgramTypes.Reference.hash(target)))
     | _ -> Stdlib.Option.Option.None
 
   match target with
   | Some h ->
-    if Stdlib.List.contains wantedHashes h then
+    if Stdlib.List.contains(wantedHashes, h) then
       Stdlib.Option.Option.Some e.id
     else
       Stdlib.Option.Option.None
@@ -226,13 +226,13 @@ let contentIdIfWanted
 ///
 /// By NAME, not by hash: an `UpdateDoc` says what a name means, so `--include=` of that name takes
 /// its doc edits and nothing else's.
-let docIdIfWanted
-  (wantedFqns: List<String>)
-  (e: SCM.PackageOps.DraftEntry)
+let docIdIfWanted(
+  wantedFqns: List<String>,
+  e: SCM.PackageOps.DraftEntry)
   : Stdlib.Option.Option<String> =
   match e.op with
   | UpdateDoc(location, _, _, _, _) ->
-    if Stdlib.List.contains wantedFqns (fqnOf location) then
+    if Stdlib.List.contains(wantedFqns, fqnOf(location)) then
       Stdlib.Option.Option.Some e.id
     else
       Stdlib.Option.Option.None
@@ -240,30 +240,30 @@ let docIdIfWanted
 
 
 /// Which names `--include=` asked for that the draft doesn't hold.
-let unknownNames (names: List<String>) : List<String> =
-  let held = draftNamings () |> Stdlib.List.map (fun s -> s.fqn) |> Stdlib.List.unique
+let unknownNames(names: List<String>): List<String> =
+  let held = draftNamings() |> Stdlib.List.map(fun s -> s.fqn) |> Stdlib.List.unique
 
-  names |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.contains held n))
+  names |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(Stdlib.List.contains(held, n)))
 
 /// The ops to commit for <param names>, and the FQNs that came along by closure.
 ///
 /// Returns Error for a name the draft doesn't hold: `--include=` naming something with no draft changes is a
 /// typo or a misunderstanding, and committing the whole draft (or nothing) in response are both worse than
 /// saying so.
-let plan
-  (names: List<String>)
+let plan(
+  names: List<String>)
   : Stdlib.Result.Result<(List<String> * List<String>), String> =
-  match unknownNames names with
+  match unknownNames(names) with
   | [] ->
-    let namings = draftNamings ()
+    let namings = draftNamings()
 
     // Every naming for a requested name, not just the last: an intermediate naming left in the draft would
     // describe a version that is no longer what the name means, with nothing to collapse it later.
     let directly =
-      namings |> Stdlib.List.filter (fun s -> Stdlib.List.contains names s.fqn)
+      namings |> Stdlib.List.filter(fun s -> Stdlib.List.contains(names, s.fqn))
 
     let wantedHashes =
-      closeOverDeps (directly |> Stdlib.List.map (fun s -> s.hash))
+      closeOverDeps(directly |> Stdlib.List.map(fun s -> s.hash))
 
     // A naming counts if its target is in the closed hash set AND the name is one the selection is
     // actually about: requested outright, or reachable from a requested item through the dependency
@@ -273,39 +273,39 @@ let plan
     // identical bodies share one, so `--include=` of a finished function also committed a private
     // half-done one that happened to have the same body, and reported it as "needed by what you
     // named". Nothing depended on it; it just looked the same.
-    let reachableFqns = closeOverDepFqns names
+    let reachableFqns = closeOverDepFqns(names)
 
     let keptNamings =
       namings
-      |> Stdlib.List.filter (fun s ->
-        (Stdlib.List.contains wantedHashes s.hash)
-        && ((Stdlib.List.contains names s.fqn)
-            || (Stdlib.List.contains reachableFqns s.fqn)))
+      |> Stdlib.List.filter(fun s ->
+        (Stdlib.List.contains(wantedHashes, s.hash))
+        && ((Stdlib.List.contains(names, s.fqn))
+            || (Stdlib.List.contains(reachableFqns, s.fqn))))
 
-    let namingIds = keptNamings |> Stdlib.List.map (fun s -> s.opId)
+    let namingIds = keptNamings |> Stdlib.List.map(fun s -> s.opId)
 
     // Content and deprecations for the same hashes (see `contentIdIfWanted`), plus the doc edits
     // for the names in play, which are selected by name rather than by hash.
-    let wantedFqns = Stdlib.List.unique (Stdlib.List.concat names reachableFqns)
+    let wantedFqns = Stdlib.List.unique(Stdlib.List.concat(names, reachableFqns))
 
-    let entries = SCM.PackageOps.draftEntries ()
+    let entries = SCM.PackageOps.draftEntries()
 
     let otherIds =
-      Stdlib.List.concat
-        (entries |> Stdlib.List.filterMap (fun e -> contentIdIfWanted wantedHashes e))
-        (entries |> Stdlib.List.filterMap (fun e -> docIdIfWanted wantedFqns e))
+      Stdlib.List.concat(
+        entries |> Stdlib.List.filterMap(fun e -> contentIdIfWanted(wantedHashes, e)),
+        entries |> Stdlib.List.filterMap(fun e -> docIdIfWanted(wantedFqns, e)))
 
     let pulledIn =
       keptNamings
-      |> Stdlib.List.map (fun s -> s.fqn)
+      |> Stdlib.List.map(fun s -> s.fqn)
       |> Stdlib.List.unique
-      |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.contains names f))
+      |> Stdlib.List.filter(fun f -> Stdlib.Bool.not(Stdlib.List.contains(names, f)))
 
-    (Stdlib.List.unique (Stdlib.List.concat namingIds otherIds), pulledIn)
+    (Stdlib.List.unique(Stdlib.List.concat(namingIds, otherIds)), pulledIn)
     |> Stdlib.Result.Result.Ok
 
   | missing ->
-    let shown = Stdlib.String.join missing ", "
+    let shown = Stdlib.String.join(missing, ", ")
 
     $"nothing in your draft is named: {shown}"
     |> Stdlib.Result.Result.Error

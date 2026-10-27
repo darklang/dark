@@ -2,16 +2,16 @@ module Darklang.Stdlib.Cli.Stdin
 
 
 /// Read one line from stdin, without its trailing newline; None at EOF.
-let readLineOrEnd () : Stdlib.Option.Option<String> = Builtin.stdinReadLine ()
+let readLineOrEnd(): Stdlib.Option.Option<String> = Builtin.stdinReadLine()
 
 /// Like <fn readLineOrEnd>, but "" at EOF.
-let readLine () : String =
-  Stdlib.Option.withDefault (readLineOrEnd ()) ""
+let readLine(): String =
+  Stdlib.Option.withDefault(readLineOrEnd(), "")
 
 
 /// Read all of stdin, until EOF.
-let readAll () : String =
-  Builtin.stdinReadAll ()
+let readAll(): String =
+  Builtin.stdinReadAll()
 
 
 /// Read one line WITHOUT echoing it, for a secret typed at a prompt.
@@ -22,35 +22,35 @@ let readAll () : String =
 /// Pure Dark over `readKey`: Enter finishes, Backspace edits, control keys are not secret material,
 /// and a coalesced burst (a held key, or a paste delivering one character many times) appends
 /// `keyChar` `repeat` times so a pasted secret arrives whole.
-let readSecret () : String =
-  if Stdlib.Bool.not (Stdlib.Cli.Sys.isTerminal 0) then
-    readLine ()
+let readSecret(): String =
+  if Stdlib.Bool.not(Stdlib.Cli.Sys.isTerminal(0)) then
+    readLine()
   else
-    let go (acc: String) : String =
-      let k = readKey ()
+    let go(acc: String): String =
+      let k = readKey()
 
       match k.key with
       | Enter ->
-        Stdlib.printErrorLine ""
+        Stdlib.printErrorLine("")
         acc
-      | Backspace -> go (Stdlib.String.dropLast acc 1)
+      | Backspace -> go(Stdlib.String.dropLast(acc, 1))
       | _ ->
         if k.keyChar == "" then
-          go acc
+          go(acc)
         else
           let chunk =
-            if k.repeat > 1 then Stdlib.String.repeat k.keyChar k.repeat else k.keyChar
+            if k.repeat > 1 then Stdlib.String.repeat(k.keyChar, k.repeat) else k.keyChar
           // A paste arrives as ONE coalesced read whose text can carry the terminating
           // newline; without this check the loop would wait for an Enter that was already
           // consumed. Anything pasted after the newline is not secret material and is dropped.
-          match Stdlib.String.split (acc + chunk) "\n" with
-          | [ whole ] -> go whole
+          match Stdlib.String.split(acc + chunk, "\n") with
+          | [ whole ] -> go(whole)
           | beforeNewline :: _rest ->
-            Stdlib.printErrorLine ""
+            Stdlib.printErrorLine("")
             beforeNewline
-          | [] -> go acc
+          | [] -> go(acc)
 
-    go ""
+    go("")
 
 
 module Key =
@@ -491,7 +491,7 @@ module Key =
 
 
   /// Returns true if the key represents a textual input (letters, numbers, etc.)
-  let isTextual (k: Key): Bool =
+  let isTextual(k: Key): Bool =
     match k with
     | A | B | C | D | E | F | G | H | I | J | K | L | M
     | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
@@ -501,7 +501,7 @@ module Key =
     | _ -> false
 
   /// Returns true if the key represents a control key (navigation, function keys, etc.)
-  let isControl (k: Key): Bool =
+  let isControl(k: Key): Bool =
     match k with
     | Enter | Escape | Backspace | Tab
     | LeftArrow | RightArrow | UpArrow | DownArrow
@@ -511,19 +511,19 @@ module Key =
     | _ -> false
 
   /// Display name of the key, e.g. `Enter` or `A`
-  let toString (k: Key): String =
+  let toString(k: Key): String =
     // toRepr prints the fully-qualified case name; keep just the last segment
-    (Stdlib.toRepr k)
-    |> Stdlib.String.split "."
+    (Stdlib.toRepr(k))
+    |> Stdlib.String.split(".")
     |> Stdlib.List.last
-    |> Stdlib.Option.withDefault ""
+    |> Stdlib.Option.withDefault("")
 
 
 module Modifiers =
   type Modifiers =
     { alt: Bool, ctrl: Bool, shift: Bool }
 
-  let toString (m: Modifiers): String =
+  let toString(m: Modifiers): String =
     let altPart =
       match m.alt with
       | true -> "ALT+"
@@ -560,8 +560,8 @@ module KeyRead =
       /// movement and render once. Ignoring it is safe and means "treat a flick as a single step".
       repeat: Int}
 
-  let toString (k: KeyRead): String =
-    (Modifiers.toString k.modifiers) + (Key.toString k.key)
+  let toString(k: KeyRead): String =
+    (Modifiers.toString(k.modifiers)) + (Key.toString(k.key))
 
-let readKey () : KeyRead.KeyRead =
-  Builtin.stdinReadKey ()
+let readKey(): KeyRead.KeyRead =
+  Builtin.stdinReadKey()

@@ -28,17 +28,17 @@ val mainBranchId = Builtin.scmMainBranchId
 val mainBranchName = "main"
 
 /// Whether <param branchId> is main.
-let isMain (branchId: Uuid) : Bool = branchId == mainBranchId
+let isMain(branchId: Uuid): Bool = branchId == mainBranchId
 
 /// A branch id read out of a TEXT column.
 ///
 /// The columns are TEXT, so this is the one direction that can fail. An absent or unreadable value is
 /// main: `parent_id` is NULL for a top-level branch, and a row nothing wrote an id into is not a branch
 /// anyone can stand on.
-let fromTextField (text: Stdlib.Option.Option<String>) : Uuid =
+let fromTextField(text: Stdlib.Option.Option<String>): Uuid =
   match text with
   | Some s ->
-    match Stdlib.Uuid.parse s with
+    match Stdlib.Uuid.parse(s) with
     | Ok id -> id
     | Error _ -> mainBranchId
   | None -> mainBranchId
@@ -56,12 +56,12 @@ type Branch =
     ops: Int64
     merged: Bool }
 
-let toBranch (row: SCM.Branches.BranchRow) : Branch =
+let toBranch(row: SCM.Branches.BranchRow): Branch =
   Branch
     { id = row.id
-      name = if row.name == "" then Stdlib.toString row.id else row.name
+      name = if row.name == "" then Stdlib.toString(row.id) else row.name
       parentBranchId =
-        if isMain row.parent then
+        if isMain(row.parent) then
           Stdlib.Option.Option.None
         else
           Stdlib.Option.Option.Some row.parent
@@ -70,36 +70,36 @@ let toBranch (row: SCM.Branches.BranchRow) : Branch =
 
 /// Every branch a view should offer, oldest first. Excludes archived ones, includes merged: a merged branch
 /// is still readable, which is the whole point of keeping it listed.
-let list () : List<Branch> =
-  SCM.Branches.list () |> Stdlib.List.map toBranch
+let list(): List<Branch> =
+  SCM.Branches.list() |> Stdlib.List.map(toBranch)
 
 /// One branch by id. None for main, and for an id nothing is registered under.
-let get (branchId: Uuid) : Stdlib.Option.Option<Branch> =
-  if isMain branchId then
+let get(branchId: Uuid): Stdlib.Option.Option<Branch> =
+  if isMain(branchId) then
     Stdlib.Option.Option.None
   else
-    list () |> Stdlib.List.findFirst (fun b -> b.id == branchId)
+    list() |> Stdlib.List.findFirst(fun b -> b.id == branchId)
 
 /// One branch by the name a person typed. Live branches only -- the same rule `switch` follows, since this
 /// is what a view's "go to branch" affordance lands on.
-let getByName (name: String) : Stdlib.Option.Option<Branch> =
-  match SCM.PackageOps.branchIdForName name with
-  | Some id -> get id
+let getByName(name: String): Stdlib.Option.Option<Branch> =
+  match SCM.PackageOps.branchIdForName(name) with
+  | Some id -> get(id)
   | None -> Stdlib.Option.Option.None
 
 /// Start a branch off <param parentId> and return it. Idempotent on the name: asking twice gets
 /// you the branch you already have, which is what `switch` does too.
-let create (name: String) (parentId: Uuid) : Stdlib.Option.Option<Branch> =
-  let (id, _created) = SCM.PackageOps.ensureBranch name parentId
-  get id
+let create(name: String, parentId: Uuid): Stdlib.Option.Option<Branch> =
+  let (id, _created) = SCM.PackageOps.ensureBranch(name, parentId)
+  get(id)
 
 /// Rename a branch. One UPDATE, because the name is an alias and nothing points at it -- op tags, per-name
 /// bases, relay bundles and parent links all reference the id.
 ///
 /// Refuses to take a name a LIVE branch already holds, so `switch <name>` stays unambiguous. Merged and
 /// archived branches don't block: their names are free again by design.
-let rename (branchId: Uuid) (newName: String) : Stdlib.Result.Result<Branch, String> =
-  let trimmed = Stdlib.String.trim newName
+let rename(branchId: Uuid, newName: String): Stdlib.Result.Result<Branch, String> =
+  let trimmed = Stdlib.String.trim(newName)
 
   if trimmed == "" then
     Stdlib.Result.Result.Error "a branch needs a name"
@@ -107,25 +107,25 @@ let rename (branchId: Uuid) (newName: String) : Stdlib.Result.Result<Branch, Str
     Stdlib.Result.Result.Error $"\"{mainBranchName}\" is taken; it is the trunk's name"
   else
     let taken =
-      match SCM.PackageOps.branchIdForName trimmed with
+      match SCM.PackageOps.branchIdForName(trimmed) with
       | Some existing -> existing != branchId
       | None -> false
 
     if taken then
       Stdlib.Result.Result.Error $"\"{trimmed}\" is already a live branch"
     else
-      let _ = SCM.Branches.setName branchId trimmed
+      let _ = SCM.Branches.setName(branchId, trimmed)
 
-      match get branchId with
+      match get(branchId) with
       | Some b -> Stdlib.Result.Result.Ok b
       | None -> Stdlib.Result.Result.Error "no such branch"
 
 /// Archive a branch: its unmerged ops are discarded and it leaves the listings. Nothing that reached its
 /// parent is touched.
-let delete (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
-  match get branchId with
+let delete(branchId: Uuid): Stdlib.Result.Result<Unit, String> =
+  match get(branchId) with
   | None -> Stdlib.Result.Result.Error "no such branch"
   | Some _ ->
-    match SCM.PackageOps.archiveBranch branchId with
+    match SCM.PackageOps.archiveBranch(branchId) with
     | Ok _ -> Stdlib.Result.Result.Ok()
     | Error e -> Stdlib.Result.Result.Error e

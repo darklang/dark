@@ -12,42 +12,42 @@ module Darklang.Cli.Tests.BuiltinGroups
 // `notEquals` -> `not`), and naming those would be pretending the artifact is a category.
 
 module BuiltinGroups =
-  let knownPrefixes () : List<String> =
-    Darklang.Cli.Builtins.knownGroups |> Stdlib.List.map (fun (p, _) -> p)
+  let knownPrefixes(): List<String> =
+    Darklang.Cli.Builtins.knownGroups |> Stdlib.List.map(fun (p, _) -> p)
 
-  let livePrefixes () : List<String> =
-    Darklang.LanguageTools.allBuiltinFns ()
-    |> Stdlib.List.map (fun f -> Darklang.Cli.Builtins.extractGroup f.name.name)
+  let livePrefixes(): List<String> =
+    Darklang.LanguageTools.allBuiltinFns()
+    |> Stdlib.List.map(fun f -> Darklang.Cli.Builtins.extractGroup(f.name.name))
 
   /// Prefixes carrying at least <param floor> builtins.
-  let substantial (floor: Int) : List<String> =
-    let live = livePrefixes ()
+  let substantial(floor: Int): List<String> =
+    let live = livePrefixes()
     live
     |> Stdlib.List.unique
-    |> Stdlib.List.filter (fun p ->
-      (Stdlib.List.length (Stdlib.List.filter live (fun q -> q == p))) >= floor)
+    |> Stdlib.List.filter(fun p ->
+      (Stdlib.List.length(Stdlib.List.filter(live, fun q -> q == p))) >= floor)
 
 
 // The floor, so neither test below can pass over an empty builtin set.
 test theBuiltinSetWasActuallyRead =
-  (Stdlib.List.length (BuiltinGroups.livePrefixes ()) > 400) |> Stdlib.Test.equal true
+  (Stdlib.List.length(BuiltinGroups.livePrefixes()) > 400) |> Stdlib.Test.equal(true)
 
 // A new family of builtins lands and nobody names it. The failure names the prefix.
 test everySubstantialPrefixHasADisplayName =
-  let known = BuiltinGroups.knownPrefixes ()
-  BuiltinGroups.substantial 3
-  |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.List.contains known p))
+  let known = BuiltinGroups.knownPrefixes()
+  BuiltinGroups.substantial(3)
+  |> Stdlib.List.filter(fun p -> Stdlib.Bool.not(Stdlib.List.contains(known, p)))
   |> Stdlib.List.sort
-  |> Stdlib.Test.equal []
+  |> Stdlib.Test.equal([])
 
 // A family is renamed or removed and its row is left behind, taking a slot in the display order.
 test noDisplayNameIsStale =
-  let live = Stdlib.List.unique (BuiltinGroups.livePrefixes ())
-  BuiltinGroups.knownPrefixes ()
-  |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.List.contains live p))
+  let live = Stdlib.List.unique(BuiltinGroups.livePrefixes())
+  BuiltinGroups.knownPrefixes()
+  |> Stdlib.List.filter(fun p -> Stdlib.Bool.not(Stdlib.List.contains(live, p)))
   |> Stdlib.List.sort
-  |> Stdlib.Test.equal []
+  |> Stdlib.Test.equal([])
 
 test noPrefixIsNamedTwice =
-  let known = BuiltinGroups.knownPrefixes ()
-  (Stdlib.List.length (Stdlib.List.unique known)) |> Stdlib.Test.equal (Stdlib.List.length known)
+  let known = BuiltinGroups.knownPrefixes()
+  (Stdlib.List.length(Stdlib.List.unique(known))) |> Stdlib.Test.equal(Stdlib.List.length(known))

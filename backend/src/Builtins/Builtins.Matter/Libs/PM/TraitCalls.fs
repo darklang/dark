@@ -274,7 +274,7 @@ let rec private calledPackageFns (expr : PT.Expr) : List<PT.Hash> =
 /// Could anything in this batch have a choice to record?
 ///
 /// Three clauses, and the third is the one an authoring batch needs. A save of
-/// `let f () = Stdlib.max 1L 2L` contains no operator and names no trait: its only dependency
+/// `let f() = Stdlib.max(1L, 2L)` contains no operator and names no trait: its only dependency
 /// is on `Stdlib.max`, an ordinary package fn. But `max` is BOUNDED, so this call is the only
 /// place that can record which implementation its type argument implied, and skipping the
 /// batch means a bounded call authored through the CLI records nothing.

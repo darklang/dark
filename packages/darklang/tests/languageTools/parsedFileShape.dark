@@ -12,35 +12,35 @@ module Darklang.LanguageTools.Parser.Parse.Tests
 // post-parse validation decides whether this is Test source — so an ordinary
 // typo like `valoops = 1` (a missing space after `val`) parses as one.
 
-let shape (source: String) : (Int * Int) =
-  match Darklang.LanguageTools.Parser.Parse.toWrittenTypes source with
+let shape(source: String): (Int * Int) =
+  match Darklang.LanguageTools.Parser.Parse.toWrittenTypes(source) with
   | Some(SourceFile file) ->
-    (Stdlib.List.length file.declarations, Stdlib.List.length file.exprsToEval)
+    (Stdlib.List.length(file.declarations), Stdlib.List.length(file.exprsToEval))
   | None -> (-1, -1)
 
 // The ordinary cases are untouched: one declaration, no trailing expressions.
 test realDeclarations =
-  Stdlib.Test.all
-    [ shape "val v = 1" |> Stdlib.Test.equal (1, 0)
-      shape "let f (x: Int): Int = x" |> Stdlib.Test.equal (1, 0)
-      shape "type T = Unit" |> Stdlib.Test.equal (1, 0)
-      shape "module M =\n  val v = 1" |> Stdlib.Test.equal (1, 0) ]
+  Stdlib.Test.all(
+    [ shape("val v = 1") |> Stdlib.Test.equal((1, 0))
+      shape("let f(x: Int): Int = x") |> Stdlib.Test.equal((1, 0))
+      shape("type T = Unit") |> Stdlib.Test.equal((1, 0))
+      shape("module M =\n  val v = 1") |> Stdlib.Test.equal((1, 0)) ])
 
 test notDeclarations =
-  Stdlib.Test.all
+  Stdlib.Test.all(
     [ // A bare expression belongs in exprsToEval, not declarations.
-      shape "1 + 1" |> Stdlib.Test.equal (0, 1)
+      shape("1 + 1") |> Stdlib.Test.equal((0, 1))
       // `actual = expected` parses as a test assertion. Both sides come back as
       // expressions rather than raising.
-      shape "valoops = 1" |> Stdlib.Test.equal (0, 2)
-      shape "x = 1" |> Stdlib.Test.equal (0, 2)
+      shape("valoops = 1") |> Stdlib.Test.equal((0, 2))
+      shape("x = 1") |> Stdlib.Test.equal((0, 2))
       // A plain string on the right is just an expression, so both sides lift -
       // despite reading like an error.
-      shape "someCall () = \"Error: nope\"" |> Stdlib.Test.equal (0, 2)
+      shape("someCall () = \"Error: nope\"") |> Stdlib.Test.equal((0, 2))
       // An expected-ERROR assertion has only the actual side to lift; `error` is
       // the literal keyword that makes it one (a plain string on the right is
       // just an expression, as above).
-      shape "someCall () = error \"nope\"" |> Stdlib.Test.equal (0, 1) ]
+      shape("someCall () = error \"nope\"") |> Stdlib.Test.equal((0, 1)) ])
 
 // The path that actually matters, and the one the top-level fix missed. A
 // `module` header wraps the rest of the file into a DModule, which is the shape
@@ -48,38 +48,38 @@ test notDeclarations =
 // raised on the same cases. The authoring editor strips the module line before
 // parsing, so only the highlighter hits this.
 test moduleHeadedFiles =
-  Stdlib.Test.all
-    [ shape "module Darklang.Foo\n\nvaloops = 1" |> Stdlib.Test.equal (1, 0)
-      shape "module Darklang.Foo\n\nlet f (x: Int): Int = x"
-      |> Stdlib.Test.equal (1, 0)
+  Stdlib.Test.all(
+    [ shape("module Darklang.Foo\n\nvaloops = 1") |> Stdlib.Test.equal((1, 0))
+      shape("module Darklang.Foo\n\nlet f(x: Int): Int = x")
+      |> Stdlib.Test.equal((1, 0))
       // `[<DB>]` used to be a declaration form of its own, lowering to a `TDB` type
       // reference. User datastores are gone, so the parser no longer knows the attribute:
       // it is now exactly as special as any other unrecognised one, which is the property
       // asserted just below rather than here.
-      shape "module Darklang.Foo\n\n[<DB>] type Counter = Int"
-      |> Stdlib.Test.equal (1, 0) ]
+      shape("module Darklang.Foo\n\n[<DB>] type Counter = Int")
+      |> Stdlib.Test.equal((1, 0)) ])
 
 // `[<DB>]` is not a form any more. Asserting equivalence with a nonsense attribute rather
 // than a fixed diagnostic count, because the count belongs to how the recovery happens to
 // work and would make this test fail for the wrong reason the next time that changes.
 test dbAttributeIsNoLongerSpecial =
   let dbDiags =
-    Darklang.LanguageTools.Parser.Parse.diagnostics
-      "module Darklang.Foo\n\n[<DB>] type Counter = Int"
-    |> Stdlib.List.map (fun (_r, m) -> m)
+    Darklang.LanguageTools.Parser.Parse.diagnostics(
+      "module Darklang.Foo\n\n[<DB>] type Counter = Int")
+    |> Stdlib.List.map(fun (_r, m) -> m)
   let nonsenseDiags =
-    Darklang.LanguageTools.Parser.Parse.diagnostics
-      "module Darklang.Foo\n\n[<Nonsense>] type Counter = Int"
-    |> Stdlib.List.map (fun (_r, m) -> m)
-  Stdlib.Test.all
+    Darklang.LanguageTools.Parser.Parse.diagnostics(
+      "module Darklang.Foo\n\n[<Nonsense>] type Counter = Int")
+    |> Stdlib.List.map(fun (_r, m) -> m)
+  Stdlib.Test.all(
     [ // the type still lands, as it does under any stray attribute
-      shape "module Darklang.Foo\n\n[<Nonsense>] type Counter = Int"
-      |> Stdlib.Test.equal (1, 0)
+      shape("module Darklang.Foo\n\n[<Nonsense>] type Counter = Int")
+      |> Stdlib.Test.equal((1, 0))
       // and DB is refused in the same breath, and in the same number of breaths
-      (Stdlib.List.length dbDiags > 0) |> Stdlib.Test.equal true
-      (Stdlib.List.length dbDiags) |> Stdlib.Test.equal (Stdlib.List.length nonsenseDiags) ]
+      (Stdlib.List.length(dbDiags) > 0) |> Stdlib.Test.equal(true)
+      (Stdlib.List.length(dbDiags)) |> Stdlib.Test.equal(Stdlib.List.length(nonsenseDiags)) ])
 
 // A real declaration alongside an assignment-shaped line: the declaration
 // survives, the assertion's two sides join exprsToEval.
 test mixedDeclarationsAndExpressions =
-  shape "val v = 1\noops = 2" |> Stdlib.Test.equal (1, 2)
+  shape("val v = 1\noops = 2") |> Stdlib.Test.equal((1, 2))

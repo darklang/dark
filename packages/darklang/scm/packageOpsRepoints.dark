@@ -9,50 +9,50 @@ module Darklang.SCM.PackageOps
 /// Deprecation is keyed on CONTENT, so it applies to every name holding that hash, which for a trivial
 /// value can be many unrelated ones. `locations` answers for MAIN only, so reading it alone under-reports
 /// the collateral on a branch -- precisely where a caller is about to warn someone about it.
-let namesAtContent (branchId: Uuid) (hash: String) (itemType: String) : List<String> =
+let namesAtContent(branchId: Uuid, hash: String, itemType: String): List<String> =
   let mainNames =
     // main-scoped: main's names for this content; the chain's names and rebinds are applied below.
-    Stdlib.Sqlite.rowsP
-      (localDb ())
+    Stdlib.Sqlite.rowsP(
+      localDb(),
       "SELECT owner, modules, name FROM locations
-       WHERE item_hash = @p0 AND item_type = @p1 AND unlisted_at IS NULL"
-      [ hash, itemType ]
-      (fun row ->
+       WHERE item_hash = @p0 AND item_type = @p1 AND unlisted_at IS NULL",
+      [ hash, itemType ],
+      fun row ->
         match
-          (Stdlib.Sqlite.textField row "owner",
-           Stdlib.Sqlite.textField row "modules",
-           Stdlib.Sqlite.textField row "name")
+          (Stdlib.Sqlite.textField(row, "owner"),
+           Stdlib.Sqlite.textField(row, "modules"),
+           Stdlib.Sqlite.textField(row, "name"))
         with
-        | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(Conflicts.fqn o m n)
+        | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(Conflicts.fqn(o, m, n))
         | _ -> Stdlib.Option.Option.None)
 
-  if SCM.Branch.isMain branchId then
+  if SCM.Branch.isMain(branchId) then
     mainNames
   else
     // The whole CHAIN, not the branch's own frontier: a parent branch's name for this content is
     // collateral too. And main's name is not, when the chain has rebound it away from this content.
-    let chain = chainBindings branchId
+    let chain = chainBindings(branchId)
 
     let branchNames =
       chain
-      |> Stdlib.List.filterMap (fun b ->
+      |> Stdlib.List.filterMap(fun b ->
         if b.hash == hash && b.itemType == itemType then
-          Stdlib.Option.Option.Some(Conflicts.fqn b.owner b.modules b.name)
+          Stdlib.Option.Option.Some(Conflicts.fqn(b.owner, b.modules, b.name))
         else
           Stdlib.Option.Option.None)
 
     let reboundAway =
       chain
-      |> Stdlib.List.filterMap (fun b ->
+      |> Stdlib.List.filterMap(fun b ->
         if b.hash != hash then
-          Stdlib.Option.Option.Some(Conflicts.fqn b.owner b.modules b.name)
+          Stdlib.Option.Option.Some(Conflicts.fqn(b.owner, b.modules, b.name))
         else
           Stdlib.Option.Option.None)
 
     let mainStill =
-      mainNames |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.contains reboundAway n))
+      mainNames |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(Stdlib.List.contains(reboundAway, n)))
 
-    Stdlib.List.unique (Stdlib.List.concat mainStill branchNames)
+    Stdlib.List.unique(Stdlib.List.concat(mainStill, branchNames))
 
 
 /// Where MAIN says each of <param hashes> lives. LIST-valued per hash on purpose: identical content is the
@@ -61,34 +61,34 @@ let namesAtContent (branchId: Uuid) (hash: String) (itemType: String) : List<Str
 ///
 /// main-scoped, by name and on purpose: the cascade preview asks what MAIN binds, and a branch's
 /// own names are added by the caller from the overlay.
-let mainNamesForHashes (hashes: List<String>) : List<(String * String)> =
+let mainNamesForHashes(hashes: List<String>): List<(String * String)> =
   match hashes with
   | [] -> []
   | _ ->
     // Chunked for the same reason as `Conflicts.localBindingsFor`: a wide cascade can produce more stale
     // hashes than SQLite will bind in one statement, and the over-cap failure reads as an empty repoint list.
-    Stdlib.List.unique hashes
+    Stdlib.List.unique(hashes)
     |> Conflicts.inChunks
-    |> Stdlib.List.map (fun chunk ->
+    |> Stdlib.List.map(fun chunk ->
       let sql =
         "SELECT item_hash, owner, modules, name FROM locations
          WHERE unlisted_at IS NULL AND item_hash IN ("
-        + (Conflicts.inPlaceholders chunk)
+        + (Conflicts.inPlaceholders(chunk))
         + ")"
 
-      Stdlib.Sqlite.rowsP
-        (localDb ())
-        sql
-        chunk
-        (fun row ->
+      Stdlib.Sqlite.rowsP(
+        localDb(),
+        sql,
+        chunk,
+        fun row ->
           match
-            (Stdlib.Sqlite.textField row "item_hash",
-             Stdlib.Sqlite.textField row "owner",
-             Stdlib.Sqlite.textField row "modules",
-             Stdlib.Sqlite.textField row "name")
+            (Stdlib.Sqlite.textField(row, "item_hash"),
+             Stdlib.Sqlite.textField(row, "owner"),
+             Stdlib.Sqlite.textField(row, "modules"),
+             Stdlib.Sqlite.textField(row, "name"))
           with
           | (Some h, Some o, Some m, Some n) ->
-            Stdlib.Option.Option.Some((h, Conflicts.fqn o m n))
+            Stdlib.Option.Option.Some((h, Conflicts.fqn(o, m, n)))
           | _ -> Stdlib.Option.Option.None))
     |> Stdlib.List.flatten
 
@@ -110,19 +110,19 @@ type Repoint =
 ///
 /// Three reads for the whole draft: the cascade, tagged with the binding it started from, the chain,
 /// and main's names. Asked per binding, a branch decoded its whole chain once per changed name.
-let draftRepoints
-  (changed: List<Conflicts.Binding>)
+let draftRepoints(
+  changed: List<Conflicts.Binding>)
   : List<Repoint> =
   let changedNames =
-    changed |> Stdlib.List.map (fun b -> Conflicts.fqn b.owner b.modules b.name)
+    changed |> Stdlib.List.map(fun b -> Conflicts.fqn(b.owner, b.modules, b.name))
 
   // `seed` is the binding's index in <param changed>, as `json_each` numbers it.
   let staleBySeed =
-    if Stdlib.List.isEmpty changed then
+    if Stdlib.List.isEmpty(changed) then
       Stdlib.Dict.empty
     else
-      Stdlib.Sqlite.rowsOrEmptyP
-        (localDb ())
+      Stdlib.Sqlite.rowsOrEmptyP(
+        localDb(),
         "WITH RECURSIVE seeds(seed, owner, modules, name, hash) AS (
            SELECT j.key, json_extract(j.value, '$[0]'), json_extract(j.value, '$[1]'),
                   json_extract(j.value, '$[2]'), json_extract(j.value, '$[3]')
@@ -139,60 +139,58 @@ let draftRepoints
            SELECT st.seed, d2.item_hash FROM package_dependencies d2
              JOIN stale st ON d2.depends_on_hash = st.hash
          )
-         SELECT DISTINCT CAST(seed AS TEXT) AS seed, hash FROM stale"
-        [ Stdlib.Json.serialize<List<List<String>>> (
-            changed |> Stdlib.List.map (fun b -> [ b.owner, b.modules, b.name, b.hash ])
-          ) ]
-      |> Stdlib.List.fold Stdlib.Dict.empty (fun acc row ->
-        match (Stdlib.Sqlite.textField row "seed", Stdlib.Sqlite.textField row "hash") with
+         SELECT DISTINCT CAST(seed AS TEXT) AS seed, hash FROM stale",
+        [ Stdlib.Json.serialize<List<List<String>>>(changed |> Stdlib.List.map(fun b -> [ b.owner, b.modules, b.name, b.hash ])) ])
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc row ->
+        match (Stdlib.Sqlite.textField(row, "seed"), Stdlib.Sqlite.textField(row, "hash")) with
         | (Some seed, Some h) ->
-          let rest = Stdlib.Dict.get acc seed |> Stdlib.Option.withDefault []
-          Stdlib.Dict.set acc seed (Stdlib.List.prepend rest h)
+          let rest = Stdlib.Dict.get(acc, seed) |> Stdlib.Option.withDefault([])
+          Stdlib.Dict.set(acc, seed, Stdlib.List.prepend(rest, h))
         | _ -> acc)
 
   let overlay =
-    match currentBranch () with
-    | id when SCM.Branch.isMain id -> []
+    match currentBranch() with
+    | id when SCM.Branch.isMain(id) -> []
     | branch ->
-      chainBindings branch
-      |> Stdlib.List.map (fun bind ->
-        (bind.hash, Conflicts.fqn bind.owner bind.modules bind.name))
+      chainBindings(branch)
+      |> Stdlib.List.map(fun bind ->
+        (bind.hash, Conflicts.fqn(bind.owner, bind.modules, bind.name)))
 
-  let overlayHashes = overlay |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.first pair)
+  let overlayHashes = overlay |> Stdlib.List.map(fun pair -> Stdlib.Tuple2.first(pair))
 
   // Main answers only for hashes the branch doesn't already place.
   let mainNames =
     staleBySeed
     |> Stdlib.Dict.values
     |> Stdlib.List.flatten
-    |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains overlayHashes h))
+    |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(overlayHashes, h)))
     |> mainNamesForHashes
-    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc pair ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc pair ->
       let (h, n) = pair
-      let rest = Stdlib.Dict.get acc h |> Stdlib.Option.withDefault []
-      Stdlib.Dict.set acc h (Stdlib.List.prepend rest n))
+      let rest = Stdlib.Dict.get(acc, h) |> Stdlib.Option.withDefault([])
+      Stdlib.Dict.set(acc, h, Stdlib.List.prepend(rest, n)))
 
   changed
-  |> Stdlib.List.indexedMap (fun i b ->
-    let cause = Conflicts.fqn b.owner b.modules b.name
-    let hashes = Stdlib.Dict.get staleBySeed (Stdlib.toString i) |> Stdlib.Option.withDefault []
+  |> Stdlib.List.indexedMap(fun i b ->
+    let cause = Conflicts.fqn(b.owner, b.modules, b.name)
+    let hashes = Stdlib.Dict.get(staleBySeed, Stdlib.toString(i)) |> Stdlib.Option.withDefault([])
 
     let fromOverlay =
       overlay
-      |> Stdlib.List.filter (fun pair -> Stdlib.List.contains hashes (Stdlib.Tuple2.first pair))
-      |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.second pair)
+      |> Stdlib.List.filter(fun pair -> Stdlib.List.contains(hashes, Stdlib.Tuple2.first(pair)))
+      |> Stdlib.List.map(fun pair -> Stdlib.Tuple2.second(pair))
 
     let fromMain =
       hashes
-      |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.contains overlayHashes h))
-      |> Stdlib.List.map (fun h -> Stdlib.Dict.get mainNames h |> Stdlib.Option.withDefault [])
+      |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(overlayHashes, h)))
+      |> Stdlib.List.map(fun h -> Stdlib.Dict.get(mainNames, h) |> Stdlib.Option.withDefault([]))
       |> Stdlib.List.flatten
 
-    Stdlib.List.concat fromOverlay fromMain
+    Stdlib.List.concat(fromOverlay, fromMain)
     |> Stdlib.List.unique
-    |> Stdlib.List.map (fun n -> Repoint { name = n, uses = cause }))
+    |> Stdlib.List.map(fun n -> Repoint { name = n, uses = cause }))
   |> Stdlib.List.flatten
-  |> Stdlib.List.filter (fun r ->
-    Stdlib.Bool.not (Stdlib.List.contains changedNames r.name))
-  |> Stdlib.List.uniqueBy (fun r -> r.name)
-  |> Stdlib.List.sortBy (fun r -> r.name)
+  |> Stdlib.List.filter(fun r ->
+    Stdlib.Bool.not(Stdlib.List.contains(changedNames, r.name)))
+  |> Stdlib.List.uniqueBy(fun r -> r.name)
+  |> Stdlib.List.sortBy(fun r -> r.name)

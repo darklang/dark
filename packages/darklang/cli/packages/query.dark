@@ -1,9 +1,9 @@
 module Darklang.Cli.Packages.Query
 
 /// Search for all contents (modules, types, values, functions, traits, impls, tests) in a given module path
-let allDirectDescendants
-  (branchId: Uuid)
-  (modulePath: List<String>)
+let allDirectDescendants(
+  branchId: Uuid,
+  modulePath: List<String>)
   : LanguageTools.ProgramTypes.Search.SearchResults =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
@@ -13,7 +13,7 @@ let allDirectDescendants
         entityTypes = []
         exactMatch = false }
 
-  LanguageTools.PackageManager.Search.search branchId query
+  LanguageTools.PackageManager.Search.search(branchId, query)
 
 
 /// Names of everything directly under `modulePath`, grouped by kind:
@@ -22,9 +22,9 @@ let allDirectDescendants
 ///
 /// This is what completion wants -- `allDirectDescendants` materializes every matched item's full
 /// definition to hand back names.
-let allDirectDescendantNames
-  (branchId: Uuid)
-  (modulePath: List<String>)
+let allDirectDescendantNames(
+  branchId: Uuid,
+  modulePath: List<String>)
   : (List<String> * List<String> * List<String> * List<String> * List<String> *
      List<String> * List<String>) =
   let query =
@@ -35,7 +35,7 @@ let allDirectDescendantNames
         entityTypes = []
         exactMatch = false }
 
-  LanguageTools.PackageManager.Search.searchNames branchId query
+  LanguageTools.PackageManager.Search.searchNames(branchId, query)
 
 
 /// Names and hashes of everything directly under `modulePath`:
@@ -43,9 +43,9 @@ let allDirectDescendantNames
 /// reduced and sorted.
 ///
 /// For listings, which need the hash to render the deprecation mark but never the definition.
-let allDirectDescendantNamesAndHashes
-  (branchId: Uuid)
-  (modulePath: List<String>)
+let allDirectDescendantNamesAndHashes(
+  branchId: Uuid,
+  modulePath: List<String>)
   : (List<String> *
      List<(String * LanguageTools.ProgramTypes.Hash)> *
      List<(String * LanguageTools.ProgramTypes.Hash)> *
@@ -61,27 +61,27 @@ let allDirectDescendantNamesAndHashes
         entityTypes = []
         exactMatch = false }
 
-  LanguageTools.PackageManager.Search.searchNamesAndHashes branchId query
+  LanguageTools.PackageManager.Search.searchNamesAndHashes(branchId, query)
 
 
 /// Drop items that are deprecated-and-hidden, for a (name, hash) listing.
-let filterDeprecatedPairs
-  (items: List<(String * LanguageTools.ProgramTypes.Hash)>)
-  (sets: DeprecationSets)
-  (includeDeprecated: Bool)
+let filterDeprecatedPairs(
+  items: List<(String * LanguageTools.ProgramTypes.Hash)>,
+  sets: DeprecationSets,
+  includeDeprecated: Bool)
   : List<(String * LanguageTools.ProgramTypes.Hash)> =
   if includeDeprecated then
     items
   else
     items
-    |> Stdlib.List.filter (fun (_name, hash) -> Stdlib.Bool.not (isHidden sets hash))
+    |> Stdlib.List.filter(fun (_name, hash) -> Stdlib.Bool.not(isHidden(sets, hash)))
 
 
 /// Search for a specific entity by name in a given module path (exact match)
-let searchExactMatch
-  (branchId: Uuid)
-  (modulePath: List<String>)
-  (entityName: String)
+let searchExactMatch(
+  branchId: Uuid,
+  modulePath: List<String>,
+  entityName: String)
   : LanguageTools.ProgramTypes.Search.SearchResults =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
@@ -91,28 +91,27 @@ let searchExactMatch
         entityTypes = []
         exactMatch = true }
 
-  LanguageTools.PackageManager.Search.search branchId query
+  LanguageTools.PackageManager.Search.search(branchId, query)
 
 
 /// Check if search results contain any content
-let hasContent (r: LanguageTools.ProgramTypes.Search.SearchResults) : Bool =
+let hasContent(r: LanguageTools.ProgramTypes.Search.SearchResults): Bool =
   (r.submodules != []) || (r.types != []) || (r.fns != []) || (r.values != [])
   || (r.traits != []) || (r.impls != [])
   || (r.tests != [])
 
 
 /// Extract direct submodule names from the current module path
-let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResults) (currentPathLength: Int) : List<String> =
+let getDirectSubmodules(results: LanguageTools.ProgramTypes.Search.SearchResults, currentPathLength: Int): List<String> =
   results.submodules
-  |> Stdlib.List.filterMap (fun modulePath ->
-    match Stdlib.List.drop modulePath currentPathLength with
+  |> Stdlib.List.filterMap(fun modulePath ->
+    match Stdlib.List.drop(modulePath, currentPathLength) with
     | [] -> Stdlib.Option.Option.None
     | nextPart :: _ ->
-      if Stdlib.String.isEmpty nextPart then
+      if Stdlib.String.isEmpty(nextPart) then
         Stdlib.Option.Option.None
       else
-        Stdlib.Option.Option.Some nextPart
-  )
+        Stdlib.Option.Option.Some nextPart)
   |> Stdlib.List.unique
   |> Stdlib.List.sort
 
@@ -134,13 +133,13 @@ type DeprecationSets =
 
 
 /// Build a Dict<String, Bool> keyed by each hash's underlying hex string.
-let hashListToDict
-  (hashes: List<LanguageTools.ProgramTypes.Hash>)
+let hashListToDict(
+  hashes: List<LanguageTools.ProgramTypes.Hash>)
   : Dict<String, Bool> =
   hashes
-  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc hash ->
-    let key = LanguageTools.ProgramTypes.hashToString hash
-    Stdlib.Dict.set acc key true)
+  |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc hash ->
+    let key = LanguageTools.ProgramTypes.hashToString(hash)
+    Stdlib.Dict.set(acc, key, true))
 
 
 /// The deprecation sets, as <param branchId> sees them.
@@ -149,63 +148,63 @@ let hashListToDict
 /// The fold is main-only -- a branch's ops sit inert until it merges -- so this is an overlay, the
 /// same way a branch's NAMES are an overlay rather than rows of their own. Until this consulted the
 /// branch, deprecating on a branch changed nothing there and `view` went on calling the item live.
-let loadDeprecationSets (branchId: Uuid) : DeprecationSets =
-  let (all, hidden) = Builtin.pmGetDeprecationSets branchId
+let loadDeprecationSets(branchId: Uuid): DeprecationSets =
+  let (all, hidden) = Builtin.pmGetDeprecationSets(branchId)
   DeprecationSets
-    { allDeprecated = hashListToDict all
-      hidden = hashListToDict hidden }
+    { allDeprecated = hashListToDict(all)
+      hidden = hashListToDict(hidden) }
 
 
-let memberOf
-  (d: Dict<String, Bool>)
-  (hash: LanguageTools.ProgramTypes.Hash)
+let memberOf(
+  d: Dict<String, Bool>,
+  hash: LanguageTools.ProgramTypes.Hash)
   : Bool =
-  Stdlib.Dict.containsKey d (LanguageTools.ProgramTypes.hashToString hash)
+  Stdlib.Dict.containsKey(d, LanguageTools.ProgramTypes.hashToString(hash))
 
 
 /// Whether an item hash should be hidden by default visibility.
-let isHidden
-  (sets: DeprecationSets)
-  (hash: LanguageTools.ProgramTypes.Hash)
+let isHidden(
+  sets: DeprecationSets,
+  hash: LanguageTools.ProgramTypes.Hash)
   : Bool =
-  memberOf sets.hidden hash
+  memberOf(sets.hidden, hash)
 
 
 /// Whether an item hash is flagged as deprecated at all (shown-with-icon or hidden).
-let isDeprecated
-  (sets: DeprecationSets)
-  (hash: LanguageTools.ProgramTypes.Hash)
+let isDeprecated(
+  sets: DeprecationSets,
+  hash: LanguageTools.ProgramTypes.Hash)
   : Bool =
-  memberOf sets.allDeprecated hash
+  memberOf(sets.allDeprecated, hash)
 
 
 /// Filter SearchResults by the default visibility rule. Pass `includeDeprecated = true`
 /// to return results untouched.
-let filterDeprecated
-  (results: LanguageTools.ProgramTypes.Search.SearchResults)
-  (sets: DeprecationSets)
-  (includeDeprecated: Bool)
+let filterDeprecated(
+  results: LanguageTools.ProgramTypes.Search.SearchResults,
+  sets: DeprecationSets,
+  includeDeprecated: Bool)
   : LanguageTools.ProgramTypes.Search.SearchResults =
   if includeDeprecated then
     results
   else
     LanguageTools.ProgramTypes.Search.SearchResults
       { submodules = results.submodules
-        types = results.types |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
-        values = results.values |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
-        fns = results.fns |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
-        traits = results.traits |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
-        impls = results.impls |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
-        tests = results.tests |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash)) }
+        types = results.types |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
+        values = results.values |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
+        fns = results.fns |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
+        traits = results.traits |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
+        impls = results.impls |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
+        tests = results.tests |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash))) }
 
 
 /// Deprecation marker rendered after an item name when it's shown despite
 /// being deprecated. Kept short to avoid cluttering lists.
-let deprecationMarker
-  (sets: DeprecationSets)
-  (hash: LanguageTools.ProgramTypes.Hash)
+let deprecationMarker(
+  sets: DeprecationSets,
+  hash: LanguageTools.ProgramTypes.Hash)
   : String =
-  if isDeprecated sets hash then " ⚠" else ""
+  if isDeprecated(sets, hash) then " ⚠" else ""
 
 
 /// Forward dependencies of an item: the hashes it references, each with its kind.
@@ -214,7 +213,7 @@ let deprecationMarker
 ///
 /// Takes no branch: `package_dependencies` is content-addressed, one row set per item hash, and a branch's
 /// items fold their content in precisely so their edges are recorded.
-let getDependencies
-  (hash: LanguageTools.ProgramTypes.Hash)
+let getDependencies(
+  hash: LanguageTools.ProgramTypes.Hash)
   : List<(LanguageTools.ProgramTypes.Hash * String)> =
-  SCM.Deps.dependenciesOf hash
+  SCM.Deps.dependenciesOf(hash)

@@ -202,7 +202,7 @@ version.
 module Darklang.Stdlib.Host
 type EventSpec = Key | StoreChanged | Timer of ms: Int64 | ExecDone of id: Uuid
 type Event = Key of KeyRead | StoreChanged of Stdlib.Live.Change | Timer | ExecDone of id: Uuid
-let await (specs: List<EventSpec>) : Event
+let await(specs: List<EventSpec>): Event
 ```
 
 Under the scheduler the calling process parks on the first spec to fire.
@@ -310,10 +310,10 @@ closure does not wait. Every write (`print`, `File.write`, a POST, a db write)
 runs when it is reached, in program order. So
 
 ```
-let pages = List.map urls (fun u -> HttpClient.get u [])  // every GET in flight, at once
-Stdlib.printLine "fetching"                              // a write: runs now
-let first = List.head pages                              // the first GET only
-Cli.FileSystem.writeFile out first.body                  // in order
+let pages = List.map(urls, fun u -> HttpClient.get(u, []))  // every GET in flight, at once
+Stdlib.printLine("fetching")                               // a write: runs now
+let first = List.head(pages)                               // the first GET only
+Cli.FileSystem.writeFile(out, first.body)                  // in order
 ```
 
 and a fold that pushes each response onto a list, a recursion that builds one,
@@ -338,7 +338,7 @@ raises where `f` first uses `a`):
 - a trait method's arguments; `if`, `&&`, `||`, string interpolation, dict keys
 - a `let` or `match` pattern, only where it looks at a value rather than
   binding a name: `h :: _` on a mapped list waits for the head alone
-- `Stdlib.await x` (through the builtin `runtimeForce`), and the end of the run
+- `Stdlib.await(x)` (through the builtin `runtimeForce`), and the end of the run
 
 How it works (`Interpreter.Promises`, `LibExecution.Pending`):
 
@@ -471,13 +471,13 @@ defaults came from.
 
 ## `Exec.spawn`, `await`, `awaitWithin`, `select`, `cancel`
 
-`Exec.spawn f` starts `f ()` as a process of its own on a worker (the least
+`Exec.spawn(f)` starts `f ()` as a process of its own on a worker (the least
 loaded), under the access the caller had at the spawn, like a closure, and
-hands back a `Handle<'a>`; `Exec.await h` is the value it finished with, or
+hands back a `Handle<'a>`; `Exec.await(h)` is the value it finished with, or
 its error raised again with the child's frames kept below the caller's;
-`Exec.awaitWithin ms h` is `None` after `ms` milliseconds and leaves the
-process running; `Exec.select hs` is the first to finish with its value.
-`Exec.cancel h` asks it to stop (cancel and kill, and what reaches children:
+`Exec.awaitWithin(ms, h)` is `None` after `ms` milliseconds and leaves the
+process running; `Exec.select(hs)` is the first to finish with its value.
+`Exec.cancel(h)` asks it to stop (cancel and kill, and what reaches children:
 the "`dark ps`" section). `spawn` carries the
 `Concurrency` effect, ambient and allowed by the default instance policy: a
 spawned process can do nothing the spawner could not. An install whose policy
@@ -507,8 +507,7 @@ nested VM on the host stack, remains for the callers in the Edges section.)
   pushes the callable's frame in the same VM from the calling frame, with
   `next` on it (`CallFrame.continuation`), and stops the drain as it would for
   any pushed frame. A builtin or package function passed as the callable is
-  called through the ordinary paths and its result driven straight on; a
-  partial application answers the applied lambda, as `Apply` does.
+  called through the ordinary paths and its result driven straight on.
 - When that frame returns, its result does not go into the caller's register:
   `returnFromFrame` hands it to `next`, and `drive` looks at what `next`
   answered. A further request (the next element) pushes the next frame at
@@ -568,7 +567,7 @@ took the request, before the handler is spawned) and the `onListening`
 callback.
 
 Tests (`Scheduler.Tests.fs`, the frames group): a process parked inside
-`List.map f` or a stream transform shows the lambda's frame in `ps` and
+`List.map(xs, f)` or a stream transform shows the lambda's frame in `ps` and
 resumes; a tight loop in a mapped lambda is preempted; an error in one names
 the lambda's frame; a transform over a stream whose source waits on the host
 before every element runs as a frame, scheduled and unscheduled. The cost is
@@ -1172,7 +1171,7 @@ values (`noteValue` and `storeExprResult` in `Interpreter.fs`, `DebugSymbols` in
   id as `Stdlib.Exec.Handle { id = ... }`.
 - A process run (`Stdlib.Cli.execute`) parks now (`Host.blocking`); a file or libc call
   never does. A test process that parks on the host: run `sleep 1`; one that parks
-  forever: `Builtin.testGateWait n`, released by `Gates.release n` from F#.
+  forever: `Builtin.testGateWait(n)`, released by `Gates.release n` from F#.
 - `exec.maxInflight` is a `mutable` in `Interpreter.Promises`, not a config key, because one
   test lowers it to 2 to see the bound hold.
 - Two traps under the perf gate, both in `docs/perf/history.md`: a `scripts/dev/build

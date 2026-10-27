@@ -1,46 +1,46 @@
 module Darklang.Cli.Installation.Update
 
 
-let execute (state: AppState) (args: List<String>) : AppState =
-  let currentVersion = Helpers.cliVersion ()
-  let currentMode = Installation.System.getInstallationMode ()
-  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+let execute(state: AppState, args: List<String>): AppState =
+  let currentVersion = Helpers.cliVersion()
+  let currentMode = Installation.System.getInstallationMode()
+  let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
 
   let parsed =
-    Cli.FlagParser.parse
-      (Cli.FlagParser.Spec { flags = [ ("--yes", [ "-y" ]) ], valueFlags = [ ("--to", []) ] })
-      args
+    Cli.FlagParser.parse(
+      Cli.FlagParser.Spec { flags = [ ("--yes", [ "-y" ]) ], valueFlags = [ ("--to", []) ] },
+      args)
 
   match parsed.errors with
   | _ :: _ ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.FlagParser.parseErrorsMessage parsed.errors))
-    Stdlib.printLine (help state)
-    Cli.exitWith state false
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(Cli.FlagParser.parseErrorsMessage(parsed.errors)))
+    Stdlib.printLine(help(state))
+    Cli.exitWith(state, false)
   | [] ->
 
-  let pinned = Cli.FlagParser.getOption parsed "--to"
+  let pinned = Cli.FlagParser.getOption(parsed, "--to")
 
   let replace =
     match currentMode with
-    | Installed -> fun () -> Installation.Download.installRelease host pinned
-    | Portable -> fun () -> Installation.Download.updatePortableInPlace host pinned
+    | Installed -> fun () -> Installation.Download.installRelease(host, pinned)
+    | Portable -> fun () -> Installation.Download.updatePortableInPlace(host, pinned)
 
-  Stdlib.printLine $"Checking for updates from Darklang CLI {currentVersion}..."
+  Stdlib.printLine($"Checking for updates from Darklang CLI {currentVersion}...")
 
-  match Installation.System.updateIfAvailable currentVersion pinned replace with
+  match Installation.System.updateIfAvailable(currentVersion, pinned, replace) with
   | Ok message ->
-    Stdlib.printLine (View.formatSuccess message)
+    Stdlib.printLine(View.formatSuccess(message))
     state
   | Error e ->
-    Stdlib.printLine (View.formatError e)
+    Stdlib.printLine(View.formatError(e))
     state
 
 
-let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [ "Usage: update [--to <tag>] [--yes|-y]"
     "Update Darklang CLI to the latest version."
     ""
@@ -53,4 +53,4 @@ let help (_state: AppState) : String =
     "  --to <tag>  Install this release instead of the latest (e.g. v0.0.42),"
     "              even an older one. Refused if it can't read your store."
     "  --yes, -y   Accepted for scripts; update never prompts" ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")

@@ -3,25 +3,25 @@ module Darklang.Cli.Packages.Location
 
 /// Parse a location string relative to current position
 /// Handles absolute paths (/Darklang.Foo.bar) and relative paths (bar, Foo.bar)
-let parseRelativeTo
-  (currentLocation: Packages.PackageLocation)
-  (location: String)
+let parseRelativeTo(
+  currentLocation: Packages.PackageLocation,
+  location: String)
   : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
   // Get the current module path
-  let currentPath = Traversal.getCurrentModulePath currentLocation
+  let currentPath = Traversal.getCurrentModulePath(currentLocation)
 
   // Check if it's an absolute path
-  let isAbsolute = Stdlib.String.startsWith location "/"
+  let isAbsolute = Stdlib.String.startsWith(location, "/")
 
   let parts =
     if isAbsolute then
       // Remove leading slash and split
-      let withoutSlash = Stdlib.String.dropFirst location 1
-      Stdlib.String.split withoutSlash "."
+      let withoutSlash = Stdlib.String.dropFirst(location, 1)
+      Stdlib.String.split(withoutSlash, ".")
     else
       // Relative path - combine current path with relative path
-      let relativeParts = Stdlib.String.split location "."
-      Stdlib.List.concat currentPath relativeParts
+      let relativeParts = Stdlib.String.split(location, ".")
+      Stdlib.List.concat(currentPath, relativeParts)
 
   match parts with
   | [] -> Stdlib.Result.Result.Error "Empty location"
@@ -32,18 +32,18 @@ let parseRelativeTo
     Stdlib.Result.Result.Error
       $"a name has three parts, Owner.Module.name; try `Me.{modul}.{name}`"
   | owner :: rest ->
-    let name = (Stdlib.List.last rest) |> Builtin.unwrap
-    let modules = Stdlib.List.dropLast rest
+    let name = (Stdlib.List.last(rest)) |> Builtin.unwrap
+    let modules = Stdlib.List.dropLast(rest)
 
     // Module segments must be capitalised. A lowercase one is read as the item's NAME,
     // so `Zz.low.f` authors `Zz.low`, and every later reference fails with "Zz.low not
     // found" -- far from here. Owners are exempt.
     let badModule =
       modules
-      |> Stdlib.List.findFirst (fun m ->
-        match Stdlib.String.toList m with
+      |> Stdlib.List.findFirst(fun m ->
+        match Stdlib.String.toList(m) with
         | [] -> true
-        | first :: _ -> Stdlib.Bool.not (Stdlib.Char.isUppercase first))
+        | first :: _ -> Stdlib.Bool.not(Stdlib.Char.isUppercase(first)))
 
     match badModule with
     | Some bad ->

@@ -13,15 +13,15 @@ type PackageLocation =
   | Test of location: LanguageTools.ProgramTypes.PackageLocation
 
 /// The module path a location sits in: the module itself, or the module an item lives in.
-let modulePathOf (location: PackageLocation) : List<String> =
+let modulePathOf(location: PackageLocation): List<String> =
   match location with
   | Module path -> path
-  | Type t -> Stdlib.List.prepend t.modules t.owner
-  | Value v -> Stdlib.List.prepend v.modules v.owner
-  | Function f -> Stdlib.List.prepend f.modules f.owner
-  | Trait t -> Stdlib.List.prepend t.modules t.owner
-  | Impl i -> Stdlib.List.prepend i.modules i.owner
-  | Test t -> Stdlib.List.prepend t.modules t.owner
+  | Type t -> Stdlib.List.prepend(t.modules, t.owner)
+  | Value v -> Stdlib.List.prepend(v.modules, v.owner)
+  | Function f -> Stdlib.List.prepend(f.modules, f.owner)
+  | Trait t -> Stdlib.List.prepend(t.modules, t.owner)
+  | Impl i -> Stdlib.List.prepend(i.modules, i.owner)
+  | Test t -> Stdlib.List.prepend(t.modules, t.owner)
 
 
 type EntityType =
@@ -37,31 +37,31 @@ type State =
   { currentLocation: PackageLocation
     locationHistory: List<PackageLocation> }
 
-let initState () : State =
+let initState(): State =
   State
     { currentLocation = PackageLocation.Module []
       locationHistory = [] }
 
 
-let formatLocation (location: PackageLocation) : String =
+let formatLocation(location: PackageLocation): String =
   match location with
   | Module path ->
-    if Stdlib.List.isEmpty path then
+    if Stdlib.List.isEmpty(path) then
       "/ (root)"
     else
-      $"/{Stdlib.String.join path "."} (module)"
+      $"/{Stdlib.String.join(path, ".")} (module)"
   | Type loc ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (type)"
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (type)"
   | Value loc ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (value)"
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (value)"
   | Function loc ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (fn)"
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (fn)"
   | Trait loc ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (trait)"
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (trait)"
   | Impl loc ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (impl)"
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (impl)"
   | Test loc ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (test)"
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (test)"
 
 
 /// The definition a person typed, from the arguments after the item's name.
@@ -72,26 +72,26 @@ let formatLocation (location: PackageLocation) : String =
 /// argument has to go first. A lone argument naming a file that exists reads the
 /// file, the way `module` does; a definition is never one token, so the two cannot
 /// be confused.
-let definitionFromArgs (args: List<String>) : String =
+let definitionFromArgs(args: List<String>): String =
   let withoutSeparator =
     match args with
     | "=" :: rest -> rest
     | parts -> parts
 
   match withoutSeparator with
-  | [ "-" ] -> Stdlib.Cli.Stdin.readAll ()
+  | [ "-" ] -> Stdlib.Cli.Stdin.readAll()
   // A file, when the one argument could be one: a declaration has spaces, a path here does
   // not, and asking the host about a declaration-shaped "path" that is longer than a file
   // name may fail closed (the link check treats what it cannot inspect as a link).
-  | [ path ] when (if Stdlib.String.contains path " " then false else Stdlib.Cli.File.exists path) ->
-    match Stdlib.Cli.File.readText path with
+  | [ path ] when (if Stdlib.String.contains(path, " ") then false else Stdlib.Cli.File.exists(path)) ->
+    match Stdlib.Cli.File.readText(path) with
     | Ok source -> source
     | Error _ -> path
   | parts ->
-    let joined = Stdlib.String.join parts " " |> Stdlib.String.trim
+    let joined = Stdlib.String.join(parts, " ") |> Stdlib.String.trim
 
-    if Stdlib.String.startsWith joined "=" then
-      Stdlib.String.dropFirst joined 1 |> Stdlib.String.trim
+    if Stdlib.String.startsWith(joined, "=") then
+      Stdlib.String.dropFirst(joined, 1) |> Stdlib.String.trim
     else
       joined
 
@@ -102,58 +102,58 @@ let definitionFromArgs (args: List<String>) : String =
 ///
 /// Both sides of the comparison are built by this, so "what did the author write" and "what does
 /// this name say now" are the same question asked of two declarations.
-let docsOfFn
-  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+let docsOfFn(
+  fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : List<(LanguageTools.ProgramTypes.DocPart * String)> =
   let params =
     fn.parameters
-    |> Stdlib.List.indexedMap (fun i p ->
+    |> Stdlib.List.indexedMap(fun i p ->
       (LanguageTools.ProgramTypes.DocPart.Parameter i, p.description))
 
-  Stdlib.List.prepend
-    params
-    (LanguageTools.ProgramTypes.DocPart.WholeItem, fn.description)
+  Stdlib.List.prepend(
+    params,
+    (LanguageTools.ProgramTypes.DocPart.WholeItem, fn.description))
 
 
-let docsOfType
-  (t: LanguageTools.ProgramTypes.PackageType.PackageType)
+let docsOfType(
+  t: LanguageTools.ProgramTypes.PackageType.PackageType)
   : List<(LanguageTools.ProgramTypes.DocPart * String)> =
   let nested =
     match t.declaration.definition with
     | Record fields ->
       fields
-      |> Stdlib.List.map (fun f ->
+      |> Stdlib.List.map(fun f ->
         (LanguageTools.ProgramTypes.DocPart.RecordField f.name, f.description))
     | Enum cases ->
       cases
-      |> Stdlib.List.map (fun c ->
+      |> Stdlib.List.map(fun c ->
         (LanguageTools.ProgramTypes.DocPart.EnumCase c.name, c.description))
     | Alias _ -> []
 
-  Stdlib.List.prepend
-    nested
-    (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)
+  Stdlib.List.prepend(
+    nested,
+    (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
 
 
 /// Every doc these authored ops carry, for the item they declare.
-let authoredDocs
-  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+let authoredDocs(
+  ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : List<(LanguageTools.ProgramTypes.DocPart * String)> =
   ops
-  |> Stdlib.List.filterMap (fun op ->
+  |> Stdlib.List.filterMap(fun op ->
     match op with
-    | AddFn fn -> Stdlib.Option.Option.Some(docsOfFn fn)
-    | AddType t -> Stdlib.Option.Option.Some(docsOfType t)
+    | AddFn fn -> Stdlib.Option.Option.Some(docsOfFn(fn))
+    | AddType t -> Stdlib.Option.Option.Some(docsOfType(t))
     | AddValue v ->
       Stdlib.Option.Option.Some(
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ]
       )
     | AddTrait t ->
       Stdlib.Option.Option.Some(
-        Stdlib.List.prepend
+        Stdlib.List.prepend(
           (t.methods
-           |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
-          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)
+           |> Stdlib.List.map(fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description))),
+          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
       )
     | AddTraitImpl i ->
       Stdlib.Option.Option.Some(
@@ -169,59 +169,59 @@ let authoredDocs
 
 /// What <param location> says NOW at each part: its own words where it has said any, and its
 /// declaration's where it has not.
-let currentDocs
-  (branchId: Uuid)
-  (location: LanguageTools.ProgramTypes.PackageLocation)
-  (kind: LanguageTools.ProgramTypes.ItemKind)
-  (hash: LanguageTools.ProgramTypes.Hash)
+let currentDocs(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  hash: LanguageTools.ProgramTypes.Hash)
   : List<(LanguageTools.ProgramTypes.DocPart * String)> =
   let declared =
     match kind with
     | Fn ->
-      LanguageTools.PackageManager.Function.get hash
-      |> Stdlib.Option.map (fun fn -> docsOfFn fn)
-      |> Stdlib.Option.withDefault []
+      LanguageTools.PackageManager.Function.get(hash)
+      |> Stdlib.Option.map(fun fn -> docsOfFn(fn))
+      |> Stdlib.Option.withDefault([])
     | Type ->
-      LanguageTools.PackageManager.Type.get hash
-      |> Stdlib.Option.map (fun t -> docsOfType t)
-      |> Stdlib.Option.withDefault []
+      LanguageTools.PackageManager.Type.get(hash)
+      |> Stdlib.Option.map(fun t -> docsOfType(t))
+      |> Stdlib.Option.withDefault([])
     | Value ->
-      LanguageTools.PackageManager.Value.get hash
-      |> Stdlib.Option.map (fun v ->
+      LanguageTools.PackageManager.Value.get(hash)
+      |> Stdlib.Option.map(fun v ->
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ])
-      |> Stdlib.Option.withDefault []
+      |> Stdlib.Option.withDefault([])
     | Trait ->
-      LanguageTools.PackageManager.Trait.get hash
-      |> Stdlib.Option.map (fun t ->
-        Stdlib.List.prepend
+      LanguageTools.PackageManager.Trait.get(hash)
+      |> Stdlib.Option.map(fun t ->
+        Stdlib.List.prepend(
           (t.methods
-           |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
-          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
-      |> Stdlib.Option.withDefault []
+           |> Stdlib.List.map(fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description))),
+          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)))
+      |> Stdlib.Option.withDefault([])
     | TraitImpl ->
-      LanguageTools.PackageManager.TraitImpl.get hash
-      |> Stdlib.Option.map (fun i ->
+      LanguageTools.PackageManager.TraitImpl.get(hash)
+      |> Stdlib.Option.map(fun i ->
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ])
-      |> Stdlib.Option.withDefault []
+      |> Stdlib.Option.withDefault([])
     | Test ->
-      LanguageTools.PackageManager.Test.get hash
-      |> Stdlib.Option.map (fun test ->
+      LanguageTools.PackageManager.Test.get(hash)
+      |> Stdlib.Option.map(fun test ->
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, test.description) ])
-      |> Stdlib.Option.withDefault []
+      |> Stdlib.Option.withDefault([])
 
-  SCM.Docs.overlay branchId location declared
+  SCM.Docs.overlay(branchId, location, declared)
 
 
 /// The text <param part> holds in <param docs>, or None when it names nothing there.
-let docAt
-  (docs: List<(LanguageTools.ProgramTypes.DocPart * String)>)
-  (part: LanguageTools.ProgramTypes.DocPart)
+let docAt(
+  docs: List<(LanguageTools.ProgramTypes.DocPart * String)>,
+  part: LanguageTools.ProgramTypes.DocPart)
   : Stdlib.Option.Option<String> =
   docs
-  |> Stdlib.List.findFirst (fun pair ->
+  |> Stdlib.List.findFirst(fun pair ->
     let (p, _) = pair
     p == part)
-  |> Stdlib.Option.map (fun pair ->
+  |> Stdlib.Option.map(fun pair ->
     let (_, text) = pair
     text)
 
@@ -234,22 +234,22 @@ let docAt
 ///
 /// One op per changed PART, each naming the text it replaces. Naming it is what lets the far side
 /// tell an edit made on top of its own words from one made without ever seeing them.
-let updateDocsThatChanged
-  (branchId: Uuid)
-  (location: LanguageTools.ProgramTypes.PackageLocation)
-  (kind: LanguageTools.ProgramTypes.ItemKind)
-  (hash: LanguageTools.ProgramTypes.Hash)
-  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+let updateDocsThatChanged(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  hash: LanguageTools.ProgramTypes.Hash,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Bool =
-  let current = currentDocs branchId location kind hash
-  let written = authoredDocs ops
+  let current = currentDocs(branchId, location, kind, hash)
+  let written = authoredDocs(ops)
 
   let updates =
     written
-    |> Stdlib.List.filterMap (fun pair ->
+    |> Stdlib.List.filterMap(fun pair ->
       let (part, text) = pair
 
-      match docAt current part with
+      match docAt(current, part) with
       // A part the declaration does not have is not an edit to anything.
       | None -> Stdlib.Option.Option.None
       | Some currentText ->
@@ -265,7 +265,7 @@ let updateDocsThatChanged
               Stdlib.Option.Option.None
             else
               Stdlib.Option.Option.Some(
-                LanguageTools.ProgramTypes.hashOfText currentText
+                LanguageTools.ProgramTypes.hashOfText(currentText)
               )
 
           Stdlib.Option.Option.Some(
@@ -278,10 +278,10 @@ let updateDocsThatChanged
             )
           ))
 
-  if Stdlib.List.isEmpty updates then
+  if Stdlib.List.isEmpty(updates) then
     false
   else
-    match SCM.PackageOps.add branchId updates with
+    match SCM.PackageOps.add(branchId, updates) with
     | Ok _ -> true
     | Error _ -> false
 
@@ -305,55 +305,55 @@ type Committed =
 
 /// Save <param ops>, which bind <param location> (a <param kind>) at the placeholder <param hash>,
 /// repoint what depended on the version it replaces, and say what happened. Prints nothing.
-let commitAuthored
-  (branchId: Uuid)
-  (location: LanguageTools.ProgramTypes.PackageLocation)
-  (kind: LanguageTools.ProgramTypes.ItemKind)
-  (hash: LanguageTools.ProgramTypes.Hash)
-  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+let commitAuthored(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  hash: LanguageTools.ProgramTypes.Hash,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Committed, String> =
-  let previousHashes = Propagate.getAllPreviousHashes branchId location kind
-  let updates = Propagate.updatedItems branchId ops
-  let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
+  let previousHashes = Propagate.getAllPreviousHashes(branchId, location, kind)
+  let updates = Propagate.updatedItems(branchId, ops)
+  let isUpdate = (Stdlib.List.isEmpty(previousHashes)) |> Stdlib.Bool.not
 
-  match SCM.PackageOps.addAuthored branchId ops with
+  match SCM.PackageOps.addAuthored(branchId, ops) with
   | Ok report ->
     // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
     // stabilized inside the save, so the value in hand until now is a placeholder. Everything
     // below that names a version -- the permission summary, the doc-only note -- needs the
     // real one.
     let boundHash =
-      match Packages.Rename.referenceAt branchId location with
-      | Some reference -> LanguageTools.ProgramTypes.Reference.hash reference
+      match Packages.Rename.referenceAt(branchId, location) with
+      | Some reference -> LanguageTools.ProgramTypes.Reference.hash(reference)
       | None -> hash
 
     // Decided here rather than before the save, because this is where the stabilized hash is
     // finally known: the one in hand until now is the parser's placeholder.
     let movedVersion =
-      Stdlib.Bool.not (Stdlib.List.contains previousHashes boundHash)
+      Stdlib.Bool.not(Stdlib.List.contains(previousHashes, boundHash))
 
     let docOnly =
-      (isUpdate && (Stdlib.Bool.not movedVersion))
-      && (updateDocsThatChanged branchId location kind boundHash ops)
+      (isUpdate && (Stdlib.Bool.not(movedVersion)))
+      && (updateDocsThatChanged(branchId, location, kind, boundHash, ops))
 
     // A body the name held BEFORE, not the one it holds now: the save put the name back on an
     // earlier version (as a decision, since the SetName already exists). A change, and one a live
     // host follows; not "unchanged".
     let reverted =
       isUpdate
-      && (Stdlib.Bool.not movedVersion)
-      && ((Stdlib.List.head previousHashes) != (Stdlib.Option.Option.Some boundHash))
+      && (Stdlib.Bool.not(movedVersion))
+      && ((Stdlib.List.head(previousHashes)) != (Stdlib.Option.Option.Some boundHash))
 
     // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
     // it already had and carries no new text saved NOTHING, and re-running the same authoring
     // command does exactly that. Reporting it as an update is how a dropped edit stays hidden.
-    let landed = (Stdlib.Bool.not isUpdate) || docOnly || movedVersion || reverted
+    let landed = (Stdlib.Bool.not(isUpdate)) || docOnly || movedVersion || reverted
 
     // Repoint dependents NOW, into the draft, so you can run them against this change before
     // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing. A
     // revert repoints too: the dependents follow the name to the version it holds now. Done
     // BEFORE anything prints: whether a dependent broke decides the first line's glyph.
-    let followed = Propagate.repointSaved branchId updates
+    let followed = Propagate.repointSaved(branchId, updates)
 
     // The save's own type check: an error in what was just written. Saved anyway (WIP is yours
     // to break); `dark commit` is the gate. Said on the second line, with the issue itself.
@@ -369,7 +369,7 @@ let commitAuthored
     let ownIssue =
       match report.verdict with
       | Failed ->
-        let issues = Stdlib.List.concat report.warnings report.diagnostics
+        let issues = Stdlib.List.concat(report.warnings, report.diagnostics)
 
         match issues with
         | [] -> Stdlib.Option.Option.Some "it failed the type check"
@@ -381,17 +381,17 @@ let commitAuthored
           // line that already exists, so the save is still two lines.
           let first =
             "["
-            + (LanguageTools.AtRestTypeChecker.issueCodeToString issue.code)
+            + (LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code))
             + "] "
-            + (LanguageTools.AtRestTypeChecker.issueToStringWith
-                (AtRestCheck.customTypeName branchId)
-                issue)
+            + (LanguageTools.AtRestTypeChecker.issueToStringWith(
+                (fun hash -> AtRestCheck.customTypeName(branchId, hash)),
+                issue))
 
           let more =
-            if Stdlib.List.isEmpty rest then
+            if Stdlib.List.isEmpty(rest) then
               ""
             else
-              " (and " + (Stdlib.toString (Stdlib.List.length rest)) + " more)"
+              " (and " + (Stdlib.toString(Stdlib.List.length(rest))) + " more)"
 
           Stdlib.Option.Option.Some(first + more)
       | _ -> Stdlib.Option.Option.None
@@ -414,13 +414,13 @@ let commitAuthored
 /// output lines ("function" | "type" | "value"); `failState` is what a failed
 /// save returns (fn sets the exit code, type/val historically don't). `convert` answers None
 /// to refuse, having said why; nothing is written.
-let saveAuthored
-  (state: Cli.AppState)
-  (location: LanguageTools.ProgramTypes.PackageLocation)
-  (kind: LanguageTools.ProgramTypes.ItemKind)
-  (kindWord: String)
-  (failState: Cli.AppState)
-  (convert:
+let saveAuthored(
+  state: Cli.AppState,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  kindWord: String,
+  failState: Cli.AppState,
+  convert:
     LanguageTools.NameResolver.NRContext
       -> Stdlib.Option.Option<(List<LanguageTools.ProgramTypes.PackageOp>
           * LanguageTools.ProgramTypes.Hash
@@ -428,7 +428,7 @@ let saveAuthored
               * List<String>
               * LanguageTools.ProgramTypes.NameResolutionError>)>)
   : Cli.AppState =
-  let pm = LanguageTools.PackageManager.pm ()
+  let pm = LanguageTools.PackageManager.pm()
 
   let ctx =
     LanguageTools.NameResolver.NRContext
@@ -438,53 +438,53 @@ let saveAuthored
         owner = location.owner
         currentModule = location.modules }
 
-  match convert ctx with
+  match convert(ctx) with
   | None -> failState
   | Some converted ->
   // Not `Some(a, b, c)`: that pattern never matches an Option holding a 3-tuple.
   let (ops, hash, unresolvedNames) = converted
 
-  if Errors.reportUnresolvedNames state.currentBranchId unresolvedNames then
+  if Errors.reportUnresolvedNames(state.currentBranchId, unresolvedNames) then
     failState
   else
-    match commitAuthored state.currentBranchId location kind hash ops with
+    match commitAuthored(state.currentBranchId, location, kind, hash, ops) with
     | Ok committed ->
       let isUpdate = committed.isUpdate
       let landed = committed.landed
       let reverted = committed.reverted
       let followed = committed.followed
       let ownIssue = committed.ownIssue
-      let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+      let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
 
       // A save is at most two lines. Line one: what happened, with a check when all is well and a
       // `!` when something no longer type-checks. Line two: who follows, or what broke.
-      let broke = (Stdlib.Option.isSome ownIssue) || (Stdlib.Bool.not (Stdlib.List.isEmpty followed.broken))
+      let broke = (Stdlib.Option.isSome(ownIssue)) || (Stdlib.Bool.not(Stdlib.List.isEmpty(followed.broken)))
       let glyph =
-        if broke then Stdlib.Cli.UI.Colors.warning "!" else Stdlib.Cli.UI.Colors.success "✓"
+        if broke then Stdlib.Cli.UI.Colors.warning("!") else Stdlib.Cli.UI.Colors.success("✓")
 
       if reverted then
-        Stdlib.printLine $"{glyph} Put {kindWord} {fullPath} back to an earlier version"
+        Stdlib.printLine($"{glyph} Put {kindWord} {fullPath} back to an earlier version")
       else if landed then
         let action = if isUpdate then "Updated" else "Created"
-        Stdlib.printLine $"{glyph} {action} {kindWord} {fullPath}"
+        Stdlib.printLine($"{glyph} {action} {kindWord} {fullPath}")
       else
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.hint $"= {kindWord} {fullPath} is unchanged; nothing was saved")
+        Stdlib.printLine(
+          Stdlib.Cli.UI.Colors.hint($"= {kindWord} {fullPath} is unchanged; nothing was saved"))
 
       match ownIssue with
       | Some why ->
-        Cli.Text.printWrapped
-          Stdlib.Cli.UI.Colors.error
-          "  "
-          $"type error: {why}; saved as a draft, `dark commit` will refuse it"
+        Cli.Text.printWrapped(
+          Stdlib.Cli.UI.Colors.error,
+          "  ",
+          $"type error: {why}; saved as a draft, `dark commit` will refuse it")
       | None -> ()
 
-      Propagate.printFollowed followed
+      Propagate.printFollowed(followed)
 
       state
 
     | Error msg ->
-      let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-      Cli.Text.printWrapped Stdlib.Cli.UI.Colors.error "" $"✗ Could not save {kindWord} {fullPath}: {msg}"
+      let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
+      Cli.Text.printWrapped(Stdlib.Cli.UI.Colors.error, "", $"✗ Could not save {kindWord} {fullPath}: {msg}")
 
       failState

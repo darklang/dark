@@ -28,17 +28,17 @@ type Picture =
     ops: Int64 }
 
 /// Read the whole picture. One call, five reads, and the only place they happen.
-let read (unit: Unit) : Picture =
-  let bindings = SCM.PackageOps.draftBindings ()
+let read(unit: Unit): Picture =
+  let bindings = SCM.PackageOps.draftBindings()
 
   Picture
     { bindings = bindings
-      removed = SCM.PackageOps.draftRemovals ()
-      propagated = SCM.PackageOps.propagatedNames ()
-      repoints = SCM.PackageOps.draftRepoints bindings
-      conflicts = SCM.Conflicts.pending ()
-      constraints = Stdlib.List.length (SCM.Constraints.pending ()).findings
-      ops = SCM.PackageOps.draftOpCount () }
+      removed = SCM.PackageOps.draftRemovals()
+      propagated = SCM.PackageOps.propagatedNames()
+      repoints = SCM.PackageOps.draftRepoints(bindings)
+      conflicts = SCM.Conflicts.pending()
+      constraints = Stdlib.List.length((SCM.Constraints.pending()).findings)
+      ops = SCM.PackageOps.draftOpCount() }
 
 /// Just the counts, for the hot path.
 ///
@@ -57,48 +57,48 @@ type Counts =
     constraintsFromDraft: Int
     ops: Int64 }
 
-let counts (unit: Unit) : Counts =
-  let bindings = SCM.PackageOps.draftBindings ()
-  let propagated = SCM.PackageOps.propagatedNames ()
-  let pendingConstraints = (SCM.Constraints.pending ()).findings
+let counts(unit: Unit): Counts =
+  let bindings = SCM.PackageOps.draftBindings()
+  let propagated = SCM.PackageOps.propagatedNames()
+  let pendingConstraints = (SCM.Constraints.pending()).findings
   let draftNames =
-    bindings |> Stdlib.List.map (fun b -> SCM.Conflicts.fqn b.owner b.modules b.name)
+    bindings |> Stdlib.List.map(fun b -> SCM.Conflicts.fqn(b.owner, b.modules, b.name))
   let fromDraft =
     pendingConstraints
-    |> Stdlib.List.filter (fun f ->
-      (Stdlib.List.contains draftNames (SCM.Constraints.fqnOf f.dependency))
-      || (Stdlib.List.contains draftNames (SCM.Constraints.fqnOf f.usage)))
+    |> Stdlib.List.filter(fun f ->
+      (Stdlib.List.contains(draftNames, SCM.Constraints.fqnOf(f.dependency)))
+      || (Stdlib.List.contains(draftNames, SCM.Constraints.fqnOf(f.usage))))
 
   Counts
-    { changed = Stdlib.List.length bindings
+    { changed = Stdlib.List.length(bindings)
       followed =
         bindings
-        |> Stdlib.List.filter (fun b ->
-          Stdlib.List.contains propagated (SCM.Conflicts.fqn b.owner b.modules b.name))
+        |> Stdlib.List.filter(fun b ->
+          Stdlib.List.contains(propagated, SCM.Conflicts.fqn(b.owner, b.modules, b.name)))
         |> Stdlib.List.length
-      removed = Stdlib.List.length (SCM.PackageOps.draftRemovals ())
-      repoints = Stdlib.List.length (SCM.PackageOps.draftRepoints bindings)
-      conflicts = SCM.Conflicts.pendingCount ()
-      constraints = Stdlib.List.length pendingConstraints
-      constraintsFromDraft = Stdlib.List.length fromDraft
-      ops = SCM.PackageOps.draftOpCount () }
+      removed = Stdlib.List.length(SCM.PackageOps.draftRemovals())
+      repoints = Stdlib.List.length(SCM.PackageOps.draftRepoints(bindings))
+      conflicts = SCM.Conflicts.pendingCount()
+      constraints = Stdlib.List.length(pendingConstraints)
+      constraintsFromDraft = Stdlib.List.length(fromDraft)
+      ops = SCM.PackageOps.draftOpCount() }
 
 /// Did PROPAGATION write this name's current binding, rather than a person?
 ///
 /// The split the whole draft view turns on: an entry that followed your edit is otherwise indistinguishable
 /// from one you made.
-let followed (p: Picture) (b: SCM.Conflicts.Binding) : Bool =
-  Stdlib.List.contains p.propagated (SCM.Conflicts.fqn b.owner b.modules b.name)
+let followed(p: Picture, b: SCM.Conflicts.Binding): Bool =
+  Stdlib.List.contains(p.propagated, SCM.Conflicts.fqn(b.owner, b.modules, b.name))
 
 /// How many of the changed names followed something rather than being edited by you.
-let followedCount (p: Picture) : Int =
-  p.bindings |> Stdlib.List.filter (fun b -> followed p b) |> Stdlib.List.length
+let followedCount(p: Picture): Int =
+  p.bindings |> Stdlib.List.filter(fun b -> followed(p, b)) |> Stdlib.List.length
 
 /// How many you actually authored.
-let authoredCount (p: Picture) : Int =
-  (Stdlib.List.length p.bindings) - (followedCount p)
+let authoredCount(p: Picture): Int =
+  (Stdlib.List.length(p.bindings)) - (followedCount(p))
 
 /// Everything waiting on a person right now: divergences the fold settled and standing findings. One
 /// number, because they're one question ("is anything waiting on me?").
-let needsYouCount (p: Picture) : Int =
-  (Stdlib.List.length p.conflicts) + p.constraints
+let needsYouCount(p: Picture): Int =
+  (Stdlib.List.length(p.conflicts)) + p.constraints

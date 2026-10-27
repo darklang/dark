@@ -11,17 +11,17 @@ type ExecutionOutcome =
 
 
 /// Execute a command in the CLI (i.e. `Cli.execute "ls ."`)
-let execute (command: String) : ExecutionOutcome =
-  Stdlib.Cli.Process.__executionOutcome (Stdlib.Cli.Process.__childRun "/bin/sh" ["-c", command] Stdlib.Option.Option.None)
+let execute(command: String): ExecutionOutcome =
+  Stdlib.Cli.Process.__executionOutcome(Stdlib.Cli.Process.__childRun("/bin/sh", ["-c", command], Stdlib.Option.Option.None))
 
 
 /// Execute a command in the CLI,
 /// returning `Unit` if exit code 0
 /// , or a `String` of stderr if not
-let executeWithUnitOrStdErr
-  (command: String)
+let executeWithUnitOrStdErr(
+  command: String)
   : Stdlib.Result.Result<Unit, String> =
-  let result = execute command
+  let result = execute(command)
 
   if result.exitCode == 0 then
     Stdlib.Result.Result.Ok()
@@ -32,10 +32,10 @@ let executeWithUnitOrStdErr
 /// Execute a command in the CLI,
 /// returning `String` of stdout if exit code 0
 /// or `String` of stderr if not
-let executeWithStdOutOrStdErr
-  (command: String)
+let executeWithStdOutOrStdErr(
+  command: String)
   : Stdlib.Result.Result<String, String> =
-  let result = execute command
+  let result = execute(command)
 
   if result.exitCode == 0 then
     Stdlib.Result.Result.Ok result.stdout

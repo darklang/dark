@@ -20,6 +20,8 @@ open System
 /// call into a bounded generic resolves at run time until it is re-authored.
 /// v6 (tests, 2026-10): `PackageTest` items, the `AddTest` op tag 17 and `Reference` tag 5.
 /// Nothing existing changed layout; a v5 blob reads as is.
+/// A lambda value no longer carries applied arguments (there is no partial application). Its
+/// layout changed in place, without a version: no store in use holds an older lambda blob.
 [<Literal>]
 let CurrentVersion = 6u
 

@@ -1,24 +1,24 @@
 module Darklang.Stdlib
 
 
-let print (str: String): Unit =
-  Builtin.print str
+let print(str: String): Unit =
+  Builtin.print(str)
 
 
-let printLine (str: String): Unit =
-  Builtin.printLine str
+let printLine(str: String): Unit =
+  Builtin.printLine(str)
 
 
 /// Print <param str> to stderr, followed by a newline: for everything that is not the answer to what
 /// was asked, so `dark cmd | next` carries only the answer.
-let printErrorLine (str: String): Unit =
-  Builtin.printErrorLine str
+let printErrorLine(str: String): Unit =
+  Builtin.printErrorLine(str)
 
 
-let printError (str: String): Unit =
-  Builtin.printError str
+let printError(str: String): Unit =
+  Builtin.printError(str)
 
 
-let printLines (lines: List<String>): Unit =
+let printLines(lines: List<String>): Unit =
   lines
-  |> List.iter(fun l -> printLine l)
+  |> List.iter(fun l -> printLine(l))

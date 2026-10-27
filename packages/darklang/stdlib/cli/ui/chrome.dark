@@ -28,7 +28,7 @@ type Frame =
     message: String
     messageTone: Tone }
 
-let frame (title: String) (badge: String) (help: String) : Frame =
+let frame(title: String, badge: String, help: String): Frame =
   Frame
     { title = title
       badge = badge
@@ -37,32 +37,32 @@ let frame (title: String) (badge: String) (help: String) : Frame =
       message = ""
       messageTone = Tone.Neutral }
 
-let withBadgeTone (f: Frame) (tone: Tone) : Frame =
+let withBadgeTone(f: Frame, tone: Tone): Frame =
   { f with badgeTone = tone }
 
-let withMessage (f: Frame) (message: String) : Frame =
+let withMessage(f: Frame, message: String): Frame =
   { f with message = message, messageTone = Tone.Neutral }
 
-let withError (f: Frame) (message: String) : Frame =
+let withError(f: Frame, message: String): Frame =
   { f with message = message, messageTone = Tone.Danger }
 
 
 // --- Styling ---
 
-let toneStyle (tone: Tone) : String =
+let toneStyle(tone: Tone): String =
   match tone with
   | Neutral -> Colors.grayBg + Colors.white
   | Active -> Colors.greenBg + Colors.black
   | Danger -> Colors.bgRed + Colors.brightWhite
 
 /// A full-width bar, padded so the background colour reaches the right edge.
-let bar (width: Int) (style: String) (text: String) : String =
-  let clipped = Tui.Text.clipToWidth text width
-  let used = Tui.Text.styledWidth clipped
+let bar(width: Int, style: String, text: String): String =
+  let clipped = Tui.Text.clipToWidth(text, width)
+  let used = Tui.Text.styledWidth(clipped)
   let padding =
-    if width > used then Stdlib.String.repeat " " (width - used) else ""
+    if width > used then Stdlib.String.repeat(" ", width - used) else ""
 
-  Colors.colorize style (clipped + padding)
+  Colors.colorize(style, clipped + padding)
 
 
 // --- Layout ---
@@ -71,67 +71,67 @@ let bar (width: Int) (style: String) (text: String) : String =
 ///
 /// A short terminal gives up the blank line first, then the help bar, then the title: the body is the last
 /// thing to lose space, because it's the only part that's actually the app.
-let titleRows (height: Int) : Int =
+let titleRows(height: Int): Int =
   if height >= 4 then 2 else if height >= 2 then 1 else 0
 
-let helpRows (height: Int) : Int =
+let helpRows(height: Int): Int =
   if height >= 3 then 1 else 0
 
 /// The region the body gets, in a terminal of this size.
-let bodyRegion (size: Tui.Size) : Layout.Region =
-  let height = Stdlib.max 1 size.height
-  let top = titleRows height
+let bodyRegion(size: Tui.Size): Layout.Region =
+  let height = Stdlib.max(1, size.height)
+  let top = titleRows(height)
 
   Layout.Region
     { top = top + 1
       left = 1
-      rows = Stdlib.max 0 (height - top - (helpRows height))
-      cols = Stdlib.max 1 size.width }
+      rows = Stdlib.max(0, height - top - (helpRows(height)))
+      cols = Stdlib.max(1, size.width) }
 
 
 // --- Rendering ---
 
-let titleBar (f: Frame) (width: Int) : String =
+let titleBar(f: Frame, width: Int): String =
   let title =
-    Colors.colorize
-      (Colors.purpleBg + Colors.white + Colors.bold)
-      $" {f.title} "
+    Colors.colorize(
+      Colors.purpleBg + Colors.white + Colors.bold,
+      $" {f.title} ")
 
   let badge =
     if f.badge == "" then
       ""
     else
-      " " + (Colors.colorize (toneStyle f.badgeTone) $" {f.badge} ")
+      " " + (Colors.colorize(toneStyle(f.badgeTone), $" {f.badge} "))
 
-  Tui.Text.clipToWidth (title + badge) width
+  Tui.Text.clipToWidth(title + badge, width)
 
-let footBar (f: Frame) (width: Int) : String =
+let footBar(f: Frame, width: Int): String =
   if f.message == "" then
-    bar width (Colors.grayBg + Colors.white) f.help
+    bar(width, Colors.grayBg + Colors.white, f.help)
   else
-    bar width (toneStyle f.messageTone) f.message
+    bar(width, toneStyle(f.messageTone), f.message)
 
 /// Draw the frame with `body` filling what's left. `body` runs during this call and is never retained, so
 /// passing a lambda here is fine.
-let view
-  (f: Frame)
-  (size: Tui.Size)
-  (body: Layout.Region -> List<Layout.Span>)
+let view(
+  f: Frame,
+  size: Tui.Size,
+  body: Layout.Region -> List<Layout.Span>)
   : Tui.View =
-  let width = Stdlib.max 1 size.width
-  let height = Stdlib.max 1 size.height
+  let width = Stdlib.max(1, size.width)
+  let height = Stdlib.max(1, size.height)
   let screen = Layout.Region { top = 1, left = 1, rows = height, cols = width }
-  let region = bodyRegion size
+  let region = bodyRegion(size)
 
   let titleSpans =
-    if (titleRows height) == 0 then [] else Layout.at screen 0 0 (titleBar f width)
+    if (titleRows(height)) == 0 then [] else Layout.at(screen, 0, 0, titleBar(f, width))
 
   let helpSpans =
-    if (helpRows height) == 0 then
+    if (helpRows(height)) == 0 then
       []
     else
-      Layout.at screen (height - 1) 0 (footBar f width)
+      Layout.at(screen, height - 1, 0, footBar(f, width))
 
-  let bodySpans = if region.rows == 0 then [] else body region
+  let bodySpans = if region.rows == 0 then [] else body(region)
 
-  Canvas.toView size (Stdlib.List.flatten [ titleSpans, bodySpans, helpSpans ])
+  Canvas.toView(size, Stdlib.List.flatten([ titleSpans, bodySpans, helpSpans ]))

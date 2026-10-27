@@ -20,9 +20,9 @@ iterating.
 Before reaching for any of the tools below: `Darklang.LanguageTools.Perf.measure` takes a thunk and
 gives back allocation, time and the interpreter's counters, with whatever the thunk returned.
 
-    let harness = Perf.floor ()
-    let (raw, answer) = Perf.measure (fun () -> Stdlib.List.map input inc)
-    Perf.render (Perf.minus raw harness)
+    let harness = Perf.floor()
+    let (raw, answer) = Perf.measure(fun () -> Stdlib.List.map(input, inc))
+    Perf.render(Perf.minus(raw, harness))
 
 `floor` is what `measure` costs when the thunk does nothing; subtract it or small readings are
 mostly harness. One primitive on purpose: a function against its replacement, one function across

@@ -1,26 +1,26 @@
 // Strings: concatenation, split, join, length. Text handling is most of what a CLI does, and it is
 // a completely different allocation shape from lists of Dvals.
-let iters () : Int =
-  match Stdlib.Env.get "PERF_ITERS" with
+let iters(): Int =
+  match Stdlib.Env.get("PERF_ITERS") with
   | Some s ->
-    match Stdlib.Int.parse s with
+    match Stdlib.Int.parse(s) with
     | Ok n -> n
     | Error _ -> 0
   | None -> 0
 
-let work (n: Int) : Int =
-  let base = "field-" + (Stdlib.toString n)
-  let parts = Stdlib.List.map (Stdlib.List.range 1 8) (fun i -> base + ":" + (Stdlib.toString i))
-  let joined = Stdlib.String.join parts ","
-  let back = Stdlib.String.split joined ","
-  (Stdlib.String.length joined) + (Stdlib.List.length back)
+let work(n: Int): Int =
+  let base = "field-" + (Stdlib.toString(n))
+  let parts = Stdlib.List.map(Stdlib.List.range(1, 8), fun i -> base + ":" + (Stdlib.toString(i)))
+  let joined = Stdlib.String.join(parts, ",")
+  let back = Stdlib.String.split(joined, ",")
+  (Stdlib.String.length(joined)) + (Stdlib.List.length(back))
 
-let repeat (times: Int) (acc: Int) : Int =
-  if times <= 0 then acc else repeat (times - 1) (acc + (work times))
+let repeat(times: Int, acc: Int): Int =
+  if times <= 0 then acc else repeat(times - 1, acc + (work(times)))
 
-let _warm = repeat 20 0
-let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
-let t0 = Darklang.Cli.Telemetry.now ()
-let result = repeat (iters ()) 0
-let t1 = Darklang.Cli.Telemetry.now ()
-Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " result=" + (Stdlib.toString result) + " stats=" + (Darklang.LanguageTools.InterpreterStats.get ()))
+let _warm = repeat(20, 0)
+let _reset = Darklang.LanguageTools.InterpreterStats.reset()
+let t0 = Darklang.Cli.Telemetry.now()
+let result = repeat(iters(), 0)
+let t1 = Darklang.Cli.Telemetry.now()
+Stdlib.printLine("elapsed_ms=" + (Stdlib.toString(t1 - t0)) + " result=" + (Stdlib.toString(result)) + " stats=" + (Darklang.LanguageTools.InterpreterStats.get()))

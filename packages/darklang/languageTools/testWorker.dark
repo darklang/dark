@@ -2,34 +2,34 @@
 module Darklang.LanguageTools.PackageManager.Test.Worker
 
 /// F# executes exact hashes and transports runtime values without losing their types.
-let execute (request: Bytes) (access: Bytes) : (Bytes * Int) =
-  Builtin.pmTestWorkerExecute request access
+let execute(request: Bytes, access: Bytes): (Bytes * Int) =
+  Builtin.pmTestWorkerExecute(request, access)
 
-let read (path: String) : Bytes =
-  Builtin.unwrap (Stdlib.Cli.FileSystem.readFile path)
+let read(path: String): Bytes =
+  Builtin.unwrap(Stdlib.Cli.FileSystem.readFile(path))
 
-let main (args: List<String>) : Int =
+let main(args: List<String>): Int =
   match args with
   | [ requestPath, resultPath ] ->
-    let dir = Stdlib.Cli.Path.parent requestPath
+    let dir = Stdlib.Cli.Path.parent(requestPath)
     let privateDirectory =
-      Stdlib.String.startsWith (Stdlib.Cli.Path.basename dir) "dark-test-"
-    if Stdlib.Env.get "HOME" != Some dir
-       || Stdlib.Bool.not privateDirectory
-       || requestPath != Stdlib.Cli.Path.join [ dir, "request.bin" ]
-       || resultPath != Stdlib.Cli.Path.join [ dir, "result.bin" ] then
-      Stdlib.printLine "Test worker requires a disposable test directory"
+      Stdlib.String.startsWith(Stdlib.Cli.Path.basename(dir), "dark-test-")
+    if Stdlib.Env.get("HOME") != Some dir
+       || Stdlib.Bool.not(privateDirectory)
+       || requestPath != Stdlib.Cli.Path.join([ dir, "request.bin" ])
+       || resultPath != Stdlib.Cli.Path.join([ dir, "result.bin" ]) then
+      Stdlib.printLine("Test worker requires a disposable test directory")
       1
     else
-      let branch = Darklang.SCM.PackageOps.currentBranch ()
-      let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.toString branch)
-      let access = read (Stdlib.Cli.Path.join [ dir, "access.bin" ])
-      let (result, code) = execute (read requestPath) access
-      match Stdlib.Cli.FileSystem.overwriteFile resultPath result with
+      let branch = Darklang.SCM.PackageOps.currentBranch()
+      let _ = Stdlib.LocalStore.configSet("current_branch", Stdlib.toString(branch))
+      let access = read(Stdlib.Cli.Path.join([ dir, "access.bin" ]))
+      let (result, code) = execute(read(requestPath), access)
+      match Stdlib.Cli.FileSystem.overwriteFile(resultPath, result) with
       | Ok () -> code
       | Error error ->
-        Stdlib.printLine (Stdlib.Cli.FileSystem.FileError.toString error)
+        Stdlib.printLine(Stdlib.Cli.FileSystem.FileError.toString(error))
         1
   | _ ->
-    Stdlib.printLine "Invalid test worker arguments"
+    Stdlib.printLine("Invalid test worker arguments")
     1

@@ -377,7 +377,6 @@ type Expr =
   | EError of Range
 
 type PipeExpr =
-  | EPipeInfix of Range * op: (Range * Infix) * Expr
   | EPipeLambda of
     Range *
     pats: List<LetPattern> *
@@ -401,7 +400,7 @@ type PipeExpr =
 
 module Expr =
   /// Source range covering a whole expression node.
-  let range (expr: Expr) : Range =
+  let range(expr: Expr): Range =
     match expr with
     | EUnit range -> range
     | EBool(range, _) -> range

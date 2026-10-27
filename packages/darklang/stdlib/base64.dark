@@ -5,17 +5,17 @@ module Darklang.Stdlib.Base64
 /// alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
 /// sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
 /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-let decode (s: String) : Stdlib.Result.Result<Bytes, String> =
-  Builtin.base64Decode s
+let decode(s: String): Stdlib.Result.Result<Bytes, String> =
+  Builtin.base64Decode(s)
 
 
 /// Base64 encodes <param bytes> with {{=}} padding. Uses the standard
 /// alphabet defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
 /// section [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4).
-let encode (bytes: Bytes) : String = Builtin.base64Encode bytes
+let encode(bytes: Bytes): String = Builtin.base64Encode(bytes)
 
 
 /// Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding
 /// with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in RFC 4648
 /// section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-let urlEncode (bytes: Bytes) : String = Builtin.base64UrlEncode bytes
+let urlEncode(bytes: Bytes): String = Builtin.base64UrlEncode(bytes)

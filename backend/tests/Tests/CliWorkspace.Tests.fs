@@ -119,13 +119,13 @@ let approvedSqliteOnTheStoreRuns =
           fn
             state
             "Tests.SqliteAppr.probe"
-            "() : Bool = Stdlib.Result.isOk (Stdlib.Sqlite.query (Stdlib.LocalStore.path ()) \"select 1 as x\")"
+            "(): Bool = Stdlib.Result.isOk(Stdlib.Sqlite.query(Stdlib.LocalStore.path(), \"select 1 as x\"))"
         do!
           run state [ "permissions"; "approve"; "Tests.SqliteAppr.probe"; "--yes" ]
         do!
           evals
             state
-            "Tests.SqliteAppr.probe ()"
+            "Tests.SqliteAppr.probe()"
             "true"
             "the approval covers what the body asks for"
         do! run state [ "permissions"; "unapprove"; "Tests.SqliteAppr.probe" ]
@@ -141,7 +141,7 @@ let approvalsNameTheirDependencies =
         fn
           state
           "Tests.DepName.measure"
-          "() : Int64 = Stdlib.String.length \"probe\""
+          "(): Int64 = Stdlib.String.length(\"probe\")"
       do! run state [ "permissions"; "approve"; "Tests.DepName.measure"; "--yes" ]
       do!
         shows
@@ -164,12 +164,12 @@ let foldCallbackKeepsItsAccess =
           fn
             state
             "Tests.FoldAccess.stamp"
-            "(n: Int64) : Int64 = (let _ = Stdlib.DateTime.now () in n)"
+            "(n: Int64): Int64 = (let _ = Stdlib.DateTime.now() in n)"
         do!
           fn
             state
             "Tests.FoldAccess.run"
-            "() : String = \"fold-access-\" + Stdlib.toString (Stdlib.List.length (Stdlib.List.fold [ 1L, 2L, 3L ] [] (fun acc n -> Stdlib.List.prepend acc (Tests.FoldAccess.stamp n))))"
+            "(): String = \"fold-access-\" + Stdlib.toString(Stdlib.List.length(Stdlib.List.fold([ 1L, 2L, 3L ], [], fun acc n -> Stdlib.List.prepend(acc, Tests.FoldAccess.stamp(n)))))"
         for name in [ "stamp"; "run" ] do
           do!
             run
@@ -178,13 +178,13 @@ let foldCallbackKeepsItsAccess =
         do!
           shows
             state
-            [ "eval"; "Tests.FoldAccess.run ()" ]
+            [ "eval"; "Tests.FoldAccess.run()" ]
             "fold-access-3"
             "every step of the fold read the clock"
         do!
           exits
             state
-            [ "eval"; "Tests.FoldAccess.run ()" ]
+            [ "eval"; "Tests.FoldAccess.run()" ]
             0L
             "and the run succeeded"
         for name in [ "stamp"; "run" ] do
@@ -238,7 +238,7 @@ let anApprovedVersionIsWhatRuns =
         do!
           evals
             state
-            "Tests.Appr.rate ()"
+            "Tests.Appr.rate()"
             "6101"
             "a run resolves the version this account approved, not the latest"
 
@@ -246,7 +246,7 @@ let anApprovedVersionIsWhatRuns =
         do!
           evals
             state
-            "Tests.Appr.rate ()"
+            "Tests.Appr.rate()"
             "6102"
             "and follows the latest again once the approval is withdrawn"
         do! discardAll state
@@ -370,7 +370,7 @@ let private withLiveServer
     let! init =
       evalUnder
         state
-        $"Darklang.Stdlib.Live.Router.start {branchSource} ({routerLoc})"
+        $"Darklang.Stdlib.Live.Router.start({branchSource}, {routerLoc})"
     let! step = evalUnder state "Darklang.Stdlib.Live.Router.step"
     let step =
       match step with
@@ -441,7 +441,7 @@ let private previewOfAServedRequest =
           do!
             author
               "Tests.PrevHttp.router"
-              "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  let body = Tests.PrevHttp.page ()\n  Stdlib.Http.responseWithText body 200"
+              "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  let body = Tests.PrevHttp.page()\n  Stdlib.Http.responseWithText(body, 200)"
 
           do!
             withLiveServer
@@ -470,7 +470,7 @@ let private previewOfAServedRequest =
                     runCli target [ "traces"; "show"; "Tests.PrevHttp.router" ]
                   Expect.stringContains
                     viewed
-                    "page () // = \"hello\""
+                    "page() // = \"hello\""
                     "the handler's own call, with the value that request produced"
                 })
         finally
@@ -488,7 +488,7 @@ let private serveFollowsEdits =
       do!
         author
           "Tests.LiveHttp.router"
-          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.LiveHttp.page ()) 200"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Tests.LiveHttp.page(), 200)"
 
       do!
         withLiveServer
@@ -515,7 +515,7 @@ let private serveFollowsEdits =
               let! watch =
                 evalUnder
                   state
-                  "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+                  "Darklang.Stdlib.Live.watch(Darklang.SCM.Branch.mainBranchId)"
               do! author "Tests.LiveHttp.page" "(): String = 3"
               let! (status, body) = getText port
               Expect.equal
@@ -550,7 +550,7 @@ let private serveFollowsEdits =
               do!
                 author
                   "Tests.LiveHttp.router"
-                  "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.LiveHttp.page ()) 201"
+                  "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Tests.LiveHttp.page(), 201)"
               let! (status, _) = getText port
               Expect.equal
                 status
@@ -567,7 +567,7 @@ let private pollAndAffects =
       let author = author target
 
       do! author "Tests.LivePoll.leaf" "(): Int = 1"
-      do! author "Tests.LivePoll.branch" "(): Int = (Tests.LivePoll.leaf ()) + 1"
+      do! author "Tests.LivePoll.branch" "(): Int = (Tests.LivePoll.leaf()) + 1"
       do! author "Tests.LivePoll.bystander" "(): Int = 7"
 
       let loc (name : string) : Task<RT.Dval> =
@@ -576,7 +576,7 @@ let private pollAndAffects =
       let! watch =
         evalUnder
           state
-          "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+          "Darklang.Stdlib.Live.watch(Darklang.SCM.Branch.mainBranchId)"
 
       // A fresh watch has nothing to report.
       let! watch = pollQuiet state watch
@@ -640,14 +640,14 @@ let private treeRendersTheSameEverywhere =
     task {
       let state = executionState target
       let tree =
-        "Darklang.Stdlib.Cli.UI.Node.column [ Darklang.Stdlib.Cli.UI.Node.bold \"Stats\", Darklang.Stdlib.Cli.UI.Node.table [ \"module\", \"fns\" ] [ [ \"Stdlib\", \"247\" ], [ \"Cli\", \"89\" ] ], Darklang.Stdlib.Cli.UI.Node.band Darklang.Stdlib.Cli.UI.Node.Severity.Error \"boom\", Darklang.Stdlib.Cli.UI.Node.row [ Darklang.Stdlib.Cli.UI.Node.text \"a\", Darklang.Stdlib.Cli.UI.Node.Node.Button (\"go\", 1L) ] ]"
+        "Darklang.Stdlib.Cli.UI.Node.column([ Darklang.Stdlib.Cli.UI.Node.bold(\"Stats\"), Darklang.Stdlib.Cli.UI.Node.table([ \"module\", \"fns\" ], [ [ \"Stdlib\", \"247\" ], [ \"Cli\", \"89\" ] ]), Darklang.Stdlib.Cli.UI.Node.band(Darklang.Stdlib.Cli.UI.Node.Severity.Error, \"boom\"), Darklang.Stdlib.Cli.UI.Node.row([ Darklang.Stdlib.Cli.UI.Node.text(\"a\"), Darklang.Stdlib.Cli.UI.Node.Node.Button (\"go\", 1L) ]) ])"
       let region =
         "Darklang.Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 10, cols = 40 }"
 
       let! rows =
         evalUnder
           state
-          $"Darklang.Stdlib.Cli.UI.Canvas.compose 40 8 (Darklang.Stdlib.Cli.UI.Node.toSpans ({tree}) ({region}) \"go\") |> Darklang.Stdlib.List.map (fun r -> Darklang.Stdlib.String.trimEnd (Darklang.Stdlib.Cli.Tui.Text.stripSgr r))"
+          $"Darklang.Stdlib.Cli.UI.Canvas.compose(40, 8, Darklang.Stdlib.Cli.UI.Node.toSpans({tree}, {region}, \"go\")) |> Darklang.Stdlib.List.map(fun r -> Darklang.Stdlib.String.trimEnd(Darklang.Stdlib.Cli.Tui.Text.stripSgr(r)))"
       Expect.equal
         (plainRows rows)
         [ "Stats"
@@ -661,7 +661,7 @@ let private treeRendersTheSameEverywhere =
         "the terminal frame"
 
       let! html =
-        evalUnder state $"Darklang.Stdlib.Cli.UI.Html.renderStatic ({tree})"
+        evalUnder state $"Darklang.Stdlib.Cli.UI.Html.renderStatic({tree})"
       let html =
         match html with
         | RT.DString s -> s
@@ -680,7 +680,7 @@ let private treeRendersTheSameEverywhere =
       let tableRows (rowsSource : string) =
         evalUnder
           state
-          $"Darklang.Stdlib.Cli.UI.Canvas.compose 20 5 (Darklang.Stdlib.Cli.UI.Node.toSpans (Darklang.Stdlib.Cli.UI.Node.table [ \"k\", \"v\" ] {rowsSource}) ({region}) \"\") |> Darklang.Stdlib.List.map (fun r -> Darklang.Stdlib.String.trimEnd (Darklang.Stdlib.Cli.Tui.Text.stripSgr r))"
+          $"Darklang.Stdlib.Cli.UI.Canvas.compose(20, 5, Darklang.Stdlib.Cli.UI.Node.toSpans(Darklang.Stdlib.Cli.UI.Node.table([ \"k\", \"v\" ], {rowsSource}), {region}, \"\")) |> Darklang.Stdlib.List.map(fun r -> Darklang.Stdlib.String.trimEnd(Darklang.Stdlib.Cli.Tui.Text.stripSgr(r)))"
       let! none = tableRows "[]"
       Expect.equal
         (List.take 3 (plainRows none))
@@ -714,18 +714,18 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.update"
-            "(m: Int) (e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+            "(m: Int, e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version one\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version one\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ])"
 
         let view =
           "Darklang.Cli.LiveView.Model.View { name = \"live\", title = \"Live\", init = \"Tests.LiveView.init\", update = \"Tests.LiveView.update\", render = \"Tests.LiveView.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
         let! prepared =
           evalUnder
             state
-            $"Darklang.Cli.LiveView.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
+            $"Darklang.Cli.LiveView.Host.prepare(Darklang.SCM.Branch.mainBranchId, {view})"
         let session =
           match prepared with
           | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
@@ -768,7 +768,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version two\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m) ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version two\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)) ])"
         pushTick ()
         let! session = step session
         let! afterEdit = rowsOf session
@@ -783,7 +783,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text 3 ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(3) ])"
         pushTick ()
         let! session = step session
         let! afterBreak = rowsOf session
@@ -804,7 +804,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version three\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m) ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version three\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)) ])"
         pushTick ()
         let! session = step session
         let! afterFix = rowsOf session
@@ -839,11 +839,11 @@ let private serveFollowsEditsOnABranch =
         do!
           author
             "Tests.LiveBranchHttp.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.LiveBranchHttp.page ()) 200"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Tests.LiveBranchHttp.page(), 200)"
         do!
           withLiveServer
             state
-            "(Darklang.SCM.PackageOps.currentBranch ())"
+            "(Darklang.SCM.PackageOps.currentBranch())"
             (locSource [ "LiveBranchHttp" ] "router")
             false
             [ "[live] now on the new version of Tests.LiveBranchHttp.router" ]
@@ -875,11 +875,11 @@ let private modelSavesAndResumes =
       do!
         author
           "Tests.LiveSave.update"
-          "(m: Int) (e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+          "(m: Int, e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
       do!
         author
           "Tests.LiveSave.render"
-          "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m)"
+          "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m))"
 
       let view =
         "Darklang.Cli.LiveView.Model.View { name = \"s\", title = \"S\", init = \"Tests.LiveSave.init\", update = \"Tests.LiveSave.update\", render = \"Tests.LiveSave.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
@@ -887,7 +887,7 @@ let private modelSavesAndResumes =
       let! saved =
         evalUnder
           state
-          $"Darklang.Cli.LiveView.Host.snapshot Darklang.SCM.Branch.mainBranchId ({view}) 5"
+          $"Darklang.Cli.LiveView.Host.snapshot(Darklang.SCM.Branch.mainBranchId, {view}, 5)"
       let name =
         match saved with
         | RT.DEnum(_, _, _, "Ok", [ RT.DString name ]) -> name
@@ -900,7 +900,7 @@ let private modelSavesAndResumes =
       let! resumed =
         evalUnder
           state
-          $"Darklang.Cli.LiveView.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"{name}\") false"
+          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some \"{name}\", false)"
       let session =
         match resumed with
         | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
@@ -917,7 +917,7 @@ let private modelSavesAndResumes =
       let! missing =
         evalUnder
           state
-          $"Darklang.Cli.LiveView.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\") false"
+          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\", false)"
       match missing with
       | RT.DEnum(_, _, _, "Error", [ RT.DString why ]) ->
         Expect.stringContains
@@ -944,14 +944,14 @@ let private pollIgnoresAnOpUntilItIsApplied =
         let! watch =
           evalUnder
             state
-            "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+            "Darklang.Stdlib.Live.watch(Darklang.SCM.Branch.mainBranchId)"
         let! watch = pollQuiet state watch
 
         // Phase 1 of a save, by hand: the op rows land, unapplied. This is what a poll mid-fold sees.
         // A fresh body per run: the log is content-addressed and the store outlives the run.
         let body = System.Random.Shared.Next(1_000, 1_000_000_000)
         let! ops =
-          parsePackageOps $"module Tests.LiveFold\n\nlet leaf () : Int = {body}"
+          parsePackageOps $"module Tests.LiveFold\n\nlet leaf(): Int = {body}"
         let statements =
           ops
           |> List.map (fun op ->
@@ -999,7 +999,7 @@ let private pollOnABranchSeesTheBranchsOwnSaves =
         let! watch =
           evalUnder
             state
-            "Darklang.Stdlib.Live.watch (Darklang.SCM.PackageOps.currentBranch ())"
+            "Darklang.Stdlib.Live.watch(Darklang.SCM.PackageOps.currentBranch())"
         do! author "Tests.LiveBranchPoll.leaf" "(): Int = 1"
         let! (_, change) = pollChange state watch "the branch save was not reported"
         let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
@@ -1032,13 +1032,13 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         do!
           author
             $"Tests.{m}.router"
-            $"(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.{m}.page ()) 200"
+            $"(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Tests.{m}.page(), 200)"
 
         let routerLoc = "(" + locSource [ m ] "router" + ")"
         let! lg =
           evalUnder
             state
-            $"Darklang.Stdlib.Live.refresh Darklang.SCM.Branch.mainBranchId (Darklang.Stdlib.Live.start {routerLoc})"
+            $"Darklang.Stdlib.Live.refresh(Darklang.SCM.Branch.mainBranchId, Darklang.Stdlib.Live.start({routerLoc}))"
         let hashOf (lg : RT.Dval) =
           match lg with
           | RT.DRecord(_, _, _, fields) ->
@@ -1051,7 +1051,7 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         let! watch =
           evalUnder
             state
-            "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+            "Darklang.Stdlib.Live.watch(Darklang.SCM.Branch.mainBranchId)"
         do! author $"Tests.{m}.page" "(): String = 3"
         let! (watch, _) = pollChange state watch "the break was not reported"
         let! lg =
@@ -1068,7 +1068,7 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         let body = System.Random.Shared.Next(1_000, 1_000_000_000)
         let! _ =
           authorIntoMain
-            $"module Tests.{m}\n\nlet page () : String = \"fixed {body}\""
+            $"module Tests.{m}\n\nlet page(): String = \"fixed {body}\""
         let! _ = pollChange state watch "the fix was not reported"
         let! lg =
           callByName
@@ -1102,7 +1102,7 @@ let private devStreamReportsAnEditAfterTheServe =
         do!
           author
             "Tests.LiveStream.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithHtml (Tests.LiveStream.page ()) 200"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithHtml(Tests.LiveStream.page(), 200)"
         do!
           withLiveServer
             state
@@ -1160,7 +1160,7 @@ let private devErrorPageCarriesTheListener =
         do!
           author
             "Tests.LiveDev.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Stdlib.toString (1 / 0)) 200"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.toString(1 / 0), 200)"
         do!
           withLiveServer
             state
@@ -1195,15 +1195,15 @@ let private annotatedPrint (owner : string) (modul : string) (name : string) =
   $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}", modules = ["{modul}"], name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
-  match Darklang.Stdlib.Live.Values.replay (Darklang.Cli.initState ()).accountID bid loc with
-  | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map (fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval bid d)
+  match Darklang.Stdlib.Live.Values.replay((Darklang.Cli.initState()).accountID, bid, loc) with
+  | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map(fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval(bid, d))
   | None -> Darklang.Stdlib.Dict.empty
-let base = Darklang.PrettyPrinter.ProgramTypes.Context.forModule bid ["{owner}", "{modul}"]
+let base = Darklang.PrettyPrinter.ProgramTypes.Context.forModule(bid, ["{owner}", "{modul}"])
 let ctx = {{ base with liveValues = values }}
-match Darklang.LanguageTools.PackageManager.Function.find bid loc with
+match Darklang.LanguageTools.PackageManager.Function.find(bid, loc) with
 | Some hash ->
-  match Darklang.LanguageTools.PackageManager.Function.get hash with
-  | Some fn -> Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn
+  match Darklang.LanguageTools.PackageManager.Function.get(hash) with
+  | Some fn -> Darklang.PrettyPrinter.ProgramTypes.packageFn(ctx, fn)
   | None -> "no fn"
 | None -> "no hash"
 """
@@ -1215,17 +1215,17 @@ let private plainAndAnnotated (owner : string) (modul : string) (name : string) 
   $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}", modules = ["{modul}"], name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
-  match Darklang.Stdlib.Live.Values.replay (Darklang.Cli.initState ()).accountID bid loc with
-  | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map (fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval bid d)
+  match Darklang.Stdlib.Live.Values.replay((Darklang.Cli.initState()).accountID, bid, loc) with
+  | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map(fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval(bid, d))
   | None -> Darklang.Stdlib.Dict.empty
-let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
-match Darklang.LanguageTools.PackageManager.Function.find bid loc with
+let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch(bid)
+match Darklang.LanguageTools.PackageManager.Function.find(bid, loc) with
 | Some hash ->
-  match Darklang.LanguageTools.PackageManager.Function.get hash with
+  match Darklang.LanguageTools.PackageManager.Function.get(hash) with
   | Some fn ->
-    (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn)
+    (Darklang.PrettyPrinter.ProgramTypes.packageFn(ctx, fn))
     + "@@@"
-    + (Darklang.PrettyPrinter.ProgramTypes.packageFn {{ ctx with liveValues = values }} fn)
+    + (Darklang.PrettyPrinter.ProgramTypes.packageFn({{ ctx with liveValues = values }}, fn))
   | None -> "no fn"
 | None -> "no hash"
 """
@@ -1243,25 +1243,25 @@ let private pipeStageValuesStayOutsideTheirDelimiters =
         do!
           author
             "Tests.PipeVals.asArg"
-            "(xs: List<Int>): String =\n  Stdlib.toString (xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length)"
+            "(xs: List<Int>): String =\n  Stdlib.toString(xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length)"
         do!
           author
             "Tests.PipeVals.inTuple"
-            "(xs: List<Int>): (Int * Int) =\n  (xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length, 7)"
+            "(xs: List<Int>): (Int * Int) =\n  (xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length, 7)"
         do!
           author
             "Tests.PipeVals.inList"
-            "(xs: List<Int>): List<Int> =\n  [ xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length ]"
+            "(xs: List<Int>): List<Int> =\n  [ xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length ]"
 
         for fn in [ "asArg"; "inTuple"; "inList" ] do
-          let! _ = runCli target [ "eval"; $"Tests.PipeVals.{fn} [1, 2]" ]
+          let! _ = runCli target [ "eval"; $"Tests.PipeVals.{fn}([1, 2])" ]
           ()
 
         let! asArg = runCli target [ "traces"; "show"; "Tests.PipeVals.asArg" ]
         Expect.stringContains
           asArg
-          "|> Stdlib.List.length) // = 2"
-          "the paren closes before the value"
+          "|> Stdlib.List.length // = 2\n  ) // = \"2\""
+          "the paren closes on its own line, after the stage's value"
         Expect.isFalse (asArg.Contains "// = 2)") "and is not inside the comment"
 
         let! inTuple = runCli target [ "traces"; "show"; "Tests.PipeVals.inTuple" ]
@@ -1296,10 +1296,10 @@ let private previewPicksWhichRunToShow =
         do!
           author
             "Tests.Inbox.describe"
-            "(name: String): String =\n  let upper = Stdlib.String.toUppercase name\n  Stdlib.String.append upper \"!\""
+            "(name: String): String =\n  let upper = Stdlib.String.toUppercase(name)\n  Stdlib.String.append(upper, \"!\")"
 
-        let! _ = runCli target [ "eval"; "Tests.Inbox.describe \"bob\"" ]
-        let! _ = runCli target [ "eval"; "Tests.Inbox.describe \"alice\"" ]
+        let! _ = runCli target [ "eval"; "Tests.Inbox.describe(\"bob\")" ]
+        let! _ = runCli target [ "eval"; "Tests.Inbox.describe(\"alice\")" ]
 
         let! listed = runCli target [ "traces"; "calls"; "Tests.Inbox.describe" ]
         let rows =
@@ -1334,15 +1334,15 @@ let private pipeStagesCarryTheirValues =
         do!
           author
             "Tests.Pipes.sizes"
-            "(n: Int64): Int =\n  [1L, 2L, n] |> Stdlib.List.map (fun x -> x * 2L) |> Stdlib.List.length"
+            "(n: Int64): Int =\n  [1L, 2L, n] |> Stdlib.List.map(fun x -> x * 2L) |> Stdlib.List.length"
 
-        let! ran = runCli target [ "eval"; "Tests.Pipes.sizes 5L" ]
+        let! ran = runCli target [ "eval"; "Tests.Pipes.sizes(5L)" ]
         Expect.stringContains ran "3" "the call ran"
 
         let! shown = runCli target [ "traces"; "show"; "Tests.Pipes.sizes" ]
         Expect.stringContains
           shown
-          "|> Stdlib.List.map (fun x -> x * 2L) // = [2, 4, 10]"
+          "|> Stdlib.List.map(fun x -> x * 2L) // = [2, 4, 10]"
           "what came out of the middle stage, on its own line"
         Expect.stringContains
           shown
@@ -1379,12 +1379,12 @@ let private liveValuesStayBounded =
       task {
         let state = executionState target
         do! author target "Tests.LiveBound.inc" "(n: Int64): Int64 = (n + 1L)"
-        let! out = runCli target [ "eval"; "Tests.LiveBound.inc 41L" ]
+        let! out = runCli target [ "eval"; "Tests.LiveBound.inc(41L)" ]
         Expect.stringContains out "42" "the call ran"
 
         let within (ms : string) (fns : string) =
-          $"""match Darklang.Stdlib.Live.Values.replayWithin {ms} {fns} (Darklang.Cli.initState ()).accountID Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with
-| Some v -> (Darklang.Stdlib.Dict.size v.byExpr, Darklang.Stdlib.Option.withDefault v.skipped "")
+          $"""match Darklang.Stdlib.Live.Values.replayWithin({ms}, {fns}, (Darklang.Cli.initState()).accountID, Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with
+| Some v -> (Darklang.Stdlib.Dict.size(v.byExpr), Darklang.Stdlib.Option.withDefault(v.skipped, ""))
 | None -> (-1, "no trace")"""
         let expectSkipped (label : string) (ms : string) (fns : string) =
           task {
@@ -1409,15 +1409,15 @@ let private liveValuesStayBounded =
         let! wb =
           evalUnder
             state
-            """let base = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId Darklang.Stdlib.Option.Option.None "t" false
+            """let base = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Darklang.Stdlib.Option.Option.None, "t", false)
 let s0 = { base with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module ["Tests", "LiveBound"] }
-let items = Darklang.Cli.Workbench.reloadItems s0
-let idx = (Darklang.Stdlib.List.findFirstIndex items (fun i -> i.name == "inc")) |> Darklang.Stdlib.Option.withDefault 0
-let s = Darklang.Cli.Workbench.refresh base { s0 with items = items, selected = idx }
-let marked = { s with liveValues = Darklang.Stdlib.Dict.singleton "sentinel" "x" }
-let kept = Darklang.Cli.Workbench.refresh marked { marked with detailScroll = 1 }
-let reloaded = Darklang.Cli.Workbench.refresh kept (Darklang.Cli.Workbench.forceScmRefresh kept)
-(Darklang.Stdlib.Dict.size s.liveValues, Darklang.Stdlib.Dict.keys kept.liveValues, Darklang.Stdlib.Dict.keys reloaded.liveValues)"""
+let items = Darklang.Cli.Workbench.reloadItems(s0)
+let idx = (Darklang.Stdlib.List.findFirstIndex(items, fun i -> i.name == "inc")) |> Darklang.Stdlib.Option.withDefault(0)
+let s = Darklang.Cli.Workbench.refresh(base, { s0 with items = items, selected = idx })
+let marked = { s with liveValues = Darklang.Stdlib.Dict.singleton("sentinel", "x") }
+let kept = Darklang.Cli.Workbench.refresh(marked, { marked with detailScroll = 1 })
+let reloaded = Darklang.Cli.Workbench.refresh(kept, Darklang.Cli.Workbench.forceScmRefresh(kept))
+(Darklang.Stdlib.Dict.size(s.liveValues), Darklang.Stdlib.Dict.keys(kept.liveValues), Darklang.Stdlib.Dict.keys(reloaded.liveValues))"""
         match wb with
         | RT.DTuple(RT.DInt first,
                     RT.DList(_, [ RT.DString "sentinel" ]),
@@ -1452,8 +1452,8 @@ let private observeAndShow =
         let observe () =
           evalUnder
             state
-            $"""let o = Darklang.Stdlib.Live.observe Darklang.SCM.Branch.mainBranchId {viewLoc}
-(Darklang.Stdlib.Option.isSome o.report, o.rte, o.render)"""
+            $"""let o = Darklang.Stdlib.Live.observe(Darklang.SCM.Branch.mainBranchId, {viewLoc})
+(Darklang.Stdlib.Option.isSome(o.report), o.rte, o.render)"""
         let unpack (dv : RT.Dval) =
           match dv with
           | RT.DTuple(RT.DBool hasReport, rte, [ RT.DString render ]) ->
@@ -1468,11 +1468,11 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.update"
-            "(m: Int64) (e: Darklang.Cli.LiveView.Host.Event<Int64>): Int64 = m"
+            "(m: Int64, e: Darklang.Cli.LiveView.Host.Event<Int64>): Int64 = m"
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.bold \"Obs\", Stdlib.Cli.UI.Node.table [ \"k\", \"v\" ] [ [ \"count\", Stdlib.toString m ] ], Stdlib.Cli.UI.Node.row [ Stdlib.Cli.UI.Node.text \"a\", Stdlib.Cli.UI.Node.Node.Button(\"go\", 1L) ], Stdlib.Cli.UI.Node.band Stdlib.Cli.UI.Node.Severity.Error \"boom\" ]"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.bold(\"Obs\"), Stdlib.Cli.UI.Node.table([ \"k\", \"v\" ], [ [ \"count\", Stdlib.toString(m) ] ]), Stdlib.Cli.UI.Node.row([ Stdlib.Cli.UI.Node.text(\"a\"), Stdlib.Cli.UI.Node.Node.Button(\"go\", 1L) ]), Stdlib.Cli.UI.Node.band(Stdlib.Cli.UI.Node.Severity.Error, \"boom\") ])"
 
         let! first = observe ()
         let (hasReport, rte, render) = unpack first
@@ -1487,7 +1487,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text 3L"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(3L)"
         let! broken = observe ()
         let (hasReport, rte, render) = unpack broken
         Expect.isTrue hasReport "the newest version's report is there"
@@ -1501,7 +1501,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (Stdlib.toString (m / 0L))"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(Stdlib.toString(m / 0L))"
         let! raised = observe ()
         let (hasReport, rte, render) = unpack raised
         Expect.isFalse hasReport "this version passes its checks"
@@ -1519,17 +1519,17 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveOther.update"
-            "(m: Int64) (e: Darklang.Cli.LiveView.Host.Event<Int64>): Int64 = m"
+            "(m: Int64, e: Darklang.Cli.LiveView.Host.Event<Int64>): Int64 = m"
         do!
           author
             "Tests.LiveOther.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text \"the other view\""
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(\"the other view\")"
         let view =
           "Darklang.Cli.LiveView.Model.View { name = \"Tests.LiveOther\", title = \"O\", init = \"Tests.LiveOther.init\", update = \"Tests.LiveOther.update\", render = \"Tests.LiveOther.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
         let! prepared =
           evalUnder
             state
-            $"Darklang.Cli.LiveView.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
+            $"Darklang.Cli.LiveView.Host.prepare(Darklang.SCM.Branch.mainBranchId, {view})"
         let session =
           match prepared with
           | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
@@ -1550,9 +1550,9 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (\"count \" + Stdlib.toString m)"
-        let! _ = evalUnder state $"Darklang.Stdlib.Live.show {viewLoc}"
-        let! shown = evalUnder state "Darklang.Stdlib.Live.shown ()"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(\"count \" + Stdlib.toString(m))"
+        let! _ = evalUnder state $"Darklang.Stdlib.Live.show({viewLoc})"
+        let! shown = evalUnder state "Darklang.Stdlib.Live.shown()"
         match shown with
         | RT.DEnum(_, _, _, "Some", [ RT.DRecord(_, _, _, fields) ]) ->
           Expect.equal

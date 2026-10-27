@@ -256,25 +256,25 @@ let builtinReferenceScanning =
     "builtin reference scanning"
     [ for name, source, expected in
         [ "comments",
-          "// Builtin.fake\nBuiltin.printLine (* Builtin.fake (* nested *) *) () // Builtin.fake",
+          "// Builtin.fake\nBuiltin.printLine() // Builtin.fake",
           [ "printLine" ]
           "literal text",
-          "\"Builtin.fake \\\" // still a string\"\n\"\"\"Builtin.fake\"\"\"\nBuiltin.printLine ()",
+          "\"Builtin.fake \\\" // still a string\"\n\"\"\"Builtin.fake\"\"\"\nBuiltin.printLine()",
           [ "printLine" ]
           "interpolation",
-          "$\"Builtin.fake {{Builtin.fake}} {Builtin.int64Add 1L 2L}\"",
+          "$\"Builtin.fake {{Builtin.fake}} {Builtin.int64Add(1L, 2L)}\"",
           [ "int64Add" ]
           "raw interpolation",
-          "$\"\"\"Builtin.fake {{Builtin.fake}} {Builtin.printLine \"Builtin.fake\"}\"\"\"",
+          "$\"\"\"Builtin.fake {{Builtin.fake}} {Builtin.printLine(\"Builtin.fake\")}\"\"\"",
           [ "printLine" ]
           "nested interpolation",
-          "$\"outer {$\"inner {Builtin.printLine \"ok\"}\"}\"",
+          "$\"outer {$\"inner {Builtin.printLine(\"ok\")}\"}\"",
           [ "printLine" ]
           "qualified Dark names",
-          "Darklang.Example.Builtin.fake NotBuiltin.fake Builtin.real_v2",
+          "Darklang.Example.Builtin.fake(NotBuiltin.fake, Builtin.real_v2)",
           [ "real_v2" ]
           "function values and whitespace",
-          "let f = Builtin . int64Add\nBuiltin.int64Add 1L 2L",
+          "let f = Builtin . int64Add\nBuiltin.int64Add(1L, 2L)",
           [ "int64Add"; "int64Add" ] ] do
         test name {
           Expect.equal
@@ -284,7 +284,7 @@ let builtinReferenceScanning =
         }
       test "versioned calls retain both counts" {
         Expect.equal
-          (builtinReferences "Builtin.example_v2 () Builtin.example ()"
+          (builtinReferences "Builtin.example_v2((), Builtin.example, ())"
            |> referenceCounts)
           (Map.ofList [ "example", 2; "example_v2", 1 ])
           "version suffixes contribute to the builtin's base name"

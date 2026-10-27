@@ -27,7 +27,7 @@ type RequestError =
   | BadMethod
 
 // TODO: move this into a RequestError module, along with the type
-let toString (e: RequestError) : String =
+let toString(e: RequestError): String =
   match e with
   | BadUrl details ->
     match details with
@@ -64,12 +64,12 @@ type StreamResponse =
 /// A GET or HEAD of <param uri>: a read. It runs concurrently with what follows, and
 /// your code waits for the response where it first looks at it, so `List.map get urls`
 /// has every request in flight at once. Any other method is a `BadMethod` error.
-let read
-  (method: String)
-  (uri: String)
-  (headers: List<(String * String)>)
+let read(
+  method: String,
+  uri: String,
+  headers: List<(String * String)>)
   : Stdlib.Result.Result<Response, RequestError> =
-  Builtin.httpClientRead method uri headers
+  Builtin.httpClientRead(method, uri, headers)
 
 
 /// Make an HTTP call to <param uri>. Returns a <type Result> where the response is
@@ -80,51 +80,51 @@ let read
 /// <param body> is IGNORED for GET and HEAD. A read goes through `httpClientRead`, which
 /// takes no body, and carrying one would mean deciding whether a GET with a body is still
 /// a read. Use a method that is a write if you need the body sent.
-let request
-  (method: String)
-  (uri: String)
-  (headers: List<(String * String)>)
-  (body: Bytes)
+let request(
+  method: String,
+  uri: String,
+  headers: List<(String * String)>,
+  body: Bytes)
   : Stdlib.Result.Result<Response, RequestError> =
-  match Stdlib.String.toUppercase method with
-  | "GET" -> read "GET" uri headers
-  | "HEAD" -> read "HEAD" uri headers
-  | _ -> Builtin.httpClientRequest method uri headers body
+  match Stdlib.String.toUppercase(method) with
+  | "GET" -> read("GET", uri, headers)
+  | "HEAD" -> read("HEAD", uri, headers)
+  | _ -> Builtin.httpClientRequest(method, uri, headers, body)
 
 
-let get
-  (uri: String)
-  (headers: List<(String * String)>)
+let get(
+  uri: String,
+  headers: List<(String * String)>)
   : Stdlib.Result.Result<Response, RequestError> =
-  read "GET" uri headers
+  read("GET", uri, headers)
 
 
-let post
-  (uri: String)
-  (headers: List<(String * String)>)
-  (body: Bytes)
+let post(
+  uri: String,
+  headers: List<(String * String)>,
+  body: Bytes)
   : Stdlib.Result.Result<Response, RequestError> =
-  request "POST" uri headers body
+  request("POST", uri, headers, body)
 
 
-let put
-  (uri: String)
-  (headers: List<(String * String)>)
-  (body: Bytes)
+let put(
+  uri: String,
+  headers: List<(String * String)>,
+  body: Bytes)
   : Stdlib.Result.Result<Response, RequestError> =
-  request "PUT" uri headers body
+  request("PUT", uri, headers, body)
 
 
-let options (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-  request "OPTIONS" uri [] Stdlib.Bytes.empty
+let options(uri: String): Stdlib.Result.Result<Response, RequestError> =
+  request("OPTIONS", uri, [], Stdlib.Bytes.empty)
 
 
-let delete (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-  request "DELETE" uri [] Stdlib.Bytes.empty
+let delete(uri: String): Stdlib.Result.Result<Response, RequestError> =
+  request("DELETE", uri, [], Stdlib.Bytes.empty)
 
 
-let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-  read "HEAD" uri []
+let head(uri: String): Stdlib.Result.Result<Response, RequestError> =
+  read("HEAD", uri, [])
 
 
 /// Make a streaming HTTP call to <param uri>. The response's body is
@@ -134,28 +134,28 @@ let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
 ///
 /// The underlying socket is released when the body stream drains to
 /// completion or is explicitly closed with `Stdlib.Stream.close`.
-let stream
-  (method: String)
-  (uri: String)
-  (headers: List<(String * String)>)
+let stream(
+  method: String,
+  uri: String,
+  headers: List<(String * String)>)
   : Stdlib.Result.Result<StreamResponse, RequestError> =
-  Builtin.httpClientStream method uri headers
+  Builtin.httpClientStream(method, uri, headers)
 
 
 /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
-let basicAuth
-  (username: String)
-  (password: String)
+let basicAuth(
+  username: String,
+  password: String)
   : Stdlib.Result.Result<(String * String), String> =
-  if Stdlib.String.contains username "-" then
+  if Stdlib.String.contains(username, "-") then
     Stdlib.Result.Result.Error "Username cannot contain a hyphen"
   else
-    let encoded = Stdlib.String.base64Encode $"{username}:{password}"
+    let encoded = Stdlib.String.base64Encode($"{username}:{password}")
 
     Stdlib.Result.Result.Ok(("authorization", $"basic {encoded}"))
 
 /// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>
-let bearerToken (token: String) : (String * String) =
+let bearerToken(token: String): (String * String) =
   ("authorization", ("bearer " + token))
 
 
@@ -213,17 +213,17 @@ module Sse =
   /// spec: if there's no colon, the whole line is the field with an
   /// empty value; the leading space after the colon (if any) is
   /// stripped.
-  let splitField (line: String) : (String * String) =
-    match Stdlib.String.indexOf line ":" with
+  let splitField(line: String): (String * String) =
+    match Stdlib.String.indexOf(line, ":") with
     | None -> (line, "")
     | Some idx ->
-      let field = Stdlib.String.slice line 0 idx
+      let field = Stdlib.String.slice(line, 0, idx)
       let afterColon =
-        Stdlib.String.slice line (idx + 1) (Stdlib.String.length line)
+        Stdlib.String.slice(line, idx + 1, Stdlib.String.length(line))
 
       let value =
-        if Stdlib.String.startsWith afterColon " " then
-          Stdlib.String.dropFirst afterColon 1
+        if Stdlib.String.startsWith(afterColon, " ") then
+          Stdlib.String.dropFirst(afterColon, 1)
         else
           afterColon
 
@@ -234,19 +234,19 @@ module Sse =
   /// appends (with newline between multiple), `event: …` sets the
   /// event type, `id: …` sets the id, `:` comment lines are skipped,
   /// unknown fields are ignored.
-  let applyLine
-    (data: String)
-    (eventType: String)
-    (id: String)
-    (hasData: Bool)
-    (line: String)
+  let applyLine(
+    data: String,
+    eventType: String,
+    id: String,
+    hasData: Bool,
+    line: String)
     : (String * String * String * Bool) =
-    if Stdlib.String.isEmpty line then
+    if Stdlib.String.isEmpty(line) then
       (data, eventType, id, hasData)
-    else if Stdlib.String.startsWith line ":" then
+    else if Stdlib.String.startsWith(line, ":") then
       (data, eventType, id, hasData)
     else
-      let (field, value) = splitField line
+      let (field, value) = splitField(line)
 
       if field == "data" then
         let newData =
@@ -267,14 +267,14 @@ module Sse =
   /// Build an Event from the accumulated lines of one block, if any
   /// `data:` field was seen. `lastId` is the id the block inherits
   /// when no `id:` field appears.
-  let tryEmitBlock
-    (lines: List<String>)
-    (lastId: String)
+  let tryEmitBlock(
+    lines: List<String>,
+    lastId: String)
     : Stdlib.Option.Option<Event> =
     let (data, eventType, id, hasData) =
-      Stdlib.List.fold lines (("", "", lastId, false)) (fun acc line ->
+      Stdlib.List.fold(lines, ("", "", lastId, false), fun acc line ->
         let (d, e, i, h) = acc
-        applyLine d e i h line)
+        applyLine(d, e, i, h, line))
 
     if hasData then
       Stdlib.Option.Option.Some(Event { data = data, eventType = eventType, id = id })
@@ -285,31 +285,31 @@ module Sse =
   /// Pull bytes from the underlying stream until a complete event
   /// terminator (blank line) arrives, then emit. Returns None once
   /// the stream is exhausted and no buffered data remains.
-  let pullNextEvent
-    (bytes: Stream<UInt8>)
-    (state: ParseState)
+  let pullNextEvent(
+    bytes: Stream<UInt8>,
+    state: ParseState)
     : Stdlib.Option.Option<(Event * ParseState)> =
-    match Stdlib.Stream.next<UInt8> bytes with
+    match Stdlib.Stream.next<UInt8>(bytes) with
     | None ->
       // End of stream. Flush any buffered lines as a final event
       // (SSE spec: a trailing blank line is optional).
       let pending =
-        if Stdlib.List.isEmpty state.currentLine then
+        if Stdlib.List.isEmpty(state.currentLine) then
           state.currentLines
         else
           let tailLine =
             match
-              Stdlib.Bytes.toString (Stdlib.Bytes.fromList state.currentLine)
+              Stdlib.Bytes.toString(Stdlib.Bytes.fromList(state.currentLine))
             with
             | Ok s -> s
             | Error _ -> ""
 
-          Stdlib.List.append state.currentLines tailLine
+          Stdlib.List.append(state.currentLines, tailLine)
 
-      if Stdlib.List.isEmpty pending then
+      if Stdlib.List.isEmpty(pending) then
         Stdlib.Option.Option.None
       else
-        match tryEmitBlock pending state.lastId with
+        match tryEmitBlock(pending, state.lastId) with
         | Some event ->
           let nextState =
             ParseState
@@ -323,14 +323,14 @@ module Sse =
       if b == 10uy then
         let line =
           match
-            Stdlib.Bytes.toString (Stdlib.Bytes.fromList state.currentLine)
+            Stdlib.Bytes.toString(Stdlib.Bytes.fromList(state.currentLine))
           with
           | Ok s -> s
           | Error _ -> ""
 
-        if Stdlib.String.isEmpty line then
+        if Stdlib.String.isEmpty(line) then
           // Blank line terminates the block. Try to emit an Event.
-          match tryEmitBlock state.currentLines state.lastId with
+          match tryEmitBlock(state.currentLines, state.lastId) with
           | Some event ->
             let nextState =
               ParseState
@@ -345,30 +345,30 @@ module Sse =
                   currentLines = []
                   currentLine = [] }
 
-            pullNextEvent bytes nextState
+            pullNextEvent(bytes, nextState)
         else
           // Regular line; append and keep reading.
           let nextState =
             ParseState
               { lastId = state.lastId
-                currentLines = Stdlib.List.append state.currentLines line
+                currentLines = Stdlib.List.append(state.currentLines, line)
                 currentLine = [] }
 
-          pullNextEvent bytes nextState
+          pullNextEvent(bytes, nextState)
       else
         let nextState =
           ParseState
             { lastId = state.lastId
               currentLines = state.currentLines
-              currentLine = Stdlib.List.append state.currentLine b }
+              currentLine = Stdlib.List.append(state.currentLine, b) }
 
-        pullNextEvent bytes nextState
+        pullNextEvent(bytes, nextState)
 
 
   /// Parse an SSE byte stream into a stream of Events. Lazy: events
   /// flow to the consumer as their terminating blank lines arrive,
   /// so a slow LLM response surfaces tokens as they're produced.
-  let parse (bytes: Stream<UInt8>) : Stream<Event> =
+  let parse(bytes: Stream<UInt8>): Stream<Event> =
     let initial = ParseState { lastId = "", currentLines = [], currentLine = [] }
-    Stdlib.Stream.unfold<ParseState, Event> initial (fun state ->
-      pullNextEvent bytes state)
+    Stdlib.Stream.unfold<ParseState, Event>(initial, fun state ->
+      pullNextEvent(bytes, state))

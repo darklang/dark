@@ -457,7 +457,6 @@ let persistableRejectsLambda =
           { exprId = 1234UL
             closedRegisters = [||]
             typeSymbolTable = RT.TST.empty
-            argsSoFar = []
             access =
               LibExecution.Permissions.Access.start
                 LibExecution.Permissions.Policy.denyAll
@@ -472,7 +471,7 @@ let persistableRejectsLambda =
       Expect.stringContains reason "lambda" "the reason names the shape"
       Expect.stringContains
         reason
-        "let f () ="
+        "let f() ="
         "and says what to write instead, which is the whole value of catching it here"
     | None -> failtest "expected a reason"
   }
@@ -824,17 +823,14 @@ let rewriteWithNoOpOnPrimitivePreservesRef =
 // Bytes.promote recurses into DApplicable closures
 // ─────────────────────────────────────────────────────────────────────
 //
-// `Dval.rewriteWith` walks into AppLambda.closedRegisters /
-// AppLambda.argsSoFar / AppNamedFn.argsSoFar. A lambda closing over an
+// `Dval.rewriteWith` walks into AppLambda.closedRegisters and
+// AppNamedFn.argsSoFar. A lambda closing over an
 // ephemeral blob must have its capture environment promoted along
 // with the rest of the value graph — otherwise the persisted closure
 // carries a DBytes(Ephemeral _) ref pointing at bytes that died with
 // the producing VM.
 
-let private fakeAppLambda
-  (closedRegisters : List<RT.Register * RT.Dval>)
-  (argsSoFar : List<RT.Dval>)
-  : RT.Dval =
+let private fakeAppLambda (closedRegisters : List<RT.Register * RT.Dval>) : RT.Dval =
   RT.DApplicable(
     RT.AppLambda
       { exprId = 0UL
@@ -843,7 +839,6 @@ let private fakeAppLambda
         access =
           LibExecution.Permissions.Access.start
             LibExecution.Permissions.Policy.denyAll
-        argsSoFar = argsSoFar
         expectedReturn = ValueNone
         writtenIn = ValueNone }
   )
@@ -864,7 +859,7 @@ let promoteRewritesInsideClosedRegisters =
   testTask "Bytes.promote: ephemeral inside AppLambda.closedRegisters is promoted" {
     let payload = uniquePayload "promote-closure"
     let ephemeral = Bytes.newEphemeral payload
-    let dv = fakeAppLambda [ (1, ephemeral) ] []
+    let dv = fakeAppLambda [ (1, ephemeral) ]
     let! promoted = Bytes.promote PMBytes.insert dv |> Ply.toTask
     match promoted with
     | RT.DApplicable(RT.AppLambda lambda) ->
@@ -873,21 +868,6 @@ let promoteRewritesInsideClosedRegisters =
         Expect.equal h (Bytes.sha256Hex payload) "captured blob hash"
         Expect.equal n (int64 payload.Length) "captured blob length"
       | _ -> failtest $"expected promoted ephemeral, got {lambda.closedRegisters}"
-    | _ -> failtest $"expected DApplicable, got {promoted}"
-  }
-
-let promoteRewritesInsideAppLambdaArgs =
-  testTask "Bytes.promote: ephemeral inside AppLambda.argsSoFar is promoted" {
-    let payload = uniquePayload "promote-applambda-args"
-    let ephemeral = Bytes.newEphemeral payload
-    let dv = fakeAppLambda [] [ ephemeral ]
-    let! promoted = Bytes.promote PMBytes.insert dv |> Ply.toTask
-    match promoted with
-    | RT.DApplicable(RT.AppLambda lambda) ->
-      match lambda.argsSoFar with
-      | [ RT.DBytes(RT.Persistent(h, _)) ] ->
-        Expect.equal h (Bytes.sha256Hex payload) "argsSoFar blob promoted"
-      | _ -> failtest $"expected promoted ephemeral, got {lambda.argsSoFar}"
     | _ -> failtest $"expected DApplicable, got {promoted}"
   }
 
@@ -972,7 +952,7 @@ let prepareStubsStreamInsideRecord =
 let prepareStubsStreamInsideClosure =
   testTask "prepareDvalForStorage: DStream captured by AppLambda is stubbed" {
     let state = freshState ()
-    let dv = fakeAppLambda [ (1, freshStream ()) ] []
+    let dv = fakeAppLambda [ (1, freshStream ()) ]
     let! result = Tracing.prepareDvalForStorage state.blobs.persist dv |> Ply.toTask
     match result with
     | RT.DApplicable(RT.AppLambda lambda) ->
@@ -1040,7 +1020,6 @@ let tests =
       rewriteWithSingleChangePreservesSiblings
       rewriteWithNoOpOnPrimitivePreservesRef
       promoteRewritesInsideClosedRegisters
-      promoteRewritesInsideAppLambdaArgs
       promoteRewritesInsideAppNamedFnArgs
       prepareStubsTopLevelStream
       prepareStubsStreamInsideList

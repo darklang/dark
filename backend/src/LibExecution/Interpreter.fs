@@ -151,9 +151,9 @@ let rec private readRegs
 /// carries its argument registers as an `NEList`, and `head :: tail` would be exactly the allocation
 /// this exists to avoid.
 ///
-/// `Prior` covers partial application without a second code path: the walks consume already-applied
-/// arguments first, then the registers. Tracing, partial application and the builtin ABI still want a
-/// real list, and `toList` builds one for them.
+/// `Prior` covers a receiver call's bound receiver (`a.add(b)` binds `a` first) without a second code
+/// path: the walks consume already-applied arguments first, then the registers. Tracing, receiver
+/// calls and the builtin ABI still want a real list, and `toList` builds one for them.
 [<Struct>]
 type private ArgSeq =
   {
@@ -190,7 +190,7 @@ module private ArgSeq =
         | r :: rest -> ValueSome(struct (a.Regs[r], { a with Tail = rest }))
         | [] -> ValueNone
 
-  /// Only for the paths that genuinely need a list: tracing, partial application, and builtins.
+  /// Only for the paths that genuinely need a list: tracing, receiver calls, and builtins.
   let toList (a : ArgSeq) : List<Dval> =
     let fromRegs =
       match a.Head with
@@ -652,7 +652,7 @@ let inline private recordStage (vm : VMState) (stage : int) (before : int64) : u
 /// A frame with a register file of exactly this size, reused from the pool if one is free.
 ///
 /// A frame and its registers are what pushing a call costs. Nothing holds either past the pop -- a
-/// lambda copies the values it closes over, a partial application copies its args, the tracer is
+/// lambda copies the values it closes over, a receiver call copies its receiver, the tracer is
 /// handed lists, and the parent link carries a frame id rather than a reference -- so a popped frame
 /// can be handed straight back out with every field overwritten.
 ///
@@ -784,10 +784,9 @@ let private expectLambdaReturns
   (tst : TypeSymbolTable)
   (frameId : uuid)
   : unit =
-  // CLEANUP This check misses callbacks that take too many arguments. For example,
-  // in `List.filter xs (fun x y -> true)`, filter passes one argument, so the call
-  // returns a function waiting for `y` instead of a Bool, and nothing checks it.
-  // Removing partial application fixes this.
+  // A callback that takes too many arguments needs no check here: in
+  // `List.filter(xs, fun x y -> true)`, filter passes one argument and the call
+  // raises TooFewArgsForLambda.
   for k in 0 .. fnParams.Length - 1 do
     let struct (i, name, ret) = fnParams[k]
     let unbound =
@@ -1674,16 +1673,6 @@ let private invokeBuiltin
       }
 
 
-/// The access a partially applied fn reference leaves the `Apply` with: the
-/// access it was applied under. `ctx.access` is already the applying frame
-/// narrowed by whatever the reference had captured, so this can only narrow.
-///
-/// Like a lambda, a partial application must not retain broader access than
-/// the frame that created it.
-let inline private captureAccess (ctx : ApplyContext) : Option<Permissions.Access> =
-  Some ctx.access
-
-
 /// Run a builtin call without entering the interpreter's computation expression.
 ///
 /// Synchronous because almost nothing here ever waits: resolving a type arg is a cache hit, checking an
@@ -1694,8 +1683,8 @@ let inline private captureAccess (ctx : ApplyContext) : Option<Permissions.Acces
 /// Two things can still need the package store, and each has an escape hatch that keeps a single
 /// implementation rather than a fast copy and a slow copy that drift:
 ///
-/// The three ways a builtin call ends, once the symbol table is settled: too many arguments, not enough
-/// (so it stays a partial application), or exactly right.
+/// The three ways a builtin call ends, once the symbol table is settled: too many arguments, too few, or
+/// exactly right.
 ///
 /// Top-level rather than a local function, so it captures nothing. As a closure over the nine values it
 /// needs, it was an allocation on every builtin call.
@@ -1714,19 +1703,9 @@ let private completeBuiltin
     |> RTE.Apply
     |> raiseRTE vm.threadID
   elif argCount < paramCount then
-    // CLEANUP should the typeArgs here be of VTs, not TRs? check out usages, I suppose.
-    { ctx.applicable with
-        typeSymbolTable = tst
-        typeArgs = ctx.typeArgs
-        access = captureAccess ctx
-        // `Applicable.argsSoFar` is a list because lambdas share it. Converting back costs a cons
-        // per argument, but only on a partial application, which is rare and already not free.
-        argsSoFar = List.ofArray allArgs
-        boundImpls = [] }
-    |> AppNamedFn
-    |> DApplicable
-    |> Pending.wrap
-    |> Ply
+    RTE.Applications.TooFewArgsForFn(ctx.applicable.name, paramCount, argCount)
+    |> RTE.Apply
+    |> raiseRTE vm.threadID
   else
     // Some stdlib fns, like `List.filter`, just call a builtin, so we skip the Dark fn
     // and call the builtin directly. That skip also skips the code that sets up the
@@ -2010,8 +1989,8 @@ and private callBuiltinResolvedValues
   | ValueNone ->
     callBuiltinResolvedSlow exeState vm currentFrame ctx fn resolvedTypeArgsVT
 
-/// A builtin handed a read in flight (from a builtin's callback, or an earlier partial
-/// application): waited for here, in program order, as `withoutWaiting` says.
+/// A builtin handed a read in flight (from a builtin's callback, or a receiver call's bound
+/// receiver): waited for here, in program order, as `withoutWaiting` says.
 and private callBuiltinForcingArgs
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2179,10 +2158,9 @@ let private callBuiltin
 
 
 
-/// What a package-fn call produces: either it wasn't fully applied, or there's a frame to run.
+/// What a package-fn call produces: a frame to run, or a result already in hand.
 [<Struct>]
 type private PackageOutcome =
-  | PartiallyApplied of dval : Dval
   | PushFrame of frame : CallFrame
   /// A thin wrapper ran its builtin directly, with no frame. See `thinWrapperOf`.
   | Completed of result : Dval
@@ -2429,8 +2407,8 @@ let private packageEntryAccess
   | ValueSome(struct (layer, policy)) ->
     access |> Permissions.Access.restrict layer policy
 
-/// Too many arguments for a package fn, not enough (so it stays a partial application), or exactly right
-/// -- in which case build the frame to run it in.
+/// Too many arguments for a package fn, too few, or exactly right -- in which case build the frame to
+/// run it in.
 ///
 /// Top-level rather than a local function, for the same reason as `completeBuiltin`: as a closure over
 /// the values it needs, it was an allocation on every package call.
@@ -2445,25 +2423,16 @@ let private completePackage
   (allArgs : ArgSeq)
   (argCount : int)
   (paramCount : int)
-  (tst : TypeSymbolTable)
   : PackageOutcome =
   let applicable = ctx.applicable
-  let typeArgs = ctx.typeArgs
   if argCount > paramCount then
     RTE.Applications.TooManyArgsForFn(applicable.name, paramCount, argCount)
     |> RTE.Apply
     |> raiseRTE vm.threadID
   elif argCount < paramCount then
-    { applicable with
-        typeArgs = typeArgs
-        access = captureAccess ctx
-        // Materialised only here: a partial application has to retain its arguments.
-        argsSoFar = ArgSeq.toList allArgs
-        typeSymbolTable = tst }
-    |> AppNamedFn
-    |> DApplicable
-    |> Pending.wrap
-    |> PartiallyApplied
+    RTE.Applications.TooFewArgsForFn(applicable.name, paramCount, argCount)
+    |> RTE.Apply
+    |> raiseRTE vm.threadID
   else
     // Inherit the outer frame's TST but shadow this fn's own free type-vars first, so the inner fn's
     // `'a` is local to this call and not the outer's.
@@ -2752,7 +2721,6 @@ let private callPackageViaFrame
           allArgs
           argCount
           paramCount
-          tst
       )
     else if
       boundsRemembered exeState (exeState.fns.implGeneration ()) fn.bounds tst
@@ -2770,7 +2738,6 @@ let private callPackageViaFrame
           allArgs
           argCount
           paramCount
-          tst
       )
     else
       // A bounded fn: the bounds are part of the declared parameter types, checked
@@ -2790,7 +2757,6 @@ let private callPackageViaFrame
             allArgs
             argCount
             paramCount
-            tstAtEntry
       }
   else
     // Something in the remaining parameters needs the type store. Finish the check in a computation
@@ -2832,7 +2798,6 @@ let private callPackageViaFrame
           allArgs
           argCount
           paramCount
-          tstRest
     }
 
 
@@ -2870,8 +2835,7 @@ let private callPackageResolvedReady
   (resolvedExplicitTypeArgsVT : List<ValueType>)
   : Ply<PackageOutcome> =
   // A bare forwarder to a builtin of the same signature runs that builtin here, instead of pushing a
-  // frame whose whole job is to run the two instructions that would. Partial applications go the
-  // ordinary way: the point is to skip the frame, and a partial application doesn't push one anyway.
+  // frame whose whole job is to run the two instructions that would.
   match thinWrapperOf exeState fn with
   // `collectExprValues`: not while something is watching. Eliding a forwarder skips its frame,
   // and the frame is how a reader knows a lambda was passed to `List.map` rather than to
@@ -3109,9 +3073,7 @@ let private landThenRequest
     let! landed = landWhere vm asIs 0 [] args
     vm.activeAccess <- access
     match landed with
-    | first :: rest ->
-      return!
-        requestApply vm (AppLambda { lambda with argsSoFar = [] }) first rest next
+    | first :: rest -> return! requestApply vm (AppLambda lambda) first rest next
     | [] -> return DUnit
   }
 
@@ -3460,16 +3422,9 @@ let inline private pushLambdaFrame
   // copy over closed registers
   assignRegisters r appLambda.closedRegisters
 
-  // Put the lambda itself in the self register so the body can
-  // call itself. If it already has no applied args, reuse it
-  // as-is.
+  // Put the lambda itself in the self register so the body can call itself.
   match foundLambda.selfRegister with
-  | Some selfReg ->
-    r[selfReg] <-
-      if List.isEmpty appLambda.argsSoFar then
-        DApplicable(AppLambda appLambda)
-      else
-        DApplicable(AppLambda { appLambda with argsSoFar = [] })
+  | Some selfReg -> r[selfReg] <- DApplicable(AppLambda appLambda)
   | None -> ()
   recordStage vm ApplyStage.LambdaRegisters lambdaRegsAlloc
 
@@ -3526,11 +3481,7 @@ let rec private beginRequest
         cached
       else
         Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
-    // One cons for the argument list; a partial application's own arguments go first.
-    let prior =
-      match appLambda.argsSoFar with
-      | [] -> arg :: moreArgs
-      | sofar -> sofar @ (arg :: moreArgs)
+    let prior = arg :: moreArgs
     let allArgs =
       ArgSeq.withPrior
         prior
@@ -3543,14 +3494,9 @@ let rec private beginRequest
       |> RTE.Apply
       |> raiseRTE vm.threadID
     elif argCount < paramCount then
-      // Not enough to run it: the result is the lambda with these arguments applied, as `Apply`
-      // answers (`List.map xs (fun x y -> x)` is a list of lambdas).
-      let partial =
-        { appLambda with argsSoFar = ArgSeq.toList allArgs; access = access }
-        |> AppLambda
-        |> DApplicable
-        |> Pending.wrap
-      drive exeState vm caller reg pcAfter next finish (next partial) direct
+      RTE.Applications.TooFewArgsForLambda(exprId, paramCount, argCount)
+      |> RTE.Apply
+      |> raiseRTE vm.threadID
     elif
       lambdaArgsNeedWait
         (FreeTVars.patternsOfLambda exprId foundLambda.patterns)
@@ -3668,7 +3614,6 @@ let rec private beginRequest
         frame.requestAccess <- applying
         if direct then pushFrame vm frame else vm.frameToPush <- ValueSome frame
         ApplyDone
-      | PartiallyApplied dv
       | Completed dv ->
         drive exeState vm caller reg pcAfter next finish (next dv) direct
     | FQFnName.TraitMethod _ ->
@@ -3808,8 +3753,7 @@ let private applyInstructionForced
       else
         Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
 
-    let allArgs =
-      ArgSeq.withPrior appLambda.argsSoFar (ArgSeq.ofNE registers newArgRegs)
+    let allArgs = ArgSeq.ofNE registers newArgRegs
 
     let argCount = ArgSeq.count allArgs
     let paramCount = NEList.length foundLambda.patterns
@@ -3819,35 +3763,7 @@ let private applyInstructionForced
       |> RTE.Apply
       |> raiseRTE vm.threadID
 
-    let pats = FreeTVars.patternsOfLambda exprId foundLambda.patterns
-    if
-      argCount = paramCount
-      && not (List.isEmpty appLambda.argsSoFar)
-      && lambdaArgsNeedWait pats (ArgSeq.toList allArgs)
-    then
-      // An earlier partial application's argument is in no register to park on.
-      let next = fun v -> Ply v
-      let again =
-        landThenRequest
-          vm
-          pats
-          appLambda
-          currentFrame.access
-          (ArgSeq.toList allArgs)
-          next
-      let pc = currentFrame.programCounter + 1
-      outcome <-
-        drive
-          exeState
-          vm
-          currentFrame
-          putResultIn
-          pc
-          next
-          Unchecked.defaultof<_>
-          again
-          false
-    elif argCount = paramCount then
+    if argCount = paramCount then
       pushLambdaFrame
         exeState
         vm
@@ -3865,14 +3781,9 @@ let private applyInstructionForced
       |> RTE.Apply
       |> raiseRTE vm.threadID
     else
-      registers[putResultIn] <-
-        // Materialised only here: a partial application has to retain its
-        // arguments -- and, like a named-fn partial, the access it was applied
-        // under (`access` is the frame's narrowed by the lambda's capture).
-        { appLambda with argsSoFar = ArgSeq.toList allArgs; access = access }
-        |> AppLambda
-        |> DApplicable
-        |> Pending.wrap
+      RTE.Applications.TooFewArgsForLambda(exprId, paramCount, argCount)
+      |> RTE.Apply
+      |> raiseRTE vm.threadID
 
     recordStage vm ApplyStage.LambdaTotal lambdaTotalAlloc
 
@@ -3960,7 +3871,6 @@ let private applyInstructionForced
                   RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
             }
         match Ply.trySync call with
-        | ValueSome(PartiallyApplied dv)
         | ValueSome(Completed dv) -> registers[putResultIn] <- dv
         | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
         | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
@@ -4103,7 +4013,6 @@ let private applyInstructionForced
                   RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
             }
         match Ply.trySync call with
-        | ValueSome(PartiallyApplied dv)
         | ValueSome(Completed dv) -> registers[putResultIn] <- dv
         | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
         | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
@@ -4289,7 +4198,6 @@ let private applyInstructionForced
           // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
           // cheaper than the cell.
           match Ply.trySync call with
-          | ValueSome(PartiallyApplied dv)
           | ValueSome(Completed dv) ->
             if requested vm then
               // The elided builtin behind this wrapper asked for an apply.
@@ -4406,7 +4314,6 @@ let inline private applyInstruction
     let kind = argForcingFor exeState callee
     let soFar =
       match callee with
-      | DApplicable(AppLambda l) -> List.length l.argsSoFar
       | DApplicable(AppNamedFn n) -> List.length n.argsSoFar
       | _ -> 0
     let argCount = NEList.length newArgRegs
@@ -5116,7 +5023,6 @@ let private runSyncInstructions
             closedRegisters = closedOver registers impl.registersToCloseOver
             typeSymbolTable = currentFrame.typeSymbolTable
             access = currentFrame.access
-            argsSoFar = []
             expectedReturn = ValueNone
             writtenIn = writtenIn }
           |> AppLambda
@@ -5524,8 +5430,8 @@ let private checkFrameReturnType
 /// `p.show` where `p` has no field `show`: a receiver call. Exactly one visible
 /// impl (of any trait) with a method of that name for `p`'s type gives the
 /// method's fn with `p` as its first argument: the RESULT when that is the only
-/// argument (`p.show` is the whole call), else the partial application waiting for
-/// the rest (`a.add b`). None means the field access was simply wrong; several is
+/// argument (`p.show` is the whole call), else the method with `p` bound, called
+/// with the rest (`a.add(b)`). None means the field access was simply wrong; several is
 /// an ambiguity the caller resolves by naming the trait (`Show.show p`).
 let private receiverMethod
   (exeState : ExecutionState)
@@ -5917,7 +5823,6 @@ let private awaitOf
       fun () ->
         frame.programCounter <- frame.programCounter + 1
         match running.Result with
-        | PartiallyApplied dv
         | Completed dv -> frame.registers[reg] <- dv
         | PushFrame newFrame -> pushFrame vm newFrame
     )
@@ -6014,7 +5919,6 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
       | ValueSome outcome ->
         currentFrame.programCounter <- currentFrame.programCounter + 1
         match outcome with
-        | PartiallyApplied dv
         | Completed dv -> registers[reg] <- dv
         | PushFrame frame -> pushFrame vm frame
       | ValueNone -> bail <- ValueSome(awaitOf exeState vm step)

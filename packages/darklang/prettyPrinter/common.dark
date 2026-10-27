@@ -5,48 +5,48 @@
 module Darklang.PrettyPrinter
 
 
-let indent (s: String) : String =
+let indent(s: String): String =
   s
-  |> Stdlib.String.split "\n"
-  |> Stdlib.List.map (fun line ->
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.map(fun line ->
     match line with
     | "" -> ""
     | line -> "  " + line)
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")
 
-let indentByLevel (level: Int) (s: String) : String =
-  let indentStr = Stdlib.String.repeat "  " level
+let indentByLevel(level: Int, s: String): String =
+  let indentStr = Stdlib.String.repeat("  ", level)
 
   s
-  |> Stdlib.String.split "\n"
-  |> Stdlib.List.map (fun line ->
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.map(fun line ->
     match line with
     | "" -> ""
     | line -> indentStr + line)
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")
 
-let sign (s: LanguageTools.Sign) : String =
+let sign(s: LanguageTools.Sign): String =
   match s with
   | Positive -> ""
   | Negative -> "-"
 
 // One-hex-digit (0-15) to its source character.
-let hexDigitChar (n: Int) : String =
-  Stdlib.String.slice "0123456789ABCDEF" n (n + 1)
+let hexDigitChar(n: Int): String =
+  Stdlib.String.slice("0123456789ABCDEF", n, n + 1)
 
 // Escape backslashes and ASCII controls within a grapheme, preserving the
 // remaining text. The caller handles quotes for string and char literals.
-let encodeChar (c: Char) : String =
-  match Stdlib.Char.toAsciiCode c with
+let encodeChar(c: Char): String =
+  match Stdlib.Char.toAsciiCode(c) with
   | None ->
     // Multi-unit graphemes can contain a backslash plus combining marks, or
     // CRLF. Escape those without dropping the rest of the grapheme. Escape
     // backslashes first so the escapes added for CR and LF stay intact.
     c
     |> Stdlib.toString
-    |> Stdlib.String.replaceAll "\\" "\\\\"
-    |> Stdlib.String.replaceAll "\r" "\\r"
-    |> Stdlib.String.replaceAll "\n" "\\n"
+    |> Stdlib.String.replaceAll("\\", "\\\\")
+    |> Stdlib.String.replaceAll("\r", "\\r")
+    |> Stdlib.String.replaceAll("\n", "\\n")
   | Some code ->
     if code == 92 then "\\\\"
     else if code == 7 then "\\a"
@@ -59,26 +59,26 @@ let encodeChar (c: Char) : String =
     else if code < 32 || code == 127 then
       let hi = code / 16
       let lo = code % 16
-      $"\\x{hexDigitChar hi}{hexDigitChar lo}"
+      $"\\x{hexDigitChar(hi)}{hexDigitChar(lo)}"
     else
-      Stdlib.toString c
+      Stdlib.toString(c)
 
 // Encode special characters back to source-form. Symmetric with the parser's
 // `decodeStringContent`. Quote escapes are added per quote style — `"` for
 // string literals, `'` for char literals — so the common path skips them.
-let escapeCommon (s: String) : String =
+let escapeCommon(s: String): String =
   s
   |> Stdlib.String.toList
-  |> Stdlib.List.map encodeChar
-  |> Stdlib.String.join ""
+  |> Stdlib.List.map(encodeChar)
+  |> Stdlib.String.join("")
 
 /// Escape for `"..."` string literals: common specials plus the closing `"`.
-let escapeSpecialCharacters (s: String) : String =
-  (escapeCommon s) |> Stdlib.String.replaceAll "\"" "\\\""
+let escapeSpecialCharacters(s: String): String =
+  (escapeCommon(s)) |> Stdlib.String.replaceAll("\"", "\\\"")
 
 /// Escape for `'...'` char literals: common specials plus the closing `'`.
-let escapeCharLiteral (s: String) : String =
-  (escapeCommon s) |> Stdlib.String.replaceAll "'" "\\'"
+let escapeCharLiteral(s: String): String =
+  (escapeCommon(s)) |> Stdlib.String.replaceAll("'", "\\'")
 
 /// Format a record/dict field name for source output.
 /// Two reasons a field name needs backticks:
@@ -88,17 +88,17 @@ let escapeCharLiteral (s: String) : String =
 ///    literally named `type` or `match` needs backticks even though its shape is fine.
 /// Current syntax has no escape inside double-backtick identifiers, so names
 /// containing a newline or closing backticks are not source-round-trippable.
-let formatFieldName (name: String) : String =
-  let isStart (c: Char) : Bool = (Stdlib.Char.isASCIILetter c) || (c == '_')
-  let isCont (c: Char) : Bool =
-    (Stdlib.Char.isASCIILetter c)
-    || (Stdlib.Char.isDigit c)
+let formatFieldName(name: String): String =
+  let isStart(c: Char): Bool = (Stdlib.Char.isASCIILetter(c)) || (c == '_')
+  let isCont(c: Char): Bool =
+    (Stdlib.Char.isASCIILetter(c))
+    || (Stdlib.Char.isDigit(c))
     || (c == '_')
     || (c == '\'')
   let hasBareShape =
-    match Stdlib.String.toList name with
+    match Stdlib.String.toList(name) with
     | [] -> false
-    | first :: rest -> (isStart first) && (rest |> Stdlib.List.all isCont)
+    | first :: rest -> (isStart(first)) && (rest |> Stdlib.List.all(isCont))
 
   // Keep this list in sync with the lexer's `keyword` function
   // (backend/src/LibParser/Lexer.fs). `def` is intentionally not reserved.
@@ -106,38 +106,38 @@ let formatFieldName (name: String) : String =
     [ "let", "val", "in", "if", "elif", "then", "else", "type", "trait", "impl", "of"
       "match", "with", "fun", "when", "true", "false", "_" ]
   let isReserved =
-    reserved |> Stdlib.List.findFirst (fun k -> k == name) |> Stdlib.Option.isSome
+    reserved |> Stdlib.List.findFirst(fun k -> k == name) |> Stdlib.Option.isSome
 
   // An empty name has no valid quoted form either -- `````` is four backticks, not an empty identifier --
   // so quoting it adds noise without adding validity. Left as-is, like the other names this comment says
   // aren't source-round-trippable.
   if name == "" then
     name
-  else if hasBareShape && (Stdlib.Bool.not isReserved) then
+  else if hasBareShape && (Stdlib.Bool.not(isReserved)) then
     name
   else
     $"``{name}``"
 
 /// Print numeric field names without backticks for tuple access such as `t.1`.
-let formatAccessedFieldName (name: String) : String =
+let formatAccessedFieldName(name: String): String =
   let isDigits =
-    (Stdlib.Bool.not (Stdlib.String.isEmpty name))
-    && (name |> Stdlib.String.toList |> Stdlib.List.all Stdlib.Char.isDigit)
-  if isDigits then name else formatFieldName name
+    (Stdlib.Bool.not(Stdlib.String.isEmpty(name)))
+    && (name |> Stdlib.String.toList |> Stdlib.List.all(Stdlib.Char.isDigit))
+  if isDigits then name else formatFieldName(name)
 
 /// The fraction of a float literal with its trailing zeros dropped (`1.50` -> `1.5`), by parsing and
 /// reprinting it. Only trusted when that comes back as a plain `0.xxx` decimal: `00001` reprints as
 /// `1e-5`, and cutting two characters off that gave `0.-5`.
-let processRemainder (remainder: String) : String =
+let processRemainder(remainder: String): String =
   match $".{remainder}" |> Stdlib.Float.parse with
   | Ok floatValue ->
-    let printed = Stdlib.toString floatValue
+    let printed = Stdlib.toString(floatValue)
     let isPlainDecimal =
       printed
       |> Stdlib.String.toList
-      |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c || (Stdlib.toString c) == ".")
-    if isPlainDecimal && (Stdlib.String.startsWith printed "0.") then
-      Stdlib.String.dropFirst printed 2
+      |> Stdlib.List.all(fun c -> Stdlib.Char.isDigit(c) || (Stdlib.toString(c)) == ".")
+    if isPlainDecimal && (Stdlib.String.startsWith(printed, "0.")) then
+      Stdlib.String.dropFirst(printed, 2)
     else
       remainder
   | Error _ ->
@@ -161,13 +161,13 @@ let processRemainder (remainder: String) : String =
 /// captures the short spelling first, the resolver would pick that instead. Checking would mean walking
 /// every candidate against the package store for every name printed, which is far too expensive for a
 /// listing; the parser round-trip suite is what catches it.
-let shortenName
-  (currentModule: List<String>)
-  (owner: String)
-  (modules: List<String>)
-  (name: String)
+let shortenName(
+  currentModule: List<String>,
+  owner: String,
+  modules: List<String>,
+  name: String)
   : String =
-  let fullPath = Stdlib.List.prepend modules owner
+  let fullPath = Stdlib.List.prepend(modules, owner)
 
   // `Option` / `Result` and nothing else: the resolver gives these an unconditional stdlib fallback.
   let isAlwaysBare =
@@ -178,9 +178,9 @@ let shortenName
     name
   else
     let shared =
-      Darklang.LanguageTools.PackageManager.countMatchingPrefix currentModule fullPath
+      Darklang.LanguageTools.PackageManager.countMatchingPrefix(currentModule, fullPath)
 
-    let remaining = Stdlib.List.drop fullPath shared
+    let remaining = Stdlib.List.drop(fullPath, shared)
 
     // Nothing shared: the resolver implies `Darklang.` in front of `Stdlib.` and nothing else, so
     // that is the one real owner that can come off -- `Darklang.LanguageTools.X` printed as
@@ -191,13 +191,13 @@ let shortenName
 
     let remaining =
       match fullPath with
-      | "Darklang" :: "Stdlib" :: _ when shared == 0 -> Stdlib.List.drop fullPath 1
-      | _ when shared == 0 && scaffoldingOwner -> Stdlib.List.drop fullPath 1
+      | "Darklang" :: "Stdlib" :: _ when shared == 0 -> Stdlib.List.drop(fullPath, 1)
+      | _ when shared == 0 && scaffoldingOwner -> Stdlib.List.drop(fullPath, 1)
       | _ -> remaining
 
     match remaining with
     | [] -> name
-    | segments -> (Stdlib.String.join segments ".") + "." + name
+    | segments -> (Stdlib.String.join(segments, ".")) + "." + name
 
 
 /// How to paint the pieces of a rendered value.
@@ -278,13 +278,13 @@ module DisplayOptions =
         maxDepth = Stdlib.Option.Option.None }
 
   /// The defaults, printed from inside `path`.
-  let inModule (path: List<String>) : DisplayOptions =
+  let inModule(path: List<String>): DisplayOptions =
     { DisplayOptions.default with currentModule = path }
 
   /// The defaults, painted with `p`.
-  let painted (p: Palette) : DisplayOptions =
+  let painted(p: Palette): DisplayOptions =
     { DisplayOptions.default with palette = p }
 
   /// The defaults at a given width.
-  let atWidth (width: Int) : DisplayOptions =
+  let atWidth(width: Int): DisplayOptions =
     { DisplayOptions.default with width = width }

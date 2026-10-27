@@ -5,29 +5,29 @@ module Darklang.Stdlib.DateTime
 // builtins below. Apart from the three string formatters, everything else is arithmetic on that
 // count, over the proleptic Gregorian calendar. Follows Paul's compiler stdlib (`dateTime.dark`).
 
-let __ticks (date: DateTime) : Int = Builtin.dateTimeToUnixTicks date
+let __ticks(date: DateTime): Int = Builtin.dateTimeToUnixTicks(date)
 
 /// Raises "out-of-range value for type of Int" outside -9998-01-01 to 9999-12-31.
-let __fromTicks (ticks: Int) : DateTime = Builtin.dateTimeFromUnixTicks ticks
+let __fromTicks(ticks: Int): DateTime = Builtin.dateTimeFromUnixTicks(ticks)
 
-let __ticksPerMillisecond () : Int = 10000
-let __ticksPerSecond () : Int = 10000000
-let __ticksPerMinute () : Int = 600000000
-let __ticksPerHour () : Int = 36000000000
-let __ticksPerDay () : Int = 864000000000
+let __ticksPerMillisecond(): Int = 10000
+let __ticksPerSecond(): Int = 10000000
+let __ticksPerMinute(): Int = 600000000
+let __ticksPerHour(): Int = 36000000000
+let __ticksPerDay(): Int = 864000000000
 
 /// `/` on Ints rounds toward zero; dates before 1970 need it to round down.
-let __floorDiv (value: Int) (divisor: Int) : Int = (value - value % divisor) / divisor
+let __floorDiv(value: Int, divisor: Int): Int = (value - value % divisor) / divisor
 
-let __daysSinceEpoch (date: DateTime) : Int =
-  __floorDiv (__ticks date) (__ticksPerDay ())
+let __daysSinceEpoch(date: DateTime): Int =
+  __floorDiv(__ticks(date), __ticksPerDay())
 
-let __ticksWithinDay (date: DateTime) : Int = __ticks date % __ticksPerDay ()
+let __ticksWithinDay(date: DateTime): Int = __ticks(date) % __ticksPerDay()
 
 /// Days since 1970-01-01 of a civil date.
-let __daysFromCivil (year: Int) (month: Int) (day: Int) : Int =
+let __daysFromCivil(year: Int, month: Int, day: Int): Int =
   let y = if month <= 2 then year - 1 else year
-  let era = __floorDiv y 400
+  let era = __floorDiv(y, 400)
   let yearOfEra = y - era * 400
   let m = if month > 2 then month - 3 else month + 9
   let dayOfYear = (153 * m + 2) / 5 + day - 1
@@ -35,9 +35,9 @@ let __daysFromCivil (year: Int) (month: Int) (day: Int) : Int =
   era * 146097 + dayOfEra - 719468
 
 /// (year, month, day) of a count of days since 1970-01-01.
-let __civilFromDays (days: Int) : (Int * Int * Int) =
+let __civilFromDays(days: Int): (Int * Int * Int) =
   let shifted = days + 719468
-  let era = __floorDiv shifted 146097
+  let era = __floorDiv(shifted, 146097)
   let dayOfEra = shifted - era * 146097
   let yearOfEra =
     (dayOfEra - dayOfEra / 1460 + dayOfEra / 36524 - dayOfEra / 146096) / 365
@@ -50,22 +50,22 @@ let __civilFromDays (days: Int) : (Int * Int * Int) =
 
 /// A difference in whole units, computed in floating point as the host's durations do
 /// (days times units-per-day, plus the rest of the day) and rounded half to even.
-let __roundedDifference
-  (endDate: DateTime)
-  (startDate: DateTime)
-  (unitsPerDay: Int)
-  (nanosPerUnit: Float)
+let __roundedDifference(
+  endDate: DateTime,
+  startDate: DateTime,
+  unitsPerDay: Int,
+  nanosPerUnit: Float)
   : Int =
   let nanosPerDay = 86400000000000
-  let nanos = (__ticks endDate - __ticks startDate) * 100
-  let days = __floorDiv nanos nanosPerDay
+  let nanos = (__ticks(endDate) - __ticks(startDate)) * 100
+  let days = __floorDiv(nanos, nanosPerDay)
   let nanoOfDay = nanos % nanosPerDay
-  Stdlib.Float.round (
-    Stdlib.Int.toFloat (days * unitsPerDay)
-    + Stdlib.Int.toFloat nanoOfDay / nanosPerUnit
-  )
+  Stdlib.Float.round((
+    Stdlib.Int.toFloat(days * unitsPerDay)
+    + Stdlib.Int.toFloat(nanoOfDay) / nanosPerUnit
+  ))
 
-let __digit (c: Char) : Stdlib.Option.Option<Int> =
+let __digit(c: Char): Stdlib.Option.Option<Int> =
   match c with
   | '0' -> Stdlib.Option.Option.Some 0
   | '1' -> Stdlib.Option.Option.Some 1
@@ -79,41 +79,41 @@ let __digit (c: Char) : Stdlib.Option.Option<Int> =
   | '9' -> Stdlib.Option.Option.Some 9
   | _ -> Stdlib.Option.Option.None
 
-let __number (digits: List<Char>) : Stdlib.Option.Option<Int> =
-  Stdlib.List.fold digits (Stdlib.Option.Option.Some 0) (fun acc c ->
-    match (acc, __digit c) with
+let __number(digits: List<Char>): Stdlib.Option.Option<Int> =
+  Stdlib.List.fold(digits, Stdlib.Option.Option.Some 0, fun acc c ->
+    match (acc, __digit(c)) with
     | (Some n, Some d) -> Stdlib.Option.Option.Some(n * 10 + d)
     | _ -> Stdlib.Option.Option.None)
 
-let __isLeapYear (year: Int) : Bool =
+let __isLeapYear(year: Int): Bool =
   (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 
-let __daysInMonth (year: Int) (month: Int) : Int =
+let __daysInMonth(year: Int, month: Int): Int =
   match month with
-  | 2 -> if __isLeapYear year then 29 else 28
+  | 2 -> if __isLeapYear(year) then 29 else 28
   | 4 -> 30
   | 6 -> 30
   | 9 -> 30
   | 11 -> 30
   | _ -> 31
 
-let __fromParts
-  (year: List<Char>)
-  (month: List<Char>)
-  (day: List<Char>)
-  (hour: List<Char>)
-  (minute: List<Char>)
-  (second: List<Char>)
-  (millisecond: List<Char>)
+let __fromParts(
+  year: List<Char>,
+  month: List<Char>,
+  day: List<Char>,
+  hour: List<Char>,
+  minute: List<Char>,
+  second: List<Char>,
+  millisecond: List<Char>)
   : Stdlib.Result.Result<DateTime, String> =
   match
-    (__number year,
-     __number month,
-     __number day,
-     __number hour,
-     __number minute,
-     __number second,
-     __number millisecond)
+    (__number(year),
+     __number(month),
+     __number(day),
+     __number(hour),
+     __number(minute),
+     __number(second),
+     __number(millisecond))
   with
   | (Some y, Some mo, Some d, Some h, Some mi, Some s, Some ms) ->
     if
@@ -121,18 +121,18 @@ let __fromParts
       && mo >= 1
       && mo <= 12
       && d >= 1
-      && d <= __daysInMonth y mo
+      && d <= __daysInMonth(y, mo)
       && h <= 23
       && mi <= 59
       && s <= 59
     then
       let ticks =
-        __daysFromCivil y mo d * __ticksPerDay ()
-        + h * __ticksPerHour ()
-        + mi * __ticksPerMinute ()
-        + s * __ticksPerSecond ()
-        + ms * __ticksPerMillisecond ()
-      Stdlib.Result.Result.Ok(__fromTicks ticks)
+        __daysFromCivil(y, mo, d) * __ticksPerDay()
+        + h * __ticksPerHour()
+        + mi * __ticksPerMinute()
+        + s * __ticksPerSecond()
+        + ms * __ticksPerMillisecond()
+      Stdlib.Result.Result.Ok(__fromTicks(ticks))
     else
       Stdlib.Result.Result.Error "Invalid date format"
   | _ -> Stdlib.Result.Result.Error "Invalid date format"
@@ -140,71 +140,71 @@ let __fromParts
 
 /// Parses a string representing a date and time in the ISO 8601 format exactly {{" + ISO8601Format+ "}}
 /// (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}.
-let parse (s: String) : Stdlib.Result.Result<DateTime, String> =
-  match Stdlib.String.toList s with
+let parse(s: String): Stdlib.Result.Result<DateTime, String> =
+  match Stdlib.String.toList(s) with
   | [ y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2, 'T', h1, h2, ':', mi1, mi2, ':', s1, s2, 'Z' ] ->
-    __fromParts [ y1, y2, y3, y4 ] [ mo1, mo2 ] [ d1, d2 ] [ h1, h2 ] [ mi1, mi2 ] [ s1, s2 ] []
+    __fromParts([ y1, y2, y3, y4 ], [ mo1, mo2 ], [ d1, d2 ], [ h1, h2 ], [ mi1, mi2 ], [ s1, s2 ], [])
   | [ y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2, 'T', h1, h2, ':', mi1, mi2, ':', s1, s2, '.', f1, f2, f3, 'Z' ] ->
-    __fromParts
-      [ y1, y2, y3, y4 ]
-      [ mo1, mo2 ]
-      [ d1, d2 ]
-      [ h1, h2 ]
-      [ mi1, mi2 ]
-      [ s1, s2 ]
-      [ f1, f2, f3 ]
+    __fromParts(
+      [ y1, y2, y3, y4 ],
+      [ mo1, mo2 ],
+      [ d1, d2 ],
+      [ h1, h2 ],
+      [ mi1, mi2 ],
+      [ s1, s2 ],
+      [ f1, f2, f3 ])
   | _ -> Stdlib.Result.Result.Error "Invalid date format"
 
 
 impl ToString for DateTime =
   /// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
-  let toString (date: DateTime) : String = Builtin.dateTimeToString date
+  let toString(date: DateTime): String = Builtin.dateTimeToString(date)
 
 
 /// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}
-let toStringISO8601BasicDateTime (date: DateTime) : String =
-  Builtin.dateTimeToStringISO8601BasicDateTime date
+let toStringISO8601BasicDateTime(date: DateTime): String =
+  Builtin.dateTimeToStringISO8601BasicDateTime(date)
 
 
 /// Stringify <param date> to the ISO 8601 basic format YYYYMMDD
-let toStringISO8601BasicDate (date: DateTime) : String =
-  Builtin.dateTimeToStringISO8601BasicDate date
+let toStringISO8601BasicDate(date: DateTime): String =
+  Builtin.dateTimeToStringISO8601BasicDate(date)
 
 
 /// Returns the current time
-let now () : DateTime = Stdlib.DateTime.__now ()
+let now(): DateTime = Stdlib.DateTime.__now()
 
 
 /// Returns the <type DateTime> with the time set to midnight
-let today () : DateTime = Stdlib.DateTime.__today ()
+let today(): DateTime = Stdlib.DateTime.__today()
 
 
 /// Returns a <type DateTime> <param seconds> seconds after <param d>
-let addSeconds (d: DateTime) (seconds: Int) : DateTime =
-  __fromTicks (__ticks d + seconds * __ticksPerSecond ())
+let addSeconds(d: DateTime, seconds: Int): DateTime =
+  __fromTicks(__ticks(d) + seconds * __ticksPerSecond())
 
 
 /// Returns a <type DateTime> <param seconds> seconds before <param d>
-let subtractSeconds (d: DateTime) (seconds: Int) : DateTime =
-  __fromTicks (__ticks d - seconds * __ticksPerSecond ())
+let subtractSeconds(d: DateTime, seconds: Int): DateTime =
+  __fromTicks(__ticks(d) - seconds * __ticksPerSecond())
 
 
 /// Returns whether {{<param d1> > <param d2>}}
-let greaterThan (d1: DateTime) (d2: DateTime) : Bool = __ticks d1 > __ticks d2
+let greaterThan(d1: DateTime, d2: DateTime): Bool = __ticks(d1) > __ticks(d2)
 
 
 /// Returns whether {{<param d1> < <param d2>}}
-let lessThan (d1: DateTime) (d2: DateTime) : Bool = __ticks d1 < __ticks d2
+let lessThan(d1: DateTime, d2: DateTime): Bool = __ticks(d1) < __ticks(d2)
 
 
 /// Returns whether {{<param d1> >= <param d2>}}
-let greaterThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
-  __ticks d1 >= __ticks d2
+let greaterThanOrEqualTo(d1: DateTime, d2: DateTime): Bool =
+  __ticks(d1) >= __ticks(d2)
 
 
 /// Returns whether {{<param d1> <= <param d2>}}
-let lessThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
-  __ticks d1 <= __ticks d2
+let lessThanOrEqualTo(d1: DateTime, d2: DateTime): Bool =
+  __ticks(d1) <= __ticks(d2)
 
 /// `d1 < d2` on DateTimes, by the four comparisons above.
 impl Compare for DateTime =
@@ -215,162 +215,162 @@ impl Compare for DateTime =
 
 
 /// Converts <param date> to an <type Int> representing seconds since the Unix epoch
-let toSeconds (date: DateTime) : Int = __floorDiv (__ticks date) (__ticksPerSecond ())
+let toSeconds(date: DateTime): Int = __floorDiv(__ticks(date), __ticksPerSecond())
 
 
 /// Converts an <type Int> representing seconds since the Unix epoch into a <type DateTime>
-let fromSeconds (seconds: Int) : DateTime =
-  __fromTicks (seconds * __ticksPerSecond ())
+let fromSeconds(seconds: Int): DateTime =
+  __fromTicks(seconds * __ticksPerSecond())
 
 
 /// Returns the year portion of <param date> as an <type Int>
-let year (date: DateTime) : Int = (__civilFromDays (__daysSinceEpoch date)).1
+let year(date: DateTime): Int = (__civilFromDays(__daysSinceEpoch(date))).1
 
 
 /// Returns the month portion of <param date> as an <type Int> between {{1}} and {{12}}
-let month (date: DateTime) : Int = (__civilFromDays (__daysSinceEpoch date)).2
+let month(date: DateTime): Int = (__civilFromDays(__daysSinceEpoch(date))).2
 
 
 /// Returns the day portion of <param date> as an <type Int>
-let day (date: DateTime) : Int = (__civilFromDays (__daysSinceEpoch date)).3
+let day(date: DateTime): Int = (__civilFromDays(__daysSinceEpoch(date))).3
 
 
 /// Returns the weekday of <param date> as an <type Int>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
-let weekday (date: DateTime) : Int = (__daysSinceEpoch date + 3) % 7 + 1
+let weekday(date: DateTime): Int = (__daysSinceEpoch(date) + 3) % 7 + 1
 
 
 /// Returns the hour portion of <param date> as an <type Int>
-let hour (date: DateTime) : Int = __ticksWithinDay date / __ticksPerHour ()
+let hour(date: DateTime): Int = __ticksWithinDay(date) / __ticksPerHour()
 
 
 /// Returns the minute portion of <param date> as an <type Int>
-let minute (date: DateTime) : Int =
-  (__ticksWithinDay date / __ticksPerMinute ()) % 60
+let minute(date: DateTime): Int =
+  (__ticksWithinDay(date) / __ticksPerMinute()) % 60
 
 
 /// Returns the second portion of <param date> as an <type Int>
-let second (date: DateTime) : Int =
-  (__ticksWithinDay date / __ticksPerSecond ()) % 60
+let second(date: DateTime): Int =
+  (__ticksWithinDay(date) / __ticksPerSecond()) % 60
 
 
 /// Returns <type date> with the time set to midnight
-let atStartOfDay (date: DateTime) : DateTime =
-  __fromTicks (__daysSinceEpoch date * __ticksPerDay ())
+let atStartOfDay(date: DateTime): DateTime =
+  __fromTicks(__daysSinceEpoch(date) * __ticksPerDay())
 
 
 /// Returns the difference of the two dates, in seconds
-let subtract (d1: DateTime) (d2: DateTime) : Int =
-  __roundedDifference d1 d2 86400 1000000000.0
+let subtract(d1: DateTime, d2: DateTime): Int =
+  __roundedDifference(d1, d2, 86400, 1000000000.0)
 
 
 /// Converts <param date> to an <type Int> representing milliseconds since the Unix epoch
-let toMilliseconds (date: DateTime) : Int =
-  __floorDiv (__ticks date) (__ticksPerMillisecond ())
+let toMilliseconds(date: DateTime): Int =
+  __floorDiv(__ticks(date), __ticksPerMillisecond())
 
 
 /// Converts an <type Int> representing milliseconds since the Unix epoch into a <type DateTime>
-let fromMilliseconds (milliseconds: Int) : DateTime =
-  __fromTicks (milliseconds * __ticksPerMillisecond ())
+let fromMilliseconds(milliseconds: Int): DateTime =
+  __fromTicks(milliseconds * __ticksPerMillisecond())
 
 
 /// Returns a <type DateTime> <param milliseconds> milliseconds after <param d>
-let addMilliseconds (d: DateTime) (milliseconds: Int) : DateTime =
-  __fromTicks (__ticks d + milliseconds * __ticksPerMillisecond ())
+let addMilliseconds(d: DateTime, milliseconds: Int): DateTime =
+  __fromTicks(__ticks(d) + milliseconds * __ticksPerMillisecond())
 
 
 /// Returns a <type DateTime> <param milliseconds> milliseconds before <param d>
-let subtractMilliseconds (d: DateTime) (milliseconds: Int) : DateTime =
-  __fromTicks (__ticks d - milliseconds * __ticksPerMillisecond ())
+let subtractMilliseconds(d: DateTime, milliseconds: Int): DateTime =
+  __fromTicks(__ticks(d) - milliseconds * __ticksPerMillisecond())
 
 
 /// Returns the millisecond portion of <param date> as an <type Int> between {{0}} and {{999}}
-let millisecond (date: DateTime) : Int =
-  (__ticksWithinDay date / __ticksPerMillisecond ()) % 1000
+let millisecond(date: DateTime): Int =
+  (__ticksWithinDay(date) / __ticksPerMillisecond()) % 1000
 
 
 /// Returns the difference of the two dates, in milliseconds
-let subtractMs (d1: DateTime) (d2: DateTime) : Int =
-  __roundedDifference d1 d2 86400000 1000000.0
+let subtractMs(d1: DateTime, d2: DateTime): Int =
+  __roundedDifference(d1, d2, 86400000, 1000000.0)
 
 
 // Shared clock implementation.
 /// Clock record decoding, scaling and interrupted-sleep retries in shared Dark.
 
-let __timespec (bytes: Bytes) : Result.Result<(Int * Int), Int> =
-  let width = if Stdlib.Cli.Posix.__abiArm32 () then 4 else 8
-  let record = Stdlib.Bytes.toList bytes
-  Stdlib.Cli.Posix.__kernelSignedField record 0 width
-  |> Stdlib.Result.andThen (fun seconds ->
-    Stdlib.Cli.Posix.__kernelSignedField record width width
-    |> Stdlib.Result.map (fun nanos -> (seconds, nanos)))
+let __timespec(bytes: Bytes): Result.Result<(Int * Int), Int> =
+  let width = if Stdlib.Cli.Posix.__abiArm32() then 4 else 8
+  let record = Stdlib.Bytes.toList(bytes)
+  Stdlib.Cli.Posix.__kernelSignedField(record, 0, width)
+  |> Stdlib.Result.andThen(fun seconds ->
+    Stdlib.Cli.Posix.__kernelSignedField(record, width, width)
+    |> Stdlib.Result.map(fun nanos -> (seconds, nanos)))
 
-let __realtimeNanoseconds () : Result.Result<(Int * Int), Int> =
-  if Builtin.runtimeTargetOS () == "browser" then
-    let ticks = Builtin.runtimeRealtimeTicks ()
+let __realtimeNanoseconds(): Result.Result<(Int * Int), Int> =
+  if Builtin.runtimeTargetOS() == "browser" then
+    let ticks = Builtin.runtimeRealtimeTicks()
     Ok ((ticks / 10000000, (ticks % 10000000) * 100))
-  else if Stdlib.Cli.Posix.__abiMac () then
-    Builtin.syscallGettimeofday ()
-    |> Stdlib.Result.andThen (fun bytes ->
-      let record = Stdlib.Bytes.toList bytes
-      Stdlib.Cli.Posix.__kernelSignedField record 0 8
-      |> Stdlib.Result.andThen (fun seconds ->
-        Stdlib.Cli.Posix.__kernelSignedField record 8 4
-        |> Stdlib.Result.map (fun micros -> (seconds, micros * 1000))))
-  else Builtin.syscallClockGettime 0 |> Stdlib.Result.andThen __timespec
+  else if Stdlib.Cli.Posix.__abiMac() then
+    Builtin.syscallGettimeofday()
+    |> Stdlib.Result.andThen(fun bytes ->
+      let record = Stdlib.Bytes.toList(bytes)
+      Stdlib.Cli.Posix.__kernelSignedField(record, 0, 8)
+      |> Stdlib.Result.andThen(fun seconds ->
+        Stdlib.Cli.Posix.__kernelSignedField(record, 8, 4)
+        |> Stdlib.Result.map(fun micros -> (seconds, micros * 1000))))
+  else Builtin.syscallClockGettime(0) |> Stdlib.Result.andThen(__timespec)
 
-let __monotonicNanoseconds () : Result.Result<(Int * Int), Int> =
-  if Builtin.runtimeTargetOS () == "browser" then
-    let (ticks, frequency) = Builtin.runtimeMonotonicCounter ()
+let __monotonicNanoseconds(): Result.Result<(Int * Int), Int> =
+  if Builtin.runtimeTargetOS() == "browser" then
+    let (ticks, frequency) = Builtin.runtimeMonotonicCounter()
     if frequency <= 0 then Error 5
     else Ok ((ticks / frequency, ((ticks % frequency) * 1000000000) / frequency))
-  else if Stdlib.Cli.Posix.__abiMac () then
-    Builtin.syscallMachAbsoluteTime ()
-    |> Stdlib.Result.andThen (fun bytes ->
-      Stdlib.Cli.Posix.__kernelField (Stdlib.Bytes.toList bytes) 0 8
-      |> Stdlib.Result.andThen (fun ticks ->
-        Builtin.syscallMachTimebaseInfo ()
-        |> Stdlib.Result.andThen (fun base ->
-          let record = Stdlib.Bytes.toList base
-          Stdlib.Cli.Posix.__kernelField record 0 4
-          |> Stdlib.Result.andThen (fun numerator ->
-            Stdlib.Cli.Posix.__kernelField record 4 4
-            |> Stdlib.Result.andThen (fun denominator ->
+  else if Stdlib.Cli.Posix.__abiMac() then
+    Builtin.syscallMachAbsoluteTime()
+    |> Stdlib.Result.andThen(fun bytes ->
+      Stdlib.Cli.Posix.__kernelField(Stdlib.Bytes.toList(bytes), 0, 8)
+      |> Stdlib.Result.andThen(fun ticks ->
+        Builtin.syscallMachTimebaseInfo()
+        |> Stdlib.Result.andThen(fun base ->
+          let record = Stdlib.Bytes.toList(base)
+          Stdlib.Cli.Posix.__kernelField(record, 0, 4)
+          |> Stdlib.Result.andThen(fun numerator ->
+            Stdlib.Cli.Posix.__kernelField(record, 4, 4)
+            |> Stdlib.Result.andThen(fun denominator ->
               if denominator == 0 then Error 5
               else
                 let nanos = (ticks / denominator) * numerator + ((ticks % denominator) * numerator) / denominator
                 Ok ((nanos / 1000000000, nanos % 1000000000)))))))
-  else Builtin.syscallClockGettime 1 |> Stdlib.Result.andThen __timespec
+  else Builtin.syscallClockGettime(1) |> Stdlib.Result.andThen(__timespec)
 
-let __monotonicMilliseconds () : Int =
-  match __monotonicNanoseconds () with
+let __monotonicMilliseconds(): Int =
+  match __monotonicNanoseconds() with
   | Ok ((seconds, nanos)) -> seconds * 1000 + nanos / 1000000
-  | Error e -> Builtin.unwrap (Error e)
+  | Error e -> Builtin.unwrap(Error e)
 
-let __now () : DateTime =
-  match __realtimeNanoseconds () with
-  | Ok ((seconds, nanos)) -> __fromTicks (seconds * 10000000 + nanos / 100)
-  | Error e -> Builtin.unwrap (Error e)
+let __now(): DateTime =
+  match __realtimeNanoseconds() with
+  | Ok ((seconds, nanos)) -> __fromTicks(seconds * 10000000 + nanos / 100)
+  | Error e -> Builtin.unwrap(Error e)
 
-let __today () : DateTime =
-  let seconds = Stdlib.DateTime.toSeconds (__now ())
+let __today(): DateTime =
+  let seconds = Stdlib.DateTime.toSeconds(__now())
   let remainder = seconds % 86400
   let start = if remainder < 0 then seconds - remainder - 86400 else seconds - remainder
-  Stdlib.DateTime.fromSeconds start
+  Stdlib.DateTime.fromSeconds(start)
 
-let __sleepWith (sleep: Int -> Int -> (Int * Bytes)) (seconds: Int) (nanos: Int)
+let __sleepWith(sleep: Int -> Int -> (Int * Bytes), seconds: Int, nanos: Int)
   : Result.Result<Unit, Int> =
-  let (rc, remaining) = sleep seconds nanos
+  let (rc, remaining) = sleep(seconds, nanos)
   if rc == 0 then Ok ()
   else if rc == -4 then
-    __timespec remaining |> Stdlib.Result.andThen (fun pair ->
+    __timespec(remaining) |> Stdlib.Result.andThen(fun pair ->
       let (seconds, nanos) = pair
-      __sleepWith sleep seconds nanos)
+      __sleepWith(sleep, seconds, nanos))
   else Error (0 - rc)
 
-let __sleepNanoseconds (seconds: Int) (nanos: Int) : Result.Result<Unit, Int> =
-  __sleepWith Builtin.syscallNanosleep seconds nanos
+let __sleepNanoseconds(seconds: Int, nanos: Int): Result.Result<Unit, Int> =
+  __sleepWith(Builtin.syscallNanosleep, seconds, nanos)
 
-let __sleepMilliseconds (milliseconds: Float) : Unit =
-  let nanos = Stdlib.Float.toInt (milliseconds * 1000000.0)
-  if Builtin.runtimeTargetOS () == "browser" then Builtin.runtimeDelayTicks (nanos / 100)
-  else __sleepNanoseconds (nanos / 1000000000) (nanos % 1000000000) |> Builtin.unwrap
+let __sleepMilliseconds(milliseconds: Float): Unit =
+  let nanos = Stdlib.Float.toInt(milliseconds * 1000000.0)
+  if Builtin.runtimeTargetOS() == "browser" then Builtin.runtimeDelayTicks(nanos / 100)
+  else __sleepNanoseconds(nanos / 1000000000, nanos % 1000000000) |> Builtin.unwrap

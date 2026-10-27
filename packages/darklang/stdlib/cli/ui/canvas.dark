@@ -34,7 +34,7 @@ type Segment =
 /// blank band and then its content on top. Where a later span lands inside an earlier one, the earlier one's
 /// right-hand remainder is dropped rather than split. That's indistinguishable in practice, because the only
 /// thing that ever gets covered this way is blank padding, and gaps render as spaces anyway.
-let overlay (existing: List<Segment>) (next: Segment) : List<Segment> =
+let overlay(existing: List<Segment>, next: Segment): List<Segment> =
   let nextEnd = next.col + next.width
 
   // The common case by far is a span that lands clear of everything already placed: a row is
@@ -42,11 +42,11 @@ let overlay (existing: List<Segment>) (next: Segment) : List<Segment> =
   // costs one walk; trimming costs three and allocates a list per segment on the way.
   let overlaps =
     existing
-    |> Stdlib.List.any (fun seg ->
+    |> Stdlib.List.any(fun seg ->
       ((seg.col + seg.width) > next.col) && (seg.col < nextEnd))
 
-  if Stdlib.Bool.not overlaps then
-    Stdlib.List.append existing next
+  if Stdlib.Bool.not(overlaps) then
+    Stdlib.List.append(existing, next)
   else
 
   // `filterMap` rather than `map` into one-element lists and `flatten`: the branches here answer
@@ -55,7 +55,7 @@ let overlay (existing: List<Segment>) (next: Segment) : List<Segment> =
   // this was written.
   let kept =
     existing
-    |> Stdlib.List.filterMap (fun seg ->
+    |> Stdlib.List.filterMap(fun seg ->
       let segEnd = seg.col + seg.width
       if segEnd <= next.col || seg.col >= nextEnd then
         Stdlib.Option.Option.Some seg
@@ -64,20 +64,20 @@ let overlay (existing: List<Segment>) (next: Segment) : List<Segment> =
         Stdlib.Option.Option.Some(
           Segment
             { col = seg.col
-              text = Tui.Text.clipToWidth seg.text keepWidth
+              text = Tui.Text.clipToWidth(seg.text, keepWidth)
               width = keepWidth }
         )
       else
         Stdlib.Option.Option.None)
 
-  Stdlib.List.append kept next
+  Stdlib.List.append(kept, next)
 
 
 /// Render placed segments into one row, padding the gaps between them with spaces.
-let renderSegments (width: Int) (segments: List<Segment>) : String =
+let renderSegments(width: Int, segments: List<Segment>): String =
   let (text, _endCol) =
     segments
-    |> Stdlib.List.fold ("", 0) (fun acc seg ->
+    |> Stdlib.List.fold(("", 0), fun acc seg ->
       let (out, col) = acc
       if seg.col >= width then
         acc
@@ -93,12 +93,12 @@ let renderSegments (width: Int) (segments: List<Segment>) : String =
           if seg.col >= col && seg.width <= room then
             (seg.text, seg.width)
           else
-            let c = Tui.Text.clipToWidth seg.text room
-            (c, Tui.Text.styledWidth c)
+            let c = Tui.Text.clipToWidth(seg.text, room)
+            (c, Tui.Text.styledWidth(c))
 
         let next =
           if start > col then
-            out + (Stdlib.String.repeat " " (start - col)) + clipped
+            out + (Stdlib.String.repeat(" ", start - col)) + clipped
           else
             out + clipped
 
@@ -109,7 +109,7 @@ let renderSegments (width: Int) (segments: List<Segment>) : String =
 
 
 /// Paint one row's spans, in order.
-let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
+let composeRow(width: Int, rowSpans: List<Layout.Span>): String =
   // `renderSegments` walks the segments left to right, so they have to be in column order. Sorting
   // them there cost a `sortBy` per row, to reorder rows a renderer had already produced left to
   // right.
@@ -123,17 +123,17 @@ let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
   // agree by construction: `overlay`'s no-overlap branch is this append.
   let (placed, ordered, _lastCol, _rightmost) =
     rowSpans
-    |> Stdlib.List.fold ([], true, -1, 0) (fun acc span ->
+    |> Stdlib.List.fold(([], true, -1, 0), fun acc span ->
       let (segs, orderedSoFar, lastCol, rightmost) = acc
-      let w = Tui.Text.styledWidth span.text
+      let w = Tui.Text.styledWidth(span.text)
 
       let seg = Segment { col = span.col, text = span.text, width = w }
 
       let nextPlaced =
         if span.col >= rightmost then
-          Stdlib.List.append segs seg
+          Stdlib.List.append(segs, seg)
         else
-          overlay segs seg
+          overlay(segs, seg)
 
       let nextRightmost =
         let e = span.col + w
@@ -144,25 +144,25 @@ let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
       (nextPlaced, orderedSoFar && (span.col >= lastCol), span.col, nextRightmost))
 
   let sorted =
-    if ordered then placed else placed |> Stdlib.List.sortBy (fun seg -> seg.col)
+    if ordered then placed else placed |> Stdlib.List.sortBy(fun seg -> seg.col)
 
-  renderSegments width sorted
+  renderSegments(width, sorted)
 
 
 /// Paint spans onto a `height` x `width` grid and return the rows.
 ///
 /// Spans are bucketed by row in one pass. Doing it the obvious way (filter the whole span list once per row)
 /// is quadratic, and a full-screen frame has enough of both to make that hurt.
-let compose (width: Int) (height: Int) (spans: List<Layout.Span>) : List<String> =
-  let w = Stdlib.max 1 width
-  let h = Stdlib.max 0 height
+let compose(width: Int, height: Int, spans: List<Layout.Span>): List<String> =
+  let w = Stdlib.max(1, width)
+  let h = Stdlib.max(0, height)
 
   if h == 0 then
     []
   else
     let byRow =
       spans
-      |> Stdlib.List.fold Stdlib.Dict.empty (fun acc span ->
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc span ->
         if span.row < 0 || span.row >= h then
           acc
         else
@@ -170,24 +170,24 @@ let compose (width: Int) (height: Int) (spans: List<Layout.Span>) : List<String>
           // call, and this runs once per span. Worth the two extra lines only because of where it
           // sits; everywhere else `withDefault` reads better and costs nothing that matters.
           let existing =
-            match Stdlib.Dict.get acc span.row with
+            match Stdlib.Dict.get(acc, span.row) with
             | Some existing -> existing
             | None -> []
 
-          Stdlib.Dict.set acc span.row (Stdlib.List.append existing span))
+          Stdlib.Dict.set(acc, span.row, Stdlib.List.append(existing, span)))
 
-    Stdlib.List.range 0 (h - 1)
-    |> Stdlib.List.map (fun row ->
-      match Stdlib.Dict.get byRow row with
+    Stdlib.List.range(0, h - 1)
+    |> Stdlib.List.map(fun row ->
+      match Stdlib.Dict.get(byRow, row) with
       // An untouched row is empty rather than `width` spaces: the renderer erases each row it writes, so
       // blanks cost nothing, and an empty string compares equal frame to frame.
       | None -> ""
-      | Some rowSpans -> composeRow w rowSpans)
+      | Some rowSpans -> composeRow(w, rowSpans))
 
 
 /// Compose spans into a full-screen `Tui.View`.
-let toView (size: Tui.Size) (spans: List<Layout.Span>) : Tui.View =
+let toView(size: Tui.Size, spans: List<Layout.Span>): Tui.View =
   Tui.View
-    { rows = compose size.width size.height spans
+    { rows = compose(size.width, size.height, spans)
       cursor = Tui.Cursor.Hidden
       mode = Tui.ViewMode.Fullscreen }

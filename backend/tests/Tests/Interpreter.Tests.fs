@@ -279,13 +279,13 @@ module Match =
 
 module Pipes =
   let lambda = t "1 |> fun x -> x" E.Pipes.lambda (RT.DInt64 1L)
-  let infix = t "1 |> (+) 2" E.Pipes.infix (RT.DInt64 3L)
-  let fnCall = t "1 |> Builtin.int64Add 2" E.Pipes.fnCall (RT.DInt64 3L)
+  let infix = t "1 |> (fun v -> v + 2)" E.Pipes.infix (RT.DInt64 3L)
+  let fnCall = t "1 |> Builtin.int64Add(2)" E.Pipes.fnCall (RT.DInt64 3L)
   let variable =
     t "let myLambda = fun x -> x + 1\n1 |> myLambda" E.Pipes.variable (RT.DInt64 2L)
   let multiple =
     t
-      "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add 3 |> (+) 4"
+      "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add(3) |> (fun v -> v + 4)"
       E.Pipes.multiple
       (RT.DInt64 13L)
   let tests = testList "Pipes" [ lambda; infix; fnCall; variable; multiple ]
@@ -455,7 +455,6 @@ module Lambdas =
           RT.AppLambda
             { exprId = E.Lambdas.Identity.id
               closedRegisters = [||]
-              argsSoFar = []
               access = fullAccess
               typeSymbolTable = RT.TST.empty
               expectedReturn = ValueNone
@@ -477,7 +476,6 @@ module Lambdas =
           RT.AppLambda
             { exprId = E.Lambdas.Add.id
               closedRegisters = [||]
-              argsSoFar = []
               access = fullAccess
               typeSymbolTable = RT.TST.empty
               expectedReturn = ValueNone
@@ -487,19 +485,10 @@ module Lambdas =
           Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
     let partiallyApplied =
-      t
+      tFail
         "(fn x y -> x + y) 1"
         E.Lambdas.Add.partiallyApplied
-        (RT.DApplicable(
-          RT.AppLambda
-            { exprId = E.Lambdas.Add.id
-              closedRegisters = [||]
-              argsSoFar = [ RT.DInt64 1L ]
-              access = fullAccess
-              typeSymbolTable = RT.TST.empty
-              expectedReturn = ValueNone
-              writtenIn = ValueSome RT.Source }
-        ))
+        (RTE.Applications.TooFewArgsForLambda(E.Lambdas.Add.id, 2, 1) |> RTE.Apply)
 
     let fullyApplied =
       t "(fn x y -> x + y) 1 2" E.Lambdas.Add.fullyApplied (RT.DInt64 3L)
@@ -516,7 +505,6 @@ module Lambdas =
           RT.AppLambda
             { exprId = E.Lambdas.AddTuple.id
               closedRegisters = [||]
-              argsSoFar = []
               access = fullAccess
               typeSymbolTable = RT.TST.empty
               expectedReturn = ValueNone
@@ -542,7 +530,6 @@ module Lambdas =
             { exprId = E.Lambdas.AddToClosedVars.id
               closedRegisters =
                 RT.Captures.ofList [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
-              argsSoFar = []
               access = fullAccess
               typeSymbolTable = RT.TST.empty
               expectedReturn = ValueNone
@@ -553,7 +540,7 @@ module Lambdas =
 
     let applied =
       t
-        "let x = 5\nlet y=10\nlet addFifteen = fun a -> a + x + y\naddFifteen 25"
+        "let x = 5\nlet y=10\nlet addFifteen = fun a -> a + x + y\naddFifteen(25)"
         E.Lambdas.AddToClosedVars.applied
         (RT.DInt64 40L)
 
@@ -631,25 +618,19 @@ module Fns =
               boundImpls = [] }
         ))
 
+    let tooFew =
+      RTE.Applications.TooFewArgsForFn(RT.FQFnName.fqBuiltin "int64Add" 0, 2, 1)
+      |> RTE.Apply
+
     let partiallyApplied =
-      t
-        "Builtin.int64Add 1"
-        E.Fns.Builtin.partiallyApplied
-        (RT.DApplicable(
-          RT.AppNamedFn
-            { name = RT.FQFnName.fqBuiltin "int64Add" 0
-              typeSymbolTable = RT.TST.empty
-              typeArgs = []
-              access = allowAllAccess
-              argsSoFar = [ RT.DInt64 1 ]
-              boundImpls = [] }
-        ))
+      tFail "Builtin.int64Add(1)" E.Fns.Builtin.partiallyApplied tooFew
 
     let fullyApplied =
-      t "Builtin.int64Add 1 2" E.Fns.Builtin.fullyApplied (RT.DInt64 3L)
+      t "Builtin.int64Add(1, 2)" E.Fns.Builtin.fullyApplied (RT.DInt64 3L)
 
+    // The inner call stops short, so it raises before the outer one runs.
     let twoStepApplied =
-      t "(Builtin.int64Add 1) 2" E.Fns.Builtin.twoStepApplication (RT.DInt64 3L)
+      tFail "(Builtin.int64Add(1))(2)" E.Fns.Builtin.twoStepApplication tooFew
 
     let tests =
       testList
@@ -675,18 +656,15 @@ module Fns =
           ))
 
       let partiallyApplied =
-        t
+        tFail
           "Test.myAdd 1"
           E.Fns.Package.MyAdd.partiallyApplied
-          (RT.DApplicable(
-            RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
-                typeSymbolTable = RT.TST.empty
-                typeArgs = []
-                access = allowAllAccess
-                argsSoFar = [ RT.DInt64 1 ]
-                boundImpls = [] }
-          ))
+          (RTE.Applications.TooFewArgsForFn(
+            RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash,
+            2,
+            1
+           )
+           |> RTE.Apply)
 
       let fullyApplied =
         t "Test.myAdd 1 2" E.Fns.Package.MyAdd.fullyApplied (RT.DInt64 3L)
@@ -731,7 +709,7 @@ module Fns =
     module MyFnThatTakesALambda =
       let fullyApplied =
         t
-          "Test.myFnThatTakesALambda 4L (fun x -> x + 11L)"
+          "Test.myFnThatTakesALambda(4L, fun x -> x + 11L)"
           E.Fns.Package.MyFnThatTakesALambda.fullyApplied2
           (RT.DInt64 15L)
 
@@ -1256,7 +1234,7 @@ module DictKeyOrdering =
 module ListUnique =
   let private comparer = Dval.equalityComparer
 
-  let private lambda (id : id) (args : RT.Dval list) : RT.Dval =
+  let private lambda (id : id) : RT.Dval =
     RT.DApplicable(
       RT.AppLambda
         { exprId = id
@@ -1265,7 +1243,6 @@ module ListUnique =
           access =
             LibExecution.Permissions.Access.start
               LibExecution.Permissions.Policy.denyAll
-          argsSoFar = args
           expectedReturn = ValueNone
           writtenIn = ValueNone }
     )
@@ -1313,7 +1290,7 @@ module ListUnique =
           dictWithKey (enum name [ VT.string ])
           dict 0.0 (RT.DFloat 1.0), dict -0.0 (RT.DFloat 1.0)
           dict nan (RT.DFloat 1.0), dict -nan (RT.DFloat 1.0)
-          lambda 1UL [ RT.DInt64 1L ], lambda 1UL [ RT.DString "ignored" ]
+          lambda 1UL, lambda 1UL
           named "intAdd" [], named "intAdd" []
           named "intAdd" [ RT.DInt64 1L ], named "intAdd" [ RT.DInt64 1L ]
           RT.DBytes(RT.Persistent("same-hash", 5L)),
@@ -1430,7 +1407,7 @@ module ListUnique =
           [ 1..256 ]
           |> List.map (fun i -> LibExecution.Bytes.newEphemeral [| byte i |])
           [ 1..256 ] |> List.map (fun i -> RT.DBytes(RT.Persistent(string i, 0L)))
-          [ 1..256 ] |> List.map (fun i -> lambda (uint64 i) [])
+          [ 1..256 ] |> List.map (fun i -> lambda (uint64 i))
           [ 1..256 ] |> List.map (fun i -> named $"fn{i}" []) ]
       for values in families do
         let hashes = values |> List.map comparer.GetHashCode |> Set.ofList
@@ -1690,16 +1667,14 @@ module Reload =
       // re-binding of an old hash rather than the edit this test is about.
       let one = int64 (System.Random.Shared.Next(1_000, 1_000_000_000))
       let two = one + 1L
-      let! v1 =
-        authorIntoMain $"module Darklang.{m}\n\nlet answer () : Int64 = {one}L"
+      let! v1 = authorIntoMain $"module Darklang.{m}\n\nlet answer(): Int64 = {one}L"
       let h1 = hashBoundTo v1 "answer"
       let! state = executionStateFor pmPT false
       let held = applicableFor h1
       let! before = call state held
       Expect.equal before (RT.DInt64 one) "the first version answers"
 
-      let! v2 =
-        authorIntoMain $"module Darklang.{m}\n\nlet answer () : Int64 = {two}L"
+      let! v2 = authorIntoMain $"module Darklang.{m}\n\nlet answer(): Int64 = {two}L"
       let h2 = hashBoundTo v2 "answer"
       Expect.notEqual h1 h2 "the edit is a new hash"
 
@@ -1850,23 +1825,21 @@ module BoundMemo =
           "types"
           $"module {q}\n\ntype Box = {{ boxWidth{r}: Int64 }}\n\ntype Crate = {{ crateDepth{r}: Int64 }}"
       let! _ =
-        authorStep
-          "trait"
-          $"module {q}\n\ntrait Lbl<'a> =\n  let lbl (v: 'a) : String"
+        authorStep "trait" $"module {q}\n\ntrait Lbl<'a> =\n  let lbl(v: 'a): String"
       let! boxOps =
         authorStep
           "box impl"
-          $"module {q}\n\nimpl {q}.Lbl for {q}.Box =\n  let lbl (b: {q}.Box) : String = \"box\""
+          $"module {q}\n\nimpl {q}.Lbl for {q}.Box =\n  let lbl(b: {q}.Box): String = \"box\""
       let! _ =
         authorStep
           "fns"
           $"module {q}
 
-let guarded<'a: {q}.Lbl> (v: 'a) : String = \"entered\"
+let guarded<'a: {q}.Lbl>(v: 'a): String = \"entered\"
 
-let callBox () : String = {q}.guarded ({q}.Box {{ boxWidth{r} = 1L }})
+let callBox(): String = {q}.guarded({q}.Box {{ boxWidth{r} = 1L }})
 
-let callCrate () : String = {q}.guarded ({q}.Crate {{ crateDepth{r} = 1L }})"
+let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1L }})"
       // Read back from the store: the refresh may have re-hashed what the parse returned.
       let current
         (find : PT.PackageLocation -> Ply<Option<PT.Hash>>)
@@ -1898,7 +1871,7 @@ let callCrate () : String = {q}.guarded ({q}.Crate {{ crateDepth{r} = 1L }})"
       let! _ =
         authorStep
           "crate impl"
-          $"module {q}\n\nimpl {q}.Lbl for {q}.Crate =\n  let lbl (c: {q}.Crate) : String = \"crate\""
+          $"module {q}\n\nimpl {q}.Lbl for {q}.Crate =\n  let lbl(c: {q}.Crate): String = \"crate\""
       do! entered state callCrate "a new implementation is seen at once"
 
       let! _ =
@@ -1950,7 +1923,7 @@ module LambdaResultChecks =
 
   let sameWhetherOrNotWrapperIsSkipped =
     testTask "List.filter checks its callback whether or not the wrapper is skipped" {
-      let code = "Stdlib.List.filter [ 1L, 2L ] (fun x -> 2L)"
+      let code = "Stdlib.List.filter([ 1L, 2L ], fun x -> 2L)"
       let! skipped = run false code
       let! viaFrame = run true code
       let a = failedParam skipped

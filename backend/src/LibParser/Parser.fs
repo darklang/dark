@@ -840,50 +840,38 @@ and parsePipe (state : ParserState) (i : int) : WT.Expr * int =
     let mutable k = j
     while tok state k = TPipe do
       let pipeR = rng state k
-      // `x |> (op) y` desugars to `x op y` (the piped value is the LEFT operand),
-      // so an operator section directly after `|>` with an argument becomes a
-      // pipe-infix — not the section lambda applied (which would flip the order).
-      if
-        tok state (k + 1) = TLParen
-        && Option.isSome (infixOf (tok state (k + 2)))
-        && tok state (k + 3) = TRParen
-        && (canStartAtom (tok state (k + 4)) || isNegLitArg state (k + 4))
-      then
-        let opR = rng state (k + 2)
-        let infix = (infixOf (tok state (k + 2))).Value
-        let (arg, k2) = parseInfix state (k + 4)
-        pipeExprs.Add(
-          pipeR,
-          WT.EPipeInfix(span opR (WT.exprRange arg), (opR, infix), arg)
-        )
-        if k2 > k then k <- k2 else k <- k + 1
-      else
-        let (rhs, k2) = parseInfix state (k + 1)
-        (match toPipeExpr rhs with
-         | Some seg -> pipeExprs.Add(pipeR, seg)
-         | None ->
-           match rhs with
-           | WT.EUnwrap _ ->
-             errFull
-               state
-               DiagnosticCode.pipeSegment
-               (k + 1)
-               "'?' cannot end a pipe segment"
-               []
-               (Some "wrap the whole pipeline: `(value |> transform)?`")
-           | _ ->
-             err state DiagnosticCode.pipeSegment (k + 1) "unsupported pipe segment") // → diagnostic
-        if k2 > k then k <- k2 else k <- k + 1
+      let (rhs, k2) = parseInfix state (k + 1)
+      (match toPipeExpr rhs with
+       | Some seg -> pipeExprs.Add(pipeR, seg)
+       | None ->
+         match rhs with
+         | WT.EUnwrap _ ->
+           errFull
+             state
+             DiagnosticCode.pipeSegment
+             (k + 1)
+             "'?' cannot end a pipe segment"
+             []
+             (Some "wrap the whole pipeline: `(value |> transform)?`")
+         | _ ->
+           err state DiagnosticCode.pipeSegment (k + 1) "unsupported pipe segment") // → diagnostic
+      if k2 > k then k <- k2 else k <- k + 1
     let endR = if k > 0 then rng state (k - 1) else rng state j
     (WT.EPipe(span (WT.exprRange expr) endR, expr, List.ofSeq pipeExprs), k)
 
 // convert a parsed pipe RHS expression into a structured pipe segment
 and toPipeExpr (e : WT.Expr) : WT.PipeExpr option =
+  // `x |> f()` is `f(x)`: the empty call's unit (its range is the call's own `()`,
+  // ending where the call ends) is not an argument here. `x |> f(())` keeps its unit.
+  let pipeArgs (r : TokenRange) (args : List<WT.Expr>) =
+    match args with
+    | [ WT.EUnit ur ] when ur.end_ = r.end_ -> []
+    | _ -> args
   match e with
   // keep the callee's type args — `x |> parse<T>` needs `T` (dropping it left the
   // piped fn call with no type args, so `parse` had no target type: "type 'a")
   | WT.EApply(r, WT.EFnName(_, q), typeArgs, args) ->
-    Some(WT.EPipeFnCall(r, q, typeArgs, args))
+    Some(WT.EPipeFnCall(r, q, typeArgs, pipeArgs r args))
   | WT.EFnName(r, q) -> Some(WT.EPipeFnCall(r, q, [], []))
   | WT.EVariable(r, name) -> Some(WT.EPipeVariableOrFnCall(r, name))
   | WT.ELambda(r, pats, body, kf, ar) -> Some(WT.EPipeLambda(r, pats, body, kf, ar))
@@ -895,7 +883,7 @@ and toPipeExpr (e : WT.Expr) : WT.PipeExpr option =
         r,
         { range = r; modules = []; fn = { range = vr; name = name } },
         typeArgs,
-        args
+        pipeArgs r args
       )
     )
   | _ -> None
@@ -1470,29 +1458,16 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
   let (pat, j) = parseLetPattern state (i + 1)
   match pat with
   | WT.LPVariable _ when tok state j = TLParen ->
-    // nested function definition: `let f (x: T) (y) [: R] = body` — bind a lambda
+    // nested function definition: `let f(x: T, y: U)[: R] = body`. Bind a lambda
     // to the name (params lowered to untyped lambda patterns, types discarded)
-    let pats = System.Collections.Generic.List<WT.LetPattern>()
-    let mutable k = j
-    let mutable more = true
-    while more && tok state k = TLParen do
-      if tok state (k + 1) = TRParen then
-        pats.Add(WT.LPUnit(span (rng state k) (rng state (k + 1))))
-        k <- k + 2
-      else
-        (match tok state (k + 1) with
-         | TIdent nm -> pats.Add(WT.LPVariable(rng state (k + 1), nm))
-         | _ -> pats.Add(WT.LPVariable(rng state (k + 1), "_")))
-        let c =
-          if tok state (k + 2) = TColon then
-            snd (parseTypeRef state (k + 3))
-          else
-            k + 2
-        if tok state c = TRParen then
-          k <- c + 1
-        else
-          (errExpected state c "')'"
-           more <- false)
+    let (ps, k) = parseParams state j
+    let pats =
+      ps
+      |> List.map (fun p ->
+        match p with
+        | WT.FPUnit r -> WT.LPUnit r
+        | WT.FPNormal(_, name, _, _, _, _, _) ->
+          WT.LPVariable(name.range, name.name))
     let afterRet =
       if tok state k = TColon then snd (parseTypeRef state (k + 1)) else k
     let (symbolEquals, m0) =
@@ -1506,13 +1481,7 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
     let (body, p) = parseBlock state m
     let z = zeroWidthAtEnd keywordLet // no real `fun`/`->` tokens in this sugar
     let lambda =
-      WT.ELambda(
-        span (rng state j) (WT.exprRange fnBody),
-        List.ofSeq pats,
-        fnBody,
-        z,
-        z
-      )
+      WT.ELambda(span (rng state j) (WT.exprRange fnBody), pats, fnBody, z, z)
     (WT.ELet(
       span keywordLet (WT.exprRange body),
       pat,
@@ -1647,13 +1616,12 @@ and parseInfixRhs
     | _ -> go <- false
   (left, j)
 
-// A parenthesized enum-constructor field list: `(e1, e2, …)` with `i` at the
-// `(`. Commas separate FIELDS (so `Pair(a, b)` is two fields; a tuple field
-// needs double parens). Fields are anchored exactly like a paren body
-// (stmtExact — the `)` is the real delimiter), sunk into `sink`; returns the
-// index after the `)`. Shared by the adjacent (`Ctor(…)`) and spaced
-// (`Ctor (…)`) forms.
-and parseCtorParenFields
+// A parenthesized list, `(e1, e2, …)` with `i` at the `(`: a call's arguments or
+// a constructor's fields. Commas or newlines separate the items (so `f(a, b)` is
+// two, and one tuple needs double parens). Items are anchored exactly like a paren
+// body (stmtExact: the `)` is the real delimiter), sunk into `sink`; returns the
+// index after the `)`. An empty list gives the one unit item: `f()`, `Ctor()`.
+and parseParenList
   (state : ParserState)
   (i : int)
   (sink : System.Collections.Generic.List<WT.Expr>)
@@ -1676,7 +1644,7 @@ and parseCtorParenFields
             state
             (WT.exprRange a)
             m2
-            "a comma or newline between constructor fields"
+            "a comma or newline between arguments"
         m <- m2
       else
         go <- false
@@ -1712,65 +1680,126 @@ and parsePrefixBuiltin
    ),
    k)
 
-// space application: `f a b`
+/// What can be called: a name, a field (`c.onKey(s, k)`), a call's result
+/// (`f(a)(b)`), an unwrap, or a lambda (an operator section `(+)` is one).
+and isCallee (e : WT.Expr) : bool =
+  match e with
+  | WT.EVariable _
+  | WT.EFnName _
+  | WT.EApply _
+  | WT.EUnwrap _
+  | WT.ERecordFieldAccess _
+  | WT.ELambda _ -> true
+  | _ -> false
+
+// An expression followed by arguments separated by spaces, `f a b`, is not a call:
+// calls are `f(a, b)` (see `parseCalls`). The arguments are still parsed into a
+// call, so recovery and tooling see the shape the author meant; the diagnostic is
+// what makes it an error.
 and parseApp (state : ParserState) (i : int) : WT.Expr * int =
   let (callee, j) = parseAtom state i
   let args = System.Collections.Generic.List<WT.Expr>()
   let mutable k = j
-  // A spaced enum ctor followed by a parenthesized list is a FIELD list, not a
-  // single tuple arg: `KeyPressed (a, b, c)` → 3 fields.
-  // The content is parsed as a comma list, so double parens `Ctor ((a, b))` keep the
-  // tuple as ONE field (no top-level comma). Only fires in head position (the ctor IS
-  // the callee), so `f None (g)` is unaffected. Adjacent `Ctor(a,b)` was already
+  // Constructors are unchanged by call syntax. A spaced constructor followed by a
+  // parenthesized list is a FIELD list, not a single tuple arg: `KeyPressed (a, b, c)`
+  // is 3 fields, and fields after it (`Case (x) y`) add to it. Only in head
+  // position, since the constructor IS the callee here. Adjacent `Ctor(a,b)` is
   // handled in the enum branch, so a nullary EEnum callee here means a spaced paren.
   (match callee with
    | WT.EEnum(_, _, _, [], _) when
      tok state j = TLParen && offsideContinues state i j
      ->
-     k <- parseCtorParenFields state j args
+     k <- parseParenList state j args
    | _ -> ())
-  // only names/applications take args
-  // a field access can yield a function too: `c.onKey state key …`
   let acceptsArgs =
     match callee with
-    // a lambda literal can be applied directly: `(fun a b -> …) x y`, and an
-    // operator section `(op)` lowers to such a lambda; a nullary enum constructor
-    // in head position takes its fields as space args (`Ok 5` → `Ok(5)`)
-    | WT.EVariable _
-    | WT.EFnName _
-    | WT.EApply _
-    | WT.EUnwrap _
-    | WT.ERecordFieldAccess _
-    | WT.ELambda _ -> true
     | WT.EEnum(_, _, _, [], _) -> true
-    | _ -> false
+    | _ -> isCallee callee
   if acceptsArgs then
     while (canStartAtom (tok state k) || isNegLitArg state k)
           && offsideContinues state i k do
       let (a, k2) = parseAtom state k
       args.Add a
       k <- k2
-  if args.Count = 0 then
-    (callee, k)
-  else
+  match callee with
+  | _ when args.Count = 0 -> (callee, k)
+  // A constructor still takes space-separated fields: `Ok 5` as well as `Ok(5)`.
+  | WT.EEnum(er, tname, cn, [], dot) ->
     let endR = WT.exprRange (Seq.last args)
+    (WT.EEnum(span er endR, tname, cn, List.ofSeq args, dot), k)
+  | _ ->
+    let endR = WT.exprRange (Seq.last args)
+    let calleeText =
+      match callee with
+      | WT.EVariable(_, name) -> name
+      | WT.EFnName(_, q) -> q.fn.name
+      | _ -> "f"
+    state.diagnostics.Add
+      { code = DiagnosticCode.unexpected
+        severity = DiagError
+        range = span (WT.exprRange callee) endR
+        message = "arguments go in parentheses, separated by commas"
+        related = []
+        hint =
+          // as many placeholder names as there were arguments: `f(a)` for `f a`
+          let names =
+            [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h" ] |> List.truncate args.Count
+          let shown = if args.Count > names.Length then names @ [ "..." ] else names
+          let commaList = String.concat ", " shown
+          let spaceList = String.concat " " shown
+          Some
+            $"write `{calleeText}({commaList})` rather than `{calleeText} {spaceList}`" }
     match callee with
-    // callee already carries explicit type args (`parse<T> arg`) — fold the
-    // value args into that same EApply rather than nesting.
     | WT.EApply(cr, fn, typeArgs, []) ->
       (WT.EApply(span cr endR, fn, typeArgs, List.ofSeq args), k)
-    // a nullary enum constructor in head position: its space args are its FIELDS
-    // (`Ok 5` → `EEnum(Ok, [5])`), matching the adjacent-paren `Ok(5)` form.
-    | WT.EEnum(er, tname, cn, [], dot) ->
-      (WT.EEnum(span er endR, tname, cn, List.ofSeq args, dot), k)
     | _ ->
       let lhs =
-        // a bare lowercase variable callee becomes a fn name when applied
         match callee with
         | WT.EVariable(r, name) ->
           WT.EFnName(r, { range = r; modules = []; fn = { range = r; name = name } })
         | other -> other
       (WT.EApply(span (WT.exprRange lhs) endR, lhs, [], List.ofSeq args), k)
+
+/// Calls: `callee(a, b)`, as many times as they follow (`f(a)(b)`), each followed by
+/// any postfix (`f(x).field`, `f(x)?`). `f()` gives the unit argument, so it calls
+/// a fn declared `let f(): T`. A space before the `(` is allowed. Constructors are
+/// not calls: their fields are parsed with the constructor (`parsePrimary`, `parseApp`).
+and parseCalls
+  (state : ParserState)
+  (headIdx : int)
+  (e : WT.Expr)
+  (j : int)
+  : WT.Expr * int =
+  let glued =
+    j > 0
+    && (rng state j).start.row = (rng state (j - 1)).end_.row
+    && (rng state j).start.column = (rng state (j - 1)).end_.column
+  if
+    isCallee e
+    && tok state j = TLParen
+    && (glued || offsideContinues state headIdx j)
+  then
+    let args = System.Collections.Generic.List<WT.Expr>()
+    let k = parseParenList state j args
+    let closeR = rng state (k - 1)
+    let called =
+      match e with
+      // a callee carrying explicit type args (`parse<T>`) takes the args itself
+      | WT.EApply(cr, fn, typeArgs, []) ->
+        WT.EApply(span cr closeR, fn, typeArgs, List.ofSeq args)
+      | WT.EVariable(r, name) ->
+        WT.EApply(
+          span r closeR,
+          WT.EFnName(r, { range = r; modules = []; fn = { range = r; name = name } }),
+          [],
+          List.ofSeq args
+        )
+      | other ->
+        WT.EApply(span (WT.exprRange other) closeR, other, [], List.ofSeq args)
+    let (after, k2) = parsePostfix state called k
+    parseCalls state headIdx after k2
+  else
+    (e, j)
 
 and parseAtom (state : ParserState) (i : int) : WT.Expr * int =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
@@ -1778,7 +1807,11 @@ and parseAtom (state : ParserState) (i : int) : WT.Expr * int =
   // Any postfix after an unparenthesized lambda belongs to its body.
   // If the body couldn't parse it, leave it for an error rather than attaching
   // it to the lambda itself (for example, `fun v -> Ok (x)?`).
-  if tok state i = TFun then (baseE, j) else parsePostfix state baseE j
+  if tok state i = TFun then
+    (baseE, j)
+  else
+    let (e, k) = parsePostfix state baseE j
+    parseCalls state i e k
 
 // Parse `value?.field.1` from left to right: unwrap, field, then tuple element.
 // The parser stores both `.field` and `.1` as field accesses.
@@ -2190,7 +2223,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
         tok state j = TLParen
         && (rng state j).start.row = final.range.end_.row
         && (rng state j).start.column = final.range.end_.column
-      if adjacentParen then k <- parseCtorParenFields state j fields
+      if adjacentParen then k <- parseParenList state j fields
       // A non-adjacent-paren constructor is NULLARY here; space-separated fields
       // (`Ok 5`, `Ok -4y`) are folded by parseApp — but ONLY in application-head
       // position, so a constructor used as an ARGUMENT (`f None (g)`) stays nullary
@@ -2883,16 +2916,26 @@ and parseTypeParams
   : List<string * TokenRange> * List<WT.TypeParamBound> * int =
   parseTypeParamsWith parseBoundTrait state i
 
-// a function parameter `(name: Type)` or `()`
-/// A run of `(name: T)` parameters, with the blank-name check both a fn declaration and a
-/// trait method need. Stops when a step makes no progress, the file's usual guard.
+/// A fn's parameter list, `(a: T, b: U)` or `()`, with the blank-name check both a
+/// fn declaration and a trait method need. Parameters are separated by commas or
+/// newlines. A second list after the first (`(a: T) (b: U)`) is an error, and is
+/// read as more parameters so the rest of the declaration still parses.
 and parseParams (state : ParserState) (i : int) : List<WT.FnParam> * int =
   let ps = System.Collections.Generic.List<WT.FnParam>()
-  let mutable k = i
+  let (first, k1) = parseParamList state i
+  ps.AddRange first
+  let mutable k = k1
   let mutable more = true
   while more && tok state k = TLParen do
-    let (p, k2) = parseParam state k
-    ps.Add p
+    let (extra, k2) = parseParamList state k
+    errFull
+      state
+      DiagnosticCode.unexpected
+      k
+      "a function's parameters go in one list, separated by commas"
+      []
+      (Some "write `let f(a: T, b: U)` rather than `let f (a: T) (b: U)`")
+    ps.AddRange extra
     if k2 = k then more <- false else k <- k2
   for parameter in ps do
     match parameter with
@@ -2907,43 +2950,69 @@ and parseParams (state : ParserState) (i : int) : List<WT.FnParam> * int =
     | _ -> ()
   (List.ofSeq ps, k)
 
-
-and parseParam (state : ParserState) (i : int) : WT.FnParam * int =
+/// One parenthesized parameter list starting at the `(` at `i`. Each parameter
+/// keeps the list's `(` (the first) or the `,` before it as its left delimiter, and
+/// the `,` after it or the list's `)` (the last) as its right one.
+and parseParamList (state : ParserState) (i : int) : List<WT.FnParam> * int =
   let lparen = rng state i
   if tok state (i + 1) = TRParen then
-    (WT.FPUnit(span lparen (rng state (i + 1))), i + 2)
+    ([ WT.FPUnit(span lparen (rng state (i + 1))) ], i + 2)
   else
-    let nameId : WT.Identifier =
-      match tok state (i + 1) with
-      | TIdent nm -> { range = rng state (i + 1); name = nm }
-      // `_` names a parameter you don't intend to use. It's also what `()` is stored as, so accepting it
-      // here is what makes `(_: Unit)` and `()` both parse to the same thing and either form round-trip.
-      | TUnderscore -> { range = rng state (i + 1); name = "_" }
-      | _ ->
-        errExpected state (i + 1) "a parameter name"
-        { range = rng state (i + 1); name = "_" }
-    let (colon, afterColon) =
-      if tok state (i + 2) = TColon then
-        (rng state (i + 2), i + 3)
+    let ps = System.Collections.Generic.List<WT.FnParam>()
+    let mutable k = i + 1
+    let mutable left = lparen
+    let mutable go = true
+    while go do
+      let nameIdx = k
+      let nameId : WT.Identifier =
+        match tok state nameIdx with
+        | TIdent nm -> { range = rng state nameIdx; name = nm }
+        // `_` names a parameter you don't intend to use. It's also what `()` is stored as, so
+        // accepting it here is what makes `(_: Unit)` and `()` both parse to the same thing and
+        // either form round-trip.
+        | TUnderscore -> { range = rng state nameIdx; name = "_" }
+        | _ ->
+          errExpected state nameIdx "a parameter name"
+          { range = rng state nameIdx; name = "_" }
+      let (colon, afterColon) =
+        if tok state (nameIdx + 1) = TColon then
+          (rng state (nameIdx + 1), nameIdx + 2)
+        else
+          errExpected state (nameIdx + 1) "':'"
+          (zeroWidthAtEnd (rng state (nameIdx + 1)), nameIdx + 1)
+      let (typ, afterTyp) = parseTypeRef state afterColon
+      // A `///` for a parameter attaches to the token after it: the `(` or `,` when it is
+      // written on the line above, the name when it is written just inside the list.
+      let description =
+        let atLeft = if nameIdx = i + 1 then docOf state i else ""
+        if atLeft <> "" then atLeft else docOf state nameIdx
+      let (right, next, finished) =
+        match tok state afterTyp with
+        | TComma -> (rng state afterTyp, afterTyp + 1, false)
+        | TRParen -> (rng state afterTyp, afterTyp + 1, true)
+        // a newline separates parameters as a comma does
+        | TIdent _
+        | TUnderscore when
+          (rng state afterTyp).start.row > (rng state (afterTyp - 1)).end_.row
+          ->
+          (zeroWidthAtEnd (rng state (afterTyp - 1)), afterTyp, false)
+        | _ ->
+          errUnclosed state afterTyp ")" "(" lparen
+          (zeroWidthAtEnd (rng state afterTyp), afterTyp, true)
+      ps.Add(
+        WT.FPNormal(span left right, nameId, typ, left, colon, right, description)
+      )
+      left <- right
+      // a trailing comma before the `)`
+      if not finished && tok state next = TRParen then
+        k <- next + 1
+        go <- false
+      elif finished || next = nameIdx then
+        k <- next
+        go <- false
       else
-        errExpected state (i + 2) "':'"
-        (zeroWidthAtEnd (rng state (i + 2)), i + 2)
-    let (typ, afterTyp) = parseTypeRef state afterColon
-    let (rparen, afterRP) =
-      if tok state afterTyp = TRParen then
-        (rng state afterTyp, afterTyp + 1)
-      else
-        errUnclosed state afterTyp ")" "(" lparen
-        (zeroWidthAtEnd (rng state afterTyp), afterTyp)
-    // A `///` for a parameter attaches to whichever token follows it: the `(` when the comment is
-    // written above the whole parameter, the NAME when it is written just inside the paren. Both
-    // spellings occur, so both are read.
-    let description =
-      let atParen = docOf state i
-      if atParen <> "" then atParen else docOf state (i + 1)
-
-    (WT.FPNormal(span lparen rparen, nameId, typ, lparen, colon, rparen, description),
-     afterRP)
+        k <- next
+    (List.ofSeq ps, k)
 
 // A declaration-scope function (`let f (p: T) … : R = body`) or value
 // (`val x = body`). Legacy module-level `let x = body` also comes through here

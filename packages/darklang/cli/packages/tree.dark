@@ -54,25 +54,25 @@ val tocEntries =
 
 
 // Display the table of contents
-let displayTableOfContents (): Unit =
-  Stdlib.printLine ""
-  Stdlib.printLine (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold "DARKLANG PACKAGE TABLE OF CONTENTS")
-  Stdlib.printLine (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold "===================================")
-  Stdlib.printLine ""
+let displayTableOfContents(): Unit =
+  Stdlib.printLine("")
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, "DARKLANG PACKAGE TABLE OF CONTENTS"))
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, "==================================="))
+  Stdlib.printLine("")
 
   // Group entries by category
   let grouped =
     tocEntries
-    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc entry ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc entry ->
       let existing =
-        match Stdlib.Dict.get acc entry.category with
+        match Stdlib.Dict.get(acc, entry.category) with
         | Some list -> list
         | None -> []
 
-      Stdlib.Dict.set
-        acc
-        entry.category
-        (Stdlib.List.append existing entry))
+      Stdlib.Dict.set(
+        acc,
+        entry.category,
+        Stdlib.List.append(existing, entry)))
 
   // Display in order (use a list to preserve order)
   let categories =
@@ -83,69 +83,69 @@ let displayTableOfContents (): Unit =
       "TESTING & UTILITIES" ]
 
   categories
-  |> Stdlib.List.iter (fun category ->
-    match Stdlib.Dict.get grouped category with
+  |> Stdlib.List.iter(fun category ->
+    match Stdlib.Dict.get(grouped, category) with
     | Some entries ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold category)
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, category))
 
       entries
-      |> Stdlib.List.iter (fun entry ->
-        let pathDisplay = Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan entry.path
-        let descDisplay = Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.dim entry.description
-        Stdlib.printLine $"  {pathDisplay}"
-        Stdlib.printLine $"    {descDisplay}")
+      |> Stdlib.List.iter(fun entry ->
+        let pathDisplay = Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, entry.path)
+        let descDisplay = Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.dim, entry.description)
+        Stdlib.printLine($"  {pathDisplay}")
+        Stdlib.printLine($"    {descDisplay}"))
 
-      Stdlib.printLine ""
+      Stdlib.printLine("")
     | None -> ())
 
-  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "Use 'tree <path>' to explore a specific package")
-  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "Use 'tree --depth=N' for deeper views (max 10)")
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("Use 'tree <path>' to explore a specific package"))
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("Use 'tree --depth=N' for deeper views (max 10)"))
 
 
-let execute (state: AppState) (args: List<String>): AppState =
+let execute(state: AppState, args: List<String>): AppState =
   // `--depth 3` is `--depth=3`: the argument check takes a value flag either way, so read both.
   let args =
-    match Stdlib.List.findFirstIndex args (fun a -> a == "--depth") with
+    match Stdlib.List.findFirstIndex(args, fun a -> a == "--depth") with
     | Some i ->
-      match Stdlib.List.getAt args (i + 1) with
+      match Stdlib.List.getAt(args, i + 1) with
       | Some value ->
-        Stdlib.List.concat
-          (Stdlib.List.take args i)
-          (Stdlib.List.prepend (Stdlib.List.drop args (i + 2)) $"--depth={value}")
+        Stdlib.List.concat(
+          Stdlib.List.take(args, i),
+          Stdlib.List.prepend(Stdlib.List.drop(args, i + 2), $"--depth={value}"))
       | None -> args
     | None -> args
 
   // Check for --toc flag
-  let showToc = Stdlib.List.any args (fun arg -> arg == "--toc")
+  let showToc = Stdlib.List.any(args, fun arg -> arg == "--toc")
   let includeDeprecated =
-    Stdlib.List.contains args "--include-deprecated"
+    Stdlib.List.contains(args, "--include-deprecated")
 
   if showToc then
-    displayTableOfContents ()
+    displayTableOfContents()
     state
   else
     // Parse depth option (default is 2 for better initial view)
     let depth =
-      match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
+      match Stdlib.List.findFirst(args, fun arg -> Stdlib.String.startsWith(arg, "--depth=")) with
       | Some depthArg ->
-        let depthStr = Stdlib.String.dropFirst depthArg 8 // Remove "--depth="
-        match Stdlib.Int.parse depthStr with
+        let depthStr = Stdlib.String.dropFirst(depthArg, 8) // Remove "--depth="
+        match Stdlib.Int.parse(depthStr) with
         | Ok depth when depth > 0 && depth <= 10 -> Stdlib.Option.Option.Some depth
         | _ -> Stdlib.Option.Option.None
       | None -> Stdlib.Option.Option.Some 2 // Default depth of 2 for concise but useful view
 
     match depth with
     | None ->
-      Cli.printErr "--depth takes a number from 1 to 10."
-      Cli.exitWith state false
+      Cli.printErr("--depth takes a number from 1 to 10.")
+      Cli.exitWith(state, false)
     | Some maxDepth ->
 
     let branchId = state.currentBranchId
 
     let pathArgs =
       args
-      |> Stdlib.List.filter (fun a ->
-        Stdlib.Bool.not (Stdlib.String.startsWith a "--"))
+      |> Stdlib.List.filter(fun a ->
+        Stdlib.Bool.not(Stdlib.String.startsWith(a, "--")))
 
     // Refused, not ignored: falling back to the current location answers a different
     // question, and says nothing about the path you gave.
@@ -153,22 +153,22 @@ let execute (state: AppState) (args: List<String>): AppState =
       match pathArgs with
       | [] -> Stdlib.Result.Result.Ok state.packageData.currentLocation
       | [ pathStr ] ->
-        Traversal.traverse branchId state.packageData.currentLocation pathStr
+        Traversal.traverse(branchId, state.packageData.currentLocation, pathStr)
       | _ ->
         Stdlib.Result.Result.Error "tree takes at most one path"
 
     match startLocation with
     | Error e ->
-      Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Cannot show a tree: {e}")
-      Cli.exitWith state false
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot show a tree: {e}"))
+      Cli.exitWith(state, false)
     | Ok startLocation ->
       // Load deprecation sets once for the whole tree render.
-      let depSets = Query.loadDeprecationSets branchId
+      let depSets = Query.loadDeprecationSets(branchId)
 
-      let locationStr = Packages.formatLocation startLocation
-      Stdlib.printLine $"Package tree from {locationStr}:"
-      Stdlib.printLine ""
-      displayTree branchId startLocation maxDepth 0 "" depSets includeDeprecated
+      let locationStr = Packages.formatLocation(startLocation)
+      Stdlib.printLine($"Package tree from {locationStr}:")
+      Stdlib.printLine("")
+      displayTree(branchId, startLocation, maxDepth, 0, "", depSets, includeDeprecated)
 
       state
 
@@ -177,129 +177,128 @@ let execute (state: AppState) (args: List<String>): AppState =
 //
 // `depSets` lets us mark deprecated rows with ⚠ and (unless includeDeprecated)
 // hide items whose hash is in the "hidden" set per the visibility rule.
-let displayTree
-  (branchId: Uuid)
-  (location: PackageLocation)
-  (remainingDepth: Int)
-  (currentDepth: Int)
-  (prefix: String)
-  (depSets: Query.DeprecationSets)
-  (includeDeprecated: Bool)
+let displayTree(
+  branchId: Uuid,
+  location: PackageLocation,
+  remainingDepth: Int,
+  currentDepth: Int,
+  prefix: String,
+  depSets: Query.DeprecationSets,
+  includeDeprecated: Bool)
   : Unit =
   if remainingDepth <= 0 then
     ()
   else
-    let modulePath = modulePathOf location
+    let modulePath = modulePathOf(location)
 
     // Names and hashes only. This runs once per module *per level* of the walk, so materializing every
     // item's full definition to read its name compounded: `tree Darklang.Stdlib` was 547 ms.
     let (submoduleNames, rawTypes, rawValues, rawFns, rawTraits, rawImpls, rawTests) =
-      Query.allDirectDescendantNamesAndHashes branchId modulePath
+      Query.allDirectDescendantNamesAndHashes(branchId, modulePath)
 
     // Entity names paired with their hash, so we can mark deprecated rows.
-    let fnEntries = Query.filterDeprecatedPairs rawFns depSets includeDeprecated
-    let typeEntries = Query.filterDeprecatedPairs rawTypes depSets includeDeprecated
-    let valueEntries = Query.filterDeprecatedPairs rawValues depSets includeDeprecated
-    let traitEntries = Query.filterDeprecatedPairs rawTraits depSets includeDeprecated
-    let implEntries = Query.filterDeprecatedPairs rawImpls depSets includeDeprecated
-    let testEntries = Query.filterDeprecatedPairs rawTests depSets includeDeprecated
+    let fnEntries = Query.filterDeprecatedPairs(rawFns, depSets, includeDeprecated)
+    let typeEntries = Query.filterDeprecatedPairs(rawTypes, depSets, includeDeprecated)
+    let valueEntries = Query.filterDeprecatedPairs(rawValues, depSets, includeDeprecated)
+    let traitEntries = Query.filterDeprecatedPairs(rawTraits, depSets, includeDeprecated)
+    let implEntries = Query.filterDeprecatedPairs(rawImpls, depSets, includeDeprecated)
+    let testEntries = Query.filterDeprecatedPairs(rawTests, depSets, includeDeprecated)
 
     // Combine all entities with their types in proper order: modules, types, values, functions.
     // Modules have no hash, use an empty-string placeholder.
     let allEntities =
-      let implNames = implEntries |> Stdlib.List.map (fun (name, _) -> name)
+      let implNames = implEntries |> Stdlib.List.map(fun (name, _) -> name)
 
       let moduleEntities =
-        LanguageTools.PackageManager.Search.readerSubmodules submoduleNames implNames
-        |> Stdlib.List.map (fun name -> (name, EntityType.Module, LanguageTools.ProgramTypes.Hash.Hash ""))
-        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+        LanguageTools.PackageManager.Search.readerSubmodules(submoduleNames, implNames)
+        |> Stdlib.List.map(fun name -> (name, EntityType.Module, LanguageTools.ProgramTypes.Hash.Hash ""))
+        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
       let typeEntities =
         typeEntries
-        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Type, hash))
-        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Type, hash))
+        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
       let valueEntities =
         valueEntries
-        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Value, hash))
-        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Value, hash))
+        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
       let functionEntities =
         fnEntries
-        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Function, hash))
-        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Function, hash))
+        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
       let traitEntities =
         traitEntries
-        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Trait, hash))
-        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Trait, hash))
+        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
       let implEntities =
         implEntries
-        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Impl, hash))
-        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Impl, hash))
+        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
       let testEntities =
         testEntries
-        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Test, hash))
-        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Test, hash))
+        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
 
       moduleEntities
-      |> Stdlib.List.concat typeEntities
-      |> Stdlib.List.concat traitEntities
-      |> Stdlib.List.concat valueEntities
-      |> Stdlib.List.concat functionEntities
-      |> Stdlib.List.concat implEntities
-      |> Stdlib.List.concat testEntities
+      |> Stdlib.List.concat(typeEntities)
+      |> Stdlib.List.concat(traitEntities)
+      |> Stdlib.List.concat(valueEntities)
+      |> Stdlib.List.concat(functionEntities)
+      |> Stdlib.List.concat(implEntities)
+      |> Stdlib.List.concat(testEntities)
 
     // Display entities with appropriate icons
-    let entitiesCount = Stdlib.List.length allEntities
+    let entitiesCount = Stdlib.List.length(allEntities)
     allEntities
-    |> Stdlib.List.indexedMap (fun index entry ->
+    |> Stdlib.List.indexedMap(fun index entry ->
       let (name, entityType, hash) = entry
       let isLast = index == (entitiesCount - 1)
       let treeBranch = if isLast then "└── " else "├── "
       let fullPrefix = prefix + treeBranch
 
-      let icon = Display.getIcon entityType + " "
+      let icon = Display.getIcon(entityType) + " "
       let mark =
         if entityType == EntityType.Module then ""
-        else Query.deprecationMarker depSets hash
+        else Query.deprecationMarker(depSets, hash)
 
       let requirements =
         if entityType == EntityType.Function then
-          "  " + Stdlib.Cli.UI.Colors.dimText (Permissions.Command.requirementBadge hash)
+          "  " + Stdlib.Cli.UI.Colors.dimText(Permissions.Command.requirementBadge(hash))
         else
           ""
 
-      Stdlib.printLine $"{fullPrefix}{icon}{name}{mark}{requirements}"
+      Stdlib.printLine($"{fullPrefix}{icon}{name}{mark}{requirements}")
 
       // Into submodules, and into an impl, whose methods are a module named for the trait.
       if (entityType == EntityType.Module || entityType == EntityType.Impl)
          && remainingDepth > 1 then
         let newPrefix = prefix + (if isLast then "    " else "│   ")
-        let newModulePath = Stdlib.List.append modulePath name
+        let newModulePath = Stdlib.List.append(modulePath, name)
         let newLocation = PackageLocation.Module newModulePath
-        displayTree
-          branchId
-          newLocation
-          (remainingDepth - 1)
-          (currentDepth + 1)
-          newPrefix
-          depSets
-          includeDeprecated
-    )
-    |> Stdlib.List.iter (fun _ -> ())
+        displayTree(
+          branchId,
+          newLocation,
+          remainingDepth - 1,
+          currentDepth + 1,
+          newPrefix,
+          depSets,
+          includeDeprecated))
+    |> Stdlib.List.iter(fun _ -> ())
 
 
-let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   // Filter out depth arguments for path completion
-  let pathArgs = Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
+  let pathArgs = Stdlib.List.filter(args, fun arg -> Stdlib.Bool.not(Stdlib.String.startsWith(arg, "--")))
   let branchId = state.currentBranchId
 
   match pathArgs with
   | [] ->
-    Traversal.completePartialPath branchId state.packageData.currentLocation ""
+    Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
   | [partialPath] ->
-    Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
+    Traversal.completePartialPath(branchId, state.packageData.currentLocation, partialPath)
   | _ -> []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [ "Usage: tree [path] [--depth=N] [--toc] [--include-deprecated]"
     "       packages [path] [--depth=N] [--toc]"
     ""
@@ -321,4 +320,4 @@ let help (_state: AppState) : String =
     "  tree --depth=1               - Show only direct children"
     "  tree --depth=5               - Show deeper tree structure"
     "  tree Darklang.Stdlib         - Show Stdlib tree" ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")

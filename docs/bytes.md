@@ -5,8 +5,8 @@
 You use the same type and functions whether the data is in memory or saved:
 
 ```dark
-let first = Stdlib.Bytes.fromString "hello"
-let second = Stdlib.Bytes.fromList [104uy, 101uy, 108uy, 108uy, 111uy]
+let first = Stdlib.Bytes.fromString("hello")
+let second = Stdlib.Bytes.fromList([104uy, 101uy, 108uy, 108uy, 111uy])
 first == second // true
 ```
 

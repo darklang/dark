@@ -4,12 +4,12 @@ module Darklang.Cli.Installation.Helpers
 
 /// The git sha this binary was built from. The one reader of the builtin: `cliVersion` prints it and
 /// the sync wire stamps it, and both mean the same thing by it.
-let buildHash () : String = Builtin.getBuildHash ()
+let buildHash(): String = Builtin.getBuildHash()
 
 /// Hashes the installed runtime files; identical files keep the same cache key.
-let runtimeHash () : String = Builtin.getRuntimeHash ()
+let runtimeHash(): String = Builtin.getRuntimeHash()
 
-let cliVersion () : String = "alpha-" + (buildHash ())
+let cliVersion(): String = "alpha-" + (buildHash())
 
 /// The local version plus a check against the latest published release.
 ///
@@ -19,25 +19,25 @@ let cliVersion () : String = "alpha-" + (buildHash ())
 ///
 /// The same list names the release this binary is, when it is one: the tag is nowhere in the
 /// binary, only the build.
-let versionInfoWithUpdateCheck () : String =
-  let currentVersion = cliVersion ()
-  match GitHub.Releases.list () with
+let versionInfoWithUpdateCheck(): String =
+  let currentVersion = cliVersion()
+  match GitHub.Releases.list() with
   | Ok releases ->
-    let named (build: String) : String =
-      match GitHub.Releases.tagFor releases build with
+    let named(build: String): String =
+      match GitHub.Releases.tagFor(releases, build) with
       | Some tag -> $"{tag}, {build}"
       | None -> build
 
-    match Stdlib.List.head releases |> Stdlib.Option.andThen GitHub.Releases.buildOf with
+    match Stdlib.List.head(releases) |> Stdlib.Option.andThen(GitHub.Releases.buildOf) with
     | Some latestVersion ->
       if currentVersion == latestVersion then
-        $"Darklang CLI {named currentVersion} (up to date)"
+        $"Darklang CLI {named(currentVersion)} (up to date)"
       else
-        $"Darklang CLI {named currentVersion} (latest: {named latestVersion} - update available!)"
+        $"Darklang CLI {named(currentVersion)} (latest: {named(latestVersion)} - update available!)"
     | None -> $"Darklang CLI {currentVersion} (unable to check for updates)"
   | Error _ -> $"Darklang CLI {currentVersion} (unable to check for updates)"
 
 /// CLEANUP alias for `versionInfoWithUpdateCheck`, kept because `install-status` and the old_notes
 /// command still call it. Fold them over and delete this.
-let getVersionInfo () : String =
-  versionInfoWithUpdateCheck ()
+let getVersionInfo(): String =
+  versionInfoWithUpdateCheck()

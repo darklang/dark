@@ -17,32 +17,32 @@ type ParseError =
 
 
 /// Create a <type Duration> from <param seconds> seconds.
-let fromSeconds (seconds: Int) : Duration = Duration { seconds = seconds }
+let fromSeconds(seconds: Int): Duration = Duration { seconds = seconds }
 
 
 /// Get the number of seconds in <param d>.
-let toSeconds (d: Duration) : Int = d.seconds
+let toSeconds(d: Duration): Int = d.seconds
 
 
 /// Parse a string like "30s", "5m", "1h", "2d" or "-5m" into a <type Duration>.
 /// The string must end with a unit: s, m, h or d.
-let parse (s: String) : Stdlib.Result.Result<Duration, ParseError> =
+let parse(s: String): Stdlib.Result.Result<Duration, ParseError> =
   let number =
     s
     |> Stdlib.String.toList
-    |> Stdlib.List.takeWhile (fun c -> !Stdlib.Char.isLetter c)
+    |> Stdlib.List.takeWhile(fun c -> !Stdlib.Char.isLetter(c))
     |> Stdlib.String.fromList
-  let unit = Stdlib.String.dropFirst s (Stdlib.String.length number)
-  if Stdlib.String.isEmpty unit then
+  let unit = Stdlib.String.dropFirst(s, Stdlib.String.length(number))
+  if Stdlib.String.isEmpty(unit) then
     Stdlib.Result.Result.Error ParseError.MissingUnit
   else
-    match Stdlib.Int.parse number with
+    match Stdlib.Int.parse(number) with
     | Ok n ->
       match unit with
-      | "s" -> Stdlib.Result.Result.Ok(fromSeconds n)
-      | "m" -> Stdlib.Result.Result.Ok(fromSeconds (n * 60))
-      | "h" -> Stdlib.Result.Result.Ok(fromSeconds (n * 3600))
-      | "d" -> Stdlib.Result.Result.Ok(fromSeconds (n * 86400))
+      | "s" -> Stdlib.Result.Result.Ok(fromSeconds(n))
+      | "m" -> Stdlib.Result.Result.Ok(fromSeconds(n * 60))
+      | "h" -> Stdlib.Result.Result.Ok(fromSeconds(n * 3600))
+      | "d" -> Stdlib.Result.Result.Ok(fromSeconds(n * 86400))
       | _ -> Stdlib.Result.Result.Error ParseError.UnknownUnit
 
     | Error _ -> Stdlib.Result.Result.Error ParseError.InvalidNumber

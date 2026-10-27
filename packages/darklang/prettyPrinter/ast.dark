@@ -16,334 +16,334 @@ type Line =
     detail: String }
 
 
-let line (depth: Int) (label: String) (detail: String) : Line =
+let line(depth: Int, label: String, detail: String): Line =
   Line { depth = depth, label = label, detail = detail }
 
 
-let clip (s: String) : String =
-  let s = Stdlib.String.replaceAll s "\n" "\\n"
+let clip(s: String): String =
+  let s = Stdlib.String.replaceAll(s, "\n", "\\n")
 
-  if (Stdlib.String.length s) <= 48 then
+  if (Stdlib.String.length(s)) <= 48 then
     s
   else
-    (Stdlib.String.slice s 0 45) + "..."
+    (Stdlib.String.slice(s, 0, 45)) + "..."
 
 
-let letPattern (pat: LanguageTools.ProgramTypes.LetPattern) : String =
+let letPattern(pat: LanguageTools.ProgramTypes.LetPattern): String =
   match pat with
   | LPVariable(_, name) -> name
   | LPWildcard _ -> "_"
   | LPUnit _ -> "()"
   | LPTuple(_, first, second, theRest) ->
     let parts =
-      (Stdlib.List.concat [ first, second ] theRest)
-      |> Stdlib.List.map (fun p -> letPattern p)
-      |> Stdlib.String.join ", "
+      (Stdlib.List.concat([ first, second ], theRest))
+      |> Stdlib.List.map(fun p -> letPattern(p))
+      |> Stdlib.String.join(", ")
     $"({parts})"
 
 
-let matchPattern (pat: LanguageTools.ProgramTypes.MatchPattern) : String =
+let matchPattern(pat: LanguageTools.ProgramTypes.MatchPattern): String =
   match pat with
   | MPVariable(_, name) -> name
   | MPUnit _ -> "()"
-  | MPBool(_, b) -> Stdlib.toString b
-  | MPInt8(_, i) -> Stdlib.toString i
-  | MPUInt8(_, i) -> Stdlib.toString i
-  | MPInt16(_, i) -> Stdlib.toString i
-  | MPUInt16(_, i) -> Stdlib.toString i
-  | MPInt32(_, i) -> Stdlib.toString i
-  | MPUInt32(_, i) -> Stdlib.toString i
-  | MPInt64(_, i) -> Stdlib.toString i
-  | MPUInt64(_, i) -> Stdlib.toString i
-  | MPInt128(_, i) -> Stdlib.toString i
-  | MPUInt128(_, i) -> Stdlib.toString i
-  | MPInt(_, i) -> Stdlib.toString i
+  | MPBool(_, b) -> Stdlib.toString(b)
+  | MPInt8(_, i) -> Stdlib.toString(i)
+  | MPUInt8(_, i) -> Stdlib.toString(i)
+  | MPInt16(_, i) -> Stdlib.toString(i)
+  | MPUInt16(_, i) -> Stdlib.toString(i)
+  | MPInt32(_, i) -> Stdlib.toString(i)
+  | MPUInt32(_, i) -> Stdlib.toString(i)
+  | MPInt64(_, i) -> Stdlib.toString(i)
+  | MPUInt64(_, i) -> Stdlib.toString(i)
+  | MPInt128(_, i) -> Stdlib.toString(i)
+  | MPUInt128(_, i) -> Stdlib.toString(i)
+  | MPInt(_, i) -> Stdlib.toString(i)
   | MPFloat(_, sign, whole, part) ->
-    let s = PrettyPrinter.sign sign
+    let s = PrettyPrinter.sign(sign)
     $"{s}{whole}.{part}"
   | MPChar(_, c) -> $"'{c}'"
-  | MPString(_, s) -> "\"" + (clip s) + "\""
+  | MPString(_, s) -> "\"" + (clip(s)) + "\""
   | MPList(_, items) ->
     let parts =
-      (Stdlib.List.map items (fun p -> matchPattern p)) |> Stdlib.String.join ", "
+      (Stdlib.List.map(items, fun p -> matchPattern(p))) |> Stdlib.String.join(", ")
     $"[{parts}]"
-  | MPListCons(_, head, tail) -> $"{matchPattern head} :: {matchPattern tail}"
+  | MPListCons(_, head, tail) -> $"{matchPattern(head)} :: {matchPattern(tail)}"
   | MPTuple(_, first, second, theRest) ->
     let parts =
-      (Stdlib.List.concat [ first, second ] theRest)
-      |> Stdlib.List.map (fun p -> matchPattern p)
-      |> Stdlib.String.join ", "
+      (Stdlib.List.concat([ first, second ], theRest))
+      |> Stdlib.List.map(fun p -> matchPattern(p))
+      |> Stdlib.String.join(", ")
     $"({parts})"
   | MPEnum(_, caseName, fields) ->
-    if Stdlib.List.isEmpty fields then
+    if Stdlib.List.isEmpty(fields) then
       caseName
     else
       let parts =
-        (Stdlib.List.map fields (fun p -> matchPattern p)) |> Stdlib.String.join ", "
+        (Stdlib.List.map(fields, fun p -> matchPattern(p))) |> Stdlib.String.join(", ")
       $"{caseName}({parts})"
   | MPOr(_, pats) ->
-    (Stdlib.List.map pats (fun p -> matchPattern p)) |> Stdlib.String.join " | "
+    (Stdlib.List.map(pats, fun p -> matchPattern(p))) |> Stdlib.String.join(" | ")
 
 
-let typeArgsSuffix (ctx: PrettyPrinter.ProgramTypes.Context) (typeArgs: List<LanguageTools.ProgramTypes.TypeReference>) : String =
-  if Stdlib.List.isEmpty typeArgs then
+let typeArgsSuffix(ctx: PrettyPrinter.ProgramTypes.Context, typeArgs: List<LanguageTools.ProgramTypes.TypeReference>): String =
+  if Stdlib.List.isEmpty(typeArgs) then
     ""
   else
     let parts =
       typeArgs
-      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.typeReference ctx t)
-      |> Stdlib.String.join ", "
+      |> Stdlib.List.map(fun t -> PrettyPrinter.ProgramTypes.typeReference(ctx, t))
+      |> Stdlib.String.join(", ")
     $"<{parts}>"
 
 
-let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTools.ProgramTypes.Expr) : List<Line> =
-  let here (label: String) (detail: String) : List<Line> = [ line depth label detail ]
-  let child (e: LanguageTools.ProgramTypes.Expr) : List<Line> = expr ctx (depth + 1) e
+let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, e: LanguageTools.ProgramTypes.Expr): List<Line> =
+  let here(label: String, detail: String): List<Line> = [ line(depth, label, detail) ]
+  let child(e: LanguageTools.ProgramTypes.Expr): List<Line> = expr(ctx, depth + 1, e)
 
-  let children (es: List<LanguageTools.ProgramTypes.Expr>) : List<Line> =
-    (Stdlib.List.map es (fun e -> child e)) |> Stdlib.List.flatten
+  let children(es: List<LanguageTools.ProgramTypes.Expr>): List<Line> =
+    (Stdlib.List.map(es, fun e -> child(e))) |> Stdlib.List.flatten
 
   match e with
-  | EUnit _ -> here "Unit" ""
-  | EBool(_, b) -> here "Bool" (Stdlib.toString b)
-  | EInt8(_, i) -> here "EInt8" (Stdlib.toString i)
-  | EUInt8(_, i) -> here "EUInt8" (Stdlib.toString i)
-  | EInt16(_, i) -> here "EInt16" (Stdlib.toString i)
-  | EUInt16(_, i) -> here "EUInt16" (Stdlib.toString i)
-  | EInt32(_, i) -> here "EInt32" (Stdlib.toString i)
-  | EUInt32(_, i) -> here "EUInt32" (Stdlib.toString i)
-  | EInt64(_, i) -> here "EInt64" (Stdlib.toString i)
-  | EUInt64(_, i) -> here "EUInt64" (Stdlib.toString i)
-  | EInt128(_, i) -> here "EInt128" (Stdlib.toString i)
-  | EUInt128(_, i) -> here "EUInt128" (Stdlib.toString i)
-  | EInt(_, i) -> here "Int" (Stdlib.toString i)
+  | EUnit _ -> here("Unit", "")
+  | EBool(_, b) -> here("Bool", Stdlib.toString(b))
+  | EInt8(_, i) -> here("EInt8", Stdlib.toString(i))
+  | EUInt8(_, i) -> here("EUInt8", Stdlib.toString(i))
+  | EInt16(_, i) -> here("EInt16", Stdlib.toString(i))
+  | EUInt16(_, i) -> here("EUInt16", Stdlib.toString(i))
+  | EInt32(_, i) -> here("EInt32", Stdlib.toString(i))
+  | EUInt32(_, i) -> here("EUInt32", Stdlib.toString(i))
+  | EInt64(_, i) -> here("EInt64", Stdlib.toString(i))
+  | EUInt64(_, i) -> here("EUInt64", Stdlib.toString(i))
+  | EInt128(_, i) -> here("EInt128", Stdlib.toString(i))
+  | EUInt128(_, i) -> here("EUInt128", Stdlib.toString(i))
+  | EInt(_, i) -> here("Int", Stdlib.toString(i))
   | EFloat(_, sign, whole, part) ->
-    let s = PrettyPrinter.sign sign
-    here "Float" $"{s}{whole}.{part}"
-  | EChar(_, c) -> here "Char" $"'{c}'"
-  | EVariable(_, name) -> here "Variable" name
-  | EArg(_, index) -> here "Arg" $"#{Stdlib.toString index}"
-  | ESelf _ -> here "Self" ""
+    let s = PrettyPrinter.sign(sign)
+    here("Float", $"{s}{whole}.{part}")
+  | EChar(_, c) -> here("Char", $"'{c}'")
+  | EVariable(_, name) -> here("Variable", name)
+  | EArg(_, index) -> here("Arg", $"#{Stdlib.toString(index)}")
+  | ESelf _ -> here("Self", "")
 
   | EFnName(_, name, _) ->
-    here
-      "FnName"
-      (PrettyPrinter.ProgramTypes.NameResolution.fnName ctx name)
+    here(
+      "FnName",
+      PrettyPrinter.ProgramTypes.NameResolution.fnName(ctx, name))
 
   | EValue(_, name) ->
-    here
-      "Value"
-      (PrettyPrinter.ProgramTypes.NameResolution.valueName ctx name)
+    here(
+      "Value",
+      PrettyPrinter.ProgramTypes.NameResolution.valueName(ctx, name))
 
   | EString(_, segments) ->
     let segLines =
       segments
-      |> Stdlib.List.map (fun seg ->
+      |> Stdlib.List.map(fun seg ->
         match seg with
-        | StringText t -> [ line (depth + 1) "Text" ("\"" + (clip t) + "\"") ]
+        | StringText t -> [ line(depth + 1, "Text", "\"" + (clip(t)) + "\"") ]
         | StringInterpolation e ->
-          Stdlib.List.prepend
-            (expr ctx (depth + 2) e)
-            (line (depth + 1) "Interpolation" ""))
+          Stdlib.List.prepend(
+            expr(ctx, depth + 2, e),
+            line(depth + 1, "Interpolation", "")))
       |> Stdlib.List.flatten
-    Stdlib.List.concat (here "String" "") segLines
+    Stdlib.List.concat(here("String", ""), segLines)
 
   | EIf(_, cond, thenExpr, elseExpr) ->
     let elseLines =
       match elseExpr with
       | None -> []
       | Some e ->
-        Stdlib.List.prepend
-          (expr ctx (depth + 2) e)
-          (line (depth + 1) "else" "")
-    Stdlib.List.flatten
-      [ here "If" ""
-        [ line (depth + 1) "cond" "" ]
-        expr ctx (depth + 2) cond
-        [ line (depth + 1) "then" "" ]
-        expr ctx (depth + 2) thenExpr
-        elseLines ]
+        Stdlib.List.prepend(
+          expr(ctx, depth + 2, e),
+          line(depth + 1, "else", ""))
+    Stdlib.List.flatten(
+      [ here("If", "")
+        [ line(depth + 1, "cond", "") ]
+        expr(ctx, depth + 2, cond)
+        [ line(depth + 1, "then", "") ]
+        expr(ctx, depth + 2, thenExpr)
+        elseLines ])
 
   | ELet(_, pat, rhs, body) ->
-    Stdlib.List.flatten [ here "Let" (letPattern pat), child rhs, child body ]
+    Stdlib.List.flatten([ here("Let", letPattern(pat)), child(rhs), child(body) ])
 
   | EList(_, items) ->
-    let n = Stdlib.toString (Stdlib.List.length items)
-    Stdlib.List.concat (here "List" $"{n} items") (children items)
+    let n = Stdlib.toString(Stdlib.List.length(items))
+    Stdlib.List.concat(here("List", $"{n} items"), children(items))
 
   | EDict(_, pairs) ->
-    let n = Stdlib.toString (Stdlib.List.length pairs)
+    let n = Stdlib.toString(Stdlib.List.length(pairs))
     let pairLines =
       pairs
-      |> Stdlib.List.map (fun pair ->
+      |> Stdlib.List.map(fun pair ->
         let (key, value) = pair
-        Stdlib.List.concat (expr ctx (depth + 1) key) (expr ctx (depth + 2) value))
+        Stdlib.List.concat(expr(ctx, depth + 1, key), expr(ctx, depth + 2, value)))
       |> Stdlib.List.flatten
-    Stdlib.List.concat (here "Dict" $"{n} entries") pairLines
+    Stdlib.List.concat(here("Dict", $"{n} entries"), pairLines)
 
   | ETuple(_, first, second, theRest) ->
-    Stdlib.List.concat
-      (here "Tuple" "")
-      (children (Stdlib.List.concat [ first, second ] theRest))
+    Stdlib.List.concat(
+      here("Tuple", ""),
+      children(Stdlib.List.concat([ first, second ], theRest)))
 
   | EApply(_, fn, typeArgs, args) ->
-    Stdlib.List.flatten
-      [ here "Apply" (typeArgsSuffix ctx typeArgs)
-        child fn
-        children args ]
+    Stdlib.List.flatten(
+      [ here("Apply", typeArgsSuffix(ctx, typeArgs))
+        child(fn)
+        children(args) ])
 
   | ELambda(_, pats, body) ->
     let ps =
-      (Stdlib.List.map pats (fun p -> letPattern p)) |> Stdlib.String.join " "
-    Stdlib.List.concat (here "Lambda" ps) (child body)
+      (Stdlib.List.map(pats, fun p -> letPattern(p))) |> Stdlib.String.join(" ")
+    Stdlib.List.concat(here("Lambda", ps), child(body))
 
   | EInfix(_, op, lhs, rhs, _) ->
-    let opStr = PrettyPrinter.ProgramTypes.infix op
-    Stdlib.List.flatten [ here "Infix" opStr, child lhs, child rhs ]
+    let opStr = PrettyPrinter.ProgramTypes.infix(op)
+    Stdlib.List.flatten([ here("Infix", opStr), child(lhs), child(rhs) ])
 
   | ERecordFieldAccess(_, record, fieldName) ->
-    Stdlib.List.concat (here "RecordFieldAccess" $".{fieldName}") (child record)
+    Stdlib.List.concat(here("RecordFieldAccess", $".{fieldName}"), child(record))
 
   | EUnwrap(_, operand) ->
-    Stdlib.List.concat (here "Unwrap" "?") (child operand)
+    Stdlib.List.concat(here("Unwrap", "?"), child(operand))
 
   | EStatement(_, first, next) ->
-    Stdlib.List.flatten [ here "Statement" "", child first, child next ]
+    Stdlib.List.flatten([ here("Statement", ""), child(first), child(next) ])
 
   | EMatch(_, arg, cases) ->
-    let n = Stdlib.toString (Stdlib.List.length cases)
+    let n = Stdlib.toString(Stdlib.List.length(cases))
     let caseLines =
       cases
-      |> Stdlib.List.map (fun c ->
+      |> Stdlib.List.map(fun c ->
         let guardLines =
           match c.whenCondition with
           | None -> []
           | Some g ->
-            Stdlib.List.prepend
-              (expr ctx (depth + 3) g)
-              (line (depth + 2) "when" "")
-        Stdlib.List.flatten
-          [ [ line (depth + 1) "case" (matchPattern c.pat) ]
+            Stdlib.List.prepend(
+              expr(ctx, depth + 3, g),
+              line(depth + 2, "when", ""))
+        Stdlib.List.flatten(
+          [ [ line(depth + 1, "case", matchPattern(c.pat)) ]
             guardLines
-            expr ctx (depth + 2) c.rhs ])
+            expr(ctx, depth + 2, c.rhs) ]))
       |> Stdlib.List.flatten
     // A scrutinee that renders to one line goes on the `Match` line. Left below it, it sits at the same
     // indent as the cases and reads like one of them.
-    match child arg with
+    match child(arg) with
     | [ only ] ->
       let scrutinee =
         if only.detail == "" then only.label else $"{only.label} {only.detail}"
-      Stdlib.List.concat (here "Match" $"on {scrutinee}, {n} cases") caseLines
-    | argLines -> Stdlib.List.flatten [ here "Match" $"{n} cases", argLines, caseLines ]
+      Stdlib.List.concat(here("Match", $"on {scrutinee}, {n} cases"), caseLines)
+    | argLines -> Stdlib.List.flatten([ here("Match", $"{n} cases"), argLines, caseLines ])
 
   | ERecord(_, typeName, typeArgs, fields) ->
-    let n = PrettyPrinter.ProgramTypes.NameResolution.typeName ctx typeName
+    let n = PrettyPrinter.ProgramTypes.NameResolution.typeName(ctx, typeName)
     let fieldLines =
       fields
-      |> Stdlib.List.map (fun pair ->
+      |> Stdlib.List.map(fun pair ->
         let (name, value) = pair
-        Stdlib.List.prepend
-          (expr ctx (depth + 2) value)
-          (line (depth + 1) "field" name))
+        Stdlib.List.prepend(
+          expr(ctx, depth + 2, value),
+          line(depth + 1, "field", name)))
       |> Stdlib.List.flatten
-    Stdlib.List.concat
-      (here "Record" (n + (typeArgsSuffix ctx typeArgs)))
-      fieldLines
+    Stdlib.List.concat(
+      here("Record", n + (typeArgsSuffix(ctx, typeArgs))),
+      fieldLines)
 
   | ERecordUpdate(_, record, updates) ->
     let updateLines =
       updates
-      |> Stdlib.List.map (fun pair ->
+      |> Stdlib.List.map(fun pair ->
         let (name, value) = pair
-        Stdlib.List.prepend
-          (expr ctx (depth + 2) value)
-          (line (depth + 1) "field" name))
+        Stdlib.List.prepend(
+          expr(ctx, depth + 2, value),
+          line(depth + 1, "field", name)))
       |> Stdlib.List.flatten
-    Stdlib.List.flatten
-      [ here "RecordUpdate" "", child record, updateLines ]
+    Stdlib.List.flatten(
+      [ here("RecordUpdate", ""), child(record), updateLines ])
 
   | EEnum(_, typeName, typeArgs, caseName, fields) ->
-    let n = PrettyPrinter.ProgramTypes.NameResolution.typeName ctx typeName
-    let ta = typeArgsSuffix ctx typeArgs
-    Stdlib.List.concat (here "Enum" $"{n}{ta}.{caseName}") (children fields)
+    let n = PrettyPrinter.ProgramTypes.NameResolution.typeName(ctx, typeName)
+    let ta = typeArgsSuffix(ctx, typeArgs)
+    Stdlib.List.concat(here("Enum", $"{n}{ta}.{caseName}"), children(fields))
 
   | EPipe(_, lhs, parts) ->
-    let n = Stdlib.toString (Stdlib.List.length parts)
+    let n = Stdlib.toString(Stdlib.List.length(parts))
     let partLines =
-      (Stdlib.List.map parts (fun p -> pipeExpr ctx (depth + 1) p))
+      (Stdlib.List.map(parts, fun p -> pipeExpr(ctx, depth + 1, p)))
       |> Stdlib.List.flatten
-    Stdlib.List.flatten [ here "Pipe" $"{n} stages", child lhs, partLines ]
+    Stdlib.List.flatten([ here("Pipe", $"{n} stages"), child(lhs), partLines ])
 
 
-let pipeExpr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (p: LanguageTools.ProgramTypes.PipeExpr) : List<Line> =
+let pipeExpr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, p: LanguageTools.ProgramTypes.PipeExpr): List<Line> =
   match p with
   | EPipeLambda(_, pats, body) ->
     let ps =
-      (Stdlib.List.map pats (fun p -> letPattern p)) |> Stdlib.String.join " "
-    Stdlib.List.prepend
-      (expr ctx (depth + 1) body)
-      (line depth "PipeLambda" ps)
+      (Stdlib.List.map(pats, fun p -> letPattern(p))) |> Stdlib.String.join(" ")
+    Stdlib.List.prepend(
+      expr(ctx, depth + 1, body),
+      line(depth, "PipeLambda", ps))
 
   | EPipeInfix(_, op, e, _) ->
-    let opStr = PrettyPrinter.ProgramTypes.infix op
-    Stdlib.List.prepend
-      (expr ctx (depth + 1) e)
-      (line depth "PipeInfix" opStr)
+    let opStr = PrettyPrinter.ProgramTypes.infix(op)
+    Stdlib.List.prepend(
+      expr(ctx, depth + 1, e),
+      line(depth, "PipeInfix", opStr))
 
   | EPipeFnCall(_, name, typeArgs, args, _) ->
-    let n = PrettyPrinter.ProgramTypes.NameResolution.fnName ctx name
+    let n = PrettyPrinter.ProgramTypes.NameResolution.fnName(ctx, name)
     let argLines =
-      (Stdlib.List.map args (fun a -> expr ctx (depth + 1) a))
+      (Stdlib.List.map(args, fun a -> expr(ctx, depth + 1, a)))
       |> Stdlib.List.flatten
-    Stdlib.List.prepend
-      argLines
-      (line depth "PipeFnCall" (n + (typeArgsSuffix ctx typeArgs)))
+    Stdlib.List.prepend(
+      argLines,
+      line(depth, "PipeFnCall", n + (typeArgsSuffix(ctx, typeArgs))))
 
   | EPipeEnum(_, typeName, caseName, fields) ->
-    let n = PrettyPrinter.ProgramTypes.NameResolution.typeName ctx typeName
+    let n = PrettyPrinter.ProgramTypes.NameResolution.typeName(ctx, typeName)
     let fieldLines =
-      (Stdlib.List.map fields (fun f -> expr ctx (depth + 1) f))
+      (Stdlib.List.map(fields, fun f -> expr(ctx, depth + 1, f)))
       |> Stdlib.List.flatten
-    Stdlib.List.prepend fieldLines (line depth "PipeEnum" $"{n}.{caseName}")
+    Stdlib.List.prepend(fieldLines, line(depth, "PipeEnum", $"{n}.{caseName}"))
 
   | EPipeVariable(_, varName, args) ->
     let argLines =
-      (Stdlib.List.map args (fun a -> expr ctx (depth + 1) a))
+      (Stdlib.List.map(args, fun a -> expr(ctx, depth + 1, a)))
       |> Stdlib.List.flatten
-    Stdlib.List.prepend argLines (line depth "PipeVariable" varName)
+    Stdlib.List.prepend(argLines, line(depth, "PipeVariable", varName))
 
 
 /// A whole function: signature first, then the body tree.
 /// The signature as one line, in the shape it's written in source, rather than a `parameters` /
 /// `typeParams` / `returnType` block. Four lines of scaffolding to say what one line says.
-let signature
-  (ctx: PrettyPrinter.ProgramTypes.Context)
-  (name: String)
-  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+let signature(
+  ctx: PrettyPrinter.ProgramTypes.Context,
+  name: String,
+  fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : String =
   let typeParams =
-    if Stdlib.List.isEmpty fn.typeParams then
+    if Stdlib.List.isEmpty(fn.typeParams) then
       ""
     else
-      "<" + (fn.typeParams |> Stdlib.List.map (fun p -> "'" + p) |> Stdlib.String.join ", ") + ">"
+      "<" + (fn.typeParams |> Stdlib.List.map(fun p -> "'" + p) |> Stdlib.String.join(", ")) + ">"
 
   let parameters =
     fn.parameters
-    |> Stdlib.List.map (fun p ->
-      let t = PrettyPrinter.ProgramTypes.typeReference ctx p.typ
+    |> Stdlib.List.map(fun p ->
+      let t = PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ)
       $"({p.name}: {t})")
-    |> Stdlib.String.join " "
+    |> Stdlib.String.join(" ")
 
-  let returnType = PrettyPrinter.ProgramTypes.typeReference ctx fn.returnType
+  let returnType = PrettyPrinter.ProgramTypes.typeReference(ctx, fn.returnType)
   $"{name}{typeParams} {parameters} -> {returnType}"
 
 
 
-let packageFn
-  (ctx: PrettyPrinter.ProgramTypes.Context)
-  (name: String)
-  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+let packageFn(
+  ctx: PrettyPrinter.ProgramTypes.Context,
+  name: String,
+  fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : List<Line> =
-  Stdlib.List.flatten
-    [ [ line 0 (signature ctx name fn) "" ]
-      expr ctx 0 fn.body ]
+  Stdlib.List.flatten(
+    [ [ line(0, signature(ctx, name, fn), "") ]
+      expr(ctx, 0, fn.body) ])

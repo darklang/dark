@@ -5,7 +5,7 @@ module Darklang.Stdlib.Cli.UI.Progress
 /// current: current progress value
 /// total: total value
 /// label: text to show after the bar
-let bar (current: Int) (total: Int) (label: String) : Unit =
+let bar(current: Int, total: Int, label: String): Unit =
   let width = 30
 
   let filled =
@@ -14,15 +14,15 @@ let bar (current: Int) (total: Int) (label: String) : Unit =
 
   let empty = width - filled
 
-  let filledStr = Stdlib.String.repeat "#" filled
-  let emptyStr = Stdlib.String.repeat "-" empty
+  let filledStr = Stdlib.String.repeat("#", filled)
+  let emptyStr = Stdlib.String.repeat("-", empty)
 
   let pct =
     if total == 0 then 0
     else ((current * 100) / total)
 
-  Stdlib.print
-    $"\r[{filledStr}{emptyStr}] {Stdlib.toString pct}% {label}"
+  Stdlib.print(
+    $"\r[{filledStr}{emptyStr}] {Stdlib.toString(pct)}% {label}")
 
-  if current >= total then Stdlib.printLine ""
+  if current >= total then Stdlib.printLine("")
   else ()

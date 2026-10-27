@@ -125,9 +125,9 @@ let private stderrIsCapturedInOrder =
   cliTest "stderr is captured apart from stdout, and in order with it" (fun target ->
     task {
       let program =
-        "let _ = Stdlib.printLine \"first\" in "
-        + "let _ = Stdlib.printErrorLine \"second\" in "
-        + "let _ = Stdlib.printLine \"third\" in 4L"
+        "let _ = Stdlib.printLine(\"first\") in let _ = Stdlib.printErrorLine(\"second\") in let _ = Stdlib.printLine(\"third\") in 4L"
+        + ""
+        + ""
 
       let! (out, err, status) = runCliStreams target [ "eval"; program ]
       Expect.equal status 0 "the eval succeeded"
@@ -155,7 +155,9 @@ let private diagnosticsStayOffStdout =
           "the error is on stderr"
 
         let! (out, err, status) =
-          runCliStreams target [ "eval"; "let _ = Builtin.debug \"lbl\" 5L in 7L" ]
+          runCliStreams
+            target
+            [ "eval"; "let _ = Builtin.debug(\"lbl\", 5L) in 7L" ]
         Expect.equal status 0 "the eval succeeded"
         Expect.equal out "7" "stdout is the value alone"
         Expect.stringContains err "DEBUG: lbl: 5" "the debug line is on stderr"
@@ -233,9 +235,9 @@ let private sweepFailure (outcome : Result<string, string>) : Option<string> =
 
 /// One line, because `eval` takes the expression as a single argument.
 let private renderExpr (body : string) : string =
-  "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"test-instance\" false in "
-  + "let s = Darklang.Cli.Workbench.refreshScmStatus st st in "
-  + "let frame = fun v w h -> (Darklang.Cli.Workbench.viewAtSize { s with activeView = v } (Darklang.Stdlib.Cli.Tui.Size { width = w, height = h })).rows in "
+  "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"test-instance\", false) in let s = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let frame = fun v w h -> (Darklang.Cli.Workbench.viewAtSize({ s with activeView = v }, Darklang.Stdlib.Cli.Tui.Size { width = w, height = h })).rows in "
+  + ""
+  + ""
   + body
 
 let private workbenchViewsRender =
@@ -248,7 +250,7 @@ let private workbenchViewsRender =
           state
           [ "eval"
             renderExpr
-              "Stdlib.List.all Darklang.Cli.Workbench.viewSpecs (fun (v, _name) -> Stdlib.List.length (frame v 120 40) == 40)" ]
+              "Stdlib.List.all(Darklang.Cli.Workbench.viewSpecs, fun (v, _name) -> Stdlib.List.length(frame(v, 120, 40)) == 40)" ]
 
       Expect.stringContains
         output
@@ -267,13 +269,13 @@ let private hintRowKeepsTheWayOut =
     (fun state ->
       task {
         let lastRow (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"i\" false in "
-          + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
-          + "let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
-          + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
+          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in let s = { s1 with items = Darklang.Cli.Workbench.reloadItems(s1) } in "
+          + ""
+          + ""
+          + ""
           // Tall enough that the hint row is always in frame: a clean tree renders a
           // roomier panel than a draft, so a short frame loses the hints in one store.
-          + $"Stdlib.String.join (Darklang.Cli.Workbench.viewAtSize s (Darklang.Stdlib.Cli.Tui.Size {{ width = {w}, height = 26 }})).rows \"\\n\""
+          + $"Stdlib.String.join((Darklang.Cli.Workbench.viewAtSize(s, Darklang.Stdlib.Cli.Tui.Size {{ width = {w}, height = 26 }})).rows, \"\\n\")"
 
         // The rule under test is the ORDER things are dropped in, not the width at which
         // dropping starts.
@@ -319,11 +321,11 @@ let private headerKeepsTheBranchWhenNarrow =
         // A deliberately long instance name, so the row is over-full whatever the shared
         // store holds: the test creates the condition rather than hoping.
         let row (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"inst-with-a-deliberately-long-name-for-this-test\" false in "
-          + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
-          + "let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
-          + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
-          + $"Stdlib.String.join (Stdlib.List.take (Darklang.Cli.Workbench.viewAtSize s (Darklang.Stdlib.Cli.Tui.Size {{ width = {w}, height = 4 }})).rows 1) \"\""
+          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"inst-with-a-deliberately-long-name-for-this-test\", false) in let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in let s = { s1 with items = Darklang.Cli.Workbench.reloadItems(s1) } in "
+          + ""
+          + ""
+          + ""
+          + $"Stdlib.String.join(Stdlib.List.take((Darklang.Cli.Workbench.viewAtSize(s, Darklang.Stdlib.Cli.Tui.Size {{ width = {w}, height = 4 }})).rows, 1), \"\")"
 
         let! wide = runCli state [ "eval"; row 150 ]
         Expect.stringContains
@@ -351,10 +353,10 @@ let private workbenchBranchActionsWork =
     (fun state ->
       task {
         let act (action : string) (text : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"t\" false in "
-          + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
+          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"t\", false) in "
+          + "let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in "
           + "let s = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
-          + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\", field = Stdlib.Cli.UI.TextField.fromText \"{text}\", action = \"{action}\" }}) with "
+          + $"match Darklang.Cli.Workbench.performInputAction(s, Darklang.Cli.Workbench.InputState {{ prompt = \"p\", field = Stdlib.Cli.UI.TextField.fromText(\"{text}\"), action = \"{action}\" }}) with "
           + "| Continue ns -> ns.message | _ -> \"(exit)\""
 
         let! created = runCli state [ "eval"; act "branch-create" "wbTestBranch" ]
@@ -389,10 +391,10 @@ let private mergeAndRebaseRefuseOnMain =
     (fun state ->
       task {
         let act (action : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"t\" false in "
-          + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
+          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"t\", false) in "
+          + "let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in "
           + "let s = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
-          + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\", field = Stdlib.Cli.UI.TextField.fromText \"y\", action = \"{action}\" }}) with "
+          + $"match Darklang.Cli.Workbench.performInputAction(s, Darklang.Cli.Workbench.InputState {{ prompt = \"p\", field = Stdlib.Cli.UI.TextField.fromText(\"y\"), action = \"{action}\" }}) with "
           + "| Continue ns -> ns.message | _ -> \"(exit)\""
 
         let! rebased = runCli state [ "eval"; act "rebase" ]
@@ -440,7 +442,7 @@ let private workbenchHandlesTerminalSizes =
       // 56x12 is the documented floor: at it you get a real frame, below it a resize
       // message rather than a mangled layout. Both fill the space they were given.
       let! atFloor =
-        runCli state [ "eval"; renderExpr "Stdlib.List.length (frame 0 56 12)" ]
+        runCli state [ "eval"; renderExpr "Stdlib.List.length(frame(0, 56, 12))" ]
       Expect.stringContains atFloor "12" "a frame at the documented minimum size"
 
       let! tooSmall =
@@ -448,7 +450,7 @@ let private workbenchHandlesTerminalSizes =
           state
           [ "eval"
             renderExpr
-              "Stdlib.String.join (frame 0 40 10) \"|\" |> Stdlib.String.contains \"too small\"" ]
+              "Stdlib.String.join(frame(0, 40, 10), \"|\") |> Stdlib.String.contains(\"too small\")" ]
       Expect.stringContains
         tooSmall
         "true"
@@ -476,11 +478,11 @@ let private noWorkbenchRowOverflowsItsFrame =
 
         let over (width : int) : string =
           renderExpr (
-            $"let over = fun v -> frame v {width} 24 "
-            + "|> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.styledWidth r) "
-            + $"|> Stdlib.List.filter (fun n -> n > {width}) "
+            $"let over = fun v -> frame(v, {width}, 24) "
+            + "|> Stdlib.List.map(fun r -> Darklang.Stdlib.Cli.Tui.Text.styledWidth(r)) "
+            + $"|> Stdlib.List.filter(fun n -> n > {width}) "
             + "|> Stdlib.List.length in "
-            + "[ over 0, over 1, over 3, over 4, over 6, over 7, over 8, over 9 ]"
+            + "[ over(0), over(1), over(3), over(4), over(6), over(7), over(8), over(9) ]"
           )
 
         for width in [ 56; 80; 120 ] do
@@ -503,7 +505,7 @@ let private workbenchContextRowSaysWhereYouAre =
           state
           [ "eval"
             renderExpr
-              "let top = fun v -> Stdlib.String.join (Stdlib.List.take (frame v 120 40) 1) \"|\" in let has = fun v -> Stdlib.String.contains (top v) \"main\" in [ has 0, has 1, has 4 ]" ]
+              "let top = fun v -> Stdlib.String.join(Stdlib.List.take(frame(v, 120, 40), 1), \"|\") in let has = fun v -> Stdlib.String.contains(top(v), \"main\") in [ has(0), has(1), has(4) ]" ]
 
       Expect.stringContains
         output
@@ -515,7 +517,7 @@ let private workbenchContextRowSaysWhereYouAre =
           state
           [ "eval"
             renderExpr
-              "Stdlib.String.contains (Stdlib.String.join (Stdlib.List.take (frame 0 120 40) 1) \"|\") \"test-instance\"" ]
+              "Stdlib.String.contains(Stdlib.String.join(Stdlib.List.take(frame(0, 120, 40), 1), \"|\"), \"test-instance\")" ]
 
       Expect.stringContains named "true" "and it names the instance you are on"
     })
@@ -645,11 +647,11 @@ let everyCommandAnswersWhenBare =
         let! commands = registeredCommands state
 
         let code =
-          "Darklang.Cli.Registry.allCommands () |> Stdlib.List.filterMap (fun c -> "
-          + "let accepts = c.accepts in "
-          + "match accepts () with "
-          + "| Takes s -> (if s.atLeast > 0 then Stdlib.Option.Option.Some c.name else Stdlib.Option.Option.None) "
-          + "| Subcommands(_, s) -> (if s.atLeast > 0 then Stdlib.Option.Option.Some c.name else Stdlib.Option.Option.None))"
+          "Darklang.Cli.Registry.allCommands() |> Stdlib.List.filterMap(fun c -> let accepts = c.accepts in match accepts() with | Takes s -> (if s.atLeast > 0 then Stdlib.Option.Option.Some c.name else Stdlib.Option.Option.None) | Subcommands(_, s) -> (if s.atLeast > 0 then Stdlib.Option.Option.Some c.name else Stdlib.Option.Option.None))"
+          + ""
+          + ""
+          + ""
+          + ""
         let! needing =
           task {
             match! evalUnder (executionState state) code with
@@ -770,7 +772,7 @@ let theDeclarationCheckReadsArgumentsRight =
         for (accepts, args, refused) in cases do
           let argList = args |> List.map darkString |> String.concat ", "
           let code =
-            $"Stdlib.Option.isSome (Darklang.Cli.Accepts.check \"t\" ({accepts}) [ {argList} ])"
+            $"Stdlib.Option.isSome(Darklang.Cli.Accepts.check(\"t\", {accepts}, [ {argList} ]))"
           match! evalUnder (executionState state) code with
           | RT.DBool got -> Expect.equal got refused $"{accepts} with {args}"
           | other -> Tests.failtestf "the check answered %A" other
@@ -1021,11 +1023,11 @@ let everyCommandWorksWithValidArguments =
         // in the draft.
         do! CliDsl.onMain state
         do! CliDsl.fn state "Tests.Sweep.dep" "() : Int64 = 1L"
-        do! CliDsl.fn state fnName "() : Int64 = Tests.Sweep.dep ()"
+        do! CliDsl.fn state fnName "(): Int64 = Tests.Sweep.dep()"
         do!
           CliDsl.run
             state
-            [ "test"; "add"; "Tests.Sweep.passes"; "Stdlib.Test.pass ()" ]
+            [ "test"; "add"; "Tests.Sweep.passes"; "Stdlib.Test.pass()" ]
         do!
           CliDsl.commitOnly
             state
@@ -1386,7 +1388,7 @@ let private costlyMistakesAreRefused =
 
       let! _, discardCode = runCliWithExit state [ "discard"; "--only-this"; "-y" ]
       Expect.equal discardCode 1L "discard refuses a flag it does not have"
-      let! kept = runCli state [ "eval"; "Tests.Costly.kept ()" ]
+      let! kept = runCli state [ "eval"; "Tests.Costly.kept()" ]
       Expect.stringContains kept "1" "and the draft is still there"
 
       let! _, valCode =
@@ -1400,7 +1402,7 @@ let private costlyMistakesAreRefused =
           state
           [ "fn"; "Tests.Costly.f"; "() : Int64 = 90817L"; "zzz" ]
       Expect.equal fnCode 1L "fn refuses a word after the definition"
-      let! f = runCli state [ "eval"; "Tests.Costly.f ()" ]
+      let! f = runCli state [ "eval"; "Tests.Costly.f()" ]
       Expect.isFalse (f.Contains "90817") "and saves nothing"
 
       let! _ = runCli state [ "discard"; "--yes" ]
@@ -1468,7 +1470,7 @@ let private unwrapErrorsAreReadable =
   cliTest "eval checks unwrap operands and runs valid unwraps" (fun state ->
     task {
       let! rejected, exitCode =
-        runCliWithExit state [ "eval"; "(fun value -> Some (value? + 1)) 4" ]
+        runCliWithExit state [ "eval"; "(fun value -> Some (value? + 1))(4)" ]
       Expect.equal exitCode 1L "invalid unwrap fails eval"
       Expect.stringContains
         rejected
@@ -1478,7 +1480,7 @@ let private unwrapErrorsAreReadable =
         (rejected.Contains "Encountered a Runtime Error")
         "the error renderer itself succeeds"
       let! accepted =
-        runCli state [ "eval"; "(fun value -> Some (value? + 1)) (Some 4)" ]
+        runCli state [ "eval"; "(fun value -> Some (value? + 1))(Some 4)" ]
       Expect.stringContains accepted "Some(5)" "valid unwrap still executes"
     })
 
@@ -1497,19 +1499,19 @@ let private workbenchEdit
   (replace : string)
   : string =
   let path = modules |> List.map darkString |> String.concat ", "
-  "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"i\" false in\n"
+  "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\n"
   + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in\n"
-  + "let items = Darklang.Cli.Workbench.reloadItems st in\n"
-  + $"match Stdlib.List.findFirst items (fun i -> i.name == {darkString item}) with\n"
+  + "let items = Darklang.Cli.Workbench.reloadItems(st) in\n"
+  + $"match Stdlib.List.findFirst(items, fun i -> i.name == {darkString item}) with\n"
   + "| None -> \"no item to edit\"\n"
   + "| Some item ->\n"
-  + "  match Darklang.Cli.Workbench.openEditExisting st item with\n"
+  + "  match Darklang.Cli.Workbench.openEditExisting(st, item) with\n"
   + "  | Continue opened ->\n"
   + "    match opened.editing with\n"
   + "    | None -> \"did not open: \" + opened.message\n"
   + "    | Some es ->\n"
-  + $"      let edited = Stdlib.String.replaceAll (Stdlib.Cli.UI.Editor.toText es.buf) {darkString find} {darkString replace} in\n"
-  + "      match Darklang.Cli.Workbench.saveEditing opened { es with buf = Stdlib.Cli.UI.Editor.fromText edited } with\n"
+  + $"      let edited = Stdlib.String.replaceAll(Stdlib.Cli.UI.Editor.toText(es.buf), {darkString find}, {darkString replace}) in\n"
+  + "      match Darklang.Cli.Workbench.saveEditing(opened, { es with buf = Stdlib.Cli.UI.Editor.fromText(edited) }) with\n"
   + "      | Continue saved ->\n"
   + "        match saved.editing with\n"
   + "        | Some still -> \"save refused: \" + still.err\n"
@@ -1545,20 +1547,20 @@ let private workbenchNew
   (source : string)
   : string =
   let path xs = xs |> List.map darkString |> String.concat ", "
-  "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"i\" false in\n"
+  "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\n"
   + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module [ {path location} ] }} in\n"
-  + $"match Darklang.Cli.Workbench.openNewEditor st {darkString kind} [ {path target} ] with\n"
+  + $"match Darklang.Cli.Workbench.openNewEditor(st, {darkString kind}, [ {path target} ]) with\n"
   + "| Continue opened ->\n"
   + "  match opened.editing with\n"
   + "  | None -> \"did not open: \" + opened.message\n"
   + "  | Some es ->\n"
-  + $"    match Darklang.Cli.Workbench.saveEditing opened {{ es with buf = Stdlib.Cli.UI.Editor.fromText {darkString source} }} with\n"
+  + $"    match Darklang.Cli.Workbench.saveEditing(opened, {{ es with buf = Stdlib.Cli.UI.Editor.fromText({darkString source}) }}) with\n"
   + "    | Continue saved ->\n"
   + "      match saved.editing with\n"
   + "      | Some still -> \"save refused: \" + still.err\n"
   + "      | None ->\n"
-  + "        let on = (Stdlib.List.getAt saved.items saved.selected) |> Stdlib.Option.map (fun i -> i.name) |> Stdlib.Option.withDefault \"\" in\n"
-  + "        \"footer: \" + saved.message + \" | at: \" + (Stdlib.String.join (Darklang.Cli.Packages.modulePathOf saved.location) \".\") + \" | on: \" + on\n"
+  + "        let on = (Stdlib.List.getAt(saved.items, saved.selected)) |> Stdlib.Option.map(fun i -> i.name) |> Stdlib.Option.withDefault(\"\") in\n"
+  + "        \"footer: \" + saved.message + \" | at: \" + (Stdlib.String.join(Darklang.Cli.Packages.modulePathOf(saved.location), \".\")) + \" | on: \" + on\n"
   + "    | _ -> \"save did not continue\"\n"
   + "| _ -> \"open did not continue\""
 
@@ -1591,7 +1593,7 @@ let private workbenchRefusesImplOverTrait =
         let! _ =
           runCli
             state
-            [ "trait"; "/Tests.WbPt.WbSh"; "<'a> = let sh (v: 'a) : String" ]
+            [ "trait"; "/Tests.WbPt.WbSh"; "<'a> = let sh(v: 'a): String" ]
 
         let! answer =
           newInWorkbench
@@ -1599,7 +1601,7 @@ let private workbenchRefusesImplOverTrait =
             [ "Tests"; "WbPt" ]
             "impl"
             [ "Tests"; "WbPt" ]
-            "impl WbSh for WbPt =\n  let sh (p: WbPt) : String = \"p\""
+            "impl WbSh for WbPt =\n  let sh(p: WbPt): String = \"p\""
         Expect.stringContains answer "save refused" "the save is refused"
         Expect.stringContains
           answer
@@ -1620,7 +1622,7 @@ let private workbenchRefusalsNameTheProblem =
           [ "Tests"; "WbRefuse" ]
           "fn"
           [ "Tests"; "WbRefuse" ]
-          "let wbQ (x: Int64) : Int64 = Nope.wbZzz x"
+          "let wbQ(x: Int64): Int64 = Nope.wbZzz(x)"
       Expect.stringContains
         unresolved
         "save refused"
@@ -1633,7 +1635,7 @@ let private workbenchRefusalsNameTheProblem =
           [ "Tests"; "WbRefuse" ]
           "impl"
           [ "Tests"; "WbRefuse" ]
-          "impl WbNoSuchTrait for Int64 =\n  let m (x: Int64) : String = \"\""
+          "impl WbNoSuchTrait for Int64 =\n  let m(x: Int64): String = \"\""
       Expect.stringContains
         noTrait
         "save refused"
@@ -1669,7 +1671,7 @@ let private workbenchSaysUnchangedAndLands =
             [ "Tests" ]
             "fn"
             [ "Tests"; "WbLand" ]
-            "let landedHere (x: Int64) : Int64 = x"
+            "let landedHere(x: Int64): Int64 = x"
         Expect.stringContains
           landed
           "at: Tests.WbLand"
@@ -1718,11 +1720,11 @@ let private workbenchRefusalsAreMarkedAsRefusals =
   cliTest "the workbench marks a refusal as a refusal, not a success" (fun state ->
     task {
       let code =
-        "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"i\" false in\n"
-        + "let st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\n"
-        + "let kindOf = fun step -> match step with | Continue s -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\n"
-        + "let input = fun action text -> Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText text, action = action } in\n"
-        + "Stdlib.String.join [ kindOf (Darklang.Cli.Workbench.performInputAction st (input \"author-fn\" \"Tests.\")), kindOf (Darklang.Cli.Workbench.performInputAction st (input \"search\" \"zzzWbNothingIsCalledThis\")), kindOf (Darklang.Cli.Workbench.resolveConflict st \"ok\") ] \"\\n\""
+        "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\nlet st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\nlet kindOf = fun step -> match step with | Continue s -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\nlet input = fun action text -> Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(text), action = action } in\nStdlib.String.join([ kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"author-fn\", \"Tests.\"))), kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"search\", \"zzzWbNothingIsCalledThis\"))), kindOf(Darklang.Cli.Workbench.resolveConflict(st, \"ok\")) ], \"\\n\")"
+        + ""
+        + ""
+        + ""
+        + ""
 
       let! answer =
         task {
@@ -1767,13 +1769,13 @@ let private workbenchImplEditUpdatesInPlace =
             state
             [ "trait"
               "/Tests.WbImplEdit.WbShout"
-              "<'a> = let shout (v: 'a) : String" ]
+              "<'a> = let shout(v: 'a): String" ]
         let! _ =
           runCli
             state
             [ "impl"
               "/Tests.WbImplEdit"
-              "WbShout for Box = let shout (b: Box) : String = \"box\"" ]
+              "WbShout for Box = let shout(b: Box): String = \"box\"" ]
 
         let! saved =
           editInWorkbench
@@ -1800,7 +1802,7 @@ let private workbenchImplEditUpdatesInPlace =
           runCli
             state
             [ "eval"
-              "Tests.WbImplEdit.WbShout.shout (Tests.WbImplEdit.Box { wbImplEditMark = 1L })" ]
+              "Tests.WbImplEdit.WbShout.shout(Tests.WbImplEdit.Box { wbImplEditMark = 1L })" ]
         Expect.stringContains answer "box2" "the call answers with the edited body"
       })
 
@@ -1823,28 +1825,28 @@ let private workbenchTraitEditKeepsImplementations =
             state
             [ "trait"
               "/Tests.WbTraitEdit.WbWave"
-              "<'a> = let shout (v: 'a) : String" ]
+              "<'a> = let shout(v: 'a): String" ]
         let! _ =
           runCli
             state
             [ "impl"
               "/Tests.WbTraitEdit"
-              "WbWave for Box = let shout (b: Box) : String = \"box\"" ]
+              "WbWave for Box = let shout(b: Box): String = \"box\"" ]
 
         let! saved =
           editInWorkbench
             state
             [ "Tests"; "WbTraitEdit" ]
             "WbWave"
-            "let shout (v: 'a) : String"
-            "let shout (v: 'a) : String\n  let wave (v: 'a) : String"
+            "let shout(v: 'a): String"
+            "let shout(v: 'a): String\n  let wave(v: 'a): String"
         Expect.stringContains saved "footer: saved" "the edit saved"
 
         let! answer =
           runCli
             state
             [ "eval"
-              "Tests.WbTraitEdit.WbWave.shout (Tests.WbTraitEdit.Box { wbTraitEditMark = 1L })" ]
+              "Tests.WbTraitEdit.WbWave.shout(Tests.WbTraitEdit.Box { wbTraitEditMark = 1L })" ]
         Expect.stringContains
           answer
           "box"
@@ -1866,7 +1868,7 @@ let private workbenchTraitEditKeepsImplementations =
           runCli
             state
             [ "eval"
-              "Tests.WbTraitEdit.WbWave.wave (Tests.WbTraitEdit.Box { wbTraitEditMark = 1L })" ]
+              "Tests.WbTraitEdit.WbWave.wave(Tests.WbTraitEdit.Box { wbTraitEditMark = 1L })" ]
         Expect.stringContains
           missing
           "chosen here has no `wave`"
@@ -1884,13 +1886,13 @@ let private workbenchFnEditCarriesCallers =
         let! _ =
           runCli
             state
-            [ "fn"; "/Tests.WbFnEdit.f"; "(x: Int64) : Int64 = Tests.WbFnEdit.g x" ]
+            [ "fn"; "/Tests.WbFnEdit.f"; "(x: Int64): Int64 = Tests.WbFnEdit.g(x)" ]
 
         let! saved =
           editInWorkbench state [ "Tests"; "WbFnEdit" ] "g" "x + 1L" "x + 5L"
         Expect.stringContains saved "footer: saved" "the edit saved"
 
-        let! answer = runCli state [ "eval"; "Tests.WbFnEdit.f 1L" ]
+        let! answer = runCli state [ "eval"; "Tests.WbFnEdit.f(1L)" ]
         Expect.stringContains answer "6" "the caller runs the edited body"
       })
 
@@ -1916,7 +1918,7 @@ let private staleApprovalIsARefusal =
         // Move the approval to a version this store never held: what a store reset leaves behind.
         // CLI commands restore the logged-in account; the host state may be anonymous.
         let! viewer =
-          evalUnder (executionState state) "(Darklang.Cli.initState ()).accountID"
+          evalUnder (executionState state) "(Darklang.Cli.initState()).accountID"
         let account =
           match viewer with
           | RT.DEnum(_, _, _, "Some", [ RT.DUuid id ]) -> Some id
@@ -1940,7 +1942,7 @@ let private staleApprovalIsARefusal =
         let! outcome =
           task {
             try
-              let! ran = runCli state [ "eval"; name + " 1L" ]
+              let! ran = runCli state [ "eval"; name + "(1L)" ]
               return Ok ran
             with e ->
               return Error e
@@ -2022,7 +2024,7 @@ let private moduleDocOnlyEditLands =
           System.IO.File.WriteAllText(file, text)
           file
         let source (docA : string) =
-          $"/// {docA}\nlet docA (x: Int64) : Int64 = x + 7741L\n\n/// The second item's words, untouched.\nlet docB (x: Int64) : Int64 = x + 7742L\n"
+          $"/// {docA}\nlet docA(x: Int64): Int64 = x + 7741L\n\n/// The second item's words, untouched.\nlet docB(x: Int64): Int64 = x + 7742L\n"
 
         let! _ =
           runCli

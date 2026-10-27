@@ -40,7 +40,7 @@ type ScmStatus =
     /// showing zeroes for everything.
     loaded: Bool }
 
-let emptyScmStatus () : ScmStatus =
+let emptyScmStatus(): ScmStatus =
   ScmStatus
     { branchName = SCM.Branch.mainBranchName
       wipNames = []
@@ -55,27 +55,27 @@ let emptyScmStatus () : ScmStatus =
       loaded = false }
 
 /// Read the whole SCM picture for <param branchId>.
-let readScmStatus (branchId: Uuid) : ScmStatus = scmStatusFrom branchId (SCM.Draft.read ())
+let readScmStatus(branchId: Uuid): ScmStatus = scmStatusFrom(branchId, SCM.Draft.read())
 
 /// `readScmStatus` over a draft already read.
-let scmStatusFrom (branchId: Uuid) (p: SCM.Draft.Picture) : ScmStatus =
+let scmStatusFrom(branchId: Uuid, p: SCM.Draft.Picture): ScmStatus =
   // This branch's commits, not the store's: the row says "N commits on this branch", and a store-wide
   // count is the same number everywhere and right only on main.
-  let recent = SCM.PackageOps.commitsOnBranch branchId 1000L
+  let recent = SCM.PackageOps.commitsOnBranch(branchId, 1000L)
 
   ScmStatus
-    { branchName = SCM.PackageOps.branchName branchId
+    { branchName = SCM.PackageOps.branchName(branchId)
       wipNames =
         p.bindings
-        |> Stdlib.List.map (fun b -> SCM.Conflicts.fqn b.owner b.modules b.name)
-      changed = Stdlib.List.length p.bindings
-      authored = SCM.Draft.authoredCount p
-      followed = SCM.Draft.followedCount p
-      needsYou = SCM.Draft.needsYouCount p
+        |> Stdlib.List.map(fun b -> SCM.Conflicts.fqn(b.owner, b.modules, b.name))
+      changed = Stdlib.List.length(p.bindings)
+      authored = SCM.Draft.authoredCount(p)
+      followed = SCM.Draft.followedCount(p)
+      needsYou = SCM.Draft.needsYouCount(p)
       conflicts = p.conflicts
-      commits = Stdlib.List.length recent
+      commits = Stdlib.List.length(recent)
       lastCommit =
-        match Stdlib.List.head recent with
+        match Stdlib.List.head(recent) with
         | Some c -> c.message
         | None -> ""
       ops = p.ops

@@ -15,7 +15,7 @@ module Darklang.SCM.Draft
 /// and left unapplied on purpose -- and those are invisible to `mainDraftOps` because they cannot be
 /// decoded. The surgical path is safe by construction, since it deletes exactly the ops it was handed.
 
-let db () : String = Stdlib.LocalStore.path ()
+let db(): String = Stdlib.LocalStore.path()
 
 
 /// One op in main's draft, with what is needed to undo its effect.
@@ -33,44 +33,44 @@ type DraftOp =
 /// client-pushed ops at effective=0, untagged and uncommitted, and without the clause a
 /// discard's surgical path would DELETE data this store is only holding for someone else --
 /// and status/discard would count two different drafts.
-let mainDraftOps () : List<DraftOp> =
+let mainDraftOps(): List<DraftOp> =
   let rows =
-    Stdlib.Sqlite.rowsOrEmptyP
-      (db ())
+    Stdlib.Sqlite.rowsOrEmptyP(
+      db(),
       "SELECT id, op_blob, origin_ts AS ts
        FROM package_ops
        WHERE commit_hash IS NULL
          AND effective = 1
          AND id NOT IN (SELECT op_id FROM op_branches)
-       ORDER BY origin_ts, rowid"
-      []
+       ORDER BY origin_ts, rowid",
+      [])
 
-  SCM.PackageOps.decodeOpRowEntries rows
-  |> Stdlib.List.map (fun (id, ts, op) -> DraftOp { id = id, ts = ts, op = op })
+  SCM.PackageOps.decodeOpRowEntries(rows)
+  |> Stdlib.List.map(fun (id, ts, op) -> DraftOp { id = id, ts = ts, op = op })
 
 
 /// The content hashes the draft ADDS, so a naming can be told from a rename.
-let addedHashes (ops: List<LanguageTools.ProgramTypes.PackageOp>) : List<String> =
+let addedHashes(ops: List<LanguageTools.ProgramTypes.PackageOp>): List<String> =
   ops
-  |> Stdlib.List.filterMap (fun op ->
+  |> Stdlib.List.filterMap(fun op ->
     match op with
     | AddType t ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString t.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
     | AddValue v ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString v.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(v.hash))
     | AddFn f ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString f.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(f.hash))
     | AddTrait t ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString t.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
     | AddTraitImpl i ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString i.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(i.hash))
     | AddTest test ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString test.hash)
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(test.hash))
     | _ -> Stdlib.Option.Option.None)
 
 
-let referenceHash (r: LanguageTools.ProgramTypes.Reference) : String =
-  LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash r)
+let referenceHash(r: LanguageTools.ProgramTypes.Reference): String =
+  LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(r))
 
 
 /// Can dropping this op be undone by deleting the rows it wrote and re-listing what it superseded?
@@ -86,9 +86,9 @@ let referenceHash (r: LanguageTools.ProgramTypes.Reference) : String =
 /// `Decision` (records an acknowledgement), or a `BranchEvent`
 /// (`branches` records no origin_ts). No for `Unbind`: what it unlisted is identifiable only by
 /// `unlisted_at`, the same wall-clock second as a rename.
-let surgicallyUndoable
-  (added: List<String>)
-  (op: LanguageTools.ProgramTypes.PackageOp)
+let surgicallyUndoable(
+  added: List<String>,
+  op: LanguageTools.ProgramTypes.PackageOp)
   : Bool =
   match op with
   | AddType _ -> true
@@ -98,7 +98,7 @@ let surgicallyUndoable
   | AddTraitImpl _ -> true
   | AddTest _ -> true
   | SetName(_, target, _) ->
-    Stdlib.List.contains added (referenceHash target)
+    Stdlib.List.contains(added, referenceHash(target))
   | Decision(_, _, _, Override _) -> true
   | Decision(_, _, _, _) -> false
   | Unbind(_, _) -> false
@@ -109,27 +109,27 @@ let surgicallyUndoable
 
 
 /// The `locations` row an op wrote, as the tuple identifying it: (owner, modules, name, hash, ts).
-let locationRowOf (d: DraftOp) : Stdlib.Option.Option<(String * String * String * String * String)> =
+let locationRowOf(d: DraftOp): Stdlib.Option.Option<(String * String * String * String * String)> =
   match d.op with
   | SetName(loc, target, _) ->
     Stdlib.Option.Option.Some(
       (loc.owner,
-       Stdlib.String.join loc.modules ".",
+       Stdlib.String.join(loc.modules, "."),
        loc.name,
-       referenceHash target,
+       referenceHash(target),
        d.ts))
   | Decision(_, loc, _, Override target) ->
     Stdlib.Option.Option.Some(
       (loc.owner,
-       Stdlib.String.join loc.modules ".",
+       Stdlib.String.join(loc.modules, "."),
        loc.name,
-       referenceHash target,
+       referenceHash(target),
        d.ts))
   | _ -> Stdlib.Option.Option.None
 
 
 /// Drop the in-memory caches after this module edits `locations` outside the fold.
-let invalidateCaches () : Unit = Builtin.scmInvalidateCaches ()
+let invalidateCaches(): Unit = Builtin.scmInvalidateCaches()
 
 
 /// Drop ops by deleting the rows they wrote and re-listing what they superseded.
@@ -141,12 +141,12 @@ let invalidateCaches () : Unit = Builtin.scmInvalidateCaches ()
 /// Deletes by the full tuple, not by `origin_ts` alone: a stamp is unique per process but two instances
 /// can mint the same one, and deleting a committed row that collided would silently unbind a name nobody
 /// touched.
-let surgicalDrop (dropped: List<DraftOp>) : Stdlib.Result.Result<Unit, String> =
-  let rows = dropped |> Stdlib.List.filterMap locationRowOf
+let surgicalDrop(dropped: List<DraftOp>): Stdlib.Result.Result<Unit, String> =
+  let rows = dropped |> Stdlib.List.filterMap(locationRowOf)
 
   let deleteRows =
     rows
-    |> Stdlib.List.map (fun (owner, modules, name, hash, ts) ->
+    |> Stdlib.List.map(fun (owner, modules, name, hash, ts) ->
       [ owner, modules, name, hash, ts ])
 
   // Re-list what the dropped binding superseded: the most recent row left for that name. Ordered by
@@ -154,10 +154,10 @@ let surgicalDrop (dropped: List<DraftOp>) : Stdlib.Result.Result<Unit, String> =
   // timestamp-LWW would pick, not whichever row happened to be written last.
   let relistRows =
     rows
-    |> Stdlib.List.map (fun (owner, modules, name, _, _) -> [ owner, modules, name ])
+    |> Stdlib.List.map(fun (owner, modules, name, _, _) -> [ owner, modules, name ])
     |> Stdlib.List.unique
 
-  let deleteOps = dropped |> Stdlib.List.map (fun d -> [ d.id ])
+  let deleteOps = dropped |> Stdlib.List.map(fun d -> [ d.id ])
 
   // main-scoped: this rewrites MAIN's draft; a branch's draft goes through `PackageOps.dropBranchOps`.
   let statements =
@@ -183,54 +183,54 @@ let surgicalDrop (dropped: List<DraftOp>) : Stdlib.Result.Result<Unit, String> =
        relistRows)
       ("DELETE FROM package_ops WHERE id = @p0", deleteOps) ]
 
-  match Stdlib.Sqlite.execBatch (db ()) statements with
+  match Stdlib.Sqlite.execBatch(db(), statements) with
   | Ok _ ->
-    invalidateCaches ()
+    invalidateCaches()
     Stdlib.Result.Result.Ok()
   | Error e -> Stdlib.Result.Result.Error e
 
 
 /// One go at `rewriteBy`; see there.
-let rewriteByAttempt
-  (keep: List<DraftOp> -> List<DraftOp>)
-  (attempt: Int)
+let rewriteByAttempt(
+  keep: List<DraftOp> -> List<DraftOp>,
+  attempt: Int)
   : Stdlib.Result.Result<Int, String> =
-  let draft = mainDraftOps ()
+  let draft = mainDraftOps()
 
-  if Stdlib.List.isEmpty draft then
+  if Stdlib.List.isEmpty(draft) then
     Stdlib.Result.Result.Ok 0
   else
-    let keptIds = keep draft |> Stdlib.List.map (fun d -> d.id)
+    let keptIds = keep(draft) |> Stdlib.List.map(fun d -> d.id)
     let dropped =
       draft
-      |> Stdlib.List.filter (fun d ->
-        Stdlib.Bool.not (Stdlib.List.contains keptIds d.id))
-    let count = Stdlib.List.length dropped
+      |> Stdlib.List.filter(fun d ->
+        Stdlib.Bool.not(Stdlib.List.contains(keptIds, d.id)))
+    let count = Stdlib.List.length(dropped)
 
     if count == 0 then
       Stdlib.Result.Result.Ok 0
     else
-      let added = addedHashes (draft |> Stdlib.List.map (fun d -> d.op))
+      let added = addedHashes(draft |> Stdlib.List.map(fun d -> d.op))
       let allSurgical =
-        dropped |> Stdlib.List.all (fun d -> surgicallyUndoable added d.op)
+        dropped |> Stdlib.List.all(fun d -> surgicallyUndoable(added, d.op))
 
       if allSurgical then
-        match surgicalDrop dropped with
+        match surgicalDrop(dropped) with
         | Ok _ -> Stdlib.Result.Result.Ok count
         | Error e -> Stdlib.Result.Result.Error e
       else
-        let draftIds = draft |> Stdlib.List.map (fun d -> d.id)
+        let draftIds = draft |> Stdlib.List.map(fun d -> d.id)
 
-        match Builtin.scmRebuildDraftKeeping draftIds keptIds with
+        match Builtin.scmRebuildDraftKeeping(draftIds, keptIds) with
         | Ok true -> Stdlib.Result.Result.Ok count
         | Ok false ->
           // An attempt is short, so ten misses in a row is not ordinary contention.
           if attempt < 10 then
-            rewriteByAttempt keep (attempt + 1)
+            rewriteByAttempt(keep, attempt + 1)
           else
             Stdlib.Result.Result.Error(
               "the draft kept changing while it was being rewritten ("
-              + Stdlib.toString attempt
+              + Stdlib.toString(attempt)
               + " tries), usually another save, a pull, or your own editor, so nothing "
               + "was changed. Run it again.")
         | Error e -> Stdlib.Result.Result.Error e
@@ -249,10 +249,10 @@ let rewriteByAttempt
 /// The rebuild also refuses when the draft is no longer the one `keep` chose from, or main moved while it
 /// read: an author or a pull landing after `mainDraftOps` is in what the rebuild deletes and not in
 /// `keptIds`. Then nothing was written, and this reads again and lets `keep` choose again.
-let rewriteBy
-  (keep: List<DraftOp> -> List<DraftOp>)
+let rewriteBy(
+  keep: List<DraftOp> -> List<DraftOp>)
   : Stdlib.Result.Result<Int, String> =
-  rewriteByAttempt keep 1
+  rewriteByAttempt(keep, 1)
 
 
 /// Drop ONE name's uncommitted bindings, leaving the rest of the draft alone.
@@ -267,29 +267,29 @@ let rewriteBy
 ///
 /// The `Add` carrying the content STAYS; dropping content needs a real reachability check (see
 /// `collapse`).
-let discardName
-  (owner: String)
-  (modules: List<String>)
-  (name: String)
+let discardName(
+  owner: String,
+  modules: List<String>,
+  name: String)
   : Stdlib.Result.Result<Int, String> =
-  let modulePath = Stdlib.String.join modules "."
+  let modulePath = Stdlib.String.join(modules, ".")
 
-  let bindsThisName (loc: LanguageTools.ProgramTypes.PackageLocation) : Bool =
+  let bindsThisName(loc: LanguageTools.ProgramTypes.PackageLocation): Bool =
     loc.owner == owner
-    && (Stdlib.String.join loc.modules ".") == modulePath
+    && (Stdlib.String.join(loc.modules, ".")) == modulePath
     && loc.name == name
 
-  rewriteBy (fun draft ->
+  rewriteBy(fun draft ->
     draft
-    |> Stdlib.List.filter (fun d ->
+    |> Stdlib.List.filter(fun d ->
       match d.op with
-      | SetName(loc, _, _) -> Stdlib.Bool.not (bindsThisName loc)
-      | Decision(_, loc, _, Override _) -> Stdlib.Bool.not (bindsThisName loc)
+      | SetName(loc, _, _) -> Stdlib.Bool.not(bindsThisName(loc))
+      | Decision(_, loc, _, Override _) -> Stdlib.Bool.not(bindsThisName(loc))
       | _ -> true))
 
 
 /// Drop main's draft entirely. Returns how many ops went.
-let discardAll () : Stdlib.Result.Result<Int, String> = rewriteBy (fun _ -> [])
+let discardAll(): Stdlib.Result.Result<Int, String> = rewriteBy(fun _ -> [])
 
 
 /// Collapse the draft's superseded NAMINGS: for each name keep the last binding, drop the earlier ones.
@@ -302,10 +302,10 @@ let discardAll () : Stdlib.Result.Result<Int, String> = rewriteBy (fun _ -> [])
 /// wrong means a re-fold produces a different store. Keeping them re-folds identically.
 ///
 /// Run at commit. Before that every version in the draft is reachable by `undo`.
-let collapse () : Stdlib.Result.Result<Int, String> =
-  rewriteBy (fun draft ->
-    let nameKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-      loc.owner + "|" + (Stdlib.String.join loc.modules ".") + "|" + loc.name
+let collapse(): Stdlib.Result.Result<Int, String> =
+  rewriteBy(fun draft ->
+    let nameKey(loc: LanguageTools.ProgramTypes.PackageLocation): String =
+      loc.owner + "|" + (Stdlib.String.join(loc.modules, ".")) + "|" + loc.name
 
     // The naming to KEEP for each name: the one that WROTE the row the name currently has.
     //
@@ -321,21 +321,21 @@ let collapse () : Stdlib.Result.Result<Int, String> =
       (fun acc d ->
         match d.op with
         | SetName(loc, target, _) ->
-          let key = nameKey loc
-          let hash = referenceHash target
+          let key = nameKey(loc)
+          let hash = referenceHash(target)
 
-          match Stdlib.Dict.get acc key with
+          match Stdlib.Dict.get(acc, key) with
           | Some((_, standingHash)) when standingHash == hash -> acc
-          | _ -> Stdlib.Dict.set acc key ((d.id, hash))
+          | _ -> Stdlib.Dict.set(acc, key, (d.id, hash))
         | _ -> acc)
 
-    let keeperForName = draft |> Stdlib.List.fold Stdlib.Dict.empty step
+    let keeperForName = draft |> Stdlib.List.fold(Stdlib.Dict.empty, step)
 
     draft
-    |> Stdlib.List.filter (fun d ->
+    |> Stdlib.List.filter(fun d ->
       match d.op with
       | SetName(loc, _, _) ->
-        match Stdlib.Dict.get keeperForName (nameKey loc) with
+        match Stdlib.Dict.get(keeperForName, nameKey(loc)) with
         | Some((keeperId, _)) -> keeperId == d.id
         | None -> true
       | _ -> true))

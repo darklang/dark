@@ -7,7 +7,7 @@ module Darklang.SCM.Tests.RemovalConflicts
 // you have since replaced is not.
 
 module Removals =
-  let mine (hash: String) (ts: String) : Darklang.SCM.Conflicts.Binding =
+  let mine(hash: String, ts: String): Darklang.SCM.Conflicts.Binding =
     Darklang.SCM.Conflicts.Binding
       { owner = "Tests"
         modules = "Rem"
@@ -18,7 +18,7 @@ module Removals =
         author = ""
         previous = Stdlib.Option.Option.None }
 
-  let theirs (previous: Stdlib.Option.Option<String>) (ts: String) : Darklang.SCM.Conflicts.Removal =
+  let theirs(previous: Stdlib.Option.Option<String>, ts: String): Darklang.SCM.Conflicts.Removal =
     Darklang.SCM.Conflicts.Removal
       { owner = "Tests"
         modules = "Rem"
@@ -27,52 +27,52 @@ module Removals =
         author = "ada"
         previous = previous }
 
-  let detect
-    (local: List<Darklang.SCM.Conflicts.Binding>)
-    (removals: List<Darklang.SCM.Conflicts.Removal>)
+  let detect(
+    local: List<Darklang.SCM.Conflicts.Binding>,
+    removals: List<Darklang.SCM.Conflicts.Removal>)
     : List<Darklang.SCM.Conflicts.Conflict> =
-    Darklang.SCM.Conflicts.detectRemovals "me" "ada" local removals
+    Darklang.SCM.Conflicts.detectRemovals("me", "ada", local, removals)
 
 // They ended exactly what I hold. Nothing of mine is at stake, so nothing is recorded.
 test theyEndedWhatIHold =
-  (Removals.detect
-    [ Removals.mine "aaa" "2026-01-01T00:00:00.000Z" ]
-    [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
+  (Removals.detect(
+    [ Removals.mine("aaa", "2026-01-01T00:00:00.000Z") ],
+    [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-02T00:00:00.000Z") ]))
   |> Stdlib.List.length
-  |> Stdlib.Test.equal 0
+  |> Stdlib.Test.equal(0)
 
 // They ended a version I have SINCE replaced. That is the divergence.
 test theyEndedReplacedVersion =
-  (Removals.detect
-    [ Removals.mine "bbb" "2026-01-03T00:00:00.000Z" ]
-    [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
+  (Removals.detect(
+    [ Removals.mine("bbb", "2026-01-03T00:00:00.000Z") ],
+    [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-02T00:00:00.000Z") ]))
   |> Stdlib.List.length
-  |> Stdlib.Test.equal 1
+  |> Stdlib.Test.equal(1)
 
 // A removal of a name I don't have is not about me.
 test removalOfUnheldName =
-  (Removals.detect [] [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
+  (Removals.detect([], [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-02T00:00:00.000Z") ]))
   |> Stdlib.List.length
-  |> Stdlib.Test.equal 0
+  |> Stdlib.Test.equal(0)
 
 // The recorded shape: one side is my version, the other is the removal, and the removal carries no hash.
 test recordedShape =
-  ((Removals.detect
-     [ Removals.mine "bbb" "2026-01-03T00:00:00.000Z" ]
-     [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-02T00:00:00.000Z" ])
+  ((Removals.detect(
+     [ Removals.mine("bbb", "2026-01-03T00:00:00.000Z") ],
+     [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-02T00:00:00.000Z") ]))
    |> Stdlib.List.head
-   |> Stdlib.Option.map (fun c ->
-     let sides = c.candidates |> Stdlib.List.map (fun cand -> (cand.removed, cand.hash))
+   |> Stdlib.Option.map(fun c ->
+     let sides = c.candidates |> Stdlib.List.map(fun cand -> (cand.removed, cand.hash))
      (c.kind, sides, c.autoResolvedTo)))
-  |> Stdlib.Test.equal
+  |> Stdlib.Test.equal(
     (Stdlib.Option.Option.Some(
-         ("removed-vs-edited", [ (false, "bbb"), (true, "") ], "bbb")))
+         ("removed-vs-edited", [ (false, "bbb"), (true, "") ], "bbb"))))
 
 // Their removal is NEWER than my edit, so the fold leaves the name gone and the record says so.
 test newerRemovalWins =
-  ((Removals.detect
-     [ Removals.mine "bbb" "2026-01-01T00:00:00.000Z" ]
-     [ Removals.theirs (Stdlib.Option.Option.Some "aaa") "2026-01-05T00:00:00.000Z" ])
+  ((Removals.detect(
+     [ Removals.mine("bbb", "2026-01-01T00:00:00.000Z") ],
+     [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-05T00:00:00.000Z") ]))
    |> Stdlib.List.head
-   |> Stdlib.Option.map (fun c -> (c.autoResolvedTo, c.reason)))
-  |> Stdlib.Test.equal (Stdlib.Option.Option.Some(("", "removal is newer")))
+   |> Stdlib.Option.map(fun c -> (c.autoResolvedTo, c.reason)))
+  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("", "removal is newer")))

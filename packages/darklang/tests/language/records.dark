@@ -9,10 +9,10 @@ type AnEnum = | RecordTestA | RecordTestB | RecordTestC
 
 test construction =
   Cols2 { col1 = 1L, col2 = 3L }
-  |> Stdlib.Test.equal (Cols2 { col1 = 1L, col2 = 3L })
+  |> Stdlib.Test.equal(Cols2 { col1 = 1L, col2 = 3L })
 
 test fieldErrorRaises =
-  Cols2 { col1 = 2L, col2 = Stdlib.Test.raiseRuntimeError "test" }
+  Cols2 { col1 = 2L, col2 = Stdlib.Test.raiseRuntimeError("test") }
   => raises "Uncaught exception: test"
 
 module WithTypeArgs =
@@ -20,16 +20,16 @@ module WithTypeArgs =
   type CoOwner<'a> = Owner<'a>
 
   test aliasWithTypeArg =
-    Owner { item = 5L } |> Stdlib.Test.equal (CoOwner { item = 5L })
+    Owner { item = 5L } |> Stdlib.Test.equal(CoOwner { item = 5L })
 
   type C<'c> = { v: 'c }
   type B<'b> = { c: C<'b> }
   type A<'a> = { b: B<'a> }
 
-  let getC (a: A<Int64>) : Int64 = a.b.c.v
+  let getC(a: A<Int64>): Int64 = a.b.c.v
 
   test nestedTypeArgs =
-    getC (A { b = B { c = C { v = 5L } } }) |> Stdlib.Test.equal 5L
+    getC(A { b = B { c = C { v = 5L } } }) |> Stdlib.Test.equal(5L)
 
 module InvalidCols =
   test duplicateFieldRaises =
@@ -56,13 +56,13 @@ module InvalidType =
   // Evaluate the unresolved name from source at run time so it does not prevent
   // the package from loading. Check both the error branch and its message.
   test unknownTypeRaises =
-    let branch = Darklang.SCM.PackageOps.currentBranch ()
+    let branch = Darklang.SCM.PackageOps.currentBranch()
     let source = "MyNonExistantType { col1 = 2L }"
-    match Darklang.Cli.Eval.evaluateRaw None branch source [] false with
+    match Darklang.Cli.Eval.evaluateRaw(None, branch, source, [], false) with
     | Error(Runtime(error, _)) ->
-      Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString branch error
-      |> Stdlib.Test.equal "MyNonExistantType not found"
-    | _ -> Stdlib.Test.fail "expected a runtime error for an unknown record type"
+      Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString(branch, error)
+      |> Stdlib.Test.equal("MyNonExistantType not found")
+    | _ -> Stdlib.Test.fail("expected a runtime error for an unknown record type")
 
   test enumIsNotRecordRaises =
     AnEnum { col1 = 2L }
@@ -73,14 +73,14 @@ module Polymorphism =
   type MyRecord<'a> = { col1: 'a, col2: Int64 }
 
   test typeArgFields =
-    Stdlib.Test.all
-      [ (MyRecord { col1 = (), col2 = 1L }).col2 |> Stdlib.Test.equal 1L
+    Stdlib.Test.all(
+      [ (MyRecord { col1 = (), col2 = 1L }).col2 |> Stdlib.Test.equal(1L)
         (MyRecord
           { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
             col2 = 1L })
           .col1
-        |> Stdlib.Test.equal
-          (Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)) ]
+        |> Stdlib.Test.equal(
+          Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)) ])
 
 module Nested =
   type NestedRecordA = { col1: Int64 }
@@ -88,31 +88,31 @@ module Nested =
 
   test nestedFieldAccess =
     (NestedRecordB { col1 = NestedRecordA { col1 = 1L } }).col1.col1
-    |> Stdlib.Test.equal 1L
+    |> Stdlib.Test.equal(1L)
 
 module Update =
   type RecordForUpdate = { x: Int64, y: Int64 }
   type RecordForUpdateMultiple = { x: Int64, y: Int64, z: Int64 }
 
   test updates =
-    Stdlib.Test.all
+    Stdlib.Test.all(
       [ ({ RecordForUpdate { x = 4L, y = 1L } with y = 2L })
-        |> Stdlib.Test.equal (RecordForUpdate { x = 4L, y = 2L })
+        |> Stdlib.Test.equal(RecordForUpdate { x = 4L, y = 2L })
         (let myRec = RecordForUpdate { x = 4L, y = 1L }
          { myRec with y = 2L })
-        |> Stdlib.Test.equal (RecordForUpdate { x = 4L, y = 2L })
+        |> Stdlib.Test.equal(RecordForUpdate { x = 4L, y = 2L })
         (let myRec = RecordForUpdate { x = 4L, y = 1L }
          { myRec with y = 22L, y = 42L })
-        |> Stdlib.Test.equal (RecordForUpdate { x = 4L, y = 42L })
+        |> Stdlib.Test.equal(RecordForUpdate { x = 4L, y = 42L })
         (let myRec = RecordForUpdateMultiple { x = 4L, y = 1L, z = 0L }
          { myRec with y = 2L, z = 42L })
-        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 4L, y = 2L, z = 42L })
+        |> Stdlib.Test.equal(RecordForUpdateMultiple { x = 4L, y = 2L, z = 42L })
         (let myRec = RecordForUpdateMultiple { x = 4L, y = 1L, z = 0L }
          { myRec with z = 3L, x = 42L })
-        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 42L, y = 1L, z = 3L })
+        |> Stdlib.Test.equal(RecordForUpdateMultiple { x = 42L, y = 1L, z = 3L })
         (let myRec = RecordForUpdateMultiple { x = 4L, y = 1L, z = 0L }
          { myRec with z = 3L, x = 42L, y = 11L })
-        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 42L, y = 11L, z = 3L }) ]
+        |> Stdlib.Test.equal(RecordForUpdateMultiple { x = 42L, y = 11L, z = 3L }) ])
 
   // An update of a record whose type argument is still unknown, inside a fn with
   // no type parameters, called from a fn whose type parameter has the record's
@@ -120,14 +120,14 @@ module Update =
   module UnderAGenericCaller =
     type UpdBox<'a> = { updItems: List<'a> }
 
-    let emptyUpdBox () : UpdBox<String> =
+    let emptyUpdBox(): UpdBox<String> =
       let b = UpdBox { updItems = [] }
       { b with updItems = [] }
 
-    let viaGeneric<'a> (xs: List<'a>) : UpdBox<String> = emptyUpdBox ()
+    let viaGeneric<'a>(xs: List<'a>): UpdBox<String> = emptyUpdBox()
 
     test genericCallerKeepsOwnTypeArg =
-      Stdlib.List.length (viaGeneric [ 1L ]).updItems |> Stdlib.Test.equal 0
+      Stdlib.List.length((viaGeneric([ 1L ])).updItems) |> Stdlib.Test.equal(0)
 
   module Invalid =
     test unknownFieldRaises =
@@ -150,7 +150,7 @@ module FieldAccess =
   type MyRecord = { col1: Int64 }
 
   test fieldAccess =
-    (let x = MyRecord { col1 = 1L } in x.col1) |> Stdlib.Test.equal 1L
+    (let x = MyRecord { col1 = 1L } in x.col1) |> Stdlib.Test.equal(1L)
 
   module Errors =
     test emptyFieldNameRaises =

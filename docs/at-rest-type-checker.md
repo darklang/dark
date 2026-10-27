@@ -145,7 +145,7 @@ commands are the readers today. What they get is unchanged: definite diagnostics
 checker warnings are warnings even when they belong to a `Failed` item, and each carries its
 issue code. During syntax errors, the parser reports diagnostics and the checker waits.
 
-Checker node IDs are not source locations. Diagnostics use declaration locations from `WrittenTypes`. Until lowering preserves stable source locations in `ProgramTypes`, issues point to the containing declaration body, or the type declaration for type issues. This is exact for a single-expression body such as `let invalid (x: Int) : String = x`, but only approximate for nested expressions.
+Checker node IDs are not source locations. Diagnostics use declaration locations from `WrittenTypes`. Until lowering preserves stable source locations in `ProgramTypes`, issues point to the containing declaration body, or the type declaration for type issues. This is exact for a single-expression body such as `let invalid(x: Int): String = x`, but only approximate for nested expressions.
 
 ## Coverage policy
 
@@ -165,13 +165,13 @@ Concrete results use their actual package types. Ordinary generic builtins decla
 - The polymorphic operator builtins (`add`, `lessThan`, `equals`, `negate`, ...)
   declare independent `'a`/`'b` parameters because the type language has no numeric
   constraint, but raise at runtime on anything but values of the same numeric type.
-  A by-name call (`Builtin.add a b`) is checked with the operator's numeric table
-  rather than the declared signature; used as a value or partially applied there is
-  no signature to give them, and the use is `Incomplete`.
+  A by-name call (`Builtin.add(a, b)`) is checked with the operator's numeric table
+  rather than the declared signature; used as a value there is no signature to give
+  them, and the use is `Incomplete`.
 
-Infix syntax does not lower to those builtins. `a + b` is `Stdlib.Add.add a b`
+Infix syntax does not lower to those builtins. `a + b` is `Stdlib.Add.add(a, b)`
 (`NumericTraits.ofInfix`, likewise `- * / % **` and the four comparisons), and `-x`, which
-the parser stores as `Builtin.negate x`, runs as `Stdlib.Negate.negate x`. The checker
+the parser stores as `Builtin.negate(x)`, runs as `Stdlib.Negate.negate(x)`. The checker
 treats each as a trait method call. `==` is not one: equality is structural, so the
 operands must unify and nothing further is owed.
 

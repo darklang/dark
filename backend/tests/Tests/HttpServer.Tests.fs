@@ -229,7 +229,7 @@ let private buildRouterForTest
   task {
     let routerSource =
       match test.handlers |> List.reverse with
-      | [] -> "fun request -> Darklang.Stdlib.Http.notFound ()"
+      | [] -> "fun request -> Darklang.Stdlib.Http.notFound()"
       | [ h ] -> $"""fun request -> ({h.code})"""
       | many ->
         Exception.raiseInternal
@@ -573,7 +573,7 @@ let private concurrentEphemeralBytesRequests =
     let bodyFor (i : int) : byte[] = UTF8.toBytes (String.replicate 64 $"req{i:D4}-")
     let! results =
       runRequestsAgainst
-        "Darklang.Stdlib.Http.response request.body 200"
+        "Darklang.Stdlib.Http.response(request.body, 200)"
         "POST"
         ([ 1..64 ] |> List.map (fun i -> "/", bodyFor i))
     results
@@ -593,26 +593,26 @@ let private concurrentEphemeralBytesRequests =
 /// The path decides: `/slow` sleeps, `/boom` raises, anything else answers at once.
 let private pathRouter =
   """(match request.url with
-      | url when Darklang.Stdlib.String.contains url "/slow" ->
-        let _ = Darklang.Stdlib.Cli.Posix.sleep 400.0
-        Darklang.Stdlib.Http.responseWithText "slow done" 200
-      | url when Darklang.Stdlib.String.contains url "/boom" ->
-        Darklang.Stdlib.Http.responseWithText (Darklang.Stdlib.toString (1 / 0)) 200
-      | _ -> Darklang.Stdlib.Http.responseWithText "fast" 200)"""
+      | url when Darklang.Stdlib.String.contains(url, "/slow") ->
+        let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
+        Darklang.Stdlib.Http.responseWithText("slow done", 200)
+      | url when Darklang.Stdlib.String.contains(url, "/boom") ->
+        Darklang.Stdlib.Http.responseWithText(Darklang.Stdlib.toString(1 / 0), 200)
+      | _ -> Darklang.Stdlib.Http.responseWithText("fast", 200))"""
 
 /// `pathRouter` with the answer stamped with the millisecond it was made: `slow <ms>` or
 /// `fast <ms>`, so a test can tell which finished first.
 let private stampedRouter =
   """(match request.url with
-      | url when Darklang.Stdlib.String.contains url "/slow" ->
-        let _ = Darklang.Stdlib.Cli.Posix.sleep 400.0
-        Darklang.Stdlib.Http.responseWithText
-          ("slow " + Darklang.Stdlib.toString (Darklang.Stdlib.DateTime.toMilliseconds (Darklang.Stdlib.DateTime.now ())))
-          200
+      | url when Darklang.Stdlib.String.contains(url, "/slow") ->
+        let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
+        Darklang.Stdlib.Http.responseWithText(
+          "slow " + Darklang.Stdlib.toString(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now())),
+          200)
       | _ ->
-        Darklang.Stdlib.Http.responseWithText
-          ("fast " + Darklang.Stdlib.toString (Darklang.Stdlib.DateTime.toMilliseconds (Darklang.Stdlib.DateTime.now ())))
-          200)"""
+        Darklang.Stdlib.Http.responseWithText(
+          "fast " + Darklang.Stdlib.toString(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now())),
+          200))"""
 
 // Sequenced: the timeout test lowers the process-wide `requestTimeoutMs` for its own server.
 let private requestsAreProcesses =
@@ -694,7 +694,7 @@ let private serveRejectsOutOfRangeArgs =
           | _ -> return Error(string rte)
       }
 
-    let handler = "(fun request -> Darklang.Stdlib.Http.notFound ())"
+    let handler = "(fun request -> Darklang.Stdlib.Http.notFound())"
 
     // onListening: a no-op — the out-of-range checks fire before it would ever run.
     let onListening = "(fun () -> ())"
@@ -702,7 +702,7 @@ let private serveRejectsOutOfRangeArgs =
     // port 99999 is past the valid [0, 65535] range
     let! tooLargePort =
       runServe
-        $"Builtin.httpServerServe 99999 {handler} 1048576 false false false {onListening}"
+        $"Builtin.httpServerServe(99999, {handler}, 1048576, false, false, false, {onListening})"
     match tooLargePort with
     | Error msg ->
       Expect.stringContains msg "out-of-range" "port 99999 -> Int OutOfRange"
@@ -711,7 +711,7 @@ let private serveRejectsOutOfRangeArgs =
     // a negative body limit would reject every request
     let! negativeBodyLimit =
       runServe
-        $"Builtin.httpServerServe 8000 {handler} -1 false false false {onListening}"
+        $"Builtin.httpServerServe(8000, {handler}, -1, false, false, false, {onListening})"
     match negativeBodyLimit with
     | Error msg ->
       Expect.stringContains msg "out-of-range" "maxBodyBytes -1 -> Int OutOfRange"

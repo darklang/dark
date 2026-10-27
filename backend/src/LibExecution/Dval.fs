@@ -142,7 +142,7 @@ let result
 
 
 /// Recursively transform every function value in a Dval, including functions
-/// nested in containers, lambda captures, and partial-application arguments.
+/// nested in containers, lambda captures, and a receiver call's bound receiver.
 let rec mapCallables
   (named : ApplicableNamedFn -> ApplicableNamedFn)
   (lambda : ApplicableLambda -> ApplicableLambda)
@@ -161,8 +161,7 @@ let rec mapCallables
           { l with
               closedRegisters =
                 l.closedRegisters
-                |> Array.map (fun (struct (reg, value)) -> struct (reg, walk value))
-              argsSoFar = List.map walk l.argsSoFar }
+                |> Array.map (fun (struct (reg, value)) -> struct (reg, walk value)) }
       )
     )
   | DList(vt, items) -> DList(vt, List.map walk items)
@@ -269,7 +268,7 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
   | DApplicable(AppLambda _) ->
     Some(
       "a lambda can't be stored in a `val` — its instructions belong to the execution that made it, "
-      + "so a later run finds a dangling reference. Make it a function (`let f () = ...`), which is "
+      + "so a later run finds a dangling reference. Make it a function (`let f() = ...`), which is "
       + "rebuilt per call"
     )
 

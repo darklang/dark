@@ -35,11 +35,11 @@ val readEffects =
 
 /// Kept aligned with the host's defaultInstance by the CLI integration test.
 val defaultEffects =
-  Stdlib.List.concat
-    Profiles.readEffects
+  Stdlib.List.concat(
+    Profiles.readEffects,
     [ LanguageTools.Permissions.Effect.DbWrite
       LanguageTools.Permissions.Effect.TraceWrite
-      LanguageTools.Permissions.Effect.Concurrency ]
+      LanguageTools.Permissions.Effect.Concurrency ])
 
 val httpsGet =
   LanguageTools.Permissions.Rule.Http(
@@ -51,50 +51,50 @@ val httpsGet =
         pathPrefix = LanguageTools.Permissions.Scope.All
         query = LanguageTools.Permissions.Scope.All })
 
-let fromEffects
-  (effects: List<LanguageTools.Permissions.Effect>)
+let fromEffects(
+  effects: List<LanguageTools.Permissions.Effect>)
   : LanguageTools.Permissions.Policy =
   LanguageTools.Permissions.Policy
     { allow =
         effects
-        |> Stdlib.List.map (fun e -> LanguageTools.Permissions.Rule.Effect e)
+        |> Stdlib.List.map(fun e -> LanguageTools.Permissions.Rule.Effect e)
       deny = [] }
 
-let usage (profile: Profiles.Profile) : String =
+let usage(profile: Profiles.Profile): String =
   "permissions profile " + profile.name
   + (if profile.needsRoot then " <ABSOLUTE-ROOT>" else "")
   + " [--yes]"
 
 val listing =
-  Stdlib.List.prepend
-    (Profiles.all |> Stdlib.List.map (fun profile ->
-      "  " + Profiles.usage profile + "\n    " + profile.description))
-    "Permission profiles (preview first; --yes applies):"
+  Stdlib.List.prepend(
+    (Profiles.all |> Stdlib.List.map(fun profile ->
+      "  " + Profiles.usage(profile) + "\n    " + profile.description)),
+    "Permission profiles (preview first; --yes applies):")
 
 /// Validate the complete command before constructing a policy. The root stays
 /// a single typed field, so quotes, spaces and semicolons cannot inject rules.
-let resolve
-  (name: String)
-  (args: List<String>)
+let resolve(
+  name: String,
+  args: List<String>)
   : Stdlib.Result.Result<LanguageTools.Permissions.Policy, String> =
   let found =
-    Profiles.all |> Stdlib.List.findFirst (fun profile -> profile.name == name)
+    Profiles.all |> Stdlib.List.findFirst(fun profile -> profile.name == name)
   match found with
   | None -> Stdlib.Result.Result.Error $"unknown permission profile: {name}"
   | Some profile ->
     match (profile.needsRoot, args) with
     | (false, []) ->
-      Stdlib.Result.Result.Ok(Profiles.fromEffects Profiles.defaultEffects)
+      Stdlib.Result.Result.Ok(Profiles.fromEffects(Profiles.defaultEffects))
     | (true, [ root ]) ->
-      if Stdlib.Bool.not (LanguageTools.Permissions.isAbsolutePath root) then
+      if Stdlib.Bool.not(LanguageTools.Permissions.isAbsolutePath(root)) then
         Stdlib.Result.Result.Error
           "profile root must be an absolute directory path; ~ and * are not expanded"
       else
         let read = LanguageTools.Permissions.Rule.FileRead(
           LanguageTools.Permissions.Scope.Only root)
         let policy =
-          if name == "read-only" then Profiles.fromEffects Profiles.readEffects
-          else Profiles.fromEffects Profiles.defaultEffects
+          if name == "read-only" then Profiles.fromEffects(Profiles.readEffects)
+          else Profiles.fromEffects(Profiles.defaultEffects)
         let rules =
           if name == "read-only" then [ read, Profiles.httpsGet ]
           else
@@ -109,5 +109,5 @@ let resolve
               LanguageTools.Permissions.Rule.Effect
                 LanguageTools.Permissions.Effect.Runtime ]
         Stdlib.Result.Result.Ok
-          { policy with allow = Stdlib.List.concat policy.allow rules }
-    | _ -> Stdlib.Result.Result.Error ("usage: " + Profiles.usage profile)
+          { policy with allow = Stdlib.List.concat(policy.allow, rules) }
+    | _ -> Stdlib.Result.Result.Error ("usage: " + Profiles.usage(profile))

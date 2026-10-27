@@ -92,21 +92,21 @@ type AppState =
 ///
 /// Only when you're on a branch. Everyone is on main almost all the time, and a prompt that says so every
 /// line is noise you learn to stop reading.
-let locationStr (state: AppState) : String =
-  let where = Packages.formatLocation state.packageData.currentLocation
+let locationStr(state: AppState): String =
+  let where = Packages.formatLocation(state.packageData.currentLocation)
 
   match state.currentBranchId with
-  | id when SCM.Branch.isMain id -> where
-  | id -> $"{where} @{SCM.PackageOps.branchName id}"
+  | id when SCM.Branch.isMain(id) -> where
+  | id -> $"{where} @{SCM.PackageOps.branchName(id)}"
 
 /// Refuse a dash-led argument where a name belongs.
 ///
 /// A leading dash means someone mistyped a flag; it is never a name anyone meant
 /// to use. Taken as one it creates a branch called `--frce` that then has to be
 /// found and archived.
-let refuseDashLedName (kind: String) (name: String) : Bool =
-  if Stdlib.String.startsWith name "-" then
-    printErr $"\"{name}\" starts with a dash, so it's a flag rather than a {kind} name."
+let refuseDashLedName(kind: String, name: String): Bool =
+  if Stdlib.String.startsWith(name, "-") then
+    printErr($"\"{name}\" starts with a dash, so it's a flag rather than a {kind} name.")
 
     true
   else
@@ -117,17 +117,17 @@ let refuseDashLedName (kind: String) (name: String) : Bool =
 //
 // Which stream: would someone piping this command into another program want the line? An error or a
 // hint never is, so those go to stderr.
-let printOk (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.success msg)
-let printErr (msg: String) : Unit = Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error msg)
-let printHint (msg: String) : Unit = Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.hint msg)
+let printOk(msg: String): Unit = Stdlib.printLine(Stdlib.Cli.UI.Colors.success(msg))
+let printErr(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
+let printHint(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
 
 /// A line of the ANSWER in hint colour. Not `printHint`, which would take it off stdout.
-let printQuiet (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.hint msg)
+let printQuiet(msg: String): Unit = Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(msg))
 
 module Stderr =
-  let line (msg: String) : Unit = Stdlib.printErrorLine msg
-  let ok (msg: String) : Unit = Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.success msg)
-  let hint (msg: String) : Unit = Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.hint msg)
+  let line(msg: String): Unit = Stdlib.printErrorLine(msg)
+  let ok(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.success(msg))
+  let hint(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
 
 /// The state a command hands back, given whether it did what it was asked.
 ///
@@ -137,35 +137,35 @@ module Stderr =
 ///
 /// An empty ANSWER is not a refusal: a command asked a question and told the truth about it
 /// succeeded, however little there was to say.
-let exitWith (state: AppState) (ok: Bool) : AppState =
+let exitWith(state: AppState, ok: Bool): AppState =
   if ok then state else { state with exitCode = 1 }
 
 
 /// First 8 hex chars of a hash, for human-readable display.
-let shortHash (h: LanguageTools.ProgramTypes.Hash) : String =
-  LanguageTools.ProgramTypes.hashToString h |> Stdlib.String.slice 0 8
+let shortHash(h: LanguageTools.ProgramTypes.Hash): String =
+  LanguageTools.ProgramTypes.hashToString(h) |> Stdlib.String.slice(0, 8)
 
 
 /// Escape a string for a hand-assembled JSON body. Backslash first, or it would
 /// re-escape the ones the quote pass just wrote.
-let jsonEscape (x: String) : String =
+let jsonEscape(x: String): String =
   x
-  |> Stdlib.String.replaceAll "\\" "\\\\"
-  |> Stdlib.String.replaceAll "\"" "\\\""
+  |> Stdlib.String.replaceAll("\\", "\\\\")
+  |> Stdlib.String.replaceAll("\"", "\\\"")
 
 /// A JSON string literal: escaped and wrapped in quotes.
-let jsonStr (s: String) : String =
-  let escaped = jsonEscape s
+let jsonStr(s: String): String =
+  let escaped = jsonEscape(s)
   $"\"{escaped}\""
 
 
 /// Takes the command list rather than calling `Registry.allCommands ()` itself: `initState` needs both the
 /// list and the options, and building the list is 60 records of 6 fields including 3 fn refs each. Calling it
 /// twice per process start was pure duplicate work, on every invocation including `dark version`.
-let commandOptions (commands: List<Registry.CommandHandler>) : List<String> =
-  let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
-  let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.concat acc cmd.aliases)
-  Stdlib.List.concat allNames allAliases
+let commandOptions(commands: List<Registry.CommandHandler>): List<String> =
+  let allNames = Stdlib.List.map(commands, fun cmd -> cmd.name)
+  let allAliases = Stdlib.List.fold(commands, [], fun acc cmd -> Stdlib.List.concat(acc, cmd.aliases))
+  Stdlib.List.concat(allNames, allAliases)
 
 /// The branch this run starts on, `SCM.Branch.mainBranchId` for main.
 ///
@@ -179,18 +179,18 @@ let commandOptions (commands: List<Registry.CommandHandler>) : List<String> =
 /// `SCM.PackageOps.currentBranch ()` is the process's, and it is what the verbs that MUTATE the store use
 /// -- `branch`, `merge`, `discard`, `push` -- because the ops they author route by the process overlay,
 /// and a state that had drifted from it would report one branch while writing to another.
-let resolveStartingBranch () : Uuid = SCM.PackageOps.currentBranch ()
+let resolveStartingBranch(): Uuid = SCM.PackageOps.currentBranch()
 
 
-let initState () : AppState =
+let initState(): AppState =
   // No accounts: approval scoping is the only thing that still takes one, and it takes None.
   let accountID = Stdlib.Option.Option.None
-  let branchId = resolveStartingBranch ()
-  let commands = Registry.allCommands ()
+  let branchId = resolveStartingBranch()
+  let commands = Registry.allCommands()
   AppState
     { isExiting = false
-      prompt = Prompt.initState ()
-      packageData = Packages.initState ()
+      prompt = Prompt.initState()
+      packageData = Packages.initState()
       currentPage = Page.MainPrompt
       pageStack = []
       currentBranchId = branchId
@@ -204,8 +204,8 @@ let initState () : AppState =
       cachedFilterPartial = ""
       cachedFilterItems = []
       allCommandsCache = commands
-      commandOptionsCache = commandOptions commands
-      telemetryEnabled = (Stdlib.Env.get "DARK_TELEMETRY") == Stdlib.Option.Option.Some "1"
+      commandOptionsCache = commandOptions(commands)
+      telemetryEnabled = (Stdlib.Env.get("DARK_TELEMETRY")) == Stdlib.Option.Option.Some "1"
       exitCode = 0 }
 
 type Msg =
@@ -242,34 +242,34 @@ module ExecutionError =
     | Denied of PermissionDenied
     | Unhandled of Unhandled
 
-  let toString (branchId: Uuid) (err: ExecutionError) : String =
+  let toString(branchId: Uuid, err: ExecutionError): String =
     match err with
-    | Parse pe -> LanguageTools.Parser.CliScript.ParseError.toString pe
-    | TypeCheck report -> Packages.AtRestCheck.scriptReport branchId report
+    | Parse pe -> LanguageTools.Parser.CliScript.ParseError.toString(pe)
+    | TypeCheck report -> Packages.AtRestCheck.scriptReport(branchId, report)
     | Runtime(rte, _) ->
-      PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId rte
+      PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
     | Denied denied ->
-      PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId denied.error
+      PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, denied.error)
     | Unhandled u ->
       match u.metadata with
       | [] -> $"Internal error: {u.message}"
       | _ ->
         let lines =
           u.metadata
-          |> Stdlib.List.map (fun (k, v) -> $"  {k}: {v}")
-          |> Stdlib.String.join "\n"
+          |> Stdlib.List.map(fun (k, v) -> $"  {k}: {v}")
+          |> Stdlib.String.join("\n")
         $"Internal error: {u.message}\n{lines}"
 
   /// Skip entry-only stacks: they add no useful detail to a missing-name error.
-  let hasReadableFrames
-    (frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
+  let hasReadableFrames(
+    frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
     : Bool =
-    Stdlib.List.any frames (fun frame ->
+    Stdlib.List.any(frames, fun frame ->
       match frame with
       | Function _ -> true
       | _ -> false)
 
-  let printCallStack (branchId: Uuid) (what: String) (error: ExecutionError) : Unit =
+  let printCallStack(branchId: Uuid, what: String, error: ExecutionError): Unit =
     let frames =
       match error with
       | Runtime(_, frames) -> frames
@@ -278,23 +278,23 @@ module ExecutionError =
     let show =
       match error with
       | Denied _ -> frames != []
-      | _ -> hasReadableFrames frames
+      | _ -> hasReadableFrames(frames)
     if show then
-      let rendered = PrettyPrinter.RuntimeTypes.callStack branchId frames
+      let rendered = PrettyPrinter.RuntimeTypes.callStack(branchId, frames)
       let gap =
         match error with
         | Denied _ -> ""
         | _ -> "\n"
-      Stdlib.printErrorLine $"Error when executing {what}. Call-stack:\n{rendered}{gap}"
+      Stdlib.printErrorLine($"Error when executing {what}. Call-stack:\n{rendered}{gap}")
     else
       ()
 
 
 module View =
-  let formatError (message: String) : String =
-    Stdlib.Cli.UI.Colors.error ("Error: " + message)
+  let formatError(message: String): String =
+    Stdlib.Cli.UI.Colors.error("Error: " + message)
 
-  let formatSuccess (message: String) : String =
-    Stdlib.Cli.UI.Colors.success message
+  let formatSuccess(message: String): String =
+    Stdlib.Cli.UI.Colors.success(message)
 
-  let formatWelcome () : String = Registry.getCompactCommandList ()
+  let formatWelcome(): String = Registry.getCompactCommandList()

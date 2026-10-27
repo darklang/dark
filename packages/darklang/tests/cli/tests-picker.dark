@@ -3,76 +3,76 @@
 /// Part of `Darklang.Cli.Tests`.
 module Darklang.Cli.Tests.TestSuite
 
-let completionPickerState (itemCount: Int) : CompletionPicker.State =
+let completionPickerState(itemCount: Int): CompletionPicker.State =
   let items =
-    Stdlib.List.range 1 itemCount
-    |> Stdlib.List.map (fun index ->
-      Completion.simple $"item-{Stdlib.toString index}")
-  CompletionPicker.create "" items
+    Stdlib.List.range(1, itemCount)
+    |> Stdlib.List.map(fun index ->
+      Completion.simple($"item-{Stdlib.toString(index)}"))
+  CompletionPicker.create("", items)
 
 
 test completionPickerTwoRows =
   let size = Stdlib.Cli.Tui.Size { width = 80, height = 2 }
-  let state = completionPickerState 3
-  let layout = CompletionPicker.layoutAtSize state size
-  let view = CompletionPicker.viewAtSize state size
+  let state = completionPickerState(3)
+  let layout = CompletionPicker.layoutAtSize(state, size)
+  let view = CompletionPicker.viewAtSize(state, size)
 
-  match Stdlib.List.last view.rows with
+  match Stdlib.List.last(view.rows) with
   | Some helpRow ->
     if layout.itemCapacity == 1
-       && Stdlib.Bool.not layout.showScrollIndicator
-       && Stdlib.List.length view.rows == 2
-       && Stdlib.String.contains helpRow "Enter"
+       && Stdlib.Bool.not(layout.showScrollIndicator)
+       && Stdlib.List.length(view.rows) == 2
+       && Stdlib.String.contains(helpRow, "Enter")
     then
       Stdlib.Test.Result.Pass
     else
-      Stdlib.Test.fail
-        "Two-row picker should show one item and one complete help row"
+      Stdlib.Test.fail(
+        "Two-row picker should show one item and one complete help row")
   | None ->
-    Stdlib.Test.fail "Two-row picker should include a help row"
+    Stdlib.Test.fail("Two-row picker should include a help row")
 
 
 test completionPickerNarrowHelp =
   let width = CompletionPicker.minimumWidth
-  let help = CompletionPicker.helpTextAtWidth width
+  let help = CompletionPicker.helpTextAtWidth(width)
 
-  if CompletionPicker.supportsSize (Stdlib.Cli.Tui.Size { width = width, height = 2 })
-     && Stdlib.Bool.not
-          (CompletionPicker.supportsSize
-            (Stdlib.Cli.Tui.Size { width = width - 1, height = 2 }))
+  if CompletionPicker.supportsSize(Stdlib.Cli.Tui.Size { width = width, height = 2 })
+     && Stdlib.Bool.not(
+          (CompletionPicker.supportsSize(
+            Stdlib.Cli.Tui.Size { width = width - 1, height = 2 })))
      && help == CompletionPicker.minimumHelpText
-     && Stdlib.String.displayWidth help <= width
+     && Stdlib.String.displayWidth(help) <= width
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail
-      "Narrow picker should use an untruncated minimum help row"
+    Stdlib.Test.fail(
+      "Narrow picker should use an untruncated minimum help row")
 
 
 test completionPickerLongList =
   let size = Stdlib.Cli.Tui.Size { width = 80, height = 3 }
-  let state = completionPickerState 5
-  let layout = CompletionPicker.layoutAtSize state size
-  let view = CompletionPicker.viewAtSize state size
+  let state = completionPickerState(5)
+  let layout = CompletionPicker.layoutAtSize(state, size)
+  let view = CompletionPicker.viewAtSize(state, size)
 
   if layout.itemCapacity == 1
      && layout.showScrollIndicator
-     && Stdlib.List.length view.rows == 3
+     && Stdlib.List.length(view.rows) == 3
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail
-      "Long picker should reserve rows for its indicator and help"
+    Stdlib.Test.fail(
+      "Long picker should reserve rows for its indicator and help")
 
 
 test fullscreenRowCancelsDeferredWrap =
   let output =
-    Stdlib.Cli.Tui.Frame.renderRowChangeAtWidth
-      3
-      (Stdlib.Cli.Tui.Frame.RowChange { row = 0, content = "abc" })
+    Stdlib.Cli.Tui.Frame.renderRowChangeAtWidth(
+      3,
+      Stdlib.Cli.Tui.Frame.RowChange { row = 0, content = "abc" })
 
-  if Stdlib.String.endsWith output "\r" then
+  if Stdlib.String.endsWith(output, "\r") then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail
-      "Fullscreen rows should return to column one after filling the terminal"
+    Stdlib.Test.fail(
+      "Fullscreen rows should return to column one after filling the terminal")

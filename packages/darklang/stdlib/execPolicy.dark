@@ -16,19 +16,19 @@ module Darklang.Stdlib.Exec.Policy
 
 
 /// What the scheduler does on its own: the process that has waited longest.
-let roundRobin (runnable: List<Summary>) : Stdlib.Option.Option<Uuid> =
-  Stdlib.List.head runnable |> Stdlib.Option.map (fun p -> p.id)
+let roundRobin(runnable: List<Summary>): Stdlib.Option.Option<Uuid> =
+  Stdlib.List.head(runnable) |> Stdlib.Option.map(fun p -> p.id)
 
 
 /// The process started most recently first: a stack, not a queue. Useful when the
 /// latest request matters most.
-let youngestFirst (runnable: List<Summary>) : Stdlib.Option.Option<Uuid> =
-  Stdlib.List.last runnable |> Stdlib.Option.map (fun p -> p.id)
+let youngestFirst(runnable: List<Summary>): Stdlib.Option.Option<Uuid> =
+  Stdlib.List.last(runnable) |> Stdlib.Option.map(fun p -> p.id)
 
 
 /// Whatever has run the fewest instructions so far: new work before long-running work.
-let leastRunFirst (runnable: List<Summary>) : Stdlib.Option.Option<Uuid> =
+let leastRunFirst(runnable: List<Summary>): Stdlib.Option.Option<Uuid> =
   runnable
-  |> Stdlib.List.sortBy (fun p -> p.instructionsTaken)
+  |> Stdlib.List.sortBy(fun p -> p.instructionsTaken)
   |> Stdlib.List.head
-  |> Stdlib.Option.map (fun p -> p.id)
+  |> Stdlib.Option.map(fun p -> p.id)

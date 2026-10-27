@@ -119,7 +119,7 @@ Loosest to tightest; one table (`infixBindingPower`) drives the parser.
 | 9 | `+ -` | left | `+` concatenates Strings too |
 | 10 | `* / %` | left | |
 | 11 | `**` | right | exponentiation (`2**3**2 = 2**(3**2)`) |
-| 12 | application `f a b` | left | |
+| 12 | call `f(a, b)` | left | `f(a)(b)` calls what `f(a)` returns |
 | 13 | field access `x.field`, unwrap `x?` | left | tightest |
 
 The bitwise levels follow Python's order rather than C's: they bind *tighter*
@@ -145,23 +145,36 @@ Entering any bracket (`( )`, `[ ]`, `{ }`) drops the arm anchors, since no arm
 can begin inside one; that is what makes the parenthesised form work even on a
 one-line match.
 
-Operator sections `(op)` are two-arg lambdas.
-
-`x |> (op) y` means `x op y`; the piped value is the *left* operand.
+Operator sections `(op)` are two-arg lambdas, called like any other:
+`(+)(1, 2)`, `List.fold(xs, 0, (+))`.
 
 Unary minus on a literal makes a negative literal. On anything else it applies
 `Builtin.negate`. Prefix `!` (boolean not) and `~` (bitwise not) take the same
-shape, applying `Builtin.boolNot` / `Builtin.bitwiseNot` to a whole application:
-`!f x` is `!(f x)`, and infix operators still bind looser, so `!a && b` is
+shape, applying `Builtin.boolNot` / `Builtin.bitwiseNot` to a whole call:
+`!f(x)` is `!(f(x))`, and infix operators still bind looser, so `!a && b` is
 `(!a) && b`.
 
-In argument position, a `-` glued to a number with a space before it is a
-negative-literal argument:
+## Calls
 
-- `f a -1` means `f a (-1)`
-- `f a - 1` means `(f a) - 1`
+A call puts its arguments in parentheses, separated by commas or newlines:
+`f(a, b)`. A space before the `(` is allowed, so `f (a, b)` is the same call;
+passing one tuple is `f((a, b))`. `f()` passes the unit argument, which is what
+a fn declared `let f(): T` takes. A callee is a name, a field (`c.onKey(s, k)`,
+`a.add(b)`), a parenthesized lambda or section, or another call (`f(a)(b)`).
+Type arguments come before the parentheses: `parse<Int64>(s)`.
 
-This follows F#'s rule.
+Arguments written after a callee with spaces, `f a b`, are a `PARSE-UNEXPECTED`
+error with a hint. They are still parsed, as the call they would once have
+been, so recovery sees the intended shape.
+
+There is no partial application. A call gives every argument the function
+takes; fewer is a runtime error (`TooFewArgsForFn`) and an at-rest checker error
+(`TooFewArguments`), not a function waiting for the rest. Write a lambda for
+that: `fun x -> f(a, x)`. A function value named without a call (`List.map(xs,
+Int64.toFloat)`) is still a value.
+
+Enum constructors are not calls and keep both forms: `Ok 5` and `Ok(5)`. See
+Enum constructors below.
 
 ## Offside (indentation) rules
 
@@ -174,8 +187,8 @@ One rule set for all inputs:
   *exact*: only a token at exactly the inner anchor column starts a new
   statement (paren bodies can be statement blocks); any other column — deeper
   *or shallower* — continues (`x |> (fn\n  args-dedented-below-callee)` works).
-- Application arguments continue while past the *statement* anchor even when
-  left of a far-right callee (`let r = xs |> List.fold\n  init\n  fn`).
+- Inside a call's parentheses the arguments may sit on their own lines:
+  `List.fold(\n  init,\n  fn)`.
 - An operator on a new line continues the statement at-or-past the anchor —
   except `-`, which must be *past* it (`1L` then `-8L` at the anchor is two
   statements, not subtraction).
@@ -195,10 +208,11 @@ Expression forms include:
   have a real inferred/represented type
 - record updates `{ r with f = v }`
 - field access `x.f`
-- postfix unwrap `x?` or `(f x)?`, inside functions/lambdas only
+- calls `f(a, b)` (see Calls)
+- postfix unwrap `x?` or `f(x)?`, inside functions/lambdas only
 - lambdas `fun p1 p2 -> body`, including tuple patterns
 - `let pat = e`, with optional `in`, and tuple/wildcard/unit patterns
-- nested function lets, `let f (x: T) : R = …`
+- nested function lets, `let f(x: T, y: U): R = …`
 - `if c then a [elif …] [else b]`, where `else` is optional
 - `match e with | pat [when g] -> body`
 - pipes
@@ -240,13 +254,16 @@ variable, enum case, or DB.
 `e |> seg |> seg …` threads the value of `e` through each segment, left to
 right. A segment is one of:
 
-- a **function call** — `|> Stdlib.List.map f` — or a bare qualified fn name
-  `|> Stdlib.List.reverse` (callee type args are kept: `|> parse<Int64>`);
-- a **bare variable / unqualified call** — `|> myFn`;
-- a **lambda** — `|> fun x -> …`;
-- an **enum constructor** — `|> Ok`, `|> Type.Case`;
-- an **operator section with an argument** — `|> (+) 1`, which desugars to
-  `e + 1` (the piped value is the *left* operand, not the section's).
+- a **function call**: `|> Stdlib.List.map(f)`, the piped value first and the
+  call's arguments after it, or a bare qualified fn name `|> Stdlib.List.reverse`
+  (callee type args are kept: `|> parse<Int64>`). `|> f()` passes the piped value
+  alone; `|> f(())` passes it and unit;
+- a **bare variable / unqualified call**: `|> myFn`;
+- a **lambda**: `|> fun x -> …`;
+- an **enum constructor**: `|> Ok`, `|> Type.Case`.
+
+An operator is not a segment: `x |> (+) 1` is an argument error. Write `x + 1`,
+or `|> (fun v -> v + 1)` mid-pipe.
 
 A pipe RHS that is none of these is a `PARSE-PIPE-SEGMENT` diagnostic.
 
@@ -312,9 +329,10 @@ a name, or use `()` when the parameter is unit.
 
 Declaration forms:
 
-- `let f (p: T) … : R = body` defines a function. Parameters are parenthesized
-  and annotated. `()` is a unit parameter.
-- `let f (p: T) … :{Http, Clock} R = body` adds an effect row on the return
+- `let f(p: T, q: U): R = body` defines a function. Parameters are one
+  parenthesized list, each annotated, separated by commas or newlines. `()` is a
+  unit parameter. A second list, `let f (p: T) (q: U)`, is an error with a hint.
+- `let f(p: T):{Http, Clock} R = body` adds an effect row on the return
   colon: the function's permission ceiling, the most it may ever do. It never
   grants anything; at runtime the row is one more restriction on top of the
   instance, run, and package policies. Names are the effect case names
@@ -487,8 +505,8 @@ The parser stops at WrittenTypes; lowering to ProgramTypes (`WT2PT`) is downstre
 Write `?` directly after its operand, inside a function or lambda.
 Field access and `?` group left to right: `x?.field?` unwraps `x`, reads `field`,
 then unwraps that field; `nested??` unwraps twice.
-`f x?` means `f (x?)`. Use `(f x)?` or `(value |> transform)?` to unwrap
-the result of a whole call or pipeline.
+`f(x?)` unwraps the argument; `f(x)?` unwraps the call's result. Use
+`(value |> transform)?` to unwrap a whole pipeline.
 
 See the [CLI syntax documentation](../../../packages/darklang/cli/docs/syntax.dark)
 for return types, function boundaries, and evaluation behavior.

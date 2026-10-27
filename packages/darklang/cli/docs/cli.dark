@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.CLI
 
-let content () : String =
+let content(): String =
   """# CLI Commands
 
 `help` lists every command, grouped. This is the ones you reach for, with a

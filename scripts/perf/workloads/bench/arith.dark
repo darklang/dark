@@ -4,7 +4,7 @@
 // Staged into `rundir/perf-workloads/` by `scripts/perf/bench`, which is also the only thing that
 // runs it. Raw `Builtin.` calls rather than the Dark wrappers on purpose: an A/B runs this source
 // against an OLDER published binary too, whose store may not carry today's wrapper.
-let hot (n: Int) (acc: Int) : Int =
+let hot(n: Int, acc: Int): Int =
   if n <= 0 then
     acc
   else
@@ -13,11 +13,11 @@ let hot (n: Int) (acc: Int) : Int =
     let c = b + 3
     let d = c + 4
     let e = d + 5
-    hot (n - 1) e
+    hot(n - 1, e)
 
-let _warm = hot 200 0
-let _reset = Builtin.interpreterStatsReset ()
-let t0 = Builtin.timeNowMs ()
-let result = hot 4000 0
-let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " stats=" + (Builtin.interpreterStatsGet ()))
+let _warm = hot(200, 0)
+let _reset = Builtin.interpreterStatsReset()
+let t0 = Builtin.timeNowMs()
+let result = hot(4000, 0)
+let t1 = Builtin.timeNowMs()
+Stdlib.printLine("elapsed_ms=" + (Stdlib.toString(t1 - t0)) + " stats=" + (Builtin.interpreterStatsGet()))

@@ -295,7 +295,7 @@ inner="$CHILD/child/dark eval 1L"
 child_rc=0
 child_out=$( cd "$CHILD" && export HOME="$CHILD" && unset DARK_HOME \
   && ./parent/dark permissions allow process /bin/sh -c "$inner" \
-  && ./parent/dark eval "Stdlib.Cli.executeWithStdOutOrStdErr \"$inner\"" ) < /dev/null 2>&1 \
+  && ./parent/dark eval "Stdlib.Cli.executeWithStdOutOrStdErr(\"$inner\")" ) < /dev/null 2>&1 \
   || child_rc=$?
 if [[ $child_rc -ne 0 || ! -f "$CHILD/parent/.darklang/data.db" ]]; then
   echo "  FAIL a child dark gets its own store (exit $child_rc)"

@@ -3,45 +3,45 @@
 /// by the test.
 module Darklang.Cli.Tests.Golden
 
-let compare (render: Unit -> Unit) (expectedRows: List<String>) : Stdlib.Test.Result =
+let compare(render: Unit -> Unit, expectedRows: List<String>): Stdlib.Test.Result =
   // Key handlers read the worker's fixed 80x24 terminal size; viewAtSize
   // renders the original explicit sizes. Stdout contains frames only.
-  let output = Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) render ()
+  let output = Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), render, ())
   match output with
-  | Error message -> Stdlib.Test.fail message
+  | Error message -> Stdlib.Test.fail(message)
   | Ok output ->
-    let actualRows = Stdlib.String.split output.stdout "\n"
-    Stdlib.Test.all
-      [ Stdlib.Test.expect
-          (output.exitCode == 0)
-          $"Fixture failed: {output.stderr} {output.stdout}"
-        Stdlib.List.length actualRows
-        |> Stdlib.Test.equal (Stdlib.List.length expectedRows)
+    let actualRows = Stdlib.String.split(output.stdout, "\n")
+    Stdlib.Test.all(
+      [ Stdlib.Test.expect(
+          output.exitCode == 0,
+          $"Fixture failed: {output.stderr} {output.stdout}")
+        Stdlib.List.length(actualRows)
+        |> Stdlib.Test.equal(Stdlib.List.length(expectedRows))
         expectedRows
-        |> Stdlib.List.indexedMap (fun index expectedRow ->
-          Stdlib.List.getAt actualRows index |> Stdlib.Test.equal (Some expectedRow))
-        |> Stdlib.Test.all ]
+        |> Stdlib.List.indexedMap(fun index expectedRow ->
+          Stdlib.List.getAt(actualRows, index) |> Stdlib.Test.equal(Some expectedRow))
+        |> Stdlib.Test.all ])
 
 // fixedHome supplies stable Home rows, independent of branches and commit ages.
 // The child runs with COLUMNS=80, LINES=24 and detached stdin.
 // Expected rows come from goldenview.expected.
-let goldenviewRender () : Unit =
+let goldenviewRender(): Unit =
   // Fixed view inputs: these screenshots test layout and key handling, not the
   // developer's branches or how long ago the store was reloaded.
-  let homeItems () : List<Darklang.Cli.Workbench.BodyItem> =
-    let row (name: String) (kind: String) (desc: String) : Darklang.Cli.Workbench.BodyItem =
+  let homeItems(): List<Darklang.Cli.Workbench.BodyItem> =
+    let row(name: String, kind: String, desc: String): Darklang.Cli.Workbench.BodyItem =
       Darklang.Cli.Workbench.BodyItem { name = name, kind = kind, isModule = false, desc = desc }
-    [ Darklang.Cli.Workbench.homeHeader "this branch"
-      row "● main" "home-here" "nothing uncommitted · last commit 1m ago"
-      Darklang.Cli.Workbench.homeHeader ""
-      Darklang.Cli.Workbench.homeHeader "recent commits"
-      row "package reload (baseline)" "home-commit" "system · 1m ago"
-      Darklang.Cli.Workbench.homeHeader ""
-      Darklang.Cli.Workbench.homeHeader "branches"
-      row "● main" "home-branch" "current · 1m ago" ]
+    [ Darklang.Cli.Workbench.homeHeader("this branch")
+      row("● main", "home-here", "nothing uncommitted · last commit 1m ago")
+      Darklang.Cli.Workbench.homeHeader("")
+      Darklang.Cli.Workbench.homeHeader("recent commits")
+      row("package reload (baseline)", "home-commit", "system · 1m ago")
+      Darklang.Cli.Workbench.homeHeader("")
+      Darklang.Cli.Workbench.homeHeader("branches")
+      row("● main", "home-branch", "current · 1m ago") ]
 
-  let fixedHome (s: Darklang.Cli.Workbench.State) : Darklang.Cli.Workbench.State =
-    if s.activeView == Darklang.Cli.Workbench.vHome then { s with items = homeItems () }
+  let fixedHome(s: Darklang.Cli.Workbench.State): Darklang.Cli.Workbench.State =
+    if s.activeView == Darklang.Cli.Workbench.vHome then { s with items = homeItems() }
     else s
 
   // Every row of a workbench view at three sizes, for diffing a render change against.
@@ -56,37 +56,37 @@ let goldenviewRender () : Unit =
   // Three sizes because the interesting bugs are in clipping and in rows that run out of room.
 
   let loadedBase =
-    Darklang.Cli.Workbench.initialState
-      Darklang.SCM.Branch.mainBranchId
-      Stdlib.Option.Option.None
-      "perf-instance"
-      false
+    Darklang.Cli.Workbench.initialState(
+      Darklang.SCM.Branch.mainBranchId,
+      Stdlib.Option.Option.None,
+      "perf-instance",
+      false)
 
-  let base = fixedHome loadedBase
+  let base = fixedHome(loadedBase)
 
   let sizes =
     [ Stdlib.Cli.Tui.Size { width = 120, height = 40 }
       Stdlib.Cli.Tui.Size { width = 80, height = 24 }
       Stdlib.Cli.Tui.Size { width = 40, height = 10 } ]
 
-  let dump (size: Stdlib.Cli.Tui.Size) : Unit =
-    let v = Darklang.Cli.Workbench.viewAtSize base size
+  let dump(size: Stdlib.Cli.Tui.Size): Unit =
+    let v = Darklang.Cli.Workbench.viewAtSize(base, size)
     let _ =
       v.rows
-      |> Stdlib.List.indexedMap (fun i r ->
-        Stdlib.printLine
-          ((Stdlib.toString size.width)
+      |> Stdlib.List.indexedMap(fun i r ->
+        Stdlib.printLine(
+          ((Stdlib.toString(size.width))
            + "x"
-           + (Stdlib.toString size.height)
+           + (Stdlib.toString(size.height))
            + " "
-           + (Stdlib.toString i)
+           + (Stdlib.toString(i))
            + "|"
-           + r))
+           + r)))
     ()
 
-  let _rendered = sizes |> Stdlib.List.map (fun s -> dump s)
+  let _rendered = sizes |> Stdlib.List.map(fun s -> dump(s))
 
-  Stdlib.printLine "-- end of golden view --"
+  Stdlib.printLine("-- end of golden view --")
 
 val goldenviewExpected =
   [ "120x40 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
@@ -167,28 +167,28 @@ val goldenviewExpected =
     "" ]
 
 test goldenview =
-  compare goldenviewRender goldenviewExpected
+  compare(goldenviewRender, goldenviewExpected)
 
 // fixedHome supplies stable Home rows after each key press, independent of branches
 // and commit ages. The child runs with COLUMNS=80, LINES=24 and detached stdin.
 // Expected rows come from goldenkeys.expected.
-let goldenkeysRender () : Unit =
+let goldenkeysRender(): Unit =
   // Fixed view inputs: these screenshots test layout and key handling, not the
   // developer's branches or how long ago the store was reloaded.
-  let homeItems () : List<Darklang.Cli.Workbench.BodyItem> =
-    let row (name: String) (kind: String) (desc: String) : Darklang.Cli.Workbench.BodyItem =
+  let homeItems(): List<Darklang.Cli.Workbench.BodyItem> =
+    let row(name: String, kind: String, desc: String): Darklang.Cli.Workbench.BodyItem =
       Darklang.Cli.Workbench.BodyItem { name = name, kind = kind, isModule = false, desc = desc }
-    [ Darklang.Cli.Workbench.homeHeader "this branch"
-      row "● main" "home-here" "nothing uncommitted · last commit 1m ago"
-      Darklang.Cli.Workbench.homeHeader ""
-      Darklang.Cli.Workbench.homeHeader "recent commits"
-      row "package reload (baseline)" "home-commit" "system · 1m ago"
-      Darklang.Cli.Workbench.homeHeader ""
-      Darklang.Cli.Workbench.homeHeader "branches"
-      row "● main" "home-branch" "current · 1m ago" ]
+    [ Darklang.Cli.Workbench.homeHeader("this branch")
+      row("● main", "home-here", "nothing uncommitted · last commit 1m ago")
+      Darklang.Cli.Workbench.homeHeader("")
+      Darklang.Cli.Workbench.homeHeader("recent commits")
+      row("package reload (baseline)", "home-commit", "system · 1m ago")
+      Darklang.Cli.Workbench.homeHeader("")
+      Darklang.Cli.Workbench.homeHeader("branches")
+      row("● main", "home-branch", "current · 1m ago") ]
 
-  let fixedHome (s: Darklang.Cli.Workbench.State) : Darklang.Cli.Workbench.State =
-    if s.activeView == Darklang.Cli.Workbench.vHome then { s with items = homeItems () }
+  let fixedHome(s: Darklang.Cli.Workbench.State): Darklang.Cli.Workbench.State =
+    if s.activeView == Darklang.Cli.Workbench.vHome then { s with items = homeItems() }
     else s
 
   // A workbench view after each key of a navigation sequence, for diffing a change against.
@@ -202,60 +202,60 @@ let goldenkeysRender () : Unit =
   // them deliberately, never to make the test pass.
 
   let loadedBase =
-    Darklang.Cli.Workbench.initialState
-      Darklang.SCM.Branch.mainBranchId
-      Stdlib.Option.Option.None
-      "perf-instance"
-      false
+    Darklang.Cli.Workbench.initialState(
+      Darklang.SCM.Branch.mainBranchId,
+      Stdlib.Option.Option.None,
+      "perf-instance",
+      false)
 
-  let base = fixedHome loadedBase
+  let base = fixedHome(loadedBase)
 
   let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
   let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = false, shift = false }
 
   // Rendered as one line per row, prefixed by the step, so a diff names the key that broke it.
-  let render (label: String) (s: Darklang.Cli.Workbench.State) : Unit =
-    let v = Darklang.Cli.Workbench.viewAtSize s size
+  let render(label: String, s: Darklang.Cli.Workbench.State): Unit =
+    let v = Darklang.Cli.Workbench.viewAtSize(s, size)
 
     v.rows
-    |> Stdlib.List.indexedMap (fun i row ->
-      Stdlib.printLine (label + " " + (Stdlib.toString i) + "|" + row))
+    |> Stdlib.List.indexedMap(fun i row ->
+      Stdlib.printLine(label + " " + (Stdlib.toString(i)) + "|" + row))
     |> Stdlib.List.length
     |> Stdlib.toString
     |> (fun _ -> ())
 
   // Applies one key and renders the result, carrying the state forward. `Exit` and `Launch` end the
   // walk on the state they carry, so the sequence stays honest about where it actually got to.
-  let press
-    (s: Darklang.Cli.Workbench.State)
-    (label: String)
-    (k: Stdlib.Cli.Stdin.Key.Key)
+  let press(
+    s: Darklang.Cli.Workbench.State,
+    label: String,
+    k: Stdlib.Cli.Stdin.Key.Key)
     : Darklang.Cli.Workbench.State =
     let next =
-      match Darklang.Cli.Workbench.handleKey s k mods Stdlib.Option.Option.None with
+      match Darklang.Cli.Workbench.handleKey(s, k, mods, Stdlib.Option.Option.None) with
       | Continue s2 -> s2
       | Exit s2 -> s2
       | Launch(s2, _cmd) -> s2
       | ToPrompt s2 -> s2
 
-    let next = fixedHome next
-    let _ = render label next
+    let next = fixedHome(next)
+    let _ = render(label, next)
     next
 
-  let _ = render "start" base
+  let _ = render("start", base)
 
-  let s1 = press base "tab" Stdlib.Cli.Stdin.Key.Key.Tab
-  let s2 = press s1 "down1" Stdlib.Cli.Stdin.Key.Key.DownArrow
-  let s3 = press s2 "down2" Stdlib.Cli.Stdin.Key.Key.DownArrow
-  let s4 = press s3 "right" Stdlib.Cli.Stdin.Key.Key.RightArrow
-  let s5 = press s4 "up" Stdlib.Cli.Stdin.Key.Key.UpArrow
-  let s6 = press s5 "left" Stdlib.Cli.Stdin.Key.Key.LeftArrow
-  let s7 = press s6 "enter" Stdlib.Cli.Stdin.Key.Key.Enter
-  let s8 = press s7 "esc" Stdlib.Cli.Stdin.Key.Key.Escape
-  let s9 = press s8 "tab2" Stdlib.Cli.Stdin.Key.Key.Tab
-  let _s10 = press s9 "end" Stdlib.Cli.Stdin.Key.Key.End
+  let s1 = press(base, "tab", Stdlib.Cli.Stdin.Key.Key.Tab)
+  let s2 = press(s1, "down1", Stdlib.Cli.Stdin.Key.Key.DownArrow)
+  let s3 = press(s2, "down2", Stdlib.Cli.Stdin.Key.Key.DownArrow)
+  let s4 = press(s3, "right", Stdlib.Cli.Stdin.Key.Key.RightArrow)
+  let s5 = press(s4, "up", Stdlib.Cli.Stdin.Key.Key.UpArrow)
+  let s6 = press(s5, "left", Stdlib.Cli.Stdin.Key.Key.LeftArrow)
+  let s7 = press(s6, "enter", Stdlib.Cli.Stdin.Key.Key.Enter)
+  let s8 = press(s7, "esc", Stdlib.Cli.Stdin.Key.Key.Escape)
+  let s9 = press(s8, "tab2", Stdlib.Cli.Stdin.Key.Key.Tab)
+  let _s10 = press(s9, "end", Stdlib.Cli.Stdin.Key.Key.End)
 
-  Stdlib.printLine "-- golden keys done --"
+  Stdlib.printLine("-- golden keys done --")
 
 val goldenkeysExpected =
   [ "start 0|  \u001b[1m\u001b[38;5;141mmain\u001b[0m\u001b[2m    perf-instance\u001b[0m\u001b[0m"
@@ -702,4 +702,4 @@ val goldenkeysExpected =
     "" ]
 
 test goldenkeys =
-  compare goldenkeysRender goldenkeysExpected
+  compare(goldenkeysRender, goldenkeysExpected)

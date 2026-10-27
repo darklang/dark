@@ -302,35 +302,22 @@ let escapedLambdaKeepsCeiling =
 //
 // One rule for every value that runs later: it keeps the restrictions of
 // the frame that MADE it, and runs under the intersection of those with the
-// frame that RUNS it. Two findings were each one cell of this table: a
-// partial application built in a `:{}` function escaping with its
-// reference's broader capture, and a stream built broad and drained inside
-// a `:{}` function running its callback under the construction access
-// alone. Every cell: a producer builds the value, a runner runs it, one of
+// frame that RUNS it. A stream built broad and drained inside a `:{}`
+// function, running its callback under the construction access alone, was
+// one cell of this table. Every cell: a producer builds the value, a runner runs it, one of
 // them is restricted, and the run must be refused by that restriction.
 
-let private shapes = [ "named fn"; "lambda"; "partial application"; "stream" ]
+let private shapes = [ "named fn"; "lambda"; "stream" ]
 let private directions =
   [ "restricted maker, broad runner"; "broad maker, restricted runner" ]
 let private layers = [ "function ceiling"; "package approval" ]
-
-/// `Int -> Unit -> Int`: reads the clock; the partial application applies the Int.
-let private clockTwoArgs (hash : string) : PT.PackageFn.PackageFn =
-  { ceilingFn hash None clockBody with
-      parameters =
-        NEList.ofList
-          { name = "n"; typ = PT.TInt; description = "" }
-          [ { name = "unit"; typ = PT.TUnit; description = "" } ] }
 
 /// One cell. Three functions, because WHERE a value is made and WHERE it is
 /// run must be different frames: a broad `driver` calls the `producer` to
 /// make the value and hands it to the `runner` as a parameter. Calling the
 /// producer from inside the runner would make it inherit the runner's
 /// restriction, and a "broad maker" would never be broad -- the first
-/// version of this matrix did exactly that and detected nothing. The partial
-/// application likewise applies a reference the driver already stamped in
-/// its broad frame, which is the escape: a partial built inside a `:{}`
-/// function kept that broader stamp.
+/// version of this matrix did exactly that and detected nothing.
 let private deferredCase
   (shape : string)
   (direction : string)
@@ -339,7 +326,6 @@ let private deferredCase
   let slug (text : string) = text.Replace(" ", "-").Replace(",", "")
   let id = $"{slug shape}-{slug direction}-{slug layer}"
   let clockHash = $"matrix-clock-{id}"
-  let clock2Hash = clockHash + "-2"
   let producerHash = $"matrix-producer-{id}"
   let runnerHash = $"matrix-runner-{id}"
   let driverHash = $"matrix-driver-{id}"
@@ -360,13 +346,11 @@ let private deferredCase
         parameters = parameters
         typeParams = [ "a" ]
         returnType = PT.TVariable "a" }
-  // The producer makes the value. For the partial application it receives
-  // the reference `f` from the driver and applies its first argument.
+  // The producer makes the value.
   let makeBody =
     match shape with
     | "named fn" -> ePackageFn clockHash
     | "lambda" -> unitLambdaClock
-    | "partial application" -> eApply (eVar "f") [] [ PT.EInt(gid (), 1I) ]
     | _ ->
       eApply
         (eBuiltinFn "streamMap" 0)
@@ -380,9 +364,7 @@ let private deferredCase
   let producer =
     let fn =
       generic
-        (NEList.singleton (
-          param (if shape = "partial application" then "f" else "unit")
-        ))
+        (NEList.singleton (param "unit"))
         makeBody
         producerHash
         (restrictedCeiling makerRestricted)
@@ -409,24 +391,12 @@ let private deferredCase
       fn
   // The driver is broad and outermost: make, then run.
   let driverBody =
-    let runIt (made : PT.Expr) = eApply (ePackageFn runnerHash) [] [ made ]
-    match shape with
-    | "partial application" ->
-      // `f` is loaded in value position here, so it is stamped with the
-      // driver's broad access before the producer ever sees it.
-      eLet
-        (lpVar "f")
-        (ePackageFn clock2Hash)
-        (runIt (eApply (ePackageFn producerHash) [] [ eVar "f" ]))
-    | _ -> runIt (eApply (ePackageFn producerHash) [] [ eUnit () ])
+    eApply
+      (ePackageFn runnerHash)
+      []
+      [ eApply (ePackageFn producerHash) [] [ eUnit () ] ]
   let driver = generic (NEList.singleton (param "unit")) driverBody driverHash None
-  let pm =
-    pmWith
-      [ ceilingFn clockHash None clockBody
-        clockTwoArgs clock2Hash
-        producer
-        runner
-        driver ]
+  let pm = pmWith [ ceilingFn clockHash None clockBody; producer; runner; driver ]
   let configure =
     if byCeiling then
       (fun state -> state)
@@ -511,27 +481,6 @@ let evaluatedNamedFnInContainerCannotWidenReentry =
       // The nested callback kept the restricted creator access.
       expectDenied [] actual
     | other -> Expect.equal 1 2 $"expected a one-element function list, got {other}"
-  }
-
-let partiallyAppliedNamedFnCapturesAccess =
-  testTask "a partial application captures access before escaping" {
-    // Direct calls need no stamp; partial applications retain the caller's.
-    let! exeState = executionStateFor TestValues.pm false
-    let expr =
-      eApply (eBuiltinFn "int64Add" 0) [] [ eInt64 1L ]
-      |> PT2RT.Expr.toRT Map.empty 0 None
-    let! produced = LibExecution.Execution.executeExpr (denyAll exeState) expr
-    match produced with
-    | Ok(RT.DApplicable(RT.AppNamedFn namedFn)) ->
-      match namedFn.access with
-      | None -> Expect.equal 1 2 "the partial application must carry a capture"
-      | Some access ->
-        Expect.isFalse
-          (LibExecution.Permissions.Access.allows
-            LibExecution.Permissions.Request.clock
-            access)
-          "the capture is the restricted applying frame's access"
-    | other -> Expect.equal 1 2 $"expected a partial application, got {other}"
   }
 
 // ── callbacks applied by a builtin ──────────────────────────
@@ -890,7 +839,6 @@ let tests =
       packageDenialNamesStaleApproval
       escapedLambdaKeepsAccess
       evaluatedNamedFnInContainerCannotWidenReentry
-      partiallyAppliedNamedFnCapturesAccess
       functionCeilingDenies
       functionCeilingAllows
       callerCeilingAttenuates

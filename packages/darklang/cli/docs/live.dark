@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.Live
 
-let content () : String =
+let content(): String =
   """# Live: running things follow your edits
 
 Save an edit and the things running it change, the moment the save passes
@@ -14,10 +14,10 @@ Any module with these three is a view:
   module My.Counter
   type Model = { count: Int }
   type Msg = | Inc
-  let init () : Model = Model { count = 0 }
-  let update (m: Model) (e: Darklang.Cli.LiveView.Host.Event<Msg>) : Model = ...
-  let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
-    Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.bold "counter"; ... ]
+  let init(): Model = Model { count = 0 }
+  let update(m: Model, e: Darklang.Cli.LiveView.Host.Event<Msg>): Model = ...
+  let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =
+    Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.bold("counter"); ... ])
 
   ps --watch                    a live view: edit `render` or anything it calls from another
                                 terminal and it repaints

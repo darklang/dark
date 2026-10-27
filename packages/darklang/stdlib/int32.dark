@@ -11,7 +11,7 @@ impl Modulo for Int32 =
   /// The modulus <param b> must be greater than 0
   /// Use <fn Int32.remainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo (a: Int32) (b: Int32) : Int32 = Builtin.int32Mod a b
+  let modulo(a: Int32, b: Int32): Int32 = Builtin.int32Mod(a, b)
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -20,156 +20,156 @@ impl Modulo for Int32 =
 /// negative only if {{<var value> < 0}}.
 /// The sign of <param divisor> doesn't influence the outcome.
 /// Returns an {{Error}} if <param divisor> is {{0}}.
-let remainder
-  (value: Int32)
-  (divisor: Int32)
+let remainder(
+  value: Int32,
+  divisor: Int32)
   : Stdlib.Result.Result<Int32, String> =
-  Builtin.int32Remainder value divisor
+  Builtin.int32Remainder(value, divisor)
 
 
 impl Add for Int32 =
   /// Adds two integers together (wraps on overflow)
-  let add (a: Int32) (b: Int32) : Int32 = Builtin.int32Add a b
+  let add(a: Int32, b: Int32): Int32 = Builtin.int32Add(a, b)
 
 
 impl Subtract for Int32 =
   /// Subtracts two integers (wraps on overflow)
-  let subtract (a: Int32) (b: Int32) : Int32 = Builtin.int32Subtract a b
+  let subtract(a: Int32, b: Int32): Int32 = Builtin.int32Subtract(a, b)
 
 
 impl Multiply for Int32 =
   /// Multiplies two integers (wraps on overflow)
-  let multiply (a: Int32) (b: Int32) : Int32 = Builtin.int32Multiply a b
+  let multiply(a: Int32, b: Int32): Int32 = Builtin.int32Multiply(a, b)
 
 
 impl Divide for Int32 =
   /// Divides two integers
-  let divide (a: Int32) (b: Int32) : Int32 = Builtin.int32Divide a b
+  let divide(a: Int32, b: Int32): Int32 = Builtin.int32Divide(a, b)
 
 
 impl Power for Int32 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
-  let power (``base``: Int32) (exponent: Int32) : Int32 =
-    Builtin.int32Power ``base`` exponent
+  let power(``base``: Int32, exponent: Int32): Int32 =
+    Builtin.int32Power(``base``, exponent)
 
 
 impl Negate for Int32 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate (a: Int32) : Int32 = Builtin.int32Negate a
+  let negate(a: Int32): Int32 = Builtin.int32Negate(a)
 
 
 impl Compare for Int32 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan (a: Int32) (b: Int32) : Bool = Builtin.int32LessThan a b
+  let lessThan(a: Int32, b: Int32): Bool = Builtin.int32LessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
-  let lessThanOrEqualTo (a: Int32) (b: Int32) : Bool =
-    Builtin.int32LessThanOrEqualTo a b
+  let lessThanOrEqualTo(a: Int32, b: Int32): Bool =
+    Builtin.int32LessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan (a: Int32) (b: Int32) : Bool = Builtin.int32GreaterThan a b
+  let greaterThan(a: Int32, b: Int32): Bool = Builtin.int32GreaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
-  let greaterThanOrEqualTo (a: Int32) (b: Int32) : Bool =
-    Builtin.int32GreaterThanOrEqualTo a b
+  let greaterThanOrEqualTo(a: Int32, b: Int32): Bool =
+    Builtin.int32GreaterThanOrEqualTo(a, b)
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
-let random (start: Int32) (``end``: Int32) : Int32 =
-  Builtin.int32Random start ``end``
+let random(start: Int32, ``end``: Int32): Int32 =
+  Builtin.int32Random(start, ``end``)
 
 
 /// Get the square root of an <type Int32>
-let sqrt (a: Int32) : Float = Builtin.int32Sqrt a
+let sqrt(a: Int32): Float = Builtin.int32Sqrt(a)
 
 
 /// Converts an <type Int32> to a <type Float>
-let toFloat (a: Int32) : Float = Builtin.int32ToFloat a
+let toFloat(a: Int32): Float = Builtin.int32ToFloat(a)
 
 
 /// Parses a <type String> into an <type Int32>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int32> range).
-let parse (s: String) : Stdlib.Result.Result<Int32, Stdlib.Int32.ParseError> =
-  Builtin.int32Parse s
+let parse(s: String): Stdlib.Result.Result<Int32, Stdlib.Int32.ParseError> =
+  Builtin.int32Parse(s)
 
 
 /// Converts an <type Int8> to a <type Int32>.
-let fromInt8 (i: Int8) : Int32 = Builtin.int32FromInt8 i
+let fromInt8(i: Int8): Int32 = Builtin.int32FromInt8(i)
 
 
 /// Converts a <type UInt8> to a <type Int32>.
-let fromUInt8 (i: UInt8) : Int32 = Builtin.int32FromUInt8 i
+let fromUInt8(i: UInt8): Int32 = Builtin.int32FromUInt8(i)
 
 
 /// Converts an <type Int16> to a <type Int32>.
-let fromInt16 (i: Int16) : Int32 = Builtin.int32FromInt16 i
+let fromInt16(i: Int16): Int32 = Builtin.int32FromInt16(i)
 
 
 /// Converts a <type UInt16> to a <type Int32>.
-let fromUInt16 (i: UInt16) : Int32 = Builtin.int32FromUInt16 i
+let fromUInt16(i: UInt16): Int32 = Builtin.int32FromUInt16(i)
 
 
 /// Converts a <type UInt32> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
-let fromUInt32 (i: UInt32) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromUInt32 i
+let fromUInt32(i: UInt32): Stdlib.Option.Option<Int32> =
+  Builtin.int32FromUInt32(i)
 
 
 /// Converts an <type Int64> to a <type Int32>. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647.
-let fromInt64 (i: Int64) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromInt64 i
+let fromInt64(i: Int64): Stdlib.Option.Option<Int32> =
+  Builtin.int32FromInt64(i)
 
 
 /// Converts a <type UInt64> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
-let fromUInt64 (i: UInt64) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromUInt64 i
+let fromUInt64(i: UInt64): Stdlib.Option.Option<Int32> =
+  Builtin.int32FromUInt64(i)
 
 
 /// Converts an <type Int128> to a <type Int32>. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647.
-let fromInt128 (i: Int128) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromInt128 i
+let fromInt128(i: Int128): Stdlib.Option.Option<Int32> =
+  Builtin.int32FromInt128(i)
 
 
 /// Converts a <type UInt128> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
-let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromUInt128 i
+let fromUInt128(i: UInt128): Stdlib.Option.Option<Int32> =
+  Builtin.int32FromUInt128(i)
 
 
 impl BitwiseAnd for Int32 =
   /// Bitwise AND on two <type Int32> values
-  let bitwiseAnd (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseAnd a b
+  let bitwiseAnd(a: Int32, b: Int32): Int32 = Builtin.int32BitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int32 =
   /// Bitwise OR on two <type Int32> values
-  let bitwiseOr (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseOr a b
+  let bitwiseOr(a: Int32, b: Int32): Int32 = Builtin.int32BitwiseOr(a, b)
 
 
 impl BitwiseXor for Int32 =
   /// Bitwise XOR on two <type Int32> values
-  let bitwiseXor (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseXor a b
+  let bitwiseXor(a: Int32, b: Int32): Int32 = Builtin.int32BitwiseXor(a, b)
 
 
 impl BitwiseNot for Int32 =
   /// Bitwise NOT on an <type Int32> value
-  let bitwiseNot (a: Int32) : Int32 = Builtin.int32BitwiseNot a
+  let bitwiseNot(a: Int32): Int32 = Builtin.int32BitwiseNot(a)
 
 
 impl ShiftLeft for Int32 =
   /// Bitwise left shift of an <type Int32> value
-  let shiftLeft (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftLeft a b
+  let shiftLeft(a: Int32, b: Int32): Int32 = Builtin.int32ShiftLeft(a, b)
 
 
 impl ShiftRight for Int32 =
   /// Bitwise right shift of an <type Int32> value
-  let shiftRight (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftRight a b
+  let shiftRight(a: Int32, b: Int32): Int32 = Builtin.int32ShiftRight(a, b)
 
 impl ToString for Int32 =
   /// Stringify <param int>
-  let toString (int: Int32) : String = Builtin.int32ToString int
+  let toString(int: Int32): String = Builtin.int32ToString(int)
 
 impl Zero for Int32 =
-  let zero () : Int32 = 0l
+  let zero(): Int32 = 0l
 
 impl One for Int32 =
-  let one () : Int32 = 1l
+  let one(): Int32 = 1l

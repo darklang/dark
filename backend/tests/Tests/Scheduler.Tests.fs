@@ -105,17 +105,17 @@ let private interleaving =
       spawn
         s
         state
-        """let _ = Builtin.testTrace "a1"
-let _ = Builtin.testGateWait 1L
-Builtin.testTrace "a2"
+        """let _ = Builtin.testTrace("a1")
+let _ = Builtin.testGateWait(1L)
+Builtin.testTrace("a2")
 """
     let! (b : Scheduler.Process) =
       spawn
         s
         state
-        """let _ = Builtin.testTrace "b1"
-let _ = Builtin.testGateWait 2L
-Builtin.testTrace "b2"
+        """let _ = Builtin.testTrace("b1")
+let _ = Builtin.testGateWait(2L)
+Builtin.testTrace("b2")
 """
     // The loop stops when `a` finishes; `a` is released last, so `b` is done by then too.
     let running = runOnThread s a
@@ -155,16 +155,16 @@ let private budgetYields =
       spawn
         s
         state
-        """(let spin (n: Int64) (acc: Int64) : Int64 =
-              if n == 0L then acc else spin (n - 1L) (acc + n)
-            let total = spin 20000L 0L
-            let _ = Builtin.testTrace "loop-done"
+        """(let spin(n: Int64, acc: Int64): Int64 =
+              if n == 0L then acc else spin(n - 1L, acc + n)
+            let total = spin(20000L, 0L)
+            let _ = Builtin.testTrace("loop-done")
             total)"""
     let! (other : Scheduler.Process) =
       spawn
         s
         state
-        """Builtin.testTrace "other"
+        """Builtin.testTrace("other")
 """
     let! result = runOnThread s loop
     let total = expectOk result "the loop"
@@ -199,7 +199,7 @@ let private hostAwaitTimerOrKey =
     try
       let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
       let program =
-        "Stdlib.Host.await [ Stdlib.Host.EventSpec.Key; Stdlib.Host.EventSpec.Timer 10L ]"
+        "Stdlib.Host.await([ Stdlib.Host.EventSpec.Key; Stdlib.Host.EventSpec.Timer 10L ])"
       let! (timedOut : Scheduler.Process) = spawn s state program
       let! result = runOnThread s timedOut
       match expectOk result "the timer await" with
@@ -237,15 +237,15 @@ let private readKeyDoesNotBlock =
         spawn
           s
           state
-          """let k = Stdlib.Cli.Stdin.readKey ()
-let _ = Builtin.testTrace "key"
+          """let k = Stdlib.Cli.Stdin.readKey()
+let _ = Builtin.testTrace("key")
 k"""
       let! (sleeper : Scheduler.Process) =
         spawn
           s
           state
-          """let _ = Stdlib.Cli.Posix.sleep 20.0
-Builtin.testTrace "slept"
+          """let _ = Stdlib.Cli.Posix.sleep(20.0)
+Builtin.testTrace("slept")
 """
       let running = runOnThread s reader
       let! sleptResult = s.Await sleeper
@@ -294,15 +294,15 @@ let private readLineDoesNotBlock =
         spawn
           s
           state
-          """let l = Stdlib.Cli.Stdin.readLine ()
-let _ = Builtin.testTrace "line"
+          """let l = Stdlib.Cli.Stdin.readLine()
+let _ = Builtin.testTrace("line")
 l"""
       let! (sleeper : Scheduler.Process) =
         spawn
           s
           state
-          """let _ = Stdlib.Cli.Posix.sleep 20.0
-Builtin.testTrace "slept"
+          """let _ = Stdlib.Cli.Posix.sleep(20.0)
+Builtin.testTrace("slept")
 """
       let running = runOnThread s reader
       let! sleptResult = s.Await sleeper
@@ -332,7 +332,7 @@ let private accessIsPerProcess =
         LibExecution.Permissions.Policy.denyAll
         state
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    let program = "Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer 1L ]"
+    let program = "Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer 1L ])"
     let! (confined : Scheduler.Process) = spawn s denied program
     let! (free : Scheduler.Process) = spawn s state program
     let! freeResult = runOnThread s free
@@ -353,12 +353,12 @@ let private killWakesAParkedProcess =
     let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // Parks on a gate nobody will ever open.
-    let! (stuck : Scheduler.Process) = spawn s state "Builtin.testGateWait 50L"
+    let! (stuck : Scheduler.Process) = spawn s state "Builtin.testGateWait(50L)"
     let! (killer : Scheduler.Process) =
       spawn
         s
         state
-        $"match Stdlib.Uuid.parse \"{stuck.id}\" with | Ok id -> Darklang.Cli.Ps.killById id | Error _ -> false"
+        $"match Stdlib.Uuid.parse(\"{stuck.id}\") with | Ok id -> Darklang.Cli.Ps.killById(id) | Error _ -> false"
     // The loop runs until the stuck one is finished, which the kill is what makes happen.
     let running = runOnThread s stuck
     let! killed = s.Await killer
@@ -487,9 +487,9 @@ let private withWorkers
 /// A Dark loop that costs about as much as it says: `spin n` runs `n` iterations in this VM's
 /// frames (a nested self-recursive fn, so it budget-yields rather than re-entering).
 let private spinProgram (n : int64) : string =
-  $"""(let spin (n: Int64) (acc: Int64) : Int64 =
-        if n == 0L then acc else spin (n - 1L) (acc + n)
-      spin {n}L 0L)"""
+  $"""(let spin(n: Int64, acc: Int64): Int64 =
+        if n == 0L then acc else spin(n - 1L, acc + n)
+      spin({n}L, 0L))"""
 
 /// Spawn `count` copies of `code` with `spawn` and wait for all of them; the wall time.
 let private timeAll
@@ -553,17 +553,17 @@ let private sharedStateAcrossWorkers =
     let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
-        """(let step (i: Int64) : Int64 =
+        """(let step(i: Int64): Int64 =
               let r = Stdlib.Result.Result.Ok i
               let o = Stdlib.Option.Option.Some (i + 1L)
-              let xs = Stdlib.List.map [ 1L; 2L; 3L ] (fun x -> x * i)
-              let sum = Stdlib.List.fold xs 0L (fun acc x -> acc + x)
+              let xs = Stdlib.List.map([ 1L; 2L; 3L ], fun x -> x * i)
+              let sum = Stdlib.List.fold(xs, 0L, fun acc x -> acc + x)
               match r, o with
               | Ok a, Some b -> (a + b) + sum
               | _, _ -> 0L
-            let loop (n: Int64) (acc: Int64) : Int64 =
-              if n == 0L then acc else loop (n - 1L) (acc + step n)
-            loop 2000L 0L)"""
+            let loop(n: Int64, acc: Int64): Int64 =
+              if n == 0L then acc else loop(n - 1L, acc + step(n))
+            loop(2000L, 0L))"""
     do!
       withWorkers 4 (fun root ->
         task {
@@ -585,7 +585,7 @@ let private psSeesTheWholeGroup =
   testTask "ps and kill from the root see and reach a process on a worker" {
     Gates.reset ()
     let! state = executionStateFor pmPT false
-    let! instrs = instrsFor "Builtin.testGateWait 80L"
+    let! instrs = instrsFor "Builtin.testGateWait(80L)"
     do!
       withWorkers 2 (fun root ->
         task {
@@ -616,11 +616,11 @@ let private traceCarriesProcessAndSeq =
       instrsFor
         // Impure on purpose: only impure calls are recorded, so a pure loop would write a
         // trace with no rows in it and prove nothing about which process wrote what.
-        """(let record (n: Int64) : Unit = Builtin.testTrace (Stdlib.toString n)
-            let loop (n: Int64) : Unit =
-              if n == 0L then () else (record n
-                                       loop (n - 1L))
-            loop 20L)"""
+        """(let record(n: Int64): Unit = Builtin.testTrace(Stdlib.toString(n))
+            let loop(n: Int64): Unit =
+              if n == 0L then () else (record(n)
+                                       loop(n - 1L))
+            loop(20L))"""
     LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
     try
       let traceId = LibExecution.AnalysisTypes.TraceID.create ()
@@ -685,10 +685,10 @@ let private readsRunAtOnce =
       spawn
         s
         state
-        """let xs = Stdlib.List.map [ 1L; 2L; 3L ] (fun n -> Builtin.testRead n)
-let _ = Builtin.testTrace "mapped"
-let total = Stdlib.List.fold xs 0L (fun a b -> a + b)
-let _ = Builtin.testTrace "forced"
+        """let xs = Stdlib.List.map([ 1L; 2L; 3L ], fun n -> Builtin.testRead(n))
+let _ = Builtin.testTrace("mapped")
+let total = Stdlib.List.fold(xs, 0L, fun a b -> a + b)
+let _ = Builtin.testTrace("forced")
 total"""
     let running = runOnThread s p
     // The map returned and the next statement ran while all three reads were still waiting.
@@ -719,10 +719,10 @@ let private writesKeepOrder =
       spawn
         s
         state
-        """let a = Builtin.testRead 11L
-let _ = Builtin.testTrace "w1"
-let b = Builtin.testRead 12L
-let _ = Builtin.testTrace "w2"
+        """let a = Builtin.testRead(11L)
+let _ = Builtin.testTrace("w1")
+let b = Builtin.testRead(12L)
+let _ = Builtin.testTrace("w2")
 (a + b)"""
     let running = runOnThread s p
     waitFor "both reads in flight" (fun () -> Gates.waiting () = [ 11L; 12L ])
@@ -746,9 +746,9 @@ let private failedReadRaisesAtAwait =
       spawn
         s
         state
-        """let a = Builtin.testFailingRead 21L
-let _ = Builtin.testTrace "after the call"
-Stdlib.await a"""
+        """let a = Builtin.testFailingRead(21L)
+let _ = Builtin.testTrace("after the call")
+Stdlib.await(a)"""
     let running = runOnThread s p
     waitFor "the read in flight" (fun () -> Gates.waiting () = [ 21L ])
     waitForTrace "the call itself did not raise" [ "after the call" ]
@@ -831,13 +831,13 @@ let private callsDoNotWait =
   testTask "a Dark function and a lambda handed a read in flight run before it lands" {
     let! result =
       runReleasing
-        """let a = Builtin.testRead 41L
-let b = Stdlib.Fun.identity a
-let _ = Builtin.testTrace "after the package call"
-let f (x: Int64) : Int64 =
-  (Builtin.testTrace "in the lambda"
+        """let a = Builtin.testRead(41L)
+let b = Stdlib.Fun.identity(a)
+let _ = Builtin.testTrace("after the package call")
+let f(x: Int64): Int64 =
+  (Builtin.testTrace("in the lambda")
    x + 1L)
-f b"""
+f(b)"""
         [ 41L ]
         [ "after the package call"; "in the lambda" ]
     expectValue (RT.DInt64 42L) result
@@ -848,11 +848,11 @@ let private failedReadRaisesInsideTheCallee =
     "a failed read handed to a function raises where it is used, after what ran first" {
     let! result =
       runReleasing
-        """let a = Builtin.testFailingRead 43L
-let f (x: Int64) : Int64 =
-  (Builtin.testTrace "in f"
+        """let a = Builtin.testFailingRead(43L)
+let f(x: Int64): Int64 =
+  (Builtin.testTrace("in f")
    x + 1L)
-f a"""
+f(a)"""
         [ 43L ]
         [ "in f" ]
     expectReadFailure 43L result
@@ -862,18 +862,18 @@ let private containersHoldReads =
   testTask
     "a list, tuple and closure hold reads; a pattern waits only for what it looks at" {
     let! result =
-      runWith """let xs = [ Builtin.testRead 51L; Builtin.testRead 52L ]
-let t = (Builtin.testRead 53L, 7L)
-let f = fun () -> Stdlib.List.fold xs 0L (fun a b -> a + b)
+      runWith """let xs = [ Builtin.testRead(51L); Builtin.testRead(52L) ]
+let t = (Builtin.testRead(53L), 7L)
+let f = fun () -> Stdlib.List.fold(xs, 0L, fun a b -> a + b)
 let (_, seven) = t
 let first =
   match xs with
   | h :: _ -> h
   | [] -> 0L
-let _ = Builtin.testTrace "matched"
+let _ = Builtin.testTrace("matched")
 let one = first + 0L
-let _ = Builtin.testTrace "head landed"
-one + seven + (f ())""" (fun _ ->
+let _ = Builtin.testTrace("head landed")
+one + seven + (f())""" (fun _ ->
         waitFor "reads in flight" (fun () -> Gates.waiting () = [ 51L; 52L; 53L ])
         waitForTrace
           "building, destructuring and matching did not wait"
@@ -889,13 +889,13 @@ one + seven + (f ())""" (fun _ ->
 let private mapHoldsOneReadPerElement =
   testTask "List.map over reads holds one per element; the head waits for its own" {
     let! result =
-      runWith """let xs = Stdlib.List.map [ 61L; 62L; 63L ] (fun n -> Builtin.testRead n)
+      runWith """let xs = Stdlib.List.map([ 61L; 62L; 63L ], fun n -> Builtin.testRead(n))
 let first =
   match xs with
   | h :: _ -> h + 0L
   | [] -> 0L
-let _ = Builtin.testTrace "first"
-first + Stdlib.List.fold xs 0L (fun a b -> a + b)""" (fun _ ->
+let _ = Builtin.testTrace("first")
+first + Stdlib.List.fold(xs, 0L, fun a b -> a + b)""" (fun _ ->
         waitFor "reads in flight" (fun () -> Gates.waiting () = [ 61L; 62L; 63L ])
         Gates.release 61L
         waitForTrace "the first element did not wait for the rest" [ "first" ]
@@ -910,9 +910,9 @@ let private foldPushKeepsReadsInFlight =
     let! result =
       runReleasing
         """let xs =
-  Stdlib.List.fold [ 71L; 72L; 73L ] [] (fun acc n -> Stdlib.List.prepend acc (Builtin.testRead n))
-let _ = Builtin.testTrace "folded"
-Stdlib.List.fold xs 0L (fun a b -> a + b)"""
+  Stdlib.List.fold([ 71L; 72L; 73L ], [], fun acc n -> Stdlib.List.prepend(acc, Builtin.testRead(n)))
+let _ = Builtin.testTrace("folded")
+Stdlib.List.fold(xs, 0L, fun a b -> a + b)"""
         [ 71L; 72L; 73L ]
         [ "folded" ]
     expectValue (RT.DInt64 216L) result
@@ -922,9 +922,9 @@ let private lengthCountsReadsInFlight =
   testTask "List.length counts a list of reads while every one is in flight" {
     let! result =
       runReleasing
-        """let xs = [ Builtin.testRead 161L; Builtin.testRead 162L; Builtin.testRead 163L ]
-let _ = Builtin.testTrace (Stdlib.toString (Stdlib.List.length xs))
-Stdlib.List.fold xs 0L (fun a b -> a + b)"""
+        """let xs = [ Builtin.testRead(161L); Builtin.testRead(162L); Builtin.testRead(163L) ]
+let _ = Builtin.testTrace(Stdlib.toString(Stdlib.List.length(xs)))
+Stdlib.List.fold(xs, 0L, fun a b -> a + b)"""
         [ 161L; 162L; 163L ]
         [ "3" ]
     expectValue (RT.DInt64 486L) result
@@ -934,9 +934,9 @@ let private dictSetAndGetMoveARead =
   testTask "Dict.set and Dict.get move a read value; only its use waits for it" {
     let! result =
       runReleasing
-        """let d = Stdlib.Dict.set (Dict { }) "a" (Builtin.testRead 171L)
-let got = Stdlib.Dict.get d "a"
-let _ = Builtin.testTrace "got"
+        """let d = Stdlib.Dict.set(Dict { }, "a", Builtin.testRead(171L))
+let got = Stdlib.Dict.get(d, "a")
+let _ = Builtin.testTrace("got")
 match got with
 | Some v -> v + 0L
 | None -> 0L"""
@@ -949,14 +949,14 @@ let private zipShortestWaitsForTheHeadAlone =
   testTask "List.zipShortest pairs reads; matching the head waits for its read alone" {
     let! result =
       runWith """let ps =
-  Stdlib.List.zipShortest
-    [ Builtin.testRead 181L; Builtin.testRead 182L ]
-    [ Builtin.testRead 183L; Builtin.testRead 184L ]
+  Stdlib.List.zipShortest(
+    [ Builtin.testRead(181L); Builtin.testRead(182L) ],
+    [ Builtin.testRead(183L); Builtin.testRead(184L) ])
 let first =
   match ps with
   | (a, _) :: _ -> a + 0L
   | [] -> 0L
-let _ = Builtin.testTrace "first"
+let _ = Builtin.testTrace("first")
 first""" (fun _ ->
         waitFor "reads in flight" (fun () ->
           Gates.waiting () = [ 181L; 182L; 183L; 184L ])
@@ -972,10 +972,10 @@ first""" (fun _ ->
 let private dictSetWaitsForAReadKey =
   testTask "Dict.set waits for a key that is a read, since it hashes the key" {
     let! result =
-      runWith """let _ = Builtin.testTrace "before"
-let d = Stdlib.Dict.set (Dict { }) (Builtin.testReadOf 191L "k") 1L
-let _ = Builtin.testTrace "set"
-match Stdlib.Dict.get d "k" with
+      runWith """let _ = Builtin.testTrace("before")
+let d = Stdlib.Dict.set(Dict { }, Builtin.testReadOf(191L, "k"), 1L)
+let _ = Builtin.testTrace("set")
+match Stdlib.Dict.get(d, "k") with
 | Some v -> v
 | None -> 0L""" (fun p ->
         waitFor "the key's read" (fun () -> Gates.waiting () = [ 191L ])
@@ -993,7 +993,7 @@ let private destructuredParamParks =
     // Each step answers a read, so the next step's `(a, b)` has to look at one in flight.
     let! result =
       runWith """let (a, b) =
-  Stdlib.List.fold [ 10L; 20L ] (1L, 2L) (fun (a, b) n -> Builtin.testReadOf (110L + n) (a + n, b))
+  Stdlib.List.fold([ 10L; 20L ], (1L, 2L), fun (a, b) n -> Builtin.testReadOf(110L + n, (a + n, b)))
 a + b""" (fun p ->
         waitFor "the first step's read" (fun () -> Gates.waiting () = [ 120L ])
         waitFor "the process to park on it" (fun () -> isParked p)
@@ -1003,33 +1003,19 @@ a + b""" (fun p ->
     expectValue (RT.DInt64 33L) result
   }
 
-let private destructuredPartialParks =
-  testTask
-    "a partial application holding a read its pattern needs parks when applied" {
-    let! result =
-      runWith """let h = fun (a, b) n -> a + b + n
-let k = h (Builtin.testReadOf 105L (1L, 2L))
-let _ = Builtin.testTrace "partial"
-k 3L""" (fun p ->
-        waitForTrace "applying part of it did not wait" [ "partial" ]
-        waitFor "the process to park on it" (fun () -> isParked p)
-        Gates.release 105L)
-    expectValue (RT.DInt64 6L) result
-  }
-
 let private recordFieldThroughShell =
   testTask "a record field is read through the shell, waiting for that field alone" {
     let! result =
       runWith """let r =
   Stdlib.HttpClient.Response
-    { statusCode = Builtin.testReadOf 95L 200
-      headers = Builtin.testReadOf 96L []
+    { statusCode = Builtin.testReadOf(95L, 200)
+      headers = Builtin.testReadOf(96L, [])
       body = Stdlib.Bytes.empty }
 let code = r.statusCode
-let _ = Builtin.testTrace "peeked"
+let _ = Builtin.testTrace("peeked")
 let c = code + 0
-let _ = Builtin.testTrace "code landed"
-(Stdlib.toString c) + (Stdlib.toString (Stdlib.List.length r.headers))""" (fun _ ->
+let _ = Builtin.testTrace("code landed")
+(Stdlib.toString(c)) + (Stdlib.toString(Stdlib.List.length(r.headers)))""" (fun _ ->
         waitForTrace "the field access did not wait" [ "peeked" ]
         Gates.release 95L
         waitForTrace "the field's own read was enough" [ "code landed" ]
@@ -1045,11 +1031,11 @@ let private wrongTypeRaisesAtRebuild =
       runReleasing
         """let r =
   Stdlib.HttpClient.Response
-    { statusCode = Builtin.testReadOf 97L "nope"
+    { statusCode = Builtin.testReadOf(97L, "nope")
       headers = []
       body = Stdlib.Bytes.empty }
-let _ = Builtin.testTrace "built"
-Stdlib.await r"""
+let _ = Builtin.testTrace("built")
+Stdlib.await(r)"""
         [ 97L ]
         [ "built" ]
     match result with
@@ -1059,19 +1045,19 @@ Stdlib.await r"""
   }
 
 let private moreHoldersOfReads =
-  testTask
-    "a dict value and a partial application hold a read without waiting for it" {
+  testTask "a dict value and a lambda's capture hold a read without waiting for it" {
     let! result =
       runReleasing
-        """let d = Dict { "a": Builtin.testReadOf 98L 1L }
+        """let d = Dict { "a": Builtin.testReadOf(98L, 1L) }
 let add = fun x y -> x + y
-let g = add (Builtin.testRead 103L)
-let _ = Builtin.testTrace "built"
+let r = Builtin.testRead(103L)
+let g = fun y -> add(r, y)
+let _ = Builtin.testTrace("built")
 let v =
-  match Stdlib.Dict.get d "a" with
+  match Stdlib.Dict.get(d, "a") with
   | Some v -> v
   | None -> 0L
-v + g 1L"""
+v + g(1L)"""
         [ 98L; 103L ]
         [ "built" ]
     expectValue (RT.DInt64 105L) result
@@ -1081,12 +1067,12 @@ let private nestedContainersHoldReads =
   testTask
     "a list of tuples holding reads: the head's first part waits for its own read" {
     let! result =
-      runWith """let xs = [ (Builtin.testReadOf 101L 1L, 2L); (3L, Builtin.testReadOf 102L 4L) ]
+      runWith """let xs = [ (Builtin.testReadOf(101L, 1L), 2L); (3L, Builtin.testReadOf(102L, 4L)) ]
 let first =
   match xs with
   | (a, _) :: _ -> a + 0L
   | [] -> 0L
-let _ = Builtin.testTrace "first"
+let _ = Builtin.testTrace("first")
 first""" (fun _ ->
         waitFor "reads in flight" (fun () -> Gates.waiting () = [ 101L; 102L ])
         Gates.release 101L
@@ -1099,11 +1085,11 @@ let private operatorsWaitForReads =
   testTask "==, an operator, && and || wait for a read" {
     let! result =
       runReleasing
-        """let a = Builtin.testRead 106L
-let b = Builtin.testRead 107L
-let t = Builtin.testReadOf 111L true
-let f = Builtin.testReadOf 112L false
-let _ = Builtin.testTrace "all in flight"
+        """let a = Builtin.testRead(106L)
+let b = Builtin.testRead(107L)
+let t = Builtin.testReadOf(111L, true)
+let f = Builtin.testReadOf(112L, false)
+let _ = Builtin.testTrace("all in flight")
 if a == 106L && (f || t) then b + 1L else 0L"""
         [ 106L; 107L; 111L; 112L ]
         [ "all in flight" ]
@@ -1114,9 +1100,9 @@ let private failedReadNamedFromNestedContainer =
   testTask "a failed read in a tuple in a list is named where the list is needed" {
     let! result =
       runReleasing
-        """let xs = [ (1L, Builtin.testFailingRead 108L) ]
-let _ = Builtin.testTrace "built"
-Stdlib.List.length xs"""
+        """let xs = [ (1L, Builtin.testFailingRead(108L)) ]
+let _ = Builtin.testTrace("built")
+Stdlib.List.length(xs)"""
         [ 108L ]
         [ "built" ]
     expectReadFailure 108L result
@@ -1126,8 +1112,8 @@ let private unlookedReadInAContainerFailsTheRun =
   testTask "a failed read in a list nobody looks at still fails the run at its end" {
     let! result =
       runReleasing
-        """let xs = [ Builtin.testFailingRead 109L ]
-let _ = Builtin.testTrace "built"
+        """let xs = [ Builtin.testFailingRead(109L) ]
+let _ = Builtin.testTrace("built")
 1L"""
         [ 109L ]
         [ "built" ]
@@ -1139,9 +1125,9 @@ let private landedListKnowsItsElementType =
   testTask "a list a read was pushed onto has the read's element type once it lands" {
     let! result =
       runReleasing
-        """let xs = Stdlib.List.prepend [] (Builtin.testRead 113L)
-let _ = Builtin.testTrace "pushed"
-Stdlib.List.concat (Stdlib.await xs) [ "not an Int64" ]"""
+        """let xs = Stdlib.List.prepend([], Builtin.testRead(113L))
+let _ = Builtin.testTrace("pushed")
+Stdlib.List.concat(Stdlib.await(xs), [ "not an Int64" ])"""
         [ 113L ]
         [ "pushed" ]
     match result with
@@ -1154,10 +1140,10 @@ let private filterAndFindFirstHoldTheirReads =
   testTask "filter and findFirst over reads answer lists equal to the landed values" {
     let! result =
       runReleasing
-        """let xs = [ Builtin.testRead 201L; Builtin.testRead 202L ]
-let kept = Stdlib.List.filter xs (fun _ -> true)
-let first = Stdlib.List.findFirst xs (fun _ -> true)
-let _ = Builtin.testTrace "filtered"
+        """let xs = [ Builtin.testRead(201L); Builtin.testRead(202L) ]
+let kept = Stdlib.List.filter(xs, fun _ -> true)
+let first = Stdlib.List.findFirst(xs, fun _ -> true)
+let _ = Builtin.testTrace("filtered")
 (kept == [ 201L; 202L ]) && (first == Stdlib.Option.Option.Some 201L)"""
         [ 201L; 202L ]
         [ "filtered" ]
@@ -1169,13 +1155,13 @@ let private filterMapKeepsReadsInFlight =
     let! result =
       runReleasing
         """let xs =
-  Stdlib.List.filterMap [ 1L; 2L; 3L ] (fun n ->
+  Stdlib.List.filterMap([ 1L; 2L; 3L ], fun n ->
     if n == 2L then
       Stdlib.Option.Option.None
     else
-      Stdlib.Option.Option.Some(Builtin.testRead (230L + n)))
-let _ = Builtin.testTrace "filterMapped"
-Stdlib.List.fold xs 0L (fun a b -> a + b)"""
+      Stdlib.Option.Option.Some(Builtin.testRead(230L + n)))
+let _ = Builtin.testTrace("filterMapped")
+Stdlib.List.fold(xs, 0L, fun a b -> a + b)"""
         [ 231L; 233L ]
         [ "filterMapped" ]
     expectValue (RT.DInt64 464L) result
@@ -1185,9 +1171,9 @@ let private sortByKeyedThroughShells =
   testTask "sortBy sorts on keys read through shells, the reads still in flight" {
     let! result =
       runReleasing
-        """let xs = [ ("b", Builtin.testRead 241L); ("a", Builtin.testRead 242L) ]
-let sorted = Stdlib.List.sortBy xs (fun (name, _) -> name)
-let _ = Builtin.testTrace "sorted"
+        """let xs = [ ("b", Builtin.testRead(241L)); ("a", Builtin.testRead(242L)) ]
+let sorted = Stdlib.List.sortBy(xs, fun (name, _) -> name)
+let _ = Builtin.testTrace("sorted")
 match sorted with
 | (_, v) :: _ -> v
 | [] -> 0L"""
@@ -1202,11 +1188,11 @@ let private sortByWaitsForTiesAlone =
     // does not.
     let! result =
       runWith """let xs =
-  [ (1L, Builtin.testReadOf 251L 9L)
-    (1L, Builtin.testReadOf 252L 3L)
-    (0L, Builtin.testReadOf 253L 5L) ]
-let sorted = Stdlib.List.sortBy xs (fun (k, _) -> k)
-let _ = Builtin.testTrace "sorted"
+  [ (1L, Builtin.testReadOf(251L, 9L))
+    (1L, Builtin.testReadOf(252L, 3L))
+    (0L, Builtin.testReadOf(253L, 5L)) ]
+let sorted = Stdlib.List.sortBy(xs, fun (k, _) -> k)
+let _ = Builtin.testTrace("sorted")
 sorted == [ (0L, 5L); (1L, 3L); (1L, 9L) ]""" (fun p ->
         waitFor "reads in flight" (fun () ->
           Gates.waiting () = [ 251L; 252L; 253L ])
@@ -1225,11 +1211,11 @@ let private streamMapCarriesReads =
     let! result =
       runReleasing
         """let xs =
-  Stdlib.Stream.fromList [ 1L; 2L ]
-  |> Stdlib.Stream.map (fun n -> Builtin.testRead (260L + n))
+  Stdlib.Stream.fromList([ 1L; 2L ])
+  |> Stdlib.Stream.map(fun n -> Builtin.testRead(260L + n))
   |> Stdlib.Stream.toList
-let _ = Builtin.testTrace "drained"
-Stdlib.List.fold xs 0L (fun a b -> a + b)"""
+let _ = Builtin.testTrace("drained")
+Stdlib.List.fold(xs, 0L, fun a b -> a + b)"""
         [ 261L; 262L ]
         [ "drained" ]
     expectValue (RT.DInt64 523L) result
@@ -1239,9 +1225,9 @@ let private unwrapHandsBackTheReadInside =
   testTask "unwrap of a Some built around a read hands the read back in flight" {
     let! result =
       runReleasing
-        """let v = Builtin.unwrap (Stdlib.Option.Option.Some(Builtin.testRead 271L))
-let _ = Builtin.testTrace "unwrapped"
-let w = Builtin.unwrap (Builtin.testReadOf 272L (Stdlib.Option.Option.Some 1L))
+        """let v = Builtin.unwrap(Stdlib.Option.Option.Some(Builtin.testRead(271L)))
+let _ = Builtin.testTrace("unwrapped")
+let w = Builtin.unwrap(Builtin.testReadOf(272L, Stdlib.Option.Option.Some 1L))
 v + w"""
         [ 271L; 272L ]
         [ "unwrapped" ]
@@ -1252,7 +1238,7 @@ let private unwrapErrorShowsTheLandedValue =
   testTask "unwrap of an Error around a read raises with the value it landed as" {
     let! result =
       runReleasing
-        """Builtin.unwrap (Stdlib.Result.Result.Error(Builtin.testReadOf 281L "boom"))"""
+        """Builtin.unwrap(Stdlib.Result.Result.Error(Builtin.testReadOf(281L, "boom")))"""
         [ 281L ]
         []
     match result with
@@ -1286,9 +1272,9 @@ let private readsHostCallIsNotTheProcesssWait =
       }
     try
       let! result =
-        runWith $"""let r = Stdlib.HttpClient.get "http://test.dlio.localhost:{port}/" []
-let x = Builtin.testRead 311L
-(x + 0L, Stdlib.Result.isOk r)""" (fun p ->
+        runWith $"""let r = Stdlib.HttpClient.get("http://test.dlio.localhost:{port}/", [])
+let x = Builtin.testRead(311L)
+(x + 0L, Stdlib.Result.isOk(r))""" (fun p ->
           waitFor "the GET to reach the server" (fun () ->
             received.Task.IsCompleted)
           waitFor "the process to park on the read" (fun () -> isParked p)
@@ -1310,9 +1296,9 @@ let private dictValueOfTheWrongTypeRaises =
     "a read set into a dict raises where it is waited for if its type is wrong" {
     let! result =
       runReleasing
-        """let d = Stdlib.Dict.set (Dict { "a": 1L }) "b" (Builtin.testReadOf 211L "s")
-let _ = Builtin.testTrace "set"
-Stdlib.Dict.size (Stdlib.await d)"""
+        """let d = Stdlib.Dict.set(Dict { "a": 1L }, "b", Builtin.testReadOf(211L, "s"))
+let _ = Builtin.testTrace("set")
+Stdlib.Dict.size(Stdlib.await(d))"""
         [ 211L ]
         [ "set" ]
     match result with
@@ -1332,8 +1318,8 @@ let private unlookedReadFailsTheRunAtItsEnd =
       spawn
         s
         state
-        """let a = Builtin.testFailingRead 23L
-let _ = Builtin.testTrace "after the call"
+        """let a = Builtin.testFailingRead(23L)
+let _ = Builtin.testTrace("after the call")
 1L"""
     let running = runOnThread s p
     waitFor "the read in flight" (fun () -> Gates.waiting () = [ 23L ])
@@ -1374,8 +1360,8 @@ let private denialRaisesAtTheCall =
       spawn
         s
         denied
-        """let a = Builtin.testRead 31L
-let _ = Builtin.testTrace "after the call"
+        """let a = Builtin.testRead(31L)
+let _ = Builtin.testTrace("after the call")
 a"""
     let! result = runOnThread s p
     match result with
@@ -1400,9 +1386,9 @@ let private inflightBoundHolds =
         spawn
           s
           state
-          """let xs = Stdlib.List.map [ 41L; 42L; 43L; 44L ] (fun n -> (let _ = Builtin.testTrace "start" in let r = Builtin.testRead n in let _ = Builtin.testTrace "end" in r))
-let _ = Builtin.testTrace "mapped"
-Stdlib.List.fold xs 0L (fun a b -> a + b)"""
+          """let xs = Stdlib.List.map([ 41L; 42L; 43L; 44L ], fun n -> (let _ = Builtin.testTrace("start") in let r = Builtin.testRead(n) in let _ = Builtin.testTrace("end") in r))
+let _ = Builtin.testTrace("mapped")
+Stdlib.List.fold(xs, 0L, fun a b -> a + b)"""
       let running = runOnThread s p
       // Two in flight, and the third awaited before the fourth is even called.
       waitFor "three reads started" (fun () -> Gates.waiting () = [ 41L; 42L; 43L ])
@@ -1442,11 +1428,11 @@ let private spawnAwaitSelect =
             spawn
               root
               state
-              """let slow = Stdlib.Exec.spawn (fun () -> (let _ = Builtin.testGateWait 51L in "slow"))
-let fast = Stdlib.Exec.spawn (fun () -> "fast")
-let (_, first) = Stdlib.Exec.select [ slow; fast ]
-let _ = Builtin.testTrace first
-Stdlib.Exec.await slow"""
+              """let slow = Stdlib.Exec.spawn(fun () -> (let _ = Builtin.testGateWait(51L) in "slow"))
+let fast = Stdlib.Exec.spawn(fun () -> "fast")
+let (_, first) = Stdlib.Exec.select([ slow; fast ])
+let _ = Builtin.testTrace(first)
+Stdlib.Exec.await(slow)"""
           let running = runOnThread root p
           waitForTrace "select answered with the one that finished" [ "fast" ]
           // The slow one is a process of its own, parked on the gate, on a worker.
@@ -1482,10 +1468,10 @@ let private spawnTakesACapturedRead =
             spawn
               root
               state
-              """let a = Builtin.testRead 81L
-let h = Stdlib.Exec.spawn (fun () -> a + 1L)
-let _ = Builtin.testTrace "spawned"
-Stdlib.Exec.await h"""
+              """let a = Builtin.testRead(81L)
+let h = Stdlib.Exec.spawn(fun () -> a + 1L)
+let _ = Builtin.testTrace("spawned")
+Stdlib.Exec.await(h)"""
           let running = runOnThread root p
           waitFor "the read in flight" (fun () -> Gates.waiting () = [ 81L ])
           waitForTrace
@@ -1520,9 +1506,9 @@ let private spawnedErrorReachesAwait =
             spawn
               root
               spawnOnly
-              """let h = Stdlib.Exec.spawn (fun () -> Builtin.testRead 61L)
-let _ = Builtin.testTrace "spawned"
-Stdlib.Exec.await h"""
+              """let h = Stdlib.Exec.spawn(fun () -> Builtin.testRead(61L))
+let _ = Builtin.testTrace("spawned")
+Stdlib.Exec.await(h)"""
           let! result = runOnThread root p
           Expect.equal
             (Trace.take ())
@@ -1547,11 +1533,11 @@ let private execDoneAnswersAFinishedProcess =
             spawn
               root
               state
-              """let done_ = Stdlib.Exec.spawn (fun () -> 1L)
-let _ = Stdlib.Exec.await done_
-let bad = Stdlib.Exec.spawn (fun () -> 1L / 0L)
-let first = Stdlib.Host.await [ Stdlib.Host.EventSpec.ExecDone done_.id ]
-let second = Stdlib.Host.await [ Stdlib.Host.EventSpec.ExecDone bad.id ]
+              """let done_ = Stdlib.Exec.spawn(fun () -> 1L)
+let _ = Stdlib.Exec.await(done_)
+let bad = Stdlib.Exec.spawn(fun () -> 1L / 0L)
+let first = Stdlib.Host.await([ Stdlib.Host.EventSpec.ExecDone done_.id ])
+let second = Stdlib.Host.await([ Stdlib.Host.EventSpec.ExecDone bad.id ])
 match (first, second) with
 | (ExecDone a, ExecDone b) -> a == done_.id && b == bad.id
 | _ -> false"""
@@ -1619,7 +1605,7 @@ let private mapped =
 let private parkedInsideMapShowsTheLambda =
   parkedInsideShowsTheLambda
     "a process parked inside List.map f shows f's frame, and resumes"
-    """Stdlib.List.map [ 1L; 2L ] (fun x -> (let _ = Builtin.testGateWait 91L in (x + 1L)))"""
+    """Stdlib.List.map([ 1L; 2L ], fun x -> (let _ = Builtin.testGateWait(91L) in (x + 1L)))"""
     91L
     mapped
 
@@ -1633,14 +1619,14 @@ let private budgetYieldInsideMap =
       spawn
         s
         state
-        """(let spin (n: Int64) (acc: Int64) : Int64 =
-              if n == 0L then acc else spin (n - 1L) (acc + n)
-            Stdlib.List.map [ 20000L; 30000L ] (fun n -> spin n 0L))"""
+        """(let spin(n: Int64, acc: Int64): Int64 =
+              if n == 0L then acc else spin(n - 1L, acc + n)
+            Stdlib.List.map([ 20000L; 30000L ], fun n -> spin(n, 0L)))"""
     let! (other : Scheduler.Process) =
       spawn
         s
         state
-        """Builtin.testTrace "other"
+        """Builtin.testTrace("other")
 """
     let! result = runOnThread s mapping
     Expect.equal
@@ -1667,7 +1653,7 @@ let private errorInsideMapNamesTheLambda =
     let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
-      spawn s state """Stdlib.List.map [ 1L ] (fun x -> x / 0L)"""
+      spawn s state """Stdlib.List.map([ 1L ], fun x -> x / 0L)"""
     let! result = runOnThread s p
     match result with
     | Error(_, stack) ->
@@ -1686,7 +1672,7 @@ let private errorInsideMapNamesTheLambda =
 let private parkedInsideStreamMapShowsTheLambda =
   parkedInsideShowsTheLambda
     "a process parked inside a stream transform shows the lambda's frame"
-    """Stdlib.Stream.toList (Stdlib.Stream.map (Stdlib.Stream.fromList [ 1L; 2L ]) (fun x -> (let _ = Builtin.testGateWait 93L in (x + 1L))))"""
+    """Stdlib.Stream.toList(Stdlib.Stream.map(Stdlib.Stream.fromList([ 1L; 2L ]), fun x -> (let _ = Builtin.testGateWait(93L) in (x + 1L))))"""
     93L
     mapped
 
@@ -1698,7 +1684,7 @@ let private transformAfterTheSourceWaits =
   testTask "a transform over a stream that waits on the host runs as a frame" {
     let! state = executionStateFor pmPT false
     let code =
-      """Stdlib.Stream.toList (Stdlib.Stream.filter (Stdlib.Stream.map (Builtin.testSlowStream [ 1L; 2L; 3L; 4L ]) (fun x -> x * 10L)) (fun x -> x > 10L))"""
+      """Stdlib.Stream.toList(Stdlib.Stream.filter(Stdlib.Stream.map(Builtin.testSlowStream([ 1L; 2L; 3L; 4L ]), fun x -> x * 10L), fun x -> x > 10L))"""
     let expected =
       RT.DList(
         RT.ValueType.Known RT.KTInt64,
@@ -1723,10 +1709,10 @@ let private darkPolicyOrders =
     Trace.take () |> ignore<List<string>>
     let! state = executionStateFor pmPT false
     let spinner (tag : string) =
-      $"""(let spin (n: Int64) (acc: Int64) : Int64 =
-              if n == 0L then acc else spin (n - 1L) (acc + n)
-            let total = spin 20000L 0L
-            let _ = Builtin.testTrace "{tag}"
+      $"""(let spin(n: Int64, acc: Int64): Int64 =
+              if n == 0L then acc else spin(n - 1L, acc + n)
+            let total = spin(20000L, 0L)
+            let _ = Builtin.testTrace("{tag}")
             total)"""
     let runBoth () =
       task {
@@ -1771,7 +1757,7 @@ let private parkedOnAHostOperation =
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // Shared Dark drains child pipes; the kernel-readiness leaf parks the VM.
     let! (p : Scheduler.Process) =
-      spawn s state """(Stdlib.Cli.execute "sleep 0.3").exitCode"""
+      spawn s state """(Stdlib.Cli.execute("sleep 0.3")).exitCode"""
     let running = runOnThread s p
     waitFor "the process to park on the host" (fun () ->
       match p.status with
@@ -1804,7 +1790,10 @@ let private cancelLetsTheWaitLand =
     let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
-      spawn s state "let _ = Builtin.testGateWait 60L in Builtin.testTrace \"after\""
+      spawn
+        s
+        state
+        "let _ = Builtin.testGateWait(60L) in Builtin.testTrace(\"after\")"
     let running = runOnThread s p
     waitFor "the process to park on the gate" (fun () ->
       match p.status with
@@ -1836,10 +1825,10 @@ let private childrenDieWithTheParent =
       spawn
         s
         state
-        """(let spin (n: Int64) : Int64 =
-              if n == 0L then 1L else spin (n + 1L)
-            let attached = Stdlib.Exec.spawn (fun () -> spin 1L)
-            let detached = Stdlib.Exec.spawnDetached (fun () -> spin 1L)
+        """(let spin(n: Int64): Int64 =
+              if n == 0L then 1L else spin(n + 1L)
+            let attached = Stdlib.Exec.spawn(fun () -> spin(1L))
+            let detached = Stdlib.Exec.spawnDetached(fun () -> spin(1L))
             (attached.id, detached.id))"""
     let running = runOnThread s parent
     let! result = running
@@ -1876,9 +1865,9 @@ let private awaitWithinTimesOut =
       spawn
         s
         state
-        """(let h = Stdlib.Exec.spawn (fun () -> Builtin.testGateWait 61L)
-            let first = Stdlib.Exec.awaitWithin 50L h
-            let _ = Stdlib.Exec.cancel h
+        """(let h = Stdlib.Exec.spawn(fun () -> Builtin.testGateWait(61L))
+            let first = Stdlib.Exec.awaitWithin(50L, h)
+            let _ = Stdlib.Exec.cancel(h)
             (first, h.id))"""
     let running = runOnThread s p
     let! result = running
@@ -1908,8 +1897,8 @@ let private killCascadesHard =
       spawn
         s
         state
-        """let h = Stdlib.Exec.spawn (fun () -> Builtin.testGateWait 62L)
-Stdlib.Exec.await h"""
+        """let h = Stdlib.Exec.spawn(fun () -> Builtin.testGateWait(62L))
+Stdlib.Exec.await(h)"""
     let running = runOnThread s parent
     let deadline = System.DateTime.UtcNow + giveUpAfter
     while (match parent.status with
@@ -1947,9 +1936,9 @@ let private capsEndARunaway =
         spawn
           s
           state
-          """(let spin (n: Int64) (acc: Int64) : Int64 =
-                if n == 0L then acc else spin (n - 1L) (acc + n)
-              spin 2000000L 0L)"""
+          """(let spin(n: Int64, acc: Int64): Int64 =
+                if n == 0L then acc else spin(n - 1L, acc + n)
+              spin(2000000L, 0L))"""
       let! result = runOnThread s loop
       match result with
       | Ok dv -> failtest $"the runaway finished: {dv}"
@@ -2021,9 +2010,9 @@ let private byteCapEndsARunaway =
         spawn
           s
           state
-          """(let spin (n: Int64) (acc: Int64) : Int64 =
-                if n == 0L then acc else spin (n - 1L) (acc + n)
-              spin 2000000L 0L)"""
+          """(let spin(n: Int64, acc: Int64): Int64 =
+                if n == 0L then acc else spin(n - 1L, acc + n)
+              spin(2000000L, 0L))"""
       let! result = runOnThread s loop
       match result with
       | Ok dv -> failtest $"the runaway finished: {dv}"
@@ -2049,9 +2038,9 @@ let private cancelCascadesSoftly =
       spawn
         s
         state
-        """(let h = Stdlib.Exec.spawn (fun () -> Builtin.testGateWait 63L)
-            let _ = Builtin.testGateWait 62L
-            Stdlib.Exec.await h)"""
+        """(let h = Stdlib.Exec.spawn(fun () -> Builtin.testGateWait(63L))
+            let _ = Builtin.testGateWait(62L)
+            Stdlib.Exec.await(h))"""
     let running = runOnThread s parent
     waitFor "the child to park on its gate" (fun () ->
       s.Snapshot()
@@ -2097,7 +2086,7 @@ let private cancelStopsAnEmptyLambdaMap =
       spawn
         s
         state
-        "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 0 5000000) (fun x -> x))"
+        "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(0, 5000000), fun x -> x))"
     let running = runOnThread s p
     // Preempted at least once, so it is mid-map rather than still building the range.
     let deadline = System.DateTime.UtcNow.AddSeconds 60.
@@ -2123,7 +2112,7 @@ let private cancelDuringOneLongCallIsNotOk =
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // One instruction that takes seconds: the slice cannot end until the call does.
     let! (p : Scheduler.Process) =
-      spawn s state "Stdlib.List.length (Stdlib.List.range 0 15000000)"
+      spawn s state "Stdlib.List.length(Stdlib.List.range(0, 15000000))"
     let running = runOnThread s p
     let deadline = System.DateTime.UtcNow.AddSeconds 60.
     while p.slices < 1L
@@ -2170,7 +2159,6 @@ let tests =
         zipShortestWaitsForTheHeadAlone
         dictSetWaitsForAReadKey
         destructuredParamParks
-        destructuredPartialParks
         recordFieldThroughShell
         wrongTypeRaisesAtRebuild
         moreHoldersOfReads

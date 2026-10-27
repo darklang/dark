@@ -13,74 +13,74 @@
 // five times, so it is the one worth walking.
 
 /// Two infix expressions, which had no recorded value before this branch.
-let scale (n: Int) : Int =
+let scale(n: Int): Int =
   let doubled = n * 2
   doubled + 1
 
 /// A second loop, so `--iteration` has more than one thing to pick.
-let total (xs: List<Int>) : Int =
-  Stdlib.List.fold xs 0 (fun acc x -> acc + x)
+let total(xs: List<Int>): Int =
+  Stdlib.List.fold(xs, 0, fun acc x -> acc + x)
 
 /// A one-line lambda whose work is a CALL: nothing per-iteration on the line to change.
-let reportCall (xs: List<Int>) : String =
-  let scaled = Stdlib.List.map xs (fun x -> scale x)
-  let sum = total scaled
-  "sum=" + (Stdlib.toString sum)
+let reportCall(xs: List<Int>): String =
+  let scaled = Stdlib.List.map(xs, fun x -> scale(x))
+  let sum = total(scaled)
+  "sum=" + (Stdlib.toString(sum))
 
 /// A multi-line lambda, so `--iteration` visibly changes the lines.
-let reportInline (xs: List<Int>) : String =
+let reportInline(xs: List<Int>): String =
   let scaled =
-    Stdlib.List.map xs (fun x ->
+    Stdlib.List.map(xs, fun x ->
       let doubled = x * 2
       doubled + 1)
 
-  "sum=" + (Stdlib.toString (Stdlib.List.length scaled))
+  "sum=" + (Stdlib.toString(Stdlib.List.length(scaled)))
 
 /// Two loops in one body, for `--iteration map:2,fold:2`.
-let reportTwo (xs: List<Int>) : String =
+let reportTwo(xs: List<Int>): String =
   let scaled =
-    Stdlib.List.map xs (fun x ->
+    Stdlib.List.map(xs, fun x ->
       let doubled = x * 2
       doubled + 1)
 
   let summed =
-    Stdlib.List.fold scaled 0 (fun acc x ->
+    Stdlib.List.fold(scaled, 0, fun acc x ->
       let step = acc + x
       step)
 
-  "sum=" + (Stdlib.toString summed)
+  "sum=" + (Stdlib.toString(summed))
 
 /// NOT tail-recursive: the multiply happens after the call returns.
-let fact (n: Int) : Int =
+let fact(n: Int): Int =
   if n <= 1 then
     1
   else
-    let sub = fact (n - 1)
+    let sub = fact(n - 1)
     n * sub
 
 /// Tail-recursive. Steps anyway: this interpreter does no tail-call optimisation.
-let countdown (n: Int) (acc: Int) : Int =
+let countdown(n: Int, acc: Int): Int =
   if n <= 0 then
     acc
   else
     let step = acc + n
-    countdown (n - 1) step
+    countdown(n - 1, step)
 
-let inner (x: Int) : Int =
+let inner(x: Int): Int =
   let a = x * 3
   let b = a + 7
   b - 1
 
 /// For the big-trace steps. A flat loop, so it stays fast to open.
-let big (n: Int) : Int =
-  let xs = Stdlib.List.range 1 n
+let big(n: Int): Int =
+  let xs = Stdlib.List.range(1, n)
 
   let ys =
-    Stdlib.List.map xs (fun x ->
-      let v = inner x
+    Stdlib.List.map(xs, fun x ->
+      let v = inner(x)
       v + 1)
 
-  Stdlib.List.length ys
+  Stdlib.List.length(ys)
 
 
 /// Branching recursion, for the big-trace timings. `fib 12` is 465 calls, `fib 14` 1,219,
@@ -88,18 +88,18 @@ let big (n: Int) : Int =
 /// the window that bounds how many iterations keep their values was keyed by (parent, site) and
 /// every recursive call has a different parent, so nothing was ever evicted. Keyed by site
 /// alone it is flat, and `fib 20` is a reasonable thing to ask for.
-let fib (n: Int) : Int =
-  if n < 2 then n else (fib (n - 1)) + (fib (n - 2))
+let fib(n: Int): Int =
+  if n < 2 then n else (fib(n - 1)) + (fib(n - 2))
 
 
 /// Eight pieces of CPU work, one after another. Pair it with `cores` below.
-let serial () : Int =
-  Stdlib.List.repeatUnsafe 8 24
-  |> Stdlib.List.map (fun n -> fib n)
+let serial(): Int =
+  Stdlib.List.repeatUnsafe(8, 24)
+  |> Stdlib.List.map(fun n -> fib(n))
   |> Stdlib.List.length
 
 /// The same eight, one scheduler per core. Needs the `concurrency` permission.
-let cores () : Int =
-  Stdlib.List.repeatUnsafe 8 24
-  |> Stdlib.List.parallelMap (fun n -> fib n)
+let cores(): Int =
+  Stdlib.List.repeatUnsafe(8, 24)
+  |> Stdlib.List.parallelMap(fun n -> fib(n))
   |> Stdlib.List.length

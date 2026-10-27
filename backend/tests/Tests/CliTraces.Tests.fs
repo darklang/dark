@@ -83,13 +83,13 @@ let private testRunCases =
   // `run` is an alias for `run-script` (file-only); function calls go through `eval`.
   testCliEquals
     "run smoke"
-    [ "Bool.and", [ "eval"; "Stdlib.Bool.and true false" ], "false"
+    [ "Bool.and", [ "eval"; "Stdlib.Bool.and(true, false)" ], "false"
       "Int64.add", [ "eval"; "5L + 3L" ], "8" ]
 
 let private testEvalCases =
   testCliEquals
     "eval smoke"
-    [ "String.length", [ "eval"; "Stdlib.String.length \"hello\"" ], "5"
+    [ "String.length", [ "eval"; "Stdlib.String.length(\"hello\")" ], "5"
       "List.length", [ "eval"; "[1L, 2L, 3L] |> Stdlib.List.length" ], "3"
       "simple expr", [ "eval"; "2L + 3L" ], "5"
       "string concat", [ "eval"; "\"hello\" + \"world\"" ], "helloworld" ]
@@ -134,27 +134,27 @@ let private testScriptDeclIdentity =
       [ "eval"
         "type TA = { a: String }\n\
          type TB = { b: Int }\n\
-         let takesA (r: TA) : Int = 7\n\
-         let takesB (r: TB) : Int = 7\n\
-         (takesA (TA { a = \"x\" })) + (takesB (TB { b = 1 }))" ],
+         let takesA(r: TA): Int = 7\n\
+         let takesB(r: TB): Int = 7\n\
+         (takesA(TA { a = \"x\" })) + (takesB(TB { b = 1 }))" ],
       "14"
 
       // The other direction: genuinely identical declarations SHOULD share one
       // hash. Collapsing them is content addressing working, not a bug.
       "identical fns share one hash",
       [ "eval"
-        "let alpha (x: Int) : Int = x + 1\n\
-         let beta (x: Int) : Int = x + 1\n\
-         (alpha 1) + (beta 1)" ],
+        "let alpha(x: Int): Int = x + 1\n\
+         let beta(x: Int): Int = x + 1\n\
+         (alpha(1)) + (beta(1))" ],
       "4"
 
       // Hashing after resolution means the hash graph can contain cycles, so
       // mutually recursive declarations have to be hashed as a batch.
       "mutually recursive fns",
       [ "eval"
-        "let isEven (n: Int) : Bool = if n == 0 then true else isOdd (n - 1)\n\
-         let isOdd (n: Int) : Bool = if n == 0 then false else isEven (n - 1)\n\
-         isEven 10" ],
+        "let isEven(n: Int): Bool = if n == 0 then true else isOdd(n - 1)\n\
+         let isOdd(n: Int): Bool = if n == 0 then false else isEven(n - 1)\n\
+         isEven(10)" ],
       "true"
 
       // Content addressing reaches across the script/package boundary: a script
@@ -163,8 +163,8 @@ let private testScriptDeclIdentity =
       "script type unifies with package type",
       [ "eval"
         "type MyErr = | BadFormat\n\
-         let f (e: Darklang.Stdlib.Int.ParseError) : Int = 1\n\
-         f (MyErr.BadFormat)" ],
+         let f(e: Darklang.Stdlib.Int.ParseError): Int = 1\n\
+         f(MyErr.BadFormat)" ],
       "1" ]
 
 
@@ -179,7 +179,7 @@ let private testScriptContract =
         )
       let cases =
         [ "arguments reach closures and each top-level expression",
-          "let main (inputs: List<String>) : Int = if inputs == [\"a b\", \"\", \"é\"] then 7 else 1\nStdlib.printLine (Stdlib.String.join ((fun () -> args) ()) \",\")\nmain args",
+          "let main(inputs: List<String>): Int = if inputs == [\"a b\", \"\", \"é\"] then 7 else 1\nStdlib.printLine(Stdlib.String.join((fun () -> args)(), \",\"))\nmain(args)",
           [],
           [ "a b"; ""; "é" ],
           7L,
@@ -213,13 +213,13 @@ let private testScriptContract =
           "option terminator", "if args == [] then 0 else 1", [ "--" ], [], 0L, ""
           "int64 exit code", "3L", [], [], 3L, "Script exited with code 3"
           "definitions only",
-          "let main (inputs: List<String>) : Int = 0",
+          "let main(inputs: List<String>): Int = 0",
           [],
           [],
           1L,
           "main args"
           "main is not auto-called",
-          "let main (inputs: List<String>) : Int = 0\nmain",
+          "let main(inputs: List<String>): Int = 0\nmain",
           [],
           [],
           1L,
@@ -239,7 +239,7 @@ let private testScriptContract =
         for options in [ [ "--sandbox"; "-h" ]; [ "--branch"; "main"; "--help" ] ] do
           System.IO.File.WriteAllText(
             path,
-            "Stdlib.printLine \"SHOULD_NOT_RUN\"\n9"
+            "Stdlib.printLine(\"SHOULD_NOT_RUN\")\n9"
           )
           let! output, exitCode =
             runCliWithExit target ([ "run" ] @ options @ [ path ])
@@ -262,7 +262,7 @@ let private testScriptInteractivePermissionApproval =
         let path = System.IO.Path.Combine(instance.dir, "permission-approval.dark")
         System.IO.File.WriteAllText(
           path,
-          "Stdlib.printLine \"BEFORE_DENIAL\"\nlet _ = Stdlib.DateTime.now ()\nStdlib.printLine \"AFTER_APPROVAL\"\n0"
+          "Stdlib.printLine(\"BEFORE_DENIAL\")\nlet _ = Stdlib.DateTime.now()\nStdlib.printLine(\"AFTER_APPROVAL\")\n0"
         )
         let! _, policyExit =
           Tests.CliInstance.runWithExit instance [ "permissions"; "set"; "stdout" ]
@@ -306,8 +306,8 @@ let private testAdvisoryScriptExecution =
   cliTest "run and eval execute without an at-rest gate" (fun target ->
     task {
       let cases =
-        [ "let bad () : Int = true\nStdlib.printLine \"SCRIPT_RAN\"\n0L", 0L
-          "Stdlib.printLine \"SCRIPT_RAN\"\nStdlib.List.length \"bad\"", 1L ]
+        [ "let bad(): Int = true\nStdlib.printLine(\"SCRIPT_RAN\")\n0L", 0L
+          "Stdlib.printLine(\"SCRIPT_RAN\")\nStdlib.List.length(\"bad\")", 1L ]
       for source, expectedExit in cases do
         let path =
           System.IO.Path.Combine(
@@ -349,18 +349,18 @@ let private testRuntimeChecksUseSelectedBranch =
           "Tests.ScriptChecking.accept"
           "(value: String) : String = value"
       do! Tests.CliDsl.switch target "main"
-      let! main = runCli target [ "eval"; "Tests.ScriptChecking.accept 7L" ]
+      let! main = runCli target [ "eval"; "Tests.ScriptChecking.accept(7L)" ]
       Expect.equal main "7" "main retains its numeric signature"
       // The in-process harness starts after process-level --branch handling.
       do! Tests.CliDsl.switch target branch
-      let! rejected = runCli target [ "eval"; "Tests.ScriptChecking.accept 7L" ]
+      let! rejected = runCli target [ "eval"; "Tests.ScriptChecking.accept(7L)" ]
       Expect.stringContains
         rejected
         "Error"
         "runtime checks use the selected branch"
       Expect.stringContains rejected "String" "the branch declaration is used"
       let! accepted =
-        runCli target [ "eval"; "Tests.ScriptChecking.accept \"branch\"" ]
+        runCli target [ "eval"; "Tests.ScriptChecking.accept(\"branch\")" ]
       Expect.equal accepted "branch" "valid code on the branch still executes"
       do! archiveBranches target [ branch ]
     })
@@ -373,7 +373,7 @@ let private testRuntimePackageArgumentError =
   cliTest "runtime errors describe package arguments" (fun state ->
     task {
       let! output, exitCode =
-        runCliWithExit state [ "eval"; "Stdlib.List.length \"not a list\"" ]
+        runCliWithExit state [ "eval"; "Stdlib.List.length(\"not a list\")" ]
       Expect.equal exitCode 1L "runtime error exits nonzero"
       Expect.stringContains output "List" "expected type named"
       Expect.stringContains output "String" "actual type named"
@@ -862,7 +862,7 @@ let private testRecordingSettings =
 
           // A run with one impure call in it, with recording off and then on.
           let run () =
-            runCli state [ "eval"; "Stdlib.printLine \"x\"" ]
+            runCli state [ "eval"; "Stdlib.printLine(\"x\")" ]
             |> Task.map ignore<string>
 
           try
@@ -1033,7 +1033,7 @@ let private testTracesTakeTheShortNameForm =
     (fun state ->
       task {
         let! _ = runCli state [ "traces"; "record"; "on" ]
-        let! _ = runCli state [ "eval"; "Stdlib.List.length [1L, 2L]" ]
+        let! _ = runCli state [ "eval"; "Stdlib.List.length([1L, 2L])" ]
 
         let! full =
           runCli state [ "traces"; "calls"; "Darklang.Stdlib.List.length" ]
@@ -1104,7 +1104,7 @@ let private testExitCodes =
         System.IO.File.WriteAllText(path, body)
         path
 
-      let good = script "exit-ok.dark" "Stdlib.printLine \"fine\"\n"
+      let good = script "exit-ok.dark" "Stdlib.printLine(\"fine\")\n"
       let raises = script "exit-raise.dark" "(1L / 0L)\n"
 
       try
@@ -1164,7 +1164,7 @@ let private testExitCodes =
 let private testTracesJsonShapes =
   cliTestWithFreshTraces "--json answers on details, calls and show" (fun state ->
     task {
-      let! _ = runCli state [ "eval"; "Stdlib.printLine \"j\"" ]
+      let! _ = runCli state [ "eval"; "Stdlib.printLine(\"j\")" ]
       let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
       let tid = parseTraceID listJson
       let short = tid.Substring(0, 8)
@@ -1209,9 +1209,9 @@ let private testReplayDistinguishesDriftFromARaise =
 
         // Drift: a function that ran, then got deprecated as harmful. The recording is intact.
         do! author "Tests.DriftT.inner" "(n: Int64): Int64 = (n * 2L)"
-        do! author "Tests.DriftT.outer" "(n: Int64): Int64 = Tests.DriftT.inner n"
+        do! author "Tests.DriftT.outer" "(n: Int64): Int64 = Tests.DriftT.inner(n)"
 
-        let! _ = runCli state [ "eval"; "Tests.DriftT.outer 5L" ]
+        let! _ = runCli state [ "eval"; "Tests.DriftT.outer(5L)" ]
         let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
         let tid = parseTraceID listJson
         let short = tid.Substring(0, 8)
@@ -1274,7 +1274,7 @@ let private testReplayDistinguishesDriftFromARaise =
 
         // A genuine raise must NOT be called drift, or the label means nothing.
         do! author "Tests.RaiseT.boom" "(n: Int64): Int64 = (n / 0L)"
-        let! _ = runCli state [ "eval"; "Tests.RaiseT.boom 5L" ]
+        let! _ = runCli state [ "eval"; "Tests.RaiseT.boom(5L)" ]
         let! raiseList = runCli state [ "traces"; "list"; "1"; "--json" ]
         let rid = (parseTraceID raiseList).Substring(0, 8)
 
@@ -1336,21 +1336,21 @@ let private testTracesShowDoesNotPerform =
             state
             [ "fn"
               "Test.ShowPerform.mark"
-              "(v: String) : Unit = Stdlib.LocalStore.configSet \"show.perform.probe\" v" ]
+              "(v: String): Unit = Stdlib.LocalStore.configSet(\"show.perform.probe\", v)" ]
 
         let! _ = runCli state [ "eval"; "Test.ShowPerform.mark \"recorded\"" ]
         let! _ =
           runCli
             state
             [ "eval"
-              "Stdlib.LocalStore.configSet \"show.perform.probe\" \"after\"" ]
+              "Stdlib.LocalStore.configSet(\"show.perform.probe\", \"after\")" ]
 
         let! _ = runCli state [ "traces"; "show"; "Test.ShowPerform.mark" ]
 
         let! now =
           runCli
             state
-            [ "eval"; "Stdlib.LocalStore.configGet \"show.perform.probe\"" ]
+            [ "eval"; "Stdlib.LocalStore.configGet(\"show.perform.probe\")" ]
 
         Expect.stringContains
           now
@@ -1376,7 +1376,7 @@ let private testTracesShowThroughMapDoesNotPerform =
             state
             [ "fn"
               "Test.ShowPerformMap.markAll"
-              "(vs: List<String>) : List<Unit> =\n  Stdlib.List.map vs (fun v -> Stdlib.LocalStore.configSet \"show.perform.map\" v)" ]
+              "(vs: List<String>): List<Unit> =\n  Stdlib.List.map(vs, fun v -> Stdlib.LocalStore.configSet(\"show.perform.map\", v))" ]
 
         // The lambda makes the analysis incomplete, so its write needs an explicit approval.
         let! _ =
@@ -1384,11 +1384,11 @@ let private testTracesShowThroughMapDoesNotPerform =
             state
             [ "permissions"; "approve"; "Test.ShowPerformMap.markAll"; "--yes" ]
         let! ran =
-          runCli state [ "eval"; "Test.ShowPerformMap.markAll [\"recorded\"]" ]
+          runCli state [ "eval"; "Test.ShowPerformMap.markAll([\"recorded\"])" ]
         let! before =
           runCli
             state
-            [ "eval"; "Stdlib.LocalStore.configGet \"show.perform.map\"" ]
+            [ "eval"; "Stdlib.LocalStore.configGet(\"show.perform.map\")" ]
         Expect.stringContains
           before
           "recorded"
@@ -1397,7 +1397,8 @@ let private testTracesShowThroughMapDoesNotPerform =
         let! _ =
           runCli
             state
-            [ "eval"; "Stdlib.LocalStore.configSet \"show.perform.map\" \"after\"" ]
+            [ "eval"
+              "Stdlib.LocalStore.configSet(\"show.perform.map\", \"after\")" ]
 
         let! shown =
           runCli state [ "traces"; "show"; "Test.ShowPerformMap.markAll" ]
@@ -1406,7 +1407,7 @@ let private testTracesShowThroughMapDoesNotPerform =
         let! now =
           runCli
             state
-            [ "eval"; "Stdlib.LocalStore.configGet \"show.perform.map\"" ]
+            [ "eval"; "Stdlib.LocalStore.configGet(\"show.perform.map\")" ]
 
         Expect.stringContains
           now
@@ -1429,9 +1430,7 @@ let private testImpureWithoutEffectsIsStillLogged =
         let! _ =
           runCli
             state
-            [ "fn"
-              "Test.NoEffects.pid"
-              "() : Int = Stdlib.Cli.Sys.currentPid ()" ]
+            [ "fn"; "Test.NoEffects.pid"; "(): Int = Stdlib.Cli.Sys.currentPid()" ]
 
         let! _ = runCli state [ "eval"; "Test.NoEffects.pid ()" ]
         let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
@@ -1460,7 +1459,7 @@ let private testTracesLargeTraceListSurvives =
         // directly whether or not tracing is on, so that the number a program gives does not
         // depend on whether anything is watching.
         for _ in 1..50 do
-          let! _ = runCli state [ "eval"; "Stdlib.String.length \"abc\"" ]
+          let! _ = runCli state [ "eval"; "Stdlib.String.length(\"abc\")" ]
           ()
         let! listOut = runCli state [ "traces"; "list"; "20" ]
         Expect.stringContains listOut "what ran" "list returns the run table"
@@ -1477,7 +1476,7 @@ let private testTracesViewToleratesCorruptedRow =
         // An EFFECTFUL call, because only impure calls are recorded: with a pure eval this
         // trace has no rows at all, and the render assertion below passed on the echoed
         // input rather than on anything rendered.
-        let! _ = runCli state [ "eval"; "Stdlib.printLine \"kept\"" ]
+        let! _ = runCli state [ "eval"; "Stdlib.printLine(\"kept\")" ]
         let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
         let tid = parseTraceID listJson
 
@@ -1541,7 +1540,7 @@ let private testTracesTruncatedStillShowsRoot =
               runCli
                 state
                 [ "eval"
-                  "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 40) (fun x -> Stdlib.printLine (Stdlib.toString x)))" ]
+                  "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 40), fun x -> Stdlib.printLine(Stdlib.toString(x))))" ]
             Expect.stringContains evalOut "40" "the eval itself succeeded"
             let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
             let tid = parseTraceID listJson

@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.Scripts
 
-let content () : String =
+let content(): String =
   """# Running .dark scripts
 
 Save your code in a .dark file and run it with `dark run <file> [args...]`.
@@ -10,10 +10,10 @@ For example, save this as greet.dark:
 
   match args with
   | [ name ] ->
-    Stdlib.printLine ("Hello, " + name)
+    Stdlib.printLine("Hello, " + name)
     0
   | _ ->
-    Stdlib.printLine "Usage: dark run greet.dark <name>"
+    Stdlib.printLine("Usage: dark run greet.dark <name>")
     2
 
 Then run it:
@@ -57,7 +57,7 @@ Expressions run in order. Each must return Unit, except the last, which may retu
 an Int exit code: 0 for success, or 1-255 for a portable failure code.
 Int64 is also accepted. A final Unit means success, so this is a complete script:
 
-  Stdlib.printLine "Hello"
+  Stdlib.printLine("Hello")
 
 Empty files and files containing only declarations fail: add an expression to run.
 Parse errors, runtime errors, permission denials and missing files also exit nonzero.

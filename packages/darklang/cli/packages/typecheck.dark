@@ -28,42 +28,42 @@ val argSpec =
     { flags = [ ("--failed", []), ("--incomplete", []), ("--all", []), ("--json", []) ]
       valueFlags = [] }
 
-let parseArgs (args: List<String>) : ParsedArgs =
-  let parsed = FlagParser.parse argSpec args
-  let failedOnly = FlagParser.hasFlag parsed "--failed"
-  let incompleteOnly = FlagParser.hasFlag parsed "--incomplete"
-  let showAll = FlagParser.hasFlag parsed "--all"
+let parseArgs(args: List<String>): ParsedArgs =
+  let parsed = FlagParser.parse(argSpec, args)
+  let failedOnly = FlagParser.hasFlag(parsed, "--failed")
+  let incompleteOnly = FlagParser.hasFlag(parsed, "--incomplete")
+  let showAll = FlagParser.hasFlag(parsed, "--all")
   let hasSpecificFilter = failedOnly || incompleteOnly
   ParsedArgs
     { outputFilter =
         OutputFilter
           { showChecked = showAll
-            showFailed = showAll || failedOnly || Stdlib.Bool.not hasSpecificFilter
+            showFailed = showAll || failedOnly || Stdlib.Bool.not(hasSpecificFilter)
             showIncomplete =
-              showAll || incompleteOnly || Stdlib.Bool.not hasSpecificFilter }
+              showAll || incompleteOnly || Stdlib.Bool.not(hasSpecificFilter) }
       parseErrors = parsed.errors
       positionals = parsed.positionals
-      asJson = FlagParser.hasFlag parsed "--json"
+      asJson = FlagParser.hasFlag(parsed, "--json")
       conflictingFilters = showAll && hasSpecificFilter }
 
-let fullPath (location: LanguageTools.ProgramTypes.PackageLocation) : String =
+let fullPath(location: LanguageTools.ProgramTypes.PackageLocation): String =
   [ [ location.owner ], location.modules, [ location.name ] ]
   |> Stdlib.List.flatten
-  |> Stdlib.String.join "."
+  |> Stdlib.String.join(".")
 
-let locationsFor
-  (branchId: Uuid)
-  (reference: LanguageTools.ProgramTypes.Reference)
+let locationsFor(
+  branchId: Uuid,
+  reference: LanguageTools.ProgramTypes.Reference)
   : List<LanguageTools.ProgramTypes.PackageLocation> =
   match reference with
-  | PackageType hash -> LanguageTools.PackageManager.Type.locations branchId hash
-  | PackageValue hash -> LanguageTools.PackageManager.Value.locations branchId hash
-  | PackageFn hash -> LanguageTools.PackageManager.Function.locations branchId hash
-  | PackageTrait hash -> LanguageTools.PackageManager.Trait.locations branchId hash
-  | PackageTraitImpl hash -> LanguageTools.PackageManager.TraitImpl.locations branchId hash
-  | PackageTest hash -> LanguageTools.PackageManager.Test.locations branchId hash
+  | PackageType hash -> LanguageTools.PackageManager.Type.locations(branchId, hash)
+  | PackageValue hash -> LanguageTools.PackageManager.Value.locations(branchId, hash)
+  | PackageFn hash -> LanguageTools.PackageManager.Function.locations(branchId, hash)
+  | PackageTrait hash -> LanguageTools.PackageManager.Trait.locations(branchId, hash)
+  | PackageTraitImpl hash -> LanguageTools.PackageManager.TraitImpl.locations(branchId, hash)
+  | PackageTest hash -> LanguageTools.PackageManager.Test.locations(branchId, hash)
 
-let fallbackLabel (reference: LanguageTools.ProgramTypes.Reference) : String =
+let fallbackLabel(reference: LanguageTools.ProgramTypes.Reference): String =
   let kind =
     match reference with
     | PackageType _ -> "type"
@@ -73,30 +73,29 @@ let fallbackLabel (reference: LanguageTools.ProgramTypes.Reference) : String =
     | PackageTraitImpl _ -> "impl"
     | PackageTest _ -> "test"
   let hash =
-    LanguageTools.ProgramTypes.hashToShort (
-      LanguageTools.ProgramTypes.Reference.hash reference)
+    LanguageTools.ProgramTypes.hashToShort(LanguageTools.ProgramTypes.Reference.hash(reference))
   $"{kind} {hash}"
 
-let itemLabel
-  (branchId: Uuid)
-  (reference: LanguageTools.ProgramTypes.Reference)
+let itemLabel(
+  branchId: Uuid,
+  reference: LanguageTools.ProgramTypes.Reference)
   : String =
   let paths =
-    locationsFor branchId reference
-    |> Stdlib.List.map fullPath
+    locationsFor(branchId, reference)
+    |> Stdlib.List.map(fullPath)
     |> Stdlib.List.unique
     |> Stdlib.List.sort
   match paths with
-  | [] -> fallbackLabel reference
+  | [] -> fallbackLabel(reference)
   | [ path ] -> path
-  | _ -> Stdlib.String.join paths ", "
+  | _ -> Stdlib.String.join(paths, ", ")
 
 /// Whether the item names something that resolves to nothing. At save that means "not decided
 /// yet", since a caller may be written before its callee; in an audit of what is stored it means
 /// the item calls something that is not there.
-let namesNothing (item: LanguageTools.AtRestTypeChecker.ItemReport) : Bool =
+let namesNothing(item: LanguageTools.AtRestTypeChecker.ItemReport): Bool =
   item.warnings
-  |> Stdlib.List.findFirst (fun w ->
+  |> Stdlib.List.findFirst(fun w ->
     match w.code with
     | UnresolvedFunctionName
     | UnresolvedValueName
@@ -107,21 +106,21 @@ let namesNothing (item: LanguageTools.AtRestTypeChecker.ItemReport) : Bool =
 
 /// The checker's verdict, except that an item it could not prove because it names something
 /// that does not exist is failed here.
-let auditVerdict
-  (item: LanguageTools.AtRestTypeChecker.ItemReport)
+let auditVerdict(
+  item: LanguageTools.AtRestTypeChecker.ItemReport)
   : LanguageTools.AtRestTypeChecker.Verdict =
   match item.verdict with
-  | Incomplete when namesNothing item -> LanguageTools.AtRestTypeChecker.Verdict.Failed
+  | Incomplete when namesNothing(item) -> LanguageTools.AtRestTypeChecker.Verdict.Failed
   | v -> v
 
-let counts
-  (items: List<LanguageTools.AtRestTypeChecker.ItemReport>)
+let counts(
+  items: List<LanguageTools.AtRestTypeChecker.ItemReport>)
   : Counts =
   items
-  |> Stdlib.List.fold
-       (Counts { checkedCount = 0, failedCount = 0, incompleteCount = 0, unresolvedCount = 0 })
-       (fun acc item ->
-         match (auditVerdict item, item.verdict) with
+  |> Stdlib.List.fold(
+       Counts { checkedCount = 0, failedCount = 0, incompleteCount = 0, unresolvedCount = 0 },
+       fun acc item ->
+         match (auditVerdict(item), item.verdict) with
          | (Checked, _) -> { acc with checkedCount = acc.checkedCount + 1 }
          | (Failed, Incomplete) ->
            { acc with
@@ -131,11 +130,11 @@ let counts
          | (Incomplete, _) -> { acc with incompleteCount = acc.incompleteCount + 1 })
 
 /// Whether <param outputFilter> lists <param item>.
-let shows
-  (outputFilter: OutputFilter)
-  (item: LanguageTools.AtRestTypeChecker.ItemReport)
+let shows(
+  outputFilter: OutputFilter,
+  item: LanguageTools.AtRestTypeChecker.ItemReport)
   : Bool =
-  match auditVerdict item with
+  match auditVerdict(item) with
   | Checked -> outputFilter.showChecked
   | Failed -> outputFilter.showFailed
   | Incomplete -> outputFilter.showIncomplete
@@ -144,115 +143,115 @@ let shows
 ///
 /// A label is a store query, so only the listed items are labelled, and each once. The sort
 /// breaks ties on the item itself, so sorting only the listed items keeps their order.
-let listed
-  (branchId: Uuid)
-  (outputFilter: OutputFilter)
-  (items: List<LanguageTools.AtRestTypeChecker.ItemReport>)
+let listed(
+  branchId: Uuid,
+  outputFilter: OutputFilter,
+  items: List<LanguageTools.AtRestTypeChecker.ItemReport>)
   : List<(String * LanguageTools.AtRestTypeChecker.ItemReport)> =
   items
-  |> Stdlib.List.filter (fun item -> shows outputFilter item)
-  |> Stdlib.List.map (fun item -> (itemLabel branchId item.item, item))
-  |> Stdlib.List.sortBy (fun (label, _) -> label)
+  |> Stdlib.List.filter(fun item -> shows(outputFilter, item))
+  |> Stdlib.List.map(fun item -> (itemLabel(branchId, item.item), item))
+  |> Stdlib.List.sortBy(fun (label, _) -> label)
 
-let printItem
-  (branchId: Uuid)
-  (outputFilter: OutputFilter)
-  (label: String)
-  (item: LanguageTools.AtRestTypeChecker.ItemReport)
+let printItem(
+  branchId: Uuid,
+  outputFilter: OutputFilter,
+  label: String,
+  item: LanguageTools.AtRestTypeChecker.ItemReport)
   : Unit =
-  match auditVerdict item with
+  match auditVerdict(item) with
   | Checked ->
     if outputFilter.showChecked then
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"checked: {label}")
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"checked: {label}"))
   | Failed ->
     if outputFilter.showFailed then
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"failed: {label}")
-      Stdlib.List.concat
-        (AtRestCheck.issueLines branchId item.diagnostics)
-        (AtRestCheck.issueLines branchId item.warnings)
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"failed: {label}"))
+      Stdlib.List.concat(
+        AtRestCheck.issueLines(branchId, item.diagnostics),
+        AtRestCheck.issueLines(branchId, item.warnings))
       |> Stdlib.printLines
   | Incomplete ->
     if outputFilter.showIncomplete then
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"incomplete: {label}")
-      Stdlib.List.concat
-        (AtRestCheck.issueLines branchId item.diagnostics)
-        (AtRestCheck.issueLines branchId item.warnings)
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.warning($"incomplete: {label}"))
+      Stdlib.List.concat(
+        AtRestCheck.issueLines(branchId, item.diagnostics),
+        AtRestCheck.issueLines(branchId, item.warnings))
       |> Stdlib.printLines
 
 // The --json rendering. The same data the human view renders, typed: `docs for-ai` promises every
 // question-answering command takes --json, and an agent auditing a branch after a batch of
 // edits is this command's main consumer. Items are filtered the same way the human view is.
-let jsonReport
-  (branchId: Uuid)
-  (outputFilter: OutputFilter)
-  (report: LanguageTools.AtRestTypeChecker.Report)
-  (totals: Counts)
-  (total: Int)
+let jsonReport(
+  branchId: Uuid,
+  outputFilter: OutputFilter,
+  report: LanguageTools.AtRestTypeChecker.Report,
+  totals: Counts,
+  total: Int)
   : String =
-  let verdictWord (v: LanguageTools.AtRestTypeChecker.Verdict) : String =
+  let verdictWord(v: LanguageTools.AtRestTypeChecker.Verdict): String =
     match v with
     | Checked -> "checked"
     | Failed -> "failed"
     | Incomplete -> "incomplete"
 
   let items =
-    listed branchId outputFilter report.items
-    |> Stdlib.List.map (fun (label, item) ->
+    listed(branchId, outputFilter, report.items)
+    |> Stdlib.List.map(fun (label, item) ->
       let issues =
-        Stdlib.List.concat
-          (AtRestCheck.issueLines branchId item.diagnostics)
-          (AtRestCheck.issueLines branchId item.warnings)
-        |> Stdlib.List.map (fun l -> Stdlib.String.trim l)
+        Stdlib.List.concat(
+          AtRestCheck.issueLines(branchId, item.diagnostics),
+          AtRestCheck.issueLines(branchId, item.warnings))
+        |> Stdlib.List.map(fun l -> Stdlib.String.trim(l))
 
       Stdlib.AltJson.Json.Object
         [ ("name", Stdlib.AltJson.Json.String label)
-          ("verdict", Stdlib.AltJson.Json.String(verdictWord (auditVerdict item)))
-          ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l))) ])
+          ("verdict", Stdlib.AltJson.Json.String(verdictWord(auditVerdict(item))))
+          ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map(fun l -> Stdlib.AltJson.Json.String l))) ])
 
-  Stdlib.AltJson.format (
+  Stdlib.AltJson.format((
     Stdlib.AltJson.Json.Object
       [ ("verdict",
          Stdlib.AltJson.Json.String(
-           if totals.failedCount > 0 then "failed" else verdictWord report.verdict))
+           if totals.failedCount > 0 then "failed" else verdictWord(report.verdict)))
         ("checked", Stdlib.AltJson.Json.Integer(totals.checkedCount))
         ("failed", Stdlib.AltJson.Json.Integer(totals.failedCount))
         ("incomplete", Stdlib.AltJson.Json.Integer(totals.incompleteCount))
         ("total", Stdlib.AltJson.Json.Integer(total))
         ("items", Stdlib.AltJson.Json.Array items) ]
-  )
+  ))
 
-let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  let parsed = parseArgs args
-  if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) then
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error
-        (FlagParser.parseErrorsMessage parsed.parseErrors))
-    Stdlib.printLine usage
-    Cli.exitWith state false
-  else if (Stdlib.List.length parsed.positionals) > 1 then
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error
-        "Error: typecheck takes at most one module to scope the audit to")
-    Stdlib.printLine usage
-    Cli.exitWith state false
+let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
+  let parsed = parseArgs(args)
+  if Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) then
+    Stdlib.printLine(
+      (Stdlib.Cli.UI.Colors.error(
+        FlagParser.parseErrorsMessage(parsed.parseErrors))))
+    Stdlib.printLine(usage)
+    Cli.exitWith(state, false)
+  else if (Stdlib.List.length(parsed.positionals)) > 1 then
+    Stdlib.printLine(
+      (Stdlib.Cli.UI.Colors.error(
+        "Error: typecheck takes at most one module to scope the audit to")))
+    Stdlib.printLine(usage)
+    Cli.exitWith(state, false)
   else if parsed.conflictingFilters then
-    Stdlib.printLine (
-      Stdlib.Cli.UI.Colors.error
-        "Error: --all cannot be combined with --failed or --incomplete")
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error usage)
-    Cli.exitWith state false
+    Stdlib.printLine((
+      Stdlib.Cli.UI.Colors.error(
+        "Error: --all cannot be combined with --failed or --incomplete")))
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(usage))
+    Cli.exitWith(state, false)
   else
     // A module scopes the audit to that subtree. Without one it is the whole branch, which
     // on a full store is thousands of declarations and tens of seconds; a caller that wants
     // an answer about one module should not pay for the rest.
     let report =
       match parsed.positionals with
-      | [] -> AtRestCheck.checkBranch state.currentBranchId
+      | [] -> AtRestCheck.checkBranch(state.currentBranchId)
       | [ one ] ->
-        AtRestCheck.checkModule state.currentBranchId (Stdlib.String.split one ".")
-      | _ -> AtRestCheck.checkBranch state.currentBranchId
-    let totals = counts report.items
-    let total = Stdlib.List.length report.items
+        AtRestCheck.checkModule(state.currentBranchId, Stdlib.String.split(one, "."))
+      | _ -> AtRestCheck.checkBranch(state.currentBranchId)
+    let totals = counts(report.items)
+    let total = Stdlib.List.length(report.items)
 
     // An audit that found failures says so in its exit code, so a script or a gate can tell.
     let finished = if totals.failedCount > 0 then { state with exitCode = 1 } else state
@@ -261,49 +260,48 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // nothing in it (that comes back Checked), so it must not report the branch as type-checked.
     if
       report.verdict == LanguageTools.AtRestTypeChecker.Verdict.Incomplete
-      && Stdlib.List.isEmpty report.items
+      && Stdlib.List.isEmpty(report.items)
     then
-      Stdlib.printLine (
-        Stdlib.Cli.UI.Colors.error
-          "The type audit could not run, so nothing was checked:")
-      Stdlib.printLines (AtRestCheck.issueLines state.currentBranchId report.warnings)
+      Stdlib.printLine((
+        Stdlib.Cli.UI.Colors.error(
+          "The type audit could not run, so nothing was checked:")))
+      Stdlib.printLines(AtRestCheck.issueLines(state.currentBranchId, report.warnings))
       { state with exitCode = 1 }
     else if parsed.asJson then
-      Stdlib.printLine
-        (jsonReport state.currentBranchId parsed.outputFilter report totals total)
+      Stdlib.printLine(
+        jsonReport(state.currentBranchId, parsed.outputFilter, report, totals, total))
       finished
     else
 
-    let checkedCount = Stdlib.toString totals.checkedCount
+    let checkedCount = Stdlib.toString(totals.checkedCount)
     let failedCount =
       if totals.unresolvedCount > 0 then
-        $"{Stdlib.toString totals.failedCount} ({Stdlib.toString totals.unresolvedCount} name something that does not exist)"
+        $"{Stdlib.toString(totals.failedCount)} ({Stdlib.toString(totals.unresolvedCount)} name something that does not exist)"
       else
-        Stdlib.toString totals.failedCount
-    let incompleteCount = Stdlib.toString totals.incompleteCount
-    let totalCount = Stdlib.toString total
+        Stdlib.toString(totals.failedCount)
+    let incompleteCount = Stdlib.toString(totals.incompleteCount)
+    let totalCount = Stdlib.toString(total)
 
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "At-rest package type audit")
-    Stdlib.printLine (
-      $"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}")
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText("At-rest package type audit"))
+    Stdlib.printLine($"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}")
 
-    listed state.currentBranchId parsed.outputFilter report.items
-    |> Stdlib.List.iter (fun (label, item) ->
-      printItem state.currentBranchId parsed.outputFilter label item)
+    listed(state.currentBranchId, parsed.outputFilter, report.items)
+    |> Stdlib.List.iter(fun (label, item) ->
+      printItem(state.currentBranchId, parsed.outputFilter, label, item))
 
-    if Stdlib.List.isEmpty report.items then
+    if Stdlib.List.isEmpty(report.items) then
       match report.verdict with
       | Incomplete ->
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.warning "The audit could not complete:")
-        AtRestCheck.issueLines state.currentBranchId report.warnings
+        Stdlib.printLine(
+          Stdlib.Cli.UI.Colors.warning("The audit could not complete:"))
+        AtRestCheck.issueLines(state.currentBranchId, report.warnings)
         |> Stdlib.printLines
       | Checked
       | Failed -> ()
 
     finished
 
-let help (_state: Cli.AppState) : String =
+let help(_state: Cli.AppState): String =
   [ "Audit every visible package type, value, function, trait, implementation and test"
     "on the current branch. The command is read-only and reports definite errors"
     "separately from checks that are incomplete because the checker cannot yet prove them."
@@ -320,10 +318,10 @@ let help (_state: Cli.AppState) : String =
     ""
     "Without a filter, failed and incomplete declarations are listed."
     "--failed and --incomplete may be combined; --all is mutually exclusive." ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")
 
-let complete
-  (_state: Cli.AppState)
-  (_args: List<String>)
+let complete(
+  _state: Cli.AppState,
+  _args: List<String>)
   : List<Cli.Completion.CompletionItem> =
   []

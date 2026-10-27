@@ -50,16 +50,16 @@ type MatterState =
 /// Changes list, the conflict counts and Home's wip section. Move one without the other and the
 /// screen describes one branch while `x` discards the draft of another. EVERY switch goes through
 /// here.
-let onBranch (state: State) (branchId: Uuid) : State =
-  let _ = SCM.PackageOps.selectBranch branchId
+let onBranch(state: State, branchId: Uuid): State =
+  let _ = SCM.PackageOps.selectBranch(branchId)
   { state with branchId = branchId }
 
 
-let emptyMatter () : MatterState =
+let emptyMatter(): MatterState =
   MatterState { lens = Lens.WholeTree }
 
 /// The next lens the toggle key moves to. Three lenses, so it cycles rather than flipping.
-let otherLens (lens: Lens) : Lens =
+let otherLens(lens: Lens): Lens =
   match lens with
   | WholeTree -> Lens.ValuesOnly
   | ValuesOnly -> Lens.Changed
@@ -72,7 +72,7 @@ type SearchState =
   { hits: List<SearchHit>
     selected: Int }
 
-let emptySearch () : SearchState =
+let emptySearch(): SearchState =
   SearchState { hits = [], selected = 0 }
 
 
@@ -127,7 +127,7 @@ type ReplState =
     /// assembled; the next unbackslashed line completes it and the whole thing runs as one statement.
     pending: String }
 
-let emptyRepl () : ReplState =
+let emptyRepl(): ReplState =
   ReplState { log = [], bindings = [], last = "", pending = "" }
 
 
@@ -326,43 +326,43 @@ val baseViewSpecs = [ vHome, vMatter, vScratch, vSCM, vTraces, vDocs ]
 /// Every view as `(absolute index, label, gate key)`, used for visibility and
 /// label lookup. `workspaces` separately defines navbar placement.
 val viewSpecs =
-  let base = baseViewSpecs |> Stdlib.List.map (fun i -> (i, Frame.viewName i))
+  let base = baseViewSpecs |> Stdlib.List.map(fun i -> (i, Frame.viewName(i)))
   let exts =
-    extensionViews ()
-    |> Stdlib.List.indexedMap (fun i vd -> (baseViewCount + i, vd.name))
-  Stdlib.List.concat base exts
+    extensionViews()
+    |> Stdlib.List.indexedMap(fun i vd -> (baseViewCount + i, vd.name))
+  Stdlib.List.concat(base, exts)
 
 /// The extension `ViewDef` at an absolute view index (None for a built-in, or out of range).
-let extensionViewAt (idx: Int) : Stdlib.Option.Option<ViewDef> =
+let extensionViewAt(idx: Int): Stdlib.Option.Option<ViewDef> =
   if idx < baseViewCount then
     Stdlib.Option.Option.None
   else
-    Stdlib.List.getAt (extensionViews ()) (idx - baseViewCount)
+    Stdlib.List.getAt(extensionViews(), idx - baseViewCount)
 
 /// Single-column views never give focus to an invisible second pane.
-let viewBehavior (view: Int) : ViewBehavior =
+let viewBehavior(view: Int): ViewBehavior =
   if view == vHome then ViewBehavior.SectionedList
   else
-    match extensionViewAt view with
+    match extensionViewAt(view) with
     | Some vd -> vd.behavior
     | None -> ViewBehavior.Split
 
-let hasDetailPane (state: State) : Bool =
-  viewBehavior state.activeView == ViewBehavior.Split
+let hasDetailPane(state: State): Bool =
+  viewBehavior(state.activeView) == ViewBehavior.Split
 
 /// Does the list have section headers the cursor must step over?
-let isSectioned (state: State) : Bool =
-  viewBehavior state.activeView == ViewBehavior.SectionedList
+let isSectioned(state: State): Bool =
+  viewBehavior(state.activeView) == ViewBehavior.SectionedList
 
 /// The display label for any view index.
-let viewLabel (idx: Int) : String =
-  match extensionViewAt idx with
+let viewLabel(idx: Int): String =
+  match extensionViewAt(idx) with
   | Some vd -> vd.name
-  | None -> Frame.viewName idx
+  | None -> Frame.viewName(idx)
 
 /// The view indices the navbar may show, in `viewSpecs` order.
-let visibleViews (state: State) : List<Int> =
-  viewSpecs |> Stdlib.List.map (fun spec -> Stdlib.Tuple2.first spec)
+let visibleViews(state: State): List<Int> =
+  viewSpecs |> Stdlib.List.map(fun spec -> Stdlib.Tuple2.first(spec))
 
 
 /// Run `f` with anything it writes to stdout captured, and hand back both its value and that output. The
@@ -372,27 +372,27 @@ let visibleViews (state: State) : List<Int> =
 /// Capturing is not optional in here. The workbench owns the whole screen, so a stray `printLine` from
 /// inside a command scrolls the alternate screen, and every frame after it lands that many rows off - which
 /// looks like two overlapping copies of the UI. Eval can print a call stack when a function fails.
-let captureOutputAnd (f: Unit -> 'a) : ('a * String) =
+let captureOutputAnd(f: Unit -> 'a): ('a * String) =
   // `stdoutCaptureStart` returns false when a capture is ALREADY open, and deliberately changes nothing in
   // that case - so we don't own the buffer and must not stop it. Calling stop regardless would hand the
   // outer capture's collected output to the inner caller and clear the flag, so everything the outer one
   // was collecting would print straight onto the alternate screen: exactly the corruption capturing exists
   // to prevent. Nothing nests today, but this is a one-line guard against a hard-to-see failure.
-  let owned = Builtin.stdoutCaptureStart ()
-  let value = f ()
-  if owned then (value, Builtin.stdoutCaptureStop ()) else (value, "")
+  let owned = Builtin.stdoutCaptureStart()
+  let value = f()
+  if owned then (value, Builtin.stdoutCaptureStop()) else (value, "")
 
 /// `captureOutputAnd` when only the output matters (running a classic command for its printed result).
-let captureOutput (f: Unit -> 'a) : String =
-  let (_value, output) = captureOutputAnd f
+let captureOutput(f: Unit -> 'a): String =
+  let (_value, output) = captureOutputAnd(f)
   output
 
 
 /// A throwaway classic-CLI AppState carrying just this workbench's identity (branch + account) for handing to
 /// the classic command Registry (executeCommand / getCompletions / getCompletionHint). Everything else is the
 /// init default; the workbench only ever needs those three fields to run a command on the right branch as you.
-let classicState (state: State) : Darklang.Cli.AppState =
-  { (Darklang.Cli.initState ()) with
+let classicState(state: State): Darklang.Cli.AppState =
+  { (Darklang.Cli.initState()) with
       currentBranchId = state.branchId
       accountID = state.accountId
       }

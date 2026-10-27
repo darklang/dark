@@ -220,7 +220,6 @@ module RuntimeTypes =
             access =
               LibExecution.Permissions.Access.start
                 LibExecution.Permissions.Policy.denyAll
-            argsSoFar = []
             expectedReturn = ValueNone
             writtenIn = ValueNone }
       )

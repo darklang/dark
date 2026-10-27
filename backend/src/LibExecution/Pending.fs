@@ -33,8 +33,7 @@ let holdsPromise (dv : Dval) : bool =
   | DDict(_, _, entries) -> Map.exists (fun _ v -> isPromise v) entries
   | DRecord(_, _, _, fields) -> Map.exists (fun _ v -> isPromise v) fields
   | DApplicable(AppLambda l) ->
-    List.exists isPromise l.argsSoFar
-    || Array.exists (fun (struct (_, v)) -> isPromise v) l.closedRegisters
+    Array.exists (fun (struct (_, v)) -> isPromise v) l.closedRegisters
   | DApplicable(AppNamedFn n) -> List.exists isPromise n.argsSoFar
   | _ -> false
 
@@ -47,8 +46,7 @@ let private children (dv : Dval) : List<Dval> =
   | DDict(_, _, entries) -> Map.values entries
   | DRecord(_, _, _, fields) -> Map.values fields
   | DApplicable(AppLambda l) ->
-    l.argsSoFar
-    @ (l.closedRegisters |> Array.map (fun (struct (_, v)) -> v) |> List.ofArray)
+    l.closedRegisters |> Array.map (fun (struct (_, v)) -> v) |> List.ofArray
   | DApplicable(AppNamedFn n) -> n.argsSoFar
   | _ -> []
 
@@ -78,10 +76,7 @@ let private fill (dv : Dval) : Dval =
   | DApplicable(AppLambda l) ->
     let closed =
       l.closedRegisters |> Array.map (fun (struct (r, v)) -> struct (r, settled v))
-    DApplicable(
-      AppLambda
-        { l with argsSoFar = List.map settled l.argsSoFar; closedRegisters = closed }
-    )
+    DApplicable(AppLambda { l with closedRegisters = closed })
   | DApplicable(AppNamedFn n) ->
     DApplicable(AppNamedFn { n with argsSoFar = List.map settled n.argsSoFar })
   | _ -> dv

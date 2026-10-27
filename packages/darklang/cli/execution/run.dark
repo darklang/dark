@@ -2,13 +2,13 @@ module Darklang.Cli.Run
 
 
 /// Unit succeeds; Int and Int64 supply the script's exit code.
-let exitCode
-  (value: LanguageTools.RuntimeTypes.Dval)
+let exitCode(
+  value: LanguageTools.RuntimeTypes.Dval)
   : Stdlib.Result.Result<Int, ExecutionError.ExecutionError> =
   match value with
   | DUnit -> Ok 0
   | DInt code -> Ok code
-  | DInt64 code -> Ok (Stdlib.Int.fromInt64 code)
+  | DInt64 code -> Ok (Stdlib.Int.fromInt64(code))
   | _ ->
     Error (
       ExecutionError.ExecutionError.Runtime(
@@ -22,50 +22,50 @@ let exitCode
 /// Warning mode allows and reports calls outside the run and package policies.
 /// Instance policy and function limits still apply.
 /// Warnings include the resource, reason and caller when known.
-let parseAndExecute
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchId: Uuid)
-  (filename: String)
-  (code: String)
-  (args: List<String>)
-  (options: Darklang.Tracing.ScriptOptions)
+let parseAndExecute(
+  accountID: Stdlib.Option.Option<Uuid>,
+  branchId: Uuid,
+  filename: String,
+  code: String,
+  args: List<String>,
+  options: Darklang.Tracing.ScriptOptions)
   : Stdlib.Result.Result<(Int *
                           List<(String * String * Stdlib.Option.Option<String>)>),
                          ExecutionError.ExecutionError> =
   let result =
-    Builtin.cliParseAndExecuteScript
-      accountID
-      branchId
-      filename
-      code
-      args
-      options.allowHarmful
-      options.sandbox
-      options.warnPermissions
+    Builtin.cliParseAndExecuteScript(
+      accountID,
+      branchId,
+      filename,
+      code,
+      args,
+      options.allowHarmful,
+      options.sandbox,
+      options.warnPermissions)
   match result with
   | Ok((value, warnings)) ->
-    let code = (exitCode value)?
+    let code = (exitCode(value))?
     Ok ((code, warnings))
   | Error error -> Error error
 
 
 /// Format permission warnings for the terminal; return [] when there are none.
-let permissionWarningLines
-  (violations: List<(String * String * Stdlib.Option.Option<String>)>)
+let permissionWarningLines(
+  violations: List<(String * String * Stdlib.Option.Option<String>)>)
   : List<String> =
   match violations with
   | [] -> []
   | vs ->
     let entries =
       vs
-      |> Stdlib.List.map (fun v ->
+      |> Stdlib.List.map(fun v ->
         let (resource, needed, via) = v
         match via with
         | Some fn -> $"  - {resource}: {needed} (in {fn})"
         | None -> $"  - {resource}: {needed}")
-    Stdlib.List.prepend
-      entries
-      "warning: this run went beyond the configured permission policy:"
+    Stdlib.List.prepend(
+      entries,
+      "warning: this run went beyond the configured permission policy:")
 
 
 // `run-script <path> [args...]` — execute a Dark script file.
@@ -73,189 +73,190 @@ let permissionWarningLines
 // For calling package fns, use `eval` instead.
 
 /// Split runner options from the script path and its arguments.
-let splitArguments (args: List<String>) : (List<String> * List<String>) =
-  Builtin.cliSplitScriptArguments args
+let splitArguments(args: List<String>): (List<String> * List<String>) =
+  Builtin.cliSplitScriptArguments(args)
 
-let execute (state: AppState) (args: List<String>) : AppState =
-  let (options, script) = splitArguments args
+let execute(state: AppState, args: List<String>): AppState =
+  let (options, script) = splitArguments(args)
   let asksForHelp =
-    Stdlib.List.contains options "--help"
-    || Stdlib.List.contains options "-h"
-    || (Stdlib.List.head args == Stdlib.Option.Option.Some "help")
+    Stdlib.List.contains(options, "--help")
+    || Stdlib.List.contains(options, "-h")
+    || (Stdlib.List.head(args) == Stdlib.Option.Option.Some "help")
   if asksForHelp then
-    Registry.executeCommandHelp "run-script" state
+    Registry.executeCommandHelp("run-script", state)
   else
-    executeOptions
-      state
-      options
-      script
+    executeOptions(
+      state,
+      options,
+      script,
       Darklang.Tracing.ScriptOptions {
         allowHarmful = false
         sandbox = false
-        warnPermissions = false }
+        warnPermissions = false })
 
 
 /// Parse the options before the script path.
-let executeOptions
-  (state: AppState)
-  (flags: List<String>)
-  (script: List<String>)
-  (options: Darklang.Tracing.ScriptOptions)
+let executeOptions(
+  state: AppState,
+  flags: List<String>,
+  script: List<String>,
+  options: Darklang.Tracing.ScriptOptions)
   : AppState =
   match flags with
-  | "--allow-harmful" :: rest -> executeOptions state rest script { options with allowHarmful = true }
-  | "--sandbox" :: rest -> executeOptions state rest script { options with sandbox = true }
-  | "--warn-permissions" :: rest -> executeOptions state rest script { options with warnPermissions = true }
+  | "--allow-harmful" :: rest -> executeOptions(state, rest, script, { options with allowHarmful = true })
+  | "--sandbox" :: rest -> executeOptions(state, rest, script, { options with sandbox = true })
+  | "--warn-permissions" :: rest -> executeOptions(state, rest, script, { options with warnPermissions = true })
   | [] | [ "--" ] ->
     match script with
     | scriptPath :: scriptArgs ->
       if options.sandbox && options.warnPermissions then
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.error
-            "--sandbox and --warn-permissions cannot be combined: warn-only mode executes denied effects")
-        Cli.exitWith state false
+        Stdlib.printLine(
+          (Stdlib.Cli.UI.Colors.error(
+            "--sandbox and --warn-permissions cannot be combined: warn-only mode executes denied effects")))
+        Cli.exitWith(state, false)
       else
-        executeScript state scriptPath scriptArgs options
+        executeScript(state, scriptPath, scriptArgs, options)
     | [] ->
-      Stdlib.printLine (help state)
-      Cli.exitWith state false
+      Stdlib.printLine(help(state))
+      Cli.exitWith(state, false)
   | flag :: _ ->
-    Stdlib.printErrorLine $"Unknown run-script option: {flag}. Put script arguments after the file path; use -- before a path starting with '-'."
-    Cli.exitWith state false
+    Stdlib.printErrorLine($"Unknown run-script option: {flag}. Put script arguments after the file path; use -- before a path starting with '-'.")
+    Cli.exitWith(state, false)
 
 
 // Recognize a dotted package name so `run` can suggest `eval` instead of
 // reporting an unhelpful "script not found" error.
-let looksLikePackageName (path: String) : Bool =
-  (Stdlib.String.contains path ".")
-  && (Stdlib.String.contains path "/" |> Stdlib.Bool.not)
-  && (Stdlib.String.endsWith path ".dark" |> Stdlib.Bool.not)
+let looksLikePackageName(path: String): Bool =
+  (Stdlib.String.contains(path, "."))
+  && (Stdlib.String.contains(path, "/") |> Stdlib.Bool.not)
+  && (Stdlib.String.endsWith(path, ".dark") |> Stdlib.Bool.not)
 
-let executeScript
-  (state: AppState)
-  (scriptPath: String)
-  (args: List<String>)
-  (options: Darklang.Tracing.ScriptOptions)
+let executeScript(
+  state: AppState,
+  scriptPath: String,
+  args: List<String>,
+  options: Darklang.Tracing.ScriptOptions)
   : AppState =
-  match Stdlib.Cli.FileSystem.readFile scriptPath with
+  match Stdlib.Cli.FileSystem.readFile(scriptPath) with
   | Error e ->
     match e with
     | NotFound ->
-      if looksLikePackageName scriptPath then
-        let argsStr = Stdlib.String.join args " "
-        let evalCmd = Stdlib.String.trim $"dark eval {scriptPath} {argsStr}"
+      if looksLikePackageName(scriptPath) then
+        let argsStr = Stdlib.String.join(args, " ")
+        let evalCmd = Stdlib.String.trim($"dark eval {scriptPath} {argsStr}")
 
         [ $"{scriptPath} isn't a script file."
           $"  `run` executes a script; that looks like a package function. Try:  {evalCmd}" ]
-        |> Stdlib.List.iter (fun l -> Stdlib.printErrorLine l)
+        |> Stdlib.List.iter(fun l -> Stdlib.printErrorLine(l))
       else
-        Stdlib.printErrorLine $"Script not found: {scriptPath}"
-    | OsAccessDenied -> Stdlib.printErrorLine $"Permission denied: {scriptPath}"
-    | Other msg -> Stdlib.printErrorLine $"Could not read script {scriptPath}: {msg}"
+        Stdlib.printErrorLine($"Script not found: {scriptPath}")
+    | OsAccessDenied -> Stdlib.printErrorLine($"Permission denied: {scriptPath}")
+    | Other msg -> Stdlib.printErrorLine($"Could not read script {scriptPath}: {msg}")
     // Every branch above printed a reason the script did not run, so this is a failure. Saying
     // so in the exit code is the only part a script or an agent can read.
     { state with exitCode = 1 }
   | Ok script ->
-    let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
-    runScript
-      state
-      scriptPath
-      scriptSourceCode
-      args
-      options
-      true
+    let scriptSourceCode = Stdlib.String.fromBytesWithReplacement(script)
+    runScript(
+      state,
+      scriptPath,
+      scriptSourceCode,
+      args,
+      options,
+      true)
 
 
-let allowAlways () : String = "Allow future runs (save to the instance policy)"
-let denyChoice () : String = "Deny"
+let allowAlways(): String = "Allow future runs (save to the instance policy)"
+let denyChoice(): String = "Deny"
 
-let printScriptError (state: AppState) (e: ExecutionError.ExecutionError) : AppState =
-  ExecutionError.printCallStack state.currentBranchId "Script" e
-  let pretty = ExecutionError.toString state.currentBranchId e
-  Stdlib.printErrorLine $"Script error: {pretty}"
+let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppState =
+  ExecutionError.printCallStack(state.currentBranchId, "Script", e)
+  let pretty = ExecutionError.toString(state.currentBranchId, e)
+  Stdlib.printErrorLine($"Script error: {pretty}")
   { state with exitCode = 1 }
 
 /// Run a script. On denial, offer to save permission for a later run.
 /// Never restart automatically: that could repeat writes or requests.
 /// Only direct terminal runs prompt, with sandbox and warning mode off.
-let runScript
-  (state: AppState)
-  (scriptPath: String)
-  (code: String)
-  (args: List<String>)
-  (options: Darklang.Tracing.ScriptOptions)
-  (offerApproval: Bool)
+let runScript(
+  state: AppState,
+  scriptPath: String,
+  code: String,
+  args: List<String>,
+  options: Darklang.Tracing.ScriptOptions,
+  offerApproval: Bool)
   : AppState =
   let result =
-    parseAndExecute
-      state.accountID
-      state.currentBranchId
-      scriptPath
-      code
-      args
-      options
+    parseAndExecute(
+      state.accountID,
+      state.currentBranchId,
+      scriptPath,
+      code,
+      args,
+      options)
   match result with
   | Ok((exitCode, violations)) ->
-    match permissionWarningLines violations with
+    match permissionWarningLines(violations) with
     | [] -> ()
-    | lines -> lines |> Stdlib.List.iter (fun l -> Stdlib.printErrorLine l)
+    | lines -> lines |> Stdlib.List.iter(fun l -> Stdlib.printErrorLine(l))
     if exitCode == 0 then
       state
     else
-      Stdlib.printErrorLine $"Script exited with code {Stdlib.toString exitCode}"
+      Stdlib.printErrorLine($"Script exited with code {Stdlib.toString(exitCode)}")
       { state with exitCode = exitCode }
   | Error(Denied denied) ->
     let canAsk =
       offerApproval
-      && Stdlib.Bool.not options.sandbox
-      && Stdlib.Bool.not options.warnPermissions
-      && Stdlib.Cli.UI.Prompt.canAsk ()
+      && Stdlib.Bool.not(options.sandbox)
+      && Stdlib.Bool.not(options.warnPermissions)
+      && Stdlib.Cli.UI.Prompt.canAsk()
     match denied.rule with
     | Some rule when canAsk ->
-      match LanguageTools.Permissions.parseRuleText rule with
+      match LanguageTools.Permissions.parseRuleText(rule) with
       | Some rules ->
-        Stdlib.printErrorLine
-          (Stdlib.Cli.UI.Colors.warning
-            $"The script stopped: the instance policy does not allow {denied.resource}. Earlier effects may already have happened.")
+        Stdlib.printErrorLine(
+          (Stdlib.Cli.UI.Colors.warning(
+            $"The script stopped: the instance policy does not allow {denied.resource}. Earlier effects may already have happened.")))
         let choice =
-          Stdlib.Option.withDefault
-            (Stdlib.Cli.UI.Prompt.select $"Allow `{rule}`?" [ denyChoice (), allowAlways () ])
-            (denyChoice ())
-        if choice == allowAlways () then
-          Darklang.Cli.Permissions.Command.editInstancePolicy rules [] []
-          Stdlib.printErrorLine "Permission saved. The script has not restarted; rerun it explicitly when ready."
+          Stdlib.Option.withDefault(
+            Stdlib.Cli.UI.Prompt.select($"Allow `{rule}`?", [ denyChoice(), allowAlways() ]),
+            denyChoice())
+        if choice == allowAlways() then
+          Darklang.Cli.Permissions.Command.editInstancePolicy(rules, [], [])
+          Stdlib.printErrorLine("Permission saved. The script has not restarted; rerun it explicitly when ready.")
           { state with exitCode = 1 }
         else
-          printScriptError state (ExecutionError.ExecutionError.Denied denied)
-      | None -> printScriptError state (ExecutionError.ExecutionError.Denied denied)
-    | _ -> printScriptError state (ExecutionError.ExecutionError.Denied denied)
-  | Error e -> printScriptError state e
+          printScriptError(state, ExecutionError.ExecutionError.Denied denied)
+      | None -> printScriptError(state, ExecutionError.ExecutionError.Denied denied)
+    | _ -> printScriptError(state, ExecutionError.ExecutionError.Denied denied)
+  | Error e -> printScriptError(state, e)
 
 
-let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
   match args with
   | [] ->
-    let files = Stdlib.Cli.FileSystem.getDirectoryContents "."
-    let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
+    let files = Stdlib.Cli.FileSystem.getDirectoryContents(".")
+    let currentDir = Stdlib.Cli.FileSystem.currentDirectory()
 
     let directories =
       files
-      |> Stdlib.List.filter (Stdlib.Cli.FileSystem.isDirectoryAtPath currentDir)
+      |> Stdlib.List.filter(fun name ->
+        Stdlib.Cli.FileSystem.isDirectoryAtPath(currentDir, name))
 
     let darkFiles =
-      files |> Stdlib.List.filter (Stdlib.String.endsWith ".dark")
+      files |> Stdlib.List.filter(fun name -> Stdlib.String.endsWith(name, ".dark"))
 
-    let allFiles = Stdlib.List.concat directories darkFiles
-    allFiles |> Stdlib.List.map Completion.simple
+    let allFiles = Stdlib.List.concat(directories, darkFiles)
+    allFiles |> Stdlib.List.map(Completion.simple)
 
   | [ partialArg ] ->
-    (Darklang.Cli.Completion.completeFilesystemPath partialArg)
-    |> Stdlib.List.map Completion.simple
+    (Darklang.Cli.Completion.completeFilesystemPath(partialArg))
+    |> Stdlib.List.map(Completion.simple)
 
   | _ -> []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [ "Usage: run-script [options] <path> [args...]"
     "Execute a Dark script file."
     ""
@@ -276,4 +277,4 @@ let help (_state: AppState) : String =
     ""
     "To call a package function, use 'eval' instead:"
     "  eval (5 + 3)" ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")

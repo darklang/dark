@@ -16,7 +16,7 @@ type FileError =
 module FileError =
   /// Render a FileError for display or for callers that haven't migrated to
   /// pattern-matching on the enum yet.
-  let toString (err: FileError) : String =
+  let toString(err: FileError): String =
     match err with
     | NotFound -> "File not found"
     | OsAccessDenied -> "Permission denied"
@@ -24,120 +24,120 @@ module FileError =
 
 
 /// The process's current working directory.
-let currentDirectory () : String =
-  Posix.getCwd () |> Builtin.unwrap
+let currentDirectory(): String =
+  Posix.getCwd() |> Builtin.unwrap
 
 
 /// Expand HOME only when requested; environment access remains policy checked.
-let __expandPath (path: String) : String =
-  if Stdlib.String.contains path "$HOME" || Stdlib.String.contains path "${HOME}" then
-    let home = Stdlib.Option.withDefault (Stdlib.Env.get "HOME") ""
+let __expandPath(path: String): String =
+  if Stdlib.String.contains(path, "$HOME") || Stdlib.String.contains(path, "${HOME}") then
+    let home = Stdlib.Option.withDefault(Stdlib.Env.get("HOME"), "")
     path
-    |> (fun p -> Stdlib.String.replaceAll p "${HOME}" home)
-    |> (fun p -> Stdlib.String.replaceAll p "$HOME" home)
+    |> (fun p -> Stdlib.String.replaceAll(p, "${HOME}", home))
+    |> (fun p -> Stdlib.String.replaceAll(p, "$HOME", home))
   else path
 
 
-let __fromPosixError (error: Posix.Error) : FileError =
+let __fromPosixError(error: Posix.Error): FileError =
   if error.errno == 2 || error.errno == 20 then FileError.NotFound
   else if error.errno == 13 || error.errno == 1 || error.errno == 21 then FileError.OsAccessDenied
   else FileError.Other error.message
 
 
 /// Full paths of the entries in the directory at <param path>.
-let listDirectory (path: String) : List<String> =
-  let expanded = __expandPath path
+let listDirectory(path: String): List<String> =
+  let expanded = __expandPath(path)
   let full =
-    if Path.isAbsolute expanded then Path.normalize expanded
-    else Path.join [ currentDirectory (), expanded ] |> Path.normalize
-  match Posix.listDir full with
+    if Path.isAbsolute(expanded) then Path.normalize(expanded)
+    else Path.join([ currentDirectory(), expanded ]) |> Path.normalize
+  match Posix.listDir(full) with
   | Error _ -> []
-  | Ok names -> Stdlib.List.map names (fun name -> Path.join [ full, name ])
+  | Ok names -> Stdlib.List.map(names, fun name -> Path.join([ full, name ]))
 
 
 /// Is there a file or directory at <param path>?
-let pathExists (path: String) : Bool =
-  File.exists (__expandPath path)
+let pathExists(path: String): Bool =
+  File.exists(__expandPath(path))
 
 
 /// Is <param path> a directory?
-let isDirectory (path: String) : Bool =
-  Posix.isDirectory (__expandPath path)
+let isDirectory(path: String): Bool =
+  Posix.isDirectory(__expandPath(path))
 
 
 /// Delete the file at <param path>.
-let deleteFile (path: String) : Result.Result<Unit, FileError> =
-  File.delete (__expandPath path) |> Stdlib.Result.mapError __fromPosixError
+let deleteFile(path: String): Result.Result<Unit, FileError> =
+  File.delete(__expandPath(path)) |> Stdlib.Result.mapError(__fromPosixError)
 
 
 /// Append <param content> to the file at <param path>, creating the file if
 /// it isn't there.
-let appendToFile (path: String) (content: String) : Result.Result<Unit, FileError> =
-  File.appendText (__expandPath path) content |> Stdlib.Result.mapError __fromPosixError
+let appendToFile(path: String, content: String): Result.Result<Unit, FileError> =
+  File.appendText(__expandPath(path), content) |> Stdlib.Result.mapError(__fromPosixError)
 
 
 // Get files in a directory - returns just filenames
-let getDirectoryContents (path: String) : List<String> =
-  let currentDir = currentDirectory ()
+let getDirectoryContents(path: String): List<String> =
+  let currentDir = currentDirectory()
 
   let fullPath =
-    if Stdlib.String.startsWith path "/" then
+    if Stdlib.String.startsWith(path, "/") then
       path
     else
       // Normalize path by removing leading "./" if present
       let normalizedPath =
-        if Stdlib.String.startsWith path "./" then
-          Stdlib.String.dropFirst path 2
+        if Stdlib.String.startsWith(path, "./") then
+          Stdlib.String.dropFirst(path, 2)
         else
           path
       $"{currentDir}/{normalizedPath}"
 
-  let files = listDirectory fullPath
+  let files = listDirectory(fullPath)
 
   files
-  |> Stdlib.List.map (fun fullFilePath ->
+  |> Stdlib.List.map(fun fullFilePath ->
     // Extract just the filename from the full path
-    match Stdlib.String.split fullFilePath "/" with
+    match Stdlib.String.split(fullFilePath, "/") with
     | [] -> fullFilePath
     | parts ->
-      match Stdlib.List.last parts with
+      match Stdlib.List.last(parts) with
       | Some filename -> filename
       | None -> fullFilePath)
 
 // Check if a path is a directory - expects full path
-let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
-  let currentDir = currentDirectory ()
+let isDirectoryAtPath(dirPath: String, fileName: String): Bool =
+  let currentDir = currentDirectory()
   let normalizedDirPath =
-    if Stdlib.String.startsWith dirPath "/" then
+    if Stdlib.String.startsWith(dirPath, "/") then
       dirPath
-    else if Stdlib.String.startsWith dirPath "./" then
-      let withoutDot = Stdlib.String.dropFirst dirPath 2
+    else if Stdlib.String.startsWith(dirPath, "./") then
+      let withoutDot = Stdlib.String.dropFirst(dirPath, 2)
       $"{currentDir}/{withoutDot}"
     else
       $"{currentDir}/{dirPath}"
   let fullPath = $"{normalizedDirPath}/{fileName}"
-  Posix.isDirectory fullPath
+  Posix.isDirectory(fullPath)
 
 
 /// Read an entire file as a Bytes.
-let readFile (path: String) : Result.Result<Bytes, FileError> =
-  File.readBytes (__expandPath path) |> Stdlib.Result.mapError __fromPosixError
+let readFile(path: String): Result.Result<Bytes, FileError> =
+  File.readBytes(__expandPath(path)) |> Stdlib.Result.mapError(__fromPosixError)
 
 
 /// Write <param content> to <param path>, replacing whatever's there. The
 /// parent directory has to exist already; <fn writeFile> is this plus the
 /// mkdir.
-let overwriteFile (path: String) (content: Bytes) : Result.Result<Unit, FileError> =
-  Stdlib.Cli.File.__writeBytes (__expandPath path) content |> Stdlib.Result.mapError __fromPosixError
+let overwriteFile(path: String, content: Bytes): Result.Result<Unit, FileError> =
+  Stdlib.Cli.File.__writeBytes(__expandPath(path), content) |> Stdlib.Result.mapError(__fromPosixError)
 
 
 /// Read an entire file and decode it as UTF-8. Convenience over
 /// <fn readFile> + <fn Stdlib.String.fromBytes> for text files. Returns
 /// {{FileError.Other}} if the bytes aren't valid UTF-8.
-let readFileAsString (path: String) : Result.Result<String, FileError> =
-  match readFile path with
+let readFileAsString(path: String): Result.Result<String, FileError> =
+  match readFile(path) with
   | Ok blob ->
-    match Stdlib.String.fromBytes blob with
+    match Stdlib.String.fromBytes(blob) with
     | Some s -> Stdlib.Result.Result.Ok s
     | None ->
       Stdlib.Result.Result.Error
@@ -146,18 +146,18 @@ let readFileAsString (path: String) : Result.Result<String, FileError> =
 
 
 /// Write content to a file, creating any missing parent directories.
-let writeFile (path: String) (content: Bytes) : Result.Result<Unit, String> =
-  let parentDir = Path.parent path
+let writeFile(path: String, content: Bytes): Result.Result<Unit, String> =
+  let parentDir = Path.parent(path)
 
   let mkdirResult =
     if parentDir != "" && parentDir != "/" then
-      (Dir.createRecursive parentDir)
-      |> Stdlib.Result.mapError (fun e -> e.message)
+      (Dir.createRecursive(parentDir))
+      |> Stdlib.Result.mapError(fun e -> e.message)
     else
       Stdlib.Result.Result.Ok()
 
   match mkdirResult with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok _ ->
-    (overwriteFile path content)
-    |> Stdlib.Result.mapError FileError.toString
+    (overwriteFile(path, content))
+    |> Stdlib.Result.mapError(FileError.toString)

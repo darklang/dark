@@ -1,34 +1,34 @@
 module Darklang.Cli.Help
 
 
-let execute (state: AppState) (args: List<String>) : AppState =
+let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
-    Stdlib.printLine (Registry.getDetailedCommandList ())
+    Stdlib.printLine(Registry.getDetailedCommandList())
     state
   | [commandName] ->
     let known =
       state.allCommandsCache
-      |> Stdlib.List.any (fun cmd ->
-        cmd.name == commandName || Stdlib.List.contains cmd.aliases commandName)
+      |> Stdlib.List.any(fun cmd ->
+        cmd.name == commandName || Stdlib.List.contains(cmd.aliases, commandName))
 
     if known then
-      Registry.executeCommandHelp commandName state
+      Registry.executeCommandHelp(commandName, state)
     else
-      Cli.printErr $"No command called `{commandName}`."
-      Cli.printHint "  `dark help` lists them."
-      Cli.exitWith state false
+      Cli.printErr($"No command called `{commandName}`.")
+      Cli.printHint("  `dark help` lists them.")
+      Cli.exitWith(state, false)
   | _ ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: help [command]")
-    Stdlib.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Usage: help [command]"))
+    Stdlib.printLine("Too many arguments. Use 'help' for general help or 'help <command>' for specific help.")
     state
 
 
-let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
-  Completion.commandNamesCompletion state args
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
+  Completion.commandNamesCompletion(state, args)
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
 
   // CLEANUP I wanted this somewhere but couldn't decide where.
   let swatches =
@@ -43,19 +43,19 @@ let help (_state: AppState) : String =
       Stdlib.Cli.UI.Colors.orangeBg
       Stdlib.Cli.UI.Colors.peachBg
       Stdlib.Cli.UI.Colors.salmonBg ]
-    |> Stdlib.List.map (fun color -> $"{color}  {Stdlib.Cli.UI.Colors.reset}")
-    |> Stdlib.String.join ""
+    |> Stdlib.List.map(fun color -> $"{color}  {Stdlib.Cli.UI.Colors.reset}")
+    |> Stdlib.String.join("")
 
   [
     swatches
-    (Stdlib.Cli.UI.Colors.info "Usage: " + Stdlib.Cli.UI.Colors.command "help [command]")
+    (Stdlib.Cli.UI.Colors.info("Usage: ") + Stdlib.Cli.UI.Colors.command("help [command]"))
     "Show general help or help for a specific command."
     ""
-    (Stdlib.Cli.UI.Colors.info "Examples:")
-    ("  " + Stdlib.Cli.UI.Colors.command "help" + "        - Show all available commands")
-    ("  " + Stdlib.Cli.UI.Colors.command "help quit" + "   - Show help for the quit command")
+    (Stdlib.Cli.UI.Colors.info("Examples:"))
+    ("  " + Stdlib.Cli.UI.Colors.command("help") + "        - Show all available commands")
+    ("  " + Stdlib.Cli.UI.Colors.command("help quit") + "   - Show help for the quit command")
   ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")
 
 // CLEANUP I think there's other `help` stuff we can move here
 // specifically, the commandNamesCompletino

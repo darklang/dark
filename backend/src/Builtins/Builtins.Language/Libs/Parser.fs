@@ -943,14 +943,6 @@ module WrittenTypesToDarkTypes =
           DList(exprListVT, List.map exprToDT fields)
           rangeToDT dot ]
       )
-    | WT.EPipeInfix(r, (opR, op), e) ->
-      DEnum(
-        t,
-        t,
-        [],
-        "EPipeInfix",
-        [ rangeToDT r; DTuple(rangeToDT opR, infixToDT op, []); exprToDT e ]
-      )
 
   and matchCaseToDT (c : WT.MatchCase) : Dval =
     let t = tn WTRefs.matchCase

@@ -1,42 +1,42 @@
 module Darklang.Stdlib.English.Tests
 
 test articleFor =
-  Stdlib.Test.all
-    [ Stdlib.English.articleFor "apple" |> Stdlib.Test.equal "an"
-      Stdlib.English.articleFor "banana" |> Stdlib.Test.equal "a"
-      Stdlib.English.articleFor "🍍" |> Stdlib.Test.equal "a"
-      Stdlib.English.articleFor "🍊" |> Stdlib.Test.equal "a"
-      Stdlib.English.articleFor "" |> Stdlib.Test.equal "" ]
+  Stdlib.Test.all(
+    [ Stdlib.English.articleFor("apple") |> Stdlib.Test.equal("an")
+      Stdlib.English.articleFor("banana") |> Stdlib.Test.equal("a")
+      Stdlib.English.articleFor("🍍") |> Stdlib.Test.equal("a")
+      Stdlib.English.articleFor("🍊") |> Stdlib.Test.equal("a")
+      Stdlib.English.articleFor("") |> Stdlib.Test.equal("") ])
 
 test pluralize =
-  Stdlib.Test.all
-    [ Stdlib.English.pluralize "instance" |> Stdlib.Test.equal "instances"
-      Stdlib.English.pluralize "branch" |> Stdlib.Test.equal "branches"
-      Stdlib.English.pluralize "push" |> Stdlib.Test.equal "pushes"
-      Stdlib.English.pluralize "bus" |> Stdlib.Test.equal "buses"
-      Stdlib.English.pluralize "box" |> Stdlib.Test.equal "boxes"
-      Stdlib.English.pluralize "buzz" |> Stdlib.Test.equal "buzzes"
+  Stdlib.Test.all(
+    [ Stdlib.English.pluralize("instance") |> Stdlib.Test.equal("instances")
+      Stdlib.English.pluralize("branch") |> Stdlib.Test.equal("branches")
+      Stdlib.English.pluralize("push") |> Stdlib.Test.equal("pushes")
+      Stdlib.English.pluralize("bus") |> Stdlib.Test.equal("buses")
+      Stdlib.English.pluralize("box") |> Stdlib.Test.equal("boxes")
+      Stdlib.English.pluralize("buzz") |> Stdlib.Test.equal("buzzes")
       // No -y -> -ies rule, and no irregulars.
-      Stdlib.English.pluralize "entry" |> Stdlib.Test.equal "entrys"
-      Stdlib.English.pluralize "child" |> Stdlib.Test.equal "childs" ]
+      Stdlib.English.pluralize("entry") |> Stdlib.Test.equal("entrys")
+      Stdlib.English.pluralize("child") |> Stdlib.Test.equal("childs") ])
 
 test toOrdinal =
-  Stdlib.Test.all
-    [ Stdlib.English.toOrdinal 0 |> Stdlib.Test.equal "0th"
-      Stdlib.English.toOrdinal 1 |> Stdlib.Test.equal "1st"
-      Stdlib.English.toOrdinal 2 |> Stdlib.Test.equal "2nd"
-      Stdlib.English.toOrdinal 3 |> Stdlib.Test.equal "3rd"
-      Stdlib.English.toOrdinal 4 |> Stdlib.Test.equal "4th"
-      Stdlib.English.toOrdinal 11 |> Stdlib.Test.equal "11th"
-      Stdlib.English.toOrdinal 12 |> Stdlib.Test.equal "12th"
-      Stdlib.English.toOrdinal 13 |> Stdlib.Test.equal "13th"
-      Stdlib.English.toOrdinal 21 |> Stdlib.Test.equal "21st"
-      Stdlib.English.toOrdinal 22 |> Stdlib.Test.equal "22nd"
-      Stdlib.English.toOrdinal 23 |> Stdlib.Test.equal "23rd"
-      Stdlib.English.toOrdinal 101 |> Stdlib.Test.equal "101st"
-      Stdlib.English.toOrdinal 111 |> Stdlib.Test.equal "111th"
-      Stdlib.English.toOrdinal 112 |> Stdlib.Test.equal "112th"
-      Stdlib.English.toOrdinal 113 |> Stdlib.Test.equal "113th"
-      Stdlib.English.toOrdinal 1011 |> Stdlib.Test.equal "1011th"
-      Stdlib.English.toOrdinal -1 |> Stdlib.Test.equal "-1st"
-      Stdlib.English.toOrdinal -11 |> Stdlib.Test.equal "-11th" ]
+  Stdlib.Test.all(
+    [ Stdlib.English.toOrdinal(0) |> Stdlib.Test.equal("0th")
+      Stdlib.English.toOrdinal(1) |> Stdlib.Test.equal("1st")
+      Stdlib.English.toOrdinal(2) |> Stdlib.Test.equal("2nd")
+      Stdlib.English.toOrdinal(3) |> Stdlib.Test.equal("3rd")
+      Stdlib.English.toOrdinal(4) |> Stdlib.Test.equal("4th")
+      Stdlib.English.toOrdinal(11) |> Stdlib.Test.equal("11th")
+      Stdlib.English.toOrdinal(12) |> Stdlib.Test.equal("12th")
+      Stdlib.English.toOrdinal(13) |> Stdlib.Test.equal("13th")
+      Stdlib.English.toOrdinal(21) |> Stdlib.Test.equal("21st")
+      Stdlib.English.toOrdinal(22) |> Stdlib.Test.equal("22nd")
+      Stdlib.English.toOrdinal(23) |> Stdlib.Test.equal("23rd")
+      Stdlib.English.toOrdinal(101) |> Stdlib.Test.equal("101st")
+      Stdlib.English.toOrdinal(111) |> Stdlib.Test.equal("111th")
+      Stdlib.English.toOrdinal(112) |> Stdlib.Test.equal("112th")
+      Stdlib.English.toOrdinal(113) |> Stdlib.Test.equal("113th")
+      Stdlib.English.toOrdinal(1011) |> Stdlib.Test.equal("1011th")
+      Stdlib.English.toOrdinal(-1) |> Stdlib.Test.equal("-1st")
+      Stdlib.English.toOrdinal(-11) |> Stdlib.Test.equal("-11th") ])

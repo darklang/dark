@@ -1,7 +1,7 @@
 module Tests
-match Builtin.syscallClockGettime (-1) with | Error e -> e == (if Stdlib.Cli.Posix.__abiMac () then 78 else 22) | Ok _ -> false = true
-Stdlib.DateTime.__monotonicMilliseconds () > 0 = true
-Stdlib.DateTime.__sleepNanoseconds 0 0 = Ok ()
-Stdlib.DateTime.__sleepNanoseconds 0 (-1) = Error 22
-Stdlib.DateTime.__realtimeNanoseconds () |> Stdlib.Result.map (fun pair -> let (seconds, nanos) = pair in seconds > 1700000000 && nanos >= 0 && nanos < 1000000000) = Ok true
-Stdlib.DateTime.__sleepWith (fun seconds _ -> if seconds == 1 then (-4, Stdlib.Bytes.fromList [0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy]) else (0, Stdlib.Bytes.empty)) 1 0 = Ok ()
+match Builtin.syscallClockGettime(-1) with | Error e -> e == (if Stdlib.Cli.Posix.__abiMac() then 78 else 22) | Ok _ -> false = true
+Stdlib.DateTime.__monotonicMilliseconds() > 0 = true
+Stdlib.DateTime.__sleepNanoseconds(0, 0) = Ok ()
+Stdlib.DateTime.__sleepNanoseconds(0, -1) = Error 22
+Stdlib.DateTime.__realtimeNanoseconds() |> Stdlib.Result.map(fun pair -> let (seconds, nanos) = pair in seconds > 1700000000 && nanos >= 0 && nanos < 1000000000) = Ok true
+Stdlib.DateTime.__sleepWith((fun seconds _ -> if seconds == 1 then (-4, Stdlib.Bytes.fromList([0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy])) else (0, Stdlib.Bytes.empty)), 1, 0) = Ok ()

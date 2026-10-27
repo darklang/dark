@@ -16,32 +16,32 @@ type Json =
 module ParseError =
   type ParseError = | NotJson
 
-  let toString (e: ParseError) : String =
+  let toString(e: ParseError): String =
     match e with
     | NotJson -> "Not JSON"
 
 
 /// Formats <param j> as JSON text, with no whitespace between tokens.
-let format (j: Json) : String =
+let format(j: Json): String =
   match j with
   | Null -> "null"
   | Bool b -> if b then "true" else "false"
-  | Integer i -> Stdlib.toString i
-  | Float n -> Format.floatText n
-  | String s -> Format.stringText s
-  | Array items -> "[" + (String.join (List.map items format) ",") + "]"
+  | Integer i -> Stdlib.toString(i)
+  | Float n -> Format.floatText(n)
+  | String s -> Format.stringText(s)
+  | Array items -> "[" + (String.join(List.map(items, format), ",")) + "]"
   | Object entries ->
     let fields =
-      List.map entries (fun (k, v) -> (Format.stringText k) + ":" + (format v))
+      List.map(entries, fun (k, v) -> (Format.stringText(k)) + ":" + (format(v)))
 
-    "{" + (String.join fields ",") + "}"
+    "{" + (String.join(fields, ",")) + "}"
 
 
 /// Parses <param jsonString> as JSON. `//` and `/* */` comments are skipped
 /// wherever whitespace may go. A number with no `.`, `e` or `E` is an
 /// {{Integer}}, otherwise a {{Float}}.
-let parse (jsonString: String) : Result.Result<Json, ParseError.ParseError> =
-  match Parse.document jsonString with
+let parse(jsonString: String): Result.Result<Json, ParseError.ParseError> =
+  match Parse.document(jsonString) with
   | Some json -> Result.Result.Ok json
   | None -> Result.Result.Error ParseError.ParseError.NotJson
 
@@ -51,15 +51,15 @@ module Format =
   /// and the C0 controls, with the short forms JSON has) and U+2028 and U+2029,
   /// which JavaScript reads as line breaks; everything else is written as
   /// itself.
-  let stringText (s: String) : String =
+  let stringText(s: String): String =
     let escaped =
-      if Regex.isMatch s needsEscape then
+      if Regex.isMatch(s, needsEscape) then
         let named =
-          List.fold namedEscapes s (fun acc (c, e) -> String.replaceAll acc c e)
+          List.fold(namedEscapes, s, fun acc (c, e) -> String.replaceAll(acc, c, e))
 
-        Regex.findAll named control
+        Regex.findAll(named, control)
         |> List.unique
-        |> List.fold named (fun acc c -> String.replaceAll acc c (controlEscape c))
+        |> List.fold(named, fun acc c -> String.replaceAll(acc, c, controlEscape(c)))
       else
         s
 
@@ -87,8 +87,8 @@ module Format =
 
   /// The `\u` escape of a C0 control. Its UTF-8 is the one byte of its code,
   /// so the escape is that byte in hex after two zeros.
-  let controlEscape (c: String) : String =
-    "\\u00" + String.toUppercase (Bytes.toHex (String.toBytes c))
+  let controlEscape(c: String): String =
+    "\\u00" + String.toUppercase(Bytes.toHex(String.toBytes(c)))
 
 
   /// <param n> in .NET's round-trip notation, which is what this wrote when it
@@ -96,63 +96,63 @@ module Format =
   /// out in full while the leading digit's decimal exponent is in -4..16 and
   /// as `1.5E+300` / `1E-07` outside it. NaN and the infinities have no JSON
   /// form, so they are written as the strings Json.serialize uses for them.
-  let floatText (n: Float) : String =
-    if Float.isNaN n then
+  let floatText(n: Float): String =
+    if Float.isNaN(n) then
       "\"NaN\""
-    else if !(Float.isFinite n) then
+    else if !(Float.isFinite(n)) then
       if n > 0.0 then "\"Infinity\"" else "\"-Infinity\""
     else
-      let (negative, digits, exponent) = shortestDigits n
+      let (negative, digits, exponent) = shortestDigits(n)
       let sign = if negative then "-" else ""
 
       if digits == "" then
         sign + "0"
       else if exponent < -4 || exponent > 16 then
         let rest =
-          if String.length digits == 1 then "" else "." + (String.dropFirst digits 1)
+          if String.length(digits) == 1 then "" else "." + (String.dropFirst(digits, 1))
 
         let expSign = if exponent < 0 then "-" else "+"
         let magnitude = if exponent < 0 then 0 - exponent else exponent
         // At least two exponent digits, as .NET writes them.
-        let shown = Stdlib.toString magnitude
-        let padded = String.padStart shown "0" 2 |> Result.withDefault shown
-        sign + (String.first digits 1) + rest + "E" + expSign + padded
+        let shown = Stdlib.toString(magnitude)
+        let padded = String.padStart(shown, "0", 2) |> Result.withDefault(shown)
+        sign + (String.first(digits, 1)) + rest + "E" + expSign + padded
       else
         let point = exponent + 1
-        let width = String.length digits
+        let width = String.length(digits)
 
         if point <= 0 then
-          sign + "0." + (String.repeat "0" (0 - point)) + digits
+          sign + "0." + (String.repeat("0", 0 - point)) + digits
         else if point >= width then
-          sign + digits + (String.repeat "0" (point - width))
+          sign + digits + (String.repeat("0", point - width))
         else
-          sign + (String.first digits point) + "." + (String.dropFirst digits point)
+          sign + (String.first(digits, point)) + "." + (String.dropFirst(digits, point))
 
 
   /// Take apart <fn Float.toString>, which already holds the shortest
   /// round-trip digits: the sign, the significant digits with no leading or
   /// trailing zeros ("" for zero), and the decimal exponent of the first one.
-  let shortestDigits (n: Float) : (Bool * String * Int) =
-    let text = Stdlib.toString n
-    let negative = String.startsWith text "-"
-    let unsigned = if negative then String.dropFirst text 1 else text
+  let shortestDigits(n: Float): (Bool * String * Int) =
+    let text = Stdlib.toString(n)
+    let negative = String.startsWith(text, "-")
+    let unsigned = if negative then String.dropFirst(text, 1) else text
 
     let (mantissa, exp10) =
-      match String.split unsigned "e" with
+      match String.split(unsigned, "e") with
       | [ m, e ] ->
-        (m, Int.parse (String.replaceAll e "+" "") |> Result.withDefault 0)
+        (m, Int.parse(String.replaceAll(e, "+", "")) |> Result.withDefault(0))
       | _ -> (unsigned, 0)
 
     let (intPart, fracPart) =
-      match String.split mantissa "." with
+      match String.split(mantissa, ".") with
       | [ i, f ] -> (i, f)
       | _ -> (mantissa, "")
 
     let all = intPart + fracPart
-    let unpadded = Regex.replace all "^0+" ""
-    let digits = Regex.replace unpadded "0+$" ""
-    let leadingZeros = String.length all - String.length unpadded
-    (negative, digits, String.length intPart - 1 - leadingZeros + exp10)
+    let unpadded = Regex.replace(all, "^0+", "")
+    let digits = Regex.replace(unpadded, "0+$", "")
+    let leadingZeros = String.length(all) - String.length(unpadded)
+    (negative, digits, String.length(intPart) - 1 - leadingZeros + exp10)
 
 
 /// A parser over the input's tokens. A step takes the tokens left and returns
@@ -163,50 +163,50 @@ module Parse =
   /// at U+2028 and U+2029, so one holding either leaves text that no token
   /// covers: System.Text.Json refused those, and so does this.
   val token =
-    String.join
+    String.join(
       [ "[ \\t\\n\\r]+"
         "//[^\\n\\r\\u2028\\u2029]*"
         "/\\*[\\s\\S]*?\\*/"
         "\"(?:[^\"\\\\\\x00-\\x1F]|\\\\[\"\\\\/bfnrt]|\\\\u[0-9A-Fa-f]{4})*\""
         "-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?"
-        "true|false|null|[{}\\[\\],:]" ]
-      "|"
+        "true|false|null|[{}\\[\\],:]" ],
+      "|")
 
 
   /// The whole input is one value, with only whitespace and comments around
   /// it. Text that no token covers is not JSON.
-  let document (text: String) : Option.Option<Json> =
-    let tokens = Regex.findAll text token
+  let document(text: String): Option.Option<Json> =
+    let tokens = Regex.findAll(text, token)
 
-    if String.join tokens "" != text then
+    if String.join(tokens, "") != text then
       None
     else
-      let significant = List.filter tokens (fun t -> String.trim t != "")
+      let significant = List.filter(tokens, fun t -> String.trim(t) != "")
 
-      match value (skipComments significant) with
-      | Some((json, rest)) when List.isEmpty (skipComments rest) -> Some json
+      match value(skipComments(significant)) with
+      | Some((json, rest)) when List.isEmpty(skipComments(rest)) -> Some json
       | _ -> None
 
 
-  let skipComments (ts: List<String>) : List<String> =
+  let skipComments(ts: List<String>): List<String> =
     match ts with
-    | t :: rest when String.startsWith t "/" -> skipComments rest
+    | t :: rest when String.startsWith(t, "/") -> skipComments(rest)
     | _ -> ts
 
 
   /// One value. <param ts> starts at its first token.
-  let value (ts: List<String>) : Option.Option<(Json * List<String>)> =
+  let value(ts: List<String>): Option.Option<(Json * List<String>)> =
     match ts with
     | "null" :: rest -> Some((Json.Null, rest))
     | "true" :: rest -> Some((Json.Bool true, rest))
     | "false" :: rest -> Some((Json.Bool false, rest))
-    | "[" :: rest -> items (skipComments rest) []
-    | "{" :: rest -> fields (skipComments rest) []
+    | "[" :: rest -> items(skipComments(rest), [])
+    | "{" :: rest -> fields(skipComments(rest), [])
     | t :: rest ->
-      match text t with
+      match text(t) with
       | Some s -> Some((Json.String s, rest))
       | None ->
-        match number t with
+        match number(t) with
         | Some n -> Some((n, rest))
         | None -> None
     | [] -> None
@@ -214,13 +214,13 @@ module Parse =
 
   /// What a string token holds, with its escapes decoded. {{None}} for an
   /// escaped surrogate with no partner, which names nothing a string can hold.
-  let text (t: String) : Option.Option<String> =
-    if Regex.isMatch t "^\"" then
-      let pieces = Regex.findAll t stringPiece |> List.map decode
-      let decoded = Option.values pieces
+  let text(t: String): Option.Option<String> =
+    if Regex.isMatch(t, "^\"") then
+      let pieces = Regex.findAll(t, stringPiece) |> List.map(decode)
+      let decoded = Option.values(pieces)
 
-      if List.length decoded == List.length pieces then
-        Some(String.join decoded "")
+      if List.length(decoded) == List.length(pieces) then
+        Some(String.join(decoded, ""))
       else
         None
     else
@@ -230,103 +230,103 @@ module Parse =
   /// A run of plain text, a surrogate pair (D800-DBFF then DC00-DFFF), or one
   /// escape. The quotes around a string token match none of these.
   val stringPiece =
-    String.join
+    String.join(
       [ "[^\"\\\\]+"
         "\\\\u[dD][89abAB][0-9a-fA-F]{2}\\\\u[dD][c-fC-F][0-9a-fA-F]{2}"
         "\\\\u[0-9a-fA-F]{4}"
-        "\\\\." ]
-      "|"
+        "\\\\." ],
+      "|")
 
 
   /// The text one <var stringPiece> stands for.
-  let decode (piece: String) : Option.Option<String> =
-    if !(Regex.isMatch piece "^\\\\") then
+  let decode(piece: String): Option.Option<String> =
+    if !(Regex.isMatch(piece, "^\\\\")) then
       Some piece
     else if piece == "\\/" then
       Some "/"
     else
-      match List.findFirst Format.namedEscapes (fun (_, e) -> e == piece) with
+      match List.findFirst(Format.namedEscapes, fun (_, e) -> e == piece) with
       | Some((c, _)) -> Some c
       | None ->
-        match List.map (Regex.findAll piece "[0-9a-fA-F]{4}") hexValue with
+        match List.map(Regex.findAll(piece, "[0-9a-fA-F]{4}"), hexValue) with
         | [ high, low ] ->
-          codepointText (
+          codepointText((
             firstSupplementary
             + (high - firstHighSurrogate) * surrogateSpan
             + (low - firstLowSurrogate)
-          )
-        | [ unit ] -> codepointText unit
+          ))
+        | [ unit ] -> codepointText(unit)
         | _ -> None
 
 
   /// {{None}} for a surrogate, which is not a scalar a string can hold.
-  let codepointText (codepoint: Int) : Option.Option<String> =
-    Char.fromCodepoint codepoint |> Option.map String.fromChar
+  let codepointText(codepoint: Int): Option.Option<String> =
+    Char.fromCodepoint(codepoint) |> Option.map(String.fromChar)
 
 
   /// Hex digits in order, so the index of a digit is its value.
   val hexDigits = "0123456789ABCDEF"
 
-  let hexValue (digits: String) : Int =
-    List.fold (String.toList (String.toUppercase digits)) 0 (fun total d ->
+  let hexValue(digits: String): Int =
+    List.fold(String.toList(String.toUppercase(digits)), 0, fun total d ->
       let value =
-        String.indexOf hexDigits (String.fromChar d) |> Option.withDefault 0
+        String.indexOf(hexDigits, String.fromChar(d)) |> Option.withDefault(0)
 
-      total * (String.length hexDigits) + value)
+      total * (String.length(hexDigits)) + value)
 
 
   /// A surrogate pair stands for the codepoint past the Basic Multilingual
   /// Plane whose offset from U+10000 is the high half's ten bits followed by
   /// the low half's.
-  val firstSupplementary = hexValue "10000"
-  val firstHighSurrogate = hexValue "D800"
-  val firstLowSurrogate = hexValue "DC00"
-  val surrogateSpan = hexValue "400"
+  val firstSupplementary = hexValue("10000")
+  val firstHighSurrogate = hexValue("D800")
+  val firstLowSurrogate = hexValue("DC00")
+  val surrogateSpan = hexValue("400")
 
 
-  let number (t: String) : Option.Option<Json> =
-    if Regex.isMatch t "[.eE]" then
-      Float.parse t |> Result.toOption |> Option.map (fun f -> Json.Float f)
+  let number(t: String): Option.Option<Json> =
+    if Regex.isMatch(t, "[.eE]") then
+      Float.parse(t) |> Result.toOption |> Option.map(fun f -> Json.Float f)
     else
-      Int.parse t |> Result.toOption |> Option.map (fun i -> Json.Integer i)
+      Int.parse(t) |> Result.toOption |> Option.map(fun i -> Json.Integer i)
 
 
   /// The rest of an array, after its `[`.
-  let items
-    (ts: List<String>)
-    (acc: List<Json>)
+  let items(
+    ts: List<String>,
+    acc: List<Json>)
     : Option.Option<(Json * List<String>)> =
     match ts with
-    | "]" :: rest when List.isEmpty acc -> Some((Json.Array [], rest))
+    | "]" :: rest when List.isEmpty(acc) -> Some((Json.Array [], rest))
     | _ ->
-      match value ts with
+      match value(ts) with
       | None -> None
       | Some((item, after)) ->
-        let acc = List.prepend acc item
+        let acc = List.prepend(acc, item)
 
-        match skipComments after with
-        | "]" :: rest -> Some((Json.Array(List.reverse acc), rest))
-        | "," :: rest -> items (skipComments rest) acc
+        match skipComments(after) with
+        | "]" :: rest -> Some((Json.Array(List.reverse(acc)), rest))
+        | "," :: rest -> items(skipComments(rest), acc)
         | _ -> None
 
 
   /// The rest of an object, after its `{`.
-  let fields
-    (ts: List<String>)
-    (acc: List<(String * Json)>)
+  let fields(
+    ts: List<String>,
+    acc: List<(String * Json)>)
     : Option.Option<(Json * List<String>)> =
     match ts with
-    | "}" :: rest when List.isEmpty acc -> Some((Json.Object [], rest))
+    | "}" :: rest when List.isEmpty(acc) -> Some((Json.Object [], rest))
     // The colon straight after the key: System.Text.Json refused a comment
     // there, unlike everywhere else.
     | key :: ":" :: rest ->
-      match (text key, value (skipComments rest)) with
+      match (text(key), value(skipComments(rest))) with
       | (Some k, Some((v, after))) ->
-        let acc = List.prepend acc (k, v)
+        let acc = List.prepend(acc, (k, v))
 
-        match skipComments after with
-        | "}" :: rest -> Some((Json.Object(List.reverse acc), rest))
-        | "," :: rest -> fields (skipComments rest) acc
+        match skipComments(after) with
+        | "}" :: rest -> Some((Json.Object(List.reverse(acc)), rest))
+        | "," :: rest -> fields(skipComments(rest), acc)
         | _ -> None
       | _ -> None
     | _ -> None
@@ -334,19 +334,19 @@ module Parse =
 
 /// Reads an exact JSON integer. A Float value is never silently truncated or
 /// reinterpreted as an integer, even if its current value is whole.
-let toInt (j: Json) : Option.Option<Int> =
+let toInt(j: Json): Option.Option<Int> =
   match j with
   | Integer i -> Option.Option.Some i
   | _ -> Option.Option.None
 
 
 /// Read a JSON number as Float only when the conversion is exact.
-let toFloat (j: Json) : Option.Option<Float> =
+let toFloat(j: Json): Option.Option<Float> =
   match j with
   | Float n -> Option.Option.Some n
   | Integer i ->
-    let n = Int.toFloat i
-    if Float.isFinite n && Int.fromFloat n == i then
+    let n = Int.toFloat(i)
+    if Float.isFinite(n) && Int.fromFloat(n) == i then
       Option.Option.Some n
     else
       Option.Option.None
@@ -361,85 +361,85 @@ let toFloat (j: Json) : Option.Option<Float> =
 module Helpers =
 
   /// Get a string value from a JSON object's fields
-  let getString
-    (key: String)
-    (fields: List<(String * Json)>)
+  let getString(
+    key: String,
+    fields: List<(String * Json)>)
     : Option.Option<String> =
-    let found = List.findFirst fields (fun (k, _) -> k == key)
+    let found = List.findFirst(fields, fun (k, _) -> k == key)
 
     match found with
     | Some pair ->
-      match Tuple2.second pair with
+      match Tuple2.second(pair) with
       | String s -> Option.Option.Some s
       | _ -> Option.Option.None
     | None -> Option.Option.None
 
 
   /// Get a boolean value from a JSON object's fields
-  let getBool
-    (key: String)
-    (fields: List<(String * Json)>)
+  let getBool(
+    key: String,
+    fields: List<(String * Json)>)
     : Option.Option<Bool> =
-    let found = List.findFirst fields (fun (k, _) -> k == key)
+    let found = List.findFirst(fields, fun (k, _) -> k == key)
 
     match found with
     | Some pair ->
-      match Tuple2.second pair with
+      match Tuple2.second(pair) with
       | Bool b -> Option.Option.Some b
       | _ -> Option.Option.None
     | None -> Option.Option.None
 
 
   /// Get a raw JSON value from a JSON object's fields
-  let getValue
-    (key: String)
-    (fields: List<(String * Json)>)
+  let getValue(
+    key: String,
+    fields: List<(String * Json)>)
     : Option.Option<Json> =
-    let found = List.findFirst fields (fun (k, _) -> k == key)
+    let found = List.findFirst(fields, fun (k, _) -> k == key)
 
     match found with
-    | Some pair -> Option.Option.Some(Tuple2.second pair)
+    | Some pair -> Option.Option.Some(Tuple2.second(pair))
     | None -> Option.Option.None
 
 
   /// Get an integer value from a JSON object's fields. {{None}} if the key is
   /// missing or its value isn't exactly an integer (see <fn toInt>).
-  let getIntOption
-    (key: String)
-    (fields: List<(String * Json)>)
+  let getIntOption(
+    key: String,
+    fields: List<(String * Json)>)
     : Option.Option<Int> =
-    let found = List.findFirst fields (fun (k, _) -> k == key)
+    let found = List.findFirst(fields, fun (k, _) -> k == key)
 
     match found with
-    | Some pair -> toInt (Tuple2.second pair)
+    | Some pair -> toInt(Tuple2.second(pair))
     | None -> Option.Option.None
 
 
   /// Read an optional integer while distinguishing an absent or null field
   /// from a present value that cannot be converted exactly.
-  let getIntOptionResult
-    (key: String)
-    (fields: List<(String * Json)>)
+  let getIntOptionResult(
+    key: String,
+    fields: List<(String * Json)>)
     : Result.Result<Option.Option<Int>, String> =
-    match getValue key fields with
+    match getValue(key, fields) with
     | None -> Result.Result.Ok Option.Option.None
     | Some Null -> Result.Result.Ok Option.Option.None
     | Some value ->
-      match toInt value with
+      match toInt(value) with
       | Some i -> Result.Result.Ok(Option.Option.Some i)
       | None -> Result.Result.Error($"Invalid JSON integer field: {key}")
 
 
   /// Get a required integer field. The error distinguishes a missing field
   /// from a field whose value cannot be converted exactly.
-  let getIntResult
-    (key: String)
-    (fields: List<(String * Json)>)
+  let getIntResult(
+    key: String,
+    fields: List<(String * Json)>)
     : Result.Result<Int, String> =
-    match getValue key fields with
+    match getValue(key, fields) with
     | None -> Result.Result.Error($"Missing JSON integer field: {key}")
     | Some value ->
-      match toInt value with
+      match toInt(value) with
       | Some i -> Result.Result.Ok i
       | None -> Result.Result.Error($"Invalid JSON integer field: {key}")
 
@@ -447,55 +447,55 @@ module Helpers =
   /// Get an integer field that may be left out. {{Ok}} <param default_> if the
   /// key is missing or null, {{Error}} if it's present but isn't exactly an
   /// integer (see <fn toInt>).
-  let getIntOr
-    (key: String)
-    (default_: Int)
-    (fields: List<(String * Json)>)
+  let getIntOr(
+    key: String,
+    default_: Int,
+    fields: List<(String * Json)>)
     : Result.Result<Int, String> =
-    match getValue key fields with
+    match getValue(key, fields) with
     | None -> Result.Result.Ok default_
     | Some Null -> Result.Result.Ok default_
     | Some value ->
-      match toInt value with
+      match toInt(value) with
       | Some i -> Result.Result.Ok i
       | None -> Result.Result.Error($"Invalid JSON integer field: {key}")
 
 
   /// Get a Float field. An integer is converted only if Float can hold it
   /// exactly; use <fn getIntOption> for arbitrary-size integers.
-  let getFloat
-    (key: String)
-    (fields: List<(String * Json)>)
+  let getFloat(
+    key: String,
+    fields: List<(String * Json)>)
     : Option.Option<Float> =
-    let found = List.findFirst fields (fun (k, _) -> k == key)
+    let found = List.findFirst(fields, fun (k, _) -> k == key)
 
     match found with
-    | Some pair -> toFloat (Tuple2.second pair)
+    | Some pair -> toFloat(Tuple2.second(pair))
     | None -> Option.Option.None
 
 
   /// Get an array value from a JSON object's fields (returns [] if not found)
-  let getArray (key: String) (fields: List<(String * Json)>) : List<Json> =
-    let found = List.findFirst fields (fun (k, _) -> k == key)
+  let getArray(key: String, fields: List<(String * Json)>): List<Json> =
+    let found = List.findFirst(fields, fun (k, _) -> k == key)
 
     match found with
     | Some pair ->
-      match Tuple2.second pair with
+      match Tuple2.second(pair) with
       | Array items -> items
       | _ -> []
     | None -> []
 
 
   /// Get a nested object's fields from a JSON object (returns [] if not found)
-  let getObject
-    (key: String)
-    (fields: List<(String * Json)>)
+  let getObject(
+    key: String,
+    fields: List<(String * Json)>)
     : List<(String * Json)> =
-    let found = List.findFirst fields (fun (k, _) -> k == key)
+    let found = List.findFirst(fields, fun (k, _) -> k == key)
 
     match found with
     | Some pair ->
-      match Tuple2.second pair with
+      match Tuple2.second(pair) with
       | Object nestedFields -> nestedFields
       | _ -> []
     | None -> []
@@ -514,89 +514,89 @@ module Builder =
   val empty = []
 
   /// Add a required string field
-  let addString (fields: Fields) (key: String) (value: String) : Fields =
-    List.append fields (key, Json.String value)
+  let addString(fields: Fields, key: String, value: String): Fields =
+    List.append(fields, (key, Json.String value))
 
   /// Add a floating-point field
-  let addFloat (fields: Fields) (key: String) (value: Float) : Fields =
-    List.append fields (key, Json.Float value)
+  let addFloat(fields: Fields, key: String, value: Float): Fields =
+    List.append(fields, (key, Json.Float value))
 
   /// Add an integer field without converting it to Float
-  let addInt (fields: Fields) (key: String) (value: Int) : Fields =
-    List.append fields (key, Json.Integer value)
+  let addInt(fields: Fields, key: String, value: Int): Fields =
+    List.append(fields, (key, Json.Integer value))
 
   /// Add a required bool field
-  let addBool (fields: Fields) (key: String) (value: Bool) : Fields =
-    List.append fields (key, Json.Bool value)
+  let addBool(fields: Fields, key: String, value: Bool): Fields =
+    List.append(fields, (key, Json.Bool value))
 
   /// Add a required JSON value field
-  let addJson (fields: Fields) (key: String) (value: Json) : Fields =
-    List.append fields (key, value)
+  let addJson(fields: Fields, key: String, value: Json): Fields =
+    List.append(fields, (key, value))
 
   /// Add a required array field
-  let addArray (fields: Fields) (key: String) (value: List<Json>) : Fields =
-    List.append fields (key, Json.Array value)
+  let addArray(fields: Fields, key: String, value: List<Json>): Fields =
+    List.append(fields, (key, Json.Array value))
 
   /// Add an optional string field (only adds if Some)
-  let addOptionalString
-    (fields: Fields)
-    (key: String)
-    (value: Option.Option<String>)
+  let addOptionalString(
+    fields: Fields,
+    key: String,
+    value: Option.Option<String>)
     : Fields =
     match value with
-    | Some v -> List.append fields (key, Json.String v)
+    | Some v -> List.append(fields, (key, Json.String v))
     | None -> fields
 
   /// Add an optional Float field (only adds if Some)
-  let addOptionalFloat
-    (fields: Fields)
-    (key: String)
-    (value: Option.Option<Float>)
+  let addOptionalFloat(
+    fields: Fields,
+    key: String,
+    value: Option.Option<Float>)
     : Fields =
     match value with
-    | Some v -> List.append fields (key, Json.Float v)
+    | Some v -> List.append(fields, (key, Json.Float v))
     | None -> fields
 
   /// Add an optional integer field (only adds if Some)
-  let addOptionalInt
-    (fields: Fields)
-    (key: String)
-    (value: Option.Option<Int>)
+  let addOptionalInt(
+    fields: Fields,
+    key: String,
+    value: Option.Option<Int>)
     : Fields =
     match value with
-    | Some v -> addInt fields key v
+    | Some v -> addInt(fields, key, v)
     | None -> fields
 
   /// Add an optional bool field (only adds if Some)
-  let addOptionalBool
-    (fields: Fields)
-    (key: String)
-    (value: Option.Option<Bool>)
+  let addOptionalBool(
+    fields: Fields,
+    key: String,
+    value: Option.Option<Bool>)
     : Fields =
     match value with
-    | Some v -> List.append fields (key, Json.Bool v)
+    | Some v -> List.append(fields, (key, Json.Bool v))
     | None -> fields
 
   /// Add an optional JSON value field (only adds if Some)
-  let addOptionalJson
-    (fields: Fields)
-    (key: String)
-    (value: Option.Option<Json>)
+  let addOptionalJson(
+    fields: Fields,
+    key: String,
+    value: Option.Option<Json>)
     : Fields =
     match value with
-    | Some v -> List.append fields (key, v)
+    | Some v -> List.append(fields, (key, v))
     | None -> fields
 
   /// Add an optional array field (only adds if Some)
-  let addOptionalArray
-    (fields: Fields)
-    (key: String)
-    (value: Option.Option<List<Json>>)
+  let addOptionalArray(
+    fields: Fields,
+    key: String,
+    value: Option.Option<List<Json>>)
     : Fields =
     match value with
-    | Some v -> List.append fields (key, Json.Array v)
+    | Some v -> List.append(fields, (key, Json.Array v))
     | None -> fields
 
   /// Convert fields to a JSON object
-  let toJson (fields: Fields) : Json =
+  let toJson(fields: Fields): Json =
     Json.Object fields

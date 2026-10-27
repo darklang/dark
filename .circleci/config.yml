@@ -556,9 +556,9 @@ jobs:
             # `eval` is guest code under the deny-by-default instance policy.
             # TODO: narrow to `file read /etc/hostname` (and whatever getcwd needs).
             "$X64" permissions allow all > /dev/null
-            "$X64" eval 'Stdlib.Cli.Posix.stat "/etc/hostname"' | tee /tmp/stat.out
+            "$X64" eval 'Stdlib.Cli.Posix.stat("/etc/hostname")' | tee /tmp/stat.out
             grep -q "Ok(Stdlib.Cli.Posix.StatResult" /tmp/stat.out
-            "$X64" eval 'Stdlib.Cli.Posix.getCwd ()' | tee /tmp/cwd.out
+            "$X64" eval 'Stdlib.Cli.Posix.getCwd()' | tee /tmp/cwd.out
             grep -q 'Ok("/' /tmp/cwd.out
       - package-clis
 

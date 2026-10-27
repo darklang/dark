@@ -39,7 +39,7 @@ let private latestPrefix () : Task<string> =
 
 /// Two uuids, so a replay is told apart from a rerun by its output.
 let private twoUuids =
-  "let a = Stdlib.Uuid.generate ()\nlet b = Stdlib.Uuid.generate ()\nStdlib.String.join [ Stdlib.toString a, Stdlib.toString b ] \" \""
+  "let a = Stdlib.Uuid.generate()\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.toString(a), Stdlib.toString(b) ], \" \")"
 
 let private words (s : string) : string list =
   s.Split(' ', System.StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
@@ -133,13 +133,13 @@ let private scriptReplayKeepsInvocation =
           fn
             state
             "Tests.ScriptReplay.describe"
-            "(inputs: List<String>) : String = Stdlib.String.join inputs \"|\""
+            "(inputs: List<String>): String = Stdlib.String.join(inputs, \"|\")"
         let args = [ "a b"; ""; "--help"; "é"; "a\"b\\c" ]
         let marker = String.concat "|" args + "|"
         let code =
-          "let summary = Tests.ScriptReplay.describe args\n"
-          + "let uuid = Stdlib.Uuid.generate ()\n"
-          + "Stdlib.printLine (summary + \"|\" + Stdlib.toString uuid)\n7"
+          "let summary = Tests.ScriptReplay.describe(args)\nlet uuid = Stdlib.Uuid.generate()\nStdlib.printLine(summary + \"|\" + Stdlib.toString(uuid))\n7"
+          + ""
+          + ""
         let path =
           System.IO.Path.Combine(
             System.IO.Path.GetTempPath(),
@@ -250,7 +250,7 @@ let private scriptReplayKeepsSandbox =
             System.IO.Path.GetTempPath(),
             $"dark-sandbox-replay-{System.Guid.NewGuid()}.dark"
           )
-        let code = "Stdlib.printLine \"SANDBOX_EFFECT\"\n0"
+        let code = "Stdlib.printLine(\"SANDBOX_EFFECT\")\n0"
         try
           System.IO.File.WriteAllText(path, code)
           let! _, firstExit = runCliWithExit state [ "run"; "--sandbox"; path ]
@@ -313,7 +313,7 @@ let private legacyScriptDoesNotGuessItsInput =
     (fun state ->
       task {
         let id = System.Guid.NewGuid()
-        let source = "Stdlib.printLine \"LEGACY_EFFECT\"\n0"
+        let source = "Stdlib.printLine(\"LEGACY_EFFECT\")\n0"
         Traces.create
           id
           "run old.dark"
@@ -451,7 +451,7 @@ let private suspendThenResume =
       task {
         // The second uuid comes after a pause long enough to suspend during.
         let program =
-          "let a = Stdlib.Uuid.generate ()\nlet _ = Stdlib.Cli.Posix.sleep 800.0\nlet b = Stdlib.Uuid.generate ()\nStdlib.String.join [ Stdlib.toString a, Stdlib.toString b ] \" \""
+          "let a = Stdlib.Uuid.generate()\nlet _ = Stdlib.Cli.Posix.sleep(800.0)\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.toString(a), Stdlib.toString(b) ], \" \")"
         let running = runCli state [ "eval"; program ]
         // Until the run is in the foreground, then a moment more for the first uuid (made in
         // the first few milliseconds; the tracer holds it until a flush, so there is nothing
@@ -503,8 +503,7 @@ let private replayAfterAnEdit =
         let! first =
           runCli
             state
-            [ "eval"
-              "Tests.Exec.shape (Stdlib.toString (Stdlib.Uuid.generate ()))" ]
+            [ "eval"; "Tests.Exec.shape(Stdlib.toString(Stdlib.Uuid.generate()))" ]
         Expect.stringStarts first "v1:" "the first run went through v1"
         do! fn state "Tests.Exec.shape" "(s: String) : String = \"v2:\" + s"
         do! commit state "shape v2"
@@ -545,9 +544,7 @@ let private replayRefusesADivergedEffect =
         do! fn state "Tests.Exec.target" "() : String = \"divergeStaging\""
         do! commit state "target v1"
         let! _ =
-          runCli
-            state
-            [ "eval"; "Stdlib.printLine (\"to \" + Tests.Exec.target ())" ]
+          runCli state [ "eval"; "Stdlib.printLine(\"to \" + Tests.Exec.target())" ]
         let! recorded = latest ()
         let! logBefore = Traces.log recorded.id
         do! fn state "Tests.Exec.target" "() : String = \"divergeProd\""
@@ -592,7 +589,7 @@ let private replayWithoutAnEdit =
         // store resolves that hash to.
         do! fn state "Tests.Exec.steady" "(s: String) : String = \"steady:\" + s"
         do! commit state "steady"
-        let! _ = runCli state [ "eval"; "Tests.Exec.steady \"x\"" ]
+        let! _ = runCli state [ "eval"; "Tests.Exec.steady(\"x\")" ]
         let! prefix = latestPrefix ()
         let! resumed = runCli state [ "exec"; "resume"; prefix ]
         Expect.stringContains resumed "steady:x" "the resume ran"
@@ -619,10 +616,10 @@ let private previewShowsValuesAndPerformsNothing =
           fn
             state
             "Tests.Prev.greet"
-            "(name: String) : String =\n  let upper = Stdlib.String.toUppercase name\n  let shouted = Stdlib.String.append upper \"!\"\n  let _ = Stdlib.printLine shouted\n  shouted"
+            "(name: String): String =\n  let upper = Stdlib.String.toUppercase(name)\n  let shouted = Stdlib.String.append(upper, \"!\")\n  let _ = Stdlib.printLine(shouted)\n  shouted"
         do! commit state "greet"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.greet" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.greet \"bob\"" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.greet(\"bob\")" ]
         Expect.stringContains ran "BOB!" "the run printed for real"
 
         // The index knows which runs went through the function, at this level, where the
@@ -633,11 +630,11 @@ let private previewShowsValuesAndPerformsNothing =
         let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.greet" ]
         Expect.stringContains
           viewed
-          "toUppercase name // = \"BOB\""
+          "toUppercase(name) // = \"BOB\""
           "the recorded input flowed through the first call"
         Expect.stringContains
           viewed
-          "append upper \"!\" // = \"BOB!\""
+          "append(upper, \"!\") // = \"BOB!\""
           "and through the second"
         // The print is an effect: answered from the log, not performed, and not echoed
         // either -- looking at code is silent.
@@ -698,8 +695,8 @@ let private byteCapSparesTheRunThatTrippedIt =
         // One byte: every stored log is over the cap on its own. The pass must keep the
         // newest trace, or a run's own log would go the moment it was written. Called
         // directly, so the ten-second spacing between passes does not decide the result.
-        let! _ = runCli state [ "eval"; "Stdlib.printLine \"one\"" ]
-        let! _ = runCli state [ "eval"; "Stdlib.printLine \"two\"" ]
+        let! _ = runCli state [ "eval"; "Stdlib.printLine(\"one\")" ]
+        let! _ = runCli state [ "eval"; "Stdlib.printLine(\"two\")" ]
         let! newest = latest ()
         let went = LibDB.Tracing.TraceRetention.prune None (Some 1L)
         let! traces =
@@ -768,9 +765,9 @@ let private byteCapActsBelowFiftyTraces =
           LibDB.Tracing.TraceRetention.keep, LibDB.Tracing.TraceRetention.maxBytes
         try
           LibDB.Tracing.TraceRetention.setForTesting 200L 1L
-          let! _ = runCli state [ "eval"; "Stdlib.printLine \"one\"" ]
+          let! _ = runCli state [ "eval"; "Stdlib.printLine(\"one\")" ]
           LibDB.Tracing.TraceRetention.setForTesting 200L 1L
-          let! _ = runCli state [ "eval"; "Stdlib.printLine \"two\"" ]
+          let! _ = runCli state [ "eval"; "Stdlib.printLine(\"two\")" ]
           let! newest = latest ()
           let! traces =
             Sql.query "SELECT id FROM traces"
@@ -834,12 +831,12 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
     (fun state ->
       task {
         let expr =
-          "match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId "
-          + "(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\", "
-          + "modules = [ \"Stdlib\", \"Int128\" ], name = \"sqrt\" }) with\n"
-          + "| Some h -> [ Stdlib.Option.isSome (Darklang.LanguageTools.PackageManager.Function.get h), "
-          + "Stdlib.Option.isSome (Darklang.LanguageTools.PackageManager.Function.get h) ]\n"
-          + "| None -> []"
+          "match Darklang.LanguageTools.PackageManager.Function.find(Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\", modules = [ \"Stdlib\", \"Int128\" ], name = \"sqrt\" }) with\n| Some h -> [ Stdlib.Option.isSome(Darklang.LanguageTools.PackageManager.Function.get(h)), Stdlib.Option.isSome(Darklang.LanguageTools.PackageManager.Function.get(h)) ]\n| None -> []"
+          + ""
+          + ""
+          + ""
+          + ""
+          + ""
         let! out = runCli state [ "eval"; expr ]
         Expect.stringContains out "true, true" "the eval read the fn twice"
         let! e = latest ()
@@ -901,7 +898,7 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
           "the read is in the log, with what it was asked for"
         Expect.stringContains
           viewed
-          "Builtin.pmGetFn hash // = Some( Darklang.LanguageTools.ProgramTypes.PackageFn"
+          "Builtin.pmGetFn(hash) // = Some( Darklang.LanguageTools.ProgramTypes.PackageFn"
           "the replay got the fn the run got, with the store no longer holding it"
       })
 
@@ -917,7 +914,7 @@ let private aTracesBytesGoWithIt =
           Sql.query "SELECT COUNT(*) AS n FROM package_blobs"
           |> Sql.executeRowAsync (fun read -> read.int64 "n")
         let! _ =
-          runCli state [ "eval"; "Stdlib.String.toBytes \"held by the trace\"" ]
+          runCli state [ "eval"; "Stdlib.String.toBytes(\"held by the trace\")" ]
         let! e = latest ()
         let! kept =
           Sql.query "SELECT hash, bytes FROM trace_blobs WHERE trace_id = @t"
@@ -960,17 +957,17 @@ let private deletingEveryTraceEmptiesEveryTraceTable =
           fn
             state
             "Tests.Prev.looped"
-            ("(n: Int) : Int =\n"
-             + "  Stdlib.List.range 1 n\n"
-             + "  |> Stdlib.List.map (fun i -> i * 2)\n"
-             + "  |> Stdlib.List.length")
+            ("(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i -> i * 2)\n  |> Stdlib.List.length"
+             + ""
+             + ""
+             + "")
         do! commit state "looped"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.looped" ]
         // A loop, a logged call and a captured blob, so every table has rows to leave behind.
-        let! _ = runCli state [ "eval"; "Tests.Prev.looped 4" ]
+        let! _ = runCli state [ "eval"; "Tests.Prev.looped(4)" ]
         let! _ = runCli state [ "eval"; twoUuids ]
         let! _ =
-          runCli state [ "eval"; "Stdlib.String.toBlob \"held by the trace\"" ]
+          runCli state [ "eval"; "Stdlib.String.toBlob(\"held by the trace\")" ]
 
         let! tables =
           Sql.query
@@ -1008,7 +1005,7 @@ let private replayEchoesAndRefuses =
           runCli
             state
             [ "eval"
-              "let _ = Stdlib.printLine \"hello from the log\"\nStdlib.toString (Stdlib.Uuid.generate ())" ]
+              "let _ = Stdlib.printLine(\"hello from the log\")\nStdlib.toString(Stdlib.Uuid.generate())" ]
         let! prefix = latestPrefix ()
         let! resumed = runCli state [ "exec"; "resume"; prefix ]
         Expect.stringContains
@@ -1025,7 +1022,7 @@ let private replayEchoesAndRefuses =
             runCli
               state
               [ "eval"
-                "let h = Stdlib.Cli.Process.spawn \"sleep 0\"\nStdlib.Cli.Process.terminate h" ]
+                "let h = Stdlib.Cli.Process.spawn(\"sleep 0\")\nStdlib.Cli.Process.terminate(h)" ]
           let! spawned = latest ()
           let! logBefore = Traces.log spawned.id
           let! refused = runCli state [ "exec"; "resume"; prefixOf spawned ]
@@ -1061,10 +1058,10 @@ let private spawnedChildReplays =
     (fun state ->
       task {
         let program =
-          "let h = Stdlib.Exec.spawn (fun () -> Stdlib.toString (Stdlib.Uuid.generate ()))\n"
-          + "let child = Stdlib.Exec.await h\n"
-          + "let mine = Stdlib.toString (Stdlib.Uuid.generate ())\n"
-          + "Stdlib.printLine $\"{child} {mine}\""
+          "let h = Stdlib.Exec.spawn(fun () -> Stdlib.toString(Stdlib.Uuid.generate()))\nlet child = Stdlib.Exec.await(h)\nlet mine = Stdlib.toString(Stdlib.Uuid.generate())\nStdlib.printLine($\"{child} {mine}\")"
+          + ""
+          + ""
+          + ""
         // The resume echoes a logged print with a `[replayed]` prefix, and prints its own
         // progress above it; the two uuids are the last non-empty line either way.
         let uuidLine (out : string) : string =
@@ -1109,13 +1106,13 @@ let private pureLoopPassesAreCounted =
           fn
             state
             "Tests.Prev.pure"
-            ("(n: Int) : Int =\n"
-             + "  Stdlib.List.range 1 n\n"
-             + "  |> Stdlib.List.map (fun i -> i * 2)\n"
-             + "  |> Stdlib.List.length")
+            ("(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i -> i * 2)\n  |> Stdlib.List.length"
+             + ""
+             + ""
+             + "")
         do! commit state "pure"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.pure" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.pure 5" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.pure(5)" ]
         Expect.stringContains ran "5" "the run went round five times"
 
         let! latest' = latest ()
@@ -1161,15 +1158,15 @@ let private recursionIsALoopAndEmptyIterationsStaySilent =
           fn
             state
             "Tests.Prev.fact"
-            ("(n: Int) : Int =\n"
-             + "  if n <= 1 then\n"
-             + "    1\n"
-             + "  else\n"
-             + "    let sub = Tests.Prev.fact (n - 1)\n"
-             + "    n * sub")
+            ("(n: Int): Int =\n  if n <= 1 then\n    1\n  else\n    let sub = Tests.Prev.fact(n - 1)\n    n * sub"
+             + ""
+             + ""
+             + ""
+             + ""
+             + "")
         do! commit state "fact"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.fact" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.fact 5" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.fact(5)" ]
         Expect.stringContains ran "120" "the run went five deep"
 
         // Five entries into the same function, so five iterations, named after it.
@@ -1242,15 +1239,15 @@ let private everyIterationOfALoopIsReachable =
           fn
             state
             "Tests.Prev.scaled"
-            ("(n: Int) : Int =\n"
-             + "  Stdlib.List.range 1 n\n"
-             + "  |> Stdlib.List.map (fun i ->\n"
-             + "    let big = i * 100\n"
-             + "    big)\n"
-             + "  |> Stdlib.List.length")
+            ("(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i ->\n    let big = i * 100\n    big)\n  |> Stdlib.List.length"
+             + ""
+             + ""
+             + ""
+             + ""
+             + "")
         do! commit state "scaled"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.scaled" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.scaled 30" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.scaled(30)" ]
         Expect.stringContains ran "30" "the loop went round thirty times"
 
         // In the head, in the tail, and the ones in between that are the whole point: 7 and 15
@@ -1303,10 +1300,10 @@ let private tracesFnsNamesWhatRunsWentThrough =
           fn
             state
             "Tests.Prev.counted"
-            "(xs: List<Int>) : Int =\n  Stdlib.List.length xs"
+            "(xs: List<Int>): Int =\n  Stdlib.List.length(xs)"
         do! commit state "counted"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.counted" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.counted [1, 2, 3]" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.counted([1, 2, 3])" ]
         Expect.stringContains ran "3" "the run happened"
 
         let! listed = runCli state [ "traces"; "fns" ]
@@ -1356,7 +1353,7 @@ let private twoNamesForOneFunctionFindTheSameRuns =
         do! fn state "Tests.Other.tripled" body
         do! commit state "tripled twice"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.tripled" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.tripled 4" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.tripled(4)" ]
         Expect.stringContains ran "12" "one of them ran"
 
         let! other = runCli state [ "traces"; "calls"; "Tests.Other.tripled" ]
@@ -1434,13 +1431,13 @@ let private deletingATraceTakesItsLoopCounts =
           fn
             state
             "Tests.Prev.looped"
-            ("(n: Int) : Int =\n"
-             + "  Stdlib.List.range 1 n\n"
-             + "  |> Stdlib.List.map (fun i -> i * 2)\n"
-             + "  |> Stdlib.List.length")
+            ("(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i -> i * 2)\n  |> Stdlib.List.length"
+             + ""
+             + ""
+             + "")
         do! commit state "looped"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.looped" ]
-        let! _ = runCli state [ "eval"; "Tests.Prev.looped 4" ]
+        let! _ = runCli state [ "eval"; "Tests.Prev.looped(4)" ]
 
         let! latest' = latest ()
         let traceId = string latest'.id
@@ -1488,10 +1485,10 @@ let private identicalCallsKeepTheirOwnValues =
           fn
             state
             "Tests.Prev.two"
-            ("() : String =\n"
-             + "  let a = Stdlib.toString (Stdlib.Uuid.generate ())\n"
-             + "  let b = Stdlib.toString (Stdlib.Uuid.generate ())\n"
-             + "  $\"{a} {b}\"")
+            ("(): String =\n  let a = Stdlib.toString(Stdlib.Uuid.generate())\n  let b = Stdlib.toString(Stdlib.Uuid.generate())\n  $\"{a} {b}\""
+             + ""
+             + ""
+             + "")
         do! commit state "two"
         do!
           shows
@@ -1499,7 +1496,7 @@ let private identicalCallsKeepTheirOwnValues =
             [ "permissions"; "approve"; "Tests.Prev.two"; "--yes" ]
             "approved Tests.Prev.two"
             "the function is approved before viewing its trace"
-        let! ran = runCli state [ "eval"; "Tests.Prev.two ()" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.two()" ]
 
         // The run really did make two different uuids. If it did not, the rest proves nothing.
         let ranPair =
@@ -1555,9 +1552,9 @@ let private previewOfASpawnServesTheChildFromTheLog =
           fn
             state
             "Tests.Prev.conc"
-            ("() : String =\n"
-             + "  let h = Stdlib.Exec.spawn (fun () -> Stdlib.toString (Stdlib.Uuid.generate ()))\n"
-             + "  Stdlib.Exec.await h")
+            ("(): String =\n  let h = Stdlib.Exec.spawn(fun () -> Stdlib.toString(Stdlib.Uuid.generate()))\n  Stdlib.Exec.await(h)"
+             + ""
+             + "")
         do! commit state "conc"
         do!
           shows
@@ -1566,7 +1563,7 @@ let private previewOfASpawnServesTheChildFromTheLog =
             "approved Tests.Prev.conc"
             "the function is approved"
 
-        let! ran = runCli state [ "eval"; "Tests.Prev.conc ()" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.conc()" ]
         let uuidIn (out : string) : string option =
           out.Split('\n')
           |> Array.map (fun l -> l.Trim().Trim('"'))
@@ -1652,7 +1649,7 @@ let private secretsAreNotInTheLog =
             runCli
               state
               [ "eval"
-                "match Stdlib.Env.get \"DARK_TEST_SECRET\" with | Some v -> Stdlib.printLine (Stdlib.toString (Stdlib.String.length v)) | None -> Stdlib.printLine \"unset\"" ]
+                "match Stdlib.Env.get(\"DARK_TEST_SECRET\") with | Some v -> Stdlib.printLine(Stdlib.toString(Stdlib.String.length(v))) | None -> Stdlib.printLine(\"unset\")" ]
           let! e = latest ()
           let! rows =
             Sql.query
@@ -1739,9 +1736,9 @@ let private previewUsesTheViewersApprovals =
         fn
           state
           "Tests.PreviewAccount.value"
-          "() : String = Stdlib.toString (Stdlib.Uuid.generate ())"
+          "(): String = Stdlib.toString(Stdlib.Uuid.generate())"
       do! run state [ "permissions"; "approve"; "Tests.PreviewAccount.value" ]
-      let! ran = runCliPlain state [ "eval"; "Tests.PreviewAccount.value ()" ]
+      let! ran = runCliPlain state [ "eval"; "Tests.PreviewAccount.value()" ]
       let recorded = ran.Trim().Trim('"')
       Expect.isTrue
         (System.Guid.TryParse recorded |> fst)

@@ -1,20 +1,20 @@
 module Darklang.Cli.Packages.Fn
 
 
-let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   match args with
   | [] ->
-    Stdlib.printLine (help state)
+    Stdlib.printLine(help(state))
     state
 
   // fn SomeModule.myFn (param: Type): ReturnType = body
   | location :: definitionParts ->
-    let inlineDefinition = Packages.definitionFromArgs definitionParts
+    let inlineDefinition = Packages.definitionFromArgs(definitionParts)
 
-    if Stdlib.String.isEmpty inlineDefinition then
+    if Stdlib.String.isEmpty(inlineDefinition) then
       // No body provided - show error
       [
-        (Stdlib.Cli.UI.Colors.error "Error: Function body required")
+        (Stdlib.Cli.UI.Colors.error("Error: Function body required"))
         ""
         "Pass the body inline, a file that holds it, or `-` to read from stdin:"
         "  fn <location> <parameters and body>"
@@ -22,42 +22,42 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         "  fn <location> -    (read body from stdin)"
         ""
         "Examples:"
-        "  dark fn Me.Demo.double '(x: Int) : Int = x * 2'"
+        "  dark fn Me.Demo.double '(x: Int): Int = x * 2'"
         "  dark fn Me.Demo.fib - <<'EOF'"
-        "  let fib (n: Int) : Int = if n < 2 then n else fib (n - 1) + fib (n - 2)"
+        "  let fib(n: Int): Int = if n < 2 then n else fib(n - 1) + fib(n - 2)"
         "  EOF"
         ""
       ] |> Stdlib.printLines
 
-      Cli.exitWith state false
+      Cli.exitWith(state, false)
     else
       // Parse and create function immediately
-      createFnInline
-        state.packageData.currentLocation
-        location
-        inlineDefinition
-        state
+      createFnInline(
+        state.packageData.currentLocation,
+        location,
+        inlineDefinition,
+        state)
 
 
-let createFnInline
-  (currentLocation: Packages.PackageLocation)
-  (locationStr: String)
-  (definition: String)
-  (state: Cli.AppState)
+let createFnInline(
+  currentLocation: Packages.PackageLocation,
+  locationStr: String,
+  definition: String,
+  state: Cli.AppState)
   : Cli.AppState =
   // Parse location relative to current position
-  match Location.parseRelativeTo currentLocation locationStr with
+  match Location.parseRelativeTo(currentLocation, locationStr) with
   | Ok location ->
     // Keep accepting the concise historical fragment, while also accepting a
     // complete declaration (with an optional doc comment).
-    let trimmedDefinition = Stdlib.String.trim definition
+    let trimmedDefinition = Stdlib.String.trim(definition)
     let fullSource =
       if
-        Stdlib.String.startsWith trimmedDefinition "let "
-        || Stdlib.String.startsWith trimmedDefinition "///"
+        Stdlib.String.startsWith(trimmedDefinition, "let ")
+        || Stdlib.String.startsWith(trimmedDefinition, "///")
       then
         definition
-      else if Stdlib.String.startsWith trimmedDefinition "<" then
+      else if Stdlib.String.startsWith(trimmedDefinition, "<") then
         // `dark fn F "<'a: Show> (v: 'a) : String = ..."`: type parameters bind to the name and
         // the parser refuses a space between them, so there is nowhere for the usual one to go.
         $"let {location.name}{trimmedDefinition}"
@@ -66,14 +66,14 @@ let createFnInline
 
     // Parse the function definition
     let (tree, diagnostics) =
-      LanguageTools.Parser.Parse.parse LanguageTools.Parser.FileKind.Package fullSource
+      LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
 
     match tree with
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
-        (Errors.reportParseErrors diagnostics)
-        || (Errors.reportTrailing sourceFile)
+        (Errors.reportParseErrors(diagnostics))
+        || (Errors.reportTrailing(sourceFile))
       let parsedFunction =
         if hasParseError then
           Stdlib.Option.Option.None
@@ -85,30 +85,30 @@ let createFnInline
       match parsedFunction with
       | Some writtenFn when writtenFn.name.name != location.name ->
         let actual = writtenFn.name.name
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.error
-            $"Function name `{actual}` does not match target `{location.name}`")
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.hint
+        Stdlib.printLine(
+          (Stdlib.Cli.UI.Colors.error(
+            $"Function name `{actual}` does not match target `{location.name}`")))
+        Stdlib.printLine(
+          (Stdlib.Cli.UI.Colors.hint(
             ($"Rename it to `let {location.name} ...`, or change the "
-             + "fn target."))
+             + "fn target."))))
         // Nothing was saved: an agent's authoring loop branches on the exit.
         { state with exitCode = 1 }
 
       | Some writtenFn ->
         let failState = { state with exitCode = 1 }
 
-        Packages.saveAuthored
-          state
-          location
-          LanguageTools.ProgramTypes.ItemKind.Fn
-          "function"
-          failState
-          (fun ctx ->
+        Packages.saveAuthored(
+          state,
+          location,
+          LanguageTools.ProgramTypes.ItemKind.Fn,
+          "function",
+          failState,
+          fun ctx ->
             let (packageFn, unresolvedNames) =
-              LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-                ctx
-                writtenFn
+              LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT(
+                ctx,
+                writtenFn)
 
             // A bound on a trait that does not exist is not a forward reference worth waiting
             // on, same as `dark impl`: without the trait the bound constrains nothing, and the
@@ -117,38 +117,38 @@ let createFnInline
             // type and not at all as a trait, so the generic message reads as a lie.
             let unresolvedBoundNames =
               packageFn.bounds
-              |> Stdlib.List.filterMap (fun b ->
+              |> Stdlib.List.filterMap(fun b ->
                 match b.trait_.trait_.resolved with
                 | Ok _ -> Stdlib.Option.Option.None
                 | Error _ ->
                   Stdlib.Option.Option.Some
-                    (Stdlib.String.join b.trait_.trait_.originalName "."))
+                    (Stdlib.String.join(b.trait_.trait_.originalName, ".")))
               |> Stdlib.List.unique
 
             unresolvedBoundNames
-            |> Stdlib.List.iter (fun name ->
-              Stdlib.printLine
-                (Stdlib.Cli.UI.Colors.error $"There is no trait called {name}.")
+            |> Stdlib.List.iter(fun name ->
+              Stdlib.printLine(
+                Stdlib.Cli.UI.Colors.error($"There is no trait called {name}."))
 
               let alsoAType =
-                match LanguageTools.ProgramTypes.parsePackageLocation name with
+                match LanguageTools.ProgramTypes.parsePackageLocation(name) with
                 | location ->
-                  match LanguageTools.PackageManager.Type.find ctx.branchId location with
+                  match LanguageTools.PackageManager.Type.find(ctx.branchId, location) with
                   | Some _ -> true
                   | None -> false
 
               if alsoAType then
-                Stdlib.printLine
-                  (Stdlib.Cli.UI.Colors.hint
-                    $"  {name} is a type. A bound names a trait: `'a: ToString`, not `'a: SomeType`.")
+                Stdlib.printLine(
+                  (Stdlib.Cli.UI.Colors.hint(
+                    $"  {name} is a type. A bound names a trait: `'a: ToString`, not `'a: SomeType`.")))
               else
-                Stdlib.printLine
-                  (Stdlib.Cli.UI.Colors.hint
-                    "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")
+                Stdlib.printLine(
+                  (Stdlib.Cli.UI.Colors.hint(
+                    "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")))
 
-              Stdlib.printLine "")
+              Stdlib.printLine(""))
 
-            if Stdlib.Bool.not (Stdlib.List.isEmpty unresolvedBoundNames) then
+            if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolvedBoundNames)) then
               Stdlib.Option.Option.None
             else
               let ops =
@@ -164,30 +164,30 @@ let createFnInline
           { state with exitCode = 1 }
         else
           [
-            (Stdlib.Cli.UI.Colors.error "Expected exactly one function declaration")
+            (Stdlib.Cli.UI.Colors.error("Expected exactly one function declaration"))
             ""
             "Examples:"
-            "  fn double (x: Int): Int = (x * 2)"
-            "  fn greet (name: String): String = \"Hello, \" + name"
+            "  fn double(x: Int): Int = (x * 2)"
+            "  fn greet(name: String): String = \"Hello, \" + name"
             ""
           ] |> Stdlib.printLines
           { state with exitCode = 1 }
     | None ->
       [
-        (Stdlib.Cli.UI.Colors.error "Failed to parse function definition")
+        (Stdlib.Cli.UI.Colors.error("Failed to parse function definition"))
         ""
         "Make sure your syntax is correct. Examples:"
-        "  fn double (x: Int): Int = (x * 2)"
-        "  fn greet (name: String): String = \"Hello, \" + name"
+        "  fn double(x: Int): Int = (x * 2)"
+        "  fn greet(name: String): String = \"Hello, \" + name"
         ""
       ] |> Stdlib.printLines
       { state with exitCode = 1 }
   | Error msg ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid location: {msg}")
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Invalid location: {msg}"))
     { state with exitCode = 1 }
 
 
-let help (_state: Cli.AppState) : String =
+let help(_state: Cli.AppState): String =
   [
     "Create or update a function"
     ""
@@ -202,23 +202,23 @@ let help (_state: Cli.AppState) : String =
     "with; `Darklang` is reserved for the standard library."
     ""
     "Examples:"
-    "  dark fn Me.Demo.double '(x: Int) : Int = x * 2'"
-    "  dark fn Me.Demo.greet '(name: String) : String = \"Hello, \" + name'"
-    "  dark fn Me.Demo.add '(a: Int) (b: Int) : Int = a + b'"
-    "  dark fn Me.Demo.isPositive '(x: Int) : Bool = x > 0'"
-    "  dark eval 'Me.Demo.double 21'"
+    "  dark fn Me.Demo.double '(x: Int): Int = x * 2'"
+    "  dark fn Me.Demo.greet '(name: String): String = \"Hello, \" + name'"
+    "  dark fn Me.Demo.add '(a: Int, b: Int): Int = a + b'"
+    "  dark fn Me.Demo.isPositive '(x: Int): Bool = x > 0'"
+    "  dark eval 'Me.Demo.double(21)'"
     ""
-    "  # Several lines, from stdin: a complete `let`, or the `(n: Int) : Int = ...` fragment"
+    "  # Several lines, from stdin: a complete `let`, or the `(n: Int): Int = ...` fragment"
     "  dark fn Me.Demo.fib - <<'EOF'"
-    "  let fib (n: Int) : Int ="
+    "  let fib(n: Int): Int ="
     "    if n < 2 then n"
-    "    else fib (n - 1) + fib (n - 2)"
+    "    else fib(n - 1) + fib(n - 2)"
     "  EOF"
     ""
     "A leading `/` makes a name absolute (`/Me.Demo.double`); without one it is"
     "relative to the module `nav` put you in."
     ""
-  ] |> Stdlib.String.join "\n"
+  ] |> Stdlib.String.join("\n")
 
 
-let complete (_state: Cli.AppState) (_args: List<String>) : List<Cli.Completion.CompletionItem> = []
+let complete(_state: Cli.AppState, _args: List<String>): List<Cli.Completion.CompletionItem> = []

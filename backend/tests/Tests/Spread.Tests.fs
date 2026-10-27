@@ -104,12 +104,12 @@ let private fallbacks () = Spread.fallbacks
 /// first chunk finishes LAST. A spread that collected chunks as they finished would put the cheap
 /// tail first.
 let private uneven =
-  "(fun i -> (let n = (41 - i) * (41 - i) * 20 in Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 n) (fun x -> x)) + i))"
+  "(fun i -> (let n = (41 - i) * (41 - i) * 20 in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, n), fun x -> x)) + i))"
 
 let private inOrder =
   testTask "results come back in input order when the first chunk finishes last" {
     let! state = executionStateFor pmPT false
-    let code = $"Stdlib.List.map (Stdlib.List.range 1 40) {uneven}"
+    let code = $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
     let! (spread, moved) = delta spreads (fun () -> run state code)
     let! serial = runWith state false code
     Expect.isGreaterThan moved 0L "the map spread"
@@ -120,9 +120,9 @@ let private siblings =
   testTask "filter, filterMap and indexedMap spread and agree with serial" {
     let! state = executionStateFor pmPT false
     for code in
-      [ "Stdlib.List.filter (Stdlib.List.range 1 100) (fun i -> i % 3 == 0)"
-        "Stdlib.List.filterMap (Stdlib.List.range 1 100) (fun i -> if i % 4 == 0 then Stdlib.Option.Option.Some (i * 2) else Stdlib.Option.Option.None)"
-        "Stdlib.List.indexedMap (Stdlib.List.range 1 100) (fun idx i -> (idx, i * 10))" ] do
+      [ "Stdlib.List.filter(Stdlib.List.range(1, 100), fun i -> i % 3 == 0)"
+        "Stdlib.List.filterMap(Stdlib.List.range(1, 100), fun i -> if i % 4 == 0 then Stdlib.Option.Option.Some (i * 2) else Stdlib.Option.Option.None)"
+        "Stdlib.List.indexedMap(Stdlib.List.range(1, 100), fun idx i -> (idx, i * 10))" ] do
       let! (spread, moved) = delta spreads (fun () -> run state code)
       let! serial = runWith state false code
       Expect.isGreaterThan moved 0L $"spread: {code}"
@@ -136,9 +136,9 @@ let private errorAsSerial =
   testTask "an error is raised by the element that raises it serially, as serially" {
     let! state = executionStateFor pmPT false
     let code =
-      "Stdlib.List.map (Stdlib.List.range 1 40) (fun i -> if i == 35 then 1 / 0 else ("
+      "Stdlib.List.map(Stdlib.List.range(1, 40), fun i -> if i == 35 then 1 / 0 else ("
       + uneven
-      + " i))"
+      + "(i)))"
     let! ((spread, serial), fellBack) = delta fallbacks (fun () -> both state code)
     Expect.equal fellBack 1L "the spread fell back"
     match spread, serial with
@@ -153,9 +153,9 @@ let private earliestErrorWins =
   testTask "of two failing elements the earlier one raises, whichever fails first" {
     let! state = executionStateFor pmPT false
     let code =
-      "Stdlib.List.map (Stdlib.List.range 1 40) (fun i -> if i == 3 then (let _ = ("
+      "Stdlib.List.map(Stdlib.List.range(1, 40), fun i -> if i == 3 then (let _ = ("
       + uneven
-      + " 1) in 1 / 0) else if i == 38 then Builtin.testRuntimeError \"late\" else i)"
+      + "(1)) in 1 / 0) else if i == 38 then Builtin.testRuntimeError(\"late\") else i)"
     let! spread = run state code
     let! serial = runWith state false code
     match spread, serial with
@@ -172,7 +172,7 @@ let private effectsKeepOrder =
     let! state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
-      "(let hidden = ((fun s -> Builtin.testTrace s), 0) in Stdlib.List.map (Stdlib.List.range 1 30) (fun i -> (let (trace, _) = hidden in if i % 7 == 0 then (let _ = trace (if i == 7 then \"7\" else if i == 14 then \"14\" else if i == 21 then \"21\" else \"28\") in i) else i * 2)))"
+      "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in if i % 7 == 0 then (let _ = trace((if i == 7 then \"7\" else if i == 14 then \"14\" else if i == 21 then \"21\" else \"28\")) in i) else i * 2)))"
     let! (spread, fellBack) = delta fallbacks (fun () -> run state code)
     let spreadTrace = Trace.take ()
     let! serial = runWith state false code
@@ -193,7 +193,7 @@ let private namedFallbackIsRemembered =
     let! state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
-      "(let xs = [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"] in (let _ = Stdlib.List.map xs Builtin.testTrace in Stdlib.List.map xs Builtin.testTrace))"
+      "(let xs = [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"] in (let _ = Stdlib.List.map(xs, Builtin.testTrace) in Stdlib.List.map(xs, Builtin.testTrace)))"
     let! ((result, started), fellBack) =
       delta fallbacks (fun () -> delta spreads (fun () -> run state code))
     expectOk result |> ignore<RT.Dval>
@@ -212,9 +212,9 @@ let private refusalGetsThrough (call : string) =
     let! state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
-      "(let hidden = ((fun s -> Builtin.testTrace s), 0) in Stdlib.List.map (Stdlib.List.range 1 30) (fun i -> (let (trace, _) = hidden in "
+      "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in "
       + call
-      + " (fun n -> trace (Stdlib.toString n)) i)))"
+      + "((fun n -> trace(Stdlib.toString(n))), i))))"
     let! ((spread, serial), fellBack) = delta fallbacks (fun () -> both state code)
     let spreadTrace = Trace.take ()
     Expect.equal fellBack 1L "the spread fell back"
@@ -235,7 +235,7 @@ let private nestingIsBounded =
   testTask "a map inside a spread map does not spread again" {
     let! state = executionStateFor pmPT false
     let code =
-      "Stdlib.List.map (Stdlib.List.range 1 20) (fun i -> Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 50) (fun x -> x + i)))"
+      "Stdlib.List.map(Stdlib.List.range(1, 20), fun i -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 50), fun x -> x + i)))"
     let! (result, moved) = delta spreads (fun () -> run state code)
     Expect.equal
       moved
@@ -260,7 +260,7 @@ let private watchedRunsDoNotSpread =
     let watched : RT.ExecutionState = { state with tracing = watching () }
     let! (result, moved) =
       delta spreads (fun () ->
-        run watched "Stdlib.List.map (Stdlib.List.range 1 100) (fun i -> i)")
+        run watched "Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> i)")
     expectOk result |> ignore<RT.Dval>
     Expect.equal moved 0L "nothing spread"
   }
@@ -272,7 +272,7 @@ let private cancelledLeavesNothing =
     let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
-        "Stdlib.List.map (Stdlib.List.range 1 16) (fun i -> Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 3000000) (fun x -> x)))"
+        "Stdlib.List.map(Stdlib.List.range(1, 16), fun i -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 3000000), fun x -> x)))"
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None)
     let saved = Spread.crossover
@@ -324,7 +324,7 @@ let private fallbackIsPreempted =
     let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
-        "(let hidden = ((fun s -> Builtin.testTrace s), 0) in Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 400) (fun i -> (let (trace, _) = hidden in if i == 10 then (let _ = trace \"ten\" in i) else Stdlib.List.fold (Stdlib.List.range 1 2000) i (fun a x -> a + x)))))"
+        "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in if i == 10 then (let _ = trace(\"ten\") in i) else Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun a x -> a + x)))))"
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None)
     let saved = Spread.crossover
@@ -354,7 +354,7 @@ let private syncFallbackIsPreempted =
     let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
-        "(let hidden = ((fun s -> Builtin.testTrace s), 0) in Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 400) (fun i -> (let (trace, _) = hidden in (let _ = trace \"e\" in Stdlib.List.fold (Stdlib.List.range 1 2000) i (fun a x -> a + x))))))"
+        "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in (let _ = trace(\"e\") in Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun a x -> a + x))))))"
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None)
     let saved = Spread.crossover
@@ -416,7 +416,7 @@ let private visibleEffectStartsNothing =
         task {
           let! state = executionStateFor pmPT false
           let code =
-            "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 100) (fun i -> (let _ = (if i == 999 then Builtin.testTrace \"never\" else ()) in i * 2)))"
+            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Builtin.testTrace(\"never\") else ()) in i * 2)))"
           let struct (_, impure0, _) = predicted ()
           let! (result, moved) = delta spreads (fun () -> run state code)
           let struct (_, impure1, _) = predicted ()
@@ -436,9 +436,9 @@ let private packageFnsAnsweredByTheStore =
         task {
           let! state = predictingState ()
           let writes =
-            "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 100) (fun i -> (let _ = (if i == 999 then Stdlib.Cli.FileSystem.writeFile \"/tmp/spread-never-written\" (Stdlib.String.toBytes \"x\") else Stdlib.Result.Result.Ok ()) in i * 2)))"
+            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Stdlib.Cli.FileSystem.writeFile(\"/tmp/spread-never-written\", Stdlib.String.toBytes(\"x\")) else Stdlib.Result.Result.Ok ()) in i * 2)))"
           let pureBody =
-            "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 100) (fun i -> Stdlib.List.fold (Stdlib.List.range 1 50) i (fun a x -> a + x)))"
+            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> Stdlib.List.fold(Stdlib.List.range(1, 50), i, fun a x -> a + x)))"
           let struct (pure0, impure0, _) = predicted ()
           let! (r1, moved1) = delta spreads (fun () -> run state writes)
           let struct (_, impure1, _) = predicted ()
@@ -467,7 +467,7 @@ let private wrongPureFallsBack =
           let! (state : RT.ExecutionState) = executionStateFor pmPT false
           let liar = { state with fnPurity = fun _ -> Ply RT.Purity.Pure }
           let code =
-            "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 100) (fun i -> (let _ = Stdlib.DateTime.now () in i * 2)))"
+            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = Stdlib.DateTime.now() in i * 2)))"
           let! (result, fellBack) = delta fallbacks (fun () -> run liar code)
           Expect.equal
             (expectOk result)

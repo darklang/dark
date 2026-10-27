@@ -122,6 +122,7 @@ module Applications =
     | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
     | CannotApplyTypeArgsMoreThanOnce
     | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
+    | TooFewArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
     | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
     | FnResultNotExpectedType of fnName : FQFnName.FQFnName * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
@@ -129,6 +130,7 @@ module Applications =
 
     | CannotApplyTypeArgsToLambda
     | TooManyArgsForLambda of lambdaExprId: ID * expected: Int * actual: Int
+    | TooFewArgsForLambda of lambdaExprId: ID * expected: Int * actual: Int
 
 module Statements =
   type Error =

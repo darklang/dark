@@ -232,7 +232,7 @@ let tests =
           let unwrapSnippets =
             [ "fun x -> Ok x?"
               "fun x -> Some x?.field?"
-              "fun x -> Ok ((Stdlib.Int.parse x)?)"
+              "fun x -> Ok ((Stdlib.Int.parse(x))?)"
               "fun x -> Ok x??"
               "fun x -> Some ((x |> Stdlib.List.head)?)" ]
             |> List.map (fun source ->
@@ -327,7 +327,7 @@ let tests =
              [ "M" ],
              [ "Tests"; "M"; "f" ],
              [ "n" ],
-             "Tests.M.f n")
+             "Tests.M.f(n)")
             // a pipe fn-call with explicit type args (`|> f<T>`) — the type args must
             // lower onto the EPipeFnCall node identically on both sides (guards the move
             // of pipe type args off the fn identifier in the Dark WrittenTypes)
@@ -357,7 +357,7 @@ let tests =
              [ "M" ],
              [],
              [],
-             "Error 1 |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno")
+             "Error 1 |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)")
             ("internal-package-prefix",
              [ "M" ],
              [],

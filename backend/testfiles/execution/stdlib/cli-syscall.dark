@@ -1,14 +1,14 @@
 module Tests
-Builtin.syscallRead (-1) 1 = Error 9
-Builtin.syscallRead (-1) (-1) = Error 22
-Builtin.syscallClose (-1) = Error 9
-Builtin.syscallLseek (-1) 0 0 = Error 9
-Builtin.syscallFlock (-1) 2 = Error 9
-Builtin.syscallGetpid () > 0 = true
-Builtin.syscallGetuid () >= 0 = true
-Stdlib.Cli.Posix.__decimal 0 = "0"
-Stdlib.Cli.Posix.__decimal (-1) = "-1"
-Stdlib.Cli.Posix.__macMessage 999 = "Unknown error: 999"
-Builtin.syscallUnlinkAt "/dark-syscall-missing-entry" 0 = Error 2
-Builtin.syscallUnlinkAt "/dark-syscall-missing-entry" 64 = Error 22
-Stdlib.Cli.Dir.withTemp (fun dir -> let path = Stdlib.String.append dir "/child" in let created = Stdlib.Cli.Posix.mkdir path 448 in let removed = Builtin.syscallUnlinkAt path (Stdlib.Cli.Posix.__abiRemoveDirectory ()) in (created, removed, Stdlib.Cli.File.exists path) == (Ok (), Ok (), false)) = Ok true
+Builtin.syscallRead(-1, 1) = Error 9
+Builtin.syscallRead(-1, -1) = Error 22
+Builtin.syscallClose(-1) = Error 9
+Builtin.syscallLseek(-1, 0, 0) = Error 9
+Builtin.syscallFlock(-1, 2) = Error 9
+Builtin.syscallGetpid() > 0 = true
+Builtin.syscallGetuid() >= 0 = true
+Stdlib.Cli.Posix.__decimal(0) = "0"
+Stdlib.Cli.Posix.__decimal(-1) = "-1"
+Stdlib.Cli.Posix.__macMessage(999) = "Unknown error: 999"
+Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 0) = Error 2
+Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 64) = Error 22
+Stdlib.Cli.Dir.withTemp(fun dir -> let path = Stdlib.String.append(dir, "/child") in let created = Stdlib.Cli.Posix.mkdir(path, 448) in let removed = Builtin.syscallUnlinkAt(path, Stdlib.Cli.Posix.__abiRemoveDirectory()) in (created, removed, Stdlib.Cli.File.exists(path)) == (Ok (), Ok (), false)) = Ok true
