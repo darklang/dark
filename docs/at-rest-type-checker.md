@@ -88,7 +88,12 @@ Failure makes that item `Incomplete`, with a `DeclarationTooDeep` or
 An outer guard covers shared work, such as environment loading and catalog queries. Failure there makes the whole batch `Incomplete`.
 
 Shared declaration findings use guarded equality for deduplication. If
-comparison exceeds the depth limit, the original findings are kept. Native structural hashing via `List.unique` could let one deep finding abort environment construction.
+comparison exceeds the depth limit, the original findings are kept. `List.unique`
+compares with `==` and hashes complete values using an explicit work stack. Each
+hash call reuses completed subtree hashes by reference, so shared subtrees do not
+cause repeated traversal. Hashing neither recurses on the native stack nor stops
+at a fixed prefix. Hash collisions still go through equality before a finding is
+removed.
 
 For deep Dark checker walks, use direct recursion or an explicit work list.
 Avoid recursion inside builtin callbacks. Stack checks belong in the F# runtime paths above.

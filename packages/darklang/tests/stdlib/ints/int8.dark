@@ -213,11 +213,13 @@ test randomReachesEveryValue =
   Stdlib.Test.all
     [ (((Stdlib.List.range 1 100)
        |> Stdlib.List.map (fun x -> Stdlib.Int8.random 0y 1y)
-       |> Stdlib.List.unique))
+       |> Stdlib.List.unique
+       |> Stdlib.List.sort))
       |> Stdlib.Test.equal ([ 0y, 1y ])
       (((Stdlib.List.range 1 100)
        |> Stdlib.List.map (fun x -> Stdlib.Int8.random 0y 2y)
-       |> Stdlib.List.unique))
+       |> Stdlib.List.unique
+       |> Stdlib.List.sort))
       |> Stdlib.Test.equal ([ 0y, 1y, 2y ]) ]
 
 test parse =

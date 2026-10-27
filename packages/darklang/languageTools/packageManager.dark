@@ -480,7 +480,7 @@ let duplicateDeclarations
   declarations
   |> Stdlib.List.filter (fun d ->
     (Stdlib.Dict.get counts d) != Stdlib.Option.Option.Some 1)
-  |> Stdlib.List.dedup
+  |> Stdlib.List.unique
 
 
 /// Find any item (type, fn, value, trait or impl) at a location.

@@ -506,3 +506,203 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DBytes _, _
   | DStream _, _
   | DPromise _, _ -> false
+
+
+/// Holds a value's running hash until all its children have been hashed.
+[<NoEquality; NoComparison>]
+type private HashFrame = { value : Dval; mutable code : System.HashCode }
+
+
+/// Walks collections one item at a time to keep the work stack small.
+/// Keeps map iterators on that stack so `finally` can clean them up after an error.
+[<NoEquality; NoComparison>]
+type private HashWork =
+  | HashValue of Dval
+  | AddHash of HashFrame
+  | HashList of HashFrame * List<Dval>
+  | HashDict of
+    HashFrame *
+    System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<DictKey, Dval>>
+  | HashRecord of
+    HashFrame *
+    System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<string, Dval>>
+
+
+/// Hashes simple values without creating a work stack or cache.
+let private tryHashLeaf (value : Dval) : ValueOption<int> =
+  let mutable code = System.HashCode()
+  code.Add(DictKey.caseTag value)
+  let leaf =
+    match value with
+    | DUnit -> true
+    | DBool x ->
+      code.Add x
+      true
+    | DInt8 x ->
+      code.Add x
+      true
+    | DUInt8 x ->
+      code.Add x
+      true
+    | DInt16 x ->
+      code.Add x
+      true
+    | DUInt16 x ->
+      code.Add x
+      true
+    | DInt32 x ->
+      code.Add x
+      true
+    | DUInt32 x ->
+      code.Add x
+      true
+    | DInt64 x ->
+      code.Add x
+      true
+    | DUInt64 x ->
+      code.Add x
+      true
+    | DInt128 x ->
+      code.Add x
+      true
+    | DUInt128 x ->
+      code.Add x
+      true
+    | DInt x ->
+      code.Add(DarkInt.toBigInt x)
+      true
+    | DFloat x ->
+      code.Add x
+      true
+    | DChar x ->
+      code.Add x
+      true
+    | DString x ->
+      code.Add x
+      true
+    | DDateTime x ->
+      code.Add x
+      true
+    | DUuid x ->
+      code.Add x
+      true
+    | DBytes bytes ->
+      code.Add bytes
+      true
+    | DApplicable(AppLambda lambda) ->
+      code.Add lambda.exprId
+      true
+    | DStream(_, _, lockObj) ->
+      code.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode lockObj)
+      true
+    | DPromise promise ->
+      code.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode promise)
+      true
+    | DList _
+    | DTuple _
+    | DDict _
+    | DRecord _
+    | DEnum _
+    | DApplicable(AppNamedFn _) -> false
+  if leaf then ValueSome(code.ToHashCode()) else ValueNone
+
+
+/// Equal values must have the same hash. The work stack handles deep nesting,
+/// and cached subtree hashes avoid repeating work when values share children.
+/// Source names and type arguments are left out so compatible values hash alike.
+/// This hash can change between runs, so don't save it.
+let hash (dv : Dval) : int =
+  match tryHashLeaf dv with
+  | ValueSome code -> code
+  | ValueNone ->
+    let hashes =
+      System.Collections.Generic.Dictionary<Dval, int>(HashIdentity.Reference)
+    let pending = System.Collections.Generic.Stack<HashWork>()
+    let mutable result = 0
+    pending.Push(HashValue dv)
+
+    let finish (frame : HashFrame) : unit =
+      result <- frame.code.ToHashCode()
+      hashes.Add(frame.value, result)
+
+    try
+      while pending.Count > 0 do
+        match pending.Peek() with
+        | HashValue value ->
+          pending.Pop() |> ignore<HashWork>
+          match hashes.TryGetValue value with
+          | true, code -> result <- code
+          | false, _ ->
+            match tryHashLeaf value with
+            | ValueSome code ->
+              result <- code
+              hashes.Add(value, code)
+            | ValueNone ->
+              let frame = { value = value; code = System.HashCode() }
+              frame.code.Add(DictKey.caseTag value)
+              match value with
+              | DList(_, xs) -> pending.Push(HashList(frame, xs))
+              | DTuple(a, b, rest) -> pending.Push(HashList(frame, a :: b :: rest))
+              | DDict(_, _, entries) ->
+                pending.Push(HashDict(frame, (entries :> seq<_>).GetEnumerator()))
+              | DRecord(_, name, _, fields) ->
+                frame.code.Add name
+                pending.Push(HashRecord(frame, (fields :> seq<_>).GetEnumerator()))
+              | DEnum(_, name, _, caseName, fields) ->
+                frame.code.Add name
+                frame.code.Add caseName
+                pending.Push(HashList(frame, fields))
+              | DApplicable(AppNamedFn fn) ->
+                frame.code.Add fn.name
+                pending.Push(HashList(frame, fn.argsSoFar))
+              | _ -> Exception.raiseInternal "Hash leaf was not handled" []
+        | AddHash frame ->
+          pending.Pop() |> ignore<HashWork>
+          frame.code.Add result
+        | HashList(frame, xs) ->
+          pending.Pop() |> ignore<HashWork>
+          match xs with
+          | [] -> finish frame
+          | x :: rest ->
+            pending.Push(HashList(frame, rest))
+            pending.Push(AddHash frame)
+            pending.Push(HashValue x)
+        // An error can skip the normal Dispose() call. Keep the iterator on
+        // the stack so `finally` can still find it and clean it up.
+        | HashDict(frame, entries) ->
+          if entries.MoveNext() then
+            let entry = entries.Current
+            pending.Push(AddHash frame)
+            pending.Push(HashValue entry.Value)
+            pending.Push(AddHash frame)
+            pending.Push(HashValue entry.Key.Dval)
+          else
+            pending.Pop() |> ignore<HashWork>
+            entries.Dispose()
+            finish frame
+        | HashRecord(frame, fields) ->
+          if fields.MoveNext() then
+            let field = fields.Current
+            frame.code.Add field.Key
+            pending.Push(AddHash frame)
+            pending.Push(HashValue field.Value)
+          else
+            pending.Pop() |> ignore<HashWork>
+            fields.Dispose()
+            finish frame
+
+      result
+    finally
+      for work in pending do
+        match work with
+        | HashDict(_, entries) -> entries.Dispose()
+        | HashRecord(_, fields) -> fields.Dispose()
+        | HashValue _
+        | AddHash _
+        | HashList _ -> ()
+
+
+/// Uses Dark's equality rules, so NaN is unequal to itself.
+/// Values with the same hash are still checked with `equals`.
+let equalityComparer : System.Collections.Generic.IEqualityComparer<Dval> =
+  HashIdentity.FromFunctions hash equals

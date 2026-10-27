@@ -292,7 +292,7 @@ let resolutionsAcross
   targets
   |> Stdlib.List.map (fun f -> SCM.Constraints.resolutionsFor f.kind)
   |> Stdlib.List.flatten
-  |> Stdlib.List.dedup
+  |> Stdlib.List.unique
 
 /// Can this batch proceed without being told which resolution to apply?
 ///

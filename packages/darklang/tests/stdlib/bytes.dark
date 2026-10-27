@@ -98,8 +98,8 @@ test collectionsUseContentEquality =
       Stdlib.List.unique [a, b] |> Stdlib.List.length |> Stdlib.Test.equal 1
       Stdlib.List.unique [Stdlib.Bytes.empty, Stdlib.Bytes.fromString ""]
       |> Stdlib.List.length |> Stdlib.Test.equal 1
-      // `unique` does not depend on the input order either.
-      Stdlib.List.unique [a, x, b] |> Stdlib.Test.equal (Stdlib.List.unique [x, b, a]) ]
+      // `unique` keeps the first of equal Bytes where it was.
+      Stdlib.List.unique [a, x, b] |> Stdlib.Test.equal [a, x] ]
 
 // Bytes have no order, so sorting them refuses rather than inventing one.
 test sortRefusesBytes =

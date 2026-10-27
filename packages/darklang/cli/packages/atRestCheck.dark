@@ -85,7 +85,7 @@ let issueLines
   issues
   |> deduplicate
   |> Stdlib.List.map (issueLine branchId)
-  |> Stdlib.List.groupByWithKey (fun line -> line)
+  |> Stdlib.List.groupBy (fun line -> line)
   |> Stdlib.List.map (fun (line, occurrences) ->
     let count = Stdlib.List.length occurrences
     if count == 1 then line

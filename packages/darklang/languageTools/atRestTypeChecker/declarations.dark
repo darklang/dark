@@ -538,11 +538,11 @@ let allDeclarationProblems
 
       let problems = Stdlib.List.concat own reached
       // Shared dependencies can contribute the same finding more than once.
-      // Use dedup's equality comparisons because unique hashes findings and can
-      // exhaust the stack on deeply nested types. Guard comparisons too; if they
-      // fail, retain the full list so no findings are lost.
+      // `unique` compares with `==`, which checks the stack on deeply nested
+      // types. Guard it; if it fails, retain the full list so no findings are
+      // lost.
       let problems =
-        match guard (fun problems -> Stdlib.List.dedup problems) problems with
+        match guard (fun problems -> Stdlib.List.unique problems) problems with
         | Ok unique -> unique
         | Error _ -> problems
 

@@ -1253,6 +1253,298 @@ module DictKeyOrdering =
         equalityIsNotTransitive ]
 
 
+module ListUnique =
+  let private comparer = Dval.equalityComparer
+
+  let private lambda (id : id) (args : RT.Dval list) : RT.Dval =
+    RT.DApplicable(
+      RT.AppLambda
+        { exprId = id
+          closedRegisters = [||]
+          typeSymbolTable = RT.TST.empty
+          access =
+            LibExecution.Permissions.Access.start
+              LibExecution.Permissions.Policy.denyAll
+          argsSoFar = args
+          expectedReturn = ValueNone
+          writtenIn = ValueNone }
+    )
+
+  let private named (name : string) (args : RT.Dval list) : RT.Dval =
+    RT.DApplicable(
+      RT.AppNamedFn
+        { name = RT.FQFnName.fqBuiltin name 0
+          typeSymbolTable = RT.TST.empty
+          typeArgs = []
+          access = None
+          argsSoFar = args
+          boundImpls = [] }
+    )
+
+  let private equalHashes =
+    test "equal values have equal hashes, including compatible metadata" {
+      let name = RT.FQTypeName.fqPackage "resolved"
+      let alias = RT.FQTypeName.fqPackage "alias"
+      let fields = Map [ "value", RT.DFloat 0.0 ]
+      let record source args = RT.DRecord(source, name, args, fields)
+      let enum source args = RT.DEnum(source, name, args, "None", [])
+      let dict key value =
+        RT.DDict(VT.float, VT.float, Map [ RT.DictKey(RT.DFloat key), value ])
+      let stream = LibExecution.Stream.newFromIO VT.unit (fun () -> Ply None) None
+      let promise =
+        RT.Promise(
+          System.Threading.Tasks.Task.FromResult RT.DUnit,
+          RT.FQFnName.fqBuiltin "testRead" 0,
+          RT.ExecutionPoint.Source
+        )
+      let blob = LibExecution.Bytes.newEphemeral [| 1uy |]
+      let dictWithKey key =
+        RT.DDict(VT.unknown, VT.unit, Map [ RT.DictKey key, RT.DUnit ])
+      let pairs =
+        [ RT.DFloat 0.0, RT.DFloat -0.0
+          RT.DList(VT.unknown, []), RT.DList(VT.int64, [])
+          record alias [ VT.unknown ], record name [ VT.int64 ]
+          enum alias [ VT.unknown ], enum name [ VT.int64 ]
+          // Dict keys ignore type arguments even when `equals` would distinguish
+          // the keys themselves. Their enclosing dicts must still hash alike.
+          dictWithKey (record alias [ VT.int64 ]),
+          dictWithKey (record name [ VT.string ])
+          dictWithKey (enum alias [ VT.int64 ]),
+          dictWithKey (enum name [ VT.string ])
+          dict 0.0 (RT.DFloat 1.0), dict -0.0 (RT.DFloat 1.0)
+          dict nan (RT.DFloat 1.0), dict -nan (RT.DFloat 1.0)
+          lambda 1UL [ RT.DInt64 1L ], lambda 1UL [ RT.DString "ignored" ]
+          named "intAdd" [], named "intAdd" []
+          named "intAdd" [ RT.DInt64 1L ], named "intAdd" [ RT.DInt64 1L ]
+          RT.DBytes(RT.Persistent("same-hash", 5L)),
+          RT.DBytes(RT.Persistent("same-hash", 5L))
+          blob,
+          (match blob with
+           | RT.DBytes bytes ->
+             RT.DBytes(RT.Persistent(bytes.ContentHash, bytes.Length))
+           | _ -> failtest "expected Bytes")
+          blob, blob
+          stream, stream
+          RT.DPromise promise, RT.DPromise promise ]
+      for a, b in pairs do
+        let wrappers =
+          [ a, b
+            RT.DList(VT.unknown, [ a ]), RT.DList(VT.unknown, [ b ])
+            RT.DTuple(a, RT.DUnit, []), RT.DTuple(b, RT.DUnit, [])
+            RT.DRecord(name, name, [], Map [ "value", a ]),
+            RT.DRecord(alias, name, [], Map [ "value", b ])
+            RT.DEnum(name, name, [], "Some", [ a ]),
+            RT.DEnum(alias, name, [], "Some", [ b ])
+            RT.DDict(VT.string, VT.unknown, Map [ RT.DictKey(RT.DString "k"), a ]),
+            RT.DDict(VT.string, VT.unknown, Map [ RT.DictKey(RT.DString "k"), b ]) ]
+        for left, right in wrappers do
+          Expect.isTrue (comparer.Equals(left, right)) "the pair compares equal"
+          Expect.equal
+            (comparer.GetHashCode left)
+            (comparer.GetHashCode right)
+            "equal values must land in the same hash bucket"
+    }
+
+  let private longPrefixes =
+    test "long shared prefixes do not require quadratic equality calls" {
+      let prefix = List.replicate 64 (RT.DInt64 0L)
+      let name = RT.FQTypeName.fqPackage "record"
+      let list xs = RT.DList(VT.int64, xs)
+      let tuple xs = RT.DTuple(RT.DUnit, RT.DUnit, xs)
+      let enum xs = RT.DEnum(name, name, [], "Values", xs)
+      let dict xs =
+        RT.DDict(
+          VT.int64,
+          VT.int64,
+          xs |> List.mapi (fun i x -> RT.DictKey(RT.DInt64(int64 i)), x) |> Map
+        )
+      let record xs =
+        RT.DRecord(
+          name,
+          name,
+          [],
+          xs |> List.mapi (fun i x -> $"field{i:D3}", x) |> Map
+        )
+      let nested xs =
+        [ 1..64 ]
+        |> List.fold (fun value _ -> RT.DList(VT.unknown, [ value ])) (list xs)
+      for make in [ list; tuple; enum; dict; record; nested; named "partial" ] do
+        let mutable comparisons = 0
+        let counted =
+          HashIdentity.FromFunctions comparer.GetHashCode (fun a b ->
+            comparisons <- comparisons + 1
+            comparer.Equals(a, b))
+        let seen = System.Collections.Generic.HashSet<RT.Dval>(counted)
+        let rows =
+          [ 1..3000 ]
+          |> List.map (fun i -> make (prefix @ [ RT.DInt64(int64 (i % 1500)) ]))
+        let kept = rows |> List.filter seen.Add
+        Expect.equal kept.Length 1500 "one copy of each row survives"
+        Expect.isLessThan
+          comparisons
+          10_000
+          "differences beyond any fixed prefix must contribute to the hash"
+    }
+
+  let private collisionCounts =
+    test "same-shaped rows do not require quadratic equality calls" {
+      let mutable comparisons = 0
+      let counted =
+        HashIdentity.FromFunctions comparer.GetHashCode (fun a b ->
+          comparisons <- comparisons + 1
+          comparer.Equals(a, b))
+      let seen = System.Collections.Generic.HashSet<RT.Dval>(counted)
+      let rows =
+        [ 1..3000 ]
+        |> List.map (fun i ->
+          RT.DList(
+            VT.string,
+            [ RT.DString "owner"
+              RT.DString "modules"
+              RT.DString(string (i % 1500)) ]
+          ))
+      let kept = rows |> List.filter seen.Add
+      Expect.equal kept.Length 1500 "one copy of each row survives"
+      Expect.isLessThan comparisons 10_000 "a constant or shallow hash must fail"
+    }
+
+  let private identityDistribution =
+    test "identity-bearing values do not all share a hash" {
+      let streams =
+        [ 1..256 ]
+        |> List.map (fun _ ->
+          LibExecution.Stream.newFromIO VT.unit (fun () -> Ply None) None)
+      let promises =
+        [ 1..256 ]
+        |> List.map (fun _ ->
+          RT.DPromise(
+            RT.Promise(
+              System.Threading.Tasks.Task.FromResult RT.DUnit,
+              RT.FQFnName.fqBuiltin "testRead" 0,
+              RT.ExecutionPoint.Source
+            )
+          ))
+      let families =
+        [ streams
+          promises
+          [ 1..256 ]
+          |> List.map (fun i -> LibExecution.Bytes.newEphemeral [| byte i |])
+          [ 1..256 ] |> List.map (fun i -> RT.DBytes(RT.Persistent(string i, 0L)))
+          [ 1..256 ] |> List.map (fun i -> lambda (uint64 i) [])
+          [ 1..256 ] |> List.map (fun i -> named $"fn{i}" []) ]
+      for values in families do
+        let hashes = values |> List.map comparer.GetHashCode |> Set.ofList
+        Expect.isGreaterThan
+          hashes.Count
+          128
+          "use the identity or content, not just the Dval tag"
+    }
+
+  let private collisionsStillCompare =
+    test "collisions preserve distinct values and first occurrences" {
+      let make last =
+        RT.DList(VT.int64, List.replicate 40 (RT.DInt64 0L) @ [ RT.DInt64 last ])
+      let first = make 1L
+      let second = make 2L
+      let colliding =
+        HashIdentity.FromFunctions (fun _ -> 0) (fun a b -> comparer.Equals(a, b))
+      let seen = System.Collections.Generic.HashSet<RT.Dval>(colliding)
+      let kept = [ second; first; second; first ] |> List.filter seen.Add
+      Expect.equal kept [ second; first ] "equality resolves the hash collision"
+    }
+
+  let private nonReflexiveAndCompatible =
+    test "deduplication follows Dark equality for NaN and compatible types" {
+      let name = RT.FQTypeName.fqPackage "enum"
+      let value typ = RT.DEnum(name, name, [ typ ], "None", [])
+      let unknown = value VT.unknown
+      let integers = value VT.int64
+      let strings = value VT.string
+      let keep values =
+        let seen = System.Collections.Generic.HashSet<RT.Dval>(comparer)
+        List.filter seen.Add values
+      Expect.equal
+        (keep [ unknown; integers; strings ]).Length
+        1
+        "both concrete types match the first unknown representative"
+      Expect.equal
+        (keep [ integers; strings; unknown ]).Length
+        2
+        "the incompatible concrete representatives are both kept"
+      let nan = RT.DFloat nan
+      Expect.equal (keep [ nan; nan ]).Length 2 "NaN is unequal to itself"
+    }
+
+  let private forkMakers : List<RT.Dval -> RT.Dval -> RT.Dval> =
+    let name = RT.FQTypeName.fqPackage "shared"
+    [ (fun a b -> RT.DList(VT.unknown, [ a; b ]))
+      (fun a b -> RT.DTuple(a, b, []))
+      (fun a b ->
+        RT.DDict(
+          VT.string,
+          VT.unknown,
+          Map [ RT.DictKey(RT.DString "a"), a; RT.DictKey(RT.DString "b"), b ]
+        ))
+      (fun a b -> RT.DRecord(name, name, [], Map [ "a", a; "b", b ]))
+      (fun a b -> RT.DEnum(name, name, [], "Node", [ a; b ]))
+      (fun a b -> named "partial" [ a; b ]) ]
+
+  let private sharedSubtrees =
+    test "hashing shared subtrees does not allocate the expanded tree" {
+      for make in forkMakers do
+        let shared depth =
+          [ 1..depth ] |> List.fold (fun child _ -> make child child) (RT.DInt64 1L)
+        // Warm generic hashing and map-enumerator paths before measuring.
+        comparer.GetHashCode(shared 2) |> ignore<int>
+        let value = shared 14
+        let before = System.GC.GetAllocatedBytesForCurrentThread()
+        comparer.GetHashCode value |> ignore<int>
+        let allocated = System.GC.GetAllocatedBytesForCurrentThread() - before
+        // A small graph represents thousands of repeated subtrees. This generous
+        // bound catches expansion without a timing assertion or a runaway test.
+        Expect.isLessThan
+          allocated
+          262_144L
+          "memoize completed subtrees instead of expanding shared references"
+    }
+
+  let private sharingDoesNotChangeHashes =
+    test "shared and separately allocated equal subtrees have equal hashes" {
+      for make in forkMakers do
+        let rec build depth share =
+          if depth = 0 then
+            RT.DInt64 1L
+          else
+            let left = build (depth - 1) share
+            let right = if share then left else build (depth - 1) share
+            make left right
+        let shared = build 6 true
+        let copied = build 6 false
+        Expect.isTrue
+          (comparer.Equals(shared, copied))
+          "the values compare equal regardless of sharing"
+        Expect.equal
+          (comparer.GetHashCode shared)
+          (comparer.GetHashCode copied)
+          "reference memoization must not affect the resulting hash"
+        let seen = System.Collections.Generic.HashSet<RT.Dval>(comparer)
+        Expect.isTrue (seen.Add shared) "the first value is kept"
+        Expect.isFalse (seen.Add copied) "the equal copy is removed"
+    }
+
+  let tests =
+    testList
+      "ListUnique"
+      [ equalHashes
+        longPrefixes
+        collisionCounts
+        identityDistribution
+        collisionsStillCompare
+        nonReflexiveAndCompatible
+        sharedSubtrees
+        sharingDoesNotChangeHashes ]
+
+
 /// Deep equality, ordering, type merging, and substitution must fail the stack check.
 /// A small thread stack triggers the guard without allocating values large enough
 /// to stall the parallel suite. A missing check terminates the test process.
@@ -1310,10 +1602,44 @@ module DeepValues =
         failtest "expected the stack check to fail, but substitution finished"
     }
 
+  let private hashesMixedContainers =
+    test "hashing deep maps and mixed containers finishes on a small stack" {
+      let name = RT.FQTypeName.fqPackage "deep"
+      let fn : RT.ApplicableNamedFn =
+        { name = RT.FQFnName.fqBuiltin "partial" 0
+          typeSymbolTable = RT.TST.empty
+          typeArgs = []
+          access = None
+          argsSoFar = []
+          boundImpls = [] }
+      let value =
+        [ 1..depth ]
+        |> List.fold
+          (fun inner i ->
+            match i % 6 with
+            | 0 -> RT.DList(VT.unknown, [ inner ])
+            | 1 -> RT.DTuple(RT.DUnit, inner, [])
+            | 2 -> RT.DDict(VT.unit, VT.unknown, Map [ RT.DictKey RT.DUnit, inner ])
+            | 3 -> RT.DRecord(name, name, [], Map [ "value", inner ])
+            | 4 -> RT.DEnum(name, name, [], "Value", [ inner ])
+            | _ -> RT.DApplicable(RT.AppNamedFn { fn with argsSoFar = [ inner ] }))
+          (RT.DInt64 1L)
+      match onSmallStack (fun () -> Dval.hash value |> ignore<int>) with
+      | None -> ()
+      | Some ex -> failtest $"iterative hashing raised {ex.GetType().Name}"
+    }
+
   let tests =
     testList
       "DeepValues"
-      [ refusesToOverflow "equals" (fun a b -> Dval.equals a b |> ignore<bool>)
+      [ test "complete hashing finishes on a small stack" {
+          let value = deepList ()
+          match onSmallStack (fun () -> Dval.hash value |> ignore<int>) with
+          | None -> ()
+          | Some ex -> failtest $"iterative hashing raised {ex.GetType().Name}"
+        }
+        hashesMixedContainers
+        refusesToOverflow "equals" (fun a b -> Dval.equals a b |> ignore<bool>)
         refusesToOverflow "compareForSort" (fun a b ->
           RT.DvalOrdering.compareForSort a b |> ignore<int>)
         refusesToOverflow "ValueType.merge" (fun a b ->
@@ -1665,6 +1991,7 @@ let tests =
       SyncUnify.tests
       AliasChecks.tests
       DictKeyOrdering.tests
+      ListUnique.tests
       DeepValues.tests
       Reload.tests
       BoundMemo.tests

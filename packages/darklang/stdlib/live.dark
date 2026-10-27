@@ -603,7 +603,7 @@ let versionsNewestFirst
     | None -> []
 
   Stdlib.List.concat current (Stdlib.List.reverse (SCM.Propagation.authoringOrder loc))
-  |> Stdlib.List.dedup
+  |> Stdlib.List.unique
   |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
 
 /// Whether <param hash> passes its at-rest checks with everything it calls. `None` when it does;
