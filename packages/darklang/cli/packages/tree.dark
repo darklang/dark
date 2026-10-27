@@ -98,8 +98,8 @@ let displayTableOfContents(): Unit =
       Stdlib.printLine("")
     | None -> ())
 
-  Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("Use 'tree <path>' to explore a specific package"))
-  Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("Use 'tree --depth=N' for deeper views (max 10)"))
+  Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use 'tree <path>' to explore a specific package"))
+  Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use 'tree --depth=N' for deeper views (max 10)"))
 
 
 let execute(state: AppState, args: List<String>): AppState =

@@ -28,10 +28,10 @@ let execute(state: AppState, args: List<String>): AppState =
           Stdlib.printLine(View.formatSuccess(message))
           state
         | Error e ->
-          Stdlib.printLine(View.formatError(e))
+          Stdlib.printErrorLine(View.formatError(e))
           { state with exitCode = 1 }
       | Error e ->
-        Stdlib.printLine(View.formatError($"Uninstall failed: {e}"))
+        Stdlib.printErrorLine(View.formatError($"Uninstall failed: {e}"))
         { state with exitCode = 1 }
     else
       Stdlib.printLine(View.formatSuccess("Already installed globally"))
@@ -52,10 +52,10 @@ let execute(state: AppState, args: List<String>): AppState =
             Stdlib.printLine(View.formatSuccess(message))
             state
           | Error e ->
-            Stdlib.printLine(View.formatError(e))
+            Stdlib.printErrorLine(View.formatError(e))
             { state with exitCode = 1 }
         | Error e ->
-          Stdlib.printLine(View.formatError($"Uninstall failed: {e}"))
+          Stdlib.printErrorLine(View.formatError($"Uninstall failed: {e}"))
           { state with exitCode = 1 }
       else
         let homeDir = Config.getDarklangHomeDir(host)
@@ -87,7 +87,7 @@ let execute(state: AppState, args: List<String>): AppState =
           Stdlib.printLine(View.formatSuccess(message))
           state
         | Error e ->
-          Stdlib.printLine(View.formatError(e))
+          Stdlib.printErrorLine(View.formatError(e))
           { state with exitCode = 1 }
       | Some "2" ->
         Stdlib.printLine("Installing globally...")
@@ -96,7 +96,7 @@ let execute(state: AppState, args: List<String>): AppState =
           Stdlib.printLine(View.formatSuccess(message))
           state
         | Error e ->
-          Stdlib.printLine(View.formatError(e))
+          Stdlib.printErrorLine(View.formatError(e))
           { state with exitCode = 1 }
       | Some other ->
         Cli.printErr($"\"{other}\" isn't 1 or 2; nothing installed.")

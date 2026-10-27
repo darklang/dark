@@ -80,8 +80,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   match (parsed.itemType, parsed.target) with
   | _ when Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(FlagParser.parseErrorsMessage(parsed.parseErrors)))
-    Stdlib.printLine(help(state))
+    Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
+    Stdlib.printErrorLine(help(state))
     Cli.exitWith(state, false)
   | (None, _) ->
     Stdlib.printLine(help(state))
@@ -119,7 +119,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     | Some itemKind ->
       match targetOpt with
       | None ->
-        Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Error: Missing target (location or hash)"))
+        Cli.printErr("Error: Missing target (location or hash)")
         Cli.exitWith(state, false)
       | Some target ->
         let currentLoc = state.packageData.currentLocation
@@ -137,11 +137,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             // when LIVE dependents exist. Deprecated-only callers don't block.
             let depCount = countLiveDependents(branchId, targetLoc, itemKind)
             if depCount > 0 && Stdlib.Bool.not(parsed.ignoreDependents) then
-              Stdlib.printLine(
-                (Stdlib.Cli.UI.Colors.error(
+              Cli.printErr((
                   $"""{Cli.Text.plural(depCount, "live dependent")} still {
                     if depCount == 1 then "references" else "reference"
-                  } this item.""")))
+                  } this item."""))
               Stdlib.printLine(
                 "Use `deprecate` to give them time to migrate, or pass `--ignore-dependents` / `--force`.")
 

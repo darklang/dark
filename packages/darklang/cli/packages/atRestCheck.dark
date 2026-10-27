@@ -118,7 +118,7 @@ let printSaveReport(
           ("Type check failed. Saved as a draft; "
            + "`dark commit` will refuse it until it is fixed:"))) ],
       details)
-    |> Stdlib.printLines
+    |> Cli.Stderr.lines
   | Incomplete ->
     let details =
       Stdlib.List.concat(
@@ -129,7 +129,7 @@ let printSaveReport(
         (Stdlib.Cli.UI.Colors.warning(
           "Type check was incomplete; saved anyway:")) ],
       details)
-    |> Stdlib.printLines
+    |> Cli.Stderr.lines
 
 
 /// Script errors name local declarations without exposing their parser-only owner.

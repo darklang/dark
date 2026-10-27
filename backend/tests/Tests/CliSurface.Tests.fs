@@ -163,6 +163,31 @@ let private diagnosticsStayOffStdout =
         Expect.stringContains err "DEBUG: lbl: 5" "the debug line is on stderr"
       })
 
+/// What a person reads while a command runs (a log line, a hint about another flag) is not part of
+/// the answer, so `dark search x | wc -l` counts results and nothing else.
+let private hintsAndLogsStayOffStdout =
+  cliTest "log lines and hints go to stderr, not into the answer" (fun target ->
+    task {
+      let! (out, err, status) =
+        runCliStreams
+          target
+          [ "eval"; "let _ = Stdlib.Cli.Log.warn(\"careful\") in 7L" ]
+      Expect.equal status 0 "the eval succeeded"
+      Expect.equal out "7" "stdout is the value alone"
+      Expect.stringContains
+        (CliDsl.plain err)
+        "[WARN] careful"
+        "the log line is on stderr"
+
+      let! (out, err, status) = runCliStreams target [ "search"; "Stdlib.List.map" ]
+      Expect.equal status 0 "the search answered"
+      Expect.stringContains out "map" "stdout has the results"
+      Expect.isFalse
+        (out.Contains "--with-docs")
+        "but not the hint about another flag"
+      Expect.stringContains (CliDsl.plain err) "--with-docs" "which is on stderr"
+    })
+
 let private testHelpCommand =
   cliTest "help command" (fun state ->
     task {
@@ -1285,6 +1310,70 @@ let private otherRefusalsExitNonZero =
         Tests.failtestf "refusals that exit 0:\n%s" detail
     })
 
+/// A refusal has no answer, so stdout stays empty, and the reason goes to stderr. `--json` included:
+/// under `--json` stdout is the answer or nothing, never an error object, so `dark x --json | jq`
+/// meets an empty input and the exit code says why. Read-only, so it runs against the shared store.
+let private refusalsOnStderr : List<string * List<string>> =
+  [ "config get, no such key", [ "config"; "get"; "zzznope" ]
+    "outliner show, no such document", [ "outliner"; "show"; "zzznope" ]
+    "traces calls, no such function", [ "traces"; "calls"; "Zzz.Nope.nope" ]
+    "traces list, a word where a count goes", [ "traces"; "list"; "zzznope" ]
+    "traces list --json, the same", [ "traces"; "list"; "zzznope"; "--json" ]
+    "traces delete --before, no duration", [ "traces"; "delete"; "--before" ]
+    "traces rerun, no id", [ "traces"; "rerun" ]
+    "permissions revoke-package, never approved",
+    [ "permissions"; "revoke-package"; "zzznope" ]
+    "permissions show, no such function", [ "permissions"; "show"; "Zzz.Nope.nope" ]
+    "permissions allow, not a rule", [ "permissions"; "allow"; "zzznope" ]
+    "typecheck, no such module", [ "typecheck"; "Zzz.Nope" ]
+    "typecheck --json, no such module", [ "typecheck"; "Zzz.Nope"; "--json" ]
+    "undeprecate, no such name", [ "undeprecate"; "Zzz.Nope.nope" ]
+    "export-seed, a directory that is not there",
+    [ "export-seed"; "/zzznope/dir/seed.db" ]
+    "impls --json, no such trait", [ "impls"; "Zzz.Nope.Trait"; "--json" ]
+    "conflicts show --json, no such id", [ "conflicts"; "show"; "zzznope"; "--json" ]
+    "conflicts ack --json, no such id", [ "conflicts"; "ack"; "zzznope"; "--json" ]
+    "deps --json, no such name", [ "deps"; "Zzz.Nope.nope"; "--json" ]
+    "log --json, no such branch", [ "log"; "zzznope"; "--json" ]
+    "ps show --json, no such process", [ "ps"; "show"; "zzznope"; "--json" ] ]
+
+let private refusalsKeepStdoutEmpty =
+  cliTestOnMain
+    "a refusal leaves stdout empty, says why on stderr, and exits non-zero"
+    (fun state ->
+      task {
+        let! _ = runCli state [ "switch"; "main" ]
+
+        let mutable failures : List<string * string> = []
+        let mutable examined = 0
+
+        for (label, args) in refusalsOnStderr do
+          let! (out, err, code) = runCliStreams state args
+          examined <- examined + 1
+
+          if out <> "" then
+            let first = (CliDsl.plain out).Split('\n')[0]
+            failures <- (label, $"stdout: {first}") :: failures
+          elif err = "" then
+            failures <- (label, "said nothing on stderr") :: failures
+          elif code = 0 then
+            let first = (CliDsl.plain err).Split('\n')[0]
+            failures <- (label, $"exit 0: {first}") :: failures
+
+        Expect.equal examined (List.length refusalsOnStderr) "every refusal was run"
+
+        if not (List.isEmpty failures) then
+          let detail =
+            failures
+            |> List.rev
+            |> List.map (fun (c, why) -> $"  {c} -> {why}")
+            |> String.concat "\n"
+
+          Tests.failtestf
+            "refusals that wrote to stdout, said nothing, or exited 0:\n%s"
+            detail
+      })
+
 /// Every `dark <word>` the in-CLI docs mention has to be a real command.
 ///
 /// A doc that confidently describes a command that is not there is worse than no doc, and nothing
@@ -2073,6 +2162,7 @@ let tests : List<Test> =
     timeoutPreservesCapture
     stderrIsCapturedInOrder
     diagnosticsStayOffStdout
+    hintsAndLogsStayOffStdout
     testHelpCommand
     everyCommandAnswersHelp
     workbenchViewsRender
@@ -2094,4 +2184,5 @@ let tests : List<Test> =
     missingTargetsAreNamed
     traitRefusalsExitNonZero
     otherRefusalsExitNonZero
+    refusalsKeepStdoutEmpty
     documentedCommandsAreReal ]

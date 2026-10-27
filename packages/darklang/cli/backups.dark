@@ -52,7 +52,7 @@ let executeList(state: AppState): AppState =
     |> Stdlib.List.iter(fun name ->
       Stdlib.printLine($"  {name}  ({sizeOf(name)})"))
 
-    Stdlib.printLine("")
+    Stdlib.printErrorLine("")
     Cli.printHint("  dark backups now             take one now")
     Cli.printHint("  dark backups restore <name>  put one in place of the store")
     Cli.printHint("  dark backups prune <n>       keep the newest n, delete the rest")

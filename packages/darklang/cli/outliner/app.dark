@@ -64,34 +64,26 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
     // true even when there's a perfectly good terminal.)
     match Stdlib.Cli.Tui.TerminalSupport.current() with
     | Available -> Darklang.Cli.Component.launch(cliState, component(), Main.load())
-    | Unavailable _reason ->
-      Commands.ls()
-      cliState
-  | "ls" :: _ ->
-    Commands.ls()
-    cliState
+    | Unavailable _reason -> Cli.exitWith(cliState, Commands.ls())
+  | "ls" :: _ -> Cli.exitWith(cliState, Commands.ls())
   | [ "show" ] ->
-    Stdlib.printLine("Usage: outliner show <document>")
-    cliState
-  | "show" :: name :: _ ->
-    Commands.show(name)
-    cliState
+    Cli.printErr("Usage: outliner show <document>")
+    Cli.exitWith(cliState, false)
+  | "show" :: name :: _ -> Cli.exitWith(cliState, Commands.show(name))
   | [ "add" ] ->
-    Stdlib.printLine("Usage: outliner add <document> <text>")
-    cliState
+    Cli.printErr("Usage: outliner add <document> <text>")
+    Cli.exitWith(cliState, false)
   | "add" :: name :: rest ->
     if Stdlib.List.isEmpty(rest) then
-      Stdlib.printLine("Usage: outliner add <document> <text>")
-      cliState
+      Cli.printErr("Usage: outliner add <document> <text>")
+      Cli.exitWith(cliState, false)
     else
-      Commands.add(name, Stdlib.String.join(rest, " "))
-      cliState
+      Cli.exitWith(cliState, Commands.add(name, Stdlib.String.join(rest, " ")))
   | other ->
     let word = Stdlib.List.head(other) |> Stdlib.Option.withDefault("")
-    Stdlib.printLine(
-      Stdlib.Cli.UI.Colors.error($"outliner: unknown subcommand \"{word}\""))
-    Stdlib.printLine("Try: ls, show, add - or no arguments for the app.")
-    cliState
+    Cli.printErr($"outliner: unknown subcommand \"{word}\"")
+    Stdlib.printErrorLine("Try: ls, show, add - or no arguments for the app.")
+    Cli.exitWith(cliState, false)
 
 
 /// CLI help text.

@@ -84,7 +84,7 @@ let rawSource(
 let printRaw(branchId: Uuid, location: PackageLocation): Unit =
   match rawSource(branchId, location) with
   | Ok src -> Stdlib.printLine(src)
-  | Error e -> Stdlib.printLine(Stdlib.Cli.UI.Colors.error(e))
+  | Error e -> Cli.printErr(e)
 
 
 /// Build a deprecation header for an item, if any.
@@ -625,7 +625,7 @@ let viewCompiled(
   mode: ViewMode)
   : Unit =
   match fnAt(branchId, location) with
-  | Error e -> Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Cannot {modeName(mode)}: {e}"))
+  | Error e -> Cli.printErr($"Cannot {modeName(mode)}: {e}")
   | Ok fn ->
     let title = Stdlib.Cli.UI.Colors.boldText(Packages.formatLocation(location))
     Stdlib.printLine(title)
@@ -642,8 +642,7 @@ let viewCompiled(
       match Builtin.pmFnInstructions(fn.hash) with
       | Some instrs -> instructionRows(branchId, instrs) |> Stdlib.printLines
       | None ->
-        Stdlib.printLine(
-          Stdlib.Cli.UI.Colors.error("No compiled instructions stored for this function."))
+        Cli.printErr("No compiled instructions stored for this function.")
     | Source -> viewEntity(branchId, location, false)
     | Raw -> printRaw(branchId, location)
 
@@ -711,8 +710,8 @@ let printTraceHint(branchId: Uuid, location: PackageLocation): Unit =
       let n = Stdlib.List.length(traces)
       let count = if n == 25 then "25 or more traces" else Cli.Text.plural(n, "trace")
 
-      Stdlib.printLine("")
-      Stdlib.printLine(
+      Stdlib.printErrorLine("")
+      Stdlib.printErrorLine(
         (Stdlib.Cli.UI.Colors.dimText(
           $"{count} went through this: dark traces show {name}")))
 

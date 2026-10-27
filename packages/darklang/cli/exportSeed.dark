@@ -13,11 +13,11 @@ let execute(state: AppState, args: List<String>): AppState =
       Stdlib.printLine($"Seed exported to {outputPath}")
       state
     | Error err ->
-      Stdlib.printLine(View.formatError($"Export failed: {err}"))
-      state
+      Stdlib.printErrorLine(View.formatError($"Export failed: {err}"))
+      Cli.exitWith(state, false)
   | _ ->
-    Stdlib.printLine(View.formatError("Usage: export-seed <output-path>"))
-    state
+    Stdlib.printErrorLine(View.formatError("Usage: export-seed <output-path>"))
+    Cli.exitWith(state, false)
 
 let help(_state: AppState): String =
   [ "Export a minimal seed.db from the current database."

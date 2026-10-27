@@ -126,6 +126,7 @@ let printQuiet(msg: String): Unit = Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(m
 
 module Stderr =
   let line(msg: String): Unit = Stdlib.printErrorLine(msg)
+  let lines(msgs: List<String>): Unit = Stdlib.List.iter(msgs, fun l -> Stdlib.printErrorLine(l))
   let ok(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.success(msg))
   let hint(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
 

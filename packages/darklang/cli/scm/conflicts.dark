@@ -245,9 +245,9 @@ let executeList(state: AppState): AppState =
 
     // `A|B` reads as "the two sides" and says nothing about WHICH, which is why each row above carries
     // "yours" or "theirs" rather than the reader having to hold an ordering in their head.
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("  dark conflicts show <id>      see both versions"))
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("  dark conflicts ack <id>       keep the auto-pick"))
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("  dark conflicts override <id> A|B   take the other"))
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  dark conflicts show <id>      see both versions"))
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  dark conflicts ack <id>       keep the auto-pick"))
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  dark conflicts override <id> A|B   take the other"))
     state
 
 /// One conflict in full: both versions as CODE, which side the fold kept, and why.
@@ -478,14 +478,11 @@ let help(_state: AppState): String =
     "  --json    the same data, typed, on any of the above" ]
   |> Stdlib.String.join("\n")
 
-/// A structured "that didn't work" for the --json path.
-let jsonFailure(id: String, msg: String): Unit =
-  Stdlib.printLine((
-    ScmJson.conflictActionJson((
-      ScmJson.ConflictActionJson
-        { id = id, ok = false, status = "", resolvedTo = "", error = msg }
-    ))
-  ))
+/// "That didn't work", on the --json path the same as every other: stdout stays empty, the reason
+/// goes to stderr, and the exit code says it failed. Stdout under --json is the answer or nothing.
+let jsonFailure(state: AppState, msg: String): AppState =
+  Cli.printErr(msg)
+  Cli.exitWith(state, false)
 
 /// Its "that worked" twin.
 let jsonSuccess(id: String, status: String, resolvedTo: String): Unit =
@@ -507,8 +504,7 @@ let printConflictList(cs: List<SCM.Conflicts.Conflict>): Unit =
   ))
 
 let failureUnknown(state: AppState): AppState =
-  jsonFailure("", "unknown `dark conflicts` subcommand")
-  state
+  jsonFailure(state, "unknown `dark conflicts` subcommand")
 
 
 /// The --json half. Same data the pretty view formats, never re-derived.
@@ -533,8 +529,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
       Stdlib.printLine(ScmJson.conflictJson(c))
       state
     | None ->
-      jsonFailure(id, "no conflict matching that id")
-      state
+      jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
 
 
   | [ "ack", id ] ->
@@ -544,20 +539,17 @@ let executeJson(state: AppState, args: List<String>): AppState =
       jsonSuccess(c.id, "acked", c.autoResolvedTo)
       state
     | None ->
-      jsonFailure(id, "no conflict matching that id")
-      state
+      jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
 
 
   | [ "override", id, choice ] ->
     match SCM.Conflicts.getByIdPrefix(id) with
     | None ->
-      jsonFailure(id, "no conflict matching that id")
-      { state with exitCode = 1 }
+      jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
     | Some c ->
       match pickCandidate(c, choice) with
       | None ->
-        jsonFailure(id, $"no candidate \"{choice}\" -- use A, B or a hash prefix")
-        { state with exitCode = 1 }
+        jsonFailure(state, $"no candidate \"{choice}\" -- use A, B or a hash prefix")
       | Some cand ->
         // Through `settleConflict`, never `applyResolution` bare: settling also cascades, so the
         // callers that had followed the losing version come along, and it refuses an empty hash.
@@ -566,8 +558,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
           jsonSuccess(c.id, "overridden", cand.hash)
           state
         | Error e ->
-          jsonFailure(id, e)
-          { state with exitCode = 1 }
+          jsonFailure(state, e)
 
   | _ -> failureUnknown(state)
 
@@ -728,10 +719,9 @@ let executePretty(state: AppState, args: List<String>): AppState =
   // Printing help alone reads as an answer: a typo would look exactly like `conflicts --help`, a
   // command that ran and found nothing.
   | bad :: _ ->
-    Stdlib.printLine(
-      Stdlib.Cli.UI.Colors.error($"conflicts does not understand `{bad}`."))
+    Cli.printErr($"conflicts does not understand `{bad}`.")
 
-    Stdlib.printLine(help(state))
+    Stdlib.printErrorLine(help(state))
     Cli.exitWith(state, false)
 
 let execute(state: AppState, args: List<String>): AppState =

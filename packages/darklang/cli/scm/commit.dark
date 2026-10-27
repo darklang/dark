@@ -493,9 +493,11 @@ let executePretty(state: AppState, args: List<String>): AppState =
   // Ask the DRAFT, not the changed-bindings list. A `Deprecate` op binds no name, so it never appears in
   // `changed`, and a draft holding only `dark delete X` is not empty: judged by that list it would never
   // commit, and would ship in the seed as somebody else's mystery op.
+  // Nothing committed is a failed commit, the way git sees it: a script that ran `dark commit` and
+  // carried on would otherwise believe there is now a commit to push or merge.
   if SCM.PackageOps.draftOpCount() == 0L then
-    Cli.printOk("nothing to commit -- your draft is empty.")
-    state
+    Cli.Stderr.ok("nothing to commit -- your draft is empty.")
+    Cli.exitWith(state, false)
   // A commit is what other machines pull, and its message is the one sentence they get. An empty
   // one is nearly always a slipped Enter, so it is refused rather than recorded forever.
   else if parsed.message == "" then

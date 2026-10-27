@@ -26,7 +26,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         "Example:"
         "  dark trait Me.Demo.Show \"<'a> = let show(v: 'a): String\""
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
 
       { state with exitCode = 1 }
     else
@@ -75,10 +75,8 @@ let createTraitInline(
       match parsed with
       | Some t when t.name.name != location.name ->
         let actual = t.name.name
-        Stdlib.printLine(
-          (Stdlib.Cli.UI.Colors.error(
-            $"Trait name `{actual}` does not match target `{location.name}`")))
-        Stdlib.printLine(
+        Cli.printErr($"Trait name `{actual}` does not match target `{location.name}`")
+        Stdlib.printErrorLine(
           (Stdlib.Cli.UI.Colors.hint(
             $"Rename it to `trait {location.name}<...> = ...`, or change the target.")))
         { state with exitCode = 1 }
@@ -107,7 +105,7 @@ let createTraitInline(
             "Example:"
             "  dark trait Me.Demo.Show \"<'a> = let show(v: 'a): String\""
             ""
-          ] |> Stdlib.printLines
+          ] |> Cli.Stderr.lines
           { state with exitCode = 1 }
     | None ->
       [
@@ -116,10 +114,10 @@ let createTraitInline(
         "Example:"
         "  dark trait Me.Demo.Show \"<'a> = let show(v: 'a): String\""
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
       { state with exitCode = 1 }
   | Error msg ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Invalid location: {msg}"))
+    Cli.printErr($"Invalid location: {msg}")
     { state with exitCode = 1 }
 
 

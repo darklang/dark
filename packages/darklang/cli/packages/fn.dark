@@ -27,7 +27,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         "  let fib(n: Int): Int = if n < 2 then n else fib(n - 1) + fib(n - 2)"
         "  EOF"
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
 
       Cli.exitWith(state, false)
     else
@@ -85,10 +85,8 @@ let createFnInline(
       match parsedFunction with
       | Some writtenFn when writtenFn.name.name != location.name ->
         let actual = writtenFn.name.name
-        Stdlib.printLine(
-          (Stdlib.Cli.UI.Colors.error(
-            $"Function name `{actual}` does not match target `{location.name}`")))
-        Stdlib.printLine(
+        Cli.printErr($"Function name `{actual}` does not match target `{location.name}`")
+        Stdlib.printErrorLine(
           (Stdlib.Cli.UI.Colors.hint(
             ($"Rename it to `let {location.name} ...`, or change the "
              + "fn target."))))
@@ -127,8 +125,7 @@ let createFnInline(
 
             unresolvedBoundNames
             |> Stdlib.List.iter(fun name ->
-              Stdlib.printLine(
-                Stdlib.Cli.UI.Colors.error($"There is no trait called {name}."))
+              Cli.printErr($"There is no trait called {name}.")
 
               let alsoAType =
                 match LanguageTools.ProgramTypes.parsePackageLocation(name) with
@@ -138,11 +135,11 @@ let createFnInline(
                   | None -> false
 
               if alsoAType then
-                Stdlib.printLine(
+                Stdlib.printErrorLine(
                   (Stdlib.Cli.UI.Colors.hint(
                     $"  {name} is a type. A bound names a trait: `'a: ToString`, not `'a: SomeType`.")))
               else
-                Stdlib.printLine(
+                Stdlib.printErrorLine(
                   (Stdlib.Cli.UI.Colors.hint(
                     "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")))
 
@@ -170,7 +167,7 @@ let createFnInline(
             "  fn double(x: Int): Int = (x * 2)"
             "  fn greet(name: String): String = \"Hello, \" + name"
             ""
-          ] |> Stdlib.printLines
+          ] |> Cli.Stderr.lines
           { state with exitCode = 1 }
     | None ->
       [
@@ -180,10 +177,10 @@ let createFnInline(
         "  fn double(x: Int): Int = (x * 2)"
         "  fn greet(name: String): String = \"Hello, \" + name"
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
       { state with exitCode = 1 }
   | Error msg ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Invalid location: {msg}"))
+    Cli.printErr($"Invalid location: {msg}")
     { state with exitCode = 1 }
 
 

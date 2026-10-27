@@ -30,5 +30,5 @@ let unwrap (r : Result<'ok, 'err>) : 'ok =
   match r with
   | Ok r -> r
   | Error err ->
-    System.Console.WriteLine err
+    System.Console.Error.WriteLine err
     Exception.raiseInternal "TODO: failed to unwrap" []

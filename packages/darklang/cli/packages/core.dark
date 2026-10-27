@@ -473,7 +473,7 @@ let saveAuthored(
 
       match ownIssue with
       | Some why ->
-        Cli.Text.printWrapped(
+        Cli.Text.printWrappedErr(
           Stdlib.Cli.UI.Colors.error,
           "  ",
           $"type error: {why}; saved as a draft, `dark commit` will refuse it")
@@ -485,6 +485,6 @@ let saveAuthored(
 
     | Error msg ->
       let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
-      Cli.Text.printWrapped(Stdlib.Cli.UI.Colors.error, "", $"✗ Could not save {kindWord} {fullPath}: {msg}")
+      Cli.Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "", $"✗ Could not save {kindWord} {fullPath}: {msg}")
 
       failState

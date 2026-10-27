@@ -345,9 +345,8 @@ when it raised, when the script was not there, or when the script itself
 ended non-zero. A permission refusal is non-zero too.
 
 Stdout is the answer; stderr is everything else, refusals and hints included.
-Under `--json` a refusal leaves stdout empty, except `impls` and `conflicts show`,
-which answer with an `error` field, so test the exit code, not whether stdout
-is empty.
+Under `--json` a refusal leaves stdout empty, puts the reason on stderr and
+exits 1, on every command; test the exit code.
 
 ## Name Resolution
 Names resolve relative to the current module, searching from
