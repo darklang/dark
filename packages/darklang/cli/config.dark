@@ -89,7 +89,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | ["set", key, value] when isStoreKey(key) ->
     match checkValue(key, value) with
     | Some problem ->
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.error(problem))
+      Cli.printErr(problem)
       { state with exitCode = 1 }
     | None ->
       let _ = Stdlib.LocalStore.configSet(key, value)
@@ -104,11 +104,11 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       state
 
     | None ->
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Configuration key not found: {key}"))
-      state
+      Cli.printErr($"Configuration key not found: {key}")
+      Cli.exitWith(state, false)
 
   | ["set", key, value] when Stdlib.Option.isSome(checkValue(key, value)) ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(Stdlib.Option.withDefault(checkValue(key, value), "")))
+    Cli.printErr(Stdlib.Option.withDefault(checkValue(key, value), ""))
     { state with exitCode = 1 }
 
   | ["set", key, value] ->
@@ -141,9 +141,9 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     state
 
   | _ ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Invalid arguments"))
-    Stdlib.printLine("")
-    Stdlib.printLine(help(state))
+    Cli.printErr("Invalid arguments")
+    Stdlib.printErrorLine("")
+    Stdlib.printErrorLine(help(state))
     { state with exitCode = 1 }
 
 

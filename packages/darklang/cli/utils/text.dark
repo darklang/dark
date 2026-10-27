@@ -17,6 +17,10 @@ let wrap(width: Int, indent: String, text: String): List<String> =
 let printWrapped(colour: String -> String, indent: String, text: String): Unit =
   wrap(80, indent, text) |> Stdlib.List.iter(fun l -> Stdlib.printLine(colour(l)))
 
+/// <fn printWrapped> to stderr, for a line that is not the answer: a refusal, a warning.
+let printWrappedErr(colour: String -> String, indent: String, text: String): Unit =
+  wrap(80, indent, text) |> Stdlib.List.iter(fun l -> Stdlib.printErrorLine(colour(l)))
+
 /// The first eight characters of an id: how every table and message names a process, a run or
 /// a commit. Eight is enough to be unique in practice and short enough to read in a column.
 let shortIdText(id: String): String = Stdlib.String.slice(id, 0, 8)

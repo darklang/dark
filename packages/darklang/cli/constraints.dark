@@ -151,13 +151,13 @@ let executeList(state: AppState, args: List<String>): AppState =
   | findings ->
     Cli.printOk(Cli.Text.plural(Stdlib.List.length(findings), "constraint"))
     findings |> Stdlib.List.iter(fun f -> Stdlib.printLine(line(f)))
-    Stdlib.printLine("")
+    Stdlib.printErrorLine("")
 
-    Stdlib.printLine(
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.hint(
         "  dark ack <id>... [--why ...]   leave for now (`dark ack --all` for every one)")))
 
-    Stdlib.printLine(
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.hint(
         "  dark constraints resolve <id>... [--as <how>]   fix it now, naming the fix")))
 

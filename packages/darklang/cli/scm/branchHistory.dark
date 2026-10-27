@@ -65,7 +65,7 @@ let executeDiff(state: AppState, branchRef: String, withSource: Bool): AppState 
             ()))
 
       if Stdlib.Bool.not(withSource) then
-        Stdlib.printLine("")
+        Stdlib.printErrorLine("")
         Cli.printHint("  `dark diff <branch> --source` shows each definition.")
       else
         ()

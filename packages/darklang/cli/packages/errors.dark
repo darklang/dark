@@ -65,8 +65,7 @@ let reportParseErrors(
     // 1-based column, matching renderDiagnostic and the line number above
     let colNum = (range.start.column + 1) |> Stdlib.toString
 
-    Stdlib.printLine(
-      Stdlib.Cli.UI.Colors.error($"Parse error at line {lineNum}, column {colNum}: {message}"))
+    Cli.printErr($"Parse error at line {lineNum}, column {colNum}: {message}")
 
     true
 
@@ -153,7 +152,7 @@ let reportUnresolvedNames(
 
   // Print errors for invalid names (these block creation)
   if (Stdlib.List.isEmpty(invalidNames)) |> Stdlib.Bool.not then
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Error: Invalid names"))
+    Cli.printErr("Error: Invalid names")
 
     invalidNames
     |> Stdlib.List.iter(fun (range, originalName, _err) ->
@@ -166,13 +165,13 @@ let reportUnresolvedNames(
         let message =
           ($"  - Invalid name: {nameStr} (line {lineNum}, column {colNum}). "
            + $"`PACKAGE.` is internal notation; write `{suggested}`.")
-        Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+        Cli.printErr(message)
       else
         let message =
           $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})"
-        Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message)))
+        Cli.printErr(message))
 
-    Stdlib.printLine("")
+    Stdlib.printErrorLine("")
     true
   else
     false

@@ -405,15 +405,15 @@ let resume(state: AppState, prefix: String): AppState =
       { state with exitCode = 1 }
     | Some input ->
       if Darklang.Tracing.Store.armResume(e.id) then
-        Stdlib.printLine($"resuming {Cli.Text.shortIdText(e.id)}: {Cli.Text.oneLine(Darklang.Tracing.Format.inputText(e))}")
+        Stdlib.printErrorLine($"resuming {Cli.Text.shortIdText(e.id)}: {Cli.Text.oneLine(Darklang.Tracing.Format.inputText(e))}")
         match movedSince(state.currentBranchId, e.id) with
         | [] -> ()
         | moved ->
-          Stdlib.printLine(
+          Stdlib.printErrorLine(
             Stdlib.Cli.UI.Colors.warning("  edited since this ran:"))
           Stdlib.List.iter(moved, fun name ->
-            Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"    {name}")))
-          Stdlib.printLine(
+            Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"    {name}")))
+          Stdlib.printErrorLine(
             (Stdlib.Cli.UI.Colors.dimText(
               "  the log answers what already happened; everything after it runs the new code")))
         executeScriptOrEval(state, input)
@@ -486,11 +486,11 @@ let printCalls(branchId: Uuid, typed: String): Unit =
     Stdlib.printLine($"no recorded trace went through {fnName}")
     (whyEmpty("run something that calls it"))
     |> Stdlib.List.iter(fun line ->
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText(line)))
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(line)))
   | traces ->
     printTable(traces)
-    Stdlib.printLine("")
-    Stdlib.printLine(
+    Stdlib.printErrorLine("")
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.dimText(
         "  dark traces show <fn> <trace>  the code, with that trace's values beside it")))
 
@@ -1065,11 +1065,11 @@ let showCode(
     | _ ->
       Cli.printErr($"{fnName} ran, but its code is no longer in this store")
 
-      Stdlib.printLine(
+      Stdlib.printErrorLine(
         (Stdlib.Cli.UI.Colors.dimText(
           "  a build re-authors the store from the .dark files, so anything authored by hand goes")))
 
-      Stdlib.printLine(
+      Stdlib.printErrorLine(
         (Stdlib.Cli.UI.Colors.dimText(
           "  its runs are still kept: dark traces calls <fn>, then dark traces inspect <id>")))
 
@@ -1093,7 +1093,7 @@ let showCode(
         // `whyEmpty` says it, and says it differently depending on whether recording is even on.
         (whyEmpty("run something that calls it"))
         |> Stdlib.List.iter(fun line ->
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText(line)))
+          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(line)))
         Stdlib.Option.Option.None
 
   match chosen with
@@ -1202,10 +1202,10 @@ let showCode(
           Cli.printErr($"no loop named `{badName}` here")
 
           if names == "" then
-            Stdlib.printLine(
+            Stdlib.printErrorLine(
               Stdlib.Cli.UI.Colors.dimText("  this function has no loops in this trace"))
           else
-            Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"  its loops are: {names}"))
+            Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"  its loops are: {names}"))
 
           { state with exitCode = 1 }
         | (_, [loop, ...]) ->
@@ -1362,7 +1362,7 @@ let showCode(
                       ("       nothing to show for this one: it returned before those lines "
                        + $"ran, or it is past the {kept} the view keeps values for")))))
 
-            Stdlib.printLine(
+            Stdlib.printErrorLine(
               (Stdlib.Cli.UI.Colors.dimText(
                 "       --iteration <loop>:<n> for another one")))
 
