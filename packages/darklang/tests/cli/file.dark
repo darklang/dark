@@ -26,3 +26,21 @@ module MissingFile =
       |> Stdlib.Test.equal
         (Stdlib.Result.Result.Error Stdlib.Cli.FileSystem.FileError.NotFound))
     |> Builtin.unwrap
+
+module AreIdentical =
+  // Each file is read separately, so the two Bytes are separate values and
+  // only their contents can make them equal.
+  let compareWith (first: String) (second: String) : Bool =
+    Stdlib.Cli.File.withTemp (fun path1 ->
+      Stdlib.Cli.File.withTemp (fun path2 ->
+        let _ = Stdlib.Cli.File.writeText path1 first |> Builtin.unwrap
+        let _ = Stdlib.Cli.File.writeText path2 second |> Builtin.unwrap
+        Stdlib.Cli.File.areIdentical path1 path2 |> Builtin.unwrap)
+      |> Builtin.unwrap)
+    |> Builtin.unwrap
+
+  test sameContents =
+    compareWith "same contents" "same contents" |> Stdlib.Test.equal true
+
+  test differentContents =
+    compareWith "same contents" "same contentz" |> Stdlib.Test.equal false
