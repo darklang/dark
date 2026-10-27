@@ -43,6 +43,30 @@ let map (s: String) (fn: Char -> Char) : String =
   s |> String.toList |> List.map fn |> String.fromList
 
 
+/// Keeps the Chars (EGC, not byte) of <param s> where <param fn> returns
+/// {{true}}, and removes the rest.
+/// Example: {{filter "a1b2" Char.isDigit}} returns {{"12"}}.
+let filter (s: String) (fn: Char -> Bool) : String =
+  s |> String.toList |> List.filter fn |> String.fromList
+
+
+/// Removes or changes each Char (EGC, not byte) of <param s>. When <param fn>
+/// returns {{None}}, the Char is removed; when it returns {{Some c}}, the Char
+/// is replaced by {{c}}.
+/// Example: turning {{"a-b"}} into {{"AB"}} by removing {{'-'}} and uppercasing
+/// the letters.
+let filterMap (s: String) (fn: Char -> Option.Option<Char>) : String =
+  s |> String.toList |> List.filterMap fn |> String.fromList
+
+
+/// Replaces each Char (EGC, not byte) of <param s> with a string. <param fn>
+/// can return an empty string to remove the Char, or several characters.
+/// Example: doubling each letter turns {{"abc"}} into {{"aabbcc"}}.
+let flatMap (s: String) (fn: Char -> String) : String =
+  let pieces = s |> String.toList |> List.map fn
+  String.join pieces ""
+
+
 /// Returns the list of Characters (EGC, not byte) in the string
 let toList (s: String) : List<Char> = Builtin.stringToList s
 
@@ -145,6 +169,27 @@ let splitFirst
   else
     // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
     match String.indexOfEgc string separator with
+    | None -> Option.Option.None
+    | Some i ->
+      let before = String.first string i
+      let after = String.dropFirst string (i + String.length separator)
+      Option.Option.Some((before, after))
+
+
+/// Splits <param string> in two at the **last** <param separator>.
+/// Example: {{splitLast "archive.tar.gz" "."}} returns
+/// {{Some ("archive.tar", "gz")}}.
+/// Returns {{None}} if <param separator> is not in the string, or is empty.
+/// See <fn splitFirst> to split at the first one instead.
+let splitLast
+  (string: String)
+  (separator: String)
+  : Option.Option<(String * String)> =
+  if separator == "" then
+    Option.Option.None
+  else
+    // lastIndexOfEgc (not lastIndexOf) because first / dropFirst / length are EGC-indexed.
+    match String.lastIndexOfEgc string separator with
     | None -> Option.Option.None
     | Some i ->
       let before = String.first string i
@@ -462,6 +507,30 @@ let startsWith (subject: String) (prefix: String) : Bool =
 /// Checks if <param subject> ends with <param suffix>
 let endsWith (subject: String) (suffix: String) : Bool =
   String.slice subject (String.length subject - String.length suffix) (String.length subject) == suffix
+
+
+/// Removes <param prefix> from the start of <param subject>.
+/// Example: {{stripPrefix "--verbose" "--"}} returns {{Some "verbose"}}.
+/// Returns {{None}} if <param subject> does not start with <param prefix>.
+let stripPrefix (subject: String) (prefix: String) : Option.Option<String> =
+  let n = String.length prefix
+
+  if String.first subject n == prefix then
+    Option.Option.Some(String.dropFirst subject n)
+  else
+    Option.Option.None
+
+
+/// Removes <param suffix> from the end of <param subject>.
+/// Example: {{stripSuffix "notes.txt" ".txt"}} returns {{Some "notes"}}.
+/// Returns {{None}} if <param subject> does not end with <param suffix>.
+let stripSuffix (subject: String) (suffix: String) : Option.Option<String> =
+  let n = String.length suffix
+
+  if String.last subject n == suffix then
+    Option.Option.Some(String.dropLast subject n)
+  else
+    Option.Option.None
 
 
 /// Returns the plural form of <param word> by a simple English rule: words ending
