@@ -239,6 +239,7 @@ let writeTypeReference
   | PT.TInt128 -> w.Write 8uy
   | PT.TUInt128 -> w.Write 9uy
   | PT.TFloat -> w.Write 10uy
+  | PT.TDecimal -> w.Write 28uy
   | PT.TBool -> w.Write 11uy
   | PT.TUnit -> w.Write 12uy
   | PT.TString -> w.Write 13uy
@@ -347,6 +348,9 @@ let writeMatchPattern (w : BinaryWriter) (pattern : PT.MatchPattern) =
     PTC.Sign.write w sign
     Common.String.write w whole
     Common.String.write w fractional
+  | PT.MPDecimal(_id, value) ->
+    w.Write 23uy
+    Common.Decimal.write w value
   | PT.MPUnit _id -> w.Write 16uy
   | PT.MPTuple(_id, first, second, rest) ->
     w.Write 17uy
@@ -477,6 +481,9 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
     PTC.Sign.write w sign
     Common.String.write w whole
     Common.String.write w fractional
+  | PT.EDecimal(_id, value) ->
+    w.Write 38uy
+    Common.Decimal.write w value
   | PT.EUnit _id -> w.Write 14uy
   | PT.EValue(_id, nameRes) ->
     w.Write 15uy

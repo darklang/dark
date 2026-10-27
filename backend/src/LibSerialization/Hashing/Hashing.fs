@@ -225,6 +225,7 @@ module Hashing =
     | PT.EBool _
     | PT.EChar _
     | PT.EFloat _
+    | PT.EDecimal _
     | PT.EUnit _
     | PT.EValue _
     | PT.EFnName _

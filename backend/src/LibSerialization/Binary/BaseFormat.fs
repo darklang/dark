@@ -20,8 +20,11 @@ open System
 /// call into a bounded generic resolves at run time until it is re-authored.
 /// v6 (tests, 2026-10): `PackageTest` items, the `AddTest` op tag 17 and `Reference` tag 5.
 /// Nothing existing changed layout; a v5 blob reads as is.
+/// v7 (decimal, 2026-10): `Decimal` as a primitive: `TDecimal`, `KTDecimal`, `DDecimal`,
+/// `MPDecimal` and `EDecimal` tags, each value as the four words of `Decimal.GetBits`. Nothing
+/// existing changed layout; a v6 blob reads as is.
 [<Literal>]
-let CurrentVersion = 6u
+let CurrentVersion = 7u
 
 /// The oldest version this binary still reads.
 [<Literal>]

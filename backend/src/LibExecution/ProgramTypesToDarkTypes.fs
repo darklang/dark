@@ -407,6 +407,7 @@ module TypeReference =
       | PT.TUInt128 -> "TUInt128", []
       | PT.TInt -> "TInt", []
       | PT.TFloat -> "TFloat", []
+      | PT.TDecimal -> "TDecimal", []
       | PT.TChar -> "TChar", []
       | PT.TString -> "TString", []
       | PT.TDateTime -> "TDateTime", []
@@ -455,6 +456,7 @@ module TypeReference =
     | DEnum(_, _, [], "TUInt128", []) -> PT.TUInt128
     | DEnum(_, _, [], "TInt", []) -> PT.TInt
     | DEnum(_, _, [], "TFloat", []) -> PT.TFloat
+    | DEnum(_, _, [], "TDecimal", []) -> PT.TDecimal
     | DEnum(_, _, [], "TChar", []) -> PT.TChar
     | DEnum(_, _, [], "TString", []) -> PT.TString
     | DEnum(_, _, [], "TDateTime", []) -> PT.TDateTime
@@ -546,6 +548,7 @@ module MatchPattern =
 
         "MPFloat",
         [ DInt64(int64 id); Sign.toDT sign; DString whole; DString remainder ]
+      | PT.MPDecimal(id, d) -> "MPDecimal", [ DInt64(int64 id); DDecimal d ]
       | PT.MPChar(id, c) -> "MPChar", [ DInt64(int64 id); DString c ]
       | PT.MPString(id, s) -> "MPString", [ DInt64(int64 id); DString s ]
 
@@ -603,6 +606,8 @@ module MatchPattern =
             "MPFloat",
             [ DInt64 id; sign; DString whole; DString remainder ]) ->
       PT.MPFloat(uint64 id, Sign.fromDT sign, whole, remainder)
+    | DEnum(_, _, [], "MPDecimal", [ DInt64 id; DDecimal d ]) ->
+      PT.MPDecimal(uint64 id, d)
     | DEnum(_, _, [], "MPChar", [ DInt64 id; DString c ]) -> PT.MPChar(uint64 id, c)
     | DEnum(_, _, [], "MPString", [ DInt64 id; DString s ]) ->
       PT.MPString(uint64 id, s)
@@ -890,6 +895,7 @@ module Expr =
       | PT.EFloat(id, sign, whole, remainder) ->
         "EFloat",
         [ DInt64(int64 id); Sign.toDT sign; DString whole; DString remainder ]
+      | PT.EDecimal(id, d) -> "EDecimal", [ DInt64(int64 id); DDecimal d ]
 
       | PT.EChar(id, c) -> "EChar", [ DInt64(int64 id); DString c ]
       | PT.EString(id, segments) ->
@@ -1092,6 +1098,8 @@ module Expr =
       PT.EInt(uint64 id, Dval.asBigInt intVal)
     | DEnum(_, _, [], "EFloat", [ DInt64 id; sign; DString whole; DString remainder ]) ->
       PT.EFloat(uint64 id, Sign.fromDT sign, whole, remainder)
+    | DEnum(_, _, [], "EDecimal", [ DInt64 id; DDecimal d ]) ->
+      PT.EDecimal(uint64 id, d)
     | DEnum(_, _, [], "EChar", [ DInt64 id; DString c ]) -> PT.EChar(uint64 id, c)
     | DEnum(_, _, [], "EString", [ DInt64 id; DList(_vtTODO, segments) ]) ->
       PT.EString(uint64 id, List.map (StringSegment.fromDT fromDT) segments)

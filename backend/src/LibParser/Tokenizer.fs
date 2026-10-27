@@ -20,6 +20,7 @@ type Token =
   | TUInt64 of uint64 // 64-bit unsigned: 1UL
   | TUInt128 of System.UInt128 // 128-bit unsigned: 1Z
   | TFloat of float
+  | TDecimal of decimal // decimal: 19.99m, scale as written
   | TStringLit of string // String literal token
   | TCharLit of string // Char literal: 'x' (stores UTF-8 string for EGC support)
   // Interpolated string `$"Hello {name}!"`. No payload: the parser re-reads the

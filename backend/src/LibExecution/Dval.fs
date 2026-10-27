@@ -229,6 +229,7 @@ let rec isPersistable (dv : Dval) : bool =
   | DUInt128 _
   | DInt _
   | DFloat _
+  | DDecimal _
   | DChar _
   | DString _
   | DDateTime _
@@ -314,6 +315,7 @@ let rec isInertData (dv : Dval) : bool =
   | DUInt128 _
   | DInt _
   | DFloat _
+  | DDecimal _
   | DChar _
   | DString _
   | DDateTime _
@@ -392,6 +394,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DInt a, DInt b -> a = b
 
   | DFloat a, DFloat b -> a = b
+  | DDecimal a, DDecimal b -> a = b
 
   | DChar a, DChar b -> a = b
   | DString a, DString b -> a = b
@@ -493,6 +496,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUInt128 _, _
   | DInt _, _
   | DFloat _, _
+  | DDecimal _, _
   | DChar _, _
   | DString _, _
   | DDateTime _, _

@@ -760,7 +760,53 @@ let tokenize
         let hasExponent =
           digitEndIndex < inputLength
           && (input[digitEndIndex] = 'e' || input[digitEndIndex] = 'E')
-        if hasFraction || hasExponent then
+        // decimal? `digits[.digits]m`, no exponent form
+        let decimalSuffixIndex =
+          if hasFraction then
+            let mutable i = digitEndIndex + 1
+            while i < inputLength && System.Char.IsDigit input[i] do
+              i <- i + 1
+            i
+          else
+            digitEndIndex
+        let isDecimal =
+          decimalSuffixIndex < inputLength
+          && input[decimalSuffixIndex] = 'm'
+          && not (isIdentifierContinue (decimalSuffixIndex + 1))
+        if isDecimal then
+          let text = input.Substring(index, decimalSuffixIndex - index)
+          let endIndex = decimalSuffixIndex + 1
+          let parsed =
+            match
+              System.Decimal.TryParse(
+                text,
+                System.Globalization.NumberStyles.AllowDecimalPoint,
+                System.Globalization.CultureInfo.InvariantCulture
+              )
+            with
+            | true, value -> Some value
+            | _ -> None
+          // .NET rounds digits past 28-29 significant ones rather than refusing them,
+          // so a literal is accepted only if it prints back as written (leading zeros
+          // of the whole part aside).
+          let written =
+            let trimmed = text.TrimStart '0'
+            if trimmed = "" || trimmed.StartsWith "." then "0" + trimmed else trimmed
+          match parsed with
+          | Some value when
+            value.ToString(System.Globalization.CultureInfo.InvariantCulture) = written
+            ->
+            let (spannedToken, nextIndex, nextPosition) =
+              emit (TDecimal value) index endIndex position
+            go nextIndex nextPosition (spannedToken :: tokensRev)
+          | _ ->
+            let (spannedToken, nextIndex, nextPosition) =
+              emit (TDecimal 0m) index endIndex position
+            addDiagnostic
+              spannedToken.range
+              $"decimal literal out of range or past 28 digits: {text}m"
+            go nextIndex nextPosition (spannedToken :: tokensRev)
+        elif hasFraction || hasExponent then
           let mutable floatEndIndex = digitEndIndex
           if hasFraction then
             floatEndIndex <- floatEndIndex + 1

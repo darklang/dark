@@ -52,6 +52,7 @@ type Ty =
   | TUInt128
   | TInt
   | TFloat
+  | TDecimal
   | TChar
   | TString
   | TUuid

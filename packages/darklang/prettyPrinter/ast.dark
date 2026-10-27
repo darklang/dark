@@ -61,6 +61,7 @@ let matchPattern (pat: LanguageTools.ProgramTypes.MatchPattern) : String =
   | MPFloat(_, sign, whole, part) ->
     let s = PrettyPrinter.sign sign
     $"{s}{whole}.{part}"
+  | MPDecimal(_, d) -> $"{Stdlib.toString d}m"
   | MPChar(_, c) -> $"'{c}'"
   | MPString(_, s) -> "\"" + (clip s) + "\""
   | MPList(_, items) ->
@@ -120,6 +121,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
   | EFloat(_, sign, whole, part) ->
     let s = PrettyPrinter.sign sign
     here "Float" $"{s}{whole}.{part}"
+  | EDecimal(_, d) -> here "Decimal" $"{Stdlib.toString d}m"
   | EChar(_, c) -> here "Char" $"'{c}'"
   | EVariable(_, name) -> here "Variable" name
   | EArg(_, index) -> here "Arg" $"#{Stdlib.toString index}"

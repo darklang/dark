@@ -1,0 +1,261 @@
+module Darklang.Stdlib.Decimal
+
+// `Decimal` is base-10: an integer of up to 96 bits and a scale of 0 to 28 places,
+// so `0.1m + 0.2m` is exactly `0.3m`, which is what money and exact JSON numbers
+// need. Written `19.99m`. The scale is part of the value and survives printing, so
+// `1.10m` prints as 1.10, while `1.10m == 1.1m` (and they are one dict key). A
+// result past 96 bits raises; a product or quotient with more than 28 places is
+// rounded to fit, half to even, as .NET's decimal does.
+//
+// Everything here is Dark over two builtins, `toParts` and `fromParts`. The
+// operators go to the polymorphic `Builtin.add` and friends.
+
+type ParseError =
+  | BadFormat
+  | OutOfRange
+
+
+/// Split <param d> into {{(unscaled, scale)}}, where <param d> is
+/// {{unscaled / 10 ** scale}}: {{Decimal.toParts 1.10m == (110, 2)}}
+let toParts (d: Decimal) : (Int * Int) = Builtin.decimalToParts d
+
+
+/// The decimal {{unscaled / 10 ** scale}}, keeping <param scale>:
+/// {{Decimal.fromParts 110 2 == Some 1.10m}}. {{None}} when <param scale> is outside
+/// 0 to 28 or <param unscaled> needs more than 96 bits.
+let fromParts
+  (unscaled: Int)
+  (scale: Int)
+  : Stdlib.Option.Option<Decimal> =
+  Builtin.decimalFromParts unscaled scale
+
+
+/// Raises with <param message>, for a result the caller asked for that cannot exist.
+let __refuse (message: String) : Decimal =
+  Builtin.unwrap (Stdlib.Result.Result.Error message)
+
+
+impl Add for Decimal =
+  /// Add <param a> and <param b>; the result has the larger of their scales
+  let add (a: Decimal) (b: Decimal) : Decimal = Builtin.add a b
+
+
+impl Subtract for Decimal =
+  /// Subtract <param b> from <param a>
+  let subtract (a: Decimal) (b: Decimal) : Decimal = Builtin.subtract a b
+
+
+impl Multiply for Decimal =
+  /// Multiply <param a> by <param b>; the scales add, up to 28 places
+  let multiply (a: Decimal) (b: Decimal) : Decimal = Builtin.multiply a b
+
+
+impl Divide for Decimal =
+  /// Divide <param a> by <param b>, to as many places as fit (28 at most).
+  /// {{1m / 3m}} is {{0.3333333333333333333333333333m}}. Raises on division by zero.
+  /// To fix the places of a quotient, follow it with <fn Decimal.round>.
+  let divide (a: Decimal) (b: Decimal) : Decimal = Builtin.divide a b
+
+
+impl Negate for Decimal =
+  /// Returns the negation of <param a>, {{-a}}
+  let negate (a: Decimal) : Decimal = Builtin.negate a
+
+
+impl Compare for Decimal =
+  /// Returns true if <param a> is less than <param b>. Scale does not matter.
+  let lessThan (a: Decimal) (b: Decimal) : Bool = Builtin.lessThan a b
+  /// Returns true if <param a> is less than or equal to <param b>
+  let lessThanOrEqualTo (a: Decimal) (b: Decimal) : Bool =
+    Builtin.lessThanOrEqualTo a b
+  /// Returns true if <param a> is greater than <param b>
+  let greaterThan (a: Decimal) (b: Decimal) : Bool = Builtin.greaterThan a b
+  /// Returns true if <param a> is greater than or equal to <param b>
+  let greaterThanOrEqualTo (a: Decimal) (b: Decimal) : Bool =
+    Builtin.greaterThanOrEqualTo a b
+
+
+impl Zero for Decimal =
+  let zero () : Decimal = 0m
+
+
+impl One for Decimal =
+  let one () : Decimal = 1m
+
+
+impl ToString for Decimal =
+  /// Stringify <param d> at its scale, without exponent:
+  /// {{Stdlib.toString 1.10m == "1.10"}}, {{Stdlib.toString -0.05m == "-0.05"}}
+  let toString (d: Decimal) : String =
+    let (unscaled, scale) = toParts d
+    let sign = if unscaled < 0 then "-" else ""
+    let digits = Stdlib.toString (Stdlib.abs unscaled)
+
+    if scale == 0 then
+      sign + digits
+    else
+      // at least one digit before the point: 0.05 is "005" before the split
+      let padCount = scale + 1 - Stdlib.String.length digits
+      let padding = Stdlib.String.repeat "0" padCount
+      let padded = padding + digits
+      let whole = Stdlib.String.dropLast padded scale
+      let fraction = Stdlib.String.last padded scale
+      sign + whole + "." + fraction
+
+
+/// The number of places <param d> carries: {{Decimal.scale 1.10m == 2}}
+let scale (d: Decimal) : Int =
+  let (_, s) = toParts d
+  s
+
+
+/// <param d> with its trailing zeros dropped: {{Decimal.normalize 1.10m}} prints as
+/// 1.1. Equal to <param d> under {{==}}; only the printed form changes.
+let normalize (d: Decimal) : Decimal =
+  let (unscaled, s) = toParts d
+  let (u, sc) = __stripZeros unscaled s
+  match fromParts u sc with
+  | Some n -> n
+  | None -> d
+
+let __stripZeros (unscaled: Int) (scale: Int) : (Int * Int) =
+  if scale > 0 && unscaled % 10 == 0 then
+    __stripZeros (unscaled / 10) (scale - 1)
+  else
+    (unscaled, scale)
+
+
+/// <param d> rounded to exactly <param places> places, half away from zero, the way
+/// prices are rounded: {{Decimal.round 2.345m 2 == 2.35m}},
+/// {{Decimal.round -2.345m 2 == -2.35m}}. Fewer places than <param d> has rounds;
+/// more pads, so {{Stdlib.toString (Decimal.round 5m 2) == "5.00"}}. Raises when
+/// <param places> is outside 0 to 28, or the padded value needs more than 96 bits.
+let round (d: Decimal) (places: Int) : Decimal =
+  __rescale d places true
+
+
+/// <param d> cut to <param places> places, dropping the rest without rounding:
+/// {{Decimal.truncate 2.349m 2 == 2.34m}}, {{Decimal.truncate -2.349m 2 == -2.34m}}.
+/// Raises when <param places> is outside 0 to 28.
+let truncate (d: Decimal) (places: Int) : Decimal =
+  __rescale d places false
+
+let __rescale (d: Decimal) (places: Int) (roundHalfUp: Bool) : Decimal =
+  if places < 0 || places > 28 then
+    __refuse $"Decimal places must be between 0 and 28, got {Stdlib.toString places}"
+  else
+    let (unscaled, s) = toParts d
+
+    let rescaled =
+      if places >= s then
+        unscaled * (10 ** (places - s))
+      else
+        let divisor = 10 ** (s - places)
+        let magnitude = Stdlib.abs unscaled
+        let kept = magnitude / divisor
+        let dropped = magnitude % divisor
+        let kept = if roundHalfUp && dropped * 2 >= divisor then kept + 1 else kept
+        if unscaled < 0 then 0 - kept else kept
+
+    match fromParts rescaled places with
+    | Some r -> r
+    | None -> __refuse "Decimal result is out of range (more than 96 bits)"
+
+
+/// The integer part of <param d>, rounding towards zero:
+/// {{Decimal.toInt -2.9m == -2}}
+let toInt (d: Decimal) : Int =
+  let (unscaled, s) = toParts d
+  unscaled / (10 ** s)
+
+
+/// <param i> as a decimal with no places, or {{None}} past 96 bits
+let fromInt (i: Int) : Stdlib.Option.Option<Decimal> = fromParts i 0
+
+
+/// The <type Float> nearest <param d>. Exact only when <param d> happens to be a
+/// binary fraction, which is the reason <type Decimal> exists.
+let toFloat (d: Decimal) : Float =
+  match Stdlib.Float.parse (Stdlib.toString d) with
+  | Ok f -> f
+  // unreachable: every decimal prints as digits a float parses
+  | Error _ -> 0.0
+
+
+/// The decimal that <param f> prints as, {{Decimal.fromFloat 0.1 == Some 0.1m}},
+/// since a Float prints as the shortest decimal that reads back as itself. {{None}}
+/// for NaN, the infinities, and anything out of range.
+let fromFloat (f: Float) : Stdlib.Option.Option<Decimal> =
+  match parse (Stdlib.toString f) with
+  | Ok d -> Stdlib.Option.Option.Some d
+  | Error _ -> Stdlib.Option.Option.None
+
+
+/// Parse <param s> as a decimal, keeping the places written:
+/// {{Decimal.parse "19.99" == Ok 19.99m}}, {{Decimal.parse "-1.10"}} keeps 2 places.
+/// Accepts an exponent ({{"1.5e3"}}, {{"1e-5"}}), the form <fn Float.toString> uses
+/// for very large and very small values. Refuses anything it cannot hold exactly:
+/// more than 28 places, or more than 96 bits, is {{Error OutOfRange}}, never a
+/// rounded value.
+let parse (s: String) : Stdlib.Result.Result<Decimal, ParseError> =
+  let negative = Stdlib.String.startsWith s "-"
+  let unsigned = if negative then Stdlib.String.dropFirst s 1 else s
+  let body = Stdlib.String.toLowercase unsigned
+
+  let isDigits (t: String) : Bool =
+    (Stdlib.Bool.not (Stdlib.String.isEmpty t))
+    && (Stdlib.List.all (Stdlib.String.toList t) Stdlib.Char.isDigit)
+
+  let exponentOf (e: String) : Stdlib.Option.Option<Int> =
+    let unsigned =
+      if Stdlib.String.startsWith e "-" || Stdlib.String.startsWith e "+" then
+        Stdlib.String.dropFirst e 1
+      else
+        e
+
+    if isDigits unsigned then
+      Stdlib.Result.toOption (Stdlib.Int.parse e)
+    else
+      Stdlib.Option.Option.None
+
+  let (mantissa, exponent) =
+    match Stdlib.String.split body "e" with
+    | [ m ] -> (m, Stdlib.Option.Option.Some 0)
+    | [ m, e ] -> (m, exponentOf e)
+    | _ -> ("", Stdlib.Option.Option.None)
+
+  // `1.` has an empty fraction, which is malformed, not zero places
+  let (whole, fraction) =
+    match Stdlib.String.split mantissa "." with
+    | [ w ] -> (w, "0")
+    | [ w, f ] -> (w, f)
+    | _ -> ("", "")
+  let places =
+    if Stdlib.String.contains mantissa "." then Stdlib.String.length fraction else 0
+
+  match exponent with
+  | Some exponent ->
+    if Stdlib.Bool.not (isDigits whole && isDigits fraction) then
+      Stdlib.Result.Result.Error ParseError.BadFormat
+    else
+      let digits = if places == 0 then whole else whole + fraction
+      let places = places - exponent
+
+      // 29 digits is the most 96 bits can hold, so a larger shift is out of range
+      // anyway; checking first keeps `1e999999999` from building a billion-digit Int
+      if places < 0 - 29 || places > 28 + Stdlib.String.length digits then
+        Stdlib.Result.Result.Error ParseError.OutOfRange
+      else
+        let magnitude = Stdlib.Result.withDefault (Stdlib.Int.parse digits) 0
+        let unscaled = if negative then 0 - magnitude else magnitude
+
+        let parts =
+          if places < 0 then
+            fromParts (unscaled * (10 ** (0 - places))) 0
+          else
+            fromParts unscaled places
+
+        match parts with
+        | Some d -> Stdlib.Result.Result.Ok d
+        | None -> Stdlib.Result.Result.Error ParseError.OutOfRange
+  | None -> Stdlib.Result.Result.Error ParseError.BadFormat

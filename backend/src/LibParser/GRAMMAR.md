@@ -75,6 +75,16 @@ Normalization removes leading zeros from the whole part and does not depend on
 host float formatting. The same rules apply to float patterns. Runtime string
 parsing remains a separate operation.
 
+### Decimal literals
+
+`digits[.digits]m`, no exponent form: `19.99m`, `1m`, `-0.05m` (unary minus, as
+for floats). The value is a .NET `decimal` and keeps the written scale, so `1.10m`
+is 1.10, not 1.1. A literal is accepted only if it prints back as written once
+leading zeros of the whole part are dropped, so anything .NET would round (more
+than 28 places, or more significant digits than 96 bits hold) and anything past
+79228162514264337593543950335 is a diagnostic rather than a rounded value. A
+suffix glued to more identifier characters (`1.5mx`) is one malformed literal.
+
 ### String literals
 
 String forms:
@@ -295,7 +305,7 @@ that does not name a trait is `PARSE-BOUND`.
 
 ## Types
 
-Primitive types are `Unit Bool Int Int8…UInt128 Float Char String DateTime Uuid
+Primitive types are `Unit Bool Int Int8…UInt128 Float Decimal Char String DateTime Uuid
 Bytes` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<K, V>` have special
 syntax. Other uppercase names, including `Stream<T>` and `DB<T>`, are custom
 types with optional type arguments.

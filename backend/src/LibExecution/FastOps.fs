@@ -71,6 +71,7 @@ let evalNegate (a : Dval) : Dval voption =
   | DInt128 x -> ValueSome(DInt128(-x))
   | DInt x -> ValueSome(Dval.dint (DarkInt.negate x))
   | DFloat x -> ValueSome(DFloat(-x))
+  | DDecimal x -> ValueSome(DDecimal(-x))
   | _ -> ValueNone
 
 /// The operator itself, given a tag from `byName` and two `Int`s.
@@ -280,11 +281,23 @@ let evalDictSet
     ValueNone
 
 
+/// A Decimal `+`, `-` or `*`, declining on overflow so the impl raises its own error.
+let private decimalOrDecline
+  (op : decimal -> decimal -> decimal)
+  (x : decimal)
+  (y : decimal)
+  : Dval voption =
+  try
+    ValueSome(DDecimal(op x y))
+  with :? System.OverflowException ->
+    ValueNone
+
 /// The arithmetic and ordering operators on the fixed-width, float and String types, for the trait
 /// method the operator lowers to. What the impl fn would compute (`Stdlib.Int64.Add.add` is
 /// `a + b` in F#, wrapping), restated here so the operator never pays impl selection when both
 /// operands are the same builtin numeric type. Anything that can fail (`divide`, `modulo`,
-/// `power`) and every mixed pair declines: the impl runs and raises its own error.
+/// `power`) and every mixed pair declines: the impl runs and raises its own error. Decimal's
+/// `+`, `-` and `*` can overflow, and decline when they do.
 let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
   // Nested matches throughout, not `match a, b with`: the pair is an allocation per operator,
   // which is the cost this table exists to avoid.
@@ -339,6 +352,10 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
       (match b with
        | DFloat y -> ValueSome(DFloat(x + y))
        | _ -> ValueNone)
+    | DDecimal x ->
+      (match b with
+       | DDecimal y -> decimalOrDecline (+) x y
+       | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = subtract then
     match a with
@@ -386,6 +403,10 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
       (match b with
        | DFloat y -> ValueSome(DFloat(x - y))
        | _ -> ValueNone)
+    | DDecimal x ->
+      (match b with
+       | DDecimal y -> decimalOrDecline (-) x y
+       | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = multiply then
     match a with
@@ -432,6 +453,10 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
     | DFloat x ->
       (match b with
        | DFloat y -> ValueSome(DFloat(x * y))
+       | _ -> ValueNone)
+    | DDecimal x ->
+      (match b with
+       | DDecimal y -> decimalOrDecline (*) x y
        | _ -> ValueNone)
     | _ -> ValueNone
   elif
@@ -489,6 +514,10 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
         (match b with
          | DFloat y when not (System.Double.IsNaN x) && not (System.Double.IsNaN y) ->
            compare x y
+         | _ -> none)
+      | DDecimal x ->
+        (match b with
+         | DDecimal y -> compare x y
          | _ -> none)
       | _ -> none
     if ordering = none then ValueNone

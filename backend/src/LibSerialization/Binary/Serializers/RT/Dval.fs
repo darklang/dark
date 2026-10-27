@@ -42,6 +42,7 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
   | KTInt128 -> w.Write 10uy
   | KTUInt128 -> w.Write 11uy
   | KTFloat -> w.Write 12uy
+  | KTDecimal -> w.Write 27uy
   | KTChar -> w.Write 13uy
   | KTString -> w.Write 14uy
   | KTUuid -> w.Write 15uy
@@ -167,6 +168,9 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
   | DFloat value ->
     w.Write 12uy
     Float.write w value
+  | DDecimal value ->
+    w.Write 27uy
+    Decimal.write w value
   | DChar value ->
     w.Write 13uy
     String.write w value
@@ -268,6 +272,7 @@ and readKnownType (r : BinaryReader) : KnownType =
   | 10uy -> KTInt128
   | 11uy -> KTUInt128
   | 12uy -> KTFloat
+  | 27uy -> KTDecimal
   | 13uy -> KTChar
   | 14uy -> KTString
   | 15uy -> KTUuid
@@ -375,6 +380,7 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
   | 10uy -> DInt128(System.Int128.Parse(String.read r))
   | 11uy -> DUInt128(System.UInt128.Parse(String.read r))
   | 12uy -> DFloat(Float.read r)
+  | 27uy -> DDecimal(Decimal.read r)
   | 13uy -> DChar(String.read r)
   | 14uy -> DString(String.read r)
   | 15uy -> DUuid(Guid.read r)

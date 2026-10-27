@@ -111,6 +111,10 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
     else if System.Double.IsPositiveInfinity f then w.WriteStringValue "Infinity"
     else w.WriteRawValue(floatToShortestString f)
 
+  // at its scale, so `1.10m` writes `1.10`
+  | DDecimal d ->
+    w.WriteRawValue(d.ToString(System.Globalization.CultureInfo.InvariantCulture))
+
   | DChar c -> w.WriteStringValue c
   | DString s -> w.WriteStringValue s
 
@@ -274,6 +278,37 @@ let private parseExactJsonInteger (raw : string) : bigint option =
     with
     | true, v -> Some v
     | false, _ -> None
+
+
+/// Parses a JSON number literal to a `decimal` only when that is exact. `Decimal.TryParse`
+/// rounds past 28-29 significant digits and flushes tiny values to zero without saying so, so
+/// the result is checked: the literal times 10^scale has to be the same integer as the decimal's
+/// own unscaled value.
+let private parseExactJsonDecimal (raw : string) : decimal option =
+  match
+    System.Decimal.TryParse(
+      raw,
+      System.Globalization.NumberStyles.Float,
+      System.Globalization.CultureInfo.InvariantCulture
+    )
+  with
+  | false, _ -> None
+  | true, d ->
+    let scale = int d.Scale
+    let mantissa, exp =
+      match raw.IndexOfAny [| 'e'; 'E' |] with
+      | -1 -> raw, 0L
+      | i ->
+        match System.Int64.TryParse(raw.Substring(i + 1)) with
+        | true, e -> raw.Substring(0, i), e
+        | false, _ -> raw, System.Int64.MinValue
+    if exp = System.Int64.MinValue then
+      None
+    else
+      let unscaled = System.Decimal.Truncate(d * pown 10m scale)
+      match parseExactJsonInteger $"{mantissa}e{exp + int64 scale}" with
+      | Some n when n = bigint unscaled -> Some d
+      | _ -> None
 
 
 let parse
@@ -502,6 +537,11 @@ let parse
       | "-Infinity" -> DFloat System.Double.NegativeInfinity
       | _ -> raiseCantMatchWithType TFloat j pathSoFar
       |> Ply
+
+    | TDecimal, JsonValueKind.Number ->
+      match parseExactJsonDecimal (j.GetRawText()) with
+      | Some d -> Ply(DDecimal d)
+      | None -> raiseCantMatchWithType TDecimal j pathSoFar |> Ply
 
     | TChar, JsonValueKind.String ->
       match String.toEgcChar (j.GetString()) with
@@ -745,6 +785,7 @@ let parse
     | TUInt128, _
     | TInt, _
     | TFloat, _
+    | TDecimal, _
     | TChar, _
     | TString, _
     | TUuid, _

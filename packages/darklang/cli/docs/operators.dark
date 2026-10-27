@@ -19,7 +19,7 @@ let content () : String =
   Success must still be wrapped in Ok/Some; error types must agree.
   No whitespace before ?. `f x?` means `f (x?)`.
 
-## Numeric (all int types + Float)
+## Numeric (all int types, Float, Decimal)
   + - * / % **   and unary -x
   Each is a trait: `+` is `Stdlib.Add`, then Subtract, Multiply, Divide, Modulo, Power, and `-x`
   is `Negate`. Both operands must be the same type: `1 + 2`, `1.0 + 2.0` and
@@ -36,6 +36,10 @@ let content () : String =
   is `-9223372036854775808L`, and `-x` on a type's minimum is that minimum again.
   `Int` is arbitrary-precision and does not wrap. Dividing by zero raises.
   Float arithmetic follows IEEE (overflow -> infinity).
+  Decimal (`19.99m`) is exact base-10 with up to 28 places: `+ - * /`, unary `-` and
+  comparisons, no `%` or `**`. A result past 96 bits raises; `/` gives as many places as
+  fit, so follow it with `Stdlib.Decimal.round q 2` to fix them. The places written are
+  kept (`1.10m` prints 1.10) but `1.10m == 1.1m`.
 
 ## Bitwise (every integer type; Float has no implementation)
   & | ^ << >>   and unary ~x

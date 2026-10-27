@@ -154,6 +154,7 @@ module RuntimeError =
     | Known KTUInt128
     | Known KTInt
     | Known KTFloat
+    | Known KTDecimal
     | Known KTBool
     | Known KTChar
     | Known KTDateTime
@@ -195,6 +196,7 @@ module RuntimeError =
 
     | Int DivideByZeroError -> [ ES.String "Cannot divide by 0" ]
     | Int OutOfRange -> [ ES.String "Encountered out-of-range value for type of Int" ]
+    | DecimalOutOfRange -> [ ES.String "Decimal result is out of range (larger than 79228162514264337593543950335)" ]
     | Int NegativeExponent -> [ ES.String "Cannot raise integer to a negative exponent" ]
     | Int NegativeModulus -> [ ES.String "Cannot evaluate modulus against a negative number" ]
     | Int ZeroModulus -> [ ES.String "Cannot evaluate modulus against 0" ]

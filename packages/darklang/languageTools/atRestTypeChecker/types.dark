@@ -412,6 +412,7 @@ let fromReferenceInto
   | TUInt128 -> (Model.Ty.TUInt128, found)
   | TInt -> (Model.Ty.TInt, found)
   | TFloat -> (Model.Ty.TFloat, found)
+  | TDecimal -> (Model.Ty.TDecimal, found)
   | TChar -> (Model.Ty.TChar, found)
   | TUuid -> (Model.Ty.TUuid, found)
   | TDateTime -> (Model.Ty.TDateTime, found)
@@ -908,6 +909,7 @@ let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTy
   | TUInt128
   | TInt
   | TFloat
+  | TDecimal
   | TChar
   | TString
   | TUuid
@@ -1035,6 +1037,7 @@ let toStatic (ty: Model.Ty) : StaticType =
   | TUInt128 -> StaticType.TUInt128
   | TInt -> StaticType.TInt
   | TFloat -> StaticType.TFloat
+  | TDecimal -> StaticType.TDecimal
   | TChar -> StaticType.TChar
   | TString -> StaticType.TString
   | TUuid -> StaticType.TUuid
