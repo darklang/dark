@@ -123,6 +123,7 @@ module TypeReference =
       | TUInt128 r
       | TInt r
       | TFloat r
+      | TFloat32 r
       | TChar r
       | TString r
       | TUuid r
@@ -479,6 +480,8 @@ module MatchPattern =
     | MPInt(_, (intPartRange, _)) -> [ makeToken intPartRange TokenType.Number ]
     | MPFloat(range, _sign, _whole, _fraction) ->
       [ makeToken range TokenType.Number ]
+    | MPFloat32(range, _sign, _whole, _fraction) ->
+      [ makeToken range TokenType.Number ]
     | MPBool(range, _b) -> [ makeToken range TokenType.Keyword ]
     | MPString(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
       let contents =
@@ -722,6 +725,10 @@ module Expr =
 
     // 12.0
     | EFloat(range, _sign, _whole, _fraction) ->
+      [ makeToken range TokenType.Number ]
+
+    // 12.0f
+    | EFloat32(range, _sign, _whole, _fraction) ->
       [ makeToken range TokenType.Number ]
 
     // "hello"

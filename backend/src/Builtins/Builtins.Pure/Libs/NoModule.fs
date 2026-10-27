@@ -164,6 +164,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a + b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.add a b))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a + b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a + b))
         // `+` concatenates Strings (`impl Add for String`), and this builtin is what `+`
         // lowers to while the package refs are not generated yet, which is how the stdlib's
         // own string concatenation loads on a fresh tree.
@@ -202,6 +203,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a - b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.subtract a b))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a - b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a - b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -231,6 +233,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a * b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.multiply a b))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a * b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a * b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -296,6 +299,7 @@ let fns () : List<BuiltInFn> =
             Ply(Dval.dint (DarkInt.divide a b))
         // Float division by zero follows IEEE semantics (Infinity/NaN), as before
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a / b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a / b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -449,6 +453,8 @@ let fns () : List<BuiltInFn> =
           else
             Ply(Dval.int (number ** (int exp)))
         | _, _, _, [| DFloat number; DFloat exp |] -> Ply(DFloat(number ** exp))
+        | _, _, _, [| DFloat32 number; DFloat32 exp |] ->
+          Ply(DFloat32(float32 (float number ** float exp)))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -472,6 +478,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DInt128 a |] -> Ply(DInt128(-a))
         | _, _, _, [| DInt a |] -> Ply(Dval.dint (DarkInt.negate a))
         | _, _, _, [| DFloat a |] -> Ply(DFloat(-a))
+        | _, _, _, [| DFloat32 a |] -> Ply(DFloat32(-a))
         | _, vm, _, [| a |] -> numericTypeError vm a a
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -665,6 +672,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a > b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b > 0))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a > b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a > b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -692,6 +700,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a >= b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b >= 0))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a >= b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a >= b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -718,6 +727,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a < b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b < 0))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a < b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a < b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -745,6 +755,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a <= b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b <= 0))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a <= b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a <= b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure

@@ -410,7 +410,7 @@ Rules:
   call sees (active, shadowed, unordered); `dark constraints --json` has the rival
   pairs; `docs traits`.
 - Bitwise operators have implementations for every integer type and none for
-  Float; both operands (the shift count included) must be the same type.
+  Float or Float32; both operands (the shift count included) must be the same type.
 - `!x` is boolean not. Inside a `match`, `|` is the arm separator, so bitwise-or
   there needs parens: `| A -> (a | b)`.
 

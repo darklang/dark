@@ -124,6 +124,14 @@ module Float =
     | 3uy -> r.ReadDouble()
     | b -> raise (BinaryFormatException(CorruptedData $"Invalid float tag: {b}"))
 
+/// The raw binary32 bits, so every value (NaN payloads, -0) round-trips.
+module Float32 =
+  let write (w : BinaryWriter) (value : float32) =
+    w.Write(System.BitConverter.SingleToUInt32Bits value)
+
+  let read (r : BinaryReader) : float32 =
+    System.BitConverter.UInt32BitsToSingle(r.ReadUInt32())
+
 module DateTime =
   let write (w : BinaryWriter) (value : NodaTime.Instant) =
     w.Write(value.ToUnixTimeTicks())

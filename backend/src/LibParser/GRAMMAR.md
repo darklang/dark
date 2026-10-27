@@ -75,6 +75,11 @@ Normalization removes leading zeros from the whole part and does not depend on
 host float formatting. The same rules apply to float patterns. Runtime string
 parsing remains a separate operation.
 
+An `f` straight after the fraction or exponent makes a `Float32` (`1.5f`,
+`1e3f`), checked by the same precision rule against binary32 instead, so
+`0.1f` is accepted and `0.1234567891f` is an error. `1f` is not a float: the
+suffix needs a fraction or exponent before it.
+
 ### String literals
 
 String forms:
@@ -295,7 +300,7 @@ that does not name a trait is `PARSE-BOUND`.
 
 ## Types
 
-Primitive types are `Unit Bool Int Int8…UInt128 Float Char String DateTime Uuid
+Primitive types are `Unit Bool Int Int8…UInt128 Float Float32 Char String DateTime Uuid
 Bytes` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<K, V>` have special
 syntax. Other uppercase names, including `Stream<T>` and `DB<T>`, are custom
 types with optional type arguments.
@@ -416,7 +421,7 @@ Codes are stable identifiers (key on these, never on message text):
 | `PARSE-UNCLOSED` | missing closing delimiter — the opener is in `related` |
 | `PARSE-ESCAPE` | invalid escape/codepoint in a literal |
 | `PARSE-INT-RANGE` | integer literal out of range (hint: the negated form) |
-| `PARSE-FLOAT-PRECISION` | binary64 conversion loses specified decimal precision |
+| `PARSE-FLOAT-PRECISION` | binary64 (binary32 for `f`) conversion loses specified decimal precision |
 | `PARSE-FLOAT-OVERFLOW` | float literal rounds to infinity |
 | `PARSE-FLOAT-UNDERFLOW` | nonzero float literal rounds to zero |
 | `PARSE-FLOAT-INVALID` | malformed decimal float during recovery |

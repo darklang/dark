@@ -196,6 +196,12 @@ module MatchPattern =
       Sign.write w sign
       String.write w whole
       String.write w fractional
+    | MPFloat32(id, sign, whole, fractional) ->
+      w.Write 22uy
+      w.Write id
+      Sign.write w sign
+      String.write w whole
+      String.write w fractional
     | MPUnit id ->
       w.Write 16uy
       w.Write id
@@ -292,6 +298,12 @@ module MatchPattern =
       let whole = String.read r
       let fractional = String.read r
       MPFloat(id, sign, whole, fractional)
+    | 22uy ->
+      let id = r.ReadUInt64()
+      let sign = Sign.read r
+      let whole = String.read r
+      let fractional = String.read r
+      MPFloat32(id, sign, whole, fractional)
     | 16uy ->
       let id = r.ReadUInt64()
       MPUnit id
@@ -502,6 +514,12 @@ module Expr =
       Sign.write w sign
       String.write w whole
       String.write w fractional
+    | EFloat32(id, sign, whole, fractional) ->
+      w.Write 37uy
+      w.Write id
+      Sign.write w sign
+      String.write w whole
+      String.write w fractional
     | EUnit id ->
       w.Write 14uy
       w.Write id
@@ -696,6 +714,12 @@ module Expr =
       let whole = String.read r
       let fractional = String.read r
       EFloat(id, sign, whole, fractional)
+    | 37uy ->
+      let id = r.ReadUInt64()
+      let sign = Sign.read r
+      let whole = String.read r
+      let fractional = String.read r
+      EFloat32(id, sign, whole, fractional)
     | 14uy ->
       let id = r.ReadUInt64()
       EUnit id

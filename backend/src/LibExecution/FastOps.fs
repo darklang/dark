@@ -71,6 +71,7 @@ let evalNegate (a : Dval) : Dval voption =
   | DInt128 x -> ValueSome(DInt128(-x))
   | DInt x -> ValueSome(Dval.dint (DarkInt.negate x))
   | DFloat x -> ValueSome(DFloat(-x))
+  | DFloat32 x -> ValueSome(DFloat32(-x))
   | _ -> ValueNone
 
 /// The operator itself, given a tag from `byName` and two `Int`s.
@@ -339,6 +340,10 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
       (match b with
        | DFloat y -> ValueSome(DFloat(x + y))
        | _ -> ValueNone)
+    | DFloat32 x ->
+      (match b with
+       | DFloat32 y -> ValueSome(DFloat32(x + y))
+       | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = subtract then
     match a with
@@ -386,6 +391,10 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
       (match b with
        | DFloat y -> ValueSome(DFloat(x - y))
        | _ -> ValueNone)
+    | DFloat32 x ->
+      (match b with
+       | DFloat32 y -> ValueSome(DFloat32(x - y))
+       | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = multiply then
     match a with
@@ -432,6 +441,10 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
     | DFloat x ->
       (match b with
        | DFloat y -> ValueSome(DFloat(x * y))
+       | _ -> ValueNone)
+    | DFloat32 x ->
+      (match b with
+       | DFloat32 y -> ValueSome(DFloat32(x * y))
        | _ -> ValueNone)
     | _ -> ValueNone
   elif
@@ -488,6 +501,11 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
       | DFloat x ->
         (match b with
          | DFloat y when not (System.Double.IsNaN x) && not (System.Double.IsNaN y) ->
+           compare x y
+         | _ -> none)
+      | DFloat32 x ->
+        (match b with
+         | DFloat32 y when not (System.Single.IsNaN x) && not (System.Single.IsNaN y) ->
            compare x y
          | _ -> none)
       | _ -> none

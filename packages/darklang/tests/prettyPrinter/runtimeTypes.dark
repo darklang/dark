@@ -59,7 +59,13 @@ test scalars =
       // shorter.
       pp 1.5 |> Stdlib.Test.equal "1.5"
       pp (0.1 + 0.2) |> Stdlib.Test.equal "0.30000000000000004"
-      pp 0.00001 |> Stdlib.Test.equal "1e-5" ]
+      pp 0.00001 |> Stdlib.Test.equal "1e-5"
+      // A Float32 carries its suffix, so it reads back as itself and not as a
+      // Float. NaN and the infinities have no literal to suffix.
+      pp 1.5f |> Stdlib.Test.equal "1.5f"
+      pp (0.1f + 0.2f) |> Stdlib.Test.equal "0.3f"
+      pp 1e30f |> Stdlib.Test.equal "1e+30f"
+      pp (1.0f / 0.0f) |> Stdlib.Test.equal "Infinity" ]
 
 // Float literals in source
 //

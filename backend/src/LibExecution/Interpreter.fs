@@ -263,6 +263,7 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTUInt128
     | KTInt
     | KTFloat
+    | KTFloat32
     | KTChar
     | KTString
     | KTUuid
@@ -570,6 +571,10 @@ and checkAndExtractMatchPattern
   | MPFloat l ->
     match dv with
     | DFloat r -> l = r
+    | _ -> false
+  | MPFloat32 l ->
+    match dv with
+    | DFloat32 r -> l = r
     | _ -> false
   | MPChar l ->
     match dv with

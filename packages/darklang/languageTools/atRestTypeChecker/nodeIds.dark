@@ -93,6 +93,7 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     | EUInt128(_, _)
     | EInt(_, _)
     | EFloat(_, _, _, _)
+    | EFloat32(_, _, _, _)
     | EChar(_, _)
     | EArg(_, _)
     | ESelf _ -> (Stdlib.Option.Option.None, [])
@@ -126,6 +127,7 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     | MPUInt128(_, _)
     | MPInt(_, _)
     | MPFloat(_, _, _, _)
+    | MPFloat32(_, _, _, _)
     | MPChar(_, _)
     | MPString(_, _) -> (Stdlib.Option.Option.None, [])
   | Pipe p ->
@@ -361,6 +363,7 @@ let visit
     | EUInt128(_, _)
     | EInt(_, _)
     | EFloat(_, _, _, _)
+    | EFloat32(_, _, _, _)
     | EChar(_, _)
     | EArg(_, _)
     | ESelf _ -> (ids, next)
@@ -398,6 +401,7 @@ let visit
     | MPUInt128(_, _)
     | MPInt(_, _)
     | MPFloat(_, _, _, _)
+    | MPFloat32(_, _, _, _)
     | MPChar(_, _)
     | MPString(_, _) -> (ids, next)
   | Pipe p ->

@@ -25,6 +25,7 @@ let builtins () : Builtins =
       Libs.Int.builtins ()
 
       Libs.Float.builtins ()
+      Libs.Float32.builtins ()
 
       Libs.Math.builtins ()
 

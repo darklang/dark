@@ -111,6 +111,12 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
     else if System.Double.IsPositiveInfinity f then w.WriteStringValue "Infinity"
     else w.WriteRawValue(floatToShortestString f)
 
+  | DFloat32 f ->
+    if System.Single.IsNaN f then w.WriteStringValue "NaN"
+    else if System.Single.IsNegativeInfinity f then w.WriteStringValue "-Infinity"
+    else if System.Single.IsPositiveInfinity f then w.WriteStringValue "Infinity"
+    else w.WriteRawValue(float32ToShortestString f)
+
   | DChar c -> w.WriteStringValue c
   | DString s -> w.WriteStringValue s
 
@@ -503,6 +509,15 @@ let parse
       | _ -> raiseCantMatchWithType TFloat j pathSoFar
       |> Ply
 
+    | TFloat32, JsonValueKind.Number -> j.GetSingle() |> DFloat32 |> Ply
+    | TFloat32, JsonValueKind.String ->
+      match j.GetString() with
+      | "NaN" -> DFloat32 System.Single.NaN
+      | "Infinity" -> DFloat32 System.Single.PositiveInfinity
+      | "-Infinity" -> DFloat32 System.Single.NegativeInfinity
+      | _ -> raiseCantMatchWithType TFloat32 j pathSoFar
+      |> Ply
+
     | TChar, JsonValueKind.String ->
       match String.toEgcChar (j.GetString()) with
       | Some c -> Ply(DChar c)
@@ -745,6 +760,7 @@ let parse
     | TUInt128, _
     | TInt, _
     | TFloat, _
+    | TFloat32, _
     | TChar, _
     | TString, _
     | TUuid, _

@@ -251,6 +251,7 @@ let isNonExpansive (expr: LanguageTools.ProgramTypes.Expr) : Bool =
   | EUInt128(_, _) -> true
   | EInt(_, _) -> true
   | EFloat(_, _, _, _) -> true
+  | EFloat32(_, _, _, _) -> true
   | EChar(_, _) -> true
   | EFnName(_, _, _) -> true
   | EValue(_, _) -> true
@@ -353,6 +354,7 @@ let matchPattern
   | MPUInt128(id, _) -> literal id Model.Ty.TUInt128
   | MPInt(id, _) -> literal id Model.Ty.TInt
   | MPFloat(id, _, _, _) -> literal id Model.Ty.TFloat
+  | MPFloat32(id, _, _, _) -> literal id Model.Ty.TFloat32
   | MPChar(id, _) -> literal id Model.Ty.TChar
   | MPString(id, _) -> literal id Model.Ty.TString
   | MPVariable(id, name) ->
@@ -500,6 +502,7 @@ let patternIds (pattern: LanguageTools.ProgramTypes.MatchPattern) : List<Int64> 
   | MPUInt128(id, _) -> [ id ]
   | MPInt(id, _) -> [ id ]
   | MPFloat(id, _, _, _) -> [ id ]
+  | MPFloat32(id, _, _, _) -> [ id ]
   | MPChar(id, _) -> [ id ]
   | MPString(id, _) -> [ id ]
   | MPVariable(id, _) -> [ id ]
@@ -583,6 +586,7 @@ let infer (scope: Scope) (expr: LanguageTools.ProgramTypes.Expr) : (Model.Ty * M
   | EDict(id, entries) -> inferDict scope id entries
   | EChar(_, _) -> (Model.Ty.TChar, nothing ())
   | EFloat(_, _, _, _) -> (Model.Ty.TFloat, nothing ())
+  | EFloat32(_, _, _, _) -> (Model.Ty.TFloat32, nothing ())
   | ESelf id -> inferSelf scope id
   | EInt8(_, _) -> (Model.Ty.TInt8, nothing ())
   | EUInt8(_, _) -> (Model.Ty.TUInt8, nothing ())
@@ -1112,6 +1116,18 @@ let constantDictKey
         Stdlib.Option.Option.Some "0.0"
       else
         Stdlib.Option.Option.Some(Stdlib.toString f)
+    | Error _ -> Stdlib.Option.Option.None
+  | EFloat32(_, sign, whole, fraction) ->
+    let sign =
+      match sign with
+      | Negative -> "-"
+      | Positive -> ""
+    match Stdlib.Float32.parse (sign + whole + "." + fraction) with
+    | Ok f ->
+      if f == 0.0f then
+        Stdlib.Option.Option.Some "0.0f"
+      else
+        Stdlib.Option.Option.Some((Stdlib.toString f) + "f")
     | Error _ -> Stdlib.Option.Option.None
   | EChar(_, c) -> Stdlib.Option.Option.Some(quote "'" c)
   | EString(_, segments) ->

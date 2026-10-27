@@ -154,6 +154,7 @@ module RuntimeError =
     | Known KTUInt128
     | Known KTInt
     | Known KTFloat
+    | Known KTFloat32
     | Known KTBool
     | Known KTChar
     | Known KTDateTime

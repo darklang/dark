@@ -58,6 +58,7 @@ module TypeReference =
     | TUInt128 of Range
     | TInt of Range
     | TFloat of Range
+    | TFloat32 of Range
     | TChar of Range
     | TString of Range
     | TDateTime of Range
@@ -145,6 +146,7 @@ type MatchPattern =
   | MPUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
   | MPInt of Range * intPart: (Range * Int)
   | MPFloat of Range * Sign * String * String
+  | MPFloat32 of Range * Sign * String * String
   | MPChar of
     Range *
     contents: Stdlib.Option.Option<(Range * String)> *
@@ -255,6 +257,7 @@ type Expr =
   | EUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
   | EInt of Range * intPart: (Range * Int)
   | EFloat of Range * Sign * String * String
+  | EFloat32 of Range * Sign * String * String
   | EString of
     Range *
     symbolDollarSign: Stdlib.Option.Option<Range> *
@@ -417,6 +420,7 @@ module Expr =
     | EUInt128(range, _, _) -> range
     | EInt(range, _) -> range
     | EFloat(range, _, _, _) -> range
+    | EFloat32(range, _, _, _) -> range
     | EString(range, _, _, _, _) -> range
     | EChar(range, _, _, _) -> range
     | EList(range, _, _, _) -> range
