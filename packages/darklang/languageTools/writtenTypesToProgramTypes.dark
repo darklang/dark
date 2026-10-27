@@ -230,6 +230,7 @@ module TypeReference =
       | TUInt128 _range -> (ProgramTypes.TypeReference.TUInt128, [])
       | TInt _range -> (ProgramTypes.TypeReference.TInt, [])
       | TFloat _range -> (ProgramTypes.TypeReference.TFloat, [])
+      | TFloat32 _range -> (ProgramTypes.TypeReference.TFloat32, [])
       | TChar _range -> (ProgramTypes.TypeReference.TChar, [])
       | TString _range -> (ProgramTypes.TypeReference.TString, [])
       | TDateTime _range -> (ProgramTypes.TypeReference.TDateTime, [])
@@ -488,6 +489,8 @@ module Expr =
       | MPInt(_, (_, i)) -> ProgramTypes.MatchPattern.MPInt(gid (), i)
       | MPFloat(_, s, w, f) ->
         ProgramTypes.MatchPattern.MPFloat(gid (), s, w, f)
+      | MPFloat32(_, s, w, f) ->
+        ProgramTypes.MatchPattern.MPFloat32(gid (), s, w, f)
       | MPString(_, contents, _, _) ->
         match contents with
         | None -> ProgramTypes.MatchPattern.MPString(gid (), "")
@@ -717,6 +720,7 @@ module Expr =
     | EUInt128(_, (_, i), _) -> (ProgramTypes.Expr.EUInt128(gid (), i), [])
     | EInt(_, (_, i)) -> (ProgramTypes.Expr.EInt(gid (), i), [])
     | EFloat(_, s, w, f) -> (ProgramTypes.Expr.EFloat(gid (), s, w, f), [])
+    | EFloat32(_, s, w, f) -> (ProgramTypes.Expr.EFloat32(gid (), s, w, f), [])
     | EString(_, _, contents, _, _) ->
       let (segment, unresolvedNames) =
         contents
@@ -1478,6 +1482,7 @@ module FunctionDeclaration =
     | TUInt128
     | TInt
     | TFloat
+    | TFloat32
     | TChar
     | TString
     | TDateTime
@@ -1644,6 +1649,7 @@ module ImplDeclaration =
       | TInt128 _ -> "Int128"
       | TUInt128 _ -> "UInt128"
       | TFloat _ -> "Float"
+      | TFloat32 _ -> "Float32"
       | TChar _ -> "Char"
       | TString _ -> "String"
       | TDateTime _ -> "DateTime"

@@ -56,6 +56,7 @@ module RuntimeTypes =
       RT.TInt
 
       RT.TFloat
+      RT.TFloat32
 
       RT.TString
 
@@ -94,6 +95,7 @@ module RuntimeTypes =
       known RT.KnownType.KTUInt128
       known RT.KnownType.KTInt
       known RT.KnownType.KTFloat
+      known RT.KnownType.KTFloat32
       known RT.KnownType.KTChar
       known RT.KnownType.KTString
       known RT.KnownType.KTUuid
@@ -210,6 +212,8 @@ module RuntimeTypes =
       RT.Dval.int (bigint System.Int64.MaxValue)
       RT.Dval.int (System.Numerics.BigInteger.Parse "123456789012345678901234567890")
       RT.DFloat(3.14159)
+      RT.DFloat32(3.14159f)
+      RT.DFloat32(-0.0f)
       RT.DChar "A"
       RT.DString "Hello, World!"
       RT.DApplicable(
@@ -267,6 +271,7 @@ module ProgramTypes =
       MPChar(id, "w")
       MPString(id, "testing testing 123")
       MPFloat(id, Positive, "123", "456")
+      MPFloat32(id, Negative, "1", "5")
       MPUnit(id)
       MPTuple(id, MPInt64(id, 123), MPBool(id, true), [ MPUnit(id) ])
       MPList(id, [ MPInt64(id, 123) ])
@@ -283,7 +288,8 @@ module ProgramTypes =
     TTuple(
       TInt64,
       TFloat,
-      [ TBool
+      [ TFloat32
+        TBool
         TUnit
         TUInt64
         TInt8
@@ -709,6 +715,7 @@ module ProgramTypes =
       [ PT.EString(id, [ PT.StringText("string") ])
         PT.EUnit(id)
         PT.EFloat(id, Positive, "3", "14")
+        PT.EFloat32(id, Positive, "3", "14")
         PT.EChar(id, "c")
         PT.EUnit(id)
         PT.EUInt64(id, 3UL)

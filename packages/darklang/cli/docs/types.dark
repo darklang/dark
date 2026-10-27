@@ -6,6 +6,7 @@ let content () : String =
 ## Primitives
   Int    5, -42
   Float    3.14, -0.5
+  Float32  1.5f, 1e3f   single precision; a bare 3.14 is always a Float
   String   "hello"
   Bool     true, false
   Char     'a'

@@ -150,6 +150,7 @@ module TypeReference =
       | WT.TUInt128 _ -> return PT.TUInt128
       | WT.TInt _ -> return PT.TInt
       | WT.TFloat _ -> return PT.TFloat
+      | WT.TFloat32 _ -> return PT.TFloat32
       | WT.TChar _ -> return PT.TChar
       | WT.TString _ -> return PT.TString
       | WT.TDateTime _ -> return PT.TDateTime
@@ -297,6 +298,8 @@ module MatchPattern =
        ))
     | WT.MPFloat(_, neg, w, f) ->
       (context, PT.MPFloat(gid (), (if neg then Negative else Positive), w, f))
+    | WT.MPFloat32(_, neg, w, f) ->
+      (context, PT.MPFloat32(gid (), (if neg then Negative else Positive), w, f))
     | WT.MPUnit _ -> (context, PT.MPUnit(gid ()))
     | WT.MPTuple(_, first, _, second, rest, _, _) ->
       let (context1, first') = toPT context first
@@ -399,6 +402,9 @@ module Expr =
       | WT.EFloat(_, neg, whole, fraction) ->
         return
           PT.EFloat(gid (), (if neg then Negative else Positive), whole, fraction)
+      | WT.EFloat32(_, neg, whole, fraction) ->
+        return
+          PT.EFloat32(gid (), (if neg then Negative else Positive), whole, fraction)
       | WT.EBool(_, b) -> return PT.EBool(gid (), b)
       | WT.EUnit _ -> return PT.EUnit(gid ())
       | WT.EVariable(_, var) ->

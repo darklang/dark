@@ -1,0 +1,472 @@
+module Darklang.Stdlib.Float32
+
+// Two builtins, the narrowing and the widening; the rest is here. Arithmetic
+// widens, runs on Float and narrows once, which IS binary32 arithmetic: a double
+// carries more than twice a single's 24 bits plus two, so rounding to double and
+// then to single lands where rounding straight to single would (Figueroa, 1995).
+// That holds for + - * / and sqrt; `**` is only as good as Float's own power.
+
+
+type ParseError = | BadFormat
+
+
+/// Round <param a> to the nearest <type Float32>, ties to even. A value too large
+/// for a Float32 becomes an infinity, and one too small becomes zero.
+let fromFloat (a: Float) : Float32 = Builtin.float32FromFloat a
+
+
+/// Widen <param a> to a <type Float>. Exact: every Float32 is also a Float.
+let toFloat (a: Float32) : Float = Builtin.float32ToFloat a
+
+
+/// Round up to an integer value
+let ceiling (a: Float32) : Int = Stdlib.Float.ceiling (Stdlib.Float32.toFloat a)
+
+
+/// Round up to an integer value
+let roundUp (a: Float32) : Int = Stdlib.Float.roundUp (Stdlib.Float32.toFloat a)
+
+
+/// Round down to an integer value.
+/// Consider <fn Float32.truncate> if your goal is to discard the fractional part
+/// of a number: {{Float32.floor -1.9f == -2}} but {{Float32.truncate -1.9f == -1}}
+let floor (a: Float32) : Int = Stdlib.Float.floor (Stdlib.Float32.toFloat a)
+
+
+/// Round down to an integer value.
+let roundDown (a: Float32) : Int = Stdlib.Float.roundDown (Stdlib.Float32.toFloat a)
+
+
+/// Round to the nearest integer value
+let round (a: Float32) : Int = Stdlib.Float.round (Stdlib.Float32.toFloat a)
+
+
+/// Round towards zero, discarding the fractional part
+let roundTowardsZero (a: Float32) : Int =
+  Stdlib.Float.roundTowardsZero (Stdlib.Float32.toFloat a)
+
+
+/// Discard the fractional portion of the float, rounding towards zero
+let truncate (a: Float32) : Int = Stdlib.Float.truncate (Stdlib.Float32.toFloat a)
+
+
+impl Negate for Float32 =
+  /// Returns the negation of <param a>, {{-a}}
+  let negate (a: Float32) : Float32 = a * -1.0f
+
+
+/// Get the square root of a float, correctly rounded
+let sqrt (a: Float32) : Float32 =
+  Stdlib.Float32.fromFloat (Stdlib.Float.sqrt (Stdlib.Float32.toFloat a))
+
+
+impl Add for Float32 =
+  /// Add <type Float32> <param a> to <type Float32> <param b>
+  let add (a: Float32) (b: Float32) : Float32 =
+    let sum = (Stdlib.Float32.toFloat a) + (Stdlib.Float32.toFloat b)
+    Stdlib.Float32.fromFloat sum
+
+
+impl Subtract for Float32 =
+  /// Subtract <type Float32> <param b> from <type Float32> <param a>
+  let subtract (a: Float32) (b: Float32) : Float32 =
+    let difference = (Stdlib.Float32.toFloat a) - (Stdlib.Float32.toFloat b)
+    Stdlib.Float32.fromFloat difference
+
+
+impl Multiply for Float32 =
+  /// Multiply <type Float32> <param a> by <type Float32> <param b>
+  let multiply (a: Float32) (b: Float32) : Float32 =
+    let product = (Stdlib.Float32.toFloat a) * (Stdlib.Float32.toFloat b)
+    Stdlib.Float32.fromFloat product
+
+
+impl Power for Float32 =
+  /// Returns <param base> raised to the power of <param exponent>
+  let power (``base``: Float32) (exponent: Float32) : Float32 =
+    Stdlib.Float32.fromFloat (
+      (Stdlib.Float32.toFloat ``base``) ** (Stdlib.Float32.toFloat exponent)
+    )
+
+
+impl Divide for Float32 =
+  /// Divide <type Float32> <param a> by <type Float32> <param b>
+  let divide (a: Float32) (b: Float32) : Float32 =
+    let quotient = (Stdlib.Float32.toFloat a) / (Stdlib.Float32.toFloat b)
+    Stdlib.Float32.fromFloat quotient
+
+
+impl Compare for Float32 =
+  /// Returns true if a is less than b
+  let lessThan (a: Float32) (b: Float32) : Bool =
+    (Stdlib.Float32.toFloat a) < (Stdlib.Float32.toFloat b)
+  /// Returns true if a is less than or equal to b
+  let lessThanOrEqualTo (a: Float32) (b: Float32) : Bool =
+    (Stdlib.Float32.toFloat a) <= (Stdlib.Float32.toFloat b)
+  /// Returns true if a is greater than b
+  let greaterThan (a: Float32) (b: Float32) : Bool =
+    (Stdlib.Float32.toFloat a) > (Stdlib.Float32.toFloat b)
+  /// Returns true if a is greater than or equal to b
+  let greaterThanOrEqualTo (a: Float32) (b: Float32) : Bool =
+    (Stdlib.Float32.toFloat a) >= (Stdlib.Float32.toFloat b)
+
+
+/// If <param value> is within the range given by <param limitA> and <param
+/// limitB>, returns <param value>.
+/// If <param value> is outside the range, returns <param limitA> or <param
+/// limitB>, whichever is closer to <param value>.
+/// Returns <param value> wrapped in a {{Result}}.
+/// <param limitA> and <param limitB> can be provided in any order.
+///
+/// Refuses a NaN limit, like <fn Float.clampRefusingNaN>.
+let clampRefusingNaN
+  (value: Float32)
+  (limitA: Float32)
+  (limitB: Float32)
+  : Stdlib.Result.Result<Float32, String> =
+  if Stdlib.Float32.isNaN limitA || Stdlib.Float32.isNaN limitB then
+    Stdlib.Result.Result.Error "clampRefusingNaN requires limits that are numbers"
+  else
+    let (lower, upper) =
+      if (limitA < limitB) then
+        (limitA, limitB)
+      else
+        (limitB, limitA)
+
+    if (value < lower) then
+      Stdlib.Result.Result.Ok lower
+    else if (value > upper) then
+      Stdlib.Result.Result.Ok upper
+    else
+      Stdlib.Result.Result.Ok value
+
+
+/// Returns the <type Float32> nearest to the number in <param s>, ties to even,
+/// accepting what <fn Float.parse> accepts. Rounded once from the decimal, never
+/// through a Float.
+let parse (s: String) : Stdlib.Result.Result<Float32, ParseError> =
+  match Stdlib.Float.parse s with
+  | Error _ -> Stdlib.Result.Result.Error ParseError.BadFormat
+  | Ok d -> Stdlib.Result.Result.Ok(Stdlib.Float32.Exact.parseNear s d)
+
+
+/// Returns true if <param f> is NaN
+let isNaN (f: Float32) : Bool = Stdlib.Float.isNaN (Stdlib.Float32.toFloat f)
+
+
+/// Returns {{true}} if <param f> is a finite number, and {{false}} for NaN
+/// and for positive or negative infinity
+let isFinite (f: Float32) : Bool =
+  // NaN and ±infinity give NaN here, which equals nothing
+  (f - f) == 0.0f
+
+
+/// Convert <param a> to an <type Int> by discarding its fractional part.
+/// Raises for NaN and infinities. Alias of <fn Float32.roundTowardsZero>.
+let toInt (a: Float32) : Int = Stdlib.Float32.roundTowardsZero a
+
+
+/// Return <param a>'s IEEE 754 binary32 bits as an unsigned 32-bit value.
+let toBits (a: Float32) : UInt32 =
+  // `bits` is below 2^32, so the default never applies
+  Stdlib.Int.toUInt32 (Stdlib.Float32.Exact.bits a)
+  |> Stdlib.Option.withDefault 0ul
+
+
+/// The <type Float32> whose IEEE 754 binary32 bits are <param bits>. Every number
+/// round-trips through <fn Float32.toBits>; a NaN comes back as a NaN, but not
+/// necessarily with the same sign or payload.
+let fromBits (bits: UInt32) : Float32 =
+  Stdlib.Float32.Exact.fromBits (Stdlib.Int.fromUInt32 bits)
+
+
+impl ToString for Float32 =
+  /// Stringify <param a> as the shortest decimal that parses back to the same
+  /// Float32, e.g. `0.1` for `0.1f` (where the widened Float says
+  /// `0.10000000149011612`), `1e+16`, `1e-5`.
+  let toString (a: Float32) : String = Stdlib.Float32.Exact.toString a
+
+
+impl Zero for Float32 =
+  let zero () : Float32 = 0.0f
+
+
+impl One for Float32 =
+  let one () : Float32 = 1.0f
+
+
+/// binary32 values as exact integers: what toString, toBits and parse are built
+/// from, since nothing on Float gives them exactly.
+module Exact =
+  /// Two to the <param n>, for n >= 0
+  let pow2 (n: Int) : Int = 1 << n
+
+  /// Ten to the <param n>, for n >= 0
+  let pow10 (n: Int) : Int = 10 ** n
+
+  /// <param a>'s binary32 bits as an Int, read off the widened Float's binary64
+  /// bits. Exact: the low 29 bits of a widened significand are zero.
+  let bits (a: Float32) : Int =
+    let b = Stdlib.Int.fromUInt64 (Stdlib.Float.toBits (Stdlib.Float32.toFloat a))
+    let sign = (b >> 63) << 31
+    let exponent = (b >> 52) & 2047
+    let fraction = b & ((pow2 52) - 1)
+    if exponent == 2047 then
+      // infinity or NaN; the payload's top 23 bits survive
+      sign + (255 << 23) + (fraction >> 29)
+    else if exponent == 0 then
+      // a widened Float32 is never a binary64 subnormal, so this is a zero
+      sign
+    else
+      let e = exponent - 1023
+      if e >= -126 then
+        sign + ((e + 127) << 23) + (fraction >> 29)
+      else
+        // a binary32 subnormal: significand times 2^-149
+        sign + (((pow2 52) + fraction) >> (-97 - e))
+
+  /// <param m> times 2^<param e>, as a Float. Exact for the binary32 range:
+  /// every step is a doubling or a halving of a normal binary64.
+  let scale (m: Float) (e: Int) : Float =
+    if e > 0 then scale (m * 2.0) (e - 1)
+    else if e < 0 then scale (m * 0.5) (e + 1)
+    else m
+
+  let fromBits (b: Int) : Float32 =
+    let negative = ((b >> 31) & 1) == 1
+    let exponent = (b >> 23) & 255
+    let fraction = b & ((pow2 23) - 1)
+    let magnitude =
+      if exponent == 255 then
+        if fraction == 0 then 1.0 / 0.0 else 0.0 / 0.0
+      else if exponent == 0 then
+        scale (Stdlib.Int.toFloat fraction) -149
+      else
+        scale (Stdlib.Int.toFloat (fraction + (pow2 23))) (exponent - 150)
+    Stdlib.Float32.fromFloat (if negative then -magnitude else magnitude)
+
+  /// A finite nonzero binary32 as `significand * 2^exponent`, sign aside.
+  type Finite =
+    { significand: Int
+      exponent: Int
+      /// The next value down is half as far away as the next one up, which is
+      /// true at a power of two
+      closerBelow: Bool }
+
+  let finite (b: Int) : Finite =
+    let exponent = (b >> 23) & 255
+    let fraction = b & ((pow2 23) - 1)
+    if exponent == 0 then
+      Finite
+        { significand = fraction
+          exponent = -149
+          closerBelow = false }
+    else
+      Finite
+        { significand = fraction + (pow2 23)
+          exponent = exponent - 150
+          closerBelow = fraction == 0 && exponent > 1 }
+
+  /// <param n> / <param d> rounded to the nearest Int, ties to even. Both >= 0.
+  let divideNearest (n: Int) (d: Int) : Int =
+    let q = n / d
+    let twiceRemainder = (n - q * d) * 2
+    if twiceRemainder > d then q + 1
+    else if twiceRemainder == d then q + (q % 2)
+    else q
+
+  /// floor(log10 (n / d)) for n, d > 0
+  let decimalExponent (n: Int) (d: Int) : Int =
+    if n >= d then
+      (Stdlib.String.length (Stdlib.toString (n / d))) - 1
+    else
+      decimalExponentBelowOne n d 1
+
+  let decimalExponentBelowOne (n: Int) (d: Int) (k: Int) : Int =
+    if n * (pow10 k) >= d then -k else decimalExponentBelowOne n d (k + 1)
+
+  /// The shortest digits that read back to <param f>, and the decimal exponent of
+  /// the first one. Everything is counted in quarter-units of the last place, so
+  /// the value and both rounding bounds are integers over one denominator.
+  let shortestDigits (f: Finite) : (String * Int) =
+    let s = f.exponent - 2
+    let scaleUp = if s > 0 then pow2 s else 1
+    let scaleDown = if s < 0 then pow2 (0 - s) else 1
+    let v = f.significand * 4
+    let upper = v + 2
+    let lower = if f.closerBelow then v - 1 else v - 2
+    let inclusive = (f.significand % 2) == 0
+    let p = decimalExponent (v * scaleUp) scaleDown
+    shortestFrom v upper lower inclusive scaleUp scaleDown p 1
+
+  let shortestFrom
+    (v: Int)
+    (upper: Int)
+    (lower: Int)
+    (inclusive: Bool)
+    (scaleUp: Int)
+    (scaleDown: Int)
+    (p: Int)
+    (n: Int)
+    : (String * Int) =
+    let t = p - n + 1
+    let up10 = if t > 0 then pow10 t else 1
+    let down10 = if t < 0 then pow10 (0 - t) else 1
+    // the candidate q * 10^t, compared with the bounds over the denominator
+    // scaleDown * down10
+    let q = divideNearest (v * scaleUp * down10) (scaleDown * up10)
+    let c = q * up10 * scaleDown
+    let lo = lower * scaleUp * down10
+    let hi = upper * scaleUp * down10
+    let inside =
+      if inclusive then c >= lo && c <= hi else c > lo && c < hi
+    if inside || n >= 9 then
+      let digits = Stdlib.toString q
+      (digits, (Stdlib.String.length digits) - 1 + t)
+    else
+      shortestFrom v upper lower inclusive scaleUp scaleDown p (n + 1)
+
+  /// Dark's float notation, the same as <fn Float.toString>: positional from 1e-4
+  /// up to 1e16, exponent form outside that.
+  let notation (negative: Bool) (allDigits: String) (e: Int) : String =
+    let digits = trimZeros allDigits
+    let sign = if negative then "-" else ""
+    if e < -4 || e >= 16 then
+      let rest =
+        if (Stdlib.String.length digits) == 1 then
+          ""
+        else
+          "." + (Stdlib.String.dropFirst digits 1)
+      let expSign = if e < 0 then "-" else "+"
+      let lead = Stdlib.String.first digits 1
+      $"{sign}{lead}{rest}e{expSign}{Stdlib.toString (Stdlib.abs e)}"
+    else
+      let point = e + 1
+      let length = Stdlib.String.length digits
+      if point <= 0 then
+        sign + "0." + (Stdlib.String.repeat "0" (0 - point)) + digits
+      else if point >= length then
+        sign + digits + (Stdlib.String.repeat "0" (point - length)) + ".0"
+      else
+        let before = Stdlib.String.first digits point
+        sign + before + "." + (Stdlib.String.dropFirst digits point)
+
+  let trimZeros (digits: String) : String =
+    if (Stdlib.String.length digits) > 1 && Stdlib.String.endsWith digits "0" then
+      trimZeros (Stdlib.String.dropLast digits 1)
+    else
+      digits
+
+  let toString (a: Float32) : String =
+    let b = bits a
+    let negative = ((b >> 31) & 1) == 1
+    let exponent = (b >> 23) & 255
+    let fraction = b & ((pow2 23) - 1)
+    if exponent == 255 then
+      if fraction != 0 then "NaN"
+      else if negative then "-Infinity"
+      else "Infinity"
+    else if exponent == 0 && fraction == 0 then
+      if negative then "-0.0" else "0.0"
+    else
+      let (digits, e) = shortestDigits (finite b)
+      notation negative digits e
+
+  /// The Float32 nearest the number written in <param s>, given <param d>, the Float
+  /// nearest it. Narrowing <param d> is right unless <param d> sits exactly halfway
+  /// between two Float32s, where the decimal it came from may not have; then the
+  /// decimal decides, exactly.
+  let parseNear (s: String) (d: Float) : Float32 =
+    let f = Stdlib.Float32.fromFloat d
+    // a zero d narrows exactly, so it is covered by `exact`
+    let exact = (Stdlib.Float32.toFloat f) == d
+    if exact || Stdlib.Bool.not (Stdlib.Float.isFinite d) then
+      f
+    else
+      let other = neighbourTowards f d
+      let midpoint =
+        ((Stdlib.Float32.toFloat f) + (Stdlib.Float32.toFloat other)) / 2.0
+      if midpoint != d then
+        f
+      else
+        match decimal s with
+        | None -> f
+        | Some dec ->
+          // d is the midpoint exactly; compare the decimal with it
+          let (num, den) = exactRatio d
+          let (dNum, dDen) = dec
+          // both denominators are positive, so this compares the signed values
+          let left = dNum * den
+          let right = num * dDen
+          let magnitudeMask = (pow2 31) - 1
+          let (closerToZero, fartherFromZero) =
+            if ((bits other) & magnitudeMask) > ((bits f) & magnitudeMask) then
+              (f, other)
+            else
+              (other, f)
+          // the decimal and d share a sign, so above means farther from zero
+          let magnitudeAbove = if d > 0.0 then left > right else left < right
+          if left == right then
+            (if ((bits f) % 2) == 0 then f else other)
+          else if magnitudeAbove then
+            fartherFromZero
+          else
+            closerToZero
+
+  /// The Float32 next to <param f> on <param d>'s side of it
+  let neighbourTowards (f: Float32) (d: Float) : Float32 =
+    let b = bits f
+    let negative = ((b >> 31) & 1) == 1
+    let wide = Stdlib.Float32.toFloat f
+    let away = if negative then d < wide else d > wide
+    if away then fromBits (b + 1) else fromBits (b - 1)
+
+  /// A finite Float as numerator and denominator, both Ints, the sign on the
+  /// numerator
+  let exactRatio (d: Float) : (Int * Int) =
+    let b = Stdlib.Int.fromUInt64 (Stdlib.Float.toBits d)
+    let negative = (b >> 63) == 1
+    let exponent = (b >> 52) & 2047
+    let fraction = b & ((pow2 52) - 1)
+    let (m, e) =
+      if exponent == 0 then
+        (fraction, -1074)
+      else
+        (fraction + (pow2 52), exponent - 1075)
+    let signed = if negative then 0 - m else m
+    if e >= 0 then (signed * (pow2 e), 1) else (signed, pow2 (0 - e))
+
+  /// The number in <param s> exactly, as numerator and denominator, or None if it is
+  /// not written as digits (NaN, Infinity). Takes what <fn Float.parse> took.
+  let decimal (s: String) : Stdlib.Option.Option<(Int * Int)> =
+    let t = Stdlib.String.toLowercase (Stdlib.String.trim s)
+    let (negative, unsigned) =
+      if Stdlib.String.startsWith t "-" then
+        (true, Stdlib.String.dropFirst t 1)
+      else if Stdlib.String.startsWith t "+" then
+        (false, Stdlib.String.dropFirst t 1)
+      else
+        (false, t)
+    let (mantissa, exp10) =
+      match Stdlib.String.split unsigned "e" with
+      | [ m ] -> (m, Stdlib.Option.Option.Some 0)
+      | [ m, x ] ->
+        (m,
+         (match Stdlib.Int.parse x with
+          | Ok n -> Stdlib.Option.Option.Some n
+          | Error _ -> Stdlib.Option.Option.None))
+      | _ -> ("", Stdlib.Option.Option.None)
+    let (whole, frac) =
+      match Stdlib.String.split mantissa "." with
+      | [ w ] -> (w, "")
+      | [ w, f ] -> (w, f)
+      | _ -> ("x", "")
+    match (exp10, Stdlib.Int.parse ("0" + whole + frac)) with
+    | (Some x, Ok digits) ->
+      let power = x - (Stdlib.String.length frac)
+      let signed = if negative then 0 - digits else digits
+      if power >= 0 then
+        Stdlib.Option.Option.Some((signed * (pow10 power), 1))
+      else
+        Stdlib.Option.Option.Some((signed, pow10 (0 - power)))
+    | _ -> Stdlib.Option.Option.None

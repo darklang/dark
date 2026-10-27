@@ -110,6 +110,7 @@ type TypeReference =
   | TUInt128
   | TInt
   | TFloat
+  | TFloat32
   | TChar
   | TString
   | TDateTime
@@ -160,6 +161,7 @@ type MatchPattern =
   | MPUInt128 of ID * UInt128
   | MPInt of ID * Int
   | MPFloat of ID * Sign * String * String
+  | MPFloat32 of ID * Sign * String * String
   | MPChar of ID * String
   | MPString of ID * String
 
@@ -261,6 +263,9 @@ type Expr =
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of ID * Sign * String * String
 
+  /// Single precision, written `1.5f`. Same shape as `EFloat`.
+  | EFloat32 of ID * Sign * String * String
+
   /// A character is an Extended Grapheme Cluster (hence why we use a String). This
   /// is equivalent to one screen-visible "character" in Unicode.
   | EChar of ID * String
@@ -351,6 +356,7 @@ module Expr =
     | EUInt128(id, _)
     | EInt(id, _)
     | EFloat(id, _, _, _)
+    | EFloat32(id, _, _, _)
     | EChar(id, _)
     | EString(id, _)
     | ELet(id, _, _, _)

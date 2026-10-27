@@ -122,6 +122,7 @@ let private matchBindings (pattern : WT.MatchPattern) : List<string * WT.Range> 
       | WT.MPInt128 _
       | WT.MPUInt128 _
       | WT.MPFloat _
+      | WT.MPFloat32 _
       | WT.MPChar _
       | WT.MPString _
       | WT.MPError _ -> loop remaining bindings
@@ -204,6 +205,7 @@ let rec private structuralPatternIssues (pattern : WT.MatchPattern) : List<Issue
   | WT.MPInt128 _
   | WT.MPUInt128 _
   | WT.MPFloat _
+  | WT.MPFloat32 _
   | WT.MPChar _
   | WT.MPString _ -> []
 
@@ -321,6 +323,7 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
   | WT.EInt128 _
   | WT.EUInt128 _
   | WT.EFloat _
+  | WT.EFloat32 _
   | WT.EChar _
   | WT.EVariable _
   | WT.EFnName _ -> []

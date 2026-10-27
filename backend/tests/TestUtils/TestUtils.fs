@@ -371,6 +371,7 @@ module Expect =
     | DInt _
 
     | DFloat _
+    | DFloat32 _
 
     | DDateTime _
     | DUuid _
@@ -447,6 +448,8 @@ module Expect =
         | Error() -> errorFn path (debugDval actual) (debugDval expected)
 
       match actual, expected with
+      | DFloat32 l, DFloat32 r ->
+        if System.Single.IsNaN l && System.Single.IsNaN r then () else check path l r
       | DFloat l, DFloat r ->
         if System.Double.IsNaN l && System.Double.IsNaN r then
           // This isn't "true" equality, it's just for tests
@@ -577,6 +580,7 @@ module Expect =
       | DUInt128 _, _
       | DInt _, _
       | DFloat _, _
+      | DFloat32 _, _
       | DChar _, _
       | DString _, _
       | DDateTime _, _
@@ -757,6 +761,10 @@ module Expect =
         check path sign sign'
         check path whole whole'
         check path part part'
+      | EFloat32(_, sign, whole, part), EFloat32(_, sign', whole', part') ->
+        check path sign sign'
+        check path whole whole'
+        check path part part'
 
       | EInfix(_, op, l, r, _), EInfix(_, op', l', r', _) ->
         check path op op'
@@ -876,6 +884,7 @@ module Expect =
       | EValue _, _
       | EBool _, _
       | EFloat _, _
+      | EFloat32 _, _
       | ELet _, _
       | EIf _, _
       | EList _, _
@@ -936,6 +945,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUInt128 _
     | DInt _
     | DFloat _
+    | DFloat32 _
     | DChar _
     | DString _ // TODO: should actually traverse in interpolations
     | DUuid _
@@ -1037,6 +1047,9 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
     // Not representable in twelve digits; the queryable roundtrip would have lost them under "G12".
     ("float_no_short_decimal", DFloat(0.1 + 0.2), TFloat)
     ("float_third", DFloat(1.0 / 3.0), TFloat)
+    ("float32", DFloat32 1.5f, TFloat32)
+    ("float32_tenth", DFloat32 0.1f, TFloat32)
+    ("float32_negative_zero", DFloat32 -0.0f, TFloat32)
     ("int5", DInt64 5L, TInt64)
     ("int_8_bits", DInt8 127y, TInt8)
     ("int_16_bits", DInt16 32767s, TInt16)

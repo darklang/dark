@@ -19,7 +19,7 @@ let content () : String =
   Success must still be wrapped in Ok/Some; error types must agree.
   No whitespace before ?. `f x?` means `f (x?)`.
 
-## Numeric (all int types + Float)
+## Numeric (all int types, Float, Float32)
   + - * / % **   and unary -x
   Each is a trait: `+` is `Stdlib.Add`, then Subtract, Multiply, Divide, Modulo, Power, and `-x`
   is `Negate`. Both operands must be the same type: `1 + 2`, `1.0 + 2.0` and
@@ -28,9 +28,9 @@ let content () : String =
   A type of your own joins with `impl Add for Vec = ...`.
   `/` is integer division on ints, float division on floats.
   `%` is integer-only (the modulus must be > 0). Float has no Modulo implementation.
-  `**` (power) works on every integer type and Float, and nests right:
+  `**` (power) works on every integer type, Float and Float32, and nests right:
   `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
-  Unary `-x` negates signed ints and Float; an unsigned type has no Negate
+  Unary `-x` negates signed ints, Float and Float32; an unsigned type has no Negate
   implementation, and `-x` on one says so.
   A fixed-width integer WRAPS on overflow, it does not raise: `9223372036854775807L + 1L`
   is `-9223372036854775808L`, and `-x` on a type's minimum is that minimum again.

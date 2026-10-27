@@ -466,6 +466,7 @@ let typeReferenceFlatAtPrecedence
   | TUInt128 -> "UInt128"
   | TInt -> "Int"
   | TFloat -> "Float"
+  | TFloat32 -> "Float32"
   | TChar -> "Char"
   | TString -> "String"
   | TDateTime -> "DateTime"
@@ -576,6 +577,10 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
   | MPFloat(_id, sign, whole, remainder) ->
     let remainderPart = PrettyPrinter.processRemainder remainder
     $"{PrettyPrinter.sign sign}{whole}.{remainderPart}"
+
+  | MPFloat32(_id, sign, whole, remainder) ->
+    let remainderPart = PrettyPrinter.processRemainder remainder
+    $"{PrettyPrinter.sign sign}{whole}.{remainderPart}f"
 
   | MPChar(_id, c) -> $"'{PrettyPrinter.escapeCharLiteral c}'"
   | MPString(_id, s) -> $"\"{PrettyPrinter.escapeSpecialCharacters s}\""
@@ -1219,6 +1224,11 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     let signPart = PrettyPrinter.sign sign
     let remainderPart = PrettyPrinter.processRemainder remainder
     $"{signPart}{whole}.{remainderPart}"
+
+  | EFloat32(_id, sign, whole, remainder) ->
+    let signPart = PrettyPrinter.sign sign
+    let remainderPart = PrettyPrinter.processRemainder remainder
+    $"{signPart}{whole}.{remainderPart}f"
 
   | EChar(_id, c) -> "'" + (PrettyPrinter.escapeCharLiteral c) + "'"
 

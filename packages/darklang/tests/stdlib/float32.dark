@@ -1,0 +1,212 @@
+module Darklang.Stdlib.Float32.Tests
+
+let nan () : Float32 = 0.0f / 0.0f
+let infinity () : Float32 = 1.0f / 0.0f
+let negativeInfinity () : Float32 = -1.0f / 0.0f
+
+/// Bit patterns spread across every exponent, both signs, subnormals included:
+/// a stride that is prime and not a power of two, so the low bits vary too.
+let sweepBits () : List<UInt32> =
+  Stdlib.List.range 0 1999
+  |> Stdlib.List.filterMap (fun i ->
+    Stdlib.Int.toUInt32 ((i * 2147483) % 4294967296))
+
+let isNaNBits (b: UInt32) : Bool =
+  Stdlib.Float32.isNaN (Stdlib.Float32.fromBits b)
+
+
+test literals =
+  Stdlib.Test.all
+    [ 1.5f |> Stdlib.Float32.toFloat |> Stdlib.Test.equal 1.5
+      // the nearest Float32 to 0.1, widened exactly
+      0.1f |> Stdlib.Float32.toFloat |> Stdlib.Test.equal 0.10000000149011612
+      -2.5f |> Stdlib.Float32.toFloat |> Stdlib.Test.equal -2.5
+      1e3f |> Stdlib.Float32.toFloat |> Stdlib.Test.equal 1000.0
+      3.4028235e38f |> Stdlib.Float32.toBits |> Stdlib.Test.equal 2139095039ul ]
+
+test arithmetic =
+  Stdlib.Test.all
+    [ (0.1f + 0.2f) |> Stdlib.Test.equal 0.3f
+      (1.5f - 2.0f) |> Stdlib.Test.equal -0.5f
+      (1.5f * 3.0f) |> Stdlib.Test.equal 4.5f
+      (1.0f / 3.0f) |> Stdlib.Test.equal 0.33333334f
+      (2.0f ** 10.0f) |> Stdlib.Test.equal 1024.0f
+      -(1.5f) |> Stdlib.Test.equal -1.5f
+      Stdlib.Float32.sqrt 2.0f |> Stdlib.Test.equal 1.4142135f
+      // binary32 rounding, not binary64: 16777217 is not a Float32
+      (16777216.0f + 1.0f) |> Stdlib.Test.equal 16777216.0f
+      // overflow goes to infinity
+      (3.4028235e38f * 2.0f) |> Stdlib.Test.equal (infinity ()) ]
+
+// The Dark impls are what the checker sees; the interpreter's fast path answers the
+// operators without them. They must agree.
+test arithmeticImplsAgreeWithOperators =
+  Stdlib.Test.all
+    [ Stdlib.Float32.Add.add 0.1f 0.2f |> Stdlib.Test.equal (0.1f + 0.2f)
+      Stdlib.Float32.Subtract.subtract 0.1f 0.3f |> Stdlib.Test.equal (0.1f - 0.3f)
+      Stdlib.Float32.Multiply.multiply 0.1f 0.7f |> Stdlib.Test.equal (0.1f * 0.7f)
+      Stdlib.Float32.Divide.divide 2.0f 3.0f |> Stdlib.Test.equal (2.0f / 3.0f) ]
+
+test compare =
+  Stdlib.Test.all
+    [ (1.5f < 2.0f) |> Stdlib.Test.equal true
+      (2.0f <= 2.0f) |> Stdlib.Test.equal true
+      (-1.0f > 0.0f) |> Stdlib.Test.equal false
+      ((nan ()) < 1.0f) |> Stdlib.Test.equal false
+      ((nan ()) >= 1.0f) |> Stdlib.Test.equal false ]
+
+test rounding =
+  Stdlib.Test.all
+    [ Stdlib.Float32.ceiling 1.3f |> Stdlib.Test.equal 2
+      Stdlib.Float32.roundUp 1.3f |> Stdlib.Test.equal 2
+      Stdlib.Float32.floor -1.5f |> Stdlib.Test.equal -2
+      Stdlib.Float32.roundDown -1.5f |> Stdlib.Test.equal -2
+      // ties to even, as Float.round does
+      Stdlib.Float32.round 2.5f |> Stdlib.Test.equal 2
+      Stdlib.Float32.roundTowardsZero -1.9f |> Stdlib.Test.equal -1
+      Stdlib.Float32.truncate -1.9f |> Stdlib.Test.equal -1
+      Stdlib.Float32.toInt 16777216.0f |> Stdlib.Test.equal 16777216 ]
+
+test conversions =
+  Stdlib.Test.all
+    [ Stdlib.Float32.fromFloat 0.1 |> Stdlib.Test.equal 0.1f
+      Stdlib.Float32.fromFloat 1e40 |> Stdlib.Test.equal (infinity ())
+      Stdlib.Float32.fromFloat 1e-50 |> Stdlib.Test.equal 0.0f
+      // ties to even: 1 + 2^-24 is halfway between 1 and the next Float32
+      Stdlib.Float32.fromFloat 1.000000059604644775390625 |> Stdlib.Test.equal 1.0f ]
+
+test isNaNAndIsFinite =
+  Stdlib.Test.all
+    [ Stdlib.Float32.isNaN (nan ()) |> Stdlib.Test.equal true
+      Stdlib.Float32.isNaN 1.0f |> Stdlib.Test.equal false
+      Stdlib.Float32.isFinite 1.0f |> Stdlib.Test.equal true
+      Stdlib.Float32.isFinite (infinity ()) |> Stdlib.Test.equal false
+      Stdlib.Float32.isFinite (nan ()) |> Stdlib.Test.equal false ]
+
+test clampRefusingNaN =
+  Stdlib.Test.all
+    [ Stdlib.Float32.clampRefusingNaN 5.0f 1.0f 3.0f |> Stdlib.Test.equal (Ok 3.0f)
+      Stdlib.Float32.clampRefusingNaN 0.5f 3.0f 1.0f |> Stdlib.Test.equal (Ok 1.0f)
+      Stdlib.Float32.clampRefusingNaN 2.0f (nan ()) 1.0f
+      |> Stdlib.Test.equal (
+        Error "clampRefusingNaN requires limits that are numbers"
+      ) ]
+
+test toString =
+  Stdlib.Test.all
+    [ Stdlib.toString 1.5f |> Stdlib.Test.equal "1.5"
+      Stdlib.toString 0.1f |> Stdlib.Test.equal "0.1"
+      Stdlib.toString 0.0f |> Stdlib.Test.equal "0.0"
+      Stdlib.toString -0.0f |> Stdlib.Test.equal "-0.0"
+      Stdlib.toString 16777216.0f |> Stdlib.Test.equal "16777216.0"
+      Stdlib.toString 1e16f |> Stdlib.Test.equal "1e+16"
+      Stdlib.toString 1e-5f |> Stdlib.Test.equal "1e-5"
+      Stdlib.toString 3.4028235e38f |> Stdlib.Test.equal "3.4028235e+38"
+      Stdlib.toString (Stdlib.Float32.fromBits 1ul) |> Stdlib.Test.equal "1e-45"
+      Stdlib.toString (nan ()) |> Stdlib.Test.equal "NaN"
+      Stdlib.toString (infinity ()) |> Stdlib.Test.equal "Infinity"
+      Stdlib.toString (negativeInfinity ()) |> Stdlib.Test.equal "-Infinity" ]
+
+// The Dark toString against F#'s own shortest round-trip string, which is what the
+// JSON serializer writes, over two thousand bit patterns.
+test toStringAgreesWithFSharpAcrossTheRange =
+  let disagreements =
+    sweepBits ()
+    |> Stdlib.List.filter (fun b -> Stdlib.Bool.not (isNaNBits b))
+    |> Stdlib.List.filterMap (fun b ->
+      let f = Stdlib.Float32.fromBits b
+      let dark = Stdlib.toString f
+      let fsharp = Stdlib.Json.serialize<Float32> f
+      if dark == fsharp then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some((b, dark, fsharp)))
+  disagreements |> Stdlib.Test.equal []
+
+test toStringRoundTripsAcrossTheRange =
+  let failures =
+    sweepBits ()
+    |> Stdlib.List.filter (fun b -> Stdlib.Bool.not (isNaNBits b))
+    |> Stdlib.List.filter (fun b ->
+      let f = Stdlib.Float32.fromBits b
+      match Stdlib.Float32.parse (Stdlib.toString f) with
+      | Ok back -> Stdlib.Float32.toBits back != b
+      | Error _ -> true)
+  failures |> Stdlib.Test.equal []
+
+test bitsRoundTripAcrossTheRange =
+  let failures =
+    sweepBits ()
+    |> Stdlib.List.filter (fun b -> Stdlib.Bool.not (isNaNBits b))
+    |> Stdlib.List.filter (fun b ->
+      Stdlib.Float32.toBits (Stdlib.Float32.fromBits b) != b)
+  failures |> Stdlib.Test.equal []
+
+test bits =
+  Stdlib.Test.all
+    [ Stdlib.Float32.toBits 1.0f |> Stdlib.Test.equal 1065353216ul
+      Stdlib.Float32.toBits -2.0f |> Stdlib.Test.equal 3221225472ul
+      Stdlib.Float32.toBits 0.0f |> Stdlib.Test.equal 0ul
+      Stdlib.Float32.toBits -0.0f |> Stdlib.Test.equal 2147483648ul
+      Stdlib.Float32.toBits (infinity ()) |> Stdlib.Test.equal 2139095040ul
+      // the smallest subnormal and the largest one
+      Stdlib.Float32.toBits (Stdlib.Float32.fromBits 1ul) |> Stdlib.Test.equal 1ul
+      Stdlib.Float32.toBits (Stdlib.Float32.fromBits 8388607ul)
+      |> Stdlib.Test.equal 8388607ul
+      Stdlib.Float32.isNaN (Stdlib.Float32.fromBits 2143289344ul)
+      |> Stdlib.Test.equal true ]
+
+test parse =
+  Stdlib.Test.all
+    [ Stdlib.Float32.parse "1.5" |> Stdlib.Test.equal (Ok 1.5f)
+      Stdlib.Float32.parse "-0.5" |> Stdlib.Test.equal (Ok -0.5f)
+      Stdlib.Float32.parse ".5" |> Stdlib.Test.equal (Ok 0.5f)
+      Stdlib.Float32.parse "1e3" |> Stdlib.Test.equal (Ok 1000.0f)
+      Stdlib.Float32.parse "1e39" |> Stdlib.Test.equal (Ok(infinity ()))
+      Stdlib.Float32.parse "-141s"
+      |> Stdlib.Test.equal (Error Stdlib.Float32.ParseError.BadFormat)
+      Stdlib.Float32.parse ""
+      |> Stdlib.Test.equal (Error Stdlib.Float32.ParseError.BadFormat) ]
+
+// A decimal a hair past a Float32 midpoint lands ON the midpoint as a Float, and
+// narrowing that rounds to even, the wrong way. Parsing decides from the decimal.
+test parseRoundsOnceNotTwice =
+  Stdlib.Test.all
+    [ // just above 1 + 2^-24: the next Float32 up
+      Stdlib.Float32.parse "1.0000000596046447753906250001"
+      |> Stdlib.Test.equal (Ok 1.0000001f)
+      // just below: 1
+      Stdlib.Float32.parse "1.0000000596046447753906249999"
+      |> Stdlib.Test.equal (Ok 1.0f)
+      // exactly halfway: to even, which is 1
+      Stdlib.Float32.parse "1.000000059604644775390625"
+      |> Stdlib.Test.equal (Ok 1.0f)
+      // halfway between two Float32s whose even one is the upper
+      Stdlib.Float32.parse "1.000000178813934326171875"
+      |> Stdlib.Test.equal (Ok 1.0000002f)
+      // and negative, mirrored
+      Stdlib.Float32.parse "-1.0000000596046447753906250001"
+      |> Stdlib.Test.equal (Ok -1.0000001f) ]
+
+test patternMatch =
+  let describe (x: Float32) : String =
+    match x with
+    | 1.5f -> "one and a half"
+    | -2.0f -> "minus two"
+    | _ -> "other"
+  Stdlib.Test.all
+    [ describe 1.5f |> Stdlib.Test.equal "one and a half"
+      describe -2.0f |> Stdlib.Test.equal "minus two"
+      describe 1.5000001f |> Stdlib.Test.equal "other" ]
+
+test json =
+  Stdlib.Test.all
+    [ Stdlib.Json.serialize<Float32> 0.1f |> Stdlib.Test.equal "0.1"
+      Stdlib.Json.parse<Float32> "0.1" |> Stdlib.Test.equal (Ok 0.1f)
+      Stdlib.Json.serialize<List<Float32>> [ 1.5f, -0.0f ]
+      |> Stdlib.Test.equal "[1.5,-0.0]" ]
+
+test zeroAndOne =
+  Stdlib.Test.all
+    [ Stdlib.Float32.Zero.zero () |> Stdlib.Test.equal 0.0f
+      Stdlib.Float32.One.one () |> Stdlib.Test.equal 1.0f ]

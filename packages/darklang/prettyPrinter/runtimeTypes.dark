@@ -359,6 +359,7 @@ let typeReference
   | TInt -> "Int"
 
   | TFloat -> "Float"
+  | TFloat32 -> "Float32"
 
   | TChar -> "Char"
   | TString -> "String"
@@ -441,6 +442,7 @@ let knownType
   | KTInt -> "Int"
 
   | KTFloat -> "Float"
+  | KTFloat32 -> "Float32"
 
   | KTChar -> "Char"
   | KTString -> "String"
@@ -648,6 +650,7 @@ module Dval =
     | DUInt128 _ -> "UInt128"
     | DInt _ -> "Int"
     | DFloat _ -> "Float"
+    | DFloat32 _ -> "Float32"
     | DChar _ -> "Char"
     | DString _ -> "String"
     | DDateTime _ -> "DateTime"
@@ -814,6 +817,11 @@ module Dval =
     | DInt i -> paint opts.palette.number (Stdlib.toString i)
 
     | DFloat f -> paint opts.palette.number (Stdlib.toString f)
+    | DFloat32 f ->
+      // the suffix says it is not a Float; NaN and the infinities have no literal
+      // to suffix, so they print as a Float's do
+      let s = Stdlib.toString f
+      paint opts.palette.number (if Stdlib.Float32.isFinite f then s + "f" else s)
 
     | DDateTime d -> txt $"<{valueTypeName branchId dv}: {Stdlib.toString d}>"
     | DUuid uuid -> txt $"<{valueTypeName branchId dv}: {Stdlib.toString uuid}>"

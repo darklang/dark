@@ -2046,7 +2046,8 @@ let isNumeric (t: Model.Ty) : Bool =
   | TInt128
   | TUInt128
   | TInt
-  | TFloat -> true
+  | TFloat
+  | TFloat32 -> true
   | _ -> false
 
 /// Recognize signed integers and Float, the types accepted by unary minus.
@@ -2058,7 +2059,8 @@ let isSignedNumeric (t: Model.Ty) : Bool =
   | TInt64
   | TInt128
   | TInt
-  | TFloat -> true
+  | TFloat
+  | TFloat32 -> true
   | _ -> false
 
 /// <param subject> as `implApplies` needs it: every inference variable and alias resolved at

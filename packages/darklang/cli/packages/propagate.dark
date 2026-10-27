@@ -82,6 +82,7 @@ let typeReferenceEqual
   | (TUInt128, TUInt128) -> true
   | (TInt, TInt) -> true
   | (TFloat, TFloat) -> true
+  | (TFloat32, TFloat32) -> true
   | (TChar, TChar) -> true
   | (TString, TString) -> true
   | (TDateTime, TDateTime) -> true

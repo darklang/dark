@@ -184,6 +184,7 @@ let rec private reResolveTypeRef
     | PT.TUInt128
     | PT.TInt
     | PT.TFloat
+    | PT.TFloat32
     | PT.TChar
     | PT.TString
     | PT.TUuid
@@ -322,6 +323,7 @@ and private reResolveExpr
     | PT.EUInt128 _
     | PT.EInt _
     | PT.EFloat _
+    | PT.EFloat32 _
     | PT.EChar _
     | PT.EVariable _
     | PT.EArg _

@@ -37,6 +37,7 @@ let fromRuntimeType
   | TUInt128 -> LanguageTools.ProgramTypes.TypeReference.TUInt128
   | TInt -> LanguageTools.ProgramTypes.TypeReference.TInt
   | TFloat -> LanguageTools.ProgramTypes.TypeReference.TFloat
+  | TFloat32 -> LanguageTools.ProgramTypes.TypeReference.TFloat32
   | TChar -> LanguageTools.ProgramTypes.TypeReference.TChar
   | TString -> LanguageTools.ProgramTypes.TypeReference.TString
   | TUuid -> LanguageTools.ProgramTypes.TypeReference.TUuid

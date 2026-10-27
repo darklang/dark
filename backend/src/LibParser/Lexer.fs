@@ -781,35 +781,56 @@ let tokenize
                    && System.Char.IsDigit input[floatEndIndex]) do
               floatEndIndex <- floatEndIndex + 1
           let text = input.Substring(index, floatEndIndex - index)
-          match
-            System.Double.TryParse(
-              text,
-              System.Globalization.NumberStyles.Float,
-              System.Globalization.CultureInfo.InvariantCulture
-            )
-          with
-          | true, value when not (isIdentifierContinue floatEndIndex) ->
-            let (spannedToken, nextIndex, nextPosition) =
-              emit (TFloat value) index floatEndIndex position
-            go nextIndex nextPosition (spannedToken :: tokensRev)
-          | true, _ ->
-            // Float glued to identifier chars (`1.5abc`): consume the run and
-            // diagnose it as one malformed literal.
-            let mutable errorEndIndex = floatEndIndex
-            while isIdentifierContinue errorEndIndex do
-              errorEndIndex <- errorEndIndex + 1
-            let (spannedToken, nextIndex, nextPosition) =
-              emit (TFloat 0.0) index errorEndIndex position
-            addDiagnostic
-              spannedToken.range
-              $"invalid number literal: {input.Substring(index, errorEndIndex - index)}"
-            go nextIndex nextPosition (spannedToken :: tokensRev)
-          | _ ->
-            // Emit a placeholder so malformed floats still highlight as numbers.
-            let (spannedToken, nextIndex, nextPosition) =
-              emit (TFloat 0.0) index floatEndIndex position
-            addDiagnostic spannedToken.range $"malformed float literal: {text}"
-            go nextIndex nextPosition (spannedToken :: tokensRev)
+          // `1.5f` is a Float32. The suffix only follows a fraction or exponent,
+          // so `1f` stays a malformed int.
+          let isFloat32 =
+            floatEndIndex < inputLength
+            && input[floatEndIndex] = 'f'
+            && not (isIdentifierContinue (floatEndIndex + 1))
+          if isFloat32 then
+            match
+              System.Single.TryParse(
+                text,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture
+              )
+            with
+            | parsed, value ->
+              let (spannedToken, nextIndex, nextPosition) =
+                emit (TFloat32 value) index (floatEndIndex + 1) position
+              if not parsed then
+                addDiagnostic spannedToken.range $"malformed float literal: {text}f"
+              go nextIndex nextPosition (spannedToken :: tokensRev)
+          else
+            match
+              System.Double.TryParse(
+                text,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture
+              )
+            with
+            | true, value when not (isIdentifierContinue floatEndIndex) ->
+              let (spannedToken, nextIndex, nextPosition) =
+                emit (TFloat value) index floatEndIndex position
+              go nextIndex nextPosition (spannedToken :: tokensRev)
+            | true, _ ->
+              // Float glued to identifier chars (`1.5abc`): consume the run and
+              // diagnose it as one malformed literal.
+              let mutable errorEndIndex = floatEndIndex
+              while isIdentifierContinue errorEndIndex do
+                errorEndIndex <- errorEndIndex + 1
+              let (spannedToken, nextIndex, nextPosition) =
+                emit (TFloat 0.0) index errorEndIndex position
+              addDiagnostic
+                spannedToken.range
+                $"invalid number literal: {input.Substring(index, errorEndIndex - index)}"
+              go nextIndex nextPosition (spannedToken :: tokensRev)
+            | _ ->
+              // Emit a placeholder so malformed floats still highlight as numbers.
+              let (spannedToken, nextIndex, nextPosition) =
+                emit (TFloat 0.0) index floatEndIndex position
+              addDiagnostic spannedToken.range $"malformed float literal: {text}"
+              go nextIndex nextPosition (spannedToken :: tokensRev)
         else
           let digits = input.Substring(index, digitEndIndex - index)
           match intToken digits digitEndIndex with

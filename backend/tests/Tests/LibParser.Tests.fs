@@ -1376,6 +1376,27 @@ let private literalTests =
         | Some(WT.SourceFile { exprsToEval = [ WT.EFloat(_, false, "0", "2") ] }) ->
           ()
         | other -> failtest $"0.2: {other}")
+      testCase "float32 literals take an f after a fraction or exponent" (fun _ ->
+        let parses source whole fraction negative =
+          let r = P.parse source
+          Expect.isEmpty r.diagnostics $"{source} parses cleanly"
+          match r.parsed with
+          | Some(WT.SourceFile { exprsToEval = [ WT.EFloat32(_, neg, w, f) ] }) ->
+            Expect.equal (neg, w, f) (negative, whole, fraction) source
+          | other -> failtest $"{source}: {other}"
+        parses "1.5f" "1" "5" false
+        parses "-0.25f" "0" "25" true
+        parses "1e3f" "1000" "0" false
+        let refused source code =
+          Expect.isTrue
+            ((P.parse source).diagnostics |> List.exists (fun d -> d.code = code))
+            $"{source}: {code}"
+        // `f` is not an int suffix, so `1f` is a malformed int, not a Float32
+        Expect.isNonEmpty (P.parse "1f").diagnostics "1f is refused"
+        // more digits than binary32 holds, though binary64 would hold them
+        refused "0.1234567891f" "PARSE-FLOAT-PRECISION"
+        refused "1e39f" "PARSE-FLOAT-OVERFLOW"
+        Expect.isNonEmpty (P.parse "1.5fx").diagnostics "1.5fx is refused")
       testCase "sized-int fields parse in enum patterns" (fun _ ->
         // canStartPattern drift: `Ok 5y` worked as an expr but not as a pattern
         let r = P.parse "match x with | Ok 5y -> 1L | Ok -4y -> 2L | _ -> 3L"
@@ -2045,6 +2066,7 @@ let private rangeInvariantTests =
     | WT.EInt128 _
     | WT.EUInt128 _
     | WT.EFloat _
+    | WT.EFloat32 _
     | WT.EChar _
     | WT.EVariable _
     | WT.EFnName _

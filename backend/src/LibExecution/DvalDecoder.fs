@@ -99,6 +99,11 @@ let float (dv : Dval) : double =
   | DFloat f -> f
   | _ -> f "double" dv
 
+let float32 (dv : Dval) : float32 =
+  match dv with
+  | DFloat32 f -> f
+  | _ -> f "float32" dv
+
 let bool (dv : Dval) : bool =
   match dv with
   | DBool b -> b
