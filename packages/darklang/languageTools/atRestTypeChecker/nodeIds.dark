@@ -152,7 +152,7 @@ let findDuplicate
     match id with
     | None -> findDuplicate pending seen
     | Some id ->
-      if Stdlib.Dict.``member`` seen id then
+      if Stdlib.Dict.containsKey seen id then
         Stdlib.Option.Option.Some id
       else
         findDuplicate pending (Stdlib.Dict.set seen id true)

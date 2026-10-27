@@ -160,7 +160,7 @@ let memberOf
   (d: Dict<String, Bool>)
   (hash: LanguageTools.ProgramTypes.Hash)
   : Bool =
-  Stdlib.Dict.member d (LanguageTools.ProgramTypes.hashToString hash)
+  Stdlib.Dict.containsKey d (LanguageTools.ProgramTypes.hashToString hash)
 
 
 /// Whether an item hash should be hidden by default visibility.

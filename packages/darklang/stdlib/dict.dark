@@ -47,7 +47,7 @@ let insert
   (key: 'k)
   (value: 'v)
   : Result.Result<Dict<'k, 'v>, DuplicateKey<'k>> =
-  if Stdlib.Dict.``member`` dict key then
+  if Stdlib.Dict.containsKey dict key then
     Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
   else
     Result.Result.Ok(Stdlib.Dict.set dict key value)
@@ -86,7 +86,7 @@ let mergeUnique
   (right: Dict<'k, 'v>)
   : Result.Result<Dict<'k, 'v>, DuplicateKey<'k>> =
   match
-    List.findFirst (Stdlib.Dict.keys right) (fun k -> Stdlib.Dict.``member`` left k)
+    List.findFirst (Stdlib.Dict.keys right) (fun k -> Stdlib.Dict.containsKey left k)
   with
   | Some key -> Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
   | None -> Result.Result.Ok(Stdlib.Dict.merge left right)
@@ -158,7 +158,7 @@ let fromEntriesUnique
         match found with
         | Some _ -> (seen, found)
         | None ->
-          if Stdlib.Dict.``member`` seen key then
+          if Stdlib.Dict.containsKey seen key then
             (seen, Option.Option.Some key)
           else
             (Stdlib.Dict.set seen key true, found))
@@ -170,8 +170,8 @@ let fromEntriesUnique
 
 /// Returns {{true}} if the <param dict> contains an entry with <param key>,
 /// and {{false}} otherwise
-let ``member`` (dict: Dict<'k, 'v>) (key: 'k) : Bool =
-  Builtin.dictMember dict key
+let containsKey (dict: Dict<'k, 'v>) (key: 'k) : Bool =
+  Builtin.dictContainsKey dict key
 
 
 /// Returns a new dictionary that contains the same keys as the original <param

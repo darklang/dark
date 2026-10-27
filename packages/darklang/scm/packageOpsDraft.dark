@@ -339,28 +339,28 @@ let typeCheckOps
         let h = LanguageTools.ProgramTypes.hashToString f.hash
         // Content some binding targets, or content no draft SetName ever named (don't silently
         // skip a shape this filter does not understand).
-        (Stdlib.Dict.``member`` liveTargets h)
-        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
+        (Stdlib.Dict.containsKey liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.containsKey namedHashes h))
       | AddType t ->
         let h = LanguageTools.ProgramTypes.hashToString t.hash
-        (Stdlib.Dict.``member`` liveTargets h)
-        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
+        (Stdlib.Dict.containsKey liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.containsKey namedHashes h))
       | AddValue v ->
         let h = LanguageTools.ProgramTypes.hashToString v.hash
-        (Stdlib.Dict.``member`` liveTargets h)
-        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
+        (Stdlib.Dict.containsKey liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.containsKey namedHashes h))
       | AddTrait t ->
         let h = LanguageTools.ProgramTypes.hashToString t.hash
-        (Stdlib.Dict.``member`` liveTargets h)
-        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
+        (Stdlib.Dict.containsKey liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.containsKey namedHashes h))
       | AddTraitImpl i ->
         let h = LanguageTools.ProgramTypes.hashToString i.hash
-        (Stdlib.Dict.``member`` liveTargets h)
-        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
+        (Stdlib.Dict.containsKey liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.containsKey namedHashes h))
       | AddTest test ->
         let h = LanguageTools.ProgramTypes.hashToString test.hash
-        (Stdlib.Dict.``member`` liveTargets h)
-        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
+        (Stdlib.Dict.containsKey liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.containsKey namedHashes h))
       | _ -> true)
 
   match liveOps with
