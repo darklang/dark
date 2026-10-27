@@ -183,6 +183,70 @@ test mergeWith =
         (fun k l r -> k + ":" + l + ":" + r)
       |> Stdlib.Test.equal (Dict { "k": "k:left:right" }) ]
 
+test intersectKeys =
+  Stdlib.Test.all
+    [ Stdlib.Dict.intersectKeys (Dict { }) (Dict { "a": true })
+      |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.intersectKeys (Dict { "a": 1L }) (Dict { })
+      |> Stdlib.Test.equal (Dict { })
+      // Values come from the first dict; the second's only contribute keys,
+      // and can be of another type.
+      Stdlib.Dict.intersectKeys
+        (Dict { "a": 1L, "b": 2L, "c": 3L })
+        (Dict { "b": "x", "c": "y", "d": "z" })
+      |> Stdlib.Test.equal (Dict { "b": 2L, "c": 3L })
+      Stdlib.Dict.intersectKeys (Dict { 1L: "one", 2L: "two" }) (Dict { 2L: () })
+      |> Stdlib.Test.equal (Dict { 2L: "two" })
+      Stdlib.Dict.intersectKeys
+        (Dict { (1L, "a"): "first", (1L, "b"): "second" })
+        (Dict { (1L, "b"): true })
+      |> Stdlib.Test.equal (Dict { (1L, "b"): "second" })
+      Stdlib.Dict.intersectKeys
+        (Dict { [ 1L ]: "one", [ 1L, 2L ]: "onetwo" })
+        (Dict { [ 1L ]: true })
+      |> Stdlib.Test.equal (Dict { [ 1L ]: "one" })
+      Stdlib.Dict.intersectKeys
+        (Dict { Colour.Red: "r", Colour.Blue 1L: "b1", Colour.Blue 2L: "b2" })
+        (Dict { Colour.Blue 2L: true })
+      |> Stdlib.Test.equal (Dict { Colour.Blue 2L: "b2" })
+      Stdlib.Dict.intersectKeys
+        (Dict
+          { Point { px = 1L, py = 2L }: "p12"
+            Point { px = 2L, py = 1L }: "p21" })
+        (Dict { Point { px = 2L, py = 1L }: true })
+      |> Stdlib.Test.equal (Dict { Point { px = 2L, py = 1L }: "p21" }) ]
+
+test differenceKeys =
+  Stdlib.Test.all
+    [ Stdlib.Dict.differenceKeys (Dict { }) (Dict { "a": true })
+      |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.differenceKeys (Dict { "a": 1L }) (Dict { })
+      |> Stdlib.Test.equal (Dict { "a": 1L })
+      Stdlib.Dict.differenceKeys
+        (Dict { "a": 1L, "b": 2L, "c": 3L })
+        (Dict { "b": "x", "c": "y", "d": "z" })
+      |> Stdlib.Test.equal (Dict { "a": 1L })
+      Stdlib.Dict.differenceKeys (Dict { 1L: "one", 2L: "two" }) (Dict { 2L: () })
+      |> Stdlib.Test.equal (Dict { 1L: "one" })
+      Stdlib.Dict.differenceKeys
+        (Dict { (1L, "a"): "first", (1L, "b"): "second" })
+        (Dict { (1L, "b"): true })
+      |> Stdlib.Test.equal (Dict { (1L, "a"): "first" })
+      Stdlib.Dict.differenceKeys
+        (Dict { [ 1L ]: "one", [ 1L, 2L ]: "onetwo" })
+        (Dict { [ 1L ]: true })
+      |> Stdlib.Test.equal (Dict { [ 1L, 2L ]: "onetwo" })
+      Stdlib.Dict.differenceKeys
+        (Dict { Colour.Red: "r", Colour.Blue 1L: "b1", Colour.Blue 2L: "b2" })
+        (Dict { Colour.Blue 2L: true })
+      |> Stdlib.Test.equal (Dict { Colour.Red: "r", Colour.Blue 1L: "b1" })
+      Stdlib.Dict.differenceKeys
+        (Dict
+          { Point { px = 1L, py = 2L }: "p12"
+            Point { px = 2L, py = 1L }: "p21" })
+        (Dict { Point { px = 2L, py = 1L }: true })
+      |> Stdlib.Test.equal (Dict { Point { px = 1L, py = 2L }: "p12" }) ]
+
 test update =
   Stdlib.Test.all
     [ // Present key: the callback sees Some and its result replaces the value.
