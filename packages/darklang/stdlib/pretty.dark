@@ -93,13 +93,13 @@ let group (d: Doc) : Doc = Doc.Group d
 let hsep (ds: List<Doc>) : Doc =
   match ds with
   | [] -> Doc.Empty
-  | first :: rest -> Stdlib.List.fold rest first (fun acc d -> Pretty.concatSpace acc d)
+  | [first, ...rest] -> Stdlib.List.fold rest first (fun acc d -> Pretty.concatSpace acc d)
 
 /// Join with soft breaks: one line if the group fits, one per item if it doesn't.
 let vsep (ds: List<Doc>) : Doc =
   match ds with
   | [] -> Doc.Empty
-  | first :: rest -> Stdlib.List.fold rest first (fun acc d -> Pretty.concatLine acc d)
+  | [first, ...rest] -> Stdlib.List.fold rest first (fun acc d -> Pretty.concatLine acc d)
 
 /// Hang `items` from `head`, breaking and indenting them when needed.
 let hang (indent: Int) (head: Doc) (items: List<Doc>) : Doc =
@@ -117,7 +117,7 @@ let hang (indent: Int) (head: Doc) (items: List<Doc>) : Doc =
 let join (ds: List<Doc>) (sep: Doc) : Doc =
   match ds with
   | [] -> Doc.Empty
-  | first :: rest ->
+  | [first, ...rest] ->
     Stdlib.List.fold rest first (fun acc d ->
       Doc.Concat(acc, Doc.Concat(sep, d)))
 
@@ -134,7 +134,7 @@ let fits (room: Int) (items: List<(Int * Mode * Doc)>) : Bool =
   else
     match items with
     | [] -> true
-    | (i, m, d) :: rest ->
+    | [(i, m, d), ...rest] ->
       match d with
       | Empty -> Pretty.fits room rest
       | Text s -> Pretty.fits (room - (Stdlib.String.displayWidth s)) rest
@@ -190,7 +190,7 @@ let renderLoop
   : List<String> =
   match items with
   | [] -> Pretty.flushSuffixes acc pending
-  | (i, m, d) :: rest ->
+  | [(i, m, d), ...rest] ->
     match d with
     | Empty -> Pretty.renderLoop width col acc pending rest
 

@@ -67,19 +67,19 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
     | Unavailable _reason ->
       Commands.ls ()
       cliState
-  | "ls" :: _ ->
+  | ["ls", ...] ->
     Commands.ls ()
     cliState
   | [ "show" ] ->
     Stdlib.printLine "Usage: outliner show <document>"
     cliState
-  | "show" :: name :: _ ->
+  | ["show", name, ...] ->
     Commands.show name
     cliState
   | [ "add" ] ->
     Stdlib.printLine "Usage: outliner add <document> <text>"
     cliState
-  | "add" :: name :: rest ->
+  | ["add", name, ...rest] ->
     if Stdlib.List.isEmpty rest then
       Stdlib.printLine "Usage: outliner add <document> <text>"
       cliState
@@ -156,7 +156,7 @@ let complete
     [ "ls", "show", "add" ]
     |> Stdlib.List.filter (fun c -> Stdlib.String.startsWith c word)
     |> Stdlib.List.map item
-  | verb :: _ ->
+  | [verb, ...] ->
     if verb == "show" || verb == "add" then
       match Store.load () with
       | Loaded data -> data.documents |> Stdlib.List.map (fun d -> item d.title)

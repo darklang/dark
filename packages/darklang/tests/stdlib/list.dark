@@ -72,8 +72,19 @@ test concat =
       Stdlib.List.concat [] [] |> Stdlib.Test.equal []
       Stdlib.List.concat [ [ 1L ], [ 2L ] ] [ [ 3L ] ]
       |> Stdlib.Test.equal [ [ 1L ], [ 2L ], [ 3L ] ]
-      ([ 1L, 2L ] @ [ 3L ]) |> Stdlib.Test.equal [ 1L, 2L, 3L ]
-      ([ [ 1L ] ] @ [ [ 2L ] ]) |> Stdlib.Test.equal [ [ 1L ], [ 2L ] ] ]
+      [ ...[ 1L, 2L ], ...[ 3L ] ] |> Stdlib.Test.equal [ 1L, 2L, 3L ]
+      [ ...[ [ 1L ] ], ...[ [ 2L ] ] ] |> Stdlib.Test.equal [ [ 1L ], [ 2L ] ] ]
+
+test spread =
+  let xs = [ 2L, 3L ]
+  Stdlib.Test.all
+    [ [ 1L, ...xs ] |> Stdlib.Test.equal [ 1L, 2L, 3L ]
+      [ ...xs, 4L ] |> Stdlib.Test.equal [ 2L, 3L, 4L ]
+      [ 1L, ...xs, 4L, ...xs ] |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L, 2L, 3L ]
+      [ ...xs ] |> Stdlib.Test.equal xs
+      [ ...[], ...[] ] |> Stdlib.Test.equal []
+      [ ...(Stdlib.List.map xs (fun x -> x * 10L)), 1L ]
+      |> Stdlib.Test.equal [ 20L, 30L, 1L ] ]
 
 test all =
   Stdlib.Test.all

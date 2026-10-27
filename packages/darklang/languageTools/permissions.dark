@@ -332,7 +332,7 @@ let parseRule
   | [ "http-server", port ] ->
     Permissions.portScope port
     |> Stdlib.Option.map (fun scope -> [ Permissions.Rule.HttpServer scope ])
-  | "process" :: executable :: argv ->
+  | ["process", executable, ...argv] ->
     // The executable is `*` or an absolute path; a relative one would mean a
     // different program in every working directory, so it is not a rule.
     if executable != "*" && Stdlib.Bool.not (Permissions.isAbsolutePath executable) then
@@ -388,7 +388,7 @@ let tokens (text: String) : Stdlib.Option.Option<List<String>> =
       match mode with
       | Bare -> Stdlib.Option.Option.Some(Stdlib.List.reverse (finish current soFar active))
       | _ -> Stdlib.Option.Option.None
-    | c :: rest ->
+    | [c, ...rest] ->
       let s = Stdlib.toString c
       match mode with
       | Bare ->
@@ -450,7 +450,7 @@ let parse
           |> Stdlib.Option.andThen (fun tokens ->
             let (denied, tokens) =
               match tokens with
-              | "deny" :: rest -> (true, rest)
+              | ["deny", ...rest] -> (true, rest)
               | tokens -> (false, tokens)
             Permissions.parseRule tokens
             |> Stdlib.Option.map (fun rules -> (denied, rules)))

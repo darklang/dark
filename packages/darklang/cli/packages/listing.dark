@@ -11,7 +11,7 @@ let versionsOf
   : List<String> =
   match modulePath with
   | [] -> []
-  | owner :: modules ->
+  | [owner, ...modules] ->
     SCM.Propagation.authoringOrder (
       LanguageTools.ProgramTypes.PackageLocation
         { owner = owner, modules = modules, name = name })

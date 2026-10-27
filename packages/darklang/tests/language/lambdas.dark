@@ -239,7 +239,7 @@ test aliasedCallbackParameterIsChecked =
 let countMatching (xs: List<Int64>) (p: Int64 -> Bool) : Int64 =
   match xs with
   | [] -> 0L
-  | x :: rest -> (if p x then 1L else 0L) + countMatching rest p
+  | [x, ...rest] -> (if p x then 1L else 0L) + countMatching rest p
 
 test recursiveFnKeepsCheckingItsCallback =
   countMatching [ 1L, 2L, 3L ] (fun x -> if x == 3L then 3L else true)

@@ -67,7 +67,7 @@ let moveToPoint (state: State) (point: ReturnPoint) (recordHistory: Bool) : Stat
 let backLabel (state: State) : String =
   match state.back with
   | [] -> if state.activeView == vHome then "" else "Home"
-  | p :: _ ->
+  | [p, ...] ->
     if (p.view == state.activeView) && (p.view == vMatter) then
       match Stdlib.List.last (Packages.modulePathOf p.location) with
       | Some m -> if p.lens == state.matter.lens then m else "Tree"
@@ -90,7 +90,7 @@ let goBack (state: State) : Step =
       // ping-pong between the two.
       let moved = goTo state (mkDest vHome 0) false
       Step.Continue { moved with back = [] }
-  | p :: rest ->
+  | [p, ...rest] ->
     Step.Continue (moveToPoint { state with back = rest } p false)
 
 /// Enter a tree module, remembering its parent and cursor.
@@ -115,7 +115,7 @@ let ascend (state: State) : Step =
   if state.activeView != vMatter then Step.Continue state else
   match Stdlib.List.reverse (Packages.modulePathOf state.location) with
   | [] -> Step.Continue state
-  | _ :: parent ->
+  | [_, ...parent] ->
     let point =
       { (returnPointOf state) with
           location = Packages.PackageLocation.Module (Stdlib.List.reverse parent)

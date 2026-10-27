@@ -29,32 +29,32 @@ let defaultArgs (): Args =
 let parseArgs (rest: List<String>) (acc: Args) : Args =
   match rest with
   | [] -> acc
-  | "--port" :: value :: tail ->
+  | ["--port", value, ...tail] ->
     match Stdlib.Int.parse value with
     | Error _ ->
       { acc with error = Stdlib.Option.Option.Some $"Invalid --port: {value}" }
     | Ok p -> parseArgs tail { acc with port = p }
-  | "--max-body-bytes" :: value :: tail ->
+  | ["--max-body-bytes", value, ...tail] ->
     match Stdlib.Int.parse value with
     | Error _ ->
       { acc with
           error = Stdlib.Option.Option.Some $"Invalid --max-body-bytes: {value}" }
     | Ok n -> parseArgs tail { acc with maxBodyBytes = n }
-  | "--live" :: tail -> parseArgs tail { acc with live = true }
-  | "--no-live" :: _ ->
+  | ["--live", ...tail] -> parseArgs tail { acc with live = true }
+  | ["--no-live", ...] ->
     { acc with
         error =
           Stdlib.Option.Option.Some
             "--no-live is what happens anyway: a server follows edits only with --live." }
-  | "--dev" :: _ ->
+  | ["--dev", ...] ->
     { acc with
         error =
           Stdlib.Option.Option.Some
             "--dev is --live: it follows edits and reloads an open page." }
-  | flag :: _ when Stdlib.String.startsWith flag "--" ->
+  | [flag, ...] when Stdlib.String.startsWith flag "--" ->
     { acc with
         error = Stdlib.Option.Option.Some $"Unknown or incomplete flag: {flag}" }
-  | positional :: tail ->
+  | [positional, ...tail] ->
     if acc.routerPath == "" then
       parseArgs tail { acc with routerPath = positional }
     else

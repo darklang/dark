@@ -120,16 +120,16 @@ let parseViewOptions
   // `--depth`, `--no-builtins` and `--no-stdlib` were about a tree of every call. The log is a
   // sequence of impure calls now, so they have nothing to do; refused by name rather than
   // accepted and ignored, which is the failure mode that wastes an afternoon.
-  | "--depth" :: _
-  | "-d" :: _ ->
+  | ["--depth", ...]
+  | ["-d", ...] ->
     Stdlib.Result.Result.Error
       "--depth is gone: a trace's log is a list of its impure calls, with no tree to cap"
-  | "--no-builtins" :: _
-  | "--no-stdlib" :: _ ->
+  | ["--no-builtins", ...]
+  | ["--no-stdlib", ...] ->
     Stdlib.Result.Result.Error
       ("--no-builtins and --no-stdlib are gone: every logged call is an impure builtin, so "
        + "hiding them hides the log. `--filter` and `--exclude` narrow it by name")
-  | "--filter" :: pattern :: rest ->
+  | ["--filter", pattern, ...rest] ->
     if Stdlib.String.startsWith pattern "-" then
       Stdlib.Result.Result.Error $"unknown flag: {pattern}"
     else if pattern == "" then
@@ -138,7 +138,7 @@ let parseViewOptions
       parseViewOptions
         { opts with filter = Stdlib.Option.Option.Some pattern }
         rest
-  | "--exclude" :: pattern :: rest ->
+  | ["--exclude", pattern, ...rest] ->
     if Stdlib.String.startsWith pattern "-" then
       Stdlib.Result.Result.Error $"unknown flag: {pattern}"
     else if pattern == "" then
@@ -147,13 +147,13 @@ let parseViewOptions
       parseViewOptions
         { opts with exclude = Stdlib.Option.Option.Some pattern }
         rest
-  | "--all" :: rest -> parseViewOptions { opts with all = true } rest
-  | "--slow" :: rest ->
+  | ["--all", ...rest] -> parseViewOptions { opts with all = true } rest
+  | ["--slow", ...rest] ->
     // Bare `--slow` defaults to 10ms. For a custom threshold, use --slow-ms.
     parseViewOptions
       { opts with slowThresholdMs = Stdlib.Option.Option.Some 10 }
       rest
-  | "--slow-ms" :: numStr :: rest ->
+  | ["--slow-ms", numStr, ...rest] ->
     match Stdlib.Int.parse numStr with
     | Ok n ->
       if n < 0 then
@@ -165,7 +165,7 @@ let parseViewOptions
     | Error _ ->
       Stdlib.Result.Result.Error (parsePositionalErr numStr "--slow-ms threshold")
   // Recognized value-taking flag with no value left — distinguish from the
-  // catch-all `unknown :: _` so the user gets "missing value" not the
+  // catch-all `[unknown, ...]` so the user gets "missing value" not the
   // misleading "unknown flag".
   | [ "--filter" ] ->
     Stdlib.Result.Result.Error "--filter requires a pattern (e.g. `--filter List.map`)"
@@ -173,7 +173,7 @@ let parseViewOptions
     Stdlib.Result.Result.Error "--exclude requires a pattern (e.g. `--exclude listConcat`)"
   | [ "--slow-ms" ] ->
     Stdlib.Result.Result.Error "--slow-ms requires a value (e.g. `--slow-ms 100`)"
-  | unknown :: _ ->
+  | [unknown, ...] ->
     Stdlib.Result.Result.Error $"unknown flag: {unknown}"
 
 
@@ -488,16 +488,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       { state with exitCode = 1 }
 
   // `view` is `show` by another name, and people reach for both. An alias costs one arm.
-  | "view" :: _ ->
+  | ["view", ...] ->
     execute state (Stdlib.List.prepend (Stdlib.List.drop rawArgs 1) "show")
 
   // An alias rather than a refusal: people reach for both words, and there is nothing to teach.
-  | "details" :: _ ->
+  | ["details", ...] ->
     execute state (Stdlib.List.prepend (Stdlib.List.drop rawArgs 1) "inspect")
 
   // Refused BY NAME rather than falling through to "unknown subcommand", because whoever types
   // it read it somewhere we wrote.
-  | "log" :: rest ->
+  | ["log", ...rest] ->
     let tail = Stdlib.String.join rest " "
     Cli.printErr "`traces log` is now `traces inspect`: what the trace was, and what it did"
     Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  dark traces inspect {tail}")
@@ -576,7 +576,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Cli.printErr $"'{value}' is not a recording setting; it is on or off"
       { state with exitCode = 1 }
 
-  | "inspect" :: prefix :: flagArgs ->
+  | ["inspect", prefix, ...flagArgs] ->
     if wantsJson then
       Cli.exitWith state (Cli.TraceVerbs.printInspectJson state.currentBranchId prefix)
     else
@@ -666,7 +666,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     else
       Cli.TraceVerbs.showCode state fnName (Stdlib.Option.Option.Some run) iteration
   // Refused by name, like the others: `show` is the verb for the code with its values on it.
-  | "values" :: rest ->
+  | ["values", ...rest] ->
     let tail = Stdlib.String.join rest " "
     Cli.printErr "`traces values` is `traces show`: the code, with a trace's values beside it"
     Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  dark traces show {tail}")
@@ -762,40 +762,40 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   // Catch any other malformed follow invocation — anything not matched
   // by the earlier specific arms (e.g. `traces follow --fake-arg`).
-  | "follow" :: _ ->
+  | ["follow", ...] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces follow [--route <substring>] [--json]")
     { state with exitCode = 1 }
 
   // Catch malformed arity-1 invocations (e.g. `traces rerun <id> --fake-arg`)
   // that the strict-length arms above missed.
-  | "rerun" :: _ ->
+  | ["rerun", ...] ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces rerun <trace-id>")
     { state with exitCode = 1 }
-  | "delete" :: _ ->
+  | ["delete", ...] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
         "Usage: traces delete <trace-id> | --all | --keep <N> | --before <duration>")
     state
-  | "tail" :: _ ->
+  | ["tail", ...] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces tail [N] [--route <substring>]")
     { state with exitCode = 1 }
-  | "list" :: _ ->
+  | ["list", ...] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
         "Usage: traces list [limit] | list --fn <substring> [limit] [--json] | list --route <substring> [limit] [--json]")
     state
-  | "find" :: _ ->
+  | ["find", ...] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
         "Usage: traces find <pattern> [limit] [--inspect] [--json]")
     state
-  | "hotspots" :: _ ->
+  | ["hotspots", ...] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces hotspots [trace-limit] [--json]")
     { state with exitCode = 1 }
-  | "stats" :: _ ->
+  | ["stats", ...] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces stats [limit] [--json]")
     { state with exitCode = 1 }
@@ -812,12 +812,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // called now. Taking it out would send a script that still uses it to the generic help.
     let isKnownHead =
       match args with
-      | head :: _ ->
+      | [head, ...] ->
         Stdlib.List.any knownSubcommands (fun s -> s == head)
       | [] -> true
     if Stdlib.Bool.not isKnownHead then
       match args with
-      | head :: _ ->
+      | [head, ...] ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"unknown subcommand: {head}")
         Stdlib.printLine ""
         Stdlib.printLine (help state)
@@ -1176,7 +1176,7 @@ let executeFindInspect (state: Cli.AppState) (pattern: String) : Cli.AppState =
       Stdlib.printLine $"no kept trace matches {pattern}"
       printRecordingOffHint ()
       state
-    | row :: _ ->
+    | [row, ...] ->
       Stdlib.printLine $"the newest trace matching {pattern}: {row.id}"
       Stdlib.printLine ""
       executeInspect state row.id defaultViewOptions
@@ -1235,7 +1235,7 @@ let executeTail
           $"there is no {nStr}{ordinalSuffix n}-most-recent trace{suffix}"
       Stdlib.printLine msg
       state
-    | row :: _ -> executeInspect state row.id defaultViewOptions
+    | [row, ...] -> executeInspect state row.id defaultViewOptions
 
 
 /// `traces stats` — per-handler aggregate over the last N traces:
@@ -1343,7 +1343,7 @@ let followLoop
   let newLastSeen =
     match rows with
     | [] -> lastSeen
-    | row :: _ -> row.id
+    | [row, ...] -> row.id
 
   Stdlib.Cli.Posix.sleep 500.0
   followLoop branchId routeFilter newLastSeen jsonMode
@@ -1382,7 +1382,7 @@ let executeFollow
   let initialSeen =
     match initialRows with
     | [] -> ""
-    | row :: _ -> row.id
+    | [row, ...] -> row.id
 
   followLoop state.currentBranchId routeFilter initialSeen jsonMode
   state
@@ -1836,7 +1836,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [ "record" ] -> [ Completion.simple "on", Completion.simple "off" ]
   // After `traces inspect <trace>` the next token is a flag. Only the ones that still mean something:
   // the tree flags are refused by name, and offering them would be a trap.
-  | "inspect" :: _ :: _ ->
+  | ["inspect", _, ...] ->
     [ Completion.simple "--filter"
       Completion.simple "--exclude"
       Completion.simple "--slow"
@@ -1855,10 +1855,10 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [ "list", "--route" ]
   | [ "tail", "--route" ]
   | [ "follow", "--route" ] -> []
-  | "find" :: _ :: _ ->
+  | ["find", _, ...] ->
     [ Completion.simple "--inspect", Completion.simple "--json" ]
-  | "tail" :: _ :: _ -> [ Completion.simple "--route" ]
-  | "list" :: _ :: _ ->
+  | ["tail", _, ...] -> [ Completion.simple "--route" ]
+  | ["list", _, ...] ->
     [ Completion.simple "--json" ]
   | _ -> []
 

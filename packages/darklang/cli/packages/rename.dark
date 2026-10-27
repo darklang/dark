@@ -42,37 +42,37 @@ let referenceAt
   let results = Packages.Query.searchExactMatch branchId modulePath location.name
 
   match results.fns with
-  | i :: _ ->
+  | [i, ...] ->
     Stdlib.Option.Option.Some(
       LanguageTools.ProgramTypes.Reference.PackageFn i.entity.hash
     )
   | [] ->
     match results.types with
-    | i :: _ ->
+    | [i, ...] ->
       Stdlib.Option.Option.Some(
         LanguageTools.ProgramTypes.Reference.PackageType i.entity.hash
       )
     | [] ->
       match results.values with
-      | i :: _ ->
+      | [i, ...] ->
         Stdlib.Option.Option.Some(
           LanguageTools.ProgramTypes.Reference.PackageValue i.entity.hash
         )
       | [] ->
         match results.traits with
-        | i :: _ ->
+        | [i, ...] ->
           Stdlib.Option.Option.Some(
             LanguageTools.ProgramTypes.Reference.PackageTrait i.entity.hash
           )
         | [] ->
           match results.impls with
-          | i :: _ ->
+          | [i, ...] ->
             Stdlib.Option.Option.Some(
               LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.entity.hash
             )
           | [] ->
             match results.tests with
-            | i :: _ ->
+            | [i, ...] ->
               Stdlib.Option.Option.Some(
                 LanguageTools.ProgramTypes.Reference.PackageTest i.entity.hash
               )

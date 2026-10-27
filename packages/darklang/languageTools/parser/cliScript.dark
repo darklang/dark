@@ -47,7 +47,7 @@ let parseDecls
   : Stdlib.Result.Result<WTCliScriptModule, ParseError> =
   // A parse error blocks declaration extraction — the recovered tree would be broken.
   match diagnostics with
-  | (range, message) :: _ ->
+  | [(range, message), ...] ->
     let rendered =
       $"Parse error at line {Stdlib.toString (range.start.row + 1)}, column {Stdlib.toString range.start.column}: {message}"
 
@@ -280,7 +280,7 @@ let stabilizedHash
   (stabilizedOps: List<ProgramTypes.PackageOp>)
   : ProgramTypes.Hash =
   match (provisionalOps, stabilizedOps) with
-  | (provisional :: provisionalRest, stabilized :: stabilizedRest) ->
+  | ([provisional, ...provisionalRest], [stabilized, ...stabilizedRest]) ->
     let references =
       match (provisional, stabilized) with
       | (AddType before, AddType after) ->

@@ -45,7 +45,7 @@ let readSecret () : String =
           // consumed. Anything pasted after the newline is not secret material and is dropped.
           match Stdlib.String.split (acc + chunk) "\n" with
           | [ whole ] -> go whole
-          | beforeNewline :: _rest ->
+          | [beforeNewline, ..._rest] ->
             Stdlib.printErrorLine ""
             beforeNewline
           | [] -> go acc

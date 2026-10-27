@@ -457,7 +457,7 @@ let profile (args: List<String>) : Bool =
     | (_, []) ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error "profile needs a name")
       false
-    | (apply, name :: rest) ->
+    | (apply, [name, ...rest]) ->
       match Profiles.resolve name rest with
       | Error message ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
@@ -728,8 +728,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "help" ] ->
     Stdlib.printLine (Command.help state)
     state
-  | "profile" :: args -> Cli.exitWith state (Command.profile args)
-  // Before the `<subcommand> :: args` arms: a subcommand given with no
+  | ["profile", ...args] -> Cli.exitWith state (Command.profile args)
+  // Before the `[<subcommand>, ...args]` arms: a subcommand given with no
   // argument must report usage, not run with an empty argument list (`set`
   // with nothing would replace the policy with deny-all).
   | [ subcommand ] when Stdlib.Option.isSome (Command.usageOf subcommand) ->
@@ -737,17 +737,17 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error $"missing argument; usage: permissions {usage}")
     Cli.exitWith state false
-  | "allow" :: rule ->
+  | ["allow", ...rule] ->
     Cli.exitWith state (Command.editRules
       rule
       (fun rules -> Command.editInstancePolicy rules [] [])
       "✓ policy updated")
-  | "deny" :: rule ->
+  | ["deny", ...rule] ->
     Cli.exitWith state (Command.editRules
       rule
       (fun rules -> Command.editInstancePolicy [] rules [])
       "✓ policy updated")
-  | "remove" :: rule ->
+  | ["remove", ...rule] ->
     Cli.exitWith state (Command.editRules
       rule
       (fun rules -> Command.editInstancePolicy [] [] rules)
@@ -756,19 +756,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Cli.exitWith state (Command.editPolicy
       (fun _ -> Stdlib.Result.Result.Ok(LanguageTools.Permissions.empty ()))
       "✓ policy is now deny-all")
-  | "set" :: specs ->
+  | ["set", ...specs] ->
     Cli.exitWith state (Command.editPolicy (fun _ -> Command.replacePolicy specs) "✓ policy replaced")
-  | "approve" :: rest ->
+  | ["approve", ...rest] ->
     match Command.takeYesFlag rest with
-    | (acceptWithoutPrompt, name :: rules) ->
+    | (acceptWithoutPrompt, [name, ...rules]) ->
       Cli.exitWith state (Command.approveNamed state acceptWithoutPrompt name rules)
     | (_, []) ->
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.error "approve needs a function name")
       Cli.exitWith state false
-  | "update" :: rest ->
+  | ["update", ...rest] ->
     match Command.takeYesFlag rest with
-    | (acceptWithoutPrompt, name :: rules) ->
+    | (acceptWithoutPrompt, [name, ...rules]) ->
       Cli.exitWith state (Command.updateNamed state acceptWithoutPrompt name rules)
     | (_, []) ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error "update needs a function name")
@@ -837,7 +837,7 @@ let complete
   | [ "profile", "default" ]
   | [ "profile", "read-only", _ ]
   | [ "profile", "local-dev", _ ] -> [ Cli.Completion.simple "--yes" ]
-  | "profile" :: _ -> []
+  | ["profile", ...] -> []
   | _ ->
     Command.subcommands
     |> Stdlib.List.map (fun (name, _usage) -> Cli.Completion.simple name)

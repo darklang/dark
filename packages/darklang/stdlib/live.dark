@@ -337,7 +337,7 @@ let calleeDeclarations
     : List<LanguageTools.ProgramTypes.PackageOp> =
     match frontier with
     | [] -> found
-    | (h, kind) :: rest ->
+    | [(h, kind), ...rest] ->
       let hs = LanguageTools.ProgramTypes.hashToString h
 
       if (Stdlib.List.contains seen hs) || ((Stdlib.List.length found) >= calleesAtMost) then
@@ -423,9 +423,9 @@ let locationOfName
   let parts = Stdlib.String.split name "."
 
   match Stdlib.List.reverse parts with
-  | fnName :: revRest ->
+  | [fnName, ...revRest] ->
     match Stdlib.List.reverse revRest with
-    | owner :: modules ->
+    | [owner, ...modules] ->
       Stdlib.Option.Option.Some(
         LanguageTools.ProgramTypes.PackageLocation
           { owner = owner, modules = modules, name = fnName })
@@ -470,7 +470,7 @@ let reportText (report: LanguageTools.AtRestTypeChecker.Report) : String =
 
   let first =
     match issues with
-    | issue :: _ -> issueText issue
+    | [issue, ...] -> issueText issue
     | [] -> "it failed the type check"
 
   let more = if count > 1 then $" (and {Stdlib.toString (count - 1)} more)" else ""
@@ -647,7 +647,7 @@ let observe (branchId: Uuid) (view: LanguageTools.ProgramTypes.PackageLocation) 
     let checked = versions |> Stdlib.List.map (fun h -> (h, atRestFailure h))
     let newestReport =
       match checked with
-      | (_, Some report) :: _ -> Stdlib.Option.Option.Some report
+      | [(_, Some report), ...] -> Stdlib.Option.Option.Some report
       | _ -> Stdlib.Option.Option.None
     let passing =
       checked
@@ -783,7 +783,7 @@ module Values =
     : Stdlib.Option.Option<Values> =
     match Darklang.Tracing.Store.wentThroughNamed branchId (entryName entry) 1L with
     | [] -> Stdlib.Option.Option.None
-    | newest :: _ ->
+    | [newest, ...] ->
       let fns = Stdlib.List.length (Darklang.Tracing.Store.fnsOf newest.id)
       if (newest.durationMs > maxDurationMs) || (fns > maxFns) then
         let why =

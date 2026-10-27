@@ -5,16 +5,16 @@ module Darklang.Cli.Packages.Errors
 /// CLI to show its source spelling.
 let isInternalPackageName (originalName: List<String>) : Bool =
   match originalName with
-  | "PACKAGE" :: _ -> true
+  | ["PACKAGE", ...] -> true
   | _ -> false
 
 
 let sourceNameWithoutInternalPrefix (originalName: List<String>) : String =
   let sourceParts =
     match originalName with
-    | "PACKAGE" :: "Darklang" :: "Stdlib" :: rest ->
+    | ["PACKAGE", "Darklang", "Stdlib", ...rest] ->
       Stdlib.List.prepend rest "Stdlib"
-    | "PACKAGE" :: rest -> rest
+    | ["PACKAGE", ...rest] -> rest
     | _ -> originalName
   Stdlib.String.join sourceParts "."
 
@@ -24,7 +24,7 @@ let splitLast
   : Stdlib.Option.Option<(List<String> * String)> =
   match Stdlib.List.reverse parts with
   | [] -> Stdlib.Option.Option.None
-  | name :: reversedModules ->
+  | [name, ...reversedModules] ->
     Stdlib.Option.Option.Some((Stdlib.List.reverse reversedModules, name))
 
 
@@ -35,9 +35,9 @@ let stdlibSuggestion
   (originalName: List<String>)
   : Stdlib.Option.Option<String> =
   match originalName with
-  | "Stdlib" :: _
-  | "Darklang" :: _
-  | "PACKAGE" :: _ -> Stdlib.Option.Option.None
+  | ["Stdlib", ...]
+  | ["Darklang", ...]
+  | ["PACKAGE", ...] -> Stdlib.Option.Option.None
   | _ ->
     match splitLast originalName with
     | Some((modules, name)) when Stdlib.Bool.not (Stdlib.List.isEmpty modules) ->
@@ -60,7 +60,7 @@ let reportParseErrors
   : Bool =
   match diagnostics with
   | [] -> false
-  | (range, message) :: _ ->
+  | [(range, message), ...] ->
     let lineNum = (range.start.row + 1) |> Stdlib.toString
     // 1-based column, matching renderDiagnostic and the line number above
     let colNum = (range.start.column + 1) |> Stdlib.toString

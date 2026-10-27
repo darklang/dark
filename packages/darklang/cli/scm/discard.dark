@@ -71,7 +71,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         | Error e ->
           Cli.printErr $"couldn't drop {dotted}: {e}"
           Cli.exitWith state false
-  | _ :: _ :: _ ->
+  | [_, _, ...] ->
     Cli.printErr "dark discard takes at most one name."
     Cli.printHint "  `dark discard` drops the whole draft; `dark discard <name>` drops one item."
     Cli.exitWith state false

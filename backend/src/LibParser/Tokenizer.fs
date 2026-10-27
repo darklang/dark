@@ -28,7 +28,6 @@ type Token =
   | TTrue
   | TFalse
   | TPlus
-  | TPlusPlus // ++ (not an operator; lexed so the parser can name it in an error)
   | TMinus
   | TStar
   | TStarStar // ** (exponentiation)
@@ -45,7 +44,6 @@ type Token =
   | TType // type (type definition)
   | TTrait // trait (trait declaration: a set of method signatures)
   | TImpl // impl (an implementation of a trait for a type)
-  | TCons // :: (list cons pattern)
   | TColon // : (type annotation)
   | TComma // , (parameter / collection / field separator)
   | TSemicolon // ; (statement separator)
@@ -81,6 +79,5 @@ type Token =
   | TBitAnd // & (bitwise and)
   | TBitXor // ^ (bitwise xor)
   | TBitNot // ~ (bitwise not)
-  | TAt // @ (list append)
   | TIdent of string
   | TEOF

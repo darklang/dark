@@ -189,7 +189,7 @@ let commandCompletions (state: State) (text: String) : List<Darklang.Cli.Complet
 /// inserts it (the last word is the partial being completed; an empty last word means append a fresh arg).
 let applyCompletionValue (text: String) (value: String) : String =
   match Stdlib.List.reverse (Stdlib.String.split text " ") with
-  | _last :: revInit ->
+  | [_last, ...revInit] ->
     Stdlib.String.join (Stdlib.List.append (Stdlib.List.reverse revInit) value) " "
   | [] -> value
 

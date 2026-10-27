@@ -264,10 +264,10 @@ let unifyAllIn
   : State =
   match expected with
   | [] -> s
-  | e :: expectedRest ->
+  | [e, ...expectedRest] ->
     match actual with
     | [] -> s
-    | a :: actualRest ->
+    | [a, ...actualRest] ->
       unifyAllIn depth (unifyIn depth s at site e a) at site expectedRest actualRest
 
 /// Check whether the loaded declaration is an alias. Missing declarations return false.
@@ -441,10 +441,10 @@ let instantiateFrom
   : (List<Model.Ty> * Dict<String, Model.Ty> * State) =
   match names with
   | [] -> (Stdlib.List.reverse args, mapping, s)
-  | name :: rest ->
+  | [name, ...rest] ->
     let (arg, remaining, s) =
       match explicit with
-      | given :: others -> (given, others, s)
+      | [given, ...others] -> (given, others, s)
       | [] ->
         let (t, s) = fresh s
         (t, [], s)
@@ -716,7 +716,7 @@ let solve (s: State) (c: Model.Constraint) : State =
 let solveAll (s: State) (constraints: List<Model.Constraint>) : State =
   match constraints with
   | [] -> s
-  | c :: rest ->
+  | [c, ...rest] ->
     match c with
     | All inner -> solveAll (solveAll s inner) rest
     | Equal(at, site, expected, actual) ->
@@ -1043,7 +1043,7 @@ let checkReachableKeyTypes
   : State =
   match pending with
   | [] -> s
-  | key :: rest ->
+  | [key, ...rest] ->
     let key = zonk s key
     match dictKey s at key with
     | Some s -> checkReachableKeyTypes s uses at seen rest
@@ -1413,7 +1413,7 @@ let reaches
   : Bool =
   match frontier with
   | [] -> false
-  | next :: rest ->
+  | [next, ...rest] ->
     if next == target then
       true
     else if Stdlib.Dict.containsKey seen next then
@@ -1462,7 +1462,7 @@ let applyArguments
 
   match args with
   | [] -> unify s nodeId Site.Expression callee result
-  | (arg, site) :: rest ->
+  | [(arg, site), ...rest] ->
     let (callee, s) = expand s nodeId callee
 
     match callee with
@@ -1470,7 +1470,7 @@ let applyArguments
       match parameters with
       | [ parameter ] ->
         applyArguments (unify s nodeId site parameter arg) at ret rest result
-      | parameter :: others ->
+      | [parameter, ...others] ->
         applyArguments
           (unify s nodeId site parameter arg)
           at
@@ -1541,10 +1541,10 @@ let unifyAppliedPrefix
   : (State * List<(Model.Ty * Site)> * List<(Model.Ty * Site)>) =
   match args with
   | [] -> (s, [], oldArgs)
-  | (arg, site) :: rest ->
+  | [(arg, site), ...rest] ->
     match oldArgs with
     | [] -> (s, args, [])
-    | (oldArg, _) :: oldRest ->
+    | [(oldArg, _), ...oldRest] ->
       let s = unify s (Stdlib.Option.Option.Some at) site oldArg arg
       unifyAppliedPrefix s at rest oldRest
 
@@ -1783,7 +1783,7 @@ let tupleIndexOfFieldName (field: String) : Stdlib.Option.Option<Int> =
 
   match chars with
   | [] -> Stdlib.Option.Option.None
-  | c :: _ ->
+  | [c, ...] ->
     if
       c != '0'
       && Stdlib.List.length chars <= 9

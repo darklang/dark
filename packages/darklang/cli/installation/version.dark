@@ -7,7 +7,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let unknown = args |> Stdlib.List.filter (fun a -> a != "--local")
 
   match unknown with
-  | bad :: _ ->
+  | [bad, ...] ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"version: unknown option `{bad}`")
     Stdlib.printLine (help state)
     Cli.exitWith state false

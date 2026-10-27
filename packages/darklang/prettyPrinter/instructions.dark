@@ -71,7 +71,7 @@ let matchPattern (pat: LanguageTools.RuntimeTypes.MatchPattern) : String =
     let parts =
       (Stdlib.List.map items (fun p -> matchPattern p)) |> Stdlib.String.join ", "
     $"[{parts}]"
-  | MPListCons(head, tail) -> $"{matchPattern head} :: {matchPattern tail}"
+  | MPListCons(head, tail) -> $"[{matchPattern head}, ...{matchPattern tail}]"
   | MPTuple(first, second, theRest) ->
     let parts =
       (Stdlib.List.concat [ first, second ] theRest)

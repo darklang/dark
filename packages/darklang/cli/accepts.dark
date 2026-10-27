@@ -158,7 +158,7 @@ let check
     : Stdlib.Result.Result<List<String>, String> =
     match remaining with
     | [] -> Stdlib.Result.Result.Ok(Stdlib.List.reverse words)
-    | a :: rest ->
+    | [a, ...rest] ->
       if Stdlib.Bool.not (isFlag s a) then
         walk name s rest (Stdlib.List.prepend words a)
       else if Stdlib.String.contains a "=" then
@@ -174,7 +174,7 @@ let check
         walk name s rest words
       else if Stdlib.List.contains s.valueFlags a then
         match rest with
-        | _value :: afterValue -> walk name s afterValue words
+        | [_value, ...afterValue] -> walk name s afterValue words
         | [] -> Stdlib.Result.Result.Error $"`{a}` needs a value."
       else
         Stdlib.Result.Result.Error $"`dark {name}` does not take `{a}`."
@@ -197,7 +197,7 @@ let check
 
     let picked =
       match afterFlags with
-      | first :: rest ->
+      | [first, ...rest] ->
         named
         |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == first)
         |> Stdlib.Option.map (fun pair ->

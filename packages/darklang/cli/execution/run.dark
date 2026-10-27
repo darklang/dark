@@ -103,12 +103,12 @@ let executeOptions
   (options: Darklang.Tracing.ScriptOptions)
   : AppState =
   match flags with
-  | "--allow-harmful" :: rest -> executeOptions state rest script { options with allowHarmful = true }
-  | "--sandbox" :: rest -> executeOptions state rest script { options with sandbox = true }
-  | "--warn-permissions" :: rest -> executeOptions state rest script { options with warnPermissions = true }
+  | ["--allow-harmful", ...rest] -> executeOptions state rest script { options with allowHarmful = true }
+  | ["--sandbox", ...rest] -> executeOptions state rest script { options with sandbox = true }
+  | ["--warn-permissions", ...rest] -> executeOptions state rest script { options with warnPermissions = true }
   | [] | [ "--" ] ->
     match script with
-    | scriptPath :: scriptArgs ->
+    | [scriptPath, ...scriptArgs] ->
       if options.sandbox && options.warnPermissions then
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.error
@@ -119,7 +119,7 @@ let executeOptions
     | [] ->
       Stdlib.printLine (help state)
       Cli.exitWith state false
-  | flag :: _ ->
+  | [flag, ...] ->
     Stdlib.printErrorLine $"Unknown run-script option: {flag}. Put script arguments after the file path; use -- before a path starting with '-'."
     Cli.exitWith state false
 

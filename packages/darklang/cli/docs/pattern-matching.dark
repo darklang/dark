@@ -29,7 +29,8 @@ then silently matches nothing, a runtime surprise rather than a parse error.
 ## Lists
   | [] -> "empty"
   | [x] -> "one"
-  | head :: tail -> "many"
+  | [head, ...tail] -> "many"
+  | [a, b, ...] -> "two or more"   # `...` goes last; a bare `...` ignores the rest
 
 ## Records
   Records can't be destructured in match. Use a variable and access fields:

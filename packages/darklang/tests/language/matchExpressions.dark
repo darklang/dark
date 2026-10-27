@@ -399,11 +399,11 @@ test listPatterns =
        | var -> "fail")
       |> Stdlib.Test.equal "pass"
       (match [ 1L, 2L, 3L ] with
-       | head :: tail -> $"pass"
+       | [head, ...tail] -> $"pass"
        | [] -> "fail")
       |> Stdlib.Test.equal "pass"
       (match [] with
-       | head :: tail -> "fail"
+       | [head, ...tail] -> "fail"
        | [] -> "pass")
       |> Stdlib.Test.equal "pass" ]
 
@@ -442,47 +442,47 @@ test nestedListPatterns =
 // head tail
 let headTail (list: List<Int64>) : (Int64 * List<Int64>) =
   match list with
-  | head :: tail -> (head, tail)
+  | [head, ...tail] -> (head, tail)
   | [] -> (0L, [])
 
 // heads tail
 let sequence (list: List<Int64>) : Int64 =
   match list with
-  | a :: b :: c :: rest -> a + b + c
-  | a :: b :: rest -> a + b - 1L
+  | [a, b, c, ...rest] -> a + b + c
+  | [a, b, ...rest] -> a + b - 1L
   | [] -> 0L
   | _ -> -1L
 
 // nested
 let complexSum (list: List<List<Int64>>) : Int64 =
   match list with
-  | (a1 :: a2 :: ar) :: (b1 :: b2 :: br) :: (c1 :: cr) :: rest ->
+  | [[a1, a2, ...ar], [b1, b2, ...br], [c1, ...cr], ...rest] ->
     a1 + a2 + b1 + b2 + c1
-  | (a :: ar) :: (b :: brest) :: rest -> a + b
+  | [[a, ...ar], [b, ...brest], ...rest] -> a + b
   | _ -> 0L
 
 test consPatterns =
   Stdlib.Test.all
     [ (match [ 1L, 2L, 3L ] with
-       | 1L :: 2L :: [ 3L ] -> 42L)
+       | [1L, 2L, 3L] -> 42L)
       |> Stdlib.Test.equal 42L
       (match [ 1L, 2L, 3L ] with
-       | 1L :: 2L :: [ 3L ] -> 42L
+       | [1L, 2L, 3L] -> 42L
        | [] -> 4L
        | _ -> 2L)
       |> Stdlib.Test.equal 42L
       (match [ 1L, 2L, 3L ] with
        | [] -> 4L
-       | 1L :: 2L :: [ 3L ] -> 42L
+       | [1L, 2L, 3L] -> 42L
        | _ -> 2L)
       |> Stdlib.Test.equal 42L
       (match [ 1L, 2L, 3L ] with
        | _ -> 2L
-       | 1L :: 2L :: [ 3L ] -> 42L
+       | [1L, 2L, 3L] -> 42L
        | [] -> 4L)
       |> Stdlib.Test.equal 2L
       (match [ 1L, 2L, 3L ] with
-       | head :: rest -> head + (rest |> Stdlib.List.head |> Builtin.unwrap))
+       | [head, ...rest] -> head + (rest |> Stdlib.List.head |> Builtin.unwrap))
       |> Stdlib.Test.equal 3L
       // head tail
       (headTail [])
@@ -494,7 +494,7 @@ test consPatterns =
       (headTail [ 1L, 2L, 3L ])
       |> Stdlib.Test.equal (1L, [ 2L, 3L ])
       (match [ "dd", "aa", "fff", "gg" ] with
-       | head :: tail -> (head, tail))
+       | [head, ...tail] -> (head, tail))
       |> Stdlib.Test.equal ("dd", [ "aa", "fff", "gg" ])
       // heads tail
       (sequence [])
@@ -516,21 +516,50 @@ test consPatterns =
       |> Stdlib.Test.equal 14L
       // wildcard
       (match [ 1L, 2L, 3L, 4L ] with
-       | 1L :: a :: [ 4L, 3L ] -> a + 1L
-       | _ :: a :: _ -> a + 2L
-       | 1L :: a :: rest -> a + 3L)
+       | [1L, a, 4L, 3L] -> a + 1L
+       | [_, a, ...] -> a + 2L
+       | [1L, a, ...rest] -> a + 3L)
       |> Stdlib.Test.equal 4L
       // misc
       (match [ 1L, 2L, 3L, 4L ] with
-       | 2L :: a :: [ 3L, 4L ] -> a + 1L
-       | 1L :: a :: [ 4L, 3L ] -> a + 2L
-       | 1L :: a :: [ 3L, 4L ] -> a + 3L
-       | 1L :: a :: rest -> a + 4L)
+       | [2L, a, 3L, 4L] -> a + 1L
+       | [1L, a, 4L, 3L] -> a + 2L
+       | [1L, a, 3L, 4L] -> a + 3L
+       | [1L, a, ...rest] -> a + 4L)
       |> Stdlib.Test.equal 5L
       (match [ 1L, 2L, 3L, 4L ] with
-       | 2L :: a :: rest -> a - 1L
-       | 1L :: a :: rest -> a * 2L)
+       | [2L, a, ...rest] -> a - 1L
+       | [1L, a, ...rest] -> a * 2L)
       |> Stdlib.Test.equal 4L ]
+
+test restPatterns =
+  Stdlib.Test.all
+    [ (match [ 1L, 2L, 3L, 4L ] with
+       | [a, b, ...rest] -> (a, b, rest)
+       | _ -> (0L, 0L, []))
+      |> Stdlib.Test.equal (1L, 2L, [ 3L, 4L ])
+      (match [ 1L, 2L, 3L ] with
+       | [a, b, ...] -> a + b
+       | _ -> 0L)
+      |> Stdlib.Test.equal 3L
+      // a rest binds the empty list, so `[x, ...rest]` matches one element
+      (match [ 7L ] with
+       | [x, ...rest] -> (x, rest)
+       | [] -> (0L, []))
+      |> Stdlib.Test.equal (7L, [])
+      (match [ 1L ] with
+       | [_a, _b, ..._] -> "two or more"
+       | [a] -> "one"
+       | _ -> "none")
+      |> Stdlib.Test.equal "one"
+      (match ([ 1L, 2L ], [ 3L ]) with
+       | ([a, ...as_], [b, ...bs]) -> (a + b, as_, bs)
+       | _ -> (0L, [], []))
+      |> Stdlib.Test.equal (4L, [ 2L ], [])
+      (match [ Stdlib.Option.Option.Some 1L, Stdlib.Option.Option.None ] with
+       | [Some x, ...rest] -> (x, rest)
+       | _ -> (0L, []))
+      |> Stdlib.Test.equal (1L, [ Stdlib.Option.Option.None ]) ]
 
 test tuplePatterns =
   Stdlib.Test.all
@@ -884,11 +913,11 @@ module PatternGrouping =
          | _ -> "fail")
         |> Stdlib.Test.equal "pass"
         (match ([1L,2L], 3L) with
-         | ([x], y) | (x :: _, y) when x > 0L -> "pass"
+         | ([x], y) | ([x, ...], y) when x > 0L -> "pass"
          | _ -> "fail")
         |> Stdlib.Test.equal "pass"
         (match [1L,2L] with
-         | [x,y] | x::y -> "fail"
+         | [x,y] | [x, ...y] -> "fail"
          | _ -> "pass")
         |> Stdlib.Test.equal "fail"
         (match (1L, "test") with

@@ -47,27 +47,27 @@ let performInputAction (state: State) (inp: InputState) : Step =
         let refOpt =
           if item.kind == "type" then
             match results.types with
-            | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageType i.entity.hash)
+            | [i, ...] -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageType i.entity.hash)
             | [] -> Stdlib.Option.Option.None
           else if item.kind == "val" then
             match results.values with
-            | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageValue i.entity.hash)
+            | [i, ...] -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageValue i.entity.hash)
             | [] -> Stdlib.Option.Option.None
           else if item.kind == "trait" then
             match results.traits with
-            | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageTrait i.entity.hash)
+            | [i, ...] -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageTrait i.entity.hash)
             | [] -> Stdlib.Option.Option.None
           else if item.kind == "impl" then
             match results.impls with
-            | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.entity.hash)
+            | [i, ...] -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.entity.hash)
             | [] -> Stdlib.Option.Option.None
           else if item.kind == "test" then
             match results.tests with
-            | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageTest i.entity.hash)
+            | [i, ...] -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageTest i.entity.hash)
             | [] -> Stdlib.Option.Option.None
           else
             match results.fns with
-            | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn i.entity.hash)
+            | [i, ...] -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn i.entity.hash)
             | [] -> Stdlib.Option.Option.None
         match refOpt with
         | None -> Step.Continue { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Refused, message = "rename failed: item not found" }
@@ -85,7 +85,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
             // path here unbound a name that does not exist, so the old name stayed bound.
             let oldLoc =
               match modules with
-              | owner :: rest ->
+              | [owner, ...rest] ->
                 LanguageTools.ProgramTypes.PackageLocation
                   { owner = owner, modules = rest, name = item.name }
               | [] ->
@@ -201,7 +201,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
           Stdlib.List.concat (Stdlib.List.append acc h.name) h.aliases)
       let (cmd, args) =
         match words with
-        | first :: rest -> (first, rest)
+        | [first, ...rest] -> (first, rest)
         | [] -> ("", [])
       if (cmd == "commands") || (cmd == "classic") || (cmd == "prompt") then
         // Drop to the old command-prompt mode (its own typeahead + live commands); `quit` there returns here.

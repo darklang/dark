@@ -31,7 +31,7 @@ let parseRelativeTo
   | [ modul, name ] ->
     Stdlib.Result.Result.Error
       $"a name has three parts, Owner.Module.name; try `Me.{modul}.{name}`"
-  | owner :: rest ->
+  | [owner, ...rest] ->
     let name = (Stdlib.List.last rest) |> Builtin.unwrap
     let modules = Stdlib.List.dropLast rest
 
@@ -43,7 +43,7 @@ let parseRelativeTo
       |> Stdlib.List.findFirst (fun m ->
         match Stdlib.String.toList m with
         | [] -> true
-        | first :: _ -> Stdlib.Bool.not (Stdlib.Char.isUppercase first))
+        | [first, ...] -> Stdlib.Bool.not (Stdlib.Char.isUppercase first))
 
     match badModule with
     | Some bad ->

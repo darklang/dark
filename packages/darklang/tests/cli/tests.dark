@@ -631,7 +631,7 @@ test viewAst =
   if Stdlib.String.contains output "last<'a> (list: List<'a>) ->"
     && Stdlib.String.contains output "Match"
     && Stdlib.String.contains output "on Arg #0, 2 cases"
-    && Stdlib.String.contains output "head :: tail"
+    && Stdlib.String.contains output "[head, ...tail]"
   then
     Stdlib.Test.Result.Pass
   else

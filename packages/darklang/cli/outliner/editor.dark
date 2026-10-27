@@ -102,7 +102,7 @@ let remember (state: State) : State =
 let undo (state: State) : (State * String) =
   match state.history with
   | [] -> (state, "nothing to undo")
-  | previous :: rest ->
+  | [previous, ...rest] ->
     let restored =
       { state with
           outline = previous
@@ -120,7 +120,7 @@ let undo (state: State) : (State * String) =
 let redo (state: State) : (State * String) =
   match state.future with
   | [] -> (state, "nothing to redo")
-  | next :: rest ->
+  | [next, ...rest] ->
     let restored =
       { state with
           outline = next

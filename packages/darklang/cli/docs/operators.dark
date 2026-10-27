@@ -54,17 +54,18 @@ let content () : String =
 
 ## String
   +    concat
-  NO @ operator
 
 ## List
-  @    concat, desugars to Stdlib.List.concat
+  No operator. Spread in a list literal instead:
+  [x, ...xs]      put x in front
+  [...a, ...b]    concat, lowers to Stdlib.List.concat
 
 ## Pipe
   value |> fn
   (complex expr) |> fn   // parens needed
 
 ## Precedence
-  Loosest to tightest. `**` and `@` nest right; everything else groups left.
+  Loosest to tightest. `**` nests right; everything else groups left.
     ||
     &&
     == != < > <= >=
@@ -72,7 +73,6 @@ let content () : String =
     ^
     &
     << >>
-    @
     + -
     * / %
     **

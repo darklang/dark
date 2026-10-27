@@ -233,7 +233,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       // On the way out there's no frame left to say anything on, so whatever comes back is dropped.
       let _saved = newApp.onSave ()
       match state.pageStack with
-      | returnTo :: rest ->
+      | [returnTo, ...rest] ->
         // Launched from another page (e.g. a foreground app opened from the workbench). Return to the
         // launcher instead of quitting. `onTerminate` above tore down the launched app's surface, so the
         // launcher's retained session is stale — resume it to restart the session and repaint from scratch,
@@ -271,7 +271,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       let words = (Stdlib.String.split cmd " ") |> Stdlib.List.filter (fun w -> w != "")
       let (cmdName, cmdArgs) =
         match words with
-        | first :: rest -> (first, rest)
+        | [first, ...rest] -> (first, rest)
         | [] -> ("", [])
       let launched =
         Registry.executeCommand

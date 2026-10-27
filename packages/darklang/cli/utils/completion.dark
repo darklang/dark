@@ -44,7 +44,7 @@ let parseInput (input: String) : ParsedInput =
         ParsedInput { commandName = command, args = [], isCompletingCommand = false }
       else
         ParsedInput { commandName = command, args = [], isCompletingCommand = true }
-    | command :: rest ->
+    | [command, ...rest] ->
       if endsWithSpace then
         ParsedInput { commandName = command, args = Stdlib.List.append rest "", isCompletingCommand = false }
       else
@@ -137,7 +137,7 @@ let findCommonPrefix (strings: List<String>) : String =
   match strings with
   | [] -> ""
   | [single] -> single
-  | first :: rest ->
+  | [first, ...rest] ->
     Stdlib.List.fold rest first (fun acc next ->
       let maxLen = Stdlib.min (Stdlib.String.length acc) (Stdlib.String.length next)
       let commonLen = findCommonLength acc next 0 maxLen

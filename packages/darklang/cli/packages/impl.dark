@@ -29,7 +29,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (help state)
     state
 
-  | modulePath :: definitionParts ->
+  | [modulePath, ...definitionParts] ->
     let inlineDefinition = Packages.definitionFromArgs definitionParts
 
     if Stdlib.String.isEmpty inlineDefinition then
@@ -110,7 +110,7 @@ let createImplInline
             implDecl
         let location =
           match Stdlib.List.reverse memberPath with
-          | name :: revModules ->
+          | [name, ...revModules] ->
             LanguageTools.ProgramTypes.PackageLocation
               { owner = baseLocation.owner
                 modules = Stdlib.List.reverse revModules

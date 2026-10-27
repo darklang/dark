@@ -180,7 +180,7 @@ module Registry =
 
     match allMatches with
     | [handler] -> handler
-    | handler :: _ -> handler // CLEANUP?
+    | [handler, ...] -> handler // CLEANUP?
     | [] ->
       CommandHandler
         { name = name
@@ -455,7 +455,7 @@ module Registry =
         // If centralized filtering found nothing, try direct call as fallback
         // (supports commands with smart matching like path traversal)
         match filtered with
-        | _ :: _ -> filtered
+        | [_, ...] -> filtered
         | [] -> completeFunc state parsed.args
 
   let hintFromCompletions
@@ -518,7 +518,7 @@ module Registry =
         (Stdlib.Bool.not (Stdlib.String.isEmpty prevPartial))
         && (Stdlib.String.startsWith filterPartial prevPartial)
         && (match prevItems with
-            | _ :: _ -> true
+            | [_, ...] -> true
             | [] -> false)
 
       let narrowBase = if canNarrow then prevItems else contextCompletions
@@ -529,7 +529,7 @@ module Registry =
           Stdlib.String.startsWith item.value filterPartial)
 
       match filtered with
-      | _ :: _ -> (hintOf filtered, filterPartial, filtered)
+      | [_, ...] -> (hintOf filtered, filterPartial, filtered)
       | [] ->
         // Centralized filtering found nothing, so re-ask the handler with the full args. This supports
         // commands with smart matching (path traversal), genuinely depends on the partial, and its result
@@ -601,5 +601,5 @@ module Commands =
 
     match parts with
     | [] -> state
-    | commandName :: args ->
+    | [commandName, ...args] ->
       Registry.executeCommand commandName state args

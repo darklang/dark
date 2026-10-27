@@ -17,7 +17,7 @@ let topLevelBucket
   : String =
   match loc.modules with
   | [ _ ] -> "(root)"
-  | _ :: top :: _ -> top
+  | [_, top, ...] -> top
   | [] -> "(root)"
 
 

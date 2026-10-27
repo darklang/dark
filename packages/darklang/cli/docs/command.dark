@@ -303,7 +303,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Topics.formatTopicList ())
     state
 
-  | topicName :: rest ->
+  | [topicName, ...rest] ->
     match dispatchLive state topicName rest with
     | Some newState -> newState
     | None ->

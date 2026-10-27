@@ -352,7 +352,7 @@ let executeMergeCmd (state: AppState) (args: List<String>) : AppState =
       f != "-y" && f != "--yes" && f != "--allow-type-errors" && f != "--dry-run")
 
   match unknown with
-  | bad :: _ ->
+  | [bad, ...] ->
     Cli.printErr $"unknown flag: {bad}"
     Cli.printHint "usage: dark merge [branch] [-y] [--allow-type-errors] [--dry-run]"
     { state with exitCode = 1 }

@@ -164,7 +164,7 @@ let branchName (branchId: Uuid) : String =
         "SELECT name FROM branches WHERE id = @p0 LIMIT 1"
         [ Stdlib.toString branchId ]
     with
-    | Ok(row :: _) ->
+    | Ok([row, ...]) ->
       match Stdlib.Sqlite.textField row "name" with
       | Some name -> if name == "" then fallback else name
       | None -> fallback
@@ -238,7 +238,7 @@ let branchIsMerged (branchId: Uuid) : Bool =
       "SELECT 1 AS n FROM branches WHERE id = @p0 AND merged_at IS NOT NULL"
       [ Stdlib.toString branchId ]
   with
-  | Ok(_ :: _) -> true
+  | Ok([_, ...]) -> true
   | _ -> false
 
 

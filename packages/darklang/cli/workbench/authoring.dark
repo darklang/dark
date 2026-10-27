@@ -64,7 +64,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
   let srcLines = Stdlib.String.split rawSource "\n"
   let (targetMod, fullSource) =
     match srcLines with
-    | first :: rest ->
+    | [first, ...rest] ->
       let firstT = Stdlib.String.trim first
       if Stdlib.String.startsWith firstT "module " then
         let modStr = Stdlib.String.trim (Stdlib.String.dropFirst firstT (Stdlib.String.length "module "))
@@ -304,27 +304,27 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
   let kindAndSrc =
     if item.kind == "type" then
       match results.types with
-      | i :: _ -> Stdlib.Option.Option.Some(("type", PrettyPrinter.ProgramTypes.packageType ctx i.entity))
+      | [i, ...] -> Stdlib.Option.Option.Some(("type", PrettyPrinter.ProgramTypes.packageType ctx i.entity))
       | [] -> Stdlib.Option.Option.None
     else if item.kind == "val" then
       match results.values with
-      | i :: _ -> Stdlib.Option.Option.Some(("value", PrettyPrinter.ProgramTypes.packageValue ctx i.entity))
+      | [i, ...] -> Stdlib.Option.Option.Some(("value", PrettyPrinter.ProgramTypes.packageValue ctx i.entity))
       | [] -> Stdlib.Option.Option.None
     else if item.kind == "test" then
       match results.tests with
-      | i :: _ -> Stdlib.Option.Option.Some(("test", PrettyPrinter.ProgramTypes.packageTest ctx i.entity))
+      | [i, ...] -> Stdlib.Option.Option.Some(("test", PrettyPrinter.ProgramTypes.packageTest ctx i.entity))
       | [] -> Stdlib.Option.Option.None
     else if item.kind == "fn" then
       match results.fns with
-      | i :: _ -> Stdlib.Option.Option.Some(("fn", PrettyPrinter.ProgramTypes.packageFn ctx i.entity))
+      | [i, ...] -> Stdlib.Option.Option.Some(("fn", PrettyPrinter.ProgramTypes.packageFn ctx i.entity))
       | [] -> Stdlib.Option.Option.None
     else if item.kind == "trait" then
       match results.traits with
-      | i :: _ -> Stdlib.Option.Option.Some(("trait", PrettyPrinter.ProgramTypes.packageTrait ctx i.entity))
+      | [i, ...] -> Stdlib.Option.Option.Some(("trait", PrettyPrinter.ProgramTypes.packageTrait ctx i.entity))
       | [] -> Stdlib.Option.Option.None
     else if item.kind == "impl" then
       match results.impls with
-      | i :: _ -> Stdlib.Option.Option.Some(("impl", PrettyPrinter.ProgramTypes.packageImpl ctx i.entity))
+      | [i, ...] -> Stdlib.Option.Option.Some(("impl", PrettyPrinter.ProgramTypes.packageImpl ctx i.entity))
       | [] -> Stdlib.Option.Option.None
     else
       Stdlib.Option.Option.None

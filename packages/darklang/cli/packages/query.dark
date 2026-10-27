@@ -107,7 +107,7 @@ let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResult
   |> Stdlib.List.filterMap (fun modulePath ->
     match Stdlib.List.drop modulePath currentPathLength with
     | [] -> Stdlib.Option.Option.None
-    | nextPart :: _ ->
+    | [nextPart, ...] ->
       if Stdlib.String.isEmpty nextPart then
         Stdlib.Option.Option.None
       else

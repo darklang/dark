@@ -86,7 +86,7 @@ let countNewlines (blob: Bytes) : Int =
 let dropThroughFirstNewline (bytes: List<UInt8>) : List<UInt8> =
   match bytes with
   | [] -> []
-  | byte :: remaining ->
+  | [byte, ...remaining] ->
     if byte == 10uy then remaining
     else dropThroughFirstNewline remaining
 
@@ -367,7 +367,7 @@ let globMatchSegments
     match pathSegs with
     | [] -> true
     | _ -> false
-  | patHead :: patTail ->
+  | [patHead, ...patTail] ->
     if patHead == "**" then
       // ** matches zero or more path segments.
       // Try consuming 0 segments (match rest of pattern against current path),
@@ -375,11 +375,11 @@ let globMatchSegments
       (globMatchSegments patTail pathSegs)
       || (match pathSegs with
           | [] -> false
-          | _ :: pathTail -> globMatchSegments patternSegs pathTail)
+          | [_, ...pathTail] -> globMatchSegments patternSegs pathTail)
     else
       match pathSegs with
       | [] -> false
-      | pathHead :: pathTail ->
+      | [pathHead, ...pathTail] ->
         (Stdlib.Cli.File.__globMatches patHead pathHead true)
         && (globMatchSegments patTail pathTail)
 
@@ -740,11 +740,11 @@ let __globClassEnd
   (reversedName: List<UInt8>)
   : Option.Option<(String * List<UInt8>)> =
   match bytes with
-  | 58uy :: 93uy :: rest ->
+  | [58uy, 93uy, ...rest] ->
     let name =
       Stdlib.String.fromByteListWithReplacement (Stdlib.List.reverse reversedName)
     Some ((name, rest))
-  | c :: rest -> __globClassEnd rest (Stdlib.List.prepend reversedName c)
+  | [c, ...rest] -> __globClassEnd rest (Stdlib.List.prepend reversedName c)
   | [] -> None
 
 /// Interpret an escaped byte or a single-byte collating/equivalence symbol.
@@ -754,11 +754,11 @@ let __globClassChar
   : (UInt8 * List<UInt8>) =
   if c == 92uy then
     match rest with
-    | escaped :: after -> (escaped, after)
+    | [escaped, ...after] -> (escaped, after)
     | [] -> (c, rest)
   else if c == 91uy then
     match rest with
-    | marker :: symbol :: closing :: 93uy :: after ->
+    | [marker, symbol, closing, 93uy, ...after] ->
       if (marker == 46uy || marker == 61uy) && closing == marker then
         (symbol, after)
       else (c, rest)
@@ -774,18 +774,18 @@ let __globClassItems
   : Option.Option<(List<UInt8> * Bool * Bool)> =
   match bytes with
   | [] -> None
-  | 91uy :: 58uy :: name ->
+  | [91uy, 58uy, ...name] ->
     match __globClassEnd name [] with
     | None -> None
     | Some ((name, after)) ->
       __globClassItems after c false (matched || __globNamedClass name c)
         (valid && __globKnownClass name)
-  | head :: rest ->
+  | [head, ...rest] ->
     if head == 93uy && Stdlib.Bool.not first then Some ((rest, matched, valid))
     else
       let (low, next) = __globClassChar head rest
       match next with
-      | 45uy :: highHead :: highTail when highHead != 93uy ->
+      | [45uy, highHead, ...highTail] when highHead != 93uy ->
         let (high, after) = __globClassChar highHead highTail
         __globClassItems after c false (matched || (c >= low && c <= high)) valid
       | _ -> __globClassItems next c false (matched || c == low) valid
@@ -796,7 +796,7 @@ let __globBracket
   : Option.Option<(List<UInt8> * Bool)> =
   let inverted =
     match bytes with
-    | first :: _ -> first == 33uy || first == 94uy
+    | [first, ...] -> first == 33uy || first == 94uy
     | [] -> false
   let items = if inverted then Stdlib.List.drop bytes 1 else bytes
   match __globClassItems items c true false true with
@@ -811,25 +811,25 @@ let __globMatchBytes
   : Bool =
   match pattern with
   | [] -> text == []
-  | 42uy :: rest ->
+  | [42uy, ...rest] ->
     // Adjacent stars are equivalent; collapse them before backtracking.
     let after = Stdlib.List.dropWhile rest (fun c -> c == 42uy)
     if __globMatchBytes after text pathname then true
     else
       match text with
-      | c :: tail ->
+      | [c, ...tail] ->
         (Stdlib.Bool.not pathname || c != 47uy)
         && __globMatchBytes pattern tail pathname
       | [] -> false
-  | p :: rest ->
+  | [p, ...rest] ->
     match text with
     | [] -> false
-    | c :: tail ->
+    | [c, ...tail] ->
       if p == 63uy then
         (Stdlib.Bool.not pathname || c != 47uy) && __globMatchBytes rest tail pathname
       else if p == 92uy then
         match rest with
-        | escaped :: after -> escaped == c && __globMatchBytes after tail pathname
+        | [escaped, ...after] -> escaped == c && __globMatchBytes after tail pathname
         | [] -> false
       else if p == 91uy then
         match __globBracket rest c with

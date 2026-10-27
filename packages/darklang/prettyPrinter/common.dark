@@ -98,7 +98,7 @@ let formatFieldName (name: String) : String =
   let hasBareShape =
     match Stdlib.String.toList name with
     | [] -> false
-    | first :: rest -> (isStart first) && (rest |> Stdlib.List.all isCont)
+    | [first, ...rest] -> (isStart first) && (rest |> Stdlib.List.all isCont)
 
   // Keep this list in sync with the lexer's `keyword` function
   // (backend/src/LibParser/Lexer.fs). `def` is intentionally not reserved.
@@ -191,7 +191,7 @@ let shortenName
 
     let remaining =
       match fullPath with
-      | "Darklang" :: "Stdlib" :: _ when shared == 0 -> Stdlib.List.drop fullPath 1
+      | ["Darklang", "Stdlib", ...] when shared == 0 -> Stdlib.List.drop fullPath 1
       | _ when shared == 0 && scaffoldingOwner -> Stdlib.List.drop fullPath 1
       | _ -> remaining
 

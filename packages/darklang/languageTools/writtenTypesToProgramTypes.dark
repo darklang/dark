@@ -463,7 +463,7 @@ module Expr =
         // Or-patterns require all branches to bind the same names.
         // Take the first branch's bindings as representative.
         match patterns with
-        | first :: _ -> bindings first
+        | [first, ...] -> bindings first
         | [] -> []
       | _ -> []
 
@@ -1865,7 +1865,7 @@ let implWithOps
 
   let (implModules, implName) =
     match Stdlib.List.reverse memberPath with
-    | name :: revModules -> (Stdlib.List.reverse revModules, name)
+    | [name, ...revModules] -> (Stdlib.List.reverse revModules, name)
     | [] -> ([], implDecl.trait_.typ.name)
 
   let pi = { pi with hash = locationPlaceholderHash ctx.owner implModules implName }

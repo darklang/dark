@@ -57,7 +57,7 @@ let perElement (cost: Int) : Unit =
     match Stdlib.String.split stats "\"instructions\":" with
     | [ _, rest ] ->
       match Stdlib.String.split rest "," with
-      | n :: _ -> n
+      | [n, ...] -> n
       | [] -> "?"
     | _ -> "?"
   Builtin.debug "instructions for 64 elements" (cost, count)

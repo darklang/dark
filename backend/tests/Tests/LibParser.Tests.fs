@@ -589,7 +589,7 @@ let private parserStructureTests =
               { pat = WT.MPEnum(_, (_, "Error"), _) } ] -> ()
           | other -> failtest $"cases: {other}"
         | other -> failtest $"match: {other}"
-        match (P.parse "match xs with | [] -> 0L | h :: t -> h").parsed with
+        match (P.parse "match xs with | [] -> 0L | [h, ...t] -> h").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EMatch(_,
                                                          _,
                                                          [ _
@@ -1163,7 +1163,7 @@ let private validationTests =
       testCase
         "match binding collection preserves order across pattern shapes"
         (fun _ ->
-          let sf = sourceFile "match x with | (Some a, [a, a], a :: a, a) -> a"
+          let sf = sourceFile "match x with | (Some a, [a, a], [a, ...a], a) -> a"
           let issues =
             Validation.validateStructure sf
             |> List.filter (fun issue -> issue.code = Validation.DuplicateBinder)
@@ -1576,24 +1576,75 @@ let private typeTests =
 let private recoveryTests =
   testList
     "recovery"
-    [ testCase "reserved expression syntax diagnoses explicitly" (fun _ ->
-        // `<<`, `>>`, `&`, `|`, `^` and `~` used to be here; they are real
-        // operators now. `...` is the only token left that is reserved and
-        // still unsupported.
-        for source in [ "..." ] do
+    [ testCase "operators Dark does not have say what to write instead" (fun _ ->
+        for (source, says) in
+          [ "match xs with | h :: t -> h", "a list is `[head, ...tail]`"
+            "1L :: []", "a list is `[head, ...tail]`"
+            "[1L] @ [2L]", "join lists with `[...a, ...b]`"
+            "(@)", "join lists with `[...a, ...b]`"
+            "\"a\" ++ \"b\"", "join Strings with `+`"
+            "...", "only goes inside a list"
+            "match xs with | ... -> xs", "only goes last inside a list pattern" ] do
           Expect.exists
             (P.parse source).diagnostics
-            (fun diagnostic ->
-              diagnostic.message.Contains "reserved but not supported")
-            $"unsupported diagnostic for {source}")
+            (fun diagnostic -> diagnostic.message.Contains says)
+            $"{source} should say {says}")
 
-      testCase "rest patterns diagnose explicitly" (fun _ ->
-        Expect.exists
-          (P.parse "match xs with | ... -> xs").diagnostics
-          (fun diagnostic ->
-            diagnostic.message.Contains
-              "rest patterns are reserved but not supported")
-          "unsupported rest-pattern diagnostic")
+      testCase "a rest element goes last, and binds a name or _" (fun _ ->
+        for (source, says) in
+          [ "match xs with | [...t, h] -> h", "must be the last element"
+            "match xs with | [h, ...[t]] -> h", "takes a name for the rest"
+            "match xs with | [...t] -> t", "write `t`" ] do
+          Expect.exists
+            (P.parse source).diagnostics
+            (fun diagnostic -> diagnostic.message.Contains says)
+            $"{source} should say {says}")
+
+      testCase "[a, b, ...t] is a cons chain" (fun _ ->
+        let result =
+          P.parse
+            "match xs with | [a, b, ...t] -> a | [c, ..._] -> c | [d, ...] -> d"
+        Expect.isEmpty result.diagnostics "parses clean"
+        match result.parsed with
+        | Some(WT.SourceFile { exprsToEval = [ WT.EMatch(_, _, cases, _, _) ] }) ->
+          match cases with
+          | [ { pat = WT.MPListCons(_,
+                                    WT.MPVariable(_, "a"),
+                                    WT.MPListCons(_,
+                                                  WT.MPVariable(_, "b"),
+                                                  WT.MPVariable(_, "t"),
+                                                  _),
+                                    _) }
+              { pat = WT.MPListCons(_,
+                                    WT.MPVariable(_, "c"),
+                                    WT.MPVariable(_, "_"),
+                                    _) }
+              { pat = WT.MPListCons(_,
+                                    WT.MPVariable(_, "d"),
+                                    WT.MPVariable(_, "_"),
+                                    _) } ] -> ()
+          | other -> failtest $"cases: {other}"
+        | other -> failtest $"match: {other}")
+
+      testCase "spreads in a list literal become concat and flatten" (fun _ ->
+        let callee source =
+          let result = P.parse source
+          Expect.isEmpty result.diagnostics $"{source} parses clean"
+          match result.parsed with
+          | Some(WT.SourceFile { exprsToEval = [ WT.EApply(_,
+                                                           WT.EFnName(_, name),
+                                                           [],
+                                                           args) ] }) ->
+            (name.fn.name, List.length args)
+          | Some(WT.SourceFile { exprsToEval = [ e ] }) -> (string e, -1)
+          | other -> failtest $"{source}: {other}"
+        Expect.equal (callee "[...a, ...b]") ("concat", 2) "two spreads"
+        Expect.equal (callee "[x, ...xs]") ("concat", 2) "prepend"
+        Expect.equal (callee "[...xs, x]") ("concat", 2) "append"
+        Expect.equal (callee "[a, ...b, c]") ("flatten", 1) "three segments"
+        match (P.parse "[...xs]").parsed with
+        | Some(WT.SourceFile { exprsToEval = [ WT.EVariable(_, "xs") ] }) -> ()
+        | other -> failtest $"a lone spread is the list itself: {other}")
 
       testCase "def remains an ordinary identifier" (fun _ ->
         let result = P.parse "def"
@@ -1981,7 +2032,7 @@ let private fuzzTests =
   let seeds =
     [ "let f (x: Int64) : Int64 =\n  let y = x + 1L\n  y * 2L"
       "module A.B\ntype T = { a: Int64, b: List<String> }\nlet v = T { a = 1L, b = [] }"
-      "match xs with\n| [] -> 0L\n| h :: t -> h + (sum t)\n| _ -> $\"n {h} m\""
+      "match xs with\n| [] -> 0L\n| [h, ...t] -> h + (sum t)\n| _ -> $\"n {h} m\""
       "[1L, 2L] |> Stdlib.List.map (fun x -> x * 2L) |> (+) \"s\""
       "type E = | A of Int64 * String | B\nlet g () : E = A(1L, \"x\")" ]
   testList
@@ -2183,10 +2234,6 @@ let private internalUnitTests =
           Expect.isTrue (bp Tok.TShl < bp Tok.TPlus) "<< looser than +"
           // right-assoc ops
           Expect.equal
-            (P.infixBindingPower Tok.TAt |> Option.map snd)
-            (Some true)
-            "@ is right-assoc"
-          Expect.equal
             (P.infixBindingPower Tok.TStarStar |> Option.map snd)
             (Some true)
             "** is right-assoc"
@@ -2297,8 +2344,8 @@ let private stackSafetyTests =
           "right-associated operators", String.replicate 2000 "1L ** " + "1L"
           "validation of left-associated operators",
           String.replicate 2000 "1L + " + "1L"
-          "cons patterns",
-          "match xs with | " + String.replicate 2000 "x :: " + "[] -> 1L"
+          "rest patterns",
+          "match xs with | [" + String.replicate 2000 "x, " + "...rest] -> 1L"
           "let patterns",
           "let "
           + String.replicate 2000 "(x, "

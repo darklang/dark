@@ -187,7 +187,7 @@ let checkTypeStructures
   // arguments or a function's parameters, so the recursion is as shallow as the list is short.
   match tys with
   | [] -> (names, found)
-  | t :: rest ->
+  | [t, ...rest] ->
     let (names, found) = checkTypeStructure env at names found t
     checkTypeStructures env at names found rest
 
@@ -228,7 +228,7 @@ let aliasEdgesIn
   : List<LanguageTools.ProgramTypes.Hash> =
   match typs with
   | [] -> found
-  | t :: rest -> aliasEdgesIn env (aliasEdges env found t) rest
+  | [t, ...rest] -> aliasEdgesIn env (aliasEdges env found t) rest
 
 /// Determine whether expanding this alias can reach an alias cycle, even if the
 /// alias itself is outside the cycle. known caches completed answers; expanding
@@ -267,7 +267,7 @@ let anyReachesAliasCycle
   : (Bool * Dict<LanguageTools.ProgramTypes.Hash, Bool>) =
   match names with
   | [] -> (false, known)
-  | name :: rest ->
+  | [name, ...rest] ->
     let (answer, known) = reachesAliasCycle env known expanding name
     if answer then (true, known) else anyReachesAliasCycle env known expanding rest
 
@@ -439,7 +439,7 @@ let connectSuccessors
   : Components =
   match successors with
   | [] -> components
-  | successor :: rest ->
+  | [successor, ...rest] ->
     let components =
       if Stdlib.Bool.not (Stdlib.Dict.containsKey components.index successor) then
         let components = strongConnect env components successor
@@ -477,7 +477,7 @@ let popComponent
   match components.stack with
   | [] ->
     { components with completed = Stdlib.List.prepend components.completed members }
-  | top :: rest ->
+  | [top, ...rest] ->
     let components =
       { components with
           stack = rest
@@ -589,7 +589,7 @@ let visitAll
   : (Dict<LanguageTools.ProgramTypes.Hash, Bool> * List<Model.Finding>) =
   match pending with
   | [] -> (walked, found)
-  | name :: rest ->
+  | [name, ...rest] ->
     if Stdlib.Dict.containsKey walked name then
       visitAll env at walked found rest
     else

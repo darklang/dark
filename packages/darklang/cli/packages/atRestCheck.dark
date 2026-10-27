@@ -71,7 +71,7 @@ let deduplicate
   : List<LanguageTools.AtRestTypeChecker.Issue> =
   match issues with
   | [] -> []
-  | issue :: rest ->
+  | [issue, ...rest] ->
     let remaining =
       rest
       |> Stdlib.List.filter (fun other ->

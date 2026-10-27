@@ -27,8 +27,8 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.S
   let (pillText, rest) =
     match Stdlib.String.split title "  ·  " with
     | [] -> ("", "")
-    | first :: [] -> (first, "")
-    | first :: more -> (first, Stdlib.String.join more "  ·  ")
+    | [first] -> (first, "")
+    | [first, ...more] -> (first, Stdlib.String.join more "  ·  ")
   let pillPlain = if pillText == "" then "" else " " + pillText + " "
   let pillStyle = if focused then Colors.purpleBg + Colors.white + Colors.bold else Colors.grayBg
   let pill = if pillPlain == "" then "" else Colors.colorize pillStyle pillPlain

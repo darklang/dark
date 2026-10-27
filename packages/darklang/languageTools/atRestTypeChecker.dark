@@ -460,7 +460,7 @@ let siteToString (site: Site) : String =
   | TupleLetPattern -> "a tuple let-pattern"
   | MatchPattern -> "a match pattern"
   | ListPattern -> "a list pattern"
-  | ListConsPattern -> "a list-cons pattern"
+  | ListConsPattern -> "a list pattern with a rest"
   | TupleMatchPattern -> "a tuple match pattern"
   | OrPatternBinding -> "an or-pattern binding"
   | PipelineInput -> "the pipeline input"

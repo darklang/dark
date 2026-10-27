@@ -31,7 +31,7 @@ module PickContext =
 /// Count how many leading segments of two lists match.
 let countMatchingPrefix (a: List<String>) (b: List<String>) : Int =
   match (a, b) with
-  | (aHead :: aTail, bHead :: bTail) ->
+  | ([aHead, ...aTail], [bHead, ...bTail]) ->
     if aHead == bHead then
       1 + (countMatchingPrefix aTail bTail)
     else
@@ -63,7 +63,7 @@ let pickLocation
   match locations with
   | [] -> Stdlib.Option.Option.None
   | [ single ] -> Stdlib.Option.Option.Some single
-  | first :: rest ->
+  | [first, ...rest] ->
     let firstPath = Stdlib.List.prepend first.modules first.owner
     let firstScore = countMatchingPrefix ctx.currentModule firstPath
     let firstLen = Stdlib.List.length firstPath

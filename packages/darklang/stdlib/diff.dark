@@ -22,10 +22,10 @@ let buildTable (oldLines: List<String>) (newLines: List<String>) : List<List<Int
       let (_, _, row) =
         Stdlib.List.fold oldLines (prevRow, 0, [ 0 ]) (fun (prev, left, row) oldLine ->
           match prev with
-          | diag :: rest ->
+          | [diag, ...rest] ->
             let above =
               match rest with
-              | above :: _ -> above
+              | [above, ...] -> above
               | [] -> 0
 
             let cell =
@@ -58,7 +58,7 @@ let trace
   // Row j-2 from column c, for when the walk moves up a row and lands on column c.
   let rowAbove (c: Int) : List<Int> =
     match rest with
-    | r :: _ -> Stdlib.List.drop r (width - c)
+    | [r, ...] -> Stdlib.List.drop r (width - c)
     | [] -> []
 
   match (oldRev, newRev) with
@@ -67,7 +67,7 @@ let trace
     Stdlib.List.fold newRev acc (fun acc n -> Stdlib.List.prepend acc (DiffLine.Added n))
   | (_, []) ->
     Stdlib.List.fold oldRev acc (fun acc o -> Stdlib.List.prepend acc (DiffLine.Removed o))
-  | (o :: oldRest, n :: newRest) ->
+  | ([o, ...oldRest], [n, ...newRest]) ->
     let restRest = Stdlib.List.drop rest 1
 
     if o == n then
@@ -112,7 +112,7 @@ let lines (oldText: String) (newText: String) : List<DiffLine> =
   let width = Stdlib.List.length oldLines
 
   match buildTable oldLines newLines with
-  | row :: rest ->
+  | [row, ...rest] ->
     let prevRow = Stdlib.Option.withDefault (Stdlib.List.head rest) []
 
     trace

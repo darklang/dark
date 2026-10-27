@@ -158,7 +158,7 @@ let getPath (req: Http.Request) : String =
   match pathParts with
   | [] -> "/"
   | [ _ ] -> "/"
-  | _ :: rest ->
+  | [_, ...rest] ->
     let pathWithQuery = String.join rest "/"
     let pathOnlyParts = String.split pathWithQuery "?"
 

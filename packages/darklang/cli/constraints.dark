@@ -456,17 +456,17 @@ let listingUnderstands (args: List<String>) : Bool =
   let understands (rest: List<String>) : Bool =
     match rest with
     | [] -> true
-    | "--json" :: more -> understands more
+    | ["--json", ...more] -> understands more
     | [ "--kind" ] -> true
-    | "--kind" :: _ :: more -> understands more
+    | ["--kind", _, ...more] -> understands more
     | _ -> false
 
   understands args
 
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
-  | "resolve" :: rest -> executeResolve state rest
-  | "ack" :: rest -> executeAck state rest
+  | ["resolve", ...rest] -> executeResolve state rest
+  | ["ack", ...rest] -> executeAck state rest
   | _ ->
     if Stdlib.Bool.not (listingUnderstands args) then
       Cli.printErr $"`dark constraints` doesn't take \"{Stdlib.String.join args " "}\"."

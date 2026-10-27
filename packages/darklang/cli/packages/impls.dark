@@ -53,7 +53,7 @@ let sourceNameOf
   (source: LanguageTools.ProgramTypes.Hash)
   : String =
   match LanguageTools.PackageManager.TraitImpl.locations branchId source with
-  | loc :: _ -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+  | [loc, ...] -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
   | [] -> LanguageTools.ProgramTypes.hashToShort source
 
 
@@ -100,7 +100,7 @@ let printJson
   : Unit =
   let methods =
     match candidates with
-    | c :: _ -> c.methods |> Stdlib.Dict.keys |> Stdlib.List.sort
+    | [c, ...] -> c.methods |> Stdlib.Dict.keys |> Stdlib.List.sort
     | [] -> []
 
   let methodsJson =
@@ -144,7 +144,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       if json then
         let traitName =
           match LanguageTools.PackageManager.Trait.locations state.currentBranchId traitHash with
-          | loc :: _ -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+          | [loc, ...] -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
           | [] -> traitPath
 
         printJson state.currentBranchId traitName candidates
@@ -156,7 +156,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         // Sorted, because the store returns candidates in whatever order its index does.
         let methodNames =
           match candidates with
-          | c :: _ -> c.methods |> Stdlib.Dict.keys |> Stdlib.List.sort |> Stdlib.String.join ", "
+          | [c, ...] -> c.methods |> Stdlib.Dict.keys |> Stdlib.List.sort |> Stdlib.String.join ", "
           | [] -> ""
 
         Stdlib.printLine $"{traitPath}  ({methodNames})"
