@@ -5,27 +5,27 @@
 module Darklang.Cli.Workbench
 
 /// A compact description of how long ago `d` occurred.
-let ago (d: DateTime) : String =
-  let secs = Stdlib.DateTime.subtract (Stdlib.DateTime.now ()) d
+let ago(d: DateTime): String =
+  let secs = Stdlib.DateTime.subtract(Stdlib.DateTime.now(), d)
   if secs < 60 then "just now"
-  else if secs < 3600 then (Stdlib.toString (secs / 60)) + "m ago"
-  else if secs < 86400 then (Stdlib.toString (secs / 3600)) + "h ago"
+  else if secs < 3600 then (Stdlib.toString(secs / 60)) + "m ago"
+  else if secs < 86400 then (Stdlib.toString(secs / 3600)) + "h ago"
   else if secs < 172800 then "yesterday"
-  else (Stdlib.toString (secs / 86400)) + " days ago"
+  else (Stdlib.toString(secs / 86400)) + " days ago"
 
 /// Is this row a section header - a label the cursor skips over? Home is the
 /// view that has them (`ViewBehavior.SectionedList`).
-let isSectionHeader (item: BodyItem) : Bool = item.kind == "home-sec"
+let isSectionHeader(item: BodyItem): Bool = item.kind == "home-sec"
 
-let homeHeader (label: String) : BodyItem =
+let homeHeader(label: String): BodyItem =
   BodyItem { name = label, kind = "home-sec", isModule = false, desc = "" }
 
 /// The same, for a stamp stored as text. A commit's `origin_ts` is a portable authoring stamp rather than
 /// a clock reading, so it arrives as a string; raw, it puts an ISO timestamp in the middle of a
 /// sentence.
-let agoText (ts: String) : String =
-  match Stdlib.DateTime.parse ts with
-  | Ok d -> ago d
+let agoText(ts: String): String =
+  match Stdlib.DateTime.parse(ts) with
+  | Ok d -> ago(d)
   | Error _ -> ts
 
 
@@ -38,115 +38,115 @@ val homeBranchCap = 8
 /// What needs you, then the branch you are on, then recent work, then where
 /// else you could be. Load only on transitions; rendering Home does not
 /// query the store.
-let loadHomeItems (branchId: Uuid) : List<BodyItem> =
-  loadHomeItemsFrom branchId (SCM.Draft.read ())
+let loadHomeItems(branchId: Uuid): List<BodyItem> =
+  loadHomeItemsFrom(branchId, SCM.Draft.read())
 
 /// `loadHomeItems` over a draft already read, so opening the workbench reads it once.
-let loadHomeItemsFrom (branchId: Uuid) (draft: SCM.Draft.Picture) : List<BodyItem> =
-  let row (name: String) (kind: String) (desc: String) : BodyItem =
+let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> =
+  let row(name: String, kind: String, desc: String): BodyItem =
     BodyItem { name = name, kind = kind, isModule = false, desc = desc }
-  let conflictCount = Stdlib.List.length draft.conflicts
+  let conflictCount = Stdlib.List.length(draft.conflicts)
   // The branch you are on: its uncommitted work in one line. ⏎ opens Changes.
   let here =
-    let changed = Stdlib.List.length draft.bindings
+    let changed = Stdlib.List.length(draft.bindings)
     let last =
-      match Stdlib.List.head (SCM.PackageOps.commitsOnBranch branchId 1L) with
-      | Some c -> "last commit " + (agoText c.originTs)
+      match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(branchId, 1L)) with
+      | Some c -> "last commit " + (agoText(c.originTs))
       | None -> "no commits yet"
     let desc =
-      Stdlib.List.filter
-        [ (if changed == 0 then "nothing uncommitted" else plural changed "uncommitted change")
-          (if conflictCount == 0 then "" else plural conflictCount "conflict")
-          last ]
-        (fun part -> part != "")
-      |> Stdlib.String.join " · "
-    [ row ((branchMarker true) + (SCM.PackageOps.branchName branchId)) "home-here" desc ]
+      Stdlib.List.filter(
+        [ (if changed == 0 then "nothing uncommitted" else plural(changed, "uncommitted change"))
+          (if conflictCount == 0 then "" else plural(conflictCount, "conflict"))
+          last ],
+        fun part -> part != "")
+      |> Stdlib.String.join(" · ")
+    [ row((branchMarker(true)) + (SCM.PackageOps.branchName(branchId)), "home-here", desc) ]
   let attention =
-    Stdlib.List.flatten
+    Stdlib.List.flatten(
       [ if conflictCount == 0 then []
-        else [ row (plural conflictCount "conflict") "home-conflicts" "review" ]
+        else [ row(plural(conflictCount, "conflict"), "home-conflicts", "review") ]
         if draft.constraints == 0 then []
         else
-          [ row (plural draft.constraints "outdated usage")
-              "home-constraints" "review" ] ]
+          [ row(plural(draft.constraints, "outdated usage"),
+              "home-constraints", "review") ] ])
   // Recent work belongs on Home even when the current branch has no commits.
   let recent =
     let commits =
-      SCM.Commits.recent 30L
-      |> Stdlib.List.take homeCommitCap
-      |> Stdlib.List.map (fun c ->
-        row c.message "home-commit" (agoText c.originTs))
-    let total = SCM.Commits.count ()
-    let hiddenCommits = (Stdlib.Int.fromInt64 total) - homeCommitCap
+      SCM.Commits.recent(30L)
+      |> Stdlib.List.take(homeCommitCap)
+      |> Stdlib.List.map(fun c ->
+        row(c.message, "home-commit", agoText(c.originTs)))
+    let total = SCM.Commits.count()
+    let hiddenCommits = (Stdlib.Int.fromInt64(total)) - homeCommitCap
     let more =
       if hiddenCommits <= 0 then []
       else
-        [ row ("+ " + (plural hiddenCommits "more commit")) "home-more-commits"
-            "⏎ list them" ]
+        [ row("+ " + (plural(hiddenCommits, "more commit")), "home-more-commits",
+            "⏎ list them") ]
     // Hide the section only when the whole store has no commits.
-    Stdlib.List.concat commits more
+    Stdlib.List.concat(commits, more)
   let openBranches =
-    SCM.Branch.list () |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
+    SCM.Branch.list() |> Stdlib.List.filter(fun b -> Stdlib.Bool.not(b.merged))
   // Keep the current branch visible even when the rest of the list is capped.
   let ordered =
-    Stdlib.List.concat
-      (openBranches |> Stdlib.List.filter (fun b -> b.id == branchId))
-      (openBranches |> Stdlib.List.filter (fun b -> b.id != branchId))
-  let branchRow (id: Uuid) (name: String) : BodyItem =
+    Stdlib.List.concat(
+      openBranches |> Stdlib.List.filter(fun b -> b.id == branchId),
+      openBranches |> Stdlib.List.filter(fun b -> b.id != branchId))
+  let branchRow(id: Uuid, name: String): BodyItem =
     let current = id == branchId
     let hasDraft =
       if current then draft.ops > 0L
-      else SCM.PackageOps.draftOpCountFor id > 0L
+      else SCM.PackageOps.draftOpCountFor(id) > 0L
     let last =
-      match Stdlib.List.head (SCM.PackageOps.commitsOnBranch id 1L) with
-      | Some c -> agoText c.originTs
+      match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(id, 1L)) with
+      | Some c -> agoText(c.originTs)
       | None -> ""
     let desc =
-      Stdlib.List.filter
+      Stdlib.List.filter(
         [ (if current then "current" else "")
           (if hasDraft then "draft" else "")
-          last ]
-        (fun part -> part != "")
-      |> Stdlib.String.join " · "
-    row ((branchMarker current) + name) "home-branch" desc
+          last ],
+        fun part -> part != "")
+      |> Stdlib.String.join(" · ")
+    row((branchMarker(current)) + name, "home-branch", desc)
   let branches =
-    Stdlib.List.prepend
-      (Stdlib.List.take ordered homeBranchCap |> Stdlib.List.map (fun b -> branchRow b.id b.name))
-      (branchRow SCM.Branch.mainBranchId SCM.Branch.mainBranchName)
-  let hidden = (Stdlib.List.length ordered) - homeBranchCap
+    Stdlib.List.prepend(
+      Stdlib.List.take(ordered, homeBranchCap) |> Stdlib.List.map(fun b -> branchRow(b.id, b.name)),
+      branchRow(SCM.Branch.mainBranchId, SCM.Branch.mainBranchName))
+  let hidden = (Stdlib.List.length(ordered)) - homeBranchCap
   let more =
     if hidden <= 0 then []
     else
       let label = if hidden == 1 then " more branch" else " more branches"
-      [ row ("+ " + (Stdlib.toString hidden) + label)
-          "home-more" "⏎ choose a branch" ]
-  let section (label: String) (rows: List<BodyItem>) : List<BodyItem> =
-    if Stdlib.List.isEmpty rows then []
-    else Stdlib.List.concat [ homeHeader "", homeHeader label ] rows
-  Stdlib.List.flatten
-    [ section "needs attention" attention
-      section "this branch" here
-      section "recent commits" recent
-      section "branches" (Stdlib.List.concat branches more) ]
-  |> Stdlib.List.drop 1
+      [ row("+ " + (Stdlib.toString(hidden)) + label,
+          "home-more", "⏎ choose a branch") ]
+  let section(label: String, rows: List<BodyItem>): List<BodyItem> =
+    if Stdlib.List.isEmpty(rows) then []
+    else Stdlib.List.concat([ homeHeader(""), homeHeader(label) ], rows)
+  Stdlib.List.flatten(
+    [ section("needs attention", attention)
+      section("this branch", here)
+      section("recent commits", recent)
+      section("branches", Stdlib.List.concat(branches, more)) ])
+  |> Stdlib.List.drop(1)
 
 /// The selected row's position among the rows of its own kind - the index the
 /// SCM detail helpers take.
-let homeKindIndex (state: State) : Int =
-  match Stdlib.List.getAt state.items state.selected with
+let homeKindIndex(state: State): Int =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | None -> 0
   | Some item ->
     state.items
-    |> Stdlib.List.take state.selected
-    |> Stdlib.List.filter (fun it -> it.kind == item.kind)
+    |> Stdlib.List.take(state.selected)
+    |> Stdlib.List.filter(fun it -> it.kind == item.kind)
     |> Stdlib.List.length
 
 /// Is the cursor on the row of the branch you're on? Main included, which
 /// `selectedBranch` cannot name.
-let homeRowIsCurrentBranch (state: State) : Bool =
-  if cursorOnMainRow state then SCM.Branch.isMain state.branchId
+let homeRowIsCurrentBranch(state: State): Bool =
+  if cursorOnMainRow(state) then SCM.Branch.isMain(state.branchId)
   else
-    match selectedBranch state with
+    match selectedBranch(state) with
     | Some b -> b.id == state.branchId
     | None -> false
 
@@ -154,42 +154,42 @@ let homeRowIsCurrentBranch (state: State) : Bool =
 /// The conflict summary and the branch you are on open Changes (conflicts sit
 /// at its top); a commit opens its ops in the reader, and the "more" rows
 /// open the full lists there; another branch switches to it.
-let openHomeRow (state: State) : Step =
-  match Stdlib.List.getAt state.items state.selected with
+let openHomeRow(state: State): Step =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | None -> Step.Continue state
   | Some item ->
     if (item.kind == "home-conflicts") || (item.kind == "home-here") then
-      let moved = goTo state (mkDest vSCM 0) false
+      let moved = goTo(state, mkDest(vSCM, 0), false)
       Step.Continue { moved with selected = 0 }
     else if item.kind == "home-constraints" then
-      runCommandInFrame state "constraints" []
+      runCommandInFrame(state, "constraints", [])
     else if item.kind == "home-commit" then
       // Home's commits are the head of the same store-wide order the reader indexes.
-      openReader state (commitOpsText state.branchId (homeKindIndex state)) false
+      openReader(state, commitOpsText(state.branchId, homeKindIndex(state)), false)
     else if item.kind == "home-branch" then
-      match branchRowTarget state with
+      match branchRowTarget(state) with
       | Some target ->
         let (id, name) = target
         if id == state.branchId then
           // The branch you're on: nothing to switch to, so ⏎ opens its
           // uncommitted work. A toast saying "already on it" answered a
           // question nobody had asked.
-          Step.Continue (goTo state (mkDest vSCM 0) false)
+          Step.Continue (goTo(state, mkDest(vSCM, 0), false))
         else
-          Step.Continue (switchWorkbenchBranch state id name)
+          Step.Continue (switchWorkbenchBranch(state, id, name))
       | None -> Step.Continue state
     else if item.kind == "home-more-commits" then
-      openReader state (commitListText ()) false
+      openReader(state, commitListText(), false)
     else if item.kind == "home-more" then
-      openBranchPicker state
+      openBranchPicker(state)
     else
       Step.Continue state
 
 /// Home uses the whole frame, one column, no inspector.
-let renderHome
-  (state: State)
-  (region: Stdlib.Cli.UI.Layout.Region)
+let renderHome(
+  state: State,
+  region: Stdlib.Cli.UI.Layout.Region)
   : List<Stdlib.Cli.UI.Layout.Span> =
-  Stdlib.List.flatten
-    [ frameWithTitles region "" "" (0 - 1)
-      renderTreeList state (paneContent region) ]
+  Stdlib.List.flatten(
+    [ frameWithTitles(region, "", "", 0 - 1)
+      renderTreeList(state, paneContent(region)) ])

@@ -1,19 +1,19 @@
 module Darklang.Cli.Packages.Type
 
 
-let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   match args with
   | [] ->
-    Stdlib.printLine (help state)
+    Stdlib.printLine(help(state))
     state
 
   // type SomeModule.myType = definition
   | location :: definitionParts ->
-    let inlineDefinition = Packages.definitionFromArgs definitionParts
+    let inlineDefinition = Packages.definitionFromArgs(definitionParts)
 
-    if Stdlib.String.isEmpty inlineDefinition then
+    if Stdlib.String.isEmpty(inlineDefinition) then
       [
-        (Stdlib.Cli.UI.Colors.error "Error: Inline type definition required")
+        (Stdlib.Cli.UI.Colors.error("Error: Inline type definition required"))
         ""
         "Usage: type <location> <definition>"
         "       type <location> -    (read definition from stdin, for multi-line input)"
@@ -24,57 +24,57 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ""
       ] |> Stdlib.printLines
 
-      Cli.exitWith state false
+      Cli.exitWith(state, false)
     else
-      createTypeInline
-        state.packageData.currentLocation
-        location
-        inlineDefinition
-        state
+      createTypeInline(
+        state.packageData.currentLocation,
+        location,
+        inlineDefinition,
+        state)
 
 
-let createTypeInline
-  (currentLocation: Packages.PackageLocation)
-  (locationStr: String)
-  (definition: String)
-  (state: Cli.AppState)
+let createTypeInline(
+  currentLocation: Packages.PackageLocation,
+  locationStr: String,
+  definition: String,
+  state: Cli.AppState)
   : Cli.AppState =
-  match Location.parseRelativeTo currentLocation locationStr with
+  match Location.parseRelativeTo(currentLocation, locationStr) with
   | Ok location ->
     let fullSource = $"type {location.name} = {definition}"
 
     let (tree, diagnostics) =
-      LanguageTools.Parser.Parse.parse LanguageTools.Parser.FileKind.Package fullSource
+      LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
 
     match tree with
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
-        (Errors.reportParseErrors diagnostics)
-        || (Errors.reportTrailing sourceFile)
+        (Errors.reportParseErrors(diagnostics))
+        || (Errors.reportTrailing(sourceFile))
       let found =
         if hasParseError then
           Stdlib.Option.Option.None
         else
           sourceFile.declarations
-          |> Stdlib.List.findFirst (fun d ->
+          |> Stdlib.List.findFirst(fun d ->
             match d with
             | Type _ -> true
             | _ -> false)
 
       match found with
       | Some(Type writtenType) ->
-        Packages.saveAuthored
-          state
-          location
-          LanguageTools.ProgramTypes.ItemKind.Type
-          "type"
-          { state with exitCode = 1 }
-          (fun ctx ->
+        Packages.saveAuthored(
+          state,
+          location,
+          LanguageTools.ProgramTypes.ItemKind.Type,
+          "type",
+          { state with exitCode = 1 },
+          fun ctx ->
             let (packageType, unresolvedNames) =
-              LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-                ctx
-                writtenType
+              LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT(
+                ctx,
+                writtenType)
 
             let ops =
               [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
@@ -86,33 +86,33 @@ let createTypeInline
         // a precise parse error was already printed above; don't stack the
         // generic hint on top of it
         if hasParseError then
-          Cli.exitWith state false
+          Cli.exitWith(state, false)
         else
           [
-            (Stdlib.Cli.UI.Colors.error "Failed to parse type definition")
+            (Stdlib.Cli.UI.Colors.error("Failed to parse type definition"))
             ""
             "Make sure your syntax is correct. Examples:"
             "  dark type Me.Demo.Status '| Active | Inactive'"
             "  dark type Me.Demo.User '{ name: String, age: Int }'"
             ""
           ] |> Stdlib.printLines
-          Cli.exitWith state false
+          Cli.exitWith(state, false)
     | None ->
       [
-        (Stdlib.Cli.UI.Colors.error "Failed to parse type definition")
+        (Stdlib.Cli.UI.Colors.error("Failed to parse type definition"))
         ""
         "Make sure your syntax is correct. Examples:"
         "  dark type Me.Demo.Status '| Active | Inactive'"
         "  dark type Me.Demo.User '{ name: String, age: Int }'"
         ""
       ] |> Stdlib.printLines
-      Cli.exitWith state false
+      Cli.exitWith(state, false)
   | Error msg ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid location: {msg}")
-    Cli.exitWith state false
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Invalid location: {msg}"))
+    Cli.exitWith(state, false)
 
 
-let help (_state: Cli.AppState) : String =
+let help(_state: Cli.AppState): String =
   [
     "Create or update a type"
     ""
@@ -143,10 +143,10 @@ let help (_state: Cli.AppState) : String =
     "A leading `/` makes a name absolute (`/Me.Demo.User`); without one it is"
     "relative to the module `nav` put you in."
     ""
-  ] |> Stdlib.String.join "\n"
+  ] |> Stdlib.String.join("\n")
 
 
 /// CLEANUP could offer useful completions: nav-style help on the LHS of the `=`;
 /// probably nothing on the RHS.
-let complete (_state: Cli.AppState) (_args: List<String>) : List<Cli.Completion.CompletionItem> =
+let complete(_state: Cli.AppState, _args: List<String>): List<Cli.Completion.CompletionItem> =
   []

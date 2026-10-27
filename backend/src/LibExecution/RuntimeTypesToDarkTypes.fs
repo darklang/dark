@@ -731,9 +731,7 @@ module ApplicableLambda =
         ("typeSymbolTable",
          Dval.stringDictFromMap
            (ValueType.knownType ())
-           (TST.map ValueType.toDT lambda.typeSymbolTable))
-        ("argsSoFar",
-         DList(VT.known (Dval.knownType ()), List.map Dval.toDT lambda.argsSoFar)) ]
+           (TST.map ValueType.toDT lambda.typeSymbolTable)) ]
 
     DRecord(typeName, typeName, [], Map fields)
 
@@ -754,7 +752,6 @@ module ApplicableLambda =
           |> Map.toList
           |> TST.ofList
         access = Permissions.Access.start Permissions.Policy.denyAll
-        argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT
         expectedReturn = ValueNone
         writtenIn = ValueNone }
     | _ -> Exception.raiseInternal "Invalid ApplicableLambda" []
@@ -1564,6 +1561,9 @@ module RuntimeError =
         | RuntimeError.Applications.TooManyArgsForFn(fn, expected, actual) ->
           "TooManyArgsForFn",
           [ FQFnName.toDT fn; dintOfInt expected; dintOfInt actual ]
+        | RuntimeError.Applications.TooFewArgsForFn(fn, expected, actual) ->
+          "TooFewArgsForFn",
+          [ FQFnName.toDT fn; dintOfInt expected; dintOfInt actual ]
         | RuntimeError.Applications.FnParameterNotExpectedType(fnName,
                                                                paramIndex,
                                                                paramName,
@@ -1625,6 +1625,12 @@ module RuntimeError =
           "TooManyArgsForLambda",
           [ DUInt64 lambdaExprId; dintOfInt expected; dintOfInt actual ]
 
+        | RuntimeError.Applications.TooFewArgsForLambda(lambdaExprId,
+                                                        expected,
+                                                        actual) ->
+          "TooFewArgsForLambda",
+          [ DUInt64 lambdaExprId; dintOfInt expected; dintOfInt actual ]
+
 
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1646,6 +1652,12 @@ module RuntimeError =
         RuntimeError.Applications.CannotApplyTypeArgsMoreThanOnce
       | DEnum(_, _, [], "TooManyArgsForFn", [ fn; expected; actual ]) ->
         RuntimeError.Applications.TooManyArgsForFn(
+          FQFnName.fromDT fn,
+          D.int expected,
+          D.int actual
+        )
+      | DEnum(_, _, [], "TooFewArgsForFn", [ fn; expected; actual ]) ->
+        RuntimeError.Applications.TooFewArgsForFn(
           FQFnName.fromDT fn,
           D.int expected,
           D.int actual
@@ -1709,6 +1721,13 @@ module RuntimeError =
 
       | DEnum(_, _, [], "TooManyArgsForLambda", [ lambdaExprId; expected; actual ]) ->
         RuntimeError.Applications.TooManyArgsForLambda(
+          D.uInt64 lambdaExprId,
+          D.int expected,
+          D.int actual
+        )
+
+      | DEnum(_, _, [], "TooFewArgsForLambda", [ lambdaExprId; expected; actual ]) ->
+        RuntimeError.Applications.TooFewArgsForLambda(
           D.uInt64 lambdaExprId,
           D.int expected,
           D.int actual

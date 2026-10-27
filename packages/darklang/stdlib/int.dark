@@ -16,7 +16,7 @@ impl Modulo for Int =
   /// The modulus <param b> must be greater than 0.
   /// Use <fn Int.remainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo (a: Int) (b: Int) : Int = Builtin.intMod a b
+  let modulo(a: Int, b: Int): Int = Builtin.intMod(a, b)
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -25,169 +25,169 @@ impl Modulo for Int =
 /// negative only if {{<var value> < 0}}.
 /// The sign of <param divisor> doesn't influence the outcome.
 /// Returns an {{Error}} if <param divisor> is {{0}}.
-let remainder (value: Int) (divisor: Int) : Stdlib.Result.Result<Int, String> =
-  Builtin.intRemainder value divisor
+let remainder(value: Int, divisor: Int): Stdlib.Result.Result<Int, String> =
+  Builtin.intRemainder(value, divisor)
 
 
 impl Add for Int =
   /// Adds two integers together
-  let add (a: Int) (b: Int) : Int = Builtin.intAdd a b
+  let add(a: Int, b: Int): Int = Builtin.intAdd(a, b)
 
 
 impl Subtract for Int =
   /// Subtracts two integers
-  let subtract (a: Int) (b: Int) : Int = Builtin.intSubtract a b
+  let subtract(a: Int, b: Int): Int = Builtin.intSubtract(a, b)
 
 
 impl Multiply for Int =
   /// Multiplies two integers
-  let multiply (a: Int) (b: Int) : Int = Builtin.intMultiply a b
+  let multiply(a: Int, b: Int): Int = Builtin.intMultiply(a, b)
 
 
 impl Divide for Int =
   /// Divides two integers, rounding towards zero
-  let divide (a: Int) (b: Int) : Int = Builtin.intDivide a b
+  let divide(a: Int, b: Int): Int = Builtin.intDivide(a, b)
 
 
 impl Power for Int =
   /// Raise <param base> to the power of <param exponent>.
   /// Raises an error if <param exponent> is negative.
-  let power (``base``: Int) (exponent: Int) : Int =
-    Builtin.intPower ``base`` exponent
+  let power(``base``: Int, exponent: Int): Int =
+    Builtin.intPower(``base``, exponent)
 
 
 impl Negate for Int =
   /// Returns the negation of <param a>, {{-a}}
-  let negate (a: Int) : Int = Builtin.intNegate a
+  let negate(a: Int): Int = Builtin.intNegate(a)
 
 
 impl Compare for Int =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan (a: Int) (b: Int) : Bool = Builtin.intLessThan a b
+  let lessThan(a: Int, b: Int): Bool = Builtin.intLessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
-  let lessThanOrEqualTo (a: Int) (b: Int) : Bool = Builtin.intLessThanOrEqualTo a b
+  let lessThanOrEqualTo(a: Int, b: Int): Bool = Builtin.intLessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan (a: Int) (b: Int) : Bool = Builtin.intGreaterThan a b
+  let greaterThan(a: Int, b: Int): Bool = Builtin.intGreaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
-  let greaterThanOrEqualTo (a: Int) (b: Int) : Bool =
-    Builtin.intGreaterThanOrEqualTo a b
+  let greaterThanOrEqualTo(a: Int, b: Int): Bool =
+    Builtin.intGreaterThanOrEqualTo(a, b)
 
 
 /// Get the square root of an <type Int>
-let sqrt (a: Int) : Float = Builtin.intSqrt a
+let sqrt(a: Int): Float = Builtin.intSqrt(a)
 
 
 /// Converts an <type Int> to a <type Float>
-let toFloat (a: Int) : Float = Builtin.intToFloat a
+let toFloat(a: Int): Float = Builtin.intToFloat(a)
 
 
 /// Converts a <type Float> to an <type Int>, truncating toward zero.
-let fromFloat (a: Float) : Int = Builtin.intFromFloat a
+let fromFloat(a: Float): Int = Builtin.intFromFloat(a)
 
 
 /// Returns the <type Int> value of a <type String>. Because <type Int> is
 /// arbitrary-precision, the only failure is a badly-formatted string.
-let parse (s: String) : Stdlib.Result.Result<Int, ParseError> =
-  Builtin.intParse s
+let parse(s: String): Stdlib.Result.Result<Int, ParseError> =
+  Builtin.intParse(s)
 
 
 // Conversions from the fixed-width integer types into `Int` (always succeed).
 
 /// Converts an <type Int8> to an arbitrary-precision <type Int>
-let fromInt8 (a: Int8) : Int = Builtin.intFromInt8 a
+let fromInt8(a: Int8): Int = Builtin.intFromInt8(a)
 
 /// Converts a <type UInt8> to an arbitrary-precision <type Int>
-let fromUInt8 (a: UInt8) : Int = Builtin.intFromUInt8 a
+let fromUInt8(a: UInt8): Int = Builtin.intFromUInt8(a)
 
 /// Converts an <type Int16> to an arbitrary-precision <type Int>
-let fromInt16 (a: Int16) : Int = Builtin.intFromInt16 a
+let fromInt16(a: Int16): Int = Builtin.intFromInt16(a)
 
 /// Converts a <type UInt16> to an arbitrary-precision <type Int>
-let fromUInt16 (a: UInt16) : Int = Builtin.intFromUInt16 a
+let fromUInt16(a: UInt16): Int = Builtin.intFromUInt16(a)
 
 /// Converts an <type Int32> to an arbitrary-precision <type Int>
-let fromInt32 (a: Int32) : Int = Builtin.intFromInt32 a
+let fromInt32(a: Int32): Int = Builtin.intFromInt32(a)
 
 /// Converts a <type UInt32> to an arbitrary-precision <type Int>
-let fromUInt32 (a: UInt32) : Int = Builtin.intFromUInt32 a
+let fromUInt32(a: UInt32): Int = Builtin.intFromUInt32(a)
 
 /// Converts an <type Int64> to an arbitrary-precision <type Int>
-let fromInt64 (a: Int64) : Int = Builtin.intFromInt64 a
+let fromInt64(a: Int64): Int = Builtin.intFromInt64(a)
 
 /// Converts a <type UInt64> to an arbitrary-precision <type Int>
-let fromUInt64 (a: UInt64) : Int = Builtin.intFromUInt64 a
+let fromUInt64(a: UInt64): Int = Builtin.intFromUInt64(a)
 
 /// Converts an <type Int128> to an arbitrary-precision <type Int>
-let fromInt128 (a: Int128) : Int = Builtin.intFromInt128 a
+let fromInt128(a: Int128): Int = Builtin.intFromInt128(a)
 
 /// Converts a <type UInt128> to an arbitrary-precision <type Int>
-let fromUInt128 (a: UInt128) : Int = Builtin.intFromUInt128 a
+let fromUInt128(a: UInt128): Int = Builtin.intFromUInt128(a)
 
 
 // Conversions from `Int` into the fixed-width integer types, returning {{None}}
 // if the value doesn't fit the target range.
 
 /// Converts an <type Int> to an <type Int8>, returning {{None}} if it doesn't fit
-let toInt8 (a: Int) : Stdlib.Option.Option<Int8> = Builtin.intToInt8 a
+let toInt8(a: Int): Stdlib.Option.Option<Int8> = Builtin.intToInt8(a)
 
 /// Converts an <type Int> to a <type UInt8>, returning {{None}} if it doesn't fit
-let toUInt8 (a: Int) : Stdlib.Option.Option<UInt8> = Builtin.intToUInt8 a
+let toUInt8(a: Int): Stdlib.Option.Option<UInt8> = Builtin.intToUInt8(a)
 
 /// Converts an <type Int> to an <type Int16>, returning {{None}} if it doesn't fit
-let toInt16 (a: Int) : Stdlib.Option.Option<Int16> = Builtin.intToInt16 a
+let toInt16(a: Int): Stdlib.Option.Option<Int16> = Builtin.intToInt16(a)
 
 /// Converts an <type Int> to a <type UInt16>, returning {{None}} if it doesn't fit
-let toUInt16 (a: Int) : Stdlib.Option.Option<UInt16> = Builtin.intToUInt16 a
+let toUInt16(a: Int): Stdlib.Option.Option<UInt16> = Builtin.intToUInt16(a)
 
 /// Converts an <type Int> to an <type Int32>, returning {{None}} if it doesn't fit
-let toInt32 (a: Int) : Stdlib.Option.Option<Int32> = Builtin.intToInt32 a
+let toInt32(a: Int): Stdlib.Option.Option<Int32> = Builtin.intToInt32(a)
 
 /// Converts an <type Int> to a <type UInt32>, returning {{None}} if it doesn't fit
-let toUInt32 (a: Int) : Stdlib.Option.Option<UInt32> = Builtin.intToUInt32 a
+let toUInt32(a: Int): Stdlib.Option.Option<UInt32> = Builtin.intToUInt32(a)
 
 /// Converts an <type Int> to an <type Int64>, returning {{None}} if it doesn't
 /// fit the 64-bit range
-let toInt64 (a: Int) : Stdlib.Option.Option<Int64> = Builtin.intToInt64 a
+let toInt64(a: Int): Stdlib.Option.Option<Int64> = Builtin.intToInt64(a)
 
 /// Converts an <type Int> to a <type UInt64>, returning {{None}} if it doesn't fit
-let toUInt64 (a: Int) : Stdlib.Option.Option<UInt64> = Builtin.intToUInt64 a
+let toUInt64(a: Int): Stdlib.Option.Option<UInt64> = Builtin.intToUInt64(a)
 
 /// Converts an <type Int> to an <type Int128>, returning {{None}} if it doesn't fit
-let toInt128 (a: Int) : Stdlib.Option.Option<Int128> = Builtin.intToInt128 a
+let toInt128(a: Int): Stdlib.Option.Option<Int128> = Builtin.intToInt128(a)
 
 /// Converts an <type Int> to a <type UInt128>, returning {{None}} if it doesn't fit
-let toUInt128 (a: Int) : Stdlib.Option.Option<UInt128> = Builtin.intToUInt128 a
+let toUInt128(a: Int): Stdlib.Option.Option<UInt128> = Builtin.intToUInt128(a)
 
 
 impl BitwiseAnd for Int =
-  let bitwiseAnd (a: Int) (b: Int) : Int = Builtin.intBitwiseAnd a b
+  let bitwiseAnd(a: Int, b: Int): Int = Builtin.intBitwiseAnd(a, b)
 
 impl BitwiseOr for Int =
-  let bitwiseOr (a: Int) (b: Int) : Int = Builtin.intBitwiseOr a b
+  let bitwiseOr(a: Int, b: Int): Int = Builtin.intBitwiseOr(a, b)
 
 impl BitwiseXor for Int =
-  let bitwiseXor (a: Int) (b: Int) : Int = Builtin.intBitwiseXor a b
+  let bitwiseXor(a: Int, b: Int): Int = Builtin.intBitwiseXor(a, b)
 
 impl BitwiseNot for Int =
-  let bitwiseNot (a: Int) : Int = Builtin.intBitwiseNot a
+  let bitwiseNot(a: Int): Int = Builtin.intBitwiseNot(a)
 
 impl ShiftLeft for Int =
-  let shiftLeft (a: Int) (b: Int) : Int = Builtin.intShiftLeft a b
+  let shiftLeft(a: Int, b: Int): Int = Builtin.intShiftLeft(a, b)
 
 impl ShiftRight for Int =
-  let shiftRight (a: Int) (b: Int) : Int = Builtin.intShiftRight a b
+  let shiftRight(a: Int, b: Int): Int = Builtin.intShiftRight(a, b)
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
-let random (start: Int) (``end``: Int) : Int =
-  Builtin.intRandom start ``end``
+let random(start: Int, ``end``: Int): Int =
+  Builtin.intRandom(start, ``end``)
 
 impl ToString for Int =
   /// Stringify <param int>
-  let toString (int: Int) : String = Builtin.intToString int
+  let toString(int: Int): String = Builtin.intToString(int)
 
 impl Zero for Int =
-  let zero () : Int = 0
+  let zero(): Int = 0
 
 impl One for Int =
-  let one () : Int = 1
+  let one(): Int = 1

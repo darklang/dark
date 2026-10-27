@@ -18,219 +18,217 @@ module Darklang.LanguageTools.UnresolvedNames
 
 
 /// One unresolved reference, as the user typed it (`Stdlib.List.hed`).
-let inName (n: ProgramTypes.NameResolution<'a>) : List<String> =
+let inName(n: ProgramTypes.NameResolution<'a>): List<String> =
   match n.resolved with
   | Ok _ -> []
-  | Error _ -> [ Stdlib.String.join n.originalName "." ]
+  | Error _ -> [ Stdlib.String.join(n.originalName, ".") ]
 
 
-let inTypeRef (t: ProgramTypes.TypeReference) : List<String> =
+let inTypeRef(t: ProgramTypes.TypeReference): List<String> =
   match t with
-  | TStream inner -> inTypeRef inner
-  | TList inner -> inTypeRef inner
-  | TDict(key, value) -> Stdlib.List.concat (inTypeRef key) (inTypeRef value)
+  | TStream inner -> inTypeRef(inner)
+  | TList inner -> inTypeRef(inner)
+  | TDict(key, value) -> Stdlib.List.concat(inTypeRef(key), inTypeRef(value))
   | TTuple(first, second, rest) ->
-    Stdlib.List.flatten [ inTypeRef first, inTypeRef second, inTypeRefs rest ]
+    Stdlib.List.flatten([ inTypeRef(first), inTypeRef(second), inTypeRefs(rest) ])
   | TCustomType(name, typeArgs) ->
-    Stdlib.List.concat (inName name) (inTypeRefs typeArgs)
-  | TFn(args, ret) -> Stdlib.List.concat (inTypeRefs args) (inTypeRef ret)
+    Stdlib.List.concat(inName(name), inTypeRefs(typeArgs))
+  | TFn(args, ret) -> Stdlib.List.concat(inTypeRefs(args), inTypeRef(ret))
   | _ -> []
 
 
-let inTypeRefs (ts: List<ProgramTypes.TypeReference>) : List<String> =
+let inTypeRefs(ts: List<ProgramTypes.TypeReference>): List<String> =
   match ts with
   | [] -> []
-  | t :: rest -> Stdlib.List.concat (inTypeRef t) (inTypeRefs rest)
+  | t :: rest -> Stdlib.List.concat(inTypeRef(t), inTypeRefs(rest))
 
 
-let inExpr (expr: ProgramTypes.Expr) : List<String> =
+let inExpr(expr: ProgramTypes.Expr): List<String> =
   match expr with
-  | EString(_, segments) -> inSegments segments
+  | EString(_, segments) -> inSegments(segments)
 
   | EIf(_, cond, thenExpr, elseExpr) ->
-    Stdlib.List.flatten [ inExpr cond, inExpr thenExpr, inOptionalExpr elseExpr ]
+    Stdlib.List.flatten([ inExpr(cond), inExpr(thenExpr), inOptionalExpr(elseExpr) ])
 
-  | EPipe(_, lhs, parts) -> Stdlib.List.concat (inExpr lhs) (inPipeExprs parts)
+  | EPipe(_, lhs, parts) -> Stdlib.List.concat(inExpr(lhs), inPipeExprs(parts))
 
-  | EMatch(_, arg, cases) -> Stdlib.List.concat (inExpr arg) (inMatchCases cases)
+  | EMatch(_, arg, cases) -> Stdlib.List.concat(inExpr(arg), inMatchCases(cases))
 
-  | ELet(_, _, value, body) -> Stdlib.List.concat (inExpr value) (inExpr body)
+  | ELet(_, _, value, body) -> Stdlib.List.concat(inExpr(value), inExpr(body))
 
-  | EList(_, items) -> inExprs items
+  | EList(_, items) -> inExprs(items)
 
   // As the F# walk: only the values, never the keys.
-  | EDict(_, pairs) -> inExprs (Stdlib.List.map pairs (fun (_, e) -> e))
+  | EDict(_, pairs) -> inExprs(Stdlib.List.map(pairs, fun (_, e) -> e))
 
   | ETuple(_, first, second, rest) ->
-    Stdlib.List.flatten [ inExpr first, inExpr second, inExprs rest ]
+    Stdlib.List.flatten([ inExpr(first), inExpr(second), inExprs(rest) ])
 
   | EApply(_, fnExpr, typeArgs, args) ->
-    Stdlib.List.flatten [ inExpr fnExpr, inTypeRefs typeArgs, inExprs args ]
+    Stdlib.List.flatten([ inExpr(fnExpr), inTypeRefs(typeArgs), inExprs(args) ])
 
-  | EFnName(_, name, _) -> inName name
+  | EFnName(_, name, _) -> inName(name)
 
-  | ELambda(_, _, body) -> inExpr body
+  | ELambda(_, _, body) -> inExpr(body)
 
-  | EInfix(_, _, lhs, rhs, _) -> Stdlib.List.concat (inExpr lhs) (inExpr rhs)
+  | EInfix(_, _, lhs, rhs, _) -> Stdlib.List.concat(inExpr(lhs), inExpr(rhs))
 
   | ERecord(_, typeName, typeArgs, fields) ->
-    Stdlib.List.flatten
-      [ inName typeName
-        inTypeRefs typeArgs
-        inExprs (Stdlib.List.map fields (fun (_, e) -> e)) ]
+    Stdlib.List.flatten(
+      [ inName(typeName)
+        inTypeRefs(typeArgs)
+        inExprs(Stdlib.List.map(fields, fun (_, e) -> e)) ])
 
-  | ERecordFieldAccess(_, record, _) -> inExpr record
+  | ERecordFieldAccess(_, record, _) -> inExpr(record)
 
   | ERecordUpdate(_, record, updates) ->
-    let values = Stdlib.List.map updates (fun (_, e) -> e)
-    Stdlib.List.concat (inExpr record) (inExprs values)
+    let values = Stdlib.List.map(updates, fun (_, e) -> e)
+    Stdlib.List.concat(inExpr(record), inExprs(values))
 
   | EEnum(_, typeName, typeArgs, _, fields) ->
-    Stdlib.List.flatten [ inName typeName, inTypeRefs typeArgs, inExprs fields ]
+    Stdlib.List.flatten([ inName(typeName), inTypeRefs(typeArgs), inExprs(fields) ])
 
-  | EValue(_, name) -> inName name
+  | EValue(_, name) -> inName(name)
 
-  | EUnwrap(_, operand) -> inExpr operand
+  | EUnwrap(_, operand) -> inExpr(operand)
 
-  | EStatement(_, first, next) -> Stdlib.List.concat (inExpr first) (inExpr next)
+  | EStatement(_, first, next) -> Stdlib.List.concat(inExpr(first), inExpr(next))
 
   | _ -> []
 
 
-let inOptionalExpr (expr: Stdlib.Option.Option<ProgramTypes.Expr>) : List<String> =
+let inOptionalExpr(expr: Stdlib.Option.Option<ProgramTypes.Expr>): List<String> =
   match expr with
-  | Some e -> inExpr e
+  | Some e -> inExpr(e)
   | None -> []
 
 
-let inExprs (exprs: List<ProgramTypes.Expr>) : List<String> =
+let inExprs(exprs: List<ProgramTypes.Expr>): List<String> =
   match exprs with
   | [] -> []
-  | e :: rest -> Stdlib.List.concat (inExpr e) (inExprs rest)
+  | e :: rest -> Stdlib.List.concat(inExpr(e), inExprs(rest))
 
 
-let inSegments (segments: List<ProgramTypes.StringSegment>) : List<String> =
+let inSegments(segments: List<ProgramTypes.StringSegment>): List<String> =
   match segments with
   | [] -> []
   | seg :: rest ->
     match seg with
-    | StringText _ -> inSegments rest
-    | StringInterpolation e -> Stdlib.List.concat (inExpr e) (inSegments rest)
+    | StringText _ -> inSegments(rest)
+    | StringInterpolation e -> Stdlib.List.concat(inExpr(e), inSegments(rest))
 
 
 /// The pattern carries no names (`MPEnum` holds a bare case name), so only the guard
 /// and the right-hand side can contribute.
-let inMatchCases (cases: List<ProgramTypes.MatchCase>) : List<String> =
+let inMatchCases(cases: List<ProgramTypes.MatchCase>): List<String> =
   match cases with
   | [] -> []
   | c :: rest ->
-    Stdlib.List.flatten
-      [ inOptionalExpr c.whenCondition, inExpr c.rhs, inMatchCases rest ]
+    Stdlib.List.flatten(
+      [ inOptionalExpr(c.whenCondition), inExpr(c.rhs), inMatchCases(rest) ])
 
 
-let inPipeExpr (pe: ProgramTypes.PipeExpr) : List<String> =
+let inPipeExpr(pe: ProgramTypes.PipeExpr): List<String> =
   match pe with
-  | EPipeLambda(_, _, body) -> inExpr body
-  | EPipeInfix(_, _, rhs, _) -> inExpr rhs
+  | EPipeLambda(_, _, body) -> inExpr(body)
+  | EPipeInfix(_, _, rhs, _) -> inExpr(rhs)
   | EPipeFnCall(_, name, typeArgs, args, _) ->
-    Stdlib.List.flatten [ inName name, inTypeRefs typeArgs, inExprs args ]
+    Stdlib.List.flatten([ inName(name), inTypeRefs(typeArgs), inExprs(args) ])
   | EPipeEnum(_, typeName, _, fields) ->
-    Stdlib.List.concat (inName typeName) (inExprs fields)
-  | EPipeVariable(_, _, args) -> inExprs args
+    Stdlib.List.concat(inName(typeName), inExprs(fields))
+  | EPipeVariable(_, _, args) -> inExprs(args)
 
 
-let inPipeExprs (parts: List<ProgramTypes.PipeExpr>) : List<String> =
+let inPipeExprs(parts: List<ProgramTypes.PipeExpr>): List<String> =
   match parts with
   | [] -> []
-  | p :: rest -> Stdlib.List.concat (inPipeExpr p) (inPipeExprs rest)
+  | p :: rest -> Stdlib.List.concat(inPipeExpr(p), inPipeExprs(rest))
 
 
 /// A bound's trait, and any types its type args name.
-let inBounds (bounds: List<ProgramTypes.Bound>) : List<String> =
+let inBounds(bounds: List<ProgramTypes.Bound>): List<String> =
   match bounds with
   | [] -> []
   | b :: rest ->
-    Stdlib.List.flatten
-      [ inName b.trait_.trait_, inTypeRefs b.trait_.typeArgs, inBounds rest ]
+    Stdlib.List.flatten(
+      [ inName(b.trait_.trait_), inTypeRefs(b.trait_.typeArgs), inBounds(rest) ])
 
 
-let inParameters (ps: List<ProgramTypes.PackageFn.Parameter>) : List<String> =
-  inTypeRefs (Stdlib.List.map ps (fun p -> p.typ))
+let inParameters(ps: List<ProgramTypes.PackageFn.Parameter>): List<String> =
+  inTypeRefs(Stdlib.List.map(ps, fun p -> p.typ))
 
 
-let inTypeDeclaration
-  (d: ProgramTypes.TypeDeclaration.TypeDeclaration)
+let inTypeDeclaration(
+  d: ProgramTypes.TypeDeclaration.TypeDeclaration)
   : List<String> =
   let inDefinition =
     match d.definition with
-    | Alias t -> inTypeRef t
-    | Record fields -> inTypeRefs (Stdlib.List.map fields (fun f -> f.typ))
+    | Alias t -> inTypeRef(t)
+    | Record fields -> inTypeRefs(Stdlib.List.map(fields, fun f -> f.typ))
     | Enum cases ->
-      inTypeRefs (
-        Stdlib.List.flatten (
-          Stdlib.List.map cases (fun c -> Stdlib.List.map c.fields (fun f -> f.typ))
-        )
-      )
-  Stdlib.List.concat (inBounds d.bounds) inDefinition
+      inTypeRefs((
+        Stdlib.List.flatten(Stdlib.List.map(cases, fun c -> Stdlib.List.map(c.fields, fun f -> f.typ)))
+      ))
+  Stdlib.List.concat(inBounds(d.bounds), inDefinition)
 
 
-let inMethods (methods: List<ProgramTypes.Trait.Method>) : List<String> =
+let inMethods(methods: List<ProgramTypes.Trait.Method>): List<String> =
   match methods with
   | [] -> []
   | m :: rest ->
-    Stdlib.List.flatten
-      [ inParameters m.parameters
-        inTypeRef m.returnType
-        inBounds m.bounds
-        inMethods rest ]
+    Stdlib.List.flatten(
+      [ inParameters(m.parameters)
+        inTypeRef(m.returnType)
+        inBounds(m.bounds)
+        inMethods(rest) ])
 
 
 /// What one op leaves unresolved: its content hash and those names, each once in the
 /// order first found, or None when it leaves nothing. Only the content-carrying ops
 /// can hold a reference: a `SetName` binds an existing hash, and the decision ops
 /// carry no expressions.
-let inOp
-  (op: ProgramTypes.PackageOp)
+let inOp(
+  op: ProgramTypes.PackageOp)
   : Stdlib.Option.Option<(String * List<String>)> =
   let found =
     match op with
     | AddFn fn ->
       Stdlib.Option.Option.Some(
         (fn.hash,
-         Stdlib.List.flatten
-           [ inExpr fn.body
-             inParameters fn.parameters
-             inTypeRef fn.returnType
-             inBounds fn.bounds ])
+         Stdlib.List.flatten(
+           [ inExpr(fn.body)
+             inParameters(fn.parameters)
+             inTypeRef(fn.returnType)
+             inBounds(fn.bounds) ]))
       )
-    | AddValue v -> Stdlib.Option.Option.Some((v.hash, inExpr v.body))
+    | AddValue v -> Stdlib.Option.Option.Some((v.hash, inExpr(v.body)))
     | AddType t ->
-      Stdlib.Option.Option.Some((t.hash, inTypeDeclaration t.declaration))
+      Stdlib.Option.Option.Some((t.hash, inTypeDeclaration(t.declaration)))
     | AddTrait t ->
-      let names = Stdlib.List.concat (inMethods t.methods) (inBounds t.bounds)
+      let names = Stdlib.List.concat(inMethods(t.methods), inBounds(t.bounds))
       Stdlib.Option.Option.Some((t.hash, names))
     | AddTraitImpl i ->
       Stdlib.Option.Option.Some(
         (i.hash,
-         Stdlib.List.flatten
-           [ inName i.trait_
-             inTypeRef i.self
-             inTypeRefs i.traitTypeArgs
-             Stdlib.List.flatten (Stdlib.List.map i.methods (fun (_, m) -> inName m))
-             inBounds i.bounds ])
+         Stdlib.List.flatten(
+           [ inName(i.trait_)
+             inTypeRef(i.self)
+             inTypeRefs(i.traitTypeArgs)
+             Stdlib.List.flatten(Stdlib.List.map(i.methods, fun (_, m) -> inName(m)))
+             inBounds(i.bounds) ]))
       )
-    | AddTest test -> Stdlib.Option.Option.Some((test.hash, inExpr test.body))
+    | AddTest test -> Stdlib.Option.Option.Some((test.hash, inExpr(test.body)))
     | _ -> Stdlib.Option.Option.None
 
   match found with
   | Some((_, [])) -> Stdlib.Option.Option.None
   | Some((hash, names)) ->
-    let hash = ProgramTypes.hashToString hash
-    Stdlib.Option.Option.Some((hash, Stdlib.List.unique names))
+    let hash = ProgramTypes.hashToString(hash)
+    Stdlib.Option.Option.Some((hash, Stdlib.List.unique(names)))
   | None -> Stdlib.Option.Option.None
 
 
 /// For each op still holding unresolved name references, its content hash and those
 /// names.
-let inOps (ops: List<ProgramTypes.PackageOp>) : List<(String * List<String>)> =
-  Stdlib.List.filterMap ops (fun op -> inOp op)
+let inOps(ops: List<ProgramTypes.PackageOp>): List<(String * List<String>)> =
+  Stdlib.List.filterMap(ops, fun op -> inOp(op))

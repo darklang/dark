@@ -140,17 +140,17 @@ let editingOnABranchRepointsItsCallers =
         author
           state
           "Tests.BranchProp.caller"
-          "() : Int64 = (Tests.BranchProp.base ()) * 7L"
+          "(): Int64 = (Tests.BranchProp.base()) * 7L"
 
       do!
         shows
           state
-          [ "eval"; "Tests.BranchProp.caller ()" ]
+          [ "eval"; "Tests.BranchProp.caller()" ]
           "7"
           "the caller runs against the first version"
 
       do! fn state "Tests.BranchProp.base" "() : Int64 = 2L"
-      let! after = runCli state [ "eval"; "Tests.BranchProp.caller ()" ]
+      let! after = runCli state [ "eval"; "Tests.BranchProp.caller()" ]
 
       do! shows state [ "switch"; "main" ] "main" "and it put the run back on main"
 
@@ -178,7 +178,7 @@ let private aBranchKnowsWhatFollowed =
           author
             state
             "Tests.BranchFollow.caller"
-            "() : Int64 = (Tests.BranchFollow.base ()) * 7L"
+            "(): Int64 = (Tests.BranchFollow.base()) * 7L"
         do! commit state "branchfollow v1"
         // Other tests leave followers in main's draft too, so main is asserted RELATIVE to itself.
         let followedIn (status : string) =
@@ -198,7 +198,7 @@ let private aBranchKnowsWhatFollowed =
         do! switch state "follow-branch"
         let! _ =
           runCli state [ "fn"; "Tests.BranchFollow.base"; "() : Int64 = 1002L" ]
-        let! after = runCli state [ "eval"; "Tests.BranchFollow.caller ()" ]
+        let! after = runCli state [ "eval"; "Tests.BranchFollow.caller()" ]
         Expect.stringContains
           after
           "7014"
@@ -220,7 +220,7 @@ let private aBranchKnowsWhatFollowed =
         do!
           shows
             state
-            [ "eval"; "Tests.BranchFollow.caller ()" ]
+            [ "eval"; "Tests.BranchFollow.caller()" ]
             "7021"
             "and main's caller still follows main's edit"
 
@@ -284,7 +284,7 @@ let private aMergeCommitsWhatItLands =
         do!
           shows
             state
-            [ "eval"; "Tests.MergeCommit.f ()" ]
+            [ "eval"; "Tests.MergeCommit.f()" ]
             "6006"
             "and the work is live on main"
 
@@ -319,7 +319,7 @@ let private anUnbindRemovesANameThroughTheCli =
           runCli
             state
             [ "eval"
-              "Darklang.SCM.PackageOps.add (Builtin.scmCurrentBranch ()) [ Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [\"Gone\"], name = \"f\" }, Stdlib.Option.Option.None) ]" ]
+              "Darklang.SCM.PackageOps.add(Builtin.scmCurrentBranch(), [ Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [\"Gone\"], name = \"f\" }, Stdlib.Option.Option.None) ])" ]
         Expect.stringContains
           added
           "Ok"
@@ -330,7 +330,7 @@ let private anUnbindRemovesANameThroughTheCli =
         do!
           shows
             state
-            [ "eval"; "Tests.Gone.f ()" ]
+            [ "eval"; "Tests.Gone.f()" ]
             "not found"
             "the name is gone on the branch"
         do! shows state [ "status" ] "1 item removed" "status names the removal"
@@ -345,14 +345,14 @@ let private anUnbindRemovesANameThroughTheCli =
         do!
           shows
             state
-            [ "eval"; "Tests.Gone.f ()" ]
+            [ "eval"; "Tests.Gone.f()" ]
             "1"
             "main still has it before the merge"
         do! shows state [ "merge"; "gonebr"; "-y" ] "Merged" "the branch merges"
         do!
           shows
             state
-            [ "eval"; "Tests.Gone.f ()" ]
+            [ "eval"; "Tests.Gone.f()" ]
             "not found"
             "and main no longer has the name"
         do!
@@ -467,7 +467,7 @@ let private fnReadsItsDefinitionFromAFile =
       do!
         shows
           state
-          [ "eval"; "Tests.FnFile.twice 21L" ]
+          [ "eval"; "Tests.FnFile.twice(21L)" ]
           "42"
           "and the fn it defined runs"
 
@@ -491,7 +491,7 @@ let private aBranchLearnsThatMainMovedItsDependency =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Moved.caller"; "() : Int64 = Tests.Moved.dep ()" ]
+            [ "fn"; "Tests.Moved.caller"; "(): Int64 = Tests.Moved.dep()" ]
         do! commit state "caller"
         do! switch state "main"
         do! fn state "Tests.Moved.dep" "() : Int64 = 2L"
@@ -501,7 +501,7 @@ let private aBranchLearnsThatMainMovedItsDependency =
         do!
           shows
             state
-            [ "eval"; "Tests.Moved.caller ()" ]
+            [ "eval"; "Tests.Moved.caller()" ]
             "1"
             "the branch's caller still runs the old dep"
         let! constraints = runCli state [ "constraints" ]
@@ -527,7 +527,7 @@ let private aBranchLearnsThatMainMovedItsDependency =
         do!
           shows
             state
-            [ "eval"; "Tests.Moved.caller ()" ]
+            [ "eval"; "Tests.Moved.caller()" ]
             "2"
             "and the caller follows main's dep now"
 
@@ -549,7 +549,7 @@ let private statusSeparatesTheDraftsConstraintsFromStandingOnes =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.F9Kind.use"; "(x: Int64) : Int64 = Tests.F9Kind.dep x" ]
+            [ "fn"; "Tests.F9Kind.use"; "(x: Int64): Int64 = Tests.F9Kind.dep(x)" ]
         do! commit state "f9 base"
 
         // A kind change cannot be repointed, so the caller is left behind: a constraint THIS draft made.
@@ -596,14 +596,14 @@ let private aMissingNameIsOneLineNotAStackHeader =
     "eval of a name that does not exist prints the error and no empty call stack"
     (fun state ->
       task {
-        let! missing = runCli state [ "eval"; "Tests.Nope.missing 1L" ]
+        let! missing = runCli state [ "eval"; "Tests.Nope.missing(1L)" ]
         Expect.stringContains missing "not found" $"the error itself: {missing}"
         Expect.isFalse
           (missing.Contains "Call-stack")
           $"and no stack header over an empty stack: {missing}"
 
         let! _ = runCli state [ "fn"; "Tests.Stk.boom"; "() : Int64 = 1L / 0L" ]
-        let! deep = runCli state [ "eval"; "Tests.Stk.boom ()" ]
+        let! deep = runCli state [ "eval"; "Tests.Stk.boom()" ]
         Expect.stringContains
           deep
           "Call-stack"
@@ -624,7 +624,7 @@ let private anUnknownParentIsNamedAsSuch =
           runCli
             state
             [ "eval"
-              "Darklang.SCM.Branch.create \"orphan13\" (Stdlib.Uuid.parse \"11111111-2222-3333-4444-555555555555\" |> Builtin.unwrap) |> Stdlib.Option.isSome" ]
+              "Darklang.SCM.Branch.create(\"orphan13\", Stdlib.Uuid.parse(\"11111111-2222-3333-4444-555555555555\") |> Builtin.unwrap) |> Stdlib.Option.isSome" ]
         let! listed = runCli state [ "branches" ]
         Expect.stringContains listed "orphan13 (" $"the orphan is listed: {listed}"
         Expect.stringContains
@@ -647,7 +647,7 @@ let private failuresExitNonzero =
         Expect.stringContains unknownOut "Unknown command" "and says so"
         Expect.equal unknown 1L "an unknown command exits 1"
         let! (evalOut, failed) =
-          runCliWithExit state [ "eval"; "Tests.Nope.zzz 1L" ]
+          runCliWithExit state [ "eval"; "Tests.Nope.zzz(1L)" ]
         Expect.stringContains evalOut "not found" "the error is still printed"
         Expect.equal failed 1L "a failed eval exits 1"
       })
@@ -715,7 +715,7 @@ let private aBranchDiscardLeavesNoDanglingTags =
         do! switch state "dangletags"
         do! fn state "Tests.Dangle.f" "() : Int64 = 5L"
         let! _ =
-          runCli state [ "fn"; "Tests.Dangle.g"; "() : Int64 = Tests.Dangle.f ()" ]
+          runCli state [ "fn"; "Tests.Dangle.g"; "(): Int64 = Tests.Dangle.f()" ]
         do! discardAll state
 
         let! dangling =
@@ -783,7 +783,7 @@ let discardOnABranchLeavesMainsDraftAlone =
         do!
           shows
             state
-            [ "eval"; "Tests.DiscardIso.onBranch ()" ]
+            [ "eval"; "Tests.DiscardIso.onBranch()" ]
             "not found"
             "the branch's item really went"
 
@@ -793,7 +793,7 @@ let discardOnABranchLeavesMainsDraftAlone =
         do!
           shows
             state
-            [ "eval"; "Tests.DiscardIso.onMain ()" ]
+            [ "eval"; "Tests.DiscardIso.onMain()" ]
             "1"
             "main's draft survived the branch's discard"
 
@@ -870,10 +870,10 @@ let private commitRefusesDefiniteTypeErrors =
 
         // A one-field enum case given two arguments. Definite, and cheap to state.
         let source =
-          "type Wrapped = Wrap of (Int * String)\n\n"
-          + "let bad (value: Wrapped) : Wrapped =\n"
-          + "  match value with\n"
-          + "  | Wrap((number, text)) -> Wrapped.Wrap(number, text)\n"
+          "type Wrapped = Wrap of (Int * String)\n\nlet bad(value: Wrapped): Wrapped =\n  match value with\n  | Wrap((number, text)) -> Wrapped.Wrap(number, text)\n"
+          + ""
+          + ""
+          + ""
 
         let file =
           System.IO.Path.Combine(
@@ -915,7 +915,7 @@ let private commitRefusesDefiniteTypeErrors =
           author
             state
             "Tests.ArityGate.bad2"
-            "(x: Int64) : Int64 = Stdlib.String.length x"
+            "(x: Int64): Int64 = Stdlib.String.length(x)"
         do! shows state [ "commit"; "nope"; "-y" ] "cannot commit" "broken refuses"
         let! _ =
           runCli state [ "fn"; "Tests.ArityGate.bad2"; "(x: Int64) : Int64 = x" ]
@@ -945,7 +945,7 @@ let private failedValueSaveLeavesNothingBehind (onBranch : bool) =
             i
             [ "val"
               "Tests.SaveHonesty.broken"
-              "Stdlib.List.head (noSuchSaveHonestyName)" ]
+              "Stdlib.List.head(noSuchSaveHonestyName)" ]
         Expect.equal code 1L $"a failed save exits non-zero: {saved}"
 
         let! _ =
@@ -999,7 +999,7 @@ let private deprecationIsReversible =
 
       do! shows state [ "ls"; "Tests.Undep" ] "item" "and it is back on the shelf"
 
-      do! shows state [ "eval"; "Tests.Undep.item 1L" ] "4243" "and it still runs"
+      do! shows state [ "eval"; "Tests.Undep.item(1L)" ] "4243" "and it still runs"
     })
 
 
@@ -1138,14 +1138,14 @@ let private editsAreVisibleInTheSameProcess =
       // the LSP or a daemon, the name-resolution cache decides whether you see your edit.
       let! _ = runCli state [ "fn"; "Tests.Cache.v"; "(x: Int64) : Int64 = x + 1L" ]
 
-      do! shows state [ "eval"; "Tests.Cache.v 0L" ] "1" "the first version runs"
+      do! shows state [ "eval"; "Tests.Cache.v(0L)" ] "1" "the first version runs"
 
       let! _ = runCli state [ "fn"; "Tests.Cache.v"; "(x: Int64) : Int64 = x + 2L" ]
 
       do!
         shows
           state
-          [ "eval"; "Tests.Cache.v 0L" ]
+          [ "eval"; "Tests.Cache.v(0L)" ]
           "2"
           "and so does the edit, without restarting"
     })
@@ -1155,7 +1155,7 @@ let private deprecationTakesEffectInTheSameProcess =
     task {
       let! _ = runCli state [ "fn"; "Tests.Harm.f"; "(x: Int64) : Int64 = x + 31L" ]
 
-      do! shows state [ "eval"; "Tests.Harm.f 0L" ] "31" "it runs to begin with"
+      do! shows state [ "eval"; "Tests.Harm.f(0L)" ] "31" "it runs to begin with"
 
       let! _ =
         runCli
@@ -1174,7 +1174,7 @@ let private deprecationTakesEffectInTheSameProcess =
       do!
         shows
           state
-          [ "eval"; "Tests.Harm.f 0L" ]
+          [ "eval"; "Tests.Harm.f(0L)" ]
           "Harmful"
           "and it halts as soon as it's marked"
 
@@ -1183,7 +1183,7 @@ let private deprecationTakesEffectInTheSameProcess =
       do!
         shows
           state
-          [ "eval"; "Tests.Harm.f 0L" ]
+          [ "eval"; "Tests.Harm.f(0L)" ]
           "31"
           "and runs again as soon as it's unmarked"
     })
@@ -1216,7 +1216,7 @@ let partialCommitTakesOnlyWhatYouNamed =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Pc.user"; "(x: Int64) : Int64 = Tests.Pc.base x" ]
+            [ "fn"; "Tests.Pc.user"; "(x: Int64): Int64 = Tests.Pc.base(x)" ]
 
         let! refused =
           runCli state [ "commit"; "nope"; "--include=Tests.Pc.absent"; "-y" ]
@@ -1250,7 +1250,7 @@ let partialCommitTakesOnlyWhatYouNamed =
         do!
           shows
             state
-            [ "eval"; "Tests.Pc.user 0L" ]
+            [ "eval"; "Tests.Pc.user(0L)" ]
             "2"
             "the committed item still evaluates"
 
@@ -1271,7 +1271,7 @@ let partialCommitTakesOnlyWhatYouNamed =
         do!
           shows
             state
-            [ "eval"; "Tests.Pc.twice ()" ]
+            [ "eval"; "Tests.Pc.twice()" ]
             "3002"
             "and the committed version is the later edit"
 
@@ -1347,10 +1347,10 @@ let private allConsumersFollowAcrossOwners =
       let body = "() : Int64 = Vendor.Auto.dep () + 100L"
       do! fn state "Tests.Auto.x" body
       do! fn state "Tests.Auto.y" body
-      do! fn state "Other.Auto.top" "() : Int64 = Tests.Auto.x () + 1000L"
+      do! fn state "Other.Auto.top" "(): Int64 = Tests.Auto.x() + 1000L"
       do! fn state "Vendor.Auto.dep" "() : Int64 = 2L"
-      do! evals state "Tests.Auto.x ()" "102" "first caller updates"
-      do! evals state "Tests.Auto.y ()" "102" "shared alias also updates"
+      do! evals state "Tests.Auto.x()" "102" "first caller updates"
+      do! evals state "Tests.Auto.y()" "102" "shared alias also updates"
       do! evals state "Other.Auto.top ()" "1102" "transitive foreign caller updates"
       do!
         shows
@@ -1358,11 +1358,11 @@ let private allConsumersFollowAcrossOwners =
           [ "undo"; "Vendor.Auto.dep" ]
           "back on the version"
           "source can be restored"
-      do! evals state "Tests.Auto.x ()" "101" "caller follows restore"
-      do! evals state "Tests.Auto.y ()" "101" "alias follows restore"
+      do! evals state "Tests.Auto.x()" "101" "caller follows restore"
+      do! evals state "Tests.Auto.y()" "101" "alias follows restore"
       do! evals state "Other.Auto.top ()" "1101" "transitive caller follows restore"
       do! fn state "Vendor.Auto.dep" "() : Int64 = 2L"
-      do! evals state "Tests.Auto.x ()" "102" "replayed content propagates again"
+      do! evals state "Tests.Auto.x()" "102" "replayed content propagates again"
       do! evals state "Other.Auto.top ()" "1102" "replayed cascade takes effect"
     })
 
@@ -1382,11 +1382,11 @@ let private crossOwnerPropagationIsBranchLocal =
       do!
         evals
           state
-          "Tests.BranchAuto.caller ()"
+          "Tests.BranchAuto.caller()"
           "52"
           "branch caller updates automatically"
       do! onMain state
-      do! evals state "Tests.BranchAuto.caller ()" "42" "main caller is unchanged"
+      do! evals state "Tests.BranchAuto.caller()" "42" "main caller is unchanged"
       do! evals state "Vendor.BranchAuto.dep ()" "41" "main dependency is unchanged"
       do! archiveBranches state [ "auto-propagation" ]
     })
@@ -1470,13 +1470,17 @@ let private editChangesAnItemWithoutRetypingIt =
             "one declaration, said in the singular"
 
         do!
-          shows state [ "eval"; "Tests.Edit.target 3L" ] "15" "the edit took effect"
+          shows
+            state
+            [ "eval"; "Tests.Edit.target(3L)" ]
+            "15"
+            "the edit took effect"
 
         // The module's other declarations are not collateral.
         do!
           shows
             state
-            [ "eval"; "Tests.Edit.sibling ()" ]
+            [ "eval"; "Tests.Edit.sibling()" ]
             "9"
             "the sibling in the same module is untouched"
 
@@ -1487,12 +1491,12 @@ let private editChangesAnItemWithoutRetypingIt =
           author
             state
             "Tests.Edit.caller"
-            "() : Int64 = (Tests.Edit.target 1L) + 100L"
+            "(): Int64 = (Tests.Edit.target(1L)) + 100L"
 
         do!
           shows
             state
-            [ "eval"; "Tests.Edit.caller ()" ]
+            [ "eval"; "Tests.Edit.caller()" ]
             "105"
             "the caller sees the current target"
 
@@ -1502,7 +1506,7 @@ let private editChangesAnItemWithoutRetypingIt =
         do!
           shows
             state
-            [ "eval"; "Tests.Edit.caller ()" ]
+            [ "eval"; "Tests.Edit.caller()" ]
             "109"
             "and follows the edit, rather than staying on the old version"
 
@@ -1558,7 +1562,7 @@ let private aNameHoldsOneItemWhateverItsKind =
       do!
         shows
           state
-          [ "eval"; "Tests.Displace.thing ()" ]
+          [ "eval"; "Tests.Displace.thing()" ]
           "7"
           "the name now means the fn"
 
@@ -1614,7 +1618,7 @@ let private branchChainSeesItsAncestry =
         do!
           shows
             state
-            [ "eval"; "Tests.Chain.one ()" ]
+            [ "eval"; "Tests.Chain.one()" ]
             "not found"
             "a parent's WIP does not leak down"
 
@@ -1622,11 +1626,11 @@ let private branchChainSeesItsAncestry =
         do! switch state "chainOne"
         do! commit state "chain one"
         do! switch state "chainTwo"
-        do! shows state [ "eval"; "Tests.Chain.two ()" ] "22" "its own work"
+        do! shows state [ "eval"; "Tests.Chain.two()" ] "22" "its own work"
         do!
           shows
             state
-            [ "eval"; "Tests.Chain.one ()" ]
+            [ "eval"; "Tests.Chain.one()" ]
             "11"
             "and its parent's committed work, through the chain"
 
@@ -1635,13 +1639,13 @@ let private branchChainSeesItsAncestry =
         do!
           shows
             state
-            [ "eval"; "Tests.Chain.one ()" ]
+            [ "eval"; "Tests.Chain.one()" ]
             "11"
             "the parent still sees its own work"
         do!
           shows
             state
-            [ "eval"; "Tests.Chain.two ()" ]
+            [ "eval"; "Tests.Chain.two()" ]
             "not found"
             "and not the child's, which would be work leaking DOWN the chain"
 
@@ -1650,7 +1654,7 @@ let private branchChainSeesItsAncestry =
         do!
           shows
             state
-            [ "eval"; "Tests.Chain.one ()" ]
+            [ "eval"; "Tests.Chain.one()" ]
             "not found"
             "main sees no branch work"
 
@@ -1673,7 +1677,7 @@ let private branchReadsAnswerAboutTheBranch =
           author
             state
             "Tests.BranchRead.caller"
-            "() : Int64 = Tests.BranchRead.base ()"
+            "(): Int64 = Tests.BranchRead.base()"
         do! commit state "branchread v1"
         do! switch state "brOne"
         do! fn state "Tests.BranchRead.base" "() : Int64 = 2L"
@@ -1682,7 +1686,7 @@ let private branchReadsAnswerAboutTheBranch =
           author
             state
             "Tests.BranchRead.caller"
-            "() : Int64 = (Tests.BranchRead.base ()) + 0L"
+            "(): Int64 = (Tests.BranchRead.base()) + 0L"
         let! _ = runCli state [ "branch"; "new"; "brTwo" ]
         do! fn state "Tests.BranchRead.deep" "() : Int64 = 3L"
 
@@ -1707,14 +1711,14 @@ let private branchReadsAnswerAboutTheBranch =
         do!
           shows
             state
-            [ "eval"; "Tests.BranchRead.base ()" ]
+            [ "eval"; "Tests.BranchRead.base()" ]
             "2"
             "the branch is at its own edit"
         let! _ = runCli state [ "undo"; "Tests.BranchRead.base" ]
         do!
           shows
             state
-            [ "eval"; "Tests.BranchRead.base ()" ]
+            [ "eval"; "Tests.BranchRead.base()" ]
             "1"
             "undo steps to the version the branch forked from"
 
@@ -1792,7 +1796,7 @@ let private dependentsSeeTheBranchYouAreOn =
           author
             state
             "Tests.Dep.mainCaller"
-            "(x: Int64) : Int64 = (Tests.Dep.target x) + 10L"
+            "(x: Int64): Int64 = (Tests.Dep.target(x)) + 10L"
 
         do!
           shows
@@ -1808,7 +1812,7 @@ let private dependentsSeeTheBranchYouAreOn =
           author
             state
             "Tests.Dep.branchCaller"
-            "(x: Int64) : Int64 = (Tests.Dep.target x) + 99L"
+            "(x: Int64): Int64 = (Tests.Dep.target(x)) + 99L"
 
         let! onBranch = runCli state [ "deps"; "Tests.Dep.target" ]
         Expect.stringContains
@@ -1834,7 +1838,7 @@ let private dependentsSeeTheBranchYouAreOn =
 /// A `record` call as an eval expression. The candidates are empty because nothing
 /// here reads them; what is under test is which branch the row lands on.
 let private recordConflictOn (branchIdExpr : string) (id : string) : string =
-  $"""Darklang.SCM.Conflicts.record ({branchIdExpr}) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}", owner = "Zz", modules = "Confl", name = "f", itemType = "fn", part = "", kind = "same-name-different-hash", candidates = [], autoResolvedTo = "bbb", reason = "test", status = "pending", resolvedBy = "" }}]"""
+  $"""Darklang.SCM.Conflicts.record({branchIdExpr}, [Darklang.SCM.Conflicts.Conflict {{ id = "{id}", owner = "Zz", modules = "Confl", name = "f", itemType = "fn", part = "", kind = "same-name-different-hash", candidates = [], autoResolvedTo = "bbb", reason = "test", status = "pending", resolvedBy = "" }}])"""
 
 
 /// A merge moves committed work onto main and there is no undo verb for it, so it asks first, and a
@@ -1983,7 +1987,7 @@ let commitRefusesUnresolvedReferences =
           author
             state
             "Tests.UnresT.bad"
-            "(x: Int64) : Int64 = Tests.UnresT.missing x"
+            "(x: Int64): Int64 = Tests.UnresT.missing(x)"
 
         let! refused = runCli state [ "commit"; "unresolved"; "-y" ]
         Expect.stringContains refused "don't resolve" "the commit is refused"
@@ -2010,7 +2014,7 @@ let commitRefusesUnresolvedReferences =
           author
             state
             "Tests.UnresT.caller"
-            "(x: Int64) : Int64 = Tests.UnresT.callee x"
+            "(x: Int64): Int64 = Tests.UnresT.callee(x)"
         do! author state "Tests.UnresT.callee" "(x: Int64) : Int64 = x + 3L"
 
         let! forward = runCli state [ "commit"; "forward ref"; "-y" ]
@@ -2040,7 +2044,7 @@ let private discardOnABranchLeavesMainAlone =
         // Measured as a DELTA, not an absolute: the store is shared with every other
         // cliTest, so whatever else is uncommitted on main is in this number too.
         let! baseline =
-          runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount ()" ]
+          runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount()" ]
 
         // A body no other test uses. Content-addressing means an identical body is the SAME item and its
         // `AddFn` dedups, so a shared body would add one op here rather than two and the delta below
@@ -2051,7 +2055,7 @@ let private discardOnABranchLeavesMainAlone =
         // back as an error STRING, so before-vs-after would compare two identical error
         // messages and pass whatever the code does.
         let! before =
-          runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount ()" ]
+          runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount()" ]
         Expect.equal
           (int (before.Trim()))
           (int (baseline.Trim()) + 2)
@@ -2062,7 +2066,7 @@ let private discardOnABranchLeavesMainAlone =
         do!
           shows
             state
-            [ "eval"; "Tests.Disc.onBranch 1L" ]
+            [ "eval"; "Tests.Disc.onBranch(1L)" ]
             "90212"
             "the branch item is live before the discard"
 
@@ -2073,14 +2077,14 @@ let private discardOnABranchLeavesMainAlone =
             "discardbr"
             "discard names the branch as its scope, not main"
 
-        let! gone = runCli state [ "eval"; "Tests.Disc.onBranch 1L" ]
+        let! gone = runCli state [ "eval"; "Tests.Disc.onBranch(1L)" ]
         Expect.isFalse
           (gone.Trim() = "90212")
           $"the branch draft is gone, got: {gone}"
 
         do! switch state "main"
         let! after =
-          runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount ()" ]
+          runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount()" ]
         Expect.equal
           (after.Trim())
           (before.Trim())
@@ -2111,14 +2115,13 @@ let private committingOnABranchCommitsItsOps =
         runCli
           state
           [ "eval"
-            "Stdlib.List.length (Darklang.SCM.PackageOps.commitsOnBranch (Darklang.SCM.PackageOps.currentBranch ()) 100L)" ]
+            "Stdlib.List.length(Darklang.SCM.PackageOps.commitsOnBranch(Darklang.SCM.PackageOps.currentBranch(), 100L))" ]
       Expect.isTrue
         ((int (onBranch.Trim())) >= 1)
         $"the branch has a commit of its own, got: {onBranch}"
 
       // And the draft is empty afterwards, which is what "committed" means.
-      let! draft =
-        runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount ()" ]
+      let! draft = runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount()" ]
       Expect.equal (draft.Trim()) "0" "the branch's draft is empty once committed"
 
       do! archiveBranches state [ "commitbr" ]
@@ -2128,7 +2131,7 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
   cliTestOnMain "a conflict is answered on the branch it happened on" (fun state ->
     task {
       do! switch state "confbr"
-      let! branchId = runCli state [ "eval"; "Builtin.scmCurrentBranch ()" ]
+      let! branchId = runCli state [ "eval"; "Builtin.scmCurrentBranch()" ]
       Expect.isFalse (branchId = "") "switch put us on a real branch"
 
       // Ask Dark for the branch rather than round-tripping the id through a printed string: `eval` runs
@@ -2138,7 +2141,7 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
       let! _ =
         runCli
           state
-          [ "eval"; recordConflictOn "Builtin.scmCurrentBranch ()" "cnfbranch01" ]
+          [ "eval"; recordConflictOn "Builtin.scmCurrentBranch()" "cnfbranch01" ]
       let! _ =
         runCli
           state
@@ -2202,14 +2205,14 @@ let private aBranchNeverSeesMainsDraft =
         do!
           shows
             state
-            [ "eval"; "Tests.DraftMask.f ()" ]
+            [ "eval"; "Tests.DraftMask.f()" ]
             "not found"
             "a draft-born name is invisible from a branch"
 
         do! switch state "main"
         do! commit state "draft mask v1"
         do! switch state "dmask"
-        let! committed = runCli state [ "eval"; "Tests.DraftMask.f ()" ]
+        let! committed = runCli state [ "eval"; "Tests.DraftMask.f()" ]
         Expect.stringContains committed "1" "committed work is visible"
 
         do! switch state "main"
@@ -2217,14 +2220,14 @@ let private aBranchNeverSeesMainsDraft =
         do!
           shows
             state
-            [ "eval"; "Tests.DraftMask.f ()" ]
+            [ "eval"; "Tests.DraftMask.f()" ]
             "2"
             "main runs its own draft"
         do! switch state "dmask"
         do!
           shows
             state
-            [ "eval"; "Tests.DraftMask.f ()" ]
+            [ "eval"; "Tests.DraftMask.f()" ]
             "1"
             "the branch stays on the committed version"
 
@@ -2273,7 +2276,7 @@ let private discardSparesInertOps =
         parsePackageOps
           """module InertHold
 
-let held (x: Int64) : Int64 = x + 41L"""
+let held(x: Int64): Int64 = x + 41L"""
       let inertIds =
         ops |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
       for op in ops do
@@ -2367,19 +2370,19 @@ let revertingToAnEarlierVersionTakesEffect =
       do! commit state "611"
       do! fn state "Tests.Revert.b" "() : Int64 = 622L"
       do! commit state "622"
-      do! evals state "Tests.Revert.b ()" "622" "the second version is live"
+      do! evals state "Tests.Revert.b()" "622" "the second version is live"
 
       do! fn state "Tests.Revert.b" "() : Int64 = 611L"
       do!
         evals
           state
-          "Tests.Revert.b ()"
+          "Tests.Revert.b()"
           "611"
           "and going back to the first takes effect"
       do! dirty state "the revert is a change, so the draft holds it"
 
       do! commit state "back to 611"
-      do! evals state "Tests.Revert.b ()" "611" "and it survives the commit"
+      do! evals state "Tests.Revert.b()" "611" "and it survives the commit"
       do! onMain state
     })
 
@@ -2393,7 +2396,7 @@ let revertingOnMainTakesEffect =
       do! fn state "Tests.RevertMain.f" "() : Int64 = 2L"
       do! commit state "two"
       do! fn state "Tests.RevertMain.f" "() : Int64 = 1L"
-      do! evals state "Tests.RevertMain.f ()" "1" "back to the first version"
+      do! evals state "Tests.RevertMain.f()" "1" "back to the first version"
       do! discardAll state
     })
 
@@ -2412,11 +2415,10 @@ let aPartialCommitTakesItsDependencysName =
         do! commit state "dependency content already committed"
         do! switch state "partialbr"
         do! fn state "Tests.Partial2.dep" "() : Int64 = 5L"
-        do!
-          fn state "Tests.Partial2.caller" "() : Int64 = Tests.Partial2.dep () + 1L"
+        do! fn state "Tests.Partial2.caller" "(): Int64 = Tests.Partial2.dep() + 1L"
 
         do! commitOnly state "caller" "Tests.Partial2.caller"
-        do! evals state "Tests.Partial2.caller ()" "6" "the caller runs here"
+        do! evals state "Tests.Partial2.caller()" "6" "the caller runs here"
         do!
           clean
             state
@@ -2471,7 +2473,7 @@ let overrideByNameAnswersThePendingConflict =
       do! switch state "confl2"
 
       let record (id : string) (hash : string) =
-        $"""Darklang.SCM.Conflicts.record (Builtin.scmCurrentBranch ()) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}", owner = "Tests", modules = "Confl2", name = "same", itemType = "fn", part = "", kind = "same-name-different-hash", candidates = [], autoResolvedTo = "{hash}", reason = "test", status = "pending", resolvedBy = "" }}]"""
+        $"""Darklang.SCM.Conflicts.record(Builtin.scmCurrentBranch(), [Darklang.SCM.Conflicts.Conflict {{ id = "{id}", owner = "Tests", modules = "Confl2", name = "same", itemType = "fn", part = "", kind = "same-name-different-hash", candidates = [], autoResolvedTo = "{hash}", reason = "test", status = "pending", resolvedBy = "" }}])"""
 
       do! run state [ "eval"; record "r2first001" "aaa" ]
       do! run state [ "conflicts"; "ack"; "r2first001" ]

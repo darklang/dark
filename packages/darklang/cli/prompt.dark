@@ -2,16 +2,16 @@ module Darklang.Cli.Prompt
 
 /// Ask a yes/no question. Only `y` is yes: an empty answer, end of input, and nobody being able
 /// to answer are all no, and every caller exits 1 on a no. `-y` skips the question.
-let confirmExplicit (autoConfirm: Bool) (question: String) : Bool =
+let confirmExplicit(autoConfirm: Bool, question: String): Bool =
   if autoConfirm then
     true
-  else if Stdlib.Bool.not (Stdlib.Cli.UI.Prompt.canAsk ()) then
+  else if Stdlib.Bool.not(Stdlib.Cli.UI.Prompt.canAsk()) then
     false
   else
-    Stdlib.printErrorLine question
-    match Stdlib.Cli.Stdin.readLineOrEnd () with
+    Stdlib.printErrorLine(question)
+    match Stdlib.Cli.Stdin.readLineOrEnd() with
     | Some typed ->
-      let response = Stdlib.String.trim typed
+      let response = Stdlib.String.trim(typed)
       (response == "y") || (response == "Y")
     | None -> false
 
@@ -24,7 +24,7 @@ type State =
     historyIndex: Int
     savedPrompt: String }
 
-let initState () : State =
+let initState(): State =
   State
     { text = ""
       cursorPosition = 0
@@ -35,21 +35,21 @@ let initState () : State =
 
 module Editing =
   /// Insert text at cursor position
-  let insertAtCursor (state: State) (char: String) : State =
-    let beforeCursor = Stdlib.String.slice state.text 0 state.cursorPosition
-    let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
+  let insertAtCursor(state: State, char: String): State =
+    let beforeCursor = Stdlib.String.slice(state.text, 0, state.cursorPosition)
+    let afterCursor = Stdlib.String.dropFirst(state.text, state.cursorPosition)
     let newText = beforeCursor + char + afterCursor
     { state with
         text = newText
-        cursorPosition = state.cursorPosition + (Stdlib.String.length char)
+        cursorPosition = state.cursorPosition + (Stdlib.String.length(char))
         historyIndex = -1
         savedPrompt = "" }
 
   /// Delete character before cursor (backspace)
-  let deleteBeforeCursor (state: State) : State =
+  let deleteBeforeCursor(state: State): State =
     if state.cursorPosition > 0 then
-      let beforeCursor = Stdlib.String.slice state.text 0 (state.cursorPosition - 1)
-      let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
+      let beforeCursor = Stdlib.String.slice(state.text, 0, state.cursorPosition - 1)
+      let afterCursor = Stdlib.String.dropFirst(state.text, state.cursorPosition)
       let newText = beforeCursor + afterCursor
       { state with
           text = newText
@@ -59,56 +59,56 @@ module Editing =
       state
 
   /// Delete character at cursor (delete key)
-  let deleteAtCursor (state: State) : State =
-    let textLength = Stdlib.String.length state.text
+  let deleteAtCursor(state: State): State =
+    let textLength = Stdlib.String.length(state.text)
 
     if state.cursorPosition < textLength then
-      let beforeCursor = Stdlib.String.slice state.text 0 state.cursorPosition
-      let afterCursor = Stdlib.String.dropFirst state.text (state.cursorPosition + 1)
+      let beforeCursor = Stdlib.String.slice(state.text, 0, state.cursorPosition)
+      let afterCursor = Stdlib.String.dropFirst(state.text, state.cursorPosition + 1)
       let newText = beforeCursor + afterCursor
       { state with text = newText, historyIndex = -1 }
     else
       state
 
   /// Move cursor left
-  let moveCursorLeft (state: State) : State =
-    let newCursorPos = Stdlib.max 0 (state.cursorPosition - 1)
+  let moveCursorLeft(state: State): State =
+    let newCursorPos = Stdlib.max(0, state.cursorPosition - 1)
     { state with cursorPosition = newCursorPos }
 
   /// Move cursor right
-  let moveCursorRight (state: State) : State =
-    let textLength = Stdlib.String.length state.text
-    let newCursorPos = Stdlib.min textLength (state.cursorPosition + 1)
+  let moveCursorRight(state: State): State =
+    let textLength = Stdlib.String.length(state.text)
+    let newCursorPos = Stdlib.min(textLength, state.cursorPosition + 1)
     { state with cursorPosition = newCursorPos }
 
   /// Move cursor to start of line
-  let moveCursorHome (state: State) : State =
+  let moveCursorHome(state: State): State =
     { state with cursorPosition = 0 }
 
   /// Move cursor to end of line
-  let moveCursorEnd (state: State) : State =
-    let textLength = Stdlib.String.length state.text
+  let moveCursorEnd(state: State): State =
+    let textLength = Stdlib.String.length(state.text)
     { state with cursorPosition = textLength }
 
   /// Clear the prompt text
-  let clear (state: State) : State =
+  let clear(state: State): State =
     { state with
         text = ""
         cursorPosition = 0
         historyIndex = -1 }
 
   /// Set the prompt text and move cursor to end
-  let setText (state: State) (text: String) : State =
-    let textLength = Stdlib.String.length text
+  let setText(state: State, text: String): State =
+    let textLength = Stdlib.String.length(text)
     { state with text = text, cursorPosition = textLength }
 
 
 module History =
   /// Add command to history (avoiding duplicates at the front)
-  let addCommand (state: State) (command: String) : State =
+  let addCommand(state: State, command: String): State =
     let updatedHistory =
-      if Stdlib.List.isEmpty state.commandHistory || Stdlib.List.head state.commandHistory != Stdlib.Option.Option.Some command then
-        Stdlib.List.prepend state.commandHistory command
+      if Stdlib.List.isEmpty(state.commandHistory) || Stdlib.List.head(state.commandHistory) != Stdlib.Option.Option.Some command then
+        Stdlib.List.prepend(state.commandHistory, command)
       else
         state.commandHistory
     { state with
@@ -116,9 +116,9 @@ module History =
         historyIndex = -1 }
 
   /// Navigate to previous command in history
-  let navigatePrevious (state: State) : State =
-    if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) then
-      let historyLength = Stdlib.List.length state.commandHistory
+  let navigatePrevious(state: State): State =
+    if Stdlib.Bool.not(Stdlib.List.isEmpty(state.commandHistory)) then
+      let historyLength = Stdlib.List.length(state.commandHistory)
       let newIndex =
         if state.historyIndex == -1 then
           0  // Start from the most recent command
@@ -127,9 +127,9 @@ module History =
             state.historyIndex + 1
           else
             state.historyIndex  // Stay at oldest command
-      match Stdlib.List.getAt state.commandHistory newIndex with
+      match Stdlib.List.getAt(state.commandHistory, newIndex) with
       | Some command ->
-        let commandLength = Stdlib.String.length command
+        let commandLength = Stdlib.String.length(command)
         let newSavedPrompt =
           if state.historyIndex == -1 then
             state.text
@@ -146,23 +146,23 @@ module History =
       state
 
   /// Navigate to next command in history
-  let navigateNext (state: State) : State =
-    if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) && state.historyIndex >= 0 then
+  let navigateNext(state: State): State =
+    if Stdlib.Bool.not(Stdlib.List.isEmpty(state.commandHistory)) && state.historyIndex >= 0 then
       let newIndex =
         if state.historyIndex > 0 then
           state.historyIndex - 1
         else
           -1  // Go back to empty prompt
       if newIndex == -1 then
-        let restoredPromptLength = Stdlib.String.length state.savedPrompt
+        let restoredPromptLength = Stdlib.String.length(state.savedPrompt)
         { state with
             text = state.savedPrompt
             cursorPosition = restoredPromptLength
             historyIndex = newIndex }
       else
-        match Stdlib.List.getAt state.commandHistory newIndex with
+        match Stdlib.List.getAt(state.commandHistory, newIndex) with
         | Some command ->
-          let commandLength = Stdlib.String.length command
+          let commandLength = Stdlib.String.length(command)
           { state with
               text = command
               cursorPosition = commandLength
@@ -174,55 +174,55 @@ module History =
 
 
 module Display =
-  let plainPrefix (locationStr: String) : String =
-    if Stdlib.String.isEmpty locationStr then
+  let plainPrefix(locationStr: String): String =
+    if Stdlib.String.isEmpty(locationStr) then
       "> "
     else
       locationStr + " > "
 
-  let styledPrefix (locationStr: String) : String =
-    if Stdlib.String.isEmpty locationStr then
+  let styledPrefix(locationStr: String): String =
+    if Stdlib.String.isEmpty(locationStr) then
       "> "
     else
-      Stdlib.Cli.UI.Colors.dimText $"{locationStr} " + "> "
+      Stdlib.Cli.UI.Colors.dimText($"{locationStr} ") + "> "
 
   /// Format the complete prompt with input and optional hint
-  let formatPromptWithInput
-    (locationStr: String)
-    (text: String)
-    (hint: String)
+  let formatPromptWithInput(
+    locationStr: String,
+    text: String,
+    hint: String)
     : String =
-    if Stdlib.String.isEmpty hint then
-      styledPrefix locationStr + text
+    if Stdlib.String.isEmpty(hint) then
+      styledPrefix(locationStr) + text
     else
-      styledPrefix locationStr + text + (Stdlib.Cli.UI.Colors.hint hint)
+      styledPrefix(locationStr) + text + (Stdlib.Cli.UI.Colors.hint(hint))
 
   /// Build the complete prompt region and Unicode-correct logical cursor.
-  let viewAtSize
-    (state: State)
-    (locationStr: String)
-    (hint: String)
-    (size: Stdlib.Cli.Tui.Size)
+  let viewAtSize(
+    state: State,
+    locationStr: String,
+    hint: String,
+    size: Stdlib.Cli.Tui.Size)
     : Stdlib.Cli.Tui.View =
-    let width = Stdlib.max 1 size.width
+    let width = Stdlib.max(1, size.width)
     let styled =
-      formatPromptWithInput locationStr state.text hint
+      formatPromptWithInput(locationStr, state.text, hint)
     let beforeCursor =
-      Stdlib.String.slice
-        state.text
-        0
-        state.cursorPosition
+      Stdlib.String.slice(
+        state.text,
+        0,
+        state.cursorPosition)
     let cursorText =
-      plainPrefix locationStr + beforeCursor
+      plainPrefix(locationStr) + beforeCursor
     let (cursorRow, cursorColumn) =
-      Stdlib.Cli.Tui.Text.positionAfter cursorText width
-    let wrapped = Stdlib.Cli.Tui.Text.wrapAtColumn styled width
+      Stdlib.Cli.Tui.Text.positionAfter(cursorText, width)
+    let wrapped = Stdlib.Cli.Tui.Text.wrapAtColumn(styled, width)
     let requiredHeight =
-      Stdlib.max
-        (Stdlib.List.length wrapped)
-        (cursorRow + 1)
+      Stdlib.max(
+        Stdlib.List.length(wrapped),
+        cursorRow + 1)
     let rows =
-      Stdlib.Cli.Tui.Layout.fitRows requiredHeight wrapped
+      Stdlib.Cli.Tui.Layout.fitRows(requiredHeight, wrapped)
 
     Stdlib.Cli.Tui.View {
       rows = rows

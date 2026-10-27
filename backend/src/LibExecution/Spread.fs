@@ -388,15 +388,14 @@ let rec private ofApplicable
                 return answer
               }
             | false, _ -> Ply Purity.Unknown
-        // What it closed over and what it was partly applied to are concrete by now, so a captured
-        // callback is judged by what it IS, which no reading of the source could know.
+        // What it closed over is concrete by now, so a captured callback is judged by what it
+        // IS, which no reading of the source could know.
         let! closed =
           ofValues
             state
             depth
             (lambda.closedRegisters |> Captures.toList |> List.map snd)
-        let! args = ofValues state depth lambda.argsSoFar
-        return both own (both closed args)
+        return both own closed
     }
 
 and private ofValues

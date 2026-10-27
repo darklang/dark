@@ -85,10 +85,11 @@ let private darkAgreesWithTheSameTable =
   testTask "the Dark rule answers the same table, row for row" {
     for (newTs, newHash, curTs, curHash, expected) in cases do
       let code =
-        "Darklang.SCM.Conflicts.incomingWins "
+        "Darklang.SCM.Conflicts.incomingWins("
         + darkBinding newTs newHash
-        + " "
+        + ", "
         + darkBinding curTs curHash
+        + ")"
 
       match! evalDarkExpr code with
       | Ok(RT.DBool actual) ->

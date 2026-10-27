@@ -3,14 +3,14 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-let performInputAction (state: State) (inp: InputState) : Step =
+let performInputAction(state: State, inp: InputState): Step =
   if inp.action == "commit" then
-    match SCM.PackageOps.commitDraft state.branchId inp.field.text with
+    match SCM.PackageOps.commitDraft(state.branchId, inp.field.text) with
     | Ok _ ->
       Step.Continue
         { state with
             input = Stdlib.Option.Option.None
-            items = reloadItems state
+            items = reloadItems(state)
             selected = 0
             messageKind = MessageKind.Succeeded
             message = "committed" }
@@ -22,11 +22,11 @@ let performInputAction (state: State) (inp: InputState) : Step =
   else if inp.action == "discard" then
     // Destructive: only proceed on an explicit "y".
     if inp.field.text == "y" then
-      let _ = SCM.PackageOps.discardDraftFor state.branchId
+      let _ = SCM.PackageOps.discardDraftFor(state.branchId)
       Step.Continue
         { state with
             input = Stdlib.Option.Option.None
-            items = reloadItems state
+            items = reloadItems(state)
             selected = 0
             messageKind = MessageKind.Succeeded
             message = "discarded all changes" }
@@ -36,14 +36,14 @@ let performInputAction (state: State) (inp: InputState) : Step =
     // A real rename: the old name ends and the same content binds at the new one. A lone SetName
     // ADDS a second name and leaves the first, which is not a rename. `Packages.Rename.ops` is the
     // one description of what a rename authors; `dark rename` uses it too.
-    match Stdlib.List.getAt state.items state.selected with
+    match Stdlib.List.getAt(state.items, state.selected) with
     | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
     | Some item ->
       if item.isModule then
         Step.Continue { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Refused, message = "rename failed: can't rename a module" }
       else
-        let modules = Packages.modulePathOf state.location
-        let results = Packages.Query.searchExactMatch state.branchId modules item.name
+        let modules = Packages.modulePathOf(state.location)
+        let results = Packages.Query.searchExactMatch(state.branchId, modules, item.name)
         let refOpt =
           if item.kind == "type" then
             match results.types with
@@ -72,7 +72,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         match refOpt with
         | None -> Step.Continue { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Refused, message = "rename failed: item not found" }
         | Some reference ->
-          match Packages.Location.parseRelativeTo state.location inp.field.text with
+          match Packages.Location.parseRelativeTo(state.location, inp.field.text) with
           | Error e -> Step.Continue { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Failed, message = "rename failed: " + e }
           | Ok newLoc ->
             // Three separate fields, never one tuple: `SetName((a, b, c))` passes a single tuple and
@@ -93,15 +93,15 @@ let performInputAction (state: State) (inp: InputState) : Step =
                   { owner = newLoc.owner, modules = [], name = item.name }
 
             match
-              SCM.PackageOps.add
-                state.branchId
-                (Packages.Rename.ops oldLoc newLoc reference)
+              SCM.PackageOps.add(
+                state.branchId,
+                Packages.Rename.ops(oldLoc, newLoc, reference))
             with
             | Ok _ ->
               Step.Continue
                 { state with
                     input = Stdlib.Option.Option.None
-                    items = reloadItems state
+                    items = reloadItems(state)
                     selected = 0
                     detailScroll = 0
                     messageKind = MessageKind.Succeeded
@@ -114,10 +114,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
       // The branch under the cursor, or the current one - the same choice the
       // prompt named.
       let target =
-        match branchForAction state with
+        match branchForAction(state) with
         | Some b -> b.id
         | None -> state.branchId
-      match SCM.PackageOps.mergeBranch target with
+      match SCM.PackageOps.mergeBranch(target) with
       | Ok _ ->
         // Merged the branch you're on into its parent - follow the pointer to
         // the parent, like the `merge` command does. Merging some other
@@ -125,15 +125,15 @@ let performInputAction (state: State) (inp: InputState) : Step =
         let parentId =
           if target != state.branchId then state.branchId
           else
-            match SCM.Branch.get target with
+            match SCM.Branch.get(target) with
             | Some b -> (match b.parentBranchId with | Some p -> p | None -> state.branchId)
             | None -> state.branchId
-        let moved = onBranch state parentId
+        let moved = onBranch(state, parentId)
 
         Step.Continue
           { moved with
               input = Stdlib.Option.Option.None
-              items = itemsForView state.activeView parentId state.location state.matter.lens
+              items = itemsForView(state.activeView, parentId, state.location, state.matter.lens)
               selected = 0
               filter = ""
               messageKind = MessageKind.Succeeded
@@ -143,40 +143,40 @@ let performInputAction (state: State) (inp: InputState) : Step =
           { state with
               input = Stdlib.Option.Option.None
               messageKind = MessageKind.Failed
-              message = "merge failed: " + (SCM.PackageOps.mergeErrorMessage e) }
+              message = "merge failed: " + (SCM.PackageOps.mergeErrorMessage(e)) }
   else if inp.action == "rebase" then
     if inp.field.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
       let target =
-        match branchForAction state with
+        match branchForAction(state) with
         | Some b -> b.id
         | None -> state.branchId
-      match SCM.PackageOps.rebaseBranch target with
+      match SCM.PackageOps.rebaseBranch(target) with
       | Ok _ ->
         Step.Continue
           { state with
               input = Stdlib.Option.Option.None
-              items = reloadItems state
+              items = reloadItems(state)
               selected = 0
               messageKind = MessageKind.Succeeded
               message = "rebased onto parent" }
       | Error e ->
         Step.Continue
           { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Failed, message = "rebase failed: " + e }
-  else if Stdlib.String.startsWith inp.action "author-" then
+  else if Stdlib.String.startsWith(inp.action, "author-") then
     // A new item's target module was asked for (shallow tree location): parse it, then open the editor.
-    let kind = Stdlib.String.dropFirst inp.action (Stdlib.String.length "author-")
+    let kind = Stdlib.String.dropFirst(inp.action, Stdlib.String.length("author-"))
     let modParts =
-      Stdlib.String.split (Stdlib.String.trim inp.field.text) "." |> Stdlib.List.filter (fun p -> p != "")
-    if Stdlib.List.length modParts < 2 then
+      Stdlib.String.split(Stdlib.String.trim(inp.field.text), ".") |> Stdlib.List.filter(fun p -> p != "")
+    if Stdlib.List.length(modParts) < 2 then
       Step.Continue { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Refused, message = "need at least owner.Module" }
     else
-      openNewEditor { state with input = Stdlib.Option.Option.None } kind modParts
+      openNewEditor({ state with input = Stdlib.Option.Option.None }, kind, modParts)
   else if inp.action == "search" then
     // Global `/` search - open the matches in the jumpable search-results mode (empty -> a toast, no mode).
-    let hits = runSearch state.branchId inp.field.text
-    if Stdlib.List.isEmpty hits then
+    let hits = runSearch(state.branchId, inp.field.text)
+    if Stdlib.List.isEmpty(hits) then
       Step.Continue { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Refused, message = "no matches for \"" + inp.field.text + "\"" }
     else
       Step.Continue
@@ -187,18 +187,18 @@ let performInputAction (state: State) (inp: InputState) : Step =
     // The `:` command bar - run any old-school CLI command inside the workbench and show its output in the
     // reader (captured via stdoutCapture, so it never touches the frame). If the first word isn't a known
     // command, fall back to evaluating the whole line as a Dark expression, so `: 1 + 2` still works.
-    let text = Stdlib.String.trim inp.field.text
+    let text = Stdlib.String.trim(inp.field.text)
     if text == "" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      let words = Stdlib.String.split text " " |> Stdlib.List.filter (fun w -> w != "")
+      let words = Stdlib.String.split(text, " ") |> Stdlib.List.filter(fun w -> w != "")
       // A throwaway AppState to run the command against, pinned to the workbench's branch + account.
       let appState =
-        classicState state
+        classicState(state)
       let allNames =
         appState.allCommandsCache
-        |> Stdlib.List.fold [] (fun acc h ->
-          Stdlib.List.concat (Stdlib.List.append acc h.name) h.aliases)
+        |> Stdlib.List.fold([], fun acc h ->
+          Stdlib.List.concat(Stdlib.List.append(acc, h.name), h.aliases))
       let (cmd, args) =
         match words with
         | first :: rest -> (first, rest)
@@ -210,17 +210,17 @@ let performInputAction (state: State) (inp: InputState) : Step =
       // TUIs (their alt-screen escapes would dump into the reader) and commands that read stdin
       // (their questions would be invisible). Hand the whole line off; the loop splits it, runs it
       // on the real terminal, and returns here on exit.
-      else if Darklang.Cli.Registry.takesScreen appState.allCommandsCache cmd args then
+      else if Darklang.Cli.Registry.takesScreen(appState.allCommandsCache, cmd, args) then
         Step.Launch({ state with input = Stdlib.Option.Option.None }, text)
-      else if Darklang.Cli.Registry.needsTerminal appState.allCommandsCache cmd args then
+      else if Darklang.Cli.Registry.needsTerminal(appState.allCommandsCache, cmd, args) then
         Step.Launch({ state with input = Stdlib.Option.Option.None }, text)
       else
-        let isKnown = Stdlib.List.contains allNames cmd
+        let isKnown = Stdlib.List.contains(allNames, cmd)
         let output =
-          captureOutput (fun () ->
-            if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args
-            else Darklang.Cli.Registry.executeCommand "eval" appState words)
-        let body = if (Stdlib.String.trim output) == "" then "(no output)" else output
+          captureOutput(fun () ->
+            if isKnown then Darklang.Cli.Registry.executeCommand(cmd, appState, args)
+            else Darklang.Cli.Registry.executeCommand("eval", appState, words))
+        let body = if (Stdlib.String.trim(output)) == "" then "(no output)" else output
 
         // Say which path ran when it was not the one you asked for. Falling back to `eval` is what makes
         // `: 1 + 2` work, but when the first word was MEANT as a command the fallback's error answers a
@@ -230,8 +230,8 @@ let performInputAction (state: State) (inp: InputState) : Step =
           if isKnown then
             body
           else
-            (Stdlib.Cli.UI.Colors.dimText
-              $"{cmd} isn't a command -- ran the line as a Dark expression instead. `?` lists commands.")
+            (Stdlib.Cli.UI.Colors.dimText(
+              $"{cmd} isn't a command -- ran the line as a Dark expression instead. `?` lists commands."))
             + "\n\n"
             + body
         Step.Continue
@@ -239,7 +239,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
               input = Stdlib.Option.Option.None
               // Whatever ran may have changed what the item page shows, an approval for one.
               preview = Stdlib.Option.Option.None
-              reading = Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.dimText ("$ " + text)) + "\n\n" + shown)
+              reading = Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.dimText("$ " + text)) + "\n\n" + shown)
               readingIsCode = false
               detailScroll = 0 }
   else if inp.action == "scratch" then
@@ -249,18 +249,18 @@ let performInputAction (state: State) (inp: InputState) : Step =
     // A paste is run statement by statement, so it does exactly what typing those lines would have done -
     // `let a = 21L` binds, then `a * 2L` sees it and prints 42. Indented lines continue the one above, so a
     // wrapped expression is still one statement (see `Repl.splitStatements`).
-    let body = Stdlib.String.trimEnd inp.field.text
+    let body = Stdlib.String.trimEnd(inp.field.text)
     // Two spaces when you typed none, so `splitStatements` sees the typed line as the
     // continuation it is.
-    let addLine (pending: String) (line: String) : String =
-      if pending == "" then Stdlib.String.trim line
-      else if Stdlib.String.startsWith line " " || Stdlib.String.startsWith line "\t" then pending + "\n" + line
-      else pending + "\n  " + (Stdlib.String.trim line)
+    let addLine(pending: String, line: String): String =
+      if pending == "" then Stdlib.String.trim(line)
+      else if Stdlib.String.startsWith(line, " ") || Stdlib.String.startsWith(line, "\t") then pending + "\n" + line
+      else pending + "\n  " + (Stdlib.String.trim(line))
     // ⏎ on the empty `...` line runs what's accumulated. That's the override for a statement `wantsAnotherLine`
     // won't let go of, and it's why there's no continuation character to type.
-    let finishing = (state.repl.pending != "") && ((Stdlib.String.trim body) == "")
-    let soFar = addLine state.repl.pending body
-    if (Stdlib.Bool.not finishing) && (Darklang.Cli.Repl.wantsAnotherLine soFar) then
+    let finishing = (state.repl.pending != "") && ((Stdlib.String.trim(body)) == "")
+    let soFar = addLine(state.repl.pending, body)
+    if (Stdlib.Bool.not(finishing)) && (Darklang.Cli.Repl.wantsAnotherLine(soFar)) then
       Step.Continue
         { state with
             repl = { state.repl with pending = soFar }
@@ -268,7 +268,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
               Stdlib.Option.Option.Some
                 { inp with prompt = "...   ", field = Stdlib.Cli.UI.TextField.empty } }
     else
-      let text = Stdlib.String.trim soFar
+      let text = Stdlib.String.trim(soFar)
       if text == "" then
         // An empty line with nothing pending closes the bar - the other way out, alongside esc.
         Step.Continue
@@ -277,8 +277,8 @@ let performInputAction (state: State) (inp: InputState) : Step =
               input = Stdlib.Option.Option.None }
       else
         let ran =
-          Darklang.Cli.Repl.splitStatements text
-          |> Stdlib.List.fold state (fun st stmt -> applyReplStatement st stmt)
+          Darklang.Cli.Repl.splitStatements(text)
+          |> Stdlib.List.fold(state, fun st stmt -> applyReplStatement(st, stmt))
         // Stay in the bar. A REPL you have to re-open after every ⏎ reads as modal when it isn't; typing the
         // next expression is overwhelmingly what you want, and esc still leaves.
         Step.Continue
@@ -290,17 +290,17 @@ let performInputAction (state: State) (inp: InputState) : Step =
   else if inp.action == "filter" then
     // Record the filter, then reload through the ordinary path - `reloadItems` applies it, so this is the
     // same code every other reload runs and can't drift from it.
-    let filtered = { state with filter = Stdlib.String.trim inp.field.text }
+    let filtered = { state with filter = Stdlib.String.trim(inp.field.text) }
     Step.Continue
       { filtered with
           input = Stdlib.Option.Option.None
-          items = reloadItems filtered
+          items = reloadItems(filtered)
           selected = 0
           detailScroll = 0 }
   else if inp.action == "branch-create" then
     // `create` hands back an Option: it looks the branch up after registering it, so a name that could
     // not be registered has nothing to return. Reading `.id` off the Option is a runtime error.
-    match Darklang.SCM.Branch.create inp.field.text state.branchId with
+    match Darklang.SCM.Branch.create(inp.field.text, state.branchId) with
     | None ->
       Step.Continue
         { state with
@@ -309,20 +309,20 @@ let performInputAction (state: State) (inp: InputState) : Step =
             message = "couldn't start a branch called \"" + inp.field.text + "\"" }
     | Some b ->
 
-    let switched = switchWorkbenchBranch state b.id b.name
+    let switched = switchWorkbenchBranch(state, b.id, b.name)
     Step.Continue { switched with messageKind = MessageKind.Succeeded, message = "on branch " + b.name }
   else if inp.action == "branch-rename" then
-    let newName = Stdlib.String.trim inp.field.text
-    match selectedBranch state with
+    let newName = Stdlib.String.trim(inp.field.text)
+    match selectedBranch(state) with
     | Some b ->
       let (msg, kind) =
-        match Darklang.SCM.Branch.rename b.id newName with
+        match Darklang.SCM.Branch.rename(b.id, newName) with
         | Ok _ -> ("renamed to " + newName, MessageKind.Succeeded)
         | Error m -> ("rename failed: " + m, MessageKind.Failed)
       Step.Continue
         { state with
             input = Stdlib.Option.Option.None
-            items = reloadItems state
+            items = reloadItems(state)
             messageKind = kind
             message = msg }
     | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
@@ -330,9 +330,9 @@ let performInputAction (state: State) (inp: InputState) : Step =
     if inp.field.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      match selectedBranch state with
+      match selectedBranch(state) with
       | Some b ->
-        match Darklang.SCM.Branch.delete b.id with
+        match Darklang.SCM.Branch.delete(b.id) with
         | Error m ->
           Step.Continue
             { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Failed, message = "delete failed: " + m }
@@ -345,11 +345,11 @@ let performInputAction (state: State) (inp: InputState) : Step =
           let msg =
             if b.id == state.branchId then "deleted " + b.name + " - switched to main"
             else "deleted " + b.name
-          let moved = onBranch state landedOn
+          let moved = onBranch(state, landedOn)
           Step.Continue
             { moved with
                 input = Stdlib.Option.Option.None
-                items = reloadItems moved
+                items = reloadItems(moved)
                 selected = 0
                 messageKind = MessageKind.Succeeded
                 message = msg }
@@ -358,42 +358,42 @@ let performInputAction (state: State) (inp: InputState) : Step =
     if inp.field.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      match Stdlib.List.getAt state.items state.selected with
+      match Stdlib.List.getAt(state.items, state.selected) with
       | Some item ->
-        match Cli.TraceVerbs.find item.name with
+        match Cli.TraceVerbs.find(item.name) with
         | Error m ->
           Step.Continue { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Refused, message = m }
         | Ok run ->
-          let deleted = Darklang.Tracing.Store.delete run.id
+          let deleted = Darklang.Tracing.Store.delete(run.id)
           let cleared =
             { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Succeeded, message = "" }
-          let reloaded = { cleared with items = reloadItems cleared }
+          let reloaded = { cleared with items = reloadItems(cleared) }
           // The list shortens, so the cursor can be past its end.
           let selected =
-            Stdlib.min state.selected ((Stdlib.List.length reloaded.items) - 1)
+            Stdlib.min(state.selected, (Stdlib.List.length(reloaded.items)) - 1)
           Step.Continue
             { reloaded with
-                selected = Stdlib.max selected 0
+                selected = Stdlib.max(selected, 0)
                 messageKind = if deleted > 0 then MessageKind.Succeeded else MessageKind.Refused
                 message =
                   if deleted > 0 then
-                    $"deleted {Cli.Text.shortIdText run.id}"
+                    $"deleted {Cli.Text.shortIdText(run.id)}"
                   else
                     "that run was already gone" }
       | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
   else if inp.action == "branch-switch" then
     // `main` by name: it has no branch record for `getByName` to find.
-    let wanted = Stdlib.String.trim inp.field.text
+    let wanted = Stdlib.String.trim(inp.field.text)
     let target =
       if wanted == Darklang.SCM.Branch.mainBranchName then
         Stdlib.Option.Option.Some Darklang.SCM.Branch.mainBranchId
       else
-        match Darklang.SCM.Branch.getByName wanted with
+        match Darklang.SCM.Branch.getByName(wanted) with
         | Some b -> Stdlib.Option.Option.Some b.id
         | None -> Stdlib.Option.Option.None
     match target with
     | Some id ->
-      Step.Continue (switchWorkbenchBranch state id wanted)
+      Step.Continue (switchWorkbenchBranch(state, id, wanted))
     | None ->
       Step.Continue
         { state with

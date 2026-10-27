@@ -35,9 +35,9 @@ val test = "⊢"
 ///
 /// Accepts the spellings the various callers use: the tree loaders say "fn"/"type"/"val", the backend's
 /// display kinds are "Fn"/"Type"/"Value", and the package listings say "function"/"value"/"submodule".
-let forKind (kind: String) : String =
+let forKind(kind: String): String =
   let glyph =
-    match Stdlib.String.toLowercase kind with
+    match Stdlib.String.toLowercase(kind) with
     | "module" -> Glyphs.module_
     | "submodule" -> Glyphs.module_
     | "fn" -> Glyphs.fn
@@ -50,7 +50,7 @@ let forKind (kind: String) : String =
     | "test" -> Glyphs.test
     | _ -> Glyphs.value
 
-  Stdlib.Cli.Tui.Text.fitToWidth glyph 2
+  Stdlib.Cli.Tui.Text.fitToWidth(glyph, 2)
 
 
 /// The order a listing shows kinds in: what a module IS, then what it does, then the traits
@@ -61,9 +61,9 @@ val kindOrder = [ "module", "type", "fn", "val", "trait", "impl", "test" ]
 
 
 /// A section header for a listing: glyph plus the plural noun.
-let sectionHeader (kind: String) : String =
+let sectionHeader(kind: String): String =
   let label =
-    match Stdlib.String.toLowercase kind with
+    match Stdlib.String.toLowercase(kind) with
     | "module" -> "Modules"
     | "submodule" -> "Submodules"
     | "fn" -> "Functions"
@@ -76,4 +76,4 @@ let sectionHeader (kind: String) : String =
     | "test" -> "Tests"
     | other -> other
 
-  $"{Glyphs.forKind kind} {label}:"
+  $"{Glyphs.forKind(kind)} {label}:"

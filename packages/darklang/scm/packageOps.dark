@@ -21,11 +21,11 @@ module Darklang.SCM.PackageOps
 
 /// Add a list of package ops to the database (immediately live on the given branch).
 /// Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure.
-let add
-  (branchId: Uuid)
-  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+let add(
+  branchId: Uuid,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Int, String> =
-  Builtin.scmAddOps branchId (Lineage.recordPrevious branchId ops)
+  Builtin.scmAddOps(branchId, Lineage.recordPrevious(branchId, ops))
 
 
 /// THE authoring boundary: stabilize a batch and store it, refusing what stabilization would corrupt.
@@ -39,50 +39,50 @@ let add
 ///
 /// Every authoring surface goes through here rather than calling `add`: the CLI's fn/type/value/module
 /// commands, the workbench, and the LSP's file provider.
-let addAuthored
-  (branchId: Uuid)
-  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+let addAuthored(
+  branchId: Uuid,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
-  let duplicates = LanguageTools.PackageManager.duplicateDeclarations ops
+  let duplicates = LanguageTools.PackageManager.duplicateDeclarations(ops)
 
-  if Stdlib.Bool.not (Stdlib.List.isEmpty duplicates) then
+  if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicates)) then
     Stdlib.Result.Result.Error(
-      "Declared more than once: " + (Stdlib.String.join duplicates ", "))
+      "Declared more than once: " + (Stdlib.String.join(duplicates, ", ")))
   else
     let stabilizedOps =
       ops
       |> LanguageTools.PackageManager.resolveTraitCalls
       |> LanguageTools.PackageManager.stabilizeHashes
 
-    let added = add branchId stabilizedOps
+    let added = add(branchId, stabilizedOps)
 
     // A value is evaluated after its ops are stored, so a value that fails has already landed. Take
     // its binding back out, or "Could not save" is untrue: the value sits in the draft, and every
     // later commit either refuses on it or commits a value nobody can read.
-    match unevaluatedValuesBoundBy branchId stabilizedOps with
+    match unevaluatedValuesBoundBy(branchId, stabilizedOps) with
     | [] ->
       match added with
       | Ok _ ->
         Stdlib.Result.Result.Ok(
-          LanguageTools.AtRestTypeChecker.checkPackageOpsOn branchId stabilizedOps)
+          LanguageTools.AtRestTypeChecker.checkPackageOpsOn(branchId, stabilizedOps))
       | Error message -> Stdlib.Result.Result.Error message
-    | failed -> Stdlib.Result.Result.Error(takeBackFailedValues branchId stabilizedOps added failed)
+    | failed -> Stdlib.Result.Result.Error(takeBackFailedValues(branchId, stabilizedOps, added, failed))
 
 
 /// Unbind the values a save could not evaluate, and say what that left. A batch (`dark module`,
 /// the editor) can hold good items beside the bad value, and those stay.
-let takeBackFailedValues
-  (branchId: Uuid)
-  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  (added: Stdlib.Result.Result<Int, String>)
-  (failed: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
+let takeBackFailedValues(
+  branchId: Uuid,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>,
+  added: Stdlib.Result.Result<Int, String>,
+  failed: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
   : String =
-  let failedLocations = failed |> Stdlib.List.map (fun (loc, _) -> loc)
+  let failedLocations = failed |> Stdlib.List.map(fun (loc, _) -> loc)
 
   let names =
     failedLocations
-    |> Stdlib.List.map PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
-    |> Stdlib.String.join ", "
+    |> Stdlib.List.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
+    |> Stdlib.String.join(", ")
 
   let why =
     match added with
@@ -91,24 +91,24 @@ let takeBackFailedValues
 
   let kept =
     ops
-    |> Stdlib.List.filterMap (fun op ->
+    |> Stdlib.List.filterMap(fun op ->
       match op with
       | SetName(loc, _, _) ->
-        if Stdlib.List.contains failedLocations loc then
+        if Stdlib.List.contains(failedLocations, loc) then
           Stdlib.Option.Option.None
         else
           Stdlib.Option.Option.Some(
-            PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc)
+            PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc))
       | _ -> Stdlib.Option.Option.None)
 
   let keptNote =
     match kept with
     | [] -> ""
     | kept ->
-      let keptList = Stdlib.String.join kept ", "
+      let keptList = Stdlib.String.join(kept, ", ")
       $" The rest of this save was kept: {keptList}."
 
-  match unbind branchId failed with
+  match unbind(branchId, failed) with
   | Ok _ -> $"{why}\nNothing was saved for {names}.{keptNote}"
   | Error e ->
     $"{why}\n{names} is still in your draft, and taking it back out failed: {e}. `dark discard {names}` removes it."
@@ -117,17 +117,17 @@ let takeBackFailedValues
 /// The values <param ops> binds whose stored form never got a runtime value: what evaluation
 /// failed on. Asked of the store, by the hash each name holds now, because the save restabilizes
 /// and refreshes hashes after the ones in hand.
-let unevaluatedValuesBoundBy
-  (branchId: Uuid)
-  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+let unevaluatedValuesBoundBy(
+  branchId: Uuid,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : List<(LanguageTools.ProgramTypes.PackageLocation * String)> =
   ops
-  |> Stdlib.List.filterMap (fun op ->
+  |> Stdlib.List.filterMap(fun op ->
     match op with
     | SetName(loc, PackageValue _, _) ->
-      match liveBindingFor branchId loc with
+      match liveBindingFor(branchId, loc) with
       | Some b ->
-        if b.itemType == "value" && Stdlib.Bool.not (valueEvaluated b.hash) then
+        if b.itemType == "value" && Stdlib.Bool.not(valueEvaluated(b.hash)) then
           Stdlib.Option.Option.Some((loc, b.hash))
         else
           Stdlib.Option.Option.None
@@ -135,11 +135,11 @@ let unevaluatedValuesBoundBy
     | _ -> Stdlib.Option.Option.None)
 
 
-let valueEvaluated (hash: String) : Bool =
-  Stdlib.Sqlite.queryOneP
-    (localDb ())
-    "SELECT 1 AS ok FROM package_values WHERE hash = @p0 AND rt_dval IS NOT NULL"
-    [ hash ]
+let valueEvaluated(hash: String): Bool =
+  Stdlib.Sqlite.queryOneP(
+    localDb(),
+    "SELECT 1 AS ok FROM package_values WHERE hash = @p0 AND rt_dval IS NOT NULL",
+    [ hash ])
   |> Stdlib.Option.isSome
 
 
@@ -148,34 +148,34 @@ let valueEvaluated (hash: String) : Bool =
 /// them: the commit's type check reads content as well as names, so content left behind with no name
 /// would go on refusing every commit. Anything else this save added that uses one of these values is
 /// left referencing nothing, and is refused as unresolved, which is what it is.
-let unbind
-  (branchId: Uuid)
-  (bindings: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
+let unbind(
+  branchId: Uuid,
+  bindings: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
   : Stdlib.Result.Result<Int, String> =
-  let hashes = bindings |> Stdlib.List.map (fun (_, hash) -> hash)
+  let hashes = bindings |> Stdlib.List.map(fun (_, hash) -> hash)
 
-  let isOneOf (op: LanguageTools.ProgramTypes.PackageOp) : Bool =
+  let isOneOf(op: LanguageTools.ProgramTypes.PackageOp): Bool =
     match op with
     | SetName(loc, target, _) ->
       let hash =
-        LanguageTools.ProgramTypes.hashToString
-          (LanguageTools.ProgramTypes.Reference.hash target)
+        LanguageTools.ProgramTypes.hashToString(
+          LanguageTools.ProgramTypes.Reference.hash(target))
 
-      Stdlib.List.contains bindings (loc, hash)
+      Stdlib.List.contains(bindings, (loc, hash))
     | AddValue v ->
-      Stdlib.List.contains hashes (LanguageTools.ProgramTypes.hashToString v.hash)
+      Stdlib.List.contains(hashes, LanguageTools.ProgramTypes.hashToString(v.hash))
     | _ -> false
 
-  if SCM.Branch.isMain branchId then
-    SCM.Draft.rewriteBy (fun draft ->
-      draft |> Stdlib.List.filter (fun d -> Stdlib.Bool.not (isOneOf d.op)))
+  if SCM.Branch.isMain(branchId) then
+    SCM.Draft.rewriteBy(fun draft ->
+      draft |> Stdlib.List.filter(fun d -> Stdlib.Bool.not(isOneOf(d.op))))
   else
     let ids =
-      decodeOpRowEntries (Branches.ownOpRows branchId)
-      |> Stdlib.List.filterMap (fun (id, _, op) ->
-        if isOneOf op then Stdlib.Option.Option.Some id else Stdlib.Option.Option.None)
+      decodeOpRowEntries(Branches.ownOpRows(branchId))
+      |> Stdlib.List.filterMap(fun (id, _, op) ->
+        if isOneOf(op) then Stdlib.Option.Option.Some id else Stdlib.Option.Option.None)
 
-    dropBranchOps branchId ids
+    dropBranchOps(branchId, ids)
 
 
 // the op-log DATA-ACCESS SILO

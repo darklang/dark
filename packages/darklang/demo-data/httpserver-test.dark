@@ -2,8 +2,8 @@ module Darklang.DemoData.HttpServerTest
 
 // Test handlers and router for the HTTP server
 
-let helloHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  Stdlib.Http.responseWithText "Hello, World!" 200
+let helloHandlerFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
+  Stdlib.Http.responseWithText("Hello, World!", 200)
 
 val helloHandler =
   Stdlib.HttpServer.Handler
@@ -12,9 +12,9 @@ val helloHandler =
       handler = helloHandlerFn }
 
 
-let echoHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  let bodyText = Stdlib.String.fromBytesWithReplacement req.body
-  Stdlib.Http.responseWithText bodyText 200
+let echoHandlerFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
+  let bodyText = Stdlib.String.fromBytesWithReplacement(req.body)
+  Stdlib.Http.responseWithText(bodyText, 200)
 
 val echoHandler =
   Stdlib.HttpServer.Handler
@@ -23,8 +23,8 @@ val echoHandler =
       handler = echoHandlerFn }
 
 
-let rootHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  Stdlib.Http.responseWithText "Welcome to Darklang HTTP Server!" 200
+let rootHandlerFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
+  Stdlib.Http.responseWithText("Welcome to Darklang HTTP Server!", 200)
 
 val rootHandler =
   Stdlib.HttpServer.Handler
@@ -41,5 +41,5 @@ val handlers =
 
 /// Router function - routes requests through our handlers
 /// This is a named function so it can be passed to the builtin
-let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  Stdlib.HttpServer.routeRequest handlers req
+let router(req: Stdlib.Http.Request): Stdlib.Http.Response =
+  Stdlib.HttpServer.routeRequest(handlers, req)

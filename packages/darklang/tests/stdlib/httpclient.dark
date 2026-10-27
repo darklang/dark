@@ -3,40 +3,40 @@ module Darklang.Stdlib.HttpClient.Tests
 
 // Tests that don't use the internet
 test contentTypes =
-  Stdlib.Test.all
+  Stdlib.Test.all(
     [ Stdlib.HttpClient.ContentType.form
-      |> Stdlib.Test.equal ("content-type", "application/x-www-form-urlencoded")
+      |> Stdlib.Test.equal(("content-type", "application/x-www-form-urlencoded"))
       Stdlib.HttpClient.ContentType.json
-      |> Stdlib.Test.equal ("content-type", "application/json")
+      |> Stdlib.Test.equal(("content-type", "application/json"))
       Stdlib.HttpClient.ContentType.plainText
-      |> Stdlib.Test.equal ("content-type", "text/plain; charset=utf-8")
+      |> Stdlib.Test.equal(("content-type", "text/plain; charset=utf-8"))
       Stdlib.HttpClient.ContentType.html
-      |> Stdlib.Test.equal ("content-type", "text/html; charset=utf-8") ]
+      |> Stdlib.Test.equal(("content-type", "text/html; charset=utf-8")) ])
 
 test bearerToken =
-  Stdlib.HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l"
-  |> Stdlib.Test.equal ("authorization", "bearer YWxhZGRpbjpvcGVuc2VzYW1l")
+  Stdlib.HttpClient.bearerToken("YWxhZGRpbjpvcGVuc2VzYW1l")
+  |> Stdlib.Test.equal(("authorization", "bearer YWxhZGRpbjpvcGVuc2VzYW1l"))
 
 test basicAuth =
-  Stdlib.Test.all
-    [ Stdlib.HttpClient.basicAuth "username" "password"
-      |> Stdlib.Test.equal (Ok(("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ=")))
-      Stdlib.HttpClient.basicAuth "" ""
-      |> Stdlib.Test.equal (Ok(("authorization", "basic Og==")))
-      Stdlib.HttpClient.basicAuth "" "-"
-      |> Stdlib.Test.equal (Ok(("authorization", "basic Oi0=")))
-      Stdlib.HttpClient.basicAuth ":" ""
-      |> Stdlib.Test.equal (Ok(("authorization", "basic Ojo=")))
-      Stdlib.HttpClient.basicAuth "" ":"
-      |> Stdlib.Test.equal (Ok(("authorization", "basic Ojo=")))
-      Stdlib.HttpClient.basicAuth "hello>" "world"
-      |> Stdlib.Test.equal (Ok(("authorization", "basic aGVsbG8+Ondvcmxk")))
-      Stdlib.HttpClient.basicAuth "hello" "world?"
-      |> Stdlib.Test.equal (Ok(("authorization", "basic aGVsbG86d29ybGQ/"))) ]
+  Stdlib.Test.all(
+    [ Stdlib.HttpClient.basicAuth("username", "password")
+      |> Stdlib.Test.equal(Ok(("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ=")))
+      Stdlib.HttpClient.basicAuth("", "")
+      |> Stdlib.Test.equal(Ok(("authorization", "basic Og==")))
+      Stdlib.HttpClient.basicAuth("", "-")
+      |> Stdlib.Test.equal(Ok(("authorization", "basic Oi0=")))
+      Stdlib.HttpClient.basicAuth(":", "")
+      |> Stdlib.Test.equal(Ok(("authorization", "basic Ojo=")))
+      Stdlib.HttpClient.basicAuth("", ":")
+      |> Stdlib.Test.equal(Ok(("authorization", "basic Ojo=")))
+      Stdlib.HttpClient.basicAuth("hello>", "world")
+      |> Stdlib.Test.equal(Ok(("authorization", "basic aGVsbG8+Ondvcmxk")))
+      Stdlib.HttpClient.basicAuth("hello", "world?")
+      |> Stdlib.Test.equal(Ok(("authorization", "basic aGVsbG86d29ybGQ/"))) ])
 
 test basicAuthRejectsHyphenInUsername =
-  Stdlib.HttpClient.basicAuth "-" ""
-  |> Stdlib.Test.equal (Error "Username cannot contain a hyphen")
+  Stdlib.HttpClient.basicAuth("-", "")
+  |> Stdlib.Test.equal(Error "Username cannot contain a hyphen")
 
 // Tests that try to make requests to the internet
 
@@ -44,38 +44,38 @@ test basicAuthRejectsHyphenInUsername =
 type GetResult =
   Stdlib.Result.Result<Stdlib.HttpClient.Response, Stdlib.HttpClient.RequestError>
 
-let get (url: String) (headers: List<String * String>) : GetResult =
-  Stdlib.HttpClient.get url headers
+let get(url: String, headers: List<String * String>): GetResult =
+  Stdlib.HttpClient.get(url, headers)
 
 // Build custom values in functions so their types stay current across package reloads.
-let errInvalidHost () : GetResult =
+let errInvalidHost(): GetResult =
   Error(
     Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidHost)
   )
 
-let errInvalidUri () : GetResult =
+let errInvalidUri(): GetResult =
   Error(
     Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri)
   )
 
-let errInvalidRequest () : GetResult =
+let errInvalidRequest(): GetResult =
   Error(
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.InvalidRequest
     )
   )
 
-let errNetworkError () : GetResult =
+let errNetworkError(): GetResult =
   Error(Stdlib.HttpClient.RequestError.NetworkError)
 
-let errBadHeaderEmptyKey () : GetResult =
+let errBadHeaderEmptyKey(): GetResult =
   Error(
     Stdlib.HttpClient.RequestError.BadHeader(Stdlib.HttpClient.BadHeader.EmptyKey)
   )
 
-let errBadMethod () : GetResult = Error(Stdlib.HttpClient.RequestError.BadMethod)
+let errBadMethod(): GetResult = Error(Stdlib.HttpClient.RequestError.BadMethod)
 
-let errUnsupportedProtocol () : GetResult =
+let errUnsupportedProtocol(): GetResult =
   Error(
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
@@ -99,46 +99,46 @@ let errUnsupportedProtocol () : GetResult =
 // Actual: a List<Int64>: [\n  1\n]"""
 
 test rejectsWrongHeaderType =
-  Stdlib.HttpClient.request "get" "https://darklang.com" [1L] Stdlib.Bytes.empty
+  Stdlib.HttpClient.request("get", "https://darklang.com", [1L], Stdlib.Bytes.empty)
   => raises "Darklang.Stdlib.HttpClient.request's 3rd parameter `headers` expects List<(String * String)>, but got List<Int64> ([1])"
 
 test rejectsEmptyHeaderKey =
-  get "https://darklang.com" [ ("", "") ]
-  |> Stdlib.Test.equal (errBadHeaderEmptyKey ())
+  get("https://darklang.com", [ ("", "") ])
+  |> Stdlib.Test.equal(errBadHeaderEmptyKey())
 
 // type errors for bad `method` are OK
 test rejectsBadMethods =
-  Stdlib.Test.all
-    [ Stdlib.HttpClient.request "" "https://darklang.com" [] Stdlib.Bytes.empty
-      |> Stdlib.Test.equal (errBadMethod ())
-      Stdlib.HttpClient.request " get " "https://darklang.com" [] Stdlib.Bytes.empty
-      |> Stdlib.Test.equal (errBadMethod ())
-      Stdlib.HttpClient.request "🇵🇷" "https://darklang.com" [] Stdlib.Bytes.empty
-      |> Stdlib.Test.equal (errBadMethod ()) ]
+  Stdlib.Test.all(
+    [ Stdlib.HttpClient.request("", "https://darklang.com", [], Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(errBadMethod())
+      Stdlib.HttpClient.request(" get ", "https://darklang.com", [], Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(errBadMethod())
+      Stdlib.HttpClient.request("🇵🇷", "https://darklang.com", [], Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(errBadMethod()) ])
 
 // unsupported protocols
 test rejectsUnsupportedProtocols =
-  Stdlib.Test.all
-    [ Stdlib.HttpClient.request "get" "ftp://darklang.com" [] Stdlib.Bytes.empty
-      |> Stdlib.Test.equal (errUnsupportedProtocol ())
-      Stdlib.HttpClient.request "put" "file:///etc/passwd" [] Stdlib.Bytes.empty
-      |> Stdlib.Test.equal (errUnsupportedProtocol ())
-      Stdlib.HttpClient.request "put" "/just-a-path" [] Stdlib.Bytes.empty
-      |> Stdlib.Test.equal (errUnsupportedProtocol ()) ]
+  Stdlib.Test.all(
+    [ Stdlib.HttpClient.request("get", "ftp://darklang.com", [], Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(errUnsupportedProtocol())
+      Stdlib.HttpClient.request("put", "file:///etc/passwd", [], Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(errUnsupportedProtocol())
+      Stdlib.HttpClient.request("put", "/just-a-path", [], Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(errUnsupportedProtocol()) ])
 
 // totally bogus URLs
 test rejectsBogusUrls =
-  Stdlib.Test.all
-    [ Stdlib.HttpClient.request "get" "" [] Stdlib.Bytes.empty
-      |> Stdlib.Test.equal
+  Stdlib.Test.all(
+    [ Stdlib.HttpClient.request("get", "", [], Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(
         (Error(
           Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri)
-        ))
-      Stdlib.HttpClient.request "post" "{ ] nonsense ^#( :" [] Stdlib.Bytes.empty
-      |> Stdlib.Test.equal
+        )))
+      Stdlib.HttpClient.request("post", "{ ] nonsense ^#( :", [], Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(
         (Error(
           Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri)
-        )) ]
+        ))) ])
 
 // Timeout coverage lives in Tests.HttpClient.TimeoutTests: a controlled transport
 // waits for the real request deadline. An external unreachable port may instead
@@ -151,58 +151,58 @@ test rejectsBogusUrls =
 
 // invalid host
 test disallowedHosts =
-  Stdlib.Test.all
-    [ get "http://0.0.0.0" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://0" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://localhost" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://127.0.0.1" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[::1]" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0:0:0:0:0:0:0:1]" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0000:0000:0000:0000:0000:0000:0000:0001]" []
-      |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://127.0.0.17" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[::ffff:7f00:11]" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0:0:0:0:0:ffff:7f00:0011]" []
-      |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]" []
-      |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://127.255.174.17" [] |> Stdlib.Test.equal (errInvalidHost ())
+  Stdlib.Test.all(
+    [ get("http://0.0.0.0", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://0", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://localhost", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://127.0.0.1", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[::1]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0:0:0:0:0:0:0:1]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0000:0000:0000:0000:0000:0000:0000:0001]", [])
+      |> Stdlib.Test.equal(errInvalidHost())
+      get("http://127.0.0.17", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[::ffff:7f00:11]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0:0:0:0:0:ffff:7f00:0011]", [])
+      |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0000:0000:0000:0000:0000:ffff:7f00:0011]", [])
+      |> Stdlib.Test.equal(errInvalidHost())
+      get("http://127.255.174.17", []) |> Stdlib.Test.equal(errInvalidHost())
       // The ranges `http.private` widens, in their default state.
-      get "http://10.0.0.5" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://172.16.0.5" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://192.168.1.5" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://100.64.0.5" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[fd00::1]" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://metadata.google.internal" []
-      |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://metadata" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://169.254.169.254" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[::ffff:a9fe:a9fe]" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0:0:0:0:0:ffff:a9fe:a9fe]" []
-      |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]" []
-      |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://169.254.0.0" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://172.16.0.1" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[::ffff:ac10:1]" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0:0:0:0:0:ffff:ac10:0001]" []
-      |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]" []
-      |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://192.168.1.1" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[::ffff:c0a8:101]" [] |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0:0:0:0:0:ffff:c0a8:0101]" []
-      |> Stdlib.Test.equal (errInvalidHost ())
-      get "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]" []
-      |> Stdlib.Test.equal (errInvalidHost ()) ]
+      get("http://10.0.0.5", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://172.16.0.5", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://192.168.1.5", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://100.64.0.5", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[fd00::1]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://metadata.google.internal", [])
+      |> Stdlib.Test.equal(errInvalidHost())
+      get("http://metadata", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://169.254.169.254", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[::ffff:a9fe:a9fe]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0:0:0:0:0:ffff:a9fe:a9fe]", [])
+      |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]", [])
+      |> Stdlib.Test.equal(errInvalidHost())
+      get("http://169.254.0.0", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://172.16.0.1", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[::ffff:ac10:1]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0:0:0:0:0:ffff:ac10:0001]", [])
+      |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0000:0000:0000:0000:0000:ffff:ac10:0001]", [])
+      |> Stdlib.Test.equal(errInvalidHost())
+      get("http://192.168.1.1", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[::ffff:c0a8:101]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0:0:0:0:0:ffff:c0a8:0101]", [])
+      |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]", [])
+      |> Stdlib.Test.equal(errInvalidHost()) ])
 
 // invalid uri
 test disallowedUri =
-  get "localhost" [] |> Stdlib.Test.equal (errInvalidUri ())
+  get("localhost", []) |> Stdlib.Test.equal(errInvalidUri())
 
 // network error
 test unspecifiedAddressIsNetworkError =
-  get "http://[0:0:0:0:0:0:0:0]" [] |> Stdlib.Test.equal (errNetworkError ())
+  get("http://[0:0:0:0:0:0:0:0]", []) |> Stdlib.Test.equal(errNetworkError())
 
 // Sneaky banned urls: a hostname that looks fine but resolves somewhere banned.
 // Blocked in the connect callback, after resolution, rather than by the URL
@@ -217,38 +217,38 @@ test unspecifiedAddressIsNetworkError =
 // true of the third-party version too. Nothing in the public API distinguishes
 // "blocked at connect" from "never resolved".
 test sneakyBannedHosts =
-  Stdlib.Test.all
+  Stdlib.Test.all(
     [ // 127.0.0.1
-      get "http://banned-loopback.dark.test" []
-      |> Stdlib.Test.equal (errNetworkError ())
+      get("http://banned-loopback.dark.test", [])
+      |> Stdlib.Test.equal(errNetworkError())
       // 0.0.0.0
-      get "http://banned-zero.dark.test" [] |> Stdlib.Test.equal (errNetworkError ())
+      get("http://banned-zero.dark.test", []) |> Stdlib.Test.equal(errNetworkError())
       // 10.0.0.1
-      get "http://banned-private.dark.test" []
-      |> Stdlib.Test.equal (errNetworkError ()) ]
+      get("http://banned-private.dark.test", [])
+      |> Stdlib.Test.equal(errNetworkError()) ])
 
 // invalid headers (we just happen to know that google will fail this way if we
 // provide these headers..)
 test disallowedHeaders =
-  Stdlib.Test.all
-    [ get "http://google.com" [ ("Metadata-Flavor", "Google") ]
-      |> Stdlib.Test.equal (errInvalidRequest ())
-      get "http://google.com" [ ("metadata-flavor", "Google") ]
-      |> Stdlib.Test.equal (errInvalidRequest ())
-      get "http://google.com" [ ("Metadata-Flavor", " Google ") ]
-      |> Stdlib.Test.equal (errInvalidRequest ())
-      get "http://google.com" [ ("X-Google-Metadata-Request", " True ") ]
-      |> Stdlib.Test.equal (errInvalidRequest ())
-      get "http://google.com" [ (" x-Google-metaData-Request", " True ") ]
-      |> Stdlib.Test.equal (errInvalidRequest ()) ]
+  Stdlib.Test.all(
+    [ get("http://google.com", [ ("Metadata-Flavor", "Google") ])
+      |> Stdlib.Test.equal(errInvalidRequest())
+      get("http://google.com", [ ("metadata-flavor", "Google") ])
+      |> Stdlib.Test.equal(errInvalidRequest())
+      get("http://google.com", [ ("Metadata-Flavor", " Google ") ])
+      |> Stdlib.Test.equal(errInvalidRequest())
+      get("http://google.com", [ ("X-Google-Metadata-Request", " True ") ])
+      |> Stdlib.Test.equal(errInvalidRequest())
+      get("http://google.com", [ (" x-Google-metaData-Request", " True ") ])
+      |> Stdlib.Test.equal(errInvalidRequest()) ])
 
 // `.test` cannot resolve publicly. Depending on the DNS environment, that is
 // reported immediately as NetworkError or when the request times out.
 test missingHostFails =
-  (match get "http://no-such-host.dark.test" [] with
+  (match get("http://no-such-host.dark.test", []) with
    | Error NetworkError -> true
    | Error Timeout -> true
    | _ -> false)
-  |> Stdlib.Test.equal true
+  |> Stdlib.Test.equal(true)
 
 // TODO: http2, http3

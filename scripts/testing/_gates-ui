@@ -110,8 +110,8 @@ gate_workbench_views() {
   # traces: recording is OFF until asked for, and something has to have RUN, for the Traces view
   # to hold anything
   run traces record on
-  run eval 'WbV.T.draft ()'
-  run eval 'Stdlib.List.length [ 1L; 2L; 3L ]'
+  run eval 'WbV.T.draft()'
+  run eval 'Stdlib.List.length([ 1L, 2L, 3L ])'
 
   exec expect "$PWD/scripts/testing/fixtures/_workbench-views.expect" "$PWD/$CLI" "$PWD/$WORK"
 }
@@ -145,7 +145,7 @@ gate_prompts_unattended() {
     timeout --kill-after=5 30 script -qec "$1" /dev/null < /dev/null 2>&1 \
       | tr -d '\r' | sed -E 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\x1b=//g'
   }
-  can_ask='eval "Stdlib.Cli.UI.Prompt.canAsk ()"'
+  can_ask='eval "Stdlib.Cli.UI.Prompt.canAsk()"'
   checked=0
 
   [[ "$(pty "$CLI_ABS $can_ask" | tail -1)" == "true" ]] || fail "a plain pty should count as a person"

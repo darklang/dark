@@ -1,8 +1,8 @@
 module Darklang.Cli.Terminal
 
 /// Samples terminal width and height in one native call.
-let getSize () : (Int * Int) =
-  Builtin.cliTerminalSize ()
+let getSize(): (Int * Int) =
+  Builtin.cliTerminalSize()
 
 
 /// Display options sized to the terminal we are actually printing to.
@@ -10,9 +10,9 @@ let getSize () : (Int * Int) =
 /// Lives here rather than next to `DisplayOptions` on purpose: reading the terminal is something the
 /// edge does, and a printer that could reach for this would stop being reproducible in a test or
 /// sizeable to a pane. `getSize` is the one place the builtin is reached.
-let displayOptions () : PrettyPrinter.DisplayOptions =
-  let (cols, _rows) = Terminal.getSize ()
-  PrettyPrinter.DisplayOptions.atWidth cols
+let displayOptions(): PrettyPrinter.DisplayOptions =
+  let (cols, _rows) = Terminal.getSize()
+  PrettyPrinter.DisplayOptions.atWidth(cols)
 
 
 /// The CLI's palette for printed values.
@@ -20,7 +20,7 @@ let displayOptions () : PrettyPrinter.DisplayOptions =
 /// Lives here rather than beside `DisplayOptions` because these are `Cli.Colors` constants, and
 /// `PrettyPrinter` has no business knowing about them. It knows a string is a string; this says what a
 /// string looks like.
-let palette () : PrettyPrinter.Palette =
+let palette(): PrettyPrinter.Palette =
   PrettyPrinter.Palette
     { string_ = Stdlib.Cli.UI.Colors.stringColor
       number = Stdlib.Cli.UI.Colors.numberColor
@@ -31,14 +31,14 @@ let palette () : PrettyPrinter.Palette =
 
 
 /// A value rendered for this terminal: laid out for `width`, painted with the CLI's palette.
-let renderValue
-  (branchId: Uuid)
-  (width: Int)
-  (color: Bool)
-  (currentModule: List<String>)
-  (dv: LanguageTools.RuntimeTypes.Dval)
+let renderValue(
+  branchId: Uuid,
+  width: Int,
+  color: Bool,
+  currentModule: List<String>,
+  dv: LanguageTools.RuntimeTypes.Dval)
   : String =
-  let palette = if color then Terminal.palette () else PrettyPrinter.Palette.plain
+  let palette = if color then Terminal.palette() else PrettyPrinter.Palette.plain
 
   let opts =
     { PrettyPrinter.DisplayOptions.default with
@@ -46,4 +46,4 @@ let renderValue
         palette = palette
         currentModule = currentModule }
 
-  PrettyPrinter.RuntimeTypes.dvalWith branchId opts dv
+  PrettyPrinter.RuntimeTypes.dvalWith(branchId, opts, dv)

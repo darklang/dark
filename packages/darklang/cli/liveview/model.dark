@@ -29,7 +29,7 @@ type View =
 
 /// A view whose three fns are `<path>.init`, `.update` and `.render`, repainting on keys and
 /// saves only.
-let viewAt (name: String) (title: String) (path: String) : View =
+let viewAt(name: String, title: String, path: String): View =
   View
     { name = name
       title = title

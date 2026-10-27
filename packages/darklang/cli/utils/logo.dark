@@ -37,30 +37,30 @@ val logoBlock = $"""
  """
 
 
-let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: String) : String =
+let combineLogoAndText(logoStr: String, textLines: List<String>, color: String): String =
   // Split the logo string by newlines
   let logoLines =
-    (Stdlib.String.split logoStr "\n")
+    (Stdlib.String.split(logoStr, "\n"))
 
   // Find the maximum width of logo lines
   let maxLogoWidth =
     logoLines
-    |> Stdlib.List.map Stdlib.String.displayWidth
-    |> Stdlib.List.fold 0 (fun acc len -> if len > acc then len else acc)
+    |> Stdlib.List.map(Stdlib.String.displayWidth)
+    |> Stdlib.List.fold(0, fun acc len -> if len > acc then len else acc)
 
   // Pad logo lines to same width
   let paddedLogoLines =
     logoLines
-    |> Stdlib.List.map (fun line ->
-      let paddedLine = Stdlib.String.padEndToWidth line maxLogoWidth
-      if Stdlib.String.isEmpty (Stdlib.String.trim line) then
+    |> Stdlib.List.map(fun line ->
+      let paddedLine = Stdlib.String.padEndToWidth(line, maxLogoWidth)
+      if Stdlib.String.isEmpty(Stdlib.String.trim(line)) then
         paddedLine
       else
         // Add color to non-empty lines
         color + paddedLine + Stdlib.Cli.UI.Colors.reset)
 
-  let logoHeight = Stdlib.List.length paddedLogoLines
-  let textHeight = Stdlib.List.length textLines
+  let logoHeight = Stdlib.List.length(paddedLogoLines)
+  let textHeight = Stdlib.List.length(textLines)
 
   // Calculate target height (maximum of both)
   let targetHeight = if logoHeight > textHeight then logoHeight else textHeight
@@ -72,12 +72,12 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
       let totalPadding = targetHeight - logoHeight // 7 - 3 = 4 empty lines needed
       let paddingTop = (totalPadding / 2) // 4 ÷ 2 = 2 lines above
       let paddingBottom = totalPadding - paddingTop // 4 - 2 = 2 lines below
-      let emptyLogoLine = Stdlib.String.repeat " " maxLogoWidth // if maxLogoWidth = 6, then emptyLogoLine = "      " (6 spaces)
-      match Stdlib.List.repeat paddingTop emptyLogoLine with // Create 2 empty top logo lines
+      let emptyLogoLine = Stdlib.String.repeat(" ", maxLogoWidth) // if maxLogoWidth = 6, then emptyLogoLine = "      " (6 spaces)
+      match Stdlib.List.repeat(paddingTop, emptyLogoLine) with // Create 2 empty top logo lines
       | Ok topEmpty ->
-        match Stdlib.List.repeat paddingBottom emptyLogoLine with // Create 2 empty bottom logo lines
+        match Stdlib.List.repeat(paddingBottom, emptyLogoLine) with // Create 2 empty bottom logo lines
         | Ok bottomEmpty ->
-          Stdlib.List.flatten [topEmpty, paddedLogoLines, bottomEmpty]
+          Stdlib.List.flatten([topEmpty, paddedLogoLines, bottomEmpty])
         | Error _ -> paddedLogoLines
       | Error _ -> paddedLogoLines
     else
@@ -89,11 +89,11 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
       let totalPadding = targetHeight - textHeight
       let paddingTop = totalPadding / 2
       let paddingBottom = totalPadding - paddingTop
-      match Stdlib.List.repeat paddingTop "" with
+      match Stdlib.List.repeat(paddingTop, "") with
       | Ok topEmpty ->
-        match Stdlib.List.repeat paddingBottom "" with
+        match Stdlib.List.repeat(paddingBottom, "") with
         | Ok bottomEmpty ->
-          Stdlib.List.flatten [topEmpty, textLines, bottomEmpty]
+          Stdlib.List.flatten([topEmpty, textLines, bottomEmpty])
         | Error _ -> textLines
       | Error _ -> textLines
     else
@@ -102,11 +102,11 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   // Combine logo and text with spacing
   let spacing = "    " // 4 spaces between logo and text
 
-  match Stdlib.List.zip finalLogoLines finalTextLines with
+  match Stdlib.List.zip(finalLogoLines, finalTextLines) with
   | Ok zipped ->
     zipped
-    |> Stdlib.List.map (fun (logoLine, textLine) -> logoLine + spacing + textLine)
-    |> Stdlib.String.join "\n"
+    |> Stdlib.List.map(fun (logoLine, textLine) -> logoLine + spacing + textLine)
+    |> Stdlib.String.join("\n")
   | Error _ ->
     // This should never happen since we ensured both lists are the same length
     ""

@@ -2,58 +2,58 @@
 /// Run without tracing, as in the original check.
 module Darklang.Language.Tests.FastOps
 
-val d = Stdlib.Dict.fromEntries [ ("a", 1), ("b", 2) ]
+val d = Stdlib.Dict.fromEntries([ ("a", 1), ("b", 2) ])
 
-let check (label: String) (actual: String) (expected: String) : Stdlib.Test.Result =
-  Stdlib.Test.expect (actual == expected) $"{label}: expected {expected}, got {actual}"
+let check(label: String, actual: String, expected: String): Stdlib.Test.Result =
+  Stdlib.Test.expect(actual == expected, $"{label}: expected {expected}, got {actual}")
 
 test dictGet =
-  Stdlib.Test.all
-    [ check "dict get hit" (Stdlib.toString (Stdlib.Option.withDefault (Stdlib.Dict.get d "a") 0)) "1"
-      check "dict get miss" (Stdlib.toString (Stdlib.Option.withDefault (Stdlib.Dict.get d "zz") (-1))) "-1" ]
+  Stdlib.Test.all(
+    [ check("dict get hit", Stdlib.toString(Stdlib.Option.withDefault(Stdlib.Dict.get(d, "a"), 0)), "1")
+      check("dict get miss", Stdlib.toString(Stdlib.Option.withDefault(Stdlib.Dict.get(d, "zz"), -1)), "-1") ])
 
 test dictSet =
-  Stdlib.Test.all
-    [ check "dict set new key" (Stdlib.toString (Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.set d "c" 3)))) "3"
-      check "dict set new value" (Stdlib.toString (Stdlib.Option.withDefault (Stdlib.Dict.get (Stdlib.Dict.set d "c" 3) "c") 0)) "3"
-      check "dict set overwrite" (Stdlib.toString (Stdlib.Option.withDefault (Stdlib.Dict.get (Stdlib.Dict.set d "a" 9) "a") 0)) "9"
-      check "dict set overwrite keeps size" (Stdlib.toString (Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.set d "a" 9)))) "2"
-      check "dict set does not mutate" (Stdlib.toString (Stdlib.List.length (Stdlib.Dict.keys d))) "2" ]
+  Stdlib.Test.all(
+    [ check("dict set new key", Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(d, "c", 3)))), "3")
+      check("dict set new value", Stdlib.toString(Stdlib.Option.withDefault(Stdlib.Dict.get(Stdlib.Dict.set(d, "c", 3), "c"), 0)), "3")
+      check("dict set overwrite", Stdlib.toString(Stdlib.Option.withDefault(Stdlib.Dict.get(Stdlib.Dict.set(d, "a", 9), "a"), 0)), "9")
+      check("dict set overwrite keeps size", Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(d, "a", 9)))), "2")
+      check("dict set does not mutate", Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(d))), "2") ])
 
 test intToString =
-  Stdlib.Test.all
-    [ check "int toString" (Stdlib.toString 42) "42"
-      check "int toString negative" (Stdlib.toString (-7)) "-7" ]
+  Stdlib.Test.all(
+    [ check("int toString", Stdlib.toString(42), "42")
+      check("int toString negative", Stdlib.toString(-7), "-7") ])
 
 test boolNot =
-  check "bool not" (if Stdlib.Bool.not true then "y" else "n") "n"
+  check("bool not", (if Stdlib.Bool.not(true) then "y" else "n"), "n")
 
 test listLength =
-  check "list length" (Stdlib.toString (Stdlib.List.length [ 1, 2, 3 ])) "3"
+  check("list length", Stdlib.toString(Stdlib.List.length([ 1, 2, 3 ])), "3")
 
 test listConcat =
-  check "list concat" (Stdlib.toString (Stdlib.List.length (Stdlib.List.concat [ 1, 2 ] [ 3 ]))) "3"
+  check("list concat", Stdlib.toString(Stdlib.List.length(Stdlib.List.concat([ 1, 2 ], [ 3 ]))), "3")
 
 test stringAppend =
-  check "string append" ("a" + "b") "ab"
+  check("string append", "a" + "b", "ab")
 
 test stringEquals =
-  check "string equals" (if "x" == "x" then "y" else "n") "y"
+  check("string equals", (if "x" == "x" then "y" else "n"), "y")
 
 test stringRepeat =
-  Stdlib.Test.all
-    [ check "repeat one char" (Stdlib.String.repeat "-" 3) "---"
-      check "repeat multi char" (Stdlib.String.repeat "ab" 2) "abab"
-      check "repeat zero" (Stdlib.String.repeat "x" 0) ""
-      check "repeat negative" (Stdlib.String.repeat "x" (-2)) ""
-      check "repeat empty" (Stdlib.String.repeat "" 5) "" ]
+  Stdlib.Test.all(
+    [ check("repeat one char", Stdlib.String.repeat("-", 3), "---")
+      check("repeat multi char", Stdlib.String.repeat("ab", 2), "abab")
+      check("repeat zero", Stdlib.String.repeat("x", 0), "")
+      check("repeat negative", Stdlib.String.repeat("x", -2), "")
+      check("repeat empty", Stdlib.String.repeat("", 5), "") ])
 
 test stringIsEmpty =
-  Stdlib.Test.all
-    [ check "string isEmpty yes" (if Stdlib.String.isEmpty "" then "y" else "n") "y"
-      check "string isEmpty no" (if Stdlib.String.isEmpty "a" then "y" else "n") "n" ]
+  Stdlib.Test.all(
+    [ check("string isEmpty yes", (if Stdlib.String.isEmpty("") then "y" else "n"), "y")
+      check("string isEmpty no", (if Stdlib.String.isEmpty("a") then "y" else "n"), "n") ])
 
 test listIsEmpty =
-  Stdlib.Test.all
-    [ check "list isEmpty yes" (if Stdlib.List.isEmpty [] then "y" else "n") "y"
-      check "list isEmpty no" (if Stdlib.List.isEmpty [ 1 ] then "y" else "n") "n" ]
+  Stdlib.Test.all(
+    [ check("list isEmpty yes", (if Stdlib.List.isEmpty([]) then "y" else "n"), "y")
+      check("list isEmpty no", (if Stdlib.List.isEmpty([ 1 ]) then "y" else "n"), "n") ])

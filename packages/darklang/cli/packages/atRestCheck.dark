@@ -1,55 +1,55 @@
 /// At-rest checker reporting for package commands.
 module Darklang.Cli.Packages.AtRestCheck
 
-let checkBranch (branchId: Uuid) : LanguageTools.AtRestTypeChecker.Report =
-  LanguageTools.AtRestTypeChecker.checkBranch branchId
+let checkBranch(branchId: Uuid): LanguageTools.AtRestTypeChecker.Report =
+  LanguageTools.AtRestTypeChecker.checkBranch(branchId)
 
-let checkModule
-  (branchId: Uuid)
-  (modules: List<String>)
+let checkModule(
+  branchId: Uuid,
+  modules: List<String>)
   : LanguageTools.AtRestTypeChecker.Report =
-  LanguageTools.AtRestTypeChecker.checkModule branchId modules
+  LanguageTools.AtRestTypeChecker.checkModule(branchId, modules)
 
 /// The name behind a hash in a diagnostic. Types and traits both appear in them -- "no
 /// implementation of X for Y" names a trait and a type -- and a hash in a message a person reads
 /// is no help, so both are looked up.
-let customTypeName
-  (branchId: Uuid)
-  (hash: LanguageTools.ProgramTypes.Hash)
+let customTypeName(
+  branchId: Uuid,
+  hash: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Option.Option<String> =
-  let nameAt (locations: List<LanguageTools.ProgramTypes.PackageLocation>) =
-    LanguageTools.PackageManager.pickLocation
-      LanguageTools.PackageManager.PickContext.empty
-      locations
-    |> Stdlib.Option.map
-         PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
+  let nameAt(locations: List<LanguageTools.ProgramTypes.PackageLocation>) =
+    LanguageTools.PackageManager.pickLocation(
+      LanguageTools.PackageManager.PickContext.empty,
+      locations)
+    |> Stdlib.Option.map(
+         PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
 
-  match nameAt (LanguageTools.PackageManager.Type.locations branchId hash) with
+  match nameAt(LanguageTools.PackageManager.Type.locations(branchId, hash)) with
   | Some name -> Stdlib.Option.Option.Some name
-  | None -> nameAt (LanguageTools.PackageManager.Trait.locations branchId hash)
+  | None -> nameAt(LanguageTools.PackageManager.Trait.locations(branchId, hash))
 
-let staticType
-  (branchId: Uuid)
-  (typ: LanguageTools.AtRestTypeChecker.StaticType)
+let staticType(
+  branchId: Uuid,
+  typ: LanguageTools.AtRestTypeChecker.StaticType)
   : String =
-  LanguageTools.AtRestTypeChecker.staticTypeToStringWith
-    (customTypeName branchId)
-    typ
+  LanguageTools.AtRestTypeChecker.staticTypeToStringWith(
+    (fun hash -> customTypeName(branchId, hash)),
+    typ)
 
-let issueLine
-  (branchId: Uuid)
-  (issue: LanguageTools.AtRestTypeChecker.Issue)
+let issueLine(
+  branchId: Uuid,
+  issue: LanguageTools.AtRestTypeChecker.Issue)
   : String =
-  let code = LanguageTools.AtRestTypeChecker.issueCodeToString issue.code
+  let code = LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
   let message =
-    LanguageTools.AtRestTypeChecker.issueToStringWith
-      (customTypeName branchId)
-      issue
+    LanguageTools.AtRestTypeChecker.issueToStringWith(
+      (fun hash -> customTypeName(branchId, hash)),
+      issue)
   "  - [" + code + "] " + message
 
-let sameOrMirrored
-  (first: LanguageTools.AtRestTypeChecker.Issue)
-  (second: LanguageTools.AtRestTypeChecker.Issue)
+let sameOrMirrored(
+  first: LanguageTools.AtRestTypeChecker.Issue,
+  second: LanguageTools.AtRestTypeChecker.Issue)
   : Bool =
   let sameSite =
     first.code == second.code
@@ -66,33 +66,33 @@ let sameOrMirrored
     && first.actual == second.expected
   same || mirrored
 
-let deduplicate
-  (issues: List<LanguageTools.AtRestTypeChecker.Issue>)
+let deduplicate(
+  issues: List<LanguageTools.AtRestTypeChecker.Issue>)
   : List<LanguageTools.AtRestTypeChecker.Issue> =
   match issues with
   | [] -> []
   | issue :: rest ->
     let remaining =
       rest
-      |> Stdlib.List.filter (fun other ->
-        Stdlib.Bool.not(sameOrMirrored issue other))
-    Stdlib.List.prepend (deduplicate remaining) issue
+      |> Stdlib.List.filter(fun other ->
+        Stdlib.Bool.not(sameOrMirrored(issue, other)))
+    Stdlib.List.prepend(deduplicate(remaining), issue)
 
-let issueLines
-  (branchId: Uuid)
-  (issues: List<LanguageTools.AtRestTypeChecker.Issue>)
+let issueLines(
+  branchId: Uuid,
+  issues: List<LanguageTools.AtRestTypeChecker.Issue>)
   : List<String> =
   issues
   |> deduplicate
-  |> Stdlib.List.map (issueLine branchId)
-  |> Stdlib.List.groupBy (fun line -> line)
-  |> Stdlib.List.map (fun (line, occurrences) ->
-    let count = Stdlib.List.length occurrences
+  |> Stdlib.List.map(fun issue -> issueLine(branchId, issue))
+  |> Stdlib.List.groupBy(fun line -> line)
+  |> Stdlib.List.map(fun (line, occurrences) ->
+    let count = Stdlib.List.length(occurrences)
     if count == 1 then line
-    else line + " (" + Stdlib.toString count + " occurrences)")
+    else line + " (" + Stdlib.toString(count) + " occurrences)")
 
-let summary
-  (report: LanguageTools.AtRestTypeChecker.Report)
+let summary(
+  report: LanguageTools.AtRestTypeChecker.Report)
   : Stdlib.Option.Option<String> =
   match report.verdict with
   | Checked -> Stdlib.Option.Option.None
@@ -101,77 +101,78 @@ let summary
 
 /// Report a saved WIP batch. Findings do not stop the save; `commit` enforces
 /// definite errors.
-let printSaveReport
-  (branchId: Uuid)
-  (report: LanguageTools.AtRestTypeChecker.Report)
+let printSaveReport(
+  branchId: Uuid,
+  report: LanguageTools.AtRestTypeChecker.Report)
   : Unit =
   match report.verdict with
   | Checked -> ()
   | Failed ->
     let details =
-      Stdlib.List.concat
-        (issueLines branchId report.diagnostics)
-        (issueLines branchId report.warnings)
-    Stdlib.List.concat
+      Stdlib.List.concat(
+        issueLines(branchId, report.diagnostics),
+        issueLines(branchId, report.warnings))
+    Stdlib.List.concat(
       [ ""
-        (Stdlib.Cli.UI.Colors.error
+        (Stdlib.Cli.UI.Colors.error(
           ("Type check failed. Saved as a draft; "
-           + "`dark commit` will refuse it until it is fixed:")) ]
-      details
+           + "`dark commit` will refuse it until it is fixed:"))) ],
+      details)
     |> Stdlib.printLines
   | Incomplete ->
     let details =
-      Stdlib.List.concat
-        (issueLines branchId report.diagnostics)
-        (issueLines branchId report.warnings)
-    Stdlib.List.concat
+      Stdlib.List.concat(
+        issueLines(branchId, report.diagnostics),
+        issueLines(branchId, report.warnings))
+    Stdlib.List.concat(
       [ ""
-        (Stdlib.Cli.UI.Colors.warning
-          "Type check was incomplete; saved anyway:") ]
-      details
+        (Stdlib.Cli.UI.Colors.warning(
+          "Type check was incomplete; saved anyway:")) ],
+      details)
     |> Stdlib.printLines
 
 
 /// Script errors name local declarations without exposing their parser-only owner.
-let scriptReport
-  (branchId: Uuid)
-  (report: LanguageTools.AtRestTypeChecker.Report)
+let scriptReport(
+  branchId: Uuid,
+  report: LanguageTools.AtRestTypeChecker.Report)
   : String =
-  let sourceName (locations: List<LanguageTools.ProgramTypes.PackageLocation>) : Stdlib.Option.Option<String> =
-    LanguageTools.PackageManager.pickLocation
-      LanguageTools.PackageManager.PickContext.empty
-      locations
-    |> Stdlib.Option.map (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn [])
+  let sourceName(locations: List<LanguageTools.ProgramTypes.PackageLocation>): Stdlib.Option.Option<String> =
+    LanguageTools.PackageManager.pickLocation(
+      LanguageTools.PackageManager.PickContext.empty,
+      locations)
+    |> Stdlib.Option.map(fun loc ->
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn([], loc))
 
-  let typeName (hash: LanguageTools.ProgramTypes.Hash) : Stdlib.Option.Option<String> =
-    sourceName (LanguageTools.PackageManager.Type.locations branchId hash)
+  let typeName(hash: LanguageTools.ProgramTypes.Hash): Stdlib.Option.Option<String> =
+    sourceName(LanguageTools.PackageManager.Type.locations(branchId, hash))
 
-  let itemLines (item: LanguageTools.AtRestTypeChecker.ItemReport) : List<String> =
+  let itemLines(item: LanguageTools.AtRestTypeChecker.ItemReport): List<String> =
     if item.verdict != LanguageTools.AtRestTypeChecker.Verdict.Failed then []
     else
       let (kind, locations) =
         match item.item with
-        | PackageType hash -> ("Type", LanguageTools.PackageManager.Type.locations branchId hash)
-        | PackageValue hash -> ("Value", LanguageTools.PackageManager.Value.locations branchId hash)
-        | PackageFn hash -> ("Function", LanguageTools.PackageManager.Function.locations branchId hash)
+        | PackageType hash -> ("Type", LanguageTools.PackageManager.Type.locations(branchId, hash))
+        | PackageValue hash -> ("Value", LanguageTools.PackageManager.Value.locations(branchId, hash))
+        | PackageFn hash -> ("Function", LanguageTools.PackageManager.Function.locations(branchId, hash))
         // Six item kinds, and a report that handled three. `dark typecheck` named this one.
         | PackageTrait hash ->
-          ("Trait", LanguageTools.PackageManager.Trait.locations branchId hash)
+          ("Trait", LanguageTools.PackageManager.Trait.locations(branchId, hash))
         | PackageTraitImpl hash ->
           ("Implementation",
-           LanguageTools.PackageManager.TraitImpl.locations branchId hash)
-        | PackageTest hash -> ("Test", LanguageTools.PackageManager.Test.locations branchId hash)
+           LanguageTools.PackageManager.TraitImpl.locations(branchId, hash))
+        | PackageTest hash -> ("Test", LanguageTools.PackageManager.Test.locations(branchId, hash))
       let label =
-        match sourceName locations with
+        match sourceName(locations) with
         | Some name -> kind + " " + name
         | None -> "Top-level expression"
       let issues =
-        deduplicate item.diagnostics
-        |> Stdlib.List.map (fun issue ->
-          let code = LanguageTools.AtRestTypeChecker.issueCodeToString issue.code
-          let message = LanguageTools.AtRestTypeChecker.issueToStringWith typeName issue
+        deduplicate(item.diagnostics)
+        |> Stdlib.List.map(fun issue ->
+          let code = LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
+          let message = LanguageTools.AtRestTypeChecker.issueToStringWith(typeName, issue)
           "  - [" + code + "] " + message)
-      Stdlib.List.prepend issues (label + ":")
+      Stdlib.List.prepend(issues, label + ":")
 
-  let lines = Stdlib.List.flatten (Stdlib.List.map report.items itemLines)
-  Stdlib.String.join (Stdlib.List.prepend lines "Static type check failed:") "\n"
+  let lines = Stdlib.List.flatten(Stdlib.List.map(report.items, itemLines))
+  Stdlib.String.join(Stdlib.List.prepend(lines, "Static type check failed:"), "\n")

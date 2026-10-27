@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.Traits
 
-let content () : String =
+let content(): String =
   """# Traits
 
 A trait names one or more fns over one open type; an implementation says how one type
@@ -12,11 +12,11 @@ builtin type already has implementations. Yours join with one `impl`.
   type Point = { x: Int64, y: Int64 }
 
   impl ToString for Point =
-    let toString (p: Point) : String =
+    let toString(p: Point): String =
       $"({Stdlib.toString p.x}, {Stdlib.toString p.y})"
 
   impl Add for Point =
-    let add (a: Point) (b: Point) : Point =
+    let add(a: Point, b: Point): Point =
       Point { x = a.x + b.x, y = a.y + b.y }
 
   let p = Point { x = 1L, y = 2L }
@@ -30,17 +30,17 @@ builtin type already has implementations. Yours join with one `impl`.
 
 ## Declare your own
   trait Area<'a> =
-    let area (shape: 'a) : Float
+    let area(shape: 'a): Float
 
   impl Area for Circle =
-    let area (c: Circle) : Float = 3.14159 * c.r * c.r
+    let area(c: Circle): Float = 3.14159 * c.r * c.r
 
   impl<'a: Area> Area for List<'a> =     // conditional: needs Area for the element
-    let area (xs: List<'a>) : Float =
-      Stdlib.sum 0.0 (Stdlib.List.map xs (fun s -> Area.area s))
+    let area(xs: List<'a>): Float =
+      Stdlib.sum(0.0, Stdlib.List.map(xs, fun s -> Area.area(s)))
 
   The first type parameter is the type an implementation is for. A method can
-  DECLARE a permission ceiling (`let fetch (u: 'a) :{Http} String`), which is stored and
+  DECLARE a permission ceiling (`let fetch(u: 'a):{Http} String`), which is stored and
   is part of the trait's identity, but nothing enforces it against an implementation
   yet: an implementation may declare and do more than its trait's method allows. An
   implementation is still held to its OWN declared effects like any other fn, so this is
@@ -53,8 +53,8 @@ builtin type already has implementations. Yours join with one `impl`.
   `commit` refuses it.
 
 ## Bound a type parameter
-  let describe<'a: ToString> (v: 'a) : String = "value: " + v.toString
-  let biggest<'a: Compare + ToString> (xs: List<'a>) : String = ...
+  let describe<'a: ToString>(v: 'a): String = "value: " + v.toString
+  let biggest<'a: Compare + ToString>(xs: List<'a>): String = ...
 
   `'a: ToString` means "any type with a ToString implementation". It is checked
   when the fn is entered, against the caller's actual type, and at SAVE by the
@@ -84,8 +84,8 @@ builtin type already has implementations. Yours join with one `impl`.
 
   Author from the shell like `fn` and `type`; an impl's path is the module it
   is written in:
-    dark trait Acme.Area "<'a> = let area (shape: 'a) : Float"
-    dark impl Acme "Area for Circle = let area (c: Circle) : Float = ..."
+    dark trait Acme.Area "<'a> = let area(shape: 'a): Float"
+    dark impl Acme "Area for Circle = let area(c: Circle): Float = ..."
 
   A bare trait name (`Area`, `Add`) resolves from your module outward, then as
   `Stdlib.<name>`; write the full path when two traits share a name.
@@ -123,7 +123,7 @@ builtin type already has implementations. Yours join with one `impl`.
   callers, just like any other dependency.
 
   Operators are stored the same way, inside a pipeline too. A call in a bounded fn
-  (`let display<'a: ToString> (v: 'a) = v.toString`) stores "whatever my caller's 'a
+  (`let display<'a: ToString>(v: 'a) = v.toString`) stores "whatever my caller's 'a
   implied", and the caller stores which implementation that was, so it is not a
   run-time lookup either. What is left for run time: a call whose type nothing could
   work out when it was saved.

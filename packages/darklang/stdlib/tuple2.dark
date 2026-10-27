@@ -2,44 +2,44 @@ module Darklang.Stdlib.Tuple2
 
 
 /// Returns a pair with the given values
-let create (first: 'a) (second: 'b) : ('a * 'b) = (first, second)
+let create(first: 'a, second: 'b): ('a * 'b) = (first, second)
 
 
 /// Returns the first value of a pair
-let first (tuple: ('a * 'b)) : 'a =
+let first(tuple: ('a * 'b)): 'a =
   let (first, _) = tuple
   first
 
 
 /// Returns the second value of a pair
-let second (tuple: ('a * 'b)) : 'b =
+let second(tuple: ('a * 'b)): 'b =
   let (_, second) = tuple
   second
 
 
 /// Returns a pair with the elements swapped
-let swap (tuple: ('a * 'b)) : ('b * 'a) =
+let swap(tuple: ('a * 'b)): ('b * 'a) =
   let (first, second) = tuple
   (second, first)
 
 
 /// Transform the first value in a pair
-let mapFirst (tuple: ('a * 'b)) (fn: 'a -> 'c) : ('c * 'b) =
+let mapFirst(tuple: ('a * 'b), fn: 'a -> 'c): ('c * 'b) =
   let (first, second) = tuple
-  (fn first, second)
+  (fn(first), second)
 
 
 /// Transform the second value in a pair
-let mapSecond (tuple: ('a * 'b)) (fn: 'b -> 'c) : ('a * 'c) =
+let mapSecond(tuple: ('a * 'b), fn: 'b -> 'c): ('a * 'c) =
   let (first, second) = tuple
-  (first, fn second)
+  (first, fn(second))
 
 
 /// Transform both values in a pair
-let mapBoth
-  (tuple: ('a * 'b))
-  (fnFirst: 'a -> 'c)
-  (fnSecond: 'b -> 'd)
+let mapBoth(
+  tuple: ('a * 'b),
+  fnFirst: 'a -> 'c,
+  fnSecond: 'b -> 'd)
   : ('c * 'd) =
   let (first, second) = tuple
-  (fnFirst first, fnSecond second)
+  (fnFirst(first), fnSecond(second))

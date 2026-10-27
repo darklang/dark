@@ -7,22 +7,22 @@
 module Darklang.Cli.Outliner.Commands
 
 /// Read the documents, or explain why not.
-let documents () : Stdlib.Result.Result<Store.PersistedData, String> =
-  match Store.load () with
+let documents(): Stdlib.Result.Result<Store.PersistedData, String> =
+  match Store.load() with
   | Loaded data -> Stdlib.Result.Result.Ok data
   | Unreadable(path, reason) ->
     Stdlib.Result.Result.Error $"can't read {path}: {reason}"
 
 /// Find a document by number (as printed by `ls`), exact name, or unique prefix.
-let findDoc
-  (docs: List<Document>)
-  (needle: String)
+let findDoc(
+  docs: List<Document>,
+  needle: String)
   : Stdlib.Result.Result<Document, String> =
-  let lowered = Stdlib.String.toLowercase needle
+  let lowered = Stdlib.String.toLowercase(needle)
 
   let byNumber =
-    match Stdlib.Int.parse needle with
-    | Ok n -> Stdlib.List.getAt docs (n - 1)
+    match Stdlib.Int.parse(needle) with
+    | Ok n -> Stdlib.List.getAt(docs, n - 1)
     | Error _ -> Stdlib.Option.Option.None
 
   match byNumber with
@@ -30,35 +30,35 @@ let findDoc
   | None ->
     let matches =
       docs
-      |> Stdlib.List.filter (fun d ->
-        Stdlib.String.startsWith (Stdlib.String.toLowercase d.title) lowered)
+      |> Stdlib.List.filter(fun d ->
+        Stdlib.String.startsWith(Stdlib.String.toLowercase(d.title), lowered))
 
     match matches with
     | [ one ] -> Stdlib.Result.Result.Ok one
     | [] -> Stdlib.Result.Result.Error $"no document matching \"{needle}\""
     | many ->
-      let names = many |> Stdlib.List.map (fun d -> d.title) |> Stdlib.String.join ", "
+      let names = many |> Stdlib.List.map(fun d -> d.title) |> Stdlib.String.join(", ")
       Stdlib.Result.Result.Error $"\"{needle}\" matches several: {names}"
 
-let printError (message: String) : Unit =
-  Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+let printError(message: String): Unit =
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
 
 
 // --- ls ---
 
-let ls () : Unit =
-  match documents () with
-  | Error e -> printError e
+let ls(): Unit =
+  match documents() with
+  | Error e -> printError(e)
   | Ok data ->
-    if Stdlib.List.isEmpty data.documents then
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText "no documents")
+    if Stdlib.List.isEmpty(data.documents) then
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText("no documents"))
     else
       data.documents
-      |> Stdlib.List.indexedMap (fun i doc ->
-        let number = Stdlib.toString (i + 1)
+      |> Stdlib.List.indexedMap(fun i doc ->
+        let number = Stdlib.toString(i + 1)
         let active = if doc.id == data.activeDocId then "*" else " "
-        let count = Stdlib.List.length (descendants doc.outline doc.outline.rootChildren)
-        let lines = Stdlib.Cli.UI.Colors.dimText $"({Stdlib.toString count} lines)"
+        let count = Stdlib.List.length(descendants(doc.outline, doc.outline.rootChildren))
+        let lines = Stdlib.Cli.UI.Colors.dimText($"({Stdlib.toString(count)} lines)")
         $"{active} {number}. {doc.title}  {lines}")
       |> Stdlib.printLines
 
@@ -66,10 +66,10 @@ let ls () : Unit =
 // --- show ---
 
 /// The tree as plain text, the way the editor draws it minus the cursor.
-let showRows (doc: Document) : List<String> =
-  flattenVisible doc.outline
-  |> Stdlib.List.map (fun vn ->
-    let indent = Stdlib.String.repeat "  " vn.depth
+let showRows(doc: Document): List<String> =
+  flattenVisible(doc.outline)
+  |> Stdlib.List.map(fun vn ->
+    let indent = Stdlib.String.repeat("  ", vn.depth)
 
     let bullet =
       match vn.mark with
@@ -79,43 +79,43 @@ let showRows (doc: Document) : List<String> =
 
     $"{indent}{bullet} {vn.text}")
 
-let show (name: String) : Unit =
-  match documents () with
-  | Error e -> printError e
+let show(name: String): Unit =
+  match documents() with
+  | Error e -> printError(e)
   | Ok data ->
-    match findDoc data.documents name with
-    | Error e -> printError e
+    match findDoc(data.documents, name) with
+    | Error e -> printError(e)
     | Ok doc ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText doc.title)
-      Stdlib.printLine ""
-      Stdlib.printLines (showRows doc)
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText(doc.title))
+      Stdlib.printLine("")
+      Stdlib.printLines(showRows(doc))
 
 
 // --- add ---
 
 /// Append a line to the end of a document's top level. The quickest possible capture.
-let add (name: String) (text: String) : Unit =
-  match documents () with
-  | Error e -> printError e
+let add(name: String, text: String): Unit =
+  match documents() with
+  | Error e -> printError(e)
   | Ok data ->
-    match findDoc data.documents name with
-    | Error e -> printError e
+    match findDoc(data.documents, name) with
+    | Error e -> printError(e)
     | Ok doc ->
       let id = doc.outline.nextId
-      let withNode = addNode doc.outline id text
+      let withNode = addNode(doc.outline, id, text)
 
       let placed =
-        setChildren
-          withNode
-          Stdlib.Option.Option.None
-          (Stdlib.List.append withNode.rootChildren id)
+        setChildren(
+          withNode,
+          Stdlib.Option.Option.None,
+          Stdlib.List.append(withNode.rootChildren, id))
 
       let updated = { doc with outline = { placed with nextId = id + 1 } }
 
       let documents =
         data.documents
-        |> Stdlib.List.map (fun d -> if d.id == doc.id then updated else d)
+        |> Stdlib.List.map(fun d -> if d.id == doc.id then updated else d)
 
-      match Store.save documents data.activeDocId data.nextDocId (Store.stamp ()) with
-      | Ok _ -> Stdlib.printLine $"added to \"{doc.title}\": {text}"
-      | Error e -> printError $"couldn't save: {e}"
+      match Store.save(documents, data.activeDocId, data.nextDocId, Store.stamp()) with
+      | Ok _ -> Stdlib.printLine($"added to \"{doc.title}\": {text}")
+      | Error e -> printError($"couldn't save: {e}")

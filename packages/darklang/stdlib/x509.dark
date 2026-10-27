@@ -1,7 +1,7 @@
 module Darklang.Stdlib.X509
 
 /// Extract the public key from a PEM encoded certificate and return the key in PEM format.
-let pemCertificatePublicKey
-  (cert: String)
+let pemCertificatePublicKey(
+  cert: String)
   : Stdlib.Result.Result<String, String> =
-  Builtin.x509PemCertificatePublicKey cert
+  Builtin.x509PemCertificatePublicKey(cert)

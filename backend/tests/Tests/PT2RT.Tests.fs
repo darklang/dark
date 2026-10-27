@@ -669,7 +669,7 @@ module Expr =
 
     let infix =
       t
-        "1 |> (+) 2"
+        "1 |> (fun v -> v + 2)"
         E.Pipes.infix
         (4,
          [ RT.LoadVal(0, RT.DInt64 1L)
@@ -691,7 +691,7 @@ module Expr =
 
     let fnCall =
       t
-        "1 |> Builtin.int64Add 2"
+        "1 |> Builtin.int64Add(2)"
         E.Pipes.fnCall
         (4,
          [ RT.LoadVal(0, RT.DInt64 1L)
@@ -747,7 +747,7 @@ module Expr =
 
     let multiple =
       t
-        "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add 3 |> (+) 4"
+        "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add(3) |> (fun v -> v + 4)"
         E.Pipes.multiple
         (11,
          [ RT.CreateLambda(
@@ -1377,7 +1377,7 @@ module Expr =
 
       let applied =
         t
-          "let x = 5\nlet y=10\nlet addFifteen = fun a -> a + x + y\naddFifteen 25"
+          "let x = 5\nlet y=10\nlet addFifteen = fun a -> a + x + y\naddFifteen(25)"
           E.Lambdas.AddToClosedVars.applied
           (8,
            [ RT.LoadVal(0, RT.DInt64 5L)
@@ -1464,7 +1464,7 @@ module Expr =
 
       let partiallyApplied =
         t
-          "Builtin.int64Add 1"
+          "Builtin.int64Add(1)"
           E.Fns.Builtin.partiallyApplied
           (3,
            [ RT.LoadVal(0, RT.DInt64 1L)
@@ -1485,7 +1485,7 @@ module Expr =
 
       let fullyApplied =
         t
-          "Builtin.int64Add 1 2"
+          "Builtin.int64Add(1, 2)"
           E.Fns.Builtin.fullyApplied
           (4,
            [ RT.LoadVal(0, RT.DInt64 1L)
@@ -1507,7 +1507,7 @@ module Expr =
 
       let twoStepApplication =
         t
-          "(Builtin.int64Add 1) 2"
+          "(Builtin.int64Add(1))(2)"
           E.Fns.Builtin.twoStepApplication
           (5,
            [ RT.LoadVal(0, RT.DInt64 2L)
@@ -1603,7 +1603,7 @@ module Expr =
       module MyFnThatTakesALambda =
         let myMap =
           t
-            "Test.myMap [1L, 2L] (fun x -> x + 1L)"
+            "Test.myMap([1L, 2L], fun x -> x + 1L)"
             E.Fns.Package.MyFnThatTakesALambda.fullyApplied
             (6,
              [ RT.LoadVal(1, RT.DInt64 1L)
@@ -1697,7 +1697,7 @@ module Expr =
 
     let statement =
       t
-        "Builtin.printLine \"hello\"\n3L"
+        "Builtin.printLine(\"hello\")\n3L"
         E.Statements.statement
         (4,
          [ RT.LoadVal(0, RT.DString "hello")

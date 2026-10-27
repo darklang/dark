@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.SCM
 
-let content () : String =
+let content(): String =
   """# Source control
 
 Not git. This versions Darklang DEFINITIONS -- fns, types, values -- and the
@@ -207,16 +207,16 @@ committing would do without committing.
 ## Worked example
 
   fn Ux.Money.cents "(d: Int64) : Int64 = (d * 100L)"
-  fn Ux.Money.total "(a: Int64) : Int64 = Ux.Money.cents a"
+  fn Ux.Money.total "(a: Int64) : Int64 = Ux.Money.cents(a)"
   status                       # draft: 2 items changed
-  eval "Ux.Money.total 3L"     # 300 -- already live
+  eval "Ux.Money.total(3L)"     # 300 -- already live
   commit "money helpers" -y
 
   fn Ux.Money.cents "(d: Int64) : Int64 = (d * 1000L)"
   status                       # draft: 1 item changed, 1 followed
-  eval "Ux.Money.total 3L"     # 3000 -- total followed
+  eval "Ux.Money.total(3L)"     # 3000 -- total followed
   undo Ux.Money.cents          # back on the version -- restores the source
-  eval "Ux.Money.total 3L"     # 300 -- back on the old cents
+  eval "Ux.Money.total(3L)"     # 300 -- back on the old cents
   commit "cents in mills" -y
 
 ## What is not versioned here

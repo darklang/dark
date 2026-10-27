@@ -11,7 +11,7 @@ impl Modulo for Int8 =
   /// The modulus <param b> must be greater than 0.
   /// Use <fn Int8.remainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo (a: Int8) (b: Int8) : Int8 = Builtin.int8Mod a b
+  let modulo(a: Int8, b: Int8): Int8 = Builtin.int8Mod(a, b)
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -20,156 +20,156 @@ impl Modulo for Int8 =
 /// negative only if {{<var value> < 0}}.
 /// The sign of <param divisor> doesn't influence the outcome.
 /// Returns an {{Error}} if <param divisor> is {{0}}.
-let remainder
-  (value: Int8)
-  (divisor: Int8)
+let remainder(
+  value: Int8,
+  divisor: Int8)
   : Stdlib.Result.Result<Int8, String> =
-  Builtin.int8Remainder value divisor
+  Builtin.int8Remainder(value, divisor)
 
 
 impl Add for Int8 =
   /// Adds two 8-bit signed integers together (wraps on overflow)
-  let add (a: Int8) (b: Int8) : Int8 = Builtin.int8Add a b
+  let add(a: Int8, b: Int8): Int8 = Builtin.int8Add(a, b)
 
 
 impl Subtract for Int8 =
   /// Subtracts two 8-bit signed integers (wraps on overflow)
-  let subtract (a: Int8) (b: Int8) : Int8 = Builtin.int8Subtract a b
+  let subtract(a: Int8, b: Int8): Int8 = Builtin.int8Subtract(a, b)
 
 
 impl Multiply for Int8 =
   /// Multiplies two 8-bit signed integers (wraps on overflow)
-  let multiply (a: Int8) (b: Int8) : Int8 = Builtin.int8Multiply a b
+  let multiply(a: Int8, b: Int8): Int8 = Builtin.int8Multiply(a, b)
 
 
 impl Power for Int8 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
-  let power (``base``: Int8) (exponent: Int8) : Int8 =
-    Builtin.int8Power ``base`` exponent
+  let power(``base``: Int8, exponent: Int8): Int8 =
+    Builtin.int8Power(``base``, exponent)
 
 
 impl Divide for Int8 =
   /// Divides two 8-bit signed integers
-  let divide (a: Int8) (b: Int8) : Int8 = Builtin.int8Divide a b
+  let divide(a: Int8, b: Int8): Int8 = Builtin.int8Divide(a, b)
 
 
 impl Negate for Int8 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate (a: Int8) : Int8 = Builtin.int8Negate a
+  let negate(a: Int8): Int8 = Builtin.int8Negate(a)
 
 
 impl Compare for Int8 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan (a: Int8) (b: Int8) : Bool = Builtin.int8LessThan a b
+  let lessThan(a: Int8, b: Int8): Bool = Builtin.int8LessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
-  let lessThanOrEqualTo (a: Int8) (b: Int8) : Bool =
-    Builtin.int8LessThanOrEqualTo a b
+  let lessThanOrEqualTo(a: Int8, b: Int8): Bool =
+    Builtin.int8LessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan (a: Int8) (b: Int8) : Bool = Builtin.int8GreaterThan a b
+  let greaterThan(a: Int8, b: Int8): Bool = Builtin.int8GreaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
-  let greaterThanOrEqualTo (a: Int8) (b: Int8) : Bool =
-    Builtin.int8GreaterThanOrEqualTo a b
+  let greaterThanOrEqualTo(a: Int8, b: Int8): Bool =
+    Builtin.int8GreaterThanOrEqualTo(a, b)
 
 
 /// Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)
-let random (start: Int8) (``end``: Int8) : Int8 =
-  Builtin.int8Random start ``end``
+let random(start: Int8, ``end``: Int8): Int8 =
+  Builtin.int8Random(start, ``end``)
 
 
 /// Get the square root of an <type Int8>
-let sqrt (a: Int8) : Float = Builtin.int8Sqrt a
+let sqrt(a: Int8): Float = Builtin.int8Sqrt(a)
 
 
 /// Converts an <type Int8> to a <type Float>
-let toFloat (a: Int8) : Float = Builtin.int8ToFloat a
+let toFloat(a: Int8): Float = Builtin.int8ToFloat(a)
 
 
 /// Parses a <type String> into an <type Int8>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int8> range).
-let parse (s: String) : Stdlib.Result.Result<Int8, Stdlib.Int8.ParseError> =
-  Builtin.int8Parse s
+let parse(s: String): Stdlib.Result.Result<Int8, Stdlib.Int8.ParseError> =
+  Builtin.int8Parse(s)
 
 
 /// Converts a <type UInt8> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt8 (i: UInt8) : Stdlib.Option.Option<Int8> = Builtin.int8FromUInt8 i
+let fromUInt8(i: UInt8): Stdlib.Option.Option<Int8> = Builtin.int8FromUInt8(i)
 
 
 /// Converts an <type Int16> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt16 (i: Int16) : Stdlib.Option.Option<Int8> = Builtin.int8FromInt16 i
+let fromInt16(i: Int16): Stdlib.Option.Option<Int8> = Builtin.int8FromInt16(i)
 
 
 /// Converts a <type UInt16> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt16 (i: UInt16) : Stdlib.Option.Option<Int8> =
-  Builtin.int8FromUInt16 i
+let fromUInt16(i: UInt16): Stdlib.Option.Option<Int8> =
+  Builtin.int8FromUInt16(i)
 
 
 /// Converts an <type Int32> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt32 (i: Int32) : Stdlib.Option.Option<Int8> = Builtin.int8FromInt32 i
+let fromInt32(i: Int32): Stdlib.Option.Option<Int8> = Builtin.int8FromInt32(i)
 
 
 /// Converts a <type UInt32> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt32 (i: UInt32) : Stdlib.Option.Option<Int8> =
-  Builtin.int8FromUInt32 i
+let fromUInt32(i: UInt32): Stdlib.Option.Option<Int8> =
+  Builtin.int8FromUInt32(i)
 
 
 /// Converts an <type Int64> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt64 (i: Int64) : Stdlib.Option.Option<Int8> = Builtin.int8FromInt64 i
+let fromInt64(i: Int64): Stdlib.Option.Option<Int8> = Builtin.int8FromInt64(i)
 
 
 /// Converts a <type UInt64> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt64 (i: UInt64) : Stdlib.Option.Option<Int8> =
-  Builtin.int8FromUInt64 i
+let fromUInt64(i: UInt64): Stdlib.Option.Option<Int8> =
+  Builtin.int8FromUInt64(i)
 
 
 /// Converts an <type Int128> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt128 (i: Int128) : Stdlib.Option.Option<Int8> =
-  Builtin.int8FromInt128 i
+let fromInt128(i: Int128): Stdlib.Option.Option<Int8> =
+  Builtin.int8FromInt128(i)
 
 
 /// Converts a <type UInt128> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int8> =
-  Builtin.int8FromUInt128 i
+let fromUInt128(i: UInt128): Stdlib.Option.Option<Int8> =
+  Builtin.int8FromUInt128(i)
 
 
 impl BitwiseAnd for Int8 =
   /// Bitwise AND on two <type Int8> values
-  let bitwiseAnd (a: Int8) (b: Int8) : Int8 = Builtin.int8BitwiseAnd a b
+  let bitwiseAnd(a: Int8, b: Int8): Int8 = Builtin.int8BitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int8 =
   /// Bitwise OR on two <type Int8> values
-  let bitwiseOr (a: Int8) (b: Int8) : Int8 = Builtin.int8BitwiseOr a b
+  let bitwiseOr(a: Int8, b: Int8): Int8 = Builtin.int8BitwiseOr(a, b)
 
 
 impl BitwiseXor for Int8 =
   /// Bitwise XOR on two <type Int8> values
-  let bitwiseXor (a: Int8) (b: Int8) : Int8 = Builtin.int8BitwiseXor a b
+  let bitwiseXor(a: Int8, b: Int8): Int8 = Builtin.int8BitwiseXor(a, b)
 
 
 impl BitwiseNot for Int8 =
   /// Bitwise NOT on an <type Int8> value
-  let bitwiseNot (a: Int8) : Int8 = Builtin.int8BitwiseNot a
+  let bitwiseNot(a: Int8): Int8 = Builtin.int8BitwiseNot(a)
 
 
 impl ShiftLeft for Int8 =
   /// Bitwise left shift of an <type Int8> value
-  let shiftLeft (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftLeft a b
+  let shiftLeft(a: Int8, b: Int8): Int8 = Builtin.int8ShiftLeft(a, b)
 
 
 impl ShiftRight for Int8 =
   /// Bitwise right shift of an <type Int8> value
-  let shiftRight (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftRight a b
+  let shiftRight(a: Int8, b: Int8): Int8 = Builtin.int8ShiftRight(a, b)
 
 impl ToString for Int8 =
   /// Stringify <param int8>
-  let toString (int8: Int8) : String = Builtin.int8ToString int8
+  let toString(int8: Int8): String = Builtin.int8ToString(int8)
 
 impl Zero for Int8 =
-  let zero () : Int8 = 0y
+  let zero(): Int8 = 0y
 
 impl One for Int8 =
-  let one () : Int8 = 1y
+  let one(): Int8 = 1y

@@ -3,42 +3,42 @@ module Darklang.LanguageTools.Parser.Parse
 
 /// The parser's tree for <param code> and its diagnostics, as (range, message) pairs. The tree is
 /// best-effort, {{None}} only if the tokenizer failed outright.
-let parse
-  (kind: Parser.FileKind)
-  (code: String)
+let parse(
+  kind: Parser.FileKind,
+  code: String)
   : (Stdlib.Option.Option<WrittenTypes.ParsedFile> * List<(Parser.Range * String)>) =
-  Builtin.parse kind code
+  Builtin.parse(kind, code)
 
 
 /// The written-types tree for <param code>, or {{None}} if the tokenizer failed outright. Syntax errors
 /// short of that come back as a tree plus `diagnostics`.
-let toWrittenTypes (code: String) : Stdlib.Option.Option<WrittenTypes.ParsedFile> =
-  (parse Parser.FileKind.Script code) |> Stdlib.Tuple2.first
+let toWrittenTypes(code: String): Stdlib.Option.Option<WrittenTypes.ParsedFile> =
+  (parse(Parser.FileKind.Script, code)) |> Stdlib.Tuple2.first
 
 
 /// The parser's syntax diagnostics for <param code>, as (range, message) pairs. Empty on a clean parse.
-let diagnostics (code: String) : List<(Parser.Range * String)> =
-  (parse Parser.FileKind.Script code) |> Stdlib.Tuple2.second
+let diagnostics(code: String): List<(Parser.Range * String)> =
+  (parse(Parser.FileKind.Script, code)) |> Stdlib.Tuple2.second
 
 
-let initialParse
-  (code: String)
+let initialParse(
+  code: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
   // The range-complete parser. Every consumer of this fn (canvas modules, CLI scripts, the
   // package-test runner, parsePTExpr) parses through it. `toWrittenTypes` above is the same
   // builtin as an Option; this is it as a Result, and going through that one keeps the builtin
   // named once.
-  match toWrittenTypes code with
+  match toWrittenTypes(code) with
   | Some parsedFile -> Stdlib.Result.Result.Ok parsedFile
   | None -> Stdlib.Result.Result.Error "parse failed"
 
 
 // TODO: maybe use a proper type instead of string?
-let parsePTExpr
-  (code: String)
+let parsePTExpr(
+  code: String)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
   // context-free lowering is just the in-context lowering with an empty context, against main
-  parsePTExprInContext SCM.Branch.mainBranchId "" [] [] [] code
+  parsePTExprInContext(SCM.Branch.mainBranchId, "", [], [], [], code)
 
 
 /// Lower an expression against <param branchId>, under a real module / fn-name / parameter context.
@@ -49,14 +49,14 @@ let parsePTExpr
 ///
 /// The branch is a PARAMETER, not the process's: the same source must lower the same way whichever
 /// branch a long-lived process (the LSP) happens to sit on.
-let parsePTExprInContext
-  (branchId: Uuid)
-  (owner: String)
-  (currentModule: List<String>)
+let parsePTExprInContext(
+  branchId: Uuid,
+  owner: String,
+  currentModule: List<String>,
   // empty = no self-context (None); non-empty = Some (the fully-qualified fn name)
-  (currentFnName: List<String>)
-  (paramNames: List<String>)
-  (code: String)
+  currentFnName: List<String>,
+  paramNames: List<String>,
+  code: String)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
   match code |> initialParse with
   | Ok sourceFile ->
@@ -67,21 +67,21 @@ let parsePTExprInContext
     let ctx =
       NameResolver.NRContext
         { onMissing = NameResolver.OnMissing.Allow
-          pm = PackageManager.pm ()
+          pm = PackageManager.pm()
           branchId = branchId
           owner = owner
           currentModule = currentModule }
 
     let argMap =
       paramNames
-      |> Stdlib.List.indexedMap (fun i name -> (name, i))
-      |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
-        Stdlib.Dict.set acc name idx)
+      |> Stdlib.List.indexedMap(fun i name -> (name, i))
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc (name, idx) ->
+        Stdlib.Dict.set(acc, name, idx))
 
     let wtCtx =
       WrittenTypesToProgramTypes.Context
         { currentFnName =
-            if Stdlib.List.isEmpty currentFnName then
+            if Stdlib.List.isEmpty(currentFnName) then
               Stdlib.Option.Option.None
             else
               Stdlib.Option.Option.Some currentFnName
@@ -90,7 +90,7 @@ let parsePTExprInContext
 
     match exprs with
     | [ expr ] ->
-      let (expr, _) = WrittenTypesToProgramTypes.Expr.toPT ctx wtCtx expr
+      let (expr, _) = WrittenTypesToProgramTypes.Expr.toPT(ctx, wtCtx, expr)
       expr |> Stdlib.Result.Result.Ok
     | _ ->
       "Expected exactly one expression to be parsed"
@@ -98,9 +98,9 @@ let parsePTExprInContext
   | Error e -> Stdlib.Result.Result.Error e
 
 
-let parsePTSourceFileWithOps
-  (branchId: Uuid)
-  (code: String)
+let parsePTSourceFileWithOps(
+  branchId: Uuid,
+  code: String)
   : Stdlib.Result.Result<
     (ProgramTypes.SourceFile.SourceFile * List<ProgramTypes.PackageOp>),
     String
@@ -108,24 +108,24 @@ let parsePTSourceFileWithOps
   match code |> initialParse with
   | Ok parsedFile ->
     let (sourceFile, ops, _unresolvedNames) =
-      WrittenTypesToProgramTypes.parsedFileAsSourceFile branchId parsedFile
+      WrittenTypesToProgramTypes.parsedFileAsSourceFile(branchId, parsedFile)
 
     (sourceFile, ops) |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Parse package declarations into written types, or return syntax diagnostics.
-let packageToWrittenTypes
-  (source: String)
+let packageToWrittenTypes(
+  source: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, List<(Parser.Range * String)>> =
-  match parse Parser.FileKind.Package source with
+  match parse(Parser.FileKind.Package, source) with
   | (Some parsedFile, []) -> Stdlib.Result.Result.Ok parsedFile
   | (_, diagnostics) -> Stdlib.Result.Result.Error diagnostics
 
 
 /// Convert a top-level declaration to a module member for shared lowering.
-let toModuleDeclaration
-  (declaration: WrittenTypes.SourceFile.SourceFileDeclaration)
+let toModuleDeclaration(
+  declaration: WrittenTypes.SourceFile.SourceFileDeclaration)
   : WrittenTypes.ModuleDeclaration.Declaration =
   match declaration with
   | Type typ -> WrittenTypes.ModuleDeclaration.Declaration.Type typ
@@ -142,62 +142,62 @@ let toModuleDeclaration
 
 /// Lower a module to package operations without storing them. Resolve references
 /// within the module and against <param context>, then stabilize recursive hashes.
-let moduleToPackageOps
-  (context: NameResolver.NRContext)
-  (rootModule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+let moduleToPackageOps(
+  context: NameResolver.NRContext,
+  rootModule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
   : (List<ProgramTypes.PackageOp> * List<WrittenTypes.UnresolvedName>) =
   // Provisional ops use unique location hashes, so every declaration can resolve
   // every other without touching the store.
   let (_, provisionalOps, _) =
-    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper context rootModule
+    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper(context, rootModule)
 
-  let pm = ProgramTypes.PackageManager.withExtraOps context.pm provisionalOps
+  let pm = ProgramTypes.PackageManager.withExtraOps(context.pm, provisionalOps)
 
   let (_, ops, unresolvedNames) =
-    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
-      { context with pm = pm }
-      rootModule
+    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper(
+      { context with pm = pm },
+      rootModule)
 
-  (PackageManager.stabilizeHashes ops, unresolvedNames)
+  (PackageManager.stabilizeHashes(ops), unresolvedNames)
 
 
 /// Parse package source under <param owner> and <param modules>, resolving against
 /// <param branchId> and the other declarations in the source. Return stabilized
 /// operations, or an error for invalid syntax or unresolved names.
-let packageSourceToOps
-  (branchId: Uuid)
-  (owner: String)
-  (modules: List<String>)
-  (source: String)
+let packageSourceToOps(
+  branchId: Uuid,
+  owner: String,
+  modules: List<String>,
+  source: String)
   : Stdlib.Result.Result<List<ProgramTypes.PackageOp>, String> =
-  match packageToWrittenTypes source with
+  match packageToWrittenTypes(source) with
   | Error diagnostics ->
-    let messages = Stdlib.List.map diagnostics (fun (_, message) -> message)
-    Stdlib.Result.Result.Error(Stdlib.String.join messages "; ")
+    let messages = Stdlib.List.map(diagnostics, fun (_, message) -> message)
+    Stdlib.Result.Result.Error(Stdlib.String.join(messages, "; "))
   | Ok(SourceFile sourceFile) ->
     let rootModule =
       WrittenTypes.ModuleDeclaration.ModuleDeclaration
         { range = sourceFile.range
           name = (sourceFile.range, "__module__")
           declarations =
-            Stdlib.List.map sourceFile.declarations (fun d -> toModuleDeclaration d)
+            Stdlib.List.map(sourceFile.declarations, fun d -> toModuleDeclaration(d))
           keywordModule = sourceFile.range }
 
     let context =
       NameResolver.NRContext
         { onMissing = NameResolver.OnMissing.Allow
-          pm = PackageManager.pm ()
+          pm = PackageManager.pm()
           branchId = branchId
           owner = owner
           currentModule = modules }
 
-    let (ops, unresolvedNames) = moduleToPackageOps context rootModule
+    let (ops, unresolvedNames) = moduleToPackageOps(context, rootModule)
 
-    if Stdlib.List.isEmpty unresolvedNames then
+    if Stdlib.List.isEmpty(unresolvedNames) then
       Stdlib.Result.Result.Ok ops
     else
       let names =
         unresolvedNames
-        |> Stdlib.List.map (fun (_, parts, _) -> Stdlib.String.join parts ".")
+        |> Stdlib.List.map(fun (_, parts, _) -> Stdlib.String.join(parts, "."))
         |> Stdlib.List.unique
-      Stdlib.Result.Result.Error("unresolved: " + Stdlib.String.join names ", ")
+      Stdlib.Result.Result.Error("unresolved: " + Stdlib.String.join(names, ", "))

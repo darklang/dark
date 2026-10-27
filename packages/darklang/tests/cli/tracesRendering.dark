@@ -11,8 +11,8 @@ module Input =
   type Request = { method: String, url: String }
   type IncompleteRequest = { method: String }
 
-  let trace
-    (input: Darklang.LanguageTools.RuntimeTypes.Dval)
+  let trace(
+    input: Darklang.LanguageTools.RuntimeTypes.Dval)
     : Darklang.Tracing.Trace =
     Darklang.Tracing.Trace
       { id = "trace"
@@ -30,116 +30,116 @@ module Input =
         updated = "" }
 
   test sourceText =
-    trace (Darklang.LanguageTools.RuntimeTypes.Dval.DString "1 + 2")
+    trace(Darklang.LanguageTools.RuntimeTypes.Dval.DString "1 + 2")
     |> Darklang.Tracing.Format.inputText
-    |> Stdlib.Test.equal "1 + 2"
+    |> Stdlib.Test.equal("1 + 2")
 
   test savedSourceTakesPrecedence =
-    let recorded = trace (Darklang.LanguageTools.RuntimeTypes.Dval.DString "old")
+    let recorded = trace(Darklang.LanguageTools.RuntimeTypes.Dval.DString "old")
     let options =
       Darklang.Tracing.ScriptOptions
         { allowHarmful = false, sandbox = true, warnPermissions = false }
-    Stdlib.Test.all
+    Stdlib.Test.all(
       [ { recorded with
             scriptOrEvalInput =
               Some (Darklang.Tracing.ScriptOrEvalInput.Eval("42", false)) }
         |> Darklang.Tracing.Format.inputText
-        |> Stdlib.Test.equal "42"
+        |> Stdlib.Test.equal("42")
         { recorded with
             scriptOrEvalInput =
               Some (Darklang.Tracing.ScriptOrEvalInput.Script(
                 "file.dark", "main args", [ "hello" ], options)) }
         |> Darklang.Tracing.Format.inputText
-        |> Stdlib.Test.equal "main args" ]
+        |> Stdlib.Test.equal("main args") ])
 
   test requestSummary =
     Request { method = "GET", url = "/orders" }
     |> Darklang.LanguageTools.RuntimeTypes.reflect
     |> trace
     |> Darklang.Tracing.Format.inputText
-    |> Stdlib.Test.equal "GET /orders"
+    |> Stdlib.Test.equal("GET /orders")
 
   test missingRequestFields =
     IncompleteRequest { method = "GET" }
     |> Darklang.LanguageTools.RuntimeTypes.reflect
     |> trace
     |> Darklang.Tracing.Format.inputText
-    |> Stdlib.Test.equal "(a request)"
+    |> Stdlib.Test.equal("(a request)")
 
   test unknownInput =
-    trace Darklang.LanguageTools.RuntimeTypes.Dval.DUnit
+    trace(Darklang.LanguageTools.RuntimeTypes.Dval.DUnit)
     |> Darklang.Tracing.Format.inputText
-    |> Stdlib.Test.equal "(not source)"
+    |> Stdlib.Test.equal("(not source)")
 
 module IdWidth =
   // The shortest prefix that tells THESE ids apart. Eight unless two of them collide, which is
   // what makes a table narrow without ever being ambiguous.
   test shortestDistinctPrefix =
-    Stdlib.Test.all
-      [ Darklang.Cli.TraceVerbs.idWidth
-          [ "aaaaaaaa1111", "bbbbbbbb2222" ]
-        |> Stdlib.Test.equal 8
-        Darklang.Cli.TraceVerbs.idWidth
-          [ "aaaaaaaa1111", "aaaaaaaa2222" ]
-        |> Stdlib.Test.equal 12
-        Darklang.Cli.TraceVerbs.idWidth
-          [ "aaaaaaaaaaaa1111", "aaaaaaaaaaaa2222" ]
-        |> Stdlib.Test.equal 16 ]
+    Stdlib.Test.all(
+      [ Darklang.Cli.TraceVerbs.idWidth(
+          [ "aaaaaaaa1111", "bbbbbbbb2222" ])
+        |> Stdlib.Test.equal(8)
+        Darklang.Cli.TraceVerbs.idWidth(
+          [ "aaaaaaaa1111", "aaaaaaaa2222" ])
+        |> Stdlib.Test.equal(12)
+        Darklang.Cli.TraceVerbs.idWidth(
+          [ "aaaaaaaaaaaa1111", "aaaaaaaaaaaa2222" ])
+        |> Stdlib.Test.equal(16) ])
 
   // One id is unique by definition, and none is not a question.
   test singleOrNoIds =
-    Stdlib.Test.all
-      [ Darklang.Cli.TraceVerbs.idWidth [ "aaaaaaaaaaaaaaaa" ] |> Stdlib.Test.equal 8
-        Darklang.Cli.TraceVerbs.idWidth [] |> Stdlib.Test.equal 8 ]
+    Stdlib.Test.all(
+      [ Darklang.Cli.TraceVerbs.idWidth([ "aaaaaaaaaaaaaaaa" ]) |> Stdlib.Test.equal(8)
+        Darklang.Cli.TraceVerbs.idWidth([]) |> Stdlib.Test.equal(8) ])
 
   // Ids that agree past every width in the ladder fall back to the whole uuid.
   test wholeUuidFallback =
-    Darklang.Cli.TraceVerbs.idWidth
-      [ "aaaaaaaaaaaaaaaaaaaaaaaaa1", "aaaaaaaaaaaaaaaaaaaaaaaaa2" ]
-    |> Stdlib.Test.equal 36
+    Darklang.Cli.TraceVerbs.idWidth(
+      [ "aaaaaaaaaaaaaaaaaaaaaaaaa1", "aaaaaaaaaaaaaaaaaaaaaaaaa2" ])
+    |> Stdlib.Test.equal(36)
 
 module Status =
   test statusText =
-    Stdlib.Test.all
-      [ Darklang.Cli.TraceVerbs.statusText Darklang.Tracing.Status.Running
-        |> Stdlib.Test.equal "running"
-        Darklang.Cli.TraceVerbs.statusText Darklang.Tracing.Status.Done
-        |> Stdlib.Test.equal "done"
-        Darklang.Cli.TraceVerbs.statusText Darklang.Tracing.Status.Failed
-        |> Stdlib.Test.equal "failed"
-        Darklang.Cli.TraceVerbs.statusText Darklang.Tracing.Status.Suspended
-        |> Stdlib.Test.equal "suspended" ]
+    Stdlib.Test.all(
+      [ Darklang.Cli.TraceVerbs.statusText(Darklang.Tracing.Status.Running)
+        |> Stdlib.Test.equal("running")
+        Darklang.Cli.TraceVerbs.statusText(Darklang.Tracing.Status.Done)
+        |> Stdlib.Test.equal("done")
+        Darklang.Cli.TraceVerbs.statusText(Darklang.Tracing.Status.Failed)
+        |> Stdlib.Test.equal("failed")
+        Darklang.Cli.TraceVerbs.statusText(Darklang.Tracing.Status.Suspended)
+        |> Stdlib.Test.equal("suspended") ])
 
 module ShortId =
   test shortId =
-    Darklang.Cli.Text.shortIdText "5db5d5be-ebc1-445c-b989-cb964b48e26d"
-    |> Stdlib.Test.equal "5db5d5be"
+    Darklang.Cli.Text.shortIdText("5db5d5be-ebc1-445c-b989-cb964b48e26d")
+    |> Stdlib.Test.equal("5db5d5be")
 
   // Shorter than eight is all of it, rather than a raise.
   test shortIdOfShortText =
-    Darklang.Cli.Text.shortIdText "abc" |> Stdlib.Test.equal "abc"
+    Darklang.Cli.Text.shortIdText("abc") |> Stdlib.Test.equal("abc")
 
 module OneLine =
   // A table cell must not break the row, so a long value is cut with an ellipsis and a newline
   // becomes a space.
   test oneLineCell =
-    Stdlib.Test.all
-      [ Darklang.Cli.Text.oneLineAt 10 "short" |> Stdlib.Test.equal "short"
-        Darklang.Cli.Text.oneLineAt 10 "0123456789abc"
-        |> Stdlib.Test.equal "0123456..."
-        Darklang.Cli.Text.oneLineAt 20 "two\nlines" |> Stdlib.Test.equal "two lines" ]
+    Stdlib.Test.all(
+      [ Darklang.Cli.Text.oneLineAt(10, "short") |> Stdlib.Test.equal("short")
+        Darklang.Cli.Text.oneLineAt(10, "0123456789abc")
+        |> Stdlib.Test.equal("0123456...")
+        Darklang.Cli.Text.oneLineAt(20, "two\nlines") |> Stdlib.Test.equal("two lines") ])
 
 module Plural =
   test plural =
-    Stdlib.Test.all
-      [ Darklang.Cli.Text.plural 1 "call" |> Stdlib.Test.equal "1 call"
-        Darklang.Cli.Text.plural 2 "call" |> Stdlib.Test.equal "2 calls"
-        Darklang.Cli.Text.plural 0 "call" |> Stdlib.Test.equal "0 calls" ]
+    Stdlib.Test.all(
+      [ Darklang.Cli.Text.plural(1, "call") |> Stdlib.Test.equal("1 call")
+        Darklang.Cli.Text.plural(2, "call") |> Stdlib.Test.equal("2 calls")
+        Darklang.Cli.Text.plural(0, "call") |> Stdlib.Test.equal("0 calls") ])
 
 module TheLog =
   // A logged call, with everything the renderer reads.
 
-  let call (name: String) (ms: Int) (seq: Int64) : Darklang.Tracing.FnCall =
+  let call(name: String, ms: Int, seq: Int64): Darklang.Tracing.FnCall =
     Darklang.Tracing.FnCall
       { callId = $"call-{name}"
         fnName = name
@@ -150,52 +150,52 @@ module TheLog =
         seq = seq
         ord = seq }
 
-  let render (opts: Darklang.Cli.Tracing.ViewOptions) : String =
-    Darklang.Cli.Tracing.formatFnCalls
-      opts
-      Darklang.SCM.Branch.mainBranchId
-      [ call "httpClientGet" 120 0L, call "printLine" 0 1L ]
+  let render(opts: Darklang.Cli.Tracing.ViewOptions): String =
+    Darklang.Cli.Tracing.formatFnCalls(
+      opts,
+      Darklang.SCM.Branch.mainBranchId,
+      [ call("httpClientGet", 120, 0L), call("printLine", 0, 1L) ])
 
   // A trace that did nothing outside itself says so, rather than printing an empty block.
   test noCalls =
-    Darklang.Cli.Tracing.formatFnCalls
-      Darklang.Cli.Tracing.defaultViewOptions
-      Darklang.SCM.Branch.mainBranchId
-      []
-    |> Stdlib.Test.equal "  (this trace touched nothing outside itself)"
+    Darklang.Cli.Tracing.formatFnCalls(
+      Darklang.Cli.Tracing.defaultViewOptions,
+      Darklang.SCM.Branch.mainBranchId,
+      [])
+    |> Stdlib.Test.equal("  (this trace touched nothing outside itself)")
 
   // The log is a sequence: one line per call, in the order they completed, with the position
   // `fork --at` takes and the time it took.
   test logIsSequence =
-    render Darklang.Cli.Tracing.defaultViewOptions
-    |> Stdlib.Test.equal
-      "      0  httpClientGet() -> ()  (120ms)\n      1  printLine() -> ()"
+    render(Darklang.Cli.Tracing.defaultViewOptions)
+    |> Stdlib.Test.equal(
+      "      0  httpClientGet() -> ()  (120ms)\n      1  printLine() -> ()")
 
   // `--filter` and `--exclude` narrow the list by name, case-insensitively.
   test filterAndExclude =
-    Stdlib.Test.all
-      [ render
+    Stdlib.Test.all(
+      [ render(
           { Darklang.Cli.Tracing.defaultViewOptions with
-              filter = Stdlib.Option.Option.Some "httpclient" }
-        |> Stdlib.Test.equal "      0  httpClientGet() -> ()  (120ms)"
-        render
+              filter = Stdlib.Option.Option.Some "httpclient" })
+        |> Stdlib.Test.equal("      0  httpClientGet() -> ()  (120ms)")
+        render(
           { Darklang.Cli.Tracing.defaultViewOptions with
-              exclude = Stdlib.Option.Option.Some "PRINT" }
-        |> Stdlib.Test.equal "      0  httpClientGet() -> ()  (120ms)" ]
+              exclude = Stdlib.Option.Option.Some "PRINT" })
+        |> Stdlib.Test.equal("      0  httpClientGet() -> ()  (120ms)") ])
 
   // `--slow` is only meaningful because impure calls carry a real duration now.
   test slowCalls =
-    render
+    render(
       { Darklang.Cli.Tracing.defaultViewOptions with
-          slowThresholdMs = Stdlib.Option.Option.Some 100 }
-    |> Stdlib.Test.equal "      0  httpClientGet() -> ()  (120ms)"
+          slowThresholdMs = Stdlib.Option.Option.Some 100 })
+    |> Stdlib.Test.equal("      0  httpClientGet() -> ()  (120ms)")
 
   // A filter that matches nothing says THAT, rather than looking like a run that did nothing.
   test filterMatchesNothing =
-    render
+    render(
       { Darklang.Cli.Tracing.defaultViewOptions with
-          filter = Stdlib.Option.Option.Some "nope" }
-    |> Stdlib.Test.equal "  (no logged call matches the active filters)"
+          filter = Stdlib.Option.Option.Some "nope" })
+    |> Stdlib.Test.equal("  (no logged call matches the active filters)")
 
 module TheLogIsCut =
   // `show` merged `view` into itself, so it prints the whole log rather than a name-only
@@ -217,99 +217,99 @@ module TheLogIsCut =
         seq = 0L
         ord = 0L }
 
-  let logOf (count: Int) (opts: Darklang.Cli.Tracing.ViewOptions) : Int =
-    Stdlib.List.length
-      (Stdlib.String.split
-        (Darklang.Cli.Tracing.formatFnCalls
-          opts
-          Darklang.SCM.Branch.mainBranchId
-          (Stdlib.List.map (Stdlib.List.range 1 count) (fun _ -> one)))
-        "\n")
+  let logOf(count: Int, opts: Darklang.Cli.Tracing.ViewOptions): Int =
+    Stdlib.List.length(
+      (Stdlib.String.split(
+        (Darklang.Cli.Tracing.formatFnCalls(
+          opts,
+          Darklang.SCM.Branch.mainBranchId,
+          Stdlib.List.map(Stdlib.List.range(1, count), fun _ -> one))),
+        "\n")))
 
-  let textOf (count: Int) (opts: Darklang.Cli.Tracing.ViewOptions) : String =
-    Darklang.Cli.Tracing.formatFnCalls
-      opts
-      Darklang.SCM.Branch.mainBranchId
-      (Stdlib.List.map (Stdlib.List.range 1 count) (fun _ -> one))
+  let textOf(count: Int, opts: Darklang.Cli.Tracing.ViewOptions): String =
+    Darklang.Cli.Tracing.formatFnCalls(
+      opts,
+      Darklang.SCM.Branch.mainBranchId,
+      Stdlib.List.map(Stdlib.List.range(1, count), fun _ -> one))
 
   // Forty fit.
   test fortyFit =
-    logOf 40 Darklang.Cli.Tracing.defaultViewOptions |> Stdlib.Test.equal 40
+    logOf(40, Darklang.Cli.Tracing.defaultViewOptions) |> Stdlib.Test.equal(40)
 
   // Forty-one are cut to forty, and the forty-first line is the count of what was left out.
   // Counted at 100 rather than 41: at 41 the capped form is also 41 lines, so `= 41` there
   // holds whether or not the cap works. At 100 it still prints forty plus one summary line,
   // which is the same 41 and is now a number the uncapped form cannot produce.
   test capAtForty =
-    Stdlib.Test.all
-      [ logOf 100 Darklang.Cli.Tracing.defaultViewOptions |> Stdlib.Test.equal 41
-        Stdlib.String.contains
-          (textOf 41 Darklang.Cli.Tracing.defaultViewOptions)
-          "... 1 more"
-        |> Stdlib.Test.equal true ]
+    Stdlib.Test.all(
+      [ logOf(100, Darklang.Cli.Tracing.defaultViewOptions) |> Stdlib.Test.equal(41)
+        Stdlib.String.contains(
+          textOf(41, Darklang.Cli.Tracing.defaultViewOptions),
+          "... 1 more")
+        |> Stdlib.Test.equal(true) ])
 
   // And it says what to type for the rest.
   test capSaysHowToSeeRest =
-    Stdlib.String.contains
-      (textOf 41 Darklang.Cli.Tracing.defaultViewOptions)
-      "--all"
-    |> Stdlib.Test.equal true
+    Stdlib.String.contains(
+      textOf(41, Darklang.Cli.Tracing.defaultViewOptions),
+      "--all")
+    |> Stdlib.Test.equal(true)
 
   // `--all` prints every one. Counting LINES at 41 proves nothing on its own: the capped
   // form prints forty plus a "... 1 more" line, so it is 41 lines either way. What tells
   // them apart at this size is that the uncapped one has no "more" line at all.
   test allPrintsEvery =
-    Stdlib.Test.all
-      [ Stdlib.String.contains
-          (textOf 41 { Darklang.Cli.Tracing.defaultViewOptions with all = true })
-          "more"
-        |> Stdlib.Test.equal false
-        logOf 100 { Darklang.Cli.Tracing.defaultViewOptions with all = true }
-        |> Stdlib.Test.equal 100 ]
+    Stdlib.Test.all(
+      [ Stdlib.String.contains(
+          textOf(41, { Darklang.Cli.Tracing.defaultViewOptions with all = true }),
+          "more")
+        |> Stdlib.Test.equal(false)
+        logOf(100, { Darklang.Cli.Tracing.defaultViewOptions with all = true })
+        |> Stdlib.Test.equal(100) ])
 
 module ViewFlags =
   // The flags that only meant something for a tree of every call are refused by name, so a
   // script that still passes one is told what changed instead of quietly getting everything.
   test removedFlagsRefused =
-    Stdlib.Test.all
+    Stdlib.Test.all(
       [ (match
-          Darklang.Cli.Tracing.parseViewOptions
-            Darklang.Cli.Tracing.defaultViewOptions
-            [ "--depth", "3" ]
+          Darklang.Cli.Tracing.parseViewOptions(
+            Darklang.Cli.Tracing.defaultViewOptions,
+            [ "--depth", "3" ])
          with
-         | Error e -> Stdlib.String.contains e "--depth is gone"
+         | Error e -> Stdlib.String.contains(e, "--depth is gone")
          | Ok _ -> false)
-        |> Stdlib.Test.equal true
+        |> Stdlib.Test.equal(true)
         (match
-          Darklang.Cli.Tracing.parseViewOptions
-            Darklang.Cli.Tracing.defaultViewOptions
-            [ "--no-builtins" ]
+          Darklang.Cli.Tracing.parseViewOptions(
+            Darklang.Cli.Tracing.defaultViewOptions,
+            [ "--no-builtins" ])
          with
-         | Error e -> Stdlib.String.contains e "every logged call is an impure builtin"
+         | Error e -> Stdlib.String.contains(e, "every logged call is an impure builtin")
          | Ok _ -> false)
-        |> Stdlib.Test.equal true ]
+        |> Stdlib.Test.equal(true) ])
 
   // `--all` turns the cut off.
   test allTurnsCutOff =
     (match
-      Darklang.Cli.Tracing.parseViewOptions
-        Darklang.Cli.Tracing.defaultViewOptions
-        [ "--all" ]
+      Darklang.Cli.Tracing.parseViewOptions(
+        Darklang.Cli.Tracing.defaultViewOptions,
+        [ "--all" ])
      with
      | Ok opts -> opts.all
      | Error _ -> false)
-    |> Stdlib.Test.equal true
+    |> Stdlib.Test.equal(true)
 
   // The ones that still mean something still work.
   test remainingFlagsWork =
     (match
-      Darklang.Cli.Tracing.parseViewOptions
-        Darklang.Cli.Tracing.defaultViewOptions
-        [ "--slow-ms", "50" ]
+      Darklang.Cli.Tracing.parseViewOptions(
+        Darklang.Cli.Tracing.defaultViewOptions,
+        [ "--slow-ms", "50" ])
      with
      | Ok opts -> opts.slowThresholdMs
      | Error _ -> Stdlib.Option.Option.None)
-    |> Stdlib.Test.equal (Stdlib.Option.Option.Some 50)
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some 50)
 
 module WatchCursor =
   // Where the cursor lands after the panel reloads. A new run arrives at the TOP, so following
@@ -319,42 +319,42 @@ module WatchCursor =
 
   // Following a run: the cursor goes to wherever that run is now.
   test followRun =
-    Darklang.Cli.TraceWatch.pickCursor
-      ids
-      0
-      (Stdlib.Option.Option.Some "oldest")
-    |> Stdlib.Test.equal 2
+    Darklang.Cli.TraceWatch.pickCursor(
+      ids,
+      0,
+      Stdlib.Option.Option.Some "oldest")
+    |> Stdlib.Test.equal(2)
 
   // A run that arrived at the top pushes the one being read down, and the cursor goes with it.
   test newRunPushesDown =
-    Darklang.Cli.TraceWatch.pickCursor
-      [ "brand-new", "newest", "middle", "oldest" ]
-      0
-      (Stdlib.Option.Option.Some "newest")
-    |> Stdlib.Test.equal 1
+    Darklang.Cli.TraceWatch.pickCursor(
+      [ "brand-new", "newest", "middle", "oldest" ],
+      0,
+      Stdlib.Option.Option.Some "newest")
+    |> Stdlib.Test.equal(1)
 
   // The run being read is gone (retention dropped it): keep the position, clamped.
   test vanishedRunClamps =
-    Darklang.Cli.TraceWatch.pickCursor
-      ids
-      2
-      (Stdlib.Option.Option.Some "vanished")
-    |> Stdlib.Test.equal 2
+    Darklang.Cli.TraceWatch.pickCursor(
+      ids,
+      2,
+      Stdlib.Option.Option.Some "vanished")
+    |> Stdlib.Test.equal(2)
 
   // Not following anything -- a key press -- is a plain clamp.
   test plainClamp =
-    Stdlib.Test.all
-      [ Darklang.Cli.TraceWatch.pickCursor ids 1 Stdlib.Option.Option.None
-        |> Stdlib.Test.equal 1
-        Darklang.Cli.TraceWatch.pickCursor ids 9 Stdlib.Option.Option.None
-        |> Stdlib.Test.equal 2
-        Darklang.Cli.TraceWatch.pickCursor ids -3 Stdlib.Option.Option.None
-        |> Stdlib.Test.equal 0 ]
+    Stdlib.Test.all(
+      [ Darklang.Cli.TraceWatch.pickCursor(ids, 1, Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(1)
+        Darklang.Cli.TraceWatch.pickCursor(ids, 9, Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(2)
+        Darklang.Cli.TraceWatch.pickCursor(ids, -3, Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(0) ])
 
   // No runs at all: there is nowhere to be but zero.
   test noRuns =
-    Darklang.Cli.TraceWatch.pickCursor [] 4 Stdlib.Option.Option.None
-    |> Stdlib.Test.equal 0
+    Darklang.Cli.TraceWatch.pickCursor([], 4, Stdlib.Option.Option.None)
+    |> Stdlib.Test.equal(0)
 
 
 module ReplayReasons =
@@ -368,7 +368,7 @@ module ReplayReasons =
          "this run has no source to replay and no handler recorded against it")
         (Darklang.Tracing.ReplayStop.HostFailure "host error", "host error") ]
     cases
-    |> Stdlib.List.map (fun (reason, expected) ->
-      Darklang.Tracing.Format.replayStop Darklang.SCM.Branch.mainBranchId reason
-      |> Stdlib.Test.equal (expected, None))
+    |> Stdlib.List.map(fun (reason, expected) ->
+      Darklang.Tracing.Format.replayStop(Darklang.SCM.Branch.mainBranchId, reason)
+      |> Stdlib.Test.equal((expected, None)))
     |> Stdlib.Test.all

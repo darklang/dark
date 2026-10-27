@@ -9,14 +9,14 @@ module Darklang.Tracing.Store
 
 /// Is this trace being recorded? Worth asking before reporting an empty result: with recording
 /// off, every query returns empty whatever ran.
-let enabled () : Bool =
-  Builtin.tracesRecording ()
+let enabled(): Bool =
+  Builtin.tracesRecording()
 
 
 /// The lasting setting: `trace.record` in this instance's store config, which the boot reads.
 /// `None` when nothing is stored, in which case the environment or the default decides.
-let storedSetting () : Stdlib.Option.Option<Bool> =
-  match Stdlib.LocalStore.configGet "trace.record" with
+let storedSetting(): Stdlib.Option.Option<Bool> =
+  match Stdlib.LocalStore.configGet("trace.record") with
   | "on" -> Stdlib.Option.Option.Some true
   | "off" -> Stdlib.Option.Option.Some false
   | _ -> Stdlib.Option.Option.None
@@ -25,69 +25,69 @@ let storedSetting () : Stdlib.Option.Option<Bool> =
 /// Turn recording on or off for this instance: the stored setting, plus this process, so a
 /// session that is already open does not have to be restarted. `dark config set trace.record`
 /// is the same setting by the other door, and takes effect on the next command.
-let setRecording (on: Bool) : Unit =
-  let _ = Stdlib.LocalStore.configSet "trace.record" (if on then "on" else "off")
-  Builtin.tracesApplyRecording on
+let setRecording(on: Bool): Unit =
+  let _ = Stdlib.LocalStore.configSet("trace.record", (if on then "on" else "off"))
+  Builtin.tracesApplyRecording(on)
 
 
 /// The most recent <param limit> traces, newest first.
-let list (limit: Int) : List<Trace> =
-  Builtin.tracesList limit
+let list(limit: Int): List<Trace> =
+  Builtin.tracesList(limit)
 
 
 /// The most recent <param limit> traces that called <param fnName>.
-let listByFn (fnName: String) (limit: Int) : List<Trace> =
-  Builtin.tracesListByFn fnName limit
+let listByFn(fnName: String, limit: Int): List<Trace> =
+  Builtin.tracesListByFn(fnName, limit)
 
 
 /// The most recent <param limit> traces whose inputs, args or results
 /// contain <param pattern>.
-let find (pattern: String) (limit: Int) : List<Trace> =
-  Builtin.tracesFind pattern limit
+let find(pattern: String, limit: Int): List<Trace> =
+  Builtin.tracesFind(pattern, limit)
 
 
 /// Full payload for one trace: its row, its inputs and its calls.
-let view (traceID: String) : Stdlib.Option.Option<TraceData> =
-  Builtin.tracesView traceID
+let view(traceID: String): Stdlib.Option.Option<TraceData> =
+  Builtin.tracesView(traceID)
 
 
 /// Read saved CLI input without loading the result.
 /// Returns None for HTTP traces, older traces, or missing or corrupt input.
-let getScriptOrEvalInput (traceID: String) : Stdlib.Option.Option<ScriptOrEvalInput> =
-  Builtin.tracesGetScriptOrEvalInput traceID
+let getScriptOrEvalInput(traceID: String): Stdlib.Option.Option<ScriptOrEvalInput> =
+  Builtin.tracesGetScriptOrEvalInput(traceID)
 
 
 /// One trace by id, if it is still here.
-let get (traceID: String) : Stdlib.Option.Option<Trace> =
-  Builtin.tracesGet traceID
+let get(traceID: String): Stdlib.Option.Option<Trace> =
+  Builtin.tracesGet(traceID)
 
 
 /// A new trace branched from <param traceID>, keeping its log up to <param at> (a position from
 /// `traces show`; the whole log when {{None}}), suspended, so `resume` takes it from there.
-let fork (traceID: String) (at: Stdlib.Option.Option<Int64>) : Stdlib.Result.Result<String, String> =
-  Builtin.tracesFork traceID at
+let fork(traceID: String, at: Stdlib.Option.Option<Int64>): Stdlib.Result.Result<String, String> =
+  Builtin.tracesFork(traceID, at)
 
 
 /// Arm a resume of <param traceID>: the next `eval` or `run` this instance starts replays its
 /// log instead of performing the effects, then goes live. `dark traces resume` arms and then
 /// runs the trace's own input; that is the whole of a resume.
-let armResume (traceID: String) : Bool =
-  Builtin.tracesArmResume traceID
+let armResume(traceID: String): Bool =
+  Builtin.tracesArmResume(traceID)
 
 
 /// Pin a trace so retention never drops it, or unpin it. Returns whether a trace had that id.
 ///
 /// SQL here rather than in a builtin, the way the SCM silos own theirs: it is one UPDATE over a
 /// table this module owns, and nothing about it needs the runtime.
-let setPinned (traceID: String) (pinned: Bool) : Bool =
-  let db = Stdlib.LocalStore.path ()
+let setPinned(traceID: String, pinned: Bool): Bool =
+  let db = Stdlib.LocalStore.path()
   let flag = if pinned then "1" else "0"
   let updated =
-    Stdlib.Sqlite.mustExec
-      db
+    Stdlib.Sqlite.mustExec(
+      db,
       "UPDATE traces SET pinned = @p0, updated = strftime('%Y-%m-%dT%H:%M:%fZ','now')
-       WHERE id = @p1"
-      [ flag, traceID ]
+       WHERE id = @p1",
+      [ flag, traceID ])
   updated > 0
 
 
@@ -95,8 +95,8 @@ let setPinned (traceID: String) (pinned: Bool) : Bool =
 /// went through. The names are what `traces show <trace>` offers when you name a trace
 /// rather than a function; the hashes are what `traces resume` compares against the
 /// store to say which of a trace's callees have been edited since.
-let fnsWithHashes (traceID: String) : List<String * String> =
-  Builtin.tracesFnsOf traceID
+let fnsWithHashes(traceID: String): List<String * String> =
+  Builtin.tracesFnsOf(traceID)
 
 
 /// How many times each loop in a run actually went round, as RECORDED.
@@ -105,13 +105,13 @@ let fnsWithHashes (traceID: String) : List<String * String> =
 /// recomputes values by replaying, so it can only show what it reaches; this is what HAPPENED,
 /// including passes a replay that stopped early will never get to. Empty for a run recorded
 /// before the shape was kept, which is an honest answer rather than a wrong one.
-let recordedLoopPasses (traceID: String) : List<String * Int64> =
-  Builtin.tracesLoopPasses traceID
+let recordedLoopPasses(traceID: String): List<String * Int64> =
+  Builtin.tracesLoopPasses(traceID)
 
 
 /// Just the names of `fnsWithHashes`.
-let fnsOf (traceID: String) : List<String> =
-  (fnsWithHashes traceID) |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.first pair)
+let fnsOf(traceID: String): List<String> =
+  (fnsWithHashes(traceID)) |> Stdlib.List.map(fun pair -> Stdlib.Tuple2.first(pair))
 
 
 /// The traces that went through <param fnName>, newest first. Answers at the shipped recording
@@ -121,8 +121,8 @@ let fnsOf (traceID: String) : List<String> =
 /// The other direction from `wentThrough`: that one answers "show me the runs for this
 /// function", this one answers "I have not got a function in mind, what have the runs been
 /// about". `hotspots` reads the effect log and so can only ever name builtins.
-let fnCounts (traceLimit: Int64) : List<String * Int64> =
-  Builtin.tracesFnCounts traceLimit
+let fnCounts(traceLimit: Int64): List<String * Int64> =
+  Builtin.tracesFnCounts(traceLimit)
 
 
 /// The runs that went through a function, newest first.
@@ -138,8 +138,8 @@ let fnCounts (traceLimit: Int64) : List<String * Int64> =
 /// you changed anything, which is the opposite of the point.
 ///
 /// `""` for the hash when there is none to give.
-let wentThrough (fnName: String) (fnHash: String) (limit: Int64) : List<Trace> =
-  Builtin.tracesWentThrough fnName fnHash limit
+let wentThrough(fnName: String, fnHash: String, limit: Int64): List<Trace> =
+  Builtin.tracesWentThrough(fnName, fnHash, limit)
 
 
 /// The runs that went through a function a person named.
@@ -147,21 +147,21 @@ let wentThrough (fnName: String) (fnHash: String) (limit: Int64) : List<Trace> =
 /// Resolves the name to its hash first, so every alias of one function finds the same runs, and
 /// falls back to the name when the store has no such function. That fallback is what lets a run
 /// whose code has since gone stay distinguishable from a typo.
-let wentThroughNamed
-  (branchId: Uuid)
-  (fnName: String)
-  (limit: Int64)
+let wentThroughNamed(
+  branchId: Uuid,
+  fnName: String,
+  limit: Int64)
   : List<Trace> =
   let hash =
-    Darklang.LanguageTools.PackageManager.Function.find
-      branchId
-      (Darklang.LanguageTools.ProgramTypes.parsePackageLocation fnName)
-    |> Stdlib.Option.map (fun h ->
+    Darklang.LanguageTools.PackageManager.Function.find(
+      branchId,
+      Darklang.LanguageTools.ProgramTypes.parsePackageLocation(fnName))
+    |> Stdlib.Option.map(fun h ->
       match h with
       | Hash v -> v)
-    |> Stdlib.Option.withDefault ""
+    |> Stdlib.Option.withDefault("")
 
-  wentThrough fnName hash limit
+  wentThrough(fnName, hash, limit)
 
 
 /// One frame the replay walked. `parent` is "" at the entry. A loop's passes are the frames
@@ -189,25 +189,25 @@ type ViewFrame =
 ///
 /// That key is what tells pass 3 from pass 7: keyed by expression alone, a loop's two hundred
 /// passes overwrite each other and only the last survives.
-let viewTraceTree
+let viewTraceTree(
   /// The CLI passes the logged-in account. None keeps the caller's account.
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchId: Uuid)
-  (traceID: String)
+  accountID: Stdlib.Option.Option<Uuid>,
+  branchId: Uuid,
+  traceID: String,
   /// Extra iterations to keep, as (site, which one, counting from 0). A view holds the first
   /// and last few of each site; this is how one in between is reached, by running the view
   /// again and asking for it. `[]` for an ordinary view.
-  (focus: List<(Int64 * Int64)>)
+  focus: List<(Int64 * Int64)>)
   : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> *
     List<ViewFrame> *
     List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)> *
     Stdlib.Option.Option<ReplayStop>) =
   let (values, frames, frameValues, problem) =
-    Builtin.cliViewTrace accountID branchId traceID focus
+    Builtin.cliViewTrace(accountID, branchId, traceID, focus)
 
   let frames =
     frames
-    |> Stdlib.List.map (fun row ->
+    |> Stdlib.List.map(fun row ->
       let (id, parent, callSite, kind, callee, ord, args) = row
 
       ViewFrame
@@ -229,14 +229,14 @@ let viewTraceTree
 ///
 /// This is the FLAT view: one value per expression, the last one executed, which is what puts
 /// `// = 140` beside a line. `viewTraceTree` is the same replay with the frames as well.
-let viewTrace
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchId: Uuid)
-  (traceID: String)
+let viewTrace(
+  accountID: Stdlib.Option.Option<Uuid>,
+  branchId: Uuid,
+  traceID: String)
   : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> * Stdlib.Option.Option<ReplayStop>) =
   // Through `viewTraceTree` rather than the builtin: one Dark wrapper per builtin is the
   // rule, and a second reference to `cliViewTrace` is what the builtin-access test catches.
-  let (values, _frames, _frameValues, problem) = viewTraceTree accountID branchId traceID []
+  let (values, _frames, _frameValues, problem) = viewTraceTree(accountID, branchId, traceID, [])
 
   (values, problem)
 
@@ -246,19 +246,19 @@ let viewTrace
 /// `%` and `_` are escaped so a prefix someone typed matches those characters rather than
 /// acting as wildcards. Six rows are enough to tell "one match" from "several" without reading
 /// the table; the message shows five.
-let resolveID (input: String) : Stdlib.Result.Result<String, String> =
+let resolveID(input: String): Stdlib.Result.Result<String, String> =
   let escaped =
     input
-    |> (fun s -> Stdlib.String.replaceAll s "\\" "\\\\")
-    |> (fun s -> Stdlib.String.replaceAll s "%" "\\%")
-    |> (fun s -> Stdlib.String.replaceAll s "_" "\\_")
+    |> (fun s -> Stdlib.String.replaceAll(s, "\\", "\\\\"))
+    |> (fun s -> Stdlib.String.replaceAll(s, "%", "\\%"))
+    |> (fun s -> Stdlib.String.replaceAll(s, "_", "\\_"))
 
   let matches =
-    Stdlib.Sqlite.column
-      (Stdlib.LocalStore.path ())
+    Stdlib.Sqlite.column(
+      Stdlib.LocalStore.path(),
       $"SELECT id FROM traces WHERE id LIKE '{escaped}%' ESCAPE '\\'
-        ORDER BY rowid DESC LIMIT 6"
-      "id"
+        ORDER BY rowid DESC LIMIT 6",
+      "id")
 
   match matches with
   | [] ->
@@ -267,45 +267,45 @@ let resolveID (input: String) : Stdlib.Result.Result<String, String> =
   | [ fullID ] -> Stdlib.Result.Result.Ok fullID
   | candidates ->
     // Six were asked for, so a sixth means "at least one more", not "one more".
-    let shown = Stdlib.List.take candidates 5
+    let shown = Stdlib.List.take(candidates, 5)
     let suffix =
-      if (Stdlib.List.length candidates) > 5 then "\n  and more" else ""
+      if (Stdlib.List.length(candidates)) > 5 then "\n  and more" else ""
     let body =
       shown
-      |> Stdlib.List.map (fun id -> $"  {Stdlib.String.slice id 0 12}")
-      |> Stdlib.String.join "\n"
+      |> Stdlib.List.map(fun id -> $"  {Stdlib.String.slice(id, 0, 12)}")
+      |> Stdlib.String.join("\n")
     Stdlib.Result.Result.Error
       $"more than one trace starts with {input}; give more of the id:\n{body}{suffix}"
 
 
 /// Per-fn totals over the last <param traceLimit> traces:
 /// (fnName, totalMs, maxMs, callCount).
-let hotspots (traceLimit: Int) : List<(String * Int * Int * Int)> =
-  Builtin.tracesHotspots traceLimit
+let hotspots(traceLimit: Int): List<(String * Int * Int * Int)> =
+  Builtin.tracesHotspots(traceLimit)
 
 
 /// Per-handler totals over the last <param traceLimit> traces:
 /// (handler, totalMs, maxMs, traceCount).
-let statsByHandler (traceLimit: Int) : List<(String * Int * Int * Int)> =
-  Builtin.tracesStatsByHandler traceLimit
+let statsByHandler(traceLimit: Int): List<(String * Int * Int * Int)> =
+  Builtin.tracesStatsByHandler(traceLimit)
 
 
 /// Delete one trace by full ID. Returns the number of rows deleted.
-let delete (traceID: String) : Int =
-  Builtin.tracesDelete traceID
+let delete(traceID: String): Int =
+  Builtin.tracesDelete(traceID)
 
 
 /// Delete every trace. Returns the number deleted.
-let clear () : Int =
-  Builtin.tracesClear ()
+let clear(): Int =
+  Builtin.tracesClear()
 
 
 /// Delete traces recorded before <param cutoff>. Returns the number deleted.
-let clearBefore (cutoff: String) : Int =
-  Builtin.tracesClearBefore cutoff
+let clearBefore(cutoff: String): Int =
+  Builtin.tracesClearBefore(cutoff)
 
 
 /// Keep the <param keepN> most recent traces, delete the rest. Returns the
 /// number deleted.
-let pruneKeep (keepN: Int) : Int =
-  Builtin.tracesPruneKeep keepN
+let pruneKeep(keepN: Int): Int =
+  Builtin.tracesPruneKeep(keepN)

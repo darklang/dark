@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.Syntax
 
-let content () : String =
+let content(): String =
   """# Syntax
 
 ## Basics
@@ -10,13 +10,13 @@ let content () : String =
   // comment
 
 ## Functions
-  let greet (name: String) : String = $"Hello, {name}"
+  let greet(name: String): String = $"Hello, {name}"
 
 Nested functions are supported in a function body, but require parameter and
 return annotations:
-  let outer (n: Int) : Int =
-    let double (x: Int) : Int = x * 2
-    double n
+  let outer(n: Int): Int =
+    let double(x: Int): Int = x * 2
+    double(n)
 
 ## Match
   match x with
@@ -24,8 +24,8 @@ return annotations:
   | None -> 0
 
 ## Result and Option unwrap
-  let next (input: String) : Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
-    let number = (Stdlib.Int.parse input)?
+  let next(input: String): Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
+    let number = (Stdlib.Int.parse(input))?
     Ok (number + 1)
 
 `value?` extracts the value from Ok/Some, or immediately returns Error/None
@@ -39,7 +39,7 @@ The operand runs once; an early return skips remaining work without undoing
 completed effects. `?` requires a function or lambda and is unsupported in SQL queries.
 
 ## Pipe (parens for complex LHS)
-  (Stdlib.List.range 0 10) |> Stdlib.List.map fn
+  (Stdlib.List.range(0, 10)) |> Stdlib.List.map(fn)
 
 ## Lists (comma separator)
   [1, 2, 3]
@@ -68,10 +68,10 @@ by the type checker (`dark typecheck`).
   Unit   // type
 
 ## Traits (docs traits)
-  trait Area<'a> = let area (s: 'a) : Float
-  impl Area for Circle = let area (c: Circle) : Float = ...
-  impl ToString for Point = let toString (p: Point) : String = ...
-  let f<'a: ToString> (v: 'a) : String = v.toString
+  trait Area<'a> = let area(s: 'a): Float
+  impl Area for Circle = let area(c: Circle): Float = ...
+  impl ToString for Point = let toString(p: Point): String = ...
+  let f<'a: ToString>(v: 'a): String = v.toString
 
 ## Printing multiple lines
   // When printing 3+ lines, prefer printLines over repeated printLine:

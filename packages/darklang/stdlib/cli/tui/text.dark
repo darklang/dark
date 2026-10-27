@@ -13,23 +13,23 @@ module Darklang.Stdlib.Cli.Tui.Text
 
 /// Measure a row and report whether it holds control characters. The width is only meaningful when
 /// the flag is false, and the two come back together because the frame fast path wants both.
-let inspect (text: String) : (Int * Bool) =
-  Builtin.cliTerminalInspectRow text
+let inspect(text: String): (Int * Bool) =
+  Builtin.cliTerminalInspectRow(text)
 
 
 /// Terminal columns occupied by a row that may carry SGR styling.
-let styledWidth (text: String) : Int =
-  Builtin.cliTerminalStyledWidth text
+let styledWidth(text: String): Int =
+  Builtin.cliTerminalStyledWidth(text)
 
 
 /// Drop SGR styling, other escapes and control characters, leaving the visible text.
-let stripSgr (text: String) : String =
-  Builtin.cliTerminalStripSgr text
+let stripSgr(text: String): String =
+  Builtin.cliTerminalStripSgr(text)
 
 
 /// Clip a row to a column width, keeping SGR and dropping every other escape and control character.
-let clipToWidth (text: String) (maxWidth: Int) : String =
-  Builtin.cliTerminalClipToWidth text maxWidth
+let clipToWidth(text: String, maxWidth: Int): String =
+  Builtin.cliTerminalClipToWidth(text, maxWidth)
 
 
 /// Clip to <param maxWidth>, marking the cut so a truncated line reads as truncated.
@@ -39,98 +39,98 @@ let clipToWidth (text: String) (maxWidth: Int) : String =
 /// character of ellipsis is the difference between "there is more" and "that is all".
 ///
 /// Below two columns there is no room to say anything, so it degrades to a plain clip.
-let clipMarked (text: String) (maxWidth: Int) : String =
-  if styledWidth text <= maxWidth then
+let clipMarked(text: String, maxWidth: Int): String =
+  if styledWidth(text) <= maxWidth then
     text
   else if maxWidth <= 1 then
-    clipToWidth text maxWidth
+    clipToWidth(text, maxWidth)
   else
-    (clipToWidth text (maxWidth - 1)) + "…"
+    (clipToWidth(text, maxWidth - 1)) + "…"
 
 
 /// Break a row at the column, restating styling that spans the wrap. To break at spaces where it
 /// can, use `wrapAtWords`.
-let wrapAtColumn (text: String) (maxWidth: Int) : List<String> =
-  Builtin.cliTerminalWrapAtColumn text maxWidth
+let wrapAtColumn(text: String, maxWidth: Int): List<String> =
+  Builtin.cliTerminalWrapAtColumn(text, maxWidth)
 
 
 /// Zero-based cursor position immediately after plain text. Exactly past the last column reads as
 /// column zero of the next row, matching what the terminal does.
-let positionAfter (text: String) (maxWidth: Int) : (Int * Int) =
-  Builtin.cliTerminalPositionAfter text maxWidth
+let positionAfter(text: String, maxWidth: Int): (Int * Int) =
+  Builtin.cliTerminalPositionAfter(text, maxWidth)
 
 
 /// Clip, but skip the work for a row already plain and within bounds. That is the common case, and
 /// it costs one measurement.
-let normalizeToWidth (text: String) (maxWidth: Int) : String =
-  let width = Stdlib.max 0 maxWidth
-  let (measuredWidth, containsControl) = inspect text
+let normalizeToWidth(text: String, maxWidth: Int): String =
+  let width = Stdlib.max(0, maxWidth)
+  let (measuredWidth, containsControl) = inspect(text)
 
-  if Stdlib.Bool.not containsControl && measuredWidth <= width then
+  if Stdlib.Bool.not(containsControl) && measuredWidth <= width then
     text
   else
-    clipToWidth text width
+    clipToWidth(text, width)
 
 
 /// Pad or clip text to exactly the requested terminal-column width.
-let fitToWidth (text: String) (targetWidth: Int) : String =
-  let clipped = clipToWidth text targetWidth
-  let padding = Stdlib.max 0 (targetWidth - (styledWidth clipped))
-  clipped + Stdlib.String.repeat " " padding
+let fitToWidth(text: String, targetWidth: Int): String =
+  let clipped = clipToWidth(text, targetWidth)
+  let padding = Stdlib.max(0, targetWidth - (styledWidth(clipped)))
+  clipped + Stdlib.String.repeat(" ", padding)
 
 
 // --- Word wrapping ---
 
 /// Break one long word across lines, since it can't be fitted whole.
-let splitLongWord (word: String) (width: Int) : List<String> =
-  if (Stdlib.String.displayWidth word) <= width then
+let splitLongWord(word: String, width: Int): List<String> =
+  if (Stdlib.String.displayWidth(word)) <= width then
     [ word ]
   else
-    let head = clipToWidth word width
-    let taken = Stdlib.String.length head
+    let head = clipToWidth(word, width)
+    let taken = Stdlib.String.length(head)
     // A wide glyph can make `clipToWidth` take fewer characters than columns; never take none.
-    let step = Stdlib.max 1 taken
-    Stdlib.List.prepend (splitLongWord (Stdlib.String.dropFirst word step) width) head
+    let step = Stdlib.max(1, taken)
+    Stdlib.List.prepend(splitLongWord(Stdlib.String.dropFirst(word, step), width), head)
 
 
 /// Fold one word into the lines built so far.
-let addWord
-  (lines: List<String>)
-  (current: String)
-  (word: String)
-  (width: Int)
+let addWord(
+  lines: List<String>,
+  current: String,
+  word: String,
+  width: Int)
   : (List<String> * String) =
   let candidate = if current == "" then word else current + " " + word
 
-  if (Stdlib.String.displayWidth candidate) <= width then
+  if (Stdlib.String.displayWidth(candidate)) <= width then
     (lines, candidate)
   else if current == "" then
     // The word alone doesn't fit: split it, keeping the tail as the line in progress.
-    match Stdlib.List.reverse (splitLongWord word width) with
+    match Stdlib.List.reverse(splitLongWord(word, width)) with
     | [] -> (lines, "")
-    | last :: earlier -> (Stdlib.List.concat lines (Stdlib.List.reverse earlier), last)
+    | last :: earlier -> (Stdlib.List.concat(lines, Stdlib.List.reverse(earlier)), last)
   else
-    let (wrapped, rest) = addWord [] "" word width
-    (Stdlib.List.concat (Stdlib.List.append lines current) wrapped, rest)
+    let (wrapped, rest) = addWord([], "", word, width)
+    (Stdlib.List.concat(Stdlib.List.append(lines, current), wrapped), rest)
 
 
 /// Break plain text at spaces where it can and inside a word where it must.
 /// Styling isn't handled: wrap first, colour after.
-let wrapAtWords (text: String) (width: Int) : List<String> =
-  let w = Stdlib.max 1 width
+let wrapAtWords(text: String, width: Int): List<String> =
+  let w = Stdlib.max(1, width)
 
   if text == "" then
     [ "" ]
-  else if (Stdlib.String.displayWidth text) <= w then
+  else if (Stdlib.String.displayWidth(text)) <= w then
     [ text ]
   else
     let words =
-      Stdlib.String.split text " " |> Stdlib.List.filter (fun word -> word != "")
+      Stdlib.String.split(text, " ") |> Stdlib.List.filter(fun word -> word != "")
 
     let (lines, current) =
       words
-      |> Stdlib.List.fold ([], "") (fun acc word ->
+      |> Stdlib.List.fold(([], ""), fun acc word ->
         let (soFar, inProgress) = acc
-        addWord soFar inProgress word w)
+        addWord(soFar, inProgress, word, w))
 
-    if current == "" then lines else Stdlib.List.append lines current
+    if current == "" then lines else Stdlib.List.append(lines, current)

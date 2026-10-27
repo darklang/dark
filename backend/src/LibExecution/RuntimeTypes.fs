@@ -1341,8 +1341,6 @@ and ApplicableLambda =
     /// serialized; decoded closures receive deny-all access.
     access : Permissions.Access
 
-    argsSoFar : List<Dval>
-
     /// What this lambda should return, according to the fn it was passed to. Set when
     /// the lambda is passed to a fn, and checked each time the lambda returns. Not
     /// saved when the lambda is serialized, so a loaded lambda is not checked.
@@ -1851,6 +1849,10 @@ module RuntimeError =
 
       | TooManyArgsForFn of fn : FQFnName.FQFnName * expected : int * actual : int
 
+      /// Dark has no partial application, so a call must give every argument. A
+      /// function waiting for more is written as a lambda.
+      | TooFewArgsForFn of fn : FQFnName.FQFnName * expected : int * actual : int
+
       // `declaredType` is the type reference as written at the declaration, or
       // None where there was nothing written (a raise site with no declaration
       // behind it). `expectedType` stays the authority on shape, because it has
@@ -1894,6 +1896,7 @@ module RuntimeError =
       // specific to lambdas
       | CannotApplyTypeArgsToLambda
       | TooManyArgsForLambda of lambdaExprId : id * expected : int * actual : int
+      | TooFewArgsForLambda of lambdaExprId : id * expected : int * actual : int
 
   module Statements =
     type Error =
@@ -2407,7 +2410,7 @@ module Dval =
   ///   - `None`     → recurse into containers and rebuild
   ///
   /// Recurses into DList/DTuple/DDict/DRecord/DEnum and into
-  /// DApplicable closures (closed registers + partially-applied args).
+  /// DApplicable closures (closed registers + a receiver call's bound receiver).
   /// The closure recursion is required for persistence boundaries —
   /// a lambda capturing an ephemeral blob or a stream must have its
   /// environment rewritten alongside the rest of the value graph.
@@ -2496,14 +2499,10 @@ module Dval =
 
           | DApplicable(AppLambda lambda) ->
             let! cr' = walkRegisters lambda.closedRegisters
-            let! args' = walkItems lambda.argsSoFar
-            if same cr' lambda.closedRegisters && same args' lambda.argsSoFar then
+            if same cr' lambda.closedRegisters then
               return dv
             else
-              return
-                DApplicable(
-                  AppLambda { lambda with closedRegisters = cr'; argsSoFar = args' }
-                )
+              return DApplicable(AppLambda { lambda with closedRegisters = cr' })
 
           | DApplicable(AppNamedFn namedFn) ->
             let! args' = walkItems namedFn.argsSoFar
@@ -3743,8 +3742,8 @@ type VMState =
 
     /// Popped frames, with their register files still attached, bucketed by register count and handed
     /// back out to the next push of that size. A frame and its registers are what pushing a call costs,
-    /// and nothing holds either past the pop: a lambda copies the values it closes over, a partial
-    /// application copies its args, the tracer is handed lists, and the parent link carries a frame id
+    /// and nothing holds either past the pop: a lambda copies the values it closes over, a receiver
+    /// call copies its receiver, the tracer is handed lists, and the parent link carries a frame id
     /// rather than a reference. Per-VM, so single-threaded and needing no synchronization.
     framePool : Dictionary<int, Stack<CallFrame>>
   }
@@ -4075,7 +4074,7 @@ and ExecutionState =
     /// callback does. Filled in by `Execution.createState`, which is where that
     /// machinery lives (it comes after the interpreter in compile order). The
     /// interpreter itself uses it for one thing: a receiver call `p.show` on a
-    /// one-argument method, which is a full call rather than a partial application.
+    /// one-argument method, which is a full call rather than one waiting for more arguments.
     callApplicable :
       ExecutionState
         -> Permissions.Access

@@ -4,14 +4,14 @@ module Darklang.Cli.Tests.PermissionsDisplay
 // not grants; exact resources are checked at runtime.
 
 module PermissionsDisplay =
-  let packagePolicy (unit: Unit) : Darklang.LanguageTools.Permissions.Policy =
+  let packagePolicy(unit: Unit): Darklang.LanguageTools.Permissions.Policy =
     Darklang.LanguageTools.Permissions.Policy
       { allow =
           [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Http
             Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock ]
         deny = [] }
 
-  let instancePolicy (unit: Unit) : Darklang.LanguageTools.Permissions.Policy =
+  let instancePolicy(unit: Unit): Darklang.LanguageTools.Permissions.Policy =
     Darklang.LanguageTools.Permissions.Policy
       { allow =
           [ Darklang.LanguageTools.Permissions.Rule.Http(
@@ -30,8 +30,8 @@ module PermissionsDisplay =
                   query = Darklang.LanguageTools.Permissions.Scope.All }) ]
         deny = [] }
 
-  let approved
-    (unit: Unit)
+  let approved(
+    unit: Unit)
     : Darklang.Cli.Permissions.Command.AccessReportFacts =
     Darklang.Cli.Permissions.Command.AccessReportFacts
       { hash = "123456789abcdef"
@@ -39,13 +39,13 @@ module PermissionsDisplay =
         complete = true
         ceiling = Stdlib.Option.Option.Some [ Darklang.LanguageTools.Permissions.Effect.Http, Darklang.LanguageTools.Permissions.Effect.Clock ]
         bundled = false
-        packagePolicy = Stdlib.Option.Option.Some (packagePolicy ())
+        packagePolicy = Stdlib.Option.Option.Some (packagePolicy())
         approvedAs = [ "Acme.Client.fetch" ]
-        instancePolicy = instancePolicy () }
+        instancePolicy = instancePolicy() }
 
   test approvedReport =
-    Darklang.Cli.Permissions.Command.renderAccessReport (approved ())
-    |> Stdlib.Test.equal
+    Darklang.Cli.Permissions.Command.renderAccessReport(approved())
+    |> Stdlib.Test.equal(
       [ "access"
           "  version: 12345678"
           "  requires: http, clock"
@@ -60,12 +60,12 @@ module PermissionsDisplay =
           "    http GET 'https://api.example.com:443/v1'"
           "  run policy: selected when invoked (`--sandbox` denies all)"
           "  effective: checked per operation: instance ∩ run ∩ package approval ∩ function ceiling"
-          "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ]
+          "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ])
 
-  let unapproved
-    (unit: Unit)
+  let unapproved(
+    unit: Unit)
     : Darklang.Cli.Permissions.Command.AccessReportFacts =
-    let facts = approved ()
+    let facts = approved()
 
     { facts with
         effects = []
@@ -75,8 +75,8 @@ module PermissionsDisplay =
         approvedAs = [] }
 
   test unapprovedReport =
-    Darklang.Cli.Permissions.Command.renderAccessReport (unapproved ())
-    |> Stdlib.Test.equal
+    Darklang.Cli.Permissions.Command.renderAccessReport(unapproved())
+    |> Stdlib.Test.equal(
       [ "access"
           "  version: 12345678"
           "  requires: not fully known"
@@ -88,4 +88,4 @@ module PermissionsDisplay =
           "    http GET 'https://api.example.com:443/v1'"
           "  run policy: selected when invoked (`--sandbox` denies all)"
           "  effective: blocked as a dependency; explicitly chosen entry points are treated as roots"
-          "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ]
+          "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ])

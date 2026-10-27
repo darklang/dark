@@ -11,7 +11,7 @@ impl Modulo for Int64 =
   /// The modulus <param b> must be greater than 0
   /// Use <fn Int64.remainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo (a: Int64) (b: Int64) : Int64 = Builtin.int64Mod a b
+  let modulo(a: Int64, b: Int64): Int64 = Builtin.int64Mod(a, b)
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -20,77 +20,77 @@ impl Modulo for Int64 =
 /// negative only if {{<var value> < 0}}.
 /// The sign of <param divisor> doesn't influence the outcome.
 /// Returns an {{Error}} if <param divisor> is {{0}}.
-let remainder
-  (value: Int64)
-  (divisor: Int64)
+let remainder(
+  value: Int64,
+  divisor: Int64)
   : Stdlib.Result.Result<Int64, String> =
-  Builtin.int64Remainder value divisor
+  Builtin.int64Remainder(value, divisor)
 
 
 impl Add for Int64 =
   /// Adds two integers together (wraps on overflow)
-  let add (a: Int64) (b: Int64) : Int64 = Builtin.int64Add a b
+  let add(a: Int64, b: Int64): Int64 = Builtin.int64Add(a, b)
 
 
 impl Subtract for Int64 =
   /// Subtracts two integers (wraps on overflow)
-  let subtract (a: Int64) (b: Int64) : Int64 = Builtin.int64Subtract a b
+  let subtract(a: Int64, b: Int64): Int64 = Builtin.int64Subtract(a, b)
 
 
 impl Multiply for Int64 =
   /// Multiplies two integers (wraps on overflow)
-  let multiply (a: Int64) (b: Int64) : Int64 = Builtin.int64Multiply a b
+  let multiply(a: Int64, b: Int64): Int64 = Builtin.int64Multiply(a, b)
 
 
 impl Divide for Int64 =
   /// Divides two integers
-  let divide (a: Int64) (b: Int64) : Int64 = Builtin.int64Divide a b
+  let divide(a: Int64, b: Int64): Int64 = Builtin.int64Divide(a, b)
 
 
 impl Power for Int64 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
-  let power (``base``: Int64) (exponent: Int64) : Int64 =
-    Builtin.int64Power ``base`` exponent
+  let power(``base``: Int64, exponent: Int64): Int64 =
+    Builtin.int64Power(``base``, exponent)
 
 
 impl Negate for Int64 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate (a: Int64) : Int64 = Builtin.int64Negate a
+  let negate(a: Int64): Int64 = Builtin.int64Negate(a)
 
 
 impl Compare for Int64 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan (a: Int64) (b: Int64) : Bool = Builtin.int64LessThan a b
+  let lessThan(a: Int64, b: Int64): Bool = Builtin.int64LessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
-  let lessThanOrEqualTo (a: Int64) (b: Int64) : Bool =
-    Builtin.int64LessThanOrEqualTo a b
+  let lessThanOrEqualTo(a: Int64, b: Int64): Bool =
+    Builtin.int64LessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan (a: Int64) (b: Int64) : Bool = Builtin.int64GreaterThan a b
+  let greaterThan(a: Int64, b: Int64): Bool = Builtin.int64GreaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
-  let greaterThanOrEqualTo (a: Int64) (b: Int64) : Bool =
-    Builtin.int64GreaterThanOrEqualTo a b
+  let greaterThanOrEqualTo(a: Int64, b: Int64): Bool =
+    Builtin.int64GreaterThanOrEqualTo(a, b)
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
-let random (start: Int64) (``end``: Int64) : Int64 =
-  Builtin.int64Random start ``end``
+let random(start: Int64, ``end``: Int64): Int64 =
+  Builtin.int64Random(start, ``end``)
 
 
 /// Get the square root of an <type Int64>
-let sqrt (a: Int64) : Float = Builtin.int64Sqrt a
+let sqrt(a: Int64): Float = Builtin.int64Sqrt(a)
 
 
 /// Converts an <type Int64> to a <type Float>
-let toFloat (a: Int64) : Float = Builtin.int64ToFloat a
+let toFloat(a: Int64): Float = Builtin.int64ToFloat(a)
 
 
 /// Converts a <type Float> to an <type Int64>, truncating toward zero like
 /// <fn Int.fromFloat>. Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
-let fromFloat (a: Float) : Stdlib.Option.Option<Int64> =
-  if Float.isFinite a then
+let fromFloat(a: Float): Stdlib.Option.Option<Int64> =
+  if Float.isFinite(a) then
     a |> Stdlib.Int.fromFloat |> Stdlib.Int.toInt64
   else
     Stdlib.Option.Option.None
@@ -99,8 +99,8 @@ let fromFloat (a: Float) : Stdlib.Option.Option<Int64> =
 /// Converts a <type Float> to an <type Int64>, rounding to the nearest integer
 /// (ties to even). Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
-let fromFloatRounded (a: Float) : Stdlib.Option.Option<Int64> =
-  if Float.isFinite a then
+let fromFloatRounded(a: Float): Stdlib.Option.Option<Int64> =
+  if Float.isFinite(a) then
     a |> Float.round |> Stdlib.Int.toInt64
   else
     Stdlib.Option.Option.None
@@ -110,84 +110,84 @@ let fromFloatRounded (a: Float) : Stdlib.Option.Option<Int64> =
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int64> range).
-let parse (s: String) : Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
-  Builtin.int64Parse s
+let parse(s: String): Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
+  Builtin.int64Parse(s)
 
 
 /// Converts an <type Int8> to an <type Int64>.
-let fromInt8 (i: Int8) : Int64 = Builtin.int64FromInt8 i
+let fromInt8(i: Int8): Int64 = Builtin.int64FromInt8(i)
 
 
 /// Converts a <type UInt8> to an <type Int64>.
-let fromUInt8 (i: UInt8) : Int64 = Builtin.int64FromUInt8 i
+let fromUInt8(i: UInt8): Int64 = Builtin.int64FromUInt8(i)
 
 
 /// Converts an <type Int16> to an <type Int64>.
-let fromInt16 (i: Int16) : Int64 = Builtin.int64FromInt16 i
+let fromInt16(i: Int16): Int64 = Builtin.int64FromInt16(i)
 
 
 /// Converts a <type UInt16> to an <type Int64>.
-let fromUInt16 (i: UInt16) : Int64 = Builtin.int64FromUInt16 i
+let fromUInt16(i: UInt16): Int64 = Builtin.int64FromUInt16(i)
 
 
 /// Converts an <type Int32> to an <type Int64>.
-let fromInt32 (i: Int32) : Int64 = Builtin.int64FromInt32 i
+let fromInt32(i: Int32): Int64 = Builtin.int64FromInt32(i)
 
 
 /// Converts a <type UInt32> to an <type Int64>.
-let fromUInt32 (i: UInt32) : Int64 = Builtin.int64FromUInt32 i
+let fromUInt32(i: UInt32): Int64 = Builtin.int64FromUInt32(i)
 
 
 /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
-let fromUInt64 (i: UInt64) : Stdlib.Option.Option<Int64> =
-  Builtin.int64FromUInt64 i
+let fromUInt64(i: UInt64): Stdlib.Option.Option<Int64> =
+  Builtin.int64FromUInt64(i)
 
 
 /// Converts an <type Int128> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
-let fromInt128 (i: Int128) : Stdlib.Option.Option<Int64> =
-  Builtin.int64FromInt128 i
+let fromInt128(i: Int128): Stdlib.Option.Option<Int64> =
+  Builtin.int64FromInt128(i)
 
 
 /// Converts a <type UInt128> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
-let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int64> =
-  Builtin.int64FromUInt128 i
+let fromUInt128(i: UInt128): Stdlib.Option.Option<Int64> =
+  Builtin.int64FromUInt128(i)
 
 
 impl BitwiseAnd for Int64 =
   /// Bitwise AND on two <type Int64> values
-  let bitwiseAnd (a: Int64) (b: Int64) : Int64 = Builtin.int64BitwiseAnd a b
+  let bitwiseAnd(a: Int64, b: Int64): Int64 = Builtin.int64BitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int64 =
   /// Bitwise OR on two <type Int64> values
-  let bitwiseOr (a: Int64) (b: Int64) : Int64 = Builtin.int64BitwiseOr a b
+  let bitwiseOr(a: Int64, b: Int64): Int64 = Builtin.int64BitwiseOr(a, b)
 
 
 impl BitwiseXor for Int64 =
   /// Bitwise XOR on two <type Int64> values
-  let bitwiseXor (a: Int64) (b: Int64) : Int64 = Builtin.int64BitwiseXor a b
+  let bitwiseXor(a: Int64, b: Int64): Int64 = Builtin.int64BitwiseXor(a, b)
 
 
 impl BitwiseNot for Int64 =
   /// Bitwise NOT on an <type Int64> value
-  let bitwiseNot (a: Int64) : Int64 = Builtin.int64BitwiseNot a
+  let bitwiseNot(a: Int64): Int64 = Builtin.int64BitwiseNot(a)
 
 
 impl ShiftLeft for Int64 =
   /// Bitwise left shift of an <type Int64> value
-  let shiftLeft (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftLeft a b
+  let shiftLeft(a: Int64, b: Int64): Int64 = Builtin.int64ShiftLeft(a, b)
 
 
 impl ShiftRight for Int64 =
   /// Bitwise right shift of an <type Int64> value
-  let shiftRight (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftRight a b
+  let shiftRight(a: Int64, b: Int64): Int64 = Builtin.int64ShiftRight(a, b)
 
 impl ToString for Int64 =
   /// Stringify <param int>
-  let toString (int: Int64) : String = Builtin.int64ToString int
+  let toString(int: Int64): String = Builtin.int64ToString(int)
 
 impl Zero for Int64 =
-  let zero () : Int64 = 0L
+  let zero(): Int64 = 0L
 
 impl One for Int64 =
-  let one () : Int64 = 1L
+  let one(): Int64 = 1L

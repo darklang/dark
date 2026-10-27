@@ -107,9 +107,9 @@ layer the author controls, and it can only take away.
 A function declares its ceiling as an effect row on the return colon:
 
 ```text
-let fetch (url: String) :{Http, Clock} String = ...
-let add (a: Int64) (b: Int64) :{} Int64 = a + b      // effect-free
-let helper (x: Int64) : Int64 = ...                  // no ceiling declared
+let fetch(url: String):{Http, Clock} String = ...
+let add(a: Int64, b: Int64):{} Int64 = a + b         // effect-free
+let helper(x: Int64): Int64 = ...                    // no ceiling declared
 ```
 
 The names are the effect case names (`Http`, `FileRead`, `Clock`, …); an
@@ -151,10 +151,7 @@ callable later -- a **stream** transform (`streamMap`/`streamFilter`) or an
 callable, and on every pull intersects it with the access of the function
 that is DRAINING, which the drain builtins pass down: deferred work keeps the
 restrictions of the frame that built it and runs under those of the frame that
-runs it. A **partial application** captures the access it was applied under,
-exactly as a lambda created in that frame would; keeping its reference's
-earlier capture let a value escape a `:{}` function wider than the function
-itself. An **HTTP server** builds a child guest state and
+runs it. An **HTTP server** builds a child guest state and
 intersects its access with the frame that called `serve`, so the bind check,
 the request handlers and `onListening` all carry the caller's ceiling,
 package approval and any port restriction; from `dark serve` the caller is
@@ -512,7 +509,7 @@ These tests turn the design guarantees below into regression checks.
   widen it. Tests: `Permissions.Tests` (`policiesDenyByDefault`,
   `denyOverridesAllow`, `accessOnlyNarrows`, `instanceDenialWinsOverInnerDenial`)
   and the `PermissionsGate` denial tests.
-- Closures, named functions, partial applications, and nested package values
+- Closures, named functions, and nested package values
   retain captured access without widening the caller. Tests:
   `Permissions.Tests.capturedAccessCannotWidenCaller`,
   `materializedValuesCaptureCallablesRecursively`, and the `PermissionsGate`

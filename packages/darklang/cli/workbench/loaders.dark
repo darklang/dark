@@ -6,118 +6,118 @@ module Darklang.Cli.Workbench
 /// A one-line, clipped rendering of a value's body for the row description:
 /// `"hello"`, `[1, 2, 3]`. First line only, and no more than `width`
 /// columns - a value can be a whole table.
-let valueDesc (ctx: PrettyPrinter.ProgramTypes.Context) (body: LanguageTools.ProgramTypes.Expr) (width: Int) : String =
-  let printed = PrettyPrinter.ProgramTypes.expr ctx body
-  let firstLine = Stdlib.String.split printed "\n" |> Stdlib.List.head |> Stdlib.Option.withDefault printed
+let valueDesc(ctx: PrettyPrinter.ProgramTypes.Context, body: LanguageTools.ProgramTypes.Expr, width: Int): String =
+  let printed = PrettyPrinter.ProgramTypes.expr(ctx, body)
+  let firstLine = Stdlib.String.split(printed, "\n") |> Stdlib.List.head |> Stdlib.Option.withDefault(printed)
   let clipped =
-    if Stdlib.String.length firstLine > width then (Stdlib.String.slice firstLine 0 (width - 1)) + "…"
+    if Stdlib.String.length(firstLine) > width then (Stdlib.String.slice(firstLine, 0, width - 1)) + "…"
     else firstLine
   clipped
 
 /// The rows of a module for the Code list: its submodules, then types, values, fns, traits,
 /// implementations and tests, by name. Names only; the Inspect pane says what each is.
-let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyItem> =
-  moduleRows branchId location false
+let loadItems(branchId: Uuid, location: Packages.PackageLocation): List<BodyItem> =
+  moduleRows(branchId, location, false)
 
 /// The same rows with a one-line description each - a fn's signature, a
 /// type's shape, a value's literal - so the Inspect pane's preview of a
 /// module reads as a table of contents. Not for the list: there a signature
 /// clipped to a prefix that told no two rows apart.
-let moduleContents
-  (branchId: Uuid)
-  (location: Packages.PackageLocation)
+let moduleContents(
+  branchId: Uuid,
+  location: Packages.PackageLocation)
   : List<BodyItem> =
-  moduleRows branchId location true
+  moduleRows(branchId, location, true)
 
 /// A module's rows in display order. `describe` fills the description
 /// column, which pretty-prints every signature and literal, so the list,
 /// which reloads on every move, leaves it off.
-let moduleRows
-  (branchId: Uuid)
-  (location: Packages.PackageLocation)
-  (describe: Bool)
+let moduleRows(
+  branchId: Uuid,
+  location: Packages.PackageLocation,
+  describe: Bool)
   : List<BodyItem> =
-  let modulePath = Packages.modulePathOf location
-  let results = Packages.Query.allDirectDescendants branchId modulePath
-  let subs = Packages.Query.getDirectSubmodules results (Stdlib.List.length modulePath)
+  let modulePath = Packages.modulePathOf(location)
+  let results = Packages.Query.allDirectDescendants(branchId, modulePath)
+  let subs = Packages.Query.getDirectSubmodules(results, Stdlib.List.length(modulePath))
   // Anchored at the module being listed, so a signature spells its neighbours
   // by their short names.
-  let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId modulePath
-  let typeRef (t: LanguageTools.ProgramTypes.TypeReference) : String = PrettyPrinter.ProgramTypes.typeReference ctx t
-  let descOf (build: Unit -> String) : String = if describe then build () else ""
+  let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, modulePath)
+  let typeRef(t: LanguageTools.ProgramTypes.TypeReference): String = PrettyPrinter.ProgramTypes.typeReference(ctx, t)
+  let descOf(build: Unit -> String): String = if describe then build() else ""
   // Every implementation leaves a submodule beside it with its own name, holding its method fns.
   // The implementation is already a row; the folder is not one a reader wants, and `Stdlib.Int64`
   // drew seventeen of each. The same rule every listing uses.
-  let implNames = results.impls |> Stdlib.List.map (fun i -> i.location.name)
+  let implNames = results.impls |> Stdlib.List.map(fun i -> i.location.name)
   let moduleItems =
-    LanguageTools.PackageManager.Search.readerSubmodules subs implNames
-    |> Stdlib.List.map (fun n -> BodyItem { name = n, kind = "module", isModule = true, desc = "" })
+    LanguageTools.PackageManager.Search.readerSubmodules(subs, implNames)
+    |> Stdlib.List.map(fun n -> BodyItem { name = n, kind = "module", isModule = true, desc = "" })
   let typeItems =
     results.types
-    |> Stdlib.List.map (fun t ->
-      let shape (_u: Unit) : String =
+    |> Stdlib.List.map(fun t ->
+      let shape(_u: Unit): String =
         match t.entity.declaration.definition with
-        | Record fields -> "record · " + (Cli.Text.plural (Stdlib.List.length fields) "field")
-        | Enum cases -> "enum · " + (Cli.Text.plural (Stdlib.List.length cases) "case")
-        | Alias tr -> typeRef tr
+        | Record fields -> "record · " + (Cli.Text.plural(Stdlib.List.length(fields), "field"))
+        | Enum cases -> "enum · " + (Cli.Text.plural(Stdlib.List.length(cases), "case"))
+        | Alias tr -> typeRef(tr)
       BodyItem
         { name = t.location.name
           kind = "type"
           isModule = false
-          desc = descOf shape })
+          desc = descOf(shape) })
   let valItems =
     results.values
-    |> Stdlib.List.map (fun v ->
+    |> Stdlib.List.map(fun v ->
       BodyItem
         { name = v.location.name
           kind = "val"
           isModule = false
-          desc = descOf (fun _u -> valueDesc ctx v.entity.body 40) })
+          desc = descOf(fun _u -> valueDesc(ctx, v.entity.body, 40)) })
   let fnItems =
     results.fns
-    |> Stdlib.List.map (fun f ->
-      let signature (_u: Unit) : String =
-        let params = f.entity.parameters |> Stdlib.List.map (fun p -> typeRef p.typ)
+    |> Stdlib.List.map(fun f ->
+      let signature(_u: Unit): String =
+        let params = f.entity.parameters |> Stdlib.List.map(fun p -> typeRef(p.typ))
         let args =
-          if Stdlib.List.isEmpty params then "()"
-          else Stdlib.String.join params " -> "
-        let sig_ = args + " -> " + (typeRef f.entity.returnType)
+          if Stdlib.List.isEmpty(params) then "()"
+          else Stdlib.String.join(params, " -> ")
+        let sig_ = args + " -> " + (typeRef(f.entity.returnType))
         let effects =
-          Permissions.Command.requirementDisplay
-            (LanguageTools.ProgramTypes.hashToString f.entity.hash)
+          Permissions.Command.requirementDisplay(
+            LanguageTools.ProgramTypes.hashToString(f.entity.hash))
         sig_ + "  [" + effects + "]"
       BodyItem
         { name = f.location.name
           kind = "fn"
           isModule = false
-          desc = descOf signature })
+          desc = descOf(signature) })
   let traitItems =
     results.traits
-    |> Stdlib.List.map (fun t ->
-      let shape (_u: Unit) : String =
-        "trait · " + (Cli.Text.plural (Stdlib.List.length t.entity.methods) "method")
+    |> Stdlib.List.map(fun t ->
+      let shape(_u: Unit): String =
+        "trait · " + (Cli.Text.plural(Stdlib.List.length(t.entity.methods), "method"))
       BodyItem
         { name = t.location.name
           kind = "trait"
           isModule = false
-          desc = descOf shape })
+          desc = descOf(shape) })
   let implItems =
     results.impls
-    |> Stdlib.List.map (fun i ->
-      let shape (_u: Unit) : String =
-        "impl for " + (typeRef i.entity.self)
+    |> Stdlib.List.map(fun i ->
+      let shape(_u: Unit): String =
+        "impl for " + (typeRef(i.entity.self))
       BodyItem
         { name = i.location.name
           kind = "impl"
           isModule = false
-          desc = descOf shape })
+          desc = descOf(shape) })
   // A test's description is its last result for this build, read from the
   // cache `dark test run` writes. Nothing runs here.
   let testItems =
     results.tests
-    |> Stdlib.List.map (fun t ->
-      let status (_u: Unit) : String =
-        match Packages.Test.lastOutcome branchId t.entity.hash with
+    |> Stdlib.List.map(fun t ->
+      let status(_u: Unit): String =
+        match Packages.Test.lastOutcome(branchId, t.entity.hash) with
         | Some Passed -> "passed"
         | Some(Failed _) -> "failed"
         | Some(RuntimeFailed _) -> "error"
@@ -126,9 +126,9 @@ let moduleRows
         { name = t.location.name
           kind = "test"
           isModule = false
-          desc = descOf status })
-  Stdlib.List.flatten
-    [ moduleItems, typeItems, traitItems, valItems, fnItems, implItems, testItems ]
+          desc = descOf(status) })
+  Stdlib.List.flatten(
+    [ moduleItems, typeItems, traitItems, valItems, fnItems, implItems, testItems ])
 
 /// How many names the draft touches -- the same number the Changes list shows.
 ///
@@ -138,25 +138,25 @@ let moduleRows
 ///
 /// No branch to pass: `SCM.Draft.read ()` resolves through the process branch overlay, which `onBranch`
 /// keeps in step with `state.branchId`. For any OTHER branch, ask `draftBindingsFor` by id.
-let wipItemCount () : Int =
-  Stdlib.List.length (SCM.Draft.read ()).bindings
+let wipItemCount(): Int =
+  Stdlib.List.length((SCM.Draft.read()).bindings)
 
 /// The glyph a Changes row leads with, by what the row is: a fn, a type, a
 /// value, a test, a removal, or a conflict waiting on you.
-let changeIcon (kind: String) : String =
+let changeIcon(kind: String): String =
   if kind == "conflict" then "⚠"
   else if kind == "removed" then "✕"
-  else Stdlib.String.trim (Darklang.Cli.Glyphs.forKind kind)
+  else Stdlib.String.trim(Darklang.Cli.Glyphs.forKind(kind))
 
 /// `+3 -1` for a diff, dim; "" for a diff with no changed lines.
-let diffStat (lines: List<Stdlib.Diff.DiffLine>) : String =
-  let added = lines |> Stdlib.List.filter (fun l -> match l with | Added _ -> true | _ -> false) |> Stdlib.List.length
-  let removed = lines |> Stdlib.List.filter (fun l -> match l with | Removed _ -> true | _ -> false) |> Stdlib.List.length
+let diffStat(lines: List<Stdlib.Diff.DiffLine>): String =
+  let added = lines |> Stdlib.List.filter(fun l -> match l with | Added _ -> true | _ -> false) |> Stdlib.List.length
+  let removed = lines |> Stdlib.List.filter(fun l -> match l with | Removed _ -> true | _ -> false) |> Stdlib.List.length
   if (added == 0) && (removed == 0) then ""
   else
-    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+" + (Stdlib.toString added)))
+    (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "+" + (Stdlib.toString(added))))
     + " "
-    + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("-" + (Stdlib.toString removed)))
+    + (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.red, "-" + (Stdlib.toString(removed))))
 
 /// Feeds the Changes view and Matter's Changed lens -- one list, two angles. The
 /// lens shows the draft as your code filtered to what moved, with the real tree
@@ -170,87 +170,87 @@ let diffStat (lines: List<Stdlib.Diff.DiffLine>) : String =
 ///
 /// The row's `name` stays the bare full path: the detail and the reader look the item up by
 /// it. The icon is drawn by the list from `kind`, and the change is in `desc`, pre-coloured.
-let loadChangedItems (branchId: Uuid) : List<BodyItem> =
-  let paint (color: String) (s: String) : String = Stdlib.Cli.UI.Colors.colorize color s
-  let dim (s: String) : String = Stdlib.Cli.UI.Colors.dimText s
-  let conflicts = SCM.Conflicts.pending ()
-  let conflictNames = conflicts |> Stdlib.List.map (fun c -> SCM.Conflicts.fqn c.owner c.modules c.name)
+let loadChangedItems(branchId: Uuid): List<BodyItem> =
+  let paint(color: String, s: String): String = Stdlib.Cli.UI.Colors.colorize(color, s)
+  let dim(s: String): String = Stdlib.Cli.UI.Colors.dimText(s)
+  let conflicts = SCM.Conflicts.pending()
+  let conflictNames = conflicts |> Stdlib.List.map(fun c -> SCM.Conflicts.fqn(c.owner, c.modules, c.name))
   let conflictRows =
     conflicts
-    |> Stdlib.List.map (fun c ->
+    |> Stdlib.List.map(fun c ->
       BodyItem
-        { name = SCM.Conflicts.fqn c.owner c.modules c.name
+        { name = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
           kind = "conflict"
           isModule = false
-          desc = (paint Stdlib.Cli.UI.Colors.pink "conflict") + (dim (" · " + c.itemType + " · needs a decision")) })
+          desc = (paint(Stdlib.Cli.UI.Colors.pink, "conflict")) + (dim(" · " + c.itemType + " · needs a decision")) })
   // The branch ASKED about, not the process overlay: a caller that just switched hands the new id
   // before the overlay follows, and an ignored parameter here answered for the old branch.
   let changed =
-    SCM.PackageOps.draftBindingsFor branchId
-    |> Stdlib.List.filter (fun b ->
-      Stdlib.Bool.not (Stdlib.List.contains conflictNames (SCM.Conflicts.fqn b.owner b.modules b.name)))
-    |> (fun bindings -> Cli.Commit.previousHashesOfAll branchId bindings)
-    |> Stdlib.List.map (fun (b, previous) ->
-      let fqn = SCM.Conflicts.fqn b.owner b.modules b.name
+    SCM.PackageOps.draftBindingsFor(branchId)
+    |> Stdlib.List.filter(fun b ->
+      Stdlib.Bool.not(Stdlib.List.contains(conflictNames, SCM.Conflicts.fqn(b.owner, b.modules, b.name))))
+    |> (fun bindings -> Cli.Commit.previousHashesOfAll(branchId, bindings))
+    |> Stdlib.List.map(fun (b, previous) ->
+      let fqn = SCM.Conflicts.fqn(b.owner, b.modules, b.name)
       let change =
-        if Stdlib.List.isEmpty previous then paint Stdlib.Cli.UI.Colors.green "added"
-        else paint Stdlib.Cli.UI.Colors.yellow "edited"
-      let stat = diffStat (bindingDiff branchId b previous)
+        if Stdlib.List.isEmpty(previous) then paint(Stdlib.Cli.UI.Colors.green, "added")
+        else paint(Stdlib.Cli.UI.Colors.yellow, "edited")
+      let stat = diffStat(bindingDiff(branchId, b, previous))
       BodyItem
         { name = fqn
           kind = b.itemType
           isModule = false
           desc = change + (if stat == "" then "" else "  " + stat) })
   let removed =
-    (SCM.Draft.read ()).removed
-    |> Stdlib.List.map (fun fqn ->
-      BodyItem { name = fqn, kind = "removed", isModule = false, desc = paint Stdlib.Cli.UI.Colors.red "removed" })
-  Stdlib.List.flatten [ conflictRows, changed, removed ]
+    (SCM.Draft.read()).removed
+    |> Stdlib.List.map(fun fqn ->
+      BodyItem { name = fqn, kind = "removed", isModule = false, desc = paint(Stdlib.Cli.UI.Colors.red, "removed") })
+  Stdlib.List.flatten([ conflictRows, changed, removed ])
 
 /// History and Home share the same store-wide commit order.
-let recentCommitRows (limit: Int64) : List<ScmJson.CommitRowJson> =
-  SCM.Commits.recent limit
-  |> Stdlib.List.map (fun c ->
+let recentCommitRows(limit: Int64): List<ScmJson.CommitRowJson> =
+  SCM.Commits.recent(limit)
+  |> Stdlib.List.map(fun c ->
     ScmJson.CommitRowJson
       { hash = c.hash, message = c.message
-        ops = SCM.PackageOps.opCountIn c.hash })
+        ops = SCM.PackageOps.opCountIn(c.hash) })
 
 /// Recent commits across all branches, one line each, for the reader Home's
 /// "more commits" row opens.
-let commitListText () : String =
+let commitListText(): String =
   let rows =
-    recentCommitRows 30L
-    |> Stdlib.List.map (fun c ->
+    recentCommitRows(30L)
+    |> Stdlib.List.map(fun c ->
       // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
-      let short = Stdlib.String.first c.hash 8
-      let ops = Stdlib.toString c.ops
-      "  " + (Stdlib.Cli.UI.Colors.dimText short) + "  " + c.message
-      + (Stdlib.Cli.UI.Colors.dimText ("  " + ops + (if ops == "1" then " op" else " ops"))))
-  Stdlib.String.join
-    (Stdlib.List.flatten [ [ Stdlib.Cli.UI.Colors.boldText "Recent commits, all branches", "" ], rows ])
-    "\n"
+      let short = Stdlib.String.first(c.hash, 8)
+      let ops = Stdlib.toString(c.ops)
+      "  " + (Stdlib.Cli.UI.Colors.dimText(short)) + "  " + c.message
+      + (Stdlib.Cli.UI.Colors.dimText("  " + ops + (if ops == "1" then " op" else " ops"))))
+  Stdlib.String.join(
+    Stdlib.List.flatten([ [ Stdlib.Cli.UI.Colors.boldText("Recent commits, all branches"), "" ], rows ]),
+    "\n")
 
 /// The ops of the selected commit, rendered for the reader. Capped - a seed commit can have 10k+ ops.
-let commitOpsText (branchId: Uuid) (selected: Int) : String =
-  let commits = recentCommitRows 30L
-  match Stdlib.List.getAt commits selected with
+let commitOpsText(branchId: Uuid, selected: Int): String =
+  let commits = recentCommitRows(30L)
+  match Stdlib.List.getAt(commits, selected) with
   | None -> "(no commit selected)"
   | Some c ->
     let hashStr = c.hash
     // Fetch the 20 we show, not all of them: the seed commit holds ~17k ops, and deserializing every blob
     // to display twenty of them freezes this pane for as long as that takes.
-    let opCount = Stdlib.Int.fromInt64 (SCM.PackageOps.opCountIn hashStr)
-    let shown = SCM.PackageOps.opsInCommitLimited hashStr 20L
+    let opCount = Stdlib.Int.fromInt64(SCM.PackageOps.opCountIn(hashStr))
+    let shown = SCM.PackageOps.opsInCommitLimited(hashStr, 20L)
     let opLines =
       shown
-      |> Stdlib.List.map (fun op -> "  " + (PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op))
-      |> Stdlib.String.join "\n"
+      |> Stdlib.List.map(fun op -> "  " + (PrettyPrinter.ProgramTypes.PackageOp.packageOp(branchId, op)))
+      |> Stdlib.String.join("\n")
     let more =
       if opCount > 20 then
-        "\n\n  … and " + (Stdlib.toString (opCount - 20)) + " more ops"
+        "\n\n  … and " + (Stdlib.toString(opCount - 20)) + " more ops"
       else
         ""
-    c.message + "  (" + (Stdlib.toString opCount) + " ops)\n\n" + opLines + more
+    c.message + "  (" + (Stdlib.toString(opCount)) + " ops)\n\n" + opLines + more
 
 /// Render diff lines as syntax-highlighted code with a faint wash behind what
 /// changed: green behind added lines, red behind removed, nothing behind
@@ -262,56 +262,56 @@ let commitOpsText (branchId: Uuid) (selected: Int) : String =
 /// it belongs to. A highlighted line carries resets, which would end the wash
 /// mid-line; the wash is re-asserted after each, and the line is padded so it
 /// reads as a highlighter stroke to the pane's edge.
-let renderDiffLines (lines: List<Stdlib.Diff.DiffLine>) (state: State) : List<String> =
-  let textOf (dl: Stdlib.Diff.DiffLine) : String =
+let renderDiffLines(lines: List<Stdlib.Diff.DiffLine>, state: State): List<String> =
+  let textOf(dl: Stdlib.Diff.DiffLine): String =
     match dl with
     | Same s -> s
     | Added s -> s
     | Removed s -> s
-  let isOld (dl: Stdlib.Diff.DiffLine) : Bool =
+  let isOld(dl: Stdlib.Diff.DiffLine): Bool =
     match dl with
     | Added _ -> false
     | _ -> true
-  let isNew (dl: Stdlib.Diff.DiffLine) : Bool =
+  let isNew(dl: Stdlib.Diff.DiffLine): Bool =
     match dl with
     | Removed _ -> false
     | _ -> true
-  let highlightSide (keep: Stdlib.Diff.DiffLine -> Bool) : List<String> =
-    let src = lines |> Stdlib.List.filter keep |> Stdlib.List.map textOf |> Stdlib.String.join "\n"
-    let h = SyntaxHighlighting.highlightCode src |> Stdlib.String.split "\n"
-    let n = lines |> Stdlib.List.filter keep |> Stdlib.List.length
+  let highlightSide(keep: Stdlib.Diff.DiffLine -> Bool): List<String> =
+    let src = lines |> Stdlib.List.filter(keep) |> Stdlib.List.map(textOf) |> Stdlib.String.join("\n")
+    let h = SyntaxHighlighting.highlightCode(src) |> Stdlib.String.split("\n")
+    let n = lines |> Stdlib.List.filter(keep) |> Stdlib.List.length
     // The parser can't change the line count, but be safe: fall back to plain
     // text if it somehow did.
-    if Stdlib.List.length h == n then h else lines |> Stdlib.List.filter keep |> Stdlib.List.map textOf
-  let oldSide = highlightSide isOld
-  let newSide = highlightSide isNew
+    if Stdlib.List.length(h) == n then h else lines |> Stdlib.List.filter(keep) |> Stdlib.List.map(textOf)
+  let oldSide = highlightSide(isOld)
+  let newSide = highlightSide(isNew)
   // Pad to the preview pane's width, no further: `wrapRow` folds anything
   // wider than `innerWidth - 2`, so a fixed 160 turned one short line into
   // several rows of blank wash on a narrow pane.
-  let fillWidth = Stdlib.max 1 ((previewInnerWidth state) - 2)
-  let wash (bg: String) (gutter: String) (code: String) : String =
+  let fillWidth = Stdlib.max(1, (previewInnerWidth(state)) - 2)
+  let wash(bg: String, gutter: String, code: String): String =
     // Re-assert the background after every reset in the line - the gutter's
     // own and the highlighter's.
-    let washed = Stdlib.String.replaceAll (gutter + code) Stdlib.Cli.UI.Colors.reset (Stdlib.Cli.UI.Colors.reset + bg)
-    let visible = Stdlib.Cli.Tui.Text.styledWidth (gutter + code)
-    let pad = Stdlib.String.repeat " " (Stdlib.max 0 (fillWidth - visible))
+    let washed = Stdlib.String.replaceAll(gutter + code, Stdlib.Cli.UI.Colors.reset, Stdlib.Cli.UI.Colors.reset + bg)
+    let visible = Stdlib.Cli.Tui.Text.styledWidth(gutter + code)
+    let pad = Stdlib.String.repeat(" ", Stdlib.max(0, fillWidth - visible))
     bg + washed + pad + Stdlib.Cli.UI.Colors.reset
   // Walk the diff, consuming from each side as its lines come up: (oldIdx,
   // newIdx, rendered so far).
   let (_o, _n, out) =
     lines
-    |> Stdlib.List.fold (0, 0, []) (fun acc dl ->
+    |> Stdlib.List.fold((0, 0, []), fun acc dl ->
       let (o, n, done_) = acc
       match dl with
       | Same _ ->
-        let code = Stdlib.List.getAt newSide n |> Stdlib.Option.withDefault (textOf dl)
-        (o + 1, n + 1, Stdlib.List.append done_ ("  " + code))
+        let code = Stdlib.List.getAt(newSide, n) |> Stdlib.Option.withDefault(textOf(dl))
+        (o + 1, n + 1, Stdlib.List.append(done_, "  " + code))
       | Added _ ->
-        let code = Stdlib.List.getAt newSide n |> Stdlib.Option.withDefault (textOf dl)
-        (o, n + 1, Stdlib.List.append done_ (wash Stdlib.Cli.UI.Colors.faintGreenBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.green + Stdlib.Cli.UI.Colors.bold) "+ ") code))
+        let code = Stdlib.List.getAt(newSide, n) |> Stdlib.Option.withDefault(textOf(dl))
+        (o, n + 1, Stdlib.List.append(done_, wash(Stdlib.Cli.UI.Colors.faintGreenBg, Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green + Stdlib.Cli.UI.Colors.bold, "+ "), code)))
       | Removed _ ->
-        let code = Stdlib.List.getAt oldSide o |> Stdlib.Option.withDefault (textOf dl)
-        (o + 1, n, Stdlib.List.append done_ (wash Stdlib.Cli.UI.Colors.faintRedBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.red + Stdlib.Cli.UI.Colors.bold) "- ") code)))
+        let code = Stdlib.List.getAt(oldSide, o) |> Stdlib.Option.withDefault(textOf(dl))
+        (o + 1, n, Stdlib.List.append(done_, wash(Stdlib.Cli.UI.Colors.faintRedBg, Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.red + Stdlib.Cli.UI.Colors.bold, "- "), code))))
   out
 
 /// A real old-vs-new SOURCE diff for one draft item.
@@ -321,126 +321,126 @@ let renderDiffLines (lines: List<Stdlib.Diff.DiffLine>) (state: State) : List<St
 /// The diff of one draft binding against `previous`, its hashes before the draft (see
 /// `Cli.Commit.previousHashesOf`), newest first. Takes them rather than looking them up so a
 /// caller that already has them - the Changes list, once per row - pays for the lookup once.
-let bindingDiff
-  (branchId: Uuid)
-  (b: SCM.Conflicts.Binding)
-  (previous: List<LanguageTools.ProgramTypes.Hash>)
+let bindingDiff(
+  branchId: Uuid,
+  b: SCM.Conflicts.Binding,
+  previous: List<LanguageTools.ProgramTypes.Hash>)
   : List<Stdlib.Diff.DiffLine> =
   // `b.name` on both sides: the PREVIOUS version of a name is bound to nothing live, so the printer
   // cannot name it and would render `let <hash:...>` on the left of every diff.
-  let newText = Cli.Conflicts.renderItem branchId b.itemType b.hash b.name
+  let newText = Cli.Conflicts.renderItem(branchId, b.itemType, b.hash, b.name)
 
   let oldText =
     match previous with
     | [] -> ""
     | prev :: _ ->
-      Cli.Conflicts.renderItem
-        branchId
-        b.itemType
-        (LanguageTools.ProgramTypes.hashToString prev)
-        b.name
+      Cli.Conflicts.renderItem(
+        branchId,
+        b.itemType,
+        LanguageTools.ProgramTypes.hashToString(prev),
+        b.name)
 
   // A new item diffs against nothing, and "nothing" is not an empty line to remove.
   if oldText == "" then
-    Stdlib.String.split newText "\n" |> Stdlib.List.map (fun l -> Stdlib.Diff.DiffLine.Added l)
+    Stdlib.String.split(newText, "\n") |> Stdlib.List.map(fun l -> Stdlib.Diff.DiffLine.Added l)
   else
-    Stdlib.Diff.lines oldText newText
+    Stdlib.Diff.lines(oldText, newText)
 
-let sourceDiffFor (branchId: Uuid) (fqn: String) : List<Stdlib.Diff.DiffLine> =
+let sourceDiffFor(branchId: Uuid, fqn: String): List<Stdlib.Diff.DiffLine> =
   let binding =
-    SCM.PackageOps.draftBindingsFor branchId
-    |> Stdlib.List.findFirst (fun b ->
-      (SCM.Conflicts.fqn b.owner b.modules b.name) == fqn)
+    SCM.PackageOps.draftBindingsFor(branchId)
+    |> Stdlib.List.findFirst(fun b ->
+      (SCM.Conflicts.fqn(b.owner, b.modules, b.name)) == fqn)
 
   match binding with
   | None -> [ Stdlib.Diff.DiffLine.Same "(nothing in the draft touches this name)" ]
-  | Some b -> bindingDiff branchId b (Cli.Commit.previousHashesOf branchId b)
+  | Some b -> bindingDiff(branchId, b, Cli.Commit.previousHashesOf(branchId, b))
 
 /// The selected draft item's diff, as text. Matched by name so it lines up with the workbench's
 /// own WIP list regardless of ordering.
-let wipDiffText (state: State) : String =
-  match Stdlib.List.getAt state.items state.selected with
+let wipDiffText(state: State): String =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | None -> "(no change selected)"
   | Some item ->
-    sourceDiffFor state.branchId item.name
-    |> Stdlib.List.map (fun dl ->
+    sourceDiffFor(state.branchId, item.name)
+    |> Stdlib.List.map(fun dl ->
       match dl with
-      | Same s -> Stdlib.Cli.UI.Colors.dimText ("  " + s)
-      | Added s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+ " + s)
-      | Removed s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("- " + s))
-    |> Stdlib.String.join "\n"
+      | Same s -> Stdlib.Cli.UI.Colors.dimText("  " + s)
+      | Added s -> Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "+ " + s)
+      | Removed s -> Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.red, "- " + s))
+    |> Stdlib.String.join("\n")
 
 /// The Changes preview for the selected draft item: what changed, then -- for a fn -- what running it
 /// needs and what the policy says about that, then what it uses and what uses it. The same blocks the
 /// tree's item page shows, because a person reviewing a draft asks the same three questions of it
 /// that they ask of anything else, plus "what moved".
-let changedItemDetail (state: State) : List<String> =
-  match Stdlib.List.getAt state.items state.selected with
+let changedItemDetail(state: State): List<String> =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | None -> [ "(no change selected)" ]
   | Some item ->
     // The row's name is the full path (owner.Module.leaf).
-    let parts = Stdlib.String.split item.name "."
-    let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault item.name
-    let mods = Stdlib.List.take parts (Stdlib.max 0 ((Stdlib.List.length parts) - 1))
-    let diff = Stdlib.String.split (wipDiffText state) "\n"
+    let parts = Stdlib.String.split(item.name, ".")
+    let leaf = Stdlib.List.last(parts) |> Stdlib.Option.withDefault(item.name)
+    let mods = Stdlib.List.take(parts, Stdlib.max(0, (Stdlib.List.length(parts)) - 1))
+    let diff = Stdlib.String.split(wipDiffText(state), "\n")
     let access =
       if item.kind == "fn" then
-        match (Packages.Query.searchExactMatch state.branchId mods leaf).fns with
-        | i :: _ -> accessSummaryLines state (LanguageTools.ProgramTypes.hashToString i.entity.hash)
+        match (Packages.Query.searchExactMatch(state.branchId, mods, leaf)).fns with
+        | i :: _ -> accessSummaryLines(state, LanguageTools.ProgramTypes.hashToString(i.entity.hash))
         | [] -> []
       else []
-    let refs = Stdlib.String.split (referencesText state mods leaf item.kind) "\n"
-    Stdlib.List.flatten
+    let refs = Stdlib.String.split(referencesText(state, mods, leaf, item.kind), "\n")
+    Stdlib.List.flatten(
       [ diff
-        (if Stdlib.List.isEmpty access then [] else Stdlib.List.prepend access "")
+        (if Stdlib.List.isEmpty(access) then [] else Stdlib.List.prepend(access, ""))
         [ "" ]
-        refs ]
+        refs ])
 
 /// The current source of a WIP item, for the Changes reader. By the ROW, not
 /// an index: the list is filterable, so an index into a fresh load would name
 /// whatever sat at that position in the whole list.
-let changesSourceText (branchId: Uuid) (row: Stdlib.Option.Option<BodyItem>) : String =
+let changesSourceText(branchId: Uuid, row: Stdlib.Option.Option<BodyItem>): String =
   match row with
   | None -> "(no change selected)"
   | Some d ->
     let name = d.name
     let kind = d.kind
     // `name` is the full path (owner.Module.leaf) - split into the module path + leaf for the lookup.
-    let parts = Stdlib.String.split name "."
-    let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault name
-    let mods = Stdlib.List.take parts (Stdlib.max 0 ((Stdlib.List.length parts) - 1))
-    let results = Packages.Query.searchExactMatch branchId mods leaf
-    let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+    let parts = Stdlib.String.split(name, ".")
+    let leaf = Stdlib.List.last(parts) |> Stdlib.Option.withDefault(name)
+    let mods = Stdlib.List.take(parts, Stdlib.max(0, (Stdlib.List.length(parts)) - 1))
+    let results = Packages.Query.searchExactMatch(branchId, mods, leaf)
+    let ctx = PrettyPrinter.ProgramTypes.Context.forBranch(branchId)
     let src =
       if kind == "type" then
         match results.types with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageType ctx i.entity
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageType(ctx, i.entity)
         | [] -> "(not found)"
       else if kind == "value" then
         match results.values with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageValue(ctx, i.entity)
         | [] -> "(not found)"
       else if kind == "trait" then
         match results.traits with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageTrait ctx i.entity
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageTrait(ctx, i.entity)
         | [] -> "(not found)"
       else if kind == "impl" then
         match results.impls with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageImpl ctx i.entity
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageImpl(ctx, i.entity)
         | [] -> "(not found)"
       else if kind == "test" then
         match results.tests with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageTest ctx i.entity
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageTest(ctx, i.entity)
         | [] -> "(not found)"
       else
         match results.fns with
-        | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageFn(ctx, i.entity)
         | [] -> "(not found)"
     name + "  (" + kind + ", uncommitted)\n\n" + src
 
 /// Run a package search across the whole tree and return jumpable hits (each carries its module path + leaf so
 /// Enter can navigate there). The `/` global action opens these in the search-results mode.
-let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
+let runSearch(branchId: Uuid, queryText: String): List<SearchHit> =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = []
@@ -448,29 +448,29 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
         entityTypes = []
         exactMatch = false }
-  let r = LanguageTools.PackageManager.Search.search branchId query
-  let hit (tag: String) (location: LanguageTools.ProgramTypes.PackageLocation) : SearchHit =
-    let modules = Stdlib.List.prepend location.modules location.owner
-    let full = Stdlib.String.join (Stdlib.List.append modules location.name) "."
+  let r = LanguageTools.PackageManager.Search.search(branchId, query)
+  let hit(tag: String, location: LanguageTools.ProgramTypes.PackageLocation): SearchHit =
+    let modules = Stdlib.List.prepend(location.modules, location.owner)
+    let full = Stdlib.String.join(Stdlib.List.append(modules, location.name), ".")
     SearchHit { modules = modules, name = location.name, kind = tag, display = "  " + tag + "  " + full }
   // Rank by how well the LEAF NAME matches, because the search also matches descriptions and those hits
   // otherwise interleave alphabetically with the real ones: searching `toUppercase` put
   // `Stdlib.String.toUppercase` sixth, behind `Stdlib.Bytes.fromHex`, which matched on its description.
-  let needle = Stdlib.String.toLowercase (Stdlib.String.trim queryText)
-  let rank (h: SearchHit) : Int =
-    let name = Stdlib.String.toLowercase h.name
+  let needle = Stdlib.String.toLowercase(Stdlib.String.trim(queryText))
+  let rank(h: SearchHit): Int =
+    let name = Stdlib.String.toLowercase(h.name)
     if name == needle then 0
-    else if Stdlib.String.startsWith name needle then 1
-    else if Stdlib.String.contains name needle then 2
+    else if Stdlib.String.startsWith(name, needle) then 1
+    else if Stdlib.String.contains(name, needle) then 2
     else 3
-  Stdlib.List.flatten
-    [ r.types |> Stdlib.List.map (fun i -> hit "type " i.location)
-      r.values |> Stdlib.List.map (fun i -> hit "val  " i.location)
-      r.fns |> Stdlib.List.map (fun i -> hit "fn   " i.location)
-      r.traits |> Stdlib.List.map (fun i -> hit "trait" i.location)
-      r.impls |> Stdlib.List.map (fun i -> hit "impl " i.location)
-      r.tests |> Stdlib.List.map (fun i -> hit "test " i.location) ]
-  |> Stdlib.List.sortBy rank
+  Stdlib.List.flatten(
+    [ r.types |> Stdlib.List.map(fun i -> hit("type ", i.location))
+      r.values |> Stdlib.List.map(fun i -> hit("val  ", i.location))
+      r.fns |> Stdlib.List.map(fun i -> hit("fn   ", i.location))
+      r.traits |> Stdlib.List.map(fun i -> hit("trait", i.location))
+      r.impls |> Stdlib.List.map(fun i -> hit("impl ", i.location))
+      r.tests |> Stdlib.List.map(fun i -> hit("test ", i.location)) ])
+  |> Stdlib.List.sortBy(rank)
 
 /// How many references a list on the item page shows before pointing at `:deps`.
 val referenceCap = 12
@@ -478,90 +478,90 @@ val referenceCap = 12
 /// What `leaf` in `modulePath` uses and what uses it, spelled from `state.location`. The tree page
 /// and the Changes preview both show this; the Changes list carries full paths, which is why the
 /// module path is a parameter rather than read off the location.
-let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kind: String) : String =
-  referencesFrom state modulePath leaf kind (Packages.Query.searchExactMatch state.branchId modulePath leaf)
+let referencesText(state: State, modulePath: List<String>, leaf: String, kind: String): String =
+  referencesFrom(state, modulePath, leaf, kind, Packages.Query.searchExactMatch(state.branchId, modulePath, leaf))
 
 /// <fn referencesText>, from a lookup the caller already made.
-let referencesFrom
-  (state: State)
-  (modulePath: List<String>)
-  (leaf: String)
-  (kind: String)
-  (results: LanguageTools.ProgramTypes.Search.SearchResults)
+let referencesFrom(
+  state: State,
+  modulePath: List<String>,
+  leaf: String,
+  kind: String,
+  results: LanguageTools.ProgramTypes.Search.SearchResults)
   : String =
   let item = BodyItem { name = leaf, kind = kind, isModule = false, desc = "" }
   let picked =
     if item.kind == "fn" then
-      results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
+      results.fns |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
     else if item.kind == "type" then
-      results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Type))
+      results.types |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Type))
     else if item.kind == "trait" then
-      results.traits |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Trait))
+      results.traits |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Trait))
     else if item.kind == "impl" then
-      results.impls |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.TraitImpl))
+      results.impls |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.TraitImpl))
     else if item.kind == "test" then
-      results.tests |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Test))
+      results.tests |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Test))
     else
-      results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
+      results.values |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
   match picked with
   | None -> "(not found)"
   | Some((hash, loc, kind)) ->
     // Dependencies - what this item uses.
-    let deps = Packages.Query.getDependencies hash
+    let deps = Packages.Query.getDependencies(hash)
     let depLines =
-      if Stdlib.List.isEmpty deps then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
+      if Stdlib.List.isEmpty(deps) then [ Stdlib.Cli.UI.Colors.dimText("  (none)") ]
       else
         let namesDict =
-          Darklang.Cli.Deps.resolveNamesIn
-            state.branchId
-            (Packages.modulePathOf state.location)
-            (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
-        deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " + (Darklang.Cli.Deps.getName namesDict th))
+          Darklang.Cli.Deps.resolveNamesIn(
+            state.branchId,
+            Packages.modulePathOf(state.location),
+            deps |> Stdlib.List.map(fun p -> let (h, _) = p in h))
+        deps |> Stdlib.List.map(fun p -> let (th, _rt) = p in "  " + (Darklang.Cli.Deps.getName(namesDict, th)))
     // Dependents - what uses this item.
     // The same Dark-side query `dark deps` uses, so the pane and the command cannot disagree.
     // Tests have their own final section on the Inspect page, with result and
     // run information. Keep `used by` about production coupling instead of
     // listing every test twice. The `dark deps` command remains comprehensive.
     let dependents =
-      SCM.Deps.dependentsOf [ (loc, kind) ]
-      |> Stdlib.List.filter (fun (_hash, _location, dependentKind) ->
+      SCM.Deps.dependentsOf([ (loc, kind) ])
+      |> Stdlib.List.filter(fun (_hash, _location, dependentKind) ->
         dependentKind != LanguageTools.ProgramTypes.ItemKind.Test)
     let dependentLines =
-      if Stdlib.List.isEmpty dependents then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
+      if Stdlib.List.isEmpty(dependents) then [ Stdlib.Cli.UI.Colors.dimText("  (none)") ]
       else
         // Spelled from where the reader is standing, like everything else on this page.
-        let here = Packages.modulePathOf state.location
+        let here = Packages.modulePathOf(state.location)
         // Only the rows `capped` keeps: `List.map` has hundreds, and each costs a render.
-        Stdlib.List.take dependents referenceCap
-        |> Stdlib.List.map (fun t ->
+        Stdlib.List.take(dependents, referenceCap)
+        |> Stdlib.List.map(fun t ->
           let (_h, sLoc, _rt) = t
-          "  " + (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn here sLoc))
+          "  " + (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn(here, sLoc)))
     // Capped: `List.map` has hundreds of dependents, and a page is for reading, not scrolling to
     // the end of. The command prints them all.
-    let fqn = Stdlib.String.join (Stdlib.List.append modulePath leaf) "."
-    let capped (n: Int) (lines: List<String>) : List<String> =
+    let fqn = Stdlib.String.join(Stdlib.List.append(modulePath, leaf), ".")
+    let capped(n: Int, lines: List<String>): List<String> =
       if n <= referenceCap then lines
       else
-        Stdlib.List.append
-          (Stdlib.List.take lines referenceCap)
-          (Stdlib.Cli.UI.Colors.dimText ("  + " + (Stdlib.toString (n - referenceCap)) + " more · :deps " + fqn + " lists them all"))
+        Stdlib.List.append(
+          Stdlib.List.take(lines, referenceCap),
+          Stdlib.Cli.UI.Colors.dimText("  + " + (Stdlib.toString(n - referenceCap)) + " more · :deps " + fqn + " lists them all"))
     // No item name here: `inspectPageLines` composes this under a page already headed by that
     // item's source, so including it printed the name twice on one screen.
-    let heading (label: String) (n: Int) : String =
-      (sectionHeading label) + (Stdlib.Cli.UI.Colors.dimText (" · " + (Stdlib.toString n)))
-    Stdlib.String.join
-      (Stdlib.List.flatten
-        [ [ heading "uses" (Stdlib.List.length deps) ]
-          capped (Stdlib.List.length deps) depLines
-          [ "", heading "used by" (Stdlib.List.length dependents) ]
-          capped (Stdlib.List.length dependents) dependentLines ])
-      "\n"
+    let heading(label: String, n: Int): String =
+      (sectionHeading(label)) + (Stdlib.Cli.UI.Colors.dimText(" · " + (Stdlib.toString(n))))
+    Stdlib.String.join(
+      (Stdlib.List.flatten(
+        [ [ heading("uses", Stdlib.List.length(deps)) ]
+          capped(Stdlib.List.length(deps), depLines)
+          [ "", heading("used by", Stdlib.List.length(dependents)) ]
+          capped(Stdlib.List.length(dependents), dependentLines) ])),
+      "\n")
 
 /// AI threads for the AI view (the thread board - demo data for now, via the shared Views.AiChats source).
 
 
 /// Read the badge sets for a state: which items have uncommitted edits, and which are deprecated.
-let readBadges (state: State) : (List<String> * List<String>) =
+let readBadges(state: State): (List<String> * List<String>) =
   // Only the Matter tree shows badges, and the values lens hides them, so everything else skips both reads.
   if (state.activeView != vMatter) || (state.matter.lens == Lens.ValuesOnly) then
     ([], [])
@@ -569,25 +569,25 @@ let readBadges (state: State) : (List<String> * List<String>) =
     // The draft names come off the cached SCM status rather than a read of their own: the tree's pink dot
     // and Home's "N changed" are the same fact, and two reads of it could disagree.
     let wip = state.scmStatus.wipNames
-    let sets = Packages.Query.loadDeprecationSets state.branchId
-    let results = Packages.Query.allDirectDescendants state.branchId (Packages.modulePathOf state.location)
+    let sets = Packages.Query.loadDeprecationSets(state.branchId)
+    let results = Packages.Query.allDirectDescendants(state.branchId, Packages.modulePathOf(state.location))
     let pick = fun pairs ->
       pairs
-      |> Stdlib.List.filter (fun (hash, _name) -> Packages.Query.isDeprecated sets hash)
-      |> Stdlib.List.map (fun (_hash, name) -> name)
+      |> Stdlib.List.filter(fun (hash, _name) -> Packages.Query.isDeprecated(sets, hash))
+      |> Stdlib.List.map(fun (_hash, name) -> name)
     (wip,
-     Stdlib.List.flatten
-       [ pick (results.fns |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name)))
-         pick (results.types |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name)))
-         pick (results.values |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name)))
-         pick (results.tests |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name))) ])
+     Stdlib.List.flatten(
+       [ pick(results.fns |> Stdlib.List.map(fun i -> (i.entity.hash, i.location.name)))
+         pick(results.types |> Stdlib.List.map(fun i -> (i.entity.hash, i.location.name)))
+         pick(results.values |> Stdlib.List.map(fun i -> (i.entity.hash, i.location.name)))
+         pick(results.tests |> Stdlib.List.map(fun i -> (i.entity.hash, i.location.name))) ]))
 
 
 /// Carry the cached badge sets forward, re-reading only when something they depend on moved.
 ///
 /// The dependency is the branch, where you are, the lens, the view, and the item list itself (a commit or a
 /// discard changes what's uncommitted without moving you). Comparing those is cheap; the reads are not.
-let refreshBadges (previous: State) (next: State) : State =
+let refreshBadges(previous: State, next: State): State =
   let unchanged =
     (previous.branchId == next.branchId)
     && (previous.location == next.location)
@@ -598,7 +598,7 @@ let refreshBadges (previous: State) (next: State) : State =
   if unchanged then
     next
   else
-    let (wip, deprecated) = readBadges next
+    let (wip, deprecated) = readBadges(next)
     { next with wipNames = wip, deprecatedNames = deprecated }
 
 /// Re-read the SCM picture when anything that could have moved it did.
@@ -613,21 +613,21 @@ let refreshBadges (previous: State) (next: State) : State =
 /// ops, so on those paths the comparison would carry a stale "N need you" over work you have just
 /// answered. `forceScmRefresh` covers them, and it is a separate function rather than a flag so a caller
 /// has to mean it.
-let refreshScmStatus (previous: State) (next: State) : State =
+let refreshScmStatus(previous: State, next: State): State =
   let unchanged =
     next.scmStatus.loaded
     && (previous.branchId == next.branchId)
-    && ((SCM.PackageOps.draftOpCountFor next.branchId) == next.scmStatus.ops)
+    && ((SCM.PackageOps.draftOpCountFor(next.branchId)) == next.scmStatus.ops)
 
   if unchanged then
     next
   else
-    { next with scmStatus = readScmStatus next.branchId }
+    { next with scmStatus = readScmStatus(next.branchId) }
 
 /// Re-read the SCM picture whatever the counts say. For the actions that change it without moving an op
 /// count: an ack, and any command run in a frame (a pull lands other people's commits).
-let forceScmRefresh (state: State) : State =
-  { state with scmStatus = readScmStatus state.branchId, preview = Stdlib.Option.Option.None, liveFor = "" }
+let forceScmRefresh(state: State): State =
+  { state with scmStatus = readScmStatus(state.branchId), preview = Stdlib.Option.Option.None, liveFor = "" }
 
 /// Run the selected `render` fn and hold its output, for the tree-native view peek.
 ///
@@ -646,17 +646,17 @@ let forceScmRefresh (state: State) : State =
 /// code as it is now, each call's value rendered for the printer to put beside it. Runs user code,
 /// so it happens here on the transition. Nothing recorded, or a run that fails, leaves the pane as
 /// it was: the source, with no values beside it.
-let refreshLiveValues (next: State) : State =
+let refreshLiveValues(next: State): State =
   let selectedFn =
     if next.activeView != vMatter then
       Stdlib.Option.Option.None
     else
-      match Stdlib.List.getAt next.items next.selected with
-      | Some item when (Stdlib.Bool.not item.isModule) && (item.kind == "fn") ->
+      match Stdlib.List.getAt(next.items, next.selected) with
+      | Some item when (Stdlib.Bool.not(item.isModule)) && (item.kind == "fn") ->
         Stdlib.Option.Option.Some(
           LanguageTools.ProgramTypes.PackageLocation
-            { owner = Stdlib.List.head (Packages.modulePathOf next.location) |> Stdlib.Option.withDefault ""
-              modules = Stdlib.List.drop (Packages.modulePathOf next.location) 1
+            { owner = Stdlib.List.head(Packages.modulePathOf(next.location)) |> Stdlib.Option.withDefault("")
+              modules = Stdlib.List.drop(Packages.modulePathOf(next.location), 1)
               name = item.name }
         )
       | _ -> Stdlib.Option.Option.None
@@ -666,35 +666,35 @@ let refreshLiveValues (next: State) : State =
   | Some entry ->
     // A scroll or a command-bar key moves neither, and a replay costs a whole recorded run.
     let key =
-      $"{Stdlib.toString next.branchId} {Stdlib.Live.entryName entry} {Stdlib.toString next.scmStatus.ops}"
+      $"{Stdlib.toString(next.branchId)} {Stdlib.Live.entryName(entry)} {Stdlib.toString(next.scmStatus.ops)}"
     if key == next.liveFor then
       next
     else
       let (values, note) =
-        match Stdlib.Live.Values.replay next.accountId next.branchId entry with
+        match Stdlib.Live.Values.replay(next.accountId, next.branchId, entry) with
         | Some v ->
           // One line each, and short: a value beside a call is a glance, and the pane's width
           // is the code's. `dark traces inspect` has the whole value.
           (v.byExpr
-           |> Stdlib.Dict.map (fun _ dv ->
-             PrettyPrinter.RuntimeTypes.dvalOneLine next.branchId 40 dv),
-           Stdlib.Option.withDefault v.skipped "")
+           |> Stdlib.Dict.map(fun _ dv ->
+             PrettyPrinter.RuntimeTypes.dvalOneLine(next.branchId, 40, dv)),
+           Stdlib.Option.withDefault(v.skipped, ""))
         | None -> (Stdlib.Dict.empty, "")
 
       { next with liveValues = values, liveFor = key, liveNote = note }
 
-let refreshPeek (next: State) : State =
+let refreshPeek(next: State): State =
   let peek =
     if (next.activeView != vMatter) || (next.matter.lens == Lens.ValuesOnly) then
       ""
     else
-      match Stdlib.List.getAt next.items next.selected with
+      match Stdlib.List.getAt(next.items, next.selected) with
       | Some item ->
-        if (Stdlib.Bool.not item.isModule) && (item.kind == "fn") && (item.name == "render") then
+        if (Stdlib.Bool.not(item.isModule)) && (item.kind == "fn") && (item.name == "render") then
           let fullpath =
-            Stdlib.String.join (Stdlib.List.append (Packages.modulePathOf next.location) item.name) "."
-          captureOutput (fun () ->
-            Eval.evaluateRaw next.accountId next.branchId (fullpath + " ()") [] false)
+            Stdlib.String.join(Stdlib.List.append(Packages.modulePathOf(next.location), item.name), ".")
+          captureOutput(fun () ->
+            Eval.evaluateRaw(next.accountId, next.branchId, fullpath + " ()", [], false))
         else
           ""
       | None -> ""

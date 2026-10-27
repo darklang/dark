@@ -9,23 +9,23 @@ module Darklang.SCM.Docs
 
 /// Every doc <param location> has of its own, by part. Empty for a name nobody has edited, which is
 /// most of them.
-let at
-  (branchId: Uuid)
-  (location: LanguageTools.ProgramTypes.PackageLocation)
+let at(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation)
   : List<(LanguageTools.ProgramTypes.DocPart * String)> =
-  Builtin.pmDocsAt branchId location
+  Builtin.pmDocsAt(branchId, location)
 
 
 /// The text <param docs> holds for <param part>, if any.
-let find
-  (docs: List<(LanguageTools.ProgramTypes.DocPart * String)>)
-  (part: LanguageTools.ProgramTypes.DocPart)
+let find(
+  docs: List<(LanguageTools.ProgramTypes.DocPart * String)>,
+  part: LanguageTools.ProgramTypes.DocPart)
   : Stdlib.Option.Option<String> =
   docs
-  |> Stdlib.List.findFirst (fun pair ->
+  |> Stdlib.List.findFirst(fun pair ->
     let (p, _) = pair
     p == part)
-  |> Stdlib.Option.map (fun pair ->
+  |> Stdlib.Option.map(fun pair ->
     let (_, text) = pair
     text)
 
@@ -34,17 +34,17 @@ let find
 ///
 /// The read every located surface wants: `view`, a listing, hover. A lookup BY HASH has no name to
 /// ask about and keeps the declaration's words, which is the honest answer for it.
-let overlay
-  (branchId: Uuid)
-  (location: LanguageTools.ProgramTypes.PackageLocation)
-  (declared: List<(LanguageTools.ProgramTypes.DocPart * String)>)
+let overlay(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  declared: List<(LanguageTools.ProgramTypes.DocPart * String)>)
   : List<(LanguageTools.ProgramTypes.DocPart * String)> =
-  let own = Docs.at branchId location
+  let own = Docs.at(branchId, location)
 
   declared
-  |> Stdlib.List.map (fun pair ->
+  |> Stdlib.List.map(fun pair ->
     let (part, declaredText) = pair
 
-    match Docs.find own part with
+    match Docs.find(own, part) with
     | Some ownText -> (part, ownText)
     | None -> (part, declaredText))

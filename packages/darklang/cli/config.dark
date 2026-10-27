@@ -3,19 +3,19 @@ module Darklang.Cli.Config
 // The config lives next to this instance's store (`localDbPath`), so the path is absolute and its
 // directory always exists -- independent of the process CWD and of install mode. A CWD-relative
 // path here makes `login` silently persist nothing.
-let configFilePath () : String =
-  let dbPath = Stdlib.LocalStore.path ()
-  let dir = Stdlib.String.join (Stdlib.List.dropLast (Stdlib.String.split dbPath "/")) "/"
+let configFilePath(): String =
+  let dbPath = Stdlib.LocalStore.path()
+  let dir = Stdlib.String.join(Stdlib.List.dropLast(Stdlib.String.split(dbPath, "/")), "/")
   $"{dir}/cli-config.json"
 
-let readConfig () : Dict<String, String> =
-  match Stdlib.Cli.FileSystem.pathExists (configFilePath ()) with
+let readConfig(): Dict<String, String> =
+  match Stdlib.Cli.FileSystem.pathExists(configFilePath()) with
   | true ->
-    match Stdlib.Cli.FileSystem.readFile (configFilePath ()) with
+    match Stdlib.Cli.FileSystem.readFile(configFilePath()) with
     | Ok bytes ->
-      let contents = Stdlib.String.fromBytesWithReplacement bytes
+      let contents = Stdlib.String.fromBytesWithReplacement(bytes)
 
-      match Stdlib.Json.parse<Dict<String, String>> contents with
+      match Stdlib.Json.parse<Dict<String, String>>(contents) with
       | Ok config -> config
       | Error _ -> Dict {}
 
@@ -24,35 +24,35 @@ let readConfig () : Dict<String, String> =
   | false -> Dict {}
 
 
-let writeConfig (config: Dict<String, String>) : Unit =
-  let json = Stdlib.Json.serialize<Dict<String, String>> config
-  let jsonBytes = Stdlib.String.toBytes json
-  let _ = Stdlib.Cli.FileSystem.overwriteFile (configFilePath ()) jsonBytes
+let writeConfig(config: Dict<String, String>): Unit =
+  let json = Stdlib.Json.serialize<Dict<String, String>>(config)
+  let jsonBytes = Stdlib.String.toBytes(json)
+  let _ = Stdlib.Cli.FileSystem.overwriteFile(configFilePath(), jsonBytes)
   ()
 
 
-let get (key: String) : Stdlib.Option.Option<String> =
-  let config = readConfig ()
-  Stdlib.Dict.get config key
+let get(key: String): Stdlib.Option.Option<String> =
+  let config = readConfig()
+  Stdlib.Dict.get(config, key)
 
 // A single Int config value, falling back to `default_` when absent or unparseable.
-let getInt (key: String) (default_: Int) : Int =
-  match get key with
-  | Some s -> Stdlib.Result.withDefault (Stdlib.Int.parse s) default_
+let getInt(key: String, default_: Int): Int =
+  match get(key) with
+  | Some s -> Stdlib.Result.withDefault(Stdlib.Int.parse(s), default_)
   | None -> default_
 
 
 /// The keys the F# boot reads before any Dark runs (`exec.workers` sizes the scheduler's
 /// worker pool, `trace.keep` the retention), so they live in the store's config rather than
 /// in the json file.
-let isStoreKey (key: String) : Bool =
-  (Stdlib.String.startsWith key "exec.")
-  || (Stdlib.String.startsWith key "http.")
-  || (Stdlib.String.startsWith key "trace.")
+let isStoreKey(key: String): Bool =
+  (Stdlib.String.startsWith(key, "exec."))
+  || (Stdlib.String.startsWith(key, "http."))
+  || (Stdlib.String.startsWith(key, "trace."))
 
 /// What a value must look like, or `None` for anything goes: the boot falls back silently on a
 /// value it cannot read, so the refusal has to happen here.
-let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
+let checkValue(key: String, value: String): Stdlib.Option.Option<String> =
   let numeric =
     [ "exec.workers"
       "exec.maxInstructions"
@@ -61,61 +61,61 @@ let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
       "http.requestTimeoutMs"
       "trace.keep"
       "trace.maxMb" ]
-  if Stdlib.List.contains numeric key then
-    match Stdlib.Int.parse value with
+  if Stdlib.List.contains(numeric, key) then
+    match Stdlib.Int.parse(value) with
     // The boot ignores a poll under 10 ms (`Cli.fs`), so refuse it here rather than store it.
     | Ok n when key == "exec.storePollMs" && n < 10 ->
       Stdlib.Option.Option.Some $"{key} takes a whole number of ms, 10 or more, not {value}"
     | Ok n when n >= 0 -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.Some $"{key} takes a whole number (0 = none), not {value}"
   else if
-    Stdlib.List.contains [ "trace.record", "http.loopback", "http.private" ] key
+    Stdlib.List.contains([ "trace.record", "http.loopback", "http.private" ], key)
   then
     if (value == "on") || (value == "off") then Stdlib.Option.Option.None
     else Stdlib.Option.Option.Some $"{key} is on or off"
   else
     Stdlib.Option.Option.None
 
-let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   match args with
-  | ["get", key] when isStoreKey key ->
-    let value = Stdlib.LocalStore.configGet key
+  | ["get", key] when isStoreKey(key) ->
+    let value = Stdlib.LocalStore.configGet(key)
     if value == "" then
-      Stdlib.printLine $"{key} is not set (the default applies; `config list` has it)"
+      Stdlib.printLine($"{key} is not set (the default applies; `config list` has it)")
     else
-      Stdlib.printLine $"{key} = {value}"
+      Stdlib.printLine($"{key} = {value}")
     state
 
-  | ["set", key, value] when isStoreKey key ->
-    match checkValue key value with
+  | ["set", key, value] when isStoreKey(key) ->
+    match checkValue(key, value) with
     | Some problem ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error problem)
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.error(problem))
       { state with exitCode = 1 }
     | None ->
-      let _ = Stdlib.LocalStore.configSet key value
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} = {value}")
+      let _ = Stdlib.LocalStore.configSet(key, value)
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Set {key} = {value}"))
       state
 
   | ["get", key] ->
-    let config = readConfig ()
-    match Stdlib.Dict.get config key with
+    let config = readConfig()
+    match Stdlib.Dict.get(config, key) with
     | Some value ->
-      Stdlib.printLine $"{key} = {value}"
+      Stdlib.printLine($"{key} = {value}")
       state
 
     | None ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Configuration key not found: {key}")
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Configuration key not found: {key}"))
       state
 
-  | ["set", key, value] when Stdlib.Option.isSome (checkValue key value) ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Stdlib.Option.withDefault (checkValue key value) ""))
+  | ["set", key, value] when Stdlib.Option.isSome(checkValue(key, value)) ->
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(Stdlib.Option.withDefault(checkValue(key, value), "")))
     { state with exitCode = 1 }
 
   | ["set", key, value] ->
-    let config = readConfig ()
-    let updatedConfig = Stdlib.Dict.set config key value
-    writeConfig updatedConfig
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} = {value}")
+    let config = readConfig()
+    let updatedConfig = Stdlib.Dict.set(config, key, value)
+    writeConfig(updatedConfig)
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Set {key} = {value}"))
 
     state
 
@@ -141,13 +141,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | _ ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Invalid arguments")
-    Stdlib.printLine ""
-    Stdlib.printLine (help state)
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Invalid arguments"))
+    Stdlib.printLine("")
+    Stdlib.printLine(help(state))
     { state with exitCode = 1 }
 
 
-let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
+let complete(_state: Cli.AppState, args: List<String>): List<Cli.Completion.CompletionItem> =
   let configKeys =
     [ "exec.workers"
       "exec.policy"
@@ -163,13 +163,13 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
 
   match args with
   | [] ->
-    ["get", "set", "list"] |> Stdlib.List.map Cli.Completion.simple
+    ["get", "set", "list"] |> Stdlib.List.map(Cli.Completion.simple)
   | ["get"] | ["set"] ->
-    configKeys |> Stdlib.List.map Cli.Completion.simple
+    configKeys |> Stdlib.List.map(Cli.Completion.simple)
   | _ -> []
 
 
-let help (_state: Cli.AppState) : String =
+let help(_state: Cli.AppState): String =
   [ "Usage:"
     "  config get <key>           - Get a configuration value"
     "  config set <key> <value>   - Set a configuration value"
@@ -180,4 +180,4 @@ let help (_state: Cli.AppState) : String =
     "  config get exec.workers"
     ""
     "`config list` names every key this reads, with its default." ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")

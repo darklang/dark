@@ -2,72 +2,72 @@ module Darklang.Stdlib.Cli.Zsh
 
 
 /// Read the content of .zshrc file
-let readZshrc () : Result.Result<String, String> =
-  (Stdlib.Cli.FileSystem.readFile "$HOME/.zshrc")
-  |> Result.map Stdlib.String.fromBytesWithReplacement
-  |> Result.mapError Stdlib.Cli.FileSystem.FileError.toString
+let readZshrc(): Result.Result<String, String> =
+  (Stdlib.Cli.FileSystem.readFile("$HOME/.zshrc"))
+  |> Result.map(Stdlib.String.fromBytesWithReplacement)
+  |> Result.mapError(Stdlib.Cli.FileSystem.FileError.toString)
 
 /// Overwrite what's in the .zshrc file
-let overwriteZshrc (content: String) : Result.Result<Unit, String> =
-  (FileSystem.overwriteFile "$HOME/.zshrc" (Stdlib.String.toBytes content))
-  |> Result.mapError FileSystem.FileError.toString
+let overwriteZshrc(content: String): Result.Result<Unit, String> =
+  (FileSystem.overwriteFile("$HOME/.zshrc", Stdlib.String.toBytes(content)))
+  |> Result.mapError(FileSystem.FileError.toString)
 
 
 /// Apply changes to .zshrc
 /// , via `source`
-let applyZshConfigChanges () : Result.Result<Unit, String> =
-  Cli.executeWithUnitOrStdErr "source $HOME/.zshrc"
+let applyZshConfigChanges(): Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr("source $HOME/.zshrc")
 
 
 /// Delete an alias from .zshrc
-let deleteAlias (alias: String) : Result.Result<Unit, String> =
-  (readZshrc ())
-  |> Result.andThen (fun content ->
+let deleteAlias(alias: String): Result.Result<Unit, String> =
+  (readZshrc())
+  |> Result.andThen(fun content ->
     let updatedContent =
       content
-      |> String.split "\n"
-      |> List.filter (fun line ->
-        Bool.not (String.contains line $"alias {alias}="))
-      |> String.join "\n"
+      |> String.split("\n")
+      |> List.filter(fun line ->
+        Bool.not(String.contains(line, $"alias {alias}=")))
+      |> String.join("\n")
 
-    overwriteZshrc updatedContent)
+    overwriteZshrc(updatedContent))
 
 
 /// Add an alias to .zshrc
-let addAlias
-  (alias: String)
-  (command: String)
+let addAlias(
+  alias: String,
+  command: String)
   : Result.Result<Unit, String> =
   let aliasDefinition = $"alias {alias}='{command}'"
 
-  (readZshrc ())
-  |> Result.andThen (fun content ->
+  (readZshrc())
+  |> Result.andThen(fun content ->
     let updatedContent = content + "\n" + aliasDefinition
 
-    match overwriteZshrc updatedContent with
-    | Ok() -> applyZshConfigChanges ()
+    match overwriteZshrc(updatedContent) with
+    | Ok() -> applyZshConfigChanges()
     | Error e -> Result.Result.Error e)
 
 
 /// Add a directory to PATH in .zshrc
-let addToPath (dir: String) : Result.Result<Unit, String> =
+let addToPath(dir: String): Result.Result<Unit, String> =
   let exportLine = $"export PATH=\"{dir}:$PATH\""
 
   // A missing rc file is an empty one: a fresh account often has none, and refusing here used to
   // fail an install after the binary was already in place.
   let existing =
-    if Stdlib.Cli.FileSystem.pathExists "$HOME/.zshrc" then readZshrc ()
+    if Stdlib.Cli.FileSystem.pathExists("$HOME/.zshrc") then readZshrc()
     else Result.Result.Ok ""
 
   match existing with
   | Ok content ->
     // Check if PATH export for this dir already exists (not just any reference to the dir)
-    if String.contains content exportLine then
+    if String.contains(content, exportLine) then
       Result.Result.Ok()
     else
       let updatedContent = content + "\n" + exportLine
 
-      match overwriteZshrc updatedContent with
-      | Ok() -> applyZshConfigChanges ()
+      match overwriteZshrc(updatedContent) with
+      | Ok() -> applyZshConfigChanges()
       | Error e -> Result.Result.Error e
   | Error e -> Result.Result.Error e

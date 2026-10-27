@@ -11,8 +11,8 @@ Content-Length: 568
 
 
 [test]
-(let response = (Darklang.Stdlib.HttpClient.request "head" "http://URL" [] Stdlib.Bytes.empty |> Builtin.unwrap)
- let respHeaders = (response.headers |> Darklang.Stdlib.List.filter (fun h -> (Darklang.Stdlib.Tuple2.first h) != "date"))
+(let response = (Darklang.Stdlib.HttpClient.request("head", "http://URL", [], Stdlib.Bytes.empty) |> Builtin.unwrap)
+ let respHeaders = (response.headers |> Darklang.Stdlib.List.filter(fun h -> (Darklang.Stdlib.Tuple2.first(h)) != "date"))
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 200

@@ -1,36 +1,37 @@
 module Darklang.Cli.Docs.Functions
 
-let content () : String =
+let content(): String =
   """# Functions
 
 ## Define
-  let add (a: Int) (b: Int) : Int = a + b
-  let greet (name: String) : String = $"Hi {name}"
+  let add(a: Int, b: Int): Int = a + b
+  let greet(name: String): String = $"Hi {name}"
 
 ## No params
-  let now () : DateTime = Stdlib.DateTime.now ()
+  let now(): DateTime = Stdlib.DateTime.now()
 
 ## Nested functions
-  let outer (n: Int) : Int =
-    let double (x: Int) : Int = x * 2
-    double n
+  let outer(n: Int): Int =
+    let double(x: Int): Int = x * 2
+    double(n)
 
-  # Nested params and the return need types. `let double (x) = ...` and
+  # Nested params and the return need types. `let double(x) = ...` and
   # `let double x = ...` are parse errors.
   # A nested fn sees the bindings above it, including other nested fns.
   # Calling one defined further down doesn't work; use a top-level fn for that.
 
 ## Call
-  add 1 2
-  Stdlib.String.length "hi"
+  add(1, 2)
+  Stdlib.String.length("hi")
 
 ## Lambda
   fun x -> x + 1
   fun (a, b) -> a + b
 
-## Partial application
-  let addFive = (+) 5
-  addFive 3   # 8
+## No partial application
+  Stdlib.max(5)   # error: Darklang.Stdlib.max expects 2 arguments, but got 1 argument
+  let addFive = fun x -> 5 + x
+  addFive(3)   # 8
 
 ## Unit return
-  let log (msg: String) : Unit = Stdlib.printLine msg"""
+  let log(msg: String): Unit = Stdlib.printLine(msg)"""

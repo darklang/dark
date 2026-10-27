@@ -10,11 +10,11 @@ type Handler =
 
 
 /// A GET route, so a handler table reads as routes rather than record boilerplate.
-let get (route: String) (fn: Http.Request -> Http.Response) : Handler =
+let get(route: String, fn: Http.Request -> Http.Response): Handler =
   Handler { route = route, method = "GET", handler = fn }
 
 /// A POST route. See <fn Stdlib.HttpServer.get>.
-let post (route: String) (fn: Http.Request -> Http.Response) : Handler =
+let post(route: String, fn: Http.Request -> Http.Response): Handler =
   Handler { route = route, method = "POST", handler = fn }
 
 
@@ -32,26 +32,26 @@ type RouteSegment =
 
 
 /// Parse a route pattern into segments
-let parseRouteSegments (route: String) : List<RouteSegment> =
-  let segments = String.split route "/"
+let parseRouteSegments(route: String): List<RouteSegment> =
+  let segments = String.split(route, "/")
 
   segments
-  |> List.filterMap (fun seg ->
-    if String.isEmpty seg then
+  |> List.filterMap(fun seg ->
+    if String.isEmpty(seg) then
       Option.Option.None
-    else if String.startsWith seg ":" then
-      Option.Option.Some(RouteSegment.Variable (String.dropFirst seg 1))
-    else if String.startsWith seg "*" then
-      Option.Option.Some(RouteSegment.Wildcard (String.dropFirst seg 1))
+    else if String.startsWith(seg, ":") then
+      Option.Option.Some(RouteSegment.Variable (String.dropFirst(seg, 1)))
+    else if String.startsWith(seg, "*") then
+      Option.Option.Some(RouteSegment.Wildcard (String.dropFirst(seg, 1)))
     else
       Option.Option.Some(RouteSegment.Literal seg))
 
 
 /// Match a single route segment against a path segment
-let matchSegment
-  (routeSeg: RouteSegment)
-  (pathSeg: String)
-  (remainingPath: List<String>)
+let matchSegment(
+  routeSeg: RouteSegment,
+  pathSeg: String,
+  remainingPath: List<String>)
   : Option.Option<List<String * String>> =
   match routeSeg with
   | Literal expected ->
@@ -61,24 +61,24 @@ let matchSegment
       Option.Option.None
   | Variable name -> Option.Option.Some [ (name, pathSeg) ]
   | Wildcard name ->
-    let fullPath = String.join (List.prepend remainingPath pathSeg) "/"
+    let fullPath = String.join(List.prepend(remainingPath, pathSeg), "/")
     Option.Option.Some [ (name, fullPath) ]
 
 
 /// Match a request path against a route pattern
 /// Split a request path into non-empty segments.
-let splitPath (requestPath: String) : List<String> =
-  (String.split requestPath "/")
-  |> List.filter (fun s -> Bool.not (String.isEmpty s))
+let splitPath(requestPath: String): List<String> =
+  (String.split(requestPath, "/"))
+  |> List.filter(fun s -> Bool.not(String.isEmpty(s)))
 
 
 /// `matchRoute` against segments that have already been parsed and split.
 ///
 /// Routing splits one path against every handler, so doing it here rather than inside `matchRoute`
 /// lets the caller split once instead of once per handler.
-let matchRouteSegments (routeSegs: List<RouteSegment>) (pathSegs: List<String>) : RouteMatch =
-  let routeLen = List.length routeSegs
-  let pathLen = List.length pathSegs
+let matchRouteSegments(routeSegs: List<RouteSegment>, pathSegs: List<String>): RouteMatch =
+  let routeLen = List.length(routeSegs)
+  let pathLen = List.length(pathSegs)
 
   if (routeLen == 0) && (pathLen == 0) then
     RouteMatch { matched = true, vars = [] }
@@ -86,20 +86,20 @@ let matchRouteSegments (routeSegs: List<RouteSegment>) (pathSegs: List<String>) 
     RouteMatch { matched = false, vars = [] }
   else
     // Use zipShortest since we already checked lengths are equal
-    let zipped = List.zipShortest routeSegs pathSegs
+    let zipped = List.zipShortest(routeSegs, pathSegs)
 
     let result =
       zipped
-      |> List.fold
-        (Option.Option.Some [])
-        (fun acc pair ->
+      |> List.fold(
+        Option.Option.Some [],
+        fun acc pair ->
           match acc with
           | None -> Option.Option.None
           | Some vars ->
             let (routeSeg, pathSeg) = pair
-            match matchSegment routeSeg pathSeg [] with
+            match matchSegment(routeSeg, pathSeg, []) with
             | Some newVars ->
-              Option.Option.Some (List.concat vars newVars)
+              Option.Option.Some (List.concat(vars, newVars))
             | None -> Option.Option.None)
 
     match result with
@@ -107,93 +107,93 @@ let matchRouteSegments (routeSegs: List<RouteSegment>) (pathSegs: List<String>) 
     | None -> RouteMatch { matched = false, vars = [] }
 
 
-let matchRoute (routePattern: String) (requestPath: String) : RouteMatch =
-  matchRouteSegments (parseRouteSegments routePattern) (splitPath requestPath)
+let matchRoute(routePattern: String, requestPath: String): RouteMatch =
+  matchRouteSegments(parseRouteSegments(routePattern), splitPath(requestPath))
 
 
 /// Find the first handler that matches the request
-let findHandler
-  (handlers: List<Handler>)
-  (method: String)
-  (path: String)
+let findHandler(
+  handlers: List<Handler>,
+  method: String,
+  path: String)
   : Option.Option<Handler * RouteMatch> =
   // Split once here rather than inside `matchRoute`, which runs per handler: the result is the
   // same every time, so splitting there scales the work with handlers tested.
-  let pathSegs = splitPath path
+  let pathSegs = splitPath(path)
 
   let matchingHandler =
     handlers
-    |> List.findFirst (fun h ->
+    |> List.findFirst(fun h ->
       // Method first. The route match is the expensive half, and a handler whose method cannot
       // match never needs it -- the previous order computed it regardless.
       if (h.method == method) || (h.method == "*") then
-        let routeMatch = matchRouteSegments (parseRouteSegments h.route) pathSegs
+        let routeMatch = matchRouteSegments(parseRouteSegments(h.route), pathSegs)
         routeMatch.matched
       else
         false)
 
   match matchingHandler with
   | Some h ->
-    let routeMatch = matchRouteSegments (parseRouteSegments h.route) pathSegs
+    let routeMatch = matchRouteSegments(parseRouteSegments(h.route), pathSegs)
     Option.Option.Some ((h, routeMatch))
   | None -> Option.Option.None
 
 
 /// Get the HTTP method from a request (from x-http-method header)
-let getMethod (req: Http.Request) : String =
-  Http.Request.header req "x-http-method" |> Option.withDefault "GET"
+let getMethod(req: Http.Request): String =
+  Http.Request.header(req, "x-http-method") |> Option.withDefault("GET")
 
 
 /// Get the path from a request URL
-let getPath (req: Http.Request) : String =
-  let parts = String.split req.url "://"
+let getPath(req: Http.Request): String =
+  let parts = String.split(req.url, "://")
 
   let urlWithoutProtocol =
     match parts with
     | [ _, rest ] -> rest
     | _ -> req.url
 
-  let pathParts = String.split urlWithoutProtocol "/"
+  let pathParts = String.split(urlWithoutProtocol, "/")
 
   match pathParts with
   | [] -> "/"
   | [ _ ] -> "/"
   | _ :: rest ->
-    let pathWithQuery = String.join rest "/"
-    let pathOnlyParts = String.split pathWithQuery "?"
+    let pathWithQuery = String.join(rest, "/")
+    let pathOnlyParts = String.split(pathWithQuery, "?")
 
-    match List.head pathOnlyParts with
+    match List.head(pathOnlyParts) with
     | Some p -> "/" + p
     | None -> "/"
 
 
 /// Route a request through a list of handlers
 /// Returns the response from the first matching handler, or 404
-let routeRequest
-  (handlers: List<Handler>)
-  (req: Http.Request)
+let routeRequest(
+  handlers: List<Handler>,
+  req: Http.Request)
   : Http.Response =
-  let method = getMethod req
-  let path = getPath req
+  let method = getMethod(req)
+  let path = getPath(req)
 
-  match findHandler handlers method path with
-  | Some ((handler, _routeMatch)) -> handler.handler req
-  | None -> Http.notFound ()
+  match findHandler(handlers, method, path) with
+  | Some ((handler, _routeMatch)) -> handler.handler(req)
+  | None -> Http.notFound()
 
 
 /// Extract a path parameter from a request given a route pattern
 /// Example: getPathParam req "/user/:id" "id" returns Some "123" for path "/user/123"
-let getPathParam (req: Http.Request) (routePattern: String) (paramName: String) : Option.Option<String> =
-  let path = getPath req
-  let routeSegs = parseRouteSegments routePattern
+let getPathParam(req: Http.Request, routePattern: String, paramName: String): Option.Option<String> =
+  let path = getPath(req)
+  let routeSegs = parseRouteSegments(routePattern)
   let pathSegs =
-    (String.split path "/")
-    |> List.filter (fun s -> Bool.not (String.isEmpty s))
+    (String.split(path, "/"))
+    |> List.filter(fun s -> Bool.not(String.isEmpty(s)))
 
   // Zip and find the matching variable
-  let zipped = List.zipShortest routeSegs pathSegs
+  let zipped = List.zipShortest(routeSegs, pathSegs)
   zipped
-  |> List.findFirst (fun pair ->
+  |> List.findFirst(fun pair ->
     let (routeSeg, _) = pair
     match routeSeg with
     | Variable name -> name == paramName
@@ -222,7 +222,7 @@ module Config =
   val defaultMaxBodyBytes = 31457280
 
   /// Sensible serve defaults for `port`: 30 MB max body, standard headers, proto canonicalization, logging.
-  let defaults (port: Int) : Config =
+  let defaults(port: Int): Config =
     Config
       { port = port
         maxBodyBytes = defaultMaxBodyBytes
@@ -233,19 +233,19 @@ module Config =
 /// Start an HTTP server: bind `handler` per `config`, run `onListening` once the port is bound (announce
 /// there, so a banner is never a lie), and serve until SIGTERM (blocks). Returns Error with a plain message
 /// if the port can't be bound.
-let serve
-  (config: Config.Config)
-  (handler: Http.Request -> Http.Response)
-  (onListening: Unit -> Unit)
+let serve(
+  config: Config.Config,
+  handler: Http.Request -> Http.Response,
+  onListening: Unit -> Unit)
   : Stdlib.Result.Result<Unit, String> =
-  Builtin.httpServerServe
-    config.port
-    handler
-    config.maxBodyBytes
-    config.injectStandardHeaders
-    config.canonicalizeFromForwardedProto
-    config.logRequests
-    onListening
+  Builtin.httpServerServe(
+    config.port,
+    handler,
+    config.maxBodyBytes,
+    config.injectStandardHeaders,
+    config.canonicalizeFromForwardedProto,
+    config.logRequests,
+    onListening)
 
 
 /// `serve` for a server that follows edits: the handler is not fixed at start. Per request the server
@@ -256,22 +256,22 @@ let serve
 /// <param dev>: an open page reloads when the router it came from, or anything it calls, is saved
 /// (`GET /__live` is an event stream; HTML responses carry the script that listens). For a dev
 /// site, not production.
-let serveLive
-  (config: Config.Config)
-  (init: 's)
-  (step: 's -> ('s * Stdlib.Result.Result<Http.Request -> Http.Response, String>))
-  (first: Http.Request -> Http.Response)
-  (dev: Bool)
-  (onListening: Unit -> Unit)
+let serveLive(
+  config: Config.Config,
+  init: 's,
+  step: 's -> ('s * Stdlib.Result.Result<Http.Request -> Http.Response, String>),
+  first: Http.Request -> Http.Response,
+  dev: Bool,
+  onListening: Unit -> Unit)
   : Stdlib.Result.Result<Unit, String> =
-  Builtin.httpServerServeLive
-    config.port
-    init
-    step
-    first
-    dev
-    config.maxBodyBytes
-    config.injectStandardHeaders
-    config.canonicalizeFromForwardedProto
-    config.logRequests
-    onListening
+  Builtin.httpServerServeLive(
+    config.port,
+    init,
+    step,
+    first,
+    dev,
+    config.maxBodyBytes,
+    config.injectStandardHeaders,
+    config.canonicalizeFromForwardedProto,
+    config.logRequests,
+    onListening)

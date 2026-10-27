@@ -1,15 +1,15 @@
 /// Navigate between packages, modules, and entities
 module Darklang.Cli.Packages.Nav
 
-let navTo (state: AppState) (location: PackageLocation): AppState =
+let navTo(state: AppState, location: PackageLocation): AppState =
   // if the intended state is the same as the current state (cd .), then short-circuit
   if location == state.packageData.currentLocation then
     state
   else
-    let newHistory = Stdlib.List.append state.packageData.locationHistory state.packageData.currentLocation
+    let newHistory = Stdlib.List.append(state.packageData.locationHistory, state.packageData.currentLocation)
 
     { state with
-        prompt = Prompt.Editing.clear state.prompt
+        prompt = Prompt.Editing.clear(state.prompt)
         packageData =
           { state.packageData with
               currentLocation = location
@@ -17,61 +17,61 @@ let navTo (state: AppState) (location: PackageLocation): AppState =
     }
 
 
-let execute (state: AppState) (args: List<String>) : AppState =
+let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
     // Enter interactive navigation mode
     let branchId = state.currentBranchId
-    let navState = NavInteractive.buildState branchId state.packageData.currentLocation
-    match NavInteractive.start navState with
+    let navState = NavInteractive.buildState(branchId, state.packageData.currentLocation)
+    match NavInteractive.start(navState) with
     | Ok session ->
       { state with
           currentPage = Page.InteractiveNav session
-          prompt = Prompt.Editing.clear state.prompt }
+          prompt = Prompt.Editing.clear(state.prompt) }
     | Error message ->
-      Stdlib.printLine message
+      Stdlib.printLine(message)
       state
 
   | [pathArg] ->
     let branchId = state.currentBranchId
-    match Traversal.traverse branchId state.packageData.currentLocation pathArg with
+    match Traversal.traverse(branchId, state.packageData.currentLocation, pathArg) with
     | Error errorMsg ->
-      Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Navigation to {pathArg} failed: {errorMsg}")
-      Cli.exitWith state false
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Navigation to {pathArg} failed: {errorMsg}"))
+      Cli.exitWith(state, false)
     | Ok newLocation ->
-      let locationStr = Packages.formatLocation newLocation
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Changed to: {locationStr}")
+      let locationStr = Packages.formatLocation(newLocation)
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Changed to: {locationStr}"))
 
       // Where you are lives in this session, like a shell's cwd: `dark nav X` from a prompt moves
       // for the length of that one command and nothing after it sees the move. Said out loud,
       // because "Changed to:" on its own reads like it stuck, and the next `dark ls` disagreeing
       // with it is a confusing way to find out.
       if state.nonInteractive then
-        Cli.printHint
-          "  (only for this command -- a location doesn't carry between `dark` invocations. `dark ls <path>` reads elsewhere; `dark` with no arguments keeps one.)"
+        Cli.printHint(
+          "  (only for this command -- a location doesn't carry between `dark` invocations. `dark ls <path>` reads elsewhere; `dark` with no arguments keeps one.)")
       else
         ()
 
-      navTo state newLocation
+      navTo(state, newLocation)
   | _ ->
-    Stdlib.printLine (help state)
+    Stdlib.printLine(help(state))
     state
 
 
-let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   let branchId = state.currentBranchId
   match args with
   | [] ->
     // No args - complete from current location
-    Traversal.completePartialPath branchId state.packageData.currentLocation ""
+    Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
   | [partialPath] ->
-    Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
+    Traversal.completePartialPath(branchId, state.packageData.currentLocation, partialPath)
   | _ ->
     // Too many arguments
     []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [
     "Usage: nav [path]"
     "Navigate package space - modules, types, values, functions, and tests."
@@ -88,4 +88,4 @@ let help (_state: AppState) : String =
     "  nav Stdlib/List      - Go to Stdlib.List module"
     "  nav equals           - Go to equals function"
     "  nav Option           - Go to Option type"
-  ] |> Stdlib.String.join "\n"
+  ] |> Stdlib.String.join("\n")

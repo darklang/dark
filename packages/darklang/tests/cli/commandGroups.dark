@@ -16,47 +16,47 @@ module Darklang.Cli.Tests.CommandGroups
 // empty input look the same from the outside.
 
 module Groups =
-  let registered () : List<String> =
-    Darklang.Cli.Registry.allCommands () |> Stdlib.List.map (fun c -> c.name)
+  let registered(): List<String> =
+    Darklang.Cli.Registry.allCommands() |> Stdlib.List.map(fun c -> c.name)
 
-  let grouped () : List<String> =
-    Darklang.Cli.Registry.commandGroups ()
-    |> Stdlib.List.map (fun (_name, cmdNames) -> cmdNames)
+  let grouped(): List<String> =
+    Darklang.Cli.Registry.commandGroups()
+    |> Stdlib.List.map(fun (_name, cmdNames) -> cmdNames)
     |> Stdlib.List.flatten
 
   /// Registered, but in no group: these print under "Other:" and never on the welcome screen.
-  let ungrouped () : List<String> =
-    let g = grouped ()
-    registered () |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.contains g n))
+  let ungrouped(): List<String> =
+    let g = grouped()
+    registered() |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(Stdlib.List.contains(g, n)))
 
   /// Named by a group, but not registered: these are silently dropped from help.
-  let phantom () : List<String> =
-    let r = registered ()
-    grouped () |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.contains r n))
+  let phantom(): List<String> =
+    let r = registered()
+    grouped() |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(Stdlib.List.contains(r, n)))
 
 
 // The floor. Without it the two tests below pass over an empty registry, which is exactly
 // the shape of failure they exist to catch.
 test theRegistryWasActuallyRead =
-  (Stdlib.List.length (Groups.registered ()) > 40) |> Stdlib.Test.equal true
+  (Stdlib.List.length(Groups.registered()) > 40) |> Stdlib.Test.equal(true)
 
 test everyGroupNameIsUnique =
-  let names = Darklang.Cli.Registry.commandGroups () |> Stdlib.List.map (fun (n, _) -> n)
-  (Stdlib.List.length (Stdlib.List.unique names)) |> Stdlib.Test.equal (Stdlib.List.length names)
+  let names = Darklang.Cli.Registry.commandGroups() |> Stdlib.List.map(fun (n, _) -> n)
+  (Stdlib.List.length(Stdlib.List.unique(names))) |> Stdlib.Test.equal(Stdlib.List.length(names))
 
 // A new command is registered and nobody adds it to a group. The failure names it.
 test everyRegisteredCommandIsInAGroup =
-  Stdlib.List.sort (Groups.ungrouped ()) |> Stdlib.Test.equal []
+  Stdlib.List.sort(Groups.ungrouped()) |> Stdlib.Test.equal([])
 
 // A command is renamed or removed and its group row is left behind.
 test everyGroupedNameIsRegistered =
-  Stdlib.List.sort (Groups.phantom ()) |> Stdlib.Test.equal []
+  Stdlib.List.sort(Groups.phantom()) |> Stdlib.Test.equal([])
 
 // One command, one group. Two groups claiming the same name prints it twice.
 test noCommandIsInTwoGroups =
-  let g = Groups.grouped ()
+  let g = Groups.grouped()
   let dupes =
     g
-    |> Stdlib.List.filter (fun n ->
-      (Stdlib.List.length (Stdlib.List.filter g (fun m -> m == n))) > 1)
-  Stdlib.List.sort (Stdlib.List.unique dupes) |> Stdlib.Test.equal []
+    |> Stdlib.List.filter(fun n ->
+      (Stdlib.List.length(Stdlib.List.filter(g, fun m -> m == n))) > 1)
+  Stdlib.List.sort(Stdlib.List.unique(dupes)) |> Stdlib.Test.equal([])

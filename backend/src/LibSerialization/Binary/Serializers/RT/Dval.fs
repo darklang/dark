@@ -93,7 +93,6 @@ and writeApplicableLambda (w : BinaryWriter) (lambda : ApplicableLambda) =
       writeDval w dval)
     (Captures.toList lambda.closedRegisters)
   writeTypeSymbolTable w lambda.typeSymbolTable
-  List.write w writeDval lambda.argsSoFar
 
 and writeApplicableNamedFn (w : BinaryWriter) (namedFn : ApplicableNamedFn) =
   FQFnName.write w namedFn.name
@@ -309,13 +308,11 @@ and readApplicableLambda (version : uint32) (r : BinaryReader) : ApplicableLambd
       let dval = readDval version r
       (reg, dval))
   let typeSymbolTable = readTypeSymbolTable r
-  let argsSoFar = List.read r (readDval version)
   { exprId = exprId
     closedRegisters = Captures.ofList closedRegisters
     typeSymbolTable = typeSymbolTable
     access =
       LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.denyAll
-    argsSoFar = argsSoFar
     expectedReturn = ValueNone
     writtenIn = ValueNone }
 

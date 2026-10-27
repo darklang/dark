@@ -17,74 +17,74 @@
 module Darklang.Cli.LiveView.Runner
 
 /// An interval as the timer spec wants it.
-let timerMs (intervalMs: Int) : Int64 =
-  Stdlib.Int.toInt64 intervalMs |> Stdlib.Option.withDefault 5000L
+let timerMs(intervalMs: Int): Int64 =
+  Stdlib.Int.toInt64(intervalMs) |> Stdlib.Option.withDefault(5000L)
 
 /// One tick, then wait for the next, or for the store to move under the step.
-let loop
-  (name: String)
-  (branchId: Uuid)
-  (lg: Stdlib.Live.LastGood)
-  (state: 's)
-  (intervalMs: Int)
-  (live: Bool)
+let loop(
+  name: String,
+  branchId: Uuid,
+  lg: Stdlib.Live.LastGood,
+  state: 's,
+  intervalMs: Int,
+  live: Bool)
   : Int =
   let state =
-    match Stdlib.Live.call lg state with
+    match Stdlib.Live.call(lg, state) with
     | Ok next -> next
     | Error rte ->
-      Stdlib.printLine $"{name}: the step failed, so its state was kept: {rte}"
+      Stdlib.printLine($"{name}: the step failed, so its state was kept: {rte}")
       state
 
   // Not live: the store is never watched, so the poll behind it never starts for this process.
   let specs =
     if live then
-      [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
+      [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer (timerMs(intervalMs)) ]
     else
-      [ Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
+      [ Stdlib.Host.EventSpec.Timer (timerMs(intervalMs)) ]
 
-  match Stdlib.Host.await specs with
-  | StoreChanged change when Stdlib.Live.affects change lg.entry ->
-    let refreshed = Stdlib.Live.refresh branchId lg
+  match Stdlib.Host.await(specs) with
+  | StoreChanged change when Stdlib.Live.affects(change, lg.entry) ->
+    let refreshed = Stdlib.Live.refresh(branchId, lg)
 
-    match Stdlib.Live.transition lg refreshed with
-    | Some line -> Stdlib.printLine $"{name}: {line}"
+    match Stdlib.Live.transition(lg, refreshed) with
+    | Some line -> Stdlib.printLine($"{name}: {line}")
     | None -> ()
 
     // The wait was cut short by the change; the next tick runs on the new version after a
     // full interval, not at once. A change that lands during this plain wait is reported by
     // the next `StoreChanged` wait, since the poll behind it accumulates.
-    let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
-    loop name branchId refreshed state intervalMs live
+    let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer (timerMs(intervalMs)) ])
+    loop(name, branchId, refreshed, state, intervalMs, live)
   | StoreChanged _ ->
-    let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
-    loop name branchId lg state intervalMs live
-  | _ -> loop name branchId lg state intervalMs live
+    let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer (timerMs(intervalMs)) ])
+    loop(name, branchId, lg, state, intervalMs, live)
+  | _ -> loop(name, branchId, lg, state, intervalMs, live)
 
 /// Run <param stepName> over <param init> every <param intervalMs>, forever. What a daemon
 /// entrypoint calls after claiming its pidfile. <param live> follows edits to the step.
-let run
-  (name: String)
-  (stepName: String)
-  (init: 's)
-  (intervalMs: Int)
-  (live: Bool)
+let run(
+  name: String,
+  stepName: String,
+  init: 's,
+  intervalMs: Int,
+  live: Bool)
   : Int =
-  match Stdlib.Live.locationOfName stepName with
+  match Stdlib.Live.locationOfName(stepName) with
   | None ->
-    Stdlib.printLine $"{name}: {stepName} is not a package fn name"
+    Stdlib.printLine($"{name}: {stepName} is not a package fn name")
     1
   | Some entry ->
-    Stdlib.Host.begin ()
-    let branchId = SCM.PackageOps.currentBranch ()
-    let lg = Stdlib.Live.refresh branchId (Stdlib.Live.start entry)
+    Stdlib.Host.begin()
+    let branchId = SCM.PackageOps.currentBranch()
+    let lg = Stdlib.Live.refresh(branchId, Stdlib.Live.start(entry))
 
     match lg.hash with
     | None ->
       let why =
-        Stdlib.Option.withDefault (Stdlib.Live.diagnostic lg) (stepName + " does not resolve")
+        Stdlib.Option.withDefault(Stdlib.Live.diagnostic(lg), stepName + " does not resolve")
 
-      Stdlib.printLine $"{name}: {why}"
+      Stdlib.printLine($"{name}: {why}")
       1
-    | Some _ -> loop name branchId lg init intervalMs live
+    | Some _ -> loop(name, branchId, lg, init, intervalMs, live)
 

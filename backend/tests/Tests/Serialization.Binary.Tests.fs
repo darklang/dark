@@ -406,7 +406,6 @@ module RT =
               access =
                 LibExecution.Permissions.Access.start
                   LibExecution.Permissions.Policy.allowAll
-              argsSoFar = []
               expectedReturn = ValueNone
               writtenIn = ValueNone }
         )
@@ -437,15 +436,14 @@ module RT =
               access =
                 LibExecution.Permissions.Access.start
                   LibExecution.Permissions.Policy.denyAll
-              argsSoFar = []
               expectedReturn = ValueNone
               writtenIn = ValueNone }
         )
       let bytes = value |> BS.RT.Dval.serialize "closure"
-      // Package tests bumped the format header to v6; the closure payload is unchanged.
+      // The v6 header, then the lambda: its id, its two captures and an empty symbol table.
       Expect.equal
         (System.Convert.ToHexString bytes)
-        "0600000021000000160007000000000000000201000000080500000000000000030000000E01780000"
+        "0600000020000000160007000000000000000201000000080500000000000000030000000E017800"
         "the bytes a closure with captures serializes to"
       match BS.RT.Dval.deserialize "closure" bytes with
       | RT.DApplicable(RT.AppLambda lambda) ->

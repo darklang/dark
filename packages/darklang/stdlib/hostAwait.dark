@@ -62,41 +62,41 @@ type Event =
 /// Dark's question, answered by `Stdlib.Live.poll` from here. The watch lives in a slot the runtime
 /// keeps for this process (`Builtin.hostWatchGet`), because `await` takes no state and a Dark value
 /// does not outlive the call that made it.
-let remember (watch: Stdlib.Live.Watch) : Stdlib.Live.Watch =
-  Builtin.hostWatchSet watch
+let remember(watch: Stdlib.Live.Watch): Stdlib.Live.Watch =
+  Builtin.hostWatchSet(watch)
   watch
 
-let currentWatch () : Stdlib.Live.Watch =
-  match Builtin.hostWatchGet () with
+let currentWatch(): Stdlib.Live.Watch =
+  match Builtin.hostWatchGet() with
   | Some w -> w
-  | None -> remember (Stdlib.Live.watch (SCM.PackageOps.currentBranch ()))
+  | None -> remember(Stdlib.Live.watch(SCM.PackageOps.currentBranch()))
 
 /// What landed since the last look. `None` when the store moved for a reason that is not an op (a
 /// config write, a trace).
-let describeChange () : Stdlib.Option.Option<Stdlib.Live.Change> =
-  let (next, change) = Stdlib.Live.poll (currentWatch ())
-  let _ = remember next
+let describeChange(): Stdlib.Option.Option<Stdlib.Live.Change> =
+  let (next, change) = Stdlib.Live.poll(currentWatch())
+  let _ = remember(next)
   change
 
 /// Say that a loop is about to start: the watch starts here, so an edit that lands between now
 /// and the loop's first `await` (while its entries are being resolved, say) is reported by it.
 /// Call it once, before resolving what the loop will show.
-let begin () : Unit =
-  let _ = currentWatch ()
+let begin(): Unit =
+  let _ = currentWatch()
   ()
 
 /// Park until one of `specs` happens, and say which.
 ///
 /// A store change the runtime reports is described before it is handed back; one that turns out
 /// to carry no op (the counter moves for a config write too) is not an event, and the wait goes on.
-let await (specs: List<EventSpec>) : Event =
-  match Builtin.hostAwait specs with
+let await(specs: List<EventSpec>): Event =
+  match Builtin.hostAwait(specs) with
   | Key k -> Event.Key k
   | Timer -> Event.Timer
   | ExecDone id -> Event.ExecDone id
   | Stdin text -> Event.Stdin text
   | StdinClosed -> Event.StdinClosed
   | StoreChanged ->
-    match describeChange () with
+    match describeChange() with
     | Some change -> Event.StoreChanged change
-    | None -> await specs
+    | None -> await(specs)

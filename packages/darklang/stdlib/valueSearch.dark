@@ -8,56 +8,56 @@ type FoundValue<'a> =
     value: 'a }
 
 /// Parse namespace string into parts (non-generic helper)
-let parseNamespace (targetNamespace: String) : List<String> =
-  if (Stdlib.String.length targetNamespace) == 0 then
+let parseNamespace(targetNamespace: String): List<String> =
+  if (Stdlib.String.length(targetNamespace)) == 0 then
     []
   else
-    Stdlib.String.split targetNamespace "."
+    Stdlib.String.split(targetNamespace, ".")
 
 
 /// Check if a value path starts with the namespace parts (non-generic helper)
-let isValueInNamespace
-  (namespaceParts: List<String>)
-  (valuePath: List<String>)
+let isValueInNamespace(
+  namespaceParts: List<String>,
+  valuePath: List<String>)
   : Bool =
-  if (Stdlib.List.length namespaceParts) == 0 then
+  if (Stdlib.List.length(namespaceParts)) == 0 then
     true
   else
-    (Stdlib.List.take valuePath (Stdlib.List.length namespaceParts))
+    (Stdlib.List.take(valuePath, Stdlib.List.length(namespaceParts)))
     == namespaceParts
 
 
 /// Build full path string from location (non-generic helper)
-let buildPathFromLocation
-  (owner: String)
-  (modules: List<String>)
-  (name: String)
+let buildPathFromLocation(
+  owner: String,
+  modules: List<String>,
+  name: String)
   : String =
-  (Stdlib.List.prepend modules owner)
-  |> Stdlib.List.append name
-  |> Stdlib.String.join "."
+  (Stdlib.List.prepend(modules, owner))
+  |> Stdlib.List.append(name)
+  |> Stdlib.String.join(".")
 
 
 /// Find all values that match a specific custom type
 /// Uses indexed type lookup for efficiency
 /// Optionally filters by namespace prefix
 /// The stored value at <param hash>, evaluated. `None` when the store does not hold it.
-let evaluate
-  (hash: LanguageTools.ProgramTypes.FQValueName.Package)
+let evaluate(
+  hash: LanguageTools.ProgramTypes.FQValueName.Package)
   : Stdlib.Option.Option<'a> =
-  Builtin.pmEvaluateValue hash
+  Builtin.pmEvaluateValue(hash)
 
-let findByType
-  (branchId: Uuid)
-  (targetNamespace: String)
-  (targetTypeHash: LanguageTools.ProgramTypes.Hash)
+let findByType(
+  branchId: Uuid,
+  targetNamespace: String,
+  targetTypeHash: LanguageTools.ProgramTypes.Hash)
   : List<FoundValue<'a>> =
-  let namespaceParts = parseNamespace targetNamespace
+  let namespaceParts = parseNamespace(targetNamespace)
 
   // Construct a ValueType for the custom type
   let rtHash =
     Darklang.LanguageTools.RuntimeTypes.Hash.Hash
-      (Darklang.LanguageTools.ProgramTypes.hashToString targetTypeHash)
+      (Darklang.LanguageTools.ProgramTypes.hashToString(targetTypeHash))
   let valueType =
     LanguageTools.RuntimeTypes.ValueType.Known
       (LanguageTools.RuntimeTypes.KnownType.KTCustomType
@@ -65,21 +65,21 @@ let findByType
         [])
 
   // Use indexed query to find all value hashes with the target type
-  let valueHashes = LanguageTools.PackageManager.Value.findByValueType valueType
+  let valueHashes = LanguageTools.PackageManager.Value.findByValueType(valueType)
 
   valueHashes
-  |> Stdlib.List.filterMap (fun valueHash ->
+  |> Stdlib.List.filterMap(fun valueHash ->
     // Get location for this value
-    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Value.locations branchId valueHash) with
+    match Darklang.LanguageTools.PackageManager.pickLocation(Darklang.LanguageTools.PackageManager.PickContext.empty, LanguageTools.PackageManager.Value.locations(branchId, valueHash)) with
     | Some location ->
       // Check if it's in the target namespace
-      let valuePath = Stdlib.List.prepend location.modules location.owner
+      let valuePath = Stdlib.List.prepend(location.modules, location.owner)
 
-      if isValueInNamespace namespaceParts valuePath then
+      if isValueInNamespace(namespaceParts, valuePath) then
         // Evaluate the value
-        match evaluate valueHash with
+        match evaluate(valueHash) with
         | Some evaluatedValue ->
-          let fullPath = buildPathFromLocation location.owner location.modules location.name
+          let fullPath = buildPathFromLocation(location.owner, location.modules, location.name)
 
           Stdlib.Option.Option.Some(
             FoundValue { path = fullPath, value = evaluatedValue }

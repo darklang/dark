@@ -1,54 +1,54 @@
 module Darklang.Cli.Installation.Uninstall
 
 
-let removeDarklangDirectory
-  (host: Stdlib.Cli.Host.Host)
+let removeDarklangDirectory(
+  host: Stdlib.Cli.Host.Host)
   : Stdlib.Result.Result<Unit, String> =
-  let darklangDir = Config.getDarklangHomeDir host
-  Stdlib.Cli.Unix.removeDirectory darklangDir
+  let darklangDir = Config.getDarklangHomeDir(host)
+  Stdlib.Cli.Unix.removeDirectory(darklangDir)
 
 
-let runUninstall
-  (host: Stdlib.Cli.Host.Host)
+let runUninstall(
+  host: Stdlib.Cli.Host.Host)
   : Stdlib.Result.Result<Unit, String> =
   let result =
-    (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
-    |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
+    (Stdlib.Cli.Unix.deleteAlias(host.defaultShell, "dark"))
+    |> Stdlib.Result.andThen(fun _ -> removeDarklangDirectory(host))
 
   match result with
   | Ok _ -> Stdlib.Result.Result.Ok()
   | Error err -> Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
 
 // CLI interface functions
-let execute (state: AppState) (args: List<String>) : AppState =
-  let currentMode = Installation.System.getInstallationMode ()
-  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+let execute(state: AppState, args: List<String>): AppState =
+  let currentMode = Installation.System.getInstallationMode()
+  let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
 
   // Parse flags
   let autoConfirm =
-    (Stdlib.List.contains args "--yes") || (Stdlib.List.contains args "-y")
+    (Stdlib.List.contains(args, "--yes")) || (Stdlib.List.contains(args, "-y"))
 
   match currentMode with
   | Installed ->
-    match Installation.System.uninstallWithConfirmation host autoConfirm with
+    match Installation.System.uninstallWithConfirmation(host, autoConfirm) with
     | Ok message ->
-      Stdlib.printLine (View.formatSuccess message)
+      Stdlib.printLine(View.formatSuccess(message))
       // Exit after successful uninstall since the executable is being removed
       { state with isExiting = true }
     | Error e ->
-      Stdlib.printErrorLine (View.formatError e)
-      Cli.exitWith state false
+      Stdlib.printErrorLine(View.formatError(e))
+      Cli.exitWith(state, false)
   | Portable ->
-    Stdlib.printLine (View.formatError "Cannot uninstall - running in portable mode")
-    Stdlib.printLine "To remove this portable installation, simply delete the current directory"
+    Stdlib.printLine(View.formatError("Cannot uninstall - running in portable mode"))
+    Stdlib.printLine("To remove this portable installation, simply delete the current directory")
     state
 
 
-let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [ "Usage: uninstall [--yes|-y]"
     "Uninstall Darklang CLI from global installation."
     ""
@@ -57,4 +57,4 @@ let help (_state: AppState) : String =
     ""
     "Flags:"
     "  --yes, -y  Skip confirmation prompt" ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")

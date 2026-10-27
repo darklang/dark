@@ -5,5 +5,5 @@ module Darklang.Stdlib
 /// used. Calling a function does not wait for its arguments, so this is the one way to choose
 /// the wait point: a builtin always gets values. (`Exec.await` is the one for a handle from
 /// `Exec.spawn`.)
-let await (x: 'a) : 'a =
-  Builtin.runtimeForce x
+let await(x: 'a): 'a =
+  Builtin.runtimeForce(x)

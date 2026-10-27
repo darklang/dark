@@ -86,43 +86,43 @@ val selection = "\u001b[103;30m" // yellow background with black text for select
 val completionSelection = "\u001b[44;97m" // blue background with white text
 
 // Helper functions for applying colors
-let colorize (color: String) (text: String) : String =
+let colorize(color: String, text: String): String =
   $"{color}{text}{reset}"
 
 /// Leave text as it is. For picking a styling function conditionally without a special case.
-let plain (text: String) : String = text
+let plain(text: String): String = text
 
-let boldText (text: String) : String = colorize bold text
-let dimText (text: String) : String = colorize dim text
-let mutedText (text: String) : String = colorize muted text
-let command (text: String) : String = colorize commandColor text
-let argument (text: String) : String = colorize argumentColor text
-let keyword (text: String) : String = colorize keywordColor text
-let string (text: String) : String = colorize stringColor text
-let number (text: String) : String = colorize numberColor text
-let comment (text: String) : String = colorize commentColor text
-let error (text: String) : String = colorize errorColor text
-let warning (text: String) : String = colorize warningColor text
-let success (text: String) : String = colorize successColor text
-let info (text: String) : String = colorize infoColor text
-let hint (text: String) : String = colorize hintColor text
-let prompt (text: String) : String = colorize promptColor text
-let logo (text: String) : String = colorize logoColor text
+let boldText(text: String): String = colorize(bold, text)
+let dimText(text: String): String = colorize(dim, text)
+let mutedText(text: String): String = colorize(muted, text)
+let command(text: String): String = colorize(commandColor, text)
+let argument(text: String): String = colorize(argumentColor, text)
+let keyword(text: String): String = colorize(keywordColor, text)
+let string(text: String): String = colorize(stringColor, text)
+let number(text: String): String = colorize(numberColor, text)
+let comment(text: String): String = colorize(commentColor, text)
+let error(text: String): String = colorize(errorColor, text)
+let warning(text: String): String = colorize(warningColor, text)
+let success(text: String): String = colorize(successColor, text)
+let info(text: String): String = colorize(infoColor, text)
+let hint(text: String): String = colorize(hintColor, text)
+let prompt(text: String): String = colorize(promptColor, text)
+let logo(text: String): String = colorize(logoColor, text)
 // One-shot colourisers, for the times you want a coloured string rather than a code to compose with.
 // These were a second module (`Stdlib.Cli.UI.Color`) with the same names as the codes above, which meant
 // `Color.red` and `Colors.red` were different things one letter apart.
-let redText (text: String) : String = colorize red text
-let greenText (text: String) : String = colorize green text
-let yellowText (text: String) : String = colorize yellow text
-let blueText (text: String) : String = colorize blue text
-let magentaText (text: String) : String = colorize magenta text
-let cyanText (text: String) : String = colorize cyan text
-let whiteText (text: String) : String = colorize white text
-let grayText (text: String) : String = colorize brightBlack text
-let italicText (text: String) : String = colorize italic text
-let underlineText (text: String) : String = colorize underline text
-let strikethroughText (text: String) : String = colorize "\u001b[9m" text
-let onRed (text: String) : String = colorize bgRed text
-let onGreen (text: String) : String = colorize bgGreen text
-let onYellow (text: String) : String = colorize bgYellow text
-let onBlue (text: String) : String = colorize bgBlue text
+let redText(text: String): String = colorize(red, text)
+let greenText(text: String): String = colorize(green, text)
+let yellowText(text: String): String = colorize(yellow, text)
+let blueText(text: String): String = colorize(blue, text)
+let magentaText(text: String): String = colorize(magenta, text)
+let cyanText(text: String): String = colorize(cyan, text)
+let whiteText(text: String): String = colorize(white, text)
+let grayText(text: String): String = colorize(brightBlack, text)
+let italicText(text: String): String = colorize(italic, text)
+let underlineText(text: String): String = colorize(underline, text)
+let strikethroughText(text: String): String = colorize("\u001b[9m", text)
+let onRed(text: String): String = colorize(bgRed, text)
+let onGreen(text: String): String = colorize(bgGreen, text)
+let onYellow(text: String): String = colorize(bgYellow, text)
+let onBlue(text: String): String = colorize(bgBlue, text)

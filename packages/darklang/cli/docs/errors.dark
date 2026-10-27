@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.Errors
 
-let content () : String =
+let content(): String =
   """# Common Errors
 
 ## Parse errors -> CHECK INDENTATION FIRST

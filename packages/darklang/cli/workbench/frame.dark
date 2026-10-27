@@ -8,19 +8,19 @@ module Darklang.Cli.Workbench.Frame
 /// so adding or removing a view here is not a change anybody types.
 val viewNames = [ "Home", "Matter", "REPL", "SCM", "Traces", "Docs" ]
 
-let viewName (i: Int) : String =
-  Stdlib.List.getAt viewNames i |> Stdlib.Option.withDefault "Home"
+let viewName(i: Int): String =
+  Stdlib.List.getAt(viewNames, i) |> Stdlib.Option.withDefault("Home")
 
 /// Format a list of (key, label) hints into a footer string: the key in plain
 /// white, the label dim, pairs separated by a dim `·`. Quiet on purpose - the
 /// help row is a reference, not a call to action - and per the TUI rule "key
 /// emphasized, label muted" so shortcuts still read at a glance.
-let formatHints (pairs: List<(String * String)>) : String =
+let formatHints(pairs: List<(String * String)>): String =
   pairs
-  |> Stdlib.List.map (fun pair ->
+  |> Stdlib.List.map(fun pair ->
     let (k, l) = pair
-    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.white k) + " " + (Stdlib.Cli.UI.Colors.dimText l))
-  |> Stdlib.String.join (Stdlib.Cli.UI.Colors.dimText " · ")
+    (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.white, k)) + " " + (Stdlib.Cli.UI.Colors.dimText(l)))
+  |> Stdlib.String.join(Stdlib.Cli.UI.Colors.dimText(" · "))
 
 /// Fit key hints to a row: <param keep> always survives, <param droppable> gives way from its END.
 ///
@@ -29,40 +29,40 @@ let formatHints (pairs: List<(String * String)>) : String =
 /// which is precisely why `?` is the thing that must not drop.
 ///
 /// Dropping stops at the first hint that does not fit, so the order a person learns them in stays put.
-let formatHintsFitted
-  (droppable: List<(String * String)>)
-  (keep: List<(String * String)>)
-  (width: Int)
+let formatHintsFitted(
+  droppable: List<(String * String)>,
+  keep: List<(String * String)>,
+  width: Int)
   : String =
-  let plainOf (pairs: List<(String * String)>) : String =
+  let plainOf(pairs: List<(String * String)>): String =
     pairs
-    |> Stdlib.List.map (fun p ->
+    |> Stdlib.List.map(fun p ->
       let (k, l) = p
       k + " " + l)
-    |> Stdlib.String.join "   "
+    |> Stdlib.String.join("   ")
 
   // 2 for the indent, 3 for the join between the droppable run and the kept keys.
   let room =
-    Stdlib.max 0 (width - (Stdlib.String.displayWidth (plainOf keep)) - 5)
+    Stdlib.max(0, width - (Stdlib.String.displayWidth(plainOf(keep))) - 5)
 
   let (fitted, _stopped) =
     droppable
-    |> Stdlib.List.fold ([], false) (fun acc p ->
+    |> Stdlib.List.fold(([], false), fun acc p ->
       let (sofar, stopped) = acc
 
       if stopped then
         (sofar, true)
       else
-        let candidate = Stdlib.List.append sofar p
+        let candidate = Stdlib.List.append(sofar, p)
 
-        if (Stdlib.String.displayWidth (plainOf candidate)) <= room then
+        if (Stdlib.String.displayWidth(plainOf(candidate))) <= room then
           (candidate, false)
         else
           (sofar, true))
 
-  formatHints (Stdlib.List.concat fitted keep)
+  formatHints(Stdlib.List.concat(fitted, keep))
 
 /// Render a one-row, pre-colored key-hint bar at the bottom of the body. The string is already styled
 /// (see `formatHints`), so this just indents + places it.
-let renderKeyHints (region: Stdlib.Cli.UI.Layout.Region) (hints: String) : List<Stdlib.Cli.UI.Layout.Span> =
-  Stdlib.Cli.UI.Layout.at region 0 0 ("  " + hints)
+let renderKeyHints(region: Stdlib.Cli.UI.Layout.Region, hints: String): List<Stdlib.Cli.UI.Layout.Span> =
+  Stdlib.Cli.UI.Layout.at(region, 0, 0, "  " + hints)

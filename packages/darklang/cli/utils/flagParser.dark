@@ -34,92 +34,92 @@ val emptyParsed =
 
 
 // The canonical name for `token` if it matches an entry's name or an alias.
-let canonicalFor
-  (entries: List<(String * List<String>)>)
-  (token: String)
+let canonicalFor(
+  entries: List<(String * List<String>)>,
+  token: String)
   : Stdlib.Option.Option<String> =
   entries
-  |> Stdlib.List.findFirst (fun entry ->
+  |> Stdlib.List.findFirst(fun entry ->
     let (name, aliases) = entry
-    (token == name) || (Stdlib.List.any aliases (fun a -> a == token)))
-  |> Stdlib.Option.map (fun entry ->
+    (token == name) || (Stdlib.List.any(aliases, fun a -> a == token)))
+  |> Stdlib.Option.map(fun entry ->
     let (name, _aliases) = entry
     name)
 
 
-let isFlagLike (token: String) : Bool =
-  token != "-" && Stdlib.String.startsWith token "-"
+let isFlagLike(token: String): Bool =
+  token != "-" && Stdlib.String.startsWith(token, "-")
 
 
-let addFlag (acc: Parsed) (name: String) : Parsed =
-  { acc with flags = Stdlib.List.append acc.flags name }
+let addFlag(acc: Parsed, name: String): Parsed =
+  { acc with flags = Stdlib.List.append(acc.flags, name) }
 
 
-let addOption (acc: Parsed) (name: String) (value: String) : Parsed =
-  { acc with options = Stdlib.List.append acc.options (name, value) }
+let addOption(acc: Parsed, name: String, value: String): Parsed =
+  { acc with options = Stdlib.List.append(acc.options, (name, value)) }
 
 
-let addUnknown (acc: Parsed) (token: String) : Parsed =
-  { acc with errors = Stdlib.List.append acc.errors (ParseError.UnknownFlag token) }
+let addUnknown(acc: Parsed, token: String): Parsed =
+  { acc with errors = Stdlib.List.append(acc.errors, ParseError.UnknownFlag token) }
 
 
-let addMissingValue (acc: Parsed) (token: String) : Parsed =
-  { acc with errors = Stdlib.List.append acc.errors (ParseError.MissingValue token) }
+let addMissingValue(acc: Parsed, token: String): Parsed =
+  { acc with errors = Stdlib.List.append(acc.errors, ParseError.MissingValue token) }
 
 
-let parseLoop (spec: Spec) (acc: Parsed) (remaining: List<String>) : Parsed =
+let parseLoop(spec: Spec, acc: Parsed, remaining: List<String>): Parsed =
   match remaining with
   | [] -> acc
 
   | token :: rest ->
-    match canonicalFor spec.valueFlags token with
+    match canonicalFor(spec.valueFlags, token) with
     | Some name ->
       match rest with
-      | value :: tail -> parseLoop spec (addOption acc name value) tail
-      | [] -> parseLoop spec (addMissingValue acc token) rest
+      | value :: tail -> parseLoop(spec, addOption(acc, name, value), tail)
+      | [] -> parseLoop(spec, addMissingValue(acc, token), rest)
     | None ->
-      match canonicalFor spec.flags token with
-      | Some name -> parseLoop spec (addFlag acc name) rest
+      match canonicalFor(spec.flags, token) with
+      | Some name -> parseLoop(spec, addFlag(acc, name), rest)
       | None ->
-        if isFlagLike token then
-          parseLoop spec (addUnknown acc token) rest
+        if isFlagLike(token) then
+          parseLoop(spec, addUnknown(acc, token), rest)
         else
-          parseLoop
-            spec
-            { acc with positionals = Stdlib.List.append acc.positionals token }
-            rest
+          parseLoop(
+            spec,
+            { acc with positionals = Stdlib.List.append(acc.positionals, token) },
+            rest)
 
 
-let parse (spec: Spec) (args: List<String>) : Parsed =
-  parseLoop spec emptyParsed args
+let parse(spec: Spec, args: List<String>): Parsed =
+  parseLoop(spec, emptyParsed, args)
 
 
-let hasFlag (p: Parsed) (name: String) : Bool =
-  Stdlib.List.any p.flags (fun f -> f == name)
+let hasFlag(p: Parsed, name: String): Bool =
+  Stdlib.List.any(p.flags, fun f -> f == name)
 
 
 // The value for `name`; last occurrence wins, matching the old
 // `{ acc with x = v }` overwrite-on-repeat behavior.
-let getOption (p: Parsed) (name: String) : Stdlib.Option.Option<String> =
+let getOption(p: Parsed, name: String): Stdlib.Option.Option<String> =
   p.options
-  |> Stdlib.List.filter (fun pair ->
+  |> Stdlib.List.filter(fun pair ->
     let (k, _v) = pair
     k == name)
   |> Stdlib.List.last
-  |> Stdlib.Option.map (fun pair ->
+  |> Stdlib.Option.map(fun pair ->
     let (_k, v) = pair
     v)
 
 
-let getOptionOr (p: Parsed) (name: String) (default_: String) : String =
-  Stdlib.Option.withDefault (getOption p name) default_
+let getOptionOr(p: Parsed, name: String, default_: String): String =
+  Stdlib.Option.withDefault(getOption(p, name), default_)
 
 
-let parseErrorMessage (err: ParseError) : String =
+let parseErrorMessage(err: ParseError): String =
   match err with
   | UnknownFlag token -> $"Error: unknown flag: {token}"
   | MissingValue token -> $"Error: {token} requires a value"
 
 
-let parseErrorsMessage (errors: List<ParseError>) : String =
-  errors |> Stdlib.List.map parseErrorMessage |> Stdlib.String.join "\n"
+let parseErrorsMessage(errors: List<ParseError>): String =
+  errors |> Stdlib.List.map(parseErrorMessage) |> Stdlib.String.join("\n")

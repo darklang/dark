@@ -302,7 +302,6 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
         required
         @ duplicateIssues (patterns |> List.collect letBindings)
         @ exprIssues true body
-      | WT.EPipeInfix(_, _, value) -> recurse value
       | WT.EPipeFnCall(_, _, _, args) -> args |> List.collect recurse
       | WT.EPipeEnum(_, _, _, fields, _) -> fields |> List.collect recurse
       | WT.EPipeVariableOrFnCall _ -> []

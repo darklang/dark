@@ -92,16 +92,16 @@ let singleHop =
     let m = "PropTestHop"
     do! cleanup m
 
-    let! v1 = authorIn m """let base' (x: Int64) : Int64 = x + 1L"""
+    let! v1 = authorIn m """let base'(x: Int64): Int64 = x + 1L"""
 
-    let! _ = authorIn m $"""let dep (x: Int64) : Int64 = ({m}.base' x) + 10L"""
+    let! _ = authorIn m $"""let dep(x: Int64): Int64 = ({m}.base'(x)) + 10L"""
 
     let! depBefore = liveBoundHash (loc m "dep")
     Expect.isSome depBefore "dep is bound after authoring"
 
     let baseV1 = hashBoundTo v1 "base'"
 
-    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 1000L"""
+    let! v2 = authorIn m """let base'(x: Int64): Int64 = x + 1000L"""
 
     let baseV2 = hashBoundTo v2 "base'"
     Expect.notEqual baseV1 baseV2 "editing the body moves the content hash"
@@ -159,11 +159,11 @@ let dictionaryKeyFollows =
   testTask "a function called only in a dictionary key follows edits" {
     let m = "PropTestDictionaryKey"
     do! cleanup m
-    let! v1 = authorIn m "let key (x: Int64) : Int64 = x + 61L"
+    let! v1 = authorIn m "let key(x: Int64): Int64 = x + 61L"
     let! pairOps =
       authorIn
         m
-        $"let pairs (x: Int64) : Dict<Int64, Int64> = Dict {{ {m}.key x: 7L }}"
+        $"let pairs(x: Int64): Dict<Int64, Int64> = Dict {{ {m}.key(x): 7L }}"
     let keyV1 = hashBoundTo v1 "key"
     let pairsV1 = hashBoundTo pairOps "pairs"
     let pairs =
@@ -176,7 +176,7 @@ let dictionaryKeyFollows =
       keyV1
       "the call in the key records the function's current hash"
 
-    let! v2 = authorIn m "let key (x: Int64) : Int64 = x + 62L"
+    let! v2 = authorIn m "let key(x: Int64): Int64 = x + 62L"
     let! repointed = cascade (loc m "key") keyV1 (hashBoundTo v2 "key")
     Expect.contains repointed "pairs" "a call in a key records a propagation edge"
     let! pairsAfter = liveBoundHash (loc m "pairs")
@@ -195,14 +195,14 @@ let transitive =
     let! v1 =
       authorIn
         m
-        $"""let a (x: Int64) : Int64 = x + 1L
-let b (x: Int64) : Int64 = ({m}.a x) + 10L
-let c (x: Int64) : Int64 = ({m}.b x) + 100L"""
+        $"""let a(x: Int64): Int64 = x + 1L
+let b(x: Int64): Int64 = ({m}.a(x)) + 10L
+let c(x: Int64): Int64 = ({m}.b(x)) + 100L"""
 
     let! cBefore = liveBoundHash (loc m "c")
     let aV1 = hashBoundTo v1 "a"
 
-    let! v2 = authorIn m """let a (x: Int64) : Int64 = x + 2000L"""
+    let! v2 = authorIn m """let a(x: Int64): Int64 = x + 2000L"""
 
     let! repointed = cascade (loc m "a") aV1 (hashBoundTo v2 "a")
 
@@ -230,14 +230,14 @@ let multipleDependents =
     let! v1 =
       authorIn
         m
-        $"""let shared (x: Int64) : Int64 = x + 1L
-let one (x: Int64) : Int64 = ({m}.shared x) + 10L
-let two (x: Int64) : Int64 = ({m}.shared x) + 20L
-let three (x: Int64) : Int64 = ({m}.shared x) + 30L"""
+        $"""let shared(x: Int64): Int64 = x + 1L
+let one(x: Int64): Int64 = ({m}.shared(x)) + 10L
+let two(x: Int64): Int64 = ({m}.shared(x)) + 20L
+let three(x: Int64): Int64 = ({m}.shared(x)) + 30L"""
 
     let sharedV1 = hashBoundTo v1 "shared"
 
-    let! v2 = authorIn m """let shared (x: Int64) : Int64 = x + 3000L"""
+    let! v2 = authorIn m """let shared(x: Int64): Int64 = x + 3000L"""
 
     let! repointed = cascade (loc m "shared") sharedV1 (hashBoundTo v2 "shared")
 
@@ -257,8 +257,8 @@ let crossesOwners =
     let! v1 =
       authorIn
         m
-        $"""let base' (x: Int64) : Int64 = x + 1L
-let mine (x: Int64) : Int64 = ({m}.base' x) + 10L"""
+        $"""let base'(x: Int64): Int64 = x + 1L
+let mine(x: Int64): Int64 = ({m}.base'(x)) + 10L"""
 
     let baseV1 = hashBoundTo v1 "base'"
 
@@ -269,15 +269,15 @@ let mine (x: Int64) : Int64 = ({m}.base' x) + 10L"""
       authorIntoMain
         $"""module Zz.{m}
 
-let theirs (x: Int64) : Int64 = (Darklang.{m}.base' x) + 20L"""
+let theirs(x: Int64): Int64 = (Darklang.{m}.base'(x)) + 20L"""
 
     let theirs : PT.PackageLocation =
       { owner = "Zz"; modules = [ m ]; name = "theirs" }
     let! externalBefore = liveBoundHash theirs
-    let! _ = authorIn m $"let bridge (x: Int64) : Int64 = Zz.{m}.theirs x"
+    let! _ = authorIn m $"let bridge(x: Int64): Int64 = Zz.{m}.theirs(x)"
     let! bridgeBefore = liveBoundHash (loc m "bridge")
 
-    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 5000L"""
+    let! v2 = authorIn m """let base'(x: Int64): Int64 = x + 5000L"""
 
     let! repointed = cascade (loc m "base'") baseV1 (hashBoundTo v2 "base'")
 
@@ -299,9 +299,9 @@ let noChangeNoCascade =
     let m = "PropTestNoop"
     do! cleanup m
 
-    let! v1 = authorIn m """let base' (x: Int64) : Int64 = x + 1L"""
+    let! v1 = authorIn m """let base'(x: Int64): Int64 = x + 1L"""
 
-    let! _ = authorIn m $"""let dep (x: Int64) : Int64 = ({m}.base' x) + 10L"""
+    let! _ = authorIn m $"""let dep(x: Int64): Int64 = ({m}.base'(x)) + 10L"""
 
     let! depBefore = liveBoundHash (loc m "dep")
     let baseV1 = hashBoundTo v1 "base'"
@@ -330,10 +330,10 @@ let mutualRecursion =
     let! _ =
       authorIn
         m
-        $"""let a (x: Int64) : Int64 =
-  if x <= 0L then 0L else ({m}.b (x - 1L)) + 1L
-let b (x: Int64) : Int64 =
-  if x <= 0L then 0L else ({m}.a (x - 1L)) + 1L"""
+        $"""let a(x: Int64): Int64 =
+  if x <= 0L then 0L else ({m}.b(x - 1L)) + 1L
+let b(x: Int64): Int64 =
+  if x <= 0L then 0L else ({m}.a(x - 1L)) + 1L"""
 
     let! aBound = liveBoundHash (loc m "a")
     let! bBound = liveBoundHash (loc m "b")
@@ -350,15 +350,15 @@ let finalVersionWins =
     let m = "PropTestFinal"
     do! cleanup m
 
-    let! v1 = authorIn m """let r (x: Int64) : Int64 = x + 1L"""
-    let! _ = authorIn m $"""let rd (x: Int64) : Int64 = ({m}.r x) + 0L"""
+    let! v1 = authorIn m """let r(x: Int64): Int64 = x + 1L"""
+    let! _ = authorIn m $"""let rd(x: Int64): Int64 = ({m}.r(x)) + 0L"""
 
     // Three edits with no commit in between. Each one cascades, so `rd` is
     // re-authored three times; what must hold is that it ends on the LAST version of
     // `r`, not on whichever intermediate it saw first.
     let mutable prev = hashBoundTo v1 "r"
     for n in [ 10; 20; 30 ] do
-      let! v = authorIn m $"""let r (x: Int64) : Int64 = x + {n}L"""
+      let! v = authorIn m $"""let r(x: Int64): Int64 = x + {n}L"""
       let next = hashBoundTo v "r"
       let! _ = cascade (loc m "r") prev next
       prev <- next
@@ -390,20 +390,20 @@ let sharedHashesAllRepoint =
     // Resolving that hash to a single location would silently drop one of the two
     // dependents from the cascade, which is a wrong answer rather than an incomplete
     // one.
-    let! v1 = authorIn m """let sh1 (x: Int64) : Int64 = x + 77L"""
-    let! _ = authorIn m """let sh2 (x: Int64) : Int64 = x + 77L"""
+    let! v1 = authorIn m """let sh1(x: Int64): Int64 = x + 77L"""
+    let! _ = authorIn m """let sh2(x: Int64): Int64 = x + 77L"""
 
     let! h1 = liveBoundHash (loc m "sh1")
     let! h2 = liveBoundHash (loc m "sh2")
     Expect.equal h1 h2 "same body, same hash: one item at two names"
 
-    let! _ = authorIn m $"""let d1 (x: Int64) : Int64 = ({m}.sh1 x) + 3L"""
-    let! _ = authorIn m $"""let d2 (x: Int64) : Int64 = ({m}.sh2 x) + 4L"""
+    let! _ = authorIn m $"""let d1(x: Int64): Int64 = ({m}.sh1(x)) + 3L"""
+    let! _ = authorIn m $"""let d2(x: Int64): Int64 = ({m}.sh2(x)) + 4L"""
 
     let! d1Before = liveBoundHash (loc m "d1")
     let! d2Before = liveBoundHash (loc m "d2")
 
-    let! v2 = authorIn m """let sh1 (x: Int64) : Int64 = x + 88L"""
+    let! v2 = authorIn m """let sh1(x: Int64): Int64 = x + 88L"""
 
     let! repointed =
       cascade (loc m "sh1") (hashBoundTo v1 "sh1") (hashBoundTo v2 "sh1")
@@ -445,15 +445,14 @@ let repointIsMarkedAsFollowed =
     let m = "PropTestProv"
     do! cleanup m
 
-    let! v1 = authorIn m """let base' (x: Int64) : Int64 = x + 71L"""
+    let! v1 = authorIn m """let base'(x: Int64): Int64 = x + 71L"""
 
-    let! _ =
-      authorIn m $"""let dependent (x: Int64) : Int64 = Darklang.{m}.base' x"""
+    let! _ = authorIn m $"""let dependent(x: Int64): Int64 = Darklang.{m}.base'(x)"""
 
     let! authoredSource = bindingSource (loc m "dependent")
     Expect.equal authoredSource (Some "op") "authoring records itself as authoring"
 
-    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 72L"""
+    let! v2 = authorIn m """let base'(x: Int64): Int64 = x + 72L"""
 
     let! repointed =
       cascade (loc m "base'") (hashBoundTo v1 "base'") (hashBoundTo v2 "base'")
@@ -489,11 +488,11 @@ let secondPassIsSilent =
     let m = "PropTestSecondPass"
     do! cleanup m
 
-    let! v1 = authorIn m """let base' (x: Int64) : Int64 = x + 1L"""
+    let! v1 = authorIn m """let base'(x: Int64): Int64 = x + 1L"""
 
-    let! _ = authorIn m $"""let dep (x: Int64) : Int64 = ({m}.base' x) + 10L"""
+    let! _ = authorIn m $"""let dep(x: Int64): Int64 = ({m}.base'(x)) + 10L"""
 
-    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 7000L"""
+    let! v2 = authorIn m """let base'(x: Int64): Int64 = x + 7000L"""
 
     let baseV1 = hashBoundTo v1 "base'"
     let baseV2 = hashBoundTo v2 "base'"
@@ -578,7 +577,7 @@ let valueMovesItsReaders =
 
     let! v1 = authorIn m """val basis = 5L"""
 
-    let! _ = authorIn m $"""let reads (): Int64 = {m}.basis + 10L"""
+    let! _ = authorIn m $"""let reads(): Int64 = {m}.basis + 10L"""
 
     let! readsBefore = liveBoundHash (loc m "reads")
     Expect.isSome readsBefore "the reader is bound after authoring"
@@ -616,13 +615,13 @@ let functionMoveRehashesDependentTest =
     let! v1 =
       authorIn
         m
-        $"""let base' (x: Int64) : Int64 = (x + 1L)
-test usesBase = {m}.base' 1L |> Stdlib.Test.equal 2L"""
+        $"""let base'(x: Int64): Int64 = (x + 1L)
+test usesBase = {m}.base'(1L) |> Stdlib.Test.equal(2L)"""
 
     let! testBefore = liveBoundHash (loc m "usesBase")
     Expect.isSome testBefore "the package test is bound after authoring"
 
-    let! v2 = authorIn m """let base' (x: Int64) : Int64 = (x + 100L)"""
+    let! v2 = authorIn m """let base'(x: Int64): Int64 = (x + 100L)"""
 
     let! repointed =
       cascade (loc m "base'") (hashBoundTo v1 "base'") (hashBoundTo v2 "base'")
@@ -648,7 +647,7 @@ let private namingElsewhereLeavesTheOldNameBound =
   testTask "a SetName at a new name leaves the old name bound to the same hash" {
     let m = "RenameKeep"
     do! cleanupFor "Darklang" m
-    let! ops = authorIn m "let old (x: Int64) : Int64 = x"
+    let! ops = authorIn m "let old(x: Int64): Int64 = x"
     let h = hashBoundTo ops "old"
     let! _ =
       Inserts.insertAndApplyOpsAsWip
@@ -673,12 +672,12 @@ let private callersFoundByEitherNameOfOneBody =
     let m2 = "TwinTwo"
     do! cleanupFor "Darklang" m1
     do! cleanupFor "Darklang" m2
-    let! _ = authorIn m1 "let twin (x: Int64) : Int64 = x + 4001L"
-    let! _ = authorIn m2 "let twin (x: Int64) : Int64 = x + 4001L"
+    let! _ = authorIn m1 "let twin(x: Int64): Int64 = x + 4001L"
+    let! _ = authorIn m2 "let twin(x: Int64): Int64 = x + 4001L"
     let! _ =
-      authorIn m1 "let caller (x: Int64) : Int64 = (Darklang.TwinOne.twin x) + 10L"
+      authorIn m1 "let caller(x: Int64): Int64 = (Darklang.TwinOne.twin(x)) + 10L"
     let! _ =
-      authorIn m2 "let caller (x: Int64) : Int64 = (Darklang.TwinTwo.twin x) + 10L"
+      authorIn m2 "let caller(x: Int64): Int64 = (Darklang.TwinTwo.twin(x)) + 10L"
 
     let edgesTo (m : string) =
       Sql.query

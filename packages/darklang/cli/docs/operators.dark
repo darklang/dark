@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.Operators
 
-let content () : String =
+let content(): String =
   """# Operators
 
 ## Comparison

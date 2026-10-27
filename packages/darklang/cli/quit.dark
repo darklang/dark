@@ -1,30 +1,30 @@
 module Darklang.Cli.Quit
 
 
-let execute (state: AppState) (_args: List<String>) : AppState =
+let execute(state: AppState, _args: List<String>): AppState =
   match state.pageStack with
   | returnTo :: rest ->
     // Launched from another page (e.g. the workbench dropped to this prompt): go back instead of leaving the
     // CLI. Release this prompt's inline region first so it doesn't linger in scrollback, then resume the
     // launcher — that restarts its terminal session and repaints, rather than us poking the alt-screen here.
-    let cleared = clearPromptRegion state
+    let cleared = clearPromptRegion(state)
     let resumed =
       match returnTo with
-      | SubApp app -> Page.SubApp (app.onResume ())
+      | SubApp app -> Page.SubApp (app.onResume())
       | other -> other
     { cleared with currentPage = resumed, pageStack = rest }
   | [] ->
-    Stdlib.printLine "Goodbye!"
+    Stdlib.printLine("Goodbye!")
     { state with isExiting = true }
 
 
-let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [
     "Usage: quit"
     "Exit the CLI immediately."
-  ] |> Stdlib.String.join "\n"
+  ] |> Stdlib.String.join("\n")
 

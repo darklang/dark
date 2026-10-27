@@ -4,62 +4,62 @@ module Darklang.Stdlib.Cli.UI.Table
 /// Print a formatted table with headers and rows.
 /// columns: list of column header strings
 /// rows: list of rows, each row is a list of cell strings
-let print (columns: List<String>) (rows: List<List<String>>) : Unit =
+let print(columns: List<String>, rows: List<List<String>>): Unit =
   // Calculate column widths (max of header and all cell values)
   let colWidths =
     columns
-    |> Stdlib.List.indexedMap (fun i header ->
-      let headerLen = Stdlib.String.displayWidth header
+    |> Stdlib.List.indexedMap(fun i header ->
+      let headerLen = Stdlib.String.displayWidth(header)
 
       let maxCellLen =
         rows
-        |> Stdlib.List.fold 0 (fun mx row ->
-          match Stdlib.List.getAt row i with
-          | Some cell -> Stdlib.max mx (Stdlib.String.displayWidth cell)
+        |> Stdlib.List.fold(0, fun mx row ->
+          match Stdlib.List.getAt(row, i) with
+          | Some cell -> Stdlib.max(mx, Stdlib.String.displayWidth(cell))
           | None -> mx)
 
-      Stdlib.max headerLen maxCellLen)
+      Stdlib.max(headerLen, maxCellLen))
 
   // Print header row
   let headerLine =
     columns
-    |> Stdlib.List.indexedMap (fun i header ->
-      match Stdlib.List.getAt colWidths i with
-      | Some w -> Stdlib.String.padEndToWidth header w
+    |> Stdlib.List.indexedMap(fun i header ->
+      match Stdlib.List.getAt(colWidths, i) with
+      | Some w -> Stdlib.String.padEndToWidth(header, w)
       | None -> header)
-    |> Stdlib.String.join "  "
+    |> Stdlib.String.join("  ")
     // Padding on the final column is trailing whitespace with nothing after it to line up against. It
     // shows up as a corridor of highlighted blanks once the header is bolded.
     |> Stdlib.String.trimEnd
 
-  Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText headerLine)
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText(headerLine))
 
   // Print separator
   let sepLine =
     colWidths
-    |> Stdlib.List.map (fun w -> Stdlib.String.repeat "-" w)
-    |> Stdlib.String.join "  "
+    |> Stdlib.List.map(fun w -> Stdlib.String.repeat("-", w))
+    |> Stdlib.String.join("  ")
 
-  Stdlib.printLine sepLine
+  Stdlib.printLine(sepLine)
 
   // Print data rows
   let _ =
     rows
-    |> Stdlib.List.map (fun row ->
+    |> Stdlib.List.map(fun row ->
       let line =
         columns
-        |> Stdlib.List.indexedMap (fun i _ ->
+        |> Stdlib.List.indexedMap(fun i _ ->
           let cell =
-            match Stdlib.List.getAt row i with
+            match Stdlib.List.getAt(row, i) with
             | Some c -> c
             | None -> ""
 
-          match Stdlib.List.getAt colWidths i with
-          | Some w -> Stdlib.String.padEndToWidth cell w
+          match Stdlib.List.getAt(colWidths, i) with
+          | Some w -> Stdlib.String.padEndToWidth(cell, w)
           | None -> cell)
-        |> Stdlib.String.join "  "
+        |> Stdlib.String.join("  ")
         |> Stdlib.String.trimEnd
 
-      Stdlib.printLine line)
+      Stdlib.printLine(line))
 
   ()

@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.Deprecation
 
-let content () : String =
+let content(): String =
   """# Deprecation
 
 Author-initiated notes that a fn/type/value/trait/impl shouldn't be used anymore.

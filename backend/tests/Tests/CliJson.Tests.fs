@@ -200,7 +200,7 @@ let depsAnswersBothDirections =
     task {
       do! start state
       do! fn state "Tests.JsonDeps.leaf" "() : Int64 = 7202L"
-      do! fn state "Tests.JsonDeps.caller" "() : Int64 = Tests.JsonDeps.leaf ()"
+      do! fn state "Tests.JsonDeps.caller" "(): Int64 = Tests.JsonDeps.leaf()"
       do! commit state "json deps fixture"
 
       do!
@@ -362,17 +362,17 @@ let typecheckScopesToAModule =
               String.concat
                 "\n"
                 [ "let (_, types, values, fns, _, impls, tests) ="
-                  "  Darklang.LanguageTools.PackageManager.Search.searchNamesAndHashes"
-                  "    Darklang.SCM.Branch.mainBranchId"
-                  "    (Darklang.LanguageTools.ProgramTypes.Search.SearchQuery"
+                  "  Darklang.LanguageTools.PackageManager.Search.searchNamesAndHashes("
+                  "    Darklang.SCM.Branch.mainBranchId,"
+                  "    Darklang.LanguageTools.ProgramTypes.Search.SearchQuery"
                   "      { currentModule = [ \"Darklang\", \"Stdlib\" ]"
                   "        text = \"\""
                   "        searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants"
                   "        entityTypes = []"
                   "        exactMatch = false })"
-                  "let distinct (found: List<(String * Darklang.LanguageTools.ProgramTypes.Hash)>) : Int ="
-                  "  Stdlib.List.length (Stdlib.List.unique (Stdlib.List.map found (fun (_, h) -> h)))"
-                  "(distinct types) + (distinct values) + (distinct fns) + (distinct impls) + (distinct tests)" ] ]
+                  "let distinct(found: List<(String * Darklang.LanguageTools.ProgramTypes.Hash)>): Int ="
+                  "  Stdlib.List.length(Stdlib.List.unique(Stdlib.List.map(found, fun (_, h) -> h)))"
+                  "(distinct(types)) + (distinct(values)) + (distinct(fns)) + (distinct(impls)) + (distinct(tests))" ] ]
         Expect.equal
           (string (total wider))
           (declared.Trim().Split('\n') |> Array.last)
@@ -427,7 +427,7 @@ let typecheckFailsACallToNothing =
           fn
             state
             "Tests.TcGone.callsGone"
-            "(n: Int64) : String = Stdlib.Int.toString n"
+            "(n: Int64): String = Stdlib.Int.toString(n)"
 
         let! root = parsed state [ "typecheck"; "Tests.TcGone"; "--json" ]
         Expect.equal

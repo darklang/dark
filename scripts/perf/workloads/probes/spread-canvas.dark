@@ -6,31 +6,31 @@
 let smoke = false
 
 let _smokeNotice =
-  if smoke then Stdlib.printLine "SMOKE CHECK: figures are not performance measurements" else ()
+  if smoke then Stdlib.printLine("SMOKE CHECK: figures are not performance measurements") else ()
 
 let frame =
-  Stdlib.List.range 0 49
-  |> Stdlib.List.map (fun row ->
-    Stdlib.List.range 0 5
-    |> Stdlib.List.map (fun k ->
+  Stdlib.List.range(0, 49)
+  |> Stdlib.List.map(fun row ->
+    Stdlib.List.range(0, 5)
+    |> Stdlib.List.map(fun k ->
       Darklang.Stdlib.Cli.UI.Layout.Span
         { row = row
           col = k * 20
           text = "\u001b[1mcell\u001b[0m and some ordinary text" }))
   |> Stdlib.List.flatten
 
-let draw (n: Int) : Int =
-  Stdlib.List.fold (Stdlib.List.range 1 n) 0 (fun acc _ ->
-    acc + Stdlib.List.length (Darklang.Stdlib.Cli.UI.Canvas.compose 160 50 frame))
+let draw(n: Int): Int =
+  Stdlib.List.fold(Stdlib.List.range(1, n), 0, fun acc _ ->
+    acc + Stdlib.List.length(Darklang.Stdlib.Cli.UI.Canvas.compose(160, 50, frame)))
 
-let main () : Unit =
+let main(): Unit =
   let frames = if smoke then 1 else 200
-  let _warm = draw (if smoke then 1 else 5)
-  let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
-  let t0 = Stdlib.DateTime.now ()
-  let _r = draw frames
-  let t1 = Stdlib.DateTime.now ()
-  let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
-  Builtin.debug "canvas" (frames, Stdlib.DateTime.subtractMs t1 t0, after - before)
+  let _warm = draw((if smoke then 1 else 5))
+  let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
+  let t0 = Stdlib.DateTime.now()
+  let _r = draw(frames)
+  let t1 = Stdlib.DateTime.now()
+  let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
+  Builtin.debug("canvas", (frames, Stdlib.DateTime.subtractMs(t1, t0), after - before))
 
-main ()
+main()

@@ -21,57 +21,57 @@ type Counts =
 val usage =
   "Usage: test run [--force] [--jobs <count>] [name-or-module ...]\n       test add <location> <body> | <source-file> | -"
 
-let fullPath
-  (item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
+let fullPath(
+  item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
   : String =
   [ [ item.location.owner ], item.location.modules, [ item.location.name ] ]
   |> Stdlib.List.flatten
-  |> Stdlib.String.join "."
+  |> Stdlib.String.join(".")
 
 /// Whether <param want> appears in <param have> as a contiguous run.
-let segmentsIn (have: List<String>) (want: List<String>) : Bool =
-  if (Stdlib.List.take have (Stdlib.List.length want)) == want then
+let segmentsIn(have: List<String>, want: List<String>): Bool =
+  if (Stdlib.List.take(have, Stdlib.List.length(want))) == want then
     true
   else
     match have with
     | [] -> false
-    | _ :: rest -> segmentsIn rest want
+    | _ :: rest -> segmentsIn(rest, want)
 
 /// Whether <param filter> selects the test named <param path>: the filter's
 /// dot-separated segments appear whole and in order in the test's full name.
 /// `Stdlib.Float` selects `Darklang.Stdlib.Float.Tests.add`, `doubles` selects
 /// a test named `doubles`, and `Float.T` selects nothing.
-let selects (filter: String) (path: String) : Bool =
+let selects(filter: String, path: String): Bool =
   let want =
-    Stdlib.String.split filter "." |> Stdlib.List.filter (fun seg -> seg != "")
-  segmentsIn (Stdlib.String.split path ".") want
+    Stdlib.String.split(filter, ".") |> Stdlib.List.filter(fun seg -> seg != "")
+  segmentsIn(Stdlib.String.split(path, "."), want)
 
-let cacheDb () : String = Stdlib.LocalStore.path ()
+let cacheDb(): String = Stdlib.LocalStore.path()
 
 /// The actual judging function, including its followed dependencies, and the
 /// runtime compilation. Reflect the function we call, not a possibly pinned
 /// branch binding. An unexpected callable gets a fresh key so it cannot reuse
 /// a persisted result.
-let cacheRuntime () : String =
+let cacheRuntime(): String =
   let judge =
     match
-      LanguageTools.RuntimeTypes.reflect LanguageTools.PackageManager.Test.execute
+      LanguageTools.RuntimeTypes.reflect(LanguageTools.PackageManager.Test.execute)
     with
     | DApplicable(AppNamedFn named) ->
       match named.name with
-      | Package hash -> LanguageTools.RuntimeTypes.hashToString hash
-      | _ -> Stdlib.toString (Stdlib.Uuid.generate ())
-    | _ -> Stdlib.toString (Stdlib.Uuid.generate ())
-  Cli.Installation.Helpers.runtimeHash () + ":" + judge
+      | Package hash -> LanguageTools.RuntimeTypes.hashToString(hash)
+      | _ -> Stdlib.toString(Stdlib.Uuid.generate())
+    | _ -> Stdlib.toString(Stdlib.Uuid.generate())
+  Cli.Installation.Helpers.runtimeHash() + ":" + judge
 
 /// Only successful ordinary tests are reusable. Branch identity and the
 /// branch's current `Stdlib.Test.Result` binding are part of the key: neither
 /// is covered by the test's content hash. The runtime key covers the build
 /// and the judging code.
-let ensureCache () : Unit =
+let ensureCache(): Unit =
   let _ =
-    Stdlib.Sqlite.mustExec
-      (cacheDb ())
+    Stdlib.Sqlite.mustExec(
+      cacheDb(),
       "CREATE TABLE IF NOT EXISTS package_test_results (
          test_hash TEXT NOT NULL,
          runtime_hash TEXT NOT NULL,
@@ -79,8 +79,8 @@ let ensureCache () : Unit =
          result_type_hash TEXT NOT NULL,
          outcome_json TEXT NOT NULL,
          PRIMARY KEY (test_hash, runtime_hash, branch_id, result_type_hash)
-       )"
-      []
+       )",
+      [])
   ()
 
 /// Read cache metadata once; test workers cannot change the parent store.
@@ -89,112 +89,112 @@ type CacheContext =
     branch: String
     resultType: String }
 
-let cacheContext (branchId: Uuid) : Stdlib.Option.Option<CacheContext> =
-  LanguageTools.PackageManager.Test.resultTypeHash branchId
-  |> Stdlib.Option.map (fun resultType ->
+let cacheContext(branchId: Uuid): Stdlib.Option.Option<CacheContext> =
+  LanguageTools.PackageManager.Test.resultTypeHash(branchId)
+  |> Stdlib.Option.map(fun resultType ->
     CacheContext
-      { runtime = cacheRuntime ()
-        branch = Stdlib.toString branchId
-        resultType = LanguageTools.ProgramTypes.hashToString resultType })
+      { runtime = cacheRuntime()
+        branch = Stdlib.toString(branchId)
+        resultType = LanguageTools.ProgramTypes.hashToString(resultType) })
 
-let storedOutcome
-  (cache: CacheContext)
-  (testHash: LanguageTools.ProgramTypes.Hash)
+let storedOutcome(
+  cache: CacheContext,
+  testHash: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Option.Option<Outcome> =
-  let hash = LanguageTools.ProgramTypes.hashToString testHash
+  let hash = LanguageTools.ProgramTypes.hashToString(testHash)
   match
-    Stdlib.Sqlite.queryOneP
-      (cacheDb ())
+    Stdlib.Sqlite.queryOneP(
+      cacheDb(),
       "SELECT outcome_json FROM package_test_results
        WHERE test_hash = @p0 AND runtime_hash = @p1
-         AND branch_id = @p2 AND result_type_hash = @p3"
-      [ hash, cache.runtime, cache.branch, cache.resultType ] with
+         AND branch_id = @p2 AND result_type_hash = @p3",
+      [ hash, cache.runtime, cache.branch, cache.resultType ]) with
   | Some row ->
-    match Stdlib.Sqlite.textField row "outcome_json" with
-    | Some json -> Stdlib.Json.parse<Outcome> json |> Stdlib.Result.toOption
+    match Stdlib.Sqlite.textField(row, "outcome_json") with
+    | Some json -> Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
-let storeOutcome
-  (cache: CacheContext)
-  (testHash: LanguageTools.ProgramTypes.Hash)
-  (outcome: Outcome)
+let storeOutcome(
+  cache: CacheContext,
+  testHash: LanguageTools.ProgramTypes.Hash,
+  outcome: Outcome)
   : Unit =
-  let hash = LanguageTools.ProgramTypes.hashToString testHash
-  let json = Stdlib.Json.serialize<Outcome> outcome
+  let hash = LanguageTools.ProgramTypes.hashToString(testHash)
+  let json = Stdlib.Json.serialize<Outcome>(outcome)
   let _ =
-    Stdlib.Sqlite.mustExec
-      (cacheDb ())
+    Stdlib.Sqlite.mustExec(
+      cacheDb(),
       "INSERT INTO package_test_results
          (test_hash, runtime_hash, branch_id, result_type_hash, outcome_json)
        VALUES (@p0, @p1, @p2, @p3, @p4)
        ON CONFLICT(test_hash, runtime_hash, branch_id, result_type_hash)
-       DO UPDATE SET outcome_json = excluded.outcome_json"
-      [ hash, cache.runtime, cache.branch, cache.resultType, json ]
+       DO UPDATE SET outcome_json = excluded.outcome_json",
+      [ hash, cache.runtime, cache.branch, cache.resultType, json ])
   ()
 
 /// The last result for this test on this branch, read without writing anything.
 /// A failed result is shown in views but is never reused by `dark test run`.
-let lastOutcome
-  (branchId: Uuid)
-  (testHash: LanguageTools.ProgramTypes.Hash)
+let lastOutcome(
+  branchId: Uuid,
+  testHash: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Option.Option<Outcome> =
   let cacheTable =
-    Stdlib.Sqlite.queryOneP
-      (cacheDb ())
+    Stdlib.Sqlite.queryOneP(
+      cacheDb(),
       "SELECT 1 AS present FROM sqlite_master
-       WHERE type = 'table' AND name = 'package_test_results'"
-      []
+       WHERE type = 'table' AND name = 'package_test_results'",
+      [])
   match cacheTable with
   | Some _ ->
-    match cacheContext branchId with
-    | Some cache -> storedOutcome cache testHash
+    match cacheContext(branchId) with
+    | Some cache -> storedOutcome(cache, testHash)
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
 /// Run <param test> now, ignoring the cache, and say how it went.
-let runFresh
-  (run: LanguageTools.PackageManager.Test.Run)
-  (branchId: Uuid)
-  (test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
+let runFresh(
+  run: LanguageTools.PackageManager.Test.Run,
+  branchId: Uuid,
+  test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : Outcome =
-  match LanguageTools.PackageManager.Test.executeInRun run branchId test.hash with
+  match LanguageTools.PackageManager.Test.executeInRun(run, branchId, test.hash) with
   | Ok Pass -> Outcome.Passed
   | Ok(Fail messages) -> Outcome.Failed messages
   | Error error ->
     Outcome.RuntimeFailed(
-      PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId error
+      PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, error)
     )
 
 /// Expected-error tests always rerun.
-let mayCache
-  (test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
+let mayCache(
+  test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : Bool =
   match test.expectedError with
   | Some _ -> false
   | None -> true
 
 /// Recheck the current cache-safety rule before reusing or storing a result.
-let isCacheable
-  (test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
+let isCacheable(
+  test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : Bool =
-  mayCache test
-  && LanguageTools.PackageManager.Test.isCacheSafe test.hash
+  mayCache(test)
+  && LanguageTools.PackageManager.Test.isCacheSafe(test.hash)
 
-let printOutcome (name: String) (outcome: Outcome) : Unit =
+let printOutcome(name: String, outcome: Outcome): Unit =
   match outcome with
   | Passed ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"PASS {name}")
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"PASS {name}"))
   | Failed messages ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"FAIL {name}")
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"FAIL {name}"))
     messages
-    |> Stdlib.List.iter (fun message ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  {message}"))
+    |> Stdlib.List.iter(fun message ->
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"  {message}")))
   | RuntimeFailed message ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"ERROR {name}")
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  {message}")
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"ERROR {name}"))
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"  {message}"))
 
-let isPassed (outcome: Outcome) : Bool =
+let isPassed(outcome: Outcome): Bool =
   match outcome with
   | Passed -> true
   | Failed _
@@ -203,32 +203,32 @@ let isPassed (outcome: Outcome) : Bool =
 val addUsage = "Usage: test add <location> <body> | <source-file> | -"
 
 /// Print why `test add` saved nothing, with its usage, and fail the command.
-let addFailed
-  (state: Cli.AppState)
-  (message: String)
+let addFailed(
+  state: Cli.AppState,
+  message: String)
   : Cli.AppState =
-  Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
-  Stdlib.printLine addUsage
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+  Stdlib.printLine(addUsage)
   { state with exitCode = 1 }
 
 /// `test add`: author one test at <param locationStr>. <param definition> is
 /// the body alone (`Foo.double 4L |> Stdlib.Test.equal 8L`) or a whole
 /// declaration, `test name = ...` with an optional doc comment, which is what
 /// a file or stdin usually holds.
-let addTest
-  (state: Cli.AppState)
-  (locationStr: String)
-  (definition: String)
+let addTest(
+  state: Cli.AppState,
+  locationStr: String,
+  definition: String)
   : Cli.AppState =
   match
-    Location.parseRelativeTo state.packageData.currentLocation locationStr
+    Location.parseRelativeTo(state.packageData.currentLocation, locationStr)
   with
-  | Error msg -> addFailed state $"Invalid location: {msg}"
+  | Error msg -> addFailed(state, $"Invalid location: {msg}")
   | Ok location ->
-    let trimmed = Stdlib.String.trim definition
+    let trimmed = Stdlib.String.trim(definition)
     let isFullDeclaration =
-      Stdlib.String.startsWith trimmed "test "
-      || Stdlib.String.startsWith trimmed "///"
+      Stdlib.String.startsWith(trimmed, "test ")
+      || Stdlib.String.startsWith(trimmed, "///")
     let fullSource =
       if isFullDeclaration then
         definition
@@ -236,35 +236,35 @@ let addTest
         $"test {location.name} = {definition}"
 
     let (tree, diagnostics) =
-      LanguageTools.Parser.Parse.parse LanguageTools.Parser.FileKind.Package fullSource
+      LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
 
     match tree with
-    | None -> addFailed state "Failed to parse the test"
+    | None -> addFailed(state, "Failed to parse the test")
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
       if
-        Errors.reportParseErrors diagnostics
+        Errors.reportParseErrors(diagnostics)
       then
         { state with exitCode = 1 }
       else
         match sourceFile.declarations with
         | [ Test written ] ->
           if written.name.name != location.name then
-            addFailed
-              state
-              $"Test name `{written.name.name}` does not match target `{location.name}`"
+            addFailed(
+              state,
+              $"Test name `{written.name.name}` does not match target `{location.name}`")
           else
-            Packages.saveAuthored
-              state
-              location
-              LanguageTools.ProgramTypes.ItemKind.Test
-              "test"
-              { state with exitCode = 1 }
-              (fun ctx ->
+            Packages.saveAuthored(
+              state,
+              location,
+              LanguageTools.ProgramTypes.ItemKind.Test,
+              "test",
+              { state with exitCode = 1 },
+              fun ctx ->
                 let (packageTest, unresolvedNames) =
-                  LanguageTools.WrittenTypesToProgramTypes.TestDeclaration.toTestPT
-                    ctx
-                    written
+                  LanguageTools.WrittenTypesToProgramTypes.TestDeclaration.toTestPT(
+                    ctx,
+                    written)
                 // Tests use instance and called-function policies, with no ceiling of
                 // their own.
                 let ops =
@@ -276,56 +276,56 @@ let addTest
                       Stdlib.Option.Option.None
                     ) ]
                 Stdlib.Option.Option.Some((ops, packageTest.hash, unresolvedNames)))
-        | _ -> addFailed state "Expected exactly one test declaration"
+        | _ -> addFailed(state, "Expected exactly one test declaration")
 
-let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   match args with
-  | [ "add" ] -> addFailed state "test add needs a location and a body"
+  | [ "add" ] -> addFailed(state, "test add needs a location and a body")
   | "add" :: location :: definitionParts ->
-    let definition = Packages.definitionFromArgs definitionParts
-    if Stdlib.String.isEmpty (Stdlib.String.trim definition) then
-      addFailed state "test add needs a body after the location"
+    let definition = Packages.definitionFromArgs(definitionParts)
+    if Stdlib.String.isEmpty(Stdlib.String.trim(definition)) then
+      addFailed(state, "test add needs a body after the location")
     else
-      addTest state location definition
-  | "run" :: runArgs -> runTests state runArgs
+      addTest(state, location, definition)
+  | "run" :: runArgs -> runTests(state, runArgs)
   | [] ->
-    Stdlib.printLine (help state)
+    Stdlib.printLine(help(state))
     state
   | _ ->
-    Stdlib.printLine usage
+    Stdlib.printLine(usage)
     { state with exitCode = 1 }
 
 /// `dark test run [--force] [--jobs <count>] [filters]`: run the matching tests, from the cache
 /// where it allows, print each one, and fail the command if any failed or
 /// nothing matched.
-let runTests (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  LanguageTools.PackageManager.Test.withStoreSnapshot (fun run -> runTestsInRun run state args)
+let runTests(state: Cli.AppState, args: List<String>): Cli.AppState =
+  LanguageTools.PackageManager.Test.withStoreSnapshot(fun run -> runTestsInRun(run, state, args))
 
 type RunOptions =
   { force: Bool
     jobs: Int
     filters: List<String> }
 
-let parseRunOptions
-  (options: RunOptions)
-  (args: List<String>)
+let parseRunOptions(
+  options: RunOptions,
+  args: List<String>)
   : Stdlib.Result.Result<RunOptions, String> =
   match args with
   | [] -> Ok options
-  | "--force" :: rest -> parseRunOptions { options with force = true } rest
+  | "--force" :: rest -> parseRunOptions({ options with force = true }, rest)
   | "--jobs" :: value :: rest ->
-    match Stdlib.Int.parse value with
-    | Ok jobs when jobs > 0 -> parseRunOptions { options with jobs = jobs } rest
+    match Stdlib.Int.parse(value) with
+    | Ok jobs when jobs > 0 -> parseRunOptions({ options with jobs = jobs }, rest)
     | _ -> Error "--jobs needs a positive whole number"
   | [ "--jobs" ] -> Error "--jobs needs a positive whole number"
-  | arg :: rest when Stdlib.String.startsWith arg "--jobs=" ->
-    let value = Stdlib.String.slice arg 7 (Stdlib.String.length arg)
-    parseRunOptions options (Stdlib.List.concat [ "--jobs", value ] rest)
+  | arg :: rest when Stdlib.String.startsWith(arg, "--jobs=") ->
+    let value = Stdlib.String.slice(arg, 7, Stdlib.String.length(arg))
+    parseRunOptions(options, Stdlib.List.concat([ "--jobs", value ], rest))
   | arg :: rest ->
-    if Stdlib.String.startsWith arg "-" then
+    if Stdlib.String.startsWith(arg, "-") then
       Error $"Unknown option: {arg}"
     else
-      parseRunOptions { options with filters = Stdlib.List.prepend options.filters arg } rest
+      parseRunOptions({ options with filters = Stdlib.List.prepend(options.filters, arg) }, rest)
 
 /// Only the coordinator checks cache safety, writes the cache and prints results.
 /// Spawned processes run tests and return their outcomes.
@@ -335,138 +335,138 @@ type FinishedTest =
     outcome: Outcome
     wasCached: Bool }
 
-let finishTest
-  (cache: Stdlib.Option.Option<CacheContext>)
-  (counts: Counts)
-  (finished: FinishedTest)
+let finishTest(
+  cache: Stdlib.Option.Option<CacheContext>,
+  counts: Counts,
+  finished: FinishedTest)
   : Counts =
-  if Stdlib.Bool.not finished.wasCached then
+  if Stdlib.Bool.not(finished.wasCached) then
     match cache, finished.outcome with
     | _, RuntimeFailed _ -> ()
-    | Some context, _ when isCacheable finished.test ->
-      storeOutcome context finished.test.hash finished.outcome
+    | Some context, _ when isCacheable(finished.test) ->
+      storeOutcome(context, finished.test.hash, finished.outcome)
     | _ -> ()
-  printOutcome finished.name finished.outcome
+  printOutcome(finished.name, finished.outcome)
   Counts
-    { passed = counts.passed + (if isPassed finished.outcome then 1 else 0)
-      failed = counts.failed + (if isPassed finished.outcome then 0 else 1)
+    { passed = counts.passed + (if isPassed(finished.outcome) then 1 else 0)
+      failed = counts.failed + (if isPassed(finished.outcome) then 0 else 1)
       cached = counts.cached + (if finished.wasCached then 1 else 0)
       ran = counts.ran + (if finished.wasCached then 0 else 1) }
 
 /// Run up to `jobs` tests at once. Start the next whenever one finishes.
 /// Wait for all tests before closing the shared snapshot.
-let runSelected
-  (run: LanguageTools.PackageManager.Test.Run)
-  (branchId: Uuid)
-  (options: RunOptions)
-  (cache: Stdlib.Option.Option<CacheContext>)
-  (remaining: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
-  (running: List<Stdlib.Exec.Handle<FinishedTest>>)
-  (counts: Counts)
+let runSelected(
+  run: LanguageTools.PackageManager.Test.Run,
+  branchId: Uuid,
+  options: RunOptions,
+  cache: Stdlib.Option.Option<CacheContext>,
+  remaining: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>,
+  running: List<Stdlib.Exec.Handle<FinishedTest>>,
+  counts: Counts)
   : Counts =
   match remaining with
-  | item :: rest when Stdlib.List.length running < options.jobs ->
+  | item :: rest when Stdlib.List.length(running) < options.jobs ->
     let cachedResult =
       if options.force then
         Stdlib.Option.Option.None
       else
         match cache with
-        | Some context when mayCache item.entity ->
-          match storedOutcome context item.entity.hash with
-          | Some Passed when isCacheable item.entity -> Some Outcome.Passed
+        | Some context when mayCache(item.entity) ->
+          match storedOutcome(context, item.entity.hash) with
+          | Some Passed when isCacheable(item.entity) -> Some Outcome.Passed
           | _ -> Stdlib.Option.Option.None
         | _ -> Stdlib.Option.Option.None
     match cachedResult with
     | Some outcome ->
       let finished = FinishedTest
-        { name = fullPath item
+        { name = fullPath(item)
           test = item.entity
           outcome = outcome
           wasCached = true }
-      runSelected run branchId options cache rest running (finishTest cache counts finished)
+      runSelected(run, branchId, options, cache, rest, running, finishTest(cache, counts, finished))
     | None ->
-      Stdlib.printLine $"Running: {fullPath item}"
-      let handle = Stdlib.Exec.spawn (fun () ->
+      Stdlib.printLine($"Running: {fullPath(item)}")
+      let handle = Stdlib.Exec.spawn(fun () ->
         FinishedTest
-          { name = fullPath item
+          { name = fullPath(item)
             test = item.entity
-            outcome = runFresh run branchId item.entity
+            outcome = runFresh(run, branchId, item.entity)
             wasCached = false })
-      runSelected run branchId options cache rest (Stdlib.List.prepend running handle) counts
+      runSelected(run, branchId, options, cache, rest, Stdlib.List.prepend(running, handle), counts)
   | _ ->
-    if Stdlib.List.isEmpty running then
+    if Stdlib.List.isEmpty(running) then
       counts
     else
-      let (done, finished) = Stdlib.Exec.select running
-      let running = Stdlib.List.filter running (fun handle -> handle.id != done.id)
-      runSelected run branchId options cache remaining running (finishTest cache counts finished)
+      let (done, finished) = Stdlib.Exec.select(running)
+      let running = Stdlib.List.filter(running, fun handle -> handle.id != done.id)
+      runSelected(run, branchId, options, cache, remaining, running, finishTest(cache, counts, finished))
 
-let runTestsInRun
-  (run: LanguageTools.PackageManager.Test.Run)
-  (state: Cli.AppState)
-  (args: List<String>)
+let runTestsInRun(
+  run: LanguageTools.PackageManager.Test.Run,
+  state: Cli.AppState,
+  args: List<String>)
   : Cli.AppState =
   // Limit the default even on large machines: every slot owns a process and a
   // writable store copy. --jobs lets callers tune this or choose a serial run.
-  let cores = Stdlib.Exec.workers ()
+  let cores = Stdlib.Exec.workers()
   let defaults = RunOptions { force = false, jobs = (if cores < 4 then cores else 4), filters = [] }
-  match parseRunOptions defaults args with
+  match parseRunOptions(defaults, args) with
   | Error message ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
-    Stdlib.printLine usage
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+    Stdlib.printLine(usage)
     { state with exitCode = 1 }
   | Ok options ->
-    ensureCache ()
+    ensureCache()
     // Every test, then the filters by whole name segments. Not the package
     // search's text match: that is fuzzy, so `WbTests.R` matched every test in
     // every `Tests` module.
     let rawResults =
-      LanguageTools.PackageManager.Search.search
-        state.currentBranchId
+      LanguageTools.PackageManager.Search.search(
+        state.currentBranchId,
         (LanguageTools.ProgramTypes.Search.SearchQuery
           { currentModule = []
             text = ""
             searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
             entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Test ]
-            exactMatch = false })
+            exactMatch = false }))
     // `delete` deprecates rather than unbinding, so a deleted test would
     // otherwise keep running. Not `Query.filterDeprecated`: that keeps items
     // with live callers and, on a branch, anything the branch deprecated.
-    let depSets = Query.loadDeprecationSets state.currentBranchId
+    let depSets = Query.loadDeprecationSets(state.currentBranchId)
     let liveTests =
       rawResults.tests
-      |> Stdlib.List.filter (fun item ->
-        Stdlib.Bool.not (Query.isDeprecated depSets item.entity.hash))
-      |> Stdlib.List.filter (fun item ->
-        Stdlib.List.isEmpty options.filters
-        || Stdlib.List.any options.filters (fun f -> selects f (fullPath item)))
+      |> Stdlib.List.filter(fun item ->
+        Stdlib.Bool.not(Query.isDeprecated(depSets, item.entity.hash)))
+      |> Stdlib.List.filter(fun item ->
+        Stdlib.List.isEmpty(options.filters)
+        || Stdlib.List.any(options.filters, fun f -> selects(f, fullPath(item))))
 
     let initial =
       Counts { passed = 0, failed = 0, cached = 0, ran = 0 }
     let counts =
-      runSelected
-        run
-        state.currentBranchId
-        options
-        (cacheContext state.currentBranchId)
-        (Stdlib.List.sortBy liveTests fullPath)
-        []
-        initial
+      runSelected(
+        run,
+        state.currentBranchId,
+        options,
+        cacheContext(state.currentBranchId),
+        Stdlib.List.sortBy(liveTests, fullPath),
+        [],
+        initial)
 
     let total = counts.passed + counts.failed
     if total == 0 then
-      Stdlib.printLine "No package tests matched."
+      Stdlib.printLine("No package tests matched.")
     else
-      Stdlib.printLine ""
-      Stdlib.printLine
-        $"{Stdlib.toString counts.passed} passed, {Stdlib.toString counts.failed} failed; {Stdlib.toString counts.ran} ran, {Stdlib.toString counts.cached} cached"
+      Stdlib.printLine("")
+      Stdlib.printLine(
+        $"{Stdlib.toString(counts.passed)} passed, {Stdlib.toString(counts.failed)} failed; {Stdlib.toString(counts.ran)} ran, {Stdlib.toString(counts.cached)} cached")
 
     if counts.failed > 0 || total == 0 then
       { state with exitCode = 1 }
     else
       state
 
-let help (_state: Cli.AppState) : String =
+let help(_state: Cli.AppState): String =
   [ "Run package tests on the current branch, or add one."
     ""
     usage
@@ -495,28 +495,28 @@ let help (_state: Cli.AppState) : String =
     "  test run --force MyApp.Math.doubles"
     ""
     "Adding a test:"
-    "  test add MyApp.Math.Tests.doubles 'MyApp.Math.double 4L |> Stdlib.Test.equal 8L'"
+    "  test add MyApp.Math.Tests.doubles 'MyApp.Math.double(4L) |> Stdlib.Test.equal(8L)'"
     "  test add MyApp.Math.Tests.doubles doubles.dark"
     "  test add MyApp.Math.Tests.doubles - <<'EOF'"
     "  /// Doubling four gives eight."
-    "  test doubles = MyApp.Math.double 4L |> Stdlib.Test.equal 8L"
-    "  test keyLength = Stdlib.Uuid.generate () |> Stdlib.toString |> Stdlib.String.length |> Stdlib.Test.equal 36"
+    "  test doubles = MyApp.Math.double(4L) |> Stdlib.Test.equal(8L)"
+    "  test keyLength = Stdlib.Uuid.generate() |> Stdlib.toString |> Stdlib.String.length |> Stdlib.Test.equal(36)"
     "  EOF"
     "The body may be given alone or as a whole `test name = ...` declaration;"
     "it lands in your draft like `fn` and `val`." ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")
 
-let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
+let complete(_state: Cli.AppState, args: List<String>): List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> [ "run", "add" ] |> Stdlib.List.map Cli.Completion.simple
+  | [] -> [ "run", "add" ] |> Stdlib.List.map(Cli.Completion.simple)
   | "run" :: runArgs ->
-    let partial = Stdlib.Option.withDefault (Stdlib.List.last runArgs) ""
+    let partial = Stdlib.Option.withDefault(Stdlib.List.last(runArgs), "")
     [ "--force", "--jobs" ]
-    |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag partial)
-    |> Stdlib.List.map Cli.Completion.simple
+    |> Stdlib.List.filter(fun flag -> Stdlib.String.startsWith(flag, partial))
+    |> Stdlib.List.map(Cli.Completion.simple)
   | "add" :: _ -> []
   | [ partial ] ->
     [ "run", "add" ]
-    |> Stdlib.List.filter (fun command -> Stdlib.String.startsWith command partial)
-    |> Stdlib.List.map Cli.Completion.simple
+    |> Stdlib.List.filter(fun command -> Stdlib.String.startsWith(command, partial))
+    |> Stdlib.List.map(Cli.Completion.simple)
   | _ -> []

@@ -123,7 +123,7 @@ gate_first_day() {
 
   # 2. Author something and run it. The thing the language is for.
   want "authoring a fn"    "Created function FirstDay\.Hello\.greet" fn /FirstDay.Hello.greet '(name: String) : String = "hi " + name'
-  want "and running it"    "hi world"        eval 'FirstDay.Hello.greet "world"'
+  want "and running it"    "hi world"        eval 'FirstDay.Hello.greet("world")'
   want "status sees it"    "^draft: 1 item"  status
 
   # 3. Commit it, and read the commit back.
@@ -134,7 +134,7 @@ gate_first_day() {
   # 4. A branch, isolated from main.
   want "starting a branch" "^(started|switched|on) .*firstday" branch create firstday
   want "authoring on it"   "Created function FirstDay\.Hello\.only" --branch firstday fn /FirstDay.Hello.only '() : Int64 = 1L'
-  want "main cannot see it" "not found"      --branch main eval 'FirstDay.Hello.only ()'
+  want "main cannot see it" "not found"      --branch main eval 'FirstDay.Hello.only()'
   # Merge refuses uncommitted branch work, so the branch has to commit before it can be merged.
   # Without this the merge below never happens, and "main sees it now" then fails about a branch
   # that was never merged rather than about anything main did. `_gates-ui`'s workbench-scm fixture
@@ -145,7 +145,7 @@ gate_first_day() {
   # 5. Merge it, and main can.
   want "merge --dry-run"   "would merge"     --branch firstday merge firstday --dry-run
   want "merging"           "Merged"          --branch firstday merge firstday -y
-  want "main sees it now"  "^1$"             --branch main eval 'FirstDay.Hello.only ()'
+  want "main sees it now"  "^1$"             --branch main eval 'FirstDay.Hello.only()'
 
   # 6. A real divergence: both sides move one name, merge records a conflict.
   dark branch create clash >/dev/null 2>&1 || true
@@ -164,9 +164,9 @@ gate_first_day() {
   # longer asks whose it was, and your own later edit is a change of mind rather than a finding.
   CID=$(dark --branch main conflicts --json 2>/dev/null | grep -oE '"id":"[a-f0-9]+"' | head -1 | cut -d'"' -f4)
   dark --branch main conflicts override "$CID" B >/dev/null 2>&1 || true
-  want "the override holds"      "yo "        --branch main eval 'FirstDay.Hello.greet "x"'
+  want "the override holds"      "yo "        --branch main eval 'FirstDay.Hello.greet("x")'
   dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "later " + name' >/dev/null 2>&1 || true
-  want "a later edit wins"       "later "     --branch main eval 'FirstDay.Hello.greet "x"'
+  want "a later edit wins"       "later "     --branch main eval 'FirstDay.Hello.greet("x")'
   wantnot "and your own change of mind is not reported" "overrode this|decision-superseded" --branch main constraints
 
   # 6c. A deprecation is a commit like any other.
@@ -183,16 +183,16 @@ gate_first_day() {
   # 7. And you can walk away from a draft.
   dark fn /FirstDay.Hello.scratch '() : Int64 = 5L' >/dev/null 2>&1 || true
   want "discard drops the draft" "discarded"  discard -y
-  want "and it is gone"          "not found"  eval 'FirstDay.Hello.scratch ()'
+  want "and it is gone"          "not found"  eval 'FirstDay.Hello.scratch()'
 
   # 8. Restore is independent of future propagation.
   dark fn /FirstDay.Chain.p1 '(x: Int64): Int64 = x + 1L' >/dev/null 2>&1 || true
-  dark fn /FirstDay.Chain.p2 '(x: Int64): Int64 = (FirstDay.Chain.p1 x) + 1L' >/dev/null 2>&1 || true
+  dark fn /FirstDay.Chain.p2 '(x: Int64): Int64 = (FirstDay.Chain.p1(x)) + 1L' >/dev/null 2>&1 || true
   dark commit "chain" -y >/dev/null 2>&1 || true
   dark fn /FirstDay.Chain.p1 '(x: Int64): Int64 = x + 50L' >/dev/null 2>&1 || true
-  want "the dependent followed" "^51$" eval 'FirstDay.Chain.p2 0L'
+  want "the dependent followed" "^51$" eval 'FirstDay.Chain.p2(0L)'
   want "undo restores the source" "back on the version" undo FirstDay.Chain.p1
-  want "the caller follows restore" "^2$" eval 'FirstDay.Chain.p2 0L'
+  want "the caller follows restore" "^2$" eval 'FirstDay.Chain.p2(0L)'
 
   # 9. The installed layout: the binary in `<home>/.darklang/bin`, a directory `install.sh` has already
   # made, and no DARK_HOME. Everything above starts from a rundir that does not exist yet,
@@ -241,8 +241,8 @@ gate_backups_restore() {
   x() { DARK_HOME="$PWD/$ROOT" HOME="$PWD/$ROOT/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
 
   echo "== a backup holds what the store holds, WAL included"
-  x fn /BK.T.kept '() : Int64 = 4242L' > /dev/null
-  want "the fn is live" "^4242$" "$(x eval 'BK.T.kept ()' | tail -1)"
+  x fn /BK.T.kept '(): Int64 = 4242L' > /dev/null
+  want "the fn is live" "^4242$" "$(x eval 'BK.T.kept()' | tail -1)"
   want "a backup is taken" "^copied the store to " "$(x backups now)"
   name=$(x backups | grep -oE 'data\.db\.manual-[0-9TZ]+' | head -1)
   if [[ -n "$name" ]]; then ok "and it is listed ($name)"; else bad "and it is listed" "$(x backups)"; fi
@@ -250,11 +250,11 @@ gate_backups_restore() {
   echo "== a wiped store comes back from it"
   # Wipe: the fn is gone. Then restore, and it is back. `-y`, since a piped stdin cannot answer.
   x discard -y > /dev/null
-  want "the fn is gone after the wipe" "not found" "$(x eval 'BK.T.kept ()' | tail -1)"
+  want "the fn is gone after the wipe" "not found" "$(x eval 'BK.T.kept()' | tail -1)"
   want "restore asks first" "kept\." "$(x backups restore "$name" < /dev/null)"
-  want "the store is still the wiped one" "not found" "$(x eval 'BK.T.kept ()' | tail -1)"
+  want "the store is still the wiped one" "not found" "$(x eval 'BK.T.kept()' | tail -1)"
   want "restore with -y" "^restored $name" "$(x backups restore "$name" -y)"
-  want "and the fn is back" "^4242$" "$(x eval 'BK.T.kept ()' | tail -1)"
+  want "and the fn is back" "^4242$" "$(x eval 'BK.T.kept()' | tail -1)"
   want "and the wiped store was put aside, not lost" "pre-restore" "$(x backups)"
 
   echo "== prune asks first"
@@ -361,16 +361,16 @@ gate_trait_checker_vs_dispatch() {
   # would hand us somebody's leftover implementations. See the AGENTS.md note.
   $CLI type Stachu.Dep.Dt "= { gateDeprecatedOnly: Int64 }" >/dev/null
   $CLI impl Stachu.Dep \
-    "Stdlib.Add for Dt = let add (a: Dt) (b: Dt) : Dt = Stachu.Dep.Dt { gateDeprecatedOnly = a.gateDeprecatedOnly + b.gateDeprecatedOnly }" \
+    "Stdlib.Add for Dt = let add(a: Dt, b: Dt): Dt = Stachu.Dep.Dt { gateDeprecatedOnly = a.gateDeprecatedOnly + b.gateDeprecatedOnly }" \
     >/dev/null
 
   # While it is live, the save is fine and so is the call. Both halves matter: a gate that only
   # checked the refusal would pass against a checker that refused everything.
   $CLI fn Stachu.Dep.sumLive - >/dev/null <<'DARK'
-(a: Stachu.Dep.Dt) (b: Stachu.Dep.Dt) : Int64 =
+(a: Stachu.Dep.Dt, b: Stachu.Dep.Dt): Int64 =
   (a + b).gateDeprecatedOnly
 DARK
-  live=$($CLI eval 'Stachu.Dep.sumLive (Stachu.Dep.Dt { gateDeprecatedOnly = 1L }) (Stachu.Dep.Dt { gateDeprecatedOnly = 2L })' | clean)
+  live=$($CLI eval 'Stachu.Dep.sumLive(Stachu.Dep.Dt { gateDeprecatedOnly = 1L }, Stachu.Dep.Dt { gateDeprecatedOnly = 2L })' | clean)
   if [[ "$live" != *3* ]]; then
     echo "trait-checker-vs-dispatch: the call did not work with a live implementation: $live"
     exit 1
@@ -380,7 +380,7 @@ DARK
 
   # Dispatch's answer, first, so the rest of the gate is measuring a real retirement and not a
   # deprecate that did nothing.
-  dispatch=$($CLI eval 'Stdlib.Add.add (Stachu.Dep.Dt { gateDeprecatedOnly = 1L }) (Stachu.Dep.Dt { gateDeprecatedOnly = 2L })' 2>&1 | clean || true)
+  dispatch=$($CLI eval 'Stdlib.Add.add(Stachu.Dep.Dt { gateDeprecatedOnly = 1L }, Stachu.Dep.Dt { gateDeprecatedOnly = 2L })' 2>&1 | clean || true)
   if [[ "$dispatch" != *"no implementation"* ]]; then
     echo "trait-checker-vs-dispatch: deprecating the implementation did not retire it at"
     echo "  dispatch, so nothing was tested. A fresh call answered: $dispatch"
@@ -401,7 +401,7 @@ DARK
   fi
 
   saved=$($CLI fn Stachu.Dep.sumDeprecated - 2>&1 <<'DARK' | clean || true
-(a: Stachu.Dep.Dt) (b: Stachu.Dep.Dt) : Int64 =
+(a: Stachu.Dep.Dt, b: Stachu.Dep.Dt): Int64 =
   (a + b).gateDeprecatedOnly
 DARK
 )
@@ -430,18 +430,18 @@ DARK
     sqlite3 "$W2/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
     export DARK_HOME="$PWD/$W2"
 
-    $CLI trait Stachu.Fit.Show "<'a> = let show (v: 'a) : String" >/dev/null
+    $CLI trait Stachu.Fit.Show "<'a> = let show(v: 'a): String" >/dev/null
 
     intImpl() {
       $CLI impl Stachu.FitInt - >/dev/null <<'DARK'
 Stachu.Fit.Show for Stdlib.Option.Option<Int64> =
-  let show (v: Stdlib.Option.Option<Int64>) : String = "INT"
+  let show(v: Stdlib.Option.Option<Int64>): String = "INT"
 DARK
     }
     strImpl() {
       $CLI impl Stachu.FitStr - >/dev/null <<'DARK'
 Stachu.Fit.Show for Stdlib.Option.Option<String> =
-  let show (v: Stdlib.Option.Option<String>) : String = "STR"
+  let show(v: Stdlib.Option.Option<String>): String = "STR"
 DARK
     }
 
@@ -454,8 +454,8 @@ DARK
     fi
 
     saved=$($CLI fn Stachu.Fit.callIt - 2>&1 <<'DARK' | clean || true
-() : String =
-  Stachu.Fit.Show.show (Stdlib.Option.Option.Some 1L)
+(): String =
+  Stachu.Fit.Show.show(Stdlib.Option.Option.Some 1L)
 DARK
 )
     # The save has to agree as well as the call. The checker compared the impl's Int64 against
@@ -467,7 +467,7 @@ DARK
       exit 1
     fi
 
-    got=$($CLI eval 'Stachu.Fit.callIt ()' 2>&1 | clean || true)
+    got=$($CLI eval 'Stachu.Fit.callIt()' 2>&1 | clean || true)
     if [[ "$got" != *INT* ]]; then
       echo "trait-checker-vs-dispatch: a saved call was pinned to an implementation that does not"
       echo "  fit its type arguments, with the implementations authored $order."
@@ -512,17 +512,17 @@ gate_trait_choice_survives_rival() {
 
   $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }" >/dev/null
   $CLI impl Stachu.Rival \
-    "ToString for Pt = let toString (p: Pt) : String = Stdlib.toString p.gateRivalOnly" >/dev/null
+    "ToString for Pt = let toString(p: Pt): String = Stdlib.toString(p.gateRivalOnly)" >/dev/null
   $CLI module Stachu.Rival - >/dev/null <<'DARK'
-let display<'a: Stdlib.ToString> (v: 'a) : String =
-  Stdlib.ToString.toString v
+let display<'a: Stdlib.ToString>(v: 'a): String =
+  Stdlib.ToString.toString(v)
 
-let callIt () : String =
+let callIt(): String =
   let p = Stachu.Rival.Pt { gateRivalOnly = 7L }
-  Stdlib.String.join ["value: ", Stachu.Rival.display p] ""
+  Stdlib.String.join(["value: ", Stachu.Rival.display(p)], "")
 DARK
 
-  before=$($CLI eval 'Stachu.Rival.callIt ()' | clean)
+  before=$($CLI eval 'Stachu.Rival.callIt()' | clean)
   if [[ "$before" != *"value: 7"* ]]; then
     echo "trait-choice-survives-rival: the bounded call did not work before any rival: $before"
     exit 1
@@ -531,10 +531,10 @@ DARK
   # A NEWER implementation for the same type: it wins any run-time dispatch, which is
   # exactly why the saved call must not be asking.
   $CLI impl Stachu.RivalNewer \
-    "Stdlib.ToString for Stachu.Rival.Pt = let toString (p: Stachu.Rival.Pt) : String = \"RIVAL\"" \
+    "Stdlib.ToString for Stachu.Rival.Pt = let toString(p: Stachu.Rival.Pt): String = \"RIVAL\"" \
     >/dev/null
 
-  after=$($CLI eval 'Stachu.Rival.callIt ()' | clean)
+  after=$($CLI eval 'Stachu.Rival.callIt()' | clean)
   if [[ "$after" == *RIVAL* ]]; then
     echo "trait-choice-survives-rival: a newer implementation changed a saved call underneath it"
     echo "  before the rival: $before"
@@ -547,7 +547,7 @@ DARK
   fi
 
   # Proves the rival landed, so a pass is not a failed authoring.
-  direct=$($CLI eval 'Stdlib.ToString.toString (Stachu.Rival.Pt { gateRivalOnly = 7L })' | clean)
+  direct=$($CLI eval 'Stdlib.ToString.toString(Stachu.Rival.Pt { gateRivalOnly = 7L })' | clean)
   if [[ "$direct" != *RIVAL* ]]; then
     echo "trait-choice-survives-rival: the rival implementation never became the newest one,"
     echo "  so nothing was actually tested. A fresh call answered: $direct"
@@ -590,29 +590,29 @@ gate_trait_choice_any_batching() {
   local src="$WORK/src"
   mkdir -p "$src"
 
-  traitSrc() { printf '%s\n' "trait Gauge<'c> =" "  let $1 (c: 'c) : Int"; }
+  traitSrc() { printf '%s\n' "trait Gauge<'c> =" "  let $1(c: 'c): Int"; }
   implsSrc() {
     printf '%s\n' \
       "impl $1 for List<'a> =" \
-      "  let $2 (xs: List<'a>) : Int = Stdlib.List.length xs" \
+      "  let $2(xs: List<'a>): Int = Stdlib.List.length(xs)" \
       "" \
       "impl $1 for String =" \
-      "  let $2 (s: String) : Int = Stdlib.String.length s"
+      "  let $2(s: String): Int = Stdlib.String.length(s)"
   }
   usersSrc() {
     printf '%s\n' \
-      "let describe<'c: $1> (c: 'c) : String =" \
-      "  (Stdlib.toString ($1.$2 c)) + \" items\"" \
+      "let describe<'c: $1>(c: 'c): String =" \
+      "  (Stdlib.toString($1.$2(c))) + \" items\"" \
       "" \
-      "let tryIt () : List<String> = [ describe [ 1, 2, 3 ], describe \"hello\" ]"
+      "let tryIt(): List<String> = [ describe([ 1, 2, 3 ]), describe(\"hello\") ]"
   }
 
   # How many choices a stored fn's body records, `Unknown` aside: what pinning wrote.
   recorded() {
-    $CLI eval "match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Stachu\", modules = [\"$1\"], name = \"$2\" }) with
+    $CLI eval "match Darklang.LanguageTools.PackageManager.Function.find(Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Stachu\", modules = [\"$1\"], name = \"$2\" }) with
 | Some h ->
-  (match Darklang.LanguageTools.PackageManager.Function.get h with
-   | Some f -> Stdlib.toRepr f.body
+  (match Darklang.LanguageTools.PackageManager.Function.get(h) with
+   | Some f -> Stdlib.toRepr(f.body)
    | None -> \"\")
 | None -> \"\"" | tr -s ' \n' ' ' | { grep -oE 'ImplChoice\.(Chosen|FromTypeParam)' || true; } | wc -l
   }
@@ -640,17 +640,17 @@ gate_trait_choice_any_batching() {
     fi
 
     local before after direct
-    before=$($CLI eval "Stachu.$mod.tryIt ()" | clean)
+    before=$($CLI eval "Stachu.$mod.tryIt()" | clean)
     if [[ "$before" != *'"3 items", "5 items"'* ]]; then
       echo "trait-choice-any-batching: saved $way, the calls did not work before any rival: $before"
       exit 1
     fi
 
     $CLI impl "Stachu.${mod}Rival" \
-      "$traitPath for String = let $method (s: String) : Int = 777" >/dev/null
+      "$traitPath for String = let $method(s: String): Int = 777" >/dev/null
 
-    after=$($CLI eval "Stachu.$mod.tryIt ()" | clean)
-    direct=$($CLI eval "$traitPath.$method \"hello\"" | clean)
+    after=$($CLI eval "Stachu.$mod.tryIt()" | clean)
+    direct=$($CLI eval "$traitPath.$method(\"hello\")" | clean)
     if [[ "$direct" != *777* ]]; then
       echo "trait-choice-any-batching: saved $way, the rival never became the newest"
       echo "  implementation, so nothing was tested. A fresh call answered: $direct"
@@ -720,17 +720,17 @@ gate_trait_deprecation_is_per_branch() {
 
   # A field name nobody else would write: a record's hash IS its identity. See the AGENTS.md note.
   $CLI type Stachu.BDep.Pt "= { gateBranchDepOnly: Int64 }" >/dev/null
-  $CLI trait Stachu.BDep.Show "<'a> = let show (v: 'a) : String" >/dev/null
+  $CLI trait Stachu.BDep.Show "<'a> = let show(v: 'a): String" >/dev/null
   $CLI impl Stachu.BDep \
-    "Stachu.BDep.Show for Pt = let show (p: Pt) : String = \"FIRST\"" >/dev/null
+    "Stachu.BDep.Show for Pt = let show(p: Pt): String = \"FIRST\"" >/dev/null
   $CLI impl Stachu.BDepRival - >/dev/null <<'DARK'
 Stachu.BDep.Show for Stachu.BDep.Pt =
-  let show (p: Stachu.BDep.Pt) : String = "RIVAL"
+  let show(p: Stachu.BDep.Pt): String = "RIVAL"
 DARK
 
   # The rival is newer, so it is what a call takes. Checked before anything is deprecated, so a
   # pass cannot come from the pair never having been ambiguous.
-  on_main=$($CLI eval 'Stachu.BDep.Show.show (Stachu.BDep.Pt { gateBranchDepOnly = 1L })' | clean)
+  on_main=$($CLI eval 'Stachu.BDep.Show.show(Stachu.BDep.Pt { gateBranchDepOnly = 1L })' | clean)
   if [[ "$on_main" != *RIVAL* ]]; then
     echo "trait-deprecation-is-per-branch: the rival never became the newest implementation,"
     echo "  so nothing was tested. Main answered: $on_main"
@@ -754,7 +754,7 @@ DARK
 
   # The dispatch half, which is the bug. A deprecated implementation is not a candidate, so the
   # call falls back to the one that is left.
-  on_branch=$($CLI eval 'Stachu.BDep.Show.show (Stachu.BDep.Pt { gateBranchDepOnly = 1L })' | clean)
+  on_branch=$($CLI eval 'Stachu.BDep.Show.show(Stachu.BDep.Pt { gateBranchDepOnly = 1L })' | clean)
   if [[ "$on_branch" != *FIRST* ]]; then
     echo "trait-deprecation-is-per-branch: the branch calls an implementation it reports as"
     echo "  deprecated. The display path is branch-aware and the candidate path is not."
@@ -764,7 +764,7 @@ DARK
 
   # And main is untouched by a deprecation authored on a branch.
   $CLI switch main >/dev/null
-  after_main=$($CLI eval 'Stachu.BDep.Show.show (Stachu.BDep.Pt { gateBranchDepOnly = 1L })' | clean)
+  after_main=$($CLI eval 'Stachu.BDep.Show.show(Stachu.BDep.Pt { gateBranchDepOnly = 1L })' | clean)
   if [[ "$after_main" != *RIVAL* ]]; then
     echo "trait-deprecation-is-per-branch: a deprecation authored on a branch reached MAIN."
     echo "  Expected RIVAL, got: $after_main"
@@ -802,22 +802,22 @@ gate_trait_pin_across_branches() {
 
   # A field name nobody else would write: a record's hash IS its identity. See the AGENTS.md note.
   $CLI type Stachu.Pin.Thing "= { gatePinOnly: Int64 }" >/dev/null
-  $CLI trait Stachu.Pin.Tr "<'a> = let go (v: 'a) : Int64" >/dev/null
+  $CLI trait Stachu.Pin.Tr "<'a> = let go(v: 'a): Int64" >/dev/null
   $CLI impl Stachu.PinA - >/dev/null <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Thing =
-  let go (v: Stachu.Pin.Thing) : Int64 = 1L
+  let go(v: Stachu.Pin.Thing): Int64 = 1L
 DARK
   $CLI impl Stachu.PinB - >/dev/null <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Thing =
-  let go (v: Stachu.Pin.Thing) : Int64 = 2L
+  let go(v: Stachu.Pin.Thing): Int64 = 2L
 DARK
 
   # B is newer, so a call saved on main pins B.
   $CLI fn Stachu.Pin.callIt - >/dev/null <<'DARK'
-() : Int64 =
-  Stachu.Pin.Tr.go (Stachu.Pin.Thing { gatePinOnly = 0L })
+(): Int64 =
+  Stachu.Pin.Tr.go(Stachu.Pin.Thing { gatePinOnly = 0L })
 DARK
-  pinned=$($CLI eval 'Stachu.Pin.callIt ()' | clean)
+  pinned=$($CLI eval 'Stachu.Pin.callIt()' | clean)
   if [[ "$pinned" != *2* ]]; then
     echo "trait-pin-across-branches: the saved call did not pin the newer implementation on main,"
     echo "  so nothing downstream is testing what it says. It answered: $pinned"
@@ -831,12 +831,12 @@ DARK
   # The rival arrives on the branch, newer than both.
   $CLI impl Stachu.PinC - >/dev/null <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Thing =
-  let go (v: Stachu.Pin.Thing) : Int64 = 3L
+  let go(v: Stachu.Pin.Thing): Int64 = 3L
 DARK
 
   # A FRESH call on the branch takes the branch's rival: without this the next assertion could pass
   # against a branch that simply cannot see the new implementation.
-  fresh=$($CLI eval 'Stachu.Pin.Tr.go (Stachu.Pin.Thing { gatePinOnly = 0L })' | clean)
+  fresh=$($CLI eval 'Stachu.Pin.Tr.go(Stachu.Pin.Thing { gatePinOnly = 0L })' | clean)
   if [[ "$fresh" != *3* ]]; then
     echo "trait-pin-across-branches: the branch's own implementation never became the newest one,"
     echo "  so the pin was not actually under pressure. A fresh call answered: $fresh"
@@ -844,7 +844,7 @@ DARK
   fi
 
   # THE PROPERTY: the caller saved on main still runs what it resolved against, on the branch.
-  held=$($CLI eval 'Stachu.Pin.callIt ()' | clean)
+  held=$($CLI eval 'Stachu.Pin.callIt()' | clean)
   if [[ "$held" != *2* ]]; then
     echo "trait-pin-across-branches: a call saved on main changed meaning on a branch. It should"
     echo "  keep the implementation it was written against (2) while a fresh call takes the"
@@ -857,15 +857,15 @@ DARK
   $CLI type Stachu.Pin.Other "= { gatePinOtherOnly: Int64 }" >/dev/null
   $CLI impl Stachu.PinD - >/dev/null <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Other =
-  let go (v: Stachu.Pin.Other) : Int64 = 10L
+  let go(v: Stachu.Pin.Other): Int64 = 10L
 DARK
   $CLI impl Stachu.PinE - >/dev/null <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Other =
-  let go (v: Stachu.Pin.Other) : Int64 = 20L
+  let go(v: Stachu.Pin.Other): Int64 = 20L
 DARK
   $CLI commit -m 'gate: the deprecation fixture' --yes >/dev/null
 
-  other() { $CLI eval 'Stachu.Pin.Tr.go (Stachu.Pin.Other { gatePinOtherOnly = 0L })' | clean; }
+  other() { $CLI eval 'Stachu.Pin.Tr.go(Stachu.Pin.Other { gatePinOtherOnly = 0L })' | clean; }
 
   # E is newer, so it runs on main.
   if [[ "$(other)" != *20* ]]; then

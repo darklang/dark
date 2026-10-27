@@ -503,7 +503,6 @@ let materializedValuesCaptureCallablesRecursively =
         closedRegisters = [||]
         typeSymbolTable = RT.TST.empty
         access = Permission.Access.start Permission.Policy.allowAll
-        argsSoFar = []
         expectedReturn = ValueNone
         writtenIn = ValueNone }
     match
@@ -603,9 +602,9 @@ let pastedShellRuleRunsOnlyThatCommand =
         let! rule =
           pastedRuleAllowsOnlyTheRefusedCall
             i
-            "Stdlib.Cli.execute \"echo hi\""
-            [ "Stdlib.Cli.execute \"echo bye\""
-              "Stdlib.Cli.execute \"echo hi; id\"" ]
+            "Stdlib.Cli.execute(\"echo hi\")"
+            [ "Stdlib.Cli.execute(\"echo bye\")"
+              "Stdlib.Cli.execute(\"echo hi; id\")" ]
         Expect.stringEnds rule "'-c' 'echo hi'" "the shell's whole argument list"
       })
 
@@ -617,10 +616,10 @@ let pastedProcessRuleKeepsItsArguments =
         let! _ =
           pastedRuleAllowsOnlyTheRefusedCall
             i
-            "Stdlib.Cli.Process.run \"/bin/echo\" [\"it's\", \"a b\"]"
-            [ "Stdlib.Cli.Process.run \"/bin/echo\" [\"it's\", \"a c\"]"
-              "Stdlib.Cli.Process.run \"/bin/echo\" [\"it's\"]"
-              "Stdlib.Cli.Process.run \"/bin/echo\" []" ]
+            "Stdlib.Cli.Process.run(\"/bin/echo\", [\"it's\", \"a b\"])"
+            [ "Stdlib.Cli.Process.run(\"/bin/echo\", [\"it's\", \"a c\"])"
+              "Stdlib.Cli.Process.run(\"/bin/echo\", [\"it's\"])"
+              "Stdlib.Cli.Process.run(\"/bin/echo\", [])" ]
         ()
       })
 
@@ -638,8 +637,8 @@ let pastedFileRuleReadsOnlyThatFile =
         let! _ =
           pastedRuleAllowsOnlyTheRefusedCall
             i
-            $"Stdlib.Cli.FileSystem.readFile \"{mine}\""
-            [ $"Stdlib.Cli.FileSystem.readFile \"{sibling}\"" ]
+            $"Stdlib.Cli.FileSystem.readFile(\"{mine}\")"
+            [ $"Stdlib.Cli.FileSystem.readFile(\"{sibling}\")" ]
         ()
       })
 
@@ -649,7 +648,7 @@ let noArgumentsGetsNoPasteableRule =
     (fun i ->
       task {
         let! out =
-          CliInstance.run i [ "eval"; "Stdlib.Cli.Process.run \"/bin/true\" []" ]
+          CliInstance.run i [ "eval"; "Stdlib.Cli.Process.run(\"/bin/true\", [])" ]
         Expect.isTrue (denied out) $"refused:\n{out}"
         Expect.isNone (suggestedRule out) $"nothing to paste:\n{out}"
         Expect.stringContains out "allows every argument list" "and it says why"

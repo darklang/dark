@@ -195,11 +195,11 @@ let private testRegistryDoesNotDisplaceStoredNames =
 let private testMiddleStatementErrorStopsTheScript =
   testTask "an error in a middle statement ends the script" {
     let code =
-      "let boom (xs: List<Int>) : Unit =\n"
-      + "  match xs with\n"
-      + "  | [] -> ()\n"
-      + "boom [ 1, 2 ]\n"
-      + "0\n"
+      "let boom(xs: List<Int>): Unit =\n  match xs with\n  | [] -> ()\nboom([ 1, 2 ])\n0\n"
+      + ""
+      + ""
+      + ""
+      + ""
 
     let! mod' = parse code
     let! state = executionStateFor pmPT false
@@ -272,7 +272,7 @@ let private testTopLevelSequencing =
       [ rejects "newline sequence rejects a non-Unit intermediate" "1L\n\"done\"" 0
         rejects
           "a non-Unit middle expression stops later effects"
-          "Builtin.testIncrementSideEffectCounter ()\n1L\nBuiltin.testIncrementSideEffectCounter \"done\""
+          "Builtin.testIncrementSideEffectCounter()\n1L\nBuiltin.testIncrementSideEffectCounter(\"done\")"
           1
         accepts "Unit intermediate" "()\n\"done\"" (RT.DString "done")
         accepts "explicit discard" "let _ = 1L\n\"done\"" (RT.DString "done")
@@ -297,7 +297,7 @@ let private scriptValueExecution =
     [ accepts "arithmetic" "val n = 1L + 2L\nn + 1L" (RT.DInt64 4L) 0
       accepts
         "lambda and value alias"
-        "val inc = fun x -> x + 1L\nval alias = inc\nalias 2L"
+        "val inc = fun x -> x + 1L\nval alias = inc\nalias(2L)"
         (RT.DInt64 3L)
         0
       accepts
@@ -307,7 +307,7 @@ let private scriptValueExecution =
         0
       accepts
         "forward dependency through a function is evaluated once"
-        "val first = later ()\nlet later () : Int64 = second\nval second = Builtin.testIncrementSideEffectCounter 2L\nfirst + second"
+        "val first = later()\nlet later(): Int64 = second\nval second = Builtin.testIncrementSideEffectCounter(2L)\nfirst + second"
         (RT.DInt64 4L)
         1
       accepts
@@ -317,12 +317,12 @@ let private scriptValueExecution =
         0
       accepts
         "unused values are initialized"
-        "val unused = Builtin.testIncrementSideEffectCounter 2L\n0L"
+        "val unused = Builtin.testIncrementSideEffectCounter(2L)\n0L"
         (RT.DInt64 0L)
         1
       testTask "a failed initializer stops later effects" {
         let code =
-          "val bad = 1L / 0L\nval later = Builtin.testIncrementSideEffectCounter 2L\nBuiltin.testIncrementSideEffectCounter 3L"
+          "val bad = 1L / 0L\nval later = Builtin.testIncrementSideEffectCounter(2L)\nBuiltin.testIncrementSideEffectCounter(3L)"
         let! state = executionStateFor pmPT false
         let! script = parse code
         let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
@@ -339,7 +339,7 @@ let private scriptValueExecution =
         | other -> failtest $"Expected an unavailable cyclic value, got %A{other}"
       }
       testTask "initializers inherit script permissions" {
-        let code = "val now = Builtin.syscallGettimeofday ()\nnow"
+        let code = "val now = Builtin.syscallGettimeofday()\nnow"
         let! state = executionStateFor pmPT false
         let! script = parse code
         let restricted =
@@ -372,7 +372,7 @@ let private testScriptArgumentsAreInvocationSpecific =
 let private testScriptInputNamesAreReserved =
   testTask "scripts reserve root args but allow qualified and local bindings" {
     let! state = executionStateFor pmPT false
-    for code in [ "val args = 42\n0"; "let args () : Int = 42\n0" ] do
+    for code in [ "val args = 42\n0"; "let args(): Int = 42\n0" ] do
       let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
       match parsed with
       | Error [ (diagnostic : LibParser.Parser.Diagnostic) ] ->
@@ -380,14 +380,14 @@ let private testScriptInputNamesAreReserved =
       | other -> failtest $"Expected a reserved-name error, got %A{other}"
 
     for code in
-      [ "let count (args: List<String>) : Int = 0\ncount args"
-        "let count () : Int =\n  let args = 42\n  args\ncount ()"
-        "trait ReadArgs<'a> =\n  let args (v: 'a) : Int\nimpl ReadArgs for Int =\n  let args (v: Int) : Int = v\n0" ] do
+      [ "let count(args: List<String>): Int = 0\ncount(args)"
+        "let count(): Int =\n  let args = 42\n  args\ncount()"
+        "trait ReadArgs<'a> =\n  let args(v: 'a): Int\nimpl ReadArgs for Int =\n  let args(v: Int): Int = v\n0" ] do
       let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
       Expect.isOk parsed "parameters, local bindings and impl methods remain legal"
 
     for code in
-      [ "module Nested =\n  let args () : Int = 42\nNested.args ()"
+      [ "module Nested =\n  let args(): Int = 42\nNested.args()"
         "module Nested =\n  val args = 42\nif args == [\"input\"] then Nested.args else 0" ] do
       let! script = parse code
       let! result =
@@ -397,7 +397,7 @@ let private testScriptInputNamesAreReserved =
         (Ok(LibExecution.Dval.int 42I))
         "qualified args declarations coexist with script input"
 
-    for code in [ "val args = 42\nargs"; "let args () : Int = 42\nargs ()" ] do
+    for code in [ "val args = 42\nargs"; "let args(): Int = 42\nargs()" ] do
       let! parsed = Cli.parseCliExpr state code |> Ply.toTask
       Expect.isOk parsed "eval may declare values and functions named args"
   }

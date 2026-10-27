@@ -681,10 +681,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "hash"
             TString
             "a package fn's content hash, as `Hash` carries it" ]
-      returnType =
-        TypeReference.result
-          (TFn(NEList.singleton (TVariable "a"), TVariable "b"))
-          TString
+      // Any arity: the function is only known once the store answers.
+      returnType = TypeReference.result (TVariable "f") TString
       description =
         "Resolves a package function by its content <param hash> to a callable value, "
         + "as a Result -- Error if no function has that hash."

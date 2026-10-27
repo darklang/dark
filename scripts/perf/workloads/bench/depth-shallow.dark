@@ -3,20 +3,20 @@
 // Same total work as depth-deep, but the stack never gets deeper than ~50.
 // Three nested drivers of 16 keep level small; a single driver would itself recurse 4096 deep, which is
 // what made my first attempt at this comparison measure nothing.
-let leaf (acc: Int) : Int =
+let leaf(acc: Int): Int =
   acc + 1
 
-let l1 (n: Int) (acc: Int) : Int =
-  if n <= 0 then acc else l1 (n - 1) (leaf acc)
+let l1(n: Int, acc: Int): Int =
+  if n <= 0 then acc else l1(n - 1, leaf(acc))
 
-let l2 (n: Int) (acc: Int) : Int =
-  if n <= 0 then acc else l2 (n - 1) (l1 16 acc)
+let l2(n: Int, acc: Int): Int =
+  if n <= 0 then acc else l2(n - 1, l1(16, acc))
 
-let l3 (n: Int) (acc: Int) : Int =
-  if n <= 0 then acc else l3 (n - 1) (l2 16 acc)
+let l3(n: Int, acc: Int): Int =
+  if n <= 0 then acc else l3(n - 1, l2(16, acc))
 
-let _warm = l3 2 0
-let t0 = Builtin.timeNowMs ()
-let r = l3 16 0
-let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " leafCalls=" + (Stdlib.toString r))
+let _warm = l3(2, 0)
+let t0 = Builtin.timeNowMs()
+let r = l3(16, 0)
+let t1 = Builtin.timeNowMs()
+Stdlib.printLine("elapsed_ms=" + (Stdlib.toString(t1 - t0)) + " leafCalls=" + (Stdlib.toString(r)))

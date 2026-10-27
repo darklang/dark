@@ -4,84 +4,84 @@ module Darklang.Stdlib.Float
 type ParseError = | BadFormat
 
 /// Round up to an integer value
-let ceiling (a: Float) : Int = Builtin.floatCeiling a
+let ceiling(a: Float): Int = Builtin.floatCeiling(a)
 
 
 /// Round up to an integer value
-let roundUp (a: Float) : Int = Builtin.floatRoundUp a
+let roundUp(a: Float): Int = Builtin.floatRoundUp(a)
 
 /// Round down to an integer value.
 /// Consider <fn Float.truncate> if your goal
 /// is to discard the fractional part of a number: {{Float.floor -1.9 == -2.0}}
 /// but {{Float.truncate -1.9 == -1.0}}
-let floor (a: Float) : Int = Builtin.floatFloor a
+let floor(a: Float): Int = Builtin.floatFloor(a)
 
 
 /// Round down to an integer value.
 /// Consider <fn Float.truncate> if your goal is to discard the fractional part
 /// of a number: {{Float.floor -1.9 == -2.0}} but {{Float.truncate -1.9 ==
 /// -1.0}}
-let roundDown (a: Float) : Int = Builtin.floatRoundDown a
+let roundDown(a: Float): Int = Builtin.floatRoundDown(a)
 
 
 /// Round to the nearest integer value
-let round (a: Float) : Int = Builtin.floatRound a
+let round(a: Float): Int = Builtin.floatRound(a)
 
 
 /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-let roundTowardsZero (a: Float) : Int = Builtin.floatRoundTowardsZero a
+let roundTowardsZero(a: Float): Int = Builtin.floatRoundTowardsZero(a)
 
 
 /// Discard the fractional portion of the float, rounding towards zero
-let truncate (a: Float) : Int = Builtin.floatTruncate a
+let truncate(a: Float): Int = Builtin.floatTruncate(a)
 
 
 impl Negate for Float =
   /// Returns the negation of <param a>, {{-a}}
-  let negate (a: Float) : Float = a * -1.0
+  let negate(a: Float): Float = a * -1.0
 
 
 /// Get the square root of a float
-let sqrt (a: Float) : Float = Builtin.floatSqrt a
+let sqrt(a: Float): Float = Builtin.floatSqrt(a)
 
 
 impl Add for Float =
   /// Add <type Float> <param a> to <type Float> <param b>
-  let add (a: Float) (b: Float) : Float = Builtin.floatAdd a b
+  let add(a: Float, b: Float): Float = Builtin.floatAdd(a, b)
 
 
 impl Subtract for Float =
   /// Subtract <type Float> <param b> from <type Float> <param a>
-  let subtract (a: Float) (b: Float) : Float = Builtin.floatSubtract a b
+  let subtract(a: Float, b: Float): Float = Builtin.floatSubtract(a, b)
 
 
 impl Multiply for Float =
   /// Multiply <type Float> <param a> by <type Float> <param b>
-  let multiply (a: Float) (b: Float) : Float = Builtin.floatMultiply a b
+  let multiply(a: Float, b: Float): Float = Builtin.floatMultiply(a, b)
 
 
 impl Power for Float =
   /// Returns <param base> raised to the power of <param exponent>
-  let power (``base``: Float) (exponent: Float) : Float =
-    Builtin.floatPower ``base`` exponent
+  let power(``base``: Float, exponent: Float): Float =
+    Builtin.floatPower(``base``, exponent)
 
 
 impl Divide for Float =
   /// Divide <type Float> <param a> by <type Float> <param b>
-  let divide (a: Float) (b: Float) : Float = Builtin.floatDivide a b
+  let divide(a: Float, b: Float): Float = Builtin.floatDivide(a, b)
 
 
 impl Compare for Float =
   /// Returns true if a is less than b
-  let lessThan (a: Float) (b: Float) : Bool = Builtin.floatLessThan a b
+  let lessThan(a: Float, b: Float): Bool = Builtin.floatLessThan(a, b)
   /// Returns true if a is less than or equal to b
-  let lessThanOrEqualTo (a: Float) (b: Float) : Bool =
-    Builtin.floatLessThanOrEqualTo a b
+  let lessThanOrEqualTo(a: Float, b: Float): Bool =
+    Builtin.floatLessThanOrEqualTo(a, b)
   /// Returns true if a is greater than b
-  let greaterThan (a: Float) (b: Float) : Bool = Builtin.floatGreaterThan a b
+  let greaterThan(a: Float, b: Float): Bool = Builtin.floatGreaterThan(a, b)
   /// Returns true if a is greater than or equal to b
-  let greaterThanOrEqualTo (a: Float) (b: Float) : Bool =
-    Builtin.floatGreaterThanOrEqualTo a b
+  let greaterThanOrEqualTo(a: Float, b: Float): Bool =
+    Builtin.floatGreaterThanOrEqualTo(a, b)
 
 
 /// If <param value> is within the range given by <param limitA> and <param
@@ -94,12 +94,12 @@ impl Compare for Float =
 /// The difference from <fn clamp>, which works on any type that compares: this one refuses a
 /// NaN limit rather than answering. The generic cannot, since NaN is a Float's business and
 /// NaN compares false against everything, so there it comes back unclamped.
-let clampRefusingNaN
-  (value: Float)
-  (limitA: Float)
-  (limitB: Float)
+let clampRefusingNaN(
+  value: Float,
+  limitA: Float,
+  limitB: Float)
   : Stdlib.Result.Result<Float, String> =
-  if Stdlib.Float.isNaN limitA || Stdlib.Float.isNaN limitB then
+  if Stdlib.Float.isNaN(limitA) || Stdlib.Float.isNaN(limitB) then
     Stdlib.Result.Result.Error "clampRefusingNaN requires limits that are numbers"
   else
     let (lower, upper) =
@@ -117,36 +117,36 @@ let clampRefusingNaN
 
 
 /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-let parse (s: String) : Stdlib.Result.Result<Float, ParseError> =
-  Builtin.floatParse s
+let parse(s: String): Stdlib.Result.Result<Float, ParseError> =
+  Builtin.floatParse(s)
 
 
 /// Returns true if <param f> is NaN
-let isNaN (f: Float) : Bool = Builtin.floatIsNaN f
+let isNaN(f: Float): Bool = Builtin.floatIsNaN(f)
 
 
 /// Returns {{true}} if <param f> is a finite number, and {{false}} for NaN
 /// and for positive or negative infinity
-let isFinite (f: Float) : Bool =
+let isFinite(f: Float): Bool =
   // NaN and ±infinity give NaN here, which equals nothing
   (f - f) == 0.0
 
 
 /// Convert <param a> to an <type Int> by discarding its fractional part.
 /// Raises for NaN and infinities. Alias of <fn Float.roundTowardsZero>.
-let toInt (a: Float) : Int = Stdlib.Float.roundTowardsZero a
+let toInt(a: Float): Int = Stdlib.Float.roundTowardsZero(a)
 
 
 /// Return <param a>'s IEEE 754 binary64 bits as an unsigned 64-bit value.
-let toBits (a: Float) : UInt64 = Builtin.floatToBits a
+let toBits(a: Float): UInt64 = Builtin.floatToBits(a)
 
 impl ToString for Float =
   /// Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`,
   /// `0.30000000000000004`, `1e+16`, `1e-5`.
-  let toString (a: Float) : String = Builtin.floatToString a
+  let toString(a: Float): String = Builtin.floatToString(a)
 
 impl Zero for Float =
-  let zero () : Float = 0.0
+  let zero(): Float = 0.0
 
 impl One for Float =
-  let one () : Float = 1.0
+  let one(): Float = 1.0

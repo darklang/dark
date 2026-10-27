@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.ForAI
 
-let content () : String =
+let content(): String =
   """# Darklang AI Quick Reference
 
 Darklang is a persistent package tree, not a directory of scripts. CLI process
@@ -10,7 +10,7 @@ state resets between calls; package changes persist.
 
   search --batch "List.map" "Json.serialize" --fn # related searches
   module /Me.Example -                           # declarations from stdin
-  eval 'Me.Example.main 21'                      # test an expression
+  eval 'Me.Example.main(21)'                      # test an expression
   typecheck                                       # audit declarations on the branch
   status                                          # inspect changes
   commit "message" -y                            # save them
@@ -43,20 +43,20 @@ Create several declarations atomically:
 
   module /Me.Example - <<'EOF'
   type State = { count: Int }
-  let double (n: Int) : Int = n * 2
-  let main (n: Int) : Int = double n
+  let double(n: Int): Int = n * 2
+  let main(n: Int): Int = double(n)
   EOF
 
 For one function, stdin accepts a complete declaration; the shorter signature
 and body fragment remains valid:
 
   fn /Me.Example.double - <<'EOF'
-  let double (n: Int) : Int = n * 2
+  let double(n: Int): Int = n * 2
   EOF
 
 At module scope values use `val name = value`; `let` declares functions. Inside
 a function, local values use `let`. Nested helpers need full annotations:
-`let helper (x: Int) : Int = ...`.
+`let helper(x: Int): Int = ...`.
 
 `fn`, `type`, `val` and `module` run the at-rest type checker on what they save
 and print its findings; the save goes through regardless (WIP is yours to break).
@@ -82,13 +82,13 @@ functions. They must return `Stdlib.Test.Result`:
 
   module /Me.Example.Tests - <<'EOF'
   test doubles =
-    Me.Example.double 4
-    |> Stdlib.Test.equal 8
+    Me.Example.double(4)
+    |> Stdlib.Test.equal(8)
   EOF
 
 One test at a time, quoting the body so the shell leaves `|>` alone:
 
-  test add Me.Example.Tests.doubles 'Me.Example.double 4 |> Stdlib.Test.equal 8'
+  test add Me.Example.Tests.doubles 'Me.Example.double(4) |> Stdlib.Test.equal(8)'
 
 Run all tests with `test run`, or filter by name/module with `test run Example`.
 `search` leaves tests out; add `--include-tests`, or `--test` for tests only.
@@ -117,8 +117,8 @@ no snapshot. Nested workers start from their calling test's current store.
 Use `Stdlib.Test.Process.run` only when a test needs custom process options or
 must inspect a child's output, result, or exit status.
 
-To count evaluations or callbacks, use `Stdlib.Test.incrementCounter value` (returns
-the value unchanged) and `Stdlib.Test.counterValue ()`. The counter is
+To count evaluations or callbacks, use `Stdlib.Test.incrementCounter(value)` (returns
+the value unchanged) and `Stdlib.Test.counterValue()`. The counter is
 in memory and starts at zero for each test execution, including reruns.
 These helpers work only in package tests, need no host permissions, and make
 the test rerun rather than reuse a cached pass.
@@ -162,13 +162,13 @@ never against what you typed.
 - Record construction is `State { count = 0 }`; update is `{ state with count = 1 }`.
 - `(call arg)?` extracts Ok/Some or immediately returns Error/None from the
   nearest function/lambda. Return Result/Option and still write Ok/Some on
-  success; Result error types must agree. `f x?` means `f (x?)`.
+  success; Result error types must agree.
 - Option/Result cases work bare: `Some x`, `None`, `Ok x`, `Error e`.
 - User enum construction uses `TypeName.Case`; match cases are bare.
 - Nested constructor patterns can use `Some (Ok x)`.
 - A tuple payload needs double parentheses: `Some ((a, b))`.
 - A function may declare a permission ceiling as an effect row on the return
-  colon: `let fetch (url: String) :{Http, Clock} String = ...`. It only
+  colon: `let fetch(url: String):{Http, Clock} String = ...`. It only
   restricts (`:{}` means effect-free); names are effect cases like `FileRead`.
 
 Host permissions are managed with the `permissions` command (alias `perms`).
@@ -373,15 +373,23 @@ Rules:
 
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
+- Calls put the arguments in parentheses: `Stdlib.String.length(s)`,
+  `Stdlib.List.map(xs, fun x -> x + 1)`. `f()` calls a fn declared `let f(): T`.
+  `f a b` is a parse error.
+- No partial application: a call gives every argument, and too few is an error,
+  not a function. To supply the rest later, write a lambda: `fun x -> Stdlib.max(1, x)`.
+- Declarations list their parameters the same way: `let add(a: Int, b: Int): Int = a + b`.
 - Nested function definitions need PARENTHESIZED params AND full annotations:
-  `let helper (x: Int) : Int = ...`. The parser desugars this to a local lambda, so
+  `let helper(x: Int): Int = ...`. The parser desugars this to a local lambda, so
   use it for task-local helpers. A nested fn can call one defined above it; a FORWARD
   reference to one defined below fails, and so does mutual recursion.
 - NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid --
   modules are not first-class values. Use the full path each time.)
 - Pipe |> feeds the left value as the FIRST argument of the right fn; any
-  args written after the fn come after it: `[1, 2] |> Stdlib.List.map toString`,
-  `n |> (+) 1`. Wrap a complex left side in parens: (complex expr) |> fn
+  args in its parentheses come after it: `[1, 2] |> Stdlib.List.map(toString)`
+  is `Stdlib.List.map([1, 2], toString)`, and `x |> f()` is `f(x)`. An operator
+  is not a pipe stage: write `n + 1`, or `|> (fun v -> v + 1)` mid-pipe. Wrap a
+  complex left side in parens: (complex expr) |> fn
 - Lists: [1, 2, 3] (commas; a semicolon is a parse error)
 - Dicts and records use commas or newlines, never semicolons:
   `Dict { "a": 1, "b": 2 }`, `Point { x = 1, y = 2 }`,
@@ -402,10 +410,10 @@ Rules:
   Operands must match (`1 + 2`, `1.0 + 2.0`; `1L + 2.0` is an error). `/` is
   integer division on ints, float on floats; `**` is power; a bare `1` is an
   arbitrary-precision `Int` and never overflows. `"a" + "b"` is `"ab"`.
-- Traits: `impl Add for Vec = let add (a: Vec) (b: Vec) : Vec = ...` gives Vec
-  a `+`; `impl ToString for Point = let toString (p: Point) : String = ...`
-  gives `p.toString`; your own with `trait Area<'a> = let area (s: 'a) : Float`.
-  A bound is `let f<'a: ToString> (v: 'a) = ...`. Author with `dark trait` /
+- Traits: `impl Add for Vec = let add(a: Vec, b: Vec): Vec = ...` gives Vec
+  a `+`; `impl ToString for Point = let toString(p: Point): String = ...`
+  gives `p.toString`; your own with `trait Area<'a> = let area(s: 'a): Float`.
+  A bound is `let f<'a: ToString>(v: 'a) = ...`. Author with `dark trait` /
   `dark impl`; `dark impls <Trait> --json` lists implementations with the status a
   call sees (active, shadowed, unordered); `dark constraints --json` has the rival
   pairs; `docs traits`.
@@ -424,7 +432,7 @@ Rules:
   | (Ok x, Ok y) -> ...      # tuple of constructors; parens optional, with or without a space
   | Some(Ok v) -> ...        # constructor of a constructor
   | Some((a, b)) -> ...      # constructor wrapping a tuple NEEDS its inner parens
-  # `::` is pattern-only; prepend in an expression with `Stdlib.List.prepend list item`
+  # `::` is pattern-only; prepend in an expression with `Stdlib.List.prepend(list, item)`
 
 ## Troubleshooting
 If commands hang or fail silently, check logs:

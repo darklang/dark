@@ -7,7 +7,7 @@ type Option<'a> = Stdlib.Option.Option<'a>
 
 type Hash = | Hash of String
 
-let hashToString (hash: Hash) : String =
+let hashToString(hash: Hash): String =
   match hash with
   | Hash h -> h
 
@@ -271,8 +271,7 @@ type ApplicableNamedFn =
 type ApplicableLambda =
   { exprId: UInt64
     closedRegisters: List<(Register * Dval)>
-    typeSymbolTable: TypeSymbolTable
-    argsSoFar: List<Dval> }
+    typeSymbolTable: TypeSymbolTable }
 
 type Applicable =
   | AppLambda of ApplicableLambda
@@ -344,4 +343,4 @@ type BuiltInParam =
 
 /// Convert a value into a Dval that Dark code can inspect.
 /// For records and enums, the result includes the package type's hash.
-let reflect (value: 'a) : Dval = Builtin.reflect value
+let reflect(value: 'a): Dval = Builtin.reflect(value)

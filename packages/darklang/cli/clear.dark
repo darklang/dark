@@ -1,17 +1,17 @@
 module Darklang.Cli.Clear
 
 
-let execute (state: AppState) (args: List<String>) : AppState =
-  Builtin.stdoutClear ()
+let execute(state: AppState, args: List<String>): AppState =
+  Builtin.stdoutClear()
   state
 
 
-let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [
     "Usage: clear"
     "Clear the terminal screen."
-  ] |> Stdlib.String.join "\n"
+  ] |> Stdlib.String.join("\n")

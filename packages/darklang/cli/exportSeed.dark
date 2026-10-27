@@ -1,25 +1,25 @@
 module Darklang.Cli.ExportSeed
 
-let execute (state: AppState) (args: List<String>): AppState =
+let execute(state: AppState, args: List<String>): AppState =
   match args with
   // Explicit, because the only other argument shape is a PATH: without this arm a bare `help` is taken
   // as one, and a typo writes a 32MB seed database to a file called `help`.
   | [] | [ "help" ] ->
-    Stdlib.printLine (help state)
+    Stdlib.printLine(help(state))
     state
   | [outputPath] ->
-    match Builtin.pmSeedExport outputPath with
+    match Builtin.pmSeedExport(outputPath) with
     | Ok _ ->
-      Stdlib.printLine $"Seed exported to {outputPath}"
+      Stdlib.printLine($"Seed exported to {outputPath}")
       state
     | Error err ->
-      Stdlib.printLine (View.formatError $"Export failed: {err}")
+      Stdlib.printLine(View.formatError($"Export failed: {err}"))
       state
   | _ ->
-    Stdlib.printLine (View.formatError "Usage: export-seed <output-path>")
+    Stdlib.printLine(View.formatError("Usage: export-seed <output-path>"))
     state
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [ "Export a minimal seed.db from the current database."
     ""
     "Usage: export-seed <output-path>"
@@ -27,7 +27,7 @@ let help (_state: AppState) : String =
     "The seed contains only source-of-truth tables (ops, branches, commits),"
     "excluding derived data (locations, types, values, functions)."
     "Archived branches are excluded." ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")
 
-let complete (state: AppState) (args: List<String>): List<Completion.CompletionItem> =
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   []

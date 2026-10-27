@@ -15,7 +15,7 @@ type Output<'a> =
     exitCode: Int
     cleanupErrors: List<String> }
 
-let defaults () : Options =
+let defaults(): Options =
   Options
     { branch = None, timeoutMs = 120000, columns = 80, rows = 24 }
 
@@ -23,24 +23,24 @@ let defaults () : Options =
 /// branch is the current test's branch. Stdin is EOF; stdout and stderr are
 /// captured separately from the typed result. Requires Native and a running test.
 /// The timeout covers worker execution and output collection, after the store copy.
-let run<'a, 'b>
-  (options: Options)
-  (callback: 'a -> 'b)
-  (argument: 'a)
+let run<'a, 'b>(
+  options: Options,
+  callback: 'a -> 'b,
+  argument: 'a)
   : Stdlib.Result.Result<Output<'b>, String> =
-  Builtin.testRunIsolated
-    options.branch options.timeoutMs options.columns options.rows
-    callback argument LanguageTools.PackageManager.Test.Worker.main
-  |> Stdlib.Result.andThen (fun (result, stdout, stderr, exitCode, cleanupErrors) ->
+  Builtin.testRunIsolated(
+    options.branch, options.timeoutMs, options.columns, options.rows,
+    callback, argument, LanguageTools.PackageManager.Test.Worker.main)
+  |> Stdlib.Result.andThen(fun (result, stdout, stderr, exitCode, cleanupErrors) ->
     match result with
     | None ->
-      Stdlib.String.join
-        (Stdlib.List.concat
-          [ $"Isolated test exited {Stdlib.toString exitCode} without a result:"
+      Stdlib.String.join(
+        (Stdlib.List.concat(
+          [ $"Isolated test exited {Stdlib.toString(exitCode)} without a result:"
             stdout
-            stderr ]
-          cleanupErrors)
-        "\n"
+            stderr ],
+          cleanupErrors)),
+        "\n")
       |> Error
     | Some result ->
       Ok (Output { result = result, stdout = stdout, stderr = stderr, exitCode = exitCode, cleanupErrors = cleanupErrors }))

@@ -11,4 +11,4 @@ module Darklang.SCM
 ///
 /// A function rather than a `val` because the path follows the store swap a test does, and a `val`
 /// is evaluated once.
-let localDb () : String = Stdlib.LocalStore.path ()
+let localDb(): String = Stdlib.LocalStore.path()

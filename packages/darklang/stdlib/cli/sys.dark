@@ -3,102 +3,102 @@ module Darklang.Stdlib.Cli.Sys
 
 /// Get the current user's login name.
 /// Checks $LOGNAME, then $USER, then falls back to the passwd database.
-let currentUser () : Stdlib.Option.Option<String> =
-  match Env.get "LOGNAME" with
+let currentUser(): Stdlib.Option.Option<String> =
+  match Env.get("LOGNAME") with
   | Some u -> Stdlib.Option.Option.Some u
   | None ->
-    match Env.get "USER" with
+    match Env.get("USER") with
     | Some u -> Stdlib.Option.Option.Some u
-    | None -> Stdlib.Cli.Posix.__accountLookup (Stdlib.Cli.Posix.__decimal (Builtin.syscallGetuid ())) 0
+    | None -> Stdlib.Cli.Posix.__accountLookup(Stdlib.Cli.Posix.__decimal(Builtin.syscallGetuid()), 0)
 
 
 /// Get the system hostname.
-let hostname () : Result.Result<String, Posix.Error> =
-  (Posix.uname ())
-  |> Stdlib.Result.map (fun result -> Stdlib.Tuple3.second result)
+let hostname(): Result.Result<String, Posix.Error> =
+  (Posix.uname())
+  |> Stdlib.Result.map(fun result -> Stdlib.Tuple3.second(result))
 
 
 /// Get the operating system name (e.g. "Linux", "Darwin").
-let os () : Result.Result<String, Posix.Error> =
-  (Posix.uname ())
-  |> Stdlib.Result.map (fun result -> Stdlib.Tuple3.first result)
+let os(): Result.Result<String, Posix.Error> =
+  (Posix.uname())
+  |> Stdlib.Result.map(fun result -> Stdlib.Tuple3.first(result))
 
 
 /// Get the CPU architecture (e.g. "x86_64", "aarch64").
-let arch () : Result.Result<String, Posix.Error> =
-  (Posix.uname ())
-  |> Stdlib.Result.map (fun result -> Stdlib.Tuple3.third result)
+let arch(): Result.Result<String, Posix.Error> =
+  (Posix.uname())
+  |> Stdlib.Result.map(fun result -> Stdlib.Tuple3.third(result))
 
 
 /// The path of the running executable.
-let currentExecutablePath () : String =
-  Builtin.runtimeExecutablePath ()
+let currentExecutablePath(): String =
+  Builtin.runtimeExecutablePath()
 
 
 /// Get the number of available CPUs.
-let cpuCount () : Int =
-  Stdlib.Cli.Sys.__cpuCount () |> Builtin.unwrap
+let cpuCount(): Int =
+  Stdlib.Cli.Sys.__cpuCount() |> Builtin.unwrap
 
 
 /// Get the current process ID.
-let currentPid () : Int =
-  Builtin.syscallGetpid ()
+let currentPid(): Int =
+  Builtin.syscallGetpid()
 
 
 /// isatty for 0 (stdin), 1 (stdout) or 2 (stderr).
-let isTerminal (fd: Int) : Bool =
-  Builtin.cliTerminalIsatty fd
+let isTerminal(fd: Int): Bool =
+  Builtin.cliTerminalIsatty(fd)
 
 
 /// Check if the current user is root (uid 0).
-let isRoot () : Bool =
-  (Builtin.syscallGetuid ()) == 0
+let isRoot(): Bool =
+  (Builtin.syscallGetuid()) == 0
 
 
 /// Host record selection, buffer growth and decoding shared by both engines.
 
-let __text (buffer: Bytes) (offset: Int) (length: Int) : String =
-  Stdlib.Bytes.toList buffer
-  |> Stdlib.List.drop offset
-  |> Stdlib.List.take length
-  |> Stdlib.List.takeWhile (fun byte -> byte != 0uy)
+let __text(buffer: Bytes, offset: Int, length: Int): String =
+  Stdlib.Bytes.toList(buffer)
+  |> Stdlib.List.drop(offset)
+  |> Stdlib.List.take(length)
+  |> Stdlib.List.takeWhile(fun byte -> byte != 0uy)
   |> Stdlib.String.fromByteListWithReplacement
 
-let __sysctlWith (mib: List<Int>) (count: Int) : Result.Result<Bytes, Int> =
-  match Builtin.syscallSysctl mib count with
+let __sysctlWith(mib: List<Int>, count: Int): Result.Result<Bytes, Int> =
+  match Builtin.syscallSysctl(mib, count) with
   | Error e ->
-    if e == 4 then __sysctlWith mib count
-    else if e == 12 && count < 1048576 then __sysctlWith mib (count * 2)
+    if e == 4 then __sysctlWith(mib, count)
+    else if e == 12 && count < 1048576 then __sysctlWith(mib, count * 2)
     else Error e
   | Ok bytes -> Ok bytes
 
-let __sysctlText (mib: List<Int>) : Result.Result<String, Int> =
-  __sysctlWith mib 256
-  |> Stdlib.Result.map (fun bytes -> __text bytes 0 (Stdlib.Bytes.length bytes))
+let __sysctlText(mib: List<Int>): Result.Result<String, Int> =
+  __sysctlWith(mib, 256)
+  |> Stdlib.Result.map(fun bytes -> __text(bytes, 0, Stdlib.Bytes.length(bytes)))
 
-let __countBits (value: Int) : Int =
+let __countBits(value: Int): Int =
   if value == 0 then 0
-  else value % 2 + __countBits (value / 2)
+  else value % 2 + __countBits(value / 2)
 
-let __affinityWith (count: Int) : Result.Result<Bytes, Int> =
-  match Builtin.syscallSchedGetaffinity 0 count with
+let __affinityWith(count: Int): Result.Result<Bytes, Int> =
+  match Builtin.syscallSchedGetaffinity(0, count) with
   | Error e ->
-    if e == 4 then __affinityWith count
-    else if e == 22 && count < 1048576 then __affinityWith (count * 2)
+    if e == 4 then __affinityWith(count)
+    else if e == 22 && count < 1048576 then __affinityWith(count * 2)
     else Error e
   | Ok mask -> Ok mask
 
 /// Available CPUs means the calling process's affinity on Linux, hw.ncpu on
 /// Darwin, and one on the interpreter's single-threaded browser runtime.
-let __cpuCount () : Result.Result<Int, Int> =
+let __cpuCount(): Result.Result<Int, Int> =
   let result =
-    if Builtin.runtimeTargetOS () == "browser" then Ok 1
-    else if Stdlib.Cli.Posix.__abiMac () then
-      __sysctlWith [6, 3] 4
-      |> Stdlib.Result.andThen (fun bytes -> Stdlib.Cli.Posix.__kernelField (Stdlib.Bytes.toList bytes) 0 4)
+    if Builtin.runtimeTargetOS() == "browser" then Ok 1
+    else if Stdlib.Cli.Posix.__abiMac() then
+      __sysctlWith([6, 3], 4)
+      |> Stdlib.Result.andThen(fun bytes -> Stdlib.Cli.Posix.__kernelField(Stdlib.Bytes.toList(bytes), 0, 4))
     else
-      __affinityWith 128
-      |> Stdlib.Result.map (fun bytes ->
-        Stdlib.List.fold (Stdlib.Bytes.toList bytes) 0
-          (fun total byte -> total + __countBits (Stdlib.Int.fromUInt8 byte)))
-  result |> Stdlib.Result.andThen (fun count -> if count > 0 then Ok count else Error 5)
+      __affinityWith(128)
+      |> Stdlib.Result.map(fun bytes ->
+        Stdlib.List.fold(Stdlib.Bytes.toList(bytes), 0,
+          fun total byte -> total + __countBits(Stdlib.Int.fromUInt8(byte))))
+  result |> Stdlib.Result.andThen(fun count -> if count > 0 then Ok count else Error 5)

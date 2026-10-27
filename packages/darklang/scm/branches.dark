@@ -15,7 +15,7 @@ module Darklang.SCM.Branches
 ///
 /// Lives in this silo, the lowest branch-aware module, so both `SCM.PackageOps` and `SCM.Conflicts` can ask
 /// without either depending on the other. `SCM.PackageOps.currentBranch` is the name most callers use.
-let current () : Uuid = Builtin.scmCurrentBranch ()
+let current(): Uuid = Builtin.scmCurrentBranch()
 
 
 /// Why a merge may not go ahead.
@@ -34,7 +34,7 @@ type MergeRefusal =
   | HasActiveChildren
 
 /// The sentence a person reads, kept beside the cases so the two cannot drift.
-let refusalMessage (r: MergeRefusal) : String =
+let refusalMessage(r: MergeRefusal): String =
   match r with
   | IsMain ->
     "main is the trunk -- merge moves a BRANCH into its parent. `dark branches` lists them."
@@ -53,18 +53,18 @@ let refusalMessage (r: MergeRefusal) : String =
 ///
 /// The DECISION is here; the merge MECHANISM (flipping ops effective, folding, retagging) is transactional
 /// and stays in F#.
-let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, MergeRefusal> =
-  if SCM.Branch.isMain branchId then
+let canMerge(branchId: Uuid): Stdlib.Result.Result<Unit, MergeRefusal> =
+  if SCM.Branch.isMain(branchId) then
     Stdlib.Result.Result.Error MergeRefusal.IsMain
   else
 
   let changes =
-    Stdlib.Sqlite.scalarIntP
-      (localDb ())
-      "SELECT count(*) AS n FROM op_branches WHERE branch_id = @p0"
-      [ Stdlib.toString branchId ]
-      "n"
-    |> Stdlib.Option.withDefault 0L
+    Stdlib.Sqlite.scalarIntP(
+      localDb(),
+      "SELECT count(*) AS n FROM op_branches WHERE branch_id = @p0",
+      [ Stdlib.toString(branchId) ],
+      "n")
+    |> Stdlib.Option.withDefault(0L)
 
   if changes == 0L then
     Stdlib.Result.Result.Error MergeRefusal.NothingToMerge
@@ -75,12 +75,12 @@ let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, MergeRefusal> =
     // read as "no active children" and wave the merge through the guard, which is the one direction a
     // guard must not fail in.
     match
-      Stdlib.Sqlite.scalarIntP
-        (localDb ())
+      Stdlib.Sqlite.scalarIntP(
+        localDb(),
         "SELECT count(*) AS n FROM branches
-         WHERE parent_id = @p0 AND merged_at IS NULL AND archived_at IS NULL"
-        [ Stdlib.toString branchId ]
-        "n"
+         WHERE parent_id = @p0 AND merged_at IS NULL AND archived_at IS NULL",
+        [ Stdlib.toString(branchId) ],
+        "n")
     with
     | None -> Stdlib.Result.Result.Error MergeRefusal.CouldNotCheckChildren
     | Some activeChildren ->
@@ -94,14 +94,14 @@ let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, MergeRefusal> =
 ///
 /// `canMerge` asks the same question its own way; this is the shape a caller needs when it has to
 /// NAME them. `None` from the query is a failure, not "none" -- a guard must not fail open.
-let activeChildNames (branchId: Uuid) : List<String> =
-  Stdlib.Sqlite.columnP
-    (localDb ())
+let activeChildNames(branchId: Uuid): List<String> =
+  Stdlib.Sqlite.columnP(
+    localDb(),
     "SELECT CASE WHEN name = '' THEN id ELSE name END AS name FROM branches
      WHERE parent_id = @p0 AND merged_at IS NULL AND archived_at IS NULL
-     ORDER BY name"
-    [ Stdlib.toString branchId ]
-    "name"
+     ORDER BY name",
+    [ Stdlib.toString(branchId) ],
+    "name")
 
 
 //  branch lifecycle
@@ -109,23 +109,23 @@ let activeChildNames (branchId: Uuid) : List<String> =
 /// Register a branch off a parent if it doesn't exist yet. Idempotent, and FIRST WRITE WINS the parent: an
 /// existing branch is never re-parented, so switching onto one can't quietly move it. Re-using an id
 /// REVIVES it (clears archived/merged), which is what lets a review queue be reused after approve/reject.
-let ensure (branchId: Uuid) (parentId: Uuid) : Unit =
+let ensure(branchId: Uuid, parentId: Uuid): Unit =
   let _ =
-    Stdlib.Sqlite.mustExec
-      (localDb ())
+    Stdlib.Sqlite.mustExec(
+      localDb(),
       "INSERT INTO branches (id, name, parent_id) VALUES (@p0, '', @p1)
-       ON CONFLICT(id) DO UPDATE SET archived_at = NULL, merged_at = NULL"
-      [ Stdlib.toString branchId, Stdlib.toString parentId ]
+       ON CONFLICT(id) DO UPDATE SET archived_at = NULL, merged_at = NULL",
+      [ Stdlib.toString(branchId), Stdlib.toString(parentId) ])
 
   ()
 
 /// Point a branch's NAME at something else. The id is untouched, so every reference survives.
-let setName (branchId: Uuid) (name: String) : Unit =
+let setName(branchId: Uuid, name: String): Unit =
   let _ =
-    Stdlib.Sqlite.mustExec
-      (localDb ())
-      "UPDATE branches SET name = @p1 WHERE id = @p0"
-      [ Stdlib.toString branchId, name ]
+    Stdlib.Sqlite.mustExec(
+      localDb(),
+      "UPDATE branches SET name = @p1 WHERE id = @p0",
+      [ Stdlib.toString(branchId), name ])
 
   ()
 
@@ -135,8 +135,8 @@ let setName (branchId: Uuid) (name: String) : Unit =
 ///
 /// Only effective=0 ops are deleted: anything that made it into main is main's now, and deleting it here
 /// would tear a hole in the shared log rather than discard a branch.
-let archive (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
-  let b = Stdlib.toString branchId
+let archive(branchId: Uuid): Stdlib.Result.Result<Unit, String> =
+  let b = Stdlib.toString(branchId)
 
   // ONE transaction. This is the only place that deletes from `package_ops`, the canonical log, and it
   // needs three more statements to stay consistent with that delete. Run separately, a crash between any
@@ -144,8 +144,8 @@ let archive (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
   // with the bases still there. `finishMerge` and `retagFrontierToParent` are batched for the same
   // reason.
   let result =
-    Stdlib.Sqlite.execBatch
-      (localDb ())
+    Stdlib.Sqlite.execBatch(
+      localDb(),
       [ // Only ops NO OTHER branch holds. `op_branches` is many-to-many and op ids are content hashes, so
         // two review queues importing overlapping bundles genuinely share rows.
         ("DELETE FROM package_ops
@@ -155,7 +155,7 @@ let archive (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
          [ [ b ] ])
         ("DELETE FROM op_branches WHERE branch_id = @p0", [ [ b ] ])
         ("DELETE FROM branch_name_bases WHERE branch_id = @p0", [ [ b ] ])
-        ("UPDATE branches SET archived_at = datetime('now') WHERE id = @p0", [ [ b ] ]) ]
+        ("UPDATE branches SET archived_at = datetime('now') WHERE id = @p0", [ [ b ] ]) ])
 
   // Returned, not printed. The caller reports "archived" and records an Archived op on the strength of
   // this, so a failure it cannot see becomes a branch archived on every OTHER machine and live here. And
@@ -180,88 +180,88 @@ type BranchRow =
     merged: Bool }
 
 /// Every active branch, oldest first.
-let list () : List<BranchRow> =
-  Stdlib.Sqlite.rowsP
-    (localDb ())
+let list(): List<BranchRow> =
+  Stdlib.Sqlite.rowsP(
+    localDb(),
     "SELECT b.id, b.name, b.parent_id, b.merged_at IS NOT NULL AS merged,
             (SELECT count(*) FROM op_branches ob WHERE ob.branch_id = b.id) AS ops
-     FROM branches b WHERE b.archived_at IS NULL ORDER BY b.created_at DESC"
-    []
-    (fun row ->
-      match Stdlib.Sqlite.uuidField row "id" with
+     FROM branches b WHERE b.archived_at IS NULL ORDER BY b.created_at DESC",
+    [],
+    fun row ->
+      match Stdlib.Sqlite.uuidField(row, "id") with
       // A row whose id will not parse is skipped, not fatal: this feeds every listing and the LSP
       // tree, and one bad row taking all of them down is worse than one branch missing from the list.
       | Some id ->
         Stdlib.Option.Option.Some(
           BranchRow
             { id = id
-              name = Stdlib.Sqlite.textOr row "name"
+              name = Stdlib.Sqlite.textOr(row, "name")
               parent =
-                SCM.Branch.fromTextField (Stdlib.Sqlite.textField row "parent_id")
-              ops = Stdlib.Sqlite.intField row "ops" |> Stdlib.Option.withDefault 0L
+                SCM.Branch.fromTextField(Stdlib.Sqlite.textField(row, "parent_id"))
+              ops = Stdlib.Sqlite.intField(row, "ops") |> Stdlib.Option.withDefault(0L)
               merged =
-                (Stdlib.Sqlite.intField row "merged" |> Stdlib.Option.withDefault 0L) > 0L }
+                (Stdlib.Sqlite.intField(row, "merged") |> Stdlib.Option.withDefault(0L)) > 0L }
         )
       | None -> Stdlib.Option.Option.None)
 
 /// How many branches are already merged. The `dark branches` footer needs the count of what it
 /// hid, and asking for it separately keeps `listLines` returning only what it will print.
-let mergedCount () : Int64 =
-  list ()
-  |> Stdlib.List.filter (fun b -> b.merged)
+let mergedCount(): Int64 =
+  list()
+  |> Stdlib.List.filter(fun b -> b.merged)
   |> Stdlib.List.length
   |> Stdlib.Int.toInt64
-  |> Stdlib.Option.withDefault 0L
+  |> Stdlib.Option.withDefault(0L)
 
 /// The branch list, one line each. <param includeMerged> false drops the ones already merged -- the
 /// default, because merged branches accumulate forever and nothing removes them.
-let listLines (includeMerged: Bool) : List<String> =
+let listLines(includeMerged: Bool): List<String> =
   // Fetched ONCE: `parentLabel` reads its parent out of this list, so rendering n branches is one query
   // rather than n+1.
-  let branches = list ()
+  let branches = list()
 
-  let parentLabel (parentId: Uuid) : String =
-    if SCM.Branch.isMain parentId then
+  let parentLabel(parentId: Uuid): String =
+    if SCM.Branch.isMain(parentId) then
       SCM.Branch.mainBranchName
     else
       // A parent this store has never registered is a colleague's branch that was not pulled
       // with its child. The id alone reads as corruption; say what it is instead.
-      match Stdlib.List.findFirst branches (fun p -> p.id == parentId) with
+      match Stdlib.List.findFirst(branches, fun p -> p.id == parentId) with
       | Some p when p.name != "" -> p.name
-      | Some _ -> Stdlib.String.slice (Stdlib.toString parentId) 0 8
+      | Some _ -> Stdlib.String.slice(Stdlib.toString(parentId), 0, 8)
       | None ->
-        let short = Stdlib.String.slice (Stdlib.toString parentId) 0 8
+        let short = Stdlib.String.slice(Stdlib.toString(parentId), 0, 8)
         $"{short} (a branch not in this store; `branch pull --from <who>` brings it)"
 
   branches
-  |> Stdlib.List.filter (fun b -> includeMerged || (Stdlib.Bool.not b.merged))
-  |> Stdlib.List.map (fun b ->
+  |> Stdlib.List.filter(fun b -> includeMerged || (Stdlib.Bool.not(b.merged)))
+  |> Stdlib.List.map(fun b ->
     let status =
-      if b.merged then "merged" else $"{Stdlib.toString b.ops} op(s)"
+      if b.merged then "merged" else $"{Stdlib.toString(b.ops)} op(s)"
 
-    let label = if b.name == "" then Stdlib.toString b.id else b.name
-    let shortId = Stdlib.String.slice (Stdlib.toString b.id) 0 8
-    $"{label} ({shortId}) <- {parentLabel b.parent}  [{status}]")
+    let label = if b.name == "" then Stdlib.toString(b.id) else b.name
+    let shortId = Stdlib.String.slice(Stdlib.toString(b.id), 0, 8)
+    $"{label} ({shortId}) <- {parentLabel(b.parent)}  [{status}]")
 
 /// The names a branch has recorded a base for -- i.e. every name it has touched.
-let touchedNames (branchId: Uuid) : List<String> =
-  Stdlib.Sqlite.columnP
-    (localDb ())
-    "SELECT name FROM branch_name_bases WHERE branch_id = @p0"
-    [ Stdlib.toString branchId ]
-    "name"
+let touchedNames(branchId: Uuid): List<String> =
+  Stdlib.Sqlite.columnP(
+    localDb(),
+    "SELECT name FROM branch_name_bases WHERE branch_id = @p0",
+    [ Stdlib.toString(branchId) ],
+    "name")
 
 
 /// The key a name is looked up by. `branch_name_bases`, `locations` and the overlay all spell a name as
 /// (owner, dotted-modules, name), and this is that triple flattened so a Dict can hold it. The separator
 /// is a newline because none of the three parts can contain one.
-let nameKey (owner: String) (modules: String) (name: String) : String =
+let nameKey(owner: String, modules: String, name: String): String =
   owner + "\n" + modules + "\n" + name
 
 
 /// How a conflicted name is SPOKEN: "owner.Module.name", or "owner.name" for a top-level item. Mirrors the
 /// detector's fqn format, because `resolve <name>` has to accept what a conflict listing prints.
-let fqnOf (owner: String) (modules: String) (name: String) : String =
+let fqnOf(owner: String, modules: String, name: String): String =
   if modules == "" then
     owner + "." + name
   else
@@ -270,17 +270,17 @@ let fqnOf (owner: String) (modules: String) (name: String) : String =
 
 /// A branch's recorded bases: the parent's hash per name AT THE FORK, which is what a later comparison is
 /// against. `(owner, modules, name, base_hash)` rows, unformatted.
-let nameBases (branchId: Uuid) : List<(String * String * String * String)> =
-  Stdlib.Sqlite.rowsP
-    (localDb ())
-    "SELECT owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @p0"
-    [ Stdlib.toString branchId ]
-    (fun row ->
+let nameBases(branchId: Uuid): List<(String * String * String * String)> =
+  Stdlib.Sqlite.rowsP(
+    localDb(),
+    "SELECT owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @p0",
+    [ Stdlib.toString(branchId) ],
+    fun row ->
       match
-        (Stdlib.Sqlite.textField row "owner",
-         Stdlib.Sqlite.textField row "modules",
-         Stdlib.Sqlite.textField row "name",
-         Stdlib.Sqlite.textField row "base_hash")
+        (Stdlib.Sqlite.textField(row, "owner"),
+         Stdlib.Sqlite.textField(row, "modules"),
+         Stdlib.Sqlite.textField(row, "name"),
+         Stdlib.Sqlite.textField(row, "base_hash"))
       with
       | (Some o, Some m, Some n, Some h) ->
         Stdlib.Option.Option.Some((o, m, n, h))
@@ -296,7 +296,7 @@ let nameBases (branchId: Uuid) : List<(String * String * String * String)> =
 /// parent = main means `locations` answers directly. A non-main parent lives only as an OVERLAY, so main's
 /// answer is then overridden by that chain's own rebinds -- the same fold `SCM.PackageOps.chainBindings`
 /// already does, latest stamp per name.
-let parentHashesForBases (parentId: Uuid) (branchId: Uuid) : Dict<String, String> =
+let parentHashesForBases(parentId: Uuid, branchId: Uuid): Dict<String, String> =
   let fromMain =
     // main-scoped: main's hashes are the base; a non-main parent's rebinds are overlaid by the caller.
     //
@@ -306,44 +306,44 @@ let parentHashesForBases (parentId: Uuid) (branchId: Uuid) : Dict<String, String
     // and the branch was left inconsistent with itself (its own base said one thing, its callers
     // another). A branch resolves through committed work only -- that rule is stated for reads, and
     // the base a rebase moves to is the same rule.
-    Stdlib.Sqlite.rowsP
-      (localDb ())
+    Stdlib.Sqlite.rowsP(
+      localDb(),
       "SELECT l.owner, l.modules, l.name, l.item_hash
        FROM branch_name_bases b
        JOIN locations l
          ON l.owner = b.owner AND l.modules = b.modules AND l.name = b.name
        JOIN package_ops p ON p.id = l.op_id
        WHERE b.branch_id = @p0 AND l.unlisted_at IS NULL
-         AND p.commit_hash IS NOT NULL"
-      [ Stdlib.toString branchId ]
-      (fun row ->
+         AND p.commit_hash IS NOT NULL",
+      [ Stdlib.toString(branchId) ],
+      fun row ->
         match
-          (Stdlib.Sqlite.textField row "owner",
-           Stdlib.Sqlite.textField row "modules",
-           Stdlib.Sqlite.textField row "name",
-           Stdlib.Sqlite.textField row "item_hash")
+          (Stdlib.Sqlite.textField(row, "owner"),
+           Stdlib.Sqlite.textField(row, "modules"),
+           Stdlib.Sqlite.textField(row, "name"),
+           Stdlib.Sqlite.textField(row, "item_hash"))
         with
         | (Some o, Some m, Some n, Some h) ->
-          Stdlib.Option.Option.Some((nameKey o m n, h))
+          Stdlib.Option.Option.Some((nameKey(o, m, n), h))
         | _ -> Stdlib.Option.Option.None)
 
   // A name the chain UNBOUND reads as "", the same spelling `divergedIn` gives a name main unlisted.
   let overlay =
-    if SCM.Branch.isMain parentId then
+    if SCM.Branch.isMain(parentId) then
       []
     else
-      SCM.PackageOps.chainBindingEntries parentId
-      |> Stdlib.List.map (fun w ->
+      SCM.PackageOps.chainBindingEntries(parentId)
+      |> Stdlib.List.map(fun w ->
         let hash =
           match w.binding with
           | Some b -> b.hash
           | None -> ""
-        (nameKey w.owner w.modules w.name, hash))
+        (nameKey(w.owner, w.modules, w.name), hash))
 
   // The parent's hash for each name is main's, unless the parent branch changed
   // it. `fromEntries` keeps the last entry for a name, so the parent's changes
   // go second. A name the parent removed counts as a change too ("").
-  Stdlib.Dict.fromEntries (Stdlib.List.concat fromMain overlay)
+  Stdlib.Dict.fromEntries(Stdlib.List.concat(fromMain, overlay))
 
 
 /// Names the PARENT has moved since this branch forked, given bases and hashes already read: its current
@@ -351,31 +351,31 @@ let parentHashesForBases (parentId: Uuid) (branchId: Uuid) : Dict<String, String
 ///
 /// A name the parent has since UNLISTED reads as "" and so counts as moved, which is right: the thing the
 /// branch forked from is not there any more.
-let divergedIn
-  (bases: List<(String * String * String * String)>)
-  (parentHashes: Dict<String, String>)
+let divergedIn(
+  bases: List<(String * String * String * String)>,
+  parentHashes: Dict<String, String>)
   : List<String> =
   bases
-  |> Stdlib.List.filterMap (fun row ->
+  |> Stdlib.List.filterMap(fun row ->
     let (o, m, n, baseHash) = row
 
     let current =
       parentHashes
-      |> Stdlib.Dict.get (nameKey o m n)
-      |> Stdlib.Option.withDefault ""
+      |> Stdlib.Dict.get(nameKey(o, m, n))
+      |> Stdlib.Option.withDefault("")
 
     if current == baseHash then
       Stdlib.Option.Option.None
     else
-      Stdlib.Option.Option.Some(fqnOf o m n))
+      Stdlib.Option.Option.Some(fqnOf(o, m, n)))
 
 
 /// Names the PARENT has moved since this branch forked. This is the merge GATE, not a view --
 /// `SCM.Conflicts` presents conflicts, this decides whether there are any.
-let nameConflicts (branchId: Uuid) : List<String> =
-  let parent = SCM.PackageOps.branchParentOf branchId
+let nameConflicts(branchId: Uuid): List<String> =
+  let parent = SCM.PackageOps.branchParentOf(branchId)
 
-  divergedIn (nameBases branchId) (parentHashesForBases parent branchId)
+  divergedIn(nameBases(branchId), parentHashesForBases(parent, branchId))
 
 
 /// What a rebase did, in the two ways the parent's changes reach a branch.
@@ -392,9 +392,9 @@ type Rebased =
 /// REBASE: accept the parent's current state as this branch's new base. Returns the names the parent had
 /// changed since the fork; after this the branch's own ops layer on top (LWW by origin_ts) and merge is
 /// unblocked. The union of both halves of <fn rebaseDetailed>, for callers that want one list.
-let rebase (branchId: Uuid) : Stdlib.Result.Result<List<String>, String> =
-  match rebaseDetailed branchId with
-  | Ok r -> Stdlib.Result.Result.Ok(Stdlib.List.unique (Stdlib.List.concat r.diverged r.repointed))
+let rebase(branchId: Uuid): Stdlib.Result.Result<List<String>, String> =
+  match rebaseDetailed(branchId) with
+  | Ok r -> Stdlib.Result.Result.Ok(Stdlib.List.unique(Stdlib.List.concat(r.diverged, r.repointed)))
   | Error e -> Stdlib.Result.Result.Error e
 
 
@@ -403,25 +403,25 @@ let rebase (branchId: Uuid) : Stdlib.Result.Result<List<String>, String> =
 /// Every base moves in ONE transaction. A statement per name would let an interrupted rebase leave half
 /// the bases rewritten -- a branch neither at its old fork point nor at the new one, with nothing
 /// recording which.
-let rebaseDetailed (branchId: Uuid) : Stdlib.Result.Result<Rebased, String> =
-  let parent = SCM.PackageOps.branchParentOf branchId
-  let bases = nameBases branchId
-  let parentHashes = parentHashesForBases parent branchId
+let rebaseDetailed(branchId: Uuid): Stdlib.Result.Result<Rebased, String> =
+  let parent = SCM.PackageOps.branchParentOf(branchId)
+  let bases = nameBases(branchId)
+  let parentHashes = parentHashesForBases(parent, branchId)
 
   // Read the answer BEFORE moving the bases: after the update every base matches, by construction.
-  let changed = divergedIn bases parentHashes
+  let changed = divergedIn(bases, parentHashes)
 
   let updates =
     bases
-    |> Stdlib.List.map (fun row ->
+    |> Stdlib.List.map(fun row ->
       let (o, m, n, _) = row
 
       let current =
         parentHashes
-        |> Stdlib.Dict.get (nameKey o m n)
-        |> Stdlib.Option.withDefault ""
+        |> Stdlib.Dict.get(nameKey(o, m, n))
+        |> Stdlib.Option.withDefault("")
 
-      [ current, Stdlib.toString branchId, o, m, n ])
+      [ current, Stdlib.toString(branchId), o, m, n ])
 
   // The other half of "accept the parent's changes": what the branch CALLS. A branch that never
   // touched `f` has no base for it, so the bases above say nothing when the parent moves `f`; but
@@ -430,19 +430,19 @@ let rebaseDetailed (branchId: Uuid) : Stdlib.Result.Result<Rebased, String> =
   // would have if the callers had been on the parent. Each finding names the usage, the dependency
   // and both hashes; the cascade is the same one every edit runs.
   let repointed =
-    SCM.Constraints.detectOutdatedUsagesOn branchId
-    |> Stdlib.List.filterMap (fun f ->
+    SCM.Constraints.detectOutdatedUsagesOn(branchId)
+    |> Stdlib.List.filterMap(fun f ->
       match f.detail with
       | Versions(using, current) ->
         let _ =
-          SCM.Propagation.repointDependents
-            branchId
-            f.dependency
-            f.dependencyKind
-            [ using ]
-            current
+          SCM.Propagation.repointDependents(
+            branchId,
+            f.dependency,
+            f.dependencyKind,
+            [ using ],
+            current)
         Stdlib.Option.Option.Some(
-          Conflicts.fqn f.usage.owner (SCM.Propagation.modulesOf f.usage) f.usage.name
+          Conflicts.fqn(f.usage.owner, SCM.Propagation.modulesOf(f.usage), f.usage.name)
         )
       | _ -> Stdlib.Option.Option.None)
     |> Stdlib.List.unique
@@ -453,11 +453,11 @@ let rebaseDetailed (branchId: Uuid) : Stdlib.Result.Result<Rebased, String> =
   | [] -> Stdlib.Result.Result.Ok outcome
   | rows ->
     match
-      Stdlib.Sqlite.execBatch
-        (localDb ())
+      Stdlib.Sqlite.execBatch(
+        localDb(),
         [ ("UPDATE branch_name_bases SET base_hash = @p0
             WHERE branch_id = @p1 AND owner = @p2 AND modules = @p3 AND name = @p4",
-           rows) ]
+           rows) ])
     with
     | Ok _ -> Stdlib.Result.Result.Ok outcome
     | Error e -> Stdlib.Result.Result.Error e
@@ -465,16 +465,16 @@ let rebaseDetailed (branchId: Uuid) : Stdlib.Result.Result<Rebased, String> =
 
 /// "owner.Module.Sub.name" -> (owner, dotted-modules, name). The inverse of <fn fqnOf>, and it has to
 /// stay that way: `dark resolve <name>` is handed back a name a conflict listing printed.
-let parseFqn (fqn: String) : Stdlib.Option.Option<(String * String * String)> =
-  match Stdlib.String.split fqn "." with
+let parseFqn(fqn: String): Stdlib.Option.Option<(String * String * String)> =
+  match Stdlib.String.split(fqn, ".") with
   | [] -> Stdlib.Option.Option.None
   | [ _single ] -> Stdlib.Option.Option.None
   | owner :: rest ->
     // The LAST segment is the name; everything between owner and it is the module path.
-    let n = Stdlib.List.length rest
-    let modules = rest |> Stdlib.List.take (n - 1) |> (fun ms -> Stdlib.String.join ms ".")
+    let n = Stdlib.List.length(rest)
+    let modules = rest |> Stdlib.List.take(n - 1) |> (fun ms -> Stdlib.String.join(ms, "."))
 
-    match Stdlib.List.last rest with
+    match Stdlib.List.last(rest) with
     | Some name -> Stdlib.Option.Option.Some((owner, modules, name))
     | None -> Stdlib.Option.Option.None
 
@@ -484,27 +484,27 @@ let parseFqn (fqn: String) : Stdlib.Option.Option<(String * String * String)> =
 /// Ordered, because callers take the LAST one as the branch's current word on a name; unordered, that is
 /// whatever the query happened to return. Skips an op this build cannot decode rather than raising: a
 /// peer's op on a newer format is stored here on purpose.
-let ownFrontierOps
-  (branchId: Uuid)
+let ownFrontierOps(
+  branchId: Uuid)
   : List<(Uuid * LanguageTools.ProgramTypes.PackageOp)> =
-  ownFrontierOpsWithSource branchId
-  |> Stdlib.List.map (fun (id, op, _) -> (id, op))
+  ownFrontierOpsWithSource(branchId)
+  |> Stdlib.List.map(fun (id, op, _) -> (id, op))
 
 
 /// <fn ownFrontierOps>, with what put each op on the branch: 'op', 'propagation' or 'resolution' (see
 /// `op_branches.source`). What lets a branch tell an edit you typed from a repoint that followed one.
-let ownFrontierOpsWithSource
-  (branchId: Uuid)
+let ownFrontierOpsWithSource(
+  branchId: Uuid)
   : List<(Uuid * LanguageTools.ProgramTypes.PackageOp * String)> =
-  ownOpRows branchId
-  |> Stdlib.List.filterMap (fun row ->
+  ownOpRows(branchId)
+  |> Stdlib.List.filterMap(fun row ->
     match
-      (Stdlib.Sqlite.uuidField row "id", Stdlib.Sqlite.bytesField row "op_blob")
+      (Stdlib.Sqlite.uuidField(row, "id"), Stdlib.Sqlite.bytesField(row, "op_blob"))
     with
     | (Some id, Some blob) ->
-      match SCM.PackageOps.tryDecodeOp id blob with
+      match SCM.PackageOps.tryDecodeOp(id, blob) with
       | Some op ->
-        let source = Stdlib.Sqlite.textField row "source" |> Stdlib.Option.withDefault "op"
+        let source = Stdlib.Sqlite.textField(row, "source") |> Stdlib.Option.withDefault("op")
         Stdlib.Option.Option.Some((id, op, source))
       | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None)
@@ -517,48 +517,48 @@ let ownFrontierOpsWithSource
 ///
 /// `ownFrontierOps` deliberately includes committed ops (a branch's whole frontier is what merge
 /// and export need). Anything that DROPS ops wants this instead.
-let uncommittedOpIds (branchId: Uuid) : List<String> =
-  Stdlib.Sqlite.columnP
-    (localDb ())
+let uncommittedOpIds(branchId: Uuid): List<String> =
+  Stdlib.Sqlite.columnP(
+    localDb(),
     "SELECT p.id FROM package_ops p
      JOIN op_branches ob ON ob.op_id = p.id
-     WHERE ob.branch_id = @p0 AND p.commit_hash IS NULL"
-    [ Stdlib.toString branchId ]
-    "id"
+     WHERE ob.branch_id = @p0 AND p.commit_hash IS NULL",
+    [ Stdlib.toString(branchId) ],
+    "id")
 
 
-let ownOpRows (branchId: Uuid) : List<Dict<String, Stdlib.Sqlite.Value>> =
-  Stdlib.Sqlite.rowsOrEmptyP
-    (localDb ())
+let ownOpRows(branchId: Uuid): List<Dict<String, Stdlib.Sqlite.Value>> =
+  Stdlib.Sqlite.rowsOrEmptyP(
+    localDb(),
     "SELECT p.id, p.op_blob, p.origin_ts AS ts, ob.source FROM package_ops p
      JOIN op_branches ob ON ob.op_id = p.id
      WHERE ob.branch_id = @p0
-     ORDER BY p.origin_ts, p.rowid"
-    [ Stdlib.toString branchId ]
+     ORDER BY p.origin_ts, p.rowid",
+    [ Stdlib.toString(branchId) ])
 
 
 /// Does this op bind <param key>? True for a SetName and for a Decision that overrides the binding, since
 /// both are the branch saying what that name points at.
-let opBindsKey
-  (op: LanguageTools.ProgramTypes.PackageOp)
-  (key: (String * String * String))
+let opBindsKey(
+  op: LanguageTools.ProgramTypes.PackageOp,
+  key: (String * String * String))
   : Stdlib.Option.Option<(LanguageTools.ProgramTypes.PackageLocation *
       LanguageTools.ProgramTypes.Reference)> =
   let (owner, modules, name) = key
 
-  let matches (loc: LanguageTools.ProgramTypes.PackageLocation) : Bool =
+  let matches(loc: LanguageTools.ProgramTypes.PackageLocation): Bool =
     (loc.owner == owner)
-    && ((Stdlib.String.join loc.modules ".") == modules)
+    && ((Stdlib.String.join(loc.modules, ".")) == modules)
     && (loc.name == name)
 
   match op with
   | SetName(loc, target, _) ->
-    if matches loc then
+    if matches(loc) then
       Stdlib.Option.Option.Some((loc, target))
     else
       Stdlib.Option.Option.None
   | Decision(_, loc, _, Override target) ->
-    if matches loc then
+    if matches(loc) then
       Stdlib.Option.Option.Some((loc, target))
     else
       Stdlib.Option.Option.None
@@ -567,63 +567,63 @@ let opBindsKey
 
 /// Set the branch's recorded base for one name to the parent's CURRENT hash. This is what clears a
 /// conflict: the branch stops disagreeing about where it forked from.
-let setBaseToParent (branchId: Uuid) (key: (String * String * String)) : Unit =
+let setBaseToParent(branchId: Uuid, key: (String * String * String)): Unit =
   let (owner, modules, name) = key
-  let parent = SCM.PackageOps.branchParentOf branchId
+  let parent = SCM.PackageOps.branchParentOf(branchId)
 
   let current =
-    parentHashesForBases parent branchId
-    |> Stdlib.Dict.get (nameKey owner modules name)
-    |> Stdlib.Option.withDefault ""
+    parentHashesForBases(parent, branchId)
+    |> Stdlib.Dict.get(nameKey(owner, modules, name))
+    |> Stdlib.Option.withDefault("")
 
   let _ =
-    Stdlib.Sqlite.mustExec
-      (localDb ())
+    Stdlib.Sqlite.mustExec(
+      localDb(),
       "UPDATE branch_name_bases SET base_hash = @p0
-       WHERE branch_id = @p1 AND owner = @p2 AND modules = @p3 AND name = @p4"
-      [ current, Stdlib.toString branchId, owner, modules, name ]
+       WHERE branch_id = @p1 AND owner = @p2 AND modules = @p3 AND name = @p4",
+      [ current, Stdlib.toString(branchId), owner, modules, name ])
 
   ()
 
 
 /// RESOLVE take-theirs: drop the branch's binding for <param fqn> (untag its SetName ops) so the overlay
 /// falls back to the parent's version, then set the base to the parent's current.
-let resolveTakeTheirs
-  (branchId: Uuid)
-  (fqn: String)
+let resolveTakeTheirs(
+  branchId: Uuid,
+  fqn: String)
   : Stdlib.Result.Result<Unit, String> =
-  match parseFqn fqn with
+  match parseFqn(fqn) with
   | None -> Stdlib.Result.Result.Error $"can't parse a name from \"{fqn}\""
   | Some key ->
     // Every op that BINDS the name: a SetName, or the Override a `resolve mine` wrote. `opBindsKey` is
     // the one definition of "binds", so `resolve theirs` after `resolve mine` finds the override too
     // rather than reporting success over an untouched branch.
     let ids =
-      ownFrontierOps branchId
-      |> Stdlib.List.filterMap (fun entry ->
+      ownFrontierOps(branchId)
+      |> Stdlib.List.filterMap(fun entry ->
         let (id, op) = entry
 
-        match opBindsKey op key with
+        match opBindsKey(op, key) with
         | Some _ ->
           Stdlib.Option.Option.Some
-            [ Stdlib.toString id, Stdlib.toString branchId ]
+            [ Stdlib.toString(id), Stdlib.toString(branchId) ]
         | None -> Stdlib.Option.Option.None)
 
     match ids with
     // The NAME, because this reaches a person through `dark resolve` and a name is what they typed.
     | [] ->
       Stdlib.Result.Result.Error
-        $"branch \"{SCM.PackageOps.branchName branchId}\" doesn't bind {fqn} -- nothing to resolve"
+        $"branch \"{SCM.PackageOps.branchName(branchId)}\" doesn't bind {fqn} -- nothing to resolve"
     | rows ->
       // Untag every one of them together: half a binding dropped is a branch that still resolves the
       // name it was just told to stop resolving.
       match
-        Stdlib.Sqlite.execBatch
-          (localDb ())
-          [ ("DELETE FROM op_branches WHERE op_id = @p0 AND branch_id = @p1", rows) ]
+        Stdlib.Sqlite.execBatch(
+          localDb(),
+          [ ("DELETE FROM op_branches WHERE op_id = @p0 AND branch_id = @p1", rows) ])
       with
       | Ok _ ->
-        let _ = setBaseToParent branchId key
+        let _ = setBaseToParent(branchId, key)
         Stdlib.Result.Result.Ok()
       | Error e -> Stdlib.Result.Result.Error e
 
@@ -632,14 +632,14 @@ let resolveTakeTheirs
 ///
 /// MAX(origin_ts) + 1s rather than wall clock, because authoring stamps can run ahead of it (see
 /// `LibDB.OriginTs`) and a peer's op can carry a future stamp. Safe to do to an op nobody has seen yet.
-let stampPastEverything () : String =
-  Stdlib.Sqlite.scalarTextP
-    (localDb ())
+let stampPastEverything(): String =
+  Stdlib.Sqlite.scalarTextP(
+    localDb(),
     "SELECT strftime('%Y-%m-%dT%H:%M:%fZ', MAX(origin_ts), '+1 second') AS ts
-     FROM package_ops"
-    []
-    "ts"
-    ""
+     FROM package_ops",
+    [],
+    "ts",
+    "")
 
 
 /// RESOLVE keep-mine: author an OVERRIDE that re-states the branch's binding with a stamp that wins LWW,
@@ -652,27 +652,27 @@ let stampPastEverything () : String =
 /// branch's frontier ops travel (`branch push`/`branch pull`), so those are exactly the ops that must not
 /// be re-stamped. `Decision`/`Override` exists for this: a deliberate human choice, recorded as its own
 /// op, carrying its own stamp and its own reason.
-let resolveKeepMine
-  (branchId: Uuid)
-  (fqn: String)
+let resolveKeepMine(
+  branchId: Uuid,
+  fqn: String)
   : Stdlib.Result.Result<Unit, String> =
-  match parseFqn fqn with
+  match parseFqn(fqn) with
   | None -> Stdlib.Result.Result.Error $"can't parse a name from \"{fqn}\""
   | Some key ->
     let bound =
-      ownFrontierOps branchId
-      |> Stdlib.List.filterMap (fun entry ->
+      ownFrontierOps(branchId)
+      |> Stdlib.List.filterMap(fun entry ->
         let (_, op) = entry
-        opBindsKey op key)
+        opBindsKey(op, key))
       |> Stdlib.List.last
 
     match bound with
     | None ->
       Stdlib.Result.Result.Error
-        $"branch \"{SCM.PackageOps.branchName branchId}\" doesn't bind {fqn} -- nothing to resolve"
+        $"branch \"{SCM.PackageOps.branchName(branchId)}\" doesn't bind {fqn} -- nothing to resolve"
     | Some binding ->
       let (location, target) = binding
-      let stamp = stampPastEverything ()
+      let stamp = stampPastEverything()
       let (owner, modules, name) = key
 
       // Idempotence is the caller's, per `Decision`: keyed on the name AND the stamp, so resolving twice
@@ -687,9 +687,9 @@ let resolveKeepMine
           LanguageTools.ProgramTypes.DecisionKind.Override target
         )
 
-      match Builtin.scmStoreBranchOpStamped branchId op stamp with
+      match Builtin.scmStoreBranchOpStamped(branchId, op, stamp) with
       | Ok _ ->
-        let _ = setBaseToParent branchId key
+        let _ = setBaseToParent(branchId, key)
         Stdlib.Result.Result.Ok()
       | Error e -> Stdlib.Result.Result.Error e
 
@@ -704,24 +704,24 @@ let resolveKeepMine
 ///
 /// Returns how many ops moved. `INSERT OR IGNORE` then `DELETE` handles the rare case where parent and
 /// child both tag the same op.
-let retagFrontierToParent
-  (branchId: Uuid)
-  (parentId: Uuid)
+let retagFrontierToParent(
+  branchId: Uuid,
+  parentId: Uuid)
   : Stdlib.Result.Result<Int, String> =
-  let b = Stdlib.toString branchId
+  let b = Stdlib.toString(branchId)
 
   let tagged =
-    Stdlib.Sqlite.scalarIntP
-      (localDb ())
-      "SELECT count(*) AS n FROM op_branches WHERE branch_id = @p0"
-      [ b ]
-      "n"
-    |> Stdlib.Option.map (fun n -> Stdlib.Int.fromInt64 n)
-    |> Stdlib.Option.withDefault 0
+    Stdlib.Sqlite.scalarIntP(
+      localDb(),
+      "SELECT count(*) AS n FROM op_branches WHERE branch_id = @p0",
+      [ b ],
+      "n")
+    |> Stdlib.Option.map(fun n -> Stdlib.Int.fromInt64(n))
+    |> Stdlib.Option.withDefault(0)
 
   match
-    Stdlib.Sqlite.execBatch
-      (localDb ())
+    Stdlib.Sqlite.execBatch(
+      localDb(),
       // The tags move with their provenance. The BASES move too: the parent then carries the child's
       // rebinds, and a name without a base can never conflict again, so the grandparent moving one of
       // those names would be invisible at the parent's merge. The child's base is what the parent held at
@@ -729,13 +729,13 @@ let retagFrontierToParent
       // needs; for one it did rebind, INSERT OR IGNORE keeps the parent's own first-touch row.
       [ ("INSERT OR IGNORE INTO op_branches (op_id, branch_id, source)
           SELECT op_id, @p0, source FROM op_branches WHERE branch_id = @p1",
-         [ [ Stdlib.toString parentId, b ] ])
+         [ [ Stdlib.toString(parentId), b ] ])
         ("DELETE FROM op_branches WHERE branch_id = @p0", [ [ b ] ])
         ("INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
           SELECT @p0, owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @p1",
-         [ [ Stdlib.toString parentId, b ] ])
+         [ [ Stdlib.toString(parentId), b ] ])
         ("DELETE FROM branch_name_bases WHERE branch_id = @p0", [ [ b ] ])
-        ("UPDATE branches SET merged_at = datetime('now') WHERE id = @p0", [ [ b ] ]) ]
+        ("UPDATE branches SET merged_at = datetime('now') WHERE id = @p0", [ [ b ] ]) ])
   with
   | Ok _ -> Stdlib.Result.Result.Ok tagged
   | Error e -> Stdlib.Result.Result.Error e
@@ -743,39 +743,39 @@ let retagFrontierToParent
 
 /// Every op id tagged to <param branchId>, decodable or not. What a merge is about to move, read BEFORE
 /// either merge arm drops the tags, so the event that travels can name them.
-let frontierIds (branchId: Uuid) : List<Uuid> =
-  Stdlib.Sqlite.rowsP
-    (localDb ())
-    "SELECT op_id FROM op_branches WHERE branch_id = @p0"
-    [ Stdlib.toString branchId ]
-    (fun row -> Stdlib.Sqlite.uuidField row "op_id")
+let frontierIds(branchId: Uuid): List<Uuid> =
+  Stdlib.Sqlite.rowsP(
+    localDb(),
+    "SELECT op_id FROM op_branches WHERE branch_id = @p0",
+    [ Stdlib.toString(branchId) ],
+    fun row -> Stdlib.Sqlite.uuidField(row, "op_id"))
 
 
 /// MERGE into MAIN, first half: flip this branch's ops to effective so the fold will take them.
 ///
 /// Returns how many ops are ABOUT to flip, not how many are tagged. A branch can carry tags on ops main
 /// already has -- a whole-log import does -- and counting those reports work the merge did not do.
-let markMergedEffective (branchId: Uuid) : Stdlib.Result.Result<Int, String> =
-  let b = Stdlib.toString branchId
+let markMergedEffective(branchId: Uuid): Stdlib.Result.Result<Int, String> =
+  let b = Stdlib.toString(branchId)
 
   let toFlip =
-    Stdlib.Sqlite.scalarIntP
-      (localDb ())
+    Stdlib.Sqlite.scalarIntP(
+      localDb(),
       "SELECT count(*) AS n FROM package_ops p
        JOIN op_branches ob ON ob.op_id = p.id
-       WHERE ob.branch_id = @p0 AND p.effective = 0"
-      [ b ]
-      "n"
-    |> Stdlib.Option.map (fun n -> Stdlib.Int.fromInt64 n)
-    |> Stdlib.Option.withDefault 0
+       WHERE ob.branch_id = @p0 AND p.effective = 0",
+      [ b ],
+      "n")
+    |> Stdlib.Option.map(fun n -> Stdlib.Int.fromInt64(n))
+    |> Stdlib.Option.withDefault(0)
 
   match
-    Stdlib.Sqlite.execP
-      (localDb ())
+    Stdlib.Sqlite.execP(
+      localDb(),
       "UPDATE package_ops SET effective = 1
        WHERE effective = 0
-         AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @p0)"
-      [ b ]
+         AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @p0)",
+      [ b ])
   with
   | Ok _ -> Stdlib.Result.Result.Ok toFlip
   | Error e -> Stdlib.Result.Result.Error e
@@ -787,14 +787,14 @@ let markMergedEffective (branchId: Uuid) : Stdlib.Result.Result<Int, String> =
 /// frontier first leaves a branch with no ops and no merged flag, which the gate refuses as "nothing to
 /// merge" while its changes are already in main, and which `dark branches` lists as live forever. Every
 /// other point is recoverable by running the merge again, because the frontier is still tagged.
-let finishMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
-  let b = Stdlib.toString branchId
+let finishMerge(branchId: Uuid): Stdlib.Result.Result<Unit, String> =
+  let b = Stdlib.toString(branchId)
 
   match
-    Stdlib.Sqlite.execBatch
-      (localDb ())
+    Stdlib.Sqlite.execBatch(
+      localDb(),
       [ ("UPDATE branches SET merged_at = datetime('now') WHERE id = @p0", [ [ b ] ])
-        ("DELETE FROM op_branches WHERE branch_id = @p0", [ [ b ] ]) ]
+        ("DELETE FROM op_branches WHERE branch_id = @p0", [ [ b ] ]) ])
   with
   | Ok _ -> Stdlib.Result.Result.Ok()
   | Error e -> Stdlib.Result.Result.Error e

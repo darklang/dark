@@ -8,9 +8,9 @@ module Darklang.Cli.Workbench
 /// prompt, quit, ` for the nav, and the number keys for the workspaces.
 /// None if `keyChar` isn't one of them. Both the nav and the plain view
 /// fall through to this, so neither has to repeat it.
-let globalKey (state: State) (keyChar: Stdlib.Option.Option<String>) : Stdlib.Option.Option<Step> =
+let globalKey(state: State, keyChar: Stdlib.Option.Option<String>): Stdlib.Option.Option<Step> =
   match keyChar with
-  | Some "S" -> Stdlib.Option.Option.Some (openBranchPicker state)
+  | Some "S" -> Stdlib.Option.Option.Some (openBranchPicker(state))
   | Some "q" -> Stdlib.Option.Option.Some (Step.Exit state)
   | Some "?" -> Stdlib.Option.Option.Some (Step.Continue { state with overlay = Overlay.Keymap })
   // The way back to the prompt, on one key. It's an escape hatch, and an
@@ -19,7 +19,7 @@ let globalKey (state: State) (keyChar: Stdlib.Option.Option<String>) : Stdlib.Op
   | Some "p" -> Stdlib.Option.Option.Some (Step.ToPrompt state)
   // ` is "go somewhere": the nav takes the keyboard (as an overlay on a
   // narrow terminal).
-  | Some "`" -> Stdlib.Option.Option.Some (Step.Continue (focusNavbar state))
+  | Some "`" -> Stdlib.Option.Option.Some (Step.Continue (focusNavbar(state)))
   | Some ":" ->
     // Command bar - run any old-school command (or eval an expression) from
     // anywhere in the workbench.
@@ -27,170 +27,170 @@ let globalKey (state: State) (keyChar: Stdlib.Option.Option<String>) : Stdlib.Op
       (Step.Continue
         { state with
             completionSel = 0
-            input = Stdlib.Option.Option.Some (InputState { prompt = ": ", field = Stdlib.Cli.UI.TextField.fromText "", action = "command" }) })
+            input = Stdlib.Option.Option.Some (InputState { prompt = ": ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "command" }) })
   | Some "/" ->
     // Search prompt - find any package item across the whole tree.
     Stdlib.Option.Option.Some
       (Step.Continue
         { state with
-            input = Stdlib.Option.Option.Some (InputState { prompt = "search ", field = Stdlib.Cli.UI.TextField.fromText "", action = "search" }) })
+            input = Stdlib.Option.Option.Some (InputState { prompt = "search ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "search" }) })
   | Some s ->
-    match Stdlib.Int.parse s with
-    | Ok n -> Stdlib.Option.Option.Some (Step.Continue (jumpToWorkspace state n))
+    match Stdlib.Int.parse(s) with
+    | Ok n -> Stdlib.Option.Option.Some (Step.Continue (jumpToWorkspace(state, n)))
     | Error _ -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
 /// Is the cursor on a row of this kind?
-let cursorRowIs (state: State) (kind: String) : Bool =
-  match Stdlib.List.getAt state.items state.selected with
+let cursorRowIs(state: State, kind: String): Bool =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | Some it -> it.kind == kind
   | None -> false
 
 /// Is the cursor on a Home row of this kind?
-let homeRowIs (state: State) (kind: String) : Bool =
-  (state.activeView == vHome) && (cursorRowIs state kind)
+let homeRowIs(state: State, kind: String): Bool =
+  (state.activeView == vHome) && (cursorRowIs(state, kind))
 
 /// Put the Matter view on <param lens>: reload the items for it and reset the cursor, the detail
 /// scroll and the filter, all of which indexed the list the lens just replaced.
-let withLens (state: State) (lens: Lens) : State =
-  moveToPoint state
-    { (returnPointOf state) with lens = lens, selected = 0, filter = "" } true
+let withLens(state: State, lens: Lens): State =
+  moveToPoint(state,
+    { (returnPointOf(state)) with lens = lens, selected = 0, filter = "" }, true)
 
 /// Movement and view actions when no modal layer owns the key.
-let handleViewKey
-  (state: State)
-  (key: Stdlib.Cli.Stdin.Key.Key)
-  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
-  (keyChar: Stdlib.Option.Option<String>)
+let handleViewKey(
+  state: State,
+  key: Stdlib.Cli.Stdin.Key.Key,
+  modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers,
+  keyChar: Stdlib.Option.Option<String>)
   : Step =
   match key with
   // shift+arrow is ten of them. See `repeatStep`: Home and End are still there and he does
   // not use them, and this asks for no fn key and takes no letter away from anything.
-  | UpArrow -> if modifiers.shift then repeatStep state navUp 10 else navUp state
-  | DownArrow -> if modifiers.shift then repeatStep state navDown 10 else navDown state
+  | UpArrow -> if modifiers.shift then repeatStep(state, navUp, 10) else navUp(state)
+  | DownArrow -> if modifiers.shift then repeatStep(state, navDown, 10) else navDown(state)
   // ←/→ move between the panes - list, detail - the way they sit on screen.
   // Going into a module is ⏎ (and back out is esc), so the arrows mean one
   // thing everywhere. The nav is above, reached by esc, tab or `.
-  | RightArrow -> focusRight state
-  | LeftArrow -> focusLeft state
+  | RightArrow -> focusRight(state)
+  | LeftArrow -> focusLeft(state)
   | Enter ->
     if state.activeView == vHome then
       // Home: ⏎ goes to the thing the row is about - see `openHomeRow`.
-      openHomeRow state
+      openHomeRow(state)
     else if state.activeView == vDocs then
       // Docs: open the selected topic in the full-body reader (prose, not code). By name, not by index - the
       // list is filterable, see `selectedDocTopic`.
-      match selectedDocTopic state with
-      | Some t -> openReader state (t.content ()) false
+      match selectedDocTopic(state) with
+      | Some t -> openReader(state, t.content(), false)
       | None -> Step.Continue state
     else if state.activeView == vSCM then
       // Changes: a conflict opens its versions; a change opens its current source.
-      match Stdlib.List.getAt state.items state.selected with
+      match Stdlib.List.getAt(state.items, state.selected) with
       | Some it ->
-        if it.kind == "conflict" then openReader state (conflictDetail state) false
+        if it.kind == "conflict" then openReader(state, conflictDetail(state), false)
         else if it.kind == "removed" then Step.Continue state
-        else openReader state (changesSourceText state.branchId (Stdlib.Option.Option.Some it)) true
+        else openReader(state, changesSourceText(state.branchId, Stdlib.Option.Option.Some it), true)
       | None -> Step.Continue state
     else if state.activeView == vScratch then
       // Scratch: open the eval prompt; the result appends to the log.
       Step.Continue
         { state with
-            input = Stdlib.Option.Option.Some (InputState { prompt = "repl> ", field = Stdlib.Cli.UI.TextField.fromText "", action = "scratch" }) }
+            input = Stdlib.Option.Option.Some (InputState { prompt = "repl> ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "scratch" }) }
     else if state.activeView == vTraces then
       // Traces: ⏎ opens the selected trace's detail.
-      openReader state (traceDetail state) false
+      openReader(state, traceDetail(state), false)
     else if state.activeView == vMatter then
       // Matter: Enter descends into a module, or opens a leaf's source full-screen.
-      match Stdlib.List.getAt state.items state.selected with
+      match Stdlib.List.getAt(state.items, state.selected) with
       | Some item ->
-        if item.isModule then descend state
+        if item.isModule then descend(state)
         else
           // The reader is full-width and frameless, so the NAME rides as its first line: arriving
           // via search, nothing else on screen says what you are reading.
           let title =
-            Stdlib.Cli.UI.Colors.dimText
-              ((Stdlib.String.join (Packages.modulePathOf state.location) ".") + "." + item.name + "  · " + item.kind)
+            Stdlib.Cli.UI.Colors.dimText(
+              (Stdlib.String.join(Packages.modulePathOf(state.location), ".")) + "." + item.name + "  · " + item.kind)
 
-          openReader
-            state
+          openReader(
+            state,
             (title
              + "\n\n"
-             + (Stdlib.List.concat (detailLines state) (selectedFunctionTestRows state)
-                |> Stdlib.String.join "\n"))
-            true
-      | None -> descend state
+             + (Stdlib.List.concat(detailLines(state), selectedFunctionTestRows(state))
+                |> Stdlib.String.join("\n"))),
+            true)
+      | None -> descend(state)
     else
-      descend state
+      descend(state)
   | Tab ->
     // Tab moves to the next pane: list → detail → nav (when it's a strip)
     // → list.
-    if Stdlib.Bool.not (hasDetailPane state) then
-      Step.Continue (focusNavbar state)
+    if Stdlib.Bool.not(hasDetailPane(state)) then
+      Step.Continue (focusNavbar(state))
     else if state.focus == Stdlib.Cli.UI.SplitPane.Focus.First then
       Step.Continue { state with focus = Stdlib.Cli.UI.SplitPane.Focus.Second }
-    else if navFitsNow () then
-      Step.Continue (focusNavbar state)
+    else if navFitsNow() then
+      Step.Continue (focusNavbar(state))
     else
       Step.Continue { state with focus = Stdlib.Cli.UI.SplitPane.Focus.First }
   | Escape ->
     // Escape is one step back, everywhere, and never quits (that's `q`): the
     // module you came from, the view you came from, Home at the end. The
     // footer names the destination.
-    goBack state
-  | Home -> navTop state
-  | End -> navBottom state
+    goBack(state)
+  | Home -> navTop(state)
+  | End -> navBottom(state)
   | Backspace ->
     // Up one module, whatever the history says. ← moves panes, so this is
     // the only key that means "the module above".
-    ascend state
+    ascend(state)
   | _ ->
     match keyChar with
     // No vim motion. The arrows and Home/End above are the movement, and a second way to move
     // costs six letters that actions want more.
     | Some "a" ->
       // Changes, on a conflict row: acknowledge.
-      if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "ok"
+      if (state.activeView == vSCM) && (cursorRowIs(state, "conflict")) then resolveConflict(state, "ok")
       else Step.Continue state
     | Some "e" ->
       // Matter: edit the selected fn in place (prefill the editor from its source).
       if state.activeView == vMatter then
-        match Stdlib.List.getAt state.items state.selected with
+        match Stdlib.List.getAt(state.items, state.selected) with
         | Some item ->
-          if item.isModule then Step.Continue state else openEditExisting state item
+          if item.isModule then Step.Continue state else openEditExisting(state, item)
         | None -> Step.Continue state
       else
         Step.Continue state
     | Some "n" ->
-      if state.activeView == vMatter then startNew state "fn" else Step.Continue state
+      if state.activeView == vMatter then startNew(state, "fn") else Step.Continue state
     | Some "t" ->
-      if state.activeView == vMatter then startNew state "type"
-      else if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "theirs"
+      if state.activeView == vMatter then startNew(state, "type")
+      else if (state.activeView == vSCM) && (cursorRowIs(state, "conflict")) then resolveConflict(state, "theirs")
       else Step.Continue state
     | Some "o" ->
       // Changes, on a conflict row: keep ours.
-      if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "ours"
+      if (state.activeView == vSCM) && (cursorRowIs(state, "conflict")) then resolveConflict(state, "ours")
       else Step.Continue state
     | Some "v" ->
-      if state.activeView == vMatter then startNew state "value" else Step.Continue state
+      if state.activeView == vMatter then startNew(state, "value") else Step.Continue state
     // Shifted, because `t` is already a type and `i` is install in the Apps view. Their letters
     // match the commands that do the same thing, `dark trait` and `dark impl`, so the two surfaces
     // agree on what they are called.
     | Some "T" ->
-      if state.activeView == vMatter then startNew state "trait" else Step.Continue state
+      if state.activeView == vMatter then startNew(state, "trait") else Step.Continue state
     | Some "I" ->
-      if state.activeView == vMatter then startNew state "impl" else Step.Continue state
+      if state.activeView == vMatter then startNew(state, "impl") else Step.Continue state
     | Some "L" ->
       // Matter: cycle the Lens - the whole tree, values only, then what you've changed. (L, not V, to
       // avoid clashing with v = new value.)
       if state.activeView == vMatter then
-        Step.Continue (withLens state (otherLens state.matter.lens))
+        Step.Continue (withLens(state, otherLens(state.matter.lens)))
       else Step.Continue state
     | Some "C" ->
       // Matter: straight to the Changed lens, because it's the one you reach for constantly. "What moved
       // because of what I just did" is asked many times an hour, and making it two presses of a cycle is
       // how people stop asking.
       if state.activeView == vMatter then
-        Step.Continue (withLens state Lens.Changed)
+        Step.Continue (withLens(state, Lens.Changed))
       else Step.Continue state
     | Some "f" ->
       // Scratch: clear the log. Elsewhere: open a find-as-you-type filter for the current list.
@@ -201,13 +201,13 @@ let handleViewKey
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some (InputState { prompt = "filter: ", field = Stdlib.Cli.UI.TextField.fromText state.filter, action = "filter" }) }
+                Stdlib.Option.Option.Some (InputState { prompt = "filter: ", field = Stdlib.Cli.UI.TextField.fromText(state.filter), action = "filter" }) }
     | Some "c" ->
       if (state.activeView == vSCM) || (state.activeView == vHome) then
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some (InputState { prompt = "commit message: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "commit" }) }
+                Stdlib.Option.Option.Some (InputState { prompt = "commit message: ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "commit" }) }
       else Step.Continue state
     | Some "x" ->
       // Matter: the traces that called the selected fn. REPL: x drops the
@@ -216,7 +216,7 @@ let handleViewKey
       if state.activeView == vTraces then
         // Confirmed, like `x` on Changes, because a run is the only record of what happened and
         // nothing brings it back.
-        match Stdlib.List.getAt state.items state.selected with
+        match Stdlib.List.getAt(state.items, state.selected) with
         | Some item ->
           Step.Continue
             { state with
@@ -224,14 +224,14 @@ let handleViewKey
                   Stdlib.Option.Option.Some
                     (InputState
                       { prompt =
-                          $"delete trace {Cli.Text.shortIdText item.name}? type y then enter: "
-                        field = Stdlib.Cli.UI.TextField.fromText ""
+                          $"delete trace {Cli.Text.shortIdText(item.name)}? type y then enter: "
+                        field = Stdlib.Cli.UI.TextField.fromText("")
                         action = "trace-delete" }) }
         | None -> Step.Continue state
       else if state.activeView == vMatter then
-        match Stdlib.List.getAt state.items state.selected with
+        match Stdlib.List.getAt(state.items, state.selected) with
         | Some item ->
-          if item.isModule then Step.Continue state else openReader state (tracesText state) false
+          if item.isModule then Step.Continue state else openReader(state, tracesText(state), false)
         | None -> Step.Continue state
       else if state.activeView == vScratch then
         Step.Continue
@@ -239,67 +239,67 @@ let handleViewKey
               repl = { state.repl with bindings = [] }
               messageKind = MessageKind.Succeeded
               message = "session bindings cleared" }
-      else if homeRowIs state "home-branch" then
-        match selectedBranch state with
+      else if homeRowIs(state, "home-branch") then
+        match selectedBranch(state) with
         | Some b ->
           Step.Continue
             { state with
                 input =
                   Stdlib.Option.Option.Some
-                    (InputState { prompt = "delete branch " + b.name + "? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "branch-delete" }) }
+                    (InputState { prompt = "delete branch " + b.name + "? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "branch-delete" }) }
         | None -> Step.Continue state
       else if (state.activeView == vSCM) then
         Step.Continue
           { state with
               input =
                 Stdlib.Option.Option.Some
-                  (InputState { prompt = "discard ALL uncommitted? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "discard" }) }
+                  (InputState { prompt = "discard ALL uncommitted? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "discard" }) }
       else Step.Continue state
     | Some "b" ->
       if state.activeView == vHome then
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some (InputState { prompt = "new branch name: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "branch-create" }) }
+                Stdlib.Option.Option.Some (InputState { prompt = "new branch name: ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "branch-create" }) }
       else Step.Continue state
     | Some "s" ->
       // Home: switch branch.
-      if state.activeView == vHome then openBranchPicker state
+      if state.activeView == vHome then openBranchPicker(state)
       else Step.Continue state
     | Some "m" ->
       if state.activeView == vHome then
-        match branchForAction state with
+        match branchForAction(state) with
         | Some b ->
           Step.Continue
             { state with
                 input =
-                  Stdlib.Option.Option.Some (InputState { prompt = "merge " + b.name + " into parent? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "merge" }) }
+                  Stdlib.Option.Option.Some (InputState { prompt = "merge " + b.name + " into parent? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "merge" }) }
         | None -> Step.Continue state
       else Step.Continue state
     | Some "B" ->
       // Code: the builtins, the bottom tier of the tree. Gated, so only when this account can
       // see them; otherwise the key does nothing rather than opening a view that isn't there.
-      let builtins = extViewIndex "builtins"
-      if (state.activeView == vMatter) && (Stdlib.List.contains (visibleViews state) builtins) then
-        Step.Continue (goTo state (mkDest builtins 0) false)
+      let builtins = extViewIndex("builtins")
+      if (state.activeView == vMatter) && (Stdlib.List.contains(visibleViews(state), builtins)) then
+        Step.Continue (goTo(state, mkDest(builtins, 0), false))
       else Step.Continue state
     | Some "E" ->
       // Traces: the errors, the other half of what running software leaves behind. `5` comes back.
       if state.activeView == vTraces then
-        Step.Continue (goTo state (mkDest (extViewIndex "errors") 0) false)
+        Step.Continue (goTo(state, mkDest(extViewIndex("errors"), 0), false))
       else Step.Continue state
     | Some "P" ->
       // Traces: what the scheduler is running right NOW, where Traces is what it already ran.
       // This key used to be on the Apps view, which is how Processes briefly had no route at all.
       if state.activeView == vTraces then
-        Step.Continue (goTo state (mkDest (extViewIndex "processes") 0) false)
+        Step.Continue (goTo(state, mkDest(extViewIndex("processes"), 0), false))
       else Step.Continue state
     | Some "R" ->
       // Reload now: what `--live` would have done for you. The footer says when there is
       // something to reload, and pressing it when there is not costs one re-read.
       Step.Continue
-        (forceScmRefresh
-          { state with items = reloadItems state, messageKind = MessageKind.Succeeded, message = "reloaded" })
+        (forceScmRefresh(
+          { state with items = reloadItems(state), messageKind = MessageKind.Succeeded, message = "reloaded" }))
     | Some "p" ->
       // Traces: pin the run under the cursor, or unpin it. Retention drops the oldest runs as
       // they pile up, and the one you are reading is the one you least want dropped. In place,
@@ -309,19 +309,19 @@ let handleViewKey
       // rule every other letter follows here (`r` is rebase on Home, start on Apps, rename on
       // Code), and the footer says which one you are looking at.
       if state.activeView == vTraces then
-        match Stdlib.List.getAt state.items state.selected with
+        match Stdlib.List.getAt(state.items, state.selected) with
         | Some item ->
-          match Cli.TraceVerbs.find item.name with
+          match Cli.TraceVerbs.find(item.name) with
           | Error m -> Step.Continue { state with messageKind = MessageKind.Refused, message = m }
           | Ok run ->
-            let wanted = Stdlib.Bool.not run.pinned
-            if Darklang.Tracing.Store.setPinned run.id wanted then
+            let wanted = Stdlib.Bool.not(run.pinned)
+            if Darklang.Tracing.Store.setPinned(run.id, wanted) then
               let verb = if wanted then "pinned" else "unpinned"
-              let reloaded = { state with items = reloadItems state }
+              let reloaded = { state with items = reloadItems(state) }
               Step.Continue
                 { reloaded with
                     messageKind = MessageKind.Succeeded
-                    message = $"{verb} {Cli.Text.shortIdText run.id}" }
+                    message = $"{verb} {Cli.Text.shortIdText(run.id)}" }
             else
               Step.Continue
                 { state with messageKind = MessageKind.Refused, message = "that run is gone: it was dropped while you looked at it" }
@@ -334,21 +334,21 @@ let handleViewKey
       // the terminal over for exactly that.
       // Matter: rename the selected leaf.
       if state.activeView == vTraces then
-        match Stdlib.List.getAt state.items state.selected with
+        match Stdlib.List.getAt(state.items, state.selected) with
         | Some item ->
-          Step.Launch(state, $"traces resume {Cli.Text.shortIdText item.name}")
+          Step.Launch(state, $"traces resume {Cli.Text.shortIdText(item.name)}")
         | None -> Step.Continue state
       else if state.activeView == vHome then
-        match branchForAction state with
+        match branchForAction(state) with
         | Some b ->
           Step.Continue
             { state with
                 input =
                   Stdlib.Option.Option.Some
-                    (InputState { prompt = "rebase " + b.name + " onto parent? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText "", action = "rebase" }) }
+                    (InputState { prompt = "rebase " + b.name + " onto parent? type y then enter: ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "rebase" }) }
         | None -> Step.Continue state
       else if state.activeView == vMatter then
-        match Stdlib.List.getAt state.items state.selected with
+        match Stdlib.List.getAt(state.items, state.selected) with
         | Some item ->
           if item.isModule then Step.Continue state
           else
@@ -356,12 +356,12 @@ let handleViewKey
               { state with
                   input =
                     Stdlib.Option.Option.Some
-                      (InputState { prompt = "rename to: ", field = Stdlib.Cli.UI.TextField.fromText item.name, action = "rename" }) }
+                      (InputState { prompt = "rename to: ", field = Stdlib.Cli.UI.TextField.fromText(item.name), action = "rename" }) }
         | None -> Step.Continue state
       else
         Step.Continue state
     | _ ->
-      match globalKey state keyChar with
+      match globalKey(state, keyChar) with
       | Some step -> step
       | None -> Step.Continue state
 
@@ -373,36 +373,36 @@ let handleViewKey
 ///
 /// Each layer either owns the key or defers to the next. The order is the visual stacking order: an overlay
 /// beats the editor, the editor beats the command bar, and so on down to the plain view.
-let handleKey
-  (state: State)
-  (key: Stdlib.Cli.Stdin.Key.Key)
-  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
-  (keyChar: Stdlib.Option.Option<String>)
+let handleKey(
+  state: State,
+  key: Stdlib.Cli.Stdin.Key.Key,
+  modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers,
+  keyChar: Stdlib.Option.Option<String>)
   : Step =
   // A transient toast lives for exactly one keypress: clear it here, so any key dismisses the last message.
   let state = if state.message == "" then state else { state with messageKind = MessageKind.Succeeded, message = "" }
 
   // An overlay is modal: it takes the key before anything else acts on it.
   match state.overlay with
-  | Branches picker -> handleBranchPickerKey state picker key modifiers keyChar
+  | Branches picker -> handleBranchPickerKey(state, picker, key, modifiers, keyChar)
   | Keymap ->
     // Any key closes the keymap.
     Step.Continue { state with overlay = Overlay.NoOverlay }
   | NoOverlay ->
     match state.editing with
-    | Some es -> handleEditorKey state es key modifiers keyChar
+    | Some es -> handleEditorKey(state, es, key, modifiers, keyChar)
     | None ->
       match state.input with
-      | Some inp -> handleInputKey state inp key modifiers keyChar
+      | Some inp -> handleInputKey(state, inp, key, modifiers, keyChar)
       | None ->
         match state.reading with
-        | Some content -> handleReaderKey state content key keyChar
+        | Some content -> handleReaderKey(state, content, key, keyChar)
         | None ->
-          if Stdlib.Bool.not (Stdlib.List.isEmpty state.search.hits) then
-            handleSearchResultsKey state key keyChar
-          else if navbarFocused state then
+          if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then
+            handleSearchResultsKey(state, key, keyChar)
+          else if navbarFocused(state) then
             // Let Home's welcome shortcut work before content has focus.
-            if (state.activeView == vHome) && (keyChar == Stdlib.Option.Option.Some "b") then handleViewKey state key modifiers keyChar
-            else handleNavbarKey state key keyChar
+            if (state.activeView == vHome) && (keyChar == Stdlib.Option.Option.Some "b") then handleViewKey(state, key, modifiers, keyChar)
+            else handleNavbarKey(state, key, keyChar)
           else
-            handleViewKey state key modifiers keyChar
+            handleViewKey(state, key, modifiers, keyChar)

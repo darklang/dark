@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.HttpServer
 
-let content () : String =
+let content(): String =
   """# HTTP Server
 
 ## Start
@@ -46,31 +46,31 @@ Handlers are values; `routeRequest` dispatches to them by method and path.
 
 Method and path are NOT fields - they're derived:
 
-  Stdlib.HttpServer.getMethod req      # "GET" (from the x-http-method header)
-  Stdlib.HttpServer.getPath req        # "/users/42"
-  Stdlib.Http.parseQueryString req.url  # query string -> Dict
+  Stdlib.HttpServer.getMethod(req)      # "GET" (from the x-http-method header)
+  Stdlib.HttpServer.getPath(req)        # "/users/42"
+  Stdlib.Http.parseQueryString(req.url)  # query string -> Dict
 
 `body` is a Bytes. For text or JSON, convert first:
 
-  let text = Stdlib.String.fromBytesWithReplacement req.body
+  let text = Stdlib.String.fromBytesWithReplacement(req.body)
 
 ## Response
 
 Body first, status second - the reverse of what you might expect.
 
-  Stdlib.Http.responseWithText "Hello" 200
-  Stdlib.Http.responseWithHtml "<h1>Hi</h1>" 200
-  Stdlib.Http.responseWithJson jsonString 200
-  Stdlib.Http.responseWithHeaders body 200 [ ("x-thing", "value") ]
-  Stdlib.Http.response bodyBytes 200          # the raw one; body is a Bytes
-  Stdlib.Http.notFound ()
+  Stdlib.Http.responseWithText("Hello", 200)
+  Stdlib.Http.responseWithHtml("<h1>Hi</h1>", 200)
+  Stdlib.Http.responseWithJson(jsonString, 200)
+  Stdlib.Http.responseWithHeaders(body, 200, [ ("x-thing", "value") ])
+  Stdlib.Http.response(bodyBytes, 200)          # the raw one; body is a Bytes
+  Stdlib.Http.notFound()
 
 ## Route params
 
   # given route "/user/:id" and a request for "/user/42"
-  match Stdlib.HttpServer.getPathParam req "/user/:id" "id" with
-  | Some id -> Stdlib.Http.responseWithText $"user {id}" 200
-  | None -> Stdlib.Http.notFound ()
+  match Stdlib.HttpServer.getPathParam(req, "/user/:id", "id") with
+  | Some id -> Stdlib.Http.responseWithText($"user {id}", 200)
+  | None -> Stdlib.Http.notFound()
 
 `matchRoute pattern path` is the lower-level form. It returns a record, not an
 Option: `{ matched: Bool, vars: List<String * String> }`.

@@ -4,21 +4,21 @@ module Darklang.Stdlib.Cli.Log
 // When one is added, warn/error should switch to stderr.
 
 /// Log an info message (green prefix)
-let info (msg: String) : Unit =
-  Stdlib.printLine ($"{Stdlib.Cli.UI.Colors.greenText "[INFO]"} {msg}")
+let info(msg: String): Unit =
+  Stdlib.printLine($"{Stdlib.Cli.UI.Colors.greenText("[INFO]")} {msg}")
 
 /// Log a warning message (yellow prefix)
-let warn (msg: String) : Unit =
-  Stdlib.printLine ($"{Stdlib.Cli.UI.Colors.yellowText "[WARN]"} {msg}")
+let warn(msg: String): Unit =
+  Stdlib.printLine($"{Stdlib.Cli.UI.Colors.yellowText("[WARN]")} {msg}")
 
 /// Log an error message (red prefix)
-let error (msg: String) : Unit =
-  Stdlib.printLine ($"{Stdlib.Cli.UI.Colors.redText "[ERROR]"} {msg}")
+let error(msg: String): Unit =
+  Stdlib.printLine($"{Stdlib.Cli.UI.Colors.redText("[ERROR]")} {msg}")
 
 /// Log a debug message (gray prefix)
-let debug (msg: String) : Unit =
-  Stdlib.printLine ($"{Stdlib.Cli.UI.Colors.grayText "[DEBUG]"} {msg}")
+let debug(msg: String): Unit =
+  Stdlib.printLine($"{Stdlib.Cli.UI.Colors.grayText("[DEBUG]")} {msg}")
 
 /// Log a success message (green prefix with checkmark)
-let success (msg: String) : Unit =
-  Stdlib.printLine ($"{Stdlib.Cli.UI.Colors.greenText "[OK]"} {msg}")
+let success(msg: String): Unit =
+  Stdlib.printLine($"{Stdlib.Cli.UI.Colors.greenText("[OK]")} {msg}")

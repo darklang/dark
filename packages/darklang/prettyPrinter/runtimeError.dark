@@ -73,72 +73,72 @@ module RuntimeError =
   type ErrorSegments = List<ErrorSegment>
 
 
-  let segmentsToString (branchId: Uuid) (segments: ErrorSegments) : String =
-    let reversed = Stdlib.List.reverse segments
+  let segmentsToString(branchId: Uuid, segments: ErrorSegments): String =
+    let reversed = Stdlib.List.reverse(segments)
 
     let parts =
-      Stdlib.List.fold reversed [] (fun prevSegments segment ->
+      Stdlib.List.fold(reversed, [], fun prevSegments segment ->
 
         let newSegment =
           match segment with
           | String s -> s
-          | Int i -> Stdlib.toString i
-          | Ordinal i -> Stdlib.English.toOrdinal i
+          | Int i -> Stdlib.toString(i)
+          | Ordinal i -> Stdlib.English.toOrdinal(i)
           | Count(i, singular, plural) ->
-            let count = Stdlib.toString i
+            let count = Stdlib.toString(i)
 
             if i == 1 then
-              let segment = segmentsToString branchId [ singular ]
+              let segment = segmentsToString(branchId, [ singular ])
               $"{count} {segment}"
             else
-              let segment = segmentsToString branchId [ plural ]
+              let segment = segmentsToString(branchId, [ plural ])
               $"{count} {segment}"
 
           | IndefiniteArticle ->
             //Builtin.debug "prevSegments" prevSegments
-            match Stdlib.List.head prevSegments with
+            match Stdlib.List.head(prevSegments) with
             | None -> ""
-            | Some prev -> Stdlib.English.articleFor prev + " "
+            | Some prev -> Stdlib.English.articleFor(prev) + " "
 
-          | FunctionName fn -> fnName branchId fn
+          | FunctionName fn -> fnName(branchId, fn)
 
           | Description d -> d
           | ParamName p -> $"`{p}`"
           | InlineParamName p -> p // Inline versions don't have quotes
-          | TypeName t -> typeName branchId t
-          | ValueName v -> valueName branchId v
-          | ShortTypeName t -> shortTypeName branchId t
-          | TraitName t -> traitName branchId t
-          | ShortTraitName t -> shortTraitName branchId t
-          | TypeReference t -> typeReference branchId t
-          | TypeOfValue dv -> Dval.valueTypeName branchId dv
-          | ValueType vt -> valueType branchId vt
+          | TypeName t -> typeName(branchId, t)
+          | ValueName v -> valueName(branchId, v)
+          | ShortTypeName t -> shortTypeName(branchId, t)
+          | TraitName t -> traitName(branchId, t)
+          | ShortTraitName t -> shortTraitName(branchId, t)
+          | TypeReference t -> typeReference(branchId, t)
+          | TypeOfValue dv -> Dval.valueTypeName(branchId, dv)
+          | ValueType vt -> valueType(branchId, vt)
           | DeclaredValueType(declared, vt) ->
-            declaredValueType branchId declared vt
+            declaredValueType(branchId, declared, vt)
           | FieldName f -> $"`{f}`"
           | InlineFieldName f -> f
           | VarName v -> $"`{v}`"
           | InlineVarName v -> v
           | InlineValue dv ->
             // CLEANUP for strings that are cut off, the closing `"` is missing.
-            (dval branchId dv)
-            |> Stdlib.String.ellipsis 10
+            (dval(branchId, dv))
+            |> Stdlib.String.ellipsis(10)
             |> Stdlib.String.splitOnNewline
-            |> Stdlib.String.join ""
-          | FullValue dv -> dval branchId dv
-          | LetPattern p -> letPattern p
+            |> Stdlib.String.join("")
+          | FullValue dv -> dval(branchId, dv)
+          | LetPattern p -> letPattern(p)
           | segment ->
-            $"(RTETODO segmentsToString parts {(Stdlib.Json.serialize<ErrorSegment> segment)})"
+            $"(RTETODO segmentsToString parts {(Stdlib.Json.serialize<ErrorSegment>(segment))})"
 
-        Stdlib.List.prepend prevSegments newSegment)
+        Stdlib.List.prepend(prevSegments, newSegment))
 
-    Stdlib.String.join parts ""
+    Stdlib.String.join(parts, "")
 
 
   /// For a value type that has a `toString` in stdlib, return a hint
   /// suffix pointing the user at the right conversion function. Empty
   /// string otherwise (Unknown, Unit, String, collection/custom types).
-  let toStringHint (vt: LanguageTools.RuntimeTypes.ValueType) : String =
+  let toStringHint(vt: LanguageTools.RuntimeTypes.ValueType): String =
     // One hint for the types that have a ToString impl; `Stdlib.toString` is the fn to
     // reach for whichever it is. Collections and custom types have none, so no hint.
     match vt with
@@ -163,8 +163,8 @@ module RuntimeError =
 
   // The only exhaustive match over RuntimeError on the Dark side. A new RuntimeError case needs an
   // arm here, and Dark says nothing at build time: the first error of that kind raises right here.
-  let toSegments
-    (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+  let toSegments(
+    e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : ErrorSegments =
     match e with
     | Bool err ->
@@ -205,7 +205,7 @@ module RuntimeError =
         ES.ValueType vt
         ES.String " ("
         ES.InlineValue dv
-        ES.String $") instead{toStringHint vt}" ]
+        ES.String $") instead{toStringHint(vt)}" ]
 
     | List (TriedToAddMismatchedData (index, expectedType, actualType, actualValue)) ->
       [ ES.String "Cannot add "
@@ -216,7 +216,7 @@ module RuntimeError =
         ES.String ") to a list of "
         ES.ValueType expectedType
         ES.String ". Failed at index "
-        ES.Int (Stdlib.Int.fromInt32 index)
+        ES.Int (Stdlib.Int.fromInt32(index))
         ES.String "."]
 
     | List (CannotSort value) ->
@@ -288,7 +288,7 @@ module RuntimeError =
             ES.String " in match expression" ]
 
     | ParseTimeNameResolution (originalName, err) ->
-      let nameStr = Stdlib.String.join originalName "."
+      let nameStr = Stdlib.String.join(originalName, ".")
 
       match err with
       | NotFound -> [ES.String (nameStr + " not found")]
@@ -461,7 +461,7 @@ module RuntimeError =
           ES.String ")" ]
       | MultipleArgs args ->
         [ ES.String "Unwrap expects a single argument, but got "
-          ES.Int(Stdlib.List.length args) ]
+          ES.Int(Stdlib.List.length(args)) ]
 
     | Apply err ->
       match err with
@@ -487,6 +487,13 @@ module RuntimeError =
           ES.Count(expected, ES.String "argument", ES.String "arguments")
           ES.String ", but got "
           ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+      | TooFewArgsForFn (fn, expected, actual) ->
+        [ ES.FunctionName fn
+          ES.String " expects "
+          ES.Count(expected, ES.String "argument", ES.String "arguments")
+          ES.String ", but got "
+          ES.Count(actual, ES.String "argument", ES.String "arguments")
+          ES.String "; to supply the rest later, write a lambda" ]
       | FnParameterNotExpectedType(fnName, paramIndex, paramName, declaredType, expectedType, actualType, actualValue) ->
         [ ES.FunctionName fnName
           ES.String "'s "
@@ -534,6 +541,12 @@ module RuntimeError =
           ES.String ", but got "
           ES.Count(actual, ES.String "argument", ES.String "arguments") ]
 
+      | TooFewArgsForLambda (_lambdaExprId, expected, actual) ->
+        [ ES.String "Lambda expects "
+          ES.Count(expected, ES.String "argument", ES.String "arguments")
+          ES.String ", but got "
+          ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+
     | Statement err ->
       match err with
       | FirstExpressionMustBeUnit (expectedTypes, actualType, actualValue) ->
@@ -575,7 +588,7 @@ module RuntimeError =
           ES.ShortTraitName trait_
           ES.String "` to see which types do" ]
       | DispatchAmbiguous(trait_, self, candidates) ->
-        [ ES.String (Stdlib.toString (Stdlib.List.length candidates))
+        [ ES.String (Stdlib.toString(Stdlib.List.length(candidates)))
           ES.String " implementations of "
           ES.TraitName trait_
           ES.String " for "
@@ -587,7 +600,7 @@ module RuntimeError =
         // No article in front of the type: an article here produces "on a Int64".
         [ ES.ValueType self
           ES.String $" has more than one `{method_}`: "
-          ES.String (Stdlib.toString (Stdlib.List.length traits))
+          ES.String (Stdlib.toString(Stdlib.List.length(traits)))
           ES.String $" traits declare it. Say which one you mean, as `SomeTrait.{method_} value`" ]
       | SelfTypeUnknown(trait_, method_) ->
         [ ES.ShortTraitName trait_
@@ -620,7 +633,7 @@ module RuntimeError =
 
     | SqlCompiler errMsg ->
       // Older serialized errors already contain the preamble.
-      if Stdlib.String.startsWith errMsg sqlErrorPrefix then
+      if Stdlib.String.startsWith(errMsg, sqlErrorPrefix) then
         [ ES.String errMsg ]
       else
         [ ES.String (sqlErrorPrefix + errMsg) ]
@@ -641,17 +654,17 @@ module RuntimeError =
         | Known(KTCustomType(Package(Hash h), _)) -> Stdlib.Option.Option.Some h
         | _ -> Stdlib.Option.Option.None
 
-      let version (h: Stdlib.Option.Option<String>) : String =
+      let version(h: Stdlib.Option.Option<String>): String =
         match h with
-        | Some h -> $" (version {Stdlib.String.slice h 0 8})"
+        | Some h -> $" (version {Stdlib.String.slice(h, 0, 8)})"
         | None -> ""
 
       [ ES.String "This datastore holds "
         ES.TypeReference expected
-        ES.String (version expectedHash)
+        ES.String (version(expectedHash))
         ES.String " and was given "
         ES.ValueType actual
-        ES.String (version actualHash)
+        ES.String (version(actualHash))
         ES.String ". If that type changed after the datastore was made, the datastore is still on the old version: `dark status` says which" ]
 
     | UncaughtException (msg, metadata) ->
@@ -660,14 +673,14 @@ module RuntimeError =
         | [] -> []
         | metadata ->
           let metadataStrings =
-            Stdlib.List.map metadata (fun (key, value) ->
-              ES.String $"\n  {key}: {Stdlib.Json.serialize<Dval> value}")
+            Stdlib.List.map(metadata, fun (key, value) ->
+              ES.String $"\n  {key}: {Stdlib.Json.serialize<Dval>(value)}")
 
-          Stdlib.List.prepend metadataStrings (ES.String "\nMetadata:")
+          Stdlib.List.prepend(metadataStrings, ES.String "\nMetadata:")
 
-      Stdlib.List.concat
-        [ ES.String "Uncaught exception: ", ES.String msg ]
-        withMetadata
+      Stdlib.List.concat(
+        [ ES.String "Uncaught exception: ", ES.String msg ],
+        withMetadata)
 
     // Its own sentence and nothing else: it is a refusal, written for whoever ran the command.
     | Condition message -> [ ES.String message ]
@@ -680,23 +693,23 @@ module RuntimeError =
     //   { innerOutput with summary = Stdlib.List.concat [ (ES.String sqlErrorTemplate) ] innerOutput.summary }
 
     | unhandled ->
-      let serialized = Stdlib.Json.serialize<LanguageTools.RuntimeTypes.RuntimeError.Error> unhandled
+      let serialized = Stdlib.Json.serialize<LanguageTools.RuntimeTypes.RuntimeError.Error>(unhandled)
       [ ES.String $"RTE pretty-printing TODO: {serialized}" ]
 
 
 
-  let toString
-    (branchId: Uuid)
-    (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+  let toString(
+    branchId: Uuid,
+    e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : String =
     let s = e |> toSegments
-    segmentsToString branchId s
+    segmentsToString(branchId, s)
 
 
   type ErrorMessage = ErrorString of String
 
-  let toErrorMessage
-        (branchId: Uuid)
-        (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+  let toErrorMessage(
+        branchId: Uuid,
+        e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : ErrorMessage =
-    ErrorMessage.ErrorString(toString branchId e)
+    ErrorMessage.ErrorString(toString(branchId, e))

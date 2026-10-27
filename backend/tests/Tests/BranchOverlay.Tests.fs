@@ -69,17 +69,17 @@ let private darkStringList (code : string) : Task<List<string>> =
   }
 
 let private darkBranch (branchId : PT.BranchId) : string =
-  $"(Stdlib.Uuid.parse \"{branchId}\" |> Builtin.unwrap)"
+  $"(Stdlib.Uuid.parse(\"{branchId}\") |> Builtin.unwrap)"
 
 /// The names the parent has moved since a branch forked, per the merge gate the CLI consults.
 let private nameConflicts (branchId : PT.BranchId) : Task<List<string>> =
-  darkStringList $"Darklang.SCM.Branches.nameConflicts {darkBranch branchId}"
+  darkStringList $"Darklang.SCM.Branches.nameConflicts({darkBranch branchId})"
 
 /// Accept the parent's current state as this branch's new base, and report the names the parent
 /// had changed since the fork. Afterwards the branch's own ops layer on top (LWW by origin_ts)
 /// and merge is unblocked.
 let private rebase (branchId : PT.BranchId) : Task<List<string>> =
-  darkStringList $"Darklang.SCM.Branches.rebase {darkBranch branchId}"
+  darkStringList $"Darklang.SCM.Branches.rebase({darkBranch branchId})"
 
 
 /// Run a Dark call answering `Result<Unit, String>`, as the F# result these assertions expect.
@@ -98,14 +98,14 @@ let private resolveTakeTheirs
   (fqn : string)
   : Task<Result<unit, string>> =
   darkUnitResult
-    $"Darklang.SCM.Branches.resolveTakeTheirs {darkBranch branchId} \"{fqn}\""
+    $"Darklang.SCM.Branches.resolveTakeTheirs({darkBranch branchId}, \"{fqn}\")"
 
 let private resolveKeepMine
   (branchId : PT.BranchId)
   (fqn : string)
   : Task<Result<unit, string>> =
   darkUnitResult
-    $"Darklang.SCM.Branches.resolveKeepMine {darkBranch branchId} \"{fqn}\""
+    $"Darklang.SCM.Branches.resolveKeepMine({darkBranch branchId}, \"{fqn}\")"
 
 
 /// Run a Dark call answering `Result<Int, String>`, as the count these assertions expect.
@@ -125,21 +125,22 @@ let private retagFrontierToParent
   (parentId : PT.BranchId)
   : Task<int64> =
   darkIntResult (
-    "Darklang.SCM.Branches.retagFrontierToParent "
+    "Darklang.SCM.Branches.retagFrontierToParent("
     + darkBranch branchId
-    + " "
+    + ", "
     + darkBranch parentId
+    + ")"
   )
 
 let private markMergedEffective (branchId : PT.BranchId) : Task<int64> =
-  darkIntResult $"Darklang.SCM.Branches.markMergedEffective {darkBranch branchId}"
+  darkIntResult $"Darklang.SCM.Branches.markMergedEffective({darkBranch branchId})"
 
 /// The NAMES a branch has recorded a fork base for.
 let private baseNames (branchId : PT.BranchId) : Task<List<string>> =
   darkStringList (
-    "Darklang.SCM.Branches.nameBases "
+    "Darklang.SCM.Branches.nameBases("
     + darkBranch branchId
-    + " |> Stdlib.List.map (fun (_o, _m, n, _h) -> n)"
+    + ") |> Stdlib.List.map(fun (_o, _m, n, _h) -> n)"
   )
 
 /// "owner\nmodules\nname=hash" per recorded base, as DARK computes the parent's current hash. Spelled
@@ -148,25 +149,25 @@ let private parentHashLinesFromDark
   (parentId : PT.BranchId)
   (branchId : PT.BranchId)
   : Task<List<string>> =
-  let key = "(Darklang.SCM.Branches.nameKey o m n)"
+  let key = "(Darklang.SCM.Branches.nameKey(o, m, n))"
 
   let hashes =
-    "(Darklang.SCM.Branches.parentHashesForBases "
+    "(Darklang.SCM.Branches.parentHashesForBases("
     + darkBranch parentId
-    + " "
+    + ", "
     + darkBranch branchId
-    + ")"
+    + "))"
 
   darkStringList (
-    "((Darklang.SCM.Branches.nameBases "
+    "((Darklang.SCM.Branches.nameBases("
     + darkBranch branchId
-    + " |> Stdlib.List.map (fun (o, m, n, _h) -> "
+    + ") |> Stdlib.List.map(fun (o, m, n, _h) -> "
     + key
-    + " + \"=\" + ((Stdlib.Dict.get "
+    + " + \"=\" + ((Stdlib.Dict.get("
     + hashes
-    + " "
+    + ", "
     + key
-    + ") |> Stdlib.Option.withDefault \"\"))) |> Stdlib.List.sort)"
+    + ")) |> Stdlib.Option.withDefault(\"\")))) |> Stdlib.List.sort)"
   )
 
 // A branch's source: one fn `foo` returning `answer`, computed via a CORE call
@@ -174,7 +175,7 @@ let private parentHashLinesFromDark
 let private branchSource (answer : int) : string =
   $"""module Darklang.BranchTestOverlay
 
-let foo (x: Int64) : Int64 = {answer - 2}L + 2L"""
+let foo(x: Int64): Int64 = {answer - 2}L + 2L"""
 
 let private fooLoc : PT.PackageLocation =
   { owner = "Darklang"; modules = [ "BranchTestOverlay" ]; name = "foo" }
@@ -183,7 +184,7 @@ let private fooLoc : PT.PackageLocation =
 let private namedSource (modName : string) (answer : int) : string =
   $"""module Darklang.{modName}
 
-let foo (x: Int64) : Int64 = {answer - 2}L + 2L"""
+let foo(x: Int64): Int64 = {answer - 2}L + 2L"""
 
 let private fooLocIn (modName : string) : PT.PackageLocation =
   { owner = "Darklang"; modules = [ modName ]; name = "foo" }
@@ -1110,7 +1111,7 @@ let takeTheirsAfterKeepMineDropsTheOverride =
     | Ok() -> ()
     let! binders =
       darkStringList
-        $"Darklang.SCM.Branches.ownFrontierOps {darkBranch b} |> Stdlib.List.filterMap (fun entry -> let (_, op) = entry in Darklang.SCM.Branches.opBindsKey op (\"Darklang\", \"TheirsAfterMine\", \"foo\") |> Stdlib.Option.map (fun _ -> \"binds\"))"
+        $"Darklang.SCM.Branches.ownFrontierOps({darkBranch b}) |> Stdlib.List.filterMap(fun entry -> let (_, op) = entry in Darklang.SCM.Branches.opBindsKey(op, (\"Darklang\", \"TheirsAfterMine\", \"foo\")) |> Stdlib.Option.map(fun _ -> \"binds\"))"
     Expect.isEmpty
       binders
       "nothing on the branch binds the name any more: the override went with the SetName"
@@ -1642,7 +1643,7 @@ let authoringOnAFinishedBranchRefuses =
 
     // An empty op list reaches the guard before anything else, so it exercises exactly that.
     let! outcome =
-      darkUnitResult $"Darklang.SCM.PackageOps.add {darkBranch branchId} []"
+      darkUnitResult $"Darklang.SCM.PackageOps.add({darkBranch branchId}, [])"
     match outcome with
     | Ok() -> failtest "the edit was accepted onto a merged branch"
     | Error e ->
@@ -1678,8 +1679,8 @@ let liveBindingReadsTheBranchThenMain =
       (modules : string)
       (name : string)
       =
-      $"(match Darklang.SCM.PackageOps.liveBindingFor {branch} "
-      + $"(Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"{owner}\", "
+      $"(match Darklang.SCM.PackageOps.liveBindingFor({branch}, "
+      + $"Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"{owner}\", "
       + $"modules = [ \"{modules}\" ], name = \"{name}\" }}) with "
       + "| Some b -> b.hash | None -> \"none\")"
     let main = darkBranch PT.BranchId.Main
@@ -1750,19 +1751,19 @@ let liveBindingsForAgreesWithTheOneNameRead =
     // "<one-name hash> <batch hash>" per location, in order.
     let answersFrom (branch : string) =
       darkStringList (
-        $"Stdlib.List.map [ {locs} ] (fun l ->\n"
-        + "  let hashOf (b: Stdlib.Option.Option<Darklang.SCM.Conflicts.Binding>)\n"
+        $"Stdlib.List.map([ {locs} ], fun l ->\n"
+        + "  let hashOf(b: Stdlib.Option.Option<Darklang.SCM.Conflicts.Binding>)\n"
         + "    : String =\n"
         + "    match b with\n"
         + "    | Some b -> b.hash\n"
         + "    | None -> \"none\"\n"
-        + $"  let one = Darklang.SCM.PackageOps.liveBindingFor {branch} l\n"
-        + $"  let many = Darklang.SCM.PackageOps.liveBindingsFor {branch} [ {locs} ]\n"
-        + "  let mods = Stdlib.String.join l.modules \".\"\n"
-        + "  let key = Darklang.SCM.Conflicts.bindingKey l.owner mods l.name\n"
-        + "  let fromMany = Stdlib.Dict.get many key\n"
-        + "  if one == fromMany then (hashOf one) + \" same\"\n"
-        + "  else (hashOf one) + \" \" + (hashOf fromMany))"
+        + $"  let one = Darklang.SCM.PackageOps.liveBindingFor({branch}, l)\n"
+        + $"  let many = Darklang.SCM.PackageOps.liveBindingsFor({branch}, [ {locs} ])\n"
+        + "  let mods = Stdlib.String.join(l.modules, \".\")\n"
+        + "  let key = Darklang.SCM.Conflicts.bindingKey(l.owner, mods, l.name)\n"
+        + "  let fromMany = Stdlib.Dict.get(many, key)\n"
+        + "  if one == fromMany then (hashOf(one)) + \" same\"\n"
+        + "  else (hashOf(one)) + \" \" + (hashOf(fromMany)))"
       )
 
     let! onBranch = answersFrom (darkBranch branchId)
@@ -1845,16 +1846,16 @@ let previousHashesOfAllAgreesWithTheOneNameRead =
     let historiesFrom (branch : string) (modNames : List<string>) =
       let locs = modNames |> List.map loc |> String.concat ", "
       darkStringList (
-        $"let bindings = Stdlib.List.filterMap [ {locs} ] (fun l ->\n"
-        + $"  Darklang.SCM.PackageOps.liveBindingFor {branch} l)\n"
-        + "let show (hs: List<Darklang.LanguageTools.ProgramTypes.Hash>) : String =\n"
-        + "  hs |> Stdlib.List.map Darklang.LanguageTools.ProgramTypes.hashToString\n"
-        + "  |> Stdlib.String.join \",\"\n"
-        + $"Stdlib.List.map (Darklang.Cli.Commit.previousHashesOfAll {branch} bindings) (fun entry ->\n"
+        $"let bindings = Stdlib.List.filterMap([ {locs} ], fun l ->\n"
+        + $"  Darklang.SCM.PackageOps.liveBindingFor({branch}, l))\n"
+        + "let show(hs: List<Darklang.LanguageTools.ProgramTypes.Hash>): String =\n"
+        + "  hs |> Stdlib.List.map(Darklang.LanguageTools.ProgramTypes.hashToString)\n"
+        + "  |> Stdlib.String.join(\",\")\n"
+        + $"Stdlib.List.map(Darklang.Cli.Commit.previousHashesOfAll({branch}, bindings), fun entry ->\n"
         + "  let (b, many) = entry\n"
-        + $"  let one = Darklang.Cli.Commit.previousHashesOf {branch} b\n"
-        + "  if one == many then (show many) + \" same\"\n"
-        + "  else (show one) + \" one, many \" + (show many))"
+        + $"  let one = Darklang.Cli.Commit.previousHashesOf({branch}, b)\n"
+        + "  if one == many then (show(many)) + \" same\"\n"
+        + "  else (show(one)) + \" one, many \" + (show(many)))"
       )
 
     let! onBranch =

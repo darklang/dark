@@ -377,7 +377,6 @@ and MatchCase =
     rhs : Expr }
 
 and PipeExpr =
-  | EPipeInfix of Range * op : (Range * Infix) * Expr
   | EPipeLambda of
     Range *
     pats : List<LetPattern> *

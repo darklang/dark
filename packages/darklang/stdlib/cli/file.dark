@@ -2,66 +2,66 @@ module Darklang.Stdlib.Cli.File
 
 
 /// Delete a file.
-let delete (path: String) : Result.Result<Unit, Posix.Error> =
-  Posix.unlink path
+let delete(path: String): Result.Result<Unit, Posix.Error> =
+  Posix.unlink(path)
 
 
 /// Check if a file or directory exists at the given path.
-let exists (path: String) : Bool =
-  match Posix.stat path with
+let exists(path: String): Bool =
+  match Posix.stat(path) with
   | Ok _ -> true
   | Error _ -> false
 
 
 /// Get the size of a file in bytes.
-let size (path: String) : Result.Result<Int, Posix.Error> =
-  match Posix.stat path with
+let size(path: String): Result.Result<Int, Posix.Error> =
+  match Posix.stat(path) with
   // Cleanup?
   | Ok result -> Stdlib.Result.Result.Ok(result.size)
   | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Get the last modification time as Unix epoch seconds.
-let getModifiedTime (path: String) : Result.Result<Int, Posix.Error> =
-  match Posix.stat path with
+let getModifiedTime(path: String): Result.Result<Int, Posix.Error> =
+  match Posix.stat(path) with
   | Ok result -> Stdlib.Result.Result.Ok result.mtimeSec
   | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Copy a file from src to dst, preserving permissions.
-let copy (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
-  Stdlib.Cli.File.__copyCopy src dst
+let copy(src: String, dst: String): Result.Result<Unit, Posix.Error> =
+  Stdlib.Cli.File.__copyCopy(src, dst)
 
 
 /// Move or rename a file.
-let move (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
-  Posix.rename src dst
+let move(src: String, dst: String): Result.Result<Unit, Posix.Error> =
+  Posix.rename(src, dst)
 
 
 /// Read the entire contents of a file as a Bytes.
-let readBytes (path: String) : Result.Result<Bytes, Posix.Error> =
-  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0 with
+let readBytes(path: String): Result.Result<Bytes, Posix.Error> =
+  match Posix.openFile(path, Posix.OpenFlags.rdonly(), 0) with
   | Ok fd ->
-    let result = Posix.fdReadAll fd []
+    let result = Posix.fdReadAll(fd, [])
 
-    let closed = Posix.fdClose fd
+    let closed = Posix.fdClose(fd)
     match result with
     | Error e -> Error e
-    | Ok bytes -> closed |> Stdlib.Result.map (fun _ -> bytes)
+    | Ok bytes -> closed |> Stdlib.Result.map(fun _ -> bytes)
   | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Read the entire contents of a file as a string.
-let readText (path: String) : Result.Result<String, Posix.Error> =
-  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0 with
+let readText(path: String): Result.Result<String, Posix.Error> =
+  match Posix.openFile(path, Posix.OpenFlags.rdonly(), 0) with
   | Ok fd ->
-    let result = Posix.fdReadAll fd []
+    let result = Posix.fdReadAll(fd, [])
 
-    let _ = Posix.fdClose fd
+    let _ = Posix.fdClose(fd)
 
     match result with
     | Ok blob ->
-      match Stdlib.Bytes.toString blob with
+      match Stdlib.Bytes.toString(blob) with
       | Ok s -> Stdlib.Result.Result.Ok s
       | Error msg ->
         Stdlib.Result.Result.Error
@@ -71,24 +71,24 @@ let readText (path: String) : Result.Result<String, Posix.Error> =
 
 
 /// Read the entire contents of a file as a list of lines.
-let readLines (path: String) : Result.Result<List<String>, Posix.Error> =
-  (readText path)
-  |> Stdlib.Result.map (fun text -> Stdlib.String.splitOnNewline text)
+let readLines(path: String): Result.Result<List<String>, Posix.Error> =
+  (readText(path))
+  |> Stdlib.Result.map(fun text -> Stdlib.String.splitOnNewline(text))
 
 
-let countNewlines (blob: Bytes) : Int =
+let countNewlines(blob: Bytes): Int =
   blob
   |> Stdlib.Bytes.toList
-  |> Stdlib.List.fold 0 (fun count byte ->
+  |> Stdlib.List.fold(0, fun count byte ->
     if byte == 10uy then count + 1 else count)
 
 
-let dropThroughFirstNewline (bytes: List<UInt8>) : List<UInt8> =
+let dropThroughFirstNewline(bytes: List<UInt8>): List<UInt8> =
   match bytes with
   | [] -> []
   | byte :: remaining ->
     if byte == 10uy then remaining
-    else dropThroughFirstNewline remaining
+    else dropThroughFirstNewline(remaining)
 
 
 /// Read exactly `count` bytes from `fd`, or fewer only at end of file.
@@ -97,75 +97,75 @@ let dropThroughFirstNewline (bytes: List<UInt8>) : List<UInt8> =
 /// addresses the file by absolute offset, so a short read there would silently drop bytes out of the middle
 /// of the window and hand back lines that never existed. Loop instead. (`fdReadAll` above loops for the same
 /// reason.)
-let readFully
-  (fd: Int)
-  (count: Int)
-  (acc: List<Bytes>)
+let readFully(
+  fd: Int,
+  count: Int,
+  acc: List<Bytes>)
   : Result.Result<Bytes, Posix.Error> =
   if count <= 0 then
-    Stdlib.Result.Result.Ok(Stdlib.Bytes.concat acc)
+    Stdlib.Result.Result.Ok(Stdlib.Bytes.concat(acc))
   else
-    (Posix.fdRead fd count)
-    |> Stdlib.Result.andThen (fun chunk ->
-      let received = Stdlib.Bytes.length chunk
+    (Posix.fdRead(fd, count))
+    |> Stdlib.Result.andThen(fun chunk ->
+      let received = Stdlib.Bytes.length(chunk)
       if received == 0 then
         // EOF: the file is shorter than the caller believed (it was truncated under us, say).
-        Stdlib.Result.Result.Ok(Stdlib.Bytes.concat acc)
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.concat(acc))
       else
-        readFully fd (count - received) (Stdlib.List.append acc chunk))
+        readFully(fd, count - received, Stdlib.List.append(acc, chunk)))
 
 
-let readTailChunks
-  (fd: Int)
-  (cursor: Int)
-  (requiredNewlines: Int)
-  (foundNewlines: Int)
-  (chunks: List<Bytes>)
+let readTailChunks(
+  fd: Int,
+  cursor: Int,
+  requiredNewlines: Int,
+  foundNewlines: Int,
+  chunks: List<Bytes>)
   : Result.Result<(Bytes * Bool), Posix.Error> =
   if cursor <= 0 || foundNewlines >= requiredNewlines then
     Stdlib.Result.Result.Ok(
-      (Stdlib.Bytes.concat chunks, cursor <= 0))
+      (Stdlib.Bytes.concat(chunks), cursor <= 0))
   else
     let chunkSize = 1024
     let start = if cursor < chunkSize then 0 else cursor - chunkSize
     let bytesToRead = cursor - start
 
-    (Posix.fdSeekFromStart fd start)
-    |> Stdlib.Result.andThen (fun _position ->
-      (readFully fd bytesToRead [])
-      |> Stdlib.Result.andThen (fun chunk ->
-        readTailChunks
-          fd
-          start
-          requiredNewlines
-          (foundNewlines + countNewlines chunk)
-          (Stdlib.List.prepend chunks chunk)))
+    (Posix.fdSeekFromStart(fd, start))
+    |> Stdlib.Result.andThen(fun _position ->
+      (readFully(fd, bytesToRead, []))
+      |> Stdlib.Result.andThen(fun chunk ->
+        readTailChunks(
+          fd,
+          start,
+          requiredNewlines,
+          foundNewlines + countNewlines(chunk),
+          Stdlib.List.prepend(chunks, chunk))))
 
 
 /// Read the last `count` lines without loading the whole file.
-let readLastLines
-  (path: String)
-  (count: Int)
+let readLastLines(
+  path: String,
+  count: Int)
   : Result.Result<List<String>, Posix.Error> =
   if count <= 0 then
     Stdlib.Result.Result.Ok []
   else
     // Sampled before the open, so a file being appended to concurrently (the daemon log, which is the only
     // caller) yields a slightly stale tail rather than the newest lines. Fine here; surprising elsewhere.
-    (size path)
-    |> Stdlib.Result.andThen (fun fileSize ->
-      match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0 with
+    (size(path))
+    |> Stdlib.Result.andThen(fun fileSize ->
+      match Posix.openFile(path, Posix.OpenFlags.rdonly(), 0) with
       | Error e -> Stdlib.Result.Result.Error e
       | Ok fd ->
         let tailResult =
-          readTailChunks fd fileSize count 0 []
-        let _closed = Posix.fdClose fd
+          readTailChunks(fd, fileSize, count, 0, [])
+        let _closed = Posix.fdClose(fd)
 
         tailResult
-        |> Stdlib.Result.andThen (fun (blob, startedAtBeginning) ->
+        |> Stdlib.Result.andThen(fun (blob, startedAtBeginning) ->
           let bytes =
             if startedAtBeginning then
-              Stdlib.Bytes.toList blob
+              Stdlib.Bytes.toList(blob)
             else
               blob
               |> Stdlib.Bytes.toList
@@ -183,26 +183,26 @@ let readLastLines
                 message = $"File contents not valid UTF-8: {message}"
               })
           | Ok text ->
-            let lines = Stdlib.String.splitOnNewline text
-            let total = Stdlib.List.length lines
+            let lines = Stdlib.String.splitOnNewline(text)
+            let total = Stdlib.List.length(lines)
             if total <= count then
               Stdlib.Result.Result.Ok lines
             else
               Stdlib.Result.Result.Ok
-                (Stdlib.List.drop lines (total - count))))
+                (Stdlib.List.drop(lines, total - count))))
 
 
 /// Write bytes, completing short writes and preserving the first I/O error.
-let __writeBytes (path: String) (content: Bytes) : Result.Result<Unit, Posix.Error> =
+let __writeBytes(path: String, content: Bytes): Result.Result<Unit, Posix.Error> =
   let flags =
-    (Posix.OpenFlags.wronly ())
-    | (Posix.OpenFlags.creat ())
-    | (Posix.OpenFlags.trunc ())
+    (Posix.OpenFlags.wronly())
+    | (Posix.OpenFlags.creat())
+    | (Posix.OpenFlags.trunc())
 
-  match Posix.openFile path flags Posix.Modes.defaultFile with
+  match Posix.openFile(path, flags, Posix.Modes.defaultFile) with
   | Ok fd ->
-    let result = Posix.fdWrite fd content
-    let closed = Posix.fdClose fd
+    let result = Posix.fdWrite(fd, content)
+    let closed = Posix.fdClose(fd)
 
     match result with
     | Ok _ -> closed
@@ -211,23 +211,23 @@ let __writeBytes (path: String) (content: Bytes) : Result.Result<Unit, Posix.Err
 
 
 /// Write text to a file, creating it if it doesn't exist or overwriting if it does.
-let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
-  __writeBytes path (Stdlib.String.toBytes content)
+let writeText(path: String, content: String): Result.Result<Unit, Posix.Error> =
+  __writeBytes(path, Stdlib.String.toBytes(content))
 
 
 /// Append text to a file, creating it if it doesn't exist.
-let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
+let appendText(path: String, content: String): Result.Result<Unit, Posix.Error> =
   let flags =
-    (Posix.OpenFlags.wronly ())
-    | (Posix.OpenFlags.creat ())
-    | (Posix.OpenFlags.append ())
+    (Posix.OpenFlags.wronly())
+    | (Posix.OpenFlags.creat())
+    | (Posix.OpenFlags.append())
 
-  match Posix.openFile path flags Posix.Modes.defaultFile with
+  match Posix.openFile(path, flags, Posix.Modes.defaultFile) with
   | Ok fd ->
-    let blob = Stdlib.String.toBytes content
-    let result = Posix.fdWrite fd blob
+    let blob = Stdlib.String.toBytes(content)
+    let result = Posix.fdWrite(fd, blob)
 
-    let closed = Posix.fdClose fd
+    let closed = Posix.fdClose(fd)
 
     match result with
     | Ok _ -> closed
@@ -236,121 +236,121 @@ let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Erro
 
 
 /// Create a file if it doesn't exist, or update its modification time if it does.
-let touch (path: String) : Result.Result<Unit, Posix.Error> =
-  if exists path then
-    Posix.utimesNow path
+let touch(path: String): Result.Result<Unit, Posix.Error> =
+  if exists(path) then
+    Posix.utimesNow(path)
   else
     let flags =
-      (Posix.OpenFlags.wronly ()) | (Posix.OpenFlags.creat ())
+      (Posix.OpenFlags.wronly()) | (Posix.OpenFlags.creat())
 
-    match Posix.openFile path flags Posix.Modes.defaultFile with
+    match Posix.openFile(path, flags, Posix.Modes.defaultFile) with
     | Ok fd ->
-      let _ = Posix.fdClose fd
+      let _ = Posix.fdClose(fd)
       Stdlib.Result.Result.Ok()
     | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Set file permissions (e.g. 493 for 0755).
-let setPermissions (path: String) (mode: Int) : Result.Result<Unit, Posix.Error> =
-  Posix.chmod path mode
+let setPermissions(path: String, mode: Int): Result.Result<Unit, Posix.Error> =
+  Posix.chmod(path, mode)
 
 
 /// Create a temporary file. Returns the path.
-let createTemp () : Result.Result<String, Posix.Error> =
+let createTemp(): Result.Result<String, Posix.Error> =
   let prefix =
-    match Env.get "TMPDIR" with
+    match Env.get("TMPDIR") with
     | Some t -> $"{t}/dark-tmp-"
     | None -> "/tmp/dark-tmp-"
 
-  (Posix.mkstemp prefix)
-  |> Stdlib.Result.map (fun result ->
-    let _ = Posix.fdClose (Stdlib.Tuple2.first result)
-    Stdlib.Tuple2.second result)
+  (Posix.mkstemp(prefix))
+  |> Stdlib.Result.map(fun result ->
+    let _ = Posix.fdClose(Stdlib.Tuple2.first(result))
+    Stdlib.Tuple2.second(result))
 
 
 /// Create a symbolic link pointing to target.
-let createSymlink
-  (target: String)
-  (linkpath: String)
+let createSymlink(
+  target: String,
+  linkpath: String)
   : Result.Result<Unit, Posix.Error> =
-  Posix.symlink target linkpath
+  Posix.symlink(target, linkpath)
 
 
 /// Read the target of a symbolic link.
-let readSymlink (path: String) : Result.Result<String, Posix.Error> =
-  Posix.readlink path
+let readSymlink(path: String): Result.Result<String, Posix.Error> =
+  Posix.readlink(path)
 
 
 /// Check if two files have identical contents (byte comparison).
-let areIdentical (path1: String) (path2: String) : Result.Result<Bool, Posix.Error> =
-  (readBytes path1)
-  |> Stdlib.Result.andThen (fun bytes1 ->
-    (readBytes path2)
-    |> Stdlib.Result.map (fun bytes2 -> bytes1 == bytes2))
+let areIdentical(path1: String, path2: String): Result.Result<Bool, Posix.Error> =
+  (readBytes(path1))
+  |> Stdlib.Result.andThen(fun bytes1 ->
+    (readBytes(path2))
+    |> Stdlib.Result.map(fun bytes2 -> bytes1 == bytes2))
 
 
 /// Read a file, apply a transformation function, and write it back.
-let transform
-  (path: String)
-  (fn: String -> String)
+let transform(
+  path: String,
+  fn: String -> String)
   : Result.Result<Unit, Posix.Error> =
-  (readText path)
-  |> Stdlib.Result.andThen (fun content -> writeText path (fn content))
+  (readText(path))
+  |> Stdlib.Result.andThen(fun content -> writeText(path, fn(content)))
 
 
 /// Get the owner username of a file.
-let getOwner (path: String) : Result.Result<String, Posix.Error> =
-  Posix.fileOwner path
+let getOwner(path: String): Result.Result<String, Posix.Error> =
+  Posix.fileOwner(path)
 
 
 /// Create a temporary file, pass its path to a function, then delete it.
-let withTemp (fn: String -> 'a) : Result.Result<'a, Posix.Error> =
-  (createTemp ())
-  |> Stdlib.Result.map (fun tmpPath ->
-    let result = fn tmpPath
+let withTemp(fn: String -> 'a): Result.Result<'a, Posix.Error> =
+  (createTemp())
+  |> Stdlib.Result.map(fun tmpPath ->
+    let result = fn(tmpPath)
 
-    match delete tmpPath with
+    match delete(tmpPath) with
     | Ok _ -> ()
-    | Error e -> Log.warn $"withTemp: failed to clean up {tmpPath}: {e.message}"
+    | Error e -> Log.warn($"withTemp: failed to clean up {tmpPath}: {e.message}")
 
     result)
 
 
 /// Write content atomically: writes to a temp file in the same directory, then renames.
-let writeAtomic (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
-  let dir = Path.parent path
+let writeAtomic(path: String, content: String): Result.Result<Unit, Posix.Error> =
+  let dir = Path.parent(path)
   let prefix = $"{dir}/.tmp-"
 
-  (Posix.mkstemp prefix)
-  |> Stdlib.Result.andThen (fun result ->
-    let fd = Stdlib.Tuple2.first result
-    let tmpPath = Stdlib.Tuple2.second result
-    let blob = Stdlib.String.toBytes content
-    let writeResult = Posix.fdWrite fd blob
-    let _ = Posix.fdClose fd
+  (Posix.mkstemp(prefix))
+  |> Stdlib.Result.andThen(fun result ->
+    let fd = Stdlib.Tuple2.first(result)
+    let tmpPath = Stdlib.Tuple2.second(result)
+    let blob = Stdlib.String.toBytes(content)
+    let writeResult = Posix.fdWrite(fd, blob)
+    let _ = Posix.fdClose(fd)
 
     match writeResult with
-    | Ok _ -> Posix.rename tmpPath path
+    | Ok _ -> Posix.rename(tmpPath, path)
     | Error e ->
-      let _ = Posix.unlink tmpPath
+      let _ = Posix.unlink(tmpPath)
       Stdlib.Result.Result.Error e)
 
 
 /// Run a function while holding an exclusive lock on a file.
-let withLock (path: String) (fn: Unit -> 'a) : Result.Result<'a, Posix.Error> =
+let withLock(path: String, fn: Unit -> 'a): Result.Result<'a, Posix.Error> =
   let flags =
-    (Posix.OpenFlags.wronly ()) | (Posix.OpenFlags.creat ())
+    (Posix.OpenFlags.wronly()) | (Posix.OpenFlags.creat())
 
-  match Posix.openFile path flags Posix.Modes.defaultFile with
+  match Posix.openFile(path, flags, Posix.Modes.defaultFile) with
   | Ok fd ->
-    match Posix.flock fd true with
+    match Posix.flock(fd, true) with
     | Ok _ ->
-      let result = fn ()
-      let _ = Posix.flock fd false
-      let _ = Posix.fdClose fd
+      let result = fn()
+      let _ = Posix.flock(fd, false)
+      let _ = Posix.fdClose(fd)
       Stdlib.Result.Result.Ok result
     | Error e ->
-      let _ = Posix.fdClose fd
+      let _ = Posix.fdClose(fd)
       Stdlib.Result.Result.Error e
   | Error e -> Stdlib.Result.Result.Error e
 
@@ -358,9 +358,9 @@ let withLock (path: String) (fn: Unit -> 'a) : Result.Result<'a, Posix.Error> =
 /// Recursively match path segments against pattern segments.
 /// Pattern segments may include "**" which matches zero or more path segments.
 /// Other pattern segments are matched in Dark (pathMode=true).
-let globMatchSegments
-  (patternSegs: List<String>)
-  (pathSegs: List<String>)
+let globMatchSegments(
+  patternSegs: List<String>,
+  pathSegs: List<String>)
   : Bool =
   match patternSegs with
   | [] ->
@@ -372,54 +372,54 @@ let globMatchSegments
       // ** matches zero or more path segments.
       // Try consuming 0 segments (match rest of pattern against current path),
       // or skip one path segment and try again with ** still in the pattern.
-      (globMatchSegments patTail pathSegs)
+      (globMatchSegments(patTail, pathSegs))
       || (match pathSegs with
           | [] -> false
-          | _ :: pathTail -> globMatchSegments patternSegs pathTail)
+          | _ :: pathTail -> globMatchSegments(patternSegs, pathTail))
     else
       match pathSegs with
       | [] -> false
       | pathHead :: pathTail ->
-        (Stdlib.Cli.File.__globMatches patHead pathHead true)
-        && (globMatchSegments patTail pathTail)
+        (Stdlib.Cli.File.__globMatches(patHead, pathHead, true))
+        && (globMatchSegments(patTail, pathTail))
 
 
 /// Find files matching a glob pattern under a base directory.
 /// Supports *, ?, and character classes.
 /// Use ** to match zero or more directories (e.g. "**/*.ts", "src/**/test/**/*.ts").
-let glob (basePath: String) (pattern: String) : Result.Result<List<String>, Posix.Error> =
-  let cleanBase = Path.stripTrailing basePath
-  let patternSegs = Stdlib.String.split pattern "/"
+let glob(basePath: String, pattern: String): Result.Result<List<String>, Posix.Error> =
+  let cleanBase = Path.stripTrailing(basePath)
+  let patternSegs = Stdlib.String.split(pattern, "/")
 
-  (Dir.walk cleanBase)
-  |> Stdlib.Result.map (fun allPaths ->
+  (Dir.walk(cleanBase))
+  |> Stdlib.Result.map(fun allPaths ->
     allPaths
-    |> Stdlib.List.filter (fun fullPath ->
-      let rel = Stdlib.String.dropFirst fullPath ((Stdlib.String.length cleanBase) + 1)
-      let pathSegs = Stdlib.String.split rel "/"
-      globMatchSegments patternSegs pathSegs))
+    |> Stdlib.List.filter(fun fullPath ->
+      let rel = Stdlib.String.dropFirst(fullPath, (Stdlib.String.length(cleanBase)) + 1)
+      let pathSegs = Stdlib.String.split(rel, "/")
+      globMatchSegments(patternSegs, pathSegs)))
 
 
 /// Portable fallback when kernel event queues are unavailable.
 /// Calls the callback each time the file changes. Stops when shouldStop returns true.
 /// Returns Error if the file becomes inaccessible.
-let watchLoop
-  (path: String)
-  (intervalMs: Float)
-  (lastMtime: Int)
-  (shouldStop: Unit -> Bool)
-  (fn: Unit -> Unit)
+let watchLoop(
+  path: String,
+  intervalMs: Float,
+  lastMtime: Int,
+  shouldStop: Unit -> Bool,
+  fn: Unit -> Unit)
   : Result.Result<Unit, Posix.Error> =
-  if shouldStop () then
+  if shouldStop() then
     Stdlib.Result.Result.Ok()
   else
-    let _ = Posix.sleep intervalMs
+    let _ = Posix.sleep(intervalMs)
 
-    match getModifiedTime path with
+    match getModifiedTime(path) with
     | Ok newMtime ->
-      if newMtime != lastMtime then fn ()
+      if newMtime != lastMtime then fn()
       else ()
-      watchLoop path intervalMs newMtime shouldStop fn
+      watchLoop(path, intervalMs, newMtime, shouldStop, fn)
     | Error e -> Stdlib.Result.Result.Error e
 
 
@@ -427,293 +427,300 @@ let watchLoop
 /// how long a quiet file can delay checking shouldStop; it is not a stat period.
 /// Calls the callback each time the file changes. Stops when shouldStop returns true.
 /// Returns Error if the file becomes inaccessible.
-let watch
-  (path: String)
-  (intervalMs: Float)
-  (shouldStop: Unit -> Bool)
-  (fn: Unit -> Unit)
+let watch(
+  path: String,
+  intervalMs: Float,
+  shouldStop: Unit -> Bool,
+  fn: Unit -> Unit)
   : Result.Result<Unit, Posix.Error> =
-  if intervalMs < 0.0 then Error (Stdlib.Cli.Posix.__fromErrno 22)
-  else if Builtin.runtimeTargetOS () == "linux" then
-    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt intervalMs
-    match Stdlib.Cli.File.__watchLinux path waitMs shouldStop fn with
+  if intervalMs < 0.0 then Error (Stdlib.Cli.Posix.__fromErrno(22))
+  else if Builtin.runtimeTargetOS() == "linux" then
+    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt(intervalMs)
+    match Stdlib.Cli.File.__watchLinux(path, waitMs, shouldStop, fn) with
     | Ok () -> Ok ()
     | Error e ->
       // Kernel/procfs support can be absent in constrained hosts. The fallback
       // still uses checked stat operations; never retry through an unsafe path.
       if e == 38 || e == 95 || e == 2 then
-        match getModifiedTime path with
-        | Ok mtime -> watchLoop path intervalMs mtime shouldStop fn
+        match getModifiedTime(path) with
+        | Ok mtime -> watchLoop(path, intervalMs, mtime, shouldStop, fn)
         | Error error -> Error error
-      else Error (Stdlib.Cli.Posix.__fromErrno e)
-  else if Builtin.runtimeTargetOS () == "darwin" then
-    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt intervalMs
-    Stdlib.Cli.File.__watchDarwin path waitMs shouldStop fn
-    |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno
+      else Error (Stdlib.Cli.Posix.__fromErrno(e))
+  else if Builtin.runtimeTargetOS() == "darwin" then
+    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt(intervalMs)
+    Stdlib.Cli.File.__watchDarwin(path, waitMs, shouldStop, fn)
+    |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
   else
-    match getModifiedTime path with
-    | Ok mtime -> watchLoop path intervalMs mtime shouldStop fn
+    match getModifiedTime(path) with
+    | Ok mtime -> watchLoop(path, intervalMs, mtime, shouldStop, fn)
     | Error e -> Stdlib.Result.Result.Error e
 
 
 /// File-copy algorithms. Each Builtin underneath performs one kernel operation.
 
-let __copyUnsupported (errno: Int) : Bool =
+let __copyUnsupported(errno: Int): Bool =
   errno == 18 || errno == 22 || errno == 25 || errno == 38
   || errno == 78 || errno == 95 || errno == 45 || errno == 19
 
 /// Finish a positional write, including short writes and EINTR, without losing
 /// the offset. A successful zero write is an I/O error, not an infinite loop.
-let __copyWriteAt
-  (write: Bytes -> Int -> Result.Result<Int, Int>)
-  (bytes: Bytes) (offset: Int) : Result.Result<Unit, Int> =
-  let length = Stdlib.Bytes.length bytes
+let __copyWriteAt(
+  write: Bytes -> Int -> Result.Result<Int, Int>,
+  bytes: Bytes, offset: Int): Result.Result<Unit, Int> =
+  let length = Stdlib.Bytes.length(bytes)
   if length == 0 then Ok ()
   else
-    match write bytes offset with
-    | Error e -> if e == 4 then __copyWriteAt write bytes offset else Error e
+    match write(bytes, offset) with
+    | Error e -> if e == 4 then __copyWriteAt(write, bytes, offset) else Error e
     | Ok count ->
       if count <= 0 || count > length then Error 5
       else
-        let remaining = Stdlib.Bytes.slice bytes count (length - count)
-        __copyWriteAt write remaining (offset + count)
+        let remaining = Stdlib.Bytes.slice(bytes, count, length - count)
+        __copyWriteAt(write, remaining, offset + count)
 
 /// Bounded-memory fallback, also used after partial kernel-copy progress.
 /// Read until actual EOF: virtual files can have a stat size of zero.
-let __copyBuffered
-  (read: Int -> Int -> Result.Result<Bytes, Int>)
-  (write: Bytes -> Int -> Result.Result<Int, Int>)
-  (offset: Int) : Result.Result<Unit, Int> =
-  match read 65536 offset with
-  | Error e -> if e == 4 then __copyBuffered read write offset else Error e
+let __copyBuffered(
+  read: Int -> Int -> Result.Result<Bytes, Int>,
+  write: Bytes -> Int -> Result.Result<Int, Int>,
+  offset: Int): Result.Result<Unit, Int> =
+  match read(65536, offset) with
+  | Error e -> if e == 4 then __copyBuffered(read, write, offset) else Error e
   | Ok bytes ->
-    let length = Stdlib.Bytes.length bytes
+    let length = Stdlib.Bytes.length(bytes)
     if length == 0 then Ok ()
     else
-      __copyWriteAt write bytes offset
-      |> Stdlib.Result.andThen (fun _ -> __copyBuffered read write (offset + length))
+      __copyWriteAt(write, bytes, offset)
+      |> Stdlib.Result.andThen(fun _ -> __copyBuffered(read, write, offset + length))
 
-let __copyKernelCopy (source: Int) (destination: Int) (offset: Int)
+let __copyBufferedBetween(source: Int, destination: Int, offset: Int)
   : Result.Result<Unit, Int> =
-  match Builtin.syscallCopyFileRange source destination 1048576 with
+  __copyBuffered(
+    (fun length at -> Builtin.syscallPread(source, length, at)),
+    (fun bytes at -> Builtin.syscallPwrite(destination, bytes, at)),
+    offset)
+
+let __copyKernelCopy(source: Int, destination: Int, offset: Int)
+  : Result.Result<Unit, Int> =
+  match Builtin.syscallCopyFileRange(source, destination, 1048576) with
   | Error e ->
-    if e == 4 then __copyKernelCopy source destination offset
-    else if __copyUnsupported e then
-      __copyBuffered (Builtin.syscallPread source) (Builtin.syscallPwrite destination) offset
+    if e == 4 then __copyKernelCopy(source, destination, offset)
+    else if __copyUnsupported(e) then
+      __copyBufferedBetween(source, destination, offset)
     else Error e
   | Ok count ->
     if count < 0 || count > 1048576 then Error 5
     else if count == 0 then
-      __copyBuffered (Builtin.syscallPread source) (Builtin.syscallPwrite destination) offset
-    else __copyKernelCopy source destination (offset + count)
+      __copyBufferedBetween(source, destination, offset)
+    else __copyKernelCopy(source, destination, offset + count)
 
-let __copyTransfer (source: Int) (destination: Int) : Result.Result<Unit, Int> =
-  match Builtin.syscallCloneFile source destination with
+let __copyTransfer(source: Int, destination: Int): Result.Result<Unit, Int> =
+  match Builtin.syscallCloneFile(source, destination) with
   | Ok () -> Ok ()
   | Error e ->
-    if e == 4 then __copyTransfer source destination
-    else if __copyUnsupported e then __copyKernelCopy source destination 0
+    if e == 4 then __copyTransfer(source, destination)
+    else if __copyUnsupported(e) then __copyKernelCopy(source, destination, 0)
     else Error e
 
-let __copyFinish (result: Result.Result<Unit, Posix.Error>)
-  (closed: Result.Result<Unit, Posix.Error>) : Result.Result<Unit, Posix.Error> =
+let __copyFinish(result: Result.Result<Unit, Posix.Error>,
+  closed: Result.Result<Unit, Posix.Error>): Result.Result<Unit, Posix.Error> =
   match result with
   | Error e -> Error e
   | Ok () -> closed
 
-let __copyDescriptors (source: Int) (destination: Int) (sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
+let __copyDescriptors(source: Int, destination: Int, sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
   : Result.Result<Unit, Int> =
-  Builtin.syscallFstat destination
-  |> Stdlib.Result.andThen Stdlib.Cli.Posix.__kernelMetadata
-  |> Stdlib.Result.andThen (fun destinationInfo ->
+  Builtin.syscallFstat(destination)
+  |> Stdlib.Result.andThen(Stdlib.Cli.Posix.__kernelMetadata)
+  |> Stdlib.Result.andThen(fun destinationInfo ->
     // Never truncate the source, even when a different path names a hard link.
     if sourceInfo.device == destinationInfo.device
        && sourceInfo.inode == destinationInfo.inode then Error 22
     else
-      Builtin.syscallFtruncate destination 0
-      |> Stdlib.Result.andThen (fun _ -> __copyTransfer source destination)
-      |> Stdlib.Result.andThen (fun _ ->
-        Builtin.syscallFchmod destination (sourceInfo.mode & 511)))
+      Builtin.syscallFtruncate(destination, 0)
+      |> Stdlib.Result.andThen(fun _ -> __copyTransfer(source, destination))
+      |> Stdlib.Result.andThen(fun _ ->
+        Builtin.syscallFchmod(destination, sourceInfo.mode & 511)))
 
-let __copyOpenDestination (sourceFd: Int) (destination: String) (sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
+let __copyOpenDestination(sourceFd: Int, destination: String, sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
   : Result.Result<Unit, Posix.Error> =
   // No O_TRUNC until the descriptor identity check above has succeeded.
-  let flags = 1 | Stdlib.Cli.Posix.__abiOpenCreate ()
-  match Posix.openFile destination flags (sourceInfo.mode & 511) with
+  let flags = 1 | Stdlib.Cli.Posix.__abiOpenCreate()
+  match Posix.openFile(destination, flags, sourceInfo.mode & 511) with
   | Error e -> Error e
   | Ok destinationFd ->
-    let copied = __copyDescriptors sourceFd destinationFd sourceInfo
-      |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno
-    let closed = Posix.fdClose destinationFd
-    __copyFinish copied closed
+    let copied = __copyDescriptors(sourceFd, destinationFd, sourceInfo)
+      |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
+    let closed = Posix.fdClose(destinationFd)
+    __copyFinish(copied, closed)
 
-let __copyCloneDestination (sourceFd: Int) (destination: String) (sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
+let __copyCloneDestination(sourceFd: Int, destination: String, sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
   : Result.Result<Unit, Posix.Error> =
-  match Builtin.syscallFclonefileAt sourceFd destination 3 with
-  | Ok () -> Posix.chmod destination (sourceInfo.mode & 511)
-  | Error 4 -> __copyCloneDestination sourceFd destination sourceInfo
+  match Builtin.syscallFclonefileAt(sourceFd, destination, 3) with
+  | Ok () -> Posix.chmod(destination, sourceInfo.mode & 511)
+  | Error 4 -> __copyCloneDestination(sourceFd, destination, sourceInfo)
   | Error e ->
     // fclonefileat creates a new entry. An existing destination (EEXIST)
     // needs the same held-descriptor identity check as the buffered path.
-    if e == 17 || __copyUnsupported e then __copyOpenDestination sourceFd destination sourceInfo
-    else Error (Stdlib.Cli.Posix.__fromErrno e)
+    if e == 17 || __copyUnsupported(e) then __copyOpenDestination(sourceFd, destination, sourceInfo)
+    else Error (Stdlib.Cli.Posix.__fromErrno(e))
 
 /// Best-effort copy of a concurrently mutable file, not an atomic snapshot.
 /// Source metadata comes from the opened descriptor, not a second path lookup.
-let __copyCopy (source: String) (destination: String)
+let __copyCopy(source: String, destination: String)
   : Result.Result<Unit, Posix.Error> =
-  match Posix.openFile source 0 0 with
+  match Posix.openFile(source, 0, 0) with
   | Error e -> Error e
   | Ok sourceFd ->
     let result =
-      Builtin.syscallFstat sourceFd
-      |> Stdlib.Result.andThen Stdlib.Cli.Posix.__kernelMetadata
-      |> Stdlib.Result.mapError Stdlib.Cli.Posix.__fromErrno
-      |> Stdlib.Result.andThen (fun sourceInfo ->
+      Builtin.syscallFstat(sourceFd)
+      |> Stdlib.Result.andThen(Stdlib.Cli.Posix.__kernelMetadata)
+      |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
+      |> Stdlib.Result.andThen(fun sourceInfo ->
         if (sourceInfo.mode & 61440) == 16384
-           || (Stdlib.Cli.Posix.__abiMac () && (sourceInfo.mode & 61440) != 32768) then
-          Error (Stdlib.Cli.Posix.__fromErrno 21)
-        else if Stdlib.Cli.Posix.__abiMac () then __copyCloneDestination sourceFd destination sourceInfo
-        else __copyOpenDestination sourceFd destination sourceInfo)
-    let closed = Posix.fdClose sourceFd
-    __copyFinish result closed
+           || (Stdlib.Cli.Posix.__abiMac() && (sourceInfo.mode & 61440) != 32768) then
+          Error (Stdlib.Cli.Posix.__fromErrno(21))
+        else if Stdlib.Cli.Posix.__abiMac() then __copyCloneDestination(sourceFd, destination, sourceInfo)
+        else __copyOpenDestination(sourceFd, destination, sourceInfo))
+    let closed = Posix.fdClose(sourceFd)
+    __copyFinish(result, closed)
 
 
 /// Kernel-event watching. Dark owns readiness/event decoding, interruption
 /// retries, callback coalescing, rearming after replacement, and cleanup.
 
-let __watchHas (mask: Int) (flag: Int) : Bool = (mask / flag) % 2 == 1
+let __watchHas(mask: Int, flag: Int): Bool = (mask / flag) % 2 == 1
 
 /// inotify_event headers are 16 bytes followed by a kernel-sized name field.
 /// A batch produces one notification; invalidation asks the caller to rearm.
-let __watchEvents (bytes: List<UInt8>) (remaining: Int) (changed: Bool) (rearm: Bool)
+let __watchEvents(bytes: List<UInt8>, remaining: Int, changed: Bool, rearm: Bool)
   : Result.Result<(Bool * Bool), Int> =
   if remaining == 0 then Ok ((changed, rearm))
   else if remaining < 16 then Error 5
   else
-    Stdlib.Cli.Posix.__kernelField bytes 4 4 |> Stdlib.Result.andThen (fun mask ->
-      Stdlib.Cli.Posix.__kernelField bytes 12 4 |> Stdlib.Result.andThen (fun nameLength ->
+    Stdlib.Cli.Posix.__kernelField(bytes, 4, 4) |> Stdlib.Result.andThen(fun mask ->
+      Stdlib.Cli.Posix.__kernelField(bytes, 12, 4) |> Stdlib.Result.andThen(fun nameLength ->
         let length = 16 + nameLength
         if length > remaining then Error 5
         else
-          let nextChanged = changed || (__watchHas mask 2) || (__watchHas mask 4) || (__watchHas mask 8) || (__watchHas mask 1024) || (__watchHas mask 2048) || (__watchHas mask 16384)
-          let nextRearm = rearm || (__watchHas mask 1024) || (__watchHas mask 2048) || (__watchHas mask 32768)
-          __watchEvents (Stdlib.List.drop bytes length) (remaining - length) nextChanged nextRearm))
+          let nextChanged = changed || (__watchHas(mask, 2)) || (__watchHas(mask, 4)) || (__watchHas(mask, 8)) || (__watchHas(mask, 1024)) || (__watchHas(mask, 2048)) || (__watchHas(mask, 16384))
+          let nextRearm = rearm || (__watchHas(mask, 1024)) || (__watchHas(mask, 2048)) || (__watchHas(mask, 32768))
+          __watchEvents(Stdlib.List.drop(bytes, length), remaining - length, nextChanged, nextRearm)))
 
-let __watchDrain (fd: Int) : Result.Result<(Bool * Bool), Int> =
-  match Builtin.syscallRead fd 65536 with
-  | Error 4 -> __watchDrain fd
+let __watchDrain(fd: Int): Result.Result<(Bool * Bool), Int> =
+  match Builtin.syscallRead(fd, 65536) with
+  | Error 4 -> __watchDrain(fd)
   | Error 11 -> Ok ((false, false))
   | Error e -> Error e
-  | Ok buffer -> __watchEvents (Stdlib.Bytes.toList buffer) (Stdlib.Bytes.length buffer) false false
+  | Ok buffer -> __watchEvents(Stdlib.Bytes.toList(buffer), Stdlib.Bytes.length(buffer), false, false)
 
-let __watchLoop (fd: Int) (intervalMs: Int) (shouldStop: Unit -> Bool) (fn: Unit -> Unit)
+let __watchLoop(fd: Int, intervalMs: Int, shouldStop: Unit -> Bool, fn: Unit -> Unit)
   : Result.Result<Bool, Int> =
-  if shouldStop () then Ok false
+  if shouldStop() then Ok false
   else
-    match Builtin.syscallPpoll [ (fd, 1) ] intervalMs with
-    | Error 4 -> __watchLoop fd intervalMs shouldStop fn
+    match Builtin.syscallPpoll([ (fd, 1) ], intervalMs) with
+    | Error 4 -> __watchLoop(fd, intervalMs, shouldStop, fn)
     | Error e -> Error e
     | Ok record ->
-      Stdlib.Cli.Posix.__kernelField (Stdlib.Bytes.toList record) 6 2
-      |> Stdlib.Result.andThen (fun returned ->
-        if __watchHas returned 32 then Error 9
-        else if (__watchHas returned 8) || (__watchHas returned 16) then Error 5
-        else if __watchHas returned 1 then
-          __watchDrain fd |> Stdlib.Result.andThen (fun pair ->
+      Stdlib.Cli.Posix.__kernelField(Stdlib.Bytes.toList(record), 6, 2)
+      |> Stdlib.Result.andThen(fun returned ->
+        if __watchHas(returned, 32) then Error 9
+        else if (__watchHas(returned, 8)) || (__watchHas(returned, 16)) then Error 5
+        else if __watchHas(returned, 1) then
+          __watchDrain(fd) |> Stdlib.Result.andThen(fun pair ->
             let (changed, rearm) = pair
-            if changed then fn () else ()
-            if rearm then Ok true else __watchLoop fd intervalMs shouldStop fn)
-        else __watchLoop fd intervalMs shouldStop fn)
+            if changed then fn() else ()
+            if rearm then Ok true else __watchLoop(fd, intervalMs, shouldStop, fn))
+        else __watchLoop(fd, intervalMs, shouldStop, fn))
 
-let __watchLinux (path: String) (intervalMs: Int) (shouldStop: Unit -> Bool) (fn: Unit -> Unit)
+let __watchLinux(path: String, intervalMs: Int, shouldStop: Unit -> Bool, fn: Unit -> Unit)
   : Result.Result<Unit, Int> =
-  if shouldStop () then Ok ()
+  if shouldStop() then Ok ()
   else
-    match Builtin.syscallInotifyInit1 526336 with
+    match Builtin.syscallInotifyInit1(526336) with
     | Error e -> Error e
     | Ok fd ->
       let result =
-        Builtin.syscallInotifyAddWatch fd path 3086
-        |> Stdlib.Result.andThen (fun _ -> __watchLoop fd intervalMs shouldStop fn)
-      let closed = Builtin.syscallClose fd
+        Builtin.syscallInotifyAddWatch(fd, path, 3086)
+        |> Stdlib.Result.andThen(fun _ -> __watchLoop(fd, intervalMs, shouldStop, fn))
+      let closed = Builtin.syscallClose(fd)
       match result with
       | Error e -> Error e
       | Ok rearm ->
-        closed |> Stdlib.Result.andThen (fun _ ->
-          if rearm then __watchLinux path intervalMs shouldStop fn else Ok ())
+        closed |> Stdlib.Result.andThen(fun _ ->
+          if rearm then __watchLinux(path, intervalMs, shouldStop, fn) else Ok ())
 
 /// Darwin's kevent records are 32 bytes on both supported 64-bit targets.
-let __watchVnodeEvents (bytes: List<UInt8>) (remaining: Int) (changed: Bool) (rearm: Bool)
+let __watchVnodeEvents(bytes: List<UInt8>, remaining: Int, changed: Bool, rearm: Bool)
   : Result.Result<(Bool * Bool), Int> =
   if remaining == 0 then Ok ((changed, rearm))
   else if remaining < 32 then Error 5
   else
-    Stdlib.Cli.Posix.__kernelField bytes 10 2 |> Stdlib.Result.andThen (fun flags ->
-      Stdlib.Cli.Posix.__kernelField bytes 12 4 |> Stdlib.Result.andThen (fun mask ->
-        if __watchHas flags 16384 then
-          Stdlib.Cli.Posix.__kernelSignedField bytes 16 8 |> Stdlib.Result.andThen (fun errno ->
-            if errno == 0 then __watchVnodeEvents (Stdlib.List.drop bytes 32) (remaining - 32) changed rearm
+    Stdlib.Cli.Posix.__kernelField(bytes, 10, 2) |> Stdlib.Result.andThen(fun flags ->
+      Stdlib.Cli.Posix.__kernelField(bytes, 12, 4) |> Stdlib.Result.andThen(fun mask ->
+        if __watchHas(flags, 16384) then
+          Stdlib.Cli.Posix.__kernelSignedField(bytes, 16, 8) |> Stdlib.Result.andThen(fun errno ->
+            if errno == 0 then __watchVnodeEvents(Stdlib.List.drop(bytes, 32), remaining - 32, changed, rearm)
             else Error errno)
         else
-          let nextRearm = rearm || (__watchHas mask 1) || (__watchHas mask 32) || (__watchHas mask 64)
-          __watchVnodeEvents (Stdlib.List.drop bytes 32) (remaining - 32) (changed || mask != 0) nextRearm))
+          let nextRearm = rearm || (__watchHas(mask, 1)) || (__watchHas(mask, 32)) || (__watchHas(mask, 64))
+          __watchVnodeEvents(Stdlib.List.drop(bytes, 32), remaining - 32, changed || mask != 0, nextRearm)))
 
-let __watchVnodeLoop (queue: Int) (intervalMs: Int) (shouldStop: Unit -> Bool) (fn: Unit -> Unit)
+let __watchVnodeLoop(queue: Int, intervalMs: Int, shouldStop: Unit -> Bool, fn: Unit -> Unit)
   : Result.Result<Bool, Int> =
-  if shouldStop () then Ok false
+  if shouldStop() then Ok false
   else
-    match Builtin.syscallKeventVnode queue [] 16 intervalMs with
-    | Error 4 -> __watchVnodeLoop queue intervalMs shouldStop fn
+    match Builtin.syscallKeventVnode(queue, [], 16, intervalMs) with
+    | Error 4 -> __watchVnodeLoop(queue, intervalMs, shouldStop, fn)
     | Error e -> Error e
     | Ok buffer ->
-      __watchVnodeEvents (Stdlib.Bytes.toList buffer) (Stdlib.Bytes.length buffer) false false
-      |> Stdlib.Result.andThen (fun pair ->
+      __watchVnodeEvents(Stdlib.Bytes.toList(buffer), Stdlib.Bytes.length(buffer), false, false)
+      |> Stdlib.Result.andThen(fun pair ->
         let (changed, rearm) = pair
-        if changed then fn () else ()
-        if rearm then Ok true else __watchVnodeLoop queue intervalMs shouldStop fn)
+        if changed then fn() else ()
+        if rearm then Ok true else __watchVnodeLoop(queue, intervalMs, shouldStop, fn))
 
-let __watchCloseBoth (queue: Int) (source: Int) : Result.Result<Unit, Int> =
-  let first = Builtin.syscallClose queue
-  let second = Builtin.syscallClose source
+let __watchCloseBoth(queue: Int, source: Int): Result.Result<Unit, Int> =
+  let first = Builtin.syscallClose(queue)
+  let second = Builtin.syscallClose(source)
   match first with
   | Error e -> Error e
   | Ok () -> second
 
-let __watchDarwin (path: String) (intervalMs: Int) (shouldStop: Unit -> Bool) (fn: Unit -> Unit)
+let __watchDarwin(path: String, intervalMs: Int, shouldStop: Unit -> Bool, fn: Unit -> Unit)
   : Result.Result<Unit, Int> =
-  if shouldStop () then Ok ()
+  if shouldStop() then Ok ()
   else
     // O_EVTONLY holds the vnode without needing data-access permission. The
     // trusted open boundary supplies no-follow and scoped read authorization.
-    match Builtin.syscallOpen path 32768 0 with
+    match Builtin.syscallOpen(path, 32768, 0) with
     | Error e -> Error e
     | Ok source ->
-      match Builtin.syscallKqueue () with
+      match Builtin.syscallKqueue() with
       | Error e ->
-        let _ = Builtin.syscallClose source
+        let _ = Builtin.syscallClose(source)
         Error e
       | Ok queue ->
         let result =
           // EV_ADD | EV_ENABLE | EV_CLEAR; seven vnode-change notes.
-          Builtin.syscallKeventVnode queue [ (source, 37, 127) ] 0 0
-          |> Stdlib.Result.andThen (fun _ -> __watchVnodeLoop queue intervalMs shouldStop fn)
-        let closed = __watchCloseBoth queue source
+          Builtin.syscallKeventVnode(queue, [ (source, 37, 127) ], 0, 0)
+          |> Stdlib.Result.andThen(fun _ -> __watchVnodeLoop(queue, intervalMs, shouldStop, fn))
+        let closed = __watchCloseBoth(queue, source)
         match result with
         | Error e -> Error e
         | Ok rearm ->
-          closed |> Stdlib.Result.andThen (fun _ ->
-            if rearm then __watchDarwin path intervalMs shouldStop fn else Ok ())
+          closed |> Stdlib.Result.andThen(fun _ ->
+            if rearm then __watchDarwin(path, intervalMs, shouldStop, fn) else Ok ())
 
 
 /// Pure UTF-8 glob matching. No kernel operation or Builtin is involved.
 
-let __globKnownClass (name: String) : Bool =
+let __globKnownClass(name: String): Bool =
   name == "alnum" || name == "alpha" || name == "blank" || name == "cntrl"
   || name == "digit" || name == "graph" || name == "lower" || name == "print"
   || name == "punct" || name == "space" || name == "upper" || name == "xdigit"
 
-let __globNamedClass (name: String) (c: UInt8) : Bool =
+let __globNamedClass(name: String, c: UInt8): Bool =
   let upper = c >= 65uy && c <= 90uy
   let lower = c >= 97uy && c <= 122uy
   let digit = c >= 48uy && c <= 57uy
@@ -727,7 +734,7 @@ let __globNamedClass (name: String) (c: UInt8) : Bool =
   else if name == "lower" then lower
   else if name == "print" then c >= 32uy && c <= 126uy
   else if name == "punct" then
-    c >= 33uy && c <= 126uy && Stdlib.Bool.not (upper || lower || digit)
+    c >= 33uy && c <= 126uy && Stdlib.Bool.not(upper || lower || digit)
   else if name == "space" then space
   else if name == "upper" then upper
   else if name == "xdigit" then
@@ -735,22 +742,22 @@ let __globNamedClass (name: String) (c: UInt8) : Bool =
   else false
 
 /// Return a named character class and the bytes after its closing ':]'.
-let __globClassEnd
-  (bytes: List<UInt8>)
-  (reversedName: List<UInt8>)
+let __globClassEnd(
+  bytes: List<UInt8>,
+  reversedName: List<UInt8>)
   : Option.Option<(String * List<UInt8>)> =
   match bytes with
   | 58uy :: 93uy :: rest ->
     let name =
-      Stdlib.String.fromByteListWithReplacement (Stdlib.List.reverse reversedName)
+      Stdlib.String.fromByteListWithReplacement(Stdlib.List.reverse(reversedName))
     Some ((name, rest))
-  | c :: rest -> __globClassEnd rest (Stdlib.List.prepend reversedName c)
+  | c :: rest -> __globClassEnd(rest, Stdlib.List.prepend(reversedName, c))
   | [] -> None
 
 /// Interpret an escaped byte or a single-byte collating/equivalence symbol.
-let __globClassChar
-  (c: UInt8)
-  (rest: List<UInt8>)
+let __globClassChar(
+  c: UInt8,
+  rest: List<UInt8>)
   : (UInt8 * List<UInt8>) =
   if c == 92uy then
     match rest with
@@ -765,83 +772,83 @@ let __globClassChar
     | _ -> (c, rest)
   else (c, rest)
 
-let __globClassItems
-  (bytes: List<UInt8>)
-  (c: UInt8)
-  (first: Bool)
-  (matched: Bool)
-  (valid: Bool)
+let __globClassItems(
+  bytes: List<UInt8>,
+  c: UInt8,
+  first: Bool,
+  matched: Bool,
+  valid: Bool)
   : Option.Option<(List<UInt8> * Bool * Bool)> =
   match bytes with
   | [] -> None
   | 91uy :: 58uy :: name ->
-    match __globClassEnd name [] with
+    match __globClassEnd(name, []) with
     | None -> None
     | Some ((name, after)) ->
-      __globClassItems after c false (matched || __globNamedClass name c)
-        (valid && __globKnownClass name)
+      __globClassItems(after, c, false, matched || __globNamedClass(name, c),
+        valid && __globKnownClass(name))
   | head :: rest ->
-    if head == 93uy && Stdlib.Bool.not first then Some ((rest, matched, valid))
+    if head == 93uy && Stdlib.Bool.not(first) then Some ((rest, matched, valid))
     else
-      let (low, next) = __globClassChar head rest
+      let (low, next) = __globClassChar(head, rest)
       match next with
       | 45uy :: highHead :: highTail when highHead != 93uy ->
-        let (high, after) = __globClassChar highHead highTail
-        __globClassItems after c false (matched || (c >= low && c <= high)) valid
-      | _ -> __globClassItems next c false (matched || c == low) valid
+        let (high, after) = __globClassChar(highHead, highTail)
+        __globClassItems(after, c, false, matched || (c >= low && c <= high), valid)
+      | _ -> __globClassItems(next, c, false, matched || c == low, valid)
 
-let __globBracket
-  (bytes: List<UInt8>)
-  (c: UInt8)
+let __globBracket(
+  bytes: List<UInt8>,
+  c: UInt8)
   : Option.Option<(List<UInt8> * Bool)> =
   let inverted =
     match bytes with
     | first :: _ -> first == 33uy || first == 94uy
     | [] -> false
-  let items = if inverted then Stdlib.List.drop bytes 1 else bytes
-  match __globClassItems items c true false true with
+  let items = if inverted then Stdlib.List.drop(bytes, 1) else bytes
+  match __globClassItems(items, c, true, false, true) with
   | None -> None
   | Some ((after, matched, valid)) ->
-    Some ((after, valid && (if inverted then Stdlib.Bool.not matched else matched)))
+    Some ((after, valid && (if inverted then Stdlib.Bool.not(matched) else matched)))
 
-let __globMatchBytes
-  (pattern: List<UInt8>)
-  (text: List<UInt8>)
-  (pathname: Bool)
+let __globMatchBytes(
+  pattern: List<UInt8>,
+  text: List<UInt8>,
+  pathname: Bool)
   : Bool =
   match pattern with
   | [] -> text == []
   | 42uy :: rest ->
     // Adjacent stars are equivalent; collapse them before backtracking.
-    let after = Stdlib.List.dropWhile rest (fun c -> c == 42uy)
-    if __globMatchBytes after text pathname then true
+    let after = Stdlib.List.dropWhile(rest, fun c -> c == 42uy)
+    if __globMatchBytes(after, text, pathname) then true
     else
       match text with
       | c :: tail ->
-        (Stdlib.Bool.not pathname || c != 47uy)
-        && __globMatchBytes pattern tail pathname
+        (Stdlib.Bool.not(pathname) || c != 47uy)
+        && __globMatchBytes(pattern, tail, pathname)
       | [] -> false
   | p :: rest ->
     match text with
     | [] -> false
     | c :: tail ->
       if p == 63uy then
-        (Stdlib.Bool.not pathname || c != 47uy) && __globMatchBytes rest tail pathname
+        (Stdlib.Bool.not(pathname) || c != 47uy) && __globMatchBytes(rest, tail, pathname)
       else if p == 92uy then
         match rest with
-        | escaped :: after -> escaped == c && __globMatchBytes after tail pathname
+        | escaped :: after -> escaped == c && __globMatchBytes(after, tail, pathname)
         | [] -> false
       else if p == 91uy then
-        match __globBracket rest c with
+        match __globBracket(rest, c) with
         | Some ((after, matched)) ->
-          matched && (Stdlib.Bool.not pathname || c != 47uy)
-          && __globMatchBytes after tail pathname
-        | None -> p == c && __globMatchBytes rest tail pathname
-      else p == c && __globMatchBytes rest tail pathname
+          matched && (Stdlib.Bool.not(pathname) || c != 47uy)
+          && __globMatchBytes(after, tail, pathname)
+        | None -> p == c && __globMatchBytes(rest, tail, pathname)
+      else p == c && __globMatchBytes(rest, tail, pathname)
 
 /// Match the full string, including NUL bytes; this is not a C-string API.
 /// Wildcards retain the library's byte-based matching semantics.
-let __globMatches (pattern: String) (text: String) (pathname: Bool) : Bool =
-  let patternBytes = Stdlib.String.toByteList pattern
-  let textBytes = Stdlib.String.toByteList text
-  __globMatchBytes patternBytes textBytes pathname
+let __globMatches(pattern: String, text: String, pathname: Bool): Bool =
+  let patternBytes = Stdlib.String.toByteList(pattern)
+  let textBytes = Stdlib.String.toByteList(text)
+  __globMatchBytes(patternBytes, textBytes, pathname)

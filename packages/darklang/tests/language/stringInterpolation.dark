@@ -1,15 +1,15 @@
 module Darklang.Language.Tests.StringInterpolation
 
 test interpolation =
-  Stdlib.Test.all
-    [ $"test {"1"}" |> Stdlib.Test.equal "test 1"
-      (let one = "1" in $"test {one}") |> Stdlib.Test.equal "test 1"
+  Stdlib.Test.all(
+    [ $"test {"1"}" |> Stdlib.Test.equal("test 1")
+      (let one = "1" in $"test {one}") |> Stdlib.Test.equal("test 1")
       (let name = "John"
        let age = "30"
        $"Name: {name}, Age: {age} years old.")
-      |> Stdlib.Test.equal "Name: John, Age: 30 years old."
-      (let one = 1L in $"test {Stdlib.toString one}")
-      |> Stdlib.Test.equal "test 1" ]
+      |> Stdlib.Test.equal("Name: John, Age: 30 years old.")
+      (let one = 1L in $"test {Stdlib.toString(one)}")
+      |> Stdlib.Test.equal("test 1") ])
 
 test floatInterpolationRaises =
   (let one = 1.0 in $"test {one}")
@@ -27,16 +27,16 @@ test unboundVariableRaises =
 
 // --- interpolation scanner and brace escapes ---
 test bracesAndEscapes =
-  Stdlib.Test.all
+  Stdlib.Test.all(
     [ // A brace inside a char literal in an interpolation should not end the
       // interpolation.
-      $"{Stdlib.String.fromChar '}'}" |> Stdlib.Test.equal "}"
-      $"x{Stdlib.String.append "a" "}"}y" |> Stdlib.Test.equal "xa}y"
+      $"{Stdlib.String.fromChar('}')}" |> Stdlib.Test.equal("}")
+      $"x{Stdlib.String.append("a", "}")}y" |> Stdlib.Test.equal("xa}y")
       // An escaped-quote char literal should not affect later brace scanning.
-      $"{Stdlib.String.append (Stdlib.String.fromChar '\'') (Stdlib.String.fromChar '}')}"
-      |> Stdlib.Test.equal "'}"
+      $"{Stdlib.String.append(Stdlib.String.fromChar('\''), Stdlib.String.fromChar('}'))}"
+      |> Stdlib.Test.equal("'}")
       // `\{` and `\}` are literal-brace escapes; `\{\{` yields `{{`.
-      "\{\}" |> Stdlib.Test.equal "{}"
-      $"\{\{" |> Stdlib.Test.equal "{{"
+      "\{\}" |> Stdlib.Test.equal("{}")
+      $"\{\{" |> Stdlib.Test.equal("{{")
       // `{{` and `}}` are interpolation escapes for literal braces.
-      $"a{{b}}c" |> Stdlib.Test.equal "a{b}c" ]
+      $"a{{b}}c" |> Stdlib.Test.equal("a{b}c") ])

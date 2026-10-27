@@ -17,15 +17,15 @@ type Focus =
 /// Split `region` into two bordered panes by `firstPct` (0-100), render each child into its inner region.
 /// `focused` marks which pane gets the bright border. Below `minTotal`, collapses to the focused child only
 /// (with a "‹1/2›" hint), per the narrow-terminal rule.
-let render
-  (region: Layout.Region)
-  (orientation: Orientation)
-  (firstPct: Int)
-  (focused: Focus)
-  (titleFirst: String)
-  (titleSecond: String)
-  (renderFirst: Layout.Region -> List<Layout.Span>)
-  (renderSecond: Layout.Region -> List<Layout.Span>)
+let render(
+  region: Layout.Region,
+  orientation: Orientation,
+  firstPct: Int,
+  focused: Focus,
+  titleFirst: String,
+  titleSecond: String,
+  renderFirst: Layout.Region -> List<Layout.Span>,
+  renderSecond: Layout.Region -> List<Layout.Span>)
   : List<Layout.Span> =
   let firstFocused = focused == Focus.First
   let secondFocused = focused == Focus.Second
@@ -41,7 +41,7 @@ let render
     let (title, renderFn) =
       if secondFocused then (titleSecond + " ‹2/2›", renderSecond)
       else (titleFirst + " ‹1/2›", renderFirst)
-    Box.panel region title (focused != Focus.Neither) renderFn
+    Box.panel(region, title, focused != Focus.Neither, renderFn)
   else
     match orientation with
     | Horizontal ->
@@ -51,9 +51,9 @@ let render
         Layout.Region { top = region.top, left = region.left, rows = region.rows, cols = firstCols }
       let secondRegion =
         Layout.Region { top = region.top, left = region.left + firstCols, rows = region.rows, cols = secondCols }
-      Stdlib.List.flatten
-        [ Box.panel firstRegion titleFirst firstFocused renderFirst
-          Box.panel secondRegion titleSecond secondFocused renderSecond ]
+      Stdlib.List.flatten(
+        [ Box.panel(firstRegion, titleFirst, firstFocused, renderFirst)
+          Box.panel(secondRegion, titleSecond, secondFocused, renderSecond) ])
     | Vertical ->
       let firstRows = (region.rows * firstPct) / 100
       let secondRows = region.rows - firstRows
@@ -61,6 +61,6 @@ let render
         Layout.Region { top = region.top, left = region.left, rows = firstRows, cols = region.cols }
       let secondRegion =
         Layout.Region { top = region.top + firstRows, left = region.left, rows = secondRows, cols = region.cols }
-      Stdlib.List.flatten
-        [ Box.panel firstRegion titleFirst firstFocused renderFirst
-          Box.panel secondRegion titleSecond secondFocused renderSecond ]
+      Stdlib.List.flatten(
+        [ Box.panel(firstRegion, titleFirst, firstFocused, renderFirst)
+          Box.panel(secondRegion, titleSecond, secondFocused, renderSecond) ])

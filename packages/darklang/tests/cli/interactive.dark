@@ -20,37 +20,37 @@ type Step =
   | Send of String
 
 
-let escape (s: String) : String =
+let escape(s: String): String =
   s
-  |> Stdlib.String.replaceAll "\\" "\\\\"
-  |> Stdlib.String.replaceAll "\"" "\\\""
-  |> Stdlib.String.replaceAll "$" "\\$"
-  |> Stdlib.String.replaceAll "[" "\\["
-  |> Stdlib.String.replaceAll "]" "\\]"
+  |> Stdlib.String.replaceAll("\\", "\\\\")
+  |> Stdlib.String.replaceAll("\"", "\\\"")
+  |> Stdlib.String.replaceAll("$", "\\$")
+  |> Stdlib.String.replaceAll("[", "\\[")
+  |> Stdlib.String.replaceAll("]", "\\]")
 
 
 /// A Tcl string literal. Built by concatenation rather than interpolation: an expect
 /// script is mostly braces and quotes, and both are interpolation syntax here.
-let quoted (s: String) : String =
+let quoted(s: String): String =
   let q = "\""
-  q + (escape s) + q
+  q + (escape(s)) + q
 
 
-let stepLine (step: Step) : String =
+let stepLine(step: Step): String =
   match step with
   | Await text ->
     // A timeout has to say WHAT it was waiting for, or a failure here reads as "the screen
     // was wrong" with no screen attached.
-    let complaint = quoted ("\nTIMED OUT waiting for: " + text)
+    let complaint = quoted("\nTIMED OUT waiting for: " + text)
 
     // Expect's braced pattern/action form needs newlines. A single-line
     // braced argument is treated as one pattern and silently times out.
     "expect {\n  -exact "
-    + (quoted text)
+    + (quoted(text))
     + " {}\n  timeout { puts "
     + complaint
     + "; exit 2 }\n  eof { puts "
-    + (quoted ("\nEXITED BEFORE: " + text))
+    + (quoted("\nEXITED BEFORE: " + text))
     + "; exit 3 }\n}"
 
   | Send keys ->
@@ -58,12 +58,12 @@ let stepLine (step: Step) : String =
     // NEXT `Await` timing out rather than "the key did nothing". An `Await` before each
     // `Send` is the real fix and is how these should be written; the fifth of a second
     // covers the gap between the marker appearing and the frame finishing.
-    "sleep 0.2\nsend -- " + (quoted keys)
+    "sleep 0.2\nsend -- " + (quoted(keys))
 
 
 /// Whether this machine can run these tests. The dev container and CI both have expect;
 /// a bare checkout might not, and a test should say so rather than fail obscurely.
-let available () : Bool = Stdlib.Cli.Unix.isCommandAvailable "expect"
+let available(): Bool = Stdlib.Cli.Unix.isCommandAvailable("expect")
 
 
 /// Run `dark <args>` on a real terminal in `i`, walk `steps`, return the transcript.
@@ -71,36 +71,36 @@ let available () : Bool = Stdlib.Cli.Unix.isCommandAvailable "expect"
 /// The transcript is everything the child painted, escape sequences and all, which is
 /// what you want in a failure message and what `Stdlib.String.contains` is happy to
 /// search.
-let drive
-  (i: Instance.T)
-  (args: List<String>)
-  (steps: List<Step>)
-  (timeoutSeconds: Int)
+let drive(
+  i: Instance.T,
+  args: List<String>,
+  steps: List<Step>,
+  timeoutSeconds: Int)
   : Stdlib.Result.Result<String, String> =
-  if Stdlib.Bool.not (available ()) then
+  if Stdlib.Bool.not(available()) then
     Stdlib.Result.Result.Error "expect is not installed"
   else
     // Parenthesised: Dark parses pipes greedily, so `Instance.env i |> ...` reads the
     // qualified name as the pipe's left-hand side and fails.
     let envPrefix =
-      (Instance.env i)
-      |> Stdlib.List.map (fun pair ->
+      (Instance.env(i))
+      |> Stdlib.List.map(fun pair ->
         let (k, v) = pair
-        quoted ($"{k}={v}"))
-      |> Stdlib.String.join " "
+        quoted($"{k}={v}"))
+      |> Stdlib.String.join(" ")
 
     let argString =
-      args |> Stdlib.List.map quoted |> Stdlib.String.join " "
+      args |> Stdlib.List.map(quoted) |> Stdlib.String.join(" ")
 
     // The pane size is fixed so a layout assertion means the same thing on every machine;
     // the workbench refuses to start below its minimum.
     let header =
-      [ $"set timeout {Stdlib.toString timeoutSeconds}",
+      [ $"set timeout {Stdlib.toString(timeoutSeconds)}",
         "set env(LINES) 50",
         "set env(COLUMNS) 200",
-        $"spawn /usr/bin/env {envPrefix} {quoted i.cli} {argString}" ]
+        $"spawn /usr/bin/env {envPrefix} {quoted(i.cli)} {argString}" ]
 
-    let body = steps |> Stdlib.List.map (fun s -> stepLine s)
+    let body = steps |> Stdlib.List.map(fun s -> stepLine(s))
 
     // Steps must leave the child ready to exit (send q for a TUI). EOF and
     // successful exit are separate checks; neither may silently time out.
@@ -111,16 +111,16 @@ let drive
         "exit 0" ]
 
     let script =
-      (Stdlib.List.concat header (Stdlib.List.concat body footer))
-      |> Stdlib.String.join "\n"
+      (Stdlib.List.concat(header, Stdlib.List.concat(body, footer)))
+      |> Stdlib.String.join("\n")
 
     let path = $"{i.dir}/drive.exp"
 
-    match Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBytes script) with
+    match Stdlib.Cli.FileSystem.writeFile(path, Stdlib.String.toBytes(script)) with
     | Error e -> Stdlib.Result.Result.Error $"could not write {path}: {e}"
     | Ok _ ->
       let outcome =
-        Stdlib.Cli.Unix.executeInDirectoryWithOutput "." $"expect -f {path} 2>&1"
+        Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"expect -f {path} 2>&1")
 
       if outcome.exitCode == 0 then
         Stdlib.Result.Result.Ok outcome.stdout
@@ -129,14 +129,14 @@ let drive
 
 
 /// `drive`, as a test result.
-let expectSteps
-  (i: Instance.T)
-  (args: List<String>)
-  (steps: List<Step>)
-  (timeoutSeconds: Int)
+let expectSteps(
+  i: Instance.T,
+  args: List<String>,
+  steps: List<Step>,
+  timeoutSeconds: Int)
   : Stdlib.Test.Result =
-  match drive i args steps timeoutSeconds with
+  match drive(i, args, steps, timeoutSeconds) with
   | Ok _ -> Stdlib.Test.Result.Pass
   | Error transcript ->
-    let cmd = Stdlib.String.join args " "
-    Stdlib.Test.fail $"interactive `{cmd}` did not do what was asked:\n{transcript}"
+    let cmd = Stdlib.String.join(args, " ")
+    Stdlib.Test.fail($"interactive `{cmd}` did not do what was asked:\n{transcript}")

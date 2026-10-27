@@ -109,8 +109,8 @@ signature; checking the entry alone would adopt a version that fails on its firs
 So a broken save never blanks a screen or a site: the previous version is still in the
 store, and it still runs, on the callees it was built against.
 
-`Live.applicable lg` is the callable for the held hash (`Builtin.applicableByHash`, the
-by-hash twin of `applicableByName`). `Live.diagnostic lg` is the one line for a band or
+`Live.applicable(lg)` is the callable for the held hash (`Builtin.applicableByHash`, the
+by-hash twin of `applicableByName`). `Live.diagnostic(lg)` is the one line for a band or
 a log.
 
 ## `serve` follows edits
@@ -172,15 +172,15 @@ Every TUI host is written against one contract, the scheduler's event queue behi
 
 ```
 let rec loop model =
-  match Host.await [Key; StoreChanged] with
-  | StoreChanged c when Live.affects c.locations entry ->
-      let model = reload entry model      // last-good rule applies
-      loop (render model)
-  | Key k -> loop (render (update model k))
-  | _ -> loop model
+  match Host.await([Key, StoreChanged]) with
+  | StoreChanged c when Live.affects(c.locations, entry) ->
+      let model = reload(entry, model)    // last-good rule applies
+      loop(render(model))
+  | Key k -> loop(render(update(model, k)))
+  | _ -> loop(model)
 ```
 
-`Stdlib.Host.await [Key; StoreChanged; Timer ms; ExecDone id]` returns the first that
+`Stdlib.Host.await([Key, StoreChanged, Timer ms, ExecDone id])` returns the first that
 fired: `Key of KeyRead` (the runtime's read: a key, a paste, a burst with its repeat
 count), `StoreChanged of Live.Change`, `Timer`, `ExecDone of id` (a process finished; ask
 `Exec.await` how). It is `Builtin.hostAwait` (`docs/processes.md`: under the scheduler
@@ -190,7 +190,7 @@ polling) plus one thing the runtime cannot do: say which ops landed. The poll po
 the store MOVED; `await` describes it with `Live.poll` from a watch the runtime keeps in
 one slot (`Builtin.hostWatchGet/Set`, since `await` takes no state and a Dark value does
 not outlive the call that made it), and a move that carried no op (a config write) is
-absorbed and the wait goes on. `Host.begin ()` starts the watch before a loop resolves
+absorbed and the wait goes on. `Host.begin()` starts the watch before a loop resolves
 its entries, so an edit during startup is not missed.
 
 A view of something that moves on its own (`ps --watch`) sets `View.every = Some ms`;
@@ -239,7 +239,7 @@ A save that puts a name back on a version it held before lands as a decision (a 
 ## Daemons
 
 A daemon that follows edits is a step, `step : 's -> 's`, run by `Cli.LiveView.Runner`:
-once per interval, waiting through `Host.await [StoreChanged; Timer]` in between, so an
+once per interval, waiting through `Host.await([StoreChanged, Timer])` in between, so an
 edit that reaches the step is resolved through `LastGood` before the next tick and a
 broken version is skipped with the reason in the log. A daemon written as one
 long-running fn cannot follow anything, scheduler or not: its frames call callees by
@@ -266,7 +266,7 @@ normal case) keeps the last good frame, `dark diff` on the branch is the review.
 things are for the agent's side, both in `Stdlib.Live` and neither needs the agent
 harness.
 
-`Live.show view` points every host loop on this instance at a view (a module with
+`Live.show(view)` points every host loop on this instance at a view (a module with
 `init`, `update` and `render`): it writes `live.show` in the store's config (`config_v0`),
 which moves the store counter, so an open live view wakes and switches on its next turn. The watch carries what `live.show` said at its last poll,
 so a poll that finds the counter moved and nothing landed can tell a show from a trace
@@ -275,7 +275,7 @@ an event on the queue, on purpose: an event reaches the loops that are running n
 setting also reaches the one you open next, and there is no session to scope it to until
 sessions persist.
 
-`Live.observe branchId view` is the view without a terminal: `{ report, render, rte }`.
+`Live.observe(branchId, view)` is the view without a terminal: `{ report, render, rte }`.
 Each of `init` and `render` is taken at its newest version that passes its at-rest
 checks (the store's history is the memory, `versionsNewestFirst`; nothing is kept
 between calls), `init` runs for the model, `render` for the tree, and the tree goes
@@ -300,7 +300,7 @@ Not from the recording: from running the current code again on the recorded inpu
 edit to a callee shows up in the caller's values without anyone calling it again, and a
 value beside a call is always the value of the code you are looking at.
 
-`Stdlib.Live.Values.replay accountID branchId location` uses the viewing account's current
+`Stdlib.Live.Values.replay(accountID, branchId, location)` uses the viewing account's current
 approvals (`None` selects anonymous approvals). It finds the newest recorded run that went
 through the function (`trace_fns`, name and hash per function), replays THAT WHOLE RUN
 with every impure call answered from its own log and none performed, and returns `Values`:
@@ -365,7 +365,7 @@ demo 1, TUI follows edits
 
 The same beats on one machine, by hand: `dark fn Me.Demo.page '(): String = "v1"'`, `dark fn
 Me.Demo.router '(req: Stdlib.Http.Request): Stdlib.Http.Response =
-Stdlib.Http.responseWithText (Me.Demo.page ()) 200'`, `dark permissions allow http-server
+Stdlib.Http.responseWithText(Me.Demo.page(), 200)'`, `dark permissions allow http-server
 9095`, `dark serve Me.Demo.router --port 9095 --live`; then `dark fn Me.Demo.page '():
 String = "v2"'` in another terminal and the next `curl` has it; `dark fn Me.Demo.page '():
 String = 3'` leaves the page on v2 and prints the diagnostic in the serve terminal.

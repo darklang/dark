@@ -49,13 +49,13 @@ type Outcome<'s, 'msg> =
 
 // --- Keys ---
 
-let press
-  (key: Stdlib.Cli.Stdin.Key.Key)
-  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
-  (char: Stdlib.Option.Option<String>)
+let press(
+  key: Stdlib.Cli.Stdin.Key.Key,
+  modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers,
+  char: Stdlib.Option.Option<String>)
   : KeyPress =
   KeyPress { key = key, modifiers = modifiers, char = char }
 
 /// Did this keypress type `c`?
-let isChar (kp: KeyPress) (c: String) : Bool =
+let isChar(kp: KeyPress, c: String): Bool =
   kp.char == (Stdlib.Option.Option.Some c)

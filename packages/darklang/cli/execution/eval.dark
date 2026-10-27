@@ -3,25 +3,25 @@ module Darklang.Cli.Eval
 
 
 /// Evaluate an expression, keeping errors structured for the caller.
-let evaluateRaw
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchId: Uuid)
-  (expr: String)
-  (currentModule: List<String>)
-  (allowHarmful: Bool)
+let evaluateRaw(
+  accountID: Stdlib.Option.Option<Uuid>,
+  branchId: Uuid,
+  expr: String,
+  currentModule: List<String>,
+  allowHarmful: Bool)
   : Stdlib.Result.Result<
       Stdlib.Option.Option<String>,
       ExecutionError.ExecutionError> =
-  let (width, _rows) = Terminal.getSize ()
-  let color = Stdlib.Cli.Sys.isTerminal 1
+  let (width, _rows) = Terminal.getSize()
+  let color = Stdlib.Cli.Sys.isTerminal(1)
   match
-    Builtin.cliEvaluateExpression
-      accountID branchId expr currentModule width color allowHarmful
+    Builtin.cliEvaluateExpression(
+      accountID, branchId, expr, currentModule, width, color, allowHarmful)
   with
   | Ok value -> Stdlib.Result.Result.Ok value
   | Error error ->
     match error with
-    | Runtime(_, _) -> ExecutionError.printCallStack branchId "expression" error
+    | Runtime(_, _) -> ExecutionError.printCallStack(branchId, "expression", error)
     | _ -> ()
     Stdlib.Result.Result.Error error
 
@@ -30,85 +30,85 @@ let evaluateRaw
 /// that printed nothing, `Error message` for a failure. What the `eval`/REPL path uses - `execute` prints
 /// what this returns, and the workbench REPL keeps it as state. Takes the whole expression as one string,
 /// so a multi-line let-chain survives.
-let evaluate
-  (state: AppState)
-  (expr: String)
-  (allowHarmful: Bool)
+let evaluate(
+  state: AppState,
+  expr: String,
+  allowHarmful: Bool)
   : Stdlib.Result.Result<Stdlib.Option.Option<String>, String> =
   // Where the user is standing, so the printed value spells names the way they would.
   let currentModule =
-    Packages.Traversal.getCurrentModulePath state.packageData.currentLocation
+    Packages.Traversal.getCurrentModulePath(state.packageData.currentLocation)
 
   match
-    evaluateRaw state.accountID state.currentBranchId expr currentModule allowHarmful
+    evaluateRaw(state.accountID, state.currentBranchId, expr, currentModule, allowHarmful)
   with
   | Ok result -> Stdlib.Result.Result.Ok result
   | Error err ->
-    Stdlib.Result.Result.Error(ExecutionError.toString state.currentBranchId err)
+    Stdlib.Result.Result.Error(ExecutionError.toString(state.currentBranchId, err))
 
 
-let execute (state: AppState) (args: List<String>) : AppState =
+let execute(state: AppState, args: List<String>): AppState =
   let allowHarmful =
-    Stdlib.List.contains args "--allow-harmful"
+    Stdlib.List.contains(args, "--allow-harmful")
   // What the expression cost, net of the measuring harness itself: see Perf.floor.
   let wantStats =
-    Stdlib.List.contains args "--stats"
+    Stdlib.List.contains(args, "--stats")
   let args =
     args
-    |> Stdlib.List.filter (fun a -> (a != "--allow-harmful") && (a != "--stats"))
+    |> Stdlib.List.filter(fun a -> (a != "--allow-harmful") && (a != "--stats"))
 
   match args with
   | [] ->
-    Stdlib.printLine (help state)
+    Stdlib.printLine(help(state))
     state
   | _ ->
     // Special case: a single "-" arg means "read expression from stdin" so
     // callers can pipe multi-line expressions via heredoc without quoting.
     let expr =
       match args with
-      | [ "-" ] -> Stdlib.Cli.Stdin.readAll ()
-      | parts -> Stdlib.String.join parts " "
+      | [ "-" ] -> Stdlib.Cli.Stdin.readAll()
+      | parts -> Stdlib.String.join(parts, " ")
     let (stats, outcome) =
       if wantStats then
-        let harness = LanguageTools.Perf.floor ()
+        let harness = LanguageTools.Perf.floor()
 
         let (raw, result) =
-          LanguageTools.Perf.measure (fun () -> evaluate state expr allowHarmful)
+          LanguageTools.Perf.measure(fun () -> evaluate(state, expr, allowHarmful))
 
-        (Stdlib.Option.Option.Some(LanguageTools.Perf.minus raw harness), result)
+        (Stdlib.Option.Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
       else
-        (Stdlib.Option.Option.None, evaluate state expr allowHarmful)
+        (Stdlib.Option.Option.None, evaluate(state, expr, allowHarmful))
 
     let newState =
       match outcome with
       | Ok (Some s) ->
-        Stdlib.printLine s
+        Stdlib.printLine(s)
         state
       | Ok None -> state
       | Error message ->
-        Stdlib.printErrorLine $"Error: {message}"
+        Stdlib.printErrorLine($"Error: {message}")
         { state with exitCode = 1 }
 
     match stats with
     | Some m ->
-      let _ = Stdlib.printLine ""
-      let _ = Stdlib.printLine (LanguageTools.Perf.render m)
+      let _ = Stdlib.printLine("")
+      let _ = Stdlib.printLine(LanguageTools.Perf.render(m))
       // TODO: report the phases instead of warning about them. `cliEvaluateExpression` already
       // splits `parseCliExpr` from `execute`, so bracketing each would turn this line into two
       // rows. F# on the eval path, so it wants its own change and its own measurement.
       let _ =
-        Stdlib.printLine
-          "  (includes parsing and name resolution; Perf.measure in a script brackets execution alone)"
+        Stdlib.printLine(
+          "  (includes parsing and name resolution; Perf.measure in a script brackets execution alone)")
 
       newState
     | None -> newState
 
 
-let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [
     "Usage: eval <expression>"
     "       eval -    (read expression from stdin, for multi-line input)"
@@ -123,11 +123,11 @@ let help (_state: AppState) : String =
     "  eval 1 + 2                     - Arithmetic operations"
     "  eval \"hello\" + \"world\"         - String concatenation"
     "  eval [1, 2, 3] |> List.length  - List operations"
-    "  eval Stdlib.String.length \"test\" - Function calls"
+    "  eval Stdlib.String.length(\"test\") - Function calls"
     ""
     "  # Multi-line expression via stdin (run from shell, not the REPL):"
     "  ./scripts/run-cli eval - <<'EOF'"
     "  let xs = [1, 2, 3]"
     "  Stdlib.List.length xs"
     "  EOF"
-  ] |> Stdlib.String.join "\n"
+  ] |> Stdlib.String.join("\n")

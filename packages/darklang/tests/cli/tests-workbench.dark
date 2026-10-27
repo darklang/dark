@@ -2,74 +2,74 @@
 module Darklang.Cli.Tests.TestSuite
 
 test workbenchHistoryRoundTrip =
-  let base = workbenchState ()
+  let base = workbenchState()
   let hit = Darklang.Cli.Workbench.SearchHit
     { modules = [ "Darklang", "Stdlib", "List" ]
       name = "map", kind = "fn", display = "map" }
   let jumped =
-    match Darklang.Cli.Workbench.jumpToHit base hit with
+    match Darklang.Cli.Workbench.jumpToHit(base, hit) with
     | Continue s -> s
     | _ -> base
-  let returned = (wbKey jumped Stdlib.Cli.Stdin.Key.Key.Escape).state
-  let tree = (wbChar base "2").state
+  let returned = (wbKey(jumped, Stdlib.Cli.Stdin.Key.Key.Escape)).state
+  let tree = (wbChar(base, "2")).state
   let original =
     { tree with filter = "Darklang", selected = 0
-                items = Darklang.Cli.Workbench.applyFilter tree.items "Darklang" }
-  let entered = (wbKey original Stdlib.Cli.Stdin.Key.Key.Enter).state
-  let parent = (wbKey entered Stdlib.Cli.Stdin.Key.Key.Escape).state
-  let lens = (wbChar tree "L").state
-  let beforeLens = (wbKey lens Stdlib.Cli.Stdin.Key.Key.Escape).state
-  let sameReturnPoint
-    (a: Darklang.Cli.Workbench.State)
-    (b: Darklang.Cli.Workbench.State)
+                items = Darklang.Cli.Workbench.applyFilter(tree.items, "Darklang") }
+  let entered = (wbKey(original, Stdlib.Cli.Stdin.Key.Key.Enter)).state
+  let parent = (wbKey(entered, Stdlib.Cli.Stdin.Key.Key.Escape)).state
+  let lens = (wbChar(tree, "L")).state
+  let beforeLens = (wbKey(lens, Stdlib.Cli.Stdin.Key.Key.Escape)).state
+  let sameReturnPoint(
+    a: Darklang.Cli.Workbench.State,
+    b: Darklang.Cli.Workbench.State)
     : Bool =
-    Darklang.Cli.Workbench.returnPointOf a == Darklang.Cli.Workbench.returnPointOf b
-  if (Stdlib.List.length jumped.back == 1)
-     && (sameReturnPoint returned base)
-     && (Stdlib.List.isEmpty returned.back)
+    Darklang.Cli.Workbench.returnPointOf(a) == Darklang.Cli.Workbench.returnPointOf(b)
+  if (Stdlib.List.length(jumped.back) == 1)
+     && (sameReturnPoint(returned, base))
+     && (Stdlib.List.isEmpty(returned.back))
      && (entered.location != original.location)
-     && (sameReturnPoint parent original)
+     && (sameReturnPoint(parent, original))
      && (parent.items == original.items)
      && (lens.matter.lens != tree.matter.lens)
-     && (sameReturnPoint beforeLens tree)
+     && (sameReturnPoint(beforeLens, tree))
   then Stdlib.Test.Result.Pass
-  else Stdlib.Test.fail "search, modules and lenses must return in one Escape"
+  else Stdlib.Test.fail("search, modules and lenses must return in one Escape")
 
 test workbenchBranchPicker =
-  let base = workbenchState ()
-  let opened = (wbChar base "S").state
+  let base = workbenchState()
+  let opened = (wbChar(base, "S")).state
   let opens = match opened.overlay with | Branches _ -> true | _ -> false
   let choices =
-    Stdlib.List.range 1 20 |> Stdlib.List.map (fun n ->
+    Stdlib.List.range(1, 20) |> Stdlib.List.map(fun n ->
       Darklang.Cli.Workbench.BranchChoice
         { id = Darklang.SCM.Branch.mainBranchId
-          name = "branch-" + (Stdlib.toString n), detail = "" })
+          name = "branch-" + (Stdlib.toString(n)), detail = "" })
   let picker = Darklang.Cli.Workbench.BranchPicker
-    { choices = choices, field = Stdlib.Cli.UI.TextField.fromText "", selected = 0 }
+    { choices = choices, field = Stdlib.Cli.UI.TextField.fromText(""), selected = 0 }
   let state = { base with overlay = Darklang.Cli.Workbench.Overlay.Branches picker }
-  let paged = (wbKey state Stdlib.Cli.Stdin.Key.Key.PageDown).state
-  let typed = (wbChar paged "BRANCH-20").state
+  let paged = (wbKey(state, Stdlib.Cli.Stdin.Key.Key.PageDown)).state
+  let typed = (wbChar(paged, "BRANCH-20")).state
   let matched =
     match typed.overlay with
     | Branches p ->
       let names =
-        Darklang.Cli.Workbench.matchingBranches p |> Stdlib.List.map (fun b -> b.name)
+        Darklang.Cli.Workbench.matchingBranches(p) |> Stdlib.List.map(fun b -> b.name)
       (p.selected == 0) && (names == [ "branch-20" ])
     | _ -> false
-  let missing = (wbChar typed "zzz").state
-  let enter = (wbKey missing Stdlib.Cli.Stdin.Key.Key.Enter).state
+  let missing = (wbChar(typed, "zzz")).state
+  let enter = (wbKey(missing, Stdlib.Cli.Stdin.Key.Key.Enter)).state
   let noMatch =
     match enter.overlay with
-    | Branches p -> Stdlib.List.isEmpty (Darklang.Cli.Workbench.matchingBranches p)
+    | Branches p -> Stdlib.List.isEmpty(Darklang.Cli.Workbench.matchingBranches(p))
     | _ -> false
-  let cancelled = (wbKey typed Stdlib.Cli.Stdin.Key.Key.Escape).state
-  let fromCode = (wbChar (wbChar base "2").state "S").state
-  let fromHome = (wbChar base "s").state
-  let isOpen (s: Darklang.Cli.Workbench.State) : Bool =
+  let cancelled = (wbKey(typed, Stdlib.Cli.Stdin.Key.Key.Escape)).state
+  let fromCode = (wbChar((wbChar(base, "2")).state, "S")).state
+  let fromHome = (wbChar(base, "s")).state
+  let isOpen(s: Darklang.Cli.Workbench.State): Bool =
     match s.overlay with | Branches _ -> true | _ -> false
-  if opens && matched && noMatch && (isOpen fromCode) && (isOpen fromHome)
+  if opens && matched && noMatch && (isOpen(fromCode)) && (isOpen(fromHome))
      && (cancelled.overlay == Darklang.Cli.Workbench.Overlay.NoOverlay)
      && (cancelled.branchId == base.branchId)
      && (cancelled.items == base.items)
   then Stdlib.Test.Result.Pass
-  else Stdlib.Test.fail "picker must filter all branches, cancel and reject no matches"
+  else Stdlib.Test.fail("picker must filter all branches, cancel and reject no matches")

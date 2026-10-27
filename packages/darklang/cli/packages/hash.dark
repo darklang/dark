@@ -8,27 +8,27 @@ module Darklang.Cli.Packages.Hash
 // on a name that `view Stdlib.List.head` printed happily. One name, two answers, and the failing one
 // is the command you reach for when you want to be precise.
 
-let formatHash (hash: LanguageTools.ProgramTypes.Hash) (long: Bool) : String =
-  if long then Darklang.LanguageTools.ProgramTypes.hashToString hash
-  else Darklang.LanguageTools.ProgramTypes.hashToShort hash
+let formatHash(hash: LanguageTools.ProgramTypes.Hash, long: Bool): String =
+  if long then Darklang.LanguageTools.ProgramTypes.hashToString(hash)
+  else Darklang.LanguageTools.ProgramTypes.hashToShort(hash)
 
-let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   let long =
-    Stdlib.List.any args (fun a -> a == "--long" || a == "--full")
+    Stdlib.List.any(args, fun a -> a == "--long" || a == "--full")
 
   let filteredArgs =
-    args |> Stdlib.List.filter (fun a -> a != "--long" && a != "--full")
+    args |> Stdlib.List.filter(fun a -> a != "--long" && a != "--full")
 
   match filteredArgs with
   | [] ->
-    Stdlib.printLine "Usage: hash <location>"
+    Stdlib.printLine("Usage: hash <location>")
     state
   | locationStr :: _ ->
     let branchId = state.currentBranchId
 
-    match Traversal.traverse branchId state.packageData.currentLocation locationStr with
+    match Traversal.traverse(branchId, state.packageData.currentLocation, locationStr) with
     | Error e ->
-      Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error e)
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(e))
       { state with exitCode = 1 }
 
     | Ok location ->
@@ -36,43 +36,43 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         match location with
         | Module _ -> Stdlib.Option.Option.None
         | Type loc ->
-          LanguageTools.PackageManager.Type.find branchId loc
-          |> Stdlib.Option.map (fun h -> ("type", h))
+          LanguageTools.PackageManager.Type.find(branchId, loc)
+          |> Stdlib.Option.map(fun h -> ("type", h))
         | Function loc ->
-          LanguageTools.PackageManager.Function.find branchId loc
-          |> Stdlib.Option.map (fun h -> ("fn", h))
+          LanguageTools.PackageManager.Function.find(branchId, loc)
+          |> Stdlib.Option.map(fun h -> ("fn", h))
         | Value loc ->
-          LanguageTools.PackageManager.Value.find branchId loc
-          |> Stdlib.Option.map (fun h -> ("value", h))
+          LanguageTools.PackageManager.Value.find(branchId, loc)
+          |> Stdlib.Option.map(fun h -> ("value", h))
         | Trait loc ->
-          LanguageTools.PackageManager.Trait.find branchId loc
-          |> Stdlib.Option.map (fun h -> ("trait", h))
+          LanguageTools.PackageManager.Trait.find(branchId, loc)
+          |> Stdlib.Option.map(fun h -> ("trait", h))
         | Impl loc ->
-          LanguageTools.PackageManager.TraitImpl.find branchId loc
-          |> Stdlib.Option.map (fun h -> ("impl", h))
+          LanguageTools.PackageManager.TraitImpl.find(branchId, loc)
+          |> Stdlib.Option.map(fun h -> ("impl", h))
         | Test loc ->
-          LanguageTools.PackageManager.Test.find branchId loc
-          |> Stdlib.Option.map (fun h -> ("test", h))
+          LanguageTools.PackageManager.Test.find(branchId, loc)
+          |> Stdlib.Option.map(fun h -> ("test", h))
 
       match found with
       | Some((kindStr, hash)) ->
-        Stdlib.printLine $"{kindStr} {formatHash hash long}"
+        Stdlib.printLine($"{kindStr} {formatHash(hash, long)}")
         state
       | None ->
         // A module resolves fine and simply has nothing to hash: it is a path, not content.
         match location with
         | Module path ->
-          let dotted = Stdlib.String.join path "."
-          Stdlib.printErrorLine
-            (Stdlib.Cli.UI.Colors.error
-              $"{dotted} is a module, and a module has no hash.")
-          Stdlib.printErrorLine "  `dark ls` lists what is in it; each item has its own."
+          let dotted = Stdlib.String.join(path, ".")
+          Stdlib.printErrorLine(
+            (Stdlib.Cli.UI.Colors.error(
+              $"{dotted} is a module, and a module has no hash.")))
+          Stdlib.printErrorLine("  `dark ls` lists what is in it; each item has its own.")
           { state with exitCode = 1 }
         | _ ->
-          Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Not found: {locationStr}")
+          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Not found: {locationStr}"))
           { state with exitCode = 1 }
 
-let help (_state: Cli.AppState) : String =
+let help(_state: Cli.AppState): String =
   [ "Usage: hash [--long] <location>"
     "Show the hash of a package type, function, value, or test."
     "By default shows a short (8-char) hash; use --long or --full for the full hash."
@@ -85,12 +85,12 @@ let help (_state: Cli.AppState) : String =
     "  hash --long MyType   -- full hash"
     "  hash Module.myFn     -- hash of fn in submodule"
     "  hash /Owner.M.x      -- hash at absolute path" ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")
 
-let complete (state: Cli.AppState) (args: List<String>) : List<Completion.CompletionItem> =
+let complete(state: Cli.AppState, args: List<String>): List<Completion.CompletionItem> =
   let branchId = state.currentBranchId
-  match Stdlib.List.last args with
+  match Stdlib.List.last(args) with
   | Some lastArg ->
-    Traversal.completePartialPath branchId state.packageData.currentLocation lastArg
+    Traversal.completePartialPath(branchId, state.packageData.currentLocation, lastArg)
   | None ->
-    Traversal.completePartialPath branchId state.packageData.currentLocation ""
+    Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")

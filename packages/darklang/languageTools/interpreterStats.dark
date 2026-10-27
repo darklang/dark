@@ -8,20 +8,20 @@ module Darklang.LanguageTools.InterpreterStats
 
 
 /// Zero the counters, and start counting if they weren't already.
-let reset () : Unit =
-  Builtin.interpreterStatsReset ()
+let reset(): Unit =
+  Builtin.interpreterStatsReset()
 
 
 /// The counters so far, as a JSON string.
-let get () : String =
-  Builtin.interpreterStatsGet ()
+let get(): String =
+  Builtin.interpreterStatsGet()
 
 
 /// Also record per-expression time from here on. Off by default: on some
 /// hosts reading the clock costs more than the expression being timed, so
 /// this is a deliberate, per-run choice rather than something to leave on.
-let enableDetailedTiming (enabled: Bool) : Unit =
-  Builtin.interpreterStatsEnableDetailedTiming enabled
+let enableDetailedTiming(enabled: Bool): Unit =
+  Builtin.interpreterStatsEnableDetailedTiming(enabled)
 
 
 /// Bytes this process has allocated since it started, including memory since
@@ -30,5 +30,5 @@ let enableDetailedTiming (enabled: Bool) : Unit =
 /// This is the number to compare two versions of the same code with: unlike
 /// wall-clock time it repeats exactly, and it does not care how loaded the
 /// machine is.
-let allocatedBytes () : Int64 =
-  Builtin.gcAllocatedBytes ()
+let allocatedBytes(): Int64 =
+  Builtin.gcAllocatedBytes()

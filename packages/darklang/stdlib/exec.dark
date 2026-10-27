@@ -71,8 +71,8 @@ type Detail =
 
 
 /// Every process this instance's scheduler knows, finished ones included.
-let list () : List<Summary> =
-  Builtin.execList ()
+let list(): List<Summary> =
+  Builtin.execList()
 
 
 /// One Dark process on this machine, from the registry every CLI writes at startup: what `dark ps`
@@ -87,13 +87,13 @@ type MachineProcess =
 
 
 /// Every Dark process on this machine still running, oldest first.
-let machineList () : List<MachineProcess> =
-  Builtin.execMachineList ()
+let machineList(): List<MachineProcess> =
+  Builtin.execMachineList()
 
 
 /// One process in detail, or `None` for an id nobody has.
-let inspect (id: Uuid) : Stdlib.Option.Option<Detail> =
-  Builtin.execInspect id
+let inspect(id: Uuid): Stdlib.Option.Option<Detail> =
+  Builtin.execInspect(id)
 
 
 /// A process started with `spawn`. `'a` is what `await` gives back for it.
@@ -102,45 +102,45 @@ type Handle<'a> = { id: Uuid }
 
 /// How many processes run at once: one per core this process may use. More than this many
 /// spawned at once take turns rather than running faster.
-let workers () : Int =
-  Builtin.execWorkerCount ()
+let workers(): Int =
+  Builtin.execWorkerCount()
 
 
 /// Start `f ()` as a process of its own, beside this one, on another core when one is free.
 /// It runs under the access the caller has here, like a closure. `await` collects it. It
 /// stops when this process finishes, if it has not finished first; `spawnDetached` for one
 /// that should outlive its parent.
-let spawn (f: Unit -> 'a) : Handle<'a> =
-  Builtin.execSpawn f
+let spawn(f: Unit -> 'a): Handle<'a> =
+  Builtin.execSpawn(f)
 
 
 /// `spawn`, for a process that keeps running after the one that started it has finished (a
 /// background writer, a watcher), until the `dark` command it runs in exits. `cancel` still
 /// stops it.
-let spawnDetached (f: Unit -> 'a) : Handle<'a> =
-  Builtin.execSpawnDetached f
+let spawnDetached(f: Unit -> 'a): Handle<'a> =
+  Builtin.execSpawnDetached(f)
 
 
 /// What the process behind `handle` finished with, waiting for it if it has not. An error it
 /// failed with is raised here. (For a value that is a read still in flight, `Stdlib.await`.)
-let await (handle: Handle<'a>) : 'a =
-  Builtin.execAwait handle
+let await(handle: Handle<'a>): 'a =
+  Builtin.execAwait(handle)
 
 
 /// `await`, giving up after `ms` milliseconds: `None` then, and the process keeps running
 /// (`cancel` it if that is not wanted).
-let awaitWithin (ms: Int64) (handle: Handle<'a>) : Stdlib.Option.Option<'a> =
-  Builtin.execAwaitWithin ms handle
+let awaitWithin(ms: Int64, handle: Handle<'a>): Stdlib.Option.Option<'a> =
+  Builtin.execAwaitWithin(ms, handle)
 
 
 /// The first of `handles` to finish, with its value. Waits when none has.
-let select (handles: List<Handle<'a>>) : (Handle<'a> * 'a) =
-  Builtin.execSelect handles
+let select(handles: List<Handle<'a>>): (Handle<'a> * 'a) =
+  Builtin.execSelect(handles)
 
 
 /// Ask the process behind `handle` to stop, and everything it spawned that is not detached.
 /// It ends at its next turn: whatever it is doing on the host right now (a write, a request)
 /// completes first, and an `await` on it raises "cancelled". False for a handle nobody has.
 /// (`dark ps kill` is the escape hatch that does not wait for the host.)
-let cancel (handle: Handle<'a>) : Bool =
-  Builtin.execCancel handle
+let cancel(handle: Handle<'a>): Bool =
+  Builtin.execCancel(handle)

@@ -71,21 +71,21 @@ SCENARIOS = {
     "help": ["help"],
     "tree": ["tree"],
     "eval-trivial": ["eval", "1L + 2L"],
-    "eval-map5": ["eval", "Stdlib.List.map [1,2,3,4,5] (fun x -> x + 1)"],
-    "eval-map1000": ["eval", "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 1000) (fun x -> x + 1))"],
+    "eval-map5": ["eval", "Stdlib.List.map([1,2,3,4,5], fun x -> x + 1)"],
+    "eval-map1000": ["eval", "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 1000), fun x -> x + 1))"],
     # Heavy enough that the interpreter, not process startup, dominates. Startup is ~400 ms of fixed cost,
     # so a scenario doing 20 ms of list work can't show a list-work improvement at all.
     "eval-listheavy": ["eval",
-        "Stdlib.List.length (Stdlib.List.filter (Stdlib.List.map (Stdlib.List.range 1 2000) (fun x -> x + 1)) (fun x -> x > 5))"],
+        "Stdlib.List.length(Stdlib.List.filter(Stdlib.List.map(Stdlib.List.range(1, 2000), fun x -> x + 1), fun x -> x > 5))"],
     # Interpreter workloads, materialized by `materialize_workloads`.
     "interp-list": ["run", "rundir/perf-workloads/steady.dark"],
     "interp-arith": ["run", "rundir/perf-workloads/arith.dark"],
     "eval-flatten": ["eval",
-        "Stdlib.List.length (Stdlib.List.flatten (Stdlib.List.map (Stdlib.List.range 1 400) (fun x -> Stdlib.List.range 1 20)))"],
+        "Stdlib.List.length(Stdlib.List.flatten(Stdlib.List.map(Stdlib.List.range(1, 400), fun x -> Stdlib.List.range(1, 20))))"],
     # A stream pipeline: every element crosses a map and a filter callable, so this is the cost
     # of a transform per element (the callables run as frames of the pulling process).
     "eval-stream": ["eval",
-        "Stdlib.List.length (Stdlib.Stream.toList (Stdlib.Stream.filter (Stdlib.Stream.map (Stdlib.Stream.fromList (Stdlib.List.range 1 3000)) (fun x -> x + 1)) (fun x -> x > 5)))"],
+        "Stdlib.List.length(Stdlib.Stream.toList(Stdlib.Stream.filter(Stdlib.Stream.map(Stdlib.Stream.fromList(Stdlib.List.range(1, 3000)), fun x -> x + 1), fun x -> x > 5)))"],
 }
 
 # Interpreter workloads, kept as source here rather than as .dark files in the tree: anything under

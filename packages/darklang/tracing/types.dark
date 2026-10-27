@@ -135,7 +135,7 @@ module ReplayStop =
   /// page then shows the error plainly, as it always did, rather than claiming drift it cannot
   /// support. A new resolution-shaped error wants adding here, and until someone does, the
   /// page is unhelpful rather than wrong.
-  let isDrift (stop: ReplayStop) : Bool =
+  let isDrift(stop: ReplayStop): Bool =
     match stop with
     | Raised err ->
       match err with

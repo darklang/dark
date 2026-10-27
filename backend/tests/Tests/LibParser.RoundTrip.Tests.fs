@@ -213,7 +213,7 @@ module RoundTripExpect =
       let closed =
         RT.Captures.toList lambda.closedRegisters
         |> List.collect (fun (_, value) -> collectUnresolved value)
-      closed @ (lambda.argsSoFar |> List.collect collectUnresolved)
+      closed
     | RT.DApplicable(RT.AppNamedFn namedFn) ->
       namedFn.argsSoFar |> List.collect collectUnresolved
 
@@ -1291,8 +1291,8 @@ let exprs =
   [ t "unwrap of variable" "fun x -> Ok x?" "(fun x -> Result.Ok(x?))" [] [] [] false
     t
       "unwrap of application"
-      "fun x -> Ok ((f x)?)"
-      "(fun x -> Result.Ok((f x)?))"
+      "fun x -> Ok ((f(x))?)"
+      "(fun x -> Result.Ok((f(x))?))"
       []
       []
       []
@@ -1512,11 +1512,11 @@ let exprs =
     t
       "list of function calls"
       """[
-  Stdlib.Tuple2.second (4L, 5L)
-  Stdlib.Int64.remainder 1L 2L
-  Stdlib.List.head [1L, 2L]
+  Stdlib.Tuple2.second((4L, 5L))
+  Stdlib.Int64.remainder(1L, 2L)
+  Stdlib.List.head([1L, 2L])
 ]"""
-      "[\n  Stdlib.Tuple2.second (4L, 5L),\n  Stdlib.Int64.remainder 1L 2L,\n  Stdlib.List.head [1L, 2L]\n]"
+      "[\n  Stdlib.Tuple2.second((4L, 5L)),\n  Stdlib.Int64.remainder(1L, 2L),\n  Stdlib.List.head([1L, 2L])\n]"
       []
       []
       []
@@ -1525,13 +1525,13 @@ let exprs =
     t
       "list of function calls -indented"
       """[
-  Stdlib.Tuple2.second (4L, 5L)
-  (Stdlib.Int64.remainder
-    1L
-    2L)
-  Stdlib.List.head [1L, 2L]
+  Stdlib.Tuple2.second((4L, 5L))
+  (Stdlib.Int64.remainder(
+    1L,
+    2L))
+  Stdlib.List.head([1L, 2L])
 ]"""
-      "[\n  Stdlib.Tuple2.second (4L, 5L),\n  Stdlib.Int64.remainder 1L 2L,\n  Stdlib.List.head [1L, 2L]\n]"
+      "[\n  Stdlib.Tuple2.second((4L, 5L)),\n  Stdlib.Int64.remainder(1L, 2L),\n  Stdlib.List.head([1L, 2L])\n]"
       []
       []
       []
@@ -1591,8 +1591,8 @@ let exprs =
       false
     t
       "dict with a computed key"
-      "Dict { Stdlib.toString 1L: 1L }"
-      "Dict { Stdlib.toString 1L: 1L }"
+      "Dict { Stdlib.toString(1L): 1L }"
+      "Dict { Stdlib.toString(1L): 1L }"
       []
       []
       []
@@ -1804,8 +1804,8 @@ let exprs =
     // a `let` nested inside an expression.)
     t
       "nested function definition (desugars to lambda)"
-      "let result =\n  let double (x: Int64): Int64 = x * 2L\n  double 5L\nresult"
-      "let result =\n  let double = (fun x -> x * 2L)\n  double 5L\nresult"
+      "let result =\n  let double(x: Int64): Int64 = x * 2L\n  double(5L)\nresult"
+      "let result =\n  let double = (fun x -> x * 2L)\n  double(5L)\nresult"
       []
       []
       []
@@ -1883,8 +1883,8 @@ let exprs =
     t "lambda, unit arg" "fun () -> 1L" "(fun () -> 1L)" [] [] [] false
     t
       "lambda with notable body"
-      "fun var -> (Stdlib.String.toUppercase (Stdlib.String.fromChar var))"
-      "(fun var -> Stdlib.String.toUppercase (Stdlib.String.fromChar var))"
+      "fun var -> (Stdlib.String.toUppercase(Stdlib.String.fromChar(var)))"
+      "(fun var -> Stdlib.String.toUppercase(Stdlib.String.fromChar(var)))"
       []
       []
       []
@@ -2260,7 +2260,14 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
 
 
     // pipe expression
-    t "pipe, infix" "1L |> (+) 2L" "1L |> (+) 2L" [] [] [] false
+    t
+      "pipe, infix"
+      "1L |> (fun v -> v + 2L)"
+      "1L |> (fun v -> v + 2L)"
+      []
+      []
+      []
+      false
     // Bitwise operators. `**` is exponentiation and nests right; the bitwise
     // levels bind tighter than the comparisons, so a `==` operand keeps no parens.
     t "bitwise and" "1L & 2L" "1L & 2L" [] [] [] false
@@ -2297,13 +2304,13 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
     t "shifts bind tighter than +" "1L << 2L + 3L" "1L << 2L + 3L" [] [] [] false
     // The prefix operators desugar to their builtin, exactly as unary `-` does,
     // so the NORMAL FORM prints the builtin call rather than the operator.
-    t "prefix bang" "!true" "Builtin.boolNot true" [] [] [] false
-    t "prefix tilde" "~1L" "Builtin.bitwiseNot 1L" [] [] [] false
-    t "unary minus on a non-literal" "-x" "Builtin.negate x" [] [] [] true
+    t "prefix bang" "!true" "Builtin.boolNot(true)" [] [] [] false
+    t "prefix tilde" "~1L" "Builtin.bitwiseNot(1L)" [] [] [] false
+    t "unary minus on a non-literal" "-x" "Builtin.negate(x)" [] [] [] true
     t
       "prefix bang takes a whole application"
       "!f x"
-      "Builtin.boolNot (f x)"
+      "Builtin.boolNot(f(x))"
       []
       []
       []
@@ -2336,16 +2343,16 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       true
     t
       "pipe, computed arg"
-      "[1L, 2L] |> Stdlib.List.take (2L - 1L)"
-      "[1L, 2L] |> Stdlib.List.take (2L - 1L)"
+      "[1L, 2L] |> Stdlib.List.take(2L - 1L)"
+      "[1L, 2L] |> Stdlib.List.take(2L - 1L)"
       []
       []
       []
       false
     t
       "pipe, if head"
-      "(if true then 1L else 2L) |> (+) 1L"
-      "(if true then 1L else 2L) |> (+) 1L"
+      "(if true then 1L else 2L) |> (fun v -> v + 1L)"
+      "(if true then 1L else 2L) |> (fun v -> v + 1L)"
       []
       []
       []
@@ -2385,8 +2392,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "pipe, lambda then another stage"
-      "1L |> (fun x -> x + 1L) |> (+) 2L"
-      "1L |> (fun x -> x + 1L) |> (+) 2L"
+      "1L |> (fun x -> x + 1L) |> (fun v -> v + 2L)"
+      "1L |> (fun x -> x + 1L) |> (fun v -> v + 2L)"
       []
       []
       []
@@ -2399,7 +2406,14 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       []
       []
       false
-    t "pipe, into fn call" "1L |> (+) 2L" "1L |> (+) 2L" [] [] [] false
+    t
+      "pipe, into fn call"
+      "1L |> (fun v -> v + 2L)"
+      "1L |> (fun v -> v + 2L)"
+      []
+      []
+      []
+      false
     t
       "pipe, into fn call 2"
       "1L |> Stdlib.toString"
@@ -2416,7 +2430,14 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       []
       []
       false
-    t "pipe, into fn call 4" "1L + 2L |> (+) 1L" "1L + 2L |> (+) 1L" [] [] [] false
+    t
+      "pipe, into fn call 4"
+      "1L + 2L |> (fun v -> v + 1L)"
+      "1L + 2L |> (fun v -> v + 1L)"
+      []
+      []
+      []
+      false
     t
       "pipe, into fn call 5"
       "[1L, 2L] |> Stdlib.List.last |> Builtin.unwrap"
@@ -2440,71 +2461,73 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
     t "fn call, +" "strVar + \"str\"" "strVar + \"str\"" [] [] [] false
     t "fn call, &&" "true && false" "true && false" [] [] [] false
     t "fn call, ||" "true || false" "true || false" [] [] [] false
-    t "fn call, and short" "and true false" "and true false" [] [] [] true
+    t "fn call, and short" "and(true, false)" "and(true, false)" [] [] [] true
     t
       "fn call, and longer"
-      "Stdlib.Bool.and true false"
-      "Stdlib.Bool.and true false"
+      "Stdlib.Bool.and(true, false)"
+      "Stdlib.Bool.and(true, false)"
       []
       []
       []
       true
     t
       "fn call, and longest"
-      "Darklang.Stdlib.Bool.and true false"
-      "Stdlib.Bool.and true false"
+      "Darklang.Stdlib.Bool.and(true, false)"
+      "Stdlib.Bool.and(true, false)"
       []
       []
       []
       false
     t
       "fn call, and stdlib shortcut"
-      "Stdlib.Bool.and true false"
-      "Stdlib.Bool.and true false"
+      "Stdlib.Bool.and(true, false)"
+      "Stdlib.Bool.and(true, false)"
       []
       []
       []
       false
     t
       "fn call, builtin simple"
-      "Builtin.int64Add 1L 2L"
-      "Builtin.int64Add 1L 2L"
+      "Builtin.int64Add(1L, 2L)"
+      "Builtin.int64Add(1L, 2L)"
       []
       []
       []
       false
     t
       "fn call, builtin with type arg"
-      "Builtin.jsonParse<Bool> \"true\""
-      "Builtin.jsonParse<Bool> \"true\""
+      "Builtin.jsonParse<Bool>(\"true\")"
+      "Builtin.jsonParse<Bool>(\"true\")"
       []
       []
       []
       false
     t
       "fn call with indentation"
-      """Stdlib.Tuple3.mapAllThree
-  ("one", 2L, "pi")
-  (fun x -> Stdlib.String.toUppercase x)
-  (fun x -> x - 2L)
-  (fun x -> Stdlib.String.toUppercase x)
+      """Stdlib.Tuple3.mapAllThree(
+  ("one", 2L, "pi"),
+  (fun x -> Stdlib.String.toUppercase(x)),
+  (fun x -> x - 2L),
+  fun x -> Stdlib.String.toUppercase(x))
 """
-      """Stdlib.Tuple3.mapAllThree
-  ("one", 2L, "pi")
-  (fun x -> Stdlib.String.toUppercase x)
-  (fun x -> x - 2L)
-  (fun x -> Stdlib.String.toUppercase x)"""
+      """Stdlib.Tuple3.mapAllThree(
+  ("one", 2L, "pi"),
+  (fun x -> Stdlib.String.toUppercase(x)),
+  (fun x -> x - 2L),
+  fun x -> Stdlib.String.toUppercase(x)
+)"""
       []
       []
       []
       false
     t
       "fn call with db reference"
-      """Stdlib.DB.set Tests.Person { name = "John", age = 30L, hasPet = true } "key" TestDB"""
-      """Stdlib.DB.set
-  Tests.Person { name = "John", age = 30L, hasPet = true }
-  "key"
-  TestDB"""
+      """Stdlib.DB.set(Tests.Person { name = "John", age = 30L, hasPet = true }, "key", TestDB)"""
+      """Stdlib.DB.set(
+  Tests.Person { name = "John", age = 30L, hasPet = true },
+  "key",
+  TestDB
+)"""
       [ person ]
       []
       []
@@ -2700,8 +2723,8 @@ let valueDeclarations =
 let functionDeclarations =
   [ t
       "function doc comment"
-      "/// Greets a user\nlet greet (name: String): String = \"Hello \" + name"
-      "/// Greets a user\nlet greet (name: String): String =\n  \"Hello \" + name"
+      "/// Greets a user\nlet greet(name: String): String = \"Hello \" + name"
+      "/// Greets a user\nlet greet(name: String): String =\n  \"Hello \" + name"
       []
       []
       []
@@ -2709,8 +2732,8 @@ let functionDeclarations =
 
     t
       "nested fn type in parameter"
-      "let apply (f: (Int64 -> String) -> Bool): Bool = true"
-      "let apply (f: (Int64 -> String) -> Bool): Bool =\n  true"
+      "let apply(f: (Int64 -> String) -> Bool): Bool = true"
+      "let apply(f: (Int64 -> String) -> Bool): Bool =\n  true"
       []
       []
       []
@@ -2718,8 +2741,8 @@ let functionDeclarations =
 
     t
       "nested fn type in return"
-      "let curry (): Int64 -> (String -> Bool) = fun x y -> true"
-      "let curry (): Int64 -> (String -> Bool) =\n  (fun x y -> true)"
+      "let curry(): Int64 -> (String -> Bool) = fun x y -> true"
+      "let curry(): Int64 -> (String -> Bool) =\n  (fun x y -> true)"
       []
       []
       []
@@ -2727,8 +2750,8 @@ let functionDeclarations =
 
     t
       "single builtin param"
-      "let helloWorld (i: Int64): String = \"Hello world\""
-      "let helloWorld (i: Int64): String =\n  \"Hello world\""
+      "let helloWorld(i: Int64): String = \"Hello world\""
+      "let helloWorld(i: Int64): String =\n  \"Hello world\""
       []
       []
       []
@@ -2736,8 +2759,8 @@ let functionDeclarations =
 
     t
       "single package param"
-      "let double2 (i: LanguageTools.ID) : Int64 = (i + i)"
-      "let double2 (i: LanguageTools.ID): Int64 =\n  i + i"
+      "let double2(i: LanguageTools.ID): Int64 = (i + i)"
+      "let double2(i: LanguageTools.ID): Int64 =\n  i + i"
       []
       []
       []
@@ -2746,8 +2769,8 @@ let functionDeclarations =
     // `()` is stored as one parameter named `_` of type Unit, and prints back as `()`.
     t
       "single unit param"
-      "let emptyString () : String = \"\""
-      "let emptyString (): String =\n  \"\""
+      "let emptyString(): String = \"\""
+      "let emptyString(): String =\n  \"\""
       []
       []
       []
@@ -2756,8 +2779,8 @@ let functionDeclarations =
     // The long form parses to the same thing and normalizes to `()`, so either spelling round-trips.
     t
       "single unit param, written long"
-      "let emptyString (_: Unit) : String = \"\""
-      "let emptyString (): String =\n  \"\""
+      "let emptyString(_: Unit): String = \"\""
+      "let emptyString(): String =\n  \"\""
       []
       []
       []
@@ -2765,8 +2788,8 @@ let functionDeclarations =
 
     t
       "multiple param"
-      "let isHigher (a: Int64) (b: Int64) : Bool =\n  a > b"
-      "let isHigher (a: Int64) (b: Int64): Bool =\n  a > b"
+      "let isHigher(a: Int64, b: Int64): Bool =\n  a > b"
+      "let isHigher(a: Int64, b: Int64): Bool =\n  a > b"
       []
       []
       []
@@ -2774,8 +2797,8 @@ let functionDeclarations =
 
     t
       "single type param"
-      "let myFn<'a> (param: 'a): Unit  = ()"
-      "let myFn<'a> (param: 'a): Unit =\n  ()"
+      "let myFn<'a>(param: 'a): Unit  = ()"
+      "let myFn<'a>(param: 'a): Unit =\n  ()"
       []
       []
       []
@@ -2783,8 +2806,8 @@ let functionDeclarations =
 
     t
       "two type params"
-      "let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit = ()"
-      "let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit =\n  ()"
+      "let myFn<'a, 'b>(paramOne: 'a, paramTwo: 'b): Unit = ()"
+      "let myFn<'a, 'b>(paramOne: 'a, paramTwo: 'b): Unit =\n  ()"
       []
       []
       []
@@ -2792,29 +2815,29 @@ let functionDeclarations =
 
     t
       "package fn call"
-      "let sum (a : Int64) (b : Int64) : Int64 =\n  a + b"
-      "let sum (a: Int64) (b: Int64): Int64 =\n  a + b"
+      "let sum(a : Int64, b : Int64): Int64 =\n  a + b"
+      "let sum(a: Int64, b: Int64): Int64 =\n  a + b"
       []
       []
       []
       false
     t
       "fn declaration with newline"
-      """let myFn
-  (a: String)
-  (b: Int64)
-  (c: Bool)
+      """let myFn(
+  a: String,
+  b: Int64,
+  c: Bool)
   : Bool =
   true"""
-      "let myFn (a: String) (b: Int64) (c: Bool): Bool =\n  true"
+      "let myFn(a: String, b: Int64, c: Bool): Bool =\n  true"
       []
       []
       []
       false
     t
       "fn declaration with indented body"
-      "let helloPerson (name: String): String =\n  let greeting = \"Hello \"\n  greeting + name"
-      "let helloPerson (name: String): String =\n  let greeting = \"Hello \"\n  greeting + name"
+      "let helloPerson(name: String): String =\n  let greeting = \"Hello \"\n  greeting + name"
+      "let helloPerson(name: String): String =\n  let greeting = \"Hello \"\n  greeting + name"
       []
       []
       []
@@ -2822,33 +2845,33 @@ let functionDeclarations =
 
     t
       "self reference recursive call"
-      """let factorial (n: Int64): Int64 =
+      """let factorial(n: Int64): Int64 =
   if n <= 1L then
     1L
   else
-    n * (factorial (n - 1L))"""
-      "let factorial (n: Int64): Int64 =\n  if n <= 1L then 1L else n * factorial (n - 1L)"
+    n * (factorial(n - 1L))"""
+      "let factorial(n: Int64): Int64 =\n  if n <= 1L then 1L else n * factorial(n - 1L)"
       []
       []
       []
       false
     t
       "self reference, shadowed name"
-      """let incr (y: Int64) (z: Int64): Int64 =
+      """let incr(y: Int64, z: Int64): Int64 =
   if z <= 0L then
     y
   else
-    let result = incr y (z - 1L)
+    let result = incr(y, z - 1L)
     let incr = (fun x -> x + 2L)
-    let lambdaResult = incr z
+    let lambdaResult = incr(z)
     result + lambdaResult"""
-      """let incr (y: Int64) (z: Int64): Int64 =
+      """let incr(y: Int64, z: Int64): Int64 =
   if z <= 0L then
     y
   else
-    let result = incr y (z - 1L)
+    let result = incr(y, z - 1L)
     let incr = (fun x -> x + 2L)
-    let lambdaResult = incr z
+    let lambdaResult = incr(z)
     result + lambdaResult"""
       []
       []
@@ -2903,9 +2926,9 @@ let moduleDeclarations =
       """module MyModule =
   type ID = Int64
   type MyString = String
-  let myFn (i: Int64): Int64 = 1L
+  let myFn(i: Int64): Int64 = 1L
   val x = 100L"""
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  val x = 100L"
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn(i: Int64): Int64 =\n    1L\n\n  val x = 100L"
       []
       []
       []
@@ -2918,10 +2941,10 @@ let moduleDeclarations =
 
   type MyString = String
 
-  let myFn (i: Int64): Int64 = 1L
+  let myFn(i: Int64): Int64 = 1L
 
   val x = 100L"""
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  val x = 100L"
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn(i: Int64): Int64 =\n    1L\n\n  val x = 100L"
       []
       []
       []
@@ -2950,27 +2973,8 @@ let sourceFiles =
     // Source files pretty-print declarations and trailing expressions together.
     t
       "simple script"
-      "
-  type BookID = Int64
-
-  let getTitle (bookId: BookID): String =
-    let book = (Library.getBook bookId)
-    getNameFromBook book
-
-  let curiousGeorgeBookId = 101L
-  Builtin.printLine (getTitle curiousGeorgeBookId)
-
-  0L
-    "
-      "type BookID =\n  Int64
-
-let getTitle (bookId: BookID): String =
-  let book = Library.getBook bookId
-  getNameFromBook book
-
-let curiousGeorgeBookId = 101L
-Builtin.printLine (getTitle curiousGeorgeBookId)
-0L"
+      "\n  type BookID = Int64\n\n  let getTitle(bookId: BookID): String =\n    let book = (Library.getBook(bookId))\n    getNameFromBook(book)\n\n  let curiousGeorgeBookId = 101L\n  Builtin.printLine(getTitle(curiousGeorgeBookId))\n\n  0L\n    "
+      "type BookID =\n  Int64\n\nlet getTitle(bookId: BookID): String =\n  let book = Library.getBook(bookId)\n  getNameFromBook(book)\n\nlet curiousGeorgeBookId = 101L\nBuiltin.printLine(getTitle(curiousGeorgeBookId))\n0L"
       []
       []
       []
@@ -2997,12 +3001,7 @@ two"""
     // name. This test executes the fn so we catch that case directly.
     tEvalSourceFileFn
       "fn decl containing a nested recursive fn (CLI/LSP path)"
-      "let myRev (list: List<Int64>): List<Int64> =
-  let helper (l: List<Int64>) (acc: List<Int64>): List<Int64> =
-    match l with
-    | [] -> acc
-    | head :: tail -> helper tail (Stdlib.List.prepend acc head)
-  helper list []"
+      "let myRev(list: List<Int64>): List<Int64> =\n  let helper(l: List<Int64>, acc: List<Int64>): List<Int64> =\n    match l with\n    | [] -> acc\n    | head :: tail -> helper(tail, Stdlib.List.prepend(acc, head))\n  helper(list, [])"
       (RT.DList(
         LibExecution.ValueType.int64,
         [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ]
@@ -3014,11 +3013,7 @@ two"""
 
     tParsesOk
       "module-relative calls parse on the editor's path"
-      "let bumped (xs: List<Int64>): List<Int64> =
-  List.map xs (fun y -> y + 1L)
-
-let shown (n: Int64): String =
-  Stdlib.toString n" ]
+      "let bumped(xs: List<Int64>): List<Int64> =\n  List.map(xs, fun y -> y + 1L)\n\nlet shown(n: Int64): String =\n  Stdlib.toString(n)" ]
   |> testList "cli scripts"
 
 let tests =

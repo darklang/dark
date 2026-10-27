@@ -44,9 +44,8 @@ let private evalAsCli (code : string) : Task<RT.ExecutionResult> =
 let private runHash (h : string) : Task<string> =
   task {
     let code =
-      "Darklang.LanguageTools.PackageManager.Test.execute "
-      + "Darklang.SCM.Branch.mainBranchId "
-      + $"(Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{h}\")"
+      "Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, "
+      + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{h}\")"
     match! evalAsCli code with
     | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DEnum(_, _, _, "Pass", []) ])) -> return "pass"
     | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DEnum(_, _, _, "Fail", [ RT.DList(_, ms) ]) ])) ->
@@ -82,21 +81,21 @@ let outcomes =
     let! _ =
       authorIn
         m
-        """let double (n: Int64) : Int64 = (n + n)
-test passes = Darklang.PackageTestOutcomes.double 4L |> Stdlib.Test.equal 8L
-test fails = Darklang.PackageTestOutcomes.double 4L |> Stdlib.Test.equal 9L
+        """let double(n: Int64): Int64 = (n + n)
+test passes = Darklang.PackageTestOutcomes.double(4L) |> Stdlib.Test.equal(8L)
+test fails = Darklang.PackageTestOutcomes.double(4L) |> Stdlib.Test.equal(9L)
 test collects =
-  Stdlib.Test.all [ Stdlib.Test.fail "a", Stdlib.Test.fail "b" ]
+  Stdlib.Test.all([ Stdlib.Test.fail("a"), Stdlib.Test.fail("b") ])
 test notAResult = 5L
-let restrictedPrint () :{} Unit = Stdlib.printLine "should not print"
+let restrictedPrint():{} Unit = Stdlib.printLine("should not print")
 test effectful =
-  let _ = Darklang.PackageTestOutcomes.restrictedPrint ()
-  Stdlib.Test.pass ()
+  let _ = Darklang.PackageTestOutcomes.restrictedPrint()
+  Stdlib.Test.pass()
 test raisesWhatItRaises =
   (1L / 0L)
   => raises "Cannot divide by 0"
 test injectsRuntimeError =
-  Stdlib.Test.raiseRuntimeError "injected"
+  Stdlib.Test.raiseRuntimeError("injected")
   => raises "Uncaught exception: injected"
 test raisesButReturned =
   1L
@@ -104,26 +103,26 @@ test raisesButReturned =
 test raisesSomethingElse =
   (1L / 0L)
   => raises "another message"
-let randomKey () :{Random} String = Stdlib.toString (Stdlib.Uuid.generate ())
-let noRandom () :{} String = Stdlib.toString (Stdlib.Uuid.generate ())
-let noClock () :{Random} Unit =
-  let _ = Stdlib.DateTime.now ()
+let randomKey():{Random} String = Stdlib.toString(Stdlib.Uuid.generate())
+let noRandom():{} String = Stdlib.toString(Stdlib.Uuid.generate())
+let noClock():{Random} Unit =
+  let _ = Stdlib.DateTime.now()
   ()
 test randomGranted =
-  (Darklang.PackageTestOutcomes.randomKey ())
+  (Darklang.PackageTestOutcomes.randomKey())
   |> Stdlib.String.length
-  |> Stdlib.Test.equal 36
+  |> Stdlib.Test.equal(36)
 test randomInherited =
-  (Stdlib.toString (Stdlib.Uuid.generate ()))
+  (Stdlib.toString(Stdlib.Uuid.generate()))
   |> Stdlib.String.length
-  |> Stdlib.Test.equal 36
+  |> Stdlib.Test.equal(36)
 test randomDenied =
-  (Darklang.PackageTestOutcomes.noRandom ())
+  (Darklang.PackageTestOutcomes.noRandom())
   |> Stdlib.String.length
-  |> Stdlib.Test.equal 36
+  |> Stdlib.Test.equal(36)
 test clockDenied =
-  let _ = Darklang.PackageTestOutcomes.noClock ()
-  Stdlib.Test.pass ()
+  let _ = Darklang.PackageTestOutcomes.noClock()
+  Stdlib.Test.pass()
 """
 
     let! passes = run m "passes"
@@ -157,7 +156,7 @@ test clockDenied =
 
     let! injected = run m "injectsRuntimeError"
     Expect.equal injected "pass" "a package test may inject an exact runtime error"
-    let! outside = evalDarkExpr "Stdlib.Test.raiseRuntimeError \"outside\""
+    let! outside = evalDarkExpr "Stdlib.Test.raiseRuntimeError(\"outside\")"
     match outside with
     | Error(RT.RuntimeError.UncaughtException(message, _), _) ->
       Expect.equal
@@ -210,29 +209,29 @@ let isolatedObservations =
     let! authored =
       authorIn
         m
-        """let observed (n: Int64) : Int64 = Stdlib.Test.incrementCounter n
+        """let observed(n: Int64): Int64 = Stdlib.Test.incrementCounter(n)
 test counts =
-  let value = Darklang.PackageTestObservations.observed 7L
-  let _ = Stdlib.Test.incrementCounter "another type"
-  (value, Stdlib.Test.counterValue ()) |> Stdlib.Test.equal (7L, 2L)
+  let value = Darklang.PackageTestObservations.observed(7L)
+  let _ = Stdlib.Test.incrementCounter("another type")
+  (value, Stdlib.Test.counterValue()) |> Stdlib.Test.equal((7L, 2L))
 test startsEmpty =
-  Stdlib.Test.counterValue () |> Stdlib.Test.equal 0L
+  Stdlib.Test.counterValue() |> Stdlib.Test.equal(0L)
 test callsStayOrdered =
-  Stdlib.List.map (Stdlib.List.range 1 200) (fun _ ->
-    let _ = Stdlib.Test.incrementCounter ()
-    Stdlib.toString (Stdlib.Test.counterValue ()))
-  |> Stdlib.Test.equal (Stdlib.List.map (Stdlib.List.range 1 200) (fun n -> Stdlib.toString n))
+  Stdlib.List.map(Stdlib.List.range(1, 200), fun _ ->
+    let _ = Stdlib.Test.incrementCounter()
+    Stdlib.toString(Stdlib.Test.counterValue()))
+  |> Stdlib.Test.equal(Stdlib.List.map(Stdlib.List.range(1, 200), fun n -> Stdlib.toString(n)))
 test sharesWithChildren =
-  let _ = Stdlib.List.parallelMap (Stdlib.List.range 1 8) (fun _ ->
-    Stdlib.List.iter (Stdlib.List.range 1 200) (fun _ -> Stdlib.Test.incrementCounter ()))
-  Stdlib.Test.counterValue () |> Stdlib.Test.equal 1600L
+  let _ = Stdlib.List.parallelMap(Stdlib.List.range(1, 8), fun _ ->
+    Stdlib.List.iter(Stdlib.List.range(1, 200), fun _ -> Stdlib.Test.incrementCounter()))
+  Stdlib.Test.counterValue() |> Stdlib.Test.equal(1600L)
 test stopsAfterError =
-  let _ = Stdlib.Test.incrementCounter ()
+  let _ = Stdlib.Test.incrementCounter()
   (1L / 0L)
   => raises "Cannot divide by 0"
 test failsAfterObservation =
-  let _ = Stdlib.Test.incrementCounter ()
-  Stdlib.Test.fail "deliberate"
+  let _ = Stdlib.Test.incrementCounter()
+  Stdlib.Test.fail("deliberate")
 """
     for op in authored do
       match op with
@@ -268,18 +267,17 @@ test failsAfterObservation =
       liveBoundHash
         { owner = "Darklang"; modules = [ m ]; name = "failsAfterObservation" }
     let execute h =
-      "Darklang.LanguageTools.PackageManager.Test.execute "
-      + "Darklang.SCM.Branch.mainBranchId "
-      + $"(Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{h}\")"
-    let check h = $"({execute h}) |> Stdlib.Test.equal (Ok (Stdlib.Test.pass ()))"
+      "Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, "
+      + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{h}\")"
+    let check h = $"({execute h}) |> Stdlib.Test.equal(Ok (Stdlib.Test.pass()))"
     let countHash = Option.get countHash
     let emptyHash = Option.get emptyHash
     let errorHash = Option.get errorHash
     let failHash = Option.get failHash
     let failCheck =
-      $"({execute failHash}) |> Stdlib.Test.equal (Ok (Stdlib.Test.fail \"deliberate\"))"
+      $"({execute failHash}) |> Stdlib.Test.equal(Ok (Stdlib.Test.fail(\"deliberate\")))"
     let code =
-      $"Stdlib.Test.all [{check countHash}, {check emptyHash}, {check errorHash}, {check emptyHash}, {failCheck}, {check emptyHash}, {check countHash}]"
+      $"Stdlib.Test.all([{check countHash}, {check emptyHash}, {check errorHash}, {check emptyHash}, {failCheck}, {check emptyHash}, {check countHash}])"
     let! repeated = evalAsCli code
     match repeated with
     | Ok(RT.DEnum(_, _, _, "Pass", [])) -> ()
@@ -303,8 +301,8 @@ test failsAfterObservation =
     for hash in [ countHash; emptyHash ] do
       let! safe =
         evalDarkExpr (
-          "Darklang.LanguageTools.PackageManager.Test.isCacheSafe "
-          + $"(Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{hash}\")"
+          "Darklang.LanguageTools.PackageManager.Test.isCacheSafe("
+          + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{hash}\")"
         )
       match safe with
       | Ok(RT.DBool false) -> ()

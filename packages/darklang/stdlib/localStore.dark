@@ -12,7 +12,7 @@ module Darklang.Stdlib.LocalStore
 ///
 /// A PATH rather than a handle: every reader opens its own connection, and the store moves per
 /// instance (`DARK_HOME`, a test's copy, a backup being restored), so nothing may cache it.
-let path () : String = Builtin.localDbPath ()
+let path(): String = Builtin.localDbPath()
 
 
 /// Read a setting. `""` when the key has never been set, which every caller treats as the default
@@ -20,12 +20,12 @@ let path () : String = Builtin.localDbPath ()
 ///
 /// Keys are namespaced by whoever owns them (`sync.*`, `current_branch`, `exec.*`), and the
 /// namespace is the contract. `Seed.export` strips this table wholesale, so nothing here travels.
-let configGet (key: String) : String = Builtin.configGet key
+let configGet(key: String): String = Builtin.configGet(key)
 
 
 /// Write a setting. Local to this instance, always: this is where "which relay" and "which branch"
 /// live, and neither is anybody else's business.
-let configSet (key: String) (value: String) : Unit = Builtin.configSet key value
+let configSet(key: String, value: String): Unit = Builtin.configSet(key, value)
 
 
 /// Snapshot this instance's store to <param path>.
@@ -34,13 +34,13 @@ let configSet (key: String) (value: String) : Unit = Builtin.configSet key value
 /// host's store), so the file API refuses it, and a copy of `data.db` alone would miss whatever is
 /// still in the WAL. This goes through SQLite's online-backup API, which reads a consistent snapshot
 /// of an open store.
-let backupTo (path: String) : Stdlib.Result.Result<Unit, String> =
-  Builtin.localDbBackupTo path
+let backupTo(path: String): Stdlib.Result.Result<Unit, String> =
+  Builtin.localDbBackupTo(path)
 
 
 /// Replace this instance's store contents with the copy at <param path>.
 ///
 /// Contents, not the file, so connections already open keep working. Anything already read into
 /// memory is still the OLD store, though, so the caller should say to restart.
-let restoreFrom (path: String) : Stdlib.Result.Result<Unit, String> =
-  Builtin.localDbRestoreFrom path
+let restoreFrom(path: String): Stdlib.Result.Result<Unit, String> =
+  Builtin.localDbRestoreFrom(path)

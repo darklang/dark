@@ -14,24 +14,24 @@ module Darklang.Cli.Packages.Edit
 
 /// $EDITOR, then $VISUAL, then `vi`. In that order, so a per-invocation `EDITOR=`
 /// beats a shell-wide `VISUAL`.
-let editorCommand () : String =
-  match Stdlib.Env.get "EDITOR" with
+let editorCommand(): String =
+  match Stdlib.Env.get("EDITOR") with
   | Some e when e != "" -> e
   | _ ->
-    match Stdlib.Env.get "VISUAL" with
+    match Stdlib.Env.get("VISUAL") with
     | Some v when v != "" -> v
     | _ -> "vi"
 
 
 /// The `/Owner.Mod` form `dark module` takes, built from the item's own location.
-let moduleArgFor (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-  let parts = Stdlib.List.prepend loc.modules loc.owner
-  "/" + (Stdlib.String.join parts ".")
+let moduleArgFor(loc: LanguageTools.ProgramTypes.PackageLocation): String =
+  let parts = Stdlib.List.prepend(loc.modules, loc.owner)
+  "/" + (Stdlib.String.join(parts, "."))
 
 
 /// The PT location inside whatever the traversal resolved, or None for a module.
-let itemLocation
-  (location: Packages.PackageLocation)
+let itemLocation(
+  location: Packages.PackageLocation)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
   match location with
   | Module _ -> Stdlib.Option.Option.None
@@ -44,15 +44,15 @@ let itemLocation
 
 
 /// Hand the file to `dark module`, which validates and applies it.
-let applyFile
-  (state: AppState)
-  (loc: LanguageTools.ProgramTypes.PackageLocation)
-  (path: String)
+let applyFile(
+  state: AppState,
+  loc: LanguageTools.ProgramTypes.PackageLocation,
+  path: String)
   : AppState =
-  Packages.ModuleCommand.execute state [ moduleArgFor loc, path ]
+  Packages.ModuleCommand.execute(state, [ moduleArgFor(loc), path ])
 
 
-let execute (state: AppState) (args: List<String>) : AppState =
+let execute(state: AppState, args: List<String>): AppState =
   let branchId = state.currentBranchId
 
   let named =
@@ -64,116 +64,116 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   match named with
   | Error e ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(e))
 
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.dimText
-        "  `dark edit <name>` opens $EDITOR; with a <file> it applies that.")
+    Stdlib.printLine(
+      (Stdlib.Cli.UI.Colors.dimText(
+        "  `dark edit <name>` opens $EDITOR; with a <file> it applies that.")))
 
-    Cli.exitWith state false
+    Cli.exitWith(state, false)
   | Ok((name, fileArg)) ->
 
-  match Traversal.traverse branchId state.packageData.currentLocation name with
+  match Traversal.traverse(branchId, state.packageData.currentLocation, name) with
   | Error e ->
-    Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Cannot edit {name}: {e}")
-    Cli.exitWith state false
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot edit {name}: {e}"))
+    Cli.exitWith(state, false)
   | Ok location ->
 
-  match itemLocation location with
+  match itemLocation(location) with
   | None ->
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error
-        $"{name} is a module. `dark edit` takes one fn, type, value, trait, impl or test.")
+    Stdlib.printLine(
+      (Stdlib.Cli.UI.Colors.error(
+        $"{name} is a module. `dark edit` takes one fn, type, value, trait, impl or test.")))
 
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.dimText
-        "  `dark module /Some.Module <file>` edits a whole module at once.")
+    Stdlib.printLine(
+      (Stdlib.Cli.UI.Colors.dimText(
+        "  `dark module /Some.Module <file>` edits a whole module at once.")))
 
-    Cli.exitWith state false
+    Cli.exitWith(state, false)
   | Some loc ->
 
   match fileArg with
   // No editor and no terminal: the shape a script or an agent uses.
-  | Some file -> applyFile state loc file
+  | Some file -> applyFile(state, loc, file)
   | None ->
 
   // An editor needs a terminal on both ends. Without one it starts anyway, paints
   // control sequences into whatever it was piped to and reads keys from nowhere, so
   // ask before spawning rather than after. The file form needs no terminal at all,
   // which is what to point at.
-  match Stdlib.Cli.Tui.TerminalSupport.current () with
+  match Stdlib.Cli.Tui.TerminalSupport.current() with
   | Unavailable reason ->
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error $"Cannot open an editor: {reason}.")
+    Stdlib.printLine(
+      Stdlib.Cli.UI.Colors.error($"Cannot open an editor: {reason}."))
 
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.dimText
-        $"  `dark view {name} --raw > f`, change f, then `dark edit {name} f`.")
+    Stdlib.printLine(
+      (Stdlib.Cli.UI.Colors.dimText(
+        $"  `dark view {name} --raw > f`, change f, then `dark edit {name} f`.")))
 
-    Cli.exitWith state false
+    Cli.exitWith(state, false)
   | Available ->
 
-  match Packages.View.rawSource branchId location with
+  match Packages.View.rawSource(branchId, location) with
   | Error e ->
-    Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Cannot edit {name}: {e}")
-    Cli.exitWith state false
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot edit {name}: {e}"))
+    Cli.exitWith(state, false)
   | Ok before ->
 
-  match Stdlib.Cli.Dir.createTemp () with
+  match Stdlib.Cli.Dir.createTemp() with
   | Error e ->
-    Stdlib.printErrorLine
-      (Stdlib.Cli.UI.Colors.error
-        $"Cannot edit {name}: no temp directory ({e.message})")
+    Stdlib.printErrorLine(
+      (Stdlib.Cli.UI.Colors.error(
+        $"Cannot edit {name}: no temp directory ({e.message})")))
 
-    Cli.exitWith state false
+    Cli.exitWith(state, false)
   | Ok dir ->
     let path = $"{dir}/{loc.name}.dark"
 
-    match Stdlib.Cli.File.writeText path before with
+    match Stdlib.Cli.File.writeText(path, before) with
     | Error e ->
-      Stdlib.printErrorLine
-        (Stdlib.Cli.UI.Colors.error
-          $"Cannot edit {name}: could not write {path} ({e.message})")
+      Stdlib.printErrorLine(
+        (Stdlib.Cli.UI.Colors.error(
+          $"Cannot edit {name}: could not write {path} ({e.message})")))
 
-      Cli.exitWith state false
+      Cli.exitWith(state, false)
     | Ok _ ->
-      let editor = editorCommand ()
+      let editor = editorCommand()
 
-      match Stdlib.Cli.Process.runInteractive editor [ path ] with
+      match Stdlib.Cli.Process.runInteractive(editor, [ path ]) with
       | Error e ->
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.error $"Could not run `{editor}`: {e.message}")
+        Stdlib.printLine(
+          Stdlib.Cli.UI.Colors.error($"Could not run `{editor}`: {e.message}"))
 
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.dimText
-            $"  Set $EDITOR, or edit {path} and run `dark edit {name} {path}`.")
+        Stdlib.printLine(
+          (Stdlib.Cli.UI.Colors.dimText(
+            $"  Set $EDITOR, or edit {path} and run `dark edit {name} {path}`.")))
 
-        Cli.exitWith state false
+        Cli.exitWith(state, false)
       | Ok code when code != 0 ->
         // A non-zero editor is how you say "forget it" in most of them. The store
         // is left alone and so is the file, so a long edit is not thrown away on a
         // stray exit code.
-        Stdlib.printLine
-          $"`{editor}` exited {Stdlib.toString code}; nothing applied."
+        Stdlib.printLine(
+          $"`{editor}` exited {Stdlib.toString(code)}; nothing applied.")
 
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.dimText $"  Your edit is still at {path}.")
+        Stdlib.printLine(
+          Stdlib.Cli.UI.Colors.dimText($"  Your edit is still at {path}."))
 
         state
       | Ok _ ->
-        match Stdlib.Cli.File.readText path with
+        match Stdlib.Cli.File.readText(path) with
         | Error e ->
-          Stdlib.printLine
-            (Stdlib.Cli.UI.Colors.error $"Could not read back {path}: {e.message}")
+          Stdlib.printLine(
+            Stdlib.Cli.UI.Colors.error($"Could not read back {path}: {e.message}"))
 
-          Cli.exitWith state false
+          Cli.exitWith(state, false)
         | Ok after ->
-          if (Stdlib.String.trim after) == (Stdlib.String.trim before) then
-            let _ = Stdlib.Cli.Dir.deleteRecursive dir
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.success "no change.")
+          if (Stdlib.String.trim(after)) == (Stdlib.String.trim(before)) then
+            let _ = Stdlib.Cli.Dir.deleteRecursive(dir)
+            Stdlib.printLine(Stdlib.Cli.UI.Colors.success("no change."))
             state
           else
-            let result = applyFile state loc path
+            let result = applyFile(state, loc, path)
 
             // Whether the apply LANDED, asked by comparing against what the item was
             // BEFORE. Comparing against what you typed would be wrong nearly always,
@@ -185,24 +185,24 @@ let execute (state: AppState) (args: List<String>) : AppState =
             // after every edit is clutter you learn to skip, and clutter you skip is
             // where a real warning goes to hide.
             let landed =
-              match Packages.View.rawSource branchId location with
-              | Ok now -> (Stdlib.String.trim now) != (Stdlib.String.trim before)
+              match Packages.View.rawSource(branchId, location) with
+              | Ok now -> (Stdlib.String.trim(now)) != (Stdlib.String.trim(before))
               | Error _ -> false
 
             let _ =
               if landed then
-                Stdlib.Cli.Dir.deleteRecursive dir |> Stdlib.Result.toOption
+                Stdlib.Cli.Dir.deleteRecursive(dir) |> Stdlib.Result.toOption
               else
-                Stdlib.printLine
-                  (Stdlib.Cli.UI.Colors.dimText
-                    $"  nothing landed; your edit is still at {path}")
+                Stdlib.printLine(
+                  (Stdlib.Cli.UI.Colors.dimText(
+                    $"  nothing landed; your edit is still at {path}")))
 
                 Stdlib.Option.Option.None
 
             result
 
 
-let help (_state: AppState) : String =
+let help(_state: AppState): String =
   [ ""
     "  dark edit <name>           open $EDITOR on the declaration, apply on save"
     "  dark edit <name> <file>    apply that file instead (no editor, for scripts)"
@@ -220,11 +220,11 @@ let help (_state: AppState) : String =
     ""
     "  The first form needs a terminal on both ends, since it hands one to your"
     "  editor. Without one, use the second." ]
-  |> Stdlib.String.join "\n"
+  |> Stdlib.String.join("\n")
 
 
-let complete
-  (state: AppState)
-  (args: List<String>)
+let complete(
+  state: AppState,
+  args: List<String>)
   : List<Completion.CompletionItem> =
-  Packages.View.complete state args
+  Packages.View.complete(state, args)

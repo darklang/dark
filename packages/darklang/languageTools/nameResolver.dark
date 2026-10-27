@@ -24,14 +24,14 @@ type NRContext =
 // CLEANUP no-op: both arms return `err`, so OnMissing.ThrowError is never
 // honored — this (tooling) resolver never throws. Either implement ThrowError
 // to match the F# resolver, or drop the OnMissing plumbing as always-allow.
-let throwIfRelevant
-  (onMissing: OnMissing)
-  (result: ProgramTypes.NameResolution<'a>)
+let throwIfRelevant(
+  onMissing: OnMissing,
+  result: ProgramTypes.NameResolution<'a>)
   : ProgramTypes.NameResolution<'a> =
   { result with
       resolved =
         result.resolved
-        |> Stdlib.Result.mapError (fun err ->
+        |> Stdlib.Result.mapError(fun err ->
           match onMissing with
           | ThrowError -> err // TODO: something
           | Allow -> err) }
@@ -50,10 +50,10 @@ type GenericName =
 /// - Darklang.Option.Option
 /// - Option.Option
 /// , in that order (most specific first).
-let namesToTry
-  (owner: String)
-  (currentModule: List<String>)
-  (given: GenericName)
+let namesToTry(
+  owner: String,
+  currentModule: List<String>,
+  given: GenericName)
   : List<GenericName> =
   // Stdlib.etc shortcut, plus a final stdlib fallback for Result/Option. Their
   // constructors (Ok/Error, Some/None) already resolve unqualified from any
@@ -63,7 +63,7 @@ let namesToTry
     match (given.modules, given.name) with
     | ("Stdlib" :: _, _) ->
       [ { given with
-            modules = Stdlib.List.prepend given.modules "Darklang" } ]
+            modules = Stdlib.List.prepend(given.modules, "Darklang") } ]
     | ([], "Result") -> [ { given with modules = [ "Darklang", "Stdlib", "Result" ] } ]
     | ([ "Result" ], "Result") ->
       [ { given with modules = [ "Darklang", "Stdlib", "Result" ] } ]
@@ -72,23 +72,23 @@ let namesToTry
       [ { given with modules = [ "Darklang", "Stdlib", "Option" ] } ]
     | _ -> []
 
-  let currentModule = Stdlib.List.prepend currentModule owner
-  Stdlib.List.concat (namesToTryHelper currentModule given) addl
+  let currentModule = Stdlib.List.prepend(currentModule, owner)
+  Stdlib.List.concat(namesToTryHelper(currentModule, given), addl)
 
 // TODO we can do this without a helper function,
 // by removing the recursion and using a fold.
-let namesToTryHelper
-  (modulesToPrepend: List<String>)
-  (given: GenericName)
+let namesToTryHelper(
+  modulesToPrepend: List<String>,
+  given: GenericName)
   : List<GenericName> =
-  match Stdlib.List.splitLast modulesToPrepend with
+  match Stdlib.List.splitLast(modulesToPrepend) with
   | None -> [ given ]
   | Some((allButLast, _last)) ->
     let newNameToTry =
       { given with
-          modules = Stdlib.List.concat modulesToPrepend given.modules }
+          modules = Stdlib.List.concat(modulesToPrepend, given.modules) }
 
-    Stdlib.List.prepend (namesToTryHelper allButLast given) newNameToTry
+    Stdlib.List.prepend(namesToTryHelper(allButLast, given), newNameToTry)
 
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution.
@@ -99,10 +99,10 @@ let namesToTryHelper
 /// returned `ResolvedName.location` inside the Ok branch, so dep-edge
 /// inserts can populate location columns directly without a post-hoc
 /// lookup.
-let resolveGenericName
-  (ctx: NRContext)
-  (name: WrittenTypes.Name)
-  (tryResolve:
+let resolveGenericName(
+  ctx: NRContext,
+  name: WrittenTypes.Name,
+  tryResolve:
     ProgramTypes.PackageManager.PackageManager
     -> ProgramTypes.BranchID
     -> GenericName
@@ -110,8 +110,8 @@ let resolveGenericName
   : ProgramTypes.NameResolution<'a> =
   match name with
   | Unresolved(_range, given) ->
-    let modules = Stdlib.List.dropLast given
-    let name = Stdlib.List.last given
+    let modules = Stdlib.List.dropLast(given)
+    let name = Stdlib.List.last(given)
 
     match name with
     | None ->
@@ -124,9 +124,9 @@ let resolveGenericName
       // parseFnNameString; without this every suffixed call site fails to
       // resolve on the tooling path
       let (name, version) =
-        match Stdlib.String.split name "_v" with
+        match Stdlib.String.split(name, "_v") with
         | [ bare, v ] ->
-          match Stdlib.Int32.parse v with
+          match Stdlib.Int32.parse(v) with
           | Ok n when n >= 0l -> (bare, n)
           | _ -> (name, 0l)
         | _ -> (name, 0l)
@@ -140,18 +140,18 @@ let resolveGenericName
       let isValidName =
         // an optional trailing apostrophe is allowed (`foo'`)
         let core =
-          if Stdlib.String.endsWith name "'" then Stdlib.String.dropLast name 1 else name
+          if Stdlib.String.endsWith(name, "'") then Stdlib.String.dropLast(name, 1) else name
         let core =
-          if Stdlib.String.startsWith core "__" then Stdlib.String.dropFirst core 2 else core
-        match Stdlib.String.toList core with
+          if Stdlib.String.startsWith(core, "__") then Stdlib.String.dropFirst(core, 2) else core
+        match Stdlib.String.toList(core) with
         | [] -> false
         | first :: rest ->
-          (Stdlib.Char.isASCIILetter first)
+          (Stdlib.Char.isASCIILetter(first))
           && (rest
-              |> Stdlib.List.all (fun c ->
-                (Stdlib.Char.isASCIILetter c)
-                || (Stdlib.Char.isDigit c)
-                || (Stdlib.toString c == "_")))
+              |> Stdlib.List.all(fun c ->
+                (Stdlib.Char.isASCIILetter(c))
+                || (Stdlib.Char.isDigit(c))
+                || (Stdlib.toString(c) == "_")))
 
       // `PACKAGE.` is not a source namespace, but agents still commonly write
       // it. Mirrors the guard in LibParser's NameResolver.fs.
@@ -167,20 +167,20 @@ let resolveGenericName
       // find a successful candidate we keep it; further candidates
       // are skipped. An invalid written name skips the search entirely.
       let (resolved, location) =
-        if usesInternalPackagePrefix || (Stdlib.Bool.not isValidName) then
+        if usesInternalPackagePrefix || (Stdlib.Bool.not(isValidName)) then
           (Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.InvalidName,
            Stdlib.Option.Option.None)
         else
-          Stdlib.List.fold
-            (namesToTry ctx.owner ctx.currentModule genericName)
+          Stdlib.List.fold(
+            namesToTry(ctx.owner, ctx.currentModule, genericName),
             (Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.NotFound,
-             Stdlib.Option.Option.None)
-            (fun acc nameToTry ->
+             Stdlib.Option.Option.None),
+            fun acc nameToTry ->
               let (currentResult, currentLoc) = acc
               match currentResult with
               | Ok _ -> acc
               | Error _ ->
-                match tryResolve ctx.pm ctx.branchId nameToTry with
+                match tryResolve(ctx.pm, ctx.branchId, nameToTry) with
                 | Error() -> acc
                 | Ok((success, loc)) -> (Stdlib.Result.Result.Ok success, loc))
 
@@ -189,7 +189,7 @@ let resolveGenericName
       // there's no slot for a stray location to live in.
       let resolved =
         resolved
-        |> Stdlib.Result.map (fun n ->
+        |> Stdlib.Result.map(fun n ->
              ProgramTypes.ResolvedName { name = n, location = location })
 
       let nr =
@@ -197,14 +197,14 @@ let resolveGenericName
           { originalName = given
             resolved = resolved }
 
-      throwIfRelevant ctx.onMissing nr
+      throwIfRelevant(ctx.onMissing, nr)
 
 
 module TypeName =
-  let tryResolve
-    (pm: ProgramTypes.PackageManager.PackageManager)
-    (branchId: ProgramTypes.BranchID)
-    (name: GenericName)
+  let tryResolve(
+    pm: ProgramTypes.PackageManager.PackageManager,
+    branchId: ProgramTypes.BranchID,
+    name: GenericName)
     : Stdlib.Result.Result<(ProgramTypes.FQTypeName.FQTypeName *
       Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
@@ -216,7 +216,7 @@ module TypeName =
             modules = modules
             name = name.name }
 
-      match pm.findType (branchId, location) with
+      match pm.findType((branchId, location)) with
       | Some hash ->
         Stdlib.Result.Result.Ok
           (((ProgramTypes.FQTypeName.FQTypeName.Package hash),
@@ -224,19 +224,19 @@ module TypeName =
       | None -> Stdlib.Result.Result.Error()
 
 
-  let resolve
-    (ctx: NRContext)
-    (name: WrittenTypes.Name)
+  let resolve(
+    ctx: NRContext,
+    name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
-    resolveGenericName ctx name TypeName.tryResolve
+    resolveGenericName(ctx, name, TypeName.tryResolve)
 
 
 
 module TraitName =
-  let tryResolve
-    (pm: ProgramTypes.PackageManager.PackageManager)
-    (branchId: ProgramTypes.BranchID)
-    (name: GenericName)
+  let tryResolve(
+    pm: ProgramTypes.PackageManager.PackageManager,
+    branchId: ProgramTypes.BranchID,
+    name: GenericName)
     : Stdlib.Result.Result<(ProgramTypes.FQTraitName.FQTraitName *
       Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
@@ -248,7 +248,7 @@ module TraitName =
             modules = modules
             name = name.name }
 
-      match pm.findTrait (branchId, location) with
+      match pm.findTrait((branchId, location)) with
       | Some hash ->
         Stdlib.Result.Result.Ok
           (((ProgramTypes.FQTraitName.FQTraitName.Package hash),
@@ -258,46 +258,46 @@ module TraitName =
   /// Like a type name, then, for a bare name, as a stdlib trait: `impl Add for
   /// Point` anywhere means `Stdlib.Add` unless something closer is called Add.
   /// Same rule as the F# `resolveTraitName`.
-  let resolve
-    (ctx: NRContext)
-    (name: WrittenTypes.Name)
+  let resolve(
+    ctx: NRContext,
+    name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQTraitName.FQTraitName> =
     match name with
     | Unresolved(range, [ bare ]) ->
-      let direct = resolveGenericName ctx name TraitName.tryResolve
+      let direct = resolveGenericName(ctx, name, TraitName.tryResolve)
       match direct.resolved with
       | Error NotFound ->
         let viaStdlib =
-          resolveGenericName
-            ctx
-            (WrittenTypes.Name.Unresolved(range, [ "Stdlib", bare ]))
-            TraitName.tryResolve
+          resolveGenericName(
+            ctx,
+            WrittenTypes.Name.Unresolved(range, [ "Stdlib", bare ]),
+            TraitName.tryResolve)
         { viaStdlib with originalName = [ bare ] }
       | _ -> direct
-    | _ -> resolveGenericName ctx name TraitName.tryResolve
+    | _ -> resolveGenericName(ctx, name, TraitName.tryResolve)
 
 
 
 module ValueName =
-  let builtinThingExists (name: String) : Bool =
-    (LanguageTools.allBuiltinValues ())
+  let builtinThingExists(name: String): Bool =
+    (LanguageTools.allBuiltinValues())
     // `f.name` is an FQValueName.Builtin record, not a String — compare its
     // name field (comparing the record itself crashes with a mixed-type
     // equality error at resolution time)
-    |> Stdlib.List.findFirst (fun f -> f.name.name == name)
+    |> Stdlib.List.findFirst(fun f -> f.name.name == name)
     |> Stdlib.Option.isSome
 
-  let tryResolve
-    (pm: ProgramTypes.PackageManager.PackageManager)
-    (branchId: ProgramTypes.BranchID)
-    (name: GenericName)
+  let tryResolve(
+    pm: ProgramTypes.PackageManager.PackageManager,
+    branchId: ProgramTypes.BranchID,
+    name: GenericName)
     : Stdlib.Result.Result<(ProgramTypes.FQValueName.FQValueName *
       Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
     | owner :: modules ->
       if owner == "Builtin" && modules == [] then
-        if builtinThingExists name.name then
+        if builtinThingExists(name.name) then
           let fqn =
             (ProgramTypes.FQValueName.Builtin
               { name = name.name
@@ -313,7 +313,7 @@ module ValueName =
               modules = modules
               name = name.name }
 
-        match pm.findValue (branchId, location) with
+        match pm.findValue((branchId, location)) with
         | Some hash ->
           Stdlib.Result.Result.Ok
             (((ProgramTypes.FQValueName.FQValueName.Package hash),
@@ -321,27 +321,27 @@ module ValueName =
         | None -> Stdlib.Result.Result.Error()
 
 
-  let resolve
-    (ctx: NRContext)
-    (name: WrittenTypes.Name)
+  let resolve(
+    ctx: NRContext,
+    name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName> =
-    resolveGenericName ctx name ValueName.tryResolve
+    resolveGenericName(ctx, name, ValueName.tryResolve)
 
 
 
 module FnName =
-  let tryResolve
-    (pm: ProgramTypes.PackageManager.PackageManager)
-    (branchId: ProgramTypes.BranchID)
-    (name: GenericName)
+  let tryResolve(
+    pm: ProgramTypes.PackageManager.PackageManager,
+    branchId: ProgramTypes.BranchID,
+    name: GenericName)
     : Stdlib.Result.Result<(ProgramTypes.FQFnName.FQFnName *
       Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
     | owner :: modules ->
       if owner == "Builtin" && modules == [] then
-        let allBuiltins = LanguageTools.allBuiltinFns ()
-        if Stdlib.List.findFirst allBuiltins (fun f -> f.name.name == name.name) != Stdlib.Option.Option.None then
+        let allBuiltins = LanguageTools.allBuiltinFns()
+        if Stdlib.List.findFirst(allBuiltins, fun f -> f.name.name == name.name) != Stdlib.Option.Option.None then
           let fqn =
             (ProgramTypes.FQFnName.Builtin
               { name = name.name
@@ -357,7 +357,7 @@ module FnName =
               modules = modules
               name = name.name }
 
-        match pm.findFn (branchId, location) with
+        match pm.findFn((branchId, location)) with
         | Some hash ->
           Stdlib.Result.Result.Ok
             (((ProgramTypes.FQFnName.FQFnName.Package hash),
@@ -368,34 +368,34 @@ module FnName =
   /// `Show.show`: the path's last module segment names a trait with a method
   /// `show`; then the name is a trait method, dispatched at runtime.
   /// Mirrors `resolveTraitMethod` in LibParser's NameResolver.fs.
-  let tryResolveTraitMethod
-    (ctx: NRContext)
-    (given: List<String>)
+  let tryResolveTraitMethod(
+    ctx: NRContext,
+    given: List<String>)
     : Stdlib.Option.Option<ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>> =
-    let modules = Stdlib.List.dropLast given
-    match (Stdlib.List.last given, Stdlib.List.last modules) with
+    let modules = Stdlib.List.dropLast(given)
+    match (Stdlib.List.last(given), Stdlib.List.last(modules)) with
     | (Some methodName, Some traitName) ->
-      let firstChar = Stdlib.String.slice traitName 0 1
-      if firstChar != Stdlib.String.toUppercase firstChar then
+      let firstChar = Stdlib.String.slice(traitName, 0, 1)
+      if firstChar != Stdlib.String.toUppercase(firstChar) then
         Stdlib.Option.Option.None
       else
         let traitNR =
-          TraitName.resolve
-            { ctx with onMissing = OnMissing.Allow }
+          TraitName.resolve(
+            { ctx with onMissing = OnMissing.Allow },
             (WrittenTypes.Name.Unresolved(
               LanguageTools.Parser.Range
                 { start = LanguageTools.Parser.Point { row = 0, column = 0 }
                   end_ = LanguageTools.Parser.Point { row = 0, column = 0 } },
-              modules))
+              modules)))
         match traitNR.resolved with
         | Error _ -> Stdlib.Option.Option.None
         | Ok resolved ->
           match resolved.name with
           | Package traitHash ->
-            match ctx.pm.getTrait traitHash with
+            match ctx.pm.getTrait(traitHash) with
             | Some t ->
               let isMethod =
-                t.methods |> Stdlib.List.findFirst (fun m -> m.name == methodName) |> Stdlib.Option.isSome
+                t.methods |> Stdlib.List.findFirst(fun m -> m.name == methodName) |> Stdlib.Option.isSome
               if isMethod then
                 Stdlib.Option.Option.Some(
                   ProgramTypes.NameResolution
@@ -418,14 +418,14 @@ module FnName =
             | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None
 
-  let resolve
-    (ctx: NRContext)
-    (name: WrittenTypes.Name)
+  let resolve(
+    ctx: NRContext,
+    name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
     // The trait method wins when the path names a trait (see the F# resolver for
     // why: inside an impl's own module, `Show.show` must dispatch, not recurse).
     match name with
     | Unresolved(_range, given) ->
-      match tryResolveTraitMethod ctx given with
+      match tryResolveTraitMethod(ctx, given) with
       | Some nr -> nr
-      | None -> resolveGenericName ctx name FnName.tryResolve
+      | None -> resolveGenericName(ctx, name, FnName.tryResolve)

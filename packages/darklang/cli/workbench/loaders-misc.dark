@@ -5,7 +5,7 @@ module Darklang.Cli.Workbench
 
 
 /// All package values for Tree's flat values-only lens.
-let loadThingItems (branchId: Uuid) : List<BodyItem> =
+let loadThingItems(branchId: Uuid): List<BodyItem> =
   let q =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = []
@@ -13,102 +13,102 @@ let loadThingItems (branchId: Uuid) : List<BodyItem> =
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
         entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
         exactMatch = false }
-  (LanguageTools.PackageManager.Search.search branchId q).values
-  |> Stdlib.List.map (fun i ->
+  (LanguageTools.PackageManager.Search.search(branchId, q)).values
+  |> Stdlib.List.map(fun i ->
     let full =
-      Stdlib.String.join (Stdlib.List.flatten [ [ i.location.owner ], i.location.modules, [ i.location.name ] ]) "."
+      Stdlib.String.join(Stdlib.List.flatten([ [ i.location.owner ], i.location.modules, [ i.location.name ] ]), ".")
     BodyItem { name = full, kind = "val", isModule = false, desc = "" })
 
 /// The source of the selected Thing (value), for the preview - looked up by its full path.
-let thingDetail (state: State) : String =
-  match Stdlib.List.getAt state.items state.selected with
+let thingDetail(state: State): String =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | None -> "(nothing selected)"
   | Some item ->
-    let parts = Stdlib.String.split item.name "."
-    let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault item.name
-    let mods = Stdlib.List.take parts (Stdlib.max 0 ((Stdlib.List.length parts) - 1))
-    let results = Packages.Query.searchExactMatch state.branchId mods leaf
+    let parts = Stdlib.String.split(item.name, ".")
+    let leaf = Stdlib.List.last(parts) |> Stdlib.Option.withDefault(item.name)
+    let mods = Stdlib.List.take(parts, Stdlib.max(0, (Stdlib.List.length(parts)) - 1))
+    let results = Packages.Query.searchExactMatch(state.branchId, mods, leaf)
     match results.values with
     | i :: _ ->
       // `mods` is the value's own module, and the pane knows its width: the last two places in the
       // workbench still printing against neither.
       let ctx =
-        { PrettyPrinter.ProgramTypes.Context.forModule state.branchId mods with
-            width = previewInnerWidth state }
-      PrettyPrinter.ProgramTypes.packageValue ctx i.entity
+        { PrettyPrinter.ProgramTypes.Context.forModule(state.branchId, mods) with
+            width = previewInnerWidth(state) }
+      PrettyPrinter.ProgramTypes.packageValue(ctx, i.entity)
     | [] -> "(not found)"
 
 /// Every branch on this instance, for the reader Home's "more branches" row opens. Current
 /// branch marked ●, merged ones noted, and each described the way Home describes it -- current,
 /// draft, how far ahead, when it last committed -- so the list answers "which one" without
 /// opening each.
-let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
-  let describe (id: Uuid) (ahead: Int64) : String =
+let loadBranchItems(currentBranchId: Uuid): List<BodyItem> =
+  let describe(id: Uuid, ahead: Int64): String =
     let last =
-      match Stdlib.List.head (SCM.PackageOps.commitsOnBranch id 1L) with
-      | Some c -> agoText c.originTs
+      match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(id, 1L)) with
+      | Some c -> agoText(c.originTs)
       | None -> ""
-    Stdlib.List.filter
+    Stdlib.List.filter(
       [ (if id == currentBranchId then "current" else "")
-        (if SCM.PackageOps.draftOpCountFor id > 0L then "draft" else "")
-        (if ahead > 0L then (Stdlib.toString ahead) + " ops ahead" else "")
-        last ]
-      (fun part -> part != "")
-    |> Stdlib.String.join " · "
+        (if SCM.PackageOps.draftOpCountFor(id) > 0L then "draft" else "")
+        (if ahead > 0L then (Stdlib.toString(ahead)) + " ops ahead" else "")
+        last ],
+      fun part -> part != "")
+    |> Stdlib.String.join(" · ")
   // Main first, written out: it has no row in the branch table, so a list read
   // from the table never had it, and from a branch there was nothing here to
   // ⏎ back to.
-  let onMain = Darklang.SCM.Branch.isMain currentBranchId
+  let onMain = Darklang.SCM.Branch.isMain(currentBranchId)
   let mainRow =
     BodyItem
-      { name = (branchMarker onMain) + Darklang.SCM.Branch.mainBranchName
+      { name = (branchMarker(onMain)) + Darklang.SCM.Branch.mainBranchName
         kind = "branch"
         isModule = false
-        desc = describe Darklang.SCM.Branch.mainBranchId 0L }
+        desc = describe(Darklang.SCM.Branch.mainBranchId, 0L) }
   let others =
-    Darklang.SCM.Branch.list ()
-    |> Stdlib.List.map (fun b ->
+    Darklang.SCM.Branch.list()
+    |> Stdlib.List.map(fun b ->
       let tag = if b.merged then "   (merged)" else ""
       BodyItem
-        { name = (branchMarker (b.id == currentBranchId)) + b.name + tag
+        { name = (branchMarker(b.id == currentBranchId)) + b.name + tag
           kind = "branch"
           isModule = false
-          desc = describe b.id b.ops })
-  Stdlib.List.prepend others mainRow
+          desc = describe(b.id, b.ops) })
+  Stdlib.List.prepend(others, mainRow)
 
 /// The branch list as reader text.
-let branchListText (currentBranchId: Uuid) : String =
+let branchListText(currentBranchId: Uuid): String =
   let rows =
-    loadBranchItems currentBranchId
-    |> Stdlib.List.map (fun it ->
-      "  " + (Stdlib.String.padEndToWidth it.name 30) + (Stdlib.Cli.UI.Colors.dimText it.desc))
-  Stdlib.String.join
-    (Stdlib.List.flatten [ [ Stdlib.Cli.UI.Colors.boldText "Branches", "" ], rows ])
-    "\n"
+    loadBranchItems(currentBranchId)
+    |> Stdlib.List.map(fun it ->
+      "  " + (Stdlib.String.padEndToWidth(it.name, 30)) + (Stdlib.Cli.UI.Colors.dimText(it.desc)))
+  Stdlib.String.join(
+    Stdlib.List.flatten([ [ Stdlib.Cli.UI.Colors.boldText("Branches"), "" ], rows ]),
+    "\n")
 
 /// The two-character lead on a branch row: filled for the one you're on.
-let branchMarker (current: Bool) : String = if current then "● " else "○ "
+let branchMarker(current: Bool): String = if current then "● " else "○ "
 
 /// Is this branch row main's? Main has no `branches` row, so `selectedBranch`
 /// cannot name it; the rows that stand for it are known by name instead.
-let isMainRow (item: BodyItem) : Bool =
-  (Stdlib.String.dropFirst item.name 2) == Darklang.SCM.Branch.mainBranchName
+let isMainRow(item: BodyItem): Bool =
+  (Stdlib.String.dropFirst(item.name, 2)) == Darklang.SCM.Branch.mainBranchName
 
 /// Is the cursor on a branch row for main (Home's)?
-let cursorOnMainRow (state: State) : Bool =
-  match Stdlib.List.getAt state.items state.selected with
+let cursorOnMainRow(state: State): Bool =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | Some item ->
-    ((item.kind == "branch") || (item.kind == "home-branch")) && (isMainRow item)
+    ((item.kind == "branch") || (item.kind == "home-branch")) && (isMainRow(item))
   | None -> false
 
 /// Where ⏎ on the branch row under the cursor would take you: id and name.
 /// Main comes from its constants, everything else through `selectedBranch`.
-let branchRowTarget (state: State) : Stdlib.Option.Option<(Uuid * String)> =
-  if cursorOnMainRow state then
+let branchRowTarget(state: State): Stdlib.Option.Option<(Uuid * String)> =
+  if cursorOnMainRow(state) then
     Stdlib.Option.Option.Some(
       (Darklang.SCM.Branch.mainBranchId, Darklang.SCM.Branch.mainBranchName))
   else
-    match selectedBranch state with
+    match selectedBranch(state) with
     | Some b -> Stdlib.Option.Option.Some((b.id, b.name))
     | None -> Stdlib.Option.Option.None
 
@@ -119,54 +119,54 @@ let branchRowTarget (state: State) : Stdlib.Option.Option<(Uuid * String)> =
 /// Branches section filtered to one entry, the cursor was visibly on it while `x` offered to delete `main`.
 /// A destructive action naming the wrong target is the worst version of this bug, so every branch action and
 /// the preview go through here.
-let selectedBranch (state: State) : Stdlib.Option.Option<Darklang.SCM.Branch.Branch> =
-  match Stdlib.List.getAt state.items state.selected with
+let selectedBranch(state: State): Stdlib.Option.Option<Darklang.SCM.Branch.Branch> =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | None -> Stdlib.Option.Option.None
   | Some item ->
     // Rows read "<marker> <name>[   (merged)]" - see `loadBranchItems`.
     let name =
       item.name
-      |> Stdlib.String.dropFirst 2
-      |> fun s -> Stdlib.String.split s "   (merged)" |> Stdlib.List.head |> Stdlib.Option.withDefault s
+      |> Stdlib.String.dropFirst(2)
+      |> fun s -> Stdlib.String.split(s, "   (merged)") |> Stdlib.List.head |> Stdlib.Option.withDefault(s)
       |> Stdlib.String.trim
-    Darklang.SCM.Branch.list () |> Stdlib.List.findFirst (fun b -> b.name == name)
+    Darklang.SCM.Branch.list() |> Stdlib.List.findFirst(fun b -> b.name == name)
 
 /// The branch a merge or rebase acts on: the row under the cursor when that
 /// row is one of Home's branch rows, else the branch you're on. Home
 /// advertises `m`/`r` on *other* branches, so acting on `state.branchId`
 /// there would mutate the wrong one.
-let branchForAction (state: State) : Stdlib.Option.Option<Darklang.SCM.Branch.Branch> =
+let branchForAction(state: State): Stdlib.Option.Option<Darklang.SCM.Branch.Branch> =
   let onBranchRow =
-    match Stdlib.List.getAt state.items state.selected with
+    match Stdlib.List.getAt(state.items, state.selected) with
     | Some item -> item.kind == "home-branch"
     | None -> false
-  if onBranchRow then selectedBranch state else Darklang.SCM.Branch.get state.branchId
+  if onBranchRow then selectedBranch(state) else Darklang.SCM.Branch.get(state.branchId)
 
 /// The conflict the cursor is on, by location. Same filtered-cursor reasoning as `selectedBranch`.
-let selectedConflict (state: State) : Stdlib.Option.Option<SCM.Conflicts.Conflict> =
-  match Stdlib.List.getAt state.items state.selected with
+let selectedConflict(state: State): Stdlib.Option.Option<SCM.Conflicts.Conflict> =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | None -> Stdlib.Option.Option.None
   | Some item ->
     let location =
-      Stdlib.String.split item.name "  ·  " |> Stdlib.List.head |> Stdlib.Option.withDefault item.name
+      Stdlib.String.split(item.name, "  ·  ") |> Stdlib.List.head |> Stdlib.Option.withDefault(item.name)
 
-    SCM.Conflicts.pending ()
-    |> Stdlib.List.findFirst (fun c ->
-      (SCM.Conflicts.fqn c.owner c.modules c.name) == location)
+    SCM.Conflicts.pending()
+    |> Stdlib.List.findFirst(fun c ->
+      (SCM.Conflicts.fqn(c.owner, c.modules, c.name)) == location)
 
 /// In-CLI documentation topics (for the Docs view).
-let loadDocBodyItems () : List<BodyItem> =
-  Docs.Command.Topics.allTopics ()
-  |> Stdlib.List.map (fun t ->
+let loadDocBodyItems(): List<BodyItem> =
+  Docs.Command.Topics.allTopics()
+  |> Stdlib.List.map(fun t ->
     BodyItem { name = t.name, kind = "doc", isModule = false, desc = t.description })
 
 /// The Errors view - the high-importance issues an operator running software on Dark cares about. Real
 /// conflicts (genuine) first, then a mock set of the other error kinds until those signals are wired.
-let loadErrorItems () : List<BodyItem> =
+let loadErrorItems(): List<BodyItem> =
   let conflicts =
-    SCM.Conflicts.pending ()
-    |> Stdlib.List.map (fun c ->
-      let location = SCM.Conflicts.fqn c.owner c.modules c.name
+    SCM.Conflicts.pending()
+    |> Stdlib.List.map(fun c ->
+      let location = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
       BodyItem
         { name = "⚠ conflict    " + location + "  ·  " + c.status
           kind = "error"
@@ -174,67 +174,67 @@ let loadErrorItems () : List<BodyItem> =
           desc = "" })
   conflicts
 
-let errorDetail (state: State) : String =
-  match Stdlib.List.getAt state.items state.selected with
+let errorDetail(state: State): String =
+  match Stdlib.List.getAt(state.items, state.selected) with
   | Some item ->
-    (Stdlib.Cli.UI.Colors.boldText item.name)
+    (Stdlib.Cli.UI.Colors.boldText(item.name))
     + "\n\n"
-    + (Stdlib.Cli.UI.Colors.dimText "an unresolved conflict: two live versions of one name.")
+    + (Stdlib.Cli.UI.Colors.dimText("an unresolved conflict: two live versions of one name."))
     + "\n\n"
     + "⏎ open the source / trace     f filter by kind"
-  | None -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ all clear - no errors"
+  | None -> Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "✓ all clear - no errors")
 
 /// The traces this instance kept, for the Traces view. The same rows `dark traces` lists, in the
 /// same order; the id is the item name, so the detail pane can resolve it back with
 /// `Cli.TraceVerbs.find`. No sample rows: an empty list means nothing has run, and inventing runs
 /// to make the pane look full makes every other row in it suspect.
-let loadTraceBodyItems () : List<BodyItem> =
-  let runs = Darklang.Tracing.Store.list 30
+let loadTraceBodyItems(): List<BodyItem> =
+  let runs = Darklang.Tracing.Store.list(30)
   // The shortest prefix that tells THESE runs apart, as the CLI table does it: the detail pane
   // resolves the name back to a run, and a prefix two runs share resolves to neither.
-  let width = Cli.TraceVerbs.idWidth (runs |> Stdlib.List.map (fun t -> t.id))
+  let width = Cli.TraceVerbs.idWidth(runs |> Stdlib.List.map(fun t -> t.id))
 
   runs
-  |> Stdlib.List.map (fun t ->
+  |> Stdlib.List.map(fun t ->
     BodyItem
-      { name = Stdlib.String.slice t.id 0 width
+      { name = Stdlib.String.slice(t.id, 0, width)
         kind = "trace"
         isModule = false
         desc =
           let status =
-            Stdlib.String.padEndToWidth (Cli.TraceVerbs.statusText t.status) 10
-          let ago = Stdlib.String.padEndToWidth (Cli.TraceVerbs.whenText t.created) 16
+            Stdlib.String.padEndToWidth(Cli.TraceVerbs.statusText(t.status), 10)
+          let ago = Stdlib.String.padEndToWidth(Cli.TraceVerbs.whenText(t.created), 16)
           // A pin is the one thing about a trace you change from this pane, so the row has to
           // show it: `*` pinned, nothing otherwise, as the CLI table prints it.
           let pin = if t.pinned then "* " else "  "
-          let input = Darklang.Tracing.Format.inputText t
-          $"{pin}{status}{ago}{t.entry}  {Cli.Text.oneLine input}" })
+          let input = Darklang.Tracing.Format.inputText(t)
+          $"{pin}{status}{ago}{t.entry}  {Cli.Text.oneLine(input)}" })
 
 
 /// The body items for a given view. Home lists the branch's state (see
 /// `loadHomeItems`); Matter the packages (with a Values lens); Changes this
 /// branch's uncommitted work; Traces and Docs their own; Scratch renders its
 /// own body (no list). The lens comes from the view state.
-let itemsForView
-  (view: Int)
-  (branchId: Uuid)
-  (location: Packages.PackageLocation)
-  (matterLens: Lens)
+let itemsForView(
+  view: Int,
+  branchId: Uuid,
+  location: Packages.PackageLocation,
+  matterLens: Lens)
   : List<BodyItem> =
-  if view == vHome then loadHomeItems branchId
+  if view == vHome then loadHomeItems(branchId)
   else if view == vMatter then
-    if matterLens == Lens.ValuesOnly then loadThingItems branchId
-    else if matterLens == Lens.Changed then loadChangedItems branchId
-    else loadItems branchId location
-  else if view == vSCM then loadChangedItems branchId
-  else if view == vTraces then loadTraceBodyItems ()
-  else if view == vDocs then loadDocBodyItems ()
+    if matterLens == Lens.ValuesOnly then loadThingItems(branchId)
+    else if matterLens == Lens.Changed then loadChangedItems(branchId)
+    else loadItems(branchId, location)
+  else if view == vSCM then loadChangedItems(branchId)
+  else if view == vTraces then loadTraceBodyItems()
+  else if view == vDocs then loadDocBodyItems()
   else
     // Extension views compose their own item loader (see `extensionViews`); built-ins fall through to [].
-    match extensionViewAt view with
+    match extensionViewAt(view) with
     | Some vd ->
       let load = vd.loadItems
-      load ()
+      load()
     | None -> []
 
 /// Reload the CURRENT view's item list, i.e. `itemsForView` fed the live state. This is the "refresh what I'm
@@ -244,12 +244,12 @@ let itemsForView
 ///
 /// Items first, filter second, so `items |> applyFilter f` reads correctly: Dark's `|>` puts the piped value
 /// in the FIRST parameter, the opposite of F#.
-let applyFilter (items: List<BodyItem>) (filter: String) : List<BodyItem> =
+let applyFilter(items: List<BodyItem>, filter: String): List<BodyItem> =
   if filter == "" then
     items
   else
-    let needle = Stdlib.String.toLowercase filter
-    items |> Stdlib.List.filter (fun it -> Stdlib.String.contains (Stdlib.String.toLowercase it.name) needle)
+    let needle = Stdlib.String.toLowercase(filter)
+    items |> Stdlib.List.filter(fun it -> Stdlib.String.contains(Stdlib.String.toLowercase(it.name), needle))
 
 /// Reload the current view's items, keeping any active filter applied.
 ///
@@ -259,9 +259,9 @@ let applyFilter (items: List<BodyItem>) (filter: String) : List<BodyItem> =
 ///
 /// Switching to a DIFFERENT list is the other case, and those sites clear `filter` instead: a filter you
 /// typed for Changes has no business narrowing History.
-let reloadItems (state: State) : List<BodyItem> =
-  itemsForView state.activeView state.branchId state.location state.matter.lens
-  |> applyFilter state.filter
+let reloadItems(state: State): List<BodyItem> =
+  itemsForView(state.activeView, state.branchId, state.location, state.matter.lens)
+  |> applyFilter(state.filter)
 
 
 // ── Rendering ──

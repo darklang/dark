@@ -7,7 +7,7 @@ type Something = { ID: Id, Data: String }
 
 test simpleAlias =
   Something { ID = "2", Data = "test" }
-  |> Stdlib.Test.equal (Something { ID = "2", Data = "test" })
+  |> Stdlib.Test.equal(Something { ID = "2", Data = "test" })
 
 // CELANUP: would be better if this noted that `Id` is an alias for `String`
 test simpleAliasWrongTypeRaises =
@@ -20,15 +20,15 @@ module SimpleRecordAlias =
   type MyPerson = Person
   type MyPerson2 = Person
 
-  let getName (p: MyPerson) : String = p.name
+  let getName(p: MyPerson): String = p.name
 
   test recordAliases =
-    Stdlib.Test.all
+    Stdlib.Test.all(
       [ (MyPerson { name = "test" } == Person { name = "test" })
-        |> Stdlib.Test.equal true
+        |> Stdlib.Test.equal(true)
         (MyPerson { name = "test" } == MyPerson2 { name = "test" })
-        |> Stdlib.Test.equal true
-        getName (MyPerson { name = "test" }) |> Stdlib.Test.equal "test" ]
+        |> Stdlib.Test.equal(true)
+        getName(MyPerson { name = "test" }) |> Stdlib.Test.equal("test") ])
 
 module SimpleEnumAlias =
   type UserRole =
@@ -38,13 +38,13 @@ module SimpleEnumAlias =
   type GuestRole = UserRole
 
   test enumAliases =
-    (GuestRole.Guest == AdminRole.Guest) |> Stdlib.Test.equal true
+    (GuestRole.Guest == AdminRole.Guest) |> Stdlib.Test.equal(true)
 
 module NestedAlias =
   type UserCredential = (String * Id)
   type EmployeeCredential = UserCredential
 
-  let getUserID (credential: UserCredential) : Id =
+  let getUserID(credential: UserCredential): Id =
     credential |> Stdlib.Tuple2.second
 
   type UserProfile =
@@ -52,43 +52,43 @@ module NestedAlias =
       name: String }
 
   type EmployeeProfile = UserProfile
-  let getEmployeeName (profile: EmployeeProfile) : String = profile.name
+  let getEmployeeName(profile: EmployeeProfile): String = profile.name
 
   test nestedAliases =
-    Stdlib.Test.all
-      [ getUserID (("Alice", "EMP123")) |> Stdlib.Test.equal "EMP123"
-        (getEmployeeName (
+    Stdlib.Test.all(
+      [ getUserID(("Alice", "EMP123")) |> Stdlib.Test.equal("EMP123")
+        (getEmployeeName((
           UserProfile
             { credential = ("Alice", "EMP123")
               name = "Alice" }
-        ))
-        |> Stdlib.Test.equal "Alice" ]
+        )))
+        |> Stdlib.Test.equal("Alice") ])
 
   test wrongTupleTypeRaises =
-    getUserID (("Alice", 123L))
+    getUserID(("Alice", 123L))
     => raises
       "Darklang.Language.Tests.Aliases.NestedAlias.getUserID's 1st parameter `credential` expects (String * String), but got (String * Int64) ((\"Alice\", 123))"
 
 module ListAlias =
   type IntegerList = List<Int64>
 
-  let isEmpty (il: IntegerList) : Bool = Stdlib.List.isEmpty il
+  let isEmpty(il: IntegerList): Bool = Stdlib.List.isEmpty(il)
 
   test listAlias =
-    Stdlib.Test.all
-      [ isEmpty ([]) |> Stdlib.Test.equal true
-        isEmpty ([ 1L, 2L, 3L ]) |> Stdlib.Test.equal false ]
+    Stdlib.Test.all(
+      [ isEmpty([]) |> Stdlib.Test.equal(true)
+        isEmpty([ 1L, 2L, 3L ]) |> Stdlib.Test.equal(false) ])
 
 module ResultAlias =
   type IntResult = Stdlib.Result.Result<Int64, String>
 
-  let getIntResultValue (ir: IntResult) : Int64 = Stdlib.Result.withDefault ir 0L
+  let getIntResultValue(ir: IntResult): Int64 = Stdlib.Result.withDefault(ir, 0L)
 
   test resultAlias =
-    Stdlib.Test.all
-      [ getIntResultValue (Stdlib.Result.Result.Ok 5L) |> Stdlib.Test.equal 5L
-        getIntResultValue (Stdlib.Result.Result.Error "error")
-        |> Stdlib.Test.equal 0L ]
+    Stdlib.Test.all(
+      [ getIntResultValue(Stdlib.Result.Result.Ok 5L) |> Stdlib.Test.equal(5L)
+        getIntResultValue(Stdlib.Result.Result.Error "error")
+        |> Stdlib.Test.equal(0L) ])
 
 module RecordWithTypeArgs =
   type Inner<'a, 'b> = { a: 'a, b: 'b }
@@ -96,22 +96,22 @@ module RecordWithTypeArgs =
   type Outer1<'a> = Inner<'a, Int64>
   type Outer2<'b> = Inner<String, 'b>
 
-  let getInnerField (x: Inner<'a, 'b>) : 'b = x.b
+  let getInnerField(x: Inner<'a, 'b>): 'b = x.b
 
   test typeArgAliases =
-    Stdlib.Test.all
+    Stdlib.Test.all(
       [ (Outer1 { a = "test", b = 5L })
-        |> Stdlib.Test.equal (Inner { a = "test", b = 5L })
+        |> Stdlib.Test.equal(Inner { a = "test", b = 5L })
         (Outer1 { a = "test", b = 5L })
-        |> Stdlib.Test.equal (Outer2 { a = "test", b = 5L })
-        getInnerField (Inner { a = "test", b = 5L }) |> Stdlib.Test.equal 5L
-        getInnerField (Outer1 { a = "test", b = 5L }) |> Stdlib.Test.equal 5L
-        getInnerField (Outer2 { a = "test", b = 5L }) |> Stdlib.Test.equal 5L ]
+        |> Stdlib.Test.equal(Outer2 { a = "test", b = 5L })
+        getInnerField(Inner { a = "test", b = 5L }) |> Stdlib.Test.equal(5L)
+        getInnerField(Outer1 { a = "test", b = 5L }) |> Stdlib.Test.equal(5L)
+        getInnerField(Outer2 { a = "test", b = 5L }) |> Stdlib.Test.equal(5L) ])
 
   // Explicit record type arguments are accepted, and field types are checked.
   test explicitTypeArgs =
     Inner<String, Int64> { a = "test", b = 5L }
-    |> Stdlib.Test.equal (Inner { a = "test", b = 5L })
+    |> Stdlib.Test.equal(Inner { a = "test", b = 5L })
 
   test explicitTypeArgMismatchRaises =
     Inner<String, Int64> { a = "test", b = "five" }
@@ -137,7 +137,7 @@ module RecordWithTypeArgsDifferentName =
 
   test reorderedTypeArgs =
     MostOutest { a = 5L, b = "string" }
-    |> Stdlib.Test.equal (Inner { a = 5L, b = "string" })
+    |> Stdlib.Test.equal(Inner { a = 5L, b = "string" })
 
   test wrongFieldARaises =
     MostOutest { a = "not allowed", b = "string" }
@@ -168,7 +168,7 @@ module RecordWithRecursiveTypeArgs =
                     Inner { a = 7L, b = Stdlib.Result.Result.Error "test" }
                   ) }
           ) }
-    |> Stdlib.Test.equal (
+    |> Stdlib.Test.equal((
       Alias
         { a = 5L
           b =
@@ -180,7 +180,7 @@ module RecordWithRecursiveTypeArgs =
                       Alias { a = 7L, b = Stdlib.Result.Result.Error "test" }
                     ) }
             ) }
-    )
+    ))
 
 module MultiNestedRecordAlias =
   type Innest<'a, 'b, 'c> = { a: 'a, b: 'b, c: 'c }
@@ -190,7 +190,7 @@ module MultiNestedRecordAlias =
 
   test multiNested =
     Nest3 { a = 5L, b = "test", c = 6L }
-    |> Stdlib.Test.equal (Innest { a = 5L, b = "test", c = 6L })
+    |> Stdlib.Test.equal(Innest { a = 5L, b = "test", c = 6L })
 
 module EnumWithTypeArgs =
   type Inner<'a, 'b> =
@@ -200,23 +200,23 @@ module EnumWithTypeArgs =
   type Outer1<'a> = Inner<'a, Int64>
   type Outer2<'b> = Inner<String, 'b>
 
-  let getInnerField (x: Inner<'a, 'b>) (default': 'b) : 'b =
+  let getInnerField(x: Inner<'a, 'b>, default': 'b): 'b =
     match x with
     | A _ -> default'
     | B b -> b
 
   test typeArgAliases =
-    Stdlib.Test.all
-      [ getInnerField (Inner.A 5L) 6L |> Stdlib.Test.equal 6L
-        getInnerField (Inner.B 5L) 6L |> Stdlib.Test.equal 5L
-        getInnerField (Outer1.A 5L) 6L |> Stdlib.Test.equal 6L
-        getInnerField (Outer1.B 5L) 6L |> Stdlib.Test.equal 5L
-        getInnerField (Outer2.A "str") "str2" |> Stdlib.Test.equal "str2"
-        getInnerField (Outer2.B "str") "str2" |> Stdlib.Test.equal "str"
-        Outer1.A 5L |> Stdlib.Test.equal (Inner.A 5L)
-        Outer1.B 5L |> Stdlib.Test.equal (Inner.B 5L)
-        Outer2.A "str" |> Stdlib.Test.equal (Outer1.A "str")
-        Outer2.B 5L |> Stdlib.Test.equal (Outer1.B 5L) ]
+    Stdlib.Test.all(
+      [ getInnerField(Inner.A 5L, 6L) |> Stdlib.Test.equal(6L)
+        getInnerField(Inner.B 5L, 6L) |> Stdlib.Test.equal(5L)
+        getInnerField(Outer1.A 5L, 6L) |> Stdlib.Test.equal(6L)
+        getInnerField(Outer1.B 5L, 6L) |> Stdlib.Test.equal(5L)
+        getInnerField(Outer2.A "str", "str2") |> Stdlib.Test.equal("str2")
+        getInnerField(Outer2.B "str", "str2") |> Stdlib.Test.equal("str")
+        Outer1.A 5L |> Stdlib.Test.equal(Inner.A 5L)
+        Outer1.B 5L |> Stdlib.Test.equal(Inner.B 5L)
+        Outer2.A "str" |> Stdlib.Test.equal(Outer1.A "str")
+        Outer2.B 5L |> Stdlib.Test.equal(Outer1.B 5L) ])
 
   test outer2WrongPayloadRaises =
     Outer2.A 5L
@@ -239,9 +239,9 @@ module EnumWithTypeArgsDifferentName =
   type MostOutest = Outest<String> // effectively: `| A of Int64 | B of String`
 
   test reorderedTypeArgs =
-    Stdlib.Test.all
-      [ MostOutest.A 5L |> Stdlib.Test.equal (Inner.A 5L)
-        MostOutest.B "test" |> Stdlib.Test.equal (Inner.B "test") ]
+    Stdlib.Test.all(
+      [ MostOutest.A 5L |> Stdlib.Test.equal(Inner.A 5L)
+        MostOutest.B "test" |> Stdlib.Test.equal(Inner.B "test") ])
 
   test wrongPayloadARaises =
     MostOutest.A "not allowed"
@@ -262,4 +262,4 @@ module EnumWithRecursiveTypeArgs =
 
   test recursiveAlias =
     Alias.B(Stdlib.Result.Result.Ok(Alias.A 5L))
-    |> Stdlib.Test.equal (Inner.B(Stdlib.Result.Result.Ok(Inner.A 5L)))
+    |> Stdlib.Test.equal(Inner.B(Stdlib.Result.Result.Ok(Inner.A 5L)))

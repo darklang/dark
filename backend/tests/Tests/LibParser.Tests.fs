@@ -274,7 +274,7 @@ let private parserStructureTests =
         | other -> failtest $"expected list: {other}")
 
       testCase "parses a qualified function call" (fun _ ->
-        match (P.parse "Stdlib.Int64.remainder 1L 2L").parsed with
+        match (P.parse "Stdlib.Int64.remainder(1L, 2L)").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EApply(_,
                                                          WT.EFnName(_, q),
                                                          _,
@@ -331,7 +331,7 @@ let private parserStructureTests =
         | other -> failtest $"record: {other}")
 
       testCase "parses a function declaration" (fun _ ->
-        match (P.parse "let add (x: Int64) (y: Int64) : Int64 = x + y").parsed with
+        match (P.parse "let add(x: Int64, y: Int64): Int64 = x + y").parsed with
         | Some(WT.SourceFile { declarations = [ WT.DFunction f ]; exprsToEval = [] }) ->
           Expect.equal f.name.name "add" "fn name"
           Expect.equal (List.length f.parameters) 2 "two params"
@@ -351,7 +351,8 @@ let private parserStructureTests =
       testCase
         "parses a named package test without reserving test in expressions"
         (fun _ ->
-          let parsed = P.parse "module M =\n  test doubles = Stdlib.Test.equal 8 8"
+          let parsed =
+            P.parse "module M =\n  test doubles = Stdlib.Test.equal(8, 8)"
           Expect.isEmpty parsed.diagnostics "no diagnostics"
           match parsed.parsed with
           | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
@@ -420,7 +421,7 @@ let private parserStructureTests =
       testCase "raises remains an ordinary function name in a test body" (fun _ ->
         let parsed =
           P.parse
-            "module M =\n  test callsRaises = 1 |> raises \"message\" |> Stdlib.Test.equal 1"
+            "module M =\n  test callsRaises = 1 |> raises(\"message\") |> Stdlib.Test.equal(1)"
         Expect.isEmpty parsed.diagnostics "no diagnostics"
         match parsed.parsed with
         | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
@@ -446,7 +447,7 @@ let private parserStructureTests =
 
       testCase "package roots diagnose let values without an EOF cascade" (fun _ ->
         let source =
-          "let chars = \"abc\"\n\nlet length (s: String) : Int = Stdlib.String.length s"
+          "let chars = \"abc\"\n\nlet length(s: String): Int = Stdlib.String.length(s)"
         match P.parseFor Validation.Package source with
         | Error [ diagnostic ] ->
           Expect.equal
@@ -459,8 +460,7 @@ let private parserStructureTests =
         | other -> failtest $"expected one diagnostic, got {other}")
 
       testCase "a function's effect row becomes its ceiling" (fun _ ->
-        let result =
-          P.parse "module M =\n  let f (x: Int64) :{Http, Clock} Int64 = x"
+        let result = P.parse "module M =\n  let f(x: Int64):{Http, Clock} Int64 = x"
         Expect.isEmpty result.diagnostics "no diagnostics"
         match result.parsed with
         | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
@@ -474,7 +474,7 @@ let private parserStructureTests =
         | other -> failtest $"fn decl: {other}")
 
       testCase "an empty effect row declares effect-free" (fun _ ->
-        let result = P.parse "module M =\n  let f (x: Int64) :{} Int64 = x"
+        let result = P.parse "module M =\n  let f(x: Int64):{} Int64 = x"
         Expect.isEmpty result.diagnostics "no diagnostics"
         match result.parsed with
         | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
@@ -504,7 +504,7 @@ let private parserStructureTests =
 
       testCase "file-level module header wraps the file's declarations" (fun _ ->
         match
-          (P.parse "module Darklang.Foo\nlet add (x: Int64) : Int64 = x").parsed
+          (P.parse "module Darklang.Foo\nlet add(x: Int64): Int64 = x").parsed
         with
         | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
           Expect.equal (snd m.name) "Darklang.Foo" "module name"
@@ -700,7 +700,7 @@ let private parserStructureTests =
           | other -> failtest $"`-a + b` should be (negate a) + b, got: {other}")
 
       testCase "parses pipe + boolean operators" (fun _ ->
-        match (P.parse "xs |> Stdlib.List.map f |> Stdlib.List.length").parsed with
+        match (P.parse "xs |> Stdlib.List.map(f) |> Stdlib.List.length").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EPipe(_,
                                                         WT.EVariable(_, "xs"),
                                                         [ (_, WT.EPipeFnCall _)
@@ -756,16 +756,16 @@ let private parserStructureTests =
             | other -> failtest $"fn decl: {other}"
 
           Expect.equal
-            (docOf "let f\n  /// who to greet\n  (name: String) : String = name")
+            (docOf "let f(\n  /// who to greet\n  name: String): String = name")
             "who to greet"
             "written above the parameter"
           Expect.equal
-            (docOf "let f (/// who to greet\n       name: String) : String = name")
+            (docOf "let f(/// who to greet\n       name: String): String = name")
             "who to greet"
             "written inside the paren")
 
       testCase "parses type variables in a generic signature" (fun _ ->
-        match (P.parse "let f (x: 'a) : 'a = x").parsed with
+        match (P.parse "let f(x: 'a): 'a = x").parsed with
         | Some(WT.SourceFile { declarations = [ WT.DFunction f ] }) ->
           match f.returnType, f.parameters with
           | WT.TVariable(_, _, (_, "a")),
@@ -774,7 +774,7 @@ let private parserStructureTests =
         | other -> failtest $"generic fn: {other}")
 
       testCase "parses function and tuple types" (fun _ ->
-        match (P.parse "let f (g: Int64 -> String) : Int64 = 1L").parsed with
+        match (P.parse "let f(g: Int64 -> String): Int64 = 1L").parsed with
         | Some(WT.SourceFile { declarations = [ WT.DFunction { parameters = [ WT.FPNormal(_,
                                                                                           _,
                                                                                           WT.TFn(_,
@@ -786,7 +786,7 @@ let private parserStructureTests =
                                                                                           _) ] } ] }) ->
           ()
         | other -> failtest $"fn type: {other}"
-        match (P.parse "let f (p: (String * Int64)) : Int64 = 1L").parsed with
+        match (P.parse "let f(p: (String * Int64)): Int64 = 1L").parsed with
         | Some(WT.SourceFile { declarations = [ WT.DFunction { parameters = [ WT.FPNormal(_,
                                                                                           _,
                                                                                           WT.TTuple _,
@@ -797,7 +797,7 @@ let private parserStructureTests =
           ()
         | other -> failtest $"tuple type: {other}"
         match
-          (P.parse "let f (x: Stdlib.Option.Option<String>) : Int64 = 1L").parsed
+          (P.parse "let f(x: Stdlib.Option.Option<String>): Int64 = 1L").parsed
         with
         | Some(WT.SourceFile { declarations = [ WT.DFunction { parameters = [ WT.FPNormal(_,
                                                                                           _,
@@ -813,7 +813,7 @@ let private parserStructureTests =
 
       testCase "parses multi-statement blocks (EStatement)" (fun _ ->
         match
-          (P.parse "let f () : Unit =\n  Stdlib.printLine \"hi\"\n  ()").parsed
+          (P.parse "let f(): Unit =\n  Stdlib.printLine(\"hi\")\n  ()").parsed
         with
         | Some(WT.SourceFile { declarations = [ WT.DFunction { body = WT.EStatement(_,
                                                                                     _,
@@ -893,7 +893,7 @@ let private desugarTests =
         | PT.EVariable(_, "XDB") -> ()
         | other -> failtest $"expected EVariable XDB, got: {other}")
       testCase "a statement sequence lowers to EStatement" (fun _ ->
-        match toPT (fnBody "let f () : Unit =\n  foo ()\n  bar ()") with
+        match toPT (fnBody "let f(): Unit =\n  foo()\n  bar()") with
         | PT.EStatement(_, PT.EApply _, PT.EApply _) -> ()
         | other -> failtest $"expected EStatement(a, b), got: {other}")
       testCase "lowering rejects a WrittenTypes recovery hole" (fun _ ->
@@ -969,7 +969,7 @@ let private loweringRegressionTests =
             toPTWith
               globalMapPM
               (context (Map [ ("map", 0) ]) Set.empty)
-              (lowerExpr "fun x -> map x")
+              (lowerExpr "fun x -> map(x)")
           with
           | PT.ELambda(_, _, PT.EApply(_, PT.EVariable(_, "map"), _, _)) -> ()
           | other -> failtest $"expected captured argument callee, got {other}")
@@ -985,7 +985,7 @@ let private loweringRegressionTests =
               [ "Darklang"; "Test" ]
               globalMapPM
               collisionContext
-              (lowerExpr "let map = (fun x -> map x) in map 1L")
+              (lowerExpr "let map = (fun x -> map(x)) in map(1L)")
           with
           | PT.ELet(_, _, PT.ELambda(_, _, PT.EApply(_, PT.EFnName _, _, _)), _) ->
             ()
@@ -1095,7 +1095,7 @@ let private validationTests =
         for (source, expectedCode) in
           [ ("fun x x -> x", Validation.DuplicateBinder)
             ("let (x, x) = (1L, 2L) in x", Validation.DuplicateBinder)
-            ("let f (x: Int64) (x: Int64) : Int64 = x", Validation.DuplicateBinder)
+            ("let f(x: Int64, x: Int64): Int64 = x", Validation.DuplicateBinder)
             ("match x with | Some a | None -> a", Validation.OrBindingMismatch)
             ("match pair with | ((x | _), y) -> x", Validation.OrBindingMismatch) ] do
           Expect.exists
@@ -1394,7 +1394,7 @@ let private offsideTests =
   testList
     "offside"
     [ testCase "explicit type arguments in a call expression" (fun _ ->
-        match lowerExpr "Stdlib.Json.parse<Int64> x" with
+        match lowerExpr "Stdlib.Json.parse<Int64>(x)" with
         | WT.EApply(_, _, [ WT.TInt64 _ ], _) -> ()
         | other -> failtest $"expected a call with one type arg, got: {other}")
       testCase "less-than is still a comparison, not type args" (fun _ ->
@@ -1406,12 +1406,12 @@ let private offsideTests =
       testCase "bare statement sequence is an EStatement" (fun _ ->
         // the parse tree keeps `a\n b` as EStatement; the discarding-let folding
         // happens later in WrittenTypesToProgramTypes.
-        match fnBody "let f () : Unit =\n  foo ()\n  bar ()" with
+        match fnBody "let f(): Unit =\n  foo()\n  bar()" with
         | WT.EStatement(_, WT.EApply _, WT.EApply _) -> ()
         | other ->
           failtest $"expected a statement sequence of two calls, got: {other}")
       testCase "newline-delimited let-chain nests, scoping over the rest" (fun _ ->
-        match fnBody "let f () : Int64 =\n  let x = 1L\n  let y = 2L\n  x" with
+        match fnBody "let f(): Int64 =\n  let x = 1L\n  let y = 2L\n  x" with
         | WT.ELet(_,
                   WT.LPVariable(_, "x"),
                   _,
@@ -1422,7 +1422,7 @@ let private offsideTests =
       testCase
         "indented continuation stays one application (not a sequence)"
         (fun _ ->
-          match fnBody "let f () : Int64 =\n  g\n    a\n    b" with
+          match fnBody "let f(): Int64 =\n  g(\n    a,\n    b)" with
           | WT.EApply(_, _, _, args) ->
             Expect.equal (List.length args) 2 "g applied to a and b"
           | other -> failtest $"expected a single application, got: {other}")
@@ -1433,7 +1433,7 @@ let private offsideTests =
         | other -> failtest $"expected a 3-element list, got: {other}")
       testCase "nested function definition lowers to a name-bound lambda" (fun _ ->
         match
-          fnBody "let f () : Int64 =\n  let g (x: Int64) : Int64 = x + 1L\n  g 5L"
+          fnBody "let f(): Int64 =\n  let g(x: Int64): Int64 = x + 1L\n  g(5L)"
         with
         | WT.ELet(_,
                   WT.LPVariable(_, "g"),
@@ -1609,7 +1609,7 @@ let private recoveryTests =
             [ "module M =\n  let rec f (x: Int64) : Int64 = x"
               "module M =\n  let private f (x: Int64) : Int64 = x"
               "module M =\n  let internal f (x: Int64) : Int64 = x"
-              "if true then let private f (x: Int64) : Int64 = x in f 1L else 0L" ] do
+              "if true then let private f (x: Int64) : Int64 = x in f(1L) else 0L" ] do
             Expect.isNonEmpty
               (P.parse source).diagnostics
               $"invalid binding form: {source}"
@@ -1623,14 +1623,14 @@ let private recoveryTests =
               $"valid identifier: {source}")
 
       testCase "package function parameters cannot be blank" (fun _ ->
-        let invalid = P.parse "let f (___: Int64) (x: Int64) : Int64 = x"
+        let invalid = P.parse "let f(___: Int64, x: Int64): Int64 = x"
         Expect.exists
           invalid.diagnostics
           (fun diagnostic ->
             diagnostic.message.Contains "Blank parameter '___' is not allowed")
           "blank package parameter diagnostic"
 
-        for source in [ "let f () : Unit = ()"; "fun ___ -> 1L" ] do
+        for source in [ "let f(): Unit = ()"; "fun ___ -> 1L" ] do
           Expect.isEmpty
             (P.parse source).diagnostics
             $"valid ignored parameter form: {source}")
@@ -1659,7 +1659,7 @@ let private recoveryTests =
             "{ value with a = 1L, b = 2L }"
             "type R = { a: Int64, b: String }"
             "Person { a = 1L, b = 2L, }"
-            "let f () : Unit = print 1L; print 2L" ] do
+            "let f(): Unit = print(1L); print(2L)" ] do
           Expect.isEmpty
             (P.parse source).diagnostics
             $"valid separators parse cleanly for {source}")
@@ -1756,6 +1756,95 @@ let private recoveryTests =
 
 /// Lexical-failure handling: a malformed lexeme must surface a diagnostic (never a
 /// silent success) and must never throw.
+/// `f(a, b)` calls, `let f(a: T, b: U)` declarations, and the old forms as errors.
+let private callSyntaxTests =
+  let argCount (src : string) =
+    match toPT (lowerExpr src) with
+    | PT.EApply(_, _, _, args) -> NEList.length args
+    | other -> failtest $"expected a call for {src}, got: {other}"
+  let hint (src : string) =
+    (P.parse src).diagnostics |> List.choose (fun d -> d.hint)
+  testList
+    "call-syntax"
+    [ testCase "commas separate arguments" (fun _ ->
+        Expect.equal (argCount "f(1L, 2L)") 2 "two arguments"
+        Expect.equal (argCount "Stdlib.List.map(xs, fun x -> x)") 2 "a last lambda")
+      testCase "a space before the paren is the same call" (fun _ ->
+        Expect.isEmpty (P.parse "f (1L, 2L)").diagnostics "no diagnostic"
+        Expect.equal (argCount "f (1L, 2L)") 2 "two arguments, not one tuple")
+      testCase "one tuple argument takes its own parens" (fun _ ->
+        match toPT (lowerExpr "f((1L, 2L))") with
+        | PT.EApply(_, _, _, args) ->
+          match NEList.toList args with
+          | [ PT.ETuple _ ] -> ()
+          | other -> failtest $"expected one tuple, got: {other}"
+        | other -> failtest $"expected a call, got: {other}")
+      testCase "`f()` passes unit" (fun _ ->
+        match toPT (lowerExpr "f()") with
+        | PT.EApply(_, _, _, args) ->
+          match NEList.toList args with
+          | [ PT.EUnit _ ] -> ()
+          | other -> failtest $"expected the unit argument, got: {other}"
+        | other -> failtest $"expected a call, got: {other}")
+      testCase "calls chain and take postfix" (fun _ ->
+        Expect.isEmpty (P.parse "f(1L)(2L)").diagnostics "a call of a call"
+        Expect.isEmpty (P.parse "f(x).field").diagnostics "a field of a call"
+        Expect.isEmpty (P.parse "a.add(b)").diagnostics "a receiver call"
+        Expect.isEmpty
+          (P.parse "Stdlib.Json.parse<Int64>(s)").diagnostics
+          "type args first")
+      testCase "a pipe stage's own call puts the piped value first" (fun _ ->
+        match toPT (lowerExpr "xs |> Stdlib.List.map(f)") with
+        | PT.EPipe(_, _, [ PT.EPipeFnCall(_, _, _, [ _ ], _) ]) -> ()
+        | other -> failtest $"expected one extra argument, got: {other}"
+        // an unqualified name in a pipe lowers to a variable stage, which may be a fn
+        match toPT (lowerExpr "x |> f()") with
+        | PT.EPipe(_, _, [ PT.EPipeVariable(_, "f", []) ]) -> ()
+        | other -> failtest $"expected `|> f()` to add nothing, got: {other}"
+        match toPT (lowerExpr "x |> f(())") with
+        | PT.EPipe(_, _, [ PT.EPipeVariable(_, "f", [ PT.EUnit _ ]) ]) -> ()
+        | other -> failtest $"expected `|> f(())` to pass unit, got: {other}"
+        match toPT (lowerExpr "x |> Stdlib.List.reverse()") with
+        | PT.EPipe(_, _, [ PT.EPipeFnCall(_, _, _, [], _) ]) -> ()
+        | other ->
+          failtest $"expected a named `|> f()` to add nothing, got: {other}")
+      testCase "arguments after a space are an error with a hint" (fun _ ->
+        Expect.equal
+          (hint "Stdlib.String.length s")
+          [ "write `length(a)` rather than `length a`" ]
+          "the old form names the new one"
+        Expect.equal
+          (hint "f 1L 2L")
+          [ "write `f(a, b)` rather than `f a b`" ]
+          "with as many arguments as were written"
+        Expect.isNonEmpty
+          (P.parse "x |> (+) 1L").diagnostics
+          "an operator stage is gone too")
+      testCase "constructors keep both forms" (fun _ ->
+        Expect.isEmpty (P.parse "Ok 5L").diagnostics "space form"
+        Expect.isEmpty (P.parse "Ok(5L)").diagnostics "paren form")
+      testCase "a declaration lists its parameters once" (fun _ ->
+        match (P.parse "let add(a: Int64, b: Int64): Int64 = a + b").parsed with
+        | Some(WT.SourceFile { declarations = [ WT.DFunction f ] }) ->
+          Expect.equal (List.length f.parameters) 2 "two parameters"
+        | other -> failtest $"expected a function, got: {other}"
+        Expect.isEmpty
+          (P.parse "let f(): Int64 = 1L").diagnostics
+          "a unit parameter"
+        Expect.isEmpty
+          (P.parse "let f(\n  a: Int64,\n  b: Int64\n): Int64 = a").diagnostics
+          "one parameter per line"
+        Expect.equal
+          (hint "let add (a: Int64) (b: Int64) : Int64 = a + b")
+          [ "write `let f(a: T, b: U)` rather than `let f (a: T) (b: U)`" ]
+          "the old form names the new one")
+      testCase "a nested function declares its parameters the same way" (fun _ ->
+        Expect.isEmpty
+          (P.parse
+            "let outer(n: Int64): Int64 =\n  let double(x: Int64, y: Int64): Int64 = x + y\n  double(n, n)")
+            .diagnostics
+          "nested declaration and call") ]
+
 let private mustDiagnose (label : string) (src : string) : Test =
   testCase label (fun _ ->
     let res =
@@ -1979,11 +2068,11 @@ let private goldenDiagnosticsTests =
 /// deterministic (same input → same result), whatever we feed it.
 let private fuzzTests =
   let seeds =
-    [ "let f (x: Int64) : Int64 =\n  let y = x + 1L\n  y * 2L"
+    [ "let f(x: Int64): Int64 =\n  let y = x + 1L\n  y * 2L"
       "module A.B\ntype T = { a: Int64, b: List<String> }\nlet v = T { a = 1L, b = [] }"
       "match xs with\n| [] -> 0L\n| h :: t -> h + (sum t)\n| _ -> $\"n {h} m\""
-      "[1L, 2L] |> Stdlib.List.map (fun x -> x * 2L) |> (+) \"s\""
-      "type E = | A of Int64 * String | B\nlet g () : E = A(1L, \"x\")" ]
+      "[1L, 2L] |> Stdlib.List.map(fun x -> x * 2L) |> (fun v -> v + \"s\")"
+      "type E = | A of Int64 * String | B\nlet g(): E = A(1L, \"x\")" ]
   testList
     "fuzz"
     [ testCase "mutated inputs never throw; parsing is deterministic" (fun _ ->
@@ -2078,7 +2167,6 @@ let private rangeInvariantTests =
       :: (pipeExprs
           |> List.collect (fun (_, pe) ->
             match pe with
-            | WT.EPipeInfix(_, _, e) -> [ e ]
             | WT.EPipeLambda(_, _, b, _, _) -> [ b ]
             | WT.EPipeEnum(_, _, _, fs, _) -> fs
             | WT.EPipeFnCall(_, _, _, args) -> args
@@ -2205,14 +2293,14 @@ let private unwrapTests =
   testList
     "unwrap"
     [ testCase "call parentheses and operator range" (fun _ ->
-        let parsed = P.parse "fun x -> (f x)?"
+        let parsed = P.parse "fun x -> f(x)?"
         Expect.isEmpty parsed.diagnostics "valid unwrap in lambda"
-        match lowerExpr "fun x -> (f x)?" with
+        match lowerExpr "fun x -> f(x)?" with
         | WT.ELambda(_, _, WT.EUnwrap(_, WT.EApply _, question), _, _) ->
-          expectColumns "question mark" (14, 15) question
+          expectColumns "question mark" (13, 14) question
         | other -> failtestf "unexpected tree: %A" other)
       testCase "postfix binds before application" (fun _ ->
-        match lowerExpr "fun x -> f x?" with
+        match lowerExpr "fun x -> f(x?)" with
         | WT.ELambda(_, _, WT.EApply(_, _, _, [ WT.EUnwrap _ ]), _, _) -> ()
         | other -> failtestf "unexpected tree: %A" other)
       testCase "field access and repeated unwrap associate left" (fun _ ->
@@ -2255,7 +2343,7 @@ let private unwrapTests =
                d.message.Contains "directly after its operand"))
             source)
       testCase "an adjacent ? that can't attach doesn't blame whitespace" (fun _ ->
-        let diagnostics = (P.parse "fun v -> Ok (f v?)?").diagnostics
+        let diagnostics = (P.parse "fun v -> Ok (f(v?))?").diagnostics
         Expect.isTrue
           (diagnostics
            |> List.exists (fun d ->
@@ -2355,7 +2443,7 @@ let private traitTests =
   testList
     "traits"
     [ testCase "parses a trait with one signature" (fun _ ->
-        match parseDecls "trait Show<'a> =\n  let show (value: 'a) : String" with
+        match parseDecls "trait Show<'a> =\n  let show(value: 'a): String" with
         | [ WT.DTrait t ] ->
           Expect.equal t.name.name "Show" "trait name"
           Expect.equal (t.typeParams |> List.map fst) [ "a" ] "self param"
@@ -2370,7 +2458,7 @@ let private traitTests =
         "parses a trait with three signatures and a following declaration"
         (fun _ ->
           let src =
-            "trait Num<'a> =\n  let add (a: 'a) (b: 'a) : 'a\n  let zero () : 'a\n  let neg (a: 'a) : 'a\nlet after (x: Int) : Int = x"
+            "trait Num<'a> =\n  let add(a: 'a, b: 'a): 'a\n  let zero(): 'a\n  let neg(a: 'a): 'a\nlet after(x: Int): Int = x"
           match parseDecls src with
           | [ WT.DTrait t; WT.DFunction f ] ->
             Expect.equal
@@ -2382,7 +2470,7 @@ let private traitTests =
 
       testCase "parses an impl with bounds and a conditional impl" (fun _ ->
         let src =
-          "impl Show for Point =\n  let show (p: Point) : String = \"p\"\nimpl<'a: Show> Show for List<'a> =\n  let show (xs: List<'a>) : String = \"xs\""
+          "impl Show for Point =\n  let show(p: Point): String = \"p\"\nimpl<'a: Show> Show for List<'a> =\n  let show(xs: List<'a>): String = \"xs\""
         match parseDecls src with
         | [ WT.DImpl plain; WT.DImpl cond ] ->
           Expect.equal plain.trait_.typ.name "Show" "trait"
@@ -2408,11 +2496,11 @@ let private traitTests =
         "an impl's members keep source order, declared and aliased interleaved"
         (fun _ ->
           let src =
-            "impl Show for Point =\n"
-            + "  let a = Acme.one\n"
-            + "  let b (p: Point) : String = \"b\"\n"
-            + "  let c = Acme.two\n"
-            + "  let d (p: Point) : String = \"d\"\n"
+            "impl Show for Point =\n  let a = Acme.one\n  let b(p: Point): String = \"b\"\n  let c = Acme.two\n  let d(p: Point): String = \"d\"\n"
+            + ""
+            + ""
+            + ""
+            + ""
           match parseDecls src with
           | [ WT.DImpl impl ] ->
             let names =
@@ -2437,7 +2525,7 @@ let private traitTests =
       testCase "parses bounds with + on fns and types" (fun _ ->
         match
           parseDecls
-            "let f<'a: Show + Equal, 'b: Compare> (x: 'a) (y: 'b) : String = \"\""
+            "let f<'a: Show + Equal, 'b: Compare>(x: 'a, y: 'b): String = \"\""
         with
         | [ WT.DFunction f ] ->
           Expect.equal (f.typeParams |> List.map fst) [ "a"; "b" ] "type params"
@@ -2455,7 +2543,7 @@ let private traitTests =
         | other -> failtest $"bounded type: {other}")
 
       testCase "bound trait may carry type args" (fun _ ->
-        match parseDecls "let f<'a: Convert<Int>> (x: 'a) : Int = 1" with
+        match parseDecls "let f<'a: Convert<Int>>(x: 'a): Int = 1" with
         | [ WT.DFunction f ] ->
           Expect.equal
             (List.length f.bounds.Head.trait_.typeArgs)
@@ -2466,7 +2554,7 @@ let private traitTests =
       testCase "a trait is its own item, with one method per signature" (fun _ ->
         let decls =
           parseDecls
-            "trait Show<'a> =\n  let show (value: 'a) : String\n  let describe (value: 'a) (verbose: Bool) : String"
+            "trait Show<'a> =\n  let show(value: 'a): String\n  let describe(value: 'a, verbose: Bool): String"
         match
           SourceFile.items
             { range = WT.synthRange; declarations = decls; exprsToEval = [] }
@@ -2486,7 +2574,7 @@ let private traitTests =
         (fun _ ->
           let decls =
             parseDecls
-              "module Acme\nimpl Show for Point =\n  let show (p: Point) : String = \"p\""
+              "module Acme\nimpl Show for Point =\n  let show(p: Point): String = \"p\""
           match
             SourceFile.items
               { range = WT.synthRange; declarations = decls; exprsToEval = [] }
@@ -2507,7 +2595,7 @@ let private traitTests =
         (fun _ ->
           let decls =
             parseDecls
-              "module Darklang.Stdlib.Int64\nimpl Add for Int64 =\n  let add (a: Int64) (b: Int64) : Int64 = a"
+              "module Darklang.Stdlib.Int64\nimpl Add for Int64 =\n  let add(a: Int64, b: Int64): Int64 = a"
           match
             SourceFile.items
               { range = WT.synthRange; declarations = decls; exprsToEval = [] }
@@ -2558,7 +2646,7 @@ let private traitTests =
         (fun _ ->
           let decls =
             parseDecls
-              "impl<'a: Show> Show for List<'a> =\n  let show (xs: List<'a>) : String = \"xs\""
+              "impl<'a: Show> Show for List<'a> =\n  let show(xs: List<'a>): String = \"xs\""
           match
             SourceFile.items
               { range = WT.synthRange; declarations = decls; exprsToEval = [] }
@@ -2596,7 +2684,7 @@ let private traitTests =
           // A method MAY declare its own type params and bounds; they are discharged where
           // the method is called.
           Expect.equal
-            (msgs "trait Fun<'f> =\n  let map<'b> (v: 'f) : 'b")
+            (msgs "trait Fun<'f> =\n  let map<'b>(v: 'f): 'b")
             []
             "method type params are allowed"
           Expect.equal
@@ -2634,7 +2722,7 @@ let tests =
             | WT.TCustom _, WT.ERecord _ -> ()
             | other -> failtest $"expected a named type and record: {other}"
           | other -> failtest $"expected a function: {other}"
-        let call = P.parse "__make buffer.size"
+        let call = P.parse "__make(buffer.size)"
         Expect.isEmpty call.diagnostics "private lowercase functions remain calls")
       testCase "private names reach package lookup" (fun _ ->
         for name in [ "__helper"; "__helper_v0" ] do
@@ -2684,6 +2772,7 @@ let tests =
       offsideTests
       typeTests
       desugarTests
+      callSyntaxTests
       loweringRegressionTests
       valueAnnotationTests
       validationTests

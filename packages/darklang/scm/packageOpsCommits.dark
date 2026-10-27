@@ -6,63 +6,63 @@ module Darklang.SCM.PackageOps
 
 
 /// Get recent package ops (fully decoded), newest first.
-let getRecent (limit: Int) : List<LanguageTools.ProgramTypes.PackageOp> =
-  decodeOpRows (
-    Stdlib.Sqlite.rowsOrEmptyP
-      (localDb ())
+let getRecent(limit: Int): List<LanguageTools.ProgramTypes.PackageOp> =
+  decodeOpRows((
+    Stdlib.Sqlite.rowsOrEmptyP(
+      localDb(),
       // `rowid DESC` breaks the tie, as everywhere else here that orders on a timestamp: `created_at` is
       // second-resolution, so a burst of ops inside one second ties and a LIMIT takes an arbitrary subset.
       ("SELECT id, op_blob FROM package_ops ORDER BY created_at DESC, rowid DESC LIMIT "
-       + Stdlib.toString limit)
-      [])
+       + Stdlib.toString(limit)),
+      [])))
 
 
 /// Ops whose id starts with <param prefix>, fully decoded -- for inspecting op CONTENT. Newest 20: a
 /// prefix short enough to match more than a handful is a typo, not a listing.
-let getByIdPrefix
-  (prefix: String)
+let getByIdPrefix(
+  prefix: String)
   : List<LanguageTools.ProgramTypes.PackageOp> =
-  decodeOpRows (
-    Stdlib.Sqlite.rowsOrEmptyP
-      (localDb ())
-      "SELECT id, op_blob FROM package_ops WHERE id LIKE @p0 || '%' ORDER BY rowid DESC LIMIT 20"
-      [ prefix ])
+  decodeOpRows((
+    Stdlib.Sqlite.rowsOrEmptyP(
+      localDb(),
+      "SELECT id, op_blob FROM package_ops WHERE id LIKE @p0 || '%' ORDER BY rowid DESC LIMIT 20",
+      [ prefix ])))
 
 
-let opsInCommitLimited
-  (commitHash: String)
-  (limit: Int64)
+let opsInCommitLimited(
+  commitHash: String,
+  limit: Int64)
   : List<LanguageTools.ProgramTypes.PackageOp> =
-  decodeOpRows (
-    Stdlib.Sqlite.rowsOrEmptyP
-      (localDb ())
+  decodeOpRows((
+    Stdlib.Sqlite.rowsOrEmptyP(
+      localDb(),
       "SELECT id, op_blob FROM package_ops WHERE commit_hash = @p0
-       ORDER BY origin_ts, rowid LIMIT @p1"
-      [ commitHash, Stdlib.toString limit ])
+       ORDER BY origin_ts, rowid LIMIT @p1",
+      [ commitHash, Stdlib.toString(limit) ])))
 
 
 /// How many ops a commit committed.
-let opCountIn (commitHash: String) : Int64 =
-  Stdlib.Sqlite.scalarIntP
-    (localDb ())
-    "SELECT count(*) AS n FROM package_ops WHERE commit_hash = @p0"
-    [ commitHash ]
-    "n"
-  |> Stdlib.Option.withDefault 0L
+let opCountIn(commitHash: String): Int64 =
+  Stdlib.Sqlite.scalarIntP(
+    localDb(),
+    "SELECT count(*) AS n FROM package_ops WHERE commit_hash = @p0",
+    [ commitHash ],
+    "n")
+  |> Stdlib.Option.withDefault(0L)
 
 
 /// How many ops are in the log.
-let count () : Int64 =
-  Stdlib.Sqlite.scalarInt (localDb ()) "SELECT count(*) AS n FROM package_ops" "n"
-  |> Stdlib.Option.withDefault 0L
+let count(): Int64 =
+  Stdlib.Sqlite.scalarInt(localDb(), "SELECT count(*) AS n FROM package_ops", "n")
+  |> Stdlib.Option.withDefault(0L)
 
 
 /// Which ops a branch can SEE: main's log, plus that branch's own delta ops. Another branch's ops are in
 /// the same table but invisible from here -- that isolation is the point of the overlay.
 ///
 /// Takes the branch id as a bound parameter; there is no caller-supplied predicate.
-let visibleWhere (branchId: Uuid) : String =
-  if SCM.Branch.isMain branchId then
+let visibleWhere(branchId: Uuid): String =
+  if SCM.Branch.isMain(branchId) then
     "id NOT IN (SELECT op_id FROM op_branches)"
   else
     // The CHAIN, not the branch alone: a branch off a branch sees its parent's ops too. `chainCteSql`
@@ -73,11 +73,11 @@ let visibleWhere (branchId: Uuid) : String =
     + " SELECT bid FROM chain)))"
 
 
-let visibleParams (branchId: Uuid) : List<String> =
-  if SCM.Branch.isMain branchId then
+let visibleParams(branchId: Uuid): List<String> =
+  if SCM.Branch.isMain(branchId) then
     []
   else
-    [ Stdlib.toString branchId, Stdlib.toString SCM.Branch.mainBranchId ]
+    [ Stdlib.toString(branchId), Stdlib.toString(SCM.Branch.mainBranchId) ]
 
 
 /// Which ops a branch OWNS, which is a different question from what it can see. A branch owns the ops
@@ -86,56 +86,56 @@ let visibleParams (branchId: Uuid) : List<String> =
 /// behind "2 ahead" and behind a branch's own commit list.
 ///
 /// Column names are prefixed `p.`, for queries that join `package_ops p` against something else.
-let ownedWhere (branchId: Uuid) : String =
-  if SCM.Branch.isMain branchId then
+let ownedWhere(branchId: Uuid): String =
+  if SCM.Branch.isMain(branchId) then
     "p.effective = 1 AND p.id NOT IN (SELECT op_id FROM op_branches)"
   else
     "p.id IN (SELECT op_id FROM op_branches WHERE branch_id = @p0)"
 
 
-let ownedParams (branchId: Uuid) : List<String> =
-  if SCM.Branch.isMain branchId then [] else [ Stdlib.toString branchId ]
+let ownedParams(branchId: Uuid): List<String> =
+  if SCM.Branch.isMain(branchId) then [] else [ Stdlib.toString(branchId) ]
 
 
 /// How many ops this branch can see.
-let countFor (branchId: Uuid) : Int64 =
-  Stdlib.Sqlite.scalarIntP
-    (localDb ())
-    ("SELECT count(*) AS n FROM package_ops WHERE " + visibleWhere branchId)
-    (visibleParams branchId)
-    "n"
-  |> Stdlib.Option.withDefault 0L
+let countFor(branchId: Uuid): Int64 =
+  Stdlib.Sqlite.scalarIntP(
+    localDb(),
+    "SELECT count(*) AS n FROM package_ops WHERE " + visibleWhere(branchId),
+    visibleParams(branchId),
+    "n")
+  |> Stdlib.Option.withDefault(0L)
 
 
 /// The <param limit> most recent op summaries this branch can see, newest first by insertion order.
-let summariesFor (branchId: Uuid) (limit: Int64) : List<OpSummary> =
+let summariesFor(branchId: Uuid, limit: Int64): List<OpSummary> =
   let sql =
     "SELECT id, origin_ts AS ts, length(op_blob) AS sz, op_blob FROM package_ops WHERE "
-    + visibleWhere branchId
-    + $" ORDER BY rowid DESC LIMIT {Stdlib.toString limit}"
+    + visibleWhere(branchId)
+    + $" ORDER BY rowid DESC LIMIT {Stdlib.toString(limit)}"
 
-  Stdlib.Sqlite.rowsP
-    (localDb ())
-    sql
-    (visibleParams branchId)
-    (fun row ->
-      match Stdlib.Sqlite.textField row "id" with
+  Stdlib.Sqlite.rowsP(
+    localDb(),
+    sql,
+    visibleParams(branchId),
+    fun row ->
+      match Stdlib.Sqlite.textField(row, "id") with
       | Some id ->
         // Decoded here so the caller can DESCRIBE the op. Through the tolerant decoder:
         // a synced store's log holds ops this build cannot read, and a listing that
         // raised on one would be a listing you cannot run.
         let decoded =
           match
-            (Stdlib.Uuid.parse id, Stdlib.Sqlite.bytesField row "op_blob")
+            (Stdlib.Uuid.parse(id), Stdlib.Sqlite.bytesField(row, "op_blob"))
           with
-          | (Ok opId, Some blob) -> tryDecodeOp opId blob
+          | (Ok opId, Some blob) -> tryDecodeOp(opId, blob)
           | _ -> Stdlib.Option.Option.None
 
         (OpSummary
           { id = id
             sizeBytes =
-              Stdlib.Sqlite.intField row "sz" |> Stdlib.Option.withDefault 0L
-            ts = Stdlib.Sqlite.textField row "ts" |> Stdlib.Option.withDefault ""
+              Stdlib.Sqlite.intField(row, "sz") |> Stdlib.Option.withDefault(0L)
+            ts = Stdlib.Sqlite.textField(row, "ts") |> Stdlib.Option.withDefault("")
             op = decoded })
         |> Stdlib.Option.Option.Some
       | None -> Stdlib.Option.Option.None)
@@ -165,64 +165,64 @@ let summariesFor (branchId: Uuid) (limit: Int64) : List<OpSummary> =
 /// state, since nothing folds them into main's `locations`) and tagged onto the branch in the same
 /// transaction, so there is no window, and a tagged op is complete the moment it is visible. A
 /// branch watch takes main's ops when applied and its chain's ops when tagged.
-let idsLandedSince (branchId: Uuid) (since: String) (andAtSince: Bool) : List<String> =
-  let sinceParam = if SCM.Branch.isMain branchId then "@p0" else "@p2"
+let idsLandedSince(branchId: Uuid, since: String, andAtSince: Bool): List<String> =
+  let sinceParam = if SCM.Branch.isMain(branchId) then "@p0" else "@p2"
   let comparison = if andAtSince then ">=" else ">"
 
   let complete =
-    if SCM.Branch.isMain branchId then
+    if SCM.Branch.isMain(branchId) then
       "applied = 1"
     else
       "(applied = 1 OR id IN (SELECT op_id FROM op_branches))"
 
-  Stdlib.Sqlite.rowsP
-    (localDb ())
+  Stdlib.Sqlite.rowsP(
+    localDb(),
     ("SELECT id FROM package_ops WHERE "
-     + visibleWhere branchId
-     + $" AND {complete} AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid")
-    (Stdlib.List.append (visibleParams branchId) since)
-    (fun row -> Stdlib.Sqlite.textField row "id")
+     + visibleWhere(branchId)
+     + $" AND {complete} AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid"),
+    Stdlib.List.append(visibleParams(branchId), since),
+    fun row -> Stdlib.Sqlite.textField(row, "id"))
 
 
 /// The summaries for <param ids>, in the order given. An id the log does not hold is skipped.
-let summariesByIds (ids: List<String>) : List<OpSummary> =
-  if Stdlib.List.isEmpty ids then
+let summariesByIds(ids: List<String>): List<OpSummary> =
+  if Stdlib.List.isEmpty(ids) then
     []
   else
     // Ids are content hashes rendered as uuids; anything else is refused rather than spliced in.
     let safe =
       ids
-      |> Stdlib.List.filter (fun id -> Stdlib.Uuid.parse id |> Stdlib.Result.isOk)
+      |> Stdlib.List.filter(fun id -> Stdlib.Uuid.parse(id) |> Stdlib.Result.isOk)
 
-    let quoted = safe |> Stdlib.List.map (fun id -> "'" + id + "'")
-    let inList = Stdlib.String.join quoted ","
+    let quoted = safe |> Stdlib.List.map(fun id -> "'" + id + "'")
+    let inList = Stdlib.String.join(quoted, ",")
 
     let found =
-      Stdlib.Sqlite.rowsP
-        (localDb ())
-        $"SELECT id, origin_ts AS ts, length(op_blob) AS sz, op_blob FROM package_ops WHERE id IN ({inList})"
-        []
-        (fun row ->
-          match Stdlib.Sqlite.textField row "id" with
+      Stdlib.Sqlite.rowsP(
+        localDb(),
+        $"SELECT id, origin_ts AS ts, length(op_blob) AS sz, op_blob FROM package_ops WHERE id IN ({inList})",
+        [],
+        fun row ->
+          match Stdlib.Sqlite.textField(row, "id") with
           | Some id ->
             let decoded =
               match
-                (Stdlib.Uuid.parse id, Stdlib.Sqlite.bytesField row "op_blob")
+                (Stdlib.Uuid.parse(id), Stdlib.Sqlite.bytesField(row, "op_blob"))
               with
-              | (Ok opId, Some blob) -> tryDecodeOp opId blob
+              | (Ok opId, Some blob) -> tryDecodeOp(opId, blob)
               | _ -> Stdlib.Option.Option.None
 
             (OpSummary
               { id = id
                 sizeBytes =
-                  Stdlib.Sqlite.intField row "sz" |> Stdlib.Option.withDefault 0L
-                ts = Stdlib.Sqlite.textField row "ts" |> Stdlib.Option.withDefault ""
+                  Stdlib.Sqlite.intField(row, "sz") |> Stdlib.Option.withDefault(0L)
+                ts = Stdlib.Sqlite.textField(row, "ts") |> Stdlib.Option.withDefault("")
                 op = decoded })
             |> Stdlib.Option.Option.Some
           | None -> Stdlib.Option.Option.None)
 
     safe
-    |> Stdlib.List.filterMap (fun id -> found |> Stdlib.List.findFirst (fun s -> s.id == id))
+    |> Stdlib.List.filterMap(fun id -> found |> Stdlib.List.findFirst(fun s -> s.id == id))
 
 
 /// When the newest APPLIED op in the log landed here (`created_at`), or "" for an empty log. Where a
@@ -232,34 +232,34 @@ let summariesByIds (ids: List<String>) : List<OpSummary> =
 /// own ops are inert, `applied = 0` for good, and tagged in the same transaction they are stored
 /// in). The same rule `idsLandedSince` reports by; a frontier taken by a narrower rule sits behind
 /// every branch op, and a branch watch then re-reports its whole history on every poll.
-let landedWhere () : String =
+let landedWhere(): String =
   "(applied = 1 OR id IN (SELECT op_id FROM op_branches))"
 
-let newestInsert () : String =
-  Stdlib.Sqlite.queryOneP
-    (localDb ())
-    ("SELECT COALESCE(max(created_at), '') AS newest FROM package_ops WHERE " + (landedWhere ()))
-    []
-  |> Stdlib.Option.andThen (fun row -> Stdlib.Sqlite.textField row "newest")
-  |> Stdlib.Option.withDefault ""
+let newestInsert(): String =
+  Stdlib.Sqlite.queryOneP(
+    localDb(),
+    "SELECT COALESCE(max(created_at), '') AS newest FROM package_ops WHERE " + (landedWhere()),
+    [])
+  |> Stdlib.Option.andThen(fun row -> Stdlib.Sqlite.textField(row, "newest"))
+  |> Stdlib.Option.withDefault("")
 
 
 /// The ids of the ops that landed at exactly <param at> (a `created_at`). A watcher that resumes from
 /// `at` while that second may still be filling gets these back, and drops them.
-let idsInsertedAt (at: String) : List<String> =
-  Stdlib.Sqlite.rowsP
-    (localDb ())
-    ("SELECT id FROM package_ops WHERE created_at = @p0 AND " + (landedWhere ()))
-    [ at ]
-    (fun row -> Stdlib.Sqlite.textField row "id")
+let idsInsertedAt(at: String): List<String> =
+  Stdlib.Sqlite.rowsP(
+    localDb(),
+    "SELECT id FROM package_ops WHERE created_at = @p0 AND " + (landedWhere()),
+    [ at ],
+    fun row -> Stdlib.Sqlite.textField(row, "id"))
 
 
 /// The store's clock, in `created_at` form, so a watcher can tell whether the second it last saw an
 /// insert in is still the current one.
-let storeNow () : String =
-  Stdlib.Sqlite.queryOneP (localDb ()) "SELECT datetime('now') AS now" []
-  |> Stdlib.Option.andThen (fun row -> Stdlib.Sqlite.textField row "now")
-  |> Stdlib.Option.withDefault ""
+let storeNow(): String =
+  Stdlib.Sqlite.queryOneP(localDb(), "SELECT datetime('now') AS now", [])
+  |> Stdlib.Option.andThen(fun row -> Stdlib.Sqlite.textField(row, "now"))
+  |> Stdlib.Option.withDefault("")
 
 
 /// How many commits this branch has, without decoding any of them.
@@ -267,15 +267,15 @@ let storeNow () : String =
 /// The same predicate `commitsOnBranch` selects with, counted in SQLite. The listing used to get
 /// this by asking for a hundred thousand commits and taking the length, which decodes every row of
 /// a store's whole history to print one number above twenty lines.
-let commitCountOnBranch (branchId: Uuid) : Int64 =
-  Stdlib.Sqlite.scalarIntP
-    (localDb ())
+let commitCountOnBranch(branchId: Uuid): Int64 =
+  Stdlib.Sqlite.scalarIntP(
+    localDb(),
     ("SELECT count(*) AS n FROM commits c
       WHERE c.hash IN (SELECT DISTINCT p.commit_hash FROM package_ops p
-                       WHERE p.commit_hash IS NOT NULL AND " + (ownedWhere branchId) + ")")
-    (ownedParams branchId)
-    "n"
-  |> Stdlib.Option.withDefault 0L
+                       WHERE p.commit_hash IS NOT NULL AND " + (ownedWhere(branchId)) + ")"),
+    ownedParams(branchId),
+    "n")
+  |> Stdlib.Option.withDefault(0L)
 
 
 /// The commits whose ops live on <param branchId>, newest first.
@@ -284,23 +284,23 @@ let commitCountOnBranch (branchId: Uuid) : Int64 =
 /// goes to the log. For main that is the effective ops no branch has claimed; for a branch it is the ops
 /// tagged to it, which is exactly "what this branch committed that main has not" -- the number Home means
 /// when it says a branch is N ahead.
-let commitsOnBranch (branchId: Uuid) (limit: Int64) : List<Commits.Commit> =
+let commitsOnBranch(branchId: Uuid, limit: Int64): List<Commits.Commit> =
   // The limit is the LAST parameter, so its placeholder number is however many the predicate bound.
   // Counted rather than written out: main's arm binds none and a branch's binds one, and a second copy
   // of that fact is a second thing to keep in step.
-  let bound = ownedParams branchId
-  let params = Stdlib.List.append bound (Stdlib.toString limit)
-  let limitParam = "@p" + (Stdlib.toString (Stdlib.List.length bound))
+  let bound = ownedParams(branchId)
+  let params = Stdlib.List.append(bound, Stdlib.toString(limit))
+  let limitParam = "@p" + (Stdlib.toString(Stdlib.List.length(bound)))
 
-  Stdlib.Sqlite.rowsP
-    (localDb ())
+  Stdlib.Sqlite.rowsP(
+    localDb(),
     ("SELECT c.hash, c.message, c.origin_ts, c.created_at, c.parent
       FROM commits c
       WHERE c.hash IN (SELECT DISTINCT p.commit_hash FROM package_ops p
-                       WHERE p.commit_hash IS NOT NULL AND " + (ownedWhere branchId) + ")
-      ORDER BY c.rowid DESC LIMIT " + limitParam)
-    params
-    (fun row -> Commits.commitFromRow row)
+                       WHERE p.commit_hash IS NOT NULL AND " + (ownedWhere(branchId)) + ")
+      ORDER BY c.rowid DESC LIMIT " + limitParam),
+    params,
+    fun row -> Commits.commitFromRow(row))
 
 
 
@@ -315,11 +315,11 @@ let commitsOnBranch (branchId: Uuid) (limit: Int64) : List<Commits.Commit> =
 /// was made" is a local question, and insertion order is the local answer.
 ///
 /// Empty means this store has committed nothing yet, which is the only honest answer for a first commit.
-let parentCommitFor (branchId: Uuid) : String =
+let parentCommitFor(branchId: Uuid): String =
   // What this branch can SEE, committed: its own ops plus main's, which is why a fresh branch's first
   // commit follows main's latest rather than nothing.
   let where =
-    if SCM.Branch.isMain branchId then
+    if SCM.Branch.isMain(branchId) then
       "p.commit_hash IS NOT NULL AND p.effective = 1
        AND p.id NOT IN (SELECT op_id FROM op_branches)"
     else
@@ -334,14 +334,14 @@ let parentCommitFor (branchId: Uuid) : String =
   // The newest COMMIT this branch can see, not the commit of the newest visible OP. They differ
   // whenever commits are made out of authoring order, which `--include=` makes easy, and then the
   // commit made second is on nobody's chain.
-  Stdlib.Sqlite.scalarTextP
-    (localDb ())
+  Stdlib.Sqlite.scalarTextP(
+    localDb(),
     ("SELECT c.hash AS h FROM commits c
       WHERE c.hash IN (SELECT p.commit_hash FROM package_ops p WHERE " + where
-     + ") ORDER BY c.origin_ts DESC, c.rowid DESC LIMIT 1")
-    (visibleParams branchId)
-    "h"
-    ""
+     + ") ORDER BY c.origin_ts DESC, c.rowid DESC LIMIT 1"),
+    visibleParams(branchId),
+    "h",
+    "")
 
 
 /// True when every op in <param commitHash> is an ARCHIVE marker -- a `BranchEvent` recording
@@ -349,15 +349,15 @@ let parentCommitFor (branchId: Uuid) : String =
 /// default; `--all` shows them. Merge events are never housekeeping: on a peer's machine the
 /// merged work files under the author's commits and the merge commit holds only its event, and
 /// hiding it there would make the same history read differently per machine.
-let isHousekeepingCommit (commitHash: String) : Bool =
-  if (opCountIn commitHash) > 3L then
+let isHousekeepingCommit(commitHash: String): Bool =
+  if (opCountIn(commitHash)) > 3L then
     false
   else
-    let ops = opsInCommitLimited commitHash 4L
+    let ops = opsInCommitLimited(commitHash, 4L)
 
-    (Stdlib.Bool.not (Stdlib.List.isEmpty ops))
+    (Stdlib.Bool.not(Stdlib.List.isEmpty(ops)))
     && (ops
-        |> Stdlib.List.all (fun op ->
+        |> Stdlib.List.all(fun op ->
           match op with
           | BranchEvent(_branchId, event, _at) ->
             match event with

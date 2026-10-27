@@ -123,8 +123,8 @@ type Constraint =
   /// with fresh unknowns and the saved requirements for this particular use.
   | UseLocal of at: Int64 * binder: Int64 * target: Ty
   /// Check a call using callee's type, the argument types and their diagnostic
-  /// contexts, and the required result type. Arguments may partially apply a
-  /// function or continue into a function returned by the first call.
+  /// contexts, and the required result type. The call gives exactly as many
+  /// arguments as the callee takes.
   | Apply of at: Int64 * callee: Ty * args: List<(Ty * Site)> * result: Ty
   /// Check that the named type is a record, that the supplied fields match its
   /// declaration, and that result is the constructed record's type.
