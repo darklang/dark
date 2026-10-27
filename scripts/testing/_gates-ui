@@ -28,7 +28,7 @@ gate_workbench_scm() {
   scripts/testing/_copy-store "$WORK/data.db"
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
 
   # a commit, for History
   "$PWD/$CLI" fn /WbScm.T.base '() : Int64 = 1L' >/dev/null 2>&1
@@ -62,7 +62,7 @@ gate_workbench_scm() {
   rm -rf "$QUIET"; mkdir -p "$QUIET"
   scripts/testing/_copy-store "$QUIET/data.db"
   sqlite3 "$QUIET/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
-  export DARK_CONFIG_RUNDIR="$PWD/$QUIET"
+  export DARK_HOME="$PWD/$QUIET"
   "$PWD/$CLI" fn /WbQuiet.T.only '() : Int64 = 1L' >/dev/null 2>&1
   "$PWD/$CLI" commit "workbench quiet fixture" -y >/dev/null 2>&1
   exec expect "$PWD/scripts/testing/fixtures/_workbench-quiet.expect" "$PWD/$CLI" "$PWD/$QUIET"
@@ -90,7 +90,7 @@ gate_workbench_views() {
   scripts/testing/_copy-store "$WORK/data.db"
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
   run() { "$PWD/$CLI" "$@" >/dev/null 2>&1 || true; }
 
   # commits, for History and Home's "last commit"
@@ -136,7 +136,7 @@ gate_prompts_unattended() {
   mkdir -p "$WORK"
   scripts/testing/_copy-store "$WORK/data.db"
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
   CLI_ABS="$PWD/$CLI"
   unset CI DARK_NO_INPUT
 

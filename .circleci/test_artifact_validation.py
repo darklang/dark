@@ -35,9 +35,19 @@ if [[ "$1" == status ]]; then
       ;;
   esac
 fi
-if [[ -n "${DARK_CONFIG_RUNDIR:-}" ]]; then
-  mkdir -p "$DARK_CONFIG_RUNDIR"
-  touch "$DARK_CONFIG_RUNDIR/data.db"
+# A store where the real binary keeps one: DARK_HOME if set, else beside itself.
+if [[ -n "${DARK_HOME:-}" ]]; then
+  mkdir -p "$DARK_HOME"
+  touch "$DARK_HOME/data.db"
+else
+  mkdir -p "$(dirname "$0")/.darklang"
+  touch "$(dirname "$0")/.darklang/data.db"
+fi
+# The child-store check runs a second copy from inside `eval`; run what it asks for.
+if [[ "$1" == eval && "$2" == *executeWithStdOutOrStdErr* ]]; then
+  q='"'
+  inner=${2#*$q}
+  bash -c "${inner%$q*}" > /dev/null
 fi
 echo 3
 """)
@@ -59,7 +69,7 @@ exec /bin/sleep "$@"
            "FIXTURE_TIMER_PIDS": str(self.root / "timers.pid"),
            "PATH": str(self.bin) + os.pathsep + os.environ["PATH"]}
     # Keep the fixture away from the checkout's real store.
-    env.pop("DARK_CONFIG_RUNDIR", None)
+    env.pop("DARK_HOME", None)
     command = ["bash", str(ROOT / "scripts/testing/validate-cli-artifact"),
                str(self.artifact), "--skip-suite"]
     if compare:

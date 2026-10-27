@@ -5,7 +5,7 @@
 
 # Root directories
 DARK_CONFIG_ROOT_DIR=/home/dark/app
-DARK_CONFIG_RUNDIR=/home/dark/app/rundir
+DARK_HOME=/home/dark/app/rundir
 
 # DB
 DARK_CONFIG_DB_NAME=data.db
@@ -14,7 +14,6 @@ DARK_CONFIG_DB_NAME=data.db
 DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT=10030
 
 # Logging
-DARK_CONFIG_ENV_DISPLAY_NAME=dev
 DARK_CONFIG_DEFAULT_LOGGER=console
 
 # Feature flag defaults

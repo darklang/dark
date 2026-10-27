@@ -71,10 +71,10 @@ gate_first_day() {
 
   failures=0
 
-  # DARK_CONFIG_RUNDIR, not just HOME: the container sets it for every process and it WINS over the
+  # DARK_HOME, not just HOME: the container sets it for every process and it WINS over the
   # `<home>/.darklang` default, so HOME alone runs this against the shared dev store.
   # The gates-are-clean gate has the full story.
-  dark() { ( cd "$HOMEDIR" && HOME="$HOMEDIR" DARK_CONFIG_RUNDIR="$HOMEDIR/rundir" "$ARTIFACT" "$@" 2>&1 ); }
+  dark() { ( cd "$HOMEDIR" && HOME="$HOMEDIR" DARK_HOME="$HOMEDIR/rundir" "$ARTIFACT" "$@" 2>&1 ); }
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A failure prints its first four lines through a process substitution: `| head` here dies on
@@ -195,7 +195,7 @@ gate_first_day() {
   want "the caller follows restore" "^2$" eval 'FirstDay.Chain.p2 0L'
 
   # 9. The installed layout: the binary in `<home>/.darklang/bin`, a directory `install.sh` has already
-  # made, and no DARK_CONFIG_RUNDIR. Everything above starts from a rundir that does not exist yet,
+  # made, and no DARK_HOME. Everything above starts from a rundir that does not exist yet,
   # which is not the state a person who ran the installer is in; a store directory that already
   # exists once shipped unseeded, and every command died with FnNotFound.
   if [[ "${CIRCLECI:-}" == "true" ]]; then
@@ -206,7 +206,7 @@ gate_first_day() {
   mkdir -p "$INSTALLED/.darklang/bin"
   cp "$ARTIFACT" "$INSTALLED/.darklang/bin/dark"
   # shellcheck disable=SC2317  # reached through want, which calls `dark`
-  dark() { ( cd "$INSTALLED" && env -u DARK_CONFIG_RUNDIR HOME="$INSTALLED" "$INSTALLED/.darklang/bin/dark" "$@" 2>&1 ); }
+  dark() { ( cd "$INSTALLED" && env -u DARK_HOME HOME="$INSTALLED" "$INSTALLED/.darklang/bin/dark" "$@" 2>&1 ); }
   want "installed: first run seeds the store" "^2$"  eval '1L + 1L'
   want "installed: and it stays seeded"       "^(clean:|draft:)" status
 
@@ -238,7 +238,7 @@ gate_backups_restore() {
   rm -rf "$ROOT"; mkdir -p "$ROOT/home"
   scripts/testing/_copy-store "$ROOT/data.db"
   sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
-  x() { DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
+  x() { DARK_HOME="$PWD/$ROOT" HOME="$PWD/$ROOT/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
 
   echo "== a backup holds what the store holds, WAL included"
   x fn /BK.T.kept '() : Int64 = 4242L' > /dev/null
@@ -286,7 +286,7 @@ gate_reload_is_reproducible() {
   mkdir -p "$WORK/logs"
   scripts/testing/_copy-store "$WORK/data.db"
 
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
 
   ids() {
     sqlite3 "$WORK/data.db" \
@@ -354,7 +354,7 @@ gate_trait_checker_vs_dispatch() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A field name nobody else would write: a record's hash IS its identity, so a shared shape
@@ -428,7 +428,7 @@ DARK
     mkdir -p "$W2/logs"
     scripts/testing/_copy-store "$W2/data.db"
     sqlite3 "$W2/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
-    export DARK_CONFIG_RUNDIR="$PWD/$W2"
+    export DARK_HOME="$PWD/$W2"
 
     $CLI trait Stachu.Fit.Show "<'a> = let show (v: 'a) : String" >/dev/null
 
@@ -478,7 +478,7 @@ DARK
     fi
   done
 
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
 
   echo "trait-checker-vs-dispatch: a live implementation types and runs ($live); once it is"
   echo "  deprecated the checker refuses the save with MissingImpl, as dispatch does; and a saved"
@@ -507,7 +507,7 @@ gate_trait_choice_survives_rival() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }" >/dev/null
@@ -584,7 +584,7 @@ gate_trait_choice_any_batching() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   local src="$WORK/src"
@@ -715,7 +715,7 @@ gate_trait_deprecation_is_per_branch() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A field name nobody else would write: a record's hash IS its identity. See the AGENTS.md note.
@@ -797,7 +797,7 @@ gate_trait_pin_across_branches() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A field name nobody else would write: a record's hash IS its identity. See the AGENTS.md note.
@@ -931,7 +931,7 @@ gate_shipped_tree_typechecks() {
   rm -rf "$ROOT"; mkdir -p "$ROOT/home" "$ROOT/logs"
   scripts/testing/_copy-store "$ROOT/data.db"
   sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
-  export DARK_CONFIG_RUNDIR="$PWD/$ROOT/" DARK_CONFIG_DB_NAME=data.db HOME="$PWD/$ROOT/home"
+  export DARK_HOME="$PWD/$ROOT/" DARK_CONFIG_DB_NAME=data.db HOME="$PWD/$ROOT/home"
 
   # The store's own item count, which is what the report is measured against.
   STORE_ITEMS=$(sqlite3 "$ROOT/data.db" \
@@ -1021,7 +1021,7 @@ gate_package_tests() {
   sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
   # This disposable installation has its own policy and home. Tests must
   # succeed without grants on the saved installation policy.
-  export DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home"
+  export DARK_HOME="$PWD/$ROOT" HOME="$PWD/$ROOT/home"
   # The CLI fixtures start the binary themselves; their default path is relative to the repo
   # root, which is not where every caller runs.
   export DARK_CLI_UNDER_TEST="$CLI"

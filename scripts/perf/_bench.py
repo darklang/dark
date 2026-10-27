@@ -215,15 +215,15 @@ def fixture_save(name=None):
 def rundir_for(binary):
     """Which store a given binary actually uses.
 
-    An explicit DARK_CONFIG_RUNDIR wins for every binary, published or Debug, so when it is set that IS
+    An explicit DARK_HOME wins for every binary, published or Debug, so when it is set that IS
     the answer. `<exe dir>/.darklang` is only the default a published binary computes for itself when the
     variable is unset, and a leftover directory next to an exe must not outrank the store we were told
     to use.
 
     Getting this wrong silently compares two binaries against two different stores, which is how a
     harness ends up lying more convincingly than no harness at all."""
-    if os.environ.get("DARK_CONFIG_RUNDIR"):
-        return os.environ["DARK_CONFIG_RUNDIR"]
+    if os.environ.get("DARK_HOME"):
+        return os.environ["DARK_HOME"]
     adjacent = os.path.join(os.path.dirname(os.path.abspath(binary)), ".darklang")
     return adjacent if os.path.isdir(adjacent) else RUNDIR
 

@@ -434,8 +434,8 @@ let private runCli (args : string[]) : int =
       else
         0L
 
-    // Extract embedded resources FIRST: this sets DARK_CONFIG_RUNDIR, which
-    // LibConfig.Config needs to resolve paths correctly.
+    // Extract embedded resources FIRST: this chooses the store directory, which
+    // LibConfig.Config fixes the first time anything reads it.
     let extractStart = System.Diagnostics.Stopwatch.GetTimestamp()
     EmbeddedResources.extract ()
     let extractTicks = System.Diagnostics.Stopwatch.GetTimestamp() - extractStart
@@ -933,7 +933,7 @@ let private runCli (args : string[]) : int =
             then
               "\n\nThis usually means the store is older than the binary: package code was reloaded and the "
               + "hashes moved.\n  Run `scripts/build/reload-packages` to bring the store up to this binary, "
-              + "or point DARK_CONFIG_RUNDIR at a freshly-cloned store."
+              + "or point DARK_HOME at a freshly-cloned store."
             else
               ""
 

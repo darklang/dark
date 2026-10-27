@@ -51,7 +51,7 @@ if [[ ! -x "$EXE" ]]; then
   exit 2
 fi
 
-LOGDIR="${DARK_CONFIG_RUNDIR}/logs"
+LOGDIR="${DARK_HOME}/logs"
 SERVER_LOG="$LOGDIR/perf-http-server.log"
 TELEMETRY="$LOGDIR/telemetry.jsonl"
 rm -f "$TELEMETRY" "$SERVER_LOG"

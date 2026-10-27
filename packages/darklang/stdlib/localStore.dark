@@ -11,7 +11,7 @@ module Darklang.Stdlib.LocalStore
 /// The path of this instance's package store, for `Stdlib.Sqlite` calls against it.
 ///
 /// A PATH rather than a handle: every reader opens its own connection, and the store moves per
-/// instance (`DARK_CONFIG_RUNDIR`, a test's copy, a backup being restored), so nothing may cache it.
+/// instance (`DARK_HOME`, a test's copy, a backup being restored), so nothing may cache it.
 let path () : String = Builtin.localDbPath ()
 
 

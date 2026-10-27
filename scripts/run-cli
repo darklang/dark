@@ -20,7 +20,7 @@ if [[ -n "$FLAGS" ]]; then
   echo "Flags: $FLAGS" >&2
 fi
 
-LOGS="${DARK_CONFIG_RUNDIR}/logs"
+LOGS="${DARK_HOME}/logs"
 CLI_LOG="$LOGS/cli.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then

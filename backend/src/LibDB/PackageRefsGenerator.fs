@@ -214,7 +214,7 @@ let generate (writeSourceFile : bool) : Ply<unit> =
     // e.g. on installed CLIs where the source tree isn't available).
     //
     // Every process in this checkout reads this one file at startup, whatever its
-    // DARK_CONFIG_RUNDIR, so a reload into a private rundir still writes shared state.
+    // DARK_HOME, so a reload into a private rundir still writes shared state.
     // It used to be written from both fills, truncating first, so a CLI starting during
     // any reload anywhere in the checkout could load an empty map, a half-written one,
     // or the pre-resolution hashes, and raise FnNotFound on its first kernel call. That

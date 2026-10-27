@@ -35,7 +35,7 @@ let seedFrom () : String =
 
 /// The binary an instance drives.
 ///
-/// NOT `scripts/run-cli`: the wrapper sets `DARK_CONFIG_RUNDIR` itself and the container
+/// NOT `scripts/run-cli`: the wrapper sets `DARK_HOME` itself and the container
 /// sets it for every process, and either one wins over what we pass, so an instance
 /// driven through the wrapper quietly uses the dev store instead of its own.
 let cliBinary () : String =
@@ -78,12 +78,12 @@ let dispose (i: T) : Unit =
 
 /// The environment that points a child at this instance rather than at the dev store.
 ///
-/// `DARK_CONFIG_RUNDIR` ends in a separator because `LibConfig.Config` appends the
+/// `DARK_HOME` ends in a separator because `LibConfig.Config` appends the
 /// database name to it directly. `HOME` moves anything that looks under the home
 /// directory; `DARK_CONFIG_DB_NAME` is named rather than inherited, since a caller with
 /// it already set would otherwise point the instance at a file it has no copy of.
 let env (i: T) : List<(String * String)> =
-  [ ("DARK_CONFIG_RUNDIR", $"{i.dir}/")
+  [ ("DARK_HOME", $"{i.dir}/")
     ("DARK_CONFIG_DB_NAME", "data.db")
     ("HOME", i.dir)
     ("XDG_CONFIG_HOME", i.dir + "/config") ]

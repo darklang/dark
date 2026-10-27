@@ -263,24 +263,51 @@ echo ""
 echo "The store it was pointed at:"
 
 # A published binary carries an embedded seed and, told nothing, extracts it beside
-# itself. An explicit DARK_CONFIG_RUNDIR has to win over that default, or every
+# itself. An explicit DARK_HOME has to win over that default, or every
 # process on a machine shares one store and a second instance cannot be asked for.
 NAMED=$(mktemp -d /tmp/dark-artifact-store.XXXXXX)
 cp "$ARTIFACT" "$NAMED/dark"
 named_rc=0
-named_out=$( cd "$NAMED" && HOME="$NAMED" DARK_CONFIG_RUNDIR="$NAMED/named" \
+named_out=$( cd "$NAMED" && HOME="$NAMED" DARK_HOME="$NAMED/named" \
   ./dark eval "1 + 2" < /dev/null 2>&1 ) || named_rc=$?
 if [[ $named_rc -ne 0 || ! -f "$NAMED/named/data.db" ]]; then
-  echo "  FAIL store follows DARK_CONFIG_RUNDIR (exit $named_rc)"
+  echo "  FAIL store follows DARK_HOME (exit $named_rc)"
   echo "$named_out" | tail -15 | indent
   failures=$((failures + 1))
 elif [[ -e "$NAMED/.darklang/data.db" ]]; then
-  echo "  FAIL store follows DARK_CONFIG_RUNDIR (seeded .darklang beside the exe too)"
+  echo "  FAIL store follows DARK_HOME (seeded .darklang beside the exe too)"
   failures=$((failures + 1))
 else
-  echo "  ok   store follows DARK_CONFIG_RUNDIR"
+  echo "  ok   store follows DARK_HOME"
 fi
 rm -rf "$NAMED"
+
+# A store is the instance's own, so a second binary started from inside this one must
+# not inherit it. It used to: the binary told itself where its store was by setting
+# the store variable in its own environment, every process it started inherited that,
+# and a second copy run from a script opened the parent's store instead of seeding its
+# own beside itself.
+CHILD=$(mktemp -d /tmp/dark-artifact-child.XXXXXX)
+mkdir -p "$CHILD/parent" "$CHILD/child"
+cp "$ARTIFACT" "$CHILD/parent/dark"
+cp "$ARTIFACT" "$CHILD/child/dark"
+inner="$CHILD/child/dark eval 1L"
+child_rc=0
+child_out=$( cd "$CHILD" && export HOME="$CHILD" && unset DARK_HOME \
+  && ./parent/dark permissions allow process /bin/sh -c "$inner" \
+  && ./parent/dark eval "Stdlib.Cli.executeWithStdOutOrStdErr \"$inner\"" ) < /dev/null 2>&1 \
+  || child_rc=$?
+if [[ $child_rc -ne 0 || ! -f "$CHILD/parent/.darklang/data.db" ]]; then
+  echo "  FAIL a child dark gets its own store (exit $child_rc)"
+  echo "$child_out" | tail -15 | indent
+  failures=$((failures + 1))
+elif [[ ! -f "$CHILD/child/.darklang/data.db" ]]; then
+  echo "  FAIL a child dark gets its own store (it opened the parent's)"
+  failures=$((failures + 1))
+else
+  echo "  ok   a child dark gets its own store"
+fi
+rm -rf "$CHILD"
 
 echo ""
 echo "Dark CLI test suite:"
@@ -303,7 +330,7 @@ mkdir -p "$WORKDIR/suite"
 # The artifact seeds this store with the package tests it carries.
 suite_cli() {
   DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
-    XDG_CONFIG_HOME="$WORKDIR/suite/config" DARK_CONFIG_RUNDIR="$WORKDIR/suite/" \
+    XDG_CONFIG_HOME="$WORKDIR/suite/config" DARK_HOME="$WORKDIR/suite/" \
     "$ARTIFACT" "$@"
 }
 suite_cli permissions allow env read DARK_CLI_UNDER_TEST > /dev/null 2>&1

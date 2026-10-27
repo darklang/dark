@@ -236,7 +236,7 @@ gate_workbench_views() { return 0; }
     fake_cli = work / "fake-cli"
     fake_cli.write_text("""#!/usr/bin/env python3
 import os, pathlib, sqlite3
-root = pathlib.Path(os.environ.get('DARK_CONFIG_RUNDIR',
+root = pathlib.Path(os.environ.get('DARK_HOME',
                                   str(pathlib.Path.home() / '.darklang')))
 root.mkdir(parents=True, exist_ok=True)
 with sqlite3.connect(root / 'data.db') as db:

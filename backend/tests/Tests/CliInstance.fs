@@ -5,7 +5,7 @@
 /// store, so every store-writing test waits for the one before it, and 217 of them are
 /// most of the suite's wall clock.
 ///
-/// A command run as a CHILD has none of that. `DARK_CONFIG_RUNDIR` and `HOME` already
+/// A command run as a CHILD has none of that. `DARK_HOME` and `HOME` already
 /// decide where an install lives, so an instance is a directory and a copy of the store.
 /// A command costs a process start rather than a dispatch, call it a third more, and in
 /// exchange the tests run as wide as everything else does.
@@ -85,8 +85,7 @@ let private childEnv
   : unit =
   // Absolute, and ending in a separator: `LibConfig` appends the database name to this
   // directly, and refuses a relative one outright.
-  psi.Environment["DARK_CONFIG_RUNDIR"] <-
-    dir + string System.IO.Path.DirectorySeparatorChar
+  psi.Environment["DARK_HOME"] <- dir + string System.IO.Path.DirectorySeparatorChar
   psi.Environment["DARK_CONFIG_DB_NAME"] <- "data.db"
   psi.Environment["HOME"] <- dir
   psi.Environment["DARK_CONFIG_TELEMETRY_EXPORTER"] <- "none"
