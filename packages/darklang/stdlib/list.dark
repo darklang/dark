@@ -170,7 +170,7 @@ let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
   |> fold ([], Dict { }) (fun (unique, seen) value ->
     let uniqueValue = fn value
 
-    if Stdlib.Dict.``member`` seen uniqueValue then
+    if Stdlib.Dict.containsKey seen uniqueValue then
       (unique, seen)
     else
       (prepend unique value,
@@ -204,7 +204,7 @@ let unique (list: List<'a>) : List<'a> = Builtin.listUnique list
 let dedup (list: List<'a>) : List<'a> =
   list
   |> fold ([], Dict { }) (fun (acc, seen) value ->
-    if Stdlib.Dict.``member`` seen value then
+    if Stdlib.Dict.containsKey seen value then
       (acc, seen)
     else
       (prepend acc value, Stdlib.Dict.set seen value true))

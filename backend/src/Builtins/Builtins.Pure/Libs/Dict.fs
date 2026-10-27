@@ -150,7 +150,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dictMember" 0
+    { name = fn "dictContainsKey" 0
       typeParams = []
       parameters =
         [ Param.moved "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]

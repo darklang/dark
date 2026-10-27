@@ -94,7 +94,7 @@ let checkCoverage (s: Solve.State) : Solve.State =
       let skip =
         Types.hasError scrutinee
         || Stdlib.List.any ids (fun id ->
-          Stdlib.Dict.``member`` nodesWithFindings id)
+          Stdlib.Dict.containsKey nodesWithFindings id)
 
       if skip then
         s
@@ -472,7 +472,7 @@ let checkPendingValues
       Stdlib.List.partition pending (fun p ->
         Stdlib.List.all p.uses (fun h ->
           h == p.value.hash
-          || Stdlib.Bool.not (Stdlib.Dict.``member`` pendingHashes h)))
+          || Stdlib.Bool.not (Stdlib.Dict.containsKey pendingHashes h)))
 
     // If none are ready, the remaining dependencies contain a cycle. Check all
     // remaining values with the schemes available so far instead of waiting forever.
@@ -529,7 +529,7 @@ let checkBatchWithEnv
   let env =
     if
       Stdlib.List.all (Stdlib.Dict.keys env.types) (fun hash ->
-        Stdlib.Dict.``member`` env.declarationFacts hash)
+        Stdlib.Dict.containsKey env.declarationFacts hash)
     then
       env
     else

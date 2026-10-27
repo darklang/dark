@@ -1199,7 +1199,7 @@ let inferLetValue
   | LPVariable(_, name) ->
     match value with
     | ELambda(lambdaId, patterns, _) ->
-      if name == "" || name == "_" || Stdlib.Dict.``member`` scope.locals name then
+      if name == "" || name == "_" || Stdlib.Dict.containsKey scope.locals name then
         infer scope value
       else
         let self =

@@ -796,9 +796,9 @@ let loadClosureBeyond
     : (List<LanguageTools.ProgramTypes.Reference> * Closure) =
     let isKnown =
       match reference with
-      | PackageType hash -> Stdlib.Dict.``member`` known.types hash
-      | PackageFn hash -> Stdlib.Dict.``member`` known.fns hash
-      | PackageValue hash -> Stdlib.Dict.``member`` known.values hash
+      | PackageType hash -> Stdlib.Dict.containsKey known.types hash
+      | PackageFn hash -> Stdlib.Dict.containsKey known.fns hash
+      | PackageValue hash -> Stdlib.Dict.containsKey known.values hash
       | _ -> false
 
     if isKnown then ([], closure)
@@ -818,7 +818,7 @@ let loadPendingDependencies
   match pending with
   | [] -> closure
   | next :: rest ->
-    if Stdlib.Dict.``member`` seen next then
+    if Stdlib.Dict.containsKey seen next then
       loadPendingDependencies load seen rest closure
     else
       let seen = Stdlib.Dict.set seen next true

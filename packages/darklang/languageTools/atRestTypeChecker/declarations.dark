@@ -24,7 +24,7 @@ let prepareValueTypeParameters
   let (parameters, failures, changed) =
     Stdlib.List.fold declarations (env.valueTypeParameters, failures, false)
       (fun (parameters, failures, changed) (name, decl) ->
-        if Stdlib.Dict.``member`` failures name then (parameters, failures, changed)
+        if Stdlib.Dict.containsKey failures name then (parameters, failures, changed)
         else
           let previous =
             Stdlib.Option.withDefault (Stdlib.Dict.get parameters name) []
@@ -111,7 +111,7 @@ let prepareDictKeyParameters
     |> Stdlib.List.filter (fun (_, decl) -> Stdlib.Bool.not (Stdlib.List.isEmpty decl.typeParams))
   let (requirements, failures, changed) =
     Stdlib.List.fold declarations (env.dictKeyParameters, failures, false) (fun (requirements, failures, changed) (name, decl) ->
-      if Stdlib.Dict.``member`` failures name then (requirements, failures, changed)
+      if Stdlib.Dict.containsKey failures name then (requirements, failures, changed)
       else
         match guard (dictKeyParametersFor env) decl with
         | Error failure ->
@@ -242,7 +242,7 @@ let reachesAliasCycle
   match Stdlib.Dict.get known name with
   | Some answer -> (answer, known)
   | None ->
-    if Stdlib.Dict.``member`` expanding name then
+    if Stdlib.Dict.containsKey expanding name then
       (true, known)
     else
       let next =
@@ -441,7 +441,7 @@ let connectSuccessors
   | [] -> components
   | successor :: rest ->
     let components =
-      if Stdlib.Bool.not (Stdlib.Dict.``member`` components.index successor) then
+      if Stdlib.Bool.not (Stdlib.Dict.containsKey components.index successor) then
         let components = strongConnect env components successor
         // A newly visited dependency may reach an earlier active declaration.
         // Carry that information back to the declaration that depends on it.
@@ -452,7 +452,7 @@ let connectSuccessors
         { components with
             lowLink =
               Stdlib.Dict.set components.lowLink node lowLink }
-      else if Stdlib.Dict.``member`` components.onStack successor then
+      else if Stdlib.Dict.containsKey components.onStack successor then
         // This dependency is still in an unfinished group. Use its discovery
         // index, as required for an edge to an already visited node in Tarjan's algorithm.
         let lowLink =
@@ -506,7 +506,7 @@ let allDeclarationProblems
 
   let components =
     Stdlib.List.fold (Stdlib.Dict.keys env.types) start (fun components name ->
-      if Stdlib.Dict.``member`` components.index name then components
+      if Stdlib.Dict.containsKey components.index name then components
       else strongConnect env components name)
 
   // Groups were pushed as they completed. Reverse them so dependencies are
@@ -590,7 +590,7 @@ let visitAll
   match pending with
   | [] -> (walked, found)
   | name :: rest ->
-    if Stdlib.Dict.``member`` walked name then
+    if Stdlib.Dict.containsKey walked name then
       visitAll env at walked found rest
     else
       let walked = Stdlib.Dict.set walked name true

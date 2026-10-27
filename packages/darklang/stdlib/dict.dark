@@ -47,7 +47,7 @@ let insert
   (key: 'k)
   (value: 'v)
   : Result.Result<Dict<'k, 'v>, DuplicateKey<'k>> =
-  if Stdlib.Dict.``member`` dict key then
+  if Stdlib.Dict.containsKey dict key then
     Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
   else
     Result.Result.Ok(Stdlib.Dict.set dict key value)
@@ -86,7 +86,7 @@ let mergeUnique
   (right: Dict<'k, 'v>)
   : Result.Result<Dict<'k, 'v>, DuplicateKey<'k>> =
   match
-    List.findFirst (Stdlib.Dict.keys right) (fun k -> Stdlib.Dict.``member`` left k)
+    List.findFirst (Stdlib.Dict.keys right) (fun k -> Stdlib.Dict.containsKey left k)
   with
   | Some key -> Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
   | None -> Result.Result.Ok(Stdlib.Dict.merge left right)
@@ -103,6 +103,23 @@ let mergeWith
     match Stdlib.Dict.get acc key with
     | Some leftValue -> Stdlib.Dict.set acc key (fn key leftValue rightValue)
     | None -> Stdlib.Dict.set acc key rightValue)
+
+
+/// Keeps the entries of <param dict> whose key is also a key of <param keep>.
+/// The values always come from <param dict>:
+/// {{intersectKeys (Dict { "a": 1L, "b": 2L }) (Dict { "b": true })}}
+/// is {{Dict { "b": 2L }}}. The opposite of <fn Dict.differenceKeys>.
+let intersectKeys (dict: Dict<'k, 'v>) (keep: Dict<'k, 'b>) : Dict<'k, 'v> =
+  Stdlib.Dict.filter dict (fun k _ -> Stdlib.Dict.containsKey keep k)
+
+
+/// Keeps the entries of <param dict> whose key is not a key of <param drop>.
+/// The values always come from <param dict>:
+/// {{differenceKeys (Dict { "a": 1L, "b": 2L }) (Dict { "b": true })}}
+/// is {{Dict { "a": 1L }}}. The opposite of <fn Dict.intersectKeys>.
+let differenceKeys (dict: Dict<'k, 'v>) (drop: Dict<'k, 'b>) : Dict<'k, 'v> =
+  Stdlib.Dict.filter dict (fun k _ ->
+    Stdlib.Bool.not (Stdlib.Dict.containsKey drop k))
 
 
 /// Returns <param dict>'s keys in a <type List>, in key order
@@ -158,7 +175,7 @@ let fromEntriesUnique
         match found with
         | Some _ -> (seen, found)
         | None ->
-          if Stdlib.Dict.``member`` seen key then
+          if Stdlib.Dict.containsKey seen key then
             (seen, Option.Option.Some key)
           else
             (Stdlib.Dict.set seen key true, found))
@@ -170,18 +187,27 @@ let fromEntriesUnique
 
 /// Returns {{true}} if the <param dict> contains an entry with <param key>,
 /// and {{false}} otherwise
-let ``member`` (dict: Dict<'k, 'v>) (key: 'k) : Bool =
-  Builtin.dictMember dict key
+let containsKey (dict: Dict<'k, 'v>) (key: 'k) : Bool =
+  Builtin.dictContainsKey dict key
 
 
 /// Returns a new dictionary that contains the same keys as the original <param
 /// dict> with values that have been transformed by {{fn}}, which operates on
 /// each key-value pair.
 /// Consider <fn Dict.filterMap> if you also want to drop some of the entries.
+/// To ignore the key, use <fn Dict.mapValues>.
 let map (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> 'b) : Dict<'k, 'b> =
   dict
   |> Stdlib.Dict.toEntries
   |> List.map (fun (k, v) -> (k, fn k v))
+  |> Stdlib.Dict.fromEntries
+
+
+/// Calls <param fn> on each value in <param dict>, keeping the keys.
+let mapValues (dict: Dict<'k, 'v>) (fn: 'v -> 'b) : Dict<'k, 'b> =
+  dict
+  |> Stdlib.Dict.toEntries
+  |> List.map (fun (k, v) -> (k, fn v))
   |> Stdlib.Dict.fromEntries
 
 

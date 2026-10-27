@@ -59,7 +59,8 @@ let reportCandidates
 
   let items =
     results
-    |> Stdlib.List.filter (fun (item, _) -> Stdlib.Dict.``member`` candidateSet item)
+    |> Stdlib.List.filter (fun (item, _) ->
+      Stdlib.Dict.containsKey candidateSet item)
     |> Stdlib.List.map (fun (item, outcome) ->
       ItemReport
         { item = item
@@ -178,7 +179,8 @@ let checkPackageOpsFrom
     match base with
     | Some b ->
       if b.closed then
-        Stdlib.List.partition values (fun v -> Stdlib.Dict.``member`` b.values v.hash)
+        Stdlib.List.partition values (fun v ->
+          Stdlib.Dict.containsKey b.values v.hash)
       else
         ([], values)
     | None -> ([], values)
@@ -505,9 +507,9 @@ let checkQuery
 let baseFor (branchId: Uuid) (pool: Environment.Closure) : Stdlib.Option.Option<Base> =
   let inPool (r: LanguageTools.ProgramTypes.Reference) : Bool =
     match r with
-    | PackageType hash -> Stdlib.Dict.``member`` pool.types hash
-    | PackageFn hash -> Stdlib.Dict.``member`` pool.fns hash
-    | PackageValue hash -> Stdlib.Dict.``member`` pool.values hash
+    | PackageType hash -> Stdlib.Dict.containsKey pool.types hash
+    | PackageFn hash -> Stdlib.Dict.containsKey pool.fns hash
+    | PackageValue hash -> Stdlib.Dict.containsKey pool.values hash
     | _ -> true
 
   let typesClosed =

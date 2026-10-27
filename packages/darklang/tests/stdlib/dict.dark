@@ -142,11 +142,32 @@ test map =
       Stdlib.Dict.map (Dict { "a": 1L, "b": 2L }) (fun k x -> x + 1L)
       |> Stdlib.Test.equal (Dict { "b": 3L, "a": 2L }) ]
 
-test member =
+test mapValues =
   Stdlib.Test.all
-    [ Stdlib.Dict.member (Dict { "otherKey": 5L, "someKey": 5L }) "someKey"
+    [ Stdlib.Dict.mapValues (Dict { }) (fun v -> 0L)
+      |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.mapValues (Dict { "a": 1L, "b": 2L }) (fun v -> v * 10L)
+      |> Stdlib.Test.equal (Dict { "a": 10L, "b": 20L })
+      // The values can change type; the keys stay as they are.
+      Stdlib.Dict.mapValues (Dict { 1L: 5L, 2L: 3L }) (fun v -> v > 4L)
+      |> Stdlib.Test.equal (Dict { 1L: true, 2L: false })
+      Stdlib.Dict.mapValues (Dict { (1L, "a"): "x", (1L, "b"): "y" }) (fun v ->
+        v + "!")
+      |> Stdlib.Test.equal (Dict { (1L, "a"): "x!", (1L, "b"): "y!" })
+      Stdlib.Dict.mapValues
+        (Dict { Colour.Red: [ 1L ], Colour.Blue 1L: [ 1L, 2L ] })
+        (fun v -> Stdlib.List.reverse v)
+      |> Stdlib.Test.equal (Dict { Colour.Red: [ 1L ], Colour.Blue 1L: [ 2L, 1L ] })
+      Stdlib.Dict.mapValues
+        (Dict { Point { px = 1L, py = 2L }: 1L })
+        (fun v -> (v, v))
+      |> Stdlib.Test.equal (Dict { Point { px = 1L, py = 2L }: (1L, 1L) }) ]
+
+test containsKey =
+  Stdlib.Test.all
+    [ Stdlib.Dict.containsKey (Dict { "otherKey": 5L, "someKey": 5L }) "someKey"
       |> Stdlib.Test.equal true
-      Stdlib.Dict.member (Dict { "otherKey": 5L }) "someKey"
+      Stdlib.Dict.containsKey (Dict { "otherKey": 5L }) "someKey"
       |> Stdlib.Test.equal false ]
 
 test merge =
@@ -182,6 +203,70 @@ test mergeWith =
         (Dict { "k": "right" })
         (fun k l r -> k + ":" + l + ":" + r)
       |> Stdlib.Test.equal (Dict { "k": "k:left:right" }) ]
+
+test intersectKeys =
+  Stdlib.Test.all
+    [ Stdlib.Dict.intersectKeys (Dict { }) (Dict { "a": true })
+      |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.intersectKeys (Dict { "a": 1L }) (Dict { })
+      |> Stdlib.Test.equal (Dict { })
+      // Values come from the first dict; the second's only contribute keys,
+      // and can be of another type.
+      Stdlib.Dict.intersectKeys
+        (Dict { "a": 1L, "b": 2L, "c": 3L })
+        (Dict { "b": "x", "c": "y", "d": "z" })
+      |> Stdlib.Test.equal (Dict { "b": 2L, "c": 3L })
+      Stdlib.Dict.intersectKeys (Dict { 1L: "one", 2L: "two" }) (Dict { 2L: () })
+      |> Stdlib.Test.equal (Dict { 2L: "two" })
+      Stdlib.Dict.intersectKeys
+        (Dict { (1L, "a"): "first", (1L, "b"): "second" })
+        (Dict { (1L, "b"): true })
+      |> Stdlib.Test.equal (Dict { (1L, "b"): "second" })
+      Stdlib.Dict.intersectKeys
+        (Dict { [ 1L ]: "one", [ 1L, 2L ]: "onetwo" })
+        (Dict { [ 1L ]: true })
+      |> Stdlib.Test.equal (Dict { [ 1L ]: "one" })
+      Stdlib.Dict.intersectKeys
+        (Dict { Colour.Red: "r", Colour.Blue 1L: "b1", Colour.Blue 2L: "b2" })
+        (Dict { Colour.Blue 2L: true })
+      |> Stdlib.Test.equal (Dict { Colour.Blue 2L: "b2" })
+      Stdlib.Dict.intersectKeys
+        (Dict
+          { Point { px = 1L, py = 2L }: "p12"
+            Point { px = 2L, py = 1L }: "p21" })
+        (Dict { Point { px = 2L, py = 1L }: true })
+      |> Stdlib.Test.equal (Dict { Point { px = 2L, py = 1L }: "p21" }) ]
+
+test differenceKeys =
+  Stdlib.Test.all
+    [ Stdlib.Dict.differenceKeys (Dict { }) (Dict { "a": true })
+      |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.differenceKeys (Dict { "a": 1L }) (Dict { })
+      |> Stdlib.Test.equal (Dict { "a": 1L })
+      Stdlib.Dict.differenceKeys
+        (Dict { "a": 1L, "b": 2L, "c": 3L })
+        (Dict { "b": "x", "c": "y", "d": "z" })
+      |> Stdlib.Test.equal (Dict { "a": 1L })
+      Stdlib.Dict.differenceKeys (Dict { 1L: "one", 2L: "two" }) (Dict { 2L: () })
+      |> Stdlib.Test.equal (Dict { 1L: "one" })
+      Stdlib.Dict.differenceKeys
+        (Dict { (1L, "a"): "first", (1L, "b"): "second" })
+        (Dict { (1L, "b"): true })
+      |> Stdlib.Test.equal (Dict { (1L, "a"): "first" })
+      Stdlib.Dict.differenceKeys
+        (Dict { [ 1L ]: "one", [ 1L, 2L ]: "onetwo" })
+        (Dict { [ 1L ]: true })
+      |> Stdlib.Test.equal (Dict { [ 1L, 2L ]: "onetwo" })
+      Stdlib.Dict.differenceKeys
+        (Dict { Colour.Red: "r", Colour.Blue 1L: "b1", Colour.Blue 2L: "b2" })
+        (Dict { Colour.Blue 2L: true })
+      |> Stdlib.Test.equal (Dict { Colour.Red: "r", Colour.Blue 1L: "b1" })
+      Stdlib.Dict.differenceKeys
+        (Dict
+          { Point { px = 1L, py = 2L }: "p12"
+            Point { px = 2L, py = 1L }: "p21" })
+        (Dict { Point { px = 2L, py = 1L }: true })
+      |> Stdlib.Test.equal (Dict { Point { px = 1L, py = 2L }: "p12" }) ]
 
 test update =
   Stdlib.Test.all
@@ -306,7 +391,7 @@ test nonStringKeysInt =
     [ Stdlib.Dict.get (Dict { 1L: "one", 2L: "two" }) 2L
       |> Stdlib.Test.equal (Some "two")
       Stdlib.Dict.get (Dict { 1L: "one" }) 9L |> Stdlib.Test.equal None
-      Stdlib.Dict.``member`` (Dict { 1L: "one" }) 1L |> Stdlib.Test.equal true
+      Stdlib.Dict.containsKey (Dict { 1L: "one" }) 1L |> Stdlib.Test.equal true
       Stdlib.Dict.remove (Dict { 1L: "one", 2L: "two" }) 1L
       |> Stdlib.Test.equal (Dict { 2L: "two" })
       Stdlib.Dict.keys (Dict { 2L: "two", 1L: "one" })
@@ -470,16 +555,16 @@ test nonStringKeysIdentityMatchesEquality =
   Stdlib.Test.all
     [ (Point { px = 1L, py = 2L }) == (PointAlias { px = 1L, py = 2L })
       |> Stdlib.Test.equal true
-      Stdlib.Dict.``member``
+      Stdlib.Dict.containsKey
         (Dict { Point { px = 1L, py = 2L }: "p" })
         (PointAlias { px = 1L, py = 2L })
       |> Stdlib.Test.equal true
       (Colour.Blue 1L) == (ColourAlias.Blue 1L) |> Stdlib.Test.equal true
-      Stdlib.Dict.``member`` (Dict { Colour.Blue 1L: "c" }) (ColourAlias.Blue 1L)
+      Stdlib.Dict.containsKey (Dict { Colour.Blue 1L: "c" }) (ColourAlias.Blue 1L)
       |> Stdlib.Test.equal true
       (Point { px = 1L, py = 2L }) == (SameShape { px = 1L, py = 2L })
       |> Stdlib.Test.equal true
-      Stdlib.Dict.``member``
+      Stdlib.Dict.containsKey
         (Dict { Point { px = 1L, py = 2L }: "p" })
         (SameShape { px = 1L, py = 2L })
       |> Stdlib.Test.equal true ]
@@ -492,13 +577,13 @@ test nonStringKeysRecordFieldOrder =
   Stdlib.Test.all
     [ (Point { px = 1L, py = 2L }) == (Point { py = 2L, px = 1L })
       |> Stdlib.Test.equal true
-      Stdlib.Dict.``member``
+      Stdlib.Dict.containsKey
         (Dict { Point { px = 1L, py = 2L }: "p" })
         (Point { py = 2L, px = 1L })
       |> Stdlib.Test.equal true ]
 
 test nonStringKeysNestedDictOrder =
-  Stdlib.Dict.``member``
+  Stdlib.Dict.containsKey
     (Dict {
       (Stdlib.Dict.set (Stdlib.Dict.set Stdlib.Dict.empty "a" 1L) "b" 2L): "x" })
     (Stdlib.Dict.set (Stdlib.Dict.set Stdlib.Dict.empty "b" 2L) "a" 1L)
@@ -506,17 +591,17 @@ test nonStringKeysNestedDictOrder =
 
 test nonStringKeysDeepComposites =
   Stdlib.Test.all
-    [ Stdlib.Dict.``member``
+    [ Stdlib.Dict.containsKey
         (Dict { ([ Point { px = 1L, py = 2L } ], "s"): "d" })
         (([ Point { px = 1L, py = 2L } ], "s"))
       |> Stdlib.Test.equal true
-      Stdlib.Dict.``member``
+      Stdlib.Dict.containsKey
         (Dict { ([ Point { px = 1L, py = 2L } ], "s"): "d" })
         (([ Point { px = 1L, py = 9L } ], "s"))
       |> Stdlib.Test.equal false
-      Stdlib.Dict.``member`` (Dict { [ [ 1L ] ]: "a" }) [ [ 1L ], [] ]
+      Stdlib.Dict.containsKey (Dict { [ [ 1L ] ]: "a" }) [ [ 1L ], [] ]
       |> Stdlib.Test.equal false
-      Stdlib.Dict.``member`` (Dict { [ [ 1L ], [] ]: "a" }) [ [ 1L ] ]
+      Stdlib.Dict.containsKey (Dict { [ [ 1L ], [] ]: "a" }) [ [ 1L ] ]
       |> Stdlib.Test.equal false
       Stdlib.Dict.keys (Dict { [ [ 2L ] ]: 1L, [ [ 1L ], [ 3L ] ]: 2L })
       |> Stdlib.Test.equal [ [ [ 1L ], [ 3L ] ], [ [ 2L ] ] ] ]
@@ -553,8 +638,8 @@ test nonStringKeysSetRejectsLambdaKey =
   Stdlib.Dict.set (Dict { 1L: "a" }) (fun x -> x) "b"
   => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
-test nonStringKeysMemberRejectsLambdaKey =
-  Stdlib.Dict.``member`` (Dict { 1L: "a" }) (fun x -> x)
+test nonStringKeysContainsKeyRejectsLambdaKey =
+  Stdlib.Dict.containsKey (Dict { 1L: "a" }) (fun x -> x)
   => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 test nonStringKeysRemoveRejectsLambdaKey =

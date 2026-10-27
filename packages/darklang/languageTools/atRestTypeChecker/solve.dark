@@ -593,7 +593,7 @@ let schemeFor
 
   let notPinned (vars: Dict<Model.Var, Bool>) : Dict<Model.Var, Bool> =
     Stdlib.Dict.filter vars (fun v _ ->
-      Stdlib.Bool.not (Stdlib.Dict.``member`` pinned v))
+      Stdlib.Bool.not (Stdlib.Dict.containsKey pinned v))
 
   let quantified =
     growQuantified pinned (notPinned (Types.freeVars s.subst ty)) pending
@@ -605,7 +605,7 @@ let schemeFor
     let keys = Stdlib.Dict.keys vars
 
     Stdlib.Bool.not (Stdlib.List.isEmpty keys)
-    && Stdlib.List.all keys (fun v -> Stdlib.Dict.``member`` quantified v)
+    && Stdlib.List.all keys (fun v -> Stdlib.Dict.containsKey quantified v)
 
   let captured =
     pending
@@ -637,7 +637,7 @@ let pinnedBy
     Stdlib.List.fold pending pinned (fun pinned (_, vars) ->
       let touches =
         Stdlib.List.any (Stdlib.Dict.keys vars) (fun v ->
-          Stdlib.Dict.``member`` pinned v)
+          Stdlib.Dict.containsKey pinned v)
 
       if touches then Stdlib.Dict.merge pinned vars else pinned)
 
@@ -658,11 +658,11 @@ let growQuantified
     Stdlib.List.fold pending quantified (fun quantified (_, vars) ->
       let keys = Stdlib.Dict.keys vars
       let touches =
-        Stdlib.List.any keys (fun v -> Stdlib.Dict.``member`` quantified v)
+        Stdlib.List.any keys (fun v -> Stdlib.Dict.containsKey quantified v)
 
       let free =
         Stdlib.List.all keys (fun v ->
-          Stdlib.Bool.not (Stdlib.Dict.``member`` pinned v))
+          Stdlib.Bool.not (Stdlib.Dict.containsKey pinned v))
 
       if touches && free then Stdlib.Dict.merge quantified vars else quantified)
 
@@ -680,7 +680,7 @@ let generalize
   (scope: List<Model.Binder>)
   : State =
   let (scheme, s) = schemeFor s ty scope
-  if Stdlib.Dict.``member`` s.schemes key then
+  if Stdlib.Dict.containsKey s.schemes key then
     // The same ID cannot identify two independent bindings. Replace the saved
     // scheme with TError so later uses do not accidentally use either binding's type.
     let s =
@@ -1053,7 +1053,7 @@ let checkReachableKeyTypes
       let variables =
         (Stdlib.Dict.keys (Types.freeVars s.subst key))
         |> Stdlib.List.filter (fun v ->
-          Stdlib.Bool.not (Stdlib.Dict.``member`` seen v)
+          Stdlib.Bool.not (Stdlib.Dict.containsKey seen v)
           && Stdlib.Bool.not (Types.isUsableDictKey s.env []
             (Types.substitute (Dict { v: (Model.Ty.TFn([Model.Ty.TUnit], Model.Ty.TUnit)) }) key)))
 
@@ -1416,7 +1416,7 @@ let reaches
   | next :: rest ->
     if next == target then
       true
-    else if Stdlib.Dict.``member`` seen next then
+    else if Stdlib.Dict.containsKey seen next then
       reaches edges target rest seen
     else
       let more = Stdlib.Option.withDefault (Stdlib.Dict.get edges next) []
