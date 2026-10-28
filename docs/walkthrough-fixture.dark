@@ -94,12 +94,12 @@ let fib(n: Int): Int =
 
 /// Eight pieces of CPU work, one after another. Pair it with `cores` below.
 let serial(): Int =
-  Stdlib.List.repeatUnsafe(8, 24)
+  Stdlib.Result.withDefault(Stdlib.List.repeat(8, 24), [])
   |> Stdlib.List.map(fun n -> fib(n))
   |> Stdlib.List.length
 
 /// The same eight, one scheduler per core. Needs the `concurrency` permission.
 let cores(): Int =
-  Stdlib.List.repeatUnsafe(8, 24)
+  Stdlib.Result.withDefault(Stdlib.List.repeat(8, 24), [])
   |> Stdlib.List.parallelMap(fun n -> fib(n))
   |> Stdlib.List.length
