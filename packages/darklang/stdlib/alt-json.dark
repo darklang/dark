@@ -115,7 +115,7 @@ module Format =
         let magnitude = if exponent < 0 then 0 - exponent else exponent
         // At least two exponent digits, as .NET writes them.
         let shown = Stdlib.toString(magnitude)
-        let padded = String.padStart(shown, "0", 2) |> Result.withDefault(shown)
+        let padded = String.padStart(shown, '0', 2)
         sign + (String.first(digits, 1)) + rest + "E" + expSign + padded
       else
         let point = exponent + 1

@@ -342,46 +342,32 @@ let dropFirst(string: String, characterCount: Int): String =
 
 /// If <param string> is shorter than <param goalLength> characters, returns a
 /// copy of <param string> starting with enough copies of <param padWith> for the
-/// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
-/// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>
+/// result to have <param goalLength>.
+/// If <param string> is <param goalLength> characters or longer, returns an unchanged copy of <param string>.
 ///
 /// Counts characters, not display cells. To line up columns of text, use <fn padStartToWidth>.
-let padStart(
-  string: String,
-  padWith: String,
-  goalLength: Int)
-  : Result.Result<String, String> =
-  if String.length(padWith) != 1 then
-    Result.Result.Error
-      $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-  else if String.length(string) >= goalLength then
-    Result.Result.Ok string
+let padStart(string: String, padWith: Char, goalLength: Int): String =
+  let padCount = goalLength - String.length(string)
+
+  if padCount <= 0 then
+    string
   else
-    let padCount = goalLength - String.length(string)
-    let pad = String.repeat(padWith, padCount)
-    Result.Result.Ok(pad + string)
+    (String.repeat(String.fromChar(padWith), padCount)) + string
 
 
 /// If <param string> is shorter than <param goalLength> characters, returns a
 /// copy of <param string> ending with enough copies of <param padWith> for the
-/// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
-/// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>.
+/// result to have <param goalLength>.
+/// If <param string> is <param goalLength> characters or longer, returns an unchanged copy of <param string>.
 ///
 /// Counts characters, not display cells. To line up columns of text, use <fn padEndToWidth>.
-let padEnd(
-  string: String,
-  padWith: String,
-  goalLength: Int)
-  : Result.Result<String, String> =
-  if String.length(padWith) != 1 then
-    Result.Result.Error
-      $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-  else if String.length(string) >= goalLength then
-    Result.Result.Ok string
+let padEnd(string: String, padWith: Char, goalLength: Int): String =
+  let padCount = goalLength - String.length(string)
+
+  if padCount <= 0 then
+    string
   else
-    let padCount = goalLength - String.length(string)
-    let pad = String.repeat(padWith, padCount)
-    Result.Result.Ok(string + pad)
+    string + (String.repeat(String.fromChar(padWith), padCount))
 
 
 /// Pad <param s> with leading spaces to at least <param width> display cells.
