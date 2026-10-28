@@ -1081,6 +1081,26 @@ first""" (fun _ ->
     expectValue (RT.DInt64 1L) result
   }
 
+/// When `x :: rest` matches a list that holds reads, `rest` must still be a promise.
+/// If it were a plain list, `==` would not wait for the reads inside it, and the
+/// comparison at the end would fail.
+let private consWalksAListOfReads =
+  testTask "walking a list of reads with x :: rest keeps every tail's reads" {
+    let! result =
+      runReleasing
+        """let xs = [ Builtin.testRead(401L); Builtin.testRead(402L); Builtin.testRead(403L) ]
+let tails(l: List<Int64>): List<List<Int64>> =
+  match l with
+  | [] -> []
+  | _ :: rest -> Stdlib.List.prepend(tails(rest), rest)
+let ts = tails(xs)
+let _ = Builtin.testTrace("walked")
+ts == [ [ 402L; 403L ]; [ 403L ]; [] ]"""
+        [ 401L; 402L; 403L ]
+        [ "walked" ]
+    expectValue (RT.DBool true) result
+  }
+
 let private operatorsWaitForReads =
   testTask "==, an operator, && and || wait for a read" {
     let! result =
@@ -2163,6 +2183,7 @@ let tests =
         wrongTypeRaisesAtRebuild
         moreHoldersOfReads
         nestedContainersHoldReads
+        consWalksAListOfReads
         operatorsWaitForReads
         failedReadNamedFromNestedContainer
         unlookedReadInAContainerFailsTheRun
