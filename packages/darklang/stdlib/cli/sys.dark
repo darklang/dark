@@ -58,11 +58,12 @@ let isRoot(): Bool =
 /// Host record selection, buffer growth and decoding shared by both engines.
 
 let __text(buffer: Bytes, offset: Int, length: Int): String =
-  Stdlib.Bytes.toList(buffer)
-  |> Stdlib.List.drop(offset)
-  |> Stdlib.List.take(length)
-  |> Stdlib.List.takeWhile(fun byte -> byte != 0uy)
-  |> Stdlib.String.fromByteListWithReplacement
+  let field = Stdlib.Bytes.slice(buffer, offset, length)
+  let text =
+    match Stdlib.Bytes.indexOf(field, 0uy) with
+    | Some nul -> Stdlib.Bytes.slice(field, 0, nul)
+    | None -> field
+  Stdlib.String.fromBytesWithReplacement(text)
 
 let __sysctlWith(mib: List<Int>, count: Int): Result.Result<Bytes, Int> =
   match Builtin.syscallSysctl(mib, count) with
@@ -95,7 +96,7 @@ let __cpuCount(): Result.Result<Int, Int> =
     if Builtin.runtimeTargetOS() == "browser" then Ok 1
     else if Stdlib.Cli.Posix.__abiMac() then
       __sysctlWith([6, 3], 4)
-      |> Stdlib.Result.andThen(fun bytes -> Stdlib.Cli.Posix.__kernelField(Stdlib.Bytes.toList(bytes), 0, 4))
+      |> Stdlib.Result.andThen(fun bytes -> Stdlib.Cli.Posix.__kernelField(bytes, 0, 4))
     else
       __affinityWith(128)
       |> Stdlib.Result.map(fun bytes ->

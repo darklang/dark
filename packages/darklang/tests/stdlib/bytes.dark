@@ -70,6 +70,19 @@ test getAt =
       Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
       |> Stdlib.Test.equal(None) ])
 
+// indexOf / indexOfFrom
+test indexOf =
+  let bytes = Stdlib.Bytes.fromString("ab\nc\n")
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.indexOf(bytes, 10uy) |> Stdlib.Test.equal(Some 2)
+      Stdlib.Bytes.indexOf(bytes, 0uy) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOf(Stdlib.Bytes.empty, 10uy) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 2) |> Stdlib.Test.equal(Some 2)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 3) |> Stdlib.Test.equal(Some 4)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 5) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, -1) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 99) |> Stdlib.Test.equal(None) ])
+
 // concat
 test concat =
   Stdlib.Test.all(

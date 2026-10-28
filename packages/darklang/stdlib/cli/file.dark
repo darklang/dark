@@ -77,18 +77,18 @@ let readLines(path: String): Result.Result<List<String>, Posix.Error> =
 
 
 let countNewlines(blob: Bytes): Int =
-  blob
-  |> Stdlib.Bytes.toList
-  |> Stdlib.List.fold(0, fun count byte ->
-    if byte == 10uy then count + 1 else count)
+  let countFrom(start: Int, count: Int): Int =
+    match Stdlib.Bytes.indexOfFrom(blob, 10uy, start) with
+    | Some i -> countFrom(i + 1, count + 1)
+    | None -> count
+  countFrom(0, 0)
 
 
-let dropThroughFirstNewline(bytes: List<UInt8>): List<UInt8> =
-  match bytes with
-  | [] -> []
-  | byte :: remaining ->
-    if byte == 10uy then remaining
-    else dropThroughFirstNewline(remaining)
+/// Everything after the first newline in <param bytes>; empty if there is none.
+let dropThroughFirstNewline(bytes: Bytes): Bytes =
+  match Stdlib.Bytes.indexOf(bytes, 10uy) with
+  | Some i -> Stdlib.Bytes.slice(bytes, i + 1, Stdlib.Bytes.length(bytes) - i - 1)
+  | None -> Stdlib.Bytes.empty
 
 
 /// Read exactly `count` bytes from `fd`, or fewer only at end of file.
@@ -164,18 +164,9 @@ let readLastLines(
         tailResult
         |> Stdlib.Result.andThen(fun (blob, startedAtBeginning) ->
           let bytes =
-            if startedAtBeginning then
-              Stdlib.Bytes.toList(blob)
-            else
-              blob
-              |> Stdlib.Bytes.toList
-              |> dropThroughFirstNewline
+            if startedAtBeginning then blob else dropThroughFirstNewline(blob)
 
-          match
-            bytes
-            |> Stdlib.Bytes.fromList
-            |> Stdlib.Bytes.toString
-          with
+          match Stdlib.Bytes.toString(bytes) with
           | Error message ->
             Stdlib.Result.Result.Error
               (Posix.Error {
@@ -593,26 +584,27 @@ let __watchHas(mask: Int, flag: Int): Bool = (mask / flag) % 2 == 1
 
 /// inotify_event headers are 16 bytes followed by a kernel-sized name field.
 /// A batch produces one notification; invalidation asks the caller to rearm.
-let __watchEvents(bytes: List<UInt8>, remaining: Int, changed: Bool, rearm: Bool)
+let __watchEvents(bytes: Bytes, at: Int, changed: Bool, rearm: Bool)
   : Result.Result<(Bool * Bool), Int> =
+  let remaining = Stdlib.Bytes.length(bytes) - at
   if remaining == 0 then Ok ((changed, rearm))
   else if remaining < 16 then Error 5
   else
-    Stdlib.Cli.Posix.__kernelField(bytes, 4, 4) |> Stdlib.Result.andThen(fun mask ->
-      Stdlib.Cli.Posix.__kernelField(bytes, 12, 4) |> Stdlib.Result.andThen(fun nameLength ->
+    Stdlib.Cli.Posix.__kernelField(bytes, at + 4, 4) |> Stdlib.Result.andThen(fun mask ->
+      Stdlib.Cli.Posix.__kernelField(bytes, at + 12, 4) |> Stdlib.Result.andThen(fun nameLength ->
         let length = 16 + nameLength
         if length > remaining then Error 5
         else
           let nextChanged = changed || (__watchHas(mask, 2)) || (__watchHas(mask, 4)) || (__watchHas(mask, 8)) || (__watchHas(mask, 1024)) || (__watchHas(mask, 2048)) || (__watchHas(mask, 16384))
           let nextRearm = rearm || (__watchHas(mask, 1024)) || (__watchHas(mask, 2048)) || (__watchHas(mask, 32768))
-          __watchEvents(Stdlib.List.drop(bytes, length), remaining - length, nextChanged, nextRearm)))
+          __watchEvents(bytes, at + length, nextChanged, nextRearm)))
 
 let __watchDrain(fd: Int): Result.Result<(Bool * Bool), Int> =
   match Builtin.syscallRead(fd, 65536) with
   | Error 4 -> __watchDrain(fd)
   | Error 11 -> Ok ((false, false))
   | Error e -> Error e
-  | Ok buffer -> __watchEvents(Stdlib.Bytes.toList(buffer), Stdlib.Bytes.length(buffer), false, false)
+  | Ok buffer -> __watchEvents(buffer, 0, false, false)
 
 let __watchLoop(fd: Int, intervalMs: Int, shouldStop: Unit -> Bool, fn: Unit -> Unit)
   : Result.Result<Bool, Int> =
@@ -622,7 +614,7 @@ let __watchLoop(fd: Int, intervalMs: Int, shouldStop: Unit -> Bool, fn: Unit -> 
     | Error 4 -> __watchLoop(fd, intervalMs, shouldStop, fn)
     | Error e -> Error e
     | Ok record ->
-      Stdlib.Cli.Posix.__kernelField(Stdlib.Bytes.toList(record), 6, 2)
+      Stdlib.Cli.Posix.__kernelField(record, 6, 2)
       |> Stdlib.Result.andThen(fun returned ->
         if __watchHas(returned, 32) then Error 9
         else if (__watchHas(returned, 8)) || (__watchHas(returned, 16)) then Error 5
@@ -651,20 +643,21 @@ let __watchLinux(path: String, intervalMs: Int, shouldStop: Unit -> Bool, fn: Un
           if rearm then __watchLinux(path, intervalMs, shouldStop, fn) else Ok ())
 
 /// Darwin's kevent records are 32 bytes on both supported 64-bit targets.
-let __watchVnodeEvents(bytes: List<UInt8>, remaining: Int, changed: Bool, rearm: Bool)
+let __watchVnodeEvents(bytes: Bytes, at: Int, changed: Bool, rearm: Bool)
   : Result.Result<(Bool * Bool), Int> =
+  let remaining = Stdlib.Bytes.length(bytes) - at
   if remaining == 0 then Ok ((changed, rearm))
   else if remaining < 32 then Error 5
   else
-    Stdlib.Cli.Posix.__kernelField(bytes, 10, 2) |> Stdlib.Result.andThen(fun flags ->
-      Stdlib.Cli.Posix.__kernelField(bytes, 12, 4) |> Stdlib.Result.andThen(fun mask ->
+    Stdlib.Cli.Posix.__kernelField(bytes, at + 10, 2) |> Stdlib.Result.andThen(fun flags ->
+      Stdlib.Cli.Posix.__kernelField(bytes, at + 12, 4) |> Stdlib.Result.andThen(fun mask ->
         if __watchHas(flags, 16384) then
-          Stdlib.Cli.Posix.__kernelSignedField(bytes, 16, 8) |> Stdlib.Result.andThen(fun errno ->
-            if errno == 0 then __watchVnodeEvents(Stdlib.List.drop(bytes, 32), remaining - 32, changed, rearm)
+          Stdlib.Cli.Posix.__kernelSignedField(bytes, at + 16, 8) |> Stdlib.Result.andThen(fun errno ->
+            if errno == 0 then __watchVnodeEvents(bytes, at + 32, changed, rearm)
             else Error errno)
         else
           let nextRearm = rearm || (__watchHas(mask, 1)) || (__watchHas(mask, 32)) || (__watchHas(mask, 64))
-          __watchVnodeEvents(Stdlib.List.drop(bytes, 32), remaining - 32, changed || mask != 0, nextRearm)))
+          __watchVnodeEvents(bytes, at + 32, changed || mask != 0, nextRearm)))
 
 let __watchVnodeLoop(queue: Int, intervalMs: Int, shouldStop: Unit -> Bool, fn: Unit -> Unit)
   : Result.Result<Bool, Int> =
@@ -674,7 +667,7 @@ let __watchVnodeLoop(queue: Int, intervalMs: Int, shouldStop: Unit -> Bool, fn: 
     | Error 4 -> __watchVnodeLoop(queue, intervalMs, shouldStop, fn)
     | Error e -> Error e
     | Ok buffer ->
-      __watchVnodeEvents(Stdlib.Bytes.toList(buffer), Stdlib.Bytes.length(buffer), false, false)
+      __watchVnodeEvents(buffer, 0, false, false)
       |> Stdlib.Result.andThen(fun pair ->
         let (changed, rearm) = pair
         if changed then fn() else ()
@@ -749,7 +742,8 @@ let __globClassEnd(
   match bytes with
   | 58uy :: 93uy :: rest ->
     let name =
-      Stdlib.String.fromByteListWithReplacement(Stdlib.List.reverse(reversedName))
+      Stdlib.String.fromBytesWithReplacement(
+        Stdlib.Bytes.fromList(Stdlib.List.reverse(reversedName)))
     Some ((name, rest))
   | c :: rest -> __globClassEnd(rest, Stdlib.List.prepend(reversedName, c))
   | [] -> None
@@ -849,6 +843,6 @@ let __globMatchBytes(
 /// Match the full string, including NUL bytes; this is not a C-string API.
 /// Wildcards retain the library's byte-based matching semantics.
 let __globMatches(pattern: String, text: String, pathname: Bool): Bool =
-  let patternBytes = Stdlib.String.toByteList(pattern)
-  let textBytes = Stdlib.String.toByteList(text)
+  let patternBytes = Stdlib.Bytes.toList(Stdlib.String.toBytes(pattern))
+  let textBytes = Stdlib.Bytes.toList(Stdlib.String.toBytes(text))
   __globMatchBytes(patternBytes, textBytes, pathname)

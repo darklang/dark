@@ -1,0 +1,102 @@
+module Darklang.Stdlib.Cli.File.Bytes.Tests
+
+let events(bytes: List<UInt8>): Stdlib.Result.Result<(Bool * Bool), Int> =
+  Stdlib.Cli.File.__watchEvents(Stdlib.Bytes.fromList(bytes), 0, false, false)
+
+let vnodeEvents(bytes: List<UInt8>): Stdlib.Result.Result<(Bool * Bool), Int> =
+  Stdlib.Cli.File.__watchVnodeEvents(Stdlib.Bytes.fromList(bytes), 0, false, false)
+
+/// A 16-byte inotify header with <param mask> and no name.
+let inotify(mask: List<UInt8>): List<UInt8> =
+  Stdlib.List.flatten(
+    [ [ 1uy, 0uy, 0uy, 0uy ], mask, Stdlib.List.repeatUnsafe(8, 0uy) ])
+
+/// A 32-byte kevent with <param flags> (2 bytes) and <param fflags> (4 bytes).
+let kevent(flags: List<UInt8>, fflags: List<UInt8>, data: List<UInt8>): List<UInt8> =
+  Stdlib.List.flatten(
+    [ [ 1uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 252uy, 255uy ]
+      flags
+      fflags
+      data
+      Stdlib.List.repeatUnsafe(8, 0uy) ])
+
+// __watchEvents (inotify)
+test watchEvents =
+  Stdlib.Test.all(
+    [ events([]) |> Stdlib.Test.equal(Ok((false, false)))
+      events([ 0uy ]) |> Stdlib.Test.equal(Error 5)
+      events(inotify([ 2uy, 0uy, 0uy, 0uy ])) |> Stdlib.Test.equal(Ok((true, false)))
+      events(inotify([ 0uy, 8uy, 0uy, 0uy ])) |> Stdlib.Test.equal(Ok((true, true)))
+      // A name length that runs past the buffer.
+      events(
+        Stdlib.List.flatten(
+          [ [ 1uy, 0uy, 0uy, 0uy, 2uy, 0uy, 0uy, 0uy ]
+            Stdlib.List.repeatUnsafe(4, 0uy)
+            [ 8uy, 0uy, 0uy, 0uy ] ]))
+      |> Stdlib.Test.equal(Error 5) ])
+
+// Each event is read from where the previous one ended, including its name.
+test watchEventsWalksSeveralEvents =
+  let named =
+    Stdlib.List.flatten(
+      [ [ 1uy, 0uy, 0uy, 0uy, 0uy, 128uy, 0uy, 0uy ]
+        Stdlib.List.repeatUnsafe(4, 0uy)
+        [ 4uy, 0uy, 0uy, 0uy, 97uy, 98uy, 0uy, 0uy ] ])
+  Stdlib.Test.all(
+    [ events(Stdlib.List.concat(inotify([ 2uy, 0uy, 0uy, 0uy ]), named))
+      |> Stdlib.Test.equal(Ok((true, true)))
+      events(Stdlib.List.concat(named, inotify([ 0uy, 0uy, 0uy, 0uy ])))
+      |> Stdlib.Test.equal(Ok((false, true)))
+      events(Stdlib.List.concat(inotify([ 2uy, 0uy, 0uy, 0uy ]), [ 1uy, 2uy, 3uy ]))
+      |> Stdlib.Test.equal(Error 5) ])
+
+// __watchVnodeEvents (kqueue)
+test watchVnodeEvents =
+  let noData = Stdlib.List.repeatUnsafe(8, 0uy)
+  Stdlib.Test.all(
+    [ vnodeEvents([]) |> Stdlib.Test.equal(Ok((false, false)))
+      vnodeEvents([ 0uy ]) |> Stdlib.Test.equal(Error 5)
+      vnodeEvents(kevent([ 0uy, 0uy ], [ 2uy, 0uy, 0uy, 0uy ], noData))
+      |> Stdlib.Test.equal(Ok((true, false)))
+      vnodeEvents(kevent([ 0uy, 0uy ], [ 32uy, 0uy, 0uy, 0uy ], noData))
+      |> Stdlib.Test.equal(Ok((true, true))) ])
+
+test watchVnodeEventsWalksSeveralEvents =
+  let noData = Stdlib.List.repeatUnsafe(8, 0uy)
+  let changed = kevent([ 0uy, 0uy ], [ 2uy, 0uy, 0uy, 0uy ], noData)
+  let deleted = kevent([ 0uy, 0uy ], [ 1uy, 0uy, 0uy, 0uy ], noData)
+  let failed = kevent([ 0uy, 64uy ], [ 0uy, 0uy, 0uy, 0uy ], [ 2uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy ])
+  let failedNoErrno = kevent([ 0uy, 64uy ], [ 0uy, 0uy, 0uy, 0uy ], noData)
+  Stdlib.Test.all(
+    [ vnodeEvents(Stdlib.List.concat(changed, deleted))
+      |> Stdlib.Test.equal(Ok((true, true)))
+      vnodeEvents(Stdlib.List.concat(changed, failed)) |> Stdlib.Test.equal(Error 2)
+      vnodeEvents(Stdlib.List.concat(failedNoErrno, changed))
+      |> Stdlib.Test.equal(Ok((true, false)))
+      vnodeEvents(Stdlib.List.concat(changed, [ 1uy ])) |> Stdlib.Test.equal(Error 5) ])
+
+// countNewlines
+test countNewlines =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.File.countNewlines(Stdlib.Bytes.empty) |> Stdlib.Test.equal(0)
+      Stdlib.Cli.File.countNewlines(Stdlib.Bytes.fromString("a")) |> Stdlib.Test.equal(0)
+      Stdlib.Cli.File.countNewlines(Stdlib.Bytes.fromString("a\nb\n"))
+      |> Stdlib.Test.equal(2)
+      Stdlib.Cli.File.countNewlines(Stdlib.Bytes.fromString("\n\n\n"))
+      |> Stdlib.Test.equal(3)
+      Stdlib.Cli.File.countNewlines(
+        Stdlib.Bytes.fromString(Stdlib.String.repeat("x\n", 1000)))
+      |> Stdlib.Test.equal(1000) ])
+
+// dropThroughFirstNewline
+test dropThroughFirstNewline =
+  let drop(text: String): Stdlib.Result.Result<String, String> =
+    Stdlib.Bytes.toString(
+      Stdlib.Cli.File.dropThroughFirstNewline(Stdlib.Bytes.fromString(text)))
+  Stdlib.Test.all(
+    [ drop("") |> Stdlib.Test.equal(Ok "")
+      drop("abc") |> Stdlib.Test.equal(Ok "")
+      drop("a\nbc") |> Stdlib.Test.equal(Ok "bc")
+      drop("\nx") |> Stdlib.Test.equal(Ok "x")
+      drop("x\n") |> Stdlib.Test.equal(Ok "")
+      drop("a\nb\nc") |> Stdlib.Test.equal(Ok "b\nc") ])

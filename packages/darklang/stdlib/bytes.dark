@@ -24,9 +24,23 @@ let isEmpty(bytes: Bytes): Bool = (length(bytes)) == 0
 /// Returns {{Some byte}} at <param index> in <param bytes> if <param index> is
 /// less than the length, otherwise returns {{None}}.
 let getAt(bytes: Bytes, index: Int): Stdlib.Option.Option<UInt8> =
-  // `slice` clamps a negative start to 0, so refuse it here.
-  if index < 0 then Stdlib.Option.Option.None
-  else Stdlib.List.head(toList(slice(bytes, index, 1)))
+  Builtin.bytesGetAt(bytes, index)
+
+
+/// Returns {{Some index}} of the first <param byte> in <param bytes> at or
+/// after <param start>, or {{None}} if there is none.
+let indexOfFrom(
+  bytes: Bytes,
+  byte: UInt8,
+  start: Int)
+  : Stdlib.Option.Option<Int> =
+  Builtin.bytesIndexOf(bytes, byte, start)
+
+
+/// Returns {{Some index}} of the first <param byte> in <param bytes>, or
+/// {{None}} if it isn't there.
+let indexOf(bytes: Bytes, byte: UInt8): Stdlib.Option.Option<Int> =
+  indexOfFrom(bytes, byte, 0)
 
 
 /// Concatenates a list of Bytes into a single Bytes.
@@ -74,9 +88,10 @@ let fromString(s: String): Bytes = Builtin.bytesFromString(s)
 
 
 /// Expands <param bytes> into a list of its bytes. Copies every byte, so for
-/// one byte use <fn Stdlib.Bytes.getAt>, and to join or cut Bytes use
-/// <fn Stdlib.Bytes.concat> or <fn Stdlib.Bytes.slice>. Use it for byte-wise
-/// parsing, or for what Bytes can't do yet, such as finding a byte.
+/// one byte use <fn Stdlib.Bytes.getAt>, to find one use
+/// <fn Stdlib.Bytes.indexOf>, and to join or cut Bytes use
+/// <fn Stdlib.Bytes.concat> or <fn Stdlib.Bytes.slice>. Use it for parsing
+/// that walks every byte.
 let toList(bytes: Bytes): List<UInt8> = Builtin.bytesToList(bytes)
 
 

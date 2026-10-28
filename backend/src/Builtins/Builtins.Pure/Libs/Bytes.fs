@@ -239,12 +239,61 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // Native because record decoders call it once per byte of every field, and
+    // the Dark version, a one-byte `slice`, allocated more than reading the
+    // whole buffer as a list.
+    { name = fn "bytesGetAt" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes ""; Param.make "index" TInt "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Returns {{Some byte}} at <param index> in <param bytes>, or {{None}} if out of bounds."
+      fn =
+        (function
+        | state, _, _, [| DBytes ref; DInt index |] ->
+          Bytes.withBytes state ref (fun bs ->
+            match DarkInt.toInt64 index with
+            | Some i when i >= 0L && i < int64 bs.Length ->
+              Ply(Dval.optionSome KTUInt8 (DUInt8 bs[int i]))
+            | _ -> Ply(Dval.optionNone KTUInt8))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    // Native because a scan written in Dark allocates for every byte it reads;
+    // this allocates once per call.
+    { name = fn "bytesIndexOf" 0
+      typeParams = []
+      parameters =
+        [ Param.make "bytes" TBytes ""
+          Param.make "byte" TUInt8 ""
+          Param.make "start" TInt "zero-based, inclusive" ]
+      returnType = TypeReference.option TInt
+      description =
+        "Returns {{Some index}} of the first <param byte> in <param bytes> at or after <param start>, or {{None}} if there is none or <param start> is out of range."
+      fn =
+        (function
+        | state, _, _, [| DBytes ref; DUInt8 b; DInt startD |] ->
+          Bytes.withBytes state ref (fun bs ->
+            match DarkInt.toInt64 startD with
+            | Some start when start >= 0L && start < int64 bs.Length ->
+              match System.Array.IndexOf(bs, b, int start) with
+              | -1 -> Ply(Dval.optionNone KTInt)
+              | i -> Ply(Dval.optionSome KTInt (Dval.int (bigint i)))
+            | _ -> Ply(Dval.optionNone KTInt))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "bytesToList" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TList TUInt8
-      description =
-        "Expands <param bytes> to a List<UInt8>, copying every byte."
+      description = "Expands <param bytes> to a List<UInt8>, copying every byte."
       fn =
         (function
         | state, _, _, [| DBytes ref |] ->
@@ -259,8 +308,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TBytes
-      description =
-        "Collects a List<UInt8> into Bytes, copying every byte."
+      description = "Collects a List<UInt8> into Bytes, copying every byte."
       fn =
         (function
         | _, _, _, [| DList(_, items) |] ->

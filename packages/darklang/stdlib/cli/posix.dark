@@ -332,21 +332,19 @@ let __abiDirectoryNameOffset(): Int = if __abiMac() then 21 else 19
 
 /// Bounds-checked decoding of kernel byte records. No OS effects occur here.
 
-let __kernelUnsigned(bytes: List<UInt8>, width: Int): Result.Result<Int, Int> =
+/// <param width> bytes of <param bytes> from <param offset>, little-endian.
+let __kernelField(bytes: Bytes, offset: Int, width: Int)
+  : Result.Result<Int, Int> =
   if width == 0 then Ok 0
   else
-    match bytes with
-    | [] -> Error 5
-    | byte :: rest ->
-      match __kernelUnsigned(rest, width - 1) with
+    match Stdlib.Bytes.getAt(bytes, offset) with
+    | None -> Error 5
+    | Some byte ->
+      match __kernelField(bytes, offset + 1, width - 1) with
       | Error e -> Error e
       | Ok high -> Ok (Stdlib.Int.fromUInt8(byte) + 256 * high)
 
-let __kernelField(bytes: List<UInt8>, offset: Int, width: Int)
-  : Result.Result<Int, Int> =
-  __kernelUnsigned(Stdlib.List.drop(bytes, offset), width)
-
-let __kernelSignedField(bytes: List<UInt8>, offset: Int, width: Int)
+let __kernelSignedField(bytes: Bytes, offset: Int, width: Int)
   : Result.Result<Int, Int> =
   match __kernelField(bytes, offset, width) with
   | Error e -> Error e
@@ -357,8 +355,7 @@ let __kernelSignedField(bytes: List<UInt8>, offset: Int, width: Int)
 type __KernelMetadata =
   { mode: Int, size: Int, mtimeSec: Int, uid: Int, device: Int, inode: Int }
 
-let __kernelMetadata(buffer: Bytes): Result.Result<__KernelMetadata, Int> =
-  let bytes = Stdlib.Bytes.toList(buffer)
+let __kernelMetadata(bytes: Bytes): Result.Result<__KernelMetadata, Int> =
   __kernelField(bytes, Stdlib.Cli.Posix.__abiStatModeOffset(), Stdlib.Cli.Posix.__abiStatModeWidth())
   |> Stdlib.Result.andThen(fun mode ->
     __kernelSignedField(bytes, Stdlib.Cli.Posix.__abiStatSizeOffset(), 8)
@@ -374,32 +371,33 @@ let __kernelMetadata(buffer: Bytes): Result.Result<__KernelMetadata, Int> =
               __KernelMetadata { mode = mode, size = size, mtimeSec = mtime, uid = uid
                          device = device, inode = inode }))))))
 
-/// Decode records within one read, consuming each record before the next.
-let __kernelEntriesWithLength(bytes: List<UInt8>, remaining: Int,
-  reversed: List<String>)
+/// Decode records within one read, from <param at> to the end of it.
+let __kernelEntriesFrom(bytes: Bytes, at: Int, reversed: List<String>)
   : Result.Result<List<String>, Int> =
-  match bytes with
-  | [] -> Ok reversed
-  | _ ->
-    __kernelField(bytes, 16, 2)
+  let remaining = Stdlib.Bytes.length(bytes) - at
+  if remaining <= 0 then Ok reversed
+  else
+    __kernelField(bytes, at + 16, 2)
     |> Stdlib.Result.andThen(fun length ->
       let nameOffset = Stdlib.Cli.Posix.__abiDirectoryNameOffset()
       if length <= nameOffset || length > remaining then Error 5
       else
-        let record = Stdlib.List.take(bytes, length)
-        let nameBytes = Stdlib.List.drop(record, nameOffset)
-        let name = Stdlib.List.takeWhile(nameBytes, fun byte -> byte != 0uy)
-        if Stdlib.List.length(name) == Stdlib.List.length(nameBytes) then Error 5
-        else
-          let name = Stdlib.String.fromByteListWithReplacement(name)
+        let nameStart = at + nameOffset
+        let recordEnd = at + length
+        match Stdlib.Bytes.indexOfFrom(bytes, 0uy, nameStart) with
+        | Some nul when nul < recordEnd ->
+          let name =
+            Stdlib.String.fromBytesWithReplacement(
+              Stdlib.Bytes.slice(bytes, nameStart, nul - nameStart))
           let next =
             if name == "." || name == ".." then reversed
             else Stdlib.List.prepend(reversed, name)
-          __kernelEntriesWithLength(Stdlib.List.drop(bytes, length), remaining - length, next))
+          __kernelEntriesFrom(bytes, recordEnd, next)
+        | _ -> Error 5)
 
-let __kernelEntries(bytes: List<UInt8>, reversed: List<String>)
+let __kernelEntries(bytes: Bytes, reversed: List<String>)
   : Result.Result<List<String>, Int> =
-  __kernelEntriesWithLength(bytes, Stdlib.List.length(bytes), reversed)
+  __kernelEntriesFrom(bytes, 0, reversed)
 
 
 /// Directory iteration and record decoding over single-call kernel primitives.
@@ -412,7 +410,7 @@ let __directoryReadAll(fd: Int, reversed: List<String>)
   | Ok bytes ->
     if Stdlib.Bytes.length(bytes) == 0 then Ok (Stdlib.List.reverse(reversed))
     else
-      match Stdlib.Cli.Posix.__kernelEntries(Stdlib.Bytes.toList(bytes), reversed) with
+      match Stdlib.Cli.Posix.__kernelEntries(bytes, reversed) with
       | Error e -> Error e
       | Ok next -> __directoryReadAll(fd, next)
 
@@ -457,8 +455,11 @@ let __pathCwdWith(read: Int -> Result.Result<Bytes, Int>, count: Int)
     | other -> other
 
 let __pathPathText(bytes: Bytes): String =
-  bytes |> Stdlib.Bytes.toList |> Stdlib.List.takeWhile(fun byte -> byte != 0uy)
-  |> Stdlib.Bytes.fromList |> Stdlib.String.fromBytesWithReplacement
+  let text =
+    match Stdlib.Bytes.indexOf(bytes, 0uy) with
+    | Some nul -> Stdlib.Bytes.slice(bytes, 0, nul)
+    | None -> bytes
+  Stdlib.String.fromBytesWithReplacement(text)
 
 let __pathGetCwd(): Result.Result<String, Posix.Error> =
   let bytes =

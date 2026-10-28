@@ -298,10 +298,9 @@ let subtractMs(d1: DateTime, d2: DateTime): Int =
 
 let __timespec(bytes: Bytes): Result.Result<(Int * Int), Int> =
   let width = if Stdlib.Cli.Posix.__abiArm32() then 4 else 8
-  let record = Stdlib.Bytes.toList(bytes)
-  Stdlib.Cli.Posix.__kernelSignedField(record, 0, width)
+  Stdlib.Cli.Posix.__kernelSignedField(bytes, 0, width)
   |> Stdlib.Result.andThen(fun seconds ->
-    Stdlib.Cli.Posix.__kernelSignedField(record, width, width)
+    Stdlib.Cli.Posix.__kernelSignedField(bytes, width, width)
     |> Stdlib.Result.map(fun nanos -> (seconds, nanos)))
 
 let __realtimeNanoseconds(): Result.Result<(Int * Int), Int> =
@@ -311,10 +310,9 @@ let __realtimeNanoseconds(): Result.Result<(Int * Int), Int> =
   else if Stdlib.Cli.Posix.__abiMac() then
     Builtin.syscallGettimeofday()
     |> Stdlib.Result.andThen(fun bytes ->
-      let record = Stdlib.Bytes.toList(bytes)
-      Stdlib.Cli.Posix.__kernelSignedField(record, 0, 8)
+      Stdlib.Cli.Posix.__kernelSignedField(bytes, 0, 8)
       |> Stdlib.Result.andThen(fun seconds ->
-        Stdlib.Cli.Posix.__kernelSignedField(record, 8, 4)
+        Stdlib.Cli.Posix.__kernelSignedField(bytes, 8, 4)
         |> Stdlib.Result.map(fun micros -> (seconds, micros * 1000))))
   else Builtin.syscallClockGettime(0) |> Stdlib.Result.andThen(__timespec)
 
@@ -326,14 +324,13 @@ let __monotonicNanoseconds(): Result.Result<(Int * Int), Int> =
   else if Stdlib.Cli.Posix.__abiMac() then
     Builtin.syscallMachAbsoluteTime()
     |> Stdlib.Result.andThen(fun bytes ->
-      Stdlib.Cli.Posix.__kernelField(Stdlib.Bytes.toList(bytes), 0, 8)
+      Stdlib.Cli.Posix.__kernelField(bytes, 0, 8)
       |> Stdlib.Result.andThen(fun ticks ->
         Builtin.syscallMachTimebaseInfo()
         |> Stdlib.Result.andThen(fun base ->
-          let record = Stdlib.Bytes.toList(base)
-          Stdlib.Cli.Posix.__kernelField(record, 0, 4)
+          Stdlib.Cli.Posix.__kernelField(base, 0, 4)
           |> Stdlib.Result.andThen(fun numerator ->
-            Stdlib.Cli.Posix.__kernelField(record, 4, 4)
+            Stdlib.Cli.Posix.__kernelField(base, 4, 4)
             |> Stdlib.Result.andThen(fun denominator ->
               if denominator == 0 then Error 5
               else
