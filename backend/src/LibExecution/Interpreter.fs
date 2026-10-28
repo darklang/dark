@@ -589,8 +589,15 @@ and checkAndExtractMatchPattern
   | MPListCons(head, tail) ->
     match Pending.peek dv with
     | DList(vt, headItem :: tailItems) ->
+      // Only wrap the tail if the list itself is a promise; a plain list never contains
+      // one. Wrapping checks every item in the tail, so doing it on every match made
+      // walking a list with `x :: rest` quadratic.
+      let tailList = DList(vt, tailItems)
       checkAndExtractMatchPattern buf head headItem
-      && checkAndExtractMatchPattern buf tail (Pending.wrap (DList(vt, tailItems)))
+      && checkAndExtractMatchPattern
+        buf
+        tail
+        (if Pending.isPromise dv then Pending.wrap tailList else tailList)
     | _ -> false
 
   | MPTuple(first, second, theRest) ->
