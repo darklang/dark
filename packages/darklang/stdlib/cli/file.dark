@@ -87,7 +87,7 @@ let countNewlines(blob: Bytes): Int =
 /// Everything after the first newline in <param bytes>; empty if there is none.
 let dropThroughFirstNewline(bytes: Bytes): Bytes =
   match Stdlib.Bytes.indexOf(bytes, 10uy) with
-  | Some i -> Stdlib.Bytes.slice(bytes, i + 1, Stdlib.Bytes.length(bytes) - i - 1)
+  | Some i -> Stdlib.Bytes.drop(bytes, i + 1)
   | None -> Stdlib.Bytes.empty
 
 
@@ -466,7 +466,7 @@ let __copyWriteAt(
     | Ok count ->
       if count <= 0 || count > length then Error 5
       else
-        let remaining = Stdlib.Bytes.slice(bytes, count, length - count)
+        let remaining = Stdlib.Bytes.drop(bytes, count)
         __copyWriteAt(write, remaining, offset + count)
 
 /// Bounded-memory fallback, also used after partial kernel-copy progress.

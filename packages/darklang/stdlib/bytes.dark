@@ -51,10 +51,41 @@ let concatAll(values: List<Bytes>): Bytes = Builtin.bytesConcat(values)
 let concat(a: Bytes, b: Bytes): Bytes = concatAll([ a, b ])
 
 
-/// Copies <param length> bytes starting at <param start> into a new
-/// Bytes. Out-of-range slices are clamped.
-let slice(bytes: Bytes, start: Int, length: Int): Bytes =
-  Builtin.bytesSlice(bytes, start, length)
+type IndexError =
+  /// The range was outside the bounds of the Bytes.
+  | IndexOutOfBounds
+
+
+/// Returns {{Ok}} a copy of the bytes from <param start> up to, but not
+/// including, <param end>. Returns {{Error IndexOutOfBounds}} unless
+/// {{0 <= start <= end <= length}}.
+let slice(
+  bytes: Bytes,
+  start: Int,
+  end: Int)
+  : Stdlib.Result.Result<Bytes, IndexError> =
+  if start < 0 || start > end || end > length(bytes) then
+    Stdlib.Result.Result.Error IndexError.IndexOutOfBounds
+  else
+    Stdlib.Result.Result.Ok(Builtin.bytesSlice(bytes, start, end - start))
+
+
+/// Returns the first <param count> bytes of <param bytes>, or all of them if
+/// there are fewer. A <param count> of zero or less gives the empty Bytes.
+let take(bytes: Bytes, count: Int): Bytes =
+  let total = length(bytes)
+  let end = if count < 0 then 0 else if count > total then total else count
+  // Never out of range: `end` is within the Bytes.
+  Stdlib.Result.withDefault(slice(bytes, 0, end), empty)
+
+
+/// Returns <param bytes> without its first <param count> bytes, or the empty
+/// Bytes if there are fewer. A <param count> of zero or less drops nothing.
+let drop(bytes: Bytes, count: Int): Bytes =
+  let total = length(bytes)
+  let start = if count < 0 then 0 else if count > total then total else count
+  // Never out of range: `start` is within the Bytes.
+  Stdlib.Result.withDefault(slice(bytes, start, total), empty)
 
 
 /// Hex (Base16) encodes <param bytes> using an uppercase alphabet.

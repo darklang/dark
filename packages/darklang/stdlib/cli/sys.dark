@@ -58,10 +58,10 @@ let isRoot(): Bool =
 /// Host record selection, buffer growth and decoding shared by both engines.
 
 let __text(buffer: Bytes, offset: Int, length: Int): String =
-  let field = Stdlib.Bytes.slice(buffer, offset, length)
+  let field = Stdlib.Bytes.take(Stdlib.Bytes.drop(buffer, offset), length)
   let text =
     match Stdlib.Bytes.indexOf(field, 0uy) with
-    | Some nul -> Stdlib.Bytes.slice(field, 0, nul)
+    | Some nul -> Stdlib.Bytes.take(field, nul)
     | None -> field
   Stdlib.String.fromBytesWithReplacement(text)
 

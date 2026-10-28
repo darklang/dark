@@ -250,7 +250,7 @@ let __childAppend(buffer: __ChildBuffer, bytes: Bytes): __ChildBuffer =
   let keep = if remaining < length then remaining else length
   if keep <= 0 then buffer
   else
-    let kept = if keep == Stdlib.Bytes.length(bytes) then bytes else Stdlib.Bytes.slice(bytes, 0, keep)
+    let kept = if keep == Stdlib.Bytes.length(bytes) then bytes else Stdlib.Bytes.take(bytes, keep)
     __ChildBuffer { chunks = Stdlib.List.prepend(buffer.chunks, kept), size = buffer.size + keep }
 
 let __childBytes(buffer: __ChildBuffer): Bytes = Stdlib.Bytes.concatAll(Stdlib.List.reverse(buffer.chunks))
@@ -296,13 +296,13 @@ let __childWrite(fd: Int, pending: Bytes): Result.Result<Bytes, Int> =
   if length == 0 then Ok pending
   else
     let count = if length < 65536 then length else 65536
-    let chunk = if count == length then pending else Stdlib.Bytes.slice(pending, 0, count)
+    let chunk = if count == length then pending else Stdlib.Bytes.take(pending, count)
     match Builtin.syscallWrite(fd, chunk) with
     | Error 4 -> __childWrite(fd, pending)
     | Error e -> if e == 11 || e == 35 then Ok pending else Error e
     | Ok written ->
       if written <= 0 || written > count then Error 5
-      else Ok (Stdlib.Bytes.slice(pending, written, length - written))
+      else Ok (Stdlib.Bytes.drop(pending, written))
 
 let __childPoll(fds: List<(Int * Int)>, milliseconds: Int): Result.Result<Unit, Int> =
   let result = if Stdlib.Cli.Posix.__abiMac() then Builtin.syscallPollDarwin(fds, milliseconds) else Builtin.syscallPpoll(fds, milliseconds)

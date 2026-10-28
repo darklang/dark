@@ -104,11 +104,50 @@ test concatAll =
       |> Stdlib.Test.equal(Ok "foo-bar")
       Stdlib.Bytes.concatAll([]) |> Stdlib.Bytes.length |> Stdlib.Test.equal(0) ])
 
-// slice (middle three bytes of "abcdef" = "cde")
+// slice: start inclusive, end exclusive, strict
 test slice =
-  Stdlib.Bytes.slice(Stdlib.Bytes.fromString("abcdef"), 2, 3)
-  |> Stdlib.Bytes.toString
-  |> Stdlib.Test.equal(Ok "cde")
+  let bytes = Stdlib.Bytes.fromString("abcdef")
+  let text(r: Stdlib.Result.Result<Bytes, Stdlib.Bytes.IndexError>)
+    : Stdlib.Result.Result<String, String> =
+    match r with
+    | Ok b -> Stdlib.Bytes.toString(b)
+    | Error _ -> Error "out of bounds"
+  Stdlib.Test.all(
+    [ text(Stdlib.Bytes.slice(bytes, 2, 5)) |> Stdlib.Test.equal(Ok "cde")
+      text(Stdlib.Bytes.slice(bytes, 0, 6)) |> Stdlib.Test.equal(Ok "abcdef")
+      text(Stdlib.Bytes.slice(bytes, 3, 3)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.slice(bytes, 6, 6)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.slice(Stdlib.Bytes.empty, 0, 0)) |> Stdlib.Test.equal(Ok "")
+      Stdlib.Bytes.slice(bytes, 2, 7)
+      |> Stdlib.Test.equal(Error Stdlib.Bytes.IndexError.IndexOutOfBounds)
+      Stdlib.Bytes.slice(bytes, -1, 2)
+      |> Stdlib.Test.equal(Error Stdlib.Bytes.IndexError.IndexOutOfBounds)
+      Stdlib.Bytes.slice(bytes, 4, 2)
+      |> Stdlib.Test.equal(Error Stdlib.Bytes.IndexError.IndexOutOfBounds)
+      Stdlib.Bytes.slice(bytes, 7, 7)
+      |> Stdlib.Test.equal(Error Stdlib.Bytes.IndexError.IndexOutOfBounds) ])
+
+// take: the first bytes; never errors, clamps to the Bytes
+test take =
+  let bytes = Stdlib.Bytes.fromString("abcdef")
+  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Bytes.toString(b)
+  Stdlib.Test.all(
+    [ text(Stdlib.Bytes.take(bytes, 2)) |> Stdlib.Test.equal(Ok "ab")
+      text(Stdlib.Bytes.take(bytes, 0)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.take(bytes, -3)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.take(bytes, 99)) |> Stdlib.Test.equal(Ok "abcdef")
+      text(Stdlib.Bytes.take(Stdlib.Bytes.empty, 3)) |> Stdlib.Test.equal(Ok "") ])
+
+// drop: all but the first bytes; never errors, clamps to the Bytes
+test drop =
+  let bytes = Stdlib.Bytes.fromString("abcdef")
+  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Bytes.toString(b)
+  Stdlib.Test.all(
+    [ text(Stdlib.Bytes.drop(bytes, 2)) |> Stdlib.Test.equal(Ok "cdef")
+      text(Stdlib.Bytes.drop(bytes, 0)) |> Stdlib.Test.equal(Ok "abcdef")
+      text(Stdlib.Bytes.drop(bytes, -3)) |> Stdlib.Test.equal(Ok "abcdef")
+      text(Stdlib.Bytes.drop(bytes, 99)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.drop(Stdlib.Bytes.empty, 3)) |> Stdlib.Test.equal(Ok "") ])
 
 // toList / fromList
 test listConversions =

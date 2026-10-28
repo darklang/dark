@@ -386,13 +386,14 @@ let __kernelEntriesFrom(bytes: Bytes, at: Int, reversed: List<String>)
         let recordEnd = at + length
         match Stdlib.Bytes.indexOfFrom(bytes, 0uy, nameStart) with
         | Some nul when nul < recordEnd ->
-          let name =
-            Stdlib.String.fromBytesWithReplacement(
-              Stdlib.Bytes.slice(bytes, nameStart, nul - nameStart))
-          let next =
-            if name == "." || name == ".." then reversed
-            else Stdlib.List.prepend(reversed, name)
-          __kernelEntriesFrom(bytes, recordEnd, next)
+          match Stdlib.Bytes.slice(bytes, nameStart, nul) with
+          | Ok nameBytes ->
+            let name = Stdlib.String.fromBytesWithReplacement(nameBytes)
+            let next =
+              if name == "." || name == ".." then reversed
+              else Stdlib.List.prepend(reversed, name)
+            __kernelEntriesFrom(bytes, recordEnd, next)
+          | Error _ -> Error 5
         | _ -> Error 5)
 
 let __kernelEntries(bytes: Bytes, reversed: List<String>)
@@ -457,7 +458,7 @@ let __pathCwdWith(read: Int -> Result.Result<Bytes, Int>, count: Int)
 let __pathPathText(bytes: Bytes): String =
   let text =
     match Stdlib.Bytes.indexOf(bytes, 0uy) with
-    | Some nul -> Stdlib.Bytes.slice(bytes, 0, nul)
+    | Some nul -> Stdlib.Bytes.take(bytes, nul)
     | None -> bytes
   Stdlib.String.fromBytesWithReplacement(text)
 
@@ -766,7 +767,7 @@ let __writeAll(
           errno = 5, message = "write made invalid progress" })
       else if count == length then Stdlib.Result.Result.Ok (written + count)
       else
-        let rest = Stdlib.Bytes.slice(bytes, count, length - count)
+        let rest = Stdlib.Bytes.drop(bytes, count)
         __writeAll(write, rest, written + count)
 
 
