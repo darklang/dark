@@ -103,14 +103,14 @@ let readFully(
   acc: List<Bytes>)
   : Result.Result<Bytes, Posix.Error> =
   if count <= 0 then
-    Stdlib.Result.Result.Ok(Stdlib.Bytes.concat(acc))
+    Stdlib.Result.Result.Ok(Stdlib.Bytes.concatAll(acc))
   else
     (Posix.fdRead(fd, count))
     |> Stdlib.Result.andThen(fun chunk ->
       let received = Stdlib.Bytes.length(chunk)
       if received == 0 then
         // EOF: the file is shorter than the caller believed (it was truncated under us, say).
-        Stdlib.Result.Result.Ok(Stdlib.Bytes.concat(acc))
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.concatAll(acc))
       else
         readFully(fd, count - received, Stdlib.List.append(acc, chunk)))
 
@@ -124,7 +124,7 @@ let readTailChunks(
   : Result.Result<(Bytes * Bool), Posix.Error> =
   if cursor <= 0 || foundNewlines >= requiredNewlines then
     Stdlib.Result.Result.Ok(
-      (Stdlib.Bytes.concat(chunks), cursor <= 0))
+      (Stdlib.Bytes.concatAll(chunks), cursor <= 0))
   else
     let chunkSize = 1024
     let start = if cursor < chunkSize then 0 else cursor - chunkSize

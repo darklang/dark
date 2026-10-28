@@ -66,7 +66,7 @@ let fdReadAll(
   (fdRead(fd, 4096))
   |> Stdlib.Result.andThen(fun chunk ->
     if Stdlib.Bytes.length(chunk) == 0 then
-      Stdlib.Result.Result.Ok(Stdlib.Bytes.concat(acc))
+      Stdlib.Result.Result.Ok(Stdlib.Bytes.concatAll(acc))
     else
       fdReadAll(fd, Stdlib.List.append(acc, chunk)))
 
@@ -792,7 +792,7 @@ let __accountLookup(uid: String, index: Int): Stdlib.Option.Option<String> =
 /// Collision retries for exclusive temporary-entry creation.
 
 let __tempEntropy(remaining: Int, reversed: List<Bytes>): Result.Result<Bytes, Int> =
-  if remaining == 0 then Ok (Stdlib.Bytes.concat(Stdlib.List.reverse(reversed)))
+  if remaining == 0 then Ok (Stdlib.Bytes.concatAll(Stdlib.List.reverse(reversed)))
   else
     match Builtin.syscallGetentropy(remaining) with
     | Error e -> if e == 4 then __tempEntropy(remaining, reversed) else Error e

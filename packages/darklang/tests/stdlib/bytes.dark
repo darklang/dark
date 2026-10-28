@@ -52,14 +52,44 @@ test base64RoundTrip =
       Stdlib.Bytes.fromString("hello") |> Stdlib.Bytes.toBase64
       |> Stdlib.Test.equal("aGVsbG8=") ])
 
+// isEmpty
+test isEmpty =
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.isEmpty(Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.isEmpty(Stdlib.Bytes.fromString("")) |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.isEmpty(Stdlib.Bytes.fromString("a")) |> Stdlib.Test.equal(false) ])
+
+// getAt
+test getAt =
+  let bytes = Stdlib.Bytes.fromList([ 10uy, 20uy, 30uy ])
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.getAt(bytes, 0) |> Stdlib.Test.equal(Some 10uy)
+      Stdlib.Bytes.getAt(bytes, 2) |> Stdlib.Test.equal(Some 30uy)
+      Stdlib.Bytes.getAt(bytes, 3) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.getAt(bytes, -1) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
+      |> Stdlib.Test.equal(None) ])
+
 // concat
 test concat =
-  [ Stdlib.Bytes.fromString("foo")
-    Stdlib.Bytes.fromString("-")
-    Stdlib.Bytes.fromString("bar") ]
-  |> Stdlib.Bytes.concat
-  |> Stdlib.Bytes.toString
-  |> Stdlib.Test.equal(Ok "foo-bar")
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.concat(Stdlib.Bytes.fromString("foo"), Stdlib.Bytes.fromString("bar"))
+      |> Stdlib.Bytes.toString
+      |> Stdlib.Test.equal(Ok "foobar")
+      Stdlib.Bytes.concat(Stdlib.Bytes.empty, Stdlib.Bytes.fromString("a"))
+      |> Stdlib.Bytes.toString
+      |> Stdlib.Test.equal(Ok "a") ])
+
+// concatAll
+test concatAll =
+  Stdlib.Test.all(
+    [ [ Stdlib.Bytes.fromString("foo")
+        Stdlib.Bytes.fromString("-")
+        Stdlib.Bytes.fromString("bar") ]
+      |> Stdlib.Bytes.concatAll
+      |> Stdlib.Bytes.toString
+      |> Stdlib.Test.equal(Ok "foo-bar")
+      Stdlib.Bytes.concatAll([]) |> Stdlib.Bytes.length |> Stdlib.Test.equal(0) ])
 
 // slice (middle three bytes of "abcdef" = "cde")
 test slice =
@@ -67,13 +97,13 @@ test slice =
   |> Stdlib.Bytes.toString
   |> Stdlib.Test.equal(Ok "cde")
 
-// toList/fromList escape hatches
+// toList / fromList
 test listConversions =
   Stdlib.Test.all(
     [ Stdlib.Bytes.fromString("abc") |> Stdlib.Bytes.toList
       |> Stdlib.Test.equal([ 97uy, 98uy, 99uy ])
-      Stdlib.Bytes.fromList([ 97uy, 98uy, 99uy ]) |> Stdlib.Bytes.length
-      |> Stdlib.Test.equal(3) ])
+      Stdlib.Bytes.fromList([ 97uy, 98uy, 99uy ])
+      |> Stdlib.Test.equal(Stdlib.Bytes.fromString("abc")) ])
 
 // Equality depends on contents, including for independently created values.
 test differentBytesAreNotEqual =

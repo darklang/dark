@@ -253,7 +253,7 @@ let __childAppend(buffer: __ChildBuffer, bytes: Bytes): __ChildBuffer =
     let kept = if keep == Stdlib.Bytes.length(bytes) then bytes else Stdlib.Bytes.slice(bytes, 0, keep)
     __ChildBuffer { chunks = Stdlib.List.prepend(buffer.chunks, kept), size = buffer.size + keep }
 
-let __childBytes(buffer: __ChildBuffer): Bytes = Stdlib.Bytes.concat(Stdlib.List.reverse(buffer.chunks))
+let __childBytes(buffer: __ChildBuffer): Bytes = Stdlib.Bytes.concatAll(Stdlib.List.reverse(buffer.chunks))
 
 let __childPollChild(child: Int): Result.Result<Stdlib.Option.Option<Int>, Int> =
   match Builtin.runtimeChildPoll(child) with
@@ -282,11 +282,11 @@ let __childFinish(child: Int, result: Result.Result<'a, Int>): Result.Result<'a,
   | Ok value -> closed |> Stdlib.Result.map(fun _ -> value)
 
 let __childRead(fd: Int, eof: Bool): Result.Result<(Bytes * Bool), Int> =
-  if eof then Ok (((Stdlib.Bytes.fromList([])), true))
+  if eof then Ok ((Stdlib.Bytes.empty, true))
   else
     match Builtin.syscallRead(fd, 65536) with
     | Error 4 -> __childRead(fd, false)
-    | Error e -> if e == 11 || e == 35 then Ok (((Stdlib.Bytes.fromList([])), false)) else Error e
+    | Error e -> if e == 11 || e == 35 then Ok ((Stdlib.Bytes.empty, false)) else Error e
     | Ok chunk -> Ok ((chunk, Stdlib.Bytes.length(chunk) == 0))
 
 /// One write per turn, interleaved with both readers, so a child producing
@@ -344,7 +344,7 @@ let __childCapture(
                 __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)
           else
             let wait = if remaining < 100 then remaining else 100
-            __childPoll(__childDescriptors(-1, stdout, stderr, Stdlib.Bytes.fromList([]), outEOF, errEOF), wait)
+            __childPoll(__childDescriptors(-1, stdout, stderr, Stdlib.Bytes.empty, outEOF, errEOF), wait)
             |> Stdlib.Result.andThen(fun _ -> __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)))))
 
 let __childRun(program: String, args: List<String>, timeoutMs: Stdlib.Option.Option<Int>): Result.Result<(Int * Bytes * Bytes), Int> =
@@ -363,8 +363,9 @@ let __childInteractive(program: String, args: List<String>): Result.Result<Int, 
   Builtin.runtimeChildStart(program, args, true) |> Stdlib.Result.andThen(fun child -> __childFinish(child, __childWaitChild(child)))
 
 let __childNewline(bytes: Bytes): Bool =
-  let length = Stdlib.Bytes.length(bytes)
-  length > 0 && (Stdlib.Bytes.toList(Stdlib.Bytes.slice(bytes, length - 1, 1)) == [10uy])
+  // An empty Bytes asks for index -1, which is None.
+  (Stdlib.Bytes.getAt(bytes, (Stdlib.Bytes.length(bytes)) - 1))
+  == Stdlib.Option.Option.Some(10uy)
 
 /// Empty-input communication is immediately nonblocking. Input-driven calls
 /// wait in at most 100 polling turns; complete newline responses can finish
@@ -399,7 +400,7 @@ let __childCommunicate(child: Int, input: String): Result.Result<(Int * Bytes * 
   Builtin.runtimeChildDescriptors(child) |> Stdlib.Result.andThen(fun ports ->
     match ports with
     | [stdin, stdout, stderr] ->
-      let pending = if input == "" then (Stdlib.Bytes.fromList([])) else Stdlib.Bytes.fromString(Stdlib.String.append(input, "\n"))
+      let pending = if input == "" then Stdlib.Bytes.empty else Stdlib.Bytes.fromString(Stdlib.String.append(input, "\n"))
       let turns = if input == "" then 0 else 100
       __childCommunicateLoop(child, (stdin, stdout, stderr), pending, turns, __childEmpty(), __childEmpty(), (false, false))
       |> Stdlib.Result.andThen(fun result ->

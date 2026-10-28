@@ -244,7 +244,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TList TUInt8
       description =
-        "Expands <param bytes> to a List<UInt8>. Escape hatch for code that hasn't migrated yet — prefer the Bytes module for new code."
+        "Expands <param bytes> to a List<UInt8>, copying every byte."
       fn =
         (function
         | state, _, _, [| DBytes ref |] ->
@@ -260,7 +260,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TBytes
       description =
-        "Collects a List<UInt8> into Bytes. Escape hatch for bridging old and new code."
+        "Collects a List<UInt8> into Bytes, copying every byte."
       fn =
         (function
         | _, _, _, [| DList(_, items) |] ->
