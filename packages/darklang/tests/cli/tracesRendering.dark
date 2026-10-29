@@ -48,9 +48,9 @@ module Input =
         { recorded with
             scriptOrEvalInput =
               Some (Darklang.Tracing.ScriptOrEvalInput.Script(
-                "file.dark", "main args", [ "hello" ], options)) }
+                "file.dark", "main(args)", [ "hello" ], options)) }
         |> Darklang.Tracing.Format.inputText
-        |> Stdlib.Test.equal("main args") ])
+        |> Stdlib.Test.equal("main(args)") ])
 
   test requestSummary =
     Request { method = "GET", url = "/orders" }

@@ -164,7 +164,7 @@ module Ambiguity =
   test ambiguousReceiverRaises =
     (1).describe
     => raises
-      "Int has more than one `describe`: 2 traits declare it. Say which one you mean, as `SomeTrait.describe value`"
+      "Int has more than one `describe`: 2 traits declare it. Say which one you mean, as `SomeTrait.describe(value)`"
 
 module MethodBounds =
   // A method may declare its own type params and bounds, on top of the trait's bound
@@ -346,7 +346,7 @@ module Identities =
   test zeroWithoutTypeRaises =
     Stdlib.Zero.zero()
     => raises
-      "Zero.zero has no argument to read a type from, so it cannot tell which type you mean. Name it: `Zero.zero<Int64> ...`"
+      "Zero.zero has no argument to read a type from, so it cannot tell which type you mean. Name it: `Zero.zero<Int64>(...)`"
 
   let zeroOf<'a: Stdlib.Zero + Stdlib.Add>(x: 'a): 'a = Stdlib.Zero.zero() + x
 

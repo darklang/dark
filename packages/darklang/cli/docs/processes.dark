@@ -13,7 +13,7 @@ Reads run at the same time. Writes keep program order. `await x` waits for a
 value here instead of wherever it is first used.
 
   let pages = Stdlib.List.map(urls, fun u -> Stdlib.HttpClient.get(u, []))  // all in flight
-  Stdlib.printLine "fetching"                                             // a write: now, in order
+  Stdlib.printLine("fetching")                                            // a write: now, in order
   let count = Stdlib.List.length(pages)                                   // looks: waits for all
 
 A read is a call whose effects are all reads (a file, env, db or package

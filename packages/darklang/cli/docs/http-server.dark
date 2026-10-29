@@ -25,8 +25,8 @@ Handlers are values; `routeRequest` dispatches to them by method and path.
 
   module MyApp
 
-  let helloFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-    Stdlib.Http.responseWithText "Hello, World!" 200
+  let helloFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
+    Stdlib.Http.responseWithText("Hello, World!", 200)
 
   val hello =
     Stdlib.HttpServer.Handler
@@ -37,8 +37,8 @@ Handlers are values; `routeRequest` dispatches to them by method and path.
   val handlers = [ hello ]
 
   // This is what you pass to `serve`. It has to be a named function.
-  let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-    Stdlib.HttpServer.routeRequest handlers req
+  let router(req: Stdlib.Http.Request): Stdlib.Http.Response =
+    Stdlib.HttpServer.routeRequest(handlers, req)
 
 ## Request
 

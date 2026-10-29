@@ -39,7 +39,7 @@ reserved for input. Nested modules may declare it (for example, Util.args).
 Function parameters and local `let` bindings may also use it.
 
 You do not need a main function. If you write one, call it in the final expression,
-for example `main args`. Functions do not capture top-level variables, so pass any
+for example `main(args)`. Functions do not capture top-level variables, so pass any
 arguments they need explicitly.
 
 Put runner options before the file path. Everything after it is script input,

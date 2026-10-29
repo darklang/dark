@@ -146,7 +146,7 @@ across the screen": `界` is one grapheme occupying two columns, and so is a ZWJ
   description can't move your cursor or reset your terminal. The renderer is the single boundary.
 - `TerminalSession.armRestoreGuard` registers a restore sequence with the host before entering a
   surface, so a hard kill still un-wrecks the terminal.
-- `TerminalSupport.current ()` refuses to emit control sequences when stdin or stdout isn't a tty, or
+- `TerminalSupport.current()` refuses to emit control sequences when stdin or stdout isn't a tty, or
   `TERM` is unset / dumb / unknown. Piping the CLI prints a clean sentence rather than escape soup.
 - Resize is handled: SIGWINCH sets a flag, the input read polls for it, and a resize reports a key no
   view handles, which sends the loop round to re-sample the size and repaint.

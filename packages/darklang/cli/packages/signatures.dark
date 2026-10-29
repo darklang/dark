@@ -22,7 +22,7 @@ let rootContext(branchId: Uuid, modulePath: List<String>): PrettyPrinter.Program
 
 
 // Renders the signature body only (no name) — e.g.
-// `(list: List<'a>) (fn: 'a -> 'b) -> List<'b>`. Callers prepend the name.
+// `(list: List<'a>, fn: 'a -> 'b): List<'b>`. Callers prepend the name.
 let formatFn(
   ctx: PrettyPrinter.ProgramTypes.Context,
   fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
@@ -37,19 +37,16 @@ let formatFn(
     | _ -> false
 
   let paramStrs =
-    if isUnitOnly then ["()"]
+    if isUnitOnly then []
     else
-      match fn.parameters with
-      | [] -> ["()"]
-      | _ ->
-        fn.parameters
-        |> Stdlib.List.map(fun p ->
-          let typStr = PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ)
-          $"({p.name}: {typStr})")
+      fn.parameters
+      |> Stdlib.List.map(fun p ->
+        let typStr = PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ)
+        $"{p.name}: {typStr}")
 
   let ret = PrettyPrinter.ProgramTypes.typeReference(ctx, fn.returnType)
-  let paramsJoined = Stdlib.String.join(paramStrs, " ")
-  $"{paramsJoined} -> {ret}"
+  let paramsJoined = Stdlib.String.join(paramStrs, ", ")
+  $"({paramsJoined}): {ret}"
 
 
 let formatType(
@@ -139,7 +136,7 @@ let renderModule(
   let fnLines =
     fns
     |> Stdlib.List.sortBy(fun i -> i.location.name)
-    |> Stdlib.List.map(fun i -> $"{i.location.name} {formatFn(ctx, i.entity)}")
+    |> Stdlib.List.map(fun i -> $"{i.location.name}{formatFn(ctx, i.entity)}")
 
   let body = (Stdlib.List.concat(typeLines, fnLines)) |> Stdlib.String.join("\n")
   $"{header}\n{body}"

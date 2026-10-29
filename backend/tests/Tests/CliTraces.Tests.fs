@@ -217,7 +217,7 @@ let private testScriptContract =
           [],
           [],
           1L,
-          "main args"
+          "main(args)"
           "main is not auto-called",
           "let main(inputs: List<String>): Int = 0\nmain",
           [],
