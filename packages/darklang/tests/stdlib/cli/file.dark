@@ -6,10 +6,14 @@ let events(bytes: List<UInt8>): Stdlib.Result.Result<(Bool * Bool), Int> =
 let vnodeEvents(bytes: List<UInt8>): Stdlib.Result.Result<(Bool * Bool), Int> =
   Stdlib.Cli.File.__watchVnodeEvents(Stdlib.Bytes.fromList(bytes), 0, false, false)
 
+/// <param n> zero bytes.
+let zeros(n: Int): List<UInt8> =
+  Stdlib.Result.withDefault(Stdlib.List.repeat(n, 0uy), [])
+
 /// A 16-byte inotify header with <param mask> and no name.
 let inotify(mask: List<UInt8>): List<UInt8> =
   Stdlib.List.flatten(
-    [ [ 1uy, 0uy, 0uy, 0uy ], mask, Stdlib.List.repeatUnsafe(8, 0uy) ])
+    [ [ 1uy, 0uy, 0uy, 0uy ], mask, zeros(8) ])
 
 /// A 32-byte kevent with <param flags> (2 bytes) and <param fflags> (4 bytes).
 let kevent(flags: List<UInt8>, fflags: List<UInt8>, data: List<UInt8>): List<UInt8> =
@@ -18,7 +22,7 @@ let kevent(flags: List<UInt8>, fflags: List<UInt8>, data: List<UInt8>): List<UIn
       flags
       fflags
       data
-      Stdlib.List.repeatUnsafe(8, 0uy) ])
+      zeros(8) ])
 
 // __watchEvents (inotify)
 test watchEvents =
@@ -31,7 +35,7 @@ test watchEvents =
       events(
         Stdlib.List.flatten(
           [ [ 1uy, 0uy, 0uy, 0uy, 2uy, 0uy, 0uy, 0uy ]
-            Stdlib.List.repeatUnsafe(4, 0uy)
+            zeros(4)
             [ 8uy, 0uy, 0uy, 0uy ] ]))
       |> Stdlib.Test.equal(Error 5) ])
 
@@ -40,7 +44,7 @@ test watchEventsWalksSeveralEvents =
   let named =
     Stdlib.List.flatten(
       [ [ 1uy, 0uy, 0uy, 0uy, 0uy, 128uy, 0uy, 0uy ]
-        Stdlib.List.repeatUnsafe(4, 0uy)
+        zeros(4)
         [ 4uy, 0uy, 0uy, 0uy, 97uy, 98uy, 0uy, 0uy ] ])
   Stdlib.Test.all(
     [ events(Stdlib.List.concat(inotify([ 2uy, 0uy, 0uy, 0uy ]), named))
@@ -52,7 +56,7 @@ test watchEventsWalksSeveralEvents =
 
 // __watchVnodeEvents (kqueue)
 test watchVnodeEvents =
-  let noData = Stdlib.List.repeatUnsafe(8, 0uy)
+  let noData = zeros(8)
   Stdlib.Test.all(
     [ vnodeEvents([]) |> Stdlib.Test.equal(Ok((false, false)))
       vnodeEvents([ 0uy ]) |> Stdlib.Test.equal(Error 5)
@@ -62,7 +66,7 @@ test watchVnodeEvents =
       |> Stdlib.Test.equal(Ok((true, true))) ])
 
 test watchVnodeEventsWalksSeveralEvents =
-  let noData = Stdlib.List.repeatUnsafe(8, 0uy)
+  let noData = zeros(8)
   let changed = kevent([ 0uy, 0uy ], [ 2uy, 0uy, 0uy, 0uy ], noData)
   let deleted = kevent([ 0uy, 0uy ], [ 1uy, 0uy, 0uy, 0uy ], noData)
   let failed = kevent([ 0uy, 64uy ], [ 0uy, 0uy, 0uy, 0uy ], [ 2uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy, 0uy ])
