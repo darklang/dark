@@ -601,13 +601,13 @@ module RuntimeError =
         [ ES.ValueType self
           ES.String $" has more than one `{method_}`: "
           ES.String (Stdlib.toString(Stdlib.List.length(traits)))
-          ES.String $" traits declare it. Say which one you mean, as `SomeTrait.{method_} value`" ]
+          ES.String $" traits declare it. Say which one you mean, as `SomeTrait.{method_}(value)`" ]
       | SelfTypeUnknown(trait_, method_) ->
         [ ES.ShortTraitName trait_
           ES.String $".{method_} has no argument to read a type from, so it cannot tell which "
           ES.String "type you mean. Name it: `"
           ES.ShortTraitName trait_
-          ES.String $".{method_}<Int64> ...`" ]
+          ES.String $".{method_}<Int64>(...)`" ]
       // Raised from one place only: an implementation WAS chosen, and it lacks the method. Saying
       // the trait has no such method sent people looking at a trait that declares it, typically
       // one just given a new method that its existing implementations don't have yet.
@@ -625,11 +625,11 @@ module RuntimeError =
     | CLI err ->
       match err with
       | NoExpressionsToExecute ->
-        [ ES.String "Nothing to evaluate. Add a final expression after your declarations. For a .dark script, use `main args` to call your function, or `0` to exit successfully. See `dark docs scripts`." ]
+        [ ES.String "Nothing to evaluate. Add a final expression after your declarations. For a .dark script, use `main(args)` to call your function, or `0` to exit successfully. See `dark docs scripts`." ]
       | NonIntReturned returnedValue ->
         [ ES.String "Script must finish with an Int exit code (0 succeeds) or Unit; got "
           ES.FullValue returnedValue
-          ES.String ". A main function is not called automatically: finish with `main args` to call it. See `dark docs scripts`." ]
+          ES.String ". A main function is not called automatically: finish with `main(args)` to call it. See `dark docs scripts`." ]
 
     | SqlCompiler errMsg ->
       // Older serialized errors already contain the preamble.

@@ -13,14 +13,14 @@ builtin type already has implementations. Yours join with one `impl`.
 
   impl ToString for Point =
     let toString(p: Point): String =
-      $"({Stdlib.toString p.x}, {Stdlib.toString p.y})"
+      $"({Stdlib.toString(p.x)}, {Stdlib.toString(p.y)})"
 
   impl Add for Point =
     let add(a: Point, b: Point): Point =
       Point { x = a.x + b.x, y = a.y + b.y }
 
   let p = Point { x = 1L, y = 2L }
-  ToString.toString p          // "(1, 2)"
+  ToString.toString(p)         // "(1, 2)"
   p.toString                   // the same call, receiver first
   p + p                        // Point { x = 2L, y = 4L }
 
@@ -96,9 +96,9 @@ builtin type already has implementations. Yours join with one `impl`.
   ShiftLeft ShiftRight                        `<<` and `>>`
   Compare                            `< <= > >=`; also `Stdlib.max`, `min`, `clamp`,
                                      `abs`, and `List.sort` on a type of yours
-  ToString                       `x.toString`, `Stdlib.toString x`
-  Zero, One                      `Zero.zero<Int64> ()`; `Stdlib.sum seed xs` and
-                                 `product seed xs` take a seed, so summing an
+  ToString                       `x.toString`, `Stdlib.toString(x)`
+  Zero, One                      `Zero.zero<Int64>()`; `Stdlib.sum(seed, xs)` and
+                                 `product(seed, xs)` take a seed, so summing an
                                  empty list has an answer
 
   Every builtin numeric type implements the arithmetic, comparison and bitwise
@@ -160,10 +160,10 @@ builtin type already has implementations. Yours join with one `impl`.
       only for implementations a script made in memory
 
   Zero.zero has no argument to read a type from, so it cannot tell which type
-  you mean. Name it: `Zero.zero<Int64> ...`
+  you mean. Name it: `Zero.zero<Int64>(...)`
 
   Int64 has more than one `describe`: 2 traits declare it. Say which one you mean,
-  as `SomeTrait.describe value`
+  as `SomeTrait.describe(value)`
 
   Cannot perform numeric operation on Int64 and Float
       both operands of an operator must be the same type"""

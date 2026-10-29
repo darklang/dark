@@ -62,7 +62,7 @@ let content(): String =
 
 ## Pipe
   value |> fn
-  (complex expr) |> fn   // parens needed
+  (if c then a else b) |> fn   // an if or match needs parens
 
 ## Precedence
   Loosest to tightest. `**` and `@` nest right; everything else groups left.
@@ -77,7 +77,7 @@ let content(): String =
     + -
     * / %
     **
-    f a b           (application)
+    f(a, b)         (call)
     x.field  x?     (postfix, tightest)
   Note the bitwise levels bind TIGHTER than the comparisons, as in Python:
   `a & b == c` is `(a & b) == c`."""
