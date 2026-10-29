@@ -155,12 +155,13 @@ never against what you typed.
 - `Stdlib.X` expands to `Darklang.Stdlib.X`. Cross-owner names need a full path.
 - Never write `PACKAGE.` in source or search; it is internal notation.
 - Lists use commas: `[1, 2]`; chars use single quotes: `'a'`.
-- `|>` passes its left value as the first argument. Parenthesize a complex left side.
+- `|>` passes the value on its left in as the first argument. If that value is
+  an `if` or `match`, put it in parentheses, or only its last branch gets piped.
 - Strings concatenate with `+`. Interpolation does not coerce non-strings.
 - Bare integers are arbitrary-precision `Int`; numeric operands must have one type.
 - Local values use `let max = 6` without annotations; package values use `val`.
 - Record construction is `State { count = 0 }`; update is `{ state with count = 1 }`.
-- `(call arg)?` extracts Ok/Some or immediately returns Error/None from the
+- `f(x)?` extracts Ok/Some or immediately returns Error/None from the
   nearest function/lambda. Return Result/Option and still write Ok/Some on
   success; Result error types must agree.
 - Option/Result cases work bare: `Some x`, `None`, `Ok x`, `Error e`.
@@ -387,9 +388,10 @@ Rules:
   modules are not first-class values. Use the full path each time.)
 - Pipe |> feeds the left value as the FIRST argument of the right fn; any
   args in its parentheses come after it: `[1, 2] |> Stdlib.List.map(toString)`
-  is `Stdlib.List.map([1, 2], toString)`, and `x |> f()` is `f(x)`. An operator
-  is not a pipe stage: write `n + 1`, or `|> (fun v -> v + 1)` mid-pipe. Wrap a
-  complex left side in parens: (complex expr) |> fn
+  is `Stdlib.List.map([1, 2], toString)`, and `x |> f()` is `f(x)`. You can't
+  pipe straight into an operator (`n |> + 1` won't parse), so write `n + 1`, or
+  use a lambda mid-pipe: `|> (fun v -> v + 1)`. If the left side is an `if` or
+  `match`, wrap it in parentheses: `(if c then a else b) |> fn`.
 - Lists: [1, 2, 3] (commas; a semicolon is a parse error)
 - Dicts and records use commas or newlines, never semicolons:
   `Dict { "a": 1, "b": 2 }`, `Point { x = 1, y = 2 }`,

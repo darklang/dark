@@ -5,7 +5,7 @@ let content(): String =
 
 ## Basics
   let x = 5
-  let add (a: Int) (b: Int) : Int = a + b
+  let add(a: Int, b: Int): Int = a + b
   if cond then a else b
   // comment
 
@@ -25,7 +25,7 @@ return annotations:
 
 ## Result and Option unwrap
   let next(input: String): Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
-    let number = (Stdlib.Int.parse(input))?
+    let number = Stdlib.Int.parse(input)?
     Ok (number + 1)
 
 `value?` extracts the value from Ok/Some, or immediately returns Error/None
@@ -33,13 +33,20 @@ from the function or lambda containing it. Write Ok/Some for the success result.
 Unwrapping an Option requires an Option return; unwrapping a Result requires a
 Result return with the same error type. The success types may differ.
 
-Write `?` directly after its operand. `f x?` means `f (x?)`; use `(f x)?`
-or `(value |> transform)?` to unwrap a whole call or pipeline.
+Put `?` right after the thing you want to unwrap. `f(x)?` unwraps the result
+of the call. In `a + f(x)?` only `f(x)` gets unwrapped; to unwrap a whole
+pipeline or operator expression, put it in parentheses first:
+`(value |> transform)?`, `(a + b)?`.
 The operand runs once; an early return skips remaining work without undoing
 completed effects. `?` requires a function or lambda and is unsupported in SQL queries.
 
-## Pipe (parens for complex LHS)
-  (Stdlib.List.range(0, 10)) |> Stdlib.List.map(fn)
+## Pipe
+  Stdlib.List.range(0, 10) |> Stdlib.List.map(fn)
+
+You don't need parentheses around a call, literal or operator expression on
+the left. You do need them around an `if` or `match`: `if c then a else b |> f`
+only pipes `b`, as if you had written `if c then a else (b |> f)`. Write
+`(if c then a else b) |> f` instead.
 
 ## Lists (comma separator)
   [1, 2, 3]

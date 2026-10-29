@@ -14,10 +14,11 @@ let content(): String =
   `!x` is Stdlib.Bool.not; `!x && y` is `(!x) && y`.
 
 ## Unwrap
-  value?   (call arg)?
+  value?   f(x)?   (value |> transform)?
   Extract Ok/Some, or return Error/None from the nearest function/lambda.
   Success must still be wrapped in Ok/Some; error types must agree.
-  No whitespace before ?. `f x?` means `f (x?)`.
+  No space before the ?. It applies to whatever comes right before it, so
+  `a + f(x)?` unwraps just `f(x)`. To unwrap the sum, write `(a + b)?`.
 
 ## Numeric (all int types + Float)
   + - * / % **   and unary -x
