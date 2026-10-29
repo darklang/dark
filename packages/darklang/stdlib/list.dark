@@ -84,14 +84,6 @@ let contains(list: List<'a>, value: 'a): Bool =
   Builtin.listContains(list, value)
 
 
-// TODO: inline as a nested helper fn once Dark supports local function definitions
-let repeatUnsafe(times: Int, value: 'a): List<'a> =
-  if times <= 0 then
-    []
-  else
-    prepend(repeatUnsafe(times - 1, value), value)
-
-
 /// Returns a list containing <param val> repeated <param times> times
 let repeat(
   times: Int,
@@ -101,7 +93,7 @@ let repeat(
     Result.Result.Error
       $"Expected `times` to be positive, but it was `{times |> Stdlib.toString}`"
   else
-    Result.Result.Ok(repeatUnsafe(times, value))
+    Result.Result.Ok(Stdlib.List.map(Stdlib.List.range(1, times), fun _ -> value))
 
 
 /// Returns the number of values in <param list>
@@ -211,69 +203,6 @@ let sortBy(list: List<'a>, fn: 'a -> 'b): List<'a> =
   Builtin.listSortBy(list, fn)
 
 
-/// Helper functions for sortByComparator
-///
-/// This is a bit much. CLEANUP tidy this up
-module SortByComparatorHelpers =
-  let validate(
-    x: 'a,
-    y: 'a,
-    comparator: 'a -> 'a -> Int)
-    : Result.Result<Int, String> =
-    let result = comparator(x, y)
-
-    if result == -1 || result == 0 || result == 1 then
-      Result.Result.Ok result
-    else
-      Result.Result.Error
-        $"Expected comparator function to return -1, 0, or 1, but it returned {Stdlib.toString(result)}"
-
-  let merge(
-    left: List<'a>,
-    right: List<'a>,
-    comparator: 'a -> 'a -> Int)
-    : Result.Result<List<'a>, String> =
-    match (left, right) with
-    | ([], _) -> Result.Result.Ok right
-    | (_, []) -> Result.Result.Ok left
-    | (x :: xs, y :: ys) ->
-      match validate(x, y, comparator) with
-      | Error msg -> Result.Result.Error msg
-      | Ok result ->
-        if result <= 0 then
-          match merge(xs, right, comparator) with
-          | Error msg -> Result.Result.Error msg
-          | Ok merged -> Result.Result.Ok(prepend(merged, x))
-        else
-          match merge(left, ys, comparator) with
-          | Error msg -> Result.Result.Error msg
-          | Ok merged -> Result.Result.Ok(prepend(merged, y))
-
-  let splitList(lst: List<'a>): (List<'a> * List<'a>) =
-    match lst with
-    | [] -> ([], [])
-    | [ x ] -> ([ x ], [])
-    | x :: y :: xs ->
-      let (left, right) = splitList(xs)
-      (prepend(left, x), prepend(right, y))
-
-  let mergeSort(
-    lst: List<'a>,
-    comparator: 'a -> 'a -> Int)
-    : Result.Result<List<'a>, String> =
-    match lst with
-    | [] -> Result.Result.Ok []
-    | [ x ] -> Result.Result.Ok [ x ]
-    | lst ->
-      let (left, right) = splitList(lst)
-
-      match mergeSort(left, comparator) with
-      | Error msg -> Result.Result.Error msg
-      | Ok sortedLeft ->
-        match mergeSort(right, comparator) with
-        | Error msg -> Result.Result.Error msg
-        | Ok sortedRight -> merge(sortedLeft, sortedRight, comparator)
-
 /// Returns a copy of <param list>, sorted using {{fn a b}} to compare values
 /// <var a> and <var b>.
 /// <param f> must return {{-1}} if <var a> should appear before <var b>, {{1}}
@@ -285,7 +214,55 @@ let sortByComparator(
   list: List<'a>,
   fn: 'a -> 'a -> Int)
   : Result.Result<List<'a>, String> =
-  SortByComparatorHelpers.mergeSort(list, fn)
+  let validate(x: 'a, y: 'a): Result.Result<Int, String> =
+    let result = fn(x, y)
+
+    if result == -1 || result == 0 || result == 1 then
+      Result.Result.Ok result
+    else
+      Result.Result.Error
+        $"Expected comparator function to return -1, 0, or 1, but it returned {Stdlib.toString(result)}"
+
+  let merge(left: List<'a>, right: List<'a>): Result.Result<List<'a>, String> =
+    match (left, right) with
+    | ([], _) -> Result.Result.Ok right
+    | (_, []) -> Result.Result.Ok left
+    | (x :: xs, y :: ys) ->
+      match validate(x, y) with
+      | Error msg -> Result.Result.Error msg
+      | Ok result ->
+        if result <= 0 then
+          match merge(xs, right) with
+          | Error msg -> Result.Result.Error msg
+          | Ok merged -> Result.Result.Ok(prepend(merged, x))
+        else
+          match merge(left, ys) with
+          | Error msg -> Result.Result.Error msg
+          | Ok merged -> Result.Result.Ok(prepend(merged, y))
+
+  let splitList(lst: List<'a>): (List<'a> * List<'a>) =
+    match lst with
+    | [] -> ([], [])
+    | [ x ] -> ([ x ], [])
+    | x :: y :: xs ->
+      let (left, right) = splitList(xs)
+      (prepend(left, x), prepend(right, y))
+
+  let mergeSort(lst: List<'a>): Result.Result<List<'a>, String> =
+    match lst with
+    | [] -> Result.Result.Ok []
+    | [ x ] -> Result.Result.Ok [ x ]
+    | lst ->
+      let (left, right) = splitList(lst)
+
+      match mergeSort(left) with
+      | Error msg -> Result.Result.Error msg
+      | Ok sortedLeft ->
+        match mergeSort(right) with
+        | Error msg -> Result.Result.Error msg
+        | Ok sortedRight -> merge(sortedLeft, sortedRight)
+
+  mergeSort(list)
 
 
 
@@ -569,26 +546,6 @@ let iter(list: List<'a>, f: 'a -> Unit): Unit =
     iter(tail, f)
 
 
-/// Helper function for chunkBySize. Recursively divides a list into chunks of a given size.
-let chunkBySizeHelper(
-  currentList: List<'a>,
-  size: Int,
-  accum: List<List<'a>>)
-  : List<List<'a>> =
-  match currentList with
-  | [] -> reverse(accum)
-  | _ ->
-    let taken = take(currentList, size)
-    let rest = drop(currentList, size)
-
-    let newAccum =
-      if isEmpty(taken) then
-        accum
-      else
-        prepend(accum, taken)
-
-    chunkBySizeHelper(rest, size, newAccum)
-
 type ChunkBySizeError = | SizeMustBeGreaterThanZero
 
 /// Chunks <param list> into sublists of specified maximum <param size>.
@@ -601,7 +558,15 @@ let chunkBySize(
     Result.Result.Error
       ChunkBySizeError.SizeMustBeGreaterThanZero
   else
-    Result.Result.Ok(chunkBySizeHelper(list, size, []))
+    let chunk(remaining: List<'a>, chunks: List<List<'a>>): List<List<'a>> =
+      match remaining with
+      | [] -> reverse(chunks)
+      | _ ->
+        let taken = take(remaining, size)
+        let rest = drop(remaining, size)
+        chunk(rest, prepend(chunks, taken))
+
+    Result.Result.Ok(chunk(list, []))
 
 
 let splitLast(l: List<'a>): Option.Option<(List<'a> * 'a)> =
