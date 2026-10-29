@@ -17,14 +17,75 @@ val empty = Builtin.bytesEmpty
 let length(bytes: Bytes): Int = Builtin.bytesLength(bytes)
 
 
+/// Returns {{true}} if <param bytes> has no bytes in it.
+let isEmpty(bytes: Bytes): Bool = (length(bytes)) == 0
+
+
+/// Returns {{Some byte}} at <param index> in <param bytes> if <param index> is
+/// less than the length, otherwise returns {{None}}.
+let getAt(bytes: Bytes, index: Int): Stdlib.Option.Option<UInt8> =
+  Builtin.bytesGetAt(bytes, index)
+
+
+/// Returns {{Some index}} of the first <param byte> in <param bytes> at or
+/// after <param start>, or {{None}} if there is none.
+let indexOfFrom(
+  bytes: Bytes,
+  byte: UInt8,
+  start: Int)
+  : Stdlib.Option.Option<Int> =
+  Builtin.bytesIndexOf(bytes, byte, start)
+
+
+/// Returns {{Some index}} of the first <param byte> in <param bytes>, or
+/// {{None}} if it isn't there.
+let indexOf(bytes: Bytes, byte: UInt8): Stdlib.Option.Option<Int> =
+  indexOfFrom(bytes, byte, 0)
+
+
 /// Concatenates a list of Bytes into a single Bytes.
-let concat(values: List<Bytes>): Bytes = Builtin.bytesConcat(values)
+let concatAll(values: List<Bytes>): Bytes = Builtin.bytesConcat(values)
 
 
-/// Copies <param length> bytes starting at <param start> into a new
-/// Bytes. Out-of-range slices are clamped.
-let slice(bytes: Bytes, start: Int, length: Int): Bytes =
-  Builtin.bytesSlice(bytes, start, length)
+/// Returns <param a> followed by <param b>.
+let concat(a: Bytes, b: Bytes): Bytes = concatAll([ a, b ])
+
+
+type IndexError =
+  /// The range was outside the bounds of the Bytes.
+  | IndexOutOfBounds
+
+
+/// Returns {{Ok}} a copy of the bytes from <param start> up to, but not
+/// including, <param end>. Returns {{Error IndexOutOfBounds}} unless
+/// {{0 <= start <= end <= length}}.
+let slice(
+  bytes: Bytes,
+  start: Int,
+  end: Int)
+  : Stdlib.Result.Result<Bytes, IndexError> =
+  if start < 0 || start > end || end > length(bytes) then
+    Stdlib.Result.Result.Error IndexError.IndexOutOfBounds
+  else
+    Stdlib.Result.Result.Ok(Builtin.bytesSlice(bytes, start, end - start))
+
+
+/// Returns the first <param count> bytes of <param bytes>, or all of them if
+/// there are fewer. A <param count> of zero or less gives the empty Bytes.
+let take(bytes: Bytes, count: Int): Bytes =
+  let total = length(bytes)
+  let end = if count < 0 then 0 else if count > total then total else count
+  // Never out of range: `end` is within the Bytes.
+  Stdlib.Result.withDefault(slice(bytes, 0, end), empty)
+
+
+/// Returns <param bytes> without its first <param count> bytes, or the empty
+/// Bytes if there are fewer. A <param count> of zero or less drops nothing.
+let drop(bytes: Bytes, count: Int): Bytes =
+  let total = length(bytes)
+  let start = if count < 0 then 0 else if count > total then total else count
+  // Never out of range: `start` is within the Bytes.
+  Stdlib.Result.withDefault(slice(bytes, start, total), empty)
 
 
 /// Hex (Base16) encodes <param bytes> using an uppercase alphabet.
@@ -57,10 +118,14 @@ let toString(bytes: Bytes): Stdlib.Result.Result<String, String> =
 let fromString(s: String): Bytes = Builtin.bytesFromString(s)
 
 
-/// Escape hatch: expand a Bytes into a List<UInt8>. Prefer the Bytes
-/// module over this for new code.
+/// Expands <param bytes> into a list of its bytes. Copies every byte, so for
+/// one byte use <fn Stdlib.Bytes.getAt>, to find one use
+/// <fn Stdlib.Bytes.indexOf>, and to join or cut Bytes use
+/// <fn Stdlib.Bytes.concat> or <fn Stdlib.Bytes.slice>. Use it for parsing
+/// that walks every byte.
 let toList(bytes: Bytes): List<UInt8> = Builtin.bytesToList(bytes)
 
 
-/// Escape hatch: collect a List<UInt8> into a Bytes.
+/// Collects a list of bytes into a Bytes. Copies every byte; to join Bytes
+/// use <fn Stdlib.Bytes.concat> instead of going through a list.
 let fromList(bytes: List<UInt8>): Bytes = Builtin.bytesFromList(bytes)

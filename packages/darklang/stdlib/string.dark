@@ -222,11 +222,9 @@ let base64UrlEncode(s: String): String =
 
   String.replaceAll(encoded, "=", "")
 
-/// Base64 encodes a string. Uses {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
-/// [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) with padding.
+/// Base64 encodes a string with {{=}} padding. Uses the standard alphabet
+/// defined in [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4).
 let base64Encode(s: String): String =
-  // String.toByteList returns List<UInt8> for Http compatibility;
-  // Base64.encode takes Bytes, so we go through Bytes.fromString.
   s |> Bytes.fromString |> Base64.encode
 
 
@@ -406,24 +404,6 @@ let trimStart(str: String): String = Builtin.stringTrimStart(str)
 /// 'whitespace' here means all Unicode characters with the {{White_Space}}
 /// property, which includes {{" "}}, {{"\t"}} and {{"\n"}}.
 let trimEnd(str: String): String = Builtin.stringTrimEnd(str)
-
-
-// Byte-list helpers for callers that need List<UInt8>. Prefer toBytes and
-// fromBytes when working with the Bytes type.
-
-/// Converts the given unicode string to a UTF8-encoded byte sequence.
-let toByteList(str: String): List<UInt8> =
-  Bytes.toList(toBytes(str))
-
-
-/// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters.
-let fromByteListWithReplacement(bytes: List<UInt8>): String =
-  fromBytesWithReplacement(Bytes.fromList(bytes))
-
-
-/// Converts the UTF8-encoded byte sequence into a string
-let fromByteList(bytes: List<UInt8>): Option.Option<String> =
-  Builtin.stringFromByteList(bytes)
 
 
 /// Converts the given unicode string to a UTF8-encoded Bytes.

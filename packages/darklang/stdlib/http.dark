@@ -72,7 +72,7 @@ let urlDecode(s: String): String =
   | [] -> ""
   | first :: rest ->
     rest
-    |> Stdlib.List.fold(Stdlib.String.toByteList(first), fun acc piece ->
+    |> Stdlib.List.fold([ Stdlib.String.toBytes(first) ], fun reversed piece ->
       let hex = Stdlib.String.slice(piece, 0, 2)
 
       // The length check is not redundant: `Bytes.fromHex ""` succeeds, so a `%`
@@ -84,11 +84,13 @@ let urlDecode(s: String): String =
            Stdlib.Result.Result.Error "not an escape")
       with
       | Ok b ->
-        Stdlib.List.concat(
-          Stdlib.List.concat(acc, Stdlib.Bytes.toList(b)),
-          Stdlib.String.toByteList(Stdlib.String.dropFirst(piece, 2)))
-      | Error _ -> Stdlib.List.concat(acc, Stdlib.String.toByteList("%" + piece)))
-    |> Stdlib.String.fromByteListWithReplacement
+        Stdlib.List.prepend(
+          Stdlib.List.prepend(reversed, b),
+          Stdlib.String.toBytes(Stdlib.String.dropFirst(piece, 2)))
+      | Error _ -> Stdlib.List.prepend(reversed, Stdlib.String.toBytes("%" + piece)))
+    |> Stdlib.List.reverse
+    |> Stdlib.Bytes.concatAll
+    |> Stdlib.String.fromBytesWithReplacement
 
 
 module Request =

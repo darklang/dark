@@ -52,28 +52,110 @@ test base64RoundTrip =
       Stdlib.Bytes.fromString("hello") |> Stdlib.Bytes.toBase64
       |> Stdlib.Test.equal("aGVsbG8=") ])
 
+// isEmpty
+test isEmpty =
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.isEmpty(Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.isEmpty(Stdlib.Bytes.fromString("")) |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.isEmpty(Stdlib.Bytes.fromString("a")) |> Stdlib.Test.equal(false) ])
+
+// getAt
+test getAt =
+  let bytes = Stdlib.Bytes.fromList([ 10uy, 20uy, 30uy ])
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.getAt(bytes, 0) |> Stdlib.Test.equal(Some 10uy)
+      Stdlib.Bytes.getAt(bytes, 2) |> Stdlib.Test.equal(Some 30uy)
+      Stdlib.Bytes.getAt(bytes, 3) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.getAt(bytes, -1) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
+      |> Stdlib.Test.equal(None) ])
+
+// indexOf / indexOfFrom
+test indexOf =
+  let bytes = Stdlib.Bytes.fromString("ab\nc\n")
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.indexOf(bytes, 10uy) |> Stdlib.Test.equal(Some 2)
+      Stdlib.Bytes.indexOf(bytes, 0uy) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOf(Stdlib.Bytes.empty, 10uy) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 2) |> Stdlib.Test.equal(Some 2)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 3) |> Stdlib.Test.equal(Some 4)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 5) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, -1) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 99) |> Stdlib.Test.equal(None) ])
+
 // concat
 test concat =
-  [ Stdlib.Bytes.fromString("foo")
-    Stdlib.Bytes.fromString("-")
-    Stdlib.Bytes.fromString("bar") ]
-  |> Stdlib.Bytes.concat
-  |> Stdlib.Bytes.toString
-  |> Stdlib.Test.equal(Ok "foo-bar")
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.concat(Stdlib.Bytes.fromString("foo"), Stdlib.Bytes.fromString("bar"))
+      |> Stdlib.Bytes.toString
+      |> Stdlib.Test.equal(Ok "foobar")
+      Stdlib.Bytes.concat(Stdlib.Bytes.empty, Stdlib.Bytes.fromString("a"))
+      |> Stdlib.Bytes.toString
+      |> Stdlib.Test.equal(Ok "a") ])
 
-// slice (middle three bytes of "abcdef" = "cde")
+// concatAll
+test concatAll =
+  Stdlib.Test.all(
+    [ [ Stdlib.Bytes.fromString("foo")
+        Stdlib.Bytes.fromString("-")
+        Stdlib.Bytes.fromString("bar") ]
+      |> Stdlib.Bytes.concatAll
+      |> Stdlib.Bytes.toString
+      |> Stdlib.Test.equal(Ok "foo-bar")
+      Stdlib.Bytes.concatAll([]) |> Stdlib.Bytes.length |> Stdlib.Test.equal(0) ])
+
+// slice: start inclusive, end exclusive, strict
 test slice =
-  Stdlib.Bytes.slice(Stdlib.Bytes.fromString("abcdef"), 2, 3)
-  |> Stdlib.Bytes.toString
-  |> Stdlib.Test.equal(Ok "cde")
+  let bytes = Stdlib.Bytes.fromString("abcdef")
+  let text(r: Stdlib.Result.Result<Bytes, Stdlib.Bytes.IndexError>)
+    : Stdlib.Result.Result<String, String> =
+    match r with
+    | Ok b -> Stdlib.Bytes.toString(b)
+    | Error _ -> Error "out of bounds"
+  Stdlib.Test.all(
+    [ text(Stdlib.Bytes.slice(bytes, 2, 5)) |> Stdlib.Test.equal(Ok "cde")
+      text(Stdlib.Bytes.slice(bytes, 0, 6)) |> Stdlib.Test.equal(Ok "abcdef")
+      text(Stdlib.Bytes.slice(bytes, 3, 3)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.slice(bytes, 6, 6)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.slice(Stdlib.Bytes.empty, 0, 0)) |> Stdlib.Test.equal(Ok "")
+      Stdlib.Bytes.slice(bytes, 2, 7)
+      |> Stdlib.Test.equal(Error Stdlib.Bytes.IndexError.IndexOutOfBounds)
+      Stdlib.Bytes.slice(bytes, -1, 2)
+      |> Stdlib.Test.equal(Error Stdlib.Bytes.IndexError.IndexOutOfBounds)
+      Stdlib.Bytes.slice(bytes, 4, 2)
+      |> Stdlib.Test.equal(Error Stdlib.Bytes.IndexError.IndexOutOfBounds)
+      Stdlib.Bytes.slice(bytes, 7, 7)
+      |> Stdlib.Test.equal(Error Stdlib.Bytes.IndexError.IndexOutOfBounds) ])
 
-// toList/fromList escape hatches
+// take: the first bytes; never errors, clamps to the Bytes
+test take =
+  let bytes = Stdlib.Bytes.fromString("abcdef")
+  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Bytes.toString(b)
+  Stdlib.Test.all(
+    [ text(Stdlib.Bytes.take(bytes, 2)) |> Stdlib.Test.equal(Ok "ab")
+      text(Stdlib.Bytes.take(bytes, 0)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.take(bytes, -3)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.take(bytes, 99)) |> Stdlib.Test.equal(Ok "abcdef")
+      text(Stdlib.Bytes.take(Stdlib.Bytes.empty, 3)) |> Stdlib.Test.equal(Ok "") ])
+
+// drop: all but the first bytes; never errors, clamps to the Bytes
+test drop =
+  let bytes = Stdlib.Bytes.fromString("abcdef")
+  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Bytes.toString(b)
+  Stdlib.Test.all(
+    [ text(Stdlib.Bytes.drop(bytes, 2)) |> Stdlib.Test.equal(Ok "cdef")
+      text(Stdlib.Bytes.drop(bytes, 0)) |> Stdlib.Test.equal(Ok "abcdef")
+      text(Stdlib.Bytes.drop(bytes, -3)) |> Stdlib.Test.equal(Ok "abcdef")
+      text(Stdlib.Bytes.drop(bytes, 99)) |> Stdlib.Test.equal(Ok "")
+      text(Stdlib.Bytes.drop(Stdlib.Bytes.empty, 3)) |> Stdlib.Test.equal(Ok "") ])
+
+// toList / fromList
 test listConversions =
   Stdlib.Test.all(
     [ Stdlib.Bytes.fromString("abc") |> Stdlib.Bytes.toList
       |> Stdlib.Test.equal([ 97uy, 98uy, 99uy ])
-      Stdlib.Bytes.fromList([ 97uy, 98uy, 99uy ]) |> Stdlib.Bytes.length
-      |> Stdlib.Test.equal(3) ])
+      Stdlib.Bytes.fromList([ 97uy, 98uy, 99uy ])
+      |> Stdlib.Test.equal(Stdlib.Bytes.fromString("abc")) ])
 
 // Equality depends on contents, including for independently created values.
 test differentBytesAreNotEqual =

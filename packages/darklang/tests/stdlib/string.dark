@@ -145,22 +145,22 @@ test join =
       Stdlib.String.join([ "🧑🏽‍🦰‍", "🧑🏼‍💻‍‍" ], "")
       |> Stdlib.Test.equal("🧑🏽‍🦰‍🧑🏼‍💻‍‍") ])
 
-test toByteListLength =
+test toBytesLength =
   Stdlib.Test.all(
-    [ Stdlib.List.length(Stdlib.String.toByteList("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"))
+    [ Stdlib.Bytes.length(Stdlib.String.toBytes("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"))
       |> Stdlib.Test.equal(62)
-      Stdlib.List.length(Stdlib.String.toByteList("😄APPLE🍏")) |> Stdlib.Test.equal(13)
-      Stdlib.List.length(Stdlib.String.toByteList("Είναι προικισμένοι με λογική"))
+      Stdlib.Bytes.length(Stdlib.String.toBytes("😄APPLE🍏")) |> Stdlib.Test.equal(13)
+      Stdlib.Bytes.length(Stdlib.String.toBytes("Είναι προικισμένοι με λογική"))
       |> Stdlib.Test.equal(53)
-      Stdlib.List.length(Stdlib.String.toByteList("")) |> Stdlib.Test.equal(0)
-      Stdlib.List.length(Stdlib.String.toByteList("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"))
+      Stdlib.Bytes.length(Stdlib.String.toBytes("")) |> Stdlib.Test.equal(0)
+      Stdlib.Bytes.length(Stdlib.String.toBytes("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"))
       |> Stdlib.Test.equal(48)
-      Stdlib.List.length(Stdlib.String.toByteList("👱👱🏻👱🏼👱🏽👱🏾👱🏿"))
+      Stdlib.Bytes.length(Stdlib.String.toBytes("👱👱🏻👱🏼👱🏽👱🏾👱🏿"))
       |> Stdlib.Test.equal(44)
-      Stdlib.List.length(Stdlib.String.toByteList("🧟‍♀️🧟‍♂️")) |> Stdlib.Test.equal(26)
-      Stdlib.List.length(Stdlib.String.toByteList("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"))
+      Stdlib.Bytes.length(Stdlib.String.toBytes("🧟‍♀️🧟‍♂️")) |> Stdlib.Test.equal(26)
+      Stdlib.Bytes.length(Stdlib.String.toBytes("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"))
       |> Stdlib.Test.equal(82)
-      Stdlib.List.length(Stdlib.String.toByteList("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"))
+      Stdlib.Bytes.length(Stdlib.String.toBytes("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"))
       |> Stdlib.Test.equal(49) ])
 
 test startsWith =
@@ -206,52 +206,51 @@ test endsWith =
       Stdlib.String.endsWith("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "🏳️‍⚧️‍️🇵🇷")
       |> Stdlib.Test.equal(true) ])
 
-// fromByteListWithReplacement takes List<UInt8>, so convert the decoded Bytes with
-// Bytes.toList. Keep the Result so a decode error fails the assertion.
-test fromByteListWithReplacement =
+// Keep the Result so a decode error fails the assertion.
+test fromBytesWithReplacement =
   Stdlib.Test.all(
     [ Stdlib.Base64.decode("w6I")
       |> Stdlib.Result.map(fun bytes ->
-        Stdlib.Bytes.toList(bytes) |> Stdlib.String.fromByteListWithReplacement)
+        Stdlib.String.fromBytesWithReplacement(bytes))
       |> Stdlib.Test.equal(Ok "â")
       Stdlib.Base64.decode("aGVsbG8g8J+YgA==")
       |> Stdlib.Result.map(fun bytes ->
-        Stdlib.Bytes.toList(bytes) |> Stdlib.String.fromByteListWithReplacement)
+        Stdlib.String.fromBytesWithReplacement(bytes))
       |> Stdlib.Test.equal(Ok "hello 😀")
       Stdlib.Base64.decode("ww==")
       |> Stdlib.Result.map(fun bytes ->
-        Stdlib.Bytes.toList(bytes) |> Stdlib.String.fromByteListWithReplacement)
+        Stdlib.String.fromBytesWithReplacement(bytes))
       |> Stdlib.Test.equal(Ok "�")
       Stdlib.Base64.decode("7aCA")
       |> Stdlib.Result.map(fun bytes ->
-        Stdlib.Bytes.toList(bytes) |> Stdlib.String.fromByteListWithReplacement)
+        Stdlib.String.fromBytesWithReplacement(bytes))
       |> Stdlib.Test.equal(Ok "���")
       Stdlib.Base64.decode("aMM=")
       |> Stdlib.Result.map(fun bytes ->
-        Stdlib.Bytes.toList(bytes) |> Stdlib.String.fromByteListWithReplacement)
+        Stdlib.String.fromBytesWithReplacement(bytes))
       |> Stdlib.Test.equal(Ok "h�") ])
 
-test fromByteList =
+test fromBytes =
   Stdlib.Test.all(
     [ Stdlib.Base64.decode("w6I")
       |> Stdlib.Result.map(fun blob ->
-        Stdlib.Bytes.toList(blob) |> Stdlib.String.fromByteList)
+        Stdlib.String.fromBytes(blob))
       |> Stdlib.Test.equal(Ok (Some "â"))
       Stdlib.Base64.decode("aGVsbG8g8J+YgA==")
       |> Stdlib.Result.map(fun blob ->
-        Stdlib.Bytes.toList(blob) |> Stdlib.String.fromByteList)
+        Stdlib.String.fromBytes(blob))
       |> Stdlib.Test.equal(Ok (Some "hello 😀"))
       Stdlib.Base64.decode("ww==")
       |> Stdlib.Result.map(fun blob ->
-        Stdlib.Bytes.toList(blob) |> Stdlib.String.fromByteList)
+        Stdlib.String.fromBytes(blob))
       |> Stdlib.Test.equal(Ok None)
       Stdlib.Base64.decode("7aCA")
       |> Stdlib.Result.map(fun blob ->
-        Stdlib.Bytes.toList(blob) |> Stdlib.String.fromByteList)
+        Stdlib.String.fromBytes(blob))
       |> Stdlib.Test.equal(Ok None)
       Stdlib.Base64.decode("aMM=")
       |> Stdlib.Result.map(fun blob ->
-        Stdlib.Bytes.toList(blob) |> Stdlib.String.fromByteList)
+        Stdlib.String.fromBytes(blob))
       |> Stdlib.Test.equal(Ok None) ])
 
 test base64Decode =
@@ -1259,10 +1258,10 @@ test getByteAt =
       // Oversized indices return None.
       Stdlib.String.getByteAt("abc", 4503599627370498) |> Stdlib.Test.equal(None) ])
 
-test getByteAtMatchesToByteList =
+test getByteAtMatchesToBytes =
   // Match the full UTF-8 encoding.
   Stdlib.String.getByteAt("héllo", 2)
-  |> Stdlib.Test.equal(Stdlib.List.getAt(Stdlib.String.toByteList("héllo"), 2))
+  |> Stdlib.Test.equal(Stdlib.Bytes.getAt(Stdlib.String.toBytes("héllo"), 2))
 
 test slugify =
   Stdlib.Test.all(

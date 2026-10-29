@@ -534,27 +534,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringFromByteList" 0
-      typeParams = []
-      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
-      returnType = TypeReference.option TString
-      description =
-        "Converts the UTF8-encoded byte sequence into a string. Returns None if the bytes aren't valid UTF-8."
-      fn =
-        (function
-        | _, _, _, [| DList(_vt, bytes) |] ->
-          try
-            let bytes = Dval.dlistToByteArray bytes
-            let str = UTF8Encoding(false, true).GetString bytes
-            Dval.optionSome KTString (DString str) |> Ply
-          with _e ->
-            Dval.optionNone KTString |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "stringFromBytes" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]

@@ -1,0 +1,12 @@
+module Darklang.Stdlib.Cli.Sys.Tests
+
+// __text: a fixed-width field, cut at its first NUL
+test text =
+  let buffer = Stdlib.Bytes.fromList([ 97uy, 98uy, 99uy, 0uy, 0uy, 100uy, 101uy, 102uy, 0uy ])
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Sys.__text(buffer, 0, 5) |> Stdlib.Test.equal("abc")
+      Stdlib.Cli.Sys.__text(buffer, 5, 4) |> Stdlib.Test.equal("def")
+      Stdlib.Cli.Sys.__text(buffer, 5, 2) |> Stdlib.Test.equal("de")
+      Stdlib.Cli.Sys.__text(buffer, 20, 4) |> Stdlib.Test.equal("")
+      Stdlib.Cli.Sys.__text(Stdlib.Bytes.fromString("abc"), 0, 3)
+      |> Stdlib.Test.equal("abc") ])
