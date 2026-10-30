@@ -67,7 +67,7 @@ static long trap(long number, long a, long b, long c, long d, long e, long f)
 #if defined(__APPLE__)
 static const short numbers[] = {463,3,4,6,199,470,-1,13,475,472,465,
     467,-1,474,473,131,344,54,37,20,24,-1,-1,-1,95,202,524,
-    -1,153,94,189,197,198,517,500,-1,92,-1,116,240,116,-89,-1,-1,-1,230,362,363,92,147,59};
+    -1,153,94,189,197,198,517,500,-1,92,-1,116,93,116,-89,-1,-1,-1,230,362,363,92,147,59};
 #elif defined(__x86_64__)
 static const short numbers[] = {257,0,1,3,8,262,79,81,258,263,264,
     268,280,266,267,73,217,16,62,39,102,63,437,452,74,-1,-1,
@@ -82,6 +82,46 @@ static const short numbers[] = {322,3,4,6,140,327,183,133,323,328,329,
     391,194,94,197,180,181,-1,384,242,-1,263,78,162,-1,-1,360,292,336,-1,-1,-1,55,66,11};
 #endif
 
+#if defined(__APPLE__)
+struct darwin_timeval { i64 sec; int usec; };
+
+/* XNU has no nanosleep syscall; libc implements it with Mach semaphores.
+ * Implement operation 39 using select with no descriptors as a timed wait.
+ * On EINTR, select provides no remaining time, so calculate it from the
+ * wall clock and store it in `remaining` for Dark's retry loop.
+ * Darwin limits select timeouts to 1e8 seconds. For longer requests,
+ * sleep for that limit, then return EINTR with the remaining time so
+ * the retry loop can finish the sleep. */
+static i64 darwin_nanosleep(long number, const i64 *request, i64 *remaining)
+{
+    const i64 cap = 100000000;
+    i64 sec = request[0] > cap ? cap : request[0];
+    i64 rest = request[0] - sec;
+    i64 usec = sec * 1000000 + (request[1] + 999) / 1000;
+    struct darwin_timeval timeout = { usec / 1000000, (int)(usec % 1000000) };
+    struct darwin_timeval start, now;
+    int timed = trap(116, (long)&start, 0, 0, 0, 0, 0) == 0;
+    long rc = trap(number, 0, 0, 0, 0, (long)&timeout, 0);
+    if (rc == -4) {
+        i64 left = usec;
+        if (timed && trap(116, (long)&now, 0, 0, 0, 0, 0) == 0)
+            left -= (now.sec - start.sec) * 1000000 + (now.usec - start.usec);
+        if (left < 0) left = 0;
+        if (left > usec) left = usec;
+        remaining[0] = rest + left / 1000000;
+        remaining[1] = (left % 1000000) * 1000;
+        return -4;
+    }
+    if (rc < 0) return rc;
+    if (rest > 0) {
+        remaining[0] = rest;
+        remaining[1] = 0;
+        return -4;
+    }
+    return 0;
+}
+#endif
+
 __attribute__((visibility("default")))
 i64 dark_syscall(int operation, i64 a, i64 b, i64 c, i64 d, i64 e, i64 f)
 {
@@ -94,6 +134,8 @@ i64 dark_syscall(int operation, i64 a, i64 b, i64 c, i64 d, i64 e, i64 f)
         long rc = trap(n, (long)a, 0, 0, 0, 0, 0);
         return rc == 0 ? 0 : -5;
     }
+    if (operation == 39)
+        return darwin_nanosleep(n, (const i64 *)a, (i64 *)b);
 #endif
     if (n < 0) return
 #if defined(__APPLE__)
