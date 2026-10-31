@@ -188,40 +188,7 @@ test endsWith =
       Stdlib.String.endsWith("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "🏳️‍⚧️‍️🇵🇷")
       |> Stdlib.Test.equal(true) ])
 
-test digest =
-  Stdlib.Test.all(
-    [ Stdlib.String.digest("")
 
-     |> Stdlib.Test.equal("OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb")
-      Stdlib.String.digest("😄")
-
-     |> Stdlib.Test.equal("Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA")
-      Stdlib.String.digest("ελπίδα")
-
-     |> Stdlib.Test.equal("j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa")
-      Stdlib.String.digest("/*-+(&@98521")
-
-     |> Stdlib.Test.equal("wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr")
-      Stdlib.String.digest("👩🏻‍🚀🍇")
-
-     |> Stdlib.Test.equal("hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ")
-      Stdlib.String.digest("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿")
-
-     |> Stdlib.Test.equal("7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE")
-      Stdlib.String.digest("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
-
-     |> Stdlib.Test.equal("U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k")
-      Stdlib.String.digest("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
-
-     |> Stdlib.Test.equal("c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx")
-      Stdlib.String.digest("🧟‍♀️🧟‍♂️")
-
-     |> Stdlib.Test.equal("FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc")
-      Stdlib.String.digest("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷")
-
-     |> Stdlib.Test.equal("3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m") ])
-
-// Preserve the original two-call comparison independently of the sample test.
 test randomPairIsDifferent =
   (Stdlib.String.random(5)) == (Stdlib.String.random(5)) |> Stdlib.Test.equal(false)
 

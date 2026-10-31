@@ -214,14 +214,6 @@ let fromList(lst: List<Char>): String =
 let fromChar(c: Char): String = Stdlib.toString(c)
 
 
-/// Take a string and hash it to a cryptographically-secure digest.
-/// Don't rely on either the size or the algorithm.
-let digest(s: String): String =
-  let sha384Hash = Crypto.sha384(Utf8.encode(s))
-
-  sha384Hash |> Base64.urlEncode
-
-
 /// Generate a random alphanumeric <type String> of length <param length>.
 /// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
 let random(length: Int): Result.Result<String, String> =

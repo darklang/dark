@@ -51,3 +51,38 @@ test awsSigningChain =
   |> Stdlib.Hex.encode
   |> Stdlib.String.toLowercase
   |> Stdlib.Test.equal("5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7")
+
+test digestText =
+  Stdlib.Test.all(
+    [ Stdlib.Crypto.digestText("")
+
+     |> Stdlib.Test.equal("OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb")
+      Stdlib.Crypto.digestText("😄")
+
+     |> Stdlib.Test.equal("Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA")
+      Stdlib.Crypto.digestText("ελπίδα")
+
+     |> Stdlib.Test.equal("j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa")
+      Stdlib.Crypto.digestText("/*-+(&@98521")
+
+     |> Stdlib.Test.equal("wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr")
+      Stdlib.Crypto.digestText("👩🏻‍🚀🍇")
+
+     |> Stdlib.Test.equal("hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ")
+      Stdlib.Crypto.digestText("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿")
+
+     |> Stdlib.Test.equal("7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE")
+      Stdlib.Crypto.digestText("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+
+     |> Stdlib.Test.equal("U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k")
+      Stdlib.Crypto.digestText("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+
+     |> Stdlib.Test.equal("c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx")
+      Stdlib.Crypto.digestText("🧟‍♀️🧟‍♂️")
+
+     |> Stdlib.Test.equal("FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc")
+      Stdlib.Crypto.digestText("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷")
+
+     |> Stdlib.Test.equal("3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m") ])
+
+// Preserve the original two-call comparison independently of the sample test.
