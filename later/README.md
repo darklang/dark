@@ -27,7 +27,7 @@ traps that are specific to this directory rather than to the code in it.
 
 ## What is in here
 
-497 files are tracked, and 4,426 files sit under `vscode-extension/` on disk of which only 65
+498 files are tracked, and 4,426 files sit under `vscode-extension/` on disk of which only 65
 are tracked: 4,096 of the untracked ones are its `node_modules`, which came along for the ride
 because the directory moved as a directory. Tracked, by area:
 
@@ -35,8 +35,9 @@ because the directory moved as a directory. Tracked, by area:
     backend/               93 files   F#: three LibCloud modules, the Wasm project, the builtins
                                       whose only Dark wrapper left, and carved fragments.
     vscode-extension/      65 files   the VS Code extension's own source.
-    scripts/               13 files   the sync gates, the two relay hand tools, the demo script,
-                                      and two superseded test harnesses.
+    scripts/               14 files   the sync gates, the two relay hand tools, the demo script,
+                                      two superseded test harnesses, and an expect fixture that
+                                      typed into the old prompt.
     docs/                   6 files   three are fragments of pages that are still live; one is
                                       the browser build's concurrency demo.
     experiments/            4 files
@@ -96,6 +97,12 @@ Three things came in after the molt, all grep-able as `WHEN: the molt-mvp pass`:
   so restoring user DBs needs this fragment too.
 - **`docs/browser-concurrency-demo.dark`**: the demo the browser build's `eval.html` names. A
   whole file.
+- **`scripts/testing/fixtures/test-interactive.expect`**: typed `help` and `quit` into the old
+  prompt. Nothing ran it. A whole file.
+
+The same pass DELETED the workbench's ways down to the old prompt (`p`, `:prompt`, `:classic`,
+`:commands`, the `ToPrompt` / `LaunchPrompt` actions, the `p prompt` hint) rather than carving
+them here, because the decision was to abandon them. `git log` has them.
 
 ## Two kinds of thing in here, and only one of them is easy
 
