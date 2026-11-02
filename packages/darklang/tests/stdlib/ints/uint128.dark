@@ -44,7 +44,10 @@ test divide =
   Stdlib.Test.all(
     [ (10Z / 5Z) |> Stdlib.Test.equal(2Z)
       (17Z / 3Z) |> Stdlib.Test.equal(5Z)
-      (0Z / 1Z) |> Stdlib.Test.equal(0Z) ])
+      (0Z / 1Z) |> Stdlib.Test.equal(0Z)
+      Stdlib.UInt128.divide(17Z, 3Z) |> Stdlib.Test.equal(Ok 5Z)
+      Stdlib.UInt128.divide(5Z, 0Z)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1Z / 0Z)
@@ -102,7 +105,10 @@ test modulo =
     [ (15Z % 5Z) |> Stdlib.Test.equal(0Z)
       (15Z % 6Z) |> Stdlib.Test.equal(3Z)
       (0Z % 15Z) |> Stdlib.Test.equal(0Z)
-      (127Z % 3Z) |> Stdlib.Test.equal(1Z) ])
+      (127Z % 3Z) |> Stdlib.Test.equal(1Z)
+      Stdlib.UInt128.mod(15Z, 6Z) |> Stdlib.Test.equal(Ok 3Z)
+      Stdlib.UInt128.mod(5Z, 0Z)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus) ])
 
 test moduloRejectsZero =
   (5Z % 0Z)

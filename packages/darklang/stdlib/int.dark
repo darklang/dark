@@ -11,12 +11,40 @@ module Darklang.Stdlib.Int
 type ParseError = | BadFormat
 
 
+/// Why an integer division could not be done, for every width: `divide` and
+/// `remainder` return it where `/` raises
+type DivisionError = | DivisionByZero
+
+
+/// Why `mod` could not wrap, for every width: the modulus must be positive
+type ModulusError =
+  | ZeroModulus
+  | NegativeModulus
+
+
 impl Modulo for Int =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-  /// The modulus <param b> must be greater than 0.
-  /// Use <fn Int.remainder> if you want the remainder after division, which has
-  /// a different behavior for negative numbers.
+  /// The modulus <param b> must be greater than 0, and this raises if it is not;
+  /// <fn Int.mod> returns a <type Result> instead.
   let modulo(a: Int, b: Int): Int = Builtin.intMod(a, b)
+
+
+/// Wraps <param a> around so that {{0 <= res < b}}, as a <type Result>.
+/// The modulus <param b> must be greater than 0: returns {{Error ZeroModulus}}
+/// or {{Error NegativeModulus}} otherwise, where `%` raises.
+/// Use <fn Int.remainder> for the remainder after division, which differs
+/// for negative numbers.
+let mod(
+  a: Int,
+  b: Int)
+  : Stdlib.Result.Result<Int, Stdlib.Int.ModulusError> =
+  if b == 0 then
+    Error Stdlib.Int.ModulusError.ZeroModulus
+  else
+    if b < 0 then
+      Error Stdlib.Int.ModulusError.NegativeModulus
+    else
+      Ok(a % b)
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -24,9 +52,15 @@ impl Modulo for Int =
 /// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
 /// negative only if {{<var value> < 0}}.
 /// The sign of <param divisor> doesn't influence the outcome.
-/// Returns an {{Error}} if <param divisor> is {{0}}.
-let remainder(value: Int, divisor: Int): Stdlib.Result.Result<Int, String> =
-  Builtin.intRemainder(value, divisor)
+/// Returns {{Error DivisionByZero}} if <param divisor> is {{0}}.
+let remainder(
+  value: Int,
+  divisor: Int)
+  : Stdlib.Result.Result<Int, Stdlib.Int.DivisionError> =
+  if divisor == 0 then
+    Error Stdlib.Int.DivisionError.DivisionByZero
+  else
+    Ok(Builtin.intRemainder(value, divisor))
 
 
 impl Add for Int =
@@ -47,6 +81,18 @@ impl Multiply for Int =
 impl Divide for Int =
   /// Divides two integers, rounding towards zero
   let divide(a: Int, b: Int): Int = Builtin.intDivide(a, b)
+
+
+/// Divides <param a> by <param b>, rounding towards zero, as a <type Result>.
+/// Returns {{Error DivisionByZero}} if <param b> is {{0}}, where `/` raises.
+let divide(
+  a: Int,
+  b: Int)
+  : Stdlib.Result.Result<Int, Stdlib.Int.DivisionError> =
+  if b == 0 then
+    Error Stdlib.Int.DivisionError.DivisionByZero
+  else
+    Ok(a / b)
 
 
 impl Power for Int =

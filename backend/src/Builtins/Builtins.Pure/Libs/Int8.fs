@@ -32,21 +32,14 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "Int8.remainder> if you want the remainder after division, which has a "
-        + "different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res <"
+        + " b}}. The modulus <param b> must be greater than 0, and this raises "
+        + "an error if it is not; <fn Int8.mod> returns a <type Result> "
+        + "instead."
       fn =
         (function
-        | _, vm, _, [| DInt8 v; DInt8 m |] ->
-          if m = 0y then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-          else if m < 0y then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
-          else
-            let result = v % m
-            let result = if result < 0y then m + result else result
-            Ply(DInt8 result)
+        | _, vm, _, [| DInt8 a; DInt8 b |] ->
+          IntDivision.moduloInt8 a b |> IntDivision.modulusOrRaise vm |> DInt8 |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -56,28 +49,17 @@ let fns () : List<BuiltInFn> =
     { name = fn "int8Remainder" 0
       typeParams = []
       parameters = [ Param.make "value" TInt8 ""; Param.make "divisor" TInt8 "" ]
-      returnType = TypeReference.result TInt8 TString
+      returnType = TInt8
       description =
-        "Returns the integer remainder left over after dividing <param value> "
-        + "by <param divisor>, as a <type Result>.\n\nFor example, "
-        + "{{Int8.remainder 15 6 == Ok 3}}. The remainder will be negative only "
-        + "if {{<var value> < 0}}.\n\nThe sign of <param divisor> doesn't "
-        + "influence the outcome.\n\nReturns an {{Error}} if <param divisor> is "
-        + "{{0}}."
+        "Returns the integer remainder, with the sign of the dividend. "
+        + "Raises an error if the divisor is zero."
       fn =
-        let resultOk r = Dval.resultOk KTInt8 KTString r |> Ply
-        let resultError r = Dval.resultError KTInt8 KTString r |> Ply
         (function
-        | _, _, _, [| DInt8 v; DInt8 d |] ->
-          if d = 0y then
-            // The return type is a `Result`, so surface this as an `Error`
-            // rather than raising a runtime error.
-            DString "Cannot divide by 0" |> resultError
-          else if d = -1y then
-            // `MinValue % -1` overflows in .NET, but the remainder is always 0.
-            0y |> DInt8 |> resultOk
-          else
-            v % d |> DInt8 |> resultOk
+        | _, vm, _, [| DInt8 a; DInt8 b |] ->
+          IntDivision.remainderInt8 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt8
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -155,15 +137,18 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
-      description = "Divides two 8-bit signed integers"
+      description =
+        "Divides <param a> by <param b>, rounding towards zero. Dividing the "
+        + "minimum value by {{-1}} wraps back to the minimum value. Raises an "
+        + "error if <param b> is {{0}}; <fn Int8.divide> returns a <type "
+        + "Result> instead."
       fn =
         (function
         | _, vm, _, [| DInt8 a; DInt8 b |] ->
-          if b = 0y then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          else
-            // widen to int32 so -128y / -1y wraps on narrowing instead of throwing
-            Ply(DInt8(int8 (int a / int b)))
+          IntDivision.divideInt8 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt8
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

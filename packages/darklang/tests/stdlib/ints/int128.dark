@@ -43,7 +43,7 @@ test remainder =
       Stdlib.Int128.remainder(-170141183460469231731687303715884105728Q, -1Q)
       |> Stdlib.Test.equal(Ok 0Q)
       Stdlib.Int128.remainder(5Q, 0Q)
-      |> Stdlib.Test.equal(Error "Cannot divide by 0") ])
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 /// Wraps on overflow.
 test add =
@@ -82,7 +82,13 @@ test divide =
       (-8Q / 5Q) |> Stdlib.Test.equal(-1Q)
       (0Q / 1Q) |> Stdlib.Test.equal(0Q)
       (-170141183460469231731687303715884105728Q / -1Q)
-      |> Stdlib.Test.equal(-170141183460469231731687303715884105728Q) ])
+      |> Stdlib.Test.equal(-170141183460469231731687303715884105728Q)
+      Stdlib.Int128.divide(17Q, 3Q) |> Stdlib.Test.equal(Ok 5Q)
+      Stdlib.Int128.divide(-8Q, 5Q) |> Stdlib.Test.equal(Ok -1Q)
+      Stdlib.Int128.divide(-170141183460469231731687303715884105728Q, -1Q)
+      |> Stdlib.Test.equal(Ok -170141183460469231731687303715884105728Q)
+      Stdlib.Int128.divide(5Q, 0Q)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1Q / 0Q)
@@ -154,7 +160,13 @@ test modulo =
       (0Q % 15Q) |> Stdlib.Test.equal(0Q)
       (-1Q % 2Q) |> Stdlib.Test.equal(1Q)
       (-128Q % 53Q) |> Stdlib.Test.equal(31Q)
-      (127Q % 3Q) |> Stdlib.Test.equal(1Q) ])
+      (127Q % 3Q) |> Stdlib.Test.equal(1Q)
+      Stdlib.Int128.mod(15Q, 6Q) |> Stdlib.Test.equal(Ok 3Q)
+      Stdlib.Int128.mod(-1Q, 2Q) |> Stdlib.Test.equal(Ok 1Q)
+      Stdlib.Int128.mod(5Q, 0Q)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus)
+      Stdlib.Int128.mod(5Q, -1Q)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.NegativeModulus) ])
 
 test moduloRejectsZero =
   (5Q % 0Q)

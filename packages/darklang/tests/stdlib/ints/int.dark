@@ -134,7 +134,8 @@ test remainder =
       Stdlib.Int.remainder(-20, 8) |> Stdlib.Test.equal(Ok -4)
       Stdlib.Int.remainder(-20, -8) |> Stdlib.Test.equal(Ok -4)
       Stdlib.Int.remainder(-15, 6) |> Stdlib.Test.equal(Ok -3)
-      Stdlib.Int.remainder(5, 0) |> Stdlib.Test.equal(Error "Cannot divide by 0")
+      Stdlib.Int.remainder(5, 0)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero)
       // arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
       Stdlib.Int.remainder(2 ** 100, 7) |> Stdlib.Test.equal(Ok 2) ])
 
@@ -146,7 +147,25 @@ test modulo =
       (0 % 15) |> Stdlib.Test.equal(0)
       (-1 % 2) |> Stdlib.Test.equal(1)
       (-754 % 53) |> Stdlib.Test.equal(41)
-      ((2 ** 100) % 7) |> Stdlib.Test.equal(2) ])
+      ((2 ** 100) % 7) |> Stdlib.Test.equal(2)
+      Stdlib.Int.mod(15, 6) |> Stdlib.Test.equal(Ok 3)
+      Stdlib.Int.mod(-1, 2) |> Stdlib.Test.equal(Ok 1)
+      Stdlib.Int.mod(5, 0)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus)
+      Stdlib.Int.mod(5, -1)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.NegativeModulus) ])
+
+test divide =
+  Stdlib.Test.all(
+    [ Stdlib.Int.divide(17, 3) |> Stdlib.Test.equal(Ok 5)
+      Stdlib.Int.divide(-8, 5) |> Stdlib.Test.equal(Ok -1)
+      Stdlib.Int.divide(17, 3) |> Stdlib.Test.equal(Ok(17 / 3))
+      Stdlib.Int.divide(5, 0)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
+
+test divideRejectsZero =
+  (7 / 0)
+  => raises "Cannot divide by 0"
 
 test moduloRejectsZero =
   (5 % 0)

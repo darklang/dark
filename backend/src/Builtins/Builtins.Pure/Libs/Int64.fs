@@ -33,92 +33,37 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
       returnType = TInt64
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "Int64.remainder> if you want the remainder after division, which has a "
-        + "different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res <"
+        + " b}}. The modulus <param b> must be greater than 0, and this raises "
+        + "an error if it is not; <fn Int64.mod> returns a <type Result> "
+        + "instead."
       fn =
         (function
-        | _, vm, _, [| DInt64 v; DInt64 m |] ->
-          if m = 0L then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-          else if m < 0L then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
-          else
-            let result = v % m
-            let result = if result < 0L then m + result else result
-            Ply(DInt64 result)
+        | _, vm, _, [| DInt64 a; DInt64 b |] ->
+          IntDivision.moduloInt64 a b
+          |> IntDivision.modulusOrRaise vm
+          |> Dval.dint64
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
-      // TODO: Deprecate this when we can version infix operators
-      //  and when infix operators support Result return types
-      //  (https://github.com/darklang/dark/issues/4267)
-      // The current function returns an RTE (it used to rollbar) on negative `b`.
       deprecated = NotDeprecated }
-
-
-    // See above for when to uncomment this
-    // TODO: A future version should support all non-0 values and should include the infix "%"
-    // { name = fn "mod" 0
-    //   parameters = [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
-    //   returnType = TypeReference.result TInt64 TString
-    //   description =
-    //     "Returns the result of wrapping <param dividend> around so that {{0 <= res < divisor}}, as a <type Result>.
-    //      If <param divisor> is positive, returns {{Ok res}}. Returns an {{Error}} if <param divisor> is {{0}} or negative.
-    //     Use <fn Int64.remainder> if you want the remainder after division, which has a different behavior for negative numbers."
-    //   fn =
-    //     (function
-    //     | _, [ DInt64 v; DInt64 m ] ->
-    //       (try
-    //         Ply(Dval.resultOk(DInt64(v % m)))
-    //        with
-    //        | e ->
-    //          if m <= 0L then
-    //            Ply(
-    //              DResult(
-    //                Error(
-    //                  DString(
-    //                    "`modulus` must be positive but was "
-    //                    + DvalReprDeveloper.toRepr (DInt64 m)
-    //                  )
-    //                )
-    //              )
-    //            )
-    //          else // In case there's another failure mode, rollbar
-    //            Exception.raiseInternal "Unexpected failiure mode" [] e)
-    //     | _ -> incorrectArgs ())
-    //   previewable = Pure
-    //   deprecated = NotDeprecated
-    //   accessibility = Any }
 
 
     { name = fn "int64Remainder" 0
       typeParams = []
-      parameters =
-        [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
-      returnType = TypeReference.result TInt64 TString
+      parameters = [ Param.make "value" TInt64 ""; Param.make "divisor" TInt64 "" ]
+      returnType = TInt64
       description =
-        "Returns the integer remainder left over after dividing <param "
-        + "dividend> by <param divisor>, as a <type Result>.\n\nFor example, "
-        + "{{Int64.remainder 15 6 == Ok 3}}. The remainder will be negative only "
-        + "if {{<var dividend> < 0}}.\n\nThe sign of <param divisor> doesn't "
-        + "influence the outcome.\n\nReturns an {{Error}} if <param divisor> is "
-        + "{{0}}."
+        "Returns the integer remainder, with the sign of the dividend. "
+        + "Raises an error if the divisor is zero."
       fn =
-        let resultOk r = Dval.resultOk KTInt64 KTString r |> Ply
-        let resultError r = Dval.resultError KTInt64 KTString r |> Ply
         (function
-        | _, _, _, [| DInt64 v; DInt64 d |] ->
-          if d = 0L then
-            // The return type is a `Result`, so surface this as an `Error`
-            // rather than raising a runtime error.
-            DString "Cannot divide by 0" |> resultError
-          else if d = -1L then
-            // `MinValue % -1` overflows in .NET, but the remainder is always 0.
-            0L |> Dval.dint64 |> resultOk
-          else
-            v % d |> Dval.dint64 |> resultOk
+        | _, vm, _, [| DInt64 a; DInt64 b |] ->
+          IntDivision.remainderInt64 a b
+          |> IntDivision.divisionOrRaise vm
+          |> Dval.dint64
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -200,17 +145,18 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
       returnType = TInt64
-      description = "Divides two integers"
+      description =
+        "Divides <param a> by <param b>, rounding towards zero. Dividing the "
+        + "minimum value by {{-1}} wraps back to the minimum value. Raises an "
+        + "error if <param b> is {{0}}; <fn Int64.divide> returns a <type "
+        + "Result> instead."
       fn =
         (function
         | _, vm, _, [| DInt64 a; DInt64 b |] ->
-          if b = 0L then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          else if a = System.Int64.MinValue && b = -1L then
-            // wraps back to MinValue (the division itself would throw)
-            Ply(DInt64 System.Int64.MinValue)
-          else
-            Ply(Dval.dint64 (a / b))
+          IntDivision.divideInt64 a b
+          |> IntDivision.divisionOrRaise vm
+          |> Dval.dint64
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

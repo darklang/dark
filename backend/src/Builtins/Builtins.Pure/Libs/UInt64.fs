@@ -8,6 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 module ParseError =
@@ -32,19 +33,17 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
       returnType = TUInt64
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "UInt64.remainder> if you want the remainder after division, which has "
-        + "a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res <"
+        + " b}}. The modulus <param b> must be greater than 0, and this raises "
+        + "an error if it is not; <fn UInt64.mod> returns a <type Result> "
+        + "instead."
       fn =
         (function
-        | _, vm, _, [| DUInt64 v; DUInt64 m |] ->
-          if m = 0UL then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-          else
-            let result = v % m
-            let result = if result < 0UL then m + result else result
-            Ply(DUInt64(result))
+        | _, vm, _, [| DUInt64 a; DUInt64 b |] ->
+          IntDivision.moduloUInt64 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DUInt64
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -119,14 +118,17 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
       returnType = TUInt64
-      description = "Divides 64-bit unsigned integers"
+      description =
+        "Divides <param a> by <param b>, rounding towards zero. Raises an "
+        + "error if <param b> is {{0}}; <fn UInt64.divide> returns a <type "
+        + "Result> instead."
       fn =
         (function
         | _, vm, _, [| DUInt64 a; DUInt64 b |] ->
-          if b = 0UL then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          else
-            Ply(DUInt64(a / b))
+          IntDivision.divideUInt64 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DUInt64
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

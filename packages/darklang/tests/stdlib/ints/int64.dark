@@ -37,7 +37,8 @@ test remainder =
       Stdlib.Int64.remainder(-20L, -8L) |> Stdlib.Test.equal(Ok -4L)
       Stdlib.Int64.remainder(-15L, 6L) |> Stdlib.Test.equal(Ok -3L)
       Stdlib.Int64.remainder(-9223372036854775808L, -1L) |> Stdlib.Test.equal(Ok 0L)
-      Stdlib.Int64.remainder(5L, 0L) |> Stdlib.Test.equal(Error "Cannot divide by 0")
+      Stdlib.Int64.remainder(5L, 0L)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero)
       ((Stdlib.List.map(
        Stdlib.List.range(-5, 5),
        fun v -> Stdlib.Int64.remainder((Builtin.unwrap(
@@ -83,7 +84,13 @@ test modulo =
       15L % 5L |> Stdlib.Test.equal(0L)
       (Stdlib.List.map(Stdlib.List.range(-5, 5), fun v -> (Builtin.unwrap(
          Stdlib.Int.toInt64(v))) % 4L))
-      |> Stdlib.Test.equal([ 3L, 0L, 1L, 2L, 3L, 0L, 1L, 2L, 3L, 0L, 1L ]) ])
+      |> Stdlib.Test.equal([ 3L, 0L, 1L, 2L, 3L, 0L, 1L, 2L, 3L, 0L, 1L ])
+      Stdlib.Int64.mod(15L, 6L) |> Stdlib.Test.equal(Ok 3L)
+      Stdlib.Int64.mod(-1L, 2L) |> Stdlib.Test.equal(Ok 1L)
+      Stdlib.Int64.mod(5L, 0L)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus)
+      Stdlib.Int64.mod(5L, -1L)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.NegativeModulus) ])
 
 test moduloRejectsZero =
   (5L % 0L)
@@ -283,7 +290,13 @@ test divide =
       (17L / 3L) |> Stdlib.Test.equal(5L)
       (-8L / 5L) |> Stdlib.Test.equal(-1L)
       (0L / 1L) |> Stdlib.Test.equal(0L)
-      ((-9223372036854775808L) / -1L) |> Stdlib.Test.equal(-9223372036854775808L) ])
+      ((-9223372036854775808L) / -1L) |> Stdlib.Test.equal(-9223372036854775808L)
+      Stdlib.Int64.divide(17L, 3L) |> Stdlib.Test.equal(Ok 5L)
+      Stdlib.Int64.divide(-8L, 5L) |> Stdlib.Test.equal(Ok -1L)
+      Stdlib.Int64.divide(-9223372036854775808L, -1L)
+      |> Stdlib.Test.equal(Ok -9223372036854775808L)
+      Stdlib.Int64.divide(5L, 0L)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1L / 0L)

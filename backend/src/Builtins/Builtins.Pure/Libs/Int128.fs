@@ -8,6 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 module NoModule = Builtins.Pure.Libs.NoModule
 
 
@@ -32,21 +33,17 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "Int128.remainder> if you want the remainder after division, which has "
-        + "a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res <"
+        + " b}}. The modulus <param b> must be greater than 0, and this raises "
+        + "an error if it is not; <fn Int128.mod> returns a <type Result> "
+        + "instead."
       fn =
         (function
-        | _, vm, _, [| DInt128 v; DInt128 m |] ->
-          if m = System.Int128.Zero then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-          else if m < System.Int128.Zero then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
-          else
-            let result = v % m
-            let result = if result < System.Int128.Zero then m + result else result
-            Ply(DInt128(result))
+        | _, vm, _, [| DInt128 a; DInt128 b |] ->
+          IntDivision.moduloInt128 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DInt128
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -56,28 +53,17 @@ let fns () : List<BuiltInFn> =
     { name = fn "int128Remainder" 0
       typeParams = []
       parameters = [ Param.make "value" TInt128 ""; Param.make "divisor" TInt128 "" ]
-      returnType = TypeReference.result TInt128 TString
+      returnType = TInt128
       description =
-        "Returns the integer remainder left over after dividing <param value> "
-        + "by <param divisor>, as a <type Result>.\n\nFor example, "
-        + "{{Int128.remainder 15 6 == Ok 3}}. The remainder will be negative only "
-        + "if {{<var value> < 0}}.\n\nThe sign of <param divisor> doesn't "
-        + "influence the outcome.\n\nReturns an {{Error}} if <param divisor> is "
-        + "{{0}}."
+        "Returns the integer remainder, with the sign of the dividend. "
+        + "Raises an error if the divisor is zero."
       fn =
-        let resultOk r = Dval.resultOk KTInt128 KTString r |> Ply
-        let resultError r = Dval.resultError KTInt128 KTString r |> Ply
         (function
-        | _, _, _, [| DInt128 v; DInt128 d |] ->
-          if d = System.Int128.Zero then
-            // The return type is a `Result`, so surface this as an `Error`
-            // rather than raising a runtime error.
-            DString "Cannot divide by 0" |> resultError
-          else if d = System.Int128.NegativeOne then
-            // `MinValue % -1` overflows in .NET, but the remainder is always 0.
-            System.Int128.Zero |> DInt128 |> resultOk
-          else
-            v % d |> DInt128 |> resultOk
+        | _, vm, _, [| DInt128 a; DInt128 b |] ->
+          IntDivision.remainderInt128 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt128
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -110,7 +96,6 @@ let fns () : List<BuiltInFn> =
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
-
 
 
     { name = fn "int128Multiply" 0
@@ -157,17 +142,18 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
-      description = "Divides two 128-bit signed integers"
+      description =
+        "Divides <param a> by <param b>, rounding towards zero. Dividing the "
+        + "minimum value by {{-1}} wraps back to the minimum value. Raises an "
+        + "error if <param b> is {{0}}; <fn Int128.divide> returns a <type "
+        + "Result> instead."
       fn =
         (function
         | _, vm, _, [| DInt128 a; DInt128 b |] ->
-          if b = System.Int128.Zero then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          elif a = System.Int128.MinValue && b = System.Int128.NegativeOne then
-            // wraps back to MinValue (the division itself would throw)
-            Ply(DInt128 System.Int128.MinValue)
-          else
-            Ply(DInt128(a / b))
+          IntDivision.divideInt128 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt128
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

@@ -8,6 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 module NoModule = Builtins.Pure.Libs.NoModule
 
 
@@ -33,19 +34,17 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "UInt128.remainder> if you want the remainder after division, which has "
-        + "a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res <"
+        + " b}}. The modulus <param b> must be greater than 0, and this raises "
+        + "an error if it is not; <fn UInt128.mod> returns a <type Result> "
+        + "instead."
       fn =
         (function
-        | _, vm, _, [| DUInt128 v; DUInt128 m |] ->
-          if m = System.UInt128.Zero then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-          else
-            let result = v % m
-            let result = if result < System.UInt128.Zero then m + result else result
-            Ply(DUInt128(result))
+        | _, vm, _, [| DUInt128 a; DUInt128 b |] ->
+          IntDivision.moduloUInt128 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DUInt128
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -122,14 +121,17 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Divides two 128-bit unsigned integers"
+      description =
+        "Divides <param a> by <param b>, rounding towards zero. Raises an "
+        + "error if <param b> is {{0}}; <fn UInt128.divide> returns a <type "
+        + "Result> instead."
       fn =
         (function
         | _, vm, _, [| DUInt128 a; DUInt128 b |] ->
-          if b = System.UInt128.Zero then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          else
-            Ply(DUInt128(a / b))
+          IntDivision.divideUInt128 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DUInt128
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

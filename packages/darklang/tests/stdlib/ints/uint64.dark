@@ -19,7 +19,10 @@ test modulo =
     [ (15UL % 5UL) |> Stdlib.Test.equal(0UL)
       (15UL % 6UL) |> Stdlib.Test.equal(3UL)
       (0UL % 15UL) |> Stdlib.Test.equal(0UL)
-      (9999999999998UL % 3UL) |> Stdlib.Test.equal(2UL) ])
+      (9999999999998UL % 3UL) |> Stdlib.Test.equal(2UL)
+      Stdlib.UInt64.mod(15UL, 6UL) |> Stdlib.Test.equal(Ok 3UL)
+      Stdlib.UInt64.mod(5UL, 0UL)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus) ])
 
 test moduloRejectsZero =
   (5UL % 0UL)
@@ -126,7 +129,10 @@ test divide =
   Stdlib.Test.all(
     [ (10UL / 5UL) |> Stdlib.Test.equal(2UL)
       (17UL / 3UL) |> Stdlib.Test.equal(5UL)
-      (0UL / 1UL) |> Stdlib.Test.equal(0UL) ])
+      (0UL / 1UL) |> Stdlib.Test.equal(0UL)
+      Stdlib.UInt64.divide(17UL, 3UL) |> Stdlib.Test.equal(Ok 5UL)
+      Stdlib.UInt64.divide(5UL, 0UL)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1UL / 0UL)

@@ -33,19 +33,17 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "UInt8.remainder> if you want the remainder after division, which has a "
-        + "different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res <"
+        + " b}}. The modulus <param b> must be greater than 0, and this raises "
+        + "an error if it is not; <fn UInt8.mod> returns a <type Result> "
+        + "instead."
       fn =
         (function
-        | _, vm, _, [| DUInt8 v; DUInt8 m |] ->
-          if m = 0uy then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-          else
-            let result = v % m
-            let result = if result < 0uy then m + result else result
-            Ply(DUInt8(result))
+        | _, vm, _, [| DUInt8 a; DUInt8 b |] ->
+          IntDivision.moduloUInt8 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DUInt8
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -119,14 +117,17 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
-      description = "Divides two 8-bit unsigned integers"
+      description =
+        "Divides <param a> by <param b>, rounding towards zero. Raises an "
+        + "error if <param b> is {{0}}; <fn UInt8.divide> returns a <type "
+        + "Result> instead."
       fn =
         (function
         | _, vm, _, [| DUInt8 a; DUInt8 b |] ->
-          if b = 0uy then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          else
-            Ply(DUInt8(a / b))
+          IntDivision.divideUInt8 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DUInt8
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

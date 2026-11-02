@@ -8,10 +8,21 @@ type ParseError =
 
 impl Modulo for UInt16 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-  /// The modulus <param b> must be greater than 0.
-  /// Use <fn UInt16.remainder> if you want the remainder after division, which has
-  /// a different behavior for negative numbers.
+  /// The modulus <param b> must be greater than 0, and this raises if it is not;
+  /// <fn UInt16.mod> returns a <type Result> instead.
   let modulo(a: UInt16, b: UInt16): UInt16 = Builtin.uint16Mod(a, b)
+
+
+/// Wraps <param a> around so that {{0 <= res < b}}, as a <type Result>.
+/// Returns {{Error ZeroModulus}} if <param b> is {{0}}, where `%` raises.
+let mod(
+  a: UInt16,
+  b: UInt16)
+  : Stdlib.Result.Result<UInt16, Stdlib.Int.ModulusError> =
+  if b == 0us then
+    Error Stdlib.Int.ModulusError.ZeroModulus
+  else
+    Ok(a % b)
 
 
 impl Add for UInt16 =
@@ -44,6 +55,18 @@ impl Power for UInt16 =
 impl Divide for UInt16 =
   /// Divides two 16-bit unsigned integers
   let divide(a: UInt16, b: UInt16): UInt16 = Builtin.uint16Divide(a, b)
+
+
+/// Divides <param a> by <param b>, rounding towards zero, as a <type Result>.
+/// Returns {{Error DivisionByZero}} if <param b> is {{0}}, where `/` raises.
+let divide(
+  a: UInt16,
+  b: UInt16)
+  : Stdlib.Result.Result<UInt16, Stdlib.Int.DivisionError> =
+  if b == 0us then
+    Error Stdlib.Int.DivisionError.DivisionByZero
+  else
+    Ok(a / b)
 
 
 impl Compare for UInt16 =

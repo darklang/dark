@@ -86,11 +86,35 @@ test divide =
       (-8s / 5s) |> Stdlib.Test.equal(-1s)
       (0s / 1s) |> Stdlib.Test.equal(0s)
       (-32768s / -1s) |> Stdlib.Test.equal(-32768s)
-      (-32768s / 1s) |> Stdlib.Test.equal(-32768s) ])
+      (-32768s / 1s) |> Stdlib.Test.equal(-32768s)
+      Stdlib.Int16.divide(17s, 3s) |> Stdlib.Test.equal(Ok 5s)
+      Stdlib.Int16.divide(-8s, 5s) |> Stdlib.Test.equal(Ok -1s)
+      Stdlib.Int16.divide(-32768s, -1s)
+      |> Stdlib.Test.equal(Ok -32768s)
+      Stdlib.Int16.divide(5s, 0s)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1s / 0s)
   => raises "Cannot divide by 0"
+
+test modulo =
+  Stdlib.Test.all(
+    [ Stdlib.Int16.mod(15s, 6s) |> Stdlib.Test.equal(Ok 3s)
+      Stdlib.Int16.mod(-1s, 2s) |> Stdlib.Test.equal(Ok 1s)
+      Stdlib.Int16.mod(-15s, 6s) |> Stdlib.Test.equal(Ok(-15s % 6s))
+      Stdlib.Int16.mod(5s, 0s)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus)
+      Stdlib.Int16.mod(5s, -1s)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.NegativeModulus) ])
+
+test moduloRejectsZero =
+  (5s % 0s)
+  => raises "Cannot evaluate modulus against 0"
+
+test moduloRejectsNegativeDivisor =
+  (5s % -5s)
+  => raises "Cannot evaluate modulus against a negative number"
 
 test negate =
   Stdlib.Test.all(
@@ -109,7 +133,7 @@ test remainder =
       Stdlib.Int16.remainder(-20s, -8s) |> Stdlib.Test.equal(Ok -4s)
       Stdlib.Int16.remainder(-32768s, -1s) |> Stdlib.Test.equal(Ok 0s)
       Stdlib.Int16.remainder(5s, 0s)
-      |> Stdlib.Test.equal(Error "Cannot divide by 0") ])
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test greaterThan =
   Stdlib.Test.all(

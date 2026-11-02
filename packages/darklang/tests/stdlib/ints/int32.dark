@@ -38,7 +38,7 @@ test remainder =
       Stdlib.Int32.remainder(-15l, 6l) |> Stdlib.Test.equal(Ok -3l)
       Stdlib.Int32.remainder(-2147483648l, -1l) |> Stdlib.Test.equal(Ok 0l)
       Stdlib.Int32.remainder(5l, 0l)
-      |> Stdlib.Test.equal(Error "Cannot divide by 0") ])
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 /// `%` wraps into [0, b), and raises when b <= 0.
 test modulo =
@@ -48,7 +48,13 @@ test modulo =
       (0l % 15l) |> Stdlib.Test.equal(0l)
       (-1l % 2l) |> Stdlib.Test.equal(1l)
       (-754l % 53l) |> Stdlib.Test.equal(41l)
-      (222222222l % 3l) |> Stdlib.Test.equal(0l) ])
+      (222222222l % 3l) |> Stdlib.Test.equal(0l)
+      Stdlib.Int32.mod(15l, 6l) |> Stdlib.Test.equal(Ok 3l)
+      Stdlib.Int32.mod(-1l, 2l) |> Stdlib.Test.equal(Ok 1l)
+      Stdlib.Int32.mod(5l, 0l)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus)
+      Stdlib.Int32.mod(5l, -1l)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.NegativeModulus) ])
 
 test moduloRejectsZero =
   (5l % 0l)
@@ -168,7 +174,13 @@ test divide =
       (17l / 3l) |> Stdlib.Test.equal(5l)
       (-8l / 5l) |> Stdlib.Test.equal(-1l)
       (0l / 1l) |> Stdlib.Test.equal(0l)
-      ((-2147483648l) / -1l) |> Stdlib.Test.equal(-2147483648l) ])
+      ((-2147483648l) / -1l) |> Stdlib.Test.equal(-2147483648l)
+      Stdlib.Int32.divide(17l, 3l) |> Stdlib.Test.equal(Ok 5l)
+      Stdlib.Int32.divide(-8l, 5l) |> Stdlib.Test.equal(Ok -1l)
+      Stdlib.Int32.divide(-2147483648l, -1l)
+      |> Stdlib.Test.equal(Ok -2147483648l)
+      Stdlib.Int32.divide(5l, 0l)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1l / 0l)

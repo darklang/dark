@@ -56,7 +56,10 @@ test divide =
       (17us / 3us) |> Stdlib.Test.equal(5us)
       (8us / 5us) |> Stdlib.Test.equal(1us)
       (0us / 1us) |> Stdlib.Test.equal(0us)
-      (65535us / 2us) |> Stdlib.Test.equal(32767us) ])
+      (65535us / 2us) |> Stdlib.Test.equal(32767us)
+      Stdlib.UInt16.divide(17us, 3us) |> Stdlib.Test.equal(Ok 5us)
+      Stdlib.UInt16.divide(5us, 0us)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1us / 0us)
@@ -121,7 +124,10 @@ test modulo =
       (0us % 15us) |> Stdlib.Test.equal(0us)
       (1us % 2us) |> Stdlib.Test.equal(1us)
       (32768us % 53us) |> Stdlib.Test.equal(14us)
-      (65535us % 3us) |> Stdlib.Test.equal(0us) ])
+      (65535us % 3us) |> Stdlib.Test.equal(0us)
+      Stdlib.UInt16.mod(15us, 6us) |> Stdlib.Test.equal(Ok 3us)
+      Stdlib.UInt16.mod(5us, 0us)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus) ])
 
 test moduloRejectsZero =
   (5us % 0us)

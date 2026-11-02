@@ -1939,6 +1939,64 @@ module LambdaResultChecks =
   let tests = testList "LambdaResultChecks" [ sameWhetherOrNotWrapperIsSkipped ]
 
 
+/// Integer operators and polymorphic builtins preserve wrapping and runtime errors.
+module IntDivision =
+  /// (Dark expression, the error it must raise)
+  let private raising : List<string * RTE.Ints.Error> =
+    [ // the operators, through the trait impls
+      ("5L / 0L", RTE.Ints.DivideByZeroError)
+      ("7 / 0", RTE.Ints.DivideByZeroError)
+      ("5uy / 0uy", RTE.Ints.DivideByZeroError)
+      ("5s % 0s", RTE.Ints.ZeroModulus)
+      ("5s % -1s", RTE.Ints.NegativeModulus)
+      ("5 % -1", RTE.Ints.NegativeModulus)
+      // the polymorphic builtins
+      ("Builtin.divide(5L, 0L)", RTE.Ints.DivideByZeroError)
+      ("Builtin.divide(7, 0)", RTE.Ints.DivideByZeroError)
+      ("Builtin.divide(5uy, 0uy)", RTE.Ints.DivideByZeroError)
+      ("Builtin.modulo(5L, 0L)", RTE.Ints.ZeroModulus)
+      ("Builtin.modulo(5L, -1L)", RTE.Ints.NegativeModulus)
+      ("Builtin.modulo(5, -1)", RTE.Ints.NegativeModulus)
+      ("Builtin.modulo(5uy, 0uy)", RTE.Ints.ZeroModulus) ]
+
+  let raisesTheIntError =
+    testList
+      "/ and % raise the error the named fns return"
+      (raising
+       |> List.map (fun (code, expected) ->
+         testTask code {
+           match! evalDarkExpr code with
+           | Error(RTE.Int actual, _) -> Expect.equal actual expected code
+           | Error(rte, _) -> failtest $"{code} raised the wrong error: {rte}"
+           | Ok v -> failtest $"{code} should raise {expected}, got {v}"
+         }))
+
+
+  /// (Dark expression, its value): the wrapping and sign cases, through both routes
+  let private values : List<string * RT.Dval> =
+    [ ("-128y / -1y", RT.DInt8 -128y)
+      ("Builtin.divide(-128y, -1y)", RT.DInt8 -128y)
+      ("Builtin.divide(-9223372036854775808L, -1L)", RT.DInt64 System.Int64.MinValue)
+      ("Builtin.divide(-170141183460469231731687303715884105728Q, -1Q)",
+       RT.DInt128 System.Int128.MinValue)
+      ("Builtin.modulo(-1L, 2L)", RT.DInt64 1L)
+      ("Builtin.modulo(-128y, 53y)", RT.DInt8 31y) ]
+
+  let computesWhatTheNamedFnsDo =
+    testList
+      "/ and % compute what the named fns do"
+      (values
+       |> List.map (fun (code, expected) ->
+         testTask code {
+           match! evalDarkExpr code with
+           | Ok actual -> Expect.equal actual expected code
+           | Error(rte, _) -> failtest $"{code} raised: {rte}"
+         }))
+
+
+  let tests = testList "IntDivision" [ raisesTheIntError; computesWhatTheNamedFnsDo ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -1958,6 +2016,7 @@ let tests =
       Enum.tests
       Values.tests
       Infix.tests
+      IntDivision.tests
       Lambdas.tests
       Fns.tests
       Statement.tests

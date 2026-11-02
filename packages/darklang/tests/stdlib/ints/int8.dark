@@ -37,7 +37,8 @@ test remainder =
       Stdlib.Int8.remainder(-20y, -8y) |> Stdlib.Test.equal(Ok -4y)
       Stdlib.Int8.remainder(-15y, 6y) |> Stdlib.Test.equal(Ok -3y)
       Stdlib.Int8.remainder(-128y, -1y) |> Stdlib.Test.equal(Ok 0y)
-      Stdlib.Int8.remainder(5y, 0y) |> Stdlib.Test.equal(Error "Cannot divide by 0") ])
+      Stdlib.Int8.remainder(5y, 0y)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 /// Wraps on overflow.
 test add =
@@ -110,7 +111,13 @@ test divide =
       (17y / 3y) |> Stdlib.Test.equal(5y)
       (-8y / 5y) |> Stdlib.Test.equal(-1y)
       (0y / 1y) |> Stdlib.Test.equal(0y)
-      (-128y / -1y) |> Stdlib.Test.equal(-128y) ])
+      (-128y / -1y) |> Stdlib.Test.equal(-128y)
+      Stdlib.Int8.divide(17y, 3y) |> Stdlib.Test.equal(Ok 5y)
+      Stdlib.Int8.divide(-8y, 5y) |> Stdlib.Test.equal(Ok -1y)
+      Stdlib.Int8.divide(-128y, -1y)
+      |> Stdlib.Test.equal(Ok -128y)
+      Stdlib.Int8.divide(5y, 0y)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1y / 0y)
@@ -178,7 +185,13 @@ test modulo =
       (0y % 15y) |> Stdlib.Test.equal(0y)
       (-1y % 2y) |> Stdlib.Test.equal(1y)
       (-128y % 53y) |> Stdlib.Test.equal(31y)
-      (127y % 3y) |> Stdlib.Test.equal(1y) ])
+      (127y % 3y) |> Stdlib.Test.equal(1y)
+      Stdlib.Int8.mod(15y, 6y) |> Stdlib.Test.equal(Ok 3y)
+      Stdlib.Int8.mod(-1y, 2y) |> Stdlib.Test.equal(Ok 1y)
+      Stdlib.Int8.mod(5y, 0y)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus)
+      Stdlib.Int8.mod(5y, -1y)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.NegativeModulus) ])
 
 test moduloRejectsZero =
   (5y % 0y)

@@ -38,15 +38,6 @@ let private numericTypeError (vm : VMState) (a : Dval) (b : Dval) : 'a =
   RTE.NumericOperationOnIncompatibleTypes(Dval.toValueType a, Dval.toValueType b)
   |> raiseRTE vm.threadID
 
-let private divideByZero (vm : VMState) : 'a =
-  RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-
-let private zeroModulus (vm : VMState) : 'a =
-  RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-
-let private negativeModulus (vm : VMState) : 'a =
-  RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
-
 let private negativeExponent (vm : VMState) : 'a =
   RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
 
@@ -248,54 +239,66 @@ let fns () : List<BuiltInFn> =
         + "Signed integer overflow (e.g. {{Int64.MinValue / -1}}) wraps around to "
         + "{{MinValue}}."
       fn =
-        // Unsigned division can't overflow. Signed division overflows only on
-        // `MinValue / -1`, whose wrapped result is `MinValue` itself. For the
-        // narrow Int8/Int16 the division happens in Int32 space and narrows
-        // back, wrapping naturally; for Int32/Int64/Int128 the hardware/runtime
-        // would throw, so we return `MinValue` explicitly.
+        // Each integer arm is the `IntDivision` fn the typed builtin uses, so `/`
+        // and `Int64.divide` agree by construction.
         (function
-        | _, vm, _, [| DInt8 a; DInt8 b |] ->
-          if b = 0y then divideByZero vm else Ply(DInt8(a / b))
-        | _, vm, _, [| DUInt8 a; DUInt8 b |] ->
-          if b = 0uy then divideByZero vm else Ply(DUInt8(a / b))
-        | _, vm, _, [| DInt16 a; DInt16 b |] ->
-          if b = 0s then divideByZero vm else Ply(DInt16(a / b))
-        | _, vm, _, [| DUInt16 a; DUInt16 b |] ->
-          if b = 0us then divideByZero vm else Ply(DUInt16(a / b))
-        | _, vm, _, [| DInt32 a; DInt32 b |] ->
-          if b = 0l then
-            divideByZero vm
-          elif a = System.Int32.MinValue && b = -1l then
-            Ply(DInt32 System.Int32.MinValue)
-          else
-            Ply(DInt32(a / b))
-        | _, vm, _, [| DUInt32 a; DUInt32 b |] ->
-          if b = 0ul then divideByZero vm else Ply(DUInt32(a / b))
-        | _, vm, _, [| DInt64 a; DInt64 b |] ->
-          if b = 0L then
-            divideByZero vm
-          elif a = System.Int64.MinValue && b = -1L then
-            Ply(DInt64 System.Int64.MinValue)
-          else
-            Ply(Dval.dint64 (a / b))
-        | _, vm, _, [| DUInt64 a; DUInt64 b |] ->
-          if b = 0UL then divideByZero vm else Ply(DUInt64(a / b))
-        | _, vm, _, [| DInt128 a; DInt128 b |] ->
-          if b = System.Int128.Zero then
-            divideByZero vm
-          elif a = System.Int128.MinValue && b = System.Int128.NegativeOne then
-            Ply(DInt128 System.Int128.MinValue)
-          else
-            Ply(DInt128(a / b))
-        | _, vm, _, [| DUInt128 a; DUInt128 b |] ->
-          if b = System.UInt128.Zero then divideByZero vm else Ply(DUInt128(a / b))
-        | _, vm, _, [| DInt a; DInt b |] ->
-          if DarkInt.isZero b then
-            divideByZero vm
-          else
-            Ply(Dval.dint (DarkInt.divide a b))
         // Float division by zero follows IEEE semantics (Infinity/NaN), as before
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a / b))
+        | _, vm, _, [| DInt8 a; DInt8 b |] ->
+          IntDivision.divideInt8 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt8
+          |> Ply
+        | _, vm, _, [| DUInt8 a; DUInt8 b |] ->
+          IntDivision.divideUInt8 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DUInt8
+          |> Ply
+        | _, vm, _, [| DInt16 a; DInt16 b |] ->
+          IntDivision.divideInt16 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt16
+          |> Ply
+        | _, vm, _, [| DUInt16 a; DUInt16 b |] ->
+          IntDivision.divideUInt16 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DUInt16
+          |> Ply
+        | _, vm, _, [| DInt32 a; DInt32 b |] ->
+          IntDivision.divideInt32 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt32
+          |> Ply
+        | _, vm, _, [| DUInt32 a; DUInt32 b |] ->
+          IntDivision.divideUInt32 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DUInt32
+          |> Ply
+        | _, vm, _, [| DInt64 a; DInt64 b |] ->
+          IntDivision.divideInt64 a b
+          |> IntDivision.divisionOrRaise vm
+          |> Dval.dint64
+          |> Ply
+        | _, vm, _, [| DUInt64 a; DUInt64 b |] ->
+          IntDivision.divideUInt64 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DUInt64
+          |> Ply
+        | _, vm, _, [| DInt128 a; DInt128 b |] ->
+          IntDivision.divideInt128 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt128
+          |> Ply
+        | _, vm, _, [| DUInt128 a; DUInt128 b |] ->
+          IntDivision.divideUInt128 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DUInt128
+          |> Ply
+        | _, vm, _, [| DInt a; DInt b |] ->
+          IntDivision.divideInt a b
+          |> IntDivision.divisionOrRaise vm
+          |> Dval.dint
+          |> Ply
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -311,70 +314,64 @@ let fns () : List<BuiltInFn> =
         "Wraps <param a> around so that {{0 <= res < b}}, for two integers of "
         + "the same type. The modulus <param b> must be greater than 0."
       fn =
+        // `IntDivision`, as for `divide` above
         (function
-        | _, vm, _, [| DInt8 v; DInt8 m |] ->
-          if m = 0y then
-            zeroModulus vm
-          elif m < 0y then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DInt8(if r < 0y then m + r else r))
-        | _, vm, _, [| DUInt8 v; DUInt8 m |] ->
-          if m = 0uy then zeroModulus vm else Ply(DUInt8(v % m))
-        | _, vm, _, [| DInt16 v; DInt16 m |] ->
-          if m = 0s then
-            zeroModulus vm
-          elif m < 0s then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DInt16(if r < 0s then m + r else r))
-        | _, vm, _, [| DUInt16 v; DUInt16 m |] ->
-          if m = 0us then zeroModulus vm else Ply(DUInt16(v % m))
-        | _, vm, _, [| DInt32 v; DInt32 m |] ->
-          if m = 0l then
-            zeroModulus vm
-          elif m < 0l then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DInt32(if r < 0l then m + r else r))
-        | _, vm, _, [| DUInt32 v; DUInt32 m |] ->
-          if m = 0ul then zeroModulus vm else Ply(DUInt32(v % m))
-        | _, vm, _, [| DInt64 v; DInt64 m |] ->
-          if m = 0L then
-            zeroModulus vm
-          elif m < 0L then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(Dval.dint64 (if r < 0L then m + r else r))
-        | _, vm, _, [| DUInt64 v; DUInt64 m |] ->
-          if m = 0UL then zeroModulus vm else Ply(DUInt64(v % m))
-        | _, vm, _, [| DInt128 v; DInt128 m |] ->
-          if m = System.Int128.Zero then
-            zeroModulus vm
-          elif m < System.Int128.Zero then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DInt128(if r < System.Int128.Zero then m + r else r))
-        | _, vm, _, [| DUInt128 v; DUInt128 m |] ->
-          if m = System.UInt128.Zero then zeroModulus vm else Ply(DUInt128(v % m))
-        | _, vm, _, [| DInt v; DInt m |] ->
-          let m = DarkInt.toBigInt m
-          if m = System.Numerics.BigInteger.Zero then
-            zeroModulus vm
-          elif m < System.Numerics.BigInteger.Zero then
-            negativeModulus vm
-          else
-            let r = DarkInt.toBigInt v % m
-            Ply(Dval.int (if r < System.Numerics.BigInteger.Zero then m + r else r))
         // No Float arm, on purpose: a float `%` has to choose between flooring and
         // truncating, and what a zero divisor does when our own Float division returns
         // Infinity. Swift and Elm have no float modulo either. A Float pair takes the type
         // error below, which through the operator reads as a missing `Modulo` impl.
+        | _, vm, _, [| DInt8 a; DInt8 b |] ->
+          IntDivision.moduloInt8 a b |> IntDivision.modulusOrRaise vm |> DInt8 |> Ply
+        | _, vm, _, [| DUInt8 a; DUInt8 b |] ->
+          IntDivision.moduloUInt8 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DUInt8
+          |> Ply
+        | _, vm, _, [| DInt16 a; DInt16 b |] ->
+          IntDivision.moduloInt16 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DInt16
+          |> Ply
+        | _, vm, _, [| DUInt16 a; DUInt16 b |] ->
+          IntDivision.moduloUInt16 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DUInt16
+          |> Ply
+        | _, vm, _, [| DInt32 a; DInt32 b |] ->
+          IntDivision.moduloInt32 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DInt32
+          |> Ply
+        | _, vm, _, [| DUInt32 a; DUInt32 b |] ->
+          IntDivision.moduloUInt32 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DUInt32
+          |> Ply
+        | _, vm, _, [| DInt64 a; DInt64 b |] ->
+          IntDivision.moduloInt64 a b
+          |> IntDivision.modulusOrRaise vm
+          |> Dval.dint64
+          |> Ply
+        | _, vm, _, [| DUInt64 a; DUInt64 b |] ->
+          IntDivision.moduloUInt64 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DUInt64
+          |> Ply
+        | _, vm, _, [| DInt128 a; DInt128 b |] ->
+          IntDivision.moduloInt128 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DInt128
+          |> Ply
+        | _, vm, _, [| DUInt128 a; DUInt128 b |] ->
+          IntDivision.moduloUInt128 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DUInt128
+          |> Ply
+        | _, vm, _, [| DInt a; DInt b |] ->
+          IntDivision.moduloInt a b
+          |> IntDivision.modulusOrRaise vm
+          |> Dval.dint
+          |> Ply
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure

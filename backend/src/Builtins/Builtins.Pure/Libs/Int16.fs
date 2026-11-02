@@ -32,21 +32,17 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
       returnType = TInt16
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "Int16.remainder> if you want the remainder after division, which has a "
-        + "different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res <"
+        + " b}}. The modulus <param b> must be greater than 0, and this raises "
+        + "an error if it is not; <fn Int16.mod> returns a <type Result> "
+        + "instead."
       fn =
         (function
-        | _, vm, _, [| DInt16 v; DInt16 m |] ->
-          if m = 0s then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-          else if m < 0s then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
-          else
-            let result = v % m
-            let result = if result < 0s then m + result else result
-            Ply(DInt16 result)
+        | _, vm, _, [| DInt16 a; DInt16 b |] ->
+          IntDivision.moduloInt16 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DInt16
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -56,28 +52,17 @@ let fns () : List<BuiltInFn> =
     { name = fn "int16Remainder" 0
       typeParams = []
       parameters = [ Param.make "value" TInt16 ""; Param.make "divisor" TInt16 "" ]
-      returnType = TypeReference.result TInt16 TString
+      returnType = TInt16
       description =
-        "Returns the integer remainder left over after dividing <param value> "
-        + "by <param divisor>, as a <type Result>.\n\nFor example, "
-        + "{{Int16.remainder 15 6 == Ok 3}}. The remainder will be negative only "
-        + "if {{<var value> < 0}}.\n\nThe sign of <param divisor> doesn't "
-        + "influence the outcome.\n\nReturns an {{Error}} if <param divisor> is "
-        + "{{0}}."
+        "Returns the integer remainder, with the sign of the dividend. "
+        + "Raises an error if the divisor is zero."
       fn =
-        let resultOk r = Dval.resultOk KTInt16 KTString r |> Ply
-        let resultError r = Dval.resultError KTInt16 KTString r |> Ply
         (function
-        | _, _, _, [| DInt16 v; DInt16 d |] ->
-          if d = 0s then
-            // The return type is a `Result`, so surface this as an `Error`
-            // rather than raising a runtime error.
-            DString "Cannot divide by 0" |> resultError
-          else if d = -1s then
-            // `MinValue % -1` overflows in .NET, but the remainder is always 0.
-            0s |> DInt16 |> resultOk
-          else
-            v % d |> DInt16 |> resultOk
+        | _, vm, _, [| DInt16 a; DInt16 b |] ->
+          IntDivision.remainderInt16 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt16
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -155,15 +140,18 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
       returnType = TInt16
-      description = "Divides two 16-bit signed integers"
+      description =
+        "Divides <param a> by <param b>, rounding towards zero. Dividing the "
+        + "minimum value by {{-1}} wraps back to the minimum value. Raises an "
+        + "error if <param b> is {{0}}; <fn Int16.divide> returns a <type "
+        + "Result> instead."
       fn =
         (function
         | _, vm, _, [| DInt16 a; DInt16 b |] ->
-          if b = 0s then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          else
-            // -32768s / -1s divides in int32 then narrows, wrapping instead of throwing
-            Ply(DInt16(a / b))
+          IntDivision.divideInt16 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DInt16
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

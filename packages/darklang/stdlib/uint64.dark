@@ -8,8 +8,21 @@ type ParseError =
 
 impl Modulo for UInt64 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-  /// The modulus <param b> must be greater than 0
+  /// The modulus <param b> must be greater than 0, and this raises if it is not;
+  /// <fn UInt64.mod> returns a <type Result> instead.
   let modulo(a: UInt64, b: UInt64): UInt64 = Builtin.uint64Mod(a, b)
+
+
+/// Wraps <param a> around so that {{0 <= res < b}}, as a <type Result>.
+/// Returns {{Error ZeroModulus}} if <param b> is {{0}}, where `%` raises.
+let mod(
+  a: UInt64,
+  b: UInt64)
+  : Stdlib.Result.Result<UInt64, Stdlib.Int.ModulusError> =
+  if b == 0UL then
+    Error Stdlib.Int.ModulusError.ZeroModulus
+  else
+    Ok(a % b)
 
 
 impl Add for UInt64 =
@@ -30,6 +43,18 @@ impl Multiply for UInt64 =
 impl Divide for UInt64 =
   /// Divides 64-bit unsigned integers
   let divide(a: UInt64, b: UInt64): UInt64 = Builtin.uint64Divide(a, b)
+
+
+/// Divides <param a> by <param b>, rounding towards zero, as a <type Result>.
+/// Returns {{Error DivisionByZero}} if <param b> is {{0}}, where `/` raises.
+let divide(
+  a: UInt64,
+  b: UInt64)
+  : Stdlib.Result.Result<UInt64, Stdlib.Int.DivisionError> =
+  if b == 0UL then
+    Error Stdlib.Int.DivisionError.DivisionByZero
+  else
+    Ok(a / b)
 
 
 impl Power for UInt64 =

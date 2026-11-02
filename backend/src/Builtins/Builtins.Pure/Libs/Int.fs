@@ -30,15 +30,6 @@ let private bigZero = System.Numerics.BigInteger.Zero
 let private bigOne = System.Numerics.BigInteger.One
 let private bigMinusOne = System.Numerics.BigInteger.MinusOne
 
-let private divideByZero (vm : VMState) : 'a =
-  RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-
-let private zeroModulus (vm : VMState) : 'a =
-  RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-
-let private negativeModulus (vm : VMState) : 'a =
-  RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
-
 let private negativeExponent (vm : VMState) : 'a =
   RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
 
@@ -76,21 +67,16 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}. The modulus <param b> must be greater than 0. Use <fn "
-        + "Int.remainder> if you want the remainder after division, which has a "
-        + "different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res <"
+        + " b}}. The modulus <param b> must be greater than 0, and this raises "
+        + "an error if it is not; <fn Int.mod> returns a <type Result> instead."
       fn =
         (function
         | _, vm, _, [| DInt a; DInt b |] ->
-          let m = DarkInt.toBigInt b
-          if m = bigZero then
-            zeroModulus vm
-          elif m < bigZero then
-            negativeModulus vm
-          else
-            let r = DarkInt.toBigInt a % m
-            Ply(Dval.int (if r < bigZero then m + r else r))
+          IntDivision.moduloInt a b
+          |> IntDivision.modulusOrRaise vm
+          |> Dval.dint
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -100,25 +86,17 @@ let fns () : List<BuiltInFn> =
     { name = fn "intRemainder" 0
       typeParams = []
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
-      returnType = TypeReference.result TInt TString
+      returnType = TInt
       description =
-        "Returns the integer remainder left over after dividing <param value> "
-        + "by <param divisor>, as a <type Result>. The remainder will be negative "
-        + "only if {{<var value> < 0}}. The sign of <param divisor> doesn't "
-        + "influence the outcome. Returns an {{Error}} if <param divisor> is "
-        + "{{0}}."
+        "Returns the integer remainder, with the sign of the dividend. "
+        + "Raises an error if the divisor is zero."
       fn =
-        let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
         (function
-        | _, _, _, [| DInt value; DInt divisor |] ->
-          let d = DarkInt.toBigInt divisor
-          if d = bigZero then
-            // The return type is a `Result`, so surface this as an `Error`
-            // rather than raising a runtime error.
-            DString "Cannot divide by 0" |> resultError |> Ply
-          else
-            DarkInt.toBigInt value % d |> Dval.int |> resultOk |> Ply
+        | _, vm, _, [| DInt a; DInt b |] ->
+          IntDivision.remainderInt a b
+          |> IntDivision.divisionOrRaise vm
+          |> Dval.dint
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -206,14 +184,17 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
-      description = "Divides two arbitrary-precision integers, rounding towards zero"
+      description =
+        "Divides <param a> by <param b>, rounding towards zero. Raises an "
+        + "error if <param b> is {{0}}; <fn Int.divide> returns a <type Result>"
+        + " instead."
       fn =
         (function
         | _, vm, _, [| DInt a; DInt b |] ->
-          if DarkInt.isZero b then
-            divideByZero vm
-          else
-            Ply(Dval.dint (DarkInt.divide a b))
+          IntDivision.divideInt a b
+          |> IntDivision.divisionOrRaise vm
+          |> Dval.dint
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

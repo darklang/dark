@@ -56,7 +56,10 @@ test divide =
       (17uy / 3uy) |> Stdlib.Test.equal(5uy)
       (8uy / 5uy) |> Stdlib.Test.equal(1uy)
       (0uy / 1uy) |> Stdlib.Test.equal(0uy)
-      (255uy / 2uy) |> Stdlib.Test.equal(127uy) ])
+      (255uy / 2uy) |> Stdlib.Test.equal(127uy)
+      Stdlib.UInt8.divide(17uy, 3uy) |> Stdlib.Test.equal(Ok 5uy)
+      Stdlib.UInt8.divide(5uy, 0uy)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1uy / 0uy)
@@ -121,7 +124,10 @@ test modulo =
       (0uy % 15uy) |> Stdlib.Test.equal(0uy)
       (1uy % 2uy) |> Stdlib.Test.equal(1uy)
       (128uy % 53uy) |> Stdlib.Test.equal(22uy)
-      (255uy % 3uy) |> Stdlib.Test.equal(0uy) ])
+      (255uy % 3uy) |> Stdlib.Test.equal(0uy)
+      Stdlib.UInt8.mod(15uy, 6uy) |> Stdlib.Test.equal(Ok 3uy)
+      Stdlib.UInt8.mod(5uy, 0uy)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus) ])
 
 test moduloRejectsZero =
   (5uy % 0uy)

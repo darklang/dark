@@ -8,10 +8,21 @@ type ParseError =
 
 impl Modulo for UInt8 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-  /// The modulus <param b> must be greater than 0.
-  /// Use <fn UInt8.remainder> if you want the remainder after division, which has
-  /// a different behavior for negative numbers.
+  /// The modulus <param b> must be greater than 0, and this raises if it is not;
+  /// <fn UInt8.mod> returns a <type Result> instead.
   let modulo(a: UInt8, b: UInt8): UInt8 = Builtin.uint8Mod(a, b)
+
+
+/// Wraps <param a> around so that {{0 <= res < b}}, as a <type Result>.
+/// Returns {{Error ZeroModulus}} if <param b> is {{0}}, where `%` raises.
+let mod(
+  a: UInt8,
+  b: UInt8)
+  : Stdlib.Result.Result<UInt8, Stdlib.Int.ModulusError> =
+  if b == 0uy then
+    Error Stdlib.Int.ModulusError.ZeroModulus
+  else
+    Ok(a % b)
 
 
 impl Add for UInt8 =
@@ -44,6 +55,18 @@ impl Power for UInt8 =
 impl Divide for UInt8 =
   /// Divides two 8-bit unsigned  integers
   let divide(a: UInt8, b: UInt8): UInt8 = Builtin.uint8Divide(a, b)
+
+
+/// Divides <param a> by <param b>, rounding towards zero, as a <type Result>.
+/// Returns {{Error DivisionByZero}} if <param b> is {{0}}, where `/` raises.
+let divide(
+  a: UInt8,
+  b: UInt8)
+  : Stdlib.Result.Result<UInt8, Stdlib.Int.DivisionError> =
+  if b == 0uy then
+    Error Stdlib.Int.DivisionError.DivisionByZero
+  else
+    Ok(a / b)
 
 
 impl Compare for UInt8 =

@@ -55,7 +55,10 @@ test divide =
       (17ul / 3ul) |> Stdlib.Test.equal(5ul)
       (8ul / 5ul) |> Stdlib.Test.equal(1ul)
       (0ul / 1ul) |> Stdlib.Test.equal(0ul)
-      (4294967295ul / 2ul) |> Stdlib.Test.equal(2147483647ul) ])
+      (4294967295ul / 2ul) |> Stdlib.Test.equal(2147483647ul)
+      Stdlib.UInt32.divide(17ul, 3ul) |> Stdlib.Test.equal(Ok 5ul)
+      Stdlib.UInt32.divide(5ul, 0ul)
+      |> Stdlib.Test.equal(Error Stdlib.Int.DivisionError.DivisionByZero) ])
 
 test divideOfOneRejectsZero =
   (1ul / 0ul)
@@ -120,7 +123,10 @@ test modulo =
       (0ul % 15ul) |> Stdlib.Test.equal(0ul)
       (1ul % 2ul) |> Stdlib.Test.equal(1ul)
       (32768ul % 53ul) |> Stdlib.Test.equal(14ul)
-      (4294967295ul % 3ul) |> Stdlib.Test.equal(0ul) ])
+      (4294967295ul % 3ul) |> Stdlib.Test.equal(0ul)
+      Stdlib.UInt32.mod(15ul, 6ul) |> Stdlib.Test.equal(Ok 3ul)
+      Stdlib.UInt32.mod(5ul, 0ul)
+      |> Stdlib.Test.equal(Error Stdlib.Int.ModulusError.ZeroModulus) ])
 
 test moduloRejectsZero =
   (5ul % 0ul)

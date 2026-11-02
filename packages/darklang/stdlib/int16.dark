@@ -8,10 +8,27 @@ type ParseError =
 
 impl Modulo for Int16 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-  /// The modulus <param b> must be greater than 0.
-  /// Use <fn Int16.remainder> if you want the remainder after division, which has
-  /// a different behavior for negative numbers.
+  /// The modulus <param b> must be greater than 0, and this raises if it is not;
+  /// <fn Int16.mod> returns a <type Result> instead.
   let modulo(a: Int16, b: Int16): Int16 = Builtin.int16Mod(a, b)
+
+
+/// Wraps <param a> around so that {{0 <= res < b}}, as a <type Result>.
+/// The modulus <param b> must be greater than 0: returns {{Error ZeroModulus}}
+/// or {{Error NegativeModulus}} otherwise, where `%` raises.
+/// Use <fn Int16.remainder> for the remainder after division, which differs
+/// for negative numbers.
+let mod(
+  a: Int16,
+  b: Int16)
+  : Stdlib.Result.Result<Int16, Stdlib.Int.ModulusError> =
+  if b == 0s then
+    Error Stdlib.Int.ModulusError.ZeroModulus
+  else
+    if b < 0s then
+      Error Stdlib.Int.ModulusError.NegativeModulus
+    else
+      Ok(a % b)
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -19,12 +36,15 @@ impl Modulo for Int16 =
 /// For example, {{Int16.remainder 15 6 == Ok 3}}. The remainder will be
 /// negative only if {{<var value> < 0}}.
 /// The sign of <param divisor> doesn't influence the outcome.
-/// Returns an {{Error}} if <param divisor> is {{0}}.
+/// Returns {{Error DivisionByZero}} if <param divisor> is {{0}}.
 let remainder(
   value: Int16,
   divisor: Int16)
-  : Stdlib.Result.Result<Int16, String> =
-  Builtin.int16Remainder(value, divisor)
+  : Stdlib.Result.Result<Int16, Stdlib.Int.DivisionError> =
+  if divisor == 0s then
+    Error Stdlib.Int.DivisionError.DivisionByZero
+  else
+    Ok(Builtin.int16Remainder(value, divisor))
 
 
 impl Add for Int16 =
@@ -53,6 +73,19 @@ impl Power for Int16 =
 impl Divide for Int16 =
   /// Divides two 16-bit signed integers
   let divide(a: Int16, b: Int16): Int16 = Builtin.int16Divide(a, b)
+
+
+/// Divides <param a> by <param b>, rounding towards zero, as a <type Result>.
+/// Returns {{Error DivisionByZero}} if <param b> is {{0}}, where `/` raises.
+/// Dividing the minimum value by -1 wraps back to the minimum value.
+let divide(
+  a: Int16,
+  b: Int16)
+  : Stdlib.Result.Result<Int16, Stdlib.Int.DivisionError> =
+  if b == 0s then
+    Error Stdlib.Int.DivisionError.DivisionByZero
+  else
+    Ok(a / b)
 
 
 impl Negate for Int16 =

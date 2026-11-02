@@ -33,19 +33,17 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
       returnType = TUInt32
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "UInt32.remainder> if you want the remainder after division, which has "
-        + "a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res <"
+        + " b}}. The modulus <param b> must be greater than 0, and this raises "
+        + "an error if it is not; <fn UInt32.mod> returns a <type Result> "
+        + "instead."
       fn =
         (function
-        | _, vm, _, [| DUInt32 v; DUInt32 m |] ->
-          if m = 0ul then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
-          else
-            let result = v % m
-            let result = if result < 0ul then m + result else result
-            Ply(DUInt32(result))
+        | _, vm, _, [| DUInt32 a; DUInt32 b |] ->
+          IntDivision.moduloUInt32 a b
+          |> IntDivision.modulusOrRaise vm
+          |> DUInt32
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -120,14 +118,17 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
       returnType = TUInt32
-      description = "Divides two 32-bit unsigned integers"
+      description =
+        "Divides <param a> by <param b>, rounding towards zero. Raises an "
+        + "error if <param b> is {{0}}; <fn UInt32.divide> returns a <type "
+        + "Result> instead."
       fn =
         (function
         | _, vm, _, [| DUInt32 a; DUInt32 b |] ->
-          if b = 0ul then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          else
-            Ply(DUInt32(a / b))
+          IntDivision.divideUInt32 a b
+          |> IntDivision.divisionOrRaise vm
+          |> DUInt32
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

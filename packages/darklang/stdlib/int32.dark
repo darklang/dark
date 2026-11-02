@@ -8,10 +8,27 @@ type ParseError =
 
 impl Modulo for Int32 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-  /// The modulus <param b> must be greater than 0
-  /// Use <fn Int32.remainder> if you want the remainder after division, which has
-  /// a different behavior for negative numbers.
+  /// The modulus <param b> must be greater than 0, and this raises if it is not;
+  /// <fn Int32.mod> returns a <type Result> instead.
   let modulo(a: Int32, b: Int32): Int32 = Builtin.int32Mod(a, b)
+
+
+/// Wraps <param a> around so that {{0 <= res < b}}, as a <type Result>.
+/// The modulus <param b> must be greater than 0: returns {{Error ZeroModulus}}
+/// or {{Error NegativeModulus}} otherwise, where `%` raises.
+/// Use <fn Int32.remainder> for the remainder after division, which differs
+/// for negative numbers.
+let mod(
+  a: Int32,
+  b: Int32)
+  : Stdlib.Result.Result<Int32, Stdlib.Int.ModulusError> =
+  if b == 0l then
+    Error Stdlib.Int.ModulusError.ZeroModulus
+  else
+    if b < 0l then
+      Error Stdlib.Int.ModulusError.NegativeModulus
+    else
+      Ok(a % b)
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -19,12 +36,15 @@ impl Modulo for Int32 =
 /// For example, {{Int32.remainder 15 6 == Ok 3}}. The remainder will be
 /// negative only if {{<var value> < 0}}.
 /// The sign of <param divisor> doesn't influence the outcome.
-/// Returns an {{Error}} if <param divisor> is {{0}}.
+/// Returns {{Error DivisionByZero}} if <param divisor> is {{0}}.
 let remainder(
   value: Int32,
   divisor: Int32)
-  : Stdlib.Result.Result<Int32, String> =
-  Builtin.int32Remainder(value, divisor)
+  : Stdlib.Result.Result<Int32, Stdlib.Int.DivisionError> =
+  if divisor == 0l then
+    Error Stdlib.Int.DivisionError.DivisionByZero
+  else
+    Ok(Builtin.int32Remainder(value, divisor))
 
 
 impl Add for Int32 =
@@ -45,6 +65,19 @@ impl Multiply for Int32 =
 impl Divide for Int32 =
   /// Divides two integers
   let divide(a: Int32, b: Int32): Int32 = Builtin.int32Divide(a, b)
+
+
+/// Divides <param a> by <param b>, rounding towards zero, as a <type Result>.
+/// Returns {{Error DivisionByZero}} if <param b> is {{0}}, where `/` raises.
+/// Dividing the minimum value by -1 wraps back to the minimum value.
+let divide(
+  a: Int32,
+  b: Int32)
+  : Stdlib.Result.Result<Int32, Stdlib.Int.DivisionError> =
+  if b == 0l then
+    Error Stdlib.Int.DivisionError.DivisionByZero
+  else
+    Ok(a / b)
 
 
 impl Power for Int32 =
