@@ -31,7 +31,7 @@ module Rank =
     [ ("Stdlib.Cli.FileSystem", "overwriteFile")
       ("Stdlib.Cli.FileSystem", "readFile")
       ("Stdlib.Cli.FileSystem", "readFileAsString")
-      ("Cli.Outliner.Store", "fromFile") ]
+      ("Cli.Backups.Store", "fromFile") ]
 
 // Plain words find the camelCase name they spell.
 test plainWordsFindCamelCase =

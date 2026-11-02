@@ -74,7 +74,6 @@ module Registry =
   let acceptsUndo(): Accepts.Accepts = Accepts.between(1, 1, [])
   let acceptsDeprecate(): Accepts.Accepts = (Accepts.withValues([ "--kind", "--replacement", "--message", "-m" ], Accepts.between(1, 2, [ "-y", "--yes", "--dry-run" ])))
   let acceptsDelete(): Accepts.Accepts = (Accepts.withValues([ "--message", "-m" ], Accepts.between(1, 2, [ "-y", "--yes", "--ignore-dependents", "--force", "--dry-run" ])))
-  let acceptsOutliner(): Accepts.Accepts = (Accepts.subcommands([ ("ls", Accepts.nothing()), ("show", Accepts.between(1, 1, [])), ("add", Accepts.text(2)) ], Accepts.nothing()))
   let acceptsExportSeed(): Accepts.Accepts = Accepts.upTo(1, [])
   let acceptsTraces(): Accepts.Accepts = (Accepts.everywhere([ "-y", "--yes", "--json", "--inspect", "--full" ], [ "--iteration" ], Accepts.subcommands([ ("list", (Accepts.withValues([ "--fn", "--route" ], Accepts.upTo(1, [])))), ("follow", (Accepts.withValues([ "--route" ], Accepts.nothing()))), ("stats", Accepts.upTo(1, [])), ("tail", (Accepts.withValues([ "--route" ], Accepts.upTo(1, [])))), ("find", Accepts.text(1)), ("fns", Accepts.upTo(1, [ "--all" ])), ("hotspots", Accepts.upTo(1, [])), ("view", Accepts.between(1, 2, [ "--watch" ])), ("details", (Accepts.withValues([ "--filter", "--exclude", "--slow-ms", "--depth" ], Accepts.between(1, 1, [ "--all", "--slow", "-d", "--no-builtins", "--no-stdlib" ])))), ("log", Accepts.text(0)), ("record", Accepts.upTo(1, [])), ("inspect", (Accepts.withValues([ "--filter", "--exclude", "--slow-ms", "--depth" ], Accepts.between(1, 1, [ "--all", "--slow", "-d", "--no-builtins", "--no-stdlib" ])))), ("resume", Accepts.between(1, 1, [])), ("fork", (Accepts.withValues([ "--at" ], Accepts.between(1, 1, [])))), ("pin", Accepts.between(1, 1, [])), ("unpin", Accepts.between(1, 1, [])), ("calls", Accepts.between(1, 1, [])), ("show", Accepts.between(1, 2, [ "--watch" ])), ("values", Accepts.text(0)), ("rerun", Accepts.between(1, 1, [])), ("delete", (Accepts.withValues([ "--keep", "--before" ], Accepts.upTo(1, [ "--all" ])))) ], Accepts.nothing())))
   let acceptsConflicts(): Accepts.Accepts = (Accepts.everywhere([ "--json" ], [], Accepts.subcommands([ ("list", Accepts.nothing()), ("walk", Accepts.nothing()), ("show", Accepts.between(1, 1, [])), ("ack", Accepts.freeText(1, [])), ("override", Accepts.between(2, 2, [])), ("branch", Accepts.between(1, 1, [])) ], Accepts.nothing())))
@@ -142,7 +141,6 @@ module Registry =
       ("undo", "Step an item back to its previous version", [], acceptsUndo, Cli.Undo.execute, Cli.Undo.help, Cli.Undo.complete)
       ("deprecate", "Mark a fn/type/value/trait/impl/test as deprecated", [], acceptsDeprecate, Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
       ("delete", "Take a fn/type/value/trait/impl/test off the shelf (sugar for deprecate --kind obsolete)", [], acceptsDelete, Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
-      ("outliner", "Interactive tree outliner", [ "tree-exp" ], acceptsOutliner, Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
       ("export-seed", "Export minimal seed.db from current database", [], acceptsExportSeed, ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
       ("traces", "The runs this instance has kept: what ran, what it did, and resuming one", [ "trace", "exec", "runs" ], acceptsTraces, Tracing.execute, Tracing.help, Tracing.complete)
       ("conflicts", "Review what a merge or rebase auto-resolved", [], acceptsConflicts, Conflicts.execute, Conflicts.help, Conflicts.complete)
@@ -281,7 +279,7 @@ module Registry =
       ("Installation", [ "install", "update", "uninstall", "version", "install-status" ])
       ("Security", [ "permissions" ])
       ("Utilities",
-       [ "clear", "help", "docs", "quit", "builtins", "export-seed", "workbench", "outliner", "backups", "config" ]) ]
+       [ "clear", "help", "docs", "quit", "builtins", "export-seed", "workbench", "backups", "config" ]) ]
 
   let formatCommandGroup(groupName: String, commandNames: List<String>, commands: List<CommandHandler>): String =
     let formattedCommands =
@@ -544,9 +542,8 @@ module Registry =
       "edit" ]
 
   /// Full-screen TUIs. Capturing one dumps its alternate-screen escapes into a pane, so the bar
-  /// launches it as a page instead. Canonical names; aliases resolve before matching. `apps` is
-  /// handled in `takesScreen` because it is a TUI only when bare.
-  val screenCommands = [ "outliner" ]
+  /// launches it as a page instead. Canonical names; aliases resolve before matching. None today.
+  val screenCommands = []
 
   /// Should the workbench run this command line on the real terminal instead of captured?
   /// `-y`/`--yes` is the universal "don't ask", so a line carrying it never needs the handoff.

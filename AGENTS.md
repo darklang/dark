@@ -454,7 +454,7 @@ says nothing at all.
       Builtins/           # Cli, CliHost, Http.Client, Http.Server, Language,
                           # Matter, Pure, Random, Time
     packages/darklang/    # .dark files
-      cli/                # the CLI app: registry, loop, workbench, outliner, etc.
+      cli/                # the CLI app: registry, loop, workbench, etc.
       scm/                # SCM library (branches, merge, conflicts, propagation, packageOps)
       stdlib/             # standard library
         cli/stdin.dark    #   reads keys

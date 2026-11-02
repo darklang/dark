@@ -90,7 +90,6 @@ Your edits are LIVE as soon as you write them. There is no build step.
 
 ## The full-screen experience (`dark` with no args opens it)
   workbench         the framed, navigable workbench (alias: wb)
-  outliner          the interactive tree outliner
 
 ## Config, and the rest
   install / update / uninstall / version   the `dark` binary itself

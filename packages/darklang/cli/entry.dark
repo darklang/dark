@@ -23,7 +23,7 @@ let executeCliCommand(args: List<String>): Int =
     let nonInteractiveState = { initialState with nonInteractive = true }
     let resultState = Registry.executeCommand(commandName, nonInteractiveState, commandArgs)
 
-    // If the command launched a full-screen SubApp (a TUI like `apps` / `outliner`), hand off to the
+    // If the command launched a full-screen SubApp (a TUI like the workbench), hand off to the
     // interactive loop so it actually runs, instead of exiting the instant the command returns.
     match resultState.currentPage with
     | SubApp _ -> runInteractiveLoop(resultState)

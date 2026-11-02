@@ -29,7 +29,7 @@ let render(region: Layout.Region, displayLines: List<String>, selected: Int): Li
       |> Stdlib.List.map(fun pair ->
         let (i, l) = pair
         // Marked, not silently cut. These are names, and a row that just stops reads as the whole
-        // one: "Interactive tree outliner (ful" looks complete to anyone who has not seen the pane
+        // one: "Accept the parent's changes in" looks complete to anyone who has not seen the pane
         // wider.
         Layout.at(region, i - scrollOffset, 0, Tui.Text.clipMarked(l, textWidth)))
       |> Stdlib.List.flatten

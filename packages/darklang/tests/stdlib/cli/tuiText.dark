@@ -14,8 +14,8 @@ test clipMarkedLeavesFittingLines =
 // as a shorter label that happens to end there.
 test clipMarkedEndsInEllipsis =
   Stdlib.Test.all(
-    [ Stdlib.Cli.Tui.Text.clipMarked("Interactive tree outliner (full)", 30)
-      |> Stdlib.Test.equal("Interactive tree outliner (fu…")
+    [ Stdlib.Cli.Tui.Text.clipMarked("Accept the parent's changes into a branch", 30)
+      |> Stdlib.Test.equal("Accept the parent's changes i…")
       Stdlib.Cli.Tui.Text.clipMarked("abcdef", 3) |> Stdlib.Test.equal("ab…") ])
 
 // Below two columns there is no room to say anything, so it degrades to a plain clip
