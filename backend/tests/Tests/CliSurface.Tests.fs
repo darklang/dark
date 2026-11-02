@@ -282,7 +282,7 @@ let private hintRowKeepsTheWayOut =
         let! wide = runCli state [ "eval"; lastRow 168 ]
         Expect.stringContains
           wide
-          "prompt"
+          "views"
           "the full row advertises the secondary keys too"
 
         // Narrow enough that something has to go. Single words, not "? help": the key
@@ -299,7 +299,7 @@ let private hintRowKeepsTheWayOut =
           "move"
           "the pane's own actions outlive the secondary globals"
         Expect.isFalse
-          (narrow.Contains "prompt")
+          (narrow.Contains "views")
           "and a secondary global is what gave way to fit them"
 
         // Narrower still: actions start giving way, but never the escape hatches.

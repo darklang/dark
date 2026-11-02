@@ -53,7 +53,6 @@ let onKey(
   | Exit s -> Darklang.Cli.Component.Step.Exit s
   // Hand off to a foreground command; the CLI returns to this workbench (state s) when it exits.
   | Launch(s, cmd) -> Darklang.Cli.Component.Step.Launch({ s with preview = Stdlib.Option.Option.None }, cmd)
-  | ToPrompt s -> Darklang.Cli.Component.Step.ToPrompt s
 
 /// The store changed under the workbench: an edit from another process (the LSP, an agent, a
 /// colleague's pull).

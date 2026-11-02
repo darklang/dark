@@ -13,10 +13,6 @@ let globalKey(state: State, keyChar: Stdlib.Option.Option<String>): Stdlib.Optio
   | Some "S" -> Stdlib.Option.Option.Some (openBranchPicker(state))
   | Some "q" -> Stdlib.Option.Option.Some (Step.Exit state)
   | Some "?" -> Stdlib.Option.Option.Some (Step.Continue { state with overlay = Overlay.Keymap })
-  // The way back to the prompt, on one key. It's an escape hatch, and an
-  // escape hatch you have to type a command to reach isn't much of one.
-  // `:prompt` still works for anyone who'd rather type it.
-  | Some "p" -> Stdlib.Option.Option.Some (Step.ToPrompt state)
   // ` is "go somewhere": the nav takes the keyboard (as an overlay on a
   // narrow terminal).
   | Some "`" -> Stdlib.Option.Option.Some (Step.Continue (focusNavbar(state)))
@@ -305,9 +301,7 @@ let handleViewKey(
       // they pile up, and the one you are reading is the one you least want dropped. In place,
       // no confirmation, because it is one bit and pressing it again puts it back.
       //
-      // `p` is the prompt everywhere else, and on this pane it is the pin. That is the same
-      // rule every other letter follows here (`r` is rebase on Home, start on Apps, rename on
-      // Code), and the footer says which one you are looking at.
+      // `p` means something only on this pane.
       if state.activeView == vTraces then
         match Stdlib.List.getAt(state.items, state.selected) with
         | Some item ->
