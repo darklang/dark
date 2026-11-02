@@ -1,0 +1,396 @@
+module Darklang.Cli.Tests.Starter
+
+// Each package test runs in its own disposable store.
+test createsAndPreservesEdits =
+  let state = Darklang.Cli.initState()
+  let created = Darklang.Cli.Starter.execute(state, [])
+  let changed = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    created, "/Me.Starter", "let greet(name: String): String = \"Hey, \" + name + \"!\"")
+  let before = Darklang.Cli.Packages.Query.searchExactMatch(
+    state.currentBranchId, [ "Me", "Starter" ], "greet")
+  let repeated = Darklang.Cli.Starter.execute(changed, [])
+  let after = Darklang.Cli.Packages.Query.searchExactMatch(
+    state.currentBranchId, [ "Me", "Starter" ], "greet")
+  Stdlib.Test.all(
+    [ created.exitCode |> Stdlib.Test.equal(0)
+      changed.exitCode |> Stdlib.Test.equal(0)
+      repeated.exitCode |> Stdlib.Test.equal(0)
+      Darklang.Cli.Starter.exists(state.currentBranchId) |> Stdlib.Test.equal(true)
+      Stdlib.List.length(before.fns) |> Stdlib.Test.equal(1)
+      (before.fns |> Stdlib.List.map(fun f -> f.entity.hash))
+      |> Stdlib.Test.equal(after.fns |> Stdlib.List.map(fun f -> f.entity.hash)) ])
+
+test rejectsUnexpectedArguments =
+  let state = Darklang.Cli.initState()
+  let result = Darklang.Cli.Starter.execute(state, [ "surprise" ])
+  Stdlib.Test.all(
+    [ result.exitCode |> Stdlib.Test.equal(1)
+      Darklang.Cli.Starter.exists(state.currentBranchId) |> Stdlib.Test.equal(false) ])
+
+test preservesPartiallyOccupiedModule =
+  let state = Darklang.Cli.initState()
+  let existing = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    state, "/Me.Starter", "val mine = 42")
+  let result = Darklang.Cli.Starter.execute(existing, [])
+  let contents = Darklang.Cli.Packages.Query.allDirectDescendants(
+    state.currentBranchId, [ "Me", "Starter" ])
+  Stdlib.Test.all(
+    [ result.exitCode |> Stdlib.Test.equal(0)
+      Stdlib.List.length(contents.values) |> Stdlib.Test.equal(1)
+      contents.fns |> Stdlib.Test.equal([]) ])
+
+let evaluatesTo(state: Darklang.Cli.AppState, expected: String): Stdlib.Test.Result =
+  match Darklang.Cli.Eval.evaluate(state, Darklang.Cli.Starter.runExpr, false) with
+  | Ok (Some output) -> Stdlib.String.contains(output, expected) |> Stdlib.Test.equal(true)
+  | _ -> Stdlib.Test.fail("The starter did not return a greeting")
+
+test runEditRunUndo =
+  let state = Darklang.Cli.Starter.execute(Darklang.Cli.initState(), [])
+  let first = evaluatesTo(state, "Hello, world!")
+  let edited = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    state, "/Me.Starter", "let greet(name: String): String = \"Hey, \" + name + \"!\"")
+  let followed = evaluatesTo(edited, "Hey, world!")
+  let undone = Darklang.Cli.Undo.execute(edited, [ "/Me.Starter.greet" ])
+  let recovered = evaluatesTo(undone, "Hello, world!")
+  Stdlib.Test.all([ first, followed, recovered ])
+
+/// Always from main: the current branch is process-wide, so a test that ends on a branch would
+/// otherwise start the next one there.
+let tourState(): Darklang.Cli.Workbench.State =
+  let _ = Darklang.SCM.PackageOps.selectBranch(Darklang.SCM.Branch.mainBranchId)
+  Darklang.Cli.Workbench.initialState(
+    Darklang.SCM.Branch.mainBranchId, None, "starter-test", false)
+  |> Darklang.Cli.Workbench.openStarter()
+
+let tourKey(state: Darklang.Cli.Workbench.State, key: Stdlib.Cli.Stdin.Key.Key, text: String): Darklang.Cli.Workbench.State =
+  let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = false, shift = false }
+  match Darklang.Cli.Workbench.handleKey(state, key, mods, Some text) with
+  | Continue next -> next
+  | _ -> state
+
+test interactiveEditSaveAndUndo =
+  let opened = tourState()
+  let ran = tourKey(opened, Stdlib.Cli.Stdin.Key.Key.R, "r")
+  let editing = tourKey(ran, Stdlib.Cli.Stdin.Key.Key.E, "e")
+  match editing.editing with
+  | None -> Stdlib.Test.fail("e did not open the native editor")
+  | Some es ->
+    let edited = { editing with editing = Some { es with
+      buf = Stdlib.Cli.UI.Editor.fromText("let greet(name: String): String = \"Hey, \" + name + \"!\"") } }
+    let ctrl = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = true, shift = false }
+    match Darklang.Cli.Workbench.handleKey(edited, Stdlib.Cli.Stdin.Key.Key.S, ctrl, Some "s") with
+    | Continue saved ->
+      let undone = tourKey(saved, Stdlib.Cli.Stdin.Key.Key.U, "u")
+      let exited = tourKey(undone, Stdlib.Cli.Stdin.Key.Key.Escape, "")
+      match (saved.starter, undone.starter) with
+      | (Some changed, Some restored) ->
+        Stdlib.Test.all(
+          [ changed.progress.ran |> Stdlib.Test.equal(true)
+            changed.progress.changed |> Stdlib.Test.equal(true)
+            Stdlib.String.contains(changed.result, "Hey, world!") |> Stdlib.Test.equal(true)
+            restored.progress.recovered |> Stdlib.Test.equal(true)
+            Stdlib.String.contains(restored.result, "Hello, world!") |> Stdlib.Test.equal(true)
+            Stdlib.Option.isNone(exited.starter) |> Stdlib.Test.equal(true)
+            exited.activeView |> Stdlib.Test.equal(Darklang.Cli.Workbench.vHome) ])
+      | _ -> Stdlib.Test.fail("The tour disappeared while editing")
+    | _ -> Stdlib.Test.fail("Ctrl+S did not save")
+
+test interactiveFramesFit =
+  let opened = tourState()
+  let state = tourKey(opened, Stdlib.Cli.Stdin.Key.Key.R, "r")
+  [ Stdlib.Cli.Tui.Size { width = 80, height = 24 }
+    Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+    Stdlib.Cli.Tui.Size { width = 56, height = 12 } ]
+  |> Stdlib.List.map(fun size ->
+    let view = Darklang.Cli.Workbench.viewAtSize(state, size)
+    Stdlib.List.length(view.rows) |> Stdlib.Test.equal(size.height))
+  |> Stdlib.Test.all()
+
+test resultVisibleAtDefaultSize =
+  let state = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.R, "r")
+  let view = Darklang.Cli.Workbench.viewAtSize(state, Stdlib.Cli.Tui.Size { width = 80, height = 24 })
+  let text = view.rows |> Stdlib.String.join("\n") |> Stdlib.Cli.Tui.Text.stripSgr()
+  Stdlib.Test.all(
+    [ Stdlib.String.contains(text, "Hello, world!") |> Stdlib.Test.equal(true)
+      Stdlib.String.contains(text, "RESULT") |> Stdlib.Test.equal(true)
+      Stdlib.String.contains(text, "x close") |> Stdlib.Test.equal(true) ])
+
+test tourUndoStopsAtStartingVersion =
+  let initial = Darklang.Cli.initState()
+  let created = Darklang.Cli.Starter.create(initial, [])
+  let edited = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    created, "/Me.Starter", "let greet(name: String): String = \"My greeting, \" + name")
+  let opened = tourState()
+  let undone = tourKey(opened, Stdlib.Cli.Stdin.Key.Key.U, "u")
+  match opened.starter with
+  | Some before -> before.source |> Stdlib.Test.equal(Darklang.Cli.Workbench.starterSource(undone))
+  | None -> Stdlib.Test.fail("Undo closed the tour")
+
+test freshHomeOffersStarter =
+  let state = Darklang.Cli.Workbench.initialState(
+    Darklang.SCM.PackageOps.currentBranch(), None, "starter-test", false)
+  state.items |> Stdlib.List.any(fun item -> item.kind == "home-starter")
+  |> Stdlib.Test.equal(true)
+
+test testOutputIsLabelledAsTests =
+  let tested = tourKey(tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.R, "r"), Stdlib.Cli.Stdin.Key.Key.T, "t")
+  let view = Darklang.Cli.Workbench.viewAtSize(tested, Stdlib.Cli.Tui.Size { width = 80, height = 24 })
+  let text = view.rows |> Stdlib.String.join("\n") |> Stdlib.Cli.Tui.Text.stripSgr()
+  Stdlib.Test.all(
+    [ Stdlib.String.contains(text, "TESTS · Me.Starter") |> Stdlib.Test.equal(true)
+      // The result stays: tests are shown beside what the call answered, not instead of it.
+      Stdlib.String.contains(text, "RESULT · Me.Starter.greet(\"world\")") |> Stdlib.Test.equal(true)
+      Stdlib.String.contains(text, "1 passed, 0 failed") |> Stdlib.Test.equal(true) ])
+
+test wideEditStaysBesideTheGuide =
+  let editing = tourKey(tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.R, "r"), Stdlib.Cli.Stdin.Key.Key.E, "e")
+  let view = Darklang.Cli.Workbench.viewAtSize(editing, Stdlib.Cli.Tui.Size { width = 120, height = 30 })
+  let text = view.rows |> Stdlib.String.join("\n") |> Stdlib.Cli.Tui.Text.stripSgr()
+  Stdlib.Test.all(
+    [ Stdlib.Option.isSome(editing.editing) |> Stdlib.Test.equal(true)
+      Stdlib.String.contains(text, "Editing Me.Starter.greet") |> Stdlib.Test.equal(true)
+      Stdlib.String.contains(text, "RESULT · Me.Starter.greet(\"world\")") |> Stdlib.Test.equal(true)
+      Stdlib.String.contains(text, "✓ Run ─") |> Stdlib.Test.equal(true) ])
+
+test traceShowsEachLinesValue =
+  let traced = tourKey(tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.R, "r"), Stdlib.Cli.Stdin.Key.Key.V, "v")
+  match traced.starter with
+  | Some tour ->
+    Stdlib.Test.all(
+      [ tour.showTrace |> Stdlib.Test.equal(true)
+        tour.progress.traced |> Stdlib.Test.equal(true)
+        Stdlib.String.contains(tour.traceGreet, "// = \"Hello, world!\"") |> Stdlib.Test.equal(true)
+        Stdlib.String.contains(tour.traceGreet, "let greet") |> Stdlib.Test.equal(true) ])
+  | None -> Stdlib.Test.fail("The trace closed the tour")
+
+test progressSurvivesReopening =
+  let _ran = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.R, "r")
+  match tourState().starter with
+  | Some tour ->
+    Stdlib.Test.all(
+      [ tour.progress.ran |> Stdlib.Test.equal(true)
+        // What the ticks claim is on screen: the result, not "Press r".
+        tour.output |> Stdlib.Test.equal(Darklang.Cli.Workbench.StarterOutput.Returned)
+        Stdlib.String.contains(tour.result, "Hello, world!") |> Stdlib.Test.equal(true) ])
+  | None -> Stdlib.Test.fail("The tour did not reopen")
+
+test commitLeavesTheRestOfTheDraft =
+  let opened = tourState()
+  let other = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    Darklang.Cli.Workbench.classicState(opened), "/Me.Elsewhere", "val untouched = 1L")
+  let committed = tourKey(opened, Stdlib.Cli.Stdin.Key.Key.C, "c")
+  match committed.starter with
+  | Some tour ->
+    Stdlib.Test.all(
+      [ other.exitCode |> Stdlib.Test.equal(0)
+        tour.progress.committed |> Stdlib.Test.equal(true)
+        Stdlib.String.contains(tour.detail, "Me.Starter.greet") |> Stdlib.Test.equal(true)
+        Stdlib.String.contains(tour.detail, "Me.Elsewhere") |> Stdlib.Test.equal(false)
+        (Stdlib.List.length(Darklang.SCM.PackageOps.draftOpIds()) > 0) |> Stdlib.Test.equal(true) ])
+  | None -> Stdlib.Test.fail("Commit closed the tour")
+
+test branchKeepsMainApart =
+  let committed = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.C, "c")
+  let onIdea = tourKey(committed, Stdlib.Cli.Stdin.Key.Key.B, "b")
+  let edited = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    Darklang.Cli.Workbench.classicState(onIdea), "/Me.Starter",
+    "let greet(name: String): String = \"Howdy, \" + name + \"!\"")
+  let ran = tourKey(onIdea, Stdlib.Cli.Stdin.Key.Key.R, "r")
+  let back = tourKey(ran, Stdlib.Cli.Stdin.Key.Key.B, "b")
+  match (ran.starter, back.starter) with
+  | (Some there, Some home) ->
+    Stdlib.Test.all(
+      [ edited.exitCode |> Stdlib.Test.equal(0)
+        (onIdea.branchId != Darklang.SCM.Branch.mainBranchId) |> Stdlib.Test.equal(true)
+        Stdlib.String.contains(there.result, "Howdy, world!") |> Stdlib.Test.equal(true)
+        Stdlib.String.contains(there.onMain, "Hello, world!") |> Stdlib.Test.equal(true)
+        back.branchId |> Stdlib.Test.equal(Darklang.SCM.Branch.mainBranchId)
+        Stdlib.String.contains(home.result, "Hello, world!") |> Stdlib.Test.equal(true)
+        home.progress.returned |> Stdlib.Test.equal(true) ])
+  | _ -> Stdlib.Test.fail("Switching branches closed the tour")
+
+test parseErrorSaysWhatToDo =
+  let editing = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.E, "e")
+  match (editing.editing, editing.starter) with
+  | (Some es, Some tour) ->
+    let failed = { editing with editing = Some { es with err = "parse error - fix it, then ^s" } }
+    let next = Darklang.Cli.Workbench.starterNext(failed, tour)
+    let key = next.key
+    let sentence = next.sentence
+    Stdlib.Test.all(
+      [ key |> Stdlib.Test.equal("Ctrl+S")
+        Stdlib.String.contains(sentence, "didn't save") |> Stdlib.Test.equal(true) ])
+  | _ -> Stdlib.Test.fail("e did not open the editor")
+
+test footerLightsTheNextKey =
+  let hints = Darklang.Cli.Workbench.starterHints(tourState(), 120)
+  Stdlib.String.contains(hints, Darklang.Cli.Workbench.starterAccent("r"))
+  |> Stdlib.Test.equal(true)
+
+let greetSource(branchId: Uuid): String =
+  Darklang.Cli.Workbench.starterSource(
+    Darklang.Cli.Workbench.initialState(branchId, None, "starter-test", false))
+
+test restartKeyPutsTheTourBack =
+  let opened = tourState()
+  let ran = tourKey(opened, Stdlib.Cli.Stdin.Key.Key.R, "r")
+  let edited = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    Darklang.Cli.Workbench.classicState(ran), "/Me.Starter",
+    "let greet(name: String): String = \"Hey, \" + name + \"!\"\nval extra = 1L")
+  let changed = tourKey(ran, Stdlib.Cli.Stdin.Key.Key.R, "r")
+  let armed = tourKey(changed, Stdlib.Cli.Stdin.Key.Key.R, "R")
+  let restarted = tourKey(armed, Stdlib.Cli.Stdin.Key.Key.R, "R")
+  let extra = Darklang.Cli.Packages.Query.allDirectDescendants(
+    restarted.branchId, [ "Me", "Starter" ])
+  match (changed.starter, restarted.starter) with
+  | (Some before, Some after) ->
+    Stdlib.Test.all(
+      [ edited.exitCode |> Stdlib.Test.equal(0)
+        before.progress.changed |> Stdlib.Test.equal(true)
+        after.progress.ran |> Stdlib.Test.equal(false)
+        after.progress.changed |> Stdlib.Test.equal(false)
+        Stdlib.String.contains(greetSource(restarted.branchId), "Hello, ") |> Stdlib.Test.equal(true)
+        // The restart brings back the starting version, so the first hash is the original one.
+        Stdlib.List.head(after.progress.versions) |> Stdlib.Test.equal(Stdlib.List.head(before.progress.versions))
+        // What you added yourself survives.
+        Stdlib.List.length(extra.values) |> Stdlib.Test.equal(1) ])
+  | _ -> Stdlib.Test.fail("Restart closed the tour")
+
+test restartNeedsASecondPress =
+  let ran = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.R, "r")
+  let armed = tourKey(ran, Stdlib.Cli.Stdin.Key.Key.R, "R")
+  let disarmed = tourKey(armed, Stdlib.Cli.Stdin.Key.Key.R, "r")
+  let again = tourKey(disarmed, Stdlib.Cli.Stdin.Key.Key.R, "R")
+  match again.starter with
+  | Some tour -> tour.progress.ran |> Stdlib.Test.equal(true)
+  | None -> Stdlib.Test.fail("The tour closed")
+
+test restartFlagFromTheCommandLine =
+  let state = Darklang.Cli.Starter.execute(Darklang.Cli.initState(), [])
+  let edited = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    state, "/Me.Starter", "let greet(name: String): String = \"Hey, \" + name + \"!\"")
+  let restarted = Darklang.Cli.Starter.execute(edited, [ "--restart" ])
+  Stdlib.Test.all(
+    [ restarted.exitCode |> Stdlib.Test.equal(0)
+      Stdlib.String.contains(greetSource(state.currentBranchId), "Hello, ") |> Stdlib.Test.equal(true)
+      Stdlib.LocalStore.configGet(Darklang.Cli.Starter.progressKey) |> Stdlib.Test.equal("") ])
+
+test mergeBringsTheIdeaToMain =
+  let committed = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.C, "c")
+  let onIdea = tourKey(committed, Stdlib.Cli.Stdin.Key.Key.B, "b")
+  let tooSoon = tourKey(onIdea, Stdlib.Cli.Stdin.Key.Key.M, "m")
+  let _edited = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    Darklang.Cli.Workbench.classicState(onIdea), "/Me.Starter",
+    "let greet(name: String): String = \"Howdy, \" + name + \"!\"")
+  let ran = tourKey(onIdea, Stdlib.Cli.Stdin.Key.Key.R, "r")
+  // The test still expects Hello, so the merge refuses and stays on the branch.
+  let refused = tourKey(ran, Stdlib.Cli.Stdin.Key.Key.M, "m")
+  let _fixed = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    Darklang.Cli.Workbench.classicState(onIdea), "/Me.Starter",
+    "test greeting = greet(\"world\") |> Stdlib.Test.equal(\"Howdy, world!\")")
+  let tested = tourKey(refused, Stdlib.Cli.Stdin.Key.Key.T, "t")
+  let merged = tourKey(tested, Stdlib.Cli.Stdin.Key.Key.M, "m")
+  // A second trip picks a fresh branch: the merged one keeps its name.
+  let again = tourKey(merged, Stdlib.Cli.Stdin.Key.Key.B, "b")
+  // Leave the process on main; the current branch outlives this test.
+  let _home = tourKey(again, Stdlib.Cli.Stdin.Key.Key.B, "b")
+  match (merged.starter, again.starter) with
+  | (Some home, Some second) ->
+    Stdlib.Test.all(
+      [ (tooSoon.branchId != Darklang.SCM.Branch.mainBranchId) |> Stdlib.Test.equal(true)
+        (refused.branchId != Darklang.SCM.Branch.mainBranchId) |> Stdlib.Test.equal(true)
+        Stdlib.String.contains(refused.message, "tests fail") |> Stdlib.Test.equal(true)
+        merged.branchId |> Stdlib.Test.equal(Darklang.SCM.Branch.mainBranchId)
+        Stdlib.String.contains(home.result, "Howdy, world!") |> Stdlib.Test.equal(true)
+        home.progress.merged |> Stdlib.Test.equal(true)
+        home.detailKind |> Stdlib.Test.equal(Darklang.Cli.Workbench.StarterDetail.Merged)
+        // Not the branch just merged: the exact name depends on what earlier tests left.
+        (match onIdea.starter with
+         | Some first -> second.branchName != first.branchName
+         | None -> false) |> Stdlib.Test.equal(true) ])
+  | _ -> Stdlib.Test.fail("Merging closed the tour")
+
+test branchGuideAsksForTheTest =
+  let committed = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.C, "c")
+  let onIdea = tourKey(committed, Stdlib.Cli.Stdin.Key.Key.B, "b")
+  let _edited = Darklang.Cli.Packages.ModuleCommand.executeSource(
+    Darklang.Cli.Workbench.classicState(onIdea), "/Me.Starter",
+    "let greet(name: String): String = \"Howdy, \" + name + \"!\"")
+  let ran = tourKey(onIdea, Stdlib.Cli.Stdin.Key.Key.R, "r")
+  let tested = tourKey(ran, Stdlib.Cli.Stdin.Key.Key.T, "t")
+  let editing = tourKey(tested, Stdlib.Cli.Stdin.Key.Key.E, "E")
+  let _home = tourKey(tested, Stdlib.Cli.Stdin.Key.Key.B, "b")
+  match (ran.starter, tested.starter) with
+  | (Some before, Some after) ->
+    let k1 = (Darklang.Cli.Workbench.starterNext(ran, before)).key
+    let k2 = (Darklang.Cli.Workbench.starterNext(tested, after)).key
+    Stdlib.Test.all(
+      [ k1 |> Stdlib.Test.equal("t")
+        k2 |> Stdlib.Test.equal("E")
+        Stdlib.String.contains(after.testSource, "Hello, world!") |> Stdlib.Test.equal(true)
+        (match editing.editing with
+         | Some es -> es.kind
+         | None -> "") |> Stdlib.Test.equal("test") ])
+  | _ -> Stdlib.Test.fail("The tour closed")
+
+test eachStepNamesTheRealCommand =
+  let opened = tourState()
+  let ran = tourKey(opened, Stdlib.Cli.Stdin.Key.Key.R, "r")
+  match (opened.starter, ran.starter) with
+  | (Some first, Some second) ->
+    Stdlib.Test.all(
+      [ (Darklang.Cli.Workbench.starterNext(opened, first)).command
+        |> Stdlib.Test.equal("dark eval 'Me.Starter.greet(\"world\")'")
+        (Darklang.Cli.Workbench.starterNext(ran, second)).command
+        |> Stdlib.Test.equal("dark traces show Me.Starter.greet") ])
+  | _ -> Stdlib.Test.fail("The tour closed")
+
+test navbarKeysStillWork =
+  let ran = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.R, "r")
+  // 2 is Code: the tour steps aside for it, like any view switch.
+  let code = tourKey(ran, Stdlib.Cli.Stdin.Key.Key.D2, "2")
+  let keymap = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.Oem2, "?")
+  // Its progress was saved, so coming back picks up where it left off.
+  let back = tourState()
+  Stdlib.Test.all(
+    [ Stdlib.Option.isNone(code.starter) |> Stdlib.Test.equal(true)
+      (code.activeView != Darklang.Cli.Workbench.vHome) |> Stdlib.Test.equal(true)
+      Stdlib.Option.isSome(keymap.starter) |> Stdlib.Test.equal(true)
+      (keymap.overlay == Darklang.Cli.Workbench.Overlay.Keymap) |> Stdlib.Test.equal(true)
+      (match back.starter with
+       | Some tour -> tour.progress.ran
+       | None -> false) |> Stdlib.Test.equal(true) ])
+
+test closeHidesTheTourFromHome =
+  let closed = tourKey(tourState(), Stdlib.Cli.Stdin.Key.Key.X, "x")
+  let home = Darklang.Cli.Workbench.initialState(
+    Darklang.SCM.Branch.mainBranchId, None, "starter-test", false)
+  let reopened = tourState()
+  let homeAgain = Darklang.Cli.Workbench.initialState(
+    Darklang.SCM.Branch.mainBranchId, None, "starter-test", false)
+  Stdlib.Test.all(
+    [ Stdlib.Option.isNone(closed.starter) |> Stdlib.Test.equal(true)
+      closed.activeView |> Stdlib.Test.equal(Darklang.Cli.Workbench.vHome)
+      home.items |> Stdlib.List.any(fun i -> i.kind == "home-starter") |> Stdlib.Test.equal(false)
+      // Opening the tour again un-hides it.
+      Stdlib.Option.isSome(reopened.starter) |> Stdlib.Test.equal(true)
+      homeAgain.items |> Stdlib.List.any(fun i -> i.kind == "home-starter") |> Stdlib.Test.equal(true) ])
+
+test closeFlagFromTheCommandLine =
+  let closed = Darklang.Cli.Starter.execute(Darklang.Cli.initState(), [ "--close" ])
+  let isClosed = Darklang.Cli.Starter.isClosed()
+  let both = Darklang.Cli.Starter.execute(Darklang.Cli.initState(), [ "--close", "--restart" ])
+  let _reopen = Darklang.Cli.Starter.setClosed(false)
+  Stdlib.Test.all(
+    [ closed.exitCode |> Stdlib.Test.equal(0)
+      isClosed |> Stdlib.Test.equal(true)
+      both.exitCode |> Stdlib.Test.equal(1) ])
+
+test coreThenPartTwo =
+  let p = Darklang.Cli.Workbench.freshProgress("#abc")
+  let core = { p with ran = true, traced = true, changed = true, tested = true, recovered = true }
+  Stdlib.Test.all(
+    [ Darklang.Cli.Workbench.starterStepList(p) |> Stdlib.List.map(fun s -> Stdlib.Tuple2.first(s))
+      |> Stdlib.Test.equal([ "Run", "Trace", "Edit", "Test", "Undo" ])
+      Darklang.Cli.Workbench.starterStepList(core) |> Stdlib.List.map(fun s -> Stdlib.Tuple2.first(s))
+      |> Stdlib.Test.equal([ "Core", "Commit", "Branch", "Merge" ]) ])

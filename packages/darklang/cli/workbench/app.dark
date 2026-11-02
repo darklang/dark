@@ -123,7 +123,8 @@ let initialStateFrom(
   let rootLoc = Packages.PackageLocation.Module []
   let homeItems = loadHomeItemsFrom(branchId, draft)
   State
-      { activeView = vHome
+      { starter = Stdlib.Option.Option.None
+        activeView = vHome
         live = live
         location = rootLoc
         items = homeItems
@@ -209,6 +210,8 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
   let state = { state with scmStatus = scmStatusFrom(branchId, draft) }
   // Launching is what enters the alternate screen and paints the first frame; from here on the renderer
   // diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
+  let state =
+    if Stdlib.List.contains(args, "--starter") then openStarter(state) else state
   Darklang.Cli.Component.launchOrExit(cliState, component(), state)
 
 let help(_state: Darklang.Cli.AppState): String =

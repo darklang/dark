@@ -390,7 +390,16 @@ let handleKey(
     Step.Continue { state with overlay = Overlay.NoOverlay }
   | NoOverlay ->
     match state.editing with
-    | Some es -> handleEditorKey(state, es, key, modifiers, keyChar)
+    | Some es ->
+      let step = handleEditorKey(state, es, key, modifiers, keyChar)
+      match step with
+      | Continue next ->
+        if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.S && Stdlib.Option.isNone(next.editing) && Stdlib.Option.isSome(next.starter) then
+          // Saving the test re-runs the tests: what you changed it for is whether it passes.
+          let ran = runStarter({ next with activeView = vHome })
+          Step.Continue (if es.kind == "test" then persistStarter(starterTestRun(ran)) else ran)
+        else step
+      | _ -> step
     | None ->
       match state.input with
       | Some inp -> handleInputKey(state, inp, key, modifiers, keyChar)
@@ -398,7 +407,8 @@ let handleKey(
         match state.reading with
         | Some content -> handleReaderKey(state, content, key, keyChar)
         | None ->
-          if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then
+          if Stdlib.Option.isSome(state.starter) then handleStarterKey(state, key, keyChar)
+          else if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then
             handleSearchResultsKey(state, key, keyChar)
           else if navbarFocused(state) then
             // Let Home's welcome shortcut work before content has focus.

@@ -1,0 +1,857 @@
+/// A guided tour of Dark using real package items and the workbench's native editor:
+/// run, trace, edit, test, undo, commit, and optionally a branch.
+module Darklang.Cli.Workbench
+
+let starterItem(): BodyItem =
+  BodyItem { name = "greet", kind = "fn", isModule = false, desc = "" }
+
+let starterLocation(): Packages.PackageLocation =
+  Packages.PackageLocation.Module [ "Me", "Starter" ]
+
+/// The branch the optional last step tries an idea on.
+val starterBranchName = "starter-idea"
+
+/// Everything the tour commits. Nothing else in your draft is touched.
+val starterItems = [ "Me.Starter.greet", "Me.Starter.greeting" ]
+
+// ── Reading the project ──
+
+let starterTestItem(): BodyItem =
+  BodyItem { name = "greeting", kind = "test", isModule = false, desc = "" }
+
+/// Read through the native editor's source path so comparisons use the same normal form.
+let starterSourceOf(state: State, item: BodyItem): String =
+  match openEditExisting({ state with location = starterLocation() }, item) with
+  | Continue next ->
+    match next.editing with
+    | Some es -> Stdlib.Cli.UI.Editor.toText(es.buf)
+    | None -> ""
+  | _ -> ""
+
+let starterSource(state: State): String = starterSourceOf(state, starterItem())
+
+let starterTestSource(state: State): String = starterSourceOf(state, starterTestItem())
+
+/// The start of a Me.Starter fn's hash, as `#` and seven characters; "" if it is not there.
+let starterHash(branchId: Uuid, name: String): String =
+  Packages.Query.searchExactMatch(branchId, [ "Me", "Starter" ], name).fns
+  |> Stdlib.List.head
+  |> Stdlib.Option.map(fun f ->
+    "#" + Stdlib.String.slice(LanguageTools.ProgramTypes.hashToString(f.entity.hash), 0, 7))
+  |> Stdlib.Option.withDefault("")
+
+let starterOnMainBranch(state: State): Bool = state.branchId == SCM.Branch.mainBranchId
+
+/// The code a test run is about: greet's hash and the test's. A run counts until either changes.
+let starterTestsKey(state: State): String =
+  let test =
+    Packages.Query.searchExactMatch(state.branchId, [ "Me", "Starter" ], "greeting").tests
+    |> Stdlib.List.head
+    |> Stdlib.Option.map(fun t -> LanguageTools.ProgramTypes.hashToString(t.entity.hash))
+    |> Stdlib.Option.withDefault("")
+  starterHash(state.branchId, "greet") + "/" + test
+
+/// Have the tests passed on this branch against the code as it is now?
+let starterBranchTestsPass(state: State, tour: StarterSession): Bool =
+  tour.branchTestsPass && (tour.branchTests == starterTestsKey(state))
+
+// ── Progress ──
+
+let freshProgress(hash: String): StarterProgress =
+  StarterProgress
+    { ran = false
+      traced = false
+      changed = false
+      tested = false
+      recovered = false
+      committed = false
+      branched = false
+      returned = false
+      merged = false
+      versions = (if hash == "" then [] else [ hash ]) }
+
+let loadProgress(hash: String): StarterProgress =
+  match Stdlib.Json.parse<StarterProgress>(Stdlib.LocalStore.configGet(Starter.progressKey)) with
+  | Ok progress -> progress
+  | Error _ -> freshProgress(hash)
+
+let saveProgress(progress: StarterProgress): Unit =
+  Stdlib.LocalStore.configSet(Starter.progressKey, Stdlib.Json.serialize<StarterProgress>(progress))
+
+/// Write the session's progress back to the store, so leaving and reopening keeps it.
+let persistStarter(state: State): State =
+  match state.starter with
+  | Some tour ->
+    let _ = saveProgress(tour.progress)
+    state
+  | None -> state
+
+/// Note greet's hash if it moved since the last one recorded.
+let withVersion(progress: StarterProgress, hash: String): StarterProgress =
+  if (hash == "") || (Stdlib.List.last(progress.versions) == Stdlib.Option.Option.Some hash) then progress
+  else { progress with versions = Stdlib.List.append(progress.versions, hash) }
+
+/// Is greet back on the version the tour started with?
+let starterAtFirstVersion(progress: StarterProgress, hash: String): Bool =
+  Stdlib.List.head(progress.versions) == Stdlib.Option.Option.Some hash
+
+let updateTour(state: State, f: StarterSession -> StarterSession): State =
+  match state.starter with
+  | Some tour -> { state with starter = Stdlib.Option.Option.Some(f(tour)) }
+  | None -> state
+
+// ── Opening ──
+
+let openStarter(state: State): State =
+  let (created, _output) = captureOutputAnd(fun () -> Starter.create(classicState(state), []))
+  let source = starterSource(state)
+  if created.exitCode != 0 || source == "" then
+    { state with messageKind = MessageKind.Refused,
+        message = "Me.Starter is occupied or could not be created. Your code has been preserved." }
+  else
+    let hash = starterHash(state.branchId, "greet")
+    // Creating the project clears saved progress (Starter.create), so this picks up where you left
+    // off on the same project and starts over on a new one.
+    let progress = withVersion(loadProgress(hash), hash)
+    let _ = saveProgress(progress)
+    let _ = Starter.setClosed(false)
+    let fresh = forceScmRefresh(state)
+    let opened =
+      { fresh with
+        starter = Stdlib.Option.Option.Some
+          (StarterSession
+            { original = source
+              source = source
+              result = "Press r to run " + Starter.runExpr + "."
+              output = StarterOutput.NotRun
+              detail = ""
+              detailKind = StarterDetail.NoDetail
+              traceId = ""
+              traceGreet = ""
+              onMain = ""
+              confirmRestart = false
+              branchName = starterBranchName
+              testSource = starterTestSource(state)
+              branchTests = ""
+              branchTestsPass = false
+              showTrace = progress.traced
+              progress = progress })
+        reading = Stdlib.Option.Option.None
+        input = Stdlib.Option.Option.None
+        search = emptySearch()
+        detailScroll = 0 }
+    // Resuming: the ticks say you have run it, so show the result (and the trace, if you had it
+    // open) rather than a "Press r" that contradicts them.
+    if progress.ran then runStarter(opened) else opened
+
+// ── Actions ──
+
+/// Printed output as plain rows. Split BEFORE stripping: `stripSgr` drops every control
+/// character, newlines included, so stripping first runs all the rows together.
+let starterPlainLines(output: String): List<String> =
+  output
+  |> Stdlib.String.replaceAll("\r\n", "\n")
+  |> Stdlib.String.replaceAll("\r", "\n")
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
+
+/// `dark traces show <fn>` for one Me.Starter fn: (trace id, the code with values beside it).
+/// The id is "" when nothing has run through it yet.
+let starterTraceOf(state: State, fn: String): (String * String) =
+  let output =
+    captureOutput(fun () ->
+      Darklang.Cli.Registry.executeCommand(
+        "traces", classicState(state), [ "show", "Me.Starter." + fn ]))
+  let lines = starterPlainLines(output) |> Stdlib.List.filter(fun l -> Stdlib.String.trim(l) != "")
+  let header = Stdlib.List.head(lines) |> Stdlib.Option.withDefault("")
+  if Stdlib.String.startsWith(header, "trace ") then
+    let id =
+      Stdlib.String.split(header, " ")
+      |> Stdlib.List.filter(fun w -> w != "")
+      |> Stdlib.List.getAt(1)
+      |> Stdlib.Option.withDefault("")
+    let body =
+      Stdlib.List.drop(lines, 2)
+      |> Stdlib.List.filter(fun l -> Stdlib.Bool.not(Stdlib.String.startsWith(Stdlib.String.trim(l), "///")))
+      |> Stdlib.String.join("\n")
+      |> Stdlib.String.trim
+    (id, body)
+  else ("", "")
+
+let refreshTrace(state: State): State =
+  let (id, greet) = starterTraceOf(state, "greet")
+  updateTour(state, fun tour -> { tour with traceId = id, traceGreet = greet })
+
+/// `dark test run Me.Starter`, without the per-test "Running:" lines and blank rows.
+let starterTests(state: State): String =
+  captureOutput(fun () ->
+    Darklang.Cli.Registry.executeCommand("test", classicState(state), [ "run", "Me.Starter" ]))
+  |> starterPlainLines
+  |> Stdlib.List.filter(fun l ->
+    (Stdlib.String.trim(l) != "") && Stdlib.Bool.not(Stdlib.String.startsWith(l, "Running:")))
+  |> Stdlib.String.join("\n")
+
+let starterEval(state: State, branchId: Uuid): Stdlib.Result.Result<String, String> =
+  let (answer, _printed) = captureOutputAnd(fun () ->
+    Darklang.Cli.Eval.evaluate(
+      { classicState(state) with currentBranchId = branchId }, Starter.runExpr, false))
+  match answer with
+  | Ok (Some value) -> Stdlib.Result.Result.Ok value
+  | Ok None -> Stdlib.Result.Result.Ok "(no value)"
+  | Error message -> Stdlib.Result.Result.Error message
+
+/// Called by r, after a successful editor save, after undo and after a branch switch; never by
+/// the renderer.
+let runStarter(state: State): State =
+  match state.starter with
+  | None -> state
+  | Some tour ->
+    let source = starterSource(state)
+    let hash = starterHash(state.branchId, "greet")
+    let answer = starterEval(state, state.branchId)
+    let (success, result) =
+      match answer with
+      | Ok value -> (true, value)
+      | Error message -> (false, message)
+    let onMain =
+      if starterOnMainBranch(state) then ""
+      else
+        match starterEval(state, SCM.Branch.mainBranchId) with
+        | Ok value -> value
+        | Error message -> message
+    let p = withVersion(tour.progress, hash)
+    let first = starterAtFirstVersion(p, hash)
+    let progress =
+      { p with
+          ran = p.ran || success
+          changed = p.changed || (success && Stdlib.Bool.not(first))
+          recovered = p.recovered || (success && p.changed && first) }
+    let ran =
+      { state with
+          starter = Stdlib.Option.Option.Some
+            { tour with
+                source = source
+                testSource = starterTestSource(state)
+                result = result
+                output = (if success then StarterOutput.Returned else StarterOutput.Raised)
+                onMain = onMain
+                progress = progress } }
+    // Every run records a trace, so a trace on screen follows the code.
+    persistStarter(if tour.showTrace then refreshTrace(ran) else ran)
+
+let starterTestRun(state: State): State =
+  let output = starterTests(state)
+  let key = starterTestsKey(state)
+  let onBranch = Stdlib.Bool.not(starterOnMainBranch(state))
+  updateTour(state, fun tour ->
+    { tour with
+        detail = output
+        detailKind = StarterDetail.Tests
+        branchTests = (if onBranch then key else tour.branchTests)
+        branchTestsPass =
+          (if onBranch then Stdlib.String.contains(output, " 0 failed") else tour.branchTestsPass)
+        progress = { tour.progress with tested = tour.progress.tested || tour.progress.changed } })
+
+let starterUndo(state: State): State =
+  match state.starter with
+  | Some tour when Stdlib.Bool.not(starterAtFirstVersion(tour.progress, starterHash(state.branchId, "greet"))) ->
+    let (_undone, _output) = captureOutputAnd(fun () ->
+      Darklang.Cli.Undo.execute(classicState(state), [ "/Me.Starter.greet" ]))
+    let ran = runStarter(forceScmRefresh(state))
+    // Tests you ran against the edit run again, so you see them pass.
+    if tour.detailKind == StarterDetail.Tests then starterTestRun(ran) else ran
+  | _ ->
+    { state with
+        messageKind = MessageKind.Refused
+        message = "No edit from this tour to undo. Press e to change the greeting." }
+
+let starterCommit(state: State): State =
+  let (after, output) = captureOutputAnd(fun () ->
+    Darklang.Cli.Commit.execute(
+      classicState(state),
+      [ "My first Dark project", "--include=" + Stdlib.String.join(starterItems, ","), "-y" ]))
+  let shown =
+    starterPlainLines(output)
+    // Commit's review lists the whole draft; only the starter's rows and the commit line are this
+    // commit's.
+    |> Stdlib.List.filter(fun l ->
+      Stdlib.String.contains(l, "Me.Starter.") || Stdlib.String.startsWith(Stdlib.String.trim(l), "commit "))
+    |> Stdlib.List.map(Stdlib.String.trim)
+    |> Stdlib.String.join("\n")
+  let ok = after.exitCode == 0
+  let fresh = forceScmRefresh(state)
+  updateTour(fresh, fun tour ->
+    { tour with
+        detail = shown
+        detailKind = StarterDetail.Committed
+        progress = { tour.progress with committed = tour.progress.committed || ok } })
+
+/// The first of starter-idea, starter-idea-2, ... that is not already merged. A merged branch keeps
+/// its name, so going back to it would mean editing finished work.
+let starterIdeaName(): String =
+  let free(name: String): Bool =
+    match SCM.PackageOps.branchIdForName(name) with
+    | None -> true
+    | Some id -> Stdlib.Bool.not(SCM.PackageOps.branchIsMerged(id))
+  Stdlib.List.range(1, 50)
+  |> Stdlib.List.map(fun n -> if n == 1 then starterBranchName else starterBranchName + "-" + Stdlib.toString(n))
+  |> Stdlib.List.findFirst(free)
+  |> Stdlib.Option.withDefault(starterBranchName)
+
+/// Move the workbench onto a branch for this session, the way the branch picker does. Nothing is
+/// written to `current_branch`: leaving the tour on a branch must not leave the CLI there too.
+let starterGoTo(state: State, branchId: Uuid, name: String): State =
+  let moved = switchWorkbenchBranch(state, branchId, name)
+  { moved with activeView = state.activeView, detailScroll = 0 }
+
+/// b: onto the tour's branch from main, or back to main from anywhere else.
+let starterBranch(state: State): State =
+  let idea = starterIdeaName()
+  let moved =
+    if starterOnMainBranch(state) then
+      let ideaId =
+        match SCM.PackageOps.branchIdForName(idea) with
+        | Some id -> id
+        | None -> Stdlib.Tuple2.first(SCM.PackageOps.ensureBranch(idea, SCM.Branch.mainBranchId))
+      starterGoTo(state, ideaId, idea)
+    else starterGoTo(state, SCM.Branch.mainBranchId, SCM.Branch.mainBranchName)
+  let marked =
+    updateTour(moved, fun tour ->
+      { tour with
+          detail = ""
+          detailKind = StarterDetail.NoDetail
+          branchName = (if starterOnMainBranch(moved) then tour.branchName else idea)
+          progress =
+            if starterOnMainBranch(moved) then
+              { tour.progress with returned = tour.progress.returned || tour.progress.branched }
+            else { tour.progress with branched = true } })
+  runStarter(marked)
+
+/// m on the tour's branch: commit the idea there, merge it into main, and land on main with it.
+let starterMerge(state: State): State =
+  match state.starter with
+  | None -> state
+  | Some tour ->
+    if starterOnMainBranch(state) then
+      { state with messageKind = MessageKind.Refused, message = "Merging starts from a branch. Press b to try an idea on one." }
+    else if tour.result == tour.onMain then
+      { state with messageKind = MessageKind.Refused, message = "Nothing to merge yet. Press e and change the greeting on this branch." }
+    else
+    // Main gets what the branch has, tests included, so a failing test does not go across.
+    let tested = starterTestRun(state)
+    if Stdlib.Bool.not(
+         match tested.starter with
+         | Some t -> starterBranchTestsPass(tested, t)
+         | None -> false) then
+      { tested with
+          messageKind = MessageKind.Refused
+          message = "Not merged: the tests fail here. dark merge won't check that for you; the tour does." }
+    else
+      // A merge takes committed work, so the idea is committed on the branch first: only the
+      // starter's items, like the commit on main.
+      let (_committed, commitOut) = captureOutputAnd(fun () ->
+        Darklang.Cli.Commit.execute(
+          classicState(state),
+          [ "Try a new greeting", "--include=" + Stdlib.String.join(starterItems, ","), "-y" ]))
+      // SCM's merge rather than `dark merge`: that one also moves `current_branch`, and the tour
+      // only moves the workbench.
+      match SCM.PackageOps.mergeBranch(state.branchId) with
+      | Error e ->
+        let why = SCM.PackageOps.mergeErrorMessage(e)
+        updateTour(
+          { state with messageKind = MessageKind.Refused, message = "The merge was refused; see below." },
+          fun t ->
+            { t with
+                detail =
+                  Stdlib.List.append(
+                    starterPlainLines(commitOut) |> Stdlib.List.filter(fun l -> Stdlib.String.trim(l) != ""),
+                    "couldn't merge: " + why)
+                  |> Stdlib.String.join("\n")
+                detailKind = StarterDetail.Merged })
+      | Ok outcome ->
+        let home = starterGoTo(state, SCM.Branch.mainBranchId, SCM.Branch.mainBranchName)
+        let conflicts = Stdlib.List.length(outcome.conflicts)
+        let shown =
+          Stdlib.String.join(
+            [ "The tour committed the branch first; on your own, dark commit, then dark merge."
+              "Merged " + Stdlib.toString(outcome.merged) + " op(s) from " + tour.branchName + " into main."
+              (if conflicts == 0 then "No conflicts."
+               else Stdlib.toString(conflicts) + " conflict(s), resolved by recency: `dark conflicts` shows them.") ],
+            "\n")
+        let marked =
+          updateTour(home, fun t ->
+            { t with
+                detail = shown
+                detailKind = StarterDetail.Merged
+                progress = { t.progress with merged = true, returned = true } })
+        runStarter(marked)
+
+/// R twice: back to main, greet and its test back to the starting code, progress forgotten.
+let starterRestart(state: State): State =
+  let onMain =
+    if starterOnMainBranch(state) then state
+    else starterGoTo(state, SCM.Branch.mainBranchId, SCM.Branch.mainBranchName)
+  let (reset, _output) = captureOutputAnd(fun () -> Starter.restart(classicState(onMain)))
+  if reset.exitCode != 0 then
+    { onMain with messageKind = MessageKind.Refused, message = "Could not reset Me.Starter; nothing was changed." }
+  else
+    let reopened = openStarter({ onMain with starter = Stdlib.Option.Option.None, detailScroll = 0 })
+    { reopened with
+        activeView = state.activeView
+        messageKind = MessageKind.Succeeded
+        message = "Tour restarted. Me.Starter is back to its starting code." }
+
+let handleStarterKey(state: State, key: Stdlib.Cli.Stdin.Key.Key, keyChar: Stdlib.Option.Option<String>): Step =
+  let armed =
+    match state.starter with
+    | Some tour -> tour.confirmRestart
+    | None -> false
+  // Any key but a second R disarms the restart.
+  let state = if armed then updateTour(state, fun t -> { t with confirmRestart = false }) else state
+  match key with
+  | Escape ->
+    let fresh = goTo({ state with starter = Stdlib.Option.Option.None, detailScroll = 0 }, mkDest(vHome, 0), false)
+    let fresh = forceScmRefresh(fresh)
+    Step.Continue fresh
+  | UpArrow -> Step.Continue { state with detailScroll = Stdlib.max(0, state.detailScroll - 1) }
+  | DownArrow -> Step.Continue { state with detailScroll = state.detailScroll + 1 }
+  | _ ->
+    match keyChar with
+    | Some "r" -> Step.Continue (runStarter(state))
+    | Some "v" ->
+      match state.starter with
+      | Some tour when tour.showTrace ->
+        Step.Continue (updateTour(state, fun t -> { t with showTrace = false }))
+      | _ ->
+        let traced = refreshTrace(state)
+        match traced.starter with
+        | Some tour when tour.traceId != "" ->
+          Step.Continue (persistStarter(updateTour(traced, fun t ->
+            { t with showTrace = true, progress = { t.progress with traced = true } })))
+        | _ ->
+          Step.Continue { state with messageKind = MessageKind.Refused, message = "Nothing has run yet. Press r first." }
+    | Some "e" -> openEditExisting({ state with location = starterLocation() }, starterItem())
+    | Some "E" -> openEditExisting({ state with location = starterLocation() }, starterTestItem())
+    | Some "u" -> Step.Continue (persistStarter(starterUndo(state)))
+    | Some "t" -> Step.Continue (persistStarter(starterTestRun(state)))
+    | Some "c" -> Step.Continue (persistStarter(starterCommit(state)))
+    | Some "b" -> Step.Continue (persistStarter(starterBranch(state)))
+    | Some "m" -> Step.Continue (persistStarter(starterMerge(state)))
+    | Some "R" ->
+      if armed then Step.Continue (starterRestart(state))
+      else
+        Step.Continue
+          { (updateTour(state, fun t -> { t with confirmRestart = true })) with
+              messageKind = MessageKind.Refused
+              message = "Press R again to restart: greet goes back to its starting code." }
+    | Some "x" ->
+      let _ = Starter.setClosed(true)
+      let home = goTo({ state with starter = Stdlib.Option.Option.None, detailScroll = 0 }, mkDest(vHome, 0), false)
+      let home = forceScmRefresh(home)
+      Step.Continue
+        { home with
+            items = reloadItems(home)
+            messageKind = MessageKind.Succeeded
+            message = "Closed. Run starter any time to come back; your code stays in Me.Starter." }
+    | Some "q" -> Step.Exit state
+    | Some "?" -> Step.Continue { state with overlay = Overlay.Keymap }
+    | _ ->
+      // The workbench's own keys (1-6, `, /, :, S, p) still work: the tour steps aside, its
+      // progress already saved, and Home's "start here" row brings it back.
+      let away = forceScmRefresh({ state with starter = Stdlib.Option.Option.None, detailScroll = 0 })
+      match globalKey(away, keyChar) with
+      | Some step -> step
+      | None -> Step.Continue state
+
+// ── Rendering ──
+//
+// One column below `starterSplitCols`: steps, the next thing to do, the code, its result. Wider,
+// the code moves to its own column so the result sits beside what produced it.
+
+val starterSplitCols = 100
+
+let starterAccent(text: String): String =
+  Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.purple, text)
+
+/// Part one, the core: the ideas that make Dark different.
+let starterCoreDone(p: StarterProgress): Bool =
+  p.ran && p.traced && p.changed && p.tested && p.recovered
+
+/// The steps on screen: the core until it is done, then "Core" collapsed in front of the optional
+/// second part, keeping your work.
+let starterStepList(p: StarterProgress): List<(String * Bool)> =
+  if starterCoreDone(p) then
+    [ ("Core", true)
+      ("Commit", p.committed)
+      ("Branch", p.branched)
+      ("Merge", p.merged) ]
+  else
+    [ ("Run", p.ran)
+      ("Trace", p.traced)
+      ("Edit", p.changed)
+      ("Test", p.tested)
+      ("Undo", p.recovered) ]
+
+/// Run ─ Trace ─ ... ─ Undo, or Core ─ Commit ─ Branch ─ Merge: done in green, the current step in the accent, the rest dim.
+/// Wrapped onto as many rows as `width` needs.
+let starterSteps(p: StarterProgress, width: Int): List<String> =
+  let steps = starterStepList(p)
+  let current =
+    steps
+    |> Stdlib.List.findFirstIndex(fun step ->
+      let (_name, done) = step
+      Stdlib.Bool.not(done))
+    |> Stdlib.Option.withDefault(0 - 1)
+  let cells =
+    steps
+    |> Stdlib.List.indexedMap(fun i step ->
+      let (name, done) = step
+      let label = (if done then "✓ " else if i == current then "● " else "○ ") + name
+      let styled =
+        if done then Stdlib.Cli.UI.Colors.greenText(label)
+        else if i == current then starterAccent(label)
+        else Stdlib.Cli.UI.Colors.grayText(label)
+      (Stdlib.String.displayWidth(label), styled))
+  let sep = Stdlib.Cli.UI.Colors.grayText(" ─ ")
+  let (rows, last, _used) =
+    cells
+    |> Stdlib.List.fold(([], "", 0), fun acc cell ->
+      let (rows, line, used) = acc
+      let (w, styled) = cell
+      if line == "" then (rows, styled, w)
+      else if used + 3 + w <= width then (rows, line + sep + styled, used + 3 + w)
+      else (Stdlib.List.append(rows, line), styled, w))
+  Stdlib.List.append(rows, last)
+
+/// What to do next, and why it matters: the key ("" when there is none), the sentence, which leads
+/// with the idea, and the command that does the same in your own code ("" when there is none).
+let starterNext(state: State, tour: StarterSession): StarterStep =
+  let p = tour.progress
+  let idea = tour.branchName
+  let step(key: String, sentence: String, command: String): StarterStep =
+    StarterStep { key = key, sentence = sentence, command = command }
+  match state.editing with
+  | Some es when es.err != "" ->
+    step("Ctrl+S", "That didn't save. Fix the code and press Ctrl+S again, or Esc to cancel.", "")
+  | Some es when es.kind == "test" ->
+    step("Ctrl+S", "Change the expected greeting to match yours, then press Ctrl+S to save and test.", "")
+  | Some _ ->
+    step("Ctrl+S", "Change the greeting text, then press Ctrl+S. It's live as soon as it saves.", "")
+  | None ->
+    if tour.output == StarterOutput.Raised then
+      step("e", "Press e to fix the error below, or u to undo your edit. An error is just another result.", "")
+    else if Stdlib.Bool.not(starterOnMainBranch(state)) then
+      if tour.result == tour.onMain then
+        step("e", "You're on branch " + idea + ", a separate place to try an idea. Press e and change the greeting; main won't see it.", "dark edit Me.Starter.greet")
+      else if starterBranchTestsPass(state, tour) then
+        step("m", "Tests pass. Press m to merge your idea into main. The tour commits the branch for you first.", "dark commit \"Try a new greeting\" && dark merge " + idea)
+      else if (tour.branchTests == starterTestsKey(state)) then
+        step("E", "Press E to update the test so it expects your new greeting, then Ctrl+S. Code and its test change together.", "dark edit Me.Starter.greeting")
+      else
+        step("t", "Press t. The test still expects the old greeting, so it fails here too.", "dark test run Me.Starter")
+    else if Stdlib.Bool.not(p.ran) then
+      step("r", "Press r to run greet. Code runs straight from your package tree; there is no build step.", "dark eval '" + Starter.runExpr + "'")
+    else if Stdlib.Bool.not(p.traced) then
+      step("v", "Press v to see the trace. Every run is recorded, with the value each line produced.", "dark traces show Me.Starter.greet")
+    else if Stdlib.Bool.not(p.changed) then
+      step("e", "Press e, change the greeting, then Ctrl+S. Edits are live: the next run uses them.", "dark edit Me.Starter.greet")
+    else if Stdlib.Bool.not(p.tested) then
+      step("t", "Press t. The test runs against your new version, so it fails: it still expects Hello.", "dark test run Me.Starter")
+    else if Stdlib.Bool.not(p.recovered) then
+      step("u", "Press u to undo. The old version comes back with the same hash: a version is its content.", "dark undo Me.Starter.greet")
+    else if Stdlib.Bool.not(p.committed) then
+      step("c", "That's the core of Dark. Optional next: keep your work. Press c to commit, or x to close.", "dark commit \"My first Dark project\"")
+    else if Stdlib.Bool.not(p.branched) then
+      step("b", "Committed. Press b to try an idea on a branch, or x to close.", "dark branch " + starterIdeaName())
+    else if p.merged then
+      step("x", "Merged: main has your new greeting. Press x to close; dark starter brings the tour back.", "")
+    else
+      step("x", "You're back on main, without the idea. Press x to close; dark starter brings the tour back.", "")
+
+/// The next step, word-wrapped under a marker, with the key to press picked out.
+let starterNextLines(state: State, tour: StarterSession, width: Int): List<String> =
+  let step = starterNext(state, tour)
+  let key = step.key
+  let sentence = step.sentence
+  let rows = Stdlib.Cli.Tui.Text.wrapAtWords(sentence, Stdlib.max(8, width - 2))
+  let press = "Press " + key
+  rows
+  |> Stdlib.List.indexedMap(fun i row ->
+    if key == "" then
+      (if i == 0 then Stdlib.Cli.UI.Colors.greenText("✓ ") else "  ")
+      + Stdlib.Cli.UI.Colors.greenText(row)
+    else
+      let styled =
+        match Stdlib.String.indexOf(row, press) with
+        | Some at ->
+          Stdlib.String.slice(row, 0, at) + "Press " + starterAccent(key)
+          + Stdlib.String.dropFirst(row, at + Stdlib.String.length(press))
+        | None -> row
+      (if i == 0 then starterAccent("▸ ") else "  ") + styled)
+  |> fun rows ->
+    // The bridge to the real thing: the same step as a terminal command.
+    if step.command == "" then rows
+    else
+      // The command on a line of its own, so it reads (and copies) whole; the label wraps, the
+      // command only if it is wider than the column.
+      let label = "In a terminal:"
+      let command = "  " + Stdlib.Cli.UI.Colors.grayText("$ ") + step.command
+      let bridge =
+        if Stdlib.String.displayWidth(label + " $ " + step.command) <= width - 2 then
+          [ "  " + Stdlib.Cli.UI.Colors.grayText(label + " $ ") + step.command ]
+        else [ "  " + Stdlib.Cli.UI.Colors.grayText(label), command ]
+      Stdlib.List.concat(rows, bridge)
+
+/// `LABEL · detail ─────`: a bold label, a dim detail, a dim rule out to `width`.
+let starterHeading(label: String, detail: String, width: Int): String =
+  let text = label + " · " + detail
+  let rule = Stdlib.String.repeat("─", Stdlib.max(0, width - Stdlib.String.displayWidth(text) - 1))
+  Stdlib.Cli.UI.Colors.boldText(label)
+  + Stdlib.Cli.UI.Colors.grayText(" · " + detail + " " + rule)
+
+/// One line of code in colour, or as it was if the highlighter would change its text (a half-typed
+/// line can lex oddly, and the editor must show exactly what is in the buffer).
+let starterHighlightLine(line: String): String =
+  let lit = SyntaxHighlighting.highlightCode(line)
+  if Stdlib.Cli.Tui.Text.stripSgr(lit) == line then lit else line
+
+/// Highlight code, falling back to plain text if highlighting changed the line count.
+let starterCode(source: String): List<String> =
+  let plain = Stdlib.String.split(source, "\n")
+  let lit = SyntaxHighlighting.highlightCode(source) |> Stdlib.String.split("\n")
+  if Stdlib.List.length(lit) == Stdlib.List.length(plain) then lit else plain
+
+/// A traced line: the code, then the value it produced in green.
+let starterTracedLine(line: String, dim: Bool): String =
+  let paint(code: String): String =
+    if dim then Stdlib.Cli.UI.Colors.grayText(code) else starterHighlightLine(code)
+  match Stdlib.String.indexOf(line, " // = ") with
+  | Some at ->
+    paint(Stdlib.String.slice(line, 0, at))
+    + Stdlib.Cli.UI.Colors.greenText("  ← " + Stdlib.String.dropFirst(line, at + 6))
+  | None -> paint(line)
+
+/// The start of greet's hash each time it changed, oldest first. Shown once there is a second.
+let starterVersionsLine(p: StarterProgress): List<String> =
+  if Stdlib.List.length(p.versions) < 2 then []
+  else
+    let n = Stdlib.List.length(p.versions)
+    let shown = Stdlib.List.drop(p.versions, Stdlib.max(0, n - 3))
+    let lead = if n > 3 then "… → " else ""
+    [ Stdlib.Cli.UI.Colors.grayText("versions  " + lead + Stdlib.String.join(shown, " → ")) ]
+
+/// greet in colour, its test beneath it, dim. With the trace on, each line of greet carries the
+/// value it produced on the last run.
+let starterCodeLines(tour: StarterSession): List<String> =
+  let greet =
+    if tour.showTrace && (tour.traceGreet != "") then
+      Stdlib.String.split(tour.traceGreet, "\n") |> Stdlib.List.map(fun l -> starterTracedLine(l, false))
+    else starterCode(tour.source)
+  let test =
+    if tour.testSource == "" then []
+    else Stdlib.List.prepend(
+      Stdlib.String.split(tour.testSource, "\n") |> Stdlib.List.map(Stdlib.Cli.UI.Colors.grayText), "")
+  Stdlib.List.flatten([ starterVersionsLine(tour.progress), greet, test ])
+
+/// What the code column is called: greet and its hash, and the trace when it is showing.
+let starterCodeDetail(state: State, tour: StarterSession): String =
+  let hash = starterHash(state.branchId, "greet")
+  let trace = if tour.showTrace && (tour.traceId != "") then " · trace " + tour.traceId else ""
+  "greet " + hash + trace
+
+let starterResultLines(state: State, tour: StarterSession, width: Int): List<String> =
+  let paint =
+    match tour.output with
+    | NotRun -> Stdlib.Cli.UI.Colors.grayText
+    | Returned -> Stdlib.Cli.UI.Colors.greenText
+    | Raised -> Stdlib.Cli.UI.Colors.redText
+  let where =
+    if starterOnMainBranch(state) then Starter.runExpr else Starter.runExpr + " on " + tour.branchName
+  let body =
+    tour.result
+    |> Stdlib.String.trim
+    |> starterPlainLines
+    |> Stdlib.List.map(paint)
+  let mainBranchLine =
+    if tour.onMain == "" then []
+    else [ Stdlib.Cli.UI.Colors.grayText("on main: " + tour.onMain) ]
+  let label =
+    Stdlib.Cli.UI.Colors.boldText("RESULT") + Stdlib.Cli.UI.Colors.grayText(" · " + where)
+  starterPanel(Stdlib.List.prepend(Stdlib.List.concat(body, mainBranchLine), label), width)
+
+/// A faint tint behind the output, so the result reads as a block rather than a ruled section.
+/// 24-bit like the diff washes; a terminal without truecolour shows it untinted, which is fine.
+val starterPanelBg = "\x1b[48;2;40;42;50m"
+
+/// `lines` as one tinted block `width` wide, the first line its label: a blank tinted row above
+/// and below, and two columns of padding either side of the text. No outline and square corners:
+/// a terminal cannot round a background, and edges drawn in block characters left a dotted gap
+/// in some fonts that read as a second box. The background is re-asserted after every reset,
+/// since each painted line ends in one.
+let starterPanel(lines: List<String>, width: Int): List<String> =
+  let reset = Stdlib.Cli.UI.Colors.reset
+  let inner = Stdlib.max(8, width - 4)
+  let tint(line: String): String =
+    let washed = Stdlib.String.replaceAll(line, reset, reset + starterPanelBg)
+    let pad = Stdlib.max(0, width - 2 - Stdlib.Cli.Tui.Text.styledWidth(line))
+    starterPanelBg + "  " + washed + Stdlib.String.repeat(" ", pad) + reset
+  let rows =
+    lines
+    |> Stdlib.List.map(fun l ->
+      // Long output wraps inside the block. Wrapping works on plain text, so a line that has to
+      // break loses its colour; output that fits keeps it.
+      if Stdlib.Cli.Tui.Text.styledWidth(l) <= inner then [ l ]
+      else Stdlib.Cli.Tui.Text.wrapAtWords(Stdlib.Cli.Tui.Text.stripSgr(l), inner))
+    |> Stdlib.List.flatten
+  Stdlib.List.flatten([ [ "" ], rows, [ "" ] ]) |> Stdlib.List.map(tint)
+
+let starterDetailLine(kind: StarterDetail, line: String): String =
+  if Stdlib.String.startsWith(line, "PASS") then Stdlib.Cli.UI.Colors.greenText(line)
+  else if Stdlib.String.startsWith(line, "FAIL") then Stdlib.Cli.UI.Colors.redText(line)
+  else if Stdlib.String.contains(line, " passed, ") then
+    if Stdlib.String.contains(line, " 0 failed") then Stdlib.Cli.UI.Colors.greenText(line)
+    else Stdlib.Cli.UI.Colors.boldText(Stdlib.Cli.UI.Colors.redText(line))
+  else if (kind == StarterDetail.Merged) && Stdlib.String.startsWith(line, "Merged ") then
+    Stdlib.Cli.UI.Colors.greenText(line)
+  else if (kind == StarterDetail.Committed) && Stdlib.String.startsWith(line, "commit ") then
+    Stdlib.Cli.UI.Colors.greenText(line)
+  else line
+
+/// The last test run or commit, under the result.
+let starterDetailLines(tour: StarterSession, width: Int): List<List<String>> =
+  let title =
+    match tour.detailKind with
+    | NoDetail -> ""
+    | Tests -> "TESTS"
+    | Committed -> "COMMIT"
+    | Merged -> "MERGE"
+  if (title == "") || (tour.detail == "") then []
+  else
+    let detail =
+      match tour.detailKind with
+      | Tests -> "Me.Starter"
+      | Merged -> tour.branchName + " into main"
+      | _ -> "My first Dark project"
+    [ Stdlib.List.prepend(
+        Stdlib.String.split(tour.detail, "\n") |> Stdlib.List.map(fun l -> starterDetailLine(tour.detailKind, l)),
+        starterHeading(title, detail, width)) ]
+
+/// Prose, word-wrapped flush left: a hanging indent is for code, and made the note look broken.
+let starterNote(width: Int): List<String> =
+  Stdlib.Cli.Tui.Text.wrapAtWords("Edits are live. Nothing is committed automatically.", Stdlib.max(8, width))
+  |> Stdlib.List.map(Stdlib.Cli.UI.Colors.grayText)
+
+/// The single-column tour as sections, in reading order. `starterSpaced` decides the gaps.
+let starterBlocks(state: State, tour: StarterSession, width: Int): List<List<String>> =
+  Stdlib.List.flatten(
+    [ [ starterSteps(tour.progress, width)
+        starterNextLines(state, tour, width)
+        Stdlib.List.prepend(starterCodeLines(tour), starterHeading("CODE", starterCodeDetail(state, tour), width))
+        starterResultLines(state, tour, width) ]
+      starterDetailLines(tour, width)
+      [ starterNote(width) ] ])
+
+/// The left column of the split: everything but the code.
+let starterGuideBlocks(state: State, tour: StarterSession, width: Int): List<List<String>> =
+  Stdlib.List.flatten(
+    [ [ starterSteps(tour.progress, width)
+        starterNextLines(state, tour, width)
+        starterResultLines(state, tour, width) ]
+      starterDetailLines(tour, width)
+      [ starterNote(width) ] ])
+
+/// Whether a line is one of a `starterPanel` block's blank padding rows.
+let starterIsPanelEdge(line: String): Bool =
+  Stdlib.String.startsWith(line, starterPanelBg)
+  && (Stdlib.String.trim(Stdlib.Cli.Tui.Text.stripSgr(line)) == "")
+
+/// Join sections with two blank rows when they all still fit in `rows`, else one. If even that
+/// does not fit, the result block loses its padding rows before anything else scrolls away.
+let starterSpaced(blocks: List<List<String>>, rows: Int): List<String> =
+  let joined(gap: Int): List<String> =
+    let spacer = Stdlib.List.range(1, gap) |> Stdlib.List.map(fun _ -> "")
+    blocks
+    |> Stdlib.List.indexedMap(fun i block -> if i == 0 then block else Stdlib.List.concat(spacer, block))
+    |> Stdlib.List.flatten
+  let roomy = joined(2)
+  if Stdlib.List.length(roomy) <= rows then roomy
+  else
+    let tight = joined(1)
+    if Stdlib.List.length(tight) <= rows then tight
+    else tight |> Stdlib.List.filter(fun l -> Stdlib.Bool.not(starterIsPanelEdge(l)))
+
+/// Breathing room inside a pane: a row above, two more columns either side. Dropped when the pane
+/// is too small to spare it, so a tiny terminal keeps every row for content.
+let starterPadded(content: Stdlib.Cli.UI.Layout.Region): Stdlib.Cli.UI.Layout.Region =
+  if (content.cols < 40) || (content.rows < 12) then content
+  else
+    Stdlib.Cli.UI.Layout.Region
+      { top = content.top + 1
+        left = content.left + 2
+        rows = content.rows - 1
+        cols = content.cols - 4 }
+
+/// Draw `lines` into `content`, clamping the scroll so the last row stays at the bottom.
+/// Lines are laid out to `content.cols - 3`: the scroller keeps two columns for a wrap indent.
+let starterPane(content: Stdlib.Cli.UI.Layout.Region, lines: List<String>, scroll: Int): List<Stdlib.Cli.UI.Layout.Span> =
+  let rows =
+    lines
+    |> Stdlib.List.map(fun l -> Stdlib.List.length(wrapRow(Stdlib.max(1, content.cols - 1), l)))
+    |> Stdlib.List.fold(0, fun total n -> total + n)
+  let clamped = Stdlib.min(scroll, Stdlib.max(0, rows - content.rows))
+  renderScrollableLines(content, 0, lines, lines, clamped)
+
+let renderStarter(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
+  match state.starter with
+  | None -> []
+  | Some tour ->
+    let place = if starterOnMainBranch(state) then "Me.Starter" else "Me.Starter on " + tour.branchName
+    if region.cols >= starterSplitCols then
+      let (guideArea, codeArea, ruleCol, _collapsed) = paneGeometry(region, 50)
+      let guide = starterPadded(guideArea)
+      let code = starterPadded(codeArea)
+      let guideLines = starterSpaced(starterGuideBlocks(state, tour, guide.cols - 3), guide.rows)
+      match state.editing with
+      | Some es ->
+        Stdlib.List.flatten(
+          [ frameWithTitles(
+              region,
+              paneTitle("Your first Dark project", [ place ], false),
+              paneTitle(es.nameStr, [ "^s saves · esc cancels" ], true),
+              ruleCol)
+            starterPane(guide, guideLines, state.detailScroll)
+            editorBodySpans(es, code, starterHighlightLine) ])
+      | None ->
+        Stdlib.List.flatten(
+          [ frameWithTitles(
+              region,
+              paneTitle("Your first Dark project", [ place ], true),
+              paneTitle("Code", [ starterCodeDetail(state, tour) ], false),
+              ruleCol)
+            starterPane(guide, guideLines, state.detailScroll)
+            starterPane(code, starterCodeLines(tour), state.detailScroll) ])
+    else
+      let content = starterPadded(paneContent(region))
+      let lines = starterSpaced(starterBlocks(state, tour, content.cols - 3), content.rows)
+      Stdlib.List.concat(
+        frameWithTitles(region, paneTitle("Your first Dark project", [ place ], true), "", 0 - 1),
+        starterPane(content, lines, state.detailScroll))
+
+/// The tour's key hints, with the key the guide is asking for in the accent colour.
+let starterHints(state: State, cols: Int): String =
+  let pairs =
+    [ ("r", "run"), ("v", "trace"), ("e", "edit"), ("E", "edit test"), ("t", "test"), ("u", "undo"), ("c", "commit"), ("b", "branch"), ("m", "merge"), ("R", "restart"), ("↑↓", "scroll") ]
+  let hints = Frame.formatHintsFitted(pairs, [ ("x", "close") ], cols)
+  match state.starter with
+  | None -> hints
+  | Some tour ->
+    let key = (starterNext(state, tour)).key
+    match Stdlib.List.append(pairs, ("x", "close")) |> Stdlib.List.findFirst(fun p ->
+      let (k, _l) = p
+      k == key) with
+    | Some pair ->
+      let (k, l) = pair
+      let plain = Frame.formatHints([ (k, l) ])
+      let lit = starterAccent(k) + " " + Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.purple, l)
+      Stdlib.String.replaceAll(hints, plain, lit)
+    | None -> hints

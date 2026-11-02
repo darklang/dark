@@ -57,9 +57,13 @@ let renderViewBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
 /// The multiline editor, under a title naming what's being written: a spacious authoring surface (not
 /// the bottom prompt bar). The error line (if any) sits just under the title; the buffer renders below
 /// with a reverse-video cursor at (row, col).
-let renderEditing(es: EditingState, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
-  let inner = paneContent(region)
-  let title = paneTitle(es.nameStr, [ es.kind, "^s saves · esc cancels" ], true)
+/// The editor's buffer drawn into `inner`: the error line if any, then the lines, scrolled to keep the
+/// cursor in view. `style` paints the rows the cursor is not on (the starter highlights them).
+let editorBodySpans(
+  es: EditingState,
+  inner: Stdlib.Cli.UI.Layout.Region,
+  style: String -> String)
+  : List<Stdlib.Cli.UI.Layout.Span> =
   let errSpans =
     if es.err != "" then Stdlib.Cli.UI.Layout.at(inner, 0, 0, Stdlib.Cli.UI.Colors.error(es.err)) else []
   let bodyTop = if es.err != "" then 1 else 0
@@ -80,9 +84,15 @@ let renderEditing(es: EditingState, region: Stdlib.Cli.UI.Layout.Region): List<S
         let after = if es.buf.col < llen then Stdlib.String.slice(l, es.buf.col + 1, llen) else ""
         Stdlib.Cli.UI.Layout.at(inner, screenRow, 0, before + (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.reverse, atCursor)) + after)
       else
-        Stdlib.Cli.UI.Layout.at(inner, screenRow, 0, l))
+        Stdlib.Cli.UI.Layout.at(inner, screenRow, 0, style(l)))
     |> Stdlib.List.flatten
-  Stdlib.List.flatten([ frameWithTitles(region, title, "", 0 - 1), errSpans, bodySpans ])
+  Stdlib.List.concat(errSpans, bodySpans)
+
+let renderEditing(es: EditingState, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
+  let title = paneTitle(es.nameStr, [ es.kind, "^s saves · esc cancels" ], true)
+  Stdlib.List.concat(
+    frameWithTitles(region, title, "", 0 - 1),
+    editorBodySpans(es, paneContent(region), Stdlib.Cli.UI.Colors.plain))
 
 /// The jumpable search-results list. ⏎ navigates to the hit.
 let renderSearchResults(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
@@ -101,12 +111,16 @@ let renderSearchResults(state: State, region: Stdlib.Cli.UI.Layout.Region): List
 /// Dispatch the body: the editor, then a reader, then search results, else the active view's body.
 let renderBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
   match state.editing with
+  // The starter's wide layout edits in its own code column, beside the steps and the result.
+  | Some _ when Stdlib.Option.isSome(state.starter) && (region.cols >= starterSplitCols) ->
+    renderStarter(state, region)
   | Some es -> renderEditing(es, region)
   | None ->
   match state.reading with
   | Some content -> renderReading(content, state.readingIsCode, state.detailScroll, region)
   | None ->
-    if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then renderSearchResults(state, region)
+    if Stdlib.Option.isSome(state.starter) then renderStarter(state, region)
+    else if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then renderSearchResults(state, region)
     else renderViewBody(state, region)
 
 /// A view's purpose and data caveat. An empty caveat means real data.

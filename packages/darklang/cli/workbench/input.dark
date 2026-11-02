@@ -203,7 +203,9 @@ let performInputAction(state: State, inp: InputState): Step =
         match words with
         | first :: rest -> (first, rest)
         | [] -> ("", [])
-      if (cmd == "commands") || (cmd == "classic") || (cmd == "prompt") then
+      if (cmd == "starter") && (args == []) then
+        Step.Continue (openStarter({ state with input = Stdlib.Option.Option.None }))
+      else if (cmd == "commands") || (cmd == "classic") || (cmd == "prompt") then
         // Drop to the old command-prompt mode (its own typeahead + live commands); `quit` there returns here.
         Step.ToPrompt { state with input = Stdlib.Option.Option.None }
       // Two kinds of command can't run captured, and the registry knows which they are: full-screen

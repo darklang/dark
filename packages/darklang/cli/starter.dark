@@ -1,0 +1,106 @@
+/// A first project in the user's package tree, authored through the normal module path.
+module Darklang.Cli.Starter
+
+/// What the tour runs: a plain call, no wrapper function.
+val runExpr = "Me.Starter.greet(\"world\")"
+
+let source(): String =
+  [ "/// Change the greeting, then run Me.Starter.greet(\"world\") again."
+    "let greet(name: String): String = \"Hello, \" + name + \"!\""
+    ""
+    "test greeting = greet(\"world\") |> Stdlib.Test.equal(\"Hello, world!\")" ]
+  |> Stdlib.String.join("\n")
+
+/// Where the workbench tour keeps its progress. Cleared whenever the project is created, so a new
+/// Me.Starter never inherits the progress of an earlier one.
+val progressKey = "starter_progress"
+
+/// Set when the tour is closed: Home stops offering it. Opening the tour again clears it.
+val closedKey = "starter_closed"
+
+let isClosed(): Bool = Stdlib.LocalStore.configGet(closedKey) == "1"
+
+let setClosed(closed: Bool): Unit =
+  Stdlib.LocalStore.configSet(closedKey, (if closed then "1" else ""))
+
+let exists(branchId: Uuid): Bool =
+  Packages.Query.allDirectDescendants(branchId, [ "Me", "Starter" ])
+  |> Packages.Query.hasContent()
+
+let guide(): String =
+  [ "Your first project: Me.Starter"
+    ""
+    "1. Explore: dark tree Me.Starter"
+    "   Read the code: dark view Me.Starter.greet"
+    "2. Run: dark eval 'Me.Starter.greet(\"world\")'"
+    "   You should see: Hello, world!"
+    "3. Edit: dark edit Me.Starter.greet"
+    "   In your editor, change Hello to Hey and save."
+    "4. Run again: dark eval 'Me.Starter.greet(\"world\")'"
+    "   You should see: Hey, world!"
+    "5. Check: dark test run Me.Starter"
+    "   The greeting test now fails because it still expects Hello."
+    "6. Recover: dark undo Me.Starter.greet"
+    "   Run the test again; it should pass."
+    ""
+    "See your work: dark status"
+    "Keep experimenting, or save with: dark commit \"My first Dark project\""
+    "Edits are live immediately. A commit records them."
+    "Run dark starter again to see these steps without replacing your work."
+    "Start over with: dark starter --restart"
+    "Done with it? dark starter --close hides it from Home; dark starter brings it back." ]
+  |> Stdlib.String.join("\n")
+
+let create(state: AppState, args: List<String>): AppState =
+  if args != [] then
+    Cli.printErr("Usage: starter [--restart | --close]")
+    Cli.exitWith(state, false)
+  else if exists(state.currentBranchId) then
+    Cli.printHint("Me.Starter already contains code; keeping your work.")
+    Stdlib.printLine(guide())
+    state
+  else
+    let saved = Packages.ModuleCommand.executeSource(state, "/Me.Starter", source())
+    if saved.exitCode == 0 then
+      Stdlib.LocalStore.configSet(progressKey, "")
+      Stdlib.printLine(guide())
+    else ()
+    saved
+
+/// Start the tour over: greet and its test go back to the starting code (and so to the starting
+/// hash), and the tour's progress is forgotten. Anything else you added to Me.Starter stays,
+/// because authoring a module adds and updates but never removes.
+let restart(state: AppState): AppState =
+  let saved = Packages.ModuleCommand.executeSource(state, "/Me.Starter", source())
+  if saved.exitCode == 0 then Stdlib.LocalStore.configSet(progressKey, "") else ()
+  saved
+
+let help(_state: AppState): String =
+  "Usage: starter [--restart | --close]\nOpen a guided starter project in the workbench. Run, trace, edit, test, undo, and commit in one view.\nExisting code in Me.Starter is preserved. Without a terminal, print the command guide.\n\n  --restart   put greet and its test back to the starting code and start the tour over;\n              anything else in Me.Starter stays\n  --close     stop offering the tour on Home; your code stays, and dark starter reopens it"
+
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> = []
+
+/// Keep scripted use textual; a terminal opens the same tour as Home.
+let execute(state: AppState, args: List<String>): AppState =
+  let restarting = Stdlib.List.contains(args, "--restart")
+  let closing = Stdlib.List.contains(args, "--close")
+  let rest = args |> Stdlib.List.filter(fun a -> (a != "--restart") && (a != "--close"))
+  // Both at once contradict each other; refuse with the usage line.
+  if (rest != []) || (restarting && closing) then create(state, Stdlib.List.append(rest, "--close"))
+  else if closing then
+    setClosed(true)
+    Cli.printOk("Closed. Home won't offer the tour any more; dark starter brings it back.")
+    state
+  else
+    setClosed(false)
+    let ready = if restarting && exists(state.currentBranchId) then restart(state) else state
+    if ready.exitCode != 0 then ready
+    else
+      match Stdlib.Cli.Tui.TerminalSupport.current() with
+      | Available -> Workbench.execute(ready, [ "--starter" ])
+      | Unavailable _ ->
+        if restarting && exists(state.currentBranchId) then
+          Cli.printOk("Me.Starter is back to its starting code; the tour starts over.")
+          Stdlib.printLine(guide())
+          ready
+        else create(ready, [])

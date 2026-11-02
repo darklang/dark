@@ -163,8 +163,69 @@ type PreviewCache =
   { key: PreviewKey
     lines: List<String> }
 
+/// What the starter's RESULT block holds: the last answer of `Starter.runExpr`.
+type StarterOutput =
+  | NotRun
+  | Returned
+  | Raised
+
+/// The block under the result: the last test run or commit, if any.
+type StarterDetail =
+  | NoDetail
+  | Tests
+  | Committed
+  | Merged
+
+/// How far through the tour you are. Saved to the store's config so it survives leaving
+/// the tour; reset when the tour has to create Me.Starter from scratch.
+type StarterProgress =
+  { ran: Bool
+    traced: Bool
+    changed: Bool
+    tested: Bool
+    recovered: Bool
+    committed: Bool
+    branched: Bool
+    returned: Bool
+    merged: Bool
+    /// The start of greet's hash, each time it changed. Undo brings back an earlier one.
+    versions: List<String> }
+
+/// One step of the starter's guide. See `starterNext`.
+type StarterStep =
+  { key: String
+    sentence: String
+    command: String }
+
+/// One sitting of the tour. The code itself stays ordinary package items.
+type StarterSession =
+  { original: String
+    source: String
+    result: String
+    output: StarterOutput
+    detail: String
+    detailKind: StarterDetail
+    /// Show the code with the last run's values beside it.
+    showTrace: Bool
+    traceId: String
+    traceGreet: String
+    /// On the tour's branch: what main() answers on main, for comparison.
+    onMain: String
+    /// The branch the tour switched to, so merge and the guide can name it.
+    branchName: String
+    /// The `greeting` test's source, shown under greet so you can see what it expects.
+    testSource: String
+    /// Which code the last test run on a branch was against (see `starterTestsKey`), and whether
+    /// it passed. Merging waits for a passing run against the current code.
+    branchTests: String
+    branchTestsPass: Bool
+    /// R was pressed once; a second R restarts the tour.
+    confirmRestart: Bool
+    progress: StarterProgress }
+
 type State =
-  { activeView: Int
+  { starter: Stdlib.Option.Option<StarterSession>
+    activeView: Int
     /// `--live`: reload when something changes the store under you. Off, nothing is said and
     /// nothing moves until you press `R`, which is the difference
     /// between a viewer telling you something happened and a viewer rearranging itself while

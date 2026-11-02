@@ -112,6 +112,8 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
               | None ->
                 if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then
                   Frame.formatHints([ ("↑↓", "move"), ("⏎", "jump"), ("esc", "close"), ("q", "quit") ])
+                else if Stdlib.Option.isSome(state.starter) then
+                  starterHints(state, r.cols)
                 else hintsForView(state, r.cols)
         // A toast sits beside the hints, right-aligned -- taking the whole row would
         // cost the shortcuts exactly when a new arrival needs them. Failure reads pink

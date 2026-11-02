@@ -569,7 +569,8 @@ let private everyCommandAnswersHelp =
 /// bare sweep is the one that catches what `agent` does with no subcommand.
 let private notSweepable =
   Set.ofList
-    [ "quit" // ends the session
+    [ "starter" // authors into the shared store; covered by disposable package tests
+      "quit" // ends the session
       "install" // rewrites the install
       "uninstall" // ditto, destructively
       "update" // ditto, and fetches a build

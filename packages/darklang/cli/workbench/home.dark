@@ -124,7 +124,11 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
     if Stdlib.List.isEmpty(rows) then []
     else Stdlib.List.concat([ homeHeader(""), homeHeader(label) ], rows)
   Stdlib.List.flatten(
-    [ section("needs attention", attention)
+    [ (if Stdlib.Bool.not(Starter.isClosed())
+          && (Starter.exists(branchId) || ((SCM.Commits.count() <= 1L) && (draft.ops == 0L))) then
+         section("start here", [ row((if Starter.exists(branchId) then "Open starter project" else "Create a starter project"), "home-starter", "a short tour of Dark · ⏎ open") ])
+       else [])
+      section("needs attention", attention)
       section("this branch", here)
       section("recent commits", recent)
       section("branches", Stdlib.List.concat(branches, more)) ])
@@ -158,7 +162,9 @@ let openHomeRow(state: State): Step =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> Step.Continue state
   | Some item ->
-    if (item.kind == "home-conflicts") || (item.kind == "home-here") then
+    if item.kind == "home-starter" then
+      Step.Continue (openStarter(state))
+    else if (item.kind == "home-conflicts") || (item.kind == "home-here") then
       let moved = goTo(state, mkDest(vSCM, 0), false)
       Step.Continue { moved with selected = 0 }
     else if item.kind == "home-constraints" then

@@ -21,6 +21,7 @@ module Registry =
   // `allCommands` the way `execute`, `help` and `complete` are. Functions rather than values, because
   // every start builds the table and only the command being run should pay for its declaration.
   let acceptsQuit(): Accepts.Accepts = Accepts.nothing()
+  let acceptsStarter(): Accepts.Accepts = Accepts.flagsOnly([ "--restart", "--close" ])
   let acceptsHelp(): Accepts.Accepts = Accepts.textBetween(0, 1)
   let acceptsConfig(): Accepts.Accepts = (Accepts.subcommands([ ("get", Accepts.between(1, 1, [])), ("set", Accepts.textBetween(2, 2)), ("list", Accepts.nothing()) ], Accepts.nothing()))
   let acceptsInstall(): Accepts.Accepts = Accepts.flagsOnly([ "-y", "--yes", "--uninstall-if-installed" ])
@@ -138,6 +139,7 @@ module Registry =
       ("find-values", "Find values of a given type", [], acceptsFindValues, Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
       ("impls", "List the implementations of a trait on this branch", [], acceptsImpls, Packages.Impls.execute, Packages.Impls.help, Packages.Impls.complete)
       ("serve", "Start an HTTP server", [ "http-server" ], acceptsServe, Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
+      ("starter", "Create a small project and learn the edit/run loop", [], acceptsStarter, Starter.execute, Starter.help, Starter.complete)
       ("docs", "Browse in-CLI documentation", [ "doc", "man" ], acceptsDocs, Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
       ("undo", "Step an item back to its previous version", [], acceptsUndo, Cli.Undo.execute, Cli.Undo.help, Cli.Undo.complete)
       ("deprecate", "Mark a fn/type/value/trait/impl/test as deprecated", [], acceptsDeprecate, Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
@@ -282,7 +284,7 @@ module Registry =
       ("Installation", [ "install", "update", "uninstall", "version", "install-status" ])
       ("Security", [ "permissions" ])
       ("Utilities",
-       [ "clear", "help", "docs", "quit", "builtins", "export-seed", "workbench", "outliner", "backups", "config" ]) ]
+       [ "starter", "clear", "help", "docs", "quit", "builtins", "export-seed", "workbench", "outliner", "backups", "config" ]) ]
 
   let formatCommandGroup(groupName: String, commandNames: List<String>, commands: List<CommandHandler>): String =
     let formattedCommands =
@@ -319,7 +321,7 @@ module Registry =
       Stdlib.List.concat(formattedGroups, [ "", "Type 'help' for detailed command info" ])
 
     let allLines =
-      Stdlib.List.concat([ welcome, "", availableCommands, "" ], groupsWithFooter)
+      Stdlib.List.concat([ welcome, "", "New here? Run starter to create your first project.", "", availableCommands, "" ], groupsWithFooter)
 
     Logo.combineLogoAndText(Logo.logo, allLines, Stdlib.Cli.UI.Colors.logoColor)
 
@@ -365,7 +367,7 @@ module Registry =
     // gets to and the first thing they needed: what the loop is, and where an agent should go instead of
     // reading a hundred command names.
     let header =
-      "Workflow: fn Me.Demo.f <body> → eval 'Me.Demo.f(2)' → status → commit\nhelp <command> for details. AI agents: docs for-ai"
+      "New here? Run starter for a small editable project.\nWorkflow: fn Me.Demo.f <body> → eval 'Me.Demo.f(2)' → status → commit\nhelp <command> for details. AI agents: docs for-ai"
 
     header + "\n\n" + groupsText
 
@@ -571,7 +573,7 @@ module Registry =
   /// Full-screen TUIs. Capturing one dumps its alternate-screen escapes into a pane, so the bar
   /// launches it as a page instead. Canonical names; aliases resolve before matching. `apps` is
   /// handled in `takesScreen` because it is a TUI only when bare.
-  val screenCommands = [ "outliner" ]
+  val screenCommands = [ "outliner", "starter" ]
 
   /// Should the workbench run this command line on the real terminal instead of captured?
   /// `-y`/`--yes` is the universal "don't ask", so a line carrying it never needs the handoff.
