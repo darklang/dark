@@ -14,23 +14,10 @@ let executeCliCommand(args: List<String>): Int =
       let _ = LanguageTools.InterpreterStats.reset()
       ()
 
-    // `dark` with no args opens the workbench — that's the experience now, no chooser. DARK_CLASSIC=1 is the
-    // one hidden escape hatch back to the classic prompt (scripts / muscle memory); everything else lands in
-    // the workbench.
-    //
-    // No screen clear or scroll region: the prompt is an inline Tui region that keeps scrollback,
-    // and the workbench owns the alternate screen through its own terminal session.
-    let classic =
-      match Stdlib.Env.get("DARK_CLASSIC") with
-      | Some "1" -> true
-      | _ -> false
-
-    if classic then
-      Stdlib.printLine(View.formatWelcome())
-      runInteractiveLoop(initialState)
-    else
-      let workbenchState = Workbench.execute(initialState, [])
-      runInteractiveLoop(workbenchState)
+    // `dark` with no args opens the workbench. The workbench owns the alternate screen through
+    // its own terminal session, so there is no screen clear or scroll region here.
+    let workbenchState = Workbench.execute(initialState, [])
+    runInteractiveLoop(workbenchState)
   // Otherwise, execute command directly (shell already split args correctly)
   | commandName :: commandArgs ->
     let nonInteractiveState = { initialState with nonInteractive = true }

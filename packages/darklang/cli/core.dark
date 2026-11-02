@@ -296,5 +296,3 @@ module View =
 
   let formatSuccess(message: String): String =
     Stdlib.Cli.UI.Colors.success(message)
-
-  let formatWelcome(): String = Registry.getCompactCommandList()

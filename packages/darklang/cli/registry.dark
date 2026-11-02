@@ -266,12 +266,11 @@ module Registry =
     Stdlib.printLine(summarised + aliasSuffix)
     state
 
-  // Command groups organized by category (shared between compact and detailed views).
+  // Command groups organized by category, for `dark help`.
   //
   // Every registered command belongs to exactly one group. A command in none of them is
   // swept into an unnamed "Other:" bucket by `getDetailedCommandList`, which reads as a
-  // rendering accident rather than a category, and `getCompactCommandList` -- the welcome
-  // screen -- does not show it at all. `tests/cli/commandGroups.dark` fails when a newly
+  // rendering accident rather than a category. `tests/cli/commandGroups.dark` fails when a newly
   // registered command is in no group, and when a group names a command that is not.
   let commandGroups(): List<(String * List<String>)> =
     [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "test", "find-values", "deps", "val", "fn", "type", "trait", "impl", "impls", "module", "edit", "rename", "hash", "deprecate", "delete", "undeprecate" ])
@@ -298,30 +297,6 @@ module Registry =
         | None -> Stdlib.Option.Option.None)
     let commandLines = Stdlib.String.join(formattedCommands, "\n")
     $"{groupName}:\n{commandLines}"
-
-  let formatCompactGroup(groupName: String, cmdNames: List<String>): String =
-    let namesList = Stdlib.String.join(cmdNames, ", ")
-    $"{groupName}: {namesList}"
-
-  // Compact command list for welcome screen (with logo, minimal text)
-  let getCompactCommandList(): String =
-    let groups = commandGroups()
-
-    let formattedGroups =
-      groups
-      |> Stdlib.List.map(fun (groupName, cmdNames) ->
-        formatCompactGroup(groupName, cmdNames))
-
-    let welcome = "Welcome to Darklang!"
-    let availableCommands = "Commands:"
-
-    let groupsWithFooter =
-      Stdlib.List.concat(formattedGroups, [ "", "Type 'help' for detailed command info" ])
-
-    let allLines =
-      Stdlib.List.concat([ welcome, "", availableCommands, "" ], groupsWithFooter)
-
-    Logo.combineLogoAndText(Logo.logo, allLines, Stdlib.Cli.UI.Colors.logoColor)
 
   // Detailed command list for help command (no logo, full details)
   let getDetailedCommandList(): String =
