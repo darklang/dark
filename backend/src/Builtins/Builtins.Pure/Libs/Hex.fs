@@ -1,3 +1,5 @@
+// CLEANUP consider renaming module as `Base16Encoding` to be more clear
+// ("Hex" is perhaps unclear -- it isn't obvious to me, anyway)
 module Builtins.Pure.Libs.Hex
 
 open Prelude
