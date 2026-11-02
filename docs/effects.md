@@ -322,6 +322,11 @@ both are off until set by name, and widen nothing else. A key is necessary and
 not sufficient: the instance policy still has to allow the URL, so a missing
 grant is a raise where a missing key is `Error(BadUrl(InvalidHost))`.
 
+HTTP clients honor .NET's configured proxy (including `HTTP_PROXY`, `HTTPS_PROXY`,`ALL_PROXY` and `NO_PROXY`). An explicitly selected proxy is trusted transport:
+Dark can connect to its host and port even on loopback, without `http.loopback`.
+Direct connections, including proxy bypasses, retain the normal IP guards, and the requested URL still needs an instance-policy grant. This does not enable direct access to other localhost services. Configure only proxies you trust:
+the proxy resolves and reaches the destination, so Dark cannot enforce its destination IP restrictions beyond that proxy. Literal banned destination hosts and metadata-request headers are still rejected before proxy selection.
+
 Kernel primitives use the same boundary, with `HostPosix` and `HostKernel`
 owned by the host. Path operations check exact read/write requests; descriptors
 opened under those checks are returned as unguessable execution-local tokens.

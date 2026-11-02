@@ -59,7 +59,10 @@ module private BaseClient =
     //
     // Note that the number of sockets was verified manually, with:
     // `sudo netstat -apn | grep _WAIT`
-    let handler (config : Configuration) : HttpMessageHandler =
+    let handler
+      (config : Configuration)
+      (proxy : Option<System.Uri * System.Net.ICredentials>)
+      : HttpMessageHandler =
       let connectionFilter
         (context : SocketsHttpConnectionContext)
         (cancellationToken : System.Threading.CancellationToken)
@@ -74,7 +77,19 @@ module private BaseClient =
             // bypassing the allow-list (DNS-rebinding TOCTOU).
             let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
 
-            if Array.isEmpty ips || not (Array.forall config.allowedIP ips) then
+            // This handler serves either direct requests or one configured proxy
+            // selected by the host. Never widen the direct handler's IP policy.
+            let isProxyConnection =
+              match proxy with
+              | Some(uri, _) ->
+                String.equalsCaseInsensitive uri.IdnHost context.DnsEndPoint.Host
+                && uri.Port = context.DnsEndPoint.Port
+              | None -> false
+
+            if
+              Array.isEmpty ips
+              || (not isProxyConnection && not (Array.forall config.allowedIP ips))
+            then
               // Use this to hide more specific errors when looking at loopback
               Exception.raiseInternal "Could not connect" []
 
@@ -85,10 +100,10 @@ module private BaseClient =
             // fail against a server bound to IPv4, and report it as a flat "network
             // error".
             //
-            // Every address was already checked against the allow-list above, so
-            // trying the rest widens nothing: the DNS-rebinding guard is that we
-            // connect to a resolved ADDRESS rather than let the OS re-resolve the
-            // name, and that still holds for each one.
+            // Every address passed the direct guard or belongs to the trusted proxy.
+            // Trying another resolved address does not allow additional destinations:
+            // we connect to that address rather than let the OS resolve the name again,
+            // preserving the DNS-rebinding guard for each attempt.
             //
             // The socket's address family has to match the address it dials. The
             // 2-arg ctor defaults to IPv6, which only reaches an IPv4 literal when
@@ -133,6 +148,12 @@ module private BaseClient =
             return Exception.raiseInternal "Could not connect" []
         }
       new SocketsHttpHandler(
+        UseProxy = Option.isSome proxy,
+        Proxy =
+          (match proxy with
+           | Some(uri, credentials) ->
+             new System.Net.WebProxy(uri, false, [||], credentials)
+           | None -> null),
         // Avoid DNS problems
         PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
         PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
@@ -150,9 +171,48 @@ module private BaseClient =
         // Don't add a RequestId header for opentelemetry
         ActivityHeadersPropagator = null,
 
-        // Don't allow access to local stuff
+        // Direct requests remain guarded; only the selected proxy is trusted.
         ConnectCallback = connectionFilter
       )
+
+  /// Select the proxy before choosing a connection pool. Separate handlers keep
+  /// a trusted proxy connection from becoming an exception for direct requests
+  /// (including NO_PROXY and names resolving to the proxy's address).
+  type private ProxyRoutingHandler
+    (config : Configuration, proxy : System.Net.IWebProxy) =
+    inherit HttpMessageHandler()
+
+    let direct = new HttpMessageInvoker(SocketBasedHandler.handler config None)
+    let proxied =
+      System.Collections.Generic.Dictionary<System.Uri, HttpMessageInvoker>()
+
+    override _.SendAsync(request, cancellationToken) =
+      let uri = request.RequestUri
+      let selected = if proxy.IsBypassed uri then null else proxy.GetProxy uri
+      let transport =
+        if isNull selected || selected = uri then
+          direct
+        else
+          lock proxied (fun () ->
+            match proxied.TryGetValue selected with
+            | true, transport -> transport
+            | false, _ ->
+              let transport =
+                new HttpMessageInvoker(
+                  SocketBasedHandler.handler
+                    config
+                    (Some(selected, proxy.Credentials))
+                )
+              proxied.Add(selected, transport)
+              transport)
+      transport.SendAsync(request, cancellationToken)
+
+    override _.Dispose(disposing) =
+      if disposing then
+        direct.Dispose()
+        for transport in proxied.Values do
+          transport.Dispose()
+      base.Dispose(disposing)
 
   module WasmHandler =
     let handler (_config : Configuration) : HttpMessageHandler =
@@ -164,17 +224,17 @@ module private BaseClient =
       // AutomaticDecompression = System.Net.DecompressionMethods.None
       )
 
-  let create (config : Configuration) : HttpClient =
+  let create (config : Configuration) (proxy : System.Net.IWebProxy) : HttpClient =
     let handler =
       if SocketsHttpHandler.IsSupported then
-        SocketBasedHandler.handler config
+        new ProxyRoutingHandler(config, proxy) :> HttpMessageHandler
       else
         // For Blazor
         WasmHandler.handler config
 
     new HttpClient(
       handler,
-      disposeHandler = false,
+      disposeHandler = true,
       Timeout = System.TimeSpan.FromSeconds 30.0,
       MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
     )
@@ -315,8 +375,19 @@ let defaultConfig : Configuration =
 /// name a profile, they never carry one.
 type Profile = { config : Configuration; client : HttpClient }
 
+/// Build a host-owned profile with an explicit proxy selector. The selector is
+/// trusted configuration, never guest input; URL permission checks still apply.
+let profileWithProxy
+  (config : Configuration)
+  (proxy : System.Net.IWebProxy)
+  : Profile =
+  { config = config; client = BaseClient.create config proxy }
+
 let private profileOf (config : Configuration) : Profile =
-  { config = config; client = BaseClient.create config }
+  // Browser hosts use WasmHandler; DefaultProxy is unsupported there.
+  let proxy =
+    if SocketsHttpHandler.IsSupported then HttpClient.DefaultProxy else null
+  profileWithProxy config proxy
 
 let mutable private guest : Profile = profileOf defaultConfig
 
