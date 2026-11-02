@@ -37,7 +37,7 @@ module HandleCommand =
 
       // What the store holds BEFORE the purge, so the reload can say what it destroyed. A reload
       // replaces the log with what `packages/` produces, so anything else in it -- ops authored
-      // here, ops pulled from a relay -- does not survive. That is the intended behaviour of a dev
+      // here -- does not survive. That is the intended behaviour of a dev
       // reload and it used to happen in silence, which is how a morning's work disappears and gets
       // blamed on whatever was edited last.
       let countOps () =
@@ -164,8 +164,7 @@ module HandleCommand =
         if opsBefore > opsAfter then
           print
             $"WARNING: {opsBefore - opsAfter} op(s) did not survive this reload. A reload replaces \
-              the log with what `packages/` produces; ops authored here or pulled from a relay are \
-              not in it, and nothing in the base tree sends them anywhere else first."
+              the log with what `packages/` produces; ops authored here are not in it, and nothing in the base tree sends them anywhere else first."
 
         return Ok()
     }

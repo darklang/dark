@@ -142,7 +142,7 @@ let help(_state: Cli.AppState): String =
     "  calls it goes on working: a reference points at content, not at a name."
     ""
     "  Two ops are authored -- the old name ends, the new one binds the same"
-    "  content -- so `dark status` shows both, and both travel when you sync."
+    "  content -- so `dark status` shows both."
     ""
     "  Refused when the new name already holds something: one name holds one"
     "  item, so that would take the other one off the shelf." ]

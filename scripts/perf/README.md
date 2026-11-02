@@ -65,7 +65,6 @@ because the same workload has three different right answers.
   async half of the runtime.
 - `keystroke` is one keypress in the interactive CLI, end to end. Needs a TTY, so it drives
   `expect`.
-- `first-sync` is a whole first sync from an empty home, which is the number a new person waits.
 - `alloc-profile` is allocation by type name, from GC allocation-tick events.
 - `fnprofile` ranks per-package-fn time and resolves hashes to names. Feed it three runs: it takes
   the minimum per call, and one run of it once misread a function by 20x.

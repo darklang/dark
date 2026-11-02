@@ -370,7 +370,6 @@ Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
     scripts/perf/bench       repeatable CLI timing, with an A/B mode
     scripts/perf/http        a real server under concurrent load
     scripts/perf/keystroke   one keypress in the interactive CLI, end to end (needs a TTY)
-    scripts/perf/first-sync  a whole first sync from an empty home
     scripts/perf/alloc-profile   allocation by type name
     scripts/perf/fnprofile   per-package-fn time, ranked, hashes resolved to names
     scripts/perf/crosslang   the reference workload in node and python
@@ -707,8 +706,7 @@ listing filters the folder out through `LanguageTools.PackageManager.Search.read
 and orders its sections by `Cli.Glyphs.kindOrder`. Five surfaces decided this for
 themselves at one point or another, and the one that forgot showed seventeen empty
 folders and no implementations. It lives in the package manager rather than in the CLI
-because every reader needs it, which was true of the LSP when the LSP was in this tree
-and is the reason to leave it where it is.
+because every reader needs it.
 
 **A bare trait name falls back to the stdlib.** `impl Add for Point` in any module
 means `Stdlib.Add` unless something closer is called Add (both resolvers,
@@ -794,9 +792,9 @@ its old body while printing the same success line, so treat the line as "parsed"
 - AN APPROVED NAME FOLLOWS THE APPROVED VERSION. `permissions approve` says so out loud
   ("the name follows this version"). Re-authoring does write the new body and does repoint the
   name, but a previously approved name keeps resolving to the approved version until you approve
-  again. Editing bodies in `docs/browser-concurrency-demo.dark` and re-running
-  `dark module /Demo.Browser - < ...` left every approved function on its OLD body; a
-  `permissions approve Demo.Browser.overlapping` made the new one live immediately. A newly
+  again. Editing bodies in a demo file and re-running
+  `dark module /Demo.X - < ...` left every approved function on its OLD body; a
+  `permissions approve Demo.X.overlapping` made the new one live immediately. A newly
   added name in the same file (a `val`) landed straight away, having no approval to pin it,
   which is what makes it confusing: part of the file takes effect and part does not.
 - A DOC-ONLY EDIT used to be the second way. Doc comments are deliberately excluded from the
@@ -1165,13 +1163,6 @@ There are THREE config stores, and that line only clears one: `config_v0` in sql
 Copying a store DIRECTORY carries all of it; copying `data.db` alone does not, which is the shape
 to prefer for a scratch store.
 
-There was briefly a fourth, `credentials_v0` in a `credentials.db` beside the store, holding the
-relay write secret where a `package-read` grant could not SELECT it. Nothing writes a credential
-now that the relay is in `later/`, so the file, the `configGet` guard that refused a credential
-key, and the two tests that pinned the separation went with it. The mechanism and the reasoning
-behind it are in `later/backend/src/LibDB/Config.fs.credentials`; read that before inventing a
-second one.
-
 The capabilities one is keyed on **HOME**, not `DARK_HOME`, so an isolated store does NOT isolate it. A
 `dark caps grant ...` in a throwaway store writes the real grant for the whole container. Worse, the file's
 ABSENCE is what makes the host permissive (`hostCaps` returns allCaps only while there is no file), so
@@ -1193,15 +1184,13 @@ PANEL instead of a row's detail, so a test waiting for anything a populated Home
 anchor a workbench test on the greeting either way: "Welcome, <name>" is on every Home, and the panel is the
 part that distinguishes a new instance. The stable "it started" marker is the frame's top border
 (`╭`), because it is the one thing every frame has at every size. It used to be the header's
-`who @ where` (` @ `), which four fixtures anchored on and which stopped existing the day accounts
-did. The replacement has to survive expect's default 80 columns, where there is no nav strip at all
+`who @ where` (` @ `), which four fixtures anchored on and which no longer exists. The replacement has to survive expect's default 80 columns, where there is no nav strip at all
 and the header is just the branch and the instance, so neither `1 Home` nor a fixed name works.
 
 ## Standing up a server in a test
 
-Two traps, both of which read as product bugs and are not. Written while the relay existed; they
-are about background processes in tests, so they outlived it and apply to anything a test starts,
-`dark serve` included.
+Two traps, both of which read as product bugs and are not. They are about background processes
+in tests, and apply to anything a test starts, `dark serve` included.
 
 **A stray server answers on the port you expected.** One left over from an earlier run holds the
 port, your new one never binds, and every request gets the old one's answers. It looks exactly

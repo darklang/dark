@@ -179,7 +179,7 @@ let help(_state: AppState): String =
     "                       (five edits to one fn count once)"
     "  dependents repoint   what still references an older version, and"
     "                       would be repointed on commit"
-    "  conflicts            recorded by a merge, rebase or sync, already"
+    "  conflicts            recorded by a merge or rebase, already"
     "                       auto-resolved, waiting on your ok"
     ""
     "  dark commit      review the above and commit it"

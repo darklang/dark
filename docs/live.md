@@ -253,9 +253,8 @@ background step should run on it rather than grow a fourth.
 A daemon's pidfile and log go under `~/.darklang/run`; when that cannot be written (a
 `~/.darklang` some other user created first, no home), the fallback is the instance's
 rundir, then `/tmp/darklang-run`, probing with a real write so the launcher and the daemon
-agree on the answer. `Stdlib.Cli.Daemon`, which held that rule as `runDir`, moved to
-`later/` with the apps framework that was its only caller, so this describes what a daemon
-mechanism should do rather than code you can call today.
+agree on the answer. This describes what a daemon mechanism should do; there is no daemon
+library to call today.
 
 ## The agent channel
 

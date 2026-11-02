@@ -644,7 +644,7 @@ let help(_state: AppState): String =
     "  REMOVED           names this commit takes away"
     "  PROPAGATES TO     what references an older version, and will be"
     "                    repointed"
-    "  CONFLICTS         what a merge, rebase or sync auto-resolved,"
+    "  CONFLICTS         what a merge or rebase auto-resolved,"
     "                    waiting on your ok"
     ""
     "  --include=<names>   commit ONLY these (comma-separated). Anything"

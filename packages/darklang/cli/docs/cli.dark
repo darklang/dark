@@ -65,7 +65,7 @@ Your edits are LIVE as soon as you write them. There is no build step.
   show <id>         what a commit committed, or what one op does
   discard           drop the whole draft
   undo <name>       step ONE item back a version
-  conflicts         review what a merge, rebase or sync auto-resolved
+  conflicts         review what a merge or rebase auto-resolved
   constraints       standing checks over the store
   ack <id>...       leave a constraint finding for now (`ack --all`)
   ops               read this branch's op log

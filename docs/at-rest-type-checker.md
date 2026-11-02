@@ -140,8 +140,7 @@ Skipping runtime checks is a separate rollout. It requires a `Checked` proof for
 
 ## Diagnostics
 
-The editor integration that consumed these moved to `later/`, so `typecheck` and the authoring
-commands are the readers today. What they get is unchanged: definite diagnostics are errors,
+`typecheck` and the authoring commands are the readers. What they get is unchanged: definite diagnostics are errors,
 checker warnings are warnings even when they belong to a `Failed` item, and each carries its
 issue code. During syntax errors, the parser reports diagnostics and the checker waits.
 
