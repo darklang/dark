@@ -13,7 +13,7 @@ let readConfig(): Dict<String, String> =
   | true ->
     match Stdlib.Cli.FileSystem.readFile(configFilePath()) with
     | Ok bytes ->
-      let contents = Stdlib.String.fromBytesWithReplacement(bytes)
+      let contents = Stdlib.Utf8.decodeWithReplacement(bytes)
 
       match Stdlib.Json.parse<Dict<String, String>>(contents) with
       | Ok config -> config
@@ -26,7 +26,7 @@ let readConfig(): Dict<String, String> =
 
 let writeConfig(config: Dict<String, String>): Unit =
   let json = Stdlib.Json.serialize<Dict<String, String>>(config)
-  let jsonBytes = Stdlib.String.toBytes(json)
+  let jsonBytes = Stdlib.Utf8.encode(json)
   let _ = Stdlib.Cli.FileSystem.overwriteFile(configFilePath(), jsonBytes)
   ()
 

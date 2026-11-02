@@ -71,32 +71,6 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "base64UrlEncode" 0
-      typeParams = []
-      parameters = [ Param.make "bytes" TBytes "" ]
-      returnType = TString
-      description =
-        "Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe "
-        + "encoding with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined "
-        + "in RFC 4648 section "
-        + "[5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
-      fn =
-        (function
-        | state, _, _, [| DBytes ref |] ->
-          Bytes.withBytes state ref (fun bytes ->
-            // URL-safe alphabet, and unlike most url-safe encoders this one keeps padding
-            let encoded =
-              System.Convert
-                .ToBase64String(bytes)
-                .Replace('+', '-')
-                .Replace('/', '_')
-            Ply(DString encoded))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

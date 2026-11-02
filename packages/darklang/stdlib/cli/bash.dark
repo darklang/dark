@@ -4,7 +4,7 @@ module Darklang.Stdlib.Cli.Bash
 /// Read the content of .bashrc file
 let readBashrc(): Result.Result<String, String> =
   (Stdlib.Cli.FileSystem.readFile("$HOME/.bashrc"))
-  |> Result.map(Stdlib.String.fromBytesWithReplacement)
+  |> Result.map(Stdlib.Utf8.decodeWithReplacement)
   |> Result.mapError(Stdlib.Cli.FileSystem.FileError.toString)
 
 /// Apply changes to .bashrc
@@ -14,7 +14,7 @@ let applyBashConfigChanges(): Result.Result<Unit, String> =
 
 /// Write content to .bashrc file
 let overwriteBashrc(content: String): Result.Result<Unit, String> =
-  (FileSystem.overwriteFile("$HOME/.bashrc", Stdlib.String.toBytes(content)))
+  (FileSystem.overwriteFile("$HOME/.bashrc", Stdlib.Utf8.encode(content)))
   |> Result.mapError(FileSystem.FileError.toString)
 
 

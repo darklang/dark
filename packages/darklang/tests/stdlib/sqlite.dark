@@ -73,7 +73,7 @@ test bytesRoundTrip =
       | Some v ->
         Stdlib.Sqlite.asBytes(v)
         |> Stdlib.Option.map(fun b ->
-          Stdlib.String.fromBytesWithReplacement(b))
+          Stdlib.Utf8.decodeWithReplacement(b))
       | None -> None
     | _ -> None)
     |> Stdlib.Test.equal(Some "hi"))

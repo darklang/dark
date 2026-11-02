@@ -7,12 +7,12 @@ module WriteReadRoundtrip =
   // Check the write result as well as the bytes read back.
   test roundtrip =
     Stdlib.Cli.File.withTemp(fun filename ->
-      let blob = Stdlib.Bytes.fromString(testContents())
+      let blob = Stdlib.Utf8.encode(testContents())
       let written = Stdlib.Cli.FileSystem.writeFile(filename, blob)
       let readBack = Stdlib.Cli.FileSystem.readFile(filename) |> Builtin.unwrap
       Stdlib.Test.all(
         [ written |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
-          Stdlib.Bytes.toString(readBack)
+          Stdlib.Utf8.decode(readBack)
           |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(testContents())) ]))
     |> Builtin.unwrap
 

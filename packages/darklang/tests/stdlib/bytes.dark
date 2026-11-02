@@ -1,63 +1,18 @@
 module Darklang.Stdlib.Bytes.Tests
 
-// hex round of various UTF-8 strings (Arabic / emoji / long mixed).
-test toHexOfUtf8 =
-  Stdlib.Test.all(
-    [ Stdlib.Bytes.fromString("اختبار النص") |> Stdlib.Bytes.toHex
-      |> Stdlib.Test.equal("D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5")
-      Stdlib.Bytes.fromString("👱👱🏻👱🏼👱🏽👱🏾👱🏿") |> Stdlib.Bytes.toHex
-      |> Stdlib.Test.equal(
-        "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF")
-      Stdlib.Bytes.fromString(
-        "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
-      |> Stdlib.Bytes.toHex
-      |> Stdlib.Test.equal(
-        "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD") ])
-
 // length
 test length =
   Stdlib.Test.all(
-    [ Stdlib.Bytes.fromString("hi") |> Stdlib.Bytes.length |> Stdlib.Test.equal(2)
-      Stdlib.Bytes.fromString("") |> Stdlib.Bytes.length |> Stdlib.Test.equal(0)
+    [ Stdlib.Utf8.encode("hi") |> Stdlib.Bytes.length |> Stdlib.Test.equal(2)
+      Stdlib.Utf8.encode("") |> Stdlib.Bytes.length |> Stdlib.Test.equal(0)
       Stdlib.Bytes.empty |> Stdlib.Bytes.length |> Stdlib.Test.equal(0) ])
-
-// fromString / toString roundtrip
-test stringRoundTrip =
-  Stdlib.Bytes.fromString("hello") |> Stdlib.Bytes.toString
-  |> Stdlib.Test.equal(Ok "hello")
-
-// fromHex returns Result<Bytes,String>; length of decoded deadbeef = 4 bytes
-test fromHex =
-  Stdlib.Bytes.fromHex("deadbeef") |> Stdlib.Result.map(Stdlib.Bytes.length)
-  |> Stdlib.Test.equal(Ok 4)
-
-// hex roundtrip via wrapper
-test hexRoundTrip =
-  Stdlib.Bytes.fromHex("48656c6c6f")
-  |> Stdlib.Result.andThen(Stdlib.Bytes.toString)
-  |> Stdlib.Test.equal(Ok "Hello")
-
-// toHex roundtrip (uppercase output)
-test toHex =
-  Stdlib.Test.all(
-    [ Stdlib.Bytes.fromString("ok") |> Stdlib.Bytes.toHex |> Stdlib.Test.equal("6F6B")
-      Stdlib.Bytes.fromString("Hi") |> Stdlib.Bytes.toHex |> Stdlib.Test.equal("4869") ])
-
-// base64 roundtrip
-test base64RoundTrip =
-  Stdlib.Test.all(
-    [ Stdlib.Bytes.fromBase64("aGVsbG8=")
-      |> Stdlib.Result.andThen(Stdlib.Bytes.toString)
-      |> Stdlib.Test.equal(Ok "hello")
-      Stdlib.Bytes.fromString("hello") |> Stdlib.Bytes.toBase64
-      |> Stdlib.Test.equal("aGVsbG8=") ])
 
 // isEmpty
 test isEmpty =
   Stdlib.Test.all(
     [ Stdlib.Bytes.isEmpty(Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
-      Stdlib.Bytes.isEmpty(Stdlib.Bytes.fromString("")) |> Stdlib.Test.equal(true)
-      Stdlib.Bytes.isEmpty(Stdlib.Bytes.fromString("a")) |> Stdlib.Test.equal(false) ])
+      Stdlib.Bytes.isEmpty(Stdlib.Utf8.encode("")) |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.isEmpty(Stdlib.Utf8.encode("a")) |> Stdlib.Test.equal(false) ])
 
 // getAt
 test getAt =
@@ -72,7 +27,7 @@ test getAt =
 
 // indexOf / indexOfFrom
 test indexOf =
-  let bytes = Stdlib.Bytes.fromString("ab\nc\n")
+  let bytes = Stdlib.Utf8.encode("ab\nc\n")
   Stdlib.Test.all(
     [ Stdlib.Bytes.indexOf(bytes, 10uy) |> Stdlib.Test.equal(Some 2)
       Stdlib.Bytes.indexOf(bytes, 0uy) |> Stdlib.Test.equal(None)
@@ -86,31 +41,31 @@ test indexOf =
 // concat
 test concat =
   Stdlib.Test.all(
-    [ Stdlib.Bytes.concat(Stdlib.Bytes.fromString("foo"), Stdlib.Bytes.fromString("bar"))
-      |> Stdlib.Bytes.toString
+    [ Stdlib.Bytes.concat(Stdlib.Utf8.encode("foo"), Stdlib.Utf8.encode("bar"))
+      |> Stdlib.Utf8.decode
       |> Stdlib.Test.equal(Ok "foobar")
-      Stdlib.Bytes.concat(Stdlib.Bytes.empty, Stdlib.Bytes.fromString("a"))
-      |> Stdlib.Bytes.toString
+      Stdlib.Bytes.concat(Stdlib.Bytes.empty, Stdlib.Utf8.encode("a"))
+      |> Stdlib.Utf8.decode
       |> Stdlib.Test.equal(Ok "a") ])
 
 // concatAll
 test concatAll =
   Stdlib.Test.all(
-    [ [ Stdlib.Bytes.fromString("foo")
-        Stdlib.Bytes.fromString("-")
-        Stdlib.Bytes.fromString("bar") ]
+    [ [ Stdlib.Utf8.encode("foo")
+        Stdlib.Utf8.encode("-")
+        Stdlib.Utf8.encode("bar") ]
       |> Stdlib.Bytes.concatAll
-      |> Stdlib.Bytes.toString
+      |> Stdlib.Utf8.decode
       |> Stdlib.Test.equal(Ok "foo-bar")
       Stdlib.Bytes.concatAll([]) |> Stdlib.Bytes.length |> Stdlib.Test.equal(0) ])
 
 // slice: start inclusive, end exclusive, strict
 test slice =
-  let bytes = Stdlib.Bytes.fromString("abcdef")
+  let bytes = Stdlib.Utf8.encode("abcdef")
   let text(r: Stdlib.Result.Result<Bytes, Stdlib.Bytes.IndexError>)
     : Stdlib.Result.Result<String, String> =
     match r with
-    | Ok b -> Stdlib.Bytes.toString(b)
+    | Ok b -> Stdlib.Utf8.decode(b)
     | Error _ -> Error "out of bounds"
   Stdlib.Test.all(
     [ text(Stdlib.Bytes.slice(bytes, 2, 5)) |> Stdlib.Test.equal(Ok "cde")
@@ -129,8 +84,8 @@ test slice =
 
 // take: the first bytes; never errors, clamps to the Bytes
 test take =
-  let bytes = Stdlib.Bytes.fromString("abcdef")
-  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Bytes.toString(b)
+  let bytes = Stdlib.Utf8.encode("abcdef")
+  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Utf8.decode(b)
   Stdlib.Test.all(
     [ text(Stdlib.Bytes.take(bytes, 2)) |> Stdlib.Test.equal(Ok "ab")
       text(Stdlib.Bytes.take(bytes, 0)) |> Stdlib.Test.equal(Ok "")
@@ -140,8 +95,8 @@ test take =
 
 // drop: all but the first bytes; never errors, clamps to the Bytes
 test drop =
-  let bytes = Stdlib.Bytes.fromString("abcdef")
-  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Bytes.toString(b)
+  let bytes = Stdlib.Utf8.encode("abcdef")
+  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Utf8.decode(b)
   Stdlib.Test.all(
     [ text(Stdlib.Bytes.drop(bytes, 2)) |> Stdlib.Test.equal(Ok "cdef")
       text(Stdlib.Bytes.drop(bytes, 0)) |> Stdlib.Test.equal(Ok "abcdef")
@@ -152,77 +107,77 @@ test drop =
 // toList / fromList
 test listConversions =
   Stdlib.Test.all(
-    [ Stdlib.Bytes.fromString("abc") |> Stdlib.Bytes.toList
+    [ Stdlib.Utf8.encode("abc") |> Stdlib.Bytes.toList
       |> Stdlib.Test.equal([ 97uy, 98uy, 99uy ])
       Stdlib.Bytes.fromList([ 97uy, 98uy, 99uy ])
-      |> Stdlib.Test.equal(Stdlib.Bytes.fromString("abc")) ])
+      |> Stdlib.Test.equal(Stdlib.Utf8.encode("abc")) ])
 
 // Equality depends on contents, including for independently created values.
 test differentBytesAreNotEqual =
-  (Stdlib.Bytes.fromString("hi") == Stdlib.Bytes.fromString("bye"))
+  (Stdlib.Utf8.encode("hi") == Stdlib.Utf8.encode("bye"))
   |> Stdlib.Test.equal(false)
 
 test equalityUsesContents =
-  let bytes = Stdlib.Bytes.fromString("hi")
+  let bytes = Stdlib.Utf8.encode("hi")
   Stdlib.Test.all(
     [ (bytes == bytes) |> Stdlib.Test.equal(true)
-      (bytes == Stdlib.Bytes.fromString("hi")) |> Stdlib.Test.equal(true)
-      (Stdlib.Bytes.fromString("") == Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
+      (bytes == Stdlib.Utf8.encode("hi")) |> Stdlib.Test.equal(true)
+      (Stdlib.Utf8.encode("") == Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
       ([bytes] == [Stdlib.Bytes.fromList([104uy, 105uy])])
       |> Stdlib.Test.equal(true) ])
 
 test collectionsUseContentEquality =
-  let a = Stdlib.Bytes.fromString("hi")
+  let a = Stdlib.Utf8.encode("hi")
   let b = Stdlib.Bytes.fromList([104uy, 105uy])
-  let x = Stdlib.Bytes.fromString("x")
+  let x = Stdlib.Utf8.encode("x")
   Stdlib.Test.all(
     [ Stdlib.List.contains([a], b) |> Stdlib.Test.equal(true)
       Stdlib.List.unique([a, b]) |> Stdlib.List.length |> Stdlib.Test.equal(1)
-      Stdlib.List.unique([Stdlib.Bytes.empty, Stdlib.Bytes.fromString("")])
+      Stdlib.List.unique([Stdlib.Bytes.empty, Stdlib.Utf8.encode("")])
       |> Stdlib.List.length |> Stdlib.Test.equal(1)
       // `unique` keeps the first of equal Bytes where it was.
       Stdlib.List.unique([a, x, b]) |> Stdlib.Test.equal([a, x]) ])
 
 // Bytes have no order, so sorting them refuses rather than inventing one.
 test sortRefusesBytes =
-  Stdlib.List.sort([Stdlib.Bytes.fromString("b"), Stdlib.Bytes.fromString("a")])
+  Stdlib.List.sort([Stdlib.Utf8.encode("b"), Stdlib.Utf8.encode("a")])
   => raises "Cannot sort <Bytes: 1 byte 62>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
 
 test sortByRefusesBytesKeys =
-  Stdlib.List.sortBy([ "b", "a" ], fun s -> Stdlib.Bytes.fromString(s))
+  Stdlib.List.sortBy([ "b", "a" ], fun s -> Stdlib.Utf8.encode(s))
   => raises "Cannot sort <Bytes: 1 byte 62>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
 
 // A sort reaches Bytes inside a value only when everything before them ties.
 test sortOfValuesHoldingBytesComparesEarlierFieldsFirst =
-  Stdlib.List.sort([ (2L, Stdlib.Bytes.fromString("x")), (1L, Stdlib.Bytes.fromString("y")) ])
+  Stdlib.List.sort([ (2L, Stdlib.Utf8.encode("x")), (1L, Stdlib.Utf8.encode("y")) ])
   |> Stdlib.List.map(Stdlib.Tuple2.first)
   |> Stdlib.Test.equal([ 1L, 2L ])
 
 test sortOfValuesHoldingBytesRefusesOnATie =
-  Stdlib.List.sort([ (1L, Stdlib.Bytes.fromString("x")), (1L, Stdlib.Bytes.fromString("y")) ])
+  Stdlib.List.sort([ (1L, Stdlib.Utf8.encode("x")), (1L, Stdlib.Utf8.encode("y")) ])
   => raises "Cannot sort <Bytes: 1 byte 78>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
 
 // Reflection carries an opaque Bytes value, never a storage-specific tag.
 test reflectionUsesContents =
   let reflect = Darklang.LanguageTools.RuntimeTypes.reflect
   Stdlib.Test.all(
-    [ (reflect(Stdlib.Bytes.empty) == reflect(Stdlib.Bytes.fromString("")))
+    [ (reflect(Stdlib.Bytes.empty) == reflect(Stdlib.Utf8.encode("")))
       |> Stdlib.Test.equal(true)
-      (reflect(Stdlib.Bytes.fromString("hi"))
+      (reflect(Stdlib.Utf8.encode("hi"))
        == reflect(Stdlib.Bytes.fromList([104uy, 105uy])))
       |> Stdlib.Test.equal(true) ])
 
 test dictionaryKeysUseContents =
-  let first = Stdlib.Bytes.fromString("hi")
+  let first = Stdlib.Utf8.encode("hi")
   let same = Stdlib.Bytes.fromList([104uy, 105uy])
-  let different = Stdlib.Bytes.fromString("ho")
+  let different = Stdlib.Utf8.encode("ho")
   let dict = Dict { first: "found" }
   let byEmpty = Dict { Stdlib.Bytes.empty: "empty" }
   let overwritten = Stdlib.Dict.fromEntries([(first, 1), (same, 2)])
   Stdlib.Test.all(
     [ Stdlib.Dict.get(dict, same) |> Stdlib.Test.equal(Some "found")
       Stdlib.Dict.get(dict, different) |> Stdlib.Test.equal(None)
-      Stdlib.Dict.get(byEmpty, Stdlib.Bytes.fromString(""))
+      Stdlib.Dict.get(byEmpty, Stdlib.Utf8.encode(""))
       |> Stdlib.Test.equal(Some "empty")
       Stdlib.Dict.size(overwritten) |> Stdlib.Test.equal(1)
       Stdlib.Dict.get(overwritten, first) |> Stdlib.Test.equal(Some 2)
@@ -233,7 +188,7 @@ test dictionaryKeysUseContents =
 // Equal Bytes are one key: a literal keeps the last value, `fromEntriesUnique`
 // refuses.
 test duplicateBytesKeysAreOneKey =
-  let a = Stdlib.Bytes.fromString("a")
+  let a = Stdlib.Utf8.encode("a")
   let alsoA = Stdlib.Bytes.fromList([97uy])
   Stdlib.Test.all(
     [ Dict { (a): 1, (alsoA): 2 } |> Stdlib.Test.equal(Dict { (a): 2 })
@@ -245,7 +200,7 @@ let reversed(bytes: Bytes): Bytes =
 
 // Unsaved Bytes reach a test worker and come back with their contents readable.
 test workerCarriesUnsavedBytes =
-  let input = Stdlib.Bytes.fromString("abc")
+  let input = Stdlib.Utf8.encode("abc")
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), reversed, input) with
   | Error message -> Stdlib.Test.fail(message)
   | Ok output ->
@@ -254,4 +209,4 @@ test workerCarriesUnsavedBytes =
     | Ok bytes ->
       Stdlib.Test.all(
         [ output.exitCode |> Stdlib.Test.equal(0)
-          Stdlib.Bytes.toString(bytes) |> Stdlib.Test.equal(Ok "cba") ])
+          Stdlib.Utf8.decode(bytes) |> Stdlib.Test.equal(Ok "cba") ])

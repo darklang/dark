@@ -91,8 +91,8 @@ test lists =
 
 test bytesDatesAndUuids =
   Stdlib.Test.all(
-    [ ((Stdlib.String.toBytes("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼"))
-       == (Stdlib.String.toBytes("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")))
+    [ ((Stdlib.Utf8.encode("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼"))
+       == (Stdlib.Utf8.encode("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")))
       |> Stdlib.Test.equal(true)
       ((Stdlib.DateTime.parse("2019-07-28T22:42:36Z"))
        == (Stdlib.DateTime.parse("2019-07-28T22:42:36Z")))

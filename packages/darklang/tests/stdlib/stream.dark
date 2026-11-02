@@ -29,7 +29,7 @@ test nextPullsHeadLeavesRest =
 test toBytesDrainsBytes =
   let s = Stdlib.Stream.fromList([ 104uy, 105uy ])
   let b = Stdlib.Stream.toBytes(s)
-  Stdlib.Bytes.toString(b) |> Stdlib.Test.equal(Ok "hi")
+  Stdlib.Utf8.decode(b) |> Stdlib.Test.equal(Ok "hi")
 
 // close is idempotent; subsequent next returns None
 test closeIsIdempotent =
@@ -168,8 +168,8 @@ test transformsOverEmptySource =
 
 // Stream<Bytes> round-trips via fromList/toList
 test blobsRoundTripThroughStream =
-  let b1 = Stdlib.Bytes.fromString("hi")
-  let b2 = Stdlib.Bytes.fromString("there")
+  let b1 = Stdlib.Utf8.encode("hi")
+  let b2 = Stdlib.Utf8.encode("there")
   let s = Stdlib.Stream.fromList([ b1, b2 ])
   let result = Stdlib.Stream.toList(s)
   Stdlib.List.length(result) |> Stdlib.Test.equal(2)

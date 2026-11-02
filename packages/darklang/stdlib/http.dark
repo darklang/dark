@@ -72,25 +72,25 @@ let urlDecode(s: String): String =
   | [] -> ""
   | first :: rest ->
     rest
-    |> Stdlib.List.fold([ Stdlib.String.toBytes(first) ], fun reversed piece ->
+    |> Stdlib.List.fold([ Stdlib.Utf8.encode(first) ], fun reversed piece ->
       let hex = Stdlib.String.slice(piece, 0, 2)
 
-      // The length check is not redundant: `Bytes.fromHex ""` succeeds, so a `%`
+      // The length check is not redundant: `Hex.decode ""` succeeds, so a `%`
       // at the very end of the string decodes to no bytes at all and vanishes.
       match
         (if (Stdlib.String.length(hex)) == 2 then
-           Stdlib.Bytes.fromHex(hex)
+           Stdlib.Hex.decode(hex)
          else
            Stdlib.Result.Result.Error "not an escape")
       with
       | Ok b ->
         Stdlib.List.prepend(
           Stdlib.List.prepend(reversed, b),
-          Stdlib.String.toBytes(Stdlib.String.dropFirst(piece, 2)))
-      | Error _ -> Stdlib.List.prepend(reversed, Stdlib.String.toBytes("%" + piece)))
+          Stdlib.Utf8.encode(Stdlib.String.dropFirst(piece, 2)))
+      | Error _ -> Stdlib.List.prepend(reversed, Stdlib.Utf8.encode("%" + piece)))
     |> Stdlib.List.reverse
     |> Stdlib.Bytes.concatAll
-    |> Stdlib.String.fromBytesWithReplacement
+    |> Stdlib.Utf8.decodeWithReplacement
 
 
 module Request =
@@ -202,7 +202,7 @@ let responseWithHtml(
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/html; charset=utf-8") ]
-      body = body |> Stdlib.String.toBytes }
+      body = body |> Stdlib.Utf8.encode }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
@@ -215,7 +215,7 @@ let responseWithText(
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
-      body = Stdlib.String.toBytes(text) }
+      body = Stdlib.Utf8.encode(text) }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200, <param response> body, with the
@@ -227,7 +227,7 @@ let responseWithJson(
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "application/json") ]
-      body = Stdlib.String.toBytes(json) }
+      body = Stdlib.Utf8.encode(json) }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{302}} status code and redirect to <param url>.
@@ -243,7 +243,7 @@ let badRequest(error: String): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 400
       headers = []
-      body = Stdlib.String.toBytes(error) }
+      body = Stdlib.Utf8.encode(error) }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{404}} status code.
@@ -275,7 +275,7 @@ let serverError(error: String): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 500
       headers = []
-      body = Stdlib.String.toBytes(error) }
+      body = Stdlib.Utf8.encode(error) }
 
 type Cookie =
   { expires: DateTime

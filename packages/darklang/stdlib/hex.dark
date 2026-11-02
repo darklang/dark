@@ -1,0 +1,11 @@
+module Darklang.Stdlib.Hex
+
+
+/// Hex (Base16) encodes <param bytes> using an uppercase alphabet.
+/// Complies with RFC 4648 section 8.
+let encode(bytes: Bytes): String = Builtin.hexEncode(bytes)
+
+
+/// Parses <param s> as an uppercase or lowercase hex string into a Bytes.
+let decode(s: String): Stdlib.Result.Result<Bytes, String> =
+  Builtin.hexDecode(s)

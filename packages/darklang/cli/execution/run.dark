@@ -156,7 +156,7 @@ let executeScript(
     // so in the exit code is the only part a script or an agent can read.
     { state with exitCode = 1 }
   | Ok script ->
-    let scriptSourceCode = Stdlib.String.fromBytesWithReplacement(script)
+    let scriptSourceCode = Stdlib.Utf8.decodeWithReplacement(script)
     runScript(
       state,
       scriptPath,

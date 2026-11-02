@@ -5,7 +5,7 @@
 You use the same type and functions whether the data is in memory or saved:
 
 ```dark
-let first = Stdlib.Bytes.fromString("hello")
+let first = Stdlib.Utf8.encode("hello")
 let second = Stdlib.Bytes.fromList([104uy, 101uy, 108uy, 108uy, 111uy])
 first == second // true
 ```
@@ -35,7 +35,7 @@ Trace replay checks reuse the cached hash too.
 
 Bytes cannot be sorted, like Go, Java and JS: `List.sort` raises rather than
 load saved bytes mid-sort or hand out a meaningless order. Pick one with
-`List.sortBy` (`Stdlib.Bytes.toHex` gives byte order). `List.unique` still
+`List.sortBy` (`Stdlib.Hex.encode` gives byte order). `List.unique` still
 works, since it compares with `==` and never orders anything.
 
 Bytes can be dictionary keys. Independently created bytes with the same contents

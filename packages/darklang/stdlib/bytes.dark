@@ -4,7 +4,7 @@ module Darklang.Stdlib.Bytes
 // Saving values handles persistence automatically; there is only one Bytes type.
 
 // TODO no Bytes literal syntax — embedding small binary data in source
-// today requires `Bytes.fromHex "..."` or `Bytes.fromString "..."`. A
+// today requires `Hex.decode "..."` or `Utf8.encode "..."`. A
 // `b"\x00\x01..."` form would be the natural fix, plus tokenizer +
 // parser + runtime literal handling. Cross-cutting language change.
 
@@ -86,36 +86,6 @@ let drop(bytes: Bytes, count: Int): Bytes =
   let start = if count < 0 then 0 else if count > total then total else count
   // Never out of range: `start` is within the Bytes.
   Stdlib.Result.withDefault(slice(bytes, start, total), empty)
-
-
-/// Hex (Base16) encodes <param bytes> using an uppercase alphabet.
-/// Complies with RFC 4648 section 8.
-let toHex(bytes: Bytes): String = Builtin.bytesToHex(bytes)
-
-
-/// Parses <param s> as an uppercase or lowercase hex string into a Bytes.
-let fromHex(s: String): Stdlib.Result.Result<Bytes, String> =
-  Builtin.bytesFromHex(s)
-
-
-/// Base64 encodes <param bytes> with standard alphabet + {{=}} padding.
-let toBase64(bytes: Bytes): String = Builtin.bytesToBase64(bytes)
-
-
-/// Parses <param s> as a Base64 string (standard or URL-safe alphabet;
-/// padding optional) into a Bytes.
-let fromBase64(s: String): Stdlib.Result.Result<Bytes, String> =
-  Builtin.bytesFromBase64(s)
-
-
-/// Decodes <param bytes> as UTF-8. Returns Error with a message if the
-/// bytes aren't valid UTF-8.
-let toString(bytes: Bytes): Stdlib.Result.Result<String, String> =
-  Builtin.bytesToString(bytes)
-
-
-/// Encodes <param s> as UTF-8 bytes in a Bytes.
-let fromString(s: String): Bytes = Builtin.bytesFromString(s)
 
 
 /// Expands <param bytes> into a list of its bytes. Copies every byte, so for

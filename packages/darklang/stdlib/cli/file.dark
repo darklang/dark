@@ -61,7 +61,7 @@ let readText(path: String): Result.Result<String, Posix.Error> =
 
     match result with
     | Ok blob ->
-      match Stdlib.Bytes.toString(blob) with
+      match Stdlib.Utf8.decode(blob) with
       | Ok s -> Stdlib.Result.Result.Ok s
       | Error msg ->
         Stdlib.Result.Result.Error
@@ -166,7 +166,7 @@ let readLastLines(
           let bytes =
             if startedAtBeginning then blob else dropThroughFirstNewline(blob)
 
-          match Stdlib.Bytes.toString(bytes) with
+          match Stdlib.Utf8.decode(bytes) with
           | Error message ->
             Stdlib.Result.Result.Error
               (Posix.Error {
@@ -203,7 +203,7 @@ let __writeBytes(path: String, content: Bytes): Result.Result<Unit, Posix.Error>
 
 /// Write text to a file, creating it if it doesn't exist or overwriting if it does.
 let writeText(path: String, content: String): Result.Result<Unit, Posix.Error> =
-  __writeBytes(path, Stdlib.String.toBytes(content))
+  __writeBytes(path, Stdlib.Utf8.encode(content))
 
 
 /// Append text to a file, creating it if it doesn't exist.
@@ -215,7 +215,7 @@ let appendText(path: String, content: String): Result.Result<Unit, Posix.Error> 
 
   match Posix.openFile(path, flags, Posix.Modes.defaultFile) with
   | Ok fd ->
-    let blob = Stdlib.String.toBytes(content)
+    let blob = Stdlib.Utf8.encode(content)
     let result = Posix.fdWrite(fd, blob)
 
     let closed = Posix.fdClose(fd)
@@ -316,7 +316,7 @@ let writeAtomic(path: String, content: String): Result.Result<Unit, Posix.Error>
   |> Stdlib.Result.andThen(fun result ->
     let fd = Stdlib.Tuple2.first(result)
     let tmpPath = Stdlib.Tuple2.second(result)
-    let blob = Stdlib.String.toBytes(content)
+    let blob = Stdlib.Utf8.encode(content)
     let writeResult = Posix.fdWrite(fd, blob)
     let _ = Posix.fdClose(fd)
 
@@ -742,7 +742,7 @@ let __globClassEnd(
   match bytes with
   | 58uy :: 93uy :: rest ->
     let name =
-      Stdlib.String.fromBytesWithReplacement(
+      Stdlib.Utf8.decodeWithReplacement(
         Stdlib.Bytes.fromList(Stdlib.List.reverse(reversedName)))
     Some ((name, rest))
   | c :: rest -> __globClassEnd(rest, Stdlib.List.prepend(reversedName, c))
@@ -843,6 +843,6 @@ let __globMatchBytes(
 /// Match the full string, including NUL bytes; this is not a C-string API.
 /// Wildcards retain the library's byte-based matching semantics.
 let __globMatches(pattern: String, text: String, pathname: Bool): Bool =
-  let patternBytes = Stdlib.Bytes.toList(Stdlib.String.toBytes(pattern))
-  let textBytes = Stdlib.Bytes.toList(Stdlib.String.toBytes(text))
+  let patternBytes = Stdlib.Bytes.toList(Stdlib.Utf8.encode(pattern))
+  let textBytes = Stdlib.Bytes.toList(Stdlib.Utf8.encode(text))
   __globMatchBytes(patternBytes, textBytes, pathname)

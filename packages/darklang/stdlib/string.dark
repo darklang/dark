@@ -214,43 +214,6 @@ let fromList(lst: List<Char>): String =
 let fromChar(c: Char): String = Stdlib.toString(c)
 
 
-/// URLBase64 encodes a string without padding. Uses URL-safe encoding with
-/// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
-/// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
-let base64UrlEncode(s: String): String =
-  let encoded = s |> Bytes.fromString |> Base64.urlEncode
-
-  String.replaceAll(encoded, "=", "")
-
-/// Base64 encodes a string with {{=}} padding. Uses the standard alphabet
-/// defined in [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4).
-let base64Encode(s: String): String =
-  s |> Bytes.fromString |> Base64.encode
-
-
-/// Base64 decodes a string. The returned value is wrapped in {{Result}}.
-/// Works with both the URL-safe and standard Base64
-/// alphabets defined in [RFC 4648
-/// sections](https://www.rfc-editor.org/rfc/rfc4648.html)
-/// [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
-/// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-let base64Decode(s: String): Result.Result<String, String> =
-  match Base64.decode(s) with
-  | Ok bytes ->
-    match Bytes.toString(bytes) with
-    | Ok str -> Result.Result.Ok str
-    | Error _ -> Result.Result.Error "Invalid UTF-8 string"
-  | Error err -> Result.Result.Error err
-
-
-/// Take a string and hash it to a cryptographically-secure digest.
-/// Don't rely on either the size or the algorithm.
-let digest(s: String): String =
-  let sha384Hash = Crypto.sha384(Bytes.fromString(s))
-
-  sha384Hash |> Base64.urlEncode
-
-
 /// Generate a random alphanumeric <type String> of length <param length>.
 /// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
 let random(length: Int): Result.Result<String, String> =
@@ -404,21 +367,6 @@ let trimStart(str: String): String = Builtin.stringTrimStart(str)
 /// 'whitespace' here means all Unicode characters with the {{White_Space}}
 /// property, which includes {{" "}}, {{"\t"}} and {{"\n"}}.
 let trimEnd(str: String): String = Builtin.stringTrimEnd(str)
-
-
-/// Converts the given unicode string to a UTF8-encoded Bytes.
-let toBytes(str: String): Bytes = Builtin.stringToBytes(str)
-
-
-/// Converts a UTF8-encoded Bytes into a string. Invalid sequences are
-/// replaced.
-let fromBytesWithReplacement(bytes: Bytes): String =
-  Builtin.stringFromBytesWithReplacement(bytes)
-
-
-/// Converts a UTF8-encoded Bytes into a string. Returns None if the
-/// bytes aren't valid UTF-8.
-let fromBytes(bytes: Bytes): Option.Option<String> = Builtin.stringFromBytes(bytes)
 
 
 /// Return the byte at <param index> in <param str>'s UTF-8 encoding.

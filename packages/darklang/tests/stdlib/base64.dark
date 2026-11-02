@@ -1,5 +1,5 @@
 // Stdlib.Base64 — decode returns Result<Bytes, String>;
-// encode / urlEncode take Bytes.
+// encode / urlEncode take Bytes; the *Text fns go through UTF-8.
 module Darklang.Stdlib.Base64.Tests
 
 // CLEANUP: Dark compares blobs by identity, so these helpers compare byte lists.
@@ -8,7 +8,7 @@ let decodeBytes(text: String): Stdlib.Result.Result<List<UInt8>, String> =
   Stdlib.Base64.decode(text) |> Stdlib.Result.map(Stdlib.Bytes.toList)
 
 let bytesOf(text: String): List<UInt8> =
-  Stdlib.Bytes.toList(Stdlib.Bytes.fromString(text))
+  Stdlib.Bytes.toList(Stdlib.Utf8.encode(text))
 
 // Base64.decode
 test decode =
@@ -85,38 +85,140 @@ test decodeRejectsIncorrectPadding =
 // Base64.encode
 test encode =
   Stdlib.Test.all(
-    [ Stdlib.Base64.encode(Stdlib.Bytes.fromString("abcdef"))
+    [ Stdlib.Base64.encode(Stdlib.Utf8.encode("abcdef"))
       |> Stdlib.Test.equal("YWJjZGVm")
-      Stdlib.Base64.encode(Stdlib.Bytes.fromString("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"))
+      Stdlib.Base64.encode(Stdlib.Utf8.encode("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"))
       |> Stdlib.Test.equal(
         "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw==")
-      Stdlib.Base64.encode(Stdlib.Bytes.fromString("اختبار النص"))
+      Stdlib.Base64.encode(Stdlib.Utf8.encode("اختبار النص"))
       |> Stdlib.Test.equal("2KfYrtiq2KjYp9ixINin2YTZhti1")
-      Stdlib.Base64.encode(Stdlib.Bytes.fromString("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"))
+      Stdlib.Base64.encode(Stdlib.Utf8.encode("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"))
       |> Stdlib.Test.equal(
         "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9")
-      Stdlib.Base64.encode(Stdlib.Bytes.fromString("👱👱🏻👱🏼👱🏽👱🏾👱🏿"))
+      Stdlib.Base64.encode(Stdlib.Utf8.encode("👱👱🏻👱🏼👱🏽👱🏾👱🏿"))
       |> Stdlib.Test.equal(
         "8J+RsfCfkbHwn4+78J+RsfCfj7zwn5Gx8J+PvfCfkbHwn4++8J+RsfCfj78=")
-      Stdlib.Base64.encode(Stdlib.Bytes.fromString("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"))
+      Stdlib.Base64.encode(Stdlib.Utf8.encode("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"))
       |> Stdlib.Test.equal(
         "8J+RqOKAjeKdpO+4j+KAjfCfkovigI3wn5Go8J+RqeKAjfCfkanigI3wn5Gn4oCN8J+RpvCfj7PvuI/igI3imqfvuI/wn4e18J+Htw==") ])
 
 test urlEncode =
   Stdlib.Test.all(
-    [ Stdlib.Base64.urlEncode(Stdlib.Bytes.fromString("abcdef"))
+    [ Stdlib.Base64.urlEncode(Stdlib.Bytes.empty) |> Stdlib.Test.equal("")
+      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([251uy]))
+      |> Stdlib.Test.equal("-w==")
+      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([255uy, 255uy]))
+      |> Stdlib.Test.equal("__8=")
+      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([251uy, 255uy, 255uy]))
+      |> Stdlib.Test.equal("-___")
+      Stdlib.Base64.urlEncode(Stdlib.Utf8.encode("abcdef"))
       |> Stdlib.Test.equal("YWJjZGVm")
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromString("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"))
+      Stdlib.Base64.urlEncode(Stdlib.Utf8.encode("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"))
       |> Stdlib.Test.equal(
         "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw==")
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromString("اختبار النص"))
+      Stdlib.Base64.urlEncode(Stdlib.Utf8.encode("اختبار النص"))
       |> Stdlib.Test.equal("2KfYrtiq2KjYp9ixINin2YTZhti1")
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromString("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"))
+      Stdlib.Base64.urlEncode(Stdlib.Utf8.encode("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"))
       |> Stdlib.Test.equal(
         "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9")
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromString("👱👱🏻👱🏼👱🏽👱🏾👱🏿"))
+      Stdlib.Base64.urlEncode(Stdlib.Utf8.encode("👱👱🏻👱🏼👱🏽👱🏾👱🏿"))
       |> Stdlib.Test.equal(
         "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78=")
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromString("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"))
+      Stdlib.Base64.urlEncode(Stdlib.Utf8.encode("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"))
       |> Stdlib.Test.equal(
         "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw==") ])
+
+test roundTrip =
+  Stdlib.Test.all(
+    [ Stdlib.Base64.decode("aGVsbG8=")
+      |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
+      |> Stdlib.Test.equal(Ok "hello")
+      Stdlib.Utf8.encode("hello") |> Stdlib.Base64.encode
+      |> Stdlib.Test.equal("aGVsbG8=") ])
+
+test decodeText =
+  Stdlib.Test.all(
+    [ // empty case
+      Stdlib.Base64.decodeText("") |> Stdlib.Test.equal(Ok "")
+      Stdlib.Base64.decodeText("Kw") |> Stdlib.Test.equal(Ok "+")
+      Stdlib.Base64.decodeText("LyotKygmQDk4NTIx")
+      |> Stdlib.Test.equal(Ok "/*-+(&@98521")
+      Stdlib.Base64.decodeText("yLo") |> Stdlib.Test.equal(Ok "Ⱥ")
+      Stdlib.Base64.decodeText("xbzDs8WCdw") |> Stdlib.Test.equal(Ok "żółw")
+      Stdlib.Base64.decodeText("random string")
+      |> Stdlib.Test.equal(Error "Not a valid base64 string")
+      Stdlib.Base64.decodeText("illegal chars&@:")
+      |> Stdlib.Test.equal(Error "Not a valid base64 string")
+      // Test cases from the spec with padding added
+      Stdlib.Base64.decodeText("Zg") |> Stdlib.Test.equal(Ok "f")
+      Stdlib.Base64.decodeText("Zg==") |> Stdlib.Test.equal(Ok "f")
+      Stdlib.Base64.decodeText("Zm8") |> Stdlib.Test.equal(Ok "fo")
+      Stdlib.Base64.decodeText("Zm8=") |> Stdlib.Test.equal(Ok "fo")
+      Stdlib.Base64.decodeText("Zm9v") |> Stdlib.Test.equal(Ok "foo")
+      Stdlib.Base64.decodeText("Zm9vYg") |> Stdlib.Test.equal(Ok "foob")
+      Stdlib.Base64.decodeText("Zm9vYg==") |> Stdlib.Test.equal(Ok "foob")
+      Stdlib.Base64.decodeText("Zm9vYmE") |> Stdlib.Test.equal(Ok "fooba")
+      Stdlib.Base64.decodeText("Zm9vYmE=") |> Stdlib.Test.equal(Ok "fooba")
+      Stdlib.Base64.decodeText("Zm9vYmFy") |> Stdlib.Test.equal(Ok "foobar")
+      // "Impossible cases" from apache
+      // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
+      Stdlib.Base64.decodeText("ZE==") |> Stdlib.Test.equal(Ok "d")
+      Stdlib.Base64.decodeText("ZmC=") |> Stdlib.Test.equal(Ok "f`")
+      Stdlib.Base64.decodeText("Zm9vYE==") |> Stdlib.Test.equal(Ok "foo`")
+      Stdlib.Base64.decodeText("Zm9vYmC=") |> Stdlib.Test.equal(Ok "foob`")
+      Stdlib.Base64.decodeText("ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig")
+      |> Stdlib.Test.equal(Ok "from=06/07/2013 query=\"Καλώς ορίσατε\"")
+      Stdlib.Base64.decodeText("8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78")
+      |> Stdlib.Test.equal(Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+      Stdlib.Base64.decodeText("-p")
+      |> Stdlib.Test.equal(Error "Invalid UTF-8 string")
+      Stdlib.Base64.decodeText("lI")
+      |> Stdlib.Test.equal(Error "Invalid UTF-8 string")
+      Stdlib.Base64.decodeText("5Sk")
+      |> Stdlib.Test.equal(Error "Invalid UTF-8 string") ])
+
+test urlEncodeTextUnpadded =
+  Stdlib.Test.all(
+    [ Stdlib.Base64.urlEncodeTextUnpadded("+") |> Stdlib.Test.equal("Kw")
+      Stdlib.Base64.urlEncodeTextUnpadded("Ⱥ") |> Stdlib.Test.equal("yLo")
+      Stdlib.Base64.urlEncodeTextUnpadded("żółw") |> Stdlib.Test.equal("xbzDs8WCdw")
+      Stdlib.Base64.urlEncodeTextUnpadded("/*-+(&@98521")
+      |> Stdlib.Test.equal("LyotKygmQDk4NTIx")
+      Stdlib.Base64.urlEncodeTextUnpadded("") |> Stdlib.Test.equal("")
+      Stdlib.Base64.urlEncodeTextUnpadded("f") |> Stdlib.Test.equal("Zg")
+      Stdlib.Base64.urlEncodeTextUnpadded("fo") |> Stdlib.Test.equal("Zm8")
+      Stdlib.Base64.urlEncodeTextUnpadded("foo") |> Stdlib.Test.equal("Zm9v")
+      Stdlib.Base64.urlEncodeTextUnpadded("foob") |> Stdlib.Test.equal("Zm9vYg")
+      Stdlib.Base64.urlEncodeTextUnpadded("fooba") |> Stdlib.Test.equal("Zm9vYmE")
+      Stdlib.Base64.urlEncodeTextUnpadded("foobar") |> Stdlib.Test.equal("Zm9vYmFy")
+      Stdlib.Base64.urlEncodeTextUnpadded("Hello World")
+      |> Stdlib.Test.equal("SGVsbG8gV29ybGQ")
+      Stdlib.Base64.urlEncodeTextUnpadded("from=06/07/2013 query=\"Καλώς ορίσατε\"")
+
+     |> Stdlib.Test.equal("ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig")
+      Stdlib.Base64.urlEncodeTextUnpadded("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+
+     |> Stdlib.Test.equal("8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78") ])
+
+test encodeText =
+  Stdlib.Test.all(
+    [ Stdlib.Base64.encodeText("+") |> Stdlib.Test.equal("Kw==")
+      Stdlib.Base64.encodeText("Ⱥ") |> Stdlib.Test.equal("yLo=")
+      Stdlib.Base64.encodeText("żółw") |> Stdlib.Test.equal("xbzDs8WCdw==")
+      Stdlib.Base64.encodeText("/*-+(&@98521")
+      |> Stdlib.Test.equal("LyotKygmQDk4NTIx")
+      Stdlib.Base64.encodeText("") |> Stdlib.Test.equal("")
+      Stdlib.Base64.encodeText("f") |> Stdlib.Test.equal("Zg==")
+      Stdlib.Base64.encodeText("fo") |> Stdlib.Test.equal("Zm8=")
+      Stdlib.Base64.encodeText("foo") |> Stdlib.Test.equal("Zm9v")
+      Stdlib.Base64.encodeText("foob") |> Stdlib.Test.equal("Zm9vYg==")
+      Stdlib.Base64.encodeText("fooba") |> Stdlib.Test.equal("Zm9vYmE=")
+      Stdlib.Base64.encodeText("foobar") |> Stdlib.Test.equal("Zm9vYmFy")
+      Stdlib.Base64.encodeText("Hello World")
+      |> Stdlib.Test.equal("SGVsbG8gV29ybGQ=")
+      Stdlib.Base64.encodeText("from=06/07/2013 query=\"Καλώς ορίσατε\"")
+
+     |> Stdlib.Test.equal("ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs+CIM6/z4HOr8+DzrHPhM61Ig==")
+      Stdlib.Base64.encodeText("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+
+     |> Stdlib.Test.equal("8J+RsfCfkbHwn4+78J+RsfCfj7zwn5Gx8J+PvfCfkbHwn4++8J+RsfCfj78=") ])

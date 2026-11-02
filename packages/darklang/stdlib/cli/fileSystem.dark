@@ -132,14 +132,14 @@ let overwriteFile(path: String, content: Bytes): Result.Result<Unit, FileError> 
 
 
 /// Read an entire file and decode it as UTF-8. Convenience over
-/// <fn readFile> + <fn Stdlib.String.fromBytes> for text files. Returns
+/// <fn readFile> + <fn Stdlib.Utf8.decode> for text files. Returns
 /// {{FileError.Other}} if the bytes aren't valid UTF-8.
 let readFileAsString(path: String): Result.Result<String, FileError> =
   match readFile(path) with
   | Ok blob ->
-    match Stdlib.String.fromBytes(blob) with
-    | Some s -> Stdlib.Result.Result.Ok s
-    | None ->
+    match Stdlib.Utf8.decode(blob) with
+    | Ok s -> Stdlib.Result.Result.Ok s
+    | Error _ ->
       Stdlib.Result.Result.Error
         (FileError.Other "File contents are not valid UTF-8")
   | Error e -> Stdlib.Result.Result.Error e

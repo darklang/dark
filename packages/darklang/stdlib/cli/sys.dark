@@ -63,7 +63,7 @@ let __text(buffer: Bytes, offset: Int, length: Int): String =
     match Stdlib.Bytes.indexOf(field, 0uy) with
     | Some nul -> Stdlib.Bytes.take(field, nul)
     | None -> field
-  Stdlib.String.fromBytesWithReplacement(text)
+  Stdlib.Utf8.decodeWithReplacement(text)
 
 let __sysctlWith(mib: List<Int>, count: Int): Result.Result<Bytes, Int> =
   match Builtin.syscallSysctl(mib, count) with

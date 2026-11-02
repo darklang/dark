@@ -455,7 +455,7 @@ let runSearch(branchId: Uuid, queryText: String): List<SearchHit> =
     SearchHit { modules = modules, name = location.name, kind = tag, display = "  " + tag + "  " + full }
   // Rank by how well the LEAF NAME matches, because the search also matches descriptions and those hits
   // otherwise interleave alphabetically with the real ones: searching `toUppercase` put
-  // `Stdlib.String.toUppercase` sixth, behind `Stdlib.Bytes.fromHex`, which matched on its description.
+  // `Stdlib.String.toUppercase` sixth, behind `Stdlib.Hex.decode`, which matched on its description.
   let needle = Stdlib.String.toLowercase(Stdlib.String.trim(queryText))
   let rank(h: SearchHit): Int =
     let name = Stdlib.String.toLowercase(h.name)

@@ -18,4 +18,33 @@ let encode(bytes: Bytes): String = Builtin.base64Encode(bytes)
 /// Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding
 /// with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in RFC 4648
 /// section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-let urlEncode(bytes: Bytes): String = Builtin.base64UrlEncode(bytes)
+let urlEncode(bytes: Bytes): String =
+  bytes
+  |> encode
+  |> Stdlib.String.replaceAll("+", "-")
+  |> Stdlib.String.replaceAll("/", "_")
+
+
+/// Base64 encodes the UTF-8 encoding of <param s>, with the standard
+/// alphabet and {{=}} padding.
+let encodeText(s: String): String = s |> Stdlib.Utf8.encode |> encode
+
+
+/// Base64URL encodes the UTF-8 encoding of <param s> WITHOUT padding, unlike
+/// <fn urlEncode>.
+let urlEncodeTextUnpadded(s: String): String =
+  s
+  |> Stdlib.Utf8.encode
+  |> urlEncode
+  |> Stdlib.String.replaceAll("=", "")
+
+
+/// Base64 decodes <param s> and reads the result as UTF-8. Accepts both
+/// alphabets, like <fn decode>.
+let decodeText(s: String): Stdlib.Result.Result<String, String> =
+  match decode(s) with
+  | Ok bytes ->
+    match Stdlib.Utf8.decode(bytes) with
+    | Ok str -> Stdlib.Result.Result.Ok str
+    | Error _ -> Stdlib.Result.Result.Error "Invalid UTF-8 string"
+  | Error err -> Stdlib.Result.Result.Error err

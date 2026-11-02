@@ -88,7 +88,7 @@ module Format =
   /// The `\u` escape of a C0 control. Its UTF-8 is the one byte of its code,
   /// so the escape is that byte in hex after two zeros.
   let controlEscape(c: String): String =
-    "\\u00" + String.toUppercase(Bytes.toHex(String.toBytes(c)))
+    "\\u00" + String.toUppercase(Hex.encode(Utf8.encode(c)))
 
 
   /// <param n> in .NET's round-trip notation, which is what this wrote when it

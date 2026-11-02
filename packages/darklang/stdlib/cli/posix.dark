@@ -388,7 +388,7 @@ let __kernelEntriesFrom(bytes: Bytes, at: Int, reversed: List<String>)
         | Some nul when nul < recordEnd ->
           match Stdlib.Bytes.slice(bytes, nameStart, nul) with
           | Ok nameBytes ->
-            let name = Stdlib.String.fromBytesWithReplacement(nameBytes)
+            let name = Stdlib.Utf8.decodeWithReplacement(nameBytes)
             let next =
               if name == "." || name == ".." then reversed
               else Stdlib.List.prepend(reversed, name)
@@ -442,7 +442,7 @@ let __pathReadlinkWith(read: Int -> Result.Result<Bytes, Int>, count: Int)
 
 let __pathReadlink(path: String): Result.Result<String, Posix.Error> =
   __pathReadlinkWith((fun count -> Builtin.syscallReadlinkAt(path, count)), 256)
-  |> Stdlib.Result.map(Stdlib.String.fromBytesWithReplacement)
+  |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
 let __pathCwdWith(read: Int -> Result.Result<Bytes, Int>, count: Int)
@@ -460,7 +460,7 @@ let __pathPathText(bytes: Bytes): String =
     match Stdlib.Bytes.indexOf(bytes, 0uy) with
     | Some nul -> Stdlib.Bytes.take(bytes, nul)
     | None -> bytes
-  Stdlib.String.fromBytesWithReplacement(text)
+  Stdlib.Utf8.decodeWithReplacement(text)
 
 let __pathGetCwd(): Result.Result<String, Posix.Error> =
   let bytes =
@@ -806,7 +806,7 @@ let __tempEntropy(remaining: Int, reversed: List<Bytes>): Result.Result<Bytes, I
 let __tempCandidate(prefix: String): Result.Result<String, Stdlib.Cli.Posix.Error> =
   __tempEntropy(12, [])
   |> Stdlib.Result.mapError(__fromErrno)
-  |> Stdlib.Result.map(fun bytes -> Stdlib.String.append(prefix, Stdlib.Bytes.toHex(bytes)))
+  |> Stdlib.Result.map(fun bytes -> Stdlib.String.append(prefix, Stdlib.Hex.encode(bytes)))
 
 let __tempRetry(
   create: Int -> Result.Result<'a, Stdlib.Cli.Posix.Error>,

@@ -1,39 +1,39 @@
 // Stdlib.Crypto — all hashes take and return Bytes. Use
-// `Stdlib.Bytes.fromString` to build an input from a string and
-// `Stdlib.Bytes.toHex` to render the digest.
+// `Stdlib.Utf8.encode` to build an input from a string and
+// `Stdlib.Hex.encode` to render the digest.
 module Darklang.Stdlib.Crypto.Tests
 
 test digests =
-  let empty = Stdlib.Bytes.fromString("")
-  let longer = Stdlib.Bytes.fromString("a longer string that's more interesting")
+  let empty = Stdlib.Utf8.encode("")
+  let longer = Stdlib.Utf8.encode("a longer string that's more interesting")
   Stdlib.Test.all(
-    [ empty |> Stdlib.Crypto.md5 |> Stdlib.Bytes.toHex
+    [ empty |> Stdlib.Crypto.md5 |> Stdlib.Hex.encode
       |> Stdlib.Test.equal("D41D8CD98F00B204E9800998ECF8427E")
-      empty |> Stdlib.Crypto.sha256 |> Stdlib.Bytes.toHex
+      empty |> Stdlib.Crypto.sha256 |> Stdlib.Hex.encode
       |> Stdlib.Test.equal("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855")
-      empty |> Stdlib.Crypto.sha384 |> Stdlib.Bytes.toHex
+      empty |> Stdlib.Crypto.sha384 |> Stdlib.Hex.encode
       |> Stdlib.Test.equal("38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B")
-      longer |> Stdlib.Crypto.md5 |> Stdlib.Bytes.toHex
+      longer |> Stdlib.Crypto.md5 |> Stdlib.Hex.encode
       |> Stdlib.Test.equal("D95E619F023B430CAAAEB6778A0B9BD1")
-      longer |> Stdlib.Crypto.sha256 |> Stdlib.Bytes.toHex
+      longer |> Stdlib.Crypto.sha256 |> Stdlib.Hex.encode
       |> Stdlib.Test.equal("1316F78627BC453D44D27E3133902CF798859572E814EED4B5FB56BB1447F05F")
-      longer |> Stdlib.Crypto.sha384 |> Stdlib.Bytes.toHex
+      longer |> Stdlib.Crypto.sha384 |> Stdlib.Hex.encode
       |> Stdlib.Test.equal("AD7273EF514770D80B516D067354CB300FE458C042CE084EC97125718678C3C21415FE224658839963F0B2D90137AA7B") ])
 
 // sha256hmac
 test sha256hmac =
-  let secret = Stdlib.Bytes.fromString("AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
-  let data = Stdlib.Bytes.fromString("20150830")
+  let secret = Stdlib.Utf8.encode("AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
+  let data = Stdlib.Utf8.encode("20150830")
   Stdlib.Crypto.sha256hmac(secret, data)
-  |> Stdlib.Bytes.toHex
+  |> Stdlib.Hex.encode
   |> Stdlib.Test.equal("0138C7A6CBD60AA727B2F653A522567439DFB9F3E72B21F9B25941A42F04A7CD")
 
 // sha1hmac
 test sha1hmac =
-  let secret = Stdlib.Bytes.fromString("AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
-  let data = Stdlib.Bytes.fromString("20150830")
+  let secret = Stdlib.Utf8.encode("AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
+  let data = Stdlib.Utf8.encode("20150830")
   Stdlib.Crypto.sha1hmac(secret, data)
-  |> Stdlib.Bytes.toHex
+  |> Stdlib.Hex.encode
   |> Stdlib.Test.equal("0932CB57FE685FEBC66657AA30C7568A4AB05CAF")
 
 // aws
@@ -42,12 +42,47 @@ test awsSigningChain =
   let content = "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59"
   let strs = [ "AWS4-HMAC-SHA256", "20150830T123600Z", scope, content ]
   let strToSign = Stdlib.String.join(strs, Stdlib.String.newline)
-  let secret = Stdlib.Bytes.fromString("AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
-  let date = Stdlib.Crypto.sha256hmac(secret, Stdlib.Bytes.fromString("20150830"))
-  let region = Stdlib.Crypto.sha256hmac(date, Stdlib.Bytes.fromString("us-east-1"))
-  let service = Stdlib.Crypto.sha256hmac(region, Stdlib.Bytes.fromString("iam"))
-  let signing = Stdlib.Crypto.sha256hmac(service, Stdlib.Bytes.fromString("aws4_request"))
-  Stdlib.Crypto.sha256hmac(signing, Stdlib.Bytes.fromString(strToSign))
-  |> Stdlib.Bytes.toHex
+  let secret = Stdlib.Utf8.encode("AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
+  let date = Stdlib.Crypto.sha256hmac(secret, Stdlib.Utf8.encode("20150830"))
+  let region = Stdlib.Crypto.sha256hmac(date, Stdlib.Utf8.encode("us-east-1"))
+  let service = Stdlib.Crypto.sha256hmac(region, Stdlib.Utf8.encode("iam"))
+  let signing = Stdlib.Crypto.sha256hmac(service, Stdlib.Utf8.encode("aws4_request"))
+  Stdlib.Crypto.sha256hmac(signing, Stdlib.Utf8.encode(strToSign))
+  |> Stdlib.Hex.encode
   |> Stdlib.String.toLowercase
   |> Stdlib.Test.equal("5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7")
+
+test digestText =
+  Stdlib.Test.all(
+    [ Stdlib.Crypto.digestText("")
+
+     |> Stdlib.Test.equal("OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb")
+      Stdlib.Crypto.digestText("😄")
+
+     |> Stdlib.Test.equal("Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA")
+      Stdlib.Crypto.digestText("ελπίδα")
+
+     |> Stdlib.Test.equal("j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa")
+      Stdlib.Crypto.digestText("/*-+(&@98521")
+
+     |> Stdlib.Test.equal("wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr")
+      Stdlib.Crypto.digestText("👩🏻‍🚀🍇")
+
+     |> Stdlib.Test.equal("hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ")
+      Stdlib.Crypto.digestText("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿")
+
+     |> Stdlib.Test.equal("7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE")
+      Stdlib.Crypto.digestText("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+
+     |> Stdlib.Test.equal("U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k")
+      Stdlib.Crypto.digestText("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+
+     |> Stdlib.Test.equal("c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx")
+      Stdlib.Crypto.digestText("🧟‍♀️🧟‍♂️")
+
+     |> Stdlib.Test.equal("FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc")
+      Stdlib.Crypto.digestText("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷")
+
+     |> Stdlib.Test.equal("3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m") ])
+
+// Preserve the original two-call comparison independently of the sample test.

@@ -9,6 +9,12 @@ let sha256(data: Bytes): Bytes = Builtin.cryptoSha256(data)
 let sha384(data: Bytes): Bytes = Builtin.cryptoSha384(data)
 
 
+/// Hashes <param text> to a cryptographically-secure digest string.
+/// Do not rely on the digest's size, algorithm or encoding.
+let digestText(text: String): String =
+  text |> Stdlib.Utf8.encode |> sha384 |> Stdlib.Base64.urlEncode
+
+
 /// Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security
 let md5(data: Bytes): Bytes = Builtin.cryptoMd5(data)
 

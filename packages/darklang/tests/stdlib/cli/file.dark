@@ -83,20 +83,20 @@ test watchVnodeEventsWalksSeveralEvents =
 test countNewlines =
   Stdlib.Test.all(
     [ Stdlib.Cli.File.countNewlines(Stdlib.Bytes.empty) |> Stdlib.Test.equal(0)
-      Stdlib.Cli.File.countNewlines(Stdlib.Bytes.fromString("a")) |> Stdlib.Test.equal(0)
-      Stdlib.Cli.File.countNewlines(Stdlib.Bytes.fromString("a\nb\n"))
+      Stdlib.Cli.File.countNewlines(Stdlib.Utf8.encode("a")) |> Stdlib.Test.equal(0)
+      Stdlib.Cli.File.countNewlines(Stdlib.Utf8.encode("a\nb\n"))
       |> Stdlib.Test.equal(2)
-      Stdlib.Cli.File.countNewlines(Stdlib.Bytes.fromString("\n\n\n"))
+      Stdlib.Cli.File.countNewlines(Stdlib.Utf8.encode("\n\n\n"))
       |> Stdlib.Test.equal(3)
       Stdlib.Cli.File.countNewlines(
-        Stdlib.Bytes.fromString(Stdlib.String.repeat("x\n", 1000)))
+        Stdlib.Utf8.encode(Stdlib.String.repeat("x\n", 1000)))
       |> Stdlib.Test.equal(1000) ])
 
 // dropThroughFirstNewline
 test dropThroughFirstNewline =
   let drop(text: String): Stdlib.Result.Result<String, String> =
-    Stdlib.Bytes.toString(
-      Stdlib.Cli.File.dropThroughFirstNewline(Stdlib.Bytes.fromString(text)))
+    Stdlib.Utf8.decode(
+      Stdlib.Cli.File.dropThroughFirstNewline(Stdlib.Utf8.encode(text)))
   Stdlib.Test.all(
     [ drop("") |> Stdlib.Test.equal(Ok "")
       drop("abc") |> Stdlib.Test.equal(Ok "")

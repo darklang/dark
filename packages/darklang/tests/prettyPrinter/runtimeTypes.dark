@@ -311,7 +311,7 @@ test compactDvalKeepsDepth =
       |> Stdlib.Test.equal("[[[..., ...], [...]], [[...]]]") ])
 
 /// A `val` is saved when it is stored, so this one holds saved Bytes.
-val savedBytes = Stdlib.Bytes.fromString("saved preview")
+val savedBytes = Stdlib.Utf8.encode("saved preview")
 
 // Unsaved Bytes show their first 16 bytes as hex. Saved ones show only their
 // length, because a preview would load them from the store.
@@ -319,13 +319,13 @@ test bytesShowAPreview =
   let persistent =
     Darklang.LanguageTools.RuntimeTypes.Dval.DBytes Stdlib.Bytes.empty
   Stdlib.Test.all(
-    [ pp(Stdlib.Bytes.fromString("hello"))
+    [ pp(Stdlib.Utf8.encode("hello"))
       |> Stdlib.Test.equal("<Bytes: 5 bytes 68 65 6c 6c 6f>")
-      pp(Stdlib.Bytes.fromString("h")) |> Stdlib.Test.equal("<Bytes: 1 byte 68>")
-      pp(Stdlib.Bytes.fromString(Stdlib.String.repeat("*", 20)))
+      pp(Stdlib.Utf8.encode("h")) |> Stdlib.Test.equal("<Bytes: 1 byte 68>")
+      pp(Stdlib.Utf8.encode(Stdlib.String.repeat("*", 20)))
       |> Stdlib.Test.equal(
         "<Bytes: 20 bytes 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a ...>")
-      pp(Stdlib.Bytes.fromString("")) |> Stdlib.Test.equal("<Bytes: 0 bytes>")
+      pp(Stdlib.Utf8.encode("")) |> Stdlib.Test.equal("<Bytes: 0 bytes>")
       pp(Stdlib.Bytes.empty) |> Stdlib.Test.equal("<Bytes: 0 bytes>")
       pp(savedBytes) |> Stdlib.Test.equal("<Bytes: 13 bytes>")
       Darklang.PrettyPrinter.RuntimeTypes.dval(

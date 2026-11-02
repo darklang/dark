@@ -436,7 +436,7 @@ let hashToShort(hash: Hash): String =
 /// canonical serialization and this is over the bytes of a string. Must agree with
 /// `LibExecution.ProgramTypes.Hash.ofText`, which is what reads it back.
 let hashOfText(text: String): Hash =
-  (Stdlib.Bytes.toHex(Stdlib.Crypto.sha256(Stdlib.String.toBytes(text))))
+  (Stdlib.Hex.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(text))))
   |> Stdlib.String.toLowercase
   |> Hash.Hash
 

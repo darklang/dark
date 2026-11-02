@@ -1,11 +1,11 @@
 module Tests
 
-Stdlib.Cli.File.__copyWriteAt((fun _ _ -> Ok 1), Stdlib.Bytes.fromString("abc"), 0) = Ok ()
-Stdlib.Cli.File.__copyWriteAt((fun _ _ -> Ok 0), Stdlib.Bytes.fromString("abc"), 0) = Error 5
+Stdlib.Cli.File.__copyWriteAt((fun _ _ -> Ok 1), Stdlib.Utf8.encode("abc"), 0) = Ok ()
+Stdlib.Cli.File.__copyWriteAt((fun _ _ -> Ok 0), Stdlib.Utf8.encode("abc"), 0) = Error 5
 Stdlib.Cli.Dir.withTemp(fun dir -> let destination = Stdlib.String.append(dir, "/not-a-file") in let copied = Stdlib.Cli.File.copy(dir, destination) in (match copied with | Error e -> e.errno == 21 | Ok _ -> false) && (Stdlib.Cli.File.exists(destination)) == false) = Ok true
-Stdlib.Cli.File.__copyWriteAt((fun _ _ -> Ok 4), Stdlib.Bytes.fromString("abc"), 0) = Error 5
-Stdlib.Cli.File.__copyWriteAt((fun _ _ -> Error 28), Stdlib.Bytes.fromString("abc"), 0) = Error 28
-Stdlib.Cli.File.__copyBuffered((fun count offset -> if count != 65536 then Error 22 else if offset == 2 then Ok (Stdlib.Bytes.fromString("abc")) else if offset == 5 then Ok Stdlib.Bytes.empty else Error 22), (fun _ offset -> if offset >= 2 && offset < 5 then Ok 1 else Error 22), 2) = Ok ()
+Stdlib.Cli.File.__copyWriteAt((fun _ _ -> Ok 4), Stdlib.Utf8.encode("abc"), 0) = Error 5
+Stdlib.Cli.File.__copyWriteAt((fun _ _ -> Error 28), Stdlib.Utf8.encode("abc"), 0) = Error 28
+Stdlib.Cli.File.__copyBuffered((fun count offset -> if count != 65536 then Error 22 else if offset == 2 then Ok (Stdlib.Utf8.encode("abc")) else if offset == 5 then Ok Stdlib.Bytes.empty else Error 22), (fun _ offset -> if offset >= 2 && offset < 5 then Ok 1 else Error 22), 2) = Ok ()
 Stdlib.Cli.File.__copyUnsupported(18) = true
 Stdlib.Cli.File.__copyUnsupported(28) = false
 Stdlib.Cli.File.__copyFinish(Error (Stdlib.Cli.Posix.Error {errno=28,message="full"}), Error (Stdlib.Cli.Posix.Error {errno=5,message="close"})) = Error (Stdlib.Cli.Posix.Error {errno=28,message="full"})

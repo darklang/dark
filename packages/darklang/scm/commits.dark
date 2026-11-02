@@ -46,7 +46,7 @@ let mintHash(
   : String =
   let ops = Stdlib.String.join(opIds, ",")
   let material = $"{message}|{stamp}|{parent}|{ops}"
-  let digest = Stdlib.Bytes.toHex(Stdlib.Crypto.sha256(Stdlib.String.toBytes(material)))
+  let digest = Stdlib.Hex.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(material)))
   Stdlib.String.toLowercase(Stdlib.String.first(digest, 16))
 
 /// Write a commit ROW (it commits nothing by itself -- the caller stamps the ops). Returns its hash.

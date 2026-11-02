@@ -42,6 +42,8 @@
     <Compile Include="Libs/Uuid.fs" />
 
     <Compile Include="Libs/Base64.fs" />
+    <Compile Include="Libs/Hex.fs" />
+    <Compile Include="Libs/Utf8.fs" />
 
     <Compile Include="Libs/Json.fs" />
 

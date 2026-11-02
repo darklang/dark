@@ -30,6 +30,8 @@ val knownGroups =
     ("bytes", "Bytes")
     ("stream", "Stream")
     ("json", "JSON")
+    ("utf8", "UTF-8")
+    ("hex", "Hex")
     ("base64", "Base64")
     ("uuid", "UUID")
     ("date", "DateTime")

@@ -130,7 +130,7 @@ test join =
       // CLEANUP: Re-enable after setting InvariantGlobalization=false in CLI and Wasm
       // and verifying ICU packaging; this checks NFC composition across joined strings.
       // Stdlib.String.join [ "a", "̂" ] ""
-      // |> Stdlib.String.base64UrlEncode |> Stdlib.Test.equal "w6I"
+      // |> Stdlib.Base64.urlEncodeTextUnpadded |> Stdlib.Test.equal "w6I"
       Stdlib.String.join([ "hello", " world" ], "") |> Stdlib.Test.equal("hello world")
       Stdlib.String.join([ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽", "🧟‍♀️" ], "")
       |> Stdlib.Test.equal("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️")
@@ -144,24 +144,6 @@ test join =
       |> Stdlib.Test.equal("🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍")
       Stdlib.String.join([ "🧑🏽‍🦰‍", "🧑🏼‍💻‍‍" ], "")
       |> Stdlib.Test.equal("🧑🏽‍🦰‍🧑🏼‍💻‍‍") ])
-
-test toBytesLength =
-  Stdlib.Test.all(
-    [ Stdlib.Bytes.length(Stdlib.String.toBytes("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"))
-      |> Stdlib.Test.equal(62)
-      Stdlib.Bytes.length(Stdlib.String.toBytes("😄APPLE🍏")) |> Stdlib.Test.equal(13)
-      Stdlib.Bytes.length(Stdlib.String.toBytes("Είναι προικισμένοι με λογική"))
-      |> Stdlib.Test.equal(53)
-      Stdlib.Bytes.length(Stdlib.String.toBytes("")) |> Stdlib.Test.equal(0)
-      Stdlib.Bytes.length(Stdlib.String.toBytes("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"))
-      |> Stdlib.Test.equal(48)
-      Stdlib.Bytes.length(Stdlib.String.toBytes("👱👱🏻👱🏼👱🏽👱🏾👱🏿"))
-      |> Stdlib.Test.equal(44)
-      Stdlib.Bytes.length(Stdlib.String.toBytes("🧟‍♀️🧟‍♂️")) |> Stdlib.Test.equal(26)
-      Stdlib.Bytes.length(Stdlib.String.toBytes("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"))
-      |> Stdlib.Test.equal(82)
-      Stdlib.Bytes.length(Stdlib.String.toBytes("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"))
-      |> Stdlib.Test.equal(49) ])
 
 test startsWith =
   Stdlib.Test.all(
@@ -206,174 +188,7 @@ test endsWith =
       Stdlib.String.endsWith("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "🏳️‍⚧️‍️🇵🇷")
       |> Stdlib.Test.equal(true) ])
 
-// Keep the Result so a decode error fails the assertion.
-test fromBytesWithReplacement =
-  Stdlib.Test.all(
-    [ Stdlib.Base64.decode("w6I")
-      |> Stdlib.Result.map(fun bytes ->
-        Stdlib.String.fromBytesWithReplacement(bytes))
-      |> Stdlib.Test.equal(Ok "â")
-      Stdlib.Base64.decode("aGVsbG8g8J+YgA==")
-      |> Stdlib.Result.map(fun bytes ->
-        Stdlib.String.fromBytesWithReplacement(bytes))
-      |> Stdlib.Test.equal(Ok "hello 😀")
-      Stdlib.Base64.decode("ww==")
-      |> Stdlib.Result.map(fun bytes ->
-        Stdlib.String.fromBytesWithReplacement(bytes))
-      |> Stdlib.Test.equal(Ok "�")
-      Stdlib.Base64.decode("7aCA")
-      |> Stdlib.Result.map(fun bytes ->
-        Stdlib.String.fromBytesWithReplacement(bytes))
-      |> Stdlib.Test.equal(Ok "���")
-      Stdlib.Base64.decode("aMM=")
-      |> Stdlib.Result.map(fun bytes ->
-        Stdlib.String.fromBytesWithReplacement(bytes))
-      |> Stdlib.Test.equal(Ok "h�") ])
 
-test fromBytes =
-  Stdlib.Test.all(
-    [ Stdlib.Base64.decode("w6I")
-      |> Stdlib.Result.map(fun blob ->
-        Stdlib.String.fromBytes(blob))
-      |> Stdlib.Test.equal(Ok (Some "â"))
-      Stdlib.Base64.decode("aGVsbG8g8J+YgA==")
-      |> Stdlib.Result.map(fun blob ->
-        Stdlib.String.fromBytes(blob))
-      |> Stdlib.Test.equal(Ok (Some "hello 😀"))
-      Stdlib.Base64.decode("ww==")
-      |> Stdlib.Result.map(fun blob ->
-        Stdlib.String.fromBytes(blob))
-      |> Stdlib.Test.equal(Ok None)
-      Stdlib.Base64.decode("7aCA")
-      |> Stdlib.Result.map(fun blob ->
-        Stdlib.String.fromBytes(blob))
-      |> Stdlib.Test.equal(Ok None)
-      Stdlib.Base64.decode("aMM=")
-      |> Stdlib.Result.map(fun blob ->
-        Stdlib.String.fromBytes(blob))
-      |> Stdlib.Test.equal(Ok None) ])
-
-test base64Decode =
-  Stdlib.Test.all(
-    [ // empty case
-      Stdlib.String.base64Decode("") |> Stdlib.Test.equal(Ok "")
-      Stdlib.String.base64Decode("Kw") |> Stdlib.Test.equal(Ok "+")
-      Stdlib.String.base64Decode("LyotKygmQDk4NTIx")
-      |> Stdlib.Test.equal(Ok "/*-+(&@98521")
-      Stdlib.String.base64Decode("yLo") |> Stdlib.Test.equal(Ok "Ⱥ")
-      Stdlib.String.base64Decode("xbzDs8WCdw") |> Stdlib.Test.equal(Ok "żółw")
-      Stdlib.String.base64Decode("random string")
-      |> Stdlib.Test.equal(Error "Not a valid base64 string")
-      Stdlib.String.base64Decode("illegal chars&@:")
-      |> Stdlib.Test.equal(Error "Not a valid base64 string")
-      // Test cases from the spec with padding added
-      Stdlib.String.base64Decode("Zg") |> Stdlib.Test.equal(Ok "f")
-      Stdlib.String.base64Decode("Zg==") |> Stdlib.Test.equal(Ok "f")
-      Stdlib.String.base64Decode("Zm8") |> Stdlib.Test.equal(Ok "fo")
-      Stdlib.String.base64Decode("Zm8=") |> Stdlib.Test.equal(Ok "fo")
-      Stdlib.String.base64Decode("Zm9v") |> Stdlib.Test.equal(Ok "foo")
-      Stdlib.String.base64Decode("Zm9vYg") |> Stdlib.Test.equal(Ok "foob")
-      Stdlib.String.base64Decode("Zm9vYg==") |> Stdlib.Test.equal(Ok "foob")
-      Stdlib.String.base64Decode("Zm9vYmE") |> Stdlib.Test.equal(Ok "fooba")
-      Stdlib.String.base64Decode("Zm9vYmE=") |> Stdlib.Test.equal(Ok "fooba")
-      Stdlib.String.base64Decode("Zm9vYmFy") |> Stdlib.Test.equal(Ok "foobar")
-      // "Impossible cases" from apache
-      // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
-      Stdlib.String.base64Decode("ZE==") |> Stdlib.Test.equal(Ok "d")
-      Stdlib.String.base64Decode("ZmC=") |> Stdlib.Test.equal(Ok "f`")
-      Stdlib.String.base64Decode("Zm9vYE==") |> Stdlib.Test.equal(Ok "foo`")
-      Stdlib.String.base64Decode("Zm9vYmC=") |> Stdlib.Test.equal(Ok "foob`")
-      Stdlib.String.base64Decode("ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig")
-      |> Stdlib.Test.equal(Ok "from=06/07/2013 query=\"Καλώς ορίσατε\"")
-      Stdlib.String.base64Decode("8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78")
-      |> Stdlib.Test.equal(Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
-      Stdlib.String.base64Decode("-p")
-      |> Stdlib.Test.equal(Error "Invalid UTF-8 string")
-      Stdlib.String.base64Decode("lI")
-      |> Stdlib.Test.equal(Error "Invalid UTF-8 string")
-      Stdlib.String.base64Decode("5Sk")
-      |> Stdlib.Test.equal(Error "Invalid UTF-8 string") ])
-
-test base64UrlEncode =
-  Stdlib.Test.all(
-    [ Stdlib.String.base64UrlEncode("+") |> Stdlib.Test.equal("Kw")
-      Stdlib.String.base64UrlEncode("Ⱥ") |> Stdlib.Test.equal("yLo")
-      Stdlib.String.base64UrlEncode("żółw") |> Stdlib.Test.equal("xbzDs8WCdw")
-      Stdlib.String.base64UrlEncode("/*-+(&@98521")
-      |> Stdlib.Test.equal("LyotKygmQDk4NTIx")
-      Stdlib.String.base64UrlEncode("") |> Stdlib.Test.equal("")
-      Stdlib.String.base64UrlEncode("f") |> Stdlib.Test.equal("Zg")
-      Stdlib.String.base64UrlEncode("fo") |> Stdlib.Test.equal("Zm8")
-      Stdlib.String.base64UrlEncode("foo") |> Stdlib.Test.equal("Zm9v")
-      Stdlib.String.base64UrlEncode("foob") |> Stdlib.Test.equal("Zm9vYg")
-      Stdlib.String.base64UrlEncode("fooba") |> Stdlib.Test.equal("Zm9vYmE")
-      Stdlib.String.base64UrlEncode("foobar") |> Stdlib.Test.equal("Zm9vYmFy")
-      Stdlib.String.base64UrlEncode("Hello World")
-      |> Stdlib.Test.equal("SGVsbG8gV29ybGQ")
-      Stdlib.String.base64UrlEncode("from=06/07/2013 query=\"Καλώς ορίσατε\"")
-
-     |> Stdlib.Test.equal("ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig")
-      Stdlib.String.base64UrlEncode("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
-
-     |> Stdlib.Test.equal("8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78") ])
-
-test base64Encode =
-  Stdlib.Test.all(
-    [ Stdlib.String.base64Encode("+") |> Stdlib.Test.equal("Kw==")
-      Stdlib.String.base64Encode("Ⱥ") |> Stdlib.Test.equal("yLo=")
-      Stdlib.String.base64Encode("żółw") |> Stdlib.Test.equal("xbzDs8WCdw==")
-      Stdlib.String.base64Encode("/*-+(&@98521")
-      |> Stdlib.Test.equal("LyotKygmQDk4NTIx")
-      Stdlib.String.base64Encode("") |> Stdlib.Test.equal("")
-      Stdlib.String.base64Encode("f") |> Stdlib.Test.equal("Zg==")
-      Stdlib.String.base64Encode("fo") |> Stdlib.Test.equal("Zm8=")
-      Stdlib.String.base64Encode("foo") |> Stdlib.Test.equal("Zm9v")
-      Stdlib.String.base64Encode("foob") |> Stdlib.Test.equal("Zm9vYg==")
-      Stdlib.String.base64Encode("fooba") |> Stdlib.Test.equal("Zm9vYmE=")
-      Stdlib.String.base64Encode("foobar") |> Stdlib.Test.equal("Zm9vYmFy")
-      Stdlib.String.base64Encode("Hello World")
-      |> Stdlib.Test.equal("SGVsbG8gV29ybGQ=")
-      Stdlib.String.base64Encode("from=06/07/2013 query=\"Καλώς ορίσατε\"")
-
-     |> Stdlib.Test.equal("ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs+CIM6/z4HOr8+DzrHPhM61Ig==")
-      Stdlib.String.base64Encode("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
-
-     |> Stdlib.Test.equal("8J+RsfCfkbHwn4+78J+RsfCfj7zwn5Gx8J+PvfCfkbHwn4++8J+RsfCfj78=") ])
-
-test digest =
-  Stdlib.Test.all(
-    [ Stdlib.String.digest("")
-
-     |> Stdlib.Test.equal("OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb")
-      Stdlib.String.digest("😄")
-
-     |> Stdlib.Test.equal("Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA")
-      Stdlib.String.digest("ελπίδα")
-
-     |> Stdlib.Test.equal("j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa")
-      Stdlib.String.digest("/*-+(&@98521")
-
-     |> Stdlib.Test.equal("wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr")
-      Stdlib.String.digest("👩🏻‍🚀🍇")
-
-     |> Stdlib.Test.equal("hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ")
-      Stdlib.String.digest("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿")
-
-     |> Stdlib.Test.equal("7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE")
-      Stdlib.String.digest("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
-
-     |> Stdlib.Test.equal("U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k")
-      Stdlib.String.digest("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
-
-     |> Stdlib.Test.equal("c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx")
-      Stdlib.String.digest("🧟‍♀️🧟‍♂️")
-
-     |> Stdlib.Test.equal("FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc")
-      Stdlib.String.digest("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷")
-
-     |> Stdlib.Test.equal("3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m") ])
-
-// Preserve the original two-call comparison independently of the sample test.
 test randomPairIsDifferent =
   (Stdlib.String.random(5)) == (Stdlib.String.random(5)) |> Stdlib.Test.equal(false)
 
@@ -1261,7 +1076,7 @@ test getByteAt =
 test getByteAtMatchesToBytes =
   // Match the full UTF-8 encoding.
   Stdlib.String.getByteAt("héllo", 2)
-  |> Stdlib.Test.equal(Stdlib.Bytes.getAt(Stdlib.String.toBytes("héllo"), 2))
+  |> Stdlib.Test.equal(Stdlib.Bytes.getAt(Stdlib.Utf8.encode("héllo"), 2))
 
 test slugify =
   Stdlib.Test.all(
@@ -1321,9 +1136,9 @@ module MapEffects =
 // and verifying ICU packaging. These byte assertions require NFC composition.
 // test appendComposesUnicode =
 //   Stdlib.Test.all
-//     [ Stdlib.String.append "a" "̂" |> Stdlib.Bytes.fromString
+//     [ Stdlib.String.append "a" "̂" |> Stdlib.Utf8.encode
 //       |> Stdlib.Bytes.toList |> Stdlib.Test.equal [195uy, 162uy]
-//       Stdlib.String.append "ᄀ" "ᅡᆨ" |> Stdlib.Bytes.fromString
+//       Stdlib.String.append "ᄀ" "ᅡᆨ" |> Stdlib.Utf8.encode
 //       |> Stdlib.Bytes.toList |> Stdlib.Test.equal [234uy, 176uy, 129uy] ]
 
 // head returns the whole grapheme cluster.

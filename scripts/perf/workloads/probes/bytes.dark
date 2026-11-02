@@ -20,15 +20,15 @@ let measure(label: String, f: Int -> Int): Unit =
   if result == 0 then () else Builtin.debug("unexpected result", result)
 
 let probe(label: String, text: String): Unit =
-  let left = Stdlib.Bytes.fromString(text)
-  let right = Stdlib.Bytes.fromString(text)
+  let left = Stdlib.Utf8.encode(text)
+  let right = Stdlib.Utf8.encode(text)
   measure(label + " create + length", fun _ ->
-    Stdlib.Bytes.length(Stdlib.Bytes.fromString(text)))
+    Stdlib.Bytes.length(Stdlib.Utf8.encode(text)))
   measure(label + " create + self equality", fun _ ->
-    let fresh = Stdlib.Bytes.fromString(text)
+    let fresh = Stdlib.Utf8.encode(text)
     if fresh == fresh then 1 else 0)
   measure(label + " create + first equality", fun _ ->
-    let fresh = Stdlib.Bytes.fromString(text)
+    let fresh = Stdlib.Utf8.encode(text)
     if fresh == right then 1 else 0)
   // Warmup forces both hashes; this row measures subsequent comparisons.
   measure(label + " cached equality", fun _ -> if left == right then 1 else 0)

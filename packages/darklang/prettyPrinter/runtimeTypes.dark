@@ -617,7 +617,7 @@ let letPattern(pat: LanguageTools.RuntimeTypes.LetPattern): String =
 let bytesPreview(bytes: Bytes, count: Int): Stdlib.Option.Option<String> =
   Builtin.bytesPeek(bytes, count)
   |> Stdlib.Option.map(fun prefix ->
-    let hex = prefix |> Stdlib.Bytes.toHex |> Stdlib.String.toLowercase
+    let hex = prefix |> Stdlib.Hex.encode |> Stdlib.String.toLowercase
     let pairs =
       Stdlib.List.range(0, (Stdlib.Bytes.length(prefix)) - 1)
       |> Stdlib.List.map(fun i -> Stdlib.String.slice(hex, i * 2, i * 2 + 2))

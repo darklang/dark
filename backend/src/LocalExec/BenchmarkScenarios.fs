@@ -118,7 +118,7 @@ let private httpBody () : List<Result> =
 
 
 let private hexEncode () : List<Result> =
-  // Mirror Builtin.bytesToHex: mint blob, deref bytes, hex-encode.
+  // Mirror Builtin.hexEncode: mint blob, deref bytes, hex-encode.
   let size = 1_000_000
   let raw = randomBytes 0 size
   let _, sample =

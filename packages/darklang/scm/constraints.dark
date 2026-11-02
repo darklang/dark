@@ -151,7 +151,7 @@ let findingId(
   : String =
   let raw = $"{fqnOf(usage)}|{fqnOf(dependency)}|{discriminator}"
 
-  let digest = Stdlib.Bytes.toHex(Stdlib.Crypto.sha256(Stdlib.String.toBytes(raw)))
+  let digest = Stdlib.Hex.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(raw)))
   Stdlib.String.toLowercase(Stdlib.String.first(digest, 8))
 
 

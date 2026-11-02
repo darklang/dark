@@ -860,7 +860,7 @@ module DictKeys =
     check(
       (src(
         [ "let f(u: Unit): Darklang.LanguageTools.RuntimeTypes.Dval ="
-          "  Darklang.LanguageTools.RuntimeTypes.reflect(Stdlib.Bytes.fromString(\"hello\"))" ])),
+          "  Darklang.LanguageTools.RuntimeTypes.reflect(Stdlib.Utf8.encode(\"hello\"))" ])),
       "f")
     |> Stdlib.Test.equal(accepted)
 

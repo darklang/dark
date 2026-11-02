@@ -150,7 +150,7 @@ let basicAuth(
   if Stdlib.String.contains(username, "-") then
     Stdlib.Result.Result.Error "Username cannot contain a hyphen"
   else
-    let encoded = Stdlib.String.base64Encode($"{username}:{password}")
+    let encoded = Stdlib.Base64.encodeText($"{username}:{password}")
 
     Stdlib.Result.Result.Ok(("authorization", $"basic {encoded}"))
 
@@ -299,7 +299,7 @@ module Sse =
         else
           let tailLine =
             match
-              Stdlib.Bytes.toString(Stdlib.Bytes.fromList(state.currentLine))
+              Stdlib.Utf8.decode(Stdlib.Bytes.fromList(state.currentLine))
             with
             | Ok s -> s
             | Error _ -> ""
@@ -323,7 +323,7 @@ module Sse =
       if b == 10uy then
         let line =
           match
-            Stdlib.Bytes.toString(Stdlib.Bytes.fromList(state.currentLine))
+            Stdlib.Utf8.decode(Stdlib.Bytes.fromList(state.currentLine))
           with
           | Ok s -> s
           | Error _ -> ""

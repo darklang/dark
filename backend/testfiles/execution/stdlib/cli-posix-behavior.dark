@@ -18,10 +18,10 @@ Stdlib.Cli.Posix.__tempRetry((fun remaining -> Stdlib.Result.Result.Error (Stdli
 Stdlib.Cli.Posix.__tempRetry((fun remaining -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17, message = Stdlib.toString(remaining) })), 2) = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17, message = "0" })
 
 // Partial writes complete, zero-progress writes fail, and errors propagate.
-Stdlib.Cli.Posix.__writeAll((fun bytes -> Stdlib.Result.Result.Ok (if Stdlib.Bytes.length(bytes) > 1 then 1 else Stdlib.Bytes.length(bytes))), Stdlib.String.toBytes("abcd"), 0) = Stdlib.Result.Result.Ok 4
-Stdlib.Cli.Posix.__writeAll((fun _ -> Stdlib.Result.Result.Ok 0), Stdlib.String.toBytes("abc"), 0) = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 5, message = "write made invalid progress" })
-Stdlib.Cli.Posix.__writeAll((fun _ -> Stdlib.Result.Result.Ok 0), Stdlib.String.toBytes(""), 0) = Stdlib.Result.Result.Ok 0
-Stdlib.Cli.Posix.__writeAll((fun _ -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9, message = "Bad file descriptor" })), Stdlib.String.toBytes("abc"), 0) = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9, message = "Bad file descriptor" })
+Stdlib.Cli.Posix.__writeAll((fun bytes -> Stdlib.Result.Result.Ok (if Stdlib.Bytes.length(bytes) > 1 then 1 else Stdlib.Bytes.length(bytes))), Stdlib.Utf8.encode("abcd"), 0) = Stdlib.Result.Result.Ok 4
+Stdlib.Cli.Posix.__writeAll((fun _ -> Stdlib.Result.Result.Ok 0), Stdlib.Utf8.encode("abc"), 0) = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 5, message = "write made invalid progress" })
+Stdlib.Cli.Posix.__writeAll((fun _ -> Stdlib.Result.Result.Ok 0), Stdlib.Utf8.encode(""), 0) = Stdlib.Result.Result.Ok 0
+Stdlib.Cli.Posix.__writeAll((fun _ -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9, message = "Bad file descriptor" })), Stdlib.Utf8.encode("abc"), 0) = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9, message = "Bad file descriptor" })
 
 // Public wrappers invoke the checked host operations and format their results.
 Stdlib.Result.isOk(Stdlib.Cli.Posix.getCwd()) = true

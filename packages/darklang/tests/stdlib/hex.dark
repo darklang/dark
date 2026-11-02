@@ -1,0 +1,31 @@
+module Darklang.Stdlib.Hex.Tests
+
+// hex of various UTF-8 strings (Arabic / emoji / long mixed).
+test encodeUtf8 =
+  Stdlib.Test.all(
+    [ Stdlib.Utf8.encode("اختبار النص") |> Stdlib.Hex.encode
+      |> Stdlib.Test.equal("D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5")
+      Stdlib.Utf8.encode("👱👱🏻👱🏼👱🏽👱🏾👱🏿") |> Stdlib.Hex.encode
+      |> Stdlib.Test.equal(
+        "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF")
+      Stdlib.Utf8.encode(
+        "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+      |> Stdlib.Hex.encode
+      |> Stdlib.Test.equal(
+        "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD") ])
+
+// decode returns Result<Bytes,String>; length of decoded deadbeef = 4 bytes
+test decode =
+  Stdlib.Hex.decode("deadbeef") |> Stdlib.Result.map(Stdlib.Bytes.length)
+  |> Stdlib.Test.equal(Ok 4)
+
+test decodeToUtf8 =
+  Stdlib.Hex.decode("48656c6c6f")
+  |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
+  |> Stdlib.Test.equal(Ok "Hello")
+
+// uppercase output
+test encode =
+  Stdlib.Test.all(
+    [ Stdlib.Utf8.encode("ok") |> Stdlib.Hex.encode |> Stdlib.Test.equal("6F6B")
+      Stdlib.Utf8.encode("Hi") |> Stdlib.Hex.encode |> Stdlib.Test.equal("4869") ])

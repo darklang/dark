@@ -116,7 +116,7 @@ let drive(
 
     let path = $"{i.dir}/drive.exp"
 
-    match Stdlib.Cli.FileSystem.writeFile(path, Stdlib.String.toBytes(script)) with
+    match Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(script)) with
     | Error e -> Stdlib.Result.Result.Error $"could not write {path}: {e}"
     | Ok _ ->
       let outcome =

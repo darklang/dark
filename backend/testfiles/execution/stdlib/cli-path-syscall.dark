@@ -1,5 +1,5 @@
 module Tests
 Builtin.syscallReadlinkAt("/definitely/missing/dark-link", 2) = Error 2
-Stdlib.Cli.Posix.__pathReadlinkWith((fun count -> if count == 2 then Ok (Stdlib.Bytes.fromString("ab")) else if count == 4 then Ok (Stdlib.Bytes.fromString("abc")) else Error 22), 2) |> Stdlib.Result.map(Stdlib.Bytes.toList) = Ok [97uy, 98uy, 99uy]
+Stdlib.Cli.Posix.__pathReadlinkWith((fun count -> if count == 2 then Ok (Stdlib.Utf8.encode("ab")) else if count == 4 then Ok (Stdlib.Utf8.encode("abc")) else Error 22), 2) |> Stdlib.Result.map(Stdlib.Bytes.toList) = Ok [97uy, 98uy, 99uy]
 Stdlib.Cli.Posix.__pathReadlinkWith((fun _ -> Ok Stdlib.Bytes.empty), 0) = Error 22
 Stdlib.Cli.Dir.withTemp(fun dir -> let link = Stdlib.Cli.Path.join([dir, "link"]) in let _ = Stdlib.Cli.Posix.symlink("abcdef", link) in Builtin.syscallReadlinkAt(link, 2) |> Stdlib.Result.map(Stdlib.Bytes.toList)) = Ok (Ok [97uy, 98uy])

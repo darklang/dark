@@ -13,8 +13,8 @@ let __executionOutcome(result: Result.Result<(Int * Bytes * Bytes), Int>): Stdli
   | Error e -> Stdlib.Cli.ExecutionOutcome { exitCode = -1, stdout = "", stderr = (Stdlib.Cli.Posix.__fromErrno(e)).message }
   | Ok ((code, output, error)) ->
     Stdlib.Cli.ExecutionOutcome { exitCode = code,
-      stdout = Stdlib.String.fromBytesWithReplacement(output),
-      stderr = Stdlib.String.fromBytesWithReplacement(error) }
+      stdout = Stdlib.Utf8.decodeWithReplacement(output),
+      stderr = Stdlib.Utf8.decodeWithReplacement(error) }
 
 /// Send input to a process and read any available output (non-blocking)
 /// Use empty string for input to just read output without sending anything
@@ -57,7 +57,7 @@ let spawnAndWait(
     else Stdlib.Cli.Posix.__fromErrno(errno))
   |> Stdlib.Result.map(fun result ->
     let (code, output, error) = result
-    (code, Stdlib.String.fromBytesWithReplacement(output), Stdlib.String.fromBytesWithReplacement(error)))
+    (code, Stdlib.Utf8.decodeWithReplacement(output), Stdlib.Utf8.decodeWithReplacement(error)))
 
 
 /// Run a program with arguments and capture its output.
@@ -400,7 +400,7 @@ let __childCommunicate(child: Int, input: String): Result.Result<(Int * Bytes * 
   Builtin.runtimeChildDescriptors(child) |> Stdlib.Result.andThen(fun ports ->
     match ports with
     | [stdin, stdout, stderr] ->
-      let pending = if input == "" then Stdlib.Bytes.empty else Stdlib.Bytes.fromString(Stdlib.String.append(input, "\n"))
+      let pending = if input == "" then Stdlib.Bytes.empty else Stdlib.Utf8.encode(Stdlib.String.append(input, "\n"))
       let turns = if input == "" then 0 else 100
       __childCommunicateLoop(child, (stdin, stdout, stderr), pending, turns, __childEmpty(), __childEmpty(), (false, false))
       |> Stdlib.Result.andThen(fun result ->

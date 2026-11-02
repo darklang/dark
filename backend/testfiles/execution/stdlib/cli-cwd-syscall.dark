@@ -1,4 +1,4 @@
 module Tests
 match Builtin.syscallGetcwd(1) with | Error e -> e == (if Stdlib.Cli.Posix.__abiMac() then 78 else 34) | Ok _ -> false = true
-Stdlib.Cli.Posix.__pathCwdWith((fun count -> if count == 2 then Error 34 else Ok (Stdlib.Bytes.fromString("/x\0"))), 2) |> Stdlib.Result.map(Stdlib.Bytes.toList) = Ok [47uy, 120uy, 0uy]
+Stdlib.Cli.Posix.__pathCwdWith((fun count -> if count == 2 then Error 34 else Ok (Stdlib.Utf8.encode("/x\0"))), 2) |> Stdlib.Result.map(Stdlib.Bytes.toList) = Ok [47uy, 120uy, 0uy]
 Stdlib.Cli.Posix.getCwd() |> Stdlib.Result.map(fun path -> Stdlib.String.startsWith(path, "/")) = Ok true

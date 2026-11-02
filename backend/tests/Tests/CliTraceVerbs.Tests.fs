@@ -914,7 +914,7 @@ let private aTracesBytesGoWithIt =
           Sql.query "SELECT COUNT(*) AS n FROM package_blobs"
           |> Sql.executeRowAsync (fun read -> read.int64 "n")
         let! _ =
-          runCli state [ "eval"; "Stdlib.String.toBytes(\"held by the trace\")" ]
+          runCli state [ "eval"; "Stdlib.Utf8.encode(\"held by the trace\")" ]
         let! e = latest ()
         let! kept =
           Sql.query "SELECT hash, bytes FROM trace_blobs WHERE trace_id = @t"

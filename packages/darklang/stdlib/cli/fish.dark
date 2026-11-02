@@ -4,13 +4,13 @@ module Darklang.Stdlib.Cli.Fish
 /// Read the content of config.fish file
 let readFishConfig(): Result.Result<String, String> =
   (Stdlib.Cli.FileSystem.readFile("$HOME/.config/fish/config.fish"))
-  |> Result.map(Stdlib.String.fromBytesWithReplacement)
+  |> Result.map(Stdlib.Utf8.decodeWithReplacement)
   |> Result.mapError(Stdlib.Cli.FileSystem.FileError.toString)
 
 /// Overwrite what's in the config.fish file
 let overwriteFishConfig(content: String): Result.Result<Unit, String> =
   // `writeFile`, which makes `~/.config/fish` if it isn't there yet.
-  FileSystem.writeFile("$HOME/.config/fish/config.fish", Stdlib.String.toBytes(content))
+  FileSystem.writeFile("$HOME/.config/fish/config.fish", Stdlib.Utf8.encode(content))
 
 
 /// Delete an alias from config.fish

@@ -1,0 +1,17 @@
+module Darklang.Stdlib.Utf8
+
+
+/// Encodes <param s> as UTF-8.
+let encode(s: String): Bytes = Builtin.utf8Encode(s)
+
+
+/// Decodes <param bytes> as UTF-8. Returns Error with a message if the
+/// bytes aren't valid UTF-8.
+let decode(bytes: Bytes): Stdlib.Result.Result<String, String> =
+  Builtin.utf8Decode(bytes)
+
+
+/// Decodes <param bytes> as UTF-8, replacing invalid sequences with
+/// {{U+FFFD}}.
+let decodeWithReplacement(bytes: Bytes): String =
+  Builtin.utf8DecodeWithReplacement(bytes)

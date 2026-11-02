@@ -52,7 +52,7 @@ Method and path are NOT fields - they're derived:
 
 `body` is a Bytes. For text or JSON, convert first:
 
-  let text = Stdlib.String.fromBytesWithReplacement(req.body)
+  let text = Stdlib.Utf8.decodeWithReplacement(req.body)
 
 ## Response
 

@@ -501,60 +501,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringToBytes" 0
-      typeParams = []
-      parameters = [ Param.make "str" TString "" ]
-      returnType = TBytes
-      description = "Converts the given unicode string to a UTF8-encoded Bytes."
-      fn =
-        (function
-        | _, _, _, [| DString str |] ->
-          let theBytes = System.Text.Encoding.UTF8.GetBytes str
-          Bytes.newEphemeral theBytes |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "stringFromBytesWithReplacement" 0
-      typeParams = []
-      parameters = [ Param.make "bytes" TBytes "" ]
-      returnType = TString
-      description =
-        "Converts the UTF8-encoded <param bytes> into a string. Invalid sequences are replaced."
-      fn =
-        (function
-        | state, _, _, [| DBytes ref |] ->
-          Bytes.withBytes state ref (fun bytes ->
-            Ply(DString(System.Text.Encoding.UTF8.GetString bytes)))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "stringFromBytes" 0
-      typeParams = []
-      parameters = [ Param.make "bytes" TBytes "" ]
-      returnType = TypeReference.option TString
-      description =
-        "Converts the UTF8-encoded <param bytes> into a string. Returns None if the bytes aren't valid UTF-8."
-      fn =
-        (function
-        | state, _, _, [| DBytes ref |] ->
-          Bytes.withBytes state ref (fun bytes ->
-            try
-              let str = UTF8Encoding(false, true).GetString bytes
-              Ply(Dval.optionSome KTString (DString str))
-            with _e ->
-              Ply(Dval.optionNone KTString))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "stringContains" 0
       typeParams = []
       parameters =

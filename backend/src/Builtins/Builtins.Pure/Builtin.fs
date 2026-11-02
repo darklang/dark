@@ -42,6 +42,8 @@ let builtins () : Builtins =
       Libs.Uuid.builtins ()
 
       Libs.Base64.builtins ()
+      Libs.Hex.builtins ()
+      Libs.Utf8.builtins ()
 
       Libs.Json.builtins ()
 

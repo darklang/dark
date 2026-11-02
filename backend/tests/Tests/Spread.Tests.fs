@@ -436,7 +436,7 @@ let private packageFnsAnsweredByTheStore =
         task {
           let! state = predictingState ()
           let writes =
-            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Stdlib.Cli.FileSystem.writeFile(\"/tmp/spread-never-written\", Stdlib.String.toBytes(\"x\")) else Stdlib.Result.Result.Ok ()) in i * 2)))"
+            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Stdlib.Cli.FileSystem.writeFile(\"/tmp/spread-never-written\", Stdlib.Utf8.encode(\"x\")) else Stdlib.Result.Result.Ok ()) in i * 2)))"
           let pureBody =
             "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> Stdlib.List.fold(Stdlib.List.range(1, 50), i, fun a x -> a + x)))"
           let struct (pure0, impure0, _) = predicted ()

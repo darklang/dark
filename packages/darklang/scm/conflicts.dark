@@ -166,7 +166,7 @@ let conflictId(
   : String =
   let sorted = Stdlib.List.sort(hashes)
   let material = $"{owner}/{modules}/{name}|" + (Stdlib.String.join(sorted, ","))
-  let digest = Stdlib.Bytes.toHex(Stdlib.Crypto.sha256(Stdlib.String.toBytes(material)))
+  let digest = Stdlib.Hex.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(material)))
   Stdlib.String.toLowercase(Stdlib.String.first(digest, 8))
 
 

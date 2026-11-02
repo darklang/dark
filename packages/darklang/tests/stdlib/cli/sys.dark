@@ -8,5 +8,5 @@ test text =
       Stdlib.Cli.Sys.__text(buffer, 5, 4) |> Stdlib.Test.equal("def")
       Stdlib.Cli.Sys.__text(buffer, 5, 2) |> Stdlib.Test.equal("de")
       Stdlib.Cli.Sys.__text(buffer, 20, 4) |> Stdlib.Test.equal("")
-      Stdlib.Cli.Sys.__text(Stdlib.Bytes.fromString("abc"), 0, 3)
+      Stdlib.Cli.Sys.__text(Stdlib.Utf8.encode("abc"), 0, 3)
       |> Stdlib.Test.equal("abc") ])
