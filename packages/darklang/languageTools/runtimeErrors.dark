@@ -218,10 +218,6 @@ type Error =
 
   | CLI of CLIs.Error
 
-  | DBSetOfWrongType of expected: TypeReference * actual: ValueType
-
-  | SqlCompiler of errMsg: String
-
   | UncaughtException of msg : String * metadata : List<(String * Dval)>
 
   /// Something the person running the program can resolve once told, with the sentence that tells

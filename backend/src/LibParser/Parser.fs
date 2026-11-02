@@ -3127,9 +3127,6 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
 // A named package test: `test name = body`, optionally followed by an
 // expected outcome: `=> raises "message"`. The word remains an identifier
 // outside the outcome separator.
-//
-// There was a second form, for the user-DB query compiler's errors, which
-// left with the compiler. See `later/`.
 and parseTestDecl (state : ParserState) (i : int) : WT.Declaration * int =
   let keywordTest = rng state i
   let nameId : WT.Identifier =

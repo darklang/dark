@@ -9,7 +9,7 @@
 /// Promotion runs at every persistence boundary; structural recursion
 /// over the surrounding Dval shape is delegated to [Dval.rewriteWith] in
 /// `RuntimeTypes.fs`. `Bytes.promote` wires the leaf handler into
-/// `rewriteWith` for the val-commit / User-DB-write path; the trace path
+/// `rewriteWith` for the val-commit path; the trace path
 /// (`LibDB.Tracing.prepareDvalForStorage`) reuses the same leaf
 /// handler alongside its own stream-stub rewrite.
 module LibExecution.Bytes
@@ -117,7 +117,7 @@ let promoteEphemeralLeaf
 /// twice writes to `package_blobs` once.
 ///
 /// Called before serializing a Dval through a non-trace persistence
-/// boundary (val commit, User DB write). Plain `DBytes` writers
+/// boundary (val commit). Plain `DBytes` writers
 /// (binary, JSON) still raise on ephemeral — promote first, serialize
 /// second. The trace path has its own walker in
 /// `LibDB.Tracing.prepareDvalForStorage` that also stubs streams; it

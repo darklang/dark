@@ -35,12 +35,6 @@ Test definitions and run results live in separate tables:
 
 Test bodies are stored as PT and converted into interpreter instructions when they run. For package functions, those instructions are generated and stored ahead of time.
 
-A test could once declare private Dark databases with `[<DB>]` and use them through
-`Stdlib.DB`, each run getting fresh IDs and its rows deleted afterward. All of it went to
-`later/` with user databases, the attribute included, so `[<DB>]` is now an ordinary
-unrecognised attribute and the parser refuses it like any other.
-`later/packages/darklang/tests/stdlib/db.dark` is the suite it served.
-
 ## What happens when you run `dark test run`
 
 `dark test` shows help. Use `dark test run` to execute tests and `dark test add` to add one.

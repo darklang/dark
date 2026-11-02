@@ -1,0 +1,102 @@
+// RESTORE: backend/src/LibExecution/RuntimeTypes.fs
+// RESTORE: backend/src/LibExecution/RuntimeTypesToDarkTypes.fs
+// RESTORE: packages/darklang/languageTools/runtimeErrors.dark
+// RESTORE: packages/darklang/prettyPrinter/runtimeError.dark
+// WAS: the two runtime errors only user DBs raised: `SqlCompiler` (a DB query lambda the
+//      query compiler could not compile) and `DBSetOfWrongType` (a row of the wrong type).
+//      Nothing in the live tree constructed either one.
+// ANCHOR: in RuntimeTypes.fs `RuntimeError`, DBSetOfWrongType sat between `CLI` and
+//      `Statement`, and SqlCompiler (with the comment block after it) between `Statement` and
+//      `UncaughtException`. In RuntimeTypesToDarkTypes.fs both arms sat after the `CLI` arm,
+//      in toDT and in fromDT. In runtimeErrors.dark both cases sat between `CLI` and
+//      `UncaughtException`. In the pretty-printer, `sqlErrorPrefix` opened `module
+//      RuntimeError`, and the two arms sat after the `CLI` arm, before `UncaughtException`;
+//      the commented-out CLEANUP block sat before the `unhandled` arm.
+// ALSO: later/backend/src/Builtins/Builtins.Matter/Libs/DB.fs raises SqlCompiler and
+//       later/backend/src/LibDB/UserDB.fs raises DBSetOfWrongType. All four files change
+//       together: an F# case without its Dark mirror fails in toDT at run time.
+// WHEN: the molt-mvp pass, 2026-11-02
+
+// --- backend/src/LibExecution/RuntimeTypes.fs ---
+    | DBSetOfWrongType of expected : TypeReference * actual : ValueType
+
+// --- backend/src/LibExecution/RuntimeTypes.fs ---
+    /// Raw SQL query-compiler message; the error printer adds context.
+    | SqlCompiler of errMsg : string
+
+    // punting these until DBs are supported again
+    // - bring back this RTE where/when relevant "Attempting to access field '{fieldName}' of a Datastore (use `DB.*` standard library functions to interact with Datastores. Field access only work with records)"
+    // - in the old SqlCompiler.fs (gone with the cloud world):
+    //   - 1223: | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
+    //   - 1224: // return Error(RuntimeError.oldError (errStr + $"\n\nIn body: {body}"))
+    //   - | SqlCompiler of SqlCompiler.Error // -- or maybe this should happen during PT2RT? hmm.
+
+// --- backend/src/LibExecution/RuntimeTypesToDarkTypes.fs ---
+      | RuntimeError.SqlCompiler errMsg -> "SqlCompiler", [ DString errMsg ]
+      | RuntimeError.DBSetOfWrongType(expected, actual) ->
+        "DBSetOfWrongType", [ TypeReference.toDT expected; ValueType.toDT actual ]
+
+// --- backend/src/LibExecution/RuntimeTypesToDarkTypes.fs ---
+    | DEnum(_, _, [], "SqlCompiler", [ DString errMsg ]) ->
+      RuntimeError.SqlCompiler errMsg
+    | DEnum(_, _, [], "DBSetOfWrongType", [ expected; actual ]) ->
+      RuntimeError.DBSetOfWrongType(
+        TypeReference.fromDT expected,
+        ValueType.fromDT actual
+      )
+
+// --- packages/darklang/languageTools/runtimeErrors.dark ---
+  | DBSetOfWrongType of expected: TypeReference * actual: ValueType
+
+// --- packages/darklang/languageTools/runtimeErrors.dark ---
+  | SqlCompiler of errMsg: String
+
+// --- packages/darklang/prettyPrinter/runtimeError.dark ---
+  /// Human-facing context for a structured SQL compiler error.
+  val sqlErrorPrefix = "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
+
+// --- packages/darklang/prettyPrinter/runtimeError.dark ---
+    | SqlCompiler errMsg ->
+      // Older serialized errors already contain the preamble.
+      if Stdlib.String.startsWith(errMsg, sqlErrorPrefix) then
+        [ ES.String errMsg ]
+      else
+        [ ES.String (sqlErrorPrefix + errMsg) ]
+
+// --- packages/darklang/prettyPrinter/runtimeError.dark ---
+    // Usually a row type that changed after the datastore was made: the datastore is bound to the
+    // version it was made with, and both versions go by the same name, so each side says its version.
+    | DBSetOfWrongType (expected, actual) ->
+      let expectedHash =
+        match expected with
+        | TCustomType(nr, _) ->
+          match nr.resolved with
+          | Ok(Package(Hash h)) -> Stdlib.Option.Option.Some h
+          | _ -> Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None
+
+      let actualHash =
+        match actual with
+        | Known(KTCustomType(Package(Hash h), _)) -> Stdlib.Option.Option.Some h
+        | _ -> Stdlib.Option.Option.None
+
+      let version(h: Stdlib.Option.Option<String>): String =
+        match h with
+        | Some h -> $" (version {Stdlib.String.slice(h, 0, 8)})"
+        | None -> ""
+
+      [ ES.String "This datastore holds "
+        ES.TypeReference expected
+        ES.String (version(expectedHash))
+        ES.String " and was given "
+        ES.ValueType actual
+        ES.String (version(actualHash))
+        ES.String ". If that type changed after the datastore was made, the datastore is still on the old version: `dark status` says which" ]
+
+// --- packages/darklang/prettyPrinter/runtimeError.dark ---
+    // CLEANUP when we bring lambda->sql compilation back
+    // | SqlCompilerRuntimeError err ->
+    //   let sqlErrorTemplate =
+    //     "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
+    //   let innerOutput = toSegments err
+    //   { innerOutput with summary = Stdlib.List.concat [ (ES.String sqlErrorTemplate) ] innerOutput.summary }

@@ -35,11 +35,6 @@ let private requireRunningPackageTest
 
 /// Run the test body. The caller handles conversion to Dark values and decides whether the
 /// test passed.
-///
-/// A test used to be able to declare private datastores with `[<DB>]`, minted per execution
-/// here and their rows deleted afterwards. That went to `later/` with user databases, and the
-/// attribute itself is gone now too: see `later/backend/src/db-type-reference`.
-/// `later/packages/darklang/tests/stdlib/db.dark` is the suite that exercised them.
 let private executeTestBody
   (state : ExecutionState)
   (test : PT.PackageTest.PackageTest)

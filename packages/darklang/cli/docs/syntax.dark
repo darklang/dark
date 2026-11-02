@@ -38,7 +38,7 @@ of the call. In `a + f(x)?` only `f(x)` gets unwrapped; to unwrap a whole
 pipeline or operator expression, put it in parentheses first:
 `(value |> transform)?`, `(a + b)?`.
 The operand runs once; an early return skips remaining work without undoing
-completed effects. `?` requires a function or lambda and is unsupported in SQL queries.
+completed effects. `?` requires a function or lambda.
 
 ## Pipe
   Stdlib.List.range(0, 10) |> Stdlib.List.map(fn)

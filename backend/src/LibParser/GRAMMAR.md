@@ -420,8 +420,7 @@ At the top level:
 - `val x = …` declares a test setup value; `let x = …` keeps its normal script
   expression meaning
 - `actual = expected` is a test assertion
-- the expected form may be `error "msg"`. There was a `sqlerror "msg"` form for the user-DB
-  query compiler's messages; it left with the compiler and no longer parses.
+- the expected form may be `error "msg"`.
 
 ## Diagnostics
 

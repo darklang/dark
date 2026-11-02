@@ -4837,11 +4837,8 @@ let private runSyncInstructions
                 raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
-      // The first field was the register to put a `DDB` in when the name turned out to be
-      // a user database rather than a variable. User databases moved to `later/`, and with
-      // them the only thing that ever populated the set this looked in, so the name is
-      // simply not found. The instruction keeps its shape: it carries an opcode and is in
-      // the content hash, so narrowing it would renumber a format for no gain.
+      // The first field is unused. The instruction keeps its shape: it carries an opcode
+      // and is in the content hash, so narrowing it would renumber a format for no gain.
       | VarNotFound(_targetRegIfDB, varName) ->
         raiseRTE vm.threadID (RTE.VariableNotFound varName)
 

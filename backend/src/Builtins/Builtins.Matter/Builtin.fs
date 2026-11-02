@@ -1,4 +1,4 @@
-/// Persistence + state surface — UserDB, package manager, traces.
+/// Persistence + state surface — package manager, traces.
 module Builtins.Matter.Builtin
 
 open Prelude

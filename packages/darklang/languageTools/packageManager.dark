@@ -366,8 +366,7 @@ module Test =
     | _ -> Stdlib.Option.Option.None
 
   /// Run this test and judge it. A declaration-level error expectation
-  /// compares either the rendered runtime error or the SQL compiler detail;
-  /// otherwise the body must return a
+  /// compares the rendered runtime error; otherwise the body must return a
   /// `Stdlib.Test.Result`. An Error is a test that could not be judged (missing,
   /// refused an effect, raised unexpectedly, returned a non-test value), not
   /// a failing assertion. <param branchId> is the branch names in error
