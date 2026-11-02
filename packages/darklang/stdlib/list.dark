@@ -194,8 +194,8 @@ let sort(list: List<'a>): List<'a> = Builtin.listSort(list)
 
 
 /// Returns a copy of <param list>, sorted in ascending order, as if each value
-/// evaluated to {{fn val}}.
-/// For example, {{sortBy ["x", "jkl", "ab"] (fun v -> String.length v)}}
+/// evaluated to {{fn(val)}}.
+/// For example, {{sortBy(["x", "jkl", "ab"], fun v -> String.length(v))}}
 /// returns {{["x", "ab", "jkl"]}}.
 /// Consider <fn sort> if the list values can be directly compared, or <fn
 /// sortByComparator> if you want more control over the sorting process.
