@@ -370,7 +370,8 @@ let extractFromType (typ : PT.PackageType.PackageType) : List<Dependency> =
   extract roots @ boundDeps typ.declaration.bounds |> List.distinct
 
 
-/// A trait references the types in its method signatures and its supertraits.
+/// A trait references the types in its method signatures, its supertraits, and the
+/// traits its methods' own type params are bounded by.
 let extractFromTrait (t : PT.Trait.Trait) : List<Dependency> =
   let roots =
     t.methods
@@ -378,7 +379,10 @@ let extractFromTrait (t : PT.Trait.Trait) : List<Dependency> =
     |> List.collect (fun m ->
       (m.parameters |> NEList.toList |> List.map (fun p -> TypeRef p.typ))
       @ [ TypeRef m.returnType ])
-  extract roots @ boundDeps t.bounds |> List.distinct
+  extract roots
+  @ boundDeps t.bounds
+  @ (t.methods |> NEList.toList |> List.collect (fun m -> boundDeps m.bounds))
+  |> List.distinct
 
 
 /// An impl references its trait (this edge is how a trait finds its impls), its self

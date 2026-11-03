@@ -155,6 +155,34 @@ let dictionaryKeyReferences =
       "references in the key and value are rewritten and retained in the graph"
   }
 
+let traitMethodBoundIsADependency =
+  test "a trait method's own bound is a dependency of the trait" {
+    let bound : PT.Bound =
+      { param = "b"
+        trait_ =
+          { trait_ = PT.NameResolution.ok (PT.FQTraitName.Package(PT.Hash "compare"))
+            typeArgs = [] } }
+    let method : PT.Trait.Method =
+      { name = "pair"
+        typeParams = [ "b" ]
+        bounds = [ bound ]
+        parameters =
+          NEList.singleton { name = "v"; typ = PT.TVariable "a"; description = "" }
+        returnType = PT.TVariable "b"
+        permissionCeiling = None
+        description = "" }
+    let t : PT.Trait.Trait =
+      { hash = PT.Hash "pairs"
+        typeParams = NEList.singleton "a"
+        bounds = []
+        methods = NEList.singleton method
+        description = "" }
+    Expect.contains
+      (LibDB.DependencyExtractor.extractFromTrait t |> List.map _.hash)
+      (PT.Hash "compare")
+      "so propagation repoints the trait when the bounding trait moves"
+  }
+
 let dictionaryKeyFollows =
   testTask "a function called only in a dictionary key follows edits" {
     let m = "PropTestDictionaryKey"
@@ -708,6 +736,7 @@ let tests =
     "Propagation"
     [ singleHop
       dictionaryKeyReferences
+      traitMethodBoundIsADependency
       dictionaryKeyFollows
       transitive
       multipleDependents
