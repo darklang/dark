@@ -12,8 +12,9 @@ let content(): String =
 ## Functions
   let greet(name: String): String = $"Hello, {name}"
 
-Nested functions are supported in a function body, but require parameter and
-return annotations:
+Nested functions are supported in a function body. Each parameter needs a
+type, as at the top level; the return type is optional. Neither is checked
+yet: both are dropped when the nested fn becomes a local lambda.
   let outer(n: Int): Int =
     let double(x: Int): Int = x * 2
     double(n)
