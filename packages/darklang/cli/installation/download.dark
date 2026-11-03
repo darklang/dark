@@ -8,14 +8,6 @@
 module Darklang.Cli.Installation.Download
 
 
-let basename(url: String): Stdlib.Result.Result<String, String> =
-  let basename = url |> Stdlib.String.split("/") |> Stdlib.List.last
-
-  match basename with
-  | Some name -> Stdlib.Result.Result.Ok name
-  | None -> Stdlib.Result.Result.Error "Failed to get asset name"
-
-
 /// A release to install: its tag (`v0.0.54`) and the URL of the asset for this host.
 type ReleaseAsset = { tag: String, assetUrl: String }
 
