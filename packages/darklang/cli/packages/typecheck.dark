@@ -259,6 +259,15 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       Cli.printErr("The type audit could not run, so nothing was checked:")
       Cli.Stderr.lines(AtRestCheck.issueLines(state.currentBranchId, report.warnings))
       { state with exitCode = 1 }
+    // A module with nothing in it is not on this branch: modules exist only through what they hold.
+    // Answering "checked 0" about a typo read as a clean audit.
+    else if
+      Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.positionals))
+      && Stdlib.List.isEmpty(report.items)
+    then
+      let name = Stdlib.String.join(parsed.positionals, "")
+      Cli.printErr($"no module named {name} on this branch")
+      { state with exitCode = 1 }
     else if parsed.asJson then
       Stdlib.printLine(
         jsonReport(state.currentBranchId, parsed.outputFilter, report, totals, total))
