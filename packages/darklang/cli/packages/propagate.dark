@@ -264,7 +264,7 @@ let repointSaved(branchId: Uuid, updates: List<UpdatedItem>): Followed =
 /// The save's second line, if it has one: who follows, or who broke. Wrapped at 80, indented.
 let printFollowed(followed: Followed): Unit =
   match followed.failure with
-  | Some e -> Cli.Text.printWrapped(Stdlib.Cli.UI.Colors.error, "  ", $"propagation failed: {e}")
+  | Some e -> Cli.Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", $"propagation failed: {e}")
   | None ->
     match followed.broken with
     | [] ->
@@ -284,7 +284,7 @@ let printFollowed(followed: Followed): Unit =
         let withHint = line + "; `dark typecheck --failed` lists them"
         // The way to the full list only when it fits; the diagnostic is the part that matters.
         let text = if (Stdlib.String.length(withHint)) + 2 <= 80 then withHint else line
-        Cli.Text.printWrapped(Stdlib.Cli.UI.Colors.error, "  ", text))
+        Cli.Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", text))
 
 
 /// <fn printFollowed> as one clause for a footer that already says what was saved (the workbench's):

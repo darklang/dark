@@ -44,7 +44,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         "Example, for a type made first with `dark type Me.Demo.Point '{ x: Int64, y: Int64 }'`:"
         "  dark impl Me.Demo 'ToString for Point = let toString(p: Point): String = Stdlib.toString(p.x)'"
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
 
       { state with exitCode = 1 }
     else
@@ -157,7 +157,7 @@ let createImplInline(
             (Stdlib.Cli.UI.Colors.hint(
               $"  `dark view {fullName}` shows what holds the name now."))
             "" ]
-          |> Stdlib.printLines
+          |> Cli.Stderr.lines
 
           failState
         else
@@ -188,10 +188,9 @@ let createImplInline(
                 | Error _ -> true
 
               if traitUnresolved then
-                Stdlib.printLine(
-                  Stdlib.Cli.UI.Colors.error($"There is no trait called {traitName}."))
+                Cli.printErr($"There is no trait called {traitName}.")
 
-                Stdlib.printLine(
+                Stdlib.printErrorLine(
                   (Stdlib.Cli.UI.Colors.hint(
                     "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")))
 
@@ -209,7 +208,7 @@ let createImplInline(
             "Example:"
             "  dark impl Me.Demo 'ToString for Point = let toString(p: Point): String = Stdlib.toString(p.x)'"
             ""
-          ] |> Stdlib.printLines
+          ] |> Cli.Stderr.lines
           { state with exitCode = 1 }
     | None ->
       [
@@ -218,10 +217,10 @@ let createImplInline(
         "Example:"
         "  dark impl Me.Demo 'ToString for Point = let toString(p: Point): String = Stdlib.toString(p.x)'"
         ""
-      ] |> Stdlib.printLines
+      ] |> Cli.Stderr.lines
       { state with exitCode = 1 }
   | Error msg ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Invalid module: {msg}"))
+    Cli.printErr($"Invalid module: {msg}")
     { state with exitCode = 1 }
 
 

@@ -87,7 +87,7 @@ let usageLines(): List<String> =
     "  serve My.Service.app --port 80 --max-body-bytes 5242880"
     "  serve My.Site.router --port 9095 --live      # follows your edits while you work" ]
 
-let printUsage(): Unit = (usageLines()) |> Stdlib.printLines
+let printUsage(): Unit = (usageLines()) |> Cli.Stderr.lines
 
 
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
@@ -101,12 +101,12 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
     match parsed.error with
     | Some err ->
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.error(err))
+      Cli.printErr(err)
       printUsage()
       { state with exitCode = 1 }
     | None ->
       if parsed.routerPath == "" then
-        Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Missing router path."))
+        Cli.printErr("Missing router path.")
         printUsage()
         { state with exitCode = 1 }
       else
@@ -192,10 +192,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           match served with
           | Ok _ -> state
           | Error msg ->
-            Stdlib.printLine(Stdlib.Cli.UI.Colors.error(msg))
+            Cli.printErr(msg)
             { state with exitCode = 1 }
         | Error msg ->
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"{msg} -- is it defined and committed on this branch?"))
+          Cli.printErr($"{msg} -- is it defined and committed on this branch?")
 
           { state with exitCode = 1 }
 

@@ -202,7 +202,7 @@ let showCommit(state: AppState, c: SCM.Commits.Commit): Unit =
       PrettyPrinter.ProgramTypes.PackageOp.packageOp(state.currentBranchId, op)))
 
   if n > 50L then
-    Stdlib.printLine("")
+    Stdlib.printErrorLine("")
     Cli.printHint(
       $"  showing the first 50 of {Stdlib.toString(n)} -- `dark ops` walks the log in full.")
 

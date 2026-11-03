@@ -164,7 +164,7 @@ let withOptionalDoc(withDocs: Bool, headline: String, desc: String): String =
 let overflowNote(total: Int, shown: Int): Unit =
   let extra = total - shown
   if extra > 0 then
-    Stdlib.printLine((
+    Stdlib.printErrorLine((
       Stdlib.Cli.UI.Colors.hint(
         $"  ... and {Stdlib.toString(extra)} more (narrow with --exact or `nav` into a module)")))
   else
@@ -378,7 +378,7 @@ let jsonOutput(
 let hiddenTestsHint(count: Int): Unit =
   if count > 0 then
     let noun = if count == 1 then "test" else "tests"
-    Stdlib.printLine(
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.hint(
         $"  ({Stdlib.toString(count)} {noun} matched; --include-tests shows them)")))
   else
@@ -404,9 +404,9 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
     let parsed = parseArgs(args)
 
     if Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) then
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.error(FlagParser.parseErrorsMessage(parsed.parseErrors)))
-      Stdlib.printLine("")
-      Stdlib.printLine(usage)
+      Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
+      Stdlib.printErrorLine("")
+      Stdlib.printErrorLine(usage)
       Cli.exitWith(state, false)
     else
       let rawQueryText = Stdlib.String.join(parsed.queryParts, " ")
@@ -415,15 +415,15 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
       let queryText = Stdlib.Option.withDefault(aliasKeyword, rawQueryText)
 
       if Stdlib.String.isEmpty(queryText) then
-        Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Error: Search query cannot be empty"))
+        Cli.printErr("Error: Search query cannot be empty")
         // "everything of this kind" is a listing, not a search, and `--trait` with no query is
         // the natural way to reach for it.
-        Stdlib.printLine(
+        Stdlib.printErrorLine(
           (Stdlib.Cli.UI.Colors.hint(
             "  for everything in one place, `dark ls <module>` sections by kind; `dark tree` goes deeper")))
 
-        Stdlib.printLine("")
-        Stdlib.printLine(usage)
+        Stdlib.printErrorLine("")
+        Stdlib.printErrorLine(usage)
         Cli.exitWith(state, false)
       else
         let searchDepth =
@@ -501,7 +501,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"Search results for: {queryText}"))
           match aliasKeyword with
           | Some kw ->
-            Stdlib.printLine(Stdlib.Cli.UI.Colors.hint($"  ({rawQueryText} is {kw})"))
+            Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  ({rawQueryText} is {kw})"))
           | None -> ()
           Stdlib.printLine("")
 
@@ -593,7 +593,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
 
           hiddenTestsHint(hiddenTests)
           if (Stdlib.Bool.not(parsed.withDocs)) && (Stdlib.Bool.not(parsed.batch)) then
-            Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("  (add --with-docs to show doc comments)"))
+            Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  (add --with-docs to show doc comments)"))
           else
             ()
 
@@ -612,9 +612,9 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     then
       executeQuery(state, args)
     else if Stdlib.List.isEmpty(parsed.queryParts) then
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Error: Batch search requires at least one query"))
-      Stdlib.printLine("")
-      Stdlib.printLine(usage)
+      Cli.printErr("Error: Batch search requires at least one query")
+      Stdlib.printErrorLine("")
+      Stdlib.printErrorLine(usage)
       Cli.exitWith(state, false)
     else
       // FlagParser has no value-taking flags in this command, so retaining the
@@ -631,7 +631,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         ())
 
       if Stdlib.Bool.not(parsed.withDocs) then
-        Stdlib.printLine(Stdlib.Cli.UI.Colors.hint("  (add --with-docs to show doc comments)"))
+        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  (add --with-docs to show doc comments)"))
       else
         ()
 

@@ -127,7 +127,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   match input with
   | Error message ->
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.error(message))
+    Cli.printErr(message)
     { state with exitCode = 1 }
   | Ok((modulePath, source)) ->
     // Package input is declaration scope at its root. In particular, `val x`
@@ -147,14 +147,13 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       let duplicateNames = duplicateDeclarationNames(declarations)
 
       if Stdlib.List.isEmpty(declarations) then
-        Stdlib.printLine(Stdlib.Cli.UI.Colors.error("Package source contains no declarations"))
+        Cli.printErr("Package source contains no declarations")
         { state with exitCode = 1 }
       else if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicateNames)) then
-        Stdlib.printLine(
-          Stdlib.Cli.UI.Colors.error("Package source contains duplicate declaration names:"))
+        Cli.printErr("Package source contains duplicate declaration names:")
         duplicateNames
         |> Stdlib.List.iter(fun name ->
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"  - {name}")))
+          Cli.printErr($"  - {name}"))
         { state with exitCode = 1 }
       else
         // Resolve a synthetic item path below the requested module so the
@@ -166,7 +165,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             locationInput)
         with
         | Error message ->
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"Invalid module location: {message}"))
+          Cli.printErr($"Invalid module location: {message}")
           Cli.exitWith(state, false)
         | Ok baseLocation ->
           let basePm = LanguageTools.PackageManager.pm()
@@ -197,8 +196,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             // Stabilize and store the module as one mutually recursive batch.
             match SCM.PackageOps.addAuthored(branchId, ops) with
             | Error message ->
-              Stdlib.printLine(
-                Stdlib.Cli.UI.Colors.error($"Failed to define module: {message}"))
+              Cli.printErr($"Failed to define module: {message}")
               { state with exitCode = 1 }
             | Ok report ->
               Propagate.printFollowed(Propagate.repointSaved(branchId, updates))
@@ -262,17 +260,15 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                   Stdlib.Bool.not(Stdlib.List.contains(definedNames, leaf)))
 
               if Stdlib.List.isEmpty(missing) then
-                ()
+                state
               else
-                Stdlib.printLine(
-                  (Stdlib.Cli.UI.Colors.error(
-                    $"""not defined: {Stdlib.String.join(missing, ", ")}""")))
+                Cli.printErr($"""not defined: {Stdlib.String.join(missing, ", ")}""")
 
-                Stdlib.printLine(
+                Stdlib.printErrorLine(
                   (Stdlib.Cli.UI.Colors.hint(
                     "  the rest of the module was defined; fix these and run it again.")))
 
-              state
+                Cli.exitWith(state, false)
 
 
 let help(_state: Cli.AppState): String =
