@@ -32,7 +32,7 @@ test partialFirstArgument =
 test subcommandArgument =
   Stdlib.Test.all(
     [ CompletionSweep.sweep([ "show", "" ]) |> Stdlib.Test.equal(true)
-      CompletionSweep.sweep([ "push", "fea" ]) |> Stdlib.Test.equal(true) ])
+      CompletionSweep.sweep([ "switch", "fea" ]) |> Stdlib.Test.equal(true) ])
 
 // more arguments than any command takes; nothing should throw reaching for a word that isn't there
 test tooManyArguments =

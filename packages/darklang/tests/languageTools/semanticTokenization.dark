@@ -171,7 +171,7 @@ test tokenizeTypeReference =
           (TokenType.TypeName, (0, 13), (0, 14))
           (TokenType.Symbol, (0, 15), (0, 17))
           (TokenType.TypeName, (0, 18), (0, 24)) ])
-      "type MyDB = DB<'a>" |> tokenize
+      "type MyBx = Bx<'a>" |> tokenize
       |> Stdlib.Test.equal(
         [ (TokenType.Keyword, (0, 0), (0, 4))
           (TokenType.TypeName, (0, 5), (0, 9))

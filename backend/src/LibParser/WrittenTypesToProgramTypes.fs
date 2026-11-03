@@ -718,10 +718,10 @@ module Expr =
             pipeExprToPT builtins pm onMissing currentModule context
           )
         return PT.EPipe(id, expr, rest)
-      // An unqualified uppercase name (`Red`, `XDB`) parses as a zero-field enum,
-      // but it is ambiguous: it could be an enum case, a DB, or an uppercase-bound
+      // An unqualified uppercase name (`Red`, `X`) parses as a zero-field enum,
+      // but it is ambiguous: it could be an enum case or an uppercase-bound
       // variable (values/fns are lowercase, so never those). Lower it to an
-      // EVariable so name resolution disambiguates. Left as an EEnum, a DB or
+      // EVariable so name resolution disambiguates. Left as an EEnum, a
       // variable ref would be forced into enum-case resolution and fail.
       | WT.EEnum(_, tn, (_, caseName), fields, _) when
         List.isEmpty (enumTypeNameForCase tn caseName) && List.isEmpty fields

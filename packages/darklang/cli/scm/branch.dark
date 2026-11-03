@@ -31,7 +31,7 @@ let lookupRef(branchRef: String): Stdlib.Option.Option<Uuid> =
   | NotFound -> Stdlib.Option.Option.None
   | UnknownId(_) ->
     Cli.printErr($"no branch with id {branchRef} in this store.")
-    Cli.printHint("  `dark branches` lists yours; a peer's branch arrives with `dark branch pull`.")
+    Cli.printHint("  `dark branches` lists the branches here.")
     Stdlib.Option.Option.None
   | Ambiguous ->
     Cli.printErr(

@@ -220,12 +220,6 @@ let execute
     let vm = RT.VMState.create instrs
     try
       try
-        // TODO: handle secrets and DBs by explicit references instead of relying on
-        // the symbol table.
-
-        // TODO: handle secrets and DBs by explicit references instead of relying on symbol table
-        // vm.symbolTable <- Interpreter.withGlobals state inputVars
-
         let! result = Interpreter.execute exeState vm
         return Ok result
 

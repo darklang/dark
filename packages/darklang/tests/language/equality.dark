@@ -397,7 +397,6 @@ test unitEqualsInt32Raises =
 
 test unitEqualsFloatRaises =
   (() != 0.0) => raises "Cannot perform equality check on Unit and Float"
-// CLEANUP follow up here when DB references are fully resolved at parse-time
 
 // The left operand's error is raised before the right operand is evaluated.
 test leftOperandErrorRaisesBeforeRight =

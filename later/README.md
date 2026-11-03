@@ -127,6 +127,18 @@ nothing across a reload, which was true when it was written; the Wasm project he
 learned to keep a tab's store in IndexedDB under one fixed name, and every preview shares the
 one origin, so as it stands one PR's saved work would be offered to the next PR's build.
 
+### The user-DB leftovers pass (2026-11-03)
+
+Grep-able as `WHEN: the user-DB leftovers pass`.
+
+- **`backend/src/LibExecution/db-permissions`**: the datastore permission vocabulary
+  (`Effect.DbRead`/`DbWrite`, `Request.Db`/`DbList`, `Rule.Db`, the `require*` checks that
+  `Libs/DB.fs` and `Libs/Account.fs` here call, the `db read|write` rule grammar and its Dark
+  mirror, and the two effects in the default policy and profiles). A fragment covering several
+  files, each piece labelled with the file it came from. The live policy reader DROPS a stored
+  `db-read`/`db-write` rule and a tag-6 rule rather than failing the file; restoring user DBs
+  means reading them again.
+
 ## Two kinds of thing in here, and only one of them is easy
 
 **A whole file at its original path.** `git mv` restores it and there is nothing to read. Most of
@@ -276,9 +288,8 @@ The order that works:
                                          not a surprise at run time.
       PT.PackageTest.testDBs           the field that carried a test's private DB schemas, and the
                                          per-run minting and row cleanup in PackageTests.fs with
-                                         it. `[<DB>]` still parses inside a test and still lowers
-                                         to a `TDB`, so tests/stdlib/db.dark LOADS and then finds
-                                         no database. Restoring it means the field, the serializer,
+                                         it. `[<DB>]` no longer parses and `TDB` is gone, so
+                                         tests/stdlib/db.dark fails to load. Restoring it means the field, the serializer,
                                          `Canonical.fs`, both halves of the PT/Dark bridge and the
                                          Dark mirror in languageTools/programTypes.dark, in
                                          lockstep: a Dark record built with a field its declaration

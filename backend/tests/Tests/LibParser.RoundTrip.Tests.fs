@@ -949,27 +949,27 @@ let typeReferences =
       []
       false
 
-    t "db with generic" "type MyDB = DB<'a>" "type MyDB =\n  DB<'a>" [] [] [] false
+    t "generic alias" "type MyBox = Box<'a>" "type MyBox =\n  Box<'a>" [] [] [] false
     t
-      "db with custom type"
-      "type MyDB = DB<Person>"
-      "type MyDB =\n  DB<Person>"
+      "generic alias with custom type"
+      "type MyBox = Box<Person>"
+      "type MyBox =\n  Box<Person>"
       [ person ]
       []
       []
       false
     t
-      "db with generic 2"
-      "type MyDB<'a> = DB<'a>"
-      "type MyDB<'a> =\n  DB<'a>"
+      "generic alias 2"
+      "type MyBox<'a> = Box<'a>"
+      "type MyBox<'a> =\n  Box<'a>"
       []
       []
       []
       false
     t
-      "db with generic applied"
-      "type GenericDB = DB<Generic<String>>"
-      "type GenericDB =\n  DB<Generic<String>>"
+      "generic alias applied"
+      "type GenericBox = Box<Generic<String>>"
+      "type GenericBox =\n  Box<Generic<String>>"
       []
       []
       []
@@ -2521,12 +2521,12 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       []
       false
     t
-      "fn call with db reference"
-      """Stdlib.DB.set(Tests.Person { name = "John", age = 30L, hasPet = true }, "key", TestDB)"""
-      """Stdlib.DB.set(
+      "fn call with an uppercase reference"
+      """Stdlib.Box.set(Tests.Person { name = "John", age = 30L, hasPet = true }, "key", TestBox)"""
+      """Stdlib.Box.set(
   Tests.Person { name = "John", age = 30L, hasPet = true },
   "key",
-  TestDB
+  TestBox
 )"""
       [ person ]
       []

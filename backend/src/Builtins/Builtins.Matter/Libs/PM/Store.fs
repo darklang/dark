@@ -157,8 +157,7 @@ let fns () : List<BuiltInFn> =
           uply { return Dval.int (bigint (LibDB.Sqlite.DataVersion.current ())) }
         | _ -> incorrectArgs ())
       previewable = Impure
-      // `PackageRead`, like every other question about the package store: `DbRead` is the scoped
-      // effect for a user table, and this names no table.
+      // `PackageRead`, like every other question about the package store.
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 

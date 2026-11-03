@@ -6,8 +6,8 @@ module Darklang.LanguageTools.Parser.Parse.Tests
 // down with it.
 //
 // The Dark-side `SourceFileDeclaration` covers functions, values, types and
-// modules. Three WT.Declaration cases fall outside it and used to raise: DExpr,
-// DTest, and DTypeDB. DTest is the one that bites, because a test assertion is
+// modules. Two WT.Declaration cases fall outside it and used to raise: DExpr
+// and DTest. DTest is the one that bites, because a test assertion is
 // spelled `actual = expected` and is indistinguishable from an assignment until
 // post-parse validation decides whether this is Test source — so an ordinary
 // typo like `valoops = 1` (a missing space after `val`) parses as one.

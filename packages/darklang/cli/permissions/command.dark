@@ -236,7 +236,7 @@ let renderAccessReport(facts: Command.AccessReportFacts): List<String> =
       LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some(names))
   let approvalText =
     match facts.packagePolicy with
-    | Some(_) -> "approved for this account (rules below)"
+    | Some(_) -> "approved (rules below)"
     | None ->
       if facts.bundled then "not required (bundled Darklang code)"
       else "not approved for dependency use"
@@ -862,7 +862,7 @@ let help(_state: Cli.AppState): String =
     "  ROOT must be absolute; no process, native or environment access is granted."
     "  HTTPS GET permits any host on port 443; HTTP serving permits any port."
     ""
-    "Named approvals (account-scoped):"
+    "Named approvals:"
     "  --yes, -y      skip the confirmation; required for an unattended run,"
     "                 which must not rely on being detected as non-interactive"
     "  approve <fn>   review the latest version's permission requirements and approve it, so"
@@ -885,7 +885,6 @@ let help(_state: Cli.AppState): String =
     "  http-server <PORT|*>"
     "  file read|write|read+write [ROOT]"
     "  env read|write|read+write [NAME]"
-    "  db read|write|read+write [NAME]"
     "  process <ABSOLUTE-EXECUTABLE|*> [ARG…]"
     "  native                           builtins that can reach anything (SQLite SQL, raw"
     "                                   descriptors, process handles); no narrower form exists"

@@ -743,7 +743,7 @@ let writeImpl (mode : HashRefMode) (w : BinaryWriter) (i : PT.TraitImpl.TraitImp
       writeNameResolution (writeFQFnName mode) w nr)
     i.methods
   writeBounds mode w i.bounds
-/// The body, expected error and private DB schemas determine a test's identity.
+/// The body and expected error determine a test's identity.
 /// The name and description are metadata.
 let writeTest
   (mode : HashRefMode)
