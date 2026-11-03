@@ -44,35 +44,157 @@ let getInt(key: String, default_: Int): Int =
 
 /// The keys the F# boot reads before any Dark runs (`exec.workers` sizes the scheduler's
 /// worker pool, `trace.keep` the retention), so they live in the store's config rather than
-/// in the json file.
-let isStoreKey(key: String): Bool =
-  (Stdlib.String.startsWith(key, "exec."))
-  || (Stdlib.String.startsWith(key, "http."))
-  || (Stdlib.String.startsWith(key, "trace."))
+/// in the json file. `startupSettings` and the `http.*` reads in `Cli.fs` are the readers.
+val storeKeys =
+  [ "exec.workers"
+    "exec.policy"
+    "exec.maxInstructions"
+    "exec.maxBytes"
+    "exec.storePollMs"
+    "exec.spreadCrossover"
+    "exec.spreadMinChunk"
+    "exec.spreadPredict"
+    "http.requestTimeoutMs"
+    "http.loopback"
+    "http.private"
+    "trace.record"
+    "trace.keep"
+    "trace.maxMb" ]
 
-/// What a value must look like, or `None` for anything goes: the boot falls back silently on a
+/// The keys the json file holds, which the workbench reads. `instance.id` is written there on
+/// first start and only read back here, never set.
+val fileKeys = [ "instance.name", "instance.id" ]
+
+/// Every key `config` answers for. Anything else is refused: nothing reads an unknown key, so
+/// storing one would only hide a typo.
+let knownKeys(): List<String> = Stdlib.List.append(Config.storeKeys, "instance.name")
+
+let isStoreKey(key: String): Bool = Stdlib.List.contains(Config.storeKeys, key)
+
+let smaller(a: Int, b: Int): Int = if a < b then a else b
+
+/// Edits (insert, delete, substitute) between two strings, for "did you mean".
+let editDistance(a: String, b: String): Int =
+  let bs = Stdlib.String.toList(b)
+  let firstRow = Stdlib.List.range(0, Stdlib.List.length(bs))
+
+  let lastRow =
+    Stdlib.String.toList(a)
+    |> Stdlib.List.indexedMap(fun i ca -> (i, ca))
+    |> Stdlib.List.fold(firstRow, fun prev pair ->
+      let (i, ca) = pair
+
+      bs
+      |> Stdlib.List.indexedMap(fun j cb -> (j, cb))
+      |> Stdlib.List.fold([ i + 1 ], fun row pair ->
+        let (j, cb) = pair
+        // `row` is built back to front, so its head is the cell to the left.
+        let left = Stdlib.Option.withDefault(Stdlib.List.head(row), 0)
+        let up = Stdlib.Option.withDefault(Stdlib.List.getAt(prev, j + 1), 0)
+        let diag = Stdlib.Option.withDefault(Stdlib.List.getAt(prev, j), 0)
+        let cost = if ca == cb then 0 else 1
+        Stdlib.List.prepend(row, Config.smaller(Config.smaller(left + 1, up + 1), diag + cost)))
+      |> Stdlib.List.reverse)
+
+  Stdlib.Option.withDefault(Stdlib.List.last(lastRow), 0)
+
+/// The key a typo most likely meant, when one is obvious: the same name in another case, the
+/// part after the dot alone (`record` for `trace.record`), or two edits away at most.
+let nearestKey(key: String): Stdlib.Option.Option<String> =
+  let lower = Stdlib.String.toLowercase(key)
+  let keys = Config.knownKeys()
+
+  let bySuffix =
+    keys
+    |> Stdlib.List.filter(fun k ->
+      Stdlib.String.endsWith(Stdlib.String.toLowercase(k), "." + lower))
+
+  match bySuffix with
+  | [only] -> Stdlib.Option.Option.Some only
+  | _ ->
+    let scored =
+      keys
+      |> Stdlib.List.map(fun k -> (Config.editDistance(lower, Stdlib.String.toLowercase(k)), k))
+      |> Stdlib.List.sortBy(fun pair ->
+        let (d, _) = pair
+        d)
+
+    match scored with
+    | [(d, k), ...rest] when d <= 2 ->
+      match rest with
+      // A tie is not obvious.
+      | [(d2, _), ...] when d2 == d -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.Some k
+    | _ -> Stdlib.Option.Option.None
+
+let unknownKeyMessage(key: String): String =
+  let hint =
+    match Config.nearestKey(key) with
+    | Some k -> $" Did you mean {k}?"
+    | None -> ""
+  $"{key} is not a config key.{hint} `config list` names the keys."
+
+/// A package function `exec.policy` can name: a dotted name, or `#` and an exact hash, as
+/// `resolvePackageFn` in `Cli.fs` reads it.
+let policyResolves(branchId: Uuid, name: String): Bool =
+  if Stdlib.String.startsWith(name, "#") then
+    let hash = Stdlib.String.dropFirst(name, 1)
+    (Stdlib.String.length(hash) == 64)
+    && (Stdlib.Option.isSome(
+      LanguageTools.PackageManager.Function.get(LanguageTools.ProgramTypes.Hash.Hash hash)))
+  else
+    Stdlib.Option.isSome(
+      LanguageTools.PackageManager.Function.find(
+        branchId,
+        LanguageTools.ProgramTypes.parsePackageLocation(name)))
+
+/// What a value must look like, or `None` when it will do: the boot falls back silently on a
 /// value it cannot read, so the refusal has to happen here.
-let checkValue(key: String, value: String): Stdlib.Option.Option<String> =
-  let numeric =
+let checkValue(
+  branchId: Uuid,
+  key: String,
+  value: String)
+  : Stdlib.Option.Option<String> =
+  let wholeNumber =
     [ "exec.workers"
       "exec.maxInstructions"
       "exec.maxBytes"
       "exec.storePollMs"
+      "exec.spreadMinChunk"
       "http.requestTimeoutMs"
       "trace.keep"
       "trace.maxMb" ]
-  if Stdlib.List.contains(numeric, key) then
+  if Stdlib.List.contains(wholeNumber, key) then
     match Stdlib.Int.parse(value) with
     // The boot ignores a poll under 10 ms (`Cli.fs`), so refuse it here rather than store it.
     | Ok n when key == "exec.storePollMs" && n < 10 ->
       Stdlib.Option.Option.Some $"{key} takes a whole number of ms, 10 or more, not {value}"
     | Ok n when n >= 0 -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.Some $"{key} takes a whole number (0 = none), not {value}"
+  else if key == "exec.spreadCrossover" then
+    match Stdlib.Int.parse(value) with
+    | Ok _ -> Stdlib.Option.Option.None
+    | _ ->
+      Stdlib.Option.Option.Some $"{key} takes a whole number (below 0 = never spread), not {value}"
   else if
-    Stdlib.List.contains([ "trace.record", "http.loopback", "http.private" ], key)
+    Stdlib.List.contains(
+      [ "trace.record", "http.loopback", "http.private", "exec.spreadPredict" ],
+      key)
   then
     if (value == "on") || (value == "off") then Stdlib.Option.Option.None
     else Stdlib.Option.Option.Some $"{key} is on or off"
+  else if key == "exec.policy" then
+    // Empty is the round-robin default again.
+    if (value == "") || (Config.policyResolves(branchId, value)) then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some
+        $"{key} names a package function, and {value} is not one on this branch"
+  else if key == "instance.name" then
+    if Stdlib.String.trim(value) == "" then
+      Stdlib.Option.Option.Some $"{key} needs a name"
+    else
+      Stdlib.Option.Option.None
   else
     Stdlib.Option.Option.None
 
@@ -87,7 +209,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     state
 
   | ["set", key, value] when isStoreKey(key) ->
-    match checkValue(key, value) with
+    match checkValue(state.currentBranchId, key, value) with
     | Some problem ->
       Cli.printErr(problem)
       { state with exitCode = 1 }
@@ -96,28 +218,33 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Set {key} = {value}"))
       state
 
-  | ["get", key] ->
-    let config = readConfig()
-    match Stdlib.Dict.get(config, key) with
-    | Some value ->
-      Stdlib.printLine($"{key} = {value}")
-      state
+  | ["get", key] when Stdlib.List.contains(Config.fileKeys, key) ->
+    match get(key) with
+    | Some value -> Stdlib.printLine($"{key} = {value}")
+    | None -> Stdlib.printLine($"{key} is not set (the default applies; `config list` has it)")
+    state
 
-    | None ->
-      Cli.printErr($"Configuration key not found: {key}")
-      Cli.exitWith(state, false)
-
-  | ["set", key, value] when Stdlib.Option.isSome(checkValue(key, value)) ->
-    Cli.printErr(Stdlib.Option.withDefault(checkValue(key, value), ""))
+  | ["set", "instance.id", _] ->
+    Cli.printErr("instance.id is written by the workbench on first start, and cannot be set")
     { state with exitCode = 1 }
 
-  | ["set", key, value] ->
-    let config = readConfig()
-    let updatedConfig = Stdlib.Dict.set(config, key, value)
-    writeConfig(updatedConfig)
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Set {key} = {value}"))
+  | ["set", "instance.name", value] ->
+    match checkValue(state.currentBranchId, "instance.name", value) with
+    | Some problem ->
+      Cli.printErr(problem)
+      { state with exitCode = 1 }
+    | None ->
+      writeConfig(Stdlib.Dict.set(readConfig(), "instance.name", value))
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Set instance.name = {value}"))
+      state
 
-    state
+  | ["get", key] ->
+    Cli.printErr(Config.unknownKeyMessage(key))
+    { state with exitCode = 1 }
+
+  | ["set", key, _] ->
+    Cli.printErr(Config.unknownKeyMessage(key))
+    { state with exitCode = 1 }
 
   | ["list"] ->
     // List all common config keys
@@ -134,6 +261,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       "  http.private             - let your code reach private network addresses (on/off; default: off)"
       "  trace.keep               - How many traces to keep (a served request is one; default: 200; 0 = all)"
       "  trace.maxMb              - How many MB traces may hold, logs and captured bodies (default: 256; 0 = all)"
+      "  instance.name            - The name in the workbench header (default: this machine's hostname)"
       ""
       "Use 'config get <key>' to read a value"
       "Use 'config set <key> <value>' to set a value" ]
@@ -148,24 +276,11 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
 
 let complete(_state: Cli.AppState, args: List<String>): List<Cli.Completion.CompletionItem> =
-  let configKeys =
-    [ "exec.workers"
-      "exec.policy"
-      "exec.maxInstructions"
-      "exec.maxBytes"
-      "exec.storePollMs"
-      "trace.record"
-      "http.loopback"
-      "http.private"
-      "trace.keep"
-      "trace.maxMb"
-      "http.requestTimeoutMs" ]
-
   match args with
   | [] ->
     ["get", "set", "list"] |> Stdlib.List.map(Cli.Completion.simple)
   | ["get"] | ["set"] ->
-    configKeys |> Stdlib.List.map(Cli.Completion.simple)
+    Config.knownKeys() |> Stdlib.List.map(Cli.Completion.simple)
   | _ -> []
 
 
@@ -179,5 +294,5 @@ let help(_state: Cli.AppState): String =
     "  config set trace.record on"
     "  config get exec.workers"
     ""
-    "`config list` names every key this reads, with its default." ]
+    "`config list` names every key a person sets, with its default; any other key is refused." ]
   |> Stdlib.String.join("\n")

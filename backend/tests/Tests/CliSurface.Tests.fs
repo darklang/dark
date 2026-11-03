@@ -1314,6 +1314,9 @@ let private otherRefusalsExitNonZero =
 /// meets an empty input and the exit code says why. Read-only, so it runs against the shared store.
 let private refusalsOnStderr : List<string * List<string>> =
   [ "config get, no such key", [ "config"; "get"; "zzznope" ]
+    "config set, no such key", [ "config"; "set"; "zzznope"; "on" ]
+    "config set, a policy that names no function",
+    [ "config"; "set"; "exec.policy"; "Zzz.Nope.nope" ]
     "traces list, a word where a count goes", [ "traces"; "list"; "zzznope" ]
     "traces list --json, the same", [ "traces"; "list"; "zzznope"; "--json" ]
     "traces delete --before, no duration", [ "traces"; "delete"; "--before" ]

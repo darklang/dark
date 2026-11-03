@@ -1159,17 +1159,9 @@ difference shows up as a test standing somewhere it did not expect to be.
 
 Clearing only `current_branch%` is the trap: it looks like isolation and is not.
 
-There are THREE config stores, and that line only clears one: `config_v0` in sqlite,
-`cli-config.json` beside the db (instance id and name), and `$HOME/.darklang/capabilities.bin`.
-Copying a store DIRECTORY carries all of it; copying `data.db` alone does not, which is the shape
-to prefer for a scratch store.
-
-The capabilities one is keyed on **HOME**, not `DARK_HOME`, so an isolated store does NOT isolate it. A
-`dark caps grant ...` in a throwaway store writes the real grant for the whole container. Worse, the file's
-ABSENCE is what makes the host permissive (`hostCaps` returns allCaps only while there is no file), so
-creating one narrows every process under that HOME. One `caps grant` from a sweep turns ten suite tests
-red with "capability denied: `sqliteQuery` needs file (read)", and the fix is to delete the file rather
-than to grant more. Set `HOME` as well as `DARK_HOME` when a test touches `caps`.
+There are TWO config stores, and that line only clears one: `config_v0` in sqlite and
+`cli-config.json` beside the db (instance id and name). Copying a store DIRECTORY carries both;
+copying `data.db` alone does not, which is the shape to prefer for a scratch store.
 
 **Your own experiments in the dev store break every gate that commits.** The gates start from a copy
 of `rundir/data.db`, and `dark commit` refuses a store holding unresolved references. So one
