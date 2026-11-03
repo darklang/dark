@@ -1,0 +1,161 @@
+module Darklang.Stdlib.Cli.Posix.Tests
+
+/// An errno that differs by platform: macOS has no such syscall (ENOSYS, 78).
+let errnoOr(linux: Int): Int = if Stdlib.Cli.Posix.__abiMac() then 78 else linux
+
+let posixError(errno: Int, message: String): Stdlib.Cli.Posix.Error =
+  Stdlib.Cli.Posix.Error { errno = errno, message = message }
+
+// Raw syscalls refuse bad descriptors and arguments with their errno
+test syscallErrnos =
+  Stdlib.Test.all(
+    [ Builtin.syscallRead(-1, 1) |> Stdlib.Test.equal(Error(9))
+      Builtin.syscallRead(-1, -1) |> Stdlib.Test.equal(Error(22))
+      Builtin.syscallClose(-1) |> Stdlib.Test.equal(Error(9))
+      Builtin.syscallLseek(-1, 0, 0) |> Stdlib.Test.equal(Error(9))
+      Builtin.syscallFlock(-1, 2) |> Stdlib.Test.equal(Error(9))
+      Stdlib.Test.expect(Builtin.syscallGetpid() > 0, "getpid is positive")
+      Stdlib.Test.expect(Builtin.syscallGetuid() >= 0, "getuid is not negative")
+      Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 0)
+      |> Stdlib.Test.equal(Error(2))
+      Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 64)
+      |> Stdlib.Test.equal(Error(22))
+      Builtin.syscallReadlinkAt("/definitely/missing/dark-link", 2)
+      |> Stdlib.Test.equal(Error(2))
+      (match Builtin.syscallGetcwd(1) with
+       | Error(e) -> e |> Stdlib.Test.equal(errnoOr(34))
+       | Ok(_) -> Stdlib.Test.fail("getcwd into one byte should fail")) ])
+
+// unlinkat with the remove-directory flag removes a directory
+test unlinkAtRemovesDirectory =
+  Stdlib.Cli.Dir.withTemp(fun dir ->
+    let path = Stdlib.String.append(dir, "/child")
+    let created = Stdlib.Cli.Posix.mkdir(path, 448)
+    let removed =
+      Builtin.syscallUnlinkAt(path, Stdlib.Cli.Posix.__abiRemoveDirectory())
+    (created, removed, Stdlib.Cli.File.exists(path)))
+  |> Stdlib.Test.equal(Ok((Ok(), Ok(), false)))
+
+// readlinkat truncates to the buffer it is given
+test readlinkAtTruncates =
+  Stdlib.Cli.Dir.withTemp(fun dir ->
+    let link = Stdlib.Cli.Path.join([ dir, "link" ])
+    let _ = Stdlib.Cli.Posix.symlink("abcdef", link)
+    Builtin.syscallReadlinkAt(link, 2) |> Stdlib.Result.map(Stdlib.Bytes.toList))
+  |> Stdlib.Test.equal(Ok(Ok([ 97uy, 98uy ])))
+
+// The cwd and readlink wrappers grow their buffer until the result fits
+test bufferGrowth =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Posix.__pathCwdWith(
+        (fun count ->
+          if count == 2 then Error(34) else Ok(Stdlib.Utf8.encode("/x\0"))),
+        2)
+      |> Stdlib.Result.map(Stdlib.Bytes.toList)
+      |> Stdlib.Test.equal(Ok([ 47uy, 120uy, 0uy ]))
+      Stdlib.Cli.Posix.__pathReadlinkWith(
+        (fun count ->
+          if count == 2 then Ok(Stdlib.Utf8.encode("ab"))
+          else if count == 4 then Ok(Stdlib.Utf8.encode("abc"))
+          else Error(22)),
+        2)
+      |> Stdlib.Result.map(Stdlib.Bytes.toList)
+      |> Stdlib.Test.equal(Ok([ 97uy, 98uy, 99uy ]))
+      Stdlib.Cli.Posix.__pathReadlinkWith((fun _ -> Ok(Stdlib.Bytes.empty)), 0)
+      |> Stdlib.Test.equal(Error(22)) ])
+
+// Account parsing handles missing users and malformed rows
+test accountFieldFromPasswd =
+  let alice = "alice:x:1000:1000::/home/alice:/bin/sh"
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Posix.__accountFieldFromPasswd([], "1000", 5)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Cli.Posix.__accountFieldFromPasswd([ "bad", alice ], "1000", 5)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("/home/alice"))
+      Stdlib.Cli.Posix.__accountFieldFromPasswd([ alice ], "1000", 0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("alice"))
+      Stdlib.Cli.Posix.__accountFieldFromPasswd([ alice ], "100", 5)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Cli.Posix.__accountFieldFromPasswd([ "short:x:1000", alice ], "1000", 5)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("/home/alice")) ])
+
+// Errno messages and decimal formatting
+test errorMessages =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Posix.__macMessage(35)
+      |> Stdlib.Test.equal("Resource temporarily unavailable")
+      Stdlib.Cli.Posix.__macMessage(62)
+      |> Stdlib.Test.equal("Too many levels of symbolic links")
+      Stdlib.Cli.Posix.__macMessage(78) |> Stdlib.Test.equal("Function not implemented")
+      Stdlib.Cli.Posix.__macMessage(999) |> Stdlib.Test.equal("Unknown error: 999")
+      (Stdlib.Cli.Posix.__fromErrno(2)).message
+      |> Stdlib.Test.equal("No such file or directory")
+      (Stdlib.Cli.Posix.__fromErrno(22)).message
+      |> Stdlib.Test.equal("Invalid argument")
+      Stdlib.Cli.Posix.__decimal(0) |> Stdlib.Test.equal("0")
+      Stdlib.Cli.Posix.__decimal(-1) |> Stdlib.Test.equal("-1") ])
+
+// A name collision retries until it succeeds; any other error stops at once
+test tempRetry =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Posix.__tempRetry(
+        (fun remaining ->
+          if remaining > 0 then Error(posixError(17, "File exists"))
+          else Ok("created")),
+        2)
+      |> Stdlib.Test.equal(Ok("created"))
+      Stdlib.Cli.Posix.__tempRetry(
+        (fun remaining -> Error(posixError(22, Stdlib.toString(remaining)))),
+        2)
+      |> Stdlib.Test.equal(Error(posixError(22, "2")))
+      Stdlib.Cli.Posix.__tempRetry(
+        (fun remaining -> Error(posixError(17, Stdlib.toString(remaining)))),
+        2)
+      |> Stdlib.Test.equal(Error(posixError(17, "0"))) ])
+
+// Partial writes complete, zero-progress writes fail, and errors propagate
+test writeAll =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Posix.__writeAll(
+        (fun bytes ->
+          Ok(if Stdlib.Bytes.length(bytes) > 1 then 1 else Stdlib.Bytes.length(bytes))),
+        Stdlib.Utf8.encode("abcd"),
+        0)
+      |> Stdlib.Test.equal(Ok(4))
+      Stdlib.Cli.Posix.__writeAll((fun _ -> Ok(0)), Stdlib.Utf8.encode("abc"), 0)
+      |> Stdlib.Test.equal(Error(posixError(5, "write made invalid progress")))
+      Stdlib.Cli.Posix.__writeAll((fun _ -> Ok(0)), Stdlib.Utf8.encode(""), 0)
+      |> Stdlib.Test.equal(Ok(0))
+      Stdlib.Cli.Posix.__writeAll(
+        (fun _ -> Error(posixError(9, "Bad file descriptor"))),
+        Stdlib.Utf8.encode("abc"),
+        0)
+      |> Stdlib.Test.equal(Error(posixError(9, "Bad file descriptor"))) ])
+
+// The public wrappers reach the host and format their results
+test publicWrappers =
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(Stdlib.Result.isOk(Stdlib.Cli.Posix.uname()), "uname is Ok")
+      Stdlib.Cli.Posix.getCwd()
+      |> Stdlib.Result.map(fun path -> Stdlib.String.startsWith(path, "/"))
+      |> Stdlib.Test.equal(Ok(true))
+      Stdlib.Cli.Posix.fdRead(-1, 1)
+      |> Stdlib.Test.equal(Error(posixError(9, "Bad file descriptor"))) ])
+
+// Setting a file's times through the platform syscall shows up in stat
+test setFileTimes =
+  let missing = "/definitely/missing/dark-time"
+  let setTimes = fun(path, atime, mtime) ->
+    if Stdlib.Cli.Posix.__abiMac() then
+      Builtin.syscallSetattrlistTimes(path, atime, 0, mtime, 0)
+    else
+      Builtin.syscallUtimensAt(path, atime, 0, mtime, 0)
+  let stamped =
+    Stdlib.Cli.Dir.withTemp(fun dir ->
+      let path = Stdlib.Cli.Path.join([ dir, "stamp" ])
+      let _ = Stdlib.Cli.File.writeText(path, "x")
+      let _ = setTimes(path, 1234, 5678)
+      Stdlib.Cli.Posix.stat(path) |> Stdlib.Result.map(fun record -> record.mtimeSec))
+  Stdlib.Test.all(
+    [ setTimes(missing, 0, 0) |> Stdlib.Test.equal(Error(2))
+      stamped |> Stdlib.Test.equal(Ok(Ok(5678))) ])
