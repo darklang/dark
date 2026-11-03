@@ -329,9 +329,8 @@ module HandleCommand =
             | _ -> None)
           |> Set.ofList
 
-      // Values as well as functions. A `val` body can name a builtin and nothing else will:
-      // `Cli.Telemetry.logFilePath` is the only caller of `cliGetLogDir`, and a fn-only walk
-      // reports that builtin as having no caller at all.
+      // Values as well as functions. A `val` body can name a builtin that no fn names, and a
+      // fn-only walk would then report that builtin as having no caller at all.
       for (h, _, _, _, t) in rows do
         match t with
         | "fn" ->

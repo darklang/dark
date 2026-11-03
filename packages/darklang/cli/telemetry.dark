@@ -11,8 +11,11 @@ module Darklang.Cli.Telemetry
 ///   // Or for spans with extra context:
 ///   Telemetry.logWithContext "completionHint" t0 [("input", promptText)]
 
-val logFilePath =
-  (Builtin.cliGetLogDir()) + "/telemetry.jsonl"
+/// Where telemetry lines go. A fn, not a `val`: a val is evaluated once, when the
+/// package store is built, so it would hold the build machine's log dir rather than
+/// the one this CLI is actually using. `cliGetLogDir` already ends in `/`.
+let logFilePath(): String =
+  (Builtin.cliGetLogDir()) + "telemetry.jsonl"
 
 /// Returns monotonic millisecond timestamp (only differences are meaningful)
 let now(): Int = Stdlib.DateTime.__monotonicMilliseconds()
@@ -45,7 +48,7 @@ let logWithContext(
   let wall = Stdlib.toString(Stdlib.DateTime.now())
   let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.toString(elapsed)},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
 
-  let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath, line + "\n")
+  let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath(), line + "\n")
   ()
 
 /// Shorthand: log a timing event with no extra context
@@ -58,7 +61,7 @@ let logMessage(label: String, message: String): Unit =
   let escaped = Stdlib.String.replaceAll(message, "\"", "\\\"")
   let line = $"{{\"event\":\"{label}\",\"msg\":\"{escaped}\",\"wall\":\"{wall}\"}}"
 
-  let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath, line + "\n")
+  let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath(), line + "\n")
   ()
 
 /// Log the start of a session so we can separate runs in the log
@@ -66,5 +69,5 @@ let logSessionStart(): Unit =
   let wall = Stdlib.toString(Stdlib.DateTime.now())
   let line = $"{{\"event\":\"session_start\",\"wall\":\"{wall}\"}}"
 
-  let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath, line + "\n")
+  let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath(), line + "\n")
   ()
