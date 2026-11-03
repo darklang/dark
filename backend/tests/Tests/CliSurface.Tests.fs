@@ -143,7 +143,7 @@ let private stderrIsCapturedInOrder =
 
 let private diagnosticsStayOffStdout =
   cliTest
-    "eval's error and Builtin.debug go to stderr, not into the answer"
+    "eval's error and Stdlib.debug go to stderr, not into the answer"
     (fun target ->
       task {
         let! (out, err, status) = runCliStreams target [ "eval"; "1L / 0L" ]
@@ -155,9 +155,7 @@ let private diagnosticsStayOffStdout =
           "the error is on stderr"
 
         let! (out, err, status) =
-          runCliStreams
-            target
-            [ "eval"; "let _ = Builtin.debug(\"lbl\", 5L) in 7L" ]
+          runCliStreams target [ "eval"; "let _ = Stdlib.debug(\"lbl\", 5L) in 7L" ]
         Expect.equal status 0 "the eval succeeded"
         Expect.equal out "7" "stdout is the value alone"
         Expect.stringContains err "DEBUG: lbl: 5" "the debug line is on stderr"

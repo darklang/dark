@@ -16,8 +16,8 @@ let measure(label: String, f: Int -> Int): Unit =
   let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
   let result = run((if smoke then 3 else 2000))
   let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
-  Builtin.debug(label, (after - before) / (if smoke then 3L else 2000L))
-  if result == 0 then () else Builtin.debug("unexpected result", result)
+  Stdlib.debug(label, (after - before) / (if smoke then 3L else 2000L))
+  if result == 0 then () else Stdlib.debug("unexpected result", result)
 
 let probe(label: String, text: String): Unit =
   let left = Stdlib.Utf8.encode(text)

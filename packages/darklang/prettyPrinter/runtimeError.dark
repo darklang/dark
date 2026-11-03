@@ -93,7 +93,7 @@ module RuntimeError =
               $"{count} {segment}"
 
           | IndefiniteArticle ->
-            //Builtin.debug "prevSegments" prevSegments
+            //Stdlib.debug("prevSegments", prevSegments)
             match Stdlib.List.head(prevSegments) with
             | None -> ""
             | Some(prev) -> Stdlib.English.articleFor(prev) + " "

@@ -571,8 +571,6 @@ self-merge, but the fix is now a four-site change.
 ## Smaller, known, unowned
 
 - `run-in-docker` hangs after the command finishes (`cat <&0` waits for EOF); pass `< /dev/null`.
-- `Builtin.debug` has no package wrapper anywhere, and its only mention under `packages/` is a
-  commented-out line, so its reference count is propped up by scripts outside `packages/`.
 - Re-enable the `CliTraces` suite once its network call is stubbed.
 - Decide what `dark version` should do when the network is slow or absent; it costs ~700 ms.
 - Unify `callBuiltinResolved` and `callPackageResolved`: same five steps, different types. Needs

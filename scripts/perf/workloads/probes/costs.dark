@@ -62,18 +62,18 @@ let measure(label: String, f: Int -> Int): Unit =
   let _r = run(2000)
   let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
   let calls = if smoke then 3L else 2000L
-  Builtin.debug(label, (after - before) / calls)
+  Stdlib.debug(label, (after - before) / calls)
 
 let main(): Int64 =
-  Builtin.debug("--- harness", 0L)
+  Stdlib.debug("--- harness", 0L)
   measure("baseline (fold + lambda + add)", fun i -> i)
 
-  Builtin.debug("--- calls", 0L)
+  Stdlib.debug("--- calls", 0L)
   measure("call a 1-arg fn", fun i -> plainFn(i))
   measure("call a 2-arg fn", fun i -> twoArgFn(i, 1))
   measure("apply a lambda", fun i -> (fun x -> x + 1)(i))
 
-  Builtin.debug("--- return types", 0L)
+  Stdlib.debug("--- return types", 0L)
   measure("return Int", fun i -> plainFn(i))
   measure("return List<Int>", fun i -> Stdlib.List.length(listFn(i)))
   measure("return a record", fun i -> (recFn(i)).a)
@@ -90,7 +90,7 @@ let main(): Int64 =
     | Ok(v) -> v
     | Error(_) -> 0)
 
-  Builtin.debug("--- values", 0L)
+  Stdlib.debug("--- values", 0L)
   measure("build a 2-field record", fun i -> (Rec { a = i, b = "x" }).a)
   measure("update a record field", fun i ->
     let r = Rec { a = i, b = "x" }
@@ -103,7 +103,7 @@ let main(): Int64 =
     let (a, b) = (i, i + 1)
     a + b)
 
-  Builtin.debug("--- lists", 0L)
+  Stdlib.debug("--- lists", 0L)
   measure("cons onto a 3-list", fun i -> Stdlib.List.length(Stdlib.List.prepend([ 1, 2, 3 ], i)))
   measure("range 1..5", fun i -> Stdlib.List.length(Stdlib.List.range(1, 5)))
   measure("map over 5", fun i ->
@@ -119,7 +119,7 @@ let main(): Int64 =
     | None -> 0)
 
 
-  Builtin.debug("--- dicts", 0L)
+  Stdlib.debug("--- dicts", 0L)
   measure("dict set 1 key", fun i ->
     Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(Stdlib.Dict.empty, "k", i))))
   measure("dict get, present", fun i ->
@@ -128,7 +128,7 @@ let main(): Int64 =
     | Some(v) -> v
     | None -> 0)
 
-  Builtin.debug("--- strings", 0L)
+  Stdlib.debug("--- strings", 0L)
   measure("concat two strings", fun i -> Stdlib.String.length("ab" + "cd"))
   measure("length of a 5-char string", fun i -> Stdlib.String.length("hello"))
   measure("split a path", fun i -> Stdlib.List.length(Stdlib.String.split("/a/b/c", "/")))
@@ -138,14 +138,14 @@ let main(): Int64 =
   // functions the harness itself uses), so the honest floor is this one.
   measure("baseline again, at the end", fun i -> i)
 
-  Builtin.debug("--- equality", 0L)
+  Stdlib.debug("--- equality", 0L)
   measure("Int == Int", fun i -> if i == 5 then 1 else 0)
   measure("String == String", fun i -> if "hello" == "hellp" then 1 else 0)
   measure("5-list of Int ==", fun i -> if intsL == intsR then 1 else 0)
   measure("record ==", fun i -> if plainL == plainR then 1 else 0)
   measure("5-list of records ==", fun i -> if plainsL == plainsR then 1 else 0)
 
-  Builtin.debug("--- control flow", 0L)
+  Stdlib.debug("--- control flow", 0L)
   measure("if/else", fun i -> if i > 1000 then 1 else 0)
   measure("match on an Int", fun i ->
     match i with

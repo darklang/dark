@@ -12,8 +12,6 @@ open LibExecution.Effects
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
-module Exe = LibExecution.Execution
-
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "printLine" 0
@@ -134,27 +132,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUnit |] ->
           let captured = NonBlockingConsole.stopCapture ()
           Ply(DString captured)
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.Stdout ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "debug" 0
-      typeParams = [ "a" ]
-      parameters =
-        [ Param.make "label" TString "The label to be printed."
-          Param.make "value" (TVariable "a") "The value to be printed." ]
-      returnType = TUnit
-      description = "Prints the given <param value> to standard error"
-      fn =
-        (function
-        | exeState, _, _, [| DString label; value |] ->
-          uply {
-            let! repr = Exe.dvalToRepr exeState value
-            printErr $"DEBUG: {label}: {repr}"
-            return DUnit
-          }
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdout ]

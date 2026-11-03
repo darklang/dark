@@ -41,7 +41,7 @@ let cell(cost: Int, count: Int): Unit =
   let t1 = Stdlib.DateTime.now()
   let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
   let ms = Stdlib.DateTime.subtractMs(t1, t0)
-  Builtin.debug("cell", (cost, count, reps, ms, after - before))
+  Stdlib.debug("cell", (cost, count, reps, ms, after - before))
 
 /// Instructions per element for one body, from the interpreter's own counter, in the original
 /// process only: run it with spreading off. Last, because turning the counter on slows every
@@ -60,7 +60,7 @@ let perElement(cost: Int): Unit =
       | [n, ...] -> n
       | [] -> "?"
     | _ -> "?"
-  Builtin.debug("instructions for 64 elements", (cost, count))
+  Stdlib.debug("instructions for 64 elements", (cost, count))
 
 let main(): Unit =
   Stdlib.List.iter([ 0, 10, 100, 1000, 10000 ], fun cost ->

@@ -31,6 +31,6 @@ let main(): Unit =
   let _r = draw(frames)
   let t1 = Stdlib.DateTime.now()
   let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
-  Builtin.debug("canvas", (frames, Stdlib.DateTime.subtractMs(t1, t0), after - before))
+  Stdlib.debug("canvas", (frames, Stdlib.DateTime.subtractMs(t1, t0), after - before))
 
 main()
