@@ -85,12 +85,32 @@ let pickLocation(
     Stdlib.Option.Option.Some(bestLoc)
 
 
+/// location -> hash for an item of <param kind>, resolved on <param branchId>. The per-kind
+/// `Type.find`, `Value.find`, ... are this with the kind filled in.
+let findItem(
+  branchId: Uuid,
+  kind: ProgramTypes.ItemKind,
+  location: ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<ProgramTypes.Hash> =
+  Builtin.pmFind(branchId, kind, location)
+
+
+/// Every name a hash of <param kind> is bound to on <param branchId>. The per-kind
+/// `Type.locations`, `Value.locations`, ... are this with the kind filled in.
+let itemLocations(
+  branchId: Uuid,
+  kind: ProgramTypes.ItemKind,
+  hash: ProgramTypes.Hash)
+  : List<ProgramTypes.PackageLocation> =
+  Builtin.pmLocations(branchId, kind, hash)
+
+
 module Type =
   let find(
     branchId: Uuid,
     location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQTypeName.Package> =
-    Builtin.pmFindType(branchId, location)
+    PackageManager.findItem(branchId, ProgramTypes.ItemKind.Type, location)
 
   let get(
     hash: ProgramTypes.FQTypeName.Package)
@@ -103,7 +123,7 @@ module Type =
     branchId: Uuid,
     hash: ProgramTypes.FQTypeName.Package)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByType(branchId, hash)
+    PackageManager.itemLocations(branchId, ProgramTypes.ItemKind.Type, hash)
 
   let getWithLocation(
     branchId: Uuid,
@@ -126,7 +146,7 @@ module Trait =
     branchId: Uuid,
     location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQTraitName.Package> =
-    Builtin.pmFindTrait(branchId, location)
+    PackageManager.findItem(branchId, ProgramTypes.ItemKind.Trait, location)
 
   let get(
     hash: ProgramTypes.FQTraitName.Package)
@@ -138,7 +158,7 @@ module Trait =
     branchId: Uuid,
     hash: ProgramTypes.FQTraitName.Package)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByTrait(branchId, hash)
+    PackageManager.itemLocations(branchId, ProgramTypes.ItemKind.Trait, hash)
 
   /// The impls of a trait bound on <param branchId>: what `Trait.method x` can
   /// dispatch to.
@@ -180,7 +200,7 @@ module TraitImpl =
     branchId: Uuid,
     location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.Hash> =
-    Builtin.pmFindTraitImpl(branchId, location)
+    PackageManager.findItem(branchId, ProgramTypes.ItemKind.TraitImpl, location)
 
   let get(hash: ProgramTypes.Hash): Stdlib.Option.Option<ProgramTypes.TraitImpl.TraitImpl> =
     Builtin.pmGetTraitImpl(hash)
@@ -190,7 +210,7 @@ module TraitImpl =
     branchId: Uuid,
     hash: ProgramTypes.Hash)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByTraitImpl(branchId, hash)
+    PackageManager.itemLocations(branchId, ProgramTypes.ItemKind.TraitImpl, hash)
 
 
 module Value =
@@ -204,7 +224,7 @@ module Value =
     branchId: Uuid,
     location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQValueName.Package> =
-    Builtin.pmFindValue(branchId, location)
+    PackageManager.findItem(branchId, ProgramTypes.ItemKind.Value, location)
 
   let get(
     hash: ProgramTypes.FQValueName.Package)
@@ -216,7 +236,7 @@ module Value =
     branchId: Uuid,
     hash: ProgramTypes.FQValueName.Package)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByValue(branchId, hash)
+    PackageManager.itemLocations(branchId, ProgramTypes.ItemKind.Value, hash)
 
   let getWithLocation(
     branchId: Uuid,
@@ -239,7 +259,7 @@ module Function =
     branchId: Uuid,
     location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQFnName.Package> =
-    Builtin.pmFindFn(branchId, location)
+    PackageManager.findItem(branchId, ProgramTypes.ItemKind.Fn, location)
 
   let get(
     hash: ProgramTypes.FQFnName.Package)
@@ -258,7 +278,7 @@ module Function =
     branchId: Uuid,
     hash: ProgramTypes.FQFnName.Package)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByFn(branchId, hash)
+    PackageManager.itemLocations(branchId, ProgramTypes.ItemKind.Fn, hash)
 
   let getWithLocation(
     branchId: Uuid,
@@ -305,7 +325,7 @@ module Test =
     branchId: Uuid,
     location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.Hash> =
-    Builtin.pmFindTest(branchId, location)
+    PackageManager.findItem(branchId, ProgramTypes.ItemKind.Test, location)
 
   let get(
     hash: ProgramTypes.Hash)
@@ -316,7 +336,7 @@ module Test =
     branchId: Uuid,
     hash: ProgramTypes.Hash)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByTest(branchId, hash)
+    PackageManager.itemLocations(branchId, ProgramTypes.ItemKind.Test, hash)
 
   /// Run this test's body with an allow-all test instance policy and ordinary
   /// called-function approvals and ceilings: what it evaluated to,
@@ -563,22 +583,25 @@ module Search =
 
 
   /// Search returning only names: (direct submodules, types, values, fns, traits, impls,
-  /// tests).
+  /// tests). `searchNamesAndHashes` with the hashes dropped.
   ///
   /// `search` converts every matched item's full definition, parameters and body AST included, into Dark
   /// values. Completion reads `.location.name` and throws the rest away, which is most of a millisecond
-  /// per item. Submodules come back already reduced to the direct children of the query's module, because
-  /// doing that reduction in Dark means walking every module path under the store root.
-
+  /// per item.
   let searchNames(
     branchId: Uuid,
     query: ProgramTypes.Search.SearchQuery)
     : (List<String> * List<String> * List<String> * List<String> * List<String> * List<String> * List<String>) =
-    Builtin.pmSearchNames(branchId, query)
+    let names = fun(pairs) -> Stdlib.List.map(pairs, fun((name, _hash)) -> name)
+    let (submodules, types, values, fns, traits, impls, tests) =
+      searchNamesAndHashes(branchId, query)
+    (submodules, names(types), names(values), names(fns), names(traits), names(impls), names(tests))
 
 
-  /// Like `searchNames`, but keeps each item's hash. Listings need it for the deprecation mark; completion
-  /// doesn't, and pays nothing for it.
+  /// Search returning (name, hash) pairs: (direct submodules, types, values, fns, traits, impls, tests).
+  /// Listings need the hash for the deprecation mark. Submodules come back already reduced to the direct
+  /// children of the query's module, because doing that reduction in Dark means walking every module path
+  /// under the store root.
   let searchNamesAndHashes(
     branchId: Uuid,
     query: ProgramTypes.Search.SearchQuery)
