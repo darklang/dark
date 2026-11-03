@@ -104,3 +104,65 @@ test dropThroughFirstNewline =
       drop("\nx") |> Stdlib.Test.equal(Ok("x"))
       drop("x\n") |> Stdlib.Test.equal(Ok(""))
       drop("a\nb\nc") |> Stdlib.Test.equal(Ok("b\nc")) ])
+
+// __copyWriteAt: a write must make exact progress; errors pass through
+test copyWriteAt =
+  let abc = Stdlib.Utf8.encode("abc")
+  Stdlib.Test.all(
+    [ Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(1)), abc, 0)
+      |> Stdlib.Test.equal(Ok())
+      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(0)), abc, 0)
+      |> Stdlib.Test.equal(Error(5))
+      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(4)), abc, 0)
+      |> Stdlib.Test.equal(Error(5))
+      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Error(28)), abc, 0)
+      |> Stdlib.Test.equal(Error(28)) ])
+
+// __copyBuffered reads 64 KiB chunks from the offset until an empty read
+test copyBuffered =
+  Stdlib.Cli.File.__copyBuffered(
+    (fun(count, offset) ->
+      if count != 65536 then Error(22)
+      else if offset == 2 then Ok(Stdlib.Utf8.encode("abc"))
+      else if offset == 5 then Ok(Stdlib.Bytes.empty)
+      else Error(22)),
+    (fun(_, offset) -> if offset >= 2 && offset < 5 then Ok(1) else Error(22)),
+    2)
+  |> Stdlib.Test.equal(Ok())
+
+// Which errnos fall back to a buffered copy, and which error wins on close
+test copyFallbackAndFinish =
+  let posixError = fun(errno, message) ->
+    Stdlib.Cli.Posix.Error { errno = errno, message = message }
+  Stdlib.Test.all(
+    [ Stdlib.Cli.File.__copyUnsupported(18) |> Stdlib.Test.equal(true)
+      Stdlib.Cli.File.__copyUnsupported(28) |> Stdlib.Test.equal(false)
+      Stdlib.Cli.File.__copyFinish(
+        Error(posixError(28, "full")),
+        Error(posixError(5, "close")))
+      |> Stdlib.Test.equal(Error(posixError(28, "full"))) ])
+
+// Copying a directory fails with EISDIR and leaves no destination behind
+test copyDirectoryRefused =
+  Stdlib.Cli.Dir.withTemp(fun dir ->
+    let destination = Stdlib.String.append(dir, "/not-a-file")
+    let copied = Stdlib.Cli.File.copy(dir, destination)
+    let errno =
+      match copied with
+      | Error(e) -> Stdlib.Option.Option.Some(e.errno)
+      | Ok(_) -> Stdlib.Option.Option.None
+    (errno, Stdlib.Cli.File.exists(destination)))
+  |> Stdlib.Test.equal(Ok((Stdlib.Option.Option.Some(21), false)))
+
+// Watching a missing path returns at once; a zero interval is still valid
+test watchEdges =
+  let immediate =
+    Stdlib.Cli.Dir.withTemp(fun dir ->
+      let path = $"{dir}/watch"
+      let wrote = Stdlib.Cli.File.writeText(path, "x")
+      let watched = Stdlib.Cli.File.watch(path, 0.0, (fun _ -> true), fun _ -> ())
+      (wrote, watched))
+  Stdlib.Test.all(
+    [ Stdlib.Cli.File.__watchLinux("/does-not-exist", 10, (fun _ -> true), fun _ -> ())
+      |> Stdlib.Test.equal(Ok())
+      immediate |> Stdlib.Test.equal(Ok((Ok(), Ok()))) ])

@@ -461,3 +461,28 @@ test subtractMs =
       sMs("2020-11-26T04:37:46Z", "2020-11-26T04:37:56Z") |> Stdlib.Test.equal(-10000)
       sMs("2021-01-01T00:00:00Z", "2020-01-01T00:00:00Z")
       |> Stdlib.Test.equal(31622400000) ])
+
+// The clock and sleep syscalls behind now, monotonic time and sleep
+test clockSyscalls =
+  let interruptedOnce = fun(seconds, _) ->
+    if seconds == 1 then
+      (-4, Stdlib.Bytes.fromList(Stdlib.Result.withDefault(Stdlib.List.repeat(16, 0uy), [])))
+    else
+      (0, Stdlib.Bytes.empty)
+  Stdlib.Test.all(
+    [ (match Builtin.syscallClockGettime(-1) with
+       | Error(e) ->
+         e |> Stdlib.Test.equal(if Stdlib.Cli.Posix.__abiMac() then 78 else 22)
+       | Ok(_) -> Stdlib.Test.fail("clock_gettime(-1) should fail"))
+      Stdlib.Test.expect(
+        Stdlib.DateTime.__monotonicMilliseconds() > 0,
+        "monotonic clock is positive")
+      Stdlib.DateTime.__sleepNanoseconds(0, 0) |> Stdlib.Test.equal(Ok())
+      Stdlib.DateTime.__sleepNanoseconds(0, -1) |> Stdlib.Test.equal(Error(22))
+      Stdlib.DateTime.__realtimeNanoseconds()
+      |> Stdlib.Result.map(fun pair ->
+        let (seconds, nanos) = pair
+        seconds > 1700000000 && nanos >= 0 && nanos < 1000000000)
+      |> Stdlib.Test.equal(Ok(true))
+      // EINTR (-4) on the first call resumes with the remaining time
+      Stdlib.DateTime.__sleepWith(interruptedOnce, 1, 0) |> Stdlib.Test.equal(Ok()) ])
