@@ -162,8 +162,10 @@ let renderReading(content: String, isCode: Bool, scroll: Int, region: Stdlib.Cli
   let plain = Stdlib.String.split(content, "\n")
   // Highlight code readers (Tree-leaf / Changes source); ANSI-aware truncate keeps color even when a line
   // overflows the width. Non-code content stays plain.
+  // Content that already carries ANSI is left alone, as in `renderPreview`: the highlighter re-lexes
+  // its escapes into literal text.
   let highlighted =
-    if isCode then
+    if isCode && Stdlib.Bool.not(Stdlib.String.contains(content, "\u001b")) then
       let h = SyntaxHighlighting.highlightCode(content) |> Stdlib.String.split("\n")
       if Stdlib.List.length(h) == Stdlib.List.length(plain) then h else plain
     else
