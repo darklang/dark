@@ -12,23 +12,40 @@ module Interpreter = LibExecution.Interpreter
 
 let varK = TVariable "k"
 let varA = TVariable "a"
+let varB = TVariable "b"
 
 
-let rec private addAllEntries
-  (threadID : ThreadID)
-  (keyType : ValueType)
-  (valueType : ValueType)
-  (acc : DictMap)
-  (remaining : List<Dval>)
-  : struct (ValueType * ValueType * DictMap) =
-  match remaining with
-  | [] -> struct (keyType, valueType, acc)
-  | DTuple(k, value, []) :: rest ->
-    let struct (keyType, valueType, acc) =
-      TypeChecker.DvalCreator.dictAddEntry threadID keyType valueType acc k value
-    addAllEntries threadID keyType valueType acc rest
-  | dv :: _ ->
-    Exception.raiseInternal "Not pair tuples in fromEntries" [ "dval", dv ]
+let private entryPair (dv : Dval) : Dval * Dval =
+  match dv with
+  | DTuple(k, value, []) -> (k, value)
+  | dv -> Exception.raiseInternal "Not pair tuples in fromEntries" [ "dval", dv ]
+
+/// Calls `fn` with each entry's key and value, in key order, and hands `finish` its
+/// answers. With `wait`, an answer that is a read in flight is waited for first.
+let private applyEach
+  (vm : VMState)
+  (app : Applicable)
+  (wait : bool)
+  (entries : (struct (Dval * Dval))[])
+  (finish : Dval[] -> Dval)
+  : Ply<Dval> =
+  let answers = Array.zeroCreate entries.Length
+  let mutable i = 0
+  let rec next (answer : Dval) : Ply<Dval> =
+    if wait then Interpreter.withValue vm answer store else store answer
+  and store (answer : Dval) : Ply<Dval> =
+    answers[i] <- answer
+    i <- i + 1
+    if i = entries.Length then
+      Ply(finish answers)
+    else
+      let struct (k, v) = entries[i]
+      Interpreter.requestApply vm app k [ v ] next
+  if entries.Length = 0 then
+    Ply(finish answers)
+  else
+    let struct (k, v) = entries[0]
+    Interpreter.requestApply vm app k [ v ] next
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
@@ -38,7 +55,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the number of entries in <param dict>"
       fn =
         (function
-        | _, _, _, [| DDict(_, _, o) |] -> Ply(Dval.int (bigint (Map.count o)))
+        | _, _, _, [| DDict(_, _, o) |] -> Ply(Dval.int (bigint (DictMap.count o)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -53,13 +70,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DDict(keyType, _, o) |] ->
-          // `Map.foldBack` walks the tree directly, in `Map.keys`' ascending order. A lazy `Seq`
-          // chain would cost an enumerator and a closure per stage.
-          DList(
-            keyType,
-            Map.foldBack (fun (k : DictKey) _ acc -> k.Dval :: acc) o []
-          )
-          |> Ply
+          DList(keyType, DictMap.keys o) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -76,7 +87,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(_, valueType, o) |] ->
           // See `dictKeys`: a direct fold rather than a lazy sequence and its enumerator.
-          DList(valueType, Map.foldBack (fun _ v acc -> v :: acc) o []) |> Ply
+          DList(valueType, DictMap.values o) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -93,8 +104,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DDict(keyType, valueType, o) |] ->
-          let f (k : DictKey) v acc = DTuple(k.Dval, v, []) :: acc
-          Map.foldBack f o []
+          DictMap.foldBack (fun k v acc -> DTuple(k, v, []) :: acc) o []
           |> fun pairs -> DList(VT.tuple keyType valueType [], pairs)
           |> Ply
         | _ -> incorrectArgs ())
@@ -116,12 +126,83 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DList(_, []) |] ->
-          DDict(VT.unknown, VT.unknown, Map.empty) |> Ply
+          DDict(VT.unknown, VT.unknown, DictMap.empty) |> Ply
 
         | _, vm, _, [| DList(ValueType.Known(KTTuple(keyType, valueType, [])), l) |] ->
           let struct (keyType, valueType, map) =
-            addAllEntries vm.threadID keyType valueType Map.empty l
+            TypeChecker.DvalCreator.dictEntries
+              vm.threadID
+              keyType
+              valueType
+              (List.map entryPair l)
           DDict(keyType, valueType, map) |> Ply
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dictMap" 0
+      typeParams = []
+      parameters =
+        [ Param.moved "dict" (TDict(varK, varA)) ""
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton varK varA, varB))
+            ""
+            [ "key"; "value" ] ]
+      returnType = TDict(varK, varB)
+      description =
+        "Calls <param fn> on every entry in <param dict>, returning a dict of the same "
+        + "keys with what it returned"
+      fn =
+        (function
+        | _, vm, [], [| DDict(kt, _, o); DApplicable app |] ->
+          let entries = o.Entries
+          applyEach vm app false entries (fun answers ->
+            List.init entries.Length (fun i ->
+              let struct (k, _) = entries[i]
+              (k, answers[i]))
+            |> TypeChecker.DvalCreator.dict vm.threadID kt VT.unknown)
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dictFilter" 0
+      typeParams = []
+      parameters =
+        [ Param.moved "dict" (TDict(varK, varA)) ""
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton varK varA, TBool))
+            ""
+            [ "key"; "value" ] ]
+      returnType = TDict(varK, varA)
+      description =
+        "Calls <param fn> on every entry in <param dict>, returning the entries for "
+        + "which it returned true"
+      fn =
+        (function
+        | _, vm, [], [| DDict(kt, vt, o); DApplicable app |] ->
+          let entries = o.Entries
+          applyEach vm app true entries (fun answers ->
+            let kept =
+              entries
+              |> Array.indexed
+              |> Array.filter (fun (i, _) ->
+                match answers[i] with
+                | DBool keep -> keep
+                | other ->
+                  RuntimeError.Bools.ConditionRequiresBool(
+                    Dval.toValueType other,
+                    other
+                  )
+                  |> RuntimeError.Bool
+                  |> raiseRTE vm.threadID)
+              |> Array.map (fun (_, struct (k, v)) -> (k, v))
+            DDict(kt, vt, DictMap.ofList (List.ofArray kept)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -141,7 +222,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DDict(_, _, o); key |] ->
           LibExecution.RuntimeTypes.Dval.assertUsableDictKey key
-          Map.find (DictKey key) o
+          DictMap.tryFind key o
           |> TypeChecker.DvalCreator.option vm.threadID VT.unknownTODO
           |> Ply
         | _ -> incorrectArgs ())
@@ -162,7 +243,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(_, _, o); key |] ->
           LibExecution.RuntimeTypes.Dval.assertUsableDictKey key
-          Ply(DBool(Map.containsKey (DictKey key) o))
+          Ply(DBool(DictMap.containsKey key o))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -184,9 +265,8 @@ let fns () : List<BuiltInFn> =
         | _, _vm, _, [| DDict(kt1, vt1, intoMap); DDict(kt2, vt2, fromMap) |] ->
           match VT.merge kt1 kt2, VT.merge vt1 vt2 with
           | Ok mergedKeyType, Ok mergedValueType ->
-            let f accMap k v = Map.add k v accMap
-            let mergedMap = Map.fold f intoMap fromMap
-            DDict(mergedKeyType, mergedValueType, mergedMap) |> Ply
+            DDict(mergedKeyType, mergedValueType, DictMap.union intoMap fromMap)
+            |> Ply
           | _ ->
             Exception.raiseInternal
               "Builtin.dictMerge input dicts somehow bypassed fn-arg type-checking"
@@ -231,7 +311,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(kt, vt, o); k |] ->
           LibExecution.RuntimeTypes.Dval.assertUsableDictKey k
-          DDict(kt, vt, Map.remove (DictKey k) o) |> Ply
+          DDict(kt, vt, DictMap.remove k o) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

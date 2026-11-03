@@ -191,7 +191,12 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     w.Write 19uy
     writeValueType w keyType
     writeValueType w valueType
-    Map.write (fun w (k : DictKey) -> writeDval w k.Dval) writeDval w entries
+    // A count, then each entry in ascending key order.
+    Varint.write w (DictMap.count entries)
+    entries
+    |> DictMap.iter (fun k v ->
+      writeDval w k
+      writeDval w v)
   | DRecord(sourceTypeName, runtimeTypeName, typeArgs, fields) ->
     w.Write 20uy
     FQTypeName.write w sourceTypeName
@@ -388,13 +393,15 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
   | 19uy ->
     let keyType = readValueType r
     let valueType = readValueType r
-    let readKey (r : BinaryReader) : DictKey =
-      let k = readDval version r
-      if not (LibExecution.RuntimeTypes.Dval.isUsableDictKey k) then
-        raiseFormatError "Dict key that cannot be a key"
-      DictKey k
-    let entries = Map.read readKey (readDval version) r
-    DDict(keyType, valueType, entries)
+    let count = Varint.read r
+    let entries =
+      [ for _ in 1..count ->
+          let k = readDval version r
+          if not (LibExecution.RuntimeTypes.Dval.isUsableDictKey k) then
+            raiseFormatError "Dict key that cannot be a key"
+          let v = readDval version r
+          (k, v) ]
+    DDict(keyType, valueType, DictMap.ofList entries)
   | 20uy ->
     let sourceTypeName = FQTypeName.read r
     let runtimeTypeName = FQTypeName.read r

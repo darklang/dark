@@ -295,7 +295,9 @@ top-level recursion.
 Profiled amplified, the workload is `MapTreeNode` 45.0%, `FSharpList<Dval>` 14.4%, `FSharpMap` 8.9%,
 `String` 7.4% -- and closures plus state machines total **0.41%**. The ~237 package calls per
 iteration cost instructions and frame pushes, not bytes, because a warm package call allocates
-nothing. What is left is the immutable map itself: see the value-representation item.
+nothing. That profile was of F#'s `Map`; dicts hold a `DictMap` instead, and the records item says
+what is left. Even then, about two thirds of this workload's bytes are the fold and its key strings,
+not the dict.
 
 ### Unbox scalar Dvals
 
@@ -304,10 +306,13 @@ because `DarkInt` is a struct DU carrying space for a `bigint`, so any integer o
 costs that. Splitting the representation, or making `Infinite` hold a reference, is the real fix.
 *(estimate: moderate win, wide blast radius)*
 
-### Dicts and records both use `Map<string, Dval>`
+### Records still use `Map<string, Dval>`
 
-A cheaper small-map representation would help dicts *and* records, since `DRecord` holds its fields
-the same way. Big change, no design yet. *(estimate)*
+Dicts moved off F#'s `Map` to `DictMap`: a sorted array up to 24 entries, then a balanced tree
+built from it in one pass (see its comments for the measurement behind the limit). `DRecord` still
+holds its fields in a `Map<string, Dval>`, and the same small-array shape would probably help it,
+though a record's field set is fixed by its type, which may allow something cheaper still.
+*(estimate)*
 
 ### Moving the rest of the codebase off Ply -- measured neutral, do not redo for performance
 

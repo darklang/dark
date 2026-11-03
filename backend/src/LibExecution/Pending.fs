@@ -30,7 +30,7 @@ let holdsPromise (dv : Dval) : bool =
   | DList(_, items)
   | DEnum(_, _, _, _, items) -> List.exists isPromise items
   | DTuple(a, b, rest) -> isPromise a || isPromise b || List.exists isPromise rest
-  | DDict(_, _, entries) -> Map.exists (fun _ v -> isPromise v) entries
+  | DDict(_, _, entries) -> DictMap.exists (fun _ v -> isPromise v) entries
   | DRecord(_, _, _, fields) -> Map.exists (fun _ v -> isPromise v) fields
   | DApplicable(AppLambda l) ->
     Array.exists (fun (struct (_, v)) -> isPromise v) l.closedRegisters
@@ -43,7 +43,7 @@ let private children (dv : Dval) : List<Dval> =
   | DList(_, items)
   | DEnum(_, _, _, _, items) -> items
   | DTuple(a, b, rest) -> a :: b :: rest
-  | DDict(_, _, entries) -> Map.values entries
+  | DDict(_, _, entries) -> DictMap.values entries
   | DRecord(_, _, _, fields) -> Map.values fields
   | DApplicable(AppLambda l) ->
     l.closedRegisters |> Array.map (fun (struct (_, v)) -> v) |> List.ofArray
@@ -68,7 +68,7 @@ let private fill (dv : Dval) : Dval =
       | Error() -> acc
     DList(List.fold merge elemType items, items)
   | DTuple(a, b, rest) -> DTuple(settled a, settled b, List.map settled rest)
-  | DDict(kt, vt, entries) -> DDict(kt, vt, Map.map settled entries)
+  | DDict(kt, vt, entries) -> DDict(kt, vt, DictMap.map settled entries)
   | DRecord(src, rt, typeArgs, fields) ->
     DRecord(src, rt, typeArgs, Map.map settled fields)
   | DEnum(src, rt, typeArgs, case, fields) ->
@@ -166,7 +166,7 @@ let rec wrapAlong
     | DList(vt, items), TList inner ->
       built rebuild (DList(vt, List.map (again inner) items))
     | DDict(kt, vt, entries), TDict(_, inner) ->
-      built rebuild (DDict(kt, vt, Map.map (again inner) entries))
+      built rebuild (DDict(kt, vt, DictMap.map (again inner) entries))
     | DTuple(a, b, rest), TTuple(ta, tb, trest) when
       List.length rest = List.length trest
       ->

@@ -134,9 +134,9 @@ let dict (m : Dval -> 'a) (dv : Dval) : Map<string, 'a> =
   match dv with
   | DDict(_, _, d) ->
     d
-    |> Map.toList
+    |> DictMap.toList
     |> List.map (fun (k, v) ->
-      match k.Dval with
+      match k with
       | DString k -> (k, m v)
       | _ -> f "dict with String keys" dv)
     |> Map

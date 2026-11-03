@@ -247,8 +247,7 @@ let evalDictGet
   : Dval voption =
   if tag = dictGet && Dval.isUsableDictKey k then
     ValueSome(
-      Map.find (DictKey k) o
-      |> TypeChecker.DvalCreator.option threadID VT.unknownTODO
+      DictMap.tryFind k o |> TypeChecker.DvalCreator.option threadID VT.unknownTODO
     )
   else
     ValueNone
@@ -256,7 +255,6 @@ let evalDictGet
 
 /// operator here.
 let evalDictSet
-  (threadID : ThreadID)
   (tag : int)
   (keyType : ValueType)
   (valueType : ValueType)
@@ -268,12 +266,9 @@ let evalDictSet
     // Use the slow path for type mismatches so its parameter check reports the error.
     // This keeps error messages the same with tracing on or off, as in `evalList`.
     match VT.merge valueType (Dval.toValueType v) with
-    | Ok _ ->
+    | Ok valueType ->
       match VT.merge keyType (Dval.toValueType k) with
-      | Ok _ ->
-        let struct (keyType, valueType, map) =
-          TypeChecker.DvalCreator.dictAddEntry threadID keyType valueType o k v
-        ValueSome(DDict(keyType, valueType, map))
+      | Ok keyType -> ValueSome(DDict(keyType, valueType, DictMap.add k v o))
       | Error() -> ValueNone
     | Error() -> ValueNone
   else

@@ -124,12 +124,12 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   | DList(_, items) -> w.writeArray (fun () -> List.iter r items)
 
   | DDict(_, _, fields) ->
-    // `Map.iter` rather than `Map.toList |> List.iter`: the latter builds a tuple and a cons per
+    // `iter` rather than `toList |> List.iter`: the latter builds a tuple and a cons per
     // field, for a list that is walked once and dropped. Both visit in ascending key order.
     w.writeObject (fun () ->
       fields
-      |> Map.iter (fun (k : DictKey) v ->
-        match k.Dval with
+      |> DictMap.iter (fun k v ->
+        match k with
         | DString k ->
           w.WritePropertyName k
           r v
