@@ -322,18 +322,15 @@ module Test =
   let runsInProcess(hash: ProgramTypes.Hash): Bool =
     Builtin.pmTestRunsInProcess(hash)
 
-  /// Prepare a starting store for tests on <param branchId> executed by <param run>.
-  /// Every test that cannot run in-process gets a fresh process and shares the
-  /// read-only snapshot when possible.
-  /// A refused write triggers a retry on a private writable copy; only the retry's
-  /// result is used. If sharing fails, the test starts on a private copy.
-  /// Cached-only runs create no snapshot. Cleanup also runs if the callback fails.
+  /// Share a read-only starting store on <param branchId> across the tests executed
+  /// by <param run>. Every test that cannot run in-process gets a fresh process on
+  /// it; one that writes reruns on a private copy. Cached-only runs create no
+  /// snapshot; cleanup also runs if the callback fails.
   let withStoreSnapshot(branchId: Uuid, run: Run -> 'a): 'a =
     Builtin.pmTestWithStoreSnapshot(branchId, fun id -> run(Run { id = id }))
 
   /// Whether the test <param hash> wrote to <param run>'s shared snapshot and so
-  /// ran again on a private copy. A handful per run is normal; nearly every test
-  /// means something writes at worker startup and the sharing is saving nothing.
+  /// ran again on a private copy.
   let reran(run: Run, hash: ProgramTypes.Hash): Bool =
     Builtin.pmTestReran(run.id, hash)
 
