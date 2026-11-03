@@ -59,7 +59,9 @@ impl Compare for UInt64 =
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
 let random(start: UInt64, ``end``: UInt64): UInt64 =
-  Builtin.uint64Random(start, ``end``)
+  Stdlib.Int.random(Stdlib.Int.fromUInt64(start), Stdlib.Int.fromUInt64(``end``))
+  |> Stdlib.Int.toUInt64
+  |> Builtin.unwrap
 
 
 /// Get the square root of an <type UInt64>

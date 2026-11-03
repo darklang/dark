@@ -75,7 +75,9 @@ impl Compare for Int8 =
 
 /// Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)
 let random(start: Int8, ``end``: Int8): Int8 =
-  Builtin.int8Random(start, ``end``)
+  Stdlib.Int.random(Stdlib.Int.fromInt8(start), Stdlib.Int.fromInt8(``end``))
+  |> Stdlib.Int.toInt8
+  |> Builtin.unwrap
 
 
 /// Get the square root of an <type Int8>

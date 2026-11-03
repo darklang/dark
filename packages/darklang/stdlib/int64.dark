@@ -75,7 +75,9 @@ impl Compare for Int64 =
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
 let random(start: Int64, ``end``: Int64): Int64 =
-  Builtin.int64Random(start, ``end``)
+  Stdlib.Int.random(Stdlib.Int.fromInt64(start), Stdlib.Int.fromInt64(``end``))
+  |> Stdlib.Int.toInt64
+  |> Builtin.unwrap
 
 
 /// Get the square root of an <type Int64>
