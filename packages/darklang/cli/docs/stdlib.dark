@@ -12,9 +12,9 @@ string handling, JSON, HTTP, and other utilities — all written in Dark.
   view <fn>                        # see signature + source
 
 ## Key modules
-  Stdlib.List       Stdlib.String     Stdlib.Option
-  Stdlib.Result     Stdlib.Dict       Stdlib.Int
-  Stdlib.Json       Stdlib.Http       Stdlib.Uuid
+  Stdlib.List(Stdlib.String, Stdlib.Option)
+  Stdlib.Result(Stdlib.Dict, Stdlib.Int)
+  Stdlib.Json(Stdlib.Http, Stdlib.Uuid)
 
 ## Shortcut
   `Stdlib.X` always resolves to `Darklang.Stdlib.X` from any module.

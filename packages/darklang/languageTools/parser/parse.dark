@@ -29,8 +29,8 @@ let initialParse(
   // builtin as an Option; this is it as a Result, and going through that one keeps the builtin
   // named once.
   match toWrittenTypes(code) with
-  | Some parsedFile -> Stdlib.Result.Result.Ok parsedFile
-  | None -> Stdlib.Result.Result.Error "parse failed"
+  | Some(parsedFile) -> Stdlib.Result.Result.Ok(parsedFile)
+  | None -> Stdlib.Result.Result.Error("parse failed")
 
 
 // TODO: maybe use a proper type instead of string?
@@ -59,10 +59,10 @@ let parsePTExprInContext(
   code: String)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
   match code |> initialParse with
-  | Ok sourceFile ->
+  | Ok(sourceFile) ->
     let exprs =
       match sourceFile with
-      | SourceFile s -> s.exprsToEval
+      | SourceFile(s) -> s.exprsToEval
 
     let ctx =
       NameResolver.NRContext
@@ -74,8 +74,8 @@ let parsePTExprInContext(
 
     let argMap =
       paramNames
-      |> Stdlib.List.indexedMap(fun i name -> (name, i))
-      |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc (name, idx) ->
+      |> Stdlib.List.indexedMap(fun(i, name) -> (name, i))
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, (name, idx)) ->
         Stdlib.Dict.set(acc, name, idx))
 
     let wtCtx =
@@ -84,7 +84,7 @@ let parsePTExprInContext(
             if Stdlib.List.isEmpty(currentFnName) then
               Stdlib.Option.Option.None
             else
-              Stdlib.Option.Option.Some currentFnName
+              Stdlib.Option.Option.Some(currentFnName)
           argMap = argMap
           localBindings = [] }
 
@@ -95,7 +95,7 @@ let parsePTExprInContext(
     | _ ->
       "Expected exactly one expression to be parsed"
       |> Stdlib.Result.Result.Error
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 let parsePTSourceFileWithOps(
@@ -106,12 +106,12 @@ let parsePTSourceFileWithOps(
     String
   > =
   match code |> initialParse with
-  | Ok parsedFile ->
+  | Ok(parsedFile) ->
     let (sourceFile, ops, _unresolvedNames) =
       WrittenTypesToProgramTypes.parsedFileAsSourceFile(branchId, parsedFile)
 
     (sourceFile, ops) |> Stdlib.Result.Result.Ok
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Parse package declarations into written types, or return syntax diagnostics.
@@ -119,8 +119,8 @@ let packageToWrittenTypes(
   source: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, List<(Parser.Range * String)>> =
   match parse(Parser.FileKind.Package, source) with
-  | (Some parsedFile, []) -> Stdlib.Result.Result.Ok parsedFile
-  | (_, diagnostics) -> Stdlib.Result.Result.Error diagnostics
+  | (Some(parsedFile), []) -> Stdlib.Result.Result.Ok(parsedFile)
+  | (_, diagnostics) -> Stdlib.Result.Result.Error(diagnostics)
 
 
 /// Convert a top-level declaration to a module member for shared lowering.
@@ -128,16 +128,16 @@ let toModuleDeclaration(
   declaration: WrittenTypes.SourceFile.SourceFileDeclaration)
   : WrittenTypes.ModuleDeclaration.Declaration =
   match declaration with
-  | Type typ -> WrittenTypes.ModuleDeclaration.Declaration.Type typ
-  | Function fn -> WrittenTypes.ModuleDeclaration.Declaration.Function fn
-  | Value value -> WrittenTypes.ModuleDeclaration.Declaration.Value value
+  | Type(typ) -> WrittenTypes.ModuleDeclaration.Declaration.Type(typ)
+  | Function(fn) -> WrittenTypes.ModuleDeclaration.Declaration.Function(fn)
+  | Value(value) -> WrittenTypes.ModuleDeclaration.Declaration.Value(value)
   // The branch carried its own copy of this mapping in `cli/packages/module.dark`; main moved
   // the mapping here and calls it from both of that file's sites, so the trait and impl arms
   // have to live here now or a source file declaring either lowers to nothing.
-  | Trait t -> WrittenTypes.ModuleDeclaration.Declaration.Trait t
-  | Impl i -> WrittenTypes.ModuleDeclaration.Declaration.Impl i
-  | Test test -> WrittenTypes.ModuleDeclaration.Declaration.Test test
-  | Module modul -> WrittenTypes.ModuleDeclaration.Declaration.SubModule modul
+  | Trait(t) -> WrittenTypes.ModuleDeclaration.Declaration.Trait(t)
+  | Impl(i) -> WrittenTypes.ModuleDeclaration.Declaration.Impl(i)
+  | Test(test) -> WrittenTypes.ModuleDeclaration.Declaration.Test(test)
+  | Module(modul) -> WrittenTypes.ModuleDeclaration.Declaration.SubModule(modul)
 
 
 /// Lower a module to package operations without storing them. Resolve references
@@ -171,10 +171,10 @@ let packageSourceToOps(
   source: String)
   : Stdlib.Result.Result<List<ProgramTypes.PackageOp>, String> =
   match packageToWrittenTypes(source) with
-  | Error diagnostics ->
-    let messages = Stdlib.List.map(diagnostics, fun (_, message) -> message)
+  | Error(diagnostics) ->
+    let messages = Stdlib.List.map(diagnostics, fun((_, message)) -> message)
     Stdlib.Result.Result.Error(Stdlib.String.join(messages, "; "))
-  | Ok(SourceFile sourceFile) ->
+  | Ok(SourceFile(sourceFile)) ->
     let rootModule =
       WrittenTypes.ModuleDeclaration.ModuleDeclaration
         { range = sourceFile.range
@@ -194,10 +194,10 @@ let packageSourceToOps(
     let (ops, unresolvedNames) = moduleToPackageOps(context, rootModule)
 
     if Stdlib.List.isEmpty(unresolvedNames) then
-      Stdlib.Result.Result.Ok ops
+      Stdlib.Result.Result.Ok(ops)
     else
       let names =
         unresolvedNames
-        |> Stdlib.List.map(fun (_, parts, _) -> Stdlib.String.join(parts, "."))
+        |> Stdlib.List.map(fun((_, parts, _)) -> Stdlib.String.join(parts, "."))
         |> Stdlib.List.unique
       Stdlib.Result.Result.Error("unresolved: " + Stdlib.String.join(names, ", "))

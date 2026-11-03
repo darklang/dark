@@ -24,7 +24,7 @@ module MissingFile =
       let missing = filename + "-does-not-exist"
       Stdlib.Cli.FileSystem.readFile(missing)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error Stdlib.Cli.FileSystem.FileError.NotFound))
+        Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound)))
     |> Builtin.unwrap
 
 module AreIdentical =

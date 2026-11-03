@@ -57,7 +57,7 @@ let idWidth(ids: List<String>): Int =
     (Stdlib.List.length(Stdlib.List.unique(prefixes))) == (Stdlib.List.length(ids))
 
   match Stdlib.List.findFirst([ 8, 12, 16, 24 ], fun w -> distinct(w)) with
-  | Some w -> w
+  | Some(w) -> w
   | None -> 36
 
 
@@ -72,11 +72,11 @@ let statusText(status: Darklang.Tracing.Status): String =
 /// The trace whose id starts with `prefix`, when exactly one does.
 let find(prefix: String): Stdlib.Result.Result<Darklang.Tracing.Trace, String> =
   match Darklang.Tracing.Store.resolveID(prefix) with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok id ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(id) ->
     match Darklang.Tracing.Store.get(id) with
-    | Some t -> Stdlib.Result.Result.Ok t
-    | None -> Stdlib.Result.Result.Error $"no trace has the id {id}"
+    | Some(t) -> Stdlib.Result.Result.Ok(t)
+    | None -> Stdlib.Result.Result.Error($"no trace has the id {id}")
 
 
 /// "22 minutes ago", from the stamp the store keeps (ISO with fractional seconds, which the
@@ -88,8 +88,8 @@ let whenText(created: String): String =
     | [ s ] -> s
     | [s, ...] -> s + "Z"
   match Stdlib.DateTime.parse(whole) with
-  | Ok t -> Cli.RelativeTime.ago(t)
-  | Error _ -> created
+  | Ok(t) -> Cli.RelativeTime.ago(t)
+  | Error(_) -> created
 
 
 /// One row of the trace table. Deliberately narrow: `Table.print` pads to the widest cell and
@@ -285,7 +285,7 @@ let traceJson(branchId: Uuid, trace: Darklang.Tracing.Trace): TraceJson =
       pinned = trace.pinned
       durationMs =
         if trace.durationMs > 0L then
-          Stdlib.Option.Option.Some trace.durationMs
+          Stdlib.Option.Option.Some(trace.durationMs)
         else
           Stdlib.Option.Option.None
       forkedFrom =
@@ -320,13 +320,13 @@ let printTracesJson(branchId: Uuid, traces: List<Darklang.Tracing.Trace>): Unit 
 /// One run and its log, as JSON.
 let printInspectJson(branchId: Uuid, prefix: String): Bool =
   match find(prefix) with
-  | Error e ->
+  | Error(e) ->
     Cli.printErr(e)
     false
-  | Ok trace ->
+  | Ok(trace) ->
     let calls =
       match Darklang.Tracing.Store.view(trace.id) with
-      | Some data ->
+      | Some(data) ->
         data.functionCalls
         |> Stdlib.List.filter(fun c -> c.ord >= 0L)
         |> Stdlib.List.map(fun c -> callJson(branchId, c))
@@ -364,11 +364,11 @@ let movedSince(
     let location = LanguageTools.ProgramTypes.parsePackageLocation(name)
 
     match LanguageTools.PackageManager.Function.find(branchId, location) with
-    | Some current ->
+    | Some(current) ->
       if (LanguageTools.ProgramTypes.hashToString(current)) == recorded then
         Stdlib.Option.Option.None
       else
-        Stdlib.Option.Option.Some name
+        Stdlib.Option.Option.Some(name)
     | None -> Stdlib.Option.Option.None)
 
 
@@ -377,11 +377,11 @@ let executeScriptOrEval(state: AppState, input: Darklang.Tracing.ScriptOrEvalInp
   match input with
   | Eval(source, allowHarmful) ->
     match Eval.evaluate(state, source, allowHarmful) with
-    | Ok(Some s) ->
+    | Ok(Some(s)) ->
       Stdlib.printLine(s)
       state
-    | Ok None -> state
-    | Error message ->
+    | Ok(None) -> state
+    | Error(message) ->
       Cli.printErr($"Error: {message}")
       { state with exitCode = 1 }
   | Script(filename, source, args, options) ->
@@ -390,10 +390,10 @@ let executeScriptOrEval(state: AppState, input: Darklang.Tracing.ScriptOrEvalInp
 
 let resume(state: AppState, prefix: String): AppState =
   match find(prefix) with
-  | Error e ->
+  | Error(e) ->
     Cli.printErr(e)
     { state with exitCode = 1 }
-  | Ok e ->
+  | Ok(e) ->
     match e.scriptOrEvalInput with
     | None ->
       if e.servedRequest then
@@ -403,7 +403,7 @@ let resume(state: AppState, prefix: String): AppState =
       else
         Cli.printErr($"{Cli.Text.shortIdText(e.id)} has no complete CLI invocation to resume; inspect its log or run the code again.")
       { state with exitCode = 1 }
-    | Some input ->
+    | Some(input) ->
       if Darklang.Tracing.Store.armResume(e.id) then
         Stdlib.printErrorLine($"resuming {Cli.Text.shortIdText(e.id)}: {Cli.Text.oneLine(Darklang.Tracing.Format.inputText(e))}")
         match movedSince(state.currentBranchId, e.id) with
@@ -424,26 +424,26 @@ let resume(state: AppState, prefix: String): AppState =
 
 let fork(prefix: String, at: Stdlib.Option.Option<Int64>): Bool =
   match find(prefix) with
-  | Error e ->
+  | Error(e) ->
     Cli.printErr(e)
     false
-  | Ok e ->
+  | Ok(e) ->
     match Darklang.Tracing.Store.fork(e.id, at) with
-    | Ok child ->
+    | Ok(child) ->
       Stdlib.printLine($"forked {Cli.Text.shortIdText(e.id)} as {Cli.Text.shortIdText(child)}")
       Stdlib.printLine($"  resume it with: dark traces resume {Cli.Text.shortIdText(child)}")
       true
-    | Error msg ->
+    | Error(msg) ->
       Cli.printErr(msg)
       false
 
 
 let pin(prefix: String, pinned: Bool): Bool =
   match find(prefix) with
-  | Error e ->
+  | Error(e) ->
     Cli.printErr(e)
     false
-  | Ok e ->
+  | Ok(e) ->
     if Darklang.Tracing.Store.setPinned(e.id, pinned) then
       if pinned then
         Stdlib.printLine(
@@ -514,18 +514,18 @@ let showCodeJson(
 
   let chosen =
     match tracePrefix with
-    | Some prefix -> find(prefix)
+    | Some(prefix) -> find(prefix)
     | None ->
       match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 1L) with
-      | [ newest ] -> Stdlib.Result.Result.Ok newest
+      | [ newest ] -> Stdlib.Result.Result.Ok(newest)
       | _ ->
-        Stdlib.Result.Result.Error $"no recorded trace went through {fnName}"
+        Stdlib.Result.Result.Error($"no recorded trace went through {fnName}")
 
   match chosen with
-  | Error e ->
+  | Error(e) ->
     Cli.printErr(e)
     false
-  | Ok trace ->
+  | Ok(trace) ->
     // Resolved before anything is replayed, and REFUSED when it does not resolve.
     //
     // This used to fall back to `""` and carry on, so an agent asking about a function a build
@@ -546,11 +546,11 @@ let showCodeJson(
           $"{fnName} ran, but its code is no longer in this store; `dark traces inspect` still has what it did")
 
       false
-    | Some selfHashRaw ->
+    | Some(selfHashRaw) ->
 
     let selfHash =
       match selfHashRaw with
-      | Hash v -> v
+      | Hash(v) -> v
 
     let budget =
       if full then 0 else Darklang.Tracing.Format.defaultValueBudget
@@ -567,7 +567,7 @@ let showCodeJson(
     let requested =
       match iterationArg with
       | None -> []
-      | Some raw -> Stdlib.String.split(raw, ",")
+      | Some(raw) -> Stdlib.String.split(raw, ",")
 
     let first = viewWith([])
     let (_c0, _f0, frameValues0, _p0, loops0) = first
@@ -601,7 +601,7 @@ let showCodeJson(
       |> Stdlib.List.map(fun loop ->
         let iterations =
           loop.iterations
-          |> Stdlib.List.indexedMap(fun i f -> (i, f))
+          |> Stdlib.List.indexedMap(fun(i, f) -> (i, f))
           |> Stdlib.List.filter(fun pair ->
             (Stdlib.Dict.get(framesWithValues, (Stdlib.Tuple2.second(pair)).id))
             != Stdlib.Option.Option.None)
@@ -697,7 +697,7 @@ let insideFn(
   else
     match frames |> Stdlib.List.findFirst(fun f -> f.id == frameId) with
     | None -> false
-    | Some f ->
+    | Some(f) ->
       if (f.kind == "function") && (f.callee == fnHash) then
         true
       else if (f.kind == "function") && (Stdlib.Bool.not(Stdlib.List.contains(stdlibHashes, f.callee))) then
@@ -744,7 +744,7 @@ let loopsOf(
   // attention to.
   let siteIsOurs =
     lambdaFrames
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc f ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, f) ->
       let k = Stdlib.toString(f.callSite)
 
       if (Stdlib.Dict.get(acc, k)) != Stdlib.Option.Option.None then
@@ -768,7 +768,7 @@ let loopsOf(
   // fix, as `siteIsOurs` above: one lookup per frame rather than one scan per frame.
   let frameById =
     frames
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc f ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, f) ->
       Stdlib.Dict.set(acc, f.id, f))
 
   // Where a loop gets its name: the function the lambda was passed TO, which is its parent
@@ -821,13 +821,13 @@ let loopsOf(
   // is what `map` versus `map#2` means, and a Dict does not promise it.
   let bySite =
     sited
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc t ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, t) ->
       let (k, _nm, _hash, _frame) = t
       let atK = Stdlib.Dict.get(acc, k) |> Stdlib.Option.withDefault([])
       Stdlib.Dict.set(acc, k, Stdlib.List.prepend(atK, t)))
 
   sited
-  |> Stdlib.List.fold([], fun acc t ->
+  |> Stdlib.List.fold([], fun(acc, t) ->
     let (k, _nm, _hash, _frame) = t
     if Stdlib.List.contains(acc, k) then acc else Stdlib.List.append(acc, k))
   |> Stdlib.List.map(fun k ->
@@ -865,7 +865,7 @@ let loopsOf(
     (nm != "") && (((Stdlib.List.length(iterations)) > 1) || (recorded > 1)))
   // Two loops of one function get `map` and `map#2`, in the order they ran. Numbering only the
   // repeats keeps the common case a plain word.
-  |> Stdlib.List.fold([], fun acc t ->
+  |> Stdlib.List.fold([], fun(acc, t) ->
     let (full, hash, iterations, recorded) = t
 
     let nm =
@@ -908,8 +908,8 @@ let chosenIteration(
     match Stdlib.String.split(sel, ":") with
     | [ _, p ] ->
       (match Stdlib.Int.parse(p) with
-       | Ok n -> Stdlib.List.getAt(loop.iterations, n - 1)
-       | Error _ -> Stdlib.Option.Option.None)
+       | Ok(n) -> Stdlib.List.getAt(loop.iterations, n - 1)
+       | Error(_) -> Stdlib.Option.Option.None)
     | _ -> Stdlib.List.head(loop.iterations))
 
 
@@ -947,7 +947,7 @@ let iterationsToFetch(
   |> Stdlib.List.filterMap(fun loop ->
     match chosenIteration(requested, loop) with
     | None -> Stdlib.Option.Option.None
-    | Some frame ->
+    | Some(frame) ->
       if frameHasValues(frameValues, frame.id) then
         Stdlib.Option.Option.None
       else
@@ -1078,15 +1078,15 @@ let showCode(
 
   let chosen =
     match tracePrefix with
-    | Some prefix ->
+    | Some(prefix) ->
       match find(prefix) with
-      | Ok r -> Stdlib.Option.Option.Some r
-      | Error e ->
+      | Ok(r) -> Stdlib.Option.Option.Some(r)
+      | Error(e) ->
         Cli.printErr(e)
         Stdlib.Option.Option.None
     | None ->
       match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 1L) with
-      | [ newest ] -> Stdlib.Option.Option.Some newest
+      | [ newest ] -> Stdlib.Option.Option.Some(newest)
       | _ ->
         Stdlib.printLine($"no recorded trace went through {fnName}")
 
@@ -1101,22 +1101,22 @@ let showCode(
   // which is an empty answer. Both leave nothing to print, and only the first is a failure.
   | None ->
     match tracePrefix with
-    | Some _ -> { state with exitCode = 1 }
+    | Some(_) -> { state with exitCode = 1 }
     | None -> state
-  | Some trace ->
+  | Some(trace) ->
     // The function is looked up BEFORE the trace is replayed: a replay is the whole cost of this
     // command, and a typo should not pay it.
     match LanguageTools.PackageManager.Function.find(branchId, entry) with
     | None ->
       Cli.printErr($"no function named {fnName} on this branch")
       { state with exitCode = 1 }
-    | Some hash ->
+    | Some(hash) ->
       match LanguageTools.PackageManager.Function.get(hash) with
       | None ->
         Cli.printErr(
           $"{fnName} resolves to a version this store cannot load; the store is damaged")
         { state with exitCode = 1 }
-      | Some fn ->
+      | Some(fn) ->
         // One call: it loads the trace's log, replays the trace with every effect answered from it
         // and none performed, and hands back what every expression evaluated to, plus the frames
         // it walked. The frames are what make a loop navigable rather than a single line showing
@@ -1124,7 +1124,7 @@ let showCode(
         let requested =
           match iterationArg with
           | None -> []
-          | Some raw -> Stdlib.String.split(raw, ",")
+          | Some(raw) -> Stdlib.String.split(raw, ",")
 
         let selectorFor(loop: Loop): Stdlib.Option.Option<String> =
           requested
@@ -1142,7 +1142,7 @@ let showCode(
 
         let selfHash =
           match hash with
-          | Hash h -> h
+          | Hash(h) -> h
 
         let fnNames = Darklang.Tracing.Store.fnsWithHashes(trace.id)
         let recorded = Darklang.Tracing.Store.recordedLoopPasses(trace.id)
@@ -1223,10 +1223,10 @@ let showCode(
           // A chosen iteration replaces the values on the lines inside that loop.
           let values =
             loops
-            |> Stdlib.List.fold(flat, fun acc loop ->
+            |> Stdlib.List.fold(flat, fun(acc, loop) ->
               match chosenOf(loop) with
               | None -> acc
-              | Some frame ->
+              | Some(frame) ->
                 let loopFrameIds = loop.iterations |> Stdlib.List.map(fun f -> f.id)
                 valuesOfFrame(branchId, acc, frameValues, loopFrameIds, frame.id))
 
@@ -1255,7 +1255,7 @@ let showCode(
               else
                 match chosenOf(loop) with
                 | None -> Stdlib.Option.Option.None
-                | Some frame ->
+                | Some(frame) ->
                   match frame.args with
                   | [] -> Stdlib.Option.Option.None
                   | args ->
@@ -1275,7 +1275,7 @@ let showCode(
               Stdlib.Cli.UI.Colors.dimText($"given  {Cli.Text.oneLineAt(72, input)}"))
 
           match argLine with
-          | Some line ->
+          | Some(line) ->
             Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"this one  {line}"))
           | None -> ()
 
@@ -1289,12 +1289,12 @@ let showCode(
           // Through `problemJson` so the page and `--json` cannot drift apart: the drift
           // judgement and the advice are decided once, and this only chooses how to print them.
           match problemJson(branchId, trace.id, problem) with
-          | Some p ->
+          | Some(p) ->
             match p.why with
             // Lead with the cause. The error underneath is about running code and often carries
             // advice for `run`/`eval`, which is not what this reader is doing, so saying what
             // moved first is what stops the page reading as their bug.
-            | Some why ->
+            | Some(why) ->
               Stdlib.printLine(
                 Stdlib.Cli.UI.Colors.error($"  the replay stopped: {why}"))
               Stdlib.printLine(Stdlib.Cli.UI.Colors.hint($"    {p.message}"))
@@ -1303,7 +1303,7 @@ let showCode(
                 Stdlib.Cli.UI.Colors.error($"  the replay stopped here: {p.message}"))
 
             match p.advice with
-            | Some advice -> Stdlib.printLine(Stdlib.Cli.UI.Colors.hint($"    {advice}"))
+            | Some(advice) -> Stdlib.printLine(Stdlib.Cli.UI.Colors.hint($"    {advice}"))
             | None -> ()
           | None -> ()
 
@@ -1327,7 +1327,7 @@ let showCode(
               let p =
                 match chosenOf(loop) with
                 | None -> Stdlib.toString(reached)
-                | Some frame -> positionOf(loop, frame)
+                | Some(frame) -> positionOf(loop, frame)
 
               let short =
                 if total > reached then
@@ -1345,7 +1345,7 @@ let showCode(
               // cap kept no values, and an iteration that returned early never produced any.
               match chosenOf(loop) with
               | None -> ()
-              | Some frame ->
+              | Some(frame) ->
                 if Stdlib.Bool.not(frameHasValues(frameValues, frame.id)) then
                   // Counted rather than hardcoded. The view keeps values for a bounded number
                   // of iterations and that bound lives in F#; asking the frames how many actually

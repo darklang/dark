@@ -33,7 +33,7 @@ let resolveNamesIn(
   itemHashes: List<LanguageTools.ProgramTypes.Hash>)
   : Dict<String, String> =
   (SCM.Deps.resolveLocations(itemHashes))
-  |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc (itemHash, location) ->
+  |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, (itemHash, location)) ->
     let h = Darklang.LanguageTools.ProgramTypes.hashToString(itemHash)
     let displayName =
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn(currentModule, location)
@@ -47,7 +47,7 @@ let getName(
   let h = Darklang.LanguageTools.ProgramTypes.hashToString(hash)
 
   match Stdlib.Dict.get(namesDict, h) with
-  | Some name -> name
+  | Some(name) -> name
   | None -> h
 
 
@@ -66,7 +66,7 @@ let isBehind(
   targetHash: LanguageTools.ProgramTypes.Hash)
   : Bool =
   match SCM.Propagation.currentHash(loc) with
-  | Some now -> now != targetHash
+  | Some(now) -> now != targetHash
   | None -> false
 
 /// Display dependents: what uses this entity.
@@ -89,7 +89,7 @@ let showDependents(
     deps
     // Grouped by module and capped, like every other long listing. Four hundred flat rows whose only
     // difference is the last segment is a list you scroll past rather than read.
-    |> Stdlib.List.map(fun (_sourceHash, sourceLoc, _refType) ->
+    |> Stdlib.List.map(fun((_sourceHash, sourceLoc, _refType)) ->
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(sourceLoc))
     |> Listing.groupedByModule
     |> fun groups -> Listing.cappedGroups(groups, Listing.defaultLimit, cap, "dependents")
@@ -109,7 +109,7 @@ let collectTransitiveDependents(
   | _ ->
     let toProcess =
       pending
-      |> Stdlib.List.filter(fun (loc, kind) ->
+      |> Stdlib.List.filter(fun((loc, kind)) ->
         let key = $"{fqn(loc)}:{LanguageTools.ProgramTypes.ItemKind.toString(kind)}"
         Stdlib.Bool.not(Stdlib.List.contains(processed, key)))
 
@@ -130,7 +130,7 @@ let collectTransitiveDependents(
         Stdlib.List.concat(
           processed,
           (targets
-           |> Stdlib.List.map(fun (loc, kind) ->
+           |> Stdlib.List.map(fun((loc, kind)) ->
              $"{fqn(loc)}:{LanguageTools.ProgramTypes.ItemKind.toString(kind)}")))
       let newAccumulated = Stdlib.List.concat(accumulated, newDeps)
 
@@ -172,7 +172,7 @@ let showTransitiveDependents(
 
     // Grouped by module and capped, same reasoning as `showDependents`.
     deps
-    |> Stdlib.List.map(fun (sourceLoc, _refType) ->
+    |> Stdlib.List.map(fun((sourceLoc, _refType)) ->
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(sourceLoc))
     |> Listing.groupedByModule
     |> fun groups -> Listing.cappedGroups(groups, Listing.defaultLimit, cap, "dependents")
@@ -224,8 +224,8 @@ let resolvePath(
   pathArg: String)
   : Stdlib.Result.Result<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * String * LanguageTools.ProgramTypes.ItemKind), String> =
   match Packages.Traversal.traverse(branchId, currentLocation, pathArg) with
-  | Error errMsg -> Stdlib.Result.Result.Error errMsg
-  | Ok loc ->
+  | Error(errMsg) -> Stdlib.Result.Result.Error(errMsg)
+  | Ok(loc) ->
     // Traits and impls carry dependency rows like anything else (`DependencyExtractor`), so all
     // five kinds are real questions here. Written once: four copies of this is how the two newest
     // kinds came to raise "No matching case found" instead of answering.
@@ -236,31 +236,31 @@ let resolvePath(
       : Stdlib.Result.Result<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * String * LanguageTools.ProgramTypes.ItemKind), String> =
       let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(itemLoc)
       match hashOpt with
-      | Some hash -> Stdlib.Result.Result.Ok((hash, itemLoc, name, kind))
+      | Some(hash) -> Stdlib.Result.Result.Ok((hash, itemLoc, name, kind))
       | None ->
         let kindName = LanguageTools.ProgramTypes.ItemKind.toString(kind)
-        Stdlib.Result.Result.Error $"No {kindName} found at {name}"
+        Stdlib.Result.Result.Error($"No {kindName} found at {name}")
 
     match loc with
-    | Module _ ->
-      Stdlib.Result.Result.Error
-        "Cannot show dependencies for a module, only for a fn, type, value, trait, impl or test"
-    | Function l ->
+    | Module(_) ->
+      Stdlib.Result.Result.Error(
+        "Cannot show dependencies for a module, only for a fn, type, value, trait, impl or test")
+    | Function(l) ->
       resolved(l, LanguageTools.ProgramTypes.ItemKind.Fn,
         LanguageTools.PackageManager.Function.find(branchId, l))
-    | Type l ->
+    | Type(l) ->
       resolved(l, LanguageTools.ProgramTypes.ItemKind.Type,
         LanguageTools.PackageManager.Type.find(branchId, l))
-    | Value l ->
+    | Value(l) ->
       resolved(l, LanguageTools.ProgramTypes.ItemKind.Value,
         LanguageTools.PackageManager.Value.find(branchId, l))
-    | Trait l ->
+    | Trait(l) ->
       resolved(l, LanguageTools.ProgramTypes.ItemKind.Trait,
         LanguageTools.PackageManager.Trait.find(branchId, l))
-    | Impl l ->
+    | Impl(l) ->
       resolved(l, LanguageTools.ProgramTypes.ItemKind.TraitImpl,
         LanguageTools.PackageManager.TraitImpl.find(branchId, l))
-    | Test l ->
+    | Test(l) ->
       resolved(l, LanguageTools.ProgramTypes.ItemKind.Test,
         LanguageTools.PackageManager.Test.find(branchId, l))
 
@@ -345,12 +345,12 @@ let execute(state: AppState, args: List<String>): AppState =
 
   | ["uses", pathArg] ->
     match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
-    | Error errMsg ->
+    | Error(errMsg) ->
       // Name what you ASKED for, not just where the path stopped resolving: "Not found: Zzz" is true and
       // unhelpful when you typed `Zzz.Nope.nope`, and both together tell a typo from a missing name.
       Cli.printErr($"Cannot show deps for {pathArg}: {errMsg}")
       Cli.exitWith(state, false)
-    | Ok result ->
+    | Ok(result) ->
       let (hash, loc, name, entityType) = result
 
       // Honoured on EVERY arm, not just the bare one: an agent that asked for JSON must not get a table.
@@ -363,11 +363,11 @@ let execute(state: AppState, args: List<String>): AppState =
 
   | ["usedby", pathArg] ->
     match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
-    | Error errMsg ->
+    | Error(errMsg) ->
       // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
       Cli.printErr($"Cannot show deps for {pathArg}: {errMsg}")
       Cli.exitWith(state, false)
-    | Ok result ->
+    | Ok(result) ->
       let (hash, loc, name, entityType) = result
 
       // Same as the `uses` arm.
@@ -385,11 +385,11 @@ let execute(state: AppState, args: List<String>): AppState =
   | [pathArg] ->
     // Default to showing both uses and usedby
     match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
-    | Error errMsg ->
+    | Error(errMsg) ->
       // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
       Cli.printErr($"Cannot show deps for {pathArg}: {errMsg}")
       Cli.exitWith(state, false)
-    | Ok result ->
+    | Ok(result) ->
       let (hash, loc, name, entityType) = result
 
       if wantsJson then

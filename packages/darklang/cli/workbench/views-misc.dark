@@ -25,11 +25,11 @@ let loadBuiltinItems(): List<BodyItem> =
 let builtinDetailLines(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> [ Stdlib.Cli.UI.Colors.dimText("(nothing selected)") ]
-  | Some item ->
+  | Some(item) ->
     let all = LanguageTools.allBuiltinFns()
     match Stdlib.List.findFirst(all, fun fn -> fn.name.name == item.name) with
     | None -> [ Stdlib.Cli.UI.Colors.dimText("(builtin not found)") ]
-    | Some fn ->
+    | Some(fn) ->
       let params =
         fn.parameters
         |> Stdlib.List.map(fun p ->
@@ -56,7 +56,7 @@ let builtinDetailLines(state: State): List<String> =
 /// tab-separated, so `render` draws what the loader saw and reads nothing.
 let loadProcessItems(): List<BodyItem> =
   Cli.Ps.treeRowsWithIds(SCM.PackageOps.currentBranch(), Stdlib.Exec.list())
-  |> Stdlib.List.map(fun (id, cells) ->
+  |> Stdlib.List.map(fun((id, cells)) ->
     BodyItem
       { name = Cli.Text.shortId(id)
         kind = "process"
@@ -105,7 +105,7 @@ let renderProcesses(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Std
       let cursorRow = state.selected + 2
       let marked =
         lines
-        |> Stdlib.List.indexedMap(fun i line ->
+        |> Stdlib.List.indexedMap(fun(i, line) ->
           if i == cursorRow then
             Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.selection, line)
           else
@@ -121,13 +121,13 @@ let renderProcesses(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Std
 let processDetailLines(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> []
-  | Some item ->
+  | Some(item) ->
     match Cli.Ps.find(item.name) with
-    | Error e -> [ e ]
-    | Ok p ->
+    | Error(e) -> [ e ]
+    | Ok(p) ->
       match Stdlib.Exec.inspect(p.id) with
       | None -> [ "gone" ]
-      | Some d ->
+      | Some(d) ->
         Stdlib.List.concat(
           [ Cli.Ps.statusText(state.branchId, d.summary.status), "" ],
           d.frames |> Stdlib.List.map(fun ep -> Cli.Ps.executionPointText(state.branchId, ep)))

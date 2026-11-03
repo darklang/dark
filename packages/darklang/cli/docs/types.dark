@@ -12,11 +12,11 @@ let content(): String =
 
 ## Option
   Type: Stdlib.Option.Option<Int>
-  Construct: Some 5, None
+  Construct: Some(5), None
 
 ## Result
   Type: Stdlib.Result.Result<Int, String>
-  Construct: Ok value, Error msg
+  Construct: Ok(value), Error(msg)
 
 ## Collections
   List<T>     [1, 2]
@@ -30,7 +30,7 @@ let content(): String =
 ## Enums
   type Status = | Active | Inactive of String
   Status.Active
-  Status.Inactive "reason"
+  Status.Inactive("reason")
 
 ## Generics
   type Box<'a> = { value: 'a }

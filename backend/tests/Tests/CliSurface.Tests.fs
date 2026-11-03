@@ -260,7 +260,7 @@ let private sweepFailure (outcome : Result<string, string>) : Option<string> =
 
 /// One line, because `eval` takes the expression as a single argument.
 let private renderExpr (body : string) : string =
-  "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"test-instance\", false) in let s = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let frame = fun v w h -> (Darklang.Cli.Workbench.viewAtSize({ s with activeView = v }, Darklang.Stdlib.Cli.Tui.Size { width = w, height = h })).rows in "
+  "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"test-instance\", false) in let s = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let frame = fun(v, w, h) -> (Darklang.Cli.Workbench.viewAtSize({ s with activeView = v }, Darklang.Stdlib.Cli.Tui.Size { width = w, height = h })).rows in "
   + ""
   + ""
   + body
@@ -275,7 +275,7 @@ let private workbenchViewsRender =
           state
           [ "eval"
             renderExpr
-              "Stdlib.List.all(Darklang.Cli.Workbench.viewSpecs, fun (v, _name) -> Stdlib.List.length(frame(v, 120, 40)) == 40)" ]
+              "Stdlib.List.all(Darklang.Cli.Workbench.viewSpecs, fun((v, _name)) -> Stdlib.List.length(frame(v, 120, 40)) == 40)" ]
 
       Expect.stringContains
         output
@@ -382,7 +382,7 @@ let private workbenchBranchActionsWork =
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in "
           + "let s = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
           + $"match Darklang.Cli.Workbench.performInputAction(s, Darklang.Cli.Workbench.InputState {{ prompt = \"p\", field = Stdlib.Cli.UI.TextField.fromText(\"{text}\"), action = \"{action}\" }}) with "
-          + "| Continue ns -> ns.message | _ -> \"(exit)\""
+          + "| Continue(ns) -> ns.message | _ -> \"(exit)\""
 
         let! created = runCli state [ "eval"; act "branch-create" "wbTestBranch" ]
         Expect.stringContains
@@ -420,7 +420,7 @@ let private mergeAndRebaseRefuseOnMain =
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in "
           + "let s = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
           + $"match Darklang.Cli.Workbench.performInputAction(s, Darklang.Cli.Workbench.InputState {{ prompt = \"p\", field = Stdlib.Cli.UI.TextField.fromText(\"y\"), action = \"{action}\" }}) with "
-          + "| Continue ns -> ns.message | _ -> \"(exit)\""
+          + "| Continue(ns) -> ns.message | _ -> \"(exit)\""
 
         let! rebased = runCli state [ "eval"; act "rebase" ]
         Expect.stringContains
@@ -671,7 +671,7 @@ let everyCommandAnswersWhenBare =
         let! commands = registeredCommands state
 
         let code =
-          "Darklang.Cli.Registry.allCommands() |> Stdlib.List.filterMap(fun c -> let accepts = c.accepts in match accepts() with | Takes s -> (if s.atLeast > 0 then Stdlib.Option.Option.Some c.name else Stdlib.Option.Option.None) | Subcommands(_, s) -> (if s.atLeast > 0 then Stdlib.Option.Option.Some c.name else Stdlib.Option.Option.None))"
+          "Darklang.Cli.Registry.allCommands() |> Stdlib.List.filterMap(fun c -> let accepts = c.accepts in match accepts() with | Takes(s) -> (if s.atLeast > 0 then Stdlib.Option.Option.Some(c.name) else Stdlib.Option.Option.None) | Subcommands(_, s) -> (if s.atLeast > 0 then Stdlib.Option.Option.Some(c.name) else Stdlib.Option.Option.None))"
           + ""
           + ""
           + ""
@@ -1577,7 +1577,7 @@ let private unwrapErrorsAreReadable =
   cliTest "eval checks unwrap operands and runs valid unwraps" (fun state ->
     task {
       let! rejected, exitCode =
-        runCliWithExit state [ "eval"; "(fun value -> Some (value? + 1))(4)" ]
+        runCliWithExit state [ "eval"; "(fun value -> Some(value? + 1))(4)" ]
       Expect.equal exitCode 1L "invalid unwrap fails eval"
       Expect.stringContains
         rejected
@@ -1587,7 +1587,7 @@ let private unwrapErrorsAreReadable =
         (rejected.Contains "Encountered a Runtime Error")
         "the error renderer itself succeeds"
       let! accepted =
-        runCli state [ "eval"; "(fun value -> Some (value? + 1))(Some 4)" ]
+        runCli state [ "eval"; "(fun value -> Some(value? + 1))(Some(4))" ]
       Expect.stringContains accepted "Some(5)" "valid unwrap still executes"
     })
 
@@ -1607,21 +1607,21 @@ let private workbenchEdit
   : string =
   let path = modules |> List.map darkString |> String.concat ", "
   "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\n"
-  + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in\n"
+  + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module([ {path} ]) }} in\n"
   + "let items = Darklang.Cli.Workbench.reloadItems(st) in\n"
   + $"match Stdlib.List.findFirst(items, fun i -> i.name == {darkString item}) with\n"
   + "| None -> \"no item to edit\"\n"
-  + "| Some item ->\n"
+  + "| Some(item) ->\n"
   + "  match Darklang.Cli.Workbench.openEditExisting(st, item) with\n"
-  + "  | Continue opened ->\n"
+  + "  | Continue(opened) ->\n"
   + "    match opened.editing with\n"
   + "    | None -> \"did not open: \" + opened.message\n"
-  + "    | Some es ->\n"
+  + "    | Some(es) ->\n"
   + $"      let edited = Stdlib.String.replaceAll(Stdlib.Cli.UI.Editor.toText(es.buf), {darkString find}, {darkString replace}) in\n"
   + "      match Darklang.Cli.Workbench.saveEditing(opened, { es with buf = Stdlib.Cli.UI.Editor.fromText(edited) }) with\n"
-  + "      | Continue saved ->\n"
+  + "      | Continue(saved) ->\n"
   + "        match saved.editing with\n"
-  + "        | Some still -> \"save refused: \" + still.err\n"
+  + "        | Some(still) -> \"save refused: \" + still.err\n"
   + "        | None -> \"footer: \" + saved.message\n"
   + "      | _ -> \"save did not continue\"\n"
   + "  | _ -> \"open did not continue\""
@@ -1655,16 +1655,16 @@ let private workbenchNew
   : string =
   let path xs = xs |> List.map darkString |> String.concat ", "
   "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\n"
-  + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module [ {path location} ] }} in\n"
+  + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module([ {path location} ]) }} in\n"
   + $"match Darklang.Cli.Workbench.openNewEditor(st, {darkString kind}, [ {path target} ]) with\n"
-  + "| Continue opened ->\n"
+  + "| Continue(opened) ->\n"
   + "  match opened.editing with\n"
   + "  | None -> \"did not open: \" + opened.message\n"
-  + "  | Some es ->\n"
+  + "  | Some(es) ->\n"
   + $"    match Darklang.Cli.Workbench.saveEditing(opened, {{ es with buf = Stdlib.Cli.UI.Editor.fromText({darkString source}) }}) with\n"
-  + "    | Continue saved ->\n"
+  + "    | Continue(saved) ->\n"
   + "      match saved.editing with\n"
-  + "      | Some still -> \"save refused: \" + still.err\n"
+  + "      | Some(still) -> \"save refused: \" + still.err\n"
   + "      | None ->\n"
   + "        let on = (Stdlib.List.getAt(saved.items, saved.selected)) |> Stdlib.Option.map(fun i -> i.name) |> Stdlib.Option.withDefault(\"\") in\n"
   + "        \"footer: \" + saved.message + \" | at: \" + (Stdlib.String.join(Darklang.Cli.Packages.modulePathOf(saved.location), \".\")) + \" | on: \" + on\n"
@@ -1827,7 +1827,7 @@ let private workbenchRefusalsAreMarkedAsRefusals =
   cliTest "the workbench marks a refusal as a refusal, not a success" (fun state ->
     task {
       let code =
-        "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\nlet st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\nlet kindOf = fun step -> match step with | Continue s -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\nlet input = fun action text -> Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(text), action = action } in\nStdlib.String.join([ kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"author-fn\", \"Tests.\"))), kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"search\", \"zzzWbNothingIsCalledThis\"))), kindOf(Darklang.Cli.Workbench.resolveConflict(st, \"ok\")) ], \"\\n\")"
+        "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\nlet st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\nlet kindOf = fun step -> match step with | Continue(s) -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\nlet input = fun(action, text) -> Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(text), action = action } in\nStdlib.String.join([ kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"author-fn\", \"Tests.\"))), kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"search\", \"zzzWbNothingIsCalledThis\"))), kindOf(Darklang.Cli.Workbench.resolveConflict(st, \"ok\")) ], \"\\n\")"
         + ""
         + ""
         + ""

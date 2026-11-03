@@ -47,7 +47,7 @@ let formatHintsFitted(
 
   let (fitted, _stopped) =
     droppable
-    |> Stdlib.List.fold(([], false), fun acc p ->
+    |> Stdlib.List.fold(([], false), fun(acc, p) ->
       let (sofar, stopped) = acc
 
       if stopped then

@@ -30,24 +30,24 @@ module Input =
         updated = "" }
 
   test sourceText =
-    trace(Darklang.LanguageTools.RuntimeTypes.Dval.DString "1 + 2")
+    trace(Darklang.LanguageTools.RuntimeTypes.Dval.DString("1 + 2"))
     |> Darklang.Tracing.Format.inputText
     |> Stdlib.Test.equal("1 + 2")
 
   test savedSourceTakesPrecedence =
-    let recorded = trace(Darklang.LanguageTools.RuntimeTypes.Dval.DString "old")
+    let recorded = trace(Darklang.LanguageTools.RuntimeTypes.Dval.DString("old"))
     let options =
       Darklang.Tracing.ScriptOptions
         { allowHarmful = false, sandbox = true, warnPermissions = false }
     Stdlib.Test.all(
       [ { recorded with
             scriptOrEvalInput =
-              Some (Darklang.Tracing.ScriptOrEvalInput.Eval("42", false)) }
+              Some(Darklang.Tracing.ScriptOrEvalInput.Eval("42", false)) }
         |> Darklang.Tracing.Format.inputText
         |> Stdlib.Test.equal("42")
         { recorded with
             scriptOrEvalInput =
-              Some (Darklang.Tracing.ScriptOrEvalInput.Script(
+              Some(Darklang.Tracing.ScriptOrEvalInput.Script(
                 "file.dark", "main(args)", [ "hello" ], options)) }
         |> Darklang.Tracing.Format.inputText
         |> Stdlib.Test.equal("main(args)") ])
@@ -176,25 +176,25 @@ module TheLog =
     Stdlib.Test.all(
       [ render(
           { Darklang.Cli.Tracing.defaultViewOptions with
-              filter = Stdlib.Option.Option.Some "httpclient" })
+              filter = Stdlib.Option.Option.Some("httpclient") })
         |> Stdlib.Test.equal("      0  httpClientGet() -> ()  (120ms)")
         render(
           { Darklang.Cli.Tracing.defaultViewOptions with
-              exclude = Stdlib.Option.Option.Some "PRINT" })
+              exclude = Stdlib.Option.Option.Some("PRINT") })
         |> Stdlib.Test.equal("      0  httpClientGet() -> ()  (120ms)") ])
 
   // `--slow` is only meaningful because impure calls carry a real duration now.
   test slowCalls =
     render(
       { Darklang.Cli.Tracing.defaultViewOptions with
-          slowThresholdMs = Stdlib.Option.Option.Some 100 })
+          slowThresholdMs = Stdlib.Option.Option.Some(100) })
     |> Stdlib.Test.equal("      0  httpClientGet() -> ()  (120ms)")
 
   // A filter that matches nothing says THAT, rather than looking like a run that did nothing.
   test filterMatchesNothing =
     render(
       { Darklang.Cli.Tracing.defaultViewOptions with
-          filter = Stdlib.Option.Option.Some "nope" })
+          filter = Stdlib.Option.Option.Some("nope") })
     |> Stdlib.Test.equal("  (no logged call matches the active filters)")
 
 module TheLogIsCut =
@@ -277,16 +277,16 @@ module ViewFlags =
             Darklang.Cli.Tracing.defaultViewOptions,
             [ "--depth", "3" ])
          with
-         | Error e -> Stdlib.String.contains(e, "--depth is gone")
-         | Ok _ -> false)
+         | Error(e) -> Stdlib.String.contains(e, "--depth is gone")
+         | Ok(_) -> false)
         |> Stdlib.Test.equal(true)
         (match
           Darklang.Cli.Tracing.parseViewOptions(
             Darklang.Cli.Tracing.defaultViewOptions,
             [ "--no-builtins" ])
          with
-         | Error e -> Stdlib.String.contains(e, "every logged call is an impure builtin")
-         | Ok _ -> false)
+         | Error(e) -> Stdlib.String.contains(e, "every logged call is an impure builtin")
+         | Ok(_) -> false)
         |> Stdlib.Test.equal(true) ])
 
   // `--all` turns the cut off.
@@ -296,8 +296,8 @@ module ViewFlags =
         Darklang.Cli.Tracing.defaultViewOptions,
         [ "--all" ])
      with
-     | Ok opts -> opts.all
-     | Error _ -> false)
+     | Ok(opts) -> opts.all
+     | Error(_) -> false)
     |> Stdlib.Test.equal(true)
 
   // The ones that still mean something still work.
@@ -307,9 +307,9 @@ module ViewFlags =
         Darklang.Cli.Tracing.defaultViewOptions,
         [ "--slow-ms", "50" ])
      with
-     | Ok opts -> opts.slowThresholdMs
-     | Error _ -> Stdlib.Option.Option.None)
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some 50)
+     | Ok(opts) -> opts.slowThresholdMs
+     | Error(_) -> Stdlib.Option.Option.None)
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some(50))
 
 module WatchCursor =
   // Where the cursor lands after the panel reloads. A new run arrives at the TOP, so following
@@ -322,7 +322,7 @@ module WatchCursor =
     Darklang.Cli.TraceWatch.pickCursor(
       ids,
       0,
-      Stdlib.Option.Option.Some "oldest")
+      Stdlib.Option.Option.Some("oldest"))
     |> Stdlib.Test.equal(2)
 
   // A run that arrived at the top pushes the one being read down, and the cursor goes with it.
@@ -330,7 +330,7 @@ module WatchCursor =
     Darklang.Cli.TraceWatch.pickCursor(
       [ "brand-new", "newest", "middle", "oldest" ],
       0,
-      Stdlib.Option.Option.Some "newest")
+      Stdlib.Option.Option.Some("newest"))
     |> Stdlib.Test.equal(1)
 
   // The run being read is gone (retention dropped it): keep the position, clamped.
@@ -338,7 +338,7 @@ module WatchCursor =
     Darklang.Cli.TraceWatch.pickCursor(
       ids,
       2,
-      Stdlib.Option.Option.Some "vanished")
+      Stdlib.Option.Option.Some("vanished"))
     |> Stdlib.Test.equal(2)
 
   // Not following anything -- a key press -- is a plain clamp.
@@ -366,9 +366,9 @@ module ReplayReasons =
          "the run's input no longer parses")
         (Darklang.Tracing.ReplayStop.MissingHandler,
          "this run has no source to replay and no handler recorded against it")
-        (Darklang.Tracing.ReplayStop.HostFailure "host error", "host error") ]
+        (Darklang.Tracing.ReplayStop.HostFailure("host error"), "host error") ]
     cases
-    |> Stdlib.List.map(fun (reason, expected) ->
+    |> Stdlib.List.map(fun((reason, expected)) ->
       Darklang.Tracing.Format.replayStop(Darklang.SCM.Branch.mainBranchId, reason)
       |> Stdlib.Test.equal((expected, None)))
     |> Stdlib.Test.all

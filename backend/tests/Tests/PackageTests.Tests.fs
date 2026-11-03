@@ -269,13 +269,13 @@ test failsAfterObservation =
     let execute h =
       "Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, "
       + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{h}\")"
-    let check h = $"({execute h}) |> Stdlib.Test.equal(Ok (Stdlib.Test.pass()))"
+    let check h = $"({execute h}) |> Stdlib.Test.equal(Ok(Stdlib.Test.pass()))"
     let countHash = Option.get countHash
     let emptyHash = Option.get emptyHash
     let errorHash = Option.get errorHash
     let failHash = Option.get failHash
     let failCheck =
-      $"({execute failHash}) |> Stdlib.Test.equal(Ok (Stdlib.Test.fail(\"deliberate\")))"
+      $"({execute failHash}) |> Stdlib.Test.equal(Ok(Stdlib.Test.fail(\"deliberate\")))"
     let code =
       $"Stdlib.Test.all([{check countHash}, {check emptyHash}, {check errorHash}, {check emptyHash}, {failCheck}, {check emptyHash}, {check countHash}])"
     let! repeated = evalAsCli code

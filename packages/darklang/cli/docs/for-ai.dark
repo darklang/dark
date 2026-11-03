@@ -167,10 +167,15 @@ never against what you typed.
 - `f(x)?` extracts Ok/Some or immediately returns Error/None from the
   nearest function/lambda. Return Result/Option and still write Ok/Some on
   success; Result error types must agree.
-- Option/Result cases work bare: `Some x`, `None`, `Ok x`, `Error e`.
-- User enum construction uses `TypeName.Case`; match cases are bare.
-- Nested constructor patterns can use `Some (Ok x)`.
-- A tuple payload needs double parentheses: `Some ((a, b))`.
+- Option/Result cases work bare: `Some(x)`, `None`, `Ok(x)`, `Error(e)`.
+- A constructor's fields go in parentheses, as a call's arguments do:
+  `Pair(1, 2)`, `| Ok(x) ->`. `Ok x` is a parse error.
+- User enum construction uses `TypeName.Case`; match cases may be bare or
+  qualified (`| Result.Ok(x)`).
+- A tuple payload needs double parentheses: `Some((a, b))`.
+- Lambda parameters take the call shape: `fun x ->`, `fun(acc, x) ->`; one
+  tuple parameter is `fun((a, b)) ->`.
+- A function type with several arguments is `(A, B) -> C`; `A -> B` takes one.
 - A function may declare a permission ceiling as an effect row on the return
   colon: `let fetch(url: String):{Http, Clock} String = ...`. It only
   restricts (`:{}` means effect-free); names are effect cases like `FileRead`.
@@ -399,7 +404,7 @@ Rules:
 - Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
   double quotes; "a" is not 'a')
 - Tuples destructure inline in `let` and in lambda params:
-  `let (a, b) = pair`, `fun (name, done) -> ...`
+  `let (a, b) = pair`, `fun((name, done)) -> ...`
 - Tuple elements by position, counting from 1: `pair.1`, `triple.3`,
   `nested.1.2`. `.0` and past-the-end are errors.
 - String concat: +
@@ -429,10 +434,10 @@ Rules:
   # { must not be left of type name
 
 ## Enums
-  Option.Some 5      # construct: TypeName.Case
-  | Some x -> ...     # match: just Case (never the qualified Type.Case in an arm)
-  | (Ok x, Ok y) -> ...      # tuple of constructors; parens optional, with or without a space
-  | Some(Ok v) -> ...        # constructor of a constructor
+  Option.Some(5)     # construct: TypeName.Case, fields in parentheses
+  | Some(x) -> ...           # match: Case, or Type.Case
+  | (Ok(x), Ok(y)) -> ...    # tuple of constructors
+  | Some(Ok(v)) -> ...       # constructor of a constructor
   | Some((a, b)) -> ...      # constructor wrapping a tuple NEEDS its inner parens
   | [x, ...rest] -> ...      # head and rest of a list; `...rest` goes last
 

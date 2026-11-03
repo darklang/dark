@@ -3,10 +3,10 @@
 // which hid three consecutive halvings of container construction.
 let iters(): Int =
   match Stdlib.Env.get("PERF_ITERS") with
-  | Some s ->
+  | Some(s) ->
     match Stdlib.Int.parse(s) with
-    | Ok n -> n
-    | Error _ -> 0
+    | Ok(n) -> n
+    | Error(_) -> 0
   | None -> 0
 
 type Boxed<'v> = { v: 'v, tag: String }
@@ -19,24 +19,24 @@ let work(n: Int): Int =
   // Option from the standard library, matched
   let a =
     match Stdlib.List.head(xs) with
-    | Some v -> v
+    | Some(v) -> v
     | None -> 0
 
   // Option that is absent, so the None path is exercised too
   let b =
     match Stdlib.List.head(empties()) with
-    | Some v -> v
+    | Some(v) -> v
     | None -> 1
 
   // Result from parsing, both arms
   let c =
     match Stdlib.Int.parse("123") with
-    | Ok v -> v
-    | Error _ -> 0
+    | Ok(v) -> v
+    | Error(_) -> 0
   let d =
     match Stdlib.Int.parse("not a number") with
-    | Ok v -> v
-    | Error _ -> 1
+    | Ok(v) -> v
+    | Error(_) -> 1
 
   // A parameterised record, which took the same slow path as Option and Result
   let boxed = Boxed<Int> { v = a, tag = "t" }

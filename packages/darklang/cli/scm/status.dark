@@ -13,7 +13,7 @@ let statusJson(state: AppState): ScmJson.StatusJson =
 
   let items =
     Commit.previousHashesOfAll(state.currentBranchId, p.bindings)
-    |> Stdlib.List.map(fun (b, previous) ->
+    |> Stdlib.List.map(fun((b, previous)) ->
       ScmJson.changedItem(state.currentBranchId, p.propagated, b, previous))
 
   ScmJson.StatusJson
@@ -39,7 +39,7 @@ let branchLine(state: AppState): Unit =
     // "On branch " with nothing after it is worse than an id you can act on.
     let handle =
       match SCM.Branch.get(id) with
-      | Some b -> if b.name == "" then Stdlib.toString(id) else b.name
+      | Some(b) -> if b.name == "" then Stdlib.toString(id) else b.name
       | None -> Stdlib.toString(id)
 
     Stdlib.printLine(Stdlib.Cli.UI.Colors.hint($"On branch {handle}"))

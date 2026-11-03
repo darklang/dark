@@ -140,7 +140,7 @@ let private baseNames (branchId : PT.BranchId) : Task<List<string>> =
   darkStringList (
     "Darklang.SCM.Branches.nameBases("
     + darkBranch branchId
-    + ") |> Stdlib.List.map(fun (_o, _m, n, _h) -> n)"
+    + ") |> Stdlib.List.map(fun((_o, _m, n, _h)) -> n)"
   )
 
 /// "owner\nmodules\nname=hash" per recorded base, as DARK computes the parent's current hash. Spelled
@@ -161,7 +161,7 @@ let private parentHashLinesFromDark
   darkStringList (
     "((Darklang.SCM.Branches.nameBases("
     + darkBranch branchId
-    + ") |> Stdlib.List.map(fun (o, m, n, _h) -> "
+    + ") |> Stdlib.List.map(fun((o, m, n, _h)) -> "
     + key
     + " + \"=\" + ((Stdlib.Dict.get("
     + hashes
@@ -1682,7 +1682,7 @@ let liveBindingReadsTheBranchThenMain =
       $"(match Darklang.SCM.PackageOps.liveBindingFor({branch}, "
       + $"Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"{owner}\", "
       + $"modules = [ \"{modules}\" ], name = \"{name}\" }}) with "
-      + "| Some b -> b.hash | None -> \"none\")"
+      + "| Some(b) -> b.hash | None -> \"none\")"
     let main = darkBranch PT.BranchId.Main
 
     let! answers =
@@ -1755,7 +1755,7 @@ let liveBindingsForAgreesWithTheOneNameRead =
         + "  let hashOf(b: Stdlib.Option.Option<Darklang.SCM.Conflicts.Binding>)\n"
         + "    : String =\n"
         + "    match b with\n"
-        + "    | Some b -> b.hash\n"
+        + "    | Some(b) -> b.hash\n"
         + "    | None -> \"none\"\n"
         + $"  let one = Darklang.SCM.PackageOps.liveBindingFor({branch}, l)\n"
         + $"  let many = Darklang.SCM.PackageOps.liveBindingsFor({branch}, [ {locs} ])\n"

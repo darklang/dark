@@ -32,28 +32,28 @@ module AssetForPlatform =
     Stdlib.Test.all(
       [ Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-arm64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             "https://example.com/darklang-alpha-abc1234-linux-arm64.gz"))
+          (Stdlib.Option.Option.Some(
+             "https://example.com/darklang-alpha-abc1234-linux-arm64.gz")))
         Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-arm")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             "https://example.com/darklang-alpha-abc1234-linux-arm.gz")) ])
+          (Stdlib.Option.Option.Some(
+             "https://example.com/darklang-alpha-abc1234-linux-arm.gz"))) ])
 
   // `linux-x64` is also a suffix of `linux-musl-x64`, the same trap one letter along.
   test muslSuffix =
     Stdlib.Test.all(
       [ Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-x64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             "https://example.com/darklang-alpha-abc1234-linux-x64.gz"))
+          (Stdlib.Option.Option.Some(
+             "https://example.com/darklang-alpha-abc1234-linux-x64.gz")))
         Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-musl-x64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             "https://example.com/darklang-alpha-abc1234-linux-musl-x64.gz"))
+          (Stdlib.Option.Option.Some(
+             "https://example.com/darklang-alpha-abc1234-linux-musl-x64.gz")))
         Darklang.GitHub.Releases.assetUrlFor(assets(), "osx-arm64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             "https://example.com/darklang-alpha-abc1234-osx-arm64.gz")) ])
+          (Stdlib.Option.Option.Some(
+             "https://example.com/darklang-alpha-abc1234-osx-arm64.gz"))) ])
 
   // A platform this release has no build for is None, not the first thing that looks close.
   // `osx-x64` is a real runtime we publish, so this is the "a tag is missing one asset" case
@@ -97,29 +97,29 @@ module PlatformForHost =
       [ PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.Arm)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok "linux-arm")
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-arm"))
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.Aarch64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok "linux-arm64")
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-arm64"))
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.X86_64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok "linux-x64")
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-x64"))
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.MacOS,
           Stdlib.Cli.Architecture.Architecture.Arm64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok "osx-arm64")
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("osx-arm64"))
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.MacOS,
           Stdlib.Cli.Architecture.Architecture.X86_64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok "osx-x64") ])
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("osx-x64")) ])
 
   test unsupportedCombination =
     PlatformForHost.idFor(
       Stdlib.Cli.OS.OS.MacOS,
       Stdlib.Cli.Architecture.Architecture.Arm)
-    |> Stdlib.Test.equal(Stdlib.Result.Result.Error "Unsupported OS or Arch")
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Unsupported OS or Arch"))
 
 
 // Which release a build is. The tag is nowhere in the binary, so `dark version` finds it by the
@@ -139,11 +139,11 @@ module ReleaseForBuild =
   // An asset carries ten characters of the hash and the CLI prints seven.
   test buildFromAssetName =
     Darklang.GitHub.Releases.buildOf(release("v0.0.104", "e76430be5c"))
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some "alpha-e76430b")
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("alpha-e76430b"))
 
   test tagOfAnOlderRelease =
     Darklang.GitHub.Releases.tagFor(releases(), "alpha-0ab12cd")
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some "v0.0.103")
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("v0.0.103"))
 
   // A dev build is no release, and a release with no assets names no build.
   test noReleaseForADevBuild =

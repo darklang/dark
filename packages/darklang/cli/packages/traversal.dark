@@ -37,7 +37,7 @@ let parsePath(pathStr: String): List<PathSegment> =
         match part with
         | "." -> PathSegment.Here
         | ".." -> PathSegment.Up
-        | name -> PathSegment.Into name)
+        | name -> PathSegment.Into(name))
 
     if Stdlib.String.startsWith(pathStr, "/") then
       // Absolute path from root
@@ -48,18 +48,18 @@ let parsePath(pathStr: String): List<PathSegment> =
 
 let getCurrentModulePath(location: PackageLocation): List<String> =
   match location with
-  | Module path -> path
-  | Type t -> Stdlib.List.prepend(t.modules, t.owner)
-  | Value v -> Stdlib.List.prepend(v.modules, v.owner)
-  | Function f -> Stdlib.List.prepend(f.modules, f.owner)
-  | Trait t -> Stdlib.List.prepend(t.modules, t.owner)
+  | Module(path) -> path
+  | Type(t) -> Stdlib.List.prepend(t.modules, t.owner)
+  | Value(v) -> Stdlib.List.prepend(v.modules, v.owner)
+  | Function(f) -> Stdlib.List.prepend(f.modules, f.owner)
+  | Trait(t) -> Stdlib.List.prepend(t.modules, t.owner)
   // An implementation's methods are ordinary fns in a module named for the implementation, so
   // the module you are "in" when you are at one INCLUDES its name. Without this, descending a
   // path past an implementation silently dropped that segment and `view Stdlib.Int64.Add.add`
   // reported "Not found: (+)", a name nobody typed.
-  | Impl i ->
+  | Impl(i) ->
     Stdlib.List.append(Stdlib.List.prepend(i.modules, i.owner), i.name)
-  | Test test -> Stdlib.List.prepend(test.modules, test.owner)
+  | Test(test) -> Stdlib.List.prepend(test.modules, test.owner)
 
 
 let applySegment(
@@ -69,22 +69,22 @@ let applySegment(
   : Stdlib.Result.Result<PackageLocation, String> =
   match segment with
   | Root ->
-    Stdlib.Result.Result.Ok (PackageLocation.Module [])
+    Stdlib.Result.Result.Ok(PackageLocation.Module([]))
 
   | Here ->
-    Stdlib.Result.Result.Ok location
+    Stdlib.Result.Result.Ok(location)
 
   | Up ->
     match location with
-    | Module [] ->
-      Stdlib.Result.Result.Error "Already at root - cannot go to parent"
-    | Module modules ->
+    | Module([]) ->
+      Stdlib.Result.Result.Error("Already at root - cannot go to parent")
+    | Module(modules) ->
       let newModules = Stdlib.List.dropLast(modules)
-      Stdlib.Result.Result.Ok (PackageLocation.Module newModules)
+      Stdlib.Result.Result.Ok(PackageLocation.Module(newModules))
     // An item's parent is the module it lives in.
-    | item -> Stdlib.Result.Result.Ok (PackageLocation.Module (modulePathOf(item)))
+    | item -> Stdlib.Result.Result.Ok(PackageLocation.Module(modulePathOf(item)))
 
-  | Into name ->
+  | Into(name) ->
     let currentPath = getCurrentModulePath(location)
     resolveEntity(branchId, currentPath, name)
 
@@ -107,44 +107,44 @@ let resolveEntity(
   // own method fns underneath, the same thing twice.
   let implHere =
     match (Query.searchExactMatch(branchId, basePath, name)).impls with
-    | [item, ...] -> Stdlib.Option.Option.Some item.location
+    | [item, ...] -> Stdlib.Option.Option.Some(item.location)
     | [] -> Stdlib.Option.Option.None
 
   match implHere with
-  | Some loc -> Stdlib.Result.Result.Ok(PackageLocation.Impl loc)
+  | Some(loc) -> Stdlib.Result.Result.Ok(PackageLocation.Impl(loc))
   | None ->
 
   if isAModule then
-    Stdlib.Result.Result.Ok (PackageLocation.Module modulePath)
+    Stdlib.Result.Result.Ok(PackageLocation.Module(modulePath))
   // Not a module -- check if it's a type/value/fn
   else
     let entityResults = Query.searchExactMatch(branchId, basePath, name)
 
     // Access lists directly to avoid type parameter loss
     match entityResults.types with
-    | [item, ...] -> Stdlib.Result.Result.Ok (PackageLocation.Type item.location)
+    | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Type(item.location))
     | [] ->
       match entityResults.fns with
-      | [item, ...] -> Stdlib.Result.Result.Ok (PackageLocation.Function item.location)
+      | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Function(item.location))
       | [] ->
         match entityResults.values with
-        | [item, ...] -> Stdlib.Result.Result.Ok (PackageLocation.Value item.location)
+        | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Value(item.location))
         | [] ->
           match entityResults.traits with
-          | [item, ...] -> Stdlib.Result.Result.Ok (PackageLocation.Trait item.location)
+          | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Trait(item.location))
           | [] ->
             match entityResults.impls with
-            | [item, ...] -> Stdlib.Result.Result.Ok (PackageLocation.Impl item.location)
+            | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Impl(item.location))
             | [] ->
               match entityResults.tests with
-              | [item, ...] -> Stdlib.Result.Result.Ok (PackageLocation.Test item.location)
+              | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Test(item.location))
               | [] ->
                 // The path, not just "Not found": that same sentence otherwise covers a
                 // typo, an unauthored name, and a path resolved from somewhere unexpected.
                 let looked =
                   Stdlib.String.join(Stdlib.List.append(basePath, name), ".")
 
-                Stdlib.Result.Result.Error $"Not found: {looked}"
+                Stdlib.Result.Result.Error($"Not found: {looked}")
 
 
 let applyPath(
@@ -153,10 +153,10 @@ let applyPath(
   segments: List<PathSegment>)
   : Stdlib.Result.Result<PackageLocation, String> =
   segments
-  |> Stdlib.List.fold(Stdlib.Result.Result.Ok start, fun accResult segment ->
+  |> Stdlib.List.fold(Stdlib.Result.Result.Ok(start), fun(accResult, segment) ->
     match accResult with
-    | Error e -> Stdlib.Result.Result.Error e
-    | Ok loc -> applySegment(branchId, loc, segment))
+    | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Ok(loc) -> applySegment(branchId, loc, segment))
 
 
 // Search for modules globally where a segment starts with the prefix
@@ -180,16 +180,16 @@ let searchModulesByPrefix(
   results.submodules
   |> Stdlib.List.filterMap(fun modulePath ->
     // Find index of first segment starting with prefix
-    let indexed = Stdlib.List.indexedMap(modulePath, fun idx seg -> (idx, seg))
+    let indexed = Stdlib.List.indexedMap(modulePath, fun(idx, seg) -> (idx, seg))
     let found = Stdlib.List.findFirst(indexed, fun pair ->
       let (_, seg) = pair
       Stdlib.String.startsWith(seg, prefixText))
 
     match found with
-    | Some pair ->
+    | Some(pair) ->
       let (idx, _) = pair
       // Return path up to and including the matching segment
-      Stdlib.Option.Option.Some (Stdlib.List.take(modulePath, idx + 1))
+      Stdlib.Option.Option.Some(Stdlib.List.take(modulePath, idx + 1))
     | None -> Stdlib.Option.Option.None)
   |> Stdlib.List.unique
   |> Stdlib.List.sort
@@ -249,7 +249,7 @@ let getAvailableItems(
 
   // At root level: prioritize owners, then add fallback
   match location with
-  | Module [] when Stdlib.Bool.not(Stdlib.String.isEmpty(prefixText)) ->
+  | Module([]) when Stdlib.Bool.not(Stdlib.String.isEmpty(prefixText)) ->
     let ownerMatches =
       primaryResults
       |> Stdlib.List.filter(fun item -> Stdlib.Bool.not(Stdlib.String.contains(item.value, ".")))
@@ -279,12 +279,12 @@ let completePartialPath(
     // Empty path - get completions from current location
     getAvailableItems(branchId, start, "")
 
-  | [Into fuzzyPart, ...exactSegmentsReversed] ->
+  | [Into(fuzzyPart), ...exactSegmentsReversed] ->
     // Navigate to exact path, then fuzzy search
     let exactSegments = Stdlib.List.reverse(exactSegmentsReversed)
     match applyPath(branchId, start, exactSegments) with
-    | Error _ -> []
-    | Ok contextLocation ->
+    | Error(_) -> []
+    | Ok(contextLocation) ->
       let completionItems = getAvailableItems(branchId, contextLocation, fuzzyPart)
 
       // Build prefix for the completions, preserving the separator style
@@ -303,7 +303,7 @@ let completePartialPath(
               | Root -> ""
               | Here -> "."
               | Up -> ".."
-              | Into name -> name)
+              | Into(name) -> name)
             |> Stdlib.List.filter(fun s -> Stdlib.Bool.not(Stdlib.String.isEmpty(s)))
             |> Stdlib.String.join(separator)
           pathStr + separator

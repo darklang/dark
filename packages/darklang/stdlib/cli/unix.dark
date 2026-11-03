@@ -30,8 +30,8 @@ let executeInDirectoryWithOutput(
 /// Checks if two files are identical.
 let areFilesIdentical(file1: String, file2: String): Bool =
   match Cli.executeWithUnitOrStdErr($"diff -q {file1} {file2}") with
-  | Ok _ -> true
-  | Error _ -> false
+  | Ok(_) -> true
+  | Error(_) -> false
 
 /// Shows a unified, colored diff between two files.
 let showDiff(expectedFile: String, actualFile: String): Stdlib.Cli.ExecutionOutcome =
@@ -40,8 +40,8 @@ let showDiff(expectedFile: String, actualFile: String): Stdlib.Cli.ExecutionOutc
 /// Checks if a command-line tool is available in PATH.
 let isCommandAvailable(tool: String): Bool =
   match Cli.executeWithUnitOrStdErr($"command -v {tool}") with
-  | Ok _ -> true
-  | Error _ -> false
+  | Ok(_) -> true
+  | Error(_) -> false
 
 /// Finds the full path of a command using `which`.
 let findCommandPath(tool: String): Stdlib.Cli.ExecutionOutcome =
@@ -54,8 +54,8 @@ let copyFile(sourcePath: String, destPath: String): Result.Result<Unit, String> 
 /// Checks if a file exists at the given path.
 let fileExists(filePath: String): Bool =
   match Cli.executeWithUnitOrStdErr($"test -f {filePath}") with
-  | Ok _ -> true
-  | Error _ -> false
+  | Ok(_) -> true
+  | Error(_) -> false
 
 /// Resolves a relative path to an absolute path.
 let getAbsolutePath(relativePath: String): Stdlib.Cli.ExecutionOutcome =
@@ -72,7 +72,7 @@ let addAlias(
   | Bash -> Bash.addAlias(alias, command)
   | Zsh -> Zsh.addAlias(alias, command)
   | Fish -> Fish.addAlias(alias, command)
-  | _ -> Result.Result.Error "Unsupported shell"
+  | _ -> Result.Result.Error("Unsupported shell")
 
 
 /// Deletes an alias from the user's default shell configuration file.
@@ -84,7 +84,7 @@ let deleteAlias(
   | Bash -> Bash.deleteAlias(alias)
   | Zsh -> Zsh.deleteAlias(alias)
   | Fish -> Fish.deleteAlias(alias)
-  | _ -> Result.Result.Error "Unsupported OS or shell"
+  | _ -> Result.Result.Error("Unsupported OS or shell")
 
 
 /// Adds a directory to PATH in the user's default shell configuration file.
@@ -98,7 +98,7 @@ let addToPath(
   | Bash -> Bash.addToPath(dir)
   | Zsh -> Zsh.addToPath(dir)
   | Fish -> Fish.addToPath(dir)
-  | _ -> Result.Result.Error "Unsupported shell"
+  | _ -> Result.Result.Error("Unsupported shell")
 
 
 /// Gets the home directory of the current user using $HOME environment variable.
@@ -106,6 +106,6 @@ let getHomeDirectory(): Result.Result<String, String> =
   let dir = Cli.execute("echo $HOME")
   if dir.exitCode == 0 then
     let dir = dir.stdout |> String.trim
-    Result.Result.Ok dir
+    Result.Result.Ok(dir)
   else
-    Result.Result.Error dir.stderr
+    Result.Result.Error(dir.stderr)

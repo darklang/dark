@@ -33,7 +33,7 @@ type NavbarRow =
 /// pointing at it simply doesn't show.
 let extViewIndex(id: String): Int =
   match Stdlib.List.findFirstIndex(extensionViews(), fun vd -> vd.id == id) with
-  | Some i -> baseViewCount + i
+  | Some(i) -> baseViewCount + i
   | None -> 0 - 1
 
 let mkDest(view: Int, section: Int): Dest = Dest { view = view, section = section }
@@ -75,7 +75,7 @@ let workspaceVisibleIn(vis: List<Int>, ws: Workspace): Bool =
 
 let visibleWorkspacesIn(vis: List<Int>): List<(Int * Workspace)> =
   workspaces
-  |> Stdlib.List.indexedMap(fun i w -> (i, w))
+  |> Stdlib.List.indexedMap(fun(i, w) -> (i, w))
   |> Stdlib.List.filter(fun pair ->
     let (_i, w) = pair
     workspaceVisibleIn(vis, w))
@@ -92,7 +92,7 @@ let workspaceOf(d: Dest): Int =
   let holds(w: Workspace): Bool =
     (w.dest.view == d.view) || (Stdlib.List.contains(w.covers, d.view))
   match Stdlib.List.findFirstIndex(workspaces, holds) with
-  | Some i -> i
+  | Some(i) -> i
   | None -> 0
 
 /// Where ⏎ on an item, or its number key, takes you: its view, on the
@@ -109,7 +109,7 @@ let workspaceEntryIn(
   : Stdlib.Option.Option<Dest> =
   match Stdlib.List.getAt(workspaces, wsIdx) with
   | None -> Stdlib.Option.Option.None
-  | Some w ->
+  | Some(w) ->
     if Stdlib.Bool.not(workspaceVisibleIn(vis, w)) then Stdlib.Option.Option.None
     else
       let remembered =
@@ -117,10 +117,10 @@ let workspaceEntryIn(
         |> Stdlib.List.findFirst(fun pair -> let (i, _d) = pair in i == wsIdx)
         |> Stdlib.Option.map(fun pair -> let (_i, d) = pair in d)
       match remembered with
-      | Some d ->
-        if d.view == w.dest.view then Stdlib.Option.Option.Some d
-        else Stdlib.Option.Option.Some w.dest
-      | None -> Stdlib.Option.Option.Some w.dest
+      | Some(d) ->
+        if d.view == w.dest.view then Stdlib.Option.Option.Some(d)
+        else Stdlib.Option.Option.Some(w.dest)
+      | None -> Stdlib.Option.Option.Some(w.dest)
 
 let workspaceEntry(state: State, wsIdx: Int): Stdlib.Option.Option<Dest> =
   workspaceEntryIn(visibleViews(state), state, wsIdx)
@@ -156,7 +156,7 @@ let navbarRows(state: State, wip: Int, conflicts: Int): List<NavbarRow> =
 let activeRow(state: State, rows: List<NavbarRow>): Int =
   let ws = workspaceOf(activeDest(state))
   match Stdlib.List.findFirstIndex(rows, fun r -> r.ws == ws) with
-  | Some i -> i
+  | Some(i) -> i
   | None -> 0
 
 /// Put the nav cursor on the row for where you are.
@@ -213,7 +213,7 @@ let goTo(state: State, d: Dest, stayInNavbar: Bool): State =
 let jumpToWorkspace(state: State, n: Int): State =
   match workspaceEntry(state, n - 1) with
   | None -> state
-  | Some d ->
+  | Some(d) ->
     if d.view != state.activeView then goTo(state, d, false)
     else state
 
@@ -240,7 +240,7 @@ let handleNavbarKey(
 
   let moveToIn(rows: List<NavbarRow>, i: Int): Step =
     let n = Stdlib.List.length(rows)
-    Step.Continue { state with navbarSel = Stdlib.max(0, Stdlib.min(n - 1, i)) }
+    Step.Continue({ state with navbarSel = Stdlib.max(0, Stdlib.min(n - 1, i)) })
 
   let moveBy(delta: Int): Step =
     let rows = rowsNow()
@@ -257,12 +257,12 @@ let handleNavbarKey(
   let openSel(_u: Unit): Step =
     let rows = rowsNow()
     match Stdlib.List.getAt(rows, selIn(rows)) with
-    | None -> Step.Continue state
-    | Some row -> Step.Continue (goTo(state, row.dest, false))
+    | None -> Step.Continue(state)
+    | Some(row) -> Step.Continue(goTo(state, row.dest, false))
 
   let strip = navFitsNow()
-  let stay = Step.Continue state
-  let toContent = Step.Continue (focusContent(state))
+  let stay = Step.Continue(state)
+  let toContent = Step.Continue(focusContent(state))
   let up(_u: Unit): Step = if strip then stay else moveBy(-1)
   let down(_u: Unit): Step = if strip then toContent else moveBy(1)
   let left(_u: Unit): Step = if strip then moveBy(-1) else stay
@@ -279,10 +279,10 @@ let handleNavbarKey(
   | _ ->
     match keyChar with
     // ` toggles: it opened the nav, so it also hands the keyboard back.
-    | Some "`" -> toContent
+    | Some("`") -> toContent
     | _ ->
       match globalKey(state, keyChar) with
-      | Some step -> step
+      | Some(step) -> step
       | None -> stay
 
 // ── Drawing ──
@@ -298,7 +298,7 @@ let renderNavbarRows(state: State, rows: List<NavbarRow>, inner: Stdlib.Cli.UI.L
   let width = Stdlib.max(1, inner.cols)
   let lines =
     rows
-    |> Stdlib.List.indexedMap(fun i r ->
+    |> Stdlib.List.indexedMap(fun(i, r) ->
       let left = "  " + r.label
       let num = Stdlib.toString(r.ws + 1)
       let sep = if r.badge != "" then "  " else ""
@@ -365,8 +365,8 @@ let renderNavStrip(
 
   let (_endCol, spans) =
     rows
-    |> Stdlib.List.indexedMap(fun i r -> (i, r))
-    |> Stdlib.List.fold((1, []), fun acc pair ->
+    |> Stdlib.List.indexedMap(fun(i, r) -> (i, r))
+    |> Stdlib.List.fold((1, []), fun(acc, pair) ->
       let (col, spans) = acc
       let (i, row) = pair
       let (text, width) = paint(i, row)

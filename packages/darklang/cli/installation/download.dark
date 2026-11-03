@@ -20,7 +20,7 @@ let releaseToInstall(
   : Stdlib.Result.Result<ReleaseAsset, String> =
   let tag =
     match pinned with
-    | Some tag -> Stdlib.Result.Result.Ok tag
+    | Some(tag) -> Stdlib.Result.Result.Ok(tag)
     | None -> Darklang.GitHub.Releases.getLatestReleaseTag()
 
   tag
@@ -43,8 +43,8 @@ let releaseToInstall(
 /// that.
 let smokeTest(binaryPath: String): Stdlib.Result.Result<Unit, String> =
   match Stdlib.Cli.executeWithStdOutOrStdErr("mktemp -d") with
-  | Error e -> Stdlib.Result.Result.Error $"Couldn't make a directory to test the new binary in: {e}"
-  | Ok tmp ->
+  | Error(e) -> Stdlib.Result.Result.Error($"Couldn't make a directory to test the new binary in: {e}")
+  | Ok(tmp) ->
     let tmp = Stdlib.String.trim(tmp)
     let rundir = $"{tmp}/.darklang"
     let store = Stdlib.LocalStore.path()
@@ -72,8 +72,8 @@ let smokeTest(binaryPath: String): Stdlib.Result.Result<Unit, String> =
     if result.exitCode == 0 && Stdlib.String.trim(lastLine) == "3" then
       Stdlib.Result.Result.Ok()
     else
-      Stdlib.Result.Result.Error
-        $"The downloaded release failed a test run against a copy of your store ({Stdlib.String.trim(errorLine)}, exit {Stdlib.toString(result.exitCode)}). Nothing was changed. Please report this at https://github.com/darklang/dark/issues"
+      Stdlib.Result.Result.Error(
+        $"The downloaded release failed a test run against a copy of your store ({Stdlib.String.trim(errorLine)}, exit {Stdlib.toString(result.exitCode)}). Nothing was changed. Please report this at https://github.com/darklang/dark/issues")
 
 
 /// Download the asset at <param url> and put the binary it holds at <param target>.
@@ -119,28 +119,28 @@ let installRelease(
     ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark", $"{darklangHomeDir}/config.json")
 
   match releaseToInstall(host, pinned) with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok release ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(release) ->
     match replaceBinary(host, release.assetUrl, target) with
-    | Error e -> Stdlib.Result.Result.Error e
-    | Ok _ ->
+    | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Ok(_) ->
       match Config.updateVersion(configPath, release.tag) with
-      | Error e ->
-        Stdlib.Result.Result.Error
-          $"Installed {release.tag}, but couldn't record it in {configPath}: {e}"
-      | Ok _ ->
+      | Error(e) ->
+        Stdlib.Result.Result.Error(
+          $"Installed {release.tag}, but couldn't record it in {configPath}: {e}")
+      | Ok(_) ->
         // The binary is in place by now, so a PATH we couldn't edit is worth a line, not a failure.
         // Unexpanded on purpose: the line must match what `install.sh` writes, byte for byte.
         let pathResult =
           Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/")
 
         match pathResult with
-        | Ok _ -> ()
-        | Error e ->
+        | Ok(_) -> ()
+        | Error(e) ->
           Stdlib.printLine(
             $"Couldn't add {binDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
 
-        Stdlib.Result.Result.Ok release.tag
+        Stdlib.Result.Result.Ok(release.tag)
 
 
 /// <fn installRelease> for the latest release.

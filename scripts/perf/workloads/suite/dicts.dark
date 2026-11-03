@@ -2,21 +2,21 @@
 // most programs reach for when they have keys.
 let iters(): Int =
   match Stdlib.Env.get("PERF_ITERS") with
-  | Some s ->
+  | Some(s) ->
     match Stdlib.Int.parse(s) with
-    | Ok n -> n
-    | Error _ -> 0
+    | Ok(n) -> n
+    | Error(_) -> 0
   | None -> 0
 
 let build(n: Int): Dict<String, Int> =
-  Stdlib.List.fold(Stdlib.List.range(1, n), Stdlib.Dict.empty, fun acc i ->
+  Stdlib.List.fold(Stdlib.List.range(1, n), Stdlib.Dict.empty, fun(acc, i) ->
     Stdlib.Dict.set(acc, "k" + (Stdlib.toString(i)), i))
 
 let work(n: Int): Int =
   let d = build(20)
   let got =
     match Stdlib.Dict.get(d, "k7") with
-    | Some v -> v
+    | Some(v) -> v
     | None -> 0
   got + (Stdlib.List.length(Stdlib.Dict.keys(d))) + n
 

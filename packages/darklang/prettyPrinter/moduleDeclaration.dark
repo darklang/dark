@@ -82,7 +82,7 @@ module ModuleDeclaration =
     add: Module -> Module)
     : List<Module> =
     match Darklang.LanguageTools.PackageManager.pickLocation(Darklang.LanguageTools.PackageManager.PickContext.empty, locations) with
-    | Some location -> placeAt(ms, path(location), $"{kind} has no modules", add)
+    | Some(location) -> placeAt(ms, path(location), $"{kind} has no modules", add)
     | None -> [ add({ emptyModule with name = $"{kind} with unknown location" }) ]
 
   let withType(
@@ -147,13 +147,13 @@ module ModuleDeclaration =
     impls
     |> Stdlib.List.map(fun i ->
       i.methods
-      |> Stdlib.List.filterMap(fun (_, fn) ->
+      |> Stdlib.List.filterMap(fun((_, fn)) ->
         match fn.resolved with
-        | Ok resolved ->
+        | Ok(resolved) ->
           (match resolved.name with
-           | Package h -> Stdlib.Option.Option.Some h
+           | Package(h) -> Stdlib.Option.Option.Some(h)
            | _ -> Stdlib.Option.Option.None)
-        | Error _ -> Stdlib.Option.Option.None))
+        | Error(_) -> Stdlib.Option.Option.None))
     |> Stdlib.List.flatten
 
 
@@ -210,7 +210,7 @@ module ModuleDeclaration =
     let empty = []
 
     let modulesAfterTypes =
-      Stdlib.List.fold(p.types, empty, fun modules t ->
+      Stdlib.List.fold(p.types, empty, fun(modules, t) ->
         ModuleDeclaration.withType(branchId, modules, t))
 
     // An impl's method fns print as its `let m = Fn` lines, not as fns of their own
@@ -219,26 +219,26 @@ module ModuleDeclaration =
       p.fns |> Stdlib.List.filter(fun f -> Stdlib.Bool.not(Stdlib.List.contains(implMethods, f.hash)))
 
     let modulesWithTypesAndFns =
-      Stdlib.List.fold(ownFns, modulesAfterTypes, fun modules f ->
+      Stdlib.List.fold(ownFns, modulesAfterTypes, fun(modules, f) ->
         ModuleDeclaration.withFn(branchId, modules, f))
 
     let modulesWithTypesAndFnsAndValues =
-      Stdlib.List.fold(p.values, modulesWithTypesAndFns, fun modules v ->
+      Stdlib.List.fold(p.values, modulesWithTypesAndFns, fun(modules, v) ->
         ModuleDeclaration.withValue(branchId, modules, v))
 
     let modulesWithTraits =
-      Stdlib.List.fold(p.traits, modulesWithTypesAndFnsAndValues, fun modules t ->
+      Stdlib.List.fold(p.traits, modulesWithTypesAndFnsAndValues, fun(modules, t) ->
         ModuleDeclaration.withTrait(branchId, modules, t))
 
     let modulesWithImpls =
-      Stdlib.List.fold(p.impls, modulesWithTraits, fun modules i ->
+      Stdlib.List.fold(p.impls, modulesWithTraits, fun(modules, i) ->
         ModuleDeclaration.withImpl(branchId, modules, i))
 
     let modulesWithTypesAndFnsAndValuesAndExprs =
       Stdlib.List.fold(
         p.exprs,
         modulesWithImpls,
-        fun modules e ->
+        fun(modules, e) ->
           // Same rule as the declarations above: the owner is not a module. An expr's path arrives
           // from the parser owner-first, so drop that segment before nesting it.
           let (expr, path) = e
@@ -270,7 +270,7 @@ let moduleDeclaration(
       section(m.fns |> Stdlib.List.map(fun f -> PrettyPrinter.ProgramTypes.packageFn(ctx, f)))
       section(m.values |> Stdlib.List.map(fun v -> PrettyPrinter.ProgramTypes.packageValue(ctx, v)))
       section(m.impls |> Stdlib.List.map(fun i -> PrettyPrinter.ProgramTypes.packageImpl(ctx, i)))
-      section(m.exprs |> Stdlib.List.map(fun (e, _) -> PrettyPrinter.ProgramTypes.expr(ctx, e)))
+      section(m.exprs |> Stdlib.List.map(fun((e, _)) -> PrettyPrinter.ProgramTypes.expr(ctx, e)))
       section(m.submodules |> Stdlib.List.map(fun sub -> PrettyPrinter.moduleDeclaration(ctx, sub))) ]
     |> Stdlib.List.filterMap(fun s -> s)
 

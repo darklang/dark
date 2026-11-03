@@ -20,7 +20,7 @@ let frame =
   |> Stdlib.List.flatten
 
 let draw(n: Int): Int =
-  Stdlib.List.fold(Stdlib.List.range(1, n), 0, fun acc _ ->
+  Stdlib.List.fold(Stdlib.List.range(1, n), 0, fun(acc, _) ->
     acc + Stdlib.List.length(Darklang.Stdlib.Cli.UI.Canvas.compose(160, 50, frame)))
 
 let main(): Unit =

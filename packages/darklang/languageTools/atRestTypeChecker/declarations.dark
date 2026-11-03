@@ -19,23 +19,23 @@ let prepareValueTypeParameters(
   : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
   let declarations =
     (Stdlib.Dict.toEntries(env.types))
-    |> Stdlib.List.filter(fun (_, decl) ->
+    |> Stdlib.List.filter(fun((_, decl)) ->
       Stdlib.Bool.not(Stdlib.List.isEmpty(decl.typeParams)))
   let (parameters, failures, changed) =
     Stdlib.List.fold(declarations, (env.valueTypeParameters, failures, false),
-      fun (parameters, failures, changed) (name, decl) ->
+      fun((parameters, failures, changed), (name, decl)) ->
         if Stdlib.Dict.containsKey(failures, name) then (parameters, failures, changed)
         else
           let previous =
             Stdlib.Option.withDefault(Stdlib.Dict.get(parameters, name), [])
           let (used, failures) =
             match guard((fun d -> Types.declarationValueParameters(env, d)), decl) with
-            | Ok used ->
+            | Ok(used) ->
               let used =
                 Stdlib.List.filter(decl.typeParams, fun param ->
                   Stdlib.List.contains(used, param))
               (used, failures)
-            | Error failure ->
+            | Error(failure) ->
               (previous, Stdlib.Dict.set(failures, name, failureFinding(failure)))
           (Stdlib.Dict.set(parameters, name, used),
            failures, changed || previous != used))
@@ -51,7 +51,7 @@ let customDictKeys(
   args: List<Model.Ty>)
   : List<Model.Ty> =
   match Types.declaration(env, name) with
-  | Some decl ->
+  | Some(decl) ->
     let required = Stdlib.Option.withDefault(Stdlib.Dict.get(env.dictKeyParameters, name), [])
     Types.argsThatReachValues(decl.typeParams, required, args)
   | None -> []
@@ -64,8 +64,8 @@ let dictKeyTypes(env: Model.Environment, ty: Model.Ty): List<Model.Ty> =
     Stdlib.List.flatten(Stdlib.List.map(types, fun t -> dictKeyTypes(env, t)))
   match ty with
   | TDict(key, value) -> Stdlib.List.prepend(many([ key, value ]), key)
-  | TList inner -> dictKeyTypes(env, inner)
-  | TStream inner -> dictKeyTypes(env, inner)
+  | TList(inner) -> dictKeyTypes(env, inner)
+  | TStream(inner) -> dictKeyTypes(env, inner)
   | TTuple(first, second, rest) -> many(Stdlib.List.concat([ first, second ], rest))
   | TFn(parameters, ret) -> many(Stdlib.List.prepend(parameters, ret))
   | TCustom(name, args) -> Stdlib.List.concat(customDictKeys(env, name, args), many(args))
@@ -108,15 +108,15 @@ let prepareDictKeyParameters(
   : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
   let declarations =
     (Stdlib.Dict.toEntries(env.types))
-    |> Stdlib.List.filter(fun (_, decl) -> Stdlib.Bool.not(Stdlib.List.isEmpty(decl.typeParams)))
+    |> Stdlib.List.filter(fun((_, decl)) -> Stdlib.Bool.not(Stdlib.List.isEmpty(decl.typeParams)))
   let (requirements, failures, changed) =
-    Stdlib.List.fold(declarations, (env.dictKeyParameters, failures, false), fun (requirements, failures, changed) (name, decl) ->
+    Stdlib.List.fold(declarations, (env.dictKeyParameters, failures, false), fun((requirements, failures, changed), (name, decl)) ->
       if Stdlib.Dict.containsKey(failures, name) then (requirements, failures, changed)
       else
         match guard((fun d -> dictKeyParametersFor(env, d)), decl) with
-        | Error failure ->
+        | Error(failure) ->
           (requirements, Stdlib.Dict.set(failures, name, failureFinding(failure)), changed)
-        | Ok required ->
+        | Ok(required) ->
           let previous = Stdlib.Option.withDefault(Stdlib.Dict.get(requirements, name), [])
           (Stdlib.Dict.set(requirements, name, required),
            failures, changed || previous != required))
@@ -136,7 +136,7 @@ let checkDictKey(
   else
     Stdlib.List.prepend(found,
       (Types.definiteError(IssueCode.UnsupportedDictKeyType, at,
-        Stdlib.Option.Option.None, Stdlib.Option.Option.Some key, Context.NoDetail)))
+        Stdlib.Option.Option.None, Stdlib.Option.Option.Some(key), Context.NoDetail)))
 
 /// Walk the supplied type and check that custom types exist, have the required
 /// number of arguments, and satisfy dictionary-key requirements. Return referenced
@@ -149,8 +149,8 @@ let checkTypeStructure(
   ty: Model.Ty)
   : (List<LanguageTools.ProgramTypes.Hash> * List<Model.Finding>) =
   match ty with
-  | TStream inner -> checkTypeStructure(env, at, names, found, inner)
-  | TList inner -> checkTypeStructure(env, at, names, found, inner)
+  | TStream(inner) -> checkTypeStructure(env, at, names, found, inner)
+  | TList(inner) -> checkTypeStructure(env, at, names, found, inner)
   | TDict(key, value) ->
     let found = checkDictKey(env, at, found, key)
     checkTypeStructures(env, at, names, found, [ key, value ])
@@ -163,14 +163,14 @@ let checkTypeStructure(
     match Types.declaration(env, name) with
     | None ->
       let problem =
-        Types.warning(IssueCode.MissingTypeDeclaration, at, Context.TypeUnavailable name)
+        Types.warning(IssueCode.MissingTypeDeclaration, at, Context.TypeUnavailable(name))
       (names, Stdlib.List.prepend(found, problem))
-    | Some decl ->
+    | Some(decl) ->
       if Stdlib.List.length(decl.typeParams) != Stdlib.List.length(args) then
         (names, Stdlib.List.prepend(found, Types.arityMismatch(at, ty, name, decl, args)))
       else
         let found =
-          Stdlib.List.fold(customDictKeys(env, name, args), found, fun found key ->
+          Stdlib.List.fold(customDictKeys(env, name, args), found, fun(found, key) ->
             checkDictKey(env, at, found, key))
         (Stdlib.List.prepend(names, name), found)
   | _ -> (names, found)
@@ -205,16 +205,16 @@ let aliasEdges(
     let found = aliasEdgesIn(env, found, args)
 
     match Types.resolvedType(name) with
-    | Some hash ->
+    | Some(hash) ->
       match Types.declaration(env, hash) with
-      | Some decl ->
+      | Some(decl) ->
         match decl.definition with
-        | Alias _ -> Stdlib.List.prepend(found, hash)
+        | Alias(_) -> Stdlib.List.prepend(found, hash)
         | _ -> found
       | None -> found
     | None -> found
-  | TList inner -> aliasEdges(env, found, inner)
-  | TStream inner -> aliasEdges(env, found, inner)
+  | TList(inner) -> aliasEdges(env, found, inner)
+  | TStream(inner) -> aliasEdges(env, found, inner)
   | TDict(key, value) -> aliasEdges(env, aliasEdges(env, found, key), value)
   | TTuple(first, second, rest) ->
     aliasEdgesIn(env, aliasEdges(env, aliasEdges(env, found, first), second), rest)
@@ -241,16 +241,16 @@ let reachesAliasCycle(
   name: LanguageTools.ProgramTypes.Hash)
   : (Bool * Dict<LanguageTools.ProgramTypes.Hash, Bool>) =
   match Stdlib.Dict.get(known, name) with
-  | Some answer -> (answer, known)
+  | Some(answer) -> (answer, known)
   | None ->
     if Stdlib.Dict.containsKey(expanding, name) then
       (true, known)
     else
       let next =
         match Types.declaration(env, name) with
-        | Some decl ->
+        | Some(decl) ->
           match decl.definition with
-          | Alias target -> aliasEdges(env, [], target)
+          | Alias(target) -> aliasEdges(env, [], target)
           | _ -> []
         | None -> []
 
@@ -288,7 +288,7 @@ let declarationFactsOf(
     Stdlib.List.fold(
       Types.declarationFieldTypes(decl),
       ([], []),
-      fun (names, found) field ->
+      fun((names, found), field) ->
         let (t, found) = Types.fromReferenceInto(mapping, none, found, field)
         checkTypeStructure(env, none, names, found, t))
 
@@ -311,7 +311,7 @@ let failureFinding(failure: CheckFailure): Model.Finding =
   let context =
     match failure with
     | TooDeep -> Context.DeclarationTooDeep
-    | Failed message -> Context.CheckerUnavailable message
+    | Failed(message) -> Context.CheckerUnavailable(message)
 
   Types.warning(IssueCode.UnsupportedConstruct, Stdlib.Option.Option.None, context)
 
@@ -325,12 +325,12 @@ let prepareDeclarations(env: Model.Environment): Model.Environment =
   // parameters can hold values before checking dictionary-key requirements.
   let (env, traversalFailures) =
     prepareValueTypeParameters(
-      { env with valueTypeParameters = Stdlib.Dict.map(env.types, fun _ _ -> []) },
+      { env with valueTypeParameters = Stdlib.Dict.map(env.types, fun(_, _) -> []) },
       Dict {})
   let (env, traversalFailures) =
     prepareDictKeyParameters({ env with dictKeyParameters = Dict {} }, traversalFailures)
   let cyclic =
-    Stdlib.List.fold(Stdlib.Dict.keys(env.types), Dict {}, fun known name ->
+    Stdlib.List.fold(Stdlib.Dict.keys(env.types), Dict {}, fun(known, name) ->
       let (_, known) = reachesAliasCycle(env, known, Dict {}, name)
       known)
 
@@ -340,12 +340,12 @@ let prepareDeclarations(env: Model.Environment): Model.Environment =
   let env =
     { env with
         declarationFacts =
-          Stdlib.Dict.map(env.types, fun name decl ->
+          Stdlib.Dict.map(env.types, fun(name, decl) ->
             // Too deep is refused before the walk rather than by the walk running out of
             // native stack part way through it. Same finding either way, so a reader sees
             // the same verdict; the difference is that this one is a decision.
             match NodeIds.typeTooDeep(NodeIds.declaredTypes(decl)) with
-            | Some _ ->
+            | Some(_) ->
               Model.DeclarationFacts
                 { problems = [ failureFinding(CheckFailure.TooDeep) ]
                   references = [] }
@@ -353,12 +353,12 @@ let prepareDeclarations(env: Model.Environment): Model.Environment =
             match
               guard((fun decl -> declarationFactsOf(env, cyclic, name, decl)), decl)
             with
-            | Ok declarationFacts ->
+            | Ok(declarationFacts) ->
               match Stdlib.Dict.get(traversalFailures, name) with
-              | Some problem ->
+              | Some(problem) ->
                 { declarationFacts with problems = Stdlib.List.prepend(declarationFacts.problems, problem) }
               | None -> declarationFacts
-            | Error failure ->
+            | Error(failure) ->
               Model.DeclarationFacts
                 { problems = [ failureFinding(failure) ], references = [] }) }
 
@@ -392,7 +392,7 @@ let referencesOf(
   name: LanguageTools.ProgramTypes.Hash)
   : List<LanguageTools.ProgramTypes.Hash> =
   match Stdlib.Dict.get(env.declarationFacts, name) with
-  | Some declarationFacts -> declarationFacts.references
+  | Some(declarationFacts) -> declarationFacts.references
   | None -> []
 
 /// Read a traversal index, defaulting to zero if absent. The component traversal
@@ -506,7 +506,7 @@ let allDeclarationProblems(
         completed = [] }
 
   let components =
-    Stdlib.List.fold(Stdlib.Dict.keys(env.types), start, fun components name ->
+    Stdlib.List.fold(Stdlib.Dict.keys(env.types), start, fun(components, name) ->
       if Stdlib.Dict.containsKey(components.index, name) then components
       else strongConnect(env, components, name))
 
@@ -515,12 +515,12 @@ let allDeclarationProblems(
   Stdlib.List.fold(
     Stdlib.List.reverse(components.completed),
     Dict {},
-    fun declarationProblems members ->
+    fun(declarationProblems, members) ->
       let own =
         members
         |> Stdlib.List.map(fun m ->
           match Stdlib.Dict.get(env.declarationFacts, m) with
-          | Some declarationFacts -> declarationFacts.problems
+          | Some(declarationFacts) -> declarationFacts.problems
           | None -> [])
         |> Stdlib.List.flatten
 
@@ -544,10 +544,10 @@ let allDeclarationProblems(
       // lost.
       let problems =
         match guard((fun problems -> Stdlib.List.unique(problems)), problems) with
-        | Ok unique -> unique
-        | Error _ -> problems
+        | Ok(unique) -> unique
+        | Error(_) -> problems
 
-      Stdlib.List.fold(members, declarationProblems, fun declarationProblems m ->
+      Stdlib.List.fold(members, declarationProblems, fun(declarationProblems, m) ->
         Stdlib.Dict.set(declarationProblems, m, problems)))
 
 /// Return prepared facts when available. Otherwise inspect the declaration and
@@ -558,10 +558,10 @@ let declarationFactsFor(
   name: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Option.Option<Model.DeclarationFacts> =
   match Stdlib.Dict.get(env.declarationFacts, name) with
-  | Some declarationFacts -> Stdlib.Option.Option.Some declarationFacts
+  | Some(declarationFacts) -> Stdlib.Option.Option.Some(declarationFacts)
   | None ->
     match Types.declaration(env, name) with
-    | Some decl ->
+    | Some(decl) ->
       let (_, cyclic) = reachesAliasCycle(env, Dict {}, Dict {}, name)
       Stdlib.Option.Option.Some(declarationFactsOf(env, cyclic, name, decl))
     | None -> Stdlib.Option.Option.None
@@ -598,9 +598,9 @@ let visitAll(
 
       match declarationFactsFor(env, name) with
       | None -> visitAll(env, at, walked, found, rest)
-      | Some declarationFacts ->
+      | Some(declarationFacts) ->
         let found =
-          Stdlib.List.fold(declarationFacts.problems, found, fun found problem ->
+          Stdlib.List.fold(declarationFacts.problems, found, fun(found, problem) ->
             Stdlib.List.prepend(found, { problem with at = at }))
 
         visitAll(
@@ -622,7 +622,7 @@ let declarationProblemsFor(
   name: LanguageTools.ProgramTypes.Hash)
   : (List<Model.Finding> * Model.Environment) =
   match Stdlib.Dict.get(env.declarationProblems, name) with
-  | Some problems -> (problems, env)
+  | Some(problems) -> (problems, env)
   | None ->
     let problems = collectDeclarationProblems(env, name)
     let declarationProblems =
@@ -640,11 +640,11 @@ let validateType(
   : (List<Model.Finding> * Model.Environment) =
   let (names, found) = checkTypeStructure(env, at, [], found, ty)
 
-  Stdlib.List.fold(Stdlib.List.unique(names), (found, env), fun (found, env) name ->
+  Stdlib.List.fold(Stdlib.List.unique(names), (found, env), fun((found, env), name) ->
     let (problems, env) = declarationProblemsFor(env, name)
 
     let found =
-      Stdlib.List.fold(problems, found, fun found problem ->
+      Stdlib.List.fold(problems, found, fun(found, problem) ->
         Stdlib.List.prepend(found, { problem with at = at }))
 
     (found, env))

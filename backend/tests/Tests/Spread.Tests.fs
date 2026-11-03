@@ -121,8 +121,8 @@ let private siblings =
     let! state = executionStateFor pmPT false
     for code in
       [ "Stdlib.List.filter(Stdlib.List.range(1, 100), fun i -> i % 3 == 0)"
-        "Stdlib.List.filterMap(Stdlib.List.range(1, 100), fun i -> if i % 4 == 0 then Stdlib.Option.Option.Some (i * 2) else Stdlib.Option.Option.None)"
-        "Stdlib.List.indexedMap(Stdlib.List.range(1, 100), fun idx i -> (idx, i * 10))" ] do
+        "Stdlib.List.filterMap(Stdlib.List.range(1, 100), fun i -> if i % 4 == 0 then Stdlib.Option.Option.Some(i * 2) else Stdlib.Option.Option.None)"
+        "Stdlib.List.indexedMap(Stdlib.List.range(1, 100), fun(idx, i) -> (idx, i * 10))" ] do
       let! (spread, moved) = delta spreads (fun () -> run state code)
       let! serial = runWith state false code
       Expect.isGreaterThan moved 0L $"spread: {code}"
@@ -324,7 +324,7 @@ let private fallbackIsPreempted =
     let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
-        "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in if i == 10 then (let _ = trace(\"ten\") in i) else Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun a x -> a + x)))))"
+        "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in if i == 10 then (let _ = trace(\"ten\") in i) else Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun(a, x) -> a + x)))))"
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None)
     let saved = Spread.crossover
@@ -354,7 +354,7 @@ let private syncFallbackIsPreempted =
     let! state = executionStateFor pmPT false
     let! instrs =
       instrsFor
-        "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in (let _ = trace(\"e\") in Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun a x -> a + x))))))"
+        "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in (let _ = trace(\"e\") in Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun(a, x) -> a + x))))))"
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None)
     let saved = Spread.crossover
@@ -436,9 +436,9 @@ let private packageFnsAnsweredByTheStore =
         task {
           let! state = predictingState ()
           let writes =
-            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Stdlib.Cli.FileSystem.writeFile(\"/tmp/spread-never-written\", Stdlib.Utf8.encode(\"x\")) else Stdlib.Result.Result.Ok ()) in i * 2)))"
+            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Stdlib.Cli.FileSystem.writeFile(\"/tmp/spread-never-written\", Stdlib.Utf8.encode(\"x\")) else Stdlib.Result.Result.Ok()) in i * 2)))"
           let pureBody =
-            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> Stdlib.List.fold(Stdlib.List.range(1, 50), i, fun a x -> a + x)))"
+            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> Stdlib.List.fold(Stdlib.List.range(1, 50), i, fun(a, x) -> a + x)))"
           let struct (pure0, impure0, _) = predicted ()
           let! (r1, moved1) = delta spreads (fun () -> run state writes)
           let struct (_, impure1, _) = predicted ()

@@ -33,7 +33,7 @@ let withModeHint(state: AppState, view: Stdlib.Cli.Tui.View): Stdlib.Cli.Tui.Vie
 let releasePromptRegion(state: AppState): AppState =
   match state.promptTerminal with
   | None -> state
-  | Some terminal ->
+  | Some(terminal) ->
     let parked =
       Prompt.Display.viewAtSize(
         state.prompt,
@@ -52,7 +52,7 @@ let releasePromptRegion(state: AppState): AppState =
 let clearPromptRegion(state: AppState): AppState =
   match state.promptTerminal with
   | None -> state
-  | Some terminal ->
+  | Some(terminal) ->
     let cleared =
       Stdlib.Cli.Tui.View {
         rows = []
@@ -70,13 +70,13 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
     let state =
       match state.currentPage with
       | MainPrompt -> clearPromptRegion(state)
-      | CompletionPicker session ->
+      | CompletionPicker(session) ->
         let _stopped = CompletionPicker.stop(session)
         state
-      | InteractiveNav session ->
+      | InteractiveNav(session) ->
         let _stopped = Stdlib.Cli.Tui.TerminalSession.stop(session.terminal)
         state
-      | SubApp app ->
+      | SubApp(app) ->
         app.onTerminate()
         state
     { state with isExiting = true }
@@ -136,10 +136,10 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
         let pickerState = CompletionPicker.create(state.prompt.text, multiple)
         let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
         match CompletionPicker.startAtSize(pickerState, size) with
-        | Ok session ->
+        | Ok(session) ->
           { released with
-              currentPage = Page.CompletionPicker session }
-        | Error message ->
+              currentPage = Page.CompletionPicker(session) }
+        | Error(message) ->
           Stdlib.printLine(message)
           released
 
@@ -170,16 +170,16 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
     | _ ->
       // Add character to prompt at cursor position
       match keyChar with
-      | Some char ->
+      | Some(char) ->
         { state with
             prompt = Prompt.Editing.insertAtCursor(state.prompt, char) }
       | None -> state
 
-  | InteractiveNav session ->
+  | InteractiveNav(session) ->
     // Interactive navigation key handling
     Packages.NavInteractive.handleKey(state, key, keyChar, session)
 
-  | CompletionPicker session ->
+  | CompletionPicker(session) ->
     // Completion picker key handling
     let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
     match
@@ -188,15 +188,15 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
         size,
         key)
     with
-    | Continue newPickerState ->
+    | Continue(newPickerState) ->
       let nextSession =
         CompletionPicker.presentAtSize(
           session,
           newPickerState,
           size)
       { state with
-          currentPage = Page.CompletionPicker nextSession }
-    | SelectItem selection ->
+          currentPage = Page.CompletionPicker(nextSession) }
+    | SelectItem(selection) ->
       // User selected an item - update prompt and return to main
       let _stopped = CompletionPicker.stop(session)
       let newPromptText =
@@ -211,23 +211,23 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
       let _stopped = CompletionPicker.stop(session)
       { state with
           currentPage = Page.MainPrompt }
-    | Unavailable message ->
+    | Unavailable(message) ->
       let _stopped = CompletionPicker.stop(session)
       Stdlib.printLine(message)
       { state with
           currentPage = Page.MainPrompt }
 
-  | SubApp app ->
+  | SubApp(app) ->
     let (action, newApp) = app.onKey(key, modifiers, keyChar)
     match action with
     | Continue ->
       { state with
-          currentPage = Page.SubApp newApp }
+          currentPage = Page.SubApp(newApp) }
     | Save ->
       // The app may come back changed: a failed write leaves a message on it.
       let saved = newApp.onSave()
       { state with
-          currentPage = Page.SubApp saved }
+          currentPage = Page.SubApp(saved) }
     | Exit ->
       newApp.onTerminate()
       // On the way out there's no frame left to say anything on, so whatever comes back is dropped.
@@ -240,17 +240,17 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
         // rather than poking the alternate screen directly.
         let resumed =
           match returnTo with
-          | SubApp app -> Page.SubApp (app.onResume())
+          | SubApp(app) -> Page.SubApp(app.onResume())
           | other -> other
         { state with currentPage = resumed, pageStack = rest }
       | [] ->
         // The workbench is the experience: leaving it leaves the CLI, no classic-prompt fallback.
         { state with isExiting = true }
-    | LaunchCommand cmd ->
+    | LaunchCommand(cmd) ->
       // Release this app's surface before the replacement command takes ownership, and push this page so the
       // launched page's exit returns here.
       newApp.onTerminate()
-      let saved = Page.SubApp newApp
+      let saved = Page.SubApp(newApp)
       // Launching from a live page is interactive by definition, even when the CLI itself was started
       // one-shot (`dark wb` takes the args path, which marks the session non-interactive). Without this, a
       // command that degrades when non-interactive prints its summary and leaves, instead of taking the
@@ -311,9 +311,9 @@ val maxKeyRepeat = 64
 module Update =
   let updateAppState(state: AppState, msg: Msg): AppState =
     match msg with
-    | ProcessInput input ->
+    | ProcessInput(input) ->
       Commands.parseAndExecute(state, input)
-    | KeyPressed (key, modifiers, keyChar) ->
+    | KeyPressed(key, modifiers, keyChar) ->
       handleKeyInput(state, key, modifiers, keyChar)
     | Exit ->
       { clearPromptRegion(state) with isExiting = true }
@@ -323,7 +323,7 @@ module Update =
     if Stdlib.String.isEmpty(trimmedInput) then
       state
     else
-      let msg = Msg.ProcessInput trimmedInput
+      let msg = Msg.ProcessInput(trimmedInput)
       updateAppState(state, msg)
 
 
@@ -389,7 +389,7 @@ let renderMainPrompt(
   if state.telemetryEnabled then
     Telemetry.log("render.buildView", tView)
   match state.promptTerminal with
-  | Some terminal ->
+  | Some(terminal) ->
     let tPresent = if state.telemetryEnabled then Telemetry.now() else 0
     let nextTerminal =
       Stdlib.Cli.Tui.TerminalSession.presentAtSize(
@@ -400,14 +400,14 @@ let renderMainPrompt(
       Telemetry.log("render.present", tPresent)
     { state with
         promptTerminal =
-          Stdlib.Option.Option.Some nextTerminal }
+          Stdlib.Option.Option.Some(nextTerminal) }
   | None ->
     match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, promptView) with
-    | Ok terminal ->
+    | Ok(terminal) ->
       { state with
           promptTerminal =
-            Stdlib.Option.Option.Some terminal }
-    | Error message ->
+            Stdlib.Option.Option.Some(terminal) }
+    | Error(message) ->
       Stdlib.printLine(message)
       { state with isExiting = true }
 
@@ -416,9 +416,9 @@ let renderMainPrompt(
 let pageName(page: Page): String =
   match page with
   | MainPrompt -> "MainPrompt"
-  | InteractiveNav _ -> "InteractiveNav"
-  | CompletionPicker _ -> "CompletionPicker"
-  | SubApp _ -> "SubApp"
+  | InteractiveNav(_) -> "InteractiveNav"
+  | CompletionPicker(_) -> "CompletionPicker"
+  | SubApp(_) -> "SubApp"
 
 
 /// How many times one read's key should be applied.
@@ -443,7 +443,7 @@ let applyKeyRead(
   keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead,
   times: Int)
   : AppState =
-  let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
+  let keyPressedMsg = Msg.KeyPressed(keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some(keyInput.keyChar))
   // A page transition ends the burst. Movement can cause one - a SubApp may return Exit or hand off to
   // another page on an arrow - and the rest of a burst must not be delivered to a page that never saw its
   // start. `pageStack` depth changes on every push and pop, so it's the cheap signal for "we're somewhere
@@ -464,12 +464,12 @@ let applyKeyRead(
     | _ -> Stdlib.Option.Option.None
 
   match promptPasteLines with
-  | Some segments ->
+  | Some(segments) ->
     let lastIdx = (Stdlib.List.length(segments)) - 1
 
     segments
-    |> Stdlib.List.indexedMap(fun i seg -> (i, seg))
-    |> Stdlib.List.fold(state, fun st pair ->
+    |> Stdlib.List.indexedMap(fun(i, seg) -> (i, seg))
+    |> Stdlib.List.fold(state, fun(st, pair) ->
       let (i, seg) = pair
 
       if st.isExiting then
@@ -484,7 +484,7 @@ let applyKeyRead(
               (Msg.KeyPressed(
                 keyInput.key,
                 keyInput.modifiers,
-                Stdlib.Option.Option.Some seg
+                Stdlib.Option.Option.Some(seg)
               )))
 
         if i == lastIdx then
@@ -497,7 +497,7 @@ let applyKeyRead(
             Stdlib.Option.Option.None))
   | None ->
     Stdlib.List.range(1, times)
-    |> Stdlib.List.fold(state, fun st _i ->
+    |> Stdlib.List.fold(state, fun(st, _i) ->
       if st.isExiting || (Stdlib.List.length(st.pageStack)) != startingDepth then st
       else Update.updateAppState(st, keyPressedMsg))
 
@@ -528,16 +528,16 @@ let runInteractiveLoop(state: AppState): Int =
       match state.currentPage with
       | MainPrompt -> renderMainPrompt(state, location, hint, size)
 
-      | InteractiveNav _ ->
+      | InteractiveNav(_) ->
         // Navigation presents on start and state transitions so its Page
         // retains the corresponding renderer history.
         state
 
-      | CompletionPicker _ ->
+      | CompletionPicker(_) ->
         // The retained inline session presents on launch and transitions.
         state
 
-      | SubApp app ->
+      | SubApp(app) ->
         app.onDisplay()
         state
 
@@ -559,7 +559,7 @@ let runInteractiveLoop(state: AppState): Int =
 
       let newState =
         match Stdlib.Host.await([ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ]) with
-        | Key keyInput ->
+        | Key(keyInput) ->
           // Process the key. A coalesced burst (a mouse wheel, or a held-down key) arrives as one read
           // with a repeat count; applying it here means every page gets wheel-aware scrolling without
           // knowing about it, and the burst costs one loop iteration instead of one per event.
@@ -578,11 +578,11 @@ let runInteractiveLoop(state: AppState): Int =
             Telemetry.logWithContext("loopWork", tLoopStart, [("workMs", Stdlib.toString(loopWorkMs)), ("interp", interpStats)])
 
           newState
-        | StoreChanged change ->
+        | StoreChanged(change) ->
           // Only a full-screen page shows something the store can move; the prompt and the pickers
           // read it on their next command.
           match renderedState.currentPage with
-          | SubApp app -> { renderedState with currentPage = Page.SubApp(app.onStoreChanged(change)) }
+          | SubApp(app) -> { renderedState with currentPage = Page.SubApp(app.onStoreChanged(change)) }
           | _ -> renderedState
         | _ -> renderedState
 

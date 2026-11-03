@@ -138,12 +138,12 @@ let clamp<'a: Compare>(value: 'a, limitA: 'a, limitB: 'a): 'a =
 /// <param xs> added up from <param seed>: `Stdlib.sum 0L [ 1L, 2L ]` is `3L`. The seed is what
 /// `[]` sums to, which is why it is an argument and not `Zero.zero`.
 let sum<'a: Add>(seed: 'a, xs: List<'a>): 'a =
-  Stdlib.List.fold(xs, seed, fun acc x -> acc + x)
+  Stdlib.List.fold(xs, seed, fun(acc, x) -> acc + x)
 
 
 /// <param xs> multiplied together from <param seed>, for any type with a `Multiply`
 let product<'a: Multiply>(seed: 'a, xs: List<'a>): 'a =
-  Stdlib.List.fold(xs, seed, fun acc x -> acc * x)
+  Stdlib.List.fold(xs, seed, fun(acc, x) -> acc * x)
 
 
 /// <param v> as text, for any type with a `ToString`

@@ -15,7 +15,7 @@ let traitTakesTheName(
   location: LanguageTools.ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<String> =
   match LanguageTools.PackageManager.Trait.find(branchId, location) with
-  | Some _ ->
+  | Some(_) ->
     Stdlib.Option.Option.Some(
       Stdlib.String.join(
         Stdlib.List.append(Stdlib.List.prepend(location.modules, location.owner), location.name),
@@ -67,7 +67,7 @@ let createImplInline(
     if modulePath == "." then "__impl__" else modulePath + ".__impl__"
 
   match Location.parseRelativeTo(currentLocation, locationInput) with
-  | Ok baseLocation ->
+  | Ok(baseLocation) ->
     let trimmedDefinition = Stdlib.String.trim(definition)
     let fullSource =
       if
@@ -88,7 +88,7 @@ let createImplInline(
       LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
 
     match tree with
-    | Some(SourceFile sourceFile) ->
+    | Some(SourceFile(sourceFile)) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
         (Errors.reportParseErrors(diagnostics))
@@ -98,11 +98,11 @@ let createImplInline(
           Stdlib.Option.Option.None
         else
           match sourceFile.declarations with
-          | [ Impl i ] -> Stdlib.Option.Option.Some i
+          | [ Impl(i) ] -> Stdlib.Option.Option.Some(i)
           | _ -> Stdlib.Option.Option.None
 
       match parsed with
-      | Some implDecl ->
+      | Some(implDecl) ->
         // The item's own location: the member path's last segment is the trait.
         let memberPath =
           LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.memberPath(
@@ -184,8 +184,8 @@ let createImplInline(
 
               let traitUnresolved =
                 match packageImpl.trait_.resolved with
-                | Ok _ -> false
-                | Error _ -> true
+                | Ok(_) -> false
+                | Error(_) -> true
 
               if traitUnresolved then
                 Cli.printErr($"There is no trait called {traitName}.")
@@ -219,7 +219,7 @@ let createImplInline(
         ""
       ] |> Cli.Stderr.lines
       { state with exitCode = 1 }
-  | Error msg ->
+  | Error(msg) ->
     Cli.printErr($"Invalid module: {msg}")
     { state with exitCode = 1 }
 

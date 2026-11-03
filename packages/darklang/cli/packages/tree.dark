@@ -63,10 +63,10 @@ let displayTableOfContents(): Unit =
   // Group entries by category
   let grouped =
     tocEntries
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc entry ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, entry) ->
       let existing =
         match Stdlib.Dict.get(acc, entry.category) with
-        | Some list -> list
+        | Some(list) -> list
         | None -> []
 
       Stdlib.Dict.set(
@@ -85,7 +85,7 @@ let displayTableOfContents(): Unit =
   categories
   |> Stdlib.List.iter(fun category ->
     match Stdlib.Dict.get(grouped, category) with
-    | Some entries ->
+    | Some(entries) ->
       Stdlib.printLine(Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, category))
 
       entries
@@ -106,9 +106,9 @@ let execute(state: AppState, args: List<String>): AppState =
   // `--depth 3` is `--depth=3`: the argument check takes a value flag either way, so read both.
   let args =
     match Stdlib.List.findFirstIndex(args, fun a -> a == "--depth") with
-    | Some i ->
+    | Some(i) ->
       match Stdlib.List.getAt(args, i + 1) with
-      | Some value ->
+      | Some(value) ->
         Stdlib.List.concat(
           Stdlib.List.take(args, i),
           Stdlib.List.prepend(Stdlib.List.drop(args, i + 2), $"--depth={value}"))
@@ -127,18 +127,18 @@ let execute(state: AppState, args: List<String>): AppState =
     // Parse depth option (default is 2 for better initial view)
     let depth =
       match Stdlib.List.findFirst(args, fun arg -> Stdlib.String.startsWith(arg, "--depth=")) with
-      | Some depthArg ->
+      | Some(depthArg) ->
         let depthStr = Stdlib.String.dropFirst(depthArg, 8) // Remove "--depth="
         match Stdlib.Int.parse(depthStr) with
-        | Ok depth when depth > 0 && depth <= 10 -> Stdlib.Option.Option.Some depth
+        | Ok(depth) when depth > 0 && depth <= 10 -> Stdlib.Option.Option.Some(depth)
         | _ -> Stdlib.Option.Option.None
-      | None -> Stdlib.Option.Option.Some 2 // Default depth of 2 for concise but useful view
+      | None -> Stdlib.Option.Option.Some(2) // Default depth of 2 for concise but useful view
 
     match depth with
     | None ->
       Cli.printErr("--depth takes a number from 1 to 10.")
       Cli.exitWith(state, false)
-    | Some maxDepth ->
+    | Some(maxDepth) ->
 
     let branchId = state.currentBranchId
 
@@ -151,17 +151,17 @@ let execute(state: AppState, args: List<String>): AppState =
     // question, and says nothing about the path you gave.
     let startLocation =
       match pathArgs with
-      | [] -> Stdlib.Result.Result.Ok state.packageData.currentLocation
+      | [] -> Stdlib.Result.Result.Ok(state.packageData.currentLocation)
       | [ pathStr ] ->
         Traversal.traverse(branchId, state.packageData.currentLocation, pathStr)
       | _ ->
-        Stdlib.Result.Result.Error "tree takes at most one path"
+        Stdlib.Result.Result.Error("tree takes at most one path")
 
     match startLocation with
-    | Error e ->
+    | Error(e) ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot show a tree: {e}"))
       Cli.exitWith(state, false)
-    | Ok startLocation ->
+    | Ok(startLocation) ->
       // Load deprecation sets once for the whole tree render.
       let depSets = Query.loadDeprecationSets(branchId)
 
@@ -207,36 +207,36 @@ let displayTree(
     // Combine all entities with their types in proper order: modules, types, values, functions.
     // Modules have no hash, use an empty-string placeholder.
     let allEntities =
-      let implNames = implEntries |> Stdlib.List.map(fun (name, _) -> name)
+      let implNames = implEntries |> Stdlib.List.map(fun((name, _)) -> name)
 
       let moduleEntities =
         LanguageTools.PackageManager.Search.readerSubmodules(submoduleNames, implNames)
-        |> Stdlib.List.map(fun name -> (name, EntityType.Module, LanguageTools.ProgramTypes.Hash.Hash ""))
-        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun name -> (name, EntityType.Module, LanguageTools.ProgramTypes.Hash.Hash("")))
+        |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
       let typeEntities =
         typeEntries
-        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Type, hash))
-        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Type, hash))
+        |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
       let valueEntities =
         valueEntries
-        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Value, hash))
-        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Value, hash))
+        |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
       let functionEntities =
         fnEntries
-        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Function, hash))
-        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Function, hash))
+        |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
       let traitEntities =
         traitEntries
-        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Trait, hash))
-        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Trait, hash))
+        |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
       let implEntities =
         implEntries
-        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Impl, hash))
-        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Impl, hash))
+        |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
       let testEntities =
         testEntries
-        |> Stdlib.List.map(fun (name, hash) -> (name, EntityType.Test, hash))
-        |> Stdlib.List.sortBy(fun (name, _, _) -> name)
+        |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Test, hash))
+        |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
 
       moduleEntities
       |> Stdlib.List.concat(typeEntities)
@@ -249,7 +249,7 @@ let displayTree(
     // Display entities with appropriate icons
     let entitiesCount = Stdlib.List.length(allEntities)
     allEntities
-    |> Stdlib.List.indexedMap(fun index entry ->
+    |> Stdlib.List.indexedMap(fun(index, entry) ->
       let (name, entityType, hash) = entry
       let isLast = index == (entitiesCount - 1)
       let treeBranch = if isLast then "└── " else "├── "
@@ -273,7 +273,7 @@ let displayTree(
          && remainingDepth > 1 then
         let newPrefix = prefix + (if isLast then "    " else "│   ")
         let newModulePath = Stdlib.List.append(modulePath, name)
-        let newLocation = PackageLocation.Module newModulePath
+        let newLocation = PackageLocation.Module(newModulePath)
         displayTree(
           branchId,
           newLocation,

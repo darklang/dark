@@ -371,7 +371,7 @@ let typecheckScopesToAModule =
                   "        entityTypes = []"
                   "        exactMatch = false })"
                   "let distinct(found: List<(String * Darklang.LanguageTools.ProgramTypes.Hash)>): Int ="
-                  "  Stdlib.List.length(Stdlib.List.unique(Stdlib.List.map(found, fun (_, h) -> h)))"
+                  "  Stdlib.List.length(Stdlib.List.unique(Stdlib.List.map(found, fun((_, h)) -> h)))"
                   "(distinct(types)) + (distinct(values)) + (distinct(fns)) + (distinct(impls)) + (distinct(tests))" ] ]
         Expect.equal
           (string (total wider))

@@ -12,14 +12,14 @@ let readConfig(): Dict<String, String> =
   match Stdlib.Cli.FileSystem.pathExists(configFilePath()) with
   | true ->
     match Stdlib.Cli.FileSystem.readFile(configFilePath()) with
-    | Ok bytes ->
+    | Ok(bytes) ->
       let contents = Stdlib.Utf8.decodeWithReplacement(bytes)
 
       match Stdlib.Json.parse<Dict<String, String>>(contents) with
-      | Ok config -> config
-      | Error _ -> Dict {}
+      | Ok(config) -> config
+      | Error(_) -> Dict {}
 
-    | Error _ -> Dict {}
+    | Error(_) -> Dict {}
 
   | false -> Dict {}
 
@@ -38,7 +38,7 @@ let get(key: String): Stdlib.Option.Option<String> =
 // A single Int config value, falling back to `default_` when absent or unparseable.
 let getInt(key: String, default_: Int): Int =
   match get(key) with
-  | Some s -> Stdlib.Result.withDefault(Stdlib.Int.parse(s), default_)
+  | Some(s) -> Stdlib.Result.withDefault(Stdlib.Int.parse(s), default_)
   | None -> default_
 
 
@@ -80,13 +80,13 @@ let editDistance(a: String, b: String): Int =
 
   let lastRow =
     Stdlib.String.toList(a)
-    |> Stdlib.List.indexedMap(fun i ca -> (i, ca))
-    |> Stdlib.List.fold(firstRow, fun prev pair ->
+    |> Stdlib.List.indexedMap(fun(i, ca) -> (i, ca))
+    |> Stdlib.List.fold(firstRow, fun(prev, pair) ->
       let (i, ca) = pair
 
       bs
-      |> Stdlib.List.indexedMap(fun j cb -> (j, cb))
-      |> Stdlib.List.fold([ i + 1 ], fun row pair ->
+      |> Stdlib.List.indexedMap(fun(j, cb) -> (j, cb))
+      |> Stdlib.List.fold([ i + 1 ], fun(row, pair) ->
         let (j, cb) = pair
         // `row` is built back to front, so its head is the cell to the left.
         let left = Stdlib.Option.withDefault(Stdlib.List.head(row), 0)
@@ -110,7 +110,7 @@ let nearestKey(key: String): Stdlib.Option.Option<String> =
       Stdlib.String.endsWith(Stdlib.String.toLowercase(k), "." + lower))
 
   match bySuffix with
-  | [only] -> Stdlib.Option.Option.Some only
+  | [only] -> Stdlib.Option.Option.Some(only)
   | _ ->
     let scored =
       keys
@@ -124,13 +124,13 @@ let nearestKey(key: String): Stdlib.Option.Option<String> =
       match rest with
       // A tie is not obvious.
       | [(d2, _), ...] when d2 == d -> Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.Some k
+      | _ -> Stdlib.Option.Option.Some(k)
     | _ -> Stdlib.Option.Option.None
 
 let unknownKeyMessage(key: String): String =
   let hint =
     match Config.nearestKey(key) with
-    | Some k -> $" Did you mean {k}?"
+    | Some(k) -> $" Did you mean {k}?"
     | None -> ""
   $"{key} is not a config key.{hint} `config list` names the keys."
 
@@ -141,7 +141,7 @@ let policyResolves(branchId: Uuid, name: String): Bool =
     let hash = Stdlib.String.dropFirst(name, 1)
     (Stdlib.String.length(hash) == 64)
     && (Stdlib.Option.isSome(
-      LanguageTools.PackageManager.Function.get(LanguageTools.ProgramTypes.Hash.Hash hash)))
+      LanguageTools.PackageManager.Function.get(LanguageTools.ProgramTypes.Hash.Hash(hash))))
   else
     Stdlib.Option.isSome(
       LanguageTools.PackageManager.Function.find(
@@ -167,32 +167,32 @@ let checkValue(
   if Stdlib.List.contains(wholeNumber, key) then
     match Stdlib.Int.parse(value) with
     // The boot ignores a poll under 10 ms (`Cli.fs`), so refuse it here rather than store it.
-    | Ok n when key == "exec.storePollMs" && n < 10 ->
-      Stdlib.Option.Option.Some $"{key} takes a whole number of ms, 10 or more, not {value}"
-    | Ok n when n >= 0 -> Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.Some $"{key} takes a whole number (0 = none), not {value}"
+    | Ok(n) when key == "exec.storePollMs" && n < 10 ->
+      Stdlib.Option.Option.Some($"{key} takes a whole number of ms, 10 or more, not {value}")
+    | Ok(n) when n >= 0 -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.Some($"{key} takes a whole number (0 = none), not {value}")
   else if key == "exec.spreadCrossover" then
     match Stdlib.Int.parse(value) with
-    | Ok _ -> Stdlib.Option.Option.None
+    | Ok(_) -> Stdlib.Option.Option.None
     | _ ->
-      Stdlib.Option.Option.Some $"{key} takes a whole number (below 0 = never spread), not {value}"
+      Stdlib.Option.Option.Some($"{key} takes a whole number (below 0 = never spread), not {value}")
   else if
     Stdlib.List.contains(
       [ "trace.record", "http.loopback", "http.private", "exec.spreadPredict" ],
       key)
   then
     if (value == "on") || (value == "off") then Stdlib.Option.Option.None
-    else Stdlib.Option.Option.Some $"{key} is on or off"
+    else Stdlib.Option.Option.Some($"{key} is on or off")
   else if key == "exec.policy" then
     // Empty is the round-robin default again.
     if (value == "") || (Config.policyResolves(branchId, value)) then
       Stdlib.Option.Option.None
     else
-      Stdlib.Option.Option.Some
-        $"{key} names a package function, and {value} is not one on this branch"
+      Stdlib.Option.Option.Some(
+        $"{key} names a package function, and {value} is not one on this branch")
   else if key == "instance.name" then
     if Stdlib.String.trim(value) == "" then
-      Stdlib.Option.Option.Some $"{key} needs a name"
+      Stdlib.Option.Option.Some($"{key} needs a name")
     else
       Stdlib.Option.Option.None
   else
@@ -210,7 +210,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   | ["set", key, value] when isStoreKey(key) ->
     match checkValue(state.currentBranchId, key, value) with
-    | Some problem ->
+    | Some(problem) ->
       Cli.printErr(problem)
       { state with exitCode = 1 }
     | None ->
@@ -220,7 +220,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   | ["get", key] when Stdlib.List.contains(Config.fileKeys, key) ->
     match get(key) with
-    | Some value -> Stdlib.printLine($"{key} = {value}")
+    | Some(value) -> Stdlib.printLine($"{key} = {value}")
     | None -> Stdlib.printLine($"{key} is not set (the default applies; `config list` has it)")
     state
 
@@ -230,7 +230,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   | ["set", "instance.name", value] ->
     match checkValue(state.currentBranchId, "instance.name", value) with
-    | Some problem ->
+    | Some(problem) ->
       Cli.printErr(problem)
       { state with exitCode = 1 }
     | None ->

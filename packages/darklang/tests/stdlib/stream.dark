@@ -23,13 +23,13 @@ test nextPullsHeadLeavesRest =
   let first = Stdlib.Stream.next(s)
   let second = Stdlib.Stream.next(s)
   let third = Stdlib.Stream.next(s)
-  [ first, second, third ] |> Stdlib.Test.equal([ Some 7L, Some 8L, None ])
+  [ first, second, third ] |> Stdlib.Test.equal([ Some(7L), Some(8L), None ])
 
 // toBytes drains a Stream<UInt8> into a Bytes
 test toBytesDrainsBytes =
   let s = Stdlib.Stream.fromList([ 104uy, 105uy ])
   let b = Stdlib.Stream.toBytes(s)
-  Stdlib.Utf8.decode(b) |> Stdlib.Test.equal(Ok "hi")
+  Stdlib.Utf8.decode(b) |> Stdlib.Test.equal(Ok("hi"))
 
 // close is idempotent; subsequent next returns None
 test closeIsIdempotent =

@@ -137,15 +137,15 @@ module ReplayStop =
   /// page is unhelpful rather than wrong.
   let isDrift(stop: ReplayStop): Bool =
     match stop with
-    | Raised err ->
+    | Raised(err) ->
       match err with
       // A name that no longer resolves, or resolves to a hash that is gone.
       | ParseTimeNameResolution(_names, _err) -> true
-      | FnNotFound _ -> true
-      | TypeNotFound _ -> true
-      | ValueNotFound _ -> true
+      | FnNotFound(_) -> true
+      | TypeNotFound(_) -> true
+      | ValueNotFound(_) -> true
       // Still there, but marked harmful since the recording. The commonest drift in practice,
       // because deprecating something is a deliberate act someone takes after it has run.
-      | DeprecatedItemHalted _ -> true
+      | DeprecatedItemHalted(_) -> true
       | _ -> false
     | _ -> true

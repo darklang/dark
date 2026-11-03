@@ -263,7 +263,7 @@ module MatchPattern =
     | WT.MPVariable(_, varName) ->
       let newContext = bindLocalName context varName
       (newContext, PT.MPVariable(gid (), varName))
-    | WT.MPEnum(_, (_, caseName), fieldPats) ->
+    | WT.MPEnum(_, _, (_, caseName), fieldPats) ->
       let (finalContext, convertedPats) = fieldPats |> foldMapContext toPT context
       (finalContext, PT.MPEnum(gid (), caseName, convertedPats))
     | WT.MPInt64(_, (_, i), _) -> (context, PT.MPInt64(gid (), i))
@@ -320,6 +320,22 @@ module MatchPattern =
       // Parse-error holes cannot reach execution lowering. Callers reject
       // parses with diagnostics before this point.
       Exception.raiseInternal "parse-error hole (MPError) reached lowering" []
+
+  /// The `Type.Case(…)` patterns in `p`, as (type path, case name). A pattern does
+  /// not record its type, so the qualifier is only checked to name a type.
+  let rec qualifiedCases (p : WT.MatchPattern) : List<List<string> * string> =
+    match p with
+    | WT.MPEnum(_, path, (_, caseName), fields) ->
+      let here = if List.isEmpty path then [] else [ (path, caseName) ]
+      here @ List.collect qualifiedCases fields
+    | WT.MPTuple(_, first, _, second, rest, _, _) ->
+      qualifiedCases first
+      @ qualifiedCases second
+      @ List.collect (snd >> qualifiedCases) rest
+    | WT.MPList(_, contents, _, _) -> List.collect (fst >> qualifiedCases) contents
+    | WT.MPListCons(_, head, tail, _) -> qualifiedCases head @ qualifiedCases tail
+    | WT.MPOr(_, pats) -> List.collect qualifiedCases pats
+    | _ -> []
 
 
 module Expr =
@@ -731,6 +747,11 @@ module Expr =
             (fun (case : WT.MatchCase) ->
               uply {
                 let (patternContext, mp) = MatchPattern.toPT context case.pat
+                // `| Result.Ok(x)`: the qualifier must name a type
+                let! (_ : List<PT.NameResolution<PT.FQTypeName.FQTypeName>>) =
+                  MatchPattern.qualifiedCases case.pat
+                  |> Ply.List.mapSequentially (fun (path, caseName) ->
+                    resolveTypeName pm onMissing currentModule path caseName)
                 let! whenCondition =
                   uply {
                     match case.whenCondition with

@@ -9,7 +9,7 @@ type Hash = | Hash of String
 
 let hashToString(hash: Hash): String =
   match hash with
-  | Hash h -> h
+  | Hash(h) -> h
 
 module FQTypeName =
   type Package = Hash

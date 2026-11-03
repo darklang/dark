@@ -37,7 +37,7 @@ let isSimpleName(name: String): Bool =
     let chars = Stdlib.String.toList(name)
     let firstOk =
       match Stdlib.List.head(chars) with
-      | Some c -> Stdlib.Char.isASCIILetter(c) || (Stdlib.toString(c)) == "_"
+      | Some(c) -> Stdlib.Char.isASCIILetter(c) || (Stdlib.toString(c)) == "_"
       | None -> false
     let restOk =
       chars
@@ -64,7 +64,7 @@ let splitStatements(text: String): List<String> =
       (Stdlib.String.trim(l)) != "" && (Stdlib.String.startsWith(l, " ") || Stdlib.String.startsWith(l, "\t")))
   let (acc, current) =
     lines
-    |> Stdlib.List.fold(([], ""), fun state_ line ->
+    |> Stdlib.List.fold(([], ""), fun(state_, line) ->
       let (acc, current) = state_
       if (Stdlib.String.trim(line)) == "" then
         // A blank line closes whatever was open.
@@ -83,7 +83,7 @@ let splitStatements(text: String): List<String> =
 let openBracketDepth(text: String): Int =
   let (depth, _inString, _escaped) =
     Stdlib.String.toList(text)
-    |> Stdlib.List.fold((0, false, false), fun acc c ->
+    |> Stdlib.List.fold((0, false, false), fun(acc, c) ->
       let (depth, inString, escaped) = acc
       let s = Stdlib.toString(c)
       if escaped then (depth, inString, false)
@@ -149,7 +149,7 @@ let parseLetBinding(text: String): Stdlib.Option.Option<(String * String)> =
     let body = Stdlib.String.dropFirst(trimmed, 4)
     match Stdlib.String.indexOf(body, "=") with
     | None -> Stdlib.Option.Option.None
-    | Some i ->
+    | Some(i) ->
       let name = Stdlib.String.trim(Stdlib.String.slice(body, 0, i))
       let rhs = Stdlib.String.trim(Stdlib.String.dropFirst(body, i + 1))
       // `let x == y` is a comparison typo, not a binding; and an empty right-hand side isn't one either.
@@ -206,12 +206,12 @@ let upsert(bindings: List<Binding>, b: Binding): List<Binding> =
 /// `branchId` is the branch to resolve type names against.
 let captureValue(branchId: Uuid, v: 'a): String =
   match LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr(branchId, LanguageTools.RuntimeTypes.reflect(v)) with
-  | Ok e ->
+  | Ok(e) ->
     "ok:"
     + (PrettyPrinter.ProgramTypes.expr(
           PrettyPrinter.ProgramTypes.Context.forBranch(branchId),
           e))
-  | Error reason -> "err:" + reason
+  | Error(reason) -> "err:" + reason
 
 /// The expression to evaluate for `let <name> = <rhs>`: bind it, then hand the value to `captureValue` so the
 /// session can hold the value. The binding is in scope for its own capture, which is what makes the captured

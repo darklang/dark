@@ -287,8 +287,8 @@ let detectSupersededDecisions(): Stdlib.Result.Result<List<Finding>, String> =
           dependencyKind = kind
           detail =
             FindingDetail.Versions(
-              LanguageTools.ProgramTypes.Hash.Hash chosen,
-              LanguageTools.ProgramTypes.Hash.Hash live
+              LanguageTools.ProgramTypes.Hash.Hash(chosen),
+              LanguageTools.ProgramTypes.Hash.Hash(live)
             ) }))
 
 
@@ -315,14 +315,14 @@ let withoutWrittenNames(
   t: LanguageTools.RuntimeTypes.TypeReference)
   : LanguageTools.RuntimeTypes.TypeReference =
   match t with
-  | TStream inner -> LanguageTools.RuntimeTypes.TypeReference.TStream(withoutWrittenNames(inner))
+  | TStream(inner) -> LanguageTools.RuntimeTypes.TypeReference.TStream(withoutWrittenNames(inner))
   | TTuple(first, second, rest) ->
     LanguageTools.RuntimeTypes.TypeReference.TTuple(
       withoutWrittenNames(first),
       withoutWrittenNames(second),
       Stdlib.List.map(rest, fun r -> withoutWrittenNames(r))
     )
-  | TList inner -> LanguageTools.RuntimeTypes.TypeReference.TList(withoutWrittenNames(inner))
+  | TList(inner) -> LanguageTools.RuntimeTypes.TypeReference.TList(withoutWrittenNames(inner))
   | TDict(k, v) ->
     LanguageTools.RuntimeTypes.TypeReference.TDict(withoutWrittenNames(k), withoutWrittenNames(v))
   | TCustomType(nr, args) ->
@@ -363,13 +363,13 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
 
     // Pairs (i, j) with i before j and the same self type; each pair once.
     candidates
-    |> Stdlib.List.indexedMap(fun i c -> (i, c))
-    |> Stdlib.List.map(fun (i, cPair) ->
+    |> Stdlib.List.indexedMap(fun(i, c) -> (i, c))
+    |> Stdlib.List.map(fun((i, cPair)) ->
       let (c, cSelf) = cPair
       let (selfStr, selfKey) = cSelf
       candidates
-      |> Stdlib.List.indexedMap(fun j d -> (j, d))
-      |> Stdlib.List.filterMap(fun (j, dPair) ->
+      |> Stdlib.List.indexedMap(fun(j, d) -> (j, d))
+      |> Stdlib.List.filterMap(fun((j, dPair)) ->
         let (d, dSelf) = dPair
         let (_, dKey) = dSelf
         if j > i && dKey == selfKey then
@@ -378,7 +378,7 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
               LanguageTools.PackageManager.PickContext.empty,
               LanguageTools.PackageManager.TraitImpl.locations(branchId, h))
           match locOf(c.source), locOf(d.source) with
-          | Some mine, Some other ->
+          | Some(mine), Some(other) ->
             let cHash = LanguageTools.ProgramTypes.hashToString(c.source)
             let dHash = LanguageTools.ProgramTypes.hashToString(d.source)
 
@@ -438,7 +438,7 @@ let detectOutdatedUsagesOn(branchId: Uuid): List<Finding> =
          ORDER BY rowid",
         [ Stdlib.Json.serialize<List<String>>(bindings |> Stdlib.List.map(fun b -> b.hash)) ])
       |> Stdlib.List.reverse
-      |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc row ->
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, row) ->
         let h = txt(row, "item_hash")
         let rest = Stdlib.Dict.get(acc, h) |> Stdlib.Option.withDefault([])
         Stdlib.Dict.set(acc, h, Stdlib.List.prepend(rest, row)))
@@ -465,7 +465,7 @@ let detectOutdatedUsagesOn(branchId: Uuid): List<Finding> =
 
         match Stdlib.Dict.get(live, Conflicts.bindingKey(owner, modules, name)) with
         | None -> Stdlib.Option.Option.None
-        | Some cur ->
+        | Some(cur) ->
           if cur.hash == (txt(row, "using_hash")) then
             Stdlib.Option.Option.None
           else
@@ -482,7 +482,7 @@ let detectOutdatedUsagesOn(branchId: Uuid): List<Finding> =
                   dependency = dependency
                   dependencyKind = Deps.kindOf(txt(row, "d_type"))
                   detail =
-                    FindingDetail.Versions(using, LanguageTools.ProgramTypes.Hash.Hash cur.hash) }
+                    FindingDetail.Versions(using, LanguageTools.ProgramTypes.Hash.Hash(cur.hash)) }
             )))
     |> Stdlib.List.flatten
 
@@ -500,8 +500,8 @@ let detectAll(): Detection =
   // Detection and acknowledgement are independent of dependency upgrades.
   let (decisions, decisionsBlocked) =
     match detectSupersededDecisions() with
-    | Ok fs -> (fs, [])
-    | Error e -> ([], [ e ])
+    | Ok(fs) -> (fs, [])
+    | Error(e) -> ([], [ e ])
 
   Detection
     { findings =
@@ -529,7 +529,7 @@ let pending(): Detection =
         |> Stdlib.List.filter(fun s ->
           let isAcked =
             match Stdlib.Dict.get(ackedSet, s.id) with
-            | Some _ -> true
+            | Some(_) -> true
             | None -> false
 
           Stdlib.Bool.not(isAcked))
@@ -568,9 +568,9 @@ let ack(
       $"ack:{s.id}",
       s.usage,
       reason,
-      LanguageTools.ProgramTypes.DecisionKind.Ack s.id
+      LanguageTools.ProgramTypes.DecisionKind.Ack(s.id)
     )
 
   match SCM.PackageOps.add(branchId, [ op ]) with
-  | Ok _ -> Stdlib.Result.Result.Ok(())
-  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(_) -> Stdlib.Result.Result.Ok(())
+  | Error(e) -> Stdlib.Result.Result.Error(e)

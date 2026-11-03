@@ -8,11 +8,11 @@ module OS =
 
   let getOS(): Stdlib.Result.Result<OS, String> =
     match Builtin.runtimeTargetOS() with
-    | "linux" -> Ok OS.OS.Linux
-    | "darwin" -> Ok OS.OS.MacOS
+    | "linux" -> Ok(OS.OS.Linux)
+    | "darwin" -> Ok(OS.OS.MacOS)
     | "windows" ->
-      Error "Dark does not support Windows. Linux and macOS only, including WSL."
-    | _ -> Error "Unsupported operating system"
+      Error("Dark does not support Windows. Linux and macOS only, including WSL.")
+    | _ -> Error("Unsupported operating system")
 
 
 module Architecture =
@@ -24,12 +24,12 @@ module Architecture =
 
   let getArchitecture(): Stdlib.Result.Result<Architecture, String> =
     match Builtin.runtimeTargetArchitecture() with
-    | "x64" -> Ok Architecture.Architecture.X86_64
+    | "x64" -> Ok(Architecture.Architecture.X86_64)
     | "arm64" ->
-      if Builtin.runtimeTargetOS() == "darwin" then Ok Architecture.Architecture.Arm64
-      else Ok Architecture.Architecture.Aarch64
-    | "arm" -> Ok Architecture.Architecture.Arm
-    | _ -> Error "Unsupported architecture"
+      if Builtin.runtimeTargetOS() == "darwin" then Ok(Architecture.Architecture.Arm64)
+      else Ok(Architecture.Architecture.Aarch64)
+    | "arm" -> Ok(Architecture.Architecture.Arm)
+    | _ -> Error("Unsupported architecture")
 
 
 module Shell =
@@ -42,34 +42,34 @@ module Shell =
   /// Returns  {{Ok <Shell>}} if successful, or {{Error}} with a message if the shell is unsupported or an error occurs.
   let getDefaultShell(): Stdlib.Result.Result<Shell, String> =
     match OS.getOS() with
-    | Ok Linux ->
-      (Stdlib.Result.Result.Ok (Stdlib.Option.withDefault(Stdlib.Cli.Env.get("SHELL"), "/bin/bash")))
+    | Ok(Linux) ->
+      (Stdlib.Result.Result.Ok(Stdlib.Option.withDefault(Stdlib.Cli.Env.get("SHELL"), "/bin/bash")))
       |> Stdlib.Result.andThen(fun shell ->
         match Stdlib.String.trim(shell) with
-        | "/bin/bash" -> Stdlib.Result.Result.Ok Shell.Shell.Bash
-        | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Shell.Zsh
+        | "/bin/bash" -> Stdlib.Result.Result.Ok(Shell.Shell.Bash)
+        | "/bin/zsh" -> Stdlib.Result.Result.Ok(Shell.Shell.Zsh)
         | shell when shell |> Stdlib.String.contains("/fish") ->
-          Stdlib.Result.Result.Ok Shell.Shell.Fish
+          Stdlib.Result.Result.Ok(Shell.Shell.Fish)
         | _ ->
-          Stdlib.Result.Result.Error
-            "Unsupported shell, if you are on Linux please use Bash, Zsh, or Fish")
+          Stdlib.Result.Result.Error(
+            "Unsupported shell, if you are on Linux please use Bash, Zsh, or Fish"))
 
-    | Ok MacOS ->
-      (Stdlib.Result.Result.Ok (Stdlib.Option.withDefault(Stdlib.Cli.Env.get("SHELL"), "/bin/bash")))
+    | Ok(MacOS) ->
+      (Stdlib.Result.Result.Ok(Stdlib.Option.withDefault(Stdlib.Cli.Env.get("SHELL"), "/bin/bash")))
       |> Stdlib.Result.andThen(fun shell ->
         match Stdlib.String.trim(shell) with
-        | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Shell.Zsh
+        | "/bin/zsh" -> Stdlib.Result.Result.Ok(Shell.Shell.Zsh)
         | shell when shell |> Stdlib.String.contains("/bin/bash") ->
-          Stdlib.Result.Result.Ok Shell.Shell.Bash
+          Stdlib.Result.Result.Ok(Shell.Shell.Bash)
         | shell when shell |> Stdlib.String.contains("/fish") ->
-          Stdlib.Result.Result.Ok Shell.Shell.Fish
+          Stdlib.Result.Result.Ok(Shell.Shell.Fish)
         | _ ->
-          Stdlib.Result.Result.Error
-            "Unsupported shell, if you are on MacOS please use Bash, Zsh, or Fish")
+          Stdlib.Result.Result.Error(
+            "Unsupported shell, if you are on MacOS please use Bash, Zsh, or Fish"))
 
-    | Error _ ->
-      Stdlib.Result.Result.Error
-        "Unsupported OS, couldn't determine default shell"
+    | Error(_) ->
+      Stdlib.Result.Result.Error(
+        "Unsupported OS, couldn't determine default shell")
 
 
 module Host =
@@ -86,7 +86,7 @@ module Host =
     let defaultShell = Shell.getDefaultShell()
 
     match os, arch, defaultShell with
-    | Ok os, Ok arch, Ok defaultShell ->
+    | Ok(os), Ok(arch), Ok(defaultShell) ->
       Stdlib.Result.Result.Ok(
         Host.Host
           { os = os
@@ -94,11 +94,11 @@ module Host =
             defaultShell = defaultShell }
       )
 
-    | Error os, _, _ ->
-      Stdlib.Result.Result.Error $"Couldn't determine host OS: ${os}"
-    | _, Error arch, _ ->
-      Stdlib.Result.Result.Error
-        $"Couldn't determine host architecture: ${arch}"
-    | _, _, Error defaultShell ->
-      Stdlib.Result.Result.Error
-        $"Couldn't determine host default shell ${defaultShell}"
+    | Error(os), _, _ ->
+      Stdlib.Result.Result.Error($"Couldn't determine host OS: ${os}")
+    | _, Error(arch), _ ->
+      Stdlib.Result.Result.Error(
+        $"Couldn't determine host architecture: ${arch}")
+    | _, _, Error(defaultShell) ->
+      Stdlib.Result.Result.Error(
+        $"Couldn't determine host default shell ${defaultShell}")

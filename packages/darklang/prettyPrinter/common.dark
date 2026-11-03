@@ -47,7 +47,7 @@ let encodeChar(c: Char): String =
     |> Stdlib.String.replaceAll("\\", "\\\\")
     |> Stdlib.String.replaceAll("\r", "\\r")
     |> Stdlib.String.replaceAll("\n", "\\n")
-  | Some code ->
+  | Some(code) ->
     if code == 92 then "\\\\"
     else if code == 7 then "\\a"
     else if code == 8 then "\\b"
@@ -130,7 +130,7 @@ let formatAccessedFieldName(name: String): String =
 /// `1e-5`, and cutting two characters off that gave `0.-5`.
 let processRemainder(remainder: String): String =
   match $".{remainder}" |> Stdlib.Float.parse with
-  | Ok floatValue ->
+  | Ok(floatValue) ->
     let printed = Stdlib.toString(floatValue)
     let isPlainDecimal =
       printed
@@ -140,7 +140,7 @@ let processRemainder(remainder: String): String =
       Stdlib.String.dropFirst(printed, 2)
     else
       remainder
-  | Error _ ->
+  | Error(_) ->
     remainder
 
 /// Shorten a fully-qualified package name for display from inside `currentModule`.

@@ -153,8 +153,8 @@ test records =
 // doesn't tell you it came from `Color`.
 test enums =
   Stdlib.Test.all(
-    [ pp(Stdlib.Option.Option.Some 1) |> Stdlib.Test.equal("Some(1)")
-      pp(Stdlib.Result.Result.Ok 1) |> Stdlib.Test.equal("Ok(1)") ])
+    [ pp(Stdlib.Option.Option.Some(1)) |> Stdlib.Test.equal("Some(1)")
+      pp(Stdlib.Result.Result.Ok(1)) |> Stdlib.Test.equal("Ok(1)") ])
 
 // Name shortening
 //
@@ -239,7 +239,7 @@ test enumTypeNames =
     [ // Nested wrappers, which is where the old output was worst: this used to be
       // three lines of
       // `Darklang.Stdlib.Option.Option<Darklang.Stdlib.Option.Option<List<Int>>>.Some(...)`.
-      pp(Stdlib.Option.Option.Some(Stdlib.Option.Option.Some [ 1, 2, 3 ]))
+      pp(Stdlib.Option.Option.Some(Stdlib.Option.Option.Some([ 1, 2, 3 ])))
       |> Stdlib.Test.equal("Some(Some([1, 2, 3]))")
       // A non-wrapper enum keeps its type name.
       pp(Stdlib.List.chunkBySize([ 1, 2, 3 ], 0))
@@ -317,7 +317,7 @@ val savedBytes = Stdlib.Utf8.encode("saved preview")
 // length, because a preview would load them from the store.
 test bytesShowAPreview =
   let persistent =
-    Darklang.LanguageTools.RuntimeTypes.Dval.DBytes Stdlib.Bytes.empty
+    Darklang.LanguageTools.RuntimeTypes.Dval.DBytes(Stdlib.Bytes.empty)
   Stdlib.Test.all(
     [ pp(Stdlib.Utf8.encode("hello"))
       |> Stdlib.Test.equal("<Bytes: 5 bytes 68 65 6c 6c 6f>")

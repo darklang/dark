@@ -48,7 +48,7 @@ let insert(
   value: 'v)
   : Result.Result<Dict<'k, 'v>, DuplicateKey<'k>> =
   if Stdlib.Dict.containsKey(dict, key) then
-    Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
+    Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey(key))
   else
     Result.Result.Ok(Stdlib.Dict.set(dict, key, value))
 
@@ -67,7 +67,7 @@ let update(
   fn: Option.Option<'v> -> Option.Option<'v>)
   : Dict<'k, 'v> =
   match fn(Stdlib.Dict.get(dict, key)) with
-  | Some value -> Stdlib.Dict.set(dict, key, value)
+  | Some(value) -> Stdlib.Dict.set(dict, key, value)
   | None -> Stdlib.Dict.remove(dict, key)
 
 
@@ -88,7 +88,7 @@ let mergeUnique(
   match
     List.findFirst(Stdlib.Dict.keys(right), fun k -> Stdlib.Dict.containsKey(left, k))
   with
-  | Some key -> Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
+  | Some(key) -> Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey(key))
   | None -> Result.Result.Ok(Stdlib.Dict.merge(left, right))
 
 
@@ -97,11 +97,11 @@ let mergeUnique(
 let mergeWith(
   left: Dict<'k, 'v>,
   right: Dict<'k, 'v>,
-  fn: 'k -> 'v -> 'v -> 'v)
+  fn: ('k, 'v, 'v) -> 'v)
   : Dict<'k, 'v> =
-  List.fold(Stdlib.Dict.toEntries(right), left, fun acc (key, rightValue) ->
+  List.fold(Stdlib.Dict.toEntries(right), left, fun(acc, (key, rightValue)) ->
     match Stdlib.Dict.get(acc, key) with
-    | Some leftValue -> Stdlib.Dict.set(acc, key, fn(key, leftValue, rightValue))
+    | Some(leftValue) -> Stdlib.Dict.set(acc, key, fn(key, leftValue, rightValue))
     | None -> Stdlib.Dict.set(acc, key, rightValue))
 
 
@@ -110,7 +110,7 @@ let mergeWith(
 /// {{intersectKeys (Dict { "a": 1L, "b": 2L }) (Dict { "b": true })}}
 /// is {{Dict { "b": 2L }}}. The opposite of <fn Dict.differenceKeys>.
 let intersectKeys(dict: Dict<'k, 'v>, keep: Dict<'k, 'b>): Dict<'k, 'v> =
-  Stdlib.Dict.filter(dict, fun k _ -> Stdlib.Dict.containsKey(keep, k))
+  Stdlib.Dict.filter(dict, fun(k, _) -> Stdlib.Dict.containsKey(keep, k))
 
 
 /// Keeps the entries of <param dict> whose key is not a key of <param drop>.
@@ -118,7 +118,7 @@ let intersectKeys(dict: Dict<'k, 'v>, keep: Dict<'k, 'b>): Dict<'k, 'v> =
 /// {{differenceKeys (Dict { "a": 1L, "b": 2L }) (Dict { "b": true })}}
 /// is {{Dict { "a": 1L }}}. The opposite of <fn Dict.intersectKeys>.
 let differenceKeys(dict: Dict<'k, 'v>, drop: Dict<'k, 'b>): Dict<'k, 'v> =
-  Stdlib.Dict.filter(dict, fun k _ ->
+  Stdlib.Dict.filter(dict, fun(k, _) ->
     Stdlib.Bool.not(Stdlib.Dict.containsKey(drop, k)))
 
 
@@ -167,22 +167,22 @@ let fromEntriesUnique(
   let dict = Stdlib.Dict.fromEntries(entries)
 
   if Stdlib.Dict.size(dict) == Stdlib.List.length(entries) then
-    Result.Result.Ok dict
+    Result.Result.Ok(dict)
   else
     // A duplicate exists; scan the entries again to find the first repeated key.
     let (_, duplicate) =
-      List.fold(entries, (Dict { }, Option.Option.None), fun (seen, found) (key, _) ->
+      List.fold(entries, (Dict { }, Option.Option.None), fun((seen, found), (key, _)) ->
         match found with
-        | Some _ -> (seen, found)
+        | Some(_) -> (seen, found)
         | None ->
           if Stdlib.Dict.containsKey(seen, key) then
-            (seen, Option.Option.Some key)
+            (seen, Option.Option.Some(key))
           else
             (Stdlib.Dict.set(seen, key, true), found))
 
     match duplicate with
-    | Some key -> Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey key)
-    | None -> Result.Result.Ok dict
+    | Some(key) -> Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey(key))
+    | None -> Result.Result.Ok(dict)
 
 
 /// Returns {{true}} if the <param dict> contains an entry with <param key>,
@@ -196,32 +196,32 @@ let containsKey(dict: Dict<'k, 'v>, key: 'k): Bool =
 /// each key-value pair.
 /// Consider <fn Dict.filterMap> if you also want to drop some of the entries.
 /// To ignore the key, use <fn Dict.mapValues>.
-let map(dict: Dict<'k, 'v>, fn: 'k -> 'v -> 'b): Dict<'k, 'b> =
+let map(dict: Dict<'k, 'v>, fn: ('k, 'v) -> 'b): Dict<'k, 'b> =
   Builtin.dictMap(dict, fn)
 
 
 /// Calls <param fn> on each value in <param dict>, keeping the keys.
 let mapValues(dict: Dict<'k, 'v>, fn: 'v -> 'b): Dict<'k, 'b> =
-  Stdlib.Dict.map(dict, fun _ v -> fn(v))
+  Stdlib.Dict.map(dict, fun(_, v) -> fn(v))
 
 
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}.
-let iter(dict: Dict<'k, 'v>, fn: 'k -> 'v -> Unit): Unit =
-  dict |> Stdlib.Dict.toEntries |> List.iter(fun (k, v) -> fn(k, v))
+let iter(dict: Dict<'k, 'v>, fn: ('k, 'v) -> Unit): Unit =
+  dict |> Stdlib.Dict.toEntries |> List.iter(fun((k, v)) -> fn(k, v))
 
 
 /// Folds <param dict> into a single value, by calling {{fn acc key value}} on each
 /// entry in key order, starting from <param init>.
-let fold(dict: Dict<'k, 'v>, init: 'b, fn: 'b -> 'k -> 'v -> 'b): 'b =
+let fold(dict: Dict<'k, 'v>, init: 'b, fn: ('b, 'k, 'v) -> 'b): 'b =
   // CLEANUP The lambda below adds a second call per entry, about 2x slower.
   // A `dictFold` builtin would fix it, if real code ever needs it.
-  List.fold(Stdlib.Dict.toEntries(dict), init, fun acc (k, v) -> fn(acc, k, v))
+  List.fold(Stdlib.Dict.toEntries(dict), init, fun(acc, (k, v)) -> fn(acc, k, v))
 
 
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns a <type
 /// dict> that contains only the entries of <param dict> for which <param fn>
 /// returned {{true}}.
-let filter(dict: Dict<'k, 'v>, fn: 'k -> 'v -> Bool): Dict<'k, 'v> =
+let filter(dict: Dict<'k, 'v>, fn: ('k, 'v) -> Bool): Dict<'k, 'v> =
   Builtin.dictFilter(dict, fn)
 
 
@@ -231,12 +231,12 @@ let filter(dict: Dict<'k, 'v>, fn: 'k -> 'v -> Bool): Dict<'k, 'v> =
 /// This function combines <fn Dict.filter> and <fn Dict.map>.
 let filterMap(
   dict: Dict<'k, 'v>,
-  fn: 'k -> 'v -> Option.Option<'b>)
+  fn: ('k, 'v) -> Option.Option<'b>)
   : Dict<'k, 'b> =
   dict
   |> Stdlib.Dict.toEntries
-  |> List.filterMap(fun (k, v) ->
+  |> List.filterMap(fun((k, v)) ->
     match fn(k, v) with
     | None -> Option.Option.None
-    | Some newValue -> Option.Option.Some ((k, newValue)))
+    | Some(newValue) -> Option.Option.Some((k, newValue)))
   |> Stdlib.Dict.fromEntries

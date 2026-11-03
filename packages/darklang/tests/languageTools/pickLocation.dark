@@ -23,7 +23,7 @@ let preferCtx(
   : Darklang.LanguageTools.PackageManager.PickContext =
   Darklang.LanguageTools.PackageManager.PickContext
     { currentModule = currentModule
-      preferredLocation = Some preferredLocation }
+      preferredLocation = Some(preferredLocation) }
 
 let pick(
   context: Darklang.LanguageTools.PackageManager.PickContext,

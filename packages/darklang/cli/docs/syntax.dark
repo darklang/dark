@@ -11,6 +11,8 @@ let content(): String =
 
 ## Functions
   let greet(name: String): String = $"Hello, {name}"
+  let twice(f: Int -> Int, x: Int): Int = f(f(x))   // one argument: A -> B
+  let both(f: (Int, Int) -> Int): Int = f(1, 2)     // several: (A, B) -> C
 
 Nested functions are supported in a function body. Each parameter needs a
 type, as at the top level; the return type is optional. Neither is checked
@@ -19,15 +21,20 @@ yet: both are dropped when the nested fn becomes a local lambda.
     let double(x: Int): Int = x * 2
     double(n)
 
+## Constructors
+  Some(5)         // fields in parentheses, like a call's arguments
+  Pair(1, 2)      // several fields
+  None            // no fields
+
 ## Match
   match x with
-  | Some v -> v
+  | Some(v) -> v
   | None -> 0
 
 ## Result and Option unwrap
   let next(input: String): Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
     let number = Stdlib.Int.parse(input)?
-    Ok (number + 1)
+    Ok(number + 1)
 
 `value?` extracts the value from Ok/Some, or immediately returns Error/None
 from the function or lambda containing it. Write Ok/Some for the success result.
@@ -69,7 +76,8 @@ by the type checker (`dark typecheck`).
 
 ## Lambda
   fun x -> x + 1
-  fun (a, b) -> a + b
+  fun(acc, x) -> acc + x     // two parameters, like a call's arguments
+  fun((a, b)) -> a + b       // one tuple parameter, taken apart
 
 ## Unit
   ()     // value

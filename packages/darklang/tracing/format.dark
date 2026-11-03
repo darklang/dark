@@ -7,14 +7,14 @@ module Darklang.Tracing.Format
 /// Source text for CLI runs, or a short HTTP request summary.
 let inputText(trace: Trace): String =
   match trace.scriptOrEvalInput with
-  | Some (Eval(source, _)) -> source
-  | Some (Script(_, source, _, _)) -> source
+  | Some(Eval(source, _)) -> source
+  | Some(Script(_, source, _, _)) -> source
   | None ->
     match trace.input with
-    | DString source -> source
+    | DString(source) -> source
     | DRecord(_, _, _, fields) ->
       match (Stdlib.Dict.get(fields, "method"), Stdlib.Dict.get(fields, "url")) with
-      | (Some (DString method), Some (DString url)) -> $"{method} {url}"
+      | (Some(DString(method)), Some(DString(url))) -> $"{method} {url}"
       | _ -> "(a request)"
     | _ -> "(not source)"
 
@@ -49,14 +49,14 @@ val defaultValueBudget = 2000
 let sizeHint(dv: LanguageTools.RuntimeTypes.Dval): Stdlib.Option.Option<String> =
   match dv with
   | DList(_, items) ->
-    Stdlib.Option.Option.Some
-      $"{Stdlib.toString(Stdlib.List.length(items))} items"
+    Stdlib.Option.Option.Some(
+      $"{Stdlib.toString(Stdlib.List.length(items))} items")
   | DDict(_, _, entries) ->
-    Stdlib.Option.Option.Some
-      $"{Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(entries)))} entries"
-  | DString s ->
-    Stdlib.Option.Option.Some
-      $"{Stdlib.toString(Stdlib.String.length(s))} characters"
+    Stdlib.Option.Option.Some(
+      $"{Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(entries)))} entries")
+  | DString(s) ->
+    Stdlib.Option.Option.Some(
+      $"{Stdlib.toString(Stdlib.String.length(s))} characters")
   | _ -> Stdlib.Option.Option.None
 
 
@@ -88,7 +88,7 @@ let compactDvalTo(
       // cannot see how much it is missing either asks for everything or misses something.
       let note =
         match sizeHint(dv) with
-        | Some size -> $"... ({size}, use --full)"
+        | Some(size) -> $"... ({size}, use --full)"
         | None -> "..."
 
       (Stdlib.String.slice(oneLine, 0, budget - (Stdlib.String.length(note)))) + note
@@ -121,13 +121,13 @@ let replayStop(
   | MissingHandler ->
     ("this run has no source to replay and no handler recorded against it",
      Stdlib.Option.Option.None)
-  | HostFailure message -> (message, Stdlib.Option.Option.None)
-  | Raised err ->
+  | HostFailure(message) -> (message, Stdlib.Option.Option.None)
+  | Raised(err) ->
     let rendered = PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, err)
 
     if Darklang.Tracing.ReplayStop.isDrift(stop) then
       (rendered,
-       Stdlib.Option.Option.Some
-         "the store has changed since this ran, so the replay no longer resolves")
+       Stdlib.Option.Option.Some(
+         "the store has changed since this ran, so the replay no longer resolves"))
     else
       (rendered, Stdlib.Option.Option.None)

@@ -31,7 +31,7 @@ let run<'a, 'b>(
   Builtin.testRunIsolated(
     options.branch, options.timeoutMs, options.columns, options.rows,
     callback, argument, LanguageTools.PackageManager.Test.Worker.main)
-  |> Stdlib.Result.andThen(fun (result, stdout, stderr, exitCode, cleanupErrors) ->
+  |> Stdlib.Result.andThen(fun((result, stdout, stderr, exitCode, cleanupErrors)) ->
     match result with
     | None ->
       Stdlib.String.join(
@@ -42,5 +42,5 @@ let run<'a, 'b>(
           cleanupErrors)),
         "\n")
       |> Error
-    | Some result ->
-      Ok (Output { result = result, stdout = stdout, stderr = stderr, exitCode = exitCode, cleanupErrors = cleanupErrors }))
+    | Some(result) ->
+      Ok(Output { result = result, stdout = stdout, stderr = stderr, exitCode = exitCode, cleanupErrors = cleanupErrors }))

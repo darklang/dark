@@ -37,10 +37,10 @@ let execute(state: AppState, args: List<String>): AppState =
   match named with
   | [ arg ] ->
     match Packages.Location.parseRelativeTo(state.packageData.currentLocation, arg) with
-    | Error e ->
+    | Error(e) ->
       Cli.printErr(e)
       Cli.exitWith(state, false)
-    | Ok loc ->
+    | Ok(loc) ->
       let dotted = PropagateCmd.dotted(loc)
       let mods = Stdlib.String.join(loc.modules, ".")
 
@@ -65,10 +65,10 @@ let execute(state: AppState, args: List<String>): AppState =
         Cli.exitWith(state, false)
       else
         match SCM.PackageOps.discardDraftName(loc.owner, loc.modules, loc.name) with
-        | Ok n ->
+        | Ok(n) ->
           Cli.printOk($"dropped {dotted} from your draft ({Cli.Text.plural(n, "op")}).")
           state
-        | Error e ->
+        | Error(e) ->
           Cli.printErr($"couldn't drop {dotted}: {e}")
           Cli.exitWith(state, false)
   | [_, _, ...] ->
@@ -127,10 +127,10 @@ let execute(state: AppState, args: List<String>): AppState =
   else
 
   match SCM.PackageOps.discardDraft() with
-  | Ok n ->
+  | Ok(n) ->
     Cli.printOk($"discarded {Cli.Text.plural(n, "op")} -- {scope} is back to its last commit.")
     state
-  | Error e ->
+  | Error(e) ->
     Cli.printErr($"couldn't discard: {e}")
     Cli.exitWith(state, false)
 

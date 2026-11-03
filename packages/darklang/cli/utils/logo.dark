@@ -46,7 +46,7 @@ let combineLogoAndText(logoStr: String, textLines: List<String>, color: String):
   let maxLogoWidth =
     logoLines
     |> Stdlib.List.map(Stdlib.String.displayWidth)
-    |> Stdlib.List.fold(0, fun acc len -> if len > acc then len else acc)
+    |> Stdlib.List.fold(0, fun(acc, len) -> if len > acc then len else acc)
 
   // Pad logo lines to same width
   let paddedLogoLines =
@@ -74,12 +74,12 @@ let combineLogoAndText(logoStr: String, textLines: List<String>, color: String):
       let paddingBottom = totalPadding - paddingTop // 4 - 2 = 2 lines below
       let emptyLogoLine = Stdlib.String.repeat(" ", maxLogoWidth) // if maxLogoWidth = 6, then emptyLogoLine = "      " (6 spaces)
       match Stdlib.List.repeat(paddingTop, emptyLogoLine) with // Create 2 empty top logo lines
-      | Ok topEmpty ->
+      | Ok(topEmpty) ->
         match Stdlib.List.repeat(paddingBottom, emptyLogoLine) with // Create 2 empty bottom logo lines
-        | Ok bottomEmpty ->
+        | Ok(bottomEmpty) ->
           Stdlib.List.flatten([topEmpty, paddedLogoLines, bottomEmpty])
-        | Error _ -> paddedLogoLines
-      | Error _ -> paddedLogoLines
+        | Error(_) -> paddedLogoLines
+      | Error(_) -> paddedLogoLines
     else
       paddedLogoLines
 
@@ -90,12 +90,12 @@ let combineLogoAndText(logoStr: String, textLines: List<String>, color: String):
       let paddingTop = totalPadding / 2
       let paddingBottom = totalPadding - paddingTop
       match Stdlib.List.repeat(paddingTop, "") with
-      | Ok topEmpty ->
+      | Ok(topEmpty) ->
         match Stdlib.List.repeat(paddingBottom, "") with
-        | Ok bottomEmpty ->
+        | Ok(bottomEmpty) ->
           Stdlib.List.flatten([topEmpty, textLines, bottomEmpty])
-        | Error _ -> textLines
-      | Error _ -> textLines
+        | Error(_) -> textLines
+      | Error(_) -> textLines
     else
       textLines
 
@@ -103,10 +103,10 @@ let combineLogoAndText(logoStr: String, textLines: List<String>, color: String):
   let spacing = "    " // 4 spaces between logo and text
 
   match Stdlib.List.zip(finalLogoLines, finalTextLines) with
-  | Ok zipped ->
+  | Ok(zipped) ->
     zipped
-    |> Stdlib.List.map(fun (logoLine, textLine) -> logoLine + spacing + textLine)
+    |> Stdlib.List.map(fun((logoLine, textLine)) -> logoLine + spacing + textLine)
     |> Stdlib.String.join("\n")
-  | Error _ ->
+  | Error(_) ->
     // This should never happen since we ensured both lists are the same length
     ""

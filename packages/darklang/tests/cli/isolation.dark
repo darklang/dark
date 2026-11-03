@@ -27,11 +27,11 @@ test nestedWorkerSeesCallingTestWrites =
   let key = "nested-worker-starting-store"
   let _ = Stdlib.LocalStore.configSet(key, "written by this test")
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), readConfig, key) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     Stdlib.Test.all(
       [ output.exitCode |> Stdlib.Test.equal(0)
-        output.result |> Stdlib.Test.equal(Ok "written by this test") ])
+        output.result |> Stdlib.Test.equal(Ok("written by this test")) ])
 
 test stateAndEnvironmentAreIsolated =
   let parentDb = Stdlib.LocalStore.path()
@@ -39,11 +39,11 @@ test stateAndEnvironmentAreIsolated =
   let key = "isolated-test-" + Stdlib.toString(Stdlib.Uuid.generate())
   let options = Stdlib.Test.Process.defaults()
   match Stdlib.Test.Process.run(options, writeConfig, key) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     match output.result with
-    | Error message -> Stdlib.Test.fail(message)
-    | Ok childDb ->
+    | Error(message) -> Stdlib.Test.fail(message)
+    | Ok(childDb) ->
       let clean = Stdlib.Test.Process.run(options, cleanConfig, key)
       Stdlib.Test.all(
         [ output.exitCode |> Stdlib.Test.equal(0)
@@ -52,8 +52,8 @@ test stateAndEnvironmentAreIsolated =
           Stdlib.LocalStore.configGet(key) |> Stdlib.Test.equal("")
           Darklang.SCM.PackageOps.currentBranch() |> Stdlib.Test.equal(parentBranch)
           match clean with
-          | Error message -> Stdlib.Test.fail(message)
-          | Ok checked -> checked.result |> Stdlib.Test.equal(Ok true) ])
+          | Error(message) -> Stdlib.Test.fail(message)
+          | Ok(checked) -> checked.result |> Stdlib.Test.equal(Ok(true)) ])
 
 let runtimeFailure(): Int =
   Stdlib.printLine(Stdlib.LocalStore.path())
@@ -61,12 +61,12 @@ let runtimeFailure(): Int =
 
 test runtimeFailureStillRemovesSnapshot =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), runtimeFailure, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     let childDb = Stdlib.String.trim(output.stdout)
     Stdlib.Test.all(
       [ output.exitCode |> Stdlib.Test.notEqual(0)
-        output.result |> Stdlib.Test.equal(Error "Cannot divide by 0")
+        output.result |> Stdlib.Test.equal(Error("Cannot divide by 0"))
         Stdlib.String.contains(output.stderr, "Cannot divide by 0") |> Stdlib.Test.equal(true)
         Stdlib.String.startsWith(childDb, "/tmp/dark-test-") |> Stdlib.Test.equal(true)
         Stdlib.Cli.FileSystem.pathExists(childDb) |> Stdlib.Test.equal(false) ])
@@ -78,10 +78,10 @@ let assertionFailure(): Stdlib.Test.Result =
 
 test assertionFailureIsPreserved =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), assertionFailure, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     Stdlib.Test.all(
-      [ output.result |> Stdlib.Test.equal(Ok (Stdlib.Test.Result.Fail [ "intentional isolation failure" ]))
+      [ output.result |> Stdlib.Test.equal(Ok(Stdlib.Test.Result.Fail([ "intentional isolation failure" ])))
         output.exitCode |> Stdlib.Test.equal(0) ])
 
 let createBranch(): String =
@@ -90,8 +90,8 @@ let createBranch(): String =
 test branchChangesStayIsolated =
   let parentBranch = Darklang.SCM.PackageOps.currentBranch()
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), createBranch, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     Stdlib.Test.all(
       [ output.exitCode |> Stdlib.Test.equal(0)
         Darklang.SCM.PackageOps.currentBranch() |> Stdlib.Test.equal(parentBranch) ])
@@ -101,13 +101,13 @@ let currentBranch(): Uuid = Darklang.SCM.PackageOps.currentBranch()
 test runsOnTheCallersBranch =
   let here = currentBranch()
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), currentBranch, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output -> output.result |> Stdlib.Test.equal(Ok here)
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) -> output.result |> Stdlib.Test.equal(Ok(here))
 
 let checkInheritedBranch(expected: Uuid): Stdlib.Test.Result =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), currentBranch, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output -> output.result |> Stdlib.Test.equal(Ok expected)
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) -> output.result |> Stdlib.Test.equal(Ok(expected))
 
 // Uses an actual non-main branch, then a nested worker with default options.
 test explicitBranchBecomesTheNestedWorkersDefault =
@@ -115,15 +115,15 @@ test explicitBranchBecomesTheNestedWorkersDefault =
   let _ = Darklang.Cli.Tests.TestSuite.runWithCommand([ "branch", "create", name ])
   match Darklang.Cli.Branch.lookupRef(name) with
   | None -> Stdlib.Test.fail("Could not create the test branch")
-  | Some branch ->
+  | Some(branch) ->
     let defaults = Stdlib.Test.Process.defaults()
-    let options = { defaults with branch = Some branch }
+    let options = { defaults with branch = Some(branch) }
     match Stdlib.Test.Process.run(options, checkInheritedBranch, branch) with
-    | Error message -> Stdlib.Test.fail(message)
-    | Ok output ->
+    | Error(message) -> Stdlib.Test.fail(message)
+    | Ok(output) ->
       match output.result with
-      | Error message -> Stdlib.Test.fail(message)
-      | Ok result -> result
+      | Error(message) -> Stdlib.Test.fail(message)
+      | Ok(result) -> result
 
 let noisyResult(value: String): String =
   Stdlib.printLine("ordinary output")
@@ -131,10 +131,10 @@ let noisyResult(value: String): String =
 
 test resultIsSeparateFromOutput =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), noisyResult, "typed value") with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     Stdlib.Test.all(
-      [ output.result |> Stdlib.Test.equal(Ok "typed value")
+      [ output.result |> Stdlib.Test.equal(Ok("typed value"))
         output.stdout |> Stdlib.Test.equal("ordinary output\n") ])
 
 let waitsTooLong(): Unit = Stdlib.Cli.Posix.sleep(10000.0)
@@ -142,16 +142,16 @@ let waitsTooLong(): Unit = Stdlib.Cli.Posix.sleep(10000.0)
 test timeoutIsReported =
   let defaults = Stdlib.Test.Process.defaults()
   match Stdlib.Test.Process.run({ defaults with timeoutMs = 1000 }, waitsTooLong, ()) with
-  | Ok _ -> Stdlib.Test.fail("Expected the worker to time out")
-  | Error message -> Stdlib.String.contains(message, "timed out") |> Stdlib.Test.equal(true)
+  | Ok(_) -> Stdlib.Test.fail("Expected the worker to time out")
+  | Error(message) -> Stdlib.String.contains(message, "timed out") |> Stdlib.Test.equal(true)
 
 let inheritedEnvironment(): Option<String> = Stdlib.Env.get("DARK_TELEMETRY")
 
 test workerInheritsTestPermissions =
   let expected = inheritedEnvironment()
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), inheritedEnvironment, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     Stdlib.Test.all(
-      [ output.result |> Stdlib.Test.equal(Ok expected)
+      [ output.result |> Stdlib.Test.equal(Ok(expected))
         output.cleanupErrors |> Stdlib.Test.equal([]) ])

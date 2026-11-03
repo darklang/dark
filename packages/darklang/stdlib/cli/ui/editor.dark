@@ -22,7 +22,7 @@ let currentLine(buf: Buf): String =
   Stdlib.List.getAt(buf.lines, buf.row) |> Stdlib.Option.withDefault("")
 
 let setLine(lines: List<String>, row: Int, s: String): List<String> =
-  lines |> Stdlib.List.indexedMap(fun i l -> if i == row then s else l)
+  lines |> Stdlib.List.indexedMap(fun(i, l) -> if i == row then s else l)
 
 let insertChar(buf: Buf, ch: String): Buf =
   let line = currentLine(buf)
@@ -39,7 +39,7 @@ let newline(buf: Buf): Buf =
   let after = Stdlib.String.slice(line, buf.col, Stdlib.String.length(line))
   let newLines =
     buf.lines
-    |> Stdlib.List.indexedMap(fun i l -> if i == buf.row then [ before, after ] else [ l ])
+    |> Stdlib.List.indexedMap(fun(i, l) -> if i == buf.row then [ before, after ] else [ l ])
     |> Stdlib.List.flatten
   Buf { lines = newLines, row = buf.row + 1, col = 0 }
 
@@ -47,8 +47,8 @@ let newline(buf: Buf): Buf =
 /// A string with no "\n" splits to one part -> identical to `insertChar`. This is what a paste routes through.
 let insertText(buf: Buf, text: String): Buf =
   Stdlib.String.split(text, "\n")
-  |> Stdlib.List.indexedMap(fun i s -> (i, s))
-  |> Stdlib.List.fold(buf, fun b pair ->
+  |> Stdlib.List.indexedMap(fun(i, s) -> (i, s))
+  |> Stdlib.List.fold(buf, fun(b, pair) ->
     let (i, s) = pair
     if i == 0 then insertChar(b, s) else insertChar(newline(b), s))
 
@@ -64,9 +64,9 @@ let backspace(buf: Buf): Buf =
     let newCol = Stdlib.String.length(prev)
     let newLines =
       buf.lines
-      |> Stdlib.List.indexedMap(fun i l ->
+      |> Stdlib.List.indexedMap(fun(i, l) ->
         if i == buf.row - 1 then (prev + cur) else l)
-      |> Stdlib.List.indexedMap(fun i l -> (i, l))
+      |> Stdlib.List.indexedMap(fun(i, l) -> (i, l))
       |> Stdlib.List.filter(fun p ->
         let (i, _l) = p
         i != buf.row)
@@ -91,7 +91,7 @@ let deleteForward(buf: Buf): Buf =
     let next = Stdlib.List.getAt(buf.lines, buf.row + 1) |> Stdlib.Option.withDefault("")
     let newLines =
       buf.lines
-      |> Stdlib.List.indexedMap(fun i l -> (i, l))
+      |> Stdlib.List.indexedMap(fun(i, l) -> (i, l))
       |> Stdlib.List.filter(fun p -> let (i, _l) = p in i != buf.row + 1)
       |> Stdlib.List.map(fun p ->
         let (i, l) = p

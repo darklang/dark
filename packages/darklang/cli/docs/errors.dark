@@ -32,10 +32,11 @@ let content(): String =
 ## Enum errors
   - Option/Result expressions use bare `Some`, `None`, `Ok`, and `Error`
   - Other enum expressions use `TypeName.Case`
-  - Matching: just Case (no prefix)
+  - Matching: just Case, or Type.Case
+  - Fields go in parentheses: `Ok(x)`, `| Ok(x) ->`
 
 ## Some + tuple
-  - Use `Some ((a, b))` with double parens
+  - Use `Some((a, b))` with double parens
 
 ## Debug
   1. Simplify expression

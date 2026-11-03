@@ -21,41 +21,41 @@ test encodeLength =
 
 test roundTrip =
   Stdlib.Utf8.encode("hello") |> Stdlib.Utf8.decode
-  |> Stdlib.Test.equal(Ok "hello")
+  |> Stdlib.Test.equal(Ok("hello"))
 
 // Keep the Base64 Result so a bad fixture fails the assertion.
 test decode =
   Stdlib.Test.all(
     [ Stdlib.Base64.decode("w6I")
       |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
-      |> Stdlib.Test.equal(Ok "â")
+      |> Stdlib.Test.equal(Ok("â"))
       Stdlib.Base64.decode("aGVsbG8g8J+YgA==")
       |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
-      |> Stdlib.Test.equal(Ok "hello 😀")
+      |> Stdlib.Test.equal(Ok("hello 😀"))
       Stdlib.Base64.decode("ww==")
       |> Stdlib.Result.map(fun b -> Stdlib.Result.isError(Stdlib.Utf8.decode(b)))
-      |> Stdlib.Test.equal(Ok true)
+      |> Stdlib.Test.equal(Ok(true))
       Stdlib.Base64.decode("7aCA")
       |> Stdlib.Result.map(fun b -> Stdlib.Result.isError(Stdlib.Utf8.decode(b)))
-      |> Stdlib.Test.equal(Ok true)
+      |> Stdlib.Test.equal(Ok(true))
       Stdlib.Base64.decode("aMM=")
       |> Stdlib.Result.map(fun b -> Stdlib.Result.isError(Stdlib.Utf8.decode(b)))
-      |> Stdlib.Test.equal(Ok true) ])
+      |> Stdlib.Test.equal(Ok(true)) ])
 
 test decodeWithReplacement =
   Stdlib.Test.all(
     [ Stdlib.Base64.decode("w6I")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Ok "â")
+      |> Stdlib.Test.equal(Ok("â"))
       Stdlib.Base64.decode("aGVsbG8g8J+YgA==")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Ok "hello 😀")
+      |> Stdlib.Test.equal(Ok("hello 😀"))
       Stdlib.Base64.decode("ww==")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Ok "�")
+      |> Stdlib.Test.equal(Ok("�"))
       Stdlib.Base64.decode("7aCA")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Ok "���")
+      |> Stdlib.Test.equal(Ok("���"))
       Stdlib.Base64.decode("aMM=")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Ok "h�") ])
+      |> Stdlib.Test.equal(Ok("h�")) ])

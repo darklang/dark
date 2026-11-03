@@ -801,6 +801,18 @@ let private requireElementSeparator
   then
     errExpected state nextIndex expected
 
+/// Placeholder names for a hint, one per item: `a, b` for two.
+let private placeholders (count : int) : List<string> =
+  let names = [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h" ] |> List.truncate count
+  if count > names.Length then names @ [ "..." ] else names
+
+/// The hint for `Ok 5` / `| Ok x`: write `Ok(a)` rather than `Ok a`.
+let private spacedFieldsHint (caseName : string) (count : int) : string =
+  let shown = placeholders count
+  let commaList = String.concat ", " shown
+  let spaceList = String.concat " " shown
+  $"write `{caseName}({commaList})` rather than `{caseName} {spaceList}`"
+
 /// The effect names a `:{…}` row may use: the `Effects.Effect` case names.
 let private effectCaseNames : List<string> =
   LibExecution.Effects.all |> List.map (fun effect -> $"%A{effect}")
@@ -1288,26 +1300,15 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
         (WT.MPListCons(span openB closeB, head, tail, consR), p2)
       | _ -> (pat, p2)
   | TIdent name when name.Length > 0 && System.Char.IsUpper name[0] ->
-    // enum pattern: `[Mod.]Case [fieldPats…]` — last segment is the case
+    // enum pattern: `[Mod.Type.]Case(fieldPats…)`; the last segment is the case.
+    // A qualified case (`Result.Ok(x)`, `Stdlib.Result.Result.Ok(x)`) matches the
+    // same values as the bare case, as building one accepts `Result.Ok(5)`; the
+    // path before the case is the type, resolved when the match is lowered.
     let (mods, final, j) = parseQualified state i
-    // A qualified path (`Result.Ok`, `Stdlib.Result.Result.Ok`) is not a valid enum
-    // pattern — patterns use the unqualified case name. Reject rather than silently
-    // building a truncated pattern from just the last segment.
-    if not (List.isEmpty mods) then
-      let fullPath =
-        (mods |> List.map (fun (m, _) -> m.name)) @ [ final.name ]
-        |> String.concat "."
-      err
-        state
-        DiagnosticCode.pattern
-        i
-        (sprintf
-          "Invalid match pattern. Enum patterns use the unqualified case name (e.g. `| %s n`), not a qualified path like `| %s n`."
-          final.name
-          fullPath)
+    let typePath = mods |> List.map (fun (m, _) -> m.name)
     // `Case(p1, p2, …)` is a parenthesized arg list: commas separate FIELDS, so
     // `Pair(a, b)` is two fields — NOT one tuple `Pair((a, b))`. This holds
-    // whether or not there's a space before the `(` (matching F#).
+    // whether or not there's a space before the `(`, as for a call.
     if tok state j = TLParen then
       let openParen = rng state j
       let fieldPats = System.Collections.Generic.List<WT.MatchPattern>()
@@ -1339,11 +1340,14 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
         fieldPats.Add(WT.MPUnit(span openParen (rng state (max j (k3 - 1)))))
       (WT.MPEnum(
         span (rng state i) (rng state (max j (k3 - 1))),
+        typePath,
         (final.range, final.name),
         List.ofSeq fieldPats
        ),
        k3)
     else
+      // `| Ok x` is not Dark. The fields are still parsed, so recovery sees the
+      // shape the author meant; the diagnostic is what makes it an error.
       let fieldPats = System.Collections.Generic.List<WT.MatchPattern>()
       let mutable k = j
       while canStartPattern (tok state k) && offsideContinues state i k do
@@ -1352,8 +1356,18 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
         if k2 > k then k <- k2 else k <- k + 1
       let endR =
         if fieldPats.Count > 0 then WT.mpRange (Seq.last fieldPats) else final.range
+      if fieldPats.Count > 0 then
+        state.diagnostics.Add
+          { code = DiagnosticCode.pattern
+            severity = DiagError
+            range = span (rng state i) endR
+            message =
+              "a constructor pattern's fields go in parentheses, separated by commas"
+            related = []
+            hint = Some(spacedFieldsHint final.name fieldPats.Count) }
       (WT.MPEnum(
         span (rng state i) endR,
+        typePath,
         (final.range, final.name),
         List.ofSeq fieldPats
        ),
@@ -1732,17 +1746,9 @@ and parseApp (state : ParserState) (i : int) : WT.Expr * int =
   let (callee, j) = parseAtom state i
   let args = System.Collections.Generic.List<WT.Expr>()
   let mutable k = j
-  // Constructors are unchanged by call syntax. A spaced constructor followed by a
-  // parenthesized list is a FIELD list, not a single tuple arg: `KeyPressed (a, b, c)`
-  // is 3 fields, and fields after it (`Case (x) y`) add to it. Only in head
-  // position, since the constructor IS the callee here. Adjacent `Ctor(a,b)` is
-  // handled in the enum branch, so a nullary EEnum callee here means a spaced paren.
-  (match callee with
-   | WT.EEnum(_, _, _, [], _) when
-     tok state j = TLParen && offsideContinues state i j
-     ->
-     k <- parseParenList state j args
-   | _ -> ())
+  // A constructor's parenthesized fields were taken by the enum branch of
+  // parsePrimary, so a nullary EEnum followed by atoms is `Ok 5`: an error below,
+  // with the fields still folded in so tooling sees the shape the author meant.
   let acceptsArgs =
     match callee with
     | WT.EEnum(_, _, _, [], _) -> true
@@ -1755,10 +1761,18 @@ and parseApp (state : ParserState) (i : int) : WT.Expr * int =
       k <- k2
   match callee with
   | _ when args.Count = 0 -> (callee, k)
-  // A constructor still takes space-separated fields: `Ok 5` as well as `Ok(5)`.
-  | WT.EEnum(er, tname, cn, [], dot) ->
+  // `Ok 5` is not Dark: a constructor's fields go in parentheses, like a call's
+  // arguments.
+  | WT.EEnum(er, tname, (cr, cn), [], dot) ->
     let endR = WT.exprRange (Seq.last args)
-    (WT.EEnum(span er endR, tname, cn, List.ofSeq args, dot), k)
+    state.diagnostics.Add
+      { code = DiagnosticCode.unexpected
+        severity = DiagError
+        range = span er endR
+        message = "a constructor's fields go in parentheses, separated by commas"
+        related = []
+        hint = Some(spacedFieldsHint cn args.Count) }
+    (WT.EEnum(span er endR, tname, (cr, cn), List.ofSeq args, dot), k)
   | _ ->
     let endR = WT.exprRange (Seq.last args)
     let calleeText =
@@ -1838,7 +1852,7 @@ and parseAtom (state : ParserState) (i : int) : WT.Expr * int =
   let (baseE, j) = parsePrimary state i
   // Any postfix after an unparenthesized lambda belongs to its body.
   // If the body couldn't parse it, leave it for an error rather than attaching
-  // it to the lambda itself (for example, `fun v -> Ok (x)?`).
+  // it to the lambda itself.
   if tok state i = TFun then
     (baseE, j)
   else
@@ -2246,20 +2260,18 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
            z)
       let fields = System.Collections.Generic.List<WT.Expr>()
       let mutable k = j
-      // `Case(e1, e2, …)` — parenthesized arg list ADJACENT to the case name
-      // (no space): commas separate FIELDS, so `EInt64(r, n, s)` is three fields,
-      // NOT one tuple. 1 item ⇒ 1 field. Adjacency matters: `Case (x) y` (space)
-      // is two space-separated args, and `… Ok` then `(x, [])` on the next line is
-      // a separate statement — both go through the general offside loop below.
-      let adjacentParen =
+      // `Case(e1, e2, …)`: fields go in parentheses, the same as a call's
+      // arguments, so commas separate FIELDS (`EInt64(r, n, s)` is three fields,
+      // not one tuple; a tuple field is `Case((a, b))`). A space before the `(`
+      // is allowed, as for a call, but `… Ok` then `(x, [])` on the next line at
+      // the same indent is a separate statement. Space-separated fields (`Ok 5`)
+      // are an error, reported by parseApp.
+      let glued =
         tok state j = TLParen
         && (rng state j).start.row = final.range.end_.row
         && (rng state j).start.column = final.range.end_.column
-      if adjacentParen then k <- parseParenList state j fields
-      // A non-adjacent-paren constructor is NULLARY here; space-separated fields
-      // (`Ok 5`, `Ok -4y`) are folded by parseApp — but ONLY in application-head
-      // position, so a constructor used as an ARGUMENT (`f None (g)`) stays nullary
-      // instead of over-grabbing its sibling arg.
+      if tok state j = TLParen && (glued || offsideContinues state i j) then
+        k <- parseParenList state j fields
       let endR =
         if tok state j = TLParen && k > j then rng state (k - 1)
         elif fields.Count > 0 then WT.exprRange (Seq.last fields)
@@ -2293,9 +2305,44 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
   | TLParen -> parseParen state i
   | TLBracket -> parseList state i
   | TFun ->
+    // Parameters have the shape of a call's arguments: `fun x -> …` takes one,
+    // `fun(acc, x) -> …` takes two, and a tuple parameter is `fun((a, b)) -> …`.
+    // `fun () -> …` takes the unit value.
     let kwFun = rng state i
     let pats = System.Collections.Generic.List<WT.LetPattern>()
     let mutable k = i + 1
+    match tok state k with
+    | TLParen when tok state (k + 1) <> TRParen ->
+      let openP = rng state k
+      let mutable m = k + 1
+      let mutable go = true
+      while go && tok state m <> TRParen && tok state m <> TEOF do
+        let (p, m2) = parseLetPattern state m
+        pats.Add p
+        if tok state m2 = TComma then
+          m <- m2 + 1
+        elif m2 > m then
+          if tok state m2 <> TRParen then
+            errExpected state m2 "',' or ')' in the lambda's parameters"
+            go <- false
+          m <- m2
+        else
+          go <- false
+      if tok state m = TRParen then
+        k <- m + 1
+      else
+        errUnclosed state m ")" "(" openP
+        k <- m
+    | TIdent _
+    | TUnderscore
+    | TLParen ->
+      let (p, k2) = parseLetPattern state k
+      pats.Add p
+      k <- k2
+    | _ -> ()
+    // `fun a b -> …` is not Dark. The parameters are still parsed, so recovery
+    // sees the shape the author meant; the diagnostic is what makes it an error.
+    let firstExtra = k
     while (match tok state k with
            | TIdent _
            | TUnderscore
@@ -2304,6 +2351,18 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       let (p, k2) = parseLetPattern state k
       pats.Add p
       if k2 = k then k <- k + 1 else k <- k2
+    if k > firstExtra then
+      let shown = placeholders pats.Count
+      let commaList = String.concat ", " shown
+      let spaceList = String.concat " " shown
+      errFull
+        state
+        DiagnosticCode.unexpected
+        firstExtra
+        "a lambda with several parameters lists them in parentheses, separated by commas"
+        []
+        (Some
+          $"write `fun({commaList}) ->` rather than `fun {spaceList} ->`; a tuple parameter is `fun((a, b)) ->`")
     if pats.Count = 0 then errExpected state k "at least one lambda parameter"
     let (arrow, m) =
       if tok state k = TArrow then
@@ -2344,8 +2403,8 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     (WT.EError(rng state i), i + 1)
   | _ ->
     if tok state i = TQuestion then
-      // In `Ok (x)?`, there is no whitespace before `?`, but it cannot attach
-      // here. Suggest parentheses around the expression instead.
+      // A `?` glued to something that cannot take it, with no whitespace
+      // before it. Suggest parentheses around the expression instead.
       let spaced = i = 0 || (rng state (i - 1)).end_ <> (rng state i).start
       if spaced then
         errFull
@@ -2754,7 +2813,11 @@ and parseTypeRef (state : ParserState) (i : int) : WT.TypeReference * int =
     state.depth <- state.depth - 1
     r
 
-// `A -> B -> C` (right-nested): arguments = [(A,->),(B,->)], ret = C
+// `A -> B` takes one argument, and `(A, B) -> C` two (the arguments are a
+// parenthesized list, parsed by parseAtomType, which returns the whole TFn). A
+// chain `A -> B -> C` is an error: write `(A, B) -> C` for two arguments, or
+// `A -> (B -> C)` for one argument returning a function. The chain is still
+// parsed as the two-argument function it used to mean, for recovery.
 and parseFnType (state : ParserState) (i : int) : WT.TypeReference * int =
   let (first, j) = parseTupleType state i
   // A remaining `>` from a split `>>` must close the outer generic first.
@@ -2763,8 +2826,20 @@ and parseFnType (state : ParserState) (i : int) : WT.TypeReference * int =
     (first, j)
   else
     let args = System.Collections.Generic.List<WT.TypeReference * TokenRange>()
-    let mutable cur = first
-    let mutable k = j
+    args.Add(first, rng state j)
+    let (second, k0) = parseTupleType state (j + 1)
+    let mutable cur = second
+    let mutable k = if k0 > j then k0 else j + 1
+    // a second arrow: `A -> B -> C`, or `(A, B) -> C -> D`
+    if tok state k = TArrow && state.pendingGt = 0 then
+      errFull
+        state
+        DiagnosticCode.unexpected
+        k
+        "a function type with several arguments lists them in parentheses"
+        []
+        (Some
+          "write `(A, B) -> C` for a function of two arguments, or `A -> (B -> C)` for one that returns a function")
     while tok state k = TArrow && state.pendingGt = 0 do
       args.Add(cur, rng state k)
       let (next, k2) = parseTupleType state (k + 1)
@@ -2837,10 +2912,44 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match tok state i with
   | TLParen ->
-    // `(T)` grouping or `(A * B)` parenthesized tuple
+    // `(T)` grouping, `(A * B)` parenthesized tuple, or `(A, B) -> C`: the
+    // argument list of a function type, returned here as the whole TFn
     let openP = rng state i
     let (inner, j) = parseFnType state (i + 1)
-    if tok state j = TRParen then
+    if tok state j = TComma then
+      // each argument carries the `,` after it; the last one the `->`
+      let args = System.Collections.Generic.List<WT.TypeReference * TokenRange>()
+      let mutable cur = inner
+      let mutable m = j
+      while tok state m = TComma do
+        args.Add(cur, rng state m)
+        let (next, m2) = parseFnType state (m + 1)
+        cur <- next
+        m <- if m2 > m then m2 else m + 1
+      let afterClose =
+        if tok state m = TRParen then
+          m + 1
+        else
+          errUnclosed state m ")" "(" openP
+          m
+      if tok state afterClose = TArrow then
+        args.Add(cur, rng state afterClose)
+        let (ret, k) = parseTupleType state (afterClose + 1)
+        (WT.TFn(span openP (WT.typeReferenceRange ret), List.ofSeq args, ret),
+         (if k > afterClose then k else afterClose + 1))
+      else
+        errFull
+          state
+          DiagnosticCode.expected
+          afterClose
+          "a parenthesized list of types is the argument list of a function type, and needs `->` and a return type after it"
+          []
+          (Some "write `(A, B) -> C` for a function, or `A * B` for a tuple")
+        let ret = WT.TUnit(zeroWidthAtEnd (rng state (afterClose - 1)))
+        args.Add(cur, zeroWidthAtEnd (rng state (afterClose - 1)))
+        (WT.TFn(span openP (rng state (afterClose - 1)), List.ofSeq args, ret),
+         afterClose)
+    elif tok state j = TRParen then
       let closeP = rng state j
       match inner with
       | WT.TTuple(_, f, s1, sec, rest, _, _) ->

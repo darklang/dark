@@ -174,8 +174,8 @@ takes; fewer is a runtime error (`TooFewArgsForFn`) and an at-rest checker error
 that: `fun x -> f(a, x)`. A function value named without a call (`List.map(xs,
 Int64.toFloat)`) is still a value.
 
-Enum constructors are not calls and keep both forms: `Ok 5` and `Ok(5)`. See
-Enum constructors below.
+Enum constructors and lambda parameters take the same shape: `Ok(5)`,
+`Pair(1, 2)`, `fun(acc, x) -> …`. See Enum constructors and Lambdas below.
 
 ## Offside (indentation) rules
 
@@ -211,7 +211,7 @@ Expression forms include:
 - field access `x.f`
 - calls `f(a, b)` (see Calls)
 - postfix unwrap `x?` or `f(x)?`, inside functions/lambdas only
-- lambdas `fun p1 p2 -> body`, including tuple patterns
+- lambdas `fun x -> body` and `fun(p1, p2) -> body` (see Lambdas)
 - `let pat = e`, with optional `in`, and tuple/wildcard/unit patterns
 - nested function lets, `let f(x: T, y: U): R = …`
 - `if c then a [elif …] [else b]`, where `else` is optional
@@ -245,11 +245,24 @@ Parenthesized commas are **fields**:
 - `Pair((1, 2))` has one tuple field
 - `Case()` has one unit field
 
-Space-application binds fields only in head position, such as `Ok 5`. It does
-not bind in argument position: `f None x` keeps `None` nullary.
+Fields go in parentheses, as a call's arguments do, and a space before the `(`
+is allowed. Fields written with spaces, `Ok 5`, are a `PARSE-UNEXPECTED` error
+with a hint; they are still parsed into the constructor, so recovery sees the
+intended shape. A nullary case is written bare: `None`.
 
 A bare nullary uppercase name is resolved contextually at lowering. It may be a
 variable, enum case, or DB.
+
+### Lambdas
+
+Parameters have the shape of a call's arguments:
+
+- `fun x -> body` takes one parameter (also `fun _ ->` and `fun () ->`)
+- `fun(acc, x) -> body` takes two; a space before the `(` is allowed
+- `fun((a, b)) -> body` takes one tuple and takes it apart
+
+Parameters written with spaces, `fun acc x -> …`, are a `PARSE-UNEXPECTED`
+error with a hint. They are still parsed as the parameters they list.
 
 ### Pipes
 
@@ -283,13 +296,16 @@ Pattern forms:
   `b` onto `t`. `...` takes a name, or nothing to ignore the rest (the same
   pattern as `..._`, and what the printer writes).
 - or-patterns `p1 | p2`
-- enum patterns with **unqualified** case names, such as `| Ok x`
+- enum patterns, fields in parentheses: `| Ok(x)`, `| Pair(a, b)`, `| None`. A
+  tuple field is `| Some((a, b))`. The case may be qualified, `| Result.Ok(x)`;
+  the qualifier must name a type, and the pattern matches the same values as
+  `| Ok(x)`
 - unit
 
 Names in one pattern cannot be repeated. Every or-pattern branch must bind the
 same non-ignored names. `_` and names beginning with `_` are ignored bindings.
 
-Qualified enum patterns such as `| Result.Ok x` are rejected.
+Fields written with spaces, `| Ok x`, are a `PARSE-PATTERN` error with a hint.
 
 ### Generics
 
@@ -322,9 +338,11 @@ Bytes` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<K, V>` have special
 syntax. Other uppercase names, including `Stream<T>` and `DB<T>`, are custom
 types with optional type arguments.
 
-Type variables are `'a` or bare lowercase names. Tuples use `A * B`. Function
-types use `A -> B -> C` as flat multi-arg functions: args `[A, B]`, return `C`,
-not curried functions. Enum case fields separate with `*` at atom level:
+Type variables are `'a` or bare lowercase names. Tuples use `A * B`. A function
+type with one argument is `A -> B`; with several, the arguments are a
+parenthesized list, as in a call: `(A, B) -> C`. A function that returns a
+function is `A -> (B -> C)`. A chain `A -> B -> C` is a `PARSE-UNEXPECTED` error
+with a hint; it is still parsed as `(A, B) -> C`, for recovery. Enum case fields separate with `*` at atom level:
 `Case of A * B` has two fields; a tuple field needs parens, `Case of (A * B)`.
 
 ## Declarations

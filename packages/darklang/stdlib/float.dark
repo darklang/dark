@@ -100,7 +100,7 @@ let clampRefusingNaN(
   limitB: Float)
   : Stdlib.Result.Result<Float, String> =
   if Stdlib.Float.isNaN(limitA) || Stdlib.Float.isNaN(limitB) then
-    Stdlib.Result.Result.Error "clampRefusingNaN requires limits that are numbers"
+    Stdlib.Result.Result.Error("clampRefusingNaN requires limits that are numbers")
   else
     let (lower, upper) =
       if (limitA < limitB) then
@@ -109,11 +109,11 @@ let clampRefusingNaN(
         (limitB, limitA)
 
     if (value < lower) then
-      Stdlib.Result.Result.Ok lower
+      Stdlib.Result.Result.Ok(lower)
     else if (value > upper) then
-      Stdlib.Result.Result.Ok upper
+      Stdlib.Result.Result.Ok(upper)
     else
-      Stdlib.Result.Result.Ok value
+      Stdlib.Result.Result.Ok(value)
 
 
 /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>

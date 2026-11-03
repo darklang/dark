@@ -15,13 +15,13 @@ type PackageLocation =
 /// The module path a location sits in: the module itself, or the module an item lives in.
 let modulePathOf(location: PackageLocation): List<String> =
   match location with
-  | Module path -> path
-  | Type t -> Stdlib.List.prepend(t.modules, t.owner)
-  | Value v -> Stdlib.List.prepend(v.modules, v.owner)
-  | Function f -> Stdlib.List.prepend(f.modules, f.owner)
-  | Trait t -> Stdlib.List.prepend(t.modules, t.owner)
-  | Impl i -> Stdlib.List.prepend(i.modules, i.owner)
-  | Test t -> Stdlib.List.prepend(t.modules, t.owner)
+  | Module(path) -> path
+  | Type(t) -> Stdlib.List.prepend(t.modules, t.owner)
+  | Value(v) -> Stdlib.List.prepend(v.modules, v.owner)
+  | Function(f) -> Stdlib.List.prepend(f.modules, f.owner)
+  | Trait(t) -> Stdlib.List.prepend(t.modules, t.owner)
+  | Impl(i) -> Stdlib.List.prepend(i.modules, i.owner)
+  | Test(t) -> Stdlib.List.prepend(t.modules, t.owner)
 
 
 type EntityType =
@@ -39,28 +39,28 @@ type State =
 
 let initState(): State =
   State
-    { currentLocation = PackageLocation.Module []
+    { currentLocation = PackageLocation.Module([])
       locationHistory = [] }
 
 
 let formatLocation(location: PackageLocation): String =
   match location with
-  | Module path ->
+  | Module(path) ->
     if Stdlib.List.isEmpty(path) then
       "/ (root)"
     else
       $"/{Stdlib.String.join(path, ".")} (module)"
-  | Type loc ->
+  | Type(loc) ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (type)"
-  | Value loc ->
+  | Value(loc) ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (value)"
-  | Function loc ->
+  | Function(loc) ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (fn)"
-  | Trait loc ->
+  | Trait(loc) ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (trait)"
-  | Impl loc ->
+  | Impl(loc) ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (impl)"
-  | Test loc ->
+  | Test(loc) ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (test)"
 
 
@@ -85,8 +85,8 @@ let definitionFromArgs(args: List<String>): String =
   // name may fail closed (the link check treats what it cannot inspect as a link).
   | [ path ] when (if Stdlib.String.contains(path, " ") then false else Stdlib.Cli.File.exists(path)) ->
     match Stdlib.Cli.File.readText(path) with
-    | Ok source -> source
-    | Error _ -> path
+    | Ok(source) -> source
+    | Error(_) -> path
   | parts ->
     let joined = Stdlib.String.join(parts, " ") |> Stdlib.String.trim
 
@@ -107,8 +107,8 @@ let docsOfFn(
   : List<(LanguageTools.ProgramTypes.DocPart * String)> =
   let params =
     fn.parameters
-    |> Stdlib.List.indexedMap(fun i p ->
-      (LanguageTools.ProgramTypes.DocPart.Parameter i, p.description))
+    |> Stdlib.List.indexedMap(fun(i, p) ->
+      (LanguageTools.ProgramTypes.DocPart.Parameter(i), p.description))
 
   Stdlib.List.prepend(
     params,
@@ -120,15 +120,15 @@ let docsOfType(
   : List<(LanguageTools.ProgramTypes.DocPart * String)> =
   let nested =
     match t.declaration.definition with
-    | Record fields ->
+    | Record(fields) ->
       fields
       |> Stdlib.List.map(fun f ->
-        (LanguageTools.ProgramTypes.DocPart.RecordField f.name, f.description))
-    | Enum cases ->
+        (LanguageTools.ProgramTypes.DocPart.RecordField(f.name), f.description))
+    | Enum(cases) ->
       cases
       |> Stdlib.List.map(fun c ->
-        (LanguageTools.ProgramTypes.DocPart.EnumCase c.name, c.description))
-    | Alias _ -> []
+        (LanguageTools.ProgramTypes.DocPart.EnumCase(c.name), c.description))
+    | Alias(_) -> []
 
   Stdlib.List.prepend(
     nested,
@@ -142,24 +142,24 @@ let authoredDocs(
   ops
   |> Stdlib.List.filterMap(fun op ->
     match op with
-    | AddFn fn -> Stdlib.Option.Option.Some(docsOfFn(fn))
-    | AddType t -> Stdlib.Option.Option.Some(docsOfType(t))
-    | AddValue v ->
+    | AddFn(fn) -> Stdlib.Option.Option.Some(docsOfFn(fn))
+    | AddType(t) -> Stdlib.Option.Option.Some(docsOfType(t))
+    | AddValue(v) ->
       Stdlib.Option.Option.Some(
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ]
       )
-    | AddTrait t ->
+    | AddTrait(t) ->
       Stdlib.Option.Option.Some(
         Stdlib.List.prepend(
           (t.methods
-           |> Stdlib.List.map(fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description))),
+           |> Stdlib.List.map(fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField(m.name), m.description))),
           (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
       )
-    | AddTraitImpl i ->
+    | AddTraitImpl(i) ->
       Stdlib.Option.Option.Some(
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ]
       )
-    | AddTest test ->
+    | AddTest(test) ->
       Stdlib.Option.Option.Some(
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, test.description) ]
       )
@@ -195,7 +195,7 @@ let currentDocs(
       |> Stdlib.Option.map(fun t ->
         Stdlib.List.prepend(
           (t.methods
-           |> Stdlib.List.map(fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description))),
+           |> Stdlib.List.map(fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField(m.name), m.description))),
           (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)))
       |> Stdlib.Option.withDefault([])
     | TraitImpl ->
@@ -252,7 +252,7 @@ let updateDocsThatChanged(
       match docAt(current, part) with
       // A part the declaration does not have is not an edit to anything.
       | None -> Stdlib.Option.Option.None
-      | Some currentText ->
+      | Some(currentText) ->
         if currentText == text then
           Stdlib.Option.Option.None
         // Silence is not a statement that the existing words are wrong. Clearing a doc is sayable
@@ -282,8 +282,8 @@ let updateDocsThatChanged(
     false
   else
     match SCM.PackageOps.add(branchId, updates) with
-    | Ok _ -> true
-    | Error _ -> false
+    | Ok(_) -> true
+    | Error(_) -> false
 
 
 /// What a save did, decided without printing anything: the CLI's authoring commands print from it
@@ -317,14 +317,14 @@ let commitAuthored(
   let isUpdate = (Stdlib.List.isEmpty(previousHashes)) |> Stdlib.Bool.not
 
   match SCM.PackageOps.addAuthored(branchId, ops) with
-  | Ok report ->
+  | Ok(report) ->
     // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
     // stabilized inside the save, so the value in hand until now is a placeholder. Everything
     // below that names a version -- the permission summary, the doc-only note -- needs the
     // real one.
     let boundHash =
       match Packages.Rename.referenceAt(branchId, location) with
-      | Some reference -> LanguageTools.ProgramTypes.Reference.hash(reference)
+      | Some(reference) -> LanguageTools.ProgramTypes.Reference.hash(reference)
       | None -> hash
 
     // Decided here rather than before the save, because this is where the stabilized hash is
@@ -342,7 +342,7 @@ let commitAuthored(
     let reverted =
       isUpdate
       && (Stdlib.Bool.not(movedVersion))
-      && ((Stdlib.List.head(previousHashes)) != (Stdlib.Option.Option.Some boundHash))
+      && ((Stdlib.List.head(previousHashes)) != (Stdlib.Option.Option.Some(boundHash)))
 
     // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
     // it already had and carries no new text saved NOTHING, and re-running the same authoring
@@ -372,7 +372,7 @@ let commitAuthored(
         let issues = Stdlib.List.concat(report.warnings, report.diagnostics)
 
         match issues with
-        | [] -> Stdlib.Option.Option.Some "it failed the type check"
+        | [] -> Stdlib.Option.Option.Some("it failed the type check")
         | [issue, ...rest] ->
           // The CODE as well as the message. `dark docs traits` names these codes, they are
           // what somebody searches for, and `dark module` prints them through
@@ -405,7 +405,7 @@ let commitAuthored(
           followed = followed
           ownIssue = ownIssue
           report = report })
-  | Error msg -> Stdlib.Result.Result.Error msg
+  | Error(msg) -> Stdlib.Result.Result.Error(msg)
 
 
 /// Shared tail of the fn/type/val authoring flow: build the name-resolution
@@ -440,7 +440,7 @@ let saveAuthored(
 
   match convert(ctx) with
   | None -> failState
-  | Some converted ->
+  | Some(converted) ->
   // Not `Some(a, b, c)`: that pattern never matches an Option holding a 3-tuple.
   let (ops, hash, unresolvedNames) = converted
 
@@ -448,7 +448,7 @@ let saveAuthored(
     failState
   else
     match commitAuthored(state.currentBranchId, location, kind, hash, ops) with
-    | Ok committed ->
+    | Ok(committed) ->
       let isUpdate = committed.isUpdate
       let landed = committed.landed
       let reverted = committed.reverted
@@ -472,7 +472,7 @@ let saveAuthored(
           Stdlib.Cli.UI.Colors.hint($"= {kindWord} {fullPath} is unchanged; nothing was saved"))
 
       match ownIssue with
-      | Some why ->
+      | Some(why) ->
         Cli.Text.printWrappedErr(
           Stdlib.Cli.UI.Colors.error,
           "  ",
@@ -483,7 +483,7 @@ let saveAuthored(
 
       state
 
-    | Error msg ->
+    | Error(msg) ->
       let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
       Cli.Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "", $"✗ Could not save {kindWord} {fullPath}: {msg}")
 

@@ -10,7 +10,7 @@ let execute(state: AppState, _args: List<String>): AppState =
     let cleared = clearPromptRegion(state)
     let resumed =
       match returnTo with
-      | SubApp app -> Page.SubApp (app.onResume())
+      | SubApp(app) -> Page.SubApp(app.onResume())
       | other -> other
     { cleared with currentPage = resumed, pageStack = rest }
   | [] ->

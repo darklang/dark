@@ -79,8 +79,8 @@ test toFloat =
 test fromFloat =
   Stdlib.Test.all(
     [ // fromFloat truncates toward zero, like Int.fromFloat; fromFloatRounded rounds
-      Stdlib.UInt64.fromFloat(3.9) |> Stdlib.Test.equal(Some 3UL)
-      Stdlib.UInt64.fromFloat(-0.9) |> Stdlib.Test.equal(Some 0UL)
+      Stdlib.UInt64.fromFloat(3.9) |> Stdlib.Test.equal(Some(3UL))
+      Stdlib.UInt64.fromFloat(-0.9) |> Stdlib.Test.equal(Some(0UL))
       Stdlib.UInt64.fromFloat(-1.0) |> Stdlib.Test.equal(None)
       Stdlib.UInt64.fromFloat(0.0 / 0.0) |> Stdlib.Test.equal(None)
       Stdlib.UInt64.fromFloat(1.0 / 0.0) |> Stdlib.Test.equal(None)
@@ -89,13 +89,13 @@ test fromFloat =
 
 test fromFloatRounded =
   Stdlib.Test.all(
-    [ Stdlib.UInt64.fromFloatRounded(3.9) |> Stdlib.Test.equal(Some 4UL)
+    [ Stdlib.UInt64.fromFloatRounded(3.9) |> Stdlib.Test.equal(Some(4UL))
       Stdlib.UInt64.fromFloatRounded(-1.0) |> Stdlib.Test.equal(None)
       Stdlib.UInt64.fromFloatRounded(0.0 / 0.0) |> Stdlib.Test.equal(None)
       Stdlib.UInt64.fromFloatRounded(1.0 / 0.0) |> Stdlib.Test.equal(None)
       Stdlib.UInt64.fromFloatRounded(-1.0 / 0.0) |> Stdlib.Test.equal(None)
-      Stdlib.UInt64.fromFloatRounded(2.5) |> Stdlib.Test.equal(Some 2UL)
-      Stdlib.UInt64.fromFloatRounded(3.5) |> Stdlib.Test.equal(Some 4UL) ])
+      Stdlib.UInt64.fromFloatRounded(2.5) |> Stdlib.Test.equal(Some(2UL))
+      Stdlib.UInt64.fromFloatRounded(3.5) |> Stdlib.Test.equal(Some(4UL)) ])
 
 /// Wraps on overflow.
 test add =
@@ -138,57 +138,57 @@ test sum =
 test parse =
   Stdlib.Test.all(
     [ // parses OK
-      Stdlib.UInt64.parse("0") |> Stdlib.Test.equal(Ok 0UL)
-      Stdlib.UInt64.parse("1") |> Stdlib.Test.equal(Ok 1UL)
-      Stdlib.UInt64.parse(" 1") |> Stdlib.Test.equal(Ok 1UL)
-      Stdlib.UInt64.parse("1 ") |> Stdlib.Test.equal(Ok 1UL)
-      Stdlib.UInt64.parse("+1") |> Stdlib.Test.equal(Ok 1UL)
-      Stdlib.UInt64.parse(" +1 ") |> Stdlib.Test.equal(Ok 1UL)
+      Stdlib.UInt64.parse("0") |> Stdlib.Test.equal(Ok(0UL))
+      Stdlib.UInt64.parse("1") |> Stdlib.Test.equal(Ok(1UL))
+      Stdlib.UInt64.parse(" 1") |> Stdlib.Test.equal(Ok(1UL))
+      Stdlib.UInt64.parse("1 ") |> Stdlib.Test.equal(Ok(1UL))
+      Stdlib.UInt64.parse("+1") |> Stdlib.Test.equal(Ok(1UL))
+      Stdlib.UInt64.parse(" +1 ") |> Stdlib.Test.equal(Ok(1UL))
       // "octal" format ignored
-      Stdlib.UInt64.parse("078") |> Stdlib.Test.equal(Ok 78UL)
+      Stdlib.UInt64.parse("078") |> Stdlib.Test.equal(Ok(78UL))
       Stdlib.UInt64.parse("18446744073709551615")
-      |> Stdlib.Test.equal(Ok 18446744073709551615UL) ])
+      |> Stdlib.Test.equal(Ok(18446744073709551615UL)) ])
 
 test parseOutOfRange =
   Stdlib.Test.all(
     [ Stdlib.UInt64.parse("-1")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.OutOfRange)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.OutOfRange))
       Stdlib.UInt64.parse("-00001")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.OutOfRange)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.OutOfRange))
       Stdlib.UInt64.parse("-10001")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.OutOfRange)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.OutOfRange))
       Stdlib.UInt64.parse("18446744073709551616")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.OutOfRange) ])
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.OutOfRange)) ])
 
 test parseBadFormat =
   Stdlib.Test.all(
     [ // bad format
       Stdlib.UInt64.parse("1 2 3")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("+ 1")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("- 1")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("0xA")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("0x123")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("0b0100")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("pi")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("Darklang.Stdlib.Math.pi")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("1.23E+04")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("1I")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("one")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat)
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat))
       Stdlib.UInt64.parse("XIV")
-      |> Stdlib.Test.equal(Error Stdlib.UInt64.ParseError.BadFormat) ])
+      |> Stdlib.Test.equal(Error(Stdlib.UInt64.ParseError.BadFormat)) ])
 
 test toString =
   Stdlib.Test.all(
@@ -199,9 +199,9 @@ test toString =
 
 test fromInt8 =
   Stdlib.Test.all(
-    [ Stdlib.UInt64.fromInt8(0y) |> Stdlib.Test.equal(Some 0UL)
-      Stdlib.UInt64.fromInt8(1y) |> Stdlib.Test.equal(Some 1UL)
-      Stdlib.UInt64.fromInt8(127y) |> Stdlib.Test.equal(Some 127UL)
+    [ Stdlib.UInt64.fromInt8(0y) |> Stdlib.Test.equal(Some(0UL))
+      Stdlib.UInt64.fromInt8(1y) |> Stdlib.Test.equal(Some(1UL))
+      Stdlib.UInt64.fromInt8(127y) |> Stdlib.Test.equal(Some(127UL))
       Stdlib.UInt64.fromInt8(-128y) |> Stdlib.Test.equal(None) ])
 
 test fromUInt8 =
@@ -212,9 +212,9 @@ test fromUInt8 =
 
 test fromInt16 =
   Stdlib.Test.all(
-    [ Stdlib.UInt64.fromInt16(0s) |> Stdlib.Test.equal(Some 0UL)
-      Stdlib.UInt64.fromInt16(1s) |> Stdlib.Test.equal(Some 1UL)
-      Stdlib.UInt64.fromInt16(32767s) |> Stdlib.Test.equal(Some 32767UL)
+    [ Stdlib.UInt64.fromInt16(0s) |> Stdlib.Test.equal(Some(0UL))
+      Stdlib.UInt64.fromInt16(1s) |> Stdlib.Test.equal(Some(1UL))
+      Stdlib.UInt64.fromInt16(32767s) |> Stdlib.Test.equal(Some(32767UL))
       Stdlib.UInt64.fromInt16(-32768s) |> Stdlib.Test.equal(None) ])
 
 test fromUInt16 =
@@ -225,9 +225,9 @@ test fromUInt16 =
 
 test fromInt32 =
   Stdlib.Test.all(
-    [ Stdlib.UInt64.fromInt32(0l) |> Stdlib.Test.equal(Some 0UL)
-      Stdlib.UInt64.fromInt32(1l) |> Stdlib.Test.equal(Some 1UL)
-      Stdlib.UInt64.fromInt32(2147483647l) |> Stdlib.Test.equal(Some 2147483647UL)
+    [ Stdlib.UInt64.fromInt32(0l) |> Stdlib.Test.equal(Some(0UL))
+      Stdlib.UInt64.fromInt32(1l) |> Stdlib.Test.equal(Some(1UL))
+      Stdlib.UInt64.fromInt32(2147483647l) |> Stdlib.Test.equal(Some(2147483647UL))
       Stdlib.UInt64.fromInt32(-1l) |> Stdlib.Test.equal(None) ])
 
 test fromUInt32 =
@@ -238,16 +238,16 @@ test fromUInt32 =
 
 test fromInt64 =
   Stdlib.Test.all(
-    [ Stdlib.UInt64.fromInt64(0L) |> Stdlib.Test.equal(Some 0UL)
-      Stdlib.UInt64.fromInt64(1L) |> Stdlib.Test.equal(Some 1UL)
+    [ Stdlib.UInt64.fromInt64(0L) |> Stdlib.Test.equal(Some(0UL))
+      Stdlib.UInt64.fromInt64(1L) |> Stdlib.Test.equal(Some(1UL))
       Stdlib.UInt64.fromInt64(9223372036854775807L)
-      |> Stdlib.Test.equal(Some 9223372036854775807UL)
+      |> Stdlib.Test.equal(Some(9223372036854775807UL))
       Stdlib.UInt64.fromInt64(-1L) |> Stdlib.Test.equal(None) ])
 
 test fromInt128 =
   Stdlib.Test.all(
-    [ Stdlib.UInt64.fromInt128(0Q) |> Stdlib.Test.equal(Some 0UL)
-      Stdlib.UInt64.fromInt128(1Q) |> Stdlib.Test.equal(Some 1UL)
+    [ Stdlib.UInt64.fromInt128(0Q) |> Stdlib.Test.equal(Some(0UL))
+      Stdlib.UInt64.fromInt128(1Q) |> Stdlib.Test.equal(Some(1UL))
       Stdlib.UInt64.fromInt128(-1Q) |> Stdlib.Test.equal(None)
       Stdlib.UInt64.fromInt128(18446744073709551616Q) |> Stdlib.Test.equal(None)
       Stdlib.UInt64.fromInt128(170141183460469231731687303715884105727Q)
@@ -255,10 +255,10 @@ test fromInt128 =
 
 test fromUInt128 =
   Stdlib.Test.all(
-    [ Stdlib.UInt64.fromUInt128(0Z) |> Stdlib.Test.equal(Some 0UL)
-      Stdlib.UInt64.fromUInt128(1Z) |> Stdlib.Test.equal(Some 1UL)
+    [ Stdlib.UInt64.fromUInt128(0Z) |> Stdlib.Test.equal(Some(0UL))
+      Stdlib.UInt64.fromUInt128(1Z) |> Stdlib.Test.equal(Some(1UL))
       Stdlib.UInt64.fromUInt128(18446744073709551615Z)
-      |> Stdlib.Test.equal(Some 18446744073709551615UL)
+      |> Stdlib.Test.equal(Some(18446744073709551615UL))
       Stdlib.UInt64.fromUInt128(18446744073709551616Z) |> Stdlib.Test.equal(None)
       Stdlib.UInt64.fromUInt128(340282366920938463463374607431768211455Z)
       |> Stdlib.Test.equal(None) ])

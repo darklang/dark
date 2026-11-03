@@ -199,7 +199,14 @@ type MatchPattern =
     symbolOpenQuote : Range *
     symbolCloseQuote : Range
   | MPUnit of Range
-  | MPEnum of Range * caseName : (Range * string) * fieldPats : List<MatchPattern>
+  /// `Case(p, …)`, or `Type.Case(p, …)`: `typePath` is the qualifier before the
+  /// case, `[]` when there is none. Matching goes by case name; the qualifier is
+  /// checked to name a type when the match is lowered.
+  | MPEnum of
+    Range *
+    typePath : List<string> *
+    caseName : (Range * string) *
+    fieldPats : List<MatchPattern>
   | MPTuple of
     Range *
     first : MatchPattern *
@@ -244,7 +251,7 @@ let rec mpRange (p : MatchPattern) : Range =
   | MPString(r, _, _, _)
   | MPChar(r, _, _, _)
   | MPUnit r
-  | MPEnum(r, _, _)
+  | MPEnum(r, _, _, _)
   | MPTuple(r, _, _, _, _, _, _)
   | MPList(r, _, _, _)
   | MPListCons(r, _, _, _)

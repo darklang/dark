@@ -31,12 +31,12 @@ let decodeOpRowEntries(
     match
       (Stdlib.Sqlite.textField(row, "id"), Stdlib.Sqlite.bytesField(row, "op_blob"))
     with
-    | (Some idStr, Some blob) ->
+    | (Some(idStr), Some(blob)) ->
       match Stdlib.Uuid.parse(idStr) with
-      | Ok id ->
+      | Ok(id) ->
         tryDecodeOp(id, blob)
         |> Stdlib.Option.map(fun op -> (idStr, Stdlib.Sqlite.textOr(row, "ts"), op))
-      | Error _ -> Stdlib.Option.Option.None
+      | Error(_) -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None)
 
 
@@ -44,7 +44,7 @@ let decodeOpRowEntries(
 let decodeOpRows(
   rows: List<Dict<String, Stdlib.Sqlite.Value>>)
   : List<LanguageTools.ProgramTypes.PackageOp> =
-  decodeOpRowEntries(rows) |> Stdlib.List.map(fun (_id, _ts, op) -> op)
+  decodeOpRowEntries(rows) |> Stdlib.List.map(fun((_id, _ts, op)) -> op)
 
 
 // reading an INCOMING side (op blobs -> the names they bind)
@@ -66,12 +66,12 @@ let bindingFromOp(
   // "what it replaced" is the version the fold picked, which is not lineage in the sense this asks about.
   let previous =
     match op with
-    | SetName(_, _, Some h) ->
+    | SetName(_, _, Some(h)) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(h))
     | _ -> Stdlib.Option.Option.None
 
   match op with
-  | Decision(_, location, _, Override target)
+  | Decision(_, location, _, Override(target))
   | SetName(location, target, _) ->
     let modules = Stdlib.String.join(location.modules, ".")
 
@@ -134,9 +134,9 @@ let bindingEntriesFromOpRows(
       match
         (Stdlib.Sqlite.textField(row, "id"), Stdlib.Sqlite.bytesField(row, "op_blob"))
       with
-      | (Some idStr, Some blob) ->
+      | (Some(idStr), Some(blob)) ->
         match Stdlib.Uuid.parse(idStr) with
-        | Ok id ->
+        | Ok(id) ->
           let ts = Stdlib.Sqlite.textField(row, "ts") |> Stdlib.Option.withDefault("")
 
           match tryDecodeOp(id, blob) with
@@ -151,7 +151,7 @@ let bindingEntriesFromOpRows(
                    name = location.name
                    binding = Stdlib.Option.Option.None })
             )
-          | Some op ->
+          | Some(op) ->
             bindingFromOp(op, ts)
             |> Stdlib.Option.map(fun pair ->
               let (k, b) = pair
@@ -161,9 +161,9 @@ let bindingEntriesFromOpRows(
                  { owner = b.owner
                    modules = b.modules
                    name = b.name
-                   binding = Stdlib.Option.Option.Some b }))
+                   binding = Stdlib.Option.Option.Some(b) }))
           | None -> Stdlib.Option.Option.None
-        | Error _ -> Stdlib.Option.Option.None
+        | Error(_) -> Stdlib.Option.Option.None
       | _ -> Stdlib.Option.Option.None)
 
   entries
@@ -253,7 +253,7 @@ let liveBindingFor(
         (w.owner == loc.owner) && (w.modules == modules) && (w.name == loc.name))
 
   match onBranch with
-  | Some w -> w.binding
+  | Some(w) -> w.binding
   | None ->
     match
       // main-scoped: the fallback half of THE branch-aware read, after the chain overlay above.
@@ -284,7 +284,7 @@ let liveBindingFor(
             LIMIT 1"),
         [ loc.owner, modules, loc.name ])
     with
-    | Some row -> Conflicts.bindingFromRow(row)
+    | Some(row) -> Conflicts.bindingFromRow(row)
     | None -> Stdlib.Option.Option.None
 
 

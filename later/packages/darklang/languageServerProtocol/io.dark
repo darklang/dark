@@ -51,52 +51,52 @@ type IncomingMessage =
 let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =
   match (r.method, r.id, r.params) with
   | ("initialize", None, _) -> IncomingMessage.InitializeRequest
-  | ("initialized", None, Some(Object params)) -> IncomingMessage.Initialized
+  | ("initialized", None, Some(Object(params))) -> IncomingMessage.Initialized
   | ("$/setTrace", None, _) -> IncomingMessage.SetTrace
   // `shutdown` is a request and must echo its JSON-RPC ID.
-  | ("shutdown", Some requestId, _) -> IncomingMessage.Shutdown requestId
+  | ("shutdown", Some(requestId), _) -> IncomingMessage.Shutdown(requestId)
 
   // -- textDocument synchronization
-  | ("textDocument/didOpen", None, Some(Object p)) ->
-    (Stdlib.AltJson.Json.Object p)
+  | ("textDocument/didOpen", None, Some(Object(p))) ->
+    (Stdlib.AltJson.Json.Object(p))
     |> DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.fromJson
     |> Builtin.unwrap
     |> IncomingMessage.TextDocumentDidOpenNotification
 
-  | ("textDocument/didChange", None, Some(Object p)) ->
-    (Stdlib.AltJson.Json.Object p)
+  | ("textDocument/didChange", None, Some(Object(p))) ->
+    (Stdlib.AltJson.Json.Object(p))
     |> DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.fromJson
     |> Builtin.unwrap
     |> IncomingMessage.TextDocumentDidChangeNotification
 
-  | ("textDocument/didSave", None, Some(Object p)) ->
-    (Stdlib.AltJson.Json.Object p)
+  | ("textDocument/didSave", None, Some(Object(p))) ->
+    (Stdlib.AltJson.Json.Object(p))
     |> DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.fromJson
     |> Builtin.unwrap
     |> IncomingMessage.TextDocumentDidSaveNotification
 
-  | ("textDocument/didClose", None, Some(Object p)) ->
-    (Stdlib.AltJson.Json.Object p)
+  | ("textDocument/didClose", None, Some(Object(p))) ->
+    (Stdlib.AltJson.Json.Object(p))
     |> DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.fromJson
     |> Builtin.unwrap
     |> IncomingMessage.TextDocumentDidCloseNotification
 
   // -- completion (autocomplete)
-  | ("textDocument/completion", Some requestId, Some(Object p)) ->
-    (Stdlib.AltJson.Json.Object p)
+  | ("textDocument/completion", Some(requestId), Some(Object(p))) ->
+    (Stdlib.AltJson.Json.Object(p))
     |> Completions.CompletionRequest.CompletionParams.fromJson
     |> Builtin.unwrap
     |> fun p -> IncomingMessage.TextDocumentCompletionRequest(requestId, p)
 
   // -- semantic tokens (which provides syntax highlighting)
-  | ("textDocument/semanticTokens/full", Some requestId, Some(Object p)) ->
-    (Stdlib.AltJson.Json.Object p)
+  | ("textDocument/semanticTokens/full", Some(requestId), Some(Object(p))) ->
+    (Stdlib.AltJson.Json.Object(p))
     |> SemanticTokens.SemanticTokensRequest.SemanticTokensParams.fromJson
     |> Builtin.unwrap
     |> fun p -> IncomingMessage.TextDocumentSemanticTokensRequest(requestId, p)
 
-  | ("textDocument/hover", Some requestId, Some(Object p)) ->
-    (Stdlib.AltJson.Json.Object p)
+  | ("textDocument/hover", Some(requestId), Some(Object(p))) ->
+    (Stdlib.AltJson.Json.Object(p))
     |> Hover.HoverRequest.HoverParams.fromJson
     |> Builtin.unwrap
     |> fun p -> IncomingMessage.TextDocumentHoverRequest(requestId, p)
@@ -110,4 +110,4 @@ let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =
   //   |> IncomingMessage.PublishDiagnostics
 
 
-  | _other -> IncomingMessage.Other r
+  | _other -> IncomingMessage.Other(r)

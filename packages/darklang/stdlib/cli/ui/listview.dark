@@ -23,7 +23,7 @@ let render(region: Layout.Region, displayLines: List<String>, selected: Int): Li
 
     let rows =
       displayLines
-      |> Stdlib.List.indexedMap(fun i l -> (i, l))
+      |> Stdlib.List.indexedMap(fun(i, l) -> (i, l))
       |> Stdlib.List.drop(scrollOffset)
       |> Stdlib.List.take(visible)
       |> Stdlib.List.map(fun pair ->

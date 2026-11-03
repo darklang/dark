@@ -18,12 +18,12 @@ let evaluateRaw(
     Builtin.cliEvaluateExpression(
       accountID, branchId, expr, currentModule, width, color, allowHarmful)
   with
-  | Ok value -> Stdlib.Result.Result.Ok value
-  | Error error ->
+  | Ok(value) -> Stdlib.Result.Result.Ok(value)
+  | Error(error) ->
     match error with
     | Runtime(_, _) -> ExecutionError.printCallStack(branchId, "expression", error)
     | _ -> ()
-    Stdlib.Result.Result.Error error
+    Stdlib.Result.Result.Error(error)
 
 
 /// Evaluate `expr` and hand back what it produced: `Ok (Some printed)` for a value, `Ok None` for something
@@ -42,8 +42,8 @@ let evaluate(
   match
     evaluateRaw(state.accountID, state.currentBranchId, expr, currentModule, allowHarmful)
   with
-  | Ok result -> Stdlib.Result.Result.Ok result
-  | Error err ->
+  | Ok(result) -> Stdlib.Result.Result.Ok(result)
+  | Error(err) ->
     Stdlib.Result.Result.Error(ExecutionError.toString(state.currentBranchId, err))
 
 
@@ -81,16 +81,16 @@ let execute(state: AppState, args: List<String>): AppState =
 
     let newState =
       match outcome with
-      | Ok (Some s) ->
+      | Ok(Some(s)) ->
         Stdlib.printLine(s)
         state
-      | Ok None -> state
-      | Error message ->
+      | Ok(None) -> state
+      | Error(message) ->
         Stdlib.printErrorLine($"Error: {message}")
         { state with exitCode = 1 }
 
     match stats with
-    | Some m ->
+    | Some(m) ->
       let _ = Stdlib.printLine("")
       let _ = Stdlib.printLine(LanguageTools.Perf.render(m))
       // TODO: report the phases instead of warning about them. `cliEvaluateExpression` already

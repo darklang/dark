@@ -67,22 +67,22 @@ let __roundedDifference(
 
 let __digit(c: Char): Stdlib.Option.Option<Int> =
   match c with
-  | '0' -> Stdlib.Option.Option.Some 0
-  | '1' -> Stdlib.Option.Option.Some 1
-  | '2' -> Stdlib.Option.Option.Some 2
-  | '3' -> Stdlib.Option.Option.Some 3
-  | '4' -> Stdlib.Option.Option.Some 4
-  | '5' -> Stdlib.Option.Option.Some 5
-  | '6' -> Stdlib.Option.Option.Some 6
-  | '7' -> Stdlib.Option.Option.Some 7
-  | '8' -> Stdlib.Option.Option.Some 8
-  | '9' -> Stdlib.Option.Option.Some 9
+  | '0' -> Stdlib.Option.Option.Some(0)
+  | '1' -> Stdlib.Option.Option.Some(1)
+  | '2' -> Stdlib.Option.Option.Some(2)
+  | '3' -> Stdlib.Option.Option.Some(3)
+  | '4' -> Stdlib.Option.Option.Some(4)
+  | '5' -> Stdlib.Option.Option.Some(5)
+  | '6' -> Stdlib.Option.Option.Some(6)
+  | '7' -> Stdlib.Option.Option.Some(7)
+  | '8' -> Stdlib.Option.Option.Some(8)
+  | '9' -> Stdlib.Option.Option.Some(9)
   | _ -> Stdlib.Option.Option.None
 
 let __number(digits: List<Char>): Stdlib.Option.Option<Int> =
-  Stdlib.List.fold(digits, Stdlib.Option.Option.Some 0, fun acc c ->
+  Stdlib.List.fold(digits, Stdlib.Option.Option.Some(0), fun(acc, c) ->
     match (acc, __digit(c)) with
-    | (Some n, Some d) -> Stdlib.Option.Option.Some(n * 10 + d)
+    | (Some(n), Some(d)) -> Stdlib.Option.Option.Some(n * 10 + d)
     | _ -> Stdlib.Option.Option.None)
 
 let __isLeapYear(year: Int): Bool =
@@ -115,7 +115,7 @@ let __fromParts(
      __number(second),
      __number(millisecond))
   with
-  | (Some y, Some mo, Some d, Some h, Some mi, Some s, Some ms) ->
+  | (Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s), Some(ms)) ->
     if
       y >= 1
       && mo >= 1
@@ -134,8 +134,8 @@ let __fromParts(
         + ms * __ticksPerMillisecond()
       Stdlib.Result.Result.Ok(__fromTicks(ticks))
     else
-      Stdlib.Result.Result.Error "Invalid date format"
-  | _ -> Stdlib.Result.Result.Error "Invalid date format"
+      Stdlib.Result.Result.Error("Invalid date format")
+  | _ -> Stdlib.Result.Result.Error("Invalid date format")
 
 
 /// Parses a string representing a date and time in the ISO 8601 format exactly {{" + ISO8601Format+ "}}
@@ -153,7 +153,7 @@ let parse(s: String): Stdlib.Result.Result<DateTime, String> =
       [ mi1, mi2 ],
       [ s1, s2 ],
       [ f1, f2, f3 ])
-  | _ -> Stdlib.Result.Result.Error "Invalid date format"
+  | _ -> Stdlib.Result.Result.Error("Invalid date format")
 
 
 impl ToString for DateTime =
@@ -306,7 +306,7 @@ let __timespec(bytes: Bytes): Result.Result<(Int * Int), Int> =
 let __realtimeNanoseconds(): Result.Result<(Int * Int), Int> =
   if Builtin.runtimeTargetOS() == "browser" then
     let ticks = Builtin.runtimeRealtimeTicks()
-    Ok ((ticks / 10000000, (ticks % 10000000) * 100))
+    Ok((ticks / 10000000, (ticks % 10000000) * 100))
   else if Stdlib.Cli.Posix.__abiMac() then
     Builtin.syscallGettimeofday()
     |> Stdlib.Result.andThen(fun bytes ->
@@ -319,8 +319,8 @@ let __realtimeNanoseconds(): Result.Result<(Int * Int), Int> =
 let __monotonicNanoseconds(): Result.Result<(Int * Int), Int> =
   if Builtin.runtimeTargetOS() == "browser" then
     let (ticks, frequency) = Builtin.runtimeMonotonicCounter()
-    if frequency <= 0 then Error 5
-    else Ok ((ticks / frequency, ((ticks % frequency) * 1000000000) / frequency))
+    if frequency <= 0 then Error(5)
+    else Ok((ticks / frequency, ((ticks % frequency) * 1000000000) / frequency))
   else if Stdlib.Cli.Posix.__abiMac() then
     Builtin.syscallMachAbsoluteTime()
     |> Stdlib.Result.andThen(fun bytes ->
@@ -332,21 +332,21 @@ let __monotonicNanoseconds(): Result.Result<(Int * Int), Int> =
           |> Stdlib.Result.andThen(fun numerator ->
             Stdlib.Cli.Posix.__kernelField(base, 4, 4)
             |> Stdlib.Result.andThen(fun denominator ->
-              if denominator == 0 then Error 5
+              if denominator == 0 then Error(5)
               else
                 let nanos = (ticks / denominator) * numerator + ((ticks % denominator) * numerator) / denominator
-                Ok ((nanos / 1000000000, nanos % 1000000000)))))))
+                Ok((nanos / 1000000000, nanos % 1000000000)))))))
   else Builtin.syscallClockGettime(1) |> Stdlib.Result.andThen(__timespec)
 
 let __monotonicMilliseconds(): Int =
   match __monotonicNanoseconds() with
-  | Ok ((seconds, nanos)) -> seconds * 1000 + nanos / 1000000
-  | Error e -> Builtin.unwrap(Error e)
+  | Ok((seconds, nanos)) -> seconds * 1000 + nanos / 1000000
+  | Error(e) -> Builtin.unwrap(Error(e))
 
 let __now(): DateTime =
   match __realtimeNanoseconds() with
-  | Ok ((seconds, nanos)) -> __fromTicks(seconds * 10000000 + nanos / 100)
-  | Error e -> Builtin.unwrap(Error e)
+  | Ok((seconds, nanos)) -> __fromTicks(seconds * 10000000 + nanos / 100)
+  | Error(e) -> Builtin.unwrap(Error(e))
 
 let __today(): DateTime =
   let seconds = Stdlib.DateTime.toSeconds(__now())
@@ -354,15 +354,15 @@ let __today(): DateTime =
   let start = if remainder < 0 then seconds - remainder - 86400 else seconds - remainder
   Stdlib.DateTime.fromSeconds(start)
 
-let __sleepWith(sleep: Int -> Int -> (Int * Bytes), seconds: Int, nanos: Int)
+let __sleepWith(sleep: (Int, Int) -> (Int * Bytes), seconds: Int, nanos: Int)
   : Result.Result<Unit, Int> =
   let (rc, remaining) = sleep(seconds, nanos)
-  if rc == 0 then Ok ()
+  if rc == 0 then Ok()
   else if rc == -4 then
     __timespec(remaining) |> Stdlib.Result.andThen(fun pair ->
       let (seconds, nanos) = pair
       __sleepWith(sleep, seconds, nanos))
-  else Error (0 - rc)
+  else Error(0 - rc)
 
 let __sleepNanoseconds(seconds: Int, nanos: Int): Result.Result<Unit, Int> =
   __sleepWith(Builtin.syscallNanosleep, seconds, nanos)

@@ -14,7 +14,7 @@ module Darklang.LanguageTools.Parser.Parse.Tests
 
 let shape(source: String): (Int * Int) =
   match Darklang.LanguageTools.Parser.Parse.toWrittenTypes(source) with
-  | Some(SourceFile file) ->
+  | Some(SourceFile(file)) ->
     (Stdlib.List.length(file.declarations), Stdlib.List.length(file.exprsToEval))
   | None -> (-1, -1)
 

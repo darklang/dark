@@ -40,7 +40,7 @@ let seedFrom(): String =
 /// driven through the wrapper quietly uses the dev store instead of its own.
 let cliBinary(): String =
   match Stdlib.Env.get("DARK_CLI_UNDER_TEST") with
-  | Some path -> path
+  | Some(path) -> path
   | None -> "backend/Build/out/Cli/Debug/net10.0/Cli"
 
 
@@ -52,8 +52,8 @@ let create(): Stdlib.Result.Result<T, String> =
 
   if Stdlib.Cli.Unix.fileExists(src) then
     match Stdlib.Cli.Unix.ensureDirectoryExists(dir) with
-    | Error e -> Stdlib.Result.Result.Error $"could not create {dir}: {e}"
-    | Ok _ ->
+    | Error(e) -> Stdlib.Result.Result.Error($"could not create {dir}: {e}")
+    | Ok(_) ->
       // `.backup` rather than `cp`, and a read lock rather than a write one, so this is
       // safe against a dev store something else is using.
       let copy =
@@ -62,12 +62,12 @@ let create(): Stdlib.Result.Result<T, String> =
           $"sqlite3 -cmd '.timeout 10000' {src} '.backup {dir}/data.db'")
 
       if copy.exitCode != 0 then
-        Stdlib.Result.Result.Error $"could not seed {dir} from {src}: {copy.stderr}"
+        Stdlib.Result.Result.Error($"could not seed {dir} from {src}: {copy.stderr}")
       else
         Stdlib.Result.Result.Ok(T { dir = dir, cli = cliBinary() })
   else
-    Stdlib.Result.Result.Error
-      $"no store to seed an instance from at {src}; build first"
+    Stdlib.Result.Result.Error(
+      $"no store to seed an instance from at {src}; build first")
 
 
 /// Remove an instance and everything in it. Safe to call twice.
@@ -101,8 +101,8 @@ let run(i: T, args: List<String>): Stdlib.Result.Result<Stdlib.Cli.Process.Outpu
 /// exactly the text a test wants to read.
 let output(i: T, args: List<String>): String =
   match run(i, args) with
-  | Error e -> $"ERROR: {e}"
-  | Ok out ->
+  | Error(e) -> $"ERROR: {e}"
+  | Ok(out) ->
     let stdout = Stdlib.String.trim(out.stdout)
     if stdout != "" then stdout
     else
@@ -116,8 +116,8 @@ let output(i: T, args: List<String>): String =
 /// isolation worker, whose host also removes these nested instance directories.
 let withInstance(f: T -> Stdlib.Test.Result): Stdlib.Test.Result =
   match create() with
-  | Error e -> Stdlib.Test.fail(e)
-  | Ok i ->
+  | Error(e) -> Stdlib.Test.fail(e)
+  | Ok(i) ->
     let result = f(i)
     let _ = dispose(i)
     result
@@ -138,8 +138,8 @@ let expectExit(i: T, args: List<String>, expected: Int): Stdlib.Test.Result =
   let cmd = Stdlib.String.join(args, " ")
 
   match run(i, args) with
-  | Error e -> Stdlib.Test.fail($"`{cmd}` could not run: {e}")
-  | Ok out ->
+  | Error(e) -> Stdlib.Test.fail($"`{cmd}` could not run: {e}")
+  | Ok(out) ->
     if out.exitCode == expected then
       Stdlib.Test.Result.Pass
     else

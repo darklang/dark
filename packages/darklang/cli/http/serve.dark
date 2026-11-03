@@ -31,37 +31,37 @@ let parseArgs(rest: List<String>, acc: Args): Args =
   | [] -> acc
   | ["--port", value, ...tail] ->
     match Stdlib.Int.parse(value) with
-    | Error _ ->
-      { acc with error = Stdlib.Option.Option.Some $"Invalid --port: {value}" }
-    | Ok p -> parseArgs(tail, { acc with port = p })
+    | Error(_) ->
+      { acc with error = Stdlib.Option.Option.Some($"Invalid --port: {value}") }
+    | Ok(p) -> parseArgs(tail, { acc with port = p })
   | ["--max-body-bytes", value, ...tail] ->
     match Stdlib.Int.parse(value) with
-    | Error _ ->
+    | Error(_) ->
       { acc with
-          error = Stdlib.Option.Option.Some $"Invalid --max-body-bytes: {value}" }
-    | Ok n -> parseArgs(tail, { acc with maxBodyBytes = n })
+          error = Stdlib.Option.Option.Some($"Invalid --max-body-bytes: {value}") }
+    | Ok(n) -> parseArgs(tail, { acc with maxBodyBytes = n })
   | ["--live", ...tail] -> parseArgs(tail, { acc with live = true })
   | ["--no-live", ...] ->
     { acc with
         error =
-          Stdlib.Option.Option.Some
-            "--no-live is what happens anyway: a server follows edits only with --live." }
+          Stdlib.Option.Option.Some(
+            "--no-live is what happens anyway: a server follows edits only with --live.") }
   | ["--dev", ...] ->
     { acc with
         error =
-          Stdlib.Option.Option.Some
-            "--dev is --live: it follows edits and reloads an open page." }
+          Stdlib.Option.Option.Some(
+            "--dev is --live: it follows edits and reloads an open page.") }
   | [flag, ...] when Stdlib.String.startsWith(flag, "--") ->
     { acc with
-        error = Stdlib.Option.Option.Some $"Unknown or incomplete flag: {flag}" }
+        error = Stdlib.Option.Option.Some($"Unknown or incomplete flag: {flag}") }
   | [positional, ...tail] ->
     if acc.routerPath == "" then
       parseArgs(tail, { acc with routerPath = positional })
     else
       { acc with
           error =
-            Stdlib.Option.Option.Some
-              $"Unexpected extra argument: {positional} (router path already given as {acc.routerPath})" }
+            Stdlib.Option.Option.Some(
+              $"Unexpected extra argument: {positional} (router path already given as {acc.routerPath})") }
 
 
 let usageLines(): List<String> =
@@ -100,7 +100,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     let parsed = parseArgs(args, defaultArgs())
 
     match parsed.error with
-    | Some err ->
+    | Some(err) ->
       Cli.printErr(err)
       printUsage()
       { state with exitCode = 1 }
@@ -129,7 +129,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         // This resolved VALUE is the whole router without `--live`; the live server holds the
         // location and resolves per request, and uses this one for the bind-time approval root.
         match Stdlib.Live.applicableByName(state.currentBranchId, parsed.routerPath) with
-        | Ok router ->
+        | Ok(router) ->
           // Announce only once the port is actually bound (via onListening), so a taken port never prints a
           // "Listening" that then turns out to be false. Requests are logged (Config.defaults sets
           // logRequests), but nothing ever said so — leaving you to wonder whether a request arrived at all.
@@ -138,10 +138,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           let hostLines =
             match Stdlib.Env.get("DARK_HOST_PORT_BASE") with
             | None -> []
-            | Some baseStr ->
+            | Some(baseStr) ->
               match Stdlib.Int.parse(baseStr) with
-              | Error _ -> []
-              | Ok hostBase ->
+              | Error(_) -> []
+              | Ok(hostBase) ->
                 let offset = parsed.port - 9090
                 if (offset < 0) || (offset > 9) || (hostBase == 9090) then
                   []
@@ -176,7 +176,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
           let served =
             match (parsed.live, Stdlib.Live.locationOfName(parsed.routerPath)) with
-            | (true, Some location) ->
+            | (true, Some(location)) ->
               Stdlib.HttpServer.serveLive(
                 config,
                 Stdlib.Live.Router.start(state.currentBranchId, location),
@@ -190,11 +190,11 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             | _ -> Stdlib.HttpServer.serve(config, router, announce)
 
           match served with
-          | Ok _ -> state
-          | Error msg ->
+          | Ok(_) -> state
+          | Error(msg) ->
             Cli.printErr(msg)
             { state with exitCode = 1 }
-        | Error msg ->
+        | Error(msg) ->
           Cli.printErr($"{msg} -- is it defined and committed on this branch?")
 
           { state with exitCode = 1 }

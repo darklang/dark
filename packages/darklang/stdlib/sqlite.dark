@@ -15,13 +15,13 @@ type Value =
 /// The String of a <param Text> cell (Some), else None — pull a text column out of a row.
 let asText(v: Value): Stdlib.Option.Option<String> =
   match v with
-  | Text s -> Stdlib.Option.Option.Some s
+  | Text(s) -> Stdlib.Option.Option.Some(s)
   | _ -> Stdlib.Option.Option.None
 
 /// The Int64 of an <param Int> cell (Some), else None.
 let asInt(v: Value): Stdlib.Option.Option<Int64> =
   match v with
-  | Int i -> Stdlib.Option.Option.Some i
+  | Int(i) -> Stdlib.Option.Option.Some(i)
   | _ -> Stdlib.Option.Option.None
 
 /// The Bytes of a <param Bytes> cell (Some), else None -- pull a BLOB column out of a row.
@@ -31,7 +31,7 @@ let asInt(v: Value): Stdlib.Option.Option<Int64> =
 /// by hand, which is where a stringified blob comes from.
 let asBytes(v: Value): Stdlib.Option.Option<Bytes> =
   match v with
-  | Bytes b -> Stdlib.Option.Option.Some b
+  | Bytes(b) -> Stdlib.Option.Option.Some(b)
   | _ -> Stdlib.Option.Option.None
 
 
@@ -109,25 +109,25 @@ let query(
 /// The text value of column <param col> in <param row>, or None if missing/non-text.
 let textField(row: Dict<String, Value>, col: String): Stdlib.Option.Option<String> =
   match Stdlib.Dict.get(row, col) with
-  | Some v -> asText(v)
+  | Some(v) -> asText(v)
   | None -> Stdlib.Option.Option.None
 
 /// The Int value of column <param col> in <param row>, or None if missing/non-int.
 let intField(row: Dict<String, Value>, col: String): Stdlib.Option.Option<Int64> =
   match Stdlib.Dict.get(row, col) with
-  | Some v -> asInt(v)
+  | Some(v) -> asInt(v)
   | None -> Stdlib.Option.Option.None
 
 /// The Bytes value of column <param col> in <param row>, or None if missing/non-blob.
 let bytesField(row: Dict<String, Value>, col: String): Stdlib.Option.Option<Bytes> =
   match Stdlib.Dict.get(row, col) with
-  | Some v -> asBytes(v)
+  | Some(v) -> asBytes(v)
   | None -> Stdlib.Option.Option.None
 
 /// The first row of <param sql> (or None if it returned no rows / errored).
 let queryOne(dbPath: String, sql: String): Stdlib.Option.Option<Dict<String, Value>> =
   match query(dbPath, sql) with
-  | Ok([row, ...]) -> Stdlib.Option.Option.Some row
+  | Ok([row, ...]) -> Stdlib.Option.Option.Some(row)
   | _ -> Stdlib.Option.Option.None
 
 /// Like <fn queryOne> but with injection-safe params.
@@ -137,14 +137,14 @@ let queryOneP(
   params: List<String>)
   : Stdlib.Option.Option<Dict<String, Value>> =
   match queryP(dbPath, sql, params) with
-  | Ok([row, ...]) -> Stdlib.Option.Option.Some row
+  | Ok([row, ...]) -> Stdlib.Option.Option.Some(row)
   | _ -> Stdlib.Option.Option.None
 
 /// Column <param col> of every row of <param sql>, as a list of text (non-text/missing cells dropped).
 let column(dbPath: String, sql: String, col: String): List<String> =
   match query(dbPath, sql) with
-  | Ok rows -> Stdlib.List.filterMap(rows, fun row -> textField(row, col))
-  | Error _ -> []
+  | Ok(rows) -> Stdlib.List.filterMap(rows, fun row -> textField(row, col))
+  | Error(_) -> []
 
 /// The Int in column <param col> of the first row of <param sql> — e.g. a `count(*)`.
 let scalarInt(
@@ -153,7 +153,7 @@ let scalarInt(
   col: String)
   : Stdlib.Option.Option<Int64> =
   match queryOne(dbPath, sql) with
-  | Some row -> intField(row, col)
+  | Some(row) -> intField(row, col)
   | None -> Stdlib.Option.Option.None
 
 /// Like <fn scalarInt> but with injection-safe params — e.g. a per-key lookup.
@@ -164,7 +164,7 @@ let scalarIntP(
   col: String)
   : Stdlib.Option.Option<Int64> =
   match queryOneP(dbPath, sql, params) with
-  | Some row -> intField(row, col)
+  | Some(row) -> intField(row, col)
   | None -> Stdlib.Option.Option.None
 
 
@@ -179,8 +179,8 @@ let rowsP(
   decode: Dict<String, Value> -> Stdlib.Option.Option<'a>)
   : List<'a> =
   match queryP(dbPath, sql, params) with
-  | Ok rows -> Stdlib.List.filterMap(rows, decode)
-  | Error _ -> []
+  | Ok(rows) -> Stdlib.List.filterMap(rows, decode)
+  | Error(_) -> []
 
 /// The raw rows of <param sql>, [] on a failed query -- for callers that hand whole
 /// rows to a shared decoder rather than decoding per column at the call site.
@@ -190,8 +190,8 @@ let rowsOrEmptyP(
   params: List<String>)
   : List<Dict<String, Value>> =
   match queryP(dbPath, sql, params) with
-  | Ok rows -> rows
-  | Error _ -> []
+  | Ok(rows) -> rows
+  | Error(_) -> []
 
 /// <fn column> with injection-safe params.
 let columnP(
@@ -212,7 +212,7 @@ let scalarTextP(
   dflt: String)
   : String =
   match queryOneP(dbPath, sql, params) with
-  | Some row -> textField(row, col) |> Stdlib.Option.withDefault(dflt)
+  | Some(row) -> textField(row, col) |> Stdlib.Option.withDefault(dflt)
   | None -> dflt
 
 /// <fn textField> with a "" default -- for decoders where a missing/non-text cell
@@ -224,8 +224,8 @@ let textOr(row: Dict<String, Value>, col: String): String =
 /// doesn't parse.
 let uuidField(row: Dict<String, Value>, col: String): Stdlib.Option.Option<Uuid> =
   match textField(row, col) with
-  | Some s ->
+  | Some(s) ->
     match Stdlib.Uuid.parse(s) with
-    | Ok u -> Stdlib.Option.Option.Some u
-    | Error _ -> Stdlib.Option.Option.None
+    | Ok(u) -> Stdlib.Option.Option.Some(u)
+    | Error(_) -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None

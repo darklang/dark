@@ -275,7 +275,7 @@ module Equality =
         1 != 1 |> Stdlib.Test.equal(false)
         ("a" == "a") |> Stdlib.Test.equal(true)
         ([ 1, 2 ] == [ 1, 2 ]) |> Stdlib.Test.equal(true)
-        (Stdlib.Option.Option.Some 1 == Stdlib.Option.Option.Some 1)
+        (Stdlib.Option.Option.Some(1) == Stdlib.Option.Option.Some(1))
         |> Stdlib.Test.equal(true) ])
 
   test intVsStringEqualityRaises =

@@ -50,26 +50,26 @@ let pickLocation(
   // below is right for every other case.
   let asked =
     match ctx.preferredLocation with
-    | Some p ->
+    | Some(p) ->
       locations
       |> Stdlib.List.findFirst(fun l ->
         (l.owner == p.owner) && (l.modules == p.modules) && (l.name == p.name))
     | None -> Stdlib.Option.Option.None
 
   match asked with
-  | Some a -> Stdlib.Option.Option.Some a
+  | Some(a) -> Stdlib.Option.Option.Some(a)
   | None ->
 
   match locations with
   | [] -> Stdlib.Option.Option.None
-  | [ single ] -> Stdlib.Option.Option.Some single
+  | [ single ] -> Stdlib.Option.Option.Some(single)
   | [first, ...rest] ->
     let firstPath = Stdlib.List.prepend(first.modules, first.owner)
     let firstScore = countMatchingPrefix(ctx.currentModule, firstPath)
     let firstLen = Stdlib.List.length(firstPath)
 
     let (_, _, bestLoc) =
-      Stdlib.List.fold(rest, (firstScore, firstLen, first), fun acc loc ->
+      Stdlib.List.fold(rest, (firstScore, firstLen, first), fun(acc, loc) ->
         let (bestScore, bestLen, bestLoc) = acc
         let locPath = Stdlib.List.prepend(loc.modules, loc.owner)
         let score = countMatchingPrefix(ctx.currentModule, locPath)
@@ -82,7 +82,7 @@ let pickLocation(
         else
           (bestScore, bestLen, bestLoc))
 
-    Stdlib.Option.Option.Some bestLoc
+    Stdlib.Option.Option.Some(bestLoc)
 
 
 module Type =
@@ -111,9 +111,9 @@ module Type =
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
     match get(hash) with
-    | Some entity ->
+    | Some(entity) ->
       match PackageManager.pickLocation(PackageManager.PickContext.empty, locations(branchId, hash)) with
-      | Some location ->
+      | Some(location) ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity, location = location }
         )
@@ -224,9 +224,9 @@ module Value =
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
     match get(hash) with
-    | Some entity ->
+    | Some(entity) ->
       match PackageManager.pickLocation(PackageManager.PickContext.empty, locations(branchId, hash)) with
-      | Some location ->
+      | Some(location) ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity, location = location }
         )
@@ -266,9 +266,9 @@ module Function =
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
     match get(hash) with
-    | Some entity ->
+    | Some(entity) ->
       match PackageManager.pickLocation(PackageManager.PickContext.empty, locations(branchId, hash)) with
-      | Some location ->
+      | Some(location) ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity, location = location }
         )
@@ -338,14 +338,14 @@ module Test =
     : Stdlib.Option.Option<Stdlib.Test.Result> =
     let testType = resultTypeHash(branchId)
     match value, testType with
-    | DEnum(Package(Hash actual), _, [], caseName, fields), Some(Hash expected) ->
+    | DEnum(Package(Hash(actual)), _, [], caseName, fields), Some(Hash(expected)) ->
       if actual == expected then
         // `caseName` is matched on its own: a string literal inside a tuple
         // pattern can silently fall through.
         match caseName with
         | "Pass" ->
           match fields with
-          | [] -> Stdlib.Option.Option.Some Stdlib.Test.Result.Pass
+          | [] -> Stdlib.Option.Option.Some(Stdlib.Test.Result.Pass)
           | _ -> Stdlib.Option.Option.None
         | "Fail" ->
           match fields with
@@ -353,10 +353,10 @@ module Test =
             let strings =
               Stdlib.List.filterMap(messages, fun m ->
                 match m with
-                | DString s -> Stdlib.Option.Option.Some s
+                | DString(s) -> Stdlib.Option.Option.Some(s)
                 | _ -> Stdlib.Option.Option.None)
             if Stdlib.List.length(strings) == Stdlib.List.length(messages) then
-              Stdlib.Option.Option.Some(Stdlib.Test.Result.Fail strings)
+              Stdlib.Option.Option.Some(Stdlib.Test.Result.Fail(strings))
             else
               Stdlib.Option.Option.None
           | _ -> Stdlib.Option.Option.None
@@ -379,28 +379,28 @@ module Test =
     let expected =
       Stdlib.Option.andThen(get(hash), fun test -> test.expectedError)
     match expected, executeBody(run, branchId, hash) with
-    | Some expected, Ok value ->
+    | Some(expected), Ok(value) ->
       let actual = PrettyPrinter.RuntimeTypes.dval(branchId, value)
       let expectedText =
         match expected with
-        | RuntimeError message -> $"error `{message}`"
+        | RuntimeError(message) -> $"error `{message}`"
       Stdlib.Result.Result.Ok(
         Stdlib.Test.fail($"expected the {expectedText}, got the value {actual}")
       )
-    | Some expected, Error error ->
+    | Some(expected), Error(error) ->
       let actual =
         PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, error)
       match expected with
-      | RuntimeError message ->
+      | RuntimeError(message) ->
         if actual == message then
           Stdlib.Result.Result.Ok(Stdlib.Test.pass())
         else
           Stdlib.Result.Result.Ok(
             Stdlib.Test.fail($"expected the error `{message}`, got `{actual}`")
           )
-    | None, Ok value ->
+    | None, Ok(value) ->
       match asTestResult(branchId, value) with
-      | Some result -> Stdlib.Result.Result.Ok result
+      | Some(result) -> Stdlib.Result.Result.Ok(result)
       | None ->
         Stdlib.Result.Result.Error(
           LanguageTools.RuntimeTypes.RuntimeError.Error.UncaughtException(
@@ -408,7 +408,7 @@ module Test =
             []
           )
         )
-    | None, Error error -> Stdlib.Result.Result.Error error
+    | None, Error(error) -> Stdlib.Result.Result.Error(error)
 
   /// Run one test without keeping a starting snapshot for subsequent tests.
   let execute(
@@ -451,15 +451,15 @@ let declaration(
     : Stdlib.Option.Option<String> =
     let path = Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ])
     let fqn = Stdlib.String.join(path, ".")
-    Stdlib.Option.Option.Some $"{kind} {fqn}"
+    Stdlib.Option.Option.Some($"{kind} {fqn}")
 
   match (previous, op) with
-  | (AddType _, SetName(loc, PackageType _, _)) -> named("type", loc)
-  | (AddFn _, SetName(loc, PackageFn _, _)) -> named("fn", loc)
-  | (AddValue _, SetName(loc, PackageValue _, _)) -> named("value", loc)
-  | (AddTrait _, SetName(loc, PackageTrait _, _)) -> named("trait", loc)
-  | (AddTraitImpl _, SetName(loc, PackageTraitImpl _, _)) -> named("impl", loc)
-  | (AddTest _, SetName(loc, PackageTest _, _)) -> named("test", loc)
+  | (AddType(_), SetName(loc, PackageType(_), _)) -> named("type", loc)
+  | (AddFn(_), SetName(loc, PackageFn(_), _)) -> named("fn", loc)
+  | (AddValue(_), SetName(loc, PackageValue(_), _)) -> named("value", loc)
+  | (AddTrait(_), SetName(loc, PackageTrait(_), _)) -> named("trait", loc)
+  | (AddTraitImpl(_), SetName(loc, PackageTraitImpl(_), _)) -> named("impl", loc)
+  | (AddTest(_), SetName(loc, PackageTest(_), _)) -> named("test", loc)
   | _ -> Stdlib.Option.Option.None
 
 
@@ -471,14 +471,14 @@ let duplicateDeclarations(
   : List<String> =
   let declarations =
     Stdlib.List.zipShortest(ops, Stdlib.List.drop(ops, 1))
-    |> Stdlib.List.filterMap(fun (previous, op) -> declaration(previous, op))
+    |> Stdlib.List.filterMap(fun((previous, op)) -> declaration(previous, op))
   let counts =
-    Stdlib.List.fold(declarations, Dict { }, fun counts d ->
+    Stdlib.List.fold(declarations, Dict { }, fun(counts, d) ->
       let n = Stdlib.Option.withDefault(Stdlib.Dict.get(counts, d), 0)
       Stdlib.Dict.set(counts, d, n + 1))
   declarations
   |> Stdlib.List.filter(fun d ->
-    (Stdlib.Dict.get(counts, d)) != Stdlib.Option.Option.Some 1)
+    (Stdlib.Dict.get(counts, d)) != Stdlib.Option.Option.Some(1))
   |> Stdlib.List.unique
 
 
@@ -489,27 +489,27 @@ let findAny(
   location: ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<(ProgramTypes.Hash * ProgramTypes.ItemKind)> =
   match Type.find(branchId, location) with
-  | Some hash ->
+  | Some(hash) ->
     Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Type))
   | None ->
     match Function.find(branchId, location) with
-    | Some hash ->
+    | Some(hash) ->
       Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Fn))
     | None ->
       match Value.find(branchId, location) with
-      | Some hash ->
+      | Some(hash) ->
         Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Value))
       | None ->
         match Trait.find(branchId, location) with
-        | Some hash ->
+        | Some(hash) ->
           Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Trait))
         | None ->
           match TraitImpl.find(branchId, location) with
-          | Some hash ->
+          | Some(hash) ->
             Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.TraitImpl))
           | None ->
             match Test.find(branchId, location) with
-            | Some hash ->
+            | Some(hash) ->
               Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Test))
             | None -> Stdlib.Option.Option.None
 
@@ -595,13 +595,13 @@ module Search =
 let pm(): ProgramTypes.PackageManager.PackageManager =
   ProgramTypes.PackageManager.PackageManager
     { findType =
-        fun (branchId, location) -> PackageManager.Type.find(branchId, location)
+        fun((branchId, location)) -> PackageManager.Type.find(branchId, location)
       findValue =
-        fun (branchId, location) -> PackageManager.Value.find(branchId, location)
+        fun((branchId, location)) -> PackageManager.Value.find(branchId, location)
       findFn =
-        fun (branchId, location) -> PackageManager.Function.find(branchId, location)
+        fun((branchId, location)) -> PackageManager.Function.find(branchId, location)
       findTrait =
-        fun (branchId, location) -> PackageManager.Trait.find(branchId, location)
+        fun((branchId, location)) -> PackageManager.Trait.find(branchId, location)
 
       getFn = PackageManager.Function.get
       getValue = PackageManager.Value.get
@@ -609,4 +609,4 @@ let pm(): ProgramTypes.PackageManager.PackageManager =
       getTrait = PackageManager.Trait.get
 
       search =
-        fun (branchId, query) -> PackageManager.Search.search(branchId, query) }
+        fun((branchId, query)) -> PackageManager.Search.search(branchId, query) }

@@ -263,22 +263,22 @@ let checkPackageOpsOn(
   branchId: Uuid,
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Report =
-  guarded((fun (b, o) -> Run.checkPackageOpsOn(b, o)), (branchId, ops))
+  guarded((fun((b, o)) -> Run.checkPackageOpsOn(b, o)), (branchId, ops))
 
 /// Type-check all declarations visible on the selected branch.
 let checkBranch(branchId: Uuid): Report = guarded(Run.checkBranch, branchId)
 
 /// Type-check just the declarations under <param modules>, and everything below them.
 let checkModule(branchId: Uuid, modules: List<String>): Report =
-  guarded((fun (b, m) -> Run.checkModule(b, m)), (branchId, modules))
+  guarded((fun((b, m)) -> Run.checkModule(b, m)), (branchId, modules))
 
 /// Return an Incomplete report if shared work for the batch fails.
 /// Run and Items catch errors for individual declarations separately, preserving
 /// the results of the other declarations.
 let guarded(check: 'a -> Report, input: 'a): Report =
   match guard(check, input) with
-  | Ok report -> report
-  | Error failure ->
+  | Ok(report) -> report
+  | Error(failure) ->
     let warning = failureIssue(Stdlib.Option.Option.None, failure)
 
     // This arm empties the WHOLE batch, so say why; callers read `items`, not this.
@@ -288,7 +288,7 @@ let guarded(check: 'a -> Report, input: 'a): Report =
       ("the at-rest checker failed over a whole batch and reported nothing: "
        + (match failure with
           | TooDeep -> "a declaration nests too deep to check"
-          | Failed message -> message)))
+          | Failed(message) -> message)))
 
     Report
       { verdict = Verdict.Incomplete
@@ -309,7 +309,7 @@ let failureIssue(
   let context =
     match failure with
     | TooDeep -> Context.DeclarationTooDeep
-    | Failed message -> Context.CheckerUnavailable message
+    | Failed(message) -> Context.CheckerUnavailable(message)
 
   Issue
     { code = IssueCode.UnsupportedConstruct
@@ -346,8 +346,8 @@ let staticTypeToStringWith(
   | TUuid -> "Uuid"
   | TDateTime -> "DateTime"
   | TBytes -> "Bytes"
-  | TStream inner -> wrapped("Stream", inner)
-  | TList inner -> wrapped("List", inner)
+  | TStream(inner) -> wrapped("Stream", inner)
+  | TList(inner) -> wrapped("List", inner)
   | TTuple(first, second, rest) ->
     let parts =
       Stdlib.List.concat(
@@ -358,7 +358,7 @@ let staticTypeToStringWith(
   | TCustom(hash, args) ->
     let name =
       match customTypeName(hash) with
-      | Some name -> name
+      | Some(name) -> name
       | None -> "type #" + LanguageTools.ProgramTypes.hashToShort(hash)
     if Stdlib.List.isEmpty(args) then name
     else
@@ -371,8 +371,8 @@ let staticTypeToStringWith(
     + Stdlib.String.join(Stdlib.List.map(parameters, recurse), ", ")
     + ") -> "
     + recurse(returnType)
-  | TRigidVariable name -> "'" + name
-  | TInferenceVariable _ -> "_"
+  | TRigidVariable(name) -> "'" + name
+  | TInferenceVariable(_) -> "_"
 
 let staticTypeToString(typ: StaticType): String =
   staticTypeToStringWith((fun _ -> Stdlib.Option.Option.None), typ)
@@ -430,9 +430,9 @@ let nameRefToStringWith(
       $"Builtin.{name}"
     else
       $"Builtin.{name}_v{Stdlib.toString(version)}"
-  | Package hash ->
+  | Package(hash) ->
     match resolve(hash) with
-    | Some name -> name
+    | Some(name) -> name
     | None ->
       let hex = LanguageTools.ProgramTypes.hashToString(hash)
       let short = Stdlib.String.slice(hex, 0, 12)
@@ -440,7 +440,7 @@ let nameRefToStringWith(
   | TraitMethod(traitHash, method) ->
     let traitName =
       match resolve(traitHash) with
-      | Some name -> name
+      | Some(name) -> name
       | None ->
         let hex = LanguageTools.ProgramTypes.hashToString(traitHash)
         $"#{Stdlib.String.slice(hex, 0, 12)}"
@@ -458,7 +458,7 @@ let siteToString(site: Site): String =
   | Expression -> "this expression"
   | StatementBeforeFinalExpression -> "the statement before the final expression"
   | FunctionApplication -> "this function application"
-  | FunctionArgument position ->
+  | FunctionArgument(position) ->
     $"argument {Stdlib.toString(position + 1L)}"
   | IfWithoutElse -> "an if without an else"
   | RecordFieldAccess -> "this field access"
@@ -534,7 +534,7 @@ let contextToStringWith(
   : String =
   let typeName = (fun hash ->
     match customTypeName(hash) with
-    | Some name -> name
+    | Some(name) -> name
     | None ->
       let hex = LanguageTools.ProgramTypes.hashToString(hash)
       let short = Stdlib.String.slice(hex, 0, 12)
@@ -544,17 +544,17 @@ let contextToStringWith(
 
   match context with
   | NoDetail -> ""
-  | At site -> $"In {siteToString(site)}"
-  | Unresolved parts ->
+  | At(site) -> $"In {siteToString(site)}"
+  | Unresolved(parts) ->
     match parts with
     | [] -> "The name is unresolved"
     | parts -> $"'{Stdlib.String.join(parts, ".")}' is unresolved"
-  | TypeUnavailable hash -> $"{typeName(hash)} is not available to the checker"
-  | TraitUnavailable hash -> $"The trait {typeName(hash)} is not available to the checker"
+  | TypeUnavailable(hash) -> $"{typeName(hash)} is not available to the checker"
+  | TraitUnavailable(hash) -> $"The trait {typeName(hash)} is not available to the checker"
   | ImplMethod(traitHash, method, detail) ->
     let traitName =
       match customTypeName(traitHash) with
-      | Some name -> name
+      | Some(name) -> name
       | None -> $"#{Stdlib.String.slice(LanguageTools.ProgramTypes.hashToString(traitHash), 0, 12)}"
     match code with
     | ImplMethodSet ->
@@ -566,11 +566,11 @@ let contextToStringWith(
     | ImplExceedsCeiling ->
       $"The fn given for `{method}` may do more than {traitName}.{method} allows ({detail})"
     | _ -> $"`{method}` of {traitName}: {detail}"
-  | FunctionUnavailable fn ->
+  | FunctionUnavailable(fn) ->
     $"The signature for {name(fn)} is not available to the checker"
-  | ValueUnavailable value ->
+  | ValueUnavailable(value) ->
     $"The type of {name(value)} is not available to the checker"
-  | Identifier ident ->
+  | Identifier(ident) ->
     match code with
     | UnknownVariable -> $"Local variable '{ident}' is not in scope"
     | UnknownRecordField -> $"Record has no field named '{ident}'"
@@ -580,7 +580,7 @@ let contextToStringWith(
     | UnknownDeclaredTypeVariable ->
       $"Type variable '{ident}' is not declared in this scope"
     | _ -> $"'{ident}'"
-  | Identifiers idents ->
+  | Identifiers(idents) ->
     let quoted =
       idents |> Stdlib.List.map(fun ident -> $"'{ident}'") |> Stdlib.String.join(", ")
     let noun = if (Stdlib.List.length(idents)) == 1 then "field" else "fields"
@@ -590,7 +590,7 @@ let contextToStringWith(
     | _ -> quoted
   | Duplicate(ident, site) ->
     $"'{ident}' is {duplicateSiteToString(site)} more than once"
-  | Ambiguous subject ->
+  | Ambiguous(subject) ->
     $"Cannot determine {ambiguousSubjectToString(subject)}; add a type annotation"
   | Untrusted(fn, reason) ->
     $"{name(fn)} cannot be checked statically: {untrustedBuiltinToString(reason)}"
@@ -628,14 +628,14 @@ let contextToStringWith(
 
     $"{typeName(hash)} expects {noun}, "
     + $"but {Stdlib.toString(actual)} {verb} provided"
-  | ArgumentIndex index ->
+  | ArgumentIndex(index) ->
     $"There is no argument at index {Stdlib.toString(index)}"
-  | UncoveredPattern witness ->
+  | UncoveredPattern(witness) ->
     match witness with
-    | Some witness -> $"Match is not exhaustive; an uncovered pattern is {witness}"
+    | Some(witness) -> $"Match is not exhaustive; an uncovered pattern is {witness}"
     | None ->
       "Match is not exhaustive; values outside the listed patterns are not covered"
-  | InfixOperandUnsupported operation ->
+  | InfixOperandUnsupported(operation) ->
     let symbol = PrettyPrinter.ProgramTypes.infixFnName(operation)
     $"Operator {symbol} does not accept this operand type"
   | RecordRequiredForConstruction -> "Record construction requires a record type"
@@ -664,29 +664,29 @@ let contextToStringWith(
   | UnaryMinusOperandNotSignedNumeric ->
     "Unary minus requires a signed integer or Float operand"
   | BitwiseNotOperandNotInteger -> "Bitwise NOT requires an integer operand"
-  | CheckerUnavailable detail -> $"The at-rest checker could not run: {detail}"
+  | CheckerUnavailable(detail) -> $"The at-rest checker could not run: {detail}"
   | TraitNeeded(traitHash, method) ->
     let traitName =
       match customTypeName(traitHash) with
-      | Some name -> name
+      | Some(name) -> name
       | None -> $"#{Stdlib.String.slice(LanguageTools.ProgramTypes.hashToString(traitHash), 0, 12)}"
     // `subject` is the type the diagnostic is about, named when we know it. The run-time
     // message for the same situation says "Bool has no implementation of X", and these used
     // to say "this type", which sent the reader looking for which type was meant.
     let subject =
       match actualName with
-      | Some t -> t
+      | Some(t) -> t
       | None -> "This type"
     match code with
     | MissingImpl ->
       match method with
-      | Some m -> $"{subject} has no implementation of {traitName}, so `{traitName}.{m}` cannot run on it"
+      | Some(m) -> $"{subject} has no implementation of {traitName}, so `{traitName}.{m}` cannot run on it"
       | None -> $"{subject} has no implementation of {traitName}, and this function requires one (`'a: {traitName}`)"
     | UnboundTypeParameter ->
       $"{subject} needs a {traitName} implementation, but the function does not declare `'a: {traitName}`"
     | AmbiguousImpl ->
       match method with
-      | Some m -> $"More than one implementation offers `{m}` for {subject}; name the trait, as `{traitName}.{m} value`"
+      | Some(m) -> $"More than one implementation offers `{m}` for {subject}; name the trait, as `{traitName}.{m} value`"
       | None -> $"More than one implementation of {traitName} for {subject} is visible; `dark impls {traitName}` lists them"
     | _ -> $"Needs an implementation of {traitName}"
 
@@ -698,9 +698,9 @@ let issueToStringWith(
   : String =
   let detail =
     match issue.expected with
-    | Some expected ->
+    | Some(expected) ->
       match issue.actual with
-      | Some actual ->
+      | Some(actual) ->
         ": expected "
         + staticTypeToStringWith(customTypeName, expected)
         + ", got "
@@ -709,7 +709,7 @@ let issueToStringWith(
     | None -> ""
   let actualName =
     match issue.actual with
-    | Some actual ->
+    | Some(actual) ->
       Stdlib.Option.Option.Some(staticTypeToStringWith(customTypeName, actual))
     | None -> Stdlib.Option.Option.None
   (contextToStringWith(customTypeName, actualName, issue.code, issue.context)) + detail

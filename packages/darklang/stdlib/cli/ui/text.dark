@@ -11,8 +11,8 @@ module Darklang.Stdlib.Cli.UI.Text
 let lines(node: Node.Node<'msg>): List<String> =
   match node with
   | Empty -> []
-  | Text s -> [ s ]
-  | Rows rows -> rows
+  | Text(s) -> [ s ]
+  | Rows(rows) -> rows
   | Styled(_, inner) -> lines(inner)
   | Band(severity, message) ->
     match severity with
@@ -21,7 +21,7 @@ let lines(node: Node.Node<'msg>): List<String> =
   | Table(columns, rows) ->
     // The terminal's rows, with the header's bold and the rule's dim taken off.
     Node.tableRows(columns, rows) |> Stdlib.List.map(fun r -> Tui.Text.stripSgr(r))
-  | Input spec ->
+  | Input(spec) ->
     let shown = if spec.value == "" then spec.placeholder else spec.value
     [ $"[ {shown} ]" ]
   | Button(label, _) -> [ $"[ {label} ]" ]
@@ -30,14 +30,14 @@ let lines(node: Node.Node<'msg>): List<String> =
     lines(inner)
     |> Stdlib.List.take(rows)
     |> Stdlib.List.map(fun l -> Stdlib.String.slice(l, 0, cols))
-  | Column children -> children |> Stdlib.List.map(fun c -> lines(c)) |> Stdlib.List.flatten
-  | ListOf children ->
+  | Column(children) -> children |> Stdlib.List.map(fun c -> lines(c)) |> Stdlib.List.flatten
+  | ListOf(children) ->
     children
     |> Stdlib.List.map(fun c ->
       lines(c)
-      |> Stdlib.List.indexedMap(fun i l -> if i == 0 then "- " + l else "  " + l))
+      |> Stdlib.List.indexedMap(fun(i, l) -> if i == 0 then "- " + l else "  " + l))
     |> Stdlib.List.flatten
-  | Row children ->
+  | Row(children) ->
     // Side by side at natural widths, one column of gap, as the terminal lays a row out.
     let columns =
       children
@@ -46,7 +46,7 @@ let lines(node: Node.Node<'msg>): List<String> =
         (width, lines(c)))
 
     let height =
-      columns |> Stdlib.List.fold(0, fun h col -> Stdlib.max(h, Stdlib.List.length(Stdlib.Tuple2.second(col))))
+      columns |> Stdlib.List.fold(0, fun(h, col) -> Stdlib.max(h, Stdlib.List.length(Stdlib.Tuple2.second(col))))
 
     if height == 0 then
       []

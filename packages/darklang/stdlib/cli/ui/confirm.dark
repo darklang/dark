@@ -38,7 +38,7 @@ let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
     else
       // Anything else is swallowed rather than passed on: a modal question that let other keys through
       // would act on the thing you were being asked about.
-      Widget.Outcome.Handled state
+      Widget.Outcome.Handled(state)
 
 
 /// Centre a box `rows` x `cols` inside `region`.

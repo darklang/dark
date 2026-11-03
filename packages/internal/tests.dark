@@ -17,12 +17,12 @@ let parseTest(
   : Stdlib.Result.Result<WTTest, String> =
   let exprsToEval =
     match pf with
-    | SourceFile s -> s.exprsToEval
+    | SourceFile(s) -> s.exprsToEval
     | _ -> []
 
   match exprsToEval with
-  | [] -> Stdlib.Result.Result.Error "no exprs to eval"
-  | [_, _, ...] -> Stdlib.Result.Result.Error "expected exactly one expr to eval"
+  | [] -> Stdlib.Result.Result.Error("no exprs to eval")
+  | [_, _, ...] -> Stdlib.Result.Result.Error("expected exactly one expr to eval")
   | [ e ] ->
     match e with
     | EInfix(r, _, actual, expected) ->
@@ -33,18 +33,18 @@ let parseTest(
           expected = expected })
       |> Stdlib.Result.Result.Ok
 
-    | _ -> Stdlib.Result.Result.Error "expected x = y format"
+    | _ -> Stdlib.Result.Result.Error("expected x = y format")
 
 let parseSingleTestFromFile(
   filename: String,
   testSource: String)
   : Stdlib.Result.Result<PTTest, String> =
   match testSource |> LanguageTools.Parser.Parse.initialParse with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok parsedFile ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(parsedFile) ->
     match Test.parseTest(parsedFile) with
-    | Error e -> Stdlib.Result.Result.Error e
-    | Ok wtTest ->
+    | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Ok(wtTest) ->
       let lineNumber = wtTest.lineNumber
       let pm = LanguageTools.PackageManager.pm()
 

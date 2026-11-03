@@ -32,7 +32,7 @@ test general =
 
 // A pipe gives a lambda one argument, so a two-parameter lambda stops short.
 test pipeIntoTwoParameterLambdaRaises =
-  (let x = fun a b -> a + 1L in (7L |> x))
+  (let x = fun(a, b) -> a + 1L in (7L |> x))
   => raises "Lambda expects 2 arguments, but got 1 argument"
 
 // only lambda might be placed into the variable used in the middle of the pipe
@@ -55,50 +55,50 @@ type MyEnum = A of Int64 * Int64 * Int64
 
 test constructorsAndOptions =
   Stdlib.Test.all(
-    [ (33L |> MyEnum.A 21L 42L) |> Stdlib.Test.equal(MyEnum.A 33L 21L 42L)
+    [ (33L |> MyEnum.A(21L, 42L)) |> Stdlib.Test.equal(MyEnum.A(33L, 21L, 42L))
       (33L |> MyEnum.A(21L, 42L)) |> Stdlib.Test.equal(MyEnum.A(33L, 21L, 42L))
       (3L |> Stdlib.Result.Result.Ok)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok 3L)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3L))
       (4L |> (fun v -> v + 3L) |> Stdlib.Option.Option.Some)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some 7L)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7L))
       (Stdlib.Option.Option.None |> Stdlib.Option.Option.Some)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some Stdlib.Option.Option.None)
-      (let x = Stdlib.Option.Option.Some 3L
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(Stdlib.Option.Option.None))
+      (let x = Stdlib.Option.Option.Some(3L)
 
        x |> Stdlib.Option.map(fun a -> a) |> Stdlib.Option.map(fun a -> a + 1L))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some 4L)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4L))
       (let x = fun x -> Stdlib.Option.map(x, fun a -> a)
-       (Stdlib.Option.Option.Some 3L) |> x |> Stdlib.Option.map(fun a -> a + 1L))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some 4L)
-      ((Stdlib.Option.Option.Some 3L)
+       (Stdlib.Option.Option.Some(3L)) |> x |> Stdlib.Option.map(fun a -> a + 1L))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4L))
+      ((Stdlib.Option.Option.Some(3L))
        |> Stdlib.Option.withDefault(0L)
        |> (fun v -> v + 3L))
       |> Stdlib.Test.equal(6L)
-      ((Stdlib.Result.Result.Ok 3L) |> Stdlib.Result.withDefault(0L) |> (fun v -> v + 3L))
+      ((Stdlib.Result.Result.Ok(3L)) |> Stdlib.Result.withDefault(0L) |> (fun v -> v + 3L))
       |> Stdlib.Test.equal(6L)
-      ((Stdlib.Result.Result.Error "err")
+      ((Stdlib.Result.Result.Error("err"))
        |> Stdlib.Result.withDefault(0L)
        |> (fun v -> v + 3L))
       |> Stdlib.Test.equal(3L)
       (let x = fun a -> Stdlib.Result.withDefault(a, 1L)
-       (Stdlib.Result.Result.Error "err") |> x |> (fun v -> v + 3L))
+       (Stdlib.Result.Result.Error("err")) |> x |> (fun v -> v + 3L))
       |> Stdlib.Test.equal(4L)
       (let x =
         fun x ->
-          Stdlib.Option.andThen(Stdlib.Option.Option.Some x, fun x ->
+          Stdlib.Option.andThen(Stdlib.Option.Option.Some(x), fun x ->
             Stdlib.Option.Option.Some(1L + x))
 
        3L |> x)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some 4L)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4L))
       (let x =
         fun x -> Stdlib.Option.andThen(x, fun x -> Stdlib.Option.Option.Some(1L + x))
 
        3L |> Stdlib.Option.Option.Some |> x)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some 4L)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4L))
       (3L |> Stdlib.Option.Option.Some |> Stdlib.Result.fromOption("test"))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok 3L)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3L))
       (Stdlib.Option.Option.None |> Stdlib.Result.fromOption("test"))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error "test") ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("test")) ])
 
 module FnName =
   test pipeIntoBoundFn =
@@ -112,6 +112,6 @@ module FnName =
         (let fn = (-)
          11L |> fn(4L))
         |> Stdlib.Test.equal(7L)
-        (let fn = (fun a b -> Stdlib.max(a, b))
+        (let fn = (fun(a, b) -> Stdlib.max(a, b))
          3L |> fn(7L))
         |> Stdlib.Test.equal(7L) ])

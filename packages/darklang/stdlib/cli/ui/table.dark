@@ -8,14 +8,14 @@ let print(columns: List<String>, rows: List<List<String>>): Unit =
   // Calculate column widths (max of header and all cell values)
   let colWidths =
     columns
-    |> Stdlib.List.indexedMap(fun i header ->
+    |> Stdlib.List.indexedMap(fun(i, header) ->
       let headerLen = Stdlib.String.displayWidth(header)
 
       let maxCellLen =
         rows
-        |> Stdlib.List.fold(0, fun mx row ->
+        |> Stdlib.List.fold(0, fun(mx, row) ->
           match Stdlib.List.getAt(row, i) with
-          | Some cell -> Stdlib.max(mx, Stdlib.String.displayWidth(cell))
+          | Some(cell) -> Stdlib.max(mx, Stdlib.String.displayWidth(cell))
           | None -> mx)
 
       Stdlib.max(headerLen, maxCellLen))
@@ -23,9 +23,9 @@ let print(columns: List<String>, rows: List<List<String>>): Unit =
   // Print header row
   let headerLine =
     columns
-    |> Stdlib.List.indexedMap(fun i header ->
+    |> Stdlib.List.indexedMap(fun(i, header) ->
       match Stdlib.List.getAt(colWidths, i) with
-      | Some w -> Stdlib.String.padEndToWidth(header, w)
+      | Some(w) -> Stdlib.String.padEndToWidth(header, w)
       | None -> header)
     |> Stdlib.String.join("  ")
     // Padding on the final column is trailing whitespace with nothing after it to line up against. It
@@ -48,14 +48,14 @@ let print(columns: List<String>, rows: List<List<String>>): Unit =
     |> Stdlib.List.map(fun row ->
       let line =
         columns
-        |> Stdlib.List.indexedMap(fun i _ ->
+        |> Stdlib.List.indexedMap(fun(i, _) ->
           let cell =
             match Stdlib.List.getAt(row, i) with
-            | Some c -> c
+            | Some(c) -> c
             | None -> ""
 
           match Stdlib.List.getAt(colWidths, i) with
-          | Some w -> Stdlib.String.padEndToWidth(cell, w)
+          | Some(w) -> Stdlib.String.padEndToWidth(cell, w)
           | None -> cell)
         |> Stdlib.String.join("  ")
         |> Stdlib.String.trimEnd

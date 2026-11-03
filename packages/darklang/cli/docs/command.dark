@@ -238,7 +238,7 @@ module Topics =
       |> Stdlib.List.findFirst(fun t -> Stdlib.String.toLowercase(t.name) == lowerName)
 
     match byName with
-    | Some t -> Stdlib.Option.Option.Some t
+    | Some(t) -> Stdlib.Option.Option.Some(t)
     | None ->
       topics
       |> Stdlib.List.findFirst(fun t ->
@@ -288,11 +288,11 @@ let dispatchLive(
   : Stdlib.Option.Option<Cli.AppState> =
   let lower = Stdlib.String.toLowercase(name)
   match lower with
-  | "signatures" -> Stdlib.Option.Option.Some (Packages.Signatures.execute(state, rest))
-  | "sigs" -> Stdlib.Option.Option.Some (Packages.Signatures.execute(state, rest))
-  | "api" -> Stdlib.Option.Option.Some (Packages.Signatures.execute(state, rest))
-  | "stdlib" -> Stdlib.Option.Option.Some (StdlibOverview.execute(state, rest))
-  | "lib" -> Stdlib.Option.Option.Some (StdlibOverview.execute(state, rest))
+  | "signatures" -> Stdlib.Option.Option.Some(Packages.Signatures.execute(state, rest))
+  | "sigs" -> Stdlib.Option.Option.Some(Packages.Signatures.execute(state, rest))
+  | "api" -> Stdlib.Option.Option.Some(Packages.Signatures.execute(state, rest))
+  | "stdlib" -> Stdlib.Option.Option.Some(StdlibOverview.execute(state, rest))
+  | "lib" -> Stdlib.Option.Option.Some(StdlibOverview.execute(state, rest))
   | _ -> Stdlib.Option.Option.None
 
 
@@ -304,10 +304,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   | [topicName, ...rest] ->
     match dispatchLive(state, topicName, rest) with
-    | Some newState -> newState
+    | Some(newState) -> newState
     | None ->
       match Topics.findTopic(topicName) with
-      | Some topic ->
+      | Some(topic) ->
         let contentFn = topic.content
         Stdlib.printLine(contentFn())
         state

@@ -8,10 +8,10 @@ let withBackoffLoop(
   fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =
   match fn() with
-  | Ok result -> Stdlib.Result.Result.Ok result
-  | Error e ->
+  | Ok(result) -> Stdlib.Result.Result.Ok(result)
+  | Error(e) ->
     if attempt >= maxAttempts then
-      Stdlib.Result.Result.Error e
+      Stdlib.Result.Result.Error(e)
     else
       let _ = Cli.Posix.sleep(delayMs)
       withBackoffLoop(maxAttempts, attempt + 1, delayMs * 2.0, fn)
@@ -34,10 +34,10 @@ let withFixedDelayLoop(
   fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =
   match fn() with
-  | Ok result -> Stdlib.Result.Result.Ok result
-  | Error e ->
+  | Ok(result) -> Stdlib.Result.Result.Ok(result)
+  | Error(e) ->
     if attempt >= maxAttempts then
-      Stdlib.Result.Result.Error e
+      Stdlib.Result.Result.Error(e)
     else
       let _ = Cli.Posix.sleep(delayMs)
       withFixedDelayLoop(maxAttempts, attempt + 1, delayMs, fn)

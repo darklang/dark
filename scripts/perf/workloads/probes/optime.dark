@@ -50,7 +50,7 @@ type Enum =
 let plainFn(i: Int): Int = i + 1
 let twoArgFn(i: Int, j: Int): Int = i + j
 let recFn(i: Int): Rec = Rec { a = i, b = "x" }
-let optFn(i: Int): Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some i
+let optFn(i: Int): Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some(i)
 let listFn(i: Int): List<Int> = [ i ]
 
 type Rec5 = { a: Int, b: Int, c: Int, d: Int, e: Int }
@@ -77,7 +77,7 @@ let onePass(f: Int -> Int): Int =
   // Keep the match and comparisons taking both branches, even with few calls.
   let inputs = if smoke then [ 1, 5, 1001 ] else Stdlib.List.range(1, iterations)
   let _r =
-    Stdlib.List.fold(inputs, 0, fun acc i ->
+    Stdlib.List.fold(inputs, 0, fun(acc, i) ->
       if (f(i)) == -987654321 then acc + 1 else acc)
 
   (Darklang.Cli.Telemetry.now()) - t0
@@ -150,12 +150,12 @@ measure("update a record field                ", fun i ->
   let r = Rec { a = i, b = "x" }
   ({ r with a = i + 1 }).a)
 measure("build a 1-field enum                 ", fun i ->
-  match Enum.One i with
-  | One v -> v
+  match Enum.One(i) with
+  | One(v) -> v
   | Two(_, v) -> v)
 measure("build an Option                      ", fun i ->
   match optFn(i) with
-  | Some v -> v
+  | Some(v) -> v
   | None -> 0)
 measure("build a tuple                        ", fun i ->
   let (a, b) = (i, i + 1)
@@ -171,14 +171,14 @@ measure("dict get, 2 entries                  ", fun i -> Stdlib.Option.withDefa
 measure("dict set, onto 2 entries             ", fun i -> Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(Stdlib.Dict.fromEntries([ ("a", 1), ("b", 2) ]), "c", 3))))
 measure("range 1..5                           ", fun i -> Stdlib.List.length(Stdlib.List.range(1, 5)))
 measure("map over 5                           ", fun i -> Stdlib.List.length(Stdlib.List.map([ 1, 2, 3, 4, 5 ], fun x -> x + i)))
-measure("fold over 5                          ", fun i -> Stdlib.List.fold([ 1, 2, 3, 4, 5 ], 0, fun acc x -> acc + x))
+measure("fold over 5                          ", fun i -> Stdlib.List.fold([ 1, 2, 3, 4, 5 ], 0, fun(acc, x) -> acc + x))
 measure("filter over 5                        ", fun i -> Stdlib.List.length(Stdlib.List.filter([ 1, 2, 3, 4, 5 ], fun x -> x > 2)))
 measure("contains over 5                      ", fun i -> if Stdlib.List.contains([ 1, 2, 3, 4, 5 ], 3) then 1 else 0)
 measure("any over 5                           ", fun i ->
   if Stdlib.List.any([ 1, 2, 3, 4, 5 ], fun x -> x > 4) then 1 else 0)
 measure("findFirst over 5                     ", fun i ->
   match Stdlib.List.findFirst([ 1, 2, 3, 4, 5 ], fun x -> x > 4) with
-  | Some v -> v
+  | Some(v) -> v
   | None -> 0)
 measure("build a 5-element literal            ", fun i -> Stdlib.List.length([ i, i, i, i, i ]))
 

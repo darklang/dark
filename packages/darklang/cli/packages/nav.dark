@@ -24,21 +24,21 @@ let execute(state: AppState, args: List<String>): AppState =
     let branchId = state.currentBranchId
     let navState = NavInteractive.buildState(branchId, state.packageData.currentLocation)
     match NavInteractive.start(navState) with
-    | Ok session ->
+    | Ok(session) ->
       { state with
-          currentPage = Page.InteractiveNav session
+          currentPage = Page.InteractiveNav(session)
           prompt = Prompt.Editing.clear(state.prompt) }
-    | Error message ->
+    | Error(message) ->
       Stdlib.printLine(message)
       state
 
   | [pathArg] ->
     let branchId = state.currentBranchId
     match Traversal.traverse(branchId, state.packageData.currentLocation, pathArg) with
-    | Error errorMsg ->
+    | Error(errorMsg) ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Navigation to {pathArg} failed: {errorMsg}"))
       Cli.exitWith(state, false)
-    | Ok newLocation ->
+    | Ok(newLocation) ->
       let locationStr = Packages.formatLocation(newLocation)
       Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Changed to: {locationStr}"))
 

@@ -11,7 +11,7 @@ let nearSome(
   expected: Float)
   : Stdlib.Test.Result =
   match actual with
-  | Some value -> near(value, expected)
+  | Some(value) -> near(value, expected)
   | None -> Stdlib.Test.fail("expected Some Float, got None")
 
 test constants =

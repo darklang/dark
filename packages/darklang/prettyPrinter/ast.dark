@@ -32,8 +32,8 @@ let clip(s: String): String =
 let letPattern(pat: LanguageTools.ProgramTypes.LetPattern): String =
   match pat with
   | LPVariable(_, name) -> name
-  | LPWildcard _ -> "_"
-  | LPUnit _ -> "()"
+  | LPWildcard(_) -> "_"
+  | LPUnit(_) -> "()"
   | LPTuple(_, first, second, theRest) ->
     let parts =
       (Stdlib.List.concat([ first, second ], theRest))
@@ -45,7 +45,7 @@ let letPattern(pat: LanguageTools.ProgramTypes.LetPattern): String =
 let matchPattern(pat: LanguageTools.ProgramTypes.MatchPattern): String =
   match pat with
   | MPVariable(_, name) -> name
-  | MPUnit _ -> "()"
+  | MPUnit(_) -> "()"
   | MPBool(_, b) -> Stdlib.toString(b)
   | MPInt8(_, i) -> Stdlib.toString(i)
   | MPUInt8(_, i) -> Stdlib.toString(i)
@@ -104,7 +104,7 @@ let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, e: LanguageTools.P
     (Stdlib.List.map(es, fun e -> child(e))) |> Stdlib.List.flatten
 
   match e with
-  | EUnit _ -> here("Unit", "")
+  | EUnit(_) -> here("Unit", "")
   | EBool(_, b) -> here("Bool", Stdlib.toString(b))
   | EInt8(_, i) -> here("EInt8", Stdlib.toString(i))
   | EUInt8(_, i) -> here("EUInt8", Stdlib.toString(i))
@@ -123,7 +123,7 @@ let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, e: LanguageTools.P
   | EChar(_, c) -> here("Char", $"'{c}'")
   | EVariable(_, name) -> here("Variable", name)
   | EArg(_, index) -> here("Arg", $"#{Stdlib.toString(index)}")
-  | ESelf _ -> here("Self", "")
+  | ESelf(_) -> here("Self", "")
 
   | EFnName(_, name, _) ->
     here(
@@ -140,8 +140,8 @@ let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, e: LanguageTools.P
       segments
       |> Stdlib.List.map(fun seg ->
         match seg with
-        | StringText t -> [ line(depth + 1, "Text", "\"" + (clip(t)) + "\"") ]
-        | StringInterpolation e ->
+        | StringText(t) -> [ line(depth + 1, "Text", "\"" + (clip(t)) + "\"") ]
+        | StringInterpolation(e) ->
           Stdlib.List.prepend(
             expr(ctx, depth + 2, e),
             line(depth + 1, "Interpolation", "")))
@@ -152,7 +152,7 @@ let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, e: LanguageTools.P
     let elseLines =
       match elseExpr with
       | None -> []
-      | Some e ->
+      | Some(e) ->
         Stdlib.List.prepend(
           expr(ctx, depth + 2, e),
           line(depth + 1, "else", ""))
@@ -218,7 +218,7 @@ let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, e: LanguageTools.P
         let guardLines =
           match c.whenCondition with
           | None -> []
-          | Some g ->
+          | Some(g) ->
             Stdlib.List.prepend(
               expr(ctx, depth + 3, g),
               line(depth + 2, "when", ""))

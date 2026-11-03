@@ -79,7 +79,7 @@ let extractGroup(name: String): String =
 
 let getDisplayName(prefix: String): String =
   let found =
-    Stdlib.List.findFirst(knownGroups, fun (groupPrefix, _) -> groupPrefix == prefix)
+    Stdlib.List.findFirst(knownGroups, fun((groupPrefix, _)) -> groupPrefix == prefix)
 
   match found with
   | Some((_, displayName)) -> displayName
@@ -87,7 +87,7 @@ let getDisplayName(prefix: String): String =
 
 
 let isKnownGroup(prefix: String): Bool =
-  Stdlib.List.any(knownGroups, fun (groupPrefix, _) -> groupPrefix == prefix)
+  Stdlib.List.any(knownGroups, fun((groupPrefix, _)) -> groupPrefix == prefix)
 
 
 let versionSuffix(v: Int32): String =
@@ -104,21 +104,21 @@ let purityTag(purity: LanguageTools.BuiltinFunctionPurity): String =
 let sortGroups(
   groups: List<String * List<LanguageTools.BuiltinFunction>>)
   : List<String * List<LanguageTools.BuiltinFunction>> =
-  let knownPrefixes = Stdlib.List.map(knownGroups, fun (groupPrefix, _) -> groupPrefix)
+  let knownPrefixes = Stdlib.List.map(knownGroups, fun((groupPrefix, _)) -> groupPrefix)
 
   let knownInOrder =
     knownPrefixes
     |> Stdlib.List.filterMap(fun prefix ->
       let found =
-        Stdlib.List.findFirst(groups, fun (groupPrefix, _) -> groupPrefix == prefix)
+        Stdlib.List.findFirst(groups, fun((groupPrefix, _)) -> groupPrefix == prefix)
 
       found)
 
   let unknown =
     groups
-    |> Stdlib.List.filter(fun (groupPrefix, _) ->
+    |> Stdlib.List.filter(fun((groupPrefix, _)) ->
       Stdlib.Bool.not(isKnownGroup(groupPrefix)))
-    |> Stdlib.List.sortBy(fun (groupPrefix, _) -> groupPrefix)
+    |> Stdlib.List.sortBy(fun((groupPrefix, _)) -> groupPrefix)
 
   Stdlib.List.concat(knownInOrder, unknown)
 
@@ -137,17 +137,17 @@ let execute(state: AppState, args: List<String>): AppState =
   let filter =
     match filterArgs with
     | [] -> Stdlib.Option.Option.None
-    | [ pattern ] -> Stdlib.Option.Option.Some pattern
+    | [ pattern ] -> Stdlib.Option.Option.Some(pattern)
     | _ -> Stdlib.Option.Option.None
 
   let grouped =
     allBuiltins
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc fn ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, fn) ->
       let group = extractGroup(fn.name.name)
 
       let existing =
         match Stdlib.Dict.get(acc, group) with
-        | Some list -> list
+        | Some(list) -> list
         | None -> []
 
       Stdlib.Dict.set(
@@ -162,7 +162,7 @@ let execute(state: AppState, args: List<String>): AppState =
   let filteredGroups =
     match filter with
     | None -> sortedGroups
-    | Some pattern ->
+    | Some(pattern) ->
       sortedGroups
       |> Stdlib.List.filterMap(fun pair ->
         let group = Stdlib.Tuple2.first(pair)
@@ -177,7 +177,7 @@ let execute(state: AppState, args: List<String>): AppState =
         if Stdlib.List.isEmpty(matchingFns) then
           Stdlib.Option.Option.None
         else
-          Stdlib.Option.Option.Some ((group, matchingFns)))
+          Stdlib.Option.Option.Some((group, matchingFns)))
 
   if withSigs then
     filteredGroups
@@ -227,12 +227,12 @@ let execute(state: AppState, args: List<String>): AppState =
   let totalCount =
     filteredGroups
     |> Stdlib.List.map(fun pair -> Stdlib.List.length(Stdlib.Tuple2.second(pair)))
-    |> Stdlib.List.fold(0, fun acc n -> acc + n)
+    |> Stdlib.List.fold(0, fun(acc, n) -> acc + n)
 
   let summary =
     match filter with
     | None -> $"Total: {Stdlib.toString(totalCount)} builtin functions"
-    | Some pattern ->
+    | Some(pattern) ->
       $"Showing {Stdlib.toString(totalCount)} functions matching '{pattern}'"
 
   [ ""

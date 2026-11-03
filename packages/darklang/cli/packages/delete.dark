@@ -86,7 +86,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | (None, _) ->
     Stdlib.printLine(help(state))
     Cli.exitWith(state, false)
-  | (Some itemTypeStr, targetOpt) ->
+  | (Some(itemTypeStr), targetOpt) ->
     // `delete <name>` with no kind: the store knows what kind lives at a name, so asking is
     // ceremony -- infer it (each kind tried, at most one resolves, the same way `undeprecate`
     // does), and keep the explicit form for a hash or a collision.
@@ -105,7 +105,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             |> Stdlib.Option.map(fun _ -> k))
 
         (match inferred with
-         | [ k ] -> (LanguageTools.ProgramTypes.ItemKind.toString(k), Stdlib.Option.Option.Some itemTypeStr)
+         | [ k ] -> (LanguageTools.ProgramTypes.ItemKind.toString(k), Stdlib.Option.Option.Some(itemTypeStr))
          | _ -> (itemTypeStr, targetOpt))
       | _ -> (itemTypeStr, targetOpt)
 
@@ -116,23 +116,23 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           $"Error: '{itemTypeStr}' names neither an item kind nor a live item. Expected `delete <name>`, or `delete <fn|type|value|trait|impl|test> <name-or-hash>`.")))
       Stdlib.printErrorLine("Usage: delete [fn|type|value|trait|impl|test] <name-or-hash> [options]")
       Cli.exitWith(state, false)
-    | Some itemKind ->
+    | Some(itemKind) ->
       match targetOpt with
       | None ->
         Cli.printErr("Error: Missing target (location or hash)")
         Cli.exitWith(state, false)
-      | Some target ->
+      | Some(target) ->
         let currentLoc = state.packageData.currentLocation
         match Location.parseRelativeTo(currentLoc, target) with
-        | Error errMsg ->
+        | Error(errMsg) ->
           Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}: {errMsg}"))
           Cli.exitWith(state, false)
-        | Ok targetLoc ->
+        | Ok(targetLoc) ->
           match Deprecate.resolveTarget(branchId, currentLoc, itemKind, target) with
           | None ->
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}"))
             Cli.exitWith(state, false)
-          | Some _targetRef ->
+          | Some(_targetRef) ->
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
             // when LIVE dependents exist. Deprecated-only callers don't block.
             let depCount = countLiveDependents(branchId, targetLoc, itemKind)

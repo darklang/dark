@@ -16,7 +16,7 @@ module Darklang.Cli.Tests.TestSuite
 /// invisible at build time and only shows up in the one command that hits it.
 let cliUnderTest(): String =
   match Stdlib.Env.get("DARK_CLI_UNDER_TEST") with
-  | Some path -> path
+  | Some(path) -> path
   | None -> "./scripts/run-cli"
 
 
@@ -758,7 +758,7 @@ test nativeListEdgeCases =
       if Stdlib.String.contains(output, expected) then
         Stdlib.Option.Option.None
       else
-        Stdlib.Option.Option.Some $"`{expr}` expected `{expected}`, got `{output}`")
+        Stdlib.Option.Option.Some($"`{expr}` expected `{expected}`, got `{output}`"))
 
   match failures with
   | [] -> Stdlib.Test.Result.Pass

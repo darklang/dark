@@ -22,7 +22,7 @@ test errorPayloadErrorRaises =
 module Errors =
   module Builtins =
     test noneWithPayloadRaises =
-      Stdlib.Option.Option.None 5
+      Stdlib.Option.Option.None(5)
       => raises
         "Expected 0 fields in Darklang.Stdlib.Option.Option.`None`, but got 1"
 
@@ -46,30 +46,30 @@ module Errors =
         "Expected 1 fields in Darklang.Language.Tests.Enums.Errors.User.MyEnum.`C`, but got 0"
 
     test extraPayloadRaises =
-      MyEnum.B 5L
+      MyEnum.B(5L)
       => raises
         "Expected 0 fields in Darklang.Language.Tests.Enums.Errors.User.MyEnum.`B`, but got 1"
 
     test matching =
       Stdlib.Test.all(
-        [ (match MyEnum.C "test" with | C v -> v) |> Stdlib.Test.equal("test")
-          (match MyEnum.C "test" with
+        [ (match MyEnum.C("test") with | C(v) -> v) |> Stdlib.Test.equal("test")
+          (match MyEnum.C("test") with
            | 5 -> "unmatched because it's not an int"
-           | C v -> v)
+           | C(v) -> v)
           |> Stdlib.Test.equal("test")
-          (match MyEnum.C "test" with
+          (match MyEnum.C("test") with
            | D -> "unmatched because case name does not exist"
-           | C _ -> 2)
+           | C(_) -> 2)
           |> Stdlib.Test.equal(2) ])
 
     test patternWithoutPayloadRaises =
-      (match MyEnum.C "test" with
+      (match MyEnum.C("test") with
        | C -> "unmatched because we didn't provide a space for the field")
       => raises
         "No matching case found for value Darklang.Language.Tests.Enums.Errors.User.MyEnum.C(\"test\") in match expression"
 
     test wrongPayloadTypeRaises =
-      (MyEnum.C 5L)
+      (MyEnum.C(5L))
       => raises
         "Failed to create enum. Expected String for field 0 in `C`, but got Int64 (5)"
 
@@ -98,8 +98,8 @@ module Simple =
 
     test payloadEquality =
       Stdlib.Test.all(
-        [ (CorD.C 5L != CorD.D AorB.B) |> Stdlib.Test.equal(true)
-          (CorD.D AorB.A == CorD.D AorB.A) |> Stdlib.Test.equal(true) ])
+        [ (CorD.C(5L) != CorD.D(AorB.B)) |> Stdlib.Test.equal(true)
+          (CorD.D(AorB.A) == CorD.D(AorB.A)) |> Stdlib.Test.equal(true) ])
 
 module MixedCases =
   type EnumOfMixedCases =
@@ -110,21 +110,21 @@ module MixedCases =
 
   test equality =
     Stdlib.Test.all(
-      [ (EnumOfMixedCases.W == (EnumOfMixedCases.Y 1L)) |> Stdlib.Test.equal(false)
-        (EnumOfMixedCases.Y 1L == EnumOfMixedCases.Y 1L) |> Stdlib.Test.equal(true) ])
+      [ (EnumOfMixedCases.W == (EnumOfMixedCases.Y(1L))) |> Stdlib.Test.equal(false)
+        (EnumOfMixedCases.Y(1L) == EnumOfMixedCases.Y(1L)) |> Stdlib.Test.equal(true) ])
 
   test xWrongTypeRaises =
-    EnumOfMixedCases.X 1L
+    EnumOfMixedCases.X(1L)
     => raises
       "Failed to create enum. Expected String for field 0 in `X`, but got Int64 (1)"
 
   test yWrongTypeRaises =
-    EnumOfMixedCases.Y "test"
+    EnumOfMixedCases.Y("test")
     => raises
       "Failed to create enum. Expected Int64 for field 0 in `Y`, but got String (\"test\")"
 
   test zMissingFieldRaises =
-    EnumOfMixedCases.Z 1L
+    EnumOfMixedCases.Z(1L)
     => raises
       "Expected 2 fields in Darklang.Language.Tests.Enums.MixedCases.EnumOfMixedCases.`Z`, but got 1"
 
@@ -140,23 +140,23 @@ module MixedCases =
     Stdlib.Test.all(
       [ (let values =
           [ EnumOfMixedCases.W
-            EnumOfMixedCases.X "testX"
+            EnumOfMixedCases.X("testX")
             EnumOfMixedCases.Y(5L)
             EnumOfMixedCases.Z("testZ", 2L) ]
          match Stdlib.List.getAt(values, 3) with
-         | Some z -> Stdlib.Result.Result.Ok z
-         | None -> Stdlib.Result.Result.Error "Failure")
+         | Some(z) -> Stdlib.Result.Result.Ok(z)
+         | None -> Stdlib.Result.Result.Error("Failure"))
         |> Stdlib.Test.equal(
           Darklang.Stdlib.Result.Result.Ok(EnumOfMixedCases.Z("testZ", 2L)))
         ([ EnumOfMixedCases.W
-           EnumOfMixedCases.X "testX"
+           EnumOfMixedCases.X("testX")
            EnumOfMixedCases.Y(5L)
            EnumOfMixedCases.Z("testZ", 2L) ]
          |> Stdlib.List.map(fun v ->
            match v with
-           | X s -> "X " + s
+           | X(s) -> "X " + s
            | Z(s, _i) -> "Z " + s
-           | Y y -> "Y " + (Stdlib.toString(y))
+           | Y(y) -> "Y " + (Stdlib.toString(y))
            | W -> "a simple W"))
         |> Stdlib.Test.equal([ "a simple W", "X testX", "Y 5", "Z testZ" ]) ])
 
@@ -235,7 +235,7 @@ module Polymorphism =
     insert'(tree, value, cmp)
 
   let ofList(values: List<'a>, cmp: ('a * 'a) -> Int64): RBTree<'a> =
-    Stdlib.List.fold(values, RBTree.Empty, fun tree value -> insert(tree, value, cmp))
+    Stdlib.List.fold(values, RBTree.Empty, fun(tree, value) -> insert(tree, value, cmp))
 
   let toList'(tree: RBTree<'a>, acc: List<'a>): List<'a> =
     match tree with
@@ -247,7 +247,7 @@ module Polymorphism =
 
   test insertionOrderDoesNotMatter =
     (let intCmp =
-      fun (x, y) ->
+      fun((x, y)) ->
         if x < y then -1L
         elif x > y then 1L
         else 0L

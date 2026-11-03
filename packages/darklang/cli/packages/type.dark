@@ -40,14 +40,14 @@ let createTypeInline(
   state: Cli.AppState)
   : Cli.AppState =
   match Location.parseRelativeTo(currentLocation, locationStr) with
-  | Ok location ->
+  | Ok(location) ->
     let fullSource = $"type {location.name} = {definition}"
 
     let (tree, diagnostics) =
       LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
 
     match tree with
-    | Some(SourceFile sourceFile) ->
+    | Some(SourceFile(sourceFile)) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
         (Errors.reportParseErrors(diagnostics))
@@ -59,11 +59,11 @@ let createTypeInline(
           sourceFile.declarations
           |> Stdlib.List.findFirst(fun d ->
             match d with
-            | Type _ -> true
+            | Type(_) -> true
             | _ -> false)
 
       match found with
-      | Some(Type writtenType) ->
+      | Some(Type(writtenType)) ->
         Packages.saveAuthored(
           state,
           location,
@@ -77,8 +77,8 @@ let createTypeInline(
                 writtenType)
 
             let ops =
-              [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash, Stdlib.Option.Option.None) ]
+              [ LanguageTools.ProgramTypes.PackageOp.AddType(packageType)
+                LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageType(packageType.hash), Stdlib.Option.Option.None) ]
 
             Stdlib.Option.Option.Some((ops, packageType.hash, unresolvedNames)))
 
@@ -107,7 +107,7 @@ let createTypeInline(
         ""
       ] |> Cli.Stderr.lines
       Cli.exitWith(state, false)
-  | Error msg ->
+  | Error(msg) ->
     Cli.printErr($"Invalid location: {msg}")
     Cli.exitWith(state, false)
 

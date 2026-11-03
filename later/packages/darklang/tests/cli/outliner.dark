@@ -41,16 +41,16 @@ module Outline =
   test parentsAreStored =
     Stdlib.Test.all(
       [ Darklang.Cli.Outliner.findParentId(sample(), 2)
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some 1)
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
         Darklang.Cli.Outliner.findParentId(sample(), 1)
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
   // ... and `setChildren` keeps them honest in both directions.
   test setChildrenUpdatesParents =
     Darklang.Cli.Outliner.findParentId(
-      Darklang.Cli.Outliner.setChildren(sample(), Stdlib.Option.Option.Some 4, [ 2 ]),
+      Darklang.Cli.Outliner.setChildren(sample(), Stdlib.Option.Option.Some(4), [ 2 ]),
       2)
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some 4)
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
 
   // A collapsed branch reports everything underneath it, not just its immediate children.
   test collapsedSubtreeSize =
@@ -235,10 +235,10 @@ module TextField =
          (Darklang.Stdlib.Cli.UI.Widget.press(
            Darklang.Stdlib.Cli.Stdin.Key.Key.Tab,
            noMods(),
-           Stdlib.Option.Option.Some "\t")))
+           Stdlib.Option.Option.Some("\t"))))
      with
      | Ignored -> "ignored"
-     | Handled _ -> "typed a tab"
+     | Handled(_) -> "typed a tab"
      | Emitted(_, _) -> "emitted")
     |> Stdlib.Test.equal("ignored")
 
@@ -252,7 +252,7 @@ module TextField =
            noMods(),
            Stdlib.Option.Option.None)))
      with
-     | Emitted(_state, Submitted text) -> text
+     | Emitted(_state, Submitted(text)) -> text
      | _ -> "")
     |> Stdlib.Test.equal("done")
 
@@ -309,7 +309,7 @@ module Confirm =
     Darklang.Stdlib.Cli.UI.Widget.press(
       Darklang.Stdlib.Cli.Stdin.Key.Key.None,
       Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false, shift = false, alt = false },
-      Stdlib.Option.Option.Some c)
+      Stdlib.Option.Option.Some(c))
 
   test confirmKeys =
     Stdlib.Test.all(
@@ -325,7 +325,7 @@ module Confirm =
   // Any other key is swallowed. A modal that let keys through would act on the thing being asked about.
   test otherKeysSwallowed =
     (match Darklang.Stdlib.Cli.UI.Confirm.onKey(question(), key("j")) with
-     | Handled _ -> "swallowed"
+     | Handled(_) -> "swallowed"
      | _ -> "other")
     |> Stdlib.Test.equal("swallowed")
 
@@ -355,24 +355,24 @@ module Persistence =
 
   test storeLoadsV1 =
     (match Darklang.Cli.Outliner.Store.parse(v1()) with
-     | Loaded data -> (Stdlib.List.length(data.documents), data.version)
+     | Loaded(data) -> (Stdlib.List.length(data.documents), data.version)
      | Unreadable(_p, _r) -> (0, 0))
     |> Stdlib.Test.equal((1, 2))
 
   // The migration rebuilds the parent pointers v1 didn't store.
   test migrationRebuildsParents =
     (match Darklang.Cli.Outliner.Store.parse(v1()) with
-     | Loaded data ->
+     | Loaded(data) ->
        match Stdlib.List.head(data.documents) with
-       | Some doc -> Darklang.Cli.Outliner.findParentId(doc.outline, 2)
+       | Some(doc) -> Darklang.Cli.Outliner.findParentId(doc.outline, 2)
        | None -> Stdlib.Option.Option.None
      | Unreadable(_p, _r) -> Stdlib.Option.Option.None)
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some 1)
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
   // Something genuinely broken is reported, not swallowed.
   test brokenStoreReported =
     (match Darklang.Cli.Outliner.Store.parse("{ not json") with
-     | Loaded _ -> "loaded"
+     | Loaded(_) -> "loaded"
      | Unreadable(_p, _r) -> "unreadable")
     |> Stdlib.Test.equal("unreadable")
 
@@ -390,7 +390,7 @@ module Persistence =
        Darklang.Cli.Outliner.Store.parse(
          Stdlib.Json.serialize<Darklang.Cli.Outliner.Store.PersistedData>(saved))
      with
-     | Loaded back -> back == saved
+     | Loaded(back) -> back == saved
      | Unreadable(_p, _r) -> false)
     |> Stdlib.Test.equal(true)
 
@@ -411,9 +411,9 @@ module Persistence =
        Darklang.Cli.Outliner.Store.parse(
          Stdlib.Json.serialize<Darklang.Cli.Outliner.Store.PersistedData>(saved))
      with
-     | Loaded back ->
+     | Loaded(back) ->
        match Stdlib.List.head(back.documents) with
-       | Some doc ->
+       | Some(doc) ->
          (Darklang.Cli.Outliner.getMark(doc.outline, 2), (Darklang.Cli.Outliner.getStructure(doc.outline, 1)).collapsed)
        | None -> (Darklang.Cli.Outliner.Mark.Plain, false)
      | Unreadable(_p, _r) -> (Darklang.Cli.Outliner.Mark.Plain, false))

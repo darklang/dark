@@ -57,9 +57,9 @@ let cacheRuntime(): String =
     match
       LanguageTools.RuntimeTypes.reflect(LanguageTools.PackageManager.Test.execute)
     with
-    | DApplicable(AppNamedFn named) ->
+    | DApplicable(AppNamedFn(named)) ->
       match named.name with
-      | Package hash -> LanguageTools.RuntimeTypes.hashToString(hash)
+      | Package(hash) -> LanguageTools.RuntimeTypes.hashToString(hash)
       | _ -> Stdlib.toString(Stdlib.Uuid.generate())
     | _ -> Stdlib.toString(Stdlib.Uuid.generate())
   Cli.Installation.Helpers.runtimeHash() + ":" + judge
@@ -109,9 +109,9 @@ let storedOutcome(
        WHERE test_hash = @p0 AND runtime_hash = @p1
          AND branch_id = @p2 AND result_type_hash = @p3",
       [ hash, cache.runtime, cache.branch, cache.resultType ]) with
-  | Some row ->
+  | Some(row) ->
     match Stdlib.Sqlite.textField(row, "outcome_json") with
-    | Some json -> Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption
+    | Some(json) -> Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
@@ -146,9 +146,9 @@ let lastOutcome(
        WHERE type = 'table' AND name = 'package_test_results'",
       [])
   match cacheTable with
-  | Some _ ->
+  | Some(_) ->
     match cacheContext(branchId) with
-    | Some cache -> storedOutcome(cache, testHash)
+    | Some(cache) -> storedOutcome(cache, testHash)
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
@@ -159,9 +159,9 @@ let runFresh(
   test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : Outcome =
   match LanguageTools.PackageManager.Test.executeInRun(run, branchId, test.hash) with
-  | Ok Pass -> Outcome.Passed
-  | Ok(Fail messages) -> Outcome.Failed messages
-  | Error error ->
+  | Ok(Pass) -> Outcome.Passed
+  | Ok(Fail(messages)) -> Outcome.Failed(messages)
+  | Error(error) ->
     Outcome.RuntimeFailed(
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, error)
     )
@@ -171,7 +171,7 @@ let mayCache(
   test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : Bool =
   match test.expectedError with
-  | Some _ -> false
+  | Some(_) -> false
   | None -> true
 
 /// Recheck the current cache-safety rule before reusing or storing a result.
@@ -185,20 +185,20 @@ let printOutcome(name: String, outcome: Outcome): Unit =
   match outcome with
   | Passed ->
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"PASS {name}"))
-  | Failed messages ->
+  | Failed(messages) ->
     Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"FAIL {name}"))
     messages
     |> Stdlib.List.iter(fun message ->
       Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"  {message}")))
-  | RuntimeFailed message ->
+  | RuntimeFailed(message) ->
     Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"ERROR {name}"))
     Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"  {message}"))
 
 let isPassed(outcome: Outcome): Bool =
   match outcome with
   | Passed -> true
-  | Failed _
-  | RuntimeFailed _ -> false
+  | Failed(_)
+  | RuntimeFailed(_) -> false
 
 val addUsage = "Usage: test add <location> <body> | <source-file> | -"
 
@@ -223,8 +223,8 @@ let addTest(
   match
     Location.parseRelativeTo(state.packageData.currentLocation, locationStr)
   with
-  | Error msg -> addFailed(state, $"Invalid location: {msg}")
-  | Ok location ->
+  | Error(msg) -> addFailed(state, $"Invalid location: {msg}")
+  | Ok(location) ->
     let trimmed = Stdlib.String.trim(definition)
     let isFullDeclaration =
       Stdlib.String.startsWith(trimmed, "test ")
@@ -240,7 +240,7 @@ let addTest(
 
     match tree with
     | None -> addFailed(state, "Failed to parse the test")
-    | Some(SourceFile sourceFile) ->
+    | Some(SourceFile(sourceFile)) ->
       // The parser may recover a tree after errors; do not save it.
       if
         Errors.reportParseErrors(diagnostics)
@@ -248,7 +248,7 @@ let addTest(
         { state with exitCode = 1 }
       else
         match sourceFile.declarations with
-        | [ Test written ] ->
+        | [ Test(written) ] ->
           if written.name.name != location.name then
             addFailed(
               state,
@@ -268,11 +268,11 @@ let addTest(
                 // Tests use instance and called-function policies, with no ceiling of
                 // their own.
                 let ops =
-                  [ LanguageTools.ProgramTypes.PackageOp.AddTest packageTest
+                  [ LanguageTools.ProgramTypes.PackageOp.AddTest(packageTest)
                     LanguageTools.ProgramTypes.PackageOp.SetName(
                       location,
-                      LanguageTools.ProgramTypes.Reference.PackageTest
-                        packageTest.hash,
+                      LanguageTools.ProgramTypes.Reference.PackageTest(
+                        packageTest.hash),
                       Stdlib.Option.Option.None
                     ) ]
                 Stdlib.Option.Option.Some((ops, packageTest.hash, unresolvedNames)))
@@ -311,19 +311,19 @@ let parseRunOptions(
   args: List<String>)
   : Stdlib.Result.Result<RunOptions, String> =
   match args with
-  | [] -> Ok options
+  | [] -> Ok(options)
   | ["--force", ...rest] -> parseRunOptions({ options with force = true }, rest)
   | ["--jobs", value, ...rest] ->
     match Stdlib.Int.parse(value) with
-    | Ok jobs when jobs > 0 -> parseRunOptions({ options with jobs = jobs }, rest)
-    | _ -> Error "--jobs needs a positive whole number"
-  | [ "--jobs" ] -> Error "--jobs needs a positive whole number"
+    | Ok(jobs) when jobs > 0 -> parseRunOptions({ options with jobs = jobs }, rest)
+    | _ -> Error("--jobs needs a positive whole number")
+  | [ "--jobs" ] -> Error("--jobs needs a positive whole number")
   | [arg, ...rest] when Stdlib.String.startsWith(arg, "--jobs=") ->
     let value = Stdlib.String.slice(arg, 7, Stdlib.String.length(arg))
     parseRunOptions(options, Stdlib.List.concat([ "--jobs", value ], rest))
   | [arg, ...rest] ->
     if Stdlib.String.startsWith(arg, "-") then
-      Error $"Unknown option: {arg}"
+      Error($"Unknown option: {arg}")
     else
       parseRunOptions({ options with filters = Stdlib.List.prepend(options.filters, arg) }, rest)
 
@@ -342,8 +342,8 @@ let finishTest(
   : Counts =
   if Stdlib.Bool.not(finished.wasCached) then
     match cache, finished.outcome with
-    | _, RuntimeFailed _ -> ()
-    | Some context, _ when isCacheable(finished.test) ->
+    | _, RuntimeFailed(_) -> ()
+    | Some(context), _ when isCacheable(finished.test) ->
       storeOutcome(context, finished.test.hash, finished.outcome)
     | _ -> ()
   printOutcome(finished.name, finished.outcome)
@@ -371,13 +371,13 @@ let runSelected(
         Stdlib.Option.Option.None
       else
         match cache with
-        | Some context when mayCache(item.entity) ->
+        | Some(context) when mayCache(item.entity) ->
           match storedOutcome(context, item.entity.hash) with
-          | Some Passed when isCacheable(item.entity) -> Some Outcome.Passed
+          | Some(Passed) when isCacheable(item.entity) -> Some(Outcome.Passed)
           | _ -> Stdlib.Option.Option.None
         | _ -> Stdlib.Option.Option.None
     match cachedResult with
-    | Some outcome ->
+    | Some(outcome) ->
       let finished = FinishedTest
         { name = fullPath(item)
           test = item.entity
@@ -412,11 +412,11 @@ let runTestsInRun(
   let cores = Stdlib.Exec.workers()
   let defaults = RunOptions { force = false, jobs = (if cores < 16 then cores else 16), filters = [] }
   match parseRunOptions(defaults, args) with
-  | Error message ->
+  | Error(message) ->
     Cli.printErr(message)
     Stdlib.printErrorLine(usage)
     { state with exitCode = 1 }
-  | Ok options ->
+  | Ok(options) ->
     ensureCache()
     // Every test, then the filters by whole name segments. Not the package
     // search's text match: that is fuzzy, so `WbTests.R` matched every test in

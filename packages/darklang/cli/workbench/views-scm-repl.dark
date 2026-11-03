@@ -38,9 +38,9 @@ let evalRaw(state: State, expr: String): Stdlib.Result.Result<Stdlib.Option.Opti
 /// Evaluate an expression **with the session's bindings in scope**, and return its result (or the error text).
 let evalToString(state: State, expr: String): String =
   match evalRaw(state, Darklang.Cli.Repl.withBindings(state.repl.bindings, expr)) with
-  | Ok(Some s) -> Stdlib.String.trim(s)
-  | Ok None -> ""
-  | Error message -> "Error: " + message
+  | Ok(Some(s)) -> Stdlib.String.trim(s)
+  | Ok(None) -> ""
+  | Error(message) -> "Error: " + message
 
 /// Bind `name` to `rhs` for the rest of the session. Evaluates it once now: if the value has a literal form
 /// the binding holds the *value* (so the chain that re-establishes it on every later eval is free, and an
@@ -54,7 +54,7 @@ let bindSession(state: State, name: String, rhs: String): (Stdlib.Option.Option<
     // The chain re-runs this anyway on the next eval; this is the same work one step early.
     let shown =
       match evalRaw(state, Darklang.Cli.Repl.withBindings(state.repl.bindings, rhs)) with
-      | Ok(Some v) -> Stdlib.String.trim(v)
+      | Ok(Some(v)) -> Stdlib.String.trim(v)
       | _ -> rhs
     (Stdlib.Option.Option.Some(
        Darklang.Cli.Repl.Binding { name = name, source = rhs, value = shown, captured = false }),
@@ -62,20 +62,20 @@ let bindSession(state: State, name: String, rhs: String): (Stdlib.Option.Option<
      // ("... DateTime has no "), losing the only part that explains the `~`.
      $"{name} = {shown}\nre-runs each eval: {reason}")
   match evalRaw(state, Darklang.Cli.Repl.captureExpr(state.repl.bindings, state.branchId, name, rhs)) with
-  | Error message ->
+  | Error(message) ->
     // Report against what was typed, not against the capture wrapper. A parse error in the binding surfaced
     // the generated `Repl.captureValue "<branch uuid>" name` line with a caret under it - source the user
     // never wrote, and a uuid that makes it look like an internal fault. Re-running the plain binding costs
     // one eval on the error path and points the caret at their own text.
     let plainMessage =
       match evalRaw(state, Darklang.Cli.Repl.withBindings(state.repl.bindings, $"let {name} = {rhs}\n{name}")) with
-      | Error m -> m
-      | Ok _ -> message
+      | Error(m) -> m
+      | Ok(_) -> message
     (Stdlib.Option.Option.None, "not bound - " + plainMessage)
-  | Ok None -> fallback("nothing to capture")
-  | Ok(Some out) ->
+  | Ok(None) -> fallback("nothing to capture")
+  | Ok(Some(out)) ->
     match Darklang.Cli.Repl.readCaptured(out) with
-    | Some source ->
+    | Some(source) ->
       // Captured: the source IS the value, so both fields are the same literal.
       (Stdlib.Option.Option.Some(
          Darklang.Cli.Repl.Binding { name = name, source = source, value = source, captured = true }),
@@ -101,7 +101,7 @@ let applyReplStatement(state: State, stmt: String): State =
           (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "> ")) + first)
       | [] -> [ (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "> ")) + text ]
     match Darklang.Cli.Repl.parseLetBinding(text) with
-    | Some pair ->
+    | Some(pair) ->
       let (name, rhs) = pair
       let (bound, note) = bindSession(state, name, rhs)
       // A note may carry a second line (see `bindSession`'s fallback); one log entry per line keeps each
@@ -111,7 +111,7 @@ let applyReplStatement(state: State, stmt: String): State =
       let logged =
         Stdlib.List.concat(state.repl.log, Stdlib.List.concat(echoLines, noteLines))
       match bound with
-      | Some binding ->
+      | Some(binding) ->
         { state with
             repl =
               { state.repl with
@@ -138,7 +138,7 @@ let applyReplStatement(state: State, stmt: String): State =
 /// evaluations the navigation keys work like everywhere else (esc leaves the
 /// prompt).
 let renderRepl(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
-  let typing = match state.input with | Some _ -> true | None -> false
+  let typing = match state.input with | Some(_) -> true | None -> false
   let logTitle =
     paneTitle(
       "",
@@ -190,7 +190,7 @@ let renderRepl(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.C
       let withPending = Stdlib.List.concat(all, pending)
       let shown = withPending |> Stdlib.List.reverse |> Stdlib.List.take(inner.rows) |> Stdlib.List.reverse
       shown
-      |> Stdlib.List.indexedMap(fun i l -> Stdlib.Cli.UI.Layout.at(inner, i, 0, l))
+      |> Stdlib.List.indexedMap(fun(i, l) -> Stdlib.Cli.UI.Layout.at(inner, i, 0, l))
       |> Stdlib.List.flatten),
     sessionTitle,
     fun inner ->
@@ -224,5 +224,5 @@ let renderRepl(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.C
         else Stdlib.Cli.UI.Colors.dimText("session bindings  ·  " + (plural(count, "name")) + ":")
       Stdlib.List.flatten([ [ heading, "" ], bindingLines, resultLines ])
       |> Stdlib.List.take(inner.rows)
-      |> Stdlib.List.indexedMap(fun i l -> Stdlib.Cli.UI.Layout.at(inner, i, 0, l))
+      |> Stdlib.List.indexedMap(fun(i, l) -> Stdlib.Cli.UI.Layout.at(inner, i, 0, l))
       |> Stdlib.List.flatten)

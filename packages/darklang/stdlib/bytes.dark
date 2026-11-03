@@ -65,7 +65,7 @@ let slice(
   end: Int)
   : Stdlib.Result.Result<Bytes, IndexError> =
   if start < 0 || start > end || end > length(bytes) then
-    Stdlib.Result.Result.Error IndexError.IndexOutOfBounds
+    Stdlib.Result.Result.Error(IndexError.IndexOutOfBounds)
   else
     Stdlib.Result.Result.Ok(Builtin.bytesSlice(bytes, start, end - start))
 

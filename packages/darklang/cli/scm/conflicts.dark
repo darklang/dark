@@ -20,7 +20,7 @@ module Darklang.Cli.Conflicts
 /// because one rendering defines one thing, so that pattern occurs at most once.
 let nameTheDefinition(name: String, hash: String, rendered: String): String =
   let short =
-    LanguageTools.ProgramTypes.hashToShort(LanguageTools.ProgramTypes.Hash.Hash hash)
+    LanguageTools.ProgramTypes.hashToShort(LanguageTools.ProgramTypes.Hash.Hash(hash))
 
   Stdlib.String.replaceAll(rendered, $"let <hash:{short}>", $"let {name}")
 
@@ -34,7 +34,7 @@ let renderItem(
   name: String)
   : String =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch(branchId)
-  let h = LanguageTools.ProgramTypes.Hash.Hash hash
+  let h = LanguageTools.ProgramTypes.Hash.Hash(hash)
   let named(s: String): String = nameTheDefinition(name, hash, s)
 
   // Each kind, tried in turn rather than only the one the conflict is filed under. A conflict CAN have
@@ -71,7 +71,7 @@ let renderItem(
       let (kind, rendered) = a
 
       match rendered with
-      | Some r -> Stdlib.Option.Option.Some((kind, r))
+      | Some(r) -> Stdlib.Option.Option.Some((kind, r))
       | None -> Stdlib.Option.Option.None)
     |> Stdlib.List.head
 
@@ -210,7 +210,7 @@ let executeList(state: AppState): AppState =
         | _ -> (0, false)
 
       c.candidates
-      |> Stdlib.List.indexedMap(fun i cand ->
+      |> Stdlib.List.indexedMap(fun(i, cand) ->
         let label = if i == 0 then "A" else "B"
 
         let whose =
@@ -256,7 +256,7 @@ let executeShow(state: AppState, idPrefix: String): AppState =
   | None ->
     Cli.printErr($"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them.")
     { state with exitCode = 1 }
-  | Some c ->
+  | Some(c) ->
     let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
     let aboutABinding = SCM.Conflicts.aboutABinding(c.kind)
 
@@ -266,7 +266,7 @@ let executeShow(state: AppState, idPrefix: String): AppState =
       Cli.printOk($"#{c.id}  {dotted}  [{c.part}] -- two wordings")
 
     c.candidates
-    |> Stdlib.List.indexedMap(fun i cand ->
+    |> Stdlib.List.indexedMap(fun(i, cand) ->
       let label = if i == 0 then "A" else "B"
       let mark = if cand.hash == c.autoResolvedTo then "kept" else "lost"
       // "yours"/"theirs" is a rendering decision made HERE, against who this instance is. The record
@@ -308,7 +308,7 @@ let executeAck(state: AppState, idPrefix: String): AppState =
   | None ->
     Cli.printErr($"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them.")
     { state with exitCode = 1 }
-  | Some c ->
+  | Some(c) ->
     SCM.Conflicts.setStatus(c.id, "acked", "")
     let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
     Cli.printOk($"acked #{c.id} ({dotted}) -- the auto-pick stands.")
@@ -342,7 +342,7 @@ let executeOverride(
   | None ->
     Cli.printErr($"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them.")
     { state with exitCode = 1 }
-  | Some c when Stdlib.Bool.not(SCM.Conflicts.aboutABinding(c.kind)) ->
+  | Some(c) when Stdlib.Bool.not(SCM.Conflicts.aboutABinding(c.kind)) ->
     // A wording disagreement is settled by SAYING something, not by binding a name: `override A|B`
     // takes one of the two texts, and `override -` shows both and hands the doc back to you, for
     // the case where the answer is a third wording made out of both.
@@ -365,20 +365,20 @@ let executeOverride(
           $"no candidate \"{choice}\" on #{c.id} -- use A, B, or - to write a third wording.")
 
         { state with exitCode = 1 }
-      | Some cand ->
+      | Some(cand) ->
         match SCM.Conflicts.settleWording(state.currentBranchId, c, cand.text) with
-        | Ok _ ->
+        | Ok(_) ->
           Cli.printOk($"overrode #{c.id}: {dotted} now says \"{cand.text}\".")
 
           Cli.printHint(
             "  it's an op, so the choice syncs and holds.")
 
           state
-        | Error e ->
+        | Error(e) ->
           Cli.printErr($"override failed: {e}")
           { state with exitCode = 1 }
 
-  | Some c ->
+  | Some(c) ->
     let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
 
     if choice == "-" then
@@ -396,7 +396,7 @@ let executeOverride(
       | None ->
         Cli.printErr($"no candidate \"{choice}\" on #{c.id} -- use A, B, a hash prefix, or - to hand-author.")
         Cli.exitWith(state, false)
-      | Some cand when cand.removed ->
+      | Some(cand) when cand.removed ->
         // Taking the removal ends the name again rather than binding anything.
         // `settleConflictByRemoval` authors the `Unbind`, so the choice travels like any other
         // resolution.
@@ -407,25 +407,25 @@ let executeOverride(
           state
         else
           match SCM.PackageOps.settleConflictByRemoval(state.currentBranchId, c) with
-          | Ok _ ->
+          | Ok(_) ->
             Cli.printOk($"took {choice}; {dotted} is unbound again.")
             Cli.printHint("  it's an op, so the removal syncs and holds.")
             state
-          | Error e ->
+          | Error(e) ->
             Cli.printErr($"override failed: {e}")
             { state with exitCode = 1 }
-      | Some cand ->
+      | Some(cand) ->
         if cand.hash == c.autoResolvedTo then
           Cli.printOk(
             $"#{c.id}: that's already the auto-pick. Nothing to override -- `dark conflicts ack {c.id}` if it's right.")
           state
         else
           match SCM.PackageOps.settleConflict(state.currentBranchId, c, cand.hash) with
-          | Ok _ ->
+          | Ok(_) ->
             Cli.printOk(
               $"overrode #{c.id}: {dotted} now binds {SCM.Conflicts.shortHash(cand.hash)}. It's an op, so the choice syncs and holds.")
             state
-          | Error e ->
+          | Error(e) ->
             Cli.printErr($"override failed: {e}")
             Cli.exitWith(state, false)
 
@@ -436,7 +436,7 @@ let executeBranchPreview(state: AppState, branchRef: String): AppState =
   // typo has to be refused rather than answered.
   match Cli.Branch.resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
-  | Some branchId ->
+  | Some(branchId) ->
     match SCM.PackageOps.branchPreview(branchId) with
     | [] ->
       Cli.printOk($"\"{branchRef}\" would merge cleanly -- neither side moved a name the other did.")
@@ -519,13 +519,13 @@ let executeJson(state: AppState, args: List<String>): AppState =
     // Same name-to-id crossing the human-readable arm does; a name is what every command prints.
     match Cli.Branch.resolveRef(branchRef) with
     | None -> Cli.exitWith(state, false)
-    | Some branchId ->
+    | Some(branchId) ->
       printConflictList(SCM.PackageOps.branchPreview(branchId))
       state
 
   | [ "show", id ] ->
     match SCM.Conflicts.getByIdPrefix(id) with
-    | Some c ->
+    | Some(c) ->
       Stdlib.printLine(ScmJson.conflictJson(c))
       state
     | None ->
@@ -534,7 +534,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
 
   | [ "ack", id ] ->
     match SCM.Conflicts.getByIdPrefix(id) with
-    | Some c ->
+    | Some(c) ->
       SCM.Conflicts.setStatus(c.id, "acked", "")
       jsonSuccess(c.id, "acked", c.autoResolvedTo)
       state
@@ -546,18 +546,18 @@ let executeJson(state: AppState, args: List<String>): AppState =
     match SCM.Conflicts.getByIdPrefix(id) with
     | None ->
       jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
-    | Some c ->
+    | Some(c) ->
       match pickCandidate(c, choice) with
       | None ->
         jsonFailure(state, $"no candidate \"{choice}\" -- use A, B or a hash prefix")
-      | Some cand ->
+      | Some(cand) ->
         // Through `settleConflict`, never `applyResolution` bare: settling also cascades, so the
         // callers that had followed the losing version come along, and it refuses an empty hash.
         match SCM.PackageOps.settleConflict(state.currentBranchId, c, cand.hash) with
-        | Ok _ ->
+        | Ok(_) ->
           jsonSuccess(c.id, "overridden", cand.hash)
           state
-        | Error e ->
+        | Error(e) ->
           jsonFailure(state, e)
 
   | _ -> failureUnknown(state)
@@ -573,7 +573,7 @@ let walkOne(state: AppState, c: SCM.Conflicts.Conflict, n: Int, total: Int): Boo
   Cli.Stderr.ok($"  [{pos}]  {dotted}  [{c.itemType}]")
 
   c.candidates
-  |> Stdlib.List.indexedMap(fun i cand ->
+  |> Stdlib.List.indexedMap(fun(i, cand) ->
     let label = if i == 0 then "A" else "B"
     let mark = if cand.hash == c.autoResolvedTo then "kept" else "lost"
     let who = whoseCandidate(cand)
@@ -591,13 +591,13 @@ let walkOne(state: AppState, c: SCM.Conflicts.Conflict, n: Int, total: Int): Boo
   // Input ending quits, rather than taking the auto-pick for everything left.
   let answer =
     match Stdlib.Cli.Stdin.readLineOrEnd() with
-    | Some typed -> Stdlib.String.trim(Stdlib.String.toLowercase(typed))
+    | Some(typed) -> Stdlib.String.trim(Stdlib.String.toLowercase(typed))
     | None -> "q"
 
   let apply(choice: String, label: String): Unit =
     match pickCandidate(c, choice) with
     | None -> Cli.printErr("    couldn't tell which side you meant; left it pending.")
-    | Some cand ->
+    | Some(cand) ->
       if cand.hash == c.autoResolvedTo then
         // Agreeing with the fold changes no binding, so it is an ack rather than a new op.
         SCM.Conflicts.setStatus(c.id, "acked", "")
@@ -606,14 +606,14 @@ let walkOne(state: AppState, c: SCM.Conflicts.Conflict, n: Int, total: Int): Boo
         // `settleConflict`, not bare `applyResolution`: the cascade is part of the act (see the
         // non-interactive override above).
         match SCM.PackageOps.settleConflict(state.currentBranchId, c, cand.hash) with
-        | Ok _ ->
+        | Ok(_) ->
           Cli.printOk($"    took {label}; {dotted} now binds {SCM.Conflicts.shortHash(cand.hash)}.")
-        | Error e -> Cli.printErr($"    couldn't apply that: {e}")
+        | Error(e) -> Cli.printErr($"    couldn't apply that: {e}")
 
   /// The side the auto-pick kept, as the letter this prompt uses.
   let foldPick(): String =
     match SCM.Conflicts.candidateFor(c, "local") with
-    | Some local -> if local.hash == c.autoResolvedTo then "A" else "B"
+    | Some(local) -> if local.hash == c.autoResolvedTo then "A" else "B"
     | None -> "B"
 
   match answer with
@@ -653,8 +653,8 @@ let executeWalk(state: AppState): AppState =
 
     let _ =
       cs
-      |> Stdlib.List.indexedMap(fun i c -> (i, c))
-      |> Stdlib.List.fold(true, fun keepGoing pair ->
+      |> Stdlib.List.indexedMap(fun(i, c) -> (i, c))
+      |> Stdlib.List.fold(true, fun(keepGoing, pair) ->
         let (i, c) = pair
 
         if keepGoing then
@@ -689,7 +689,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
   // thing for every conflict), and this sibling taking exactly one ref was a trap.
   | ["ack", id, ...rest] ->
     Stdlib.List.prepend(rest, id)
-    |> Stdlib.List.fold(state, fun st i -> executeAck(st, i))
+    |> Stdlib.List.fold(state, fun(st, i) -> executeAck(st, i))
   | [ "override", id, choice ] -> executeOverride(state, id, choice)
   | [ "branch", branchId ] -> executeBranchPreview(state, branchId)
 

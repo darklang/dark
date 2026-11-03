@@ -56,7 +56,7 @@ let unresolvedMessage(
 
 let saveEditing(state: State, es: EditingState): Step =
   let keepErr(msg: String): Step =
-    Step.Continue { state with editing = Stdlib.Option.Option.Some { es with err = msg } }
+    Step.Continue({ state with editing = Stdlib.Option.Option.Some({ es with err = msg }) })
 
   let rawSource = Stdlib.Cli.UI.Editor.toText(es.buf)
   // A `module Owner.Mod` first line (the free-form Edit/draft flow) sets where everything lands - parse it off
@@ -88,9 +88,9 @@ let saveEditing(state: State, es: EditingState): Step =
     keepErr("add a name after the keyword, then ^s")
   else
   // Resolve the name against the target module (a `module …` line, or the editor's target from where it opened).
-  match Packages.Location.parseRelativeTo(Packages.PackageLocation.Module targetMod, leaf) with
-  | Error e -> keepErr("bad name: " + e)
-  | Ok location ->
+  match Packages.Location.parseRelativeTo(Packages.PackageLocation.Module(targetMod), leaf) with
+  | Error(e) -> keepErr("bad name: " + e)
+  | Ok(location) ->
     let (tree, diags) =
       LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
 
@@ -98,7 +98,7 @@ let saveEditing(state: State, es: EditingState): Step =
       keepErr("parse error - fix it, then ^s")
     else
       match tree with
-      | Some(SourceFile sourceFile) ->
+      | Some(SourceFile(sourceFile)) ->
         let pm = LanguageTools.PackageManager.pm()
         let ctx =
           LanguageTools.NameResolver.NRContext
@@ -110,25 +110,25 @@ let saveEditing(state: State, es: EditingState): Step =
         // Per-kind: find the declaration, convert WrittenTypes → PT, build the Add*+SetName ops.
         let opsResult =
           if es.kind == "type" then
-            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Type _ -> true | _ -> false) with
-            | Some(Type wt) ->
+            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Type(_) -> true | _ -> false) with
+            | Some(Type(wt)) ->
               let (pt, unresolved) = LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT(ctx, wt)
-              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error (unresolvedMessage(unresolved))
+              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error(unresolvedMessage(unresolved))
               else
-                Stdlib.Result.Result.Ok
-                  [ LanguageTools.ProgramTypes.PackageOp.AddType pt
-                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType pt.hash, Stdlib.Option.Option.None) ]
-            | _ -> Stdlib.Result.Result.Error "not a type definition"
+                Stdlib.Result.Result.Ok(
+                  [ LanguageTools.ProgramTypes.PackageOp.AddType(pt)
+                    LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageType(pt.hash), Stdlib.Option.Option.None) ])
+            | _ -> Stdlib.Result.Result.Error("not a type definition")
           else if es.kind == "value" then
-            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Value _ -> true | _ -> false) with
-            | Some(Value wv) ->
+            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Value(_) -> true | _ -> false) with
+            | Some(Value(wv)) ->
               let (pv, unresolved) = LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT(ctx, wv)
-              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error (unresolvedMessage(unresolved))
+              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error(unresolvedMessage(unresolved))
               else
-                Stdlib.Result.Result.Ok
-                  [ LanguageTools.ProgramTypes.PackageOp.AddValue pv
-                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue pv.hash, Stdlib.Option.Option.None) ]
-            | _ -> Stdlib.Result.Result.Error "not a value definition"
+                Stdlib.Result.Result.Ok(
+                  [ LanguageTools.ProgramTypes.PackageOp.AddValue(pv)
+                    LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageValue(pv.hash), Stdlib.Option.Option.None) ])
+            | _ -> Stdlib.Result.Result.Error("not a value definition")
           // A trait and an implementation do NOT build a `SetName` here, unlike the three above.
           // `traitWithOps` and `implWithOps` return a complete op list, placed: an implementation's
           // name is derived from the module, the type and the trait rather than typed, so only the
@@ -136,27 +136,27 @@ let saveEditing(state: State, es: EditingState): Step =
           // second time, which folds once and looks fine. These are the same converters `dark trait`
           // and `dark impl` call, so the two surfaces author identically.
           else if es.kind == "trait" then
-            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Trait _ -> true | _ -> false) with
-            | Some(Trait wt) ->
+            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Trait(_) -> true | _ -> false) with
+            | Some(Trait(wt)) ->
               let (_pt, ops, unresolved) = LanguageTools.WrittenTypesToProgramTypes.traitWithOps(ctx, wt)
-              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error (unresolvedMessage(unresolved))
-              else Stdlib.Result.Result.Ok ops
-            | _ -> Stdlib.Result.Result.Error "not a trait definition"
+              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error(unresolvedMessage(unresolved))
+              else Stdlib.Result.Result.Ok(ops)
+            | _ -> Stdlib.Result.Result.Error("not a trait definition")
           else if es.kind == "impl" then
-            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Impl _ -> true | _ -> false) with
-            | Some(Impl wi) ->
+            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Impl(_) -> true | _ -> false) with
+            | Some(Impl(wi)) ->
               let (pi, _fns, ops, unresolved) = LanguageTools.WrittenTypesToProgramTypes.implWithOps(ctx, wi)
               // The two refusals `dark impl` makes, in its words: an implementation of a trait that
               // does not exist, and one that would bind over a trait declared where it lands (one
               // name holds one item, so the trait would be unlisted).
               let traitName = Stdlib.String.join(pi.trait_.originalName, ".")
               match pi.trait_.resolved with
-              | Error _ ->
-                Stdlib.Result.Result.Error
-                  $"there is no trait called {traitName}; `dark search <name> --trait` finds one"
-              | Ok _ ->
+              | Error(_) ->
+                Stdlib.Result.Result.Error(
+                  $"there is no trait called {traitName}; `dark search <name> --trait` finds one")
+              | Ok(_) ->
                 if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then
-                  Stdlib.Result.Result.Error (unresolvedMessage(unresolved))
+                  Stdlib.Result.Result.Error(unresolvedMessage(unresolved))
                 else
                   let taken =
                     boundBy(ops)
@@ -164,33 +164,33 @@ let saveEditing(state: State, es: EditingState): Step =
                       let (loc, _kind, _hash) = bound
                       Packages.ImplCommand.traitTakesTheName(state.branchId, loc))
                   match taken with
-                  | Some fullName ->
-                    Stdlib.Result.Result.Error
-                      $"a trait is already called {fullName}, so this implementation cannot take that name; write it from the module above, or declare the trait there"
-                  | None -> Stdlib.Result.Result.Ok ops
-            | _ -> Stdlib.Result.Result.Error "not an implementation"
+                  | Some(fullName) ->
+                    Stdlib.Result.Result.Error(
+                      $"a trait is already called {fullName}, so this implementation cannot take that name; write it from the module above, or declare the trait there")
+                  | None -> Stdlib.Result.Result.Ok(ops)
+            | _ -> Stdlib.Result.Result.Error("not an implementation")
           else if es.kind == "test" then
-            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Test _ -> true | _ -> false) with
-            | Some(Test wt) ->
+            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Test(_) -> true | _ -> false) with
+            | Some(Test(wt)) ->
               let (pt, unresolved) = LanguageTools.WrittenTypesToProgramTypes.TestDeclaration.toTestPT(ctx, wt)
-              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error (unresolvedMessage(unresolved))
+              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error(unresolvedMessage(unresolved))
               else
-                Stdlib.Result.Result.Ok
-                  [ LanguageTools.ProgramTypes.PackageOp.AddTest pt
-                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageTest pt.hash, Stdlib.Option.Option.None) ]
-            | _ -> Stdlib.Result.Result.Error "not a test definition"
+                Stdlib.Result.Result.Ok(
+                  [ LanguageTools.ProgramTypes.PackageOp.AddTest(pt)
+                    LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageTest(pt.hash), Stdlib.Option.Option.None) ])
+            | _ -> Stdlib.Result.Result.Error("not a test definition")
           else
-            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Function _ -> true | _ -> false) with
-            | Some(Function wf) ->
+            match sourceFile.declarations |> Stdlib.List.findFirst(fun d -> match d with | Function(_) -> true | _ -> false) with
+            | Some(Function(wf)) ->
               let (pf, unresolved) = LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT(ctx, wf)
-              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error (unresolvedMessage(unresolved))
+              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then Stdlib.Result.Result.Error(unresolvedMessage(unresolved))
               else
-                Stdlib.Result.Result.Ok
-                  [ LanguageTools.ProgramTypes.PackageOp.AddFn pf
-                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn pf.hash, Stdlib.Option.Option.None) ]
-            | _ -> Stdlib.Result.Result.Error "not a function definition"
+                Stdlib.Result.Result.Ok(
+                  [ LanguageTools.ProgramTypes.PackageOp.AddFn(pf)
+                    LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageFn(pf.hash), Stdlib.Option.Option.None) ])
+            | _ -> Stdlib.Result.Result.Error("not a function definition")
         match opsResult with
-        | Ok ops ->
+        | Ok(ops) ->
           match boundBy(ops) with
           | None -> keepErr("nothing to save")
           | Some((loc, kind, hash)) ->
@@ -198,7 +198,7 @@ let saveEditing(state: State, es: EditingState): Step =
             // "saved" over a save that changed nothing, and dropped doc-only edits. What it does
             // is in `Packages.commitAuthored`; only the wording is the footer's own.
             match Packages.commitAuthored(state.branchId, loc, kind, hash, ops) with
-            | Ok committed ->
+            | Ok(committed) ->
               // Land on what you just saved, in the module it went to, which is not always where
               // you were: a new item can be saved into a module below the one on screen.
               let there =
@@ -207,7 +207,7 @@ let saveEditing(state: State, es: EditingState): Step =
               let reloaded = reloadItems(there)
               let landed =
                 reloaded
-                |> Stdlib.List.indexedMap(fun i it -> (i, it))
+                |> Stdlib.List.indexedMap(fun(i, it) -> (i, it))
                 |> Stdlib.List.findFirst(fun pair -> let (_i, it) = pair in it.name == loc.name)
                 |> Stdlib.Option.map(fun pair -> let (i, _it) = pair in i)
                 |> Stdlib.Option.withDefault(0)
@@ -219,10 +219,10 @@ let saveEditing(state: State, es: EditingState): Step =
 
               let checked =
                 match Packages.AtRestCheck.summary(committed.report) with
-                | Some summary -> " (" + summary + ")"
+                | Some(summary) -> " (" + summary + ")"
                 | None -> ""
 
-              Step.Continue
+              Step.Continue(
                 { there with
                     editing = Stdlib.Option.Option.None
                     items = reloaded
@@ -238,9 +238,9 @@ let saveEditing(state: State, es: EditingState): Step =
                       else
                         MessageKind.Failed
                     message =
-                      what + checked + (Packages.Propagate.followedNote(committed.followed)) }
-            | Error m -> keepErr("save failed: " + m)
-        | Error m -> keepErr(m)
+                      what + checked + (Packages.Propagate.followedNote(committed.followed)) })
+            | Error(m) -> keepErr("save failed: " + m)
+        | Error(m) -> keepErr(m)
       | None -> keepErr("could not parse")
 
 /// Drop doc-comment lines (`///`) from a pretty-printed declaration, keeping the full `let`/`type`/`val` form
@@ -269,12 +269,11 @@ let openNewEditor(state: State, kind: String, targetModule: List<String>): Step 
     else ("New function", "let newFunction(x: Int): Int =\n  x", 4)
   let where = "  ·  in " + (Stdlib.String.join(targetModule, "."))
   let buf = Stdlib.Cli.UI.Editor.fromText(template)
-  Step.Continue
+  Step.Continue(
     { state with
         editing =
-          Stdlib.Option.Option.Some
-            (EditingState
-              { kind = kind, nameStr = titleBase + where, targetModule = targetModule, buf = { buf with col = nameCol }, err = "" }) }
+          Stdlib.Option.Option.Some(EditingState
+              { kind = kind, nameStr = titleBase + where, targetModule = targetModule, buf = { buf with col = nameCol }, err = "" }) })
 
 /// Author a new item. The declaration is a BARE name (a qualified `let Owner.Mod.name` is a parse error), so the
 /// target module has to come from somewhere: use the current tree location if it's deep enough (owner.Module),
@@ -288,11 +287,10 @@ let startNew(state: State, kind: String): Step =
     // only fall back when at the root with no module path (else you get "Owner.Owner.").
     let base = if Stdlib.List.isEmpty(modPath) then "Owner" else Stdlib.String.join(modPath, ".")
     let prefill = base + "."
-    Step.Continue
+    Step.Continue(
       { state with
           input =
-            Stdlib.Option.Option.Some
-              (InputState { prompt = "save into module (owner.Module): ", field = Stdlib.Cli.UI.TextField.fromText(prefill), action = "author-" + kind }) }
+            Stdlib.Option.Option.Some(InputState { prompt = "save into module (owner.Module): ", field = Stdlib.Cli.UI.TextField.fromText(prefill), action = "author-" + kind }) })
 
 /// Open the editor on an existing fn, prefilled with its full current declaration (doc comments dropped).
 let openEditExisting(state: State, item: BodyItem): Step =
@@ -330,9 +328,8 @@ let openEditExisting(state: State, item: BodyItem): Step =
       Stdlib.Option.Option.None
   match kindAndSrc with
   | Some((kind, src)) ->
-    Step.Continue
+    Step.Continue(
       { state with
           editing =
-            Stdlib.Option.Option.Some
-              (EditingState { kind = kind, nameStr = "Editing " + fullName, targetModule = modules, buf = Stdlib.Cli.UI.Editor.fromText(stripDocComments(src)), err = "" }) }
-  | None -> Step.Continue { state with messageKind = MessageKind.Refused, message = $"nothing to edit at {fullName}" }
+            Stdlib.Option.Option.Some(EditingState { kind = kind, nameStr = "Editing " + fullName, targetModule = modules, buf = Stdlib.Cli.UI.Editor.fromText(stripDocComments(src)), err = "" }) })
+  | None -> Step.Continue({ state with messageKind = MessageKind.Refused, message = $"nothing to edit at {fullName}" })

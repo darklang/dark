@@ -7,8 +7,8 @@ module PermissionsDisplay =
   let packagePolicy(unit: Unit): Darklang.LanguageTools.Permissions.Policy =
     Darklang.LanguageTools.Permissions.Policy
       { allow =
-          [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Http
-            Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock ]
+          [ Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.Http)
+            Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.Clock) ]
         deny = [] }
 
   let instancePolicy(unit: Unit): Darklang.LanguageTools.Permissions.Policy =
@@ -17,16 +17,16 @@ module PermissionsDisplay =
           [ Darklang.LanguageTools.Permissions.Rule.Http(
               Darklang.LanguageTools.Permissions.HttpRule
                 { method =
-                    Darklang.LanguageTools.Permissions.Scope.Only "GET"
+                    Darklang.LanguageTools.Permissions.Scope.Only("GET")
                   scheme =
-                    Darklang.LanguageTools.Permissions.Scope.Only "https"
+                    Darklang.LanguageTools.Permissions.Scope.Only("https")
                   host =
-                    Darklang.LanguageTools.Permissions.HostRule.Exact
-                      "api.example.com"
+                    Darklang.LanguageTools.Permissions.HostRule.Exact(
+                      "api.example.com")
                   port =
-                    Darklang.LanguageTools.Permissions.Scope.Only 443
+                    Darklang.LanguageTools.Permissions.Scope.Only(443)
                   pathPrefix =
-                    Darklang.LanguageTools.Permissions.Scope.Only "/v1"
+                    Darklang.LanguageTools.Permissions.Scope.Only("/v1")
                   query = Darklang.LanguageTools.Permissions.Scope.All }) ]
         deny = [] }
 
@@ -37,9 +37,9 @@ module PermissionsDisplay =
       { hash = "123456789abcdef"
         effects = [ Darklang.LanguageTools.Permissions.Effect.Http, Darklang.LanguageTools.Permissions.Effect.Clock ]
         complete = true
-        ceiling = Stdlib.Option.Option.Some [ Darklang.LanguageTools.Permissions.Effect.Http, Darklang.LanguageTools.Permissions.Effect.Clock ]
+        ceiling = Stdlib.Option.Option.Some([ Darklang.LanguageTools.Permissions.Effect.Http, Darklang.LanguageTools.Permissions.Effect.Clock ])
         bundled = false
-        packagePolicy = Stdlib.Option.Option.Some (packagePolicy())
+        packagePolicy = Stdlib.Option.Option.Some(packagePolicy())
         approvedAs = [ "Acme.Client.fetch" ]
         instancePolicy = instancePolicy() }
 

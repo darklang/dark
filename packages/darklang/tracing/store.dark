@@ -17,8 +17,8 @@ let enabled(): Bool =
 /// `None` when nothing is stored, in which case the environment or the default decides.
 let storedSetting(): Stdlib.Option.Option<Bool> =
   match Stdlib.LocalStore.configGet("trace.record") with
-  | "on" -> Stdlib.Option.Option.Some true
-  | "off" -> Stdlib.Option.Option.Some false
+  | "on" -> Stdlib.Option.Option.Some(true)
+  | "off" -> Stdlib.Option.Option.Some(false)
   | _ -> Stdlib.Option.Option.None
 
 
@@ -158,7 +158,7 @@ let wentThroughNamed(
       Darklang.LanguageTools.ProgramTypes.parsePackageLocation(fnName))
     |> Stdlib.Option.map(fun h ->
       match h with
-      | Hash v -> v)
+      | Hash(v) -> v)
     |> Stdlib.Option.withDefault("")
 
   wentThrough(fnName, hash, limit)
@@ -262,9 +262,9 @@ let resolveID(input: String): Stdlib.Result.Result<String, String> =
 
   match matches with
   | [] ->
-    Stdlib.Result.Result.Error
-      $"no trace whose id starts with {input} -- `dark traces` lists them"
-  | [ fullID ] -> Stdlib.Result.Result.Ok fullID
+    Stdlib.Result.Result.Error(
+      $"no trace whose id starts with {input} -- `dark traces` lists them")
+  | [ fullID ] -> Stdlib.Result.Result.Ok(fullID)
   | candidates ->
     // Six were asked for, so a sixth means "at least one more", not "one more".
     let shown = Stdlib.List.take(candidates, 5)
@@ -274,8 +274,8 @@ let resolveID(input: String): Stdlib.Result.Result<String, String> =
       shown
       |> Stdlib.List.map(fun id -> $"  {Stdlib.String.slice(id, 0, 12)}")
       |> Stdlib.String.join("\n")
-    Stdlib.Result.Result.Error
-      $"more than one trace starts with {input}; give more of the id:\n{body}{suffix}"
+    Stdlib.Result.Result.Error(
+      $"more than one trace starts with {input}; give more of the id:\n{body}{suffix}")
 
 
 /// Per-fn totals over the last <param traceLimit> traces:

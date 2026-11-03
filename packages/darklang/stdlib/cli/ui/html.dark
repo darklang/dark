@@ -32,8 +32,8 @@ let escape(s: String): String = Stdlib.Html.escapeHtml(s)
 let render(node: Node.Node<'msg>, toJson: 'msg -> String): String =
   match node with
   | Empty -> ""
-  | Text s -> $"<span class=\"dark-text\">{escape(s)}</span>"
-  | Rows rows ->
+  | Text(s) -> $"<span class=\"dark-text\">{escape(s)}</span>"
+  | Rows(rows) ->
     let inner =
       rows
       |> Stdlib.List.map(fun r -> $"<div class=\"dark-row-text\">{escape(Tui.Text.stripSgr(r))}</div>")
@@ -42,10 +42,10 @@ let render(node: Node.Node<'msg>, toJson: 'msg -> String): String =
     $"<pre class=\"dark-rows\">{inner}</pre>"
   | Styled(style, child) ->
     $"<span class=\"{className(style)}\">{render(child, toJson)}</span>"
-  | Row children ->
+  | Row(children) ->
     let inner = children |> Stdlib.List.map(fun c -> render(c, toJson)) |> Stdlib.String.join("")
     $"<div class=\"dark-hstack\">{inner}</div>"
-  | Column children ->
+  | Column(children) ->
     let inner =
       children
       |> Stdlib.List.map(fun c -> $"<div class=\"dark-vstack-item\">{render(c, toJson)}</div>")
@@ -53,32 +53,32 @@ let render(node: Node.Node<'msg>, toJson: 'msg -> String): String =
 
     $"<div class=\"dark-vstack\">{inner}</div>"
   | Table(columns, rows) ->
-    let numeric = columns |> Stdlib.List.indexedMap(fun i _ -> Node.isNumericColumn(rows, i))
+    let numeric = columns |> Stdlib.List.indexedMap(fun(i, _) -> Node.isNumericColumn(rows, i))
     let cls(i: Int): String =
-      if Stdlib.List.getAt(numeric, i) == Stdlib.Option.Option.Some true then " class=\"dark-num\"" else ""
+      if Stdlib.List.getAt(numeric, i) == Stdlib.Option.Option.Some(true) then " class=\"dark-num\"" else ""
 
     let head =
       columns
-      |> Stdlib.List.indexedMap(fun i h -> $"<th{cls(i)}>{escape(h)}</th>")
+      |> Stdlib.List.indexedMap(fun(i, h) -> $"<th{cls(i)}>{escape(h)}</th>")
       |> Stdlib.String.join("")
 
     let body =
       rows
       |> Stdlib.List.map(fun r ->
         let cells =
-          r |> Stdlib.List.indexedMap(fun i c -> $"<td{cls(i)}>{escape(c)}</td>") |> Stdlib.String.join("")
+          r |> Stdlib.List.indexedMap(fun(i, c) -> $"<td{cls(i)}>{escape(c)}</td>") |> Stdlib.String.join("")
         $"<tr>{cells}</tr>")
       |> Stdlib.String.join("")
 
     $"<table class=\"dark-table\"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
-  | ListOf children ->
+  | ListOf(children) ->
     let inner =
       children
       |> Stdlib.List.map(fun c -> $"<li>{render(c, toJson)}</li>")
       |> Stdlib.String.join("")
 
     $"<ul class=\"dark-list\">{inner}</ul>"
-  | Input spec ->
+  | Input(spec) ->
     $"<form class=\"dark-input\" method=\"post\"><input name=\"{escape(spec.id)}\" value=\"{escape(spec.value)}\" placeholder=\"{escape(spec.placeholder)}\" /></form>"
   | Button(label, msg) ->
     $"<form class=\"dark-button\" method=\"post\"><input type=\"hidden\" name=\"msg\" value=\"{escape(toJson(msg))}\" /><button type=\"submit\">{escape(label)}</button></form>"

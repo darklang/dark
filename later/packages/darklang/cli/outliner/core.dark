@@ -62,8 +62,8 @@ let k(id: Int): String =
 
 let parseKey(key: String): Int =
   match Stdlib.Int.parse(key) with
-  | Ok id -> id
-  | Error _ -> 0
+  | Ok(id) -> id
+  | Error(_) -> 0
 
 
 // --- Construction ---
@@ -84,7 +84,7 @@ let emptyStructure(): TreeStructure =
 
 let getContent(outline: Outline, id: Int): NodeContent =
   match Stdlib.Dict.get(outline.nodes, k(id)) with
-  | Some nc -> nc
+  | Some(nc) -> nc
   | None -> NodeContent { text = "", mark = Mark.Plain }
 
 let getNodeText(outline: Outline, id: Int): String =
@@ -95,12 +95,12 @@ let getMark(outline: Outline, id: Int): Mark =
 
 let getStructure(outline: Outline, id: Int): TreeStructure =
   match Stdlib.Dict.get(outline.structure, k(id)) with
-  | Some s -> s
+  | Some(s) -> s
   | None -> emptyStructure()
 
 let exists(outline: Outline, id: Int): Bool =
   match Stdlib.Dict.get(outline.structure, k(id)) with
-  | Some _ -> true
+  | Some(_) -> true
   | None -> false
 
 let findParentId(outline: Outline, targetId: Int): Stdlib.Option.Option<Int> =
@@ -112,7 +112,7 @@ let getChildren(
   : List<Int> =
   match parentId with
   | None -> outline.rootChildren
-  | Some pid -> (getStructure(outline, pid)).children
+  | Some(pid) -> (getStructure(outline, pid)).children
 
 
 // --- Writing ---
@@ -152,7 +152,7 @@ let removeNodeData(outline: Outline, id: Int): Outline =
 
 let setCollapsed(outline: Outline, id: Int, collapsed: Bool): Outline =
   match Stdlib.Dict.get(outline.structure, k(id)) with
-  | Some s -> setStructure(outline, id, { s with collapsed = collapsed })
+  | Some(s) -> setStructure(outline, id, { s with collapsed = collapsed })
   | None -> outline
 
 let setParent(
@@ -174,11 +174,11 @@ let setChildren(
   let withList =
     match parentId with
     | None -> { outline with rootChildren = newChildren }
-    | Some pid ->
+    | Some(pid) ->
       setStructure(outline, pid, { (getStructure(outline, pid)) with children = newChildren })
 
   newChildren
-  |> Stdlib.List.fold(withList, fun acc childId -> setParent(acc, childId, parentId))
+  |> Stdlib.List.fold(withList, fun(acc, childId) -> setParent(acc, childId, parentId))
 
 
 // --- List helpers ---
@@ -188,7 +188,7 @@ let setChildren(
 let insertIdAfter(ids: List<Int>, afterId: Int, newId: Int): List<Int> =
   if Stdlib.List.contains(ids, afterId) then
     ids
-    |> Stdlib.List.fold([], fun acc id ->
+    |> Stdlib.List.fold([], fun(acc, id) ->
       if id == afterId then
         Stdlib.List.concat(acc, [ id, newId ])
       else
@@ -207,9 +207,9 @@ let swapAt(ids: List<Int>, i: Int, j: Int): List<Int> =
     let jVal = Stdlib.List.getAt(ids, j)
 
     match iVal, jVal with
-    | Some a, Some b ->
+    | Some(a), Some(b) ->
       ids
-      |> Stdlib.List.indexedMap(fun idx id ->
+      |> Stdlib.List.indexedMap(fun(idx, id) ->
         if idx == i then b else if idx == j then a else id)
     | _ -> ids
 
@@ -219,7 +219,7 @@ let swapAt(ids: List<Int>, i: Int, j: Int): List<Int> =
 /// Every descendant of `ids`, depth first, including the nodes themselves.
 let descendants(outline: Outline, ids: List<Int>): List<Int> =
   ids
-  |> Stdlib.List.fold([], fun acc id ->
+  |> Stdlib.List.fold([], fun(acc, id) ->
     let children = (getStructure(outline, id)).children
     Stdlib.List.concat(Stdlib.List.append(acc, id), descendants(outline, children)))
 
@@ -238,7 +238,7 @@ let flattenInto(
   acc: List<VisibleNode>)
   : List<VisibleNode> =
   ids
-  |> Stdlib.List.fold(acc, fun soFar id ->
+  |> Stdlib.List.fold(acc, fun(soFar, id) ->
     let content = getContent(outline, id)
     let s = getStructure(outline, id)
     let childCount = Stdlib.List.length(s.children)
@@ -290,14 +290,14 @@ let matching(outline: Outline, needle: String): List<Int> =
 let ancestors(outline: Outline, id: Int): List<Int> =
   match findParentId(outline, id) with
   | None -> []
-  | Some pid -> Stdlib.List.prepend(ancestors(outline, pid), pid)
+  | Some(pid) -> Stdlib.List.prepend(ancestors(outline, pid), pid)
 
 /// Expand every ancestor of every match, so a hit inside a collapsed branch is actually reachable.
 let revealAll(outline: Outline, ids: List<Int>): Outline =
   ids
-  |> Stdlib.List.fold(outline, fun acc id ->
+  |> Stdlib.List.fold(outline, fun(acc, id) ->
     (ancestors(acc, id))
-    |> Stdlib.List.fold(acc, fun inner ancestorId -> setCollapsed(inner, ancestorId, false)))
+    |> Stdlib.List.fold(acc, fun(inner, ancestorId) -> setCollapsed(inner, ancestorId, false)))
 
 
 // --- Structural edits ---
@@ -314,7 +314,7 @@ let removeSubtree(outline: Outline, id: Int): Outline =
   let detached = detach(outline, id)
 
   doomed
-  |> Stdlib.List.fold(detached, fun acc doomedId -> removeNodeData(acc, doomedId))
+  |> Stdlib.List.fold(detached, fun(acc, doomedId) -> removeNodeData(acc, doomedId))
 
 
 // --- Building (tests, demo content, import) ---
@@ -327,15 +327,15 @@ let buildOutline(
   : Outline =
   let withNodes =
     nodeList
-    |> Stdlib.List.fold(emptyOutline(), fun acc pair ->
+    |> Stdlib.List.fold(emptyOutline(), fun(acc, pair) ->
       let (id, text) = pair
       addNode(acc, id, text))
 
   let withChildren =
     childMap
-    |> Stdlib.List.fold(withNodes, fun acc pair ->
+    |> Stdlib.List.fold(withNodes, fun(acc, pair) ->
       let (id, children) = pair
-      setChildren(acc, Stdlib.Option.Option.Some id, children))
+      setChildren(acc, Stdlib.Option.Option.Some(id), children))
 
   let withRoots = setChildren(withChildren, Stdlib.Option.Option.None, roots)
   { withRoots with nextId = nextId }

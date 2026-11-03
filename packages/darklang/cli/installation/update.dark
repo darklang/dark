@@ -28,10 +28,10 @@ let execute(state: AppState, args: List<String>): AppState =
   Stdlib.printLine($"Checking for updates from Darklang CLI {currentVersion}...")
 
   match Installation.System.updateIfAvailable(currentVersion, pinned, replace) with
-  | Ok message ->
+  | Ok(message) ->
     Stdlib.printLine(View.formatSuccess(message))
     state
-  | Error e ->
+  | Error(e) ->
     Stdlib.printErrorLine(View.formatError(e))
     Cli.exitWith(state, false)
 

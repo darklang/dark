@@ -263,7 +263,7 @@ let foldCallbackKeepsItsAccess =
           fn
             state
             "Tests.FoldAccess.run"
-            "(): String = \"fold-access-\" + Stdlib.toString(Stdlib.List.length(Stdlib.List.fold([ 1L, 2L, 3L ], [], fun acc n -> Stdlib.List.prepend(acc, Tests.FoldAccess.stamp(n)))))"
+            "(): String = \"fold-access-\" + Stdlib.toString(Stdlib.List.length(Stdlib.List.fold([ 1L, 2L, 3L ], [], fun(acc, n) -> Stdlib.List.prepend(acc, Tests.FoldAccess.stamp(n)))))"
         for name in [ "stamp"; "run" ] do
           do!
             run
@@ -734,7 +734,7 @@ let private treeRendersTheSameEverywhere =
     task {
       let state = executionState target
       let tree =
-        "Darklang.Stdlib.Cli.UI.Node.column([ Darklang.Stdlib.Cli.UI.Node.bold(\"Stats\"), Darklang.Stdlib.Cli.UI.Node.table([ \"module\", \"fns\" ], [ [ \"Stdlib\", \"247\" ], [ \"Cli\", \"89\" ] ]), Darklang.Stdlib.Cli.UI.Node.band(Darklang.Stdlib.Cli.UI.Node.Severity.Error, \"boom\"), Darklang.Stdlib.Cli.UI.Node.row([ Darklang.Stdlib.Cli.UI.Node.text(\"a\"), Darklang.Stdlib.Cli.UI.Node.Node.Button (\"go\", 1L) ]) ])"
+        "Darklang.Stdlib.Cli.UI.Node.column([ Darklang.Stdlib.Cli.UI.Node.bold(\"Stats\"), Darklang.Stdlib.Cli.UI.Node.table([ \"module\", \"fns\" ], [ [ \"Stdlib\", \"247\" ], [ \"Cli\", \"89\" ] ]), Darklang.Stdlib.Cli.UI.Node.band(Darklang.Stdlib.Cli.UI.Node.Severity.Error, \"boom\"), Darklang.Stdlib.Cli.UI.Node.row([ Darklang.Stdlib.Cli.UI.Node.text(\"a\"), Darklang.Stdlib.Cli.UI.Node.Node.Button(\"go\", 1L) ]) ])"
       let region =
         "Darklang.Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 10, cols = 40 }"
 
@@ -808,11 +808,11 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.update"
-            "(m: Int, e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+            "(m: Int, e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key(_) -> m + 1 | Msg(n) -> m + n"
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version one\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ])"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version one\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)), Stdlib.Cli.UI.Node.Node.Button(\"ten\", 10) ])"
 
         let view =
           "Darklang.Cli.LiveView.Model.View { name = \"live\", title = \"Live\", init = \"Tests.LiveView.init\", update = \"Tests.LiveView.update\", render = \"Tests.LiveView.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
@@ -969,7 +969,7 @@ let private modelSavesAndResumes =
       do!
         author
           "Tests.LiveSave.update"
-          "(m: Int, e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+          "(m: Int, e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key(_) -> m + 1 | Msg(n) -> m + n"
       do!
         author
           "Tests.LiveSave.render"
@@ -994,7 +994,7 @@ let private modelSavesAndResumes =
       let! resumed =
         evalUnder
           state
-          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some \"{name}\", false)"
+          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some(\"{name}\"), false)"
       let session =
         match resumed with
         | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
@@ -1011,7 +1011,7 @@ let private modelSavesAndResumes =
       let! missing =
         evalUnder
           state
-          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\", false)"
+          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some(\"Tests.LiveSave.Sessions.nope\"), false)"
       match missing with
       | RT.DEnum(_, _, _, "Error", [ RT.DString why ]) ->
         Expect.stringContains
@@ -1290,14 +1290,14 @@ let private annotatedPrint (owner : string) (modul : string) (name : string) =
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
   match Darklang.Stdlib.Live.Values.replay((Darklang.Cli.initState()).accountID, bid, loc) with
-  | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map(fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval(bid, d))
+  | Some(v) -> v.byExpr |> Darklang.Stdlib.Dict.map(fun(_, d) -> Darklang.PrettyPrinter.RuntimeTypes.dval(bid, d))
   | None -> Darklang.Stdlib.Dict.empty
 let base = Darklang.PrettyPrinter.ProgramTypes.Context.forModule(bid, ["{owner}", "{modul}"])
 let ctx = {{ base with liveValues = values }}
 match Darklang.LanguageTools.PackageManager.Function.find(bid, loc) with
-| Some hash ->
+| Some(hash) ->
   match Darklang.LanguageTools.PackageManager.Function.get(hash) with
-  | Some fn -> Darklang.PrettyPrinter.ProgramTypes.packageFn(ctx, fn)
+  | Some(fn) -> Darklang.PrettyPrinter.ProgramTypes.packageFn(ctx, fn)
   | None -> "no fn"
 | None -> "no hash"
 """
@@ -1310,13 +1310,13 @@ let private plainAndAnnotated (owner : string) (modul : string) (name : string) 
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
   match Darklang.Stdlib.Live.Values.replay((Darklang.Cli.initState()).accountID, bid, loc) with
-  | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map(fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval(bid, d))
+  | Some(v) -> v.byExpr |> Darklang.Stdlib.Dict.map(fun(_, d) -> Darklang.PrettyPrinter.RuntimeTypes.dval(bid, d))
   | None -> Darklang.Stdlib.Dict.empty
 let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch(bid)
 match Darklang.LanguageTools.PackageManager.Function.find(bid, loc) with
-| Some hash ->
+| Some(hash) ->
   match Darklang.LanguageTools.PackageManager.Function.get(hash) with
-  | Some fn ->
+  | Some(fn) ->
     (Darklang.PrettyPrinter.ProgramTypes.packageFn(ctx, fn))
     + "@@@"
     + (Darklang.PrettyPrinter.ProgramTypes.packageFn({{ ctx with liveValues = values }}, fn))
@@ -1478,7 +1478,7 @@ let private liveValuesStayBounded =
 
         let within (ms : string) (fns : string) =
           $"""match Darklang.Stdlib.Live.Values.replayWithin({ms}, {fns}, (Darklang.Cli.initState()).accountID, Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with
-| Some v -> (Darklang.Stdlib.Dict.size(v.byExpr), Darklang.Stdlib.Option.withDefault(v.skipped, ""))
+| Some(v) -> (Darklang.Stdlib.Dict.size(v.byExpr), Darklang.Stdlib.Option.withDefault(v.skipped, ""))
 | None -> (-1, "no trace")"""
         let expectSkipped (label : string) (ms : string) (fns : string) =
           task {
@@ -1504,7 +1504,7 @@ let private liveValuesStayBounded =
           evalUnder
             state
             """let base = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Darklang.Stdlib.Option.Option.None, "t", false)
-let s0 = { base with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module ["Tests", "LiveBound"] }
+let s0 = { base with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module(["Tests", "LiveBound"]) }
 let items = Darklang.Cli.Workbench.reloadItems(s0)
 let idx = (Darklang.Stdlib.List.findFirstIndex(items, fun i -> i.name == "inc")) |> Darklang.Stdlib.Option.withDefault(0)
 let s = Darklang.Cli.Workbench.refresh(base, { s0 with items = items, selected = idx })

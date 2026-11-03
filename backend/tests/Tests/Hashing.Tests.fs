@@ -83,7 +83,7 @@ let private alphaNormTests =
         Expect.equal (h [] lx) (h [] ly) "alpha-equivalent lambdas hash equal"
       }
 
-      test "lambda meaning preserved: `fun x y -> x` ≠ `fun x y -> y`" {
+      test "lambda meaning preserved: `fun(x, y) -> x` ≠ `fun(x, y) -> y`" {
         let first = eLambda (gid ()) [ lpVar "x"; lpVar "y" ] (eVar "x")
         let second = eLambda (gid ()) [ lpVar "x"; lpVar "y" ] (eVar "y")
         Expect.notEqual

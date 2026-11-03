@@ -75,13 +75,13 @@ module RuntimeError =
     let reversed = Stdlib.List.reverse(segments)
 
     let parts =
-      Stdlib.List.fold(reversed, [], fun prevSegments segment ->
+      Stdlib.List.fold(reversed, [], fun(prevSegments, segment) ->
 
         let newSegment =
           match segment with
-          | String s -> s
-          | Int i -> Stdlib.toString(i)
-          | Ordinal i -> Stdlib.English.toOrdinal(i)
+          | String(s) -> s
+          | Int(i) -> Stdlib.toString(i)
+          | Ordinal(i) -> Stdlib.English.toOrdinal(i)
           | Count(i, singular, plural) ->
             let count = Stdlib.toString(i)
 
@@ -96,35 +96,35 @@ module RuntimeError =
             //Builtin.debug "prevSegments" prevSegments
             match Stdlib.List.head(prevSegments) with
             | None -> ""
-            | Some prev -> Stdlib.English.articleFor(prev) + " "
+            | Some(prev) -> Stdlib.English.articleFor(prev) + " "
 
-          | FunctionName fn -> fnName(branchId, fn)
+          | FunctionName(fn) -> fnName(branchId, fn)
 
-          | Description d -> d
-          | ParamName p -> $"`{p}`"
-          | InlineParamName p -> p // Inline versions don't have quotes
-          | TypeName t -> typeName(branchId, t)
-          | ValueName v -> valueName(branchId, v)
-          | ShortTypeName t -> shortTypeName(branchId, t)
-          | TraitName t -> traitName(branchId, t)
-          | ShortTraitName t -> shortTraitName(branchId, t)
-          | TypeReference t -> typeReference(branchId, t)
-          | TypeOfValue dv -> Dval.valueTypeName(branchId, dv)
-          | ValueType vt -> valueType(branchId, vt)
+          | Description(d) -> d
+          | ParamName(p) -> $"`{p}`"
+          | InlineParamName(p) -> p // Inline versions don't have quotes
+          | TypeName(t) -> typeName(branchId, t)
+          | ValueName(v) -> valueName(branchId, v)
+          | ShortTypeName(t) -> shortTypeName(branchId, t)
+          | TraitName(t) -> traitName(branchId, t)
+          | ShortTraitName(t) -> shortTraitName(branchId, t)
+          | TypeReference(t) -> typeReference(branchId, t)
+          | TypeOfValue(dv) -> Dval.valueTypeName(branchId, dv)
+          | ValueType(vt) -> valueType(branchId, vt)
           | DeclaredValueType(declared, vt) ->
             declaredValueType(branchId, declared, vt)
-          | FieldName f -> $"`{f}`"
-          | InlineFieldName f -> f
-          | VarName v -> $"`{v}`"
-          | InlineVarName v -> v
-          | InlineValue dv ->
+          | FieldName(f) -> $"`{f}`"
+          | InlineFieldName(f) -> f
+          | VarName(v) -> $"`{v}`"
+          | InlineVarName(v) -> v
+          | InlineValue(dv) ->
             // CLEANUP for strings that are cut off, the closing `"` is missing.
             (dval(branchId, dv))
             |> Stdlib.String.ellipsis(10)
             |> Stdlib.String.splitOnNewline
             |> Stdlib.String.join("")
-          | FullValue dv -> dval(branchId, dv)
-          | LetPattern p -> letPattern(p)
+          | FullValue(dv) -> dval(branchId, dv)
+          | LetPattern(p) -> letPattern(p)
           | segment ->
             $"(RTETODO segmentsToString parts {(Stdlib.Json.serialize<ErrorSegment>(segment))})"
 
@@ -140,22 +140,22 @@ module RuntimeError =
     // One hint for the types that have a ToString impl; `Stdlib.toString` is the fn to
     // reach for whichever it is. Collections and custom types have none, so no hint.
     match vt with
-    | Known KTInt8
-    | Known KTUInt8
-    | Known KTInt16
-    | Known KTUInt16
-    | Known KTInt32
-    | Known KTUInt32
-    | Known KTInt64
-    | Known KTUInt64
-    | Known KTInt128
-    | Known KTUInt128
-    | Known KTInt
-    | Known KTFloat
-    | Known KTBool
-    | Known KTChar
-    | Known KTDateTime
-    | Known KTUuid -> ". Try wrapping it with `Stdlib.toString`."
+    | Known(KTInt8)
+    | Known(KTUInt8)
+    | Known(KTInt16)
+    | Known(KTUInt16)
+    | Known(KTInt32)
+    | Known(KTUInt32)
+    | Known(KTInt64)
+    | Known(KTUInt64)
+    | Known(KTInt128)
+    | Known(KTUInt128)
+    | Known(KTInt)
+    | Known(KTFloat)
+    | Known(KTBool)
+    | Known(KTChar)
+    | Known(KTDateTime)
+    | Known(KTUuid) -> ". Try wrapping it with `Stdlib.toString`."
     | _ -> ""
 
 
@@ -165,7 +165,7 @@ module RuntimeError =
     e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : ErrorSegments =
     match e with
-    | Bool err ->
+    | Bool(err) ->
       match err with
       | AndOnlySupportsBooleans(_gotLeft, _gotRight) ->
         // CLEANUP something like this:
@@ -173,7 +173,7 @@ module RuntimeError =
         //   ES.ValueType gotLeft
         //   ES.String " and "
         //   ES.ValueType gotRight ]
-        [ ES.String "&& only supports Booleans" ]
+        [ ES.String("&& only supports Booleans") ]
 
       | OrOnlySupportsBooleans(_gotLeft, _gotRight) ->
         // CLEANUP something like this:
@@ -181,264 +181,264 @@ module RuntimeError =
         //   ES.ValueType gotLeft
         //   ES.String " and "
         //   ES.ValueType gotRight ]
-        [ ES.String "|| only supports Booleans" ]
+        [ ES.String("|| only supports Booleans") ]
 
       | ConditionRequiresBool(actualValueType, actualValue) ->
-        [ ES.String "Encountered a condition that must be a Bool, but got "
+        [ ES.String("Encountered a condition that must be a Bool, but got ")
           ES.IndefiniteArticle
-          ES.ValueType actualValueType
-          ES.String " ("
-          ES.FullValue actualValue
-          ES.String ")" ]
+          ES.ValueType(actualValueType)
+          ES.String(" (")
+          ES.FullValue(actualValue)
+          ES.String(")") ]
 
-    | Int DivideByZeroError -> [ ES.String "Cannot divide by 0" ]
-    | Int OutOfRange -> [ ES.String "Encountered out-of-range value for type of Int" ]
-    | Int NegativeExponent -> [ ES.String "Cannot raise integer to a negative exponent" ]
-    | Int NegativeModulus -> [ ES.String "Cannot evaluate modulus against a negative number" ]
-    | Int ZeroModulus -> [ ES.String "Cannot evaluate modulus against 0" ]
+    | Int(DivideByZeroError) -> [ ES.String("Cannot divide by 0") ]
+    | Int(OutOfRange) -> [ ES.String("Encountered out-of-range value for type of Int") ]
+    | Int(NegativeExponent) -> [ ES.String("Cannot raise integer to a negative exponent") ]
+    | Int(NegativeModulus) -> [ ES.String("Cannot evaluate modulus against a negative number") ]
+    | Int(ZeroModulus) -> [ ES.String("Cannot evaluate modulus against 0") ]
 
-    | String (NonStringInInterpolation(vt, dv)) ->
-      [ ES.String "Expected String in string interpolation, got "
+    | String(NonStringInInterpolation(vt, dv)) ->
+      [ ES.String("Expected String in string interpolation, got ")
         ES.IndefiniteArticle
-        ES.ValueType vt
-        ES.String " ("
-        ES.InlineValue dv
-        ES.String $") instead{toStringHint(vt)}" ]
+        ES.ValueType(vt)
+        ES.String(" (")
+        ES.InlineValue(dv)
+        ES.String($") instead{toStringHint(vt)}") ]
 
-    | List (TriedToAddMismatchedData (index, expectedType, actualType, actualValue)) ->
-      [ ES.String "Cannot add "
+    | List(TriedToAddMismatchedData(index, expectedType, actualType, actualValue)) ->
+      [ ES.String("Cannot add ")
         ES.IndefiniteArticle
-        ES.ValueType actualType
-        ES.String " ("
-        ES.FullValue actualValue
-        ES.String ") to a list of "
-        ES.ValueType expectedType
-        ES.String ". Failed at index "
-        ES.Int (Stdlib.Int.fromInt32(index))
-        ES.String "."]
+        ES.ValueType(actualType)
+        ES.String(" (")
+        ES.FullValue(actualValue)
+        ES.String(") to a list of ")
+        ES.ValueType(expectedType)
+        ES.String(". Failed at index ")
+        ES.Int(Stdlib.Int.fromInt32(index))
+        ES.String(".")]
 
-    | List (CannotSort value) ->
-      [ ES.String "Cannot sort "
-        ES.FullValue value
-        ES.String ". Bytes, functions and streams have no order;"
-        ES.String " use List.sortBy with a key that has one." ]
+    | List(CannotSort(value)) ->
+      [ ES.String("Cannot sort ")
+        ES.FullValue(value)
+        ES.String(". Bytes, functions and streams have no order;")
+        ES.String(" use List.sortBy with a key that has one.") ]
 
-    | Dict err ->
+    | Dict(err) ->
       match err with
-      | TriedToAddMismatchedData (key, expectedType, actualType, actualValue) ->
-        [ ES.String "Cannot add "
+      | TriedToAddMismatchedData(key, expectedType, actualType, actualValue) ->
+        [ ES.String("Cannot add ")
           ES.IndefiniteArticle
-          ES.ValueType actualType
-          ES.String " ("
-          ES.FullValue actualValue
-          ES.String ") to a dict of "
-          ES.ValueType expectedType
-          ES.String ". Failed at key "
-          ES.FullValue key
-          ES.String "." ]
-      | UnsupportedKeyType (_keyType, key) ->
-        [ ES.String "Cannot use "
-          ES.FullValue key
-          ES.String " as a dict key. Functions, streams,"
-          ES.String " and values containing them cannot be keys." ]
-      | MismatchedKeyType (expectedType, actualType, actualKey) ->
-        [ ES.String "This dict uses keys of type "
-          ES.ValueType expectedType
-          ES.String ", but "
-          ES.FullValue actualKey
-          ES.String " has type "
-          ES.ValueType actualType
-          ES.String "." ]
+          ES.ValueType(actualType)
+          ES.String(" (")
+          ES.FullValue(actualValue)
+          ES.String(") to a dict of ")
+          ES.ValueType(expectedType)
+          ES.String(". Failed at key ")
+          ES.FullValue(key)
+          ES.String(".") ]
+      | UnsupportedKeyType(_keyType, key) ->
+        [ ES.String("Cannot use ")
+          ES.FullValue(key)
+          ES.String(" as a dict key. Functions, streams,")
+          ES.String(" and values containing them cannot be keys.") ]
+      | MismatchedKeyType(expectedType, actualType, actualKey) ->
+        [ ES.String("This dict uses keys of type ")
+          ES.ValueType(expectedType)
+          ES.String(", but ")
+          ES.FullValue(actualKey)
+          ES.String(" has type ")
+          ES.ValueType(actualType)
+          ES.String(".") ]
 
-    | Let (PatternDoesNotMatch (dval, pat)) ->
-      [ ES.String "Could not deconstruct value "
-        ES.FullValue dval
-        ES.String " into pattern "
-        ES.LetPattern pat ]
+    | Let(PatternDoesNotMatch(dval, pat)) ->
+      [ ES.String("Could not deconstruct value ")
+        ES.FullValue(dval)
+        ES.String(" into pattern ")
+        ES.LetPattern(pat) ]
 
-    | VariableNotFound attemptedVarName ->
-      [ ES.String $"There is no variable named: {attemptedVarName}" ]
+    | VariableNotFound(attemptedVarName) ->
+      [ ES.String($"There is no variable named: {attemptedVarName}") ]
 
-    | EqualityCheckOnIncompatibleTypes (left, right) ->
-      [ ES.String "Cannot perform equality check on "
-        ES.ValueType left
-        ES.String " and "
-        ES.ValueType right ]
+    | EqualityCheckOnIncompatibleTypes(left, right) ->
+      [ ES.String("Cannot perform equality check on ")
+        ES.ValueType(left)
+        ES.String(" and ")
+        ES.ValueType(right) ]
 
-    | NumericOperationOnIncompatibleTypes (left, right) ->
-      [ ES.String "Cannot perform numeric operation on "
-        ES.ValueType left
-        ES.String " and "
-        ES.ValueType right ]
+    | NumericOperationOnIncompatibleTypes(left, right) ->
+      [ ES.String("Cannot perform numeric operation on ")
+        ES.ValueType(left)
+        ES.String(" and ")
+        ES.ValueType(right) ]
 
-    | IfConditionNotBool (actualValue, actualValueType) ->
-      [ ES.String "If condition must be a Bool, but got "
-        ES.ValueType actualValueType
-        ES.String " ("
-        ES.FullValue actualValue
-        ES.String ")" ]
+    | IfConditionNotBool(actualValue, actualValueType) ->
+      [ ES.String("If condition must be a Bool, but got ")
+        ES.ValueType(actualValueType)
+        ES.String(" (")
+        ES.FullValue(actualValue)
+        ES.String(")") ]
 
-    | Match err ->
+    | Match(err) ->
       match err with
-      | MatchUnmatched unmatchedValue ->
-          [ ES.String "No matching case found for value "
-            ES.FullValue unmatchedValue
-            ES.String " in match expression" ]
+      | MatchUnmatched(unmatchedValue) ->
+          [ ES.String("No matching case found for value ")
+            ES.FullValue(unmatchedValue)
+            ES.String(" in match expression") ]
 
-    | ParseTimeNameResolution (originalName, err) ->
+    | ParseTimeNameResolution(originalName, err) ->
       let nameStr = Stdlib.String.join(originalName, ".")
 
       match err with
-      | NotFound -> [ES.String (nameStr + " not found")]
-      | InvalidName -> [ES.String (nameStr + " is not a valid name")]
+      | NotFound -> [ES.String(nameStr + " not found")]
+      | InvalidName -> [ES.String(nameStr + " is not a valid name")]
 
-    | TypeNotFound name ->
-      [ ES.String "Type "
-        ES.TypeName name
-        ES.String " couldn't be found" ]
-    | ValueNotFound name ->
-      [ ES.String "Value "
-        ES.ValueName name
-        ES.String " couldn't be found" ]
-    | FnNotFound name ->
-      [ ES.String "Function "
-        ES.FunctionName name
-        ES.String " couldn't be found" ]
+    | TypeNotFound(name) ->
+      [ ES.String("Type ")
+        ES.TypeName(name)
+        ES.String(" couldn't be found") ]
+    | ValueNotFound(name) ->
+      [ ES.String("Value ")
+        ES.ValueName(name)
+        ES.String(" couldn't be found") ]
+    | FnNotFound(name) ->
+      [ ES.String("Function ")
+        ES.FunctionName(name)
+        ES.String(" couldn't be found") ]
 
-    | DeprecatedItemHalted _target ->
-      [ ES.String "Refusing to run a function marked Harmful. "
-        ES.String "Pass --allow-harmful to run/eval if you really meant to." ]
+    | DeprecatedItemHalted(_target) ->
+      [ ES.String("Refusing to run a function marked Harmful. ")
+        ES.String("Pass --allow-harmful to run/eval if you really meant to.") ]
 
-    | Record err ->
+    | Record(err) ->
       match err with
       // -- Creation --
-      | CreationTypeNotRecord name ->
-        [ ES.String "Expected a record, but "
-          ES.TypeName name
-          ES.String " is not one" ]
-      | CreationEmptyKey -> [ ES.String "Empty key in record creation" ]
-      | CreationMissingField fieldName ->
-        [ ES.String "Missing field "
-          ES.FieldName fieldName
+      | CreationTypeNotRecord(name) ->
+        [ ES.String("Expected a record, but ")
+          ES.TypeName(name)
+          ES.String(" is not one") ]
+      | CreationEmptyKey -> [ ES.String("Empty key in record creation") ]
+      | CreationMissingField(fieldName) ->
+        [ ES.String("Missing field ")
+          ES.FieldName(fieldName)
           // ES.String " in "
           // ES.TypeName typeName
           ]
-      | CreationDuplicateField fieldName ->
-        [ ES.String "Duplicate field "
-          ES.FieldName fieldName
+      | CreationDuplicateField(fieldName) ->
+        [ ES.String("Duplicate field ")
+          ES.FieldName(fieldName)
           // ES.String " in "
           // ES.TypeName typeName
           ]
-      | CreationFieldNotExpected fieldName ->
-        [ ES.String "No field named "
-          ES.FieldName fieldName
+      | CreationFieldNotExpected(fieldName) ->
+        [ ES.String("No field named ")
+          ES.FieldName(fieldName)
           // ES.String " in "
           // ES.TypeName typeName
           // ES.String " record"
           ]
       | CreationFieldOfWrongType(fieldName, declaredType, expectedType, actualType, actualValue) ->
-        [ ES.String "Failed to create record. "
-          ES.String "Expected "
+        [ ES.String("Failed to create record. ")
+          ES.String("Expected ")
           ES.DeclaredValueType(declaredType, expectedType)
-          ES.String " for field "
-          ES.FieldName fieldName
-          ES.String ", but got "
-          ES.InlineValue actualValue
-          ES.String " ("
+          ES.String(" for field ")
+          ES.FieldName(fieldName)
+          ES.String(", but got ")
+          ES.InlineValue(actualValue)
+          ES.String(" (")
           ES.IndefiniteArticle
-          ES.ValueType actualType
-          ES.String ")" ]
+          ES.ValueType(actualType)
+          ES.String(")") ]
 
       // -- Update --
-      | UpdateNotRecord actualType ->
-        [ ES.String "Cannot apply a record-update to a "
-          ES.ValueType actualType ]
-      | UpdateEmptyKey -> [ ES.String "Empty key in record update" ]
-      | UpdateDuplicateField fieldName ->
-        [ ES.String "Duplicate field "
-          ES.FieldName fieldName
+      | UpdateNotRecord(actualType) ->
+        [ ES.String("Cannot apply a record-update to a ")
+          ES.ValueType(actualType) ]
+      | UpdateEmptyKey -> [ ES.String("Empty key in record update") ]
+      | UpdateDuplicateField(fieldName) ->
+        [ ES.String("Duplicate field ")
+          ES.FieldName(fieldName)
           // ES.String " in "
           // ES.TypeName typeName
           ]
-      | UpdateFieldNotExpected fieldName ->
-        [ ES.String "No field named "
-          ES.FieldName fieldName
+      | UpdateFieldNotExpected(fieldName) ->
+        [ ES.String("No field named ")
+          ES.FieldName(fieldName)
           // ES.String " in "
           // ES.TypeName typeName
           // ES.String " record"
           ]
       | UpdateFieldOfWrongType(fieldName, declaredType, expectedType, actualType, actualValue) ->
-        [ ES.String "Failed to create updated record. "
-          ES.String "Expected "
+        [ ES.String("Failed to create updated record. ")
+          ES.String("Expected ")
           ES.DeclaredValueType(declaredType, expectedType)
-          ES.String " for field "
-          ES.FieldName fieldName
-          ES.String ", but got "
-          ES.InlineValue actualValue
-          ES.String " ("
+          ES.String(" for field ")
+          ES.FieldName(fieldName)
+          ES.String(", but got ")
+          ES.InlineValue(actualValue)
+          ES.String(" (")
           ES.IndefiniteArticle
-          ES.ValueType actualType
-          ES.String ")" ]
+          ES.ValueType(actualType)
+          ES.String(")") ]
 
       // -- Field Access --
       | FieldAccessEmptyFieldName ->
-        [ ES.String "Field name is empty" ]
-      | FieldAccessFieldNotFound fieldName ->
-        [ ES.String "Tried to access field "
-          ES.FieldName fieldName
-          ES.String ", but it doesn't exist"
+        [ ES.String("Field name is empty") ]
+      | FieldAccessFieldNotFound(fieldName) ->
+        [ ES.String("Tried to access field ")
+          ES.FieldName(fieldName)
+          ES.String(", but it doesn't exist")
           // ES.String " in "
           // ES.TypeName typeName
           ]
-      | FieldAccessNotRecord actualType ->
-        [ ES.String "Attempting to perform field access of "
+      | FieldAccessNotRecord(actualType) ->
+        [ ES.String("Attempting to perform field access of ")
           ES.IndefiniteArticle
-          ES.ValueType actualType
-          ES.String ", but this only works with records and tuples" ]
+          ES.ValueType(actualType)
+          ES.String(", but this only works with records and tuples") ]
       | FieldAccessTupleIndexOutOfRange(fieldName, tupleLength) ->
-        [ ES.String $"Tried to access element .{fieldName} of a tuple with "
-          ES.Int tupleLength
-          ES.String " elements; tuple elements are numbered from .1" ]
+        [ ES.String($"Tried to access element .{fieldName} of a tuple with ")
+          ES.Int(tupleLength)
+          ES.String(" elements; tuple elements are numbered from .1") ]
 
 
-    | Enum err ->
+    | Enum(err) ->
       match err with
-      | ConstructionWrongNumberOfFields (typeName, caseName, expectedFieldCount, actualFieldCount) ->
-        [ ES.String "Expected "
-          ES.Int expectedFieldCount
-          ES.String " fields in "
-          ES.TypeName typeName
-          ES.String "."
-          ES.FieldName caseName
-          ES.String ", but got "
-          ES.Int actualFieldCount ]
+      | ConstructionWrongNumberOfFields(typeName, caseName, expectedFieldCount, actualFieldCount) ->
+        [ ES.String("Expected ")
+          ES.Int(expectedFieldCount)
+          ES.String(" fields in ")
+          ES.TypeName(typeName)
+          ES.String(".")
+          ES.FieldName(caseName)
+          ES.String(", but got ")
+          ES.Int(actualFieldCount) ]
 
-      | ConstructionCaseNotFound (typeName, caseName) ->
-        [ ES.String "There is no case named "
-          ES.FieldName caseName
-          ES.String " in "
-          ES.TypeName typeName ]
+      | ConstructionCaseNotFound(typeName, caseName) ->
+        [ ES.String("There is no case named ")
+          ES.FieldName(caseName)
+          ES.String(" in ")
+          ES.TypeName(typeName) ]
 
       | ConstructionFieldOfWrongType(caseName, fieldIndex, declaredType, expectedType, actualType, actualValue) ->
-        [ ES.String "Failed to create enum. "
-          ES.String "Expected "
+        [ ES.String("Failed to create enum. ")
+          ES.String("Expected ")
           ES.DeclaredValueType(declaredType, expectedType)
-          ES.String " for field "
-          ES.Int fieldIndex
-          ES.String " in "
-          ES.FieldName caseName
-          ES.String ", but got "
-          ES.ValueType actualType
-          ES.String " ("
-          ES.FullValue actualValue
-          ES.String ")" ]
+          ES.String(" for field ")
+          ES.Int(fieldIndex)
+          ES.String(" in ")
+          ES.FieldName(caseName)
+          ES.String(", but got ")
+          ES.ValueType(actualType)
+          ES.String(" (")
+          ES.FullValue(actualValue)
+          ES.String(")") ]
 
-    | Unwrap err ->
+    | Unwrap(err) ->
       match err with
-      | GotNone -> [ ES.String "Cannot unwrap None" ]
-      | GotError err -> [ ES.String "Cannot unwrap Error: ", ES.FullValue err ]
-      | NonOptionOrResult actual -> [ ES.String "Can only unwrap Options and Results, yet got ", ES.FullValue actual ]
-      | UnwrapContainerMismatch actual ->
+      | GotNone -> [ ES.String("Cannot unwrap None") ]
+      | GotError(err) -> [ ES.String("Cannot unwrap Error: "), ES.FullValue(err) ]
+      | NonOptionOrResult(actual) -> [ ES.String("Can only unwrap Options and Results, yet got "), ES.FullValue(actual) ]
+      | UnwrapContainerMismatch(actual) ->
         let (got, returns, convert) =
           match actual with
           | DEnum(_, _, _, caseName, _) ->
@@ -447,209 +447,209 @@ module RuntimeError =
             else
               ("a Result", "an Option", "Stdlib.Result.toOption")
           | _ -> ("a value", "a different container", "a conversion")
-        [ ES.String $"`?` got {got}, but the enclosing function or lambda "
-          ES.String $"returns {returns}; convert it first with {convert}: "
-          ES.FullValue actual ]
-      | UnwrapOperandNotContainer actual ->
-        [ ES.String "`?` needs an Option or Result, but got "
-          ES.InlineValue actual
-          ES.String " ("
+        [ ES.String($"`?` got {got}, but the enclosing function or lambda ")
+          ES.String($"returns {returns}; convert it first with {convert}: ")
+          ES.FullValue(actual) ]
+      | UnwrapOperandNotContainer(actual) ->
+        [ ES.String("`?` needs an Option or Result, but got ")
+          ES.InlineValue(actual)
+          ES.String(" (")
           ES.IndefiniteArticle
-          ES.TypeOfValue actual
-          ES.String ")" ]
-      | MultipleArgs args ->
-        [ ES.String "Unwrap expects a single argument, but got "
+          ES.TypeOfValue(actual)
+          ES.String(")") ]
+      | MultipleArgs(args) ->
+        [ ES.String("Unwrap expects a single argument, but got ")
           ES.Int(Stdlib.List.length(args)) ]
 
-    | Apply err ->
+    | Apply(err) ->
       match err with
-      | ExpectedApplicableButNot (actualTyp, actualValue) ->
-        [ ES.String "Expected something we could apply to, such as a lambda or function, but got "
+      | ExpectedApplicableButNot(actualTyp, actualValue) ->
+        [ ES.String("Expected something we could apply to, such as a lambda or function, but got ")
           ES.IndefiniteArticle
-          ES.ValueType actualTyp
-          ES.String " ("
-          ES.FullValue actualValue
-          ES.String ")" ]
+          ES.ValueType(actualTyp)
+          ES.String(" (")
+          ES.FullValue(actualValue)
+          ES.String(")") ]
 
-      | WrongNumberOfTypeArgsForFn (fn, expected, actual) ->
-        [ ES.FunctionName fn
-          ES.String " expects "
-          ES.Count(expected, ES.String "type argument", ES.String "type arguments")
-          ES.String ", but got "
-          ES.Count(actual, ES.String "type argument", ES.String "type arguments") ]
+      | WrongNumberOfTypeArgsForFn(fn, expected, actual) ->
+        [ ES.FunctionName(fn)
+          ES.String(" expects ")
+          ES.Count(expected, ES.String("type argument"), ES.String("type arguments"))
+          ES.String(", but got ")
+          ES.Count(actual, ES.String("type argument"), ES.String("type arguments")) ]
       | CannotApplyTypeArgsMoreThanOnce ->
-        [ ES.String "Cannot apply type arguments more than once" ]
-      | TooManyArgsForFn (fn, expected, actual) ->
-        [ ES.FunctionName fn
-          ES.String " expects "
-          ES.Count(expected, ES.String "argument", ES.String "arguments")
-          ES.String ", but got "
-          ES.Count(actual, ES.String "argument", ES.String "arguments") ]
-      | TooFewArgsForFn (fn, expected, actual) ->
-        [ ES.FunctionName fn
-          ES.String " expects "
-          ES.Count(expected, ES.String "argument", ES.String "arguments")
-          ES.String ", but got "
-          ES.Count(actual, ES.String "argument", ES.String "arguments")
-          ES.String "; to supply the rest later, write a lambda" ]
+        [ ES.String("Cannot apply type arguments more than once") ]
+      | TooManyArgsForFn(fn, expected, actual) ->
+        [ ES.FunctionName(fn)
+          ES.String(" expects ")
+          ES.Count(expected, ES.String("argument"), ES.String("arguments"))
+          ES.String(", but got ")
+          ES.Count(actual, ES.String("argument"), ES.String("arguments")) ]
+      | TooFewArgsForFn(fn, expected, actual) ->
+        [ ES.FunctionName(fn)
+          ES.String(" expects ")
+          ES.Count(expected, ES.String("argument"), ES.String("arguments"))
+          ES.String(", but got ")
+          ES.Count(actual, ES.String("argument"), ES.String("arguments"))
+          ES.String("; to supply the rest later, write a lambda") ]
       | FnParameterNotExpectedType(fnName, paramIndex, paramName, declaredType, expectedType, actualType, actualValue) ->
-        [ ES.FunctionName fnName
-          ES.String "'s "
+        [ ES.FunctionName(fnName)
+          ES.String("'s ")
           ES.Ordinal(paramIndex + 1)
-          ES.String " parameter "
-          ES.ParamName paramName
-          ES.String " expects "
+          ES.String(" parameter ")
+          ES.ParamName(paramName)
+          ES.String(" expects ")
           ES.DeclaredValueType(declaredType, expectedType)
-          ES.String ", but got "
-          ES.ValueType actualType
-          ES.String " ("
-          ES.FullValue actualValue
-          ES.String ")" ]
+          ES.String(", but got ")
+          ES.ValueType(actualType)
+          ES.String(" (")
+          ES.FullValue(actualValue)
+          ES.String(")") ]
       | FnResultNotExpectedType(fnName, declaredType, expectedType, actualType, actualValue) ->
-        [ ES.FunctionName fnName
-          ES.String "'s return value expects "
+        [ ES.FunctionName(fnName)
+          ES.String("'s return value expects ")
           ES.DeclaredValueType(declaredType, expectedType)
-          ES.String ", but got "
-          ES.ValueType actualType
-          ES.String " ("
-          ES.FullValue actualValue
-          ES.String ")" ]
+          ES.String(", but got ")
+          ES.ValueType(actualType)
+          ES.String(" (")
+          ES.FullValue(actualValue)
+          ES.String(")") ]
 
 
 
       | LambdaResultNotExpectedType(fnName, paramIndex, paramName, declaredType, expectedType, actualType, actualValue) ->
-        [ ES.FunctionName fnName
-          ES.String "'s "
+        [ ES.FunctionName(fnName)
+          ES.String("'s ")
           ES.Ordinal(paramIndex + 1)
-          ES.String " parameter "
-          ES.ParamName paramName
-          ES.String " returned "
-          ES.ValueType actualType
-          ES.String " ("
-          ES.FullValue actualValue
-          ES.String "), but should return "
+          ES.String(" parameter ")
+          ES.ParamName(paramName)
+          ES.String(" returned ")
+          ES.ValueType(actualType)
+          ES.String(" (")
+          ES.FullValue(actualValue)
+          ES.String("), but should return ")
           ES.DeclaredValueType(declaredType, expectedType) ]
 
       | CannotApplyTypeArgsToLambda ->
-        [ ES.String "Cannot apply type arguments to a lambda" ]
+        [ ES.String("Cannot apply type arguments to a lambda") ]
 
-      | TooManyArgsForLambda (_lambdaExprId, expected, actual) ->
-        [ ES.String "Lambda expects "
-          ES.Count(expected, ES.String "argument", ES.String "arguments")
-          ES.String ", but got "
-          ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+      | TooManyArgsForLambda(_lambdaExprId, expected, actual) ->
+        [ ES.String("Lambda expects ")
+          ES.Count(expected, ES.String("argument"), ES.String("arguments"))
+          ES.String(", but got ")
+          ES.Count(actual, ES.String("argument"), ES.String("arguments")) ]
 
-      | TooFewArgsForLambda (_lambdaExprId, expected, actual) ->
-        [ ES.String "Lambda expects "
-          ES.Count(expected, ES.String "argument", ES.String "arguments")
-          ES.String ", but got "
-          ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+      | TooFewArgsForLambda(_lambdaExprId, expected, actual) ->
+        [ ES.String("Lambda expects ")
+          ES.Count(expected, ES.String("argument"), ES.String("arguments"))
+          ES.String(", but got ")
+          ES.Count(actual, ES.String("argument"), ES.String("arguments")) ]
 
-    | Statement err ->
+    | Statement(err) ->
       match err with
-      | FirstExpressionMustBeUnit (expectedTypes, actualType, actualValue) ->
-        [ ES.String "First expression must be of type "
-          ES.ValueType expectedTypes
-          ES.String ", but got "
-          ES.ValueType actualType
-          ES.String " ("
-          ES.FullValue actualValue
-          ES.String ")" ]
+      | FirstExpressionMustBeUnit(expectedTypes, actualType, actualValue) ->
+        [ ES.String("First expression must be of type ")
+          ES.ValueType(expectedTypes)
+          ES.String(", but got ")
+          ES.ValueType(actualType)
+          ES.String(" (")
+          ES.FullValue(actualValue)
+          ES.String(")") ]
 
-    | Json err ->
+    | Json(err) ->
       match err with
-      | UnsupportedType typ ->
-        [ ES.String "Unsupported type in JSON: "
-          ES.TypeReference typ
-          ES.String ". Some types are not supported in Json serialization, and cannot be used as arguments to "
-          ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse", version = 0l }))
-          ES.String " or "
-          ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize", version = 0l })) ]
-      | CannotSerializeValue dv ->
-        [ ES.String "Cannot serialize "
-          ES.FullValue dv
-          ES.String " into JSON" ]
+      | UnsupportedType(typ) ->
+        [ ES.String("Unsupported type in JSON: ")
+          ES.TypeReference(typ)
+          ES.String(". Some types are not supported in Json serialization, and cannot be used as arguments to ")
+          ES.FunctionName(LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse", version = 0l }))
+          ES.String(" or ")
+          ES.FunctionName(LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize", version = 0l })) ]
+      | CannotSerializeValue(dv) ->
+        [ ES.String("Cannot serialize ")
+          ES.FullValue(dv)
+          ES.String(" into JSON") ]
 
-    | Trait err ->
+    | Trait(err) ->
       match err with
       | MissingImpl(trait_, self) ->
         // The type is in hand, so the fix-it names it: `impl Add for <type>` made the reader
         // work out that `<type>` meant the String they had just used.
-        [ ES.ValueType self
-          ES.String " has no implementation of "
-          ES.TraitName trait_
-          ES.String ". Write `impl "
-          ES.ShortTraitName trait_
-          ES.String " for "
-          ES.ValueType self
-          ES.String " = ...`, or run `dark impls "
-          ES.ShortTraitName trait_
-          ES.String "` to see which types do" ]
+        [ ES.ValueType(self)
+          ES.String(" has no implementation of ")
+          ES.TraitName(trait_)
+          ES.String(". Write `impl ")
+          ES.ShortTraitName(trait_)
+          ES.String(" for ")
+          ES.ValueType(self)
+          ES.String(" = ...`, or run `dark impls ")
+          ES.ShortTraitName(trait_)
+          ES.String("` to see which types do") ]
       | DispatchAmbiguous(trait_, self, candidates) ->
-        [ ES.String (Stdlib.toString(Stdlib.List.length(candidates)))
-          ES.String " implementations of "
-          ES.TraitName trait_
-          ES.String " for "
-          ES.ValueType self
-          ES.String " exist, and there is no record of which came first, so none is used. `dark impls "
-          ES.ShortTraitName trait_
-          ES.String "` lists them; `dark deprecate impl <name>` retires one" ]
+        [ ES.String(Stdlib.toString(Stdlib.List.length(candidates)))
+          ES.String(" implementations of ")
+          ES.TraitName(trait_)
+          ES.String(" for ")
+          ES.ValueType(self)
+          ES.String(" exist, and there is no record of which came first, so none is used. `dark impls ")
+          ES.ShortTraitName(trait_)
+          ES.String("` lists them; `dark deprecate impl <name>` retires one") ]
       | MethodAmbiguous(method_, self, traits) ->
         // No article in front of the type: an article here produces "on a Int64".
-        [ ES.ValueType self
-          ES.String $" has more than one `{method_}`: "
-          ES.String (Stdlib.toString(Stdlib.List.length(traits)))
-          ES.String $" traits declare it. Say which one you mean, as `SomeTrait.{method_}(value)`" ]
+        [ ES.ValueType(self)
+          ES.String($" has more than one `{method_}`: ")
+          ES.String(Stdlib.toString(Stdlib.List.length(traits)))
+          ES.String($" traits declare it. Say which one you mean, as `SomeTrait.{method_}(value)`") ]
       | SelfTypeUnknown(trait_, method_) ->
-        [ ES.ShortTraitName trait_
-          ES.String $".{method_} has no argument to read a type from, so it cannot tell which "
-          ES.String "type you mean. Name it: `"
-          ES.ShortTraitName trait_
-          ES.String $".{method_}<Int64>(...)`" ]
+        [ ES.ShortTraitName(trait_)
+          ES.String($".{method_} has no argument to read a type from, so it cannot tell which ")
+          ES.String("type you mean. Name it: `")
+          ES.ShortTraitName(trait_)
+          ES.String($".{method_}<Int64>(...)`") ]
       // Raised from one place only: an implementation WAS chosen, and it lacks the method. Saying
       // the trait has no such method sent people looking at a trait that declares it, typically
       // one just given a new method that its existing implementations don't have yet.
       | NoSuchMethod(trait_, method_) ->
-        [ ES.String "The implementation of "
-          ES.TraitName trait_
-          ES.String $" chosen here has no `{method_}`. Add it to that implementation; `dark impls "
-          ES.ShortTraitName trait_
-          ES.String "` lists them" ]
-      | TraitNotFound trait_ ->
-        [ ES.String "Trait "
-          ES.TraitName trait_
-          ES.String " is not on this branch" ]
+        [ ES.String("The implementation of ")
+          ES.TraitName(trait_)
+          ES.String($" chosen here has no `{method_}`. Add it to that implementation; `dark impls ")
+          ES.ShortTraitName(trait_)
+          ES.String("` lists them") ]
+      | TraitNotFound(trait_) ->
+        [ ES.String("Trait ")
+          ES.TraitName(trait_)
+          ES.String(" is not on this branch") ]
 
-    | CLI err ->
+    | CLI(err) ->
       match err with
       | NoExpressionsToExecute ->
-        [ ES.String "Nothing to evaluate. Add a final expression after your declarations. For a .dark script, use `main(args)` to call your function, or `0` to exit successfully. See `dark docs scripts`." ]
-      | NonIntReturned returnedValue ->
-        [ ES.String "Script must finish with an Int exit code (0 succeeds) or Unit; got "
-          ES.FullValue returnedValue
-          ES.String ". A main function is not called automatically: finish with `main(args)` to call it. See `dark docs scripts`." ]
+        [ ES.String("Nothing to evaluate. Add a final expression after your declarations. For a .dark script, use `main(args)` to call your function, or `0` to exit successfully. See `dark docs scripts`.") ]
+      | NonIntReturned(returnedValue) ->
+        [ ES.String("Script must finish with an Int exit code (0 succeeds) or Unit; got ")
+          ES.FullValue(returnedValue)
+          ES.String(". A main function is not called automatically: finish with `main(args)` to call it. See `dark docs scripts`.") ]
 
-    | UncaughtException (msg, metadata) ->
+    | UncaughtException(msg, metadata) ->
       let withMetadata =
         match metadata with
         | [] -> []
         | metadata ->
           let metadataStrings =
-            Stdlib.List.map(metadata, fun (key, value) ->
-              ES.String $"\n  {key}: {Stdlib.Json.serialize<Dval>(value)}")
+            Stdlib.List.map(metadata, fun((key, value)) ->
+              ES.String($"\n  {key}: {Stdlib.Json.serialize<Dval>(value)}"))
 
-          Stdlib.List.prepend(metadataStrings, ES.String "\nMetadata:")
+          Stdlib.List.prepend(metadataStrings, ES.String("\nMetadata:"))
 
       Stdlib.List.concat(
-        [ ES.String "Uncaught exception: ", ES.String msg ],
+        [ ES.String("Uncaught exception: "), ES.String(msg) ],
         withMetadata)
 
     // Its own sentence and nothing else: it is a refusal, written for whoever ran the command.
-    | Condition message -> [ ES.String message ]
+    | Condition(message) -> [ ES.String(message) ]
 
     | unhandled ->
       let serialized = Stdlib.Json.serialize<LanguageTools.RuntimeTypes.RuntimeError.Error>(unhandled)
-      [ ES.String $"RTE pretty-printing TODO: {serialized}" ]
+      [ ES.String($"RTE pretty-printing TODO: {serialized}") ]
 
 
 

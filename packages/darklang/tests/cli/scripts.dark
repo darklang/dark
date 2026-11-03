@@ -3,24 +3,24 @@ module Darklang.Cli.Tests.Scripts
 
 test unitSucceeds =
   Darklang.Cli.Run.exitCode(Darklang.LanguageTools.RuntimeTypes.Dval.DUnit)
-  |> Stdlib.Test.equal(Ok 0)
+  |> Stdlib.Test.equal(Ok(0))
 
 
 test integerExitCodes =
   Stdlib.Test.all(
-    [ Darklang.Cli.Run.exitCode(Darklang.LanguageTools.RuntimeTypes.Dval.DInt 7)
-      |> Stdlib.Test.equal(Ok 7)
-      Darklang.Cli.Run.exitCode(Darklang.LanguageTools.RuntimeTypes.Dval.DInt64 3L)
-      |> Stdlib.Test.equal(Ok 3)
+    [ Darklang.Cli.Run.exitCode(Darklang.LanguageTools.RuntimeTypes.Dval.DInt(7))
+      |> Stdlib.Test.equal(Ok(7))
+      Darklang.Cli.Run.exitCode(Darklang.LanguageTools.RuntimeTypes.Dval.DInt64(3L))
+      |> Stdlib.Test.equal(Ok(3))
       Darklang.Cli.Run.exitCode(
-        Darklang.LanguageTools.RuntimeTypes.Dval.DInt 9223372036854775808)
-      |> Stdlib.Test.equal(Ok 9223372036854775808) ])
+        Darklang.LanguageTools.RuntimeTypes.Dval.DInt(9223372036854775808))
+      |> Stdlib.Test.equal(Ok(9223372036854775808)) ])
 
 
 test invalidResultKeepsValue =
-  let returned = Darklang.LanguageTools.RuntimeTypes.Dval.DBool true
+  let returned = Darklang.LanguageTools.RuntimeTypes.Dval.DBool(true)
   match Darklang.Cli.Run.exitCode(returned) with
-  | Error (Runtime(CLI (NonIntReturned actual), [])) ->
+  | Error(Runtime(CLI(NonIntReturned(actual)), [])) ->
     actual |> Stdlib.Test.equal(returned)
   | _ -> Stdlib.Test.fail("Expected a script result error with the returned value")
 
@@ -34,14 +34,14 @@ module Eval =
       None, Darklang.SCM.Branch.mainBranchId, source, [], false)
 
   test unitIsSilent =
-    evaluate("()") |> Stdlib.Test.equal(Ok None)
+    evaluate("()") |> Stdlib.Test.equal(Ok(None))
 
   test stringsAreUnquoted =
     evaluate("\"hello\\nworld\"")
-    |> Stdlib.Test.equal(Ok (Some "hello\nworld"))
+    |> Stdlib.Test.equal(Ok(Some("hello\nworld")))
 
   test otherValuesArePrinted =
-    evaluate("[1, 2]") |> Stdlib.Test.equal(Ok (Some "[1, 2]"))
+    evaluate("[1, 2]") |> Stdlib.Test.equal(Ok(Some("[1, 2]")))
 
 
 module CallStack =
@@ -49,9 +49,7 @@ module CallStack =
     Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Source
 
   let builtin(): Darklang.LanguageTools.RuntimeTypes.ExecutionPoint =
-    Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Function
-      (Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin
-        (Darklang.LanguageTools.RuntimeTypes.FQFnName.Builtin
+    Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Function(Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(Darklang.LanguageTools.RuntimeTypes.FQFnName.Builtin
           { name = "intDivide", version = 0l }))
 
   let render(

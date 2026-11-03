@@ -12,22 +12,22 @@ module Darklang.Cli.Tests.PermissionsGrammar
 
 module PermissionsGrammar =
   let only(value: String): Darklang.LanguageTools.Permissions.Scope<String> =
-    Darklang.LanguageTools.Permissions.Scope.Only value
+    Darklang.LanguageTools.Permissions.Scope.Only(value)
 
   /// True when rendering the rule and parsing that text gives the rule back.
 
   let roundTrips(rule: Darklang.LanguageTools.Permissions.Rule): Bool =
     (Darklang.LanguageTools.Permissions.parseRuleText(
       Darklang.LanguageTools.Permissions.renderRule(rule)))
-    == Stdlib.Option.Option.Some [ rule ]
+    == Stdlib.Option.Option.Some([ rule ])
 
   let exactHttp(): Darklang.LanguageTools.Permissions.Rule =
     Darklang.LanguageTools.Permissions.Rule.Http(
       Darklang.LanguageTools.Permissions.HttpRule
         { method = only("GET")
           scheme = only("https")
-          host = Darklang.LanguageTools.Permissions.HostRule.Exact "h"
-          port = Darklang.LanguageTools.Permissions.Scope.Only 443
+          host = Darklang.LanguageTools.Permissions.HostRule.Exact("h")
+          port = Darklang.LanguageTools.Permissions.Scope.Only(443)
           pathPrefix = only("/p")
           query = only("?q") })
 
@@ -49,53 +49,53 @@ module PermissionsGrammar =
             if Stdlib.List.isEmpty(args) then
               Darklang.LanguageTools.Permissions.Scope.All
             else
-              Darklang.LanguageTools.Permissions.Scope.Only args })
+              Darklang.LanguageTools.Permissions.Scope.Only(args) })
 
   // Basic rule forms accepted by `permissions allow`.
   test basicRules =
     Stdlib.Test.all(
       [ Darklang.LanguageTools.Permissions.parseRule([ "file", "read", "/tmp/x" ])
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.FileRead(only("/tmp/x")) ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.FileRead(only("/tmp/x")) ])))
         Darklang.LanguageTools.Permissions.parseRule([ "file", "write", "/tmp/x" ])
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.FileWrite(only("/tmp/x")) ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.FileWrite(only("/tmp/x")) ])))
         Darklang.LanguageTools.Permissions.parseRule([ "file", "read+write", "/tmp/x" ])
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
+          (Stdlib.Option.Option.Some(
              [ Darklang.LanguageTools.Permissions.Rule.FileRead(only("/tmp/x"))
-               Darklang.LanguageTools.Permissions.Rule.FileWrite(only("/tmp/x")) ])) ])
+               Darklang.LanguageTools.Permissions.Rule.FileWrite(only("/tmp/x")) ]))) ])
 
   // No target means every target.
   test noTargetMeansAll =
     Stdlib.Test.all(
       [ Darklang.LanguageTools.Permissions.parseRule([ "file", "read" ])
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.FileRead
-                 Darklang.LanguageTools.Permissions.Scope.All ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.FileRead(
+                 Darklang.LanguageTools.Permissions.Scope.All) ])))
         Darklang.LanguageTools.Permissions.parseRule([ "env", "read", "HOME" ])
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.EnvRead(only("HOME")) ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.EnvRead(only("HOME")) ])))
         Darklang.LanguageTools.Permissions.parseRule([ "env", "write", "PATH" ])
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.EnvWrite(only("PATH")) ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.EnvWrite(only("PATH")) ])))
         Darklang.LanguageTools.Permissions.parseRule([ "db", "read", "t" ])
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.DbRead(only("t")) ])) ])
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.DbRead(only("t")) ]))) ])
 
   // The store effects are not resource-scoped: bare effect names only.
   test storeEffectsBare =
     Stdlib.Test.all(
       [ Darklang.LanguageTools.Permissions.parseRule([ "package-read" ])
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.PackageRead ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.PackageRead) ])))
         Darklang.LanguageTools.Permissions.parseRule([ "package", "read", "p" ])
         |> Stdlib.Test.equal(Stdlib.Option.Option.None)
         Darklang.LanguageTools.Permissions.parseRule([ "trace", "read", "t" ])
@@ -119,27 +119,27 @@ module PermissionsGrammar =
   test denialHintForms =
     Darklang.LanguageTools.Permissions.parseRuleText("http GET https://h:443/p?q")
     |> Stdlib.Test.equal(
-      (Stdlib.Option.Option.Some
-         [ exactHttp() ]))
+      (Stdlib.Option.Option.Some(
+         [ exactHttp() ])))
 
   // A query with no path: the host must not swallow the query.
   test queryWithoutPath =
     Stdlib.Test.all(
       [ Darklang.LanguageTools.Permissions.parseRuleText("http GET https://h?x=1")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
+          (Stdlib.Option.Option.Some(
              [ Darklang.LanguageTools.Permissions.Rule.Http(
                  Darklang.LanguageTools.Permissions.HttpRule
                    { method = only("GET")
                      scheme = only("https")
-                     host = Darklang.LanguageTools.Permissions.HostRule.Exact "h"
-                     port = Darklang.LanguageTools.Permissions.Scope.Only 443
+                     host = Darklang.LanguageTools.Permissions.HostRule.Exact("h")
+                     port = Darklang.LanguageTools.Permissions.Scope.Only(443)
                      pathPrefix = Darklang.LanguageTools.Permissions.Scope.All
-                     query = only("?x=1") }) ]))
+                     query = only("?x=1") }) ])))
         Darklang.LanguageTools.Permissions.parseRuleText("process /bin/x")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ process("/bin/x", []) ])) ])
+          (Stdlib.Option.Option.Some(
+             [ process("/bin/x", []) ]))) ])
 
   // A relative executable would name a different program per working
   // directory; only `*` or an absolute path is a rule.
@@ -151,30 +151,30 @@ module PermissionsGrammar =
         |> Stdlib.Test.equal(Stdlib.Option.Option.None)
         Darklang.LanguageTools.Permissions.parseRuleText("env read")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.EnvRead
-                 Darklang.LanguageTools.Permissions.Scope.All ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.EnvRead(
+                 Darklang.LanguageTools.Permissions.Scope.All) ])))
         Darklang.LanguageTools.Permissions.parseRuleText("db read")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.DbRead
-                 Darklang.LanguageTools.Permissions.Scope.All ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.DbRead(
+                 Darklang.LanguageTools.Permissions.Scope.All) ])))
         Darklang.LanguageTools.Permissions.parseRuleText("file read /tmp/x")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.FileRead(only("/tmp/x")) ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.FileRead(only("/tmp/x")) ])))
         Darklang.LanguageTools.Permissions.parseRuleText("http-server 8080")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
+          (Stdlib.Option.Option.Some(
              [ Darklang.LanguageTools.Permissions.Rule.HttpServer(
-                 Darklang.LanguageTools.Permissions.Scope.Only 8080) ]))
+                 Darklang.LanguageTools.Permissions.Scope.Only(8080)) ])))
         ([ "stdin", "stdout", "clock", "random"
            "package-read", "package-write", "trace-read", "trace-write" ]
          |> Stdlib.List.all(fun name ->
            (Darklang.LanguageTools.Permissions.parseRuleText(name))
            == (Darklang.LanguageTools.Permissions.effectOfName(name)
                |> Stdlib.Option.map(fun effect ->
-                 [ Darklang.LanguageTools.Permissions.Rule.Effect effect ]))))
+                 [ Darklang.LanguageTools.Permissions.Rule.Effect(effect) ]))))
         |> Stdlib.Test.equal(true) ])
 
   // A bare `http`, `http-server` or `process` is the whole effect, never the
@@ -185,7 +185,7 @@ module PermissionsGrammar =
        (Darklang.LanguageTools.Permissions.parseRuleText(name))
        == (Darklang.LanguageTools.Permissions.effectOfName(name)
            |> Stdlib.Option.map(fun effect ->
-             [ Darklang.LanguageTools.Permissions.Rule.Effect effect ]))))
+             [ Darklang.LanguageTools.Permissions.Rule.Effect(effect) ]))))
     |> Stdlib.Test.equal(true)
 
   // `*` is the wildcard executable, not an executable literally named `*`.
@@ -193,16 +193,16 @@ module PermissionsGrammar =
     Stdlib.Test.all(
       [ Darklang.LanguageTools.Permissions.parseRuleText("process *")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
+          (Stdlib.Option.Option.Some(
              [ Darklang.LanguageTools.Permissions.Rule.Process(
                  Darklang.LanguageTools.Permissions.ProcessRule
                    { executable = Darklang.LanguageTools.Permissions.Scope.All
-                     args = Darklang.LanguageTools.Permissions.Scope.All }) ]))
+                     args = Darklang.LanguageTools.Permissions.Scope.All }) ])))
         Darklang.LanguageTools.Permissions.parseRuleText("http-server *")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.HttpServer
-                 Darklang.LanguageTools.Permissions.Scope.All ]))
+          (Stdlib.Option.Option.Some(
+             [ Darklang.LanguageTools.Permissions.Rule.HttpServer(
+                 Darklang.LanguageTools.Permissions.Scope.All) ])))
         Darklang.LanguageTools.Permissions.parseRuleText("effect clock")
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
@@ -211,17 +211,17 @@ module PermissionsGrammar =
     Stdlib.Test.all(
       [ roundTrips(Darklang.LanguageTools.Permissions.Rule.All)
         |> Stdlib.Test.equal(true)
-        roundTrips(Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock)
+        roundTrips(Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.Clock))
         |> Stdlib.Test.equal(true) ])
 
   // The three effects that also have scoped rule forms.
   test scopedEffectRoundTrips =
     Stdlib.Test.all(
-      [ roundTrips(Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Http)
+      [ roundTrips(Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.Http))
         |> Stdlib.Test.equal(true)
-        roundTrips(Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.HttpServer)
+        roundTrips(Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.HttpServer))
         |> Stdlib.Test.equal(true)
-        roundTrips(Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Process)
+        roundTrips(Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.Process))
         |> Stdlib.Test.equal(true)
         roundTrips(
           (Darklang.LanguageTools.Permissions.Rule.Process(
@@ -233,7 +233,7 @@ module PermissionsGrammar =
           (Darklang.LanguageTools.Permissions.Rule.Process(
             Darklang.LanguageTools.Permissions.ProcessRule
               { executable = Darklang.LanguageTools.Permissions.Scope.All
-                args = Darklang.LanguageTools.Permissions.Scope.Only [ "a" ] })))
+                args = Darklang.LanguageTools.Permissions.Scope.Only([ "a" ]) })))
         |> Stdlib.Test.equal(true)
         roundTrips(exactHttp()) |> Stdlib.Test.equal(true)
         roundTrips(broadHttp()) |> Stdlib.Test.equal(true) ])
@@ -254,12 +254,12 @@ module PermissionsGrammar =
           "?token=secret")
         |> Stdlib.Test.equal(true)
         roundTrips(
-          (Darklang.LanguageTools.Permissions.Rule.HttpServer
-            Darklang.LanguageTools.Permissions.Scope.All))
+          (Darklang.LanguageTools.Permissions.Rule.HttpServer(
+            Darklang.LanguageTools.Permissions.Scope.All)))
         |> Stdlib.Test.equal(true)
         roundTrips(
           (Darklang.LanguageTools.Permissions.Rule.HttpServer(
-            Darklang.LanguageTools.Permissions.Scope.Only 8080)))
+            Darklang.LanguageTools.Permissions.Scope.Only(8080))))
         |> Stdlib.Test.equal(true)
         roundTrips(Darklang.LanguageTools.Permissions.Rule.FileRead(only("/tmp/x")))
         |> Stdlib.Test.equal(true)
@@ -295,8 +295,8 @@ module PermissionsGrammar =
         Darklang.LanguageTools.Permissions.HttpRule
           { method = only("GET")
             scheme = only("http")
-            host = Darklang.LanguageTools.Permissions.HostRule.Exact "::1"
-            port = Darklang.LanguageTools.Permissions.Scope.Only 8080
+            host = Darklang.LanguageTools.Permissions.HostRule.Exact("::1")
+            port = Darklang.LanguageTools.Permissions.Scope.Only(8080)
             pathPrefix = only("/health")
             query = Darklang.LanguageTools.Permissions.Scope.All })))
     |> Stdlib.Test.equal(true)
@@ -306,10 +306,10 @@ module PermissionsGrammar =
     Darklang.LanguageTools.Permissions.parse(
       (Darklang.LanguageTools.Permissions.render(
         (Darklang.LanguageTools.Permissions.Policy
-          { allow = [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock, exactHttp() ]
+          { allow = [ Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.Clock), exactHttp() ]
             deny = [ Darklang.LanguageTools.Permissions.Rule.FileWrite(only("/etc")) ] }))))
     |> Stdlib.Test.equal(
       (Stdlib.Result.Result.Ok(
          Darklang.LanguageTools.Permissions.Policy
-           { allow = [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock, exactHttp() ]
+           { allow = [ Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.Clock), exactHttp() ]
              deny = [ Darklang.LanguageTools.Permissions.Rule.FileWrite(only("/etc")) ] })))

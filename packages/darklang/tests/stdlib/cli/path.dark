@@ -22,8 +22,8 @@ test parent =
 // Path.extension
 test extension =
   Stdlib.Test.all(
-    [ Stdlib.Cli.Path.extension("photo.jpg") |> Stdlib.Test.equal(Some ".jpg")
-      Stdlib.Cli.Path.extension("archive.tar.gz") |> Stdlib.Test.equal(Some ".gz")
+    [ Stdlib.Cli.Path.extension("photo.jpg") |> Stdlib.Test.equal(Some(".jpg"))
+      Stdlib.Cli.Path.extension("archive.tar.gz") |> Stdlib.Test.equal(Some(".gz"))
       Stdlib.Cli.Path.extension("Makefile") |> Stdlib.Test.equal(None)
       Stdlib.Cli.Path.extension(".hidden") |> Stdlib.Test.equal(None) ])
 
@@ -69,12 +69,12 @@ test normalize =
 test relativeTo =
   Stdlib.Test.all(
     [ Stdlib.Cli.Path.relativeTo("/home/user", "/home/lib")
-      |> Stdlib.Test.equal(Ok "../lib")
-      Stdlib.Cli.Path.relativeTo("/a/b/c", "/a/b/c") |> Stdlib.Test.equal(Ok ".")
-      Stdlib.Cli.Path.relativeTo("/a/b", "/a/b/c/d") |> Stdlib.Test.equal(Ok "c/d")
+      |> Stdlib.Test.equal(Ok("../lib"))
+      Stdlib.Cli.Path.relativeTo("/a/b/c", "/a/b/c") |> Stdlib.Test.equal(Ok("."))
+      Stdlib.Cli.Path.relativeTo("/a/b", "/a/b/c/d") |> Stdlib.Test.equal(Ok("c/d"))
       Stdlib.Cli.Path.relativeTo("/a/b/c/d", "/a/b")
-      |> Stdlib.Test.equal(Ok "../..") ])
+      |> Stdlib.Test.equal(Ok("../..")) ])
 
 // Path.resolve — absolute paths returned as-is (normalized)
 test resolveAbsolutePath =
-  Stdlib.Cli.Path.resolve("/home/../tmp") |> Stdlib.Test.equal(Ok "/tmp")
+  Stdlib.Cli.Path.resolve("/home/../tmp") |> Stdlib.Test.equal(Ok("/tmp"))

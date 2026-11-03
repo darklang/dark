@@ -24,17 +24,17 @@ let list(): List<String> =
     n |> Stdlib.String.toList |> Stdlib.List.filter(Stdlib.Char.isDigit) |> Stdlib.String.fromList
 
   match Stdlib.Cli.Dir.list(backupDir()) with
-  | Ok names ->
+  | Ok(names) ->
     names
     |> Stdlib.List.filter(fun n -> Stdlib.String.contains(n, "data.db"))
     |> Stdlib.List.sortBy(stampOf)
     |> Stdlib.List.reverse
-  | Error _ -> []
+  | Error(_) -> []
 
 let sizeOf(name: String): String =
   match Stdlib.Cli.File.size($"{backupDir()}/{name}") with
-  | Ok bytes -> Cli.Text.bytes(bytes)
-  | Error _ -> "?"
+  | Ok(bytes) -> Cli.Text.bytes(bytes)
+  | Error(_) -> "?"
 
 /// `dark backups`
 let executeList(state: AppState): AppState =
@@ -70,10 +70,10 @@ let executeNow(state: AppState): AppState =
   // it, and the denial is an uncaught error rather than a `false`. Even asking whether the store
   // EXISTS goes through that same guard.
   match Stdlib.LocalStore.backupTo(target) with
-  | Ok _ ->
+  | Ok(_) ->
     Cli.printOk($"copied the store to {target}")
     state
-  | Error e ->
+  | Error(e) ->
     Cli.printErr($"couldn't write {target}: {e}")
     { state with exitCode = 1 }
 
@@ -103,21 +103,21 @@ let executeRestore(state: AppState, name: String, autoConfirm: Bool): AppState =
     let aside = $"{backupDir()}/data.db.pre-restore-{stamp}"
 
     match Stdlib.LocalStore.backupTo(aside) with
-    | Error e ->
+    | Error(e) ->
       Cli.printErr(
         $"couldn't copy the current store aside to {aside} ({e}); nothing restored.")
 
       { state with exitCode = 1 }
-    | Ok _ ->
+    | Ok(_) ->
       // Contents in, rather than the file swapped underneath the open store: see
       // `Stdlib.LocalStore.restoreFrom`. What it cannot do is refresh what this process has
       // already read, hence the restart.
       match Stdlib.LocalStore.restoreFrom(source) with
-      | Ok _ ->
+      | Ok(_) ->
         Cli.printOk($"restored {name}. The store as it was is at {aside}.")
         Cli.printHint("  start `dark` again: this process is still holding the old store.")
         state
-      | Error e ->
+      | Error(e) ->
         Cli.printErr(
           $"couldn't restore {source} ({e}). The store is unchanged; a copy is at {aside}.")
 
@@ -128,10 +128,10 @@ let executeRestore(state: AppState, name: String, autoConfirm: Bool): AppState =
 /// reach for AFTER a mistake, and the one command that must not make one.
 let executePrune(state: AppState, keepArg: String, autoConfirm: Bool): AppState =
   match Stdlib.Int.parse(keepArg) with
-  | Error _ ->
+  | Error(_) ->
     Cli.printErr($"\"{keepArg}\" isn't a number of backups to keep.")
     Cli.exitWith(state, false)
-  | Ok keep ->
+  | Ok(keep) ->
     if keep < 0 then
       Cli.printErr("keep a non-negative number of backups.")
       Cli.exitWith(state, false)
@@ -162,8 +162,8 @@ let executePrune(state: AppState, keepArg: String, autoConfirm: Bool): AppState 
           doomed
           |> Stdlib.List.filterMap(fun name ->
             match Stdlib.Cli.File.delete($"{backupDir()}/{name}") with
-            | Ok _ -> Stdlib.Option.Option.Some name
-            | Error _ ->
+            | Ok(_) -> Stdlib.Option.Option.Some(name)
+            | Error(_) ->
               Cli.printErr($"  couldn't delete {name}")
               Stdlib.Option.Option.None)
 

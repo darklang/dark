@@ -9,10 +9,10 @@ let execute(state: AppState, args: List<String>): AppState =
     state
   | [outputPath] ->
     match Builtin.pmSeedExport(outputPath) with
-    | Ok _ ->
+    | Ok(_) ->
       Stdlib.printLine($"Seed exported to {outputPath}")
       state
-    | Error err ->
+    | Error(err) ->
       Stdlib.printErrorLine(View.formatError($"Export failed: {err}"))
       Cli.exitWith(state, false)
   | _ ->

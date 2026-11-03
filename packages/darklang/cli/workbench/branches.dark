@@ -26,13 +26,12 @@ let openBranchPicker(state: State): Step =
   let selected =
     choices |> Stdlib.List.findFirstIndex(fun b -> b.id == state.branchId)
     |> Stdlib.Option.withDefault(0)
-  Step.Continue
+  Step.Continue(
     { state with
-        overlay = Overlay.Branches
-          (BranchPicker
+        overlay = Overlay.Branches(BranchPicker
             { choices = choices
               field = Stdlib.Cli.UI.TextField.fromText("")
-              selected = selected }) }
+              selected = selected }) })
 
 /// Switch the process overlay before reading anything for the destination.
 /// Stay in the same view; Home keeps the switched branch selected.
@@ -51,7 +50,7 @@ let switchWorkbenchBranch(state: State, id: Uuid, name: String): State =
       |> Stdlib.Option.withDefault(0)
     else
       match Stdlib.List.getAt(state.items, state.selected) with
-      | Some previous ->
+      | Some(previous) ->
         items |> Stdlib.List.findFirstIndex(fun it ->
           (it.name == previous.name) && (it.kind == previous.kind))
         |> Stdlib.Option.withDefault(0)
@@ -71,14 +70,14 @@ let handleBranchPickerKey(
   : Step =
   let choices = matchingBranches(picker)
   let keep(next: BranchPicker): Step =
-    Step.Continue { state with overlay = Overlay.Branches next }
+    Step.Continue({ state with overlay = Overlay.Branches(next) })
   let move(delta: Int): Step =
     let selected =
       Stdlib.max(0,
         Stdlib.min(picker.selected + delta, (Stdlib.List.length(choices)) - 1))
     keep({ picker with selected = selected })
   match key with
-  | Escape -> Step.Continue { state with overlay = Overlay.NoOverlay }
+  | Escape -> Step.Continue({ state with overlay = Overlay.NoOverlay })
   | UpArrow -> move(0 - 1)
   | DownArrow -> move(1)
   | PageUp -> move(0 - 10)
@@ -86,17 +85,17 @@ let handleBranchPickerKey(
   | Enter ->
     match Stdlib.List.getAt(choices, picker.selected) with
     | None -> keep(picker)
-    | Some b -> Step.Continue (switchWorkbenchBranch(state, b.id, b.name))
+    | Some(b) -> Step.Continue(switchWorkbenchBranch(state, b.id, b.name))
   | _ ->
     let field =
       if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.U) then
-        Stdlib.Option.Option.Some (Stdlib.Cli.UI.TextField.fromText(""))
+        Stdlib.Option.Option.Some(Stdlib.Cli.UI.TextField.fromText(""))
       else if modifiers.ctrl then Stdlib.Option.Option.None
       else
         Stdlib.Cli.UI.TextField.handleTextKey(picker.field,
           Stdlib.Cli.UI.Widget.press(key, modifiers, keyChar))
     match field with
-    | Some field ->
+    | Some(field) ->
       let selected = if field.text == picker.field.text then picker.selected else 0
       keep({ picker with field = field, selected = selected })
     | None -> keep(picker)
@@ -122,7 +121,7 @@ let renderBranchPicker(
             { top = inner.top + 2, left = inner.left
               rows = Stdlib.max(0, inner.rows - 3), cols = inner.cols }
         let lines =
-          choices |> Stdlib.List.indexedMap(fun i b ->
+          choices |> Stdlib.List.indexedMap(fun(i, b) ->
             let label = (branchMarker(b.id == state.branchId)) + b.name
             let detail = if b.detail == "" then "" else "  · " + b.detail
             if i == picker.selected then selectionRow(list.cols, label + detail)

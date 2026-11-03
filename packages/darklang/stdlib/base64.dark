@@ -43,8 +43,8 @@ let urlEncodeTextUnpadded(s: String): String =
 /// alphabets, like <fn decode>.
 let decodeText(s: String): Stdlib.Result.Result<String, String> =
   match decode(s) with
-  | Ok bytes ->
+  | Ok(bytes) ->
     match Stdlib.Utf8.decode(bytes) with
-    | Ok str -> Stdlib.Result.Result.Ok str
-    | Error _ -> Stdlib.Result.Result.Error "Invalid UTF-8 string"
-  | Error err -> Stdlib.Result.Result.Error err
+    | Ok(str) -> Stdlib.Result.Result.Ok(str)
+    | Error(_) -> Stdlib.Result.Result.Error("Invalid UTF-8 string")
+  | Error(err) -> Stdlib.Result.Result.Error(err)

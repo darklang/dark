@@ -19,7 +19,7 @@ let scale(n: Int): Int =
 
 /// A second loop, so `--iteration` has more than one thing to pick.
 let total(xs: List<Int>): Int =
-  Stdlib.List.fold(xs, 0, fun acc x -> acc + x)
+  Stdlib.List.fold(xs, 0, fun(acc, x) -> acc + x)
 
 /// A one-line lambda whose work is a CALL: nothing per-iteration on the line to change.
 let reportCall(xs: List<Int>): String =
@@ -44,7 +44,7 @@ let reportTwo(xs: List<Int>): String =
       doubled + 1)
 
   let summed =
-    Stdlib.List.fold(scaled, 0, fun acc x ->
+    Stdlib.List.fold(scaled, 0, fun(acc, x) ->
       let step = acc + x
       step)
 

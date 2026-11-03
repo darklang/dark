@@ -41,7 +41,7 @@ let draftNamings(): List<Selected> =
   SCM.PackageOps.draftEntries()
   |> Stdlib.List.filterMap(fun e ->
     match e.op with
-    | Decision(_, location, _, Override target)
+    | Decision(_, location, _, Override(target))
     | SetName(location, target, _) ->
       let itemType =
         LanguageTools.ProgramTypes.ItemKind.toString(LanguageTools.ProgramTypes.Reference.kind(target))
@@ -63,17 +63,17 @@ let draftAddedHashes(): List<String> =
   SCM.PackageOps.draftEntries()
   |> Stdlib.List.filterMap(fun e ->
     match e.op with
-    | AddFn f ->
+    | AddFn(f) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(f.hash))
-    | AddType t ->
+    | AddType(t) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
-    | AddValue v ->
+    | AddValue(v) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(v.hash))
-    | AddTrait t ->
+    | AddTrait(t) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
-    | AddTraitImpl i ->
+    | AddTraitImpl(i) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(i.hash))
-    | AddTest test ->
+    | AddTest(test) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(test.hash))
     | _ -> Stdlib.Option.Option.None)
 
@@ -126,7 +126,7 @@ let closeOverDeps(hashes: List<String>): List<String> =
   let rounds = Stdlib.List.length(pending) + 1
 
   Stdlib.List.range(1, rounds)
-  |> Stdlib.List.fold(Stdlib.List.unique(hashes), fun acc _ -> closeStep(pending, acc))
+  |> Stdlib.List.fold(Stdlib.List.unique(hashes), fun(acc, _) -> closeStep(pending, acc))
 
 /// The names <param names> depend on, transitively, by NAME rather than by content hash.
 ///
@@ -161,7 +161,7 @@ let closeOverDepFqns(names: List<String>): List<String> =
             [ hash ])
 
         (match viaDraft with
-         | Some hash -> byHash(hash)
+         | Some(hash) -> byHash(hash)
          | None ->
            Stdlib.Sqlite.rowsOrEmptyP(
              SCM.localDb(),
@@ -178,7 +178,7 @@ let closeOverDepFqns(names: List<String>): List<String> =
                Stdlib.Sqlite.textField(row, "m"),
                Stdlib.Sqlite.textField(row, "n"))
             with
-            | (Some o, Some m, Some n) ->
+            | (Some(o), Some(m), Some(n)) ->
               let mid = if m == "" then "" else m + "."
               Stdlib.Option.Option.Some(o + "." + mid + n)
             | _ -> Stdlib.Option.Option.None))
@@ -186,7 +186,7 @@ let closeOverDepFqns(names: List<String>): List<String> =
     Stdlib.List.unique(Stdlib.List.concat(acc, next))
 
   Stdlib.List.range(1, 8)
-  |> Stdlib.List.fold(Stdlib.List.unique(names), fun acc _ -> step(acc))
+  |> Stdlib.List.fold(Stdlib.List.unique(names), fun(acc, _) -> step(acc))
 
 
 /// The op id of <param e>, when it carries CONTENT (or a deprecation) for one of <param wantedHashes>.
@@ -201,12 +201,12 @@ let contentIdIfWanted(
 
   let target =
     match e.op with
-    | AddFn f -> Stdlib.Option.Option.Some(hashOf(f.hash))
-    | AddType t -> Stdlib.Option.Option.Some(hashOf(t.hash))
-    | AddValue v -> Stdlib.Option.Option.Some(hashOf(v.hash))
-    | AddTrait t -> Stdlib.Option.Option.Some(hashOf(t.hash))
-    | AddTraitImpl i -> Stdlib.Option.Option.Some(hashOf(i.hash))
-    | AddTest test -> Stdlib.Option.Option.Some(hashOf(test.hash))
+    | AddFn(f) -> Stdlib.Option.Option.Some(hashOf(f.hash))
+    | AddType(t) -> Stdlib.Option.Option.Some(hashOf(t.hash))
+    | AddValue(v) -> Stdlib.Option.Option.Some(hashOf(v.hash))
+    | AddTrait(t) -> Stdlib.Option.Option.Some(hashOf(t.hash))
+    | AddTraitImpl(i) -> Stdlib.Option.Option.Some(hashOf(i.hash))
+    | AddTest(test) -> Stdlib.Option.Option.Some(hashOf(test.hash))
     // A `Reference`, not a `Hash`: deprecations key on content, and the hash is inside the reference.
     | Deprecate(target, _, _, _) ->
       Stdlib.Option.Option.Some(hashOf(LanguageTools.ProgramTypes.Reference.hash(target)))
@@ -215,9 +215,9 @@ let contentIdIfWanted(
     | _ -> Stdlib.Option.Option.None
 
   match target with
-  | Some h ->
+  | Some(h) ->
     if Stdlib.List.contains(wantedHashes, h) then
-      Stdlib.Option.Option.Some e.id
+      Stdlib.Option.Option.Some(e.id)
     else
       Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
@@ -233,7 +233,7 @@ let docIdIfWanted(
   match e.op with
   | UpdateDoc(location, _, _, _, _) ->
     if Stdlib.List.contains(wantedFqns, fqnOf(location)) then
-      Stdlib.Option.Option.Some e.id
+      Stdlib.Option.Option.Some(e.id)
     else
       Stdlib.Option.Option.None
   | _ -> Stdlib.Option.Option.None

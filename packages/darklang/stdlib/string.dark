@@ -151,7 +151,7 @@ let splitFirst(
     // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
     match String.indexOfEgc(string, separator) with
     | None -> Option.Option.None
-    | Some i ->
+    | Some(i) ->
       let before = String.first(string, i)
       let after = String.dropFirst(string, i + String.length(separator))
       Option.Option.Some((before, after))
@@ -172,7 +172,7 @@ let splitLast(
     // lastIndexOfEgc (not lastIndexOf) because first / dropFirst / length are EGC-indexed.
     match String.lastIndexOfEgc(string, separator) with
     | None -> Option.Option.None
-    | Some i ->
+    | Some(i) ->
       let before = String.first(string, i)
       let after = String.dropFirst(string, i + String.length(separator))
       Option.Option.Some((before, after))
@@ -194,7 +194,7 @@ let splitN(
     // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
     match String.indexOfEgc(string, separator) with
     | None -> [ string ]
-    | Some i ->
+    | Some(i) ->
       let before = String.first(string, i)
       let rest = String.dropFirst(string, i + String.length(separator))
       List.prepend(String.splitN(rest, separator, n - 1), before)
@@ -218,8 +218,8 @@ let fromChar(c: Char): String = Stdlib.toString(c)
 /// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
 let random(length: Int): Result.Result<String, String> =
   if length < 0 then
-    Result.Result.Error
-      $"Expected `length` to be positive, but it was `{length |> Stdlib.toString}`"
+    Result.Result.Error(
+      $"Expected `length` to be positive, but it was `{length |> Stdlib.toString}`")
   else
     let characters =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -234,7 +234,7 @@ let random(length: Int): Result.Result<String, String> =
       |> List.map(fun _ -> randomChar())
       |> String.join("")
 
-    Result.Result.Ok result
+    Result.Result.Ok(result)
 
 
 /// Checks if <param lookingIn> contains <param searchingFor>.
@@ -415,7 +415,7 @@ let stripSuffix(subject: String, suffix: String): Option.Option<String> =
 /// or {{slice}}, which are all EGC-indexed — for that, use {{indexOfEgc}}.
 let indexOf(str: String, searchFor: String): Option.Option<Int> =
   let idx = Builtin.stringIndexOf(str, searchFor)
-  if idx == -1 then Option.Option.None else Option.Option.Some idx
+  if idx == -1 then Option.Option.None else Option.Option.Some(idx)
 
 
 /// Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>,
@@ -425,7 +425,7 @@ let indexOf(str: String, searchFor: String): Option.Option<Int> =
 /// (e.g. a base codepoint inside a ZWJ sequence) will not match.
 let indexOfEgc(str: String, searchFor: String): Option.Option<Int> =
   let idx = Builtin.stringIndexOfEgc(str, searchFor)
-  if idx == -1 then Option.Option.None else Option.Option.Some idx
+  if idx == -1 then Option.Option.None else Option.Option.Some(idx)
 
 
 /// Returns {{Some index}} of the last occurrence of <param searchFor> in <param str>,

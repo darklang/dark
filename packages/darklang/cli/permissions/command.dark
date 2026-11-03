@@ -88,14 +88,14 @@ let namedApprovals(
       byName
       |> Stdlib.List.filterMap(fun pair ->
         let (name, approvedHash) = pair
-        if approvedHash == hash then Stdlib.Option.Option.Some name
+        if approvedHash == hash then Stdlib.Option.Option.Some(name)
         else Stdlib.Option.Option.None)
       |> Stdlib.List.head
     match named with
-    | Some name -> $"{hash}  {name}"
+    | Some(name) -> $"{hash}  {name}"
     | None ->
       match Command.dependencyName(branchId, hash) with
-      | Some name -> $"{hash}  {name} (dependency)"
+      | Some(name) -> $"{hash}  {name} (dependency)"
       | None -> hash)
 
 /// The store's name for an approved dependency's hash, when it has one on <param branchId>.
@@ -106,13 +106,13 @@ let dependencyName(
   let locations =
     LanguageTools.PackageManager.Function.locations(
       branchId,
-      LanguageTools.ProgramTypes.Hash.Hash hash)
+      LanguageTools.ProgramTypes.Hash.Hash(hash))
   match
     LanguageTools.PackageManager.pickLocation(
       LanguageTools.PackageManager.PickContext.empty,
       locations)
   with
-  | Some l ->
+  | Some(l) ->
     Stdlib.Option.Option.Some(
       PrettyPrinter.RuntimeTypes.packageName(l.owner, l.modules, l.name)
     )
@@ -181,8 +181,8 @@ let requirementBadge(hash: LanguageTools.ProgramTypes.Hash): String =
 let ceilingForHash(
   hash: String)
   : Stdlib.Option.Option<List<LanguageTools.Permissions.Effect>> =
-  match LanguageTools.PackageManager.Function.get(LanguageTools.ProgramTypes.Hash.Hash hash) with
-  | Some fn -> fn.permissionCeiling
+  match LanguageTools.PackageManager.Function.get(LanguageTools.ProgramTypes.Hash.Hash(hash)) with
+  | Some(fn) -> fn.permissionCeiling
   | None -> Stdlib.Option.Option.None
 
 /// The per-function permission facts, as `show` and the package viewers
@@ -195,8 +195,8 @@ let policyLinesForHash(hash: String): List<String> =
     $"permission requirements: {Command.describeRequirements((effects, complete))}"
   match Command.ceilingForHash(hash) with
   | None -> [ requirementsLine ]
-  | Some ceiling ->
-    let row = LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some ceiling)
+  | Some(ceiling) ->
+    let row = LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some(ceiling))
     let exceeding =
       effects |> Stdlib.List.filter(fun e -> Stdlib.Bool.not(Stdlib.List.contains(ceiling, e)))
     let warning =
@@ -232,11 +232,11 @@ let renderAccessReport(facts: Command.AccessReportFacts): List<String> =
   let ceilingText =
     match facts.ceiling with
     | None -> "not declared (inherits caller limits)"
-    | Some names ->
-      LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some names)
+    | Some(names) ->
+      LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some(names))
   let approvalText =
     match facts.packagePolicy with
-    | Some _ -> "approved for this account (rules below)"
+    | Some(_) -> "approved for this account (rules below)"
     | None ->
       if facts.bundled then "not required (bundled Darklang code)"
       else "not approved for dependency use"
@@ -245,7 +245,7 @@ let renderAccessReport(facts: Command.AccessReportFacts): List<String> =
     else Stdlib.String.join(facts.approvedAs, ", ")
   let packageLines =
     match facts.packagePolicy with
-    | Some policy ->
+    | Some(policy) ->
       Stdlib.List.prepend(
         Command.indentedPolicyLines(policy),
         "  package approval policy:")
@@ -259,7 +259,7 @@ let renderAccessReport(facts: Command.AccessReportFacts): List<String> =
       "checked per operation: instance ∩ run ∩ function ceiling"
     else
       match facts.packagePolicy with
-      | Some _ ->
+      | Some(_) ->
         "checked per operation: instance ∩ run ∩ package approval ∩ function ceiling"
       | None ->
         "blocked as a dependency; explicitly chosen entry points are treated as roots"
@@ -338,11 +338,11 @@ let editPolicy(
   success: String)
   : Bool =
   match edit(Command.currentPolicy()) with
-  | Ok next ->
+  | Ok(next) ->
     Command.writePolicy(next)
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success(success))
     true
-  | Error message ->
+  | Error(message) ->
     Cli.printErr(message)
     false
 
@@ -356,7 +356,7 @@ let editRules(
   | None ->
     Cli.printErr(Command.invalidRule(args))
     false
-  | Some rules ->
+  | Some(rules) ->
     edit(rules)
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success(success))
     true
@@ -370,8 +370,8 @@ let replacePolicy(
     |> Stdlib.List.map(Stdlib.String.trim)
     |> Stdlib.List.filter(fun spec -> spec != "")
   match LanguageTools.Permissions.parse(specs) with
-  | Ok policy -> Stdlib.Result.Result.Ok policy
-  | Error bad -> Stdlib.Result.Result.Error $"invalid permission rule: {bad}"
+  | Ok(policy) -> Stdlib.Result.Result.Ok(policy)
+  | Error(bad) -> Stdlib.Result.Result.Error($"invalid permission rule: {bad}")
 
 
 // Named consumer approvals.
@@ -386,7 +386,7 @@ let latestVersion(
   : Stdlib.Option.Option<String> =
   let location = LanguageTools.ProgramTypes.parsePackageLocation(name)
   match LanguageTools.PackageManager.Function.find(branchId, location) with
-  | Some hash ->
+  | Some(hash) ->
     Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(hash))
   | None -> Stdlib.Option.Option.None
 
@@ -413,9 +413,9 @@ let resolveVersionArg(
     // report an unknown version as merely "incomplete".
     match
       LanguageTools.PackageManager.Function.get(
-        LanguageTools.ProgramTypes.Hash.Hash arg)
+        LanguageTools.ProgramTypes.Hash.Hash(arg))
     with
-    | Some _ -> Stdlib.Option.Option.Some arg
+    | Some(_) -> Stdlib.Option.Option.Some(arg)
     | None -> Stdlib.Option.Option.None
 
 /// Print a version's requirements, warning when analysis is incomplete.
@@ -459,10 +459,10 @@ let profile(args: List<String>): Bool =
       false
     | (apply, [name, ...rest]) ->
       match Profiles.resolve(name, rest) with
-      | Error message ->
+      | Error(message) ->
         Cli.printErr(message)
         false
-      | Ok policy ->
+      | Ok(policy) ->
         Stdlib.printLine(
           $"Profile {name} replaces the entire instance policy, including denies:")
         Stdlib.printLines(Command.indentedPolicyLines(policy))
@@ -481,8 +481,8 @@ let parseApprovalRules(
   if Stdlib.List.isEmpty(specs) then Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
   else
     match Command.replacePolicy(specs) with
-    | Ok policy -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some policy)
-    | Error message -> Stdlib.Result.Result.Error message
+    | Ok(policy) -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(policy))
+    | Error(message) -> Stdlib.Result.Result.Error(message)
 
 /// Lines describing the policy a version is approved under, for the prompt.
 let describeApprovalRules(
@@ -490,15 +490,15 @@ let describeApprovalRules(
   : List<String> =
   match rules with
   | None -> []
-  | Some policy ->
+  | Some(policy) ->
     Stdlib.List.prepend(
       Command.indentedPolicyLines(policy),
       "  approved under these rules (the package and everything it calls):")
 
 let approvalFailureText(failure: LanguageTools.Permissions.ApprovalFailure): String =
   match failure with
-  | Refused message -> Stdlib.Cli.UI.Colors.error(message)
-  | ContractChanged diffs ->
+  | Refused(message) -> Stdlib.Cli.UI.Colors.error(message)
+  | ContractChanged(diffs) ->
     Stdlib.Cli.UI.Colors.warning(
       ("the permission contract changed — review required:\n"
        + (diffs |> Stdlib.List.map(fun diff -> $"    {diff}") |> Stdlib.String.join("\n"))))
@@ -526,14 +526,14 @@ let approveReporting(
       acknowledgeIncomplete,
       acknowledgeContractChange)
   with
-  | Ok _ ->
+  | Ok(_) ->
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success(accepted))
     (true, Stdlib.Option.Option.None)
-  | Error(Refused message) ->
+  | Error(Refused(message)) ->
     Cli.printErr(message)
     if kept != "" then Stdlib.printLine(kept) else ()
     (false, Stdlib.Option.Option.None)
-  | Error(ContractChanged diffs) -> (false, Stdlib.Option.Option.Some diffs)
+  | Error(ContractChanged(diffs)) -> (false, Stdlib.Option.Option.Some(diffs))
 
 let approveNamed(
   state: Cli.AppState,
@@ -542,15 +542,15 @@ let approveNamed(
   specs: List<String>)
   : Bool =
   match Command.parseApprovalRules(specs) with
-  | Error message ->
+  | Error(message) ->
     Cli.printErr(message)
     false
-  | Ok rules ->
+  | Ok(rules) ->
     match Command.latestVersion(state.currentBranchId, name) with
     | None ->
       Cli.printErr($"unknown function: {name}")
       false
-    | Some hash ->
+    | Some(hash) ->
       let complete =
         Command.showVersionRequirements($"{name} {Command.shortVersion(hash)}", hash)
       Stdlib.printLines(Command.describeApprovalRules(rules))
@@ -597,21 +597,21 @@ let updateNamed(
   : Bool =
   let accountID = state.accountID
   match Command.parseApprovalRules(specs) with
-  | Error message ->
+  | Error(message) ->
     Cli.printErr(message)
     false
-  | Ok givenRules ->
+  | Ok(givenRules) ->
     match Command.approvedVersionOf(accountID, name) with
     | None ->
       Stdlib.printLine(
         $"{name} has no approved version; run `permissions approve {name}` first")
       false
-    | Some approved ->
+    | Some(approved) ->
       match Command.latestVersion(state.currentBranchId, name) with
       | None ->
         Cli.printErr($"unknown function: {name}")
         false
-      | Some latest ->
+      | Some(latest) ->
         if latest == approved then
           Stdlib.printLine($"{name} is up to date ({Command.shortVersion(approved)})")
           true
@@ -622,7 +622,7 @@ let updateNamed(
           // explicit `clock` is never mistaken for a derived one.
           let rules =
             match givenRules with
-            | Some _ -> givenRules
+            | Some(_) -> givenRules
             | None -> Command.explicitApprovalFor(accountID, approved)
           let complete =
             Command.showVersionRequirements(
@@ -655,10 +655,10 @@ let updateNamed(
             let (approvedFirst, review) = approve(false)
             match review with
             | None -> approvedFirst
-            | Some diffs ->
+            | Some(diffs) ->
               Stdlib.printLine(
                 (Command.approvalFailureText(
-                  LanguageTools.Permissions.ApprovalFailure.ContractChanged diffs)))
+                  LanguageTools.Permissions.ApprovalFailure.ContractChanged(diffs))))
               // The differences were shown; accepting them is the review.
               let acceptChanged =
                 acceptWithoutPrompt
@@ -682,7 +682,7 @@ let withVersion(
   | None ->
     Cli.printErr($"unknown function: {target}")
     false
-  | Some hash ->
+  | Some(hash) ->
     Stdlib.printLines(show(hash))
     true
 
@@ -697,27 +697,27 @@ let printListOrNone(items: List<String>): Unit =
 val subcommands =
   [ ("list", Stdlib.Option.Option.None)
     ("profile", Stdlib.Option.Option.None)
-    ("allow", Stdlib.Option.Option.Some "allow <rule>")
-    ("deny", Stdlib.Option.Option.Some "deny <rule>")
-    ("remove", Stdlib.Option.Option.Some "remove <rule>")
+    ("allow", Stdlib.Option.Option.Some("allow <rule>"))
+    ("deny", Stdlib.Option.Option.Some("deny <rule>"))
+    ("remove", Stdlib.Option.Option.Some("remove <rule>"))
     // `set` with nothing would otherwise replace the policy with deny-all;
     // that is what `clear` is for.
-    ("set", Stdlib.Option.Option.Some "set <rule>;… (or `clear`)")
+    ("set", Stdlib.Option.Option.Some("set <rule>;… (or `clear`)"))
     ("clear", Stdlib.Option.Option.None)
-    ("approve", Stdlib.Option.Option.Some "approve <fn> [rule,…]")
-    ("update", Stdlib.Option.Option.Some "update <fn> [rule,…]")
-    ("unapprove", Stdlib.Option.Option.Some "unapprove <fn>")
+    ("approve", Stdlib.Option.Option.Some("approve <fn> [rule,…]"))
+    ("update", Stdlib.Option.Option.Some("update <fn> [rule,…]"))
+    ("unapprove", Stdlib.Option.Option.Some("unapprove <fn>"))
     ("approved", Stdlib.Option.Option.None)
-    ("requirements", Stdlib.Option.Option.Some "requirements <fn|hash>")
-    ("show", Stdlib.Option.Option.Some "show <fn|hash>")
+    ("requirements", Stdlib.Option.Option.Some("requirements <fn|hash>"))
+    ("show", Stdlib.Option.Option.Some("show <fn|hash>"))
     ("approvals", Stdlib.Option.Option.None)
-    ("revoke-package", Stdlib.Option.Option.Some "revoke-package <hash>") ]
+    ("revoke-package", Stdlib.Option.Option.Some("revoke-package <hash>")) ]
 
 /// The usage line for a subcommand given without its argument, if it needs one.
 let usageOf(subcommand: String): Stdlib.Option.Option<String> =
   Command.subcommands
-  |> Stdlib.List.findFirst(fun (name, _usage) -> name == subcommand)
-  |> Stdlib.Option.andThen(fun (_name, usage) -> usage)
+  |> Stdlib.List.findFirst(fun((name, _usage)) -> name == subcommand)
+  |> Stdlib.Option.andThen(fun((_name, usage)) -> usage)
 
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   match args with
@@ -839,7 +839,7 @@ let complete(
   | ["profile", ...] -> []
   | _ ->
     Command.subcommands
-    |> Stdlib.List.map(fun (name, _usage) -> Cli.Completion.simple(name))
+    |> Stdlib.List.map(fun((name, _usage)) -> Cli.Completion.simple(name))
 
 let help(_state: Cli.AppState): String =
   [ "Usage: permissions [list] | allow <rule> | deny <rule> | remove <rule>"

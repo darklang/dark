@@ -28,7 +28,7 @@ let branchExists(branchId: Uuid): Bool =
       [ Stdlib.toString(branchId) ])
 
   match registered with
-  | Some _ -> true
+  | Some(_) -> true
   | None ->
     match
       Stdlib.Sqlite.queryOneP(
@@ -36,7 +36,7 @@ let branchExists(branchId: Uuid): Bool =
         "SELECT 1 AS n FROM op_branches WHERE branch_id = @p0 LIMIT 1",
         [ Stdlib.toString(branchId) ])
     with
-    | Some _ -> true
+    | Some(_) -> true
     | None -> false
 
 
@@ -49,7 +49,7 @@ let branchParentOf(branchId: Uuid): Uuid =
       "SELECT parent_id FROM branches WHERE id = @p0",
       [ Stdlib.toString(branchId) ])
   with
-  | Some row ->
+  | Some(row) ->
     SCM.Branch.fromTextField(Stdlib.Sqlite.textField(row, "parent_id"))
   | None -> SCM.Branch.mainBranchId
 
@@ -80,7 +80,7 @@ let parentBindings(parentId: Uuid, names: List<String>): List<Conflicts.Binding>
         match
           Stdlib.Dict.get(overlayKeySet, Conflicts.bindingKey(b.owner, b.modules, b.name))
         with
-        | Some _ -> false
+        | Some(_) -> false
         | None -> true)
 
     Stdlib.List.concat(untouched, overlay)
@@ -166,7 +166,7 @@ let branchName(branchId: Uuid): String =
     with
     | Ok([row, ...]) ->
       match Stdlib.Sqlite.textField(row, "name") with
-      | Some name -> if name == "" then fallback else name
+      | Some(name) -> if name == "" then fallback else name
       | None -> fallback
     | _ -> fallback
 
@@ -180,24 +180,24 @@ let branchName(branchId: Uuid): String =
 let resolveBranchRef(branchRef: String): BranchRefResult =
   let asId =
     match Stdlib.Uuid.parse(branchRef) with
-    | Ok id -> Stdlib.Option.Option.Some id
-    | Error _ -> Stdlib.Option.Option.None
+    | Ok(id) -> Stdlib.Option.Option.Some(id)
+    | Error(_) -> Stdlib.Option.Option.None
 
   // Main is resolvable by name and by id like any other branch, and has to be: it has no `branches`
   // row, so neither the name lookup nor the id-prefix search below can find it.
   if (branchRef == SCM.Branch.mainBranchName)
-     || (asId == Stdlib.Option.Option.Some SCM.Branch.mainBranchId) then
-    BranchRefResult.Found SCM.Branch.mainBranchId
+     || (asId == Stdlib.Option.Option.Some(SCM.Branch.mainBranchId)) then
+    BranchRefResult.Found(SCM.Branch.mainBranchId)
   else
     match branchIdForName(branchRef) with
-    | Some id -> BranchRefResult.Found id
+    | Some(id) -> BranchRefResult.Found(id)
     | None ->
       match asId with
-      | Some id ->
+      | Some(id) ->
         if branchExists(id) then
-          BranchRefResult.Found id
+          BranchRefResult.Found(id)
         else
-          BranchRefResult.UnknownId id
+          BranchRefResult.UnknownId(id)
       | None ->
         // Long enough not to be silly: a 1-2 character prefix would match half the store and "ambiguous"
         // is a worse answer than making you type more.
@@ -209,7 +209,7 @@ let resolveBranchRef(branchRef: String): BranchRefResult =
             |> Stdlib.List.filter(fun b ->
               Stdlib.String.startsWith(Stdlib.toString(b.id), branchRef))
           with
-          | [ only ] -> BranchRefResult.Found only.id
+          | [ only ] -> BranchRefResult.Found(only.id)
           | [] -> BranchRefResult.NotFound
           | _ -> BranchRefResult.Ambiguous
 
@@ -226,7 +226,7 @@ let branchIdForName(name: String): Stdlib.Option.Option<Uuid> =
        ORDER BY created_at DESC, rowid DESC LIMIT 1",
       [ name ])
   with
-  | Some row -> Stdlib.Sqlite.uuidField(row, "id")
+  | Some(row) -> Stdlib.Sqlite.uuidField(row, "id")
   | None -> Stdlib.Option.Option.None
 
 
@@ -264,7 +264,7 @@ let mergedOpsOf(branchId: Uuid): List<LanguageTools.ProgramTypes.PackageOp> =
     events
     |> Stdlib.List.map(fun op ->
       match op with
-      | BranchEvent(b, Merged ops, _) -> if b == branchId then ops else []
+      | BranchEvent(b, Merged(ops), _) -> if b == branchId then ops else []
       | _ -> [])
     |> Stdlib.List.flatten
     |> Stdlib.List.map(Stdlib.toString)
@@ -329,11 +329,11 @@ let branchHashHistories(branchId: Uuid): Dict<String, List<String>> =
            LanguageTools.ProgramTypes.Reference.hash(target)))
       )
     | _ -> Stdlib.Option.Option.None)
-  |> Stdlib.List.groupBy(fun (key, _) -> key)
-  |> Stdlib.List.map(fun (key, entries) ->
+  |> Stdlib.List.groupBy(fun((key, _)) -> key)
+  |> Stdlib.List.map(fun((key, entries)) ->
     // `unique` keeps first occurrences in place, which is the authoring order this function exists
     // to return.
-    (key, entries |> Stdlib.List.map(fun (_, hash) -> hash) |> Stdlib.List.unique))
+    (key, entries |> Stdlib.List.map(fun((_, hash)) -> hash) |> Stdlib.List.unique))
   |> Stdlib.Dict.fromEntries
 
 

@@ -68,7 +68,7 @@ let remember(watch: Stdlib.Live.Watch): Stdlib.Live.Watch =
 
 let currentWatch(): Stdlib.Live.Watch =
   match Builtin.hostWatchGet() with
-  | Some w -> w
+  | Some(w) -> w
   | None -> remember(Stdlib.Live.watch(SCM.PackageOps.currentBranch()))
 
 /// What landed since the last look. `None` when the store moved for a reason that is not an op (a
@@ -91,12 +91,12 @@ let begin(): Unit =
 /// to carry no op (the counter moves for a config write too) is not an event, and the wait goes on.
 let await(specs: List<EventSpec>): Event =
   match Builtin.hostAwait(specs) with
-  | Key k -> Event.Key k
+  | Key(k) -> Event.Key(k)
   | Timer -> Event.Timer
-  | ExecDone id -> Event.ExecDone id
-  | Stdin text -> Event.Stdin text
+  | ExecDone(id) -> Event.ExecDone(id)
+  | Stdin(text) -> Event.Stdin(text)
   | StdinClosed -> Event.StdinClosed
   | StoreChanged ->
     match describeChange() with
-    | Some change -> Event.StoreChanged change
+    | Some(change) -> Event.StoreChanged(change)
     | None -> await(specs)

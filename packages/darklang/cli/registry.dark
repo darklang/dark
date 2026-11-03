@@ -12,10 +12,10 @@ module Registry =
       /// function, not a value: every start builds this table, and only the command being run should
       /// pay for building its declaration.
       accepts: Unit -> Accepts.Accepts
-      execute: AppState -> List<String> -> AppState
+      execute: (AppState, List<String>) -> AppState
       /// Pure: returns the help text; callers decide where it goes.
       help: AppState -> String
-      complete: AppState -> List<String> -> List<Completion.CompletionItem> }
+      complete: (AppState, List<String>) -> List<Completion.CompletionItem> }
 
   // What each command takes on the command line, one function per command, referenced by its row in
   // `allCommands` the way `execute`, `help` and `complete` are. Functions rather than values, because
@@ -150,7 +150,7 @@ module Registry =
       ("workbench", "Open the workbench -- a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], acceptsWorkbench, Workbench.execute, Workbench.help, Workbench.complete) ]
     |> Stdlib.List.map((
       // CLEANUP nitpicky: swap help and complete
-      fun (name, desc, aliases, accepts, execute, help, complete) ->
+      fun((name, desc, aliases, accepts, execute, help, complete)) ->
         CommandHandler
           { name = name
             description = desc
@@ -186,12 +186,12 @@ module Registry =
           aliases = []
           // Any words, so the name itself is what gets refused, below.
           accepts = fun () -> Accepts.text(0)
-          execute = fun state args ->
+          execute = fun(state, args) ->
             Stdlib.printErrorLine(View.formatError($"Unknown command: {name}"))
             Stdlib.printErrorLine("Use 'help' to see available commands.")
             { state with exitCode = 1 }
           help = fun _state -> $"No help available for command: {name}"
-          complete = fun _state _args -> [] }
+          complete = fun(_state, _args) -> [] }
 
   let executeCommand(name: String, state: AppState, args: List<String>): AppState =
     let handler = findCommandIn(state.allCommandsCache, name)
@@ -203,7 +203,7 @@ module Registry =
     // First argument only. The cost is `dark search help`, which shows help rather than searching.
     let firstIsHelp =
       match Stdlib.List.head(args) with
-      | Some "help" -> true
+      | Some("help") -> true
       | _ -> false
 
     // The script runner decides whether --help is an option or a script argument.
@@ -222,7 +222,7 @@ module Registry =
       // repeated here; `--help` has it.
       let accepts = handler.accepts
       match Accepts.check(name, accepts(), args) with
-      | Some why ->
+      | Some(why) ->
         Cli.printErr(why)
         Cli.printHint($"  `dark {name} --help` shows what it takes.")
         { state with exitCode = 1 }
@@ -286,12 +286,12 @@ module Registry =
       commandNames
       |> Stdlib.List.filterMap(fun name ->
         match Stdlib.List.findFirst(commands, fun cmd -> cmd.name == name) with
-        | Some cmd ->
+        | Some(cmd) ->
           match cmd.aliases with
-          | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
+          | [] -> Stdlib.Option.Option.Some($"  {cmd.name} - {cmd.description}")
           | aliases ->
             let aliasText = Stdlib.String.join(aliases, ", ")
-            Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
+            Stdlib.Option.Option.Some($"  {cmd.name} ({aliasText}) - {cmd.description}")
         | None -> Stdlib.Option.Option.None)
     let commandLines = Stdlib.String.join(formattedCommands, "\n")
     $"{groupName}:\n{commandLines}"
@@ -303,18 +303,18 @@ module Registry =
 
     let formattedGroups =
       groups
-      |> Stdlib.List.map(fun (groupName, cmdNames) ->
+      |> Stdlib.List.map(fun((groupName, cmdNames)) ->
         formatCommandGroup(groupName, cmdNames, commands))
 
     let allGroupedCommands =
       groups
-      |> Stdlib.List.map(fun (_groupName, cmdNames) -> cmdNames)
+      |> Stdlib.List.map(fun((_groupName, cmdNames)) -> cmdNames)
       |> Stdlib.List.flatten
     let ungroupedCommands =
       commands
       |> Stdlib.List.filter(fun cmd ->
         match Stdlib.List.findFirst(allGroupedCommands, fun name -> name == cmd.name) with
-        | Some _ -> false
+        | Some(_) -> false
         | None -> true)
       |> Stdlib.List.map(fun cmd ->
         match cmd.aliases with
@@ -358,7 +358,7 @@ module Registry =
     else
       let completedArgs =
         match Stdlib.List.last(parsed.args) with
-        | Some _ -> Stdlib.List.dropLast(parsed.args)
+        | Some(_) -> Stdlib.List.dropLast(parsed.args)
         | None -> []
       // \u0000 can't occur in a typed token, so joining is unambiguous.
       Stdlib.String.join(
@@ -380,7 +380,7 @@ module Registry =
       let handler = findCommandIn(state.allCommandsCache, parsed.commandName)
       let completedArgs =
         match Stdlib.List.last(parsed.args) with
-        | Some _ -> Stdlib.List.dropLast(parsed.args)
+        | Some(_) -> Stdlib.List.dropLast(parsed.args)
         | None -> []
       handler.complete(state, completedArgs)
 
@@ -412,7 +412,7 @@ module Registry =
       //   "branch "        → args=[],             completedArgs=[],         partial=""
       let (completedArgs, partial) =
         match Stdlib.List.last(parsed.args) with
-        | Some lastArg -> (Stdlib.List.dropLast(parsed.args), lastArg)
+        | Some(lastArg) -> (Stdlib.List.dropLast(parsed.args), lastArg)
         | None -> ([], "")
 
       let completions = completeFunc(state, completedArgs)
@@ -442,7 +442,7 @@ module Registry =
         parsed.commandName
       else
         match Stdlib.List.last(parsed.args) with
-        | Some lastArg -> lastArg
+        | Some(lastArg) -> lastArg
         | None -> ""
 
     let completionValues = completions |> Stdlib.List.map(fun item -> item.value)
@@ -472,7 +472,7 @@ module Registry =
       else
         let lastArg =
           match Stdlib.List.last(parsed.args) with
-          | Some lastArg -> lastArg
+          | Some(lastArg) -> lastArg
           | None -> ""
         (lastArg, lastArg)
 
@@ -554,7 +554,7 @@ module Registry =
       let canonical = (findCommandIn(commands, cmd)).name
       let withFirst =
         match Stdlib.List.head(args) with
-        | Some first -> canonical + " " + first
+        | Some(first) -> canonical + " " + first
         | None -> canonical
       (Stdlib.List.contains(promptsForInput, canonical))
       || (Stdlib.List.contains(promptsForInput, withFirst))

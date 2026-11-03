@@ -893,32 +893,32 @@ let typeReferences =
       false
     t
       "fn with two args"
-      "type MyFn = 'a -> 'b -> 'c"
-      "type MyFn =\n  'a -> 'b -> 'c"
+      "type MyFn = ('a, 'b) -> 'c"
+      "type MyFn =\n  ('a, 'b) -> 'c"
       []
       []
       []
       false
     t
       "fn with three args"
-      "type MyFn = 'a -> 'b -> 'c -> 'd"
-      "type MyFn =\n  'a -> 'b -> 'c -> 'd"
+      "type MyFn = ('a, 'b, 'c) -> 'd"
+      "type MyFn =\n  ('a, 'b, 'c) -> 'd"
       []
       []
       []
       false
     t
       "fn with tuple arg"
-      "type MyFn = (String * Int64 * Bool) -> Dict<String, Int64> -> List<List<String>>"
-      "type MyFn =\n  (String * Int64 * Bool) -> Dict<String, Int64> -> List<List<String>>"
+      "type MyFn = ((String * Int64 * Bool), Dict<String, Int64>) -> List<List<String>>"
+      "type MyFn =\n  ((String * Int64 * Bool), Dict<String, Int64>) -> List<List<String>>"
       []
       []
       []
       false
     t
       "fn with generics"
-      "type MyFn = LanguageTools.ID -> 'a -> 'b"
-      "type MyFn =\n  LanguageTools.ID -> 'a -> 'b"
+      "type MyFn = (LanguageTools.ID, 'a) -> 'b"
+      "type MyFn =\n  (LanguageTools.ID, 'a) -> 'b"
       []
       []
       []
@@ -1288,10 +1288,17 @@ let typeDeclarations =
   |> testList "type declarations"
 
 let exprs =
-  [ t "unwrap of variable" "fun x -> Ok x?" "(fun x -> Result.Ok(x?))" [] [] [] false
+  [ t
+      "unwrap of variable"
+      "fun x -> Ok(x?)"
+      "(fun x -> Result.Ok(x?))"
+      []
+      []
+      []
+      false
     t
       "unwrap of application"
-      "fun x -> Ok ((f(x))?)"
+      "fun x -> Ok((f(x))?)"
       "(fun x -> Result.Ok((f(x))?))"
       []
       []
@@ -1299,13 +1306,13 @@ let exprs =
       false
     t
       "unwrap chain"
-      "fun x -> Some x?.field?"
+      "fun x -> Some(x?.field?)"
       "(fun x -> Option.Some(x?.field?))"
       []
       []
       []
       false
-    t "nested unwrap" "fun x -> Ok x??" "(fun x -> Result.Ok(x??))" [] [] [] false
+    t "nested unwrap" "fun x -> Ok(x??)" "(fun x -> Result.Ok(x??))" [] [] [] false
 
     // units
     t "unit literal" "()" "()" [] [] [] false
@@ -1420,24 +1427,17 @@ let exprs =
     tParseRejected
       "invalid escape in char match pattern"
       "match c with\n| '\\d' -> 1L\n| _ -> 0L"
-    // A qualified enum-case pattern is unsupported (use the unqualified case name).
-    // Reject it instead of building a truncated pattern from the first path
-    // segment. The rejection holds across path lengths and field bindings.
+    // A constructor pattern's fields go in parentheses, qualified or not.
     tParseRejected
-      "qualified enum-case match pattern (fully qualified)"
-      "match x with\n| Stdlib.Result.Result.Ok n -> 1L\n| _ -> 0L"
+      "enum-case match pattern with a spaced field"
+      "match x with\n| Ok n -> 1L\n| _ -> 0L"
     tParseRejected
-      "qualified enum-case match pattern (two segments)"
+      "qualified enum-case match pattern with a spaced field"
       "match x with\n| Result.Ok n -> 1L\n| _ -> 0L"
-    tParseRejected
-      "qualified enum-case match pattern (no field binding)"
-      "match x with\n| Stdlib.Result.Ok -> 1L\n| _ -> 0L"
-    // The diagnostic names the qualified path problem and points to the
-    // unqualified case-name form.
     tParseErrorNote
-      "qualified enum-case match pattern suggests unqualified case name"
+      "a spaced constructor-pattern field says to use parentheses"
       "match x with\n| Stdlib.Result.Result.Ok n -> 1L\n| _ -> 0L"
-      "Invalid match pattern. Enum patterns use the unqualified case name (e.g. `| Ok n`), not a qualified path like `| Stdlib.Result.Result.Ok n`."
+      "a constructor pattern's fields go in parentheses, separated by commas"
     // Well-formed escapes that are not valid Unicode scalars are rejected:
     //   - surrogate range (D800..DFFF)
     //   - above the Unicode max (>0x10FFFF)
@@ -1742,7 +1742,7 @@ let exprs =
       false
     t "option none, short" "Stdlib.Option.Option.None" "Option.None" [] [] [] false
     t "option none, long" "Stdlib.Option.Option.None" "Option.None" [] [] [] false
-    t "option some" "Stdlib.Option.Option.Some 1L" "Option.Some(1L)" [] [] [] false
+    t "option some" "Stdlib.Option.Option.Some(1L)" "Option.Some(1L)" [] [] [] false
     t
       "custom enum tupled params"
       "Tests.MyEnum.C((1L, 2L))"
@@ -1879,7 +1879,7 @@ let exprs =
       []
       []
       false
-    t "lambda, 2 args" "fun x y -> x * y" "(fun x y -> x * y)" [] [] [] false
+    t "lambda, 2 args" "fun(x, y) -> x * y" "(fun(x, y) -> x * y)" [] [] [] false
     t "lambda, unit arg" "fun () -> 1L" "(fun () -> 1L)" [] [] [] false
     t
       "lambda with notable body"
@@ -1891,8 +1891,8 @@ let exprs =
       false
     t
       "lambda with notable body 2"
-      "fun (str1, str2) -> str1 + str2"
-      "(fun (str1, str2) -> str1 + str2)"
+      "fun((str1, str2)) -> str1 + str2"
+      "(fun((str1, str2)) -> str1 + str2)"
       []
       []
       []
@@ -2186,15 +2186,15 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "match, enum"
-      "match Stdlib.Result.Result.Ok 5L with\n| Ok(5L) -> true\n| Error(e) -> false"
+      "match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
       "match Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
       []
       []
       []
       false
     t
-      "match, enum no parens with one arg"
-      "match Stdlib.Result.Result.Ok 5L with\n| Ok 5L -> true\n| Error e  -> false"
+      "match, qualified enum patterns"
+      "match Stdlib.Result.Result.Ok(5L) with\n| Result.Ok(5L) -> true\n| Stdlib.Result.Result.Error(e) -> false"
       "match Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
       []
       []
@@ -2209,8 +2209,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       []
       false
     t
-      "match, enum no parens with 1 tuple arg"
-      "match Stdlib.Result.Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) -> true\n| Error e  -> false"
+      "match, enum with 1 tuple arg"
+      "match Stdlib.Result.Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) -> true\n| Error(e)  -> false"
       "match Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) -> true\n| Error(e) -> false"
       []
       []
@@ -2741,8 +2741,8 @@ let functionDeclarations =
 
     t
       "nested fn type in return"
-      "let curry(): Int64 -> (String -> Bool) = fun x y -> true"
-      "let curry(): Int64 -> (String -> Bool) =\n  (fun x y -> true)"
+      "let curry(): Int64 -> (String -> Bool) = fun(x, y) -> true"
+      "let curry(): Int64 -> (String -> Bool) =\n  (fun(x, y) -> true)"
       []
       []
       []

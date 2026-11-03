@@ -56,13 +56,11 @@ let findByType(
 
   // Construct a ValueType for the custom type
   let rtHash =
-    Darklang.LanguageTools.RuntimeTypes.Hash.Hash
-      (Darklang.LanguageTools.ProgramTypes.hashToString(targetTypeHash))
+    Darklang.LanguageTools.RuntimeTypes.Hash.Hash(Darklang.LanguageTools.ProgramTypes.hashToString(targetTypeHash))
   let valueType =
-    LanguageTools.RuntimeTypes.ValueType.Known
-      (LanguageTools.RuntimeTypes.KnownType.KTCustomType
-        (LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package rtHash)
-        [])
+    LanguageTools.RuntimeTypes.ValueType.Known(LanguageTools.RuntimeTypes.KnownType.KTCustomType(
+        LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(rtHash),
+        []))
 
   // Use indexed query to find all value hashes with the target type
   let valueHashes = LanguageTools.PackageManager.Value.findByValueType(valueType)
@@ -71,14 +69,14 @@ let findByType(
   |> Stdlib.List.filterMap(fun valueHash ->
     // Get location for this value
     match Darklang.LanguageTools.PackageManager.pickLocation(Darklang.LanguageTools.PackageManager.PickContext.empty, LanguageTools.PackageManager.Value.locations(branchId, valueHash)) with
-    | Some location ->
+    | Some(location) ->
       // Check if it's in the target namespace
       let valuePath = Stdlib.List.prepend(location.modules, location.owner)
 
       if isValueInNamespace(namespaceParts, valuePath) then
         // Evaluate the value
         match evaluate(valueHash) with
-        | Some evaluatedValue ->
+        | Some(evaluatedValue) ->
           let fullPath = buildPathFromLocation(location.owner, location.modules, location.name)
 
           Stdlib.Option.Option.Some(

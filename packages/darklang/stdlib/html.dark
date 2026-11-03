@@ -116,7 +116,7 @@ let text(str: String): Node = Node.String(escapeHtml(str))
 /// stringNode "Hello, World!"
 /// stringNode "<!-- This is a comment -->"
 /// ```
-let stringNode(str: String): Node = Node.String str
+let stringNode(str: String): Node = Node.String(str)
 
 
 /// Creates an HTML tag node with the given name, attributes, and children.
@@ -146,16 +146,16 @@ let htmlTagNode(
 /// - Nested children recursively
 let nodeToString(node: Node): String =
   match node with
-  | String str -> str
-  | HtmlTag tag ->
+  | String(str) -> str
+  | HtmlTag(tag) ->
     let attributesText =
       tag.attrs
-      |> List.map(fun (key, valueOpt) ->
+      |> List.map(fun((key, valueOpt)) ->
         match valueOpt with
         // Escaped like text is. An attribute value is the easier injection: a `"` in an
         // unescaped one closes the attribute and everything after it is markup. Callers
         // pass raw values -- a url, a name, a class -- and do not pre-escape.
-        | Some value -> $"{key}=\"{escapeHtml(value)}\""
+        | Some(value) -> $"{key}=\"{escapeHtml(value)}\""
         | None -> key)
       |> String.join(" ")
 
@@ -220,15 +220,15 @@ let classes(classList: List<String>): (String * Option.Option<String>) =
 let style(properties: List<(String * String)>): (String * Option.Option<String>) =
   let styleString =
     properties
-    |> Stdlib.List.map(fun (prop, value) -> $"{prop}: {value}")
+    |> Stdlib.List.map(fun((prop, value)) -> $"{prop}: {value}")
     |> Stdlib.String.join("; ")
 
-  ("style", Stdlib.Option.Option.Some styleString)
+  ("style", Stdlib.Option.Option.Some(styleString))
 
 
 /// Creates a data attribute with the given name and value.
 let dataAttr(name: String, value: String): (String * Option.Option<String>) =
-  ($"data-{name}", Stdlib.Option.Option.Some value)
+  ($"data-{name}", Stdlib.Option.Option.Some(value))
 
 
 let br(): Node = htmlTagNode("br", [], [])

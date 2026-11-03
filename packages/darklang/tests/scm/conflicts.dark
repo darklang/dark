@@ -34,7 +34,7 @@ module Helpers =
         hash = hash
         originTs = ts
         author = ""
-        previous = Stdlib.Option.Option.Some replaced }
+        previous = Stdlib.Option.Option.Some(replaced) }
 
   let base'(name: String, hash: String): Darklang.SCM.Conflicts.NameBase =
     Darklang.SCM.Conflicts.NameBase
@@ -223,7 +223,7 @@ module AutoResolution =
         [ Helpers.base'("f", "ooo") ]))
      |> Stdlib.List.head
      |> Stdlib.Option.map(fun c -> c.autoResolvedTo))
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some "bbb")
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("bbb"))
 
   // ... and the older incoming loses to the newer local.
   test olderIncomingLoses =
@@ -235,7 +235,7 @@ module AutoResolution =
         [ Helpers.base'("f", "ooo") ]))
      |> Stdlib.List.head
      |> Stdlib.Option.map(fun c -> c.autoResolvedTo))
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some "aaa")
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("aaa"))
 
   // An exact stamp tie breaks by the HIGHER hash, so every instance converges on the same winner.
   test tieBreaksByHash =
@@ -247,7 +247,7 @@ module AutoResolution =
         [ Helpers.base'("f", "ooo") ]))
      |> Stdlib.List.head
      |> Stdlib.Option.map(fun c -> c.reason))
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some "tie-break-by-hash")
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("tie-break-by-hash"))
 
 // `incomingWins` itself is pinned in `lww.dark` (the Dark side) and `Lww.Tests.fs` (the F# twin);
 // a third copy of the table here only gave the two real ones a place to drift from.
@@ -340,5 +340,5 @@ module OrderPreservingDedup =
     Stdlib.List.fold(
       [ "c", "a", "b", "a" ],
       [],
-      fun acc h -> if Stdlib.List.contains(acc, h) then acc else Stdlib.List.append(acc, h))
+      fun(acc, h) -> if Stdlib.List.contains(acc, h) then acc else Stdlib.List.append(acc, h))
     |> Stdlib.Test.equal([ "c", "a", "b" ])

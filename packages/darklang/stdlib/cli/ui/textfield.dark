@@ -105,7 +105,7 @@ let isTypeable(c: String): Bool =
 
 let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
   match kp.key with
-  | Enter -> Widget.Outcome.Emitted(state, Msg.Submitted state.text)
+  | Enter -> Widget.Outcome.Emitted(state, Msg.Submitted(state.text))
   | Escape -> Widget.Outcome.Emitted(state, Msg.Cancelled)
   | Backspace -> Widget.Outcome.Handled(backspace(state))
   | Delete -> Widget.Outcome.Handled(deleteForward(state))
@@ -120,7 +120,7 @@ let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
   | Tab -> Widget.Outcome.Ignored
   | _ ->
     match kp.char with
-    | Some c ->
+    | Some(c) ->
       if isTypeable(c) then
         Widget.Outcome.Handled(insert(state, c))
       else
@@ -202,7 +202,7 @@ let handleTextKey(state: State, kp: Widget.KeyPress): Stdlib.Option.Option<State
   | Escape -> Stdlib.Option.Option.None
   | _ ->
     match kp.char with
-    | Some c -> if isTypeable(c) then Stdlib.Option.Option.Some(insert(state, c)) else Stdlib.Option.Option.None
+    | Some(c) -> if isTypeable(c) then Stdlib.Option.Option.Some(insert(state, c)) else Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
 
 

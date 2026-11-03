@@ -22,16 +22,16 @@ let applyResolution(
   hash: String)
   : Stdlib.Result.Result<Int, String> =
   let location = Deps.locationOf(c.owner, c.modules, c.name)
-  let h = LanguageTools.ProgramTypes.Hash.Hash hash
+  let h = LanguageTools.ProgramTypes.Hash.Hash(hash)
 
   let reference =
     match c.itemType with
-    | "type" -> LanguageTools.ProgramTypes.Reference.PackageType h
-    | "value" -> LanguageTools.ProgramTypes.Reference.PackageValue h
-    | "trait" -> LanguageTools.ProgramTypes.Reference.PackageTrait h
-    | "impl" -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl h
-    | "test" -> LanguageTools.ProgramTypes.Reference.PackageTest h
-    | _ -> LanguageTools.ProgramTypes.Reference.PackageFn h
+    | "type" -> LanguageTools.ProgramTypes.Reference.PackageType(h)
+    | "value" -> LanguageTools.ProgramTypes.Reference.PackageValue(h)
+    | "trait" -> LanguageTools.ProgramTypes.Reference.PackageTrait(h)
+    | "impl" -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl(h)
+    | "test" -> LanguageTools.ProgramTypes.Reference.PackageTest(h)
+    | _ -> LanguageTools.ProgramTypes.Reference.PackageFn(h)
 
   add(
     branchId,
@@ -39,7 +39,7 @@ let applyResolution(
         c.id,
         location,
         "",
-        LanguageTools.ProgramTypes.DecisionKind.Override reference
+        LanguageTools.ProgramTypes.DecisionKind.Override(reference)
       ) ])
 
 
@@ -56,11 +56,11 @@ let settleConflict(
   hash: String)
   : Stdlib.Result.Result<Unit, String> =
   if hash == "" then
-    Stdlib.Result.Result.Error
-      "no version to keep: that side of the conflict has no recorded hash"
+    Stdlib.Result.Result.Error(
+      "no version to keep: that side of the conflict has no recorded hash")
   else
     match applyResolution(branchId, c, hash) with
-    | Ok _ ->
+    | Ok(_) ->
       let _ = Conflicts.setStatus(c.id, "overridden", hash)
 
       // Cascade, the way an edit does. An override rebinds the NAME; without this the callers that
@@ -74,17 +74,17 @@ let settleConflict(
           if (cand.hash == hash) || (cand.hash == "") then
             Stdlib.Option.Option.None
           else
-            Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash cand.hash))
+            Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash(cand.hash)))
       let _ =
         Propagation.repointDependents(
           branchId,
           location,
           kind,
           losers,
-          LanguageTools.ProgramTypes.Hash.Hash hash)
+          LanguageTools.ProgramTypes.Hash.Hash(hash))
 
       Stdlib.Result.Result.Ok()
-    | Error e -> Stdlib.Result.Result.Error e
+    | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Settle a conflict by taking the REMOVAL: end the name again, and close the record.
@@ -103,15 +103,15 @@ let settleConflictByRemoval(
 
   let previous =
     PackageOps.liveBindingFor(branchId, location)
-    |> Stdlib.Option.map(fun b -> LanguageTools.ProgramTypes.Hash.Hash b.hash)
+    |> Stdlib.Option.map(fun b -> LanguageTools.ProgramTypes.Hash.Hash(b.hash))
 
   let op = LanguageTools.ProgramTypes.PackageOp.Unbind(location, previous)
 
   match add(branchId, [ op ]) with
-  | Ok _ ->
+  | Ok(_) ->
     let _ = Conflicts.setStatus(c.id, "overridden", "")
     Stdlib.Result.Result.Ok()
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Commit the draft on <param branchId> under <param message>. Returns the new commit's hash.
@@ -144,7 +144,7 @@ let commitDraft(branchId: Uuid, message: String): Stdlib.Result.Result<String, S
   match unresolvedInDraft(branchId) with
   | [] ->
     match draftOpCountFor(branchId) with
-    | 0L -> Stdlib.Result.Result.Error "nothing to commit"
+    | 0L -> Stdlib.Result.Result.Error("nothing to commit")
     | _ ->
       // The ids and the parent are read BEFORE the stamp, because stamping is what takes them out of the
       // draft: ask afterwards and the answer is empty.
@@ -155,25 +155,25 @@ let commitDraft(branchId: Uuid, message: String): Stdlib.Result.Result<String, S
 
       if committed == 0L then
         let _ = Commits.delete(hash)
-        Stdlib.Result.Result.Error "nothing was committed"
+        Stdlib.Result.Result.Error("nothing was committed")
       else
-        Stdlib.Result.Result.Ok hash
+        Stdlib.Result.Result.Ok(hash)
   | broken ->
     let names =
       broken
-      |> Stdlib.List.map(fun (label, _) -> label)
+      |> Stdlib.List.map(fun((label, _)) -> label)
       |> Stdlib.String.join(", ")
 
-    Stdlib.Result.Result.Error
-      $"unresolved references in {names} -- author what's missing, or commit with --allow-unresolved"
+    Stdlib.Result.Result.Error(
+      $"unresolved references in {names} -- author what's missing, or commit with --allow-unresolved")
 
 
 /// Drop the draft for <param branchId>, whichever kind of draft that is. Returns how many ops went.
 let discardDraftFor(branchId: Uuid): Int =
   if SCM.Branch.isMain(branchId) then
     match discardMainDraft() with
-    | Ok n -> n
-    | Error _ -> 0
+    | Ok(n) -> n
+    | Error(_) -> 0
   else
     Stdlib.Int.fromInt64(discardBranchDraft(branchId))
 
@@ -235,8 +235,8 @@ type MergeError =
 /// The sentence a person reads, whichever half it came from.
 let mergeErrorMessage(e: MergeError): String =
   match e with
-  | Refused r -> Branches.refusalMessage(r)
-  | Mechanism m -> m
+  | Refused(r) -> Branches.refusalMessage(r)
+  | Mechanism(m) -> m
 
 
 /// Merge a branch into its parent. Decides whether it MAY (`Branches.canMerge`), then has the builtin do
@@ -248,8 +248,8 @@ let mergeErrorMessage(e: MergeError): String =
 /// succeeds, so the loser is reviewable rather than silently gone.
 let mergeBranch(branchId: Uuid): Stdlib.Result.Result<MergeOutcome, MergeError> =
   match Branches.canMerge(branchId) with
-  | Error r -> Stdlib.Result.Result.Error(MergeError.Refused r)
-  | Ok _ ->
+  | Error(r) -> Stdlib.Result.Result.Error(MergeError.Refused(r))
+  | Ok(_) ->
 
   let conflicts = branchPreview(branchId)
 
@@ -275,7 +275,7 @@ let mergeBranch(branchId: Uuid): Stdlib.Result.Result<MergeOutcome, MergeError> 
       Branches.retagFrontierToParent(branchId, parent)
 
   match merged with
-  | Ok n ->
+  | Ok(n) ->
     // Say so in the log too, so the machine your colleague is on learns the branch is finished. The
     // local projections are already updated by the arm above; this is only how the OTHER machine learns.
     let eventId = Builtin.scmRecordBranchMerged(branchId, moved)
@@ -302,7 +302,7 @@ let mergeBranch(branchId: Uuid): Stdlib.Result.Result<MergeOutcome, MergeError> 
 
     (MergeOutcome { merged = n, conflicts = conflicts })
     |> Stdlib.Result.Result.Ok
-  | Error e -> Stdlib.Result.Result.Error(MergeError.Mechanism e)
+  | Error(e) -> Stdlib.Result.Result.Error(MergeError.Mechanism(e))
 
 
 /// What a rebase did: the parent's message, and what the rebase reconciled.
@@ -349,14 +349,14 @@ let rebaseBranch(branchId: Uuid): Stdlib.Result.Result<RebaseOutcome, String> =
   if SCM.Branch.isMain(branchId) then
     // Main has no parent to rebase onto, so this is not a thing you can do rather than a thing that found
     // nothing to do. The rewrite loops over `branch_name_bases`, and main has no rows there.
-    Stdlib.Result.Result.Error
-      "main is the trunk -- rebase moves a BRANCH onto its parent, and main has none."
+    Stdlib.Result.Result.Error(
+      "main is the trunk -- rebase moves a BRANCH onto its parent, and main has none.")
   else
 
   let conflicts = branchPreview(branchId)
 
   match Branches.rebaseDetailed(branchId) with
-  | Ok rebased ->
+  | Ok(rebased) ->
     let msg = rebaseMessage(branchParentOf(branchId), rebased)
     // The mirror of merge: a rebase folds the PARENT's work into the branch, so the conflict is the
     // branch's to answer and stays with it.
@@ -364,7 +364,7 @@ let rebaseBranch(branchId: Uuid): Stdlib.Result.Result<RebaseOutcome, String> =
 
     (RebaseOutcome { message = msg, conflicts = conflicts })
     |> Stdlib.Result.Result.Ok
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// A display of all active branches (one line each: name (id) <- parent [status]).
@@ -418,15 +418,15 @@ let resolveConflict(
       |> Stdlib.Result.map(fun _ ->
         $"took the parent's {name} (dropped the branch's binding)")
     | other ->
-      Stdlib.Result.Result.Error
-        $"unknown choice \"{other}\" -- use \"mine\" or \"theirs\""
+      Stdlib.Result.Result.Error(
+        $"unknown choice \"{other}\" -- use \"mine\" or \"theirs\"")
 
   match resolved with
-  | Ok kept ->
+  | Ok(kept) ->
     // The branch by NAME: this line is read by a person, and the id is a uuid.
-    Stdlib.Result.Result.Ok
-      $"resolved {name} on \"{branchName(branchId)}\": {kept}."
-  | Error e -> Stdlib.Result.Result.Error e
+    Stdlib.Result.Result.Ok(
+      $"resolved {name} on \"{branchName(branchId)}\": {kept}.")
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Archive (soft-delete) a branch, discarding its unmerged ops.
@@ -437,8 +437,8 @@ let archiveBranch(branchId: Uuid): Stdlib.Result.Result<String, String> =
   // The event is authored only if the local archive actually happened. It travels, so recording one for
   // an archive that failed here archives the branch on every other machine and nowhere on this one.
   match Branches.archive(branchId) with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok() ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(()) ->
     // ...and say so in the log, so the machine your colleague is on stops showing it as live work. The
     // local projection is already updated by the line above; this is only how the OTHER machine learns.
     let eventId = Builtin.scmRecordBranchArchived(branchId)
@@ -453,7 +453,7 @@ let archiveBranch(branchId: Uuid): Stdlib.Result.Result<String, String> =
     let _ =
       commitMainOps($"archived branch \"{handle}\"", [ Stdlib.toString(eventId) ])
 
-    Stdlib.Result.Result.Ok $"archived branch \"{handle}\"."
+    Stdlib.Result.Result.Ok($"archived branch \"{handle}\".")
 
 
 /// The id of the branch NAMED <param name>, starting it off <param parentId> if no live branch has that

@@ -38,7 +38,7 @@ let quoted(s: String): String =
 
 let stepLine(step: Step): String =
   match step with
-  | Await text ->
+  | Await(text) ->
     // A timeout has to say WHAT it was waiting for, or a failure here reads as "the screen
     // was wrong" with no screen attached.
     let complaint = quoted("\nTIMED OUT waiting for: " + text)
@@ -53,7 +53,7 @@ let stepLine(step: Step): String =
     + (quoted("\nEXITED BEFORE: " + text))
     + "; exit 3 }\n}"
 
-  | Send keys ->
+  | Send(keys) ->
     // A key pressed while a frame is still painting is dropped, and the symptom is the
     // NEXT `Await` timing out rather than "the key did nothing". An `Await` before each
     // `Send` is the real fix and is how these should be written; the fifth of a second
@@ -78,7 +78,7 @@ let drive(
   timeoutSeconds: Int)
   : Stdlib.Result.Result<String, String> =
   if Stdlib.Bool.not(available()) then
-    Stdlib.Result.Result.Error "expect is not installed"
+    Stdlib.Result.Result.Error("expect is not installed")
   else
     // Parenthesised: Dark parses pipes greedily, so `Instance.env i |> ...` reads the
     // qualified name as the pipe's left-hand side and fails.
@@ -117,15 +117,15 @@ let drive(
     let path = $"{i.dir}/drive.exp"
 
     match Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(script)) with
-    | Error e -> Stdlib.Result.Result.Error $"could not write {path}: {e}"
-    | Ok _ ->
+    | Error(e) -> Stdlib.Result.Result.Error($"could not write {path}: {e}")
+    | Ok(_) ->
       let outcome =
         Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"expect -f {path} 2>&1")
 
       if outcome.exitCode == 0 then
-        Stdlib.Result.Result.Ok outcome.stdout
+        Stdlib.Result.Result.Ok(outcome.stdout)
       else
-        Stdlib.Result.Result.Error outcome.stdout
+        Stdlib.Result.Result.Error(outcome.stdout)
 
 
 /// `drive`, as a test result.
@@ -136,7 +136,7 @@ let expectSteps(
   timeoutSeconds: Int)
   : Stdlib.Test.Result =
   match drive(i, args, steps, timeoutSeconds) with
-  | Ok _ -> Stdlib.Test.Result.Pass
-  | Error transcript ->
+  | Ok(_) -> Stdlib.Test.Result.Pass
+  | Error(transcript) ->
     let cmd = Stdlib.String.join(args, " ")
     Stdlib.Test.fail($"interactive `{cmd}` did not do what was asked:\n{transcript}")

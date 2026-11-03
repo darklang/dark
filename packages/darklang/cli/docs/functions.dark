@@ -26,7 +26,8 @@ let content(): String =
 
 ## Lambda
   fun x -> x + 1
-  fun (a, b) -> a + b
+  fun(acc, x) -> acc + x     # two parameters, like a call's arguments
+  fun((a, b)) -> a + b       # one tuple parameter, taken apart
 
 ## No partial application
   Stdlib.max(5)   # error: Darklang.Stdlib.max expects 2 arguments, but got 1 argument

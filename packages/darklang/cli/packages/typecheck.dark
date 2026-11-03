@@ -56,22 +56,22 @@ let locationsFor(
   reference: LanguageTools.ProgramTypes.Reference)
   : List<LanguageTools.ProgramTypes.PackageLocation> =
   match reference with
-  | PackageType hash -> LanguageTools.PackageManager.Type.locations(branchId, hash)
-  | PackageValue hash -> LanguageTools.PackageManager.Value.locations(branchId, hash)
-  | PackageFn hash -> LanguageTools.PackageManager.Function.locations(branchId, hash)
-  | PackageTrait hash -> LanguageTools.PackageManager.Trait.locations(branchId, hash)
-  | PackageTraitImpl hash -> LanguageTools.PackageManager.TraitImpl.locations(branchId, hash)
-  | PackageTest hash -> LanguageTools.PackageManager.Test.locations(branchId, hash)
+  | PackageType(hash) -> LanguageTools.PackageManager.Type.locations(branchId, hash)
+  | PackageValue(hash) -> LanguageTools.PackageManager.Value.locations(branchId, hash)
+  | PackageFn(hash) -> LanguageTools.PackageManager.Function.locations(branchId, hash)
+  | PackageTrait(hash) -> LanguageTools.PackageManager.Trait.locations(branchId, hash)
+  | PackageTraitImpl(hash) -> LanguageTools.PackageManager.TraitImpl.locations(branchId, hash)
+  | PackageTest(hash) -> LanguageTools.PackageManager.Test.locations(branchId, hash)
 
 let fallbackLabel(reference: LanguageTools.ProgramTypes.Reference): String =
   let kind =
     match reference with
-    | PackageType _ -> "type"
-    | PackageValue _ -> "value"
-    | PackageFn _ -> "function"
-    | PackageTrait _ -> "trait"
-    | PackageTraitImpl _ -> "impl"
-    | PackageTest _ -> "test"
+    | PackageType(_) -> "type"
+    | PackageValue(_) -> "value"
+    | PackageFn(_) -> "function"
+    | PackageTrait(_) -> "trait"
+    | PackageTraitImpl(_) -> "impl"
+    | PackageTest(_) -> "test"
   let hash =
     LanguageTools.ProgramTypes.hashToShort(LanguageTools.ProgramTypes.Reference.hash(reference))
   $"{kind} {hash}"
@@ -119,7 +119,7 @@ let counts(
   items
   |> Stdlib.List.fold(
        Counts { checkedCount = 0, failedCount = 0, incompleteCount = 0, unresolvedCount = 0 },
-       fun acc item ->
+       fun(acc, item) ->
          match (auditVerdict(item), item.verdict) with
          | (Checked, _) -> { acc with checkedCount = acc.checkedCount + 1 }
          | (Failed, Incomplete) ->
@@ -151,7 +151,7 @@ let listed(
   items
   |> Stdlib.List.filter(fun item -> shows(outputFilter, item))
   |> Stdlib.List.map(fun item -> (itemLabel(branchId, item.item), item))
-  |> Stdlib.List.sortBy(fun (label, _) -> label)
+  |> Stdlib.List.sortBy(fun((label, _)) -> label)
 
 let printItem(
   branchId: Uuid,
@@ -196,20 +196,20 @@ let jsonReport(
 
   let items =
     listed(branchId, outputFilter, report.items)
-    |> Stdlib.List.map(fun (label, item) ->
+    |> Stdlib.List.map(fun((label, item)) ->
       let issues =
         Stdlib.List.concat(
           AtRestCheck.issueLines(branchId, item.diagnostics),
           AtRestCheck.issueLines(branchId, item.warnings))
         |> Stdlib.List.map(fun l -> Stdlib.String.trim(l))
 
-      Stdlib.AltJson.Json.Object
-        [ ("name", Stdlib.AltJson.Json.String label)
+      Stdlib.AltJson.Json.Object(
+        [ ("name", Stdlib.AltJson.Json.String(label))
           ("verdict", Stdlib.AltJson.Json.String(verdictWord(auditVerdict(item))))
-          ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map(fun l -> Stdlib.AltJson.Json.String l))) ])
+          ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map(fun l -> Stdlib.AltJson.Json.String(l)))) ]))
 
   Stdlib.AltJson.format((
-    Stdlib.AltJson.Json.Object
+    Stdlib.AltJson.Json.Object(
       [ ("verdict",
          Stdlib.AltJson.Json.String(
            if totals.failedCount > 0 then "failed" else verdictWord(report.verdict)))
@@ -217,7 +217,7 @@ let jsonReport(
         ("failed", Stdlib.AltJson.Json.Integer(totals.failedCount))
         ("incomplete", Stdlib.AltJson.Json.Integer(totals.incompleteCount))
         ("total", Stdlib.AltJson.Json.Integer(total))
-        ("items", Stdlib.AltJson.Json.Array items) ]
+        ("items", Stdlib.AltJson.Json.Array(items)) ])
   ))
 
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
@@ -287,7 +287,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     Stdlib.printLine($"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}")
 
     listed(state.currentBranchId, parsed.outputFilter, report.items)
-    |> Stdlib.List.iter(fun (label, item) ->
+    |> Stdlib.List.iter(fun((label, item)) ->
       printItem(state.currentBranchId, parsed.outputFilter, label, item))
 
     if Stdlib.List.isEmpty(report.items) then

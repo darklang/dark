@@ -40,10 +40,10 @@ let router(req: Stdlib.Http.Request): Stdlib.Http.Response =
 
 let port(): Int =
   match Stdlib.Env.get("PERF_HTTP_PORT") with
-  | Some s ->
+  | Some(s) ->
     match Stdlib.Int.parse(s) with
-    | Ok n -> n
-    | Error _ -> 9095
+    | Ok(n) -> n
+    | Error(_) -> 9095
   | None -> 9095
 
 let main(): Int64 =
@@ -59,8 +59,8 @@ let main(): Int64 =
       router,
       fun () -> Stdlib.printLine("LISTENING"))
   with
-  | Ok _ -> 0L
-  | Error e ->
+  | Ok(_) -> 0L
+  | Error(e) ->
     Stdlib.printLine("serve failed: " + e)
     1L
 

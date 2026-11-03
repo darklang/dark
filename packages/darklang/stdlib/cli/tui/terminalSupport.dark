@@ -26,14 +26,14 @@ let evaluate(facts: Facts): Availability =
     |> Stdlib.String.toLowercase
 
   if Stdlib.Bool.not(facts.inputIsTerminal) then
-    Availability.Unavailable "standard input is not a terminal"
+    Availability.Unavailable("standard input is not a terminal")
   else if Stdlib.Bool.not(facts.outputIsTerminal) then
-    Availability.Unavailable "standard output is not a terminal"
+    Availability.Unavailable("standard output is not a terminal")
   else if terminalName == "" then
-    Availability.Unavailable "TERM is not set"
+    Availability.Unavailable("TERM is not set")
   else if terminalName == "dumb" || terminalName == "unknown" then
-    Availability.Unavailable
-      $"TERM={facts.terminalName} does not support an interactive terminal UI"
+    Availability.Unavailable(
+      $"TERM={facts.terminalName} does not support an interactive terminal UI")
   else
     Availability.Available
 
@@ -51,7 +51,7 @@ let currentFacts(): Facts =
 /// tests drive a TUI on CI's pty with scripted keys.
 let current(): Availability =
   if Stdlib.Cli.Env.isOn("DARK_NO_INPUT") then
-    Availability.Unavailable "nobody is at the keyboard (DARK_NO_INPUT or --no-input is set)"
+    Availability.Unavailable("nobody is at the keyboard (DARK_NO_INPUT or --no-input is set)")
   else
     evaluate(currentFacts())
 

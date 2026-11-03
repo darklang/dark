@@ -40,11 +40,11 @@ let parseRouteSegments(route: String): List<RouteSegment> =
     if String.isEmpty(seg) then
       Option.Option.None
     else if String.startsWith(seg, ":") then
-      Option.Option.Some(RouteSegment.Variable (String.dropFirst(seg, 1)))
+      Option.Option.Some(RouteSegment.Variable(String.dropFirst(seg, 1)))
     else if String.startsWith(seg, "*") then
-      Option.Option.Some(RouteSegment.Wildcard (String.dropFirst(seg, 1)))
+      Option.Option.Some(RouteSegment.Wildcard(String.dropFirst(seg, 1)))
     else
-      Option.Option.Some(RouteSegment.Literal seg))
+      Option.Option.Some(RouteSegment.Literal(seg)))
 
 
 /// Match a single route segment against a path segment
@@ -54,15 +54,15 @@ let matchSegment(
   remainingPath: List<String>)
   : Option.Option<List<String * String>> =
   match routeSeg with
-  | Literal expected ->
+  | Literal(expected) ->
     if expected == pathSeg then
-      Option.Option.Some []
+      Option.Option.Some([])
     else
       Option.Option.None
-  | Variable name -> Option.Option.Some [ (name, pathSeg) ]
-  | Wildcard name ->
+  | Variable(name) -> Option.Option.Some([ (name, pathSeg) ])
+  | Wildcard(name) ->
     let fullPath = String.join(List.prepend(remainingPath, pathSeg), "/")
-    Option.Option.Some [ (name, fullPath) ]
+    Option.Option.Some([ (name, fullPath) ])
 
 
 /// Match a request path against a route pattern
@@ -91,19 +91,19 @@ let matchRouteSegments(routeSegs: List<RouteSegment>, pathSegs: List<String>): R
     let result =
       zipped
       |> List.fold(
-        Option.Option.Some [],
-        fun acc pair ->
+        Option.Option.Some([]),
+        fun(acc, pair) ->
           match acc with
           | None -> Option.Option.None
-          | Some vars ->
+          | Some(vars) ->
             let (routeSeg, pathSeg) = pair
             match matchSegment(routeSeg, pathSeg, []) with
-            | Some newVars ->
-              Option.Option.Some (List.concat(vars, newVars))
+            | Some(newVars) ->
+              Option.Option.Some(List.concat(vars, newVars))
             | None -> Option.Option.None)
 
     match result with
-    | Some vars -> RouteMatch { matched = true, vars = vars }
+    | Some(vars) -> RouteMatch { matched = true, vars = vars }
     | None -> RouteMatch { matched = false, vars = [] }
 
 
@@ -133,9 +133,9 @@ let findHandler(
         false)
 
   match matchingHandler with
-  | Some h ->
+  | Some(h) ->
     let routeMatch = matchRouteSegments(parseRouteSegments(h.route), pathSegs)
-    Option.Option.Some ((h, routeMatch))
+    Option.Option.Some((h, routeMatch))
   | None -> Option.Option.None
 
 
@@ -162,7 +162,7 @@ let routeRequest(
   let path = getPath(req)
 
   match findHandler(handlers, method, path) with
-  | Some ((handler, _routeMatch)) -> handler.handler(req)
+  | Some((handler, _routeMatch)) -> handler.handler(req)
   | None -> Http.notFound()
 
 
@@ -181,11 +181,11 @@ let getPathParam(req: Http.Request, routePattern: String, paramName: String): Op
   |> List.findFirst(fun pair ->
     let (routeSeg, _) = pair
     match routeSeg with
-    | Variable name -> name == paramName
+    | Variable(name) -> name == paramName
     | _ -> false)
   |> fun result ->
     match result with
-    | Some ((_, pathValue)) -> Option.Option.Some pathValue
+    | Some((_, pathValue)) -> Option.Option.Some(pathValue)
     | None -> Option.Option.None
 
 

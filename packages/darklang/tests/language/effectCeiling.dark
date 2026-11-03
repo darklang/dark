@@ -22,7 +22,7 @@ module Ceiling =
     Stdlib.List.map(xs, fun x -> x + 1L)
 
   let folded(xs: List<Int64>):{} Int64 =
-    Stdlib.List.fold(xs, 0L, fun acc x -> acc + x)
+    Stdlib.List.fold(xs, 0L, fun(acc, x) -> acc + x)
 
   let streamed(xs: List<Int64>):{} List<Int64> =
     Stdlib.Stream.toList(

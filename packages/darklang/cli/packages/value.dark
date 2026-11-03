@@ -40,7 +40,7 @@ let createValueInline(
   state: Cli.AppState)
   : Cli.AppState =
   match Location.parseRelativeTo(currentLocation, locationStr) with
-  | Ok location ->
+  | Ok(location) ->
     let fullSource = $"val {location.name} = {expression}"
 
     // Parse the value definition with the unified (ranged) parser
@@ -48,7 +48,7 @@ let createValueInline(
       LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
 
     match tree with
-    | Some(SourceFile sourceFile) ->
+    | Some(SourceFile(sourceFile)) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
         (Errors.reportParseErrors(diagnostics))
@@ -60,11 +60,11 @@ let createValueInline(
           sourceFile.declarations
           |> Stdlib.List.findFirst(fun d ->
             match d with
-            | Value _ -> true
+            | Value(_) -> true
             | _ -> false)
 
       match found with
-      | Some(Value writtenValue) ->
+      | Some(Value(writtenValue)) ->
         Packages.saveAuthored(
           state,
           location,
@@ -78,8 +78,8 @@ let createValueInline(
                 writtenValue)
 
             let ops =
-              [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue packageValue.hash, Stdlib.Option.Option.None) ]
+              [ LanguageTools.ProgramTypes.PackageOp.AddValue(packageValue)
+                LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageValue(packageValue.hash), Stdlib.Option.Option.None) ]
 
             Stdlib.Option.Option.Some((ops, packageValue.hash, unresolvedNames)))
 
@@ -108,7 +108,7 @@ let createValueInline(
         ""
       ] |> Cli.Stderr.lines
       Cli.exitWith(state, false)
-  | Error msg ->
+  | Error(msg) ->
     Cli.printErr($"Invalid location: {msg}")
     Cli.exitWith(state, false)
 

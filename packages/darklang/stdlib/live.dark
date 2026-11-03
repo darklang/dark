@@ -107,12 +107,12 @@ let watch(branchId: Uuid): Watch =
 
 let kindOf(target: LanguageTools.ProgramTypes.Reference): LanguageTools.ProgramTypes.ItemKind =
   match target with
-  | PackageType _ -> LanguageTools.ProgramTypes.ItemKind.Type
-  | PackageValue _ -> LanguageTools.ProgramTypes.ItemKind.Value
-  | PackageFn _ -> LanguageTools.ProgramTypes.ItemKind.Fn
-  | PackageTrait _ -> LanguageTools.ProgramTypes.ItemKind.Trait
-  | PackageTraitImpl _ -> LanguageTools.ProgramTypes.ItemKind.TraitImpl
-  | PackageTest _ -> LanguageTools.ProgramTypes.ItemKind.Test
+  | PackageType(_) -> LanguageTools.ProgramTypes.ItemKind.Type
+  | PackageValue(_) -> LanguageTools.ProgramTypes.ItemKind.Value
+  | PackageFn(_) -> LanguageTools.ProgramTypes.ItemKind.Fn
+  | PackageTrait(_) -> LanguageTools.ProgramTypes.ItemKind.Trait
+  | PackageTraitImpl(_) -> LanguageTools.ProgramTypes.ItemKind.TraitImpl
+  | PackageTest(_) -> LanguageTools.ProgramTypes.ItemKind.Test
 
 /// The names an op binds or unbinds, if it does one of those.
 let touchedBy(op: LanguageTools.ProgramTypes.PackageOp): List<Touched> =
@@ -128,7 +128,7 @@ let touchedBy(op: LanguageTools.ProgramTypes.PackageOp): List<Touched> =
       Touched { location = location, kind = LanguageTools.ProgramTypes.ItemKind.TraitImpl } ]
   // A name put back on a version it held before: content-addressed, a second `SetName` would be the
   // op that already exists, so the revert is a decision. It binds the name all the same.
-  | Decision(_id, location, _reason, Override target) ->
+  | Decision(_id, location, _reason, Override(target)) ->
     [ Touched { location = location, kind = kindOf(target) } ]
   | _ -> []
 
@@ -194,7 +194,7 @@ let poll(w: Watch): (Watch * Stdlib.Option.Option<Change>) =
             landed
             |> Stdlib.List.map(fun s ->
               match s.op with
-              | Some op -> touchedBy(op)
+              | Some(op) -> touchedBy(op)
               | None -> [])
             |> Stdlib.List.flatten
             |> dedupeTouched
@@ -211,7 +211,7 @@ let poll(w: Watch): (Watch * Stdlib.Option.Option<Change>) =
             reported = reported
             shown = Stdlib.LocalStore.configGet(showKey) }
 
-      (next, Stdlib.Option.Option.Some change)
+      (next, Stdlib.Option.Option.Some(change))
 
 
 // --- does it touch what I'm showing ---
@@ -321,13 +321,13 @@ let calleeDeclarations(
     match kind with
     | "fn" ->
       LanguageTools.PackageManager.Function.get(h)
-      |> Stdlib.Option.map(fun f -> LanguageTools.ProgramTypes.PackageOp.AddFn f)
+      |> Stdlib.Option.map(fun f -> LanguageTools.ProgramTypes.PackageOp.AddFn(f))
     | "value" ->
       LanguageTools.PackageManager.Value.get(h)
-      |> Stdlib.Option.map(fun v -> LanguageTools.ProgramTypes.PackageOp.AddValue v)
+      |> Stdlib.Option.map(fun v -> LanguageTools.ProgramTypes.PackageOp.AddValue(v))
     | "type" ->
       LanguageTools.PackageManager.Type.get(h)
-      |> Stdlib.Option.map(fun t -> LanguageTools.ProgramTypes.PackageOp.AddType t)
+      |> Stdlib.Option.map(fun t -> LanguageTools.ProgramTypes.PackageOp.AddType(t))
     | _ -> Stdlib.Option.Option.None
 
   let walk(
@@ -345,7 +345,7 @@ let calleeDeclarations(
       else
         let found =
           match declarationOf(h, kind) with
-          | Some op -> Stdlib.List.prepend(found, op)
+          | Some(op) -> Stdlib.List.prepend(found, op)
           | None -> found
 
         // Only a fn's own edges lead further: a value's or a type's are in its declaration.
@@ -368,9 +368,9 @@ let calleeDeclarations(
 let refresh(branchId: Uuid, lg: LastGood): LastGood =
   match LanguageTools.PackageManager.Function.find(branchId, lg.entry) with
   | None ->
-    { lg with problem = Stdlib.Option.Option.Some $"no function named {entryName(lg.entry)}" }
-  | Some newest ->
-    let moved = lg.hash != (Stdlib.Option.Option.Some newest)
+    { lg with problem = Stdlib.Option.Option.Some($"no function named {entryName(lg.entry)}") }
+  | Some(newest) ->
+    let moved = lg.hash != (Stdlib.Option.Option.Some(newest))
 
     if Stdlib.Bool.not(moved) then
       { lg with report = Stdlib.Option.Option.None, problem = Stdlib.Option.Option.None }
@@ -379,35 +379,35 @@ let refresh(branchId: Uuid, lg: LastGood): LastGood =
       | None ->
         { lg with
             problem =
-              Stdlib.Option.Option.Some
-                $"{entryName(lg.entry)} points at a version the store does not have" }
-      | Some fn ->
+              Stdlib.Option.Option.Some(
+                $"{entryName(lg.entry)} points at a version the store does not have") }
+      | Some(fn) ->
         let candidates =
-          Stdlib.List.prepend(calleeDeclarations(newest), LanguageTools.ProgramTypes.PackageOp.AddFn fn)
+          Stdlib.List.prepend(calleeDeclarations(newest), LanguageTools.ProgramTypes.PackageOp.AddFn(fn))
 
         let report = LanguageTools.AtRestTypeChecker.checkPackageOps(candidates)
 
         match report.verdict with
         | Failed ->
           { lg with
-              report = Stdlib.Option.Option.Some report
+              report = Stdlib.Option.Option.Some(report)
               problem = Stdlib.Option.Option.None }
         | _ ->
           LastGood
             { entry = lg.entry
-              hash = Stdlib.Option.Option.Some newest
+              hash = Stdlib.Option.Option.Some(newest)
               report = Stdlib.Option.Option.None
               problem = Stdlib.Option.Option.None }
 
 /// A callable for the version `lg` is on. `Error` when nothing usable has been found yet.
 let applicable(lg: LastGood): Stdlib.Result.Result<'f, String> =
   match lg.hash with
-  | Some hash -> Builtin.applicableByHash(LanguageTools.ProgramTypes.hashToString(hash))
+  | Some(hash) -> Builtin.applicableByHash(LanguageTools.ProgramTypes.hashToString(hash))
   | None ->
     match lg.problem with
-    | Some problem -> Stdlib.Result.Result.Error problem
+    | Some(problem) -> Stdlib.Result.Result.Error(problem)
     | None ->
-      Stdlib.Result.Result.Error $"{entryName(lg.entry)} has no version that type-checks"
+      Stdlib.Result.Result.Error($"{entryName(lg.entry)} has no version that type-checks")
 
 /// Resolve a dotted fn name to a callable, as it is bound right now. The startup check for a host
 /// that takes a name on the command line: a name that resolves to nothing is reported before
@@ -439,7 +439,7 @@ let locationOfName(
 let issueText(issue: LanguageTools.AtRestTypeChecker.Issue): String =
   let site =
     match issue.context with
-    | At site ->
+    | At(site) ->
       match LanguageTools.AtRestTypeChecker.siteToString(site) with
       | "the function's return value" -> "return value"
       | "the lambda's return value" -> "the lambda's return value"
@@ -450,17 +450,16 @@ let issueText(issue: LanguageTools.AtRestTypeChecker.Issue): String =
 
   let detail =
     match (issue.expected, issue.actual) with
-    | (Some expected, Some actual) ->
-      Stdlib.Option.Option.Some
-        ("expected "
+    | (Some(expected), Some(actual)) ->
+      Stdlib.Option.Option.Some("expected "
          + (LanguageTools.AtRestTypeChecker.staticTypeToString(expected))
          + ", got "
          + (LanguageTools.AtRestTypeChecker.staticTypeToString(actual)))
     | _ -> Stdlib.Option.Option.None
 
   match (detail, site) with
-  | (Some d, "") -> d
-  | (Some d, s) -> $"{d} ({s})"
+  | (Some(d), "") -> d
+  | (Some(d), s) -> $"{d} ({s})"
   | (None, _) -> LanguageTools.AtRestTypeChecker.issueToString(issue)
 
 /// The report's first issue as text, and how many more there are.
@@ -479,12 +478,12 @@ let reportText(report: LanguageTools.AtRestTypeChecker.Report): String =
 /// One line for a band or a log: why the host is not on the newest version, if it is not.
 let diagnostic(lg: LastGood): Stdlib.Option.Option<String> =
   match lg.problem with
-  | Some problem -> Stdlib.Option.Option.Some problem
+  | Some(problem) -> Stdlib.Option.Option.Some(problem)
   | None ->
     match lg.report with
-    | Some report ->
-      Stdlib.Option.Option.Some
-        $"{entryName(lg.entry)}: still on the last good version; the newest has a type error: {reportText(report)}"
+    | Some(report) ->
+      Stdlib.Option.Option.Some(
+        $"{entryName(lg.entry)}: still on the last good version; the newest has a type error: {reportText(report)}")
     | None -> Stdlib.Option.Option.None
 
 
@@ -495,10 +494,10 @@ let transition(before: LastGood, after: LastGood): Stdlib.Option.Option<String> 
   let was = diagnostic(before)
   let now = diagnostic(after)
   match now with
-  | Some why -> if now != was then Stdlib.Option.Option.Some why else Stdlib.Option.Option.None
+  | Some(why) -> if now != was then Stdlib.Option.Option.Some(why) else Stdlib.Option.Option.None
   | None ->
     if (after.hash != before.hash) || (Stdlib.Option.isSome(was)) then
-      Stdlib.Option.Option.Some $"now on the new version of {entryName(after.entry)}"
+      Stdlib.Option.Option.Some($"now on the new version of {entryName(after.entry)}")
     else
       Stdlib.Option.Option.None
 
@@ -526,12 +525,12 @@ module Router =
 
     match change with
     | None -> ({ s with watch = watch }, applicable(s.lastGood))
-    | Some change ->
+    | Some(change) ->
       if affects(change, s.lastGood.entry) then
         let lg = refresh(watch.branchId, s.lastGood)
 
         match transition(s.lastGood, lg) with
-        | Some line -> Stdlib.printErrorLine($"[live] {line}")
+        | Some(line) -> Stdlib.printErrorLine($"[live] {line}")
         | None -> ()
 
         (State { watch = watch, lastGood = lg }, applicable(lg))
@@ -571,15 +570,15 @@ let apply(f: 'a -> 'b, arg: 'a): Stdlib.Result.Result<'b, String> =
 /// that keeps the last good frame with the error under it cannot let user code unwind its loop.
 let call(lg: LastGood, arg: 'a): Stdlib.Result.Result<'b, String> =
   match applicable(lg) with
-  | Ok f -> apply(f, arg)
-  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(f) -> apply(f, arg)
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 /// `call` for a fn of two parameters, such as a view's `update(model, event)`. There is no
 /// partial application, so the call is made whole inside a lambda that `apply` runs.
 let call2(lg: LastGood, first: 'a, second: 'b): Stdlib.Result.Result<'c, String> =
   match applicable(lg) with
-  | Ok f -> apply(fun () -> f(first, second), ())
-  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(f) -> apply(fun () -> f(first, second), ())
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 // --- observing a view without a terminal ---
@@ -605,12 +604,12 @@ let versionsNewestFirst(
   : List<LanguageTools.ProgramTypes.Hash> =
   let current =
     match LanguageTools.PackageManager.Function.find(branchId, loc) with
-    | Some h -> [ LanguageTools.ProgramTypes.hashToString(h) ]
+    | Some(h) -> [ LanguageTools.ProgramTypes.hashToString(h) ]
     | None -> []
 
   Stdlib.List.concat(current, Stdlib.List.reverse(SCM.Propagation.authoringOrder(loc)))
   |> Stdlib.List.unique
-  |> Stdlib.List.map(fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
+  |> Stdlib.List.map(fun h -> LanguageTools.ProgramTypes.Hash.Hash(h))
 
 /// Whether <param hash> passes its at-rest checks with everything it calls. `None` when it does;
 /// the report when it does not.
@@ -619,13 +618,13 @@ let atRestFailure(
   : Stdlib.Option.Option<LanguageTools.AtRestTypeChecker.Report> =
   match LanguageTools.PackageManager.Function.get(hash) with
   | None -> Stdlib.Option.Option.None
-  | Some fn ->
+  | Some(fn) ->
     let report =
       LanguageTools.AtRestTypeChecker.checkPackageOps(
-        Stdlib.List.prepend(calleeDeclarations(hash), LanguageTools.ProgramTypes.PackageOp.AddFn fn))
+        Stdlib.List.prepend(calleeDeclarations(hash), LanguageTools.ProgramTypes.PackageOp.AddFn(fn)))
 
     match report.verdict with
-    | Failed -> Stdlib.Option.Option.Some report
+    | Failed -> Stdlib.Option.Option.Some(report)
     | _ -> Stdlib.Option.Option.None
 
 /// The view at <param view> (a module with `init` and `render`), rendered headless. Each of the
@@ -653,22 +652,22 @@ let observe(branchId: Uuid, view: LanguageTools.ProgramTypes.PackageLocation): O
     let checked = versions |> Stdlib.List.map(fun h -> (h, atRestFailure(h)))
     let newestReport =
       match checked with
-      | [(_, Some report), ...] -> Stdlib.Option.Option.Some report
+      | [(_, Some(report)), ...] -> Stdlib.Option.Option.Some(report)
       | _ -> Stdlib.Option.Option.None
     let passing =
       checked
       |> Stdlib.List.filterMap(fun pair ->
         let (h, failure) = pair
         match failure with
-        | None -> Stdlib.Option.Option.Some h
-        | Some _ -> Stdlib.Option.Option.None)
+        | None -> Stdlib.Option.Option.Some(h)
+        | Some(_) -> Stdlib.Option.Option.None)
     (newestReport, passing)
 
   let callAt(hash: LanguageTools.ProgramTypes.Hash, arg: 'a): Stdlib.Result.Result<'b, String> =
     call(
       (LastGood
         { entry = view
-          hash = Stdlib.Option.Option.Some hash
+          hash = Stdlib.Option.Option.Some(hash)
           report = Stdlib.Option.Option.None
           problem = Stdlib.Option.Option.None }),
       arg)
@@ -677,7 +676,7 @@ let observe(branchId: Uuid, view: LanguageTools.ProgramTypes.PackageLocation): O
   let (renderReport, renderVersions) = survey(inView("render"))
   let report =
     match renderReport with
-    | Some r -> Stdlib.Option.Option.Some r
+    | Some(r) -> Stdlib.Option.Option.Some(r)
     | None -> initReport
 
   // The first version that runs, and the first error if none did.
@@ -687,18 +686,18 @@ let observe(branchId: Uuid, view: LanguageTools.ProgramTypes.PackageLocation): O
     who: String)
     : (Stdlib.Option.Option<'a> * Stdlib.Option.Option<String>) =
     versions
-    |> Stdlib.List.fold((Stdlib.Option.Option.None, Stdlib.Option.Option.None), fun acc h ->
+    |> Stdlib.List.fold((Stdlib.Option.Option.None, Stdlib.Option.Option.None), fun(acc, h) ->
       let (found, firstRte) = acc
       match found with
-      | Some _ -> acc
+      | Some(_) -> acc
       | None ->
         match call(h) with
-        | Ok v -> (Stdlib.Option.Option.Some v, firstRte)
-        | Error e ->
+        | Ok(v) -> (Stdlib.Option.Option.Some(v), firstRte)
+        | Error(e) ->
           (Stdlib.Option.Option.None,
            (match firstRte with
-            | Some _ -> firstRte
-            | None -> Stdlib.Option.Option.Some $"{who}: {e}")))
+            | Some(_) -> firstRte
+            | None -> Stdlib.Option.Option.Some($"{who}: {e}"))))
 
   // The model from the newest init that runs; its error if the newest one raised.
   let (model, initRte) =
@@ -708,10 +707,10 @@ let observe(branchId: Uuid, view: LanguageTools.ProgramTypes.PackageLocation): O
   | None ->
     let rte =
       match initRte with
-      | Some e -> Stdlib.Option.Option.Some e
-      | None -> Stdlib.Option.Option.Some $"{entryName(inView("init"))} has no version that type-checks"
+      | Some(e) -> Stdlib.Option.Option.Some(e)
+      | None -> Stdlib.Option.Option.Some($"{entryName(inView("init"))} has no version that type-checks")
     Observation { report = report, render = "", rte = rte }
-  | Some m ->
+  | Some(m) ->
     let (picture, renderRte) =
       firstThatRuns(
         renderVersions,
@@ -720,11 +719,11 @@ let observe(branchId: Uuid, view: LanguageTools.ProgramTypes.PackageLocation): O
 
     let rte =
       match renderRte with
-      | Some e -> Stdlib.Option.Option.Some e
+      | Some(e) -> Stdlib.Option.Option.Some(e)
       | None ->
         match (picture, renderVersions) with
         | (None, []) ->
-          Stdlib.Option.Option.Some $"{entryName(inView("render"))} has no version that type-checks"
+          Stdlib.Option.Option.Some($"{entryName(inView("render"))} has no version that type-checks")
         | _ -> Stdlib.Option.Option.None
 
     Observation
@@ -798,7 +797,7 @@ module Values =
           Values
             { byExpr = Stdlib.Dict.empty
               problem = Stdlib.Option.Option.None
-              skipped = Stdlib.Option.Option.Some why }
+              skipped = Stdlib.Option.Option.Some(why) }
         )
       else
       let (collected, stop) = Darklang.Tracing.Store.viewTrace(accountID, branchId, newest.id)
@@ -812,7 +811,7 @@ module Values =
           let (message, why) = Darklang.Tracing.Format.replayStop(branchId, stop)
 
           match why with
-          | Some why -> $"{why}: {message}"
+          | Some(why) -> $"{why}: {message}"
           | None -> message)
 
       let byExpr =

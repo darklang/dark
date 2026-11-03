@@ -11,24 +11,24 @@ module Darklang.Stdlib.Sqlite.Tests
 // test's reads happen before the file is gone.
 let finish(db: String, result: Stdlib.Test.Result): Stdlib.Test.Result =
   match Stdlib.Cli.File.delete(db) with
-  | Ok _ -> result
-  | Error error ->
+  | Ok(_) -> result
+  | Error(error) ->
     Stdlib.Test.all([ result, Stdlib.Test.fail(error.message) ])
 
 // Give each test a fresh temporary database file and delete it afterwards.
 let withDatabase(run: String -> Stdlib.Test.Result): Stdlib.Test.Result =
   match Stdlib.Cli.File.createTemp() with
-  | Error error -> Stdlib.Test.fail(error.message)
-  | Ok db -> finish(db, run(db))
+  | Error(error) -> Stdlib.Test.fail(error.message)
+  | Ok(db) -> finish(db, run(db))
 
 // Cleanup must preserve a failing test's result.
 test cleansUpAfterAssertionFailure =
   match Stdlib.Cli.File.createTemp() with
-  | Error error -> Stdlib.Test.fail(error.message)
-  | Ok db ->
+  | Error(error) -> Stdlib.Test.fail(error.message)
+  | Ok(db) ->
     match finish(db, Stdlib.Test.fail("intentional failure")) with
     | Pass -> Stdlib.Test.fail("cleanup swallowed the assertion failure")
-    | Fail messages ->
+    | Fail(messages) ->
       Stdlib.Test.all(
         [ messages |> Stdlib.Test.equal([ "intentional failure" ])
           Stdlib.Cli.File.exists(db) |> Stdlib.Test.equal(false) ])
@@ -68,19 +68,19 @@ test bytesRoundTrip =
         [ "1", "hi" ])
 
     (match Stdlib.Sqlite.query(db, "SELECT CAST(name AS BLOB) AS b FROM t") with
-    | Ok [ row ] ->
+    | Ok([ row ]) ->
       match Stdlib.Dict.get(row, "b") with
-      | Some v ->
+      | Some(v) ->
         Stdlib.Sqlite.asBytes(v)
         |> Stdlib.Option.map(fun b ->
           Stdlib.Utf8.decodeWithReplacement(b))
       | None -> None
     | _ -> None)
-    |> Stdlib.Test.equal(Some "hi"))
+    |> Stdlib.Test.equal(Some("hi")))
 
 // A TEXT cell is not a blob, and asking for one says so rather than coercing.
 test textIsNotBytes =
-  Stdlib.Sqlite.asBytes(Stdlib.Sqlite.Value.Text "hi") |> Stdlib.Test.equal(None)
+  Stdlib.Sqlite.asBytes(Stdlib.Sqlite.Value.Text("hi")) |> Stdlib.Test.equal(None)
 
 // UPDATE + DELETE — final state after renaming id=1 and removing id=2 is just
 // ["updated"].
@@ -145,9 +145,9 @@ test queryOneRow =
         [ "2", "bob" ])
     (match Stdlib.Sqlite.queryOneP(db,
              "SELECT id, name FROM t WHERE id = @p0", [ "2" ]) with
-    | Some r -> (Stdlib.Sqlite.textField(r, "name"), Stdlib.Sqlite.intField(r, "id"))
+    | Some(r) -> (Stdlib.Sqlite.textField(r, "name"), Stdlib.Sqlite.intField(r, "id"))
     | None -> (None, None))
-    |> Stdlib.Test.equal((Some "bob", Some 2L)))
+    |> Stdlib.Test.equal((Some("bob"), Some(2L))))
 
 // execBatch — several statements in ONE transaction, one statement run per parameter
 // row.

@@ -58,7 +58,7 @@ let overlay(existing: List<Segment>, next: Segment): List<Segment> =
     |> Stdlib.List.filterMap(fun seg ->
       let segEnd = seg.col + seg.width
       if segEnd <= next.col || seg.col >= nextEnd then
-        Stdlib.Option.Option.Some seg
+        Stdlib.Option.Option.Some(seg)
       else if seg.col < next.col then
         let keepWidth = next.col - seg.col
         Stdlib.Option.Option.Some(
@@ -77,7 +77,7 @@ let overlay(existing: List<Segment>, next: Segment): List<Segment> =
 let renderSegments(width: Int, segments: List<Segment>): String =
   let (text, _endCol) =
     segments
-    |> Stdlib.List.fold(("", 0), fun acc seg ->
+    |> Stdlib.List.fold(("", 0), fun(acc, seg) ->
       let (out, col) = acc
       if seg.col >= width then
         acc
@@ -123,7 +123,7 @@ let composeRow(width: Int, rowSpans: List<Layout.Span>): String =
   // agree by construction: `overlay`'s no-overlap branch is this append.
   let (placed, ordered, _lastCol, _rightmost) =
     rowSpans
-    |> Stdlib.List.fold(([], true, -1, 0), fun acc span ->
+    |> Stdlib.List.fold(([], true, -1, 0), fun(acc, span) ->
       let (segs, orderedSoFar, lastCol, rightmost) = acc
       let w = Tui.Text.styledWidth(span.text)
 
@@ -162,7 +162,7 @@ let compose(width: Int, height: Int, spans: List<Layout.Span>): List<String> =
   else
     let byRow =
       spans
-      |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc span ->
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, span) ->
         if span.row < 0 || span.row >= h then
           acc
         else
@@ -171,7 +171,7 @@ let compose(width: Int, height: Int, spans: List<Layout.Span>): List<String> =
           // sits; everywhere else `withDefault` reads better and costs nothing that matters.
           let existing =
             match Stdlib.Dict.get(acc, span.row) with
-            | Some existing -> existing
+            | Some(existing) -> existing
             | None -> []
 
           Stdlib.Dict.set(acc, span.row, Stdlib.List.append(existing, span)))
@@ -182,7 +182,7 @@ let compose(width: Int, height: Int, spans: List<Layout.Span>): List<String> =
       // An untouched row is empty rather than `width` spaces: the renderer erases each row it writes, so
       // blanks cost nothing, and an empty string compares equal frame to frame.
       | None -> ""
-      | Some rowSpans -> composeRow(w, rowSpans))
+      | Some(rowSpans) -> composeRow(w, rowSpans))
 
 
 /// Compose spans into a full-screen `Tui.View`.

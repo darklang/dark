@@ -69,57 +69,57 @@ test responseBuilders =
   Stdlib.Test.all(
     [ Stdlib.Http.badRequest("Your request resulted in an error")
       |> responseView
-      |> Stdlib.Test.equal((400, [], Ok "Your request resulted in an error"))
+      |> Stdlib.Test.equal((400, [], Ok("Your request resulted in an error")))
       Stdlib.Http.response(Stdlib.Utf8.encode("test"), 200)
       |> responseView
-      |> Stdlib.Test.equal((200, [], Ok "test"))
+      |> Stdlib.Test.equal((200, [], Ok("test")))
       Stdlib.Http.responseWithHeaders(
         Stdlib.Utf8.encode("test"),
         [ ("Content-Type", "text/html; charset=utf-8") ],
         200)
       |> responseView
       |> Stdlib.Test.equal(
-        (200, [ ("Content-Type", "text/html; charset=utf-8") ], Ok "test"))
+        (200, [ ("Content-Type", "text/html; charset=utf-8") ], Ok("test")))
       Stdlib.Http.notFound()
       |> responseView
-      |> Stdlib.Test.equal((404, [], Ok ""))
+      |> Stdlib.Test.equal((404, [], Ok("")))
       Stdlib.Http.unauthorized()
       |> responseView
-      |> Stdlib.Test.equal((401, [], Ok ""))
+      |> Stdlib.Test.equal((401, [], Ok("")))
       Stdlib.Http.forbidden()
       |> responseView
-      |> Stdlib.Test.equal((403, [], Ok ""))
+      |> Stdlib.Test.equal((403, [], Ok("")))
       Stdlib.Http.success(Stdlib.Utf8.encode("test"))
       |> responseView
-      |> Stdlib.Test.equal((200, [], Ok "test"))
+      |> Stdlib.Test.equal((200, [], Ok("test")))
       Stdlib.Http.responseWithHtml("test", 200)
       |> responseView
       |> Stdlib.Test.equal(
-        (200, [ ("Content-Type", "text/html; charset=utf-8") ], Ok "test"))
+        (200, [ ("Content-Type", "text/html; charset=utf-8") ], Ok("test")))
       Stdlib.Http.responseWithText("test", 200)
       |> responseView
       |> Stdlib.Test.equal(
-        (200, [ ("Content-Type", "text/plain; charset=utf-8") ], Ok "test"))
+        (200, [ ("Content-Type", "text/plain; charset=utf-8") ], Ok("test")))
       Stdlib.Http.responseWithJson("test", 200)
       |> responseView
       |> Stdlib.Test.equal(
-        (200, [ ("Content-Type", "application/json") ], Ok "test")) ])
+        (200, [ ("Content-Type", "application/json") ], Ok("test"))) ])
 
 test redirectTo =
   Stdlib.Test.all(
     [ Stdlib.Http.redirectTo("")
       |> responseView
-      |> Stdlib.Test.equal((302, [ ("Location", "") ], Ok ""))
+      |> Stdlib.Test.equal((302, [ ("Location", "") ], Ok("")))
       Stdlib.Http.redirectTo("bad url")
       |> responseView
-      |> Stdlib.Test.equal((302, [ ("Location", "bad url") ], Ok ""))
+      |> Stdlib.Test.equal((302, [ ("Location", "bad url") ], Ok("")))
       Stdlib.Http.redirectTo("http://someothersite.com")
       |> responseView
       |> Stdlib.Test.equal(
-        (302, [ ("Location", "http://someothersite.com") ], Ok ""))
+        (302, [ ("Location", "http://someothersite.com") ], Ok("")))
       Stdlib.Http.redirectTo("/relativeUrl")
       |> responseView
-      |> Stdlib.Test.equal((302, [ ("Location", "/relativeUrl") ], Ok "")) ])
+      |> Stdlib.Test.equal((302, [ ("Location", "/relativeUrl") ], Ok(""))) ])
 
 // parseQueryString: ports the old _middleware.dark fixture.
 test parseQueryString =
@@ -189,7 +189,7 @@ test queryParams =
       // A field splits at its FIRST `=` only, so a value may hold one: base64
       // padding and a nested query string both do.
       Stdlib.Http.Request.queryParam(request("/s?q=a=b", []), "q")
-      |> Stdlib.Test.equal(Some "a=b")
+      |> Stdlib.Test.equal(Some("a=b"))
       // Only the first `?` separates the query string; a later one is part of a
       // value.
       Stdlib.Http.Request.queryParams(request("/s?a=1?b=2", []))
@@ -202,7 +202,7 @@ test queryParams =
       // Same for an encoded `=`: it belongs to the value, not to the key/value
       // split.
       Stdlib.Http.Request.queryParam(request("/s?q=a%3Db", []), "q")
-      |> Stdlib.Test.equal(Some "a=b")
+      |> Stdlib.Test.equal(Some("a=b"))
       // A client may send `[`, `]` or `|` unescaped; they are read, not refused.
       Stdlib.Http.Request.queryParams(
         request("http://localhost:9000/s?a[]=1&b=x|y", []))
@@ -225,11 +225,11 @@ test requestHeader =
       Stdlib.Http.Request.header(
         request("/", [ ("Authorization", "Bearer t") ]),
         "authorization")
-      |> Stdlib.Test.equal(Some "Bearer t")
+      |> Stdlib.Test.equal(Some("Bearer t"))
       Stdlib.Http.Request.header(
         request("/", [ ("authorization", "Bearer t") ]),
         "AUTHORIZATION")
-      |> Stdlib.Test.equal(Some "Bearer t")
+      |> Stdlib.Test.equal(Some("Bearer t"))
       Stdlib.Http.Request.header(
         request("/", [ ("X-Thing", "v") ]),
         "x-other")
@@ -239,7 +239,7 @@ test requestHeader =
       Stdlib.Http.Request.header(
         request("/", [ ("Accept", "one"), ("accept", "two") ]),
         "Accept")
-      |> Stdlib.Test.equal(Some "one") ])
+      |> Stdlib.Test.equal(Some("one")) ])
 
 test parseHeaders =
   Stdlib.Test.all(

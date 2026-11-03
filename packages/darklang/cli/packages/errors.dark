@@ -47,9 +47,8 @@ let stdlibSuggestion(
             modules = Stdlib.List.prepend(modules, "Stdlib")
             name = name }
       match LanguageTools.PackageManager.findAny(branchId, location) with
-      | Some _ ->
-        Stdlib.Option.Option.Some
-          ("Stdlib." + (Stdlib.String.join(originalName, ".")))
+      | Some(_) ->
+        Stdlib.Option.Option.Some("Stdlib." + (Stdlib.String.join(originalName, ".")))
       | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None
 
@@ -96,7 +95,7 @@ let unresolvedNamesText(
       * LanguageTools.ProgramTypes.NameResolutionError>)
   : String =
   unresolvedNames
-  |> Stdlib.List.map(fun (range, originalName, _err) ->
+  |> Stdlib.List.map(fun((range, originalName, _err)) ->
     let lineNum = (range.start.row + 1) |> Stdlib.toString
     $"{Stdlib.String.join(originalName, ".")} (line {lineNum})")
   |> Stdlib.String.join(", ")
@@ -115,14 +114,14 @@ let reportUnresolvedNames(
   : Bool =
   let invalidNames =
     unresolvedNames
-    |> Stdlib.List.filter(fun (_, _, err) ->
+    |> Stdlib.List.filter(fun((_, _, err)) ->
       match err with
       | InvalidName -> true
       | NotFound -> false)
 
   let notFoundNames =
     unresolvedNames
-    |> Stdlib.List.filter(fun (_, _, err) ->
+    |> Stdlib.List.filter(fun((_, _, err)) ->
       match err with
       | NotFound -> true
       | InvalidName -> false)
@@ -134,14 +133,14 @@ let reportUnresolvedNames(
         "Warning: Unresolved references (will resolve when dependencies are added)")))
 
     notFoundNames
-    |> Stdlib.List.iter(fun (range, originalName, _err) ->
+    |> Stdlib.List.iter(fun((range, originalName, _err)) ->
       let lineNum = (range.start.row + 1) |> Stdlib.toString
       let colNum = range.start.column |> Stdlib.toString
       let nameStr = Stdlib.String.join(originalName, ".")
 
       let suggestion =
         match stdlibSuggestion(branchId, originalName) with
-        | Some name -> $" Did you mean `{name}`?"
+        | Some(name) -> $" Did you mean `{name}`?"
         | None -> ""
 
       let message =
@@ -155,7 +154,7 @@ let reportUnresolvedNames(
     Cli.printErr("Error: Invalid names")
 
     invalidNames
-    |> Stdlib.List.iter(fun (range, originalName, _err) ->
+    |> Stdlib.List.iter(fun((range, originalName, _err)) ->
       let lineNum = (range.start.row + 1) |> Stdlib.toString
       let colNum = range.start.column |> Stdlib.toString
       let nameStr = Stdlib.String.join(originalName, ".")

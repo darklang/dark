@@ -150,11 +150,11 @@ test isASCII =
 
 test toAsciiCode =
   Stdlib.Test.all(
-    [ Stdlib.Char.toAsciiCode('a') |> Stdlib.Test.equal(Some 97)
-      Stdlib.Char.toAsciiCode('A') |> Stdlib.Test.equal(Some 65)
+    [ Stdlib.Char.toAsciiCode('a') |> Stdlib.Test.equal(Some(97))
+      Stdlib.Char.toAsciiCode('A') |> Stdlib.Test.equal(Some(65))
       Stdlib.Char.toAsciiCode('á') |> Stdlib.Test.equal(None)
       Stdlib.Char.toAsciiCode('Á') |> Stdlib.Test.equal(None)
-      Stdlib.Char.toAsciiCode('3') |> Stdlib.Test.equal(Some 51)
+      Stdlib.Char.toAsciiCode('3') |> Stdlib.Test.equal(Some(51))
       Stdlib.Char.toAsciiCode(smiley()) |> Stdlib.Test.equal(None)
       Stdlib.Char.toAsciiCode('ż') |> Stdlib.Test.equal(None)
       Stdlib.Char.toAsciiCode('Ż') |> Stdlib.Test.equal(None)
@@ -163,15 +163,15 @@ test toAsciiCode =
       Stdlib.Char.toAsciiCode('é') |> Stdlib.Test.equal(None)
       Stdlib.Char.toAsciiCode('ÿ') |> Stdlib.Test.equal(None)
       Stdlib.Char.toAsciiCode(eCombiningAcute()) |> Stdlib.Test.equal(None)
-      Stdlib.Char.toAsciiCode('~') |> Stdlib.Test.equal(Some 126)
-      Stdlib.Char.toAsciiCode('\t') |> Stdlib.Test.equal(Some 9)
+      Stdlib.Char.toAsciiCode('~') |> Stdlib.Test.equal(Some(126))
+      Stdlib.Char.toAsciiCode('\t') |> Stdlib.Test.equal(Some(9))
       Stdlib.Char.toAsciiCode('ł') |> Stdlib.Test.equal(None)
       Stdlib.Char.toAsciiCode('Ł') |> Stdlib.Test.equal(None)
       Stdlib.Char.toAsciiCode(hand()) |> Stdlib.Test.equal(None)
       Stdlib.Char.toAsciiCode('ჾ') |> Stdlib.Test.equal(None)
       Stdlib.Char.toAsciiCode('Ჾ') |> Stdlib.Test.equal(None)
-      Stdlib.Char.toAsciiCode(' ') |> Stdlib.Test.equal(Some 32)
-      Stdlib.Char.toAsciiCode('\t') |> Stdlib.Test.equal(Some 9) ])
+      Stdlib.Char.toAsciiCode(' ') |> Stdlib.Test.equal(Some(32))
+      Stdlib.Char.toAsciiCode('\t') |> Stdlib.Test.equal(Some(9)) ])
 
 test isLessThan =
   Stdlib.Test.all(
@@ -230,10 +230,10 @@ test toString =
 test fromCodepoint =
   Stdlib.Test.all(
     [ // Valid codepoints
-      Stdlib.Char.fromCodepoint(65) |> Stdlib.Test.equal(Some 'A')
-      Stdlib.Char.fromCodepoint(233) |> Stdlib.Test.equal(Some 'é')
+      Stdlib.Char.fromCodepoint(65) |> Stdlib.Test.equal(Some('A'))
+      Stdlib.Char.fromCodepoint(233) |> Stdlib.Test.equal(Some('é'))
       // Non-BMP: pins the surrogate-pair path through ConvertFromUtf32. 0x1F602 = 😂
-      Stdlib.Char.fromCodepoint(128514) |> Stdlib.Test.equal(Some (smiley()))
+      Stdlib.Char.fromCodepoint(128514) |> Stdlib.Test.equal(Some(smiley()))
       // Invalid: surrogate range (D800..DFFF) — reserved for UTF-16 surrogate pairs
       Stdlib.Char.fromCodepoint(55296) |> Stdlib.Test.equal(None)
       Stdlib.Char.fromCodepoint(56319) |> Stdlib.Test.equal(None)
@@ -286,17 +286,17 @@ test isAlphanumeric =
 test toCodepoint =
   Stdlib.Test.all(
     [ // Single-scalar Chars return their codepoint.
-      Stdlib.Char.toCodepoint('a') |> Stdlib.Test.equal(Some 97)
-      Stdlib.Char.toCodepoint('A') |> Stdlib.Test.equal(Some 65)
-      Stdlib.Char.toCodepoint('3') |> Stdlib.Test.equal(Some 51)
-      Stdlib.Char.toCodepoint('é') |> Stdlib.Test.equal(Some 233)
-      Stdlib.Char.toCodepoint('ż') |> Stdlib.Test.equal(Some 380)
-      Stdlib.Char.toCodepoint(smiley()) |> Stdlib.Test.equal(Some 128514)
+      Stdlib.Char.toCodepoint('a') |> Stdlib.Test.equal(Some(97))
+      Stdlib.Char.toCodepoint('A') |> Stdlib.Test.equal(Some(65))
+      Stdlib.Char.toCodepoint('3') |> Stdlib.Test.equal(Some(51))
+      Stdlib.Char.toCodepoint('é') |> Stdlib.Test.equal(Some(233))
+      Stdlib.Char.toCodepoint('ż') |> Stdlib.Test.equal(Some(380))
+      Stdlib.Char.toCodepoint(smiley()) |> Stdlib.Test.equal(Some(128514))
       // Multi-scalar Chars return None.
       Stdlib.Char.toCodepoint(hand()) |> Stdlib.Test.equal(None)
       Stdlib.Char.toCodepoint(family()) |> Stdlib.Test.equal(None)
       // Round-trip BMP and non-BMP scalars.
       Stdlib.Char.toCodepoint(Stdlib.Char.fromCodepoint(65) |> Builtin.unwrap)
-      |> Stdlib.Test.equal(Some 65)
+      |> Stdlib.Test.equal(Some(65))
       Stdlib.Char.toCodepoint(Stdlib.Char.fromCodepoint(128514) |> Builtin.unwrap)
-      |> Stdlib.Test.equal(Some 128514) ])
+      |> Stdlib.Test.equal(Some(128514)) ])

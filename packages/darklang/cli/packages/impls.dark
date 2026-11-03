@@ -16,12 +16,12 @@ let traitHashAt(
   traitPath: String)
   : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
   match Traversal.traverse(branchId, currentLocation, traitPath) with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok(Trait loc) ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(Trait(loc)) ->
     match LanguageTools.PackageManager.Trait.find(branchId, loc) with
-    | Some h -> Stdlib.Result.Result.Ok h
-    | None -> Stdlib.Result.Result.Error $"Trait not found: {traitPath}"
-  | Ok _ -> Stdlib.Result.Result.Error $"{traitPath} is not a trait."
+    | Some(h) -> Stdlib.Result.Result.Ok(h)
+    | None -> Stdlib.Result.Result.Error($"Trait not found: {traitPath}")
+  | Ok(_) -> Stdlib.Result.Result.Error($"{traitPath} is not a trait.")
 
 /// The trait as written, then under `Stdlib.` (the operator traits are what
 /// most people ask about, and `impls Add` should just work).
@@ -33,19 +33,19 @@ let resolveTrait(
   // `==` and the Bool operators alias to fn names rather than traits, so they keep the symbol.
   let traitPath =
     match Packages.Search.operatorAlias(traitPath) with
-    | Some name when (Stdlib.String.first(name, 1)) != (Stdlib.String.toLowercase(Stdlib.String.first(name, 1))) ->
+    | Some(name) when (Stdlib.String.first(name, 1)) != (Stdlib.String.toLowercase(Stdlib.String.first(name, 1))) ->
       name
     | _ -> traitPath
 
   match traitHashAt(state.currentBranchId, state.packageData.currentLocation, traitPath) with
-  | Ok h -> Stdlib.Result.Result.Ok h
-  | Error msg ->
+  | Ok(h) -> Stdlib.Result.Result.Ok(h)
+  | Error(msg) ->
     if Stdlib.String.startsWith(traitPath, "Stdlib.") || Stdlib.String.startsWith(traitPath, "Darklang.") then
-      Stdlib.Result.Result.Error msg
+      Stdlib.Result.Result.Error(msg)
     else
       match traitHashAt(state.currentBranchId, state.packageData.currentLocation, $"Stdlib.{traitPath}") with
-      | Ok h -> Stdlib.Result.Result.Ok h
-      | Error _ -> Stdlib.Result.Result.Error msg
+      | Ok(h) -> Stdlib.Result.Result.Ok(h)
+      | Error(_) -> Stdlib.Result.Result.Error(msg)
 
 /// The name of the implementation, or its short hash when nothing binds it.
 let sourceNameOf(
@@ -130,7 +130,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   match positional with
   | [ traitPath ] ->
     match resolveTrait(state, traitPath) with
-    | Error msg ->
+    | Error(msg) ->
       Cli.printErr(msg)
       if json then
         ()
@@ -139,7 +139,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           (Stdlib.Cli.UI.Colors.dimText(
             $"  `dark search {traitPath} --trait` looks for a trait by name")))
       { state with exitCode = 1 }
-    | Ok traitHash ->
+    | Ok(traitHash) ->
       let candidates = LanguageTools.PackageManager.Trait.impls(state.currentBranchId, traitHash)
       if json then
         let traitName =
@@ -166,7 +166,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           candidates
           |> Stdlib.List.map(fun c ->
             Stdlib.String.displayWidth(describeSelf(state.currentBranchId, c.self)))
-          |> Stdlib.List.fold(12, fun acc w -> if w > acc then w else acc)
+          |> Stdlib.List.fold(12, fun(acc, w) -> if w > acc then w else acc)
 
         candidates
         |> Stdlib.List.sortBy(fun c -> describeSelf(state.currentBranchId, c.self))

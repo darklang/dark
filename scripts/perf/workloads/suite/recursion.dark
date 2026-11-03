@@ -2,10 +2,10 @@
 // cost when the call is all there is?
 let iters(): Int =
   match Stdlib.Env.get("PERF_ITERS") with
-  | Some s ->
+  | Some(s) ->
     match Stdlib.Int.parse(s) with
-    | Ok n -> n
-    | Error _ -> 0
+    | Ok(n) -> n
+    | Error(_) -> 0
   | None -> 0
 
 let depth(n: Int): Int = if n <= 0 then 0 else 1 + (depth(n - 1))

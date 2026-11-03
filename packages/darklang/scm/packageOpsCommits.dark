@@ -120,7 +120,7 @@ let summariesFor(branchId: Uuid, limit: Int64): List<OpSummary> =
     visibleParams(branchId),
     fun row ->
       match Stdlib.Sqlite.textField(row, "id") with
-      | Some id ->
+      | Some(id) ->
         // Decoded here so the caller can DESCRIBE the op. Through the tolerant decoder:
         // a synced store's log holds ops this build cannot read, and a listing that
         // raised on one would be a listing you cannot run.
@@ -128,7 +128,7 @@ let summariesFor(branchId: Uuid, limit: Int64): List<OpSummary> =
           match
             (Stdlib.Uuid.parse(id), Stdlib.Sqlite.bytesField(row, "op_blob"))
           with
-          | (Ok opId, Some blob) -> tryDecodeOp(opId, blob)
+          | (Ok(opId), Some(blob)) -> tryDecodeOp(opId, blob)
           | _ -> Stdlib.Option.Option.None
 
         (OpSummary
@@ -204,12 +204,12 @@ let summariesByIds(ids: List<String>): List<OpSummary> =
         [],
         fun row ->
           match Stdlib.Sqlite.textField(row, "id") with
-          | Some id ->
+          | Some(id) ->
             let decoded =
               match
                 (Stdlib.Uuid.parse(id), Stdlib.Sqlite.bytesField(row, "op_blob"))
               with
-              | (Ok opId, Some blob) -> tryDecodeOp(opId, blob)
+              | (Ok(opId), Some(blob)) -> tryDecodeOp(opId, blob)
               | _ -> Stdlib.Option.Option.None
 
             (OpSummary
