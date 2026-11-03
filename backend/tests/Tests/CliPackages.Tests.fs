@@ -885,6 +885,44 @@ let packageTestJobsRejectInvalidCounts =
           "no test starts with invalid options"
     })
 
+/// A test the analysis proves free of effects runs in the runner's process; one with an
+/// effect gets a worker. The summary counts the isolated ones.
+let pureTestsRunInProcess =
+  instanceTest
+    "pure tests run in-process and effectful ones in a worker"
+    (fun state ->
+      task {
+        do! start state
+        let add name body =
+          run state [ "test"; "add"; $"Tests.Routing.{name}"; body ]
+        do!
+          add
+            "pure"
+            "Stdlib.List.map([ 1L, 2L ], fun x -> x + 1L) |> Stdlib.Test.equal([ 2L, 3L ])"
+        do! add "raises" "1L / 0L => raises \"Cannot divide by 0\""
+        do!
+          add
+            "clock"
+            "Stdlib.Test.equal(Stdlib.DateTime.year(Stdlib.DateTime.now()) > 2000, true)"
+        do!
+          showsAll
+            state
+            [ "test"
+              "run"
+              "--force"
+              "Tests.Routing.pure"
+              "Tests.Routing.raises" ]
+            [ "2 passed, 0 failed"; "2 ran, 0 cached; 0 isolated" ]
+            "pure bodies and expected errors need no worker"
+        do!
+          showsAll
+            state
+            [ "test"; "run"; "--force"; "Tests.Routing" ]
+            [ "3 passed, 0 failed"; "3 ran, 0 cached; 1 isolated" ]
+            "even the clock sends a test to a worker"
+        do! discardAll state
+      })
+
 let isolatedTestsRejectUnsuccessfulWorkers =
   instanceTest
     "isolated tests reject worker failures and missing results"
@@ -898,6 +936,8 @@ let isolatedTestsRejectUnsuccessfulWorkers =
             | Instance i -> i
             | _ -> failtest "requires a disposable CLI instance"
           let file = System.IO.Path.Combine(instance.dir, "worker-tests.dark")
+          // Every body asks the terminal or prints, so each runs in a worker rather
+          // than in-process; the worker is what this test breaks.
           System.IO.File.WriteAllText(
             file,
             """test passes =
@@ -905,7 +945,8 @@ let isolatedTestsRejectUnsuccessfulWorkers =
 test fails =
   Stdlib.printLine("{\"Pass\":[]}")
   Stdlib.Test.fail("intentional isolation failure")
-test expected = 1L / 0L => raises "Cannot divide by 0"
+test expected =
+  (if Stdlib.Cli.Sys.isTerminal(0) then 2L else 1L) / 0L => raises "Cannot divide by 0"
 """
           )
           do! run state [ "module"; "Tests.WorkerExit"; file ]
@@ -2001,6 +2042,7 @@ let tests : List<Test> =
     packageTestsRespectParallelLimit
     packageTestsRequireRun
     packageTestJobsRejectInvalidCounts
+    pureTestsRunInProcess
     isolatedTestsRejectUnsuccessfulWorkers
     testsUseInstanceAndFunctionPolicies
     workbenchShowsTests

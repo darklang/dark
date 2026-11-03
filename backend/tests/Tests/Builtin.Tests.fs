@@ -674,10 +674,69 @@ let movedParamsHaveSupportedTypes =
   }
 
 
+/// `Pure` is what lets a package test run inside the runner's process (`PackageTests.fs`,
+/// `runsInProcess`), so a builtin wrongly marked `Pure` lets a test see the runner's state.
+/// Two checks. A builtin with an effect is never `Pure`. And builtins that declare no effect
+/// but answer from the host or from state the whole process shares stay `Impure`: the pid,
+/// raw descriptors, interpreter and GC counters, the trace switch, the store and log paths,
+/// the terminal, child-process buffers, and the running test's own counter. The second list
+/// is a regression net, not the rule: a builtin nobody marks `Pure` is isolated already.
+let private hiddenStateBuiltins : Set<string> =
+  set
+    [ "syscallGetpid"
+      "syscallGetuid"
+      "syscallRead"
+      "syscallWrite"
+      "syscallLseek"
+      "syscallClose"
+      "syscallGetdents"
+      "syscallFlock"
+      "interpreterStatsReset"
+      "interpreterStatsEnableDetailedTiming"
+      "interpreterStatsGet"
+      "gcAllocatedBytes"
+      "tracesRecording"
+      "localDbPath"
+      "cliGetLogDir"
+      "cliTerminalSize"
+      "cliTerminalIsatty"
+      "runtimeChildBufferSet"
+      "testIncrementCounter"
+      "testCounterValue" ]
+
+let pureMeansNoHiddenState =
+  let fns () =
+    allBuiltinSets () |> List.collect (fun b -> b.fns.Values |> List.ofSeq)
+  testList
+    "Pure builtins can run a package test in-process"
+    [ testCase "a builtin with an effect is never Pure" (fun () ->
+        let all = fns ()
+        Expect.isGreaterThan (List.length all) 500 "examined every builtin"
+        let wrong =
+          all
+          |> List.filter (fun fn ->
+            fn.previewable = RT.Pure && not (Set.isEmpty fn.callEffects))
+          |> List.map (fun fn -> fn.name.name)
+        Expect.equal wrong [] "effectful builtins marked Pure")
+
+      testCase "builtins with hidden state are not Pure" (fun () ->
+        let byName =
+          fns () |> List.map (fun fn -> fn.name.name, fn.previewable) |> Map.ofList
+        let missing =
+          hiddenStateBuiltins
+          |> Set.filter (fun n -> not (Map.containsKey n byName))
+        Expect.equal missing Set.empty "every listed builtin still exists"
+        let wrong =
+          hiddenStateBuiltins
+          |> Set.filter (fun n -> Map.find n byName = Some RT.Pure)
+        Expect.equal wrong Set.empty "hidden-state builtins marked Pure") ]
+
+
 let tests =
   testList
     "builtin"
     [ darkEffectTableMatchesRuntime
+      pureMeansNoHiddenState
       oldFunctionsAreDeprecated
       builtinAccessInPackageMatter
       everyBuiltinExclusionIsReal

@@ -121,7 +121,8 @@ module HandleCommand =
         |> List.filter (fun op ->
           match op with
           | PackageOp.AddFn _
-          | PackageOp.AddValue _ -> true
+          | PackageOp.AddValue _
+          | PackageOp.AddTest _ -> true
           | _ -> false)
         |> List.length
       print

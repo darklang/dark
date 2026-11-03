@@ -12,11 +12,20 @@ type Outcome =
   | Failed of messages: List<String>
   | RuntimeFailed of message: String
 
+/// How long one test took to run, and where.
+type Timing =
+  { name: String
+    ms: Int
+    inProcess: Bool }
+
 type Counts =
   { passed: Int
     failed: Int
     cached: Int
-    ran: Int }
+    ran: Int
+    /// Of those that ran, how many needed their own process and store copy.
+    isolated: Int
+    timings: List<Timing> }
 
 val usage =
   "Usage: test run [--force] [--jobs <count>] [name-or-module ...]\n       test add <location> <body> | <source-file> | -"
@@ -333,7 +342,9 @@ type FinishedTest =
   { name: String
     test: LanguageTools.ProgramTypes.PackageTest.PackageTest
     outcome: Outcome
-    wasCached: Bool }
+    wasCached: Bool
+    inProcess: Bool
+    ms: Int }
 
 let finishTest(
   cache: Stdlib.Option.Option<CacheContext>,
@@ -351,10 +362,24 @@ let finishTest(
     { passed = counts.passed + (if isPassed(finished.outcome) then 1 else 0)
       failed = counts.failed + (if isPassed(finished.outcome) then 0 else 1)
       cached = counts.cached + (if finished.wasCached then 1 else 0)
-      ran = counts.ran + (if finished.wasCached then 0 else 1) }
+      ran = counts.ran + (if finished.wasCached then 0 else 1)
+      isolated =
+        counts.isolated
+        + (if finished.wasCached || finished.inProcess then 0 else 1)
+      timings =
+        if finished.wasCached then
+          counts.timings
+        else
+          Stdlib.List.prepend(
+            counts.timings,
+            Timing
+              { name = finished.name
+                ms = finished.ms
+                inProcess = finished.inProcess }) }
 
 /// Run up to `jobs` tests at once. Start the next whenever one finishes.
-/// Wait for all tests before closing the shared snapshot.
+/// Wait for all tests before closing the shared snapshot. A test the analysis
+/// proves pure runs inside this process; the rest get a worker and a store copy.
 let runSelected(
   run: LanguageTools.PackageManager.Test.Run,
   branchId: Uuid,
@@ -382,16 +407,23 @@ let runSelected(
         { name = fullPath(item)
           test = item.entity
           outcome = outcome
-          wasCached = true }
+          wasCached = true
+          inProcess = false
+          ms = 0 }
       runSelected(run, branchId, options, cache, rest, running, finishTest(cache, counts, finished))
     | None ->
       Stdlib.printLine($"Running: {fullPath(item)}")
       let handle = Stdlib.Exec.spawn(fun () ->
+        let inProcess = LanguageTools.PackageManager.Test.runsInProcess(item.entity.hash)
+        let started = Stdlib.DateTime.__monotonicMilliseconds()
+        let outcome = runFresh(run, branchId, item.entity)
         FinishedTest
           { name = fullPath(item)
             test = item.entity
-            outcome = runFresh(run, branchId, item.entity)
-            wasCached = false })
+            outcome = outcome
+            wasCached = false
+            inProcess = inProcess
+            ms = Stdlib.DateTime.__monotonicMilliseconds() - started })
       runSelected(run, branchId, options, cache, rest, Stdlib.List.prepend(running, handle), counts)
   | _ ->
     if Stdlib.List.isEmpty(running) then
@@ -400,6 +432,21 @@ let runSelected(
       let (done, finished) = Stdlib.Exec.select(running)
       let running = Stdlib.List.filter(running, fun handle -> handle.id != done.id)
       runSelected(run, branchId, options, cache, remaining, running, finishTest(cache, counts, finished))
+
+/// The ten slowest tests that ran, slowest first, so a log says where the time
+/// went. Only for runs of a dozen tests or more; a short run shows it already.
+let printSlowest(timings: List<Timing>): Unit =
+  if Stdlib.List.length(timings) >= 12 then
+    Stdlib.printLine("")
+    Stdlib.printLine("Slowest:")
+    timings
+    |> Stdlib.List.sortBy(fun t -> 0 - t.ms)
+    |> Stdlib.List.take(10)
+    |> Stdlib.List.iter(fun t ->
+      let place = if t.inProcess then "in-process" else "isolated"
+      Stdlib.printLine($"  {Stdlib.toString(t.ms)} ms  {t.name} ({place})"))
+  else
+    ()
 
 let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,
@@ -443,7 +490,7 @@ let runTestsInRun(
         || Stdlib.List.any(options.filters, fun f -> selects(f, fullPath(item))))
 
     let initial =
-      Counts { passed = 0, failed = 0, cached = 0, ran = 0 }
+      Counts { passed = 0, failed = 0, cached = 0, ran = 0, isolated = 0, timings = [] }
     let counts =
       runSelected(
         run,
@@ -458,9 +505,10 @@ let runTestsInRun(
     if total == 0 then
       Cli.printErr("No package tests matched.")
     else
+      printSlowest(counts.timings)
       Stdlib.printLine("")
       Stdlib.printLine(
-        $"{Stdlib.toString(counts.passed)} passed, {Stdlib.toString(counts.failed)} failed; {Stdlib.toString(counts.ran)} ran, {Stdlib.toString(counts.cached)} cached")
+        $"{Stdlib.toString(counts.passed)} passed, {Stdlib.toString(counts.failed)} failed; {Stdlib.toString(counts.ran)} ran, {Stdlib.toString(counts.cached)} cached; {Stdlib.toString(counts.isolated)} isolated")
 
     if counts.failed > 0 || total == 0 then
       { state with exitCode = 1 }
@@ -486,7 +534,9 @@ let help(_state: Cli.AppState): String =
     "in order: a module (`Stdlib.Float`), a test name, or both. Several filters"
     "select the union."
     "Deprecated (deleted) tests are skipped."
-    "Tests run in parallel, one per core, up to 16 at once."
+    "Tests run in parallel, one per core, up to 16 at once. A test that analysis"
+    "shows is pure (no effect, only pure builtins) runs inside this process;"
+    "any other gets a fresh process and its own store copy."
     "Use --jobs <count> to change the limit, or --jobs 1 to run serially."
     "Tests start in name order; results are printed as they finish."
     ""

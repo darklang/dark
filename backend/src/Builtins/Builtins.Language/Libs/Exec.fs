@@ -476,20 +476,29 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DList(_, handles) |] ->
           let s = Scheduler.Scheduler.CurrentOrShared
+          // A handle whose row has left the capped display table has finished, and its
+          // answer is kept until taken, so it wins the race outright. Rows go once 64
+          // OTHER processes finish, which any caller selecting over work that itself
+          // spawns will reach.
+          let forgotten =
+            handles
+            |> List.tryPick (fun h ->
+              match s.Find(pidOfHandle vm h) with
+              | Some _ -> None
+              | None ->
+                match s.TakeResult(pidOfHandle vm h) with
+                | Some result -> Some(h, result)
+                | None -> noSuchProcess () |> raiseRTE vm.threadID)
           let procs =
             handles
-            |> List.map (fun h ->
-              let pid = pidOfHandle vm h
-              match s.Find pid with
-              | Some p -> h, p
-              | None -> noSuchProcess () |> raiseRTE vm.threadID)
-          // `select` over handles whose processes have all been forgotten is the one case the
-          // kept answers cannot serve, since it needs the tasks to race; it says so above.
-          match procs with
-          | [] ->
+            |> List.choose (fun h ->
+              s.Find(pidOfHandle vm h) |> Option.map (fun p -> h, p))
+          match forgotten, procs with
+          | Some(h, result), _ -> Ply(DTuple(h, resultOf vm result, []))
+          | None, [] ->
             RuntimeError.UncaughtException("select needs at least one handle", [])
             |> raiseRTE vm.threadID
-          | _ ->
+          | None, _ ->
             let answer (h : Dval, p : Scheduler.Process) : Dval =
               DTuple(h, resultOf vm p.completion.Task.Result, [])
             match
