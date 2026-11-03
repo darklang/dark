@@ -281,10 +281,17 @@ module Test =
   type Run = { id: Uuid }
 
   /// Share a starting store across the tests executed by <param run>. Every
-  /// test still gets a private writable copy and a fresh process. Cached-only
-  /// runs create no snapshot; cleanup also runs if the callback fails.
+  /// test that cannot run in-process (see `runsInProcess`) gets a private
+  /// writable copy and a fresh process. Cached-only runs create no snapshot;
+  /// cleanup also runs if the callback fails.
   let withStoreSnapshot(run: Run -> 'a): 'a =
     Builtin.pmTestWithStoreSnapshot(fun id -> run(Run { id = id }))
+
+  /// Whether this test runs inside the runner rather than in a fresh process
+  /// with its own store copy: true only when analysis shows it needs no effect
+  /// at all and calls only pure builtins.
+  let runsInProcess(hash: ProgramTypes.Hash): Bool =
+    Builtin.pmTestRunsInProcess(hash)
 
   /// Conservative proof that a passing result is reusable. Dynamic calls and
   /// branch-dependent rendering are not treated as cache-safe.

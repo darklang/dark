@@ -96,7 +96,7 @@ module private Decode =
   let private field (name : string) (fields : DvalMap) : Option<Dval> =
     Map.tryFind name fields
 
-  /// The item each `ItemReport` is about, and what it resolved, for the two kinds that have
+  /// The item each `ItemReport` is about, and what it resolved, for the three kinds that have
   /// a body to resolve anything in. A type, trait or impl reports no resolutions.
   let private itemReport (d : Dval) : Option<PT.Hash * List<Resolution>> =
     match d with
@@ -106,7 +106,7 @@ module private Decode =
         | Some(DList(_, items)) -> items |> List.choose resolution
         | _ -> []
       match field "item" fields with
-      | Some(DEnum(_, _, _, ("PackageFn" | "PackageValue"), [ h ])) ->
+      | Some(DEnum(_, _, _, ("PackageFn" | "PackageValue" | "PackageTest"), [ h ])) ->
         hash h |> Option.map (fun h -> (h, resolutions))
       | _ -> None
     | _ -> None
@@ -300,6 +300,10 @@ let private worthChecking
         // so this is not about speed; it is about the value meaning the same thing after
         // someone else's implementation arrives.
         | PT.PackageOp.AddValue value -> hasInfix value.body
+        // A test body calls bounded generics and operators like any fn, and pinning them
+        // is what lets the test runner prove it effect-free and run it in-process.
+        | PT.PackageOp.AddTest test ->
+          hasInfix test.body || namesATraitMethod test.body
         | _ -> false)
 
     if cheaply then
@@ -311,6 +315,7 @@ let private worthChecking
           match op with
           | PT.PackageOp.AddFn fn -> calledPackageFns fn.body
           | PT.PackageOp.AddValue value -> calledPackageFns value.body
+          | PT.PackageOp.AddTest test -> calledPackageFns test.body
           | _ -> [])
         |> List.distinct
 
@@ -530,7 +535,7 @@ let private resolveIn
                   pins = pins
                   boundImpls = bounds }
 
-        return
+        let transformed =
           ops
           |> List.map (fun op ->
             match op with
@@ -546,7 +551,48 @@ let private resolveIn
                   LibDB.AstTransformer.transformValue mapping value
                 )
               | None -> op
+            | PT.PackageOp.AddTest test ->
+              match mappingFor test.hash with
+              | Some mapping ->
+                PT.PackageOp.AddTest(
+                  LibDB.AstTransformer.transformTest mapping test
+                )
+              | None -> op
             | _ -> op)
+
+        // Two items with one hash are one item, parsed twice. A resolution is keyed by node id
+        // and the two parses have different ids, so only the copy the checker saw is pinned, and
+        // which copy that is depends on how the batch was split. The unpinned copy then rehashes
+        // apart from its twin, with every caller after it: loading the package tests alongside
+        // the rest moved 340 production fns this way, `Cli.executeCliCommand` among them. So
+        // the copy that was pinned stands for every copy; ids do not enter the hash.
+        let bodyHash (op : PT.PackageOp) : Option<PT.Hash> =
+          match op with
+          | PT.PackageOp.AddFn fn -> Some fn.hash
+          | PT.PackageOp.AddValue value -> Some value.hash
+          | PT.PackageOp.AddTest test -> Some test.hash
+          | _ -> None
+        let pinnedByHash =
+          List.zip ops transformed
+          |> List.choose (fun (before, after) ->
+            // Structurally: the twin gets the same mapping, and comes back rebuilt but
+            // unchanged, since none of the mapping's node ids are its own.
+            if before = after then
+              None
+            else
+              bodyHash before |> Option.map (fun h -> h, after))
+          |> Map.ofList
+        return
+          List.zip ops transformed
+          |> List.map (fun (before, after) ->
+            if before <> after then
+              after
+            else
+              match
+                bodyHash before |> Option.bind (fun h -> Map.tryFind h pinnedByHash)
+              with
+              | Some pinned -> pinned
+              | None -> after)
   }
 
 
@@ -618,7 +664,8 @@ let resolveTraitCalls
         resolved
         |> List.choose (function
           | PT.PackageOp.SetName(loc, PT.Reference.PackageFn h, _)
-          | PT.PackageOp.SetName(loc, PT.Reference.PackageValue h, _) ->
+          | PT.PackageOp.SetName(loc, PT.Reference.PackageValue h, _)
+          | PT.PackageOp.SetName(loc, PT.Reference.PackageTest h, _) ->
             Some(h, String.concat "." (loc.owner :: loc.modules @ [ loc.name ]))
           | _ -> None)
         |> Map.ofList
@@ -629,6 +676,7 @@ let resolveTraitCalls
         |> List.collect (function
           | PT.PackageOp.AddFn fn -> calledPackageFns fn.body
           | PT.PackageOp.AddValue v -> calledPackageFns v.body
+          | PT.PackageOp.AddTest t -> calledPackageFns t.body
           | _ -> [])
         |> List.distinct
       let mutable bounded = Set.empty
@@ -650,6 +698,7 @@ let resolveTraitCalls
             match op with
             | PT.PackageOp.AddFn fn -> fn.hash, unpinned isBounded fn.body
             | PT.PackageOp.AddValue v -> v.hash, unpinned isBounded v.body
+            | PT.PackageOp.AddTest t -> t.hash, unpinned isBounded t.body
             | _ -> PT.Hash "", 0
           if count = 0 then
             None
