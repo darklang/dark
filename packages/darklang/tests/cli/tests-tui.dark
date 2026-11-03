@@ -355,6 +355,51 @@ test workbenchItemPageRenders =
     Stdlib.Test.fail($"the item page drew nothing at: {names}")
 
 
+/// ⏎ on a fn opens its page in the full-screen reader. The page is already styled (a dim title,
+/// the coloured access block), and re-lexing it as code turned those escapes into literal `[2m` and
+/// `[0m` on screen. Once the styling is stripped, no row may still carry an escape or a code.
+test workbenchItemReaderShowsNoRawEscapes =
+  let base = workbenchState()
+  let loc = Packages.PackageLocation.Module([ "Darklang", "Stdlib", "List" ])
+  let items = Darklang.Cli.Workbench.loadItems(Darklang.SCM.Branch.mainBranchId, loc)
+
+  match Stdlib.List.findFirstIndex(items, fun i -> i.kind == "fn") with
+  | None -> Stdlib.Test.fail("Darklang.Stdlib.List has no fn to open")
+  | Some(idx) ->
+    let state =
+      { base with
+          activeView = Darklang.Cli.Workbench.vMatter
+          location = loc
+          items = items
+          selected = idx
+          focus = Stdlib.Cli.UI.SplitPane.Focus.First }
+
+    let opened = (wbKey(state, Stdlib.Cli.Stdin.Key.Key.Enter)).state
+
+    match opened.reading with
+    | None -> Stdlib.Test.fail("⏎ on a fn did not open the reader")
+    | Some(_) ->
+      let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+      let rows =
+        (Darklang.Cli.Workbench.viewAtSize(opened, size)).rows
+        |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
+
+      let raw =
+        rows
+        |> Stdlib.List.filter(fun r ->
+          (Stdlib.String.contains(r, "\u001b"))
+          || (Stdlib.String.contains(r, "[0m"))
+          || (Stdlib.String.contains(r, "[2m")))
+
+      if Stdlib.Bool.not(Stdlib.List.any(rows, fun r -> Stdlib.String.contains(r, "access"))) then
+        Stdlib.Test.fail("the reader did not show the fn's access block, so this proved nothing")
+      else if Stdlib.List.isEmpty(raw) then
+        Stdlib.Test.Result.Pass
+      else
+        let shown = Stdlib.String.join(raw, " | ")
+        Stdlib.Test.fail($"raw escape codes in the item reader: {shown}")
+
+
 /// Render one view's PREVIEW pane from state.
 ///
 /// Opening a view draws its LIST; the preview is a separate function (`previewLines`) that nothing

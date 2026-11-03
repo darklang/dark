@@ -568,6 +568,33 @@ let tracesText(state: State): String =
           [ "", Stdlib.Cli.UI.Colors.dimText("  6 › Traces lists every trace") ] ])),
       "\n")
 
+/// `detailLines` with only its source highlighted, for the Inspect pane and the item reader.
+///
+/// Highlight only the source portion (the page mixes code with colored ref/meta lines, so
+/// nothing can blanket-highlight it). `detailLines` is the source followed, for a fn, by the
+/// access block, which is already coloured. Re-lexing a coloured line strips its escapes down
+/// to literal `[36m`, so the block is split off at its heading and only the source above it is
+/// highlighted. Guard on line count: highlighting re-lexes the text, and a changed line count
+/// would land colors on the wrong rows -- fall back to plain source, and say so rather than
+/// silently losing highlighting.
+let highlightSourceLines(page: List<String>): List<String> =
+  let srcCount =
+    Stdlib.List.findFirstIndex(page, fun l -> l == accessHeading)
+    |> Stdlib.Option.withDefault(Stdlib.List.length(page))
+  let srcPlain = Stdlib.List.take(page, srcCount)
+  let access = Stdlib.List.drop(page, srcCount)
+  let h =
+    SyntaxHighlighting.highlightCode(Stdlib.String.join(srcPlain, "\n")) |> Stdlib.String.split("\n")
+  let highlighted =
+    if Stdlib.List.length(h) == Stdlib.List.length(srcPlain) then
+      h
+    else
+      Stdlib.List.append(
+        srcPlain,
+        (Stdlib.Cli.UI.Colors.warning(
+          $"(syntax highlighting off: re-lexing produced {Stdlib.toString(Stdlib.List.length(h))} lines, source has {Stdlib.toString(Stdlib.List.length(srcPlain))})")))
+  Stdlib.List.concat(highlighted, access)
+
 let inspectPageLines(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> [ Stdlib.Cli.UI.Colors.dimText("(nothing selected - browse the tree)") ]
@@ -575,36 +602,10 @@ let inspectPageLines(state: State): List<String> =
     if item.isModule then
       modulePreviewLines(state, item)
     else
-      // Highlight only the source portion (the page mixes code with colored ref/meta
-      // lines, so renderPreview can't blanket-highlight). Guard on line count:
-      // highlighting re-lexes the text, and a changed line count would land colors on
-      // the wrong rows -- fall back to plain source, and say so rather than silently
-      // losing highlighting.
-      //
-      // `detailLines` is the source followed, for a fn, by the access block, which is already
-      // coloured. Re-lexing a coloured line strips its escapes down to literal `[36m`, so the
-      // block is split off at its heading and only the source above it is highlighted.
       // One lookup for the whole page: the source, the meta line and the references all want it.
       let modulePath = Packages.modulePathOf(state.location)
       let results = Packages.Query.searchExactMatch(state.branchId, modulePath, item.name)
-      let page = itemLines(state, item, results)
-      let srcCount =
-        Stdlib.List.findFirstIndex(page, fun l -> l == accessHeading)
-        |> Stdlib.Option.withDefault(Stdlib.List.length(page))
-      let srcPlain = Stdlib.List.take(page, srcCount)
-      let access = Stdlib.List.drop(page, srcCount)
-      let src =
-        let h =
-          SyntaxHighlighting.highlightCode(Stdlib.String.join(srcPlain, "\n")) |> Stdlib.String.split("\n")
-        let highlighted =
-          if Stdlib.List.length(h) == Stdlib.List.length(srcPlain) then
-            h
-          else
-            Stdlib.List.append(
-              srcPlain,
-              (Stdlib.Cli.UI.Colors.warning(
-                $"(syntax highlighting off: re-lexing produced {Stdlib.toString(Stdlib.List.length(h))} lines, source has {Stdlib.toString(Stdlib.List.length(srcPlain))})")))
-        Stdlib.List.concat(highlighted, access)
+      let src = highlightSourceLines(itemLines(state, item, results))
       // The order a reader wants: what this is, the code, what running it needs, who it touches.
       // The keys that act on it are in the footer, so they are not repeated here.
       let refs = Stdlib.String.split(referencesFrom(state, modulePath, item.name, item.kind, results), "\n")
