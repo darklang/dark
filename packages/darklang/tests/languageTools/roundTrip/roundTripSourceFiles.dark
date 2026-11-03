@@ -1,0 +1,27 @@
+module Darklang.LanguageTools.Parser.RoundTrip.Tests
+
+// Parse-then-print round trips: sourceFiles. Moved from
+// backend/tests/Tests/LibParser.RoundTrip.Tests.fs; helpers are in roundTrip.dark.
+
+test sourceFiles =
+  Stdlib.Test.all(
+    [ // Source files pretty-print declarations and trailing expressions together.
+      roundTrip(
+        "simple script",
+        "\n  type BookID = Int64\n\n  let getTitle(bookId: BookID): String =\n    let book = (Library.getBook(bookId))\n    getNameFromBook(book)\n\n  let curiousGeorgeBookId = 101L\n  Builtin.printLine(getTitle(curiousGeorgeBookId))\n\n  0L\n    ",
+        "type BookID =\n  Int64\n\nlet getTitle(bookId: BookID): String =\n  let book = Library.getBook(bookId)\n  getNameFromBook(book)\n\nlet curiousGeorgeBookId = 101L\nBuiltin.printLine(getTitle(curiousGeorgeBookId))\n0L")
+      roundTrip(
+        "mixed module, declaration, and trailing expression",
+        "module Helpers =\n  /// One from Helpers\n  val one = 1L\n\n/// Top-level value\nval two = 2L\n\ntwo",
+        "module Helpers =\n  /// One from Helpers\n  val one = 1L\n\n/// Top-level value\nval two = 2L\n\ntwo")
+      // In the CLI/LSP path, a nested recursive fn should resolve its own name as
+      // a local variable while WT2PT converts the body, not as an unresolved fn
+      // name. This test executes the fn so we catch that case directly.
+      runsDeclaredFn(
+        "fn decl containing a nested recursive fn (CLI/LSP path)",
+        "let myRev(list: List<Int64>): List<Int64> =\n  let helper(l: List<Int64>, acc: List<Int64>): List<Int64> =\n    match l with\n    | [] -> acc\n    | [head, ...tail] -> helper(tail, Stdlib.List.prepend(acc, head))\n  helper(list, [])",
+        [ 1L, 2L, 3L ],
+        [ 3L, 2L, 1L ])
+      parsesOk(
+        "module-relative calls parse on the editor's path",
+        "let bumped(xs: List<Int64>): List<Int64> =\n  List.map(xs, fun y -> y + 1L)\n\nlet shown(n: Int64): String =\n  Stdlib.toString(n)") ])
