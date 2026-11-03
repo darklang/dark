@@ -149,7 +149,6 @@ let main (args : string array) : int =
         testSequenced (testList "CliTraceVerbs" Tests.CliTraceVerbs.tests)
         // Instance-backed: their commands run as children with a store each, so unlike
         // the rest of the CLI suites these need no sequencing.
-        testList "CliJson" Tests.CliJson.tests
         testList "CliAuthoring" Tests.CliAuthoring.tests
         testList "CliWorkspace" Tests.CliWorkspace.tests
         testList "CliScmRegression" Tests.CliScmRegression.tests

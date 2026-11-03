@@ -600,7 +600,7 @@ let private notSweepable =
       "update" // ditto, and fetches a build
       "install-status" // reports on the machine's install, which the harness is not
       "serve" // binds a port and blocks
-      "typecheck" // audits every declaration; swept with a module in CliJson.Tests.fs
+      "typecheck" // audits every declaration; swept with a module in tests/cli/jsonShapes.dark
       "export-seed" // takes its argument as a path and writes a multi-MB database there
       "clear" ] // clears the screen, taking the sweep's own output with it
 
