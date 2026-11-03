@@ -1,0 +1,98 @@
+# RESTORE: .circleci/config.yml
+# WAS: the wasm preview's two CI jobs, build-wasm and deploy-preview, and their two
+#      entries in the build-and-deploy workflow. Never merged; parked from the
+#      local wasm-preview branch.
+# ANCHOR: the JOBS go under `jobs:`, after ok-to-deploy and the commented-out
+#         tag-release, just before `workflows:`. The WORKFLOW entries go in
+#         build-and-deploy, after ok-to-deploy and the commented-out tag-release
+#         entry, before the release-clis workflow.
+# ALSO: later/backend/src/Wasm/ entire, which must be back at backend/src/Wasm/
+#       first, since every path below names it there (deploy/preview/ci-deploy.sh,
+#       make-store.sh, src/Wasm/Wasm.fsproj). Wasm.fsproj was never in
+#       backend/fsdark.sln; build-wasm publishes it directly.
+# NOTE: `latest/` assumes tag-release tags every green merge to main. On main that
+#       job is switched off, so restoring this as written deploys PR previews and
+#       never refreshes latest/ until tag-release is back or someone tags by hand.
+# NOTE: the restore_cache key below is v5-cli-; main's build jobs use v7-nuget-
+#       now. Take whatever key the other build jobs use at the time.
+# WHEN: the wasm-preview park, 2026-11-03; later; revisit with the browser/WASM work
+#
+# ---- jobs, under `jobs:` ----
+
+  # The browser CLI from this commit, for the preview host. The AOT publish is the cost
+  # (6-7 min on xlarge), so the job halts first unless the build would be deployed: a
+  # release tag, or a branch with an open PR, in a project that holds the deploy token.
+  build-wasm:
+    executor: in-container
+    resource_class: xlarge
+    steps:
+      - darkcheckout
+      - run:
+          name: Would this build be deployed?
+          command: |
+            backend/src/Wasm/deploy/preview/ci-deploy.sh --decide || circleci-agent step halt
+      - setup-app
+      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
+      - restore_cache:
+          keys:
+            - v5-cli-{{ checksum "../checksum" }}
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run:
+          name: Build LocalExec for migrations (debug mode fine)
+          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+      - run:
+          name: Run migrations to create database
+          command: scripts/run-local-exec migrations run
+      - run:
+          name: Load packages into database
+          command: scripts/build/reload-packages
+      - run:
+          name: Publish the wasm site
+          no_output_timeout: 30m
+          command: ./scripts/build/_dotnet-wrapper publish src/Wasm/Wasm.fsproj -c Release -o ../rundir/wasm-repl
+      - run:
+          name: Build the store (a fresh migration, so it never held a sync secret)
+          command: |
+            pip3 install brotli   # the image's python is a venv; --user is refused there
+            backend/src/Wasm/make-store.sh
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - rundir/wasm-repl/wwwroot
+
+  # Puts the site on the preview host; ci-deploy.sh has the rules. Project env vars:
+  # PREVIEW_FLY_API_TOKEN (`fly tokens create deploy -a dark-preview`) and, for the PR
+  # comment, PREVIEW_GITHUB_TOKEN (pull request write).
+  deploy-preview:
+    executor: simple-executor
+    steps:
+      - checkout
+      - run:
+          name: Was this build published?
+          command: |
+            backend/src/Wasm/deploy/preview/ci-deploy.sh --decide || circleci-agent step halt
+      - attach_workspace: { at: "." }
+      - run:
+          name: Install flyctl
+          command: |
+            curl -L https://fly.io/install.sh | sh
+            echo 'export PATH="$HOME/.fly/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: Deploy the preview
+          command: backend/src/Wasm/deploy/preview/ci-deploy.sh rundir/wasm-repl/wwwroot
+
+# ---- workflow entries, under workflows.build-and-deploy.jobs ----
+
+      # The browser CLI on the preview host: open PRs, and latest/ from each release tag
+      # (every green merge to main gets one from tag-release). Beside the build jobs, not
+      # after them, and not a gate: a broken wasm publish is a red job, not a blocked PR.
+      - build-wasm:
+          filters: &preview-filters
+            tags:
+              only: /^v[0-9]+\.[0-9]+\.[0-9]+$/
+            branches:
+              ignore: main
+      - deploy-preview:
+          filters: *preview-filters
+          requires: [build-wasm]

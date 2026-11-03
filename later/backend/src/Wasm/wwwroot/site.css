@@ -21,3 +21,7 @@ pre { margin:0; white-space:pre-wrap; word-break:break-word; }
 .muted { color:var(--muted); }
 input, textarea { background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--fg);
                   font:inherit; padding:6px 8px; outline:none; }
+#build-banner { position:fixed; right:8px; bottom:8px; z-index:50; font-size:11px; color:var(--muted);
+                background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:2px 8px;
+                text-decoration:none; opacity:.85; }
+#build-banner:hover { color:var(--fg); border-color:var(--accent); opacity:1; }

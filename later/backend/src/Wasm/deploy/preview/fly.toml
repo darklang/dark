@@ -1,0 +1,25 @@
+# wasm.darklang.com: the PR preview host. One nginx, one volume, a directory per site;
+# host.sh puts sites on the volume, so deploying this never touches them. Every preview
+# shares this origin: nothing with a cookie or a token may ever be served from here.
+app = "dark-preview"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[mounts]]
+  source = "preview_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # One machine: one volume, and host.sh ssh-es into "the" machine.
+  min_machines_running = 0
+  max_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
