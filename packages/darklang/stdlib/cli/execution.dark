@@ -26,7 +26,7 @@ let executeWithUnitOrStdErr(
   if result.exitCode == 0 then
     Stdlib.Result.Result.Ok()
   else
-    Stdlib.Result.Result.Error result.stderr
+    Stdlib.Result.Result.Error(result.stderr)
 
 
 /// Execute a command in the CLI,
@@ -38,6 +38,6 @@ let executeWithStdOutOrStdErr(
   let result = execute(command)
 
   if result.exitCode == 0 then
-    Stdlib.Result.Result.Ok result.stdout
+    Stdlib.Result.Result.Ok(result.stdout)
   else
-    Stdlib.Result.Result.Error result.stderr
+    Stdlib.Result.Result.Error(result.stderr)

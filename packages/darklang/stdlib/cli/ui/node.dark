@@ -72,17 +72,17 @@ type Node<'msg> =
 
 // --- building ---
 
-let text(s: String): Node<'msg> = Node.Text s
+let text(s: String): Node<'msg> = Node.Text(s)
 
-let column(children: List<Node<'msg>>): Node<'msg> = Node.Column children
+let column(children: List<Node<'msg>>): Node<'msg> = Node.Column(children)
 
-let row(children: List<Node<'msg>>): Node<'msg> = Node.Row children
+let row(children: List<Node<'msg>>): Node<'msg> = Node.Row(children)
 
 let styled(style: Style, child: Node<'msg>): Node<'msg> = Node.Styled(style, child)
 
-let bold(s: String): Node<'msg> = Node.Styled(Style.Bold, Node.Text s)
+let bold(s: String): Node<'msg> = Node.Styled(Style.Bold, Node.Text(s))
 
-let dim(s: String): Node<'msg> = Node.Styled(Style.Dim, Node.Text s)
+let dim(s: String): Node<'msg> = Node.Styled(Style.Dim, Node.Text(s))
 
 let band(severity: Severity, message: String): Node<'msg> = Node.Band(severity, message)
 
@@ -94,54 +94,54 @@ let table(columns: List<String>, rows: List<List<String>>): Node<'msg> =
 /// The width of the widest cell in each column of a table, headers included.
 let tableWidths(columns: List<String>, rows: List<List<String>>): List<Int> =
   columns
-  |> Stdlib.List.indexedMap(fun i header ->
+  |> Stdlib.List.indexedMap(fun(i, header) ->
     let headerWidth = Stdlib.String.displayWidth(header)
 
     rows
-    |> Stdlib.List.fold(headerWidth, fun widest r ->
+    |> Stdlib.List.fold(headerWidth, fun(widest, r) ->
       match Stdlib.List.getAt(r, i) with
-      | Some cell -> Stdlib.max(widest, Stdlib.String.displayWidth(cell))
+      | Some(cell) -> Stdlib.max(widest, Stdlib.String.displayWidth(cell))
       | None -> widest))
 
 /// The size a node would take if nothing constrained it: (rows, cols).
 let measure(node: Node<'msg>): (Int * Int) =
   match node with
-  | Text s -> (1, Stdlib.String.displayWidth(s))
+  | Text(s) -> (1, Stdlib.String.displayWidth(s))
   | Styled(_, inner) -> measure(inner)
-  | Row children ->
+  | Row(children) ->
     children
-    |> Stdlib.List.fold((0, 0), fun acc child ->
+    |> Stdlib.List.fold((0, 0), fun(acc, child) ->
       let (rows, cols) = acc
       let (r, c) = measure(child)
       (Stdlib.max(rows, r), cols + c))
-  | Column children ->
+  | Column(children) ->
     children
-    |> Stdlib.List.fold((0, 0), fun acc child ->
+    |> Stdlib.List.fold((0, 0), fun(acc, child) ->
       let (rows, cols) = acc
       let (r, c) = measure(child)
       (rows + r, Stdlib.max(cols, c)))
   | Table(columns, rows) ->
     let widths = tableWidths(columns, rows)
     let gaps = 2 * (Stdlib.max(0, (Stdlib.List.length(widths)) - 1))
-    let width = (Stdlib.List.fold(widths, 0, fun acc w -> acc + w)) + gaps
+    let width = (Stdlib.List.fold(widths, 0, fun(acc, w) -> acc + w)) + gaps
     // Header, rule, rows.
     (2 + (Stdlib.List.length(rows)), width)
-  | ListOf children ->
+  | ListOf(children) ->
     children
-    |> Stdlib.List.fold((0, 0), fun acc child ->
+    |> Stdlib.List.fold((0, 0), fun(acc, child) ->
       let (rows, cols) = acc
       let (r, c) = measure(child)
       (rows + r, Stdlib.max(cols, c + 2)))
-  | Input spec ->
+  | Input(spec) ->
     let shown = if spec.value == "" then spec.placeholder else spec.value
     (1, (Stdlib.String.displayWidth(shown)) + 4)
   | Button(label, _) -> (1, (Stdlib.String.displayWidth(label)) + 4)
   | Link(label, _) -> (1, Stdlib.String.displayWidth(label))
   | Region(rows, cols, _) -> (rows, cols)
   | Band(_, message) -> (1, Stdlib.String.displayWidth(message))
-  | Rows rows ->
+  | Rows(rows) ->
     (Stdlib.List.length(rows),
-     rows |> Stdlib.List.fold(0, fun w r -> Stdlib.max(w, Stdlib.String.displayWidth(r))))
+     rows |> Stdlib.List.fold(0, fun(w, r) -> Stdlib.max(w, Stdlib.String.displayWidth(r))))
   | Empty -> (0, 0)
 
 
@@ -152,13 +152,13 @@ let measure(node: Node<'msg>): (Int * Int) =
 /// so a re-render that adds a row above does not move it.
 let focusable(node: Node<'msg>): List<String> =
   match node with
-  | Input spec -> [ spec.id ]
+  | Input(spec) -> [ spec.id ]
   | Button(label, _) -> [ label ]
   | Styled(_, inner) -> focusable(inner)
   | Region(_, _, inner) -> focusable(inner)
-  | Row children -> children |> Stdlib.List.map(focusable) |> Stdlib.List.flatten
-  | Column children -> children |> Stdlib.List.map(focusable) |> Stdlib.List.flatten
-  | ListOf children -> children |> Stdlib.List.map(focusable) |> Stdlib.List.flatten
+  | Row(children) -> children |> Stdlib.List.map(focusable) |> Stdlib.List.flatten
+  | Column(children) -> children |> Stdlib.List.map(focusable) |> Stdlib.List.flatten
+  | ListOf(children) -> children |> Stdlib.List.map(focusable) |> Stdlib.List.flatten
   | _ -> []
 
 /// The `Button` message or `Input` spec under a focus id, if the tree still has it.
@@ -168,13 +168,13 @@ type Focused<'msg> =
 
 let findFocused(node: Node<'msg>, id: String): Stdlib.Option.Option<Focused<'msg>> =
   match node with
-  | Input spec -> if spec.id == id then Stdlib.Option.Option.Some(Focused.OnInput spec) else Stdlib.Option.Option.None
-  | Button(label, msg) -> if label == id then Stdlib.Option.Option.Some(Focused.OnButton msg) else Stdlib.Option.Option.None
+  | Input(spec) -> if spec.id == id then Stdlib.Option.Option.Some(Focused.OnInput(spec)) else Stdlib.Option.Option.None
+  | Button(label, msg) -> if label == id then Stdlib.Option.Option.Some(Focused.OnButton(msg)) else Stdlib.Option.Option.None
   | Styled(_, inner) -> findFocused(inner, id)
   | Region(_, _, inner) -> findFocused(inner, id)
-  | Row children -> children |> Stdlib.List.filterMap(fun c -> findFocused(c, id)) |> Stdlib.List.head
-  | Column children -> children |> Stdlib.List.filterMap(fun c -> findFocused(c, id)) |> Stdlib.List.head
-  | ListOf children -> children |> Stdlib.List.filterMap(fun c -> findFocused(c, id)) |> Stdlib.List.head
+  | Row(children) -> children |> Stdlib.List.filterMap(fun c -> findFocused(c, id)) |> Stdlib.List.head
+  | Column(children) -> children |> Stdlib.List.filterMap(fun c -> findFocused(c, id)) |> Stdlib.List.head
+  | ListOf(children) -> children |> Stdlib.List.filterMap(fun c -> findFocused(c, id)) |> Stdlib.List.head
   | _ -> Stdlib.Option.Option.None
 
 
@@ -221,14 +221,14 @@ let isNumericColumn(rows: List<List<String>>, i: Int): Bool =
 /// right-aligned.
 let tableRows(columns: List<String>, rows: List<List<String>>): List<String> =
   let widths = tableWidths(columns, rows)
-  let numeric = widths |> Stdlib.List.indexedMap(fun i _ -> isNumericColumn(rows, i))
+  let numeric = widths |> Stdlib.List.indexedMap(fun(i, _) -> isNumericColumn(rows, i))
 
   let line(cells: List<String>): String =
     widths
-    |> Stdlib.List.indexedMap(fun i w ->
+    |> Stdlib.List.indexedMap(fun(i, w) ->
       let cell = Stdlib.List.getAt(cells, i) |> Stdlib.Option.withDefault("")
 
-      if Stdlib.List.getAt(numeric, i) == Stdlib.Option.Option.Some true then
+      if Stdlib.List.getAt(numeric, i) == Stdlib.Option.Option.Some(true) then
         Stdlib.String.padStartToWidth(cell, w)
       else
         Stdlib.String.padEndToWidth(cell, w))
@@ -260,7 +260,7 @@ let paint(
     let stack(children: List<Node<'msg>>, indent: Int, marker: String): List<Layout.Span> =
     let (_top, chunks) =
       children
-      |> Stdlib.List.fold((0, []), fun acc child ->
+      |> Stdlib.List.fold((0, []), fun(acc, child) ->
         let (top, collected) = acc
         let (rows, _) = measure(child)
 
@@ -275,23 +275,23 @@ let paint(
 
   match node with
     | Empty -> []
-    | Text s -> textAt(0, s)
-    | Rows rows -> rows |> Stdlib.List.indexedMap(fun i r -> textAt(i, r)) |> Stdlib.List.flatten
+    | Text(s) -> textAt(0, s)
+    | Rows(rows) -> rows |> Stdlib.List.indexedMap(fun(i, r) -> textAt(i, r)) |> Stdlib.List.flatten
     | Styled(inner, child) -> paint(child, region, focus, style + (styleCode(inner)))
     | Band(severity, message) ->
       let code = severityCode(severity)
       let lines = Tui.Text.wrapAtWords(message, Stdlib.max(1, region.cols - 2))
       // At most two rows: a band is a headline, not a page.
       Stdlib.List.take(lines, 2)
-      |> Stdlib.List.indexedMap(fun i line ->
+      |> Stdlib.List.indexedMap(fun(i, line) ->
         let padded = Stdlib.String.padEndToWidth(" " + line, region.cols)
         Layout.at(region, i, 0, Colors.colorize(code, padded)))
       |> Stdlib.List.flatten
     | Table(columns, rows) ->
       tableRows(columns, rows)
-      |> Stdlib.List.indexedMap(fun i r -> textAt(i, r))
+      |> Stdlib.List.indexedMap(fun(i, r) -> textAt(i, r))
       |> Stdlib.List.flatten
-    | Input spec ->
+    | Input(spec) ->
       let shown =
         if spec.value == "" then Colors.dimText(spec.placeholder) else spec.value
       let box = if focus == spec.id then Colors.colorize(Colors.grayBg + Colors.white, $"[ {shown} ]") else $"[ {shown} ]"
@@ -306,14 +306,14 @@ let paint(
     | Link(label, _) -> textAt(0, Colors.underlineText(label))
     | Region(rows, cols, inner) -> paint(inner, sub(region, 0, 0, rows, cols), focus, style)
     // A column stacks its children; a list is a column with a marker and a two-column indent.
-    | Column children -> stack(children, 0, "")
-    | ListOf children -> stack(children, 2, "-")
-    | Row children ->
+    | Column(children) -> stack(children, 0, "")
+    | ListOf(children) -> stack(children, 2, "-")
+    | Row(children) ->
       // Natural widths, one column of gap between children; the last child that overflows takes
       // what is left and is clipped there.
       let (_left, chunks) =
         children
-        |> Stdlib.List.fold((0, []), fun acc child ->
+        |> Stdlib.List.fold((0, []), fun(acc, child) ->
           let (left, collected) = acc
           let (_, cols) = measure(child)
 
@@ -345,19 +345,19 @@ let toLines(node: Node<'msg>, width: Int): List<String> = toRows(node, width, ""
 let rowOf(node: Node<'msg>, id: String): Stdlib.Option.Option<Int> =
   let find(n: Node<'msg>, top: Int): Stdlib.Option.Option<Int> =
     match n with
-    | Input spec -> if spec.id == id then Stdlib.Option.Option.Some top else Stdlib.Option.Option.None
-    | Button(label, _) -> if label == id then Stdlib.Option.Option.Some top else Stdlib.Option.Option.None
+    | Input(spec) -> if spec.id == id then Stdlib.Option.Option.Some(top) else Stdlib.Option.Option.None
+    | Button(label, _) -> if label == id then Stdlib.Option.Option.Some(top) else Stdlib.Option.Option.None
     | Styled(_, inner) -> find(inner, top)
     | Region(_, _, inner) -> find(inner, top)
-    | Row children -> children |> Stdlib.List.filterMap(fun c -> find(c, top)) |> Stdlib.List.head
-    | Column children
-    | ListOf children ->
+    | Row(children) -> children |> Stdlib.List.filterMap(fun c -> find(c, top)) |> Stdlib.List.head
+    | Column(children)
+    | ListOf(children) ->
       let (_, found) =
         children
-        |> Stdlib.List.fold((top, Stdlib.Option.Option.None), fun acc child ->
+        |> Stdlib.List.fold((top, Stdlib.Option.Option.None), fun(acc, child) ->
           let (at, found) = acc
           match found with
-          | Some _ -> acc
+          | Some(_) -> acc
           | None ->
             let (rows, _) = measure(child)
             (at + rows, find(child, at)))

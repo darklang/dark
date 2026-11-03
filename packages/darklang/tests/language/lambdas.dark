@@ -13,18 +13,18 @@ test lambdaEquality =
 test mapAndApply =
   Stdlib.Test.all(
     [ // Test that empty parameters are removed
-      (let y = (fun x ___ -> x + 1L)
+      (let y = (fun(x, ___) -> x + 1L)
        Stdlib.List.map([ 1L, 2L, 3L, 4L ], y))
       |> Stdlib.Test.equal([ 2L, 3L, 4L, 5L ])
       (let y = (fun x -> x + 1L)
        Stdlib.List.map([ 1L, 2L, 3L, 4L ], y))
       |> Stdlib.Test.equal([ 2L, 3L, 4L, 5L ])
-      (let y = (fun a b -> a + b) in y(2L, 3L)) |> Stdlib.Test.equal(5L)
-      (let y = (fun (a, b) -> a + b) in y((2L, 3L))) |> Stdlib.Test.equal(5L)
+      (let y = (fun(a, b) -> a + b) in y(2L, 3L)) |> Stdlib.Test.equal(5L)
+      (let y = (fun((a, b)) -> a + b) in y((2L, 3L))) |> Stdlib.Test.equal(5L)
       (let y = (fun msg -> Stdlib.Test.raiseRuntimeError(msg))
        Stdlib.List.map([], y))
       |> Stdlib.Test.equal([])
-      (let y = (fun a b -> a * b) in Stdlib.List.fold([ 1L, 2L, 3L, 4L ], 1L, y))
+      (let y = (fun(a, b) -> a * b) in Stdlib.List.fold([ 1L, 2L, 3L, 4L ], 1L, y))
       |> Stdlib.Test.equal(24L) ])
 
 test mapRaisesFirstCallbackError =
@@ -38,7 +38,7 @@ test foldRaisesCallbackArgError =
 
 // An error inside the fold callback's body propagates.
 test foldRaisesCallbackBodyError =
-  Stdlib.List.fold([ 4 ], 1, fun _ _ -> (1 / 0)) => raises "Cannot divide by 0"
+  Stdlib.List.fold([ 4 ], 1, fun(_, _) -> (1 / 0)) => raises "Cannot divide by 0"
 
 test capturedBindings =
   (let x = 5L
@@ -79,13 +79,13 @@ test closures =
 test tuplePatterns =
   Stdlib.Test.all(
     [ (let pairs = [ (1L, "one"), (2L, "two"), (3L, "three") ]
-       let transformer = fun (num, str) -> $"{Stdlib.toString(num)}:{str}"
+       let transformer = fun((num, str)) -> $"{Stdlib.toString(num)}:{str}"
        Stdlib.List.map(pairs, transformer))
       |> Stdlib.Test.equal([ "1:one", "2:two", "3:three" ])
       (let triplets = [ (1L, "one", true), (2L, "two", false) ]
 
        let transformer =
-         fun (num, str, flag) ->
+         fun((num, str, flag)) ->
            if flag then
              $"{Stdlib.toString(num)}:{str}:TRUE"
            else
@@ -96,7 +96,7 @@ test tuplePatterns =
       // nested
       (let sing = [ (("1"), "2"), (("3"), "4") ]
 
-       let transformer = fun ((str1), str2) -> str1 + str2
+       let transformer = fun(((str1), str2)) -> str1 + str2
        Stdlib.List.map(sing, transformer))
       |> Stdlib.Test.equal([ "12", "34" ])
       // Nested tuple lambda destructuring regression test.
@@ -104,7 +104,7 @@ test tuplePatterns =
       (let triplets = [ ((1L, "one"), true), ((2L, "two"), false) ]
 
        let transformer =
-         fun ((num, str), flag) ->
+         fun(((num, str), flag)) ->
            if flag then
              $"{Stdlib.toString(num)}:{str}:TRUE"
            else
@@ -115,7 +115,7 @@ test tuplePatterns =
 
 test tuplePatternArityRaises =
   (let triplets = [ (1L, "one", true), (2L, "two", false) ]
-   let transformer = fun (num, str) -> $"{Stdlib.toString(num)}:{str}"
+   let transformer = fun((num, str)) -> $"{Stdlib.toString(num)}:{str}"
    Stdlib.List.map(triplets, transformer))
   => raises
     "Could not deconstruct value (1, \"one\", true) into pattern ([variable], [variable])"
@@ -126,12 +126,12 @@ test dictMapPatterns =
         (Dict
           { "key1": ("val11", "val12")
             "key2": ("val21", "val22") }),
-        fun x (y, z) -> x + y + z)
+        fun(x, (y, z)) -> x + y + z)
       |> Stdlib.Test.equal(
         Dict { "key2": "key2val21val22", "key1": "key1val11val12" })
       (Stdlib.Dict.map(
         Dict { "key1": ("val11", "val12"), "key2": ("val21", "val22") },
-        fun x (_, z) -> x + z))
+        fun(x, (_, z)) -> x + z))
       |> Stdlib.Test.equal(Dict { "key2": "key2val22", "key1": "key1val12" }) ])
 
 // Regression check: applying a function directly from a record field.
@@ -155,8 +155,8 @@ let nestedMapError(): Int64 =
 
 test nestedMapErrorKeepsBothLambdaFrames =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), nestedMapError, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     let rendered = output.stdout + output.stderr
     let lambdaFrames =
       rendered
@@ -195,13 +195,13 @@ test lambdaOutlivingItsFnIsNotHeldToItsTypes =
 // The call stack shows which fn each lambda was written in. Here there are two:
 // the one we wrote in `filterMapBadCallback`, and one `Dict.filterMap` uses inside.
 let filterMapBadCallback(): Int64 =
-  let _ = Stdlib.Dict.filterMap(Dict { "a": 1L }, fun _ _ -> false)
+  let _ = Stdlib.Dict.filterMap(Dict { "a": 1L }, fun(_, _) -> false)
   0L
 
 test callStackNamesWhereEachLambdaWasWritten =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), filterMapBadCallback, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     let rendered = output.stdout + output.stderr
     Stdlib.Test.all(
       [ Stdlib.String.contains(rendered, "- Lambda in Darklang.Stdlib.Dict.filterMap (")
@@ -216,13 +216,13 @@ test callStackNamesWhereEachLambdaWasWritten =
 // error names `passAlong`, since that's the fn we called.
 let requireIntOption(f: Int64 -> Stdlib.Option.Option<Int64>): Int64 =
   match f(1L) with
-  | Some _ -> 1L
+  | Some(_) -> 1L
   | None -> 0L
 
 let passAlong(f: 'a -> Stdlib.Option.Option<'b>, x: 'a): Int64 = requireIntOption(f)
 
 test innerHelpersStricterTypeIsChecked =
-  passAlong((fun _ -> Stdlib.Option.Option.Some "wrong"), 1L)
+  passAlong((fun _ -> Stdlib.Option.Option.Some("wrong")), 1L)
   => raises "Darklang.Language.Tests.Lambdas.passAlong's 1st parameter `f` returned Darklang.Stdlib.Option.Option<String> (Some(\"wrong\")), but should return Darklang.Stdlib.Option.Option<Int64>"
 
 // A parameter whose type is an alias of a function type is a callback too.
@@ -248,6 +248,6 @@ test recursiveFnKeepsCheckingItsCallback =
 // The fold starts with an empty dict. The first step returns a dict of Int64s, so
 // every later step must too. Returning a dict of Strings is an error.
 test foldAccumulatorKeepsItsType =
-  Stdlib.List.fold([ 1L, 2L ], Dict { }, fun acc x ->
+  Stdlib.List.fold([ 1L, 2L ], Dict { }, fun(acc, x) ->
     if x == 1L then Stdlib.Dict.set(acc, "a", 1L) else Dict { "b": "text" })
   => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned Dict<String, String> ({ \"b\": \"text\" }), but should return Dict<String, Int64>"

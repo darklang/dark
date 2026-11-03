@@ -382,7 +382,7 @@ test equalMessage =
       First { cacheSafetyField = 2L })
   with
   | Pass -> Stdlib.Test.fail("expected an assertion failure")
-  | Fail messages ->
+  | Fail(messages) ->
     let text = Stdlib.String.join(messages, " ")
     Stdlib.Test.expect(Stdlib.String.contains(text, "First"), "type name changed")
 test notEqualMessage =
@@ -392,7 +392,7 @@ test notEqualMessage =
       First { cacheSafetyField = 1L })
   with
   | Pass -> Stdlib.Test.fail("expected an assertion failure")
-  | Fail messages ->
+  | Fail(messages) ->
     let text = Stdlib.String.join(messages, " ")
     Stdlib.Test.expect(Stdlib.String.contains(text, "First"), "type name changed")
 """
@@ -571,7 +571,7 @@ let testRunUsesOneStartingStore =
           runCli state [ "hash"; "Tests.Baseline.startingStore"; "--full" ]
         let hash = hashOutput.Trim().Split(' ') |> Array.last
         let expression =
-          $"""let hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "{hash}"
+          $"""let hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash("{hash}")
 let branch = Darklang.SCM.Branch.mainBranchId
 let _ = Stdlib.LocalStore.configSet("baseline-witness", "before")
 let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(fun run ->
@@ -584,12 +584,12 @@ let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(fun run
 let ended = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(fun run -> run)
 let rejected =
   match Darklang.LanguageTools.PackageManager.Test.executeInRun(ended, branch, hash) with
-  | Ok (Fail messages) -> Stdlib.String.contains(Stdlib.String.join(messages, " "), "already ended")
+  | Ok(Fail(messages)) -> Stdlib.String.contains(Stdlib.String.join(messages, " "), "already ended")
   | _ -> false
 rejected
-&& first == Ok (Stdlib.Test.pass())
-&& second == Ok (Stdlib.Test.pass())
-&& later == Ok (Stdlib.Test.fail("starting store changed"))
+&& first == Ok(Stdlib.Test.pass())
+&& second == Ok(Stdlib.Test.pass())
+&& later == Ok(Stdlib.Test.fail("starting store changed"))
 && Stdlib.LocalStore.configGet("baseline-witness") == "after"
 """
         do!
@@ -1013,19 +1013,19 @@ let restricted():{} Bool =
   true
 let caller():{Native} Stdlib.Test.Result =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), Tests.PermissionUse.clock, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     match output.result with
-    | Ok _ -> Stdlib.Test.pass()
-    | Error message -> Stdlib.Test.fail(message)
+    | Ok(_) -> Stdlib.Test.pass()
+    | Error(message) -> Stdlib.Test.fail(message)
 test direct = Tests.PermissionUse.clock() |> Stdlib.Test.equal(true)
 test isolated =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), Tests.PermissionUse.clock, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     match output.result with
-    | Ok value -> value |> Stdlib.Test.equal(true)
-    | Error message -> Stdlib.Test.fail(message)
+    | Ok(value) -> value |> Stdlib.Test.equal(true)
+    | Error(message) -> Stdlib.Test.fail(message)
 test functionCeiling = Tests.PermissionUse.restricted() |> Stdlib.Test.equal(true)
 test callerCeiling = Tests.PermissionUse.caller()
 """
@@ -1165,9 +1165,9 @@ let searchLeavesTestsOutUnlessAsked =
 let private workbenchAt (modules : List<string>) (row : string) : string =
   let path = modules |> List.map (fun m -> $"\"{m}\"") |> String.concat ", "
   "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.PackageOps.currentBranch(), Stdlib.Option.Option.None, \"i\", false) in "
-  + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in "
+  + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module([ {path} ]) }} in "
   + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems(s0) } in "
-  + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap(s1.items, fun i it -> (i, it.name)) |> Stdlib.List.findFirst(fun (_, nm) -> nm == \"{row}\") |> Stdlib.Option.map(fun (i, _) -> i) |> Stdlib.Option.withDefault(0)) }} in "
+  + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap(s1.items, fun(i, it) -> (i, it.name)) |> Stdlib.List.findFirst(fun((_, nm)) -> nm == \"{row}\") |> Stdlib.Option.map(fun((i, _)) -> i) |> Stdlib.Option.withDefault(0)) }} in "
 
 /// The Code view lists a module's tests as rows of their own, and the Inspect pane shows a test's
 /// source and result, and a function's tests. Every row kind here used to fall through to "value",
@@ -1195,7 +1195,7 @@ let workbenchShowsTests =
           state
           ((workbenchAt floatTests "ceiling")
            + "match Stdlib.List.getAt(s.items, s.selected) with "
-           + "| Some item -> Darklang.Cli.Workbench.itemMeta(s, item, "
+           + "| Some(item) -> Darklang.Cli.Workbench.itemMeta(s, item, "
            + "Darklang.Cli.Packages.Query.searchExactMatch(s.branchId, "
            + "Darklang.Cli.Packages.modulePathOf(s.location), item.name)) "
            + "| None -> \"\"")
@@ -1221,7 +1221,7 @@ let workbenchRenameEndsTheOldName =
         evals
           state
           ((workbenchAt [ "Tests"; "WbRename" ] "before")
-           + "match Darklang.Cli.Workbench.performInputAction(s, Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(\"after\"), action = \"rename\" }) with | Continue s2 -> s2.message | _ -> \"no\"")
+           + "match Darklang.Cli.Workbench.performInputAction(s, Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(\"after\"), action = \"rename\" }) with | Continue(s2) -> s2.message | _ -> \"no\"")
           "renamed to after"
           "the workbench says it renamed"
       do! evals state "Tests.WbRename.after()" "7" "the new name resolves"
@@ -1805,7 +1805,7 @@ let twoWordingsForOneDocRecordAConflict =
 
         // What a peer's op looks like on arrival: it names a predecessor nobody here ever wrote.
         let theirs =
-          "Darklang.SCM.PackageOps.add(Builtin.scmCurrentBranch(), [Darklang.LanguageTools.ProgramTypes.PackageOp.UpdateDoc(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [\"DocClash\"], name = \"f\" }, Darklang.LanguageTools.ProgramTypes.DocPart.WholeItem, \"theirs, written somewhere else\", Stdlib.Option.Option.Some (Darklang.LanguageTools.ProgramTypes.hashOfText(\"a text this store never had\")), Stdlib.Option.Option.None)])"
+          "Darklang.SCM.PackageOps.add(Builtin.scmCurrentBranch(), [Darklang.LanguageTools.ProgramTypes.PackageOp.UpdateDoc(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [\"DocClash\"], name = \"f\" }, Darklang.LanguageTools.ProgramTypes.DocPart.WholeItem, \"theirs, written somewhere else\", Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.hashOfText(\"a text this store never had\")), Stdlib.Option.Option.None)])"
           + ""
           + ""
           + ""

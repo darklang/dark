@@ -23,7 +23,7 @@ type PsSnapshot =
 
 let entryText(branchId: Uuid, entry: Stdlib.Exec.Entry): String =
   match entry with
-  | Function name -> PrettyPrinter.RuntimeTypes.fnName(branchId, name)
+  | Function(name) -> PrettyPrinter.RuntimeTypes.fnName(branchId, name)
   | Expr -> "an eval expression"
 
 
@@ -31,34 +31,34 @@ let eventSpecText(spec: Stdlib.Host.EventSpec): String =
   match spec with
   | Key -> "a key"
   | StoreChanged -> "a store change"
-  | Timer ms -> $"a timer ({Stdlib.toString(ms)} ms)"
-  | ExecDone id -> $"process {Cli.Text.shortId(id)} to finish"
+  | Timer(ms) -> $"a timer ({Stdlib.toString(ms)} ms)"
+  | ExecDone(id) -> $"process {Cli.Text.shortId(id)} to finish"
   | StdinLine -> "a line of input"
-  | StdinBytes n -> $"{Stdlib.toString(n)} bytes of input"
+  | StdinBytes(n) -> $"{Stdlib.toString(n)} bytes of input"
 
 
 let parkedText(branchId: Uuid, parked: Stdlib.Exec.ParkedOn): String =
   match parked with
-  | Host op -> op
+  | Host(op) -> op
   // The builtin's bare name: `Builtin.` says nothing a reader of this column needs.
-  | Builtin b -> b.name
-  | PackageFn h -> PrettyPrinter.RuntimeTypes.FQFnName.package(branchId, h)
+  | Builtin(b) -> b.name
+  | PackageFn(h) -> PrettyPrinter.RuntimeTypes.FQFnName.package(branchId, h)
   | Lambda -> "a lambda"
   | RareOpcode -> "the store"
-  | Events specs -> specs |> Stdlib.List.map(eventSpecText) |> Stdlib.String.join(" or ")
-  | Process id -> $"process {Cli.Text.shortId(id)}"
+  | Events(specs) -> specs |> Stdlib.List.map(eventSpecText) |> Stdlib.String.join(" or ")
+  | Process(id) -> $"process {Cli.Text.shortId(id)}"
 
 
 let statusText(branchId: Uuid, status: Stdlib.Exec.Status): String =
   match status with
   | Runnable -> "running"
-  | Parked on ->
+  | Parked(on) ->
     match on with
-    | Events _
-    | Process _ -> $"waiting for {parkedText(branchId, on)}"
+    | Events(_)
+    | Process(_) -> $"waiting for {parkedText(branchId, on)}"
     | _ -> $"waiting on {parkedText(branchId, on)}"
   | Done -> "finished"
-  | Failed rte ->
+  | Failed(rte) ->
     let message = PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
     $"failed: {Cli.Text.oneLine(message)}"
 
@@ -81,26 +81,26 @@ let treeRowsWithIds(branchId: Uuid, all: List<Stdlib.Exec.Summary>): List<(Uuid 
   let isRoot(p: Stdlib.Exec.Summary): Bool =
     match p.parent with
     | None -> true
-    | Some pid -> Stdlib.Bool.not(Stdlib.List.contains(ids, pid))
+    | Some(pid) -> Stdlib.Bool.not(Stdlib.List.contains(ids, pid))
   let under(depth: Int, p: Stdlib.Exec.Summary): List<(Uuid * List<String>)> =
     let children =
-      all |> Stdlib.List.filter(fun c -> c.parent == Stdlib.Option.Option.Some p.id)
+      all |> Stdlib.List.filter(fun c -> c.parent == Stdlib.Option.Option.Some(p.id))
     Stdlib.List.prepend(
       children |> Stdlib.List.map(fun c -> under(depth + 1, c)) |> Stdlib.List.flatten,
       (p.id, row(branchId, depth, p)))
   all |> Stdlib.List.filter(isRoot) |> Stdlib.List.map(fun p -> under(0, p)) |> Stdlib.List.flatten
 
 let treeRows(branchId: Uuid, all: List<Stdlib.Exec.Summary>): List<List<String>> =
-  treeRowsWithIds(branchId, all) |> Stdlib.List.map(fun (_, cells) -> cells)
+  treeRowsWithIds(branchId, all) |> Stdlib.List.map(fun((_, cells)) -> cells)
 
 
 let executionPointText(branchId: Uuid, ep: Stdlib.Exec.ExecutionPoint): String =
   match ep with
   | Source -> "(the entry point)"
-  | Function name -> PrettyPrinter.RuntimeTypes.fnName(branchId, name)
+  | Function(name) -> PrettyPrinter.RuntimeTypes.fnName(branchId, name)
   | Lambda(parent, _exprId, writtenIn) ->
     match writtenIn with
-    | Some written -> $"a lambda in {executionPointText(branchId, written)}"
+    | Some(written) -> $"a lambda in {executionPointText(branchId, written)}"
     | None -> $"a lambda in {executionPointText(branchId, parent)}"
 
 
@@ -109,16 +109,16 @@ let find(prefix: String): Stdlib.Result.Result<Stdlib.Exec.Summary, String> =
   // Every id starts with "", so an empty prefix would quietly take whichever process came first.
   // A shell variable that came back empty is how a person meets this.
   if prefix == "" then
-    Stdlib.Result.Result.Error "that id is empty -- `dark ps` lists the ids"
+    Stdlib.Result.Result.Error("that id is empty -- `dark ps` lists the ids")
   else
 
   let matches =
     Stdlib.Exec.list()
     |> Stdlib.List.filter(fun p -> Stdlib.String.startsWith(Stdlib.toString(p.id), prefix))
   match matches with
-  | [ one ] -> Stdlib.Result.Result.Ok one
-  | [] -> Stdlib.Result.Result.Error $"no process whose id starts with {prefix} -- `dark ps` lists them"
-  | _ -> Stdlib.Result.Result.Error $"more than one process starts with {prefix}; give more of the id"
+  | [ one ] -> Stdlib.Result.Result.Ok(one)
+  | [] -> Stdlib.Result.Result.Error($"no process whose id starts with {prefix} -- `dark ps` lists them")
+  | _ -> Stdlib.Result.Result.Error($"more than one process starts with {prefix}; give more of the id")
 
 
 /// "0.3 s ago", "12 s ago", "4 min ago": how long something has been running, at a glance. Past
@@ -159,7 +159,7 @@ val machineColumns = [ "pid", "what it runs", "branch", "started" ]
 val localColumns = [ "id", "what it runs", "status", "steps" ]
 
 let machineRows(): List<List<String>> =
-  machineEntries() |> Stdlib.List.map(fun (_, cells) -> cells)
+  machineEntries() |> Stdlib.List.map(fun((_, cells)) -> cells)
 
 /// Both sections always print, with `(none)` under an empty one: a heading that appears one
 /// time and not the next reads as a bug.
@@ -187,16 +187,16 @@ let printList(branchId: Uuid): Unit =
 /// there is a refusal, and a shell has only the code to read.
 let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
   match find(prefix) with
-  | Error e ->
+  | Error(e) ->
     Cli.printErr(e)
     false
-  | Ok p ->
+  | Ok(p) ->
     match Stdlib.Exec.inspect(p.id) with
     | None ->
       Cli.printErr(
         $"process {Cli.Text.shortId(p.id)} finished while you were asking -- `dark ps` for what is left")
       false
-    | Some detail ->
+    | Some(detail) ->
       let s = detail.summary
       let id = if full then Stdlib.toString(s.id) else Cli.Text.shortId(s.id)
       Stdlib.printLine($"{id}  {entryText(branchId, s.entry)}")
@@ -209,7 +209,7 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
       else
         ()
       match s.parent with
-      | Some pid -> Stdlib.printLine($"  parent        {if full then Stdlib.toString(pid) else Cli.Text.shortId(pid)}")
+      | Some(pid) -> Stdlib.printLine($"  parent        {if full then Stdlib.toString(pid) else Cli.Text.shortId(pid)}")
       | None -> ()
       match detail.frames with
       | [] -> ()
@@ -229,18 +229,18 @@ let machineByPid(
   target: String)
   : Stdlib.Option.Option<Stdlib.Exec.MachineProcess> =
   match Stdlib.Int.parse(target) with
-  | Ok pid ->
+  | Ok(pid) ->
     Stdlib.Exec.machineList()
     |> Stdlib.List.filter(fun m -> (Stdlib.Int.fromInt64(m.pid)) == pid)
     |> Stdlib.List.head
-  | Error _ -> Stdlib.Option.Option.None
+  | Error(_) -> Stdlib.Option.Option.None
 
 /// Another Dark process in full, from the registry: the whole command line the
 /// table cuts. Its own processes and stacks live in it, so this is what can be
 /// known from outside.
 let printMachineShow(target: String, json: Bool): Bool =
   match machineByPid(target) with
-  | Some m ->
+  | Some(m) ->
     if json then
       Stdlib.printLine(Stdlib.Json.serialize<Stdlib.Exec.MachineProcess>(m))
     else
@@ -267,16 +267,16 @@ let signalMachine(
   let pidText = Stdlib.toString(pid)
   match known with
   | [] ->
-    Stdlib.Result.Result.Error
-      $"no Dark process on this machine has pid {pidText} -- `dark ps` lists them"
+    Stdlib.Result.Result.Error(
+      $"no Dark process on this machine has pid {pidText} -- `dark ps` lists them")
   | [m, ...] ->
     let signal = if hard then Stdlib.Cli.Posix.sigkill else Stdlib.Cli.Posix.sigint
     match Stdlib.Cli.Posix.kill(pid, signal) with
-    | Ok () ->
-      if hard then Stdlib.Result.Result.Ok $"killed {m.title} (pid {pidText})"
-      else Stdlib.Result.Result.Ok $"asked {m.title} (pid {pidText}) to stop"
-    | Error _ ->
-      Stdlib.Result.Result.Error $"could not signal pid {pidText}"
+    | Ok(()) ->
+      if hard then Stdlib.Result.Result.Ok($"killed {m.title} (pid {pidText})")
+      else Stdlib.Result.Result.Ok($"asked {m.title} (pid {pidText}) to stop")
+    | Error(_) ->
+      Stdlib.Result.Result.Error($"could not signal pid {pidText}")
 
 /// Stop a process in this instance by id prefix: `cancel` at its next turn, `kill` now.
 let stopLocal(
@@ -284,25 +284,25 @@ let stopLocal(
   hard: Bool)
   : Stdlib.Result.Result<String, String> =
   match find(prefix) with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok p ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(p) ->
     let ok = if hard then killById(p.id) else Stdlib.Exec.cancel(Stdlib.Exec.Handle { id = p.id })
     if ok then
       if hard then
-        Stdlib.Result.Result.Ok
-          $"killed {Cli.Text.shortId(p.id)} without waiting for what it was doing"
+        Stdlib.Result.Result.Ok(
+          $"killed {Cli.Text.shortId(p.id)} without waiting for what it was doing")
       else
-        Stdlib.Result.Result.Ok
-          $"asked {Cli.Text.shortId(p.id)} to stop; it will, as soon as the work it is doing finishes"
+        Stdlib.Result.Result.Ok(
+          $"asked {Cli.Text.shortId(p.id)} to stop; it will, as soon as the work it is doing finishes")
     else
-      Stdlib.Result.Result.Error
-        $"{Cli.Text.shortId(p.id)} finished while you were asking -- `dark ps` for what is left"
+      Stdlib.Result.Result.Error(
+        $"{Cli.Text.shortId(p.id)} finished while you were asking -- `dark ps` for what is left")
 
 /// A pid names another Dark process on this machine; anything else is an id prefix in this one.
 let stop(target: String, hard: Bool): Stdlib.Result.Result<String, String> =
   match Stdlib.Int.parse(target) with
-  | Ok pid -> signalMachine(pid, hard)
-  | Error _ -> stopLocal(target, hard)
+  | Ok(pid) -> signalMachine(pid, hard)
+  | Error(_) -> stopLocal(target, hard)
 
 /// Everything `ps` knows, as JSON, for something that is not a person: this instance's
 /// processes and the machine's other Dark processes, in the same two groups the tables print.
@@ -336,14 +336,14 @@ let execute(state: AppState, args: List<String>): AppState =
           init = "Darklang.Cli.Ps.Watch.init"
           update = "Darklang.Cli.Ps.Watch.update"
           render = "Darklang.Cli.Ps.Watch.render"
-          every = Stdlib.Option.Option.Some 500L
+          every = Stdlib.Option.Option.Some(500L)
           keys =
-            Stdlib.Option.Option.Some "up/down move  |  c cancel  |  k kill  |  esc quit" }
+            Stdlib.Option.Option.Some("up/down move  |  c cancel  |  k kill  |  esc quit") }
     // `--watch` IS the opt-in: a panel whose whole job is to repaint. It follows the store for
     // the same reason it follows the clock.
     match LiveView.Host.openView(state.currentBranchId, view, Stdlib.Option.Option.None, true) with
-    | Ok _ -> state
-    | Error e ->
+    | Ok(_) -> state
+    | Error(e) ->
       Cli.printErr(e)
       { state with exitCode = 1 }
   | [ "show", pid ] when (Stdlib.Option.isSome(machineByPid(pid))) ->
@@ -352,16 +352,16 @@ let execute(state: AppState, args: List<String>): AppState =
     let ok =
       if wantsJson then
         match find(prefix) with
-        | Error e ->
+        | Error(e) ->
           Cli.printErr(e)
           false
-        | Ok p ->
+        | Ok(p) ->
           match Stdlib.Exec.inspect(p.id) with
           | None ->
             Cli.printErr(
               $"process {Cli.Text.shortId(p.id)} finished while you were asking")
             false
-          | Some d ->
+          | Some(d) ->
             Stdlib.printLine(Stdlib.Json.serialize<Stdlib.Exec.Detail>(d))
             true
       else
@@ -371,18 +371,18 @@ let execute(state: AppState, args: List<String>): AppState =
     Cli.exitWith(state, printShowWith(state.currentBranchId, prefix, true))
   | [ "cancel", target ] ->
     match stop(target, false) with
-    | Ok msg ->
+    | Ok(msg) ->
       Stdlib.printLine(msg)
       state
-    | Error e ->
+    | Error(e) ->
       Cli.printErr(e)
       { state with exitCode = 1 }
   | [ "kill", target ] ->
     match stop(target, true) with
-    | Ok msg ->
+    | Ok(msg) ->
       Stdlib.printLine(msg)
       state
-    | Error e ->
+    | Error(e) ->
       Cli.printErr(e)
       { state with exitCode = 1 }
   | [ verb ] when (Stdlib.List.contains([ "show", "cancel", "kill" ], verb)) ->
@@ -445,10 +445,10 @@ module Watch =
     let branchId = SCM.PackageOps.currentBranch()
     let machine =
       machineEntries()
-      |> Stdlib.List.map(fun (pid, cells) -> Row.Machine(pid, cells))
+      |> Stdlib.List.map(fun((pid, cells)) -> Row.Machine(pid, cells))
     let local =
       treeRowsWithIds(branchId, Stdlib.Exec.list())
-      |> Stdlib.List.map(fun (id, cells) -> Row.Local(id, cells))
+      |> Stdlib.List.map(fun((id, cells)) -> Row.Local(id, cells))
     // This instance first, the machine after, the same order as the printed tables: the cursor
     // walks the rows in the order they are drawn.
     Stdlib.List.concat(local, machine)
@@ -464,8 +464,8 @@ module Watch =
   /// a panel has no exit code to carry it.
   let noteOf(r: Stdlib.Result.Result<String, String>): String =
     match r with
-    | Ok msg -> msg
-    | Error e -> Stdlib.Cli.UI.Colors.error(e)
+    | Ok(msg) -> msg
+    | Error(e) -> Stdlib.Cli.UI.Colors.error(e)
 
   let act(m: Model, hard: Bool): Model =
     match Stdlib.List.getAt(m.rows, m.cursor) with
@@ -476,15 +476,15 @@ module Watch =
 
   let update(m: Model, event: LiveView.Host.Event<Msg>): Model =
     match event with
-    | Tick | Msg Refresh -> clamp({ m with rows = gather() })
-    | Key k ->
+    | Tick | Msg(Refresh) -> clamp({ m with rows = gather() })
+    | Key(k) ->
       match k.key with
       | UpArrow -> clamp({ m with cursor = m.cursor - 1, note = "" })
       | DownArrow -> clamp({ m with cursor = m.cursor + 1, note = "" })
       | _ ->
         match k.char with
-        | Some "c" -> act(m, false)
-        | Some "k" -> act(m, true)
+        | Some("c") -> act(m, false)
+        | Some("k") -> act(m, true)
         | _ -> { m with note = "" }
 
   let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =
@@ -492,16 +492,16 @@ module Watch =
       match cells with
       | [first, ...rest] -> Stdlib.List.prepend(rest, (if i == m.cursor then "> " else "  ") + first)
       | [] -> []
-    let indexed = Stdlib.List.indexedMap(m.rows, fun i r -> (i, r))
+    let indexed = Stdlib.List.indexedMap(m.rows, fun(i, r) -> (i, r))
     let machineRows =
       indexed
-      |> Stdlib.List.filterMap(fun (i, r) ->
+      |> Stdlib.List.filterMap(fun((i, r)) ->
         match r with
         | Machine(_, cells) -> Stdlib.Option.Option.Some(mark(i, cells))
         | _ -> Stdlib.Option.Option.None)
     let localRows =
       indexed
-      |> Stdlib.List.filterMap(fun (i, r) ->
+      |> Stdlib.List.filterMap(fun((i, r)) ->
         match r with
         | Local(_, cells) -> Stdlib.Option.Option.Some(mark(i, cells))
         | _ -> Stdlib.Option.Option.None)

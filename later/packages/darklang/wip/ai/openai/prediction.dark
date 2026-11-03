@@ -15,6 +15,6 @@ let create (content: String) : PredictedOutput =
 
 /// Convert to JSON
 let toJson (pred: PredictedOutput) : Json =
-  Json.Object
-    [ ("type", Json.String "content")
-      ("content", Json.String pred.content) ]
+  Json.Object(
+    [ ("type", Json.String("content"))
+      ("content", Json.String(pred.content)) ])

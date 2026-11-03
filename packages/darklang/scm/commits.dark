@@ -65,7 +65,7 @@ let create(message: String, opIds: List<String>, parent: String): String =
 
 let commitFromRow(row: Dict<String, Stdlib.Sqlite.Value>): Stdlib.Option.Option<Commit> =
   match Stdlib.Sqlite.textField(row, "hash") with
-  | Some hash ->
+  | Some(hash) ->
     (Commit
       { hash = hash
         message = Stdlib.Sqlite.textOr(row, "message")
@@ -108,7 +108,7 @@ let byHashPrefix(prefix: String): Stdlib.Option.Option<Commit> =
        WHERE hash LIKE @p0 || '%' ORDER BY created_at DESC, rowid DESC LIMIT 1",
       [ prefix ])
   with
-  | Some row -> commitFromRow(row)
+  | Some(row) -> commitFromRow(row)
   | None -> Stdlib.Option.Option.None
 
 
@@ -121,7 +121,7 @@ let children(hash: String): List<String> =
     [ hash ])
   |> Stdlib.List.filterMap(fun row ->
     match Stdlib.Dict.get(row, "hash") with
-    | Some(Text h) -> Stdlib.Option.Option.Some h
+    | Some(Text(h)) -> Stdlib.Option.Option.Some(h)
     | _ -> Stdlib.Option.Option.None)
 
 /// The op ids a commit holds.
@@ -132,6 +132,6 @@ let opIdsIn(hash: String): List<String> =
     [ hash ])
   |> Stdlib.List.filterMap(fun row ->
     match Stdlib.Dict.get(row, "id") with
-    | Some(Text id) -> Stdlib.Option.Option.Some id
+    | Some(Text(id)) -> Stdlib.Option.Option.Some(id)
     | _ -> Stdlib.Option.Option.None)
 

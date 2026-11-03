@@ -31,33 +31,33 @@ let loop(
   : Int =
   let state =
     match Stdlib.Live.call(lg, state) with
-    | Ok next -> next
-    | Error rte ->
+    | Ok(next) -> next
+    | Error(rte) ->
       Stdlib.printLine($"{name}: the step failed, so its state was kept: {rte}")
       state
 
   // Not live: the store is never watched, so the poll behind it never starts for this process.
   let specs =
     if live then
-      [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer (timerMs(intervalMs)) ]
+      [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ]
     else
-      [ Stdlib.Host.EventSpec.Timer (timerMs(intervalMs)) ]
+      [ Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ]
 
   match Stdlib.Host.await(specs) with
-  | StoreChanged change when Stdlib.Live.affects(change, lg.entry) ->
+  | StoreChanged(change) when Stdlib.Live.affects(change, lg.entry) ->
     let refreshed = Stdlib.Live.refresh(branchId, lg)
 
     match Stdlib.Live.transition(lg, refreshed) with
-    | Some line -> Stdlib.printLine($"{name}: {line}")
+    | Some(line) -> Stdlib.printLine($"{name}: {line}")
     | None -> ()
 
     // The wait was cut short by the change; the next tick runs on the new version after a
     // full interval, not at once. A change that lands during this plain wait is reported by
     // the next `StoreChanged` wait, since the poll behind it accumulates.
-    let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer (timerMs(intervalMs)) ])
+    let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ])
     loop(name, branchId, refreshed, state, intervalMs, live)
-  | StoreChanged _ ->
-    let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer (timerMs(intervalMs)) ])
+  | StoreChanged(_) ->
+    let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ])
     loop(name, branchId, lg, state, intervalMs, live)
   | _ -> loop(name, branchId, lg, state, intervalMs, live)
 
@@ -74,7 +74,7 @@ let run(
   | None ->
     Stdlib.printLine($"{name}: {stepName} is not a package fn name")
     1
-  | Some entry ->
+  | Some(entry) ->
     Stdlib.Host.begin()
     let branchId = SCM.PackageOps.currentBranch()
     let lg = Stdlib.Live.refresh(branchId, Stdlib.Live.start(entry))
@@ -86,5 +86,5 @@ let run(
 
       Stdlib.printLine($"{name}: {why}")
       1
-    | Some _ -> loop(name, branchId, lg, init, intervalMs, live)
+    | Some(_) -> loop(name, branchId, lg, init, intervalMs, live)
 

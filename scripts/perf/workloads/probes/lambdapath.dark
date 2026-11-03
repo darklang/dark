@@ -46,7 +46,7 @@ let walkOnly(xs: List<Int>, acc: Int): Int =
 let timeOf(body: Int -> Int): Int =
   let t0 = now()
   let _r =
-    Stdlib.List.fold(Stdlib.List.range(1, iterations), 0, fun acc i ->
+    Stdlib.List.fold(Stdlib.List.range(1, iterations), 0, fun(acc, i) ->
       acc + (body(i)))
   (now()) - t0
 
@@ -71,8 +71,8 @@ let large = Stdlib.List.range(1, 250)
 let _warm = saturate((if smoke then 2 else 40000), 0)
 
 // Builtin-applied: `fold` calls `executeApplicable2` once per element.
-let foldSmall = best(fun i -> Stdlib.List.fold(small, 0, fun acc x -> acc + x))
-let foldLarge = best(fun i -> Stdlib.List.fold(large, 0, fun acc x -> acc + x))
+let foldSmall = best(fun i -> Stdlib.List.fold(small, 0, fun(acc, x) -> acc + x))
+let foldLarge = best(fun i -> Stdlib.List.fold(large, 0, fun(acc, x) -> acc + x))
 
 // The same, with a ONE-argument lambda, so it compares like with like against the recursion below.
 // `any` with a predicate that never fires scans the whole list and builds nothing.

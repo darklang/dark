@@ -74,7 +74,7 @@ let filterDeprecatedPairs(
     items
   else
     items
-    |> Stdlib.List.filter(fun (_name, hash) -> Stdlib.Bool.not(isHidden(sets, hash)))
+    |> Stdlib.List.filter(fun((_name, hash)) -> Stdlib.Bool.not(isHidden(sets, hash)))
 
 
 /// Search for a specific entity by name in a given module path (exact match)
@@ -111,7 +111,7 @@ let getDirectSubmodules(results: LanguageTools.ProgramTypes.Search.SearchResults
       if Stdlib.String.isEmpty(nextPart) then
         Stdlib.Option.Option.None
       else
-        Stdlib.Option.Option.Some nextPart)
+        Stdlib.Option.Option.Some(nextPart))
   |> Stdlib.List.unique
   |> Stdlib.List.sort
 
@@ -137,7 +137,7 @@ let hashListToDict(
   hashes: List<LanguageTools.ProgramTypes.Hash>)
   : Dict<String, Bool> =
   hashes
-  |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc hash ->
+  |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, hash) ->
     let key = LanguageTools.ProgramTypes.hashToString(hash)
     Stdlib.Dict.set(acc, key, true))
 

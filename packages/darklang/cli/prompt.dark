@@ -10,7 +10,7 @@ let confirmExplicit(autoConfirm: Bool, question: String): Bool =
   else
     Stdlib.printErrorLine(question)
     match Stdlib.Cli.Stdin.readLineOrEnd() with
-    | Some typed ->
+    | Some(typed) ->
       let response = Stdlib.String.trim(typed)
       (response == "y") || (response == "Y")
     | None -> false
@@ -107,7 +107,7 @@ module History =
   /// Add command to history (avoiding duplicates at the front)
   let addCommand(state: State, command: String): State =
     let updatedHistory =
-      if Stdlib.List.isEmpty(state.commandHistory) || Stdlib.List.head(state.commandHistory) != Stdlib.Option.Option.Some command then
+      if Stdlib.List.isEmpty(state.commandHistory) || Stdlib.List.head(state.commandHistory) != Stdlib.Option.Option.Some(command) then
         Stdlib.List.prepend(state.commandHistory, command)
       else
         state.commandHistory
@@ -128,7 +128,7 @@ module History =
           else
             state.historyIndex  // Stay at oldest command
       match Stdlib.List.getAt(state.commandHistory, newIndex) with
-      | Some command ->
+      | Some(command) ->
         let commandLength = Stdlib.String.length(command)
         let newSavedPrompt =
           if state.historyIndex == -1 then
@@ -161,7 +161,7 @@ module History =
             historyIndex = newIndex }
       else
         match Stdlib.List.getAt(state.commandHistory, newIndex) with
-        | Some command ->
+        | Some(command) ->
           let commandLength = Stdlib.String.length(command)
           { state with
               text = command

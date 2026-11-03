@@ -49,7 +49,7 @@ let cut(
     (items, 0)
   else
     let (shown, _) =
-      Stdlib.List.fold(items, ([], 0), fun acc item ->
+      Stdlib.List.fold(items, ([], 0), fun(acc, item) ->
         let (taken, spent) = acc
         let next = spent + (cost(item))
 
@@ -94,7 +94,7 @@ let splitLeaf(name: String): (String * String) =
 
   match Stdlib.List.last(parts) with
   | None -> ("", name)
-  | Some leaf ->
+  | Some(leaf) ->
     let modulePath =
       parts
       |> Stdlib.List.take((Stdlib.List.length(parts)) - 1)
@@ -112,14 +112,14 @@ let groupedByModule(names: List<String>): List<(String * List<String>)> =
   // One pass, splitting each name once. A Dict lists its keys sorted, which is the module
   // order this has always had.
   names
-  |> Stdlib.List.fold(Dict { }, fun groups name ->
+  |> Stdlib.List.fold(Dict { }, fun(groups, name) ->
     let (m, leaf) = Listing.splitLeaf(name)
 
     match Stdlib.Dict.get(groups, m) with
-    | Some leaves -> Stdlib.Dict.set(groups, m, Stdlib.List.prepend(leaves, leaf))
+    | Some(leaves) -> Stdlib.Dict.set(groups, m, Stdlib.List.prepend(leaves, leaf))
     | None -> Stdlib.Dict.set(groups, m, [ leaf ]))
   |> Stdlib.Dict.toEntries
-  |> Stdlib.List.map(fun (m, leaves) -> (m, Stdlib.List.reverse(leaves)))
+  |> Stdlib.List.map(fun((m, leaves)) -> (m, Stdlib.List.reverse(leaves)))
 
 
 /// One group as its two rows: a dimmed header with the count, and the leaves on one line.
@@ -145,7 +145,7 @@ let cappedGroupsSeeAlso(
       limit,
       cap,
       (fun g -> Stdlib.List.length(Listing.groupRows(g))),
-      fun (_, leaves) -> Stdlib.List.length(leaves))
+      fun((_, leaves)) -> Stdlib.List.length(leaves))
 
   Listing.withFooterSeeAlso(
     shown |> Stdlib.List.map(Listing.groupRows) |> Stdlib.List.flatten,

@@ -26,15 +26,15 @@ test isMatch =
 test find =
   Stdlib.Test.all(
     [ // Basic find
-      Stdlib.Regex.find("hello world", "world") |> Stdlib.Test.equal(Some "world")
+      Stdlib.Regex.find("hello world", "world") |> Stdlib.Test.equal(Some("world"))
       Stdlib.Regex.find("hello world", "goodbye") |> Stdlib.Test.equal(None)
       Stdlib.Regex.find("", "test") |> Stdlib.Test.equal(None)
-      Stdlib.Regex.find("test", "") |> Stdlib.Test.equal(Some "")
+      Stdlib.Regex.find("test", "") |> Stdlib.Test.equal(Some(""))
       // Pattern matching - finds first match
-      Stdlib.Regex.find("test123abc456", "\\d+") |> Stdlib.Test.equal(Some "123")
-      Stdlib.Regex.find("hello world", "\\w+") |> Stdlib.Test.equal(Some "hello")
+      Stdlib.Regex.find("test123abc456", "\\d+") |> Stdlib.Test.equal(Some("123"))
+      Stdlib.Regex.find("hello world", "\\w+") |> Stdlib.Test.equal(Some("hello"))
       Stdlib.Regex.find("contact: email@example.com", "\\w+@\\w+\\.\\w+")
-      |> Stdlib.Test.equal(Some "email@example.com")
+      |> Stdlib.Test.equal(Some("email@example.com"))
       // No match returns None
       Stdlib.Regex.find("hello", "\\d+") |> Stdlib.Test.equal(None) ])
 
@@ -121,7 +121,7 @@ test realWorld =
       |> Stdlib.Test.equal(false)
       // Extract domain from email
       Stdlib.Regex.find("contact@example.com", "@([\\w\\.-]+)")
-      |> Stdlib.Test.equal(Some "@example.com")
+      |> Stdlib.Test.equal(Some("@example.com"))
       // Phone number patterns
       Stdlib.Regex.isMatch("123-456-7890", "\\d{3}-\\d{3}-\\d{4}")
       |> Stdlib.Test.equal(true)

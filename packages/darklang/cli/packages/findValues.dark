@@ -13,14 +13,14 @@ let resolveTypeHash(
   typePath: String)
   : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
   match Traversal.traverse(branchId, currentLocation, typePath) with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok(Type loc) ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(Type(loc)) ->
     match LanguageTools.PackageManager.Type.find(branchId, loc) with
-    | Some typeHash -> Stdlib.Result.Result.Ok typeHash
-    | None -> Stdlib.Result.Result.Error $"Type not found: {typePath}"
-  | Ok _ ->
-    Stdlib.Result.Result.Error
-      $"{typePath} is not a type. find-values looks for values OF a type."
+    | Some(typeHash) -> Stdlib.Result.Result.Ok(typeHash)
+    | None -> Stdlib.Result.Result.Error($"Type not found: {typePath}")
+  | Ok(_) ->
+    Stdlib.Result.Result.Error(
+      $"{typePath} is not a type. find-values looks for values OF a type.")
 
 
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
@@ -31,10 +31,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   | [ typePath ] ->
     match resolveTypeHash(state.currentBranchId, state.packageData.currentLocation, typePath) with
-    | Error msg ->
+    | Error(msg) ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
       Cli.exitWith(state, false)
-    | Ok typeHash ->
+    | Ok(typeHash) ->
       let values = Stdlib.ValueSearch.findByType(state.currentBranchId, "", typeHash)
 
       if Stdlib.List.isEmpty(values) then
@@ -47,10 +47,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   | [ typePath, namespace_ ] ->
     match resolveTypeHash(state.currentBranchId, state.packageData.currentLocation, typePath) with
-    | Error msg ->
+    | Error(msg) ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
       Cli.exitWith(state, false)
-    | Ok typeHash ->
+    | Ok(typeHash) ->
       let values = Stdlib.ValueSearch.findByType(state.currentBranchId, namespace_, typeHash)
 
       if Stdlib.List.isEmpty(values) then

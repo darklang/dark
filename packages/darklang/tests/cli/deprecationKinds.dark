@@ -23,15 +23,15 @@ module Kinds =
     kind: String)
     : String =
     match Kinds.parse(item, kind) with
-    | Error e -> e
-    | Ok _ -> ""
+    | Error(e) -> e
+    | Ok(_) -> ""
 
 // Harmful is fn-only.
 test harmfulIsFnOnly =
   Stdlib.Test.all(
     [ Kinds.parse(Darklang.LanguageTools.ProgramTypes.ItemKind.Fn, "harmful")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok Darklang.LanguageTools.ProgramTypes.DeprecationKind.Harmful)
+        Stdlib.Result.Result.Ok(Darklang.LanguageTools.ProgramTypes.DeprecationKind.Harmful))
       Stdlib.String.contains(Kinds.refusalText(Darklang.LanguageTools.ProgramTypes.ItemKind.Value, "harmful"), "only applies to fns")
       |> Stdlib.Test.equal(true)
       Stdlib.String.contains(Kinds.refusalText(Darklang.LanguageTools.ProgramTypes.ItemKind.Type, "harmful"), "only applies to fns")
@@ -42,13 +42,13 @@ test obsoleteAppliesToAll =
   Stdlib.Test.all(
     [ Kinds.parse(Darklang.LanguageTools.ProgramTypes.ItemKind.Fn, "obsolete")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete)
+        Stdlib.Result.Result.Ok(Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete))
       Kinds.parse(Darklang.LanguageTools.ProgramTypes.ItemKind.Value, "obsolete")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete)
+        Stdlib.Result.Result.Ok(Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete))
       Kinds.parse(Darklang.LanguageTools.ProgramTypes.ItemKind.Type, "obsolete")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete) ])
+        Stdlib.Result.Result.Ok(Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete)) ])
 
 // superseded-by needs a replacement, whatever the item kind.
 test supersededByNeedsReplacement =

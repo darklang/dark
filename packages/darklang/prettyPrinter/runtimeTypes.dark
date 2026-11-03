@@ -9,7 +9,7 @@ module Darklang.PrettyPrinter.RuntimeTypes
 let ptHash(
   hash: LanguageTools.RuntimeTypes.Hash)
   : LanguageTools.ProgramTypes.Hash =
-  LanguageTools.ProgramTypes.Hash.Hash (LanguageTools.RuntimeTypes.hashToString(hash))
+  LanguageTools.ProgramTypes.Hash.Hash(LanguageTools.RuntimeTypes.hashToString(hash))
 
 
 let nameResolutionError(
@@ -24,8 +24,8 @@ let nameResolution<'a>(
   f: 'a -> String)
   : String =
   match nr.resolved with
-  | Ok a -> f(a)
-  | Error e -> nameResolutionError(e)
+  | Ok(a) -> f(a)
+  | Error(e) -> nameResolutionError(e)
 
 
 let packageName(
@@ -58,7 +58,7 @@ let resolvePackageHash(
   hash: LanguageTools.RuntimeTypes.Hash)
   : String =
   match Darklang.LanguageTools.PackageManager.pickLocation(ctx, locations) with
-  | Some l -> packageName(l.owner, l.modules, l.name)
+  | Some(l) -> packageName(l.owner, l.modules, l.name)
   | None -> Darklang.LanguageTools.RuntimeTypes.hashToString(hash)
 
 /// Like resolvePackageHash but prefers originalName when ambiguous (multiple locations).
@@ -83,7 +83,7 @@ let typeNameWith(
     t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
   : String =
   match t with
-  | Package hash ->
+  | Package(hash) ->
     let locations = Darklang.LanguageTools.PackageManager.Type.locations(branchId, ptHash(hash))
     match
       Darklang.LanguageTools.PackageManager.pickLocation(
@@ -92,7 +92,7 @@ let typeNameWith(
             preferredLocation = Stdlib.Option.Option.None }),
         locations)
     with
-    | Some l -> PrettyPrinter.shortenName(opts.currentModule, l.owner, l.modules, l.name)
+    | Some(l) -> PrettyPrinter.shortenName(opts.currentModule, l.owner, l.modules, l.name)
     | None -> Darklang.LanguageTools.RuntimeTypes.hashToString(hash)
 
 
@@ -108,7 +108,7 @@ let caseNameStandsAlone(
     t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
   : Bool =
   match t with
-  | Package hash ->
+  | Package(hash) ->
     let locations = Darklang.LanguageTools.PackageManager.Type.locations(branchId, ptHash(hash))
 
     // Several names for one type, and nothing in the reader's context to choose between them.
@@ -129,7 +129,7 @@ let caseNameStandsAlone(
           Darklang.LanguageTools.PackageManager.countMatchingPrefix(
             currentModule,
             Stdlib.List.prepend(l.modules, l.owner)))
-        |> Stdlib.List.fold(0, fun acc n -> if n > acc then n else acc)
+        |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
         |> fun best -> best == 0
 
     if ambiguous then
@@ -140,7 +140,7 @@ let caseNameStandsAlone(
           LanguageTools.PackageManager.PickContext.empty,
           locations)
       with
-      | Some l ->
+      | Some(l) ->
         let path = Stdlib.List.prepend(l.modules, l.owner)
         (path == [ "Darklang", "Stdlib", "Option" ] && l.name == "Option")
         || (path == [ "Darklang", "Stdlib", "Result" ] && l.name == "Result")
@@ -160,7 +160,7 @@ let typeName(
     t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
   : String =
   match t with
-  | Package p -> FQTypeName.package(branchId, p)
+  | Package(p) -> FQTypeName.package(branchId, p)
 
 
 /// A trait's full name, by the name its hash is bound to on the branch.
@@ -169,7 +169,7 @@ let traitName(
     t: LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
   : String =
   match t with
-  | Package hash ->
+  | Package(hash) ->
     resolvePackageHash(
       LanguageTools.PackageManager.PickContext.empty,
       LanguageTools.PackageManager.Trait.locations(branchId, ptHash(hash)),
@@ -181,14 +181,14 @@ let shortTraitName(
     t: LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
   : String =
   match t with
-  | Package hash ->
+  | Package(hash) ->
     let locations = Darklang.LanguageTools.PackageManager.Trait.locations(branchId, ptHash(hash))
     match
       Darklang.LanguageTools.PackageManager.pickLocation(
         LanguageTools.PackageManager.PickContext.empty,
         locations)
     with
-    | Some l -> l.name
+    | Some(l) -> l.name
     | None -> Darklang.LanguageTools.RuntimeTypes.hashToString(hash)
 
 
@@ -202,14 +202,14 @@ let shortTypeName(
     t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
   : String =
   match t with
-  | Package hash ->
+  | Package(hash) ->
     let locations = Darklang.LanguageTools.PackageManager.Type.locations(branchId, ptHash(hash))
     match
       Darklang.LanguageTools.PackageManager.pickLocation(
         LanguageTools.PackageManager.PickContext.empty,
         locations)
     with
-    | Some l -> l.name
+    | Some(l) -> l.name
     | None -> Darklang.LanguageTools.RuntimeTypes.hashToString(hash)
 
 
@@ -237,8 +237,8 @@ let valueName(
     t: LanguageTools.RuntimeTypes.FQValueName.FQValueName)
   : String =
   match t with
-  | Builtin b -> FQValueName.builtIn(b)
-  | Package p -> FQValueName.package(branchId, p)
+  | Builtin(b) -> FQValueName.builtIn(b)
+  | Package(p) -> FQValueName.package(branchId, p)
 
 
 module FQFnName =
@@ -266,12 +266,12 @@ let fnName(
     t: LanguageTools.RuntimeTypes.FQFnName.FQFnName)
   : String =
   match t with
-  | Builtin b -> FQFnName.builtIn(b)
-  | Package p -> FQFnName.package(branchId, p)
+  | Builtin(b) -> FQFnName.builtIn(b)
+  | Package(p) -> FQFnName.package(branchId, p)
   // A trait's hash is not a type's, so it needs the trait's own locations: without this a trait
   // method prints as a 64-character hash wherever a fn name is printed, arity errors
   // included.
-  | TraitMethod tm ->
+  | TraitMethod(tm) ->
     let traitHash = tm.trait_
     let method = tm.method_
 
@@ -296,14 +296,14 @@ let executionPoint(
     // two lambdas in one fn apart.
     let id = Stdlib.toString(expressionId)
     match writtenIn with
-    | Some(Function name) -> $"Lambda in {fnName(branchId, name)} ({id})"
-    | Some Source -> $"Lambda in Source ({id})"
+    | Some(Function(name)) -> $"Lambda in {fnName(branchId, name)} ({id})"
+    | Some(Source) -> $"Lambda in Source ({id})"
     | _ -> $"Lambda {id}"
-  | Function name ->
+  | Function(name) ->
     match name with
-    | Package _ -> $"Package Function {fnName(branchId, name)}"
-    | Builtin builtin -> $"Builtin Function {builtin.name}"
-    | TraitMethod method -> $"Trait Method {method.method_}"
+    | Package(_) -> $"Package Function {fnName(branchId, name)}"
+    | Builtin(builtin) -> $"Builtin Function {builtin.name}"
+    | TraitMethod(method) -> $"Trait Method {method.method_}"
 
 
 /// Show the stack in call order, grouping consecutive identical frames.
@@ -333,7 +333,7 @@ let callStack(
     | [] -> []
     | [head, ...rest] -> group(rest, head, 1, [])
 
-  Stdlib.List.fold(lines, "Call stack (last call at bottom):", fun text line ->
+  Stdlib.List.fold(lines, "Call stack (last call at bottom):", fun(text, line) ->
     $"{text}\n- {line}")
 
 
@@ -369,7 +369,7 @@ let typeReference(
 
   | TBytes -> "Bytes"
 
-  | TStream inner -> $"Stream<{typeReference(branchId, inner)}>"
+  | TStream(inner) -> $"Stream<{typeReference(branchId, inner)}>"
 
   | TTuple(first, second, theRest) ->
     (Stdlib.List.concat([ first, second ], theRest))
@@ -377,7 +377,7 @@ let typeReference(
     |> Stdlib.String.join(" * ")
     |> fun parts -> "(" + parts + ")"
 
-  | TList inner -> $"List<{typeReference(branchId, inner)}>"
+  | TList(inner) -> $"List<{typeReference(branchId, inner)}>"
 
   | TDict(key, value) ->
     let k = typeReference(branchId, key)
@@ -396,12 +396,12 @@ let typeReference(
 
     let typeNamePart =
       match typ.resolved with
-      | Ok name ->
+      | Ok(name) ->
         match name with
-        | Package hash ->
+        | Package(hash) ->
           let locations = LanguageTools.PackageManager.Type.locations(branchId, ptHash(hash))
           resolvePackageHashWithOriginalName(LanguageTools.PackageManager.PickContext.empty, locations, typ.originalName, hash)
-      | Error e -> nameResolutionError(e)
+      | Error(e) -> nameResolutionError(e)
 
     $"{typeNamePart}{argsPart}"
 
@@ -417,7 +417,7 @@ let typeReference(
 
 
 
-  | TVariable varName -> "'" + varName
+  | TVariable(varName) -> "'" + varName
 
 
 let knownType(
@@ -450,23 +450,22 @@ let knownType(
 
   | KTBytes -> "Bytes"
 
-  | KTStream inner -> $"Stream<{valueType(branchId, inner)}>"
+  | KTStream(inner) -> $"Stream<{valueType(branchId, inner)}>"
 
   | KTTuple(t1, t2, trest) ->
     (Stdlib.List.concat([ t1, t2 ], trest))
     |> Stdlib.List.map(fun item -> valueType(branchId, item))
     |> Stdlib.String.join(" * ")
     |> fun s -> $"({s})"
-  | KTList typ -> $"List<{valueType(branchId, typ)}>"
+  | KTList(typ) -> $"List<{valueType(branchId, typ)}>"
   | KTDict(key, value) ->
     let k = valueType(branchId, key)
     let v = valueType(branchId, value)
     $"Dict<{k}, {v}>"
 
   | KTFn(argTypes, retType) ->
-    (Stdlib.List.prepend(argTypes, retType))
-    |> Stdlib.List.map(fun vt -> valueType(branchId, vt))
-    |> Stdlib.String.join(" -> ")
+    let args = argTypes |> Stdlib.List.map(fun vt -> valueType(branchId, vt))
+    fnTypeText(args, valueType(branchId, retType))
 
   | KTCustomType(name, typeArgs) ->
     let typeArgsPortion =
@@ -482,12 +481,22 @@ let knownType(
 
 
 
+
+/// `A -> R` for one argument, `(A, B) -> R` for several. A function as the only
+/// argument or as the result keeps parentheses: `(A -> B) -> R`, `A -> (B -> R)`.
+let fnTypeText(args: List<String>, ret: String): String =
+  let grouped(t: String): String =
+    if Stdlib.String.contains(t, " -> ") then "(" + t + ")" else t
+  match args with
+  | [ only ] -> grouped(only) + " -> " + grouped(ret)
+  | args -> "(" + Stdlib.String.join(args, ", ") + ") -> " + grouped(ret)
+
 let valueType(
     branchId: Uuid,
     vt: LanguageTools.RuntimeTypes.ValueType)
   : String =
   match vt with
-  | Known kt -> knownType(branchId, kt)
+  | Known(kt) -> knownType(branchId, kt)
   | Unknown -> "_"
 
 
@@ -517,7 +526,7 @@ let declaredValueType(
   : String =
   match vt with
   | Unknown -> "_"
-  | Known kt -> declaredKnownType(branchId, declared, kt)
+  | Known(kt) -> declaredKnownType(branchId, declared, kt)
 
 
 let declaredKnownType(
@@ -534,15 +543,15 @@ let declaredKnownType(
     Stdlib.List.getAt(refs, i)
 
   match kt, declared with
-  | KTStream inner, Some(TStream dInner) ->
-    $"Stream<{declaredValueType(branchId, Stdlib.Option.Option.Some dInner, inner)}>"
+  | KTStream(inner), Some(TStream(dInner)) ->
+    $"Stream<{declaredValueType(branchId, Stdlib.Option.Option.Some(dInner), inner)}>"
 
-  | KTList inner, Some(TList dInner) ->
-    $"List<{declaredValueType(branchId, Stdlib.Option.Option.Some dInner, inner)}>"
+  | KTList(inner), Some(TList(dInner)) ->
+    $"List<{declaredValueType(branchId, Stdlib.Option.Option.Some(dInner), inner)}>"
 
   | KTDict(key, value), Some(TDict(dKey, dValue)) ->
-    let k = declaredValueType(branchId, Stdlib.Option.Option.Some dKey, key)
-    let v = declaredValueType(branchId, Stdlib.Option.Option.Some dValue, value)
+    let k = declaredValueType(branchId, Stdlib.Option.Option.Some(dKey), key)
+    let v = declaredValueType(branchId, Stdlib.Option.Option.Some(dValue), value)
     $"Dict<{k}, {v}>"
 
   | KTTuple(t1, t2, trest), Some(TTuple(d1, d2, drest)) ->
@@ -551,7 +560,7 @@ let declaredKnownType(
 
     if (Stdlib.List.length(items)) == (Stdlib.List.length(declaredItems)) then
       items
-      |> Stdlib.List.indexedMap(fun i item ->
+      |> Stdlib.List.indexedMap(fun(i, item) ->
         declaredValueType(branchId, nth(declaredItems, i), item))
       |> Stdlib.String.join(" * ")
       |> fun s -> $"({s})"
@@ -562,23 +571,23 @@ let declaredKnownType(
     if (Stdlib.List.length(argTypes)) == (Stdlib.List.length(dArgTypes)) then
       let args =
         argTypes
-        |> Stdlib.List.indexedMap(fun i arg ->
+        |> Stdlib.List.indexedMap(fun(i, arg) ->
           declaredValueType(branchId, nth(dArgTypes, i), arg))
 
       let ret =
-        declaredValueType(branchId, Stdlib.Option.Option.Some dRetType, retType)
+        declaredValueType(branchId, Stdlib.Option.Option.Some(dRetType), retType)
 
-      (Stdlib.List.prepend(args, ret)) |> Stdlib.String.join(" -> ")
+      fnTypeText(args, ret)
     else
       knownType(branchId, kt)
 
-  | KTCustomType(Package hash, typeArgs), Some(TCustomType(dName, dTypeArgs)) ->
+  | KTCustomType(Package(hash), typeArgs), Some(TCustomType(dName, dTypeArgs)) ->
     let typeArgsPortion =
       match typeArgs with
       | [] -> ""
       | args ->
         args
-        |> Stdlib.List.indexedMap(fun i arg ->
+        |> Stdlib.List.indexedMap(fun(i, arg) ->
           declaredValueType(branchId, nth(dTypeArgs, i), arg))
         |> Stdlib.String.join(", ")
         |> fun betweenBrackets -> "<" + betweenBrackets + ">"
@@ -599,7 +608,7 @@ let declaredKnownType(
 
 let letPattern(pat: LanguageTools.RuntimeTypes.LetPattern): String =
   match pat with
-  | LPVariable _reg ->
+  | LPVariable(_reg) ->
     // TODO clearly this is not ideal.
     "[variable]"
   | LPWildcard -> "_"
@@ -635,35 +644,35 @@ module Dval =
     // If a builtin is ever exposed, we could simplify to: Builtin.dvalToTypeName dv
     match dv with
     | DUnit -> "Unit"
-    | DBool _ -> "Bool"
-    | DInt8 _ -> "Int8"
-    | DUInt8 _ -> "UInt8"
-    | DInt16 _ -> "Int16"
-    | DUInt16 _ -> "UInt16"
-    | DInt32 _ -> "Int32"
-    | DUInt32 _ -> "UInt32"
-    | DInt64 _ -> "Int64"
-    | DUInt64 _ -> "UInt64"
-    | DInt128 _ -> "Int128"
-    | DUInt128 _ -> "UInt128"
-    | DInt _ -> "Int"
-    | DFloat _ -> "Float"
-    | DChar _ -> "Char"
-    | DString _ -> "String"
-    | DDateTime _ -> "DateTime"
-    | DUuid _ -> "Uuid"
+    | DBool(_) -> "Bool"
+    | DInt8(_) -> "Int8"
+    | DUInt8(_) -> "UInt8"
+    | DInt16(_) -> "Int16"
+    | DUInt16(_) -> "UInt16"
+    | DInt32(_) -> "Int32"
+    | DUInt32(_) -> "UInt32"
+    | DInt64(_) -> "Int64"
+    | DUInt64(_) -> "UInt64"
+    | DInt128(_) -> "Int128"
+    | DUInt128(_) -> "UInt128"
+    | DInt(_) -> "Int"
+    | DFloat(_) -> "Float"
+    | DChar(_) -> "Char"
+    | DString(_) -> "String"
+    | DDateTime(_) -> "DateTime"
+    | DUuid(_) -> "Uuid"
     | DTuple(first, second, theRest) ->
       let types = Stdlib.List.concat([ first, second ], theRest)
       types
       |> Stdlib.List.map(fun item -> valueTypeName(branchId, item))
       |> Stdlib.String.join(" * ")
       |> fun parts -> "(" + parts + ")"
-    | DList (vt, _) -> $"List<{valueType(branchId, vt)}>"
+    | DList(vt, _) -> $"List<{valueType(branchId, vt)}>"
     | DDict(kt, vt, _) ->
       let k = valueType(branchId, kt)
       let v = valueType(branchId, vt)
       $"Dict<{k}, {v}>"
-    | DRecord (_, typeName, typeArgs, _) ->
+    | DRecord(_, typeName, typeArgs, _) ->
       let typeArgsPart =
         match typeArgs with
         | [] -> ""
@@ -673,7 +682,7 @@ module Dval =
           |> Stdlib.String.join(", ")
           |> fun parts -> $"<{parts}>"
       (RuntimeTypes.typeName(branchId, typeName)) + typeArgsPart
-    | DEnum (_, typeName, typeArgs, _, _) ->
+    | DEnum(_, typeName, typeArgs, _, _) ->
       let typeArgsPart =
         match typeArgs with
         | [] -> ""
@@ -683,10 +692,10 @@ module Dval =
           |> Stdlib.String.join(", ")
           |> fun parts -> $"<{parts}>"
       (RuntimeTypes.typeName(branchId, typeName)) + typeArgsPart
-    | DApplicable (AppNamedFn _) -> "Function"
-    | DApplicable (AppLambda _) -> "Lambda"
-    | DBytes _ -> "Bytes"
-    | DStreamStub vt -> $"Stream<{valueType(branchId, vt)}>"
+    | DApplicable(AppNamedFn(_)) -> "Function"
+    | DApplicable(AppLambda(_)) -> "Lambda"
+    | DBytes(_) -> "Bytes"
+    | DStreamStub(vt) -> $"Stream<{valueType(branchId, vt)}>"
 
   /// The field names of a record type, in the order they were declared.
   ///
@@ -695,11 +704,11 @@ module Dval =
     typeName: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
     : List<String> =
     match typeName with
-    | Package hash ->
+    | Package(hash) ->
       match Darklang.LanguageTools.PackageManager.Type.get(ptHash(hash)) with
-      | Some t ->
+      | Some(t) ->
         match t.declaration.definition with
-        | Record fields -> fields |> Stdlib.List.map(fun f -> f.name)
+        | Record(fields) -> fields |> Stdlib.List.map(fun f -> f.name)
         | _ -> []
       | None -> []
 
@@ -732,8 +741,8 @@ module Dval =
 
   let makeSpaces(len: Int): String =
     match Stdlib.List.repeat(len, " ") with
-    | Ok spaces -> spaces |> Stdlib.String.join("")
-    | Error _ -> ""
+    | Ok(spaces) -> spaces |> Stdlib.String.join("")
+    | Error(_) -> ""
 
   /// A value as a `Pretty.Doc`: the shapes it could take, not one it has already been forced into.
   ///
@@ -759,7 +768,7 @@ module Dval =
     let tooDeep =
       match opts.maxDepth with
       | None -> false
-      | Some max -> depth > max
+      | Some(max) -> depth > max
 
     if tooDeep then
       txt("...")
@@ -795,28 +804,28 @@ module Dval =
     match dv with
     | DUnit -> paint(opts.palette.keyword, "()")
 
-    | DBool true -> paint(opts.palette.keyword, "true")
-    | DBool false -> paint(opts.palette.keyword, "false")
+    | DBool(true) -> paint(opts.palette.keyword, "true")
+    | DBool(false) -> paint(opts.palette.keyword, "false")
 
-    | DChar c -> paint(opts.palette.string_, $"'{PrettyPrinter.escapeCharLiteral(Stdlib.toString(c))}'")
-    | DString s -> paint(opts.palette.string_, $"\"{PrettyPrinter.escapeSpecialCharacters(s)}\"")
+    | DChar(c) -> paint(opts.palette.string_, $"'{PrettyPrinter.escapeCharLiteral(Stdlib.toString(c))}'")
+    | DString(s) -> paint(opts.palette.string_, $"\"{PrettyPrinter.escapeSpecialCharacters(s)}\"")
 
-    | DInt8 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt8 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DInt16 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt16 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DInt32 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt32 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DInt64 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt64 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DInt128 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt128 i -> paint(opts.palette.number, Stdlib.toString(i))
-    | DInt i -> paint(opts.palette.number, Stdlib.toString(i))
+    | DInt8(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DUInt8(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DInt16(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DUInt16(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DInt32(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DUInt32(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DInt64(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DUInt64(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DInt128(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DUInt128(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DInt(i) -> paint(opts.palette.number, Stdlib.toString(i))
 
-    | DFloat f -> paint(opts.palette.number, Stdlib.toString(f))
+    | DFloat(f) -> paint(opts.palette.number, Stdlib.toString(f))
 
-    | DDateTime d -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.toString(d)}>")
-    | DUuid uuid -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.toString(uuid)}>")
+    | DDateTime(d) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.toString(d)}>")
+    | DUuid(uuid) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.toString(uuid)}>")
 
     | DTuple(first, second, theRest) ->
       let parts =
@@ -848,12 +857,12 @@ module Dval =
     // Unsaved bytes are already in memory, so show the first 16 as hex, the way
     // Node.js prints a Buffer. Saved bytes show only their length: a preview
     // would load the whole value, which may be megabytes, from the store.
-    | DBytes bytes ->
+    | DBytes(bytes) ->
       let n = Stdlib.Bytes.length(bytes)
       let noun = if n == 1 then "byte" else "bytes"
       let size = $"{Stdlib.toString(n)} {noun}"
       match bytesPreview(bytes, 16) with
-      | Some hex ->
+      | Some(hex) ->
         if n == 0 then
           txt($"<Bytes: {size}>")
         else
@@ -861,7 +870,7 @@ module Dval =
           txt($"<Bytes: {size} {hex}{more}>")
       | None -> txt($"<Bytes: {size}>")
 
-    | DStreamStub _ -> txt("<stream: stub>")
+    | DStreamStub(_) -> txt("<stream: stub>")
 
     | DEnum(_, typeName, typeArgs, caseName, fields) ->
       let typeArgsPart =
@@ -917,10 +926,10 @@ module Dval =
       // The type name is part of the document, so it counts toward the fit.
       Stdlib.Pretty.concat(txt($"{typeStr}{typeArgsPart} "), braced("{", "}", parts))
 
-    | DApplicable(AppNamedFn namedFn) ->
+    | DApplicable(AppNamedFn(namedFn)) ->
       txt(PrettyPrinter.RuntimeTypes.fnName(branchId, namedFn.name))
 
-    | DApplicable(AppLambda _lambda) -> txt("(lambda)")
+    | DApplicable(AppLambda(_lambda)) -> txt("(lambda)")
 
 
 
@@ -981,7 +990,7 @@ let dvalOneLine(
       branchId,
       { PrettyPrinter.DisplayOptions.default with
           width = 60
-          maxDepth = Stdlib.Option.Option.Some 2 },
+          maxDepth = Stdlib.Option.Option.Some(2) },
       dv)
 
   let oneLine =

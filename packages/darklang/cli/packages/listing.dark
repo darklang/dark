@@ -83,7 +83,7 @@ let listModule(
       Query.allDirectDescendantNamesAndHashes(branchId, childPath)
 
     Query.filterDeprecatedPairs(childImpls, depSets, includeDeprecated)
-    |> Stdlib.List.map(fun (traitName, hash) -> (traitName, typeName, hash, childPath))
+    |> Stdlib.List.map(fun((traitName, hash)) -> (traitName, typeName, hash, childPath))
 
   // The type an implementation stored HERE is for is the module we are standing in: at
   // `Stdlib.Int64` the entries are `Add for Int64`.
@@ -94,7 +94,7 @@ let listModule(
   // for one stored here that is this module, and for one under a type it is that type's.
   let ownImplEntries =
     impls
-    |> Stdlib.List.map(fun (traitName, hash) -> (traitName, selfType, hash, modulePath))
+    |> Stdlib.List.map(fun((traitName, hash)) -> (traitName, selfType, hash, modulePath))
 
   // Measured, because choosing a module-level section was made conditional on this being cheap
   // and the measurement had not been done: `ls Stdlib` 1051ms, `Stdlib.Int64` 1074ms,
@@ -109,7 +109,7 @@ let listModule(
   // and would want measuring if it ever does.
   let childImplEntries =
     types
-    |> Stdlib.List.map(fun (typeName, _hash) -> typeName)
+    |> Stdlib.List.map(fun((typeName, _hash)) -> typeName)
     |> Stdlib.List.filter(fun typeName -> Stdlib.List.contains(allSubmodules, typeName))
     |> Stdlib.List.map(implsUnder)
     |> Stdlib.List.flatten
@@ -120,7 +120,7 @@ let listModule(
       let (traitName, typeName, _hash, _path) = entry
       typeName + "." + traitName)
 
-  let implNames = impls |> Stdlib.List.map(fun (name, _) -> name)
+  let implNames = impls |> Stdlib.List.map(fun((name, _)) -> name)
   let submodules =
     LanguageTools.PackageManager.Search.readerSubmodules(allSubmodules, implNames)
 
@@ -134,7 +134,7 @@ let listModule(
     if Stdlib.Bool.not(Stdlib.List.isEmpty(items)) then
       Stdlib.printLine(Display.getSectionHeader(header))
       items
-      |> Stdlib.List.iter(fun (name, hash) ->
+      |> Stdlib.List.iter(fun((name, hash)) ->
         let mark = Query.deprecationMarker(depSets, hash)
         Stdlib.printLine($"  {name}{mark}")
 
@@ -194,24 +194,23 @@ let execute(state: AppState, args: List<String>): AppState =
     state
   | [pathArg] ->
     match Traversal.traverse(branchId, state.packageData.currentLocation, pathArg) with
-    | Error errorMsg ->
+    | Error(errorMsg) ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot list {pathArg}: {errorMsg}"))
       Cli.exitWith(state, false)
-    | Ok newLocation ->
+    | Ok(newLocation) ->
       match newLocation with
-      | Module _ ->
+      | Module(_) ->
         listModule(branchId, newLocation, includeDeprecated, showVersions)
         state
       // An implementation's methods are fns in a module named for it, so listing one is a real
       // question with a real answer; the other kinds are leaves.
-      | Impl i ->
+      | Impl(i) ->
         let asModule =
-          PackageLocation.Module
-            (Stdlib.List.append(Stdlib.List.prepend(i.modules, i.owner), i.name))
+          PackageLocation.Module(Stdlib.List.append(Stdlib.List.prepend(i.modules, i.owner), i.name))
 
         listModule(branchId, asModule, includeDeprecated, showVersions)
         state
-      | Type _ | Value _ | Function _ | Trait _ | Test _ ->
+      | Type(_) | Value(_) | Function(_) | Trait(_) | Test(_) ->
         let locationStr = Packages.formatLocation(newLocation)
         Stdlib.printLine($"'{locationStr}' is not a module.")
         Stdlib.printLine("`dark view` shows one item; `dark ls` lists a module.")
@@ -219,7 +218,7 @@ let execute(state: AppState, args: List<String>): AppState =
         // A trait's own question is which types implement it, and `impls` is the only command that
         // answers it. Without this line you find that command in the docs or by accident.
         match newLocation with
-        | Trait t ->
+        | Trait(t) ->
           let traitName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(t)
 
           Stdlib.printLine($"`dark impls {traitName}` lists the types that implement it.")

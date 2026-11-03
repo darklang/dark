@@ -129,7 +129,7 @@ let wrapAtWords(text: String, width: Int): List<String> =
 
     let (lines, current) =
       words
-      |> Stdlib.List.fold(([], ""), fun acc word ->
+      |> Stdlib.List.fold(([], ""), fun(acc, word) ->
         let (soFar, inProgress) = acc
         addWord(soFar, inProgress, word, w))
 

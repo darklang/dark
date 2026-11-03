@@ -18,7 +18,7 @@ test completionPickerTwoRows =
   let view = CompletionPicker.viewAtSize(state, size)
 
   match Stdlib.List.last(view.rows) with
-  | Some helpRow ->
+  | Some(helpRow) ->
     if layout.itemCapacity == 1
        && Stdlib.Bool.not(layout.showScrollIndicator)
        && Stdlib.List.length(view.rows) == 2

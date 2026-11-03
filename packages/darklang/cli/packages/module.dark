@@ -9,7 +9,7 @@ let collectDecls(
   decls
   |> Stdlib.List.map(fun decl ->
     match decl with
-    | SubModule modul ->
+    | SubModule(modul) ->
       let nestedModules =
         Stdlib.List.append(modules, Stdlib.Tuple2.second(modul.name))
       collectDecls(nestedModules, modul.declarations)
@@ -21,18 +21,17 @@ let declarationName(
   decl: LanguageTools.WrittenTypes.ModuleDeclaration.Declaration)
   : Stdlib.Option.Option<String> =
   match decl with
-  | Type typ -> Stdlib.Option.Option.Some typ.name.name
-  | Function fn -> Stdlib.Option.Option.Some fn.name.name
-  | Value value -> Stdlib.Option.Option.Some value.name.name
-  | Trait t -> Stdlib.Option.Option.Some t.name.name
+  | Type(typ) -> Stdlib.Option.Option.Some(typ.name.name)
+  | Function(fn) -> Stdlib.Option.Option.Some(fn.name.name)
+  | Value(value) -> Stdlib.Option.Option.Some(value.name.name)
+  | Trait(t) -> Stdlib.Option.Option.Some(t.name.name)
   // An impl's location is `<Type>.<Trait>` beneath the module it is written in
-  | Impl i ->
-    Stdlib.Option.Option.Some
-      ($"{LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.typeReferenceHeadName(i.forType)}.{i.trait_.typ.name}")
-  | Test test -> Stdlib.Option.Option.Some test.name.name
-  | SubModule modul ->
-    Stdlib.Option.Option.Some (Stdlib.Tuple2.second(modul.name))
-  | Expr _ -> Stdlib.Option.Option.None
+  | Impl(i) ->
+    Stdlib.Option.Option.Some($"{LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.typeReferenceHeadName(i.forType)}.{i.trait_.typ.name}")
+  | Test(test) -> Stdlib.Option.Option.Some(test.name.name)
+  | SubModule(modul) ->
+    Stdlib.Option.Option.Some(Stdlib.Tuple2.second(modul.name))
+  | Expr(_) -> Stdlib.Option.Option.None
 
 
 /// Return every declaration path that occurs more than once in the input.
@@ -45,10 +44,10 @@ let duplicateDeclarationNames(
   : List<String> =
   let (_, duplicates) =
     declarations
-    |> Stdlib.List.fold(([], []), fun (seen, duplicates) (modules, decl) ->
+    |> Stdlib.List.fold(([], []), fun((seen, duplicates), (modules, decl)) ->
       match declarationName(decl) with
       | None -> (seen, duplicates)
-      | Some name ->
+      | Some(name) ->
         let path =
           Stdlib.List.append(modules, name)
           |> Stdlib.String.join(".")
@@ -79,11 +78,11 @@ let landDocEdits(
     ops
     |> Stdlib.List.findFirst(fun op ->
       match op with
-      | AddFn f -> f.hash == h
-      | AddType t -> t.hash == h
-      | AddValue v -> v.hash == h
-      | AddTrait t -> t.hash == h
-      | AddTraitImpl i -> i.hash == h
+      | AddFn(f) -> f.hash == h
+      | AddType(t) -> t.hash == h
+      | AddValue(v) -> v.hash == h
+      | AddTrait(t) -> t.hash == h
+      | AddTraitImpl(i) -> i.hash == h
       | _ -> false)
 
   ops
@@ -91,9 +90,9 @@ let landDocEdits(
     match op with
     | SetName(location, reference, _) ->
       match addFor(LanguageTools.ProgramTypes.Reference.hash(reference)) with
-      | Some add ->
+      | Some(add) ->
         match Packages.Rename.referenceAt(branchId, location) with
-        | Some bound ->
+        | Some(bound) ->
           if
             updateDocsThatChanged(
               branchId,
@@ -102,7 +101,7 @@ let landDocEdits(
               LanguageTools.ProgramTypes.Reference.hash(bound),
               [ add ])
           then
-            Stdlib.Option.Option.Some location.name
+            Stdlib.Option.Option.Some(location.name)
           else
             Stdlib.Option.Option.None
         | None -> Stdlib.Option.Option.None
@@ -117,16 +116,16 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       Stdlib.Result.Result.Ok((modulePath, Stdlib.Cli.Stdin.readAll()))
     | [ modulePath, sourcePath ] ->
       match Stdlib.Cli.File.readText(sourcePath) with
-      | Ok source -> Stdlib.Result.Result.Ok((modulePath, source))
-      | Error err ->
-        Stdlib.Result.Result.Error
-          $"Could not read '{sourcePath}': {err.message}"
+      | Ok(source) -> Stdlib.Result.Result.Ok((modulePath, source))
+      | Error(err) ->
+        Stdlib.Result.Result.Error(
+          $"Could not read '{sourcePath}': {err.message}")
     | _ ->
-      Stdlib.Result.Result.Error
-        "Usage: module <module> <source-file|->"
+      Stdlib.Result.Result.Error(
+        "Usage: module <module> <source-file|->")
 
   match input with
-  | Error message ->
+  | Error(message) ->
     Cli.printErr(message)
     { state with exitCode = 1 }
   | Ok((modulePath, source)) ->
@@ -134,11 +133,11 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     // declares a package value while `let x` is diagnosed directly instead of
     // being consumed as a script binding and failing later at EOF.
     match LanguageTools.Parser.Parse.packageToWrittenTypes(source) with
-    | Error diagnostics ->
+    | Error(diagnostics) ->
       let _ = Errors.reportParseErrors(diagnostics)
       // Nothing was saved: an agent's authoring loop branches on the exit.
       { state with exitCode = 1 }
-    | Ok(SourceFile sourceFile) ->
+    | Ok(SourceFile(sourceFile)) ->
       let declarations =
         let moduleDecls =
           sourceFile.declarations
@@ -164,10 +163,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             state.packageData.currentLocation,
             locationInput)
         with
-        | Error message ->
+        | Error(message) ->
           Cli.printErr($"Invalid module location: {message}")
           Cli.exitWith(state, false)
-        | Ok baseLocation ->
+        | Ok(baseLocation) ->
           let basePm = LanguageTools.PackageManager.pm()
           let branchId = state.currentBranchId
           let rootModule =
@@ -195,10 +194,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           else
             // Stabilize and store the module as one mutually recursive batch.
             match SCM.PackageOps.addAuthored(branchId, ops) with
-            | Error message ->
+            | Error(message) ->
               Cli.printErr($"Failed to define module: {message}")
               { state with exitCode = 1 }
-            | Ok report ->
+            | Ok(report) ->
               Propagate.printFollowed(Propagate.repointSaved(branchId, updates))
 
               let docsUpdated = landDocEdits(branchId, ops)
@@ -212,7 +211,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                   match op with
                   // Three fields, and a two-field pattern silently matches nothing rather than
                   // failing to compile.
-                  | SetName(location, _, _) -> Stdlib.Option.Option.Some location.name
+                  | SetName(location, _, _) -> Stdlib.Option.Option.Some(location.name)
                   | _ -> Stdlib.Option.Option.None)
 
               let count = Stdlib.List.length(definedNames)

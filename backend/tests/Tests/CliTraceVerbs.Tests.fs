@@ -922,7 +922,7 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
     (fun state ->
       task {
         let expr =
-          "match Darklang.LanguageTools.PackageManager.Function.find(Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\", modules = [ \"Stdlib\", \"Int128\" ], name = \"sqrt\" }) with\n| Some h -> [ Stdlib.Option.isSome(Darklang.LanguageTools.PackageManager.Function.get(h)), Stdlib.Option.isSome(Darklang.LanguageTools.PackageManager.Function.get(h)) ]\n| None -> []"
+          "match Darklang.LanguageTools.PackageManager.Function.find(Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\", modules = [ \"Stdlib\", \"Int128\" ], name = \"sqrt\" }) with\n| Some(h) -> [ Stdlib.Option.isSome(Darklang.LanguageTools.PackageManager.Function.get(h)), Stdlib.Option.isSome(Darklang.LanguageTools.PackageManager.Function.get(h)) ]\n| None -> []"
           + ""
           + ""
           + ""
@@ -1740,7 +1740,7 @@ let private secretsAreNotInTheLog =
             runCli
               state
               [ "eval"
-                "match Stdlib.Env.get(\"DARK_TEST_SECRET\") with | Some v -> Stdlib.printLine(Stdlib.toString(Stdlib.String.length(v))) | None -> Stdlib.printLine(\"unset\")" ]
+                "match Stdlib.Env.get(\"DARK_TEST_SECRET\") with | Some(v) -> Stdlib.printLine(Stdlib.toString(Stdlib.String.length(v))) | None -> Stdlib.printLine(\"unset\")" ]
           let! e = latest ()
           let! rows =
             Sql.query

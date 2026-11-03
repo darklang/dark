@@ -24,7 +24,7 @@ let cascadeAndForce(
   toHash: LanguageTools.ProgramTypes.Hash)
   : Bool =
   match SCM.Propagation.repointDependents(state.currentBranchId, loc, kind, [fromHash], toHash) with
-  | Error e ->
+  | Error(e) ->
     Cli.printErr($"  cascade failed: {e}")
     false
-  | Ok _ -> true
+  | Ok(_) -> true

@@ -39,7 +39,7 @@ let renderScrollableLines(
   // scrolling skips whole tails of long lines.
   let rows =
     lines
-    |> Stdlib.List.indexedMap(fun i l ->
+    |> Stdlib.List.indexedMap(fun(i, l) ->
       let disp = Stdlib.List.getAt(display, i) |> Stdlib.Option.withDefault(l)
       wrapRow(maxFit, disp))
     |> Stdlib.List.flatten
@@ -48,7 +48,7 @@ let renderScrollableLines(
   let off = Stdlib.min(scroll, Stdlib.max(0, len - 1))
 
   rows
-  |> Stdlib.List.indexedMap(fun i l -> (i, l))
+  |> Stdlib.List.indexedMap(fun(i, l) -> (i, l))
   |> Stdlib.List.drop(off)
   |> Stdlib.List.take(region.rows)
   |> Stdlib.List.map(fun pair ->
@@ -73,7 +73,7 @@ let matterSplitFor(state: State): Int =
   let longest =
     state.items
     |> Stdlib.List.map(fun i -> Stdlib.String.displayWidth(i.name))
-    |> Stdlib.List.fold(0, fun acc n -> if n > acc then n else acc)
+    |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
 
   // cursor (2) + glyph (2) + space (1) + trailing `/` and badges (4) + the inset and rule (2)
   let forNames = longest + 11
@@ -116,7 +116,7 @@ let previewRowCount(state: State): Int =
 
   previewLines(state)
   |> Stdlib.List.map(fun l -> Stdlib.List.length(wrapRow(maxFit, l)))
-  |> Stdlib.List.fold(0, fun acc n -> acc + n)
+  |> Stdlib.List.fold(0, fun(acc, n) -> acc + n)
 
 let renderPreview(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
   let plain = previewLines(state)
@@ -315,7 +315,7 @@ let titledLines(
   Stdlib.List.flatten(
     [ frameWithTitles(region, title, "", 0 - 1)
       lines
-      |> Stdlib.List.indexedMap(fun i l ->
+      |> Stdlib.List.indexedMap(fun(i, l) ->
         if i < content.rows then Stdlib.Cli.UI.Layout.at(content, i, 0, l) else [])
       |> Stdlib.List.flatten ])
 

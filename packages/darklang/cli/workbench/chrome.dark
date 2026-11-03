@@ -45,7 +45,7 @@ let renderViewBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
   else
     // Extension views render themselves (see `extensionViews`); anything unrecognised shows a stub.
     match extensionViewAt(state.activeView) with
-    | Some vd ->
+    | Some(vd) ->
       let draw = vd.render
       draw(state, region)
     | None ->
@@ -67,7 +67,7 @@ let renderEditing(es: EditingState, region: Stdlib.Cli.UI.Layout.Region): List<S
   let scroll = Stdlib.max(0, es.buf.row - visible + 1)
   let bodySpans =
     es.buf.lines
-    |> Stdlib.List.indexedMap(fun i l -> (i, l))
+    |> Stdlib.List.indexedMap(fun(i, l) -> (i, l))
     |> Stdlib.List.drop(scroll)
     |> Stdlib.List.take(visible)
     |> Stdlib.List.map(fun pair ->
@@ -90,7 +90,7 @@ let renderSearchResults(state: State, region: Stdlib.Cli.UI.Layout.Region): List
   let inner = paneContent(region)
   let lines =
     state.search.hits
-    |> Stdlib.List.indexedMap(fun i h ->
+    |> Stdlib.List.indexedMap(fun(i, h) ->
       if i == state.search.selected then
         selectionRow(inner.cols, "  " + h.display)
       else "  " + h.display)
@@ -101,10 +101,10 @@ let renderSearchResults(state: State, region: Stdlib.Cli.UI.Layout.Region): List
 /// Dispatch the body: the editor, then a reader, then search results, else the active view's body.
 let renderBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
   match state.editing with
-  | Some es -> renderEditing(es, region)
+  | Some(es) -> renderEditing(es, region)
   | None ->
   match state.reading with
-  | Some content -> renderReading(content, state.readingIsCode, state.detailScroll, region)
+  | Some(content) -> renderReading(content, state.readingIsCode, state.detailScroll, region)
   | None ->
     if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then renderSearchResults(state, region)
     else renderViewBody(state, region)
@@ -119,7 +119,7 @@ let viewBlurb(idx: Int): (String * String) =
   else if idx == vDocs then ("the CLI's docs, read without leaving", "")
   else
     match extensionViewAt(idx) with
-    | Some vd ->
+    | Some(vd) ->
       if vd.id == "errors" then ("unresolved conflicts", "")
       else if vd.id == "builtins" then ("every builtin, searchable", "")
       else ("", "")
@@ -202,7 +202,7 @@ let hintsForView(state: State, width: Int): String =
     else
       // Extension views compose their own key-hints (see `extensionViews`).
       match extensionViewAt(view) with
-      | Some vd ->
+      | Some(vd) ->
         let h = vd.hints
         Stdlib.List.concat(h(state), backHint)
       | None -> Stdlib.List.prepend(backHint, ("↑↓", "move"))
@@ -238,7 +238,7 @@ let renderHelpOverlay(screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.L
     |> Stdlib.List.map(fun pair ->
       let (_label, keys) = pair
       Stdlib.String.displayWidth(keys))
-    |> Stdlib.List.fold(0, fun acc n -> Stdlib.max(acc, n))
+    |> Stdlib.List.fold(0, fun(acc, n) -> Stdlib.max(acc, n))
   let w = Stdlib.min(Stdlib.max(40, widest + 14), Stdlib.max(40, screen.cols - 4))
   let rows = (Stdlib.List.length(helpGroups)) * 2 + 3
   let h = Stdlib.min(Stdlib.max(8, rows), screen.rows - 2)
@@ -249,7 +249,7 @@ let renderHelpOverlay(screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.L
     [ Stdlib.Cli.UI.Layout.clearRegion(region)
       Stdlib.Cli.UI.Box.panel(region, "Keys  ·  any key closes", true, fun inner ->
         helpGroups
-        |> Stdlib.List.indexedMap(fun i pair -> (i, pair))
+        |> Stdlib.List.indexedMap(fun(i, pair) -> (i, pair))
         |> Stdlib.List.map(fun ipair ->
           let (i, pair) = ipair
           let (label, keys) = pair

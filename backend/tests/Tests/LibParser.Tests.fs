@@ -312,7 +312,7 @@ let private parserStructureTests =
         | other -> failtest $"field: {other}")
 
       testCase "parses a lambda" (fun _ ->
-        match (P.parse "fun x y -> x").parsed with
+        match (P.parse "fun(x, y) -> x").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.ELambda(_,
                                                           [ WT.LPVariable(_, "x")
                                                             WT.LPVariable(_, "y") ],
@@ -540,11 +540,11 @@ let private parserStructureTests =
         | other -> failtest $"unexpected type: {other}")
 
       testCase "parses enum constructors (bare + qualified)" (fun _ ->
-        match (P.parse "Some 5L").parsed with
+        match (P.parse "Some(5L)").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EEnum(_, _, (_, "Some"), [ _ ], _) ] }) ->
           ()
         | other -> failtest $"bare ctor: {other}"
-        match (P.parse "Stdlib.Result.Result.Ok 5L").parsed with
+        match (P.parse "Stdlib.Result.Result.Ok(5L)").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EEnum(_,
                                                         typeName,
                                                         (_, "Ok"),
@@ -566,11 +566,11 @@ let private parserStructureTests =
           | other -> failtest $"unexpected constructor: {other}")
 
       testCase "parses match (enum / cons / or patterns)" (fun _ ->
-        match (P.parse "match x with | Ok v -> v | Error e -> e").parsed with
+        match (P.parse "match x with | Ok(v) -> v | Error(e) -> e").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EMatch(_, _, cases, _, _) ] }) ->
           match cases with
-          | [ { pat = WT.MPEnum(_, (_, "Ok"), [ WT.MPVariable(_, "v") ]) }
-              { pat = WT.MPEnum(_, (_, "Error"), _) } ] -> ()
+          | [ { pat = WT.MPEnum(_, _, (_, "Ok"), [ WT.MPVariable(_, "v") ]) }
+              { pat = WT.MPEnum(_, _, (_, "Error"), _) } ] -> ()
           | other -> failtest $"cases: {other}"
         | other -> failtest $"match: {other}"
         match (P.parse "match xs with | [] -> 0L | [h, ...t] -> h").parsed with
@@ -638,6 +638,7 @@ let private parserStructureTests =
         | Some(WT.SourceFile { exprsToEval = [ WT.EMatch(_,
                                                          _,
                                                          { pat = WT.MPEnum(_,
+                                                                           _,
                                                                            (_,
                                                                             "Pair"),
                                                                            [ _; _ ]) } :: _,
@@ -887,11 +888,11 @@ let private desugarTests =
       testCase
         "normal and pipe lambdas drop blank placeholders consistently"
         (fun _ ->
-          match toPT (lowerExpr "fun x ___ -> x") with
+          match toPT (lowerExpr "fun(x, ___) -> x") with
           | PT.ELambda(_, pats, _) ->
             Expect.equal (NEList.length pats) 1 "normal lambda arity"
           | other -> failtest $"expected lambda, got {other}"
-          match toPT (lowerExpr "1L |> fun x ___ -> x") with
+          match toPT (lowerExpr "1L |> fun(x, ___) -> x") with
           | PT.EPipe(_, _, [ PT.EPipeLambda(_, pats, _) ]) ->
             Expect.equal (NEList.length pats) 1 "pipe lambda arity"
           | other -> failtest $"expected pipe lambda, got {other}")
@@ -1010,7 +1011,7 @@ let private validationTests =
         match
           P.parseFor
             Validation.Script
-            "match x with | Some value -> value | None -> 0L"
+            "match x with | Some(value) -> value | None -> 0L"
         with
         | Error diagnostics -> failtest $"unexpected diagnostics: {diagnostics}"
         | Ok validated ->
@@ -1019,7 +1020,7 @@ let private validationTests =
             Validation.Script
             "validated mode")
       testCase "validate gates a manually supplied syntax tree" (fun _ ->
-        let sf = sourceFile "match x with | Some value -> value | None -> 0L"
+        let sf = sourceFile "match x with | Some(value) -> value | None -> 0L"
         match Validation.validate Validation.Script sf with
         | Error issues -> failtest $"unexpected validation issues: {issues}"
         | Ok validated ->
@@ -1077,10 +1078,10 @@ let private validationTests =
             "no cascaded recovery-hole diagnostic")
       testCase "parser surfaces shared structural validation diagnostics" (fun _ ->
         for (source, expectedCode) in
-          [ ("fun x x -> x", Validation.DuplicateBinder)
+          [ ("fun(x, x) -> x", Validation.DuplicateBinder)
             ("let (x, x) = (1L, 2L) in x", Validation.DuplicateBinder)
             ("let f(x: Int64, x: Int64): Int64 = x", Validation.DuplicateBinder)
-            ("match x with | Some a | None -> a", Validation.OrBindingMismatch)
+            ("match x with | Some(a) | None -> a", Validation.OrBindingMismatch)
             ("match pair with | ((x | _), y) -> x", Validation.OrBindingMismatch) ] do
           Expect.exists
             (P.parse source).diagnostics
@@ -1147,7 +1148,7 @@ let private validationTests =
       testCase
         "match binding collection preserves order across pattern shapes"
         (fun _ ->
-          let sf = sourceFile "match x with | (Some a, [a, a], [a, ...a], a) -> a"
+          let sf = sourceFile "match x with | (Some(a), [a, a], [a, ...a], a) -> a"
           let issues =
             Validation.validateStructure sf
             |> List.filter (fun issue -> issue.code = Validation.DuplicateBinder)
@@ -1353,14 +1354,14 @@ let private literalTests =
           ()
         | other -> failtest $"0.2: {other}")
       testCase "sized-int fields parse in enum patterns" (fun _ ->
-        // canStartPattern drift: `Ok 5y` worked as an expr but not as a pattern
-        let r = P.parse "match x with | Ok 5y -> 1L | Ok -4y -> 2L | _ -> 3L"
+        // canStartPattern drift: `Ok(5y)` worked as an expr but not as a pattern
+        let r = P.parse "match x with | Ok(5y) -> 1L | Ok(-4y) -> 2L | _ -> 3L"
         Expect.isEmpty r.diagnostics "sized-int enum-pattern fields parse cleanly"
         match r.parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EMatch(_, _, cases, _, _) ] }) ->
           match cases with
-          | [ { pat = WT.MPEnum(_, (_, "Ok"), [ WT.MPInt8(_, (_, 5y), _) ]) }
-              { pat = WT.MPEnum(_, (_, "Ok"), [ WT.MPInt8(_, (_, -4y), _) ]) }
+          | [ { pat = WT.MPEnum(_, _, (_, "Ok"), [ WT.MPInt8(_, (_, 5y), _) ]) }
+              { pat = WT.MPEnum(_, _, (_, "Ok"), [ WT.MPInt8(_, (_, -4y), _) ]) }
               _ ] -> ()
           | other -> failtest $"cases: {other}"
         | other -> failtest $"match: {other}") ]
@@ -1847,9 +1848,105 @@ let private callSyntaxTests =
         Expect.isNonEmpty
           (P.parse "x |> (+) 1L").diagnostics
           "an operator stage is gone too")
-      testCase "constructors keep both forms" (fun _ ->
-        Expect.isEmpty (P.parse "Ok 5L").diagnostics "space form"
-        Expect.isEmpty (P.parse "Ok(5L)").diagnostics "paren form")
+      testCase "a constructor's fields go in parentheses" (fun _ ->
+        Expect.isEmpty (P.parse "Ok(5L)").diagnostics "paren form"
+        Expect.isEmpty (P.parse "Ok (5L)").diagnostics "a space before the paren"
+        Expect.isEmpty (P.parse "None").diagnostics "a nullary case is bare"
+        Expect.equal
+          (hint "Ok 5L")
+          [ "write `Ok(a)` rather than `Ok a`" ]
+          "the old form names the new one"
+        Expect.equal
+          (hint "Stdlib.Result.Result.Error 1L")
+          [ "write `Error(a)` rather than `Error a`" ]
+          "qualified too"
+        match lowerExpr "Some((1L, 2L))" with
+        | WT.EEnum(_, _, (_, "Some"), [ WT.ETuple _ ], _) -> ()
+        | other -> failtest $"expected one tuple field, got: {other}"
+        match lowerExpr "Pair (1L, 2L)" with
+        | WT.EEnum(_, _, (_, "Pair"), [ _; _ ], _) -> ()
+        | other -> failtest $"expected two fields, got: {other}")
+      testCase "a constructor pattern's fields go in parentheses" (fun _ ->
+        Expect.isEmpty
+          (P.parse "match x with | Ok(v) -> v | Pair(a, b) -> a | None -> 0L")
+            .diagnostics
+          "paren form"
+        Expect.equal
+          (hint "match x with | Ok v -> v | _ -> 0L")
+          [ "write `Ok(a)` rather than `Ok a`" ]
+          "the old form names the new one"
+        Expect.equal
+          (hint "match x with | Pair a b -> a | _ -> 0L")
+          [ "write `Pair(a, b)` rather than `Pair a b`" ]
+          "with as many fields as were written")
+      testCase "a constructor pattern may be qualified" (fun _ ->
+        let r =
+          P.parse
+            "match x with | Result.Ok(v) -> v | Stdlib.Result.Result.Error(_) -> 0L"
+        Expect.isEmpty r.diagnostics "both qualified forms parse"
+        match r.parsed with
+        | Some(WT.SourceFile { exprsToEval = [ WT.EMatch(_, _, cases, _, _) ] }) ->
+          match cases with
+          | [ { pat = WT.MPEnum(_, [ "Result" ], (_, "Ok"), [ _ ]) }
+              { pat = WT.MPEnum(_,
+                                [ "Stdlib"; "Result"; "Result" ],
+                                (_, "Error"),
+                                [ _ ]) } ] -> ()
+          | other -> failtest $"cases: {other}"
+        | other -> failtest $"match: {other}")
+      testCase "lambda parameters take the shape of a call's arguments" (fun _ ->
+        let pats src =
+          match lowerExpr src with
+          | WT.ELambda(_, pats, _, _, _) -> pats
+          | other -> failtest $"expected a lambda, got: {other}"
+        Expect.equal (List.length (pats "fun x -> x")) 1 "one bare parameter"
+        Expect.equal (List.length (pats "fun(a, b) -> a")) 2 "two in parentheses"
+        Expect.equal
+          (List.length (pats "fun (a, b) -> a"))
+          2
+          "a space before the paren"
+        match pats "fun((a, b)) -> a" with
+        | [ WT.LPTuple _ ] -> ()
+        | other -> failtest $"expected one tuple parameter, got: {other}"
+        match pats "fun(acc, (k, v)) -> acc" with
+        | [ WT.LPVariable(_, "acc"); WT.LPTuple _ ] -> ()
+        | other -> failtest $"expected a name and a tuple, got: {other}"
+        match pats "fun () -> 1L" with
+        | [ WT.LPUnit _ ] -> ()
+        | other -> failtest $"expected the unit parameter, got: {other}"
+        Expect.equal
+          (hint "fun a b -> a")
+          [ "write `fun(a, b) ->` rather than `fun a b ->`; a tuple parameter is `fun((a, b)) ->`" ]
+          "the old form names the new one")
+      testCase
+        "a function type with several arguments lists them in parentheses"
+        (fun _ ->
+          let paramType src =
+            match (P.parse src).parsed with
+            | Some(WT.SourceFile { declarations = [ WT.DFunction f ] }) ->
+              match f.parameters with
+              | [ WT.FPNormal(_, _, t, _, _, _, _) ] -> t
+              | other -> failtest $"expected one parameter, got: {other}"
+            | other -> failtest $"expected a function, got: {other}"
+          match paramType "let f(g: (Int64, String) -> Bool): Int64 = 1L" with
+          | WT.TFn(_, [ (WT.TInt64 _, _); (WT.TString _, _) ], WT.TBool _) -> ()
+          | other -> failtest $"expected two arguments, got: {other}"
+          match paramType "let f(g: Int64 -> (Int64 -> Int64)): Int64 = 1L" with
+          | WT.TFn(_, [ _ ], WT.TFn(_, [ _ ], _)) -> ()
+          | other ->
+            failtest $"expected one argument returning a function, got: {other}"
+          match
+            paramType "let f(g: (Int64 -> Int64, String) -> Bool): Int64 = 1L"
+          with
+          | WT.TFn(_, [ (WT.TFn _, _); _ ], _) -> ()
+          | other -> failtest $"expected a function argument, got: {other}"
+          Expect.equal
+            (hint "let f(g: Int64 -> Int64 -> Int64): Int64 = 1L")
+            [ "write `(A, B) -> C` for a function of two arguments, or `A -> (B -> C)` for one that returns a function" ]
+            "a chain is an error"
+          Expect.isNonEmpty
+            (P.parse "let f(g: (Int64, Int64)): Int64 = 1L").diagnostics
+            "an argument list needs an arrow after it")
       testCase "a declaration lists its parameters once" (fun _ ->
         match (P.parse "let add(a: Int64, b: Int64): Int64 = a + b").parsed with
         | Some(WT.SourceFile { declarations = [ WT.DFunction f ] }) ->
@@ -1899,7 +1996,7 @@ let private lexicalFailureTests =
       mustDiagnose "anonymous record" "{ a = 1L }"
       mustDiagnose
         "misaligned match arm"
-        "match x with\n  | Some x -> x\n    | None -> 0L"
+        "match x with\n  | Some(x) -> x\n    | None -> 0L"
       mustDiagnose "malformed float exponent (no digits)" "1e"
       mustDiagnose "malformed float exponent (sign only)" "1.5e+"
       mustDiagnose "oversized float exponent" "1e401"
@@ -1991,7 +2088,7 @@ let private goldenDiagnosticsTests =
         [ "integer literal 128y is out of range (this magnitude is only valid negated: -128y)" ]
       // the unfinished arm is missing both its arrow and its body
       golden
-        "match x with | Ok v -> v | Error"
+        "match x with | Ok(v) -> v | Error"
         [ "expected '->' in match case, found end of file"
           "expected an expression, found end of file" ]
       golden
@@ -2327,7 +2424,7 @@ let private unwrapTests =
         | other -> failtestf "unexpected tree: %A" other)
       testCase "rejects unwrap outside a function" (fun _ ->
         for source in
-          [ "x?"; "val x = (Some 1)?"; "module M =\n  val x = (Some 1)?" ] do
+          [ "x?"; "val x = (Some(1))?"; "module M =\n  val x = (Some(1))?" ] do
           let parsed = P.parse source
           Expect.isTrue
             (parsed.diagnostics
@@ -2339,24 +2436,19 @@ let private unwrapTests =
       testCase "a spaced ? says so, wherever it lands" (fun _ ->
         for source in
           [ "fun x -> x ?"
-            "fun x -> Some (x ?)"
-            "fun x -> Some (x) ?"
+            "fun x -> Some(x ?)"
+            "fun x -> Some(x) ?"
             "fun x ->\n  let n = x ?\n  n" ] do
           Expect.isTrue
             ((P.parse source).diagnostics
              |> List.exists (fun d ->
                d.message.Contains "directly after its operand"))
             source)
-      testCase "an adjacent ? that can't attach doesn't blame whitespace" (fun _ ->
-        let diagnostics = (P.parse "fun v -> Ok (f(v?))?").diagnostics
-        Expect.isTrue
-          (diagnostics
-           |> List.exists (fun d ->
-             d.message.Contains "can't follow this expression"))
-          $"{diagnostics}"
-        Expect.isFalse
-          (diagnostics |> List.exists (fun d -> d.message.Contains "no space"))
-          $"{diagnostics}")
+      testCase "a ? after a constructor's parens unwraps what it built" (fun _ ->
+        // `Ok (x)` takes its fields like a call, so `?` attaches to the whole
+        // constructor, as it does to `f(x)?`
+        Expect.isEmpty (P.parse "fun v -> Ok (f(v?))?").diagnostics "a spaced paren"
+        Expect.isEmpty (P.parse "fun v -> Ok(f(v?))?").diagnostics "a glued paren")
       testCase "a ? at the end of a pipe segment points at the parens" (fun _ ->
         let parsed = P.parse "fun s -> s |> Stdlib.Int.parse?"
         Expect.isTrue
@@ -2366,7 +2458,7 @@ let private unwrapTests =
           $"{parsed.diagnostics}")
       testCase "a lambda in a package value provides a boundary" (fun _ ->
         Expect.isEmpty
-          (P.parse "val f = fun x -> Some x?").diagnostics
+          (P.parse "val f = fun x -> Some(x?)").diagnostics
           "lambda boundary") ]
 
 

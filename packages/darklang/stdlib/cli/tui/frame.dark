@@ -138,14 +138,14 @@ let renderAtWidth(
   let previousRows =
     match previous with
     | None -> []
-    | Some view -> view.rows
+    | Some(view) -> view.rows
 
   let rowChanges = changedRows(previousRows, next.rows)
 
   let cursorChanged =
     match previous with
     | None -> true
-    | Some view -> view.cursor != next.cursor
+    | Some(view) -> view.cursor != next.cursor
 
   if Stdlib.List.isEmpty(rowChanges) && Stdlib.Bool.not(cursorChanged) then
     ""
@@ -167,7 +167,7 @@ let renderFullAtWidth(
   let previousRows =
     match previous with
     | None -> []
-    | Some view -> view.rows
+    | Some(view) -> view.rows
 
   let rows =
     fullRedrawRows(previousRows, next.rows)

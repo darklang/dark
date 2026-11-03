@@ -80,7 +80,7 @@ let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
     if (count(state)) == 0 then
       Widget.Outcome.Emitted(state, Msg.Cancelled)
     else
-      Widget.Outcome.Emitted(state, Msg.Chose state.selected)
+      Widget.Outcome.Emitted(state, Msg.Chose(state.selected))
   | Escape -> Widget.Outcome.Emitted(state, Msg.Cancelled)
   | _ -> Widget.Outcome.Ignored
 
@@ -101,7 +101,7 @@ let view(state: State, region: Layout.Region): List<Layout.Span> =
 
   let rows =
     state.labels
-    |> Stdlib.List.indexedMap(fun i label -> (i, label))
+    |> Stdlib.List.indexedMap(fun(i, label) -> (i, label))
     |> Stdlib.List.drop(windowed.scroll)
     |> Stdlib.List.take(region.rows)
     |> Stdlib.List.map(fun pair ->

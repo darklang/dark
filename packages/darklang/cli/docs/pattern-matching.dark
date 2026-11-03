@@ -8,22 +8,22 @@ let content(): String =
   | 0 -> "zero"
   | n -> $"other: {n}"
 
-## Enums (no type prefix)
-  | Some v -> v
+## Enums
+  | Some(v) -> v
   | None -> default
-  | Ok data -> data
-  | Error e -> handle e
+  | Ok(data) -> data
+  | Error(e) -> handle(e)
+  | Result.Ok(data) -> data     # the type prefix is allowed, not needed
 
 ## Tuples
   | (a, b) -> a + b
 
 ## Constructor patterns
-Bare or parenthesized both parse, nested or not: `| (Ok x, Ok y) ->` and
-`| (Ok(x), Ok(y)) ->` are the same pattern. The one real trap is a TUPLE
-payload: `Some((a, b))` needs its inner parens -- `Some(a, b)` parses and
-then silently matches nothing, a runtime surprise rather than a parse error.
-  | (Ok x, Ok y) -> x + y
-  | Some(Ok v) -> v
+A constructor's fields go in parentheses, as a call's arguments do:
+`| Ok(x)`, `| Pair(a, b)`. `| Ok x` is an error. The one real trap is a TUPLE
+payload: `Some((a, b))` needs its inner parens -- `Some(a, b)` is two fields.
+  | (Ok(x), Ok(y)) -> x + y
+  | Some(Ok(v)) -> v
   | Some((a, b)) -> a + b       # NOT Some(a, b), which never matches
 
 ## Lists
@@ -40,8 +40,8 @@ then silently matches nothing, a runtime surprise rather than a parse error.
   | _ -> default
 
 ## Nested
-  | Some(Ok v) -> v             # bare or parenthesized, spaced or not: all parse
+  | Some(Ok(v)) -> v            # fields always in parentheses
 
 ## Constructor wrapping a tuple
   | Some((a, b)) -> a + b       # Ctor((tuple)): the inner parens are the pattern
-  # NOT: | Some(a, b) ->        # parses, then silently never matches"""
+  # NOT: | Some(a, b) ->        # two fields, and Some has one"""

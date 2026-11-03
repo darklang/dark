@@ -5,8 +5,8 @@ module Darklang.Stdlib.Cli.Tui.Layout
 /// Repeat blank logical rows.
 let blankRows(count: Int): List<String> =
   match Stdlib.List.repeat(Stdlib.max(0, count), "") with
-  | Ok rows -> rows
-  | Error _ -> []
+  | Ok(rows) -> rows
+  | Error(_) -> []
 
 
 /// Truncate or pad a row list to an exact logical height.

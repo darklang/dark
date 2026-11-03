@@ -39,15 +39,15 @@ let render(missing: Missing): String =
 
     match constructor with
     | UnitCase -> "()"
-    | BoolCase value -> if value then "true" else "false"
+    | BoolCase(value) -> if value then "true" else "false"
     | EmptyList -> "[]"
     | ConsList ->
       match fields with
       | [ Anything, Anything ] -> "a non-empty list"
       | [ head, tail ] -> $"a list matching [{render(head)}, ...{render(tail)}]"
       | _ -> joined()
-    | TupleOf _ -> "(" + joined() + ")"
-    | EnumCase name ->
+    | TupleOf(_) -> "(" + joined() + ")"
+    | EnumCase(name) ->
       if Stdlib.List.isEmpty(fields) then name else name + "(" + joined() + ")"
 
 /// Flatten nested or-patterns at this position into separate alternatives.
@@ -82,23 +82,23 @@ let constructors(
   let (expanded, _) = Types.expand(env, subst, Stdlib.Option.Option.None, ty)
 
   match expanded with
-  | TUnit -> Stdlib.Option.Option.Some [ (Constructor.UnitCase, []) ]
+  | TUnit -> Stdlib.Option.Option.Some([ (Constructor.UnitCase, []) ])
   | TBool ->
-    Stdlib.Option.Option.Some
-      [ (Constructor.BoolCase false, []), (Constructor.BoolCase true, []) ]
-  | TList element ->
-    Stdlib.Option.Option.Some
+    Stdlib.Option.Option.Some(
+      [ (Constructor.BoolCase(false), []), (Constructor.BoolCase(true), []) ])
+  | TList(element) ->
+    Stdlib.Option.Option.Some(
       [ (Constructor.EmptyList, [])
-        (Constructor.ConsList, [ element, Model.Ty.TList element ]) ]
+        (Constructor.ConsList, [ element, Model.Ty.TList(element) ]) ])
   | TTuple(first, second, rest) ->
     let fields = Stdlib.List.concat([ first, second ], rest)
-    Stdlib.Option.Option.Some
-      [ (Constructor.TupleOf(Stdlib.List.length(fields)), fields) ]
+    Stdlib.Option.Option.Some(
+      [ (Constructor.TupleOf(Stdlib.List.length(fields)), fields) ])
   | TCustom(name, args) ->
     match Types.declaration(env, name) with
-    | Some decl ->
+    | Some(decl) ->
       match decl.definition with
-      | Enum cases ->
+      | Enum(cases) ->
         // Substitute this enum's type arguments into each case's payload types.
         Stdlib.Option.Option.Some(
           Stdlib.List.map(cases, fun case ->
@@ -111,7 +111,7 @@ let constructors(
                     args,
                     field.typ)
                 t)
-            (Constructor.EnumCase case.name, fields))
+            (Constructor.EnumCase(case.name), fields))
         )
       | _ -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
@@ -132,13 +132,13 @@ let specialize(
   | MPOr(_, options) ->
     Stdlib.List.flatten(
       Stdlib.List.map(options, fun p -> specialize(constructor, fieldCount, p)))
-  | MPUnit _ ->
+  | MPUnit(_) ->
     match constructor with
     | UnitCase -> [ [] ]
     | _ -> []
   | MPBool(_, value) ->
     match constructor with
-    | BoolCase expected -> if value == expected then [ [] ] else []
+    | BoolCase(expected) -> if value == expected then [ [] ] else []
     | _ -> []
   | MPList(id, patterns) ->
     match (constructor, patterns) with
@@ -154,7 +154,7 @@ let specialize(
     | _ -> []
   | MPTuple(_, first, second, rest) ->
     match constructor with
-    | TupleOf n ->
+    | TupleOf(n) ->
       if n == 2 + Stdlib.List.length(rest) then
         [ Stdlib.List.concat([ first, second ], rest) ]
       else
@@ -162,7 +162,7 @@ let specialize(
     | _ -> []
   | MPEnum(_, caseName, fields) ->
     match constructor with
-    | EnumCase name ->
+    | EnumCase(name) ->
       if name == caseName && Stdlib.List.length(fields) == fieldCount then
         [ fields ]
       else
@@ -196,7 +196,7 @@ let catchAllRows(rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>): Lis
     | [pattern, ...rest] ->
       (alternatives(pattern))
       |> Stdlib.List.filterMap(fun p ->
-        if isIrrefutable(p) then Stdlib.Option.Option.Some rest
+        if isIrrefutable(p) then Stdlib.Option.Option.Some(rest)
         else Stdlib.Option.Option.None))
   |> Stdlib.List.flatten
 
@@ -219,7 +219,7 @@ let headsCoverAllConstructors(
   cases: List<(Constructor * List<Model.Ty>)>,
   rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>)
   : Bool =
-  Stdlib.List.all(cases, fun (constructor, fieldTypes) ->
+  Stdlib.List.all(cases, fun((constructor, fieldTypes)) ->
     let fieldCount = Stdlib.List.length(fieldTypes)
 
     Stdlib.List.any(rows, fun row ->
@@ -260,14 +260,14 @@ let isExhaustiveByConstructors(
   : Bool =
   let expandable =
     match constructors(env, subst, ty) with
-    | Some cases ->
-      if headsCoverAllConstructors(cases, rows) then Stdlib.Option.Option.Some cases
+    | Some(cases) ->
+      if headsCoverAllConstructors(cases, rows) then Stdlib.Option.Option.Some(cases)
       else Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
 
   match expandable with
-  | Some cases ->
-    Stdlib.List.all(cases, fun (constructor, fieldTypes) ->
+  | Some(cases) ->
+    Stdlib.List.all(cases, fun((constructor, fieldTypes)) ->
       isExhaustive(
         env,
         subst,
@@ -292,14 +292,14 @@ let findUncovered(
   else
     match types with
     | [] ->
-      if Stdlib.List.isEmpty(rows) then Stdlib.Option.Option.Some []
+      if Stdlib.List.isEmpty(rows) then Stdlib.Option.Option.Some([])
       else Stdlib.Option.Option.None
     | [ty, ...rest] ->
       match constructors(env, subst, ty) with
-      | Some cases ->
-        Stdlib.List.fold(cases, None, fun found (constructor, fieldTypes) ->
+      | Some(cases) ->
+        Stdlib.List.fold(cases, None, fun(found, (constructor, fieldTypes)) ->
           match found with
-          | Some _ -> found
+          | Some(_) -> found
           | None ->
             let fieldCount = Stdlib.List.length(fieldTypes)
             let specialized = specializeRows(constructor, fieldCount, rows)
@@ -356,5 +356,5 @@ let uncovered(
     // Eight recursive search steps bound the attempt to describe a missing value.
     // This limit affects only the example; the coverage decision was made above.
     match findUncovered(env, subst, 8, [ scrutinee ], rows) with
-    | Some([first, ...]) -> Stdlib.Option.Option.Some first
-    | _ -> Stdlib.Option.Option.Some Missing.Anything
+    | Some([first, ...]) -> Stdlib.Option.Option.Some(first)
+    | _ -> Stdlib.Option.Option.Some(Missing.Anything)

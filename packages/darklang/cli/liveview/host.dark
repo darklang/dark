@@ -66,7 +66,7 @@ let resolveAll(
   view: Model.View)
   : Stdlib.Result.Result<(Stdlib.Live.LastGood * Stdlib.Live.LastGood * Stdlib.Live.LastGood), String> =
   match (entryOf(view.init), entryOf(view.update), entryOf(view.render)) with
-  | (Some i, Some u, Some r) ->
+  | (Some(i), Some(u), Some(r)) ->
     let lg(loc: LanguageTools.ProgramTypes.PackageLocation): Stdlib.Live.LastGood =
       Stdlib.Live.refresh(branchId, Stdlib.Live.start(loc))
 
@@ -76,15 +76,15 @@ let resolveAll(
       [ initLg, updateLg, renderLg ]
       |> Stdlib.List.filterMap(fun x ->
         match x.hash with
-        | Some _ -> Stdlib.Option.Option.None
+        | Some(_) -> Stdlib.Option.Option.None
         | None -> Stdlib.Live.diagnostic(x))
 
     match problems with
     | [] -> Stdlib.Result.Result.Ok((initLg, updateLg, renderLg))
-    | [first, ...] -> Stdlib.Result.Result.Error first
+    | [first, ...] -> Stdlib.Result.Result.Error(first)
   | _ ->
-    Stdlib.Result.Result.Error
-      $"a view's fns are dotted package names: {view.init}, {view.update}, {view.render}"
+    Stdlib.Result.Result.Error(
+      $"a view's fns are dotted package names: {view.init}, {view.update}, {view.render}")
 
 
 // --- rendering ---
@@ -105,13 +105,13 @@ let viewAtSize(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.
 
   let frame =
     match s.toast with
-    | Some note -> Stdlib.Cli.UI.Chrome.withMessage(frame, note)
+    | Some(note) -> Stdlib.Cli.UI.Chrome.withMessage(frame, note)
     | None -> frame
 
   Stdlib.Cli.UI.Chrome.view(frame, size, fun region ->
     let bandHeight =
       match s.band with
-      | Some band -> bandRows(band, region.cols)
+      | Some(band) -> bandRows(band, region.cols)
       | None -> 0
 
     let treeRegion =
@@ -126,17 +126,17 @@ let viewAtSize(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.
     // window.
     let treeSpans =
       match s.lastFrame with
-      | Some tree ->
+      | Some(tree) ->
         Stdlib.Cli.UI.Node.toRows(tree, treeRegion.cols, s.focus)
         |> Stdlib.List.drop(s.scroll)
         |> Stdlib.List.take(treeRegion.rows)
-        |> Stdlib.List.indexedMap(fun i row -> Stdlib.Cli.UI.Layout.at(treeRegion, i, 0, row))
+        |> Stdlib.List.indexedMap(fun(i, row) -> Stdlib.Cli.UI.Layout.at(treeRegion, i, 0, row))
         |> Stdlib.List.flatten
       | None -> []
 
     let bandSpans =
       match s.band with
-      | Some band ->
+      | Some(band) ->
         let bandRegion =
           Stdlib.Cli.UI.Layout.Region
             { top = region.top + region.rows - bandHeight
@@ -157,17 +157,17 @@ let viewAtSize(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.
 /// never run, and the previous one is, with the check's words in the band.
 let render(s: Session<'model, 'msg>): Session<'model, 'msg> =
   match Stdlib.Live.call(s.render, s.model) with
-  | Ok tree ->
+  | Ok(tree) ->
     { s with
-        lastFrame = Stdlib.Option.Option.Some tree
+        lastFrame = Stdlib.Option.Option.Some(tree)
         band = Stdlib.Live.diagnostic(s.render) }
-  | Error rte ->
+  | Error(rte) ->
     let why =
       match Stdlib.Live.diagnostic(s.render) with
-      | Some d -> d
+      | Some(d) -> d
       | None -> $"{s.view.render} failed: {rte}"
 
-    { s with band = Stdlib.Option.Option.Some why }
+    { s with band = Stdlib.Option.Option.Some(why) }
 
 /// The rows the tree gets at this size: the body less the band.
 let treeRowsAt(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Int =
@@ -175,7 +175,7 @@ let treeRowsAt(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Int =
 
   let bandHeight =
     match s.band with
-    | Some band -> bandRows(band, region.cols)
+    | Some(band) -> bandRows(band, region.cols)
     | None -> 0
 
   Stdlib.max(1, region.rows - bandHeight)
@@ -184,15 +184,15 @@ let treeRowsAt(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Int =
 let settleScroll(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Session<'model, 'msg> =
   match s.lastFrame with
   | None -> { s with scroll = 0 }
-  | Some tree ->
+  | Some(tree) ->
     let paneRows = treeRowsAt(s, size)
     let (total, _) = Stdlib.Cli.UI.Node.measure(tree)
     let wanted = Stdlib.max(0, Stdlib.min(s.scroll, total - paneRows))
 
     let scroll =
       match Stdlib.Cli.UI.Node.rowOf(tree, s.focus) with
-      | Some row when row < wanted -> row
-      | Some row when row >= wanted + paneRows -> row - paneRows + 1
+      | Some(row) when row < wanted -> row
+      | Some(row) when row >= wanted + paneRows -> row - paneRows + 1
       | _ -> wanted
 
     { s with scroll = scroll }
@@ -215,14 +215,14 @@ let present(s: Session<'model, 'msg>): Session<'model, 'msg> =
 /// Run the view's `update`. A failure keeps the model and shows the error; the loop goes on.
 let applyUpdate(s: Session<'model, 'msg>, event: Event<'msg>): Session<'model, 'msg> =
   match Stdlib.Live.call2(s.update, s.model, event) with
-  | Ok model -> { s with model = model, toast = Stdlib.Option.Option.None }
-  | Error e -> { s with band = Stdlib.Option.Option.Some $"{s.view.update} failed: {e}" }
+  | Ok(model) -> { s with model = model, toast = Stdlib.Option.Option.None }
+  | Error(e) -> { s with band = Stdlib.Option.Option.Some($"{s.view.update} failed: {e}") }
 
 /// Move focus to the next (or previous) focusable node in the last frame.
 let moveFocus(s: Session<'model, 'msg>, forward: Bool): Session<'model, 'msg> =
   let ids =
     match s.lastFrame with
-    | Some tree -> Stdlib.Cli.UI.Node.focusable(tree)
+    | Some(tree) -> Stdlib.Cli.UI.Node.focusable(tree)
     | None -> []
 
   match ids with
@@ -234,7 +234,7 @@ let moveFocus(s: Session<'model, 'msg>, forward: Bool): Session<'model, 'msg> =
     let next =
       match current with
       | None -> if forward then 0 else count - 1
-      | Some i -> (if forward then i + 1 else i + count - 1) % count
+      | Some(i) -> (if forward then i + 1 else i + count - 1) % count
 
     { s with focus = Stdlib.List.getAt(ids, next) |> Stdlib.Option.withDefault("") }
 
@@ -248,9 +248,9 @@ let onKey(s: Session<'model, 'msg>, k: Stdlib.Cli.UI.Widget.KeyPress): Session<'
     { s with exiting = true }
   else if ctrlS then
     match snapshot(s.branchId, s.view, s.model) with
-    | Ok name ->
-      { s with toast = Stdlib.Option.Option.Some $"saved the model as {name}; open it again with --resume {name}" }
-    | Error why -> { s with toast = Stdlib.Option.Option.Some $"could not save the model: {why}" }
+    | Ok(name) ->
+      { s with toast = Stdlib.Option.Option.Some($"saved the model as {name}; open it again with --resume {name}") }
+    | Error(why) -> { s with toast = Stdlib.Option.Option.Some($"could not save the model: {why}") }
   else if k.key == Stdlib.Cli.Stdin.Key.Key.Tab then
     moveFocus(s, Stdlib.Bool.not(k.modifiers.shift))
   // Scrolling away drops the focus: the window follows the focused node, so keeping it would
@@ -262,22 +262,22 @@ let onKey(s: Session<'model, 'msg>, k: Stdlib.Cli.UI.Widget.KeyPress): Session<'
   else
     let focused =
       match s.lastFrame with
-      | Some tree -> if s.focus == "" then Stdlib.Option.Option.None else Stdlib.Cli.UI.Node.findFocused(tree, s.focus)
+      | Some(tree) -> if s.focus == "" then Stdlib.Option.Option.None else Stdlib.Cli.UI.Node.findFocused(tree, s.focus)
       | None -> Stdlib.Option.Option.None
 
     match focused with
-    | Some(OnButton msg) when k.key == Stdlib.Cli.Stdin.Key.Key.Enter -> applyUpdate(s, Event.Msg msg)
-    | Some(OnInput spec) ->
+    | Some(OnButton(msg)) when k.key == Stdlib.Cli.Stdin.Key.Key.Enter -> applyUpdate(s, Event.Msg(msg))
+    | Some(OnInput(spec)) ->
       match k.key with
       | Backspace ->
         let shorter = Stdlib.String.dropLast(spec.value, 1)
         applyUpdate(s, Event.Msg(spec.edited(shorter)))
-      | Enter -> applyUpdate(s, Event.Key k)
+      | Enter -> applyUpdate(s, Event.Key(k))
       | _ ->
         match k.char with
-        | Some c -> applyUpdate(s, Event.Msg(spec.edited(spec.value + c)))
-        | None -> applyUpdate(s, Event.Key k)
-    | _ -> applyUpdate(s, Event.Key k)
+        | Some(c) -> applyUpdate(s, Event.Msg(spec.edited(spec.value + c)))
+        | None -> applyUpdate(s, Event.Key(k))
+    | _ -> applyUpdate(s, Event.Key(k))
 
 
 // --- following edits ---
@@ -294,14 +294,14 @@ let shownView(): Stdlib.Option.Option<Model.View> =
 /// Returns the session and whether it moved.
 let followShown(s: Session<'model, 'msg>): (Session<'model, 'msg> * Bool) =
   match shownView() with
-  | Some view when view.render != s.view.render ->
+  | Some(view) when view.render != s.view.render ->
     match prepareWith(s.branchId, view, Stdlib.Option.Option.None, s.live) with
-    | Ok fresh ->
+    | Ok(fresh) ->
       ({ fresh with
           terminal = s.terminal
-          toast = Stdlib.Option.Option.Some $"showing {view.name}" },
+          toast = Stdlib.Option.Option.Some($"showing {view.name}") },
        true)
-    | Error e -> ({ s with toast = Stdlib.Option.Option.Some $"cannot show {view.name}: {e}" }, true)
+    | Error(e) -> ({ s with toast = Stdlib.Option.Option.Some($"cannot show {view.name}: {e}") }, true)
   | _ -> (s, false)
 
 /// Does the change reach any of the view's entries?
@@ -320,7 +320,7 @@ let reload(s: Session<'model, 'msg>, change: Stdlib.Live.Change): Session<'model
       init = Stdlib.Live.refresh(s.branchId, s.init)
       update = Stdlib.Live.refresh(s.branchId, s.update)
       render = Stdlib.Live.refresh(s.branchId, s.render)
-      toast = Stdlib.Option.Option.Some $"changed: {names}" }
+      toast = Stdlib.Option.Option.Some($"changed: {names}") }
 
 
 // --- saving and resuming the model ---
@@ -341,27 +341,27 @@ let sessionLocation(view: Model.View): Stdlib.Option.Option<LanguageTools.Progra
 /// says why.
 let snapshot(branchId: Uuid, view: Model.View, model: 'model): Stdlib.Result.Result<String, String> =
   match sessionLocation(view) with
-  | None -> Stdlib.Result.Result.Error "the view's render is not a package fn name"
-  | Some location ->
+  | None -> Stdlib.Result.Result.Error("the view's render is not a package fn name")
+  | Some(location) ->
     // Through the REPL's capture, which turns a runtime value back into source: the ONE path that
     // knows which values have a literal form.
     match Repl.readCaptured(Repl.captureValue(branchId, model)) with
-      | None -> Stdlib.Result.Result.Error "the model has no stored form (a stream, a lambda or unsaved Bytes inside it)"
-      | Some source ->
+      | None -> Stdlib.Result.Result.Error("the model has no stored form (a stream, a lambda or unsaved Bytes inside it)")
+      | Some(source) ->
         let name = Stdlib.Live.entryName(location)
         let fullSource = $"val {location.name} = {source}"
 
         match LanguageTools.Parser.Parse.toWrittenTypes(fullSource) with
-        | Some(SourceFile sourceFile) ->
+        | Some(SourceFile(sourceFile)) ->
           let found =
             sourceFile.declarations
             |> Stdlib.List.findFirst(fun d ->
               match d with
-              | Value _ -> true
+              | Value(_) -> true
               | _ -> false)
 
           match found with
-          | Some(Value writtenValue) ->
+          | Some(Value(writtenValue)) ->
             let ctx =
               LanguageTools.NameResolver.NRContext
                 { onMissing = LanguageTools.NameResolver.OnMissing.Allow
@@ -374,33 +374,33 @@ let snapshot(branchId: Uuid, view: Model.View, model: 'model): Stdlib.Result.Res
               LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT(ctx, writtenValue)
 
             if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolved)) then
-              Stdlib.Result.Result.Error "the snapshot names types that do not resolve"
+              Stdlib.Result.Result.Error("the snapshot names types that do not resolve")
             else
               let ops =
-                [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
+                [ LanguageTools.ProgramTypes.PackageOp.AddValue(packageValue)
                   LanguageTools.ProgramTypes.PackageOp.SetName(
                     location,
-                    LanguageTools.ProgramTypes.Reference.PackageValue packageValue.hash,
+                    LanguageTools.ProgramTypes.Reference.PackageValue(packageValue.hash),
                     Stdlib.Option.Option.None
                   ) ]
 
               match SCM.PackageOps.addAuthored(branchId, ops) with
-              | Ok _ -> Stdlib.Result.Result.Ok name
-              | Error e -> Stdlib.Result.Result.Error e
-          | _ -> Stdlib.Result.Result.Error "the snapshot did not parse as a value"
-        | _ -> Stdlib.Result.Result.Error "the snapshot did not parse"
+              | Ok(_) -> Stdlib.Result.Result.Ok(name)
+              | Error(e) -> Stdlib.Result.Result.Error(e)
+          | _ -> Stdlib.Result.Result.Error("the snapshot did not parse as a value")
+        | _ -> Stdlib.Result.Result.Error("the snapshot did not parse")
 
 /// The model stored under <param name>, for `--resume`.
 let resumeFrom(branchId: Uuid, name: String): Stdlib.Result.Result<'model, String> =
   match Stdlib.Live.locationOfName(name) with
-  | None -> Stdlib.Result.Result.Error $"{name} is not a package value name"
-  | Some location ->
+  | None -> Stdlib.Result.Result.Error($"{name} is not a package value name")
+  | Some(location) ->
     match LanguageTools.PackageManager.Value.find(branchId, location) with
-    | None -> Stdlib.Result.Result.Error $"no value named {name}"
-    | Some hash ->
+    | None -> Stdlib.Result.Result.Error($"no value named {name}")
+    | Some(hash) ->
       match Stdlib.ValueSearch.evaluate(hash) with
-      | Some model -> Stdlib.Result.Result.Ok model
-      | None -> Stdlib.Result.Result.Error $"{name} could not be evaluated"
+      | Some(model) -> Stdlib.Result.Result.Ok(model)
+      | None -> Stdlib.Result.Result.Error($"{name} could not be evaluated")
 
 
 // --- the loop ---
@@ -410,7 +410,7 @@ let press(read: Stdlib.Cli.Stdin.KeyRead.KeyRead): Stdlib.Cli.UI.Widget.KeyPress
   Stdlib.Cli.UI.Widget.press(
     read.key,
     read.modifiers,
-    (if read.keyChar == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some read.keyChar))
+    (if read.keyChar == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(read.keyChar)))
 
 /// How long a toast stays up when nothing else happens.
 val toastMs = 3000L
@@ -430,14 +430,14 @@ let step(s: Session<'model, 'msg>): Session<'model, 'msg> =
 
   let specs =
     match (s.view.every, s.toast) with
-    | (Some ms, _) ->
-      Stdlib.List.append(watching, Stdlib.Host.EventSpec.Timer ms)
-    | (None, Some _) ->
-      Stdlib.List.append(watching, Stdlib.Host.EventSpec.Timer toastMs)
+    | (Some(ms), _) ->
+      Stdlib.List.append(watching, Stdlib.Host.EventSpec.Timer(ms))
+    | (None, Some(_)) ->
+      Stdlib.List.append(watching, Stdlib.Host.EventSpec.Timer(toastMs))
     | (None, None) -> watching
 
   match Stdlib.Host.await(specs) with
-  | StoreChanged change ->
+  | StoreChanged(change) ->
     // `Live.show` first: an agent that authored a view and pointed at it lands both in one
     // wake, and the view it named is the one the edit should be seen on.
     let (s, switched) = followShown(s)
@@ -448,7 +448,7 @@ let step(s: Session<'model, 'msg>): Session<'model, 'msg> =
   | Timer ->
     let cleared = { s with toast = Stdlib.Option.Option.None }
     match s.view.every with
-    | Some _ ->
+    | Some(_) ->
       let next = applyUpdate(cleared, Event.Tick)
       // A render is pure, so an unchanged model is an unchanged frame: an idle view's tick
       // stops here instead of composing and diffing a frame identical to the one on screen.
@@ -457,7 +457,7 @@ let step(s: Session<'model, 'msg>): Session<'model, 'msg> =
       else
         present(render(next))
     | None -> present(cleared)
-  | Key read ->
+  | Key(read) ->
     // A coalesced burst (a wheel, a held key) is one read with a repeat count; movement keys are
     // applied that many times, as the CLI's loop does, capped so a flood cannot spin the loop.
     let repeatable =
@@ -475,9 +475,9 @@ let step(s: Session<'model, 'msg>): Session<'model, 'msg> =
     let presses =
       let focusedOnInput =
         match s.lastFrame with
-        | Some tree when s.focus != "" ->
+        | Some(tree) when s.focus != "" ->
           match Stdlib.Cli.UI.Node.findFocused(tree, s.focus) with
-          | Some(OnInput _) -> true
+          | Some(OnInput(_)) -> true
           | _ -> false
         | _ -> false
 
@@ -488,13 +488,13 @@ let step(s: Session<'model, 'msg>): Session<'model, 'msg> =
       else
         chars
         |> Stdlib.List.map(fun c ->
-          Stdlib.Cli.UI.Widget.press(read.key, read.modifiers, Stdlib.Option.Option.Some (Stdlib.String.fromChar(c))))
+          Stdlib.Cli.UI.Widget.press(read.key, read.modifiers, Stdlib.Option.Option.Some(Stdlib.String.fromChar(c))))
 
     let after =
       Stdlib.List.range(1, times)
-      |> Stdlib.List.fold({ s with toast = Stdlib.Option.Option.None }, fun acc _ ->
+      |> Stdlib.List.fold({ s with toast = Stdlib.Option.Option.None }, fun(acc, _) ->
         presses
-        |> Stdlib.List.fold(acc, fun acc2 kp -> if acc2.exiting then acc2 else onKey(acc2, kp)))
+        |> Stdlib.List.fold(acc, fun(acc2, kp) -> if acc2.exiting then acc2 else onKey(acc2, kp)))
 
     present(render(after))
   | _ -> s
@@ -516,22 +516,22 @@ let prepareWith(
   Stdlib.Host.begin()
 
   match resolveAll(branchId, view) with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok resolved ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(resolved) ->
     // Destructured after the match: `Ok(a, b, c)` reads as a three-field case, not a tuple.
     let (initLg, updateLg, renderLg) = resolved
 
     let starting =
       match resume with
-      | Some name -> resumeFrom(branchId, name)
+      | Some(name) -> resumeFrom(branchId, name)
       | None ->
         match Stdlib.Live.call(initLg, ()) with
-        | Ok model -> Stdlib.Result.Result.Ok model
-        | Error e -> Stdlib.Result.Result.Error $"{view.init}: {e}"
+        | Ok(model) -> Stdlib.Result.Result.Ok(model)
+        | Error(e) -> Stdlib.Result.Result.Error($"{view.init}: {e}")
 
     match starting with
-    | Error e -> Stdlib.Result.Result.Error e
-    | Ok model ->
+    | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Ok(model) ->
       Stdlib.Result.Result.Ok(
         render((
           Session
@@ -568,13 +568,13 @@ let start(
   live: Bool)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
   match prepareWith(branchId, view, resume, live) with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok s ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(s) ->
     let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
 
     match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, viewAtSize(s, size)) with
-    | Ok terminal -> Stdlib.Result.Result.Ok { s with terminal = terminal }
-    | Error message -> Stdlib.Result.Result.Error message
+    | Ok(terminal) -> Stdlib.Result.Result.Ok({ s with terminal = terminal })
+    | Error(message) -> Stdlib.Result.Result.Error(message)
 
 /// The frame a session shows at <param size>, as rows without styling. For tests.
 let plainRows(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): List<String> =
@@ -593,8 +593,8 @@ let openView(
   live: Bool)
   : Stdlib.Result.Result<Unit, String> =
   match start(branchId, view, resume, live) with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok session ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(session) ->
     let finished = run(session)
     stop(finished)
     Stdlib.Result.Result.Ok()

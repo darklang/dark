@@ -55,7 +55,7 @@ let refusalMessage(r: MergeRefusal): String =
 /// and stays in F#.
 let canMerge(branchId: Uuid): Stdlib.Result.Result<Unit, MergeRefusal> =
   if SCM.Branch.isMain(branchId) then
-    Stdlib.Result.Result.Error MergeRefusal.IsMain
+    Stdlib.Result.Result.Error(MergeRefusal.IsMain)
   else
 
   let changes =
@@ -67,7 +67,7 @@ let canMerge(branchId: Uuid): Stdlib.Result.Result<Unit, MergeRefusal> =
     |> Stdlib.Option.withDefault(0L)
 
   if changes == 0L then
-    Stdlib.Result.Result.Error MergeRefusal.NothingToMerge
+    Stdlib.Result.Result.Error(MergeRefusal.NothingToMerge)
   else
     // "Active" must mean the same here as in the message below, which tells you to merge OR ARCHIVE the
     // children -- counting archived ones as active makes that advice a dead end.
@@ -82,10 +82,10 @@ let canMerge(branchId: Uuid): Stdlib.Result.Result<Unit, MergeRefusal> =
         [ Stdlib.toString(branchId) ],
         "n")
     with
-    | None -> Stdlib.Result.Result.Error MergeRefusal.CouldNotCheckChildren
-    | Some activeChildren ->
+    | None -> Stdlib.Result.Result.Error(MergeRefusal.CouldNotCheckChildren)
+    | Some(activeChildren) ->
       if activeChildren > 0L then
-        Stdlib.Result.Result.Error MergeRefusal.HasActiveChildren
+        Stdlib.Result.Result.Error(MergeRefusal.HasActiveChildren)
       else
         Stdlib.Result.Result.Ok()
 
@@ -161,9 +161,9 @@ let archive(branchId: Uuid): Stdlib.Result.Result<Unit, String> =
   // this, so a failure it cannot see becomes a branch archived on every OTHER machine and live here. And
   // library code under `scm/` must not write to stdout: in the LSP server that is the JSON-RPC channel.
   match result with
-  | Ok _ -> Stdlib.Result.Result.Ok()
-  | Error e ->
-    Stdlib.Result.Result.Error $"archive failed, nothing was changed: {e}"
+  | Ok(_) -> Stdlib.Result.Result.Ok()
+  | Error(e) ->
+    Stdlib.Result.Result.Error($"archive failed, nothing was changed: {e}")
 
 
 //  listings
@@ -191,7 +191,7 @@ let list(): List<BranchRow> =
       match Stdlib.Sqlite.uuidField(row, "id") with
       // A row whose id will not parse is skipped, not fatal: this feeds every listing and the LSP
       // tree, and one bad row taking all of them down is worse than one branch missing from the list.
-      | Some id ->
+      | Some(id) ->
         Stdlib.Option.Option.Some(
           BranchRow
             { id = id
@@ -227,8 +227,8 @@ let listLines(includeMerged: Bool): List<String> =
       // A parent this store has never registered is a colleague's branch that was not pulled
       // with its child. The id alone reads as corruption; say what it is instead.
       match Stdlib.List.findFirst(branches, fun p -> p.id == parentId) with
-      | Some p when p.name != "" -> p.name
-      | Some _ -> Stdlib.String.slice(Stdlib.toString(parentId), 0, 8)
+      | Some(p) when p.name != "" -> p.name
+      | Some(_) -> Stdlib.String.slice(Stdlib.toString(parentId), 0, 8)
       | None ->
         let short = Stdlib.String.slice(Stdlib.toString(parentId), 0, 8)
         $"{short} (a branch not in this store; `branch pull --from <who>` brings it)"
@@ -282,7 +282,7 @@ let nameBases(branchId: Uuid): List<(String * String * String * String)> =
          Stdlib.Sqlite.textField(row, "name"),
          Stdlib.Sqlite.textField(row, "base_hash"))
       with
-      | (Some o, Some m, Some n, Some h) ->
+      | (Some(o), Some(m), Some(n), Some(h)) ->
         Stdlib.Option.Option.Some((o, m, n, h))
       | _ -> Stdlib.Option.Option.None)
 
@@ -323,7 +323,7 @@ let parentHashesForBases(parentId: Uuid, branchId: Uuid): Dict<String, String> =
            Stdlib.Sqlite.textField(row, "name"),
            Stdlib.Sqlite.textField(row, "item_hash"))
         with
-        | (Some o, Some m, Some n, Some h) ->
+        | (Some(o), Some(m), Some(n), Some(h)) ->
           Stdlib.Option.Option.Some((nameKey(o, m, n), h))
         | _ -> Stdlib.Option.Option.None)
 
@@ -336,7 +336,7 @@ let parentHashesForBases(parentId: Uuid, branchId: Uuid): Dict<String, String> =
       |> Stdlib.List.map(fun w ->
         let hash =
           match w.binding with
-          | Some b -> b.hash
+          | Some(b) -> b.hash
           | None -> ""
         (nameKey(w.owner, w.modules, w.name), hash))
 
@@ -394,8 +394,8 @@ type Rebased =
 /// unblocked. The union of both halves of <fn rebaseDetailed>, for callers that want one list.
 let rebase(branchId: Uuid): Stdlib.Result.Result<List<String>, String> =
   match rebaseDetailed(branchId) with
-  | Ok r -> Stdlib.Result.Result.Ok(Stdlib.List.unique(Stdlib.List.concat(r.diverged, r.repointed)))
-  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(r) -> Stdlib.Result.Result.Ok(Stdlib.List.unique(Stdlib.List.concat(r.diverged, r.repointed)))
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// The rebase itself, reporting divergences and repoints apart (see <type Rebased>).
@@ -450,7 +450,7 @@ let rebaseDetailed(branchId: Uuid): Stdlib.Result.Result<Rebased, String> =
   let outcome = Rebased { diverged = changed, repointed = repointed }
 
   match updates with
-  | [] -> Stdlib.Result.Result.Ok outcome
+  | [] -> Stdlib.Result.Result.Ok(outcome)
   | rows ->
     match
       Stdlib.Sqlite.execBatch(
@@ -459,8 +459,8 @@ let rebaseDetailed(branchId: Uuid): Stdlib.Result.Result<Rebased, String> =
             WHERE branch_id = @p1 AND owner = @p2 AND modules = @p3 AND name = @p4",
            rows) ])
     with
-    | Ok _ -> Stdlib.Result.Result.Ok outcome
-    | Error e -> Stdlib.Result.Result.Error e
+    | Ok(_) -> Stdlib.Result.Result.Ok(outcome)
+    | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// "owner.Module.Sub.name" -> (owner, dotted-modules, name). The inverse of <fn fqnOf>, and it has to
@@ -475,7 +475,7 @@ let parseFqn(fqn: String): Stdlib.Option.Option<(String * String * String)> =
     let modules = rest |> Stdlib.List.take(n - 1) |> (fun ms -> Stdlib.String.join(ms, "."))
 
     match Stdlib.List.last(rest) with
-    | Some name -> Stdlib.Option.Option.Some((owner, modules, name))
+    | Some(name) -> Stdlib.Option.Option.Some((owner, modules, name))
     | None -> Stdlib.Option.Option.None
 
 
@@ -488,7 +488,7 @@ let ownFrontierOps(
   branchId: Uuid)
   : List<(Uuid * LanguageTools.ProgramTypes.PackageOp)> =
   ownFrontierOpsWithSource(branchId)
-  |> Stdlib.List.map(fun (id, op, _) -> (id, op))
+  |> Stdlib.List.map(fun((id, op, _)) -> (id, op))
 
 
 /// <fn ownFrontierOps>, with what put each op on the branch: 'op', 'propagation' or 'resolution' (see
@@ -501,9 +501,9 @@ let ownFrontierOpsWithSource(
     match
       (Stdlib.Sqlite.uuidField(row, "id"), Stdlib.Sqlite.bytesField(row, "op_blob"))
     with
-    | (Some id, Some blob) ->
+    | (Some(id), Some(blob)) ->
       match SCM.PackageOps.tryDecodeOp(id, blob) with
-      | Some op ->
+      | Some(op) ->
         let source = Stdlib.Sqlite.textField(row, "source") |> Stdlib.Option.withDefault("op")
         Stdlib.Option.Option.Some((id, op, source))
       | None -> Stdlib.Option.Option.None
@@ -557,7 +557,7 @@ let opBindsKey(
       Stdlib.Option.Option.Some((loc, target))
     else
       Stdlib.Option.Option.None
-  | Decision(_, loc, _, Override target) ->
+  | Decision(_, loc, _, Override(target)) ->
     if matches(loc) then
       Stdlib.Option.Option.Some((loc, target))
     else
@@ -593,8 +593,8 @@ let resolveTakeTheirs(
   fqn: String)
   : Stdlib.Result.Result<Unit, String> =
   match parseFqn(fqn) with
-  | None -> Stdlib.Result.Result.Error $"can't parse a name from \"{fqn}\""
-  | Some key ->
+  | None -> Stdlib.Result.Result.Error($"can't parse a name from \"{fqn}\"")
+  | Some(key) ->
     // Every op that BINDS the name: a SetName, or the Override a `resolve mine` wrote. `opBindsKey` is
     // the one definition of "binds", so `resolve theirs` after `resolve mine` finds the override too
     // rather than reporting success over an untouched branch.
@@ -604,16 +604,16 @@ let resolveTakeTheirs(
         let (id, op) = entry
 
         match opBindsKey(op, key) with
-        | Some _ ->
-          Stdlib.Option.Option.Some
-            [ Stdlib.toString(id), Stdlib.toString(branchId) ]
+        | Some(_) ->
+          Stdlib.Option.Option.Some(
+            [ Stdlib.toString(id), Stdlib.toString(branchId) ])
         | None -> Stdlib.Option.Option.None)
 
     match ids with
     // The NAME, because this reaches a person through `dark resolve` and a name is what they typed.
     | [] ->
-      Stdlib.Result.Result.Error
-        $"branch \"{SCM.PackageOps.branchName(branchId)}\" doesn't bind {fqn} -- nothing to resolve"
+      Stdlib.Result.Result.Error(
+        $"branch \"{SCM.PackageOps.branchName(branchId)}\" doesn't bind {fqn} -- nothing to resolve")
     | rows ->
       // Untag every one of them together: half a binding dropped is a branch that still resolves the
       // name it was just told to stop resolving.
@@ -622,10 +622,10 @@ let resolveTakeTheirs(
           localDb(),
           [ ("DELETE FROM op_branches WHERE op_id = @p0 AND branch_id = @p1", rows) ])
       with
-      | Ok _ ->
+      | Ok(_) ->
         let _ = setBaseToParent(branchId, key)
         Stdlib.Result.Result.Ok()
-      | Error e -> Stdlib.Result.Result.Error e
+      | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// The stamp an op authored NOW should carry: past everything in the log.
@@ -657,8 +657,8 @@ let resolveKeepMine(
   fqn: String)
   : Stdlib.Result.Result<Unit, String> =
   match parseFqn(fqn) with
-  | None -> Stdlib.Result.Result.Error $"can't parse a name from \"{fqn}\""
-  | Some key ->
+  | None -> Stdlib.Result.Result.Error($"can't parse a name from \"{fqn}\"")
+  | Some(key) ->
     let bound =
       ownFrontierOps(branchId)
       |> Stdlib.List.filterMap(fun entry ->
@@ -668,9 +668,9 @@ let resolveKeepMine(
 
     match bound with
     | None ->
-      Stdlib.Result.Result.Error
-        $"branch \"{SCM.PackageOps.branchName(branchId)}\" doesn't bind {fqn} -- nothing to resolve"
-    | Some binding ->
+      Stdlib.Result.Result.Error(
+        $"branch \"{SCM.PackageOps.branchName(branchId)}\" doesn't bind {fqn} -- nothing to resolve")
+    | Some(binding) ->
       let (location, target) = binding
       let stamp = stampPastEverything()
       let (owner, modules, name) = key
@@ -684,14 +684,14 @@ let resolveKeepMine(
           decisionId,
           location,
           "kept this branch's version when resolving a conflict",
-          LanguageTools.ProgramTypes.DecisionKind.Override target
+          LanguageTools.ProgramTypes.DecisionKind.Override(target)
         )
 
       match Builtin.scmStoreBranchOpStamped(branchId, op, stamp) with
-      | Ok _ ->
+      | Ok(_) ->
         let _ = setBaseToParent(branchId, key)
         Stdlib.Result.Result.Ok()
-      | Error e -> Stdlib.Result.Result.Error e
+      | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// MERGE into a NON-MAIN parent: retag this branch's frontier onto the parent, which is an overlay and
@@ -737,8 +737,8 @@ let retagFrontierToParent(
         ("DELETE FROM branch_name_bases WHERE branch_id = @p0", [ [ b ] ])
         ("UPDATE branches SET merged_at = datetime('now') WHERE id = @p0", [ [ b ] ]) ])
   with
-  | Ok _ -> Stdlib.Result.Result.Ok tagged
-  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(_) -> Stdlib.Result.Result.Ok(tagged)
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Every op id tagged to <param branchId>, decodable or not. What a merge is about to move, read BEFORE
@@ -777,8 +777,8 @@ let markMergedEffective(branchId: Uuid): Stdlib.Result.Result<Int, String> =
          AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @p0)",
       [ b ])
   with
-  | Ok _ -> Stdlib.Result.Result.Ok toFlip
-  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(_) -> Stdlib.Result.Result.Ok(toFlip)
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// MERGE into MAIN, last half: mark it merged AND drop the now-redundant frontier, in ONE transaction.
@@ -796,5 +796,5 @@ let finishMerge(branchId: Uuid): Stdlib.Result.Result<Unit, String> =
       [ ("UPDATE branches SET merged_at = datetime('now') WHERE id = @p0", [ [ b ] ])
         ("DELETE FROM op_branches WHERE branch_id = @p0", [ [ b ] ]) ])
   with
-  | Ok _ -> Stdlib.Result.Result.Ok()
-  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(_) -> Stdlib.Result.Result.Ok()
+  | Error(e) -> Stdlib.Result.Result.Error(e)

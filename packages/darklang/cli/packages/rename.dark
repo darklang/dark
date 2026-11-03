@@ -44,37 +44,37 @@ let referenceAt(
   match results.fns with
   | [i, ...] ->
     Stdlib.Option.Option.Some(
-      LanguageTools.ProgramTypes.Reference.PackageFn i.entity.hash
+      LanguageTools.ProgramTypes.Reference.PackageFn(i.entity.hash)
     )
   | [] ->
     match results.types with
     | [i, ...] ->
       Stdlib.Option.Option.Some(
-        LanguageTools.ProgramTypes.Reference.PackageType i.entity.hash
+        LanguageTools.ProgramTypes.Reference.PackageType(i.entity.hash)
       )
     | [] ->
       match results.values with
       | [i, ...] ->
         Stdlib.Option.Option.Some(
-          LanguageTools.ProgramTypes.Reference.PackageValue i.entity.hash
+          LanguageTools.ProgramTypes.Reference.PackageValue(i.entity.hash)
         )
       | [] ->
         match results.traits with
         | [i, ...] ->
           Stdlib.Option.Option.Some(
-            LanguageTools.ProgramTypes.Reference.PackageTrait i.entity.hash
+            LanguageTools.ProgramTypes.Reference.PackageTrait(i.entity.hash)
           )
         | [] ->
           match results.impls with
           | [i, ...] ->
             Stdlib.Option.Option.Some(
-              LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.entity.hash
+              LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.entity.hash)
             )
           | [] ->
             match results.tests with
             | [i, ...] ->
               Stdlib.Option.Option.Some(
-                LanguageTools.ProgramTypes.Reference.PackageTest i.entity.hash
+                LanguageTools.ProgramTypes.Reference.PackageTest(i.entity.hash)
               )
             | [] -> Stdlib.Option.Option.None
 
@@ -88,13 +88,13 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       (Packages.Location.parseRelativeTo(here, oldName),
        Packages.Location.parseRelativeTo(here, newName))
     with
-    | (Error e, _) ->
+    | (Error(e), _) ->
       Cli.printErr($"the name to rename: {e}")
       { state with exitCode = 1 }
-    | (_, Error e) ->
+    | (_, Error(e)) ->
       Cli.printErr($"the new name: {e}")
       { state with exitCode = 1 }
-    | (Ok oldLoc, Ok newLoc) ->
+    | (Ok(oldLoc), Ok(newLoc)) ->
       let dotted(l: LanguageTools.ProgramTypes.PackageLocation): String =
         PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(l)
 
@@ -107,24 +107,24 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           Cli.printErr($"nothing here is named {dotted(oldLoc)}.")
           Cli.printHint("  `dark ls` lists what is; `dark search <text>` looks wider.")
           { state with exitCode = 1 }
-        | Some reference ->
+        | Some(reference) ->
           // Refused rather than silently rebound: one name holds one item, so binding over a live
           // name would take the other item off the shelf as a side effect of renaming this one.
           match referenceAt(state.currentBranchId, newLoc) with
-          | Some _ ->
+          | Some(_) ->
             Cli.printErr($"{dotted(newLoc)} already names something.")
             Cli.printHint("  pick another name, or retire that one first (`dark delete`).")
             { state with exitCode = 1 }
           | None ->
             match SCM.PackageOps.add(state.currentBranchId, ops(oldLoc, newLoc, reference)) with
-            | Ok _ ->
+            | Ok(_) ->
               Cli.printOk($"renamed {dotted(oldLoc)} -> {dotted(newLoc)}.")
 
               Cli.printHint(
                 "  callers are unaffected: they reference content, not names. `dark status` shows it as a change.")
 
               state
-            | Error e ->
+            | Error(e) ->
               Cli.printErr($"couldn't rename: {e}")
               { state with exitCode = 1 }
 

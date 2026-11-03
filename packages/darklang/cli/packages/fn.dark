@@ -47,7 +47,7 @@ let createFnInline(
   : Cli.AppState =
   // Parse location relative to current position
   match Location.parseRelativeTo(currentLocation, locationStr) with
-  | Ok location ->
+  | Ok(location) ->
     // Keep accepting the concise historical fragment, while also accepting a
     // complete declaration (with an optional doc comment).
     let trimmedDefinition = Stdlib.String.trim(definition)
@@ -69,7 +69,7 @@ let createFnInline(
       LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
 
     match tree with
-    | Some(SourceFile sourceFile) ->
+    | Some(SourceFile(sourceFile)) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
         (Errors.reportParseErrors(diagnostics))
@@ -79,11 +79,11 @@ let createFnInline(
           Stdlib.Option.Option.None
         else
           match sourceFile.declarations with
-          | [ Function writtenFn ] -> Stdlib.Option.Option.Some writtenFn
+          | [ Function(writtenFn) ] -> Stdlib.Option.Option.Some(writtenFn)
           | _ -> Stdlib.Option.Option.None
 
       match parsedFunction with
-      | Some writtenFn when writtenFn.name.name != location.name ->
+      | Some(writtenFn) when writtenFn.name.name != location.name ->
         let actual = writtenFn.name.name
         Cli.printErr($"Function name `{actual}` does not match target `{location.name}`")
         Stdlib.printErrorLine(
@@ -93,7 +93,7 @@ let createFnInline(
         // Nothing was saved: an agent's authoring loop branches on the exit.
         { state with exitCode = 1 }
 
-      | Some writtenFn ->
+      | Some(writtenFn) ->
         let failState = { state with exitCode = 1 }
 
         Packages.saveAuthored(
@@ -117,10 +117,9 @@ let createFnInline(
               packageFn.bounds
               |> Stdlib.List.filterMap(fun b ->
                 match b.trait_.trait_.resolved with
-                | Ok _ -> Stdlib.Option.Option.None
-                | Error _ ->
-                  Stdlib.Option.Option.Some
-                    (Stdlib.String.join(b.trait_.trait_.originalName, ".")))
+                | Ok(_) -> Stdlib.Option.Option.None
+                | Error(_) ->
+                  Stdlib.Option.Option.Some(Stdlib.String.join(b.trait_.trait_.originalName, ".")))
               |> Stdlib.List.unique
 
             unresolvedBoundNames
@@ -131,7 +130,7 @@ let createFnInline(
                 match LanguageTools.ProgramTypes.parsePackageLocation(name) with
                 | location ->
                   match LanguageTools.PackageManager.Type.find(ctx.branchId, location) with
-                  | Some _ -> true
+                  | Some(_) -> true
                   | None -> false
 
               if alsoAType then
@@ -149,8 +148,8 @@ let createFnInline(
               Stdlib.Option.Option.None
             else
               let ops =
-                [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-                  LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash, Stdlib.Option.Option.None) ]
+                [ LanguageTools.ProgramTypes.PackageOp.AddFn(packageFn)
+                  LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageFn(packageFn.hash), Stdlib.Option.Option.None) ]
 
               Stdlib.Option.Option.Some((ops, packageFn.hash, unresolvedNames)))
 
@@ -179,7 +178,7 @@ let createFnInline(
         ""
       ] |> Cli.Stderr.lines
       { state with exitCode = 1 }
-  | Error msg ->
+  | Error(msg) ->
     Cli.printErr($"Invalid location: {msg}")
     { state with exitCode = 1 }
 

@@ -20,7 +20,7 @@ module Groups =
 
   let grouped(): List<String> =
     Darklang.Cli.Registry.commandGroups()
-    |> Stdlib.List.map(fun (_name, cmdNames) -> cmdNames)
+    |> Stdlib.List.map(fun((_name, cmdNames)) -> cmdNames)
     |> Stdlib.List.flatten
 
   /// Registered, but in no group: these print under "Other:".
@@ -40,7 +40,7 @@ test theRegistryWasActuallyRead =
   (Stdlib.List.length(Groups.registered()) > 40) |> Stdlib.Test.equal(true)
 
 test everyGroupNameIsUnique =
-  let names = Darklang.Cli.Registry.commandGroups() |> Stdlib.List.map(fun (n, _) -> n)
+  let names = Darklang.Cli.Registry.commandGroups() |> Stdlib.List.map(fun((n, _)) -> n)
   (Stdlib.List.length(Stdlib.List.unique(names))) |> Stdlib.Test.equal(Stdlib.List.length(names))
 
 // A new command is registered and nobody adds it to a group. The failure names it.

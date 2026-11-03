@@ -37,7 +37,7 @@ module Removals =
 test theyEndedWhatIHold =
   (Removals.detect(
     [ Removals.mine("aaa", "2026-01-01T00:00:00.000Z") ],
-    [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-02T00:00:00.000Z") ]))
+    [ Removals.theirs(Stdlib.Option.Option.Some("aaa"), "2026-01-02T00:00:00.000Z") ]))
   |> Stdlib.List.length
   |> Stdlib.Test.equal(0)
 
@@ -45,13 +45,13 @@ test theyEndedWhatIHold =
 test theyEndedReplacedVersion =
   (Removals.detect(
     [ Removals.mine("bbb", "2026-01-03T00:00:00.000Z") ],
-    [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-02T00:00:00.000Z") ]))
+    [ Removals.theirs(Stdlib.Option.Option.Some("aaa"), "2026-01-02T00:00:00.000Z") ]))
   |> Stdlib.List.length
   |> Stdlib.Test.equal(1)
 
 // A removal of a name I don't have is not about me.
 test removalOfUnheldName =
-  (Removals.detect([], [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-02T00:00:00.000Z") ]))
+  (Removals.detect([], [ Removals.theirs(Stdlib.Option.Option.Some("aaa"), "2026-01-02T00:00:00.000Z") ]))
   |> Stdlib.List.length
   |> Stdlib.Test.equal(0)
 
@@ -59,7 +59,7 @@ test removalOfUnheldName =
 test recordedShape =
   ((Removals.detect(
      [ Removals.mine("bbb", "2026-01-03T00:00:00.000Z") ],
-     [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-02T00:00:00.000Z") ]))
+     [ Removals.theirs(Stdlib.Option.Option.Some("aaa"), "2026-01-02T00:00:00.000Z") ]))
    |> Stdlib.List.head
    |> Stdlib.Option.map(fun c ->
      let sides = c.candidates |> Stdlib.List.map(fun cand -> (cand.removed, cand.hash))
@@ -72,7 +72,7 @@ test recordedShape =
 test newerRemovalWins =
   ((Removals.detect(
      [ Removals.mine("bbb", "2026-01-01T00:00:00.000Z") ],
-     [ Removals.theirs(Stdlib.Option.Option.Some "aaa", "2026-01-05T00:00:00.000Z") ]))
+     [ Removals.theirs(Stdlib.Option.Option.Some("aaa"), "2026-01-05T00:00:00.000Z") ]))
    |> Stdlib.List.head
    |> Stdlib.Option.map(fun c -> (c.autoResolvedTo, c.reason)))
   |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("", "removal is newer")))

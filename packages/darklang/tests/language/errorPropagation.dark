@@ -3,9 +3,9 @@ module Darklang.Language.Tests.ErrorPropagation
 module Error =
   test map2WrongArgRaises =
     (Stdlib.Option.map2(
-      Stdlib.Option.Option.Some 10L,
+      Stdlib.Option.Option.Some(10L),
       "not an option",
-      fun (a, b) -> "1"))
+      fun((a, b)) -> "1"))
     => raises
       "Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
 

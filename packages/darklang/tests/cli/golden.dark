@@ -8,8 +8,8 @@ let compare(render: Unit -> Unit, expectedRows: List<String>): Stdlib.Test.Resul
   // renders the original explicit sizes. Stdout contains frames only.
   let output = Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), render, ())
   match output with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output ->
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
     let actualRows = Stdlib.String.split(output.stdout, "\n")
     Stdlib.Test.all(
       [ Stdlib.Test.expect(
@@ -18,8 +18,8 @@ let compare(render: Unit -> Unit, expectedRows: List<String>): Stdlib.Test.Resul
         Stdlib.List.length(actualRows)
         |> Stdlib.Test.equal(Stdlib.List.length(expectedRows))
         expectedRows
-        |> Stdlib.List.indexedMap(fun index expectedRow ->
-          Stdlib.List.getAt(actualRows, index) |> Stdlib.Test.equal(Some expectedRow))
+        |> Stdlib.List.indexedMap(fun(index, expectedRow) ->
+          Stdlib.List.getAt(actualRows, index) |> Stdlib.Test.equal(Some(expectedRow)))
         |> Stdlib.Test.all ])
 
 // fixedHome supplies stable Home rows, independent of branches and commit ages.
@@ -73,7 +73,7 @@ let goldenviewRender(): Unit =
     let v = Darklang.Cli.Workbench.viewAtSize(base, size)
     let _ =
       v.rows
-      |> Stdlib.List.indexedMap(fun i r ->
+      |> Stdlib.List.indexedMap(fun(i, r) ->
         Stdlib.printLine(
           ((Stdlib.toString(size.width))
            + "x"
@@ -218,7 +218,7 @@ let goldenkeysRender(): Unit =
     let v = Darklang.Cli.Workbench.viewAtSize(s, size)
 
     v.rows
-    |> Stdlib.List.indexedMap(fun i row ->
+    |> Stdlib.List.indexedMap(fun(i, row) ->
       Stdlib.printLine(label + " " + (Stdlib.toString(i)) + "|" + row))
     |> Stdlib.List.length
     |> Stdlib.toString
@@ -233,8 +233,8 @@ let goldenkeysRender(): Unit =
     : Darklang.Cli.Workbench.State =
     let next =
       match Darklang.Cli.Workbench.handleKey(s, k, mods, Stdlib.Option.Option.None) with
-      | Continue s2 -> s2
-      | Exit s2 -> s2
+      | Continue(s2) -> s2
+      | Exit(s2) -> s2
       | Launch(s2, _cmd) -> s2
 
     let next = fixedHome(next)

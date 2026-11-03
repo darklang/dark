@@ -52,10 +52,10 @@ module TextField =
          (Darklang.Stdlib.Cli.UI.Widget.press(
            Darklang.Stdlib.Cli.Stdin.Key.Key.Tab,
            noMods(),
-           Stdlib.Option.Option.Some "\t")))
+           Stdlib.Option.Option.Some("\t"))))
      with
      | Ignored -> "ignored"
-     | Handled _ -> "typed a tab"
+     | Handled(_) -> "typed a tab"
      | Emitted(_, _) -> "emitted")
     |> Stdlib.Test.equal("ignored")
 
@@ -69,7 +69,7 @@ module TextField =
            noMods(),
            Stdlib.Option.Option.None)))
      with
-     | Emitted(_state, Submitted text) -> text
+     | Emitted(_state, Submitted(text)) -> text
      | _ -> "")
     |> Stdlib.Test.equal("done")
 
@@ -126,7 +126,7 @@ module Confirm =
     Darklang.Stdlib.Cli.UI.Widget.press(
       Darklang.Stdlib.Cli.Stdin.Key.Key.None,
       Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false, shift = false, alt = false },
-      Stdlib.Option.Option.Some c)
+      Stdlib.Option.Option.Some(c))
 
   test confirmKeys =
     Stdlib.Test.all(
@@ -142,7 +142,7 @@ module Confirm =
   // Any other key is swallowed. A modal that let keys through would act on the thing being asked about.
   test otherKeysSwallowed =
     (match Darklang.Stdlib.Cli.UI.Confirm.onKey(question(), key("j")) with
-     | Handled _ -> "swallowed"
+     | Handled(_) -> "swallowed"
      | _ -> "other")
     |> Stdlib.Test.equal("swallowed")
 

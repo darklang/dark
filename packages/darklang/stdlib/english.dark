@@ -8,7 +8,7 @@ let articleFor(nextWord: String): String =
 
   match String.head(nextWord) with
   | None -> ""
-  | Some c ->
+  | Some(c) ->
     if
       String.length(nextWord) > 1
       && (Bool.not(Char.isASCIILetter(c)))

@@ -72,7 +72,7 @@ module RecordAndEnumFields =
 
   let makeIntRecord(): HasIntParseError = HasIntParseError { e = 5 }
   let makeUuidRecord(): HasUuidParseErrors = HasUuidParseErrors { es = 5 }
-  let makeEnum(): WrapsUuidParseError = WrapsUuidParseError.Wrap 5
+  let makeEnum(): WrapsUuidParseError = WrapsUuidParseError.Wrap(5)
 
   let updateIntRecord(): HasIntParseError =
     let start =

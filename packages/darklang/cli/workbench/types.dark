@@ -296,7 +296,7 @@ type ViewDef =
     /// the selectable rows (for the shared cursor + list pane); Unit-in since extension views are self-contained
     loadItems: Unit -> List<BodyItem>
     /// the body's spans for the region (returned, not printed, so frames can be diffed)
-    render: State -> Stdlib.Cli.UI.Layout.Region -> List<Stdlib.Cli.UI.Layout.Span>
+    render: (State, Stdlib.Cli.UI.Layout.Region) -> List<Stdlib.Cli.UI.Layout.Span>
     /// preview/detail lines for the selected row
     detail: State -> List<String>
     /// context key-hints for the footer
@@ -327,7 +327,7 @@ val viewSpecs =
   let base = baseViewSpecs |> Stdlib.List.map(fun i -> (i, Frame.viewName(i)))
   let exts =
     extensionViews()
-    |> Stdlib.List.indexedMap(fun i vd -> (baseViewCount + i, vd.name))
+    |> Stdlib.List.indexedMap(fun(i, vd) -> (baseViewCount + i, vd.name))
   Stdlib.List.concat(base, exts)
 
 /// The extension `ViewDef` at an absolute view index (None for a built-in, or out of range).
@@ -342,7 +342,7 @@ let viewBehavior(view: Int): ViewBehavior =
   if view == vHome then ViewBehavior.SectionedList
   else
     match extensionViewAt(view) with
-    | Some vd -> vd.behavior
+    | Some(vd) -> vd.behavior
     | None -> ViewBehavior.Split
 
 let hasDetailPane(state: State): Bool =
@@ -355,7 +355,7 @@ let isSectioned(state: State): Bool =
 /// The display label for any view index.
 let viewLabel(idx: Int): String =
   match extensionViewAt(idx) with
-  | Some vd -> vd.name
+  | Some(vd) -> vd.name
   | None -> Frame.viewName(idx)
 
 /// The view indices the navbar may show, in `viewSpecs` order.

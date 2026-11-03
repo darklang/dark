@@ -16,7 +16,7 @@ module UserDefined =
   val tupleValue = (1L, 2L, 3L)
   val charValue = 'c'
   val unitValue = ()
-  val enumValue = Stdlib.Option.Option.Some 5L
+  val enumValue = Stdlib.Option.Option.Some(5L)
 
   test values =
     Stdlib.Test.all(
@@ -51,9 +51,9 @@ module UserDefined =
         UserDefined.charValue |> Stdlib.Test.equal('c')
         unitValue |> Stdlib.Test.equal(())
         UserDefined.unitValue |> Stdlib.Test.equal(())
-        enumValue |> Stdlib.Test.equal(Stdlib.Option.Option.Some 5L)
-        UserDefined.enumValue |> Stdlib.Test.equal(Stdlib.Option.Option.Some 5L)
-        Ok 5L |> Stdlib.Test.equal(Stdlib.Result.Result.Ok 5L) ])
+        enumValue |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5L))
+        UserDefined.enumValue |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5L))
+        Ok(5L) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5L)) ])
 
   type MyRecord = { a: Bool, b: String }
   val recordValue = MyRecord { a = true, b = "glasses" }
@@ -83,4 +83,4 @@ module Package =
         Darklang.Test.Values.charValue |> Stdlib.Test.equal('c')
         Darklang.Test.Values.unitValue |> Stdlib.Test.equal(())
         Darklang.Test.Values.enumValue
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some 5L) ])
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5L)) ])

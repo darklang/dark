@@ -455,7 +455,7 @@ DARK
 
     saved=$($CLI fn Stachu.Fit.callIt - 2>&1 <<'DARK' | clean || true
 (): String =
-  Stachu.Fit.Show.show(Stdlib.Option.Option.Some 1L)
+  Stachu.Fit.Show.show(Stdlib.Option.Option.Some(1L))
 DARK
 )
     # The save has to agree as well as the call. The checker compared the impl's Int64 against
@@ -610,9 +610,9 @@ gate_trait_choice_any_batching() {
   # How many choices a stored fn's body records, `Unknown` aside: what pinning wrote.
   recorded() {
     $CLI eval "match Darklang.LanguageTools.PackageManager.Function.find(Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Stachu\", modules = [\"$1\"], name = \"$2\" }) with
-| Some h ->
+| Some(h) ->
   (match Darklang.LanguageTools.PackageManager.Function.get(h) with
-   | Some f -> Stdlib.toRepr(f.body)
+   | Some(f) -> Stdlib.toRepr(f.body)
    | None -> \"\")
 | None -> \"\"" | tr -s ' \n' ' ' | { grep -oE 'ImplChoice\.(Chosen|FromTypeParam)' || true; } | wc -l
   }

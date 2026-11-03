@@ -34,15 +34,15 @@ let parse(s: String): Stdlib.Result.Result<Duration, ParseError> =
     |> Stdlib.String.fromList
   let unit = Stdlib.String.dropFirst(s, Stdlib.String.length(number))
   if Stdlib.String.isEmpty(unit) then
-    Stdlib.Result.Result.Error ParseError.MissingUnit
+    Stdlib.Result.Result.Error(ParseError.MissingUnit)
   else
     match Stdlib.Int.parse(number) with
-    | Ok n ->
+    | Ok(n) ->
       match unit with
       | "s" -> Stdlib.Result.Result.Ok(fromSeconds(n))
       | "m" -> Stdlib.Result.Result.Ok(fromSeconds(n * 60))
       | "h" -> Stdlib.Result.Result.Ok(fromSeconds(n * 3600))
       | "d" -> Stdlib.Result.Result.Ok(fromSeconds(n * 86400))
-      | _ -> Stdlib.Result.Result.Error ParseError.UnknownUnit
+      | _ -> Stdlib.Result.Result.Error(ParseError.UnknownUnit)
 
-    | Error _ -> Stdlib.Result.Result.Error ParseError.InvalidNumber
+    | Error(_) -> Stdlib.Result.Result.Error(ParseError.InvalidNumber)

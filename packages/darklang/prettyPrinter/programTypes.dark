@@ -49,7 +49,7 @@ let withInlineDoc(
   : Stdlib.Pretty.Doc =
   match inlineDocDoc(description) with
   | None -> doc
-  | Some docLines -> Stdlib.Pretty.concat(docLines, doc)
+  | Some(docLines) -> Stdlib.Pretty.concat(docLines, doc)
 
 
 /// Format a hash for display when PM lookup fails.
@@ -167,7 +167,7 @@ module FQTypeName =
       hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Type.locations(ctx.branchId, hash)) with
-      | Some l -> l.name
+      | Some(l) -> l.name
       | None -> shortHash(hash)
 
     let fullForReference(
@@ -175,7 +175,7 @@ module FQTypeName =
       hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Type.locations(ctx.branchId, hash)) with
-      | Some l ->
+      | Some(l) ->
         packageNameWithContext(ctx, l.owner, l.modules, l.name)
       | None -> shortHash(hash)
 
@@ -185,7 +185,7 @@ module FQTypeName =
     t: LanguageTools.ProgramTypes.FQTypeName.FQTypeName)
     : String =
     match t with
-    | Package p ->
+    | Package(p) ->
       FQTypeName.Package.fullForReference(ctx, p)
 
 
@@ -196,7 +196,7 @@ module FQTraitName =
       hash: LanguageTools.ProgramTypes.FQTraitName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Trait.locations(ctx.branchId, hash)) with
-      | Some l -> l.name
+      | Some(l) -> l.name
       | None -> shortHash(hash)
 
     let fullForReference(
@@ -204,7 +204,7 @@ module FQTraitName =
       hash: LanguageTools.ProgramTypes.FQTraitName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Trait.locations(ctx.branchId, hash)) with
-      | Some l -> packageNameWithContext(ctx, l.owner, l.modules, l.name)
+      | Some(l) -> packageNameWithContext(ctx, l.owner, l.modules, l.name)
       | None -> shortHash(hash)
 
 
@@ -230,7 +230,7 @@ module FQValueName =
       hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Value.locations(ctx.branchId, hash)) with
-      | Some l -> l.name
+      | Some(l) -> l.name
       | None -> shortHash(hash)
 
     let fullForReference(
@@ -238,7 +238,7 @@ module FQValueName =
       hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Value.locations(ctx.branchId, hash)) with
-      | Some l ->
+      | Some(l) ->
         packageNameWithContext(ctx, l.owner, l.modules, l.name)
       | None -> shortHash(hash)
 
@@ -249,9 +249,9 @@ module FQValueName =
     t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
     : String =
     match t with
-    | Builtin b ->
+    | Builtin(b) ->
       FQValueName.Builtin.fullForReference(b)
-    | Package p ->
+    | Package(p) ->
       FQValueName.Package.fullForReference(ctx, p)
 
 
@@ -277,7 +277,7 @@ module FQFnName =
       hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Function.locations(ctx.branchId, hash)) with
-      | Some l -> l.name
+      | Some(l) -> l.name
       | None -> shortHash(hash)
 
     let fullForReference(
@@ -285,7 +285,7 @@ module FQFnName =
       hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Function.locations(ctx.branchId, hash)) with
-      | Some l ->
+      | Some(l) ->
         packageNameWithContext(ctx, l.owner, l.modules, l.name)
       | None -> shortHash(hash)
 
@@ -295,11 +295,11 @@ module FQFnName =
     t: LanguageTools.ProgramTypes.FQFnName.FQFnName)
     : String =
     match t with
-    | Builtin b ->
+    | Builtin(b) ->
       FQFnName.Builtin.fullForReference(b)
-    | Package p ->
+    | Package(p) ->
       FQFnName.Package.fullForReference(ctx, p)
-    | TraitMethod tm ->
+    | TraitMethod(tm) ->
       // A trait's hash is not a type's, so it needs the trait's own locations. The RT printer
       // already knew this; without it a trait method prints as a 64-character hash.
       $"{FQTraitName.Package.fullForReference(ctx, tm.trait_)}.{tm.method_}"
@@ -317,63 +317,63 @@ module NameResolution =
     nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
     : String =
     match nr.resolved with
-    | Ok r ->
+    | Ok(r) ->
       match r.name with
-      | Package hash ->
+      | Package(hash) ->
         match r.location with
-        | Some loc -> packageNameWithContext(ctx, loc.owner, loc.modules, loc.name)
+        | Some(loc) -> packageNameWithContext(ctx, loc.owner, loc.modules, loc.name)
         | None -> Darklang.LanguageTools.ProgramTypes.hashToString(hash)
-    | Error _ -> NameResolutionError.source(nr.originalName)
+    | Error(_) -> NameResolutionError.source(nr.originalName)
 
   let traitName(
     ctx: Context,
     nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTraitName.FQTraitName>)
     : String =
     match nr.resolved with
-    | Ok r ->
+    | Ok(r) ->
       match r.name with
-      | Package hash ->
+      | Package(hash) ->
         match r.location with
-        | Some loc -> packageNameWithContext(ctx, loc.owner, loc.modules, loc.name)
+        | Some(loc) -> packageNameWithContext(ctx, loc.owner, loc.modules, loc.name)
         | None -> Darklang.LanguageTools.ProgramTypes.hashToString(hash)
-    | Error _ -> NameResolutionError.source(nr.originalName)
+    | Error(_) -> NameResolutionError.source(nr.originalName)
 
   let fnName(
     ctx: Context,
     nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQFnName.FQFnName>)
     : String =
     match nr.resolved with
-    | Ok r ->
+    | Ok(r) ->
       match r.name with
-      | Builtin b -> FQFnName.Builtin.fullForReference(b)
-      | Package hash ->
+      | Builtin(b) -> FQFnName.Builtin.fullForReference(b)
+      | Package(hash) ->
         match r.location with
-        | Some loc -> packageNameWithContext(ctx, loc.owner, loc.modules, loc.name)
+        | Some(loc) -> packageNameWithContext(ctx, loc.owner, loc.modules, loc.name)
         | None -> Darklang.LanguageTools.ProgramTypes.hashToString(hash)
-      | TraitMethod tm ->
+      | TraitMethod(tm) ->
         // The location is the TRAIT's; the method is a field of it. Which implementation it
         // resolved to is not printed: the source said `Show.show`, and that is still what it
         // means; `dark view --resolved` is where a hash belongs.
         match r.location with
-        | Some loc ->
+        | Some(loc) ->
           (packageNameWithContext(ctx, loc.owner, loc.modules, loc.name)) + "." + tm.method_
         | None ->
           (Darklang.LanguageTools.ProgramTypes.hashToString(tm.trait_)) + "." + tm.method_
-    | Error _ -> NameResolutionError.source(nr.originalName)
+    | Error(_) -> NameResolutionError.source(nr.originalName)
 
   let valueName(
     ctx: Context,
     nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQValueName.FQValueName>)
     : String =
     match nr.resolved with
-    | Ok r ->
+    | Ok(r) ->
       match r.name with
-      | Builtin b -> FQValueName.Builtin.fullForReference(b)
-      | Package hash ->
+      | Builtin(b) -> FQValueName.Builtin.fullForReference(b)
+      | Package(hash) ->
         match r.location with
-        | Some loc -> packageNameWithContext(ctx, loc.owner, loc.modules, loc.name)
+        | Some(loc) -> packageNameWithContext(ctx, loc.owner, loc.modules, loc.name)
         | None -> Darklang.LanguageTools.ProgramTypes.hashToString(hash)
-    | Error _ -> NameResolutionError.source(nr.originalName)
+    | Error(_) -> NameResolutionError.source(nr.originalName)
 
 
 /// Render a type reference, parenthesizing function types when required.
@@ -390,8 +390,8 @@ let typeReferenceDocWithFnParens(
       wrapExprs("<", ">", ",", Stdlib.Pretty.softLine, inners))
 
   match t with
-  | TStream inner -> angled("Stream", [ typeReferenceDocWithFnParens(ctx, false, inner) ])
-  | TList inner -> angled("List", [ typeReferenceDocWithFnParens(ctx, false, inner) ])
+  | TStream(inner) -> angled("Stream", [ typeReferenceDocWithFnParens(ctx, false, inner) ])
+  | TList(inner) -> angled("List", [ typeReferenceDocWithFnParens(ctx, false, inner) ])
   | TDict(key, value) ->
     angled(
       "Dict",
@@ -423,14 +423,22 @@ let typeReferenceDocWithFnParens(
              typeReferenceDocWithFnParens(ctx, false, a))))))
 
   | TFn(args, ret) ->
-    let parts =
-      // Preserve nested functions rather than flattening the arrow chain.
-      (Stdlib.List.append(args, ret))
-      |> Stdlib.List.map(fun a -> typeReferenceDocWithFnParens(ctx, true, a))
+    // One argument is `A -> R`, several are `(A, B) -> R`. A function as the only
+    // argument, or as the result, keeps its parentheses: `(A -> B) -> R`.
+    let argsDoc =
+      match args with
+      | [ only ] -> typeReferenceDocWithFnParens(ctx, true, only)
+      | args ->
+        wrapExprs(
+          "(",
+          ")",
+          ",",
+          Stdlib.Pretty.softLine,
+          (args |> Stdlib.List.map(fun a -> typeReferenceDocWithFnParens(ctx, false, a))))
     let doc =
       Stdlib.Pretty.group((
         Stdlib.Pretty.join(
-          parts,
+          [ argsDoc, typeReferenceDocWithFnParens(ctx, true, ret) ],
           Stdlib.Pretty.concat(txt(" ->"), Stdlib.Pretty.line))))
     if fnNeedsParens then parens(doc) else doc
 
@@ -450,7 +458,7 @@ let typeReferenceFlatAtPrecedence(
   t: LanguageTools.ProgramTypes.TypeReference)
   : String =
   match t with
-  | TVariable varName -> "'" + varName
+  | TVariable(varName) -> "'" + varName
 
   | TUnit -> "Unit"
   | TBool -> "Bool"
@@ -472,9 +480,9 @@ let typeReferenceFlatAtPrecedence(
   | TUuid -> "Uuid"
   | TBytes -> "Bytes"
 
-  | TStream inner -> $"Stream<{typeReferenceFlatAtPrecedence(ctx, false, inner)}>"
+  | TStream(inner) -> $"Stream<{typeReferenceFlatAtPrecedence(ctx, false, inner)}>"
 
-  | TList inner ->
+  | TList(inner) ->
     $"List<{typeReferenceFlatAtPrecedence(ctx, false, inner)}>"
 
   | TTuple(first, second, theRest) ->
@@ -505,11 +513,15 @@ let typeReferenceFlatAtPrecedence(
     $"{typeNamePart}{argsPart}"
 
   | TFn(args, ret) ->
+    // `A -> R` for one argument, `(A, B) -> R` for several
     let argPart =
-      args
-      |> Stdlib.List.map(fun arg ->
-        typeReferenceFlatAtPrecedence(ctx, true, arg))
-      |> Stdlib.String.join(" -> ")
+      match args with
+      | [ only ] -> typeReferenceFlatAtPrecedence(ctx, true, only)
+      | args ->
+        args
+        |> Stdlib.List.map(fun arg -> typeReferenceFlatAtPrecedence(ctx, false, arg))
+        |> Stdlib.String.join(", ")
+        |> fun parts -> "(" + parts + ")"
 
     let rendered =
       $"{argPart} -> {typeReferenceFlatAtPrecedence(ctx, true, ret)}"
@@ -544,12 +556,26 @@ let typeArgumentsDoc(
 
 let letPattern(lp: LanguageTools.ProgramTypes.LetPattern): String =
   match lp with
-  | LPUnit _id -> "()"
+  | LPUnit(_id) -> "()"
   | LPVariable(_id, name) -> name
-  | LPWildcard _id -> "_"
+  | LPWildcard(_id) -> "_"
   | LPTuple(_id, first, second, theRest) ->
     (Stdlib.List.concat([ first, second ], theRest))
     |> Stdlib.List.map(fun item -> letPattern(item))
+    |> Stdlib.String.join(", ")
+    |> fun parts -> "(" + parts + ")"
+
+/// A lambda's parameters as they follow `fun`: ` x` for one plain parameter,
+/// `(acc, x)` for several, and `((a, b))` for one tuple.
+let lambdaParams(pats: List<LanguageTools.ProgramTypes.LetPattern>): String =
+  match pats with
+  | [ only ] ->
+    match only with
+    | LPTuple(_, _, _, _) -> "(" + letPattern(only) + ")"
+    | _ -> " " + letPattern(only)
+  | pats ->
+    pats
+    |> Stdlib.List.map(fun pat -> letPattern(pat))
     |> Stdlib.String.join(", ")
     |> fun parts -> "(" + parts + ")"
 
@@ -568,7 +594,7 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
   match mp with
   | MPVariable(_id, name) -> name
 
-  | MPUnit _id -> "()"
+  | MPUnit(_id) -> "()"
 
   | MPBool(_id, b) -> Stdlib.toString(b)
 
@@ -666,17 +692,17 @@ let infixFnName(i: LanguageTools.ProgramTypes.InfixFnName): String =
 
 let infix(i: LanguageTools.ProgramTypes.Infix): String =
   match i with
-  | InfixFnCall i -> infixFnName(i)
-  | BinOp b -> binaryOperation(b)
+  | InfixFnCall(i) -> infixFnName(i)
+  | BinOp(b) -> binaryOperation(b)
 
 let stringSegment(ctx: Context, s: LanguageTools.ProgramTypes.StringSegment): String =
   match s with
   // Inside `$"..."` a brace opens an interpolation, so a literal one is written doubled.
-  | StringText text ->
+  | StringText(text) ->
     PrettyPrinter.escapeSpecialCharacters(text)
     |> fun t -> Stdlib.String.replaceAll(t, "{", "{{")
     |> fun t -> Stdlib.String.replaceAll(t, "}", "}}")
-  | StringInterpolation interpolationExpr -> $"{{{expr(ctx, interpolationExpr)}}}"
+  | StringInterpolation(interpolationExpr) -> $"{{{expr(ctx, interpolationExpr)}}}"
 
 /// Parenthesize a Doc and indent its broken layout past the opening paren.
 let parens(d: Stdlib.Pretty.Doc): Stdlib.Pretty.Doc =
@@ -711,14 +737,14 @@ let callArgs(
   inPipe: Bool)
   : Stdlib.Pretty.Doc =
   match args with
-  | [ EUnit _ ] when Stdlib.Bool.not(inPipe) -> Stdlib.Pretty.text("()")
+  | [ EUnit(_) ] when Stdlib.Bool.not(inPipe) -> Stdlib.Pretty.text("()")
   | _ ->
     let count = Stdlib.List.length(args)
-    let docs = args |> Stdlib.List.indexedMap(fun i a -> callArg(ctx, a, i == count - 1))
+    let docs = args |> Stdlib.List.indexedMap(fun(i, a) -> callArg(ctx, a, i == count - 1))
     wrapExprs("(", ")", ",", Stdlib.Pretty.softLine, docs)
 
 
-/// `(fun x y -> body)`, or without its parentheses when `wrapped` is false and the
+/// `(fun(x, y) -> body)`, or without its parentheses when `wrapped` is false and the
 /// call around it supplies them.
 let lambdaDoc(
   ctx: Context,
@@ -726,10 +752,7 @@ let lambdaDoc(
   body: LanguageTools.ProgramTypes.Expr,
   wrapped: Bool)
   : Stdlib.Pretty.Doc =
-  let patsPart =
-    pats
-    |> Stdlib.List.map(fun pat -> letPattern(pat))
-    |> Stdlib.String.join(" ")
+  let patsPart = lambdaParams(pats)
 
   // Grouped, so a short lambda stays on one line. The closing paren goes after a SOFT line, which is nothing when the lambda fits on one
   // line and a break when it does not. It has to be there: a multi-line body ends with an
@@ -748,7 +771,7 @@ let lambdaDoc(
       Stdlib.Pretty.text("")
   Stdlib.Pretty.group((
     Stdlib.Pretty.concat(
-      Stdlib.Pretty.text($"{opening} {patsPart} ->"),
+      Stdlib.Pretty.text($"{opening}{patsPart} ->"),
       (Stdlib.Pretty.concat(
         (Stdlib.Pretty.nest(2, Stdlib.Pretty.concat(Stdlib.Pretty.line, exprDoc(ctx, body)))),
         closing)))))
@@ -762,7 +785,7 @@ let valueSuffix(ctx: Context, id: Int64): Stdlib.Pretty.Doc =
   match Stdlib.Dict.get(ctx.liveValues, Stdlib.toString(id)) with
   // A line suffix, not inline text: a `)` or `,` the enclosing expression prints after this
   // call has to land before the comment, not inside it.
-  | Some value -> Stdlib.Pretty.lineSuffix($" // = {value}")
+  | Some(value) -> Stdlib.Pretty.lineSuffix($" // = {value}")
   | None -> Stdlib.Pretty.text("")
 
 
@@ -793,13 +816,8 @@ let pipeExprDoc(ctx: Context, p: LanguageTools.ProgramTypes.PipeExpr): Stdlib.Pr
     | exprs -> applied(txt(varName), exprs)
 
   | EPipeLambda(_id, pats, body) ->
-    let argsPart =
-      pats
-      |> Stdlib.List.map(fun lp -> letPattern(lp))
-      |> Stdlib.String.join(" ")
-
     // A bare lambda would swallow the remaining pipe stages.
-    parens(Stdlib.Pretty.hang(2, txt($"fun {argsPart} ->"), [ exprDoc(ctx, body) ]))
+    parens(Stdlib.Pretty.hang(2, txt($"fun{lambdaParams(pats)} ->"), [ exprDoc(ctx, body) ]))
 
   // The piped value is the left operand. There is no surface syntax for this stage any
   // more (`x |> (+) 1` reads as an argument list), so it prints as the lambda it means.
@@ -848,9 +866,9 @@ let docOfText(s: String): Stdlib.Pretty.Doc =
 /// what the parser builds.
 let infixPower(i: LanguageTools.ProgramTypes.Infix): (Int * Bool) =
   match i with
-  | BinOp BinOpOr -> (1, false)
-  | BinOp BinOpAnd -> (2, false)
-  | InfixFnCall op ->
+  | BinOp(BinOpOr) -> (1, false)
+  | BinOp(BinOpAnd) -> (2, false)
+  | InfixFnCall(op) ->
     match op with
     | ComparisonEquals
     | ComparisonNotEquals
@@ -917,7 +935,7 @@ let infixOperandNeedsParens(
 /// Does printing `e` leave a bitwise-or bare in a match-arm body?
 let hasBareBitwiseOr(e: LanguageTools.ProgramTypes.Expr): Bool =
   match e with
-  | EInfix(_, InfixFnCall BitwiseOr, _, _, _) -> true
+  | EInfix(_, InfixFnCall(BitwiseOr), _, _, _) -> true
 
   | EInfix(_, op, left, right, _) ->
     let (power, rightAssoc) = infixPower(op)
@@ -934,7 +952,7 @@ let hasBareBitwiseOr(e: LanguageTools.ProgramTypes.Expr): Bool =
     (hasBareBitwiseOr(cond))
     || (hasBareBitwiseOr(thenExpr))
     || (match elseExpr with
-        | Some e -> hasBareBitwiseOr(e)
+        | Some(e) -> hasBareBitwiseOr(e)
         | None -> false)
 
   | ELet(_, _, rhs, body) -> (hasBareBitwiseOr(rhs)) || (hasBareBitwiseOr(body))
@@ -1006,7 +1024,7 @@ let exprDoc(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty.Doc
       |> Stdlib.List.map(fun case ->
         let whenPart =
           match case.whenCondition with
-          | Some cond -> $" when {expr(ctx, cond)}"
+          | Some(cond) -> $" when {expr(ctx, cond)}"
           | None -> ""
 
         // A bare `|` in the body would be read back as the next ARM, so wrap it.
@@ -1044,7 +1062,7 @@ let exprDoc(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty.Doc
 
     match elseBranch with
     | None -> Stdlib.Pretty.group(head)
-    | Some eb ->
+    | Some(eb) ->
       match eb with
       | EIf(_, _, _, _) ->
         Stdlib.Pretty.group((
@@ -1245,7 +1263,7 @@ let bodyExpr(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
 /// The original string-building printer, still handling every construct the Doc layer hasn't taken over.
 let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   match e with
-  | EUnit _id -> "()"
+  | EUnit(_id) -> "()"
 
   | EBool(_id, b) -> Stdlib.toString(b)
 
@@ -1271,7 +1289,7 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   | EString(_id, segments) ->
     match segments with
     | [] -> "\"\""
-    | [ StringText text ] -> $"\"{PrettyPrinter.escapeSpecialCharacters(text)}\""
+    | [ StringText(text) ] -> $"\"{PrettyPrinter.escapeSpecialCharacters(text)}\""
     | segments ->
       let inner =
         segments
@@ -1348,21 +1366,16 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
     | Some((_fnName, argMap)) ->
       argMap
       |> Stdlib.Dict.toEntries
-      |> Stdlib.List.findFirst(fun (name, idx) -> idx == index)
-      |> Stdlib.Option.map(fun (name, _) -> name)
+      |> Stdlib.List.findFirst(fun((name, idx)) -> idx == index)
+      |> Stdlib.Option.map(fun((name, _)) -> name)
       |> Stdlib.Option.withDefault($"earg{Stdlib.toString(index)}")
     | None -> $"earg{Stdlib.toString(index)}"
 
   // control flow
   | ELambda(_id, pats, body) ->
-    let patsPart =
-      pats
-      |> Stdlib.List.map(fun pat -> letPattern(pat))
-      |> Stdlib.String.join(" ")
-
     let bodyPart = expr(ctx, body)
 
-    $"(fun {patsPart} ->\n{PrettyPrinter.indent(bodyPart)})"
+    $"(fun{lambdaParams(pats)} ->\n{PrettyPrinter.indent(bodyPart)})"
 
   | EFnName(_id, fnName, _) ->
     NameResolution.fnName(ctx, fnName)
@@ -1387,12 +1400,12 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   | EValue(_id, value) ->
     NameResolution.valueName(ctx, value)
 
-  | EStatement (_id, first, next) ->
+  | EStatement(_id, first, next) ->
     let firstPart = expr(ctx, first)
     let nextPart = expr(ctx, next)
     $"{firstPart}\n{nextPart}"
 
-  | ESelf _id ->
+  | ESelf(_id) ->
     match ctx.currentFunction with
     | Some((functionName, _argMap)) -> functionName
     // This should never happen - ESelf should only appear within a function body
@@ -1443,7 +1456,7 @@ module TypeDeclaration =
 
     match d.label with
     | None -> typ
-    | Some label ->
+    | Some(label) ->
       Stdlib.Pretty.concat(
         Stdlib.Pretty.text($"{PrettyPrinter.formatFieldName(label)}: "),
         typ)
@@ -1489,9 +1502,9 @@ let customTypeDoc(
   d: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
   : Stdlib.Pretty.Doc =
   match d.definition with
-  | Alias typeRef -> typeReferenceDoc(ctx, typeRef)
+  | Alias(typeRef) -> typeReferenceDoc(ctx, typeRef)
 
-  | Record fields ->
+  | Record(fields) ->
     let fieldsPart =
       fields
       |> Stdlib.List.map(fun field ->
@@ -1504,7 +1517,7 @@ let customTypeDoc(
         Stdlib.Pretty.nest(2, fieldsPart),
         Stdlib.Pretty.text(" }"))))
 
-  | Enum cases ->
+  | Enum(cases) ->
     cases
     |> Stdlib.List.map(fun case ->
       TypeDeclaration.enumCaseDoc(ctx, case))
@@ -1614,16 +1627,16 @@ let packageTest(
         Context.toPickContext(ctx),
         LanguageTools.PackageManager.Test.locations(ctx.branchId, test.hash))
   with
-  | Some location -> location.name
+  | Some(location) -> location.name
   | None -> "test_" + (LanguageTools.ProgramTypes.hashToShort(test.hash))
   let docComment = formatDocComment(test.description)
   let body = expr(ctx, test.body)
   match test.expectedError with
   | None -> $"{docComment}test {name} = {body}"
-  | Some expected ->
+  | Some(expected) ->
     let (keyword, message) =
       match expected with
-      | RuntimeError message -> ("raises", message)
+      | RuntimeError(message) -> ("raises", message)
     let expectation =
       $"=> {keyword} \"{PrettyPrinter.escapeSpecialCharacters(message)}\""
     $"{docComment}test {name} =\n{PrettyPrinter.indent(body)}\n{PrettyPrinter.indent(expectation)}"
@@ -1721,9 +1734,9 @@ let packageFn(
 
   let argMap =
     p.parameters
-    |> Stdlib.List.indexedMap(fun i param ->
+    |> Stdlib.List.indexedMap(fun(i, param) ->
       (param.name, i))
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc (name, idx) ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, (name, idx)) ->
       Stdlib.Dict.set(acc, name, idx))
 
   // Account for the indentation added after rendering.
@@ -1788,31 +1801,31 @@ let packageImpl(
   // cannot happen when the target is `Stdlib.String.append`.
   let implPath =
     match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.TraitImpl.locations(ctx.branchId, i.hash)) with
-    | Some l -> Stdlib.List.flatten([ [ l.owner ], l.modules, [ l.name ] ])
+    | Some(l) -> Stdlib.List.flatten([ [ l.owner ], l.modules, [ l.name ] ])
     | None -> []
   // A method whose fn lives under the impl's own path was WRITTEN here, so it prints as the
   // declaration the author wrote. Printing the alias line for those would give `let d = d`,
   // which says nothing and does not parse back. A method that names a fn elsewhere prints as that alias.
   let methods =
     i.methods
-    |> Stdlib.List.map(fun (name, fn) ->
+    |> Stdlib.List.map(fun((name, fn)) ->
       match fn.resolved with
-      | Ok r ->
+      | Ok(r) ->
         let declaredHere =
           match r.location with
-          | Some loc -> (Stdlib.List.prepend(loc.modules, loc.owner)) == implPath
+          | Some(loc) -> (Stdlib.List.prepend(loc.modules, loc.owner)) == implPath
           | None -> false
 
         if declaredHere then
           match r.name with
-          | Package hash ->
+          | Package(hash) ->
             (match LanguageTools.PackageManager.Function.get(hash) with
-             | Some f -> packageFn(ctx, f)
+             | Some(f) -> packageFn(ctx, f)
              | None -> $"let {name} = {NameResolution.fnName(ctx, fn)}")
           | _ -> $"let {name} = {NameResolution.fnName(ctx, fn)}"
         else
           $"let {name} = {NameResolution.fnName({ ctx with currentModule = [] }, fn)}"
-      | Error _ -> $"let {name} = <unresolved: {NameResolution.fnName(ctx, fn)}>")
+      | Error(_) -> $"let {name} = <unresolved: {NameResolution.fnName(ctx, fn)}>")
     |> Stdlib.String.join("\n\n")
   let docComment = formatDocComment(i.description)
   $"{docComment}impl{typeParamPart} {traitPart} for {typeReference(ctx, i.self)} =\n{PrettyPrinter.indent(methods)}"
@@ -1874,7 +1887,7 @@ module PackageOp =
     : String =
     let ctx = Context.forBranch(branchId)
     match op with
-    | AddType typ ->
+    | AddType(typ) ->
       let name =
         FQTypeName.Package.atDefinition(ctx, typ.hash)
 
@@ -1889,13 +1902,13 @@ module PackageOp =
 
       let kindPart =
         match typ.declaration.definition with
-        | Alias _ -> "alias"
-        | Record _ -> "record"
-        | Enum _ -> "enum"
+        | Alias(_) -> "alias"
+        | Record(_) -> "record"
+        | Enum(_) -> "enum"
 
       $"AddType {name}{typeParamPart} ({kindPart})"
 
-    | AddFn fn ->
+    | AddFn(fn) ->
       let name =
         FQFnName.Package.atDefinition(ctx, fn.hash)
 
@@ -1903,7 +1916,7 @@ module PackageOp =
 
       $"AddFn {name}: {signature}  [{LanguageTools.ProgramTypes.hashToShort(fn.hash)}]"
 
-    | AddValue value ->
+    | AddValue(value) ->
       let name = FQValueName.Package.atDefinition(ctx, value.hash)
       // Show what the value IS. A fn's line carries its signature, so you can tell one from another; a value
       // had only its name, which is the least interesting thing about it in a list of a thousand.
@@ -1925,16 +1938,16 @@ module PackageOp =
       // actually is — content added here, name bound to it there — rather than a list of unrelated lines.
       $"AddValue {name} = {source}  [{LanguageTools.ProgramTypes.hashToShort(value.hash)}]"
 
-    | AddTrait t ->
+    | AddTrait(t) ->
       let name = FQTraitName.Package.atDefinition(ctx, t.hash)
       let methods = t.methods |> Stdlib.List.map(fun m -> m.name) |> Stdlib.String.join(", ")
       $"AddTrait {name} ({methods})  [{LanguageTools.ProgramTypes.hashToShort(t.hash)}]"
 
-    | AddTraitImpl i ->
+    | AddTraitImpl(i) ->
       let traitName = NameResolution.traitName(ctx, i.trait_)
       $"AddTraitImpl {traitName} for {typeReference(ctx, i.self)}  [{LanguageTools.ProgramTypes.hashToShort(i.hash)}]"
 
-    | AddTest test ->
+    | AddTest(test) ->
       let source =
         expr(ctx, test.body)
         |> Stdlib.String.split("\n")
@@ -1947,12 +1960,12 @@ module PackageOp =
       let path = PackageLocation.packageLocation(loc)
       let kind =
         match target with
-        | PackageType _ -> "Type"
-        | PackageValue _ -> "Value"
-        | PackageFn _ -> "Fn"
-        | PackageTrait _ -> "Trait"
-        | PackageTraitImpl _ -> "Impl"
-        | PackageTest _ -> "Test"
+        | PackageType(_) -> "Type"
+        | PackageValue(_) -> "Value"
+        | PackageFn(_) -> "Fn"
+        | PackageTrait(_) -> "Trait"
+        | PackageTraitImpl(_) -> "Impl"
+        | PackageTest(_) -> "Test"
       // Name the hash it binds. "SetName Fn -> Some.Path" said which name changed but not what it now means,
       // so an Add and the SetName that named it were two lines with nothing tying them together.
       let hash = LanguageTools.ProgramTypes.Reference.hash(target)
@@ -1962,14 +1975,14 @@ module PackageOp =
       let path = PackageLocation.packageLocation(loc)
       let was =
         match previous with
-        | Some h -> $" (was [{LanguageTools.ProgramTypes.hashToShort(h)}])"
+        | Some(h) -> $" (was [{LanguageTools.ProgramTypes.hashToShort(h)}])"
         | None -> ""
       $"Unbind {path}{was}"
 
     | Deprecate(target, kind, _message, _restating) ->
       let kindStr =
         match kind with
-        | SupersededBy _ -> "superseded-by"
+        | SupersededBy(_) -> "superseded-by"
         | Harmful -> "harmful"
         | Obsolete -> "obsolete"
       // Was just "Deprecate (obsolete)" — the kind, and no hint WHAT got deprecated.
@@ -2008,16 +2021,16 @@ module PackageOp =
       let why = if reason == "" then "" else $" ({reason})"
 
       match kind with
-      | Override target ->
+      | Override(target) ->
         let hash = LanguageTools.ProgramTypes.Reference.hash(target)
         $"Override #{id} {name} -> [{LanguageTools.ProgramTypes.hashToShort(hash)}]{why}"
-      | Ack findingId -> $"Ack {findingId} {name}{why}"
+      | Ack(findingId) -> $"Ack {findingId} {name}{why}"
     // A commit that lands a branch carries this op, so without an arm here `dark show` and
     // `dark commits` raise on exactly the commits a person most wants to read.
     | BranchEvent(eventBranchId, event, _at) ->
       let what =
         match event with
-        | Merged _ -> "merged into its parent"
+        | Merged(_) -> "merged into its parent"
         | Archived -> "archived"
 
       // Show the NAME, same as everywhere else a branch is user-facing.

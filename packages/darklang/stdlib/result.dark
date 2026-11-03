@@ -15,8 +15,8 @@ let map(
   fn: 't -> 'u)
   : Stdlib.Result.Result<'u, 'e> =
   match result with
-  | Ok value -> Stdlib.Result.Result.Ok(fn(value))
-  | Error msg -> Stdlib.Result.Result.Error msg
+  | Ok(value) -> Stdlib.Result.Result.Ok(fn(value))
+  | Error(msg) -> Stdlib.Result.Result.Error(msg)
 
 
 /// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
@@ -27,12 +27,12 @@ let map(
 let map2(
   result1: Stdlib.Result.Result<'a, 'e>,
   result2: Stdlib.Result.Result<'b, 'e>,
-  fn: 'a -> 'b -> 'c)
+  fn: ('a, 'b) -> 'c)
   : Stdlib.Result.Result<'c, 'e> =
   match (result1, result2) with
-  | (Ok v1, Ok v2) -> Stdlib.Result.Result.Ok(fn(v1, v2))
-  | (Error e1, _) -> Stdlib.Result.Result.Error e1
-  | (_, Error e2) -> Stdlib.Result.Result.Error e2
+  | (Ok(v1), Ok(v2)) -> Stdlib.Result.Result.Ok(fn(v1, v2))
+  | (Error(e1), _) -> Stdlib.Result.Result.Error(e1)
+  | (_, Error(e2)) -> Stdlib.Result.Result.Error(e2)
 
 
 /// If all three of <param result1>, <param result2>, and <param result3> are
@@ -45,13 +45,13 @@ let map3(
   result1: Stdlib.Result.Result<'a, 'e>,
   result2: Stdlib.Result.Result<'b, 'e>,
   result3: Stdlib.Result.Result<'c, 'e>,
-  fn: 'a -> 'b -> 'c -> 'd)
+  fn: ('a, 'b, 'c) -> 'd)
   : Stdlib.Result.Result<'d, 'e> =
   match (result1, result2, result3) with
-  | (Ok v1, Ok v2, Ok v3) -> Stdlib.Result.Result.Ok(fn(v1, v2, v3))
-  | (Error e1, _, _) -> Stdlib.Result.Result.Error e1
-  | (_, Error e2, _) -> Stdlib.Result.Result.Error e2
-  | (_, _, Error e3) -> Stdlib.Result.Result.Error e3
+  | (Ok(v1), Ok(v2), Ok(v3)) -> Stdlib.Result.Result.Ok(fn(v1, v2, v3))
+  | (Error(e1), _, _) -> Stdlib.Result.Result.Error(e1)
+  | (_, Error(e2), _) -> Stdlib.Result.Result.Error(e2)
+  | (_, _, Error(e3)) -> Stdlib.Result.Result.Error(e3)
 
 
 /// If all four of <param result1>, <param result2>, <param result3>, and
@@ -66,14 +66,14 @@ let map4(
   result2: Stdlib.Result.Result<'b, 'e>,
   result3: Stdlib.Result.Result<'c, 'e>,
   result4: Stdlib.Result.Result<'d, 'e>,
-  fn: 'a -> 'b -> 'c -> 'd -> 'f)
+  fn: ('a, 'b, 'c, 'd) -> 'f)
   : Stdlib.Result.Result<'f, 'e> =
   match (result1, result2, result3, result4) with
-  | (Ok v1, Ok v2, Ok v3, Ok v4) -> Stdlib.Result.Result.Ok(fn(v1, v2, v3, v4))
-  | (Error e1, _, _, _) -> Stdlib.Result.Result.Error e1
-  | (_, Error e2, _, _) -> Stdlib.Result.Result.Error e2
-  | (_, _, Error e3, _) -> Stdlib.Result.Result.Error e3
-  | (_, _, _, Error e4) -> Stdlib.Result.Result.Error e4
+  | (Ok(v1), Ok(v2), Ok(v3), Ok(v4)) -> Stdlib.Result.Result.Ok(fn(v1, v2, v3, v4))
+  | (Error(e1), _, _, _) -> Stdlib.Result.Result.Error(e1)
+  | (_, Error(e2), _, _) -> Stdlib.Result.Result.Error(e2)
+  | (_, _, Error(e3), _) -> Stdlib.Result.Result.Error(e3)
+  | (_, _, _, Error(e4)) -> Stdlib.Result.Result.Error(e4)
 
 
 /// If all five of <param result1>, <param result2>, <param result3>, <param
@@ -89,16 +89,16 @@ let map5(
   result3: Stdlib.Result.Result<'c, 'e>,
   result4: Stdlib.Result.Result<'d, 'e>,
   result5: Stdlib.Result.Result<'f, 'e>,
-  fn: 'a -> 'b -> 'c -> 'd -> 'f -> 'g)
+  fn: ('a, 'b, 'c, 'd, 'f) -> 'g)
   : Stdlib.Result.Result<'g, 'e> =
   match (result1, result2, result3, result4, result5) with
-  | (Ok v1, Ok v2, Ok v3, Ok v4, Ok v5) ->
+  | (Ok(v1), Ok(v2), Ok(v3), Ok(v4), Ok(v5)) ->
     Stdlib.Result.Result.Ok(fn(v1, v2, v3, v4, v5))
-  | (Error e1, _, _, _, _) -> Stdlib.Result.Result.Error e1
-  | (_, Error e2, _, _, _) -> Stdlib.Result.Result.Error e2
-  | (_, _, Error e3, _, _) -> Stdlib.Result.Result.Error e3
-  | (_, _, _, Error e4, _) -> Stdlib.Result.Result.Error e4
-  | (_, _, _, _, Error e5) -> Stdlib.Result.Result.Error e5
+  | (Error(e1), _, _, _, _) -> Stdlib.Result.Result.Error(e1)
+  | (_, Error(e2), _, _, _) -> Stdlib.Result.Result.Error(e2)
+  | (_, _, Error(e3), _, _) -> Stdlib.Result.Result.Error(e3)
+  | (_, _, _, Error(e4), _) -> Stdlib.Result.Result.Error(e4)
+  | (_, _, _, _, Error(e5)) -> Stdlib.Result.Result.Error(e5)
 
 
 /// Applies the function <param fn> to the value inside the {{Ok <var value>}} variant of <param result>
@@ -109,8 +109,8 @@ let mapWithDefault(
   fn: 't -> 'u)
   : 'u =
   match result with
-  | Ok value -> fn(value)
-  | Error _ -> default_
+  | Ok(value) -> fn(value)
+  | Error(_) -> default_
 
 
 /// If <param result> is {{Error <var msg>}}, returns {{Error (fn <var msg>)}}.
@@ -122,8 +122,8 @@ let mapError(
   fn: 'e -> 'u)
   : Stdlib.Result.Result<'t, 'u> =
   match result with
-  | Ok value -> Stdlib.Result.Result.Ok value
-  | Error value -> Stdlib.Result.Result.Error(fn(value))
+  | Ok(value) -> Stdlib.Result.Result.Ok(value)
+  | Error(value) -> Stdlib.Result.Result.Error(fn(value))
 
 
 /// If <param result> is {{Ok <var value>}}, returns {{fn <var value>}}. The
@@ -135,16 +135,16 @@ let andThen(
   fn: 't -> Stdlib.Result.Result<'u, 'e>)
   : Stdlib.Result.Result<'u, 'e> =
   match result with
-  | Ok value -> fn(value)
-  | Error msg -> Stdlib.Result.Result.Error msg
+  | Ok(value) -> fn(value)
+  | Error(msg) -> Stdlib.Result.Result.Error(msg)
 
 
 /// If <param result> is {{Ok <var value>}}, returns <var value>. If <param
 /// result> is {{Error <var msg>}}, returns <param default>.
 let withDefault(result: Stdlib.Result.Result<'t, 'e>, default_: 't): 't =
   match result with
-  | Ok value -> value
-  | Error _ -> default_
+  | Ok(value) -> value
+  | Error(_) -> default_
 
 
 /// Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Some <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise.
@@ -153,8 +153,8 @@ let fromOption(
   error: 'e)
   : Stdlib.Result.Result<'t, 'e> =
   match option with
-  | Some value -> Stdlib.Result.Result.Ok value
-  | None -> Stdlib.Result.Result.Error error
+  | Some(value) -> Stdlib.Result.Result.Ok(value)
+  | None -> Stdlib.Result.Result.Error(error)
 
 
 /// Turn a <type Result> into an <type Option>
@@ -162,8 +162,8 @@ let toOption(
   result: Stdlib.Result.Result<'t, 'e>)
   : Stdlib.Option.Option<'t> =
   match result with
-  | Ok value -> Stdlib.Option.Option.Some value
-  | Error _ -> Stdlib.Option.Option.None
+  | Ok(value) -> Stdlib.Option.Option.Some(value)
+  | Error(_) -> Stdlib.Option.Option.None
 
 
 /// Collect a list of results into a single result. If any of the results
@@ -176,29 +176,29 @@ let collect(
   // was quadratic in the list length: collecting 1,000 results did ~500,000 element copies.
   let folded =
     results
-    |> Stdlib.List.fold(Stdlib.Result.Result.Ok [], fun acc result ->
+    |> Stdlib.List.fold(Stdlib.Result.Result.Ok([]), fun(acc, result) ->
       match (acc, result) with
-      | (Ok acc, Ok result) -> Stdlib.Result.Result.Ok(Stdlib.List.prepend(acc, result))
-      | (Ok _, Error err) -> Stdlib.Result.Result.Error err
-      | (Error err, _) -> Stdlib.Result.Result.Error err)
+      | (Ok(acc), Ok(result)) -> Stdlib.Result.Result.Ok(Stdlib.List.prepend(acc, result))
+      | (Ok(_), Error(err)) -> Stdlib.Result.Result.Error(err)
+      | (Error(err), _) -> Stdlib.Result.Result.Error(err))
 
   match folded with
-  | Ok l -> Stdlib.Result.Result.Ok(Stdlib.List.reverse(l))
-  | Error err -> Stdlib.Result.Result.Error err
+  | Ok(l) -> Stdlib.Result.Result.Ok(Stdlib.List.reverse(l))
+  | Error(err) -> Stdlib.Result.Result.Error(err)
 
 
 /// If <param result> is {{Ok <var value>}}, returns true. Otherwise, returns false.
 let isOk(result: Stdlib.Result.Result<'t, 'e>): Bool =
   match result with
-  | Ok _ -> true
-  | Error _ -> false
+  | Ok(_) -> true
+  | Error(_) -> false
 
 
 /// If <param result> is {{Error <var msg>}}, returns true. Otherwise, returns false.
 let isError(result: Stdlib.Result.Result<'t, 'e>): Bool =
   match result with
-  | Ok _ -> false
-  | Error _ -> true
+  | Ok(_) -> false
+  | Error(_) -> true
 
 /// Returns <param result2> if <param result1> is {{Ok <var value>}}. Otherwise, returns <param result1>.
 let ``and``(
@@ -206,8 +206,8 @@ let ``and``(
   result2: Stdlib.Result.Result<'t, 'e>)
   : Stdlib.Result.Result<'t, 'e> =
   match result1 with
-  | Ok _ -> result2
-  | Error _ -> result1
+  | Ok(_) -> result2
+  | Error(_) -> result1
 
 
 /// Returns <param result1> if it is {{Ok _}}. Otherwise, returns <param result2>.
@@ -216,15 +216,15 @@ let ``or``(
   result2: Stdlib.Result.Result<'t, 'e>)
   : Stdlib.Result.Result<'t, 'e> =
   match result1 with
-  | Ok _ -> result1
-  | Error _ -> result2
+  | Ok(_) -> result1
+  | Error(_) -> result2
 
 
 /// Returns a list containing <param value> if <param result> is {{Ok <var value>}}. Otherwise, returns an empty list.
 let toList(result: Stdlib.Result.Result<'t, 'e>): List<'t> =
   match result with
-  | Ok value -> [ value ]
-  | Error _ -> []
+  | Ok(value) -> [ value ]
+  | Error(_) -> []
 
 
 /// Flattens a nested result. If <param result> is {{Ok (Ok <var value>)}},
@@ -234,8 +234,8 @@ let join(
   result: Stdlib.Result.Result<Stdlib.Result.Result<'t, 'e>, 'e>)
   : Stdlib.Result.Result<'t, 'e> =
   match result with
-  | Ok value -> value
-  | Error msg -> Stdlib.Result.Result.Error msg
+  | Ok(value) -> value
+  | Error(msg) -> Stdlib.Result.Result.Error(msg)
 
 
 /// Combines a list of results into a single list of unwrapped values.
@@ -248,14 +248,14 @@ let combine(
   // accumulator every element, so this was quadratic in the list length.
   let folded =
     results
-    |> Stdlib.List.fold(Stdlib.Result.Result.Ok [], fun acc result ->
+    |> Stdlib.List.fold(Stdlib.Result.Result.Ok([]), fun(acc, result) ->
       match (acc, result) with
-      | (Ok acc, Ok result) -> Stdlib.Result.Result.Ok(Stdlib.List.prepend(acc, result))
-      | (Ok _, Error err) | (Error err, _) -> Stdlib.Result.Result.Error err)
+      | (Ok(acc), Ok(result)) -> Stdlib.Result.Result.Ok(Stdlib.List.prepend(acc, result))
+      | (Ok(_), Error(err)) | (Error(err), _) -> Stdlib.Result.Result.Error(err))
 
   match folded with
-  | Ok list -> Stdlib.Result.Result.Ok(Stdlib.List.reverse(list))
-  | Error err -> Stdlib.Result.Result.Error err
+  | Ok(list) -> Stdlib.Result.Result.Ok(Stdlib.List.reverse(list))
+  | Error(err) -> Stdlib.Result.Result.Error(err)
 
 
 /// Returns a list of all the values that are {{Ok <var value>}}, and ignores any values that are {{Error <var msg>}}.
@@ -264,13 +264,13 @@ let values(
   : Stdlib.Result.Result<List<'t>, 'e> =
   let folded =
     results
-    |> Stdlib.List.fold(Stdlib.Result.Result.Ok [], fun acc result ->
+    |> Stdlib.List.fold(Stdlib.Result.Result.Ok([]), fun(acc, result) ->
       match (acc, result) with
-      | (Ok acc, Ok result) ->
+      | (Ok(acc), Ok(result)) ->
         Stdlib.Result.Result.Ok(Stdlib.List.prepend(acc, result))
-      | (Ok _, Error _) -> acc
-      | (Error err, _) -> Stdlib.Result.Result.Error err)
+      | (Ok(_), Error(_)) -> acc
+      | (Error(err), _) -> Stdlib.Result.Result.Error(err))
 
   match folded with
-  | Ok list -> Stdlib.Result.Result.Ok(Stdlib.List.reverse(list))
-  | Error err -> Stdlib.Result.Result.Error err
+  | Ok(list) -> Stdlib.Result.Result.Ok(Stdlib.List.reverse(list))
+  | Error(err) -> Stdlib.Result.Result.Error(err)

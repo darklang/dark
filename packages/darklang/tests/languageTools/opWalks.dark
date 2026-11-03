@@ -8,7 +8,7 @@ let fnWithBody(
   body: Darklang.LanguageTools.ProgramTypes.Expr)
   : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
   Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
-    { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash description
+    { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash(description)
       body = body
       typeParams = []
       parameters =
@@ -26,11 +26,11 @@ let declare(
   name: String,
   fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : List<Darklang.LanguageTools.ProgramTypes.PackageOp> =
-  [ Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn fn
+  [ Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn(fn)
     Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
       Darklang.LanguageTools.ProgramTypes.PackageLocation
         { owner = "Test", modules = [ "Dup" ], name = name },
-      Darklang.LanguageTools.ProgramTypes.Reference.PackageFn fn.hash,
+      Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(fn.hash),
       Stdlib.Option.Option.None
     ) ]
 
@@ -46,8 +46,8 @@ let unresolvedCall(name: String): Darklang.LanguageTools.ProgramTypes.Expr =
     Darklang.LanguageTools.ProgramTypes.NameResolution
       { originalName = Stdlib.String.split(name, ".")
         resolved =
-          Stdlib.Result.Result.Error
-            Darklang.LanguageTools.ProgramTypes.NameResolutionError.NotFound },
+          Stdlib.Result.Result.Error(
+            Darklang.LanguageTools.ProgramTypes.NameResolutionError.NotFound) },
     []
   )
 

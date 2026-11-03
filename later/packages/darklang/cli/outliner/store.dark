@@ -47,17 +47,17 @@ let migrateOutline(old: V1Outline): Outline =
   let withNodes =
     old.nodes
     |> Stdlib.Dict.toEntries
-    |> Stdlib.List.fold(emptyOutline(), fun acc pair ->
+    |> Stdlib.List.fold(emptyOutline(), fun(acc, pair) ->
       let (key, nc) = pair
       addNode(acc, parseKey(key), nc.text))
 
   let withChildren =
     old.structure
     |> Stdlib.Dict.toEntries
-    |> Stdlib.List.fold(withNodes, fun acc pair ->
+    |> Stdlib.List.fold(withNodes, fun(acc, pair) ->
       let (key, s) = pair
       let id = parseKey(key)
-      let placed = setChildren(acc, Stdlib.Option.Option.Some id, s.children)
+      let placed = setChildren(acc, Stdlib.Option.Option.Some(id), s.children)
       setCollapsed(placed, id, s.collapsed))
 
   let withRoots = setChildren(withChildren, Stdlib.Option.Option.None, old.rootChildren)
@@ -78,15 +78,15 @@ let migrateV1(old: V1Data): PersistedData =
 
 let dataFilePath(): String =
   match Stdlib.Cli.Unix.getHomeDirectory() with
-  | Ok home -> $"{home}/.darklang/outliner.json"
-  | Error _ -> "rundir/outliner.json"
+  | Ok(home) -> $"{home}/.darklang/outliner.json"
+  | Error(_) -> "rundir/outliner.json"
 
 let ensureDataDir(): Unit =
   match Stdlib.Cli.Unix.getHomeDirectory() with
-  | Ok home ->
+  | Ok(home) ->
     let _created = Stdlib.Cli.Unix.ensureDirectoryExists($"{home}/.darklang")
     ()
-  | Error _ -> ()
+  | Error(_) -> ()
 
 
 // --- Demo content, for a first run ---
@@ -118,7 +118,7 @@ let starterDocuments(): List<Document> =
       6)
 
   let taskMarks =
-    [ 2, 3, 5 ] |> Stdlib.List.fold(tasks, fun acc id -> setMark(acc, id, Mark.Todo))
+    [ 2, 3, 5 ] |> Stdlib.List.fold(tasks, fun(acc, id) -> setMark(acc, id, Mark.Todo))
 
   [ Document { id = 1, title = "My Notes", outline = notes }
     Document { id = 2, title = "Tasks", outline = taskMarks } ]
@@ -142,12 +142,12 @@ type LoadResult =
 
 let parse(contents: String): LoadResult =
   match Stdlib.Json.parse<PersistedData>(contents) with
-  | Ok data -> LoadResult.Loaded data
-  | Error _ ->
+  | Ok(data) -> LoadResult.Loaded(data)
+  | Error(_) ->
     // No version field means it predates versioning, not that it's broken.
     match Stdlib.Json.parse<V1Data>(contents) with
-    | Ok old -> LoadResult.Loaded(migrateV1(old))
-    | Error _ ->
+    | Ok(old) -> LoadResult.Loaded(migrateV1(old))
+    | Error(_) ->
       // Deliberately not the parser's own message: rendering one needs a branch id to resolve type names
       // against, which is more than this needs to say. The file is named, and it's still there.
       LoadResult.Unreadable(dataFilePath(), "not in a shape the outliner understands")
@@ -157,8 +157,8 @@ let load(): LoadResult =
 
   if Stdlib.Cli.FileSystem.pathExists(path) then
     match Stdlib.Cli.FileSystem.readFile(path) with
-    | Ok bytes -> parse(Stdlib.Utf8.decodeWithReplacement(bytes))
-    | Error e -> LoadResult.Unreadable(path, Stdlib.Cli.FileSystem.FileError.toString(e))
+    | Ok(bytes) -> parse(Stdlib.Utf8.decodeWithReplacement(bytes))
+    | Error(e) -> LoadResult.Unreadable(path, Stdlib.Cli.FileSystem.FileError.toString(e))
   else
     LoadResult.Loaded(starterData())
 
@@ -175,8 +175,8 @@ type Stamp =
 
 let stamp(): Stdlib.Option.Option<Stamp> =
   match Stdlib.Cli.Posix.stat(dataFilePath()) with
-  | Ok st -> Stdlib.Option.Option.Some(Stamp { mtimeSec = st.mtimeSec, size = st.size })
-  | Error _ -> Stdlib.Option.Option.None
+  | Ok(st) -> Stdlib.Option.Option.Some(Stamp { mtimeSec = st.mtimeSec, size = st.size })
+  | Error(_) -> Stdlib.Option.Option.None
 
 
 /// Write the documents, atomically.
@@ -209,15 +209,15 @@ let save(
   let current = stamp()
 
   if current != expected then
-    Stdlib.Result.Result.Error
-      "the file changed underneath this session - another outliner has it open"
+    Stdlib.Result.Result.Error(
+      "the file changed underneath this session - another outliner has it open")
   else
     match Stdlib.Cli.FileSystem.overwriteFile(pending, Stdlib.Utf8.encode(json)) with
-    | Error e ->
+    | Error(e) ->
       Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.toString(e))
-    | Ok _ ->
+    | Ok(_) ->
       match Stdlib.Cli.Posix.rename(pending, path) with
-      | Ok _ -> Stdlib.Result.Result.Ok(stamp())
-      | Error e ->
+      | Ok(_) -> Stdlib.Result.Result.Ok(stamp())
+      | Error(e) ->
         // The old file is still whole; say what happened rather than leaving the temporary behind silently.
-        Stdlib.Result.Result.Error e.message
+        Stdlib.Result.Result.Error(e.message)

@@ -119,7 +119,7 @@ test rebindKeepsPosition =
 // --- reading `captureValue` back ---
 test readCaptured =
   Darklang.Cli.Repl.readCaptured("ok:[1L, 2L]")
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some "[1L, 2L]")
+  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("[1L, 2L]"))
 
 // anything that isn't `ok:` means "hold the expression instead"
 test nonOkHoldsExpression =

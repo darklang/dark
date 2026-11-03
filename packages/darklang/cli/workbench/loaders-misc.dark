@@ -23,7 +23,7 @@ let loadThingItems(branchId: Uuid): List<BodyItem> =
 let thingDetail(state: State): String =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> "(nothing selected)"
-  | Some item ->
+  | Some(item) ->
     let parts = Stdlib.String.split(item.name, ".")
     let leaf = Stdlib.List.last(parts) |> Stdlib.Option.withDefault(item.name)
     let mods = Stdlib.List.take(parts, Stdlib.max(0, (Stdlib.List.length(parts)) - 1))
@@ -46,7 +46,7 @@ let loadBranchItems(currentBranchId: Uuid): List<BodyItem> =
   let describe(id: Uuid, ahead: Int64): String =
     let last =
       match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(id, 1L)) with
-      | Some c -> agoText(c.originTs)
+      | Some(c) -> agoText(c.originTs)
       | None -> ""
     Stdlib.List.filter(
       [ (if id == currentBranchId then "current" else "")
@@ -97,7 +97,7 @@ let isMainRow(item: BodyItem): Bool =
 /// Is the cursor on a branch row for main (Home's)?
 let cursorOnMainRow(state: State): Bool =
   match Stdlib.List.getAt(state.items, state.selected) with
-  | Some item ->
+  | Some(item) ->
     ((item.kind == "branch") || (item.kind == "home-branch")) && (isMainRow(item))
   | None -> false
 
@@ -109,7 +109,7 @@ let branchRowTarget(state: State): Stdlib.Option.Option<(Uuid * String)> =
       (Darklang.SCM.Branch.mainBranchId, Darklang.SCM.Branch.mainBranchName))
   else
     match selectedBranch(state) with
-    | Some b -> Stdlib.Option.Option.Some((b.id, b.name))
+    | Some(b) -> Stdlib.Option.Option.Some((b.id, b.name))
     | None -> Stdlib.Option.Option.None
 
 /// The branch the cursor is on, resolved by name rather than by position.
@@ -122,7 +122,7 @@ let branchRowTarget(state: State): Stdlib.Option.Option<(Uuid * String)> =
 let selectedBranch(state: State): Stdlib.Option.Option<Darklang.SCM.Branch.Branch> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> Stdlib.Option.Option.None
-  | Some item ->
+  | Some(item) ->
     // Rows read "<marker> <name>[   (merged)]" - see `loadBranchItems`.
     let name =
       item.name
@@ -138,7 +138,7 @@ let selectedBranch(state: State): Stdlib.Option.Option<Darklang.SCM.Branch.Branc
 let branchForAction(state: State): Stdlib.Option.Option<Darklang.SCM.Branch.Branch> =
   let onBranchRow =
     match Stdlib.List.getAt(state.items, state.selected) with
-    | Some item -> item.kind == "home-branch"
+    | Some(item) -> item.kind == "home-branch"
     | None -> false
   if onBranchRow then selectedBranch(state) else Darklang.SCM.Branch.get(state.branchId)
 
@@ -146,7 +146,7 @@ let branchForAction(state: State): Stdlib.Option.Option<Darklang.SCM.Branch.Bran
 let selectedConflict(state: State): Stdlib.Option.Option<SCM.Conflicts.Conflict> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> Stdlib.Option.Option.None
-  | Some item ->
+  | Some(item) ->
     let location =
       Stdlib.String.split(item.name, "  ·  ") |> Stdlib.List.head |> Stdlib.Option.withDefault(item.name)
 
@@ -176,7 +176,7 @@ let loadErrorItems(): List<BodyItem> =
 
 let errorDetail(state: State): String =
   match Stdlib.List.getAt(state.items, state.selected) with
-  | Some item ->
+  | Some(item) ->
     (Stdlib.Cli.UI.Colors.boldText(item.name))
     + "\n\n"
     + (Stdlib.Cli.UI.Colors.dimText("an unresolved conflict: two live versions of one name."))
@@ -232,7 +232,7 @@ let itemsForView(
   else
     // Extension views compose their own item loader (see `extensionViews`); built-ins fall through to [].
     match extensionViewAt(view) with
-    | Some vd ->
+    | Some(vd) ->
       let load = vd.loadItems
       load()
     | None -> []

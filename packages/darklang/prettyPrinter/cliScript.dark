@@ -10,39 +10,39 @@ let sourceFileAtWidth(
     { PrettyPrinter.ProgramTypes.Context.forModule(branchId, []) with width = width }
 
   let declsPart =
-    (Stdlib.List.fold(source.declarations, [], fun acc decl ->
+    (Stdlib.List.fold(source.declarations, [], fun(acc, decl) ->
       match decl with
-      | Module moduleDecl ->
+      | Module(moduleDecl) ->
         let prettyPrinted = PrettyPrinter.definitions(ctx, moduleDecl)
         acc |> Stdlib.List.prepend(prettyPrinted)
 
-      | Type typeDecl ->
+      | Type(typeDecl) ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageType(ctx, typeDecl)
         acc |> Stdlib.List.prepend(prettyPrinted)
 
-      | Value valDecl ->
+      | Value(valDecl) ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue(ctx, valDecl)
         acc |> Stdlib.List.prepend(prettyPrinted)
 
-      | Function fnDecl ->
+      | Function(fnDecl) ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn(ctx, fnDecl)
         acc |> Stdlib.List.prepend(prettyPrinted)
 
-      | Trait traitDecl ->
+      | Trait(traitDecl) ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageTrait(ctx, traitDecl)
         acc |> Stdlib.List.prepend(prettyPrinted)
 
-      | Impl implDecl ->
+      | Impl(implDecl) ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageImpl(ctx, implDecl)
         acc |> Stdlib.List.prepend(prettyPrinted)
 
-      | Test testDecl ->
+      | Test(testDecl) ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageTest(ctx, testDecl)
         acc |> Stdlib.List.prepend(prettyPrinted)))
     |> Stdlib.List.reverse
 
   let exprsPart =
-    (Stdlib.List.fold(source.exprsToEval, [], fun acc expr ->
+    (Stdlib.List.fold(source.exprsToEval, [], fun(acc, expr) ->
       let prettyPrinted = PrettyPrinter.ProgramTypes.expr(ctx, expr)
       acc |> Stdlib.List.prepend(prettyPrinted)))
     |> Stdlib.List.reverse

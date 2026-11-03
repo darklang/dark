@@ -47,7 +47,7 @@ Function types preserve arity, matching runtime checks against declared types. A
 can accept a two-parameter function or a function that returns another function.
 Waiting calls still constrain their argument and result types:
 
-- Structural containment checks reject types that would contain themselves, both directly (`fun x -> x x`) and across calls (`fun f g -> (f g, g f)`), as soon as those calls begin waiting.
+- Structural containment checks reject types that would contain themselves, both directly (`fun x -> x(x)`) and across calls (`fun(f, g) -> (f(g), g(f))`), as soon as those calls begin waiting.
 - Calls sharing an unknown callee unify their common argument prefixes. Calls with equal argument counts also unify their results. A longer call applies the shorter call's result to the remaining arguments without fixing the callee's arity.
 - Constraints are retried while any constraint resolves, argument is consumed, or unknown is decided. Residual applications receive the same checks.
 

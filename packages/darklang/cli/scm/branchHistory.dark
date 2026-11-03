@@ -17,7 +17,7 @@ let moduleOf(dotted: String): String =
 let executeDiff(state: AppState, branchRef: String, withSource: Bool): AppState =
   match resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
-  | Some branchId ->
+  | Some(branchId) ->
     match SCM.PackageOps.branchDiffEntries(branchId) with
     | [] ->
       if SCM.PackageOps.branchIsMerged(branchId) then
@@ -77,7 +77,7 @@ let executeDiff(state: AppState, branchRef: String, withSource: Bool): AppState 
 let executeLog(state: AppState, branchRef: String): AppState =
   match resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
-  | Some branchId ->
+  | Some(branchId) ->
     let ops = SCM.PackageOps.branchOps(branchId)
     // A merged branch's tags are gone; its merge events still say what it carried.
     let merged =
@@ -146,7 +146,7 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
     if ScmJson.wantsJson(args) then
       match resolveRef(id) with
       | None -> Cli.exitWith(state, false)
-      | Some branchId ->
+      | Some(branchId) ->
         Stdlib.printLine(ScmJson.branchDiffJson(SCM.PackageOps.branchDiffEntries(branchId)))
 
         state
@@ -162,10 +162,10 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
 let branchOpsAsJson(branchRef: String): Bool =
   match resolveRef(branchRef) with
   | None -> false
-  | Some branchId ->
+  | Some(branchId) ->
     let rendered =
       SCM.PackageOps.branchOps(branchId)
-      |> Stdlib.List.indexedMap(fun i op ->
+      |> Stdlib.List.indexedMap(fun(i, op) ->
         ScmJson.BranchOpJson
           { seq = i
             op = PrettyPrinter.ProgramTypes.PackageOp.packageOp(branchId, op) })

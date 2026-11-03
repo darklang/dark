@@ -15,7 +15,7 @@ type SubAppAction =
   | LaunchCommand of String
 
 type SubApp =
-  { onKey: Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> (SubAppAction * SubApp)
+  { onKey: (Stdlib.Cli.Stdin.Key.Key, Stdlib.Cli.Stdin.Modifiers.Modifiers, Stdlib.Option.Option<String>) -> (SubAppAction * SubApp)
     onDisplay: Unit -> Unit
     /// Persist, and return the app as it stands afterwards.
     ///
@@ -163,7 +163,7 @@ let jsonStr(s: String): String =
 /// twice per process start was pure duplicate work, on every invocation including `dark version`.
 let commandOptions(commands: List<Registry.CommandHandler>): List<String> =
   let allNames = Stdlib.List.map(commands, fun cmd -> cmd.name)
-  let allAliases = Stdlib.List.fold(commands, [], fun acc cmd -> Stdlib.List.concat(acc, cmd.aliases))
+  let allAliases = Stdlib.List.fold(commands, [], fun(acc, cmd) -> Stdlib.List.concat(acc, cmd.aliases))
   Stdlib.List.concat(allNames, allAliases)
 
 /// The branch this run starts on, `SCM.Branch.mainBranchId` for main.
@@ -204,7 +204,7 @@ let initState(): AppState =
       cachedFilterItems = []
       allCommandsCache = commands
       commandOptionsCache = commandOptions(commands)
-      telemetryEnabled = (Stdlib.Env.get("DARK_TELEMETRY")) == Stdlib.Option.Option.Some "1"
+      telemetryEnabled = (Stdlib.Env.get("DARK_TELEMETRY")) == Stdlib.Option.Option.Some("1")
       exitCode = 0 }
 
 type Msg =
@@ -243,19 +243,19 @@ module ExecutionError =
 
   let toString(branchId: Uuid, err: ExecutionError): String =
     match err with
-    | Parse pe -> LanguageTools.Parser.CliScript.ParseError.toString(pe)
-    | TypeCheck report -> Packages.AtRestCheck.scriptReport(branchId, report)
+    | Parse(pe) -> LanguageTools.Parser.CliScript.ParseError.toString(pe)
+    | TypeCheck(report) -> Packages.AtRestCheck.scriptReport(branchId, report)
     | Runtime(rte, _) ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
-    | Denied denied ->
+    | Denied(denied) ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, denied.error)
-    | Unhandled u ->
+    | Unhandled(u) ->
       match u.metadata with
       | [] -> $"Internal error: {u.message}"
       | _ ->
         let lines =
           u.metadata
-          |> Stdlib.List.map(fun (k, v) -> $"  {k}: {v}")
+          |> Stdlib.List.map(fun((k, v)) -> $"  {k}: {v}")
           |> Stdlib.String.join("\n")
         $"Internal error: {u.message}\n{lines}"
 
@@ -265,24 +265,24 @@ module ExecutionError =
     : Bool =
     Stdlib.List.any(frames, fun frame ->
       match frame with
-      | Function _ -> true
+      | Function(_) -> true
       | _ -> false)
 
   let printCallStack(branchId: Uuid, what: String, error: ExecutionError): Unit =
     let frames =
       match error with
       | Runtime(_, frames) -> frames
-      | Denied denial -> denial.callStack
+      | Denied(denial) -> denial.callStack
       | _ -> []
     let show =
       match error with
-      | Denied _ -> frames != []
+      | Denied(_) -> frames != []
       | _ -> hasReadableFrames(frames)
     if show then
       let rendered = PrettyPrinter.RuntimeTypes.callStack(branchId, frames)
       let gap =
         match error with
-        | Denied _ -> ""
+        | Denied(_) -> ""
         | _ -> "\n"
       Stdlib.printErrorLine($"Error when executing {what}. Call-stack:\n{rendered}{gap}")
     else

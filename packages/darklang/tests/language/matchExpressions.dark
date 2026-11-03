@@ -556,8 +556,8 @@ test restPatterns =
        | ([a, ...as_], [b, ...bs]) -> (a + b, as_, bs)
        | _ -> (0L, [], []))
       |> Stdlib.Test.equal((4L, [ 2L ], []))
-      (match [ Stdlib.Option.Option.Some 1L, Stdlib.Option.Option.None ] with
-       | [Some x, ...rest] -> (x, rest)
+      (match [ Stdlib.Option.Option.Some(1L), Stdlib.Option.Option.None ] with
+       | [Some(x), ...rest] -> (x, rest)
        | _ -> (0L, []))
       |> Stdlib.Test.equal((1L, [ Stdlib.Option.Option.None ])) ])
 
@@ -627,30 +627,30 @@ test nestedTuplePatterns =
 
 test resultPatterns =
   Stdlib.Test.all(
-    [ (match Stdlib.Result.Result.Ok 5L with
-       | Ok 6L -> "fail"
-       | Error _ -> "fail"
-       | Ok 5L -> "pass"
+    [ (match Stdlib.Result.Result.Ok(5L) with
+       | Ok(6L) -> "fail"
+       | Error(_) -> "fail"
+       | Ok(5L) -> "pass"
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
-      (match Stdlib.Result.Result.Ok 5L with
-       | Ok 5L -> "pass"
-       | Error _ -> "fail"
+      (match Stdlib.Result.Result.Ok(5L) with
+       | Ok(5L) -> "pass"
+       | Error(_) -> "fail"
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
-      (match Stdlib.Result.Result.Error "failure" with
-       | Ok _ -> "fail"
-       | Error "success" -> "fail"
-       | Error "failure" -> "pass")
+      (match Stdlib.Result.Result.Error("failure") with
+       | Ok(_) -> "fail"
+       | Error("success") -> "fail"
+       | Error("failure") -> "pass")
       |> Stdlib.Test.equal("pass")
-      (match Stdlib.Result.Result.Error "failure" with
-       | Ok var -> $"unexpected: {var}"
-       | Error msg -> $"pass: {msg}")
+      (match Stdlib.Result.Result.Error("failure") with
+       | Ok(var) -> $"unexpected: {var}"
+       | Error(msg) -> $"pass: {msg}")
       |> Stdlib.Test.equal("pass: failure")
-      (match Stdlib.Result.Result.Ok [ 1L, 2L, 3L ] with
-       | Ok [ 1L, 2L, 3L, 4L ] -> "fail"
-       | Error _ -> "fail"
-       | Ok [ 1L, 2L, 3L ] -> "pass"
+      (match Stdlib.Result.Result.Ok([ 1L, 2L, 3L ]) with
+       | Ok([ 1L, 2L, 3L, 4L ]) -> "fail"
+       | Error(_) -> "fail"
+       | Ok([ 1L, 2L, 3L ]) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass")
       (match Stdlib.Result.Result.Ok((1L, 'a')) with
@@ -658,39 +658,39 @@ test resultPatterns =
        | Ok((1L, 'a')) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass")
-      (match Stdlib.Result.Result.Ok 5.0 with
-       | Ok 6.0 -> "fail"
-       | Error _ -> "fail"
-       | Ok 5.0 -> "pass"
+      (match Stdlib.Result.Result.Ok(5.0) with
+       | Ok(6.0) -> "fail"
+       | Error(_) -> "fail"
+       | Ok(5.0) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass") ])
 
 test optionPatterns =
   Stdlib.Test.all(
-    [ (match Stdlib.Option.Option.Some 5L with
-       | Some 6L -> "fail"
+    [ (match Stdlib.Option.Option.Some(5L) with
+       | Some(6L) -> "fail"
        | None -> "fail"
-       | Some 5L -> "pass"
+       | Some(5L) -> "pass"
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
-      (match Stdlib.Option.Option.Some 5L with
-       | Some 5L -> "pass"
+      (match Stdlib.Option.Option.Some(5L) with
+       | Some(5L) -> "pass"
        | None -> "fail"
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
       (match Stdlib.Option.Option.None with
-       | Some _ -> "fail"
+       | Some(_) -> "fail"
        | None -> "pass")
       |> Stdlib.Test.equal("pass")
-      (match Stdlib.Option.Option.Some "hello" with
-       | Some "world" -> "fail"
+      (match Stdlib.Option.Option.Some("hello") with
+       | Some("world") -> "fail"
        | None -> "fail"
-       | Some msg -> $"pass: {msg}")
+       | Some(msg) -> $"pass: {msg}")
       |> Stdlib.Test.equal("pass: hello")
-      (match Stdlib.Option.Option.Some [ 1L, 2L, 3L ] with
-       | Some [ 1L, 2L, 3L, 4L ] -> "fail"
+      (match Stdlib.Option.Option.Some([ 1L, 2L, 3L ]) with
+       | Some([ 1L, 2L, 3L, 4L ]) -> "fail"
        | None -> "fail"
-       | Some [ 1L, 2L, 3L ] -> "pass"
+       | Some([ 1L, 2L, 3L ]) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass")
       (match Stdlib.Option.Option.Some((1L, 'a')) with
@@ -698,10 +698,10 @@ test optionPatterns =
        | Some((1L, 'a')) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass")
-      (match Stdlib.Option.Option.Some 5.0 with
-       | Some 6.0 -> "fail"
+      (match Stdlib.Option.Option.Some(5.0) with
+       | Some(6.0) -> "fail"
        | None -> "fail"
-       | Some 5.0 -> "pass"
+       | Some(5.0) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass") ])
 
@@ -769,13 +769,13 @@ module TypeErrors =
   // enum with more pattern params than actual args
   test tooManyPatternParamsRaises =
     (match TestType.NoArgs with
-     | NoArgs _ -> "wrong number")
+     | NoArgs(_) -> "wrong number")
     => raises
       "No matching case found for value Darklang.Language.Tests.MatchExpressions.TypeErrors.TestType.NoArgs in match expression"
 
   // enum with fewer pattern params than actual args
   test tooFewPatternParamsRaises =
-    (match TestType.OneArg 1L with
+    (match TestType.OneArg(1L) with
      | OneArg -> "wrong number")
     => raises
       "No matching case found for value Darklang.Language.Tests.MatchExpressions.TypeErrors.TestType.OneArg(1) in match expression"
@@ -783,7 +783,7 @@ module TypeErrors =
   // A single wildcard does not match several fields; (_, _) matches both fields.
   test singleWildcardForTwoFieldsRaises =
     (match TestType.PortedTwoArgs(1L, 2L) with
-     | PortedTwoArgs _ -> "wildcards allowed")
+     | PortedTwoArgs(_) -> "wildcards allowed")
     => raises
       "No matching case found for value Darklang.Language.Tests.MatchExpressions.TypeErrors.TestType.PortedTwoArgs(1, 2) in match expression"
 
@@ -852,9 +852,9 @@ module GuardClause =
          | (x, y) when x > 0L -> true
          | _ -> false)
         |> Stdlib.Test.equal(false)
-        (match Stdlib.Result.Result.Error 5L with
-         | Ok x when x > 2L -> false
-         | Error _ -> true)
+        (match Stdlib.Result.Result.Error(5L) with
+         | Ok(x) when x > 2L -> false
+         | Error(_) -> true)
         |> Stdlib.Test.equal(true) ])
 
   test noArmMatchesRaises =
@@ -924,11 +924,11 @@ module PatternGrouping =
          | (x, "test") | ("test", x) -> x
          | _ -> "fail")
         |> Stdlib.Test.equal(1L)
-        (match (Stdlib.Result.Result.Ok 1L, Stdlib.Result.Result.Error "error") with
-         | (Ok _ , Ok _) -> "pass"
-         | (Error err, Ok _) | (Ok _, Error err)  -> err)
+        (match (Stdlib.Result.Result.Ok(1L), Stdlib.Result.Result.Error("error")) with
+         | (Ok(_) , Ok(_)) -> "pass"
+         | (Error(err), Ok(_)) | (Ok(_), Error(err))  -> err)
         |> Stdlib.Test.equal("error")
-        (match (Stdlib.Result.Result.Error "error", Stdlib.Result.Result.Ok 1L) with
-         | (Ok _ , Ok _) -> "pass"
-         | (Error err, Ok _) | (Ok _, Error err)  -> err)
+        (match (Stdlib.Result.Result.Error("error"), Stdlib.Result.Result.Ok(1L)) with
+         | (Ok(_) , Ok(_)) -> "pass"
+         | (Error(err), Ok(_)) | (Ok(_), Error(err))  -> err)
         |> Stdlib.Test.equal("error") ])

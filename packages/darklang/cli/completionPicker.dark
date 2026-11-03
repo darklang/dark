@@ -52,7 +52,7 @@ let create(promptText: String, items: List<Completion.CompletionItem>): State =
 /// Get the currently selected item's value (what gets inserted)
 let getSelectedValue(state: State): Stdlib.Option.Option<String> =
   match Stdlib.List.getAt(state.items, state.selectedIndex) with
-  | Some item -> Stdlib.Option.Option.Some item.value
+  | Some(item) -> Stdlib.Option.Option.Some(item.value)
   | None -> Stdlib.Option.Option.None
 
 /// Reserve the help row and fit completion items and a scroll indicator above it.
@@ -122,7 +122,7 @@ let viewAtSize(
 
   let itemRows =
     visibleItems
-    |> Stdlib.List.indexedMap(fun visibleIndex item ->
+    |> Stdlib.List.indexedMap(fun(visibleIndex, item) ->
       let isSelected =
         (offset + visibleIndex) == state.selectedIndex
 
@@ -204,22 +204,20 @@ let handleKeyAtSize(
   key: Stdlib.Cli.Stdin.Key.Key)
   : KeyResult =
   if Stdlib.Bool.not(supportsSize(size)) then
-    KeyResult.Unavailable unsupportedSizeMessage
+    KeyResult.Unavailable(unsupportedSizeMessage)
   else
     let capacity = visibleCapacity(state, size)
     match key with
     | UpArrow ->
-      KeyResult.Continue
-        (moveUp(state))
+      KeyResult.Continue(moveUp(state))
     | DownArrow ->
-      KeyResult.Continue
-        (moveDownWithCapacity(capacity, state))
+      KeyResult.Continue(moveDownWithCapacity(capacity, state))
     | Enter ->
       match getSelectedValue(state) with
-      | Some value -> KeyResult.SelectItem value
+      | Some(value) -> KeyResult.SelectItem(value)
       | None -> KeyResult.Cancel
     | Escape -> KeyResult.Cancel
-    | _ -> KeyResult.Continue state
+    | _ -> KeyResult.Continue(state)
 
 /// Build the completed command text from selection
 let buildCompletedCommand(state: State, selection: String): String =
@@ -236,14 +234,13 @@ let startAtSize(
   size: Stdlib.Cli.Tui.Size)
   : Stdlib.Result.Result<Session, String> =
   if Stdlib.Bool.not(supportsSize(size)) then
-    Stdlib.Result.Result.Error unsupportedSizeMessage
+    Stdlib.Result.Result.Error(unsupportedSizeMessage)
   else
     match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, viewAtSize(state, size)) with
-    | Ok terminal ->
-      Stdlib.Result.Result.Ok
-        (Session { state = state, terminal = terminal })
-    | Error message ->
-      Stdlib.Result.Result.Error message
+    | Ok(terminal) ->
+      Stdlib.Result.Result.Ok(Session { state = state, terminal = terminal })
+    | Error(message) ->
+      Stdlib.Result.Result.Error(message)
 
 let presentAtSize(
   session: Session,

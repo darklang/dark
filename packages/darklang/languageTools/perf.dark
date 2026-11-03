@@ -45,8 +45,8 @@ let noCounters(): Counters =
 /// The interpreter's counters as they stand now.
 let counters(): Counters =
   match Stdlib.Json.parse<Counters>(InterpreterStats.get()) with
-  | Ok c -> c
-  | Error _ -> noCounters()
+  | Ok(c) -> c
+  | Error(_) -> noCounters()
 
 
 /// Allocation, time and counters for one thunk, alongside what the thunk returned.

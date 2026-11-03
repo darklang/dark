@@ -224,7 +224,7 @@ let detect(
     // CURRENT hash while yours is whatever came before it.
     let bothMovedTheSameParent(localBinding: Binding): Bool =
       match (inc.previous, localBinding.previous) with
-      | (Some incPrev, Some locPrev) -> (incPrev == locPrev) && (inc.hash != localBinding.hash)
+      | (Some(incPrev), Some(locPrev)) -> (incPrev == locPrev) && (inc.hash != localBinding.hash)
       | _ -> false
 
     // The incoming edit was made ON TOP of what this store holds: its `previous` is the local hash.
@@ -234,7 +234,7 @@ let detect(
     // side, resolved to the version I was about to take anyway.
     let descendsFromLocal(localBinding: Binding): Bool =
       match inc.previous with
-      | Some incPrev -> incPrev == localBinding.hash
+      | Some(incPrev) -> incPrev == localBinding.hash
       | None -> false
 
     // The record, once a rule has fired. <param kind> names WHICH rule, honestly: two people editing
@@ -276,7 +276,7 @@ let detect(
           resolvedBy = "" }
 
     match (Stdlib.Dict.get(localByKey, k), Stdlib.Dict.get(baseByKey, k)) with
-    | (Some loc, None) when
+    | (Some(loc), None) when
       ((bothCreatedFromNothing
         && (loc.previous == Stdlib.Option.Option.None)
         && (inc.hash != loc.hash))
@@ -290,7 +290,7 @@ let detect(
 
       Stdlib.Option.Option.Some(conflictWith(loc, kind))
 
-    | (Some loc, Some baseHash) ->
+    | (Some(loc), Some(baseHash)) ->
       // Lineage first: an edit on top of mine is never a conflict. Then the base test, then the
       // parent test, so a divergence the base cannot see is still caught.
       if descendsFromLocal(loc) then
@@ -326,7 +326,7 @@ let detectRemovals(
     let k = bindingKey(rem.owner, rem.modules, rem.name)
 
     match Stdlib.Dict.get(localByKey, k) with
-    | Some loc when rem.previous != (Stdlib.Option.Option.Some loc.hash) ->
+    | Some(loc) when rem.previous != (Stdlib.Option.Option.Some(loc.hash)) ->
       // The fold settles it by stamp, and a binding beats a removal on an exact tie
       // (`Lww.unbindBeatsBinding` is strict `>`).
       let removalWins = stringGt(rem.originTs, loc.originTs)
@@ -369,7 +369,7 @@ let detectRemovals(
 let inPlaceholders(values: List<String>): String =
   let ps =
     values
-    |> Stdlib.List.indexedMap(fun i _ -> $"@p{Stdlib.toString(i)}")
+    |> Stdlib.List.indexedMap(fun(i, _) -> $"@p{Stdlib.toString(i)}")
 
   Stdlib.String.join(ps, ", ")
 
@@ -380,7 +380,7 @@ let bindingFromRow(row: Dict<String, Stdlib.Sqlite.Value>): Stdlib.Option.Option
      Stdlib.Sqlite.textField(row, "name"),
      Stdlib.Sqlite.textField(row, "item_hash"))
   with
-  | (Some owner, Some modules, Some name, Some hash) ->
+  | (Some(owner), Some(modules), Some(name), Some(hash)) ->
     (Binding
       { owner = owner
         modules = modules
@@ -409,8 +409,8 @@ val inChunkSize = 900
 /// anything, because the size is a constant and the only Error case is a non-positive one.
 let inChunks(values: List<String>): List<List<String>> =
   match Stdlib.List.chunkBySize(values, inChunkSize) with
-  | Ok cs -> cs
-  | Error _ -> [ values ]
+  | Ok(cs) -> cs
+  | Error(_) -> [ values ]
 
 /// What this instance's fold currently binds, restricted to <param names> (the incoming side's bare names),
 /// so a reconciliation never scans the whole `locations` projection. Filtering by bare name is enough of a
@@ -449,7 +449,7 @@ let baseFromRow(row: Dict<String, Stdlib.Sqlite.Value>): Stdlib.Option.Option<Na
      Stdlib.Sqlite.textField(row, "name"),
      Stdlib.Sqlite.textField(row, "base_hash"))
   with
-  | (Some owner, Some modules, Some name, Some baseHash) ->
+  | (Some(owner), Some(modules), Some(name), Some(baseHash)) ->
     (NameBase
       { owner = owner
         modules = modules
@@ -471,11 +471,11 @@ let branchBases(branchId: Uuid): List<NameBase> =
 
 let conflictFromRow(row: Dict<String, Stdlib.Sqlite.Value>): Stdlib.Option.Option<Conflict> =
   match Stdlib.Sqlite.textField(row, "id") with
-  | Some id ->
+  | Some(id) ->
     let candidates =
       match Stdlib.Json.parse<List<Candidate>>(Stdlib.Sqlite.textOr(row, "candidates")) with
-      | Ok cs -> cs
-      | Error _ -> []
+      | Ok(cs) -> cs
+      | Error(_) -> []
 
     (Conflict
       { id = id
@@ -511,7 +511,7 @@ let conflictFromRow(row: Dict<String, Stdlib.Sqlite.Value>): Stdlib.Option.Optio
 /// the back of this: a caller compares the count against what it handed in and warns when they differ.
 let record(branchId: Uuid, conflicts: List<Conflict>): Int =
   conflicts
-  |> Stdlib.List.fold(0, fun written c ->
+  |> Stdlib.List.fold(0, fun(written, c) ->
     match
       Stdlib.Sqlite.execBatch(
         localDb(),
@@ -533,8 +533,8 @@ let record(branchId: Uuid, conflicts: List<Conflict>): Int =
           ("UPDATE conflicts SET branch_id = @p0 WHERE id = @p1 AND status = 'pending'",
            [ [ Stdlib.toString(branchId), c.id ] ]) ])
     with
-    | Ok _ -> written + 1
-    | Error _ -> written)
+    | Ok(_) -> written + 1
+    | Error(_) -> written)
 
 /// Settle a wording disagreement by SAYING the chosen text, and close the record.
 ///
@@ -548,8 +548,8 @@ let settleWording(
   text: String)
   : Stdlib.Result.Result<Unit, String> =
   match LanguageTools.ProgramTypes.DocPart.fromKey(c.part) with
-  | None -> Stdlib.Result.Result.Error $"#{c.id} names a part this build cannot read: {c.part}"
-  | Some part ->
+  | None -> Stdlib.Result.Result.Error($"#{c.id} names a part this build cannot read: {c.part}")
+  | Some(part) ->
     let location =
       LanguageTools.ProgramTypes.PackageLocation
         { owner = c.owner
@@ -575,10 +575,10 @@ let settleWording(
       )
 
     match SCM.PackageOps.add(branchId, [ op ]) with
-    | Ok _ ->
+    | Ok(_) ->
       setStatus(c.id, "overridden", "")
       Stdlib.Result.Result.Ok()
-    | Error e -> Stdlib.Result.Result.Error e
+    | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Is this conflict about WHICH VERSION a name holds?
@@ -630,7 +630,7 @@ let pending(): List<Conflict> =
       true
     else
       match Stdlib.Dict.get(liveByName, bindingKey(c.owner, c.modules, c.name)) with
-      | Some live ->
+      | Some(live) ->
         let stillACandidate =
           c.candidates |> Stdlib.List.any(fun cand -> cand.hash == live.hash)
 
@@ -680,7 +680,7 @@ let getByIdPrefix(rawPrefix: String): Stdlib.Option.Option<Conflict> =
        LIMIT 1",
       [ idPrefix, Stdlib.toString(onBranch()) ])
   with
-  | Ok [ row ] -> conflictFromRow(row)
+  | Ok([ row ]) -> conflictFromRow(row)
   | _ -> Stdlib.Option.Option.None
 
 /// Close a conflict: 'acked' (the auto-pick stands) or 'overridden' (a resolution op took over).
@@ -708,7 +708,7 @@ let candidateFor(c: Conflict, side: String): Stdlib.Option.Option<Candidate> =
 let summaryLine(c: Conflict): String =
   let kept =
     match candidateFor(c, "local") with
-    | Some local -> if local.hash == c.autoResolvedTo then "kept yours" else "took theirs"
+    | Some(local) -> if local.hash == c.autoResolvedTo then "kept yours" else "took theirs"
     | None -> "auto"
 
   let dotted = fqn(c.owner, c.modules, c.name)

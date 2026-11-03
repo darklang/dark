@@ -80,18 +80,18 @@ let distributeRows(totalRows: Int, requests: List<SizeRequest>): List<Int> =
   else
     // First pass: give everyone their minimum
     let mins = Stdlib.List.map(requests, fun r -> r.minRows)
-    let totalMin = Stdlib.List.fold(mins, 0, fun acc n -> acc + n)
+    let totalMin = Stdlib.List.fold(mins, 0, fun(acc, n) -> acc + n)
     let remaining = Stdlib.max(0, totalRows - totalMin)
     // Second pass: distribute remaining toward preferred, proportionally
     let wants =
       Stdlib.List.map(requests, fun r ->
         Stdlib.max(0, r.preferredRows - r.minRows))
-    let totalWant = Stdlib.List.fold(wants, 0, fun acc n -> acc + n)
+    let totalWant = Stdlib.List.fold(wants, 0, fun(acc, n) -> acc + n)
     if totalWant == 0 then
       mins
     else
       // Give each component its min + share of remaining proportional to want
-      (Stdlib.List.map2(mins, wants, fun minR want ->
+      (Stdlib.List.map2(mins, wants, fun(minR, want) ->
         let share =
           if totalWant > 0 then
             (want * remaining) / totalWant
@@ -110,7 +110,7 @@ let vstack(region: Region, components: List<Component>): List<Span> =
   let rowAllocs = distributeRows(region.rows, requests)
   // Assign regions and render
   let pairs =
-    (Stdlib.List.map2(components, rowAllocs, fun c rows ->
+    (Stdlib.List.map2(components, rowAllocs, fun(c, rows) ->
       (c, rows)))
     |> Stdlib.Result.withDefault([])
   // Collected as a list of lists and flattened once, rather than appended into an accumulator per
@@ -119,7 +119,7 @@ let vstack(region: Region, components: List<Component>): List<Span> =
   // each one.
   let (_finalTop, chunks) =
     pairs
-    |> Stdlib.List.fold((region.top, []), fun acc pair ->
+    |> Stdlib.List.fold((region.top, []), fun(acc, pair) ->
       let (currentTop, collected) = acc
       let (c, rows) = pair
       let childRegion =
@@ -164,16 +164,16 @@ let distributeCols(totalCols: Int, requests: List<SizeRequest>): List<Int> =
     []
   else
     let mins = Stdlib.List.map(requests, fun r -> r.minCols)
-    let totalMin = Stdlib.List.fold(mins, 0, fun acc n -> acc + n)
+    let totalMin = Stdlib.List.fold(mins, 0, fun(acc, n) -> acc + n)
     let remaining = Stdlib.max(0, totalCols - totalMin)
     let wants =
       Stdlib.List.map(requests, fun r ->
         Stdlib.max(0, r.preferredCols - r.minCols))
-    let totalWant = Stdlib.List.fold(wants, 0, fun acc n -> acc + n)
+    let totalWant = Stdlib.List.fold(wants, 0, fun(acc, n) -> acc + n)
     if totalWant == 0 then
       mins
     else
-      (Stdlib.List.map2(mins, wants, fun minC want ->
+      (Stdlib.List.map2(mins, wants, fun(minC, want) ->
         let share =
           if totalWant > 0 then
             (want * remaining) / totalWant
@@ -189,12 +189,12 @@ let hstack(region: Region, components: List<Component>): List<Span> =
   let requests = Stdlib.List.map(components, fun c -> c.sizeRequest())
   let colAllocs = distributeCols(region.cols, requests)
   let pairs =
-    (Stdlib.List.map2(components, colAllocs, fun c cols -> (c, cols)))
+    (Stdlib.List.map2(components, colAllocs, fun(c, cols) -> (c, cols)))
     |> Stdlib.Result.withDefault([])
   // Same as `vstack`: collect and flatten once rather than copying the accumulator per child.
   let (_finalLeft, chunks) =
     pairs
-    |> Stdlib.List.fold((region.left, []), fun acc pair ->
+    |> Stdlib.List.fold((region.left, []), fun(acc, pair) ->
       let (currentLeft, collected) = acc
       let (c, cols) = pair
       let childRegion =

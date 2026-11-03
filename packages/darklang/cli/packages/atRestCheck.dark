@@ -25,7 +25,7 @@ let customTypeName(
          PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
 
   match nameAt(LanguageTools.PackageManager.Type.locations(branchId, hash)) with
-  | Some name -> Stdlib.Option.Option.Some name
+  | Some(name) -> Stdlib.Option.Option.Some(name)
   | None -> nameAt(LanguageTools.PackageManager.Trait.locations(branchId, hash))
 
 let staticType(
@@ -86,7 +86,7 @@ let issueLines(
   |> deduplicate
   |> Stdlib.List.map(fun issue -> issueLine(branchId, issue))
   |> Stdlib.List.groupBy(fun line -> line)
-  |> Stdlib.List.map(fun (line, occurrences) ->
+  |> Stdlib.List.map(fun((line, occurrences)) ->
     let count = Stdlib.List.length(occurrences)
     if count == 1 then line
     else line + " (" + Stdlib.toString(count) + " occurrences)")
@@ -96,8 +96,8 @@ let summary(
   : Stdlib.Option.Option<String> =
   match report.verdict with
   | Checked -> Stdlib.Option.Option.None
-  | Failed -> Stdlib.Option.Option.Some "static type errors detected"
-  | Incomplete -> Stdlib.Option.Option.Some "static check incomplete"
+  | Failed -> Stdlib.Option.Option.Some("static type errors detected")
+  | Incomplete -> Stdlib.Option.Option.Some("static check incomplete")
 
 /// Report a saved WIP batch. Findings do not stop the save; `commit` enforces
 /// definite errors.
@@ -152,19 +152,19 @@ let scriptReport(
     else
       let (kind, locations) =
         match item.item with
-        | PackageType hash -> ("Type", LanguageTools.PackageManager.Type.locations(branchId, hash))
-        | PackageValue hash -> ("Value", LanguageTools.PackageManager.Value.locations(branchId, hash))
-        | PackageFn hash -> ("Function", LanguageTools.PackageManager.Function.locations(branchId, hash))
+        | PackageType(hash) -> ("Type", LanguageTools.PackageManager.Type.locations(branchId, hash))
+        | PackageValue(hash) -> ("Value", LanguageTools.PackageManager.Value.locations(branchId, hash))
+        | PackageFn(hash) -> ("Function", LanguageTools.PackageManager.Function.locations(branchId, hash))
         // Six item kinds, and a report that handled three. `dark typecheck` named this one.
-        | PackageTrait hash ->
+        | PackageTrait(hash) ->
           ("Trait", LanguageTools.PackageManager.Trait.locations(branchId, hash))
-        | PackageTraitImpl hash ->
+        | PackageTraitImpl(hash) ->
           ("Implementation",
            LanguageTools.PackageManager.TraitImpl.locations(branchId, hash))
-        | PackageTest hash -> ("Test", LanguageTools.PackageManager.Test.locations(branchId, hash))
+        | PackageTest(hash) -> ("Test", LanguageTools.PackageManager.Test.locations(branchId, hash))
       let label =
         match sourceName(locations) with
-        | Some name -> kind + " " + name
+        | Some(name) -> kind + " " + name
         | None -> "Top-level expression"
       let issues =
         deduplicate(item.diagnostics)

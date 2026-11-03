@@ -7,11 +7,11 @@ let seconds(s: String): Stdlib.Result.Result<Int, Stdlib.Duration.ParseError> =
 // --- units ---
 test parseUnits =
   Stdlib.Test.all(
-    [ seconds("30s") |> Stdlib.Test.equal(Ok 30)
-      seconds("5m") |> Stdlib.Test.equal(Ok 300)
-      seconds("1h") |> Stdlib.Test.equal(Ok 3600)
-      seconds("2d") |> Stdlib.Test.equal(Ok 172800)
-      seconds("0s") |> Stdlib.Test.equal(Ok 0) ])
+    [ seconds("30s") |> Stdlib.Test.equal(Ok(30))
+      seconds("5m") |> Stdlib.Test.equal(Ok(300))
+      seconds("1h") |> Stdlib.Test.equal(Ok(3600))
+      seconds("2d") |> Stdlib.Test.equal(Ok(172800))
+      seconds("0s") |> Stdlib.Test.equal(Ok(0)) ])
 
 test parseReturnsDuration =
   Stdlib.Duration.parse("5m")
@@ -19,39 +19,39 @@ test parseReturnsDuration =
 
 test parseNegative =
   Stdlib.Test.all(
-    [ seconds("-30s") |> Stdlib.Test.equal(Ok -30)
-      seconds("-5m") |> Stdlib.Test.equal(Ok -300)
-      seconds("-2d") |> Stdlib.Test.equal(Ok -172800) ])
+    [ seconds("-30s") |> Stdlib.Test.equal(Ok(-30))
+      seconds("-5m") |> Stdlib.Test.equal(Ok(-300))
+      seconds("-2d") |> Stdlib.Test.equal(Ok(-172800)) ])
 
 // Durations can be larger than Int64 allows.
 test parseBeyondInt64 =
   seconds("9223372036854775808s")
-  |> Stdlib.Test.equal(Ok 9223372036854775808)
+  |> Stdlib.Test.equal(Ok(9223372036854775808))
 
 // --- errors ---
 test parseRejectsMissingUnit =
   Stdlib.Test.all(
     [ Stdlib.Duration.parse("5")
-      |> Stdlib.Test.equal(Error Stdlib.Duration.ParseError.MissingUnit)
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.MissingUnit))
       Stdlib.Duration.parse("-5")
-      |> Stdlib.Test.equal(Error Stdlib.Duration.ParseError.MissingUnit)
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.MissingUnit))
       Stdlib.Duration.parse("")
-      |> Stdlib.Test.equal(Error Stdlib.Duration.ParseError.MissingUnit) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.MissingUnit)) ])
 
 test parseRejectsInvalidNumber =
   Stdlib.Test.all(
     [ Stdlib.Duration.parse("xm")
-      |> Stdlib.Test.equal(Error Stdlib.Duration.ParseError.InvalidNumber)
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.InvalidNumber))
       Stdlib.Duration.parse("s")
-      |> Stdlib.Test.equal(Error Stdlib.Duration.ParseError.InvalidNumber)
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.InvalidNumber))
       Stdlib.Duration.parse("1.5h")
-      |> Stdlib.Test.equal(Error Stdlib.Duration.ParseError.InvalidNumber) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.InvalidNumber)) ])
 
 test parseRejectsUnknownUnit =
   Stdlib.Test.all(
     [ Stdlib.Duration.parse("5x")
-      |> Stdlib.Test.equal(Error Stdlib.Duration.ParseError.UnknownUnit)
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.UnknownUnit))
       Stdlib.Duration.parse("5ms")
-      |> Stdlib.Test.equal(Error Stdlib.Duration.ParseError.UnknownUnit)
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.UnknownUnit))
       Stdlib.Duration.parse("5s5")
-      |> Stdlib.Test.equal(Error Stdlib.Duration.ParseError.UnknownUnit) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.UnknownUnit)) ])

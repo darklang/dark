@@ -207,7 +207,7 @@ let preparePresentAtSize(
   let next = normalizeView(size, next)
   let surfaceChanged = changesSurface(state.status, next.mode)
   let sizeChanged =
-    state.terminalSize != Stdlib.Option.Option.Some size
+    state.terminalSize != Stdlib.Option.Option.Some(size)
 
   let frameOutput =
     match next.mode with
@@ -240,8 +240,8 @@ let preparePresentAtSize(
     state =
       State {
         status = statusForMode(next.mode)
-        previousView = Stdlib.Option.Option.Some next
-        terminalSize = Stdlib.Option.Option.Some size
+        previousView = Stdlib.Option.Option.Some(next)
+        terminalSize = Stdlib.Option.Option.Some(size)
       }
     output = output
   }
@@ -303,7 +303,7 @@ let startAtSize(
   | Available ->
     presentAtSize(init(), size, next)
     |> Stdlib.Result.Result.Ok
-  | Unavailable reason ->
+  | Unavailable(reason) ->
     reason
     |> TerminalSupport.unavailableMessage
     |> Stdlib.Result.Result.Error
@@ -315,7 +315,7 @@ let start(next: Tui.View): Stdlib.Result.Result<State, String> =
   | Available ->
     present(init(), next)
     |> Stdlib.Result.Result.Ok
-  | Unavailable reason ->
+  | Unavailable(reason) ->
     reason
     |> TerminalSupport.unavailableMessage
     |> Stdlib.Result.Result.Error
@@ -332,8 +332,8 @@ let start(next: Tui.View): Stdlib.Result.Result<State, String> =
 let resumed(viewFor: Tui.Size -> Tui.View): State =
   let size = currentSize()
   match startAtSize(size, viewFor(size)) with
-  | Ok session -> session
-  | Error _ -> init()
+  | Ok(session) -> session
+  | Error(_) -> init()
 
 
 /// Prepare normal terminal restoration and reset the session.
@@ -379,7 +379,7 @@ let prepareStopInlineWithView(
   | RunningInline ->
     let (width, final) =
       match state.terminalSize with
-      | Some size -> (Stdlib.max(1, size.width), normalizeView(size, final))
+      | Some(size) -> (Stdlib.max(1, size.width), normalizeView(size, final))
       | None ->
         // Unreachable: a running session always recorded a size. Sampling beats the old `1`, which would
         // have clipped every row to a single column, so the defensive path degrades to "maybe a stale

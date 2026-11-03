@@ -84,7 +84,7 @@ test canvasUntouchedRowsAreEmpty =
   let rows = Darklang.Stdlib.Cli.UI.Canvas.compose(10, 3, spans)
 
   match Stdlib.List.getAt(rows, 1) with
-  | Some second ->
+  | Some(second) ->
     // Rows nobody painted stay empty so they compare equal frame to frame and cost no redraw.
     if second == "" && Stdlib.List.length(rows) == 3 then
       Stdlib.Test.Result.Pass
@@ -194,7 +194,7 @@ let inlineView(rows: List<String>): Stdlib.Cli.Tui.View =
 test inlineFrameEmitsNothingWhenUnchanged =
   let view = inlineView([ "a", "b" ])
   let output =
-    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(20, Stdlib.Option.Option.Some view, view)
+    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(20, Stdlib.Option.Option.Some(view), view)
 
   // An unchanged frame must write literally nothing, or an idle prompt would still churn the terminal.
   if output == "" then
@@ -207,7 +207,7 @@ test inlineFrameMovesRelativeToPreviousCursor =
   let previous = inlineView([ "a", "b" ])
   let next = inlineView([ "a", "B" ])
   let output =
-    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(20, Stdlib.Option.Option.Some previous, next)
+    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(20, Stdlib.Option.Option.Some(previous), next)
 
   // Only the changed row is rewritten, and it's addressed by moving from where the last frame left the
   // cursor rather than by absolute position, because inline rows travel with scrollback.
@@ -317,7 +317,7 @@ let rendersMatterLens(lens: Darklang.Cli.Workbench.Lens): Bool =
 /// and render.
 let rendersMatterItemPage(path: List<String>): Bool =
   let base = workbenchState()
-  let loc = Packages.PackageLocation.Module path
+  let loc = Packages.PackageLocation.Module(path)
   let items = Darklang.Cli.Workbench.loadItems(Darklang.SCM.Branch.mainBranchId, loc)
 
   // A path with no leaves would render the empty case and prove nothing, so say so rather than pass.
@@ -424,8 +424,8 @@ test workbenchDiffLinesRenderThroughPipe =
   // the same shape as the Home WIP preview so argument-order regressions fail
   // here instead of when the interactive workbench opens an edit.
   let rendered =
-    [ Stdlib.Diff.DiffLine.Added "let added = 1"
-      Stdlib.Diff.DiffLine.Removed "let removed = 2" ]
+    [ Stdlib.Diff.DiffLine.Added("let added = 1")
+      Stdlib.Diff.DiffLine.Removed("let removed = 2") ]
     |> Darklang.Cli.Workbench.renderDiffLines(workbenchState())
   let plain =
     rendered
@@ -446,7 +446,7 @@ test workbenchModuleInspectPreviewsChildren =
   // module under `Darklang` that itself holds a child module. It used to be `LspExtension` and
   // `FileSystemProvider`, which moved to `later/` with the Language Server.
   let location =
-    Darklang.Cli.Packages.PackageLocation.Module [ "Darklang" ]
+    Darklang.Cli.Packages.PackageLocation.Module([ "Darklang" ])
   let items =
     Darklang.Cli.Workbench.loadItems(
       Darklang.SCM.Branch.mainBranchId,
@@ -478,7 +478,7 @@ test workbenchModuleInspectPreviewsChildren =
 /// The item page is built once per selection and drawn from `preview` after that: a scroll
 /// draws the page it already has, and a move to the next item builds a new one.
 test workbenchPageBuiltOncePerSelection =
-  let location = Darklang.Cli.Packages.PackageLocation.Module [ "Darklang", "Stdlib", "List" ]
+  let location = Darklang.Cli.Packages.PackageLocation.Module([ "Darklang", "Stdlib", "List" ])
   let start = workbenchState()
   let items = Darklang.Cli.Workbench.loadItems(Darklang.SCM.Branch.mainBranchId, location)
   let selected =
@@ -524,7 +524,7 @@ test workbenchPageFollowsYourSave =
           buf = Stdlib.Cli.UI.Editor.fromText(src)
           err = "" }
     match Darklang.Cli.Workbench.saveEditing(state, editing) with
-    | Continue next -> Darklang.Cli.Workbench.refresh(state, next)
+    | Continue(next) -> Darklang.Cli.Workbench.refresh(state, next)
     | _ -> state
   let page(state: Darklang.Cli.Workbench.State): String =
     Darklang.Cli.Workbench.previewLines(state)
@@ -548,8 +548,8 @@ test workbenchPageFollowsYourSave =
 
 test workbenchRunTestsAreLastInInspect =
   let location =
-    Darklang.Cli.Packages.PackageLocation.Module
-      [ "Darklang", "Stdlib", "Float" ]
+    Darklang.Cli.Packages.PackageLocation.Module(
+      [ "Darklang", "Stdlib", "Float" ])
   let items =
     Darklang.Cli.Workbench.loadItems(
       Darklang.SCM.Branch.mainBranchId,
@@ -610,13 +610,13 @@ let wbPress(
   : WbResult =
   let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = false, shift = false }
   match Darklang.Cli.Workbench.handleKey(state, key, mods, keyChar) with
-  | Continue s -> WbResult { state = s, action = WbAction.Continued }
-  | Exit s -> WbResult { state = s, action = WbAction.Exited }
-  | Launch(s, cmd) -> WbResult { state = s, action = WbAction.Launched cmd }
+  | Continue(s) -> WbResult { state = s, action = WbAction.Continued }
+  | Exit(s) -> WbResult { state = s, action = WbAction.Exited }
+  | Launch(s, cmd) -> WbResult { state = s, action = WbAction.Launched(cmd) }
 
 /// A printable key.
 let wbChar(state: Darklang.Cli.Workbench.State, c: String): WbResult =
-  wbPress(state, Stdlib.Cli.Stdin.Key.Key.NoName, Stdlib.Option.Option.Some c)
+  wbPress(state, Stdlib.Cli.Stdin.Key.Key.NoName, Stdlib.Option.Option.Some(c))
 
 let wbKey(
   state: Darklang.Cli.Workbench.State,
@@ -635,7 +635,7 @@ let wbMoveNavbarTo(
   let rows = Darklang.Cli.Workbench.navbarRows(state, 0, 0)
   match Stdlib.List.findFirstIndex(rows, matches) with
   | None -> state
-  | Some target ->
+  | Some(target) ->
     let delta = target - state.navbarSel
     let steps = if delta < 0 then 0 - delta else delta
     let strip = Darklang.Cli.Workbench.navFitsNow()
@@ -650,7 +650,7 @@ let wbMoveNavbarTo(
       state
     else
       Stdlib.List.range(1, steps)
-      |> Stdlib.List.fold(state, fun s _ -> (wbKey(s, key)).state)
+      |> Stdlib.List.fold(state, fun(s, _) -> (wbKey(s, key)).state)
 
 let wbMoveNavbarToDest(
   state: Darklang.Cli.Workbench.State,
@@ -665,7 +665,7 @@ let wbNavbarSelectionIsDest(
   : Bool =
   let rows = Darklang.Cli.Workbench.navbarRows(state, 0, 0)
   match Stdlib.List.getAt(rows, state.navbarSel) with
-  | Some row -> row.dest == dest
+  | Some(row) -> row.dest == dest
   | None -> false
 
 
@@ -832,7 +832,7 @@ test replInjectsBindingChain =
 test replUncapturedRebindMovesLast =
   // An uncaptured binding holds an EXPRESSION, so it must sit after anything it references. Rebinding it in
   // place produced `let a = d` above `let d = ...`, which left `d` undefined and wedged the session.
-  let mk = (fun n s c -> Darklang.Cli.Repl.Binding { name = n, source = s, value = s, captured = c })
+  let mk = (fun(n, s, c) -> Darklang.Cli.Repl.Binding { name = n, source = s, value = s, captured = c })
   let after =
     Darklang.Cli.Repl.upsert(
       [ mk("a", "1", true), mk("d", "Stdlib.DateTime.now()", false) ],
@@ -861,7 +861,7 @@ test replRebindKeepsPosition =
 test replReadsCapturedValue =
   // `captureValue` reports through a tagged string; anything that isn't an `ok:` means "hold the expression
   // instead", including an empty result.
-  if (Darklang.Cli.Repl.readCaptured("ok:[1L, 2L]") == Stdlib.Option.Option.Some "[1L, 2L]")
+  if (Darklang.Cli.Repl.readCaptured("ok:[1L, 2L]") == Stdlib.Option.Option.Some("[1L, 2L]"))
      && (Darklang.Cli.Repl.readCaptured("err:no literal") == Stdlib.Option.Option.None)
      && (Darklang.Cli.Repl.readCaptured("") == Stdlib.Option.Option.None) then
     Stdlib.Test.Result.Pass
@@ -904,7 +904,7 @@ test replCapturesRealValues =
       // An enum renders under a shortened package name, so `Option.Some(1)`. That and the
       // fully-qualified spelling both parse back to the same value, which is what matters here: the
       // property is that the output is source you could paste in, not that it is spelled one way.
-      (Darklang.Cli.Repl.captureValue(branch, Stdlib.Option.Option.Some 1),
+      (Darklang.Cli.Repl.captureValue(branch, Stdlib.Option.Option.Some(1)),
        "ok:Option.Some(1)") ]
   let wrong =
     cases
@@ -1031,7 +1031,7 @@ test workbenchHomeOverview =
     Darklang.Cli.Workbench.activeDest(opened(kind))
   let opensReader(kind: String): Bool =
     match (opened(kind)).reading with
-    | Some _ -> true
+    | Some(_) -> true
     | None -> false
   let checks =
     [ (Stdlib.String.contains(plain, longTitle), "Home uses the full width for a commit")
@@ -1051,6 +1051,6 @@ test workbenchHomeOverview =
   let failures =
     checks |> Stdlib.List.filterMap(fun check ->
       let (ok, label) = check
-      if ok then Stdlib.Option.Option.None else Stdlib.Option.Option.Some label)
+      if ok then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(label))
   if Stdlib.List.isEmpty(failures) then Stdlib.Test.Result.Pass
   else Stdlib.Test.fail(Stdlib.String.join(failures, "; "))

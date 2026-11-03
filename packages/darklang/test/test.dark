@@ -13,15 +13,15 @@ let returnsInt(): Int = 5
 let returnsString(): String = "string"
 
 let returnsOptionSome(): Stdlib.Option.Option<Int> =
-  Stdlib.Option.Option.Some 5
+  Stdlib.Option.Option.Some(5)
 
 let returnsOptionNone(): Stdlib.Option.Option<'a> = Stdlib.Option.Option.None
 
 let returnsResultOk(): Stdlib.Result.Result<Int, String> =
-  Stdlib.Result.Result.Ok 5
+  Stdlib.Result.Result.Ok(5)
 
 let returnsResultError(): Stdlib.Result.Result<Char, Bool> =
-  Stdlib.Result.Result.Error false
+  Stdlib.Result.Result.Error(false)
 
 let throwsException(): DateTime =
   Builtin.testRaiseException("throwsException message")
@@ -55,7 +55,7 @@ module Values =
   val tupleValue = (1L, 2L, 3L)
   val charValue = 'c'
   val unitValue = ()
-  val enumValue = Stdlib.Option.Option.Some 5L
+  val enumValue = Stdlib.Option.Option.Some(5L)
   val listValue = [ 1L, 2L, 3L ]
   val dictValue = Dict { "a": 1L, "b": 2L, "c": 3L }
   val recordValue = Stdlib.Cli.Host.Host {

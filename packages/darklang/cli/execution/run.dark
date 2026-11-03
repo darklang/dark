@@ -6,14 +6,14 @@ let exitCode(
   value: LanguageTools.RuntimeTypes.Dval)
   : Stdlib.Result.Result<Int, ExecutionError.ExecutionError> =
   match value with
-  | DUnit -> Ok 0
-  | DInt code -> Ok code
-  | DInt64 code -> Ok (Stdlib.Int.fromInt64(code))
+  | DUnit -> Ok(0)
+  | DInt(code) -> Ok(code)
+  | DInt64(code) -> Ok(Stdlib.Int.fromInt64(code))
   | _ ->
-    Error (
+    Error(
       ExecutionError.ExecutionError.Runtime(
-        LanguageTools.RuntimeTypes.RuntimeError.Error.CLI (
-          LanguageTools.RuntimeTypes.RuntimeError.CLIs.Error.NonIntReturned value),
+        LanguageTools.RuntimeTypes.RuntimeError.Error.CLI(
+          LanguageTools.RuntimeTypes.RuntimeError.CLIs.Error.NonIntReturned(value)),
         []))
 
 
@@ -45,8 +45,8 @@ let parseAndExecute(
   match result with
   | Ok((value, warnings)) ->
     let code = (exitCode(value))?
-    Ok ((code, warnings))
-  | Error error -> Error error
+    Ok((code, warnings))
+  | Error(error) -> Error(error)
 
 
 /// Format permission warnings for the terminal; return [] when there are none.
@@ -61,7 +61,7 @@ let permissionWarningLines(
       |> Stdlib.List.map(fun v ->
         let (resource, needed, via) = v
         match via with
-        | Some fn -> $"  - {resource}: {needed} (in {fn})"
+        | Some(fn) -> $"  - {resource}: {needed} (in {fn})"
         | None -> $"  - {resource}: {needed}")
     Stdlib.List.prepend(
       entries,
@@ -81,7 +81,7 @@ let execute(state: AppState, args: List<String>): AppState =
   let asksForHelp =
     Stdlib.List.contains(options, "--help")
     || Stdlib.List.contains(options, "-h")
-    || (Stdlib.List.head(args) == Stdlib.Option.Option.Some "help")
+    || (Stdlib.List.head(args) == Stdlib.Option.Option.Some("help"))
   if asksForHelp then
     Registry.executeCommandHelp("run-script", state)
   else
@@ -136,7 +136,7 @@ let executeScript(
   options: Darklang.Tracing.ScriptOptions)
   : AppState =
   match Stdlib.Cli.FileSystem.readFile(scriptPath) with
-  | Error e ->
+  | Error(e) ->
     match e with
     | NotFound ->
       if looksLikePackageName(scriptPath) then
@@ -149,11 +149,11 @@ let executeScript(
       else
         Stdlib.printErrorLine($"Script not found: {scriptPath}")
     | OsAccessDenied -> Stdlib.printErrorLine($"Permission denied: {scriptPath}")
-    | Other msg -> Stdlib.printErrorLine($"Could not read script {scriptPath}: {msg}")
+    | Other(msg) -> Stdlib.printErrorLine($"Could not read script {scriptPath}: {msg}")
     // Every branch above printed a reason the script did not run, so this is a failure. Saying
     // so in the exit code is the only part a script or an agent can read.
     { state with exitCode = 1 }
-  | Ok script ->
+  | Ok(script) ->
     let scriptSourceCode = Stdlib.Utf8.decodeWithReplacement(script)
     runScript(
       state,
@@ -202,16 +202,16 @@ let runScript(
     else
       Stdlib.printErrorLine($"Script exited with code {Stdlib.toString(exitCode)}")
       { state with exitCode = exitCode }
-  | Error(Denied denied) ->
+  | Error(Denied(denied)) ->
     let canAsk =
       offerApproval
       && Stdlib.Bool.not(options.sandbox)
       && Stdlib.Bool.not(options.warnPermissions)
       && Stdlib.Cli.UI.Prompt.canAsk()
     match denied.rule with
-    | Some rule when canAsk ->
+    | Some(rule) when canAsk ->
       match LanguageTools.Permissions.parseRuleText(rule) with
-      | Some rules ->
+      | Some(rules) ->
         Stdlib.printErrorLine(
           (Stdlib.Cli.UI.Colors.warning(
             $"The script stopped: the instance policy does not allow {denied.resource}. Earlier effects may already have happened.")))
@@ -224,10 +224,10 @@ let runScript(
           Stdlib.printErrorLine("Permission saved. The script has not restarted; rerun it explicitly when ready.")
           { state with exitCode = 1 }
         else
-          printScriptError(state, ExecutionError.ExecutionError.Denied denied)
-      | None -> printScriptError(state, ExecutionError.ExecutionError.Denied denied)
-    | _ -> printScriptError(state, ExecutionError.ExecutionError.Denied denied)
-  | Error e -> printScriptError(state, e)
+          printScriptError(state, ExecutionError.ExecutionError.Denied(denied))
+      | None -> printScriptError(state, ExecutionError.ExecutionError.Denied(denied))
+    | _ -> printScriptError(state, ExecutionError.ExecutionError.Denied(denied))
+  | Error(e) -> printScriptError(state, e)
 
 
 let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =

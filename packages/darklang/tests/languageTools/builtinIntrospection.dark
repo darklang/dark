@@ -41,7 +41,7 @@ module Lookup =
         |> Stdlib.Test.equal(None)
         (Stdlib.List.all(Darklang.LanguageTools.allBuiltinValues(), fun value ->
           Darklang.LanguageTools.findBuiltinValue(value.name.name, value.name.version)
-          == Some value))
+          == Some(value)))
         |> Stdlib.Test.equal(true)
         (Darklang.LanguageTools.findBuiltinValue("notARegisteredBuiltin", 0l))
         |> Stdlib.Test.equal(None) ])

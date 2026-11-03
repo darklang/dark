@@ -60,11 +60,11 @@ let addOption(acc: Parsed, name: String, value: String): Parsed =
 
 
 let addUnknown(acc: Parsed, token: String): Parsed =
-  { acc with errors = Stdlib.List.append(acc.errors, ParseError.UnknownFlag token) }
+  { acc with errors = Stdlib.List.append(acc.errors, ParseError.UnknownFlag(token)) }
 
 
 let addMissingValue(acc: Parsed, token: String): Parsed =
-  { acc with errors = Stdlib.List.append(acc.errors, ParseError.MissingValue token) }
+  { acc with errors = Stdlib.List.append(acc.errors, ParseError.MissingValue(token)) }
 
 
 let parseLoop(spec: Spec, acc: Parsed, remaining: List<String>): Parsed =
@@ -73,13 +73,13 @@ let parseLoop(spec: Spec, acc: Parsed, remaining: List<String>): Parsed =
 
   | [token, ...rest] ->
     match canonicalFor(spec.valueFlags, token) with
-    | Some name ->
+    | Some(name) ->
       match rest with
       | [value, ...tail] -> parseLoop(spec, addOption(acc, name, value), tail)
       | [] -> parseLoop(spec, addMissingValue(acc, token), rest)
     | None ->
       match canonicalFor(spec.flags, token) with
-      | Some name -> parseLoop(spec, addFlag(acc, name), rest)
+      | Some(name) -> parseLoop(spec, addFlag(acc, name), rest)
       | None ->
         if isFlagLike(token) then
           parseLoop(spec, addUnknown(acc, token), rest)
@@ -117,8 +117,8 @@ let getOptionOr(p: Parsed, name: String, default_: String): String =
 
 let parseErrorMessage(err: ParseError): String =
   match err with
-  | UnknownFlag token -> $"Error: unknown flag: {token}"
-  | MissingValue token -> $"Error: {token} requires a value"
+  | UnknownFlag(token) -> $"Error: unknown flag: {token}"
+  | MissingValue(token) -> $"Error: {token} requires a value"
 
 
 let parseErrorsMessage(errors: List<ParseError>): String =

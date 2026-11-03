@@ -44,7 +44,7 @@ let createTraitInline(
   state: Cli.AppState)
   : Cli.AppState =
   match Location.parseRelativeTo(currentLocation, locationStr) with
-  | Ok location ->
+  | Ok(location) ->
     let trimmedDefinition = Stdlib.String.trim(definition)
     let fullSource =
       if
@@ -59,7 +59,7 @@ let createTraitInline(
       LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
 
     match tree with
-    | Some(SourceFile sourceFile) ->
+    | Some(SourceFile(sourceFile)) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
         (Errors.reportParseErrors(diagnostics))
@@ -69,11 +69,11 @@ let createTraitInline(
           Stdlib.Option.Option.None
         else
           match sourceFile.declarations with
-          | [ Trait t ] -> Stdlib.Option.Option.Some t
+          | [ Trait(t) ] -> Stdlib.Option.Option.Some(t)
           | _ -> Stdlib.Option.Option.None
 
       match parsed with
-      | Some t when t.name.name != location.name ->
+      | Some(t) when t.name.name != location.name ->
         let actual = t.name.name
         Cli.printErr($"Trait name `{actual}` does not match target `{location.name}`")
         Stdlib.printErrorLine(
@@ -81,7 +81,7 @@ let createTraitInline(
             $"Rename it to `trait {location.name}<...> = ...`, or change the target.")))
         { state with exitCode = 1 }
 
-      | Some t ->
+      | Some(t) ->
         let failState = { state with exitCode = 1 }
 
         Packages.saveAuthored(
@@ -116,7 +116,7 @@ let createTraitInline(
         ""
       ] |> Cli.Stderr.lines
       { state with exitCode = 1 }
-  | Error msg ->
+  | Error(msg) ->
     Cli.printErr($"Invalid location: {msg}")
     { state with exitCode = 1 }
 

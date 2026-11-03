@@ -62,10 +62,10 @@ let addAuthored(
     match unevaluatedValuesBoundBy(branchId, stabilizedOps) with
     | [] ->
       match added with
-      | Ok _ ->
+      | Ok(_) ->
         Stdlib.Result.Result.Ok(
           LanguageTools.AtRestTypeChecker.checkPackageOpsOn(branchId, stabilizedOps))
-      | Error message -> Stdlib.Result.Result.Error message
+      | Error(message) -> Stdlib.Result.Result.Error(message)
     | failed -> Stdlib.Result.Result.Error(takeBackFailedValues(branchId, stabilizedOps, added, failed))
 
 
@@ -77,7 +77,7 @@ let takeBackFailedValues(
   added: Stdlib.Result.Result<Int, String>,
   failed: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
   : String =
-  let failedLocations = failed |> Stdlib.List.map(fun (loc, _) -> loc)
+  let failedLocations = failed |> Stdlib.List.map(fun((loc, _)) -> loc)
 
   let names =
     failedLocations
@@ -86,8 +86,8 @@ let takeBackFailedValues(
 
   let why =
     match added with
-    | Error message -> message
-    | Ok _ -> $"{names} could not be evaluated"
+    | Error(message) -> message
+    | Ok(_) -> $"{names} could not be evaluated"
 
   let kept =
     ops
@@ -109,8 +109,8 @@ let takeBackFailedValues(
       $" The rest of this save was kept: {keptList}."
 
   match unbind(branchId, failed) with
-  | Ok _ -> $"{why}\nNothing was saved for {names}.{keptNote}"
-  | Error e ->
+  | Ok(_) -> $"{why}\nNothing was saved for {names}.{keptNote}"
+  | Error(e) ->
     $"{why}\n{names} is still in your draft, and taking it back out failed: {e}. `dark discard {names}` removes it."
 
 
@@ -124,9 +124,9 @@ let unevaluatedValuesBoundBy(
   ops
   |> Stdlib.List.filterMap(fun op ->
     match op with
-    | SetName(loc, PackageValue _, _) ->
+    | SetName(loc, PackageValue(_), _) ->
       match liveBindingFor(branchId, loc) with
-      | Some b ->
+      | Some(b) ->
         if b.itemType == "value" && Stdlib.Bool.not(valueEvaluated(b.hash)) then
           Stdlib.Option.Option.Some((loc, b.hash))
         else
@@ -152,7 +152,7 @@ let unbind(
   branchId: Uuid,
   bindings: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
   : Stdlib.Result.Result<Int, String> =
-  let hashes = bindings |> Stdlib.List.map(fun (_, hash) -> hash)
+  let hashes = bindings |> Stdlib.List.map(fun((_, hash)) -> hash)
 
   let isOneOf(op: LanguageTools.ProgramTypes.PackageOp): Bool =
     match op with
@@ -162,7 +162,7 @@ let unbind(
           LanguageTools.ProgramTypes.Reference.hash(target))
 
       Stdlib.List.contains(bindings, (loc, hash))
-    | AddValue v ->
+    | AddValue(v) ->
       Stdlib.List.contains(hashes, LanguageTools.ProgramTypes.hashToString(v.hash))
     | _ -> false
 
@@ -172,8 +172,8 @@ let unbind(
   else
     let ids =
       decodeOpRowEntries(Branches.ownOpRows(branchId))
-      |> Stdlib.List.filterMap(fun (id, _, op) ->
-        if isOneOf(op) then Stdlib.Option.Option.Some id else Stdlib.Option.Option.None)
+      |> Stdlib.List.filterMap(fun((id, _, op)) ->
+        if isOneOf(op) then Stdlib.Option.Option.Some(id) else Stdlib.Option.Option.None)
 
     dropBranchOps(branchId, ids)
 

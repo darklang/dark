@@ -38,7 +38,7 @@ let currentlyBound(
       && (b.itemType == LanguageTools.ProgramTypes.ItemKind.toString(kind)))
 
   match onParent with
-  | Some b -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash b.hash)
+  | Some(b) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash(b.hash))
   | None ->
 
   // main-scoped: every chain ends at main, and this is main's half.
@@ -52,9 +52,9 @@ let currentlyBound(
       [ location.owner, modules, location.name, LanguageTools.ProgramTypes.ItemKind.toString(kind) ])
 
   match found with
-  | Some row ->
+  | Some(row) ->
     match Stdlib.Sqlite.textField(row, "item_hash") with
-    | Some h -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash h)
+    | Some(h) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash(h))
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
@@ -100,7 +100,7 @@ let recordPrevious(
     | Unbind(location, None) ->
       let previous =
         SCM.PackageOps.liveBindingFor(branchId, location)
-        |> Stdlib.Option.map(fun b -> LanguageTools.ProgramTypes.Hash.Hash b.hash)
+        |> Stdlib.Option.map(fun b -> LanguageTools.ProgramTypes.Hash.Hash(b.hash))
 
       LanguageTools.ProgramTypes.PackageOp.Unbind(location, previous)
     | other -> other)

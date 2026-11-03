@@ -49,8 +49,8 @@ let onKey(
   keyChar: Stdlib.Option.Option<String>)
   : Darklang.Cli.Component.Step<State> =
   match handleKey(state, key, modifiers, keyChar) with
-  | Continue s -> Darklang.Cli.Component.Step.Stay s
-  | Exit s -> Darklang.Cli.Component.Step.Exit s
+  | Continue(s) -> Darklang.Cli.Component.Step.Stay(s)
+  | Exit(s) -> Darklang.Cli.Component.Step.Exit(s)
   // Hand off to a foreground command; the CLI returns to this workbench (state s) when it exits.
   | Launch(s, cmd) -> Darklang.Cli.Component.Step.Launch({ s with preview = Stdlib.Option.Option.None }, cmd)
 
@@ -119,7 +119,7 @@ let initialStateFrom(
   live: Bool,
   draft: SCM.Draft.Picture)
   : State =
-  let rootLoc = Packages.PackageLocation.Module []
+  let rootLoc = Packages.PackageLocation.Module([])
   let homeItems = loadHomeItemsFrom(branchId, draft)
   State
       { activeView = vHome
@@ -159,7 +159,7 @@ let initialStateFrom(
 
 let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.AppState =
   match Darklang.Stdlib.Cli.Tui.TerminalSupport.current() with
-  | Unavailable reason ->
+  | Unavailable(reason) ->
     // Don't seize the alternate screen when there's no terminal -- piping `dark` would
     // dump raw escape sequences into the reader. Report and stop rather than falling
     // through to the prompt: the no-args path would print the same message twice, and
@@ -179,7 +179,7 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
   // Register this instance's UUID on first run (durable in cli-config.json).
   let _ =
     match Darklang.Cli.Config.get("instance.id") with
-    | Some _ -> ()
+    | Some(_) -> ()
     | None ->
       let cfg = Darklang.Cli.Config.readConfig()
       let cfg2 = Stdlib.Dict.set(cfg, "instance.id", Stdlib.toString(Stdlib.Uuid.generate()))
@@ -187,11 +187,11 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
   // Instance name: config override wins, else the machine hostname, else a safe fallback. Config-adjustable.
   let instanceName =
     match Darklang.Cli.Config.get("instance.name") with
-    | Some n -> n
+    | Some(n) -> n
     | None ->
       match Stdlib.Cli.Sys.hostname() with
-      | Ok h -> h
-      | Error _ -> "this-machine"
+      | Ok(h) -> h
+      | Error(_) -> "this-machine"
   let draft = SCM.Draft.read()
   let state =
     initialStateFrom(

@@ -31,17 +31,17 @@ let executeMergePreview(
   : AppState =
   match resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
-  | Some branchId when SCM.PackageOps.branchIsMerged(branchId) ->
+  | Some(branchId) when SCM.PackageOps.branchIsMerged(branchId) ->
     Cli.printOk($"\"{branchRef}\" is already merged into its parent.")
     state
-  | Some branchId ->
+  | Some(branchId) ->
     let (_, parentName) = parentOf(branchId)
 
     match SCM.Branches.canMerge(branchId) with
-    | Error r ->
+    | Error(r) ->
       Cli.printErr($"would NOT merge: {SCM.Branches.refusalMessage(r)}")
       Cli.exitWith(state, false)
-    | Ok _ ->
+    | Ok(_) ->
       Cli.printOk($"\"{branchRef}\" would merge into \"{parentName}\".")
 
       match SCM.PackageOps.branchDiffEntries(branchId) with
@@ -137,23 +137,23 @@ let executeMerge(
   : AppState =
   match resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
-  | Some branchId when SCM.PackageOps.branchIsMerged(branchId) ->
+  | Some(branchId) when SCM.PackageOps.branchIsMerged(branchId) ->
     // Merging it again would flip nothing and report "Merged 0 op(s)", which reads as a broken merge
     // rather than as "there was nothing to do".
     Cli.printOk($"\"{branchRef}\" is already merged into its parent.")
     state
-  | Some branchId when mergeRefusal(branchId, branchRef, allowTypeErrors) -> Cli.exitWith(state, false)
-  | Some branchId ->
+  | Some(branchId) when mergeRefusal(branchId, branchRef, allowTypeErrors) -> Cli.exitWith(state, false)
+  | Some(branchId) ->
 
   // The structural gate runs BEFORE the question. Asking "merge it?" about a branch that cannot
   // merge is a question with one answer, and on a pipe the refusal would come back as a declined
   // prompt rather than as the reason. `mergeBranch` asks the same gate again and is the authority;
   // this is only about which sentence the person reads.
   match SCM.Branches.canMerge(branchId) with
-  | Error r ->
+  | Error(r) ->
     Cli.printErr($"couldn't merge: {SCM.Branches.refusalMessage(r)}")
     Cli.exitWith(state, false)
-  | Ok _ ->
+  | Ok(_) ->
 
   if
     Stdlib.Bool.not((
@@ -170,7 +170,7 @@ let executeMerge(
   else
 
     match SCM.PackageOps.mergeBranch(branchId) with
-    | Ok outcome ->
+    | Ok(outcome) ->
       // "Merged N op(s)" is the shape `scripts/testing/gates sync-multi-instance` asserts on.
       Cli.printOk(
         $"Merged {Stdlib.toString(outcome.merged)} op(s) from branch \"{branchRef}\" into its parent.")
@@ -195,7 +195,7 @@ let executeMerge(
           state.currentBranchId
 
       { state with currentBranchId = landedOn }
-    | Error e ->
+    | Error(e) ->
       Cli.printErr($"couldn't merge: {SCM.PackageOps.mergeErrorMessage(e)}")
       Cli.exitWith(state, false)
 
@@ -209,12 +209,12 @@ let executeMerge(
 let executeRebaseDryRun(state: AppState, branchRef: String): AppState =
   match resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
-  | Some branchId when SCM.Branch.isMain(branchId) ->
+  | Some(branchId) when SCM.Branch.isMain(branchId) ->
     // Reachable only when main is NAMED: the bare form goes through `bareTargetBranch`, which has its
     // own message for standing on main. So this describes the ARGUMENT, not where you are.
     Cli.printErr("main is the trunk -- rebase moves a BRANCH onto its parent, and main has none.")
     Cli.exitWith(state, false)
-  | Some branchId ->
+  | Some(branchId) ->
     let (_, parentName) = parentOf(branchId)
 
     match SCM.PackageOps.branchPreview(branchId) with
@@ -244,13 +244,13 @@ let executeRebaseDryRun(state: AppState, branchRef: String): AppState =
 let executeRebase(state: AppState, branchRef: String): AppState =
   match resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
-  | Some branchId ->
+  | Some(branchId) ->
     match SCM.PackageOps.rebaseBranch(branchId) with
-    | Ok outcome ->
+    | Ok(outcome) ->
       Cli.printOk(outcome.message)
       reportConflicts(outcome.conflicts)
       state
-    | Error e ->
+    | Error(e) ->
       Cli.printErr(e)
       Cli.exitWith(state, false)
 
@@ -264,12 +264,12 @@ let executeResolve(
   : AppState =
   match resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
-  | Some branchId ->
+  | Some(branchId) ->
     match SCM.PackageOps.resolveConflict(branchId, name, choice) with
-    | Ok msg ->
+    | Ok(msg) ->
       Cli.printOk(msg)
       state
-    | Error e ->
+    | Error(e) ->
       Cli.printErr(e)
       Cli.exitWith(state, false)
 
@@ -314,8 +314,8 @@ let bareTargetBranch(
 /// An explicit yes, not a default-yes: a stray Return or a piped stdin must not move work into main.
 let executeMergeBare(state: AppState, autoConfirm: Bool, allowTypeErrors: Bool): AppState =
   match bareTargetBranch("merge") with
-  | Error _ -> Cli.exitWith(state, false)
-  | Ok name ->
+  | Error(_) -> Cli.exitWith(state, false)
+  | Ok(name) ->
     let previewed = executeMergePreview(state, name, false)
 
     if
@@ -362,8 +362,8 @@ let executeMergeCmd(state: AppState, args: List<String>): AppState =
   | [] ->
     if dryRun then
       match bareTargetBranch("merge") with
-      | Ok name -> executeMergeDryRun(state, name)
-      | Error _ -> Cli.exitWith(state, false)
+      | Ok(name) -> executeMergeDryRun(state, name)
+      | Error(_) -> Cli.exitWith(state, false)
     else
       executeMergeBare(state, autoConfirm, allowTypeErrors)
   | [ id ] ->
@@ -381,12 +381,12 @@ let executeRebaseCmd(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
     match bareTargetBranch("rebase") with
-    | Ok name -> executeRebase(state, name)
-    | Error _ -> Cli.exitWith(state, false)
+    | Ok(name) -> executeRebase(state, name)
+    | Error(_) -> Cli.exitWith(state, false)
   | [ "--dry-run" ] ->
     match bareTargetBranch("rebase") with
-    | Ok name -> executeRebaseDryRun(state, name)
-    | Error _ -> Cli.exitWith(state, false)
+    | Ok(name) -> executeRebaseDryRun(state, name)
+    | Error(_) -> Cli.exitWith(state, false)
   | [ id ] -> executeRebase(state, id)
   | [ id, "--dry-run" ] -> executeRebaseDryRun(state, id)
   | [ "--dry-run", id ] -> executeRebaseDryRun(state, id)

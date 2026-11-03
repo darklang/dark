@@ -141,7 +141,7 @@ let deleteDocument(state: State, docId: Int): State =
     let activeId =
       if state.activeDocId == docId then
         match Stdlib.List.head(remaining) with
-        | Some d -> d.id
+        | Some(d) -> d.id
         | None -> state.activeDocId
       else
         state.activeDocId
@@ -163,39 +163,39 @@ let onPickerKey(
     KeyResult.Save(createDocument(state))
   else if Stdlib.Cli.UI.Widget.isChar(kp, "d") then
     match selected with
-    | None -> KeyResult.Continue state
-    | Some doc ->
+    | None -> KeyResult.Continue(state)
+    | Some(doc) ->
       let question =
         Stdlib.Cli.UI.Confirm.askDangerous(
           $"Delete \"{doc.title}\"?",
           $"{docLabel(doc)}. Undo doesn't reach this.")
 
-      KeyResult.Continue
+      KeyResult.Continue(
         { state with
             confirm =
-              Stdlib.Option.Option.Some((question, Pending.DeleteDocument doc.id)) }
+              Stdlib.Option.Option.Some((question, Pending.DeleteDocument(doc.id))) })
   else if Stdlib.Cli.UI.Widget.isChar(kp, "r") then
     match selected with
-    | None -> KeyResult.Continue state
-    | Some doc ->
-      KeyResult.Continue
+    | None -> KeyResult.Continue(state)
+    | Some(doc) ->
+      KeyResult.Continue(
         { state with
             screen =
               Screen.DocRenaming(
                 doc.id,
                 picker,
-                Stdlib.Cli.UI.TextField.fromText(doc.title)) }
+                Stdlib.Cli.UI.TextField.fromText(doc.title)) })
   else
     match Stdlib.Cli.UI.Picker.onKey(picker, kp) with
-    | Handled next -> KeyResult.Continue { state with screen = Screen.DocPicker next }
+    | Handled(next) -> KeyResult.Continue({ state with screen = Screen.DocPicker(next) })
     | Emitted(next, msg) ->
       match msg with
-      | Chose index ->
+      | Chose(index) ->
         match docAt(state, index) with
-        | Some doc -> KeyResult.Save(openDocument(state, doc))
-        | None -> KeyResult.Continue state
-      | Cancelled -> KeyResult.Exit state
-    | Ignored -> KeyResult.Continue state
+        | Some(doc) -> KeyResult.Save(openDocument(state, doc))
+        | None -> KeyResult.Continue(state)
+      | Cancelled -> KeyResult.Exit(state)
+    | Ignored -> KeyResult.Continue(state)
 
 
 // --- Keys: renaming ---
@@ -208,11 +208,11 @@ let onRenameKey(
   kp: Stdlib.Cli.UI.Widget.KeyPress)
   : KeyResult =
   match Stdlib.Cli.UI.TextField.onKey(field, kp) with
-  | Handled next ->
-    KeyResult.Continue { state with screen = Screen.DocRenaming(docId, picker, next) }
+  | Handled(next) ->
+    KeyResult.Continue({ state with screen = Screen.DocRenaming(docId, picker, next) })
   | Emitted(next, msg) ->
     match msg with
-    | Submitted title ->
+    | Submitted(title) ->
       let trimmed = Stdlib.String.trim(title)
 
       if trimmed == "" then
@@ -224,11 +224,11 @@ let onRenameKey(
                 Stdlib.List.map(state.documents, fun d ->
                   if d.id == docId then { d with title = trimmed } else d) }
 
-        KeyResult.Save
-          { (say(renamed, "renamed")) with screen = Screen.DocPicker(makeDocPicker(renamed)) }
+        KeyResult.Save(
+          { (say(renamed, "renamed")) with screen = Screen.DocPicker(makeDocPicker(renamed)) })
     | Cancelled ->
-      KeyResult.Continue { state with screen = Screen.DocPicker picker }
-  | Ignored -> KeyResult.Continue state
+      KeyResult.Continue({ state with screen = Screen.DocPicker(picker) })
+  | Ignored -> KeyResult.Continue(state)
 
 
 // --- Keys: the editor ---
@@ -239,13 +239,13 @@ let onEditorKey(
   kp: Stdlib.Cli.UI.Widget.KeyPress)
   : KeyResult =
   match Editor.onKey(editor, kp) with
-  | Handled next -> KeyResult.Continue { state with screen = Screen.Editing next }
+  | Handled(next) -> KeyResult.Continue({ state with screen = Screen.Editing(next) })
   | Emitted(next, msg) ->
-    let carried = updateDoc({ state with screen = Screen.Editing next }, state.activeDocId, next.outline)
+    let carried = updateDoc({ state with screen = Screen.Editing(next) }, state.activeDocId, next.outline)
 
     match msg with
     | Dirty -> KeyResult.Save(quiet(carried))
-    | Note note -> KeyResult.Save(say(carried, note))
+    | Note(note) -> KeyResult.Save(say(carried, note))
     | Back -> KeyResult.Save(backToPicker(carried))
     | DeleteRequested(id, count) ->
       let text = getNodeText(next.outline, id)
@@ -259,15 +259,15 @@ let onEditorKey(
             $"Delete {shown}?",
             $"{Stdlib.toString(count)} lines underneath go with it. u undoes it.")
 
-      KeyResult.Continue
+      KeyResult.Continue(
         { carried with
-            confirm = Stdlib.Option.Option.Some((question, Pending.DeleteNode id)) }
+            confirm = Stdlib.Option.Option.Some((question, Pending.DeleteNode(id))) })
   | Ignored ->
     // Keys the editor passed on: the outliner's own.
     if Stdlib.Cli.UI.Widget.isChar(kp, "g") then
       KeyResult.Continue(backToPicker(state))
     else
-      KeyResult.Continue state
+      KeyResult.Continue(state)
 
 
 // --- Keys: the confirmation, when one is open ---
@@ -279,9 +279,9 @@ let onConfirmKey(
   kp: Stdlib.Cli.UI.Widget.KeyPress)
   : KeyResult =
   match Stdlib.Cli.UI.Confirm.onKey(question, kp) with
-  | Handled next ->
-    KeyResult.Continue
-      { state with confirm = Stdlib.Option.Option.Some((next, pending)) }
+  | Handled(next) ->
+    KeyResult.Continue(
+      { state with confirm = Stdlib.Option.Option.Some((next, pending)) })
   | Emitted(_next, msg) ->
     let closed = { state with confirm = Stdlib.Option.Option.None }
 
@@ -289,17 +289,17 @@ let onConfirmKey(
     | Declined -> KeyResult.Continue(say(closed, "left alone"))
     | Confirmed ->
       match pending with
-      | DeleteDocument docId -> KeyResult.Save(deleteDocument(closed, docId))
-      | DeleteNode nodeId ->
+      | DeleteDocument(docId) -> KeyResult.Save(deleteDocument(closed, docId))
+      | DeleteNode(nodeId) ->
         match closed.screen with
-        | Editing editor ->
+        | Editing(editor) ->
           let next = Editor.deleteSubtree(editor, nodeId)
           let carried =
-            updateDoc({ closed with screen = Screen.Editing next }, closed.activeDocId, next.outline)
+            updateDoc({ closed with screen = Screen.Editing(next) }, closed.activeDocId, next.outline)
 
           KeyResult.Save(say(carried, "deleted"))
-        | _ -> KeyResult.Continue closed
-  | Ignored -> KeyResult.Continue state
+        | _ -> KeyResult.Continue(closed)
+  | Ignored -> KeyResult.Continue(state)
 
 
 let handleKey(
@@ -311,14 +311,14 @@ let handleKey(
   let kp = Stdlib.Cli.UI.Widget.press(key, modifiers, keyChar)
 
   match state.confirm with
-  | Some pair ->
+  | Some(pair) ->
     let (question, pending) = pair
     onConfirmKey(state, question, pending, kp)
   | None ->
     match state.screen with
-    | DocPicker picker -> onPickerKey(state, picker, kp)
+    | DocPicker(picker) -> onPickerKey(state, picker, kp)
     | DocRenaming(docId, picker, field) -> onRenameKey(state, docId, picker, field, kp)
-    | Editing editor -> onEditorKey(state, editor, kp)
+    | Editing(editor) -> onEditorKey(state, editor, kp)
 
 
 // --- Rendering ---
@@ -344,7 +344,7 @@ let renameRows(
 /// Title, badge and hints for the screen in front.
 let chromeFor(state: State): Stdlib.Cli.UI.Chrome.Frame =
   match state.screen with
-  | DocPicker _ ->
+  | DocPicker(_) ->
     Stdlib.Cli.UI.Chrome.frame(
       "Outliner",
       "DOCUMENTS",
@@ -353,17 +353,17 @@ let chromeFor(state: State): Stdlib.Cli.UI.Chrome.Frame =
     Stdlib.Cli.UI.Chrome.withBadgeTone(
       Stdlib.Cli.UI.Chrome.frame("Outliner", "RENAME", "Enter: keep   Esc: cancel"),
       Stdlib.Cli.UI.Chrome.Tone.Active)
-  | Editing editor ->
+  | Editing(editor) ->
     let doc = activeDoc(state)
 
     match editor.searching with
-    | Some _ ->
+    | Some(_) ->
       Stdlib.Cli.UI.Chrome.withBadgeTone(
         Stdlib.Cli.UI.Chrome.frame(doc.title, "SEARCH", "Type to search   Enter: apply   Esc: cancel"),
         Stdlib.Cli.UI.Chrome.Tone.Active)
     | None ->
       match editor.editing with
-      | Some _ ->
+      | Some(_) ->
         Stdlib.Cli.UI.Chrome.withBadgeTone(
           (Stdlib.Cli.UI.Chrome.frame(
             doc.title,
@@ -383,9 +383,9 @@ let bodyFor(
   region: Stdlib.Cli.UI.Layout.Region)
   : List<Stdlib.Cli.UI.Layout.Span> =
   match state.screen with
-  | DocPicker picker -> Stdlib.Cli.UI.Picker.view(picker, region)
+  | DocPicker(picker) -> Stdlib.Cli.UI.Picker.view(picker, region)
   | DocRenaming(docId, picker, field) -> renameRows(state, docId, picker, field, region)
-  | Editing editor -> Editor.view(editor, region)
+  | Editing(editor) -> Editor.view(editor, region)
 
 /// Build the whole view. Pure: no terminal, no reads.
 let viewAtSize(state: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
@@ -393,7 +393,7 @@ let viewAtSize(state: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
 
   let framed =
     match state.loadError with
-    | Some reason -> Stdlib.Cli.UI.Chrome.withError(base_, $"not saving: {reason}")
+    | Some(reason) -> Stdlib.Cli.UI.Chrome.withError(base_, $"not saving: {reason}")
     | None ->
       if state.message == "" then base_
       else if state.messageIsError then Stdlib.Cli.UI.Chrome.withError(base_, state.message)
@@ -404,7 +404,7 @@ let viewAtSize(state: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
 
     match state.confirm with
     | None -> body
-    | Some pair ->
+    | Some(pair) ->
       let (question, _pending) = pair
       Stdlib.List.flatten([ body, Stdlib.Cli.UI.Confirm.view(question, region) ]))
 
@@ -428,7 +428,7 @@ let fromData(data: Store.PersistedData): State =
 
 let load(): State =
   match Store.load() with
-  | Loaded data -> fromData(data)
+  | Loaded(data) -> fromData(data)
   | Unreadable(path, reason) ->
     // Start empty rather than with the demo content, and refuse to write: the file is still there, and
     // whatever is wrong with it is fixable by hand.
@@ -436,16 +436,16 @@ let load(): State =
     { state with
         documents = []
         screen = Screen.DocPicker(Stdlib.Cli.UI.Picker.make([]))
-        loadError = Stdlib.Option.Option.Some $"{path} ({reason})" }
+        loadError = Stdlib.Option.Option.Some($"{path} ({reason})") }
 
 let save(state: State): State =
   match state.loadError with
-  | Some _ -> state
+  | Some(_) -> state
   | None ->
     match
       Store.save(state.documents, state.activeDocId, state.nextDocId, state.savedStamp)
     with
-    | Ok stamp -> { state with savedStamp = stamp }
+    | Ok(stamp) -> { state with savedStamp = stamp }
     // A write that fails used to fail silently, which for the one thing standing between you and your
     // documents is the wrong way round.
-    | Error e -> complain(state, $"couldn't save: {e}")
+    | Error(e) -> complain(state, $"couldn't save: {e}")

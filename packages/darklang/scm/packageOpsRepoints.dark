@@ -23,7 +23,7 @@ let namesAtContent(branchId: Uuid, hash: String, itemType: String): List<String>
            Stdlib.Sqlite.textField(row, "modules"),
            Stdlib.Sqlite.textField(row, "name"))
         with
-        | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(Conflicts.fqn(o, m, n))
+        | (Some(o), Some(m), Some(n)) -> Stdlib.Option.Option.Some(Conflicts.fqn(o, m, n))
         | _ -> Stdlib.Option.Option.None)
 
   if SCM.Branch.isMain(branchId) then
@@ -87,7 +87,7 @@ let mainNamesForHashes(hashes: List<String>): List<(String * String)> =
              Stdlib.Sqlite.textField(row, "modules"),
              Stdlib.Sqlite.textField(row, "name"))
           with
-          | (Some h, Some o, Some m, Some n) ->
+          | (Some(h), Some(o), Some(m), Some(n)) ->
             Stdlib.Option.Option.Some((h, Conflicts.fqn(o, m, n)))
           | _ -> Stdlib.Option.Option.None))
     |> Stdlib.List.flatten
@@ -141,9 +141,9 @@ let draftRepoints(
          )
          SELECT DISTINCT CAST(seed AS TEXT) AS seed, hash FROM stale",
         [ Stdlib.Json.serialize<List<List<String>>>(changed |> Stdlib.List.map(fun b -> [ b.owner, b.modules, b.name, b.hash ])) ])
-      |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc row ->
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, row) ->
         match (Stdlib.Sqlite.textField(row, "seed"), Stdlib.Sqlite.textField(row, "hash")) with
-        | (Some seed, Some h) ->
+        | (Some(seed), Some(h)) ->
           let rest = Stdlib.Dict.get(acc, seed) |> Stdlib.Option.withDefault([])
           Stdlib.Dict.set(acc, seed, Stdlib.List.prepend(rest, h))
         | _ -> acc)
@@ -165,13 +165,13 @@ let draftRepoints(
     |> Stdlib.List.flatten
     |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(overlayHashes, h)))
     |> mainNamesForHashes
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc pair ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, pair) ->
       let (h, n) = pair
       let rest = Stdlib.Dict.get(acc, h) |> Stdlib.Option.withDefault([])
       Stdlib.Dict.set(acc, h, Stdlib.List.prepend(rest, n)))
 
   changed
-  |> Stdlib.List.indexedMap(fun i b ->
+  |> Stdlib.List.indexedMap(fun(i, b) ->
     let cause = Conflicts.fqn(b.owner, b.modules, b.name)
     let hashes = Stdlib.Dict.get(staleBySeed, Stdlib.toString(i)) |> Stdlib.Option.withDefault([])
 

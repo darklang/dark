@@ -57,9 +57,9 @@ let moduleRows(
     |> Stdlib.List.map(fun t ->
       let shape(_u: Unit): String =
         match t.entity.declaration.definition with
-        | Record fields -> "record · " + (Cli.Text.plural(Stdlib.List.length(fields), "field"))
-        | Enum cases -> "enum · " + (Cli.Text.plural(Stdlib.List.length(cases), "case"))
-        | Alias tr -> typeRef(tr)
+        | Record(fields) -> "record · " + (Cli.Text.plural(Stdlib.List.length(fields), "field"))
+        | Enum(cases) -> "enum · " + (Cli.Text.plural(Stdlib.List.length(cases), "case"))
+        | Alias(tr) -> typeRef(tr)
       BodyItem
         { name = t.location.name
           kind = "type"
@@ -78,9 +78,11 @@ let moduleRows(
     |> Stdlib.List.map(fun f ->
       let signature(_u: Unit): String =
         let params = f.entity.parameters |> Stdlib.List.map(fun p -> typeRef(p.typ))
+        // the fn's type, as a type is written: `A -> R`, `(A, B) -> R`
         let args =
-          if Stdlib.List.isEmpty(params) then "()"
-          else Stdlib.String.join(params, " -> ")
+          match params with
+          | [ only ] -> only
+          | params -> "(" + Stdlib.String.join(params, ", ") + ")"
         let sig_ = args + " -> " + (typeRef(f.entity.returnType))
         let effects =
           Permissions.Command.requirementDisplay(
@@ -118,9 +120,9 @@ let moduleRows(
     |> Stdlib.List.map(fun t ->
       let status(_u: Unit): String =
         match Packages.Test.lastOutcome(branchId, t.entity.hash) with
-        | Some Passed -> "passed"
-        | Some(Failed _) -> "failed"
-        | Some(RuntimeFailed _) -> "error"
+        | Some(Passed) -> "passed"
+        | Some(Failed(_)) -> "failed"
+        | Some(RuntimeFailed(_)) -> "error"
         | None -> "no result for this build"
       BodyItem
         { name = t.location.name
@@ -150,8 +152,8 @@ let changeIcon(kind: String): String =
 
 /// `+3 -1` for a diff, dim; "" for a diff with no changed lines.
 let diffStat(lines: List<Stdlib.Diff.DiffLine>): String =
-  let added = lines |> Stdlib.List.filter(fun l -> match l with | Added _ -> true | _ -> false) |> Stdlib.List.length
-  let removed = lines |> Stdlib.List.filter(fun l -> match l with | Removed _ -> true | _ -> false) |> Stdlib.List.length
+  let added = lines |> Stdlib.List.filter(fun l -> match l with | Added(_) -> true | _ -> false) |> Stdlib.List.length
+  let removed = lines |> Stdlib.List.filter(fun l -> match l with | Removed(_) -> true | _ -> false) |> Stdlib.List.length
   if (added == 0) && (removed == 0) then ""
   else
     (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "+" + (Stdlib.toString(added))))
@@ -190,7 +192,7 @@ let loadChangedItems(branchId: Uuid): List<BodyItem> =
     |> Stdlib.List.filter(fun b ->
       Stdlib.Bool.not(Stdlib.List.contains(conflictNames, SCM.Conflicts.fqn(b.owner, b.modules, b.name))))
     |> (fun bindings -> Cli.Commit.previousHashesOfAll(branchId, bindings))
-    |> Stdlib.List.map(fun (b, previous) ->
+    |> Stdlib.List.map(fun((b, previous)) ->
       let fqn = SCM.Conflicts.fqn(b.owner, b.modules, b.name)
       let change =
         if Stdlib.List.isEmpty(previous) then paint(Stdlib.Cli.UI.Colors.green, "added")
@@ -235,7 +237,7 @@ let commitOpsText(branchId: Uuid, selected: Int): String =
   let commits = recentCommitRows(30L)
   match Stdlib.List.getAt(commits, selected) with
   | None -> "(no commit selected)"
-  | Some c ->
+  | Some(c) ->
     let hashStr = c.hash
     // Fetch the 20 we show, not all of them: the seed commit holds ~17k ops, and deserializing every blob
     // to display twenty of them freezes this pane for as long as that takes.
@@ -265,16 +267,16 @@ let commitOpsText(branchId: Uuid, selected: Int): String =
 let renderDiffLines(lines: List<Stdlib.Diff.DiffLine>, state: State): List<String> =
   let textOf(dl: Stdlib.Diff.DiffLine): String =
     match dl with
-    | Same s -> s
-    | Added s -> s
-    | Removed s -> s
+    | Same(s) -> s
+    | Added(s) -> s
+    | Removed(s) -> s
   let isOld(dl: Stdlib.Diff.DiffLine): Bool =
     match dl with
-    | Added _ -> false
+    | Added(_) -> false
     | _ -> true
   let isNew(dl: Stdlib.Diff.DiffLine): Bool =
     match dl with
-    | Removed _ -> false
+    | Removed(_) -> false
     | _ -> true
   let highlightSide(keep: Stdlib.Diff.DiffLine -> Bool): List<String> =
     let src = lines |> Stdlib.List.filter(keep) |> Stdlib.List.map(textOf) |> Stdlib.String.join("\n")
@@ -300,16 +302,16 @@ let renderDiffLines(lines: List<Stdlib.Diff.DiffLine>, state: State): List<Strin
   // newIdx, rendered so far).
   let (_o, _n, out) =
     lines
-    |> Stdlib.List.fold((0, 0, []), fun acc dl ->
+    |> Stdlib.List.fold((0, 0, []), fun(acc, dl) ->
       let (o, n, done_) = acc
       match dl with
-      | Same _ ->
+      | Same(_) ->
         let code = Stdlib.List.getAt(newSide, n) |> Stdlib.Option.withDefault(textOf(dl))
         (o + 1, n + 1, Stdlib.List.append(done_, "  " + code))
-      | Added _ ->
+      | Added(_) ->
         let code = Stdlib.List.getAt(newSide, n) |> Stdlib.Option.withDefault(textOf(dl))
         (o, n + 1, Stdlib.List.append(done_, wash(Stdlib.Cli.UI.Colors.faintGreenBg, Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green + Stdlib.Cli.UI.Colors.bold, "+ "), code)))
-      | Removed _ ->
+      | Removed(_) ->
         let code = Stdlib.List.getAt(oldSide, o) |> Stdlib.Option.withDefault(textOf(dl))
         (o + 1, n, Stdlib.List.append(done_, wash(Stdlib.Cli.UI.Colors.faintRedBg, Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.red + Stdlib.Cli.UI.Colors.bold, "- "), code))))
   out
@@ -342,7 +344,7 @@ let bindingDiff(
 
   // A new item diffs against nothing, and "nothing" is not an empty line to remove.
   if oldText == "" then
-    Stdlib.String.split(newText, "\n") |> Stdlib.List.map(fun l -> Stdlib.Diff.DiffLine.Added l)
+    Stdlib.String.split(newText, "\n") |> Stdlib.List.map(fun l -> Stdlib.Diff.DiffLine.Added(l))
   else
     Stdlib.Diff.lines(oldText, newText)
 
@@ -353,21 +355,21 @@ let sourceDiffFor(branchId: Uuid, fqn: String): List<Stdlib.Diff.DiffLine> =
       (SCM.Conflicts.fqn(b.owner, b.modules, b.name)) == fqn)
 
   match binding with
-  | None -> [ Stdlib.Diff.DiffLine.Same "(nothing in the draft touches this name)" ]
-  | Some b -> bindingDiff(branchId, b, Cli.Commit.previousHashesOf(branchId, b))
+  | None -> [ Stdlib.Diff.DiffLine.Same("(nothing in the draft touches this name)") ]
+  | Some(b) -> bindingDiff(branchId, b, Cli.Commit.previousHashesOf(branchId, b))
 
 /// The selected draft item's diff, as text. Matched by name so it lines up with the workbench's
 /// own WIP list regardless of ordering.
 let wipDiffText(state: State): String =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> "(no change selected)"
-  | Some item ->
+  | Some(item) ->
     sourceDiffFor(state.branchId, item.name)
     |> Stdlib.List.map(fun dl ->
       match dl with
-      | Same s -> Stdlib.Cli.UI.Colors.dimText("  " + s)
-      | Added s -> Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "+ " + s)
-      | Removed s -> Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.red, "- " + s))
+      | Same(s) -> Stdlib.Cli.UI.Colors.dimText("  " + s)
+      | Added(s) -> Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "+ " + s)
+      | Removed(s) -> Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.red, "- " + s))
     |> Stdlib.String.join("\n")
 
 /// The Changes preview for the selected draft item: what changed, then -- for a fn -- what running it
@@ -377,7 +379,7 @@ let wipDiffText(state: State): String =
 let changedItemDetail(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> [ "(no change selected)" ]
-  | Some item ->
+  | Some(item) ->
     // The row's name is the full path (owner.Module.leaf).
     let parts = Stdlib.String.split(item.name, ".")
     let leaf = Stdlib.List.last(parts) |> Stdlib.Option.withDefault(item.name)
@@ -402,7 +404,7 @@ let changedItemDetail(state: State): List<String> =
 let changesSourceText(branchId: Uuid, row: Stdlib.Option.Option<BodyItem>): String =
   match row with
   | None -> "(no change selected)"
-  | Some d ->
+  | Some(d) ->
     let name = d.name
     let kind = d.kind
     // `name` is the full path (owner.Module.leaf) - split into the module path + leaf for the lookup.
@@ -524,7 +526,7 @@ let referencesFrom(
     // listing every test twice. The `dark deps` command remains comprehensive.
     let dependents =
       SCM.Deps.dependentsOf([ (loc, kind) ])
-      |> Stdlib.List.filter(fun (_hash, _location, dependentKind) ->
+      |> Stdlib.List.filter(fun((_hash, _location, dependentKind)) ->
         dependentKind != LanguageTools.ProgramTypes.ItemKind.Test)
     let dependentLines =
       if Stdlib.List.isEmpty(dependents) then [ Stdlib.Cli.UI.Colors.dimText("  (none)") ]
@@ -573,8 +575,8 @@ let readBadges(state: State): (List<String> * List<String>) =
     let results = Packages.Query.allDirectDescendants(state.branchId, Packages.modulePathOf(state.location))
     let pick = fun pairs ->
       pairs
-      |> Stdlib.List.filter(fun (hash, _name) -> Packages.Query.isDeprecated(sets, hash))
-      |> Stdlib.List.map(fun (_hash, name) -> name)
+      |> Stdlib.List.filter(fun((hash, _name)) -> Packages.Query.isDeprecated(sets, hash))
+      |> Stdlib.List.map(fun((_hash, name)) -> name)
     (wip,
      Stdlib.List.flatten(
        [ pick(results.fns |> Stdlib.List.map(fun i -> (i.entity.hash, i.location.name)))
@@ -652,7 +654,7 @@ let refreshLiveValues(next: State): State =
       Stdlib.Option.Option.None
     else
       match Stdlib.List.getAt(next.items, next.selected) with
-      | Some item when (Stdlib.Bool.not(item.isModule)) && (item.kind == "fn") ->
+      | Some(item) when (Stdlib.Bool.not(item.isModule)) && (item.kind == "fn") ->
         Stdlib.Option.Option.Some(
           LanguageTools.ProgramTypes.PackageLocation
             { owner = Stdlib.List.head(Packages.modulePathOf(next.location)) |> Stdlib.Option.withDefault("")
@@ -663,7 +665,7 @@ let refreshLiveValues(next: State): State =
 
   match selectedFn with
   | None -> { next with liveValues = Stdlib.Dict.empty, liveFor = "", liveNote = "" }
-  | Some entry ->
+  | Some(entry) ->
     // A scroll or a command-bar key moves neither, and a replay costs a whole recorded run.
     let key =
       $"{Stdlib.toString(next.branchId)} {Stdlib.Live.entryName(entry)} {Stdlib.toString(next.scmStatus.ops)}"
@@ -672,11 +674,11 @@ let refreshLiveValues(next: State): State =
     else
       let (values, note) =
         match Stdlib.Live.Values.replay(next.accountId, next.branchId, entry) with
-        | Some v ->
+        | Some(v) ->
           // One line each, and short: a value beside a call is a glance, and the pane's width
           // is the code's. `dark traces inspect` has the whole value.
           (v.byExpr
-           |> Stdlib.Dict.map(fun _ dv ->
+           |> Stdlib.Dict.map(fun(_, dv) ->
              PrettyPrinter.RuntimeTypes.dvalOneLine(next.branchId, 40, dv)),
            Stdlib.Option.withDefault(v.skipped, ""))
         | None -> (Stdlib.Dict.empty, "")
@@ -689,7 +691,7 @@ let refreshPeek(next: State): State =
       ""
     else
       match Stdlib.List.getAt(next.items, next.selected) with
-      | Some item ->
+      | Some(item) ->
         if (Stdlib.Bool.not(item.isModule)) && (item.kind == "fn") && (item.name == "render") then
           let fullpath =
             Stdlib.String.join(Stdlib.List.append(Packages.modulePathOf(next.location), item.name), ".")

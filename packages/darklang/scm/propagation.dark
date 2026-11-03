@@ -32,12 +32,12 @@ let ensureBindings(
   moved: List<LanguageTools.ProgramTypes.PropagateRepoint>)
   : Stdlib.Result.Result<Unit, String> =
   moved
-  |> Stdlib.List.fold(Stdlib.Result.Result.Ok (), fun result r ->
+  |> Stdlib.List.fold(Stdlib.Result.Result.Ok(), fun(result, r) ->
     let _ = result?
     let hash = LanguageTools.ProgramTypes.Reference.hash(r.toRef)
     let kind = LanguageTools.ProgramTypes.Reference.kind(r.toRef)
     match hashOn(branchId, r.location, kind) with
-    | Some now when now == hash -> Stdlib.Result.Result.Ok ()
+    | Some(now) when now == hash -> Stdlib.Result.Result.Ok()
     | _ -> rebindOn(branchId, r.location, kind, hash))
 
 /// Repoint every caller of one of <param previousHashes> at <param currentHash>, on <param branchId>,
@@ -55,7 +55,7 @@ let repointDependents(
   : Stdlib.Result.Result<List<LanguageTools.ProgramTypes.PropagateRepoint>, String> =
   let moved = (Builtin.pmPropagate(branchId, location, itemKind, previousHashes, currentHash))?
   let _ = (ensureBindings(branchId, moved))?
-  Stdlib.Result.Result.Ok moved
+  Stdlib.Result.Result.Ok(moved)
 
 let modulesOf(loc: LanguageTools.ProgramTypes.PackageLocation): String =
   Stdlib.String.join(loc.modules, ".")
@@ -83,7 +83,7 @@ let currentHash(
   loc: LanguageTools.ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
   SCM.PackageOps.liveBindingAt(loc)
-  |> Stdlib.Option.map(fun b -> LanguageTools.ProgramTypes.Hash.Hash b.hash)
+  |> Stdlib.Option.map(fun b -> LanguageTools.ProgramTypes.Hash.Hash(b.hash))
 
 
 /// The version this branch inherited when it first changed this name.
@@ -134,17 +134,17 @@ let authoringOrder(
     let mainUpToFork =
       match forkBaseOf(branch, loc) with
       | None -> fromMain
-      | Some base ->
+      | Some(base) ->
         // Through the LAST occurrence of the base: a name can return to a hash it held before.
         let lastAt =
           fromMain
-          |> Stdlib.List.indexedMap(fun i h -> (i, h))
-          |> Stdlib.List.filter(fun (_, h) -> h == base)
+          |> Stdlib.List.indexedMap(fun(i, h) -> (i, h))
+          |> Stdlib.List.filter(fun((_, h)) -> h == base)
           |> Stdlib.List.last
-          |> Stdlib.Option.map(fun (i, _) -> i)
+          |> Stdlib.Option.map(fun((i, _)) -> i)
 
         match lastAt with
-        | Some i -> Stdlib.List.take(fromMain, i + 1)
+        | Some(i) -> Stdlib.List.take(fromMain, i + 1)
         | None -> fromMain
 
     Stdlib.List.concat(
@@ -161,7 +161,7 @@ let previousAuthored(
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
   match currentHash(loc) with
   | None -> Stdlib.Option.Option.None
-  | Some live ->
+  | Some(live) ->
     let liveStr = LanguageTools.ProgramTypes.hashToString(live)
     let versions = authoringOrder(loc)
 
@@ -170,10 +170,10 @@ let previousAuthored(
       // The live binding isn't in the authored sequence at all -- it came from somewhere else entirely
       // (a merge, a synced peer's version). Stepping "back" has no defined meaning there.
       Stdlib.Option.Option.None
-    | Some 0 -> Stdlib.Option.Option.None
-    | Some i ->
+    | Some(0) -> Stdlib.Option.Option.None
+    | Some(i) ->
       match Stdlib.List.getAt(versions, i - 1) with
-      | Some h -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash h)
+      | Some(h) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash(h))
       | None -> Stdlib.Option.Option.None
 
 
@@ -215,7 +215,7 @@ let everBoundHashesFor(
   : Dict<String, List<LanguageTools.ProgramTypes.Hash>> =
   let keys =
     names
-    |> Stdlib.List.map(fun (loc, kind) ->
+    |> Stdlib.List.map(fun((loc, kind)) ->
       [ loc.owner
         modulesOf(loc)
         loc.name
@@ -248,13 +248,13 @@ let everBoundHashesFor(
          Stdlib.Sqlite.textField(row, "item_type"),
          Stdlib.Sqlite.textField(row, "item_hash"))
       with
-      | (Some owner, Some modules, Some name, Some itemType, Some hash) ->
+      | (Some(owner), Some(modules), Some(name), Some(itemType), Some(hash)) ->
         Stdlib.Option.Option.Some(
           (everBoundKey(owner, modules, name, itemType),
-           LanguageTools.ProgramTypes.Hash.Hash hash)
+           LanguageTools.ProgramTypes.Hash.Hash(hash))
         )
       | _ -> Stdlib.Option.Option.None)
-    |> Stdlib.List.groupBy(fun (key, _) -> key)
-    |> Stdlib.List.map(fun (key, rows) ->
-      (key, rows |> Stdlib.List.map(fun (_, hash) -> hash)))
+    |> Stdlib.List.groupBy(fun((key, _)) -> key)
+    |> Stdlib.List.map(fun((key, rows)) ->
+      (key, rows |> Stdlib.List.map(fun((_, hash)) -> hash)))
     |> Stdlib.Dict.fromEntries

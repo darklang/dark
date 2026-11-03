@@ -8,13 +8,13 @@ test lambdasAndOperators =
       (let fn = (+)
        fn(3L, 4L))
       |> Stdlib.Test.equal(7L)
-      (let fn = (fun a b -> Stdlib.max(a, b))
+      (let fn = (fun(a, b) -> Stdlib.max(a, b))
        fn(3L, 7L))
       |> Stdlib.Test.equal(7L) ])
 
 // `map` gives its callback one argument, and a two-parameter lambda takes two, so it raises.
 test callbackGivenTooFewArguments =
-  ([ 1L, 2L ] |> Stdlib.List.map(fun x y -> x))
+  ([ 1L, 2L ] |> Stdlib.List.map(fun(x, y) -> x))
   => raises "Lambda expects 2 arguments, but got 1 argument"
 
 // ---------------------------
@@ -46,12 +46,12 @@ let returnsString(): String = "string"
 let shouldReturnStringButDoesNot(): String = 5L
 
 let returnsOptionSome(): Stdlib.Option.Option<Int64> =
-  Stdlib.Option.Option.Some 5L
+  Stdlib.Option.Option.Some(5L)
 
 let returnsOptionNone(): Stdlib.Option.Option<Int64> = Stdlib.Option.Option.None
 
 let returnsResultOk(): Stdlib.Result.Result<Int64, 'err> =
-  Stdlib.Result.Result.Ok 5L
+  Stdlib.Result.Result.Ok(5L)
 
 let derrorFn(msg: String): String = msg + Stdlib.Test.raiseRuntimeError(msg)
 
@@ -71,25 +71,25 @@ test userFunctions =
       twoStringFn("str1", "str2") |> Stdlib.Test.equal("str1 appended str2")
       returnsInt() |> Stdlib.Test.equal(5L)
       returnsString() |> Stdlib.Test.equal("string")
-      returnsOptionSome() |> Stdlib.Test.equal(Stdlib.Option.Option.Some 5L)
+      returnsOptionSome() |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5L))
       (returnsOptionSome()) |> Builtin.unwrap |> Stdlib.Test.equal(5L)
       returnsOptionNone() |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-      returnsResultOk() |> Stdlib.Test.equal(Stdlib.Result.Result.Ok 5L)
+      returnsResultOk() |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5L))
       (returnsResultOk()) |> Builtin.unwrap |> Stdlib.Test.equal(5L)
       fnWithTypeArgAndOneParam<Int64>(1L) |> Stdlib.Test.equal(1L)
       fnWithTypeArgs<Int64, String>(5L, "x") |> Stdlib.Test.equal(5L)
       fnWithTypedReturn<Int64>() |> Stdlib.Test.equal(5L)
-      polyFn(X.A 5L) |> Stdlib.Test.equal(X.A 5L)
-      polyFn(X.B "str") |> Stdlib.Test.equal(X.B "str")
-      strFn(X.A 5L) |> Stdlib.Test.equal(X.A 5L)
-      strFn(X.B "str") |> Stdlib.Test.equal(X.B "str") ])
+      polyFn(X.A(5L)) |> Stdlib.Test.equal(X.A(5L))
+      polyFn(X.B("str")) |> Stdlib.Test.equal(X.B("str"))
+      strFn(X.A(5L)) |> Stdlib.Test.equal(X.A(5L))
+      strFn(X.B("str")) |> Stdlib.Test.equal(X.B("str")) ])
 
 // Inferred type arguments agree with explicit ones.
 test definedPolyFnInfersTypeArgs =
   Stdlib.Test.all(
-    [ definedPolyFn<String>(X.A 5L) |> Stdlib.Test.equal(definedPolyFn(X.A 5L))
-      definedPolyFn<String>(X.B "str")
-      |> Stdlib.Test.equal(definedPolyFn(X.B "str")) ])
+    [ definedPolyFn<String>(X.A(5L)) |> Stdlib.Test.equal(definedPolyFn(X.A(5L)))
+      definedPolyFn<String>(X.B("str"))
+      |> Stdlib.Test.equal(definedPolyFn(X.B("str"))) ])
 
 module InvalidFnCalls =
   test missingFunctionRaises =
@@ -152,8 +152,8 @@ module InvalidFnCalls =
 module GenericTypeArgsAreOK =
   test segmentsToString =
     (let segments =
-      [ (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "a")
-        (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "b") ]
+      [ (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String("a"))
+        (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String("b")) ]
 
      Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString(
        Darklang.SCM.Branch.mainBranchId,

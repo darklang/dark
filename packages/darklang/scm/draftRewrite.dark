@@ -46,7 +46,7 @@ let mainDraftOps(): List<DraftOp> =
       [])
 
   SCM.PackageOps.decodeOpRowEntries(rows)
-  |> Stdlib.List.map(fun (id, ts, op) -> DraftOp { id = id, ts = ts, op = op })
+  |> Stdlib.List.map(fun((id, ts, op)) -> DraftOp { id = id, ts = ts, op = op })
 
 
 /// The content hashes the draft ADDS, so a naming can be told from a rename.
@@ -54,17 +54,17 @@ let addedHashes(ops: List<LanguageTools.ProgramTypes.PackageOp>): List<String> =
   ops
   |> Stdlib.List.filterMap(fun op ->
     match op with
-    | AddType t ->
+    | AddType(t) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
-    | AddValue v ->
+    | AddValue(v) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(v.hash))
-    | AddFn f ->
+    | AddFn(f) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(f.hash))
-    | AddTrait t ->
+    | AddTrait(t) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
-    | AddTraitImpl i ->
+    | AddTraitImpl(i) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(i.hash))
-    | AddTest test ->
+    | AddTest(test) ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(test.hash))
     | _ -> Stdlib.Option.Option.None)
 
@@ -91,15 +91,15 @@ let surgicallyUndoable(
   op: LanguageTools.ProgramTypes.PackageOp)
   : Bool =
   match op with
-  | AddType _ -> true
-  | AddValue _ -> true
-  | AddFn _ -> true
-  | AddTrait _ -> true
-  | AddTraitImpl _ -> true
-  | AddTest _ -> true
+  | AddType(_) -> true
+  | AddValue(_) -> true
+  | AddFn(_) -> true
+  | AddTrait(_) -> true
+  | AddTraitImpl(_) -> true
+  | AddTest(_) -> true
   | SetName(_, target, _) ->
     Stdlib.List.contains(added, referenceHash(target))
-  | Decision(_, _, _, Override _) -> true
+  | Decision(_, _, _, Override(_)) -> true
   | Decision(_, _, _, _) -> false
   | Unbind(_, _) -> false
   | Deprecate(_, _, _, _) -> false
@@ -118,7 +118,7 @@ let locationRowOf(d: DraftOp): Stdlib.Option.Option<(String * String * String * 
        loc.name,
        referenceHash(target),
        d.ts))
-  | Decision(_, loc, _, Override target) ->
+  | Decision(_, loc, _, Override(target)) ->
     Stdlib.Option.Option.Some(
       (loc.owner,
        Stdlib.String.join(loc.modules, "."),
@@ -146,7 +146,7 @@ let surgicalDrop(dropped: List<DraftOp>): Stdlib.Result.Result<Unit, String> =
 
   let deleteRows =
     rows
-    |> Stdlib.List.map(fun (owner, modules, name, hash, ts) ->
+    |> Stdlib.List.map(fun((owner, modules, name, hash, ts)) ->
       [ owner, modules, name, hash, ts ])
 
   // Re-list what the dropped binding superseded: the most recent row left for that name. Ordered by
@@ -154,7 +154,7 @@ let surgicalDrop(dropped: List<DraftOp>): Stdlib.Result.Result<Unit, String> =
   // timestamp-LWW would pick, not whichever row happened to be written last.
   let relistRows =
     rows
-    |> Stdlib.List.map(fun (owner, modules, name, _, _) -> [ owner, modules, name ])
+    |> Stdlib.List.map(fun((owner, modules, name, _, _)) -> [ owner, modules, name ])
     |> Stdlib.List.unique
 
   let deleteOps = dropped |> Stdlib.List.map(fun d -> [ d.id ])
@@ -184,10 +184,10 @@ let surgicalDrop(dropped: List<DraftOp>): Stdlib.Result.Result<Unit, String> =
       ("DELETE FROM package_ops WHERE id = @p0", deleteOps) ]
 
   match Stdlib.Sqlite.execBatch(db(), statements) with
-  | Ok _ ->
+  | Ok(_) ->
     invalidateCaches()
     Stdlib.Result.Result.Ok()
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// One go at `rewriteBy`; see there.
@@ -198,7 +198,7 @@ let rewriteByAttempt(
   let draft = mainDraftOps()
 
   if Stdlib.List.isEmpty(draft) then
-    Stdlib.Result.Result.Ok 0
+    Stdlib.Result.Result.Ok(0)
   else
     let keptIds = keep(draft) |> Stdlib.List.map(fun d -> d.id)
     let dropped =
@@ -208,7 +208,7 @@ let rewriteByAttempt(
     let count = Stdlib.List.length(dropped)
 
     if count == 0 then
-      Stdlib.Result.Result.Ok 0
+      Stdlib.Result.Result.Ok(0)
     else
       let added = addedHashes(draft |> Stdlib.List.map(fun d -> d.op))
       let allSurgical =
@@ -216,14 +216,14 @@ let rewriteByAttempt(
 
       if allSurgical then
         match surgicalDrop(dropped) with
-        | Ok _ -> Stdlib.Result.Result.Ok count
-        | Error e -> Stdlib.Result.Result.Error e
+        | Ok(_) -> Stdlib.Result.Result.Ok(count)
+        | Error(e) -> Stdlib.Result.Result.Error(e)
       else
         let draftIds = draft |> Stdlib.List.map(fun d -> d.id)
 
         match Builtin.scmRebuildDraftKeeping(draftIds, keptIds) with
-        | Ok true -> Stdlib.Result.Result.Ok count
-        | Ok false ->
+        | Ok(true) -> Stdlib.Result.Result.Ok(count)
+        | Ok(false) ->
           // An attempt is short, so ten misses in a row is not ordinary contention.
           if attempt < 10 then
             rewriteByAttempt(keep, attempt + 1)
@@ -233,7 +233,7 @@ let rewriteByAttempt(
               + Stdlib.toString(attempt)
               + " tries), usually another save, a pull, or your own editor, so nothing "
               + "was changed. Run it again.")
-        | Error e -> Stdlib.Result.Result.Error e
+        | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Rewrite the draft to whatever <param keep> returns, and report how many ops went.
@@ -284,7 +284,7 @@ let discardName(
     |> Stdlib.List.filter(fun d ->
       match d.op with
       | SetName(loc, _, _) -> Stdlib.Bool.not(bindsThisName(loc))
-      | Decision(_, loc, _, Override _) -> Stdlib.Bool.not(bindsThisName(loc))
+      | Decision(_, loc, _, Override(_)) -> Stdlib.Bool.not(bindsThisName(loc))
       | _ -> true))
 
 
@@ -318,7 +318,7 @@ let collapse(): Stdlib.Result.Result<Int, String> =
     // So: walk in authoring order and move the keeper on only when the hash CHANGES. A -> A keeps
     // the first; A -> B -> A keeps the third, which is the one whose fold rebound the name.
     let step =
-      (fun acc d ->
+      (fun(acc, d) ->
         match d.op with
         | SetName(loc, target, _) ->
           let key = nameKey(loc)

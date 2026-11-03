@@ -76,7 +76,7 @@ let scmStatusFrom(branchId: Uuid, p: SCM.Draft.Picture): ScmStatus =
       commits = Stdlib.List.length(recent)
       lastCommit =
         match Stdlib.List.head(recent) with
-        | Some c -> c.message
+        | Some(c) -> c.message
         | None -> ""
       ops = p.ops
       loaded = true }

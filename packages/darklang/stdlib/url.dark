@@ -50,12 +50,12 @@ impl ToString for ParseError =
   let toString(e: ParseError): String =
     match e with
     | MissingScheme -> "The URL has no scheme (such as https:) at the front"
-    | InvalidScheme scheme -> $"'{scheme}' is not a valid URL scheme"
-    | InvalidHost host -> $"'{host}' is not a valid host"
-    | InvalidPort port -> $"'{port}' is not a valid port (0-65535)"
+    | InvalidScheme(scheme) -> $"'{scheme}' is not a valid URL scheme"
+    | InvalidHost(host) -> $"'{host}' is not a valid host"
+    | InvalidPort(port) -> $"'{port}' is not a valid port (0-65535)"
     | InvalidCharacter(part, character) ->
       $"'{character}' is not allowed in a URL's {part}; percent-encode it"
-    | InvalidPercentEncoding part ->
+    | InvalidPercentEncoding(part) ->
       $"The {part} has a '%' that is not followed by two hex digits"
 
 
@@ -99,7 +99,7 @@ let checkPart(
   s: Stdlib.Option.Option<String>)
   : Stdlib.Result.Result<Unit, ParseError> =
   match s with
-  | Some s when strict ->
+  | Some(s) when strict ->
     let bad =
       s
       |> Stdlib.String.toList
@@ -113,7 +113,7 @@ let checkPart(
               && !(Stdlib.Char.isWhitespace(c)))))
 
     match bad with
-    | Some c ->
+    | Some(c) ->
       Stdlib.Result.Result.Error(
         ParseError.InvalidCharacter(part, Stdlib.String.fromChar(c)))
     | None ->
@@ -141,8 +141,8 @@ let isIPv4(s: String): Bool =
     && (Stdlib.String.length(o)) <= 3
     && (o == "0" || !(Stdlib.String.startsWith(o, "0")))
     && (match Stdlib.Int.parse(o) with
-        | Ok n -> n <= 255
-        | Error _ -> false))
+        | Ok(n) -> n <= 255
+        | Error(_) -> false))
 
 
 /// An IPv6 address: eight groups of up to four hex digits, one run of zero
@@ -164,7 +164,7 @@ let isIPv6(s: String): Bool =
 
     match Stdlib.List.last(groups) with
     | None -> compressed
-    | Some lastGroup ->
+    | Some(lastGroup) ->
       // Only the very last group may be an IPv4 address: in `1.2.3.4::` it is
       // the last group listed, but the `::` comes after it.
       let endsInIPv4 =
@@ -215,8 +215,8 @@ let parsePort(
     Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
   else
     match Stdlib.Int.parse(s) with
-    | Ok n when isDigits(s) && (Stdlib.String.length(s)) <= 5 && n <= 65535 ->
-      Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some n)
+    | Ok(n) when isDigits(s) && (Stdlib.String.length(s)) <= 5 && n <= 65535 ->
+      Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(n))
     | _ -> Stdlib.Result.Result.Error(ParseError.InvalidPort(s))
 
 
@@ -229,7 +229,7 @@ let parseAuthority(
   // there instead of turning up in the host.
   let (userinfo, hostPort) =
     match Stdlib.String.splitLast(authority, "@") with
-    | Some((u, hp)) -> (Stdlib.Option.Option.Some u, hp)
+    | Some((u, hp)) -> (Stdlib.Option.Option.Some(u), hp)
     | None -> (Stdlib.Option.Option.None, authority)
 
   let _ = (checkPart(strict, "userinfo", ":", userinfo))?
@@ -241,7 +241,7 @@ let parseAuthority(
          after == "" || Stdlib.String.startsWith(after, ":")
          ->
          match parseIPLiteral(Stdlib.String.dropFirst(bracketed, 1)) with
-         | Some host ->
+         | Some(host) ->
            Stdlib.Result.Result.Ok((host, Stdlib.String.dropFirst(after, 1)))
          | None -> Stdlib.Result.Result.Error(ParseError.InvalidHost(hostPort))
        | _ -> Stdlib.Result.Result.Error(ParseError.InvalidHost(hostPort))
@@ -258,9 +258,9 @@ let parseAuthority(
          (Stdlib.List.length(Stdlib.String.split(name, "."))) == 4
          && Stdlib.List.all(Stdlib.String.split(name, "."), fun o -> isDigits(o))
 
-       match checkPart(strict, "host", "", Stdlib.Option.Option.Some name) with
-       | Error e -> Stdlib.Result.Result.Error e
-       | Ok _ ->
+       match checkPart(strict, "host", "", Stdlib.Option.Option.Some(name)) with
+       | Error(e) -> Stdlib.Result.Result.Error(e)
+       | Ok(_) ->
          // A lenient parse skips the character check, but a `:` left in the
          // name would print back as an IPv6 literal, so it is refused here too.
          if
@@ -279,7 +279,7 @@ let parseAuthority(
   then
     Stdlib.Result.Result.Error(ParseError.InvalidHost(hostPort))
   else
-    Stdlib.Result.Result.Ok((userinfo, Stdlib.Option.Option.Some host, port))
+    Stdlib.Result.Result.Ok((userinfo, Stdlib.Option.Option.Some(host), port))
 
 
 /// The scheme at the front of <param s>, if it has one, and the rest. Text before
@@ -321,7 +321,7 @@ let parseWith(
   : Stdlib.Result.Result<Url, ParseError> =
   let (scheme, afterScheme) =
     (match splitScheme(s) with
-     | Error _ when !strict ->
+     | Error(_) when !strict ->
        Stdlib.Result.Result.Ok((Stdlib.Option.Option.None, s))
      | Ok((None, _)) when absolute ->
        Stdlib.Result.Result.Error(ParseError.MissingScheme)
@@ -329,32 +329,32 @@ let parseWith(
 
   let (beforeFragment, fragment) =
     match Stdlib.String.splitFirst(afterScheme, "#") with
-    | Some((a, f)) -> (a, Stdlib.Option.Option.Some f)
+    | Some((a, f)) -> (a, Stdlib.Option.Option.Some(f))
     | None -> (afterScheme, Stdlib.Option.Option.None)
 
   let (hierPart, query) =
     match Stdlib.String.splitFirst(beforeFragment, "?") with
-    | Some((h, q)) -> (h, Stdlib.Option.Option.Some q)
+    | Some((h, q)) -> (h, Stdlib.Option.Option.Some(q))
     | None -> (beforeFragment, Stdlib.Option.Option.None)
 
   let (authority, path) =
     match Stdlib.String.stripPrefix(hierPart, "//") with
-    | Some rest ->
+    | Some(rest) ->
       match Stdlib.String.splitFirst(rest, "/") with
-      | Some((a, p)) -> (Stdlib.Option.Option.Some a, "/" + p)
-      | None -> (Stdlib.Option.Option.Some rest, "")
+      | Some((a, p)) -> (Stdlib.Option.Option.Some(a), "/" + p)
+      | None -> (Stdlib.Option.Option.Some(rest), "")
     | None -> (Stdlib.Option.Option.None, hierPart)
 
   let (userinfo, host, port) =
     (match authority with
-     | Some a -> parseAuthority(strict, a)
+     | Some(a) -> parseAuthority(strict, a)
      | None ->
        Stdlib.Result.Result.Ok(
          (Stdlib.Option.Option.None,
           Stdlib.Option.Option.None,
           Stdlib.Option.Option.None)))?
 
-  let _ = (checkPart(strict, "path", ":@/", Stdlib.Option.Option.Some path))?
+  let _ = (checkPart(strict, "path", ":@/", Stdlib.Option.Option.Some(path)))?
   let _ = (checkPart(strict, "query", ":@/?", query))?
   let _ = (checkPart(strict, "fragment", ":@/?", fragment))?
 
@@ -401,16 +401,16 @@ let parseLenient(s: String): Stdlib.Result.Result<Url, ParseError> =
 let toString(url: Url): String =
   let scheme =
     match url.scheme with
-    | Some s -> s + ":"
+    | Some(s) -> s + ":"
     | None -> ""
 
   let authority =
     match url.host with
     | None -> ""
-    | Some host ->
+    | Some(host) ->
       let user =
         match url.userinfo with
-        | Some u -> u + "@"
+        | Some(u) -> u + "@"
         | None -> ""
 
       let shownHost =
@@ -418,19 +418,19 @@ let toString(url: Url): String =
 
       let port =
         match url.port with
-        | Some p -> ":" + Stdlib.toString(p)
+        | Some(p) -> ":" + Stdlib.toString(p)
         | None -> ""
 
       "//" + user + shownHost + port
 
   let query =
     match url.query with
-    | Some q -> "?" + q
+    | Some(q) -> "?" + q
     | None -> ""
 
   let fragment =
     match url.fragment with
-    | Some f -> "#" + f
+    | Some(f) -> "#" + f
     | None -> ""
 
   scheme + authority + url.path + query + fragment
@@ -460,7 +460,7 @@ let removeDots(input: String, out: List<String>): String =
   else
     let (lead, rest) =
       match Stdlib.String.stripPrefix(input, "/") with
-      | Some r -> ("/", r)
+      | Some(r) -> ("/", r)
       | None -> ("", input)
 
     match Stdlib.String.splitFirst(rest, "/") with
@@ -541,7 +541,7 @@ let resolveRaw(base: Url, ref: Url): Url =
 let queryParams(url: Url): List<(String * String)> =
   match url.query with
   | None -> []
-  | Some q ->
+  | Some(q) ->
     q
     |> Stdlib.String.split("&")
     |> Stdlib.List.filterMap(fun field ->
@@ -567,7 +567,7 @@ let pathSegments(url: Url): List<String> =
 
   let segments =
     match Stdlib.List.last(segments) with
-    | Some "" -> Stdlib.List.dropLast(segments)
+    | Some("") -> Stdlib.List.dropLast(segments)
     | _ -> segments
 
   Stdlib.List.map(segments, fun s -> percentDecode(s))
@@ -594,7 +594,7 @@ let percentDecode(s: String): String =
   | [] -> ""
   | [first, ...rest] ->
     rest
-    |> Stdlib.List.fold([ Stdlib.Utf8.encode(first) ], fun reversed piece ->
+    |> Stdlib.List.fold([ Stdlib.Utf8.encode(first) ], fun(reversed, piece) ->
       let hex = Stdlib.String.slice(piece, 0, 2)
 
       // The length check is not redundant: `Hex.decode ""` succeeds, so a `%`
@@ -603,13 +603,13 @@ let percentDecode(s: String): String =
         (if (Stdlib.String.length(hex)) == 2 then
            Stdlib.Hex.decode(hex)
          else
-           Stdlib.Result.Result.Error "not an escape")
+           Stdlib.Result.Result.Error("not an escape"))
       with
-      | Ok b ->
+      | Ok(b) ->
         Stdlib.List.prepend(
           Stdlib.List.prepend(reversed, b),
           Stdlib.Utf8.encode(Stdlib.String.dropFirst(piece, 2)))
-      | Error _ -> Stdlib.List.prepend(reversed, Stdlib.Utf8.encode("%" + piece)))
+      | Error(_) -> Stdlib.List.prepend(reversed, Stdlib.Utf8.encode("%" + piece)))
     |> Stdlib.List.reverse
     |> Stdlib.Bytes.concatAll
     |> Stdlib.Utf8.decodeWithReplacement
@@ -634,6 +634,6 @@ let percentEncode(s: String): String =
     let code = Stdlib.Int.fromUInt8(b)
 
     match Stdlib.Char.fromCodepoint(code) with
-    | Some c when code < 128 && isUnreserved(c) -> Stdlib.String.fromChar(c)
+    | Some(c) when code < 128 && isUnreserved(c) -> Stdlib.String.fromChar(c)
     | _ -> "%" + Stdlib.Hex.encode(Stdlib.Bytes.fromList([ b ])))
   |> Stdlib.String.join("")

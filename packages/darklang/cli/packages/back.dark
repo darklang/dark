@@ -4,7 +4,7 @@ module Darklang.Cli.Packages.Back
 
 let execute(state: AppState, args: List<String>): AppState =
   match Stdlib.List.last(state.packageData.locationHistory) with
-  | Some previousLocation ->
+  | Some(previousLocation) ->
     let pathStr = formatLocation(previousLocation)
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success("Back to: " + pathStr))
 

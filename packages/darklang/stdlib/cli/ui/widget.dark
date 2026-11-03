@@ -58,4 +58,4 @@ let press(
 
 /// Did this keypress type `c`?
 let isChar(kp: KeyPress, c: String): Bool =
-  kp.char == (Stdlib.Option.Option.Some c)
+  kp.char == (Stdlib.Option.Option.Some(c))

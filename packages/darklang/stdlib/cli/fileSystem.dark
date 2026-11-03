@@ -20,7 +20,7 @@ module FileError =
     match err with
     | NotFound -> "File not found"
     | OsAccessDenied -> "Permission denied"
-    | Other msg -> msg
+    | Other(msg) -> msg
 
 
 /// The process's current working directory.
@@ -41,7 +41,7 @@ let __expandPath(path: String): String =
 let __fromPosixError(error: Posix.Error): FileError =
   if error.errno == 2 || error.errno == 20 then FileError.NotFound
   else if error.errno == 13 || error.errno == 1 || error.errno == 21 then FileError.OsAccessDenied
-  else FileError.Other error.message
+  else FileError.Other(error.message)
 
 
 /// Full paths of the entries in the directory at <param path>.
@@ -51,8 +51,8 @@ let listDirectory(path: String): List<String> =
     if Path.isAbsolute(expanded) then Path.normalize(expanded)
     else Path.join([ currentDirectory(), expanded ]) |> Path.normalize
   match Posix.listDir(full) with
-  | Error _ -> []
-  | Ok names -> Stdlib.List.map(names, fun name -> Path.join([ full, name ]))
+  | Error(_) -> []
+  | Ok(names) -> Stdlib.List.map(names, fun name -> Path.join([ full, name ]))
 
 
 /// Is there a file or directory at <param path>?
@@ -101,7 +101,7 @@ let getDirectoryContents(path: String): List<String> =
     | [] -> fullFilePath
     | parts ->
       match Stdlib.List.last(parts) with
-      | Some filename -> filename
+      | Some(filename) -> filename
       | None -> fullFilePath)
 
 // Check if a path is a directory - expects full path
@@ -136,13 +136,12 @@ let overwriteFile(path: String, content: Bytes): Result.Result<Unit, FileError> 
 /// {{FileError.Other}} if the bytes aren't valid UTF-8.
 let readFileAsString(path: String): Result.Result<String, FileError> =
   match readFile(path) with
-  | Ok blob ->
+  | Ok(blob) ->
     match Stdlib.Utf8.decode(blob) with
-    | Ok s -> Stdlib.Result.Result.Ok s
-    | Error _ ->
-      Stdlib.Result.Result.Error
-        (FileError.Other "File contents are not valid UTF-8")
-  | Error e -> Stdlib.Result.Result.Error e
+    | Ok(s) -> Stdlib.Result.Result.Ok(s)
+    | Error(_) ->
+      Stdlib.Result.Result.Error(FileError.Other("File contents are not valid UTF-8"))
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Write content to a file, creating any missing parent directories.
@@ -157,7 +156,7 @@ let writeFile(path: String, content: Bytes): Result.Result<Unit, String> =
       Stdlib.Result.Result.Ok()
 
   match mkdirResult with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok _ ->
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(_) ->
     (overwriteFile(path, content))
     |> Stdlib.Result.mapError(FileError.toString)

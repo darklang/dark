@@ -27,9 +27,9 @@ let lookupRef(branchRef: String): Stdlib.Option.Option<Uuid> =
   // The resolution itself is in `SCM.PackageOps.resolveBranchRef`, because the LSP needs the same
   // answer. What stays here is the WORDS.
   match SCM.PackageOps.resolveBranchRef(branchRef) with
-  | Found id -> Stdlib.Option.Option.Some id
+  | Found(id) -> Stdlib.Option.Option.Some(id)
   | NotFound -> Stdlib.Option.Option.None
-  | UnknownId _ ->
+  | UnknownId(_) ->
     Cli.printErr($"no branch with id {branchRef} in this store.")
     Cli.printHint("  `dark branches` lists yours; a peer's branch arrives with `dark branch pull`.")
     Stdlib.Option.Option.None
@@ -44,7 +44,7 @@ let lookupRef(branchRef: String): Stdlib.Option.Option<Uuid> =
 /// an empty branch it just invented.
 let resolveRef(branchRef: String): Stdlib.Option.Option<Uuid> =
   match lookupRef(branchRef) with
-  | Some id -> Stdlib.Option.Option.Some id
+  | Some(id) -> Stdlib.Option.Option.Some(id)
   | None ->
     Cli.printErr($"no branch \"{branchRef}\".")
     Cli.printHint("  `dark branches` lists them.")
@@ -100,7 +100,7 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
       false
     else
       match SCM.PackageOps.resolveBranchRef(branchRef) with
-      | UnknownId _ -> true
+      | UnknownId(_) -> true
       | Ambiguous -> true
       | _ -> false
 
@@ -138,13 +138,13 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
       // the reason `lookupRef` printed; starting a branch NAMED after either read as success.
       let resolved =
         match SCM.PackageOps.resolveBranchRef(ref) with
-        | Found existing ->
+        | Found(existing) ->
           if SCM.PackageOps.branchIsMerged(existing) then
             Stdlib.Option.Option.Some(SCM.PackageOps.ensureBranch(ref, parentId))
           else
             Stdlib.Option.Option.Some((existing, false))
         | NotFound -> Stdlib.Option.Option.Some(SCM.PackageOps.ensureBranch(ref, parentId))
-        | UnknownId _ ->
+        | UnknownId(_) ->
           let _ = lookupRef(ref)
           Stdlib.Option.Option.None
         | Ambiguous ->
@@ -153,7 +153,7 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
 
       match resolved with
       | None -> SCM.PackageOps.currentBranch()
-      | Some pair ->
+      | Some(pair) ->
 
       let (branchId, created) = pair
 
@@ -205,7 +205,7 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
 /// parented to main, which is what an imported branch that arrived as tagged ops looks like.
 let parentOf(branchId: Uuid): (Uuid * String) =
   match SCM.Branches.list() |> Stdlib.List.findFirst(fun b -> b.id == branchId) with
-  | Some b -> (b.parent, SCM.PackageOps.branchName(b.parent))
+  | Some(b) -> (b.parent, SCM.PackageOps.branchName(b.parent))
   | None -> (SCM.Branch.mainBranchId, SCM.Branch.mainBranchName)
 
 /// `dark branch rename <branch> <new-name>`
@@ -216,7 +216,7 @@ let parentOf(branchId: Uuid): (Uuid * String) =
 let executeRename(state: AppState, branchRef: String, newName: String): AppState =
   match resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
-  | Some branchId ->
+  | Some(branchId) ->
     if SCM.Branch.isMain(branchId) then
       Cli.printErr("main is the trunk; it has no name to change.")
       Cli.exitWith(state, false)
@@ -224,7 +224,7 @@ let executeRename(state: AppState, branchRef: String, newName: String): AppState
       let was = SCM.PackageOps.branchName(branchId)
 
       match SCM.Branch.rename(branchId, newName) with
-      | Ok b ->
+      | Ok(b) ->
         // The config keeps the name beside the id for anyone reading the file, so it goes stale on a
         // rename of the branch you are standing on.
         if SCM.PackageOps.currentBranch() == branchId then
@@ -234,7 +234,7 @@ let executeRename(state: AppState, branchRef: String, newName: String): AppState
 
         Cli.printOk($"renamed \"{was}\" to \"{b.name}\". Nothing else moved: references are by id.")
         state
-      | Error e ->
+      | Error(e) ->
         Cli.printErr(e)
         Cli.exitWith(state, false)
 
@@ -255,14 +255,14 @@ let executeArchive(
   // out from under it: the child's code stops resolving, its listing shows a parent "not in this
   // store", and merging it lands ops whose dependencies are gone. Merge has refused this since it
   // was written; archive is the same act by another route and now refuses it too.
-  | Some branchId when Stdlib.Bool.not(Stdlib.List.isEmpty(SCM.Branches.activeChildNames(branchId))) ->
+  | Some(branchId) when Stdlib.Bool.not(Stdlib.List.isEmpty(SCM.Branches.activeChildNames(branchId))) ->
     let kids = SCM.Branches.activeChildNames(branchId)
     Cli.printErr(
       $"cannot archive \"{branchRef}\": {Cli.Text.plural(Stdlib.List.length(kids), "branch")} still branch off it.")
     kids |> Stdlib.List.iter(fun k -> Cli.printHint($"    - {k}"))
     Cli.printHint("  merge or archive them first, and this one can go.")
     Cli.exitWith(state, false)
-  | Some branchId ->
+  | Some(branchId) ->
     let entries = SCM.PackageOps.branchDiffEntries(branchId)
 
     let confirmed =
@@ -299,7 +299,7 @@ let executeArchive(
     let (parentId, parentName) = parentOf(branchId)
 
     match SCM.PackageOps.archiveBranch(branchId) with
-    | Ok _ ->
+    | Ok(_) ->
       Cli.printOk($"archived branch \"{branchRef}\".")
       // Same as merge: standing on the branch you just archived is standing on finished work, and the
       // next edit would land there and revive it. Move to the parent, in this process and in the
@@ -315,7 +315,7 @@ let executeArchive(
         { state with currentBranchId = parentId }
       else
         state
-    | Error e ->
+    | Error(e) ->
       Cli.printErr($"couldn't archive: {e}")
       Cli.exitWith(state, false)
 
@@ -404,7 +404,7 @@ let execute(state: AppState, args: List<String>): AppState =
       { state with exitCode = 1 }
     else
       match looksLikeTypoedSubcommand(id) with
-      | Some sub ->
+      | Some(sub) ->
         Cli.printErr($"`dark branch {id}` isn't a subcommand. Did you mean `dark branch {sub}`?")
         Cli.printHint($"  to start or switch to a branch actually named \"{id}\": dark switch {id}")
         Cli.exitWith(state, false)

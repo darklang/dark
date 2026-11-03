@@ -18,28 +18,28 @@ val batchDisplayCap = 3
 // more; it lands on `Add`, since `+` is what joins strings now.
 let operatorAlias(query: String): Stdlib.Option.Option<String> =
   match Stdlib.String.trim(query) with
-  | "+" -> Stdlib.Option.Option.Some "Add"
-  | "++" -> Stdlib.Option.Option.Some "Add"
-  | "-" -> Stdlib.Option.Option.Some "Subtract"
-  | "*" -> Stdlib.Option.Option.Some "Multiply"
-  | "/" -> Stdlib.Option.Option.Some "Divide"
-  | "%" -> Stdlib.Option.Option.Some "Modulo"
-  | "**" -> Stdlib.Option.Option.Some "Power"
-  | "&" -> Stdlib.Option.Option.Some "BitwiseAnd"
-  | "|" -> Stdlib.Option.Option.Some "BitwiseOr"
-  | "^" -> Stdlib.Option.Option.Some "BitwiseXor"
-  | "~" -> Stdlib.Option.Option.Some "BitwiseNot"
-  | "<<" -> Stdlib.Option.Option.Some "ShiftLeft"
-  | ">>" -> Stdlib.Option.Option.Some "ShiftRight"
-  | "<" -> Stdlib.Option.Option.Some "Compare"
-  | "<=" -> Stdlib.Option.Option.Some "Compare"
-  | ">" -> Stdlib.Option.Option.Some "Compare"
-  | ">=" -> Stdlib.Option.Option.Some "Compare"
-  | "==" -> Stdlib.Option.Option.Some "equals"
-  | "!=" -> Stdlib.Option.Option.Some "notEquals"
-  | "!" -> Stdlib.Option.Option.Some "not"
-  | "&&" -> Stdlib.Option.Option.Some "and"
-  | "||" -> Stdlib.Option.Option.Some "or"
+  | "+" -> Stdlib.Option.Option.Some("Add")
+  | "++" -> Stdlib.Option.Option.Some("Add")
+  | "-" -> Stdlib.Option.Option.Some("Subtract")
+  | "*" -> Stdlib.Option.Option.Some("Multiply")
+  | "/" -> Stdlib.Option.Option.Some("Divide")
+  | "%" -> Stdlib.Option.Option.Some("Modulo")
+  | "**" -> Stdlib.Option.Option.Some("Power")
+  | "&" -> Stdlib.Option.Option.Some("BitwiseAnd")
+  | "|" -> Stdlib.Option.Option.Some("BitwiseOr")
+  | "^" -> Stdlib.Option.Option.Some("BitwiseXor")
+  | "~" -> Stdlib.Option.Option.Some("BitwiseNot")
+  | "<<" -> Stdlib.Option.Option.Some("ShiftLeft")
+  | ">>" -> Stdlib.Option.Option.Some("ShiftRight")
+  | "<" -> Stdlib.Option.Option.Some("Compare")
+  | "<=" -> Stdlib.Option.Option.Some("Compare")
+  | ">" -> Stdlib.Option.Option.Some("Compare")
+  | ">=" -> Stdlib.Option.Option.Some("Compare")
+  | "==" -> Stdlib.Option.Option.Some("equals")
+  | "!=" -> Stdlib.Option.Option.Some("notEquals")
+  | "!" -> Stdlib.Option.Option.Some("not")
+  | "&&" -> Stdlib.Option.Option.Some("and")
+  | "||" -> Stdlib.Option.Option.Some("or")
   | _ -> Stdlib.Option.Option.None
 
 
@@ -61,7 +61,7 @@ let matchRank(query: String, name: String): Int =
 
 let isStdlib(owner: String, modules: List<String>): Bool =
   (owner == "Darklang")
-  && (Stdlib.List.head(modules) == Stdlib.Option.Option.Some "Stdlib")
+  && (Stdlib.List.head(modules) == Stdlib.Option.Option.Some("Stdlib"))
 
 
 // For a qualified or multi-token query, the final token normally describes the
@@ -127,14 +127,14 @@ let bestItemRank(
   items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
   : Int =
   items
-  |> Stdlib.List.fold(9, fun acc item ->
+  |> Stdlib.List.fold(9, fun(acc, item) ->
     let r = nameRank(query, item.location.name)
     if r < acc then r else acc)
 
 
 let bestModuleRank(query: String, modules: List<List<String>>): Int =
   modules
-  |> Stdlib.List.fold(9, fun acc modulePath ->
+  |> Stdlib.List.fold(9, fun(acc, modulePath) ->
     let modName = Stdlib.Option.withDefault(Stdlib.List.last(modulePath), "")
     let r = matchRank(query, modName)
     if r < acc then r else acc)
@@ -253,7 +253,7 @@ let parseArgs(args: List<String>): ParsedArgs =
   // Entity types are preserved in the order their flags appeared.
   let entityTypes =
     p.flags
-    |> Stdlib.List.fold([], fun acc f ->
+    |> Stdlib.List.fold([], fun(acc, f) ->
       match f with
       | "--type" ->
         Stdlib.List.append(
@@ -305,69 +305,69 @@ let jsonOutput(
     results.fns
     |> Stdlib.List.map(fun item ->
       let ctx = contextFor(branchId, item)
-      Stdlib.AltJson.Json.Object
+      Stdlib.AltJson.Json.Object(
         [ ("name", Stdlib.AltJson.Json.String(fullPathOf(item)))
-          ("kind", Stdlib.AltJson.Json.String "fn")
-          ("signature", Stdlib.AltJson.Json.String(Signatures.formatFn(ctx, item.entity))) ])
+          ("kind", Stdlib.AltJson.Json.String("fn"))
+          ("signature", Stdlib.AltJson.Json.String(Signatures.formatFn(ctx, item.entity))) ]))
 
   let typeRows =
     results.types
     |> Stdlib.List.map(fun item ->
-      Stdlib.AltJson.Json.Object
+      Stdlib.AltJson.Json.Object(
         [ ("name", Stdlib.AltJson.Json.String(fullPathOf(item)))
-          ("kind", Stdlib.AltJson.Json.String "type")
-          ("signature", Stdlib.AltJson.Json.String "") ])
+          ("kind", Stdlib.AltJson.Json.String("type"))
+          ("signature", Stdlib.AltJson.Json.String("")) ]))
 
   let valueRows =
     results.values
     |> Stdlib.List.map(fun item ->
-      Stdlib.AltJson.Json.Object
+      Stdlib.AltJson.Json.Object(
         [ ("name", Stdlib.AltJson.Json.String(fullPathOf(item)))
-          ("kind", Stdlib.AltJson.Json.String "value")
-          ("signature", Stdlib.AltJson.Json.String "") ])
+          ("kind", Stdlib.AltJson.Json.String("value"))
+          ("signature", Stdlib.AltJson.Json.String("")) ]))
 
   let traitRows =
     results.traits
     |> Stdlib.List.map(fun item ->
-      Stdlib.AltJson.Json.Object
+      Stdlib.AltJson.Json.Object(
         [ ("name", Stdlib.AltJson.Json.String(fullPathOf(item)))
-          ("kind", Stdlib.AltJson.Json.String "trait")
-          ("signature", Stdlib.AltJson.Json.String "") ])
+          ("kind", Stdlib.AltJson.Json.String("trait"))
+          ("signature", Stdlib.AltJson.Json.String("")) ]))
 
   let implRows =
     results.impls
     |> Stdlib.List.map(fun item ->
       let ctx = contextFor(branchId, item)
-      Stdlib.AltJson.Json.Object
+      Stdlib.AltJson.Json.Object(
         [ ("name", Stdlib.AltJson.Json.String(fullPathOf(item)))
-          ("kind", Stdlib.AltJson.Json.String "impl")
+          ("kind", Stdlib.AltJson.Json.String("impl"))
           ("signature",
            Stdlib.AltJson.Json.String(
-             $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, item.entity.trait_)} for {PrettyPrinter.ProgramTypes.typeReference(ctx, item.entity.self)}")) ])
+             $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, item.entity.trait_)} for {PrettyPrinter.ProgramTypes.typeReference(ctx, item.entity.self)}")) ]))
 
   let testRows =
     results.tests
     |> Stdlib.List.map(fun item ->
-      Stdlib.AltJson.Json.Object
+      Stdlib.AltJson.Json.Object(
         [ ("name", Stdlib.AltJson.Json.String(fullPathOf(item)))
-          ("kind", Stdlib.AltJson.Json.String "test")
-          ("signature", Stdlib.AltJson.Json.String "") ])
+          ("kind", Stdlib.AltJson.Json.String("test"))
+          ("signature", Stdlib.AltJson.Json.String("")) ]))
 
   let moduleRows =
     results.submodules
     |> Stdlib.List.map(fun modulePath ->
-      Stdlib.AltJson.Json.Object
+      Stdlib.AltJson.Json.Object(
         [ ("name", Stdlib.AltJson.Json.String(Stdlib.String.join(modulePath, ".")))
-          ("kind", Stdlib.AltJson.Json.String "module")
-          ("signature", Stdlib.AltJson.Json.String "") ])
+          ("kind", Stdlib.AltJson.Json.String("module"))
+          ("signature", Stdlib.AltJson.Json.String("")) ]))
 
   Stdlib.AltJson.format((
-    Stdlib.AltJson.Json.Object
-      [ ("query", Stdlib.AltJson.Json.String queryText)
+    Stdlib.AltJson.Json.Object(
+      [ ("query", Stdlib.AltJson.Json.String(queryText))
         ("results",
          Stdlib.AltJson.Json.Array(
            Stdlib.List.flatten([ fnRows, typeRows, valueRows, traitRows, implRows, testRows, moduleRows ])
-         )) ]
+         )) ])
   ))
 
 
@@ -392,11 +392,11 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
     let navState = NavInteractive.buildState(state.currentBranchId, state.packageData.currentLocation)
     let searchNavState = { navState with mode = NavInteractive.Mode.Search }
     match NavInteractive.start(searchNavState) with
-    | Ok session ->
+    | Ok(session) ->
       { state with
-          currentPage = Page.InteractiveNav session
+          currentPage = Page.InteractiveNav(session)
           prompt = Prompt.Editing.clear(state.prompt) }
-    | Error message ->
+    | Error(message) ->
       Stdlib.printLine(message)
       state
 
@@ -500,7 +500,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
         else
           Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"Search results for: {queryText}"))
           match aliasKeyword with
-          | Some kw ->
+          | Some(kw) ->
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  ({rawQueryText} is {kw})"))
           | None -> ()
           Stdlib.printLine("")
@@ -528,8 +528,8 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
 
           let order =
             sectionKeys
-            |> Stdlib.List.sortBy(fun (key, _) -> key)
-            |> Stdlib.List.map(fun (_, tag) -> tag)
+            |> Stdlib.List.sortBy(fun((key, _)) -> key)
+            |> Stdlib.List.map(fun((_, tag)) -> tag)
 
           order
           |> Stdlib.List.iter(fun tag ->
@@ -686,7 +686,7 @@ let help(state: Cli.AppState): String =
 let complete(_state: Cli.AppState, args: List<String>): List<Cli.Completion.CompletionItem> =
   // Offer flag completions when typing --
   match Stdlib.List.last(args) with
-  | Some lastArg ->
+  | Some(lastArg) ->
     if Stdlib.String.startsWith(lastArg, "--") then
       ["--batch", "--type", "--fn", "--val", "--trait", "--impl", "--test", "--exact", "--shallow", "--with-docs", "--include-deprecated", "--include-tests"]
       |> Stdlib.List.filter(fun flag -> Stdlib.String.startsWith(flag, lastArg))

@@ -403,7 +403,7 @@ module Expr =
   /// Source range covering a whole expression node.
   let range(expr: Expr): Range =
     match expr with
-    | EUnit range -> range
+    | EUnit(range) -> range
     | EBool(range, _) -> range
     | EInt8(range, _, _) -> range
     | EUInt8(range, _, _) -> range
@@ -437,7 +437,7 @@ module Expr =
     | EApply(range, _, _, _) -> range
     | EFnName(range, _) -> range
     | EStatement(range, _, _) -> range
-    | EError range -> range
+    | EError(range) -> range
 
 
 // Module declarations

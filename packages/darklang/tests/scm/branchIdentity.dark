@@ -8,10 +8,10 @@ let currentIsMain(): Bool =
 
 test mainIdIsCurrentBranch =
   let defaults = Stdlib.Test.Process.defaults()
-  let options = { defaults with branch = Some Darklang.SCM.Branch.mainBranchId }
+  let options = { defaults with branch = Some(Darklang.SCM.Branch.mainBranchId) }
   match Stdlib.Test.Process.run(options, currentIsMain, ()) with
-  | Error message -> Stdlib.Test.fail(message)
-  | Ok output -> output.result |> Stdlib.Test.equal(Ok true)
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) -> output.result |> Stdlib.Test.equal(Ok(true))
 
 // An ID is not a NAME. That is the property the type carries: while an id spells the same as a name,
 // passing one where the other belongs is correct by accident. With a uuid, anything printing the id
@@ -47,7 +47,7 @@ test mainResolvesByName =
   Stdlib.Test.all(
     [ Darklang.Cli.Branch.lookupRef("main")
       |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some Darklang.SCM.Branch.mainBranchId)
+        Stdlib.Option.Option.Some(Darklang.SCM.Branch.mainBranchId))
       Darklang.Cli.Branch.lookupRef(Stdlib.toString(Darklang.SCM.Branch.mainBranchId))
       |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some Darklang.SCM.Branch.mainBranchId) ])
+        Stdlib.Option.Option.Some(Darklang.SCM.Branch.mainBranchId)) ])

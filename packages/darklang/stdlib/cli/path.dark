@@ -13,7 +13,7 @@ let stripTrailing(path: String): String =
 /// (matches Python's os.path.join and bash behavior).
 let join(parts: List<String>): String =
   parts
-  |> Stdlib.List.fold("", fun acc part ->
+  |> Stdlib.List.fold("", fun(acc, part) ->
     if part == "" then acc
     else if Stdlib.String.startsWith(part, "/") then part
     else if acc == "" then part
@@ -32,8 +32,8 @@ let parent(path: String): String =
   let p = stripTrailing(path)
 
   match Stdlib.String.lastIndexOf(p, "/") with
-  | Some 0 -> "/"
-  | Some i -> Stdlib.String.slice(p, 0, i)
+  | Some(0) -> "/"
+  | Some(i) -> Stdlib.String.slice(p, 0, i)
   | None -> "."
 
 
@@ -45,7 +45,7 @@ let basename(path: String): String =
   let p = stripTrailing(path)
 
   match Stdlib.String.lastIndexOf(p, "/") with
-  | Some i -> Stdlib.String.dropFirst(p, i + 1)
+  | Some(i) -> Stdlib.String.dropFirst(p, i + 1)
   | None -> p
 
 
@@ -58,8 +58,8 @@ let extension(path: String): Stdlib.Option.Option<String> =
   let name = basename(path)
 
   match Stdlib.String.lastIndexOf(name, ".") with
-  | Some 0 -> Stdlib.Option.Option.None
-  | Some i -> Stdlib.Option.Option.Some(Stdlib.String.dropFirst(name, i))
+  | Some(0) -> Stdlib.Option.Option.None
+  | Some(i) -> Stdlib.Option.Option.Some(Stdlib.String.dropFirst(name, i))
   | None -> Stdlib.Option.Option.None
 
 
@@ -72,8 +72,8 @@ let withExtension(path: String, ext: String): String =
 
   let stem =
     match Stdlib.String.lastIndexOf(name, ".") with
-    | Some 0 -> name
-    | Some i -> Stdlib.String.slice(name, 0, i)
+    | Some(0) -> name
+    | Some(i) -> Stdlib.String.slice(name, 0, i)
     | None -> name
 
   let newName = $"{stem}{ext}"
@@ -97,10 +97,10 @@ let normalize(path: String): String =
   let resolved =
     parts
     |> Stdlib.List.filter(fun p -> p != "" && p != ".")
-    |> Stdlib.List.fold([], fun acc part ->
+    |> Stdlib.List.fold([], fun(acc, part) ->
       if part == ".." then
         match Stdlib.List.last(acc) with
-        | Some prev ->
+        | Some(prev) ->
           if prev == ".." then Stdlib.List.append(acc, "..")
           else Stdlib.List.dropLast(acc)
         | None ->
@@ -153,9 +153,9 @@ let relativeTo(
       // Find common prefix length
       let commonLen =
         fromParts
-        |> Stdlib.List.indexedMap(fun i part ->
+        |> Stdlib.List.indexedMap(fun(i, part) ->
           match Stdlib.List.getAt(toParts, i) with
-          | Some p -> p == part
+          | Some(p) -> p == part
           | None -> false)
         |> Stdlib.List.takeWhile(fun x -> x)
         |> Stdlib.List.length
@@ -164,8 +164,8 @@ let relativeTo(
 
       let ups =
         match Stdlib.List.repeat(upCount, "..") with
-        | Ok l -> l
-        | Error _ -> []
+        | Ok(l) -> l
+        | Error(_) -> []
 
       let tail = Stdlib.List.drop(toParts, commonLen)
 

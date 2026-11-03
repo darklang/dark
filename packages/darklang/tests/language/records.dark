@@ -76,11 +76,11 @@ module Polymorphism =
     Stdlib.Test.all(
       [ (MyRecord { col1 = (), col2 = 1L }).col2 |> Stdlib.Test.equal(1L)
         (MyRecord
-          { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
+          { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok(1L))
             col2 = 1L })
           .col1
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)) ])
+          Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok(1L))) ])
 
 module Nested =
   type NestedRecordA = { col1: Int64 }

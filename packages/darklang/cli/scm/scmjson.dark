@@ -182,10 +182,10 @@ let changeKind(
 
       let newFn =
         LanguageTools.PackageManager.Function.get(
-          LanguageTools.ProgramTypes.Hash.Hash b.hash)
+          LanguageTools.ProgramTypes.Hash.Hash(b.hash))
 
       match (oldFn, newFn) with
-      | (Some o, Some n) ->
+      | (Some(o), Some(n)) ->
         if Packages.Propagate.fnSignatureEqual(branchId, o, n) then
           "updated"
         else

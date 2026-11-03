@@ -22,8 +22,8 @@ module ParseError =
       let toString(part: Part): String =
         match part with
         | Root -> "root"
-        | Field name -> "." + name
-        | Index index -> "[" + Stdlib.toString(index) + "]"
+        | Field(name) -> "." + name
+        | Index(index) -> "[" + Stdlib.toString(index) + "]"
 
     type JsonPath = List<Part.Part>
 

@@ -49,37 +49,37 @@ let home(): Stdlib.Option.Option<String> =
 /// Does not follow symlinks — symlinks are included as entries but not recursed into.
 let listRecursive(path: String): Result.Result<List<String>, Posix.Error> =
   match Posix.listDir(path) with
-  | Ok entries ->
+  | Ok(entries) ->
     let result =
       entries
-      |> Stdlib.List.fold(Stdlib.Result.Result.Ok [], fun acc name ->
+      |> Stdlib.List.fold(Stdlib.Result.Result.Ok([]), fun(acc, name) ->
         match acc with
-        | Ok collected ->
+        | Ok(collected) ->
           let fullPath = Path.join([ path, name ])
 
           match Posix.isSymlink(fullPath) with
-          | Error e -> Stdlib.Result.Result.Error e
-          | Ok true ->
+          | Error(e) -> Stdlib.Result.Result.Error(e)
+          | Ok(true) ->
             Stdlib.Result.Result.Ok(Stdlib.List.prepend(collected, fullPath))
-          | Ok false ->
+          | Ok(false) ->
             if Posix.isDirectory(fullPath) then
               match listRecursive(fullPath) with
-              | Ok subEntries ->
+              | Ok(subEntries) ->
                 Stdlib.Result.Result.Ok(Stdlib.List.concat(subEntries, collected))
-              | Error e -> Stdlib.Result.Result.Error e
+              | Error(e) -> Stdlib.Result.Result.Error(e)
             else
               Stdlib.Result.Result.Ok(Stdlib.List.prepend(collected, fullPath))
-        | Error e -> Stdlib.Result.Result.Error e)
+        | Error(e) -> Stdlib.Result.Result.Error(e))
 
     result |> Stdlib.Result.map(fun items -> Stdlib.List.reverse(items))
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Create a temporary directory (like mktemp -d). Returns the path.
 let createTemp(): Result.Result<String, Posix.Error> =
   let base_ =
     match Env.get("TMPDIR") with
-    | Some t -> t
+    | Some(t) -> t
     | None -> "/tmp"
 
   Posix.mkdtemp($"{base_}/dark-tmp-")
@@ -89,77 +89,77 @@ let createTemp(): Result.Result<String, Posix.Error> =
 /// Symlinks are removed (unlinked) without following them.
 let deleteRecursive(path: String): Result.Result<Unit, Posix.Error> =
   match Posix.listDir(path) with
-  | Ok entries ->
+  | Ok(entries) ->
     // Delete each entry — recurse into subdirs, unlink files and symlinks
     let deleteEntries =
       entries
-      |> Stdlib.List.fold(Stdlib.Result.Result.Ok(), fun acc name ->
+      |> Stdlib.List.fold(Stdlib.Result.Result.Ok(), fun(acc, name) ->
         match acc with
-        | Ok _ ->
+        | Ok(_) ->
           let fullPath = Path.join([ path, name ])
 
           match Posix.isSymlink(fullPath) with
-          | Error e -> Stdlib.Result.Result.Error e
-          | Ok true -> Posix.unlink(fullPath)
-          | Ok false ->
+          | Error(e) -> Stdlib.Result.Result.Error(e)
+          | Ok(true) -> Posix.unlink(fullPath)
+          | Ok(false) ->
             if Posix.isDirectory(fullPath) then
               deleteRecursive(fullPath)
             else
               Posix.unlink(fullPath)
-        | Error e -> Stdlib.Result.Result.Error e)
+        | Error(e) -> Stdlib.Result.Result.Error(e))
 
     match deleteEntries with
-    | Ok _ -> Posix.rmdir(path)
-    | Error e -> Stdlib.Result.Result.Error e
-  | Error e -> Stdlib.Result.Result.Error e
+    | Ok(_) -> Posix.rmdir(path)
+    | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Walk a directory tree, returning all entries (files and directories) as full paths.
 /// Does not follow symlinks — symlinks are included as entries but not recursed into.
 let walk(path: String): Result.Result<List<String>, Posix.Error> =
   match Posix.listDir(path) with
-  | Ok entries ->
+  | Ok(entries) ->
     let result =
       entries
-      |> Stdlib.List.fold(Stdlib.Result.Result.Ok [], fun acc name ->
+      |> Stdlib.List.fold(Stdlib.Result.Result.Ok([]), fun(acc, name) ->
         match acc with
-        | Ok collected ->
+        | Ok(collected) ->
           let fullPath = Path.join([ path, name ])
 
           match Posix.isSymlink(fullPath) with
-          | Error e -> Stdlib.Result.Result.Error e
-          | Ok true ->
+          | Error(e) -> Stdlib.Result.Result.Error(e)
+          | Ok(true) ->
             Stdlib.Result.Result.Ok(Stdlib.List.prepend(collected, fullPath))
-          | Ok false ->
+          | Ok(false) ->
             if Posix.isDirectory(fullPath) then
               match walk(fullPath) with
-              | Ok subEntries ->
+              | Ok(subEntries) ->
                 Stdlib.Result.Result.Ok(
                   Stdlib.List.concat(
                     subEntries,
                     Stdlib.List.prepend(collected, fullPath)))
-              | Error e -> Stdlib.Result.Result.Error e
+              | Error(e) -> Stdlib.Result.Result.Error(e)
             else
               Stdlib.Result.Result.Ok(Stdlib.List.prepend(collected, fullPath))
-        | Error e -> Stdlib.Result.Result.Error e)
+        | Error(e) -> Stdlib.Result.Result.Error(e))
 
     result |> Stdlib.Result.map(fun items -> Stdlib.List.reverse(items))
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Get the total size of a directory and its contents in bytes.
 let size(path: String): Result.Result<Int, Posix.Error> =
   match listRecursive(path) with
-  | Ok files ->
+  | Ok(files) ->
     files
-    |> Stdlib.List.fold(Stdlib.Result.Result.Ok 0, fun acc filePath ->
+    |> Stdlib.List.fold(Stdlib.Result.Result.Ok(0), fun(acc, filePath) ->
       match acc with
-      | Ok total ->
+      | Ok(total) ->
         match Cli.File.size(filePath) with
-        | Ok fileSize -> Stdlib.Result.Result.Ok(total + fileSize)
-        | Error e -> Stdlib.Result.Result.Error e
-      | Error e -> Stdlib.Result.Result.Error e)
-  | Error e -> Stdlib.Result.Result.Error e
+        | Ok(fileSize) -> Stdlib.Result.Result.Ok(total + fileSize)
+        | Error(e) -> Stdlib.Result.Result.Error(e)
+      | Error(e) -> Stdlib.Result.Result.Error(e))
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Create a temporary directory, run a function with it, then clean up.
@@ -169,7 +169,7 @@ let withTemp(fn: String -> 'a): Result.Result<'a, Posix.Error> =
     let result = fn(tmpDir)
 
     match deleteRecursive(tmpDir) with
-    | Ok _ -> ()
-    | Error e -> Log.warn($"withTemp: failed to clean up {tmpDir}: {e.message}")
+    | Ok(_) -> ()
+    | Error(e) -> Log.warn($"withTemp: failed to clean up {tmpDir}: {e.message}")
 
     result)

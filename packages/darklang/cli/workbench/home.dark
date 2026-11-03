@@ -25,8 +25,8 @@ let homeHeader(label: String): BodyItem =
 /// sentence.
 let agoText(ts: String): String =
   match Stdlib.DateTime.parse(ts) with
-  | Ok d -> ago(d)
-  | Error _ -> ts
+  | Ok(d) -> ago(d)
+  | Error(_) -> ts
 
 
 /// How many commits Home lists before a "more" row.
@@ -51,7 +51,7 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
     let changed = Stdlib.List.length(draft.bindings)
     let last =
       match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(branchId, 1L)) with
-      | Some c -> "last commit " + (agoText(c.originTs))
+      | Some(c) -> "last commit " + (agoText(c.originTs))
       | None -> "no commits yet"
     let desc =
       Stdlib.List.filter(
@@ -99,7 +99,7 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
       else SCM.PackageOps.draftOpCountFor(id) > 0L
     let last =
       match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(id, 1L)) with
-      | Some c -> agoText(c.originTs)
+      | Some(c) -> agoText(c.originTs)
       | None -> ""
     let desc =
       Stdlib.List.filter(
@@ -135,7 +135,7 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
 let homeKindIndex(state: State): Int =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> 0
-  | Some item ->
+  | Some(item) ->
     state.items
     |> Stdlib.List.take(state.selected)
     |> Stdlib.List.filter(fun it -> it.kind == item.kind)
@@ -147,7 +147,7 @@ let homeRowIsCurrentBranch(state: State): Bool =
   if cursorOnMainRow(state) then SCM.Branch.isMain(state.branchId)
   else
     match selectedBranch(state) with
-    | Some b -> b.id == state.branchId
+    | Some(b) -> b.id == state.branchId
     | None -> false
 
 /// ⏎ opens a Home row; → stays on the list.
@@ -156,11 +156,11 @@ let homeRowIsCurrentBranch(state: State): Bool =
 /// open the full lists there; another branch switches to it.
 let openHomeRow(state: State): Step =
   match Stdlib.List.getAt(state.items, state.selected) with
-  | None -> Step.Continue state
-  | Some item ->
+  | None -> Step.Continue(state)
+  | Some(item) ->
     if (item.kind == "home-conflicts") || (item.kind == "home-here") then
       let moved = goTo(state, mkDest(vSCM, 0), false)
-      Step.Continue { moved with selected = 0 }
+      Step.Continue({ moved with selected = 0 })
     else if item.kind == "home-constraints" then
       runCommandInFrame(state, "constraints", [])
     else if item.kind == "home-commit" then
@@ -168,22 +168,22 @@ let openHomeRow(state: State): Step =
       openReader(state, commitOpsText(state.branchId, homeKindIndex(state)), false)
     else if item.kind == "home-branch" then
       match branchRowTarget(state) with
-      | Some target ->
+      | Some(target) ->
         let (id, name) = target
         if id == state.branchId then
           // The branch you're on: nothing to switch to, so ⏎ opens its
           // uncommitted work. A toast saying "already on it" answered a
           // question nobody had asked.
-          Step.Continue (goTo(state, mkDest(vSCM, 0), false))
+          Step.Continue(goTo(state, mkDest(vSCM, 0), false))
         else
-          Step.Continue (switchWorkbenchBranch(state, id, name))
-      | None -> Step.Continue state
+          Step.Continue(switchWorkbenchBranch(state, id, name))
+      | None -> Step.Continue(state)
     else if item.kind == "home-more-commits" then
       openReader(state, commitListText(), false)
     else if item.kind == "home-more" then
       openBranchPicker(state)
     else
-      Step.Continue state
+      Step.Continue(state)
 
 /// Home uses the whole frame, one column, no inspector.
 let renderHome(

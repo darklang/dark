@@ -35,11 +35,11 @@ module Uri =
     }
 
   let toJson (u: Uri) : Json =
-    [ ("scheme", Json.String u.scheme)
-      ("authority", Json.String u.authority)
-      ("path", Json.String u.path)
-      ("query", Json.String u.query)
-      ("fragment", Json.String u.fragment) ]
+    [ ("scheme", Json.String(u.scheme))
+      ("authority", Json.String(u.authority))
+      ("path", Json.String(u.path))
+      ("query", Json.String(u.query))
+      ("fragment", Json.String(u.fragment)) ]
     |> Json.Object
 
 
@@ -58,8 +58,8 @@ module AccessibilityInformation =
     }
 
   let toJson (i: AccessibilityInformation) : Json =
-    [ Stdlib.Option.Option.Some(("label", Json.String i.label))
-      i.role |> Stdlib.Option.map (fun r -> ("role", Json.String r)) ]
+    [ Stdlib.Option.Option.Some(("label", Json.String(i.label)))
+      i.role |> Stdlib.Option.map (fun r -> ("role", Json.String(r))) ]
     |> Stdlib.Option.values
     |> Json.Object
 
@@ -81,9 +81,9 @@ module Command =
     }
 
   let toJson (c: Command) : Json =
-    [ c.arguments |> Stdlib.Option.map (fun a -> ("arguments", Json.Array a))
-      Stdlib.Option.Option.Some(("command", Json.String c.command))
-      Stdlib.Option.Option.Some(("title", Json.String c.title))
-      c.tooltip |> Stdlib.Option.map (fun t -> ("tooltip", Json.String t)) ]
+    [ c.arguments |> Stdlib.Option.map (fun a -> ("arguments", Json.Array(a)))
+      Stdlib.Option.Option.Some(("command", Json.String(c.command)))
+      Stdlib.Option.Option.Some(("title", Json.String(c.title)))
+      c.tooltip |> Stdlib.Option.map (fun t -> ("tooltip", Json.String(t))) ]
     |> Stdlib.Option.values
     |> Json.Object

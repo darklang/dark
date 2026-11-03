@@ -61,7 +61,7 @@ let renderFullAtWidth(
   let previousHeight =
     match previous with
     | None -> 0
-    | Some view -> Stdlib.List.length(view.rows)
+    | Some(view) -> Stdlib.List.length(view.rows)
   let nextHeight = Stdlib.List.length(next.rows)
   let repaintHeight = Stdlib.max(previousHeight, nextHeight)
 
@@ -71,7 +71,7 @@ let renderFullAtWidth(
     let startRow =
       match previous with
       | None -> 0
-      | Some view -> cursorRow(view)
+      | Some(view) -> cursorRow(view)
     let toTop = moveRows(startRow, 0)
     let physicalRows =
       Stdlib.List.range(0, repaintHeight - 1)
@@ -102,7 +102,7 @@ let renderAtWidth(
   : String =
   match previous with
   | None -> renderFullAtWidth(width, previous, next)
-  | Some previousView ->
+  | Some(previousView) ->
     if Stdlib.List.length(previousView.rows)
        != Stdlib.List.length(next.rows)
     then
@@ -122,7 +122,7 @@ let renderAtWidth(
           Stdlib.List.fold(
             changes,
             ("", startRow),
-            fun state change ->
+            fun(state, change) ->
               let (output, currentRow) = state
               ( output
                 + moveRows(currentRow, change.row)

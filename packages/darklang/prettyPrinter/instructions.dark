@@ -37,7 +37,7 @@ let registerPairs(
 /// "[variable]" because it has no register vocabulary; in a listing the register is the whole point.
 let letPattern(pat: LanguageTools.RuntimeTypes.LetPattern): String =
   match pat with
-  | LPVariable reg -> register(reg)
+  | LPVariable(reg) -> register(reg)
   | LPWildcard -> "_"
   | LPUnit -> "()"
   | LPTuple(first, second, theRest) ->
@@ -50,24 +50,24 @@ let letPattern(pat: LanguageTools.RuntimeTypes.LetPattern): String =
 
 let matchPattern(pat: LanguageTools.RuntimeTypes.MatchPattern): String =
   match pat with
-  | MPVariable reg -> register(reg)
+  | MPVariable(reg) -> register(reg)
   | MPUnit -> "()"
-  | MPBool b -> Stdlib.toString(b)
-  | MPInt8 i -> Stdlib.toString(i)
-  | MPUInt8 i -> Stdlib.toString(i)
-  | MPInt16 i -> Stdlib.toString(i)
-  | MPUInt16 i -> Stdlib.toString(i)
-  | MPInt32 i -> Stdlib.toString(i)
-  | MPUInt32 i -> Stdlib.toString(i)
-  | MPInt64 i -> Stdlib.toString(i)
-  | MPUInt64 i -> Stdlib.toString(i)
-  | MPInt128 i -> Stdlib.toString(i)
-  | MPUInt128 i -> Stdlib.toString(i)
-  | MPInt i -> Stdlib.toString(i)
-  | MPFloat f -> Stdlib.toString(f)
-  | MPChar c -> $"'{c}'"
-  | MPString s -> $"\"{s}\""
-  | MPList items ->
+  | MPBool(b) -> Stdlib.toString(b)
+  | MPInt8(i) -> Stdlib.toString(i)
+  | MPUInt8(i) -> Stdlib.toString(i)
+  | MPInt16(i) -> Stdlib.toString(i)
+  | MPUInt16(i) -> Stdlib.toString(i)
+  | MPInt32(i) -> Stdlib.toString(i)
+  | MPUInt32(i) -> Stdlib.toString(i)
+  | MPInt64(i) -> Stdlib.toString(i)
+  | MPUInt64(i) -> Stdlib.toString(i)
+  | MPInt128(i) -> Stdlib.toString(i)
+  | MPUInt128(i) -> Stdlib.toString(i)
+  | MPInt(i) -> Stdlib.toString(i)
+  | MPFloat(f) -> Stdlib.toString(f)
+  | MPChar(c) -> $"'{c}'"
+  | MPString(s) -> $"\"{s}\""
+  | MPList(items) ->
     let parts =
       (Stdlib.List.map(items, fun p -> matchPattern(p))) |> Stdlib.String.join(", ")
     $"[{parts}]"
@@ -85,14 +85,14 @@ let matchPattern(pat: LanguageTools.RuntimeTypes.MatchPattern): String =
       let parts =
         (Stdlib.List.map(fields, fun p -> matchPattern(p))) |> Stdlib.String.join(", ")
       $"{caseName}({parts})"
-  | MPOr pats ->
+  | MPOr(pats) ->
     (Stdlib.List.map(pats, fun p -> matchPattern(p))) |> Stdlib.String.join(" | ")
 
 
 let segment(branchId: Uuid, s: LanguageTools.RuntimeTypes.StringSegment): String =
   match s with
-  | Text t -> "\"" + (Stdlib.String.replaceAll(t, "\n", "\\n")) + "\""
-  | Interpolated r -> register(r)
+  | Text(t) -> "\"" + (Stdlib.String.replaceAll(t, "\n", "\\n")) + "\""
+  | Interpolated(r) -> register(r)
 
 
 /// Values baked into the instruction stream, rendered short. A listing is for reading, and one 4 KB
@@ -106,12 +106,12 @@ let inlineDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
 
   match dv with
   | DUnit -> "unit"
-  | DBool b -> Stdlib.toString(b)
-  | DString s -> "\"" + (clip(Stdlib.String.replaceAll(s, "\n", "\\n"))) + "\""
-  | DChar c -> $"'{Stdlib.toString(c)}'"
-  | DInt64 i -> Stdlib.toString(i)
-  | DInt i -> Stdlib.toString(i)
-  | DFloat f -> Stdlib.toString(f)
+  | DBool(b) -> Stdlib.toString(b)
+  | DString(s) -> "\"" + (clip(Stdlib.String.replaceAll(s, "\n", "\\n"))) + "\""
+  | DChar(c) -> $"'{Stdlib.toString(c)}'"
+  | DInt64(i) -> Stdlib.toString(i)
+  | DInt(i) -> Stdlib.toString(i)
+  | DFloat(f) -> Stdlib.toString(f)
   | DList(_, items) -> $"[{Stdlib.toString(Stdlib.List.length(items))} items]"
   | DDict(_, _, entries) ->
     let n = Stdlib.List.length(Stdlib.Dict.keys(entries))
@@ -127,10 +127,10 @@ let inlineDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
     else
       let n = Stdlib.toString(Stdlib.List.length(fields))
       $"{t}.{caseName} ({n})"
-  | DApplicable app ->
+  | DApplicable(app) ->
     match app with
-    | AppNamedFn fn -> "&" + (PrettyPrinter.RuntimeTypes.fnName(branchId, fn.name))
-    | AppLambda l -> $"&lambda#{Stdlib.toString(l.exprId)}"
+    | AppNamedFn(fn) -> "&" + (PrettyPrinter.RuntimeTypes.fnName(branchId, fn.name))
+    | AppLambda(l) -> $"&lambda#{Stdlib.toString(l.exprId)}"
   | other -> PrettyPrinter.RuntimeTypes.dval(branchId, other)
 
 
@@ -144,10 +144,10 @@ let opcode(i: LanguageTools.RuntimeTypes.Instruction): String =
   | CreateString(_, _) -> "CreateString"
   | CheckLetPatternAndExtractVars(_, _) -> "CheckLetPattern"
   | JumpByIfFalse(_, _) -> "JumpByIfFalse"
-  | JumpBy _ -> "JumpBy"
+  | JumpBy(_) -> "JumpBy"
   | Unwrap(_, _, _) -> "Unwrap"
   | CheckMatchPatternAndExtractVars(_, _, _) -> "CheckMatchPattern"
-  | MatchUnmatched _ -> "MatchUnmatched"
+  | MatchUnmatched(_) -> "MatchUnmatched"
   | CreateTuple(_, _, _, _) -> "CreateTuple"
   | CreateList(_, _) -> "CreateList"
   | CreateDict(_, _) -> "CreateDict"
@@ -160,7 +160,7 @@ let opcode(i: LanguageTools.RuntimeTypes.Instruction): String =
   | Apply(_, _, _, _) -> "Apply"
   | RaiseNRE(_, _) -> "RaiseNRE"
   | VarNotFound(_, _) -> "VarNotFound"
-  | CheckIfFirstExprIsUnit _ -> "CheckIfFirstExprIsUnit"
+  | CheckIfFirstExprIsUnit(_) -> "CheckIfFirstExprIsUnit"
   | TraceExpr(_, _) -> "TraceExpr"
 
 
@@ -183,13 +183,13 @@ let operands(branchId: Uuid, index: Int, i: LanguageTools.RuntimeTypes.Instructi
     $"{register(c)} -> +{Stdlib.toString(n)} -> {target}"
   | Unwrap(target, source, _) ->
     (register(target)) + " <- " + (register(source)) + "?"
-  | JumpBy n ->
+  | JumpBy(n) ->
     let target = Stdlib.toString(index + (Stdlib.Int.fromInt32(n)) + 1)
     $"+{Stdlib.toString(n)} -> {target}"
   | CheckMatchPatternAndExtractVars(v, p, failJump) ->
     let target = Stdlib.toString(index + (Stdlib.Int.fromInt32(failJump)) + 1)
     $"{register(v)} ~ {matchPattern(p)}  else -> {target}"
-  | MatchUnmatched v -> register(v)
+  | MatchUnmatched(v) -> register(v)
   | CreateTuple(t, first, second, theRest) ->
     let all = registers(Stdlib.List.concat([ first, second ], theRest))
     $"{register(t)} <- ({all})"
@@ -214,7 +214,7 @@ let operands(branchId: Uuid, index: Int, i: LanguageTools.RuntimeTypes.Instructi
     $"{register(t)} <- {register(fnReg)}({registers(args)})"
   | RaiseNRE(names, _) -> Stdlib.String.join(names, ".")
   | VarNotFound(t, name) -> $"{register(t)} <- ${name}"
-  | CheckIfFirstExprIsUnit r -> register(r)
+  | CheckIfFirstExprIsUnit(r) -> register(r)
   | TraceExpr(exprId, r) -> $"expr {Stdlib.toString(exprId)} = {register(r)}"
 
 
@@ -224,7 +224,7 @@ let lambdas(instrs: LanguageTools.RuntimeTypes.Instructions): List<LanguageTools
   instrs.instructions
   |> Stdlib.List.filterMap(fun i ->
     match i with
-    | CreateLambda(_, l) -> Stdlib.Option.Option.Some l
+    | CreateLambda(_, l) -> Stdlib.Option.Option.Some(l)
     | _ -> Stdlib.Option.Option.None)
   |> Stdlib.List.map(fun l -> Stdlib.List.prepend(lambdas(l.instructions), l))
   |> Stdlib.List.flatten
@@ -240,7 +240,7 @@ let header(instrs: LanguageTools.RuntimeTypes.Instructions): String =
 let listing(branchId: Uuid, instrs: LanguageTools.RuntimeTypes.Instructions): String =
   let body =
     instrs.instructions
-    |> Stdlib.List.indexedMap(fun index i ->
+    |> Stdlib.List.indexedMap(fun(index, i) ->
       let idx = Stdlib.String.padStartToWidth(Stdlib.toString(index), 4)
       let op = Stdlib.String.padEndToWidth(opcode(i), 24)
       $"{idx}  {op} {operands(branchId, index, i)}")

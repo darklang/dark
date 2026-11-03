@@ -15,12 +15,12 @@ let refBuildTable(
   let zeroRow =
     Stdlib.List.map(Stdlib.List.range(0, Stdlib.List.length(oldLines)), fun _i -> 0)
 
-  Stdlib.List.fold(newLines, [ zeroRow ], fun table newLine ->
+  Stdlib.List.fold(newLines, [ zeroRow ], fun(table, newLine) ->
     let prevRow = Stdlib.Option.withDefault(Stdlib.List.last(table), [])
-    let pairs = Stdlib.List.indexedMap(oldLines, fun i oldLine -> (i, oldLine))
+    let pairs = Stdlib.List.indexedMap(oldLines, fun(i, oldLine) -> (i, oldLine))
 
     let nextRow =
-      Stdlib.List.fold(pairs, [ 0 ], fun row pair ->
+      Stdlib.List.fold(pairs, [ 0 ], fun(row, pair) ->
         let (i, oldLine) = pair
         let above = Stdlib.Option.withDefault(Stdlib.List.getAt(prevRow, i + 1), 0)
         let diag = Stdlib.Option.withDefault(Stdlib.List.getAt(prevRow, i), 0)
@@ -51,7 +51,7 @@ let refTrace(
     if o == n then
       Stdlib.List.append(
         refTrace(oldLines, newLines, table, i - 1, j - 1),
-        Stdlib.Diff.DiffLine.Same o)
+        Stdlib.Diff.DiffLine.Same(o))
     else
       let up = refTableGet(table, j - 1, i)
       let left = refTableGet(table, j, i - 1)
@@ -59,21 +59,21 @@ let refTrace(
       if up >= left then
         Stdlib.List.append(
           refTrace(oldLines, newLines, table, i, j - 1),
-          Stdlib.Diff.DiffLine.Added n)
+          Stdlib.Diff.DiffLine.Added(n))
       else
         Stdlib.List.append(
           refTrace(oldLines, newLines, table, i - 1, j),
-          Stdlib.Diff.DiffLine.Removed o)
+          Stdlib.Diff.DiffLine.Removed(o))
   else if j > 0 then
     let n = Stdlib.Option.withDefault(Stdlib.List.getAt(newLines, j - 1), "")
     Stdlib.List.append(
       refTrace(oldLines, newLines, table, i, j - 1),
-      Stdlib.Diff.DiffLine.Added n)
+      Stdlib.Diff.DiffLine.Added(n))
   else
     let o = Stdlib.Option.withDefault(Stdlib.List.getAt(oldLines, i - 1), "")
     Stdlib.List.append(
       refTrace(oldLines, newLines, table, i - 1, j),
-      Stdlib.Diff.DiffLine.Removed o)
+      Stdlib.Diff.DiffLine.Removed(o))
 
 let refLines(oldText: String, newText: String): List<Stdlib.Diff.DiffLine> =
   let oldLines = Stdlib.String.split(oldText, "\n")
@@ -105,8 +105,8 @@ let compareAll(): (Int * Int) =
     Stdlib.List.range(0, 17)
     |> Stdlib.List.map(fun seed -> genText(seed, seed % 9))
 
-  Stdlib.List.fold(texts, (0, 0), fun acc a ->
-    Stdlib.List.fold(texts, acc, fun (examined, differing) b ->
+  Stdlib.List.fold(texts, (0, 0), fun(acc, a) ->
+    Stdlib.List.fold(texts, acc, fun((examined, differing), b) ->
       if Stdlib.Diff.lines(a, b) == refLines(a, b) then (examined + 1, differing)
       else (examined + 1, differing + 1)))
 
@@ -127,34 +127,34 @@ test lines =
   Stdlib.Test.all(
     [ Stdlib.Diff.lines("a\nb\nc", "a\nb\nc")
       |> Stdlib.Test.equal(
-        [ Stdlib.Diff.DiffLine.Same "a"
-          Stdlib.Diff.DiffLine.Same "b"
-          Stdlib.Diff.DiffLine.Same "c" ])
+        [ Stdlib.Diff.DiffLine.Same("a")
+          Stdlib.Diff.DiffLine.Same("b")
+          Stdlib.Diff.DiffLine.Same("c") ])
       Stdlib.Diff.lines("a\nb\nc", "a\nx\nc")
       |> Stdlib.Test.equal(
-        [ Stdlib.Diff.DiffLine.Same "a"
-          Stdlib.Diff.DiffLine.Removed "b"
-          Stdlib.Diff.DiffLine.Added "x"
-          Stdlib.Diff.DiffLine.Same "c" ])
+        [ Stdlib.Diff.DiffLine.Same("a")
+          Stdlib.Diff.DiffLine.Removed("b")
+          Stdlib.Diff.DiffLine.Added("x")
+          Stdlib.Diff.DiffLine.Same("c") ])
       // A tie: either line could be kept. The removal comes first.
       Stdlib.Diff.lines("a\nb", "b\na")
       |> Stdlib.Test.equal(
-        [ Stdlib.Diff.DiffLine.Removed "a"
-          Stdlib.Diff.DiffLine.Same "b"
-          Stdlib.Diff.DiffLine.Added "a" ])
+        [ Stdlib.Diff.DiffLine.Removed("a")
+          Stdlib.Diff.DiffLine.Same("b")
+          Stdlib.Diff.DiffLine.Added("a") ])
       Stdlib.Diff.lines("", "a\nb")
       |> Stdlib.Test.equal(
-        [ Stdlib.Diff.DiffLine.Removed ""
-          Stdlib.Diff.DiffLine.Added "a"
-          Stdlib.Diff.DiffLine.Added "b" ])
+        [ Stdlib.Diff.DiffLine.Removed("")
+          Stdlib.Diff.DiffLine.Added("a")
+          Stdlib.Diff.DiffLine.Added("b") ])
       Stdlib.Diff.lines("a\nb", "")
       |> Stdlib.Test.equal(
-        [ Stdlib.Diff.DiffLine.Removed "a"
-          Stdlib.Diff.DiffLine.Removed "b"
-          Stdlib.Diff.DiffLine.Added "" ])
+        [ Stdlib.Diff.DiffLine.Removed("a")
+          Stdlib.Diff.DiffLine.Removed("b")
+          Stdlib.Diff.DiffLine.Added("") ])
       Stdlib.Diff.lines("x\na\nb", "a\nb\ny")
       |> Stdlib.Test.equal(
-        [ Stdlib.Diff.DiffLine.Removed "x"
-          Stdlib.Diff.DiffLine.Same "a"
-          Stdlib.Diff.DiffLine.Same "b"
-          Stdlib.Diff.DiffLine.Added "y" ]) ])
+        [ Stdlib.Diff.DiffLine.Removed("x")
+          Stdlib.Diff.DiffLine.Same("a")
+          Stdlib.Diff.DiffLine.Same("b")
+          Stdlib.Diff.DiffLine.Added("y") ]) ])

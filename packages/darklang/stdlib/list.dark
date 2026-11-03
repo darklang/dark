@@ -18,7 +18,7 @@ let singleton(value: 'a): List<'a> =
 let head(list: List<'a>): Option.Option<'a> =
   match list with
   | [] -> Option.Option.None
-  | [head, ...] -> Option.Option.Some head
+  | [head, ...] -> Option.Option.Some(head)
 
 
 /// If <param list> contains at least one value, returns {{Some}} with a list of
@@ -26,7 +26,7 @@ let head(list: List<'a>): Option.Option<'a> =
 let tail(list: List<'a>): Option.Option<List<'a>> =
   match list with
   | [] -> Option.Option.None
-  | [_, ...tail] -> Option.Option.Some tail
+  | [_, ...tail] -> Option.Option.Some(tail)
 
 
 /// Returns a new list with all values in <param as> followed by all values in <param bs>,
@@ -54,7 +54,7 @@ let last(list: List<'a>): Option.Option<'a> =
   | [] -> Option.Option.None
   | [head, ...tail] ->
     match tail with
-    | [] -> Option.Option.Some head
+    | [] -> Option.Option.Some(head)
     | _ -> last(tail)
 
 
@@ -74,9 +74,9 @@ let findFirst(list: List<'a>, fn: 'a -> Bool): Option.Option<'a> =
 /// returns true. Returns {{None}} if no such element exists.
 let findFirstIndex(list: List<'a>, fn: 'a -> Bool): Option.Option<Int> =
   list
-  |> indexedMap(fun i item -> (i, item))
-  |> findFirst(fun (_i, item) -> fn(item))
-  |> Stdlib.Option.map(fun (i, _item) -> i)
+  |> indexedMap(fun(i, item) -> (i, item))
+  |> findFirst(fun((_i, item)) -> fn(item))
+  |> Stdlib.Option.map(fun((i, _item)) -> i)
 
 
 /// Returns {{true}} if <param value> is in the list
@@ -90,8 +90,8 @@ let repeat(
   value: 'a)
   : Result.Result<List<'a>, String> =
   if times < 0 then
-    Result.Result.Error
-      $"Expected `times` to be positive, but it was `{times |> Stdlib.toString}`"
+    Result.Result.Error(
+      $"Expected `times` to be positive, but it was `{times |> Stdlib.toString}`")
   else
     Result.Result.Ok(Stdlib.List.map(Stdlib.List.range(1, times), fun _ -> value))
 
@@ -113,7 +113,7 @@ let range(lowest: Int, highest: Int): List<Int> =
 /// Native, unlike most of this module, because it is the loop everything else here is written on:
 /// `map`, `filter` and the rest fold. Written in Dark it cost a package call and a match per element
 /// on top of the lambda; the builtin walks the list in F# and applies the lambda directly.
-let fold(list: List<'a>, init: 'b, fn: 'b -> 'a -> 'b): 'b =
+let fold(list: List<'a>, init: 'b, fn: ('b, 'a) -> 'b): 'b =
   Builtin.listFold(list, init, fn)
 
 
@@ -160,7 +160,7 @@ let interleave(lA: List<'a>, lB: List<'a>): List<'a> =
 /// lambda, a stream) raises.
 let uniqueBy(list: List<'a>, fn: 'a -> 'b): List<'a> =
   list
-  |> fold(([], Dict { }), fun (unique, seen) value ->
+  |> fold(([], Dict { }), fun((unique, seen), value) ->
     let uniqueValue = fn(value)
 
     if Stdlib.Dict.containsKey(seen, uniqueValue) then
@@ -168,7 +168,7 @@ let uniqueBy(list: List<'a>, fn: 'a -> 'b): List<'a> =
     else
       (prepend(unique, value),
        Stdlib.Dict.set(seen, uniqueValue, true)))
-  |> fun (uniqueValues, _) -> uniqueValues
+  |> fun((uniqueValues, _)) -> uniqueValues
   |> reverse
 
 
@@ -212,33 +212,33 @@ let sortBy(list: List<'a>, fn: 'a -> 'b): List<'a> =
 /// of control.
 let sortByComparator(
   list: List<'a>,
-  fn: 'a -> 'a -> Int)
+  fn: ('a, 'a) -> Int)
   : Result.Result<List<'a>, String> =
   let validate(x: 'a, y: 'a): Result.Result<Int, String> =
     let result = fn(x, y)
 
     if result == -1 || result == 0 || result == 1 then
-      Result.Result.Ok result
+      Result.Result.Ok(result)
     else
-      Result.Result.Error
-        $"Expected comparator function to return -1, 0, or 1, but it returned {Stdlib.toString(result)}"
+      Result.Result.Error(
+        $"Expected comparator function to return -1, 0, or 1, but it returned {Stdlib.toString(result)}")
 
   let merge(left: List<'a>, right: List<'a>): Result.Result<List<'a>, String> =
     match (left, right) with
-    | ([], _) -> Result.Result.Ok right
-    | (_, []) -> Result.Result.Ok left
+    | ([], _) -> Result.Result.Ok(right)
+    | (_, []) -> Result.Result.Ok(left)
     | ([x, ...xs], [y, ...ys]) ->
       match validate(x, y) with
-      | Error msg -> Result.Result.Error msg
-      | Ok result ->
+      | Error(msg) -> Result.Result.Error(msg)
+      | Ok(result) ->
         if result <= 0 then
           match merge(xs, right) with
-          | Error msg -> Result.Result.Error msg
-          | Ok merged -> Result.Result.Ok(prepend(merged, x))
+          | Error(msg) -> Result.Result.Error(msg)
+          | Ok(merged) -> Result.Result.Ok(prepend(merged, x))
         else
           match merge(left, ys) with
-          | Error msg -> Result.Result.Error msg
-          | Ok merged -> Result.Result.Ok(prepend(merged, y))
+          | Error(msg) -> Result.Result.Error(msg)
+          | Ok(merged) -> Result.Result.Ok(prepend(merged, y))
 
   let splitList(lst: List<'a>): (List<'a> * List<'a>) =
     match lst with
@@ -250,17 +250,17 @@ let sortByComparator(
 
   let mergeSort(lst: List<'a>): Result.Result<List<'a>, String> =
     match lst with
-    | [] -> Result.Result.Ok []
-    | [ x ] -> Result.Result.Ok [ x ]
+    | [] -> Result.Result.Ok([])
+    | [ x ] -> Result.Result.Ok([ x ])
     | lst ->
       let (left, right) = splitList(lst)
 
       match mergeSort(left) with
-      | Error msg -> Result.Result.Error msg
-      | Ok sortedLeft ->
+      | Error(msg) -> Result.Result.Error(msg)
+      | Ok(sortedLeft) ->
         match mergeSort(right) with
-        | Error msg -> Result.Result.Error msg
-        | Ok sortedRight -> merge(sortedLeft, sortedRight)
+        | Error(msg) -> Result.Result.Error(msg)
+        | Ok(sortedRight) -> merge(sortedLeft, sortedRight)
 
   mergeSort(list)
 
@@ -362,7 +362,7 @@ let parallelMap(list: List<'a>, fn: 'a -> 'b): List<'b> =
 /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
 /// returning a list of the results of those calls.
 /// Consider <fn map> if you don't need the index.
-let indexedMap(list: List<'a>, fn: Int -> 'a -> 'b): List<'b> =
+let indexedMap(list: List<'a>, fn: (Int, 'a) -> 'b): List<'b> =
   Builtin.listIndexedMap(list, fn)
 
 
@@ -377,7 +377,7 @@ let indexedMap(list: List<'a>, fn: Int -> 'a -> 'b): List<'b> =
 let map2shortest(
   as_: List<'a>,
   bs: List<'b>,
-  fn: 'a -> 'b -> 'c)
+  fn: ('a, 'b) -> 'c)
   : List<'c> =
   Builtin.listMap2shortest(as_, bs, fn)
 
@@ -399,7 +399,7 @@ type LengthMismatch =
 let map2(
   as_: List<'a>,
   bs: List<'b>,
-  fn: 'a -> 'b -> 'c)
+  fn: ('a, 'b) -> 'c)
   : Result.Result<List<'c>, LengthMismatch> =
   let left = length(as_)
   let right = length(bs)
@@ -483,10 +483,10 @@ let setAt(
   let resolvedIndex = if index < 0 then listLength + index else index
 
   if resolvedIndex < 0 || resolvedIndex >= listLength then
-    Result.Result.Error IndexError.IndexOutOfBounds
+    Result.Result.Error(IndexError.IndexOutOfBounds)
   else
     Result.Result.Ok(
-      indexedMap(list, fun i v -> if i == resolvedIndex then value else v)
+      indexedMap(list, fun(i, v) -> if i == resolvedIndex then value else v)
     )
 
 
@@ -506,11 +506,11 @@ let groupBy(list: List<'a>, fn: 'a -> 'b): List<('b * List<'a>)> =
   // Each group is looked up in a Dict rather than scanned for, and built back to front; the
   // keys are kept separately, in the order first seen, since a Dict lists its own sorted.
   let (groups, keys) =
-    fold(list, (Dict { }, []), fun (groups, keys) element ->
+    fold(list, (Dict { }, []), fun((groups, keys), element) ->
       let key = fn(element)
 
       match Stdlib.Dict.get(groups, key) with
-      | Some elements ->
+      | Some(elements) ->
         (Stdlib.Dict.set(groups, key, prepend(elements, element)), keys)
       | None -> (Stdlib.Dict.set(groups, key, [ element ]), prepend(keys, key)))
 
@@ -518,7 +518,7 @@ let groupBy(list: List<'a>, fn: 'a -> 'b): List<('b * List<'a>)> =
   |> reverse
   |> map(fun key ->
     match Stdlib.Dict.get(groups, key) with
-    | Some elements -> (key, reverse(elements))
+    | Some(elements) -> (key, reverse(elements))
     | None -> (key, []))
 
 
@@ -555,8 +555,8 @@ let chunkBySize(
   size: Int)
   : Result.Result<List<List<'a>>, ChunkBySizeError> =
   if size <= 0 then
-    Result.Result.Error
-      ChunkBySizeError.SizeMustBeGreaterThanZero
+    Result.Result.Error(
+      ChunkBySizeError.SizeMustBeGreaterThanZero)
   else
     let chunk(remaining: List<'a>, chunks: List<List<'a>>): List<List<'a>> =
       match remaining with

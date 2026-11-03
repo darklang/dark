@@ -36,14 +36,14 @@ let highlightLine(line: String, lineTokens: List<LanguageTools.SemanticTokens.Se
     |> Stdlib.List.flatten
     // stable sort keeps a token's end before the next token's start at a shared
     // column, so adjacent tokens render as `…reset<next-color>…`
-    |> Stdlib.List.sortBy(fun (pos, _) -> pos)
+    |> Stdlib.List.sortBy(fun((pos, _)) -> pos)
 
   // Insert from right to left so earlier insertions do not shift later positions.
   let reversedInsertions = Stdlib.List.reverse(insertions)
 
   let highlighted =
     reversedInsertions
-    |> Stdlib.List.fold(line, fun currentLine (pos, colorCode) ->
+    |> Stdlib.List.fold(line, fun(currentLine, (pos, colorCode)) ->
         if pos >= 0 && pos <= Stdlib.String.length(currentLine) then
           let before = Stdlib.String.slice(currentLine, 0, pos)
           let after = Stdlib.String.dropFirst(currentLine, pos)
@@ -82,7 +82,7 @@ let splitTokenByLine(
           token.range.end_.column
         else
           match Stdlib.List.getAt(lines, row) with
-          | Some line -> Stdlib.String.length(line)
+          | Some(line) -> Stdlib.String.length(line)
           | None -> 0
 
       let newRange =
@@ -109,7 +109,7 @@ let applyTokenColors(
     |> Stdlib.List.sortBy(fun token -> (token.range.start.row, token.range.start.column))
 
   lines
-  |> Stdlib.List.indexedMap(fun lineIndex line ->
+  |> Stdlib.List.indexedMap(fun(lineIndex, line) ->
     let lineTokens =
       sortedTokens
       |> Stdlib.List.filter(fun token -> token.range.start.row == lineIndex)
@@ -129,6 +129,6 @@ let highlightCode(sourceCode: String): String =
   // for virtually all input. `None` only on a hard lex failure — fall back to
   // the uncolored source.
   match LanguageTools.Parser.Parse.toWrittenTypes(sourceCode) with
-  | Some parsedFile ->
+  | Some(parsedFile) ->
     applyTokenColors(sourceCode, LanguageTools.SemanticTokens.ParsedFile.tokenize(parsedFile))
   | None -> sourceCode

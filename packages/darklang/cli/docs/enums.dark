@@ -8,22 +8,23 @@ let content(): String =
 
 ## Construct
   Status.Pending
-  Status.Done 42
-  Some 5             # Option/Result constructors can be bare
-  Ok "yes"
-  MyType.Case value  # other enums need the type prefix
+  Status.Done(42)
+  Some(5)            # Option/Result constructors can be bare
+  Ok("yes")
+  MyType.Case(value) # other enums need the type prefix
+  Pair(1, 2)         # several fields: commas, like a call's arguments
 
-## Match (no type prefix)
+## Match (the type prefix is optional)
   match status with
   | Pending -> "waiting"
-  | Done n -> $"done: {n}"
+  | Done(n) -> $"done: {n}"
 
   match opt with
-  | Some v -> v
+  | Some(v) -> v
   | None -> default
 
 ## Gotcha: a tuple inside a constructor needs double parens
   match x with
-  | Some ((a, b)) -> ...    # one field containing a tuple
+  | Some((a, b)) -> ...     # one field containing a tuple
   | None -> ...
-  # `Some (a, b)` is read as two fields and rejected."""
+  # `Some(a, b)` is two fields, and Some has one."""

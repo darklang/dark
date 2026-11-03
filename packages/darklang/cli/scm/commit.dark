@@ -162,7 +162,7 @@ let previousHashesOfAll(
          Stdlib.List.concat(
            (historyIn(ofBranchId)
             |> Stdlib.List.reverse
-            |> Stdlib.List.map(fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
+            |> Stdlib.List.map(fun h -> LanguageTools.ProgramTypes.Hash.Hash(h))
             |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(onMain, h)))),
            onMain))
       |> Stdlib.List.map(LanguageTools.ProgramTypes.hashToString)
@@ -176,7 +176,7 @@ let previousHashesOfAll(
       Stdlib.List.concat(fromMain, Stdlib.List.reverse(fromBranch))
       |> Stdlib.List.unique
       |> Stdlib.List.filter(fun h -> h != b.hash)
-      |> Stdlib.List.map(fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
+      |> Stdlib.List.map(fun h -> LanguageTools.ProgramTypes.Hash.Hash(h))
 
     (b, previous))
 
@@ -209,10 +209,10 @@ let propagateOne(
         locationOf(b),
         itemKindOf(b.itemType),
         previous,
-        LanguageTools.ProgramTypes.Hash.Hash b.hash)
+        LanguageTools.ProgramTypes.Hash.Hash(b.hash))
     with
-    | Ok repoints -> Stdlib.List.length(repoints)
-    | Error e ->
+    | Ok(repoints) -> Stdlib.List.length(repoints)
+    | Error(e) ->
       Cli.printErr($"  propagation failed for {b.name}: {e}")
       0
 
@@ -220,7 +220,7 @@ let propagateOne(
 let widest(names: List<String>): Int =
   names
   |> Stdlib.List.map(fun n -> Stdlib.String.length(n))
-  |> Stdlib.List.fold(0, fun acc n -> if n > acc then n else acc)
+  |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
 
 /// Everything the review needs, computed once. Both the pretty view and `--json` read this, so an agent and
 /// a human are never looking at differently-derived versions of the same commit.
@@ -263,7 +263,7 @@ let propagateAll(state: AppState, r: Review): Int =
   |> Stdlib.List.map(fun entry ->
     let (b, previous) = entry
     propagateOne(state.currentBranchId, b, previous))
-  |> Stdlib.List.fold(0, fun acc n -> acc + n)
+  |> Stdlib.List.fold(0, fun(acc, n) -> acc + n)
 
 /// Commit only what `--include=` named, plus what it depends on. Two things differ from a whole-draft
 /// commit, both deliberate:
@@ -279,11 +279,11 @@ let commitSelected(
   names: List<String>)
   : Stdlib.Result.Result<(String * Int64 * Int), String> =
   match SCM.PartialCommit.plan(names) with
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error(e) -> Stdlib.Result.Result.Error(e)
   | Ok((opIds, pulledIn)) ->
     if Stdlib.List.isEmpty(opIds) then
-      Stdlib.Result.Result.Error
-        "that selection has nothing to commit -- `dark status` shows what the draft holds."
+      Stdlib.Result.Result.Error(
+        "that selection has nothing to commit -- `dark status` shows what the draft holds.")
     else
       let moved = propagateAll(state, r)
 
@@ -296,8 +296,8 @@ let commitSelected(
       if committed == 0L then
         let _ = SCM.Commits.delete(hash)
 
-        Stdlib.Result.Result.Error
-          "nothing was committed -- the draft moved while this ran. Try again."
+        Stdlib.Result.Result.Error(
+          "nothing was committed -- the draft moved while this ran. Try again.")
       else
         let _ =
           if Stdlib.List.isEmpty(pulledIn) then
@@ -375,7 +375,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
            commitSelected(state, r, parsed.message, parsed.include))
       with
       | Ok((h, n, m)) -> (true, h, n, m)
-      | Error _ -> (false, "", 0L, 0)
+      | Error(_) -> (false, "", 0L, 0)
     else
       (false, "", 0L, 0)
 
@@ -414,7 +414,7 @@ let refuseUnresolved(parsed: Args): Bool =
       Cli.printErr("cannot commit: these reference names that don't resolve.")
 
       broken
-      |> Stdlib.List.iter(fun (label, names) ->
+      |> Stdlib.List.iter(fun((label, names)) ->
         Stdlib.printErrorLine($"  {label}")
 
         names
@@ -602,7 +602,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
           commitSelected(state, r, parsed.message, parsed.include)
 
       match outcome with
-      | Error e ->
+      | Error(e) ->
         Cli.printErr(e)
         { state with exitCode = 1 }
       | Ok((hash, committed, moved)) ->

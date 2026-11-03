@@ -16,10 +16,10 @@ module Darklang.Cli.Packages.Edit
 /// beats a shell-wide `VISUAL`.
 let editorCommand(): String =
   match Stdlib.Env.get("EDITOR") with
-  | Some e when e != "" -> e
+  | Some(e) when e != "" -> e
   | _ ->
     match Stdlib.Env.get("VISUAL") with
-    | Some v when v != "" -> v
+    | Some(v) when v != "" -> v
     | _ -> "vi"
 
 
@@ -34,13 +34,13 @@ let itemLocation(
   location: Packages.PackageLocation)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
   match location with
-  | Module _ -> Stdlib.Option.Option.None
-  | Type loc -> Stdlib.Option.Option.Some loc
-  | Value loc -> Stdlib.Option.Option.Some loc
-  | Function loc -> Stdlib.Option.Option.Some loc
-  | Trait loc -> Stdlib.Option.Option.Some loc
-  | Impl loc -> Stdlib.Option.Option.Some loc
-  | Test loc -> Stdlib.Option.Option.Some loc
+  | Module(_) -> Stdlib.Option.Option.None
+  | Type(loc) -> Stdlib.Option.Option.Some(loc)
+  | Value(loc) -> Stdlib.Option.Option.Some(loc)
+  | Function(loc) -> Stdlib.Option.Option.Some(loc)
+  | Trait(loc) -> Stdlib.Option.Option.Some(loc)
+  | Impl(loc) -> Stdlib.Option.Option.Some(loc)
+  | Test(loc) -> Stdlib.Option.Option.Some(loc)
 
 
 /// Hand the file to `dark module`, which validates and applies it.
@@ -59,11 +59,11 @@ let execute(state: AppState, args: List<String>): AppState =
     match args with
     | [ name ] -> Stdlib.Result.Result.Ok((name, Stdlib.Option.Option.None))
     | [ name, file ] ->
-      Stdlib.Result.Result.Ok((name, Stdlib.Option.Option.Some file))
-    | _ -> Stdlib.Result.Result.Error "usage: dark edit <name> [file]"
+      Stdlib.Result.Result.Ok((name, Stdlib.Option.Option.Some(file)))
+    | _ -> Stdlib.Result.Result.Error("usage: dark edit <name> [file]")
 
   match named with
-  | Error e ->
+  | Error(e) ->
     Cli.printErr(e)
 
     Stdlib.printErrorLine(
@@ -74,10 +74,10 @@ let execute(state: AppState, args: List<String>): AppState =
   | Ok((name, fileArg)) ->
 
   match Traversal.traverse(branchId, state.packageData.currentLocation, name) with
-  | Error e ->
+  | Error(e) ->
     Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot edit {name}: {e}"))
     Cli.exitWith(state, false)
-  | Ok location ->
+  | Ok(location) ->
 
   match itemLocation(location) with
   | None ->
@@ -88,11 +88,11 @@ let execute(state: AppState, args: List<String>): AppState =
         "  `dark module /Some.Module <file>` edits a whole module at once.")))
 
     Cli.exitWith(state, false)
-  | Some loc ->
+  | Some(loc) ->
 
   match fileArg with
   // No editor and no terminal: the shape a script or an agent uses.
-  | Some file -> applyFile(state, loc, file)
+  | Some(file) -> applyFile(state, loc, file)
   | None ->
 
   // An editor needs a terminal on both ends. Without one it starts anyway, paints
@@ -100,7 +100,7 @@ let execute(state: AppState, args: List<String>): AppState =
   // ask before spawning rather than after. The file form needs no terminal at all,
   // which is what to point at.
   match Stdlib.Cli.Tui.TerminalSupport.current() with
-  | Unavailable reason ->
+  | Unavailable(reason) ->
     Cli.printErr($"Cannot open an editor: {reason}.")
 
     Stdlib.printErrorLine(
@@ -111,33 +111,33 @@ let execute(state: AppState, args: List<String>): AppState =
   | Available ->
 
   match Packages.View.rawSource(branchId, location) with
-  | Error e ->
+  | Error(e) ->
     Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot edit {name}: {e}"))
     Cli.exitWith(state, false)
-  | Ok before ->
+  | Ok(before) ->
 
   match Stdlib.Cli.Dir.createTemp() with
-  | Error e ->
+  | Error(e) ->
     Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.error(
         $"Cannot edit {name}: no temp directory ({e.message})")))
 
     Cli.exitWith(state, false)
-  | Ok dir ->
+  | Ok(dir) ->
     let path = $"{dir}/{loc.name}.dark"
 
     match Stdlib.Cli.File.writeText(path, before) with
-    | Error e ->
+    | Error(e) ->
       Stdlib.printErrorLine(
         (Stdlib.Cli.UI.Colors.error(
           $"Cannot edit {name}: could not write {path} ({e.message})")))
 
       Cli.exitWith(state, false)
-    | Ok _ ->
+    | Ok(_) ->
       let editor = editorCommand()
 
       match Stdlib.Cli.Process.runInteractive(editor, [ path ]) with
-      | Error e ->
+      | Error(e) ->
         Cli.printErr($"Could not run `{editor}`: {e.message}")
 
         Stdlib.printErrorLine(
@@ -145,7 +145,7 @@ let execute(state: AppState, args: List<String>): AppState =
             $"  Set $EDITOR, or edit {path} and run `dark edit {name} {path}`.")))
 
         Cli.exitWith(state, false)
-      | Ok code when code != 0 ->
+      | Ok(code) when code != 0 ->
         // A non-zero editor is how you say "forget it" in most of them. The store
         // is left alone and so is the file, so a long edit is not thrown away on a
         // stray exit code.
@@ -156,13 +156,13 @@ let execute(state: AppState, args: List<String>): AppState =
           Stdlib.Cli.UI.Colors.dimText($"  Your edit is still at {path}."))
 
         state
-      | Ok _ ->
+      | Ok(_) ->
         match Stdlib.Cli.File.readText(path) with
-        | Error e ->
+        | Error(e) ->
           Cli.printErr($"Could not read back {path}: {e.message}")
 
           Cli.exitWith(state, false)
-        | Ok after ->
+        | Ok(after) ->
           if (Stdlib.String.trim(after)) == (Stdlib.String.trim(before)) then
             let _ = Stdlib.Cli.Dir.deleteRecursive(dir)
             Stdlib.printLine(Stdlib.Cli.UI.Colors.success("no change."))
@@ -181,8 +181,8 @@ let execute(state: AppState, args: List<String>): AppState =
             // where a real warning goes to hide.
             let landed =
               match Packages.View.rawSource(branchId, location) with
-              | Ok now -> (Stdlib.String.trim(now)) != (Stdlib.String.trim(before))
-              | Error _ -> false
+              | Ok(now) -> (Stdlib.String.trim(now)) != (Stdlib.String.trim(before))
+              | Error(_) -> false
 
             let _ =
               if landed then

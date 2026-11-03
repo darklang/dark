@@ -2,10 +2,10 @@
 // optimisation work has targeted, so it stays here as the control.
 let iters(): Int =
   match Stdlib.Env.get("PERF_ITERS") with
-  | Some s ->
+  | Some(s) ->
     match Stdlib.Int.parse(s) with
-    | Ok n -> n
-    | Error _ -> 0
+    | Ok(n) -> n
+    | Error(_) -> 0
   | None -> 0
 
 let work(n: Int): Int =

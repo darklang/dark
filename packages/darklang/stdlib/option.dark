@@ -14,7 +14,7 @@ let map(
   fn: 'a -> 'b)
   : Stdlib.Option.Option<'b> =
   match option with
-  | Some v -> Stdlib.Option.Option.Some(fn(v))
+  | Some(v) -> Stdlib.Option.Option.Some(fn(v))
   | None -> Stdlib.Option.Option.None
 
 
@@ -27,10 +27,10 @@ let map(
 let map2(
   option1: Stdlib.Option.Option<'a>,
   option2: Stdlib.Option.Option<'b>,
-  fn: 'a -> 'b -> 'c)
+  fn: ('a, 'b) -> 'c)
   : Stdlib.Option.Option<'c> =
   match (option1, option2) with
-  | Some v1, Some v2 -> Stdlib.Option.Option.Some(fn(v1, v2))
+  | Some(v1), Some(v2) -> Stdlib.Option.Option.Some(fn(v1, v2))
   | _ -> Stdlib.Option.Option.None
 
 
@@ -43,10 +43,10 @@ let map3(
   option1: Stdlib.Option.Option<'a>,
   option2: Stdlib.Option.Option<'b>,
   option3: Stdlib.Option.Option<'c>,
-  fn: 'a -> 'b -> 'c -> 'd)
+  fn: ('a, 'b, 'c) -> 'd)
   : Stdlib.Option.Option<'d> =
   match (option1, option2, option3) with
-  | Some v1, Some v2, Some v3 -> Stdlib.Option.Option.Some(fn(v1, v2, v3))
+  | Some(v1), Some(v2), Some(v3) -> Stdlib.Option.Option.Some(fn(v1, v2, v3))
   | _ -> Stdlib.Option.Option.None
 
 
@@ -60,10 +60,10 @@ let map4(
   option2: Stdlib.Option.Option<'b>,
   option3: Stdlib.Option.Option<'c>,
   option4: Stdlib.Option.Option<'d>,
-  fn: 'a -> 'b -> 'c -> 'd -> 'e)
+  fn: ('a, 'b, 'c, 'd) -> 'e)
   : Stdlib.Option.Option<'e> =
   match (option1, option2, option3, option4) with
-  | Some v1, Some v2, Some v3, Some v4 ->
+  | Some(v1), Some(v2), Some(v3), Some(v4) ->
     Stdlib.Option.Option.Some(fn(v1, v2, v3, v4))
   | _ -> Stdlib.Option.Option.None
 
@@ -79,10 +79,10 @@ let map5(
   option3: Stdlib.Option.Option<'c>,
   option4: Stdlib.Option.Option<'d>,
   option5: Stdlib.Option.Option<'e>,
-  fn: 'a -> 'b -> 'c -> 'd -> 'e -> 'f)
+  fn: ('a, 'b, 'c, 'd, 'e) -> 'f)
   : Stdlib.Option.Option<'f> =
   match (option1, option2, option3, option4, option5) with
-  | Some v1, Some v2, Some v3, Some v4, Some v5 ->
+  | Some(v1), Some(v2), Some(v3), Some(v4), Some(v5) ->
     Stdlib.Option.Option.Some(fn(v1, v2, v3, v4, v5))
   | _ -> Stdlib.Option.Option.None
 
@@ -94,7 +94,7 @@ let mapWithDefault(
   fn: 'a -> 'b)
   : 'b =
   match option with
-  | Some v -> fn(v)
+  | Some(v) -> fn(v)
   | None -> default_
 
 
@@ -106,7 +106,7 @@ let andThen(
   fn: 'a -> Stdlib.Option.Option<'b>)
   : Stdlib.Option.Option<'b> =
   match option with
-  | Some v -> fn(v)
+  | Some(v) -> fn(v)
   | None -> Stdlib.Option.Option.None
 
 
@@ -116,10 +116,10 @@ let andThen(
 let andThen2(
   option1: Stdlib.Option.Option<'a>,
   option2: Stdlib.Option.Option<'b>,
-  fn: 'a -> 'b -> Stdlib.Option.Option<'c>)
+  fn: ('a, 'b) -> Stdlib.Option.Option<'c>)
   : Stdlib.Option.Option<'c> =
   match (option1, option2) with
-  | Some v1, Some v2 -> fn(v1, v2)
+  | Some(v1), Some(v2) -> fn(v1, v2)
   | _ -> Stdlib.Option.Option.None
 
 
@@ -130,10 +130,10 @@ let andThen3(
   option1: Stdlib.Option.Option<'a>,
   option2: Stdlib.Option.Option<'b>,
   option3: Stdlib.Option.Option<'c>,
-  fn: 'a -> 'b -> 'c -> Stdlib.Option.Option<'d>)
+  fn: ('a, 'b, 'c) -> Stdlib.Option.Option<'d>)
   : Stdlib.Option.Option<'d> =
   match (option1, option2, option3) with
-  | Some v1, Some v2, Some v3 -> fn(v1, v2, v3)
+  | Some(v1), Some(v2), Some(v3) -> fn(v1, v2, v3)
   | _ -> Stdlib.Option.Option.None
 
 
@@ -145,10 +145,10 @@ let andThen4(
   option2: Stdlib.Option.Option<'b>,
   option3: Stdlib.Option.Option<'c>,
   option4: Stdlib.Option.Option<'d>,
-  fn: 'a -> 'b -> 'c -> 'd -> Stdlib.Option.Option<'e>)
+  fn: ('a, 'b, 'c, 'd) -> Stdlib.Option.Option<'e>)
   : Stdlib.Option.Option<'e> =
   match (option1, option2, option3, option4) with
-  | Some v1, Some v2, Some v3, Some v4 -> fn(v1, v2, v3, v4)
+  | Some(v1), Some(v2), Some(v3), Some(v4) -> fn(v1, v2, v3, v4)
   | _ -> Stdlib.Option.Option.None
 
 
@@ -156,21 +156,21 @@ let andThen4(
 /// returns <param default>
 let withDefault(option: Stdlib.Option.Option<'a>, default_: 'a): 'a =
   match option with
-  | Some v -> v
+  | Some(v) -> v
   | None -> default_
 
 
 /// Returns true if <param option> is {{Some _}} and false if it is {{None}}
 let isSome(option: Stdlib.Option.Option<'a>): Bool =
   match option with
-  | Some _ -> true
+  | Some(_) -> true
   | None -> false
 
 
 /// Returns true if <param option> is {{None}} and false if it is {{Some _}}
 let isNone(option: Stdlib.Option.Option<'a>): Bool =
   match option with
-  | Some _ -> false
+  | Some(_) -> false
   | None -> true
 
 
@@ -180,8 +180,8 @@ let toResult(
   error: 'e)
   : Stdlib.Result.Result<'a, 'e> =
   match option with
-  | Some v -> Stdlib.Result.Result.Ok v
-  | None -> Stdlib.Result.Result.Error error
+  | Some(v) -> Stdlib.Result.Result.Ok(v)
+  | None -> Stdlib.Result.Result.Error(error)
 
 
 /// If <param option1> is {{Some _}}, then returns the value of <param option2>.
@@ -191,7 +191,7 @@ let ``and``(
   option2: Stdlib.Option.Option<'b>)
   : Stdlib.Option.Option<'b> =
   match option1 with
-  | Some _ -> option2
+  | Some(_) -> option2
   | None -> Stdlib.Option.Option.None
 
 
@@ -201,14 +201,14 @@ let ``or``(
   option2: Stdlib.Option.Option<'a>)
   : Stdlib.Option.Option<'a> =
   match option1 with
-  | Some _ -> option1
+  | Some(_) -> option1
   | None -> option2
 
 
 /// Returns a list containing the value of <param option> if it is {{Some _}}. Otherwise, returns an empty list.
 let toList(option: Stdlib.Option.Option<'a>): List<'a> =
   match option with
-  | Some v -> [ v ]
+  | Some(v) -> [ v ]
   | None -> []
 
 
@@ -217,7 +217,7 @@ let join(
   option: Stdlib.Option.Option<Stdlib.Option.Option<'a>>)
   : Stdlib.Option.Option<'a> =
   match option with
-  | Some v -> v
+  | Some(v) -> v
   | None -> Stdlib.Option.Option.None
 
 
@@ -230,12 +230,12 @@ let combine(
   // Built back to front and reversed once: `List.append acc value` copies the accumulator every
   // element, so this was quadratic in the list length.
   let folded =
-    Stdlib.List.fold(options, Stdlib.Option.Option.Some [], fun acc option ->
-      Stdlib.Option.andThen2(acc, option, fun acc value ->
+    Stdlib.List.fold(options, Stdlib.Option.Option.Some([]), fun(acc, option) ->
+      Stdlib.Option.andThen2(acc, option, fun(acc, value) ->
         Stdlib.Option.Option.Some(Stdlib.List.prepend(acc, value))))
 
   match folded with
-  | Some l -> Stdlib.Option.Option.Some(Stdlib.List.reverse(l))
+  | Some(l) -> Stdlib.Option.Option.Some(Stdlib.List.reverse(l))
   | None -> Stdlib.Option.Option.None
 
 

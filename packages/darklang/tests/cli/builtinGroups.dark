@@ -13,7 +13,7 @@ module Darklang.Cli.Tests.BuiltinGroups
 
 module BuiltinGroups =
   let knownPrefixes(): List<String> =
-    Darklang.Cli.Builtins.knownGroups |> Stdlib.List.map(fun (p, _) -> p)
+    Darklang.Cli.Builtins.knownGroups |> Stdlib.List.map(fun((p, _)) -> p)
 
   let livePrefixes(): List<String> =
     Darklang.LanguageTools.allBuiltinFns()

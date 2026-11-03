@@ -173,10 +173,10 @@ Every TUI host is written against one contract, the scheduler's event queue behi
 ```
 let rec loop model =
   match Host.await([Key, StoreChanged]) with
-  | StoreChanged c when Live.affects(c.locations, entry) ->
+  | StoreChanged(c) when Live.affects(c.locations, entry) ->
       let model = reload(entry, model)    // last-good rule applies
       loop(render(model))
-  | Key k -> loop(render(update(model, k)))
+  | Key(k) -> loop(render(update(model, k)))
   | _ -> loop(model)
 ```
 

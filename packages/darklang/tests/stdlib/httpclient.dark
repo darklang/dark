@@ -36,7 +36,7 @@ test basicAuth =
 
 test basicAuthRejectsHyphenInUsername =
   Stdlib.HttpClient.basicAuth("-", "")
-  |> Stdlib.Test.equal(Error "Username cannot contain a hyphen")
+  |> Stdlib.Test.equal(Error("Username cannot contain a hyphen"))
 
 // Tests that try to make requests to the internet
 
@@ -246,8 +246,8 @@ test disallowedHeaders =
 // reported immediately as NetworkError or when the request times out.
 test missingHostFails =
   (match get("http://no-such-host.dark.test", []) with
-   | Error NetworkError -> true
-   | Error Timeout -> true
+   | Error(NetworkError) -> true
+   | Error(Timeout) -> true
    | _ -> false)
   |> Stdlib.Test.equal(true)
 

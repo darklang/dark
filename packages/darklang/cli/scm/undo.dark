@@ -35,21 +35,21 @@ let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [ arg ] ->
     match Packages.Location.parseRelativeTo(state.packageData.currentLocation, arg) with
-    | Error e ->
+    | Error(e) ->
       Cli.printErr(e)
       Cli.exitWith(state, false)
-    | Ok loc ->
+    | Ok(loc) ->
       match SCM.Propagation.kindAt(loc) with
       | None ->
         Cli.printErr($"nothing named {PropagateCmd.dotted(loc)}.")
         Cli.printHint("  `dark ls <module>` lists what's there; `dark status` shows what you've changed.")
         Cli.exitWith(state, false)
-      | Some kind ->
+      | Some(kind) ->
         // Captured BEFORE the rebind: what anything above is pointed at, and so what the cascade back
         // down has to move them from.
         let wasAt =
           SCM.Propagation.currentHash(loc)
-          |> Stdlib.Option.withDefault(LanguageTools.ProgramTypes.Hash.Hash "")
+          |> Stdlib.Option.withDefault(LanguageTools.ProgramTypes.Hash.Hash(""))
 
         (
           match SCM.Propagation.previousAuthored(loc) with
@@ -64,12 +64,12 @@ let execute(state: AppState, args: List<String>): AppState =
               $"  to remove it from your draft entirely: dark discard {PropagateCmd.dotted(loc)}")
 
             state
-          | Some prev ->
+          | Some(prev) ->
             match SCM.Propagation.rebind(loc, kind, prev) with
-            | Error e ->
+            | Error(e) ->
               Cli.printErr($"couldn't undo: {e}")
               Cli.exitWith(state, false)
-            | Ok _ ->
+            | Ok(_) ->
               Cli.printOk(
                 $"{PropagateCmd.dotted(loc)} is back on the version before that edit ({Cli.shortHash(prev)}).")
 

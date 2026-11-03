@@ -36,7 +36,7 @@ let renderTreeList(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
         state.items
         |> Stdlib.List.filter(fun it -> Stdlib.Bool.not(isSectionHeader(it)))
         |> Stdlib.List.map(fun it -> Stdlib.String.displayWidth(displayOf(it)))
-        |> Stdlib.List.fold(0, fun acc n -> Stdlib.max(acc, n))
+        |> Stdlib.List.fold(0, fun(acc, n) -> Stdlib.max(acc, n))
         |> Stdlib.min(nameCap)
     let fitName(s: String): String =
       if (Stdlib.String.displayWidth(s)) <= nameCap then s
@@ -49,7 +49,7 @@ let renderTreeList(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
 
     let lines =
       state.items
-      |> Stdlib.List.indexedMap(fun i item ->
+      |> Stdlib.List.indexedMap(fun(i, item) ->
         let display = if item.desc == "" then displayOf(item) else fitName(displayOf(item))
         let fullName = Stdlib.String.join(Stdlib.List.append(modPath, item.name), ".")
         let isWip = anyWip && (Stdlib.List.contains(wipNames, fullName))
@@ -139,7 +139,7 @@ let accessSummaryLines(state: State, hash: String): List<String> =
   let ceiling =
     match facts.ceiling with
     | None -> []
-    | Some names ->
+    | Some(names) ->
       let exceeding =
         facts.effects |> Stdlib.List.filter(fun e -> Stdlib.Bool.not(Stdlib.List.contains(names, e)))
       let warning =
@@ -151,7 +151,7 @@ let accessSummaryLines(state: State, hash: String): List<String> =
         else []
       Stdlib.List.prepend(
         warning,
-        factRow("ceiling", LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some names)))
+        factRow("ceiling", LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some(names))))
   let approval =
     if facts.bundled then
       [ factRow("approval", (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "none needed")) + (Stdlib.Cli.UI.Colors.dimText(" · bundled Darklang code"))) ]
@@ -159,7 +159,7 @@ let accessSummaryLines(state: State, hash: String): List<String> =
       [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "approved as " + (Stdlib.String.join(facts.approvedAs, ", ")))) ]
     else
       match facts.packagePolicy with
-      | Some _ -> [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "approved for this account")) ]
+      | Some(_) -> [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "approved for this account")) ]
       | None ->
         [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, "not approved"))
           factNote("blocked as a dependency · runs as an entry point") ]
@@ -175,7 +175,7 @@ let accessSummaryLines(state: State, hash: String): List<String> =
 /// scans a module, so they are how it is laid out.
 let modulePreviewLines(state: State, item: BodyItem): List<String> =
   let path = Stdlib.List.append(Packages.modulePathOf(state.location), item.name)
-  let location = Packages.PackageLocation.Module path
+  let location = Packages.PackageLocation.Module(path)
   let allChildren = moduleContents(state.branchId, location)
 
   // `moduleContents` already drops the folder an implementation generates, same as every other
@@ -189,12 +189,12 @@ let modulePreviewLines(state: State, item: BodyItem): List<String> =
   let nameCol =
     children
     |> Stdlib.List.map(fun c -> Stdlib.String.displayWidth((if c.isModule then c.name + "/" else c.name)))
-    |> Stdlib.List.fold(0, fun acc n -> Stdlib.max(acc, n))
+    |> Stdlib.List.fold(0, fun(acc, n) -> Stdlib.max(acc, n))
     |> Stdlib.min(28)
   let fnDesc(desc: String): String =
     // `moduleContents` spells a fn as `sig  [effects]`; paint the two halves apart.
     match Stdlib.String.lastIndexOf(desc, "  [") with
-    | Some i ->
+    | Some(i) ->
       let sig_ = Stdlib.String.slice(desc, 0, i)
       let effects = Stdlib.String.slice(desc, i + 3, (Stdlib.String.length(desc)) - 1)
       (Stdlib.Cli.UI.Colors.dimText(sig_)) + "  " + (effectsBadge(effects))
@@ -260,12 +260,12 @@ let testOutcomeLines(
   hash: LanguageTools.ProgramTypes.Hash)
   : List<String> =
   match Packages.Test.lastOutcome(branchId, hash) with
-  | Some Passed -> [ Stdlib.Cli.UI.Colors.success("✓ passed (this build)") ]
-  | Some(Failed messages) ->
+  | Some(Passed) -> [ Stdlib.Cli.UI.Colors.success("✓ passed (this build)") ]
+  | Some(Failed(messages)) ->
     Stdlib.List.prepend(
       messages |> Stdlib.List.map(fun m -> Stdlib.Cli.UI.Colors.dimText("  " + m)),
       Stdlib.Cli.UI.Colors.error("✗ failed (this build)"))
-  | Some(RuntimeFailed message) ->
+  | Some(RuntimeFailed(message)) ->
     [ Stdlib.Cli.UI.Colors.error("✗ error (this build)")
       Stdlib.Cli.UI.Colors.dimText("  " + message) ]
   | None ->
@@ -275,7 +275,7 @@ let testOutcomeLines(
 /// so the Inspect page can put the action after source, access, and references.
 let selectedFunctionTestRows(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
-  | Some item when item.kind == "fn" ->
+  | Some(item) when item.kind == "fn" ->
     let modulePath = Packages.modulePathOf(state.location)
     let results = Packages.Query.searchExactMatch(state.branchId, modulePath, item.name)
     match results.fns with
@@ -303,7 +303,7 @@ let detailLines(state: State): List<String> =
   else
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> [ "(nothing selected)" ]
-  | Some item ->
+  | Some(item) ->
     if item.isModule then
       modulePreviewLines(state, item)
     else
@@ -385,7 +385,7 @@ let itemLines(
 let selectedDocTopic(state: State): Stdlib.Option.Option<Docs.Command.Topics.DocTopic> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> Stdlib.Option.Option.None
-  | Some item ->
+  | Some(item) ->
     // Rows read "<name>  ·  <description>"; the name is what identifies the topic.
     let leaf =
       Stdlib.String.split(item.name, "  ·  ")
@@ -397,14 +397,14 @@ let selectedDocTopic(state: State): Stdlib.Option.Option<Docs.Command.Topics.Doc
 /// The Docs topic content for the selected row.
 let docContent(state: State): String =
   match selectedDocTopic(state) with
-  | Some t -> t.content()
+  | Some(t) -> t.content()
   | None -> "(no topic selected)"
 
 /// A recorded divergence's detail for the Conflicts preview. It resolves by
 /// location because the section is filterable, like `selectedBranch`.
 let conflictDetail(state: State): String =
   match selectedConflict(state) with
-  | Some c ->
+  | Some(c) ->
     // A conflict holds its competing versions in `candidates`, with the fold's pick named separately by
     // hash -- not as flat local/incoming/chosen fields. A field that isn't there is a runtime error, and
     // this pane only draws once a conflict exists, so getting the shape wrong here is invisible on an
@@ -452,10 +452,10 @@ let traceDetail(state: State): String =
   | None ->
     Stdlib.Cli.UI.Colors.dimText(
       "nothing has run yet -- every `dark eval`, `dark run` and served request is kept here")
-  | Some item ->
+  | Some(item) ->
     match Cli.TraceVerbs.find(item.name) with
-    | Error e -> Stdlib.Cli.UI.Colors.dimText(e)
-    | Ok trace ->
+    | Error(e) -> Stdlib.Cli.UI.Colors.dimText(e)
+    | Ok(trace) ->
       let lineage =
         match trace.parent with
         | Some((parent, at)) ->
@@ -466,7 +466,7 @@ let traceDetail(state: State): String =
       let calls =
         match Darklang.Tracing.Store.view(trace.id) with
         | None -> [ "log: not kept (dropped to make room, or recording was off)" ]
-        | Some data ->
+        | Some(data) ->
           let logged = data.functionCalls |> Stdlib.List.filter(fun c -> c.ord >= 0L)
           match logged with
           | [] -> [ "log: this trace touched nothing outside itself" ]
@@ -517,7 +517,7 @@ let itemMeta(
     else results.values |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
   let short =
     match hashOpt with
-    | Some h -> LanguageTools.ProgramTypes.hashToShort(h)
+    | Some(h) -> LanguageTools.ProgramTypes.hashToShort(h)
     | None -> "?"
   let kindLabel =
     if item.kind == "fn" then "fn"
@@ -529,7 +529,7 @@ let itemMeta(
   // Real deprecation status (same read path as the tree badge).
   let deprecation =
     match hashOpt with
-    | Some h ->
+    | Some(h) ->
       let sets = Packages.Query.loadDeprecationSets(state.branchId)
       if Packages.Query.isDeprecated(sets, h) then
         "  " + (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, "⚠ deprecated"))
@@ -543,7 +543,7 @@ let itemMeta(
 let tracesText(state: State): String =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> "(nothing selected)"
-  | Some item ->
+  | Some(item) ->
     let fullName = Stdlib.String.join(Stdlib.List.append(Packages.modulePathOf(state.location), item.name), ".")
     // `wentThrough`, not `listByFn`. The latter matches `trace_fn_calls.fn_hash`, which only
     // ever holds the name of an effectful BUILTIN, so it answers "no recorded calls" for every
@@ -571,7 +571,7 @@ let tracesText(state: State): String =
 let inspectPageLines(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> [ Stdlib.Cli.UI.Colors.dimText("(nothing selected - browse the tree)") ]
-  | Some item ->
+  | Some(item) ->
     if item.isModule then
       modulePreviewLines(state, item)
     else
@@ -645,7 +645,7 @@ let refreshPreview(next: State): State =
   else
     let key = previewKey(next)
     match next.preview with
-    | Some p when p.key == key -> next
+    | Some(p) when p.key == key -> next
     | _ ->
       { next with
           preview = Stdlib.Option.Option.Some(PreviewCache { key = key, lines = matterPageLines(next) }) }
@@ -656,7 +656,7 @@ let previewLines(state: State): List<String> =
   if state.activeView == vHome then []
   else if state.activeView == vSCM then
     match Stdlib.List.getAt(state.items, state.selected) with
-    | Some it ->
+    | Some(it) ->
       if it.kind == "conflict" then Stdlib.String.split(conflictDetail(state), "\n")
       else if it.kind == "removed" then
         [ Stdlib.Cli.UI.Colors.dimText("removed on this branch; the last commit still holds the previous version") ]
@@ -667,14 +667,14 @@ let previewLines(state: State): List<String> =
     // The flat lenses are the exception: their items are full paths, and the item page resolves a leaf
     // against where you're standing, so it would report every one of them as missing.
     match state.preview with
-    | Some p when p.key == previewKey(state) -> p.lines
+    | Some(p) when p.key == previewKey(state) -> p.lines
     | _ -> matterPageLines(state)
   else if state.activeView == vTraces then Stdlib.String.split(traceDetail(state), "\n")
   else if state.activeView == vDocs then Stdlib.String.split(docContent(state), "\n")
   else
     // Extension views supply their own detail; built-ins fall through to the generic item detail.
     match extensionViewAt(state.activeView) with
-    | Some vd ->
+    | Some(vd) ->
       let d = vd.detail
       d(state)
     | None -> detailLines(state)

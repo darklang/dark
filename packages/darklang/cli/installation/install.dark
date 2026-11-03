@@ -20,17 +20,17 @@ let execute(state: AppState, args: List<String>): AppState =
       // Uninstall first, then reinstall
       Stdlib.printLine("Uninstalling existing installation...")
       match Installation.System.uninstallWithConfirmation(host, true) with
-      | Ok _ ->
+      | Ok(_) ->
         Stdlib.printLine("Reinstalling...")
         // After uninstall, we're effectively in portable mode, copy the binary
         match Installation.System.installFromCurrentBinary(host, autoConfirm) with
-        | Ok message ->
+        | Ok(message) ->
           Stdlib.printLine(View.formatSuccess(message))
           state
-        | Error e ->
+        | Error(e) ->
           Stdlib.printErrorLine(View.formatError(e))
           { state with exitCode = 1 }
-      | Error e ->
+      | Error(e) ->
         Stdlib.printErrorLine(View.formatError($"Uninstall failed: {e}"))
         { state with exitCode = 1 }
     else
@@ -45,16 +45,16 @@ let execute(state: AppState, args: List<String>): AppState =
         // Uninstall existing global, then install from current binary
         Stdlib.printLine("Uninstalling existing global installation...")
         match Installation.System.uninstallWithConfirmation(host, true) with
-        | Ok _ ->
+        | Ok(_) ->
           Stdlib.printLine("Installing from current binary...")
           match Installation.System.installFromCurrentBinary(host, autoConfirm) with
-          | Ok message ->
+          | Ok(message) ->
             Stdlib.printLine(View.formatSuccess(message))
             state
-          | Error e ->
+          | Error(e) ->
             Stdlib.printErrorLine(View.formatError(e))
             { state with exitCode = 1 }
-        | Error e ->
+        | Error(e) ->
           Stdlib.printErrorLine(View.formatError($"Uninstall failed: {e}"))
           { state with exitCode = 1 }
       else
@@ -65,7 +65,7 @@ let execute(state: AppState, args: List<String>): AppState =
     else
       let choice =
         if autoConfirm then
-          Stdlib.Option.Option.Some "1" // Default to copying current binary with --yes
+          Stdlib.Option.Option.Some("1") // Default to copying current binary with --yes
         else if Stdlib.Bool.not(Stdlib.Cli.UI.Prompt.canAsk()) then
           Stdlib.Option.Option.None
         else
@@ -81,24 +81,24 @@ let execute(state: AppState, args: List<String>): AppState =
           $"install asks how to install, and {Stdlib.Cli.UI.Prompt.nobodyCanAnswer()}.")
         Cli.printHint("  dark install --yes copies this binary")
         Cli.exitWith(state, false)
-      | Some "1" ->
+      | Some("1") ->
         match Installation.System.installFromCurrentBinary(host, autoConfirm) with
-        | Ok message ->
+        | Ok(message) ->
           Stdlib.printLine(View.formatSuccess(message))
           state
-        | Error e ->
+        | Error(e) ->
           Stdlib.printErrorLine(View.formatError(e))
           { state with exitCode = 1 }
-      | Some "2" ->
+      | Some("2") ->
         Stdlib.printLine("Installing globally...")
         match Installation.System.install(host, autoConfirm) with
-        | Ok message ->
+        | Ok(message) ->
           Stdlib.printLine(View.formatSuccess(message))
           state
-        | Error e ->
+        | Error(e) ->
           Stdlib.printErrorLine(View.formatError(e))
           { state with exitCode = 1 }
-      | Some other ->
+      | Some(other) ->
         Cli.printErr($"\"{other}\" isn't 1 or 2; nothing installed.")
         Cli.exitWith(state, false)
 

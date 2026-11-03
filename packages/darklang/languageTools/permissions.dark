@@ -123,7 +123,7 @@ val effectCases =
 /// fallback is unreachable; it keeps the lookups total without an Option.
 let effectRow(effect: Permissions.Effect): (Permissions.Effect * String * String) =
   Permissions.effectCases
-  |> Stdlib.List.findFirst(fun (e, _case, _name) -> e == effect)
+  |> Stdlib.List.findFirst(fun((e, _case, _name)) -> e == effect)
   |> Stdlib.Option.withDefault((effect, "Unknown", "unknown"))
 
 /// The rule name of an effect: `FileRead` -> `"file-read"`.
@@ -139,20 +139,20 @@ let effectCaseName(effect: Permissions.Effect): String =
 /// `"file-read"` -> `FileRead`; None for an unknown rule name.
 let effectOfName(name: String): Stdlib.Option.Option<Permissions.Effect> =
   Permissions.effectCases
-  |> Stdlib.List.findFirst(fun (_e, _case, n) -> n == name)
-  |> Stdlib.Option.map(fun (e, _case, _name) -> e)
+  |> Stdlib.List.findFirst(fun((_e, _case, n)) -> n == name)
+  |> Stdlib.Option.map(fun((e, _case, _name)) -> e)
 
 /// `"FileRead"` -> `FileRead`; None for an unknown case name.
 let effectOfCase(case: String): Stdlib.Option.Option<Permissions.Effect> =
   Permissions.effectCases
-  |> Stdlib.List.findFirst(fun (_e, c, _name) -> c == case)
-  |> Stdlib.Option.map(fun (e, _case, _name) -> e)
+  |> Stdlib.List.findFirst(fun((_e, c, _name)) -> c == case)
+  |> Stdlib.Option.map(fun((e, _case, _name)) -> e)
 
 /// The source form of a ceiling: `{Http, Clock}`, or `""` when none is declared.
 let ceilingRow(ceiling: Stdlib.Option.Option<List<Permissions.Effect>>): String =
   match ceiling with
   | None -> ""
-  | Some effects ->
+  | Some(effects) ->
     let cases = effects |> Stdlib.List.map(Permissions.effectCaseName)
     "{" + (Stdlib.String.join(cases, ", ")) + "}"
 
@@ -168,18 +168,18 @@ let isAbsolutePath(path: String): Bool =
 
 let scope(value: String): Permissions.Scope<String> =
   if value == "*" then Permissions.Scope.All
-  else Permissions.Scope.Only value
+  else Permissions.Scope.Only(value)
 
 /// A port for `http-server`: `*` or 0-65535. Anything else is None, never a
 /// rule that silently matches nothing.
 let portScope(value: String): Stdlib.Option.Option<Permissions.Scope<Int>> =
-  if value == "*" then Stdlib.Option.Option.Some Permissions.Scope.All
+  if value == "*" then Stdlib.Option.Option.Some(Permissions.Scope.All)
   else
     Stdlib.Int.parse(value)
     |> Stdlib.Result.toOption
     |> Stdlib.Option.andThen(fun port ->
       if port >= 0 && port <= 65535 then
-        Stdlib.Option.Option.Some(Permissions.Scope.Only port)
+        Stdlib.Option.Option.Some(Permissions.Scope.Only(port))
       else
         Stdlib.Option.Option.None)
 
@@ -197,23 +197,23 @@ let accessRules(
     match kind with
     | "file" ->
       Stdlib.Option.Option.Some(
-        (Permissions.Rule.FileRead target, Permissions.Rule.FileWrite target))
+        (Permissions.Rule.FileRead(target), Permissions.Rule.FileWrite(target)))
     | "env" ->
       Stdlib.Option.Option.Some(
-        (Permissions.Rule.EnvRead target, Permissions.Rule.EnvWrite target))
+        (Permissions.Rule.EnvRead(target), Permissions.Rule.EnvWrite(target)))
     | "db" ->
       Stdlib.Option.Option.Some(
-        (Permissions.Rule.DbRead target, Permissions.Rule.DbWrite target))
+        (Permissions.Rule.DbRead(target), Permissions.Rule.DbWrite(target)))
     | _ -> Stdlib.Option.Option.None
   match pair with
   | None -> Stdlib.Option.Option.None
   | Some((read, write)) ->
     match access with
-    | "read" -> Stdlib.Option.Option.Some [ read ]
-    | "write" -> Stdlib.Option.Option.Some [ write ]
+    | "read" -> Stdlib.Option.Option.Some([ read ])
+    | "write" -> Stdlib.Option.Option.Some([ write ])
     | "read+write"
     | "readwrite"
-    | "rw" -> Stdlib.Option.Option.Some [ read, write ]
+    | "rw" -> Stdlib.Option.Option.Some([ read, write ])
     | _ -> Stdlib.Option.Option.None
 
 let defaultPort(scheme: String): Int =
@@ -305,7 +305,7 @@ let httpRule(
               if host == "*" then Permissions.HostRule.Any
               else if Stdlib.String.startsWith(host, "*.") then
                 Permissions.HostRule.SubdomainsOf(Stdlib.String.dropFirst(host, 2))
-              else Permissions.HostRule.Exact host
+              else Permissions.HostRule.Exact(host)
             Stdlib.Option.Option.Some(
               Permissions.Rule.Http(
                 Permissions.HttpRule
@@ -322,7 +322,7 @@ let parseRule(
   args: List<String>)
   : Stdlib.Option.Option<List<Permissions.Rule>> =
   match args with
-  | [ "all" ] -> Stdlib.Option.Option.Some [ Permissions.Rule.All ]
+  | [ "all" ] -> Stdlib.Option.Option.Some([ Permissions.Rule.All ])
   | [ "http", method ] ->
     (Permissions.httpRule(method, "*"))
     |> Stdlib.Option.map(Stdlib.List.singleton)
@@ -331,7 +331,7 @@ let parseRule(
     |> Stdlib.Option.map(Stdlib.List.singleton)
   | [ "http-server", port ] ->
     Permissions.portScope(port)
-    |> Stdlib.Option.map(fun scope -> [ Permissions.Rule.HttpServer scope ])
+    |> Stdlib.Option.map(fun scope -> [ Permissions.Rule.HttpServer(scope) ])
   | ["process", executable, ...argv] ->
     // The executable is `*` or an absolute path; a relative one would mean a
     // different program in every working directory, so it is not a rule.
@@ -344,7 +344,7 @@ let parseRule(
               { executable = Permissions.scope(executable)
                 args =
                   if Stdlib.List.isEmpty(argv) then Permissions.Scope.All
-                  else Permissions.Scope.Only argv }) ])
+                  else Permissions.Scope.Only(argv) }) ])
   // `file|env|db read|write [target]`; a missing target means every target.
   // These come after the kinds above so `http GET` and
   // `process EXE` are not mistaken for `<kind> <access>`.
@@ -356,7 +356,7 @@ let parseRule(
   // rule text names exactly one Rule value and `renderRule` round-trips.
   | [ name ] ->
     Permissions.effectOfName(name)
-    |> Stdlib.Option.map(fun effect -> [ Permissions.Rule.Effect effect ])
+    |> Stdlib.Option.map(fun effect -> [ Permissions.Rule.Effect(effect) ])
   | _ -> Stdlib.Option.Option.None
 
 /// Shell-style tokens for one rule's text, or None for an unterminated quote
@@ -441,10 +441,10 @@ let parse(
   Stdlib.List.fold(
     specs,
     Stdlib.Result.Result.Ok(Permissions.empty()),
-    fun result spec ->
+    fun(result, spec) ->
       match result with
-      | Error error -> Stdlib.Result.Result.Error error
-      | Ok policy ->
+      | Error(error) -> Stdlib.Result.Result.Error(error)
+      | Ok(policy) ->
         let rules =
           Permissions.tokens(spec)
           |> Stdlib.Option.andThen(fun tokens ->
@@ -455,7 +455,7 @@ let parse(
             Permissions.parseRule(tokens)
             |> Stdlib.Option.map(fun rules -> (denied, rules)))
         match rules with
-        | None -> Stdlib.Result.Result.Error spec
+        | None -> Stdlib.Result.Result.Error(spec)
         | Some((denied, rules)) ->
           if denied then
             Stdlib.Result.Result.Ok(
@@ -467,12 +467,12 @@ let parse(
 let isAll(scope: Permissions.Scope<'a>): Bool =
   match scope with
   | All -> true
-  | Only _ -> false
+  | Only(_) -> false
 
 let scopeText(scope: Permissions.Scope<String>): String =
   match scope with
   | All -> "*"
-  | Only value -> value
+  | Only(value) -> value
 
 /// A shell-safe token. This is also understood by <fn tokens>, so rendered
 /// policies round-trip internally as well as through an external shell.
@@ -482,17 +482,17 @@ let quoteToken(value: String): String =
 let renderStringScope(scope: Permissions.Scope<String>): String =
   match scope with
   | All -> "*"
-  | Only value -> Permissions.quoteToken(value)
+  | Only(value) -> Permissions.quoteToken(value)
 
 let renderHostRule(host: Permissions.HostRule): String =
   match host with
   | Any -> "*"
-  | Exact host ->
+  | Exact(host) ->
     if Stdlib.String.contains(host, ":") && Stdlib.Bool.not(Stdlib.String.startsWith(host, "[")) then
       "[" + host + "]"
     else
       host
-  | SubdomainsOf domain -> "*." + domain
+  | SubdomainsOf(domain) -> "*." + domain
 
 /// Faithful text for one HTTP rule: `http <method> <url>`.
 let renderHttpRule(rule: Permissions.HttpRule): String =
@@ -514,17 +514,17 @@ let renderHttpRule(rule: Permissions.HttpRule): String =
     let port =
       match rule.port with
       | All -> if rule.host == Permissions.HostRule.Any then "" else ":*"
-      | Only port -> ":" + Stdlib.toString(port)
+      | Only(port) -> ":" + Stdlib.toString(port)
     let path =
       match rule.pathPrefix with
       | All -> ""
-      | Only path -> path
+      | Only(path) -> path
     // The query (leading `?` already included) round-trips so `show` reflects
     // exactly what `allow` was given; `All` renders nothing (any query).
     let query =
       match rule.query with
       | All -> ""
-      | Only query -> query
+      | Only(query) -> query
     let url = $"{scheme}://{host}{port}{path}{query}"
     $"http {method} {Permissions.quoteToken(url)}"
 
@@ -533,7 +533,7 @@ let renderProcessRule(rule: Permissions.ProcessRule): String =
   let executable = Permissions.renderStringScope(rule.executable)
   match rule.args with
   | All -> $"process {executable}"
-  | Only args ->
+  | Only(args) ->
     let args =
       args
       |> Stdlib.List.map(Permissions.quoteToken)
@@ -543,17 +543,17 @@ let renderProcessRule(rule: Permissions.ProcessRule): String =
 let renderRule(rule: Permissions.Rule): String =
   match rule with
   | All -> "all"
-  | Effect effect -> Permissions.effectName(effect)
-  | Http rule -> Permissions.renderHttpRule(rule)
-  | HttpServer All -> "http-server *"
-  | HttpServer(Only port) -> "http-server " + Stdlib.toString(port)
-  | FileRead scope -> "file read " + Permissions.renderStringScope(scope)
-  | FileWrite scope -> "file write " + Permissions.renderStringScope(scope)
-  | EnvRead scope -> "env read " + Permissions.renderStringScope(scope)
-  | EnvWrite scope -> "env write " + Permissions.renderStringScope(scope)
-  | DbRead scope -> "db read " + Permissions.renderStringScope(scope)
-  | DbWrite scope -> "db write " + Permissions.renderStringScope(scope)
-  | Process rule -> Permissions.renderProcessRule(rule)
+  | Effect(effect) -> Permissions.effectName(effect)
+  | Http(rule) -> Permissions.renderHttpRule(rule)
+  | HttpServer(All) -> "http-server *"
+  | HttpServer(Only(port)) -> "http-server " + Stdlib.toString(port)
+  | FileRead(scope) -> "file read " + Permissions.renderStringScope(scope)
+  | FileWrite(scope) -> "file write " + Permissions.renderStringScope(scope)
+  | EnvRead(scope) -> "env read " + Permissions.renderStringScope(scope)
+  | EnvWrite(scope) -> "env write " + Permissions.renderStringScope(scope)
+  | DbRead(scope) -> "db read " + Permissions.renderStringScope(scope)
+  | DbWrite(scope) -> "db write " + Permissions.renderStringScope(scope)
+  | Process(rule) -> Permissions.renderProcessRule(rule)
 
 let render(policy: Permissions.Policy): List<String> =
   Stdlib.List.concat(

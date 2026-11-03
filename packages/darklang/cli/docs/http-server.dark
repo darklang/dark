@@ -69,7 +69,7 @@ Body first, status second - the reverse of what you might expect.
 
   # given route "/user/:id" and a request for "/user/42"
   match Stdlib.HttpServer.getPathParam(req, "/user/:id", "id") with
-  | Some id -> Stdlib.Http.responseWithText($"user {id}", 200)
+  | Some(id) -> Stdlib.Http.responseWithText($"user {id}", 200)
   | None -> Stdlib.Http.notFound()
 
 `matchRoute pattern path` is the lower-level form. It returns a record, not an

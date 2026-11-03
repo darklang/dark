@@ -21,7 +21,7 @@ let short(s: String): String =
 let describe(branchId: Uuid, width: Int, s: SCM.PackageOps.OpSummary): String =
   match s.op with
   | None -> "(unreadable by this build)"
-  | Some op ->
+  | Some(op) ->
     let firstLine =
       PrettyPrinter.ProgramTypes.PackageOp.packageOp(branchId, op)
       |> Stdlib.String.split("\n")
@@ -115,8 +115,8 @@ let movedFromOps(verb: String): Stdlib.Option.Option<String> =
   | "rebase"
   | "diff"
   | "log"
-  | "resolve" -> Stdlib.Option.Option.Some $"dark {verb}"
-  | "archive" -> Stdlib.Option.Option.Some "dark branch archive <id>"
+  | "resolve" -> Stdlib.Option.Option.Some($"dark {verb}")
+  | "archive" -> Stdlib.Option.Option.Some("dark branch archive <id>")
   | _ -> Stdlib.Option.Option.None
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -135,17 +135,17 @@ let execute(state: AppState, args: List<String>): AppState =
   // log (a million characters), and a refused count names the problem where silent help does not.
   let countOf(n: String): Stdlib.Result.Result<Int64, String> =
     match Stdlib.Int64.parse(n) with
-    | Ok l when l > 0L -> Stdlib.Result.Result.Ok l
-    | Ok _ -> Stdlib.Result.Result.Error $"ops takes a positive count; got {n}."
-    | Error _ -> Stdlib.Result.Result.Error $"\"{n}\" isn't a count. `dark ops 50` shows the 50 most recent."
+    | Ok(l) when l > 0L -> Stdlib.Result.Result.Ok(l)
+    | Ok(_) -> Stdlib.Result.Result.Error($"ops takes a positive count; got {n}.")
+    | Error(_) -> Stdlib.Result.Result.Error($"\"{n}\" isn't a count. `dark ops 50` shows the 50 most recent.")
 
   match args with
   | [] -> executeList(state, 20L)
   | [ "list" ] -> executeList(state, 20L)
   | [ "list", n ] ->
     match countOf(n) with
-    | Ok l -> executeList(state, l)
-    | Error why ->
+    | Ok(l) -> executeList(state, l)
+    | Error(why) ->
       Cli.printErr(why)
       Cli.exitWith(state, false)
   | [ "show" ] ->
@@ -154,13 +154,13 @@ let execute(state: AppState, args: List<String>): AppState =
   | [ "show", id ] -> executeShow(state, id)
   | [verb, ...] ->
     match movedFromOps(verb) with
-    | Some target ->
+    | Some(target) ->
       Cli.printErr($"`ops` only reads the log -- {verb} is `{target}`.")
       Cli.exitWith(state, false)
     | None ->
       match countOf(verb) with
-      | Ok l -> executeList(state, l)
-      | Error why ->
+      | Ok(l) -> executeList(state, l)
+      | Error(why) ->
         Cli.printErr(why)
         Cli.printHint("  `dark ops help` says what it does.")
         Cli.exitWith(state, false)

@@ -14,7 +14,7 @@ let main(args: List<String>): Int =
     let dir = Stdlib.Cli.Path.parent(requestPath)
     let privateDirectory =
       Stdlib.String.startsWith(Stdlib.Cli.Path.basename(dir), "dark-test-")
-    if Stdlib.Env.get("HOME") != Some dir
+    if Stdlib.Env.get("HOME") != Some(dir)
        || Stdlib.Bool.not(privateDirectory)
        || requestPath != Stdlib.Cli.Path.join([ dir, "request.bin" ])
        || resultPath != Stdlib.Cli.Path.join([ dir, "result.bin" ]) then
@@ -26,8 +26,8 @@ let main(args: List<String>): Int =
       let access = read(Stdlib.Cli.Path.join([ dir, "access.bin" ]))
       let (result, code) = execute(read(requestPath), access)
       match Stdlib.Cli.FileSystem.overwriteFile(resultPath, result) with
-      | Ok () -> code
-      | Error error ->
+      | Ok(()) -> code
+      | Error(error) ->
         Stdlib.printLine(Stdlib.Cli.FileSystem.FileError.toString(error))
         1
   | _ ->

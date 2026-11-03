@@ -102,7 +102,7 @@ let draftRemovalsFor(branchId: Uuid): List<String> =
   bindingEntriesFromOpRows(draftOpRowsFor(branchId))
   |> Stdlib.List.filterMap(fun w ->
     match w.binding with
-    | Some _ -> Stdlib.Option.Option.None
+    | Some(_) -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.Some(Conflicts.fqn(w.owner, w.modules, w.name)))
 
 
@@ -119,10 +119,10 @@ let unresolvedInDraft(branchId: Uuid): List<(String * List<String>)> =
   let bindings = draftBindingsFor(branchId)
 
   LanguageTools.UnresolvedNames.inOps(ops)
-  |> Stdlib.List.filterMap(fun (hash, names) ->
+  |> Stdlib.List.filterMap(fun((hash, names)) ->
     // The draft binds the hash it just authored, so the name is usually right there.
     match bindings |> Stdlib.List.findFirst(fun b -> b.hash == hash) with
-    | Some b -> Stdlib.Option.Option.Some((Conflicts.fqn(b.owner, b.modules, b.name), names))
+    | Some(b) -> Stdlib.Option.Option.Some((Conflicts.fqn(b.owner, b.modules, b.name), names))
     | None ->
       // An Add with NO surviving SetName is content nothing names: authoring hasn't bound it yet, or
       // `dark discard <name>` dropped the binding and kept the content on purpose (see `Draft.collapse`).
@@ -157,7 +157,7 @@ let propagatedNames(): List<String> =
       [],
       fun row ->
         match Stdlib.Sqlite.textField(row, "name") with
-        | Some n ->
+        | Some(n) ->
           Stdlib.Option.Option.Some(
             Conflicts.fqn(Stdlib.Sqlite.textOr(row, "owner"), Stdlib.Sqlite.textOr(row, "modules"), n))
         | None -> Stdlib.Option.Option.None)
@@ -171,7 +171,7 @@ let propagatedNames(): List<String> =
         Stdlib.Option.Option.Some(
           (Conflicts.fqn(loc.owner, Stdlib.String.join(loc.modules, "."), loc.name), source)
         )
-      | (_, Decision(_, loc, _, Override _), source) ->
+      | (_, Decision(_, loc, _, Override(_)), source) ->
         Stdlib.Option.Option.Some(
           (Conflicts.fqn(loc.owner, Stdlib.String.join(loc.modules, "."), loc.name), source)
         )
@@ -179,15 +179,15 @@ let propagatedNames(): List<String> =
     // Oldest first, so the later binder of a name overwrites the earlier: the LAST binder decides.
     |> Stdlib.Dict.fromEntries
     |> Stdlib.Dict.toEntries
-    |> Stdlib.List.filterMap(fun (name, source) ->
-      if source == "propagation" then Stdlib.Option.Option.Some name else Stdlib.Option.Option.None)
+    |> Stdlib.List.filterMap(fun((name, source)) ->
+      if source == "propagation" then Stdlib.Option.Option.Some(name) else Stdlib.Option.Option.None)
 
 
 /// The draft, decoded, oldest first. Same predicate as `draftWhere`, so this and the counts can't disagree
 /// about what the draft is.
 let draftEntriesFor(branchId: Uuid): List<DraftEntry> =
   decodeOpRowEntries(draftOpRowsFor(branchId))
-  |> Stdlib.List.map(fun (id, ts, op) -> DraftEntry { id = id, ts = ts, op = op })
+  |> Stdlib.List.map(fun((id, ts, op)) -> DraftEntry { id = id, ts = ts, op = op })
 
 
 let draftEntries(): List<DraftEntry> = draftEntriesFor(currentBranch())
@@ -221,9 +221,9 @@ let supersededOverrides(
       "n")
   with
   | None ->
-    Stdlib.Result.Result.Error "couldn't count overridden conflicts (the store did not answer)"
-  | Some 0L -> Stdlib.Result.Result.Ok []
-  | Some _ ->
+    Stdlib.Result.Result.Error("couldn't count overridden conflicts (the store did not answer)")
+  | Some(0L) -> Stdlib.Result.Result.Ok([])
+  | Some(_) ->
     match
       Stdlib.Sqlite.query(
         localDb(),
@@ -231,9 +231,9 @@ let supersededOverrides(
          FROM package_ops
          WHERE effective = 1 ORDER BY origin_ts, rowid")
     with
-    | Error e ->
-      Stdlib.Result.Result.Error $"couldn't read the op log for superseded overrides: {e}"
-    | Ok rows ->
+    | Error(e) ->
+      Stdlib.Result.Result.Error($"couldn't read the op log for superseded overrides: {e}")
+    | Ok(rows) ->
       // Fold the log in order, remembering per location: the hash the last LOCAL override chose, and
       // the hash bound now. Order is the fold's own (origin_ts, rowid), so "later" means what the fold
       // means. Only YOUR override can be superseded
@@ -245,23 +245,23 @@ let supersededOverrides(
             LanguageTools.ProgramTypes.Reference.hash(target)))
 
       let step =
-        (fun acc row ->
+        (fun(acc, row) ->
           match
             (Stdlib.Sqlite.textField(row, "id"), Stdlib.Sqlite.bytesField(row, "op_blob"))
           with
-          | (Some idStr, Some blob) ->
+          | (Some(idStr), Some(blob)) ->
             match Stdlib.Uuid.parse(idStr) with
-            | Error _ -> acc
-            | Ok id ->
+            | Error(_) -> acc
+            | Ok(id) ->
               match tryDecodeOp(id, blob) with
               | None -> acc
-              | Some(Decision(_, loc, _, Override target)) ->
+              | Some(Decision(_, loc, _, Override(target))) ->
                 let h = hashOf(target)
                 Stdlib.Dict.set(acc, decisionKey(loc), (loc, h, h))
               | Some(SetName(loc, _target, _)) ->
                 match Stdlib.Dict.get(acc, decisionKey(loc)) with
                 | None -> acc
-                | Some _entry -> Stdlib.Dict.remove(acc, decisionKey(loc))
+                | Some(_entry) -> Stdlib.Dict.remove(acc, decisionKey(loc))
               | _ -> acc
           | _ -> acc)
 
@@ -301,7 +301,7 @@ let typeCheckOps(
   // on location cannot answer that.
   let liveTargetsByLocation =
     ops
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc op ->
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, op) ->
       match op with
       | SetName(loc, target, _) ->
         Stdlib.Dict.set(
@@ -335,29 +335,29 @@ let typeCheckOps(
     ops
     |> Stdlib.List.filter(fun op ->
       match op with
-      | AddFn f ->
+      | AddFn(f) ->
         let h = LanguageTools.ProgramTypes.hashToString(f.hash)
         // Content some binding targets, or content no draft SetName ever named (don't silently
         // skip a shape this filter does not understand).
         (Stdlib.Dict.containsKey(liveTargets, h))
         || (Stdlib.Bool.not(Stdlib.Dict.containsKey(namedHashes, h)))
-      | AddType t ->
+      | AddType(t) ->
         let h = LanguageTools.ProgramTypes.hashToString(t.hash)
         (Stdlib.Dict.containsKey(liveTargets, h))
         || (Stdlib.Bool.not(Stdlib.Dict.containsKey(namedHashes, h)))
-      | AddValue v ->
+      | AddValue(v) ->
         let h = LanguageTools.ProgramTypes.hashToString(v.hash)
         (Stdlib.Dict.containsKey(liveTargets, h))
         || (Stdlib.Bool.not(Stdlib.Dict.containsKey(namedHashes, h)))
-      | AddTrait t ->
+      | AddTrait(t) ->
         let h = LanguageTools.ProgramTypes.hashToString(t.hash)
         (Stdlib.Dict.containsKey(liveTargets, h))
         || (Stdlib.Bool.not(Stdlib.Dict.containsKey(namedHashes, h)))
-      | AddTraitImpl i ->
+      | AddTraitImpl(i) ->
         let h = LanguageTools.ProgramTypes.hashToString(i.hash)
         (Stdlib.Dict.containsKey(liveTargets, h))
         || (Stdlib.Bool.not(Stdlib.Dict.containsKey(namedHashes, h)))
-      | AddTest test ->
+      | AddTest(test) ->
         let h = LanguageTools.ProgramTypes.hashToString(test.hash)
         (Stdlib.Dict.containsKey(liveTargets, h))
         || (Stdlib.Bool.not(Stdlib.Dict.containsKey(namedHashes, h)))
@@ -451,7 +451,7 @@ let stampDraftOpsFor(
          rows) ])
     // Per-row counts are `Int`; this reports `Int64`. `toInt64` is an Option because an Int is
     // unbounded, which an affected-row count is not, so `0L` stands in for the impossible case.
-    |> Stdlib.List.fold(0L, fun acc n ->
+    |> Stdlib.List.fold(0L, fun(acc, n) ->
       acc + (Stdlib.Int.toInt64(n) |> Stdlib.Option.withDefault(0L)))
 
 let stampDraftOps(commitHash: String, opIds: List<String>): Int64 =
@@ -475,7 +475,7 @@ let stampLandedOps(commitHash: String, opIds: List<String>): Int64 =
       [ ("UPDATE package_ops SET commit_hash = @p0
           WHERE id = @p1 AND commit_hash IS NULL AND effective = 1",
          rows) ])
-    |> Stdlib.List.fold(0L, fun acc n ->
+    |> Stdlib.List.fold(0L, fun(acc, n) ->
       acc + (Stdlib.Int.toInt64(n) |> Stdlib.Option.withDefault(0L)))
 
 
@@ -485,7 +485,7 @@ let stampLandedOps(commitHash: String, opIds: List<String>): Int64 =
 let collapseDraft(): Stdlib.Result.Result<Int, String> =
   match currentBranch() with
   | id when SCM.Branch.isMain(id) -> SCM.Draft.collapse()
-  | _ -> Stdlib.Result.Result.Ok 0
+  | _ -> Stdlib.Result.Result.Ok(0)
 
 
 /// Drop a BRANCH's uncommitted ops. Returns how many went.
@@ -552,7 +552,7 @@ let discardBranchDraft(branchId: Uuid): Int64 =
         "DELETE FROM branch_name_bases WHERE branch_id = @p0",
         [ Stdlib.toString(branchId) ])
     else
-      Stdlib.Result.Result.Ok 0
+      Stdlib.Result.Result.Ok(0)
 
   // Reload the overlay so this process stops resolving names through the ops just deleted.
   let _ = selectBranch(branchId)
@@ -623,7 +623,7 @@ let discardDraftName(
 /// uncommitted, inert rows the branch holds alone: an op another branch also tags stays, untagged here.
 let dropBranchOps(branchId: Uuid, ids: List<String>): Stdlib.Result.Result<Int, String> =
   match ids with
-  | [] -> Stdlib.Result.Result.Ok 0
+  | [] -> Stdlib.Result.Result.Ok(0)
   | ids ->
     let b = Stdlib.toString(branchId)
     let rows = ids |> Stdlib.List.map(fun id -> [ id, b, b ])
@@ -650,18 +650,18 @@ let dropBranchOps(branchId: Uuid, ids: List<String>): Stdlib.Result.Result<Int, 
             AND @p1 = @p2",
            rows) ])
     with
-    | Ok counts ->
+    | Ok(counts) ->
       // Count the UNTAGS, which is what "dropped from this branch" means, and they run first now.
       // The op-row deletes are fewer whenever content is shared, so reporting those would make a
       // real drop read as a no-op.
       let dropped =
         counts
         |> Stdlib.List.take(Stdlib.List.length(ids))
-        |> Stdlib.List.fold(0, fun acc n -> acc + n)
+        |> Stdlib.List.fold(0, fun(acc, n) -> acc + n)
 
       let _ = selectBranch(branchId)
-      Stdlib.Result.Result.Ok dropped
-    | Error e -> Stdlib.Result.Result.Error e
+      Stdlib.Result.Result.Ok(dropped)
+    | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Drop the current scope's draft, whichever it is.

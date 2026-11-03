@@ -82,12 +82,12 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
       fun r ->
         let h =
           match state.editing with
-          | Some _ ->
+          | Some(_) ->
             Frame.formatHints(
               [ ("type", "edit"), ("↑↓←→", "move"), ("home/end", "line"), ("^k", "kill"), ("tab", "indent"), ("^s", "save"), ("esc", "cancel") ])
           | None ->
             match state.input with
-            | Some inp ->
+            | Some(inp) ->
               // "You can type here" affordance: a bright prompt glyph, the label, the live text, and a
               // reverse-video block caret so it's unmistakable the app is capturing keystrokes. For the command
               // bar, trail a dim ghost of the completion (fish-style; tab accepts it).
@@ -108,7 +108,7 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
               + ghost
             | None ->
               match state.reading with
-              | Some _ -> Frame.formatHints([ ("↑↓", "scroll"), ("PgUp/PgDn", "page"), (":", "cmd"), ("esc", "back") ])
+              | Some(_) -> Frame.formatHints([ ("↑↓", "scroll"), ("PgUp/PgDn", "page"), (":", "cmd"), ("esc", "back") ])
               | None ->
                 if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then
                   Frame.formatHints([ ("↑↓", "move"), ("⏎", "jump"), ("esc", "close"), ("q", "quit") ])
@@ -153,7 +153,7 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
       match state.overlay with
       | NoOverlay -> []
       | Keymap -> renderHelpOverlay(screen)
-      | Branches picker -> renderBranchPicker(state, picker, screen)
+      | Branches(picker) -> renderBranchPicker(state, picker, screen)
       // A narrow terminal has no nav strip, so focusing the nav draws it as
       // an overlay instead.
       if (state.overlay == Overlay.NoOverlay) && (navbarFocused(state)) && (Stdlib.Bool.not(strip)) then
@@ -199,7 +199,7 @@ let applyCompletionValue(text: String, value: String): String =
 let renderCommandCompletions(state: State, screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
   match state.input with
   | None -> []
-  | Some inp ->
+  | Some(inp) ->
     if inp.action != "command" then
       []
     else
@@ -216,7 +216,7 @@ let renderCommandCompletions(state: State, screen: Stdlib.Cli.UI.Layout.Region):
         Stdlib.Cli.UI.Box.panel(region, "complete  ·  tab to accept", true, fun inner ->
           let rows =
             items
-            |> Stdlib.List.indexedMap(fun i item ->
+            |> Stdlib.List.indexedMap(fun(i, item) ->
               let raw = "  " + item.display
               let line =
                 if i == state.completionSel then selectionRow(inner.cols, raw) else raw

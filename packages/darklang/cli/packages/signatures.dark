@@ -63,10 +63,10 @@ let formatType(
 
   let body =
     match typ.declaration.definition with
-    | Alias tref ->
+    | Alias(tref) ->
       PrettyPrinter.ProgramTypes.typeReference(ctx, tref)
 
-    | Record fields ->
+    | Record(fields) ->
       let parts =
         fields
         |> Stdlib.List.map(fun f ->
@@ -74,7 +74,7 @@ let formatType(
         |> Stdlib.String.join(", ")
       $"{{ {parts} }}"
 
-    | Enum cases ->
+    | Enum(cases) ->
       cases
       |> Stdlib.List.map(fun c ->
         match c.fields with
@@ -85,7 +85,7 @@ let formatType(
             |> Stdlib.List.map(fun f ->
               let t = PrettyPrinter.ProgramTypes.typeReference(ctx, f.typ)
               match f.label with
-              | Some lbl -> $"{lbl}: {t}"
+              | Some(lbl) -> $"{lbl}: {t}"
               | None -> t)
             |> Stdlib.String.join(" * ")
           $"{c.name} of {fieldStrs}")
@@ -102,11 +102,11 @@ let groupByModule(
   items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
   : Dict<String, List<LanguageTools.ProgramTypes.LocatedItem<'a>>> =
   items
-  |> Stdlib.List.fold(Stdlib.Dict.empty, fun acc item ->
+  |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, item) ->
     let key = moduleKey(item.location)
     let existing =
       match Stdlib.Dict.get(acc, key) with
-      | Some xs -> xs
+      | Some(xs) -> xs
       | None -> []
     Stdlib.Dict.set(acc, key, Stdlib.List.append(existing, item)))
 
@@ -163,7 +163,7 @@ let parseArgs(args: List<String>): ParsedArgs =
   let p = FlagParser.parse(argSpec, args)
   let root =
     match FlagParser.getOption(p, "--module") with
-    | Some path -> Stdlib.String.split(path, ".")
+    | Some(path) -> Stdlib.String.split(path, ".")
     | None -> [ "Darklang", "Stdlib" ]
 
   ParsedArgs
@@ -203,7 +203,7 @@ let executeFiltered(
   let results =
     match filterText with
     | None -> unfiltered
-    | Some needle ->
+    | Some(needle) ->
       let lower = Stdlib.String.toLowercase(needle)
       let hits =
         fun loc ->
@@ -233,24 +233,24 @@ let executeFiltered(
   let sections =
     allKeys
     |> Stdlib.List.map(fun key ->
-      let ts = match Stdlib.Dict.get(typesBy, key) with | Some v -> v | None -> []
-      let fs = match Stdlib.Dict.get(fnsBy, key) with | Some v -> v | None -> []
+      let ts = match Stdlib.Dict.get(typesBy, key) with | Some(v) -> v | None -> []
+      let fs = match Stdlib.Dict.get(fnsBy, key) with | Some(v) -> v | None -> []
       renderModule(ctx, rootName, key, ts, fs))
 
   let totalFns =
     (Stdlib.Dict.values(fnsBy))
     |> Stdlib.List.map(fun xs -> Stdlib.List.length(xs))
-    |> Stdlib.List.fold(0, fun a b -> a + b)
+    |> Stdlib.List.fold(0, fun(a, b) -> a + b)
 
   let totalTypes =
     (Stdlib.Dict.values(typesBy))
     |> Stdlib.List.map(fun xs -> Stdlib.List.length(xs))
-    |> Stdlib.List.fold(0, fun a b -> a + b)
+    |> Stdlib.List.fold(0, fun(a, b) -> a + b)
 
   let title =
     match filterText with
     | None -> $"# {rootName}"
-    | Some t -> $"# {rootName}  (filter: {t})"
+    | Some(t) -> $"# {rootName}  (filter: {t})"
 
   Stdlib.printLine(title)
   Stdlib.printLine("")
@@ -332,7 +332,7 @@ let complete(
   args: List<String>)
   : List<Cli.Completion.CompletionItem> =
   match Stdlib.List.last(args) with
-  | Some last ->
+  | Some(last) ->
     if Stdlib.String.startsWith(last, "--") then
       [ "--types", "--module", "--include-deprecated" ]
       |> Stdlib.List.filter(fun f -> Stdlib.String.startsWith(f, last))

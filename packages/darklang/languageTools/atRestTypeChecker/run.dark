@@ -28,21 +28,21 @@ let candidatesFromOps(
         impls = Dict {}
         traits = Dict {}
         tests = Dict {} }),
-    fun found op ->
+    fun(found, op) ->
       match op with
-      | AddType t ->
+      | AddType(t) ->
         { found with
             types = Stdlib.Dict.set(found.types, t.hash, t) }
-      | AddValue v ->
+      | AddValue(v) ->
         { found with
             values = Stdlib.Dict.set(found.values, v.hash, v) }
-      | AddFn fn ->
+      | AddFn(fn) ->
         { found with fns = Stdlib.Dict.set(found.fns, fn.hash, fn) }
-      | AddTraitImpl i ->
+      | AddTraitImpl(i) ->
         { found with impls = Stdlib.Dict.set(found.impls, i.hash, i) }
-      | AddTrait t ->
+      | AddTrait(t) ->
         { found with traits = Stdlib.Dict.set(found.traits, t.hash, t) }
-      | AddTest test ->
+      | AddTest(test) ->
         { found with
             tests = Stdlib.Dict.set(found.tests, test.hash, test) }
       | _ -> found)
@@ -54,14 +54,14 @@ let reportCandidates(
   results: List<(LanguageTools.ProgramTypes.Reference * Items.Outcome)>)
   : Report =
   let candidateSet =
-    Stdlib.List.fold(candidates, Dict {}, fun found item ->
+    Stdlib.List.fold(candidates, Dict {}, fun(found, item) ->
       Stdlib.Dict.set(found, item, true))
 
   let items =
     results
-    |> Stdlib.List.filter(fun (item, _) ->
+    |> Stdlib.List.filter(fun((item, _)) ->
       Stdlib.Dict.containsKey(candidateSet, item))
-    |> Stdlib.List.map(fun (item, outcome) ->
+    |> Stdlib.List.map(fun((item, outcome)) ->
       ItemReport
         { item = item
           verdict = outcome.verdict
@@ -100,11 +100,11 @@ let collectItemReferences(
   referencesOf: 'a -> List<LanguageTools.ProgramTypes.Reference>)
   : (List<'a> * List<LanguageTools.ProgramTypes.Reference> * List<(LanguageTools.ProgramTypes.Reference * Items.Outcome)>) =
   let (readableItems, refs, failures) =
-    Stdlib.List.fold(items, ([], [], []), fun (readableItems, refs, failures) item ->
+    Stdlib.List.fold(items, ([], [], []), fun((readableItems, refs, failures), item) ->
       match guard(referencesOf, item) with
-      | Ok found ->
+      | Ok(found) ->
         (Stdlib.List.prepend(readableItems, item), Stdlib.List.prepend(refs, found), failures)
-      | Error failure ->
+      | Error(failure) ->
         let outcome = Items.checkerFailureOutcome(nodeIdOf(item), failure)
 
         (readableItems,
@@ -160,24 +160,24 @@ let checkPackageOpsFrom(
 
   let candidateRefs =
     Stdlib.List.flatten(
-      [ Stdlib.List.map(types, fun t -> LanguageTools.ProgramTypes.Reference.PackageType t.hash)
-        Stdlib.List.map(values, fun v -> LanguageTools.ProgramTypes.Reference.PackageValue v.hash)
-        Stdlib.List.map(fns, fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
-        Stdlib.List.map(impls, fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash)
-        Stdlib.List.map(tests, fun test -> LanguageTools.ProgramTypes.Reference.PackageTest test.hash) ])
+      [ Stdlib.List.map(types, fun t -> LanguageTools.ProgramTypes.Reference.PackageType(t.hash))
+        Stdlib.List.map(values, fun v -> LanguageTools.ProgramTypes.Reference.PackageValue(v.hash))
+        Stdlib.List.map(fns, fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn(fn.hash))
+        Stdlib.List.map(impls, fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.hash))
+        Stdlib.List.map(tests, fun test -> LanguageTools.ProgramTypes.Reference.PackageTest(test.hash)) ])
 
   // The batch's own traits and implementations, beside the store's: the store does not
   // hold them until after this check, and a call saved with the trait or the impl it needs
   // must still be typed against it and pinned to it.
   let start =
     match base with
-    | Some b -> b.env
+    | Some(b) -> b.env
     | None -> Environment.builtins(branchId)
 
   // On a closed base, the batch's own values were already checked there.
   let (valuesFromBase, values) =
     match base with
-    | Some b ->
+    | Some(b) ->
       if b.closed then
         Stdlib.List.partition(values, fun v ->
           Stdlib.Dict.containsKey(b.values, v.hash))
@@ -194,14 +194,14 @@ let checkPackageOpsFrom(
   let (types, typeRefs, typeFailures) =
     collectItemReferences(
       types,
-      (fun t -> LanguageTools.ProgramTypes.Reference.PackageType t.hash),
+      (fun t -> LanguageTools.ProgramTypes.Reference.PackageType(t.hash)),
       (fun t -> Stdlib.Option.Option.None),
       fun t -> Environment.declarationRefs(t.declaration))
 
   let (fns, signatureRefs, signatureFailures) =
     collectItemReferences(
       fns,
-      (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash),
+      (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn(fn.hash)),
       (fun fn -> Items.bodyNodeId(fn.body)),
       fun fn -> Environment.signatureRefs(fn))
 
@@ -211,7 +211,7 @@ let checkPackageOpsFrom(
   let (_, valueBodyRefs, valueBodyFailures) =
     collectItemReferences(
       values,
-      (fun v -> LanguageTools.ProgramTypes.Reference.PackageValue v.hash),
+      (fun v -> LanguageTools.ProgramTypes.Reference.PackageValue(v.hash)),
       (fun v -> Items.bodyNodeId(v.body)),
       fun v -> Environment.exprRefs(builtins, v.body))
 
@@ -219,7 +219,7 @@ let checkPackageOpsFrom(
   // only find things to throw away.
   let onClosedBase =
     match base with
-    | Some b -> b.closed
+    | Some(b) -> b.closed
     | None -> false
 
   let (_, fnBodyRefs, fnBodyFailures) =
@@ -228,14 +228,14 @@ let checkPackageOpsFrom(
     else
       collectItemReferences(
         fns,
-        (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash),
+        (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn(fn.hash)),
         (fun fn -> Items.bodyNodeId(fn.body)),
         fun fn -> Environment.exprRefs(builtins, fn.body))
 
   let (_, testBodyRefs, testBodyFailures) =
     collectItemReferences(
       tests,
-      (fun test -> LanguageTools.ProgramTypes.Reference.PackageTest test.hash),
+      (fun test -> LanguageTools.ProgramTypes.Reference.PackageTest(test.hash)),
       (fun test -> Items.bodyNodeId(test.body)),
       fun test -> Environment.exprRefs(builtins, test.body))
 
@@ -245,19 +245,19 @@ let checkPackageOpsFrom(
   let testResult = Environment.typeHashOf(Stdlib.Test.Result.Pass)
   let testResultRefs =
     if Stdlib.List.isEmpty(tests) then []
-    else [ LanguageTools.ProgramTypes.Reference.PackageType testResult ]
+    else [ LanguageTools.ProgramTypes.Reference.PackageType(testResult) ]
 
   let bodyFailuresByItem =
     Stdlib.List.fold(
       Stdlib.List.flatten([ valueBodyFailures, fnBodyFailures, testBodyFailures ]),
       Dict {},
-      fun found (item, outcome) ->
+      fun(found, (item, outcome)) ->
         Stdlib.Dict.set(found, item, outcome))
 
   let (impls, implRefs, implFailures) =
     collectItemReferences(
       impls,
-      (fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash),
+      (fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.hash)),
       (fun _ -> Stdlib.Option.Option.None),
       fun i -> Impls.refsOf(candidates.traits, i))
 
@@ -273,7 +273,7 @@ let checkPackageOpsFrom(
 
   let dependencies =
     match base with
-    | Some b ->
+    | Some(b) ->
       if b.closed then
         Environment.loadClosureBeyond(b.pool, builtins, candidateRefs, dependencyRefs)
       else
@@ -286,8 +286,8 @@ let checkPackageOpsFrom(
       (Stdlib.List.fold(
         Stdlib.Dict.values(dependencies.types),
         builtins,
-        fun env t -> Items.addType(env, t))),
-      fun env fn -> Items.addFunctionSignature(env, fn))
+        fun(env, t) -> Items.addType(env, t))),
+      fun(env, fn) -> Items.addFunctionSignature(env, fn))
 
   // Package values have no declared type signature. Check the bodies of dependency
   // values in this batch too, so their inferred types are available to their users.
@@ -296,11 +296,11 @@ let checkPackageOpsFrom(
 
   let fromBase =
     match base with
-    | Some b ->
+    | Some(b) ->
       Stdlib.List.filterMap(valuesFromBase, fun v ->
         (Stdlib.Dict.get(b.values, v.hash))
         |> Stdlib.Option.map(fun outcome ->
-          (LanguageTools.ProgramTypes.Reference.PackageValue v.hash, outcome)))
+          (LanguageTools.ProgramTypes.Reference.PackageValue(v.hash), outcome)))
     | None -> []
 
   // Tests are checked against the environment the batch ended with, which holds the
@@ -310,37 +310,37 @@ let checkPackageOpsFrom(
 
   let checked =
     (Stdlib.List.flatten([ fromBase, batchResults, testResults ]))
-    |> Stdlib.List.map(fun (item, outcome) ->
+    |> Stdlib.List.map(fun((item, outcome)) ->
       match Stdlib.Dict.get(bodyFailuresByItem, item) with
-      | Some failed -> (item, failed)
+      | Some(failed) -> (item, failed)
       | None -> (item, outcome))
 
   // Checked against its trait, not inferred: it needs the batch's types (for aliases) and fns
   // (its methods usually arrive in the same batch).
-  let implEnv = Stdlib.List.fold(types, env, fun env t -> Items.addType(env, t))
+  let implEnv = Stdlib.List.fold(types, env, fun(env, t) -> Items.addType(env, t))
 
   let knownFns =
     match base with
-    | Some b ->
+    | Some(b) ->
       if b.closed then
-        Stdlib.List.fold(Stdlib.Dict.values(dependencies.fns), b.pool.fns, fun found fn ->
+        Stdlib.List.fold(Stdlib.Dict.values(dependencies.fns), b.pool.fns, fun(found, fn) ->
           Stdlib.Dict.set(found, fn.hash, fn))
       else
         dependencies.fns
     | None -> dependencies.fns
 
   let batchFns =
-    Stdlib.List.fold(fns, knownFns, fun found fn ->
+    Stdlib.List.fold(fns, knownFns, fun(found, fn) ->
       Stdlib.Dict.set(found, fn.hash, fn))
 
   let implChecked =
     impls
     |> Stdlib.List.map(fun i ->
-      let reference = LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash
+      let reference = LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.hash)
 
       match guard((fun i -> Impls.check(implEnv, batchFns, i)), i) with
-      | Ok outcome -> (reference, outcome)
-      | Error failure ->
+      | Ok(outcome) -> (reference, outcome)
+      | Error(failure) ->
         (reference, Items.checkerFailureOutcome(Stdlib.Option.Option.None, failure)))
 
   let results =
@@ -356,28 +356,28 @@ let loadCandidate(
   reference: LanguageTools.ProgramTypes.Reference)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
   match reference with
-  | PackageType hash ->
+  | PackageType(hash) ->
     (LanguageTools.PackageManager.Type.get(hash))
-    |> Stdlib.Option.map(fun t -> LanguageTools.ProgramTypes.PackageOp.AddType t)
-  | PackageValue hash ->
+    |> Stdlib.Option.map(fun t -> LanguageTools.ProgramTypes.PackageOp.AddType(t))
+  | PackageValue(hash) ->
     (LanguageTools.PackageManager.Value.get(hash))
-    |> Stdlib.Option.map(fun v -> LanguageTools.ProgramTypes.PackageOp.AddValue v)
-  | PackageFn hash ->
+    |> Stdlib.Option.map(fun v -> LanguageTools.ProgramTypes.PackageOp.AddValue(v))
+  | PackageFn(hash) ->
     (LanguageTools.PackageManager.Function.get(hash))
-    |> Stdlib.Option.map(fun fn -> LanguageTools.ProgramTypes.PackageOp.AddFn fn)
+    |> Stdlib.Option.map(fun fn -> LanguageTools.ProgramTypes.PackageOp.AddFn(fn))
   // Both kinds have an op, so they load the same way as the other three. `checkQuery` asks for
   // implementations; nothing asks for traits yet, and this arm is the right answer the day
   // something does, rather than a raise the guard converts into an empty report.
-  | PackageTrait hash ->
+  | PackageTrait(hash) ->
     (LanguageTools.PackageManager.Trait.get(hash))
-    |> Stdlib.Option.map(fun t -> LanguageTools.ProgramTypes.PackageOp.AddTrait t)
-  | PackageTraitImpl hash ->
+    |> Stdlib.Option.map(fun t -> LanguageTools.ProgramTypes.PackageOp.AddTrait(t))
+  | PackageTraitImpl(hash) ->
     (LanguageTools.PackageManager.TraitImpl.get(hash))
     |> Stdlib.Option.map(fun i ->
-      LanguageTools.ProgramTypes.PackageOp.AddTraitImpl i)
-  | PackageTest hash ->
+      LanguageTools.ProgramTypes.PackageOp.AddTraitImpl(i))
+  | PackageTest(hash) ->
     (LanguageTools.PackageManager.Test.get(hash))
-    |> Stdlib.Option.map(fun test -> LanguageTools.ProgramTypes.PackageOp.AddTest test)
+    |> Stdlib.Option.map(fun test -> LanguageTools.ProgramTypes.PackageOp.AddTest(test))
 
 /// Check <param ops> against main's implementations.
 ///
@@ -410,15 +410,15 @@ let checkReferencesFrom(
   references: List<LanguageTools.ProgramTypes.Reference>)
   : Report =
   let (ops, failures) =
-    Stdlib.List.fold(Stdlib.List.unique(references), ([], []), fun (ops, failures) reference ->
+    Stdlib.List.fold(Stdlib.List.unique(references), ([], []), fun((ops, failures), reference) ->
       let loaded =
         match guard(load, reference) with
-        | Ok(Some op) -> Stdlib.Result.Result.Ok op
-        | Ok None -> Stdlib.Result.Result.Error(CheckFailure.Failed "Declaration unavailable while loading branch candidates")
-        | Error failure -> Stdlib.Result.Result.Error failure
+        | Ok(Some(op)) -> Stdlib.Result.Result.Ok(op)
+        | Ok(None) -> Stdlib.Result.Result.Error(CheckFailure.Failed("Declaration unavailable while loading branch candidates"))
+        | Error(failure) -> Stdlib.Result.Result.Error(failure)
       match loaded with
-      | Ok op -> (Stdlib.List.prepend(ops, op), failures)
-      | Error failure ->
+      | Ok(op) -> (Stdlib.List.prepend(ops, op), failures)
+      | Error(failure) ->
         let outcome = Items.checkerFailureOutcome(Stdlib.Option.Option.None, failure)
         let item =
           ItemReport
@@ -448,11 +448,11 @@ let checkQuery(
     LanguageTools.PackageManager.Search.searchNamesAndHashes(branchId, query)
   let references =
     Stdlib.List.flatten(
-      [ Stdlib.List.map(types, fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageType hash)
-        Stdlib.List.map(values, fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageValue hash)
-        Stdlib.List.map(fns, fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageFn hash)
-        Stdlib.List.map(impls, fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl hash)
-        Stdlib.List.map(tests, fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageTest hash) ])
+      [ Stdlib.List.map(types, fun((_, hash)) -> LanguageTools.ProgramTypes.Reference.PackageType(hash))
+        Stdlib.List.map(values, fun((_, hash)) -> LanguageTools.ProgramTypes.Reference.PackageValue(hash))
+        Stdlib.List.map(fns, fun((_, hash)) -> LanguageTools.ProgramTypes.Reference.PackageFn(hash))
+        Stdlib.List.map(impls, fun((_, hash)) -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl(hash))
+        Stdlib.List.map(tests, fun((_, hash)) -> LanguageTools.ProgramTypes.Reference.PackageTest(hash)) ])
   let unique = Stdlib.List.unique(references)
   // In pieces across the cores, the way the package reload splits the same check in
   // `TraitCalls.resolveIn`. Safe because every piece loads from the store or the shared pool, so
@@ -466,9 +466,9 @@ let checkQuery(
   // the failure.
   let pool =
     poolFor(
-      Stdlib.List.map(types, fun (_, h) -> h),
-      Stdlib.List.map(fns, fun (_, h) -> h),
-      Stdlib.List.map(values, fun (_, h) -> h))
+      Stdlib.List.map(types, fun((_, h)) -> h),
+      Stdlib.List.map(fns, fun((_, h)) -> h),
+      Stdlib.List.map(values, fun((_, h)) -> h))
 
   // And the pool's declarations registered and prepared once, which every piece otherwise did
   // for its own copy. Only when the pool's types are closed (everything they reference is in it),
@@ -476,13 +476,13 @@ let checkQuery(
   let base = baseFor(branchId, pool)
 
   match Stdlib.List.chunkBySize(unique, size) with
-  | Ok chunks ->
+  | Ok(chunks) ->
     // No more pieces in flight than there are workers to run them. Spawning more runs them no
     // faster, since the extras take turns, and each one loads its declarations first and holds
     // them until it finishes: the whole branch in memory at once.
     // Each lane takes every `lanes`th piece in turn; the reports go back in piece order.
     let lanes = Stdlib.max(1, Stdlib.min(Stdlib.List.length(chunks), Stdlib.Exec.workers()))
-    let numbered = Stdlib.List.indexedMap(chunks, fun i chunk -> (i, chunk))
+    let numbered = Stdlib.List.indexedMap(chunks, fun(i, chunk) -> (i, chunk))
 
     // A fold, not a map: a map is a list op the runtime may spread across cores by itself, and
     // a spread chunk refuses the store reads every piece makes, so the lane's pieces would run
@@ -490,15 +490,15 @@ let checkQuery(
     Stdlib.List.range(0, lanes - 1)
     |> Stdlib.List.parallelMap(fun lane ->
       numbered
-      |> Stdlib.List.filter(fun (i, _) -> i % lanes == lane)
-      |> Stdlib.List.fold([], fun done (i, chunk) ->
+      |> Stdlib.List.filter(fun((i, _)) -> i % lanes == lane)
+      |> Stdlib.List.fold([], fun(done, (i, chunk)) ->
         Stdlib.List.prepend(done, (i, checkReferencesFrom(pool, base, branchId, loadCandidate, chunk)))))
     |> Stdlib.List.flatten
-    |> Stdlib.List.sortBy(fun (i, _) -> i)
-    |> Stdlib.List.map(fun (_, report) -> report.items)
+    |> Stdlib.List.sortBy(fun((i, _)) -> i)
+    |> Stdlib.List.map(fun((_, report)) -> report.items)
     |> Stdlib.List.flatten
     |> reportItems
-  | Error _ -> checkReferencesFrom(pool, base, branchId, loadCandidate, unique)
+  | Error(_) -> checkReferencesFrom(pool, base, branchId, loadCandidate, unique)
 
 /// The builtins environment with every declaration in <param pool> registered and prepared, or
 /// None when a pool type references a type that is not in the pool. Closed (see `Base`) when the
@@ -507,9 +507,9 @@ let checkQuery(
 let baseFor(branchId: Uuid, pool: Environment.Closure): Stdlib.Option.Option<Base> =
   let inPool(r: LanguageTools.ProgramTypes.Reference): Bool =
     match r with
-    | PackageType hash -> Stdlib.Dict.containsKey(pool.types, hash)
-    | PackageFn hash -> Stdlib.Dict.containsKey(pool.fns, hash)
-    | PackageValue hash -> Stdlib.Dict.containsKey(pool.values, hash)
+    | PackageType(hash) -> Stdlib.Dict.containsKey(pool.types, hash)
+    | PackageFn(hash) -> Stdlib.Dict.containsKey(pool.fns, hash)
+    | PackageValue(hash) -> Stdlib.Dict.containsKey(pool.values, hash)
     | _ -> true
 
   let typesClosed =
@@ -521,8 +521,8 @@ let baseFor(branchId: Uuid, pool: Environment.Closure): Stdlib.Option.Option<Bas
     let env =
       Stdlib.List.fold(
         Stdlib.Dict.values(pool.fns),
-        Stdlib.List.fold(Stdlib.Dict.values(pool.types), builtins, fun env t -> Items.addType(env, t)),
-        fun env fn -> Items.addFunctionSignature(env, fn))
+        Stdlib.List.fold(Stdlib.Dict.values(pool.types), builtins, fun(env, t) -> Items.addType(env, t)),
+        fun(env, fn) -> Items.addFunctionSignature(env, fn))
     let env = Declarations.prepareDeclarations(env)
 
     let closed =
@@ -530,8 +530,8 @@ let baseFor(branchId: Uuid, pool: Environment.Closure): Stdlib.Option.Option<Bas
         Stdlib.List.all(Environment.signatureRefs(fn), inPool))
       && Stdlib.List.all(Stdlib.Dict.values(pool.values), fun v ->
         match guard((fun body -> Environment.exprRefs(builtins, body)), v.body) with
-        | Ok refs -> Stdlib.List.all(refs, inPool)
-        | Error _ -> false)
+        | Ok(refs) -> Stdlib.List.all(refs, inPool)
+        | Error(_) -> false)
 
     if closed then
       let (env, outcomes) = Items.checkValues(env, Stdlib.Dict.values(pool.values))
@@ -548,21 +548,21 @@ let poolFor(
   valueHashes: List<LanguageTools.ProgramTypes.Hash>)
   : Environment.Closure =
   let types =
-    Stdlib.List.fold(typeHashes, Dict {}, fun found hash ->
+    Stdlib.List.fold(typeHashes, Dict {}, fun(found, hash) ->
       match guard((fun h -> LanguageTools.PackageManager.Type.get(h)), hash) with
-      | Ok(Some t) -> Stdlib.Dict.set(found, hash, t)
+      | Ok(Some(t)) -> Stdlib.Dict.set(found, hash, t)
       | _ -> found)
 
   let fns =
-    Stdlib.List.fold(fnHashes, Dict {}, fun found hash ->
+    Stdlib.List.fold(fnHashes, Dict {}, fun(found, hash) ->
       match guard((fun h -> LanguageTools.PackageManager.Function.getSignature(h)), hash) with
-      | Ok(Some fn) -> Stdlib.Dict.set(found, hash, fn)
+      | Ok(Some(fn)) -> Stdlib.Dict.set(found, hash, fn)
       | _ -> found)
 
   let values =
-    Stdlib.List.fold(valueHashes, Dict {}, fun found hash ->
+    Stdlib.List.fold(valueHashes, Dict {}, fun(found, hash) ->
       match guard((fun h -> LanguageTools.PackageManager.Value.get(h)), hash) with
-      | Ok(Some v) -> Stdlib.Dict.set(found, hash, v)
+      | Ok(Some(v)) -> Stdlib.Dict.set(found, hash, v)
       | _ -> found)
 
   Environment.Closure { types = types, values = values, fns = fns }

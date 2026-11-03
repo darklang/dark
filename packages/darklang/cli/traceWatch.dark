@@ -68,17 +68,17 @@ let annotate(
        Cli.TraceVerbs.whyEmpty("run something that calls it"),
        $"no recorded trace went through {fn} yet"),
      Stdlib.Option.Option.None)
-  | Some r ->
+  | Some(r) ->
     let entry = LanguageTools.ProgramTypes.parsePackageLocation(fn)
 
     match LanguageTools.PackageManager.Function.find(branchId, entry) with
     | None -> ([ $"no function named {fn} on this branch" ], Stdlib.Option.Option.None)
-    | Some hash ->
+    | Some(hash) ->
       match LanguageTools.PackageManager.Function.get(hash) with
       | None ->
         ([ $"{fn} resolves to a version this store cannot load" ],
          Stdlib.Option.Option.None)
-      | Some fnDef ->
+      | Some(fnDef) ->
         let (collected, stop) = Darklang.Tracing.Store.viewTrace(accountID, branchId, r.id)
         let problem = Cli.TraceVerbs.problemJson(branchId, r.id, stop)
 
@@ -112,11 +112,11 @@ let pickCursor(
   : Int =
   let found =
     match keep with
-    | Some id -> Stdlib.List.findFirstIndex(ids, fun i -> i == id)
+    | Some(id) -> Stdlib.List.findFirstIndex(ids, fun i -> i == id)
     | None -> Stdlib.Option.Option.None
 
   match found with
-  | Some i -> i
+  | Some(i) -> i
   | None -> Stdlib.max(0, Stdlib.min(cursor, (Stdlib.List.length(ids)) - 1))
 
 
@@ -155,7 +155,7 @@ let reload(
 
   let traceLines =
     traces
-    |> Stdlib.List.indexedMap(fun i r ->
+    |> Stdlib.List.indexedMap(fun(i, r) ->
       let mark = if i == cursor then "> " else "  "
       let id = Cli.Text.shortIdText(r.id)
       let at = Stdlib.String.padEndToWidth(clockFreeTime(r.created), 16)
@@ -191,12 +191,12 @@ let update(m: Model, event: LiveView.Host.Event<Msg>): Model =
   // so a tick pays it only when the store has moved: both arrive as a write.
   | Tick when (Stdlib.Live.version()) == m.storeVersion -> m
   | Tick
-  | Msg Refresh ->
+  | Msg(Refresh) ->
     // Stay on the trace being read, not on its position in a list that grows from the top.
     let here =
       m.traces |> Stdlib.List.getAt(m.cursor) |> Stdlib.Option.map(fun r -> r.id)
     reload(m.accountID, m.branchId, m.fn, m.cursor, here)
-  | Key k ->
+  | Key(k) ->
     match k.key with
     | UpArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor - 1, Stdlib.Option.Option.None)
     | DownArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor + 1, Stdlib.Option.Option.None)
@@ -207,15 +207,15 @@ let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =
   let traces =
     match m.traceLines with
     | [] -> Stdlib.Cli.UI.Node.dim("  (no traces yet)")
-    | _ -> Stdlib.Cli.UI.Node.Node.Rows m.traceLines
+    | _ -> Stdlib.Cli.UI.Node.Node.Rows(m.traceLines)
 
   // The same decision the page and `--json` use, printed as a band. Only the medium differs.
   let problem =
     match m.problem with
-    | Some p ->
+    | Some(p) ->
       let headline =
         match p.why with
-        | Some why -> $"the replay stopped: {why}"
+        | Some(why) -> $"the replay stopped: {why}"
         | None -> $"the replay stopped here: {p.message}"
 
       // A band is ONE line and CLIPS, so only the headline goes in it and the rest follows as
@@ -238,5 +238,5 @@ let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =
             $"  {Cli.Text.plural(Stdlib.List.length(m.traces), "trace")}, newest first")
           traces
           Stdlib.Cli.UI.Node.text("")
-          Stdlib.Cli.UI.Node.Node.Rows m.source ]
+          Stdlib.Cli.UI.Node.Node.Rows(m.source) ]
         problem ])))

@@ -421,7 +421,7 @@ module WrittenTypesToDarkTypes =
         "MPChar",
         [ rangeToDT r; contentsDval; rangeToDT openQ; rangeToDT closeQ ]
       )
-    | WT.MPEnum(r, (caseNameR, caseName), fieldPats) ->
+    | WT.MPEnum(r, _, (caseNameR, caseName), fieldPats) ->
       DEnum(
         t,
         t,

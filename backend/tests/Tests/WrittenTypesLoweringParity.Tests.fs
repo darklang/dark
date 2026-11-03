@@ -230,11 +230,11 @@ let tests =
             |> List.map snd
 
           let unwrapSnippets =
-            [ "fun x -> Ok x?"
-              "fun x -> Some x?.field?"
-              "fun x -> Ok ((Stdlib.Int.parse(x))?)"
-              "fun x -> Ok x??"
-              "fun x -> Some ((x |> Stdlib.List.head)?)" ]
+            [ "fun x -> Ok(x?)"
+              "fun x -> Some(x?.field?)"
+              "fun x -> Ok((Stdlib.Int.parse(x))?)"
+              "fun x -> Ok(x??)"
+              "fun x -> Some((x |> Stdlib.List.head)?)" ]
             |> List.map (fun source ->
               match parseSingleExpr source with
               | Some expr -> ("unwrap", source, expr)
@@ -357,7 +357,7 @@ let tests =
              [ "M" ],
              [],
              [],
-             "Error 1 |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)")
+             "Error(1) |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)")
             ("internal-package-prefix",
              [ "M" ],
              [],

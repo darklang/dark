@@ -20,13 +20,13 @@ test instanceAnswers =
 /// authoring, and it shows up in a listing by name.
 test instancesAreIsolated =
   match Instance.create() with
-  | Error e -> Stdlib.Test.fail($"first instance: {e}")
-  | Ok a ->
+  | Error(e) -> Stdlib.Test.fail($"first instance: {e}")
+  | Ok(a) ->
     match Instance.create() with
-    | Error e ->
+    | Error(e) ->
       let _ = Instance.dispose(a)
       Stdlib.Test.fail($"second instance: {e}")
-    | Ok b ->
+    | Ok(b) ->
       let suffix = Stdlib.toString(Stdlib.Int.random(100000, 999999))
       let name = $"iso-{suffix}"
 
@@ -48,8 +48,8 @@ test instancesAreIsolated =
 /// Disposing an instance takes its store with it.
 test disposeRemovesTheStore =
   match Instance.create() with
-  | Error e -> Stdlib.Test.fail(e)
-  | Ok i ->
+  | Error(e) -> Stdlib.Test.fail(e)
+  | Ok(i) ->
     let store = $"{i.dir}/data.db"
 
     if Stdlib.Bool.not(Stdlib.Cli.Unix.fileExists(store)) then
@@ -77,7 +77,7 @@ test workbenchPaints =
       Interactive.expectSteps(
         i,
         [],
-        [ Interactive.Step.Await "Home"
-          Interactive.Step.Await "quit"
-          Interactive.Step.Send "q" ],
+        [ Interactive.Step.Await("Home")
+          Interactive.Step.Await("quit")
+          Interactive.Step.Send("q") ],
         30))

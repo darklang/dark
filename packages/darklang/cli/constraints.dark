@@ -87,9 +87,9 @@ let selectKind(
   args: List<String>)
   : List<SCM.Constraints.Finding> =
   match Stdlib.List.findFirstIndex(args, fun a -> a == "--kind") with
-  | Some i ->
+  | Some(i) ->
     match Stdlib.List.getAt(args, i + 1) with
-    | Some wanted ->
+    | Some(wanted) ->
       findings
       |> Stdlib.List.filter(fun f ->
         SCM.Constraints.kindToString(f.kind) == wanted)
@@ -102,17 +102,17 @@ let selectKind(
 let kindArgChecked(args: List<String>): Stdlib.Result.Result<Unit, String> =
   match Stdlib.List.findFirstIndex(args, fun a -> a == "--kind") with
   | None -> Stdlib.Result.Result.Ok()
-  | Some i ->
+  | Some(i) ->
     match Stdlib.List.getAt(args, i + 1) with
     | None ->
-      Stdlib.Result.Result.Error
-        "--kind needs a value: stale-usage, kind-changed, decision-superseded, or rival-implementations."
-    | Some wanted ->
+      Stdlib.Result.Result.Error(
+        "--kind needs a value: stale-usage, kind-changed, decision-superseded, or rival-implementations.")
+    | Some(wanted) ->
       match SCM.Constraints.kindFromString(wanted) with
-      | Some _ -> Stdlib.Result.Result.Ok()
+      | Some(_) -> Stdlib.Result.Result.Ok()
       | None ->
-        Stdlib.Result.Result.Error
-          $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, decision-superseded, or rival-implementations."
+        Stdlib.Result.Result.Error(
+          $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, decision-superseded, or rival-implementations.")
 
 
 let executeJson(state: AppState, args: List<String>): AppState =
@@ -191,12 +191,12 @@ let selectTargets(
     // reports "no constraint matching \"repoint\"".
     let beforeWhy =
       match Stdlib.List.findFirstIndex(ids, fun a -> a == "--why") with
-      | Some i -> Stdlib.List.take(ids, i)
+      | Some(i) -> Stdlib.List.take(ids, i)
       | None -> ids
 
     let withoutAsValue =
       match Stdlib.List.findFirstIndex(beforeWhy, fun a -> a == "--as") with
-      | Some i ->
+      | Some(i) ->
         Stdlib.List.concat(
           Stdlib.List.take(beforeWhy, i),
           Stdlib.List.drop(beforeWhy, i + 2))
@@ -224,7 +224,7 @@ let selectTargets(
 /// `--why <text>`, or everything after `--why` when it wasn't quoted.
 let whyFrom(args: List<String>): String =
   match Stdlib.List.findFirstIndex(args, fun a -> a == "--why") with
-  | Some i ->
+  | Some(i) ->
     args |> Stdlib.List.drop(i + 1) |> (fun rest -> Stdlib.String.join(rest, " "))
   | None -> ""
 
@@ -266,10 +266,10 @@ let executeAck(state: AppState, args: List<String>): AppState =
         targets
         |> Stdlib.List.filter(fun f ->
           match SCM.Constraints.ack(state.currentBranchId, f, why) with
-          | Ok _ ->
+          | Ok(_) ->
             Cli.printOk($"acked #{f.id}  {SCM.Constraints.fqnOf(f.usage)}")
             false
-          | Error e ->
+          | Error(e) ->
             Cli.printErr($"couldn't ack #{f.id}: {e}")
             true)
 
@@ -282,7 +282,7 @@ let executeAck(state: AppState, args: List<String>): AppState =
 /// `--as <choice>`, naming which resolution to apply.
 let chosenResolution(args: List<String>): String =
   match Stdlib.List.findFirstIndex(args, fun a -> a == "--as") with
-  | Some i -> Stdlib.List.getAt(args, i + 1) |> Stdlib.Option.withDefault("")
+  | Some(i) -> Stdlib.List.getAt(args, i + 1) |> Stdlib.Option.withDefault("")
   | None -> ""
 
 /// Every resolution a set of targets could take, deduped, in the order the kinds offer them.
@@ -319,21 +319,21 @@ let resolutionFor(
           (SCM.Constraints.offersResolution(f.kind, only)) |> Stdlib.Bool.not)
 
       match cannot with
-      | [] -> Stdlib.Result.Result.Ok only
+      | [] -> Stdlib.Result.Result.Ok(only)
       | fs ->
         let ids =
           fs |> Stdlib.List.map(fun f -> $"#{f.id}") |> (fun l -> Stdlib.String.join(l, " "))
 
-        Stdlib.Result.Result.Error
-          $"{ids} can't be resolved as \"{only}\" -- ack those, or resolve them separately."
+        Stdlib.Result.Result.Error(
+          $"{ids} can't be resolved as \"{only}\" -- ack those, or resolve them separately.")
     | [] ->
       let noun = if Stdlib.List.length(targets) == 1 then "this finding offers" else "these findings offer"
-      Stdlib.Result.Result.Error $"{noun} no resolution."
+      Stdlib.Result.Result.Error($"{noun} no resolution.")
     | many ->
       let list = Stdlib.String.join(many, " | ")
 
-      Stdlib.Result.Result.Error
-        $"these findings can be resolved more than one way -- say which with `--as <{list}>`."
+      Stdlib.Result.Result.Error(
+        $"these findings can be resolved more than one way -- say which with `--as <{list}>`.")
   | asked ->
     let unsupported =
       targets
@@ -341,12 +341,12 @@ let resolutionFor(
         (SCM.Constraints.offersResolution(f.kind, asked)) |> Stdlib.Bool.not)
 
     match unsupported with
-    | [] -> Stdlib.Result.Result.Ok asked
+    | [] -> Stdlib.Result.Result.Ok(asked)
     | fs ->
       let ids =
         fs |> Stdlib.List.map(fun f -> $"#{f.id}") |> (fun l -> Stdlib.String.join(l, " "))
 
-      Stdlib.Result.Result.Error $"{ids} can't be resolved as \"{asked}\"."
+      Stdlib.Result.Result.Error($"{ids} can't be resolved as \"{asked}\".")
 
 
 /// RESOLVE: apply a named resolution. `repoint` runs the same cascade an ordinary edit runs, so everything
@@ -379,11 +379,11 @@ let executeResolve(state: AppState, args: List<String>): AppState =
   | _ ->
 
   match resolutionFor(targets, args) with
-  | Error e ->
+  | Error(e) ->
     Cli.printErr(e)
     Cli.printHint("  `dark ack <id>...` leaves them for now, which needs no choice.")
     Cli.exitWith(state, false)
-  | Ok resolution ->
+  | Ok(resolution) ->
     let results =
       targets
       |> Stdlib.List.map(fun f ->
@@ -391,10 +391,10 @@ let executeResolve(state: AppState, args: List<String>): AppState =
         | Versions(using, current) ->
           match SCM.Propagation.repointDependents(state.currentBranchId,
                   f.dependency, f.dependencyKind, [using], current) with
-          | Error e ->
+          | Error(e) ->
             Cli.printErr($"#{f.id}: {e}")
             false
-          | Ok _ ->
+          | Ok(_) ->
             Cli.printOk($"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf(f.usage)}")
             true
         | Rivals(_, _, _) -> false)
@@ -475,10 +475,10 @@ let execute(state: AppState, args: List<String>): AppState =
     else
 
     match kindArgChecked(args) with
-    | Error why ->
+    | Error(why) ->
       Cli.printErr(why)
       Cli.exitWith(state, false)
-    | Ok _ ->
+    | Ok(_) ->
 
     if Stdlib.List.contains(args, "--json") then
       executeJson(state, args)

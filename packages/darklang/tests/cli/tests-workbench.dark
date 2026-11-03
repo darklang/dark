@@ -8,7 +8,7 @@ test workbenchHistoryRoundTrip =
       name = "map", kind = "fn", display = "map" }
   let jumped =
     match Darklang.Cli.Workbench.jumpToHit(base, hit) with
-    | Continue s -> s
+    | Continue(s) -> s
     | _ -> base
   let returned = (wbKey(jumped, Stdlib.Cli.Stdin.Key.Key.Escape)).state
   let tree = (wbChar(base, "2")).state
@@ -38,7 +38,7 @@ test workbenchHistoryRoundTrip =
 test workbenchBranchPicker =
   let base = workbenchState()
   let opened = (wbChar(base, "S")).state
-  let opens = match opened.overlay with | Branches _ -> true | _ -> false
+  let opens = match opened.overlay with | Branches(_) -> true | _ -> false
   let choices =
     Stdlib.List.range(1, 20) |> Stdlib.List.map(fun n ->
       Darklang.Cli.Workbench.BranchChoice
@@ -46,12 +46,12 @@ test workbenchBranchPicker =
           name = "branch-" + (Stdlib.toString(n)), detail = "" })
   let picker = Darklang.Cli.Workbench.BranchPicker
     { choices = choices, field = Stdlib.Cli.UI.TextField.fromText(""), selected = 0 }
-  let state = { base with overlay = Darklang.Cli.Workbench.Overlay.Branches picker }
+  let state = { base with overlay = Darklang.Cli.Workbench.Overlay.Branches(picker) }
   let paged = (wbKey(state, Stdlib.Cli.Stdin.Key.Key.PageDown)).state
   let typed = (wbChar(paged, "BRANCH-20")).state
   let matched =
     match typed.overlay with
-    | Branches p ->
+    | Branches(p) ->
       let names =
         Darklang.Cli.Workbench.matchingBranches(p) |> Stdlib.List.map(fun b -> b.name)
       (p.selected == 0) && (names == [ "branch-20" ])
@@ -60,13 +60,13 @@ test workbenchBranchPicker =
   let enter = (wbKey(missing, Stdlib.Cli.Stdin.Key.Key.Enter)).state
   let noMatch =
     match enter.overlay with
-    | Branches p -> Stdlib.List.isEmpty(Darklang.Cli.Workbench.matchingBranches(p))
+    | Branches(p) -> Stdlib.List.isEmpty(Darklang.Cli.Workbench.matchingBranches(p))
     | _ -> false
   let cancelled = (wbKey(typed, Stdlib.Cli.Stdin.Key.Key.Escape)).state
   let fromCode = (wbChar((wbChar(base, "2")).state, "S")).state
   let fromHome = (wbChar(base, "s")).state
   let isOpen(s: Darklang.Cli.Workbench.State): Bool =
-    match s.overlay with | Branches _ -> true | _ -> false
+    match s.overlay with | Branches(_) -> true | _ -> false
   if opens && matched && noMatch && (isOpen(fromCode)) && (isOpen(fromHome))
      && (cancelled.overlay == Darklang.Cli.Workbench.Overlay.NoOverlay)
      && (cancelled.branchId == base.branchId)

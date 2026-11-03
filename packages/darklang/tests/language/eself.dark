@@ -77,7 +77,7 @@ module ShadowingTest =
     if x <= 0 then
       0
     elif x < 3 then
-      let conditionalShadowing = (fun v w -> v * 5 + w)
+      let conditionalShadowing = (fun(v, w) -> v * 5 + w)
       conditionalShadowing(x, 2)
     elif x < 5 then
       let conditionalShadowing = (fun v -> v * 3)

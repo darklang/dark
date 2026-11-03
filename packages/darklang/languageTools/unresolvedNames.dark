@@ -20,14 +20,14 @@ module Darklang.LanguageTools.UnresolvedNames
 /// One unresolved reference, as the user typed it (`Stdlib.List.hed`).
 let inName(n: ProgramTypes.NameResolution<'a>): List<String> =
   match n.resolved with
-  | Ok _ -> []
-  | Error _ -> [ Stdlib.String.join(n.originalName, ".") ]
+  | Ok(_) -> []
+  | Error(_) -> [ Stdlib.String.join(n.originalName, ".") ]
 
 
 let inTypeRef(t: ProgramTypes.TypeReference): List<String> =
   match t with
-  | TStream inner -> inTypeRef(inner)
-  | TList inner -> inTypeRef(inner)
+  | TStream(inner) -> inTypeRef(inner)
+  | TList(inner) -> inTypeRef(inner)
   | TDict(key, value) -> Stdlib.List.concat(inTypeRef(key), inTypeRef(value))
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten([ inTypeRef(first), inTypeRef(second), inTypeRefs(rest) ])
@@ -59,7 +59,7 @@ let inExpr(expr: ProgramTypes.Expr): List<String> =
   | EList(_, items) -> inExprs(items)
 
   // As the F# walk: only the values, never the keys.
-  | EDict(_, pairs) -> inExprs(Stdlib.List.map(pairs, fun (_, e) -> e))
+  | EDict(_, pairs) -> inExprs(Stdlib.List.map(pairs, fun((_, e)) -> e))
 
   | ETuple(_, first, second, rest) ->
     Stdlib.List.flatten([ inExpr(first), inExpr(second), inExprs(rest) ])
@@ -77,12 +77,12 @@ let inExpr(expr: ProgramTypes.Expr): List<String> =
     Stdlib.List.flatten(
       [ inName(typeName)
         inTypeRefs(typeArgs)
-        inExprs(Stdlib.List.map(fields, fun (_, e) -> e)) ])
+        inExprs(Stdlib.List.map(fields, fun((_, e)) -> e)) ])
 
   | ERecordFieldAccess(_, record, _) -> inExpr(record)
 
   | ERecordUpdate(_, record, updates) ->
-    let values = Stdlib.List.map(updates, fun (_, e) -> e)
+    let values = Stdlib.List.map(updates, fun((_, e)) -> e)
     Stdlib.List.concat(inExpr(record), inExprs(values))
 
   | EEnum(_, typeName, typeArgs, _, fields) ->
@@ -99,7 +99,7 @@ let inExpr(expr: ProgramTypes.Expr): List<String> =
 
 let inOptionalExpr(expr: Stdlib.Option.Option<ProgramTypes.Expr>): List<String> =
   match expr with
-  | Some e -> inExpr(e)
+  | Some(e) -> inExpr(e)
   | None -> []
 
 
@@ -114,8 +114,8 @@ let inSegments(segments: List<ProgramTypes.StringSegment>): List<String> =
   | [] -> []
   | [seg, ...rest] ->
     match seg with
-    | StringText _ -> inSegments(rest)
-    | StringInterpolation e -> Stdlib.List.concat(inExpr(e), inSegments(rest))
+    | StringText(_) -> inSegments(rest)
+    | StringInterpolation(e) -> Stdlib.List.concat(inExpr(e), inSegments(rest))
 
 
 /// The pattern carries no names (`MPEnum` holds a bare case name), so only the guard
@@ -163,9 +163,9 @@ let inTypeDeclaration(
   : List<String> =
   let inDefinition =
     match d.definition with
-    | Alias t -> inTypeRef(t)
-    | Record fields -> inTypeRefs(Stdlib.List.map(fields, fun f -> f.typ))
-    | Enum cases ->
+    | Alias(t) -> inTypeRef(t)
+    | Record(fields) -> inTypeRefs(Stdlib.List.map(fields, fun f -> f.typ))
+    | Enum(cases) ->
       inTypeRefs((
         Stdlib.List.flatten(Stdlib.List.map(cases, fun c -> Stdlib.List.map(c.fields, fun f -> f.typ)))
       ))
@@ -192,7 +192,7 @@ let inOp(
   : Stdlib.Option.Option<(String * List<String>)> =
   let found =
     match op with
-    | AddFn fn ->
+    | AddFn(fn) ->
       Stdlib.Option.Option.Some(
         (fn.hash,
          Stdlib.List.flatten(
@@ -201,23 +201,23 @@ let inOp(
              inTypeRef(fn.returnType)
              inBounds(fn.bounds) ]))
       )
-    | AddValue v -> Stdlib.Option.Option.Some((v.hash, inExpr(v.body)))
-    | AddType t ->
+    | AddValue(v) -> Stdlib.Option.Option.Some((v.hash, inExpr(v.body)))
+    | AddType(t) ->
       Stdlib.Option.Option.Some((t.hash, inTypeDeclaration(t.declaration)))
-    | AddTrait t ->
+    | AddTrait(t) ->
       let names = Stdlib.List.concat(inMethods(t.methods), inBounds(t.bounds))
       Stdlib.Option.Option.Some((t.hash, names))
-    | AddTraitImpl i ->
+    | AddTraitImpl(i) ->
       Stdlib.Option.Option.Some(
         (i.hash,
          Stdlib.List.flatten(
            [ inName(i.trait_)
              inTypeRef(i.self)
              inTypeRefs(i.traitTypeArgs)
-             Stdlib.List.flatten(Stdlib.List.map(i.methods, fun (_, m) -> inName(m)))
+             Stdlib.List.flatten(Stdlib.List.map(i.methods, fun((_, m)) -> inName(m)))
              inBounds(i.bounds) ]))
       )
-    | AddTest test -> Stdlib.Option.Option.Some((test.hash, inExpr(test.body)))
+    | AddTest(test) -> Stdlib.Option.Option.Some((test.hash, inExpr(test.body)))
     | _ -> Stdlib.Option.Option.None
 
   match found with

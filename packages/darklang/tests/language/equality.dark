@@ -282,36 +282,36 @@ test enums =
       (EEnumInt128.E1 != EEnumInt128.E2) |> Stdlib.Test.equal(true)
       (EEnumUInt128.E1 == EEnumUInt128.E1) |> Stdlib.Test.equal(true)
       (EEnumUInt128.E1 != EEnumUInt128.E2) |> Stdlib.Test.equal(true)
-      (EEnumInt128.E3 5Q == EEnumInt128.E3 5Q) |> Stdlib.Test.equal(true)
-      (EEnumInt128.E3 5Q != EEnumInt128.E3 6Q) |> Stdlib.Test.equal(true)
+      (EEnumInt128.E3(5Q) == EEnumInt128.E3(5Q)) |> Stdlib.Test.equal(true)
+      (EEnumInt128.E3(5Q) != EEnumInt128.E3(6Q)) |> Stdlib.Test.equal(true)
       (EEnum.E1 == EEnum.E1) |> Stdlib.Test.equal(true)
       (EEnum.E1 != EEnum.E2) |> Stdlib.Test.equal(true)
-      (EEnum.E3 5L == EEnum.E3 5L) |> Stdlib.Test.equal(true)
-      (EEnum.E3 5L != EEnum.E3 6L) |> Stdlib.Test.equal(true)
+      (EEnum.E3(5L) == EEnum.E3(5L)) |> Stdlib.Test.equal(true)
+      (EEnum.E3(5L) != EEnum.E3(6L)) |> Stdlib.Test.equal(true)
       (EEnumUIn64.E1 == EEnumUIn64.E1) |> Stdlib.Test.equal(true)
       (EEnumUIn64.E1 != EEnumUIn64.E2) |> Stdlib.Test.equal(true)
-      (EEnumUIn64.E3 5UL == EEnumUIn64.E3 5UL) |> Stdlib.Test.equal(true)
-      (EEnumUIn64.E3 5UL != EEnumUIn64.E3 6UL) |> Stdlib.Test.equal(true)
+      (EEnumUIn64.E3(5UL) == EEnumUIn64.E3(5UL)) |> Stdlib.Test.equal(true)
+      (EEnumUIn64.E3(5UL) != EEnumUIn64.E3(6UL)) |> Stdlib.Test.equal(true)
       (EEnumInt32.E1 == EEnumInt32.E1) |> Stdlib.Test.equal(true)
       (EEnumInt32.E1 != EEnumInt32.E2) |> Stdlib.Test.equal(true)
-      (EEnumInt32.E3 5l == EEnumInt32.E3 5l) |> Stdlib.Test.equal(true)
-      (EEnumInt32.E3 5l != EEnumInt32.E3 6l) |> Stdlib.Test.equal(true)
+      (EEnumInt32.E3(5l) == EEnumInt32.E3(5l)) |> Stdlib.Test.equal(true)
+      (EEnumInt32.E3(5l) != EEnumInt32.E3(6l)) |> Stdlib.Test.equal(true)
       (EEnumUInt32.E1 == EEnumUInt32.E1) |> Stdlib.Test.equal(true)
       (EEnumUInt32.E1 != EEnumUInt32.E2) |> Stdlib.Test.equal(true)
-      (EEnumUInt32.E3 5ul == EEnumUInt32.E3 5ul) |> Stdlib.Test.equal(true)
-      (EEnumUInt32.E3 5ul != EEnumUInt32.E3 6ul) |> Stdlib.Test.equal(true)
+      (EEnumUInt32.E3(5ul) == EEnumUInt32.E3(5ul)) |> Stdlib.Test.equal(true)
+      (EEnumUInt32.E3(5ul) != EEnumUInt32.E3(6ul)) |> Stdlib.Test.equal(true)
       (EEnumInt16.E1 == EEnumInt16.E1) |> Stdlib.Test.equal(true)
       (EEnumInt16.E1 != EEnumInt16.E2) |> Stdlib.Test.equal(true)
-      (EEnumInt16.E3 5s == EEnumInt16.E3 5s) |> Stdlib.Test.equal(true)
-      (EEnumInt16.E3 5s != EEnumInt16.E3 6s) |> Stdlib.Test.equal(true)
+      (EEnumInt16.E3(5s) == EEnumInt16.E3(5s)) |> Stdlib.Test.equal(true)
+      (EEnumInt16.E3(5s) != EEnumInt16.E3(6s)) |> Stdlib.Test.equal(true)
       (EEnumUInt16.E1 == EEnumUInt16.E1) |> Stdlib.Test.equal(true)
       (EEnumUInt16.E1 != EEnumUInt16.E2) |> Stdlib.Test.equal(true)
-      (EEnumUInt16.E3 5us == EEnumUInt16.E3 5us) |> Stdlib.Test.equal(true)
-      (EEnumUInt16.E3 5us != EEnumUInt16.E3 6us) |> Stdlib.Test.equal(true)
+      (EEnumUInt16.E3(5us) == EEnumUInt16.E3(5us)) |> Stdlib.Test.equal(true)
+      (EEnumUInt16.E3(5us) != EEnumUInt16.E3(6us)) |> Stdlib.Test.equal(true)
       (EEnumInt8.E1 == EEnumInt8.E1) |> Stdlib.Test.equal(true)
       (EEnumInt8.E1 != EEnumInt8.E2) |> Stdlib.Test.equal(true)
-      (EEnumInt8.E3 5y == EEnumInt8.E3 5y) |> Stdlib.Test.equal(true)
-      (EEnumInt8.E3 5y != EEnumInt8.E3 6y) |> Stdlib.Test.equal(true) ])
+      (EEnumInt8.E3(5y) == EEnumInt8.E3(5y)) |> Stdlib.Test.equal(true)
+      (EEnumInt8.E3(5y) != EEnumInt8.E3(6y)) |> Stdlib.Test.equal(true) ])
 
 // aliases
 test enumAliases =
@@ -342,23 +342,23 @@ test optionsAndResults =
     [ (Stdlib.Option.Option.None == Stdlib.Option.Option.None)
       |> Stdlib.Test.equal(true)
       (Stdlib.Option.Option.None
-       != Stdlib.Option.Option.Some Stdlib.Option.Option.None)
+       != Stdlib.Option.Option.Some(Stdlib.Option.Option.None))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Option.Option.Some 5L == Stdlib.Option.Option.Some 5L)
+      (Stdlib.Option.Option.Some(5L) == Stdlib.Option.Option.Some(5L))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Option.Option.Some 5L != Stdlib.Option.Option.Some 6L)
+      (Stdlib.Option.Option.Some(5L) != Stdlib.Option.Option.Some(6L))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
-       != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 1L))
+      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0L))
+       != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(1L)))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
-       == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L))
+      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0L))
+       == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0L)))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Result.Result.Error 0L == Stdlib.Result.Result.Error 0L)
+      (Stdlib.Result.Result.Error(0L) == Stdlib.Result.Result.Error(0L))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Result.Result.Ok 0L == Stdlib.Result.Result.Ok 0L)
+      (Stdlib.Result.Result.Ok(0L) == Stdlib.Result.Result.Ok(0L))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Result.Result.Ok 0L != Stdlib.Result.Result.Error 0L)
+      (Stdlib.Result.Result.Ok(0L) != Stdlib.Result.Result.Error(0L))
       |> Stdlib.Test.equal(true) ])
 
 test floatEqualsInt64Raises =
@@ -502,14 +502,14 @@ test stdlibNotEquals =
 
 test unwrap =
   Stdlib.Test.all(
-    [ Stdlib.Option.Option.Some 5L |> Builtin.unwrap |> Stdlib.Test.equal(5L)
-      Stdlib.Result.Result.Ok true |> Builtin.unwrap |> Stdlib.Test.equal(true) ])
+    [ Stdlib.Option.Option.Some(5L) |> Builtin.unwrap |> Stdlib.Test.equal(5L)
+      Stdlib.Result.Result.Ok(true) |> Builtin.unwrap |> Stdlib.Test.equal(true) ])
 
 test unwrapNoneRaises =
   Stdlib.Option.Option.None |> Builtin.unwrap => raises "Cannot unwrap None"
 
 test unwrapErrorRaises =
-  Stdlib.Result.Result.Error 5L |> Builtin.unwrap
+  Stdlib.Result.Result.Error(5L) |> Builtin.unwrap
   => raises "Cannot unwrap Error: 5"
 
 test unwrapNonOptionRaises =

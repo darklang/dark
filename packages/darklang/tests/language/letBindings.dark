@@ -81,28 +81,28 @@ test shadowing =
        | x -> x)
       |> Stdlib.Test.equal(6L)
       (let x = 35L
-       match Stdlib.Result.Result.Ok 6L with
-       | Ok x -> x)
+       match Stdlib.Result.Result.Ok(6L) with
+       | Ok(x) -> x)
       |> Stdlib.Test.equal(6L)
       (let x = 35L
        Stdlib.List.map([ 1L, 2L, 3L, 4L ], fun x -> x + 2L))
       |> Stdlib.Test.equal([ 3L, 4L, 5L, 6L ])
       (let x = 35L
-       match Stdlib.Result.Result.Ok 6L with
-       | Ok x -> (Stdlib.List.map([ 1L, 2L, 3L, 4L ], fun x -> x + 2L)))
+       match Stdlib.Result.Result.Ok(6L) with
+       | Ok(x) -> (Stdlib.List.map([ 1L, 2L, 3L, 4L ], fun x -> x + 2L)))
       |> Stdlib.Test.equal([ 3L, 4L, 5L, 6L ])
       Stdlib.List.map([ 1L, 2L, 3L, 4L ], fun x ->
         (let x = 35L
-         match Stdlib.Result.Result.Ok 6L with
-         | Ok x -> x + 2L))
+         match Stdlib.Result.Result.Ok(6L) with
+         | Ok(x) -> x + 2L))
       |> Stdlib.Test.equal([ 8L, 8L, 8L, 8L ])
       Stdlib.List.map([ 1L, 2L, 3L, 4L ], fun x ->
-        match Stdlib.Result.Result.Ok 6L with
-        | Ok x -> let x = 9L in x + 2L)
+        match Stdlib.Result.Result.Ok(6L) with
+        | Ok(x) -> let x = 9L in x + 2L)
       |> Stdlib.Test.equal([ 11L, 11L, 11L, 11L ])
       Stdlib.List.map([ 1L, 2L, 3L, 4L ], fun x ->
-        (match Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok 6L) with
-         | Ok(Ok x) -> let x = 9L in x + 2L))
+        (match Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok(6L)) with
+         | Ok(Ok(x)) -> let x = 9L in x + 2L))
       |> Stdlib.Test.equal([ 11L, 11L, 11L, 11L ]) ])
 
 test wildcard =
@@ -132,7 +132,7 @@ test wildcardValueIsEvaluated =
 // The parser rejects _ in expression position because a wildcard does not bind a variable.
 test wildcardCannotBeRead =
   Darklang.LanguageTools.Parser.Parse.diagnostics("(let _ = 5L in _)")
-  |> Stdlib.List.map(fun (_, message) -> message)
+  |> Stdlib.List.map(fun((_, message)) -> message)
   |> Stdlib.Test.equal([ "expected an expression, found '_'" ])
 
 test nonTupleDestructuringRaises =
