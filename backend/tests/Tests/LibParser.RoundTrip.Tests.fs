@@ -2170,8 +2170,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "match, int list 2"
-      "match [1L, 2L, 3L] with\n| head :: tail ->\n \"pass\""
-      "match [1L, 2L, 3L] with\n| head :: tail -> \"pass\""
+      "match [1L, 2L, 3L] with\n| [head, ...tail] ->\n \"pass\""
+      "match [1L, 2L, 3L] with\n| [head, ...tail] -> \"pass\""
       []
       []
       []
@@ -3001,7 +3001,7 @@ two"""
     // name. This test executes the fn so we catch that case directly.
     tEvalSourceFileFn
       "fn decl containing a nested recursive fn (CLI/LSP path)"
-      "let myRev(list: List<Int64>): List<Int64> =\n  let helper(l: List<Int64>, acc: List<Int64>): List<Int64> =\n    match l with\n    | [] -> acc\n    | head :: tail -> helper(tail, Stdlib.List.prepend(acc, head))\n  helper(list, [])"
+      "let myRev(list: List<Int64>): List<Int64> =\n  let helper(l: List<Int64>, acc: List<Int64>): List<Int64> =\n    match l with\n    | [] -> acc\n    | [head, ...tail] -> helper(tail, Stdlib.List.prepend(acc, head))\n  helper(list, [])"
       (RT.DList(
         LibExecution.ValueType.int64,
         [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ]
