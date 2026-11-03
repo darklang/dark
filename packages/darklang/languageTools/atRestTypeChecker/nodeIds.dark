@@ -111,6 +111,7 @@ let children(node: Node): (Stdlib.Option.Option<Int64> * List<Node>) =
     | MPTuple(id, first, second, rest) ->
       (Some(id), patNodes(Stdlib.List.concat([ first, second ], rest)))
     | MPOr(_, alternatives) -> (Stdlib.Option.Option.None, patNodes(alternatives))
+    | MPAs(_, pattern, _) -> (Stdlib.Option.Option.None, patNodes([ pattern ]))
     | MPVariable(_, _)
     | MPUnit(_)
     | MPBool(_, _)
@@ -382,6 +383,7 @@ let visit(
       (Stdlib.List.prepend(ids, id),
        pushPats(rest, Stdlib.List.prepend(Stdlib.List.prepend(next, Node.MatchPattern(first)), Node.MatchPattern(second))))
     | MPOr(_, alternatives) -> (ids, pushPats(alternatives, next))
+    | MPAs(_, pattern, _) -> (ids, Stdlib.List.prepend(next, Node.MatchPattern(pattern)))
     | MPVariable(_, _)
     | MPUnit(_)
     | MPBool(_, _)

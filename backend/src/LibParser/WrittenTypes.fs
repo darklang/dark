@@ -227,6 +227,12 @@ type MatchPattern =
     tail : MatchPattern *
     symbolDots : Range
   | MPOr of Range * List<MatchPattern>
+  /// `pattern as name`: matches what `pattern` matches and binds the whole value
+  | MPAs of
+    Range *
+    pattern : MatchPattern *
+    symbolAs : Range *
+    name : (Range * string)
   /// Recovery hole where a pattern was expected but could not be parsed. The
   /// parse has a diagnostic at this range, and execution paths reject files with
   /// diagnostics before lowering.
@@ -256,6 +262,7 @@ let rec mpRange (p : MatchPattern) : Range =
   | MPList(r, _, _, _)
   | MPListCons(r, _, _, _)
   | MPOr(r, _)
+  | MPAs(r, _, _, _)
   | MPError r -> r
 
 type StringSegment =

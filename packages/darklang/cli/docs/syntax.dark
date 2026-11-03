@@ -28,8 +28,10 @@ yet: both are dropped when the nested fn becomes a local lambda.
 
 ## Match
   match x with
+  | Some(0) | None -> 0         // or-pattern
+  | Some(v) when v > 9 -> 9     // guard
   | Some(v) -> v
-  | None -> 0
+`docs pattern-matching` has every pattern form, `as` included.
 
 ## Result and Option unwrap
   let next(input: String): Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =

@@ -185,6 +185,13 @@ type MatchPattern =
   // CLEANUP: handle pipe symbols
   | MPOr of Range * List<MatchPattern>
 
+  /// `pattern as name`: matches what `pattern` matches and binds the whole value
+  | MPAs of
+    Range *
+    pattern: MatchPattern *
+    symbolAs: Range *
+    name: (Range * String)
+
   // A recovery hole where a pattern was expected but couldn't be parsed (the
   // parse carries a diagnostic at this range). Tooling renders around it; it
   // never reaches execution.

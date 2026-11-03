@@ -602,6 +602,15 @@ module MatchPattern =
         patterns ]
       |> Stdlib.List.flatten
 
+    | MPAs(_range, pattern, symbolAs, (nameRange, _name)) ->
+      [ // Some(_)
+        tokenize(pattern)
+        // as
+        [ makeToken(symbolAs, TokenType.Keyword) ]
+        // o
+        [ makeToken(nameRange, TokenType.VariableName) ] ]
+      |> Stdlib.List.flatten
+
 module Expr =
   module LetPattern =
     let tokenize(lp: WrittenTypes.LetPattern): List<SemanticToken> =

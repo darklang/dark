@@ -295,6 +295,9 @@ type MatchPattern =
 
   | MPOr of id * NEList<MatchPattern>
 
+  /// `pattern as name`: matches what `pattern` matches and also binds the whole value
+  | MPAs of id * pattern : MatchPattern * name : string
+
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr

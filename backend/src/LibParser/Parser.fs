@@ -1034,8 +1034,92 @@ and parseMatch (state : ParserState) (i : int) : WT.Expr * int =
 // A full match-arm pattern. Precedence, matching F#: `|` (or) is LOOSEST, then
 // `,` (tuple). So `1, 2 | 3, 4` is `(1,2) | (3,4)` — an or of
 // two tuples, NOT a 3-tuple with an or in the middle. Hence `|` is the OUTER
-// level here, wrapping tuples (`parsePatternTuple`).
+// level here, wrapping tuples (`parsePatternTuple`). `as` is looser still, so
+// `A | B as x` names the whole or-pattern.
 and parseMatchPattern (state : ParserState) (i : int) : WT.MatchPattern * int =
+  let (p, j) = parsePatternAs state (parseMatchPatternOr state i)
+  // `as` is loosest, so a ',' or '|' after it is a mistake. Report it, then read
+  // on as if the named part had been parenthesized, so nothing cascades.
+  let rec more (parts : List<WT.MatchPattern>) (k : int) =
+    if tok state k = tok state j then
+      let (q, k2) = parsePatternAs state (parsePatternTuple state (k + 1))
+      if k2 > k + 1 then more (q :: parts) k2 else (List.rev parts, k2)
+    else
+      (List.rev parts, k)
+  match p with
+  // `(a, b as t)` reads as naming `b`, but `as` is loosest so it would name the
+  // tuple. A bare tuple (no parentheses of its own) has zero-width paren ranges.
+  | WT.MPAs(_, WT.MPTuple(_, _, _, _, _, openP, closeP), _, _) when openP = closeP ->
+    errFull
+      state
+      DiagnosticCode.unexpected
+      (j - 2)
+      "'as' after a tuple's last element is ambiguous"
+      []
+      (Some
+        "write `((a, b) as t)` to name the tuple, or `(a, (b as t))` to name one element")
+    (p, j)
+  | WT.MPAs _ when tok state j = TComma ->
+    errFull
+      state
+      DiagnosticCode.unexpected
+      j
+      "'as' names the whole pattern before it, so a ',' cannot follow it here"
+      []
+      (Some "to name one element of a tuple, wrap it in parentheses: `((p as x), y)`")
+    match more [] j with
+    | (second :: rest, k) ->
+      let z = zeroWidthAtEnd (WT.mpRange p)
+      let last = Seq.last (second :: rest)
+      (WT.MPTuple(
+        span (WT.mpRange p) (WT.mpRange last),
+        p,
+        rng state j,
+        second,
+        rest |> List.map (fun r -> (rng state j, r)),
+        z,
+        z
+       ),
+       k)
+    | ([], k) -> (p, k)
+  | WT.MPAs _ when tok state j = TBar ->
+    errFull
+      state
+      DiagnosticCode.unexpected
+      j
+      "'as' names the whole or-pattern before it, so a '|' cannot follow it"
+      []
+      (Some "to name one alternative, wrap it in parentheses: `(p as x) | q`")
+    match more [] j with
+    | ([], k) -> (p, k)
+    | (alts, k) ->
+      (WT.MPOr(span (WT.mpRange p) (WT.mpRange (Seq.last alts)), p :: alts), k)
+  | _ -> (p, j)
+
+// `p as name`: matches what `p` matches and also binds the whole value to `name`.
+// `as` is not a keyword, only an identifier straight after a complete pattern, so
+// a variable can still be called `as`.
+and parsePatternAs
+  (state : ParserState)
+  ((p, j) : WT.MatchPattern * int)
+  : WT.MatchPattern * int =
+  match tok state j with
+  | TIdent "as" ->
+    let asR = rng state j
+    match tok state (j + 1) with
+    | TIdent name when
+      name.Length > 0 && (System.Char.IsLower name[0] || name[0] = '_')
+      ->
+      let nameR = rng state (j + 1)
+      parsePatternAs
+        state
+        (WT.MPAs(span (WT.mpRange p) nameR, p, asR, (nameR, name)), j + 2)
+    | _ ->
+      errExpected state (j + 1) "a lowercase name after 'as'"
+      (p, j + 1)
+  | _ -> (p, j)
+
+and parseMatchPatternOr (state : ParserState) (i : int) : WT.MatchPattern * int =
   let (first, j) = parsePatternTuple state i
   if tok state j <> TBar then
     (first, j)
@@ -1080,9 +1164,13 @@ and parsePatternTuple (state : ParserState) (i : int) : WT.MatchPattern * int =
      ),
      m)
 
-// or of base patterns, NO tuple — used for enum-ctor fields, where a bare `,`
-// separates FIELDS (`Case(a, b)` = two fields), not tuple elements.
+// or of base patterns, NO tuple — used for enum-ctor fields and list elements,
+// where a bare `,` separates FIELDS (`Case(a, b)` = two fields), not tuple
+// elements. A trailing `as name` names the whole field.
 and parsePatternOr (state : ParserState) (i : int) : WT.MatchPattern * int =
+  parsePatternAs state (parsePatternOrNoAs state i)
+
+and parsePatternOrNoAs (state : ParserState) (i : int) : WT.MatchPattern * int =
   let (first, j) = parsePatternBase state i
   if tok state j = TBar then
     let pats = System.Collections.Generic.List<WT.MatchPattern>()
@@ -1203,6 +1291,18 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
       match inner with
       | WT.MPTuple(_, first, comma, second, rest, _, _) ->
         (WT.MPTuple(span openP closeP, first, comma, second, rest, openP, closeP), p2)
+      // `(a, b as t)`, already reported: these parens are the tuple's, so the
+      // pattern around it does not report it again
+      | WT.MPAs(r, WT.MPTuple(tr, first, comma, second, rest, o, c), asR, name) when
+        o = c
+        ->
+        (WT.MPAs(
+          r,
+          WT.MPTuple(tr, first, comma, second, rest, openP, closeP),
+          asR,
+          name
+         ),
+         p2)
       | _ -> (inner, p2)
   | TLBracket ->
     let openB = rng state i
@@ -1230,8 +1330,11 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
       let (p, k2) =
         if bareRest then
           (WT.MPVariable(rng state k, "_"), k + 1)
+        elif isRest then
+          parsePatternBase state (k + 1)
         else
-          parsePatternBase state (if isRest then k + 1 else k)
+          // an element is a full field pattern: `[1 | 2]`, `[Some(_) as o]`
+          parsePatternOr state k
       if isRest then
         match p with
         | WT.MPVariable _ -> ()
@@ -1350,7 +1453,10 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
       // shape the author meant; the diagnostic is what makes it an error.
       let fieldPats = System.Collections.Generic.List<WT.MatchPattern>()
       let mutable k = j
-      while canStartPattern (tok state k) && offsideContinues state i k do
+      // `None as n` names the case; it is not a spaced field
+      while canStartPattern (tok state k)
+            && tok state k <> TIdent "as"
+            && offsideContinues state i k do
         let (p, k2) = parsePatternBase state k
         fieldPats.Add p
         if k2 > k then k <- k2 else k <- k + 1

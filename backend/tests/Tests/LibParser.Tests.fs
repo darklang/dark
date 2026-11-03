@@ -2096,6 +2096,19 @@ let private goldenDiagnosticsTests =
         [ "expected ']' to close the '[' at line 1:9, found end of file"
           "expected an expression, found end of file" ]
       golden "[1L; 2L]" [ "expected ',' between list elements, found ';'" ]
+      // `as` is looser than `,` and `|`, so naming one part needs parentheses
+      golden
+        "match x with | (a as y, b) -> y"
+        [ "'as' names the whole pattern before it, so a ',' cannot follow it here" ]
+      golden
+        "match x with | Ok(v) as r | Error(v) as r -> r"
+        [ "'as' names the whole or-pattern before it, so a '|' cannot follow it" ]
+      golden
+        "match x with | a as -> a"
+        [ "expected a lowercase name after 'as', found '->'" ]
+      golden
+        "match x with | (a, b as t) -> t"
+        [ "'as' after a tuple's last element is ambiguous" ]
       // Invalid tuple indices produce one diagnostic each.
       golden "t.1L" [ "expected a tuple element number after '.', found '1L'" ]
       golden

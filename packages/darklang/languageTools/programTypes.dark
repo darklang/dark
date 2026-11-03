@@ -172,6 +172,9 @@ type MatchPattern =
 
   | MPOr of ID * List<MatchPattern>
 
+  /// `pattern as name`: matches what `pattern` matches and binds the whole value
+  | MPAs of ID * pattern: MatchPattern * name: String
+
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr

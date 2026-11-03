@@ -316,6 +316,9 @@ module MatchPattern =
       let (finalContext, convertedPats) = pats |> foldMapContext toPT context
       (finalContext,
        PT.MPOr(gid (), NEList.ofListUnsafe "MatchPattern.toPT" [] convertedPats))
+    | WT.MPAs(_, inner, _, (_, name)) ->
+      let (context1, inner') = toPT context inner
+      (bindLocalName context1 name, PT.MPAs(gid (), inner', name))
     | WT.MPError _ ->
       // Parse-error holes cannot reach execution lowering. Callers reject
       // parses with diagnostics before this point.
@@ -335,6 +338,7 @@ module MatchPattern =
     | WT.MPList(_, contents, _, _) -> List.collect (fst >> qualifiedCases) contents
     | WT.MPListCons(_, head, tail, _) -> qualifiedCases head @ qualifiedCases tail
     | WT.MPOr(_, pats) -> List.collect qualifiedCases pats
+    | WT.MPAs(_, inner, _, _) -> qualifiedCases inner
     | _ -> []
 
 

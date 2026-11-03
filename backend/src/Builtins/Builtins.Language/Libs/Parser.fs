@@ -491,6 +491,17 @@ module WrittenTypesToDarkTypes =
         "MPOr",
         [ rangeToDT r; DList(mpListVT, List.map matchPatternToDT pats) ]
       )
+    | WT.MPAs(r, inner, asR, (nameR, name)) ->
+      DEnum(
+        t,
+        t,
+        [],
+        "MPAs",
+        [ rangeToDT r
+          matchPatternToDT inner
+          rangeToDT asR
+          rangedString nameR name ]
+      )
     | WT.MPError r -> DEnum(t, t, [], "MPError", [ rangeToDT r ])
 
   let rec exprToDT (e : WT.Expr) : Dval =

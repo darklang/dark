@@ -366,6 +366,10 @@ let writeMatchPattern (w : BinaryWriter) (pattern : PT.MatchPattern) =
   | PT.MPInt(_id, value) ->
     w.Write 21uy
     Common.String.write w (string value)
+  | PT.MPAs(_id, pattern, name) ->
+    w.Write 22uy
+    writeMatchPattern w pattern
+    Common.String.write w name
 
 
 // =====================

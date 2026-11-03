@@ -639,8 +639,10 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
     | [] -> "[]"
 
   | MPTuple(_, first, second, theRest) ->
+    // an or-pattern or `as` inside a tuple needs its own parentheses: `(1 | 2, x)`
+    // is an or of `1` and the tuple `(2, x)`
     (Stdlib.List.concat([ first, second ], theRest))
-    |> Stdlib.List.map(fun item -> matchPattern(item))
+    |> Stdlib.List.map(fun item -> matchPatternGrouped(item))
     |> Stdlib.String.join(", ")
     |> fun parts -> "(" + parts + ")"
 
@@ -656,9 +658,23 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
       $"{caseName}({fieldPart})"
 
   | MPOr(_id, patterns) ->
+    // `(p as x) | q`: unparenthesized, the `as` would name the whole or-pattern
     patterns
-    |> Stdlib.List.map(fun pat -> matchPattern(pat))
+    |> Stdlib.List.map(fun pat ->
+      match pat with
+      | MPAs(_, _, _) -> "(" + matchPattern(pat) + ")"
+      | _ -> matchPattern(pat))
     |> Stdlib.String.join(" | ")
+
+  | MPAs(_id, pattern, name) -> $"{matchPattern(pattern)} as {name}"
+
+/// A match pattern where it sits among commas, wrapped when it is an or-pattern
+/// or an `as`, which would otherwise take in the commas around it.
+let matchPatternGrouped(mp: LanguageTools.ProgramTypes.MatchPattern): String =
+  match mp with
+  | MPOr(_, _)
+  | MPAs(_, _, _) -> "(" + matchPattern(mp) + ")"
+  | _ -> matchPattern(mp)
 
 
 let binaryOperation(b: LanguageTools.ProgramTypes.BinaryOperation): String =

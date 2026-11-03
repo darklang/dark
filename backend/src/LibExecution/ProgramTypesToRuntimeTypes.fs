@@ -344,6 +344,10 @@ module MatchPattern =
     | PT.MPVariable(_, name) ->
       RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
 
+    | PT.MPAs(_, pattern, name) ->
+      let pattern, symbols, rc = toRT symbols rc pattern
+      RT.MPAs(pattern, rc), (symbols |> Map.add name rc), rc + 1
+
     | PT.MPOr(_, patterns) ->
       // Transform each pattern into a tuple containing:
       // - the converted pattern (to RT)
@@ -428,6 +432,13 @@ module MatchPattern =
             | RT.MPEnum(name, fields) ->
               RT.MPEnum(name, List.map updateRegisters fields)
             | RT.MPOr patterns -> RT.MPOr(NEList.map updateRegisters patterns)
+            | RT.MPAs(inner, reg) ->
+              let reg =
+                match Map.tryFindKey (fun _ v -> v = reg) symbolMap with
+                | Some varName ->
+                  Map.tryFind varName commonSymbolMapping |> Option.defaultValue reg
+                | None -> reg
+              RT.MPAs(updateRegisters inner, reg)
           updateRegisters pat)
 
       let patterns =
@@ -435,7 +446,14 @@ module MatchPattern =
           patternsWithConsistentRegisters.Head
           patternsWithConsistentRegisters.Tail
 
-      (RT.MPOr(patterns), commonSymbolMapping, maxRc)
+      // keep what was bound before this or-pattern, as in `(x, (1 | 2))`
+      let symbols =
+        Map.fold
+          (fun acc name reg -> Map.add name reg acc)
+          symbols
+          commonSymbolMapping
+
+      (RT.MPOr(patterns), symbols, maxRc)
 
 
 

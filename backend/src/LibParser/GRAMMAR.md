@@ -215,7 +215,9 @@ Expression forms include:
 - `let pat = e`, with optional `in`, and tuple/wildcard/unit patterns
 - nested function lets, `let f(x: T, y: U): R = …`
 - `if c then a [elif …] [else b]`, where `else` is optional
-- `match e with | pat [when g] -> body`
+- `match e with | pat [when g] -> body`, where a guard `when g` is any Bool
+  expression over the pattern's names, and an arm whose guard is false falls
+  through to the next
 - pipes
 - statement sequences, separated by newlines or `;`
 
@@ -295,7 +297,16 @@ Pattern forms:
   cons chain, so `[a, b, ...t]` is the same pattern as cons of `a` onto cons of
   `b` onto `t`. `...` takes a name, or nothing to ignore the rest (the same
   pattern as `..._`, and what the printer writes).
-- or-patterns `p1 | p2`
+- or-patterns `p1 | p2`, also inside a field or a list element: `Some(1 | 2)`,
+  `[1 | 2]`
+- `p as name`, which matches what `p` matches and also binds the whole value:
+  `| Some(_) as o`, `| [x, ...] as all`. It is the loosest pattern operator,
+  looser than `|`, so `A | B as x` names the whole or-pattern. Next to a
+  tuple's commas it needs parentheses either way: `| ((Some(_) as o), n)` names
+  one element, `| (a, b) as t` names the tuple, and `(a as x, b)` and
+  `(a, b as t)` are errors. A field or list element is its own slot:
+  `Some(x as y)`, `[a as b, c]`. `as` is not a keyword; it is only read this
+  way straight after a pattern, so a variable may still be called `as`.
 - enum patterns, fields in parentheses: `| Ok(x)`, `| Pair(a, b)`, `| None`. A
   tuple field is `| Some((a, b))`. The case may be qualified, `| Result.Ok(x)`;
   the qualifier must name a type, and the pattern matches the same values as

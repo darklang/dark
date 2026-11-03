@@ -1931,6 +1931,24 @@ module Patterns =
       "f")
     |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
 
+  // `p as x` covers what `p` covers, and x has the matched value's type.
+  test asPatterns =
+    Stdlib.Test.all(
+      [ check("let f(x: Bool): Bool = match x with | true as t -> t | false -> false", "f")
+        |> Stdlib.Test.equal("checked:")
+        check("let f(x: Int): Int = match x with | n as m -> n + m", "f")
+        |> Stdlib.Test.equal("checked:")
+        check(
+          "let f(x: Stdlib.Option.Option<Int>): Int = match x with | Some(y) as o -> y | None -> 0",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+        check(
+          "let f(x: Stdlib.Option.Option<Int>): Int = match x with | Some(_) as o -> 1",
+          "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+        check("let f(x: Int): String = match x with | n as m -> m", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
   // An Int is not a record: reject field access and record updates on it.
   test intIsNotRecord =
     Stdlib.Test.all(

@@ -79,6 +79,7 @@ module Hashing =
     // an or-pattern's alternatives bind the SAME variables: collect them once (first occurrence order)
     | PT.MPOr(_, pats) ->
       pats |> NEList.toList |> List.collect matchPatternVars |> List.distinct
+    | PT.MPAs(_, pat, name) -> matchPatternVars pat @ [ name ]
     | _ -> [] // literal patterns bind nothing
 
 
@@ -121,6 +122,12 @@ module Hashing =
     | PT.MPListCons(id, head, tail) ->
       PT.MPListCons(id, renameMatchPattern m head, renameMatchPattern m tail)
     | PT.MPOr(id, pats) -> PT.MPOr(id, NEList.map (renameMatchPattern m) pats)
+    | PT.MPAs(id, pat, name) ->
+      PT.MPAs(
+        id,
+        renameMatchPattern m pat,
+        Map.tryFind name m |> Option.defaultValue name
+      )
     | _ -> p // literal patterns have no names
 
 
