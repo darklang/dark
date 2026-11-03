@@ -12,15 +12,14 @@ let roundUp(a: Float): Int = Builtin.floatRoundUp(a)
 
 /// Round down to an integer value.
 /// Consider <fn Float.truncate> if your goal
-/// is to discard the fractional part of a number: {{Float.floor -1.9 == -2.0}}
-/// but {{Float.truncate -1.9 == -1.0}}
+/// is to discard the fractional part of a number: {{Float.floor(-1.9) == -2}}
+/// but {{Float.truncate(-1.9) == -1}}
 let floor(a: Float): Int = Builtin.floatFloor(a)
 
 
 /// Round down to an integer value.
 /// Consider <fn Float.truncate> if your goal is to discard the fractional part
-/// of a number: {{Float.floor -1.9 == -2.0}} but {{Float.truncate -1.9 ==
-/// -1.0}}
+/// of a number: {{Float.floor(-1.9) == -2}} but {{Float.truncate(-1.9) == -1}}
 let roundDown(a: Float): Int = Builtin.floatRoundDown(a)
 
 
