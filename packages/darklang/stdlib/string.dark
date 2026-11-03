@@ -464,10 +464,14 @@ let repeat(string: String, count: Int): String =
   Builtin.stringRepeat(string, count)
 
 
-/// Splits the given <param str> at each newline character and returns a list of substrings.
-/// If the <param str> is empty, it returns an empty list.
+/// Splits the given <param str> at each line ending (LF or CRLF) and returns a
+/// list of substrings. If the <param str> is empty, it returns an empty list.
 let splitOnNewline(str: String): List<String> =
-  if str == "" then [] else String.split(str, "\n")
+  // CRLF is one grapheme cluster, so `split` on "\n" never sees inside it.
+  if str == "" then
+    []
+  else
+    str |> String.replaceAll("\r\n", "\n") |> String.split("\n")
 
 
 /// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.

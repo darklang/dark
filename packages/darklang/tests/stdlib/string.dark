@@ -239,6 +239,14 @@ test lengthFastPath =
       Stdlib.String.length("a\r\nb") |> Stdlib.Test.equal(3)
       Stdlib.String.length("") |> Stdlib.Test.equal(0) ])
 
+test splitOnNewline =
+  Stdlib.Test.all(
+    [ Stdlib.String.splitOnNewline("") |> Stdlib.Test.equal([])
+      Stdlib.String.splitOnNewline("a\nb\n") |> Stdlib.Test.equal([ "a", "b", "" ])
+      Stdlib.String.splitOnNewline("a\r\nb\r\n")
+      |> Stdlib.Test.equal([ "a", "b", "" ])
+      Stdlib.String.splitOnNewline("a\r\nb\nc") |> Stdlib.Test.equal([ "a", "b", "c" ]) ])
+
 test split =
   Stdlib.Test.all(
     [ Stdlib.String.split("hello world", "notfound")
