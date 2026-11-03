@@ -1,9 +1,8 @@
-/// A list you move through and choose from: documents, export formats, branches, views.
+/// A list you move through and choose from: branches, views, choices.
 ///
 /// A `UI.Widget` over *display lines*, not over items. The parent keeps its own list and gets back an
-/// index, which is what lets this be one widget rather than one per element type. (The outliner's private
-/// picker was generic over the item and carried a parallel list of labels, because the labelling function
-/// couldn't be stored in retained state. Holding the strings only is simpler and has the same effect.)
+/// index, which is what lets this be one widget rather than one per element type. A labelling function
+/// can't be stored in retained state, so the widget holds the strings only.
 ///
 /// Scrolling keeps the selection in view without pinning it to the bottom of the pane: the window moves
 /// only when the selection would leave it.

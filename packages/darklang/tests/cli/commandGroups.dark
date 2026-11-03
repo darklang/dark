@@ -5,9 +5,8 @@ module Darklang.Cli.Tests.CommandGroups
 // so the two drift in both directions and neither drift says anything out loud.
 //
 // A command in no group still appears in `dark help`, swept into an unnamed "Other:" bucket
-// that reads as a rendering accident rather than a category, and it does NOT appear on the
-// welcome screen at all, because `getCompactCommandList` only walks the groups. Six commands
-// were in that state: config, install-status, test, find-values, serve and outliner.
+// that reads as a rendering accident rather than a category. Six commands were in that state
+// at one point.
 //
 // The other direction is quieter. `formatCommandGroup` filterMaps over the names, so a group
 // naming a command that was renamed or removed just prints one line fewer.
@@ -24,7 +23,7 @@ module Groups =
     |> Stdlib.List.map(fun (_name, cmdNames) -> cmdNames)
     |> Stdlib.List.flatten
 
-  /// Registered, but in no group: these print under "Other:" and never on the welcome screen.
+  /// Registered, but in no group: these print under "Other:".
   let ungrouped(): List<String> =
     let g = grouped()
     registered() |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(Stdlib.List.contains(g, n)))

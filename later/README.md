@@ -4,7 +4,7 @@ Code that is not part of the product right now.
 
 Everything in here was moved out of the live tree during the molt, with its original repo path
 preserved underneath, so `git mv later/<path> <path>` puts a WHOLE FILE back exactly where it was.
-That is most of the directory but not all of it: 117 files are fragments carved out of files that
+That is most of the directory but not all of it: 127 files are fragments carved out of files that
 are still live, which come back by hand, and a few things were DELETED rather than moved, for which
 only `git log` has the content. Both exceptions are spelled out below. Nothing in here is built,
 loaded, tested or linted:
@@ -27,17 +27,19 @@ traps that are specific to this directory rather than to the code in it.
 
 ## What is in here
 
-476 files are tracked, and 4,426 files sit under `vscode-extension/` on disk of which only 65
+498 files are tracked, and 4,426 files sit under `vscode-extension/` on disk of which only 65
 are tracked: 4,096 of the untracked ones are its `node_modules`, which came along for the ride
 because the directory moved as a directory. Tracked, by area:
 
-    packages/             295 files   Dark code. The big one.
-    backend/               86 files   F#: three LibCloud modules, the Wasm project, the builtins
+    packages/             308 files   Dark code. The big one.
+    backend/               93 files   F#: three LibCloud modules, the Wasm project, the builtins
                                       whose only Dark wrapper left, and carved fragments.
     vscode-extension/      65 files   the VS Code extension's own source.
-    scripts/               13 files   the sync gates, the two relay hand tools, the demo script,
-                                      and two superseded test harnesses.
-    docs/                   5 files   three are fragments of pages that are still live.
+    scripts/               14 files   the sync gates, the two relay hand tools, the demo script,
+                                      two superseded test harnesses, and an expect fixture that
+                                      typed into the old prompt.
+    docs/                   6 files   three are fragments of pages that are still live; one is
+                                      the browser build's concurrency demo.
     experiments/            4 files
     user-code/              3 files
     .vscode/                2 files   the extension's launch and task configs.
@@ -55,6 +57,7 @@ relay), `cli/` (the commands and views that went with it), `scm/` (bundles, and 
 attribution helpers), `opml/`, `vscode/`, `languageServerProtocol/` and `lsp-extensions/`,
 `modelContextProtocol/` and `internal-mcp-server/`, `llm/`, `discord.dark`, `tailscale.dark`,
 `wip/`, `tests/` (see below), plus `packages/stachu/` and `packages/feriel/` entire.
+`cli/outliner/` is the whole outliner app (see "The molt-mvp pass" below).
 
 ### `packages/darklang/tests/` and the package-test port
 
@@ -78,14 +81,37 @@ The fragments carved out of ported tests sit beside the ported file, not the old
 `tests/cli/outliner.dark.formats`, `tests/stdlib/altJson.dark.integer-callers`,
 `tests/languageTools/atRestTypeChecker.dark.lsp-diagnostics`.
 
+### The molt-mvp pass (2026-11-02)
+
+Three things came in after the molt, all grep-able as `WHEN: the molt-mvp pass`:
+
+- **The outliner**, whole: `packages/darklang/cli/outliner/` (app, commands, core, editor, main,
+  store, next-steps.md) and `packages/darklang/tests/cli/outliner.dark`, at their original paths.
+  `cli/registry.dark.outliner` carries the registry rows, the help-group entry, the
+  `screenCommands` entry, and the `CliSurface.Tests.fs` exclusion that must come back with them.
+  The test file's `TextField`, `Picker` and `Confirm` modules test stdlib widgets and are ALSO
+  live, as `packages/darklang/tests/stdlib/cli/widgets.dark`; drop them from a restored copy or
+  they run twice. The older export-import fragments beside the app are unchanged.
+- **`backend/src/db-runtime-errors`**: the `SqlCompiler` and `DBSetOfWrongType` runtime errors,
+  in F#, in the Dark mirror and in the pretty-printer. `DB.fs` and `UserDB.fs` in here raise them,
+  so restoring user DBs needs this fragment too.
+- **`docs/browser-concurrency-demo.dark`**: the demo the browser build's `eval.html` names. A
+  whole file.
+- **`scripts/testing/fixtures/test-interactive.expect`**: typed `help` and `quit` into the old
+  prompt. Nothing ran it. A whole file.
+
+The same pass DELETED the workbench's ways down to the old prompt (`p`, `:prompt`, `:classic`,
+`:commands`, the `ToPrompt` / `LaunchPrompt` actions, the `p prompt` hint) rather than carving
+them here, because the decision was to abandon them. `git log` has them.
+
 ## Two kinds of thing in here, and only one of them is easy
 
 **A whole file at its original path.** `git mv` restores it and there is nothing to read. Most of
 the directory is this.
 
 **A fragment**, at `later/<original path>.<topic>`: a piece carved out of a file that is still
-live, because what left was interleaved with something that stays. There are 103 of them. One
-(`later/backend/src/user-db-loading`) holds two separate carves, so 104 in all, and four carry a
+live, because what left was interleaved with something that stays. There are 127 of them. One
+(`later/backend/src/user-db-loading`) holds two separate carves, so 128 in all, and four carry a
 `MOVED:` header instead of a `RESTORE:` one. Nineteen do not sit beside a live file at
 all: they have synthetic extensionless paths (`later/packages/darklang/commit-author-param`,
 `later/backend/src/user-db-loading`) because they cover several source files at once, so looking

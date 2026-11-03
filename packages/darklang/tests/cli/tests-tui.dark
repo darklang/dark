@@ -595,15 +595,14 @@ type WbAction =
   | Continued
   | Exited
   | Launched of command: String
-  | Prompted
 
 type WbResult =
   { state: Darklang.Cli.Workbench.State
     action: WbAction }
 
 /// One keypress through the workbench's dispatcher in a plain-view context.
-/// Keep the action beside the state: encoding Exit/Prompt as a fake status
-/// message hid an unexpected Launch or ToPrompt.
+/// Keep the action beside the state: encoding Exit as a fake status
+/// message hid an unexpected Launch.
 let wbPress(
   state: Darklang.Cli.Workbench.State,
   key: Stdlib.Cli.Stdin.Key.Key,
@@ -614,7 +613,6 @@ let wbPress(
   | Continue s -> WbResult { state = s, action = WbAction.Continued }
   | Exit s -> WbResult { state = s, action = WbAction.Exited }
   | Launch(s, cmd) -> WbResult { state = s, action = WbAction.Launched cmd }
-  | ToPrompt s -> WbResult { state = s, action = WbAction.Prompted }
 
 /// A printable key.
 let wbChar(state: Darklang.Cli.Workbench.State, c: String): WbResult =

@@ -453,7 +453,7 @@ let executeBranchPreview(state: AppState, branchRef: String): AppState =
 
 let help(_state: AppState): String =
   [ ""
-    "A conflict is recorded when a merge, rebase or sync-import finds that BOTH"
+    "A conflict is recorded when a merge or rebase finds that BOTH"
     "sides moved the same name since the base they last agreed on. It never"
     "blocks: the fold picks the later version, keeps the loser in the record,"
     "and leaves the call to you."

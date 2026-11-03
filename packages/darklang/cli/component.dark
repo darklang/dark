@@ -28,8 +28,6 @@ type Step<'s> =
   | Exit of 's
   /// Hand off to a foreground command; the CLI returns to this page (at this state) when it exits.
   | Launch of 's * String
-  /// Drop to the classic prompt, pushing this page so `quit` there comes back here.
-  | ToPrompt of 's
 
 type Component<'s> =
   { /// The complete view at a given terminal size. Must be pure: the renderer may call it to diff frames,
@@ -111,8 +109,6 @@ let toSubApp(c: Component<'s>, session: Session<'s>): Cli.SubApp =
             (Cli.SubAppAction.Exit, toSubApp(c, handOff(session, next)))
           | Launch(next, command) ->
             (Cli.SubAppAction.LaunchCommand command, toSubApp(c, handOff(session, next)))
-          | ToPrompt next ->
-            (Cli.SubAppAction.LaunchPrompt, toSubApp(c, handOff(session, next)))
       // The session presents on launch and on every state transition, so the returned SubApp carries the
       // matching renderer history. Nothing is drawn here.
       onDisplay = fun () -> ()

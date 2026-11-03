@@ -200,7 +200,6 @@ module Topics =
               "merge"
               "rebase"
               "conflicts"
-              "sync"
               "constraints"
               "draft"
               // NOT "ops" -- `operators` already claims that alias, and `findTopic` resolves in list

@@ -282,7 +282,7 @@ let private hintRowKeepsTheWayOut =
         let! wide = runCli state [ "eval"; lastRow 168 ]
         Expect.stringContains
           wide
-          "prompt"
+          "views"
           "the full row advertises the secondary keys too"
 
         // Narrow enough that something has to go. Single words, not "? help": the key
@@ -299,7 +299,7 @@ let private hintRowKeepsTheWayOut =
           "move"
           "the pane's own actions outlive the secondary globals"
         Expect.isFalse
-          (narrow.Contains "prompt")
+          (narrow.Contains "views")
           "and a secondary global is what gave way to fit them"
 
         // Narrower still: actions start giving way, but never the escape hatches.
@@ -575,7 +575,6 @@ let private notSweepable =
       "update" // ditto, and fetches a build
       "install-status" // reports on the machine's install, which the harness is not
       "serve" // binds a port and blocks
-      "outliner" // takes over the screen
       "typecheck" // audits every declaration; swept with a module in CliJson.Tests.fs
       "export-seed" // takes its argument as a path and writes a multi-MB database there
       "clear" ] // clears the screen, taking the sweep's own output with it

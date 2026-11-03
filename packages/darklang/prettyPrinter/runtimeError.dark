@@ -12,8 +12,6 @@ type LetPattern = LanguageTools.RuntimeTypes.LetPattern
 // </aliases>
 
 module RuntimeError =
-  /// Human-facing context for a structured SQL compiler error.
-  val sqlErrorPrefix = "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
 
   /// Error pretty printing
   /// ---------------
@@ -631,42 +629,6 @@ module RuntimeError =
           ES.FullValue returnedValue
           ES.String ". A main function is not called automatically: finish with `main(args)` to call it. See `dark docs scripts`." ]
 
-    | SqlCompiler errMsg ->
-      // Older serialized errors already contain the preamble.
-      if Stdlib.String.startsWith(errMsg, sqlErrorPrefix) then
-        [ ES.String errMsg ]
-      else
-        [ ES.String (sqlErrorPrefix + errMsg) ]
-
-    // Usually a row type that changed after the datastore was made: the datastore is bound to the
-    // version it was made with, and both versions go by the same name, so each side says its version.
-    | DBSetOfWrongType (expected, actual) ->
-      let expectedHash =
-        match expected with
-        | TCustomType(nr, _) ->
-          match nr.resolved with
-          | Ok(Package(Hash h)) -> Stdlib.Option.Option.Some h
-          | _ -> Stdlib.Option.Option.None
-        | _ -> Stdlib.Option.Option.None
-
-      let actualHash =
-        match actual with
-        | Known(KTCustomType(Package(Hash h), _)) -> Stdlib.Option.Option.Some h
-        | _ -> Stdlib.Option.Option.None
-
-      let version(h: Stdlib.Option.Option<String>): String =
-        match h with
-        | Some h -> $" (version {Stdlib.String.slice(h, 0, 8)})"
-        | None -> ""
-
-      [ ES.String "This datastore holds "
-        ES.TypeReference expected
-        ES.String (version(expectedHash))
-        ES.String " and was given "
-        ES.ValueType actual
-        ES.String (version(actualHash))
-        ES.String ". If that type changed after the datastore was made, the datastore is still on the old version: `dark status` says which" ]
-
     | UncaughtException (msg, metadata) ->
       let withMetadata =
         match metadata with
@@ -684,13 +646,6 @@ module RuntimeError =
 
     // Its own sentence and nothing else: it is a refusal, written for whoever ran the command.
     | Condition message -> [ ES.String message ]
-
-    // CLEANUP when we bring lambda->sql compilation back
-    // | SqlCompilerRuntimeError err ->
-    //   let sqlErrorTemplate =
-    //     "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
-    //   let innerOutput = toSegments err
-    //   { innerOutput with summary = Stdlib.List.concat [ (ES.String sqlErrorTemplate) ] innerOutput.summary }
 
     | unhandled ->
       let serialized = Stdlib.Json.serialize<LanguageTools.RuntimeTypes.RuntimeError.Error>(unhandled)

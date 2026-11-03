@@ -1,0 +1,24 @@
+// RESTORE: packages/darklang/cli/registry.dark
+// WAS: the `outliner` command (alias `tree-exp`): its row in Registry.allCommands, its
+//      argument grammar, its place in the Utilities help group, and its entry in
+//      `screenCommands`, the list of commands the workbench's `:` bar launches as a page
+//      rather than capturing.
+// ANCHOR: acceptsOutliner sat between acceptsDelete and acceptsExportSeed. The row sat
+//      between ("delete", ...) and ("export-seed", ...). In commandGroups, "outliner" sat
+//      between "workbench" and "backups" in the Utilities group. `screenCommands` was
+//      `[ "outliner" ]` and is `[]` now.
+// ALSO: later/packages/darklang/cli/outliner/ (the app itself: app, commands, core, editor,
+//       main, store, next-steps.md, plus the export-import fragments already there).
+// ALSO: later/packages/darklang/tests/cli/outliner.dark (its tests). Its TextField, Picker
+//       and Confirm modules test stdlib widgets and are ALSO live, in
+//       packages/darklang/tests/stdlib/cli/widgets.dark: drop them from the restored copy.
+// ALSO: backend/tests/Tests/CliSurface.Tests.fs lost `"outliner" // takes over the screen`
+//       from `notSweepable`. Put it back with the row, or the CLI sweep RUNS the outliner,
+//       which takes over the screen.
+// ALSO: the `dark docs cli` line `outliner          the interactive tree outliner`, under
+//       "The full-screen experience", after `workbench`.
+// WHEN: the molt-mvp pass, 2026-11-02
+
+  let acceptsOutliner(): Accepts.Accepts = (Accepts.subcommands([ ("ls", Accepts.nothing()), ("show", Accepts.between(1, 1, [])), ("add", Accepts.text(2)) ], Accepts.nothing()))
+
+      ("outliner", "Interactive tree outliner", [ "tree-exp" ], acceptsOutliner, Outliner.App.execute, Outliner.App.help, Outliner.App.complete)

@@ -3,7 +3,7 @@
 /// A `UI.Widget`, so it draws into whatever region its parent gives it and hands the parent a message when
 /// the user is done. Everything about it is pure; the caller owns the state.
 ///
-/// It replaces the outliner's private `TextEditor`, which had two bugs this doesn't:
+/// It avoids two bugs an earlier private `TextEditor` had:
 ///
 /// - It advanced the cursor by one per keystroke, on the assumption that a keypress is one character. A
 ///   paste (or a multi-byte read) arrives as a chunk, so `abcdef` followed by `X` produced `aXbcdef`.

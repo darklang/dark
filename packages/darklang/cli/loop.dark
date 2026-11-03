@@ -245,7 +245,6 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
         { state with currentPage = resumed, pageStack = rest }
       | [] ->
         // The workbench is the experience: leaving it leaves the CLI, no classic-prompt fallback.
-        // (The classic prompt is only reachable via DARK_CLASSIC=1 at launch.)
         { state with isExiting = true }
     | LaunchCommand cmd ->
       // Release this app's surface before the replacement command takes ownership, and push this page so the
@@ -304,13 +303,6 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
         else
           { launched with currentPage = resumed }
       | _ -> launched
-    | LaunchPrompt ->
-      // Drop to the classic prompt, pushing this page. Stopping the session releases the alternate screen so
-      // the inline prompt renders in normal scrollback; `quit` there pops back (see Quit.execute).
-      newApp.onTerminate()
-      { state with
-          pageStack = Stdlib.List.prepend(state.pageStack, Page.SubApp newApp)
-          currentPage = Page.MainPrompt }
 
 
 /// The most a single coalesced burst may be applied. See the fold in `applyKeyRead`.

@@ -136,7 +136,6 @@ let hintsForView(state: State, width: Int): String =
   // Pane movement only applies when a preview exists.
   let hasPreview = hasDetailPane(state)
   let paneHint = if hasPreview then [ ("←→", "pane") ] else []
-  // `p` earns a slot here: it's the way out to the prompt, and an escape hatch nobody can see isn't one.
   // Split by what a person cannot do without: `?` opens the keymap and `q` leaves; everything else on
   // this row is discoverable THROUGH `?`, so everything else can give way on a narrow terminal.
   //
@@ -147,14 +146,12 @@ let hintsForView(state: State, width: Int): String =
   let backHint =
     let label = backLabel(state)
     if label == "" then [] else [ ("esc", "← " + label) ]
-  let secondaryGlobal = [ ("S", "branches"), ("/", "search"), (":", "cmd"), ("p", "prompt"), ("`", "views") ]
+  let secondaryGlobal = [ ("S", "branches"), ("/", "search"), (":", "cmd"), ("`", "views") ]
   let ctx =
     if navbarFocused(state) then
       // The arrows follow the nav's shape: along the strip, down the overlay
       // (see `handleNavbarKey`). The strip shows each workspace's number, so
       // the row doesn't repeat `1-9`; the overlay does the same.
-      // `p prompt` lives in secondaryGlobal already; repeating it here printed the footer's one
-      // duplicate entry.
       let (walk, leave) =
         if navFits(width) then (("←→", "move"), ("↓", "to view"))
         else (("↑↓", "move"), ("→", "to view"))
@@ -211,13 +208,9 @@ let hintsForView(state: State, width: Int): String =
       | None -> Stdlib.List.prepend(backHint, ("↑↓", "move"))
   // Fitted rather than concatenated. The droppable run is ordered cheapest-last, so this view's own actions
   // outlive the secondary global keys, and `?`/`q` outlive everything.
-  // Home already lists `s switch branch`, so `S branches` would repeat it. Traces takes `p` for
-  // the pin, so the global `p prompt` must not also be offered there: two meanings in one footer
-  // is worse than one missing hint, and `:` is still on the line.
+  // Home already lists `s switch branch`, so `S branches` would repeat it.
   let globals =
     if view == vHome then secondaryGlobal |> Stdlib.List.filter(fun pair -> let (k, _l) = pair in k != "S")
-    else if view == vTraces then
-      secondaryGlobal |> Stdlib.List.filter(fun pair -> let (k, _l) = pair in k != "p")
     else secondaryGlobal
   Frame.formatHintsFitted(Stdlib.List.concat(ctx, globals), essential, width)
 
@@ -233,10 +226,7 @@ val helpGroups =
     ("Home", "⏎ open / switch to the row's branch   c commit   b new branch   s choose branch   m merge   r rebase   x delete branch")
     ("Changes", "⏎ source   c commit   x discard   o/t/a resolve the conflict under the cursor")
     ("Traces", "⏎ open   r resume   p pin   x delete   f filter   E errors   P processes")
-    ("Search", "↑↓ move   ⏎ jump   esc close")
-    // Last, and spelled out, because it's the way back to the pre-workbench CLI. Anything you could type at
-    // the prompt runs from the `:` bar; `p` hands you the prompt itself.
-    ("Prompt", "p drops to the command prompt, except on Traces where it pins (quit returns here)   : runs one command without leaving") ]
+    ("Search", "↑↓ move   ⏎ jump   esc close") ]
 
 /// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
 let renderHelpOverlay(screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =

@@ -273,8 +273,6 @@ type Step =
   /// Hand off to a foreground command (e.g. a full-screen app opened from the Apps view). The CLI pushes the
   /// workbench and returns to it when that command's page exits. Carries the workbench State to return to.
   | Launch of State * String
-  /// Drop to the classic prompt (`:classic`), pushing the workbench so `quit` there returns here.
-  | ToPrompt of State
 
 /// Keyboard and scrolling behavior, independent of a view's drawing style.
 type ViewBehavior =

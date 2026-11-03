@@ -1,8 +1,7 @@
 /// The stdlib traits the arithmetic and comparison operators are.
 ///
 /// `a + b` is `Stdlib.Add.add a b`: the lowering emits the trait method, the checker
-/// asks for an `Add` impl of the operand type, and the query compiler pushes it down
-/// as its SQL operator. The trait hashes come from
+/// asks for an `Add` impl of the operand type. The trait hashes come from
 /// `PackageRefs`, so a tree whose refs are not generated yet (CI before the first
 /// reload) lowers to the polymorphic builtin.
 module LibExecution.NumericTraits

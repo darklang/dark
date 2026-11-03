@@ -388,22 +388,6 @@ let private parserStructureTests =
           | other -> failtest $"test decl: {other}"
         | other -> failtest $"test decl: {other}")
 
-      testCase "raises does not infer SQL errors from message text" (fun _ ->
-        let parsed =
-          P.parse
-            "module M =\n  test badQuery =\n    1\n    => raises \"SQL compiler error: unsupported\""
-        Expect.isEmpty parsed.diagnostics "no diagnostics"
-        match parsed.parsed with
-        | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
-          match m.declarations with
-          | [ WT.DTest test ] ->
-            Expect.equal
-              (test.expectedError |> Option.map snd)
-              (Some(WT.RuntimeError "SQL compiler error: unsupported"))
-              "raises remains a runtime-error assertion"
-          | other -> failtest $"test decl: {other}"
-        | other -> failtest $"test decl: {other}")
-
       testCase
         "tests use existing policies instead of declaring effect ceilings"
         (fun _ ->
@@ -1201,14 +1185,6 @@ let private validationTests =
             (validationIssues Validation.Test sf)
             "test classification accepts the same tree"
         | None -> failtest "parser returned no tree")
-      // `[<DB>]` is no longer a thing the parser knows: user datastores are gone, so the
-      // attribute is an ordinary unrecognised token sequence rather than a declaration form
-      // with its own validation rules.
-      testCase "the [<DB>] attribute no longer parses as a declaration" (fun _ ->
-        let result = P.parse "[<DB>] type Items = String"
-        Expect.isNonEmpty
-          result.diagnostics
-          "[<DB>] is refused rather than quietly accepted")
       testCase
         "test classification rejects bare expressions and script lets"
         (fun _ ->
@@ -1870,24 +1846,6 @@ let private lexicalFailureTests =
       mustDiagnose "empty lambda parameter list" "fun -> 1L"
       mustDiagnose "empty module body" "module X =\nlet y = 1L"
       mustDiagnose "anonymous record" "{ a = 1L }"
-      // `[<DB>]` used to be a declaration form with shape rules of its own. User datastores
-      // are gone, so it is now exactly as special as any other unrecognised attribute:
-      // recovery diagnostics, and the type declaration behind it still lands. Asserted as an
-      // EQUIVALENCE rather than a diagnostic count, because the count belongs to how recovery
-      // happens to work and would fail this for the wrong reason when that changes.
-      testCase "the [<DB>] attribute is no longer special" (fun _ ->
-        // Recovery names the offending token, so the attribute's own name appears in one
-        // message. Substituting it is what makes the two comparable; without that the
-        // lists differ for a reason that has nothing to do with DB being special.
-        let messages (attr : string) =
-          (P.parse $"[<{attr}>] type Counter = Int").diagnostics
-          |> List.map (fun d -> d.message.Replace(attr, "<attr>"))
-        let db = messages "DB"
-        Expect.isNonEmpty db "[<DB>] is refused"
-        Expect.equal
-          db
-          (messages "Nonsense")
-          "[<DB>] is refused the same way any other unrecognised attribute is")
       mustDiagnose
         "misaligned match arm"
         "match x with\n  | Some x -> x\n    | None -> 0L"

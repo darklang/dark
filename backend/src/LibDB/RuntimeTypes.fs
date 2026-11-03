@@ -232,10 +232,7 @@ module Bytes =
   /// materialised Dval in `package_values.rt_dval`. Returns the count
   /// of rows deleted.
   ///
-  /// Scans `package_values`, and conservatively retains hashes mentioned in
-  /// User DB JSON at deletion time. A matching ordinary string can retain an
-  /// extra blob, but a nested blob reference can never be swept as an orphan.
-  /// `trace_data` needs its own reference-collection pass.
+  /// Scans `package_values`. `trace_data` needs its own reference-collection pass.
   ///
   /// Idempotent: re-running after a clean sweep deletes nothing. Safe
   /// to run while the system is live — worst-case race is a concurrent
@@ -278,7 +275,6 @@ module Bytes =
       let orphans =
         allHashes |> List.filter (fun h -> not (Set.contains h referenced))
 
-      // User-DB rows used to hold blob references too; they left with user DBs.
       let mutable deleted = 0L
       for h in orphans do
         let! count =

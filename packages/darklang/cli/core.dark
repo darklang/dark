@@ -13,8 +13,6 @@ type SubAppAction =
   | Exit
   /// Hand off to another command (e.g. a browser launching a foreground app), replacing this page.
   | LaunchCommand of String
-  /// Drop to the classic prompt, pushing this page so `quit` there returns here instead of leaving the CLI.
-  | LaunchPrompt
 
 type SubApp =
   { onKey: Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> (SubAppAction * SubApp)
@@ -296,5 +294,3 @@ module View =
 
   let formatSuccess(message: String): String =
     Stdlib.Cli.UI.Colors.success(message)
-
-  let formatWelcome(): String = Registry.getCompactCommandList()

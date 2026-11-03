@@ -1620,7 +1620,7 @@ and BuiltInParam =
 
 
 /// A lambda's captured values (`ApplicableLambda.closedRegisters`) as a list, for the cold
-/// places that build or read them that way: conversion to Dark values, the query compiler, tests.
+/// places that build or read them that way: conversion to Dark values, tests.
 module Captures =
   let ofList (captures : List<Register * Dval>) : (struct (Register * Dval))[] =
     captures |> List.map (fun (r, v) -> struct (r, v)) |> Array.ofList
@@ -2016,19 +2016,7 @@ module RuntimeError =
 
     | CLI of CLIs.Error
 
-    | DBSetOfWrongType of expected : TypeReference * actual : ValueType
-
     | Statement of Statements.Error
-
-    /// Raw SQL query-compiler message; the error printer adds context.
-    | SqlCompiler of errMsg : string
-
-    // punting these until DBs are supported again
-    // - bring back this RTE where/when relevant "Attempting to access field '{fieldName}' of a Datastore (use `DB.*` standard library functions to interact with Datastores. Field access only work with records)"
-    // - in the old SqlCompiler.fs (gone with the cloud world):
-    //   - 1223: | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
-    //   - 1224: // return Error(RuntimeError.oldError (errStr + $"\n\nIn body: {body}"))
-    //   - | SqlCompiler of SqlCompiler.Error // -- or maybe this should happen during PT2RT? hmm.
 
 
     /// Sometimes, very-unexpected things happen. This is a catch-all for those.
@@ -4088,8 +4076,8 @@ and ExecutionState =
     ///
     /// Orphan reclaim TODOs (persistent blobs only):
     ///   - `package_blobs` orphan reclaim runs via the `pm-sweep-blobs`
-    ///     CLI command, which scans `package_values.rt_dval` and retains hashes
-    ///     mentioned by User DB JSON. Trace blobs still need a collection pass;
+    ///     CLI command, which scans `package_values.rt_dval`. Trace blobs still
+    ///     need a collection pass;
     ///     any new referencing table needs wiring into the sweep.
     ///     TODO turn the sweep into "scan a list of (table, column)
     ///     pairs" defined alongside the schema so new blob-holding

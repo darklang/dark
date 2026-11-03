@@ -18,7 +18,7 @@
 ///    `Layout.vstack` - isn't done anywhere yet, so there's no `node`/`size` here: it would be a seam
 ///    nothing has pulled on. Add it when something needs it.)
 /// 2. `onKey` can answer `Ignored`. A child gets first refusal on every key and the parent handles what's
-///    left. That's what lets the outliner's editor own Tab and the outliner itself own `/`, without the
+///    left. That's what lets an editor child own Tab and its parent own `/`, without the
 ///    parent having to know the child is mid-edit (it used to peek at `editor.editing` to decide).
 ///
 /// A child talks upward by *emitting a message*, never by having its state read: `Emitted (state, msg)`
