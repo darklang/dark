@@ -695,6 +695,7 @@ type MatchPattern =
   | MPEnum of caseName : string * fields : List<MatchPattern>
   | MPVariable of Register
   | MPOr of NEList<MatchPattern>
+  | MPAs of MatchPattern * Register
 
 
 type StringSegment =

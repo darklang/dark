@@ -55,10 +55,12 @@ let render(missing: Missing): String =
 let alternatives(pattern: LanguageTools.ProgramTypes.MatchPattern): List<LanguageTools.ProgramTypes.MatchPattern> =
   match pattern with
   | MPOr(_, options) -> Stdlib.List.flatten(Stdlib.List.map(options, alternatives))
+  | MPAs(_, inner, _) -> alternatives(inner)
   | _ -> [ pattern ]
 
 /// Recognize patterns that accept every value of their already-checked type:
-/// variables (including _), tuples of catch-alls, and or-patterns containing one.
+/// variables (including _), tuples of catch-alls, or-patterns containing one,
+/// and `p as x` where `p` is one.
 /// Other exhaustive combinations, such as true | false, need constructor checks.
 let isIrrefutable(pattern: LanguageTools.ProgramTypes.MatchPattern): Bool =
   match pattern with
@@ -68,6 +70,7 @@ let isIrrefutable(pattern: LanguageTools.ProgramTypes.MatchPattern): Bool =
     && isIrrefutable(second)
     && Stdlib.List.all(rest, fun p -> isIrrefutable(p))
   | MPOr(_, options) -> Stdlib.List.any(options, fun p -> isIrrefutable(p))
+  | MPAs(_, inner, _) -> isIrrefutable(inner)
   | _ -> false
 
 /// List every outer constructor and its field types after resolving unknowns and
@@ -132,6 +135,8 @@ let specialize(
   | MPOr(_, options) ->
     Stdlib.List.flatten(
       Stdlib.List.map(options, fun p -> specialize(constructor, fieldCount, p)))
+  // `p as x` covers exactly what `p` covers
+  | MPAs(_, inner, _) -> specialize(constructor, fieldCount, inner)
   | MPUnit(_) ->
     match constructor with
     | UnitCase -> [ [] ]

@@ -87,6 +87,7 @@ let matchPattern(pat: LanguageTools.RuntimeTypes.MatchPattern): String =
       $"{caseName}({parts})"
   | MPOr(pats) ->
     (Stdlib.List.map(pats, fun p -> matchPattern(p))) |> Stdlib.String.join(" | ")
+  | MPAs(inner, reg) -> $"{matchPattern(inner)} as {register(reg)}"
 
 
 let segment(branchId: Uuid, s: LanguageTools.RuntimeTypes.StringSegment): String =

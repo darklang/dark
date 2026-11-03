@@ -416,6 +416,7 @@ let rec private matchNeedsValue (pat : MatchPattern) (dv : Dval) : bool =
   match pat with
   | MPVariable _ -> false
   | MPOr ps -> ps |> NEList.toList |> List.exists (fun p -> matchNeedsValue p dv)
+  | MPAs(p, _) -> matchNeedsValue p dv
   | _ ->
     match dv with
     | DPromise p when not p.HasShell -> true
@@ -629,6 +630,13 @@ and checkAndExtractMatchPattern
           buf.RemoveRange(mark, buf.Count - mark)
           firstMatch rest
     firstMatch (NEList.toList patterns)
+
+  | MPAs(pattern, reg) ->
+    if checkAndExtractMatchPattern buf pattern dv then
+      buf.Add(struct (reg, dv))
+      true
+    else
+      false
 
 
 /// Record bytes allocated in a synchronous region of the Apply path. `before` must come from a

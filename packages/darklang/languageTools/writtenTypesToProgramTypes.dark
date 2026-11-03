@@ -465,6 +465,7 @@ module Expr =
         match patterns with
         | [first, ...] -> bindings(first)
         | [] -> []
+      | MPAs(_, pattern, _, (_, name)) -> Stdlib.List.append(bindings(pattern), name)
       | _ -> []
 
     let toPT(
@@ -529,6 +530,9 @@ module Expr =
           gid(),
           Stdlib.List.map(patterns, fun p -> toPT(onMissing, p))
         )
+
+      | MPAs(_, pattern, _, (_, name)) ->
+        ProgramTypes.MatchPattern.MPAs(gid(), toPT(onMissing, pattern), name)
 
       | MPError(_) ->
         // a parse-error hole (recovery node); execution consumers gate on

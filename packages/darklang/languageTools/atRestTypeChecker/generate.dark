@@ -387,6 +387,9 @@ let matchPattern(
        [ Model.Constraint.EnumPattern(id, expected, caseName, fields)
          constraints ]))
   | MPOr(id, alternatives) -> orPattern(id, expected, alternatives)
+  | MPAs(id, inner, name) ->
+    let (bindings, constraints) = matchPattern(expected, inner)
+    (Stdlib.List.append(bindings, (name, expected, id)), constraints)
 
 /// Check each pattern against its corresponding component type and combine the
 /// results. Callers supply matching list lengths; constructor checks validate arity.
@@ -518,6 +521,7 @@ let patternIds(pattern: LanguageTools.ProgramTypes.MatchPattern): List<Int64> =
     Stdlib.List.prepend(
       Stdlib.List.flatten(Stdlib.List.map(alternatives, patternIds)),
       id)
+  | MPAs(id, inner, _) -> Stdlib.List.prepend(patternIds(inner), id)
 
 
 // --------------------

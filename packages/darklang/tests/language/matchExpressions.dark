@@ -932,3 +932,73 @@ module PatternGrouping =
          | (Ok(_) , Ok(_)) -> "pass"
          | (Error(err), Ok(_)) | (Ok(_), Error(err))  -> err)
         |> Stdlib.Test.equal("error") ])
+
+// `p as name` matches what `p` matches and also binds the whole value to `name`.
+test asPatterns =
+  Stdlib.Test.all(
+    [ (match Stdlib.Option.Option.Some(1L) with
+       | Some(_) as o -> o
+       | None -> Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1L))
+      (match [1L, 2L, 3L] with
+       | [first, ...] as all -> (first, Stdlib.List.length(all))
+       | [] -> (0L, 0))
+      |> Stdlib.Test.equal((1L, 3))
+      // looser than `|`: names whichever alternative matched
+      (match 2L with
+       | 1L | 2L as n -> n
+       | _ -> 0L)
+      |> Stdlib.Test.equal(2L)
+      (match (Stdlib.Option.Option.Some(5L), 6L) with
+       | ((Some(x) as o), n) -> (o, x + n)
+       | _ -> (Stdlib.Option.Option.None, 0L))
+      |> Stdlib.Test.equal((Stdlib.Option.Option.Some(5L), 11L))
+      (match Stdlib.Option.Option.Some((1L, 2L)) with
+       | Some((a, _) as pair) -> (a, pair)
+       | None -> (0L, (0L, 0L)))
+      |> Stdlib.Test.equal((1L, (1L, 2L)))
+      (match [7L, 8L] with
+       | [a as b, c] -> a + b + c
+       | _ -> 0L)
+      |> Stdlib.Test.equal(22L)
+      (match Stdlib.Result.Result.Error(4L) with
+       | (Ok(x) as r) | (Error(x) as r) -> (x, r))
+      |> Stdlib.Test.equal((4L, Stdlib.Result.Result.Error(4L)))
+      (match 3L with
+       | n as m as k when n + m == 6L -> k
+       | _ -> 0L)
+      |> Stdlib.Test.equal(3L)
+      // the inner pattern still decides whether the arm matches
+      (match 4L with
+       | 3L as n -> n
+       | _ -> 0L)
+      |> Stdlib.Test.equal(0L)
+      // `as` is not a keyword
+      (match 5L with
+       | as -> as + 1L)
+      |> Stdlib.Test.equal(6L) ])
+
+// An or-pattern inside a bigger pattern, and as a list element.
+test nestedOrPatterns =
+  Stdlib.Test.all(
+    [ // names bound before the or-pattern stay bound
+      (match (5L, 2L) with
+       | (x, (1L | 2L)) -> x
+       | _ -> 0L)
+      |> Stdlib.Test.equal(5L)
+      (match (9L, Stdlib.Option.Option.Some(1L)) with
+       | (x, Some(1L | 2L)) -> x
+       | _ -> 0L)
+      |> Stdlib.Test.equal(9L)
+      (match [2L] with
+       | [1L | 2L] -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal("pass")
+      (match [3L, 1L] with
+       | [x, 1L | 2L] -> x
+       | _ -> 0L)
+      |> Stdlib.Test.equal(3L)
+      (match [3L, 4L] with
+       | [x, 1L | 2L] -> x
+       | _ -> 0L)
+      |> Stdlib.Test.equal(0L) ])

@@ -83,6 +83,7 @@ let matchPattern(pat: LanguageTools.ProgramTypes.MatchPattern): String =
       $"{caseName}({parts})"
   | MPOr(_, pats) ->
     (Stdlib.List.map(pats, fun p -> matchPattern(p))) |> Stdlib.String.join(" | ")
+  | MPAs(_, inner, name) -> $"{matchPattern(inner)} as {name}"
 
 
 let typeArgsSuffix(ctx: PrettyPrinter.ProgramTypes.Context, typeArgs: List<LanguageTools.ProgramTypes.TypeReference>): String =

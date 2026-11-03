@@ -222,6 +222,11 @@ module MatchPattern =
       w.Write 21uy
       w.Write id
       String.write w (string value)
+    | MPAs(id, pattern, name) ->
+      w.Write 22uy
+      w.Write id
+      write w pattern
+      String.write w name
 
   let rec read (r : BinaryReader) : MatchPattern =
     match r.ReadByte() with
@@ -318,6 +323,11 @@ module MatchPattern =
       let id = r.ReadUInt64()
       let value = String.read r |> System.Numerics.BigInteger.Parse
       MPInt(id, value)
+    | 22uy ->
+      let id = r.ReadUInt64()
+      let pattern = read r
+      let name = String.read r
+      MPAs(id, pattern, name)
     | b -> raiseFormatError $"Invalid MatchPattern tag: {b}"
 
 

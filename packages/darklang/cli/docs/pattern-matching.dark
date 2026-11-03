@@ -36,6 +36,23 @@ payload: `Some((a, b))` needs its inner parens -- `Some(a, b)` is two fields.
   Records can't be destructured in match. Use a variable and access fields:
   | user -> user.name
 
+## Several patterns, one arm
+  | 1 | 2 | 3 -> "small"
+  | Ok(x) | Error(x) -> x        # every alternative binds the same names
+  | Some(1 | 2) -> "one or two"  # also inside a field or a list element
+
+## Naming the whole value: as
+  | Some(_) as o -> o            # o is the whole Some(...)
+  | [first, ...] as all -> all   # matches, and keeps the list
+  | A | B as x -> x              # as is loosest: x is whichever matched
+  | ((Some(_) as o), n) -> o     # inside a tuple, parenthesize the one you name
+  | (a, b) as pair -> pair       # or name the whole tuple from outside
+
+## Guards
+  | n when n > 100 -> "big"      # a false guard falls through to the next arm
+  | Some(x) when x == "" -> "empty"
+  A guarded arm never counts toward covering every case.
+
 ## Wildcard
   | _ -> default
 

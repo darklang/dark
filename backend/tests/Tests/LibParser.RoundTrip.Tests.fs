@@ -2217,6 +2217,54 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       []
       false
     t
+      "match, as names an or-pattern"
+      "match 2L with\n| 1L | 2L as n -> n\n| _ -> 0L"
+      "match 2L with\n| 1L | 2L as n -> n\n| _ -> 0L"
+      []
+      []
+      []
+      false
+    t
+      "match, as and or inside a tuple"
+      "match (2L, 3L) with\n| ((1L | 2L), y) -> y\n| ((x as z), _) -> z"
+      "match (2L, 3L) with\n| ((1L | 2L), y) -> y\n| ((x as z), _) -> z"
+      []
+      []
+      []
+      false
+    t
+      "match, as and or in list elements"
+      "match [2L] with\n| [1L | 2L] -> true\n| [a as b, ...] -> false\n| _ -> false"
+      "match [2L] with\n| [1L | 2L] -> true\n| [a as b, ...] -> false\n| _ -> false"
+      []
+      []
+      []
+      false
+    t
+      "match, as in or alternatives"
+      "match x with\n| (Ok(y) as r) | (Error(y) as r) -> y"
+      "match x with\n| (Ok(y) as r) | (Error(y) as r) -> y"
+      []
+      []
+      []
+      false
+    t
+      "match, as after a nullary case"
+      "match x with\n| None as n -> n\n| _ -> x"
+      "match x with\n| None as n -> n\n| _ -> x"
+      []
+      []
+      []
+      false
+    t
+      "match, as in an enum field"
+      "match x with\n| Ok((a, _) as pair) -> pair\n| _ -> (0L, 0L)"
+      "match x with\n| Ok((a, _) as pair) -> pair\n| _ -> (0L, 0L)"
+      []
+      []
+      []
+      false
+    t
       "match, string 3"
       "match \"str\" with\n| \"str\" when true -> true"
       "match \"str\" with\n| \"str\" when true -> true"
