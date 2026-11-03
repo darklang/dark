@@ -14,13 +14,6 @@ let private firstRune (s : string) : System.Text.Rune option =
   if System.Text.Rune.TryGetRuneAt(s, 0, &rune) then Some rune else None
 
 
-/// Return the scalar when the cluster contains exactly one.
-let private singleRune (s : string) : System.Text.Rune option =
-  match firstRune s with
-  | Some r when r.Utf16SequenceLength = s.Length -> Some r
-  | _ -> None
-
-
 /// Apply a character predicate to the cluster's first scalar.
 let private firstRuneIs (pred : System.Text.Rune -> bool) (s : string) : bool =
   match firstRune s with
@@ -29,60 +22,7 @@ let private firstRuneIs (pred : System.Text.Rune -> bool) (s : string) : bool =
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "charToUppercase" 0
-      typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TChar
-      description =
-        "Return the uppercase value of <param c>. If <param c> does not have an "
-        + "uppercase value, returns <param c>"
-      fn =
-        function
-        | _, _, _, [| DChar c |] -> Ply(DChar(c.ToUpper()))
-        | _ -> incorrectArgs ()
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "charToLowercase" 0
-      typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TChar
-      description =
-        "Return the lowercase value of <param c>. If <param c> does not have a "
-        + "lowercase value, returns <param c>"
-      fn =
-        function
-        | _, _, _, [| DChar c |] -> Ply(DChar(c.ToLower()))
-        | _ -> incorrectArgs ()
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "charToAsciiCode" 0
-      typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TypeReference.option TInt
-      description =
-        "Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
-      fn =
-        function
-        | _, _, _, [| DChar c |] ->
-          // A Dark Char is a grapheme: an ASCII first code unit does not make
-          // the whole character ASCII (for example, e followed by an accent).
-          if c.Length = 1 && int c[0] < 128 then
-            Dval.optionSome KTInt (Dval.int (bigint (int c[0]))) |> Ply
-          else
-            Dval.optionNone KTInt |> Ply
-        | _ -> incorrectArgs ()
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "charIsLessThan" 0
+  [ { name = fn "charIsLessThan" 0
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
@@ -224,27 +164,6 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DChar c |] ->
           Ply(DBool(firstRuneIs System.Text.Rune.IsLetterOrDigit c))
-        | _ -> incorrectArgs ()
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "charToCodepoint" 0
-      typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TypeReference.option TInt
-      description =
-        "Return {{Some <var codepoint>}} when <param c> is a single Unicode scalar, or "
-        + "{{None}} when it is a grapheme cluster built from several -- an emoji joined "
-        + "with a zero-width joiner, or a base character carrying combining marks. The "
-        + "inverse of <fn Char.fromCodepoint>."
-      fn =
-        function
-        | _, _, _, [| DChar c |] ->
-          match singleRune c with
-          | Some r -> Dval.optionSome KTInt (Dval.int (bigint r.Value)) |> Ply
-          | None -> Dval.optionNone KTInt |> Ply
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
