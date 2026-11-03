@@ -130,6 +130,11 @@ module Update =
       Stdlib.List.length((viaGeneric([ 1L ])).updItems) |> Stdlib.Test.equal(0)
 
   module Invalid =
+    test updateOfNonRecordRaises =
+      (let r = 1L
+       { r with key = false })
+      => raises "Cannot apply a record-update to a Int64"
+
     test unknownFieldRaises =
       (let myRec = RecordForUpdateMultiple { x = 4L, y = 1L, z = 0L }
        { myRec with z = 3L, x = 42L, y = 11L, p = 10L })

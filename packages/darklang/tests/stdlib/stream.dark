@@ -173,3 +173,22 @@ test blobsRoundTripThroughStream =
   let s = Stdlib.Stream.fromList([ b1, b2 ])
   let result = Stdlib.Stream.toList(s)
   Stdlib.List.length(result) |> Stdlib.Test.equal(2)
+
+// take over a source that never ends stops after n, pulling the source n times
+test takeOverUnboundedSourcePullsOnlyN =
+  let counter =
+    Stdlib.Stream.unfold(0L, fun n ->
+      Stdlib.Option.Option.Some((Stdlib.Test.incrementCounter(n + 1L), n + 1L)))
+  let taken = Stdlib.Stream.toList(Stdlib.Stream.take(counter, 3))
+  Stdlib.Test.all(
+    [ taken |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.Test.counterValue() |> Stdlib.Test.equal(3L) ])
+
+// filter, map and take over an unbounded unfold terminate: the pipeline is pull-driven
+test composedTransformsOverUnboundedSourceAreLazy =
+  let naturals =
+    Stdlib.Stream.unfold(0L, fun n -> Stdlib.Option.Option.Some((n + 1L, n + 1L)))
+  let evens = Stdlib.Stream.filter(naturals, fun n -> n % 2L == 0L)
+  let doubled = Stdlib.Stream.map(evens, fun n -> n * 2L)
+  Stdlib.Stream.toList(Stdlib.Stream.take(doubled, 3))
+  |> Stdlib.Test.equal([ 4L, 8L, 12L ])

@@ -127,7 +127,9 @@ test sumUpTo =
     [ ESelfTests.sumUpTo(0) |> Stdlib.Test.equal(0)
       ESelfTests.sumUpTo(1) |> Stdlib.Test.equal(1)
       ESelfTests.sumUpTo(5) |> Stdlib.Test.equal(15)
-      ESelfTests.sumUpTo(10) |> Stdlib.Test.equal(55) ])
+      ESelfTests.sumUpTo(10) |> Stdlib.Test.equal(55)
+      // Deep, not tail-recursive: the interpreter must not run out of stack.
+      ESelfTests.sumUpTo(30000) |> Stdlib.Test.equal(450015000) ])
 
 test factorialWithShadowing =
   ShadowingTest.factorialWithShadowing(5) |> Stdlib.Test.equal(("shadowed", 120))
