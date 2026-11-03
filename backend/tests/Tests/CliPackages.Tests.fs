@@ -850,13 +850,13 @@ let packageTestsRespectParallelLimit =
               "test writes did not reach the parent store"
       })
 
-/// A test that only reads the store runs once, on the shared snapshot. If a worker
-/// ever wrote at startup, every test would run twice and still pass, so count the
-/// launches rather than trusting the results. One reader also starts a nested
-/// worker, which copies its store from the shared snapshot: the path that hung
-/// while the snapshot used WAL.
+/// A test that only reads the store runs once, on the shared snapshot; a test that
+/// writes reruns on a copy. Both would pass on copies alone, so count the launches
+/// and the ones that saw a shared store rather than trusting the results. One
+/// reader also starts a nested worker, which copies its store from the shared
+/// snapshot: the path that hung while the snapshot used WAL.
 let testsThatOnlyReadRunOnce =
-  instanceTest "package tests that only read the store run once" (fun state ->
+  instanceTest "package tests that only read share the store" (fun state ->
     task {
       if LibExecution.HostPosix.isPosix then
         do! start state
@@ -870,7 +870,7 @@ let testsThatOnlyReadRunOnce =
           [ 1..3 ]
           |> List.map (fun n ->
             $"""test reader{n} =
-  Stdlib.Test.expect(Stdlib.LocalStore.configGet("reader-witness") == "", "unexpected config")
+  Stdlib.Test.expect(Stdlib.LocalStore.configGet("test.reader-witness") == "", "unexpected config")
 """       )
           |> String.concat "\n"
           |> fun readers ->
@@ -882,6 +882,10 @@ test readerWithChild =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), echo, "hello") with
   | Error(message) -> Stdlib.Test.fail(message)
   | Ok(output) -> output.result |> Stdlib.Test.equal(Ok("hello"))
+
+test writer =
+  let _ = Stdlib.LocalStore.configSet("test.writer-witness", "written")
+  Stdlib.Test.expect(Stdlib.LocalStore.configGet("test.writer-witness") == "written", "write lost")
 """
         )
         do! run state [ "module"; "Tests.Readers"; source ]
@@ -901,6 +905,9 @@ test readerWithChild =
           + "    touch "
           + quote launches
           + "/launched-$$\n"
+          + "    if [ -L \"${HOME}/.darklang/data.db\" ]; then touch "
+          + quote launches
+          + "/shared-$$; fi\n"
           + "  fi\ndone\nexec "
           + quote (System.IO.Path.GetFullPath instance.cli)
           + " \"$@\"\n"
@@ -916,13 +923,33 @@ test readerWithChild =
         Expect.equal code 0 $"the run succeeds: {output}"
         Expect.stringContains
           output
-          "4 passed, 0 failed; 4 ran, 0 cached"
-          "every reader passes"
-        Expect.isFalse (output.Contains "reran") $"no reader reran: {output}"
-        Expect.equal
-          (System.IO.Directory.GetFiles(launches, "launched-*").Length)
-          5
-          "one worker per test, and one for the nested run"
+          "5 passed, 0 failed; 5 ran, 0 cached"
+          "every test passes"
+        let count pattern = System.IO.Directory.GetFiles(launches, pattern).Length
+        // Root can't share (it ignores read-only files), so there nothing reruns.
+        if LibExecution.HostPosix.getuid () <> 0u then
+          Expect.stringContains
+            output
+            "Tests.Readers.writer (reran on a copy)"
+            $"the writer reran: {output}"
+          Expect.stringContains
+            output
+            "; 1 wrote to the store and reran on a copy"
+            $"only the writer reran: {output}"
+          Expect.equal
+            (count "launched-*")
+            7
+            "one worker per reader, one for the nested run, two for the writer"
+          Expect.equal
+            (count "shared-*")
+            5
+            "every reader and the writer's first attempt saw the shared store"
+        else
+          Expect.isFalse (output.Contains "reran") $"nothing reran: {output}"
+          Expect.equal
+            (count "launched-*")
+            6
+            "one worker per test and the nested run"
     })
 
 let packageTestsRequireRun =
