@@ -406,10 +406,11 @@ let runTestsInRun(
   state: Cli.AppState,
   args: List<String>)
   : Cli.AppState =
-  // Limit the default even on large machines: every slot owns a process and a
-  // writable store copy. --jobs lets callers tune this or choose a serial run.
+  // One test per core, at most 16: every slot owns a process and a store copy.
+  // A test process holds about 90 MB (one outlier reaches ~750 MB), so 16 stay
+  // near 2 GB. `exec.workers` lowers the core count; --jobs overrides both.
   let cores = Stdlib.Exec.workers()
-  let defaults = RunOptions { force = false, jobs = (if cores < 4 then cores else 4), filters = [] }
+  let defaults = RunOptions { force = false, jobs = (if cores < 16 then cores else 16), filters = [] }
   match parseRunOptions(defaults, args) with
   | Error message ->
     Cli.printErr(message)
@@ -485,7 +486,7 @@ let help(_state: Cli.AppState): String =
     "in order: a module (`Stdlib.Float`), a test name, or both. Several filters"
     "select the union."
     "Deprecated (deleted) tests are skipped."
-    "Tests run in parallel, up to four at once (or fewer on smaller machines)."
+    "Tests run in parallel, one per core, up to 16 at once."
     "Use --jobs <count> to change the limit, or --jobs 1 to run serially."
     "Tests start in name order; results are printed as they finish."
     ""
