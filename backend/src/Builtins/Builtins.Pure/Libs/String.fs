@@ -508,10 +508,7 @@ let fns () : List<BuiltInFn> =
           Param.make "searchingFor" TString "The substring to look for" ]
       returnType = TBool
       description =
-        "Returns {{true}} if <param lookingIn> contains <param searchingFor>. "
-        + "SQL-queryable: it only checks found/not-found, which SQLite's INSTR "
-        + "and .NET's Contains agree on (unlike index position, which they count "
-        + "differently for some Unicode text)."
+        "Returns {{true}} if <param lookingIn> contains <param searchingFor>."
       fn =
         (function
         | _, _, _, [| DString lookingIn; DString searchingFor |] ->
@@ -573,8 +570,7 @@ let fns () : List<BuiltInFn> =
         + "{{String.dropFirst}}). Returns -1 if <param searchFor> does not occur. "
         + "The match must begin and end on EGC boundaries — partial-grapheme "
         + "matches (e.g. finding a skin-tone modifier alone inside a full "
-        + "skin-toned emoji) are not reported. Not SQL-queryable because SQLite "
-        + "has no EGC-aware INSTR; use {{stringIndexOf}} inside DB query lambdas."
+        + "skin-toned emoji) are not reported."
       fn =
         (function
         | _, _, _, [| DString str; DString search |] ->

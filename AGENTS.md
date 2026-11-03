@@ -498,7 +498,7 @@ Logs are for reading when something went wrong. For "did it work", use
 
 ## Adding a builtin (F#)
 
-Pick the right `Builtins` subproject: `Pure` (pure stdlib), `Matter` (DB, package store,
+Pick the right `Builtins` subproject: `Pure` (pure stdlib), `Matter` (package store,
 traces), `Language` (reflection, parser, language tools), `Http.Server`, `Http.Client`,
 `CliHost` (eval, script entry), `Cli` (file, terminal, other side effects), `Time`,
 `Random`. Add the fn to the `fns` list in the relevant `Libs/<module>.fs`, save, wait for

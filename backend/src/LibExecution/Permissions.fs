@@ -48,8 +48,6 @@ type Request =
   | File of access : AccessKind * path : string
   | Env of access : AccessKind * name : string
   | EnvList
-  | Db of access : AccessKind * name : string
-  | DbList
   | Stdin
   | Stdout
   | Clock
@@ -100,9 +98,6 @@ module Request =
     | Request.Env(AccessKind.Read, _) -> Effect.Effect.EnvRead
     | Request.Env(AccessKind.Write, _) -> Effect.Effect.EnvWrite
     | Request.EnvList -> Effect.Effect.EnvRead
-    | Request.Db(AccessKind.Read, _) -> Effect.Effect.DbRead
-    | Request.Db(AccessKind.Write, _) -> Effect.Effect.DbWrite
-    | Request.DbList -> Effect.Effect.DbRead
     | Request.Stdin -> Effect.Effect.Stdin
     | Request.Stdout -> Effect.Effect.Stdout
     | Request.Clock -> Effect.Effect.Clock
@@ -137,8 +132,6 @@ module Request =
     | Request.Env(AccessKind.Read, name) -> Some $"env read {quoteRuleToken name}"
     | Request.Env(AccessKind.Write, name) -> Some $"env write {quoteRuleToken name}"
     | Request.EnvList -> Some "env read"
-    | Request.Db(AccessKind.Read, name) -> Some $"db read {quoteRuleToken name}"
-    | Request.Db(AccessKind.Write, name) -> Some $"db write {quoteRuleToken name}"
     | Request.Stdin -> Some "stdin"
     | Request.Stdout -> Some "stdout"
     | Request.Clock -> Some "clock"
@@ -151,11 +144,10 @@ module Request =
     | Request.Runtime -> Some "runtime"
     // Their narrowest rule covers more than the request; `suggestRule` says why.
     | Request.Process _
-    | Request.DbList
     | Request.Native _ -> None
 
   /// The `permissions allow <rule>` text that covers this request and no other
-  /// program, argument list or datastore, or why there is none to offer.
+  /// program or argument list, or why there is none to offer.
   ///
   /// A denial prints this, and an interactive `run` offers to save it, so a
   /// suggestion broader than the refused call hands out access nobody asked
@@ -174,11 +166,6 @@ module Request =
     | Request.Process(executable, args) ->
       let tokens = executable :: args |> List.map quoteRuleToken |> String.concat " "
       Suggestion.Paste $"process {tokens}"
-    | Request.DbList ->
-      Suggestion.Withheld(
-        "listing datastores needs `db read` with no name, which also allows "
-        + "reading every datastore's contents"
-      )
     | request ->
       match suggestTargetRule request with
       | Some rule -> Suggestion.Paste rule
@@ -227,14 +214,6 @@ module Request =
       Ok(Request.Env(access, name))
 
   let envList : Request = Request.EnvList
-
-  let db (access : AccessKind) (name : string) : Result<Request, string> =
-    if System.String.IsNullOrWhiteSpace name then
-      Error "Database name cannot be empty"
-    else
-      Ok(Request.Db(access, name))
-
-  let dbList : Request = Request.DbList
 
   let stdin : Request = Request.Stdin
   let stdout : Request = Request.Stdout
@@ -319,7 +298,6 @@ type Rule =
   | HttpServer of Scope<int>
   | File of access : AccessKind * roots : Scope<string>
   | Env of access : AccessKind * names : Scope<string>
-  | Db of access : AccessKind * names : Scope<string>
   | Process of ProcessRule
 
 module Rule =
@@ -422,9 +400,6 @@ module Rule =
     | Rule.Env(expected, names), Request.Env(actual, name) when expected = actual ->
       Scope.covers envNameMatches names name
     | Rule.Env(AccessKind.Read, Scope.All), Request.EnvList -> true
-    | Rule.Db(expected, names), Request.Db(actual, name) when expected = actual ->
-      Scope.covers same names name
-    | Rule.Db(AccessKind.Read, Scope.All), Request.DbList -> true
     | Rule.Process rule, Request.Process(executable, args) ->
       Scope.covers samePath rule.executable executable
       && Scope.covers same rule.args args
@@ -442,8 +417,6 @@ module Rule =
     | Rule.File(AccessKind.Write, _) -> Some(Set.singleton Effect.Effect.FileWrite)
     | Rule.Env(AccessKind.Read, _) -> Some(Set.singleton Effect.Effect.EnvRead)
     | Rule.Env(AccessKind.Write, _) -> Some(Set.singleton Effect.Effect.EnvWrite)
-    | Rule.Db(AccessKind.Read, _) -> Some(Set.singleton Effect.Effect.DbRead)
-    | Rule.Db(AccessKind.Write, _) -> Some(Set.singleton Effect.Effect.DbWrite)
     | Rule.Process _ -> Some(Set.singleton Effect.Effect.Process)
 
 type Policy = private { allow : List<Rule>; deny : List<Rule> }
@@ -488,8 +461,6 @@ module Policy =
     allowEffects (
       Set.ofList
         [ Effect.Effect.PackageRead
-          Effect.Effect.DbRead
-          Effect.Effect.DbWrite
           Effect.Effect.TraceRead
           Effect.Effect.TraceWrite
           Effect.Effect.Clock

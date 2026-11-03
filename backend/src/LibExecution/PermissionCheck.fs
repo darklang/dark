@@ -295,24 +295,3 @@ let requireFileReadWrite
     vm
     (fun () -> $"writing `{path}`")
     (Permission.Request.file Permission.AccessKind.Write path)
-
-// ── datastore ─────────────────────────────────────────────────────────────────
-
-let requireDbRead (state : ExecutionState) (vm : VMState) (table : string) : unit =
-  check
-    state
-    vm
-    (fun () -> $"reading datastore `{table}`")
-    (Permission.Request.db Permission.AccessKind.Read table)
-
-/// Listing all datastores requires the unscoped datastore-read permission,
-/// because the request does not name one table.
-let requireDbReadAll (state : ExecutionState) (vm : VMState) : unit =
-  check state vm (fun () -> "listing all datastores") (Ok Permission.Request.dbList)
-
-let requireDbWrite (state : ExecutionState) (vm : VMState) (table : string) : unit =
-  check
-    state
-    vm
-    (fun () -> $"writing datastore `{table}`")
-    (Permission.Request.db Permission.AccessKind.Write table)

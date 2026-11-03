@@ -727,9 +727,6 @@ module ProgramTypes =
     )
 
 
-  // Handler and user-datastore test values are gone with the toplevels that carried them.
-
-
   // TODO: serialize stdlib types?
   // (also make sure we roundtrip test them)
 

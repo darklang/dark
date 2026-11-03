@@ -1,0 +1,110 @@
+// RESTORE: several files; each piece below names its file and where it sat
+// WAS: the datastore permission vocabulary: Effect.DbRead/DbWrite, Request.Db/DbList, Rule.Db,
+//      requireDbRead/requireDbReadAll/requireDbWrite, the `db read|write` rule grammar and its
+//      Dark mirror, and DbRead/DbWrite in the default instance policy and profiles
+// ANCHOR: beside the Env equivalents in every file
+// ALSO: later/backend/src/Builtins/Builtins.Matter/Libs/DB.fs and Account.fs call the require*
+//       functions; later/backend/src/user-db-loading
+// NOTE: policy tag 6 was Rule.Db. The live reader drops a stored tag-6 rule and any rule naming
+//       `db-read`/`db-write` (Serializers/Permissions.fs, `retiredEffectNames`); restoring this
+//       means reading them again instead of dropping them. The tests that went with it:
+//       Permissions.Tests.fs (`suggest Request.dbList` is withheld) and
+//       packages/darklang/tests/cli/permissionsGrammar.dark (`db read t` parses and round-trips).
+// WHEN: the user-DB leftovers pass, 2026-11-03
+
+// ---- backend/src/LibExecution/Effects.fs: cases of `Effect`, after EnvWrite (also in `name`, `all`, `isRead` (true), `isScoped` (true))
+  | DbRead
+  | DbWrite
+  | Effect.DbRead -> "db-read"
+  | Effect.DbWrite -> "db-write"
+
+// ---- backend/src/LibExecution/Permissions.fs: Request cases (after EnvList), Request.effect arms, suggestTargetRule arms, the DbList arm of suggestRule, Request.db/dbList constructors, the Rule.Db case (after Env), its `covers` arms, its `allowableEffects` arms, and DbRead/DbWrite in `defaultInstance`
+  | Db of access : AccessKind * name : string
+  | DbList
+    | Request.Db(AccessKind.Read, _) -> Effect.Effect.DbRead
+    | Request.Db(AccessKind.Write, _) -> Effect.Effect.DbWrite
+    | Request.DbList -> Effect.Effect.DbRead
+    | Request.Db(AccessKind.Read, name) -> Some $"db read {quoteRuleToken name}"
+    | Request.Db(AccessKind.Write, name) -> Some $"db write {quoteRuleToken name}"
+    | Request.Process _
+    | Request.DbList
+    | Request.Native _ -> None
+    | Request.DbList ->
+      Suggestion.Withheld(
+        "listing datastores needs `db read` with no name, which also allows "
+        + "reading every datastore's contents"
+      )
+  let db (access : AccessKind) (name : string) : Result<Request, string> =
+    if System.String.IsNullOrWhiteSpace name then
+      Error "Database name cannot be empty"
+    else
+      Ok(Request.Db(access, name))
+
+  let dbList : Request = Request.DbList
+
+  | Db of access : AccessKind * names : Scope<string>
+    | Rule.Db(expected, names), Request.Db(actual, name) when expected = actual ->
+      Scope.covers same names name
+    | Rule.Db(AccessKind.Read, Scope.All), Request.DbList -> true
+    | Rule.Db(AccessKind.Read, _) -> Some(Set.singleton Effect.Effect.DbRead)
+    | Rule.Db(AccessKind.Write, _) -> Some(Set.singleton Effect.Effect.DbWrite)
+          Effect.Effect.DbRead
+          Effect.Effect.DbWrite
+
+// ---- backend/src/LibExecution/PermissionCheck.fs: the datastore section, after the file section. Called by later/backend/src/Builtins/Builtins.Matter/Libs/DB.fs and Account.fs
+// ── datastore ─────────────────────────────────────────────────────────────────
+
+let requireDbRead (state : ExecutionState) (vm : VMState) (table : string) : unit =
+  check
+    state
+    vm
+    (fun () -> $"reading datastore `{table}`")
+    (Permission.Request.db Permission.AccessKind.Read table)
+
+/// Listing all datastores requires the unscoped datastore-read permission,
+/// because the request does not name one table.
+let requireDbReadAll (state : ExecutionState) (vm : VMState) : unit =
+  check state vm (fun () -> "listing all datastores") (Ok Permission.Request.dbList)
+
+let requireDbWrite (state : ExecutionState) (vm : VMState) (table : string) : unit =
+  check
+    state
+    vm
+    (fun () -> $"writing datastore `{table}`")
+    (Permission.Request.db Permission.AccessKind.Write table)
+
+// ---- backend/src/LibExecution/PermissionsToDarkTypes.fs: Rule.toDT and Rule.fromDT arms, after the Env ones
+    | P.Rule.Db(P.AccessKind.Read, names) -> make "DbRead" [ Scope.stringToDT names ]
+    | P.Rule.Db(P.AccessKind.Write, names) ->
+      make "DbWrite" [ Scope.stringToDT names ]
+    | DEnum(_, _, _, "DbRead", [ names ]) ->
+      P.Rule.Db(P.AccessKind.Read, Scope.stringFromDT names)
+    | DEnum(_, _, _, "DbWrite", [ names ]) ->
+      P.Rule.Db(P.AccessKind.Write, Scope.stringFromDT names)
+
+// ---- backend/src/LibSerialization/Binary/Serializers/Permissions.fs: writeRule arm (tag 6), and in readRule `| 6uy -> P.Rule.Db(readAccess reader, readStringScope reader)`
+  | P.Rule.Db(access, names) ->
+    writer.Write 6uy
+    writeAccess writer access
+    writeStringScope writer names
+
+// ---- packages/darklang/languageTools/permissions.dark: the Effect cases, the Rule cases, the effectCases rows, the `db` kind in accessRules, and the renderRule arms
+  | EnvWrite
+  | DbRead
+  | DbWrite
+  | DbRead of Permissions.Scope<String>
+  | DbWrite of Permissions.Scope<String>
+    (Permissions.Effect.DbRead, "DbRead", "db-read")
+    (Permissions.Effect.DbWrite, "DbWrite", "db-write")
+    | "db" ->
+      Stdlib.Option.Option.Some(
+        (Permissions.Rule.DbRead target, Permissions.Rule.DbWrite target))
+  | DbRead scope -> "db read " + Permissions.renderStringScope(scope)
+  | DbWrite scope -> "db write " + Permissions.renderStringScope(scope)
+
+// ---- packages/darklang/cli/permissions/profiles.dark: DbRead in readEffects (after PackageRead), DbWrite first in defaultEffects' list
+    LanguageTools.Permissions.Effect.DbRead
+    LanguageTools.Permissions.Effect.DbWrite
+
+// ---- packages/darklang/cli/permissions/command.dark: help line, after the env one
+    "  db read|write|read+write [NAME]"

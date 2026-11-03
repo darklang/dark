@@ -872,11 +872,11 @@ let private desugarTests =
   testList
     "wt2pt-desugars"
     [ testCase "a bare uppercase name lowers to EVariable (not EEnum)" (fun _ ->
-        // `XDB` parses as a nullary EEnum; WT2PT rewrites bare EEnum → EVariable so
-        // name resolution can pick enum-case / DB / value.
-        match toPT (lowerExpr "XDB") with
-        | PT.EVariable(_, "XDB") -> ()
-        | other -> failtest $"expected EVariable XDB, got: {other}")
+        // `X` parses as a nullary EEnum; WT2PT rewrites bare EEnum → EVariable so
+        // name resolution can pick enum case or variable.
+        match toPT (lowerExpr "X") with
+        | PT.EVariable(_, "X") -> ()
+        | other -> failtest $"expected EVariable X, got: {other}")
       testCase "a statement sequence lowers to EStatement" (fun _ ->
         match toPT (fnBody "let f(): Unit =\n  foo()\n  bar()") with
         | PT.EStatement(_, PT.EApply _, PT.EApply _) -> ()

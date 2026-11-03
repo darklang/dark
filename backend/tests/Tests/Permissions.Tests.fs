@@ -419,6 +419,42 @@ let coverableEffectsFollowTheRules =
       "no allow rules cover nothing"
   }
 
+module Bin = LibSerialization.Binary.Serializers.Common
+
+/// Every policy written while user datastores existed carried `db-read` and `db-write` in its
+/// defaults, so a stored datastore rule must be dropped on read, never fail the whole file.
+let retiredDatastoreRulesStillLoad =
+  test "a stored policy naming the retired datastore effects still loads" {
+    use stream = new System.IO.MemoryStream()
+    let w = new System.IO.BinaryWriter(stream)
+    let effectRule (name : string) =
+      w.Write 1uy
+      Bin.String.write w name
+    let dbRule (access : byte) (name : string) =
+      w.Write 6uy
+      w.Write access
+      w.Write 1uy
+      Bin.String.write w name
+    // allow: db-read, clock, a `db write t` rule, db-write
+    Bin.Varint.write w 4
+    effectRule "db-read"
+    effectRule "clock"
+    dbRule 1uy "t"
+    effectRule "db-write"
+    // deny: a `db read t` rule
+    Bin.Varint.write w 1
+    dbRule 0uy "t"
+    w.Flush()
+    stream.Position <- 0L
+    let reader = new System.IO.BinaryReader(stream)
+    let policy = LibSerialization.Binary.Serializers.Permissions.read reader
+    Expect.equal
+      (Permission.Policy.rules policy)
+      ([ Permission.Rule.Effect Effect.Effect.Clock ], [])
+      "the datastore rules are dropped and the rest is kept"
+    Expect.equal stream.Position stream.Length "and the whole file was read"
+  }
+
 let suggestRuleIsActionable =
   test "the suggested fix comes structurally from the denied request" {
     let ok =
@@ -451,9 +487,6 @@ let suggestRuleIsActionable =
     Expect.isTrue
       (withheld (suggest (ok (Permission.Request.processSpawn "/bin/date" []))))
       "no arguments has no exact rule: a bare process rule allows every argument list"
-    Expect.isTrue
-      (withheld (suggest Permission.Request.dbList))
-      "listing datastores would need a rule that reads every datastore"
     Expect.equal
       (suggest (ok (Permission.Request.native "cliProcessIO")))
       Permission.Suggestion.NoRule
@@ -670,6 +703,7 @@ let tests =
       fileRulesSeeThroughSymlinkedRoots
       processRulesPreserveArgumentOrder
       coverableEffectsFollowTheRules
+      retiredDatastoreRulesStillLoad
       suggestRuleIsActionable
       pastedShellRuleRunsOnlyThatCommand
       pastedProcessRuleKeepsItsArguments

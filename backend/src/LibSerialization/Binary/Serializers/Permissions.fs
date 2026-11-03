@@ -46,10 +46,16 @@ let private readIntScope (reader : BinaryReader) : P.Scope<int> =
 let private writeEffect (writer : BinaryWriter) (effect : E.Effect) =
   String.write writer (E.name effect)
 
-let private readEffect (reader : BinaryReader) : E.Effect =
+/// The effects a policy file may still name from before they were retired. A rule naming one
+/// is dropped on read rather than failing the whole file: every policy written while they
+/// existed carried them in its defaults, and nothing can request them any more.
+let private retiredEffectNames : Set<string> = set [ "db-read"; "db-write" ]
+
+let private readEffect (reader : BinaryReader) : Option<E.Effect> =
   let name = String.read reader
   match E.fromName name with
-  | Some effect -> effect
+  | Some effect -> Some effect
+  | None when Set.contains name retiredEffectNames -> None
   | None -> raiseFormatError $"Unknown effect name: {name}"
 
 let private writeHost (writer : BinaryWriter) (host : P.HostRule) =
@@ -131,26 +137,30 @@ let private writeRule (writer : BinaryWriter) rule =
     writer.Write 5uy
     writeAccess writer access
     writeStringScope writer names
-  | P.Rule.Db(access, names) ->
-    writer.Write 6uy
-    writeAccess writer access
-    writeStringScope writer names
+  // 6 was Db, retired with user datastores; a stored one is dropped on read
   | P.Rule.Process processRule ->
     writer.Write 7uy
     writeStringScope writer processRule.executable
     writeArgs writer processRule.args
 
-let private readRule (reader : BinaryReader) : P.Rule =
+/// `None` for a rule about something retired (see `retiredEffectNames`), which the caller drops.
+let private readRule (reader : BinaryReader) : Option<P.Rule> =
   match reader.ReadByte() with
-  | 0uy -> P.Rule.All
-  | 1uy -> P.Rule.Effect(readEffect reader)
-  | 2uy -> P.Rule.Http(readHttpRule reader)
-  | 3uy -> P.Rule.HttpServer(readIntScope reader)
-  | 4uy -> P.Rule.File(readAccess reader, readStringScope reader)
-  | 5uy -> P.Rule.Env(readAccess reader, readStringScope reader)
-  | 6uy -> P.Rule.Db(readAccess reader, readStringScope reader)
+  | 0uy -> Some P.Rule.All
+  | 1uy -> readEffect reader |> Option.map P.Rule.Effect
+  | 2uy -> Some(P.Rule.Http(readHttpRule reader))
+  | 3uy -> Some(P.Rule.HttpServer(readIntScope reader))
+  | 4uy -> Some(P.Rule.File(readAccess reader, readStringScope reader))
+  | 5uy -> Some(P.Rule.Env(readAccess reader, readStringScope reader))
+  | 6uy ->
+    // A datastore rule: read it to keep the stream aligned, then drop it.
+    let _access = readAccess reader
+    let _names = readStringScope reader
+    None
   | 7uy ->
-    P.Rule.Process { executable = readStringScope reader; args = readArgs reader }
+    Some(
+      P.Rule.Process { executable = readStringScope reader; args = readArgs reader }
+    )
   | tag -> raiseFormatError $"Invalid permission rule tag: {tag}"
 
 /// One policy. Versioning belongs to the enclosing file format
@@ -161,8 +171,8 @@ let write (writer : BinaryWriter) (policy : P.Policy) =
   List.write writer writeRule deny
 
 let read (reader : BinaryReader) : P.Policy =
-  let allow = List.read reader readRule
-  let deny = List.read reader readRule
+  let allow = List.read reader readRule |> List.choose (fun rule -> rule)
+  let deny = List.read reader readRule |> List.choose (fun rule -> rule)
   P.Policy.create allow deny
 
 /// Private host transport, paired with the worker binary from the same build.

@@ -558,7 +558,7 @@ let private storeBuiltinsRoot () =
   Path.Combine(findRepoRoot (), "backend", "src", "Builtins", "Builtins.Matter")
 
 let private storeScopedEffectRegex =
-  Regex(@"\bEffect\.(FileRead|FileWrite|DbRead|DbWrite)\b", RegexOptions.Compiled)
+  Regex(@"\bEffect\.(FileRead|FileWrite)\b", RegexOptions.Compiled)
 
 let storeScopedEffectsRequireTargetChecks =
   test "store scoped effects require target checks" {

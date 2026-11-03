@@ -3365,7 +3365,7 @@ type Previewable =
   /// The same inputs always yield the same outputs. e.g. `DateTime.addSeconds`
   | Pure
 
-  /// May answer differently each time, or touch the world. e.g. `DateTime.now`, `DB.update`
+  /// May answer differently each time, or touch the world. e.g. `DateTime.now`, `File.write`
   | Impure
 
 

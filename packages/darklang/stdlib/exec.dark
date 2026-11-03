@@ -3,7 +3,7 @@ module Darklang.Stdlib.Exec
 /// Processes: running things beside each other, and the process table `dark ps` renders.
 ///
 /// Reads run concurrently on their own: a call whose effects are all reads (`HttpClient.get`,
-/// a file or db read) hands back its result while the read is still in flight, and your code
+/// a file read) hands back its result while the read is still in flight, and your code
 /// waits for it only at the first place it looks at the value. `List.map urls (fun u ->
 /// HttpClient.get u [])` fetches them all at once; `print` and every write run in program
 /// order. `Stdlib.await x` forces early. `spawn`/`await` are for work you choose to run in the

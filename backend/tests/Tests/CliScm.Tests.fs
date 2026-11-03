@@ -614,7 +614,7 @@ let private aMissingNameIsOneLineNotAStackHeader =
       })
 
 /// A branch pulled without its parent lists a parent this store has never registered. The bare id
-/// read as corruption on the machine that saw it; the list now says what it is and how to fix it.
+/// read as corruption on the machine that saw it; the list now says what it is.
 let private anUnknownParentIsNamedAsSuch =
   cliTest
     "a branch whose parent is not in this store says so in the list"

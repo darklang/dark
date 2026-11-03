@@ -81,7 +81,7 @@ let private executeWorker
     use reader = new System.IO.BinaryReader(accessStream)
     let inherited =
       LibSerialization.Binary.Serializers.Permissions.readExecutionAccess reader
-    // Set up both request kinds once. The test body only adds its private DBs.
+    // Set up both request kinds once.
     let guest = LibDB.PolicyStore.testState request.accountID caller
     let workerState =
       { guest with
