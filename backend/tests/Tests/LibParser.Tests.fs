@@ -2,7 +2,8 @@
 /// pbiggar/darklang-compiler's SyntaxInteropTests.fs (re-implemented against
 /// this repo's `LibParser.Parser` + Expecto). The corpus gate, fuzzer,
 /// range-invariant / prim-type-drift guards, and diagnostics tests are specific
-/// to this parser; pretty-print round-trips live in `LibParser.RoundTrip.Tests.fs`.
+/// to this parser; pretty-print round-trips live in `packages/darklang/tests/languageTools/roundTrip/`,
+/// apart from the few in `LibParser.RoundTrip.Tests.fs`.
 ///
 /// Exercises the hand-written parser (`LibParser.Parser`) — its range-complete
 /// `WrittenTypes` output structure, offside rules, type grammar, diagnostics,

@@ -1,0 +1,422 @@
+module Darklang.LanguageTools.Parser.RoundTrip.Tests
+
+// Parse source, print it back, compare with the expected text. The cases are in the
+// roundTrip*.dark files beside this one, one file per kind of source, grouped into tests by
+// subject. Each case is named, and a failure message starts with that name.
+//
+// What `roundTrip` checks, for each case:
+//  - the source prints, at width 80, exactly as `expected`
+//  - printing is a fixed point: parsing the printed text and printing it again gives the same text
+//  - the re-parse means the same program: the declarations' content hashes and name bindings are
+//    the same, the top-level expressions hash the same, and the same names are unresolved
+//  - one other width (20, 48 or 200, chosen by the case) prints text that parses to the same program
+//
+// Every parse resolves names against a branch of its own, off main, so nothing one case declares
+// can resolve a name in another. The printer finds a declaration's name in the store, so the
+// case's own declarations are stored, with their real hashes, on the branch it is printed on.
+// That lookup is by content hash on any branch, so a declaration whose content the store already
+// holds under a shorter name prints under that name; such cases stay in F#.
+
+type Parsed =
+  { /// The tree with the real content hashes in place of the parser's placeholders
+    tree: LanguageTools.ProgramTypes.SourceFile.SourceFile
+    /// The declarations' ops, with real hashes
+    ops: List<LanguageTools.ProgramTypes.PackageOp>
+    /// One content hash per top-level expression
+    exprHashes: List<String>
+    unresolved: List<(List<String> * LanguageTools.ProgramTypes.NameResolutionError)> }
+
+
+let exprName(i: Int): String = $"roundTripExpr{Stdlib.toString(i)}"
+
+/// Each top-level expression as the body of a value, so it is hashed, and its references to the
+/// file's own declarations remapped, along with those declarations.
+let exprsAsValues(
+  exprs: List<LanguageTools.ProgramTypes.Expr>)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  exprs
+  |> Stdlib.List.indexedMap(fun(i, e) ->
+    let placeholder = LanguageTools.ProgramTypes.Hash.Hash(exprName(i))
+    let location =
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = "Tests", modules = [ "RoundTrip" ], name = exprName(i) }
+
+    [ LanguageTools.ProgramTypes.PackageOp.AddValue(
+        LanguageTools.ProgramTypes.PackageValue.PackageValue
+          { hash = placeholder, body = e, description = "" })
+      LanguageTools.ProgramTypes.PackageOp.SetName(
+        location,
+        LanguageTools.ProgramTypes.Reference.PackageValue(placeholder),
+        Stdlib.Option.Option.None) ])
+  |> Stdlib.List.flatten
+
+
+/// The hash an Add op adds.
+let addedHash(op: LanguageTools.ProgramTypes.PackageOp): Stdlib.Option.Option<String> =
+  match op with
+  | AddType(t) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
+  | AddValue(v) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(v.hash))
+  | AddFn(f) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(f.hash))
+  | AddTrait(t) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
+  | AddTraitImpl(i) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(i.hash))
+  | AddTest(t) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Swap each parsed item for its stabilized self, found by its placeholder hash.
+let restabilize(
+  stable: Dict<String, LanguageTools.ProgramTypes.PackageOp>,
+  decl: LanguageTools.ProgramTypes.SourceFile.Declaration)
+  : LanguageTools.ProgramTypes.SourceFile.Declaration =
+  let look = fun op ->
+    match addedHash(op) with
+    | Some(h) -> Stdlib.Dict.get(stable, h)
+    | None -> Stdlib.Option.Option.None
+
+  match decl with
+  | Type(t) ->
+    match look(LanguageTools.ProgramTypes.PackageOp.AddType(t)) with
+    | Some(AddType(s)) -> LanguageTools.ProgramTypes.SourceFile.Declaration.Type(s)
+    | _ -> decl
+  | Value(v) ->
+    match look(LanguageTools.ProgramTypes.PackageOp.AddValue(v)) with
+    | Some(AddValue(s)) -> LanguageTools.ProgramTypes.SourceFile.Declaration.Value(s)
+    | _ -> decl
+  | Function(f) ->
+    match look(LanguageTools.ProgramTypes.PackageOp.AddFn(f)) with
+    | Some(AddFn(s)) -> LanguageTools.ProgramTypes.SourceFile.Declaration.Function(s)
+    | _ -> decl
+  | Trait(t) ->
+    match look(LanguageTools.ProgramTypes.PackageOp.AddTrait(t)) with
+    | Some(AddTrait(s)) -> LanguageTools.ProgramTypes.SourceFile.Declaration.Trait(s)
+    | _ -> decl
+  | Impl(i) ->
+    match look(LanguageTools.ProgramTypes.PackageOp.AddTraitImpl(i)) with
+    | Some(AddTraitImpl(s)) -> LanguageTools.ProgramTypes.SourceFile.Declaration.Impl(s)
+    | _ -> decl
+  | Test(t) ->
+    match look(LanguageTools.ProgramTypes.PackageOp.AddTest(t)) with
+    | Some(AddTest(s)) -> LanguageTools.ProgramTypes.SourceFile.Declaration.Test(s)
+    | _ -> decl
+  | Module(defs) ->
+    let types =
+      defs.types
+      |> Stdlib.List.map(fun t ->
+        match look(LanguageTools.ProgramTypes.PackageOp.AddType(t)) with
+        | Some(AddType(s)) -> s
+        | _ -> t)
+    let values =
+      defs.values
+      |> Stdlib.List.map(fun v ->
+        match look(LanguageTools.ProgramTypes.PackageOp.AddValue(v)) with
+        | Some(AddValue(s)) -> s
+        | _ -> v)
+    let fns =
+      defs.fns
+      |> Stdlib.List.map(fun f ->
+        match look(LanguageTools.ProgramTypes.PackageOp.AddFn(f)) with
+        | Some(AddFn(s)) -> s
+        | _ -> f)
+    let traits =
+      defs.traits
+      |> Stdlib.List.map(fun t ->
+        match look(LanguageTools.ProgramTypes.PackageOp.AddTrait(t)) with
+        | Some(AddTrait(s)) -> s
+        | _ -> t)
+    let impls =
+      defs.impls
+      |> Stdlib.List.map(fun i ->
+        match look(LanguageTools.ProgramTypes.PackageOp.AddTraitImpl(i)) with
+        | Some(AddTraitImpl(s)) -> s
+        | _ -> i)
+
+    LanguageTools.ProgramTypes.SourceFile.Declaration.Module(
+      { defs with types = types, values = values, fns = fns, traits = traits, impls = impls })
+
+
+/// Real content hashes for <param ops> and the file's expressions, and the tree rewritten to use
+/// them. The parser hands out placeholder hashes named after locations, which the store does not
+/// index, so a tree printed with them would show hashes where its names should be.
+let stabilize(
+  tree: LanguageTools.ProgramTypes.SourceFile.SourceFile,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : (LanguageTools.ProgramTypes.SourceFile.SourceFile * List<LanguageTools.ProgramTypes.PackageOp> * List<String>) =
+  let exprOps = exprsAsValues(tree.exprsToEval)
+  let all = Stdlib.List.flatten([ ops, exprOps ])
+  let stableAll = LanguageTools.PackageManager.stabilizeHashes(all)
+
+  let byPlaceholder =
+    Stdlib.List.zipShortest(all, stableAll)
+    |> Stdlib.List.filterMap(fun((before, after)) ->
+      match addedHash(before) with
+      | Some(h) -> Stdlib.Option.Option.Some((h, after))
+      | None -> Stdlib.Option.Option.None)
+    |> Stdlib.Dict.fromList
+
+  let stableExprs =
+    tree.exprsToEval
+    |> Stdlib.List.indexedMap(fun(i, e) ->
+      match Stdlib.Dict.get(byPlaceholder, exprName(i)) with
+      | Some(AddValue(v)) -> (v.body, LanguageTools.ProgramTypes.hashToString(v.hash))
+      | _ -> (e, "?"))
+
+  let stableTree =
+    LanguageTools.ProgramTypes.SourceFile.SourceFile
+      { declarations =
+          tree.declarations |> Stdlib.List.map(fun d -> restabilize(byPlaceholder, d))
+        exprsToEval = stableExprs |> Stdlib.List.map(fun((e, _)) -> e) }
+
+  (stableTree,
+   Stdlib.List.take(stableAll, Stdlib.List.length(ops)),
+   stableExprs |> Stdlib.List.map(fun((_, h)) -> h))
+
+
+/// A new branch off main holding <param prelude>'s declarations, which the parser puts under the
+/// owner `Tests`, so a case can refer to `Tests.Person` or, from a declaration, `Person`.
+let branchWith(prelude: String): Uuid =
+  let name = "round-trip-" + Stdlib.toString(Stdlib.Uuid.generate())
+  let (branchId, _) = SCM.PackageOps.ensureBranch(name, SCM.Branch.mainBranchId)
+
+  if prelude != "" then
+    match LanguageTools.Parser.Parse.parsePTSourceFileWithOps(branchId, prelude) with
+    | Ok((_, ops)) ->
+      let _ = SCM.PackageOps.add(branchId, LanguageTools.PackageManager.stabilizeHashes(ops))
+      branchId
+    | Error(_) -> branchId
+  else
+    branchId
+
+
+/// `Parse.parsePTSourceFileWithOps`, keeping the unresolved names it drops, with real hashes.
+let parseOn(branchId: Uuid, source: String): Stdlib.Result.Result<Parsed, String> =
+  match LanguageTools.Parser.Parse.initialParse(source) with
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(parsedFile) ->
+    let (tree, ops, unresolved) =
+      LanguageTools.WrittenTypesToProgramTypes.parsedFileAsSourceFile(branchId, parsedFile)
+
+    let (stableTree, stableOps, exprHashes) = stabilize(tree, ops)
+
+    Stdlib.Result.Result.Ok(
+      Parsed
+        { tree = stableTree
+          ops = stableOps
+          exprHashes = exprHashes
+          unresolved =
+            unresolved |> Stdlib.List.map(fun((_, names, error)) -> (names, error)) })
+
+
+let printAt(branchId: Uuid, width: Int, parsed: Parsed): String =
+  PrettyPrinter.ProgramTypes.sourceFileAtWidth(branchId, width, parsed.tree)
+
+
+/// Content hashes and name bindings, in source order: equal lists mean the same declarations
+/// under the same names. Ids, descriptions and source positions are not part of a hash.
+let bindings(ops: List<LanguageTools.ProgramTypes.PackageOp>): List<String> =
+  ops
+  |> Stdlib.List.filterMap(fun op ->
+    match op with
+    // `previous` is what makes a rebind different from a fresh bind; a round trip does not care.
+    | SetName(loc, target, _) ->
+      let (kind, hash) =
+        match target with
+        | PackageType(h) -> ("type", h)
+        | PackageValue(h) -> ("value", h)
+        | PackageFn(h) -> ("fn", h)
+        | PackageTrait(h) -> ("trait", h)
+        | PackageTraitImpl(h) -> ("impl", h)
+        | PackageTest(h) -> ("test", h)
+
+      let path = Stdlib.String.join(Stdlib.List.prepend(loc.modules, loc.owner), ".")
+      Stdlib.Option.Option.Some(
+        $"bind {kind} {path}.{loc.name} {LanguageTools.ProgramTypes.hashToString(hash)}")
+    | _ ->
+      match addedHash(op) with
+      | Some(h) -> Stdlib.Option.Option.Some("content " + h)
+      | None -> Stdlib.Option.Option.None)
+
+
+let problemUnless(same: Bool, label: String, what: String): List<String> =
+  if same then [] else [ $"{label}: {what}" ]
+
+/// The same program: same declarations, bindings, expressions and unresolved names.
+let sameProgram(label: String, actual: Parsed, expected: Parsed): List<String> =
+  Stdlib.List.flatten(
+    [ problemUnless(
+        bindings(actual.ops) == bindings(expected.ops),
+        label,
+        "bound different names or declared different content")
+      problemUnless(
+        actual.exprHashes == expected.exprHashes,
+        label,
+        "changed the meaning of an expression")
+      problemUnless(
+        actual.unresolved == expected.unresolved,
+        label,
+        "changed an unresolved name") ])
+
+
+/// <param name>'s round trip, with <param prelude> declared under `Tests` first.
+let roundTripWith(
+  prelude: String,
+  name: String,
+  source: String,
+  expected: String)
+  : Stdlib.Test.Result =
+  let fail = fun message -> Stdlib.Test.fail($"{name}: {message}")
+  // Every parse happens on a branch that never holds the case's own declarations.
+  let parseBranch = branchWith(prelude)
+
+  match parseOn(parseBranch, source) with
+  | Error(e) -> fail("parse error: " + e)
+  | Ok(first) ->
+    let firstBranch = branchWith(prelude)
+    let _ = SCM.PackageOps.add(firstBranch, first.ops)
+    let firstPrint = printAt(firstBranch, 80, first)
+
+    if firstPrint != expected then
+      fail($"didn't round-trip as expected.\nexpected:\n{expected}\ngot:\n{firstPrint}")
+    else
+      match parseOn(parseBranch, firstPrint) with
+      | Error(e) -> fail("re-parsing the printed source: " + e)
+      | Ok(second) ->
+        let secondBranch = branchWith(prelude)
+        let _ = SCM.PackageOps.add(secondBranch, second.ops)
+        let secondPrint = printAt(secondBranch, 80, second)
+
+        let width =
+          match Stdlib.List.getAt([ 20, 48, 200 ], Stdlib.String.length(name) % 3) with
+          | Some(w) -> w
+          | None -> 80
+
+        let widthPrint = printAt(firstBranch, width, first)
+
+        let widthProblems =
+          match parseOn(parseBranch, widthPrint) with
+          | Error(e) -> [ $"width {Stdlib.toString(width)}: re-parse failed: {e}\n{widthPrint}" ]
+          | Ok(atWidth) ->
+            sameProgram($"printed at width {Stdlib.toString(width)}\n{widthPrint}\n", atWidth, first)
+
+        let problems =
+          Stdlib.List.flatten(
+            [ if secondPrint == firstPrint then
+                []
+              else
+                [ $"printing is not idempotent; printing the printer's own output gave:\n{secondPrint}" ]
+              sameProgram("re-parsing the printed source", second, first)
+              widthProblems ])
+
+        match problems with
+        | [] -> Stdlib.Test.pass()
+        | _ -> Stdlib.Test.Result.Fail(problems |> Stdlib.List.map(fun p -> $"{name}: {p}"))
+
+
+let roundTrip(name: String, source: String, expected: String): Stdlib.Test.Result =
+  roundTripWith("", name, source, expected)
+
+
+// Declarations some cases refer to, as `Tests.X` from an expression or `X` from a declaration.
+val person = "type Person = { name: String, age: Int64, hasPet: Bool }"
+val myString = "type MyString = String"
+val pet = "type Pet = String"
+val myEnum =
+  "type MyEnum =\n  | A\n  | B of Int64\n  | C of (Int64 * Int64)\n  | D of Int64 * Int64\n  | E of Int64 * Int64 * Int64"
+
+
+/// The text a string or char literal decoded to, with interpolated literals inlined. Proves an
+/// escape decoded, not just that it survived a symmetric parse and print.
+let decoded(e: LanguageTools.ProgramTypes.Expr): String =
+  match e with
+  | EString(_, segments) ->
+    segments
+    |> Stdlib.List.map(fun s ->
+      match s with
+      | StringText(t) -> t
+      | StringInterpolation(inner) -> decoded(inner))
+    |> Stdlib.String.join("")
+  | EChar(_, c) -> c
+  | _ -> "<not a literal>"
+
+let decodesToString(name: String, source: String, expected: String): Stdlib.Test.Result =
+  match LanguageTools.Parser.Parse.parsePTExpr(source) with
+  | Ok(e) ->
+    match e with
+    | EString(_, _) -> decoded(e) |> Stdlib.Test.equal(expected)
+    | _ -> Stdlib.Test.fail($"{name}: not a string literal")
+  | Error(e) -> Stdlib.Test.fail($"{name}: parse error: {e}")
+
+let decodesToChar(name: String, source: String, expected: String): Stdlib.Test.Result =
+  match LanguageTools.Parser.Parse.parsePTExpr(source) with
+  | Ok(e) ->
+    match e with
+    | EChar(_, c) -> c |> Stdlib.Test.equal(expected)
+    | _ -> Stdlib.Test.fail($"{name}: not a char literal")
+  | Error(e) -> Stdlib.Test.fail($"{name}: parse error: {e}")
+
+
+/// The CLI's parse path, which reports a per-declaration syntax error as `Error` where
+/// `parsePTSourceFileWithOps` would set it aside and return `Ok`.
+let cliParse(
+  source: String)
+  : Stdlib.Result.Result<
+    (LanguageTools.Parser.CliScript.PTCliScriptModule * List<LanguageTools.WrittenTypes.UnresolvedName>),
+    LanguageTools.Parser.CliScript.ParseError
+  > =
+  LanguageTools.Parser.CliScript.parseForCli(SCM.Branch.mainBranchId, "Tests", "test", "test", source)
+
+let rejected(name: String, source: String): Stdlib.Test.Result =
+  match cliParse(source) with
+  | Error(_) -> Stdlib.Test.pass()
+  | Ok(_) -> Stdlib.Test.fail($"{name}: parsed, but should have been rejected")
+
+/// Rejected, with a message that contains <param note>. The message starts with the position.
+let rejectedWithNote(name: String, source: String, note: String): Stdlib.Test.Result =
+  match cliParse(source) with
+  | Error(Message(message)) ->
+    if Stdlib.String.contains(message, note) then
+      Stdlib.Test.pass()
+    else
+      Stdlib.Test.fail($"{name}: the error doesn't say \"{note}\": {message}")
+  | Ok(_) -> Stdlib.Test.fail($"{name}: parsed, but should have been rejected")
+
+let parsesOk(name: String, source: String): Stdlib.Test.Result =
+  match cliParse(source) with
+  | Ok(_) -> Stdlib.Test.pass()
+  | Error(Message(message)) -> Stdlib.Test.fail($"{name}: {message}")
+
+
+let callWith(f: List<Int64> -> List<Int64>, arg: List<Int64>): List<Int64> = f(arg)
+
+/// Parse a source file declaring one fn, store it as the CLI would, then run it by the name it was
+/// stored under. A resolution bug inside the body, such as a nested recursive fn not finding itself,
+/// shows up here and can hide in a print.
+let runsDeclaredFn(
+  name: String,
+  source: String,
+  arg: List<Int64>,
+  expected: List<Int64>)
+  : Stdlib.Test.Result =
+  let branchId = branchWith("")
+
+  match parseOn(branchId, source) with
+  | Error(e) -> Stdlib.Test.fail($"{name}: parse error: {e}")
+  | Ok(parsed) ->
+    let _ = SCM.PackageOps.add(branchId, parsed.ops)
+
+    let fnNames =
+      parsed.ops
+      |> Stdlib.List.filterMap(fun op ->
+        match op with
+        | SetName(loc, PackageFn(_), _) ->
+          Stdlib.Option.Option.Some(
+            Stdlib.String.join(
+              Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ]),
+              "."))
+        | _ -> Stdlib.Option.Option.None)
+
+    match fnNames with
+    | [ fnName ] ->
+      match Stdlib.Live.applicableByName(branchId, fnName) with
+      | Ok(f) -> callWith(f, arg) |> Stdlib.Test.equal(expected)
+      | Error(e) -> Stdlib.Test.fail($"{name}: {e}")
+    | _ -> Stdlib.Test.fail($"{name}: expected exactly one declared fn")

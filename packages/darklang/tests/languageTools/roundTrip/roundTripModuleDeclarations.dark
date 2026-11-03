@@ -1,0 +1,14 @@
+module Darklang.LanguageTools.Parser.RoundTrip.Tests
+
+// Parse-then-print round trips: moduleDeclarations. Moved from
+// backend/tests/Tests/LibParser.RoundTrip.Tests.fs; helpers are in roundTrip.dark.
+
+test moduleDeclarations =
+  Stdlib.Test.all(
+    [ // Unqualified Result resolves from inside a non-Stdlib module (here
+      // Tests.MyModule), the scenario that motivated the stdlib fallback.
+      // Previously this required the fully-qualified `Stdlib.Result.Result`.
+      roundTrip(
+        "unqualified Result resolves inside a non-Stdlib module",
+        "module MyModule =\n  type MyResult = Result<Int64, String>",
+        "module MyModule =\n  type MyResult =\n    Result<Int64, String>") ])
