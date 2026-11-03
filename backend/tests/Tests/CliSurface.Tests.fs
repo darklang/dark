@@ -1328,7 +1328,14 @@ let private refusalsOnStderr : List<string * List<string>> =
     "conflicts ack --json, no such id", [ "conflicts"; "ack"; "zzznope"; "--json" ]
     "deps --json, no such name", [ "deps"; "Zzz.Nope.nope"; "--json" ]
     "log --json, no such branch", [ "log"; "zzznope"; "--json" ]
-    "ps show --json, no such process", [ "ps"; "show"; "zzznope"; "--json" ] ]
+    "ps show --json, no such process", [ "ps"; "show"; "zzznope"; "--json" ]
+    "typecheck, no such module", [ "typecheck"; "Zzz.Nope" ]
+    "typecheck --json, no such module", [ "typecheck"; "Zzz.Nope"; "--json" ]
+    "traces calls, no such function", [ "traces"; "calls"; "Zzz.Nope.nope" ]
+    "traces calls --json, no such function",
+    [ "traces"; "calls"; "Zzz.Nope.nope"; "--json" ]
+    "permissions revoke-package, a hash never approved",
+    [ "permissions"; "revoke-package"; "0123456789abcdef" ] ]
 
 let private refusalsKeepStdoutEmpty =
   cliTestOnMain
@@ -1366,6 +1373,21 @@ let private refusalsKeepStdoutEmpty =
             "refusals that wrote to stdout, said nothing, or exited 0:\n%s"
             detail
       })
+
+/// The same rule for a commit with nothing in it, which needs a store whose draft is empty, so
+/// it gets an instance of its own rather than a row in the table above.
+let private emptyCommitIsARefusal =
+  instanceTest "a commit with nothing to commit is a refusal" (fun target ->
+    task {
+      let! (out, err, code) =
+        runCliStreams target [ "commit"; "nothing here"; "-y" ]
+      Expect.equal out "" "nothing on stdout"
+      Expect.stringContains
+        (CliDsl.plain err)
+        "nothing to commit"
+        "the reason is on stderr"
+      Expect.equal code 1 "and it exits 1"
+    })
 
 /// Every `dark <word>` the in-CLI docs mention has to be a real command.
 ///
@@ -2178,4 +2200,5 @@ let tests : List<Test> =
     traitRefusalsExitNonZero
     otherRefusalsExitNonZero
     refusalsKeepStdoutEmpty
+    emptyCommitIsARefusal
     documentedCommandsAreReal ]

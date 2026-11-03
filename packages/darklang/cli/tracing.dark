@@ -602,13 +602,25 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | [ "calls", typed ] ->
     let fnName = Cli.TraceVerbs.canonicalFnName(state.currentBranchId, typed)
 
-    if wantsJson then
-      Cli.TraceVerbs.printTracesJson(
-        state.currentBranchId,
-        Darklang.Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 25L))
+    // No traces is an answer about a function; no function, and nothing that ever ran under the
+    // name, is a typo, and refused the way `traces show` refuses it.
+    if
+      ((LanguageTools.PackageManager.Function.find(
+          state.currentBranchId,
+          LanguageTools.ProgramTypes.parsePackageLocation(fnName)))
+       == Stdlib.Option.Option.None)
+      && Stdlib.List.isEmpty(Darklang.Tracing.Store.wentThrough(fnName, "", 1L))
+    then
+      Cli.printErr($"no function named {fnName} on this branch")
+      { state with exitCode = 1 }
     else
-      Cli.TraceVerbs.printCalls(state.currentBranchId, fnName)
-    state
+      if wantsJson then
+        Cli.TraceVerbs.printTracesJson(
+          state.currentBranchId,
+          Darklang.Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 25L))
+      else
+        Cli.TraceVerbs.printCalls(state.currentBranchId, fnName)
+      state
   // The watching form of the same thing: the traces to pick from, and the code repainting as you
   // move between them or save an edit.
   | [ "show", typed, "--watch" ] ->

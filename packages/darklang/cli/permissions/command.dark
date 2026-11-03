@@ -799,9 +799,14 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     Cli.exitWith(state, (Command.withVersion(state, target, fun hash ->
       Command.accessReportLines(state.accountID, hash))))
   | [ "revoke-package", hash ] ->
-    Command.revokeHash(state.accountID, hash)
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.success("✓ package approval revoked"))
-    state
+    // A hash that was never approved revokes nothing; say so rather than report a revoke.
+    if Stdlib.List.contains(Command.approvedHashes(state.accountID), hash) then
+      Command.revokeHash(state.accountID, hash)
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.success("✓ package approval revoked"))
+      state
+    else
+      Cli.printErr($"{hash} has no approval; `permissions approvals` lists the ones that do")
+      Cli.exitWith(state, false)
   | [ "approvals" ] ->
     // Name the ones an approved version points at. The rest are dependencies approved as part of
     // some root's closure and have no name of their own, but a page of bare hashes gave no way to

@@ -34,6 +34,9 @@ Batch search caps each result section at three items. Use `--fn`, `--type`,
 `--val`, or `--test` to focus results; `--with-docs` shows full comments, `docs signatures
 <module>` browses a known module, and `view <name>` shows source.
 
+Answers go on stdout; errors, hints and logs go on stderr; a refusal exits
+non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
+
 ## Authoring
 
 Names have three parts, Owner.Module.name. Use an owner of your own, such as
@@ -344,10 +347,6 @@ Exit codes are the other thing you can branch on without reading English.
 `eval` and `run` exit 0 when the code ran and gave an answer, and non-zero
 when it raised, when the script was not there, or when the script itself
 ended non-zero. A permission refusal is non-zero too.
-
-Stdout is the answer; stderr is everything else, refusals and hints included.
-Under `--json` a refusal leaves stdout empty, puts the reason on stderr and
-exits 1, on every command; test the exit code.
 
 ## Name Resolution
 Names resolve relative to the current module, searching from
