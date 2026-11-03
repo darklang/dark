@@ -58,8 +58,8 @@ and body fragment remains valid:
   EOF
 
 At module scope values use `val name = value`; `let` declares functions. Inside
-a function, local values use `let`. Nested helpers need full annotations:
-`let helper(x: Int): Int = ...`.
+a function, local values use `let`. Nested helpers annotate every parameter
+(the return type is optional; neither is checked): `let helper(x: Int): Int = ...`.
 
 `fn`, `type`, `val` and `module` run the at-rest type checker on what they save
 and print its findings; the save goes through regardless (WIP is yours to break).
@@ -378,8 +378,9 @@ Rules:
 - No partial application: a call gives every argument, and too few is an error,
   not a function. To supply the rest later, write a lambda: `fun x -> Stdlib.max(1, x)`.
 - Declarations list their parameters the same way: `let add(a: Int, b: Int): Int = a + b`.
-- Nested function definitions need PARENTHESIZED params AND full annotations:
-  `let helper(x: Int): Int = ...`. The parser desugars this to a local lambda, so
+- Nested function definitions need PARENTHESIZED, annotated params:
+  `let helper(x: Int): Int = ...`. The return type is optional, and neither
+  annotation is checked. The parser desugars this to a local lambda, so
   use it for task-local helpers. A nested fn can call one defined above it; a FORWARD
   reference to one defined below fails, and so does mutual recursion.
 - NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid --

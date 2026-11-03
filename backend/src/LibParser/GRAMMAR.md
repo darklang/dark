@@ -228,8 +228,9 @@ For dotted names, lowercase steps are fields and uppercase steps are module path
 segments. A bare dotted name like `Stdlib.List.map` is itself a value/function
 reference.
 
-A nested function let lowers to a let-bound lambda. Its annotations are
-currently compatibility syntax and are not enforced by this parser/type path.
+A nested function let lowers to a let-bound lambda. Each parameter must be
+annotated, as in a top-level fn; the return annotation is optional. Both are
+dropped when it lowers, so neither is checked.
 Local bindings and value declarations do not accept annotations. Write
 `let x = value` locally or `val x = value` at declaration scope, without
 `: Type`.
@@ -301,7 +302,7 @@ apostrophe-prefixed and comma-separated; the list cannot be empty. For example:
 
 Generics work on:
 
-- calls: `parse<Int64> x`
+- calls: `parse<Int64>(x)`
 - enum constructors: `Type<T>.Case`
 - records: `Type<T> { … }`
 - type declarations: `type F<'a> = …`
@@ -376,11 +377,11 @@ Modules nest. The path builds the package location: `owner.modules.name`.
 method signatures, one per line, each a full fn signature without a body:
 
     trait Show<'a> =
-      let show (value: 'a) : String
+      let show(value: 'a): String
 
 The trait needs at least one type parameter (the first is the self type) and
 at least one method; a method body is `PARSE-BOUND`. A method may carry an
-effect row (`let fetch (u: 'a) :{Http} String`), which is the ceiling every
+effect row (`let fetch(u: 'a):{Http} String`), which is the ceiling every
 impl of it must fit under. A trait lowers to its own package item
 (`PT.Trait`), with the method signatures and their ceilings on it.
 
@@ -389,13 +390,13 @@ by an indented block with one entry per method, each either a full fn
 declaration or an alias of an existing fn:
 
     impl Show for Point =
-      let show (p: Point) : String = "..."
+      let show(p: Point): String = "..."
 
     impl Add for String =
       let add = Stdlib.String.append
 
     impl<'a: Show> Show for List<'a> =
-      let show (xs: List<'a>) : String = "..."
+      let show(xs: List<'a>): String = "..."
 
 An entry that is neither (a `val`, a `let` bound to anything but a name) is
 `PARSE-BOUND`; an impl with no entries is `PARSE-EXPECTED`. An impl lowers to its
