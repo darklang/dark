@@ -857,6 +857,88 @@ module TimeoutTests =
           } ]
 
 
+/// Real sockets exercise proxy selection and CONNECT without external DNS or
+/// changing process-wide proxy environment variables or guest configuration.
+module ProxyTests =
+  open System.Net
+  module HostHttp = LibExecution.HostHttp
+
+  let tests =
+    testList
+      "proxy"
+      [ for scheme in [ "http"; "https" ] do
+          testTask $"{scheme} uses a loopback proxy with loopback disabled" {
+            return!
+              task {
+                use listener = new Sockets.TcpListener(IPAddress.Loopback, 0)
+                listener.Start()
+                let port = (listener.LocalEndpoint :?> IPEndPoint).Port
+                let proxy = new WebProxy($"http://127.0.0.1:{port}")
+                let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
+                use _client = profile.client
+                use deadline = new System.Threading.CancellationTokenSource(5000)
+                let received =
+                  task {
+                    use! connection = listener.AcceptTcpClientAsync(deadline.Token)
+                    use stream = connection.GetStream()
+                    use reader = new StreamReader(stream)
+                    let! firstLine = reader.ReadLineAsync(deadline.Token)
+                    let mutable line = "header"
+                    while line <> "" do
+                      let! next = reader.ReadLineAsync(deadline.Token)
+                      line <- next
+                    // Reject CONNECT after observing it; no TLS fixture is needed.
+                    let response =
+                      if scheme = "https" then
+                        "HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n"
+                      else
+                        "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+                    do! stream.WriteAsync(UTF8.toBytes response, deadline.Token)
+                    return firstLine
+                  }
+                let! result =
+                  (HostHttp.send profile "GET" $"{scheme}://fixture.test/zen" [] [||])
+                    .WaitAsync(deadline.Token)
+                let! firstLine = received
+                Expect.equal
+                  firstLine
+                  (if scheme = "https" then
+                     "CONNECT fixture.test:443 HTTP/1.1"
+                   else
+                     "GET http://fixture.test/zen HTTP/1.1")
+                  "the selected proxy receives the request"
+                if scheme = "http" then
+                  match result with
+                  | Ok response ->
+                    Expect.equal response.statusCode 200 "proxy response"
+                  | Error error -> failtest $"proxy request failed: {error}"
+              }
+          }
+
+        testTask "proxy bypass keeps direct loopback connections blocked" {
+          return!
+            task {
+              use listener = new Sockets.TcpListener(IPAddress.Loopback, 0)
+              listener.Start()
+              let port = (listener.LocalEndpoint :?> IPEndPoint).Port
+              // Even a bypassed destination at the proxy's loopback address and port
+              // must pass the direct IP guard. Calling send exercises the DNS guard
+              // rather than stopping at prepare's earlier literal-host validation.
+              let proxy = new WebProxy($"http://127.0.0.1:{port}")
+              proxy.BypassList <- [| ".*" |]
+              let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
+              use _client = profile.client
+              let! result =
+                (HostHttp.send profile "GET" $"http://localhost:{port}/" [] [||])
+                  .WaitAsync(System.TimeSpan.FromSeconds 5.0)
+              match result with
+              | Error LibExecution.HostTypes.HttpRequestError.NetworkError -> ()
+              | other -> failtest $"expected blocked direct connection, got {other}"
+              Expect.isFalse (listener.Pending()) "no connection reached loopback"
+            }
+        } ]
+
+
 /// Sequenced against ITSELF: `testSequencedGroup` runs these one at a time while still running
 /// alongside other groups.
 ///
@@ -887,6 +969,7 @@ let tests =
     [ StreamDvalTests.tests
       readBuiltinRefusesAWriteMethod
       ProtocolPolicyTests.tests
+      ProxyTests.tests
       TimeoutTests.tests ] ]
   |> List.concat
   |> testList "HttpClient"
