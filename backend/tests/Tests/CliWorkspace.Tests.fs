@@ -39,22 +39,89 @@ let configRoundTrips =
       do!
         shows
           state
-          [ "config"; "set"; "tests.workspace"; "hello" ]
-          "tests.workspace"
+          [ "config"; "set"; "instance.name"; "hello" ]
+          "instance.name"
           "set says what it set"
       do!
         shows
           state
-          [ "config"; "get"; "tests.workspace" ]
+          [ "config"; "get"; "instance.name" ]
           "hello"
           "and get reads it back"
       do!
         shows
           state
-          [ "config"; "get"; "tests.neverset" ]
-          "not found"
+          [ "config"; "get"; "trace.maxMb" ]
+          "not set"
           "an unset key is not an empty value"
     })
+
+/// The key list is closed: nothing reads a key it does not name, so storing one would only hide
+/// a typo. A refusal names the key meant when one is obvious, and a value is checked on `set`.
+let configRefusesUnknownKeysAndBadValues =
+  instanceTest
+    "config refuses a key nothing reads, and a value the boot cannot use"
+    (fun state ->
+      task {
+        do!
+          refuses
+            state
+            [ "config"; "set"; "trace.recrod"; "on" ]
+            "Did you mean trace.record?"
+            "Set "
+            "a typo is refused with the key it meant"
+        do!
+          refuses
+            state
+            [ "config"; "set"; "loopback"; "on" ]
+            "Did you mean http.loopback?"
+            "Set "
+            "a bare suffix names its key"
+        do!
+          refuses
+            state
+            [ "config"; "set"; "tests.workspace"; "hello" ]
+            "is not a config key"
+            "Set "
+            "a key nothing reads is refused"
+        do!
+          lacks
+            state
+            [ "config"; "set"; "tests.workspace"; "hello" ]
+            "Did you mean"
+            "with no guess when none is obvious"
+        do!
+          refuses
+            state
+            [ "config"; "set"; "exec.policy"; "Zzz.Nope.nope" ]
+            "is not one on this branch"
+            "Set "
+            "a policy that names no function is refused once, on set"
+        do!
+          shows
+            state
+            [ "config"
+              "set"
+              "exec.policy"
+              "Darklang.Stdlib.Exec.Policy.roundRobin" ]
+            "Set exec.policy"
+            "a policy that resolves is stored"
+        do! run state [ "config"; "set"; "exec.policy"; "" ]
+        do!
+          refuses
+            state
+            [ "config"; "set"; "exec.spreadPredict"; "maybe" ]
+            "on or off"
+            "Set "
+            "the measuring keys are checked too"
+        do!
+          refuses
+            state
+            [ "config"; "set"; "instance.id"; "x" ]
+            "cannot be set"
+            "Set "
+            "instance.id is the workbench's own"
+      })
 
 /// Regression: this crashed. `backups now` asked whether the store existed, that
 /// question went through the guarded file API, and the denial is an uncaught runtime
@@ -1603,6 +1670,7 @@ let private observeAndShow =
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
+    configRefusesUnknownKeysAndBadValues
     backupsCanBeTaken
     backupsRefusesToRestoreWhatIsNotThere
     permissionsLists
