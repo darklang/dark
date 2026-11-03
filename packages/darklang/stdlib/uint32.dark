@@ -61,7 +61,9 @@ impl Compare for UInt32 =
 
 /// Returns a random 32-bit unsigned integer between <param start> and <param end> (inclusive)
 let random(start: UInt32, ``end``: UInt32): UInt32 =
-  Builtin.uint32Random(start, ``end``)
+  Stdlib.Int.random(Stdlib.Int.fromUInt32(start), Stdlib.Int.fromUInt32(``end``))
+  |> Stdlib.Int.toUInt32
+  |> Builtin.unwrap
 
 
 /// Get the square root of an <type UInt32>

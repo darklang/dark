@@ -61,7 +61,9 @@ impl Compare for UInt16 =
 
 /// Returns a random 16-bit unsigned integer between <param start> and <param end> (inclusive)
 let random(start: UInt16, ``end``: UInt16): UInt16 =
-  Builtin.uint16Random(start, ``end``)
+  Stdlib.Int.random(Stdlib.Int.fromUInt16(start), Stdlib.Int.fromUInt16(``end``))
+  |> Stdlib.Int.toUInt16
+  |> Builtin.unwrap
 
 
 /// Get the square root of an <type UInt16>

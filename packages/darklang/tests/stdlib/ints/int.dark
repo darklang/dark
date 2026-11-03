@@ -170,3 +170,39 @@ test shiftLeftRejectsHugeCount =
 test shiftRightRejectsHugeCount =
   (1 >> (2 ** 40))
   => raises "Encountered out-of-range value for type of Int"
+
+// --- random ---
+/// Every result lands inside the bounds, whichever order they are given in,
+/// and every value in a small range is reached.
+test randomSmallRange =
+  (Stdlib.List.range(1, 100)
+   |> Stdlib.List.map(fun _ -> Stdlib.Int.random(2, 0))
+   |> Stdlib.List.unique
+   |> Stdlib.List.sort)
+  |> Stdlib.Test.equal([ 0, 1, 2 ])
+
+/// Each fixed-width `random` draws across its whole range. Lists the widths
+/// whose draws leave the range or all come out the same.
+test randomFullRangeEveryWidth =
+  [ ("Int8", -128, 127, fun _ ->
+      Stdlib.Int.fromInt8(Stdlib.Int8.random(-128y, 127y)))
+    ("UInt8", 0, 255, fun _ -> Stdlib.Int.fromUInt8(Stdlib.UInt8.random(0uy, 255uy)))
+    ("Int16", -32768, 32767, fun _ ->
+      Stdlib.Int.fromInt16(Stdlib.Int16.random(-32768s, 32767s)))
+    ("UInt16", 0, 65535, fun _ ->
+      Stdlib.Int.fromUInt16(Stdlib.UInt16.random(0us, 65535us)))
+    ("Int32", -2147483648, 2147483647, fun _ ->
+      Stdlib.Int.fromInt32(Stdlib.Int32.random(-2147483648l, 2147483647l)))
+    ("UInt32", 0, 4294967295, fun _ ->
+      Stdlib.Int.fromUInt32(Stdlib.UInt32.random(0ul, 4294967295ul)))
+    ("Int64", -9223372036854775808, 9223372036854775807, fun _ ->
+      Stdlib.Int64.random(-9223372036854775808L, 9223372036854775807L)
+      |> Stdlib.Int.fromInt64)
+    ("UInt64", 0, 18446744073709551615, fun _ ->
+      Stdlib.UInt64.random(0UL, 18446744073709551615UL) |> Stdlib.Int.fromUInt64) ]
+  |> Stdlib.List.filter(fun (_, lo, hi, draw) ->
+    let draws = Stdlib.List.range(1, 20) |> Stdlib.List.map(fun _ -> draw())
+    let inRange = Stdlib.List.all(draws, fun x -> (x >= lo) && (x <= hi))
+    Stdlib.Bool.not(inRange && (Stdlib.List.length(Stdlib.List.unique(draws)) > 1)))
+  |> Stdlib.List.map(fun (name, _, _, _) -> name)
+  |> Stdlib.Test.equal([])
