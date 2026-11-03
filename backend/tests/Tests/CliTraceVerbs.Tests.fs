@@ -754,6 +754,97 @@ let private retentionKeepsTheNewestOfEachEntry =
       })
 
 
+/// An older `traces delete --all` missed a table, so a store that ran it still holds that
+/// table's rows under traces that are gone. Every form of `traces delete` now removes them,
+/// and no live row. The tables come from the schema, so one added later without joining
+/// `perTraceTables` fails here.
+let private manualDeletesSweepOrphanedRows =
+  cliTestWithFreshTraces
+    "every form of traces delete removes rows whose trace is gone"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.Prev.looped"
+            ("(n: Int): Int =\n"
+             + "  Stdlib.List.range(1, n)\n"
+             + "  |> Stdlib.List.map(fun i -> i * 2)\n"
+             + "  |> Stdlib.List.length")
+        do! commit state "looped"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.looped" ]
+        // A loop, a logged call and a captured blob, so every table has live rows to copy.
+        let! _ = runCli state [ "eval"; "Tests.Prev.looped(4)" ]
+        let! _ = runCli state [ "eval"; twoUuids ]
+        let! _ =
+          runCli state [ "eval"; "Stdlib.Utf8.encode(\"held by the trace\")" ]
+
+        let! tables =
+          Sql.query
+            "SELECT name FROM sqlite_master
+             WHERE type = 'table' AND name LIKE 'trace%' AND name <> 'traces'"
+          |> Sql.executeAsync (fun read -> read.string "name")
+        Expect.equal
+          (List.sort tables)
+          (List.sort LibDB.Tracing.TraceRetention.perTraceTables)
+          "every per-trace table in the schema is one the delete and the sweep know"
+
+        let count (clause : string) =
+          tables
+          |> List.map (fun table ->
+            Sql.query $"SELECT COUNT(*) AS n FROM {table} WHERE {clause}"
+            |> Sql.executeRowAsync (fun read -> read.int64 "n"))
+          |> Task.WhenAll
+          |> Task.map List.ofArray
+        let live = "trace_id IN (SELECT id FROM traces)"
+        let orphaned = "trace_id NOT IN (SELECT id FROM traces)"
+
+        // An orphan per table: a live trace's rows copied under an id with no `traces` row.
+        let plant (suffix : string) =
+          task {
+            for table in tables do
+              let! columns =
+                Sql.query $"SELECT name FROM pragma_table_info('{table}')"
+                |> Sql.executeAsync (fun read -> read.string "name")
+              let selected =
+                columns
+                |> List.map (fun c -> if c = "trace_id" then "@orphan" else c)
+                |> String.concat ", "
+              let columnList = String.concat ", " columns
+              do!
+                Sql.query
+                  $"INSERT INTO {table} ({columnList})
+                    SELECT {selected} FROM {table}
+                    WHERE trace_id = (SELECT trace_id FROM {table} WHERE {live} LIMIT 1)"
+                |> Sql.parameters [ "orphan", Sql.string $"gone-{suffix}" ]
+                |> Sql.executeStatementAsync
+            let! planted = count orphaned
+            Expect.all
+              planted
+              (fun n -> n > 0L)
+              $"every table has an orphan ({suffix})"
+          }
+
+        let! oneTrace = latest ()
+        let forms =
+          [ [ "--keep"; "100" ]
+            [ "--before"; "3650d" ]
+            [ string oneTrace.id ]
+            [ "--all" ] ]
+        for args in forms do
+          let name = String.concat " " args
+          do! plant name
+          let! liveBefore = count live
+          let! _ = runCli state ([ "traces"; "delete" ] @ args @ [ "--yes" ])
+          let! left = count orphaned
+          Expect.all left (fun n -> n = 0L) $"traces delete {name} took the orphans"
+          if name = "--keep 100" then
+            let! liveAfter = count live
+            Expect.equal liveAfter liveBefore "and left every live row"
+      })
+
+
 /// The pass after a store used to look at bytes only once there were fifty traces, so a
 /// store holding a dozen enormous ones sat at 790 MB under a 256 MB cap and nothing ran.
 let private byteCapActsBelowFiftyTraces =
@@ -1784,6 +1875,7 @@ let tests =
     deletingATraceTakesItsLoopCounts
     retentionKeepsTheNewestAndTheSuspended
     retentionKeepsTheNewestOfEachEntry
+    manualDeletesSweepOrphanedRows
     byteCapSparesTheRunThatTrippedIt
     byteCapActsBelowFiftyTraces
     theFloorIsBounded

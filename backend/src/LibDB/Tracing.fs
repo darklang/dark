@@ -587,22 +587,38 @@ module TraceRetention =
     maxBytes <- bytes
     lastPass <- System.DateTime.MinValue
 
+  /// Every table keyed by `trace_id`. A row in one of them outlives its trace with nothing that
+  /// can ever read it again, so a table added here is dropped by both the delete and the sweep.
+  let perTraceTables =
+    [ "trace_fn_calls"
+      "trace_fns"
+      "trace_loops"
+      "trace_blobs"
+      "trace_cli_invocations" ]
+
   /// Delete these runs: their calls and their rows.
   let deleteTraces (ids : List<string>) : unit =
     match ids with
     | [] -> ()
     | _ ->
       let ps = ids |> List.map (fun id -> [ "id", Sql.string id ])
-      Sql.executeTransactionSync
-        [ "DELETE FROM trace_fn_calls WHERE trace_id = @id", ps
-          "DELETE FROM trace_fns WHERE trace_id = @id", ps
-          // Added with the table. Every other per-trace table is dropped here, and a loop row
-          // outlives its trace with nothing that can ever read it again.
-          "DELETE FROM trace_loops WHERE trace_id = @id", ps
-          "DELETE FROM trace_blobs WHERE trace_id = @id", ps
-          "DELETE FROM trace_cli_invocations WHERE trace_id = @id", ps
-          "DELETE FROM traces WHERE id = @id", ps ]
+      Sql.executeTransactionSync (
+        (perTraceTables
+         |> List.map (fun table -> $"DELETE FROM {table} WHERE trace_id = @id", ps))
+        @ [ "DELETE FROM traces WHERE id = @id", ps ]
+      )
       |> ignore<List<int>>
+
+  /// Delete the rows whose trace is gone: what an older `traces delete --all` left behind,
+  /// since it missed `trace_blobs` (and `trace_loops` before that). Only the manual `traces
+  /// delete` forms call it, so a traced run pays nothing for it.
+  let sweepOrphans () : unit =
+    Sql.executeTransactionSync (
+      perTraceTables
+      |> List.map (fun table ->
+        $"DELETE FROM {table} WHERE trace_id NOT IN (SELECT id FROM traces)", [ [] ])
+    )
+    |> ignore<List<int>>
 
   /// How many entries the floor protects. Without a bound the floor grows with every entry
   /// there has ever been, and an entry is a concrete path: `keep = 20` kept 120 traces after a

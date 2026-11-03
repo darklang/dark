@@ -648,6 +648,7 @@ let fns () : List<BuiltInFn> =
               |> Sql.parameters [ "cutoff", Sql.string cutoffISO ]
               |> Sql.executeAsync (fun read -> read.string "id")
             LibDB.Tracing.TraceRetention.deleteTraces ids
+            LibDB.Tracing.TraceRetention.sweepOrphans ()
             return Dval.int (bigint (List.length ids))
           }
         | _ -> incorrectArgs ())
@@ -669,6 +670,7 @@ let fns () : List<BuiltInFn> =
               Sql.query "SELECT id FROM traces"
               |> Sql.executeAsync (fun read -> read.string "id")
             LibDB.Tracing.TraceRetention.deleteTraces ids
+            LibDB.Tracing.TraceRetention.sweepOrphans ()
             return Dval.int (bigint (List.length ids))
           }
         | _ -> incorrectArgs ())
@@ -695,6 +697,7 @@ let fns () : List<BuiltInFn> =
             | None -> return Dval.int 0I
             | Some _ ->
               LibDB.Tracing.TraceRetention.deleteTraces [ traceID ]
+              LibDB.Tracing.TraceRetention.sweepOrphans ()
               return Dval.int 1I
           }
         | _ -> incorrectArgs ())
@@ -713,8 +716,9 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt keepNArg |] ->
           let keepN = intToInt64 vm keepNArg
-          Dval.int (bigint (LibDB.Tracing.TraceRetention.prune (Some keepN) None))
-          |> Ply
+          let deleted = LibDB.Tracing.TraceRetention.prune (Some keepN) None
+          LibDB.Tracing.TraceRetention.sweepOrphans ()
+          Dval.int (bigint deleted) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
