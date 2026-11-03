@@ -2,11 +2,17 @@ module Darklang.Stdlib.Char
 
 
 /// Return the uppercase value of <param c>. If <param c> does not have an uppercase value, returns <param c>
-let toUppercase(c: Char): Char = Builtin.charToUppercase(c)
+let toUppercase(c: Char): Char =
+  match Stdlib.String.head(Stdlib.String.toUppercase(Stdlib.toString(c))) with
+  | Some(upper) -> upper
+  | None -> c
 
 
 /// Return the lowercase value of <param c>. If <param c> does not have a lowercase value, returns <param c>
-let toLowercase(c: Char): Char = Builtin.charToLowercase(c)
+let toLowercase(c: Char): Char =
+  match Stdlib.String.head(Stdlib.String.toLowercase(Stdlib.toString(c))) with
+  | Some(lower) -> lower
+  | None -> c
 
 
 /// Return whether <param c> is a lowercase character.
@@ -56,7 +62,9 @@ let isASCII(c: Char): Bool =
 
 /// Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
 let toAsciiCode(c: Char): Stdlib.Option.Option<Int> =
-  Builtin.charToAsciiCode(c)
+  match Stdlib.Char.toCodepoint(c) with
+  | Some(code) -> if code < 128 then Stdlib.Option.Option.Some(code) else Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
 
 
 /// Return whether <param c1> is less than <param c2>
@@ -98,4 +106,7 @@ let fromCodepoint(codepoint: Int): Stdlib.Option.Option<Char> =
 
 /// Return the codepoint when <param c> contains exactly one Unicode scalar.
 /// This is the inverse of <fn Char.fromCodepoint>.
-let toCodepoint(c: Char): Stdlib.Option.Option<Int> = Builtin.charToCodepoint(c)
+let toCodepoint(c: Char): Stdlib.Option.Option<Int> =
+  match Stdlib.String.toCodepoints(Stdlib.toString(c)) with
+  | [codepoint] -> Stdlib.Option.Option.Some(codepoint)
+  | _ -> Stdlib.Option.Option.None
