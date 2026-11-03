@@ -62,6 +62,20 @@ module Trace =
     all
 
 
+/// What each `testTrackedStream` saw, by its label: a "pull" per pull of the source, a
+/// "dispose" each time its disposer ran. Per label, so tests running at once keep apart.
+module StreamLog =
+  let private logs =
+    System.Collections.Concurrent.ConcurrentDictionary<string, ResizeArray<string>>()
+  let record (label : string) (entry : string) : unit =
+    let log = logs.GetOrAdd(label, (fun _ -> ResizeArray<string>()))
+    lock log (fun () -> log.Add entry)
+  let take (label : string) : List<string> =
+    match logs.TryRemove label with
+    | true, log -> List.ofSeq log
+    | false, _ -> []
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "testGateWait" 0
       typeParams = []
@@ -144,6 +158,34 @@ let fns () : List<BuiltInFn> =
                 return Some first
             }
           LibExecution.Stream.newFromIO (VT.known KTInt64) next None |> Ply
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    /// An IO source that records its pulls and its disposal in `StreamLog`, so a test can
+    /// see what a transform over it pulled and whether it closed it.
+    { name = fn "testTrackedStream" 0
+      typeParams = []
+      parameters =
+        [ Param.make "label" TString ""; Param.make "items" (TList TInt64) "" ]
+      returnType = TStream TInt64
+      description = "The items as a stream that logs each pull and its disposal."
+      fn =
+        (function
+        | _, _, _, [| DString label; DList(_, items) |] ->
+          let remaining = ref items
+          let next () : Ply<Option<Dval>> =
+            uply {
+              StreamLog.record label "pull"
+              match remaining.Value with
+              | [] -> return None
+              | first :: rest ->
+                remaining.Value <- rest
+                return Some first
+            }
+          let dispose () = StreamLog.record label "dispose"
+          LibExecution.Stream.newFromIO (VT.known KTInt64) next (Some dispose) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

@@ -350,7 +350,9 @@ let private unusedAllowlist : Set<string> =
       "testRead"
       "testReadOf"
       "testSlowStream"
-      "testFailingRead" ]
+      "testFailingRead"
+      // Its callers are the Dark programs embedded as strings in `Stream.Tests.fs`.
+      "testTrackedStream" ]
 
 
 /// Every name on every exclusion list is still a registered builtin.
