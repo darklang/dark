@@ -96,6 +96,7 @@ let private execImpl
 // query mirrors exec: a bad path / malformed SQL surfaces as an Error value, never an uncaught throw.
 let private queryImpl
   (path : string)
+  (readOnly : bool)
   (sql : string)
   (parameters : List<string>)
   : Ply<Dval> =
@@ -109,7 +110,9 @@ let private queryImpl
   uply {
     Telemetry.count "sql.dark.query"
     try
-      use conn = new SqliteConnection(connStr path)
+      // A store-scoped read was granted as package-read only, so it cannot write.
+      let mode = if readOnly then ";Mode=ReadOnly" else ""
+      use conn = new SqliteConnection(connStr path + mode)
       do! conn.OpenAsync()
       use cmd = conn.CreateCommand()
       cmd.CommandText <- sql
@@ -194,7 +197,8 @@ let private storePath : string = System.IO.Path.GetFullPath LibConfig.Config.dbP
 /// `Native` is the honest effect for raw SQLite in general: the SQL can `ATTACH` any file on the
 /// machine, so a path check alone would pretend to confine what the runtime cannot see. Two things
 /// have to hold for the store case: the path IS the store, and the statement cannot reach outside
-/// it. `ATTACH` is what would, so a statement carrying one falls back to `Native`.
+/// it. `ATTACH` and `VACUUM INTO` are what would, so a statement carrying either falls back to
+/// `Native`.
 ///
 /// This is what keeps `dark status` working on a stock install. The SCM is Dark, so its reads are
 /// sqlite calls, and requiring `allow native` for them would mean handing over the keys to run
@@ -204,7 +208,9 @@ let private isStoreScoped (path : string) (sql : string) : bool =
     System.IO.Path.GetFullPath path = storePath
    with _ ->
      false)
-  && not (System.Text.RegularExpressions.Regex.IsMatch(sql, @"(?i)\battach\b"))
+  && not (
+    System.Text.RegularExpressions.Regex.IsMatch(sql, @"(?i)\b(attach|vacuum)\b")
+  )
 
 /// The effects a store-scoped call actually has, or `Native` when it is not store-scoped.
 let private effectsFor (write : bool) (path : string) (sql : string) : Set<Effect> =
@@ -338,7 +344,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, vm, _, [| DString path; DString sql; DList(_, ps) |] ->
           requireSqlite state vm false path sql "sqliteQuery"
-          queryImpl path sql (paramStrings ps)
+          queryImpl path (isStoreScoped path sql) sql (paramStrings ps)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Native; Effect.PackageRead ]
