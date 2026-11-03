@@ -47,3 +47,30 @@ test routes =
          Stdlib.Http.Response
            { statusCode = 200, headers = [], body = Stdlib.Bytes.empty })).method
       |> Stdlib.Test.equal("POST") ])
+
+test getPath =
+  [ ("/users/42?x=1", "/users/42")
+    ("http://localhost:9000/a/b?x=1", "/a/b")
+    ("http://localhost:9000", "/")
+    ("http://localhost:9000//a", "//a")
+    ("/", "/")
+    // Kept as written: not decoded, and characters a client may send raw survive.
+    ("/a%20b/c|d[e]", "/a%20b/c|d[e]")
+    ("users/42", "/users/42")
+    // The host is the client's; a bad one does not route to "/".
+    ("http://123:8000/x?y=1", "/x")
+    ("http://999.1.1.1:8000/x", "/x")
+    ("http://[nope]/a/b#f", "/a/b")
+    ("http://h?x=/y", "/")
+    // What the server hands over for an absolute-form target (`GET http://x/y`).
+    ("http://x/y?z=2", "/y")
+    // Asterisk form never reaches a handler (the listener answers 400), but
+    // does not crash here either.
+    ("*", "/*") ]
+  |> Stdlib.List.map(fun pair ->
+    let (url, expected) = pair
+
+    Stdlib.HttpServer.getPath(
+      Stdlib.Http.Request { url = url, headers = [], body = Stdlib.Bytes.empty })
+    |> Stdlib.Test.equal(expected))
+  |> Stdlib.Test.all

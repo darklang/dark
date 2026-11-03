@@ -144,27 +144,12 @@ let getMethod(req: Http.Request): String =
   Http.Request.header(req, "x-http-method") |> Option.withDefault("GET")
 
 
-/// Get the path from a request URL
+/// The path of a request's url, as written (not decoded), always starting with
+/// {{/}}. Read from the request-target alone (<fn Http.requestTarget>), so the
+/// host, which a client supplies, cannot change it.
 let getPath(req: Http.Request): String =
-  let parts = String.split(req.url, "://")
-
-  let urlWithoutProtocol =
-    match parts with
-    | [ _, rest ] -> rest
-    | _ -> req.url
-
-  let pathParts = String.split(urlWithoutProtocol, "/")
-
-  match pathParts with
-  | [] -> "/"
-  | [ _ ] -> "/"
-  | [_, ...rest] ->
-    let pathWithQuery = String.join(rest, "/")
-    let pathOnlyParts = String.split(pathWithQuery, "?")
-
-    match List.head(pathOnlyParts) with
-    | Some p -> "/" + p
-    | None -> "/"
+  let path = (Http.requestTarget(req.url)).path
+  if String.startsWith(path, "/") then path else "/" + path
 
 
 /// Route a request through a list of handlers

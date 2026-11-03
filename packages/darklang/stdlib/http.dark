@@ -7,30 +7,51 @@ type Request =
     body: Bytes }
 
 
+/// The path, query and fragment of <param url>, split the way a server splits a
+/// request-target ({{/a/b?x=1}}), as a <type Stdlib.Url.Url> with no scheme or
+/// host. A {{scheme://authority}} in front is dropped WITHOUT being checked: on
+/// a server it is built from the client's Host header, so a bad one must not
+/// cost the request its path. No character is refused either, so this never
+/// fails, and the path is whatever followed the authority, {{//a}} included.
+let requestTarget(url: String): Stdlib.Url.Url =
+  let target =
+    match Stdlib.String.splitFirst(url, "://") with
+    | Some((scheme, rest)) when
+      !(Stdlib.List.any([ "/", "?", "#" ], fun d -> Stdlib.String.contains(scheme, d)))
+      ->
+      // The authority runs to the first `/`, `?` or `#`.
+      rest
+      |> Stdlib.String.toList
+      |> Stdlib.List.dropWhile(fun c ->
+        !(Stdlib.String.contains("/?#", Stdlib.String.fromChar(c))))
+      |> Stdlib.String.fromList
+    | _ -> url
+
+  let (beforeFragment, fragment) =
+    match Stdlib.String.splitFirst(target, "#") with
+    | Some((a, f)) -> (a, Stdlib.Option.Option.Some f)
+    | None -> (target, Stdlib.Option.Option.None)
+
+  let (path, query) =
+    match Stdlib.String.splitFirst(beforeFragment, "?") with
+    | Some((p, q)) -> (p, Stdlib.Option.Option.Some q)
+    | None -> (beforeFragment, Stdlib.Option.Option.None)
+
+  Stdlib.Url.Url
+    { scheme = Stdlib.Option.Option.None
+      userinfo = Stdlib.Option.Option.None
+      host = Stdlib.Option.Option.None
+      port = Stdlib.Option.Option.None
+      path = path
+      query = query
+      fragment = fragment }
+
+
 /// Parses a URL's query string into a dictionary, keeping the last value for
-/// each key. This matches `Stdlib.Http.Request.queryParams` combined with
-/// `Dict.fromEntries`.
+/// each key: <fn Stdlib.Url.queryParams> of <fn requestTarget>, through
+/// {{Dict.fromEntries}}.
 let parseQueryString(url: String): Dict<String, String> =
-  match Stdlib.String.split(url, "?") with
-  | [] -> Stdlib.Dict.empty
-  | [_] -> Stdlib.Dict.empty
-  | [_, ...queryParts] ->
-    (Stdlib.String.join(queryParts, "?"))
-    |> Stdlib.String.split("&")
-    |> Stdlib.List.filterMap(fun param ->
-      if param == "" then
-        Stdlib.Option.Option.None
-      else
-        // Decoded, like `Request.queryParams`: a caller reading `?q=List+map`
-        // wants the two words, not the plus sign that carried the space.
-        match Stdlib.String.split(param, "=") with
-        | [] -> Stdlib.Option.Option.None
-        | [key, ...rest] ->
-          // `?a=b=c` gives key="a", value="b=c"
-          Stdlib.Option.Option.Some(
-            (Stdlib.Http.urlDecode(key),
-             Stdlib.Http.urlDecode(Stdlib.String.join(rest, "=")))))
-    |> Stdlib.Dict.fromEntries
+  url |> requestTarget |> Stdlib.Url.queryParams |> Stdlib.Dict.fromEntries
 
 
 /// Parse a string of HTTP header lines (one `Name: value` per line, CR/LF or
@@ -55,63 +76,25 @@ let parseHeaders(s: String): Dict<String, String> =
   |> Stdlib.Dict.fromEntries
 
 
-/// Percent-decoding for one query-string field.
-///
-/// Decodes at the BYTE level and only reads the result back as text at the end,
-/// because an escape is a BYTE and a non-ASCII character is several of them:
-/// `%C3%A9` is one `e-acute`, not two characters. Decoding per character produces
-/// mojibake for every name that is not plain ASCII.
+/// Percent-decoding for one query-string field: <fn Stdlib.Url.formDecode>,
+/// which is <fn Stdlib.Url.percentDecode> plus `+` read as a space.
 ///
 /// `+` is a space. That is not decoration: an HTML form doing a GET encodes a
-/// space that way, so a two-word search from a form field arrives as `a+b`.
+/// space that way, so a two-word search from a form field arrives as `a+b`. The
+/// substitution runs over the raw text, before decoding, so a literal `+` sent as
+/// `%2B` survives it.
 ///
 /// A `%` that does not start two hex digits is passed through as itself rather
 /// than dropped. A search box is allowed to contain a percent sign.
 let urlDecode(s: String): String =
-  match Stdlib.String.split(Stdlib.String.replaceAll(s, "+", " "), "%") with
-  | [] -> ""
-  | [first, ...rest] ->
-    rest
-    |> Stdlib.List.fold([ Stdlib.Utf8.encode(first) ], fun reversed piece ->
-      let hex = Stdlib.String.slice(piece, 0, 2)
-
-      // The length check is not redundant: `Hex.decode ""` succeeds, so a `%`
-      // at the very end of the string decodes to no bytes at all and vanishes.
-      match
-        (if (Stdlib.String.length(hex)) == 2 then
-           Stdlib.Hex.decode(hex)
-         else
-           Stdlib.Result.Result.Error "not an escape")
-      with
-      | Ok b ->
-        Stdlib.List.prepend(
-          Stdlib.List.prepend(reversed, b),
-          Stdlib.Utf8.encode(Stdlib.String.dropFirst(piece, 2)))
-      | Error _ -> Stdlib.List.prepend(reversed, Stdlib.Utf8.encode("%" + piece)))
-    |> Stdlib.List.reverse
-    |> Stdlib.Bytes.concatAll
-    |> Stdlib.Utf8.decodeWithReplacement
+  Stdlib.Url.formDecode(s)
 
 
 module Request =
-  /// The query string, decoded.
-  ///
-  /// Splits each field at its FIRST `=` only. A value is allowed to contain one
-  /// (base64 padding and any nested query string do), and requiring exactly two
-  /// pieces dropped the whole field on the floor: `?q=a=b` read as though `q`
-  /// had never been sent.
+  /// The query string, decoded: <fn Stdlib.Url.queryParams> of the request's
+  /// target (<fn Stdlib.Http.requestTarget>), so a bad Host header cannot hide it.
   let queryParams(req: Stdlib.Http.Request): List<String * String> =
-    match req.url |> Stdlib.String.split("?") with
-    | [] -> []
-    | [_, ...queryParts] ->
-      (Stdlib.String.join(queryParts, "?"))
-      |> Stdlib.String.split("&")
-      |> Stdlib.List.map(fun param ->
-        match Stdlib.String.split(param, "=") with
-        | [] -> ("", "")
-        | [key, ...valueParts] ->
-          (Stdlib.Http.urlDecode(key),
-           Stdlib.Http.urlDecode(Stdlib.String.join(valueParts, "="))))
+    req.url |> Stdlib.Http.requestTarget |> Stdlib.Url.queryParams
 
   /// The value of <param key>, matched case-INSENSITIVELY, as HTTP requires: a client
   /// may send `Authorization`, `authorization` or `AUTHORIZATION` and all three mean the

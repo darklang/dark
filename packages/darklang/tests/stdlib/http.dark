@@ -143,6 +143,13 @@ test parseQueryString =
       |> Stdlib.Test.equal(
         Stdlib.Dict.fromEntries([ ("token", "a=b") ]))
       // Keys and values are both decoded.
+      // The fragment is not part of the query.
+      Stdlib.Http.parseQueryString("https://x?a=1#top")
+      |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("a", "1") ]))
+      Stdlib.Http.parseQueryString("/path?a=1")
+      |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("a", "1") ]))
+      Stdlib.Http.parseQueryString("http://[bad/p?a=1")
+      |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("a", "1") ]))
       Stdlib.Http.parseQueryString("https://x?q=List+map&n=A%2FB")
       |> Stdlib.Test.equal(
         (Stdlib.Dict.fromEntries(
@@ -195,7 +202,21 @@ test queryParams =
       // Same for an encoded `=`: it belongs to the value, not to the key/value
       // split.
       Stdlib.Http.Request.queryParam(request("/s?q=a%3Db", []), "q")
-      |> Stdlib.Test.equal(Some "a=b") ])
+      |> Stdlib.Test.equal(Some "a=b")
+      // A client may send `[`, `]` or `|` unescaped; they are read, not refused.
+      Stdlib.Http.Request.queryParams(
+        request("http://localhost:9000/s?a[]=1&b=x|y", []))
+      |> Stdlib.Test.equal([ ("a[]", "1"), ("b", "x|y") ])
+      // Empty fields are skipped, as in parseQueryString.
+      Stdlib.Http.Request.queryParams(request("/s?a=1&&b", []))
+      |> Stdlib.Test.equal([ ("a", "1"), ("b", "") ])
+      Stdlib.Http.Request.queryParams(request("/s?", [])) |> Stdlib.Test.equal([])
+      // The host comes from the client's Host header; a bad one must not hide
+      // the query.
+      Stdlib.Http.Request.queryParams(request("http://999.1.1.1:8000/x?y=1", []))
+      |> Stdlib.Test.equal([ ("y", "1") ])
+      Stdlib.Http.Request.queryParams(request("http://a b:x/x?y=1", []))
+      |> Stdlib.Test.equal([ ("y", "1") ]) ])
 
 test requestHeader =
   Stdlib.Test.all(

@@ -524,11 +524,14 @@ let private handleRequest
           | Ok reqBody ->
             let reqHeaders = extractHeaders ctx.Request
             // `Url.ToString()` decodes and `queryParams` decodes again, so a `%26` in a value became
-            // a real `&` and split into a second parameter. `RawUrl` is path+query as sent; the
-            // absolute form is rebuilt around it.
+            // a real `&` and split into a second parameter. `RawUrl` is the target as sent. In
+            // origin form (`/a?b`) the absolute URL is rebuilt around it; in absolute form
+            // (`GET http://x/a`, as sent to a proxy) it already is one, and gluing the scheme and
+            // authority on as well made `http://x:80http://x/a`, whose path read as `//x/a`.
             let rawUrl =
               match ctx.Request.RawUrl with
               | null -> ctx.Request.Url.ToString()
+              | raw when not (raw.StartsWith "/") && raw.Contains "://" -> raw
               | raw -> $"{ctx.Request.Url.Scheme}://{ctx.Request.Url.Authority}{raw}"
             let url =
               if canonicalizeFromForwardedProto then
