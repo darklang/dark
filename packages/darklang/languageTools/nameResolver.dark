@@ -277,14 +277,6 @@ module TraitName =
 
 
 module ValueName =
-  let builtinThingExists(name: String): Bool =
-    (LanguageTools.allBuiltinValues())
-    // `f.name` is an FQValueName.Builtin record, not a String — compare its
-    // name field (comparing the record itself crashes with a mixed-type
-    // equality error at resolution time)
-    |> Stdlib.List.findFirst(fun f -> f.name.name == name)
-    |> Stdlib.Option.isSome
-
   let tryResolve(
     pm: ProgramTypes.PackageManager.PackageManager,
     branchId: ProgramTypes.BranchID,
@@ -295,7 +287,7 @@ module ValueName =
     | [] -> Stdlib.Result.Result.Error()
     | [owner, ...modules] ->
       if owner == "Builtin" && modules == [] then
-        if builtinThingExists(name.name) then
+        if Stdlib.Option.isSome(LanguageTools.findBuiltinValue(name.name, name.version)) then
           let fqn =
             (ProgramTypes.FQValueName.Builtin
               { name = name.name
@@ -337,8 +329,7 @@ module FnName =
     | [] -> Stdlib.Result.Result.Error()
     | [owner, ...modules] ->
       if owner == "Builtin" && modules == [] then
-        let allBuiltins = LanguageTools.allBuiltinFns()
-        if Stdlib.List.findFirst(allBuiltins, fun f -> f.name.name == name.name) != Stdlib.Option.Option.None then
+        if Stdlib.Option.isSome(LanguageTools.findBuiltinFn(name.name, name.version)) then
           let fqn =
             (ProgramTypes.FQFnName.Builtin
               { name = name.name
