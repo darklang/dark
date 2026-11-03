@@ -442,7 +442,6 @@ let tokenize
   let operators : (string * Token) list =
     [ "...", TDotDotDot
       "**", TStarStar
-      "++", TPlusPlus
       "->", TArrow
       "==", TEqEq
       "!=", TNeq
@@ -453,7 +452,6 @@ let tokenize
       "&&", TAnd
       "||", TOr
       "|>", TPipe
-      "::", TCons
       "+", TPlus
       "-", TMinus
       "*", TStar
@@ -477,8 +475,13 @@ let tokenize
       "^", TBitXor
       "~", TBitNot
       "%", TPercent
-      "@", TAt
       "|", TBar ]
+
+  // operators other languages have and Dark does not, refused with what to write
+  let refused : (string * string) list =
+    [ "::", "'::' is not Dark; a list is `[head, ...tail]`"
+      "@", "'@' is not Dark; join lists with `[...a, ...b]`"
+      "++", "'++' is not Dark; join Strings with `+`" ]
 
   let keyword (text : string) : Token =
     match text with
@@ -1059,20 +1062,26 @@ let tokenize
           addDiagnostic spannedToken.range "unterminated interpolated string"
           go nextIndex nextPosition (spannedToken :: tokensRev)
       else
-        match
-          operators
-          |> List.tryFind (fun (operatorText, _) -> matchesAt operatorText index)
-        with
-        | Some(operatorText, token) ->
-          let (spannedToken, nextIndex, nextPosition) =
-            emit token index (index + operatorText.Length) position
-          go nextIndex nextPosition (spannedToken :: tokensRev)
+        match refused |> List.tryFind (fun (text, _) -> matchesAt text index) with
+        | Some(text, message) ->
+          let next = advance position index (index + text.Length)
+          addDiagnostic { start = position; end_ = next } message
+          go (index + text.Length) next tokensRev
         | None ->
-          // Unknown character: record it, skip it, and keep lexing.
-          addDiagnostic
-            { start = position; end_ = advance position index (index + 1) }
-            $"unexpected character: '{input[index]}'"
-          go (index + 1) (advance position index (index + 1)) tokensRev
+          match
+            operators
+            |> List.tryFind (fun (operatorText, _) -> matchesAt operatorText index)
+          with
+          | Some(operatorText, token) ->
+            let (spannedToken, nextIndex, nextPosition) =
+              emit token index (index + operatorText.Length) position
+            go nextIndex nextPosition (spannedToken :: tokensRev)
+          | None ->
+            // Unknown character: record it, skip it, and keep lexing.
+            addDiagnostic
+              { start = position; end_ = advance position index (index + 1) }
+              $"unexpected character: '{input[index]}'"
+            go (index + 1) (advance position index (index + 1)) tokensRev
 
   match go 0 { row = 0; column = 0 } [] with
   | Ok tokens ->

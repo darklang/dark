@@ -213,11 +213,12 @@ type MatchPattern =
     contents : List<MatchPattern * Option<Range>> *
     symbolOpenBracket : Range *
     symbolCloseBracket : Range
+  /// `[head, ...tail]`, one node per head; every node in a chain shares the `...`
   | MPListCons of
     Range *
     head : MatchPattern *
     tail : MatchPattern *
-    symbolCons : Range
+    symbolDots : Range
   | MPOr of Range * List<MatchPattern>
   /// Recovery hole where a pattern was expected but could not be parsed. The
   /// parse has a diagnostic at this range, and execution paths reject files with
