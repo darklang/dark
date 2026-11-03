@@ -13,6 +13,18 @@ test letBoundVariable =
 test missingVariableRaises =
   myvar => raises "There is no variable named: myvar"
 
+// Every expression but the last in a sequence must be Unit.
+test unitStatementsRunInSequence =
+  (()
+   ()
+   true)
+  |> Stdlib.Test.equal(true)
+
+test nonUnitStatementRaises =
+  (1L
+   true)
+  => raises "First expression must be of type Unit, but got Int64 (1)"
+
 test and =
   Stdlib.Test.all(
     [ (true && true) |> Stdlib.Test.equal(true)

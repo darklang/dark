@@ -91,23 +91,6 @@ let private binaryRoundtrip
   let r = new System.IO.BinaryReader(new System.IO.MemoryStream(ms.ToArray()))
   read r
 
-/// The transforms that run Dark code (`Mapped`, `Filtered`, `Unfold`) hold a Dark callable
-/// and are pulled from a Dark process, so their tests go through Dark: the expression is
-/// run by the interpreter and its answer compared.
-let private evalsTo
-  (code : string)
-  (expected : RT.Dval)
-  (what : string)
-  : Task<unit> =
-  task {
-    match! TestUtils.TestUtils.evalDarkExpr code with
-    | Ok dv -> Expect.equal dv expected what
-    | Error(rte, _) -> return failtest $"the Dark expression raised: {rte}"
-  }
-
-let private int64List (items : List<int64>) : RT.Dval =
-  RT.DList(RT.ValueType.Known RT.KTInt64, items |> List.map RT.DInt64)
-
 
 // ─────────────────────────────────────────────────────────────────────
 // Pull semantics
@@ -260,93 +243,8 @@ let streamCloseMarksDisposed =
 // Lazy transforms — Mapped / Filtered / Take / Concat
 // ─────────────────────────────────────────────────────────────────────
 
-let mappedTransformsElements =
-  testTask "stream: Mapped applies fn to each element in order" {
-    do!
-      evalsTo
-        "Stdlib.Stream.toList(Stdlib.Stream.map(Stdlib.Stream.fromList([1L, 2L, 3L]), fun n -> n * 2L))"
-        (int64List [ 2L; 4L; 6L ])
-        "1,2,3 -> *2"
-  }
-
-let filteredSkipsRejected =
-  testTask "stream: Filtered skips elements whose predicate returns false" {
-    do!
-      evalsTo
-        "Stdlib.Stream.toList(Stdlib.Stream.filter(Stdlib.Stream.fromList([1L, 2L, 3L, 4L]), fun n -> n % 2L == 0L))"
-        (int64List [ 2L; 4L ])
-        "evens only"
-  }
-
-let filteredAllRejected =
-  testTask "stream: Filtered returns None when no element matches" {
-    do!
-      evalsTo
-        "Stdlib.Stream.next(Stdlib.Stream.filter(Stdlib.Stream.fromList([1L, 3L]), fun n -> n % 2L == 0L))"
-        (Dval.optionNone RT.KTInt64)
-        "all rejected = None"
-  }
-
-let takeCapsAtN =
-  testTask "stream: Take returns only the first n elements, then None" {
-    let src =
-      streamImplOfList
-        [ RT.DInt64 10L; RT.DInt64 20L; RT.DInt64 30L; RT.DInt64 40L ]
-        VT.int64
-    let s = wrap (RT.Take(src, 2L, ref 2L))
-    let! result = drain s
-    Expect.equal result [ RT.DInt64 10L; RT.DInt64 20L ] "first 2 only"
-  }
-
-let takeOverInfiniteSourceTerminates =
-  testTask "stream: Take 3 over an unbounded counter terminates after 3" {
-    // Producer counts up forever; Take must early-terminate without
-    // pulling source past the limit.
-    let counter = ref 0L
-    let next () : Ply<Option<RT.Dval>> =
-      uply {
-        counter.Value <- counter.Value + 1L
-        return Some(RT.DInt64 counter.Value)
-      }
-    let src = RT.FromIO((fun _drainer -> next ()), VT.int64, None, None)
-    let s = wrap (RT.Take(src, 3L, ref 3L))
-    let! result = drain s
-    Expect.equal result [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ] "took exactly 3"
-    Expect.equal counter.Value 3L "source pulled exactly 3 times"
-  }
-
-let takeLongerThanSource =
-  testTask "stream: Take 10 on a 2-elem source returns only 2" {
-    let src = streamImplOfList [ RT.DInt64 7L; RT.DInt64 8L ] VT.int64
-    let s = wrap (RT.Take(src, 10L, ref 10L))
-    let! result = drain s
-    Expect.equal result [ RT.DInt64 7L; RT.DInt64 8L ] "all available"
-  }
-
-let concatSpansMultipleStreams =
-  testTask "stream: Concat drains streams in order; emits every element" {
-    let s1 = streamImplOfList [ RT.DInt64 1L; RT.DInt64 2L ] VT.int64
-    let s2 = streamImplOfList [] VT.int64 // empty middle is skipped
-    let s3 = streamImplOfList [ RT.DInt64 3L; RT.DInt64 4L ] VT.int64
-    let s = wrap (RT.Concat(ref [ s1; s2; s3 ]))
-    let! result = drain s
-    Expect.equal
-      result
-      [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L; RT.DInt64 4L ]
-      "every element across all sub-streams in order"
-  }
-
-let composedTransformsAreLazy =
-  testTask "stream: map, filter, take over an infinite unfold terminates" {
-    // A counter from 1 up (an `unfold` that never answers None); with filter (even), map
-    // (*2), take 3, expect [4, 8, 12]. The source is pulled past 6 to find the third even,
-    // but not unboundedly: the pipeline is pull-driven, or this never returns.
-    do!
-      evalsTo
-        "Stdlib.Stream.toList(Stdlib.Stream.take(Stdlib.Stream.map(Stdlib.Stream.filter(Stdlib.Stream.unfold(0L, fun n -> Stdlib.Option.Option.Some((n + 1L, n + 1L))), fun n -> n % 2L == 0L), fun n -> n * 2L), 3))"
-        (int64List [ 4L; 8L; 12L ])
-        "2,4,6 -> *2 -> 4,8,12; take 3 stops before the source diverges"
-  }
+// map, filter, take and concat are covered by packages/darklang/tests/stdlib/stream.dark.
+// What stays here is what Dark can't see: the element type a transform node reports.
 
 let toValueTypeWalksTransforms =
   test "stream: Dval.toValueType returns the transform's element type" {
@@ -618,14 +516,6 @@ let tests =
       ktstreamRtDarkBridge
       streamCloseMarksDisposed
       dstreamDarkBridgeStub
-      mappedTransformsElements
-      filteredSkipsRejected
-      filteredAllRejected
-      takeCapsAtN
-      takeOverInfiniteSourceTerminates
-      takeLongerThanSource
-      concatSpansMultipleStreams
-      composedTransformsAreLazy
       toValueTypeWalksTransforms
       closingATransformClosesItsSource
       concatClosesWhatItHolds

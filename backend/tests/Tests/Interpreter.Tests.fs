@@ -41,7 +41,6 @@ let tCheckVM
 let t name ptExpr expectedInsts = tCheckVM name ptExpr expectedInsts (fun _ _ -> ())
 
 
-
 let tFail name ptExpr expectedRte =
   testTask name {
     let instructions = ptExpr |> PT2RT.Expr.toRT Map.empty 0 None
@@ -56,516 +55,69 @@ let tFail name ptExpr expectedRte =
   }
 
 
-module Basic =
-  // CLEANUP back fill with more simple stuff
-
-  let one = t "1" E.Basic.one (RT.DInt64 1L)
-
-  let tests = testList "Basic" [ one ]
-
-
-module List =
-  let simple =
-    t
-      "[true, false, true]"
-      E.List.simple
-      (RT.DList(VT.bool, [ RT.DBool true; RT.DBool false; RT.DBool true ]))
-
-  let nested =
-    t
-      "[[true, false], [false, true]]"
-      E.List.nested
-      (RT.DList(
-        VT.list VT.bool,
-        [ RT.DList(VT.bool, [ RT.DBool true; RT.DBool false ])
-          RT.DList(VT.bool, [ RT.DBool false; RT.DBool true ]) ]
-      ))
-
-  let mixed =
-    tFail
-      "[1, true]"
-      E.List.mixed
-      (RTE.Lists.TriedToAddMismatchedData(1, VT.int64, VT.bool, RT.DBool true)
-       |> RTE.List)
-
-  let tests = testList "Lists" [ simple; nested; mixed ]
-
-
-module Let =
-  let simple = t "let x = true\nx" E.Let.simple (RT.DBool true)
-
-  let tuple = t "let (x, y) = (1, 2)\nx" E.Let.tuple (RT.DInt64 1L)
-
-  let tupleNotTuple =
-    tFail
-      "let (a, b) = 1 in a"
-      E.Let.tupleNotTuple
-      (RTE.Error.Let(
-        RTE.Lets.Error.PatternDoesNotMatch(
-          RT.DInt64 1,
-          RT.LPTuple(RT.LPVariable 1, RT.LPVariable 2, [])
-        )
-      ))
-
-  let tupleIncorrectLen =
-    tFail
-      "let (a, b) = (1, 2, 3) in a"
-      E.Let.tupleIncorrectLen
-      (RTE.Error.Let(
-        RTE.Lets.Error.PatternDoesNotMatch(
-          RT.DTuple(RT.DInt64 1, RT.DInt64 2, [ RT.DInt64 3 ]),
-          RT.LPTuple(RT.LPVariable 4, RT.LPVariable 5, [])
-        )
-      ))
-
-  let tupleNested =
-    t "let (a, (b, c)) = (1, (2, 3))\nb" E.Let.tupleNested (RT.DInt64 2L)
-
-  let undefinedVar = tFail "a" E.Let.undefinedVar (RTE.VariableNotFound "a")
-
-  let tests =
-    testList
-      "Let"
-      [ simple; tuple; tupleNotTuple; tupleIncorrectLen; tupleNested; undefinedVar ]
-
-
-module String =
-  let simple = t "[\"hello\"]" E.String.simple (RT.DString "hello")
-
-  let withInterpolation =
-    t
-      "[let x = \"world\" in $\"hello {x}\"]"
-      E.String.withInterpolation
-      (RT.DString "hello, world")
-
-  let tests = testList "Strings" [ simple; withInterpolation ]
-
-
-module Dict =
-  let empty =
-    t "Dict {}" E.Dict.empty (RT.DDict(VT.unknown, VT.unknown, RT.DictMap.empty))
-
-  let simple =
-    t
-      "Dict { \"key\": true }"
-      E.Dict.simple
-      (Dval.stringDict RT.KTBool [ "key", RT.DBool true ])
-
-  let multEntries =
-    t
-      "Dict { \"t\": true, \"f\": false }"
-      E.Dict.multEntries
-      (Dval.stringDict RT.KTBool [ "t", RT.DBool true; "f", RT.DBool false ])
-
-  // "t" appears twice; when the dict is built, the second "t" replaces the first.
-  let dupeKey =
-    t
-      "Dict { \"t\": true, \"f\": false, \"t\": false }"
-      E.Dict.dupeKey
-      (Dval.stringDict RT.KTBool [ "t", RT.DBool false; "f", RT.DBool false ])
-
-  let tests = testList "Dict" [ empty; simple; multEntries; dupeKey ]
-
-
-module If =
-  let gotoThenBranch = t "if true then 1 else 2" E.If.gotoThenBranch (RT.DInt64 1L)
-  let gotoElseBranch = t "if false then 1 else 2" E.If.gotoElseBranch (RT.DInt64 2L)
-  let elseMissing = t "if false then 1" E.If.elseMissing RT.DUnit
-
-  let tests = testList "If" [ gotoThenBranch; gotoElseBranch; elseMissing ]
-
-
-module Tuples =
-  let two =
-    t "(false, true)" E.Tuples.two (RT.DTuple(RT.DBool false, RT.DBool true, []))
-
-  let three =
-    t
-      "(false, true, false)"
-      E.Tuples.three
-      (RT.DTuple(RT.DBool false, RT.DBool true, [ RT.DBool false ]))
-
-  let nested =
-    t
-      "((false, true), true, (true, false)))"
-      E.Tuples.nested
-      (RT.DTuple(
-        RT.DTuple(RT.DBool false, RT.DBool true, []),
-        RT.DBool true,
-        [ RT.DTuple(RT.DBool true, RT.DBool false, []) ]
-      ))
-
-  let tests = testList "Tuples" [ two; three; nested ]
-
-
-module Match =
-  let simple =
-    t
-      "match true with\n| false -> \"first branch\"\n| true -> \"second branch\""
-      E.Match.simple
-      (RT.DString "second branch")
-
-  let notMatched =
-    tFail
-      "match true with\n| false -> \"first branch\""
-      E.Match.notMatched
-      (RTE.Match(RTE.Matches.MatchUnmatched(RT.DBool true)))
-
-  let withVar = t "match true with\n| x -> x" E.Match.withVar (RT.DBool true)
-
-  let withVarAndWhenCondition =
-    t
-      "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
-      E.Match.withVarAndWhenCondition
-      (RT.DString "second branch")
-
-  let list =
-    t
-      "match [1, 2] with\n| [1, 2] -> \"first branch\""
-      E.Match.list
-      (RT.DString "first branch")
-
-  let listCons =
-    t
-      "match [1, 2] with\n| 1 :: tail -> tail"
-      E.Match.listCons
-      (RT.DList(VT.int64, [ RT.DInt64 2L ]))
-
-  let tuple =
-    t
-      "match (1, 2) with\n| (1, 2) -> \"first branch\""
-      E.Match.tuple
-      (RT.DString "first branch")
-
-  let combinedPatternsFirstPatMatches =
-    t
-      "match (1, 2) with\n| (1, 2) | (2, 1) -> \"first branch\"\n| _ -> \"second branch\""
-      E.Match.combinedPatternsFirstPatMatches
-      (RT.DString "first branch")
-
-  let combinedPatternsSecondPatMatches =
-    t
-      "match (2, 1) with\n| (1, 2) | (2, 1) -> \"first branch\"\n| _ -> \"second branch\""
-      E.Match.combinedPatternsSecondPatMatches
-      (RT.DString "first branch")
-
-  let combinedPatternsWithWhenCond =
-    t
-      "match (2, 1) with\n| (1, 2) | (2, 1) when false -> \"first branch\"\n| _ -> \"second branch\""
-      E.Match.combinedPatternsWithWhenCond
-      (RT.DString "second branch")
-
-  let combinedPatternsWithVarAndWhenCond =
-    t
-      "match (1L,2L) with\n| (x,2L) | (2L,x) when x == 1L -> \"first branch\"\n _ -> \"second branch\""
-      E.Match.combinedPatternsWithVarAndWhenCond
-      (RT.DString "first branch")
-
-
-
-  let tests =
-    testList
-      "Match"
-      [ simple
-        notMatched
-        withVar
-        withVarAndWhenCondition
-        list
-        listCons
-        tuple
-        combinedPatternsFirstPatMatches
-        combinedPatternsSecondPatMatches
-        combinedPatternsWithWhenCond
-        combinedPatternsWithVarAndWhenCond ]
-
-module Pipes =
-  let lambda = t "1 |> fun x -> x" E.Pipes.lambda (RT.DInt64 1L)
-  let infix = t "1 |> (fun v -> v + 2)" E.Pipes.infix (RT.DInt64 3L)
-  let fnCall = t "1 |> Builtin.int64Add(2)" E.Pipes.fnCall (RT.DInt64 3L)
-  let variable =
-    t "let myLambda = fun x -> x + 1\n1 |> myLambda" E.Pipes.variable (RT.DInt64 2L)
-  let multiple =
-    t
-      "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add(3) |> (fun v -> v + 4)"
-      E.Pipes.multiple
-      (RT.DInt64 13L)
-  let tests = testList "Pipes" [ lambda; infix; fnCall; variable; multiple ]
-
-module Records =
-  let simple =
-    let typeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
-    t
-      "Test.Test { key = true }"
-      E.Records.simple
-      (RT.DRecord(typeName, typeName, [], Map [ "key", RT.DBool true ]))
-
-  let nested =
-    let outerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.nested
-    let innerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
-    t
-      "Test.Test2 { outer = (Test.Test { key = true }) }"
-      E.Records.nested
-      (RT.DRecord(
-        outerTypeName,
-        outerTypeName,
-        [],
-        Map
-          [ "outer",
-            RT.DRecord(
-              innerTypeName,
-              innerTypeName,
-              [],
-              Map [ "key", RT.DBool true ]
-            ) ]
-      ))
-
-
-  let tests = testList "Records" [ simple; nested ]
-
-
-module RecordFieldAccess =
-  let simple =
-    t "(Test.Test { key = true }).key" E.RecordFieldAccess.simple (RT.DBool true)
-  let notRecord =
-    tFail
-      "1.key"
-      E.RecordFieldAccess.notRecord
-      (RTE.Record(RTE.Records.FieldAccessNotRecord VT.int64))
-
-  let missingField =
-    tFail
-      "(Test.Test { key = true }).missing"
-      E.RecordFieldAccess.missingField
-      (RTE.Record(RTE.Records.FieldAccessFieldNotFound "missing"))
-
-  let nested =
-    t
-      "(Test.Test2 { outer = (Test.Test { key = true }) }).outer.key"
-      E.RecordFieldAccess.nested
-      (RT.DBool true)
-
-  let tests =
-    testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
-
-module RecordUpdate =
-  let simple =
-    t
-      "let r = Test.Test { key = true }\nlet r2 = { r | key = false }"
-      E.RecordUpdate.simple
-      (RT.DRecord(
-        RT.FQTypeName.fqPackage PM.Types.Records.singleField,
-        RT.FQTypeName.fqPackage PM.Types.Records.singleField,
-        [],
-        Map [ "key", RT.DBool false ]
-      ))
-
-  let notRecord =
-    tFail
-      "let r = 1\nlet r2 = { r | key = false }"
-      E.RecordUpdate.notRecord
-      (RTE.Record(RTE.Records.UpdateNotRecord VT.int64))
-
-  let fieldThatShouldNotExist =
-    tFail
-      "let r = Test.Test { key = true }\nlet r2 = { r | bonus = false }\nr2.key"
-      E.RecordUpdate.fieldThatShouldNotExist
-      (RTE.Record(RTE.Records.UpdateFieldNotExpected "bonus"))
-
-  let fieldWithWrongType =
-    tFail
-      "let r = Test.Test { key = true }\nlet r2 = { r | key = 1 }\nr2.key"
-      E.RecordUpdate.fieldWithWrongType
-      (RTE.Record(
-        RTE.Records.UpdateFieldOfWrongType(
-          "key",
-          Some RT.TBool,
-          VT.bool,
-          VT.int64,
-          RT.DInt64 1L
-        )
-      ))
-
-  let tests =
-    testList
-      "RecordUpdate"
-      [ simple; notRecord; fieldThatShouldNotExist; fieldWithWrongType ]
-
-// TODO: add more tests
-module Enum =
-  let simple =
-    let typeName = RT.FQTypeName.fqPackage PM.Types.Enums.withoutFields
-    t
-      "Test.ColorEnum.Blue"
-      E.Enums.simple
-      (RT.DEnum(typeName, typeName, [], "Blue", []))
-
-  let withFields =
-    let typeName = RT.FQTypeName.fqPackage PM.Types.Enums.withFields
-    t
-      "Test.MyOption.Some 1"
-      E.Enums.withFields
-      (RT.DEnum(typeName, typeName, [], "Some", [ RT.DInt64 1L ]))
-
-  let tests = testList "Enum" [ simple; withFields ]
-
+// The evaluation basics (literals, let, match, pipes, records, enums, infix, calls,
+// statements) are package tests in packages/darklang/tests/language/. What stays here
+// is what a Dark program can't observe (the shape of the applicable an unapplied
+// lambda or function evaluates to, the shared lambda cache, the F# eval harness), and
+// builtin calls that tests/builtin keeps out of packages/.
 
 module Values =
-  module Package =
-    let mySpecialNumber =
-      t "Test.mySpecialNumber" E.Values.Package.MySpecialNumber.usage (RT.DInt64 17L)
+  /// A store value whose body is a call. The harness used to read it as `()`.
+  let storeValueThatIsACall =
+    testTask "a store value that is a call reads as its value" {
+      let! expected =
+        evalDarkExpr
+          "Stdlib.String.displayWidth(Darklang.Cli.CompletionPicker.minimumHelpText)"
+      let! actual = evalDarkExpr "Darklang.Cli.CompletionPicker.minimumWidth"
+      match expected, actual with
+      | Ok(RT.DInt _ as e), Ok a ->
+        Expect.equal a e "minimumWidth is the display width of minimumHelpText"
+      | _ -> return failtest $"unexpected results: {expected} and {actual}"
+    }
 
-    /// A store value whose body is a call. The harness used to read it as `()`.
-    let storeValueThatIsACall =
-      testTask "a store value that is a call reads as its value" {
-        let! expected =
-          evalDarkExpr
-            "Stdlib.String.displayWidth(Darklang.Cli.CompletionPicker.minimumHelpText)"
-        let! actual = evalDarkExpr "Darklang.Cli.CompletionPicker.minimumWidth"
-        match expected, actual with
-        | Ok(RT.DInt _ as e), Ok a ->
-          Expect.equal a e "minimumWidth is the display width of minimumHelpText"
-        | _ -> return failtest $"unexpected results: {expected} and {actual}"
-      }
-
-    let tests = testList "Package" [ mySpecialNumber; storeValueThatIsACall ]
-  let tests = testList "Values" [ Package.tests ]
-
-
-module Infix =
-  module And =
-    let mixed = t "true && false" E.Infix.And.mixed (RT.DBool false)
-    let nested = t "true && (true && false)" E.Infix.And.nested (RT.DBool false)
-    let bothTrue = t "true && true" E.Infix.And.bothTrue (RT.DBool true)
-    let bothFalse = t "false && false" E.Infix.And.bothFalse (RT.DBool false)
-    let tests = testList "And" [ mixed; nested; bothTrue; bothFalse ]
-
-  module Or =
-    let mixed = t "true || false" E.Infix.Or.mixed (RT.DBool true)
-    let nested = t "true || (true || false)" E.Infix.Or.nested (RT.DBool true)
-    let bothTrue = t "true || true" E.Infix.Or.bothTrue (RT.DBool true)
-    let bothFalse = t "false || false" E.Infix.Or.bothFalse (RT.DBool false)
-    let tests = testList "Or" [ mixed; nested; bothTrue; bothFalse ]
-
-  module Add =
-    let simple = t "1 + 2" E.Infix.Add.simple (RT.DInt64 3L)
-    let tests = testList "Add" [ simple ]
-
-  module Subtract =
-    let simple = t "1 - 2" E.Infix.Subtract.simple (RT.DInt64(-1L))
-    let tests = testList "Subtract" [ simple ]
-
-  let tests = testList "Infix" [ And.tests; Or.tests; Add.tests; Subtract.tests ]
+  let tests = testList "Values" [ storeValueThatIsACall ]
 
 
 module Lambdas =
   let private fullAccess =
     LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
 
-  module Identity =
-    let unapplied =
-      tCheckVM
-        "fn x -> x"
-        E.Lambdas.Identity.unapplied
-        (RT.DApplicable(
-          RT.AppLambda
-            { exprId = E.Lambdas.Identity.id
-              closedRegisters = [||]
-              access = fullAccess
-              typeSymbolTable = RT.TST.empty
-              expectedReturn = ValueNone
-              writtenIn = ValueSome RT.Source }
-        ))
-        (fun exeState _vm ->
-          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
+  /// An unapplied lambda evaluates to an `AppLambda` and registers its body in the
+  /// shared lambda cache.
+  let private unapplied name ptExpr exprId closedRegisters =
+    tCheckVM
+      name
+      ptExpr
+      (RT.DApplicable(
+        RT.AppLambda
+          { exprId = exprId
+            closedRegisters = closedRegisters
+            access = fullAccess
+            typeSymbolTable = RT.TST.empty
+            expectedReturn = ValueNone
+            writtenIn = ValueSome RT.Source }
+      ))
+      (fun exeState _vm ->
+        Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
-    let applied = t "(fn x -> x) 1" E.Lambdas.Identity.applied (RT.DInt64 1L)
+  let identity =
+    unapplied "fn x -> x" E.Lambdas.Identity.unapplied E.Lambdas.Identity.id [||]
 
-    let tests = testList "Identity" [ unapplied; applied ]
+  let add = unapplied "fn x y -> x + y" E.Lambdas.Add.unapplied E.Lambdas.Add.id [||]
 
-  module Add =
-    let unapplied =
-      tCheckVM
-        "fn x y -> x + y"
-        E.Lambdas.Add.unapplied
-        (RT.DApplicable(
-          RT.AppLambda
-            { exprId = E.Lambdas.Add.id
-              closedRegisters = [||]
-              access = fullAccess
-              typeSymbolTable = RT.TST.empty
-              expectedReturn = ValueNone
-              writtenIn = ValueSome RT.Source }
-        ))
-        (fun exeState _vm ->
-          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
+  let addTuple =
+    unapplied
+      "fn (x, y) -> x + y"
+      E.Lambdas.AddTuple.unapplied
+      E.Lambdas.AddTuple.id
+      [||]
 
-    let partiallyApplied =
-      tFail
-        "(fn x y -> x + y) 1"
-        E.Lambdas.Add.partiallyApplied
-        (RTE.Applications.TooFewArgsForLambda(E.Lambdas.Add.id, 2, 1) |> RTE.Apply)
-
-    let fullyApplied =
-      t "(fn x y -> x + y) 1 2" E.Lambdas.Add.fullyApplied (RT.DInt64 3L)
-
-    let tests = testList "Add" [ unapplied; partiallyApplied; fullyApplied ]
-
-
-  module AddTuple =
-    let unapplied =
-      tCheckVM
-        "fn (x, y) -> x + y"
-        E.Lambdas.AddTuple.unapplied
-        (RT.DApplicable(
-          RT.AppLambda
-            { exprId = E.Lambdas.AddTuple.id
-              closedRegisters = [||]
-              access = fullAccess
-              typeSymbolTable = RT.TST.empty
-              expectedReturn = ValueNone
-              writtenIn = ValueSome RT.Source }
-        ))
-        (fun exeState _vm ->
-          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
-
-    let applied =
-      t "(fn (x, y) -> x + y) (1, 2)" E.Lambdas.AddTuple.applied (RT.DInt64 3L)
-
-    let tests = testList "AddTuple" [ unapplied; applied ]
-
-
-
-  module AddToClosedVars =
-    let unapplied =
-      tCheckVM
-        "let x = 5\nlet y=10\nfun a -> a + x + y"
-        E.Lambdas.AddToClosedVars.unapplied
-        (RT.DApplicable(
-          RT.AppLambda
-            { exprId = E.Lambdas.AddToClosedVars.id
-              closedRegisters =
-                RT.Captures.ofList [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
-              access = fullAccess
-              typeSymbolTable = RT.TST.empty
-              expectedReturn = ValueNone
-              writtenIn = ValueSome RT.Source }
-        ))
-        (fun exeState _vm ->
-          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
-
-    let applied =
-      t
-        "let x = 5\nlet y=10\nlet addFifteen = fun a -> a + x + y\naddFifteen(25)"
-        E.Lambdas.AddToClosedVars.applied
-        (RT.DInt64 40L)
-
-    let tests = testList "AddToClosedVars" [ unapplied; applied ]
-
-  module Nested =
-    let fullyApplied =
-      t "(fn x -> fn y -> x + y) 3 4" E.Lambdas.Nested.fullyApplied (RT.DInt64 7L)
-
-    let tests = testList "Nested" [ fullyApplied ]
+  let addToClosedVars =
+    unapplied
+      "let x = 5\nlet y=10\nfun a -> a + x + y"
+      E.Lambdas.AddToClosedVars.unapplied
+      E.Lambdas.AddToClosedVars.id
+      (RT.Captures.ofList [ (1, RT.DInt64 5); (2, RT.DInt64 10) ])
 
   /// Two VMs, one `ExecutionState`. VM-A (built here) runs `fn x -> x` and
   /// registers the lambda in `exeState.lambdaInstrCache`. `executeApplicable`
@@ -607,165 +159,60 @@ module Lambdas =
     }
 
   let tests =
-    testList
-      "Lambdas"
-      [ Identity.tests
-        Add.tests
-        AddTuple.tests
-        AddToClosedVars.tests
-        Nested.tests
-        crossVM ]
+    testList "Lambdas" [ identity; add; addTuple; addToClosedVars; crossVM ]
 
 
 module Fns =
-  module Builtin =
-    let unapplied =
-      t
-        "Builtin.int64Add"
-        E.Fns.Builtin.unapplied
-        (RT.DApplicable(
-          RT.AppNamedFn
-            { name = RT.FQFnName.fqBuiltin "int64Add" 0
-              typeSymbolTable = RT.TST.empty
-              typeArgs = []
-              access = allowAllAccess
-              argsSoFar = []
-              boundImpls = [] }
-        ))
-
-    let tooFew =
-      RTE.Applications.TooFewArgsForFn(RT.FQFnName.fqBuiltin "int64Add" 0, 2, 1)
-      |> RTE.Apply
-
-    let partiallyApplied =
-      tFail "Builtin.int64Add(1)" E.Fns.Builtin.partiallyApplied tooFew
-
-    let fullyApplied =
-      t "Builtin.int64Add(1, 2)" E.Fns.Builtin.fullyApplied (RT.DInt64 3L)
-
-    // The inner call stops short, so it raises before the outer one runs.
-    let twoStepApplied =
-      tFail "(Builtin.int64Add(1))(2)" E.Fns.Builtin.twoStepApplication tooFew
-
-    let tests =
-      testList
-        "Builtin"
-        [ unapplied; partiallyApplied; fullyApplied; twoStepApplied ]
-
-
-  module Package =
-    module MyAdd =
-
-      let unapplied =
-        t
-          "Test.myAdd"
-          E.Fns.Package.MyAdd.unapplied
-          (RT.DApplicable(
-            RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
-                typeSymbolTable = RT.TST.empty
-                typeArgs = []
-                access = allowAllAccess
-                argsSoFar = []
-                boundImpls = [] }
-          ))
-
-      let partiallyApplied =
-        tFail
-          "Test.myAdd 1"
-          E.Fns.Package.MyAdd.partiallyApplied
-          (RTE.Applications.TooFewArgsForFn(
-            RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash,
-            2,
-            1
-           )
-           |> RTE.Apply)
-
-      let fullyApplied =
-        t "Test.myAdd 1 2" E.Fns.Package.MyAdd.fullyApplied (RT.DInt64 3L)
-
-
-      let tests = testList "Myadd" [ unapplied; partiallyApplied; fullyApplied ]
-
-
-    module Fact =
-      let unapplied =
-        t
-          "Test.fact"
-          E.Fns.Package.Fact.unapplied
-          (RT.DApplicable(
-            RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.hash
-                typeSymbolTable = RT.TST.empty
-                typeArgs = []
-                access = allowAllAccess
-                argsSoFar = []
-                boundImpls = [] }
-          ))
-
-      let appliedWith2 =
-        t "Test.fact 2" E.Fns.Package.Fact.appliedWith2 (RT.DInt64 2L)
-
-      let appliedWith20 =
-        t
-          "Test.fact 20"
-          E.Fns.Package.Fact.appliedWith20
-          (RT.DInt64 2432902008176640000L)
-
-      let tests = testList "Fact" [ unapplied; appliedWith2; appliedWith20 ]
-
-    module Recusrsion =
-      let addUpTo =
-        t "Test.addUpTo 30000" E.Fns.Package.Recursion.applied (RT.DInt64 30000L)
-
-      let tests = testList "Recursion" [ addUpTo ]
-
-
-    module MyFnThatTakesALambda =
-      let fullyApplied =
-        t
-          "Test.myFnThatTakesALambda(4L, fun x -> x + 11L)"
-          E.Fns.Package.MyFnThatTakesALambda.fullyApplied2
-          (RT.DInt64 15L)
-
-      let tests = testList "MyFnThatTakesALambda" [ fullyApplied ]
-
-    module Outer =
-      let applied =
-        t
-          "Test.outer<Bool, String> true \"ignored\""
-          E.Fns.Package.Outer.applied
-          (RT.DBool true)
-      let tests = testList "Outer" [ applied ]
-
-    let tests =
-      testList
-        "Package"
-        [ MyAdd.tests
-          Fact.tests
-          Recusrsion.tests
-          MyFnThatTakesALambda.tests
-          Outer.tests ]
-
-  let tests = testList "Fns" [ Builtin.tests; Package.tests ]
-
-module Statement =
-  let simple = t "()\n true" E.Statements.simple (RT.DInt64(1L))
-
-  let nested =
+  /// A named fn with no arguments evaluates to an `AppNamedFn` carrying the caller's access.
+  let private unapplied name ptExpr fnName =
     t
-      "myFnThatReturnsUnit()\nmyFnThatReturnsUnit()\nmyFnThatReturnsUnit()\n0L"
-      E.Statements.nested
-      (RT.DInt64(0L))
-
-  let shouldError =
-    tFail
-      "1L\n true"
-      E.Statements.shouldError
-      (RTE.Error.Statement(
-        RTE.Statements.FirstExpressionMustBeUnit(VT.unit, VT.int64, RT.DInt64 1L)
+      name
+      ptExpr
+      (RT.DApplicable(
+        RT.AppNamedFn
+          { name = fnName
+            typeSymbolTable = RT.TST.empty
+            typeArgs = []
+            access = allowAllAccess
+            argsSoFar = []
+            boundImpls = [] }
       ))
-  let tests = testList "Statement" [ simple; nested; shouldError ]
+
+  let builtin =
+    unapplied
+      "Builtin.int64Add"
+      E.Fns.Builtin.unapplied
+      (RT.FQFnName.fqBuiltin "int64Add" 0)
+
+  let myAdd =
+    unapplied
+      "Test.myAdd"
+      E.Fns.Package.MyAdd.unapplied
+      (RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash)
+
+  let fact =
+    unapplied
+      "Test.fact"
+      E.Fns.Package.Fact.unapplied
+      (RT.FQFnName.fqPackage E.Fns.Package.Fact.hash)
+
+  // A builtin called with too few arguments raises, and a call on the short call's result
+  // never runs. Here rather than in Dark: tests/builtin allows each builtin one reference
+  // in packages/, and Stdlib.Int64.add already holds this one.
+  let private tooFew =
+    RTE.Applications.TooFewArgsForFn(RT.FQFnName.fqBuiltin "int64Add" 0, 2, 1)
+    |> RTE.Apply
+
+  let builtinPartiallyApplied =
+    tFail "Builtin.int64Add(1)" E.Fns.Builtin.partiallyApplied tooFew
+
+  let builtinTwoStepApplied =
+    tFail "(Builtin.int64Add(1))(2)" E.Fns.Builtin.twoStepApplication tooFew
+
+  let tests =
+    testList
+      "Fns"
+      [ builtin; myAdd; fact; builtinPartiallyApplied; builtinTwoStepApplied ]
 
 
 /// The synchronous unifier must never disagree with the computation-expression one.
@@ -2129,25 +1576,10 @@ module LambdaResultChecks =
 let tests =
   testList
     "Interpreter"
-    [ Basic.tests
-      Tests.PermissionsGate.tests
-      List.tests
-      Let.tests
-      String.tests
-      Dict.tests
-      If.tests
-      Tuples.tests
-      Match.tests
-      Pipes.tests
-      Records.tests
-      RecordFieldAccess.tests
-      RecordUpdate.tests
-      Enum.tests
+    [ Tests.PermissionsGate.tests
       Values.tests
-      Infix.tests
       Lambdas.tests
       Fns.tests
-      Statement.tests
       SyncUnify.tests
       AliasChecks.tests
       DictKeyOrdering.tests
