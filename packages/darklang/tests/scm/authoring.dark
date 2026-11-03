@@ -1,0 +1,104 @@
+module Darklang.SCM.Tests.Authoring
+
+// Fixtures for the SCM tests that write to a store.
+//
+// Every package test runs against its own writable copy of the store, so these author
+// for real, through the path every authoring surface takes, and nothing reaches the
+// developer's store or another test. Owner `Tests`, because `Darklang` is reserved.
+
+let main(): Uuid = Darklang.SCM.Branch.mainBranchId
+
+let at(
+  owner: String,
+  m: String,
+  name: String)
+  : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+  Darklang.LanguageTools.ProgramTypes.PackageLocation
+    { owner = owner, modules = [ m ], name = name }
+
+let loc(m: String, name: String): Darklang.LanguageTools.ProgramTypes.PackageLocation =
+  at("Tests", m, name)
+
+/// Save <param source> into `<owner>.<m>` on <param branchId> the way every authoring
+/// surface does, but without the cascade, so a test can run it and read what it reports.
+let authorOn(
+  branchId: Uuid,
+  owner: String,
+  m: String,
+  source: String)
+  : Stdlib.Result.Result<Unit, String> =
+  match Darklang.LanguageTools.Parser.Parse.packageSourceToOps(branchId, owner, [ m ], source) with
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(ops) ->
+    match Darklang.SCM.PackageOps.addAuthored(branchId, ops) with
+    | Ok(_) -> Stdlib.Result.Result.Ok()
+    | Error(e) -> Stdlib.Result.Result.Error(e)
+
+let authorAs(owner: String, m: String, source: String): Stdlib.Result.Result<Unit, String> =
+  authorOn(main(), owner, m, source)
+
+let author(m: String, source: String): Stdlib.Result.Result<Unit, String> =
+  authorAs("Tests", m, source)
+
+/// Author every source in turn, stopping at the first failure.
+let authorAll(m: String, sources: List<String>): Stdlib.Result.Result<Unit, String> =
+  Stdlib.List.fold(sources, Stdlib.Result.Result.Ok(), fun(acc, s) ->
+    match acc with
+    | Ok(_) -> author(m, s)
+    | Error(_) -> acc)
+
+/// A branch off <param parent>, as `dark switch <name>` makes one.
+let branchOff(name: String, parent: Uuid): Uuid =
+  let (id, _) = Darklang.SCM.PackageOps.ensureBranch(name, parent)
+  id
+
+let hashIn(
+  kind: Darklang.LanguageTools.ProgramTypes.ItemKind,
+  l: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash> =
+  Darklang.SCM.Propagation.hashOn(main(), l, kind)
+
+let fnHash(m: String, name: String): Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash> =
+  hashIn(Darklang.LanguageTools.ProgramTypes.ItemKind.Fn, loc(m, name))
+
+/// Run the cascade for <param l> moving from <param from> to <param to>; the names it
+/// repointed, sorted.
+let cascadeKind(
+  kind: Darklang.LanguageTools.ProgramTypes.ItemKind,
+  l: Darklang.LanguageTools.ProgramTypes.PackageLocation,
+  from: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash>,
+  to: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash>)
+  : Stdlib.Result.Result<List<String>, String> =
+  match (from, to) with
+  | (Some(f), Some(t)) ->
+    match Darklang.SCM.Propagation.repointDependents(main(), l, kind, [ f ], t) with
+    | Ok(repoints) ->
+      Stdlib.Result.Result.Ok(
+        repoints
+        |> Stdlib.List.map(fun r -> r.location.name)
+        |> Stdlib.List.unique
+        |> Stdlib.List.sort)
+    | Error(e) -> Stdlib.Result.Result.Error(e)
+  | _ -> Stdlib.Result.Result.Error("a hash to cascade between is not bound")
+
+let cascade(
+  m: String,
+  name: String,
+  from: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash>,
+  to: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash>)
+  : Stdlib.Result.Result<List<String>, String> =
+  cascadeKind(Darklang.LanguageTools.ProgramTypes.ItemKind.Fn, loc(m, name), from, to)
+
+/// Fails the test on a setup error rather than asserting against a half-built store.
+let ok(r: Stdlib.Result.Result<'a, String>): Stdlib.Test.Result =
+  match r with
+  | Ok(_) -> Stdlib.Test.Result.Pass
+  | Error(e) -> Stdlib.Test.fail(e)
+
+let moved(
+  before: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash>,
+  after: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash>)
+  : Stdlib.Test.Result =
+  Stdlib.Test.all(
+    [ (Stdlib.Option.isSome(after)) |> Stdlib.Test.equal(true)
+      after |> Stdlib.Test.notEqual(before) ])

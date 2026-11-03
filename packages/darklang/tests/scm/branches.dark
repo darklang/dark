@@ -1,0 +1,315 @@
+module Darklang.SCM.Tests.Branches
+
+// The branch verbs that live in Dark: conflicts, rebase, per-name resolution, merge's
+// first half, retagging onto a parent, and the branch-aware binding reads.
+//
+// Each test has a store of its own, so a conflict here is a real one: the branch
+// authors a name, then main commits the same name differently. (The F# originals faked
+// it by staling the recorded base, to keep off a main every other test was reading.)
+//
+// What stays in `BranchOverlay.Tests.fs`: the overlay itself (`withExtraOps`,
+// `ptForBranch`, process branch selection), the F# store primitives (`storeDeltaOps`,
+// `recordNameBases`, `loadDeltaOps`, `createBranch`, `lookupRef`), the fold
+// (`applyUnappliedOps` sweep and LWW across merges), undecodable ops, the F#/Dark
+// parent-hash agreement, and the source scans.
+
+let fooAt(m: String): Darklang.LanguageTools.ProgramTypes.PackageLocation =
+  Authoring.loc(m, "foo")
+
+let foo(answer: String): String =
+  $"let foo(x: Int64): Int64 = {answer}L + 2L"
+
+let onBranch(b: Uuid, m: String, answer: String): Stdlib.Result.Result<Unit, String> =
+  Authoring.authorOn(b, "Tests", m, foo(answer))
+
+let onMain(m: String, answer: String): Stdlib.Result.Result<Unit, String> =
+  Authoring.author(m, foo(answer))
+
+/// Author on main and commit: a branch sees main's commits, never its draft.
+let committedOnMain(m: String, answer: String): Stdlib.Result.Result<Unit, String> =
+  Stdlib.Result.andThen(onMain(m, answer), fun _ ->
+    Darklang.SCM.PackageOps.commitDraft(Authoring.main(), $"main moves {m}.foo")
+    |> Stdlib.Result.map(fun _ -> ()))
+
+/// The hash a binding read gives <param m>.foo on <param b>, or "none".
+let boundOn(b: Uuid, m: String): String =
+  match Darklang.SCM.PackageOps.liveBindingFor(b, fooAt(m)) with
+  | Some(binding) -> binding.hash
+  | None -> "none"
+
+let hashOn(b: Uuid, m: String): String =
+  match Darklang.SCM.Propagation.hashOn(b, fooAt(m), Darklang.LanguageTools.ProgramTypes.ItemKind.Fn) with
+  | Some(h) -> Darklang.LanguageTools.ProgramTypes.hashToString(h)
+  | None -> "none"
+
+/// A branch that authored <param m>.foo, then main committed it differently: a real
+/// conflict on that one name.
+let conflicted(name: String, m: String): (Uuid * Stdlib.Result.Result<Unit, String>) =
+  let b = Authoring.branchOff(name, Authoring.main())
+  let setup =
+    Stdlib.Result.andThen(onBranch(b, m, "5"), fun _ -> committedOnMain(m, "6"))
+  (b, setup)
+
+
+test aConflictIsFlaggedAndRebaseClearsIt =
+  let m = "RebaseGate"
+  let b = Authoring.branchOff("rebase-gate", Authoring.main())
+  let branchEdit = onBranch(b, m, "5")
+  let before = Darklang.SCM.Branches.nameConflicts(b)
+  let mainEdit = committedOnMain(m, "6")
+  let diverged = Darklang.SCM.Branches.nameConflicts(b)
+  let rebased = Darklang.SCM.Branches.rebase(b)
+  Stdlib.Test.all(
+    [ Authoring.ok(branchEdit)
+      Authoring.ok(mainEdit)
+      before |> Stdlib.Test.equal([])
+      (Stdlib.List.length(diverged) > 0) |> Stdlib.Test.equal(true)
+      Authoring.ok(rebased)
+      Darklang.SCM.Branches.nameConflicts(b) |> Stdlib.Test.equal([]) ])
+
+
+// take-theirs drops the branch's binding, so the name falls back to the parent's;
+// keep-mine keeps the branch's. Both clear the conflict.
+test resolvingTakeTheirsOrKeepMineClearsTheConflict =
+  let m = "ResolveTest"
+  let (theirs, setupT) = conflicted("resolve-theirs", m)
+  let mineHash = boundOn(theirs, m)
+  let tookTheirs = Darklang.SCM.Branches.resolveTakeTheirs(theirs, "Tests.ResolveTest.foo")
+  let (mine, setupM) = conflicted("resolve-mine", m)
+  let keptMine = Darklang.SCM.Branches.resolveKeepMine(mine, "Tests.ResolveTest.foo")
+  let main = boundOn(Authoring.main(), m)
+  Stdlib.Test.all(
+    [ Authoring.ok(setupT)
+      Authoring.ok(setupM)
+      mineHash |> Stdlib.Test.notEqual(main)
+      Authoring.ok(tookTheirs)
+      Darklang.SCM.Branches.nameConflicts(theirs) |> Stdlib.Test.equal([])
+      boundOn(theirs, m) |> Stdlib.Test.equal(main)
+      Authoring.ok(keptMine)
+      Darklang.SCM.Branches.nameConflicts(mine) |> Stdlib.Test.equal([])
+      boundOn(mine, m) |> Stdlib.Test.equal(mineHash) ])
+
+
+// keep-mine authors an Override and take-theirs drops SetNames; both BIND the name, so
+// take-theirs after keep-mine has to drop the override too.
+test takeTheirsAfterKeepMineDropsTheOverride =
+  let m = "TheirsAfterMine"
+  let fqn = "Tests.TheirsAfterMine.foo"
+  let (b, setup) = conflicted("theirs-after-mine", m)
+  let mineHash = boundOn(b, m)
+  let keptMine = Darklang.SCM.Branches.resolveKeepMine(b, fqn)
+  let afterMine = boundOn(b, m)
+  let tookTheirs = Darklang.SCM.Branches.resolveTakeTheirs(b, fqn)
+  let binders =
+    Darklang.SCM.Branches.ownFrontierOps(b)
+    |> Stdlib.List.filterMap(fun((_, op)) ->
+      Darklang.SCM.Branches.opBindsKey(op, ("Tests", m, "foo")))
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(keptMine)
+      afterMine |> Stdlib.Test.equal(mineHash)
+      Authoring.ok(tookTheirs)
+      Stdlib.List.length(binders) |> Stdlib.Test.equal(0)
+      boundOn(b, m) |> Stdlib.Test.equal(boundOn(Authoring.main(), m)) ])
+
+
+// An op's origin_ts is portable: last-writer-wins compares it on every machine holding
+// the op. So keep-mine records a NEW op and rewrites no existing stamp anywhere in the
+// store. Read straight from the log, because no command shows a stamp.
+test keepMineAddsAnOpAndRestampsNothing =
+  let m = "RestampTest"
+  let (b, setup) = conflicted("restamp", m)
+  let stamps(): List<String> =
+    Stdlib.Sqlite.rowsP(
+      Darklang.SCM.localDb(),
+      "SELECT id, origin_ts FROM package_ops ORDER BY id",
+      [],
+      fun row ->
+        Stdlib.Option.Option.Some(
+          (Stdlib.Sqlite.textOr(row, "id")) + "=" + (Stdlib.Sqlite.textOr(row, "origin_ts"))))
+  let before = stamps()
+  let keptMine = Darklang.SCM.Branches.resolveKeepMine(b, "Tests.RestampTest.foo")
+  let after = stamps()
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(keptMine)
+      (before |> Stdlib.List.filter(fun s -> Stdlib.Bool.not(Stdlib.List.contains(after, s))))
+      |> Stdlib.Test.equal([])
+      (Stdlib.List.length(after) > Stdlib.List.length(before)) |> Stdlib.Test.equal(true) ])
+
+
+// Merge's first half flips a branch's pending ops effective, and reports what it
+// flipped: a second merge flips nothing, so it reports 0, not the tag count.
+test markMergedEffectiveCountsWhatItFlipped =
+  let b = Authoring.branchOff("flip-proof", Authoring.main())
+  let setup = onBranch(b, "McX", "11")
+  let pending =
+    Darklang.SCM.Branch.get(b)
+    |> Stdlib.Option.map(fun br -> Stdlib.Int.fromInt64(br.ops))
+    |> Stdlib.Option.withDefault(0)
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      (pending > 0) |> Stdlib.Test.equal(true)
+      Darklang.SCM.Branches.markMergedEffective(b) |> Stdlib.Test.equal(Ok(pending))
+      Darklang.SCM.Branches.markMergedEffective(b) |> Stdlib.Test.equal(Ok(0)) ])
+
+
+// A finished branch refuses an edit rather than being revived by it: a process still
+// holding the id after a merge elsewhere would otherwise author onto a branch nothing
+// merges again. An empty op list reaches the guard before anything else.
+test authoringOnAMergedBranchIsRefused =
+  let b = Authoring.branchOff("finished-proof", Authoring.main())
+  let merged =
+    Darklang.SCM.PackageOps.add(
+      Authoring.main(),
+      [ Darklang.LanguageTools.ProgramTypes.PackageOp.BranchEvent(
+          b,
+          Darklang.LanguageTools.ProgramTypes.BranchEventKind.Merged([]),
+          "2026-01-01T00:00:00.000Z") ])
+  let isMerged(): Bool =
+    Darklang.SCM.Branches.list()
+    |> Stdlib.List.any(fun row -> row.id == b && row.merged)
+  let wasMerged = isMerged()
+  let refused =
+    match Darklang.SCM.PackageOps.add(b, []) with
+    | Ok(_) -> "accepted"
+    | Error(e) -> if Stdlib.String.contains(e, "merged or archived") then "refused" else e
+  Stdlib.Test.all(
+    [ Authoring.ok(merged)
+      wasMerged |> Stdlib.Test.equal(true)
+      refused |> Stdlib.Test.equal("refused")
+      isMerged() |> Stdlib.Test.equal(true) ])
+
+
+// `liveBindingFor` is THE branch-aware binding read: the chain first, then main. A plain
+// read of main's projection answers about main from a branch, plausibly and wrongly.
+test liveBindingForReadsTheBranchThenMain =
+  let m = "LiveBind"
+  let b = Authoring.branchOff("live-binding-proof", Authoring.main())
+  let setup = onBranch(b, m, "42")
+  let mapLoc =
+    Darklang.LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang", modules = [ "Stdlib", "List" ], name = "map" }
+  let mapHash(branch: Uuid): String =
+    match Darklang.SCM.PackageOps.liveBindingFor(branch, mapLoc) with
+    | Some(binding) -> binding.hash
+    | None -> "none"
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      boundOn(b, m) |> Stdlib.Test.equal(hashOn(b, m))
+      boundOn(b, m) |> Stdlib.Test.notEqual("none")
+      boundOn(Authoring.main(), m) |> Stdlib.Test.equal("none")
+      mapHash(Authoring.main()) |> Stdlib.Test.notEqual("none")
+      mapHash(b) |> Stdlib.Test.equal(mapHash(Authoring.main())) ])
+
+
+// `liveBindingsFor` answers each name as `liveBindingFor` does, from main and from a
+// branch: a name the branch binds, one only main binds, one the branch unbinds, one in
+// main's draft (which a branch must not see), one nobody binds, and a repeat.
+test liveBindingsForAgreesWithTheOneNameRead =
+  let b = Authoring.branchOff("live-bindings-proof", Authoring.main())
+  let filterLoc =
+    Darklang.LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang", modules = [ "Stdlib", "List" ], name = "filter" }
+  let mapLoc =
+    Darklang.LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang", modules = [ "Stdlib", "List" ], name = "map" }
+  let setup =
+    Stdlib.Result.andThen(onBranch(b, "LiveBindMany", "42"), fun _ ->
+      Stdlib.Result.andThen(
+        Darklang.SCM.PackageOps.add(
+          b,
+          [ Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(filterLoc, Stdlib.Option.Option.None) ]),
+        fun _ -> onMain("LiveBindManyMainDraft", "7")))
+  let locs =
+    [ fooAt("LiveBindMany"), mapLoc, filterLoc, fooAt("LiveBindManyMainDraft"), fooAt("LiveBindManyNobody"), mapLoc ]
+  // "<hash>" when the two reads agree, else both.
+  let answersFrom(branch: Uuid): List<String> =
+    let many = Darklang.SCM.PackageOps.liveBindingsFor(branch, locs)
+    locs
+    |> Stdlib.List.map(fun l ->
+      let one = Darklang.SCM.PackageOps.liveBindingFor(branch, l)
+      let key = Darklang.SCM.Conflicts.bindingKey(l.owner, Stdlib.String.join(l.modules, "."), l.name)
+      let fromMany = Stdlib.Dict.get(many, key)
+      let show(x: Stdlib.Option.Option<Darklang.SCM.Conflicts.Binding>): String =
+        match x with
+        | Some(binding) -> binding.hash
+        | None -> "none"
+      if one == fromMany then show(one) else (show(one)) + " vs " + (show(fromMany)))
+  let fromBranch = answersFrom(b)
+  let fromMain = answersFrom(Authoring.main())
+  let at(xs: List<String>, i: Int): String = Stdlib.List.getAt(xs, i) |> Stdlib.Option.withDefault("missing")
+  let isHash(s: String): Bool = s != "none" && s != "missing" && Stdlib.Bool.not(Stdlib.String.contains(s, " vs "))
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      isHash(at(fromBranch, 0)) |> Stdlib.Test.equal(true)
+      at(fromMain, 0) |> Stdlib.Test.equal("none")
+      isHash(at(fromBranch, 1)) |> Stdlib.Test.equal(true)
+      at(fromBranch, 1) |> Stdlib.Test.equal(at(fromMain, 1))
+      at(fromBranch, 2) |> Stdlib.Test.equal("none")
+      isHash(at(fromMain, 2)) |> Stdlib.Test.equal(true)
+      at(fromBranch, 3) |> Stdlib.Test.equal("none")
+      isHash(at(fromMain, 3)) |> Stdlib.Test.equal(true)
+      at(fromBranch, 4) |> Stdlib.Test.equal("none")
+      at(fromMain, 4) |> Stdlib.Test.equal("none")
+      at(fromBranch, 5) |> Stdlib.Test.equal(at(fromBranch, 1))
+      at(fromMain, 5) |> Stdlib.Test.equal(at(fromMain, 1)) ])
+
+
+// `previousHashesOfAll` gives each name the history `previousHashesOf` gives it: a name
+// edited twice on main then three more times on a branch (the branch's earlier versions
+// newest-first, ahead of main's), one only main edited, one only the branch has, and a
+// repeat.
+test previousHashesOfAllAgreesWithTheOneNameRead =
+  let b = Authoring.branchOff("prev-hashes-proof", Authoring.main())
+  let mainBoth(n: String): String =
+    let _ = onMain("PrevHashesBoth", n)
+    hashOn(Authoring.main(), "PrevHashesBoth")
+  let mainOnly(n: String): String =
+    let _ = onMain("PrevHashesMainOnly", n)
+    hashOn(Authoring.main(), "PrevHashesMainOnly")
+  let branchBoth(n: String): String =
+    let _ = onBranch(b, "PrevHashesBoth", n)
+    hashOn(b, "PrevHashesBoth")
+  let main1 = mainBoth("1")
+  let main2 = mainBoth("2")
+  let onlyMain1 = mainOnly("1")
+  let _ = mainOnly("2")
+  let branch3 = branchBoth("3")
+  let branch4 = branchBoth("4")
+  let _ = branchBoth("5")
+  let branchOnly = onBranch(b, "PrevHashesBranchOnly", "1")
+  let historiesFrom(branch: Uuid, mods: List<String>): List<String> =
+    let bindings =
+      mods |> Stdlib.List.filterMap(fun m -> Darklang.SCM.PackageOps.liveBindingFor(branch, fooAt(m)))
+    let show(hs: List<Darklang.LanguageTools.ProgramTypes.Hash>): String =
+      hs |> Stdlib.List.map(Darklang.LanguageTools.ProgramTypes.hashToString) |> Stdlib.String.join(",")
+    Darklang.Cli.Commit.previousHashesOfAll(branch, bindings)
+    |> Stdlib.List.map(fun((binding, many)) ->
+      let one = Darklang.Cli.Commit.previousHashesOf(branch, binding)
+      if one == many then show(many) else (show(one)) + " vs " + (show(many)))
+  let both = Stdlib.String.join([ branch4, branch3, main2, main1 ], ",")
+  Stdlib.Test.all(
+    [ Authoring.ok(branchOnly)
+      historiesFrom(b, [ "PrevHashesBoth", "PrevHashesBranchOnly", "PrevHashesBoth" ])
+      |> Stdlib.Test.equal([ both, "", both ])
+      historiesFrom(Authoring.main(), [ "PrevHashesMainOnly" ]) |> Stdlib.Test.equal([ onlyMain1 ]) ])
+
+
+// Merging a branch into a non-main parent retags its ops onto the parent, and its name
+// BASES go too. A name with no base can never conflict again, so a grandparent moving
+// one of the child's names would be invisible at the parent's merge.
+test retaggingOntoTheParentCarriesTheNameBases =
+  let parent = Authoring.branchOff("bases-parent", Authoring.main())
+  let child = Authoring.branchOff("bases-child", parent)
+  let setup = onBranch(child, "BasesMove", "42")
+  let names(b: Uuid): List<String> =
+    Darklang.SCM.Branches.nameBases(b) |> Stdlib.List.map(fun((_, _, n, _)) -> n)
+  let childBefore = names(child)
+  let retagged = Darklang.SCM.Branches.retagFrontierToParent(child, parent)
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      childBefore |> Stdlib.Test.equal([ "foo" ])
+      (retagged |> Stdlib.Result.map(fun n -> n > 0)) |> Stdlib.Test.equal(Ok(true))
+      names(parent) |> Stdlib.Test.equal([ "foo" ])
+      names(child) |> Stdlib.Test.equal([]) ])
