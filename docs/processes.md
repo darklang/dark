@@ -904,9 +904,9 @@ early for the rest. The real version is part of a design for moving traces betwe
 machines, and it should arrive with the rest of that rather than ahead of it.
 ## `dark ps`
 
-`Stdlib.Exec.list/inspect/cancel` over `Builtin.execList/execInspect/execCancel`
-(`Builtins.Language/Libs/Exec.fs`), and `Cli.Ps.killById`, the one wrapper of
-`execKill` (the escape hatch is the CLI's, not the stdlib's); rendered by
+`Stdlib.Exec.list/inspect/stop` over `Builtin.execList/execInspect/execStop`
+(`Builtins.Language/Libs/Exec.fs`; `Exec.cancel` is `stop` without `hard`, and
+`ps kill` is `stop` with it); rendered by
 `cli/ps.dark` as a tree, a process
 under the one that spawned it. Rows are copies;
 nothing hands Dark a reference into a running VM. A process on a worker is
@@ -1111,7 +1111,7 @@ rest of this file is what the system does; this section is how to move around in
   the CLI arms it and runs the input through its own `eval`/`run` paths.
 - `Builtins.Language/Libs/Exec.fs`: the ps and Exec builtins (`execList`, `execInspect`,
   `execSpawn`, `execSpawnDetached`, `execAwait`, `execAwaitWithin`, `execSelect`,
-  `execCancel`, `execKill`), `summaryToDT`/`parkedToDT` (the RT-to-Dark mirror of
+  `execStop`), `summaryToDT`/`parkedToDT` (the RT-to-Dark mirror of
   `ProcessSummary`), and the policy chooser (the Dark policy called from the F# loop).
 - Dark: `stdlib/exec.dark` (the user surface and `ParkedOn`/`Summary`),
   `stdlib/await.dark` (`Stdlib.await`), `stdlib/execPolicy.dark`,
@@ -1163,9 +1163,8 @@ values (`noteValue` and `storeExprResult` in `Interpreter.fs`, `DebugSymbols` in
 - Prelude shadows `List.find` to return an `Option`; `| null ->` does not compile
   against a DU (use `obj.ReferenceEquals`); a member that calls another member needs
   `this.`, not `_.`.
-- `Builtin.Tests` enforces one Dark wrapper per builtin. `ps kill` calls
-  `Builtin.execKill` directly from `cli/ps.dark` (precedent: `cli/clear.dark`), which is
-  that builtin's one caller; `Exec.cancel` is the stdlib verb. A handle is built from an
+- `Builtin.Tests` enforces one Dark wrapper per builtin. `Exec.stop` is `execStop`'s one
+  wrapper; `Exec.cancel` and `ps cancel`/`ps kill` go through it. A handle is built from an
   id as `Stdlib.Exec.Handle { id = ... }`.
 - A process run (`Stdlib.Cli.execute`) parks now (`Host.blocking`); a file or libc call
   never does. A test process that parks on the host: run `sleep 1`; one that parks

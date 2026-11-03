@@ -529,44 +529,20 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "execCancel" 0
-      typeParams = [ "a" ]
-      parameters =
-        [ Param.make
-            "handle"
-            (TCustomType(
-              NR.ok (typ PackageRefs.Type.Stdlib.Exec.handle),
-              [ TVariable "a" ]
-            ))
-            "" ]
-      returnType = TBool
-      description =
-        "Ask the process behind `handle` to stop, and its undetached children; it fails with "
-        + "'cancelled' at its next turn, after what it is doing on the host completes. False for "
-        + "a handle nobody has."
-      fn =
-        (function
-        | _, vm, _, [| handle |] ->
-          let pid = pidOfHandle vm handle
-          DBool(Scheduler.Scheduler.CurrentOrShared.Cancel pid) |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ LibExecution.Effects.Effect.TraceWrite ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "execKill" 0
+    { name = fn "execStop" 0
       typeParams = []
-      parameters = [ Param.make "id" TUuid "" ]
+      parameters = [ Param.make "id" TUuid ""; Param.make "hard" TBool "" ]
       returnType = TBool
       description =
-        "`dark ps kill`: stop a process without waiting for what it is doing on the host; it fails "
-        + "with 'killed from ps' at its next turn, which a parked one is given now. Its "
-        + "undetached children go the same way. False for an id nobody has."
+        "Stop the process with this id, and its undetached children. It fails at its next "
+        + "turn: with 'cancelled' after what it is doing on the host completes, or, if `hard`, "
+        + "with 'killed from ps' without waiting for it (a parked one is given its turn now). "
+        + "False for an id nobody has."
       fn =
         (function
-        | _, _, _, [| DUuid id |] ->
-          DBool(Scheduler.Scheduler.CurrentOrShared.Kill id) |> Ply
+        | _, _, _, [| DUuid id; DBool hard |] ->
+          let sched = Scheduler.Scheduler.CurrentOrShared
+          DBool(if hard then sched.Kill id else sched.Cancel id) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.TraceWrite ]

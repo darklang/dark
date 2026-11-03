@@ -253,10 +253,6 @@ let printMachineShow(target: String, json: Bool): Bool =
   | None -> false
 
 
-/// The escape hatch, not the stdlib verb: a process stuck in a host call is ended without waiting
-/// for the call, so this is the one place the builtin is called by id.
-let killById(id: Uuid): Bool = Builtin.execKill(id)
-
 /// Signal another Dark process on this machine. `cancel` is INT, the Ctrl-C path: a traced run
 /// is suspended (`dark traces` keeps it), a daemon or a serve ends. `kill` is KILL.
 let signalMachine(
@@ -286,7 +282,7 @@ let stopLocal(
   match find(prefix) with
   | Error(e) -> Stdlib.Result.Result.Error(e)
   | Ok(p) ->
-    let ok = if hard then killById(p.id) else Stdlib.Exec.cancel(Stdlib.Exec.Handle { id = p.id })
+    let ok = Stdlib.Exec.stop(Stdlib.Exec.Handle { id = p.id }, hard)
     if ok then
       if hard then
         Stdlib.Result.Result.Ok(

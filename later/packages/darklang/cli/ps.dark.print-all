@@ -1,6 +1,6 @@
 // RESTORE: packages/darklang/cli/ps.dark
 // WAS: `printAll`, which printed the process table and then every process in full
-// ANCHOR: between printShow and killById
+// ANCHOR: between printShow and signalMachine
 // ALSO: nothing. `dark ps` and `dark ps show <id>` both stay; this was the combined form, reachable only by typing the eval its own doc comment named, and nothing else in the tree called it.
 // WHEN: the sync molt, 2026-10-12
 
