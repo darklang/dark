@@ -17,8 +17,6 @@ type Effect =
   | FileWrite
   | EnvRead
   | EnvWrite
-  | DbRead
-  | DbWrite
   | Stdin
   | Stdout
   | Clock
@@ -58,8 +56,6 @@ let name (effect : Effect) : string =
   | Effect.FileWrite -> "file-write"
   | Effect.EnvRead -> "env-read"
   | Effect.EnvWrite -> "env-write"
-  | Effect.DbRead -> "db-read"
-  | Effect.DbWrite -> "db-write"
   | Effect.Stdin -> "stdin"
   | Effect.Stdout -> "stdout"
   | Effect.Clock -> "clock"
@@ -89,8 +85,6 @@ let all : List<Effect> =
     Effect.FileWrite
     Effect.EnvRead
     Effect.EnvWrite
-    Effect.DbRead
-    Effect.DbWrite
     Effect.Stdin
     Effect.Stdout
     Effect.Clock
@@ -119,14 +113,12 @@ let isRead (effect : Effect) : bool =
   match effect with
   | Effect.FileRead
   | Effect.EnvRead
-  | Effect.DbRead
   | Effect.PackageRead
   | Effect.TraceRead -> true
   | Effect.Http
   | Effect.HttpServer
   | Effect.FileWrite
   | Effect.EnvWrite
-  | Effect.DbWrite
   | Effect.Stdin
   | Effect.Stdout
   | Effect.Clock
@@ -166,7 +158,7 @@ let private checkedInBodyByName : Set<string> =
 let checkedInBody (builtinName : string) : bool =
   Set.contains builtinName checkedInBodyByName
 
-/// A scoped effect names a resource (a path, a URL, a table, an executable),
+/// A scoped effect names a resource (a path, a URL, a variable, an executable),
 /// so its exact request can only be built by the builtin body — or, for the
 /// OS-facing ones, by the checked host boundary from the `Operation`. An
 /// ambient effect has no resource and is checked once, from the builtin's
@@ -179,8 +171,6 @@ let isScoped (effect : Effect) : bool =
   | Effect.FileWrite
   | Effect.EnvRead
   | Effect.EnvWrite
-  | Effect.DbRead
-  | Effect.DbWrite
   | Effect.Process -> true
   | Effect.Stdin
   | Effect.Stdout

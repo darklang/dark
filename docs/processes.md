@@ -301,12 +301,12 @@ state itself when it is off.
 
 ## Reads are concurrent
 
-A call whose effects are all reads (a file, env, db, package or trace read; an
+A call whose effects are all reads (a file, env, package or trace read; an
 HTTP GET or HEAD) that has to wait does not stop your program. You get its
 result back at once, as a read still in flight, and it is waited for only
 where the value is needed. Passing it to a Dark function, binding it,
 returning it, or storing it in a list, record, tuple, enum, dict value or
-closure does not wait. Every write (`print`, `File.write`, a POST, a db write)
+closure does not wait. Every write (`print`, `File.write`, a POST)
 runs when it is reached, in program order. So
 
 ```
@@ -345,8 +345,8 @@ How it works (`Interpreter.Promises`, `LibExecution.Pending`):
 - A read builtin whose `Ply` is not finished puts a `DPromise` in the
   register instead of parking (`Effects.readsOnly`: all-read effects, or
   `httpClientRead`, the GET and HEAD builtin, since `http` stays one word in
-  the permission language). A read that finishes synchronously (most file and
-  db reads in this tree) is never a promise.
+  the permission language). A read that finishes synchronously (most file
+  reads in this tree) is never a promise.
 - A value built around reads is itself a `DPromise` whose `Shell` is the value
   as built; its task lands as the value rebuilt by the same constructor, so a
   read of the wrong type for a record field raises where the record is waited
@@ -1003,8 +1003,6 @@ and says so.
 | HTTP GET, HEAD | from the log | idempotent, but the response is what the trace acted on; re-fetching costs a call per resume and can diverge |
 | HTTP POST, PUT, DELETE, PATCH | from the log | sent once; twice charges the card twice |
 | HTTP stream open | from the log for the open; refuse past the first unlogged chunk | later chunks were never logged; serving blindly hangs, re-performing opens a second connection |
-| DB read | from the log | as file read |
-| DB write | from the log | a replayed insert inserts twice |
 | process run, exec | from the log | output is logged; re-running is a second `rm` or deploy |
 | process spawn | performed again; the new child replays the recorded child's rows | a recorded result names a process that no longer exists |
 | process IO, terminate | from the log; refuse past a handle that was alive at suspend | the subprocess died with the old trace; nothing to serve |
@@ -1038,8 +1036,8 @@ What is deliberately not here, and where the seams are:
   input through the CLI's own paths; `Exec.fork` from Dark exists.
 - `ps show` says how many reads a process has in flight, not which, and shows
   the call stack, not registers.
-- A builtin's signature is still `Ply<Dval>`. Store-facing builtins (`DB`,
-  the package manager, traces, the CLI host's script runner)
+- A builtin's signature is still `Ply<Dval>`. Store-facing builtins (the
+  package manager, traces, the CLI host's script runner)
   await SQLite through `LibDB`, which has no asynchronous I/O, so they
   complete on the calling thread and the loop sees finished values rather
   than parking; a request form for them would be a store-operation type over

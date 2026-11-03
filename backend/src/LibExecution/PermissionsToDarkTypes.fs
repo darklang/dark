@@ -132,9 +132,6 @@ module Rule =
       make "EnvRead" [ Scope.stringToDT names ]
     | P.Rule.Env(P.AccessKind.Write, names) ->
       make "EnvWrite" [ Scope.stringToDT names ]
-    | P.Rule.Db(P.AccessKind.Read, names) -> make "DbRead" [ Scope.stringToDT names ]
-    | P.Rule.Db(P.AccessKind.Write, names) ->
-      make "DbWrite" [ Scope.stringToDT names ]
     | P.Rule.Process processRule -> make "Process" [ ProcessRule.toDT processRule ]
 
   // Rule roots written by tooling arrive as user-typed strings. Requests are
@@ -181,10 +178,6 @@ module Rule =
       P.Rule.Env(P.AccessKind.Read, Scope.stringFromDT names)
     | DEnum(_, _, _, "EnvWrite", [ names ]) ->
       P.Rule.Env(P.AccessKind.Write, Scope.stringFromDT names)
-    | DEnum(_, _, _, "DbRead", [ names ]) ->
-      P.Rule.Db(P.AccessKind.Read, Scope.stringFromDT names)
-    | DEnum(_, _, _, "DbWrite", [ names ]) ->
-      P.Rule.Db(P.AccessKind.Write, Scope.stringFromDT names)
     | DEnum(_, _, _, "Process", [ rule ]) -> P.Rule.Process(ProcessRule.fromDT rule)
     | _ -> Exception.raiseInternal "Invalid Permissions.Rule" [ "dval", dval ]
 

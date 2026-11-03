@@ -412,7 +412,6 @@ let builtins(branchId: Uuid): Model.Environment =
       dictKeyParameters = Dict {}
       callables = Dict {}
       declarationProblems = Dict {}
-      dbs = Dict {}
       optionType = typeHashOf(Stdlib.Option.Option.None)
       resultType = typeHashOf(Stdlib.Result.Result.Ok ()) }
 

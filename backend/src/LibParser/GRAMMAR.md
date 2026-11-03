@@ -248,7 +248,7 @@ Space-application binds fields only in head position, such as `Ok 5`. It does
 not bind in argument position: `f None x` keeps `None` nullary.
 
 A bare nullary uppercase name is resolved contextually at lowering. It may be a
-variable, enum case, or DB.
+variable or an enum case.
 
 ### Pipes
 
@@ -318,7 +318,7 @@ that does not name a trait is `PARSE-BOUND`.
 
 Primitive types are `Unit Bool Int Int8…UInt128 Float Char String DateTime Uuid
 Bytes` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<K, V>` have special
-syntax. Other uppercase names, including `Stream<T>` and `DB<T>`, are custom
+syntax. Other uppercase names, including `Stream<T>`, are custom
 types with optional type arguments.
 
 Type variables are `'a` or bare lowercase names. Tuples use `A * B`. Function
@@ -412,10 +412,9 @@ selected test again.
 
 ### Test classification
 
-The parser represents test assertions and DB declarations in the same syntax
-tree for every caller. `Parser.parseFor Validation.Test` accepts both;
-Package mode accepts DB declarations but not assertions, and Script mode
-rejects both. Successful validation returns a
+The parser represents test assertions in the same syntax tree for every
+caller. `Parser.parseFor Validation.Test` accepts them; Package and Script
+modes reject them. Successful validation returns a
 `ValidatedSourceFile`, which package, test, and CLI entry points require before
 lowering. `Parser.parse` remains mode-neutral for tooling.
 
@@ -464,8 +463,6 @@ Post-parse validation uses these stable codes:
 | `VALIDATION-RECORD-UPDATE` | a record update has no fields |
 | `VALIDATION-PACKAGE-EXPR` | a package contains an executable expression |
 | `VALIDATION-TEST-ASSERTION` | a test expression is not an assertion |
-| `VALIDATION-DB-MODE` | a DB declaration occurs outside Test mode |
-| `VALIDATION-DB-SHAPE` | a DB declaration is neither a type alias nor a non-generic record |
 | `VALIDATION-TEST-MODE` | a test assertion occurs outside Test mode |
 | `VALIDATION-IMPL-METHODS` | an impl names the same member twice |
 

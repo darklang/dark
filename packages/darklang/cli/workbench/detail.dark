@@ -159,7 +159,7 @@ let accessSummaryLines(state: State, hash: String): List<String> =
       [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "approved as " + (Stdlib.String.join(facts.approvedAs, ", ")))) ]
     else
       match facts.packagePolicy with
-      | Some _ -> [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "approved for this account")) ]
+      | Some _ -> [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "approved")) ]
       | None ->
         [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, "not approved"))
           factNote("blocked as a dependency · runs as an entry point") ]

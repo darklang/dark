@@ -51,7 +51,7 @@ module PermissionsDisplay =
           "  requires: http, clock"
           "  analysis: complete"
           "  author ceiling: {Http, Clock}"
-          "  consumer approval: approved for this account (rules below)"
+          "  consumer approval: approved (rules below)"
           "  approved as: Acme.Client.fetch"
           "  package approval policy:"
           "    http"

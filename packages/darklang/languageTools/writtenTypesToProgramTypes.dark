@@ -818,8 +818,8 @@ module Expr =
       let typeNameElided =
         (Stdlib.List.isEmpty(typeName.modules)) && (typeName.typ.name == "")
 
-      // An UNQUALIFIED uppercase name (`Red`, `XDB`) parses as a zero-field EEnum,
-      // but it's ambiguous — it could be an enum case, a DB, or an uppercase-bound
+      // An UNQUALIFIED uppercase name (`Red`, `X`) parses as a zero-field EEnum,
+      // but it's ambiguous — it could be an enum case or an uppercase-bound
       // variable (values/fns are lowercase, so never those). Lower it to an
       // EVariable and let name resolution disambiguate — this mirrors the F# WT2PT
       // so the two lowerings agree.

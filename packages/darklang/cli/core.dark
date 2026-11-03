@@ -3,7 +3,7 @@
 /// This module is split across files (Dark merges same-named modules):
 ///   core.dark        the model, startup, and error/view helpers
 ///   registry.dark    the command table and completion
-///   loop.dark        key handling, the prompt region, and the interactive loop
+///   loop.dark        key handling and the interactive loop
 ///   entry.dark       argument parsing and the process entry point
 module Darklang.Cli
 
@@ -36,14 +36,13 @@ type SubApp =
     onStoreChanged: Stdlib.Live.Change -> SubApp }
 
 type Page =
-  | MainPrompt
-  | InteractiveNav of Packages.NavInteractive.Session
-  | CompletionPicker of CompletionPicker.Session
+  /// No page owns the screen: a command is printing to ordinary scrollback, as every one-shot
+  /// `dark <command>` does.
+  | Inline
   | SubApp of SubApp
 
 type AppState =
   { isExiting: Bool
-    prompt: Prompt.State
     packageData: Packages.State
     currentPage: Page
     /// Pages to return to, innermost first. A SubApp that launches another page (e.g. the workbench opening a
@@ -53,22 +52,8 @@ type AppState =
     /// entry point resolves it once.
     currentBranchId: Uuid
     accountID: Stdlib.Option.Option<Uuid>
-    /// Retained presentation state while the main prompt owns an inline region.
-    promptTerminal: Stdlib.Option.Option<Stdlib.Cli.Tui.TerminalSession.State>
-    /// True when invoked from the command line (not the interactive REPL)
+    /// True when invoked from the command line (not launched from a page such as the workbench)
     nonInteractive: Bool
-    /// Cached completion hint — skip recompute when prompt text unchanged
-    cachedHintInput: String
-    cachedHintValue: String
-    /// Completion results for the current *context* (command + completed args), which is what an expensive
-    /// completion actually depends on. Keyed by `Registry.completionContextKey`, so it survives every
-    /// keystroke of the word being typed rather than being thrown away on each character.
-    cachedCompletionKey: String
-    cachedCompletionItems: List<Completion.CompletionItem>
-    /// The last partial token filtered and what it produced, so the next keystroke can narrow from it
-    /// instead of re-filtering the whole context list. Empty partial means "no usable base".
-    cachedFilterPartial: String
-    cachedFilterItems: List<Completion.CompletionItem>
     /// Cached command list and option strings — built once at startup
     allCommandsCache: List<Registry.CommandHandler>
     commandOptionsCache: List<String>
@@ -79,23 +64,6 @@ type AppState =
     /// branch on the exit rather than parse prose. (Most commands still report failure in prose
     /// only; they set this as they are touched.)
     exitCode: Int }
-
-/// What the prompt shows to your left: where you are in the package tree, and WHICH BRANCH, when you're on
-/// one.
-///
-/// The branch belongs in the prompt rather than in a status bar. The bar this replaced was positioned
-/// absolutely at the bottom of the terminal, which the frame-based renderer has no place for -- it owns the
-/// screen and composes views out of rows. The prompt is a row, it's already showing you context, and both
-/// the styled output and the cursor math derive from this one string, so the cursor stays correct for free.
-///
-/// Only when you're on a branch. Everyone is on main almost all the time, and a prompt that says so every
-/// line is noise you learn to stop reading.
-let locationStr(state: AppState): String =
-  let where = Packages.formatLocation(state.packageData.currentLocation)
-
-  match state.currentBranchId with
-  | id when SCM.Branch.isMain(id) -> where
-  | id -> $"{where} @{SCM.PackageOps.branchName(id)}"
 
 /// Refuse a dash-led argument where a name belongs.
 ///
@@ -188,30 +156,16 @@ let initState(): AppState =
   let commands = Registry.allCommands()
   AppState
     { isExiting = false
-      prompt = Prompt.initState()
       packageData = Packages.initState()
-      currentPage = Page.MainPrompt
+      currentPage = Page.Inline
       pageStack = []
       currentBranchId = branchId
       accountID = accountID
-      promptTerminal = Stdlib.Option.Option.None
       nonInteractive = false
-      cachedHintInput = ""
-      cachedHintValue = ""
-      cachedCompletionKey = ""
-      cachedCompletionItems = []
-      cachedFilterPartial = ""
-      cachedFilterItems = []
       allCommandsCache = commands
       commandOptionsCache = commandOptions(commands)
       telemetryEnabled = (Stdlib.Env.get("DARK_TELEMETRY")) == Stdlib.Option.Option.Some "1"
       exitCode = 0 }
-
-type Msg =
-  | ProcessInput of String
-  | KeyPressed of key: Stdlib.Cli.Stdin.Key.Key * modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers * keyChar: Stdlib.Option.Option<String>
-  | Exit
-
 
 module ExecutionError =
   /// Host-side exception that escaped the normal error path. `metadata` is

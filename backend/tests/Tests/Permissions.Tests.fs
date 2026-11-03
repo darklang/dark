@@ -451,9 +451,6 @@ let suggestRuleIsActionable =
     Expect.isTrue
       (withheld (suggest (ok (Permission.Request.processSpawn "/bin/date" []))))
       "no arguments has no exact rule: a bare process rule allows every argument list"
-    Expect.isTrue
-      (withheld (suggest Permission.Request.dbList))
-      "listing datastores would need a rule that reads every datastore"
     Expect.equal
       (suggest (ok (Permission.Request.native "cliProcessIO")))
       Permission.Suggestion.NoRule

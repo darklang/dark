@@ -418,12 +418,11 @@ module Values =
     let storeValueThatIsACall =
       testTask "a store value that is a call reads as its value" {
         let! expected =
-          evalDarkExpr
-            "Stdlib.String.displayWidth(Darklang.Cli.CompletionPicker.minimumHelpText)"
-        let! actual = evalDarkExpr "Darklang.Cli.CompletionPicker.minimumWidth"
+          evalDarkExpr "Darklang.Stdlib.AltJson.Parse.hexValue(\"10000\")"
+        let! actual = evalDarkExpr "Darklang.Stdlib.AltJson.Parse.firstSupplementary"
         match expected, actual with
         | Ok(RT.DInt _ as e), Ok a ->
-          Expect.equal a e "minimumWidth is the display width of minimumHelpText"
+          Expect.equal a e "firstSupplementary is hexValue(\"10000\")"
         | _ -> return failtest $"unexpected results: {expected} and {actual}"
       }
 

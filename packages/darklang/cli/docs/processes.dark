@@ -16,7 +16,7 @@ value here instead of wherever it is first used.
   Stdlib.printLine("fetching")                                            // a write: now, in order
   let count = Stdlib.List.length(pages)                                   // looks: waits for all
 
-A read is a call whose effects are all reads (a file, env, db or package
+A read is a call whose effects are all reads (a file, env or package
 read, an HTTP GET or HEAD). Anything else runs in order.
 
 ## When you want control

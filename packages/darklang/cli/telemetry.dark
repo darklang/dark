@@ -9,7 +9,7 @@ module Darklang.Cli.Telemetry
 ///   Telemetry.log "render" t0
 ///
 ///   // Or for spans with extra context:
-///   Telemetry.logWithContext "completionHint" t0 [("input", promptText)]
+///   Telemetry.logWithContext "render" t0 [("page", pageName)]
 
 /// Where telemetry lines go. A fn, not a `val`: a val is evaluated once, when the
 /// package store is built, so it would hold the build machine's log dir rather than

@@ -53,10 +53,6 @@ If you've gotten this far, you're now ready to [contribute your first PR](https:
 
 - `scripts/run-in-docker bash`
 
-## Accessing the local db
-
-- `scripts/run-in-docker psql -d devdb`
-
 ## Config files
 
 Config files ([config/](config)) define all env vars that you can use in Dark code.

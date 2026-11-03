@@ -148,8 +148,8 @@ let launch(cliState: Cli.AppState, c: Component<'s>, init: 's): Cli.AppState =
 
 /// Launch, or leave the CLI if the terminal can't be taken.
 ///
-/// For a component that has no meaningful fallback: dropping to the prompt after failing to start would
-/// leave you somewhere you didn't ask to be.
+/// For a component that has no meaningful fallback: carrying on after failing to start would leave you
+/// somewhere you didn't ask to be.
 let launchOrExit(cliState: Cli.AppState, c: Component<'s>, init: 's): Cli.AppState =
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
 

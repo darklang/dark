@@ -238,10 +238,6 @@ let random(length: Int): Result.Result<String, String> =
 
 
 /// Checks if <param lookingIn> contains <param searchingFor>.
-//
-// Uses the dedicated `stringContains` builtin (returns Bool, compiles to
-// `INSTR(...) > 0`) rather than `indexOf != -1`, so it stays SQL-queryable
-// independent of `indexOf`'s now arbitrary-precision `Int` return.
 let contains(lookingIn: String, searchingFor: String): Bool =
   Builtin.stringContains(lookingIn, searchingFor)
 

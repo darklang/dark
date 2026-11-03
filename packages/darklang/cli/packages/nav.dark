@@ -9,7 +9,6 @@ let navTo(state: AppState, location: PackageLocation): AppState =
     let newHistory = Stdlib.List.append(state.packageData.locationHistory, state.packageData.currentLocation)
 
     { state with
-        prompt = Prompt.Editing.clear(state.prompt)
         packageData =
           { state.packageData with
               currentLocation = location
@@ -19,19 +18,6 @@ let navTo(state: AppState, location: PackageLocation): AppState =
 
 let execute(state: AppState, args: List<String>): AppState =
   match args with
-  | [] ->
-    // Enter interactive navigation mode
-    let branchId = state.currentBranchId
-    let navState = NavInteractive.buildState(branchId, state.packageData.currentLocation)
-    match NavInteractive.start(navState) with
-    | Ok session ->
-      { state with
-          currentPage = Page.InteractiveNav session
-          prompt = Prompt.Editing.clear(state.prompt) }
-    | Error message ->
-      Stdlib.printLine(message)
-      state
-
   | [pathArg] ->
     let branchId = state.currentBranchId
     match Traversal.traverse(branchId, state.packageData.currentLocation, pathArg) with
@@ -42,13 +28,12 @@ let execute(state: AppState, args: List<String>): AppState =
       let locationStr = Packages.formatLocation(newLocation)
       Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Changed to: {locationStr}"))
 
-      // Where you are lives in this session, like a shell's cwd: `dark nav X` from a prompt moves
-      // for the length of that one command and nothing after it sees the move. Said out loud,
-      // because "Changed to:" on its own reads like it stuck, and the next `dark ls` disagreeing
-      // with it is a confusing way to find out.
+      // Where you are lives for the length of this one command, and nothing after it sees the move.
+      // Said out loud, because "Changed to:" on its own reads like it stuck, and the next `dark ls`
+      // disagreeing with it is a confusing way to find out.
       if state.nonInteractive then
         Cli.printHint(
-          "  (only for this command -- a location doesn't carry between `dark` invocations. `dark ls <path>` reads elsewhere; `dark` with no arguments keeps one.)")
+          "  (only for this command -- a location doesn't carry between `dark` invocations. `dark ls <path>` reads elsewhere; `dark` with no arguments opens the workbench to browse.)")
       else
         ()
 
@@ -73,11 +58,10 @@ let complete(state: AppState, args: List<String>): List<Completion.CompletionIte
 
 let help(_state: AppState): String =
   [
-    "Usage: nav [path]"
+    "Usage: nav <path>"
     "Navigate package space - modules, types, values, functions, and tests."
     ""
-    "With path: Navigate directly to the specified location."
-    "Without path: Enter interactive navigation mode."
+    "Navigates directly to the specified location. To browse, run `dark` with no arguments."
     ""
     "Examples:"
     "  nav /                - Go to root"

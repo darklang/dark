@@ -380,16 +380,16 @@ let captureOutputAnd(f: Unit -> 'a): ('a * String) =
   let value = f()
   if owned then (value, Builtin.stdoutCaptureStop()) else (value, "")
 
-/// `captureOutputAnd` when only the output matters (running a classic command for its printed result).
+/// `captureOutputAnd` when only the output matters (running a command for its printed result).
 let captureOutput(f: Unit -> 'a): String =
   let (_value, output) = captureOutputAnd(f)
   output
 
 
-/// A throwaway classic-CLI AppState carrying just this workbench's identity (branch + account) for handing to
-/// the classic command Registry (executeCommand / getCompletions / getCompletionHint). Everything else is the
+/// A throwaway CLI AppState carrying just this workbench's identity (branch + account) for handing to
+/// the command Registry (executeCommand / getCompletions / getCompletionHint). Everything else is the
 /// init default; the workbench only ever needs those three fields to run a command on the right branch as you.
-let classicState(state: State): Darklang.Cli.AppState =
+let commandState(state: State): Darklang.Cli.AppState =
   { (Darklang.Cli.initState()) with
       currentBranchId = state.branchId
       accountID = state.accountId

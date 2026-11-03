@@ -9,7 +9,6 @@ let execute(state: AppState, args: List<String>): AppState =
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success("Back to: " + pathStr))
 
     { state with
-        prompt = Prompt.Editing.clear(state.prompt)
         packageData =
           { state.packageData with
               currentLocation = previousLocation

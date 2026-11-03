@@ -1307,7 +1307,7 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
         |> fun parts -> $"<{parts}>"
 
     // A bare, unqualified enum case (no type name) prints as just the case name —
-    // e.g. an unresolved `TestDB` — not `.TestDB`. The leading `.` only separates a
+    // e.g. an unresolved `Red` — not `.Red`. The leading `.` only separates a
     // present type name from its case (`Result.Ok`, `Generic<Int64>.A`).
     let sep = if typeNamePart == "" then "" else "."
 

@@ -386,218 +386,203 @@ let hiddenTestsHint(count: Int): Unit =
 
 
 let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
-  match args with
-  | [] ->
-    // Enter interactive search mode (nav with search enabled)
-    let navState = NavInteractive.buildState(state.currentBranchId, state.packageData.currentLocation)
-    let searchNavState = { navState with mode = NavInteractive.Mode.Search }
-    match NavInteractive.start(searchNavState) with
-    | Ok session ->
-      { state with
-          currentPage = Page.InteractiveNav session
-          prompt = Prompt.Editing.clear(state.prompt) }
-    | Error message ->
-      Stdlib.printLine(message)
-      state
+  let parsed = parseArgs(args)
 
-  | _ ->
-    let parsed = parseArgs(args)
+  if Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) then
+    Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
+    Stdlib.printErrorLine("")
+    Stdlib.printErrorLine(usage)
+    Cli.exitWith(state, false)
+  else
+    let rawQueryText = Stdlib.String.join(parsed.queryParts, " ")
 
-    if Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) then
-      Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
+    let aliasKeyword = operatorAlias(rawQueryText)
+    let queryText = Stdlib.Option.withDefault(aliasKeyword, rawQueryText)
+
+    if Stdlib.String.isEmpty(queryText) then
+      Cli.printErr("Error: Search query cannot be empty")
+      // "everything of this kind" is a listing, not a search, and `--trait` with no query is
+      // the natural way to reach for it.
+      Stdlib.printErrorLine(
+        (Stdlib.Cli.UI.Colors.hint(
+          "  for everything in one place, `dark ls <module>` sections by kind; `dark tree` goes deeper")))
+
       Stdlib.printErrorLine("")
       Stdlib.printErrorLine(usage)
       Cli.exitWith(state, false)
     else
-      let rawQueryText = Stdlib.String.join(parsed.queryParts, " ")
-
-      let aliasKeyword = operatorAlias(rawQueryText)
-      let queryText = Stdlib.Option.withDefault(aliasKeyword, rawQueryText)
-
-      if Stdlib.String.isEmpty(queryText) then
-        Cli.printErr("Error: Search query cannot be empty")
-        // "everything of this kind" is a listing, not a search, and `--trait` with no query is
-        // the natural way to reach for it.
-        Stdlib.printErrorLine(
-          (Stdlib.Cli.UI.Colors.hint(
-            "  for everything in one place, `dark ls <module>` sections by kind; `dark tree` goes deeper")))
-
-        Stdlib.printErrorLine("")
-        Stdlib.printErrorLine(usage)
-        Cli.exitWith(state, false)
-      else
-        let searchDepth =
-          if parsed.shallow then
-            LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-          else
-            LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
-
-        let currentModule =
-          Traversal.getCurrentModulePath(state.packageData.currentLocation)
-
-        let query =
-          LanguageTools.ProgramTypes.Search.SearchQuery
-            { currentModule = currentModule
-              text = queryText
-              searchDepth = searchDepth
-              entityTypes = parsed.entityTypes
-              exactMatch = parsed.exactMatch }
-
-        let rawResults = LanguageTools.PackageManager.Search.search(state.currentBranchId, query)
-        let depSets = Query.loadDeprecationSets(state.currentBranchId)
-        let results = Query.filterDeprecated(rawResults, depSets, parsed.includeDeprecated)
-
-        // An implementation is one result. Its method fns live under it and its path reads as a
-        // module, so without this each one was listed three times.
-        let implPaths =
-          results.impls
-          |> Stdlib.List.map(fun i ->
-            Stdlib.List.flatten([ [ i.location.owner ], i.location.modules, [ i.location.name ] ]))
-        let results =
-          { results with
-              fns =
-                results.fns
-                |> Stdlib.List.filter(fun f ->
-                  Stdlib.Bool.not(
-                    Stdlib.List.contains(implPaths, Stdlib.List.prepend(f.location.modules, f.location.owner))))
-              submodules =
-                results.submodules
-                |> Stdlib.List.filter(fun m -> Stdlib.Bool.not(Stdlib.List.contains(implPaths, m))) }
-        // Tests are left out unless asked for. A test is usually named after what
-        // it tests, so every search for a function would also list its tests;
-        // `dark test run <filter>` and `view --include-tests` are where to find them.
-        // Searched for anyway, so the hint below can say how many were left out.
-        let showTests =
-          parsed.includeTests
-          || Stdlib.List.contains(
-            parsed.entityTypes,
-            LanguageTools.ProgramTypes.Search.EntityType.Test)
-        let hiddenTests = if showTests then 0 else Stdlib.List.length(results.tests)
-        let results = if showTests then results else { results with tests = [] }
-
-        // Only count submodules when no entity type filter is specified
-        let submodulesCount =
-          if Stdlib.List.isEmpty(parsed.entityTypes) then
-            Stdlib.List.length(results.submodules)
-          else
-            0
-
-        let totalResults =
-          (Stdlib.List.length(results.types))
-          + (Stdlib.List.length(results.values))
-          + (Stdlib.List.length(results.fns))
-          + (Stdlib.List.length(results.traits))
-          + (Stdlib.List.length(results.impls))
-          + (Stdlib.List.length(results.tests))
-          + submodulesCount
-
-        if parsed.asJson then
-          Stdlib.printLine(jsonOutput(state.currentBranchId, queryText, results))
-        else if totalResults == 0 then
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"No results found for: {queryText}"))
-          hiddenTestsHint(hiddenTests)
-          Stdlib.printLine("")
+      let searchDepth =
+        if parsed.shallow then
+          LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
         else
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"Search results for: {queryText}"))
-          match aliasKeyword with
-          | Some kw ->
-            Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  ({rawQueryText} is {kw})"))
-          | None -> ()
-          Stdlib.printLine("")
+          LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
 
-          // Key format: match rank followed by the fixed section order.
-          let resultCap = if parsed.batch then batchDisplayCap else displayCap
+      let currentModule =
+        Traversal.getCurrentModulePath(state.packageData.currentLocation)
 
-          let moduleRank =
-            if Stdlib.List.isEmpty(parsed.entityTypes) then
-              bestModuleRank(queryText, results.submodules)
-            else
-              9
+      let query =
+        LanguageTools.ProgramTypes.Search.SearchQuery
+          { currentModule = currentModule
+            text = queryText
+            searchDepth = searchDepth
+            entityTypes = parsed.entityTypes
+            exactMatch = parsed.exactMatch }
 
-          // Suffix orders sections on a rank tie. Modules are navigation, not the
-          // usual discovery target, so they sort last - a wall of namespace
-          // matches shouldn't precede an equally-ranked fn/type/value hit.
-          let sectionKeys =
-            [ ($"{Stdlib.toString(moduleRank)}4", "module")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.types))}1", "type")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.values))}2", "value")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.fns))}3", "function")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.traits))}0", "trait")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.impls))}5", "impl")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.tests))}6", "test") ]
+      let rawResults = LanguageTools.PackageManager.Search.search(state.currentBranchId, query)
+      let depSets = Query.loadDeprecationSets(state.currentBranchId)
+      let results = Query.filterDeprecated(rawResults, depSets, parsed.includeDeprecated)
 
-          let order =
-            sectionKeys
-            |> Stdlib.List.sortBy(fun (key, _) -> key)
-            |> Stdlib.List.map(fun (_, tag) -> tag)
+      // An implementation is one result. Its method fns live under it and its path reads as a
+      // module, so without this each one was listed three times.
+      let implPaths =
+        results.impls
+        |> Stdlib.List.map(fun i ->
+          Stdlib.List.flatten([ [ i.location.owner ], i.location.modules, [ i.location.name ] ]))
+      let results =
+        { results with
+            fns =
+              results.fns
+              |> Stdlib.List.filter(fun f ->
+                Stdlib.Bool.not(
+                  Stdlib.List.contains(implPaths, Stdlib.List.prepend(f.location.modules, f.location.owner))))
+            submodules =
+              results.submodules
+              |> Stdlib.List.filter(fun m -> Stdlib.Bool.not(Stdlib.List.contains(implPaths, m))) }
+      // Tests are left out unless asked for. A test is usually named after what
+      // it tests, so every search for a function would also list its tests;
+      // `dark test run <filter>` and `view --include-tests` are where to find them.
+      // Searched for anyway, so the hint below can say how many were left out.
+      let showTests =
+        parsed.includeTests
+        || Stdlib.List.contains(
+          parsed.entityTypes,
+          LanguageTools.ProgramTypes.Search.EntityType.Test)
+      let hiddenTests = if showTests then 0 else Stdlib.List.length(results.tests)
+      let results = if showTests then results else { results with tests = [] }
 
-          order
-          |> Stdlib.List.iter(fun tag ->
-            match tag with
-            | "function" ->
-              renderSection("function", queryText, resultCap, results.fns, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
-                let ctx = contextFor(state.currentBranchId, item)
-                let sigBody = Signatures.formatFn(ctx, item.entity)
-                let badge =
-                  Stdlib.Cli.UI.Colors.dimText(
-                    Permissions.Command.requirementBadge(item.entity.hash))
-                let line =
-                  $"{fullPathOf(item)} {Stdlib.Cli.UI.Colors.dimText(sigBody)}{mark} {badge}"
-                withOptionalDoc(parsed.withDocs, line, item.entity.description))
-            | "value" ->
-              renderSection("value", queryText, resultCap, results.values, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
-                withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
-            | "type" ->
-              renderSection("type", queryText, resultCap, results.types, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
-                let ctx = contextFor(state.currentBranchId, item)
-                let defn = Signatures.formatType(ctx, fullPathOf(item), item.entity)
-                withOptionalDoc(parsed.withDocs, $"{defn}{mark}", item.entity.description))
-            | "trait" ->
-              renderSection("trait", queryText, resultCap, results.traits, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
-                withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
-            | "impl" ->
-              renderSection("impl", queryText, resultCap, results.impls, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
-                let ctx = contextFor(state.currentBranchId, item)
-                let header =
-                  $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, item.entity.trait_)} for {PrettyPrinter.ProgramTypes.typeReference(ctx, item.entity.self)}"
-                withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)} {Stdlib.Cli.UI.Colors.dimText(header)}{mark}", item.entity.description))
-            | "test" ->
-              renderSection("test", queryText, resultCap, results.tests, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
-                withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
-            | "module" ->
-              if (Stdlib.List.isEmpty(parsed.entityTypes)) && (Stdlib.Bool.not(Stdlib.List.isEmpty(results.submodules))) then
-                Stdlib.printLine(Display.getSectionHeader("module"))
-                let sortedMods =
-                  results.submodules
-                  |> Stdlib.List.sortBy(fun modulePath ->
-                    let modName = Stdlib.Option.withDefault(Stdlib.List.last(modulePath), "")
-                    let owner = Stdlib.Option.withDefault(Stdlib.List.head(modulePath), "")
-                    let mods = Stdlib.Option.withDefault(Stdlib.List.tail(modulePath), [])
-                    sortKey(queryText, owner, mods, modName))
-                let shownMods = Stdlib.List.take(sortedMods, resultCap)
-                shownMods
-                |> Stdlib.List.iter(fun modulePath ->
-                  let moduleStr = Stdlib.String.join(modulePath, ".")
-                  Stdlib.printLine(moduleStr))
-                overflowNote(Stdlib.List.length(sortedMods), Stdlib.List.length(shownMods))
-                Stdlib.printLine("")
-              else
-                ()
-            | _ -> ())
+      // Only count submodules when no entity type filter is specified
+      let submodulesCount =
+        if Stdlib.List.isEmpty(parsed.entityTypes) then
+          Stdlib.List.length(results.submodules)
+        else
+          0
 
-          hiddenTestsHint(hiddenTests)
-          if (Stdlib.Bool.not(parsed.withDocs)) && (Stdlib.Bool.not(parsed.batch)) then
-            Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  (add --with-docs to show doc comments)"))
+      let totalResults =
+        (Stdlib.List.length(results.types))
+        + (Stdlib.List.length(results.values))
+        + (Stdlib.List.length(results.fns))
+        + (Stdlib.List.length(results.traits))
+        + (Stdlib.List.length(results.impls))
+        + (Stdlib.List.length(results.tests))
+        + submodulesCount
+
+      if parsed.asJson then
+        Stdlib.printLine(jsonOutput(state.currentBranchId, queryText, results))
+      else if totalResults == 0 then
+        Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"No results found for: {queryText}"))
+        hiddenTestsHint(hiddenTests)
+        Stdlib.printLine("")
+      else
+        Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"Search results for: {queryText}"))
+        match aliasKeyword with
+        | Some kw ->
+          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  ({rawQueryText} is {kw})"))
+        | None -> ()
+        Stdlib.printLine("")
+
+        // Key format: match rank followed by the fixed section order.
+        let resultCap = if parsed.batch then batchDisplayCap else displayCap
+
+        let moduleRank =
+          if Stdlib.List.isEmpty(parsed.entityTypes) then
+            bestModuleRank(queryText, results.submodules)
           else
-            ()
+            9
 
-        state
+        // Suffix orders sections on a rank tie. Modules are navigation, not the
+        // usual discovery target, so they sort last - a wall of namespace
+        // matches shouldn't precede an equally-ranked fn/type/value hit.
+        let sectionKeys =
+          [ ($"{Stdlib.toString(moduleRank)}4", "module")
+            ($"{Stdlib.toString(bestItemRank(queryText, results.types))}1", "type")
+            ($"{Stdlib.toString(bestItemRank(queryText, results.values))}2", "value")
+            ($"{Stdlib.toString(bestItemRank(queryText, results.fns))}3", "function")
+            ($"{Stdlib.toString(bestItemRank(queryText, results.traits))}0", "trait")
+            ($"{Stdlib.toString(bestItemRank(queryText, results.impls))}5", "impl")
+            ($"{Stdlib.toString(bestItemRank(queryText, results.tests))}6", "test") ]
+
+        let order =
+          sectionKeys
+          |> Stdlib.List.sortBy(fun (key, _) -> key)
+          |> Stdlib.List.map(fun (_, tag) -> tag)
+
+        order
+        |> Stdlib.List.iter(fun tag ->
+          match tag with
+          | "function" ->
+            renderSection("function", queryText, resultCap, results.fns, fun item ->
+              let mark = Query.deprecationMarker(depSets, item.entity.hash)
+              let ctx = contextFor(state.currentBranchId, item)
+              let sigBody = Signatures.formatFn(ctx, item.entity)
+              let badge =
+                Stdlib.Cli.UI.Colors.dimText(
+                  Permissions.Command.requirementBadge(item.entity.hash))
+              let line =
+                $"{fullPathOf(item)} {Stdlib.Cli.UI.Colors.dimText(sigBody)}{mark} {badge}"
+              withOptionalDoc(parsed.withDocs, line, item.entity.description))
+          | "value" ->
+            renderSection("value", queryText, resultCap, results.values, fun item ->
+              let mark = Query.deprecationMarker(depSets, item.entity.hash)
+              withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
+          | "type" ->
+            renderSection("type", queryText, resultCap, results.types, fun item ->
+              let mark = Query.deprecationMarker(depSets, item.entity.hash)
+              let ctx = contextFor(state.currentBranchId, item)
+              let defn = Signatures.formatType(ctx, fullPathOf(item), item.entity)
+              withOptionalDoc(parsed.withDocs, $"{defn}{mark}", item.entity.description))
+          | "trait" ->
+            renderSection("trait", queryText, resultCap, results.traits, fun item ->
+              let mark = Query.deprecationMarker(depSets, item.entity.hash)
+              withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
+          | "impl" ->
+            renderSection("impl", queryText, resultCap, results.impls, fun item ->
+              let mark = Query.deprecationMarker(depSets, item.entity.hash)
+              let ctx = contextFor(state.currentBranchId, item)
+              let header =
+                $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, item.entity.trait_)} for {PrettyPrinter.ProgramTypes.typeReference(ctx, item.entity.self)}"
+              withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)} {Stdlib.Cli.UI.Colors.dimText(header)}{mark}", item.entity.description))
+          | "test" ->
+            renderSection("test", queryText, resultCap, results.tests, fun item ->
+              let mark = Query.deprecationMarker(depSets, item.entity.hash)
+              withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
+          | "module" ->
+            if (Stdlib.List.isEmpty(parsed.entityTypes)) && (Stdlib.Bool.not(Stdlib.List.isEmpty(results.submodules))) then
+              Stdlib.printLine(Display.getSectionHeader("module"))
+              let sortedMods =
+                results.submodules
+                |> Stdlib.List.sortBy(fun modulePath ->
+                  let modName = Stdlib.Option.withDefault(Stdlib.List.last(modulePath), "")
+                  let owner = Stdlib.Option.withDefault(Stdlib.List.head(modulePath), "")
+                  let mods = Stdlib.Option.withDefault(Stdlib.List.tail(modulePath), [])
+                  sortKey(queryText, owner, mods, modName))
+              let shownMods = Stdlib.List.take(sortedMods, resultCap)
+              shownMods
+              |> Stdlib.List.iter(fun modulePath ->
+                let moduleStr = Stdlib.String.join(modulePath, ".")
+                Stdlib.printLine(moduleStr))
+              overflowNote(Stdlib.List.length(sortedMods), Stdlib.List.length(shownMods))
+              Stdlib.printLine("")
+            else
+              ()
+          | _ -> ())
+
+        hiddenTestsHint(hiddenTests)
+        if (Stdlib.Bool.not(parsed.withDocs)) && (Stdlib.Bool.not(parsed.batch)) then
+          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  (add --with-docs to show doc comments)"))
+        else
+          ()
+
+      state
 
 
 
@@ -642,10 +627,7 @@ let help(state: Cli.AppState): String =
   [
     "Search modules, types, functions, values, traits, implementations and tests"
     ""
-    "Usage: search [query] [options]"
-    ""
-    "Without query: Launch interactive search mode"
-    "With query: Execute search and display results"
+    "Usage: search <query> [options]"
     ""
     "Options:"
     "  --batch                Treat each quoted query as an independent search (3 results each)"
@@ -663,7 +645,6 @@ let help(state: Cli.AppState): String =
     "  --json                 The results, typed, for an agent"
     ""
     "Examples:"
-    "  search                      # Launch interactive search mode"
     "  search List                 # Find all items matching 'List' (recursively)"
     "  search List --shallow       # Find all items matching 'List' (direct descendants only)"
     "  search map --fn             # Find functions matching 'map' (with param names)"

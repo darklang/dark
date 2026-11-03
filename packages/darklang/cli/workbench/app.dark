@@ -161,9 +161,7 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
   match Darklang.Stdlib.Cli.Tui.TerminalSupport.current() with
   | Unavailable reason ->
     // Don't seize the alternate screen when there's no terminal -- piping `dark` would
-    // dump raw escape sequences into the reader. Report and stop rather than falling
-    // through to the prompt: the no-args path would print the same message twice, and
-    // an explicit `dark wb` would stay silent.
+    // dump raw escape sequences into the reader. Report and stop.
     Stdlib.printErrorLine(
       Darklang.Stdlib.Cli.Tui.TerminalSupport.unavailableMessage(reason))
     // Say where to go next. Without a terminal this is a dead end otherwise, and the callers that land

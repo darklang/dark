@@ -83,11 +83,7 @@ module PermissionsGrammar =
         Darklang.LanguageTools.Permissions.parseRule([ "env", "write", "PATH" ])
         |> Stdlib.Test.equal(
           (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.EnvWrite(only("PATH")) ]))
-        Darklang.LanguageTools.Permissions.parseRule([ "db", "read", "t" ])
-        |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.DbRead(only("t")) ])) ])
+             [ Darklang.LanguageTools.Permissions.Rule.EnvWrite(only("PATH")) ])) ])
 
   // The store effects are not resource-scoped: bare effect names only.
   test storeEffectsBare =
@@ -153,11 +149,6 @@ module PermissionsGrammar =
         |> Stdlib.Test.equal(
           (Stdlib.Option.Option.Some
              [ Darklang.LanguageTools.Permissions.Rule.EnvRead
-                 Darklang.LanguageTools.Permissions.Scope.All ]))
-        Darklang.LanguageTools.Permissions.parseRuleText("db read")
-        |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some
-             [ Darklang.LanguageTools.Permissions.Rule.DbRead
                  Darklang.LanguageTools.Permissions.Scope.All ]))
         Darklang.LanguageTools.Permissions.parseRuleText("file read /tmp/x")
         |> Stdlib.Test.equal(
@@ -268,10 +259,6 @@ module PermissionsGrammar =
         roundTrips(Darklang.LanguageTools.Permissions.Rule.EnvRead(only("HOME")))
         |> Stdlib.Test.equal(true)
         roundTrips(Darklang.LanguageTools.Permissions.Rule.EnvWrite(only("PATH")))
-        |> Stdlib.Test.equal(true)
-        roundTrips(Darklang.LanguageTools.Permissions.Rule.DbRead(only("t")))
-        |> Stdlib.Test.equal(true)
-        roundTrips(Darklang.LanguageTools.Permissions.Rule.DbWrite(only("t")))
         |> Stdlib.Test.equal(true)
         roundTrips(process("/bin/x", [])) |> Stdlib.Test.equal(true)
         roundTrips(process("/bin/x", [ "a", "b" ])) |> Stdlib.Test.equal(true) ])

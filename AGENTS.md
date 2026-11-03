@@ -7,8 +7,7 @@ library and CLI, written in Darklang itself (`packages/`).
 
 It used to say "a language, editor and infrastructure in one", and that was true of a bigger
 product than this tree now contains. Anything hosted, networked or shared either does not exist
-here or does not exist yet: there is no relay, no sync, no accounts, no user databases and no
-editor extension. Do not build on the assumption that this is a cloud platform.
+here or does not exist yet. Do not build on the assumption that this is a cloud platform.
 
 ## Start the dev container first
 
@@ -498,7 +497,7 @@ Logs are for reading when something went wrong. For "did it work", use
 
 ## Adding a builtin (F#)
 
-Pick the right `Builtins` subproject: `Pure` (pure stdlib), `Matter` (DB, package store,
+Pick the right `Builtins` subproject: `Pure` (pure stdlib), `Matter` (package store,
 traces), `Language` (reflection, parser, language tools), `Http.Server`, `Http.Client`,
 `CliHost` (eval, script entry), `Cli` (file, terminal, other side effects), `Time`,
 `Random`. Add the fn to the `fns` list in the relevant `Libs/<module>.fs`, save, wait for
@@ -1242,10 +1241,9 @@ has a `press` helper for this.
 
 The interactive CLI (`run-cli` with no args) needs a real TTY. Use `expect`:
 
-    ./scripts/run-in-docker expect scripts/testing/fixtures/test-interactive.expect
     ./scripts/run-in-docker expect scripts/testing/fixtures/test-workbench.expect
 
-`run-cli` with no args opens the WORKBENCH, so that second one covers the default experience:
+`run-cli` with no args opens the WORKBENCH, so that covers the default experience:
 switching views, resize, the too-small guard, and quitting cleanly. None of it is reachable from
 the test suite -- the views render fine when called directly; what needs a terminal is the keyboard,
 the alternate screen and SIGWINCH.
@@ -1257,25 +1255,24 @@ When `packages/darklang/cli/telemetry.dark` is loaded, the interactive loop appe
 
     {"event":"preInput","ms":169,"ctx":{}}
     {"event":"readKey","ms":2014,"ctx":{"char":"h"}}
-    {"event":"render","ms":33,"ctx":{"page":"MainPrompt"}}
+    {"event":"render","ms":33,"ctx":{"page":"SubApp"}}
 
-The events, per loop iteration: `completionHint` (the ghosted suggestion), `render` (a page draw),
-`preInput` (all the work before blocking on a keystroke), `readKey` (time waiting for the person,
-so idle), `update` (state after a keystroke), `loopWork` (preInput + update, the non-idle total),
-`commandExec` (on Enter), `tabComplete`, and `session_start` as a marker.
+The events, per loop iteration: `render` (a page draw), `preInput` (all the work before blocking on
+a keystroke), `readKey` (time waiting for the person, so idle), `update` (state after a keystroke),
+`loopWork` (preInput + update, the non-idle total), and `session_start` as a marker.
 
 `preInput` is the one to read: it is the lag a person feels between pressing a key and seeing
 anything.
 
     jq -r 'select(.event=="preInput") | .ms' rundir/logs/telemetry.jsonl
 
-    jq -r 'select(.event=="completionHint") | .ms' rundir/logs/telemetry.jsonl \
+    jq -r 'select(.event=="update") | .ms' rundir/logs/telemetry.jsonl \
       | awk '{s+=$1;n++} END{print s/n"ms"}'
 
 `scripts/perf/view-telemetry.py` reads the same file and is easier for a whole run.
 
 Three traps worth knowing when driving the loop under `expect`: give it about 3 seconds after
-spawn, because packages load before the first prompt; `send "x"` sends one character and the loop
+spawn, because packages load before the first frame; `send "x"` sends one character and the loop
 reads one at a time, so a sleep between them is what a real typing speed looks like; and the
 Release and AOT builds behave differently enough from Debug that a timing conclusion from one says
 nothing about the other.

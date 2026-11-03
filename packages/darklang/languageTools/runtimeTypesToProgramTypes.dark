@@ -1,6 +1,6 @@
 /// Promote a runtime value (RT.Dval) back into a ProgramTypes expression — the "turn this result into source" /
 /// promote-a-value primitive that unlocks live values (dream #1). Literals, collections, records and enums map
-/// directly; values with no literal syntax (functions, DBs, blobs, streams, dates/uuids) fail with a reason so
+/// directly; values with no literal syntax (functions, blobs, streams, dates/uuids) fail with a reason so
 /// the caller can fall back. IDs are fresh (gid) and don't affect the rendered source.
 ///
 /// The `branchId` is only for records and enums: a runtime value carries its type as a bare content hash, and

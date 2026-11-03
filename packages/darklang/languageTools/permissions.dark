@@ -40,8 +40,6 @@ type Effect =
   | FileWrite
   | EnvRead
   | EnvWrite
-  | DbRead
-  | DbWrite
   | Stdin
   | Stdout
   | Clock
@@ -66,8 +64,6 @@ type Rule =
   | FileWrite of Permissions.Scope<String>
   | EnvRead of Permissions.Scope<String>
   | EnvWrite of Permissions.Scope<String>
-  | DbRead of Permissions.Scope<String>
-  | DbWrite of Permissions.Scope<String>
   | Process of Permissions.ProcessRule
 
 type Policy =
@@ -104,8 +100,6 @@ val effectCases =
     (Permissions.Effect.FileWrite, "FileWrite", "file-write")
     (Permissions.Effect.EnvRead, "EnvRead", "env-read")
     (Permissions.Effect.EnvWrite, "EnvWrite", "env-write")
-    (Permissions.Effect.DbRead, "DbRead", "db-read")
-    (Permissions.Effect.DbWrite, "DbWrite", "db-write")
     (Permissions.Effect.Stdin, "Stdin", "stdin")
     (Permissions.Effect.Stdout, "Stdout", "stdout")
     (Permissions.Effect.Clock, "Clock", "clock")
@@ -184,7 +178,7 @@ let portScope(value: String): Stdlib.Option.Option<Permissions.Scope<Int>> =
         Stdlib.Option.Option.None)
 
 /// The rules for `<kind> <access> <target>`, where <param kind> is one of the
-/// read/write-split resources (`file`, `env`, `db`) and <param access> is
+/// read/write-split resources (`file`, `env`) and <param access> is
 /// `read`, `write` or `read+write` (also `readwrite`, `rw`). None for an
 /// unknown kind or access.
 let accessRules(
@@ -201,9 +195,6 @@ let accessRules(
     | "env" ->
       Stdlib.Option.Option.Some(
         (Permissions.Rule.EnvRead target, Permissions.Rule.EnvWrite target))
-    | "db" ->
-      Stdlib.Option.Option.Some(
-        (Permissions.Rule.DbRead target, Permissions.Rule.DbWrite target))
     | _ -> Stdlib.Option.Option.None
   match pair with
   | None -> Stdlib.Option.Option.None
@@ -345,7 +336,7 @@ let parseRule(
                 args =
                   if Stdlib.List.isEmpty(argv) then Permissions.Scope.All
                   else Permissions.Scope.Only argv }) ])
-  // `file|env|db read|write [target]`; a missing target means every target.
+  // `file|env read|write [target]`; a missing target means every target.
   // These come after the kinds above so `http GET` and
   // `process EXE` are not mistaken for `<kind> <access>`.
   | [ kind, access ] -> Permissions.accessRules(kind, access, "*")
@@ -551,8 +542,6 @@ let renderRule(rule: Permissions.Rule): String =
   | FileWrite scope -> "file write " + Permissions.renderStringScope(scope)
   | EnvRead scope -> "env read " + Permissions.renderStringScope(scope)
   | EnvWrite scope -> "env write " + Permissions.renderStringScope(scope)
-  | DbRead scope -> "db read " + Permissions.renderStringScope(scope)
-  | DbWrite scope -> "db write " + Permissions.renderStringScope(scope)
   | Process rule -> Permissions.renderProcessRule(rule)
 
 let render(policy: Permissions.Policy): List<String> =

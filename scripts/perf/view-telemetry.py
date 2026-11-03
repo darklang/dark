@@ -52,7 +52,6 @@ def show_interactive(events):
     print("║  INTERACTIVE LOOP (per keystroke)                           ║")
     print("╚══════════════════════════════════════════════════════════════╝\n")
 
-    hints = [e for e in events if e["event"] == "completionHint"]
     renders = [e for e in events if e["event"] == "render"]
     pre = [e for e in events if e["event"] == "preInput"]
     updates = [e for e in events if e["event"] == "update"]
@@ -64,7 +63,6 @@ def show_interactive(events):
 
     print(f"  {'Metric':<25s} {'Stats':}")
     print(f"  {'─'*25} {'─'*40}")
-    print(f"  {'completionHint':<25s} {stats(hints)}")
     print(f"  {'render':<25s} {stats(renders)}")
     print(f"  {'preInput (total)':<25s} {stats(pre)}")
     print(f"  {'update':<25s} {stats(updates)}")
@@ -115,16 +113,6 @@ def show_interactive(events):
                     print(f"    {name:<30s} {avg_us:>7,}us  ({avg_n:>4}x)")
                 print()
 
-def show_commands(events):
-    """Show command execution times."""
-    cmds = [e for e in events if e["event"] == "commandExec"]
-    if not cmds:
-        return
-    print(f"  Commands executed:")
-    for c in cmds:
-        print(f"    {c['ctx'].get('cmd', '?'):<20s} {format_ms(c['ms'])}")
-    print()
-
 def main():
     # Find telemetry file
     if len(sys.argv) > 1:
@@ -149,7 +137,6 @@ def main():
 
     show_startup(events)
     show_interactive(events)
-    show_commands(events)
 
 if __name__ == "__main__":
     main()

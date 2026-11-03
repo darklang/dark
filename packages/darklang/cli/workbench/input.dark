@@ -194,7 +194,7 @@ let performInputAction(state: State, inp: InputState): Step =
       let words = Stdlib.String.split(text, " ") |> Stdlib.List.filter(fun w -> w != "")
       // A throwaway AppState to run the command against, pinned to the workbench's branch + account.
       let appState =
-        classicState(state)
+        commandState(state)
       let allNames =
         appState.allCommandsCache
         |> Stdlib.List.fold([], fun acc h ->

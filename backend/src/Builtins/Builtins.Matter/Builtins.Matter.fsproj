@@ -7,8 +7,6 @@
   <ItemGroup>
     <None Include="paket.references" />
 
-    <!-- DB -->
-
     <!-- PM -->
     <Compile Include="Libs/PM/AtRestCheckGuard.fs" />
     <Compile Include="Libs/PM/TraitCalls.fs" />

@@ -164,7 +164,7 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
 
 
 /// The ghost-completion suffix for the `:` command bar - the chars that would complete the current command or
-/// argument, from the shared CLI completion engine (so the bar has the same typeahead the classic prompt did).
+/// argument, from the shared CLI completion engine (the same typeahead `dark` completes commands with).
 /// Empty when there's nothing to suggest. Only called while the command bar is open, so the per-frame cost of
 /// building a throwaway AppState is bounded to that.
 let commandCompletionHint(state: State, text: String): String =
@@ -172,17 +172,16 @@ let commandCompletionHint(state: State, text: String): String =
     ""
   else
     let appState =
-      classicState(state)
+      commandState(state)
     Darklang.Cli.Registry.getCompletionHint(appState, text)
 
-/// The full list of completions for the `:` command bar's current text - the same engine the classic prompt's
-/// picker used. Backs the live dropdown so you see the options, not just the ghost of the top one.
+/// The full list of completions for the `:` command bar's current text, from the same engine. Backs the live dropdown so you see the options, not just the ghost of the top one.
 let commandCompletions(state: State, text: String): List<Darklang.Cli.Completion.CompletionItem> =
   if text == "" then
     []
   else
     let appState =
-      classicState(state)
+      commandState(state)
     Darklang.Cli.Registry.getCompletions(appState, text)
 
 /// Replace the last whitespace-delimited word of `text` with `value` - how accepting a dropdown selection
@@ -193,8 +192,7 @@ let applyCompletionValue(text: String, value: String): String =
     Stdlib.String.join(Stdlib.List.append(Stdlib.List.reverse(revInit), value), " ")
   | [] -> value
 
-/// A live dropdown of command completions anchored just above the `:` input line - the "pretty typeahead" menu
-/// from the classic prompt. Shown only while the command bar is open and there are matches. Drawn as an overlay
+/// A live dropdown of command completions anchored just above the `:` input line. Shown only while the command bar is open and there are matches. Drawn as an overlay
 /// (the full frame redraws each keystroke, so it clears itself when the bar closes).
 let renderCommandCompletions(state: State, screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
   match state.input with

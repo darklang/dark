@@ -83,7 +83,7 @@ renaming a branch doesn't orphan its work and two machines that each started
 a `fix-auth` keep two branches rather than silently becoming one. `branches`
 prints both.
 
-  branch                       which branch am I on (the prompt shows it too, as @<name>)
+  branch                       which branch am I on
   branch <name>                switch to it, starting it if it's new
   branches                     list them (name, short id, parent, status)
   switch <name>                same as `branch <name>`; `switch main` returns
@@ -126,7 +126,7 @@ same winner), and the LOSER IS KEPT and recorded for you to look at:
   conflicts                    what was auto-resolved and not yet reviewed
   conflicts show <id>          both versions, as code
   conflicts ack <id>           you're happy with the auto-pick
-  conflicts override <id> A|B  take the other one; syncs as an op
+  conflicts override <id> A|B  take the other one, as an op
                                (A is yours, B is what arrived)
   conflicts branch <branch>    preview a branch's conflicts before merging
   resolve <branch> <name> mine|theirs   settle one name on a branch
@@ -153,9 +153,8 @@ rather than shouted at you when you commit:
 Three kinds today, and they want different things from you.
 
 STALE-USAGE -- a live item still using a version that isn't what the name means
-now. In a distributed store this is the NORMAL steady state, not a backlog:
-another machine's caller of your fn can't be propagated to, and must not
-silently repoint when you sync. Inspect it, ack it, or resolve it. It is
+now. This is a normal steady state, not a backlog: a caller that was not
+propagated to must not silently repoint. Inspect it, ack it, or resolve it. It is
 the only kind `constraints resolve` can fix for you, as `--as repoint`.
 
   #a1b2c3d4  Ux.Money.total

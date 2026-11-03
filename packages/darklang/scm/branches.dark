@@ -231,7 +231,7 @@ let listLines(includeMerged: Bool): List<String> =
       | Some _ -> Stdlib.String.slice(Stdlib.toString(parentId), 0, 8)
       | None ->
         let short = Stdlib.String.slice(Stdlib.toString(parentId), 0, 8)
-        $"{short} (a branch not in this store; `branch pull --from <who>` brings it)"
+        $"{short} (a branch not in this store)"
 
   branches
   |> Stdlib.List.filter(fun b -> includeMerged || (Stdlib.Bool.not(b.merged)))

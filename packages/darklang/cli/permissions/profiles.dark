@@ -26,7 +26,6 @@ val all =
 
 val readEffects =
   [ LanguageTools.Permissions.Effect.PackageRead
-    LanguageTools.Permissions.Effect.DbRead
     LanguageTools.Permissions.Effect.TraceRead
     LanguageTools.Permissions.Effect.Stdin
     LanguageTools.Permissions.Effect.Stdout
@@ -37,8 +36,7 @@ val readEffects =
 val defaultEffects =
   Stdlib.List.concat(
     Profiles.readEffects,
-    [ LanguageTools.Permissions.Effect.DbWrite
-      LanguageTools.Permissions.Effect.TraceWrite
+    [ LanguageTools.Permissions.Effect.TraceWrite
       LanguageTools.Permissions.Effect.Concurrency ])
 
 val httpsGet =

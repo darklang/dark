@@ -263,7 +263,7 @@ let resolveConflict(state: State, which: String): Step =
 let runCommandInFrame(state: State, command: String, args: List<String>): Step =
   let out =
     captureOutput(fun () ->
-      Darklang.Cli.Registry.executeCommand(command, classicState(state), args))
+      Darklang.Cli.Registry.executeCommand(command, commandState(state), args))
 
   let shown =
     if (Stdlib.String.trim(out)) == "" then

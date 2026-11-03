@@ -101,4 +101,4 @@ let problems(): List<Problem> =
       countedProblem(
         danglingBindings,
         false,
-        "live name(s) bound to a hash with no content (an op that carries it never arrived: pull again from wherever it came from)") ])
+        "live name(s) bound to a hash with no content (an op that carries it never arrived)") ])

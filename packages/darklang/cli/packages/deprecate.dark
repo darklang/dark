@@ -3,7 +3,7 @@ module Darklang.Cli.Packages.Deprecate
 // `deprecate` marks a fn/type/value/trait/impl/test as deprecated.
 //
 // TODO (v1.5): interactive kind picker when stdin is a TTY and --kind is
-//   missing (reuse CompletionPicker).
+//   missing (`Stdlib.Cli.UI.Picker`).
 // TODO (v1.5): `--json` output for agents.
 
 
