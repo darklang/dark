@@ -233,7 +233,6 @@ if [[ "$DRY_RUN" == "true" ]]; then
 fi
 
 mkdir -p clis
-rm -rf clis/.darklang
 
 # Export a seed (smaller DB) and use it as the embedded data.db for smaller exes.
 # The seed has full schema but no derived data — the grow step rebuilds on first run.
@@ -250,7 +249,6 @@ if [[ -n "$SEED_PATH" ]]; then
   fi
   echo "Using pre-exported seed: $SEED_PATH"
   mkdir -p rundir
-  # CI hands us rundir/seed.db itself (the seed-db job leaves it there), and
   # cp refuses to copy a file onto itself.
   if [[ ! "$SEED_PATH" -ef rundir/seed.db ]]; then
     cp "$SEED_PATH" rundir/seed.db

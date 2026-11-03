@@ -27,7 +27,7 @@ let private chosenRunDir = StoreLocation.take ()
 let runDir =
   match chosenRunDir with
   | Some dir -> $"{dir}/"
-  | None -> absoluteDirOrCurrent "DARK_HOME"
+  | None -> $"{StoreLocation.defaultDirectory ()}/"
 
 let logDir = $"{runDir}logs/"
 

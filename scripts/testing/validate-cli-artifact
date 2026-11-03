@@ -25,8 +25,8 @@
 # Both times the tell was output (`ls` printing 5 lines where the other printed
 # 7), not timing or exit status.
 #
-# Each artifact gets its own HOME, which is what decides where an installed-mode
-# binary keeps its store. Two binaries sharing one .darklang directory corrupt
+# Each artifact gets its own HOME, which is what decides where a binary keeps
+# its store (`~/.darklang`). Two binaries sharing one .darklang directory corrupt
 # the store outright ("database disk image is malformed"), which is its own way
 # to produce a confidently wrong result.
 
@@ -262,38 +262,36 @@ rm -rf "$OUTSIDE"
 echo ""
 echo "The store it was pointed at:"
 
-# A published binary carries an embedded seed and, told nothing, extracts it beside
-# itself. An explicit DARK_HOME has to win over that default, or every
-# process on a machine shares one store and a second instance cannot be asked for.
-NAMED=$(mktemp -d /tmp/dark-artifact-store.XXXXXX)
-cp "$ARTIFACT" "$NAMED/dark"
-named_rc=0
-named_out=$( cd "$NAMED" && HOME="$NAMED" DARK_HOME="$NAMED/named" \
-  ./dark eval "1 + 2" < /dev/null 2>&1 ) || named_rc=$?
-if [[ $named_rc -ne 0 || ! -f "$NAMED/named/data.db" ]]; then
-  echo "  FAIL store follows DARK_HOME (exit $named_rc)"
-  echo "$named_out" | tail -15 | indent
+# The store is ~/.darklang wherever the binary sits, never a .darklang beside it.
+WHERE=$(mktemp -d /tmp/dark-artifact-where.XXXXXX)
+mkdir -p "$WHERE/home" "$WHERE/elsewhere"
+cp "$ARTIFACT" "$WHERE/elsewhere/dark"
+where_rc=0
+where_out=$( cd "$WHERE/elsewhere" && HOME="$WHERE/home" ./dark eval "1 + 2" < /dev/null 2>&1 ) || where_rc=$?
+if [[ $where_rc -ne 0 || ! -f "$WHERE/home/.darklang/data.db" ]]; then
+  echo "  FAIL store is ~/.darklang wherever the binary is (exit $where_rc)"
+  echo "$where_out" | tail -15 | indent
   failures=$((failures + 1))
-elif [[ -e "$NAMED/.darklang/data.db" ]]; then
-  echo "  FAIL store follows DARK_HOME (seeded .darklang beside the exe too)"
+elif [[ -e "$WHERE/elsewhere/.darklang" ]]; then
+  echo "  FAIL store is ~/.darklang wherever the binary is (seeded .darklang beside the exe too)"
   failures=$((failures + 1))
 else
-  echo "  ok   store follows DARK_HOME"
+  echo "  ok   store is ~/.darklang wherever the binary is"
 fi
-rm -rf "$NAMED"
+rm -rf "$WHERE"
 
 # A store is the instance's own, so a second binary started from inside this one must
 # not inherit it. It used to: the binary told itself where its store was by setting
 # the store variable in its own environment, every process it started inherited that,
-# and a second copy run from a script opened the parent's store instead of seeding its
-# own beside itself.
+# and a second copy run from a script opened the parent's store. The child gets its
+# own HOME here, so it opens the parent's store only if that leak is back.
 CHILD=$(mktemp -d /tmp/dark-artifact-child.XXXXXX)
 mkdir -p "$CHILD/parent" "$CHILD/child"
 cp "$ARTIFACT" "$CHILD/parent/dark"
 cp "$ARTIFACT" "$CHILD/child/dark"
-inner="$CHILD/child/dark eval 1L"
+inner="env HOME=$CHILD/child $CHILD/child/dark eval 1L"
 child_rc=0
-child_out=$( cd "$CHILD" && export HOME="$CHILD" && unset DARK_HOME \
+child_out=$( cd "$CHILD" && export HOME="$CHILD/parent" \
   && ./parent/dark permissions allow process /bin/sh -c "$inner" \
   && ./parent/dark eval "Stdlib.Cli.executeWithStdOutOrStdErr(\"$inner\")" ) < /dev/null 2>&1 \
   || child_rc=$?
@@ -330,7 +328,7 @@ mkdir -p "$WORKDIR/suite"
 # The artifact seeds this store with the package tests it carries.
 suite_cli() {
   DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
-    XDG_CONFIG_HOME="$WORKDIR/suite/config" DARK_HOME="$WORKDIR/suite/" \
+    XDG_CONFIG_HOME="$WORKDIR/suite/config" \
     "$ARTIFACT" "$@"
 }
 suite_cli permissions allow env read DARK_CLI_UNDER_TEST > /dev/null 2>&1

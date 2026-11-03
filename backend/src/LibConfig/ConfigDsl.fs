@@ -20,16 +20,6 @@ let absoluteDir (name : string) : string =
   else
     $"{dir}/"
 
-let absoluteDirOrCurrent (name : string) : string =
-  match getEnv name with
-  | None -> "./"
-  | Some dir ->
-    if not (System.IO.Path.IsPathFullyQualified dir) then
-      failwith ($"FAIL: {name} is not absolute")
-    else
-      $"{dir}/"
-
-
 let int (name : string) : int = getEnvExn name |> int
 
 let uuid (name : string) : System.Guid = getEnvExn name |> System.Guid.Parse

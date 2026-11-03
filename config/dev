@@ -5,7 +5,6 @@
 
 # Root directories
 DARK_CONFIG_ROOT_DIR=/home/dark/app
-DARK_HOME=/home/dark/app/rundir
 
 # DB
 DARK_CONFIG_DB_NAME=data.db

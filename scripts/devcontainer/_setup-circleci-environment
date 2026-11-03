@@ -7,5 +7,4 @@ set -euo pipefail
 ENV_FILE="config/circleci"
 echo "Using env: $ENV_FILE"
 
-# Every setting, not just the DARK_CONFIG_ ones: DARK_HOME is in there too.
 grep -E '^DARK_[A-Z_]+=' "$ENV_FILE" | sed 's/^\(DARK_[A-Z_]*\)=\(.*\)$/if [[ ! -v \1 ]]; then export \1=\2; fi/' >> "${BASH_ENV}"

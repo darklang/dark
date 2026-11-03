@@ -229,9 +229,12 @@ let run
         let path name = System.IO.Path.Combine(dir, name).Replace('\\', '/')
         let backup =
           snapshot |> Option.defaultValue LibDB.Sqlite.Backup.toTestBaseline
-        backup (path "data.db")
+        // The worker's HOME is `dir`; `directories` below are made too late for the store.
+        System.IO.Directory.CreateDirectory(path ".darklang")
+        |> ignore<System.IO.DirectoryInfo>
+        backup (path ".darklang/data.db")
         |> Result.map (fun () ->
-          prepareStore (path "data.db")
+          prepareStore (path ".darklang/data.db")
           let spec : Host.ProcessWorkspace =
             { program = executable
               arguments =
@@ -244,9 +247,9 @@ let run
               environment =
                 [ "DARK_MATTER_WRITE_SECRET", None
                   "DARK_BRANCH", None
-                  "DARK_HOME", Some(dir + "/")
                   "DARK_CONFIG_DB_NAME", Some "data.db"
                   "HOME", Some dir
+                  "USERPROFILE", Some dir
                   "XDG_CONFIG_HOME", Some(path "config")
                   "TMPDIR", Some(path "tmp")
                   "DARK_CLI_UNDER_TEST", Some executable
@@ -254,10 +257,10 @@ let run
                   "LINES", Some(string rows)
                   // The test compares a worker's styled stdout, which a pipe would strip.
                   "CLICOLOR_FORCE", Some "1" ]
-              directories = [ "policy"; "tmp" ]
+              directories = [ ".darklang/policy"; "tmp" ]
               files =
                 [ "request.bin", request
-                  "policy/policies.bin", PolicyStore.testWorkerStore ()
+                  ".darklang/policy/policies.bin", PolicyStore.testWorkerStore ()
                   "access.bin", buffer.ToArray() ]
               resultFile = "result.bin" }
           spec)

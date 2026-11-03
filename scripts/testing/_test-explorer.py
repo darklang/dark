@@ -18,7 +18,7 @@ import os
 import subprocess
 import sys
 
-RUNDIR = os.getenv("DARK_HOME", "rundir")
+RUNDIR = "rundir"
 CACHE = os.path.join(RUNDIR, "test-index.txt")
 TESTS_EXE = "backend/Build/out/Tests/Debug/net10.0/Tests"
 

@@ -42,8 +42,8 @@ FIXTURE = os.path.join(PERFDIR, "fixture.db")
 def fixture_path(name):
     """`none` means don't restore anything: use whatever store the binary already has.
 
-    A published binary carries its own embedded seed and extracts it beside the exe, so two published
-    binaries are each already matched to their own store. Forcing a shared fixture onto them would put one
+    A published binary carries its own embedded seed and extracts it into its own store, so two published
+    binaries are each already matched to their own. Forcing a shared fixture onto them would put one
     of them next to package code that calls builtins it doesn't have."""
     if name == "none":
         return None
@@ -212,20 +212,21 @@ def fixture_save(name=None):
     print(f"  sha256 {digest}")
 
 
+def home_for(binary):
+    """The HOME a binary runs with. The Debug build uses the dev store; any other binary gets its own,
+    so the two sides of an A/B never share one."""
+    if os.path.dirname(os.path.abspath(binary)) == os.path.abspath(DEBUG_BIN_DIR):
+        return os.path.expanduser("~")
+    key = hashlib.sha256(os.path.abspath(binary).encode()).hexdigest()[:12]
+    return os.path.join(os.path.realpath(PERFDIR), "home", key)
+
+
 def rundir_for(binary):
     """Which store a given binary actually uses.
 
-    An explicit DARK_HOME wins for every binary, published or Debug, so when it is set that IS
-    the answer. `<exe dir>/.darklang` is only the default a published binary computes for itself when the
-    variable is unset, and a leftover directory next to an exe must not outrank the store we were told
-    to use.
-
     Getting this wrong silently compares two binaries against two different stores, which is how a
     harness ends up lying more convincingly than no harness at all."""
-    if os.environ.get("DARK_HOME"):
-        return os.environ["DARK_HOME"]
-    adjacent = os.path.join(os.path.dirname(os.path.abspath(binary)), ".darklang")
-    return adjacent if os.path.isdir(adjacent) else RUNDIR
+    return os.path.join(home_for(binary), ".darklang")
 
 
 def fixture_restore(rundir, fixture=None):
@@ -287,6 +288,8 @@ def run_once(binary, argv, trace, telemetry, fixture="UNSET"):
     if os.path.exists(tel_path):
         os.remove(tel_path)
     env = dict(os.environ)
+    env["HOME"] = home_for(binary)
+    os.makedirs(env["HOME"], exist_ok=True)
     # Pinned, never inherited: config/dev turns tracing off and config/circleci turns it on, so a run
     # that doesn't say otherwise measures whichever path its environment happened to hand it.
     env["DARK_CONFIG_TRACE_DETAIL"] = trace

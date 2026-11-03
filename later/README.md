@@ -139,6 +139,11 @@ Grep-able as `WHEN: the user-DB leftovers pass`.
   `db-read`/`db-write` rule and a tag-6 rule rather than failing the file; restoring user DBs
   means reading them again.
 
+### Portable mode (2026-11-03)
+
+Notes, not code: `later/portable-mode.md`, grep-able as `WHEN: the no-portable-install pass`. What
+portable mode was, every place it touched, and how migrating an old portable store would work.
+
 ## Two kinds of thing in here, and only one of them is easy
 
 **A whole file at its original path.** `git mv` restores it and there is nothing to read. Most of

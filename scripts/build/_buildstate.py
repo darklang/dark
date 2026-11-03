@@ -46,7 +46,7 @@ BUILD_ACTIONS = {
 
 
 def rundir():
-  return os.getenv("DARK_HOME", "rundir")
+  return "rundir"
 
 
 def path():

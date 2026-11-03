@@ -102,25 +102,17 @@ commands:
           when: always
           command: python3 .circleci/collect_diagnostics.py
       - store_artifacts:
-          path: rundir/ci-diagnostics
+          path: /home/dark/.darklang/ci-diagnostics
       - store_test_results:
-          path: rundir/test_results
+          path: /home/dark/.darklang/test_results
 
   # Every release build job finishes the same way, so it lives here once.
-  #
-  # The `rm` matters and is not tidying: the validator runs the binary out of
-  # clis/, and the CLI keeps its store next to the executable rather than under
-  # HOME, so each job leaves a clis/.darklang behind. With four jobs persisting
-  # clis/, applying the workspace layers then fails with "Concurrent upstream
-  # jobs persisted the same file(s)" on clis/.darklang/data.db. Only the
-  # artifacts should travel.
   package-clis:
     description: Gzip the built CLIs and hand them to the publish job
     steps:
       - run:
           name: Gzip artifacts
           command: |
-            rm -rf clis/.darklang
             # Only the binaries. The `.mode` beside each one is for the perf tooling and
             # stays as it is; publish-github-release uploads only the `.gz` files.
             # POSIX `case`, not `[[`: the musl job runs this on Alpine.
@@ -447,10 +439,14 @@ jobs:
           command: |
             sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
             scripts/run-local-exec export-seed rundir/seed.db
+      # From ~/.darklang, not the `rundir` link; the attaching jobs find it at ./seed.db.
+      - persist_to_workspace:
+          root: /home/dark/.darklang
+          paths:
+            - seed.db
       - persist_to_workspace:
           root: "."
           paths:
-            - rundir/seed.db
             # Hand over the hash file too, not just the seed.
             #
             # `reload-packages` above populates it, but it is gitignored, so the
@@ -508,7 +504,7 @@ jobs:
           command: |
             ./scripts/build/build-release-cli-exes.sh \
               --mode=aot \
-              --seed=rundir/seed.db \
+              --seed=seed.db \
               --runtimes=linux-x64,linux-arm64
       - run:
           # TODO: drop --skip-suite (here, musl and macOS) once the CLI test suite runs headless.
@@ -578,7 +574,7 @@ jobs:
           command: |
             ./scripts/build/build-release-cli-exes.sh \
               --mode=r2r \
-              --seed=rundir/seed.db \
+              --seed=seed.db \
               --runtimes=linux-arm,osx-x64
       - package-clis
 
@@ -617,7 +613,7 @@ jobs:
           command: |
             ./scripts/build/build-release-cli-exes.sh \
               --mode=aot \
-              --seed=rundir/seed.db \
+              --seed=seed.db \
               --runtimes=linux-musl-x64
       # Natively runnable here, unlike the cross-built targets: this job *is*
       # Alpine, so the musl loader and libs the binary needs are present.
@@ -683,7 +679,7 @@ jobs:
           command: |
             ./scripts/build/build-release-cli-exes.sh \
               --mode=aot \
-              --seed=rundir/seed.db \
+              --seed=seed.db \
               --runtimes=osx-arm64
       - run:
           name: Validate the osx-arm64 artifact

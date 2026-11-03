@@ -932,8 +932,7 @@ let private runCli (args : string[]) : int =
               && System.Text.RegularExpressions.Regex.IsMatch(s, "[0-9a-f]{32}")
             then
               "\n\nThis usually means the store is older than the binary: package code was reloaded and the "
-              + "hashes moved.\n  Run `scripts/build/reload-packages` to bring the store up to this binary, "
-              + "or point DARK_HOME at a freshly-cloned store."
+              + "hashes moved.\n  Run `scripts/build/reload-packages` to bring the store up to this binary."
             else
               ""
 

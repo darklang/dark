@@ -3,7 +3,6 @@ module Darklang.Cli.Installation.Update
 
 let execute(state: AppState, args: List<String>): AppState =
   let currentVersion = Helpers.cliVersion()
-  let currentMode = Installation.System.getInstallationMode()
   let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
 
   let parsed =
@@ -20,20 +19,23 @@ let execute(state: AppState, args: List<String>): AppState =
 
   let pinned = Cli.FlagParser.getOption(parsed, "--to")
 
-  let replace =
-    match currentMode with
-    | Installed -> fun () -> Installation.Download.installRelease(host, pinned)
-    | Portable -> fun () -> Installation.Download.updatePortableInPlace(host, pinned)
-
-  Stdlib.printLine($"Checking for updates from Darklang CLI {currentVersion}...")
-
-  match Installation.System.updateIfAvailable(currentVersion, pinned, replace) with
-  | Ok(message) ->
-    Stdlib.printLine(View.formatSuccess(message))
-    state
-  | Error(e) ->
-    Stdlib.printErrorLine(View.formatError(e))
+  if Stdlib.Bool.not(Installation.System.isRunningInstalled(host)) then
+    Cli.printErr(
+      $"This dark isn't the installed one ({Installation.System.installedBinaryPath(host)}), so there's nothing to update.")
+    Cli.printHint("  dark install installs this one; the installed dark updates itself")
     Cli.exitWith(state, false)
+  else
+    let replace = fun () -> Installation.Download.installRelease(host, pinned)
+
+    Stdlib.printLine($"Checking for updates from Darklang CLI {currentVersion}...")
+
+    match Installation.System.updateIfAvailable(currentVersion, pinned, replace) with
+    | Ok(message) ->
+      Stdlib.printLine(View.formatSuccess(message))
+      state
+    | Error(e) ->
+      Stdlib.printErrorLine(View.formatError(e))
+      Cli.exitWith(state, false)
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
@@ -44,10 +46,9 @@ let help(_state: AppState): String =
   [ "Usage: update [--to <tag>] [--yes|-y]"
     "Update Darklang CLI to the latest version."
     ""
-    "Checks GitHub for the latest release and replaces this binary with it,"
-    "after checking the new one runs against a copy of your store."
-    "An installed CLI (~/.darklang/bin/dark) also records the new version"
-    "and keeps its PATH entry; a portable one is replaced where it is."
+    "Checks GitHub for the latest release and replaces the installed CLI"
+    "(~/.darklang/bin/dark) with it, after checking the new one runs against"
+    "a copy of your store."
     ""
     "Flags:"
     "  --to <tag>  Install this release instead of the latest (e.g. v0.0.42),"

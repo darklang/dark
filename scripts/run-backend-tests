@@ -54,7 +54,7 @@ fi
 # container, so its own PID namespace, its own bridge network and its own bind-mounted
 # rundir; none of those three things is shared. It was only ever true while every
 # clone's scripts re-execed into whichever container was newest, which is fixed.
-LOCK="${DARK_HOME}/test.lock"
+LOCK="${HOME}/.darklang/test.lock"
 if [[ -f "$LOCK" ]] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
   if [[ "$FORCE" != "true" ]]; then
     {
@@ -67,7 +67,7 @@ if [[ -f "$LOCK" ]] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
   echo "--force given; taking over from pid $(cat "$LOCK")" >&2
 fi
 
-mkdir -p "${DARK_HOME}"
+mkdir -p "${HOME}/.darklang"
 echo $$ > "$LOCK"
 
 # shellcheck disable=SC2317  # reached via trap
@@ -106,7 +106,7 @@ if [[ "$PUBLISHED" != "true" && "$FILTERED" != "true" ]]; then
   echo "      scripts/dev/build --optimize && ./scripts/run-backend-tests --published"
 fi
 
-LOGS="${DARK_HOME}/logs"
+LOGS="${HOME}/.darklang/logs"
 
 grey="\033[1;30m"
 reset="\033[0m"
@@ -118,7 +118,7 @@ reset="\033[0m"
 # leaves the WAL behind — the next run picks it up and behaves
 # unpredictably (slow / corrupt).
 export DARK_CONFIG_DB_NAME=test-data.db
-DB_PATH="${DARK_HOME}/${DARK_CONFIG_DB_NAME}"
+DB_PATH="${HOME}/.darklang/${DARK_CONFIG_DB_NAME}"
 echo -e "Deleting database file ${grey}(${DB_PATH})${reset}"
 rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm"
 
@@ -131,7 +131,7 @@ cd ..
 
 if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
   # Seed mode: copy seed as test DB, Tests exe auto-grows on startup
-  SEED_PATH="${DARK_HOME}/seed.db"
+  SEED_PATH="${HOME}/.darklang/seed.db"
   if [[ -f "$SEED_PATH" ]]; then
     echo "Copying seed.db as test database"
     cp "$SEED_PATH" "$DB_PATH"
@@ -153,7 +153,7 @@ else
   fi
 fi
 
-JUNIT_FILE="${DARK_HOME}/test_results/backend.xml"
+JUNIT_FILE="${HOME}/.darklang/test_results/backend.xml"
 
 
 COLOURS="256"
@@ -197,20 +197,21 @@ PRIORITY=()
 if [[ "$SPLIT" == "true" ]]; then
   # The sequenced tests run one at a time because they share process state (the open store,
   # captured console, trace settings), not because they need the parallel tests to finish
-  # first. So they get a process of their own: its own rundir (store, CLI instances, policy,
-  # logs), HOME and HttpClient port, so nothing it writes reaches the other half.
-  SEQ_RUNDIR="${DARK_HOME}/split-sequenced"
+  # first. So they get a process of their own: its own HOME (so its own store, CLI instances,
+  # policy and logs) and HttpClient port, so nothing it writes reaches the other half.
+  SEQ_HOME="${HOME}/.darklang/split-sequenced"
+  SEQ_RUNDIR="$SEQ_HOME/.darklang"
   SEQ_LOG="${LOGS}/fsharp-tests-sequenced.log"
-  SEQ_JUNIT="${DARK_HOME}/test_results/backend-sequenced.xml" # beside the other
-  rm -rf "$SEQ_RUNDIR"
-  mkdir -p "$SEQ_RUNDIR/logs" "$SEQ_RUNDIR/home"
+  SEQ_JUNIT="${HOME}/.darklang/test_results/backend-sequenced.xml" # beside the other
+  rm -rf "$SEQ_HOME"
+  mkdir -p "$SEQ_RUNDIR/logs"
   # Through SQLite, not cp: the store may still have writes in its WAL.
   python3 -c 'import sqlite3, sys
 src, dst = sqlite3.connect(sys.argv[1]), sqlite3.connect(sys.argv[2])
 src.backup(dst)' "$DB_PATH" "$SEQ_RUNDIR/${DARK_CONFIG_DB_NAME}"
 
   (
-    DARK_HOME="$SEQ_RUNDIR" HOME="$SEQ_RUNDIR/home" \
+    HOME="$SEQ_HOME" \
     DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT=$((DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT + 1)) \
     DARK_CONFIG_TELEMETRY_EXPORTER=none \
     "${EXE}" ${SPINNER} --colours "${COLOURS}" \

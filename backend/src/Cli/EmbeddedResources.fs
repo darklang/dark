@@ -4,48 +4,6 @@ open System
 open System.IO
 open System.Reflection
 
-// Resolve the running executable's directory.
-// Assembly.Location returns "" for assemblies embedded in a single-file or AOT
-// bundle (and emits IL3000). AppContext.BaseDirectory is the AOT-clean replacement
-// for "where is the published binary"; ProcessPath stays as a final fallback.
-let private exeDirectory () : string =
-  let baseDir = AppContext.BaseDirectory
-  if not (String.IsNullOrEmpty(baseDir)) then
-    baseDir.TrimEnd('/', '\\')
-  else
-    let path = System.Environment.ProcessPath
-    if String.IsNullOrEmpty(path) then
-      Environment.CurrentDirectory
-    else
-      Path.GetDirectoryName(path)
-
-/// Determines if CLI is running in "installed" mode (in ~/.darklang/bin/) vs portable mode
-let private isInstalledMode () : bool =
-  let dir = exeDirectory ()
-  dir.EndsWith("/.darklang/bin") || dir.EndsWith("\\.darklang\\bin")
-
-/// The .darklang directory to use when nothing says otherwise.
-let private getDefaultDarklangDirectory () : string =
-  if isInstalledMode () then
-    // Installed mode: use the central ~/.darklang directory
-    let home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-    Path.Combine(home, ".darklang")
-  else
-    // Portable mode: use adjacent .darklang directory
-    Path.Combine(exeDirectory (), ".darklang")
-
-/// Where this instance keeps its store, logs and local config.
-///
-/// An explicit `DARK_HOME` wins over the default. Overwriting it instead would mean every
-/// process on a machine shares one store, so a second instance -- a throwaway store to try
-/// something in, a test's isolated worker, or two binaries measured against the same data --
-/// could not be asked for at all.
-let private getDarklangDirectory () : string =
-  match Environment.GetEnvironmentVariable "DARK_HOME" with
-  | null
-  | "" -> getDefaultDarklangDirectory ()
-  | explicit -> explicit
-
 let private extractResource (resourceName : string) (targetPath : string) : unit =
   let assembly = Assembly.GetExecutingAssembly()
 
@@ -440,7 +398,7 @@ let extract () : unit =
   // On first run, decompress the embedded seed db to `~/.darklang/data.db`; afterwards the
   // file exists and grow/init proceeds against the local copy.
   if timed "extract.hasResource" (fun () -> hasEmbeddedResource "data.db.gz") then
-    let darklangDir = getDarklangDirectory ()
+    let darklangDir = LibConfig.StoreLocation.defaultDirectory ()
 
     // Straight to `LibConfig`, not through the environment: a variable set here is inherited
     // by every process this one starts, and another `dark` among them would open THIS store.

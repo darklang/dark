@@ -7,7 +7,8 @@
 /// removes them if a runtime error interrupts an assertion.
 module Darklang.Cli.Tests.Instance
 
-/// A running instance's identity: where it lives and what binary drives it.
+/// A running instance's identity: where it lives (`dir` is its `<home>/.darklang`) and what binary
+/// drives it.
 type T =
   { dir: String
     cli: String }
@@ -35,9 +36,8 @@ let seedFrom(): String =
 
 /// The binary an instance drives.
 ///
-/// NOT `scripts/run-cli`: the wrapper sets `DARK_HOME` itself and the container
-/// sets it for every process, and either one wins over what we pass, so an instance
-/// driven through the wrapper quietly uses the dev store instead of its own.
+/// NOT `scripts/run-cli`: the wrapper re-enters the container with the container's HOME, so an
+/// instance driven through it uses the dev store.
 let cliBinary(): String =
   match Stdlib.Env.get("DARK_CLI_UNDER_TEST") with
   | Some(path) -> path
@@ -47,7 +47,7 @@ let cliBinary(): String =
 /// A fresh instance. Fails with a message rather than half-existing.
 let create(): Stdlib.Result.Result<T, String> =
   let suffix = Stdlib.toString(Stdlib.Int.random(100000, 999999))
-  let dir = $"{root()}/{suffix}"
+  let dir = $"{root()}/{suffix}/.darklang"
   let src = seedFrom()
 
   if Stdlib.Cli.Unix.fileExists(src) then
@@ -70,23 +70,24 @@ let create(): Stdlib.Result.Result<T, String> =
       $"no store to seed an instance from at {src}; build first")
 
 
+let home(i: T): String = Stdlib.Cli.Path.parent(i.dir)
+
+
 /// Remove an instance and everything in it. Safe to call twice.
 let dispose(i: T): Unit =
-  let _ = Stdlib.Cli.Unix.removeDirectory(i.dir)
+  let _ = Stdlib.Cli.Unix.removeDirectory(home(i))
   ()
 
 
 /// The environment that points a child at this instance rather than at the dev store.
 ///
-/// `DARK_HOME` ends in a separator because `LibConfig.Config` appends the
-/// database name to it directly. `HOME` moves anything that looks under the home
-/// directory; `DARK_CONFIG_DB_NAME` is named rather than inherited, since a caller with
-/// it already set would otherwise point the instance at a file it has no copy of.
+/// `HOME` (`USERPROFILE` on Windows) moves the store. `DARK_CONFIG_DB_NAME` is named rather than
+/// inherited, since a caller with it set would point the instance at a file it has no copy of.
 let env(i: T): List<(String * String)> =
-  [ ("DARK_HOME", $"{i.dir}/")
-    ("DARK_CONFIG_DB_NAME", "data.db")
-    ("HOME", i.dir)
-    ("XDG_CONFIG_HOME", i.dir + "/config") ]
+  [ ("DARK_CONFIG_DB_NAME", "data.db")
+    ("HOME", home(i))
+    ("USERPROFILE", home(i))
+    ("XDG_CONFIG_HOME", home(i) + "/config") ]
 
 
 /// Run one command in this instance and return everything it said.
