@@ -8,7 +8,7 @@ let chain(n: Int, acc: Int): Int =
   if n <= 0 then acc else chain(n - 1, leaf(acc))
 
 let _warm = chain(32, 0)
-let t0 = Builtin.timeNowMs()
+let t0 = Stdlib.DateTime.__monotonicMilliseconds()
 let r = chain(4096, 0)
-let t1 = Builtin.timeNowMs()
+let t1 = Stdlib.DateTime.__monotonicMilliseconds()
 Stdlib.printLine("elapsed_ms=" + (Stdlib.toString(t1 - t0)) + " leafCalls=" + (Stdlib.toString(r)))
