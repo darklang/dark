@@ -731,6 +731,18 @@ module Infix =
     | _ -> Exception.raiseInternal "Invalid Infix" []
 
 
+module Operator =
+  let typeName =
+    Dval.memoTypeName PackageRefs.Type.LanguageTools.ProgramTypes.operator
+
+  let fromDT (d : Dval) : PT.Operator =
+    match d with
+    | DEnum(_, _, [], "OpInfix", [ name ]) -> PT.OpInfix(InfixFnName.fromDT name)
+    | DEnum(_, _, [], "OpNegate", []) -> PT.OpNegate
+    | DEnum(_, _, [], "OpBitwiseNot", []) -> PT.OpBitwiseNot
+    | _ -> Exception.raiseInternal "Invalid Operator" []
+
+
 module StringSegment =
   let typeName =
     Dval.memoTypeName PackageRefs.Type.LanguageTools.ProgramTypes.stringSegment

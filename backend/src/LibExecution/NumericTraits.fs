@@ -50,6 +50,13 @@ let ofBitwiseNot () : Option<string * string> =
   let hash = Traits.bitwiseNot ()
   if hash = "" then None else Some(hash, "bitwiseNot")
 
+/// Any of the three: what `pmOperatorTrait` answers for the at-rest checker.
+let ofOperator (op : Operator) : Option<string * string> =
+  match op with
+  | OpInfix name -> ofInfix name
+  | OpNegate -> ofNegate ()
+  | OpBitwiseNot -> ofBitwiseNot ()
+
 /// Every operator that is a trait method, with its trait and method, under the
 /// refs as they are now.
 let private all () : List<InfixFnName * (string * string)> =
