@@ -28,6 +28,8 @@ TMP="$(mktemp -p "$ROOT/rundir" wasm-store-XXXXXX.db)"
 trap 'rm -f "$TMP" "$TMP-journal" "$TMP-wal" "$TMP-shm"' EXIT
 
 [[ -f "$SRC" ]] || { echo "no store at $SRC (start the container and build first)" >&2; exit 1; }
+python3 -c "import brotli" 2>/dev/null \
+  || { echo "python3 has no brotli module; in the container: pip3 install brotli (no --user, it is a venv)" >&2; exit 1; }
 
 # Checked here rather than at the end, because every expensive step is between the two and
 # the failure arrived after all of them: the module is not in the image on any clone built

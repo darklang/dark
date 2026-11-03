@@ -46,6 +46,9 @@
     <p class="lead">The real Dark CLI, runtime and package store, compiled to WebAssembly.
       Everything runs in this tab; nothing is sent anywhere. First load is ~25 MB.</p>
 
+    <!-- What this branch is for, from its showcase.json, when it ships one. -->
+    <section id="showcase" hidden></section>
+
     <ul>
       <li><a class="card" href="cli.html">
         <div class="name">Workbench <code>cli.html</code></div>
@@ -91,6 +94,15 @@
     // With a query this page is the answer, raw: /?cmd=<argv> prints what `dark <argv>` prints,
     // /?fn=<name> is `dark view <name>`, /?e=<expr> goes to eval.html. No query: the directory.
     const params = new URLSearchParams(location.search);
+    dark.sideFile("showcase.json").then((sc) => {
+      if (!sc) return;
+      const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const sec = document.getElementById("showcase");
+      sec.innerHTML = `<h2>${esc(sc.title || "This branch")}</h2><p class="lead">${esc(sc.blurb)}</p><ul>` +
+        (sc.tries || []).map((t) => `<li><a class="card" href="${esc(t.url)}"><div class="name">${esc(t.label || t.url)}</div>` +
+          `<div class="what">${esc(t.what || t.url)}</div></a></li>`).join("") + "</ul>";
+      sec.hidden = false;
+    });
     let argv = null;
     if (params.has("cmd")) argv = dark.splitArgv(params.get("cmd"));
     else if (params.has("fn")) argv = ["view", params.get("fn")];

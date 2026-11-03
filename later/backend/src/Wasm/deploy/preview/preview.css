@@ -1,0 +1,12 @@
+/* The directory page and gone.html: the site's palette, one card style. */
+:root { color-scheme: dark; --bg:#0f1117; --panel:#171a23; --fg:#e6e8ee; --muted:#8b90a0; --accent:#7c9cff; --border:#262b38; }
+body { margin:0; background:var(--bg); color:var(--fg); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding:24px 16px; }
+main { max-width:720px; margin:0 auto; }
+h1 { font-size:18px; font-weight:600; margin:0 0 6px; }
+p { color:var(--muted); font-size:13px; line-height:1.5; }
+a { color:var(--accent); }
+ul { list-style:none; padding:0; margin:16px 0; display:flex; flex-direction:column; gap:10px; }
+a.card { display:block; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:12px 14px; color:var(--fg); text-decoration:none; }
+a.card:hover { border-color:var(--accent); }
+.name { font-weight:600; } .name code { color:var(--accent); font-weight:400; margin-left:8px; font-size:12px; }
+.what { color:var(--muted); font-size:12.5px; margin-top:4px; line-height:1.45; }

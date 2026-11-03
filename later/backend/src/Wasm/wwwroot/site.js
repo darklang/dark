@@ -310,8 +310,23 @@ window.dark = (() => {
     return argv;
   }
 
+  // A site's optional JSON beside the page (showcase.json, build.json); null when absent.
+  async function sideFile(name) {
+    try { const r = await fetch(new URL(name, document.baseURI)); return r.ok ? await r.json() : null; }
+    catch (e) { return null; }
+  }
+
   // `restored`: what Boot did with work kept from an earlier visit ("", "kept", "upgraded",
   // "newer: <why>" or "refused: <why>"). `notice`: what `?fresh` or `?restore` did, or "". `save`:
   // keep the tab's work now, rather than at the next command.
-  return { invoke, boot, run, save, restored: () => restoreOutcome, notice: () => notice, stripAnsi, splitArgv, takesTheScreen: (argv) => screenCommands.has(argv[0]) };
+  return { invoke, boot, run, save, restored: () => restoreOutcome, notice: () => notice, stripAnsi, splitArgv, sideFile, takesTheScreen: (argv) => screenCommands.has(argv[0]) };
 })();
+
+// On the preview host, build.json says which branch and commit this is: a corner banner.
+dark.sideFile("build.json").then((b) => {
+  if (!b) return;
+  const el = document.createElement("a");
+  el.id = "build-banner"; el.href = "/"; el.title = "built " + b.built + " from " + b.sha;
+  el.textContent = (b.pr ? "#" + b.pr + " " : "") + b.branch + " @ " + String(b.sha).slice(0, 7);
+  document.body.appendChild(el);
+});

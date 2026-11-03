@@ -4,7 +4,7 @@ Code that is not part of the product right now.
 
 Everything in here was moved out of the live tree during the molt, with its original repo path
 preserved underneath, so `git mv later/<path> <path>` puts a WHOLE FILE back exactly where it was.
-That is most of the directory but not all of it: 127 files are fragments carved out of files that
+That is most of the directory but not all of it: 128 files are fragments carved out of files that
 are still live, which come back by hand, and a few things were DELETED rather than moved, for which
 only `git log` has the content. Both exceptions are spelled out below. Nothing in here is built,
 loaded, tested or linted:
@@ -27,12 +27,12 @@ traps that are specific to this directory rather than to the code in it.
 
 ## What is in here
 
-498 files are tracked, and 4,426 files sit under `vscode-extension/` on disk of which only 65
+508 files are tracked, and 4,426 files sit under `vscode-extension/` on disk of which only 65
 are tracked: 4,096 of the untracked ones are its `node_modules`, which came along for the ride
 because the directory moved as a directory. Tracked, by area:
 
     packages/             308 files   Dark code. The big one.
-    backend/               93 files   F#: three LibCloud modules, the Wasm project, the builtins
+    backend/              102 files   F#: three LibCloud modules, the Wasm project, the builtins
                                       whose only Dark wrapper left, and carved fragments.
     vscode-extension/      65 files   the VS Code extension's own source.
     scripts/               14 files   the sync gates, the two relay hand tools, the demo script,
@@ -44,6 +44,7 @@ because the directory moved as a directory. Tracked, by area:
     user-code/              3 files
     .vscode/                2 files   the extension's launch and task configs.
     deploy/                 2 files   Dockerfile.matter and fly.toml, the relay's deployment.
+    .circleci/              1 file    the wasm preview's CI jobs, a fragment.
     README.md                         this file.
 
 Every number above is a snapshot and goes stale the next time something is carved in here.
@@ -104,14 +105,36 @@ The same pass DELETED the workbench's ways down to the old prompt (`p`, `:prompt
 `:commands`, the `ToPrompt` / `LaunchPrompt` actions, the `p prompt` hint) rather than carving
 them here, because the decision was to abandon them. `git log` has them.
 
+### The wasm preview (2026-11-03)
+
+A browser CLI per PR, never merged: CI would publish the Wasm site for each open PR to
+`wasm.darklang.com/pulls/<n>/` and the newest release tag to `/latest/`, on a fly app
+`dark-preview`. Grep-able as `WHEN: the wasm-preview park`; later; revisit with the browser/WASM
+work.
+
+- **`backend/src/Wasm/deploy/preview/`**: the host (`fly.toml`, `Dockerfile`, `nginx.conf`,
+  `regen-index`, `gone.html`, `preview.css`), `host.sh` and `ci-deploy.sh` (who gets a preview),
+  and `check.js`. Whole files, beside the rest of the Wasm project.
+- **Edits to Wasm files already here**: `README.md` (the "A preview per PR" section),
+  `make-store.sh` (fails early without python's `brotli`), and `wwwroot/` (`dark.sideFile`, the
+  `build.json` corner banner, the optional `showcase.json` on the index page).
+- **`.circleci/config.yml.wasm-preview`**: the `build-wasm` and `deploy-preview` jobs and their
+  workflow entries. Nothing else carries them.
+
+Two things it assumed that are no longer true. `latest/` relies on `tag-release` tagging every
+green merge, and that job is switched off on main. And the preview text says the tab keeps
+nothing across a reload, which was true when it was written; the Wasm project here has since
+learned to keep a tab's store in IndexedDB under one fixed name, and every preview shares the
+one origin, so as it stands one PR's saved work would be offered to the next PR's build.
+
 ## Two kinds of thing in here, and only one of them is easy
 
 **A whole file at its original path.** `git mv` restores it and there is nothing to read. Most of
 the directory is this.
 
 **A fragment**, at `later/<original path>.<topic>`: a piece carved out of a file that is still
-live, because what left was interleaved with something that stays. There are 127 of them. One
-(`later/backend/src/user-db-loading`) holds two separate carves, so 128 in all, and four carry a
+live, because what left was interleaved with something that stays. There are 128 of them. One
+(`later/backend/src/user-db-loading`) holds two separate carves, so 129 in all, and four carry a
 `MOVED:` header instead of a `RESTORE:` one. Nineteen do not sit beside a live file at
 all: they have synthetic extensionless paths (`later/packages/darklang/commit-author-param`,
 `later/backend/src/user-db-loading`) because they cover several source files at once, so looking

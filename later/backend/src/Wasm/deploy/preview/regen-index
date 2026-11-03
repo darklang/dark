@@ -1,0 +1,37 @@
+#!/bin/sh
+# Rewrite /data/index.html from each deployed site's build.json. Runs on the machine after
+# every upload and removal: busybox sh, no jq, hence the sed.
+set -eu
+DATA="${1:-/data}"
+OUT="$DATA/index.html"
+TMP="$OUT.tmp"
+
+field() { # field <file> <key>: the string value of a flat JSON key, HTML-escaped, or empty
+  sed -n "s/.*\"$2\": *\"\([^\"]*\)\".*/\1/p" "$1" | head -n 1 \
+    | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+}
+
+{
+  cat <<'HTML'
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Dark previews</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/preview.css">
+</head><body><main>
+<h1>Darklang in the browser, per branch</h1>
+<p>Each entry is the real <code>dark</code> CLI built from that branch, running in the tab against a fresh package store. Nothing persists; reload and it is new.</p>
+<ul>
+HTML
+  for f in "$DATA"/latest/build.json "$DATA"/pulls/*/build.json; do
+    [ -f "$f" ] || continue
+    dir=$(dirname "$f"); path=${dir#"$DATA"/}
+    branch=$(field "$f" branch); sha=$(field "$f" sha); built=$(field "$f" built)
+    pr=$(field "$f" pr); title=$(field "$f" title); author=$(field "$f" author)
+    showcase=$(field "$f" showcase); landing=$(field "$f" landing)
+    label="$branch"; [ -n "$pr" ] && label="#$pr $branch"; [ "$path" = latest ] && label="latest release: $branch"
+    echo "<li><a class=\"card\" href=\"$path/${landing:-cli.html}\"><div class=\"name\">$label<code>$(echo "$sha" | cut -c1-7)</code></div>"
+    echo "<div class=\"what\">${showcase:+$showcase: }${title:+$title. }${author:+by $author, }built $built. <span>/$path/</span></div></a></li>"
+  done
+  echo "</ul></main></body></html>"
+} > "$TMP"
+mv "$TMP" "$OUT"

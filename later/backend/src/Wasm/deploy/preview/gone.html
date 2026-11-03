@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Not here any more</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/preview.css">
+</head><body><main>
+<h1>Not here any more</h1>
+<p id="why"></p>
+<ul id="now"></ul>
+<p><a href="/">Everything that is deployed</a></p>
+<script>
+  // The 404 page. Say what the path probably was, then point at what exists now.
+  const p = location.pathname, m = p.match(/^\/pulls\/([^/]+)/);
+  document.getElementById("why").textContent =
+    m ? "PR #" + m[1] + " has no preview: it was merged or closed and its site was removed, or it never had one."
+      : "Nothing is deployed at " + p + ". Only the latest release and open PRs are kept.";
+  fetch("/latest/build.json").then((r) => r.ok ? r.json() : null).then((b) => {
+    if (!b) return;
+    const a = document.createElement("a"), name = document.createElement("div"), what = document.createElement("div");
+    a.className = "card"; a.href = "/latest/cli.html"; name.className = "name"; what.className = "what";
+    name.textContent = "latest release: " + b.branch;
+    what.textContent = "built " + b.built + " from " + String(b.sha).slice(0, 7);
+    a.append(name, what);
+    const li = document.createElement("li"); li.append(a);
+    document.getElementById("now").append(li);
+  }).catch(() => {});
+</script>
+</main></body></html>

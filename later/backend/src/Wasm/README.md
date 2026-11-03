@@ -26,8 +26,73 @@ python3 backend/src/Wasm/generate-snapshot.py # the REPL's snapshot (repl.html o
 backend/src/Wasm/deploy/deploy.sh             # nginx image of the publish -> fly app dark-wasm
 ```
 
-Wipe `rundir/wasm-repl` before a publish, or stale fingerprinted files pile up. Nothing in CI
-builds or deploys this; `deploy.sh` is run by hand.
+Wipe `rundir/wasm-repl` before a publish, or stale fingerprinted files pile up. `deploy.sh` is
+the hand deploy of the stable site; CI does the per-branch previews below.
+
+## A preview per PR
+
+CI publishes this site and puts it on the preview host (`build-wasm`, `deploy-preview`;
+`deploy/preview/ci-deploy.sh` has the rules). Two things are hosted, nothing else:
+
+    https://wasm.darklang.com/            directory of what is deployed
+    https://wasm.darklang.com/latest/     the newest release tag
+    https://wasm.darklang.com/pulls/<n>/  the CLI built from open PR #n
+
+`latest/` comes from the tag's own pipeline, and `tag-release` tags every green merge to
+main, so it moves at the release cadence. A red main is never on it, and an older tag's
+pipeline finishing late never overwrites a newer one.
+
+Who gets a preview is decided by CircleCI, not by anything in this repo, since a PR can
+edit this repo. A build deploys when its CircleCI project holds `PREVIEW_FLY_API_TOKEN`,
+and CircleCI never gives project secrets to a forked PR's build (the "Pass secrets to
+builds from forked pull requests" setting stays off; everything else in CI already relies
+on that). So:
+
+- a branch pushed to darklang/dark with an open PR: darklang's pipeline deploys it.
+- a PR from your fork: darklang's pipeline for it has no token and halts before the
+  publish. Your fork's own CircleCI project, holding its own token, deploys it; the PR is
+  found by asking GitHub for the open PR whose head is `<owner>:<branch>`.
+- a PR from anyone else's fork: nothing deploys, and the publish never runs.
+
+The store is a fresh migration in the runner, so no secret can be in it. The PR gets one
+comment with the link, edited on later pushes.
+
+The host keeps `latest/` and open PRs, ~25 MB each. Every release deploy removes everything
+else on the volume. A removed preview or a typo is a 404 whose page points at `latest/`.
+The tab keeps nothing: the store is in memory and a reload is a fresh one.
+
+The host is the fly app `dark-preview` (`deploy/preview/`: `fly.toml`, `Dockerfile`,
+`nginx.conf`, `regen-index`, `gone.html`, `preview.css`): one nginx over one volume, a
+directory per site, `_framework` kept as `.gz` only. `host.sh upload|remove|cleanup` works
+from a laptop with a logged-in flyctl, which is how to test any of this without a PR. Every
+preview shares that origin, so nothing with a cookie or a token may ever be served from it.
+
+### Saying what a branch is for
+
+By default the preview is this site, built from the branch. Three ways to point a reviewer at
+the thing, cheapest first:
+
+- A URL in the PR description: `cli.html?cmd=<argv>` runs a command and hands over the prompt
+  (`?cmd=outliner`, `?cmd=view Stdlib.Eq`), `?fn=<name>` lands on an item, `eval.html?e=<expr>`
+  is an expression box, `/?cmd=<argv>` prints the answer and nothing else.
+- A `showcase.json` in `wwwroot/`, read by the branch's index page and by the directory:
+
+      { "title": "Traits",
+        "blurb": "Eq and ToString as stdlib traits; sum and product over Zero and One.",
+        "landing": "cli.html?cmd=view Darklang.Stdlib.Eq",
+        "tries": [ { "label": "sum over a trait", "url": "eval.html?e=List.sum [1L; 2L]",
+                     "what": "resolves Zero and Add at the call" } ] }
+
+  `landing` is where the directory card goes (default `cli.html`); `tries` become cards at
+  the top of the branch's index. Delete the file before merging, or leave it if main should
+  say the same.
+- A page of your own in `wwwroot/`, and `landing` pointing at it. `site.js` gives it
+  `dark.boot`, `dark.run(argv)` and `dark.invoke`; `eval.html` is the smallest example.
+
+What a preview cannot show is what the browser cannot do. The tab has one thread and
+cannot block, so anything that needs a real thread, a blocking wait, a socket or an OS
+process is out: `serve` (no listening socket in a tab), OS processes, persistence across
+reload, push to the relay. Say so in the PR rather than let a reviewer hunt for it.
 
 ## How it is put together
 
