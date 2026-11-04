@@ -52,6 +52,15 @@ if [[ "$NAME" == "" ]]; then
   exit 1
 fi
 
+# Only for this clone's own container: an explicit DARK_CONTAINER is the caller's choice.
+if [[ ! -v CURRENTLY_REBUILDING_DOCKER && ! -v DARK_CONTAINER ]]; then
+  mismatch=$(store_mismatch "$NAME" "$DIR")
+  if [[ -n "$mismatch" ]]; then
+    echo "$mismatch" >&2
+    exit 1
+  fi
+fi
+
 gid="$(id -g)"
 # Below is max($gid, 1000); on OS X, the user's group might be staff, with
 # gid=20, which conflicts with ubuntu group dialout.

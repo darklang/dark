@@ -24,6 +24,26 @@ container_for_clone() {
   done
 }
 
+# Why container $1 can't serve the clone rooted at $2, or nothing if it can. Its `~/.darklang`,
+# where every dark keeps its store, has to be the clone's rundir, because the scripts read
+# `rundir/`. A container made before that mount (it was a volume) keeps its old mounts until
+# it is recreated, rebase or not, so the gates copy a stale `rundir/data.db` and fail with
+# FnNotFound while `run-cli` works.
+store_mismatch() {
+  local c="$1" clone="$2" src
+  src=$(docker inspect -f \
+    '{{range .Mounts}}{{if eq .Destination "/home/dark/.darklang"}}{{.Source}}{{end}}{{end}}' \
+    "$c" 2>/dev/null)
+  if [[ "$src" != "$clone/rundir" ]]; then
+    echo "This clone's dev container keeps its store in ${src:-the container itself},"
+    echo "not in this clone's rundir, so the scripts and the binary would use different stores."
+    echo "It was made by an older devcontainer.json. Recreate it, then bring the clone's store"
+    echo "up to the tree (the build index there may already call it current):"
+    echo "    scripts/dev/start --recreate"
+    echo "    scripts/dev/build backend/global.json"
+  fi
+}
+
 # Every running dark container and the clone it serves, for error messages.
 describe_dark_containers() {
   local c src name found=0

@@ -41,6 +41,11 @@ report() {
 
 id=$(container_for_clone "$DIR")
 if [[ -n "$id" && "${#RECREATE[@]}" -eq 0 ]]; then
+  mismatch=$(store_mismatch "$id" "$DIR")
+  if [[ -n "$mismatch" ]]; then
+    echo "$mismatch" >&2
+    exit 1
+  fi
   echo "Already up."
   report "$id"
   exit 0
