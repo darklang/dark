@@ -151,6 +151,11 @@ let defaultQuantum = 10_000L
 /// `exec.storePollMs` in the store's config overrides it (`Cli.fs` reads it).
 let mutable storePollMs = 25
 
+/// Test-only: called by `Subscribe` with the waiting process and the one it waits on, after
+/// the `ExecDone` watcher is registered and before the check for a process already over, so
+/// a test can finish the awaited process in exactly that gap.
+let mutable betweenWatchAndCheck : ProcessId -> ProcessId -> unit = fun _ _ -> ()
+
 /// How many worker schedulers a group starts: one per core unless the host says otherwise
 /// (`exec.workers` in the store's config; `Cli.fs` reads it).
 let mutable defaultWorkers : int = max 1 System.Environment.ProcessorCount
@@ -506,22 +511,31 @@ type Scheduler(quantum : int64) =
       TaskCompletionSource<HE.HostEvent>(
         TaskCreationOptions.RunContinuationsAsynchronously
       )
-    // Asked BEFORE this scheduler's lock is taken. `Find` walks the group and takes every
-    // other scheduler's lock, so asking it from inside ours is a lock-order inversion: two
-    // workers each awaiting a process on the other deadlock, and both worker loops are gone
-    // with no diagnostic. A process that finishes between this and the subscription is
-    // covered by the watcher being registered first.
-    let alreadyOver =
+    let watched =
       specs
       |> List.choose (fun spec ->
         match spec with
-        | HE.EventSpec.ExecDone pid ->
-          match this.Find pid with
-          | Some { status = Done _ }
-          | Some { status = Failed _ }
-          | None -> Some pid
-          | Some _ -> None
+        | HE.EventSpec.ExecDone pid -> Some pid
         | _ -> None)
+      |> List.distinct
+    // The watcher goes in BEFORE asking whether the process is over, so no finish falls
+    // between the two: one that lands after this posts to us, one before it is seen below.
+    for pid in watched do
+      execDoneWatchers.AddOrUpdate(pid, [ this ], (fun _ ws -> this :: ws))
+      |> ignore<Scheduler list>
+      betweenWatchAndCheck p.id pid
+    // Asked BEFORE this scheduler's lock is taken. `Find` walks the group and takes every
+    // other scheduler's lock, so asking it from inside ours is a lock-order inversion: two
+    // workers each awaiting a process on the other deadlock, and both worker loops are gone
+    // with no diagnostic.
+    let alreadyOver =
+      watched
+      |> List.filter (fun pid ->
+        match this.Find pid with
+        | Some { status = Done _ }
+        | Some { status = Failed _ }
+        | None -> true
+        | Some _ -> false)
       |> Set.ofList
     let stdinWanted =
       specs
@@ -597,13 +611,37 @@ type Scheduler(quantum : int64) =
                 wake.TrySetException(stdinRefusal e) |> ignore<bool>
             | None, _ -> ()
           | HE.EventSpec.ExecDone pid ->
-            execDoneWatchers.AddOrUpdate(pid, [ this ], (fun _ ws -> this :: ws))
-            |> ignore<Scheduler list>
-            // Already over (or forgotten): nothing will post, so answer now. The watcher is
-            // registered first, so a finish racing this sees it either way.
+            // Already over (or forgotten): a post may never come, so answer now. One that
+            // does come later finds no subscription and does nothing.
             if Set.contains pid alreadyOver then
               this.Satisfy(sub, HE.HostEvent.ExecDone pid))
+    // Answered without parking: the watchers are not needed, and one for a process already
+    // over would stay in the table for good, since only a finish takes them.
+    if wake.Task.IsCompleted then
+      for pid in watched do
+        this.Unwatch pid
     wake.Task
+
+  /// Take this scheduler's `ExecDone` watcher for `pid` back out, if it is still there.
+  member private this.Unwatch(pid : ProcessId) : unit =
+    let rec dropOne (ws : Scheduler list) =
+      match ws with
+      | [] -> []
+      | s :: rest when obj.ReferenceEquals(s, this) -> rest
+      | s :: rest -> s :: dropOne rest
+    let mutable settled = false
+    while not settled do
+      match execDoneWatchers.TryGetValue pid with
+      | false, _ -> settled <- true
+      | true, ws ->
+        let rest = dropOne ws
+        settled <-
+          if List.isEmpty rest then
+            execDoneWatchers.TryRemove(
+              System.Collections.Generic.KeyValuePair(pid, ws)
+            )
+          else
+            execDoneWatchers.TryUpdate(pid, rest, ws)
 
   /// Wake a subscription and drop it.
   member private _.Satisfy(sub : Subscription, ev : HE.HostEvent) : unit =
