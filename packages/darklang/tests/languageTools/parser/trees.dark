@@ -1,0 +1,939 @@
+module Darklang.LanguageTools.Parser.Tests.Trees
+
+// The tree `Builtin.parse` hands to Dark: its shape, and the source ranges the
+// highlighter and the LSP read off it. Positions are 0-based (row, column).
+
+let fileIn(
+  kind: Darklang.LanguageTools.Parser.FileKind,
+  source: String)
+  : Stdlib.Option.Option<WrittenTypes.SourceFile.SourceFile> =
+  match Darklang.LanguageTools.Parser.Parse.parse(kind, source) with
+  | (Some(SourceFile(file)), _) -> Stdlib.Option.Option.Some(file)
+  | _ -> Stdlib.Option.Option.None
+
+/// The trailing expressions of a script.
+let exprs(source: String): List<WrittenTypes.Expr> =
+  match fileIn(Darklang.LanguageTools.Parser.FileKind.Script, source) with
+  | Some(file) -> file.exprsToEval
+  | None -> []
+
+let decls(source: String): List<WrittenTypes.SourceFile.SourceFileDeclaration> =
+  match fileIn(Darklang.LanguageTools.Parser.FileKind.Script, source) with
+  | Some(file) -> file.declarations
+  | None -> []
+
+/// The declarations inside the one module a source declares.
+let moduleDecls(
+  kind: Darklang.LanguageTools.Parser.FileKind,
+  source: String)
+  : List<WrittenTypes.ModuleDeclaration.Declaration> =
+  match fileIn(kind, source) with
+  | Some(file) ->
+    match file.declarations with
+    | [ Module(m) ] -> m.declarations
+    | _ -> []
+  | None -> []
+
+let scriptModule(source: String): List<WrittenTypes.ModuleDeclaration.Declaration> =
+  moduleDecls(Darklang.LanguageTools.Parser.FileKind.Script, source)
+
+let packageModule(source: String): List<WrittenTypes.ModuleDeclaration.Declaration> =
+  moduleDecls(Darklang.LanguageTools.Parser.FileKind.Package, source)
+
+/// The type a `type X = <source>` alias declares.
+let typeOf(
+  source: String)
+  : Stdlib.Option.Option<WrittenTypes.TypeReference.TypeReference> =
+  match decls($"type X = {source}") with
+  | [ Type(t) ] ->
+    match t.definition with
+    | Alias(typ) -> Stdlib.Option.Option.Some(typ)
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+/// The body of the one fn a source declares.
+let fnBody(source: String): Stdlib.Option.Option<WrittenTypes.Expr> =
+  match decls(source) with
+  | [ Function(f) ] -> Stdlib.Option.Option.Some(f.body)
+  | _ -> Stdlib.Option.Option.None
+
+/// The type of the one parameter of the one fn a source declares.
+let fnParamType(
+  source: String)
+  : Stdlib.Option.Option<WrittenTypes.TypeReference.TypeReference> =
+  match decls(source) with
+  | [ Function(f) ] ->
+    match f.parameters with
+    | [ Normal(p) ] -> Stdlib.Option.Option.Some(p.typ)
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+/// The pattern of each arm of the one `match` a script holds.
+let armPatterns(source: String): List<WrittenTypes.MatchPattern> =
+  match exprs(source) with
+  | [ EMatch(_, _, cases, _, _) ] ->
+    cases |> Stdlib.List.map(fun c -> Stdlib.Tuple3.second(c.pat))
+  | _ -> []
+
+let lambdaPats(source: String): List<WrittenTypes.LetPattern> =
+  match exprs(source) with
+  | [ ELambda(_, pats, _, _, _) ] -> pats
+  | _ -> []
+
+let at(r: Darklang.LanguageTools.Parser.Range): (Int * Int) =
+  (r.start.row, r.start.column)
+
+let columns(r: Darklang.LanguageTools.Parser.Range): (Int * Int) =
+  (r.start.column, r.end_.column)
+
+/// The columns of a quoted literal's opening quote, contents and closing quote.
+let quoteColumns(
+  openQuote: Darklang.LanguageTools.Parser.Range,
+  contents: Darklang.LanguageTools.Parser.Range,
+  closeQuote: Darklang.LanguageTools.Parser.Range)
+  : List<(Int * Int)> =
+  [ columns(openQuote), columns(contents), columns(closeQuote) ]
+
+let calls(source: String): Stdlib.Option.Option<(String * Int)> =
+  match exprs(source) with
+  | [ EApply(_, EFnName(_, name), [], args) ] ->
+    Stdlib.Option.Option.Some((name.fn.name, Stdlib.List.length(args)))
+  | _ -> Stdlib.Option.Option.None
+
+let shown(source: String): String = Stdlib.String.replaceAll(source, "\n", "\\n")
+
+let unexpected(source: String): Stdlib.Test.Result =
+  Stdlib.Test.fail($"{shown(source)}: unexpected tree")
+
+let ok(): Stdlib.Test.Result = Stdlib.Test.pass()
+
+
+// --- ranges ---
+
+test valueDeclarationRanges =
+  // row 1 `  val x = 1 + 2`: val=2..5  x=6  ==8  1=10  +=12  2=14
+  match scriptModule("module M =\n  val x = 1 + 2") with
+  | [ Value(v) ] ->
+    match v.body with
+    | EInfix(
+        _,
+        (op, InfixFnCall(ArithmeticPlus)),
+        EInt(_, (_, 1)),
+        EInt(_, (_, 2))) ->
+      Stdlib.Test.all(
+        [ at(v.keywordVal) |> Stdlib.Test.equal((1, 2))
+          (v.keywordVal.end_.row, v.keywordVal.end_.column)
+          |> Stdlib.Test.equal((1, 5))
+          at(v.name.range) |> Stdlib.Test.equal((1, 6))
+          at(v.symbolEquals) |> Stdlib.Test.equal((1, 8))
+          at(op) |> Stdlib.Test.equal((1, 12)) ])
+    | _ -> unexpected("val body")
+  | _ -> unexpected("module M =\n  val x = 1 + 2")
+
+test numericLiteralRangesSplitDigitsFromSuffix =
+  let signed =
+    match exprs("-1L") with
+    | [ EInt64(_, (digits, _), suffix) ] ->
+      [ columns(digits), columns(suffix) ] |> Stdlib.Test.equal([ (0, 2), (2, 3) ])
+    | _ -> unexpected("-1L")
+  let unsigned =
+    match exprs("1uy") with
+    | [ EUInt8(_, (digits, _), suffix) ] ->
+      [ columns(digits), columns(suffix) ] |> Stdlib.Test.equal([ (0, 1), (1, 3) ])
+    | _ -> unexpected("1uy")
+  let pattern =
+    match armPatterns("match x with | 1L -> x") with
+    | [ MPInt64(_, (digits, _), suffix) ] ->
+      [ columns(digits), columns(suffix) ]
+      |> Stdlib.Test.equal([ (15, 16), (16, 17) ])
+    | _ -> unexpected("match x with | 1L -> x")
+  Stdlib.Test.all([ signed, unsigned, pattern ])
+
+test quotedLiteralRangesSplitDelimiters =
+  let string =
+    match exprs("\"hi\"") with
+    | [ EString(_, None, [ StringText(contents, "hi") ], o, c) ] ->
+      quoteColumns(o, contents, c) |> Stdlib.Test.equal([ (0, 1), (1, 3), (3, 4) ])
+    | _ -> unexpected("\"hi\"")
+  let char =
+    match exprs("'x'") with
+    | [ EChar(_, Some((contents, _)), o, c) ] ->
+      quoteColumns(o, contents, c) |> Stdlib.Test.equal([ (0, 1), (1, 2), (2, 3) ])
+    | _ -> unexpected("'x'")
+  let triple =
+    match exprs("\"\"\"hi\"\"\"") with
+    | [ EString(_, _, [ StringText(contents, _) ], o, c) ] ->
+      quoteColumns(o, contents, c) |> Stdlib.Test.equal([ (0, 3), (3, 5), (5, 8) ])
+    | _ -> unexpected("triple-quoted string")
+  let pattern =
+    match armPatterns("match x with | 'y' -> x") with
+    | [ MPChar(_, Some((contents, _)), o, c) ] ->
+      quoteColumns(o, contents, c)
+      |> Stdlib.Test.equal([ (15, 16), (16, 17), (17, 18) ])
+    | _ -> unexpected("char pattern")
+  Stdlib.Test.all([ string, char, triple, pattern ])
+
+test closingDelimitersEndTheRange =
+  let generic =
+    match typeOf("Result<Int64, String>") with
+    | Some(QualifiedName(q)) -> q.range.end_.column |> Stdlib.Test.equal(30)
+    | _ -> unexpected("type X = Result<Int64, String>")
+  let ctor =
+    match exprs("Pair(1L, 2L)") with
+    | [ e ] -> (WrittenTypes.Expr.range(e)).end_.column |> Stdlib.Test.equal(12)
+    | _ -> unexpected("Pair(1L, 2L)")
+  // an unterminated interpolation keeps its text and gets a zero-width close at EOF
+  let unterminated =
+    match exprs("$\"abc") with
+    | [ EString(_, _, [ StringText(_, "abc") ], _, close) ] ->
+      Stdlib.Test.all(
+        [ (close.start == close.end_) |> Stdlib.Test.equal(true)
+          close.start.column |> Stdlib.Test.equal(5) ])
+    | _ -> unexpected("$\"abc")
+  let question =
+    match exprs("fun x -> f(x)?") with
+    | [ ELambda(_, _, EUnwrap(_, EApply(_, _, _, _), q), _, _) ] ->
+      columns(q) |> Stdlib.Test.equal((13, 14))
+    | _ -> unexpected("fun x -> f(x)?")
+  Stdlib.Test.all([ generic, ctor, unterminated, question ])
+
+test namedTestRanges =
+  let source = "module M =\n  test doubles = Stdlib.Test.equal(8, 8)"
+  match packageModule(source) with
+  | [ Test(t) ] ->
+    Stdlib.Test.all(
+      [ t.name.name |> Stdlib.Test.equal("doubles")
+        columns(t.keywordTest) |> Stdlib.Test.equal((2, 6))
+        columns(t.symbolEquals) |> Stdlib.Test.equal((15, 16)) ])
+  | _ -> unexpected(source)
+
+test namedTestOutcomes =
+  let raisesSource =
+    "module M =\n  test divisionByZero =\n    1L / 0L\n"
+    + "    => raises \"Cannot divide by 0\""
+  let raises =
+    match packageModule(raisesSource) with
+    | [ Test(t) ] ->
+      match (t.expectedError, t.errorKindRange, t.symbolOutcome) with
+      | (Some((_, RuntimeError("Cannot divide by 0"))), Some(_), Some(_)) -> ok()
+      | _ -> unexpected(raisesSource)
+    | _ -> unexpected(raisesSource)
+  // `raises` stays an ordinary fn name in a test body
+  let callSource =
+    "module M =\n"
+    + "  test callsRaises = 1 |> raises(\"message\") |> Stdlib.Test.equal(1)"
+  let call =
+    match packageModule(callSource) with
+    | [ Test(t) ] ->
+      match (t.expectedError, t.body) with
+      | (None, EPipe(_, _, [ _, _ ])) -> ok()
+      | _ -> unexpected(callSource)
+    | _ -> unexpected(callSource)
+  let notReserved =
+    match exprs("let test = 1 in test") with
+    | [ ELet(_, _, _, _, _, _) ] -> ok()
+    | _ -> unexpected("let test = 1 in test")
+  Stdlib.Test.all([ raises, call, notReserved ])
+
+
+// --- expressions ---
+
+test simpleExpressions =
+  Stdlib.Test.all(
+    [ match exprs("\"hi\"") with
+      | [ EString(_, None, [ StringText(_, "hi") ], _, _) ] -> ok()
+      | _ -> unexpected("\"hi\"")
+
+      match exprs("Stdlib.Int64.remainder(1L, 2L)") with
+      | [ EApply(_, EFnName(_, q), _, [ _, _ ]) ] ->
+        (q.fn.name, Stdlib.List.length(q.modules))
+        |> Stdlib.Test.equal(("remainder", 2))
+      | _ -> unexpected("qualified call")
+
+      match exprs("if true then 1L else 2L") with
+      | [ EIf(_, EBool(_, true), _, Some(_), _, _, Some(_)) ] -> ok()
+      | _ -> unexpected("if")
+
+      match exprs("[1L, 2L, 3L]") with
+      | [ EList(_, [ _, _, _ ], _, _) ] -> ok()
+      | _ -> unexpected("list")
+
+      match exprs("(1L, 2L)") with
+      | [ ETuple(_, _, _, _, [], _, _) ] -> ok()
+      | _ -> unexpected("2-tuple")
+
+      // lowercase `p.foo` is a field access, not a qualified name
+      match exprs("p.foo") with
+      | [ ERecordFieldAccess(_, EVariable(_, "p"), (_, "foo"), _) ] -> ok()
+      | _ -> unexpected("p.foo")
+
+      match exprs("fun(x, y) -> x") with
+      | [ ELambda(
+            _,
+            [ LPVariable(_, "x"), LPVariable(_, "y") ],
+            EVariable(_, "x"),
+            _,
+            _) ] -> ok()
+      | _ -> unexpected("lambda")
+
+      match exprs("Point { x = 1L, y = 2L }") with
+      | [ ERecord(_, typeName, [ (_, (_, "x"), _), (_, (_, "y"), _) ], _, _) ] ->
+        typeName.typ.name |> Stdlib.Test.equal("Point")
+      | _ -> unexpected("record")
+
+      match exprs("$\"hi {name}!\"") with
+      | [ EString(
+            _,
+            Some(_),
+            [ StringText(_, _)
+              StringInterpolation(_, EVariable(_, "name"), _, _)
+              StringText(_, _) ],
+            _,
+            _) ] -> ok()
+      | _ -> unexpected("interpolation")
+
+      match exprs("def") with
+      | [ EVariable(_, "def") ] -> ok()
+      | _ -> unexpected("def") ])
+
+// A no-param `let` at a script's top level is a statement over what follows.
+test topLevelLetSequences =
+  let source = "let x = 1L\nx"
+  match (decls(source), exprs(source)) with
+  | ([],
+     [ ELet(_, LPVariable(_, "x"), EInt64(_, (_, 1L), _), EVariable(_, "x"), _, _) ]) ->
+    ok()
+  | _ -> unexpected(source)
+
+test enumConstructors =
+  Stdlib.Test.all(
+    [ match exprs("Some(5L)") with
+      | [ EEnum(_, _, (_, "Some"), [ _ ], _) ] -> ok()
+      | _ -> unexpected("Some(5L)")
+
+      match exprs("Stdlib.Result.Result.Ok(5L)") with
+      | [ EEnum(_, typeName, (_, "Ok"), [ _ ], _) ] ->
+        (typeName.typ.name, Stdlib.List.length(typeName.modules))
+        |> Stdlib.Test.equal(("Result", 2))
+      | _ -> unexpected("qualified Ok")
+
+      // one tuple field takes its own parens; a space before the paren is fine
+      match exprs("Some((1L, 2L))") with
+      | [ EEnum(_, _, (_, "Some"), [ ETuple(_, _, _, _, _, _, _) ], _) ] -> ok()
+      | _ -> unexpected("Some((1L, 2L))")
+
+      match exprs("Pair (1L, 2L)") with
+      | [ EEnum(_, _, (_, "Pair"), [ _, _ ], _) ] -> ok()
+      | _ -> unexpected("Pair (1L, 2L)") ])
+
+test matchPatterns =
+  Stdlib.Test.all(
+    [ match armPatterns("match x with | Ok(v) -> v | Error(e) -> e") with
+      | [ MPEnum(_, (_, "Ok"), [ MPVariable(_, "v") ])
+          MPEnum(_, (_, "Error"), _) ] -> ok()
+      | _ -> unexpected("enum patterns")
+
+      match armPatterns("match xs with | [] -> 0L | [h, ...t] -> h") with
+      | [ _, MPListCons(_, _, _, _) ] -> ok()
+      | _ -> unexpected("cons pattern")
+
+      match armPatterns("match n with | 0L | 1L -> true | _ -> false") with
+      | [ MPOr(_, [ _, _ ]), _ ] -> ok()
+      | _ -> unexpected("or pattern")
+
+      // `|` is looser than `,`: `1, 2 | 3, 4` is an or of two 2-tuples
+      match armPatterns("match p with | 1L, 2L | 3L, 4L -> true | _ -> false") with
+      | [ MPOr(
+            _,
+            [ MPTuple(_, _, _, _, [], _, _), MPTuple(_, _, _, _, [], _, _) ])
+          _ ] -> ok()
+      | _ -> unexpected("1, 2 | 3, 4")
+
+      match armPatterns("match p with | 1L | 2L, 3L -> true | _ -> false") with
+      | [ MPOr(_, [ MPInt64(_, _, _), MPTuple(_, _, _, _, _, _, _) ]), _ ] -> ok()
+      | _ -> unexpected("1 | 2, 3")
+
+      match armPatterns("match p with | (1L, 2L) -> true | _ -> false") with
+      | [ MPTuple(_, _, _, _, [], _, _), _ ] -> ok()
+      | _ -> unexpected("(1, 2)")
+
+      // in a constructor a bare `,` separates fields
+      match armPatterns("match x with | Pair(a, b) -> a | _ -> 0L") with
+      | [ MPEnum(_, (_, "Pair"), [ _, _ ]), _ ] -> ok()
+      | _ -> unexpected("Pair(a, b)")
+
+      match armPatterns("match x with | Ok(5y) -> 1L | Ok(-4y) -> 2L | _ -> 3L") with
+      | [ MPEnum(_, (_, "Ok"), [ MPInt8(_, (_, 5y), _) ])
+          MPEnum(_, (_, "Ok"), [ MPInt8(_, (_, -4y), _) ])
+          _ ] -> ok()
+      | _ -> unexpected("sized-int fields")
+
+      // `[a, b, ...t]` is a cons chain
+      match
+        armPatterns(
+          "match xs with | [a, b, ...t] -> a | [c, ..._] -> c | [d, ...] -> d")
+      with
+      | [ MPListCons(
+            _,
+            MPVariable(_, "a"),
+            MPListCons(_, MPVariable(_, "b"), MPVariable(_, "t"), _),
+            _)
+          MPListCons(_, MPVariable(_, "c"), MPVariable(_, "_"), _)
+          MPListCons(_, MPVariable(_, "d"), MPVariable(_, "_"), _) ] -> ok()
+      | _ -> unexpected("cons chains") ])
+
+test operators =
+  Stdlib.Test.all(
+    [ // unary minus binds looser than application: `-f x` is `-(f x)`
+      match exprs("-f x") with
+      | [ EApply(_, EFnName(_, neg), _, [ EApply(_, _, _, [ _ ]) ]) ] ->
+        neg.fn.name |> Stdlib.Test.equal("negate")
+      | _ -> unexpected("-f x")
+
+      match exprs("-x") with
+      | [ EApply(_, EFnName(_, neg), _, [ EVariable(_, "x") ]) ] ->
+        neg.fn.name |> Stdlib.Test.equal("negate")
+      | _ -> unexpected("-x")
+
+      match exprs("-a + b") with
+      | [ EInfix(
+            _,
+            _,
+            EApply(_, EFnName(_, _), _, [ EVariable(_, "a") ]),
+            EVariable(_, "b")) ] -> ok()
+      | _ -> unexpected("-a + b")
+
+      match exprs("xs |> Stdlib.List.map(f) |> Stdlib.List.length") with
+      | [ EPipe(
+            _,
+            EVariable(_, "xs"),
+            [ (_, EPipeFnCall(_, _, _, _)), (_, EPipeFnCall(_, _, _, _)) ]) ] -> ok()
+      | _ -> unexpected("pipe")
+
+      match exprs("a && b || c") with
+      | [ EInfix(
+            _,
+            (_, BinOp(BinOpOr)),
+            EInfix(_, (_, BinOp(BinOpAnd)), _, _),
+            _) ] -> ok()
+      | _ -> unexpected("a && b || c")
+
+      // less-than is a comparison, not type args; explicit type args are
+      match exprs("a < b") with
+      | [ EInfix(_, (_, InfixFnCall(ComparisonLessThan)), _, _) ] -> ok()
+      | _ -> unexpected("a < b")
+
+      match exprs("Stdlib.Json.parse<Int64>(x)") with
+      | [ EApply(_, _, [ Builtin(TInt64(_)) ], _) ] -> ok()
+      | _ -> unexpected("parse<Int64>(x)")
+
+      // spreads in a list literal become concat and flatten
+      [ "[...a, ...b]", "[x, ...xs]", "[...xs, x]", "[a, ...b, c]" ]
+      |> Stdlib.List.map(calls)
+      |> Stdlib.Test.equal(
+        [ Stdlib.Option.Option.Some(("concat", 2))
+          Stdlib.Option.Option.Some(("concat", 2))
+          Stdlib.Option.Option.Some(("concat", 2))
+          Stdlib.Option.Option.Some(("flatten", 1)) ])
+      // a lone spread is the list itself
+      match exprs("[...xs]") with
+      | [ EVariable(_, "xs") ] -> ok()
+      | _ -> unexpected("[...xs]") ])
+
+test unwrapBindsTight =
+  Stdlib.Test.all(
+    [ match exprs("fun x -> f(x?)") with
+      | [ ELambda(_, _, EApply(_, _, _, [ EUnwrap(_, _, _) ]), _, _) ] -> ok()
+      | _ -> unexpected("f(x?)")
+
+      // field access and repeated unwrap associate left
+      match exprs("fun x -> x?.field??") with
+      | [ ELambda(
+            _,
+            _,
+            EUnwrap(
+              _,
+              EUnwrap(_, ERecordFieldAccess(_, EUnwrap(_, _, _), _, _), _),
+              _),
+            _,
+            _) ] -> ok()
+      | _ -> unexpected("x?.field??") ])
+
+test lambdaParameters =
+  Stdlib.Test.all(
+    [ Stdlib.List.length(lambdaPats("fun x -> x")) |> Stdlib.Test.equal(1)
+      Stdlib.List.length(lambdaPats("fun(a, b) -> a")) |> Stdlib.Test.equal(2)
+      Stdlib.List.length(lambdaPats("fun (a, b) -> a")) |> Stdlib.Test.equal(2)
+      match lambdaPats("fun((a, b)) -> a") with
+      | [ LPTuple(_, _, _, _, _, _, _) ] -> ok()
+      | _ -> unexpected("fun((a, b))")
+
+      match lambdaPats("fun(acc, (k, v)) -> acc") with
+      | [ LPVariable(_, "acc"), LPTuple(_, _, _, _, _, _, _) ] -> ok()
+      | _ -> unexpected("fun(acc, (k, v))")
+
+      match lambdaPats("fun () -> 1L") with
+      | [ LPUnit(_) ] -> ok()
+      | _ -> unexpected("fun ()") ])
+
+
+// --- layout ---
+
+test offside =
+  Stdlib.Test.all(
+    [ // the tree keeps `a\n b` as a statement; folding it is the lowering's job
+      match fnBody("let f(): Unit =\n  foo()\n  bar()") with
+      | Some(EStatement(_, EApply(_, _, _, _), EApply(_, _, _, _))) -> ok()
+      | _ -> unexpected("statement sequence")
+
+      match fnBody("let f(): Unit =\n  Stdlib.printLine(\"hi\")\n  ()") with
+      | Some(EStatement(_, _, EUnit(_))) -> ok()
+      | _ -> unexpected("statement then unit")
+
+      match fnBody("let f(): Int64 =\n  let x = 1L\n  let y = 2L\n  x") with
+      | Some(ELet(
+          _,
+          LPVariable(_, "x"),
+          _,
+          ELet(_, LPVariable(_, "y"), _, EVariable(_, "x"), _, _),
+          _,
+          _)) -> ok()
+      | _ -> unexpected("let chain")
+
+      // an indented continuation stays one application
+      match fnBody("let f(): Int64 =\n  g(\n    a,\n    b)") with
+      | Some(EApply(_, _, _, [ _, _ ])) -> ok()
+      | _ -> unexpected("continued call")
+
+      match exprs("[ 1L\n  2L\n  3L ]") with
+      | [ EList(_, [ _, _, _ ], _, _) ] -> ok()
+      | _ -> unexpected("newline-separated list")
+
+      // a nested fn declaration is a name-bound lambda
+      match
+        fnBody("let f(): Int64 =\n  let g(x: Int64): Int64 = x + 1L\n  g(5L)")
+      with
+      | Some(ELet(
+          _,
+          LPVariable(_, "g"),
+          ELambda(_, _, EInfix(_, (_, InfixFnCall(ArithmeticPlus)), _, _), _, _),
+          EApply(_, _, _, _),
+          _,
+          _)) -> ok()
+      | _ -> unexpected("nested fn") ])
+
+
+// --- declarations ---
+
+test declarations =
+  Stdlib.Test.all(
+    [ match decls("let add(x: Int64, y: Int64): Int64 = x + y") with
+      | [ Function(f) ] ->
+        match f.returnType with
+        | Builtin(TInt64(_)) ->
+          (f.name.name, Stdlib.List.length(f.parameters))
+          |> Stdlib.Test.equal(("add", 2))
+        | _ -> unexpected("return type")
+      | _ -> unexpected("fn declaration")
+
+      match scriptModule("module M =\n  val pi = 3") with
+      | [ Value(v) ] -> v.name.name |> Stdlib.Test.equal("pi")
+      | _ -> unexpected("value declaration")
+
+      // a file-level module header wraps the file's declarations
+      match decls("module Darklang.Foo\nlet add(x: Int64): Int64 = x") with
+      | [ Module(m) ] ->
+        match m.declarations with
+        | [ Function(f) ] ->
+          (Stdlib.Tuple2.second(m.name), f.name.name)
+          |> Stdlib.Test.equal(("Darklang.Foo", "add"))
+        | _ -> unexpected("module body")
+      | _ -> unexpected("module header")
+
+      // a nested `module X =` block holds its indented declarations
+      match
+        scriptModule("module Darklang.Foo\nmodule Bar =\n  val a = 1L\nval b = 2L")
+      with
+      | [ SubModule(bar), Value(b) ] ->
+        match bar.declarations with
+        | [ Value(a) ] ->
+          [ Stdlib.Tuple2.second(bar.name), a.name.name, b.name.name ]
+          |> Stdlib.Test.equal([ "Bar", "a", "b" ])
+        | _ -> unexpected("submodule body")
+      | _ -> unexpected("nested module")
+
+      // the effect row on the return colon
+      match scriptModule("module M =\n  let f(x: Int64):{Http, Clock} Int64 = x") with
+      | [ Function(f) ] ->
+        f.effects
+        |> Stdlib.Option.map(fun row -> Stdlib.List.map(row, Stdlib.Tuple2.second))
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ "Http", "Clock" ]))
+      | _ -> unexpected("effect row")
+
+      match scriptModule("module M =\n  let f(x: Int64):{} Int64 = x") with
+      | [ Function(f) ] ->
+        f.effects |> Stdlib.Test.equal(Stdlib.Option.Option.Some([]))
+      | _ -> unexpected("empty effect row")
+
+      // a private record type keeps its type role
+      match
+        decls(
+          "let __make () : M.__Internal.__Buffer = M.__Internal.__Buffer { size = 0 }")
+      with
+      | [ Function(f) ] ->
+        match (f.returnType, f.body) with
+        | (QualifiedName(_), ERecord(_, _, _, _, _)) -> ok()
+        | _ -> unexpected("private record")
+      | _ -> unexpected("private record fn") ])
+
+test typeDeclarations =
+  Stdlib.Test.all(
+    [ match decls("type Point = { x: Int64, y: Int64 }") with
+      | [ Type(t) ] ->
+        match t.definition with
+        | Record([ _, _ ]) -> ok()
+        | _ -> unexpected("record fields")
+      | _ -> unexpected("record type")
+
+      match decls("type Color = Red | Green | Blue") with
+      | [ Type(t) ] ->
+        match t.definition with
+        | Enum([ _, _, _ ]) -> ok()
+        | _ -> unexpected("enum cases")
+      | _ -> unexpected("enum type")
+
+      match typeOf("Int64") with
+      | Some(_) -> ok()
+      | None -> unexpected("alias") ])
+
+// The lexer attaches a `///` to the next token; the parser has to keep it there.
+test docComments =
+  Stdlib.Test.all(
+    [ match decls("type T =\n  { /// how far along\n    x: Int64 }") with
+      | [ Type(t) ] ->
+        match t.definition with
+        | Record([ (field, _) ]) ->
+          field.description |> Stdlib.Test.equal("how far along")
+        | _ -> unexpected("record")
+      | _ -> unexpected("field doc")
+
+      match decls("type T =\n  /// stop here\n  | Halting\n  | Going") with
+      | [ Type(t) ] ->
+        match t.definition with
+        | Enum([ (_, first), _ ]) ->
+          first.description |> Stdlib.Test.equal("stop here")
+        | _ -> unexpected("enum")
+      | _ -> unexpected("case doc")
+
+      // above the parameter, and just inside its paren
+      match decls("let f(\n  /// who to greet\n  name: String): String = name") with
+      | [ Function(f) ] ->
+        match f.parameters with
+        | [ Normal(p) ] -> p.description |> Stdlib.Test.equal("who to greet")
+        | _ -> unexpected("parameter")
+      | _ -> unexpected("doc above a parameter")
+
+      match decls("let f(/// who to greet\n       name: String): String = name") with
+      | [ Function(f) ] ->
+        match f.parameters with
+        | [ Normal(p) ] -> p.description |> Stdlib.Test.equal("who to greet")
+        | _ -> unexpected("parameter")
+      | _ -> unexpected("doc inside the paren") ])
+
+
+// --- types ---
+
+test typeReferences =
+  Stdlib.Test.all(
+    [ match (typeOf("Int64"), typeOf("String"), typeOf("Bool"), typeOf("Bytes")) with
+      | (Some(Builtin(TInt64(_))),
+         Some(Builtin(TString(_))),
+         Some(Builtin(TBool(_))),
+         Some(Builtin(TBytes(_)))) -> ok()
+      | _ -> unexpected("primitives")
+
+      match typeOf("List<Int64>") with
+      | Some(Builtin(TList(_, _, _, Builtin(TInt64(_)), _))) -> ok()
+      | _ -> unexpected("List<Int64>")
+
+      match typeOf("Dict<String, Int64>") with
+      | Some(Builtin(TDict(
+          _,
+          _,
+          _,
+          Builtin(TString(_)),
+          _,
+          Builtin(TInt64(_)),
+          _))) -> ok()
+      | _ -> unexpected("Dict<String, Int64>")
+
+      match typeOf("Int64 * String") with
+      | Some(Builtin(TTuple(
+          _,
+          Builtin(TInt64(_)),
+          _,
+          Builtin(TString(_)),
+          [],
+          _,
+          _))) -> ok()
+      | _ -> unexpected("Int64 * String")
+
+      match typeOf("Int64 -> String") with
+      | Some(Builtin(TFn(_, [ (Builtin(TInt64(_)), _) ], Builtin(TString(_))))) ->
+        ok()
+      | _ -> unexpected("Int64 -> String")
+
+      match typeOf("List<List<Int64>>") with
+      | Some(Builtin(TList(
+          _,
+          _,
+          _,
+          Builtin(TList(_, _, _, Builtin(TInt64(_)), _)),
+          _))) -> ok()
+      | _ -> unexpected("List<List<Int64>>")
+
+      // a nested generic closes before the outer arrow
+      match typeOf("List<List<Int64>> -> String") with
+      | Some(Builtin(TFn(
+          _,
+          [ (Builtin(TList(_, _, _, Builtin(TList(_, _, _, _, _)), _)), _) ],
+          Builtin(TString(_))))) -> ok()
+      | _ -> unexpected("List<List<Int64>> -> String")
+
+      match typeOf("List<Int64 -> List<String>> -> Bool") with
+      | Some(Builtin(TFn(
+          _,
+          [ (Builtin(TList(
+               _,
+               _,
+               _,
+               Builtin(TFn(
+                 _,
+                 [ _ ],
+                 Builtin(TList(_, _, _, Builtin(TString(_)), _)))),
+               _)),
+             _) ],
+          Builtin(TBool(_))))) -> ok()
+      | _ -> unexpected("List<Int64 -> List<String>> -> Bool")
+
+      // `>>` must not swallow the `*`
+      match typeOf("List<List<Int64>> * List<List<String>> * List<List<Bool>>") with
+      | Some(Builtin(TTuple(
+          _,
+          Builtin(TList(_, _, _, Builtin(TList(_, _, _, Builtin(TInt64(_)), _)), _)),
+          _,
+          Builtin(TList(_, _, _, Builtin(TList(_, _, _, Builtin(TString(_)), _)), _)),
+          [ (_,
+             Builtin(TList(
+               _,
+               _,
+               _,
+               Builtin(TList(_, _, _, Builtin(TBool(_)), _)),
+               _))) ],
+          _,
+          _))) -> ok()
+      | _ -> unexpected("tuple of nested generics")
+
+      match typeOf("Stdlib.Option.Option<Int64>") with
+      | Some(QualifiedName(q)) ->
+        match q.typeArgs with
+        | [ Builtin(TInt64(_)) ] ->
+          (Stdlib.List.map(q.modules, fun((m, _)) -> m.name), q.typ.name)
+          |> Stdlib.Test.equal(([ "Stdlib", "Option" ], "Option"))
+        | _ -> unexpected("type args")
+      | _ -> unexpected("Stdlib.Option.Option<Int64>")
+
+      match decls("let f(x: 'a): 'a = x") with
+      | [ Function(f) ] ->
+        match (f.returnType, f.parameters) with
+        | (Builtin(TVariable(_, _, (_, "a"))), [ Normal(p) ]) ->
+          match p.typ with
+          | Builtin(TVariable(_, _, (_, "a"))) -> ok()
+          | _ -> unexpected("param type var")
+        | _ -> unexpected("return type var")
+      | _ -> unexpected("generic fn") ])
+
+test functionTypes =
+  Stdlib.Test.all(
+    [ match fnParamType("let f(g: Int64 -> String): Int64 = 1L") with
+      | Some(Builtin(TFn(_, [ _ ], _))) -> ok()
+      | _ -> unexpected("Int64 -> String")
+
+      match fnParamType("let f(p: (String * Int64)): Int64 = 1L") with
+      | Some(Builtin(TTuple(_, _, _, _, _, _, _))) -> ok()
+      | _ -> unexpected("(String * Int64)")
+
+      match fnParamType("let f(x: Stdlib.Option.Option<String>): Int64 = 1L") with
+      | Some(QualifiedName(q)) ->
+        match q.typeArgs with
+        | [ Builtin(TString(_)) ] -> ok()
+        | _ -> unexpected("type args")
+      | _ -> unexpected("Option<String>")
+
+      // several arguments go in parentheses
+      match fnParamType("let f(g: (Int64, String) -> Bool): Int64 = 1L") with
+      | Some(Builtin(TFn(
+          _,
+          [ (Builtin(TInt64(_)), _), (Builtin(TString(_)), _) ],
+          Builtin(TBool(_))))) -> ok()
+      | _ -> unexpected("(Int64, String) -> Bool")
+
+      match fnParamType("let f(g: Int64 -> (Int64 -> Int64)): Int64 = 1L") with
+      | Some(Builtin(TFn(_, [ _ ], Builtin(TFn(_, [ _ ], _))))) -> ok()
+      | _ -> unexpected("Int64 -> (Int64 -> Int64)")
+
+      match
+        fnParamType("let f(g: (Int64 -> Int64, String) -> Bool): Int64 = 1L")
+      with
+      | Some(Builtin(TFn(_, [ (Builtin(TFn(_, _, _)), _), _ ], _))) -> ok()
+      | _ -> unexpected("(Int64 -> Int64, String) -> Bool") ])
+
+
+// --- literals ---
+
+test literalValues =
+  Stdlib.Test.all(
+    [ match exprs("-128y") with
+      | [ EInt8(_, (_, v), _) ] -> v |> Stdlib.Test.equal(-128y)
+      | _ -> unexpected("-128y")
+
+      // exponent floats lower to plain digits
+      match exprs("1e300") with
+      | [ EFloat(_, Positive, whole, "0") ] ->
+        whole |> Stdlib.Test.equal("1" + Stdlib.String.repeat("0", 300))
+      | _ -> unexpected("1e300")
+
+      match exprs("1e-7") with
+      | [ EFloat(_, Positive, "0", "0000001") ] -> ok()
+      | _ -> unexpected("1e-7")
+
+      match exprs("0.00000001") with
+      | [ EFloat(_, Positive, "0", "00000001") ] -> ok()
+      | _ -> unexpected("0.00000001")
+
+      match exprs("0.2") with
+      | [ EFloat(_, Positive, "0", "2") ] -> ok()
+      | _ -> unexpected("0.2") ])
+
+
+// --- recovery ---
+
+test recoveryKeepsTheTree =
+  let resync =
+    "module Test\n"
+    + "let broken1 (x: Int64) : Int64 =\n  x + \n\n"
+    + "let broken2 () : Int64 =\n  [1L, 2L\n\n"
+    + "let fine (y: Int64) : Int64 =\n  y * 2L\n"
+  Stdlib.Test.all(
+    [ // two independent errors still leave both list elements
+      match exprs("[1L + , 2L * ]") with
+      | [ EList(_, [ _, _ ], _, _) ] -> ok()
+      | _ -> unexpected("[1L + , 2L * ]")
+
+      // the delimiter is not consumed, the group closes, the hole is an EError
+      match exprs("(1L + )") with
+      | [ EInfix(_, _, EInt64(_, (_, 1L), _), EError(_)) ] -> ok()
+      | _ -> unexpected("(1L + )")
+
+      // a broken declaration does not swallow the ones after it
+      match scriptModule(resync) with
+      | [ Function(a), Function(b), Function(c) ] ->
+        match c.body with
+        | EInfix(_, (_, InfixFnCall(ArithmeticMultiply)), _, _) ->
+          [ a.name.name, b.name.name, c.name.name ]
+          |> Stdlib.Test.equal([ "broken1", "broken2", "fine" ])
+        | _ -> unexpected("fine's body")
+      | _ -> unexpected(resync)
+
+      // the fn after a broken impl survives
+      decls("impl Show for Point =\n  val x = 1\nlet after (x: Int) : Int = x")
+      |> Stdlib.List.any(fun d ->
+        match d with
+        | Function(f) -> f.name.name == "after"
+        | _ -> false)
+      |> Stdlib.Test.expect("the fn after a broken impl survives") ])
+
+
+// --- traits ---
+
+let typeParamNames(
+  params: List<(Darklang.LanguageTools.Parser.Range * String)>)
+  : List<String> =
+  Stdlib.List.map(params, Stdlib.Tuple2.second)
+
+let boundNames(bounds: List<WrittenTypes.TypeParamBound>): List<(String * String)> =
+  Stdlib.List.map(bounds, fun b -> (b.param, b.trait_.typ.name))
+
+let methodNames(t: WrittenTypes.TraitDeclaration.TraitDeclaration): List<String> =
+  Stdlib.List.map(t.methods, fun m -> m.name.name)
+
+test traits =
+  Stdlib.Test.all(
+    [ match decls("trait Show<'a> =\n  let show(value: 'a): String") with
+      | [ Trait(t) ] ->
+        (t.name.name, typeParamNames(t.typeParams), methodNames(t))
+        |> Stdlib.Test.equal(("Show", [ "a" ], [ "show" ]))
+      | _ -> unexpected("trait")
+
+      // the dedented `let` ends the trait
+      match
+        decls(
+          "trait Num<'a> =\n  let add(a: 'a, b: 'a): 'a\n  let zero(): 'a\n"
+          + "  let neg(a: 'a): 'a\nlet after(x: Int): Int = x")
+      with
+      | [ Trait(t), Function(f) ] ->
+        (methodNames(t), f.name.name)
+        |> Stdlib.Test.equal(([ "add", "zero", "neg" ], "after"))
+      | _ -> unexpected("trait then fn")
+
+      match
+        decls(
+          "impl Show for Point =\n  let show(p: Point): String = \"p\"\n"
+          + "impl<'a: Show> Show for List<'a> =\n"
+          + "  let show(xs: List<'a>): String = \"xs\"")
+      with
+      | [ Impl(plain), Impl(cond) ] ->
+        match (plain.forType, cond.forType) with
+        | (QualifiedName(p), Builtin(TList(_, _, _, _, _))) ->
+          Stdlib.Test.all(
+            [ (plain.trait_.typ.name, p.typ.name, plain.bounds)
+              |> Stdlib.Test.equal(("Show", "Point", []))
+              (typeParamNames(cond.typeParams), boundNames(cond.bounds))
+              |> Stdlib.Test.equal(([ "a" ], [ ("a", "Show") ])) ])
+        | _ -> unexpected("for types")
+      | _ -> unexpected("impls")
+
+      // an impl's members keep source order, declared and aliased interleaved
+      match
+        decls(
+          "impl Show for Point =\n  let a = Acme.one\n"
+          + "  let b(p: Point): String = \"b\"\n  let c = Acme.two\n"
+          + "  let d(p: Point): String = \"d\"\n")
+      with
+      | [ Impl(i) ] ->
+        i.members
+        |> Stdlib.List.map(fun m ->
+          match m with
+          | Method(f) -> f.name.name
+          | Alias(v) -> v.name.name)
+        |> Stdlib.Test.equal([ "a", "b", "c", "d" ])
+      | _ -> unexpected("interleaved impl")
+
+      match decls("let f<'a: Show + Equal, 'b: Compare>(x: 'a, y: 'b): String = \"\"") with
+      | [ Function(f) ] ->
+        (typeParamNames(f.typeParams), boundNames(f.bounds))
+        |> Stdlib.Test.equal(
+          ([ "a", "b" ], [ ("a", "Show"), ("a", "Equal"), ("b", "Compare") ]))
+      | _ -> unexpected("bounded fn")
+
+      match decls("type Set<'a: Compare> = List<'a>") with
+      | [ Type(t) ] ->
+        boundNames(t.bounds) |> Stdlib.Test.equal([ ("a", "Compare") ])
+      | _ -> unexpected("bounded type")
+
+      match decls("let f<'a: Convert<Int>>(x: 'a): Int = 1") with
+      | [ Function(f) ] ->
+        match f.bounds with
+        | [ b ] -> Stdlib.List.length(b.trait_.typeArgs) |> Stdlib.Test.equal(1)
+        | _ -> unexpected("bounds")
+      | _ -> unexpected("bound with type args") ])
