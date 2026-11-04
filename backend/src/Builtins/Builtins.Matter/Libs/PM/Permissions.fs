@@ -86,7 +86,6 @@ let private locationParam = Param.make "location" TString "Logical function name
 
 let fns () : List<BuiltInFn> =
   let policyType = TCustomType(NR.ok (PolicyToDT.Policy.typeName ()), [])
-  let ruleType = TCustomType(NR.ok (PolicyToDT.Rule.typeName ()), [])
   let accountParam = Param.make "accountID" (TypeReference.option TUuid) ""
 
   [ policyFn
@@ -102,32 +101,24 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
 
     hostOnly
-      "pmPolicySetInstance"
-      [ Param.make "policy" policyType "The complete replacement policy" ]
-      TUnit
-      "Replace the host-owned instance permission policy atomically. Host-only."
-      (fun _ args ->
-        match args with
-        | [| policy |] ->
-          uply {
-            PolicyToDT.Policy.fromDT policy |> PolicyStore.setInstancePolicy
-            return DUnit
-          }
-        | _ -> incorrectArgs ())
-
-    hostOnly
       "pmPolicyEditInstance"
-      [ Param.make "allow" (TList ruleType) "Rules to add to the allow list"
-        Param.make "deny" (TList ruleType) "Rules to add to the deny list"
-        Param.make "remove" (TList ruleType) "Rules to remove from both lists" ]
+      [ Param.make
+          "edit"
+          (TCustomType(NR.ok (PolicyToDT.PolicyEdit.typeName ()), []))
+          "Replace the whole policy, or add and remove rules" ]
       TUnit
-      "Atomically edit instance-policy rules. Removals apply first. Host-only."
+      ("Atomically change the host-owned instance permission policy: replace it "
+       + "whole, or add allow and deny rules and remove rules (removals apply first). "
+       + "Host-only.")
       (fun _ args ->
         match args with
-        | [| DList(_, allow); DList(_, deny); DList(_, remove) |] ->
+        | [| edit |] ->
           uply {
-            let rules = List.map PolicyToDT.Rule.fromDT
-            PolicyStore.editInstancePolicy (rules allow) (rules deny) (rules remove)
+            match PolicyToDT.PolicyEdit.fromDT edit with
+            | PolicyToDT.PolicyEdit.Replace policy ->
+              PolicyStore.setInstancePolicy policy
+            | PolicyToDT.PolicyEdit.Change(allow, deny, remove) ->
+              PolicyStore.editInstancePolicy allow deny remove
             return DUnit
           }
         | _ -> incorrectArgs ())
@@ -151,64 +142,90 @@ let fns () : List<BuiltInFn> =
 
     // Read-only policy metadata. This remains a Native effect, but does not
     // require the command-scoped authority reserved for policy mutations;
-    // the Workbench needs it while inspecting a function.
+    // the Workbench needs it while inspecting a function. It reveals only what
+    // guest code could already read: the names approved and the hashes they
+    // point at, and, for a hash the caller names, its stored and explicit
+    // policy. The full list of approved hashes stays host-only
+    // (pmPolicyListPackages).
     policyFn
-      "pmPolicyPackageAccess"
+      "pmPolicyApprovals"
       [ accountParam
-        Param.make "hash" TString "The immutable package-function hash" ]
-      (TTuple(TBool, TypeReference.option policyType, []))
-      ("Return whether a function is bundled first-party code and its stored "
-       + "consumer policy, if any. Used to explain effective access. Read-only.")
-      (fun state args ->
+        Param.make
+          "hash"
+          (TypeReference.option TString)
+          ("One immutable package-function hash to look up, or None for every "
+           + "name with an approved version") ]
+      (TList(TCustomType(NR.ok (PolicyToDT.Approval.typeName ()), [])))
+      ("Approvals as this account sees them, one per (hash, name): the hash, the "
+       + "logical name approved at it, its stored consumer policy, and the rules "
+       + "written when it was approved as a root. With a hash, the entries for "
+       + "that hash (one with no name when no name points at it); with None, one "
+       + "entry per approved name, in name order. Hashes are host metadata, not "
+       + "user-facing. Read-only.")
+      (fun _ args ->
         match args with
-        | [| accountIDDval; DString hash |] ->
+        | [| accountIDDval; hashDval |] ->
           uply {
-            let policyKT = PolicyToDT.Policy.knownType ()
-            let policy =
-              PolicyStore.packagePolicies (accountIDOf accountIDDval)
-              |> Map.tryFind hash
-              |> Option.map PolicyToDT.Policy.toDT
-              |> function
-                | Some policy -> Dval.optionSome policyKT policy
-                | None -> Dval.optionNone policyKT
-            let bundled = state.isBundledPackageFn (Hash hash)
-            return DTuple(DBool bundled, policy, [])
+            let accountID = accountIDOf accountIDDval
+            let policies = PolicyStore.packagePolicies accountID
+            let entry (hash : string) (name : Option<string>) : Dval =
+              PolicyToDT.Approval.toDT
+                hash
+                name
+                (Map.tryFind hash policies)
+                (PolicyStore.explicitApproval accountID hash)
+            let named = PolicyStore.approvedVersions accountID |> Map.toList
+            let entries =
+              match CommonToDT.Option.fromDT D.string hashDval with
+              | None ->
+                named |> List.map (fun (name, hash) -> entry hash (Some name))
+              | Some hash ->
+                match
+                  named |> List.filter (fun (_, approved) -> approved = hash)
+                with
+                | [] -> [ entry hash None ]
+                | names ->
+                  names |> List.map (fun (name, _) -> entry hash (Some name))
+            return DList(VT.known (PolicyToDT.Approval.knownType ()), entries)
           }
         | _ -> incorrectArgs ())
 
-    // Read-only policy metadata; see pmPolicyPackageAccess above.
+    // Read-only; the Workbench uses it to explain effective access.
     policyFn
-      "pmPolicyApprovedVersions"
-      [ accountParam ]
-      (TList(TTuple(TString, TString, [])))
-      ("Every logical function name this account has approved a version of, with the "
-       + "approved content hash (host metadata; hashes are not user-facing). Read-only.")
-      (fun _ args ->
+      "pmFnIsBundled"
+      [ Param.make "hash" TString "The immutable package-function hash" ]
+      TBool
+      "Whether a package function is bundled first-party code. Read-only."
+      (fun state args ->
         match args with
-        | [| accountIDDval |] ->
-          uply {
-            let approved =
-              PolicyStore.approvedVersions (accountIDOf accountIDDval)
-              |> Map.toList
-              |> List.map (fun (name, hash) ->
-                DTuple(DString name, DString hash, []))
-            return DList(VT.tuple VT.string VT.string [], approved)
-          }
+        | [| DString hash |] ->
+          uply { return DBool(state.isBundledPackageFn (Hash hash)) }
         | _ -> incorrectArgs ())
 
     hostOnly
-      "pmPolicyRevokePackage"
+      "pmPolicyWithdraw"
       [ accountParam
-        Param.make "hash" TString "The immutable package-function hash to revoke" ]
+        Param.make
+          "target"
+          (TCustomType(NR.ok (PolicyToDT.ApprovalTarget.typeName ()), []))
+          "A name, to withdraw its approved version; or a hash, to revoke its approval" ]
       TUnit
-      "Remove the local consumer approval for a package-function hash. Host-only."
+      ("Take an approval back. By name: withdraw the version approved for that "
+       + "logical function name; the hash's approval stays. By hash: remove the "
+       + "local consumer approval of that package-function hash, and the "
+       + "dependencies no other approved root still needs. Host-only.")
       (fun _ args ->
         match args with
-        | [| accountIDDval; DString hashStr |] ->
+        | [| accountIDDval; target |] ->
           uply {
-            // Dependency-aware revoke: drop only the policies no other approved
-            // root still needs (see PolicyStore.revokePackageRoot).
-            PolicyStore.revokePackageRoot (accountIDOf accountIDDval) hashStr
+            let accountID = accountIDOf accountIDDval
+            match PolicyToDT.ApprovalTarget.fromDT target with
+            | PolicyToDT.ApprovalTarget.Name location ->
+              PolicyStore.unapproveVersion accountID location
+            | PolicyToDT.ApprovalTarget.Hash hash ->
+              // Dependency-aware revoke: drop only the policies no other approved
+              // root still needs (see PolicyStore.revokePackageRoot).
+              PolicyStore.revokePackageRoot accountID hash
             return DUnit
           }
         | _ -> incorrectArgs ())
@@ -224,28 +241,6 @@ let fns () : List<BuiltInFn> =
           uply {
             let fingerprint = (builtinEffects state).fingerprint
             return DBool(PolicyStore.approvalsAreStale fingerprint)
-          }
-        | _ -> incorrectArgs ())
-
-    policyFn
-      "pmPolicyExplicitApproval"
-      [ accountParam
-        Param.make "hash" TString "The immutable package-function hash" ]
-      (TypeReference.option policyType)
-      ("The resource rules the consumer wrote when approving this version as a "
-       + "root, or None for a derived approval. Read-only.")
-      (fun _ args ->
-        match args with
-        | [| accountIDDval; DString hash |] ->
-          uply {
-            let policyKT = PolicyToDT.Policy.knownType ()
-            return
-              match
-                PolicyStore.explicitApproval (accountIDOf accountIDDval) hash
-              with
-              | Some policy ->
-                Dval.optionSome policyKT (PolicyToDT.Policy.toDT policy)
-              | None -> Dval.optionNone policyKT
           }
         | _ -> incorrectArgs ())
 
@@ -320,20 +315,6 @@ let fns () : List<BuiltInFn> =
                   KTUnit
                   failureKT
                   (PolicyToDT.ApprovalFailure.refused message)
-          }
-        | _ -> incorrectArgs ())
-
-    hostOnly
-      "pmPolicyUnapproveVersion"
-      [ accountParam; locationParam ]
-      TUnit
-      "Withdraw a logical function name's approved version. Host-only."
-      (fun _ args ->
-        match args with
-        | [| accountIDDval; DString location |] ->
-          uply {
-            PolicyStore.unapproveVersion (accountIDOf accountIDDval) location
-            return DUnit
           }
         | _ -> incorrectArgs ())
 
