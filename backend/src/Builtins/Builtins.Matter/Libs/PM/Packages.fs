@@ -88,36 +88,56 @@ let private persistPropagation
   }
 
 
-/// `pmGetLocationsBy{Type,Value,Fn}`: every name a hash is bound to, seen from <param branchId>.
+/// The `kind` parameter of `pmFind` and `pmLocations`. A function, not a value: its type is a package
+/// ref, which is not resolved yet when this module initializes.
+let private kindParam () : Param =
+  Param.make
+    "kind"
+    (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
+    "fn, type, value, trait, impl or test"
+
+
+/// `pmLocations`: every name a hash of <param kind> is bound to, seen from <param branchId>.
 ///
-/// One shape, three item kinds. Three answers, in order, because a hash with no live name still has to
-/// render as something better than `<hash:d6f972b3>`:
+/// Three answers, in order, because a hash with no live name still has to render as something better
+/// than `<hash:d6f972b3>`:
 ///
 /// 1. main's `locations`, via the PM;
 /// 2. the branch overlay -- a branch's SetNames never fold into `locations`, so a branch-authored item
 ///    has no row there at all;
 /// 3. a name it USED to have, main's record first and then the branch's. Reached when viewing a
 ///    superseded version, whose live name has moved on to the newer one.
-let private locationsByHashFn
-  (builtinName : string)
-  (itemWord : string)
-  (kind : PT.ItemKind)
-  (fromMain : PT.Hash -> Ply<List<PT.PackageLocation>>)
-  (everNamedOnMain : PT.Hash -> Ply<List<PT.PackageLocation>>)
-  : BuiltInFn =
-  { name = fn builtinName 0
+let private locationsFn (pm : PT.PackageManager) : BuiltInFn =
+  { name = fn "pmLocations" 0
     typeParams = []
     parameters =
       [ branchParam
+        kindParam ()
         Param.make "hash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) "" ]
     returnType = TList(TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []))
-    description = $"Returns all locations of a package {itemWord} by its hash"
+    description =
+      "Returns all locations of a package item of the given kind, by its hash"
     fn =
       (function
-      | _, _, _, [| DUuid branchId; hashDval |] ->
+      | _, _, _, [| DUuid branchId; kindDval; hashDval |] ->
         uply {
           let branch = branchOfParam branchId
+          let kind = PT2DT.ItemKind.fromDT kindDval
           let hash = PT2DT.Hash.fromDT hashDval
+
+          let fromMain, everNamedOnMain =
+            match kind with
+            | PT.ItemKind.Type ->
+              pm.getTypeLocations, PMPT.Type.getLocationsEverNamed
+            | PT.ItemKind.Value ->
+              pm.getValueLocations, PMPT.Value.getLocationsEverNamed
+            | PT.ItemKind.Fn -> pm.getFnLocations, PMPT.Fn.getLocationsEverNamed
+            | PT.ItemKind.Trait ->
+              pm.getTraitLocations, PMPT.Trait.getLocationsEverNamed
+            | PT.ItemKind.TraitImpl ->
+              pm.getTraitImplLocations, PMPT.TraitImpl.getLocationsEverNamed
+            | PT.ItemKind.Test ->
+              pm.getTestLocations, PMPT.Test.getLocationsEverNamed
 
           let! onMain = fromMain hash
           let named = LibDB.PackageManager.locationsFor branch kind hash onMain
@@ -145,22 +165,18 @@ let private locationsByHashFn
     deprecated = NotDeprecated }
 
 
-/// `pmFind{Type,Value,Fn}`: location -> hash, resolved against <param branchId>.
+/// `pmFind`: location -> hash for an item of <param kind>, resolved against <param branchId>.
 ///
-/// One shape, three item kinds. On a BRANCH, resolve against the overlay, so a name authored
-/// earlier on the same branch resolves. On main, read the store directly: the overlay PM memoizes
-/// its base, which goes stale across a long-lived process (the test harness shares one), and the
-/// direct finder (`PMPT.{Type,Value,Fn}.find`) has no cache to go stale.
-let private findByLocationFn
-  (builtinName : string)
-  (itemWord : string)
-  (findOnMain : PT.PackageLocation -> Ply<Option<PT.Hash>>)
-  (findOnBranch : PT.PackageManager -> PT.PackageLocation -> Ply<Option<PT.Hash>>)
-  : BuiltInFn =
-  { name = fn builtinName 0
+/// On a BRANCH, resolve against the overlay, so a name authored earlier on the same branch resolves. On
+/// main, read the store directly: the overlay PM memoizes its base, which goes stale across a long-lived
+/// process (the test harness shares one), and the direct finder (`PMPT.{Type,Value,Fn,...}.find`) has no
+/// cache to go stale.
+let private findFn () : BuiltInFn =
+  { name = fn "pmFind" 0
     typeParams = []
     parameters =
       [ branchParam
+        kindParam ()
         Param.make
           "location"
           (TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []))
@@ -168,19 +184,32 @@ let private findByLocationFn
     returnType =
       TypeReference.option (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
     description =
-      $"Tries to find a package {itemWord}, by location, and returns the ID if it exists"
+      "Tries to find a package item of the given kind, by location, and returns its hash if it exists"
     fn =
       (function
-      | _, _, _, [| DUuid branchId; location |] ->
+      | _, _, _, [| DUuid branchId; kindDval; location |] ->
         uply {
+          let kind = PT2DT.ItemKind.fromDT kindDval
           let location = PT2DT.PackageLocation.fromDT location
+          let branch = branchOfParam branchId
           let! result =
-            let branch = branchOfParam branchId
-
             if branch.IsMain then
-              findOnMain location
+              match kind with
+              | PT.ItemKind.Type -> PMPT.Type.find location
+              | PT.ItemKind.Value -> PMPT.Value.find location
+              | PT.ItemKind.Fn -> PMPT.Fn.find location
+              | PT.ItemKind.Trait -> PMPT.Trait.find location
+              | PT.ItemKind.TraitImpl -> PMPT.TraitImpl.find location
+              | PT.ItemKind.Test -> PMPT.Test.find location
             else
-              findOnBranch (LibDB.PackageManager.ptForBranch branch) location
+              let branchPM = LibDB.PackageManager.ptForBranch branch
+              match kind with
+              | PT.ItemKind.Type -> branchPM.findType location
+              | PT.ItemKind.Value -> branchPM.findValue location
+              | PT.ItemKind.Fn -> branchPM.findFn location
+              | PT.ItemKind.Trait -> branchPM.findTrait location
+              | PT.ItemKind.TraitImpl -> branchPM.findTraitImpl location
+              | PT.ItemKind.Test -> branchPM.findTest location
           return
             result
             |> Option.map PT2DT.Hash.toDT
@@ -253,10 +282,11 @@ let private toDList (xs : List<string>) : Dval =
 
 // TODO: review/reconsider the accessibility of these fns
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
-  [ // types
-    findByLocationFn "pmFindType" "type" PMPT.Type.find (fun branchPM loc ->
-      branchPM.findType loc)
+  [ // location -> hash, and hash -> every location, for any item kind
+    findFn ()
+    locationsFn pm
 
+    // types
     getByHashFn
       "pmGetType"
       "type"
@@ -266,9 +296,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
     // values
-    findByLocationFn "pmFindValue" "value" PMPT.Value.find (fun branchPM loc ->
-      branchPM.findValue loc)
-
     getByHashFn
       "pmGetValue"
       "value"
@@ -307,21 +334,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
     // traits and impls
-    findByLocationFn "pmFindTrait" "trait" PMPT.Trait.find (fun branchPM loc ->
-      branchPM.findTrait loc)
-
     getByHashFn
       "pmGetTrait"
       "trait"
       PT2DT.Trait.typeName
       pm.getTrait
       PT2DT.Trait.toDT
-
-    findByLocationFn
-      "pmFindTraitImpl"
-      "impl"
-      PMPT.TraitImpl.find
-      (fun branchPM loc -> branchPM.findTraitImpl loc)
 
     getByHashFn
       "pmGetTraitImpl"
@@ -588,9 +606,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
     // Functions
-    findByLocationFn "pmFindFn" "function" PMPT.Fn.find (fun branchPM loc ->
-      branchPM.findFn loc)
-
     getByHashFn
       "pmGetFn"
       "function"
@@ -640,7 +655,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               | owner :: modules ->
                 let location : PT.PackageLocation =
                   { owner = owner; modules = modules; name = fnName }
-                // Through the branch overlay, like `pmSearch` and the `pmFind*` trio. The closure `pm` is
+                // Through the branch overlay, like `pmSearch` and `pmFind`. The closure `pm` is
                 // MAIN's package manager; asked about a router authored on a branch it answers "No
                 // function named ..." about a fn that is plainly there.
                 let branchPM =
@@ -713,9 +728,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     // Tests are a separate package namespace: discoverable and executable,
     // but never returned as a callable production function.
-    findByLocationFn "pmFindTest" "test" PMPT.Test.find (fun branchPM loc ->
-      branchPM.findTest loc)
-
     getByHashFn
       "pmGetTest"
       "test"
@@ -828,59 +840,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "pmSearchNames" 0
-      typeParams = []
-      parameters =
-        [ branchParam
-          Param.make
-            "query"
-            (TCustomType(NR.ok (PT2DT.Search.SearchQuery.typeName ()), []))
-            "" ]
-      returnType =
-        TTuple(
-          TList TString,
-          TList TString,
-          [ TList TString
-            TList TString
-            TList TString
-            TList TString
-            TList TString ]
-        )
-      description =
-        "Search, returning only names: (direct submodules, types, values, fns, "
-        + "traits, impls, tests). Submodules are already reduced to the direct children of "
-        + "the query's module and sorted."
-      fn =
-        function
-        | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
-          uply {
-            let searchQuery = PT2DT.Search.SearchQuery.fromDT query
-            // Through the branch overlay: a branch is its ops laid over main, not a scope to walk up.
-            let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchId)
-            let! results = pm.search searchQuery
-
-            let submodules = directSubmodules searchQuery results
-
-            let names (locations : List<PT.LocatedItem<'a>>) =
-              locations |> List.map (fun i -> i.location.name)
-
-            return
-              DTuple(
-                toDList submodules,
-                toDList (names results.types),
-                [ toDList (names results.values)
-                  toDList (names results.fns)
-                  toDList (names results.traits)
-                  toDList (names results.impls)
-                  toDList (names results.tests) ]
-              )
-          }
-        | _ -> incorrectArgs ()
-      previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
-
-
     { name = fn "pmSearchNamesAndHashes" 0
       typeParams = []
       parameters =
@@ -900,8 +859,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description =
         "Search, returning (direct submodules, types, values, fns, traits, impls, "
         + "tests) "
-        + "as (name, hash) pairs. Like pmSearchNames but keeps each item's hash, "
-        + "which listings need for deprecation marks."
+        + "as (name, hash) pairs. Submodules are already reduced to the direct "
+        + "children of the query's module and sorted."
       fn =
         function
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
@@ -948,7 +907,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Location lookups — returns ALL locations for a hash
     // Hands the compiled instruction stream to Dark so it can be rendered there
     // (`PrettyPrinter.RuntimeTypes.instructions`). Data only: no formatting happens in F#, because a
     // disassembly listing is exactly the kind of thing Dark should own. The PT side needs no equivalent
@@ -980,49 +938,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
-
-
-    locationsByHashFn
-      "pmGetLocationsByType"
-      "type"
-      PT.ItemKind.Type
-      pm.getTypeLocations
-      PMPT.Type.getLocationsEverNamed
-
-    locationsByHashFn
-      "pmGetLocationsByValue"
-      "value"
-      PT.ItemKind.Value
-      pm.getValueLocations
-      PMPT.Value.getLocationsEverNamed
-
-    locationsByHashFn
-      "pmGetLocationsByFn"
-      "function"
-      PT.ItemKind.Fn
-      pm.getFnLocations
-      PMPT.Fn.getLocationsEverNamed
-
-    locationsByHashFn
-      "pmGetLocationsByTrait"
-      "trait"
-      PT.ItemKind.Trait
-      pm.getTraitLocations
-      PMPT.Trait.getLocationsEverNamed
-
-    locationsByHashFn
-      "pmGetLocationsByTraitImpl"
-      "impl"
-      PT.ItemKind.TraitImpl
-      pm.getTraitImplLocations
-      PMPT.TraitImpl.getLocationsEverNamed
-
-    locationsByHashFn
-      "pmGetLocationsByTest"
-      "test"
-      PT.ItemKind.Test
-      pm.getTestLocations
-      PMPT.Test.getLocationsEverNamed
 
 
     // Restore a name to existing content with a distinct, stamped override op.
