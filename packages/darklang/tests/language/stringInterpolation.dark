@@ -11,15 +11,24 @@ test interpolation =
       (let one = 1L in $"test {Stdlib.toString(one)}")
       |> Stdlib.Test.equal("test 1") ])
 
-test floatInterpolationRaises =
-  (let one = 1.0 in $"test {one}")
-  => raises
-    "Expected String in string interpolation, got a Float (1.0) instead. Try wrapping it with `Stdlib.toString`."
+test floatInterpolation =
+  (let one = 1.0 in $"test {one}") |> Stdlib.Test.equal("test 1.0")
 
-test int64InterpolationRaises =
-  (let one = 1L in $"test {one}")
-  => raises
-    "Expected String in string interpolation, got an Int64 (1) instead. Try wrapping it with `Stdlib.toString`."
+test int64Interpolation =
+  (let one = 1L in $"test {one}") |> Stdlib.Test.equal("test 1")
+
+type Point = { x: Int64 }
+
+impl ToString for Point =
+  let toString(p: Point): String = $"Point({p.x})"
+
+let display<'a: ToString>(value: 'a): String = $"value: {value}"
+
+test customAndGeneric =
+  Stdlib.Test.all(
+    [ $"{Point { x = 42L }}" |> Stdlib.Test.equal("Point(42)")
+      display(Point { x = 3L }) |> Stdlib.Test.equal("value: Point(3)")
+      display(7L) |> Stdlib.Test.equal("value: 7") ])
 
 test unboundVariableRaises =
   (let two = 2L in "test 1" == $"test {one}")

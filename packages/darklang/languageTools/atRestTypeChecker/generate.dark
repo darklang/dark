@@ -680,7 +680,7 @@ let inferString(
     Stdlib.List.map(segments, fun segment ->
       match segment with
       | StringText(_) -> nothing()
-      | StringInterpolation(e) -> check(scope, Model.Ty.TString, Site.Expression, e))
+      | StringInterpolation(e) -> check(scope, Model.Ty.TString, Site.InterpolatedSegment, e))
 
   (Model.Ty.TString, all(constraints))
 

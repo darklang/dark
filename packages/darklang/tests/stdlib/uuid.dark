@@ -10,6 +10,11 @@ test parse =
       |> Stdlib.Result.map(Stdlib.toString)
       |> Stdlib.Test.equal(Ok("11111111-2222-3333-4444-555555555555")) ])
 
+test toStringUsesLowercaseHyphenatedFormat =
+  Stdlib.Uuid.parse("3700ADBC-7A46-4FF4-81D3-45AFB03F6E2D")
+  |> Stdlib.Result.map(Stdlib.toString)
+  |> Stdlib.Test.equal(Ok("3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
+
 // bad format
 test parseRejectsBadFormat =
   Stdlib.Test.all(

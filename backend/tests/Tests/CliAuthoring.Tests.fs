@@ -1135,8 +1135,58 @@ let aReplacedImplementationIsNotPinned =
             "and the other was not pinned to the implementation the save replaced"
       })
 
+let interpolationPinsItsImplementation =
+  instanceTest "string interpolation pins its ToString implementation" (fun state ->
+    task {
+      do! start state
+      do! run state [ "type"; "Tests.Interp.Point"; "{ n: Int64 }" ]
+      do!
+        run
+          state
+          [ "impl"
+            "Tests.Interp"
+            "Stdlib.ToString for Point = let toString(p: Point): String = \"first\"" ]
+      do!
+        run
+          state
+          [ "fn"
+            "Tests.Interp.saved"
+            "(): String = $\"value: {Tests.Interp.Point { n = 1L }}\"" ]
+      do!
+        evals
+          state
+          "Tests.Interp.saved()"
+          "value: first"
+          "the saved interpolation runs"
+      do!
+        shows
+          state
+          [ "deps"; "uses"; "Tests.Interp.saved" ]
+          "Tests.Interp.Point.ToString.toString"
+          "the conversion is a saved dependency"
+      do!
+        run
+          state
+          [ "impl"
+            "Tests.InterpRival"
+            "Stdlib.ToString for Tests.Interp.Point = let toString(p: Tests.Interp.Point): String = \"rival\"" ]
+      do!
+        evals
+          state
+          "Tests.Interp.saved()"
+          "value: first"
+          "a newer implementation cannot change the saved interpolation"
+      do!
+        evals
+          state
+          "$\"value: {Tests.Interp.Point { n = 1L }}\""
+          "value: rival"
+          "a fresh interpolation sees the new implementation"
+    })
+
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
+    interpolationPinsItsImplementation
     traitsAreAuthoredListedAndDisambiguated
     aParseErrorChangesNothing
     aNameThatDisagreesWithTheDeclarationIsRefused
