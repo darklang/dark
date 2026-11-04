@@ -326,6 +326,12 @@ type Infix =
   | InfixFnCall of InfixFnName
   | BinOp of BinaryOperation
 
+/// An operator that can be a trait method: any infix one, unary minus, or `~`.
+type Operator =
+  | OpInfix of InfixFnName
+  | OpNegate
+  | OpBitwiseNot
+
 /// Darklang's available types
 /// - `Int64`
 /// - `List<T>`

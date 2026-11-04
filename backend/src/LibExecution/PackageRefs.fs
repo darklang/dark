@@ -488,6 +488,7 @@ module Type =
       let binaryOperation = p [] "BinaryOperation"
       let infixFnName = p [] "InfixFnName"
       let infix = p [] "Infix"
+      let operator = p [] "Operator"
       let pipeExpr = p [] "PipeExpr"
       let expr = p [] "Expr"
       let deprecation = p [] "Deprecation"
