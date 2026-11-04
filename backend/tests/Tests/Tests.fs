@@ -128,6 +128,7 @@ let main (args : string array) : int =
         Tests.Draft.tests
         Tests.PackageTests.tests
         Tests.Purge.tests
+        Tests.TestResultCache.tests
         Tests.Hashing.tests
         Tests.Config.tests
 

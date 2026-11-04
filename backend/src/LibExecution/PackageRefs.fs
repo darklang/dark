@@ -550,6 +550,11 @@ module Type =
       let private p addl = p ("AtRestTypeChecker" :: addl)
       let checkFailure = p [] "CheckFailure"
 
+    module PackageManager =
+      module Test =
+        let private p addl = p ("PackageManager" :: "Test" :: addl)
+        let resultKey = p [] "ResultKey"
+
   module PrettyPrinter =
     let private p addl = p ("PrettyPrinter" :: addl)
     module RuntimeTypes =
@@ -578,6 +583,9 @@ module Type =
 
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats"
+
+  module SCM =
+    let storeHealth = p [ "SCM"; "StoreHealth" ] "Counts"
 
 
 /// Traits are their own item kind, so their refs are their own table.

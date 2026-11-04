@@ -342,6 +342,44 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // What `SCM.StoreHealth` reports: counts only. Which of them a reload fixes is decided in Dark.
+    { name = fn "scmHealth" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType =
+        TCustomType(
+          NR.ok (FQTypeName.fqPackage (PackageRefs.Type.SCM.storeHealth ())),
+          []
+        )
+      description =
+        "Counts what is wrong with the store itself: ops stamped in the future, op tags "
+        + "naming a missing op or branch, ops that never folded, and live names bound to "
+        + "missing content. A count that cannot be taken is 0."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            let! c = LibDB.StoreHealth.counts ()
+            let typeName = FQTypeName.fqPackage (PackageRefs.Type.SCM.storeHealth ())
+            return
+              DRecord(
+                typeName,
+                typeName,
+                [],
+                Map
+                  [ "futureStamped", DInt64 c.futureStamped
+                    "orphanTags", DInt64 c.orphanTags
+                    "taggedToNothing", DInt64 c.taggedToNothing
+                    "unfolded", DInt64 c.unfolded
+                    "danglingBindings", DInt64 c.danglingBindings ]
+              )
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
     // Change which branch THIS process is on, without restarting it.
     //
     // Boot (`--branch`, or `current_branch`) covers the one-shot case, but it can't be the only way in:

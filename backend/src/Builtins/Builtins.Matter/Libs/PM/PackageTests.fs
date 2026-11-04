@@ -263,6 +263,36 @@ let private executeIsolatedTest
   }
 
 
+let private resultKeyType () =
+  TCustomType(
+    NR.ok (
+      FQTypeName.fqPackage (
+        PackageRefs.Type.LanguageTools.PackageManager.Test.resultKey ()
+      )
+    ),
+    []
+  )
+
+/// A `LanguageTools.PackageManager.Test.ResultKey` record, as the store keys on it.
+let private resultKeyFromDT (dv : Dval) : Option<LibDB.TestResults.Key> =
+  match dv with
+  | DRecord(_, _, _, fields) ->
+    match
+      Map.tryFind "test" fields,
+      Map.tryFind "runtime" fields,
+      Map.tryFind "branch" fields,
+      Map.tryFind "resultType" fields
+    with
+    | Some(DString test),
+      Some(DString runtime),
+      Some(DString branch),
+      Some(DString resultType) ->
+      Some
+        { test = test; runtime = runtime; branch = branch; resultType = resultType }
+    | _ -> None
+  | _ -> None
+
+
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "pmTestWithStoreSnapshot" 0
       typeParams = [ "a" ]
@@ -339,6 +369,54 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Native ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmTestResultGet" 0
+      typeParams = []
+      parameters = [ Param.make "key" (resultKeyType ()) "Which stored result" ]
+      returnType = TypeReference.option TString
+      description =
+        "The outcome `dark test run` stored under <param key>, or None if it has none. "
+        + "The store does not interpret the outcome."
+      fn =
+        (function
+        | _, _, _, [| keyDval |] ->
+          match resultKeyFromDT keyDval with
+          | Some key ->
+            uply {
+              let! outcome = LibDB.TestResults.get key
+              return outcome |> Option.map DString |> Dval.option KTString
+            }
+          | None -> incorrectArgs ()
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmTestResultPut" 0
+      typeParams = []
+      parameters =
+        [ Param.make "key" (resultKeyType ()) "Which stored result"
+          Param.make
+            "outcome"
+            TString
+            "The outcome to store, replacing any already there" ]
+      returnType = TUnit
+      description =
+        "Stores <param outcome> under <param key> in the `dark test run` result cache."
+      fn =
+        (function
+        | _, _, _, [| keyDval; DString outcome |] ->
+          match resultKeyFromDT keyDval with
+          | Some key ->
+            uply {
+              do! LibDB.TestResults.put key outcome
+              return DUnit
+            }
+          | None -> incorrectArgs ()
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
     { name = fn "pmTestIsCacheSafe" 0
