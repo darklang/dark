@@ -7,14 +7,32 @@ module Darklang.LanguageTools.AtRestTypeChecker.Environment
 // Convert builtin metadata into the types used by the checker.
 // --------------------
 
-/// Read the package type's hash stored in a record or enum value.
-/// Used to identify the standard Option and Result types from actual values.
-/// Return an empty hash for values that are neither package records nor enums.
-let typeHashOf(value: 'a): LanguageTools.ProgramTypes.Hash =
-  match LanguageTools.RuntimeTypes.reflect(value) with
-  | DEnum(Package(hash), _, _, _, _) -> hash
-  | DRecord(Package(hash), _, _, _) -> hash
-  | _ -> LanguageTools.ProgramTypes.Hash.Hash("")
+/// The hash of the standard type `Darklang.<modules>.<name>`, as <param branchId>
+/// binds it. Looked up by name, so the checker needs no runtime reflection to know
+/// Option, Result and Test.Result. A branch that renamed or moved one of them falls
+/// back to main's binding: a rename keeps the hash, so main's is still the type the
+/// values carry. A store with neither gets the empty hash, which matches nothing.
+let standardTypeHash(
+  branchId: Uuid,
+  modules: List<String>,
+  name: String)
+  : LanguageTools.ProgramTypes.Hash =
+  let location =
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang"
+        modules = modules
+        name = name }
+
+  match LanguageTools.PackageManager.Type.find(branchId, location) with
+  | Some(hash) -> hash
+  | None ->
+    let onMain =
+      LanguageTools.PackageManager.Type.find(
+        Darklang.SCM.Branch.mainBranchId, location)
+
+    match onMain with
+    | Some(hash) -> hash
+    | None -> LanguageTools.ProgramTypes.Hash.Hash("")
 
 /// Convert a builtin's runtime type metadata to the type-reference format used
 /// by package declarations. Preserve type arguments, names, and resolution errors;
@@ -395,7 +413,8 @@ let infixImplsFor(
     )
   | _ -> Stdlib.Option.Option.None
 
-/// Create an empty environment with the standard Option and Result type hashes.
+/// Create an empty environment with the standard Option, Result and Test.Result
+/// type hashes.
 /// Declarations are loaded later; builtin signatures are fetched as needed and
 /// their converted templates are cached when the solver first uses them.
 let builtins(branchId: Uuid): Model.Environment =
@@ -412,8 +431,9 @@ let builtins(branchId: Uuid): Model.Environment =
       dictKeyParameters = Dict {}
       callables = Dict {}
       declarationProblems = Dict {}
-      optionType = typeHashOf(Stdlib.Option.Option.None)
-      resultType = typeHashOf(Stdlib.Result.Result.Ok()) }
+      optionType = standardTypeHash(branchId, [ "Stdlib", "Option" ], "Option")
+      resultType = standardTypeHash(branchId, [ "Stdlib", "Result" ], "Result")
+      testResultType = standardTypeHash(branchId, [ "Stdlib", "Test" ], "Result") }
 
 
 /// <param env> with the batch's own traits and implementations visible.

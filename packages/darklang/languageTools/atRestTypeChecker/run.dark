@@ -242,7 +242,7 @@ let checkPackageOpsFrom(
   // An ordinary test's expected result type is part of its contract even when
   // the body never names it (or is ill-typed), so load the declaration
   // explicitly rather than relying on the body walk to find it.
-  let testResult = Environment.typeHashOf(Stdlib.Test.Result.Pass)
+  let testResult = builtins.testResultType
   let testResultRefs =
     if Stdlib.List.isEmpty(tests) then []
     else [ LanguageTools.ProgramTypes.Reference.PackageType(testResult) ]

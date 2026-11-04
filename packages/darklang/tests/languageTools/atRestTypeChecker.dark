@@ -3292,3 +3292,29 @@ test raisesTestsAreChecked =
         src([ "test raisesIllTyped = 8L + \"x\" => raises \"anything\"" ]),
         "raisesIllTyped")
       |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+// The checker finds the standard types by name. The hash it finds must be the one
+// their values carry, and a name nothing is bound to gives the empty hash.
+module StandardTypes =
+  let carried(value: 'a): Darklang.LanguageTools.ProgramTypes.Hash =
+    match Darklang.LanguageTools.RuntimeTypes.reflect(value) with
+    | DEnum(Package(hash), _, _, _, _) -> hash
+    | _ -> Darklang.LanguageTools.ProgramTypes.Hash.Hash("")
+
+  let byName(
+    modules: List<String>,
+    name: String)
+    : Darklang.LanguageTools.ProgramTypes.Hash =
+    Darklang.LanguageTools.AtRestTypeChecker.Environment.standardTypeHash(
+      Darklang.SCM.Branch.mainBranchId, modules, name)
+
+  test foundByName =
+    Stdlib.Test.all(
+      [ byName([ "Stdlib", "Option" ], "Option")
+        |> Stdlib.Test.equal(carried(Stdlib.Option.Option.None))
+        byName([ "Stdlib", "Result" ], "Result")
+        |> Stdlib.Test.equal(carried(Stdlib.Result.Result.Ok()))
+        byName([ "Stdlib", "Test" ], "Result")
+        |> Stdlib.Test.equal(carried(Stdlib.Test.Result.Pass))
+        byName([ "Stdlib", "Option" ], "NoSuchType")
+        |> Stdlib.Test.equal(Darklang.LanguageTools.ProgramTypes.Hash.Hash("")) ])
