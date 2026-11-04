@@ -60,7 +60,7 @@ let private cutoffFromDT (value : Dval) =
   | value -> Exception.raiseInternal "Invalid history cutoff" [ "value", value ]
 
 /// Persist a computed cascade on its branch and refresh the process overlay.
-let private persistPropagation
+let persistPropagation
   (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
   : Ply<unit> =
@@ -112,6 +112,130 @@ let private kindParam () : Param =
     "kind"
     (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
     "fn, type, value, trait, impl or test"
+
+
+/// What <param location> resolves to on <param branch>, for an item of <param kind>.
+let findOn
+  (branch : PT.BranchId)
+  (kind : PT.ItemKind)
+  (location : PT.PackageLocation)
+  : Ply<Option<PT.Hash>> =
+  if branch.IsMain then
+    match kind with
+    | PT.ItemKind.Type -> PMPT.Type.find location
+    | PT.ItemKind.Value -> PMPT.Value.find location
+    | PT.ItemKind.Fn -> PMPT.Fn.find location
+    | PT.ItemKind.Trait -> PMPT.Trait.find location
+    | PT.ItemKind.TraitImpl -> PMPT.TraitImpl.find location
+    | PT.ItemKind.Test -> PMPT.Test.find location
+  else
+    let branchPM = LibDB.PackageManager.ptForBranch branch
+    match kind with
+    | PT.ItemKind.Type -> branchPM.findType location
+    | PT.ItemKind.Value -> branchPM.findValue location
+    | PT.ItemKind.Fn -> branchPM.findFn location
+    | PT.ItemKind.Trait -> branchPM.findTrait location
+    | PT.ItemKind.TraitImpl -> branchPM.findTraitImpl location
+    | PT.ItemKind.Test -> branchPM.findTest location
+
+
+/// Bind <param location> to content already in the store, as a `Decision`/`Override`: on main
+/// folded, on a branch stored on its frontier as a 'resolution'. Refuses content that is not there,
+/// since a dangling binding fails at CALL time, far from the cause.
+let rebind
+  (branch : PT.BranchId)
+  (loc : PT.PackageLocation)
+  (kind : PT.ItemKind)
+  (hash : PT.Hash)
+  : Ply<Result<unit, string>> =
+  uply {
+    let! exists =
+      uply {
+        match kind with
+        | PT.ItemKind.Type ->
+          let! t = LibDB.PackageManager.pt.getType hash
+          return Option.isSome t
+        | PT.ItemKind.Fn ->
+          let! f = LibDB.PackageManager.pt.getFn hash
+          return Option.isSome f
+        | PT.ItemKind.Value ->
+          let! v = LibDB.PackageManager.pt.getValue hash
+          return Option.isSome v
+        | PT.ItemKind.Trait ->
+          let! t = LibDB.PackageManager.pt.getTrait hash
+          return Option.isSome t
+        | PT.ItemKind.TraitImpl ->
+          let! i = LibDB.PackageManager.pt.getTraitImpl hash
+          return Option.isSome i
+        | PT.ItemKind.Test ->
+          let! test = LibDB.PackageManager.pt.getTest hash
+          return Option.isSome test
+      }
+
+    if not exists then
+      return Error "no item with that hash in the store"
+    else
+      let reference = PT.Reference.fromHashAndKind (hash, kind)
+
+      // A repeated restore is a new binding decision, even if its hash existed before.
+      let decisionId =
+        let mods = String.concat "." loc.modules
+        let now = System.DateTime.UtcNow.ToString("o")
+        $"rebind:{loc.owner}.{mods}.{loc.name}:{hash}:{now}"
+
+      let ops =
+        [ PT.PackageOp.Decision(
+            decisionId,
+            loc,
+            "restore version",
+            PT.DecisionKind.Override reference
+          ) ]
+
+      if branch.IsMain then
+        let! _ = LibDB.Inserts.insertAndApplyOps ops
+        ()
+      else
+        // A rebind a person forced, on the branch's own record; see `op_branches.source`.
+        let! _ = LibDB.Branches.storeDeltaOpsFrom "resolution" branch ops
+        let! parentId = LibDB.Branches.parentOf branch
+        do! LibDB.Branches.recordNameBases branch parentId ops
+
+      return Ok()
+  }
+
+
+/// Repoint every caller of one of <param fromHashes> at <param toHash>, on <param branch>, persist
+/// the repoints, and say which names moved. Then reassert any repointed binding that replaying an
+/// existing op did not actually move: a repoint that dedupes into an op the log already holds folds
+/// nothing, and the name would be left where it was.
+let repoint
+  (branch : PT.BranchId)
+  (location : PT.PackageLocation)
+  (kind : PT.ItemKind)
+  (fromHashes : List<PT.Hash>)
+  (toHash : PT.Hash)
+  : Ply<Result<List<PT.PropagateRepoint>, string>> =
+  uply {
+    let! result = LibDB.Propagation.propagate branch location kind fromHashes toHash
+    match result with
+    | Error e -> return Error e
+    | Ok None -> return Ok []
+    | Ok(Some(propagationResult, ops)) ->
+      do! persistPropagation branch ops
+      let moved = propagationResult.repoints
+      let mutable failure = None
+      for r in moved do
+        if Option.isNone failure then
+          let! now = findOn branch r.toRef.kind r.location
+          if now <> Some r.toRef.hash then
+            let! rebound = rebind branch r.location r.toRef.kind r.toRef.hash
+            match rebound with
+            | Error e -> failure <- Some e
+            | Ok() -> ()
+      match failure with
+      | Some e -> return Error e
+      | None -> return Ok moved
+  }
 
 
 /// `pmLocations`: every name a hash of <param kind> is bound to, seen from <param branchId>.
@@ -209,24 +333,7 @@ let private findFn () : BuiltInFn =
           let kind = PT2DT.ItemKind.fromDT kindDval
           let location = PT2DT.PackageLocation.fromDT location
           let branch = branchOfParam branchId
-          let! result =
-            if branch.IsMain then
-              match kind with
-              | PT.ItemKind.Type -> PMPT.Type.find location
-              | PT.ItemKind.Value -> PMPT.Value.find location
-              | PT.ItemKind.Fn -> PMPT.Fn.find location
-              | PT.ItemKind.Trait -> PMPT.Trait.find location
-              | PT.ItemKind.TraitImpl -> PMPT.TraitImpl.find location
-              | PT.ItemKind.Test -> PMPT.Test.find location
-            else
-              let branchPM = LibDB.PackageManager.ptForBranch branch
-              match kind with
-              | PT.ItemKind.Type -> branchPM.findType location
-              | PT.ItemKind.Value -> branchPM.findValue location
-              | PT.ItemKind.Fn -> branchPM.findFn location
-              | PT.ItemKind.Trait -> branchPM.findTrait location
-              | PT.ItemKind.TraitImpl -> branchPM.findTraitImpl location
-              | PT.ItemKind.Test -> branchPM.findTest location
+          let! result = findOn branch kind location
           return
             result
             |> Option.map PT2DT.Hash.toDT
@@ -865,65 +972,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let loc = PT2DT.PackageLocation.fromDT locationDval
             let kind = PT2DT.ItemKind.fromDT itemKindDval
             let hash = PT2DT.Hash.fromDT hashDval
-
-            // Refuse to bind a name to content that isn't there. A dangling binding folds into a location
-            // row that resolves to nothing, which fails at CALL time, far from the cause.
-            let! exists =
-              uply {
-                match kind with
-                | PT.ItemKind.Type ->
-                  let! t = LibDB.PackageManager.pt.getType hash
-                  return Option.isSome t
-                | PT.ItemKind.Fn ->
-                  let! f = LibDB.PackageManager.pt.getFn hash
-                  return Option.isSome f
-                | PT.ItemKind.Value ->
-                  let! v = LibDB.PackageManager.pt.getValue hash
-                  return Option.isSome v
-                | PT.ItemKind.Trait ->
-                  let! t = LibDB.PackageManager.pt.getTrait hash
-                  return Option.isSome t
-                | PT.ItemKind.TraitImpl ->
-                  let! i = LibDB.PackageManager.pt.getTraitImpl hash
-                  return Option.isSome i
-                | PT.ItemKind.Test ->
-                  let! test = LibDB.PackageManager.pt.getTest hash
-                  return Option.isSome test
-              }
-
-            if not exists then
-              return
-                DString "no item with that hash in the store"
-                |> Dval.resultError KTUnit KTString
-            else
-              let reference = PT.Reference.fromHashAndKind (hash, kind)
-
-              // A repeated restore is a new binding decision, even if its hash existed before.
-              let decisionId =
-                let mods = String.concat "." loc.modules
-                let now = System.DateTime.UtcNow.ToString("o")
-                $"rebind:{loc.owner}.{mods}.{loc.name}:{hash}:{now}"
-
-              let ops =
-                [ PT.PackageOp.Decision(
-                    decisionId,
-                    loc,
-                    "restore version",
-                    PT.DecisionKind.Override reference
-                  ) ]
-
-              let branchId = branchOfParam branchGuid
-
-              if branchId.IsMain then
-                let! _ = LibDB.Inserts.insertAndApplyOps ops
-                ()
-              else
-                // A rebind a person forced, on the branch's own record; see `op_branches.source`.
-                let! _ = LibDB.Branches.storeDeltaOpsFrom "resolution" branchId ops
-                let! parentId = LibDB.Branches.parentOf branchId
-                do! LibDB.Branches.recordNameBases branchId parentId ops
-
-              return Dval.resultOk KTUnit KTString DUnit
+            match! rebind (branchOfParam branchGuid) loc kind hash with
+            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
+            | Error e -> return DString e |> Dval.resultError KTUnit KTString
           }
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -1385,7 +1436,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           (TList(TCustomType(NR.ok (PT2DT.PropagateRepoint.typeName ()), [])))
           TString
       description =
-        "Propagates an update to all dependents, creating new versions with updated references. Returns the repoints it made."
+        "Propagates an update to all dependents, creating new versions with updated references, and reasserts any repointed binding that replaying an existing op left where it was. Returns the repoints it made."
       fn =
         (function
         | _,
@@ -1403,33 +1454,21 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
             // The branch this propagation runs on, from the caller. Every Dark call site passes
             // `state.currentBranchId`, which is what keeps a branch's cascade off main.
-            let branch = branchOfParam branchId
-
             let! result =
-              LibDB.Propagation.propagate
-                branch
+              repoint
+                (branchOfParam branchId)
                 sourceLocation
                 sourceItemKind
                 fromSourceHashes
                 (PT2DT.Hash.fromDT toSourceHashDval)
 
             match result with
-            | Ok(Some(propagationResult, ops)) ->
-              // The repoints are the answer either way; where the OPS land is what differs.
+            | Ok repoints ->
               let repointsDval =
-                propagationResult.repoints
+                repoints
                 |> List.map PT2DT.PropagateRepoint.toDT
                 |> Dval.list (PT2DT.PropagateRepoint.knownType ())
-
-              do! persistPropagation branch ops
               return Dval.resultOk repointListKT KTString repointsDval
-            | Ok None ->
-              // No dependents: nothing moved, which is a result, not an error.
-              return
-                Dval.resultOk
-                  repointListKT
-                  KTString
-                  (Dval.list (PT2DT.PropagateRepoint.knownType ()) [])
             | Error errMsg ->
               return Dval.resultError repointListKT KTString (DString errMsg)
           }

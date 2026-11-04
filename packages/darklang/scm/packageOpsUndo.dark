@@ -45,13 +45,7 @@ let readRevisionOps(
     |> Stdlib.List.filter(fun((_, _, op)) -> revisionTouches(location, op))
   let parent =
     if SCM.Branch.isMain(scope) then [] else
-      let parentRows = Stdlib.Sqlite.queryP(
-        localDb(), "SELECT parent_id FROM branches WHERE id = @p0",
-        [ Stdlib.toString(scope) ]) |> Builtin.unwrap
-      let parentId = parentRows
-        |> Stdlib.List.head
-        |> Stdlib.Option.andThen(fun row -> Stdlib.Sqlite.textField(row, "parent_id"))
-        |> SCM.Branch.fromTextField
+      let parentId = branchParentOf(scope)
       let firstEdit = own |> Stdlib.List.head |> Stdlib.Option.map(fun((_, ts, _)) -> ts)
       let limit = match (cutoff, firstEdit) with
         | (Some(limit), Some(first)) -> Some(if limit < first then limit else first)

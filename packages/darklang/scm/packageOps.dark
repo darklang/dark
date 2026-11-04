@@ -7,9 +7,9 @@ module Darklang.SCM.PackageOps
 // beside it, one file per subject:
 //
 //   packageOpsBindings   what an op says about a name, and what a name holds now
-//   packageOpsDraft      stamping a draft into a commit, and dropping one
+//   packageOpsDraft      what the draft holds, the checks a commit runs, and dropping part of it
 //   packageOpsRepoints   which dependents an edit would move
-//   packageOpsMerge      commit, merge, rebase, archive, settle a conflict
+//   packageOpsMerge      commit, merge, rebase, archive, settle a conflict (the acts are `SCM.Actions`)
 //   packageOpsBranch     branch registry and frontier reads
 //   packageOpsCommits    the commit rows themselves
 //   packageOpsReferenceNames   rename preparation and saved reference names
@@ -169,21 +169,127 @@ let unbind(
       Stdlib.List.contains(hashes, LanguageTools.ProgramTypes.hashToString(v.hash))
     | _ -> false
 
-  if SCM.Branch.isMain(branchId) then
-    SCM.Draft.rewriteBy(fun draft ->
-      draft |> Stdlib.List.filter(fun d -> Stdlib.Bool.not(isOneOf(d.op))))
-  else
-    let ids =
-      decodeOpRowEntries(Branches.ownOpRows(branchId))
-      |> Stdlib.List.filterMap(fun((id, _, op)) ->
-        if isOneOf(op) then Stdlib.Option.Option.Some(id) else Stdlib.Option.Option.None)
+  // The draft's ops (on a branch, its own) that say one of these bindings, dropped as one action.
+  let rows =
+    if SCM.Branch.isMain(branchId) then
+      draftOpRowsFor(branchId)
+    else
+      Branches.ownOpRows(branchId)
 
-    dropBranchOps(branchId, ids)
+  let ids =
+    decodeOpRowEntries(rows)
+    |> Stdlib.List.filterMap(fun((id, _, op)) ->
+      if isOneOf(op) then Stdlib.Option.Option.Some(id) else Stdlib.Option.Option.None)
+
+  dropBranchOps(branchId, ids)
 
 
 // the op-log DATA-ACCESS SILO
-// This module OWNS every SQL query against `package_ops`. Callers (the `dark ops` CLI, doctor) go
-// through the typed functions below and never hand-roll SQL. There should be no op-log SQL outside here.
+// This module OWNS every read of `package_ops` and `op_branches`. Callers (the `dark ops` CLI, doctor) go
+// through the typed functions below and never hand-roll SQL. The reads go through one builtin,
+// `scmOps`, and the SQL lives with it in F# (`LibDB.ScmOps`), which also decodes the op blobs.
+// What to make of the answer stays here.
+
+
+/// Which ops `query` is asked for. Main versus branch is spelled out per case as before: main sees and
+/// owns the ops no branch has tagged, a branch the ops tagged to it.
+type OpFilter =
+  /// Every op in the log, newest first by when it landed here.
+  | Recent
+  /// The ops whose id starts with this, newest first.
+  | IdPrefix of prefix: String
+  /// The ops a commit holds, oldest first.
+  | InCommit of hash: String
+  /// `InCommit`, ids only.
+  | IdsInCommit of hash: String
+  /// The ops a branch can SEE (main's, plus its chain's own), newest first by insertion order.
+  | Visible of branchId: Uuid
+  /// The ids of the ops a branch can see that landed after <param since> (a `created_at`), or at it
+  /// too when <param andAtSince>, oldest first. See `idsLandedSince`.
+  | LandedSince of branchId: Uuid * since: String * andAtSince: Bool
+  /// The ids of the ops that landed at exactly this `created_at`.
+  | LandedAt of at: String
+  /// These ops, oldest first. An id the log does not hold is skipped.
+  | Ids of ids: List<String>
+  /// Every `BranchEvent` op.
+  | BranchEvents
+  /// The draft, oldest first: on main the uncommitted effective ops no branch tags, on a branch its
+  /// own uncommitted ops.
+  | Draft of branchId: Uuid
+  /// The draft's ids, sorted by id.
+  | DraftIds of branchId: Uuid
+  /// A branch's uncommitted ops that this instance authored rather than imported. Ids only.
+  | AuthoredDraft of branchId: Uuid
+  /// A branch's own tagged ops, oldest first, with `source` filled.
+  | Own of branchId: Uuid
+  /// A branch's own uncommitted ops. Ids only.
+  | OwnUncommitted of branchId: Uuid
+  /// Every op id tagged to a branch, read off the tags alone. Ids only.
+  | Tagged of branchId: Uuid
+  /// A branch's own ops that are not effective yet. Ids only.
+  | Unmerged of branchId: Uuid
+  /// A branch's uncommitted, inert ops: what discarding its draft deletes. Ids only.
+  | DiscardableDraft of branchId: Uuid
+  /// The ops a branch's chain shows it, oldest first: the branch's own, and what its ancestors below
+  /// main committed. An ancestor's draft stays its own.
+  | Chain of branchId: Uuid
+  /// `Chain`, committed ops only.
+  | ChainCommitted of branchId: Uuid
+  /// The uncommitted effective ops, tagged or not. Ids only.
+  | MainUncommitted
+  /// Every effective op, oldest first.
+  | Effective
+  /// One row whose `ts` is the next commit stamp: the log's latest stamp plus a second.
+  | NextStamp
+  /// One row whose `ts` is the log's latest stamp plus a second, or "" for an empty log.
+  | StampPastEverything
+  /// One row whose `ts` is the newest `created_at` among landed ops, or "".
+  | NewestLanded
+  /// One row whose `ts` is the store's clock, in `created_at` form.
+  | StoreNow
+
+
+/// One op-log row. `ts` is the authoring stamp, "" where the case does not read it; `sizeBytes` is the
+/// blob's size, 0 where the case does not read the blob; `source` is what put the op on the branch, for
+/// `Own` only.
+type OpRow =
+  { id: String
+    ts: String
+    sizeBytes: Int64
+    source: String
+    /// The op, decoded. None where the case reads ids only, and for an op this build cannot read.
+    op: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> }
+
+
+/// What `query` answers with. `total` counts every match when the limit was 0 (and `ops` is then
+/// empty); otherwise it is how many rows came back.
+type OpPage = { total: Int64, ops: List<OpRow> }
+
+
+/// The ops <param filter> selects, at most <param limit> of them; a negative limit means all of them,
+/// and 0 asks only for the count.
+let query(filter: OpFilter, limit: Int64): OpPage = Builtin.scmOps(filter, limit)
+
+
+/// Every row <param filter> selects.
+let rowsOf(filter: OpFilter): List<OpRow> = (query(filter, -1L)).ops
+
+
+/// The ids of every op <param filter> selects, in its order.
+let idsOf(filter: OpFilter): List<String> =
+  rowsOf(filter) |> Stdlib.List.map(fun r -> r.id)
+
+
+/// How many ops <param filter> selects.
+let countOf(filter: OpFilter): Int64 = (query(filter, 0L)).total
+
+
+/// The `ts` of a one-row stamp case.
+let stampOf(filter: OpFilter): String =
+  rowsOf(filter)
+  |> Stdlib.List.head
+  |> Stdlib.Option.map(fun r -> r.ts)
+  |> Stdlib.Option.withDefault("")
 
 
 /// A lightweight op-log row for display (no op_blob decode): what `dark ops` shows.

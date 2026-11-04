@@ -53,7 +53,7 @@ let prepareRename(branch: Uuid, oldLocation: LanguageTools.ProgramTypes.PackageL
     callers |> Stdlib.List.map(fun((hash, location, itemKind)) ->
       (location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(hash, itemKind))),
     (oldLocation, target)) |> Stdlib.List.unique
-  let stamp = Commits.nextStamp()
+  let stamp = stampOf(OpFilter.NextStamp)
   let snapshots = referenceSnapshots(branch, sources) |> Stdlib.List.map(fun snapshot ->
     let names = snapshot.names |> Stdlib.List.map(fun((reference, name)) ->
       (reference, if LanguageTools.ProgramTypes.Reference.kind(reference) == kind && name == Stdlib.Option.Option.Some(oldLocation) then
@@ -66,6 +66,6 @@ let prepareRename(branch: Uuid, oldLocation: LanguageTools.ProgramTypes.PackageL
 /// Restore a whole revision in one operation, so partial commits cannot split it.
 let restoreRevision(branch: Uuid, revision: Uuid, snapshot: LanguageTools.ProgramTypes.ReferenceNamesSnapshot): Stdlib.Result.Result<Unit, String> =
   let _ = add(branch, [ LanguageTools.ProgramTypes.PackageOp.Decision(
-    Commits.nextStamp(), snapshot.location, "undo",
+    stampOf(OpFilter.NextStamp), snapshot.location, "undo",
     LanguageTools.ProgramTypes.DecisionKind.Restore(revision, snapshot.target, snapshot.names)) ])?
   Stdlib.Result.Result.Ok(())

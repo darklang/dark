@@ -98,23 +98,11 @@ let dependentsOf(
 let mainLocationOf(
   h: String)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-  match
-    // main-scoped, on purpose: what MAIN names this hash; the overlay's names come from `branchOverlayBindings`.
-    Stdlib.Sqlite.queryOneP(
-      localDb(),
-      "SELECT owner, modules, name FROM locations
-       WHERE item_hash = @p0 AND unlisted_at IS NULL LIMIT 1",
-      [ h ])
-  with
-  | Some(row) ->
-    (match
-      (Stdlib.Sqlite.textField(row, "owner"),
-       Stdlib.Sqlite.textField(row, "modules"),
-       Stdlib.Sqlite.textField(row, "name"))
-     with
-     | (Some(o), Some(m), Some(n)) -> Stdlib.Option.Option.Some(locationOf(o, m, n))
-     | _ -> Stdlib.Option.Option.None)
-  | None -> Stdlib.Option.Option.None
+  // main-scoped, on purpose: what MAIN names this hash; the overlay's names come
+  // from `branchOverlayBindings`.
+  SCM.Bindings.query(SCM.Bindings.BindingFilter.MainLocationOf(h))
+  |> Stdlib.List.head
+  |> Stdlib.Option.map(fun b -> locationOf(b.owner, b.modules, b.name))
 
 /// Resolve hashes to a location, for display. A hash can be live at several names; this takes one, since
 /// the callers are rendering a label rather than driving a cascade.

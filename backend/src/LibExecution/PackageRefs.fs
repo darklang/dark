@@ -591,6 +591,45 @@ module Type =
     /// What `scmDeps` is asked, and what it answers with.
     let depQuery = p [ "SCM"; "Deps" ] "DepQuery"
     let depEdge = p [ "SCM"; "Deps" ] "DepEdge"
+    /// What `scmBindings` is asked, and what it answers with.
+    let bindingFilter = p [ "SCM"; "Bindings" ] "BindingFilter"
+    let bindingRow = p [ "SCM"; "Bindings" ] "BindingRow"
+    /// What `scmBranches` is asked, and what it answers with.
+    let branchFilter = p [ "SCM"; "Branches" ] "BranchFilter"
+    let branchInfo = p [ "SCM"; "Branches" ] "BranchInfo"
+    let nameBase = p [ "SCM"; "Conflicts" ] "NameBase"
+
+    /// What `scmCommits` is asked, and what it answers with.
+    let commitFilter = p [ "SCM"; "Commits" ] "CommitFilter"
+    let commitPage = p [ "SCM"; "Commits" ] "CommitPage"
+    let commit = p [ "SCM"; "Commits" ] "Commit"
+
+    /// What `scmConflicts` is asked, and what it answers with.
+    let conflictFilter = p [ "SCM"; "Conflicts" ] "ConflictFilter"
+    let conflictRow = p [ "SCM"; "Conflicts" ] "ConflictRow"
+
+    /// What `scmOps` is asked, and what it answers with.
+    let opFilter = p [ "SCM"; "PackageOps" ] "OpFilter"
+    let opPage = p [ "SCM"; "PackageOps" ] "OpPage"
+    let opRow = p [ "SCM"; "PackageOps" ] "OpRow"
+
+    /// The SCM actions (`scmCommit`, `scmBranch`, `scmMerge`, `scmDiscard`, `scmResolve`): what
+    /// they are asked and what they answer.
+    let refusal = p [ "SCM"; "Actions" ] "Refusal"
+    let failure = p [ "SCM"; "Actions" ] "Failure"
+    let commitRequest = p [ "SCM"; "Actions" ] "CommitRequest"
+    let committed = p [ "SCM"; "Actions" ] "Committed"
+    let branchAction = p [ "SCM"; "Actions" ] "BranchAction"
+    let branchDone = p [ "SCM"; "Actions" ] "BranchDone"
+    let mergeAction = p [ "SCM"; "Actions" ] "MergeAction"
+    let reconciled = p [ "SCM"; "Actions" ] "Reconciled"
+    let discardWhat = p [ "SCM"; "Actions" ] "DiscardWhat"
+    let resolution = p [ "SCM"; "Actions" ] "Resolution"
+    let detectRequest = p [ "SCM"; "Actions" ] "DetectRequest"
+
+    /// A conflict as Dark holds it, which `scmMerge` and `scmDetect` answer with.
+    let conflict = p [ "SCM"; "Conflicts" ] "Conflict"
+    let candidate = p [ "SCM"; "Conflicts" ] "Candidate"
 
 
 /// Traits are their own item kind, so their refs are their own table.

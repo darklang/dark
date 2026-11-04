@@ -1,23 +1,21 @@
 module Darklang.SCM.Tests.Lww
 
-// The last-writer-wins rule, pinned on the DARK side.
+// The last-writer-wins rule, asked through the name Dark callers use.
 //
-// `SCM.Conflicts.incomingWins` decides which side a recorded conflict names as the
-// winner. The op-fold decides the same question in F# (`LibExecution.Lww`, called
-// from `PackageOpPlayback`). If the two disagree, a conflict names a winner the
-// fold did not pick, and two instances converge on different content with nothing
-// to say so.
-//
-// The rows below are the SAME rows as `backend/tests/Tests/Lww.Tests.fs`, case
-// for case. Change one, change both.
-//
-// What actually holds the two implementations together is `Tests.Lww`, which runs
-// the Dark rule below over its own table through `evalDarkExpr`. These rows are a
-// second statement of the same table: they prove the rule from inside Dark, and
-// they are the ones to read to see what the rule IS, but they are not what would
-// catch the two sides drifting apart.
+// There is one rule, `LibExecution.Lww`, and the fold, conflict detection and
+// `SCM.Conflicts.beats` all ask it. These rows are the SAME rows as
+// `backend/tests/Tests/Lww.Tests.fs`, case for case: they prove the Dark name reaches the
+// rule with its arguments the right way round, and they are the ones to read to see what
+// the rule IS.
 
 module Wins =
+  /// Does the INCOMING binding beat the LOCAL one?
+  let incomingWins(
+    incoming: Darklang.SCM.Conflicts.Binding,
+    local: Darklang.SCM.Conflicts.Binding)
+    : Bool =
+    Darklang.SCM.Conflicts.beats(incoming.originTs, incoming.hash, local.originTs, local.hash)
+
   let b(ts: String, h: String): Darklang.SCM.Conflicts.Binding =
     Darklang.SCM.Conflicts.Binding
       { owner = "Zz"
@@ -32,11 +30,11 @@ module Wins =
   // A later stamp wins, whatever the hashes are.
   test laterStampWins =
     Stdlib.Test.all(
-      [ Darklang.SCM.Conflicts.incomingWins(
+      [ Wins.incomingWins(
           b("2026-01-02T00:00:00.000Z", "aaaa"),
           b("2026-01-01T00:00:00.000Z", "ffff"))
         |> Stdlib.Test.equal(true)
-        Darklang.SCM.Conflicts.incomingWins(
+        Wins.incomingWins(
           b("2026-01-01T00:00:00.000Z", "ffff"),
           b("2026-01-02T00:00:00.000Z", "aaaa"))
         |> Stdlib.Test.equal(false) ])
@@ -44,18 +42,18 @@ module Wins =
   // An exact tie goes to the HIGHER hash. Portable, so every instance picks the same side.
   test tieGoesToHigherHash =
     Stdlib.Test.all(
-      [ Darklang.SCM.Conflicts.incomingWins(
+      [ Wins.incomingWins(
           b("2026-01-01T00:00:00.000Z", "ffff"),
           b("2026-01-01T00:00:00.000Z", "aaaa"))
         |> Stdlib.Test.equal(true)
-        Darklang.SCM.Conflicts.incomingWins(
+        Wins.incomingWins(
           b("2026-01-01T00:00:00.000Z", "aaaa"),
           b("2026-01-01T00:00:00.000Z", "ffff"))
         |> Stdlib.Test.equal(false) ])
 
   // A live binding with no stamp cannot defend itself.
   test unstampedLocalLoses =
-    Darklang.SCM.Conflicts.incomingWins(
+    Wins.incomingWins(
       b("2026-01-01T00:00:00.000Z", "aaaa"),
       b("", "ffff"))
     |> Stdlib.Test.equal(true)
@@ -63,11 +61,11 @@ module Wins =
   // Stamps are `yyyy-MM-ddTHH:mm:ss.fffZ`, so lexical comparison is already chronological.
   test lexicalIsChronological =
     Stdlib.Test.all(
-      [ Darklang.SCM.Conflicts.incomingWins(
+      [ Wins.incomingWins(
           b("2026-01-01T00:00:00.002Z", "aaaa"),
           b("2026-01-01T00:00:00.001Z", "ffff"))
         |> Stdlib.Test.equal(true)
-        Darklang.SCM.Conflicts.incomingWins(
+        Wins.incomingWins(
           b("2026-01-01T00:00:59.999Z", "aaaa"),
           b("2026-01-01T00:01:00.000Z", "aaaa"))
         |> Stdlib.Test.equal(false) ])
@@ -76,7 +74,7 @@ module Wins =
   // an op with no stamp cannot claim recency, and letting it win would let a malformed record beat
   // real history.
   test unstampedIncomingLoses =
-    Darklang.SCM.Conflicts.incomingWins(
+    Wins.incomingWins(
       b("", "ffff"),
       b("2026-01-01T00:00:00.000Z", "aaaa"))
     |> Stdlib.Test.equal(false)
@@ -85,7 +83,7 @@ module Wins =
   // keeps what it has and its earliest stamp, and recording never sees this at all, since equal
   // hashes are not a conflict.
   test sameBindingLoses =
-    Darklang.SCM.Conflicts.incomingWins(
+    Wins.incomingWins(
       b("2026-01-01T00:00:00.000Z", "aaaa"),
       b("2026-01-01T00:00:00.000Z", "aaaa"))
     |> Stdlib.Test.equal(false)

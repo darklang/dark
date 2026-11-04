@@ -490,7 +490,7 @@ let private applySetNameFrom
     let isStale =
       match curBinding, thisTs with
       // Different hash, both stamped: the LWW rule (incl. the portable higher-hash
-      // tie-break) lives in `LibExecution.Lww`, shared with `SCM.Conflicts.incomingWins`;
+      // tie-break) lives in `LibExecution.Lww`, shared with conflict detection (`LibDB.ScmDetect`);
       // `Tests.Lww` asserts they agree.
       | Some(curHash, Some curTs), Some t when curHash <> itemHashStr ->
         Lww.isStale t itemHashStr curTs curHash

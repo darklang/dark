@@ -261,8 +261,7 @@ let selectedReview(state: AppState, all: Review, names: List<String>): Review =
     | Error(_) -> all
     | Ok((ids, _)) ->
       let rows = SCM.PackageOps.draftOpRowsFor(SCM.PackageOps.currentBranch())
-        |> Stdlib.List.filter(fun row ->
-          Stdlib.Sqlite.textField(row, "id") |> Stdlib.Option.map(fun id -> Stdlib.List.contains(ids, id)) |> Stdlib.Option.withDefault(false))
+        |> Stdlib.List.filter(fun row -> Stdlib.List.contains(ids, row.id))
       let words = SCM.PackageOps.draftEntriesFromOpRows(rows)
       let bindings = words |> Stdlib.List.filterMap(fun word -> word.binding)
       let previous = previousHashesOfAll(state.currentBranchId, bindings)
@@ -318,18 +317,27 @@ let commitSelected(
     else
       let moved = propagateAll(state, r)
 
-      let parent = SCM.PackageOps.parentCommitFor(state.currentBranchId)
-      let hash = SCM.Commits.create(message, Stdlib.List.sort(opIds), parent)
-      let committed = SCM.PackageOps.stampDraftOps(hash, opIds)
-
+      // The commit and its stamping are one action; it re-applies the draft predicate to the ids, so a
+      // stale one -- already committed, or a branch's -- is never swept in, and it writes nothing when
+      // none of them is still in the draft.
+      //
+      // The PROCESS's branch, not `state.currentBranchId`: the review and the unresolved/type checks
+      // all read `currentBranch()`, and stamping one branch after checking another is how a commit
+      // would record what nobody looked at.
+      match
+        SCM.PackageOps.commitOn(
+          SCM.PackageOps.currentBranch(),
+          message,
+          SCM.Actions.CommitScope.Only(opIds),
+          false)
+      with
       // A selection that matched rows and then committed none of them means the ids went stale between
       // planning and stamping. Say so rather than report a commit that holds nothing.
-      if committed == 0L then
-        let _ = SCM.Commits.delete(hash)
-
+      | Error(Refused(NothingToCommit)) ->
         Stdlib.Result.Result.Error(
           "nothing was committed -- the draft moved while this ran. Try again.")
-      else
+      | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
+      | Ok(c) ->
         let _ =
           if Stdlib.List.isEmpty(pulledIn) then
             ()
@@ -338,7 +346,7 @@ let commitSelected(
             Cli.Stderr.ok(
               $"  also committed (needed by what you named): {Stdlib.String.join(pulledIn, ", ")}")
 
-        Stdlib.Result.Result.Ok((hash, committed, moved))
+        Stdlib.Result.Result.Ok((c.hash, c.stamped, moved))
 
 /// Commit the whole draft. Propagate FIRST, so the repoint ops land in this commit rather than dangling as
 /// a fresh draft the moment you finished committing.
@@ -346,18 +354,22 @@ let commit(
   state: AppState,
   r: Review,
   message: String)
-  : (String * Int64 * Int) =
+  : Stdlib.Result.Result<(String * Int64 * Int), String> =
   let moved = propagateAll(state, r)
 
-  // Collapse BEFORE committing. Until now every version in the draft is reachable (`undo` steps through
-  // them), but a commit is what other machines read, and five namings of one function -- four of them
-  // describing a version nobody else ever saw -- are not history.
-  let _ = SCM.PackageOps.collapseDraft()
-
-  let parent = SCM.PackageOps.parentCommitFor(state.currentBranchId)
-  let hash = SCM.Commits.create(message, SCM.PackageOps.draftOpIds(), parent)
-  let committed = SCM.PackageOps.stampDraft(hash)
-  (hash, committed, moved)
+  // Collapse BEFORE committing (`collapse = true`, main only). Until now every version in the draft is
+  // reachable (`undo` steps through them), but a commit is what other machines read, and five namings of
+  // one function -- four of them describing a version nobody else ever saw -- are not history.
+  // The process's branch, the one the checks read (see `commitSelected`).
+  match
+    SCM.PackageOps.commitOn(
+      SCM.PackageOps.currentBranch(),
+      message,
+      SCM.Actions.CommitScope.Whole,
+      true)
+  with
+  | Ok(c) -> Stdlib.Result.Result.Ok((c.hash, c.stamped, moved))
+  | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
 
 let executeJson(state: AppState, args: List<String>): AppState =
   let parsed = parseArgs(ScmJson.stripJson(args))
@@ -391,24 +403,27 @@ let executeJson(state: AppState, args: List<String>): AppState =
   let refusal =
     if SCM.PackageOps.draftOpCount() == 0L then "nothing-to-commit" else quietRefusal()
 
-  let (didCommit, hash, ops, moved) =
+  // `failure` is a commit that was asked for (`-y`) and did not happen. It is not a refusal: the
+  // checks passed and the store said no, so the JSON still says `committed: false`, the reason
+  // goes to stderr, and the exit code is 1 -- `dark commit --json -y && dark push` must stop.
+  let (didCommit, hash, ops, moved, failure) =
     // Ask the DRAFT, not the changed-bindings list, for the same reason `executePretty` does: a
     // draft holding only a `Deprecate` binds no name and is still not empty.
     if SCM.PackageOps.draftOpCount() == 0L then
-      (false, "", 0L, 0)
+      (false, "", 0L, 0, "")
     else if refusal != "" then
-      (false, "", 0L, 0)
+      (false, "", 0L, 0, "")
     else if parsed.autoConfirm then
       match
         (if Stdlib.List.isEmpty(parsed.include) then
-           Stdlib.Result.Result.Ok(commit(state, r, parsed.message))
+           commit(state, r, parsed.message)
          else
            commitSelected(state, r, parsed.message, parsed.include))
       with
-      | Ok((h, n, m)) -> (true, h, n, m)
-      | Error(_) -> (false, "", 0L, 0)
+      | Ok((h, n, m)) -> (true, h, n, m, "")
+      | Error(e) -> (false, "", 0L, 0, e)
     else
-      (false, "", 0L, 0)
+      (false, "", 0L, 0, "")
 
   Stdlib.printLine((
     ScmJson.commitJson((
@@ -427,7 +442,11 @@ let executeJson(state: AppState, args: List<String>): AppState =
     ))
   ))
 
-  state
+  if failure == "" then
+    state
+  else
+    Cli.printErr(failure)
+    { state with exitCode = 1 }
 
 /// Refuse a commit that would put an unresolvable reference into history, and say which names.
 ///
@@ -627,7 +646,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
     else
       let outcome =
         if Stdlib.List.isEmpty(parsed.include) then
-          Stdlib.Result.Result.Ok(commit(state, r, parsed.message))
+          commit(state, r, parsed.message)
         else
           commitSelected(state, r, parsed.message, parsed.include)
 

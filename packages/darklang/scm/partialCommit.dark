@@ -24,6 +24,16 @@ type Selected =
     ts: String
     metadataBefore: Stdlib.Option.Option<String> }
 
+/// Is stamp <param a> after stamp <param b>? Stamps are fixed-width ISO text, so the ordinal order
+/// `Stdlib.List.sort` uses is chronological.
+let stringGt(a: String, b: String): Bool =
+  if a == b then
+    false
+  else
+    match Stdlib.List.sort([ a, b ]) with
+    | [ lower, _ ] -> lower == b
+    | _ -> false
+
 /// `owner.modules.name` for a location, which is what a person types at `--include=`.
 let fqnOf(location: LanguageTools.ProgramTypes.PackageLocation): String =
   let parts =
@@ -178,7 +188,7 @@ let closeOverNamings(entries: List<SCM.PackageOps.DraftEntry>, namings: List<Sel
     let matches(naming: Selected): Bool =
       let sameVersion = naming.fqn == name && naming.hash == hash && naming.itemType == kind
       let earlyEnough = match before with
-        | Some(stamp) -> Stdlib.Bool.not(SCM.Conflicts.stringGt(naming.ts, stamp))
+        | Some(stamp) -> Stdlib.Bool.not(stringGt(naming.ts, stamp))
         | None -> true
       sameVersion && earlyEnough
     match namings |> Stdlib.List.filter(matches) |> Stdlib.List.last with
@@ -188,7 +198,7 @@ let closeOverNamings(entries: List<SCM.PackageOps.DraftEntry>, namings: List<Sel
       // and appear as outstanding edits after the newer version is committed.
       namings |> Stdlib.List.filter(fun naming ->
         naming.fqn == name && naming.itemType == kind
-        && Stdlib.Bool.not(SCM.Conflicts.stringGt(naming.ts, chosen.ts)))
+        && Stdlib.Bool.not(stringGt(naming.ts, chosen.ts)))
       |> Stdlib.List.map(fun naming -> { naming with metadataBefore = before })
   let walk(pending: List<Selected>, selected: List<Selected>): List<Selected> =
     let ids = pending |> Stdlib.List.map(fun naming -> naming.opId)

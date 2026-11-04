@@ -26,13 +26,6 @@ let ensureAuthoringClockIsCurrent () : Task<unit> =
 
 
 
-/// Decode an op_blob into a PackageOp. The one F# primitive Dark needs to read STRUCTURED ops, since
-/// the binary format is not Dark-decodable; the query that selects the blobs is Dark. `id` is error
-/// context only.
-let deserializeOp (id : System.Guid) (opBlob : byte[]) : PT.PackageOp =
-  BS.PT.PackageOp.deserialize id opBlob
-
-
 /// A dependency relationship between package items.
 /// For dependents: itemHash is the item that has the dependency.
 /// For dependencies: itemHash is what the item depends on.

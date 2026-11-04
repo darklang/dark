@@ -1,0 +1,197 @@
+module Darklang.SCM.Actions
+
+// The SCM ACTIONS: everything that writes the SCM tables, one builtin per action, each a whole
+// operation run in F# (`LibDB.ScmActions`), in one transaction wherever the work allows it.
+//
+// What stays in Dark is everything around an action: whether it is wanted, the checks it has to pass
+// first (type check, unresolved names, constraints, what a selection pulls in), and every sentence a
+// person reads about it. The wrappers callers use keep their names (`SCM.PackageOps.mergeBranch`,
+// `SCM.PackageOps.discardDraft`, ...); they map onto the functions below.
+
+
+/// Why an action did nothing. A state the store or the request is in, which the caller words.
+type Refusal =
+  /// The request named no op still in the draft.
+  | NothingToCommit
+  /// Main has no parent to merge into, no name to change, nothing to archive.
+  | IsMain
+  /// The branch holds no ops.
+  | NothingToMerge
+  /// Unmerged, unarchived branches sit under it.
+  | HasActiveChildren
+  /// Another branch that is not archived goes by that name.
+  | NameTaken
+  /// The branch does not bind that name.
+  | NotBound
+  /// No conflict has that id.
+  | NoSuchConflict
+  /// That side of the conflict has no version to bind.
+  | NoVersion
+  /// The conflict names a part of a declaration this build cannot read.
+  | UnreadablePart of part: String
+  /// The draft or the branch kept changing while the action ran, so nothing was changed.
+  | Moved
+
+/// What stopped an action: a refusal, or the store (or authoring) failing partway, before anything
+/// past the failed step happened.
+type Failure =
+  | Refused of Refusal
+  | Failed of message: String
+
+
+/// Which part of the draft a commit takes.
+type CommitScope =
+  /// All of it.
+  | Whole
+  /// These ops, if still in the draft. The commit id is minted over them sorted.
+  | Only of opIds: List<String>
+
+type CommitRequest =
+  { branchId: Uuid
+    message: String
+    scope: CommitScope
+    /// Drop superseded namings from main's draft first. A rewrite of its own, finished before the
+    /// commit starts.
+    collapse: Bool }
+
+type Committed =
+  { hash: String
+    /// How many ops it holds.
+    stamped: Int64
+    /// The commit it follows, "" for the first in this store.
+    parent: String }
+
+
+type BranchAction =
+  /// The live branch called <param name>, started off <param parentId> if none is.
+  | Start of name: String * parentId: Uuid
+  | Rename of branchId: Uuid * name: String
+  /// Move this process onto the branch, and store it for the next command.
+  | Switch of branchId: Uuid
+  /// Discard the branch's unmerged work and put it away; other machines learn it from the event.
+  | Archive of branchId: Uuid
+
+type BranchDone =
+  { id: Uuid
+    /// `Start` only: this call created it.
+    created: Bool }
+
+
+/// One caller of a name the parent moved, to repoint at the parent's version. Which callers are
+/// outdated is `SCM.Constraints`'s answer.
+type Repoint =
+  { /// The caller, dotted, as the rebase reports it.
+    usage: String
+    dependency: LanguageTools.ProgramTypes.PackageLocation
+    kind: LanguageTools.ProgramTypes.ItemKind
+    fromHash: LanguageTools.ProgramTypes.Hash
+    toHash: LanguageTools.ProgramTypes.Hash }
+
+type MergeAction =
+  | IntoParent of branchId: Uuid
+  | Rebase of branchId: Uuid * repoints: List<Repoint>
+  /// The conflicts a merge would record. Writes nothing.
+  | Preview of branchId: Uuid
+
+type Reconciled =
+  { /// How many ops a merge moved.
+    moved: Int64
+    conflicts: List<SCM.Conflicts.Conflict>
+    /// Rebase: names the parent changed that the branch also changed.
+    diverged: List<String>
+    /// Rebase: the branch's callers now pointing at the parent's version.
+    repointed: List<String>
+    /// A merge into main: the commit holding what it landed, or "".
+    commit: String
+    /// Something that went wrong after the action landed, or "": a merge whose values then failed
+    /// to evaluate has still merged.
+    warning: String }
+
+
+/// Which part of a draft a discard drops.
+type DiscardWhat =
+  | All
+  /// One name's uncommitted bindings; its content stays.
+  | Name of location: LanguageTools.ProgramTypes.PackageLocation
+  /// Superseded namings, keeping the one that wrote what each name holds now. Main only.
+  | Collapse
+  /// Exactly these ops.
+  | Ops of opIds: List<String>
+
+
+type Resolution =
+  /// Keep the branch's version of a name: it wins on merge.
+  | KeepMine of branchId: Uuid * owner: String * modules: String * name: String
+  /// Take the parent's version: drop the branch's binding.
+  | TakeTheirs of branchId: Uuid * owner: String * modules: String * name: String
+  /// Bind the conflicted name to <param hash>, and repoint what followed the other version.
+  | Override of branchId: Uuid * conflictId: String * hash: String
+  /// End the name again. <param previous> is what it holds now.
+  | TakeRemoval of
+    branchId: Uuid *
+    conflictId: String *
+    previous: Stdlib.Option.Option<String>
+  /// Say the chosen wording, for a doc divergence.
+  | Reword of branchId: Uuid * conflictId: String * text: String
+  /// The auto-pick stands.
+  | Ack of conflictId: String
+  /// Settled by events: the name has since moved to <param liveHash>.
+  | Supersede of conflictId: String * liveHash: String
+
+
+/// Both sides of a reconciliation, for `detect`.
+type DetectRequest =
+  { localLabel: String
+    incomingLabel: String
+    local: List<SCM.Conflicts.Binding>
+    incoming: List<SCM.Conflicts.Binding>
+    bases: List<SCM.Conflicts.NameBase>
+    removals: List<SCM.Conflicts.Removal> }
+
+
+/// Commit what <param request> names.
+let commit(request: CommitRequest): Stdlib.Result.Result<Committed, Failure> =
+  Builtin.scmCommit(request)
+
+let branch(action: BranchAction): Stdlib.Result.Result<BranchDone, Failure> =
+  Builtin.scmBranch(action)
+
+let merge(action: MergeAction): Stdlib.Result.Result<Reconciled, Failure> =
+  Builtin.scmMerge(action)
+
+/// Drop part of <param branchId>'s draft. Ok is how many ops went.
+let discard(
+  branchId: Uuid,
+  what: DiscardWhat)
+  : Stdlib.Result.Result<Int64, Failure> =
+  Builtin.scmDiscard(branchId, what)
+
+let resolve(resolution: Resolution): Stdlib.Result.Result<Unit, Failure> =
+  Builtin.scmResolve(resolution)
+
+/// The conflicts between two sides, each naming the winner the fold picks.
+let detect(request: DetectRequest): List<SCM.Conflicts.Conflict> =
+  Builtin.scmDetect(request)
+
+/// Does the side stamped <param aTs> / hashed <param aHash> beat the other under last-writer-wins?
+let beats(aTs: String, aHash: String, bTs: String, bHash: String): Bool =
+  Builtin.scmLwwBeats(aTs, aHash, bTs, bHash)
+
+
+/// A failure as a person reads it, for the callers that only need a sentence.
+let failureMessage(f: Failure): String =
+  match f with
+  | Failed(m) -> m
+  | Refused(r) ->
+    match r with
+    | NothingToCommit -> "nothing to commit"
+    | IsMain -> "main is the trunk -- that is something only a branch can do"
+    | NothingToMerge -> "nothing to merge (the branch has no changes)"
+    | HasActiveChildren -> "branch has active children -- merge or archive them first"
+    | NameTaken -> "that name is already a live branch"
+    | NotBound -> "the branch doesn't bind that name -- nothing to resolve"
+    | NoSuchConflict -> "no such conflict"
+    | NoVersion -> "no version to keep: that side of the conflict has no recorded hash"
+    | UnreadablePart(part) -> $"the conflict names a part this build cannot read: {part}"
+    | Moved ->
+      "it kept changing while this ran, usually another save, a pull, or your own editor, so nothing was changed. Run it again."

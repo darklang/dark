@@ -1,7 +1,8 @@
 module Darklang.SCM.Tests.Branches
 
-// The branch verbs that live in Dark: conflicts, rebase, per-name resolution, merge's
-// first half, retagging onto a parent, and the branch-aware binding reads.
+// The branch verbs, through the Dark names callers use (the work is F#'s): conflicts,
+// rebase, per-name resolution, merging into main and onto a parent, and the
+// branch-aware binding reads.
 //
 // Each test has a store of its own, so a conflict here is a real one: the branch
 // authors a name, then main commits the same name differently. (The F# originals faked
@@ -138,20 +139,26 @@ test keepMineAddsAnOpAndRestampsNothing =
       (Stdlib.List.length(after) > Stdlib.List.length(before)) |> Stdlib.Test.equal(true) ])
 
 
-// Merge's first half flips a branch's pending ops effective, and reports what it
-// flipped: a second merge flips nothing, so it reports 0, not the tag count.
-test markMergedEffectiveCountsWhatItFlipped =
+// A merge reports how many ops it flipped into main, and leaves nothing to merge
+// behind: a second merge is refused as such, not reported as moving 0 ops.
+test aMergeCountsWhatItFlipped =
   let b = Authoring.branchOff("flip-proof", Authoring.main())
   let setup = onBranch(b, "McX", "11")
   let pending =
     Darklang.SCM.Branch.get(b)
     |> Stdlib.Option.map(fun br -> Stdlib.Int.fromInt64(br.ops))
     |> Stdlib.Option.withDefault(0)
+  let first =
+    Darklang.SCM.PackageOps.mergeBranch(b) |> Stdlib.Result.map(fun o -> o.merged)
+  let second =
+    match Darklang.SCM.PackageOps.mergeBranch(b) with
+    | Error(Refused(NothingToMerge)) -> "nothing to merge"
+    | _ -> "something else"
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       (pending > 0) |> Stdlib.Test.equal(true)
-      Darklang.SCM.Branches.markMergedEffective(b) |> Stdlib.Test.equal(Ok(pending))
-      Darklang.SCM.Branches.markMergedEffective(b) |> Stdlib.Test.equal(Ok(0)) ])
+      first |> Stdlib.Test.equal(Ok(pending))
+      second |> Stdlib.Test.equal("nothing to merge") ])
 
 
 // A finished branch refuses an edit rather than being revived by it: a process still
@@ -307,7 +314,8 @@ test retaggingOntoTheParentCarriesTheNameBases =
   let names(b: Uuid): List<String> =
     Darklang.SCM.Branches.nameBases(b) |> Stdlib.List.map(fun((_, _, n, _)) -> n)
   let childBefore = names(child)
-  let retagged = Darklang.SCM.Branches.retagFrontierToParent(child, parent)
+  let retagged =
+    Darklang.SCM.PackageOps.mergeBranch(child) |> Stdlib.Result.map(fun o -> o.merged)
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       childBefore |> Stdlib.Test.equal([ "foo" ])

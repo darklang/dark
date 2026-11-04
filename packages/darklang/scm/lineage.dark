@@ -42,21 +42,16 @@ let currentlyBound(
   | None ->
 
   // main-scoped: every chain ends at main, and this is main's half.
-  let found =
-    Stdlib.Sqlite.queryOneP(
-      localDb(),
-      "SELECT item_hash FROM locations
-       WHERE owner = @p0 AND modules = @p1 AND name = @p2
-         AND item_type = @p3 AND unlisted_at IS NULL
-       LIMIT 1",
-      [ location.owner, modules, location.name, LanguageTools.ProgramTypes.ItemKind.toString(kind) ])
-
-  match found with
-  | Some(row) ->
-    match Stdlib.Sqlite.textField(row, "item_hash") with
-    | Some(h) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash(h))
-    | None -> Stdlib.Option.Option.None
-  | None -> Stdlib.Option.Option.None
+  SCM.Bindings.query(
+    SCM.Bindings.BindingFilter.MainHashAt(
+      LanguageTools.ProgramTypes.ItemKind.toString(kind),
+      location.owner,
+      modules,
+      location.name
+    )
+  )
+  |> Stdlib.List.head
+  |> Stdlib.Option.map(fun b -> LanguageTools.ProgramTypes.Hash.Hash(b.hash))
 
 
 /// Fill in `previous` on every SetName in `ops` that does not already carry one.

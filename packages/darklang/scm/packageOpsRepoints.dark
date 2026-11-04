@@ -9,19 +9,8 @@ module Darklang.SCM.PackageOps
 let namesAtContent(branchId: Uuid, hash: String, itemType: String): List<String> =
   let mainNames =
     // main-scoped: main's names for this content; the chain's names and rebinds are applied below.
-    Stdlib.Sqlite.rowsP(
-      localDb(),
-      "SELECT owner, modules, name FROM locations
-       WHERE item_hash = @p0 AND item_type = @p1 AND unlisted_at IS NULL",
-      [ hash, itemType ],
-      fun row ->
-        match
-          (Stdlib.Sqlite.textField(row, "owner"),
-           Stdlib.Sqlite.textField(row, "modules"),
-           Stdlib.Sqlite.textField(row, "name"))
-        with
-        | (Some(o), Some(m), Some(n)) -> Stdlib.Option.Option.Some(Conflicts.fqn(o, m, n))
-        | _ -> Stdlib.Option.Option.None)
+    SCM.Bindings.query(SCM.Bindings.BindingFilter.MainByHash(hash, itemType))
+    |> Stdlib.List.map(fun b -> Conflicts.fqn(b.owner, b.modules, b.name))
 
   if SCM.Branch.isMain(branchId) then
     mainNames

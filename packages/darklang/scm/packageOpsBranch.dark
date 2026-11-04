@@ -21,37 +21,17 @@ let branchBindings(branchId: Uuid): List<Conflicts.Binding> =
 /// without the other: switching registers a branch before it has ops, and an imported branch arrives as
 /// tagged ops before anything registers it. Otherwise "unknown" reads as "empty".
 let branchExists(branchId: Uuid): Bool =
-  let registered =
-    Stdlib.Sqlite.queryOneP(
-      localDb(),
-      "SELECT 1 AS n FROM branches WHERE id = @p0",
-      [ Stdlib.toString(branchId) ])
-
-  match registered with
-  | Some(_) -> true
-  | None ->
-    match
-      Stdlib.Sqlite.queryOneP(
-        localDb(),
-        "SELECT 1 AS n FROM op_branches WHERE branch_id = @p0 LIMIT 1",
-        [ Stdlib.toString(branchId) ])
-    with
-    | Some(_) -> true
-    | None -> false
+  match Branches.query(Branches.BranchFilter.ById(branchId)) with
+  | [_, ...] -> true
+  | [] -> Stdlib.Bool.not(Stdlib.List.isEmpty((query(OpFilter.Tagged(branchId), 1L)).ops))
 
 
 /// A branch's registered parent, or MAIN's id when it has none. The id, not the name "main"
 /// (see `SCM.Branch.mainBranchId`).
 let branchParentOf(branchId: Uuid): Uuid =
-  match
-    Stdlib.Sqlite.queryOneP(
-      localDb(),
-      "SELECT parent_id FROM branches WHERE id = @p0",
-      [ Stdlib.toString(branchId) ])
-  with
-  | Some(row) ->
-    SCM.Branch.fromTextField(Stdlib.Sqlite.textField(row, "parent_id"))
-  | None -> SCM.Branch.mainBranchId
+  match Branches.query(Branches.BranchFilter.ById(branchId)) with
+  | [b, ...] -> SCM.Branch.fromTextField(Stdlib.Option.Option.Some(b.parentId))
+  | [] -> SCM.Branch.mainBranchId
 
 
 /// What the PARENT binds for <param names> -- the LOCAL side a branch merges into. parent=main is just
@@ -92,15 +72,12 @@ let parentBindings(parentId: Uuid, names: List<String>): List<Conflicts.Binding>
 /// Conflicts a merge of <param branchId> into its parent WOULD raise: the branch's own frontier bindings vs
 /// the parent's current bindings, tested against the bases the branch recorded at its fork. Nothing is
 /// recorded by looking -- a conflict is only written once a reconciliation actually happens.
+///
+/// Asked of the merge action itself, so the preview and the merge cannot disagree about what they find.
 let branchPreview(branchId: Uuid): List<Conflicts.Conflict> =
-  let incoming = branchBindings(branchId)
-  let names = incoming |> Stdlib.List.map(fun b -> b.name)
-  let parent = branchParentOf(branchId)
-  let local = parentBindings(parent, names)
-  // NAMES, not ids: the label is stored on the candidate and handed to `--json`, where a reader needs to
-  // know which side is which. `detect` takes Strings for exactly that reason -- the sync caller labels
-  // with an instance identity. This is the boundary where a branch id becomes the name a person reads.
-  Conflicts.detect(branchName(parent), branchName(branchId), local, incoming, Conflicts.branchBases(branchId))
+  match SCM.Actions.merge(SCM.Actions.MergeAction.Preview(branchId)) with
+  | Ok(r) -> r.conflicts
+  | Error(_) -> []
 
 
 /// Everything a branch CHANGES vs its parent. Broader than the conflict preview, which shows only
@@ -177,17 +154,9 @@ let branchName(branchId: Uuid): String =
   else
     let fallback = Stdlib.toString(branchId)
 
-    match
-      Stdlib.Sqlite.queryP(
-        localDb(),
-        "SELECT name FROM branches WHERE id = @p0 LIMIT 1",
-        [ Stdlib.toString(branchId) ])
-    with
-    | Ok([row, ...]) ->
-      match Stdlib.Sqlite.textField(row, "name") with
-      | Some(name) -> if name == "" then fallback else name
-      | None -> fallback
-    | _ -> fallback
+    match Branches.query(Branches.BranchFilter.ById(branchId)) with
+    | [b, ...] -> if b.name == "" then fallback else b.name
+    | [] -> fallback
 
 
 /// Text a person or an editor supplied, as a branch id. THE boundary: a ref may be a name, a full id, or
@@ -237,28 +206,19 @@ let resolveBranchRef(branchRef: String): BranchRefResult =
 /// Never creates. Merged branches count, because `dark branches` lists them and a name you can read off
 /// the listing has to be a name you can type.
 let branchIdForName(name: String): Stdlib.Option.Option<Uuid> =
-  match
-    Stdlib.Sqlite.queryOneP(
-      localDb(),
-      "SELECT id FROM branches
-       WHERE name = @p0 AND archived_at IS NULL
-       ORDER BY created_at DESC, rowid DESC LIMIT 1",
-      [ name ])
-  with
-  | Some(row) -> Stdlib.Sqlite.uuidField(row, "id")
-  | None -> Stdlib.Option.Option.None
+  match Branches.query(Branches.BranchFilter.ByName(name)) with
+  | [b, ...] ->
+    match Stdlib.Uuid.parse(b.id) with
+    | Ok(id) -> Stdlib.Option.Option.Some(id)
+    | Error(_) -> Stdlib.Option.Option.None
+  | [] -> Stdlib.Option.Option.None
 
 
 /// Is this branch's work already in its parent?
 let branchIsMerged(branchId: Uuid): Bool =
-  match
-    Stdlib.Sqlite.queryP(
-      localDb(),
-      "SELECT 1 AS n FROM branches WHERE id = @p0 AND merged_at IS NOT NULL",
-      [ Stdlib.toString(branchId) ])
-  with
-  | Ok([_, ...]) -> true
-  | _ -> false
+  match Branches.query(Branches.BranchFilter.ById(branchId)) with
+  | [b, ...] -> b.merged
+  | [] -> false
 
 
 
@@ -272,12 +232,7 @@ let branchIsMerged(branchId: Uuid): Bool =
 let mergedOpsOf(branchId: Uuid): List<LanguageTools.ProgramTypes.PackageOp> =
   // Byte 9 of the blob is the op tag; 0x0A is BranchEvent. There are few of these, so
   // decoding them all to find this branch's is cheaper than a column would be worth.
-  let events =
-    decodeOpRows((
-      Stdlib.Sqlite.rowsOrEmptyP(
-        localDb(),
-        "SELECT id, op_blob FROM package_ops WHERE substr(op_blob, 9, 1) = X'0A'",
-        [])))
+  let events = decodeOpRows(rowsOf(OpFilter.BranchEvents))
 
   let ids =
     events
@@ -291,20 +246,16 @@ let mergedOpsOf(branchId: Uuid): List<LanguageTools.ProgramTypes.PackageOp> =
   if Stdlib.List.isEmpty(ids) then
     []
   else
-    decodeOpRows((
-      Stdlib.Sqlite.rowsOrEmptyP(
-        localDb(),
-        "SELECT id, op_blob FROM package_ops
-         WHERE id IN (SELECT value FROM json_each(@p0))
-         ORDER BY origin_ts, rowid",
-        [ Stdlib.Json.serialize<List<String>>(ids) ])))
+    decodeOpRows(rowsOf(OpFilter.Ids(ids)))
 
 
 /// Turn a branch NAME into its id, starting the branch if that name has none. Returns (id, wasCreated);
 /// callers announce a creation, because silently running on a branch you didn't mean to start reads
 /// exactly like running on the one you did.
 let resolveBranch(name: String, parentId: Uuid): (Uuid * Bool) =
-  Builtin.scmResolveBranch(name, parentId)
+  match SCM.Actions.branch(SCM.Actions.BranchAction.Start(name, parentId)) with
+  | Ok(b) -> (b.id, b.created)
+  | Error(e) -> Builtin.unwrap(Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e)))
 
 
 /// Move THIS process onto <param branchId>, loading that branch's delta ops as the overlay name resolution
@@ -314,7 +265,10 @@ let resolveBranch(name: String, parentId: Uuid): (Uuid * Bool) =
 /// `--branch` is a one-off and never comes through here; it is resolved before any Dark runs. To reload
 /// the overlay of the branch you are already on after editing its ops, use `SCM.Draft.invalidateCaches`,
 /// which does not store anything.
-let selectBranch(branchId: Uuid): Uuid = Builtin.scmSelectBranch(branchId)
+let selectBranch(branchId: Uuid): Uuid =
+  match SCM.Actions.branch(SCM.Actions.BranchAction.Switch(branchId)) with
+  | Ok(b) -> b.id
+  | Error(_) -> currentBranch()
 
 
 /// Every hash the branch CHAIN has ever bound to a name, oldest first.

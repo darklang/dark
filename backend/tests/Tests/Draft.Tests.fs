@@ -235,7 +235,7 @@ let aRefreshDoesNotEatAnAuthorThatLandedMidway =
     do! cleanup m
   }
 
-/// The draft as `SCM.Draft.mainDraftOps` reads it, which is what `rewriteBy` hands the rebuild.
+/// The draft as a discard reads it, which is what it hands the rebuild.
 let private draftAsDarkReadsIt () : Task<Set<System.Guid>> =
   task {
     let! rows = LibDB.Queries.getMainOpsWithIds ()
