@@ -378,4 +378,6 @@ type Environment =
     /// The standard Option type's hash, used to recognize it in unwrap and ? checks.
     optionType: LanguageTools.ProgramTypes.Hash
     /// The standard Result type's hash, used to recognize it in unwrap and ? checks.
-    resultType: LanguageTools.ProgramTypes.Hash }
+    resultType: LanguageTools.ProgramTypes.Hash
+    /// The `Stdlib.Test.Result` type's hash, which an ordinary test must return.
+    testResultType: LanguageTools.ProgramTypes.Hash }
