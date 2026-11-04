@@ -865,7 +865,7 @@ let testsThatOnlyReadRunOnce =
           [ 1..3 ]
           |> List.map (fun n ->
             $"""test reader{n} =
-  Stdlib.Test.expect(Stdlib.LocalStore.configGet("test.reader-witness") == "", "unexpected config")
+  Stdlib.Test.expect(Stdlib.LocalStore.configGet("test.reader-witness") == Stdlib.Option.Option.None, "unexpected config")
 """       )
           |> String.concat "\n"
           |> fun readers ->
@@ -880,7 +880,7 @@ test readerWithChild =
 
 test writer =
   let _ = Stdlib.LocalStore.configSet("test.writer-witness", "written")
-  Stdlib.Test.expect(Stdlib.LocalStore.configGet("test.writer-witness") == "written", "write lost")
+  Stdlib.Test.expect(Stdlib.LocalStore.configGet("test.writer-witness") == Stdlib.Option.Option.Some("written"), "write lost")
 """
         )
         do! run state [ "module"; "Tests.Readers"; source ]
