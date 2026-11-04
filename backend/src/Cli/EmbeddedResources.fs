@@ -78,51 +78,17 @@ let private hasEmbeddedResource (resourceName : string) : bool =
 
 /// Copy the store aside before an upgrade changes anything in it, and say where.
 ///
-/// Through SQLite's backup API rather than a file copy: the store runs in WAL mode, so `data.db` alone
-/// can be missing what was last committed. One per build it upgrades TO, and an existing one is kept:
-/// a start that retries after a failed step must not replace the store as it was with the store as
-/// the failure left it.
-///
-/// Named `data.db.before-upgrade-<when>-to-<build>`. The time comes first, in the shape `dark backups`
-/// gives its own, because `Backups.list` orders by the digits in a name: with the build's hash first,
-/// its digits read as the time and an upgrade backup sorted as newest whatever its age.
+/// `LibDB.StoreBackups` takes it, so `dark backups` lists, restores and prunes it with the rest:
+/// through SQLite's backup API, one per build it upgrades TO, an existing one kept.
 let private backupBeforeUpgrade
   (dbPath : string)
   (build : string)
   : Result<string, string> =
-  let dir = Path.Combine(Path.GetDirectoryName(dbPath), "backups")
-  let tag = if build.Length > 12 then build.Substring(0, 12) else build
-  let suffix = $"-to-{tag}"
-  let existing =
-    if Directory.Exists dir then
-      Directory.GetFiles(dir, $"data.db.before-upgrade-*{suffix}") |> Array.tryHead
-    else
-      None
-  match existing with
-  | Some kept -> Ok kept
-  | None ->
-    let stamp = System.DateTime.UtcNow.ToString("yyyyMMddTHHmmssZ")
-    let target = Path.Combine(dir, $"data.db.before-upgrade-{stamp}{suffix}")
-    let partial = target + ".partial"
-    try
-      Directory.CreateDirectory(dir) |> ignore<DirectoryInfo>
-      if File.Exists partial then File.Delete partial
-      (use source =
-        new Microsoft.Data.Sqlite.SqliteConnection(
-          $"Data Source={dbPath};Pooling=False"
-        )
-       source.Open()
-       use destination =
-         new Microsoft.Data.Sqlite.SqliteConnection(
-           $"Data Source={partial};Pooling=False"
-         )
-       destination.Open()
-       source.BackupDatabase destination)
-      File.Move(partial, target)
+  LibDB.StoreBackups.beforeUpgrade dbPath build
+  |> Result.map (fun (target, takenNow) ->
+    if takenNow then
       eprintfn $"Backed up your store to {target} before upgrading it."
-      Ok target
-    with e ->
-      Error e.Message
+    target)
 
 
 /// Stop rather than run against a store an upgrade could not finish, and say how to get back.

@@ -28,19 +28,39 @@ let configGet(key: String): String = Builtin.configGet(key)
 let configSet(key: String, value: String): Unit = Builtin.configSet(key, value)
 
 
-/// Snapshot this instance's store to <param path>.
-///
-/// Not `Stdlib.Cli.File.copy`: the store path is guarded (a guest must not read or replace the
-/// host's store), so the file API refuses it, and a copy of `data.db` alone would miss whatever is
-/// still in the WAL. This goes through SQLite's online-backup API, which reads a consistent snapshot
-/// of an open store.
-let backupTo(path: String): Stdlib.Result.Result<Unit, String> =
-  Builtin.localDbBackupTo(path)
+/// One copy of the store: a backup in the folder beside it, or a snapshot written elsewhere.
+/// The path is for showing; an action names a backup by its name.
+type Backup = { name: String, path: String, bytes: Int }
 
 
-/// Replace this instance's store contents with the copy at <param path>.
+/// What `backups` does. Each answers with the backups it is about.
+type BackupAction =
+  /// Every backup, newest first. The upgrade path's are among them.
+  | List
+  /// Take one now (`data.db.manual-<time>`).
+  | Create
+  /// Put the named backup in place of the store. The store as it is now is copied aside first
+  /// (`data.db.pre-restore-<time>`), and that copy is the answer. Anything this process has already
+  /// read is still the old store, so the caller should say to restart.
+  | Restore of String
+  /// Delete the named backup.
+  | Delete of String
+  /// Write a copy of the store to a path outside the folder, such as a store to try a new
+  /// release against. A database already there has its contents replaced.
+  | SnapshotTo of String
+
+
+/// Copies of this instance's store: list, take, restore and delete the backups beside it, or write
+/// a snapshot elsewhere.
 ///
-/// Contents, not the file, so connections already open keep working. Anything already read into
-/// memory is still the OLD store, though, so the caller should say to restart.
-let restoreFrom(path: String): Stdlib.Result.Result<Unit, String> =
-  Builtin.localDbRestoreFrom(path)
+/// The runtime owns the folder, the names and the copying, including the upgrade path's own
+/// backups, so this never builds a path. Every copy goes through SQLite's online-backup API rather
+/// than a file copy: the store path is guarded (a guest must not read or replace the host's store),
+/// and a copy of `data.db` alone would miss whatever is still in the WAL.
+let backups(action: BackupAction): Stdlib.Result.Result<List<Backup>, String> =
+  Builtin.storeBackup(action)
+
+
+/// Write a copy of this instance's store to <param path>, WAL included.
+let snapshotTo(path: String): Stdlib.Result.Result<Unit, String> =
+  backups(BackupAction.SnapshotTo(path)) |> Stdlib.Result.map(fun _ -> ())

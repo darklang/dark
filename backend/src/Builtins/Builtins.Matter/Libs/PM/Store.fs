@@ -12,6 +12,7 @@ open LibExecution.Effects
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 /// Refuse a store-level operation unless every non-root frame is bundled Darklang
@@ -38,6 +39,27 @@ module HostWatch =
   let mutable watch : Option<Dval> = None
 
 
+let private backupTypeName () =
+  FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.localStoreBackup ())
+
+let private backupActionTypeName () =
+  FQTypeName.fqPackage (
+    LibExecution.PackageRefs.Type.Stdlib.localStoreBackupAction ()
+  )
+
+let private backupToDT (b : LibDB.StoreBackups.Backup) : Dval =
+  let tn = backupTypeName ()
+  DRecord(
+    tn,
+    tn,
+    [],
+    Map
+      [ "name", DString b.name
+        "path", DString b.path
+        "bytes", Dval.int (bigint b.bytes) ]
+  )
+
+
 let fns () : List<BuiltInFn> =
   [
     // This instance's OWN package store path (data.db). The op-log builtins write ops here; the sync config
@@ -58,51 +80,60 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    // Take a copy of this instance's store, and put one back.
+    // Every whole copy of this instance's store: the backups kept beside it, and a snapshot
+    // written elsewhere. F# owns the folder, the names and the copying (`LibDB.StoreBackups`);
+    // Dark says which action and prints what comes back.
     //
-    // The store path is guarded, so the file builtins refuse it and `dark backups`
-    // cannot do this for itself -- see `LibDB.Sqlite.Backup`. First-party only,
-    // checked the way the sync transport checks it: replacing the store wholesale
-    // from an arbitrary file is not something a guest holding package-write should
-    // be able to reach through a wrapper.
-    { name = fn "localDbBackupTo" 0
+    // The store path is guarded, so the file builtins refuse it and `dark backups` could not
+    // do this for itself. First-party only, checked the way the sync transport checks it:
+    // replacing the store wholesale from a file is not something a guest holding
+    // package-write should be able to reach through a wrapper.
+    { name = fn "storeBackup" 0
       typeParams = []
-      parameters = [ Param.make "path" TString "where to write the copy" ]
-      returnType = TypeReference.result TUnit TString
+      parameters =
+        [ Param.make
+            "action"
+            (TCustomType(NR.ok (backupActionTypeName ()), []))
+            "what to do" ]
+      returnType =
+        TypeReference.result
+          (TList(TCustomType(NR.ok (backupTypeName ()), [])))
+          TString
       description =
-        "Snapshots this instance's package store to <param path>. Returns the failure as an Error."
+        "Lists, takes, restores or deletes this instance's store backups, or snapshots the store "
+        + "to a path. Returns the backups the action is about, or the failure as an Error."
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
+        | state, vm, _, [| DEnum(_, _, _, caseName, fields) |] ->
           uply {
-            requireBundledCaller state vm "localDbBackupTo"
-            match LibDB.Sqlite.Backup.toFile path with
-            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
-            | Error e -> return Dval.resultError KTUnit KTString (DString e)
+            requireBundledCaller state vm "storeBackup"
+            let db = LibDB.Sqlite.currentDbPath
+            let result =
+              match caseName, fields with
+              | "List", [] -> Ok(LibDB.StoreBackups.list db)
+              | "Create", [] ->
+                LibDB.StoreBackups.create db |> Result.map List.singleton
+              | "Restore", [ DString name ] ->
+                LibDB.StoreBackups.restore db name |> Result.map List.singleton
+              | "Delete", [ DString name ] ->
+                LibDB.StoreBackups.delete db name |> Result.map List.singleton
+              | "SnapshotTo", [ DString path ] ->
+                LibDB.StoreBackups.snapshotTo db path |> Result.map List.singleton
+              | _ -> incorrectArgs ()
+            let backupKT = KTCustomType(backupTypeName (), [])
+            let listKT = KTList(ValueType.Known backupKT)
+            match result with
+            | Ok backups ->
+              return
+                backups
+                |> List.map backupToDT
+                |> Dval.list backupKT
+                |> Dval.resultOk listKT KTString
+            | Error e -> return Dval.resultError listKT KTString (DString e)
           }
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
-
-    { name = fn "localDbRestoreFrom" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "the copy to restore" ]
-      returnType = TypeReference.result TUnit TString
-      description =
-        "Replaces this instance's package store contents with <param path>'s. Returns the failure as an Error."
-      fn =
-        (function
-        | state, vm, _, [| DString path |] ->
-          uply {
-            requireBundledCaller state vm "localDbRestoreFrom"
-            match LibDB.Sqlite.Backup.fromFile path with
-            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
-            | Error e -> return Dval.resultError KTUnit KTString (DString e)
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.PackageWrite ]
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
