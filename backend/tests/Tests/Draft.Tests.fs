@@ -1,13 +1,10 @@
-/// The draft: what `dark discard` drops, and what it must not touch.
+/// The draft rewrite under conditions only F# can stage.
 ///
-/// A draft op is already folded and already running -- "draft" means uncommitted, not inert. Dropping one
-/// therefore has to un-do a fold, and a fold has no inverse: `locations` records the RESULT of the whole op
-/// sequence, so a draft op may have overwritten a row an older op wrote. `SCM.Draft` handles that by
-/// rebuilding from the ops that survive, and these are the assertions that the rebuild is faithful:
-/// a committed binding is restored rather than merely left alone, and a committed op keeps its commit.
-///
-/// Driven through the Dark fns rather than the F# underneath them, because the Dark ones are what the
-/// CLI runs; asserting against a second copy of the logic would prove nothing about `dark discard`.
+/// What `dark discard` and collapse drop, and what they must leave, is tested in Dark, in
+/// `packages/darklang/tests/scm/draft.dark`. The tests here stay because they inject a failure
+/// into the rewrite (`rewriteOpsAtomically`), open a race window through an F# hook
+/// (`refreshWith`, `rebuildWith`, a `rebuild` handed a stale read), or plant an op blob this
+/// build cannot decode.
 module Tests.Draft
 
 open Expecto
@@ -39,12 +36,6 @@ let private runDarkResult (code : string) : Task<Result<int64, string>> =
     | Error(rte, _) -> return Error $"{rte}"
   }
 
-/// A `PackageLocation` literal, as Dark source.
-let private darkLoc (m : string) (name : string) : string =
-  "(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\", "
-  + $"modules = [\"{m}\"], name = \"{name}\" }})"
-
-
 /// Commit everything uncommitted on main, the way `dark commit` does.
 let private commitAll (message : string) : Task<string> =
   Inserts.commitAllAsBaseline message
@@ -59,194 +50,17 @@ let private draftOpCount () : Task<int64> =
      WHERE commit_hash IS NULL AND id NOT IN (SELECT op_id FROM op_branches)"
   |> Sql.executeRowAsync (fun read -> read.int64 "n")
 
-let private committedOpCount () : Task<int64> =
-  Sql.query
-    "SELECT count(*) AS n FROM package_ops
-     WHERE commit_hash IS NOT NULL AND id NOT IN (SELECT op_id FROM op_branches)"
-  |> Sql.executeRowAsync (fun read -> read.int64 "n")
-
 /// The op count a discard reported, or a failure that says why.
 let private unwrap (r : Result<int64, string>) : int64 =
   match r with
   | Ok n -> n
   | Error e -> Exception.raiseInternal "discard errored" [ "e", e ]
 
-/// The rowid of a committed op, which a REBUILD changes (it deletes and re-inserts every main op) and a
-/// surgical drop does not. This is how a test tells the two paths apart from outside.
-let private aCommittedRowid () : Task<int64> =
-  Sql.query
-    "SELECT MIN(rowid) AS r FROM package_ops
-     WHERE commit_hash IS NOT NULL AND id NOT IN (SELECT op_id FROM op_branches)"
-  |> Sql.executeRowAsync (fun read -> read.int64 "r")
-
 let private cleanup (m : string) : Task<unit> =
   Sql.query "DELETE FROM locations WHERE owner = 'Darklang' AND modules = @m"
   |> Sql.parameters [ "m", Sql.string m ]
   |> Sql.executeStatementAsync
 
-
-let discardsOnlyTheDraft =
-  testTask "discard drops uncommitted ops and leaves committed ones alone" {
-    let m = "DraftTestOnly"
-    do! cleanup m
-
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet keep(): Int64 = 4001L"
-    let! _ = commitAll "draft test: committed"
-    let! committedBefore = committedOpCount ()
-    let! keepBefore = liveHash m "keep"
-
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet dropMe(): Int64 = 4002L"
-    let! draftBefore = draftOpCount ()
-    Expect.isGreaterThan draftBefore 0L "the second author left a draft"
-
-    let! result = runDarkResult "Darklang.SCM.Draft.discardAll()"
-    let n = unwrap result
-    Expect.equal n draftBefore "discard reports every draft op it dropped"
-
-    let! draftAfter = draftOpCount ()
-    Expect.equal draftAfter 0L "no draft is left"
-
-    let! committedAfter = committedOpCount ()
-    Expect.equal
-      committedAfter
-      committedBefore
-      "every committed op survived, with its commit"
-
-    let! dropped = liveHash m "dropMe"
-    Expect.isNone dropped "the discarded name no longer resolves"
-
-    let! kept = liveHash m "keep"
-    Expect.equal kept keepBefore "the committed name still means what it meant"
-
-    do! cleanup m
-  }
-
-let restoresASupersededBinding =
-  testTask "discard restores the binding an uncommitted edit overwrote" {
-    let m = "DraftTestRestore"
-    do! cleanup m
-
-    // This is the case a per-op undo cannot handle: the draft edit REPLACED a locations row rather than
-    // adding one, so dropping its op is only correct if the committed row comes back.
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet v(): Int64 = 5001L"
-    let! _ = commitAll "draft test: v1 committed"
-    let! committedHash = liveHash m "v"
-
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet v(): Int64 = 5002L"
-    let! editedHash = liveHash m "v"
-    Expect.notEqual editedHash committedHash "the edit moved the name"
-
-    let! result = runDarkResult "Darklang.SCM.Draft.discardAll()"
-    let _ = unwrap result
-
-    let! afterHash = liveHash m "v"
-    Expect.equal afterHash committedHash "the name is back on its committed version"
-
-    do! cleanup m
-  }
-
-let emptyDraftIsANoOp =
-  testTask "discarding an empty draft changes nothing" {
-    let m = "DraftTestEmpty"
-    do! cleanup m
-
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet e(): Int64 = 6001L"
-    let! _ = commitAll "draft test: empty"
-    let! committedBefore = committedOpCount ()
-    let! before = liveHash m "e"
-
-    let! result = runDarkResult "Darklang.SCM.Draft.discardAll()"
-    Expect.equal (unwrap result) 0L "nothing to drop"
-
-    // The no-op path must not take the delete-and-reinsert route: a rebuild that runs when there is
-    // nothing to remove is pure risk, and re-stamping ops is how the fold's LWW gets poisoned.
-    let! committedAfter = committedOpCount ()
-    Expect.equal committedAfter committedBefore "the committed log is untouched"
-
-    let! after = liveHash m "e"
-    Expect.equal after before "and the store is exactly as it was"
-
-    do! cleanup m
-  }
-
-let dropsOnlyWhatTheDraftWrote =
-  testTask "discarding a draft leaves the committed log's rows where they were" {
-    let m = "DraftTestScoped"
-    do! cleanup m
-
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet s(): Int64 = 7001L"
-    let! _ = commitAll "draft test: scoped"
-    let! rowidBefore = aCommittedRowid ()
-
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet d(): Int64 = 7002L"
-
-    let! result = runDarkResult "Darklang.SCM.Draft.discardAll()"
-    Expect.isGreaterThan (unwrap result) 0L "something was dropped"
-
-    // The point of the whole exercise. Rebuilding main to remove a draft op means every other reader sees
-    // a half-empty store for as long as it takes, which is not a price a rewritable draft can pay on every
-    // edit. A surgical drop touches the rows the draft wrote and nothing else, and an untouched committed
-    // rowid is the evidence.
-    let! rowidAfter = aCommittedRowid ()
-    Expect.equal
-      rowidAfter
-      rowidBefore
-      "the committed ops were never deleted and re-inserted"
-
-    do! cleanup m
-  }
-
-
-let private loc (m : string) (name : string) : PT.PackageLocation =
-  { owner = "Darklang"; modules = [ m ]; name = name }
-
-let private namingOpCount (m : string) (name : string) : Task<int64> =
-  Sql.query
-    "SELECT count(*) AS n FROM locations
-     WHERE owner = 'Darklang' AND modules = @m AND name = @n"
-  |> Sql.parameters [ "m", Sql.string m; "n", Sql.string name ]
-  |> Sql.executeRowAsync (fun read -> read.int64 "n")
-
-
-let collapseKeepsTheLastNamingOnly =
-  testTask
-    "collapsing a draft keeps one naming per name, and the store still means the same thing" {
-    let m = "DraftTestCollapse"
-    do! cleanup m
-
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet c(): Int64 = 9001L"
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet c(): Int64 = 9002L"
-    let! v3 = authorIntoMain $"module Darklang.{m}\n\nlet c(): Int64 = 9003L"
-
-    let! before = liveHash m "c"
-    let! draftBefore = draftOpCount ()
-
-    let! result = runDarkResult "Darklang.SCM.Draft.collapse()"
-    Expect.isGreaterThan (unwrap result) 0L "superseded namings were dropped"
-
-    // What the name means is the whole point: collapsing removes namings of versions that stopped being
-    // what the name meant before anyone else saw them, and must not touch what it means NOW.
-    let! after = liveHash m "c"
-    Expect.equal after before "the name still means the last version"
-
-    let! rows = namingOpCount m "c"
-    Expect.equal rows 1L "exactly one binding row is left for the name"
-
-    let! draftAfter = draftOpCount ()
-    Expect.isLessThan draftAfter draftBefore "the draft shrank"
-
-    // The content Adds are deliberately kept -- dropping them needs a reachability check, since a pinned
-    // dependent or a surviving dependency edge may be the only thing still referring to an old version.
-    // So the log still re-folds to a store with every version's content present and one name bound.
-    let! stillThere = liveHash m "c"
-    let (PT.Hash v3Hash) = hashBoundTo v3 "c"
-    Expect.equal
-      stillThere
-      (Some v3Hash)
-      "and it's the version the last edit authored"
-
-    do! cleanup m
-  }
 
 
 /// A store that has synced holds ops it did not write. One from a peer on a different build cannot be
@@ -326,81 +140,6 @@ let keepsAnOpItCannotRead =
           "They are kept, not dropped"
           "preserved for later")
   }
-
-
-let discardNameDropsOneAndKeepsTheRest =
-  testTask "discarding one name leaves the rest of the draft, and its content, alone" {
-    let m = "DraftTestOneName"
-    do! cleanup m
-
-    let! _ =
-      authorIntoMain
-        $"module Darklang.{m}\n\nlet keepMe(): Int64 = 5001L\n\nlet dropMe(): Int64 = 5002L"
-
-    let! draftBefore = draftOpCount ()
-    Expect.isGreaterThan draftBefore 0L "both authors left a draft"
-
-    let! keepBefore = liveHash m "keepMe"
-    Expect.isSome keepBefore "keepMe resolves before the discard"
-
-    let! result =
-      runDarkResult (
-        "Darklang.SCM.Draft.discardName(\"Darklang\", [\"" + m + "\"], \"dropMe\")"
-      )
-    let n = unwrap result
-    Expect.isGreaterThan n 0L "it reports what it dropped"
-
-    let! dropped = liveHash m "dropMe"
-    Expect.isNone dropped "the named item no longer resolves"
-
-    let! kept = liveHash m "keepMe"
-    Expect.equal kept keepBefore "the OTHER draft item is untouched"
-
-    let! draftAfter = draftOpCount ()
-    Expect.isGreaterThan draftAfter 0L "the rest of the draft is still a draft"
-
-    do! cleanup m
-  }
-
-
-let discardNameKeepsContentSomethingElseNeeds =
-  testTask "discarding a name drops its NAMING only, never the content" {
-    // Dropping the `Add` alongside the `SetName` would leave `package_functions` holding content
-    // no op provides: a store a re-fold would not reproduce. A dependent references content by
-    // HASH, so content is allowed to be live with nothing naming it.
-    //
-    // Asserted as the OP COUNT, deliberately. The obvious assertion -- that `package_functions`
-    // still has the row -- passes either way, because that projection keeps the row even when the
-    // Add is dropped, which is the very inconsistency being guarded against. The count is what
-    // goes red: 2 ops instead of 1.
-    let m = "DraftTestNeededContent"
-    do! cleanup m
-
-    let! _ =
-      authorIntoMain
-        $"module Darklang.{m}\n\nlet basis(): Int64 = 6001L\n\nlet uses(): Int64 = basis()"
-
-    let! basisHash = liveHash m "basis"
-    Expect.isSome basisHash "basis resolves before the discard"
-
-    let! result =
-      runDarkResult (
-        "Darklang.SCM.Draft.discardName(\"Darklang\", [\"" + m + "\"], \"basis\")"
-      )
-    let n = unwrap result
-
-    Expect.equal
-      n
-      1L
-      "exactly one op goes: the naming. Dropping the Add too would report 2 and would strand \
-       `package_functions` with content no op provides."
-
-    let! gone = liveHash m "basis"
-    Expect.isNone gone "the NAME is gone"
-
-    do! cleanup m
-  }
-
 
 
 /// The rewrite is delete-then-reinsert, and it is one transaction. Split across two, a crash in
@@ -647,14 +386,7 @@ let tests =
   testSequenced
   <| testList
     "Draft"
-    [ discardsOnlyTheDraft
-      restoresASupersededBinding
-      emptyDraftIsANoOp
-      dropsOnlyWhatTheDraftWrote
-      collapseKeepsTheLastNamingOnly
-      keepsAnOpItCannotRead
-      discardNameDropsOneAndKeepsTheRest
-      discardNameKeepsContentSomethingElseNeeds
+    [ keepsAnOpItCannotRead
       aFailedRewriteLeavesTheDraftIntact
       aRefreshDoesNotEatAnAuthorThatLandedMidway
       aPullInsideARebuildsWindowSurvivesIt

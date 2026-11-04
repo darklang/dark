@@ -1,0 +1,341 @@
+module Darklang.SCM.Tests.Propagation
+
+// Propagation: when an item changes, what follows it, and what doesn't.
+//
+// Editing an item gives it a new content hash, so everything calling it refers to a
+// version the name no longer means. The cascade re-authors each dependent against the
+// new hash, recursively. These author into the test's own store and run the cascade the
+// save path runs, `SCM.Propagation.repointDependents`, then read the result back
+// through the package manager.
+//
+// The two F# unit tests of the AST rewriter and the dependency extractor stay in
+// `Propagation.Tests.fs`: they build synthetic hashes no source can produce.
+
+test aDependentRepointsWhenItsDependencyMoves =
+  let m = "PropTestHop"
+  let setup = Authoring.authorAll(m, [ "let base'(x: Int64): Int64 = x + 1L"
+                                       "let dep(x: Int64): Int64 = (Tests.PropTestHop.base'(x)) + 10L" ])
+  let depBefore = Authoring.fnHash(m, "dep")
+  let v1 = Authoring.fnHash(m, "base'")
+  let edit = Authoring.author(m, "let base'(x: Int64): Int64 = x + 1000L")
+  let v2 = Authoring.fnHash(m, "base'")
+  let repointed = Authoring.cascade(m, "base'", v1, v2)
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      v2 |> Stdlib.Test.notEqual(v1)
+      repointed |> Stdlib.Test.equal(Ok([ "dep" ]))
+      Authoring.moved(depBefore, Authoring.fnHash(m, "dep")) ])
+
+
+// A call that appears only in a dictionary KEY is still an edge the cascade follows.
+test aFunctionCalledOnlyInADictionaryKeyFollowsEdits =
+  let m = "PropTestDictionaryKey"
+  let setup = Authoring.authorAll(m, [ "let key(x: Int64): Int64 = x + 61L"
+                                       "let pairs(x: Int64): Dict<Int64, Int64> = Dict { Tests.PropTestDictionaryKey.key(x): 7L }" ])
+  let pairsBefore = Authoring.fnHash(m, "pairs")
+  let v1 = Authoring.fnHash(m, "key")
+  let edit = Authoring.author(m, "let key(x: Int64): Int64 = x + 62L")
+  let repointed = Authoring.cascade(m, "key", v1, Authoring.fnHash(m, "key"))
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      repointed |> Stdlib.Test.equal(Ok([ "pairs" ]))
+      Authoring.moved(pairsBefore, Authoring.fnHash(m, "pairs")) ])
+
+
+// b moves because a did; c moves because b did. Stopping at b would leave c calling a
+// version of b nothing points at.
+test theCascadeIsTransitive =
+  let m = "PropTestChain"
+  let setup =
+    Authoring.author(
+      m,
+      "let a(x: Int64): Int64 = x + 1L\nlet b(x: Int64): Int64 = (Tests.PropTestChain.a(x)) + 10L\nlet c(x: Int64): Int64 = (Tests.PropTestChain.b(x)) + 100L")
+  let cBefore = Authoring.fnHash(m, "c")
+  let v1 = Authoring.fnHash(m, "a")
+  let edit = Authoring.author(m, "let a(x: Int64): Int64 = x + 2000L")
+  let repointed = Authoring.cascade(m, "a", v1, Authoring.fnHash(m, "a"))
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      repointed |> Stdlib.Test.equal(Ok([ "b", "c" ]))
+      Authoring.moved(cBefore, Authoring.fnHash(m, "c")) ])
+
+
+test everyDependentMovesNotJustTheFirst =
+  let m = "PropTestFan"
+  let setup =
+    Authoring.author(
+      m,
+      "let shared(x: Int64): Int64 = x + 1L\nlet one(x: Int64): Int64 = (Tests.PropTestFan.shared(x)) + 10L\nlet two(x: Int64): Int64 = (Tests.PropTestFan.shared(x)) + 20L\nlet three(x: Int64): Int64 = (Tests.PropTestFan.shared(x)) + 30L")
+  let v1 = Authoring.fnHash(m, "shared")
+  let edit = Authoring.author(m, "let shared(x: Int64): Int64 = x + 3000L")
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      Authoring.cascade(m, "shared", v1, Authoring.fnHash(m, "shared"))
+      |> Stdlib.Test.equal(Ok([ "one", "three", "two" ])) ])
+
+
+// A caller under another owner follows too, and so does what calls it back from ours.
+test theCascadeCrossesOwners =
+  let m = "PropTestOwner"
+  let setup =
+    Stdlib.Result.andThen(
+      Authoring.author(
+        m,
+        "let base'(x: Int64): Int64 = x + 1L\nlet mine(x: Int64): Int64 = (Tests.PropTestOwner.base'(x)) + 10L"),
+      fun _ ->
+        Stdlib.Result.andThen(
+          Authoring.authorAs("Zz", m, "let theirs(x: Int64): Int64 = (Tests.PropTestOwner.base'(x)) + 20L"),
+          fun _ -> Authoring.author(m, "let bridge(x: Int64): Int64 = Zz.PropTestOwner.theirs(x)")))
+  let theirs = Authoring.at("Zz", m, "theirs")
+  let fn = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn
+  let theirsBefore = Authoring.hashIn(fn, theirs)
+  let bridgeBefore = Authoring.fnHash(m, "bridge")
+  let v1 = Authoring.fnHash(m, "base'")
+  let edit = Authoring.author(m, "let base'(x: Int64): Int64 = x + 5000L")
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      Authoring.cascade(m, "base'", v1, Authoring.fnHash(m, "base'"))
+      |> Stdlib.Test.equal(Ok([ "bridge", "mine", "theirs" ]))
+      Authoring.moved(theirsBefore, Authoring.hashIn(fn, theirs))
+      Authoring.moved(bridgeBefore, Authoring.fnHash(m, "bridge")) ])
+
+
+// from == to: nothing changed. A cascade here would author a new version of every
+// dependent for no reason, and those ops live in the log forever.
+test aSourceThatDidNotMoveRepointsNothing =
+  let m = "PropTestNoop"
+  let setup = Authoring.authorAll(m, [ "let base'(x: Int64): Int64 = x + 1L"
+                                       "let dep(x: Int64): Int64 = (Tests.PropTestNoop.base'(x)) + 10L" ])
+  let depBefore = Authoring.fnHash(m, "dep")
+  let v1 = Authoring.fnHash(m, "base'")
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.cascade(m, "base'", v1, v1) |> Stdlib.Test.equal(Ok([]))
+      Authoring.fnHash(m, "dep") |> Stdlib.Test.equal(depBefore) ])
+
+
+// Whichever side is parsed first has a forward reference. If SCC-aware hashing got this
+// wrong the save would fail, or the two would keep re-hashing each other.
+test aMutuallyRecursivePairAuthors =
+  let m = "PropTestMutual"
+  let setup =
+    Authoring.author(
+      m,
+      "let a(x: Int64): Int64 =\n  if x <= 0L then 0L else (Tests.PropTestMutual.b(x - 1L)) + 1L\nlet b(x: Int64): Int64 =\n  if x <= 0L then 0L else (Tests.PropTestMutual.a(x - 1L)) + 1L")
+  let a = Authoring.fnHash(m, "a")
+  let b = Authoring.fnHash(m, "b")
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      (Stdlib.Option.isSome(a) && Stdlib.Option.isSome(b)) |> Stdlib.Test.equal(true)
+      a |> Stdlib.Test.notEqual(b) ])
+
+
+// Three edits with no commit between, each cascading. The dependent must end on the LAST
+// version of `r`, and depend on no intermediate one.
+test afterSeveralEditsTheDependentLandsOnTheFinalVersion =
+  let m = "PropTestFinal"
+  let setup = Authoring.authorAll(m, [ "let r(x: Int64): Int64 = x + 1L"
+                                       "let rd(x: Int64): Int64 = (Tests.PropTestFinal.r(x)) + 0L" ])
+  let edit(prev: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash>, n: String)
+    : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash> =
+    let _ = Authoring.author(m, $"let r(x: Int64): Int64 = x + {n}L")
+    let next = Authoring.fnHash(m, "r")
+    let _ = Authoring.cascade(m, "r", prev, next)
+    next
+  let r0 = Authoring.fnHash(m, "r")
+  let r1 = edit(r0, "10")
+  let r2 = edit(r1, "20")
+  let r3 = edit(r2, "30")
+  let versions = [ r0, r1, r2, r3 ] |> Stdlib.List.filterMap(fun h -> h)
+  let final = Stdlib.List.last(versions)
+  let rdDeps =
+    match Authoring.fnHash(m, "rd") with
+    | Some(h) -> Darklang.SCM.Deps.dependenciesOf(h) |> Stdlib.List.map(fun((d, _)) -> d)
+    | None -> []
+  let earlier = versions |> Stdlib.List.filter(fun h -> Stdlib.Option.Option.Some(h) != final)
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Stdlib.List.length(versions) |> Stdlib.Test.equal(4)
+      Authoring.fnHash(m, "r") |> Stdlib.Test.equal(final)
+      (final |> Stdlib.Option.map(fun f -> Stdlib.List.contains(rdDeps, f)))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(true))
+      (earlier |> Stdlib.List.filter(fun h -> Stdlib.List.contains(rdDeps, h)))
+      |> Stdlib.Test.equal([]) ])
+
+
+// PINS CURRENT SEMANTICS, pending the by-hash vs by-name ("crosswire") decision.
+//
+// `sh1` and `sh2` have the same body, so they are ONE item at two names. Editing `sh1`
+// moves `d1`, which reached it by that name. `d2` reached the same content through
+// `sh2`, which still means what it meant, so today it does NOT move: the cascade follows
+// the name a caller wrote, not the hash. If the crosswire decision changes that, this is
+// the test that has to change with it.
+test identicalContentAtTwoNamesRepointsOnlyTheEditedNamesCallers =
+  let m = "PropTestShared"
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "let sh1(x: Int64): Int64 = x + 77L"
+        "let sh2(x: Int64): Int64 = x + 77L"
+        "let d1(x: Int64): Int64 = (Tests.PropTestShared.sh1(x)) + 3L"
+        "let d2(x: Int64): Int64 = (Tests.PropTestShared.sh2(x)) + 4L" ])
+  let sh2Before = Authoring.fnHash(m, "sh2")
+  let d1Before = Authoring.fnHash(m, "d1")
+  let d2Before = Authoring.fnHash(m, "d2")
+  let v1 = Authoring.fnHash(m, "sh1")
+  let edit = Authoring.author(m, "let sh1(x: Int64): Int64 = x + 88L")
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      v1 |> Stdlib.Test.equal(sh2Before)
+      Authoring.cascade(m, "sh1", v1, Authoring.fnHash(m, "sh1")) |> Stdlib.Test.equal(Ok([ "d1" ]))
+      Authoring.moved(d1Before, Authoring.fnHash(m, "d1"))
+      Authoring.fnHash(m, "d2") |> Stdlib.Test.equal(d2Before)
+      Authoring.fnHash(m, "sh2") |> Stdlib.Test.equal(sh2Before) ])
+
+
+// A repoint records that it FOLLOWED, which is how `dark status` and `dark commit` tell
+// what you edited from what came along.
+test aRepointIsReportedAsFollowed =
+  let m = "PropTestProv"
+  let setup = Authoring.authorAll(m, [ "let base'(x: Int64): Int64 = x + 71L"
+                                       "let dependent(x: Int64): Int64 = Tests.PropTestProv.base'(x)" ])
+  let followedBefore = Darklang.SCM.PackageOps.propagatedNames()
+  let v1 = Authoring.fnHash(m, "base'")
+  let edit = Authoring.author(m, "let base'(x: Int64): Int64 = x + 72L")
+  let repointed = Authoring.cascade(m, "base'", v1, Authoring.fnHash(m, "base'"))
+  let followed = Darklang.SCM.PackageOps.propagatedNames()
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      repointed |> Stdlib.Test.equal(Ok([ "dependent" ]))
+      Stdlib.List.contains(followedBefore, "Tests.PropTestProv.dependent") |> Stdlib.Test.equal(false)
+      Stdlib.List.contains(followed, "Tests.PropTestProv.dependent") |> Stdlib.Test.equal(true)
+      Stdlib.List.contains(followed, "Tests.PropTestProv.base'") |> Stdlib.Test.equal(false) ])
+
+
+// Propagating an edit that already propagated authors nothing. `dark commit` runs this
+// second pass, and a repeat SetName in one draft makes `Draft.collapse` drop the binding
+// the fold recorded, relisting the pre-edit version.
+test propagatingAnAlreadyPropagatedEditAuthorsNothing =
+  let m = "PropTestSecondPass"
+  let setup = Authoring.authorAll(m, [ "let base'(x: Int64): Int64 = x + 1L"
+                                       "let dep(x: Int64): Int64 = (Tests.PropTestSecondPass.base'(x)) + 10L" ])
+  let v1 = Authoring.fnHash(m, "base'")
+  let edit = Authoring.author(m, "let base'(x: Int64): Int64 = x + 7000L")
+  let v2 = Authoring.fnHash(m, "base'")
+  let first = Authoring.cascade(m, "base'", v1, v2)
+  let depAfterFirst = Authoring.fnHash(m, "dep")
+  let second = Authoring.cascade(m, "base'", v1, v2)
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      first |> Stdlib.Test.equal(Ok([ "dep" ]))
+      second |> Stdlib.Test.equal(Ok([]))
+      Authoring.fnHash(m, "dep") |> Stdlib.Test.equal(depAfterFirst) ])
+
+
+// Propagation is kind-specific throughout, so a fn's coverage says nothing about a type's.
+test aFnUsingATypeRepointsWhenTheTypeMoves =
+  let m = "PropTestType"
+  let ty = Darklang.LanguageTools.ProgramTypes.ItemKind.Type
+  let setup = Authoring.authorAll(m, [ "type Rec = { a: Int64 }"
+                                       "let mk(): Tests.PropTestType.Rec = Tests.PropTestType.Rec { a = 1L }" ])
+  let mkBefore = Authoring.fnHash(m, "mk")
+  let v1 = Authoring.hashIn(ty, Authoring.loc(m, "Rec"))
+  let edit = Authoring.author(m, "type Rec = { a: Int64, b: Int64 }")
+  let v2 = Authoring.hashIn(ty, Authoring.loc(m, "Rec"))
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      v2 |> Stdlib.Test.notEqual(v1)
+      Authoring.cascadeKind(ty, Authoring.loc(m, "Rec"), v1, v2) |> Stdlib.Test.equal(Ok([ "mk" ]))
+      Authoring.moved(mkBefore, Authoring.fnHash(m, "mk")) ])
+
+
+test aFnReadingAValueRepointsWhenTheValueMoves =
+  let m = "PropTestValue"
+  let vk = Darklang.LanguageTools.ProgramTypes.ItemKind.Value
+  let setup = Authoring.authorAll(m, [ "val basis = 5L"
+                                       "let reads(): Int64 = Tests.PropTestValue.basis + 10L" ])
+  let readsBefore = Authoring.fnHash(m, "reads")
+  let v1 = Authoring.hashIn(vk, Authoring.loc(m, "basis"))
+  let edit = Authoring.author(m, "val basis = 500L")
+  let v2 = Authoring.hashIn(vk, Authoring.loc(m, "basis"))
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      v2 |> Stdlib.Test.notEqual(v1)
+      Authoring.cascadeKind(vk, Authoring.loc(m, "basis"), v1, v2) |> Stdlib.Test.equal(Ok([ "reads" ]))
+      Authoring.moved(readsBefore, Authoring.fnHash(m, "reads")) ])
+
+
+// A test is a graph leaf, but it follows what it exercises: a new hash is what makes a
+// cached result miss, so only affected tests rerun.
+test aTestGetsANewHashWhenAFnItUsesMoves =
+  let m = "PropTestPackageTest"
+  let tk = Darklang.LanguageTools.ProgramTypes.ItemKind.Test
+  let setup =
+    Authoring.author(
+      m,
+      "let base'(x: Int64): Int64 = (x + 1L)\ntest usesBase = Tests.PropTestPackageTest.base'(1L) |> Stdlib.Test.equal(2L)")
+  let testBefore = Authoring.hashIn(tk, Authoring.loc(m, "usesBase"))
+  let v1 = Authoring.fnHash(m, "base'")
+  let edit = Authoring.author(m, "let base'(x: Int64): Int64 = (x + 100L)")
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(edit)
+      Authoring.cascade(m, "base'", v1, Authoring.fnHash(m, "base'"))
+      |> Stdlib.Test.equal(Ok([ "usesBase" ]))
+      Authoring.moved(testBefore, Authoring.hashIn(tk, Authoring.loc(m, "usesBase"))) ])
+
+
+// There is no rename op. A SetName binds its own name and leaves every other name for the
+// hash alone, or renaming yours would take out a colleague's.
+test aSetNameAtANewNameLeavesTheOldNameBound =
+  let m = "RenameKeep"
+  let setup = Authoring.author(m, "let old(x: Int64): Int64 = x")
+  let h = Authoring.fnHash(m, "old")
+  let named =
+    match h with
+    | Some(hash) ->
+      Darklang.SCM.PackageOps.add(
+        Authoring.main(),
+        [ Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
+            Authoring.loc(m, "new"),
+            Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash),
+            Stdlib.Option.Option.None) ])
+    | None -> Stdlib.Result.Result.Error("old is not bound")
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(named)
+      Authoring.fnHash(m, "new") |> Stdlib.Test.equal(h)
+      Authoring.fnHash(m, "old") |> Stdlib.Test.equal(h) ])
+
+
+// PINS CURRENT SEMANTICS, pending the crosswire decision: callers are tracked by the NAME
+// they wrote.
+//
+// Two names, one body, one caller each, and the callers are the same content too, so the
+// second caller's Add is an op the log already holds. Its edge still has to be recorded
+// under the name it used, or `deps usedby` on the second name says nobody calls it.
+test aCallerOfEitherNameOfOneBodyIsFoundByThatName =
+  let fn = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn
+  let setup =
+    Authoring.authorAll("TwinOne", [ "let twin(x: Int64): Int64 = x + 4001L"
+                                     "let caller(x: Int64): Int64 = (Tests.TwinOne.twin(x)) + 10L" ])
+  let setup2 =
+    Authoring.authorAll("TwinTwo", [ "let twin(x: Int64): Int64 = x + 4001L"
+                                     "let caller(x: Int64): Int64 = (Tests.TwinTwo.twin(x)) + 10L" ])
+  let callersOf(m: String): Int =
+    Stdlib.List.length(Darklang.SCM.Deps.dependentsByName([ (Authoring.loc(m, "twin"), fn) ]))
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(setup2)
+      (callersOf("TwinOne") > 0) |> Stdlib.Test.equal(true)
+      (callersOf("TwinTwo") > 0) |> Stdlib.Test.equal(true) ])

@@ -7,6 +7,11 @@
 ///   - ISOLATION BETWEEN BRANCHES: two overlays over the SAME core see only their own defs;
 ///     neither can resolve OR fetch the other's, which is what lets N agents run N branches
 ///     concurrently over a shared read-only core.
+///
+/// The branch verbs written in Dark (conflicts, rebase, resolution, merge's flip, retag, and the
+/// branch-aware binding reads) are tested in Dark, in `packages/darklang/tests/scm/branches.dark`,
+/// against real conflicts in a store of their own. What is here needs F#: the overlay, the F# store
+/// primitives, the fold, undecodable ops, and the F#/Dark agreement checks.
 module Tests.BranchOverlay
 
 open Expecto
@@ -70,43 +75,6 @@ let private darkStringList (code : string) : Task<List<string>> =
 
 let private darkBranch (branchId : PT.BranchId) : string =
   $"(Stdlib.Uuid.parse(\"{branchId}\") |> Builtin.unwrap)"
-
-/// The names the parent has moved since a branch forked, per the merge gate the CLI consults.
-let private nameConflicts (branchId : PT.BranchId) : Task<List<string>> =
-  darkStringList $"Darklang.SCM.Branches.nameConflicts({darkBranch branchId})"
-
-/// Accept the parent's current state as this branch's new base, and report the names the parent
-/// had changed since the fork. Afterwards the branch's own ops layer on top (LWW by origin_ts)
-/// and merge is unblocked.
-let private rebase (branchId : PT.BranchId) : Task<List<string>> =
-  darkStringList $"Darklang.SCM.Branches.rebase({darkBranch branchId})"
-
-
-/// Run a Dark call answering `Result<Unit, String>`, as the F# result these assertions expect.
-/// The `Error` is handed back rather than failing, because refusing is one of the answers.
-let private darkUnitResult (code : string) : Task<Result<unit, string>> =
-  task {
-    match! evalDarkExpr code with
-    | Ok(RT.DEnum(_, _, _, "Ok", _)) -> return Ok()
-    | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString e ])) -> return Error e
-    | Ok other -> return failtest $"unexpected result shape: {other}"
-    | Error(rte, _) -> return failtest $"the Dark call raised: {rte}"
-  }
-
-let private resolveTakeTheirs
-  (branchId : PT.BranchId)
-  (fqn : string)
-  : Task<Result<unit, string>> =
-  darkUnitResult
-    $"Darklang.SCM.Branches.resolveTakeTheirs({darkBranch branchId}, \"{fqn}\")"
-
-let private resolveKeepMine
-  (branchId : PT.BranchId)
-  (fqn : string)
-  : Task<Result<unit, string>> =
-  darkUnitResult
-    $"Darklang.SCM.Branches.resolveKeepMine({darkBranch branchId}, \"{fqn}\")"
-
 
 /// Run a Dark call answering `Result<Int, String>`, as the count these assertions expect.
 let private darkIntResult (code : string) : Task<int64> =
@@ -367,15 +335,6 @@ let private freshBranchOff
     return b
   }
 
-/// Pretend the parent moved every name this branch touched, by staling the recorded bases. Doing it
-/// this way rather than actually changing the parent keeps the conflict tests off the shared main
-/// projection every other test here reads concurrently.
-let private staleNameBases (branchId : PT.BranchId) : Task<unit> =
-  Sql.query
-    "UPDATE branch_name_bases SET base_hash = 'stalehash' WHERE branch_id = @b"
-  |> Sql.parameters [ "b", Sql.string (string branchId) ]
-  |> Sql.executeStatementAsync
-
 /// The parent's CURRENT hash per name is computed in both languages, and has to come out the same.
 ///
 /// The two exist because the halves of the fork-base model run in different places: RECORDING a base
@@ -611,26 +570,6 @@ let private countEffective (branchId : PT.BranchId) (eff : int) : Task<int64> =
      WHERE b.branch_id = @b AND p.effective = @e"
   |> Sql.parameters [ "b", Sql.string (string branchId); "e", Sql.int eff ]
   |> Sql.executeRowAsync (fun read -> read.int64 "n")
-
-let markMergedFlipsEffective =
-  testTask
-    "merge half-1: markMergedEffective flips a branch's ops effective 0->1 (fold does the rest)" {
-    let! branchId = freshBranch "test-branch-flip-1" "flip-proof"
-    let! ops = parsePackageOps (branchSource 42)
-    let! _ = Branches.storeDeltaOps branchId ops
-
-    let! pending = countEffective branchId 0
-    Expect.isGreaterThan pending 0L "stored ops start effective=0 (branch-pending)"
-
-    let! flipped = markMergedEffective branchId
-    Expect.equal flipped pending "all pending ops flip to effective=1"
-    let! stillPending = countEffective branchId 0
-    Expect.equal stillPending 0L "none left effective=0"
-
-    // (the fold -- Seed.applyUnappliedOps -- is what then brings foo into main; run in a fresh
-    // process by `dark merge`, not here, so this test never pollutes the shared main projection.)
-    do! cleanupBranch branchId
-  }
 
 /// Concurrent `resolveOrCreate` for one name yields ONE branch. The case `DARK_BRANCH` makes
 /// ordinary: several agents start in their own shells with the same branch name exported and all
@@ -934,33 +873,6 @@ let sameNameMergesConvergeToLater =
     do! execSql "DELETE FROM locations WHERE modules = 'ConvergeWin'"
   }
 
-/// Locks the reload-stable rebase model: nameConflicts flags a name whose main hash diverged from
-/// the branch's recorded base; rebase accepts main's state and clears it. Manipulates the base row
-/// directly (no fold into main) so the test never pollutes the shared main projection.
-let rebaseDetectsAndClearsConflicts =
-  testTask "nameConflicts flags a diverged name; rebase clears it" {
-    let! bid = freshBranch "test-rebase-gate" "rebase-gate"
-    let! ops = parsePackageOps (namedSource "RebaseGate" 5)
-    let! _ = Branches.storeDeltaOps bid ops
-    do! Branches.recordNameBases bid PT.BranchId.Main ops
-
-    // clean before divergence: the name isn't in main, so base "" == main's current "".
-    let! c0 = nameConflicts bid
-    Expect.isEmpty c0 "clean before any divergence"
-
-    // simulate main having changed that name since the fork: stale the recorded base.
-    do! staleNameBases bid
-    let! c1 = nameConflicts bid
-    Expect.isNonEmpty c1 "conflict detected (main's current hash != the stale base)"
-
-    // rebase accepts main -> base := main's current -> no conflict, merge unblocked.
-    let! _ = rebase bid
-    let! c2 = nameConflicts bid
-    Expect.isEmpty c2 "rebase cleared the conflict"
-
-    do! cleanupBranch bid
-  }
-
 /// Locks the branch-transfer import path (what scmImportBranchOps does): register a branch, store
 /// its ops effective=0 + tag, and re-derive the per-name bases against THIS instance's main. The
 /// cross-instance invariant is that a branch stays a branch on the receiving side.
@@ -1027,143 +939,6 @@ let resolveAloneRecordsANameBase =
       "the Resolve on its own recorded a base for the name"
 
     do! cleanupBranch b
-  }
-
-/// Locks per-name RESOLUTION (scm-spec 7). take-theirs untags the branch's SetName, so its overlay
-/// falls back to the parent for that name; keep-mine leaves the branch binding it, re-stamped. Both
-/// clear the conflict. The conflict is set up by staling the base, so nothing folds into shared main.
-/// `resolve mine` must not rewrite any EXISTING op's `origin_ts`.
-///
-/// That stamp is portable: it is supposed to be byte-identical on every machine holding the op, because
-/// it is what last-writer-wins compares. A branch's frontier ops travel, so re-stamping one locally makes
-/// two peers resolve the same pair of bindings differently, permanently, with nothing to show why. The
-/// resolution is recorded as a NEW `Decision`/`Override` instead, which carries its own stamp.
-///
-/// Asserted over EVERY op in the store rather than the ones we expect to be touched: the failure mode is
-/// a stamp moving somewhere nobody was looking.
-let resolveKeepMineDoesNotRestampSharedOps =
-  testTask
-    "resolve keep-mine authors an override and leaves every existing stamp alone" {
-    let! b = freshBranch "test-resolve-no-restamp" "restamp"
-    let fqn = "Darklang.RestampTest.foo"
-    let! ops = parsePackageOps (namedSource "RestampTest" 7)
-    let! _ = Branches.storeDeltaOps b ops
-    do! Branches.recordNameBases b PT.BranchId.Main ops
-    do! staleNameBases b
-
-    let stamps () =
-      Sql.query "SELECT id, origin_ts FROM package_ops"
-      |> Sql.executeAsync (fun read -> (read.uuid "id", read.string "origin_ts"))
-
-    let! before = stamps ()
-
-    match! resolveKeepMine b fqn with
-    | Error e -> failtest $"keep-mine failed: {e}"
-    | Ok() -> ()
-
-    let! after = stamps ()
-    let afterById = Map.ofList after
-
-    let moved =
-      before
-      |> List.filter (fun (id, ts) ->
-        match Map.tryFind id afterById with
-        | Some newTs -> newTs <> ts
-        | None -> true)
-
-    Expect.isEmpty
-      moved
-      "no op that already existed had its origin_ts rewritten (or vanished)"
-
-    // And it did something: the resolution is a new op, not a no-op.
-    Expect.isGreaterThan
-      (List.length after)
-      (List.length before)
-      "keep-mine recorded the decision as a new op"
-
-    do! cleanupBranch b
-  }
-
-
-/// `resolve theirs` after `resolve mine` has to undo the first decision. Keep-mine authors an Override
-/// and take-theirs drops SetNames; both BIND the name, so take-theirs has to drop every binder, not
-/// just the one shape. `opBindsKey` is the single definition of "binds this name" both sides read.
-let takeTheirsAfterKeepMineDropsTheOverride =
-  testTask "resolve theirs after resolve mine drops the override too" {
-    let! b = freshBranch "test-theirs-after-mine" "theirs-after-mine"
-    let fqn = "Darklang.TheirsAfterMine.foo"
-    let! ops = parsePackageOps (namedSource "TheirsAfterMine" 7)
-    let! _ = Branches.storeDeltaOps b ops
-    do! Branches.recordNameBases b PT.BranchId.Main ops
-    do! staleNameBases b
-
-    match! resolveKeepMine b fqn with
-    | Error e -> failtest $"keep-mine failed: {e}"
-    | Ok() -> ()
-    let! afterMine = countEffective b 0
-    Expect.isGreaterThan
-      afterMine
-      0L
-      "keep-mine left the branch binding the name (an override)"
-
-    match! resolveTakeTheirs b fqn with
-    | Error e -> failtest $"take-theirs failed: {e}"
-    | Ok() -> ()
-    let! binders =
-      darkStringList
-        $"Darklang.SCM.Branches.ownFrontierOps({darkBranch b}) |> Stdlib.List.filterMap(fun entry -> let (_, op) = entry in Darklang.SCM.Branches.opBindsKey(op, (\"Darklang\", \"TheirsAfterMine\", \"foo\")) |> Stdlib.Option.map(fun _ -> \"binds\"))"
-    Expect.isEmpty
-      binders
-      "nothing on the branch binds the name any more: the override went with the SetName"
-
-    do! cleanupBranch b
-  }
-
-
-let perNameResolutionMineTheirs =
-  testTask
-    "resolve take-theirs drops the branch's binding; keep-mine keeps it; both clear the conflict" {
-    let bT = testBranch "test-resolve-theirs"
-    let bM = testBranch "test-resolve-mine"
-    let fqn = "Darklang.ResolveTest.foo"
-    let setupConflict (b : PT.BranchId) =
-      task {
-        do! cleanupBranch b
-        do! Branches.createBranch b "resolve" PT.BranchId.Main
-        let! ops = parsePackageOps (namedSource "ResolveTest" 5)
-        let! _ = Branches.storeDeltaOps b ops
-        do! Branches.recordNameBases b PT.BranchId.Main ops
-        do! staleNameBases b
-      }
-
-    do! setupConflict bT
-    let! c0 = nameConflicts bT
-    Expect.isNonEmpty c0 "conflict present before take-theirs"
-    match! resolveTakeTheirs bT fqn with
-    | Error e -> failtest $"take-theirs failed: {e}"
-    | Ok() -> ()
-    let! c1 = nameConflicts bT
-    Expect.isEmpty c1 "take-theirs cleared the conflict"
-    let! loadedT = Branches.loadDeltaOps bT
-    let overlayT = PM.withExtraOps pmPT loadedT
-    let! resolvedT = overlayT.findFn (fooLocIn "ResolveTest") |> Ply.toTask
-    Expect.isNone
-      resolvedT
-      "take-theirs: branch no longer binds foo (falls back to the parent)"
-
-    do! setupConflict bM
-    match! resolveKeepMine bM fqn with
-    | Error e -> failtest $"keep-mine failed: {e}"
-    | Ok() -> ()
-    let! c2 = nameConflicts bM
-    Expect.isEmpty c2 "keep-mine cleared the conflict"
-    let! loadedM = Branches.loadDeltaOps bM
-    let overlayM = PM.withExtraOps pmPT loadedM
-    let! resolvedM = overlayM.findFn (fooLocIn "ResolveTest") |> Ply.toTask
-    Expect.isSome resolvedM "keep-mine: branch still binds foo"
-
-    do! cleanupBranch bT
-    do! cleanupBranch bM
   }
 
 /// Locks revive-on-reuse (createBranch upsert): re-creating an archived/merged branch id clears
@@ -1308,28 +1083,6 @@ let branchExists =
 
     do! cleanupBranch (testBranch "beX")
     do! cleanupBranch (testBranch "beY")
-  }
-
-let mergeCountsWhatItFlipped =
-  testTask
-    "markMergedEffective reports ops it flipped, not ops that were already effective" {
-    do! cleanupBranch (testBranch "mcX")
-    do! Branches.createBranch (testBranch "mcX") "" PT.BranchId.Main
-    let! ops = parsePackageOps (namedSource "McX" 11)
-    let! _ = Branches.storeDeltaOps (testBranch "mcX") ops
-
-    let! pending = countEffective (testBranch "mcX") 0
-    Expect.isGreaterThan pending 0L "stored branch ops start effective=0"
-
-    let! first = markMergedEffective (testBranch "mcX")
-    Expect.equal first pending "the first merge reports exactly what it flipped"
-
-    // Merging again flips NOTHING -- every tagged op is already effective -- so reporting the tag
-    // count would be `MergeOutcome.merged` claiming work it did not do.
-    let! second = markMergedEffective (testBranch "mcX")
-    Expect.equal second 0L "a re-merge reports 0, not the number of tagged ops"
-
-    do! cleanupBranch (testBranch "mcX")
   }
 
 let importedOpsKeepTheirStamps =
@@ -1629,270 +1382,6 @@ let mainRetakesABranchsOp =
   }
 
 
-/// A merged or archived branch is finished, and authoring on it refuses rather than reviving it.
-///
-/// The revival route is `createBranch`, whose upsert clears `merged_at`: a process still holding the id
-/// after a merge elsewhere would put its next edit on a branch nothing merges again, listed as live.
-let authoringOnAFinishedBranchRefuses =
-  testTask "authoring on a merged branch is refused rather than reviving it" {
-    let! branchId = freshBranch "test-branch-finished-refuses" "finished-proof"
-    do!
-      execSqlP
-        "UPDATE branches SET merged_at = datetime('now') WHERE id = @b"
-        [ "b", Sql.string (string branchId) ]
-
-    // An empty op list reaches the guard before anything else, so it exercises exactly that.
-    let! outcome =
-      darkUnitResult $"Darklang.SCM.PackageOps.add({darkBranch branchId}, [])"
-    match outcome with
-    | Ok() -> failtest "the edit was accepted onto a merged branch"
-    | Error e ->
-      Expect.stringContains e "merged or archived" "and the refusal says why"
-
-    let! still = isMerged branchId
-    Expect.isTrue still "the branch stays merged"
-    do! cleanupBranch branchId
-  }
-
-
-/// `SCM.PackageOps.liveBindingFor` is THE branch-aware read of a live binding: the chain overlay first,
-/// then main's projection. A direct read of `locations` answers about MAIN from a branch, plausibly and
-/// wrongly, which is the recurring bug class here.
-let liveBindingReadsTheBranchThenMain =
-  testTask
-    "liveBindingFor answers the branch's binding, and main's where the branch is silent" {
-    let! branchId = freshBranch "test-branch-live-binding" "live-binding-proof"
-
-    let! ops = parsePackageOps (namedSource "LiveBind" 42)
-    let! _ = Branches.storeDeltaOps branchId ops
-    let branchHash =
-      ops
-      |> List.tryPick (fun op ->
-        match op with
-        | PT.PackageOp.AddFn f -> (let (PT.Hash h) = f.hash in Some h)
-        | _ -> None)
-      |> Option.defaultValue ""
-
-    let hashOrNone
-      (branch : string)
-      (owner : string)
-      (modules : string)
-      (name : string)
-      =
-      $"(match Darklang.SCM.PackageOps.liveBindingFor({branch}, "
-      + $"Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"{owner}\", "
-      + $"modules = [ \"{modules}\" ], name = \"{name}\" }}) with "
-      + "| Some(b) -> b.hash | None -> \"none\")"
-    let main = darkBranch PT.BranchId.Main
-
-    let! answers =
-      darkStringList (
-        "[ "
-        + hashOrNone (darkBranch branchId) "Darklang" "LiveBind" "foo"
-        + ", "
-        + hashOrNone main "Darklang" "LiveBind" "foo"
-        + ", "
-        + hashOrNone (darkBranch branchId) "Darklang" "Stdlib.List" "map"
-        + ", "
-        + hashOrNone main "Darklang" "Stdlib.List" "map"
-        + " ]"
-      )
-
-    match answers with
-    | [ onBranch; onMain; mainNameFromBranch; mainNameFromMain ] ->
-      Expect.equal onBranch branchHash "on the branch, the branch's hash"
-      Expect.equal onMain "none" "main does not have the branch's name"
-      Expect.notEqual mainNameFromMain "none" "a name main has answers from main"
-      Expect.equal
-        mainNameFromBranch
-        mainNameFromMain
-        "and answers the same from the branch"
-    | other -> failtest $"expected four answers, got {other}"
-
-    do! cleanupBranch branchId
-  }
-
-
-/// `liveBindingsFor` answers every name as `liveBindingFor` does, from main and
-/// from a branch: a name the branch binds, one only main binds, one the branch
-/// unbinds, one in main's uncommitted draft (which a branch must not see), one
-/// nobody binds, and a repeat.
-let liveBindingsForAgreesWithTheOneNameRead =
-  testTask "liveBindingsFor gives the same binding as liveBindingFor, name by name" {
-    let! branchId = freshBranch "test-branch-live-bindings" "live-bindings-proof"
-
-    let! branchOps = parsePackageOps (namedSource "LiveBindMany" 42)
-    let! _ = Branches.storeDeltaOps branchId branchOps
-    let filterLoc : PT.PackageLocation =
-      { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "filter" }
-    let! _ = Branches.storeDeltaOps branchId [ PT.PackageOp.Unbind(filterLoc, None) ]
-
-    let! draftOps = parsePackageOps (namedSource "LiveBindManyMainDraft" 7)
-    let draftIds =
-      draftOps |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
-    let! _ = LibDB.Inserts.insertAndApplyOps draftOps
-    LibDB.Caching.invalidateAll ()
-
-    let loc (modules : string) (name : string) =
-      let mods =
-        modules.Split('.') |> Array.map (fun m -> $"\"{m}\"") |> String.concat ", "
-      "Darklang.LanguageTools.ProgramTypes.PackageLocation "
-      + $"{{ owner = \"Darklang\", modules = [ {mods} ], name = \"{name}\" }}"
-
-    let locs =
-      [ loc "LiveBindMany" "foo"
-        loc "Stdlib.List" "map"
-        loc "Stdlib.List" "filter"
-        loc "LiveBindManyMainDraft" "foo"
-        loc "LiveBindManyNobody" "foo"
-        loc "Stdlib.List" "map" ]
-      |> String.concat ", "
-
-    // "<one-name hash> <batch hash>" per location, in order.
-    let answersFrom (branch : string) =
-      darkStringList (
-        $"Stdlib.List.map([ {locs} ], fun l ->\n"
-        + "  let hashOf(b: Stdlib.Option.Option<Darklang.SCM.Conflicts.Binding>)\n"
-        + "    : String =\n"
-        + "    match b with\n"
-        + "    | Some(b) -> b.hash\n"
-        + "    | None -> \"none\"\n"
-        + $"  let one = Darklang.SCM.PackageOps.liveBindingFor({branch}, l)\n"
-        + $"  let many = Darklang.SCM.PackageOps.liveBindingsFor({branch}, [ {locs} ])\n"
-        + "  let mods = Stdlib.String.join(l.modules, \".\")\n"
-        + "  let key = Darklang.SCM.Conflicts.bindingKey(l.owner, mods, l.name)\n"
-        + "  let fromMany = Stdlib.Dict.get(many, key)\n"
-        + "  if one == fromMany then (hashOf(one)) + \" same\"\n"
-        + "  else (hashOf(one)) + \" \" + (hashOf(fromMany)))"
-      )
-
-    let! onBranch = answersFrom (darkBranch branchId)
-    let! onMain = answersFrom (darkBranch PT.BranchId.Main)
-
-    LibDB.Caching.invalidateAll ()
-    do!
-      execSqlP
-        "DELETE FROM locations WHERE op_id IN (SELECT value FROM json_each(@ids))"
-        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize draftIds) ]
-    do!
-      execSqlP
-        "DELETE FROM package_ops WHERE id IN (SELECT value FROM json_each(@ids))"
-        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize draftIds) ]
-    LibDB.Caching.invalidateAll ()
-    do! cleanupBranch branchId
-
-    let isNone (a : string) = a = "none same"
-    let isSome (a : string) = a.EndsWith " same" && not (isNone a)
-
-    match onBranch, onMain with
-    | [ bFoo; bMap; bFilter; bDraft; bNobody; bMapAgain ],
-      [ mFoo; mMap; mFilter; mDraft; mNobody; mMapAgain ] ->
-      Expect.isTrue (isSome bFoo) $"the branch's own name, from the branch: {bFoo}"
-      Expect.isTrue (isNone mFoo) $"and not from main: {mFoo}"
-      Expect.isTrue (isSome bMap) $"a main name, from the branch: {bMap}"
-      Expect.equal bMap mMap "and the same answer from main"
-      Expect.isTrue (isNone bFilter) $"the branch's unbind hides main's: {bFilter}"
-      Expect.isTrue (isSome mFilter) $"which main still holds: {mFilter}"
-      Expect.isTrue (isNone bDraft) $"main's draft, unseen from the branch: {bDraft}"
-      Expect.isTrue (isSome mDraft) $"and live on main: {mDraft}"
-      Expect.isTrue (isNone bNobody && isNone mNobody) "a name nobody binds"
-      Expect.equal bMapAgain bMap "a repeated name, from the branch"
-      Expect.equal mMapAgain mMap "and from main"
-    | b, m -> failtest $"expected six answers each, got {b} and {m}"
-  }
-
-
-/// `previousHashesOfAll` gives each changed name the history `previousHashesOf` gives it: a name
-/// edited twice on main and three times more on a branch (the branch's versions newest-first, ahead of
-/// main's), a name only main has edited, one only the branch has, and a repeat.
-let previousHashesOfAllAgreesWithTheOneNameRead =
-  testTask
-    "previousHashesOfAll gives each name the history previousHashesOf gives it" {
-    let! branchId = freshBranch "test-branch-prev-hashes" "prev-hashes-proof"
-
-    let fooHash (ops : List<PT.PackageOp>) =
-      ops
-      |> List.tryPick (fun op ->
-        match op with
-        | PT.PackageOp.SetName(l, target, _) when l.name = "foo" ->
-          let (PT.Hash h) = target.hash
-          Some h
-        | _ -> None)
-      |> Option.get
-
-    let! main1 = parsePackageOps (namedSource "PrevHashesBoth" 1)
-    let! main2 = parsePackageOps (namedSource "PrevHashesBoth" 2)
-    let! onlyMain1 = parsePackageOps (namedSource "PrevHashesMainOnly" 1)
-    let! onlyMain2 = parsePackageOps (namedSource "PrevHashesMainOnly" 2)
-    let mainOps = main1 @ main2 @ onlyMain1 @ onlyMain2
-    for ops in [ main1; main2; onlyMain1; onlyMain2 ] do
-      let! _ = LibDB.Inserts.insertAndApplyOps ops
-      ()
-
-    let! branch3 = parsePackageOps (namedSource "PrevHashesBoth" 3)
-    let! branch4 = parsePackageOps (namedSource "PrevHashesBoth" 4)
-    let! branch5 = parsePackageOps (namedSource "PrevHashesBoth" 5)
-    let! branchOnly = parsePackageOps (namedSource "PrevHashesBranchOnly" 1)
-    for ops in [ branch3; branch4; branch5; branchOnly ] do
-      let! _ = Branches.storeDeltaOps branchId ops
-      ()
-    LibDB.Caching.invalidateAll ()
-
-    let loc (modName : string) =
-      "Darklang.LanguageTools.ProgramTypes.PackageLocation "
-      + $"{{ owner = \"Darklang\", modules = [ \"{modName}\" ], name = \"foo\" }}"
-
-    // "<batch history> same" per name, or both histories when they differ.
-    let historiesFrom (branch : string) (modNames : List<string>) =
-      let locs = modNames |> List.map loc |> String.concat ", "
-      darkStringList (
-        $"let bindings = Stdlib.List.filterMap([ {locs} ], fun l ->\n"
-        + $"  Darklang.SCM.PackageOps.liveBindingFor({branch}, l))\n"
-        + "let show(hs: List<Darklang.LanguageTools.ProgramTypes.Hash>): String =\n"
-        + "  hs |> Stdlib.List.map(Darklang.LanguageTools.ProgramTypes.hashToString)\n"
-        + "  |> Stdlib.String.join(\",\")\n"
-        + $"Stdlib.List.map(Darklang.Cli.Commit.previousHashesOfAll({branch}, bindings), fun entry ->\n"
-        + "  let (b, many) = entry\n"
-        + $"  let one = Darklang.Cli.Commit.previousHashesOf({branch}, b)\n"
-        + "  if one == many then (show(many)) + \" same\"\n"
-        + "  else (show(one)) + \" one, many \" + (show(many)))"
-      )
-
-    let! onBranch =
-      historiesFrom
-        (darkBranch branchId)
-        [ "PrevHashesBoth"; "PrevHashesBranchOnly"; "PrevHashesBoth" ]
-    let! onMain =
-      historiesFrom (darkBranch PT.BranchId.Main) [ "PrevHashesMainOnly" ]
-
-    let mainIds =
-      mainOps |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
-    LibDB.Caching.invalidateAll ()
-    do!
-      execSqlP
-        "DELETE FROM locations WHERE op_id IN (SELECT value FROM json_each(@ids))"
-        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize mainIds) ]
-    do!
-      execSqlP
-        "DELETE FROM package_ops WHERE id IN (SELECT value FROM json_each(@ids))"
-        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize mainIds) ]
-    LibDB.Caching.invalidateAll ()
-    do! cleanupBranch branchId
-
-    // Three on the branch, so the two left besides the live one have an order to get wrong.
-    let both =
-      $"{fooHash branch4},{fooHash branch3},{fooHash main2},{fooHash main1} same"
-    Expect.equal
-      onBranch
-      [ both; " same"; both ]
-      "the branch's earlier version, then main's newest-first; nothing for a name only the branch has"
-    Expect.equal
-      onMain
-      [ $"{fooHash onlyMain1} same" ]
-      "main's earlier version of a main name"
-  }
-
-
 /// The other half of `mainRetakesABranchsOp`: storing on a branch an op main already runs must not tag it.
 /// Every draft query excludes tagged ids, so a tag on main's own op hid it from `status` and `commit`.
 let aBranchNeverTagsWhatMainRuns =
@@ -1929,46 +1418,6 @@ let aBranchNeverTagsWhatMainRuns =
         [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize ids) ]
     LibDB.Caching.invalidateAll ()
     do! cleanupBranch branchId
-  }
-
-
-/// Merging a branch into a non-main parent retags its ops onto the parent. Its name BASES have to move
-/// too: a name without a base can never conflict again, so a grandparent that moves one of the child's
-/// names would be invisible at the parent's merge.
-let retagMovesTheBasesToo =
-  testTask
-    "retagging a child's frontier onto its parent carries the child's name bases" {
-    let parent = testBranch "test-branch-bases-parent"
-    let child = testBranch "test-branch-bases-child"
-    do! cleanupBranch child
-    do! cleanupBranch parent
-    do! Branches.createBranch parent "bases-parent" PT.BranchId.Main
-    do! Branches.createBranch child "bases-child" parent
-
-    let! ops = parsePackageOps (namedSource "BasesMove" 42)
-    let! _ = Branches.storeDeltaOps child ops
-    do!
-      execSqlP
-        "INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
-         VALUES (@b, 'Darklang', 'BasesMove', 'foo', 'the-fork-hash')"
-        [ "b", Sql.string (string child) ]
-
-    let! _ = retagFrontierToParent child parent
-
-    let baseNames (b : PT.BranchId) =
-      Sql.query "SELECT name FROM branch_name_bases WHERE branch_id = @b"
-      |> Sql.parameters [ "b", Sql.string (string b) ]
-      |> Sql.executeAsync (fun read -> read.string "name")
-    let! onParent = baseNames parent
-    let! onChild = baseNames child
-    Expect.equal
-      onParent
-      [ "foo" ]
-      "the parent now holds the child's base for the name"
-    Expect.isEmpty onChild "and the child, finished, holds none"
-
-    do! cleanupBranch child
-    do! cleanupBranch parent
   }
 
 
@@ -2460,7 +1909,6 @@ let tests =
       isolationFromCore
       unbindHidesACoreNameOnTheBranchOnly
       branchExists
-      mergeCountsWhatItFlipped
       importedOpsKeepTheirStamps
       branchPMIsPerBranch
       branchNamesResolveButDontShadowMain
@@ -2472,15 +1920,11 @@ let tests =
       storeThenOverlay
       mergedBranchStaysAddressable
       concurrentCreateYieldsOneBranch
-      markMergedFlipsEffective
       processOverlaySelects
       branchesOffBranches
       getWipOpsExcludesBranch
       mergeDoesNotConsumeSiblingPendingOps
       sameNameMergesConvergeToLater
-      rebaseDetectsAndClearsConflicts
-      perNameResolutionMineTheirs
-      resolveKeepMineDoesNotRestampSharedOps
       resolveAloneRecordsANameBase
       reuseBranchIdRevives
       branchValueContentFoldIsolatesName
@@ -2494,13 +1938,7 @@ let tests =
       overrideClosesOnlyItsOwnKind
       unknownBranchEventStampsNothing
       mainRetakesABranchsOp
-      authoringOnAFinishedBranchRefuses
-      liveBindingReadsTheBranchThenMain
-      liveBindingsForAgreesWithTheOneNameRead
-      previousHashesOfAllAgreesWithTheOneNameRead
       aBranchNeverTagsWhatMainRuns
-      retagMovesTheBasesToo
       refLookupSaysWhyItMissed
       overlayPairsByHashNotAdjacency
-      anUndecodableBundleOpIsKeptNotRefused
-      takeTheirsAfterKeepMineDropsTheOverride ]
+      anUndecodableBundleOpIsKeptNotRefused ]
