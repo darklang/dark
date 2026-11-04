@@ -18,23 +18,32 @@ let darklangDirToRemove(home: String): Stdlib.Result.Result<String, String> =
     Stdlib.Result.Result.Ok($"{withoutSlashes}/.darklang")
 
 
-/// Not `getDarklangHomeDir`: its fallback is a literal `~/.darklang`.
-let removeDarklangDirectory(
-  _host: Stdlib.Cli.Host.Host)
+/// Uninstall for <param home>: the folder is worked out and checked before anything is touched,
+/// so a refused uninstall leaves the shell alias where it was instead of half uninstalling.
+/// Then the alias goes, then the folder.
+let uninstallFrom(
+  home: String,
+  deleteAlias: Unit -> Stdlib.Result.Result<Unit, String>,
+  removeDirectory: String -> Stdlib.Result.Result<Unit, String>)
   : Stdlib.Result.Result<Unit, String> =
-  match Stdlib.Cli.Unix.getHomeDirectory() with
-  | Ok(home) ->
-    (darklangDirToRemove(home))
-    |> Stdlib.Result.andThen(fun dir -> Stdlib.Cli.Unix.removeDirectory(dir))
-  | Error(e) -> Stdlib.Result.Result.Error($"couldn't find your home directory: {e}")
+  (darklangDirToRemove(home))
+  |> Stdlib.Result.andThen(fun dir ->
+    (deleteAlias())
+    |> Stdlib.Result.andThen(fun _ -> removeDirectory(dir)))
 
 
+/// Home from `$HOME`, not `getDarklangHomeDir`: its fallback is a literal `~/.darklang`.
 let runUninstall(
   host: Stdlib.Cli.Host.Host)
   : Stdlib.Result.Result<Unit, String> =
   let result =
-    (Stdlib.Cli.Unix.deleteAlias(host.defaultShell, "dark"))
-    |> Stdlib.Result.andThen(fun _ -> removeDarklangDirectory(host))
+    match Stdlib.Cli.Unix.getHomeDirectory() with
+    | Ok(home) ->
+      uninstallFrom(
+        home,
+        fun () -> Stdlib.Cli.Unix.deleteAlias(host.defaultShell, "dark"),
+        fun dir -> Stdlib.Cli.Unix.removeDirectory(dir))
+    | Error(e) -> Stdlib.Result.Result.Error($"couldn't find your home directory: {e}")
 
   match result with
   | Ok(_) -> Stdlib.Result.Result.Ok()
