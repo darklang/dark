@@ -1,6 +1,6 @@
 // RESTORE: backend/src/Builtins/Builtins.Matter/Libs/PM/Store.fs
 // WAS: relaySecretIsSet and relaySecretLeakingOps: whether a write secret is stored for a relay, and which ops in a bundle would leak it
-// ANCHOR: between localDbRestoreFrom and configGet in the fns list
+// ANCHOR: between storeBackup and configGet in the fns list
 // ALSO: later/packages/darklang/cli/sync/ held their wrappers
 // WHEN: the sync molt, 2026-10-12
 

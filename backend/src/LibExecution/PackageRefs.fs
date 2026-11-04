@@ -212,6 +212,8 @@ module Type =
 
 
     let sqliteValue = p [ "Sqlite" ] "Value"
+    let localStoreBackup = p [ "LocalStore" ] "Backup"
+    let localStoreBackupAction = p [ "LocalStore" ] "BackupAction"
 
     let intParseError = p [ "Int" ] "ParseError"
     let int8ParseError = p [ "Int8" ] "ParseError"

@@ -32,15 +32,10 @@ let mutable currentDbPath = LibConfig.Config.dbPath
 // the fold -- at the instance store.
 let mutable connString = defaultConnString
 
-/// Copy the live store to `target`, and copy a file back over the live store.
+/// Copy the live store for the test runner's baseline.
 ///
-/// Through SQLite's own online-backup API, never a file copy, for two reasons. The store path is
-/// guarded (`HostSecurity.isPackageDbPath`), so Dark's file builtins refuse it -- rightly, since a
-/// guest must not read or replace the host's store -- and the store's owner offering the operation
-/// beats weakening that guard for everyone.
-///
-/// And a copy of `data.db` alone is not the store: recent writes sit in `data.db-wal`, and a
-/// restore has to land while connections are open. The backup API handles both.
+/// Through SQLite's online-backup API, never a file copy: recent writes sit in `data.db-wal`. Every
+/// other whole-store copy (backups, snapshots, the upgrade path's) is `StoreBackups`.
 module Backup =
   let private copy (fromConn : string) (toConn : string) : Result<unit, string> =
     try
@@ -53,27 +48,11 @@ module Backup =
     with e ->
       Error e.Message
 
-  /// Snapshot the live store into `target`, creating it.
-  let toFile (target : string) : Result<unit, string> =
-    copy connString (connStringFor target)
-
   /// Create a complete database file to copy for each test.
   /// Disable connection pooling so closing the backup flushes any WAL
   /// contents into that file before returning.
   let toTestBaseline (target : string) : Result<unit, string> =
     copy connString $"Data Source={target};Mode=ReadWriteCreate;Pooling=false"
-
-  /// Replace the live store's contents with `source`'s.
-  ///
-  /// Contents, not the file: connections already open keep working and see the
-  /// restored data, which swapping the file underneath them could not promise. What
-  /// it cannot refresh is anything already read into memory, so the caller still
-  /// says to restart.
-  let fromFile (source : string) : Result<unit, string> =
-    if not (System.IO.File.Exists source) then
-      Error $"no file at {source}"
-    else
-      copy (connStringFor source) connString
 
 
 /// "Did the store change since I last asked?", for a process that stays up.

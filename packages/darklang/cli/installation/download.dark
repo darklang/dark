@@ -45,33 +45,34 @@ let smokeTest(binaryPath: String): Stdlib.Result.Result<Unit, String> =
   | Ok(tmp) ->
     let tmp = Stdlib.String.trim(tmp)
     let rundir = $"{tmp}/.darklang"
-    let store = Stdlib.LocalStore.path()
 
-    // The WAL holds committed pages not yet folded into data.db, so it comes too when it's there.
-    let copyStore =
-      $"for f in '{store}' '{store}-wal'; do if [ -f \"$f\" ]; then cp \"$f\" '{rundir}/'; fi; done"
+    // A snapshot rather than a file copy, so what is still in the WAL comes too.
+    match Stdlib.LocalStore.snapshotTo($"{rundir}/data.db") with
+    | Error(e) ->
+      let _cleaned = Stdlib.Cli.execute($"rm -rf '{tmp}'")
+      Stdlib.Result.Result.Error($"Couldn't copy your store to test the new binary against: {e}")
+    | Ok(_) ->
+      let result =
+        Stdlib.Cli.execute(
+          $"HOME='{tmp}' '{binaryPath}' eval '1L + 2L' </dev/null 2>&1")
 
-    let result =
-      Stdlib.Cli.execute(
-        $"mkdir -p '{rundir}' && {copyStore} && HOME='{tmp}' '{binaryPath}' eval '1L + 2L' </dev/null 2>&1")
+      let _cleaned = Stdlib.Cli.execute($"rm -rf '{tmp}'")
 
-    let _cleaned = Stdlib.Cli.execute($"rm -rf '{tmp}'")
+      let lines = result.stdout |> Stdlib.String.trim |> Stdlib.String.split("\n")
+      let lastLine = (Stdlib.List.last(lines)) |> Stdlib.Option.withDefault("")
 
-    let lines = result.stdout |> Stdlib.String.trim |> Stdlib.String.split("\n")
-    let lastLine = (Stdlib.List.last(lines)) |> Stdlib.Option.withDefault("")
+      // What to quote on failure: the first line naming an error, since the last is often a stack frame.
+      let errorLine =
+        (lines
+         |> Stdlib.List.findFirst(fun l ->
+           Stdlib.String.contains(l, "Error") || Stdlib.String.contains(l, "Exception")))
+        |> Stdlib.Option.withDefault(lastLine)
 
-    // What to quote on failure: the first line naming an error, since the last is often a stack frame.
-    let errorLine =
-      (lines
-       |> Stdlib.List.findFirst(fun l ->
-         Stdlib.String.contains(l, "Error") || Stdlib.String.contains(l, "Exception")))
-      |> Stdlib.Option.withDefault(lastLine)
-
-    if result.exitCode == 0 && Stdlib.String.trim(lastLine) == "3" then
-      Stdlib.Result.Result.Ok()
-    else
-      Stdlib.Result.Result.Error(
-        $"The downloaded release failed a test run against a copy of your store ({Stdlib.String.trim(errorLine)}, exit {Stdlib.toString(result.exitCode)}). Nothing was changed. Please report this at https://github.com/darklang/dark/issues")
+      if result.exitCode == 0 && Stdlib.String.trim(lastLine) == "3" then
+        Stdlib.Result.Result.Ok()
+      else
+        Stdlib.Result.Result.Error(
+          $"The downloaded release failed a test run against a copy of your store ({Stdlib.String.trim(errorLine)}, exit {Stdlib.toString(result.exitCode)}). Nothing was changed. Please report this at https://github.com/darklang/dark/issues")
 
 
 /// Download the asset at <param url> and put the binary it holds at <param target>.

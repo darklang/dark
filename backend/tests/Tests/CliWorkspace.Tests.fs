@@ -157,6 +157,91 @@ let backupsRefusesToRestoreWhatIsNotThere =
           "restore names what it looked for"
     })
 
+/// The copies themselves, against a scratch store rather than through the CLI: what still sits
+/// in the WAL comes too, the folder lists newest first whatever the prefix, and an action names
+/// only a backup that is there.
+let storeBackupsKeepTheWal =
+  testTask
+    "a snapshot holds what is still in the WAL, and backups are named by the runtime" {
+    let root =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"store-backups-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory root |> ignore<System.IO.DirectoryInfo>
+    try
+      let db = System.IO.Path.Combine(root, "data.db")
+      // Held open across the copy, so its writes are still in `data.db-wal`: closing the last
+      // connection would checkpoint them into the file and prove nothing.
+      use live =
+        new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={db};Pooling=False")
+      live.Open()
+      let exec (sql : string) =
+        use cmd = live.CreateCommand()
+        cmd.CommandText <- sql
+        cmd.ExecuteNonQuery() |> ignore<int>
+      exec "PRAGMA journal_mode=WAL"
+      exec "PRAGMA wal_autocheckpoint=0"
+      exec "CREATE TABLE t (x INTEGER)"
+      exec "INSERT INTO t VALUES (1), (2), (3)"
+      Expect.isTrue
+        (System.IO.FileInfo(db + "-wal").Length > 0L)
+        "the writes are in the WAL"
+
+      let count (path : string) : int64 =
+        use c =
+          new Microsoft.Data.Sqlite.SqliteConnection(
+            $"Data Source={path};Mode=ReadOnly;Pooling=False"
+          )
+        c.Open()
+        use cmd = c.CreateCommand()
+        cmd.CommandText <- "SELECT count(*) FROM t"
+        cmd.ExecuteScalar() :?> int64
+
+      let elsewhere = System.IO.Path.Combine(root, "elsewhere", "data.db")
+      let snap =
+        LibDB.StoreBackups.snapshotTo db elsewhere |> Result.defaultWith failwith
+      Expect.equal (count snap.path) 3L "the snapshot has the rows still in the WAL"
+      Expect.isError
+        (LibDB.StoreBackups.snapshotTo db db)
+        "a snapshot never goes over the store itself"
+
+      let backupsDir = LibDB.StoreBackups.dirFor db
+      System.IO.Directory.CreateDirectory backupsDir
+      |> ignore<System.IO.DirectoryInfo>
+      // An older upgrade backup, and a copy still being written, beside a new one.
+      System.IO.File.Copy(
+        snap.path,
+        System.IO.Path.Combine(
+          backupsDir,
+          "data.db.before-upgrade-20200101T000000Z-to-abc"
+        )
+      )
+      System.IO.File.WriteAllText(
+        System.IO.Path.Combine(backupsDir, "data.db.manual-20990101T000000Z.partial"),
+        ""
+      )
+      let taken = LibDB.StoreBackups.create db |> Result.defaultWith failwith
+      Expect.equal (count taken.path) 3L "a backup has them too"
+      Expect.equal
+        (LibDB.StoreBackups.list db |> List.map (fun b -> b.name))
+        [ taken.name; "data.db.before-upgrade-20200101T000000Z-to-abc" ]
+        "newest first by time, not by prefix, and no half-written copy"
+
+      Expect.isError
+        (LibDB.StoreBackups.delete db "../data.db")
+        "only a listed backup can be deleted"
+      Expect.isTrue (System.IO.File.Exists db) "and the store is still there"
+      Expect.isOk (LibDB.StoreBackups.delete db taken.name) "a listed one can"
+      Expect.equal
+        (LibDB.StoreBackups.list db |> List.map (fun b -> b.name))
+        [ "data.db.before-upgrade-20200101T000000Z-to-abc" ]
+        "and it is gone"
+    finally
+      Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools()
+      System.IO.Directory.Delete(root, true)
+  }
+
 let permissionsLists =
   instanceTest "permissions list names the effects the policy covers" (fun state ->
     task {
@@ -1673,6 +1758,7 @@ let tests : List<Test> =
     configRefusesUnknownKeysAndBadValues
     backupsCanBeTaken
     backupsRefusesToRestoreWhatIsNotThere
+    storeBackupsKeepTheWal
     permissionsLists
     storeReadsRequirePackageRead
     approvedSqliteOnTheStoreRuns
