@@ -823,11 +823,12 @@ is checked again.
   same twice on the same inputs; Dark's dict is an ordered map, so enumeration is deterministic.
   `uuidGenerate` declares `Random` and is in the log.
 
-Tested in `CliTraceVerbs.Tests.fs`: record and resume, fork at a position, suspend
-mid-way and resume, replay after an edit, a spawn resuming with its child's
-own log, retention (the count cap sparing a suspended trace, the byte cap
-sparing the newest, the newest of each entry surviving the count cap), the
-echo and the refusal.
+Tested in `packages/darklang/tests/cli/traceVerbs.dark`, through the CLI: record and
+resume, fork at a position, replay after an edit, a spawn resuming with its child's own
+log. In `CliTraceVerbs.Tests.fs`, where the log's rows or a seam are needed: suspend
+mid-way and resume, retention (the count cap sparing a suspended trace, the byte cap
+sparing the newest, the newest of each entry surviving the count cap), the echo and the
+refusal.
 
 ## A trace's id
 

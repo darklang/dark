@@ -147,3 +147,44 @@ let expectExit(i: T, args: List<String>, expected: Int): Stdlib.Test.Result =
       let got = Stdlib.toString(out.exitCode)
       let want = Stdlib.toString(expected)
       Stdlib.Test.fail($"`{cmd}` exited {got}, expected {want}")
+
+
+/// A command's exit code and everything it printed, both streams in that order.
+///
+/// Both streams because a refusal and its advice can land on either, and a test
+/// about what a person sees should not depend on which. `-1` when the command could
+/// not start at all.
+let ran(i: T, args: List<String>): (Int * String) =
+  match run(i, args) with
+  | Error(e) -> (-1, $"could not run: {e}")
+  | Ok(out) -> (out.exitCode, out.stdout + out.stderr)
+
+
+/// Everything a command printed, both streams. See `ran`.
+let said(i: T, args: List<String>): String = Stdlib.Tuple2.second(ran(i, args))
+
+
+/// `out` mentions `needle`; `why` says what that means when it does not.
+let says(out: String, needle: String, why: String): Stdlib.Test.Result =
+  if Stdlib.String.contains(out, needle) then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"{why}: expected '{needle}' in: {out}")
+
+
+/// `out` does NOT mention `needle`.
+let doesNotSay(out: String, needle: String, why: String): Stdlib.Test.Result =
+  if Stdlib.String.contains(out, needle) then
+    Stdlib.Test.fail($"{why}: did not expect '{needle}' in: {out}")
+  else
+    Stdlib.Test.Result.Pass
+
+
+/// A command exited with `expected`; `why` names the case.
+let exitedWith(code: Int, expected: Int, why: String): Stdlib.Test.Result =
+  if code == expected then
+    Stdlib.Test.Result.Pass
+  else
+    let got = Stdlib.toString(code)
+    let want = Stdlib.toString(expected)
+    Stdlib.Test.fail($"{why}: exited {got}, expected {want}")

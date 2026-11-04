@@ -149,7 +149,7 @@ let private testScriptTypeUnifiesWithPackageType =
 ///
 /// Lowering now registers them in `EphemeralPackages`, which `PackageManager.pt`
 /// consults ahead of the store. This asserts the lookup, not the rendered
-/// string: the string needs CLI dispatch, which lives in `CliTraces.Tests.fs`.
+/// string: the string needs CLI dispatch, which `tests/cli/evalAndRun.dark` drives.
 let private testDeclarationsAreNameableAfterLowering =
   testTask "lowered declarations can be resolved back to their names" {
     let! (m : CliScript.PTCliScriptModule) =

@@ -1,0 +1,330 @@
+/// `dark eval`, `dark run` and the commands around them, as a person at a shell sees
+/// them.
+///
+/// Part of `Darklang.Cli.Tests`. Each test drives its own `Instance`. What reaches
+/// into the host directly (a missing pretty-printer, the policy directory, the
+/// process registry, permission profiles checked against the stored policy) stays in
+/// `Tests/CliTraces.Tests.fs`.
+module Darklang.Cli.Tests.EvalAndRun
+
+/// What a command printed on stdout, trimmed, against what it should have printed.
+let prints(i: Instance.T, args: List<String>, expected: String): Stdlib.Test.Result =
+  let out = Instance.output(i, args)
+
+  if out == expected then
+    Stdlib.Test.Result.Pass
+  else
+    let cmd = Stdlib.String.join(args, " ")
+    Stdlib.Test.fail($"`dark {cmd}` printed '{out}', expected '{expected}'")
+
+
+/// A script file in the instance's home, written for the test and gone with the
+/// instance.
+let script(i: Instance.T, name: String, source: String): String =
+  let path = $"{Instance.home(i)}/{name}"
+  let _ = Stdlib.Cli.File.writeText(path, source)
+  path
+
+
+/// `--local`, so this does not depend on reaching GitHub: bare `version` checks for
+/// a newer release, and against a firewall that drops rather than refuses it waits
+/// ~11s.
+test versionAnswersFromTheBinary =
+  Instance.withInstance(fun i ->
+    let out = Instance.said(i, [ "version", "--local" ])
+    // A near miss must not silently fall through to the network check, which is the
+    // one thing the caller was trying to avoid.
+    let typo = Instance.said(i, [ "version", "--locl" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(out, "Darklang CLI", "the banner")
+        Instance.says(out, "alpha-", "the version prefix")
+        Instance.doesNotSay(out, "update available", "it did not look for updates")
+        Instance.doesNotSay(out, "unable to check", "it did not look for updates")
+        Instance.says(typo, "does not take `--locl`", "a mistyped flag is named")
+        Instance.doesNotSay(typo, "update available", "and nothing was fetched") ]))
+
+
+/// `status` names the branch ALWAYS, main included: "where am I" is the question it
+/// is for.
+test statusSaysWhereYouAre =
+  Instance.withInstance(fun i ->
+    let out = Instance.said(i, [ "status" ])
+
+    Stdlib.Test.all(
+      [ Stdlib.Test.expect(
+          Stdlib.String.contains(out, "clean:") || Stdlib.String.contains(out, "draft:"),
+          $"status says whether there is uncommitted work: {out}")
+        Instance.says(out, "On branch", "status names the branch, main included") ]))
+
+
+test evalAnswers =
+  Instance.withInstance(fun i ->
+    Stdlib.Test.all(
+      [ prints(i, [ "eval", "Stdlib.Bool.and(true, false)" ], "false")
+        prints(i, [ "eval", "5L + 3L" ], "8")
+        prints(i, [ "eval", "Stdlib.String.length(\"hello\")" ], "5")
+        prints(i, [ "eval", "[1L, 2L, 3L] |> Stdlib.List.length" ], "3")
+        prints(i, [ "eval", "2L + 3L" ], "5")
+        prints(i, [ "eval", "\"hello\" + \"world\"" ], "helloworld") ]))
+
+
+/// A script's own declarations are keyed by content hash, so two that hash the same
+/// collapse into one. Right when they really are identical; wrong when they only
+/// look identical because they were hashed before their references resolved.
+test scriptDeclarationsKeepTheirIdentity =
+  Instance.withInstance(fun i ->
+    Stdlib.Test.all(
+      [ // Byte-identical apart from a parameter type still unresolved when the first pass
+        // runs. They must stay two functions.
+        prints(
+          i,
+          [ "eval"
+            "type TA = { a: String }\ntype TB = { b: Int }\nlet takesA(r: TA): Int = 7\nlet takesB(r: TB): Int = 7\n(takesA(TA { a = \"x\" })) + (takesB(TB { b = 1 }))" ],
+          "14")
+        // Genuinely identical declarations SHOULD share one hash.
+        prints(
+          i,
+          [ "eval"
+            "let alpha(x: Int): Int = x + 1\nlet beta(x: Int): Int = x + 1\n(alpha(1)) + (beta(1))" ],
+          "4")
+        // Hashing after resolution means the graph can have cycles, hashed as a
+        // batch.
+        prints(
+          i,
+          [ "eval"
+            "let isEven(n: Int): Bool = if n == 0 then true else isOdd(n - 1)\nlet isOdd(n: Int): Bool = if n == 0 then false else isEven(n - 1)\nisEven(10)" ],
+          "true")
+        // A script type with the same shape as a package type IS that type.
+        prints(
+          i,
+          [ "eval"
+            "type MyErr = | BadFormat\nlet f(e: Darklang.Stdlib.Int.ParseError): Int = 1\nf(MyErr.BadFormat)" ],
+          "1") ]))
+
+
+/// Script arguments, runner options and exit codes.
+test scriptArgumentsAndExitCodes =
+  Instance.withInstance(fun i ->
+    // (label, source, runner options, script arguments, exit code, something it
+    // prints)
+    let cases =
+      [ ("arguments reach closures and each top-level expression",
+         "let main(inputs: List<String>): Int = if inputs == [\"a b\", \"\", \"é\"] then 7 else 1\nStdlib.printLine(Stdlib.String.join((fun () -> args)(), \",\"))\nmain(args)",
+         [],
+         [ "a b", "", "é" ],
+         7,
+         "a b,,é")
+        ("local arguments shadow input",
+         "let args = [\"local\"]\nif args == [\"local\"] then 0 else 1",
+         [],
+         [ "original" ],
+         0,
+         "")
+        ("runner options before path and script flags after it",
+         "if args == [\"--sandbox\", \"--warn-permissions\", \"--allow-harmful\", \"--help\", \"-h\", \"--branch\", \"--trace\", \"--no-trace\", \"--\"] then 0 else 1",
+         [ "--sandbox", "--branch", "main", "--trace" ],
+         [ "--sandbox", "--warn-permissions", "--allow-harmful", "--help", "-h", "--branch", "--trace", "--no-trace", "--" ],
+         0,
+         "")
+        ("global and runner options before path",
+         "if args == [\"--no-trace\"] then 0 else 1",
+         [ "--sandbox", "--branch=main", "--trace" ],
+         [ "--no-trace" ],
+         0,
+         "")
+        ("option terminator", "if args == [] then 0 else 1", [ "--" ], [], 0, "")
+        ("int64 exit code", "3L", [], [], 3, "Script exited with code 3")
+        ("definitions only", "let main(inputs: List<String>): Int = 0", [], [], 1, "main(args)")
+        ("main is not auto-called",
+         "let main(inputs: List<String>): Int = 0\nmain",
+         [],
+         [],
+         1,
+         "A main function is not called automatically")
+        ("wrong result", "true", [], [], 1, "Script must finish") ]
+
+    let path = $"{Instance.home(i)}/contract.dark"
+
+    let contract =
+      cases
+      |> Stdlib.List.map(fun((label, source, options, inputs, expectedExit, expectedOutput)) ->
+        let _ = Stdlib.Cli.File.writeText(path, source)
+
+        let (code, out) =
+          Instance.ran(
+            i,
+            Stdlib.List.flatten([ [ "run-script" ], options, [ path ], inputs ]))
+
+        Stdlib.Test.all(
+          [ Instance.exitedWith(code, expectedExit, label)
+            (if expectedOutput == "" then
+               Stdlib.Test.Result.Pass
+             else
+               Instance.says(out, expectedOutput, label)) ]))
+      |> Stdlib.Test.all
+
+    let (typoCode, typo) = Instance.ran(i, [ "run", "--sandbxo", path ])
+    let _ = Stdlib.Cli.File.writeText(path, "Stdlib.printLine(\"SHOULD_NOT_RUN\")\n9")
+
+    let help =
+      [ [ "--sandbox", "-h" ], [ "--branch", "main", "--help" ] ]
+      |> Stdlib.List.map(fun(options) ->
+        let (code, out) = Instance.ran(i, Stdlib.List.flatten([ [ "run" ], options, [ path ] ]))
+
+        Stdlib.Test.all(
+          [ Instance.exitedWith(code, 0, "help before the path succeeds")
+            Instance.says(out, "Usage: run-script", "runner help")
+            Instance.doesNotSay(out, "SHOULD_NOT_RUN", "help does not execute the script") ]))
+      |> Stdlib.Test.all
+
+    Stdlib.Test.all(
+      [ contract
+        Instance.exitedWith(typoCode, 1, "unknown runner options fail")
+        Instance.says(typo, "Unknown run-script option", "option guidance")
+        help ]))
+
+
+/// A denied permission stops the script, and approving it at the prompt saves the
+/// rule without restarting the run; a later run then completes.
+///
+/// The approval needs a terminal, so `expect` plays the person.
+test aDeniedScriptStopsAndApprovalIsSaved =
+  Instance.withInstance(fun i ->
+    let path =
+      script(
+        i,
+        "permission-approval.dark",
+        "Stdlib.printLine(\"BEFORE_DENIAL\")\nlet _ = Stdlib.DateTime.now()\nStdlib.printLine(\"AFTER_APPROVAL\")\n0")
+
+    let stopped = fun(code, out, label) ->
+      Stdlib.Test.all(
+        [ Instance.exitedWith(code, 1, label)
+          Stdlib.List.length(Stdlib.String.split(out, "BEFORE_DENIAL")) |> Stdlib.Test.equal(2)
+          Instance.doesNotSay(out, "AFTER_APPROVAL", $"{label}: stops at the denial") ])
+
+    let policy = Instance.exitedWith(Stdlib.Tuple2.first(Instance.ran(i, [ "permissions", "set", "stdout" ])), 0, "only stdout is allowed")
+    let (redirectedCode, redirected) = Instance.ran(i, [ "run", path ])
+
+    let fixture = "scripts/testing/fixtures/script-permission-approval.expect"
+    let (approvedCode, approved) =
+      Instance.ran(Instance.T { dir = i.dir, cli = "expect" }, [ fixture, i.cli, path ])
+
+    // The permission also applies in a new process.
+    let (laterCode, later) = Instance.ran(i, [ "run", path ])
+
+    Stdlib.Test.all(
+      [ policy
+        stopped(redirectedCode, redirected, "redirected input")
+        Instance.doesNotSay(redirected, "Enter number:", "redirected input does not prompt")
+        stopped(approvedCode, approved, "at a terminal")
+        Instance.says(approved, "Permission saved", "the user approved the rule")
+        Instance.exitedWith(laterCode, 0, $"a later run completes: {later}")
+        Instance.says(later, "AFTER_APPROVAL", "a later run completes") ]))
+
+
+/// Advisory findings do not stop execution, and a runtime failure comes after the
+/// effects that ran before it.
+test runAndEvalHaveNoAtRestGate =
+  Instance.withInstance(fun i ->
+    [ ("let bad(): Int = true\nStdlib.printLine(\"SCRIPT_RAN\")\n0L", 0)
+      ("Stdlib.printLine(\"SCRIPT_RAN\")\nStdlib.List.length(\"bad\")", 1) ]
+    |> Stdlib.List.map(fun((source, expectedExit)) ->
+      let path = script(i, "advisory.dark", source)
+
+      [ [ "eval", source ], [ "run", path ] ]
+      |> Stdlib.List.map(fun(args) ->
+        let (code, out) = Instance.ran(i, args)
+        let cmd = Stdlib.List.head(args) |> Stdlib.Option.withDefault("")
+
+        Stdlib.Test.all(
+          [ Instance.exitedWith(code, expectedExit, $"{cmd}: only a runtime error fails it")
+            Instance.says(out, "SCRIPT_RAN", $"{cmd}: earlier effects run")
+            Instance.doesNotSay(out, "Static type check failed", $"{cmd}: no pre-run checker") ]))
+      |> Stdlib.Test.all)
+    |> Stdlib.Test.all)
+
+
+test runtimeChecksUseTheSelectedBranch =
+  Instance.withInstance(fun i ->
+    let ok = fun(args) ->
+      Instance.exitedWith(Stdlib.Tuple2.first(Instance.ran(i, args)), 0, Stdlib.String.join(args, " "))
+
+    let onMain =
+      Stdlib.Test.all(
+        [ ok([ "fn", "Tests.ScriptChecking.accept", "(value: Int64) : Int64 = value" ])
+          ok([ "commit", "script checker branch fixture", "-y" ])
+          ok([ "switch", "script-check" ])
+          ok([ "fn", "Tests.ScriptChecking.accept", "(value: String) : String = value" ])
+          ok([ "switch", "main" ]) ])
+
+    let main = prints(i, [ "eval", "Tests.ScriptChecking.accept(7L)" ], "7")
+    let switched = ok([ "switch", "script-check" ])
+    let rejected = Instance.said(i, [ "eval", "Tests.ScriptChecking.accept(7L)" ])
+    let accepted = prints(i, [ "eval", "Tests.ScriptChecking.accept(\"branch\")" ], "branch")
+
+    Stdlib.Test.all(
+      [ onMain
+        main
+        switched
+        Instance.says(rejected, "Error", "runtime checks use the selected branch")
+        Instance.says(rejected, "String", "the branch's declaration is used")
+        accepted ]))
+
+
+/// Runtime argument checking still rejects a call with the wrong type.
+test runtimeErrorsDescribePackageArguments =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "eval", "Stdlib.List.length(\"not a list\")" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "a runtime error exits nonzero")
+        Instance.says(out, "List", "the expected type is named")
+        Instance.says(out, "String", "the actual type is named")
+        Instance.doesNotSay(out, "Static type check failed", "no static gate") ]))
+
+
+/// Runtime diagnostics name a script's own types too. They are never in the store,
+/// and the error is rendered after the executor holding them is gone, so without the
+/// script's names carried along it prints 64-character hashes.
+test runtimeErrorsNameScriptTypes =
+  Instance.withInstance(fun i ->
+    let out =
+      Instance.said(
+        i,
+        [ "eval"
+          "type Celsius = { degrees: Int }\ntype Fahrenheit = { degrees: Float }\nlet describe (t: Celsius) : String = \"ok\"\ndescribe (Fahrenheit { degrees = 1.0 })" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(out, "Celsius", "the expected type is named")
+        Instance.says(out, "Fahrenheit", "the actual type is named")
+        Instance.doesNotSay(out, "Static type check failed", "no static gate")
+        // Bare, not `CliScript.Celsius`: the owner is scaffolding the parser stamped
+        // on.
+        Instance.doesNotSay(out, "CliScript.", "no scaffolding owner") ]))
+
+
+test lsViewAndHelpAnswer =
+  Instance.withInstance(fun i ->
+    let lsList = Instance.said(i, [ "ls", "Stdlib.List" ])
+    let view = Instance.said(i, [ "view", "Stdlib.List.head" ])
+    let lsOption = Instance.said(i, [ "ls", "Stdlib.Option" ])
+    let helpRun = Instance.said(i, [ "help", "run" ])
+    let helpLs = Instance.said(i, [ "help", "ls" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(lsList, "Functions", "ls: the section")
+        Instance.says(lsList, "head", "ls: a fn")
+        Instance.says(view, "head", "view: the fn's name")
+        Instance.says(view, "Option", "view: Option in the signature")
+        Instance.says(view, "->", "view: the signature's arrow")
+        Instance.says(lsOption, "Types", "ls: the types section")
+        Instance.says(lsOption, "Option", "ls: the Option type")
+        Instance.says(helpRun, "run", "help run: the command")
+        Stdlib.Test.expect(
+          Stdlib.String.contains(helpRun, "function") || Stdlib.String.contains(helpRun, "execute"),
+          $"help run describes it: {helpRun}")
+        Instance.says(helpLs, "ls", "help ls: the command")
+        Stdlib.Test.expect(
+          Stdlib.String.contains(helpLs, "list") || Stdlib.String.contains(helpLs, "List"),
+          $"help ls describes it: {helpLs}") ]))

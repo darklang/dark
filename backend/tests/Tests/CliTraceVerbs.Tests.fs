@@ -1,6 +1,10 @@
 /// Executions: a run kept beside its trace, resumed and forked by replaying the log of its
 /// effectful calls (`docs/processes.md`, "Executions"). Driven through the CLI, since that is
 /// where a run is made, suspended and taken up again.
+///
+/// The cases here need more than the CLI shows: the log's rows, the retention seams, a row the
+/// CLI cannot make, or suspending the foreground run. What a person sees of resume, fork, rerun
+/// and `traces show` is tested in Dark, in `packages/darklang/tests/cli/traceVerbs.dark`.
 module Tests.CliTraceVerbs
 
 open Expecto
@@ -124,86 +128,6 @@ let private scriptOrEvalInputPersistence =
       })
 
 
-let private scriptReplayKeepsInvocation =
-  cliTestWithFreshTraces
-    "CLI invocation preserves script arguments through view resume fork and rerun"
-    (fun state ->
-      task {
-        do!
-          fn
-            state
-            "Tests.ScriptReplay.describe"
-            "(inputs: List<String>): String = Stdlib.String.join(inputs, \"|\")"
-        let args = [ "a b"; ""; "--help"; "é"; "a\"b\\c" ]
-        let marker = String.concat "|" args + "|"
-        let code =
-          "let summary = Tests.ScriptReplay.describe(args)\nlet uuid = Stdlib.Uuid.generate()\nStdlib.printLine(summary + \"|\" + Stdlib.toString(uuid))\n7"
-          + ""
-          + ""
-        let path =
-          System.IO.Path.Combine(
-            System.IO.Path.GetTempPath(),
-            $"dark-replay-{System.Guid.NewGuid()}.dark"
-          )
-        let printed (output : string) =
-          (plain output).Split('\n')
-          |> Array.tryFind (fun line ->
-            line.StartsWith(marker, System.StringComparison.Ordinal))
-        try
-          System.IO.File.WriteAllText(path, code)
-          let! first, exitCode = runCliWithExit state ([ "run"; path ] @ args)
-          Expect.equal exitCode 7L "script result is its exit code"
-          let original = printed first
-          Expect.isSome original $"the original run prints its arguments: {first}"
-          let! (recorded : Traces.Trace) = latest ()
-          // Replay must work without the original file.
-          System.IO.File.Delete path
-          let prefix = prefixOf recorded
-          let! viewed =
-            runCliPlain
-              state
-              [ "traces"; "show"; "Tests.ScriptReplay.describe"; prefix; "--json" ]
-          use json = System.Text.Json.JsonDocument.Parse viewed
-          Expect.equal
-            (json.RootElement
-              .GetProperty("problem")
-              .GetProperty("None")
-              .GetArrayLength())
-            0
-            $"view finishes with the original arguments: {viewed}"
-          Expect.stringContains
-            viewed
-            "--help"
-            "the view reaches the argument values"
-          Expect.isNone (printed viewed) "view performs no print effects"
-          let! _ = runCli state [ "traces"; "fork"; prefix ]
-          let! (child : Traces.Trace) = latest ()
-          for id in [ prefix; prefixOf child ] do
-            let! output, exitCode = runCliWithExit state [ "traces"; "resume"; id ]
-            Expect.equal exitCode 7L "resume and fork retain script exit semantics"
-            Expect.stringContains
-              (plain output)
-              original.Value
-              "saved args and UUID"
-            Expect.stringContains output "[replayed]" "print is replayed"
-          let! reran, rerunExit = runCliWithExit state [ "traces"; "rerun"; prefix ]
-          Expect.equal rerunExit 7L "rerun preserves a nonzero script exit code"
-          Expect.stringContains
-            reran
-            $"rerunning {prefix.Substring(0, 8)}: let summary"
-            "rerun previews the saved source"
-          Expect.isSome (printed reran) $"rerun passes the arguments: {reran}"
-          Expect.notEqual
-            (printed reran)
-            original
-            "rerun performs randomness for real"
-          let! (rerun : Traces.Trace) = latest ()
-          Expect.notEqual rerun.id recorded.id "rerun records a separate run"
-        finally
-          if System.IO.File.Exists path then System.IO.File.Delete path
-      })
-
-
 /// Saved arguments must count towards the trace's storage limit.
 let private invocationCountsTowardsTraceWeight =
   cliTestWithFreshTraces
@@ -235,37 +159,6 @@ let private invocationCountsTowardsTraceWeight =
             weight
             args
             "and counted in the trace's weight"
-        finally
-          if System.IO.File.Exists path then System.IO.File.Delete path
-      })
-
-
-let private scriptReplayKeepsSandbox =
-  cliTestWithFreshTraces
-    "CLI invocation preserves the script sandbox on resume and rerun"
-    (fun state ->
-      task {
-        let path =
-          System.IO.Path.Combine(
-            System.IO.Path.GetTempPath(),
-            $"dark-sandbox-replay-{System.Guid.NewGuid()}.dark"
-          )
-        let code = "Stdlib.printLine(\"SANDBOX_EFFECT\")\n0"
-        try
-          System.IO.File.WriteAllText(path, code)
-          let! _, firstExit = runCliWithExit state [ "run"; "--sandbox"; path ]
-          Expect.equal firstExit 1L "the original sandbox blocks stdout"
-          let! (recorded : Traces.Trace) = latest ()
-          System.IO.File.Delete path
-          for verb in [ "resume"; "rerun" ] do
-            let! output, exitCode =
-              runCliWithExit state [ "traces"; verb; prefixOf recorded ]
-            Expect.equal exitCode 1L $"{verb} cannot drop the sandbox"
-            Expect.stringContains output "run policy" $"{verb} keeps the denial"
-            Expect.isFalse
-              ((plain output).Split('\n')
-               |> Array.exists (fun line -> line = "SANDBOX_EFFECT"))
-              "the denied effect never runs"
         finally
           if System.IO.File.Exists path then System.IO.File.Delete path
       })
@@ -386,64 +279,6 @@ let private rerunIsIndependentOfResult =
       })
 
 
-let private recordThenResume =
-  cliTestWithFreshTraces
-    "a run is kept, and resume replays its effects rather than redoing them"
-    (fun state ->
-      task {
-        let! first = runCli state [ "eval"; twoUuids ]
-        let! listed = runCli state [ "exec" ]
-        Expect.stringContains listed "done" $"the run is listed, done ({first})"
-        Expect.stringContains listed "eval" "with its entry"
-        Expect.isFalse
-          (listed.Contains "(not source)")
-          "the listing shows the source"
-        let! prefix = latestPrefix ()
-        let! resumed = runCli state [ "exec"; "resume"; prefix ]
-        // The last line is the value; the first says what is being resumed.
-        let last = resumed.Split('\n') |> Array.last
-        Expect.equal
-          (words last)
-          (words first)
-          "the same two uuids: both calls answered from the log"
-        let! e = latest ()
-        Expect.equal e.status Traces.Done "and the run is done again"
-      })
-
-
-let private forkDivergesAfterThePosition =
-  cliTestWithFreshTraces
-    "a fork keeps the log up to a position and goes live after it"
-    (fun state ->
-      task {
-        let! first = runCli state [ "eval"; twoUuids ]
-        let! parent = latest ()
-        let prefix = prefixOf parent
-        // Position 1: the first uuid's row (seq 0) is kept, the second (seq 1) is not.
-        let! forked = runCli state [ "exec"; "fork"; prefix; "--at"; "1" ]
-        Expect.stringContains forked "forked" "the fork is announced"
-        let! child = latest ()
-        Expect.equal child.status Traces.Suspended "a fork waits to be resumed"
-        Expect.equal
-          child.parent
-          (Some(parent.id, 1L))
-          "and knows where it came from"
-        let! shown = runCli state [ "exec"; "inspect"; prefixOf child ]
-        Expect.stringContains shown "forked" "details says so"
-        Expect.stringContains
-          shown
-          ((string parent.id).Substring(0, 8))
-          "and names the run it came from"
-        let! resumed = runCli state [ "exec"; "resume"; prefixOf child ]
-        let last = resumed.Split('\n') |> Array.last
-        match words first, words last with
-        | [ a1; b1 ], [ a2; b2 ] ->
-          Expect.equal a2 a1 "the first uuid came from the log"
-          Expect.notEqual b2 b1 "the second was generated afresh"
-        | _ -> failtest $"unexpected outputs: {first} / {last}"
-      })
-
-
 let private suspendThenResume =
   cliTestWithFreshTraces
     "a run suspended midway resumes with its first effects answered from the log"
@@ -492,45 +327,6 @@ let private suspendThenResume =
       })
 
 
-let private replayAfterAnEdit =
-  cliTestWithFreshTraces
-    "replay after a package edit runs the new pure code against the old effects"
-    (fun state ->
-      task {
-        do! start state
-        do! fn state "Tests.Exec.shape" "(s: String) : String = \"v1:\" + s"
-        do! commit state "shape v1"
-        let! first =
-          runCli
-            state
-            [ "eval"; "Tests.Exec.shape(Stdlib.toString(Stdlib.Uuid.generate()))" ]
-        Expect.stringStarts first "v1:" "the first run went through v1"
-        do! fn state "Tests.Exec.shape" "(s: String) : String = \"v2:\" + s"
-        do! commit state "shape v2"
-        let! prefix = latestPrefix ()
-        let! resumed = runCli state [ "exec"; "resume"; prefix ]
-        let last = resumed.Split('\n') |> Array.last
-        Expect.stringStarts last "v2:" "the resume ran the new code"
-        let uuidOf (s : string) = s.Substring(s.IndexOf(':') + 1).TrimEnd('"')
-        Expect.equal
-          (uuidOf last)
-          (uuidOf first)
-          "against the uuid the old run made"
-        // The one thing about a resume the run itself cannot notice, so the resume says it.
-        Expect.stringContains
-          resumed
-          "edited since this ran"
-          "the resume says what moved"
-        // Indented, because the resume header echoes the input and the input CALLS this
-        // function, so an unindented substring check passed on the header whether or not
-        // the moved list named anything. The moved names are printed four spaces in.
-        Expect.stringContains
-          resumed
-          "    Tests.Exec.shape"
-          "and names the function that moved"
-      })
-
-
 /// An edit that changes what the run DID: the first effect now gets different arguments. The
 /// log holds what the old program did at that step, so serving it to the new call answers an
 /// effect that never happened. The resume refuses there, says what differs, and leaves the run
@@ -573,76 +369,6 @@ let private replayRefusesADivergedEffect =
           (List.length logAfter)
           (List.length logBefore)
           "with its log as it was"
-      })
-
-
-/// The other half of `replayAfterAnEdit`: a resume against code nobody touched must not
-/// warn, or the warning means nothing on the run that has it.
-let private replayWithoutAnEdit =
-  cliTestWithFreshTraces
-    "a resume against unchanged code says nothing about edits"
-    (fun state ->
-      task {
-        do! start state
-        // A body nothing else in these tests has: a package hash is structural, so two functions
-        // with identical bodies share one, and `trace_fns` would name whichever of them the
-        // store resolves that hash to.
-        do! fn state "Tests.Exec.steady" "(s: String) : String = \"steady:\" + s"
-        do! commit state "steady"
-        let! _ = runCli state [ "eval"; "Tests.Exec.steady(\"x\")" ]
-        let! prefix = latestPrefix ()
-        let! resumed = runCli state [ "exec"; "resume"; prefix ]
-        Expect.stringContains resumed "steady:x" "the resume ran"
-        Expect.isFalse
-          (resumed.Contains "edited since this ran")
-          "nothing moved, so nothing is said"
-      })
-
-
-/// The call inbox and the preview, which are classic's trace dots and live values with our
-/// effect log underneath.
-///
-/// Both at the SHIPPED recording level, on purpose: the whole point is that a run recorded the
-/// cheap way is enough to look at. The values come from replaying the run with its effects
-/// answered from the log, so the print in the middle of the function must not print again.
-let private previewShowsValuesAndPerformsNothing =
-  cliTestWithFreshTraces
-    "traces calls finds the traces, and traces show replays one without performing its effects"
-    (fun state ->
-      task {
-        // No level pinning: recording is on or off, and the harness turns it on.
-        do! start state
-        do!
-          fn
-            state
-            "Tests.Prev.greet"
-            "(name: String): String =\n  let upper = Stdlib.String.toUppercase(name)\n  let shouted = Stdlib.String.append(upper, \"!\")\n  let _ = Stdlib.printLine(shouted)\n  shouted"
-        do! commit state "greet"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.greet" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.greet(\"bob\")" ]
-        Expect.stringContains ran "BOB!" "the run printed for real"
-
-        // The index knows which runs went through the function, at this level, where the
-        // call itself is not recorded at all.
-        let! listed = runCli state [ "traces"; "calls"; "Tests.Prev.greet" ]
-        Expect.stringContains listed "eval" "the run that went through it"
-
-        let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.greet" ]
-        Expect.stringContains
-          viewed
-          "toUppercase(name) // = \"BOB\""
-          "the recorded input flowed through the first call"
-        Expect.stringContains
-          viewed
-          "append(upper, \"!\") // = \"BOB!\""
-          "and through the second"
-        // The print is an effect: answered from the log, not performed, and not echoed
-        // either -- looking at code is silent.
-        let printed =
-          viewed.Split('\n')
-          |> Array.filter (fun l -> l.Trim() = "BOB!")
-          |> Array.length
-        Expect.equal printed 0 "the preview did not print"
       })
 
 
@@ -1134,50 +860,6 @@ let private replayEchoesAndRefuses =
       })
 
 
-/// A run that spawned a Dark process resumes like any other: the spawn is performed again, and
-/// the new child replays the recorded child's own log, so the value it made comes back the same.
-///
-/// The parent's own effect AFTER the spawn is in here on purpose. Serving the spawn from the
-/// log instead of performing it (which is what `Redact.performAgain` prevents) leaves the
-/// handle naming a process that no longer exists; in a fresh OS process the next `await`
-/// raises "no process has this handle". This test runs in-process, where the recorded child
-/// may still be findable, so the handle alone would not catch it -- the second uuid is what
-/// pins that the parent went on replaying past the spawn.
-let private spawnedChildReplays =
-  cliTestWithFreshTraces
-    "a resumed run spawns again, and the child replays its own effects"
-    (fun state ->
-      task {
-        let program =
-          "let h = Stdlib.Exec.spawn(fun () -> Stdlib.toString(Stdlib.Uuid.generate()))\nlet child = Stdlib.Exec.await(h)\nlet mine = Stdlib.toString(Stdlib.Uuid.generate())\nStdlib.printLine($\"{child} {mine}\")"
-          + ""
-          + ""
-          + ""
-        // The resume echoes a logged print with a `[replayed]` prefix, and prints its own
-        // progress above it; the two uuids are the last non-empty line either way.
-        let uuidLine (out : string) : string =
-          let candidates =
-            out.Split('\n')
-            |> Array.map (fun l -> l.Replace("[replayed]", "").Trim())
-            |> Array.filter (fun l -> l.Contains "-" && l.Length > 60)
-
-          if Array.isEmpty candidates then
-            // `Array.last` on empty threw away the output and reported "the input array was
-            // empty", which says nothing about what the command actually printed.
-            failtest $"no line held two uuids. The command printed:\n{out}"
-          else
-            Array.last candidates
-        let! first = runCli state [ "eval"; program ]
-        let line = uuidLine first
-        let! e = latest ()
-        let! resumed = runCli state [ "exec"; "resume"; prefixOf e ]
-        Expect.equal
-          (uuidLine resumed)
-          line
-          "the child's uuid and the parent's own both came from the log, not from a fresh roll"
-      })
-
-
 /// A loop that made no impure call still knows how many times it went round.
 ///
 /// The count comes from the RECORD, not from the replay, and the record used to keep only the
@@ -1225,198 +907,6 @@ let private pureLoopPassesAreCounted =
       })
 
 
-/// Deleting a trace has to take its loop counts with it.
-///
-/// `trace_loops` arrived with this branch and every delete path was written before it existed,
-/// so a deleted trace left its rows behind. Nothing can ever read them again: every query is
-/// `WHERE trace_id = @t` against a trace that is gone. They are invisible, they only grow, and
-/// retention runs on its own, so a long-lived store accumulates them for as long as it lives.
-/// Recursion is a loop, and an iteration that never reached a line must not borrow another's.
-///
-/// Both of these are the same failure in different clothes, and both shipped wrong until they
-/// were walked by hand. `fact 5` recursed five times and the page showed the last call's numbers
-/// with no footer and nothing saying there had been others, because only LAMBDA frames counted as
-/// a loop. And asking for the base case, which returns before the lines below it run, printed the
-/// first call's values under a heading naming the fifth: the lines fell through to the flat
-/// last-value-wins figure.
-let private recursionIsALoopAndEmptyIterationsStaySilent =
-  cliTestWithFreshTraces
-    "recursion has iterations, and one that returned early shows no values rather than another's"
-    (fun state ->
-      task {
-        do! start state
-        do!
-          fn
-            state
-            "Tests.Prev.fact"
-            ("(n: Int): Int =\n  if n <= 1 then\n    1\n  else\n    let sub = Tests.Prev.fact(n - 1)\n    n * sub"
-             + ""
-             + ""
-             + ""
-             + ""
-             + "")
-        do! commit state "fact"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.fact" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.fact(5)" ]
-        Expect.stringContains ran "120" "the run went five deep"
-
-        // Five entries into the same function, so five iterations, named after it.
-        let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.fact" ]
-        Expect.stringContains
-          viewed
-          "fact: showing iteration 5 of 5"
-          "recursion is counted as a loop, not shown as a single call"
-
-        // The second call is `fact 4`: its sub is 6 and its product is 24. These are the values
-        // that were unreachable before, because only the last call's survived.
-        let! second =
-          runCli
-            state
-            [ "traces"; "show"; "Tests.Prev.fact"; "--iteration"; "fact:2" ]
-        Expect.stringContains
-          second
-          "// = 24"
-          "the second iteration has its own product"
-        Expect.stringContains second "// = 6" "and its own sub"
-        // And what it was GIVEN, which is the other half of reading an iteration: the values of
-        // a call mean nothing without the inputs that produced them. `fact 5` is what the RUN
-        // was given; `n = 4` is what this time round was.
-        Expect.stringContains
-          second
-          "n = 4"
-          "and says what this iteration was given"
-        Expect.stringContains
-          second
-          "given"
-          "while still saying what the whole run was given"
-
-        // The fifth is the base case. It returns before `sub` and the product ever run, so those
-        // lines have no value in it -- and must not show the ones that another iteration left.
-        let! baseCase =
-          runCli
-            state
-            [ "traces"; "show"; "Tests.Prev.fact"; "--iteration"; "fact:5" ]
-        Expect.stringContains
-          baseCase
-          "fact: showing iteration 5 of 5"
-          "it is the iteration that was asked for"
-        Expect.isFalse
-          (baseCase.Contains "// = 24")
-          "the base case did not run the product, so it must not carry iteration 2's value"
-        Expect.isFalse (baseCase.Contains "// = 120") "nor the first iteration's"
-      })
-
-
-/// You could always ask a function for its runs. This is the other direction.
-///
-/// `traces stats` groups by entry, so sixty-six runs collapse into one row saying `eval`, and
-/// `hotspots` reads the effect log, which holds only impure calls, so every name it can print is
-/// a builtin. Neither answers "what have recent runs been about". `trace_fns` always held the
-/// answer and nothing read it.
-/// The first few iterations and the last few are held; any other is fetched when asked for.
-///
-/// Holding every iteration of every loop means the values scale with the RUN rather than with
-/// what can be shown, and `fib 20` pushes twenty-two thousand frames. Holding only the first few
-/// means the END of a long loop -- usually the half worth seeing -- is unreachable. So: a window
-/// at each end, and anything in between costs one more replay, which is what opening the trace
-/// costs anyway. The point is that nothing is unreachable however long the loop is.
-let private everyIterationOfALoopIsReachable =
-  cliTestWithFreshTraces
-    "the view holds the first and last iterations, and fetches any other when asked"
-    (fun state ->
-      task {
-        do! start state
-        do!
-          fn
-            state
-            "Tests.Prev.scaled"
-            ("(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i ->\n    let big = i * 100\n    big)\n  |> Stdlib.List.length"
-             + ""
-             + ""
-             + ""
-             + ""
-             + "")
-        do! commit state "scaled"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.scaled" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.scaled(30)" ]
-        Expect.stringContains ran "30" "the loop went round thirty times"
-
-        // In the head, in the tail, and the ones in between that are the whole point: 7 and 15
-        // are outside the window at both ends and have to be gone and got.
-        for (which, expected) in [ 1, "100"; 7, "700"; 15, "1500"; 30, "3000" ] do
-          let! shown =
-            runCli
-              state
-              [ "traces"
-                "show"
-                "Tests.Prev.scaled"
-                "--iteration"
-                $"map:{which}" ]
-          Expect.stringContains
-            shown
-            $"// = {expected}"
-            $"iteration {which} shows its own value, not another iteration's"
-          Expect.stringContains
-            shown
-            $"showing iteration {which} of 30"
-            $"and the page says which one it is"
-
-        // The same reach for an agent. `--json` used to ignore `--iteration` entirely, so an
-        // agent saw the first few and the last few of a long loop and had no way to ask for the
-        // rest, while a person could. The two are one question asked by two readers.
-        let! asJson =
-          runCli
-            state
-            [ "traces"
-              "show"
-              "Tests.Prev.scaled"
-              "--json"
-              "--iteration"
-              "map:15" ]
-        Expect.stringContains
-          asJson
-          "\"at\":15"
-          "the agent gets the iteration it asked for"
-        Expect.stringContains asJson "1500" "with its own value"
-      })
-
-
-let private tracesFnsNamesWhatRunsWentThrough =
-  cliTestWithFreshTraces
-    "traces fns names the functions recent runs went through, bundled library hidden"
-    (fun state ->
-      task {
-        do! start state
-        do!
-          fn
-            state
-            "Tests.Prev.counted"
-            "(xs: List<Int>): Int =\n  Stdlib.List.length(xs)"
-        do! commit state "counted"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.counted" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.counted([1, 2, 3])" ]
-        Expect.stringContains ran "3" "the run happened"
-
-        let! listed = runCli state [ "traces"; "fns" ]
-        Expect.stringContains
-          listed
-          "Tests.Prev.counted"
-          "the function the run went through, which is the whole point of the verb"
-        // The run also went through `Darklang.Stdlib.List.length`, and so does almost every run.
-        // Listing it buries the handful of names that are actually yours.
-        Expect.isFalse
-          (listed.Contains "Darklang.Stdlib")
-          "the bundled library is hidden unless asked for"
-
-        let! all = runCli state [ "traces"; "fns"; "--all" ]
-        Expect.stringContains all "Tests.Prev.counted" "yours are still there"
-        Expect.stringContains
-          all
-          "Darklang.Stdlib"
-          "--all puts the bundled library back, or the flag does nothing"
-      })
-
-
 /// A function that RAN and has since gone is not a typo, and must not be reported as one.
 ///
 /// `scripts/dev/build` re-authors the store from the `.dark` files, so anything authored by hand
@@ -1426,38 +916,6 @@ let private tracesFnsNamesWhatRunsWentThrough =
 ///
 /// The second half covers what the index keeps when it has no name at all: the hash. Sixty-four
 /// hex characters printed as if they were a name reads like corruption and blows the column out.
-/// Two names for one function find the same runs, because they ARE one function.
-///
-/// Dark is content-addressed: byte-identical bodies have one hash, and the name is a label on
-/// it. The index records whichever name resolved when the run happened, so asking by name found
-/// nothing under the other one and said "no recorded trace went through it" about code that had
-/// just run. The lookup asks by hash now, and the name is only used when there is no hash --
-/// which is the case where the store no longer has the function at all.
-let private twoNamesForOneFunctionFindTheSameRuns =
-  cliTestWithFreshTraces
-    "an alias of a function finds its runs, because content addressing makes them one function"
-    (fun state ->
-      task {
-        do! start state
-        let body = "(n: Int) : Int =\n  n * 3"
-        do! fn state "Tests.Prev.tripled" body
-        do! fn state "Tests.Other.tripled" body
-        do! commit state "tripled twice"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.tripled" ]
-        let! ran = runCli state [ "eval"; "Tests.Prev.tripled(4)" ]
-        Expect.stringContains ran "12" "one of them ran"
-
-        let! other = runCli state [ "traces"; "calls"; "Tests.Other.tripled" ]
-        Expect.stringContains
-          other
-          "eval"
-          "the run is found under the name that did NOT run, because it is the same code"
-        Expect.isFalse
-          (other.Contains "no recorded trace")
-          "asking by name alone used to answer this with nothing"
-      })
-
-
 let private aFunctionThatRanAndWentIsNotATypo =
   cliTestWithFreshTraces
     "a function that ran and whose code has gone reads differently from a typo"
@@ -1512,6 +970,12 @@ let private aFunctionThatRanAndWentIsNotATypo =
       })
 
 
+/// Deleting a trace has to take its loop counts with it.
+///
+/// `trace_loops` arrived with this branch and every delete path was written before it existed,
+/// so a deleted trace left its rows behind. Nothing can ever read them again: every query is
+/// `WHERE trace_id = @t` against a trace that is gone. They are invisible, they only grow, and
+/// retention runs on its own, so a long-lived store accumulates them for as long as it lives.
 let private deletingATraceTakesItsLoopCounts =
   cliTestWithFreshTraces
     "deleting a trace drops its loop counts too, rather than orphaning them"
@@ -1556,127 +1020,6 @@ let private deletingATraceTakesItsLoopCounts =
           |> Sql.parameters [ "t", Sql.string traceId ]
           |> Sql.executeRowAsync (fun read -> read.int64 "c")
         Expect.equal stillThere 0L "and so did the trace, so the delete really ran"
-      })
-
-
-/// Two identical calls in one run have two answers, and the view has to show both.
-///
-/// The preview keys recorded results on (name, arguments), which is what lets a view survive the
-/// code moving. On its own it cannot tell two identical calls apart: `Uuid.generate ()` twice
-/// has one key and two results, and last-write-wins served the second to both callers. The run
-/// made two different uuids and the view showed one of them, twice, with no error and no marker.
-/// That is the worst shape a bug can take in a debugging tool.
-let private identicalCallsKeepTheirOwnValues =
-  cliTestWithFreshTraces
-    "two identical calls in one run show their own recorded values, not one twice"
-    (fun state ->
-      task {
-        do! start state
-        do!
-          fn
-            state
-            "Tests.Prev.two"
-            ("(): String =\n  let a = Stdlib.toString(Stdlib.Uuid.generate())\n  let b = Stdlib.toString(Stdlib.Uuid.generate())\n  $\"{a} {b}\""
-             + ""
-             + ""
-             + "")
-        do! commit state "two"
-        do!
-          shows
-            state
-            [ "permissions"; "approve"; "Tests.Prev.two"; "--yes" ]
-            "approved Tests.Prev.two"
-            "the function is approved before viewing its trace"
-        let! ran = runCli state [ "eval"; "Tests.Prev.two()" ]
-
-        // The run really did make two different uuids. If it did not, the rest proves nothing.
-        let ranPair =
-          ran.Split('\n')
-          |> Array.map (fun l -> l.Trim())
-          |> Array.filter (fun l -> l.Contains " " && l.Length > 60)
-          |> Array.tryLast
-        match ranPair with
-        | None -> failtest "the run did not print two uuids"
-        | Some pair ->
-          let parts = pair.Split(' ')
-          Expect.notEqual
-            parts[0]
-            parts[1]
-            "the run itself made two different uuids"
-
-          let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.two" ]
-          // Each `let` line carries its own recorded value. Collapsed, both lines showed the
-          // same one.
-          let shown =
-            viewed.Split('\n')
-            |> Array.filter (fun l ->
-              l.Contains "Uuid.generate" && l.Contains "// =")
-            |> Array.map (fun l -> l.Substring(l.IndexOf "// =").Trim())
-          Expect.equal shown.Length 2 $"both calls carry a value: {viewed}"
-          Expect.notEqual
-            shown[0]
-            shown[1]
-            "and they are the two the run made, not the second one twice"
-      })
-
-
-/// Looking at code must never touch the world, and a SPAWNED process is the case where that
-/// was easiest to get wrong.
-///
-/// The scheduler hands each process its own tracer, and it decided whether to bother by asking
-/// whether anything was being recorded. A preview records nothing, so the answer was no, and a
-/// spawned child inherited the DEFAULT tracer: the one that performs effects for real. Viewing
-/// a recorded run that used `parallelMap`, or any spawn, would have run its writes again.
-///
-/// A uuid rather than a print, because the child's stdout does not come back through the
-/// harness and its absence would prove nothing. A uuid is evidence either way: served from the
-/// log it matches the recording, rolled for real it cannot. The spawn ITSELF is performed again
-/// on purpose (`Redact.performAgain`), so a real child process is created here and the question
-/// is only which tracer it gets.
-let private previewOfASpawnServesTheChildFromTheLog =
-  cliTestWithFreshTraces
-    "previewing a run that spawned a process serves the child from the log, not the world"
-    (fun state ->
-      task {
-        do! start state
-        do!
-          fn
-            state
-            "Tests.Prev.conc"
-            ("(): String =\n  let h = Stdlib.Exec.spawn(fun () -> Stdlib.toString(Stdlib.Uuid.generate()))\n  Stdlib.Exec.await(h)"
-             + ""
-             + "")
-        do! commit state "conc"
-        do!
-          shows
-            state
-            [ "permissions"; "approve"; "Tests.Prev.conc"; "--yes" ]
-            "approved Tests.Prev.conc"
-            "the function is approved"
-
-        let! ran = runCli state [ "eval"; "Tests.Prev.conc()" ]
-        let uuidIn (out : string) : string option =
-          out.Split('\n')
-          |> Array.map (fun l -> l.Trim().Trim('"'))
-          |> Array.filter (fun l -> l.Length = 36 && l.Split('-').Length = 5)
-          |> Array.tryLast
-        let recorded =
-          match uuidIn ran with
-          | Some u -> u
-          | None -> failtest $"the run did not produce a uuid: {ran}"
-
-        let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.conc" ]
-        // The value beside `await h` is what the child made. If the child ran for real during
-        // the preview it is a fresh uuid, and the view is showing something that never happened.
-        Expect.stringContains
-          viewed
-          recorded
-          "the child's value came from the log, so the spawned process previewed too"
-        let! json = runCli state [ "traces"; "show"; "Tests.Prev.conc"; "--json" ]
-        Expect.stringContains
-          json
-          recorded
-          "the JSON preview serves the same recorded value"
       })
 
 
@@ -1780,97 +1123,15 @@ let private secretsAreNotInTheLog =
       })
 
 
-
-let private psListsTheTree =
-  cliTestWithFreshTraces
-    "ps prints this dark's table and refuses an unknown id by name"
-    (fun state ->
-      task {
-        // The harness runs commands unscheduled, so the table is empty here; the shape is
-        // what this pins. The tree itself is `Scheduler.Tests`' and the demo's.
-        let! out = runCli state [ "ps" ]
-        Expect.stringContains
-          out
-          "this instance (pid"
-          "the local table is captioned"
-        // The columns are as wide as their widest cell (and the header is bold), so it is
-        // matched word by word.
-        let plain =
-          System.Text.RegularExpressions.Regex.Replace(out, "\u001b\\[[0-9;]*m", "")
-        let header = plain.Split('\n') |> Array.find (fun l -> l.StartsWith "id ")
-        for column in [ "what it runs"; "status"; "steps" ] do
-          Expect.stringContains header column "with its columns"
-        // This instance first: it is the one the reader is standing in. Both sections always
-        // print, `(none)` and all, so an empty one reads as an answer.
-        let elsewhere = plain.IndexOf "other Dark processes on this machine"
-        Expect.isGreaterThan elsewhere 0 "the machine's table is always there"
-        Expect.isLessThan
-          (plain.IndexOf "this instance (pid")
-          elsewhere
-          "this instance's table comes before the machine's"
-        let! missing = runCli state [ "ps"; "show"; "nope" ]
-        Expect.stringContains
-          missing
-          "no process whose id starts with nope"
-          "an unknown id is refused, not answered plausibly"
-      })
-
-
-/// Replay runs under the approvals the viewer holds. Its other half, that a second account's
-/// approval grants the viewer nothing, left with accounts in the molt: withdrawing the
-/// approval is no substitute, since the default policy already allows this body's effects.
-let private previewUsesTheViewersApprovals =
-  instanceTest "trace previews use the viewer's current approvals" (fun state ->
-    task {
-      do! run state [ "traces"; "record"; "on" ]
-      do!
-        fn
-          state
-          "Tests.PreviewAccount.value"
-          "(): String = Stdlib.toString(Stdlib.Uuid.generate())"
-      do! run state [ "permissions"; "approve"; "Tests.PreviewAccount.value" ]
-      let! ran = runCliPlain state [ "eval"; "Tests.PreviewAccount.value()" ]
-      let recorded = ran.Trim().Trim('"')
-      Expect.isTrue
-        (System.Guid.TryParse recorded |> fst)
-        $"the approved call produced a UUID: {ran}"
-
-      for flags in [ []; [ "--json" ] ] do
-        let! viewed =
-          runCliPlain
-            state
-            ([ "traces"; "show"; "Tests.PreviewAccount.value" ] @ flags)
-        Expect.stringContains
-          viewed
-          recorded
-          "the viewer's approval applies to replay"
-
-    })
-
-
 let tests =
   [ scriptOrEvalInputPersistence
-    scriptReplayKeepsInvocation
-    scriptReplayKeepsSandbox
     legacyScriptDoesNotGuessItsInput
     resumeNamesServedRequests
     invocationCountsTowardsTraceWeight
     rerunIsIndependentOfResult
-    recordThenResume
-    forkDivergesAfterThePosition
     suspendThenResume
-    replayAfterAnEdit
-    replayWithoutAnEdit
     replayRefusesADivergedEffect
-    previewShowsValuesAndPerformsNothing
-    previewOfASpawnServesTheChildFromTheLog
-    identicalCallsKeepTheirOwnValues
-    previewUsesTheViewersApprovals
     pureLoopPassesAreCounted
-    recursionIsALoopAndEmptyIterationsStaySilent
-    everyIterationOfALoopIsReachable
-    tracesFnsNamesWhatRunsWentThrough
-    twoNamesForOneFunctionFindTheSameRuns
     aFunctionThatRanAndWentIsNotATypo
     deletingATraceTakesItsLoopCounts
     retentionKeepsTheNewestAndTheSuspended
@@ -1884,6 +1145,4 @@ let tests =
     deletingEveryTraceEmptiesEveryTraceTable
     replayEchoesAndRefuses
     secretsAreNotInTheLog
-    spawnedChildReplays
-    secretHeadersAreRedacted
-    psListsTheTree ]
+    secretHeadersAreRedacted ]
