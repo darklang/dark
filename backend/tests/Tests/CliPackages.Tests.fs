@@ -533,14 +533,23 @@ let cachedPassesRequireTheSameBuildAndJudge =
           "UPDATE package_test_results "
           + $"SET runtime_hash = '{oldKey}' "
           + $"WHERE runtime_hash = '{key.Trim()}'"
-        do!
-          exits
-            state
-            [ "eval"
-              "Stdlib.Sqlite.mustExec(Stdlib.LocalStore.path(), "
-              + $"\"{sql}\", [])" ]
-            0L
+        // Straight into the instance's store from F#: Dark has no SQL to do it with.
+        match state with
+        | Instance i ->
+          let store = System.IO.Path.Combine(i.dir, "data.db")
+          use conn =
+            new Microsoft.Data.Sqlite.SqliteConnection(
+              $"Data Source={store};Pooling=False"
+            )
+          conn.Open()
+          use cmd = conn.CreateCommand()
+          cmd.CommandText <- sql
+          let moved = cmd.ExecuteNonQuery()
+          Expect.isGreaterThan
+            moved
+            0
             "move the stored pass to an older cache identity"
+        | InProcess _ -> failtest "this test runs against an instance"
         do!
           shows
             state

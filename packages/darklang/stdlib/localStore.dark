@@ -1,17 +1,14 @@
 /// This instance's own local state: where its store is, and the key-value settings beside it.
 ///
 /// One module because these are the two primitives every layer needs and neither belongs to any of
-/// them. `scm/` runs SQL against the store; the CLI's `config`, `backups` and `scripts` do too; the
-/// relay and the package browser do. Without a shared home each of them carries its own
-/// `let localDb () : String = Builtin.localDbPath ()`, which is the one-wrapper rule defeated by
-/// copy-paste rather than a case where wrapping does not work.
+/// them.
 module Darklang.Stdlib.LocalStore
 
 
-/// The path of this instance's package store, for `Stdlib.Sqlite` calls against it.
+/// The path of this instance's package store, for showing and for finding what lives beside it.
+/// The store itself is read and changed only through the typed package and SCM functions.
 ///
-/// A PATH rather than a handle: every reader opens its own connection, and the store moves per
-/// instance (its HOME, a test's copy, a backup being restored), so nothing may cache it.
+/// The store moves per instance (its HOME, a test's copy), so nothing may cache this.
 let path(): String = Builtin.localDbPath()
 
 

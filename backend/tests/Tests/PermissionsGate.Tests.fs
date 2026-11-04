@@ -153,33 +153,6 @@ let packagePolicyDenies =
     expectDenied [ "package policy" ] actual
   }
 
-/// The sqlite builtins declare the worst case over every database, which includes the store's
-/// package-write. Checking that declaration before the body would ask a write to someone's own
-/// file for package-write, under an instance that has granted native for exactly that; the body's
-/// exact check is the only one that may run.
-let sqliteOwnDatabaseWriteNeedsOnlyNative =
-  testTask "a sqlite write to your own database needs native, not package-write" {
-    let hash = "permissions-sqlite-own-db"
-    let path =
-      System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dark-own-db-probe.db")
-    let body =
-      eApply
-        (eBuiltinFn "sqliteExec" 0)
-        []
-        [ eStr [ strText path ]
-          eStr [ strText "create table if not exists t (x int)" ]
-          eList [] ]
-    let fn = ceilingFn hash None body
-    let nativeOnly =
-      LibExecution.Execution.setInstancePolicy (
-        LibExecution.Permissions.Policy.allowEffects (
-          Set.singleton Effects.Effect.Native
-        )
-      )
-    let! actual = runPackageFnWith nativeOnly (pmWith [ fn ]) hash
-    expectNotDenied actual
-  }
-
 /// After an upgrade changes what a builtin declares, a policy installed by an older approval can
 /// stop covering a call it used to cover. The denial has to say which approval that was and why it
 /// stopped being enough, not just print a policy hash nobody has seen.
@@ -906,7 +879,6 @@ let tests =
       nativeAllowedByAllowAll
       newRunPolicyDenies
       packagePolicyDenies
-      sqliteOwnDatabaseWriteNeedsOnlyNative
       packageDenialNamesStaleApproval
       escapedLambdaKeepsAccess
       evaluatedNamedFnInContainerCannotWidenReentry

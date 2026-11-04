@@ -22,7 +22,6 @@
     <!-- Tracing (reader) -->
     <Compile Include="Libs/Traces.fs" />
 
-    <Compile Include="Libs/Sqlite.fs" />
 
     <Compile Include="Builtin.fs" />
   </ItemGroup>

@@ -178,46 +178,62 @@ let failedAliasValuesLeaveNoReferenceMetadata =
         do! onMain state
       })
 
+/// Runs `f` against the instance's own store, straight from F#: Dark has no SQL to do it with.
+let private withStore
+  (target : Target)
+  (f : Microsoft.Data.Sqlite.SqliteCommand -> 'a)
+  : 'a =
+  match target with
+  | Instance i ->
+    let store = System.IO.Path.Combine(i.dir, "data.db")
+    use conn =
+      new Microsoft.Data.Sqlite.SqliteConnection(
+        $"Data Source={store};Pooling=False"
+      )
+    conn.Open()
+    use cmd = conn.CreateCommand()
+    f cmd
+  | InProcess _ -> failtest "this test runs against an instance"
+
 let authoringFollowsStoredCommits =
   instanceTest
     "authoring stamps follow stored commits on main and branches"
     (fun state ->
       task {
         do! start state
-        let insert =
-          "INSERT INTO commits (hash, message, origin_ts) "
-          + "VALUES ('clock-regression-future', 'future clock', '2099-01-01T00:00:00.000Z')"
-        do!
-          shows
-            state
-            [ "eval"; $"Stdlib.Sqlite.exec(Darklang.SCM.localDb(), \"{insert}\")" ]
-            "Ok"
-            "the future commit fixture is stored"
-        let query sql =
-          $"Stdlib.Sqlite.scalarTextP(Darklang.SCM.localDb(), \"{sql}\", [], \"ts\", \"missing\")"
+        withStore state (fun cmd ->
+          cmd.CommandText <-
+            "INSERT INTO commits (hash, message, origin_ts) "
+            + "VALUES ('clock-regression-future', 'future clock', '2099-01-01T00:00:00.000Z')"
+          Expect.equal
+            (cmd.ExecuteNonQuery())
+            1
+            "the future commit fixture is stored")
+        let stamp sql =
+          withStore state (fun cmd ->
+            cmd.CommandText <- sql
+            match cmd.ExecuteScalar() with
+            | :? string as ts -> ts
+            | _ -> "missing")
         do! fn state "Tests.ClockRegression.main" "(): Int64 = 781563L"
         let mainStamp =
           "SELECT p.origin_ts AS ts FROM package_ops p JOIN locations l ON l.op_id = p.id "
           + "WHERE l.owner = 'Tests' AND l.modules = 'ClockRegression' "
           + "AND l.name = 'main' AND l.unlisted_at IS NULL"
-        do!
-          shows
-            state
-            [ "eval"; query mainStamp ]
-            "2099-"
-            "a main edit sorts after the stored commit"
+        Expect.stringStarts
+          (stamp mainStamp)
+          "2099-"
+          "a main edit sorts after the stored commit"
         do! switch state "clock-regression"
         do! fn state "Tests.ClockRegression.branch" "(): Int64 = 781564L"
         let branchStamp =
           "SELECT MIN(p.origin_ts) AS ts FROM package_ops p "
           + "JOIN op_branches ob ON ob.op_id = p.id "
           + "JOIN branches b ON b.id = ob.branch_id WHERE b.name = 'clock-regression'"
-        do!
-          shows
-            state
-            [ "eval"; query branchStamp ]
-            "2099-"
-            "a branch edit sorts after the stored commit"
+        Expect.stringStarts
+          (stamp branchStamp)
+          "2099-"
+          "a branch edit sorts after the stored commit"
       })
 
 let branchDiscardRestoresReferenceNames =
