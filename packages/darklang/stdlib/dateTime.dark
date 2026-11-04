@@ -1,3 +1,9 @@
+/// Work with dates and times in UTC. Values can be as little as 100 nanoseconds
+/// (one tick) apart. Two values are equal only when they match exactly, down to
+/// the tick, even if they look the same when printed.
+/// For example, `Stdlib.DateTime.__fromTicks(0) == Stdlib.DateTime.__fromTicks(0)`
+/// is `true`, but `Stdlib.DateTime.__fromTicks(0) == Stdlib.DateTime.__fromTicks(1)`
+/// is `false`: a difference of just 100 nanoseconds makes them unequal.
 module Darklang.Stdlib.DateTime
 
 
