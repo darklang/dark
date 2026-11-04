@@ -86,6 +86,9 @@ type Process =
     mutable stopReason : string
     /// True when the stop was a `Kill` (abandon what it waits on) rather than a `Cancel`.
     mutable stopHard : bool
+    /// True when `stopReason` was asked for (`Kill`, `Cancel`, a parent's end) rather than set
+    /// by a cap. Its children are then stopped with the same reason when it finishes.
+    mutable stopAsked : bool
     /// Completes when the process finishes, for F# callers (`Await`).
     completion : TaskCompletionSource<RT.ExecutionResult>
     /// Set at park, run on the scheduler thread right before the next step: the register write.
@@ -380,6 +383,7 @@ type Scheduler(quantum : int64) =
         allocated = 0L
         stopReason = null
         stopHard = false
+        stopAsked = false
         completion =
           TaskCompletionSource<RT.ExecutionResult>(
             TaskCreationOptions.RunContinuationsAsynchronously
@@ -762,8 +766,15 @@ type Scheduler(quantum : int64) =
     // never awaited leaves nothing running behind it, and a stop of a parent reaches
     // everything under it, as hard or as politely as the parent's was.
     // A leaf has no entry in `childCounts`, so the group-wide scan is skipped for it.
+    // A parent that was stopped passes its own reason on: a `ps kill` wakes a parked parent,
+    // which can finish here before `StopProcess` gets to its children, and they were killed
+    // from ps as much as it was. A cap is the parent's alone, so not that one.
     if childCounts.ContainsKey p.id then
-      this.StopChildrenOf(p.id, "its parent finished", p.stopHard)
+      let reason =
+        match p.stopReason with
+        | asked when p.stopAsked && not (isNull asked) -> asked
+        | _ -> "its parent finished"
+      this.StopChildrenOf(p.id, reason, p.stopHard)
 
   member private this.Fail(p : Process, ex : exn) : unit =
     match ex with
@@ -1060,6 +1071,7 @@ type Scheduler(quantum : int64) =
     ) : bool =
     match lock sync (fun () -> processes.TryGetValue pid) with
     | true, p ->
+      p.stopAsked <- true
       p.stopReason <- reason
       p.stopHard <- hard
       lock sync (fun () ->
