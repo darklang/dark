@@ -123,6 +123,36 @@ let fold(list: List<'a>, init: 'b, fn: ('b, 'a) -> 'b): 'b =
   Builtin.listFold(list, init, fn)
 
 
+/// Returns the element of <param list> whose key from <param fn> is largest,
+/// or {{None}} if the list is empty.
+/// The key type must implement `Compare`. On ties, the first element wins.
+/// Calls <param fn> once per element.
+let maxBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option.Option<'a> =
+  match list with
+  | [] -> Option.Option.None
+  | [head, ...tail] ->
+    let (best, _) =
+      fold(tail, (head, fn(head)), fun((best, bestKey), value) ->
+        let key = fn(value)
+        if key > bestKey then (value, key) else (best, bestKey))
+    Option.Option.Some(best)
+
+
+/// Returns the element of <param list> whose key from <param fn> is smallest,
+/// or {{None}} if the list is empty.
+/// The key type must implement `Compare`. On ties, the first element wins.
+/// Calls <param fn> once per element.
+let minBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option.Option<'a> =
+  match list with
+  | [] -> Option.Option.None
+  | [head, ...tail] ->
+    let (best, _) =
+      fold(tail, (head, fn(head)), fun((best, bestKey), value) ->
+        let key = fn(value)
+        if key < bestKey then (value, key) else (best, bestKey))
+    Option.Option.Some(best)
+
+
 /// Returns a single list containing the values of every list directly in <paramlist>
 /// (does not recursively flatten nested lists)
 let flatten(list: List<List<'a>>): List<'a> =

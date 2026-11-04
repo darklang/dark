@@ -480,6 +480,44 @@ test reverse =
       |> Stdlib.Test.equal([ 1L, 2L, 3L, 4L, 5L ])
       Stdlib.List.reverse([]) |> Stdlib.Test.equal([]) ])
 
+test maxBy =
+  Stdlib.Test.all(
+    [ Stdlib.List.maxBy([], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(None)
+      Stdlib.List.maxBy([ "only" ], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Some("only"))
+      Stdlib.List.maxBy([ "a", "bbb", "cc", "ddd" ], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Some("bbb"))
+      Stdlib.List.maxBy([ 6L, 2L, 8L, 3L ], fun x -> 0L - x)
+      |> Stdlib.Test.equal(Some(2L))
+      Stdlib.List.maxBy([ "b", "c", "a" ], fun x -> x)
+      |> Stdlib.Test.equal(Some("c")) ])
+
+test minBy =
+  Stdlib.Test.all(
+    [ Stdlib.List.minBy([], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(None)
+      Stdlib.List.minBy([ "only" ], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Some("only"))
+      Stdlib.List.minBy([ "bbb", "a", "cc", "d" ], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Some("a"))
+      Stdlib.List.minBy([ 6L, 2L, 8L, 3L ], fun x -> 0L - x)
+      |> Stdlib.Test.equal(Some(8L))
+      Stdlib.List.minBy([ "b", "a", "c" ], fun x -> x)
+      |> Stdlib.Test.equal(Some("a")) ])
+
+test maxByEvaluatesKeysOnce =
+  let result = Stdlib.List.maxBy([ 3L, 1L, 2L ], fun x -> Stdlib.Test.incrementCounter(x))
+  Stdlib.Test.all(
+    [ result |> Stdlib.Test.equal(Some(3L))
+      Stdlib.Test.counterValue() |> Stdlib.Test.equal(3L) ])
+
+test minByEvaluatesKeysOnce =
+  let result = Stdlib.List.minBy([ 1L, 3L, 2L ], fun x -> Stdlib.Test.incrementCounter(x))
+  Stdlib.Test.all(
+    [ result |> Stdlib.Test.equal(Some(1L))
+      Stdlib.Test.counterValue() |> Stdlib.Test.equal(3L) ])
+
 test sortBy =
   Stdlib.Test.all(
     [ Stdlib.List.sortBy([ 6L, 2L, 8L, 3L ], fun x -> 0L - x)
