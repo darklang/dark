@@ -40,6 +40,7 @@
     <Compile Include="OpValidation.fs" />
     <Compile Include="Inserts.fs" />
     <Compile Include="Queries.fs" />
+    <Compile Include="ScmDeps.fs" />
     <Compile Include="Draft.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="WipRefresh.fs" />

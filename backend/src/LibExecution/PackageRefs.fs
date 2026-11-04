@@ -592,6 +592,9 @@ module Type =
 
   module SCM =
     let storeHealth = p [ "SCM"; "StoreHealth" ] "Counts"
+    /// What `scmDeps` is asked, and what it answers with.
+    let depQuery = p [ "SCM"; "Deps" ] "DepQuery"
+    let depEdge = p [ "SCM"; "Deps" ] "DepEdge"
 
 
 /// Traits are their own item kind, so their refs are their own table.

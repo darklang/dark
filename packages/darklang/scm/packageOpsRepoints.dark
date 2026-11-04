@@ -121,32 +121,15 @@ let draftRepoints(
     if Stdlib.List.isEmpty(changed) then
       Stdlib.Dict.empty
     else
-      Stdlib.Sqlite.rowsOrEmptyP(
-        localDb(),
-        "WITH RECURSIVE seeds(seed, owner, modules, name, hash) AS (
-           SELECT j.key, json_extract(j.value, '$[0]'), json_extract(j.value, '$[1]'),
-                  json_extract(j.value, '$[2]'), json_extract(j.value, '$[3]')
-           FROM json_each(@p0) j
-         ),
-         stale(seed, hash) AS (
-           SELECT s.seed, d.item_hash FROM seeds s
-             JOIN package_dependencies d
-               ON d.depends_on_owner = s.owner
-              AND d.depends_on_modules = s.modules
-              AND d.depends_on_name = s.name
-              AND d.depends_on_hash <> s.hash
-           UNION
-           SELECT st.seed, d2.item_hash FROM package_dependencies d2
-             JOIN stale st ON d2.depends_on_hash = st.hash
-         )
-         SELECT DISTINCT CAST(seed AS TEXT) AS seed, hash FROM stale",
-        [ Stdlib.Json.serialize<List<List<String>>>(changed |> Stdlib.List.map(fun b -> [ b.owner, b.modules, b.name, b.hash ])) ])
-      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, row) ->
-        match (Stdlib.Sqlite.textField(row, "seed"), Stdlib.Sqlite.textField(row, "hash")) with
-        | (Some(seed), Some(h)) ->
-          let rest = Stdlib.Dict.get(acc, seed) |> Stdlib.Option.withDefault([])
-          Stdlib.Dict.set(acc, seed, Stdlib.List.prepend(rest, h))
-        | _ -> acc)
+      SCM.Deps.query(
+        SCM.Deps.DepQuery.StaleBySeed(
+          changed |> Stdlib.List.map(fun b -> (b.owner, b.modules, b.name, b.hash))
+        )
+      )
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, e) ->
+        let seed = Stdlib.toString(e.seed)
+        let rest = Stdlib.Dict.get(acc, seed) |> Stdlib.Option.withDefault([])
+        Stdlib.Dict.set(acc, seed, Stdlib.List.prepend(rest, e.itemHash)))
 
   let overlay =
     match currentBranch() with

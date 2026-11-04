@@ -16,6 +16,7 @@
     <Compile Include="Libs/PM/Seed.fs" />
     <Compile Include="Libs/PM/Permissions.fs" />
     <Compile Include="Libs/PM/Store.fs" />
+    <Compile Include="Libs/PM/Scm.fs" />
 
     <!-- Tracing (reader) -->
     <Compile Include="Libs/Traces.fs" />

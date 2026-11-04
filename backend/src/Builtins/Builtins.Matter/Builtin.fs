@@ -23,6 +23,7 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PM.Seed.builtins ()
       Libs.PM.Permissions.builtins ()
       Libs.PM.Store.builtins ()
+      Libs.PM.Scm.builtins ()
 
       // Traces (reader surface)
       Libs.Traces.builtins () ]

@@ -126,15 +126,7 @@ let unresolvedInDraft(branchId: Uuid): List<(String * List<String>)> =
     | None ->
       // An Add with NO surviving SetName is content nothing names: authoring hasn't bound it yet, or
       // `dark discard <name>` dropped the binding and kept the content on purpose (see `Draft.collapse`).
-      let reachable =
-        Stdlib.Sqlite.scalarIntP(
-          localDb(),
-          "SELECT count(*) AS n FROM package_dependencies WHERE depends_on_hash = @p0",
-          [ hash ],
-          "n")
-        |> Stdlib.Option.withDefault(0L)
-
-      if reachable == 0L then
+      if Stdlib.List.isEmpty(SCM.Deps.query(SCM.Deps.DepQuery.Referenced(hash))) then
         Stdlib.Option.Option.None
       else
         // Reachable but unnamed: still a real problem, and the short hash is the only honest label.
