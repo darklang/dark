@@ -578,6 +578,45 @@ let runtimeErrorMessage
     | Error _ -> return string rte
   }
 
+
+/// How a call made by `applyCatching` failed.
+type CaughtFailure =
+  /// Out of native stack: nesting deep enough to exhaust it.
+  | OutOfStack
+  /// Any other failure, as `runtimeErrorMessage` renders it (or the exception's message).
+  | Failed of string
+
+/// Apply <param applicable> to <param arg> for a builtin that hands its callee's failure back as
+/// a value instead of raising it (`atRestCheckGuarded`, `applicableTryApply`).
+///
+/// - Running out of memory is not a failure to hand back: it exits, as everywhere
+///   (`exitIfOutOfMemory`).
+/// - In a spread chunk nothing is caught: a chunk's failure belongs to the spreader (`Spread`),
+///   which runs the chunk again serially, where the verdict is made.
+let applyCatching
+  (state : RT.ExecutionState)
+  (threadID : RT.ThreadID)
+  (access : LibExecution.Permissions.Access)
+  (applicable : RT.Applicable)
+  (arg : RT.Dval)
+  : Ply<Result<RT.Dval, CaughtFailure>> =
+  uply {
+    try
+      match! executeApplicable1 state access applicable arg with
+      | Ok result -> return Ok result
+      | Error(rte, _) when state.spreadChild -> return RT.raiseRTE threadID rte
+      | Error(RTE.UncaughtException(message, _), _) when message = outOfStackMessage ->
+        return Error OutOfStack
+      | Error(rte, _) ->
+        let! message = runtimeErrorMessage state rte
+        return Error(Failed message)
+    // In a chunk it falls through; out of memory is caught where the chunk's process fails
+    // (`Scheduler.Fail`).
+    with ex when not state.spreadChild ->
+      exitIfOutOfMemory ex
+      return Error(Failed ex.Message)
+  }
+
 /// Fallback for when a pretty printer call fails: the error it raised, then the raw value.
 let private prettyPrintFallback
   (label : string)
