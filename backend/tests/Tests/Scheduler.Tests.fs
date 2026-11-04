@@ -358,7 +358,7 @@ let private killWakesAParkedProcess =
       spawn
         s
         state
-        $"match Stdlib.Uuid.parse(\"{stuck.id}\") with | Ok(id) -> Darklang.Cli.Ps.killById(id) | Error(_) -> false"
+        $"match Stdlib.Uuid.parse(\"{stuck.id}\") with | Ok(id) -> Stdlib.Exec.stop(Stdlib.Exec.Handle {{ id = id }}, true) | Error(_) -> false"
     // The loop runs until the stuck one is finished, which the kill is what makes happen.
     let running = runOnThread s stuck
     let! killed = s.Await killer

@@ -365,7 +365,7 @@ module Redact =
   let performAgain : Set<string> =
     Set.union
       secretResults
-      (Set.ofList [ "execSpawn"; "execSpawnDetached"; "execCancel"; "execKill" ])
+      (Set.ofList [ "execSpawn"; "execSpawnDetached"; "execStop" ])
 
   let private redactedText = RT.DString "[redacted]"
 
