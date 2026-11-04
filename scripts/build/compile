@@ -152,7 +152,37 @@ def fsharp_paket_restore():
 # there but I'm not sure what.
 
 
+SEED = "rundir/seed.db"
+STORE = "rundir/data.db"
+DEBUG_LOCAL_EXEC = "backend/Build/out/LocalExec/Debug/net10.0/LocalExec"
+
+
+def ensure_seed():
+  """A Release Cli embeds rundir/seed.db and refuses to build without one, so export it from the
+  dev store when it is missing or older than the store. Not in CI, which exports its own first.
+
+  Exported with the Debug LocalExec, which the container's first build leaves behind; the Release
+  one this build is about to produce does not exist yet. Under a second, measured.
+  """
+  if not optimize or in_ci:
+    return True
+  # The store is WAL mode, so its newest writes may only have touched data.db-wal.
+  store_mtime = max((os.path.getmtime(f) for f in (STORE, STORE + "-wal") if os.path.exists(f)),
+                    default=None)
+  if os.path.exists(SEED) and (store_mtime is None or os.path.getmtime(SEED) >= store_mtime):
+    return True  # current, or there is no store to export a newer one from
+  if not (os.path.exists(STORE) and os.path.exists(DEBUG_LOCAL_EXEC)):
+    print(f"--optimize embeds {SEED}, exported from {STORE} by the Debug LocalExec, "
+          "and one of those is missing. Build Debug first, then retry:\n"
+          "  scripts/dev/build\n"
+          f"Or export one by hand: scripts/run-local-exec export-seed {SEED}")
+    return False
+  return run_backend(time.time(), f"scripts/run-local-exec export-seed {SEED}")
+
+
 def backend_quick_build():
+  if not ensure_seed():
+    return False
   start = time.time()
   if optimize:
     configuration = "Release"
@@ -179,6 +209,8 @@ def backend_quick_build():
 
 
 def backend_full_build():
+  if not ensure_seed():
+    return False
   start = time.time()
   if optimize:
     configuration = "Release"

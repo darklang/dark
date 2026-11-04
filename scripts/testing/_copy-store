@@ -22,7 +22,7 @@ DEST="${1:?usage: _copy-store <dest.db>}"
 SRC="${DARK_STORE_SRC:-rundir/data.db}"
 
 if [[ ! -f "$SRC" ]]; then
-  echo "_copy-store: no store at $SRC" >&2
+  echo "_copy-store: no store at $SRC. Build one first: scripts/dev/build" >&2
   exit 2
 fi
 

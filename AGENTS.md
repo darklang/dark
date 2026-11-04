@@ -33,6 +33,15 @@ each gets its own `backend/Build` volume, and each gets its own block of host po
 in, they stop and tell you, rather than running in someone else's. Don't reach for
 `docker exec` to work around that; run `scripts/dev/start` instead.
 
+The container mounts the clone's `rundir` at `~/.darklang`, where every dark keeps its store,
+so `rundir/data.db` is the dev store. A container made before that mount existed keeps its own
+`~/.darklang` until it is recreated, even after the clone is rebased, and the gates would then
+copy a stale `rundir/data.db` and fail with `FnNotFound`. The scripts refuse to run in such a
+container and print the fix:
+
+    scripts/dev/start --recreate
+    scripts/dev/build backend/global.json   # the build index may already call the old store current
+
 Scripts starting with `_` are meant to be called by other scripts. The rest are for you.
 
 ## Ports
@@ -191,6 +200,11 @@ the suite spends its time in is F#, so the suite takes several times longer in D
 extra build costs. `--optimize` builds Release INSTEAD of Debug, so `run-cli` will say the debug
 tree is behind until the next plain build. While iterating on one group, stay in Debug -- a
 filtered run is seconds either way.
+
+A Release Cli embeds `rundir/seed.db`, so `--optimize` exports it from the dev store first when
+it is missing or older than the store (under a second, with the Debug LocalExec the container's
+first build left behind). CI exports its own. By hand it is
+`scripts/run-local-exec export-seed rundir/seed.db`.
 
 **The gates run against the DEBUG binary, so do not run them straight after `--optimize`.**
 Every gate defaults to `backend/Build/out/Cli/Debug/net10.0/Cli`, and `--optimize` builds Release

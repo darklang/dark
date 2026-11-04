@@ -213,7 +213,11 @@ gate_workbench_views() { return 0; }
 """)
     for name in ["_gates-store", "_gates-meta"]:
       (work / "scripts/testing" / name).write_text("")
-    env = {**os.environ, "CIRCLECI": "true", "CI": "true"}
+    # The runner refuses unless ~/.darklang is this clone's rundir, as in a fresh container.
+    (work / "rundir").mkdir(exist_ok=True)
+    (work / "home").mkdir()
+    (work / "home/.darklang").symlink_to(work / "rundir")
+    env = {**os.environ, "CIRCLECI": "true", "CI": "true", "HOME": str(work / "home")}
     env.pop("CI_DIAGNOSTIC_GATE", None)
     for gate, expected in [("workbench-scm", 7), ("workbench-views", 0)]:
       self.database(f"{gate}-test/.darklang/data.db")
