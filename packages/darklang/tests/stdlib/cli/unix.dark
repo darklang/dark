@@ -1,0 +1,59 @@
+module Darklang.Stdlib.Cli.Unix.Tests
+
+// Unix helpers build `sh -c` strings. A path with a space, a `'` or a leading `-` must reach the
+// command as one path, not as several words or a flag. Everything here stays inside a temp dir.
+
+test quote =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Unix.quote("/Users/Jo Smith/.darklang")
+      |> Stdlib.Test.equal("'/Users/Jo Smith/.darklang'")
+      Stdlib.Cli.Unix.quote("/home/o'brien") |> Stdlib.Test.equal("'/home/o'\\''brien'")
+      Stdlib.Cli.Unix.quote("-rf") |> Stdlib.Test.equal("'-rf'")
+      Stdlib.Cli.Unix.quote("") |> Stdlib.Test.equal("''") ])
+
+
+// The bug: `rm -rf /Users/Jo Smith/.darklang` deleted `/Users/Jo` and `Smith/.darklang`
+test removeDirectoryWithSpaceLeavesNeighbours =
+  Stdlib.Cli.Dir.withTemp(fun dir ->
+    let target = $"{dir}/Jo Smith/.darklang"
+    let neighbour = $"{dir}/Jo"
+    let made = Stdlib.Cli.Unix.ensureDirectoryExists(target)
+    let _ = Stdlib.Cli.Unix.ensureDirectoryExists(neighbour)
+    let removed = Stdlib.Cli.Unix.removeDirectory(target)
+    (made,
+     removed,
+     Stdlib.Cli.File.exists(target),
+     Stdlib.Cli.File.exists(neighbour),
+     Stdlib.Cli.File.exists($"{dir}/Jo Smith")))
+  |> Stdlib.Test.equal(Ok((Ok(), Ok(), false, true, true)))
+
+
+test helpersTakeAwkwardNames =
+  Stdlib.Cli.Dir.withTemp(fun dir ->
+    let quoteDir = $"{dir}/it's here"
+    let dashFile = $"{quoteDir}/-n"
+    let copy = $"{quoteDir}/copy of -n"
+    let made = Stdlib.Cli.Unix.ensureDirectoryExists(quoteDir)
+    let wrote = Stdlib.Cli.File.writeText(dashFile, "x")
+    let copied = Stdlib.Cli.Unix.copyFile(dashFile, copy)
+    let chmodded = Stdlib.Cli.Unix.grantExecutePermission(copy)
+    let identical = Stdlib.Cli.Unix.areFilesIdentical(dashFile, copy)
+    let existed = Stdlib.Cli.Unix.fileExists(copy)
+    let removed = Stdlib.Cli.Unix.removeFile(copy)
+    (made,
+     wrote,
+     copied,
+     chmodded,
+     identical,
+     existed,
+     removed,
+     Stdlib.Cli.File.exists(copy),
+     Stdlib.Cli.File.exists(dashFile)))
+  |> Stdlib.Test.equal(Ok((Ok(), Ok(), Ok(), Ok(), true, true, Ok(), false, true)))
+
+
+test removeDirectoryRefusesRoot =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Unix.removeDirectory("") |> Stdlib.Test.equal(Error("refusing to remove ''"))
+      Stdlib.Cli.Unix.removeDirectory("/")
+      |> Stdlib.Test.equal(Error("refusing to remove '/'")) ])

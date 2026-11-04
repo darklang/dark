@@ -1,16 +1,31 @@
 module Darklang.Cli.Installation.Uninstall
 
 
+/// The `.darklang` folder to delete for <param home>, or why it is not safe to.
+///
+/// Refuses an empty home, `/` (however many slashes), and anything not absolute, which covers an
+/// unexpanded `~`: deleting relative to wherever `dark` happens to run is never what was meant.
+let darklangDirToRemove(home: String): Stdlib.Result.Result<String, String> =
+  let withoutSlashes = Stdlib.Cli.Path.stripTrailing(home)
+
+  if withoutSlashes == "" || withoutSlashes == "/" then
+    Stdlib.Result.Result.Error(
+      $"refusing to uninstall: your home directory looks like '{home}', so there is no safe folder to delete. Set HOME and try again.")
+  else if Stdlib.Bool.not(Stdlib.String.startsWith(withoutSlashes, "/")) then
+    Stdlib.Result.Result.Error(
+      $"refusing to uninstall: your home directory '{home}' is not an absolute path. Set HOME and try again.")
+  else
+    Stdlib.Result.Result.Ok($"{withoutSlashes}/.darklang")
+
+
 /// Not `getDarklangHomeDir`: its fallback is a literal `~/.darklang`.
 let removeDarklangDirectory(
   _host: Stdlib.Cli.Host.Host)
   : Stdlib.Result.Result<Unit, String> =
   match Stdlib.Cli.Unix.getHomeDirectory() with
   | Ok(home) ->
-    if home == "" || home == "/" then
-      Stdlib.Result.Result.Error("couldn't tell where your home directory is (HOME is empty)")
-    else
-      Stdlib.Cli.Unix.removeDirectory($"{home}/.darklang")
+    (darklangDirToRemove(home))
+    |> Stdlib.Result.andThen(fun dir -> Stdlib.Cli.Unix.removeDirectory(dir))
   | Error(e) -> Stdlib.Result.Result.Error($"couldn't find your home directory: {e}")
 
 

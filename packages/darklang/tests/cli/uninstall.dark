@@ -1,0 +1,23 @@
+module Darklang.Cli.Tests.Uninstall
+
+// `dark uninstall` deletes `<home>/.darklang`. With no usable home that would be `/.darklang`, or
+// `~/.darklang` relative to wherever `dark` was run, so it refuses instead.
+
+let dir(home: String): Stdlib.Result.Result<String, String> =
+  Darklang.Cli.Installation.Uninstall.darklangDirToRemove(home)
+
+let refused(home: String): Bool =
+  match dir(home) with
+  | Error(_) -> true
+  | Ok(_) -> false
+
+test darklangDirToRemove =
+  Stdlib.Test.all(
+    [ dir("/home/jo") |> Stdlib.Test.equal(Ok("/home/jo/.darklang"))
+      dir("/home/jo/") |> Stdlib.Test.equal(Ok("/home/jo/.darklang"))
+      dir("/Users/Jo Smith") |> Stdlib.Test.equal(Ok("/Users/Jo Smith/.darklang"))
+      refused("") |> Stdlib.Test.equal(true)
+      refused("/") |> Stdlib.Test.equal(true)
+      refused("//") |> Stdlib.Test.equal(true)
+      refused("~") |> Stdlib.Test.equal(true)
+      refused("home/jo") |> Stdlib.Test.equal(true) ])
