@@ -52,38 +52,24 @@ let fns () : List<BuiltInFn> =
 
             let typeArgs = [ ValueType.Unknown; failureValueType ]
 
-            let failureWithMessage (detail : string) : Dval =
-              failureResult typeArgs (checkFailure "Failed" [ DString detail ])
-
-            try
-              match! Exe.executeApplicable1 exeState vm.activeAccess check input with
-              | Ok result ->
-                return
-                  DEnum(
-                    Dval.resultType (),
-                    Dval.resultType (),
-                    [ Dval.toValueType result; failureValueType ],
-                    "Ok",
-                    [ result ]
-                  )
-              | Error(RuntimeError.UncaughtException(message, _), _) when
-                message = Exe.outOfStackMessage
-                ->
-                // Nesting deep enough to exhaust the native stack.
-                return failureResult typeArgs (checkFailure "TooDeep" [])
-              // A spread chunk's failure belongs to the spreader (`Spread`), not to a verdict here.
-              | Error(rte, _) when exeState.spreadChild ->
-                return raiseRTE vm.threadID rte
-              | Error(rte, _) ->
-                let! rendered = Exe.runtimeErrorToString exeState rte
-                match rendered with
-                | Ok(DString message) -> return failureWithMessage message
-                | _ -> return failureWithMessage $"{rte}"
-            // In a chunk it falls through; out of memory is caught where the chunk's process
-            // fails (`Scheduler.Fail`).
-            with ex when not exeState.spreadChild ->
-              Exe.exitIfOutOfMemory ex
-              return failureWithMessage ex.Message
+            // Under the caller's own access: no approval root, so no policy view to build.
+            match!
+              Exe.applyCatching exeState vm.threadID vm.activeAccess check input
+            with
+            | Ok result ->
+              return
+                DEnum(
+                  Dval.resultType (),
+                  Dval.resultType (),
+                  [ Dval.toValueType result; failureValueType ],
+                  "Ok",
+                  [ result ]
+                )
+            | Error Exe.OutOfStack ->
+              return failureResult typeArgs (checkFailure "TooDeep" [])
+            | Error(Exe.Failed message) ->
+              return
+                failureResult typeArgs (checkFailure "Failed" [ DString message ])
           }
         | _ -> incorrectArgs ())
       previewable = Pure

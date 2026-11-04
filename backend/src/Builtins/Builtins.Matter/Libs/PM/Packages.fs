@@ -603,7 +603,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // (`constrainBy`), and the instance policy is the ceiling as everywhere. A lambda has no root
     // and runs under the caller's policies alone.
     { name = fn "applicableTryApply" 0
-      typeParams = []
+      typeParams = [ "a"; "b" ]
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -646,24 +646,19 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             // whoever called this: a live view whose `update` hit one lost the whole host loop
             // and the terminal with it, instead of showing the error in a band. The callers of
             // this builtin are precisely the ones that cannot let user code unwind them
-            // (`Stdlib.Live.call`), so it catches both.
-            try
-              match!
-                Execution.executeApplicable
+            // (`Stdlib.Live.call`), so `applyCatching` catches both. Running out of memory is
+            // the exception: it exits, as everywhere else in the runtime.
+            match!
+              Execution.applyCatching asRoot vm.threadID asRoot.access applicable arg
+            with
+            | Ok dv -> return ok dv
+            | Error Execution.OutOfStack ->
+              let! message =
+                Execution.runtimeErrorMessage
                   asRoot
-                  asRoot.access
-                  applicable
-                  (NEList.singleton arg)
-              with
-              | Ok dv -> return ok dv
-              // A spread chunk's failure belongs to the spreader (`Spread`).
-              | Error(rte, _) when exeState.spreadChild ->
-                return raiseRTE vm.threadID rte
-              | Error(rte, _) ->
-                let! message = Execution.runtimeErrorMessage asRoot rte
-                return err message
-            with e when not exeState.spreadChild ->
-              return err e.Message
+                  (RuntimeError.UncaughtException(Execution.outOfStackMessage, []))
+              return err message
+            | Error(Execution.Failed message) -> return err message
           }
         | _ -> incorrectArgs ())
       previewable = Pure
