@@ -21,3 +21,35 @@ test darklangDirToRemove =
       refused("//") |> Stdlib.Test.equal(true)
       refused("~") |> Stdlib.Test.equal(true)
       refused("home/jo") |> Stdlib.Test.equal(true) ])
+
+
+// The order matters as much as the refusal: an uninstall that removed the alias and then refused
+// would leave `dark` half uninstalled. These steps fail loudly instead of touching anything.
+let aliasDeleted(): Stdlib.Result.Result<Unit, String> =
+  Stdlib.Result.Result.Error("the alias was deleted")
+
+let aliasKept(): Stdlib.Result.Result<Unit, String> = Stdlib.Result.Result.Ok()
+
+let folderRemoved(dir: String): Stdlib.Result.Result<Unit, String> =
+  Stdlib.Result.Result.Error($"removed {dir}")
+
+let refusal(home: String): String =
+  match dir(home) with
+  | Error(e) -> e
+  | Ok(d) -> $"not refused: {d}"
+
+let uninstall(
+  home: String,
+  deleteAlias: Unit -> Stdlib.Result.Result<Unit, String>)
+  : Stdlib.Result.Result<Unit, String> =
+  Darklang.Cli.Installation.Uninstall.uninstallFrom(home, deleteAlias, folderRemoved)
+
+test refusedUninstallLeavesTheAliasAlone =
+  Stdlib.Test.all(
+    [ uninstall("", fun () -> aliasDeleted()) |> Stdlib.Test.equal(Error(refusal("")))
+      uninstall("home/jo", fun () -> aliasDeleted())
+      |> Stdlib.Test.equal(Error(refusal("home/jo")))
+      uninstall("/home/jo", fun () -> aliasDeleted())
+      |> Stdlib.Test.equal(Error("the alias was deleted"))
+      uninstall("/home/jo", fun () -> aliasKept())
+      |> Stdlib.Test.equal(Error("removed /home/jo/.darklang")) ])
