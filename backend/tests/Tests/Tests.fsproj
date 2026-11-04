@@ -53,7 +53,6 @@
     <Compile Include="CliScmRegression.Tests.fs" />
     <Compile Include="CliPackages.Tests.fs" />
     <Compile Include="CliWorkspace.Tests.fs" />
-    <Compile Include="CliJson.Tests.fs" />
     <Compile Include="CliAuthoring.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
     <Compile Include="CliTraceVerbs.Tests.fs" />
