@@ -327,6 +327,48 @@ let private suspendThenResume =
       })
 
 
+/// A spawned child runs on another core, so its first call can be logged before its parent's
+/// spawn is. The log is in completion order, and matching the resumed processes by where they
+/// first appear in it handed the parent the child's rows, and the resume refused at step 0.
+/// A loaded machine did this now and then; the log here is in that order on purpose. Driven
+/// through the tracer's hooks, since the CLI harness runs unscheduled and has no expression
+/// process to mismatch.
+let private aChildLoggedBeforeItsSpawnStillReplays =
+  test "a resume replays a child that was logged before the spawn that started it" {
+    let parent = System.Guid.NewGuid()
+    let child = System.Guid.NewGuid()
+    let childValue = RT.DString "the child's uuid"
+    let call builtin spawned : LibDB.Tracing.RecordedCall =
+      { builtin = builtin; args = None; spawned = spawned }
+    let log =
+      [ child, 0L, RT.Tracing.ReplayStep.Serve childValue, call "uuidGenerate" None
+        parent, 0L, RT.Tracing.ReplayStep.PerformOnce, call "execSpawn" (Some child)
+        parent,
+        1L,
+        RT.Tracing.ReplayStep.Serve(RT.DString "the parent's uuid"),
+        call "uuidGenerate" None ]
+    let tracer =
+      LibDB.Tracing.createReplayTracer
+        (LibExecution.AnalysisTypes.TraceID.create ())
+        "eval"
+        "expression"
+        RT.DUnit
+        log
+    // The CLI starts the expression; the expression spawns.
+    let expression = tracer.executionTracing.forProcess (System.Guid.NewGuid())
+    let spawnOrd = expression.nextEffect ()
+    match expression.replayEffect spawnOrd "execSpawn" [||] with
+    | RT.Tracing.ReplayStep.PerformOnce -> ()
+    | other -> failtest $"the expression was not handed its own spawn: {other}"
+    let spawned = expression.forProcess (System.Guid.NewGuid())
+    let childOrd = spawned.nextEffect ()
+    match spawned.replayEffect childOrd "uuidGenerate" [||] with
+    | RT.Tracing.ReplayStep.Serve v ->
+      Expect.equal v childValue "the child replays the recorded child's uuid"
+    | other -> failtest $"the child was not answered from its log: {other}"
+  }
+
+
 /// An edit that changes what the run DID: the first effect now gets different arguments. The
 /// log holds what the old program did at that step, so serving it to the new call answers an
 /// effect that never happened. The resume refuses there, says what differs, and leaves the run
@@ -1130,6 +1172,7 @@ let tests =
     invocationCountsTowardsTraceWeight
     rerunIsIndependentOfResult
     suspendThenResume
+    aChildLoggedBeforeItsSpawnStillReplays
     replayRefusesADivergedEffect
     pureLoopPassesAreCounted
     aFunctionThatRanAndWentIsNotATypo

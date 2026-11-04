@@ -802,7 +802,11 @@ is checked again.
   trace ends up as the replayed prefix plus what ran after. The recorded
   process ids are the recorded trace's; a resumed trace's processes are matched
   to them in the order they first appear in the log, which is the order a
-  script's expressions start in, and the order a parent spawns its children.
+  script's expressions start in. A spawned child is the exception: it is
+  matched through its parent, to the child the recorded spawn at the same
+  step named in its handle. The log is in completion order, and a child on
+  another core can finish its first call before its parent's spawn is
+  logged, so first appearance would hand the parent the child's rows.
   A trace nobody scheduled (a plain `execute`, as in the test harness) records
   and replays under `Guid.Empty`, which is seeded directly and is NOT in the
   list the matching pops from: leaving it in hands the first spawned child

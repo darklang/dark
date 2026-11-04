@@ -243,8 +243,11 @@ module TraceLimits =
 /// What the log recorded at one step of a run: which builtin, with what arguments. A resume
 /// checks the call it is about to answer against it, so a program that has changed since the
 /// run is not handed the old program's answers. `args` is None when the row's arguments could
-/// not be read back; the builtin's name is still checked.
-type RecordedCall = { builtin : string; args : Option<List<RT.Dval>> }
+/// not be read back; the builtin's name is still checked. `spawned` is the process a recorded
+/// `Exec.spawn` started, read from the handle it returned, so a resume can hand the new child
+/// that process's rows.
+type RecordedCall =
+  { builtin : string; args : Option<List<RT.Dval>>; spawned : Option<System.Guid> }
 
 
 type TracerState =
@@ -1105,11 +1108,13 @@ let createCliTracer
 /// log has is answered from it rather than performed, and the run records as it goes, so the
 /// stored trace ends up as the replayed prefix plus whatever ran live after it.
 ///
-/// The process ids in the log are the recorded run's; a resumed run's processes are new. A
-/// script's processes start in a fixed order (the expressions, one after another), and a process's
-/// first effectful call comes after its start, so the recorded processes are listed in the order
-/// they first appear in the log and each new process, as the interpreter meets it, is matched to
-/// the next one (`forProcess`). Anything past the recorded list replays nothing.
+/// The process ids in the log are the recorded run's; a resumed run's processes are new. A child
+/// started by `Exec.spawn` is matched through its parent: the recorded spawn at the same step
+/// names the recorded child in the handle it returned. Not by where the child first appears in
+/// the log: the log is in completion order, and a child on another core can finish its first call
+/// before the parent's spawn has been logged. Every other process (a script's expressions, one
+/// after another) is matched to the next recorded process in the order they first appear in the
+/// log (`forProcess`). Anything past the recorded list replays nothing.
 let createReplayTracer
   (traceID : AT.TraceID.T)
   (description : string)
@@ -1119,16 +1124,29 @@ let createReplayTracer
   : T =
   let state = newState ()
   state.resuming <- (string (AT.TraceID.toUUID traceID)).Substring(0, 8)
+  // Each recorded spawn's child, by the process that spawned it and the spawn's ordinal.
+  let spawnedAt =
+    System.Collections.Generic.Dictionary<struct (System.Guid * int64), System.Guid>()
+  for (pid, ord, _, recorded) in log do
+    match recorded.spawned with
+    | Some child -> spawnedAt[struct (pid, ord)] <- child
+    | None -> ()
+  let spawned = System.Collections.Generic.HashSet<System.Guid>(spawnedAt.Values)
   // The recorded processes, in the order they first appear in the log. `Guid.Empty` is NOT one
   // of them: those rows are the unscheduled root's, seeded below and answered through the root
   // hooks. Leaving it in the list would hand the FIRST spawned child the root's rows, and the
   // child's own log would never be reached (its first call would answer with the root's first
-  // answer, which is how a replayed spawn came back with a fresh uuid).
+  // answer, which is how a replayed spawn came back with a fresh uuid). Spawned children are
+  // not in it either: they are matched through their spawn.
   let mutable unmatched =
     log
     |> List.map (fun (pid, _, _, _) -> pid)
     |> List.distinct
-    |> List.filter (fun pid -> pid <> System.Guid.Empty)
+    |> List.filter (fun pid ->
+      pid <> System.Guid.Empty && not (spawned.Contains pid))
+  // The recorded process each new one replays.
+  let replays = System.Collections.Generic.Dictionary<System.Guid, System.Guid>()
+  replays[System.Guid.Empty] <- System.Guid.Empty
   // A run nobody scheduled recorded under `Guid.Empty`, and a resume nobody schedules asks
   // under it too, through the root hooks below, so those rows answer directly as well as
   // through the matching.
@@ -1136,22 +1154,38 @@ let createReplayTracer
     if pid = System.Guid.Empty then
       state.replay[struct (System.Guid.Empty, ord)] <- answer
       state.expected[struct (System.Guid.Empty, ord)] <- recorded
-  let rec tracingFor (pid : System.Guid) : RT.Tracing.Tracing =
+  let seed (pid : System.Guid) (recorded : System.Guid) : unit =
+    replays[pid] <- recorded
+    for (rpid, ord, answer, call) in log do
+      if rpid = recorded then
+        state.replay[struct (pid, ord)] <- answer
+        state.expected[struct (pid, ord)] <- call
+  let rec tracingFor
+    (parent : System.Guid)
+    (pid : System.Guid)
+    : RT.Tracing.Tracing =
     lock state.sync (fun () ->
-      match unmatched with
-      | recorded :: rest ->
+      // A spawn runs inside the parent's call, so the parent's latest ordinal is the spawn's.
+      let viaSpawn =
+        match replays.TryGetValue parent, state.ordinals.TryGetValue parent with
+        | (true, recordedParent), (true, next) ->
+          match spawnedAt.TryGetValue(struct (recordedParent, next.Value - 1L)) with
+          | true, child -> Some child
+          | false, _ -> None
+        | _ -> None
+      match viaSpawn, unmatched with
+      | Some recorded, _ -> seed pid recorded
+      | None, recorded :: rest ->
         unmatched <- rest
-        for (rpid, ord, answer, call) in log do
-          if rpid = recorded then
-            state.replay[struct (pid, ord)] <- answer
-            state.expected[struct (pid, ord)] <- call
-      | [] -> ())
-    { executionTracingFor state pid with forProcess = tracingFor }
+        seed pid recorded
+      | None, [] -> ())
+    { executionTracingFor state pid with forProcess = tracingFor pid }
   { enabled = true
     // The root's own hooks (the CLI's process, which makes no effectful calls of its own in a
     // script; the expressions are child processes and go through `forProcess`).
     executionTracing =
-      { executionTracingFor state System.Guid.Empty with forProcess = tracingFor }
+      { executionTracingFor state System.Guid.Empty with
+          forProcess = tracingFor System.Guid.Empty }
     storeTraceResults =
       fun exeState ->
         storeTrace traceID description inputVarName inputDval state exeState }
