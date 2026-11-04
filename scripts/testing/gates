@@ -18,6 +18,8 @@
 
 set -uo pipefail
 
+# Gates `realpath` their HOMEs: in CI `rundir` is a link, and a dark refuses a store reached via one.
+
 [[ -f scripts/testing/gates ]] || { echo "gates: run from the repo root" >&2; exit 2; }
 
 GATES=(

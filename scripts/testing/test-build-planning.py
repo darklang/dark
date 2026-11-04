@@ -34,12 +34,10 @@ class TempTree:
   def __enter__(self):
     self.dir = tempfile.mkdtemp(prefix="dev-build-test-")
     self.prev_cwd = os.getcwd()
-    self.prev_rundir = os.environ.get("DARK_HOME")
 
     os.makedirs(os.path.join(self.dir, "rundir"))
     self.write(".gitignore", "rundir/\nbackend/Build/\n")
     os.chdir(self.dir)
-    os.environ["DARK_HOME"] = os.path.join(self.dir, "rundir")
 
     # The ignore spec is cached per process and reads .gitignore from the cwd.
     _buildplan._spec = None
@@ -47,10 +45,6 @@ class TempTree:
 
   def __exit__(self, *_):
     os.chdir(self.prev_cwd)
-    if self.prev_rundir is None:
-      os.environ.pop("DARK_HOME", None)
-    else:
-      os.environ["DARK_HOME"] = self.prev_rundir
     _buildplan._spec = None
     shutil.rmtree(self.dir, ignore_errors=True)
 

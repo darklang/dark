@@ -1,7 +1,7 @@
 module Darklang.Cli.Config
 
 // The config lives next to this instance's store (`localDbPath`), so the path is absolute and its
-// directory always exists -- independent of the process CWD and of install mode. A CWD-relative
+// directory always exists -- independent of the process CWD. A CWD-relative
 // path here makes `login` silently persist nothing.
 let configFilePath(): String =
   let dbPath = Stdlib.LocalStore.path()

@@ -232,12 +232,15 @@ let sleep(delayMs: Float): Unit =
 
 
 /// Check if a path is a directory via stat().
-/// Returns false if the path doesn't exist or is not a directory.
+/// Returns false if the path doesn't exist, is not a directory, or is a symlink (the host refuses
+/// to follow one).
 let isDirectory(path: String): Bool =
-  match stat(path) with
-  | Ok(result) ->
-    (result.mode & StatMode.ifmt) == StatMode.ifdir
-  | Error(_) -> false
+  match isSymlink(path) with
+  | Ok(true) -> false
+  | _ ->
+    match stat(path) with
+    | Ok(result) -> (result.mode & StatMode.ifmt) == StatMode.ifdir
+    | Error(_) -> false
 
 
 /// Check if a process is running via kill(pid, 0).

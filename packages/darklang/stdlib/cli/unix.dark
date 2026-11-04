@@ -4,8 +4,13 @@ module Darklang.Stdlib.Cli.Unix
 let removeFile(path: String): Result.Result<Unit, String> =
   Cli.executeWithUnitOrStdErr($"rm {path}")
 
+/// Quoted, and never "" or "/".
 let removeDirectory(path: String): Result.Result<Unit, String> =
-  Cli.executeWithUnitOrStdErr($"rm -rf {path}")
+  if path == "" || path == "/" then
+    Result.Result.Error($"refusing to remove '{path}'")
+  else
+    let quoted = Darklang.Stdlib.Cli.Process.shellQuote(path)
+    Cli.executeWithUnitOrStdErr($"rm -rf -- {quoted}")
 
 let ensureDirectoryExists(path: String): Result.Result<Unit, String> =
   Cli.executeWithUnitOrStdErr($"mkdir -p {path}")
@@ -53,7 +58,8 @@ let copyFile(sourcePath: String, destPath: String): Result.Result<Unit, String> 
 
 /// Checks if a file exists at the given path.
 let fileExists(filePath: String): Bool =
-  match Cli.executeWithUnitOrStdErr($"test -f {filePath}") with
+  let quoted = Darklang.Stdlib.Cli.Process.shellQuote(filePath)
+  match Cli.executeWithUnitOrStdErr($"test -f {quoted}") with
   | Ok(_) -> true
   | Error(_) -> false
 

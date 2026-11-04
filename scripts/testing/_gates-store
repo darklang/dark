@@ -53,7 +53,7 @@ gate_first_day() {
 
   if [[ "${CIRCLECI:-}" == "true" ]]; then
     mkdir -p rundir/first-day
-    HOMEDIR=$(mktemp -d "$PWD/rundir/first-day/home.XXXXXX")
+    HOMEDIR=$(realpath "$(mktemp -d "$PWD/rundir/first-day/home.XXXXXX")")
   else
     HOMEDIR=$(mktemp -d)
   fi
@@ -71,10 +71,8 @@ gate_first_day() {
 
   failures=0
 
-  # DARK_HOME, not just HOME: the container sets it for every process and it WINS over the
-  # `<home>/.darklang` default, so HOME alone runs this against the shared dev store.
-  # The gates-are-clean gate has the full story.
-  dark() { ( cd "$HOMEDIR" && HOME="$HOMEDIR" DARK_HOME="$HOMEDIR/rundir" "$ARTIFACT" "$@" 2>&1 ); }
+  # HOME decides the store (`<home>/.darklang`), so a fresh HOME is a fresh install.
+  dark() { ( cd "$HOMEDIR" && HOME="$HOMEDIR" "$ARTIFACT" "$@" 2>&1 ); }
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A failure prints its first four lines through a process substitution: `| head` here dies on
@@ -195,18 +193,18 @@ gate_first_day() {
   want "the caller follows restore" "^2$" eval 'FirstDay.Chain.p2(0L)'
 
   # 9. The installed layout: the binary in `<home>/.darklang/bin`, a directory `install.sh` has already
-  # made, and no DARK_HOME. Everything above starts from a rundir that does not exist yet,
+  # made. Everything above starts from a store directory that does not exist yet,
   # which is not the state a person who ran the installer is in; a store directory that already
   # exists once shipped unseeded, and every command died with FnNotFound.
   if [[ "${CIRCLECI:-}" == "true" ]]; then
-    INSTALLED=$(mktemp -d "$PWD/rundir/first-day/installed.XXXXXX")
+    INSTALLED=$(realpath "$(mktemp -d "$PWD/rundir/first-day/installed.XXXXXX")")
   else
     INSTALLED=$(mktemp -d)
   fi
   mkdir -p "$INSTALLED/.darklang/bin"
   cp "$ARTIFACT" "$INSTALLED/.darklang/bin/dark"
   # shellcheck disable=SC2317  # reached through want, which calls `dark`
-  dark() { ( cd "$INSTALLED" && env -u DARK_HOME HOME="$INSTALLED" "$INSTALLED/.darklang/bin/dark" "$@" 2>&1 ); }
+  dark() { ( cd "$INSTALLED" && HOME="$INSTALLED" "$INSTALLED/.darklang/bin/dark" "$@" 2>&1 ); }
   want "installed: first run seeds the store" "^2$"  eval '1L + 1L'
   want "installed: and it stays seeded"       "^(clean:|draft:)" status
 
@@ -229,16 +227,16 @@ gate_backups_restore() {
   set -uo pipefail
 
   CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
-  ROOT=rundir/backups-test
+  ROOT=$(realpath -m rundir/backups-test)
   pass=0; fail=0
   ok()  { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
   bad() { fail=$((fail+1)); printf '  FAIL %s\n       got: %s\n' "$1" "$(head -c 200 <<<"$2" | tr '\n' ' ')"; }
   want() { if grep -qE "$2" <<<"$3"; then ok "$1"; else bad "$1" "$3"; fi; }
 
-  rm -rf "$ROOT"; mkdir -p "$ROOT/home"
-  scripts/testing/_copy-store "$ROOT/data.db"
-  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
-  x() { DARK_HOME="$PWD/$ROOT" HOME="$PWD/$ROOT/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
+  rm -rf "$ROOT"; mkdir -p "$ROOT/.darklang"
+  scripts/testing/_copy-store "$ROOT/.darklang/data.db"
+  sqlite3 "$ROOT/.darklang/data.db" 'DELETE FROM config_v0;'
+  x() { HOME="$ROOT" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
 
   echo "== a backup holds what the store holds, WAL included"
   x fn /BK.T.kept '(): Int64 = 4242L' > /dev/null
@@ -281,12 +279,11 @@ gate_backups_restore() {
 gate_reload_is_reproducible() {
   set -euo pipefail
 
-  WORK=rundir/reload-reproducible
+  HOME=$(realpath -m rundir/reload-reproducible); export HOME; WORK="$HOME/.darklang"
   rm -rf "$WORK"
   mkdir -p "$WORK/logs"
   scripts/testing/_copy-store "$WORK/data.db"
 
-  export DARK_HOME="$PWD/$WORK"
 
   ids() {
     sqlite3 "$WORK/data.db" \
@@ -344,7 +341,7 @@ gate_reload_is_reproducible() {
 gate_trait_checker_vs_dispatch() {
   set -euo pipefail
 
-  WORK=rundir/trait-deprecated
+  HOME=$(realpath -m rundir/trait-deprecated); export HOME; WORK="$HOME/.darklang"
   rm -rf "$WORK"
   mkdir -p "$WORK/logs"
   scripts/testing/_copy-store "$WORK/data.db"
@@ -354,7 +351,6 @@ gate_trait_checker_vs_dispatch() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A field name nobody else would write: a record's hash IS its identity, so a shared shape
@@ -423,12 +419,11 @@ DARK
   # re-asked: a green save that raised on its first call. The tell is that the ANSWER depended on
   # authoring order, so this walks both orders and expects the same answer from each.
   for order in int-first str-first; do
-    W2="rundir/trait-argfit-$order"
+    HOME=$(realpath -m "rundir/trait-argfit-$order"); W2="$HOME/.darklang"
     rm -rf "$W2"
     mkdir -p "$W2/logs"
     scripts/testing/_copy-store "$W2/data.db"
     sqlite3 "$W2/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
-    export DARK_HOME="$PWD/$W2"
 
     $CLI trait Stachu.Fit.Show "<'a> = let show(v: 'a): String" >/dev/null
 
@@ -477,8 +472,7 @@ DARK
       exit 1
     fi
   done
-
-  export DARK_HOME="$PWD/$WORK"
+  HOME="${WORK%/.darklang}"
 
   echo "trait-checker-vs-dispatch: a live implementation types and runs ($live); once it is"
   echo "  deprecated the checker refuses the save with MissingImpl, as dispatch does; and a saved"
@@ -497,7 +491,7 @@ DARK
 gate_trait_choice_survives_rival() {
   set -euo pipefail
 
-  WORK=rundir/trait-rival
+  HOME=$(realpath -m rundir/trait-rival); export HOME; WORK="$HOME/.darklang"
   rm -rf "$WORK"
   mkdir -p "$WORK/logs"
   scripts/testing/_copy-store "$WORK/data.db"
@@ -507,7 +501,6 @@ gate_trait_choice_survives_rival() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }" >/dev/null
@@ -574,7 +567,7 @@ DARK
 gate_trait_choice_any_batching() {
   set -euo pipefail
 
-  WORK=rundir/trait-batching
+  HOME=$(realpath -m rundir/trait-batching); export HOME; WORK="$HOME/.darklang"
   rm -rf "$WORK"
   mkdir -p "$WORK/logs"
   scripts/testing/_copy-store "$WORK/data.db"
@@ -584,7 +577,6 @@ gate_trait_choice_any_batching() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   local src="$WORK/src"
@@ -705,7 +697,7 @@ gate_trait_choice_any_batching() {
 gate_trait_deprecation_is_per_branch() {
   set -euo pipefail
 
-  WORK=rundir/trait-branch-dep
+  HOME=$(realpath -m rundir/trait-branch-dep); export HOME; WORK="$HOME/.darklang"
   rm -rf "$WORK"
   mkdir -p "$WORK/logs"
   scripts/testing/_copy-store "$WORK/data.db"
@@ -715,7 +707,6 @@ gate_trait_deprecation_is_per_branch() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A field name nobody else would write: a record's hash IS its identity. See the AGENTS.md note.
@@ -787,7 +778,7 @@ DARK
 gate_trait_pin_across_branches() {
   set -euo pipefail
 
-  WORK=rundir/trait-pin-branch
+  HOME=$(realpath -m rundir/trait-pin-branch); export HOME; WORK="$HOME/.darklang"
   rm -rf "$WORK"
   mkdir -p "$WORK/logs"
   scripts/testing/_copy-store "$WORK/data.db"
@@ -797,7 +788,6 @@ gate_trait_pin_across_branches() {
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
-  export DARK_HOME="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A field name nobody else would write: a record's hash IS its identity. See the AGENTS.md note.
@@ -918,7 +908,7 @@ gate_shipped_tree_typechecks() {
   set -euo pipefail
 
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
-  ROOT=rundir/shipped-tree-typechecks
+  ROOT=$(realpath -m rundir/shipped-tree-typechecks)
   # What this guards is "the audit covered the tree", and the tree has to be counted OUTSIDE the
   # report or the check is circular. An earlier version compared `checked` against the report's
   # own `total`, which is just `length report.items`: a run that audited a quarter of the store
@@ -928,13 +918,13 @@ gate_shipped_tree_typechecks() {
   # reason the first time the tree shrank. A floor somebody has to lower is not a floor.)
   FLOOR_FRACTION=0.95
 
-  rm -rf "$ROOT"; mkdir -p "$ROOT/home" "$ROOT/logs"
-  scripts/testing/_copy-store "$ROOT/data.db"
-  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
-  export DARK_HOME="$PWD/$ROOT/" DARK_CONFIG_DB_NAME=data.db HOME="$PWD/$ROOT/home"
+  rm -rf "$ROOT"; mkdir -p "$ROOT/.darklang/logs"
+  scripts/testing/_copy-store "$ROOT/.darklang/data.db"
+  sqlite3 "$ROOT/.darklang/data.db" 'DELETE FROM config_v0;'
+  export DARK_CONFIG_DB_NAME=data.db HOME="$ROOT"
 
   # The store's own item count, which is what the report is measured against.
-  STORE_ITEMS=$(sqlite3 "$ROOT/data.db" \
+  STORE_ITEMS=$(sqlite3 "$ROOT/.darklang/data.db" \
     "SELECT count(*) FROM locations WHERE unlisted_at IS NULL AND item_type <> 'module'")
   if [[ -z "$STORE_ITEMS" || "$STORE_ITEMS" -lt 100 ]]; then
     echo "shipped-tree-typechecks: the store has $STORE_ITEMS items, so there is nothing to audit" >&2
@@ -1014,14 +1004,14 @@ gate_package_tests() {
   set -euo pipefail
 
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
-  ROOT=rundir/package-tests
+  ROOT=$(realpath -m rundir/package-tests)
 
-  rm -rf "$ROOT"; mkdir -p "$ROOT/home"
-  scripts/testing/_copy-store "$ROOT/data.db"
-  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
+  rm -rf "$ROOT"; mkdir -p "$ROOT/.darklang"
+  scripts/testing/_copy-store "$ROOT/.darklang/data.db"
+  sqlite3 "$ROOT/.darklang/data.db" 'DELETE FROM config_v0;'
   # This disposable installation has its own policy and home. Tests must
   # succeed without grants on the saved installation policy.
-  export DARK_HOME="$PWD/$ROOT" HOME="$PWD/$ROOT/home"
+  export HOME="$ROOT"
   # The CLI fixtures start the binary themselves; their default path is relative to the repo
   # root, which is not where every caller runs.
   export DARK_CLI_UNDER_TEST="$CLI"

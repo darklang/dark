@@ -128,10 +128,9 @@ echo ""
 echo "Running install..."
 echo ""
 
-# Use --yes to skip prompts (defaults to copying binary, fresh database)
-# Use --uninstall-if-installed to replace any existing installation
+# --yes replaces any existing install without asking; the store in ~/.darklang stays.
 cd "$REPO_ROOT"
-"$HOST_BINARY_PATH" install --yes --uninstall-if-installed
+"$HOST_BINARY_PATH" install --yes
 
 echo ""
 echo "Installation complete!"

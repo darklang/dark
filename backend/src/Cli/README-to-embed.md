@@ -21,9 +21,10 @@ This `.darklang` directory serves as the CLI's data directory. It contains:
 If you experience issues with the CLI:
 
 1. Check the logs in the `logs/` subdirectory for error messages
-2. The database file can be safely deleted - it will be recreated on next CLI run
+2. Deleting `data.db` starts you over with a fresh store, losing what you made; `dark backups` lists copies
 3. For support, visit: https://darklang.com/support
 
-## Moving the CLI
+## One per user account
 
-If you move the CLI executable, this directory should move with it to maintain your local package cache and settings. Otherwise, updates to your local package store will be lost.
+Every `dark` you run on this account keeps its data here, wherever the binary itself is. `dark install`
+puts the CLI in `bin/` and on your PATH; `dark uninstall` removes this whole directory.

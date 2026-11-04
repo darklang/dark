@@ -20,6 +20,8 @@ set -euo pipefail
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"
 
+mkdir -p "$DIR/rundir" # the container bind-mounts it at ~/.darklang
+
 RECREATE=()
 if [[ "${1:-}" == "--recreate" ]]; then
   RECREATE=( --remove-existing-container )

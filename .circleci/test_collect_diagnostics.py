@@ -115,8 +115,8 @@ class DiagnosticsTests(unittest.TestCase):
   def test_successful_checks_and_unrelated_databases_are_not_saved(self):
     self.database("data.db")
     self.database("test-data.db")
-    self.database("trait-rival/data.db")
-    self.database("backups-test/data.db")
+    self.database("trait-rival/.darklang/data.db")
+    self.database("backups-test/.darklang/data.db")
     self.record("backend-tests")
     self.record("gate-trait-choice-survives-rival", "passed")
     diagnostics.failure_databases(self.root)
@@ -126,12 +126,12 @@ class DiagnosticsTests(unittest.TestCase):
 
   def test_failed_split_run_saves_both_halves_stores(self):
     self.database("test-data.db")
-    self.database("split-sequenced/test-data.db")
+    self.database("split-sequenced/.darklang/test-data.db")
     self.record("backend-tests")
     diagnostics.failure_databases(self.root)
     saved = sorted(p.relative_to(self.output / "databases").as_posix()
                    for p in (self.output / "databases").rglob("*.gz"))
-    self.assertEqual(saved, ["split-sequenced/test-data.db.gz", "test-data.db.gz"])
+    self.assertEqual(saved, ["split-sequenced/.darklang/test-data.db.gz", "test-data.db.gz"])
 
   def test_successful_run_has_no_database_artifacts(self):
     self.database("test-data.db")
@@ -186,7 +186,7 @@ class DiagnosticsTests(unittest.TestCase):
     self.assertEqual(list(self.output.rglob("*.db.gz")), [])
 
   def test_interrupted_check_is_saved_and_timeout_exit_is_preserved(self):
-    self.database("trait-rival/data.db")
+    self.database("trait-rival/.darklang/data.db")
     self.record("gate-trait-choice-survives-rival", "running")
     self.database("test-data.db")
     rc = diagnostics.record_check(self.root, "backend-tests", [
@@ -194,7 +194,7 @@ class DiagnosticsTests(unittest.TestCase):
     self.assertEqual(rc, 124)
     diagnostics.failure_databases(self.root)
     self.assertTrue((self.output / "databases/test-data.db.gz").exists())
-    self.assertTrue((self.output / "databases/trait-rival/data.db.gz").exists())
+    self.assertTrue((self.output / "databases/trait-rival/.darklang/data.db.gz").exists())
 
   def test_real_gate_runner_records_only_failed_gate_stores(self):
     # Real dispatch/recording, fake gate bodies: no Dark build or container needed.
@@ -216,13 +216,13 @@ gate_workbench_views() { return 0; }
     env = {**os.environ, "CIRCLECI": "true", "CI": "true"}
     env.pop("CI_DIAGNOSTIC_GATE", None)
     for gate, expected in [("workbench-scm", 7), ("workbench-views", 0)]:
-      self.database(f"{gate}-test/data.db")
+      self.database(f"{gate}-test/.darklang/data.db")
       result = subprocess.run([str(work / "scripts/testing/gates"), gate],
                               cwd=work, env=env, capture_output=True, text=True)
       self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
     diagnostics.failure_databases(self.root)
-    self.assertTrue((self.output / "databases/workbench-scm-test/data.db.gz").exists())
-    self.assertFalse((self.output / "databases/workbench-views-test/data.db.gz").exists())
+    self.assertTrue((self.output / "databases/workbench-scm-test/.darklang/data.db.gz").exists())
+    self.assertFalse((self.output / "databases/workbench-views-test/.darklang/data.db.gz").exists())
 
   def test_every_registered_gate_has_an_explicit_database_mapping(self):
     runner = Path(__file__).resolve().parent.parent / "scripts/testing/gates"
@@ -236,8 +236,7 @@ gate_workbench_views() { return 0; }
     fake_cli = work / "fake-cli"
     fake_cli.write_text("""#!/usr/bin/env python3
 import os, pathlib, sqlite3
-root = pathlib.Path(os.environ.get('DARK_HOME',
-                                  str(pathlib.Path.home() / '.darklang')))
+root = pathlib.Path.home() / '.darklang'
 root.mkdir(parents=True, exist_ok=True)
 with sqlite3.connect(root / 'data.db') as db:
   db.execute('CREATE TABLE IF NOT EXISTS evidence (message TEXT)')

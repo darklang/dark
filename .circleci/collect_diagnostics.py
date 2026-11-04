@@ -26,35 +26,33 @@ DATABASE_TIMEOUT = 15
 OUTPUT = "ci-diagnostics"
 CHECKS = "ci-checks"
 
+
+def homes(*names):
+  """The stores of gates that run with their own HOME under rundir."""
+  return [f"{name}/.darklang/data.db" for name in names]
+
+
 # Explicit working stores, never a recursive sweep of databases or backups.
 # The shell gates use these paths in _gates-store and _gates-ui.
 CHECK_DATABASES = {
-  "migrations": ["data.db"],
-  "packages": ["data.db"],
-  "seed": ["data.db"],
-  # With `run-backend-tests --split`, the one-at-a-time tests get their own database
-  # (split-sequenced/test-data.db). When the tests fail, save it along with the main one.
-  "backend-tests": ["test-data.db", "split-sequenced/test-data.db"],
-  "allocation": ["data.db"],
-  "gate-workbench-scm": ["workbench-scm-test/data.db",
-                         "workbench-scm-test-quiet/data.db"],
-  "gate-workbench-views": ["workbench-views-test/data.db"],
-  "gate-first-day": ["first-day/home.*/rundir/data.db",
-                     "first-day/installed.*/.darklang/data.db"],
-  "gate-backups-restore": ["backups-test/data.db"],
-  "gate-reload-is-reproducible": ["reload-reproducible/data.db"],
-  "gate-trait-choice-survives-rival": ["trait-rival/data.db"],
-  "gate-trait-choice-any-batching": ["trait-batching/data.db"],
-  "gate-trait-checker-vs-dispatch": ["trait-deprecated/data.db",
-                                    "trait-argfit-int-first/data.db",
-                                    "trait-argfit-str-first/data.db"],
-  "gate-trait-deprecation-is-per-branch": ["trait-branch-dep/data.db"],
-  "gate-trait-pin-across-branches": ["trait-pin-branch/data.db"],
-  "gate-package-tests": ["package-tests/data.db"],
-  "gate-shipped-tree-typechecks": ["shipped-tree-typechecks/data.db"],
-  "gate-perf-probes-run": ["data.db"],
-  "gate-prompts-unattended": ["prompts-unattended-test/data.db"],
-  "gate-gates-are-clean": ["data.db"],
+  **{name: ["data.db"] for name in ["migrations", "packages", "seed", "allocation",
+                                     "gate-perf-probes-run", "gate-gates-are-clean"]},
+  # `run-backend-tests --split` gives the one-at-a-time tests a store of their own.
+  "backend-tests": ["test-data.db", "split-sequenced/.darklang/test-data.db"],
+  "gate-workbench-scm": homes("workbench-scm-test", "workbench-scm-test-quiet"),
+  "gate-workbench-views": homes("workbench-views-test"),
+  "gate-first-day": homes("first-day/home.*", "first-day/installed.*"),
+  "gate-backups-restore": homes("backups-test"),
+  "gate-reload-is-reproducible": homes("reload-reproducible"),
+  "gate-trait-choice-survives-rival": homes("trait-rival"),
+  "gate-trait-choice-any-batching": homes("trait-batching"),
+  "gate-trait-checker-vs-dispatch": homes("trait-deprecated", "trait-argfit-int-first",
+                                          "trait-argfit-str-first"),
+  "gate-trait-deprecation-is-per-branch": homes("trait-branch-dep"),
+  "gate-trait-pin-across-branches": homes("trait-pin-branch"),
+  "gate-package-tests": homes("package-tests"),
+  "gate-shipped-tree-typechecks": homes("shipped-tree-typechecks"),
+  "gate-prompts-unattended": homes("prompts-unattended-test"),
 }
 
 
@@ -66,26 +64,25 @@ def write_json(path, value):
   temporary.replace(path)
 
 
+def is_diagnostic(relative, path):
+  if relative.parts[0] == "test_results" and path.suffix == ".xml":
+    return True
+  return (path.suffix == ".log" or path.name in {"stderr.txt", "report.json"}
+          or relative == Path("build-state.json")
+          or (relative.parts[0] == CHECKS and path.suffix == ".json"))
+
+
 def collect(rundir):
   output = rundir / OUTPUT
   output.mkdir(parents=True, exist_ok=True)
   candidates = []
   for directory, dirs, files in os.walk(rundir, followlinks=False):
     parent = Path(directory)
-    dirs[:] = sorted(d for d in dirs
-                     if not (parent / d).is_symlink()
-                     and parent / d != output)
+    dirs[:] = sorted(d for d in dirs if not (parent / d).is_symlink() and parent / d != output)
     for name in sorted(files):
       path = parent / name
-      relative = path.relative_to(rundir)
-      if path.is_symlink() or not path.is_file():
-        continue
-      is_report = relative.parts[0] == "test_results" and path.suffix == ".xml"
-      if (is_report or path.suffix == ".log"
-          or name in {"stderr.txt", "report.json"}
-          or relative == Path("build-state.json")
-          or (relative.parts[0] == CHECKS and path.suffix == ".json")):
-        candidates.append(relative)
+      if not path.is_symlink() and path.is_file() and is_diagnostic(path.relative_to(rundir), path):
+        candidates.append(path.relative_to(rundir))
 
   # Stream complete files into one compressed archive. No byte or file-count
   # budget: an error in the middle of a large log is still useful evidence.
@@ -108,12 +105,8 @@ def collect(rundir):
     # A read failure must fail the step, not upload a partial archive as complete.
     temporary.unlink(missing_ok=True)
 
-  summary = {
-    "payload_bytes": sum(entry["source_bytes"] for entry in entries),
-    "archive_bytes": archive.stat().st_size,
-    "file_count": len(entries),
-    "files": entries,
-  }
+  summary = {"payload_bytes": sum(entry["source_bytes"] for entry in entries),
+             "archive_bytes": archive.stat().st_size, "file_count": len(entries), "files": entries}
   write_json(output / "manifest.json", summary)
   print(f"Diagnostics: {summary['file_count']} complete files, "
         f"{summary['payload_bytes']} bytes before compression, "
@@ -127,8 +120,7 @@ def record_check(rundir, name, command):
   records = rundir / CHECKS
   records.mkdir(parents=True, exist_ok=True)
   path = records / f"{name}.json"
-  record = {"check": name, "status": "running", "exit_code": None,
-            "databases": CHECK_DATABASES[name]}
+  record = {"check": name, "status": "running", "exit_code": None, "databases": CHECK_DATABASES[name]}
   # Written before starting: an outer timeout may kill this wrapper too.
   write_json(path, record)
   try:
@@ -152,16 +144,17 @@ def snapshot_database(rundir, relative):
     if not source.is_file():
       raise ValueError("database no longer exists")
     deadline = time.monotonic() + DATABASE_TIMEOUT
+
+    def progress(status, remaining, total):
+      if time.monotonic() > deadline:
+        raise ValueError("database backup exceeded 15 seconds")
+
     with tempfile.TemporaryDirectory(prefix="ci-db-") as temporary:
       snapshot = Path(temporary) / "snapshot.db"
       # Backup includes committed WAL contents; copying data.db alone does not.
-      with closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as src:
-        def progress(status, remaining, total):
-          if time.monotonic() > deadline:
-            raise ValueError("database backup exceeded 15 seconds")
-
-        with closing(sqlite3.connect(snapshot)) as dest:
-          src.backup(dest, pages=256, progress=progress, sleep=0.05)
+      with closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as src, \
+           closing(sqlite3.connect(snapshot)) as dest:
+        src.backup(dest, pages=256, progress=progress, sleep=0.05)
       archive.parent.mkdir(parents=True, exist_ok=True)
       with snapshot.open("rb") as src, gzip.open(archive, "wb", compresslevel=1) as dst:
         shutil.copyfileobj(src, dst)
@@ -192,14 +185,11 @@ def failure_databases(rundir):
       if not matches:
         snapshots.setdefault(pattern, {
           "path": pattern, "status": "unavailable: database was not created or was cleaned up",
-          "checks": [],
-        })["checks"].append(name)
+          "checks": []})["checks"].append(name)
       for source in matches:
-        relative = source.relative_to(rundir)
-        key = str(relative)
+        key = str(source.relative_to(rundir))
         if key not in snapshots:
-          snapshots[key] = snapshot_database(rundir, relative)
-          snapshots[key]["checks"] = []
+          snapshots[key] = {**snapshot_database(rundir, source.relative_to(rundir)), "checks": []}
         snapshots[key]["checks"].append(name)
   summary = {
     "failed_or_interrupted_checks": checks,

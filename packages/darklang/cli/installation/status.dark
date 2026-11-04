@@ -3,18 +3,14 @@ module Darklang.Cli.Installation.Status
 
 let execute(state: AppState, args: List<String>): AppState =
   let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
-  let currentMode = Installation.System.getInstallationMode()
-
   let version = Helpers.getVersionInfo()
+  let target = Installation.System.installedBinaryPath(host)
 
   let installationStatus =
-    match currentMode with
-    | Installed ->
-      let homeDir = Config.getDarklangHomeDir(host)
-      Stdlib.Cli.UI.Colors.success("Status: ") + "Globally installed at " + homeDir + " and ready to use"
-    | Portable ->
-      let currentDir = Stdlib.Cli.FileSystem.currentDirectory()
-      Stdlib.Cli.UI.Colors.warning("Status: ") + "Running in portable mode at " + currentDir + "/.darklang (run 'install' for global system-wide access)"
+    if Installation.System.isInstalled(host) then
+      Stdlib.Cli.UI.Colors.success("Status: ") + "Installed at " + target
+    else
+      Stdlib.Cli.UI.Colors.warning("Status: ") + "Not installed (run 'install' to put dark on your PATH)"
 
   let statusText =
     Stdlib.Cli.UI.Colors.info("Version: ") + version + "\n" +
@@ -34,7 +30,6 @@ let help(_state: AppState): String =
     "Usage: status"
     "Show current CLI installation status."
     ""
-    "Displays whether CLI is running in portable or global mode"
-    "and shows installation location."
+    "Displays the version, and whether dark is installed at ~/.darklang/bin/dark."
   ]
   |> Stdlib.String.join("\n")

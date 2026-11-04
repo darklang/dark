@@ -2,10 +2,22 @@
 
 set -euo pipefail
 
-RUNDIR="${DARK_HOME}"
-mkdir -p "$RUNDIR"
-mkdir -p "$RUNDIR/logs"
-mkdir -p "$RUNDIR/completed_tests"
+# `~/.darklang` is the clone's rundir: bind-mounted in the dev container, linked the other way in CI
+# (no mounts there). Never a link at ~/.darklang: a dark refuses a policy directory reached via one.
+RUNDIR=/home/dark/app/rundir
+STORE="$HOME/.darklang"
 
+if [[ "${CIRCLECI:-}" == "true" ]]; then
+  mkdir -p "$STORE"
+  if [[ -d "$RUNDIR" && ! -L "$RUNDIR" ]]; then
+    cp -a "$RUNDIR/." "$STORE/"
+    rm -rf "$RUNDIR"
+  fi
+  ln -sfn "$STORE" "$RUNDIR"
+  git -C /home/dark/app update-index --skip-worktree rundir/.gitkeep
+elif [[ ! "$STORE" -ef "$RUNDIR" ]]; then
+  echo "error: $STORE is not this clone's rundir. Recreate the container: scripts/dev/start --recreate" >&2
+  exit 1
+fi
 
-
+mkdir -p "$STORE/logs" "$STORE/completed_tests"

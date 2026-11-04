@@ -210,7 +210,7 @@ because one broken prerequisite reports as a dozen unrelated gates.
 every gate at once, which is safe only because each has its own rundir, HOME and ports. It was
 off because of a file nobody had listed: a package reload rewrote
 `backend/src/LibExecution/package-ref-hashes.txt`, which every CLI in the checkout reads at
-startup whatever its `DARK_HOME`, so every gate beside `reload-is-reproducible` died with
+startup whatever its HOME, so every gate beside `reload-is-reproducible` died with
 `FnNotFound`. A reload now leaves that file alone unless its contents change. A new gate that
 writes anywhere outside its own rundir breaks the parallel mode the same way.
 
@@ -1163,14 +1163,16 @@ There are TWO config stores, and that line only clears one: `config_v0` in sqlit
 `cli-config.json` beside the db (instance id and name). Copying a store DIRECTORY carries both;
 copying `data.db` alone does not, which is the shape to prefer for a scratch store.
 
+Both live in `~/.darklang`, so a process given its own HOME gets its own of each. In the dev
+container the clone's `rundir` is mounted there.
+
 **Your own experiments in the dev store break every gate that commits.** The gates start from a copy
 of `rundir/data.db`, and `dark commit` refuses a store holding unresolved references. So one
 throwaway item authored by hand, referring to something that never resolved, fails
 `workbench-scm` with symptoms that look nothing like the cause: a fixture times out waiting for
 its own commit to appear. The gates guard against the CONFIG a
-copied store inherits and not against its draft. Author experiments into an isolated
-`DARK_HOME`, or `dark discard -y` before running gates; `dark status` says whether the
-draft is clean.
+copied store inherits and not against its draft. Author experiments under their own HOME, or
+`dark discard -y` before running gates; `dark status` says whether the draft is clean.
 
 One consequence worth knowing: an isolated store usually looks like a FIRST RUN, and Home shows its welcome
 PANEL instead of a row's detail, so a test waiting for anything a populated Home draws waits forever. Do not

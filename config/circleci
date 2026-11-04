@@ -1,5 +1,4 @@
 # Root directories
-DARK_HOME=/home/dark/app/rundir
 DARK_CONFIG_ROOT_DIR=/home/dark/app
 
 # DB

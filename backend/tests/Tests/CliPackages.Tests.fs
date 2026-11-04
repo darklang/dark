@@ -747,7 +747,7 @@ let packageTestsRespectParallelLimit =
               "#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
               + quote wrapper
               + "\nfor arg in \"$@\"; do\n"
-              + "  if [ \"$arg\" = \"${DARK_HOME}request.bin\" ]; then\n"
+              + "  if [ \"$arg\" = \"${HOME}/request.bin\" ]; then\n"
               + "    barrier="
               + quote barriers
               + "\n"
@@ -969,7 +969,7 @@ test expected =
             + " \"$@\"\n"
             + "rc=$?\n"
             + "for arg in \"$@\"; do\n"
-            + "  if [ \"$arg\" = \"${DARK_HOME}request.bin\" ] && [ \"$rc\" -eq 0 ]; then\n"
+            + "  if [ \"$arg\" = \"${HOME}/request.bin\" ] && [ \"$rc\" -eq 0 ]; then\n"
             + "    echo 17 >> "
             + quote witness
             + "\n"
@@ -1014,7 +1014,7 @@ test expected =
               + "export DARK_CLI_UNDER_TEST="
               + quote wrapper
               + "\nfor arg in \"$@\"; do\n"
-              + "  if [ \"$arg\" = \"${DARK_HOME}request.bin\" ]; then\n"
+              + "  if [ \"$arg\" = \"${HOME}/request.bin\" ]; then\n"
               + "    echo 'worker stdout'\n    echo 'worker stderr' >&2\n"
               + $"    exit {workerExit}\n  fi\ndone\n"
               + "exec "

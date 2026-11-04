@@ -8,112 +8,45 @@ let hasFlag(args: List<String>, longFlag: String, shortFlag: String): Bool =
 
 let execute(state: AppState, args: List<String>): AppState =
   let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
-  let currentMode = Installation.System.getInstallationMode()
-
-  // Parse flags
   let autoConfirm = hasFlag(args, "--yes", "-y")
-  let uninstallFirst = Stdlib.List.contains(args, "--uninstall-if-installed")
+  let target = Installation.System.installedBinaryPath(host)
 
-  match currentMode with
-  | Installed ->
-    if uninstallFirst then
-      // Uninstall first, then reinstall
-      Stdlib.printLine("Uninstalling existing installation...")
-      match Installation.System.uninstallWithConfirmation(host, true) with
-      | Ok(_) ->
-        Stdlib.printLine("Reinstalling...")
-        // After uninstall, we're effectively in portable mode, copy the binary
-        match Installation.System.installFromCurrentBinary(host, autoConfirm) with
-        | Ok(message) ->
-          Stdlib.printLine(View.formatSuccess(message))
-          state
-        | Error(e) ->
-          Stdlib.printErrorLine(View.formatError(e))
-          { state with exitCode = 1 }
-      | Error(e) ->
-        Stdlib.printErrorLine(View.formatError($"Uninstall failed: {e}"))
-        { state with exitCode = 1 }
-    else
-      Stdlib.printLine(View.formatSuccess("Already installed globally"))
-      state
-
-  | Portable ->
-    let currentDir = Stdlib.Cli.FileSystem.currentDirectory()
-
-    if Installation.System.globalInstallationExists(host) then
-      if uninstallFirst then
-        // Uninstall existing global, then install from current binary
-        Stdlib.printLine("Uninstalling existing global installation...")
-        match Installation.System.uninstallWithConfirmation(host, true) with
-        | Ok(_) ->
-          Stdlib.printLine("Installing from current binary...")
-          match Installation.System.installFromCurrentBinary(host, autoConfirm) with
-          | Ok(message) ->
-            Stdlib.printLine(View.formatSuccess(message))
-            state
-          | Error(e) ->
-            Stdlib.printErrorLine(View.formatError(e))
-            { state with exitCode = 1 }
-        | Error(e) ->
-          Stdlib.printErrorLine(View.formatError($"Uninstall failed: {e}"))
-          { state with exitCode = 1 }
+  if Installation.System.isRunningInstalled(host) then
+    Stdlib.printLine(View.formatSuccess($"Already installed at {target}"))
+    state
+  else
+    let go =
+      if Installation.System.isInstalled(host) then
+        Cli.Prompt.confirmExplicit(
+          autoConfirm,
+          $"A dark is already installed at {target}. Replace it with this one? (y/n): ")
       else
-        let homeDir = Config.getDarklangHomeDir(host)
-        let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `dark` rather than this portable executable.\n\nOr use --uninstall-if-installed to replace the existing installation."
+        true
+
+    if go then
+      match Installation.System.installFromCurrentBinary(host) with
+      | Ok(message) ->
         Stdlib.printLine(View.formatSuccess(message))
         state
+      | Error(e) ->
+        Stdlib.printErrorLine(View.formatError(e))
+        { state with exitCode = 1 }
     else
-      let choice =
-        if autoConfirm then
-          Stdlib.Option.Option.Some("1") // Default to copying current binary with --yes
-        else if Stdlib.Bool.not(Stdlib.Cli.UI.Prompt.canAsk()) then
-          Stdlib.Option.Option.None
-        else
-          Stdlib.printErrorLine("Choose installation method:")
-          Stdlib.printErrorLine("1. Copy this binary (for testing local changes)")
-          Stdlib.printErrorLine("2. Download latest release from GitHub")
-          Stdlib.Cli.UI.Prompt.ask("Choose option (1 or 2):")
-          |> Stdlib.Option.map(fun c -> Stdlib.String.trim(c))
-
-      match choice with
-      | None ->
-        Cli.printErr(
-          $"install asks how to install, and {Stdlib.Cli.UI.Prompt.nobodyCanAnswer()}.")
-        Cli.printHint("  dark install --yes copies this binary")
-        Cli.exitWith(state, false)
-      | Some("1") ->
-        match Installation.System.installFromCurrentBinary(host, autoConfirm) with
-        | Ok(message) ->
-          Stdlib.printLine(View.formatSuccess(message))
-          state
-        | Error(e) ->
-          Stdlib.printErrorLine(View.formatError(e))
-          { state with exitCode = 1 }
-      | Some("2") ->
-        Stdlib.printLine("Installing globally...")
-        match Installation.System.install(host, autoConfirm) with
-        | Ok(message) ->
-          Stdlib.printLine(View.formatSuccess(message))
-          state
-        | Error(e) ->
-          Stdlib.printErrorLine(View.formatError(e))
-          { state with exitCode = 1 }
-      | Some(other) ->
-        Cli.printErr($"\"{other}\" isn't 1 or 2; nothing installed.")
-        Cli.exitWith(state, false)
+      Cli.printErr("Nothing installed.")
+      Cli.printHint("  dark install --yes replaces it without asking")
+      Cli.exitWith(state, false)
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []
 
 
 let help(_state: AppState): String =
-  [ "Usage: install [--yes|-y] [--uninstall-if-installed]"
-    "Install Darklang CLI globally for system-wide access."
+  [ "Usage: install [--yes|-y]"
+    "Install this dark for your user account."
     ""
-    "This command installs the CLI to ~/.darklang/bin/ and sets up"
-    "shell configuration for global access."
+    "Copies this binary to ~/.darklang/bin/dark and puts it on your PATH."
+    "Your data is already in ~/.darklang, so nothing else moves."
     ""
     "Flags:"
-    "  --yes, -y                 Skip all prompts (use defaults)"
-    "  --uninstall-if-installed  Uninstall existing installation first" ]
+    "  --yes, -y  Replace an existing install without asking" ]
   |> Stdlib.String.join("\n")

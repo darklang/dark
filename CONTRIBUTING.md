@@ -56,9 +56,9 @@ If you've gotten this far, you're now ready to [contribute your first PR](https:
 ## Config files
 
 Config files ([config/](config)) define all env vars that you can use in Dark code.
-All config vars start with `DARK_CONFIG`, except `DARK_HOME`, which names the store
-directory and is read by the shipped CLI too. Changing a config variable in
-`config/dev` requires restaring the devcontanier.
+All config vars start with `DARK_CONFIG`. The store is always `~/.darklang`; in the dev container
+that is the clone's `rundir`. Changing a config variable in `config/dev` requires restaring the
+devcontanier.
 
 ## Debugging dotnet
 

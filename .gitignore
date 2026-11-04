@@ -9,7 +9,7 @@ config/local
 .ionide/
 
 # Build system
-rundir/
+/rundir
 
 # F# / dotnet
 backend/packages/

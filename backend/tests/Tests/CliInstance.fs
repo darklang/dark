@@ -5,8 +5,8 @@
 /// store, so every store-writing test waits for the one before it, and 217 of them are
 /// most of the suite's wall clock.
 ///
-/// A command run as a CHILD has none of that. `DARK_HOME` and `HOME` already
-/// decide where an install lives, so an instance is a directory and a copy of the store.
+/// A command run as a CHILD has none of that. `HOME` decides where an install lives
+/// (`~/.darklang`), so an instance is a home directory and a copy of the store in it.
 /// A command costs a process start rather than a dispatch, call it a third more, and in
 /// exchange the tests run as wide as everything else does.
 ///
@@ -19,8 +19,10 @@ open FSharp.Control.Tasks
 
 open Prelude
 
-/// Where an instance lives, and what drives it.
+/// Where an instance lives (`dir` is its `<home>/.darklang`), and what drives it.
 type T = { dir : string; cli : string }
+
+let private homeOf (dir : string) : string = System.IO.Path.GetDirectoryName dir
 
 /// The binary under test.
 ///
@@ -73,21 +75,20 @@ let snapshotStore () : unit =
   |> ignore<System.IO.DirectoryInfo>
   backup LibDB.Sqlite.currentDbPath (pristineStore ())
 
-/// A fresh directory, whatever was there before.
+/// A fresh `<path>/.darklang`, whatever was there before.
 let private freshDir (path : string) : string =
   if System.IO.Directory.Exists path then System.IO.Directory.Delete(path, true)
-  System.IO.Directory.CreateDirectory path |> ignore<System.IO.DirectoryInfo>
-  path
+  let dir = System.IO.Path.Combine(path, ".darklang")
+  System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+  dir
 
 let private childEnv
   (dir : string)
   (psi : System.Diagnostics.ProcessStartInfo)
   : unit =
-  // Absolute, and ending in a separator: `LibConfig` appends the database name to this
-  // directly, and refuses a relative one outright.
-  psi.Environment["DARK_HOME"] <- dir + string System.IO.Path.DirectorySeparatorChar
   psi.Environment["DARK_CONFIG_DB_NAME"] <- "data.db"
-  psi.Environment["HOME"] <- dir
+  psi.Environment["HOME"] <- homeOf dir
+  psi.Environment["USERPROFILE"] <- homeOf dir
   psi.Environment["DARK_CONFIG_TELEMETRY_EXPORTER"] <- "none"
 
 /// Run one command in `dir` and wait, discarding what it said. For preparing the template;
@@ -155,7 +156,11 @@ let rec private copyDir (source : string) (dest : string) : unit =
 /// A fresh instance, seeded from the template.
 let create () : T =
   let dir =
-    System.IO.Path.Combine(instanceRoot (), System.Guid.NewGuid().ToString("N"))
+    System.IO.Path.Combine(
+      instanceRoot (),
+      System.Guid.NewGuid().ToString("N"),
+      ".darklang"
+    )
   System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
   let (db, policy) = template.Force()
   System.IO.File.Copy(db, System.IO.Path.Combine(dir, "data.db"))
@@ -165,7 +170,7 @@ let create () : T =
 
 let dispose (i : T) : unit =
   try
-    System.IO.Directory.Delete(i.dir, true)
+    System.IO.Directory.Delete(homeOf i.dir, true)
   with _ ->
     () // a leaked instance is under rundir, where it is visible and cheap to sweep
 
