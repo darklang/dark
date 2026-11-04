@@ -554,8 +554,9 @@ let discardBranchDraft(branchId: Uuid): Int64 =
     else
       Stdlib.Result.Result.Ok(0)
 
-  // Reload the overlay so this process stops resolving names through the ops just deleted.
-  let _ = selectBranch(branchId)
+  // Reload the overlay so this process stops resolving names through the ops just deleted. Not
+  // `selectBranch`, which would also move this process (and the stored branch) onto <param branchId>.
+  let _ = SCM.Draft.invalidateCaches()
   n
 
 
@@ -659,7 +660,7 @@ let dropBranchOps(branchId: Uuid, ids: List<String>): Stdlib.Result.Result<Int, 
         |> Stdlib.List.take(Stdlib.List.length(ids))
         |> Stdlib.List.fold(0, fun(acc, n) -> acc + n)
 
-      let _ = selectBranch(branchId)
+      let _ = SCM.Draft.invalidateCaches()
       Stdlib.Result.Result.Ok(dropped)
     | Error(e) -> Stdlib.Result.Result.Error(e)
 

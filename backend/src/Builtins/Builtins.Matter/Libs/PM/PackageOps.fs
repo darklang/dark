@@ -380,12 +380,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Change which branch THIS process is on, without restarting it.
+    // Change which branch THIS process is on, without restarting it, and remember it for the next one.
     //
     // Boot (`--branch`, or `current_branch`) covers the one-shot case, but it can't be the only way in:
-    // the interactive REPL is a single long-lived process, so `ops switch` there has to move the overlay
-    // that name resolution and authoring actually read. Writing the config key alone would leave the
-    // display saying one thing and the behaviour doing another.
+    // the interactive REPL is a single long-lived process, so `switch` there has to move the overlay
+    // that name resolution and authoring actually read. Both halves happen here, so the stored
+    // branch and the process can't disagree, and Dark never writes `current_branch` itself.
     //
     // Returns the branch it ended up on, so a caller reports what happened rather than what it asked for.
     { name = fn "scmSelectBranch" 0
@@ -395,14 +395,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       returnType = TUuid
       description =
         "Moves this process onto <param branchId>, loading that branch's delta ops "
-        + "as the overlay used for name resolution and execution. Returns the branch "
-        + "now active."
+        + "as the overlay used for name resolution and execution, and stores it as the "
+        + "branch later commands start on. Returns the branch now active."
       fn =
         (function
         | _, _, _, [| DUuid branchId |] ->
           uply {
             let branchId = PT.BranchId.Id branchId
             LibDB.PackageManager.selectBranch branchId
+            do! LibDB.BranchSelection.remember branchId
             return DUuid branchId.Guid
           }
         | _ -> incorrectArgs ())

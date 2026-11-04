@@ -849,6 +849,33 @@ Caching.register (fun () ->
   | Some id -> branchOverlayOps <- (Branches.loadDeltaOps id).Result
   | None -> ())
 
+/// Resolve a dotted package name or an exact #hash. Names follow updates;
+/// hashes pin a caller to one version, which is how the test runner names its worker. Main
+/// only: the boot reads `exec.policy` and `--entry-point` through this, and `configSet` checks
+/// `exec.policy` with it, so a policy is refused on set exactly when the boot could not find it.
+let resolveFnRef (dotted : string) : Option<RT.FQFnName.FQFnName> =
+  if dotted.StartsWith "#" then
+    let hash = dotted.Substring 1
+    if hash.Length <> 64 || not (Seq.forall System.Uri.IsHexDigit hash) then
+      None
+    else
+      (pt.getFn (PT.Hash hash)).Result
+      |> Option.map (fun _ -> RT.FQFnName.fqPackage hash)
+  else
+    match List.rev (dotted.Split('.') |> Array.toList) with
+    | name :: revRest ->
+      let owner, modules =
+        match List.rev revRest with
+        | o :: mods -> o, mods
+        | [] -> "Darklang", []
+      let location : PT.PackageLocation =
+        { owner = owner; modules = modules; name = name }
+      (pt.findFn location).Result
+      |> Option.map (fun fqPkg ->
+        RT.FQFnName.Package(PT2RT.FQFnName.Package.toRT fqPkg))
+    | [] -> None
+
+
 /// Select the active branch's delta ops for this process (empty = main/core only). Prefer
 /// `selectBranch`, which loads them; this is for callers already holding an explicit op list.
 let setBranchOverlay (ops : List<PT.PackageOp>) : unit = branchOverlayOps <- ops

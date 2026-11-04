@@ -6,7 +6,7 @@ test stdinIsNonInteractive =
 
 
 let writeConfig(key: String): String =
-  Stdlib.LocalStore.configSet(key, "child")
+  let _ = Stdlib.LocalStore.configSet(key, "child")
   Stdlib.LocalStore.path()
 
 let cleanConfig(key: String): Bool =
@@ -24,7 +24,7 @@ test snapshotScopeKeepsTestCounter =
   Stdlib.Test.counterValue() |> Stdlib.Test.equal(2L)
 
 test nestedWorkerSeesCallingTestWrites =
-  let key = "nested-worker-starting-store"
+  let key = "test.nested-worker-starting-store"
   let _ = Stdlib.LocalStore.configSet(key, "written by this test")
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), readConfig, key) with
   | Error(message) -> Stdlib.Test.fail(message)
@@ -36,7 +36,7 @@ test nestedWorkerSeesCallingTestWrites =
 test stateAndEnvironmentAreIsolated =
   let parentDb = Stdlib.LocalStore.path()
   let parentBranch = Darklang.SCM.PackageOps.currentBranch()
-  let key = "isolated-test-" + Stdlib.toString(Stdlib.Uuid.generate())
+  let key = "test.isolated-" + Stdlib.toString(Stdlib.Uuid.generate())
   let options = Stdlib.Test.Process.defaults()
   match Stdlib.Test.Process.run(options, writeConfig, key) with
   | Error(message) -> Stdlib.Test.fail(message)

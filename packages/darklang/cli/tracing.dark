@@ -624,7 +624,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   // move between them or save an edit.
   | [ "show", typed, "--watch" ] ->
     let fnName = Cli.TraceVerbs.canonicalFnName(state.currentBranchId, typed)
-    Stdlib.LocalStore.configSet(Cli.TraceWatch.fnKey, fnName)
+    let _ = Stdlib.LocalStore.configSet(Cli.TraceWatch.fnKey, fnName)
     let view =
       LiveView.Model.View
         { name = "traces-show"

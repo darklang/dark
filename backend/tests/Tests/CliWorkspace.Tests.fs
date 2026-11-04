@@ -56,6 +56,54 @@ let configRoundTrips =
           "an unset key is not an empty value"
     })
 
+/// `instance.id` and `instance.name` used to live in `cli-config.json` beside the store, written by
+/// Dark. The runtime moves them into the store the first time anything asks, and makes the id
+/// itself when there is no file.
+let instanceMovesIntoTheStore =
+  instanceTest
+    "instance.id and instance.name move in from cli-config.json"
+    (fun state ->
+      task {
+        let dir =
+          match state with
+          | Instance i -> i.dir
+          | _ -> failtest "requires a disposable CLI instance"
+        let storeDir =
+          [ System.IO.Path.Combine(dir, ".darklang"); dir ]
+          |> List.find (fun d ->
+            System.IO.File.Exists(System.IO.Path.Combine(d, "data.db")))
+          |> Option.defaultValue dir
+        do!
+          task {
+            let db = System.IO.Path.Combine(storeDir, "data.db")
+            use conn =
+              new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={db}")
+            conn.Open()
+            use cmd = conn.CreateCommand()
+            cmd.CommandText <- "DELETE FROM config_v0 WHERE key LIKE 'instance.%'"
+            cmd.ExecuteNonQuery() |> ignore<int>
+          }
+        System.IO.File.WriteAllText(
+          System.IO.Path.Combine(storeDir, "cli-config.json"),
+          """{"instance.id":"id-from-the-old-file","instance.name":"old-name"}"""
+        )
+        do!
+          shows
+            state
+            [ "config"; "get"; "instance.id" ]
+            "id-from-the-old-file"
+            "the old file's id moves in"
+        do!
+          shows state [ "config"; "get"; "instance.name" ] "old-name" "and its name"
+        do! run state [ "config"; "set"; "instance.name"; "new-name" ]
+        do!
+          shows
+            state
+            [ "config"; "get"; "instance.name" ]
+            "new-name"
+            "once, so a later set is not undone by the file"
+      })
+
 /// The key list is closed: nothing reads a key it does not name, so storing one would only hide
 /// a typo. A refusal names the key meant when one is obvious, and a value is checked on `set`.
 let configRefusesUnknownKeysAndBadValues =
@@ -94,7 +142,7 @@ let configRefusesUnknownKeysAndBadValues =
           refuses
             state
             [ "config"; "set"; "exec.policy"; "Zzz.Nope.nope" ]
-            "is not one on this branch"
+            "is not one on main"
             "Set "
             "a policy that names no function is refused once, on set"
         do!
@@ -120,7 +168,7 @@ let configRefusesUnknownKeysAndBadValues =
             [ "config"; "set"; "instance.id"; "x" ]
             "cannot be set"
             "Set "
-            "instance.id is the workbench's own"
+            "instance.id is made once, by the runtime"
       })
 
 /// Regression: this crashed. `backups now` asked whether the store existed, that
@@ -1755,6 +1803,7 @@ let private observeAndShow =
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
+    instanceMovesIntoTheStore
     configRefusesUnknownKeysAndBadValues
     backupsCanBeTaken
     backupsRefusesToRestoreWhatIsNotThere

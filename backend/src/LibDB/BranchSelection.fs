@@ -39,13 +39,28 @@ type Selection =
 let private none =
   { branchId = None; tier = Default; created = None; goneStored = None }
 
+/// Make <branchId> the stored tier: the branch the next command starts on. The id is what counts;
+/// the name sits beside it for anyone reading the store, and for saying which branch went when it
+/// has gone. Names are not unique, so storing only the name would let a peer's same-named branch
+/// move you onto theirs.
+let remember (branchId : PT.BranchId) : Task<unit> =
+  task {
+    let! name =
+      if branchId.IsMain then
+        Task.FromResult(Some PT.BranchId.MainName)
+      else
+        Branches.nameOf branchId
+    let label =
+      match name with
+      | Some n when n <> "" -> n
+      | _ -> string branchId
+    do! Config.set "current_branch" (string branchId)
+    do! Config.set "current_branch_name" label
+  }
+
 /// Point the stored tier back at main. Said once: left in place, every command from here on would
 /// repeat that the branch is gone.
-let private resetStoredToMain () : Task<unit> =
-  task {
-    do! Config.set "current_branch" (string PT.BranchId.Main)
-    do! Config.set "current_branch_name" PT.BranchId.MainName
-  }
+let private resetStoredToMain () : Task<unit> = remember PT.BranchId.Main
 
 /// The flag and env tiers: a name, a full id, or an unambiguous id prefix. `main` is spelled as the
 /// absence of a branch. Only a name nobody has is created.

@@ -146,6 +146,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString key |] ->
           uply {
+            // `instance.*` is made (or moved in from `cli-config.json`) on first ask.
+            if key.StartsWith "instance." then do! LibDB.Config.ensureInstance ()
             let! v = LibDB.Config.get key
             return DString(Option.defaultValue "" v)
           }
@@ -157,18 +159,47 @@ let fns () : List<BuiltInFn> =
     { name = fn "configSet" 0
       typeParams = []
       parameters = [ Param.make "key" TString ""; Param.make "value" TString "" ]
-      returnType = TUnit
-      description = "Set a local config value (config_v0). Local + unsynced."
+      returnType = TypeReference.result TUnit TString
+      description =
+        "Set a local config value (config_v0). Local + unsynced. Refuses a key nothing reads, "
+        + "a value the reader would not take, and the keys only the runtime writes "
+        + "(`current_branch`, `instance.id`), saying why in the Error."
       fn =
         (function
         | _, _, _, [| DString key; DString value |] ->
           uply {
-            do! LibDB.Config.set key value
-            return DUnit
+            let resolves name =
+              LibDB.PackageManager.resolveFnRef name |> Option.isSome
+            match LibDB.Config.check resolves key value with
+            | Error e -> return Dval.resultError KTUnit KTString (DString e)
+            | Ok() ->
+              // A name set before anything asked for the id must not stop the old file's id
+              // from moving in.
+              if key.StartsWith "instance." then do! LibDB.Config.ensureInstance ()
+              do! LibDB.Config.set key value
+              return Dval.resultOk KTUnit KTString DUnit
           }
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageWrite ]
+      deprecated = NotDeprecated }
+
+    { name = fn "configKeys" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList TString
+      description =
+        "The config keys a person reads with `config get`: every setting `configSet` takes, "
+        + "and `instance.id`, which it does not."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            return LibDB.Config.readable |> List.map DString |> Dval.list KTString
+          }
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     // The store-change signal for a process that stays up (a TUI, `serve`, a daemon). See

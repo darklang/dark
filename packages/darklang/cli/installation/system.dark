@@ -20,8 +20,7 @@ let isInstalled(host: Stdlib.Cli.Host.Host): Bool =
 /// Is this binary the latest release?
 ///
 /// Compares build hashes, the one identity a binary and a release share. The tag (`v0.0.54`) appears
-/// nowhere in the binary, so comparing the two never matched and every update re-downloaded; and
-/// `config.json` only says what was last recorded, which a failed update used to get wrong.
+/// nowhere in the binary, so comparing the two never matched and every update re-downloaded.
 let isLatestBuild(currentVersion: String): Stdlib.Result.Result<Bool, String> =
   Darklang.GitHub.Releases.getLatestReleaseBuildHash()
   |> Stdlib.Result.map(fun latest -> latest == currentVersion)
@@ -34,7 +33,6 @@ let installFromCurrentBinary(host: Stdlib.Cli.Host.Host): Stdlib.Result.Result<S
 
   let globalBinDir = $"{darklangHomeDir}/bin/"
   let globalBinaryPath = installedBinaryPath(host)
-  let configPath = $"{darklangHomeDir}/config.json"
 
   let copied =
     match Stdlib.Cli.Unix.ensureDirectoryExists(globalBinDir) with
@@ -47,17 +45,14 @@ let installFromCurrentBinary(host: Stdlib.Cli.Host.Host): Stdlib.Result.Result<S
   match copied with
   | Error(e) -> Stdlib.Result.Result.Error(e)
   | Ok(_) ->
-    match Config.updateVersion(configPath, "local-binary") with
-    | Error(e) -> Stdlib.Result.Result.Error($"Binary copied, but couldn't record it in {configPath}: {e}")
-    | Ok(_) ->
-      // Unexpanded, as `install.sh` writes it. A PATH we couldn't edit is a warning, not a failure.
-      match Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/") with
-      | Ok(_) -> ()
-      | Error(e) ->
-        Stdlib.printErrorLine(
-          $"Couldn't add {globalBinDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
+    // Unexpanded, as `install.sh` writes it. A PATH we couldn't edit is a warning, not a failure.
+    match Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/") with
+    | Ok(_) -> ()
+    | Error(e) ->
+      Stdlib.printErrorLine(
+        $"Couldn't add {globalBinDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
 
-      Stdlib.Result.Result.Ok($"Installed to {globalBinaryPath}. The 'dark' command should now be available.")
+    Stdlib.Result.Result.Ok($"Installed to {globalBinaryPath}. The 'dark' command should now be available.")
 
 
 /// Update the CLI if a newer version is available. Never prompts, so `--yes` changes nothing here.

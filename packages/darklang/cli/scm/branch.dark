@@ -117,8 +117,6 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
       let _ = Cli.printHint("  `dark switch <branch>`, and `dark branches` lists them.")
       SCM.PackageOps.currentBranch()
     | ref when (ref == "") || (ref == SCM.Branch.mainBranchName) ->
-      let _ = Stdlib.LocalStore.configSet("current_branch", Stdlib.toString(SCM.Branch.mainBranchId))
-      let _ = Stdlib.LocalStore.configSet("current_branch_name", SCM.Branch.mainBranchName)
       let _ = SCM.PackageOps.selectBranch(SCM.Branch.mainBranchId)
       let _ = Cli.printOk($"switched to {SCM.Branch.mainBranchName}.")
       SCM.Branch.mainBranchId
@@ -157,16 +155,12 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
 
       let (branchId, created) = pair
 
-      // The config holds the ID, with the name beside it for anyone reading the file. Names are
-      // deliberately not unique, including across instances, so storing the name would let a sync that
-      // brings in a peer's same-named branch move you onto theirs without a word.
       let handle =
         match SCM.PackageOps.branchName(branchId) with
         | "" -> Stdlib.toString(branchId)
         | named -> named
 
-      let _ = Stdlib.LocalStore.configSet("current_branch", Stdlib.toString(branchId))
-      let _ = Stdlib.LocalStore.configSet("current_branch_name", handle)
+      // Moves this process and stores the branch, by id, for the next command.
       let _ = SCM.PackageOps.selectBranch(branchId)
 
       let parentNote =
@@ -225,10 +219,11 @@ let executeRename(state: AppState, branchRef: String, newName: String): AppState
 
       match SCM.Branch.rename(branchId, newName) with
       | Ok(b) ->
-        // The config keeps the name beside the id for anyone reading the file, so it goes stale on a
-        // rename of the branch you are standing on.
+        // The store keeps the name beside the id, so it goes stale on a rename of the branch you
+        // are standing on. Selecting it again stores the new one.
         if SCM.PackageOps.currentBranch() == branchId then
-          Stdlib.LocalStore.configSet("current_branch_name", b.name)
+          let _ = SCM.PackageOps.selectBranch(branchId)
+          ()
         else
           ()
 
@@ -296,7 +291,7 @@ let executeArchive(
 
     // The parent, read BEFORE the archive: an archived branch drops out of the listing `parentOf`
     // reads, so asking afterwards answers main even for a branch of a branch.
-    let (parentId, parentName) = parentOf(branchId)
+    let (parentId, _) = parentOf(branchId)
 
     match SCM.PackageOps.archiveBranch(branchId) with
     | Ok(_) ->
@@ -305,11 +300,6 @@ let executeArchive(
       // next edit would land there and revive it. Move to the parent, in this process and in the
       // config the next one reads, and say so.
       if SCM.PackageOps.currentBranch() == branchId then
-        let _ = Stdlib.LocalStore.configSet("current_branch", Stdlib.toString(parentId))
-        let _ =
-          Stdlib.LocalStore.configSet(
-            "current_branch_name",
-            (if SCM.Branch.isMain(parentId) then "" else parentName))
         let _ = SCM.PackageOps.selectBranch(parentId)
         Cli.printOk($"now on {whereLabel(parentId)} -- that's where the next edit lands.")
         { state with currentBranchId = parentId }

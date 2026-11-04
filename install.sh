@@ -126,11 +126,7 @@ main() {
   tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/darklang-install.XXXXXX")
   new_binary="$bin_dir/.dark.new.$$"
   old_binary="$bin_dir/.dark.old.$$"
-  config_path="$darklang_home/config.json"
-  config_new="$darklang_home/.config.new.$$"
-  config_old="$darklang_home/.config.old.$$"
   had_old_binary=no
-  had_old_config=no
   install_pending=no
 
   cleanup() {
@@ -146,18 +142,11 @@ main() {
           printf 'darklang install: error: could not restore the previous CLI from %s\n' "$old_binary" >&2
         fi
       fi
-
-      rm -f "$config_path"
-      if [ "$had_old_config" = yes ]; then
-        if ! mv -f "$config_old" "$config_path"; then
-          printf 'darklang install: error: could not restore the previous config from %s\n' "$config_old" >&2
-        fi
-      fi
     else
-      rm -f "$old_binary" "$config_old"
+      rm -f "$old_binary"
     fi
 
-    rm -f "$new_binary" "$config_new"
+    rm -f "$new_binary"
     rm -rf "$tmpdir"
     exit "$status"
   }
@@ -189,25 +178,16 @@ main() {
     fail "downloaded $tag, but running 'dark version' in an isolated environment failed; the existing installation was not changed. Please report this at https://github.com/darklang/dark/issues"
   fi
 
-  # Prepare metadata beside its destination so the final rename is atomic.
-  printf '{"version":"%s","lastUpdateTimestamp":"%s"}' "$tag" "$(date +%s)" \
-    >"$config_new"
-
-  # Keep recoverable copies until both the executable and metadata are committed.
+  # Keep a recoverable copy until the new executable is in place.
   if [ -e "$bin_dir/dark" ] || [ -L "$bin_dir/dark" ]; then
     cp -pP "$bin_dir/dark" "$old_binary"
     had_old_binary=yes
   fi
-  if [ -e "$config_path" ] || [ -L "$config_path" ]; then
-    cp -pP "$config_path" "$config_old"
-    had_old_config=yes
-  fi
 
   install_pending=yes
   mv -f "$new_binary" "$bin_dir/dark"
-  mv -f "$config_new" "$config_path"
   install_pending=no
-  rm -f "$old_binary" "$config_old"
+  rm -f "$old_binary"
 
   case ":$PATH:" in
     *":$bin_dir:"* | *":$bin_dir/:"*) on_path=yes ;;

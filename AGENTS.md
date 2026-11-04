@@ -1159,11 +1159,12 @@ difference shows up as a test standing somewhere it did not expect to be.
 
 Clearing only `current_branch%` is the trap: it looks like isolation and is not.
 
-There are TWO config stores, and that line only clears one: `config_v0` in sqlite and
-`cli-config.json` beside the db (instance id and name). Copying a store DIRECTORY carries both;
-copying `data.db` alone does not, which is the shape to prefer for a scratch store.
+`config_v0` is the only config store. The instance's id and name used to sit in `cli-config.json`
+beside the db; the runtime moves them in the first time anything asks for `instance.*` and leaves
+the file alone, so a cleared copy that still has an old `cli-config.json` beside it takes that
+file's identity. Copy `data.db` alone, which is the shape to prefer for a scratch store anyway.
 
-Both live in `~/.darklang`, so a process given its own HOME gets its own of each. In the dev
+It lives in `~/.darklang`, so a process given its own HOME gets its own. In the dev
 container the clone's `rundir` is mounted there.
 
 **Your own experiments in the dev store break every gate that commits.** The gates start from a copy

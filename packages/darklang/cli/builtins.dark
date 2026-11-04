@@ -49,6 +49,7 @@ val knownGroups =
     ("host", "Host")
     ("exec", "Exec")
     ("local", "Local DB")
+    ("config", "Config")
     ("pm", "Package Manager")
     ("scm", "SCM")
     ("traces", "Traces")

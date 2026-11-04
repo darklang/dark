@@ -289,11 +289,12 @@ let resolveBranch(name: String, parentId: Uuid): (Uuid * Bool) =
 
 
 /// Move THIS process onto <param branchId>, loading that branch's delta ops as the overlay name resolution
-/// and execution read. Returns the branch now active -- the one call that changes what every later name in
-/// the process resolves to.
+/// and execution read, and store it as the branch the next command starts on. Returns the branch now
+/// active -- the one call that changes what every later name in the process resolves to.
 ///
-/// Persisting the choice is separate and deliberately not done here: `--branch` is a one-off and must not
-/// move `current_branch`, while `ops switch` sets both.
+/// `--branch` is a one-off and never comes through here; it is resolved before any Dark runs. To reload
+/// the overlay of the branch you are already on after editing its ops, use `SCM.Draft.invalidateCaches`,
+/// which does not store anything.
 let selectBranch(branchId: Uuid): Uuid = Builtin.scmSelectBranch(branchId)
 
 

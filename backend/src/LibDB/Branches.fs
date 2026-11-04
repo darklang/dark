@@ -106,6 +106,12 @@ let liveIdForName (name : string) : Task<Option<PT.BranchId>> =
   |> Sql.executeRowOptionAsync (fun read ->
     PT.BranchId.ParseUnsafe(read.string "id"))
 
+/// The branch's name, or None when this store has no such branch.
+let nameOf (branchId : PT.BranchId) : Task<Option<string>> =
+  Sql.query "SELECT name FROM branches WHERE id = @id"
+  |> Sql.parameters [ "id", Sql.string (string branchId) ]
+  |> Sql.executeRowOptionAsync (fun read -> read.string "name")
+
 let isLive (branchId : PT.BranchId) : Task<bool> =
   task {
     let! found =

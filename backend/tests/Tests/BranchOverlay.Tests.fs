@@ -1256,6 +1256,13 @@ let branchResolutionOrder =
       Expect.equal (selected s) (Some envB, Sel.Env) "then the env"
       let! s = Sel.select None None
       Expect.equal (selected s) (Some storedB, Sel.Stored) "then the stored branch"
+      // What `selectBranch` stores: the id, and the branch's own name beside it.
+      do! LibDB.Config.set "current_branch_name" "stale"
+      do! Sel.remember storedB
+      let! s = Sel.select None None
+      Expect.equal (selected s) (Some storedB, Sel.Stored) "remember stores the id"
+      let! name = LibDB.Config.get "current_branch_name"
+      Expect.equal name (Some "sel-stored") "and the name beside it"
       let! s = Sel.select (Some "main") (Some "sel-env")
       Expect.equal
         (selected s)

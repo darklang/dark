@@ -84,33 +84,6 @@ let state (packageManager : RT.PackageManager) =
 
 
 
-/// Resolve a dotted package name or an exact #hash. Names follow updates;
-/// hashes pin a caller to one version, which is how the test runner names its worker.
-let private resolvePackageFn (dotted : string) : Option<RT.FQFnName.FQFnName> =
-  if dotted.StartsWith "#" then
-    let hash = dotted.Substring 1
-    if hash.Length <> 64 || not (Seq.forall System.Uri.IsHexDigit hash) then
-      None
-    else
-      (LibDB.PackageManager.pt.getFn (PT.Hash hash)).Result
-      |> Option.map (fun _ -> RT.FQFnName.fqPackage hash)
-  else
-    match List.rev (dotted.Split('.') |> Array.toList) with
-    | name :: revRest ->
-      let owner, modules =
-        match List.rev revRest with
-        | o :: mods -> o, mods
-        | [] -> "Darklang", []
-      let location : PT.PackageLocation =
-        { owner = owner; modules = modules; name = name }
-      (LibDB.PackageManager.pt.findFn location).Result
-      |> Option.map (fun fqPkg ->
-        RT.FQFnName.Package(
-          LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT fqPkg
-        ))
-    | [] -> None
-
-
 /// The store-change source for the scheduler's poll: `LibDB.Sqlite.DataVersion`, one held
 /// connection per store, since `PRAGMA data_version` answers per connection.
 let private installStoreVersionSource () : unit =
@@ -159,7 +132,7 @@ let private installPolicy
   : unit =
   let named = Map.tryFind "exec.policy" settings |> Option.defaultValue ""
   if named <> "" then
-    match resolvePackageFn named with
+    match LibDB.PackageManager.resolveFnRef named with
     | Some fn ->
       LibExecution.Scheduler.policy <-
         LibExecution.Scheduler.Chooser(
@@ -216,7 +189,7 @@ let execute
       match entryPoint with
       | None -> RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
       | Some name ->
-        match resolvePackageFn name with
+        match LibDB.PackageManager.resolveFnRef name with
         | Some fn -> fn
         | None -> invalidOp $"Entry point not found: {name}"
     let args =

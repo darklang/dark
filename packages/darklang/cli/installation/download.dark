@@ -103,19 +103,15 @@ let replaceBinary(
   steps
 
 
-/// Install a release (<param pinned>, or else the latest) to `~/.darklang/bin/dark`, record its
-/// version, and put it on the PATH. Returns the tag installed.
-///
-/// The version is written after the binary is in place, never before: a failed update must not leave
-/// `config.json` naming a version that isn't installed.
+/// Install a release (<param pinned>, or else the latest) to `~/.darklang/bin/dark`, and put it on the
+/// PATH. Returns the tag installed.
 let installRelease(
   host: Stdlib.Cli.Host.Host,
   pinned: Stdlib.Option.Option<String>)
   : Stdlib.Result.Result<String, String> =
   let darklangHomeDir = Config.getDarklangHomeDir(host)
 
-  let (binDir, target, configPath) =
-    ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark", $"{darklangHomeDir}/config.json")
+  let (binDir, target) = ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark")
 
   match releaseToInstall(host, pinned) with
   | Error(e) -> Stdlib.Result.Result.Error(e)
@@ -123,23 +119,18 @@ let installRelease(
     match replaceBinary(host, release.assetUrl, target) with
     | Error(e) -> Stdlib.Result.Result.Error(e)
     | Ok(_) ->
-      match Config.updateVersion(configPath, release.tag) with
+      // The binary is in place by now, so a PATH we couldn't edit is worth a line, not a failure.
+      // Unexpanded on purpose: the line must match what `install.sh` writes, byte for byte.
+      let pathResult =
+        Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/")
+
+      match pathResult with
+      | Ok(_) -> ()
       | Error(e) ->
-        Stdlib.Result.Result.Error(
-          $"Installed {release.tag}, but couldn't record it in {configPath}: {e}")
-      | Ok(_) ->
-        // The binary is in place by now, so a PATH we couldn't edit is worth a line, not a failure.
-        // Unexpanded on purpose: the line must match what `install.sh` writes, byte for byte.
-        let pathResult =
-          Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/")
+        Stdlib.printErrorLine(
+          $"Couldn't add {binDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
 
-        match pathResult with
-        | Ok(_) -> ()
-        | Error(e) ->
-          Stdlib.printErrorLine(
-            $"Couldn't add {binDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
-
-        Stdlib.Result.Result.Ok(release.tag)
+      Stdlib.Result.Result.Ok(release.tag)
 
 
 /// <fn installRelease> for the latest release.
