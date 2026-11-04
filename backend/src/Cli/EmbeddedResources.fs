@@ -439,37 +439,52 @@ let extract () : unit =
           timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
         if toppedUp && build <> "dev" then recordStoreStamp dbPath build
 
+    // Only one process should create the store. After taking the lock, check again in case
+    // another process finished setting it up while we were waiting.
     if not (File.Exists(dbPath)) then
-      eprintfn $"Setting up Darklang CLI data directory at {darklangDir}"
-
       if not (Directory.Exists(darklangDir)) then
         Directory.CreateDirectory(darklangDir) |> ignore
 
-      extractGzippedResource "data.db.gz" dbPath
+      use _settingUp = upgradeLock dbPath
 
-      // Everything in a store this fresh came from the seed, so the ledger can be filled with
-      // certainty exactly once. Without it the first upgrade after an install has no provenance.
-      try
-        use conn =
-          new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
-        conn.Open()
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <-
-          "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY);
-           INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM package_ops;"
-        cmd.ExecuteNonQuery() |> ignore<int>
-      with e ->
-        System.Console.Error.WriteLine(
-          $"could not record which ops came from this build: {e.Message}"
-        )
+      if not (File.Exists(dbPath)) then
+        eprintfn $"Setting up Darklang CLI data directory at {darklangDir}"
 
-      let readmePath = Path.Combine(darklangDir, "README.md")
-      extractResource "README.md" readmePath
+        // Extract to a temporary file, then move it into place. If setup is interrupted,
+        // the next run can start over instead of opening an incomplete database.
+        let partial = $"{dbPath}.partial-{System.Guid.NewGuid()}"
+        try
+          extractGzippedResource "data.db.gz" partial
+          File.Move(partial, dbPath)
+        finally
+          try
+            if File.Exists partial then File.Delete partial
+          with _ ->
+            ()
 
-      let logsDir = Path.Combine(darklangDir, "logs")
-      Directory.CreateDirectory(logsDir) |> ignore
+        // Record that all existing ops came from the embedded seed. Future upgrades use this
+        // record to distinguish bundled ops from the user's own changes.
+        try
+          use conn =
+            new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
+          conn.Open()
+          use cmd = conn.CreateCommand()
+          cmd.CommandText <-
+            "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY);
+             INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM package_ops;"
+          cmd.ExecuteNonQuery() |> ignore<int>
+        with e ->
+          System.Console.Error.WriteLine(
+            $"could not record which ops came from this build: {e.Message}"
+          )
 
-      // A store just written from this binary's own seed is by definition reconciled with it.
-      recordStoreStamp dbPath LibConfig.Config.buildHash
+        let readmePath = Path.Combine(darklangDir, "README.md")
+        extractResource "README.md" readmePath
 
-      eprintfn "CLI data directory setup complete"
+        let logsDir = Path.Combine(darklangDir, "logs")
+        Directory.CreateDirectory(logsDir) |> ignore
+
+        // A store just written from this binary's own seed is by definition reconciled with it.
+        recordStoreStamp dbPath LibConfig.Config.buildHash
+
+        eprintfn "CLI data directory setup complete"
