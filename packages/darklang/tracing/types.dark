@@ -113,6 +113,30 @@ type TraceData =
     functionCalls: List<FnCall> }
 
 
+/// Which runs to read. Every answer is newest first; `Tracing.Store` is where these are asked.
+type TraceQuery =
+  /// The newest runs.
+  | Newest of limit: Int
+  /// The newest runs with a call whose function name contains this text.
+  | Calling of fnName: String * limit: Int
+  /// The newest runs that went through a function: by its name, or by its hash when that is
+  /// not "". `Tracing.Store.wentThrough` says why it takes both.
+  | WentThrough of fnName: String * fnHash: String * limit: Int
+  /// One run by its full id.
+  | ById of traceID: String
+
+
+/// Which runs to delete.
+type TraceSelection =
+  /// One run by its full id.
+  | One of traceID: String
+  | All
+  /// The runs recorded before this ISO 8601 timestamp.
+  | Before of cutoff: String
+  /// All but the newest few, keeping any run a suspended one still needs.
+  | AllButNewest of keep: Int
+
+
 /// Why a replay stopped.
 type ReplayStop =
   | Raised of LanguageTools.RuntimeTypes.RuntimeError.Error

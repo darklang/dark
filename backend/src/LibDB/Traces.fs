@@ -413,6 +413,32 @@ let setEntryHash (id : System.Guid) (hash : string) : unit =
   |> Sql.parameters [ "id", Sql.uuid id; "hash", Sql.string hash ]
   |> Sql.executeStatementSync
 
+/// Pin a run so retention never drops it, or unpin it. False when no run has that id.
+let setPinned (id : string) (pinned : bool) : Task<bool> =
+  task {
+    let! changed =
+      Sql.query
+        "UPDATE traces SET pinned = @pinned, updated = @updated WHERE id = @id"
+      |> Sql.parameters
+        [ "id", Sql.string id
+          "pinned", Sql.int (if pinned then 1 else 0)
+          "updated", Sql.string (now ()) ]
+      |> Sql.executeNonQueryAsync
+    return changed > 0
+  }
+
+/// The ids that start with `prefix`, newest first, at most `limit` of them.
+///
+/// The prefix is bound as a parameter, never spliced into the SQL, and its `\`, `%` and `_`
+/// are escaped, so whatever was typed (a quote included) is matched as plain text.
+let idsStartingWith (prefix : string) (limit : int) : Task<List<string>> =
+  let escaped = prefix.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")
+  Sql.query
+    @"SELECT id FROM traces WHERE id LIKE @pattern ESCAPE '\'
+      ORDER BY rowid DESC LIMIT @limit"
+  |> Sql.parameters [ "pattern", Sql.string (escaped + "%"); "limit", Sql.int limit ]
+  |> Sql.executeAsync (fun read -> read.string "id")
+
 /// When the log a run replays was recorded: its own start, or for a fork, the start of the run
 /// at the root of its lineage, since a fork's log is a copy of that run's.
 let recordedAt (e : Trace) : Task<string> =

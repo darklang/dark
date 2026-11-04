@@ -4,6 +4,9 @@
 /// in `Darklang.Tracing`: the builtins return bare `List<'a>`, so without a
 /// wrapper every caller re-states the type it expects. Consumers (the CLI
 /// `traces` command, the workbench, dashboards) go through here.
+///
+/// No SQL here: the trace tables belong to F# (`LibDB.Traces`), and every read
+/// and write of them is a builtin.
 module Darklang.Tracing.Store
 
 
@@ -30,14 +33,20 @@ let setRecording(on: Bool): Unit =
   Builtin.tracesApplyRecording(on)
 
 
+/// The runs <param query> asks for, newest first. `list`, `listByFn`, `get` and `wentThrough`
+/// are the names callers use.
+let read(query: TraceQuery): List<Trace> =
+  Builtin.tracesRead(query)
+
+
 /// The most recent <param limit> traces, newest first.
 let list(limit: Int): List<Trace> =
-  Builtin.tracesList(limit)
+  read(TraceQuery.Newest(limit))
 
 
 /// The most recent <param limit> traces that called <param fnName>.
 let listByFn(fnName: String, limit: Int): List<Trace> =
-  Builtin.tracesListByFn(fnName, limit)
+  read(TraceQuery.Calling(fnName, limit))
 
 
 /// The most recent <param limit> traces whose inputs, args or results
@@ -59,7 +68,7 @@ let getScriptOrEvalInput(traceID: String): Stdlib.Option.Option<ScriptOrEvalInpu
 
 /// One trace by id, if it is still here.
 let get(traceID: String): Stdlib.Option.Option<Trace> =
-  Builtin.tracesGet(traceID)
+  Stdlib.List.head(read(TraceQuery.ById(traceID)))
 
 
 /// A new trace branched from <param traceID>, keeping its log up to <param at> (a position from
@@ -76,19 +85,8 @@ let armResume(traceID: String): Bool =
 
 
 /// Pin a trace so retention never drops it, or unpin it. Returns whether a trace had that id.
-///
-/// SQL here rather than in a builtin, the way the SCM silos own theirs: it is one UPDATE over a
-/// table this module owns, and nothing about it needs the runtime.
 let setPinned(traceID: String, pinned: Bool): Bool =
-  let db = Stdlib.LocalStore.path()
-  let flag = if pinned then "1" else "0"
-  let updated =
-    Stdlib.Sqlite.mustExec(
-      db,
-      "UPDATE traces SET pinned = @p0, updated = strftime('%Y-%m-%dT%H:%M:%fZ','now')
-       WHERE id = @p1",
-      [ flag, traceID ])
-  updated > 0
+  Builtin.tracesSetPinned(traceID, pinned)
 
 
 /// The package functions one trace went through: each one's name, and the hash the trace
@@ -139,7 +137,7 @@ let fnCounts(traceLimit: Int64): List<String * Int64> =
 ///
 /// `""` for the hash when there is none to give.
 let wentThrough(fnName: String, fnHash: String, limit: Int64): List<Trace> =
-  Builtin.tracesWentThrough(fnName, fnHash, limit)
+  read(TraceQuery.WentThrough(fnName, fnHash, Stdlib.Int.fromInt64(limit)))
 
 
 /// The runs that went through a function a person named.
@@ -243,29 +241,16 @@ let viewTrace(
 
 /// Expand a trace-ID prefix to the full ID, or say why it can't be.
 ///
-/// `%` and `_` are escaped so a prefix someone typed matches those characters rather than
-/// acting as wildcards. Six rows are enough to tell "one match" from "several" without reading
-/// the table; the message shows five.
+/// What was typed is matched as plain text, quotes and wildcards included. The builtin hands
+/// back up to six candidates when there is not exactly one, enough to tell "one more" from
+/// "several more"; the message shows five.
 let resolveID(input: String): Stdlib.Result.Result<String, String> =
-  let escaped =
-    input
-    |> (fun s -> Stdlib.String.replaceAll(s, "\\", "\\\\"))
-    |> (fun s -> Stdlib.String.replaceAll(s, "%", "\\%"))
-    |> (fun s -> Stdlib.String.replaceAll(s, "_", "\\_"))
-
-  let matches =
-    Stdlib.Sqlite.column(
-      Stdlib.LocalStore.path(),
-      $"SELECT id FROM traces WHERE id LIKE '{escaped}%' ESCAPE '\\'
-        ORDER BY rowid DESC LIMIT 6",
-      "id")
-
-  match matches with
-  | [] ->
+  match Builtin.tracesResolveId(input) with
+  | Ok(fullID) -> Stdlib.Result.Result.Ok(fullID)
+  | Error([]) ->
     Stdlib.Result.Result.Error(
       $"no trace whose id starts with {input} -- `dark traces` lists them")
-  | [ fullID ] -> Stdlib.Result.Result.Ok(fullID)
-  | candidates ->
+  | Error(candidates) ->
     // Six were asked for, so a sixth means "at least one more", not "one more".
     let shown = Stdlib.List.take(candidates, 5)
     let suffix =
@@ -290,22 +275,28 @@ let statsByHandler(traceLimit: Int): List<(String * Int * Int * Int)> =
   Builtin.tracesStatsByHandler(traceLimit)
 
 
+/// Delete the runs <param which> names, with their calls. Returns how many went. The four below
+/// are the names callers use.
+let deleteWhere(which: TraceSelection): Int =
+  Builtin.tracesDelete(which)
+
+
 /// Delete one trace by full ID. Returns the number of rows deleted.
 let delete(traceID: String): Int =
-  Builtin.tracesDelete(traceID)
+  deleteWhere(TraceSelection.One(traceID))
 
 
 /// Delete every trace. Returns the number deleted.
 let clear(): Int =
-  Builtin.tracesClear()
+  deleteWhere(TraceSelection.All)
 
 
 /// Delete traces recorded before <param cutoff>. Returns the number deleted.
 let clearBefore(cutoff: String): Int =
-  Builtin.tracesClearBefore(cutoff)
+  deleteWhere(TraceSelection.Before(cutoff))
 
 
 /// Keep the <param keepN> most recent traces, delete the rest. Returns the
 /// number deleted.
 let pruneKeep(keepN: Int): Int =
-  Builtin.tracesPruneKeep(keepN)
+  deleteWhere(TraceSelection.AllButNewest(keepN))

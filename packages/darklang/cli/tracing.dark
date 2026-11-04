@@ -1395,7 +1395,7 @@ let executeListByRoute(
     Cli.printErr(limitTooSmall)
     { state with exitCode = 1 }
   else
-    // Over-fetch then filter; tracesList returns the most-recent N rows
+    // Over-fetch then filter; Store.list returns the most-recent N rows
     // unfiltered, so to find N matching we may need to pull more. Cap at
     // 500 to bound the fetch.
     let overFetch = if limit < 50 then 500 else limit * 10
