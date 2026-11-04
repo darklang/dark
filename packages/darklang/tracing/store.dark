@@ -20,8 +20,8 @@ let enabled(): Bool =
 /// `None` when nothing is stored, in which case the environment or the default decides.
 let storedSetting(): Stdlib.Option.Option<Bool> =
   match Stdlib.LocalStore.configGet("trace.record") with
-  | "on" -> Stdlib.Option.Option.Some(true)
-  | "off" -> Stdlib.Option.Option.Some(false)
+  | Some("on") -> Stdlib.Option.Option.Some(true)
+  | Some("off") -> Stdlib.Option.Option.Some(false)
   | _ -> Stdlib.Option.Option.None
 
 

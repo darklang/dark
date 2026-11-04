@@ -564,7 +564,7 @@ let testRunUsesOneStartingStore =
           """test startingStore =
   let before = Stdlib.LocalStore.configGet("test.baseline-witness")
   let _ = Stdlib.LocalStore.configSet("test.baseline-witness", "child")
-  Stdlib.Test.expect(before == "before", "starting store changed")
+  Stdlib.Test.expect(before == Stdlib.Option.Option.Some("before"), "starting store changed")
 """
         do! run state [ "test"; "add"; "Tests.Baseline.startingStore"; definition ]
         let! hashOutput =
@@ -590,7 +590,7 @@ rejected
 && first == Ok(Stdlib.Test.pass())
 && second == Ok(Stdlib.Test.pass())
 && later == Ok(Stdlib.Test.fail("starting store changed"))
-&& Stdlib.LocalStore.configGet("test.baseline-witness") == "after"
+&& Stdlib.LocalStore.configGet("test.baseline-witness") == Stdlib.Option.Option.Some("after")
 """
         do!
           evals
@@ -615,7 +615,7 @@ let isolatedTestDeclarations =
             """test writes =
   let before = Stdlib.LocalStore.configGet("test.isolated-declaration-witness")
   let _ = Stdlib.LocalStore.configSet("test.isolated-declaration-witness", "child")
-  Stdlib.Test.equal(before, "")
+  Stdlib.Test.equal(before, Stdlib.Option.Option.None)
 """
         do!
           add
@@ -645,7 +645,7 @@ let isolatedTestDeclarations =
         do!
           evals
             state
-            "Stdlib.LocalStore.configGet(\"test.isolated-declaration-witness\") == \"\""
+            "Stdlib.LocalStore.configGet(\"test.isolated-declaration-witness\") == Stdlib.Option.Option.None"
             "true"
             "the child's config did not leak into the parent"
         do! discardAll state
@@ -725,7 +725,7 @@ let packageTestsRespectParallelLimit =
               $"""test case{n} =
   let before = Stdlib.LocalStore.configGet("test.parallel-witness")
   let _ = Stdlib.LocalStore.configSet("test.parallel-witness", "child")
-  Stdlib.Test.expect(before == "", "another test changed my store")
+  Stdlib.Test.expect(before == Stdlib.Option.Option.None, "another test changed my store")
 """         )
             |> String.concat "\n"
           )
@@ -830,7 +830,7 @@ let packageTestsRespectParallelLimit =
           do!
             evals
               state
-              "Stdlib.LocalStore.configGet(\"test.parallel-witness\") == \"\""
+              "Stdlib.LocalStore.configGet(\"test.parallel-witness\") == Stdlib.Option.Option.None"
               "true"
               "test writes did not reach the parent store"
       })

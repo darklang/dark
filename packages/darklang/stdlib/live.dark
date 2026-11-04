@@ -54,7 +54,7 @@ type Watch =
     reported: List<String>
     /// What `live.show` named at the last poll, so a poll can tell a show from a trace write when
     /// the store moved and no op landed.
-    shown: String }
+    shown: Stdlib.Option.Option<String> }
 
 /// More ops than this in one poll, and the change is reported as unknown rather than described: a
 /// host would re-run everything anyway, and describing ten thousand ops to reach that answer is waste.
@@ -78,8 +78,8 @@ let show(view: LanguageTools.ProgramTypes.PackageLocation): Unit =
 /// The view `show` last named, if any.
 let shown(): Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
   match Stdlib.LocalStore.configGet(showKey) with
-  | "" -> Stdlib.Option.Option.None
-  | name -> locationOfName(name)
+  | Some(name) when name != "" -> locationOfName(name)
+  | _ -> Stdlib.Option.Option.None
 
 
 /// Where the log ends right now: the newest insert time, and the ids at it when that second may
