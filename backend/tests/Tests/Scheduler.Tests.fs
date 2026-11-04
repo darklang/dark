@@ -1570,6 +1570,46 @@ match (first, second) with
   }
 
 
+let private execDoneWakesForAFinishInTheGap =
+  testTask
+    "Host.await [ExecDone id] wakes for a process that finishes while the wait is being set up" {
+    Gates.reset ()
+    let! state = executionStateFor pmPT false
+    do!
+      withWorkers 2 (fun root ->
+        task {
+          let! (p : Scheduler.Process) =
+            spawn
+              root
+              state
+              """let child = Stdlib.Exec.spawn(fun () -> Builtin.testGateWait(61L))
+let woke = Stdlib.Host.await([ Stdlib.Host.EventSpec.ExecDone(child.id) ])
+match woke with
+| ExecDone(id) -> id == child.id
+| _ -> false"""
+          // The child runs on a worker; the wait is set up on root's thread. Finish the child
+          // while `Subscribe` is between its two steps, which is where a lost wakeup would be.
+          Scheduler.betweenWatchAndCheck <-
+            fun waiter awaited ->
+              if waiter = p.id then
+                Gates.release 61L
+                let child = root.Find awaited |> Option.get
+                child.completion.Task.Wait giveUpAfter |> ignore<bool>
+          try
+            let running = runOnThread root p
+            let! first = Task.WhenAny(running, Task.Delay giveUpAfter)
+            Expect.isTrue (obj.ReferenceEquals(first, running)) "the wait woke"
+            let! result = running
+            Expect.equal
+              (expectOk result "the program")
+              (RT.DBool true)
+              "it woke for the child"
+          finally
+            Scheduler.betweenWatchAndCheck <- fun _ _ -> ()
+        })
+  }
+
+
 let private httpGetIsARead =
   testTask
     "the HTTP client's GET and HEAD builtin is a read, and the request builtin is not" {
@@ -2204,6 +2244,7 @@ let tests =
         spawnTakesACapturedRead
         spawnedErrorReachesAwait
         execDoneAnswersAFinishedProcess
+        execDoneWakesForAFinishInTheGap
         httpGetIsARead
         parkedInsideMapShowsTheLambda
         budgetYieldInsideMap
