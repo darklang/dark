@@ -324,39 +324,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "execSpawnDetached" 0
-      typeParams = [ "a" ]
-      parameters =
-        [ Param.makeWithArgs
-            "f"
-            (TFn(NEList.singleton TUnit, TVariable "a"))
-            ""
-            [ "unit" ] ]
-      returnType =
-        TCustomType(
-          NR.ok (typ PackageRefs.Type.Stdlib.Exec.handle),
-          [ TVariable "a" ]
-        )
-      description =
-        "`execSpawn`, for a process that keeps running after the one that started it has "
-        + "finished."
-      fn =
-        (function
-        | state, vm, _, [| DApplicable f |] ->
-          let s = Scheduler.Scheduler.CurrentOrShared
-          let parent =
-            Scheduler.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
-          let p = s.SpawnApply(state, f, DUnit, parent, vm.activeAccess)
-          // Set by the spawner, which is the only process that could finish it meanwhile and
-          // is busy here; nothing races it.
-          p.detached <- true
-          handleOf p.id |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ LibExecution.Effects.Effect.Concurrency ]
-      deprecated = NotDeprecated }
-
-
     { name = fn "execAwait" 0
       typeParams = [ "a" ]
       parameters =
@@ -534,7 +501,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "id" TUuid ""; Param.make "hard" TBool "" ]
       returnType = TBool
       description =
-        "Stop the process with this id, and its undetached children. It fails at its next "
+        "Stop the process with this id, and its children. It fails at its next "
         + "turn: with 'cancelled' after what it is doing on the host completes, or, if `hard`, "
         + "with 'killed from ps' without waiting for it (a parked one is given its turn now). "
         + "False for an id nobody has."

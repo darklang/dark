@@ -414,7 +414,7 @@ let help(_state: AppState): String =
     "       ps kill <id>       stop it now (for one stuck in a call that never returns)"
     ""
     "`processes` is the long name, and an id can be a pid from the second table."
-    "Both stops take the process's children with it unless they were spawned detached."
+    "Both stops take the process's children with it."
     "`dark docs processes` has the rest." ]
   |> Stdlib.String.join("\n")
 

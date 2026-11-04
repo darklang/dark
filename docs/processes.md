@@ -770,7 +770,7 @@ is checked again.
   - A handle the old process owned and this one cannot have (an OS
     subprocess, an open HTTP stream) stops the resume at that step, naming
     it, and leaves the trace as it was (its status and its log).
-  - `Exec.spawn` (and `spawnDetached`, `cancel`, `kill`) is performed again:
+  - `Exec.spawn` (and `cancel`, `kill`) is performed again:
     serving the old handle would name a process nothing answers to, so the
     resume really spawns, and the new child replays the recorded child's own
     rows through the matching below. A trace that spawned resumes like any
@@ -924,11 +924,10 @@ process stuck in a call that never returns. Both set a reason the process
 fails with ("cancelled", "killed from ps"); a wait on events
 (`Host.await`, `readKey`) is cut by either, since nothing is in flight
 there; a running process finishes its slice first, so a short program that
-stops itself completes. Both reach the process's undetached children, now
-and again when it finishes (`Scheduler.Stop`, `StopChildrenOf`), as hard or
-as politely as the parent's stop was; a child spawned with
-`Exec.spawnDetached` is left alone. Tested: cancel lets a gate land, then
-stops; children die with the parent unless detached; `awaitWithin` times out
+stops itself completes. Both reach the process's children, now and again
+when it finishes (`Scheduler.Stop`, `StopChildrenOf`), as hard or as
+politely as the parent's stop was. Tested: cancel lets a gate land, then
+stops; children die with the parent; `awaitWithin` times out
 and the child is cancelled after; a kill of a parent reaches a child stuck on
 the host at once (`Scheduler.Tests.fs`, the cancellation group).
 
@@ -1076,7 +1075,7 @@ rest of this file is what the system does; this section is how to move around in
 
 ### Where the bodies are
 
-- `LibExecution/Scheduler.fs`: `Process` (the record; `stopReason`/`stopHard`/`detached`
+- `LibExecution/Scheduler.fs`: `Process` (the record; `stopReason`/`stopHard`
   are the cancellation state), `Scheduler.Step` (the one place a VM is stepped; the
   thread check is there), `Finish` (also the parent-to-children cascade),
   `Stop`/`Cancel`/`Kill`/`StopChildrenOf`, `Describe` (what `ps` says a parked process
@@ -1110,7 +1109,7 @@ rest of this file is what the system does; this section is how to move around in
   and the armed replay `dark traces resume` uses; `Builtins.CliHost/Libs/Cli.fs` is where
   the CLI arms it and runs the input through its own `eval`/`run` paths.
 - `Builtins.Language/Libs/Exec.fs`: the ps and Exec builtins (`execList`, `execInspect`,
-  `execSpawn`, `execSpawnDetached`, `execAwait`, `execAwaitWithin`, `execSelect`,
+  `execSpawn`, `execAwait`, `execAwaitWithin`, `execSelect`,
   `execStop`), `summaryToDT`/`parkedToDT` (the RT-to-Dark mirror of
   `ProcessSummary`), and the policy chooser (the Dark policy called from the F# loop).
 - Dark: `stdlib/exec.dark` (the user surface and `ParkedOn`/`Summary`),

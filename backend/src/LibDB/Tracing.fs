@@ -363,9 +363,7 @@ module Redact =
   ///   the next `Exec.await` fail with "no process has this handle". Spawning again is what
   ///   makes the resume work: the new child replays the recorded child's own rows.
   let performAgain : Set<string> =
-    Set.union
-      secretResults
-      (Set.ofList [ "execSpawn"; "execSpawnDetached"; "execStop" ])
+    Set.union secretResults (Set.ofList [ "execSpawn"; "execStop" ])
 
   let private redactedText = RT.DString "[redacted]"
 

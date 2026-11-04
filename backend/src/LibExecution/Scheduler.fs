@@ -86,8 +86,6 @@ type Process =
     mutable stopReason : string
     /// True when the stop was a `Kill` (abandon what it waits on) rather than a `Cancel`.
     mutable stopHard : bool
-    /// A detached process outlives its parent; the rest die with theirs (`Finish`).
-    mutable detached : bool
     /// Completes when the process finishes, for F# callers (`Await`).
     completion : TaskCompletionSource<RT.ExecutionResult>
     /// Set at park, run on the scheduler thread right before the next step: the register write.
@@ -254,8 +252,8 @@ type Scheduler(quantum : int64) =
   /// `processes` is the display table and is capped, which is fine for `ps` and wrong for
   /// `await`: `List.parallelMap` over five hundred elements spawns five hundred children, and
   /// the first of them are long forgotten by the time the awaits reach them. So the answer
-  /// outlives the row. An entry goes when it is taken; one nobody ever takes (a dropped handle,
-  /// a detached child) is evicted oldest-first past `keepResults`, which is where the old
+  /// outlives the row. An entry goes when it is taken; one nobody ever takes (a dropped
+  /// handle) is evicted oldest-first past `keepResults`, which is where the old
   /// "no process has this handle" came from and is now far enough out to be a real leak rather
   /// than an ordinary list length.
   let finishedResults =
@@ -382,7 +380,6 @@ type Scheduler(quantum : int64) =
         allocated = 0L
         stopReason = null
         stopHard = false
-        detached = false
         completion =
           TaskCompletionSource<RT.ExecutionResult>(
             TaskCreationOptions.RunContinuationsAsynchronously
@@ -761,9 +758,9 @@ type Scheduler(quantum : int64) =
         |> ignore<bool>
       | _ -> ()
     | None -> ()
-    // Its children go with it, wherever in the group they run, unless spawned detached: a
-    // process that spawned and never awaited leaves nothing running behind it, and a stop
-    // of a parent reaches everything under it, as hard or as politely as the parent's was.
+    // Its children go with it, wherever in the group they run: a process that spawned and
+    // never awaited leaves nothing running behind it, and a stop of a parent reaches
+    // everything under it, as hard or as politely as the parent's was.
     // A leaf has no entry in `childCounts`, so the group-wide scan is skipped for it.
     if childCounts.ContainsKey p.id then
       this.StopChildrenOf(p.id, "its parent finished", p.stopHard)
@@ -1000,8 +997,8 @@ type Scheduler(quantum : int64) =
   /// either way, since nothing is in flight there. A running process finishes its slice
   /// first; one that completes within it still ends `Failed(reason)`, not `Done`, so a stop is
   /// never reported as a success. Any scheduler in the group finds it. Its
-  /// undetached children are stopped the same way, now (so a parent waiting on one is not
-  /// kept waiting) and again when it finishes (for any spawned in between).
+  /// children are stopped the same way, now (so a parent waiting on one is not kept waiting)
+  /// and again when it finishes (for any spawned in between).
   member private this.StopProcess
     (
       pid : ProcessId,
@@ -1023,7 +1020,7 @@ type Scheduler(quantum : int64) =
   member this.Cancel(pid : ProcessId) : bool =
     this.StopProcess(pid, "cancelled", false)
 
-  /// Every unfinished, undetached child of `pid`, anywhere in the group, is stopped.
+  /// Every unfinished child of `pid`, anywhere in the group, is stopped.
   member this.StopChildrenOf(pid : ProcessId, reason : string, hard : bool) : unit =
     let schedulers =
       match group with
@@ -1043,7 +1040,6 @@ type Scheduler(quantum : int64) =
         processes.Values
         |> Seq.filter (fun c ->
           c.parent = Some pid
-          && not c.detached
           && isNull c.stopReason
           && (match c.status with
               | Done _
@@ -1081,26 +1077,6 @@ type Scheduler(quantum : int64) =
       | _ -> ()
       true
     | false, _ -> false
-
-  /// Detached processes anywhere in the group that have not finished: what a host about to exit
-  /// takes down with it.
-  member this.UnfinishedDetached() : int =
-    let schedulers =
-      match group with
-      | Some g -> g.All
-      | None -> [ this ]
-    schedulers |> List.sumBy (fun s -> s.UnfinishedDetachedHere())
-
-  member internal _.UnfinishedDetachedHere() : int =
-    lock sync (fun () ->
-      processes.Values
-      |> Seq.filter (fun p ->
-        p.detached
-        && (match p.status with
-            | Done _
-            | Failed _ -> false
-            | _ -> true))
-      |> Seq.length)
 
   /// Every process the group knows, as copies.
   member this.Snapshot() : list<ProcessSummary> =
@@ -1195,12 +1171,4 @@ let executeFunction
   : RT.ExecutionResult =
   let s = Scheduler(defaultQuantum)
   let p = s.SpawnFunction(exeState, name, typeArgs, args, None)
-  let result = s.RunUntil p
-  // A detached process outlives its parent, but not the OS process: the CLI exits next.
-  match s.UnfinishedDetached() with
-  | 0 -> ()
-  | n ->
-    System.Console.Error.WriteLine(
-      $"{n} detached process(es) still running, stopped as the program exits"
-    )
-  result
+  s.RunUntil p
