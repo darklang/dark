@@ -1,0 +1,667 @@
+/// `dark traces`, end to end: what a recorded run looks like from the command line.
+///
+/// Part of `Darklang.Cli.Tests`. Each test drives its own `Instance`, so a test that
+/// clears or prunes the trace store cannot see another test's runs, and none needs
+/// to put back a setting it changed. What needs the store's tables or the recorder's
+/// limits directly (the call rows `on` writes, a corrupted row, the event cap) stays
+/// in `Tests/CliTraces.Tests.fs`.
+///
+/// How a run and its log are turned into text, without running anything, is in
+/// `tracesRendering.dark`.
+module Darklang.Cli.Tests.Traces
+
+// ─── setup ──────────────────────────────────────────────────────────────────
+
+/// Run for the effect, and fail with what it said when it did not exit 0.
+let step(i: Instance.T, args: List<String>): Stdlib.Test.Result =
+  let (code, out) = Instance.ran(i, args)
+  let cmd = Stdlib.String.join(args, " ")
+  Instance.exitedWith(code, 0, $"`dark {cmd}` ({out})")
+
+
+/// An instance with recording on and no trace in it yet.
+///
+/// The store an instance starts from is a copy of the dev store, so it may hold
+/// traces and a stored `trace.record` of its own. Setting it here makes the test
+/// mean the same thing whatever the environment's default is.
+let withTraces(f: Instance.T -> Stdlib.Test.Result): Stdlib.Test.Result =
+  Instance.withInstance(fun i ->
+    let setup =
+      Stdlib.Test.all(
+        [ step(i, [ "traces", "record", "on" ])
+          step(i, [ "traces", "delete", "--all", "--yes" ]) ])
+
+    match setup with
+    | Pass -> f(i)
+    | Fail(_) -> setup)
+
+
+/// The rows `traces list <n> --json` answers, newest first.
+let listed(i: Instance.T, n: Int): List<Stdlib.AltJson.Json> =
+  match Instance.run(i, [ "traces", "list", Stdlib.toString(n), "--json" ]) with
+  | Error(_) -> []
+  | Ok(out) ->
+    match Stdlib.AltJson.parse(Stdlib.String.trim(out.stdout)) with
+    | Ok(Array(rows)) -> rows
+    | _ -> []
+
+
+/// The newest trace's whole id, or "" when there is none.
+let latestId(i: Instance.T): String =
+  match Stdlib.List.head(listed(i, 1)) with
+  | Some(Object(fields)) ->
+    match Stdlib.List.findFirst(fields, fun((k, _)) -> k == "id") with
+    | Some((_, String(id))) -> id
+    | _ -> ""
+  | _ -> ""
+
+
+/// The id as the CLI prints it.
+let short(id: String): String = Stdlib.String.first(id, 8)
+
+
+// ─── the listing and its housekeeping ───────────────────────────────────────
+
+test helpListsTheVerbs =
+  Instance.withInstance(fun i ->
+    let out = Instance.said(i, [ "traces", "help" ])
+
+    [ "list", "show", "inspect", "record", "tail", "follow", "find", "fns", "hotspots", "rerun", "delete", "--json" ]
+    |> Stdlib.List.map(fun(term) -> Instance.says(out, term, "`traces help` names it"))
+    |> Stdlib.Test.all)
+
+
+test tailShowsTheLastEval =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "let x = 7L\nx" ])
+    let out = Instance.said(i, [ "traces", "tail" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(out, "entry     eval", "the entry line")
+        // All of it, not the table's truncation: a multi-line input prints as its
+        // own block.
+        Instance.says(out, "let x = 7L", "the recorded input") ]))
+
+
+test deleteAllEmptiesTheList =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "1L + 2L" ])
+    let before = Instance.said(i, [ "traces", "list" ])
+    let deleted = step(i, [ "traces", "delete", "--all", "--yes" ])
+    let after = Instance.said(i, [ "traces", "list" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(before, "eval", "the list has the run before the delete")
+        deleted
+        Instance.says(after, "nothing has run yet", "and is empty after it") ]))
+
+
+test statsCountsRuns =
+  withTraces(fun i ->
+    let ran = Stdlib.Test.all([ step(i, [ "eval", "1L" ]), step(i, [ "eval", "2L" ]) ])
+    let out = Instance.said(i, [ "traces", "stats" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(out, "total ms", "the table header")
+        Instance.says(out, "traces", "the count column")
+        Instance.says(out, "eval", "the eval row") ]))
+
+
+/// Statistics are per entry, and an eval has no route, so the hint about drilling
+/// into one would point at nothing.
+test statsHidesTheRouteHintForEvalOnly =
+  withTraces(fun i ->
+    let ran = Stdlib.Test.all([ step(i, [ "eval", "1L + 1L" ]), step(i, [ "eval", "2L + 2L" ]) ])
+    let out = Instance.said(i, [ "traces", "stats" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(out, "per entry, over the last", "the table")
+        Instance.says(out, "eval", "the eval row")
+        Instance.doesNotSay(out, "drill into a route", "no route hint for eval-only") ]))
+
+
+test findSearchesContentAndAnswers =
+  withTraces(fun i ->
+    let ran =
+      Stdlib.Test.all(
+        [ step(i, [ "eval", "\"unique-token-xyz12345\"" ]), step(i, [ "eval", "1L + 1L" ]) ])
+
+    let found = Instance.said(i, [ "traces", "find", "unique-token-xyz12345" ])
+
+    // A pure computation logs no calls, so the only place its value appears is the
+    // run's own recorded answer. `find` searches that too, or `find 3` over `1L +
+    // 2L` finds nothing.
+    let pure = step(i, [ "eval", "40L + 2L" ])
+    let byAnswer = Instance.said(i, [ "traces", "find", "42" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(found, "what ran", "the run table's header")
+        Instance.says(found, "eval", "the eval")
+        pure
+        Instance.says(byAnswer, "40L + 2L", "a pure run is found by what it answered") ]))
+
+
+/// `%` and `_` are LIKE wildcards in the query underneath; typed, they are just
+/// characters.
+test findTakesWildcardsLiterally =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "1L + 1L" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(Instance.said(i, [ "traces", "find", "%" ]), "no kept trace matches %", "literal %")
+        Instance.says(Instance.said(i, [ "traces", "find", "z%" ]), "no kept trace matches z%", "literal z%")
+        Instance.says(Instance.said(i, [ "traces", "find", "z_" ]), "no kept trace matches z_", "literal z_") ]))
+
+
+test deleteOneKeepsTheOthers =
+  withTraces(fun i ->
+    let ran = Stdlib.Test.all([ step(i, [ "eval", "1L + 1L" ]), step(i, [ "eval", "2L + 2L" ]) ])
+    let id = latestId(i)
+    let deleted = Instance.said(i, [ "traces", "delete", id, "--yes" ])
+    let after = Instance.said(i, [ "traces", "list" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(deleted, $"deleted {short(id)}", "the delete confirms by id")
+        Instance.doesNotSay(after, short(id), "the deleted trace is gone from the list")
+        Instance.says(after, "1L + 1L", "and the other one is still there") ]))
+
+
+test pruneKeepsTheNewest =
+  withTraces(fun i ->
+    let ran =
+      Stdlib.Test.all(
+        [ step(i, [ "eval", "1L" ]), step(i, [ "eval", "2L" ]), step(i, [ "eval", "3L" ]) ])
+
+    let id = latestId(i)
+    let pruned = Instance.said(i, [ "traces", "delete", "--keep", "1", "--yes" ])
+    let after = Instance.said(i, [ "traces", "list" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(pruned, "deleted 2 traces", "the prune confirms")
+        Instance.says(after, "what ran", "the run table's header")
+        Instance.says(after, short(id), "the newest trace is kept") ]))
+
+
+test pruneIsIdempotent =
+  withTraces(fun i ->
+    let ran =
+      [ 1, 2, 3, 4, 5 ]
+      |> Stdlib.List.map(fun(_) -> step(i, [ "eval", "1L + 2L" ]))
+      |> Stdlib.Test.all
+
+    let pruned =
+      [ 1, 2, 3 ]
+      |> Stdlib.List.map(fun(_) -> step(i, [ "traces", "delete", "--keep", "2", "--yes" ]))
+      |> Stdlib.Test.all
+
+    Stdlib.Test.all(
+      [ ran
+        pruned
+        Stdlib.List.length(listed(i, 10)) |> Stdlib.Test.equal(2) ]))
+
+
+test deleteSaysOneOrMany =
+  withTraces(fun i ->
+    let _ = step(i, [ "eval", "1L + 1L" ])
+    let clearOne = Instance.said(i, [ "traces", "delete", "--all", "--yes" ])
+    let _ = step(i, [ "eval", "1L + 1L" ])
+    let _ = step(i, [ "eval", "2L + 2L" ])
+    let clearTwo = Instance.said(i, [ "traces", "delete", "--all", "--yes" ])
+    let _ = step(i, [ "eval", "1L + 1L" ])
+    let _ = step(i, [ "eval", "2L + 2L" ])
+    let pruneNone = Instance.said(i, [ "traces", "delete", "--keep", "0", "--yes" ])
+    let _ = step(i, [ "eval", "3L + 3L" ])
+    let _ = step(i, [ "eval", "4L + 4L" ])
+    let pruneOne = Instance.said(i, [ "traces", "delete", "--keep", "1", "--yes" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(clearOne, "cleared 1 trace", "singular")
+        Instance.says(clearTwo, "cleared 2 traces", "plural")
+        Instance.says(pruneNone, "none kept", "--keep 0")
+        Instance.says(pruneOne, "kept the most-recent", "--keep 1") ]))
+
+
+/// `pin` and `unpin` write the store; nothing else here runs either verb.
+test pinRoundTrips =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "1L + 2L" ])
+    let id = short(latestId(i))
+    let pinned = Instance.said(i, [ "traces", "pin", id ])
+    let shown = Instance.said(i, [ "traces", "inspect", id ])
+    let unpinned = Instance.said(i, [ "traces", "unpin", id ])
+    let missing = Instance.said(i, [ "traces", "pin", "zzzzzzzz" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(pinned, $"pinned {id}", "pin says so")
+        Instance.says(shown, "pinned", "and `inspect` carries it")
+        Instance.says(unpinned, $"unpinned {id}", "unpin says so")
+        Instance.says(
+          missing,
+          "no trace whose id starts with zzzzzzzz",
+          "an id nothing matches is refused by name") ]))
+
+
+test rerunEvaluatesTheRecordedInputAgain =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "1L + 2L" ])
+    let id = latestId(i)
+    let out = Instance.said(i, [ "traces", "rerun", id ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(out, $"rerunning {short(id)}: 1L + 2L", "the header previews the saved source")
+        Instance.says(out, "3", "the result")
+        Instance.says(out, "rerun complete", "the completion line")
+        // A rerun is a trace of its own.
+        Stdlib.List.length(listed(i, 10)) |> Stdlib.Test.equal(2) ]))
+
+
+// ─── how arguments are read ─────────────────────────────────────────────────
+
+test argumentOrderDoesNotMatter =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "1L + 1L" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(Instance.said(i, [ "traces", "tail", "1", "--route", "eval" ]), "status", "tail N --route")
+        Instance.says(Instance.said(i, [ "traces", "tail", "--route", "eval", "1" ]), "status", "tail --route N")
+        Instance.says(
+          Instance.said(i, [ "traces", "list", "--json", "--fn", "add", "5" ]),
+          "[",
+          "list --json --fn fn N") ]))
+
+
+test routeFilterIgnoresCase =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "1L + 1L" ])
+    let lower = Instance.said(i, [ "traces", "list", "--route", "eval" ])
+    let upper = Instance.said(i, [ "traces", "list", "--route", "EVAL" ])
+    let mixed = Instance.said(i, [ "traces", "list", "--route", "Eval" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(lower, "eval", "lower matches")
+        Instance.says(upper, "eval", "upper matches")
+        Instance.doesNotSay(upper, "no kept trace", "upper still finds")
+        Instance.says(mixed, "eval", "mixed matches") ]))
+
+
+/// A negative count reads as a flag where a count goes, and is refused as one.
+/// `find` takes free text, so there the command reads the value and refuses it.
+test negativeCountsAreRefused =
+  Instance.withInstance(fun i ->
+    [ ([ "traces", "list", "-1" ], "does not take `-1`")
+      ([ "traces", "stats", "-1" ], "does not take `-1`")
+      ([ "traces", "hotspots", "-1" ], "does not take `-1`")
+      ([ "traces", "find", "foo", "-1" ], "has to be 1 or more") ]
+    |> Stdlib.List.map(fun((args, reason)) ->
+      let (code, out) = Instance.ran(i, args)
+      let cmd = Stdlib.String.join(args, " ")
+
+      Stdlib.Test.all(
+        [ Instance.exitedWith(code, 1, $"`dark {cmd}`")
+          Instance.says(out, reason, $"`dark {cmd}` says what is wrong") ]))
+    |> Stdlib.Test.all)
+
+
+/// Empty and blank filters, and the old spellings of `--inspect`, refused by name.
+test emptyPatternsAreRefused =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "1L + 1L" ])
+
+    // `--view` and `--show` are the two spellings `--inspect` has had, each refused
+    // by name rather than as an unknown flag.
+    let cases =
+      [ ([ "traces", "find", "" ], "find takes something to look for")
+        ([ "traces", "find", "", "--inspect" ], "find takes something to look for")
+        ([ "traces", "find", "x", "--view" ], "traces find --inspect")
+        ([ "traces", "find", "x", "--show" ], "traces find --inspect")
+        ([ "traces", "find", "", "--json" ], "find takes something to look for")
+        ([ "traces", "list", "--fn", "" ], "--fn takes a function name")
+        ([ "traces", "list", "--fn", "   " ], "--fn takes a function name")
+        ([ "traces", "list", "--route", "" ], "--route takes part of a path or a method")
+        ([ "traces", "tail", "--route", "" ], "--route takes part of a path or a method")
+        ([ "traces", "tail", "--route", "   " ], "--route takes part of a path or a method") ]
+
+    let refused =
+      cases
+      |> Stdlib.List.map(fun((args, reason)) ->
+        Instance.says(Instance.said(i, args), reason, Stdlib.String.join(args, " ")))
+      |> Stdlib.Test.all
+
+    Stdlib.Test.all([ ran, refused ]))
+
+
+test unknownSubcommandsAreNamed =
+  Instance.withInstance(fun i ->
+    let bare = Instance.said(i, [ "traces" ])
+    let help = Instance.said(i, [ "traces", "help" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(Instance.said(i, [ "traces", "nonsense" ]), "does not take `nonsense`", "a typo")
+        Instance.says(Instance.said(i, [ "traces", "lst" ]), "does not take `lst`", "a near miss")
+        Instance.doesNotSay(bare, "does not take", "bare `traces` is not a mistake")
+        Instance.doesNotSay(help, "unknown subcommand", "nor is `traces help`") ]))
+
+
+/// A flag where an id goes, or after one, is named as a flag the command does not
+/// take.
+test flagsWhereAnIdGoesAreRefused =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "1L + 1L" ])
+    let id = latestId(i)
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(
+          Instance.said(i, [ "traces", "delete", "--fake-arg" ]),
+          "does not take `--fake-arg`",
+          "a flag in the id's place")
+        Instance.says(
+          Instance.said(i, [ "traces", "delete", id, "--fake-arg" ]),
+          "does not take `--fake-arg`",
+          "a flag after the id") ]))
+
+
+test inspectRefusesOldAndNegativeOptions =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "1L + 1L" ])
+    let id = latestId(i)
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(
+          Instance.said(i, [ "traces", "inspect", id, "--depth", "-1" ]),
+          "--depth is gone",
+          "--depth -1")
+        Instance.says(
+          Instance.said(i, [ "traces", "inspect", id, "--slow-ms", "-1" ]),
+          "--slow-ms is a number of milliseconds",
+          "--slow-ms -1") ]))
+
+
+// ─── recording ──────────────────────────────────────────────────────────────
+
+/// There are two doors onto one stored key, `dark traces record on` and
+/// `dark config set trace.record on`, and neither may be a second source of truth.
+test recordingIsOneKeyWithTwoDoors =
+  Instance.withInstance(fun i ->
+    let bad = Instance.said(i, [ "traces", "record", "loud" ])
+    let on = step(i, [ "traces", "record", "on" ])
+    let storedOn = Instance.said(i, [ "config", "get", "trace.record" ])
+    let shownOn = Instance.said(i, [ "traces", "record" ])
+    let off = step(i, [ "config", "set", "trace.record", "off" ])
+    let storedOff = Instance.said(i, [ "config", "get", "trace.record" ])
+    let shownOff = Instance.said(i, [ "traces", "record" ])
+    let json = Instance.said(i, [ "traces", "record", "--json" ])
+    let bogus = Instance.said(i, [ "config", "set", "trace.record", "loud" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(bad, "not a recording setting", "a word that is neither on nor off is refused")
+        on
+        Instance.says(storedOn, "on", "`traces record on` writes the stored key")
+        Instance.says(shownOn, "recording: on", "and reading it back says so")
+        off
+        Instance.says(storedOff, "off", "`config set` writes the same key")
+        Instance.says(shownOff, "recording: off", "and `traces record` reads it")
+        Instance.says(json, "\"stored\"", "--json says what is stored")
+        Instance.says(bogus, "on or off", "and the config door refuses the same words") ]))
+
+
+/// "Nothing here" has more than one cause, and the advice under each is different:
+/// one vague line used to tell someone with recording OFF to go and run the thing
+/// again, which is the one piece of advice that cannot work.
+test anEmptyAnswerSaysWhyItIsEmpty =
+  Instance.withInstance(fun i ->
+    let _ = step(i, [ "traces", "record", "on" ])
+    let onCase = Instance.said(i, [ "traces", "calls", "Darklang.Stdlib.Uuid.generate" ])
+    let _ = step(i, [ "traces", "record", "off" ])
+    let offCase = Instance.said(i, [ "traces", "calls", "Darklang.Stdlib.Uuid.generate" ])
+    // Setting a setting to what it already is is not a change, and saying what the
+    // setting now means reads as though the command did not take.
+    let again = Instance.said(i, [ "traces", "record", "off" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(onCase, "recording is on", "recording on: it simply has not happened yet")
+        Instance.says(offCase, "recording is off", "recording off: nothing could have been kept")
+        Instance.says(offCase, "dark traces record on", "and the lever is the one that helps")
+        Instance.says(again, "as it already was", "the second `record off` says nothing moved")
+        Instance.doesNotSay(
+          again,
+          "nothing from here on is kept",
+          "and does not describe a change that did not happen") ]))
+
+
+/// A builtin that is `Impure` with no declared effect is still logged. `currentPid`
+/// is one; if somebody gives it an effect, pick another that still has none.
+test anImpureBuiltinWithoutEffectsIsLogged =
+  withTraces(fun i ->
+    let defined = step(i, [ "fn", "Test.NoEffects.pid", "(): Int = Stdlib.Cli.Sys.currentPid()" ])
+    let ran = step(i, [ "eval", "Test.NoEffects.pid()" ])
+    let inspected = Instance.said(i, [ "traces", "inspect", short(latestId(i)) ])
+
+    Stdlib.Test.all(
+      [ defined
+        ran
+        Instance.says(inspected, "with effects", "the call is in the log, so the trace is not pure")
+        Instance.doesNotSay(
+          inspected,
+          "every call this trace made was pure",
+          "an unannotated Impure builtin must not make a trace look effect-free") ]))
+
+
+// ─── looking at a function's runs ───────────────────────────────────────────
+
+/// `dark view Stdlib.List.map` works, so these have to as well. The index stores the
+/// owner-first name, so the short form once came back as an empty ANSWER, which
+/// looks like a fact.
+test theShortNameFormWorks =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "Stdlib.List.length([1L, 2L])" ])
+    let full = Instance.said(i, [ "traces", "calls", "Darklang.Stdlib.List.length" ])
+    let shortForm = Instance.said(i, [ "traces", "calls", "Stdlib.List.length" ])
+    let shown = Instance.said(i, [ "traces", "show", "Stdlib.List.length" ])
+    let typo = Instance.said(i, [ "traces", "show", "Stdlib.List.lenth" ])
+    let lines = fun(s) -> Stdlib.List.length(Stdlib.String.split(s, "\n"))
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.doesNotSay(shortForm, "no recorded trace", "the short form finds the runs")
+        lines(shortForm) |> Stdlib.Test.equal(lines(full))
+        Instance.doesNotSay(shown, "no function named", "`show` takes it too")
+        Instance.says(typo, "no function named", "a name that is not there is still refused") ]))
+
+
+/// What `--json` answers on `inspect`, `calls` and `show`, in the shape a program
+/// reads.
+test inspectCallsAndShowAnswerInJson =
+  withTraces(fun i ->
+    let ran = step(i, [ "eval", "Stdlib.printLine(\"j\")" ])
+    let id = latestId(i)
+    let log = Instance.said(i, [ "traces", "inspect", short(id), "--json" ])
+    let calls = Instance.said(i, [ "traces", "calls", "Darklang.Stdlib.printLine", "--json" ])
+    let values = Instance.said(i, [ "traces", "show", "Darklang.Stdlib.printLine", "--json" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(log, "\"trace\"", "inspect --json")
+        Instance.says(log, "\"calls\"", "inspect --json")
+        Instance.says(log, "\"durationMs\"", "inspect --json")
+        Instance.says(log, "\"fn\"", "inspect --json")
+        // A recorded value is TEXT in JSON, not the encoding it is stored as.
+        Instance.doesNotSay(log, "DUnit", "no Dval encoding in the JSON")
+        // The tree columns are gone, so they must not reappear in the JSON.
+        Instance.doesNotSay(log, "parentCallId", "not in the shape any more")
+        Instance.doesNotSay(log, "lambdaExprId", "not in the shape any more")
+        Instance.says(calls, id, "calls --json lists the trace that went through it")
+        Instance.says(values, "\"values\"", "show --json")
+        Instance.says(values, "\"problem\"", "show --json")
+        Instance.says(values, "\"fn\"", "show --json") ]))
+
+
+/// A replay stops for two reasons that need opposite next actions: the code is
+/// wrong, or the store moved under a recording of code that ran fine. Both halves,
+/// and `show <fn> <trace>`, `show <trace>` and `--json` agreeing.
+test aReplayTellsDriftFromARaise =
+  withTraces(fun i ->
+    let authored =
+      Stdlib.Test.all(
+        [ step(i, [ "fn", "Tests.DriftT.inner", "(n: Int64): Int64 = (n * 2L)" ])
+          step(i, [ "fn", "Tests.DriftT.outer", "(n: Int64): Int64 = Tests.DriftT.inner(n)" ])
+          step(i, [ "eval", "Tests.DriftT.outer(5L)" ]) ])
+
+    let id = short(latestId(i))
+    // Before the drift the page REPLAYS: the recorded value is on the line.
+    let clean = Instance.said(i, [ "traces", "show", "Tests.DriftT.outer", id ])
+
+    let deprecated =
+      step(i, [ "deprecate", "fn", "Tests.DriftT.inner", "--kind", "harmful", "--yes" ])
+
+    let page = Instance.said(i, [ "traces", "show", "Tests.DriftT.outer", id ])
+    let fromTrace = Instance.said(i, [ "traces", "show", id ])
+    let pageJson = Instance.said(i, [ "traces", "show", "Tests.DriftT.outer", id, "--json" ])
+    let fromTraceJson = Instance.said(i, [ "traces", "show", id, "--json" ])
+
+    // A genuine raise must NOT be called drift, or the label means nothing.
+    let raised =
+      Stdlib.Test.all(
+        [ step(i, [ "fn", "Tests.RaiseT.boom", "(n: Int64): Int64 = (n / 0L)" ])
+          Instance.exitedWith(
+            Stdlib.Tuple2.first(Instance.ran(i, [ "eval", "Tests.RaiseT.boom(5L)" ])),
+            1,
+            "the raising eval") ])
+
+    let rid = short(latestId(i))
+    let raisePage = Instance.said(i, [ "traces", "show", "Tests.RaiseT.boom", rid ])
+    let raiseJson = Instance.said(i, [ "traces", "show", "Tests.RaiseT.boom", rid, "--json" ])
+
+    Stdlib.Test.all(
+      [ authored
+        Instance.says(clean, "= 10", "a clean replay puts the value on the line")
+        Instance.doesNotSay(clean, "the replay stopped", "and says nothing about stopping")
+        deprecated
+        Instance.says(page, "the store has changed since this ran", "a drift stop leads with the cause")
+        Instance.says(page, $"dark traces inspect {id}", "and names the command that still works")
+        Instance.says(fromTrace, "the store has changed since this ran", "`show <trace>` says the same")
+        Instance.says(pageJson, "\"drift\":true", "--json carries the judgement")
+        Instance.says(fromTraceJson, "\"drift\":true", "`show <trace> --json` answers in JSON")
+        raised
+        Instance.says(raisePage, "the replay stopped here", "a real raise reads as a raise")
+        Instance.doesNotSay(raisePage, "the store has changed", "and is not dressed up as drift")
+        Instance.says(raiseJson, "\"drift\":false", "--json agrees with the page") ]))
+
+
+/// A `show` must not perform: the key keeps the value the store had before the show.
+///
+/// `configSet` is a `package-write`, which a fresh instance's policy refuses, so the
+/// test allows it and approves the function first: what is under test is the show,
+/// not the policy.
+test showDoesNotPerformAWrite =
+  withTraces(fun i ->
+    let ran =
+      Stdlib.Test.all(
+        [ step(i, [ "permissions", "allow", "package-write" ])
+          step(
+            i,
+            [ "fn"
+              "Test.ShowPerform.mark"
+              "(v: String): Unit = Stdlib.LocalStore.configSet(\"show.perform.probe\", v)" ])
+          step(i, [ "permissions", "approve", "Test.ShowPerform.mark", "--yes" ])
+          step(i, [ "eval", "Test.ShowPerform.mark(\"recorded\")" ])
+          step(i, [ "eval", "Stdlib.LocalStore.configSet(\"show.perform.probe\", \"after\")" ])
+          step(i, [ "traces", "show", "Test.ShowPerform.mark" ]) ])
+
+    let now = Instance.said(i, [ "eval", "Stdlib.LocalStore.configGet(\"show.perform.probe\")" ])
+
+    Stdlib.Test.all(
+      [ ran
+        Instance.says(now, "after", "looking at the trace must not have re-run the write")
+        Instance.doesNotSay(now, "recorded", "nor written the recorded value back") ]))
+
+
+/// The same, with the write inside a lambda handed to `List.map`. A callback-taking
+/// builtin is never logged itself, so the preview runs `listMap` live; the lambda's
+/// own effectful call must still be answered from the log rather than performed.
+test showDoesNotPerformAWriteInsideMap =
+  withTraces(fun i ->
+    let allowed = step(i, [ "permissions", "allow", "package-write" ])
+
+    let defined =
+      step(
+        i,
+        [ "fn"
+          "Test.ShowPerformMap.markAll"
+          "(vs: List<String>): List<Unit> =\n  Stdlib.List.map(vs, fun v -> Stdlib.LocalStore.configSet(\"show.perform.map\", v))" ])
+
+    // The lambda makes the analysis incomplete, so its write needs an explicit
+    // approval.
+    let approved = step(i, [ "permissions", "approve", "Test.ShowPerformMap.markAll", "--yes" ])
+    let ran = step(i, [ "eval", "Test.ShowPerformMap.markAll([\"recorded\"])" ])
+    let before = Instance.said(i, [ "eval", "Stdlib.LocalStore.configGet(\"show.perform.map\")" ])
+    let overwritten = step(i, [ "eval", "Stdlib.LocalStore.configSet(\"show.perform.map\", \"after\")" ])
+    let shown = Instance.said(i, [ "traces", "show", "Test.ShowPerformMap.markAll" ])
+    let now = Instance.said(i, [ "eval", "Stdlib.LocalStore.configGet(\"show.perform.map\")" ])
+
+    Stdlib.Test.all(
+      [ allowed
+        defined
+        approved
+        ran
+        Instance.says(before, "recorded", "the run itself wrote")
+        overwritten
+        Instance.says(shown, "List.map", "the show reached the function")
+        Instance.says(now, "after", "looking at the trace must not have re-run the write")
+        Instance.doesNotSay(now, "recorded", "nor written the recorded value back") ]))
+
+
+// ─── exit codes ─────────────────────────────────────────────────────────────
+
+/// What a command reports to a SHELL, which is the only part of a failure a script
+/// can read.
+///
+/// `dark run` once printed a reason and exited 0 for a script that raised, a script
+/// that was not there, and a script that ended non-zero itself.
+test exitCodesSayWhetherItWorked =
+  Instance.withInstance(fun i ->
+    let dir = Instance.home(i)
+    let good = $"{dir}/exit-ok.dark"
+    let raises = $"{dir}/exit-raise.dark"
+    let _ = Stdlib.Cli.File.writeText(good, "Stdlib.printLine(\"fine\")\n")
+    let _ = Stdlib.Cli.File.writeText(raises, "(1L / 0L)\n")
+
+    // Naming something that is not there is a refusal, whatever printed. `show`
+    // takes a function, so a run id handed to it is a refusal that says which verb
+    // wants one. An empty ANSWER is not a refusal: the question was asked and
+    // answered.
+    [ ([ "run", good ], 0, "a script that ran")
+      ([ "run", raises ], 1, "a script that raised")
+      ([ "run", $"{dir}/exit-missing.dark" ], 1, "a script that is not there")
+      ([ "eval", "1L + 1L" ], 0, "an expression that answered")
+      ([ "eval", "(1L / 0L)" ], 1, "an expression that raised")
+      ([ "traces", "inspect", "zzzzzzzz" ], 1, "a run id nothing matches")
+      ([ "traces", "show", "zzzzzzzz" ], 1, "a name that is neither a fn nor a run")
+      ([ "traces", "show", "abc123ef" ], 1, "a run id where a function name goes")
+      ([ "traces", "fork", "zzzzzzzz" ], 1, "forking a run that is not there")
+      ([ "ps", "show", "zzzzzzzz" ], 1, "a process id nothing matches")
+      ([ "traces", "record", "loud" ], 1, "a recording setting that is not on or off")
+      ([ "traces", "nonsense" ], 1, "a subcommand that does not exist")
+      ([ "traces", "list", "-1" ], 1, "a limit that is not a count")
+      ([ "traces", "calls", "Nothing.Ran.Through.This" ], 1, "a function that does not exist")
+      ([ "traces", "calls", "Darklang.Stdlib.Bool.xor" ], 0, "a function no run went through")
+      ([ "traces" ], 0, "the listing")
+      ([ "ps" ], 0, "what is running")
+      ([ "traces", "help" ], 0, "the help") ]
+    |> Stdlib.List.map(fun((args, expected, what)) ->
+      let cmd = Stdlib.String.join(args, " ")
+      Instance.exitedWith(Stdlib.Tuple2.first(Instance.ran(i, args)), expected, $"{what}: dark {cmd}"))
+    |> Stdlib.Test.all)

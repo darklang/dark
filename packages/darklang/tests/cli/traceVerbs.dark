@@ -1,0 +1,528 @@
+/// A run kept beside its trace, then resumed, forked, rerun and looked at by
+/// replaying the log of its effectful calls (`docs/processes.md`, "Executions").
+///
+/// Part of `Darklang.Cli.Tests`. Driven through the CLI, since that is where a run
+/// is made and taken up again; each test has its own `Instance` with recording on
+/// (`Traces.withTraces`). What needs the log's rows, the retention seams or a row
+/// the CLI cannot make (a served request, a legacy script, a corrupted blob) stays
+/// in `Tests/CliTraceVerbs.Tests.fs`.
+module Darklang.Cli.Tests.TraceVerbs
+
+/// Two uuids, so a replay is told apart from a rerun by its output.
+val twoUuids =
+  "let a = Stdlib.Uuid.generate()\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.toString(a), Stdlib.toString(b) ], \" \")"
+
+
+let lines(s: String): List<String> =
+  s |> Stdlib.String.split("\n") |> Stdlib.List.map(fun(l) -> Stdlib.String.trim(l))
+
+
+/// The last line of what a command printed on stdout: the value, after any header.
+let lastLine(i: Instance.T, args: List<String>): String =
+  lines(Instance.output(i, args)) |> Stdlib.List.last |> Stdlib.Option.withDefault("")
+
+
+let words(s: String): List<String> =
+  s |> Stdlib.String.split(" ") |> Stdlib.List.filter(fun(w) -> w != "")
+
+
+/// A field of the newest trace in `traces list --json`.
+let latestField(i: Instance.T, name: String): Stdlib.AltJson.Json =
+  match Stdlib.List.head(Traces.listed(i, 1)) with
+  | Some(row) -> JsonShapes.field(row, name)
+  | None -> Stdlib.AltJson.Json.Null
+
+
+/// The id the tests hand the CLI: longer than the eight characters it prints, to
+/// keep clear of a chance collision.
+let prefix(id: String): String = Stdlib.String.first(id, 12)
+
+
+/// Author, commit and approve one function, so a run of it records and a view of it
+/// replays.
+let authored(i: Instance.T, name: String, body: String): Stdlib.Test.Result =
+  Stdlib.Test.all(
+    [ Traces.step(i, [ "fn", name, body ])
+      Traces.step(i, [ "commit", name, "-y" ])
+      Traces.step(i, [ "permissions", "approve", name, "--yes" ]) ])
+
+
+// ─── resume, fork, rerun ────────────────────────────────────────────────────
+
+test resumeReplaysEffectsRatherThanRedoingThem =
+  Traces.withTraces(fun i ->
+    let first = lastLine(i, [ "eval", twoUuids ])
+    let listed = Instance.said(i, [ "exec" ])
+    let id = Traces.latestId(i)
+    // The last line is the value; the first says what is being resumed.
+    let resumed = lastLine(i, [ "exec", "resume", prefix(id) ])
+
+    Stdlib.Test.all(
+      [ Instance.says(listed, "done", "the run is listed, done")
+        Instance.says(listed, "eval", "with its entry")
+        Instance.doesNotSay(listed, "(not source)", "the listing shows the source")
+        words(resumed) |> Stdlib.Test.equal(words(first))
+        latestField(i, "status") |> Stdlib.Test.equal(Stdlib.AltJson.Json.String("done")) ]))
+
+
+test aForkKeepsTheLogUpToItsPosition =
+  Traces.withTraces(fun i ->
+    let first = lastLine(i, [ "eval", twoUuids ])
+    let parent = Traces.latestId(i)
+    // Position 1: the first uuid's row is kept, the second is not.
+    let forked = Instance.said(i, [ "exec", "fork", prefix(parent), "--at", "1" ])
+    let child = Traces.latestId(i)
+    let status = latestField(i, "status")
+    let from = Stdlib.AltJson.format(latestField(i, "forkedFrom"))
+    let shown = Instance.said(i, [ "exec", "inspect", prefix(child) ])
+    let resumed = lastLine(i, [ "exec", "resume", prefix(child) ])
+
+    let diverged =
+      match (words(first), words(resumed)) with
+      | ([ a1, b1 ], [ a2, b2 ]) ->
+        Stdlib.Test.all(
+          [ Stdlib.Test.expect(a2 == a1, $"the first uuid came from the log: {first} / {resumed}")
+            Stdlib.Test.expect(b2 != b1, $"the second was generated afresh: {first} / {resumed}") ])
+      | _ -> Stdlib.Test.fail($"unexpected outputs: {first} / {resumed}")
+
+    Stdlib.Test.all(
+      [ Instance.says(forked, "forked", "the fork is announced")
+        status |> Stdlib.Test.equal(Stdlib.AltJson.Json.String("suspended"))
+        Instance.says(from, parent, "the fork knows the run it came from")
+        Instance.says(from, "\"at\":1", "and the position")
+        Instance.says(shown, "forked", "inspect says so")
+        Instance.says(shown, Traces.short(parent), "and names the run it came from")
+        diverged ]))
+
+
+/// The parent's own effect AFTER the spawn is in here on purpose: serving the spawn
+/// from the log instead of performing it leaves the handle naming a process that no
+/// longer exists, and the next `await` raises.
+test aResumedRunSpawnsAgainAndTheChildReplays =
+  Traces.withTraces(fun i ->
+    let program =
+      "let h = Stdlib.Exec.spawn(fun () -> Stdlib.toString(Stdlib.Uuid.generate()))\nlet child = Stdlib.Exec.await(h)\nlet mine = Stdlib.toString(Stdlib.Uuid.generate())\nStdlib.printLine($\"{child} {mine}\")"
+
+    // The resume echoes a logged print with a `[replayed]` prefix and prints its own
+    // progress above it; the two uuids are the last line long enough to hold them
+    // either way.
+    let uuidLine = fun(out) ->
+      lines(out)
+      |> Stdlib.List.map(fun(l) -> Stdlib.String.trim(Stdlib.String.replaceAll(l, "[replayed]", "")))
+      |> Stdlib.List.filter(fun(l) -> Stdlib.String.contains(l, "-") && Stdlib.String.length(l) > 60)
+      |> Stdlib.List.last
+      |> Stdlib.Option.withDefault($"no line held two uuids: {out}")
+
+    let first = uuidLine(Instance.output(i, [ "eval", program ]))
+    let id = Traces.latestId(i)
+    let resumed = uuidLine(Instance.output(i, [ "exec", "resume", prefix(id) ]))
+
+    resumed |> Stdlib.Test.equal(first))
+
+
+test aResumeAfterAnEditRunsTheNewCodeOnTheOldEffects =
+  Traces.withTraces(fun i ->
+    let v1 =
+      Stdlib.Test.all(
+        [ Traces.step(i, [ "fn", "Tests.Exec.shape", "(s: String) : String = \"v1:\" + s" ])
+          Traces.step(i, [ "commit", "shape v1", "-y" ]) ])
+
+    let first =
+      lastLine(i, [ "eval", "Tests.Exec.shape(Stdlib.toString(Stdlib.Uuid.generate()))" ])
+
+    let id = Traces.latestId(i)
+
+    let v2 =
+      Stdlib.Test.all(
+        [ Traces.step(i, [ "fn", "Tests.Exec.shape", "(s: String) : String = \"v2:\" + s" ])
+          Traces.step(i, [ "commit", "shape v2", "-y" ]) ])
+
+    // The warning goes to stderr and the value to stdout: one run, both read.
+    let (stdout, resumed) =
+      match Instance.run(i, [ "exec", "resume", prefix(id) ]) with
+      | Ok(out) -> (out.stdout, out.stdout + out.stderr)
+      | Error(e) -> ("", e)
+
+    let last = lines(Stdlib.String.trim(stdout)) |> Stdlib.List.last |> Stdlib.Option.withDefault("")
+    let uuidOf = fun(s) -> Stdlib.String.replaceAll(Stdlib.String.dropFirst(s, 3), "\"", "")
+
+    Stdlib.Test.all(
+      [ v1
+        Stdlib.Test.expect(Stdlib.String.startsWith(first, "v1:"), $"the first run went through v1: {first}")
+        v2
+        Stdlib.Test.expect(Stdlib.String.startsWith(last, "v2:"), $"the resume ran the new code: {resumed}")
+        uuidOf(last) |> Stdlib.Test.equal(uuidOf(first))
+        // The one thing about a resume the run itself cannot notice, so the resume
+        // says it.
+        Instance.says(resumed, "edited since this ran", "the resume says what moved")
+        // Indented, because the header echoes the input, which CALLS this function.
+        Instance.says(resumed, "    Tests.Exec.shape", "and names the function that moved") ]))
+
+
+/// The other half: a resume against code nobody touched must not warn, or the
+/// warning means nothing on the run that has it.
+test aResumeWithoutAnEditSaysNothingAboutEdits =
+  Traces.withTraces(fun i ->
+    // A body nothing else has: a hash is structural, so identical bodies share one,
+    // and the index would name whichever function the store resolves it to.
+    let defined =
+      Stdlib.Test.all(
+        [ Traces.step(i, [ "fn", "Tests.Exec.steady", "(s: String) : String = \"steady:\" + s" ])
+          Traces.step(i, [ "commit", "steady", "-y" ])
+          Traces.step(i, [ "eval", "Tests.Exec.steady(\"x\")" ]) ])
+
+    let resumed = Instance.said(i, [ "exec", "resume", prefix(Traces.latestId(i)) ])
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.says(resumed, "steady:x", "the resume ran")
+        Instance.doesNotSay(resumed, "edited since this ran", "nothing moved, so nothing is said") ]))
+
+
+/// A sandboxed script stays sandboxed when it is taken up again.
+test resumeAndRerunKeepTheSandbox =
+  Traces.withTraces(fun i ->
+    let path = $"{Instance.home(i)}/sandbox-replay.dark"
+    let _ = Stdlib.Cli.File.writeText(path, "Stdlib.printLine(\"SANDBOX_EFFECT\")\n0")
+    let (firstCode, _) = Instance.ran(i, [ "run", "--sandbox", path ])
+    let id = prefix(Traces.latestId(i))
+    // Replay must not need the original file.
+    let _ = Stdlib.Cli.File.delete(path)
+
+    let verbs =
+      [ "resume", "rerun" ]
+      |> Stdlib.List.map(fun(verb) ->
+        let (code, out) = Instance.ran(i, [ "traces", verb, id ])
+
+        Stdlib.Test.all(
+          [ Instance.exitedWith(code, 1, $"{verb} cannot drop the sandbox")
+            Instance.says(out, "run policy", $"{verb} keeps the denial")
+            Stdlib.Test.expect(
+              Stdlib.Bool.not(Stdlib.List.contains(lines(out), "SANDBOX_EFFECT")),
+              $"{verb}: the denied effect never runs: {out}") ]))
+      |> Stdlib.Test.all
+
+    Stdlib.Test.all([ Instance.exitedWith(firstCode, 1, "the original sandbox blocks stdout"), verbs ]))
+
+
+/// A script's arguments are kept with its run, so the view, resume, fork and rerun
+/// all see them without the file.
+test aScriptsArgumentsSurviveViewResumeForkAndRerun =
+  Traces.withTraces(fun i ->
+    let defined =
+      Traces.step(
+        i,
+        [ "fn", "Tests.ScriptReplay.describe", "(inputs: List<String>): String = Stdlib.String.join(inputs, \"|\")" ])
+
+    let args = [ "a b", "", "--help", "é", "a\"b\\c" ]
+    let marker = (Stdlib.String.join(args, "|")) + "|"
+    let printed = fun(out) ->
+      lines(out) |> Stdlib.List.findFirst(fun(l) -> Stdlib.String.startsWith(l, marker))
+
+    let path = $"{Instance.home(i)}/replay.dark"
+
+    let _ =
+      Stdlib.Cli.File.writeText(
+        path,
+        "let summary = Tests.ScriptReplay.describe(args)\nlet uuid = Stdlib.Uuid.generate()\nStdlib.printLine(summary + \"|\" + Stdlib.toString(uuid))\n7")
+
+    let (firstCode, first) = Instance.ran(i, Stdlib.List.flatten([ [ "run", path ], args ]))
+    let original = printed(first)
+    let recorded = prefix(Traces.latestId(i))
+    // Replay must work without the original file.
+    let _ = Stdlib.Cli.File.delete(path)
+
+    let viewed =
+      match Instance.run(i, [ "traces", "show", "Tests.ScriptReplay.describe", recorded, "--json" ]) with
+      | Ok(out) -> out.stdout
+      | Error(e) -> e
+
+    let finished =
+      match Stdlib.AltJson.parse(Stdlib.String.trim(viewed)) with
+      | Ok(json) ->
+        JsonShapes.field(JsonShapes.field(json, "problem"), "None")
+        |> Stdlib.Test.equal(Stdlib.AltJson.Json.Array([]))
+      | Error(_) -> Stdlib.Test.fail($"the view did not answer JSON: {viewed}")
+
+    let forked = Traces.step(i, [ "traces", "fork", recorded ])
+    let child = prefix(Traces.latestId(i))
+
+    let resumes =
+      [ recorded, child ]
+      |> Stdlib.List.map(fun(id) ->
+        let (code, out) = Instance.ran(i, [ "traces", "resume", id ])
+        let expected = original |> Stdlib.Option.withDefault("(the original printed nothing)")
+
+        Stdlib.Test.all(
+          [ Instance.exitedWith(code, 7, "resume and fork keep the script's exit code")
+            Instance.says(out, expected, "the saved arguments and uuid")
+            Instance.says(out, "[replayed]", "the print is replayed") ]))
+      |> Stdlib.Test.all
+
+    let (rerunCode, reran) = Instance.ran(i, [ "traces", "rerun", recorded ])
+    let rerunId = prefix(Traces.latestId(i))
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.exitedWith(firstCode, 7, "the script's result is its exit code")
+        Stdlib.Test.expect(Stdlib.Option.isSome(original), $"the original run prints its arguments: {first}")
+        finished
+        Instance.says(viewed, "--help", "the view reaches the argument values")
+        Stdlib.Test.expect(Stdlib.Option.isNone(printed(viewed)), "the view performs no print")
+        forked
+        resumes
+        Instance.exitedWith(rerunCode, 7, "rerun keeps a nonzero script exit code")
+        Instance.says(reran, $"rerunning {Traces.short(recorded)}: let summary", "rerun previews the saved source")
+        Stdlib.Test.expect(Stdlib.Option.isSome(printed(reran)), $"rerun passes the arguments: {reran}")
+        Stdlib.Test.expect(printed(reran) != original, "rerun performs randomness for real")
+        Stdlib.Test.expect(rerunId != recorded, "rerun records a separate run") ]))
+
+
+// ─── looking at a run ───────────────────────────────────────────────────────
+
+/// The call inbox and the preview. The values come from replaying the run with its
+/// effects answered from the log, so the print in the middle of the function must
+/// not print again.
+test showReplaysAFunctionWithoutPerforming =
+  Traces.withTraces(fun i ->
+    let defined =
+      authored(
+        i,
+        "Tests.Prev.greet",
+        "(name: String): String =\n  let upper = Stdlib.String.toUppercase(name)\n  let shouted = Stdlib.String.append(upper, \"!\")\n  let _ = Stdlib.printLine(shouted)\n  shouted")
+
+    let ran = Instance.said(i, [ "eval", "Tests.Prev.greet(\"bob\")" ])
+    // The index knows which runs went through the function, where the call itself is
+    // not recorded at all.
+    let listed = Instance.said(i, [ "traces", "calls", "Tests.Prev.greet" ])
+    let viewed = Instance.output(i, [ "traces", "show", "Tests.Prev.greet" ])
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.says(ran, "BOB!", "the run printed for real")
+        Instance.says(listed, "eval", "the run that went through it")
+        Instance.says(viewed, "toUppercase(name) // = \"BOB\"", "the recorded input flowed through the first call")
+        Instance.says(viewed, "append(upper, \"!\") // = \"BOB!\"", "and through the second")
+        // The print is an effect: answered from the log, not performed, and not
+        // echoed.
+        Stdlib.Test.expect(
+          Stdlib.Bool.not(Stdlib.List.contains(lines(viewed), "BOB!")),
+          $"the preview did not print: {viewed}") ]))
+
+
+/// Looking at code must never touch the world, and a SPAWNED process is where that
+/// was easiest to get wrong: a preview records nothing, so a spawned child used to
+/// get the tracer that performs effects for real. A uuid is evidence either way:
+/// served from the log it matches the recording, rolled for real it cannot.
+test showServesASpawnedChildFromTheLog =
+  Traces.withTraces(fun i ->
+    let defined =
+      authored(
+        i,
+        "Tests.Prev.conc",
+        "(): String =\n  let h = Stdlib.Exec.spawn(fun () -> Stdlib.toString(Stdlib.Uuid.generate()))\n  Stdlib.Exec.await(h)")
+
+    let recorded =
+      lines(Instance.output(i, [ "eval", "Tests.Prev.conc()" ]))
+      |> Stdlib.List.map(fun(l) -> Stdlib.String.replaceAll(l, "\"", ""))
+      |> Stdlib.List.filter(fun(l) ->
+        Stdlib.String.length(l) == 36 && Stdlib.List.length(Stdlib.String.split(l, "-")) == 5)
+      |> Stdlib.List.last
+      |> Stdlib.Option.withDefault("(the run produced no uuid)")
+
+    let viewed = Instance.said(i, [ "traces", "show", "Tests.Prev.conc" ])
+    let json = Instance.said(i, [ "traces", "show", "Tests.Prev.conc", "--json" ])
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.says(viewed, recorded, "the child's value came from the log")
+        Instance.says(json, recorded, "the JSON preview serves the same recorded value") ]))
+
+
+/// Two identical calls in one run show their own recorded values, not one of them
+/// twice.
+test identicalCallsKeepTheirOwnValues =
+  Traces.withTraces(fun i ->
+    let defined =
+      authored(
+        i,
+        "Tests.Prev.two",
+        "(): String =\n  let a = Stdlib.toString(Stdlib.Uuid.generate())\n  let b = Stdlib.toString(Stdlib.Uuid.generate())\n  $\"{a} {b}\"")
+
+    let ran = lastLine(i, [ "eval", "Tests.Prev.two()" ])
+    let viewed = Instance.output(i, [ "traces", "show", "Tests.Prev.two" ])
+
+    // Each `let` line carries its own recorded value. Collapsed, both showed the
+    // same one.
+    let shown =
+      lines(viewed)
+      |> Stdlib.List.filter(fun(l) ->
+        Stdlib.String.contains(l, "Uuid.generate") && Stdlib.String.contains(l, "// ="))
+      |> Stdlib.List.map(fun(l) ->
+        Stdlib.String.splitFirst(l, "// =") |> Stdlib.Option.map(fun((_, v)) -> v) |> Stdlib.Option.withDefault(""))
+
+    Stdlib.Test.all(
+      [ defined
+        // The run really did make two different uuids. If it did not, the rest
+        // proves nothing.
+        (match words(Stdlib.String.replaceAll(ran, "\"", "")) with
+         | [ a, b ] -> Stdlib.Test.expect(a != b, $"the run made two different uuids: {ran}")
+         | _ -> Stdlib.Test.fail($"the run did not print two uuids: {ran}"))
+        (match shown with
+         | [ a, b ] -> Stdlib.Test.expect(a != b, $"the two calls show different values: {viewed}")
+         | _ -> Stdlib.Test.fail($"both calls should carry a value: {viewed}")) ]))
+
+
+/// Replay runs under the approvals the viewer holds.
+test showUsesTheViewersApprovals =
+  Traces.withTraces(fun i ->
+    let defined =
+      authored(i, "Tests.PreviewAccount.value", "(): String = Stdlib.toString(Stdlib.Uuid.generate())")
+
+    let recorded = Stdlib.String.replaceAll(lastLine(i, [ "eval", "Tests.PreviewAccount.value()" ]), "\"", "")
+
+    Stdlib.Test.all(
+      [ defined
+        Stdlib.Test.expect(Stdlib.String.length(recorded) == 36, $"the approved call produced a uuid: {recorded}")
+        Instance.says(Instance.said(i, [ "traces", "show", "Tests.PreviewAccount.value" ]), recorded, "the page")
+        Instance.says(
+          Instance.said(i, [ "traces", "show", "Tests.PreviewAccount.value", "--json" ]),
+          recorded,
+          "the JSON") ]))
+
+
+/// Recursion is a loop, and an iteration that never reached a line must not borrow
+/// another iteration's value for it.
+test recursionIsALoopAndEmptyIterationsStaySilent =
+  Traces.withTraces(fun i ->
+    let defined =
+      authored(
+        i,
+        "Tests.Prev.fact",
+        "(n: Int): Int =\n  if n <= 1 then\n    1\n  else\n    let sub = Tests.Prev.fact(n - 1)\n    n * sub")
+
+    let ran = Instance.said(i, [ "eval", "Tests.Prev.fact(5)" ])
+    let viewed = Instance.said(i, [ "traces", "show", "Tests.Prev.fact" ])
+    // The second call is `fact 4`: its sub is 6 and its product is 24.
+    let second = Instance.said(i, [ "traces", "show", "Tests.Prev.fact", "--iteration", "fact:2" ])
+    // The fifth is the base case. It returns before `sub` and the product run.
+    let baseCase = Instance.said(i, [ "traces", "show", "Tests.Prev.fact", "--iteration", "fact:5" ])
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.says(ran, "120", "the run went five deep")
+        Instance.says(viewed, "fact: showing iteration 5 of 5", "recursion is counted as a loop")
+        Instance.says(second, "// = 24", "the second iteration has its own product")
+        Instance.says(second, "// = 6", "and its own sub")
+        Instance.says(second, "n = 4", "and says what this iteration was given")
+        Instance.says(second, "given", "while still saying what the whole run was given")
+        Instance.says(baseCase, "fact: showing iteration 5 of 5", "the iteration that was asked for")
+        Instance.doesNotSay(baseCase, "// = 24", "the base case must not carry iteration 2's value")
+        Instance.doesNotSay(baseCase, "// = 120", "nor the first iteration's") ]))
+
+
+/// The first few iterations and the last few are held; any other is fetched when
+/// asked for, by a person or by `--json`.
+test everyIterationOfALoopIsReachable =
+  Traces.withTraces(fun i ->
+    let defined =
+      authored(
+        i,
+        "Tests.Prev.scaled",
+        "(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i ->\n    let big = i * 100\n    big)\n  |> Stdlib.List.length")
+
+    let ran = Instance.said(i, [ "eval", "Tests.Prev.scaled(30)" ])
+
+    // In the head, in the tail, and the ones in between, outside the window at both
+    // ends.
+    let pages =
+      [ (1, "100"), (7, "700"), (15, "1500"), (30, "3000") ]
+      |> Stdlib.List.map(fun((which, expected)) ->
+        let n = Stdlib.toString(which)
+        let shown = Instance.said(i, [ "traces", "show", "Tests.Prev.scaled", "--iteration", $"map:{n}" ])
+
+        Stdlib.Test.all(
+          [ Instance.says(shown, $"// = {expected}", $"iteration {n} shows its own value")
+            Instance.says(shown, $"showing iteration {n} of 30", "and says which one it is") ]))
+      |> Stdlib.Test.all
+
+    let asJson =
+      Instance.said(i, [ "traces", "show", "Tests.Prev.scaled", "--json", "--iteration", "map:15" ])
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.says(ran, "30", "the loop went round thirty times")
+        pages
+        Instance.says(asJson, "\"at\":15", "the agent gets the iteration it asked for")
+        Instance.says(asJson, "1500", "with its own value") ]))
+
+
+/// `traces fns` names the functions recent runs went through, bundled library
+/// hidden.
+test fnsNamesWhatRunsWentThrough =
+  Traces.withTraces(fun i ->
+    let defined =
+      authored(i, "Tests.Prev.counted", "(xs: List<Int>): Int =\n  Stdlib.List.length(xs)")
+
+    let ran = Instance.said(i, [ "eval", "Tests.Prev.counted([1, 2, 3])" ])
+    let listed = Instance.said(i, [ "traces", "fns" ])
+    let all = Instance.said(i, [ "traces", "fns", "--all" ])
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.says(ran, "3", "the run happened")
+        Instance.says(listed, "Tests.Prev.counted", "the function the run went through")
+        Instance.doesNotSay(listed, "Darklang.Stdlib", "the bundled library is hidden unless asked for")
+        Instance.says(all, "Tests.Prev.counted", "yours are still there with --all")
+        Instance.says(all, "Darklang.Stdlib", "--all puts the bundled library back") ]))
+
+
+/// Two names for one function find the same runs, because content addressing makes
+/// them one.
+test twoNamesForOneFunctionFindTheSameRuns =
+  Traces.withTraces(fun i ->
+    let body = "(n: Int) : Int =\n  n * 3"
+
+    let defined =
+      Stdlib.Test.all(
+        [ Traces.step(i, [ "fn", "Tests.Prev.tripled", body ])
+          Traces.step(i, [ "fn", "Tests.Other.tripled", body ])
+          Traces.step(i, [ "commit", "tripled twice", "-y" ])
+          Traces.step(i, [ "permissions", "approve", "Tests.Prev.tripled", "--yes" ]) ])
+
+    let ran = Instance.said(i, [ "eval", "Tests.Prev.tripled(4)" ])
+    let other = Instance.said(i, [ "traces", "calls", "Tests.Other.tripled" ])
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.says(ran, "12", "one of them ran")
+        Instance.says(other, "eval", "the run is found under the name that did NOT run")
+        Instance.doesNotSay(other, "no recorded trace", "asking by name alone used to answer nothing") ]))
+
+
+/// `ps` prints this instance's table first, then the machine's, and refuses an
+/// unknown id.
+test psListsThisInstanceThenTheMachine =
+  Instance.withInstance(fun i ->
+    // The columns are as wide as their widest cell and the header is bold, so the
+    // colour is stripped and the header matched word by word.
+    let out = Stdlib.Regex.replaceAll(Instance.output(i, [ "ps" ]), "\\x1b\\[[0-9;]*m", "")
+    let header =
+      lines(out)
+      |> Stdlib.List.findFirst(fun(l) -> Stdlib.String.startsWith(l, "id "))
+      |> Stdlib.Option.withDefault("")
+
+    let here = Stdlib.String.indexOf(out, "this instance (pid") |> Stdlib.Option.withDefault(-1)
+    let elsewhere =
+      Stdlib.String.indexOf(out, "other Dark processes on this machine") |> Stdlib.Option.withDefault(-1)
+
+    let missing = Instance.said(i, [ "ps", "show", "nope" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(out, "this instance (pid", "the local table is captioned")
+        Instance.says(header, "what it runs", "with its columns")
+        Instance.says(header, "status", "with its columns")
+        Instance.says(header, "steps", "with its columns")
+        Stdlib.Test.expect(elsewhere > 0, $"the machine's table is always there: {out}")
+        Stdlib.Test.expect(here < elsewhere, "this instance's table comes first")
+        Instance.says(missing, "no process whose id starts with nope", "an unknown id is refused") ]))

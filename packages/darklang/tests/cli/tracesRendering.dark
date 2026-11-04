@@ -2,10 +2,10 @@ module Darklang.Cli.Tests.TracesRendering
 
 // How a run and its log are turned into text.
 //
-// All of this is Dark, so it is tested in Dark. What needs a real recorded run -- that recording
-// on stores what it says, that a duration lands, that `--json` has the right shape, that the
-// setting has two doors onto one key -- is in `Tests/CliTraces.Tests.fs`, where a CLI harness
-// exists.
+// All of this is Dark, so it is tested in Dark. What needs a real recorded run -- that `--json`
+// has the right shape, that the setting has two doors onto one key -- is in `traces.dark`,
+// against a throwaway instance. What recording on stores in the trace tables is in
+// `Tests/CliTraces.Tests.fs`.
 
 module Input =
   type Request = { method: String, url: String }
