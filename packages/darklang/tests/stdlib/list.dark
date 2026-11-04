@@ -206,6 +206,53 @@ test findFirstIndex =
       Stdlib.List.findFirstIndex([ 1L, 2L, 3L ], fun x -> x == 1L)
       |> Stdlib.Test.equal(Some(0)) ])
 
+test indexOf =
+  Stdlib.Test.all(
+    [ Stdlib.List.indexOf([], 1L)
+      |> Stdlib.Test.equal(None)
+      Stdlib.List.indexOf([ 1L, 2L, 3L ], 4L)
+      |> Stdlib.Test.equal(None)
+      Stdlib.List.indexOf([ 1L, 2L, 3L ], 1L)
+      |> Stdlib.Test.equal(Some(0))
+      Stdlib.List.indexOf([ 10L, 20L, 30L, 20L ], 20L)
+      |> Stdlib.Test.equal(Some(1))
+      Stdlib.List.indexOf([ "a", "b", "c" ], "c")
+      |> Stdlib.Test.equal(Some(2))
+      Stdlib.List.indexOf([ [ 1L ], [ 2L, 3L ] ], [ 2L, 3L ])
+      |> Stdlib.Test.equal(Some(1)) ])
+
+test remove =
+  Stdlib.Test.all(
+    [ Stdlib.List.remove([], 1L) |> Stdlib.Test.equal([])
+      Stdlib.List.remove([ 1L, 2L, 3L ], 4L)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.remove([ 1L, 2L, 1L ], 1L)
+      |> Stdlib.Test.equal([ 2L, 1L ])
+      Stdlib.List.remove([ 1L, 2L, 2L, 3L ], 2L)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.remove([ "a", "b", "c" ], "c")
+      |> Stdlib.Test.equal([ "a", "b" ])
+      Stdlib.List.remove([ 1L ], 1L) |> Stdlib.Test.equal([])
+      Stdlib.List.remove([ [ 1L ], [ 2L ], [ 1L ] ], [ 1L ])
+      |> Stdlib.Test.equal([ [ 2L ], [ 1L ] ]) ])
+
+test removeAt =
+  Stdlib.Test.all(
+    [ Stdlib.List.removeAt([], 0) |> Stdlib.Test.equal([])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], -1)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], 3)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], 100000000000000000000)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], 0)
+      |> Stdlib.Test.equal([ 2L, 3L ])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], 1)
+      |> Stdlib.Test.equal([ 1L, 3L ])
+      Stdlib.List.removeAt([ "a", "b", "c" ], 2)
+      |> Stdlib.Test.equal([ "a", "b" ])
+      Stdlib.List.removeAt([ 1L ], 0) |> Stdlib.Test.equal([]) ])
+
 test flatten =
   Stdlib.Test.all(
     [ Stdlib.List.flatten([ [ 1L ], [ 2L ], [ 3L ] ])
@@ -385,6 +432,17 @@ test append =
       Stdlib.List.fold([ 1L, 2L ], [], fun(acc, x) -> Stdlib.List.append(acc, x))
       |> Stdlib.Test.equal([ 1L, 2L ]) ])
 
+test shuffle =
+  Stdlib.Test.all(
+    [ Stdlib.List.shuffle([]) |> Stdlib.Test.equal([])
+      Stdlib.List.shuffle([ 1L ]) |> Stdlib.Test.equal([ 1L ])
+      Stdlib.List.shuffle([ 3L, 1L, 2L, 1L, 3L, 4L ])
+      |> Stdlib.List.sort()
+      |> Stdlib.Test.equal([ 1L, 1L, 2L, 3L, 3L, 4L ])
+      Stdlib.List.shuffle([ "c", "a", "b" ])
+      |> Stdlib.List.sort()
+      |> Stdlib.Test.equal([ "a", "b", "c" ]) ])
+
 test randomElementOfSingletonOrEmptyList =
   Stdlib.Test.all(
     [ Stdlib.List.randomElement([ 1L ]) |> Stdlib.Test.equal(Some(1L))
@@ -421,6 +479,44 @@ test reverse =
       Stdlib.List.reverse([ 5L, 4L, 3L, 2L, 1L ])
       |> Stdlib.Test.equal([ 1L, 2L, 3L, 4L, 5L ])
       Stdlib.List.reverse([]) |> Stdlib.Test.equal([]) ])
+
+test maxBy =
+  Stdlib.Test.all(
+    [ Stdlib.List.maxBy([], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(None)
+      Stdlib.List.maxBy([ "only" ], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Some("only"))
+      Stdlib.List.maxBy([ "a", "bbb", "cc", "ddd" ], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Some("bbb"))
+      Stdlib.List.maxBy([ 6L, 2L, 8L, 3L ], fun x -> 0L - x)
+      |> Stdlib.Test.equal(Some(2L))
+      Stdlib.List.maxBy([ "b", "c", "a" ], fun x -> x)
+      |> Stdlib.Test.equal(Some("c")) ])
+
+test minBy =
+  Stdlib.Test.all(
+    [ Stdlib.List.minBy([], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(None)
+      Stdlib.List.minBy([ "only" ], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Some("only"))
+      Stdlib.List.minBy([ "bbb", "a", "cc", "d" ], fun x -> Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Some("a"))
+      Stdlib.List.minBy([ 6L, 2L, 8L, 3L ], fun x -> 0L - x)
+      |> Stdlib.Test.equal(Some(8L))
+      Stdlib.List.minBy([ "b", "a", "c" ], fun x -> x)
+      |> Stdlib.Test.equal(Some("a")) ])
+
+test maxByEvaluatesKeysOnce =
+  let result = Stdlib.List.maxBy([ 3L, 1L, 2L ], fun x -> Stdlib.Test.incrementCounter(x))
+  Stdlib.Test.all(
+    [ result |> Stdlib.Test.equal(Some(3L))
+      Stdlib.Test.counterValue() |> Stdlib.Test.equal(3L) ])
+
+test minByEvaluatesKeysOnce =
+  let result = Stdlib.List.minBy([ 1L, 3L, 2L ], fun x -> Stdlib.Test.incrementCounter(x))
+  Stdlib.Test.all(
+    [ result |> Stdlib.Test.equal(Some(1L))
+      Stdlib.Test.counterValue() |> Stdlib.Test.equal(3L) ])
 
 test sortBy =
   Stdlib.Test.all(

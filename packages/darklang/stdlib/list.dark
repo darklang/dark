@@ -79,6 +79,12 @@ let findFirstIndex(list: List<'a>, fn: 'a -> Bool): Option.Option<Int> =
   |> Stdlib.Option.map(fun((i, _item)) -> i)
 
 
+/// Returns the zero-based index of the first element in <param list> equal to
+/// <param x>, wrapped in {{Some}}. Returns {{None}} if no such element exists.
+let indexOf(list: List<'a>, x: 'a): Option.Option<Int> =
+  findFirstIndex(list, fun item -> item == x)
+
+
 /// Returns {{true}} if <param value> is in the list
 let contains(list: List<'a>, value: 'a): Bool =
   Builtin.listContains(list, value)
@@ -115,6 +121,36 @@ let range(lowest: Int, highest: Int): List<Int> =
 /// on top of the lambda; the builtin walks the list in F# and applies the lambda directly.
 let fold(list: List<'a>, init: 'b, fn: ('b, 'a) -> 'b): 'b =
   Builtin.listFold(list, init, fn)
+
+
+/// Returns the element of <param list> whose key from <param fn> is largest,
+/// or {{None}} if the list is empty.
+/// The key type must implement `Compare`. On ties, the first element wins.
+/// Calls <param fn> once per element.
+let maxBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option.Option<'a> =
+  match list with
+  | [] -> Option.Option.None
+  | [head, ...tail] ->
+    let (best, _) =
+      fold(tail, (head, fn(head)), fun((best, bestKey), value) ->
+        let key = fn(value)
+        if key > bestKey then (value, key) else (best, bestKey))
+    Option.Option.Some(best)
+
+
+/// Returns the element of <param list> whose key from <param fn> is smallest,
+/// or {{None}} if the list is empty.
+/// The key type must implement `Compare`. On ties, the first element wins.
+/// Calls <param fn> once per element.
+let minBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option.Option<'a> =
+  match list with
+  | [] -> Option.Option.None
+  | [head, ...tail] ->
+    let (best, _) =
+      fold(tail, (head, fn(head)), fun((best, bestKey), value) ->
+        let key = fn(value)
+        if key < bestKey then (value, key) else (best, bestKey))
+    Option.Option.Some(best)
 
 
 /// Returns a single list containing the values of every list directly in <paramlist>
@@ -298,6 +334,27 @@ let filterMap(
   fn: 'a -> Option.Option<'b>)
   : List<'b> =
   Builtin.listFilterMap(list, fn)
+
+
+/// Removes the first element equal to <param x> from <param list>.
+/// Returns the list unchanged if no such element exists.
+let remove(list: List<'a>, x: 'a): List<'a> =
+  match list with
+  | [] -> []
+  | [head, ...tail] ->
+    if head == x then tail else prepend(remove(tail, x), head)
+
+
+/// Removes the element at zero-based index <param i> from <param list>.
+/// Returns the list unchanged if <param i> is negative or out of range.
+let removeAt(list: List<'a>, i: Int): List<'a> =
+  if i < 0 then
+    list
+  else
+    match list with
+    | [] -> []
+    | [head, ...tail] ->
+      if i == 0 then tail else prepend(removeAt(tail, i - 1), head)
 
 
 /// Drops the first <param count> values from <param list>
@@ -495,6 +552,12 @@ let setAt(
 /// empty.
 let randomElement(list: List<'a>): Option.Option<'a> =
   Builtin.listRandomElement(list)
+
+
+/// Returns <param list> in a random order using Fisher–Yates.
+/// Preserves every element, including duplicates.
+let shuffle(list: List<'a>): List<'a> =
+  Builtin.listShuffle(list)
 
 
 /// Groups <param list> into tuples (key, elements), where the key is computed by applying

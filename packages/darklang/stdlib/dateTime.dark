@@ -1,3 +1,9 @@
+/// Work with dates and times in UTC. Values can be as little as 100 nanoseconds
+/// (one tick) apart. Two values are equal only when they match exactly, down to
+/// the tick, even if they look the same when printed.
+/// For example, `Stdlib.DateTime.__fromTicks(0) == Stdlib.DateTime.__fromTicks(0)`
+/// is `true`, but `Stdlib.DateTime.__fromTicks(0) == Stdlib.DateTime.__fromTicks(1)`
+/// is `false`: a difference of just 100 nanoseconds makes them unequal.
 module Darklang.Stdlib.DateTime
 
 
@@ -258,9 +264,11 @@ let atStartOfDay(date: DateTime): DateTime =
   __fromTicks(__daysSinceEpoch(date) * __ticksPerDay())
 
 
-/// Returns the difference of the two dates, in seconds
-let subtract(d1: DateTime, d2: DateTime): Int =
+/// Returns <param d1> minus <param d2> as a duration, rounded to whole seconds.
+/// Half-second ties round to the nearest even second.
+let subtract(d1: DateTime, d2: DateTime): Stdlib.Duration.Duration =
   __roundedDifference(d1, d2, 86400, 1000000000.0)
+  |> Stdlib.Duration.fromSeconds()
 
 
 /// Converts <param date> to an <type Int> representing milliseconds since the Unix epoch
