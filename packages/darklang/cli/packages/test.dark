@@ -55,8 +55,6 @@ let selects(filter: String, path: String): Bool =
     Stdlib.String.split(filter, ".") |> Stdlib.List.filter(fun seg -> seg != "")
   segmentsIn(Stdlib.String.split(path, "."), want)
 
-let cacheDb(): String = Stdlib.LocalStore.path()
-
 /// The actual judging function, including its followed dependencies, and the
 /// runtime compilation. Reflect the function we call, not a possibly pinned
 /// branch binding. An unexpected callable gets a fresh key so it cannot reuse
@@ -73,26 +71,12 @@ let cacheRuntime(): String =
     | _ -> Stdlib.toString(Stdlib.Uuid.generate())
   Cli.Installation.Helpers.runtimeHash() + ":" + judge
 
+/// Read cache metadata once; test workers cannot change the parent store.
+///
 /// Only successful ordinary tests are reusable. Branch identity and the
 /// branch's current `Stdlib.Test.Result` binding are part of the key: neither
 /// is covered by the test's content hash. The runtime key covers the build
 /// and the judging code.
-let ensureCache(): Unit =
-  let _ =
-    Stdlib.Sqlite.mustExec(
-      cacheDb(),
-      "CREATE TABLE IF NOT EXISTS package_test_results (
-         test_hash TEXT NOT NULL,
-         runtime_hash TEXT NOT NULL,
-         branch_id TEXT NOT NULL,
-         result_type_hash TEXT NOT NULL,
-         outcome_json TEXT NOT NULL,
-         PRIMARY KEY (test_hash, runtime_hash, branch_id, result_type_hash)
-       )",
-      [])
-  ()
-
-/// Read cache metadata once; test workers cannot change the parent store.
 type CacheContext =
   { runtime: String
     branch: String
@@ -106,22 +90,22 @@ let cacheContext(branchId: Uuid): Stdlib.Option.Option<CacheContext> =
         branch = Stdlib.toString(branchId)
         resultType = LanguageTools.ProgramTypes.hashToString(resultType) })
 
+let resultKey(
+  cache: CacheContext,
+  testHash: LanguageTools.ProgramTypes.Hash)
+  : LanguageTools.PackageManager.Test.ResultKey =
+  LanguageTools.PackageManager.Test.ResultKey
+    { test = LanguageTools.ProgramTypes.hashToString(testHash)
+      runtime = cache.runtime
+      branch = cache.branch
+      resultType = cache.resultType }
+
 let storedOutcome(
   cache: CacheContext,
   testHash: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Option.Option<Outcome> =
-  let hash = LanguageTools.ProgramTypes.hashToString(testHash)
-  match
-    Stdlib.Sqlite.queryOneP(
-      cacheDb(),
-      "SELECT outcome_json FROM package_test_results
-       WHERE test_hash = @p0 AND runtime_hash = @p1
-         AND branch_id = @p2 AND result_type_hash = @p3",
-      [ hash, cache.runtime, cache.branch, cache.resultType ]) with
-  | Some(row) ->
-    match Stdlib.Sqlite.textField(row, "outcome_json") with
-    | Some(json) -> Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption
-    | None -> Stdlib.Option.Option.None
+  match LanguageTools.PackageManager.Test.storedResult(resultKey(cache, testHash)) with
+  | Some(json) -> Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption
   | None -> Stdlib.Option.Option.None
 
 let storeOutcome(
@@ -129,18 +113,9 @@ let storeOutcome(
   testHash: LanguageTools.ProgramTypes.Hash,
   outcome: Outcome)
   : Unit =
-  let hash = LanguageTools.ProgramTypes.hashToString(testHash)
-  let json = Stdlib.Json.serialize<Outcome>(outcome)
-  let _ =
-    Stdlib.Sqlite.mustExec(
-      cacheDb(),
-      "INSERT INTO package_test_results
-         (test_hash, runtime_hash, branch_id, result_type_hash, outcome_json)
-       VALUES (@p0, @p1, @p2, @p3, @p4)
-       ON CONFLICT(test_hash, runtime_hash, branch_id, result_type_hash)
-       DO UPDATE SET outcome_json = excluded.outcome_json",
-      [ hash, cache.runtime, cache.branch, cache.resultType, json ])
-  ()
+  LanguageTools.PackageManager.Test.storeResult(
+    resultKey(cache, testHash),
+    Stdlib.Json.serialize<Outcome>(outcome))
 
 /// The last result for this test on this branch, read without writing anything.
 /// A failed result is shown in views but is never reused by `dark test run`.
@@ -148,17 +123,8 @@ let lastOutcome(
   branchId: Uuid,
   testHash: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Option.Option<Outcome> =
-  let cacheTable =
-    Stdlib.Sqlite.queryOneP(
-      cacheDb(),
-      "SELECT 1 AS present FROM sqlite_master
-       WHERE type = 'table' AND name = 'package_test_results'",
-      [])
-  match cacheTable with
-  | Some(_) ->
-    match cacheContext(branchId) with
-    | Some(cache) -> storedOutcome(cache, testHash)
-    | None -> Stdlib.Option.Option.None
+  match cacheContext(branchId) with
+  | Some(cache) -> storedOutcome(cache, testHash)
   | None -> Stdlib.Option.Option.None
 
 /// Run <param test> now, ignoring the cache, and say how it went.
@@ -464,7 +430,6 @@ let runTestsInRun(
     Stdlib.printErrorLine(usage)
     { state with exitCode = 1 }
   | Ok(options) ->
-    ensureCache()
     // Every test, then the filters by whole name segments. Not the package
     // search's text match: that is fuzzy, so `WbTests.R` matched every test in
     // every `Tests` module.

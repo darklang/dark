@@ -334,6 +334,24 @@ module Test =
   let isCacheSafe(hash: ProgramTypes.Hash): Bool =
     Builtin.pmTestIsCacheSafe(hash)
 
+  /// Where `dark test run` keeps one result: the test's hash, plus everything
+  /// that hash does not cover. `runtime` is the build and the judging code,
+  /// `branch` the branch id, and `resultType` the branch's binding of
+  /// `Stdlib.Test.Result`.
+  type ResultKey =
+    { test: String
+      runtime: String
+      branch: String
+      resultType: String }
+
+  /// The outcome stored under <param key>, as the runner serialized it.
+  let storedResult(key: ResultKey): Stdlib.Option.Option<String> =
+    Builtin.pmTestResultGet(key)
+
+  /// Store <param outcome> under <param key>, replacing what was there.
+  let storeResult(key: ResultKey, outcome: String): Unit =
+    Builtin.pmTestResultPut(key, outcome)
+
   /// The result type as this branch currently binds it. Judging an ordinary
   /// test depends on this binding, even when the test's own hash is unchanged.
   let resultTypeHash(branchId: Uuid): Stdlib.Option.Option<ProgramTypes.Hash> =

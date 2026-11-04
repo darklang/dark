@@ -13,9 +13,18 @@ module Darklang.SCM.StoreHealth
 // when non-zero. Read-only: this reports, it never repairs.
 
 
-/// A count from one diagnostic query, 0 when it can't be answered.
-let scalar(sql: String): Int64 =
-  Stdlib.Sqlite.scalarInt(localDb(), sql, "n") |> Stdlib.Option.withDefault(0L)
+/// The raw counts behind <fn problems>, each 0 when it can't be answered: ops stamped more than a
+/// day ahead of now, op tags naming an op that isn't in the log, op tags naming a branch that isn't
+/// registered, effective ops the fold never applied, and live names bound to a hash with no content.
+type Counts =
+  { futureStamped: Int64
+    orphanTags: Int64
+    taggedToNothing: Int64
+    unfolded: Int64
+    danglingBindings: Int64 }
+
+/// Count everything <fn problems> reports on, straight from the store.
+let counts(): Counts = Builtin.scmHealth()
 
 /// One thing wrong with the store, and whether re-folding is the way out.
 ///
@@ -39,58 +48,30 @@ let countedProblem(n: Int64, refoldable: Bool, what: String): List<Problem> =
 ///
 /// main-scoped, on purpose: health is a property of the store's log and main's projections of it.
 let problems(): List<Problem> =
-  let orphanTags =
-    scalar(
-      "SELECT count(*) AS n FROM op_branches ob
-       LEFT JOIN package_ops p ON p.id = ob.op_id
-       WHERE p.id IS NULL")
-
-  let taggedToNothing =
-    scalar(
-      "SELECT count(*) AS n FROM op_branches ob
-       LEFT JOIN branches b ON b.id = ob.branch_id
-       WHERE b.id IS NULL")
-
-  let unfolded =
-    scalar("SELECT count(*) AS n FROM package_ops WHERE applied = 0 AND effective = 1")
-
-  let danglingBindings =
-    scalar(
-      "SELECT count(*) AS n FROM locations l
-       WHERE l.unlisted_at IS NULL
-         AND NOT EXISTS (SELECT 1 FROM package_functions f WHERE f.hash = l.item_hash)
-         AND NOT EXISTS (SELECT 1 FROM package_types t WHERE t.hash = l.item_hash)
-         AND NOT EXISTS (SELECT 1 FROM package_values v WHERE v.hash = l.item_hash)
-         AND NOT EXISTS (SELECT 1 FROM package_traits tr WHERE tr.hash = l.item_hash)
-         AND NOT EXISTS (SELECT 1 FROM package_trait_impls i WHERE i.hash = l.item_hash)
-         AND NOT EXISTS (SELECT 1 FROM package_tests test WHERE test.hash = l.item_hash)")
-
-  // A stamp well ahead of now means some instance's clock is wrong. Ordering still works -- the authoring
-  // clock advances past anything it receives, so your later edits win -- but the stamps stop meaning
-  // "when", and a day is far outside any plausible skew.
-  let futureStamped =
-    scalar(
-      "SELECT count(*) AS n FROM package_ops
-       WHERE origin_ts > strftime('%Y-%m-%dT%H:%M:%fZ','now','+1 day')")
+  let c = counts()
 
   Stdlib.List.flatten(
     [ // `package_ops` and `op_branches` are the log itself. Re-folding replays them exactly as they are.
+      //
+      // A stamp well ahead of now means some instance's clock is wrong. Ordering still works -- the
+      // authoring clock advances past anything it receives, so your later edits win -- but the stamps
+      // stop meaning "when", and a day is far outside any plausible skew.
       countedProblem(
-        futureStamped,
+        c.futureStamped,
         false,
         "op(s) stamped over a day in the future (a peer's clock is wrong)")
       countedProblem(
-        orphanTags,
+        c.orphanTags,
         false,
         "op tag(s) pointing at an op that isn't in the log (a branch is missing part of its own history)")
       countedProblem(
-        taggedToNothing,
+        c.taggedToNothing,
         false,
         "op tag(s) pointing at a branch that isn't registered (the ops are held by nothing that lists them)")
 
       // What a fold produces, so a fold can produce it again correctly.
       countedProblem(
-        unfolded,
+        c.unfolded,
         true,
         "op(s) that never folded (the fold stopped partway, or they don't parse)")
 
@@ -99,6 +80,6 @@ let problems(): List<Problem> =
       // it identically. The lost-projection-row direction would refold, but only hand-edited tables
       // reach it, so classify by the cause people hit.
       countedProblem(
-        danglingBindings,
+        c.danglingBindings,
         false,
         "live name(s) bound to a hash with no content (an op that carries it never arrived)") ])

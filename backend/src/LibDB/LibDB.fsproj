@@ -21,6 +21,8 @@
     <Compile Include="PreparedBatch.fs" />
     <Compile Include="Deprecations.fs" />
     <Compile Include="Config.fs" />
+    <Compile Include="TestResults.fs" />
+    <Compile Include="StoreHealth.fs" />
     <Compile Include="PackageLocation.fs" />
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
