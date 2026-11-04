@@ -466,6 +466,21 @@ test exprsMatchIntTuple =
         "match (1L, 2L) with\n| (1L, 2L) | (2L, 1L) -> true\n| _ -> false",
         "match (1L, 2L) with\n| (1L, 2L) | (2L, 1L) -> true\n| _ -> false") ])
 
+test exprsSemicolonStatements =
+  Stdlib.Test.all(
+    [ // `;` parses as a newline does, and prints as one
+      roundTrip(
+        "statements in parens",
+        "fun x -> (a; b; x)",
+        "(fun x ->\n  a\n  b\n  x\n)")
+      roundTrip("let then body", "let x = 5L; x + 1L", "let x = 5L\nx + 1L")
+      roundTrip(
+        "lets in parens",
+        "(let x = 5L; let y = 2L; x + y)",
+        "let x = 5L\nlet y = 2L\nx + y")
+      rejected("trailing semicolon in parens", "(a;)")
+      rejected("trailing semicolon", "a;") ])
+
 test exprsPipeExpression =
   Stdlib.Test.all(
     [ // pipe expression

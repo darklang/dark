@@ -523,6 +523,64 @@ test offside =
       | _ -> unexpected("nested fn") ])
 
 
+/// `;` separates statements wherever a newline does.
+test semicolonStatements =
+  Stdlib.Test.all(
+    [ match exprs("(a; b; c)") with
+      | [ EStatement(
+            _,
+            EVariable(_, "a"),
+            EStatement(_, EVariable(_, "b"), EVariable(_, "c"))) ] -> ok()
+      | _ -> unexpected("statements in parens")
+
+      // at script top level each statement is its own trailing expression
+      match exprs("a; b") with
+      | [ EVariable(_, "a"), EVariable(_, "b") ] -> ok()
+      | _ -> unexpected("top-level statements")
+
+      // a `;` after a same-row let value ends the value, as a newline would
+      match exprs("let x = 1L; x") with
+      | [ ELet(_, LPVariable(_, "x"), EInt64(_, _, _), EVariable(_, "x"), _, _) ] ->
+        ok()
+      | _ -> unexpected("let then body")
+
+      match fnBody("let f(): Int64 =
+  let x = 1L; g(x)
+  x") with
+      | Some(ELet(
+          _,
+          LPVariable(_, "x"),
+          EInt64(_, _, _),
+          EStatement(_, EApply(_, _, _, _), EVariable(_, "x")),
+          _,
+          _)) -> ok()
+      | _ -> unexpected("the let's body runs on past the line, as after a newline")
+
+      // a nested fn let ends at the `;` too
+      match fnBody("let f(): Int64 =\n  let g(y: Int64): Int64 = y; g(1L)") with
+      | Some(ELet(
+          _,
+          LPVariable(_, "g"),
+          ELambda(_, _, EVariable(_, "y"), _, _),
+          EApply(_, _, _, _),
+          _,
+          _)) -> ok()
+      | _ -> unexpected("nested fn then body")
+
+      // a value block on its own rows keeps its `;` inside
+      match exprs("let x =
+  a; b
+x") with
+      | [ ELet(
+            _,
+            _,
+            EStatement(_, EVariable(_, "a"), EVariable(_, "b")),
+            EVariable(_, "x"),
+            _,
+            _) ] -> ok()
+      | _ -> unexpected("indented value block") ])
+
+
 // --- declarations ---
 
 test declarations =

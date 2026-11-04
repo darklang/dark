@@ -66,7 +66,11 @@ test evalAnswers =
         prints(i, [ "eval", "Stdlib.String.length(\"hello\")" ], "5")
         prints(i, [ "eval", "[1L, 2L, 3L] |> Stdlib.List.length" ], "3")
         prints(i, [ "eval", "2L + 3L" ], "5")
-        prints(i, [ "eval", "\"hello\" + \"world\"" ], "helloworld") ]))
+        prints(i, [ "eval", "\"hello\" + \"world\"" ], "helloworld")
+        // `;` separates statements, at the top and inside parens
+        prints(i, [ "eval", "Stdlib.printLine(\"a\"); 5L" ], "a\n5")
+        prints(i, [ "eval", "(Stdlib.printLine(\"b\"); 6L)" ], "b\n6")
+        prints(i, [ "eval", "let x = 5L; x + 1L" ], "6") ]))
 
 
 /// A script's own declarations are keyed by content hash, so two that hash the same

@@ -904,9 +904,27 @@ and parseBlock (state : ParserState) (i : int) : WT.Expr * int =
   withStmtScope state (rng state i).start.column (fun () ->
     parseBlockAt state (rng state i).start.column i)
 
+// The value of a `let` (or the body of a nested `let f(…) =`). When it starts
+// on the `let`'s own row, a `;` ends it, exactly as a newline would: in
+// `let x = 5L; x + 1L` the `;` separates the binding from what follows rather
+// than sequencing `5L; x + 1L` into the value. A value that starts on a later
+// row is an indented block, and a `;` inside it stays inside it.
+and parseLetValue (state : ParserState) (letRow : int) (i : int) : WT.Expr * int =
+  let col = (rng state i).start.column
+  withStmtScope state col (fun () ->
+    parseBlockWith state col ((rng state i).start.row <> letRow) i)
+
 // iterative (a 10k-statement body must not recurse 10k deep); statements
 // fold right-nested into EStatement afterwards
 and parseBlockAt (state : ParserState) (col : int) (i : int) : WT.Expr * int =
+  parseBlockWith state col true i
+
+and parseBlockWith
+  (state : ParserState)
+  (col : int)
+  (semicolonContinues : bool)
+  (i : int)
+  : WT.Expr * int =
   let stmts = System.Collections.Generic.List<WT.Expr>()
   let mutable k = i
   let mutable go = true
@@ -916,7 +934,11 @@ and parseBlockAt (state : ParserState) (col : int) (i : int) : WT.Expr * int =
     if j = k then
       go <- false // no progress — stop (avoids a spin)
     elif tok state j = TSemicolon then
-      k <- j + 1
+      if semicolonContinues then
+        k <- j + 1
+      else
+        k <- j
+        go <- false
     elif hasNextStmt state col j then
       k <- j
     else
@@ -1639,9 +1661,8 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
       else
         errExpected state afterRet "'=' in function binding"
         (zeroWidthAtEnd (rng state afterRet), afterRet)
-    let (fnBody, m1) = parseBlock state m0
-    let m = if tok state m1 = TIn then m1 + 1 else m1
-    let (body, p) = parseBlock state m
+    let (fnBody, m1) = parseLetValue state keywordLet.start.row m0
+    let (body, p) = parseLetBody state keywordLet m1
     let z = zeroWidthAtEnd keywordLet // no real `fun`/`->` tokens in this sugar
     let lambda =
       WT.ELambda(span (rng state j) (WT.exprRange fnBody), pats, fnBody, z, z)
@@ -1678,12 +1699,25 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
     // the value is an offside block, not a single expr, so a multi-statement
     // binding (`let x =\n  doThing ()\n  result`) sequences instead of gluing
     // the following statement onto the first as an application argument.
-    let (value, m) = parseBlock state k
-    // `in` is optional
-    let m = if tok state m = TIn then m + 1 else m
-    let (body, p) = parseBlock state m
+    let (value, m) = parseLetValue state keywordLet.start.row k
+    let (body, p) = parseLetBody state keywordLet m
     let range = span keywordLet (rng state (p - 1))
     (WT.ELet(range, pat, value, body, keywordLet, symbolEquals), p)
+
+// What a `let` scopes over, after its value. `in` is optional. After a `;`
+// the body is the rest of the `let`'s own statement sequence, as it would be
+// after a newline, so a later line at the `let`'s column still sees the name.
+and parseLetBody
+  (state : ParserState)
+  (keywordLet : TokenRange)
+  (m : int)
+  : WT.Expr * int =
+  if tok state m = TSemicolon then
+    let col = keywordLet.start.column
+    withStmtScope state col (fun () -> parseBlockAt state col (m + 1))
+  else
+    let m = if tok state m = TIn then m + 1 else m
+    parseBlock state m
 
 // left-assoc binary level
 // --- infix expressions: one precedence-climbing loop ---
@@ -2605,9 +2639,10 @@ and parseParen (state : ParserState) (i : int) : WT.Expr * int =
               && tok state m <> TEOF
               && tok state m <> TComma
               && not (declBarrier state m) do
-          let bm = m
-          let (s, m2) = parseExpr state m
-          if m2 > bm then
+          // `;` separates statements here as a newline does
+          let start = if tok state m = TSemicolon then m + 1 else m
+          let (s, m2) = parseExpr state start
+          if m2 > start then
             stmts.Add s
             m <- m2
           else
@@ -3981,6 +4016,11 @@ and parseItemsBody
          else
            exprs.Add e
            k <- k2)
+      // `;` separates top-level statements as a newline does
+      if k > before && tok state k = TSemicolon then
+        if tok state (k + 1) = TEOF then
+          errExpected state (k + 1) "a statement after ';'"
+        k <- k + 1
       if k = before then if tok state k = TEOF then go <- false else k <- k + 1
   (List.ofSeq decls, List.ofSeq exprs, k)
 

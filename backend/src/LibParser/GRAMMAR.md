@@ -221,6 +221,14 @@ Expression forms include:
 - pipes
 - statement sequences, separated by newlines or `;`
 
+A `;` separates statements wherever a newline does: in a body, in a
+parenthesised group `(a; b; c)`, and at script (and `dark eval`) top level.
+After a `let` value on the `let`'s own row, `let x = 5L; x + 1L`, the `;` ends
+the value and what follows is the body, as after a newline; a value that starts
+on its own indented row keeps any `;` inside it. A one-line declaration
+`let f(): T = a; b` has no body to hand over to, so `b` stays in `f`. A trailing
+`;` with nothing after it is an error.
+
 Adjacent same-line items never imply a separator. Lists, list patterns, dicts,
 records, record updates, and record-type fields use `,`; a `;` is an error.
 Constructor fields and constructor-pattern fields also use `,`. A newline
