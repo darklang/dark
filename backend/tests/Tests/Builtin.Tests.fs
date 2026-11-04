@@ -732,6 +732,66 @@ let pureMeansNoHiddenState =
         Expect.equal wrong Set.empty "hidden-state builtins marked Pure") ]
 
 
+
+/// `Stdlib.debug` replaced the `debug` builtin, whose whole body was
+/// `printErr $"DEBUG: {label}: {repr}"` over `dvalToRepr`. Both are run here, each under its own
+/// capture and on its own state, for every sample value, and must print the same bytes.
+///
+/// A few values (U+FFFE, for one) make the printer report an exception, which this harness turns
+/// into a raise. The builtin's body raised the same way for them, so those rows only have to fail
+/// on both sides.
+let debugPrintsWhatTheBuiltinPrinted =
+  testTask
+    "Stdlib.debug prints what the debug builtin printed, for every sample value" {
+    let loc : PT.PackageLocation =
+      { owner = "Darklang"; modules = [ "Stdlib" ]; name = "debug" }
+    let! found = pmPT.findFn loc |> Ply.toTask
+    let (PT.Hash hash) = Expect.wantSome found "Stdlib.debug is a package fn"
+    let debugFn = RT.FQFnName.fqPackage hash
+
+    let printed (f : RT.ExecutionState -> Task<unit>) : Task<Option<string>> =
+      task {
+        let! (state : RT.ExecutionState) = executionStateFor pmPT false
+        NonBlockingConsole.wait ()
+        Expect.isTrue (NonBlockingConsole.startCapture ()) "capture starts"
+        try
+          try
+            do! f state
+            NonBlockingConsole.wait ()
+            return Some(NonBlockingConsole.stopCapture ())
+          with _ ->
+            return None
+        finally
+          NonBlockingConsole.stopCapture () |> ignore<string>
+      }
+
+    let mutable compared = 0
+    for (label, (dv, _)) in sampleDvals () do
+      let! old =
+        printed (fun state ->
+          task {
+            let! repr = Exe.dvalToRepr state dv
+            printErr $"DEBUG: {label}: {repr}"
+          })
+      let! now =
+        printed (fun state ->
+          task {
+            match!
+              Exe.executeFunction
+                state
+                debugFn
+                []
+                (NEList.doubleton (RT.DString label) dv)
+            with
+            | Ok RT.DUnit -> ()
+            | other -> failtestf "%s: Stdlib.debug returned %A" label other
+          })
+      if Option.isSome old then compared <- compared + 1
+      Expect.equal now old label
+    Expect.isGreaterThan compared 500 "rows compared byte for byte"
+  }
+
+
 let tests =
   testList
     "builtin"
@@ -747,4 +807,5 @@ let tests =
       everyBuiltinPackagesCallExists
       everyCliHelpReturnsText
       storeScopedEffectsRequireTargetChecks
-      scopedEffectInventoryRegexIsLive ]
+      scopedEffectInventoryRegexIsLive
+      debugPrintsWhatTheBuiltinPrinted ]

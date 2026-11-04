@@ -1360,7 +1360,7 @@ The point of all this is that a green F# build says nothing about Dark, which re
 
 ## Debugging
 
-    Builtin.debug "label" value   # prints DEBUG: label: <repr> to stderr
+    Stdlib.debug("label", value)  # prints DEBUG: label: <repr> to stderr
     eval <expr>                   # test small pieces
 
 **A truncated answer is worse than no answer, because it justifies doing nothing.** `tail -3` on a

@@ -60,7 +60,6 @@ val knownGroups =
     // friends, which are reflection rather than a `get` family. The real fix is to rename the
     // builtins, which moves their `Builtin.x` wrappers too, so it is not done in passing.
     ("get", "Reflection")
-    ("debug", "Debug")
     ("print", "Print") ]
 
 
