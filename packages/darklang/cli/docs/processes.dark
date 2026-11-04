@@ -28,8 +28,7 @@ read, an HTTP GET or HEAD). Anything else runs in order.
   Stdlib.Exec.cancel(h)                                  // stop it, and its children
   Stdlib.List.parallelMap(items, fib)                    // CPU-bound work across the cores
 
-A process spawned this way dies with its parent unless `Exec.spawnDetached`;
-either way it ends when the `dark` command it runs in exits.
+A process spawned this way dies with its parent.
 Spawning is the `concurrency` effect; a policy can forbid it.
 
 ## See what is running

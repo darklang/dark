@@ -1835,44 +1835,35 @@ let private cancelLetsTheWaitLand =
 
 
 let private childrenDieWithTheParent =
-  testTask "a parent's end stops its children, unless spawned detached" {
+  testTask "a parent's end stops its children" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
     let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    // Two children that would run forever; the parent finishes at once without awaiting them.
+    // A child that would run forever; the parent finishes at once without awaiting it.
     let! (parent : Scheduler.Process) =
       spawn
         s
         state
         """(let spin(n: Int64): Int64 =
               if n == 0L then 1L else spin(n + 1L)
-            let attached = Stdlib.Exec.spawn(fun () -> spin(1L))
-            let detached = Stdlib.Exec.spawnDetached(fun () -> spin(1L))
-            (attached.id, detached.id))"""
+            let child = Stdlib.Exec.spawn(fun () -> spin(1L))
+            child.id)"""
     let running = runOnThread s parent
     let! result = running
-    let (attachedId, detachedId) =
+    let childId =
       match expectOk result "the parent" with
-      | RT.DTuple(RT.DUuid a, RT.DUuid d, []) -> a, d
-      | other -> failtest $"expected two ids, got {other}"
+      | RT.DUuid c -> c
+      | other -> failtest $"expected an id, got {other}"
     let find (id : System.Guid) = s.Find id |> Option.get
-    waitFor "the attached child to be stopped" (fun () ->
-      match (find attachedId).status with
+    waitFor "the child to be stopped" (fun () ->
+      match (find childId).status with
       | Scheduler.Failed _ -> true
       | _ -> false)
-    match (find attachedId).status with
+    match (find childId).status with
     | Scheduler.Failed(RTE.UncaughtException("its parent finished", _), _) -> ()
     | other ->
       failtest $"expected the child stopped by its parent's end, got {other}"
-    Thread.Sleep 100
-    match (find detachedId).status with
-    | Scheduler.Failed _
-    | Scheduler.Done _ -> failtest "the detached child should still be running"
-    | _ -> ()
-    Expect.isTrue (s.Kill detachedId) "the detached child is stopped by hand"
-    let! _ = s.Await(find detachedId)
-    ()
   }
 
 
