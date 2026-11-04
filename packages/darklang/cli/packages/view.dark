@@ -723,7 +723,7 @@ let execute(state: AppState, args: List<String>): AppState =
   match parseArgs(args) with
   | Error(e) ->
     Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot view: {e}"))
-    Stdlib.printLine(help(state))
+    Stdlib.printErrorLine(help(state))
     { state with exitCode = 1 }
   | Ok(parsed) ->
     let (pathArg, mode, includeTests) = parsed
@@ -746,18 +746,22 @@ let execute(state: AppState, args: List<String>): AppState =
       { state with exitCode = 1 }
     | Ok(location) ->
       match mode with
-      | Source -> viewEntity(branchId, location, includeTests)
-      | Raw -> printRaw(branchId, location)
-      | _ -> viewCompiled(branchId, location, mode)
-
-      // You are looking at a function, and somewhere there are traces of it having run. Nothing
-      // said so before this: `dark traces` was reachable only if you already knew to go there.
-      // One index read, and only when it has something to say.
-      match mode with
-      | Source -> printTraceHint(branchId, location)
-      | _ -> ()
-
-      state
+      | Raw ->
+        match rawSource(branchId, location) with
+        | Ok(src) ->
+          Stdlib.printLine(src)
+          state
+        | Error(e) ->
+          Cli.printErr(e)
+          { state with exitCode = 1 }
+      | Source ->
+        viewEntity(branchId, location, includeTests)
+        // Show the trace hint only for the human-readable source view.
+        printTraceHint(branchId, location)
+        state
+      | _ ->
+        viewCompiled(branchId, location, mode)
+        state
 
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   let branchId = state.currentBranchId
