@@ -64,6 +64,27 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Random ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listShuffle" 0
+      typeParams = [ "a" ]
+      parameters = [ Param.make "list" (TList(TVariable "a")) "" ]
+      returnType = TList(TVariable "a")
+      description = "Returns the list in a random order using Fisher–Yates."
+      fn =
+        (function
+        | _, _, _, [| DList(elementType, list) |] ->
+          let items = List.toArray list
+          for i = items.Length - 1 downto 1 do
+            let j = RNG.GetInt32(i + 1)
+            let item = items[i]
+            items[i] <- items[j]
+            items[j] <- item
+          DList(elementType, Array.toList items) |> Ply
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated } ]
 
 

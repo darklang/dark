@@ -524,6 +524,12 @@ let randomElement(list: List<'a>): Option.Option<'a> =
   Builtin.listRandomElement(list)
 
 
+/// Returns <param list> in a random order using Fisher–Yates.
+/// Preserves every element, including duplicates.
+let shuffle(list: List<'a>): List<'a> =
+  Builtin.listShuffle(list)
+
+
 /// Groups <param list> into tuples (key, elements), where the key is computed by applying
 /// <param fn> to each element in the list.
 /// For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>

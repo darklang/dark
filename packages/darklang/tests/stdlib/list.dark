@@ -432,6 +432,17 @@ test append =
       Stdlib.List.fold([ 1L, 2L ], [], fun(acc, x) -> Stdlib.List.append(acc, x))
       |> Stdlib.Test.equal([ 1L, 2L ]) ])
 
+test shuffle =
+  Stdlib.Test.all(
+    [ Stdlib.List.shuffle([]) |> Stdlib.Test.equal([])
+      Stdlib.List.shuffle([ 1L ]) |> Stdlib.Test.equal([ 1L ])
+      Stdlib.List.shuffle([ 3L, 1L, 2L, 1L, 3L, 4L ])
+      |> Stdlib.List.sort()
+      |> Stdlib.Test.equal([ 1L, 1L, 2L, 3L, 3L, 4L ])
+      Stdlib.List.shuffle([ "c", "a", "b" ])
+      |> Stdlib.List.sort()
+      |> Stdlib.Test.equal([ "a", "b", "c" ]) ])
+
 test randomElementOfSingletonOrEmptyList =
   Stdlib.Test.all(
     [ Stdlib.List.randomElement([ 1L ]) |> Stdlib.Test.equal(Some(1L))
