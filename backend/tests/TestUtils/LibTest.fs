@@ -56,10 +56,15 @@ module Gates =
 module Trace =
   let private entries = System.Collections.Concurrent.ConcurrentQueue<string>()
   let record (s : string) : unit = entries.Enqueue s
+  /// Everything recorded so far, removed as it is read. One at a time: copying the queue and then
+  /// clearing it would throw away a line recorded in between, and a test waiting for that line
+  /// would wait out its whole timeout.
   let take () : List<string> =
-    let all = List.ofSeq entries
-    entries.Clear()
-    all
+    let all = ResizeArray<string>()
+    let mutable entry = null
+    while entries.TryDequeue(&entry) do
+      all.Add entry
+    List.ofSeq all
 
 
 /// What each `testTrackedStream` saw, by its label: a "pull" per pull of the source, a
