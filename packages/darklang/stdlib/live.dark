@@ -72,7 +72,8 @@ val showKey = "live.show"
 /// thing it wants you to look at; a live view that is open switches to it on its next
 /// turn, and one started later opens on it when it is given no view of its own.
 let show(view: LanguageTools.ProgramTypes.PackageLocation): Unit =
-  Stdlib.LocalStore.configSet(showKey, entryName(view))
+  let _ = Stdlib.LocalStore.configSet(showKey, entryName(view))
+  ()
 
 /// The view `show` last named, if any.
 let shown(): Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =

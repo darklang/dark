@@ -182,12 +182,7 @@ let executeMerge(
       // the next edit lands without mentioning it is a surprise.
       let landedOn =
         if SCM.PackageOps.currentBranch() == branchId then
-          let (parentId, parentName) = parentOf(branchId)
-          let _ = Stdlib.LocalStore.configSet("current_branch", Stdlib.toString(parentId))
-          let _ =
-            Stdlib.LocalStore.configSet(
-              "current_branch_name",
-              (if SCM.Branch.isMain(parentId) then "" else parentName))
+          let (parentId, _) = parentOf(branchId)
           let _ = SCM.PackageOps.selectBranch(parentId)
           let _ = Cli.printOk($"now on {whereLabel(parentId)} -- that's where the next edit lands.")
           parentId

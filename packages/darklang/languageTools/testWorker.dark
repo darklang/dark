@@ -21,8 +21,8 @@ let main(args: List<String>): Int =
       Stdlib.printLine("Test worker requires a disposable test directory")
       1
     else
-      let branch = Darklang.SCM.PackageOps.currentBranch()
-      let _ = Stdlib.LocalStore.configSet("current_branch", Stdlib.toString(branch))
+      // Stored in this private copy too, so a nested worker starts on the same branch.
+      let _ = Darklang.SCM.PackageOps.selectBranch(Darklang.SCM.PackageOps.currentBranch())
       let access = read(Stdlib.Cli.Path.join([ dir, "access.bin" ]))
       let (result, code) = execute(read(requestPath), access)
       match Stdlib.Cli.FileSystem.overwriteFile(resultPath, result) with

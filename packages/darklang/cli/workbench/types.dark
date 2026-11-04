@@ -42,7 +42,8 @@ type Lens =
 type MatterState =
   { lens: Lens }
 
-/// Put the workbench on <param branchId>: the state's own field AND the process overlay.
+/// Put the workbench on <param branchId>: the state's own field AND the process overlay, which
+/// `selectBranch` also stores, so the next command starts where the workbench left off.
 ///
 /// The workbench is one long-lived process that changes branch without restarting, which is what
 /// `selectBranch` exists for. Both have to move together: the header and the item list read

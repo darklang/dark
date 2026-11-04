@@ -562,8 +562,8 @@ let testRunUsesOneStartingStore =
         do! run state [ "permissions"; "allow"; "native" ]
         let definition =
           """test startingStore =
-  let before = Stdlib.LocalStore.configGet("baseline-witness")
-  let _ = Stdlib.LocalStore.configSet("baseline-witness", "child")
+  let before = Stdlib.LocalStore.configGet("test.baseline-witness")
+  let _ = Stdlib.LocalStore.configSet("test.baseline-witness", "child")
   Stdlib.Test.expect(before == "before", "starting store changed")
 """
         do! run state [ "test"; "add"; "Tests.Baseline.startingStore"; definition ]
@@ -573,10 +573,10 @@ let testRunUsesOneStartingStore =
         let expression =
           $"""let hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash("{hash}")
 let branch = Darklang.SCM.Branch.mainBranchId
-let _ = Stdlib.LocalStore.configSet("baseline-witness", "before")
+let _ = Stdlib.LocalStore.configSet("test.baseline-witness", "before")
 let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(fun run ->
   let first = Darklang.LanguageTools.PackageManager.Test.executeInRun(run, branch, hash)
-  let _ = Stdlib.LocalStore.configSet("baseline-witness", "after")
+  let _ = Stdlib.LocalStore.configSet("test.baseline-witness", "after")
   let second = Darklang.LanguageTools.PackageManager.Test.executeInRun(run, branch, hash)
   (first, second))
 let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(fun run ->
@@ -590,7 +590,7 @@ rejected
 && first == Ok(Stdlib.Test.pass())
 && second == Ok(Stdlib.Test.pass())
 && later == Ok(Stdlib.Test.fail("starting store changed"))
-&& Stdlib.LocalStore.configGet("baseline-witness") == "after"
+&& Stdlib.LocalStore.configGet("test.baseline-witness") == "after"
 """
         do!
           evals
@@ -613,8 +613,8 @@ let isolatedTestDeclarations =
           add
             "writes"
             """test writes =
-  let before = Stdlib.LocalStore.configGet("isolated-declaration-witness")
-  let _ = Stdlib.LocalStore.configSet("isolated-declaration-witness", "child")
+  let before = Stdlib.LocalStore.configGet("test.isolated-declaration-witness")
+  let _ = Stdlib.LocalStore.configSet("test.isolated-declaration-witness", "child")
   Stdlib.Test.equal(before, "")
 """
         do!
@@ -645,7 +645,7 @@ let isolatedTestDeclarations =
         do!
           evals
             state
-            "Stdlib.LocalStore.configGet(\"isolated-declaration-witness\") == \"\""
+            "Stdlib.LocalStore.configGet(\"test.isolated-declaration-witness\") == \"\""
             "true"
             "the child's config did not leak into the parent"
         do! discardAll state
@@ -723,8 +723,8 @@ let packageTestsRespectParallelLimit =
             [ 1..5 ]
             |> List.map (fun n ->
               $"""test case{n} =
-  let before = Stdlib.LocalStore.configGet("parallel-witness")
-  let _ = Stdlib.LocalStore.configSet("parallel-witness", "child")
+  let before = Stdlib.LocalStore.configGet("test.parallel-witness")
+  let _ = Stdlib.LocalStore.configSet("test.parallel-witness", "child")
   Stdlib.Test.expect(before == "", "another test changed my store")
 """         )
             |> String.concat "\n"
@@ -830,7 +830,7 @@ let packageTestsRespectParallelLimit =
           do!
             evals
               state
-              "Stdlib.LocalStore.configGet(\"parallel-witness\") == \"\""
+              "Stdlib.LocalStore.configGet(\"test.parallel-witness\") == \"\""
               "true"
               "test writes did not reach the parent store"
       })

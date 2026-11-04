@@ -23,9 +23,18 @@ let path(): String = Builtin.localDbPath()
 let configGet(key: String): String = Builtin.configGet(key)
 
 
-/// Write a setting. Local to this instance, always: this is where "which relay" and "which branch"
-/// live, and neither is anybody else's business.
-let configSet(key: String, value: String): Unit = Builtin.configSet(key, value)
+/// Write a setting. Local to this instance, always.
+///
+/// The runtime owns the key list: it refuses a key nothing reads, a value its reader would not
+/// take, and the keys it writes itself (`current_branch` moves with `SCM.PackageOps.selectBranch`,
+/// `instance.id` is made once). The Error says why, ready to print. Keys under `test.` are free
+/// for tests.
+let configSet(key: String, value: String): Stdlib.Result.Result<Unit, String> =
+  Builtin.configSet(key, value)
+
+
+/// The keys `config get` reads: every setting a person sets, and `instance.id`.
+let configKeys(): List<String> = Builtin.configKeys()
 
 
 /// One copy of the store: a backup in the folder beside it, or a snapshot written elsewhere.
