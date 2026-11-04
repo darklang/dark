@@ -35,6 +35,29 @@ let tests =
         Expect.equal v (Some "b") "the later value wins"
       }
 
+      testTask "unset forgets a key, and an unset key is not an empty one" {
+        do! Config.set "test.config.k3" ""
+        let! empty = Config.get "test.config.k3"
+        Expect.equal empty (Some "") "set to empty is Some empty"
+        do! Config.unset "test.config.k3"
+        let! gone = Config.get "test.config.k3"
+        Expect.equal gone None "unset is None"
+        do! Config.unset "test.config.k3"
+      }
+
+      test "checkUnset refuses only what has no default to go back to" {
+        Expect.isOk
+          (Config.checkUnset "trace.record")
+          "a setting goes back to its default"
+        Expect.isOk (Config.checkUnset "live.show") "so do Dark's own keys"
+        Expect.isOk (Config.checkUnset "test.anything") "and test keys"
+        Expect.isError (Config.checkUnset "instance.id") "the id is made once"
+        Expect.isError
+          (Config.checkUnset "current_branch")
+          "the branch moves with switch"
+        Expect.isError (Config.checkUnset "trace.recrod") "a typo is not a key"
+      }
+
       test "check refuses a key nothing reads, and the keys only the runtime writes" {
         let check = Config.check (fun _ -> true)
         Expect.isError (check "trace.recrod" "on") "a typo is not a key"

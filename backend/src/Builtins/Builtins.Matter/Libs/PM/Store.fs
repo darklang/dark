@@ -140,8 +140,8 @@ let fns () : List<BuiltInFn> =
     { name = fn "configGet" 0
       typeParams = []
       parameters = [ Param.make "key" TString "" ]
-      returnType = TString
-      description = "Get a local config value (config_v0), or \"\" if unset."
+      returnType = TypeReference.option TString
+      description = "Get a local config value (config_v0), or None if it is not set."
       fn =
         (function
         | _, _, _, [| DString key |] ->
@@ -149,7 +149,7 @@ let fns () : List<BuiltInFn> =
             // `instance.*` is made (or moved in from `cli-config.json`) on first ask.
             if key.StartsWith "instance." then do! LibDB.Config.ensureInstance ()
             let! v = LibDB.Config.get key
-            return DString(Option.defaultValue "" v)
+            return Dval.option KTString (Option.map DString v)
           }
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -158,15 +158,18 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "configSet" 0
       typeParams = []
-      parameters = [ Param.make "key" TString ""; Param.make "value" TString "" ]
+      parameters =
+        [ Param.make "key" TString ""
+          Param.make "value" (TypeReference.option TString) "None unsets the key" ]
       returnType = TypeReference.result TUnit TString
       description =
-        "Set a local config value (config_v0). Local + unsynced. Refuses a key nothing reads, "
-        + "a value the reader would not take, and the keys only the runtime writes "
-        + "(`current_branch`, `instance.id`), saying why in the Error."
+        "Set a local config value (config_v0), or unset it with None so its reader falls back "
+        + "to the default. Local + unsynced. Refuses a key nothing reads, a value the reader "
+        + "would not take, and the keys only the runtime writes (`current_branch`, "
+        + "`instance.id`), saying why in the Error."
       fn =
         (function
-        | _, _, _, [| DString key; DString value |] ->
+        | _, _, _, [| DString key; DEnum(_, _, _, "Some", [ DString value ]) |] ->
           uply {
             let resolves name =
               LibDB.PackageManager.resolveFnRef name |> Option.isSome
@@ -177,6 +180,14 @@ let fns () : List<BuiltInFn> =
               // from moving in.
               if key.StartsWith "instance." then do! LibDB.Config.ensureInstance ()
               do! LibDB.Config.set key value
+              return Dval.resultOk KTUnit KTString DUnit
+          }
+        | _, _, _, [| DString key; DEnum(_, _, _, "None", []) |] ->
+          uply {
+            match LibDB.Config.checkUnset key with
+            | Error e -> return Dval.resultError KTUnit KTString (DString e)
+            | Ok() ->
+              do! LibDB.Config.unset key
               return Dval.resultOk KTUnit KTString DUnit
           }
         | _ -> incorrectArgs ())

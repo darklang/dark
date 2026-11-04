@@ -52,8 +52,40 @@ let configRoundTrips =
         shows
           state
           [ "config"; "get"; "trace.maxMb" ]
-          "not set"
-          "an unset key is not an empty value"
+          "trace.maxMb is not set (default: 256)"
+          "an unset key is not an empty value, and get says what applies"
+      do!
+        shows
+          state
+          [ "config"; "unset"; "instance.name" ]
+          "Unset instance.name"
+          "unset says what it unset"
+      do!
+        shows
+          state
+          [ "config"; "get"; "instance.name" ]
+          "instance.name is not set"
+          "and get no longer finds it"
+      do!
+        shows
+          state
+          [ "config"; "get"; "exec.spreadPredict" ]
+          "exec.spreadPredict is not set"
+          "a key with no listed default is just not set"
+      do!
+        refuses
+          state
+          [ "config"; "unset"; "instance.id" ]
+          "cannot be unset"
+          "Unset "
+          "instance.id has no default to go back to"
+      do!
+        refuses
+          state
+          [ "config"; "unset"; "trace.recrod" ]
+          "Did you mean trace.record?"
+          "Unset "
+          "unset refuses a typo like set does"
     })
 
 /// `instance.id` and `instance.name` used to live in `cli-config.json` beside the store, written by

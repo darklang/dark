@@ -10,10 +10,10 @@ let writeConfig(key: String): String =
   Stdlib.LocalStore.path()
 
 let cleanConfig(key: String): Bool =
-  Stdlib.LocalStore.configGet(key) == ""
+  Stdlib.LocalStore.configGet(key) == Stdlib.Option.Option.None
     && Stdlib.Env.get("DARK_MATTER_WRITE_SECRET") == None
 
-let readConfig(key: String): String =
+let readConfig(key: String): Stdlib.Option.Option<String> =
   Stdlib.LocalStore.configGet(key)
 
 test snapshotScopeKeepsTestCounter =
@@ -32,7 +32,7 @@ test nestedWorkerSeesCallingTestWrites =
   | Ok(output) ->
     Stdlib.Test.all(
       [ output.exitCode |> Stdlib.Test.equal(0)
-        output.result |> Stdlib.Test.equal(Ok("written by this test")) ])
+        output.result |> Stdlib.Test.equal(Ok(Stdlib.Option.Option.Some("written by this test"))) ])
 
 test stateAndEnvironmentAreIsolated =
   let parentDb = Stdlib.LocalStore.path()
@@ -50,7 +50,7 @@ test stateAndEnvironmentAreIsolated =
         [ output.exitCode |> Stdlib.Test.equal(0)
           childDb |> Stdlib.Test.notEqual(parentDb)
           Stdlib.Cli.FileSystem.pathExists(childDb) |> Stdlib.Test.equal(false)
-          Stdlib.LocalStore.configGet(key) |> Stdlib.Test.equal("")
+          Stdlib.LocalStore.configGet(key) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
           Darklang.SCM.PackageOps.currentBranch() |> Stdlib.Test.equal(parentBranch)
           match clean with
           | Error(message) -> Stdlib.Test.fail(message)

@@ -180,7 +180,7 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
   // Asking also makes this instance's `instance.id` the first time (the runtime's, not ours).
   let instanceName =
     match Stdlib.LocalStore.configGet("instance.name") with
-    | name when name != "" -> name
+    | Some(name) when name != "" -> name
     | _ ->
       match Stdlib.Cli.Sys.hostname() with
       | Ok(h) -> h

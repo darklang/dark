@@ -2,7 +2,8 @@
 /// tracing knobs, the HTTP settings, and who this install is (`instance.*`).
 ///
 /// F# owns it: which keys exist, what each takes, and which only F# writes. Dark reads and
-/// writes through `configGet` / `configSet`, and `configSet` refuses anything `check` does.
+/// writes through `configGet` / `configSet`, and `configSet` refuses anything `check` (or, for an
+/// unset, `checkUnset`) does.
 ///
 /// Deliberately NOT content-addressed. This is local mutable state -- what one install chooses
 /// for itself -- kept separate from the immutable op log by design.
@@ -44,6 +45,18 @@ let set (key : string) (value : string) : Task<unit> =
         ON CONFLICT(key) DO UPDATE SET value = @value
         """
       |> Sql.parameters [ "key", Sql.string key; "value", Sql.string value ]
+      |> Sql.executeNonQueryAsync
+
+    return ()
+  }
+
+
+/// Forget `key`, so whatever reads it falls back to its default. A no-op if it is not set.
+let unset (key : string) : Task<unit> =
+  task {
+    let! (_ : int) =
+      Sql.query "DELETE FROM config_v0 WHERE key = @key"
+      |> Sql.parameters [ "key", Sql.string key ]
       |> Sql.executeNonQueryAsync
 
     return ()
@@ -128,6 +141,23 @@ let check
   elif key = "current_branch" || key = "current_branch_name" then
     Error $"{key} follows `dark switch`, and cannot be set directly"
   elif List.contains key internalKeys || key.StartsWith testPrefix then
+    Ok()
+  else
+    Error $"{key} is not a config key"
+
+
+/// Why `key` may not be unset, or Ok: the keys `check` takes, less the ones only the runtime
+/// writes, which have no default to go back to.
+let checkUnset (key : string) : Result<unit, string> =
+  if key = "instance.id" then
+    Error "instance.id is made once for this install, and cannot be unset"
+  elif key = "current_branch" || key = "current_branch_name" then
+    Error $"{key} follows `dark switch`, and cannot be unset directly"
+  elif
+    List.contains key settings
+    || List.contains key internalKeys
+    || key.StartsWith testPrefix
+  then
     Ok()
   else
     Error $"{key} is not a config key"
