@@ -750,27 +750,22 @@ let packageTestsRespectParallelLimit =
                 .FullName
             let wrapper =
               System.IO.Path.Combine(instance.dir, $"worker-barrier-{jobs}")
-            System.IO.File.WriteAllText(
-              wrapper,
-              "#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
-              + quote wrapper
-              + "\nfor arg in \"$@\"; do\n"
-              + "  if [ \"$arg\" = \"${HOME}/request.bin\" ] && "
-              + firstAttempt
-              + "; then\n"
-              + "    barrier="
-              + quote barriers
-              + "\n"
-              + "    touch \"$barrier/started-$$\"\n"
-              + "    while [ ! -f \"$barrier/release-$$\" ] && [ ! -f \"$barrier/release-all\" ]; do sleep 0.02; done\n"
-              + "  fi\ndone\nexec "
-              + quote (System.IO.Path.GetFullPath instance.cli)
-              + " \"$@\"\n"
-            )
-            System.IO.File.SetUnixFileMode(
-              wrapper,
-              System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
-            )
+            writeExecutableScript
+              wrapper
+              ("#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
+               + quote wrapper
+               + "\nfor arg in \"$@\"; do\n"
+               + "  if [ \"$arg\" = \"${HOME}/request.bin\" ] && "
+               + firstAttempt
+               + "; then\n"
+               + "    barrier="
+               + quote barriers
+               + "\n"
+               + "    touch \"$barrier/started-$$\"\n"
+               + "    while [ ! -f \"$barrier/release-$$\" ] && [ ! -f \"$barrier/release-all\" ]; do sleep 0.02; done\n"
+               + "  fi\ndone\nexec "
+               + quote (System.IO.Path.GetFullPath instance.cli)
+               + " \"$@\"\n")
             let started () = System.IO.Directory.GetFiles(barriers, "started-*")
             let waitFor count =
               task {
@@ -896,26 +891,21 @@ test writer =
             .CreateDirectory(System.IO.Path.Combine(instance.dir, "launches"))
             .FullName
         let wrapper = System.IO.Path.Combine(instance.dir, "worker-counter")
-        System.IO.File.WriteAllText(
-          wrapper,
-          "#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
-          + quote wrapper
-          + "\nfor arg in \"$@\"; do\n"
-          + "  if [ \"$arg\" = \"${HOME}/request.bin\" ]; then\n"
-          + "    touch "
-          + quote launches
-          + "/launched-$$\n"
-          + "    if [ -L \"${HOME}/.darklang/data.db\" ]; then touch "
-          + quote launches
-          + "/shared-$$; fi\n"
-          + "  fi\ndone\nexec "
-          + quote (System.IO.Path.GetFullPath instance.cli)
-          + " \"$@\"\n"
-        )
-        System.IO.File.SetUnixFileMode(
-          wrapper,
-          System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
-        )
+        writeExecutableScript
+          wrapper
+          ("#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
+           + quote wrapper
+           + "\nfor arg in \"$@\"; do\n"
+           + "  if [ \"$arg\" = \"${HOME}/request.bin\" ]; then\n"
+           + "    touch "
+           + quote launches
+           + "/launched-$$\n"
+           + "    if [ -L \"${HOME}/.darklang/data.db\" ]; then touch "
+           + quote launches
+           + "/shared-$$; fi\n"
+           + "  fi\ndone\nexec "
+           + quote (System.IO.Path.GetFullPath instance.cli)
+           + " \"$@\"\n")
         let! output, code =
           runCliWithStatus
             (Instance { instance with cli = wrapper })
@@ -1076,26 +1066,21 @@ test expected =
           let wrapper = System.IO.Path.Combine(instance.dir, "worker-exits-17")
           let witness = System.IO.Path.Combine(instance.dir, "worker-exits")
           let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
-          System.IO.File.WriteAllText(
-            wrapper,
-            "#!/bin/sh\n"
-            + "export DARK_CLI_UNDER_TEST="
-            + quote wrapper
-            + "\n"
-            + quote (System.IO.Path.GetFullPath instance.cli)
-            + " \"$@\"\n"
-            + "rc=$?\n"
-            + "for arg in \"$@\"; do\n"
-            + "  if [ \"$arg\" = \"${HOME}/request.bin\" ] && [ \"$rc\" -eq 0 ]; then\n"
-            + "    echo 17 >> "
-            + quote witness
-            + "\n"
-            + "    exit 17\n  fi\ndone\nexit \"$rc\"\n"
-          )
-          System.IO.File.SetUnixFileMode(
-            wrapper,
-            System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
-          )
+          writeExecutableScript
+            wrapper
+            ("#!/bin/sh\n"
+             + "export DARK_CLI_UNDER_TEST="
+             + quote wrapper
+             + "\n"
+             + quote (System.IO.Path.GetFullPath instance.cli)
+             + " \"$@\"\n"
+             + "rc=$?\n"
+             + "for arg in \"$@\"; do\n"
+             + "  if [ \"$arg\" = \"${HOME}/request.bin\" ] && [ \"$rc\" -eq 0 ]; then\n"
+             + "    echo 17 >> "
+             + quote witness
+             + "\n"
+             + "    exit 17\n  fi\ndone\nexit \"$rc\"\n")
           let wrapped = Instance { instance with cli = wrapper }
           let! (output, code) =
             runCliWithStatus
@@ -1121,27 +1106,20 @@ test expected =
           // A worker may exit before writing its result, even with exit code 0.
           // Dark must reject both cases and preserve the diagnostic output.
           for workerExit in [ 0; 23 ] do
-            // Keep each executable unchanged after launch; rewriting one can
-            // race with the OS releasing it and produce "Text file busy".
             let wrapper =
               System.IO.Path.Combine(instance.dir, $"worker-no-result-{workerExit}")
-            System.IO.File.WriteAllText(
-              wrapper,
-              "#!/bin/sh\n"
-              + "export DARK_CLI_UNDER_TEST="
-              + quote wrapper
-              + "\nfor arg in \"$@\"; do\n"
-              + "  if [ \"$arg\" = \"${HOME}/request.bin\" ]; then\n"
-              + "    echo 'worker stdout'\n    echo 'worker stderr' >&2\n"
-              + $"    exit {workerExit}\n  fi\ndone\n"
-              + "exec "
-              + quote (System.IO.Path.GetFullPath instance.cli)
-              + " \"$@\"\n"
-            )
-            System.IO.File.SetUnixFileMode(
-              wrapper,
-              System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
-            )
+            writeExecutableScript
+              wrapper
+              ("#!/bin/sh\n"
+               + "export DARK_CLI_UNDER_TEST="
+               + quote wrapper
+               + "\nfor arg in \"$@\"; do\n"
+               + "  if [ \"$arg\" = \"${HOME}/request.bin\" ]; then\n"
+               + "    echo 'worker stdout'\n    echo 'worker stderr' >&2\n"
+               + $"    exit {workerExit}\n  fi\ndone\n"
+               + "exec "
+               + quote (System.IO.Path.GetFullPath instance.cli)
+               + " \"$@\"\n")
             let wrapped = Instance { instance with cli = wrapper }
             for target in [ "passes"; "expected" ] do
               let! (output, code) =

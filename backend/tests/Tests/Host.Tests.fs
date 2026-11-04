@@ -962,19 +962,17 @@ let isolatedTestBoundsOutputCollection =
               $"{quote launcher} --process-launch /bin/sh {quote nested} &\nwait\n"
             else
               $"sleep 30 {redirect} &\necho $! > '{pidFile}'\n{ending}\n"
-          System.IO.File.WriteAllText(script, "#!/bin/sh\n" + body)
-          System.IO.File.SetUnixFileMode(
-            script,
-            System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
-          )
+          // Run through /bin/sh rather than exec'ing the file just written: a child that
+          // another test forks meanwhile can hold it open and fail the exec "Text file busy".
+          System.IO.File.WriteAllText(script, body)
           let outcome =
             LibExecution.HostProcess.runInWorkspace
               launcher
               "dark-worker-check-"
               (fun _ ->
                 Ok(
-                  { program = script
-                    arguments = []
+                  { program = "/bin/sh"
+                    arguments = [ script ]
                     environment = []
                     files = []
                     directories = []
