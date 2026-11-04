@@ -164,6 +164,7 @@ type UntrustedBuiltin =
 /// resolver and could only ever say `Type #a1b2c3d4`, while `contextToStringWith` can
 /// look the hash up and say what the author called it.
 type Context =
+  | InStringInterpolation of Context
   | NoDetail
   | At of Site
   | Unresolved of List<String>
@@ -463,7 +464,7 @@ let siteToString(site: Site): String =
   | IfWithoutElse -> "an if without an else"
   | RecordFieldAccess -> "this field access"
   | InterpolatedSegment ->
-    "this interpolated segment, which must already be a String"
+    "this string interpolation"
   | UnitLetPattern -> "a unit let-pattern"
   | TupleLetPattern -> "a tuple let-pattern"
   | MatchPattern -> "a match pattern"
@@ -543,6 +544,14 @@ let contextToStringWith(
   let name = (fun ref -> nameRefToStringWith(customTypeName, ref))
 
   match context with
+  | InStringInterpolation(TraitNeeded(_, _)) when code == IssueCode.MissingImpl ->
+    let subject =
+      match actualName with
+      | Some(name) -> name
+      | None -> "this type"
+    $"Cannot interpolate {subject}: it has no ToString implementation."
+  | InStringInterpolation(inner) ->
+    "In string interpolation: " + contextToStringWith(customTypeName, actualName, code, inner)
   | NoDetail -> ""
   | At(site) -> $"In {siteToString(site)}"
   | Unresolved(parts) ->
@@ -712,7 +721,11 @@ let issueToStringWith(
     | Some(actual) ->
       Stdlib.Option.Option.Some(staticTypeToStringWith(customTypeName, actual))
     | None -> Stdlib.Option.Option.None
-  (contextToStringWith(customTypeName, actualName, issue.code, issue.context)) + detail
+  match (issue.context, issue.code, actualName) with
+  | (At(InterpolatedSegment), TypeMismatch, Some(actual)) ->
+    $"String interpolation conversion must return String; got {actual}."
+  | _ ->
+    (contextToStringWith(customTypeName, actualName, issue.code, issue.context)) + detail
 
 let issueToString(issue: Issue): String =
   issueToStringWith((fun _ -> Stdlib.Option.Option.None), issue)

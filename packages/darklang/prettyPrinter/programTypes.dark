@@ -718,7 +718,13 @@ let stringSegment(ctx: Context, s: LanguageTools.ProgramTypes.StringSegment): St
     PrettyPrinter.escapeSpecialCharacters(text)
     |> fun t -> Stdlib.String.replaceAll(t, "{", "{{")
     |> fun t -> Stdlib.String.replaceAll(t, "}", "}}")
-  | StringInterpolation(interpolationExpr) -> $"{{{expr(ctx, interpolationExpr)}}}"
+  | StringInterpolation(interpolationExpr) ->
+    let body =
+      match interpolationExpr with
+      | EApply(_, EFnName(_, name, _), [], [ inner ]) when
+          name.originalName == [ "Darklang", "Stdlib", "ToString", "toString" ] -> inner
+      | _ -> interpolationExpr
+    $"{{{expr(ctx, body)}}}"
 
 /// Parenthesize a Doc and indent its broken layout past the opening paren.
 let parens(d: Stdlib.Pretty.Doc): Stdlib.Pretty.Doc =

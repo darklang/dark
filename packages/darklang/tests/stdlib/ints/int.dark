@@ -56,6 +56,9 @@ test largePowers =
 test toStringAndParse =
   Stdlib.Test.all(
     [ Stdlib.toString(5) |> Stdlib.Test.equal("5")
+      Stdlib.toString(-5) |> Stdlib.Test.equal("-5")
+      Stdlib.toString(-9223372036854775809)
+      |> Stdlib.Test.equal("-9223372036854775809")
       Stdlib.toString(9223372036854775808)
       |> Stdlib.Test.equal("9223372036854775808")
       Stdlib.Int.parse("9223372036854775808")

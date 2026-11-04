@@ -240,6 +240,36 @@ let checkFunction(
   : (Outcome * Model.Environment) =
   checkFunctionKnowing(env, fn, NodeIds.problem(fn.body))
 
+/// Attach interpolation context only to findings on the implicit conversion.
+let interpolationContext(body: LanguageTools.ProgramTypes.Expr, outcome: Outcome): Outcome =
+  let collect(nodes: List<NodeIds.Node>, ids: List<UInt64>): List<UInt64> =
+    match nodes with
+    | [] -> ids
+    | [ node, ...rest ] ->
+      let ids =
+        match node with
+        | Expression(EString(_, segments)) ->
+          Stdlib.List.fold(segments, ids, fun(ids, segment) ->
+            match segment with
+            | StringInterpolation(EApply(callId, EFnName(nameId, name, _), [], [ _ ])) when
+                name.originalName == [ "Darklang", "Stdlib", "ToString", "toString" ] ->
+              Stdlib.List.concat([ toUInt64(callId), toUInt64(nameId) ], ids)
+            | _ -> ids)
+        | _ -> ids
+      let (_, children) = NodeIds.children(node)
+      collect(Stdlib.List.concat(children, rest), ids)
+  let ids =
+    if Stdlib.List.isEmpty(outcome.diagnostics) && Stdlib.List.isEmpty(outcome.warnings) then []
+    else collect([ NodeIds.Node.Expression(body) ], [])
+  let contextualize(issue: Issue): Issue =
+    match issue.nodeId with
+    | Some(id) when Stdlib.List.contains(ids, id) ->
+      { issue with context = Context.InStringInterpolation(issue.context) }
+    | _ -> issue
+  { outcome with
+      diagnostics = Stdlib.List.map(outcome.diagnostics, contextualize)
+      warnings = Stdlib.List.map(outcome.warnings, contextualize) }
+
 /// `checkFunction`, given what `NodeIds.problem` says about the body, for a caller that has
 /// already walked it (`NodeIds.inspect`).
 let checkFunctionKnowing(
@@ -290,7 +320,7 @@ let checkFunctionKnowing(
 
   let s = Solve.solve(Solve.start(env), constraints)
   let bodyId = LanguageTools.ProgramTypes.Expr.toID(fn.body)
-  (finish(s, Stdlib.Option.Option.Some(bodyId), monomorphic(self)), s.env)
+  (interpolationContext(fn.body, finish(s, Stdlib.Option.Option.Some(bodyId), monomorphic(self))), s.env)
 
 /// Solve the requirements prepared for a package value and infer its type.
 /// Allow a reusable generic type only for bodies accepted by isNonExpansive,
@@ -310,7 +340,7 @@ let checkValue(
       (monomorphic(typ), s)
 
   let bodyId = LanguageTools.ProgramTypes.Expr.toID(value.body)
-  (finish(s, Stdlib.Option.Option.Some(bodyId), scheme), s.env)
+  (interpolationContext(value.body, finish(s, Stdlib.Option.Option.Some(bodyId), scheme)), s.env)
 
 /// Check duplicate type parameters and member names, then include validation
 /// problems from this type declaration and the declarations it depends on.
@@ -599,7 +629,7 @@ let checkTest(
 
   let s = Solve.solve(Solve.start(env), constraints)
   let bodyId = LanguageTools.ProgramTypes.Expr.toID(test.body)
-  (finish(s, Stdlib.Option.Option.Some(bodyId), monomorphic(typ)), s.env)
+  (interpolationContext(test.body, finish(s, Stdlib.Option.Option.Some(bodyId), monomorphic(typ))), s.env)
 
 /// Check each test against env. Nothing can reference a test, so no test's
 /// result feeds another declaration's check.

@@ -544,6 +544,30 @@ module ThroughADependency =
     check("let f(): String = Stdlib.toString(fun x -> x)", "f")
     |> Stdlib.Test.equal("failed:MissingImpl")
 
+module StringInterpolation =
+  test conversionResultMessage =
+    Darklang.LanguageTools.AtRestTypeChecker.issueToString(
+      Darklang.LanguageTools.AtRestTypeChecker.Issue
+        { code = Darklang.LanguageTools.AtRestTypeChecker.IssueCode.TypeMismatch
+          nodeId = None
+          expected = Some(Darklang.LanguageTools.AtRestTypeChecker.StaticType.TString)
+          actual = Some(Darklang.LanguageTools.AtRestTypeChecker.StaticType.TInt64)
+          context =
+            Darklang.LanguageTools.AtRestTypeChecker.Context.At(
+              Darklang.LanguageTools.AtRestTypeChecker.Site.InterpolatedSegment) })
+    |> Stdlib.Test.equal("String interpolation conversion must return String; got Int64.")
+
+  test acceptsToString =
+    check("let f(n: Int64): String = $\"Int: {n}\"", "f")
+    |> Stdlib.Test.equal("checked:")
+  test mismatchNamesInterpolation =
+    issues("let f(n: Int64 -> Int64): String = $\"function: {n}\"", "f")
+    |> Stdlib.List.map(fun issue ->
+      Stdlib.String.contains(issue, "Cannot interpolate ")
+      && Stdlib.String.contains(issue, ": it has no ToString implementation."))
+    |> Stdlib.Test.equal(
+      [ true ])
+
 module Basics =
   test argumentAndReturnTypes =
     Stdlib.Test.all(

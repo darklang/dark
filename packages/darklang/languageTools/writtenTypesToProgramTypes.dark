@@ -716,11 +716,17 @@ module Expr =
         |> Stdlib.List.map(fun s ->
           match s with
           | StringText(_, s) -> (ProgramTypes.StringSegment.StringText(s), [])
-          | StringInterpolation(_, expr, _, _) ->
+          | StringInterpolation(range, expr, _, _) ->
             let (expr, unresolvedNames) =
               Expr.toPT(ctx, context, expr)
 
-            (ProgramTypes.StringSegment.StringInterpolation(expr),
+            let conversion =
+              NameResolver.FnName.resolve(ctx,
+                WrittenTypes.Name.Unresolved(range,
+                  [ "Darklang", "Stdlib", "ToString", "toString" ]))
+            let converted = ProgramTypes.Expr.EApply(gid(),
+              ProgramTypes.Expr.EFnName(gid(), conversion, []), [], [ expr ])
+            (ProgramTypes.StringSegment.StringInterpolation(converted),
               unresolvedNames))
         |> Stdlib.List.unzip
 

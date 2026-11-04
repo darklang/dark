@@ -367,7 +367,7 @@ module Identities =
         |> Stdlib.Test.equal(Multi.Vec { dx = 4, dy = 6 }) ])
 
 module Rendering =
-  // `ToString` is the trait behind every builtin type's `toString`
+  // `ToString` provides text rendering for supported standard-library and custom types.
   type Point = { x: Int64, y: Int64 }
 
   impl Stdlib.ToString for Point =

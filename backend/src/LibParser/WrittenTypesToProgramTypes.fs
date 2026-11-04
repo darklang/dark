@@ -801,8 +801,26 @@ module Expr =
     // Normalize literal text to match string tokenization.
     | WT.StringText(_, text) -> Ply(PT.StringText(String.normalize text))
     | WT.StringInterpolation(_, expr, _, _) ->
-      toPT builtins pm onMissing currentModule context expr
-      |> Ply.map (fun interpolated -> PT.StringInterpolation interpolated)
+      uply {
+        let! interpolated = toPT builtins pm onMissing currentModule context expr
+        let! conversion =
+          resolveFnAllow
+            builtins
+            pm
+            currentModule
+            (WT.Unresolved(
+              NEList.ofList "Darklang" [ "Stdlib"; "ToString"; "toString" ]
+            ))
+        return
+          PT.StringInterpolation(
+            PT.EApply(
+              gid (),
+              PT.EFnName(gid (), conversion, []),
+              [],
+              NEList.singleton interpolated
+            )
+          )
+      }
 
   and pipeExprToPT
     (builtins : RT.Builtins)
