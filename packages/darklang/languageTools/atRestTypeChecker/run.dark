@@ -473,7 +473,16 @@ let checkQuery(
   // And the pool's declarations registered and prepared once, which every piece otherwise did
   // for its own copy. Only when the pool's types are closed (everything they reference is in it),
   // since a type's facts are worked out from what it references.
-  let base = baseFor(branchId, pool)
+  //
+  // Implementations are read on first use and kept for the rest of a piece, so pieces starting
+  // from one base would each read them again. When there is more than one piece, the base
+  // reads them all once instead.
+  let base =
+    if Stdlib.List.length(unique) > size then
+      (baseFor(branchId, pool))
+      |> Stdlib.Option.map(fun b -> { b with env = Environment.withAllTraitImpls(b.env) })
+    else
+      baseFor(branchId, pool)
 
   match Stdlib.List.chunkBySize(unique, size) with
   | Ok(chunks) ->
