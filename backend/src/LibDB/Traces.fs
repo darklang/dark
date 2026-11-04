@@ -495,7 +495,23 @@ let log
             | _ -> None
           with _ ->
             None
-        let call : Tracing.RecordedCall = { builtin = builtin; args = args }
+        // A spawn is performed again rather than answered, but the handle it returned names the
+        // recorded child, which is how a resume finds that child's rows for the new one.
+        let spawned =
+          if builtin = "execSpawn" then
+            try
+              match BinarySer.RT.Dval.deserialize "trace_fn_calls.result" bytes with
+              | RT.DRecord(_, _, _, fields) ->
+                match Map.tryFind "id" fields with
+                | Some(RT.DUuid child) -> Some child
+                | _ -> None
+              | _ -> None
+            with _ ->
+              None
+          else
+            None
+        let call : Tracing.RecordedCall =
+          { builtin = builtin; args = args; spawned = spawned }
         if Set.contains builtin Tracing.Redact.performAgain then
           Some(g, ord, RT.Tracing.ReplayStep.PerformOnce, call)
         else
