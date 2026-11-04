@@ -358,23 +358,8 @@ let private installAuditLog () : unit =
     let lockObj = obj ()
     LibExecution.Host.setAuditSink (fun op outcome ->
       try
-        let decision, layer, detail =
-          match outcome with
-          | LibExecution.HostTypes.Outcome.Success _ -> "allowed", "", ""
-          | LibExecution.HostTypes.Outcome.Denied(layer, _, resource, _) ->
-            "denied", string layer, resource
-          | LibExecution.HostTypes.Outcome.Failed failure ->
-            "failed", "", failure.message
-          | LibExecution.HostTypes.Outcome.Rejected m -> "rejected", "", m
-        let detail = LibExecution.HostTypes.redactAuditDetail op detail
         let line =
-          System.Text.Json.JsonSerializer.Serialize(
-            {| ts = System.DateTime.UtcNow.ToString("o")
-               op = LibExecution.HostTypes.describeOperation op
-               decision = decision
-               layer = layer
-               detail = detail |}
-          )
+          LibExecution.HostTypes.auditLine System.DateTime.UtcNow op outcome
         lock lockObj (fun () -> System.IO.File.AppendAllText(logPath, line + "\n"))
       with _ ->
         ())

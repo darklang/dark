@@ -61,6 +61,47 @@ let auditRecordsOperationsAndDecisions =
       "denial details are redacted too"
   }
 
+let auditLineIsJsonWithTheLoggedFields =
+  testTask
+    "an audit line is one JSON object, written without the reflecting serializer" {
+    // The published (AOT) binary has no reflection-based JsonSerializer. The audit sink used
+    // it, threw, swallowed the throw, and release builds logged nothing.
+    let op =
+      HT.Operation.HttpRequest(
+        HT.HttpProfile.Guest,
+        "GET",
+        "https://x/y?token=s",
+        [],
+        [||]
+      )
+    let access = Permission.Access.start Permission.Policy.denyAll
+    let! outcome = LibExecution.Host.perform Permission.NoRelax access op
+    let now = System.DateTime(2026, 1, 2, 3, 4, 5, System.DateTimeKind.Utc)
+    let line = HT.auditLine now op outcome
+    Expect.isFalse (line.Contains "\n") "one line per entry"
+    Expect.isFalse (line.Contains "token=s") "the query never reaches the log"
+    let doc = System.Text.Json.JsonDocument.Parse line
+    let field (name : string) = doc.RootElement.GetProperty(name).GetString()
+    let names =
+      doc.RootElement.EnumerateObject() |> Seq.map (fun p -> p.Name) |> Seq.toList
+    Expect.equal
+      names
+      [ "decision"; "detail"; "layer"; "op"; "ts" ]
+      "same fields as before"
+    Expect.equal (field "decision") "denied" "decision"
+    Expect.equal (field "layer") "Instance" "layer"
+    Expect.equal (field "op") "http GET https://x/y?<redacted>" "op"
+    Expect.equal (field "ts") (now.ToString "o") "timestamp"
+    let rejected =
+      HT.auditLine now HT.Operation.DirectoryCurrent (HT.Outcome.Rejected "no")
+    let doc = System.Text.Json.JsonDocument.Parse rejected
+    Expect.equal
+      (doc.RootElement.GetProperty("decision").GetString())
+      "rejected"
+      "rejected"
+    Expect.equal (doc.RootElement.GetProperty("detail").GetString()) "no" "detail"
+  }
+
 let httpServerBindUsesTheSuppliedAccess =
   testTask "HTTP server bind is denied before touching the socket" {
     let access = Permission.Access.start Permission.Policy.denyAll
@@ -1133,6 +1174,7 @@ let tests =
       isolatedTestBoundsOutputCollection
       isolatedTestPreservesFailureWhenCleanupFails
       auditRecordsOperationsAndDecisions
+      auditLineIsJsonWithTheLoggedFields
       httpServerBindUsesTheSuppliedAccess
       rawDescriptorsRequireNativeAtHostBoundary
       scopedDescriptorsRecheckAccessAndOwnership
