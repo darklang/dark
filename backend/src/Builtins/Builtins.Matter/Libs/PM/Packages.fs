@@ -333,6 +333,33 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // Whether a stored value has its runtime value, so a save can say which values failed to
+    // evaluate without Dark reading `package_values` itself.
+    { name = fn "pmValueEvaluated" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "valueHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "Hash of the package value" ]
+      returnType = TBool
+      description =
+        "Returns true if the package value at this hash has been evaluated and its result "
+        + "stored. False if its evaluation never ran or failed, or if there is no such value."
+      fn =
+        (function
+        | _, _, _, [| hashDval |] ->
+          uply {
+            let (PT.Hash h) = PT2DT.Hash.fromDT hashDval
+            let! evaluated = RTPM.Value.isEvaluated (Hash h)
+            return DBool evaluated
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
     // traits and impls
     getByHashFn
       "pmGetTrait"

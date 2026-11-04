@@ -135,12 +135,10 @@ let unevaluatedValuesBoundBy(
     | _ -> Stdlib.Option.Option.None)
 
 
+/// Whether the value at <param hash> has a stored runtime value: false when its evaluation never ran
+/// or failed, and when there is no such value.
 let valueEvaluated(hash: String): Bool =
-  Stdlib.Sqlite.queryOneP(
-    localDb(),
-    "SELECT 1 AS ok FROM package_values WHERE hash = @p0 AND rt_dval IS NOT NULL",
-    [ hash ])
-  |> Stdlib.Option.isSome
+  Builtin.pmValueEvaluated(LanguageTools.ProgramTypes.Hash.Hash(hash))
 
 
 /// Drop the bindings to exactly these (name, hash) pairs from the draft, leaving the name on
