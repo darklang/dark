@@ -27,6 +27,8 @@ let statusTypeName () = FQTypeName.fqPackage (TracesRefs.status ())
 let inputVarTypeName () = FQTypeName.fqPackage (TracesRefs.inputVar ())
 let fnCallTypeName () = FQTypeName.fqPackage (TracesRefs.fnCall ())
 let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
+let traceQueryTypeName () = FQTypeName.fqPackage (TracesRefs.traceQuery ())
+let traceSelectionTypeName () = FQTypeName.fqPackage (TracesRefs.traceSelection ())
 
 
 /// Columns read by traceRowToDT, qualified to avoid ambiguous names in joins.
@@ -211,6 +213,65 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
   }
 
 
+/// The rows a `Tracing.TraceQuery` asks for, as SQL with its parameters. Every value is bound,
+/// none spliced, so nothing a person typed can change the statement.
+let private traceQuerySql (vm : VMState) (query : Dval) =
+  let newestFirst = "ORDER BY t.timestamp DESC, t.rowid DESC LIMIT @limit"
+  match query with
+  | DEnum(_, _, _, "Newest", [ DInt limit ]) ->
+    $"SELECT {traceColumns} {fromTraces} {newestFirst}",
+    [ "limit", Sql.int64 (intToInt64 vm limit) ]
+
+  | DEnum(_, _, _, "Calling", [ DString fnName; DInt limit ]) ->
+    // Both builtins and package fns store their display name in fn_hash (resolved at write
+    // time), so one LIKE matches either. `%` and `_` are escaped so a literal one in the name
+    // matches itself rather than any string.
+    let escaped = fnName.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")
+    $"SELECT DISTINCT {traceColumns} {fromTraces}
+      JOIN trace_fn_calls c ON t.id = c.trace_id
+      WHERE c.fn_hash LIKE @pattern ESCAPE '\\'
+      {newestFirst}",
+    [ "pattern", Sql.string $"%%{escaped}%%"
+      "limit", Sql.int64 (intToInt64 vm limit) ]
+
+  | DEnum(_, _, _, "WentThrough", [ DString fnName; DString fnHash; DInt limit ]) ->
+    // By name OR by hash: see `Tracing.Store.wentThrough` for why it takes both.
+    $"SELECT {traceColumns} {fromTraces}
+      JOIN trace_fns f ON f.trace_id = t.id
+      WHERE f.fn_name = @fn
+         OR (@hash <> '' AND f.fn_hash = @hash)
+      {newestFirst}",
+    [ "fn", Sql.string fnName
+      "hash", Sql.string fnHash
+      "limit", Sql.int64 (intToInt64 vm limit) ]
+
+  | DEnum(_, _, _, "ById", [ DString traceID ]) ->
+    $"SELECT {traceColumns} {fromTraces} WHERE t.id = @id {newestFirst}",
+    [ "id", Sql.string traceID; "limit", Sql.int64 1L ]
+
+  | _ -> Exception.raiseInternal "not a Tracing.TraceQuery" [ "query", query ]
+
+/// The ids a `Tracing.TraceSelection` names, for the cases that delete by id.
+let private selectedIds
+  (selection : Dval)
+  : System.Threading.Tasks.Task<List<string>> =
+  let ids (sql : string) ps =
+    Sql.query sql
+    |> Sql.parameters ps
+    |> Sql.executeAsync (fun read -> read.string "id")
+  match selection with
+  | DEnum(_, _, _, "One", [ DString traceID ]) ->
+    ids "SELECT id FROM traces WHERE id = @id" [ "id", Sql.string traceID ]
+  | DEnum(_, _, _, "All", []) -> ids "SELECT id FROM traces" []
+  | DEnum(_, _, _, "Before", [ DString cutoff ]) ->
+    // The timestamp column is ISO 8601, which sorts as text the way it sorts as time.
+    ids
+      "SELECT id FROM traces WHERE timestamp < @cutoff"
+      [ "cutoff", Sql.string cutoff ]
+  | _ ->
+    Exception.raiseInternal "not a Tracing.TraceSelection" [ "selection", selection ]
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "tracesRecording" 0
       typeParams = []
@@ -255,27 +316,112 @@ let fns () : List<BuiltInFn> =
       callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
 
-    { name = fn "tracesList" 0
+    { name = fn "tracesRead" 0
       typeParams = []
-      parameters = [ Param.make "limit" TInt "Max number of traces to return" ]
+      parameters =
+        [ Param.make
+            "query"
+            (TCustomType(NR.ok (traceQueryTypeName ()), []))
+            "which runs: the newest, those that called a function, those that went through one, or one by id" ]
       returnType = TList(TCustomType(NR.ok (traceTypeName ()), []))
-      description = "The most recent runs, newest first."
+      description =
+        "The runs a `Tracing.TraceQuery` asks for, newest first. Every trace row Dark reads "
+        + "comes through here, so the table's layout stays an F# matter."
       fn =
         (function
-        | _, vm, _, [| DInt limitArg |] ->
-          let limit = intToInt64 vm limitArg
+        | _, vm, _, [| query |] ->
           uply {
-            let typeName = traceTypeName ()
+            let sql, ps = traceQuerySql vm query
             let! rows =
-              Sql.query
-                $"SELECT {traceColumns}
-                  {fromTraces}
-                  ORDER BY t.timestamp DESC, t.rowid DESC
-                  LIMIT @limit"
-              |> Sql.parameters [ "limit", Sql.int64 limit ]
-              |> Sql.executeAsync traceRowToDT
+              Sql.query sql |> Sql.parameters ps |> Sql.executeAsync traceRowToDT
+            return rows |> Dval.list (KTCustomType(traceTypeName (), []))
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.TraceRead ]
+      deprecated = NotDeprecated }
 
-            return rows |> Dval.list (KTCustomType(typeName, []))
+
+    { name = fn "tracesDelete" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "which"
+            (TCustomType(NR.ok (traceSelectionTypeName ()), []))
+            "one run by full id, every run, the runs before a cutoff, or all but the newest few" ]
+      returnType = TInt
+      description =
+        "Delete the runs a `Tracing.TraceSelection` names, with their calls and the executions "
+        + "they were the logs of. Returns how many runs went. `AllButNewest` is the same pass "
+        + "retention runs after every store, so it keeps any run a suspended execution still "
+        + "needs."
+      fn =
+        (function
+        | _, vm, _, [| DEnum(_, _, _, "AllButNewest", [ DInt keepNArg ]) |] ->
+          let keepN = intToInt64 vm keepNArg
+          let deleted = LibDB.Tracing.TraceRetention.prune (Some keepN) None
+          LibDB.Tracing.TraceRetention.sweepOrphans ()
+          Dval.int (bigint deleted) |> Ply
+        | _, _, _, [| (DEnum _ as which) |] ->
+          uply {
+            let! ids = selectedIds which
+            match which, ids with
+            // One id nobody has: nothing to do, and no sweep either.
+            | DEnum(_, _, _, "One", _), [] -> ()
+            | _ ->
+              LibDB.Tracing.TraceRetention.deleteTraces ids
+              LibDB.Tracing.TraceRetention.sweepOrphans ()
+            return Dval.int (bigint (List.length ids))
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.TraceWrite ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "tracesSetPinned" 0
+      typeParams = []
+      parameters =
+        [ Param.make "traceID" TString "the full id"; Param.make "pinned" TBool "" ]
+      returnType = TBool
+      description =
+        "Pin a run so retention never drops it, or unpin it. Returns whether a run had that id."
+      fn =
+        (function
+        | _, _, _, [| DString traceID; DBool pinned |] ->
+          uply {
+            let! found = LibDB.Traces.setPinned traceID pinned
+            return DBool found
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.TraceWrite ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "tracesResolveId" 0
+      typeParams = []
+      parameters =
+        [ Param.make "prefix" TString "the start of a run's id, as typed" ]
+      returnType = TypeReference.result TString (TList TString)
+      description =
+        "The one run whose id starts with this. Otherwise an error listing the candidates, "
+        + "newest first: empty when nothing matches, and at most six when several do, which is "
+        + "enough to tell one more from many more. The prefix is matched as plain text."
+      fn =
+        (function
+        | _, _, _, [| DString prefix |] ->
+          uply {
+            let! ids = LibDB.Traces.idsStartingWith prefix 6
+            let errKT = KTList(ValueType.Known KTString)
+            match ids with
+            | [ id ] -> return Dval.resultOk KTString errKT (DString id)
+            | candidates ->
+              return
+                Dval.resultError
+                  KTString
+                  errKT
+                  (candidates |> List.map DString |> Dval.list KTString)
           }
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -324,49 +470,6 @@ let fns () : List<BuiltInFn> =
                 DRecord(typeName, typeName, [], fields)
                 |> Dval.optionSome (KTCustomType(typeName, []))
             | None -> return Dval.optionNone (KTCustomType(typeName, []))
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.TraceRead ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "tracesListByFn" 0
-      typeParams = []
-      parameters =
-        [ Param.make "fnName" TString "Function name to search for"
-          Param.make "limit" TInt "Max number of traces to return" ]
-      returnType = TList(TCustomType(NR.ok (traceTypeName ()), []))
-      description = "The most recent runs that called a specific function"
-      fn =
-        (function
-        | _, vm, _, [| DString fnName; DInt limitArg |] ->
-          let limit = intToInt64 vm limitArg
-          uply {
-            // Both builtins and package fns store their display name in
-            // fn_hash (resolved at write time), so one LIKE matches either.
-            let typeName = traceTypeName ()
-            // Escape SQL LIKE wildcards so a literal `%` or `_` in the
-            // user-supplied fnName matches a literal char, not any string.
-            let escaped =
-              fnName
-              |> fun s -> s.Replace(@"\", @"\\")
-              |> fun s -> s.Replace("%", @"\%")
-              |> fun s -> s.Replace("_", @"\_")
-            let pattern = $"%%{escaped}%%"
-            let! rows =
-              Sql.query
-                $"SELECT DISTINCT {traceColumns}
-                  {fromTraces}
-                  JOIN trace_fn_calls c ON t.id = c.trace_id
-                  WHERE c.fn_hash LIKE @pattern ESCAPE '\\'
-                  ORDER BY t.timestamp DESC, t.rowid DESC
-                  LIMIT @limit"
-              |> Sql.parameters
-                [ "pattern", Sql.string pattern; "limit", Sql.int64 limit ]
-              |> Sql.executeAsync traceRowToDT
-
-            return rows |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -628,126 +731,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "tracesClearBefore" 0
-      typeParams = []
-      parameters =
-        [ Param.make
-            "cutoffISO"
-            TString
-            "ISO 8601 timestamp (e.g. 2026-05-02T01:00:00Z); traces with timestamp < cutoff are deleted." ]
-      returnType = TInt
-      description =
-        "Delete runs older than the given cutoff, with their calls. Returns count deleted. Caller is responsible for computing the cutoff (e.g. `DateTime.now() |> subtractSeconds 3600` for 'last hour')."
-      fn =
-        (function
-        | _, _, _, [| DString cutoffISO |] ->
-          uply {
-            // The timestamp column is ISO 8601, which sorts as text the way it sorts as time.
-            let! ids =
-              Sql.query "SELECT id FROM traces WHERE timestamp < @cutoff"
-              |> Sql.parameters [ "cutoff", Sql.string cutoffISO ]
-              |> Sql.executeAsync (fun read -> read.string "id")
-            LibDB.Tracing.TraceRetention.deleteTraces ids
-            LibDB.Tracing.TraceRetention.sweepOrphans ()
-            return Dval.int (bigint (List.length ids))
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.TraceWrite ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "tracesClear" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "Ignored" ]
-      returnType = TInt
-      description = "Delete every run and its calls. Returns how many runs went."
-      fn =
-        (function
-        | _, _, _, [| DUnit |] ->
-          uply {
-            let! ids =
-              Sql.query "SELECT id FROM traces"
-              |> Sql.executeAsync (fun read -> read.string "id")
-            LibDB.Tracing.TraceRetention.deleteTraces ids
-            LibDB.Tracing.TraceRetention.sweepOrphans ()
-            return Dval.int (bigint (List.length ids))
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.TraceWrite ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "tracesDelete" 0
-      typeParams = []
-      parameters = [ Param.make "traceID" TString "Full trace ID to delete" ]
-      returnType = TInt
-      description =
-        "Delete one trace, its calls and the execution it was the log of. Returns 1 if a row was deleted, 0 otherwise. Caller is responsible for resolving prefixes via tracesResolveID first."
-      fn =
-        (function
-        | _, _, _, [| DString traceID |] ->
-          uply {
-            let! existed =
-              Sql.query "SELECT 1 AS x FROM traces WHERE id = @traceId LIMIT 1"
-              |> Sql.parameters [ "traceId", Sql.string traceID ]
-              |> Sql.executeRowOptionAsync (fun _ -> ())
-            match existed with
-            | None -> return Dval.int 0I
-            | Some _ ->
-              LibDB.Tracing.TraceRetention.deleteTraces [ traceID ]
-              LibDB.Tracing.TraceRetention.sweepOrphans ()
-              return Dval.int 1I
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.TraceWrite ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "tracesPruneKeep" 0
-      typeParams = []
-      parameters = [ Param.make "keepN" TInt "Number of most-recent traces to keep" ]
-      returnType = TInt
-      description =
-        "Delete all but the N most recent traces, keeping any a suspended execution still needs; the same pass retention runs after every store. Returns the count deleted."
-      fn =
-        (function
-        | _, vm, _, [| DInt keepNArg |] ->
-          let keepN = intToInt64 vm keepNArg
-          let deleted = LibDB.Tracing.TraceRetention.prune (Some keepN) None
-          LibDB.Tracing.TraceRetention.sweepOrphans ()
-          Dval.int (bigint deleted) |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.TraceWrite ]
-      deprecated = NotDeprecated }
-
-
-    // ───────── a trace is a run: getting one, resuming it, forking it, pinning it ─────────
-
-    { name = fn "tracesGet" 0
-      typeParams = []
-      parameters = [ Param.make "traceID" TString "" ]
-      returnType = TypeReference.option (TCustomType(NR.ok (traceTypeName ()), []))
-      description = "One run, or None for an id nobody has."
-      fn =
-        (function
-        | _, _, _, [| DString traceID |] ->
-          uply {
-            let typeName = traceTypeName ()
-            let! row =
-              Sql.query $"SELECT {traceColumns} {fromTraces} WHERE t.id = @id"
-              |> Sql.parameters [ "id", Sql.string traceID ]
-              |> Sql.executeRowOptionAsync traceRowToDT
-            return Dval.option (KTCustomType(typeName, [])) row
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.TraceRead ]
-      deprecated = NotDeprecated }
-
+    // ───────── a trace is a run: resuming it, forking it ─────────
 
     { name = fn "tracesFork" 0
       typeParams = []
@@ -803,50 +787,6 @@ let fns () : List<BuiltInFn> =
       callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
 
-
-    { name = fn "tracesWentThrough" 0
-      typeParams = []
-      parameters =
-        [ Param.make "fnName" TString "the function's dotted name"
-          Param.make "fnHash" TString "its hash, or \"\" to ask by name"
-          Param.make "limit" TInt64 "" ]
-      returnType =
-        TList(TCustomType(NR.ok (FQTypeName.fqPackage (TracesRefs.trace ())), []))
-      description =
-        "The runs that went through this function, newest first.\n\n"
-        + "By name OR by hash, because they answer opposite halves of the same question and "
-        + "neither is enough alone. The HASH finds runs of this CODE under any name, which is "
-        + "what being content-addressed means: two byte-identical functions are one function. "
-        + "The NAME finds runs of this FUNCTION under any code, which is what makes values "
-        + "follow an edit -- editing a callee changes the caller's hash too, so after one edit "
-        + "the recorded run is under a hash nothing resolves to any more. It is also the only "
-        + "thing left when the store no longer has the function at all, which is how a run "
-        + "whose code has gone is told apart from a typo."
-      fn =
-        (function
-        | _, _, _, [| DString fnName; DString fnHash; DInt64 limit |] ->
-          uply {
-            let typeName = FQTypeName.fqPackage (TracesRefs.trace ())
-            let! rows =
-              Sql.query
-                $"SELECT {traceColumns}
-                  {fromTraces}
-                  JOIN trace_fns f ON f.trace_id = t.id
-                  WHERE f.fn_name = @fn
-                     OR (@hash <> '' AND f.fn_hash = @hash)
-                  ORDER BY t.timestamp DESC, t.rowid DESC
-                  LIMIT @limit"
-              |> Sql.parameters
-                [ "fn", Sql.string fnName
-                  "hash", Sql.string fnHash
-                  "limit", Sql.int64 limit ]
-              |> Sql.executeAsync traceRowToDT
-            return rows |> Dval.list (KTCustomType(typeName, []))
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.TraceRead ]
-      deprecated = NotDeprecated }
 
     { name = fn "tracesFnsOf" 0
       typeParams = []

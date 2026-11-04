@@ -567,6 +567,10 @@ module Type =
     let inputVar = p [ "Tracing" ] "InputVar"
     let fnCall = p [ "Tracing" ] "FnCall"
     let traceData = p [ "Tracing" ] "TraceData"
+    /// Which runs `tracesRead` returns.
+    let traceQuery = p [ "Tracing" ] "TraceQuery"
+    /// Which runs `tracesDelete` deletes.
+    let traceSelection = p [ "Tracing" ] "TraceSelection"
     let replayStop = p [ "Tracing" ] "ReplayStop"
     let scriptOrEvalInput = p [ "Tracing" ] "ScriptOrEvalInput"
     let scriptOptions = p [ "Tracing" ] "ScriptOptions"

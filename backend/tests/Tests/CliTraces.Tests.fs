@@ -1329,6 +1329,24 @@ let private testTracesPinRoundTrip =
       })
 
 
+/// What is typed for a trace id is matched as text. A quote used to end the SQL string the id
+/// was spliced into, so the command died with an SQLite syntax error; `%` and `_` would match
+/// any id if they were read as wildcards, and with one run in the store that would pin it.
+let private testTracesIdPrefixIsPlainText =
+  cliTestWithFreshTraces
+    "a quote or a wildcard in a trace id is just text"
+    (fun state ->
+      task {
+        let! _ = runCli state [ "eval"; "1L + 2L" ]
+        for typed in [ "a'b"; "'"; "%"; "_" ] do
+          let! out = runCli state [ "traces"; "pin"; typed ]
+          Expect.stringContains
+            out
+            $"no trace whose id starts with {typed}"
+            $"{typed} is refused by name"
+      })
+
+
 /// A `show` must not perform: the key keeps the value the store had before the show.
 let private testTracesShowDoesNotPerform =
   cliTestWithFreshTraces
@@ -1780,6 +1798,7 @@ let tests =
          testTracesReplayReruns
          testTracesPruneIdempotent
          testTracesPinRoundTrip
+         testTracesIdPrefixIsPlainText
          testTracesShowDoesNotPerform
          testTracesShowThroughMapDoesNotPerform
          testImpureWithoutEffectsIsStillLogged

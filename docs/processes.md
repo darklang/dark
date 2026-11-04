@@ -726,7 +726,8 @@ One row (`LibDB.Traces`, the `traces` table): what was run (`eval`,
 `failed`, `suspended`), whether it is pinned, and, for a fork, the trace and the
 position it branched from. Its calls are `trace_fn_calls` under the same id.
 `dark traces` lists them; `traces inspect|show|resume|fork|pin|rerun|delete`.
-`Darklang.Tracing.Store` is the Dark side.
+`Darklang.Tracing.Store` is the Dark side. It runs no SQL of its own: every read and
+write of the trace tables is a `traces*` builtin over `LibDB.Traces`.
 
 A CLI run's invocation is a row in `trace_cli_invocations`, under the trace's id:
 whether it was an eval or a script, the source, and for a script its filename,
