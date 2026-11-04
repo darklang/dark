@@ -201,7 +201,7 @@ test identicalContentAtTwoNamesRepointsOnlyTheEditedNamesCallers =
 
 // A repoint records that it FOLLOWED, which is how `dark status` and `dark commit` tell
 // what you edited from what came along.
-test aRepointIsReportedAsFollowed =
+let repointIsReportedAsFollowedOnMain(unit: Unit): Stdlib.Test.Result =
   let m = "PropTestProv"
   let setup = Authoring.authorAll(m, [ "let base'(x: Int64): Int64 = x + 71L"
                                        "let dependent(x: Int64): Int64 = Tests.PropTestProv.base'(x)" ])
@@ -217,6 +217,18 @@ test aRepointIsReportedAsFollowed =
       Stdlib.List.contains(followedBefore, "Tests.PropTestProv.dependent") |> Stdlib.Test.equal(false)
       Stdlib.List.contains(followed, "Tests.PropTestProv.dependent") |> Stdlib.Test.equal(true)
       Stdlib.List.contains(followed, "Tests.PropTestProv.base'") |> Stdlib.Test.equal(false) ])
+
+
+test aRepointIsReportedAsFollowed =
+  // Run on main because the fixtures write to main.
+  let defaults = Stdlib.Test.Process.defaults()
+  let options = { defaults with branch = Some(Darklang.SCM.Branch.mainBranchId) }
+  match Stdlib.Test.Process.run(options, repointIsReportedAsFollowedOnMain, ()) with
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
+    match output.result with
+    | Ok(result) -> result
+    | Error(message) -> Stdlib.Test.fail(message)
 
 
 // Propagating an edit that already propagated authors nothing. `dark commit` runs this
