@@ -66,7 +66,40 @@ let stepLine(step: Step): String =
 let available(): Bool = Stdlib.Cli.Unix.isCommandAvailable("expect")
 
 
+/// How long a child may take to start before a test's own timeout begins.
+///
+/// Starting is the part a busy machine stretches: the runtime loading, then the packages.
+/// It takes about a second on an idle machine and several when other test suites are
+/// running. Counting it against a ten-second step made a test fail because the machine
+/// was busy, not because the thing it checks was slow.
+val startupSeconds = 60
+
+
+/// Tcl that waits until the child has started, then returns.
+///
+/// "Started" is the `cli.pmInit` line in the child's telemetry log: the CLI writes it once
+/// the runtime and packages are loaded, just before it runs the command. Nothing on the
+/// screen says that, since `eval` prints nothing until its answer. The child is also
+/// watched, so one that dies before it is ready says so at once instead of after the
+/// whole startup budget.
+let awaitStartup(telemetryLog: String): List<String> =
+  [ "proc child_gone {pid} {\n  if {[catch {set f [open /proc/$pid/stat]; set s [read $f]; close $f}]} { return 1 }\n  return [expr {[lindex [split [string range $s [string last \")\" $s] end] \" \"] 1] eq \"Z\"}]\n}"
+    "set ready_by [expr {[clock milliseconds] + "
+    + (Stdlib.toString(startupSeconds * 1000))
+    + "}]"
+    // `gone` is read BEFORE the log, so a child that got ready and exited between the two
+    // reads still counts as ready, and its output is still waiting for the first `Await`.
+    "while {1} {\n  set gone [child_gone [exp_pid]]\n  if {[file exists "
+    + (quoted(telemetryLog))
+    + "]} {\n    set f [open "
+    + (quoted(telemetryLog))
+    + "]; set seen [read $f]; close $f\n    if {[string first \"\\\"cli.pmInit\\\"\" $seen] >= 0} break\n  }\n  if {$gone} { puts \"\\nEXITED BEFORE: the CLI was ready\"; exit 3 }\n  if {[clock milliseconds] > $ready_by} { puts \"\\nTIMED OUT waiting for the CLI to start\"; exit 2 }\n  after 50\n}" ]
+
+
 /// Run `dark <args>` on a real terminal in `i`, walk `steps`, return the transcript.
+///
+/// `timeoutSeconds` is per step and starts once the child is ready (see `startupSeconds`),
+/// so it measures the thing under test rather than how busy the machine is.
 ///
 /// The transcript is everything the child painted, escape sequences and all, which is
 /// what you want in a failure message and what `Stdlib.String.contains` is happy to
@@ -81,9 +114,10 @@ let drive(
     Stdlib.Result.Result.Error("expect is not installed")
   else
     // Parenthesised: Dark parses pipes greedily, so `Instance.env i |> ...` reads the
-    // qualified name as the pipe's left-hand side and fails.
+    // qualified name as the pipe's left-hand side and fails. Telemetry is on because its
+    // log is how the script knows the child has started.
     let envPrefix =
-      (Instance.env(i))
+      (Stdlib.List.append(Instance.env(i), ("DARK_TELEMETRY", "1")))
       |> Stdlib.List.map(fun pair ->
         let (k, v) = pair
         quoted($"{k}={v}"))
@@ -92,13 +126,20 @@ let drive(
     let argString =
       args |> Stdlib.List.map(quoted) |> Stdlib.String.join(" ")
 
+    let telemetryLog = $"{i.dir}/logs/telemetry.jsonl"
+
     // The pane size is fixed so a layout assertion means the same thing on every machine;
-    // the workbench refuses to start below its minimum.
+    // the workbench refuses to start below its minimum. An earlier drive of the same
+    // instance left its own log, so it goes first, or that run's line would say this child
+    // was ready before it was.
     let header =
-      [ $"set timeout {Stdlib.toString(timeoutSeconds)}",
-        "set env(LINES) 50",
-        "set env(COLUMNS) 200",
-        $"spawn /usr/bin/env {envPrefix} {quoted(i.cli)} {argString}" ]
+      Stdlib.List.concat(
+        [ $"set timeout {Stdlib.toString(timeoutSeconds)}",
+          "set env(LINES) 50",
+          "set env(COLUMNS) 200",
+          "file delete -force -- " + (quoted(telemetryLog)),
+          $"spawn /usr/bin/env {envPrefix} {quoted(i.cli)} {argString}" ],
+        awaitStartup(telemetryLog))
 
     let body = steps |> Stdlib.List.map(fun s -> stepLine(s))
 
