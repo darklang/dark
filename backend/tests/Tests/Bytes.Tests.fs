@@ -425,7 +425,7 @@ let fileReadMemoryBound =
 // DBytes(Ephemeral _), and a LAMBDA. A lambda serializes -- which is what made this look fine -- but
 // it serializes as an exprId alone, and the instructions it names live in the `lambdaInstrCache` of
 // the execution that created it. A stored one therefore reads back fine and dies where it is
-// applied, in a later process, with `lambda not found`. A NAMED fn is a name and survives.
+// applied, in a later process, with `LambdaNotAvailable`. A NAMED fn is a name and survives.
 //
 // The Seed.fs evaluator asks before serializing, so the author gets a reason naming the shape
 // instead of a deep-stack raise later.

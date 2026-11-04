@@ -545,6 +545,12 @@ module RuntimeError =
           ES.String(", but got ")
           ES.Count(actual, ES.String("argument"), ES.String("arguments")) ]
 
+      | LambdaNotAvailable(_lambdaExprId) ->
+        [ ES.String("This lambda was made by an earlier run and its instructions ")
+          ES.String("belong to that run, so it can't be called here. ")
+          ES.String("Store a named function (`let f() = ...`) instead, ")
+          ES.String("which is rebuilt per call.") ]
+
     | Statement(err) ->
       match err with
       | FirstExpressionMustBeUnit(expectedTypes, actualType, actualValue) ->

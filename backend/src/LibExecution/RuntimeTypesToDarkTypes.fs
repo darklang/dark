@@ -1635,6 +1635,9 @@ module RuntimeError =
           "TooFewArgsForLambda",
           [ DUInt64 lambdaExprId; dintOfInt expected; dintOfInt actual ]
 
+        | RuntimeError.Applications.LambdaNotAvailable lambdaExprId ->
+          "LambdaNotAvailable", [ DUInt64 lambdaExprId ]
+
 
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1736,6 +1739,9 @@ module RuntimeError =
           D.int expected,
           D.int actual
         )
+
+      | DEnum(_, _, [], "LambdaNotAvailable", [ lambdaExprId ]) ->
+        RuntimeError.Applications.LambdaNotAvailable(D.uInt64 lambdaExprId)
 
       | _ -> Exception.raiseInternal "Invalid Applications.Error" []
 

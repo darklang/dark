@@ -233,7 +233,7 @@ let rec isPersistable (dv : Dval) : bool =
   // not. Its instructions live in `lambdaInstrCache`, keyed by an exprId that only the execution
   // that created it registered, and the serialized form carries the id alone -- so a stored lambda
   // is a dangling reference that deserializes fine and dies at the moment it is applied, in a later
-  // process, with `lambda not found` and no clue where it came from.
+  // process, with `LambdaNotAvailable` and no clue where it came from.
   | DApplicable applicable ->
     match applicable with
     | AppNamedFn _ -> true

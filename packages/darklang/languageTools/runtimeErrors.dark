@@ -131,6 +131,7 @@ module Applications =
     | CannotApplyTypeArgsToLambda
     | TooManyArgsForLambda of lambdaExprId: ID * expected: Int * actual: Int
     | TooFewArgsForLambda of lambdaExprId: ID * expected: Int * actual: Int
+    | LambdaNotAvailable of lambdaExprId: ID
 
 module Statements =
   type Error =

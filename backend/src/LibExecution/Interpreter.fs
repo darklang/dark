@@ -3488,7 +3488,9 @@ let rec private beginRequest
       if exeState.lambdaInstrCache.TryGetValue(exprId, &cached) then
         cached
       else
-        Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
+        RTE.Applications.LambdaNotAvailable exprId
+        |> RTE.Apply
+        |> raiseRTE vm.threadID
     let prior = arg :: moreArgs
     let allArgs =
       ArgSeq.withPrior
@@ -3759,7 +3761,9 @@ let private applyInstructionForced
       if exeState.lambdaInstrCache.TryGetValue(exprId, &cached) then
         cached
       else
-        Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
+        RTE.Applications.LambdaNotAvailable exprId
+        |> RTE.Apply
+        |> raiseRTE vm.threadID
 
     let allArgs = ArgSeq.ofNE registers newArgRegs
 

@@ -2289,6 +2289,11 @@ module RuntimeError =
       | CannotApplyTypeArgsToLambda
       | TooManyArgsForLambda of lambdaExprId : id * expected : int * actual : int
       | TooFewArgsForLambda of lambdaExprId : id * expected : int * actual : int
+      /// A lambda's instructions live in the `lambdaInstrCache` of the
+      /// execution that made it; the value carries only the id. Applied
+      /// anywhere else, typically after a later run read back a stored one,
+      /// there is nothing to call.
+      | LambdaNotAvailable of lambdaExprId : id
 
   module Statements =
     type Error =
