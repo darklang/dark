@@ -221,6 +221,38 @@ test indexOf =
       Stdlib.List.indexOf([ [ 1L ], [ 2L, 3L ] ], [ 2L, 3L ])
       |> Stdlib.Test.equal(Some(1)) ])
 
+test remove =
+  Stdlib.Test.all(
+    [ Stdlib.List.remove([], 1L) |> Stdlib.Test.equal([])
+      Stdlib.List.remove([ 1L, 2L, 3L ], 4L)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.remove([ 1L, 2L, 1L ], 1L)
+      |> Stdlib.Test.equal([ 2L, 1L ])
+      Stdlib.List.remove([ 1L, 2L, 2L, 3L ], 2L)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.remove([ "a", "b", "c" ], "c")
+      |> Stdlib.Test.equal([ "a", "b" ])
+      Stdlib.List.remove([ 1L ], 1L) |> Stdlib.Test.equal([])
+      Stdlib.List.remove([ [ 1L ], [ 2L ], [ 1L ] ], [ 1L ])
+      |> Stdlib.Test.equal([ [ 2L ], [ 1L ] ]) ])
+
+test removeAt =
+  Stdlib.Test.all(
+    [ Stdlib.List.removeAt([], 0) |> Stdlib.Test.equal([])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], -1)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], 3)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], 100000000000000000000)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], 0)
+      |> Stdlib.Test.equal([ 2L, 3L ])
+      Stdlib.List.removeAt([ 1L, 2L, 3L ], 1)
+      |> Stdlib.Test.equal([ 1L, 3L ])
+      Stdlib.List.removeAt([ "a", "b", "c" ], 2)
+      |> Stdlib.Test.equal([ "a", "b" ])
+      Stdlib.List.removeAt([ 1L ], 0) |> Stdlib.Test.equal([]) ])
+
 test flatten =
   Stdlib.Test.all(
     [ Stdlib.List.flatten([ [ 1L ], [ 2L ], [ 3L ] ])

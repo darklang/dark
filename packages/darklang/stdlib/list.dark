@@ -306,6 +306,27 @@ let filterMap(
   Builtin.listFilterMap(list, fn)
 
 
+/// Removes the first element equal to <param x> from <param list>.
+/// Returns the list unchanged if no such element exists.
+let remove(list: List<'a>, x: 'a): List<'a> =
+  match list with
+  | [] -> []
+  | [head, ...tail] ->
+    if head == x then tail else prepend(remove(tail, x), head)
+
+
+/// Removes the element at zero-based index <param i> from <param list>.
+/// Returns the list unchanged if <param i> is negative or out of range.
+let removeAt(list: List<'a>, i: Int): List<'a> =
+  if i < 0 then
+    list
+  else
+    match list with
+    | [] -> []
+    | [head, ...tail] ->
+      if i == 0 then tail else prepend(removeAt(tail, i - 1), head)
+
+
 /// Drops the first <param count> values from <param list>
 let drop(list: List<'a>, count: Int): List<'a> =
   if count <= 0 then
