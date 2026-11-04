@@ -133,7 +133,7 @@ module Registry =
       ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], acceptsAck, Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("undeprecate", "Put a deprecated fn/type/value/trait/impl/test back on the shelf", [ "restore" ], acceptsUndeprecate, Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, Packages.Deprecate.complete)
       ("backups", "Copies of the store: what exists, take one, prune", [], acceptsBackups, Cli.Backups.execute, Cli.Backups.help, Cli.Backups.complete)
-      ("builtins", "List all builtin functions", [], acceptsBuiltins, Builtins.execute, Builtins.help, Builtins.complete)
+      ("builtins", "List all builtin functions and values", [], acceptsBuiltins, Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], acceptsFindValues, Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
       ("impls", "List the implementations of a trait on this branch", [], acceptsImpls, Packages.Impls.execute, Packages.Impls.help, Packages.Impls.complete)
       ("serve", "Start an HTTP server", [ "http-server" ], acceptsServe, Http.Serve.execute, Http.Serve.help, Http.Serve.complete)

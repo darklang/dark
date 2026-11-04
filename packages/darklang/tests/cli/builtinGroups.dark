@@ -51,3 +51,15 @@ test noDisplayNameIsStale =
 test noPrefixIsNamedTwice =
   let known = BuiltinGroups.knownPrefixes()
   (Stdlib.List.length(Stdlib.List.unique(known))) |> Stdlib.Test.equal(Stdlib.List.length(known))
+
+// `dark builtins` lists the builtin values after the fns, filtered by name like them.
+test builtinValuesAreListedAndFiltered =
+  let names(filter: Stdlib.Option.Option<String>): List<String> =
+    Darklang.Cli.Builtins.matchingValues(filter)
+    |> Stdlib.List.map(fun v -> v.name.name)
+  let has(filter: Stdlib.Option.Option<String>): Bool =
+    Stdlib.List.contains(names(filter), "bytesEmpty")
+  let unfiltered = has(Stdlib.Option.Option.None)
+  let matching = has(Stdlib.Option.Option.Some("bytes"))
+  let other = has(Stdlib.Option.Option.Some("json"))
+  (unfiltered, matching, other) |> Stdlib.Test.equal((true, true, false))
