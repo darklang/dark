@@ -128,6 +128,26 @@ let executionState (target : Target) : RT.ExecutionState =
 /// "forever" into a named failure, it does not police speed.
 let private runCliTimeout = System.TimeSpan.FromMinutes 2.0
 
+/// Write a shell script that a test then runs as a program, readable and executable by us.
+///
+/// A short-lived `/bin/sh` writes the file, never this process. Tests here start child
+/// processes all the time, and a child forked while this process holds the file open for
+/// writing keeps a copy of that descriptor until it execs. Running the script in that window
+/// fails with "Text file busy". A file this process never opened for writing cannot be held.
+let writeExecutableScript (path : string) (content : string) : unit =
+  let info = System.Diagnostics.ProcessStartInfo "/bin/sh"
+  for arg in
+    [ "-c"; "printf '%s' \"$2\" > \"$1\" && chmod 500 \"$1\""; "sh"; path; content ] do
+    info.ArgumentList.Add arg
+  info.RedirectStandardError <- true
+  use writer = System.Diagnostics.Process.Start info
+  let errors = writer.StandardError.ReadToEnd()
+  writer.WaitForExit()
+  if writer.ExitCode <> 0 then
+    Exception.raiseInternal
+      "Could not write script"
+      [ "path", path; "errors", errors ]
+
 /// Run work on another thread so the timeout also covers synchronous code.
 /// None means it is still running. Stop before another test shares its state.
 let runWithTimeout
