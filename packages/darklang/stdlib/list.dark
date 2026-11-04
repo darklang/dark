@@ -79,6 +79,12 @@ let findFirstIndex(list: List<'a>, fn: 'a -> Bool): Option.Option<Int> =
   |> Stdlib.Option.map(fun((i, _item)) -> i)
 
 
+/// Returns the zero-based index of the first element in <param list> equal to
+/// <param x>, wrapped in {{Some}}. Returns {{None}} if no such element exists.
+let indexOf(list: List<'a>, x: 'a): Option.Option<Int> =
+  findFirstIndex(list, fun item -> item == x)
+
+
 /// Returns {{true}} if <param value> is in the list
 let contains(list: List<'a>, value: 'a): Bool =
   Builtin.listContains(list, value)
