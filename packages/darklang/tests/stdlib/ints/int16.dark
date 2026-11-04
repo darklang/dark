@@ -232,7 +232,8 @@ test fromUInt16 =
   Stdlib.Test.all(
     [ Stdlib.Int16.fromUInt16(0us) |> Stdlib.Test.equal(Some(0s))
       Stdlib.Int16.fromUInt16(1us) |> Stdlib.Test.equal(Some(1s))
-      Stdlib.Int16.fromUInt16(32767us) |> Stdlib.Test.equal(Some(32767s)) ])
+      Stdlib.Int16.fromUInt16(32767us) |> Stdlib.Test.equal(Some(32767s))
+      Stdlib.Int16.fromUInt16(32768us) |> Stdlib.Test.equal(None) ])
 
 test fromInt32 =
   Stdlib.Test.all(

@@ -97,44 +97,48 @@ let parse(s: String): Stdlib.Result.Result<Int8, Stdlib.Int8.ParseError> =
 
 
 /// Converts a <type UInt8> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt8(i: UInt8): Stdlib.Option.Option<Int8> = Builtin.int8FromUInt8(i)
+let fromUInt8(i: UInt8): Stdlib.Option.Option<Int8> =
+  Stdlib.Int.toInt8(Stdlib.Int.fromUInt8(i))
 
 
 /// Converts an <type Int16> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt16(i: Int16): Stdlib.Option.Option<Int8> = Builtin.int8FromInt16(i)
+let fromInt16(i: Int16): Stdlib.Option.Option<Int8> =
+  Stdlib.Int.toInt8(Stdlib.Int.fromInt16(i))
 
 
 /// Converts a <type UInt16> to an <type Int8>. Returns {{None}} if the value is greater than 127.
 let fromUInt16(i: UInt16): Stdlib.Option.Option<Int8> =
-  Builtin.int8FromUInt16(i)
+  Stdlib.Int.toInt8(Stdlib.Int.fromUInt16(i))
 
 
 /// Converts an <type Int32> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt32(i: Int32): Stdlib.Option.Option<Int8> = Builtin.int8FromInt32(i)
+let fromInt32(i: Int32): Stdlib.Option.Option<Int8> =
+  Stdlib.Int.toInt8(Stdlib.Int.fromInt32(i))
 
 
 /// Converts a <type UInt32> to an <type Int8>. Returns {{None}} if the value is greater than 127.
 let fromUInt32(i: UInt32): Stdlib.Option.Option<Int8> =
-  Builtin.int8FromUInt32(i)
+  Stdlib.Int.toInt8(Stdlib.Int.fromUInt32(i))
 
 
 /// Converts an <type Int64> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt64(i: Int64): Stdlib.Option.Option<Int8> = Builtin.int8FromInt64(i)
+let fromInt64(i: Int64): Stdlib.Option.Option<Int8> =
+  Stdlib.Int.toInt8(Stdlib.Int.fromInt64(i))
 
 
 /// Converts a <type UInt64> to an <type Int8>. Returns {{None}} if the value is greater than 127.
 let fromUInt64(i: UInt64): Stdlib.Option.Option<Int8> =
-  Builtin.int8FromUInt64(i)
+  Stdlib.Int.toInt8(Stdlib.Int.fromUInt64(i))
 
 
 /// Converts an <type Int128> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
 let fromInt128(i: Int128): Stdlib.Option.Option<Int8> =
-  Builtin.int8FromInt128(i)
+  Stdlib.Int.toInt8(Stdlib.Int.fromInt128(i))
 
 
 /// Converts a <type UInt128> to an <type Int8>. Returns {{None}} if the value is greater than 127.
 let fromUInt128(i: UInt128): Stdlib.Option.Option<Int8> =
-  Builtin.int8FromUInt128(i)
+  Stdlib.Int.toInt8(Stdlib.Int.fromUInt128(i))
 
 
 impl BitwiseAnd for Int8 =

@@ -177,7 +177,8 @@ test fromInt8 =
     [ Stdlib.UInt8.fromInt8(0y) |> Stdlib.Test.equal(Some(0uy))
       Stdlib.UInt8.fromInt8(1y) |> Stdlib.Test.equal(Some(1uy))
       Stdlib.UInt8.fromInt8(127y) |> Stdlib.Test.equal(Some(127uy))
-      Stdlib.UInt8.fromInt8(-128y) |> Stdlib.Test.equal(None) ])
+      Stdlib.UInt8.fromInt8(-128y) |> Stdlib.Test.equal(None)
+      Stdlib.UInt8.fromInt8(-1y) |> Stdlib.Test.equal(None) ])
 
 test fromInt16 =
   Stdlib.Test.all(

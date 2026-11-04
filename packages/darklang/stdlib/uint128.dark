@@ -74,19 +74,23 @@ let parse(
 
 
 /// Converts a <type UInt8> to an <type UInt128>.
-let fromUInt8(i: UInt8): UInt128 = Builtin.uint128FromUInt8(i)
+let fromUInt8(i: UInt8): UInt128 =
+  Stdlib.Int.toUInt128(Stdlib.Int.fromUInt8(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt16> to an <type UInt128>.
-let fromUInt16(i: UInt16): UInt128 = Builtin.uint128FromUInt16(i)
+let fromUInt16(i: UInt16): UInt128 =
+  Stdlib.Int.toUInt128(Stdlib.Int.fromUInt16(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt32> to an <type UInt128>.
-let fromUInt32(i: UInt32): UInt128 = Builtin.uint128FromUInt32(i)
+let fromUInt32(i: UInt32): UInt128 =
+  Stdlib.Int.toUInt128(Stdlib.Int.fromUInt32(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt64> to an <type UInt128>.
-let fromUInt64(i: UInt64): UInt128 = Builtin.uint128FromUInt64(i)
+let fromUInt64(i: UInt64): UInt128 =
+  Stdlib.Int.toUInt128(Stdlib.Int.fromUInt64(i)) |> Builtin.unwrap
 
 
 impl BitwiseAnd for UInt128 =

@@ -271,62 +271,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "uint128FromUInt8" 0
-      typeParams = []
-      parameters = [ Param.make "a" TUInt8 "" ]
-      returnType = TUInt128
-      description = "Converts a UInt8 to a 128-bit unsigned integer."
-      fn =
-        (function
-        | _, _, _, [| DUInt8 a |] -> DUInt128(System.UInt128.op_Implicit a) |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "uint128FromUInt16" 0
-      typeParams = []
-      parameters = [ Param.make "a" TUInt16 "" ]
-      returnType = TUInt128
-      description = "Converts a UInt16 to a 128-bit unsigned integer."
-      fn =
-        (function
-        | _, _, _, [| DUInt16 a |] -> DUInt128(System.UInt128.op_Implicit a) |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "uint128FromUInt32" 0
-      typeParams = []
-      parameters = [ Param.make "a" TUInt32 "" ]
-      returnType = TUInt128
-      description = "Converts a UInt32 to a 128-bit unsigned integer."
-      fn =
-        (function
-        | _, _, _, [| DUInt32 a |] -> DUInt128(System.UInt128.op_Implicit a) |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "uint128FromUInt64" 0
-      typeParams = []
-      parameters = [ Param.make "a" TUInt64 "" ]
-      returnType = TUInt128
-      description = "Converts a UInt64 to a 128-bit unsigned integer."
-      fn =
-        (function
-        | _, _, _, [| DUInt64 a |] -> DUInt128(System.UInt128.op_Implicit a) |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "uint128BitwiseAnd" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
