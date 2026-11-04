@@ -85,6 +85,20 @@ module Value =
       BS.RT.PackageValue.deserialize
       hash
 
+  /// Whether the value at <param hash> has a runtime value stored: false for a value whose
+  /// evaluation never ran or failed (`rt_dval` NULL), and for one that is not in the store at all.
+  /// Reads no blob, so it is cheap to ask of a value that did evaluate.
+  let isEvaluated (hash : Hash) : Ply<bool> =
+    uply {
+      let (Hash hashStr) = hash
+      let! row =
+        Sql.query
+          "SELECT 1 AS ok FROM package_values WHERE hash = @hash AND rt_dval IS NOT NULL"
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read -> read.int64 "ok")
+      return Option.isSome row
+    }
+
   /// Find all value hashes that have the given ValueType (exact match)
   let findByValueType (vt : RT.ValueType) : Ply<List<Hash>> =
     uply {
