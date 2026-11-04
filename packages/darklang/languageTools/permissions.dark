@@ -82,6 +82,34 @@ type ApprovalFailure =
   /// requires, or a storage failure. The message is complete.
   | Refused of String
 
+/// A change to the instance policy. Like `ApprovalFailure`, it lives here because the host
+/// builtin that takes it addresses Dark types through the `LanguageTools.Permissions` package ref.
+type PolicyEdit =
+  /// Replace the whole policy.
+  | Replace of Permissions.Policy
+  /// Add allow and deny rules and remove rules from both lists. Removals apply first.
+  | Change of
+    allow: List<Permissions.Rule> *
+    deny: List<Permissions.Rule> *
+    remove: List<Permissions.Rule>
+
+/// Which approval to take back. The two are separate records on purpose.
+type ApprovalTarget =
+  /// The version approved for a logical function name; the hash's approval stays.
+  | Name of String
+  /// The approval of one immutable version, with the dependencies no other approved root needs.
+  | Hash of String
+
+/// One approval as an account sees it. A hash approved under several names appears once per name.
+type Approval =
+  { hash: String
+    /// A logical name whose approved version is this hash; None when no name points at it.
+    name: Stdlib.Option.Option<String>
+    /// The consumer policy stored for this hash, when it is approved.
+    policy: Stdlib.Option.Option<Permissions.Policy>
+    /// The rules written when approving this hash as a root; None for a derived approval.
+    explicitRules: Stdlib.Option.Option<Permissions.Policy> }
+
 type TokenMode =
   | Bare
   | SingleQuoted

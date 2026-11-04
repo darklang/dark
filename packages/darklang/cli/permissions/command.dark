@@ -11,13 +11,17 @@ type AccessReportFacts =
     instancePolicy: LanguageTools.Permissions.Policy }
 
 // Builtin wrappers.
-// Each policy builtin has exactly this one Dark caller (tests/builtin).
+// The policy builtins are called only from these wrappers (tests/builtin).
 
 let currentPolicy(): LanguageTools.Permissions.Policy =
   Builtin.pmPolicyGetInstance()
 
+/// Change the instance policy: replace it whole, or add and remove rules.
+let changePolicy(edit: LanguageTools.Permissions.PolicyEdit): Unit =
+  Builtin.pmPolicyEditInstance(edit)
+
 let writePolicy(policy: LanguageTools.Permissions.Policy): Unit =
-  Builtin.pmPolicySetInstance(policy)
+  Command.changePolicy(LanguageTools.Permissions.PolicyEdit.Replace(policy))
 
 /// Atomically edit the instance policy. Removals apply before additions.
 let editInstancePolicy(
@@ -25,7 +29,7 @@ let editInstancePolicy(
   deny: List<LanguageTools.Permissions.Rule>,
   remove: List<LanguageTools.Permissions.Rule>)
   : Unit =
-  Builtin.pmPolicyEditInstance(allow, deny, remove)
+  Command.changePolicy(LanguageTools.Permissions.PolicyEdit.Change(allow, deny, remove))
 
 /// The transitive permission requirements and whether analysis was complete.
 /// Incomplete analysis returns the effects found with `false`; fetch once and
@@ -35,6 +39,14 @@ let permissionRequirementsForHash(
   : (List<LanguageTools.Permissions.Effect> * Bool) =
   Builtin.pmFnPermissionRequirements(hash)
 
+/// Take an approval back: a name's approved version, or a hash's approval. They are separate
+/// records; withdrawing one leaves the other.
+let withdraw(
+  accountID: Stdlib.Option.Option<Uuid>,
+  target: LanguageTools.Permissions.ApprovalTarget)
+  : Unit =
+  Builtin.pmPolicyWithdraw(accountID, target)
+
 /// Drop the approval of one immutable version and the dependencies no other
 /// approved root still needs. `unapprove` does not do this; a name's approved version and the
 /// approval are separate records.
@@ -42,7 +54,7 @@ let revokeHash(
   accountID: Stdlib.Option.Option<Uuid>,
   hash: String)
   : Unit =
-  Builtin.pmPolicyRevokePackage(accountID, hash)
+  Command.withdraw(accountID, LanguageTools.Permissions.ApprovalTarget.Hash(hash))
 
 let approvedHashes(accountID: Stdlib.Option.Option<Uuid>): List<String> =
   Builtin.pmPolicyListPackages(accountID)
@@ -53,7 +65,11 @@ let packageAccess(
   accountID: Stdlib.Option.Option<Uuid>,
   hash: String)
   : (Bool * Stdlib.Option.Option<LanguageTools.Permissions.Policy>) =
-  Builtin.pmPolicyPackageAccess(accountID, hash)
+  let policy =
+    Command.approvalsOf(accountID, Stdlib.Option.Option.Some(hash))
+    |> Stdlib.List.head
+    |> Stdlib.Option.andThen(fun approval -> approval.policy)
+  (Builtin.pmFnIsBundled(hash), policy)
 
 /// The rules the consumer wrote when approving <param hash> as a root; None
 /// for a derived approval.
@@ -61,7 +77,9 @@ let explicitApprovalFor(
   accountID: Stdlib.Option.Option<Uuid>,
   hash: String)
   : Stdlib.Option.Option<LanguageTools.Permissions.Policy> =
-  Builtin.pmPolicyExplicitApproval(accountID, hash)
+  Command.approvalsOf(accountID, Stdlib.Option.Option.Some(hash))
+  |> Stdlib.List.head
+  |> Stdlib.Option.andThen(fun approval -> approval.explicitRules)
 
 /// Whether existing approvals were recorded under different approval-analysis
 /// semantics than this host's — a re-review signal (enforcement stays
@@ -73,7 +91,17 @@ let approvalsStale(): Bool =
 let approvedVersions(
   accountID: Stdlib.Option.Option<Uuid>)
   : List<(String * String)> =
-  Builtin.pmPolicyApprovedVersions(accountID)
+  Command.approvalsOf(accountID, Stdlib.Option.Option.None)
+  |> Stdlib.List.filterMap(fun approval ->
+    approval.name |> Stdlib.Option.map(fun name -> (name, approval.hash)))
+
+/// Approvals as this account sees them, one per (hash, name). With <param hash>, the entries for
+/// that hash (one with no name when no name points at it); with None, one per approved name.
+let approvalsOf(
+  accountID: Stdlib.Option.Option<Uuid>,
+  hash: Stdlib.Option.Option<String>)
+  : List<LanguageTools.Permissions.Approval> =
+  Builtin.pmPolicyApprovals(accountID, hash)
 
 /// The approved hashes, each labelled with the name that resolves to it when there is one. A hash
 /// with no name is a dependency approved inside another root's closure.
@@ -142,7 +170,7 @@ let unapproveVersionFor(
   accountID: Stdlib.Option.Option<Uuid>,
   name: String)
   : Unit =
-  Builtin.pmPolicyUnapproveVersion(accountID, name)
+  Command.withdraw(accountID, LanguageTools.Permissions.ApprovalTarget.Name(name))
 
 
 // Requirements display.

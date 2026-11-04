@@ -9,6 +9,7 @@ module E = LibExecution.Effects
 module Effects2DT = LibExecution.EffectsToDarkTypes
 module VT = ValueType
 module D = LibExecution.DvalDecoder
+module Dval = LibExecution.Dval
 
 module Scope =
   let typeName () =
@@ -219,3 +220,65 @@ module ApprovalFailure =
     make "ContractChanged" [ DList(VT.string, List.map DString differences) ]
 
   let refused (message : string) : Dval = make "Refused" [ DString message ]
+
+/// An instance-policy change: replace it whole, or add and remove rules.
+module PolicyEdit =
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.Permissions.policyEdit ())
+
+  type T =
+    | Replace of P.Policy
+    | Change of allow : List<P.Rule> * deny : List<P.Rule> * remove : List<P.Rule>
+
+  let fromDT (dval : Dval) : T =
+    match dval with
+    | DEnum(_, _, _, "Replace", [ policy ]) -> Replace(Policy.fromDT policy)
+    | DEnum(_, _, _, "Change", [ allow; deny; remove ]) ->
+      let rules = D.list Rule.fromDT
+      Change(rules allow, rules deny, rules remove)
+    | _ -> Exception.raiseInternal "Invalid Permissions.PolicyEdit" [ "dval", dval ]
+
+/// Which approval record a withdrawal drops: the version approved for a name,
+/// or the approval of a hash.
+module ApprovalTarget =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.Permissions.approvalTarget ()
+    )
+
+  type T =
+    | Name of string
+    | Hash of string
+
+  let fromDT (dval : Dval) : T =
+    match dval with
+    | DEnum(_, _, _, "Name", [ DString name ]) -> Name name
+    | DEnum(_, _, _, "Hash", [ DString hash ]) -> Hash hash
+    | _ ->
+      Exception.raiseInternal "Invalid Permissions.ApprovalTarget" [ "dval", dval ]
+
+/// One approval as an account sees it: a hash, one name approved at it (if
+/// any), its stored policy, and the rules written when it was approved as a root.
+module Approval =
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.Permissions.approval ())
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT
+    (hash : string)
+    (name : Option<string>)
+    (policy : Option<P.Policy>)
+    (explicitRules : Option<P.Policy>)
+    : Dval =
+    let policyOption (p : Option<P.Policy>) : Dval =
+      Dval.option (Policy.knownType ()) (Option.map Policy.toDT p)
+    DRecord(
+      typeName (),
+      typeName (),
+      [],
+      Map
+        [ "hash", DString hash
+          "name", Dval.option KTString (Option.map DString name)
+          "policy", policyOption policy
+          "explicitRules", policyOption explicitRules ]
+    )

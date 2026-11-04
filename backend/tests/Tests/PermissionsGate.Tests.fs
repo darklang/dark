@@ -419,22 +419,30 @@ let private refusesAsAdmin
 let private policyReads =
   set
     [ "pmPolicyGetInstance"
-      "pmPolicyPackageAccess"
-      "pmPolicyApprovedVersions"
-      "pmPolicyExplicitApproval"
+      "pmPolicyApprovals"
+      "pmFnIsBundled"
       "pmFnPermissionRequirements" ]
+
+/// The policy builtins only the trusted `dark permissions` command may call.
+let private hostOnlyPolicyBuiltins =
+  set
+    [ "pmPolicyEditInstance"
+      "pmPolicyListPackages"
+      "pmPolicyWithdraw"
+      "pmPolicyApprovalsStale"
+      "pmPolicyApproveVersion" ]
 
 let everyPolicyBuiltinRefusesGuestCode =
   testTask "every policy builtin but the named reads refuses guest code" {
     let! (guest : RT.ExecutionState) = executionStateFor TestValues.pm false
     let trusted = { guest with canManagePolicies = true }
+    let all = Builtins.Matter.Libs.PM.Permissions.fns ()
+    Expect.equal
+      (all |> List.map (fun b -> b.name.name) |> Set.ofList)
+      (Set.union policyReads hostOnlyPolicyBuiltins)
+      "every policy builtin is classed as a guest read or host-only"
     let hostOnly =
-      Builtins.Matter.Libs.PM.Permissions.fns ()
-      |> List.filter (fun b -> not (Set.contains b.name.name policyReads))
-    Expect.isGreaterThanOrEqual
-      (List.length hostOnly)
-      7
-      "the host-only policy builtins were found"
+      all |> List.filter (fun b -> not (Set.contains b.name.name policyReads))
     for builtin in hostOnly do
       let! refusesGuest = refusesAsAdmin guest builtin
       Expect.isTrue refusesGuest $"{builtin.name.name} refuses guest code"
@@ -442,6 +450,37 @@ let everyPolicyBuiltinRefusesGuestCode =
       Expect.isFalse
         refusesTrusted
         $"{builtin.name.name} lets the CLI's own state through"
+  }
+
+/// The reads guest code may call answer it, rather than refusing it as administration.
+let guestCodeCanCallPolicyReads =
+  testTask "guest code can still call the policy reads" {
+    let! (guest : RT.ExecutionState) = executionStateFor TestValues.pm false
+    Expect.isFalse guest.canManagePolicies "the state is a guest's"
+    let byName =
+      Builtins.Matter.Libs.PM.Permissions.fns ()
+      |> List.map (fun b -> b.name.name, b)
+      |> Map.ofList
+    for name in policyReads do
+      let! refuses = refusesAsAdmin guest byName[name]
+      Expect.isFalse refuses $"{name} does not refuse guest code"
+    let call name args =
+      byName[name].fn (struct (guest, dummyVM (), [], args)) |> Ply.toTask
+    let hash = "permissions-guest-read-unapproved"
+    let! approvals =
+      call
+        "pmPolicyApprovals"
+        [| LibExecution.Dval.optionNone RT.KTUuid
+           LibExecution.Dval.optionSome RT.KTString (RT.DString hash) |]
+    match approvals with
+    | RT.DList(_, [ RT.DRecord(_, _, _, fields) ]) ->
+      Expect.equal
+        fields["hash"]
+        (RT.DString hash)
+        "the entry is for the hash asked about"
+    | other -> failtestf "expected one approval entry, got %A" other
+    let! bundled = call "pmFnIsBundled" [| RT.DString hash |]
+    Expect.equal bundled (RT.DBool false) "an unknown hash is not bundled code"
   }
 
 /// Every way the host builds a state for guest code clears the flag, whatever the caller had.
@@ -891,5 +930,6 @@ let tests =
       )
       testList "deferred execution matrix" deferredExecutionMatrix
       everyPolicyBuiltinRefusesGuestCode
+      guestCodeCanCallPolicyReads
       guestStatesCannotManagePolicies
       guestFileApiCannotReachPolicyStore ]

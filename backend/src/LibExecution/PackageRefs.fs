@@ -310,6 +310,9 @@ module Type =
       let rule = p [] "Rule"
       let policy = p [] "Policy"
       let approvalFailure = p [] "ApprovalFailure"
+      let policyEdit = p [] "PolicyEdit"
+      let approvalTarget = p [] "ApprovalTarget"
+      let approval = p [] "Approval"
 
     module Parser =
       let private p addl = p ("Parser" :: addl)
