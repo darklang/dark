@@ -6,11 +6,19 @@ open Prelude
 
 module Permission = LibExecution.Permissions
 
-/// A lazily prepared file that can be copied until its scope is disposed.
+/// A lazily prepared file that can be copied or linked until its scope is disposed.
 /// The producer must close the file before returning.
 type FileSnapshot =
   inherit System.IDisposable
+  /// A writable copy at <param target>.
   abstract CopyTo : target : string -> Result<unit, string>
+  /// Link <param target> to the read-only snapshot. Return an error on Windows,
+  /// if the current user can still write to the file, or if linking fails.
+  /// Callers can use CopyTo as a fallback. If the file changes after it was
+  /// linked, both LinkTo and CopyTo refuse from then on.
+  abstract LinkTo : target : string -> Result<unit, string>
+  /// Whether the file has changed since it was linked.
+  abstract Changed : unit -> bool
 
 /// Launch a child in a disposable directory. The caller supplies its files and
 /// environment; the host owns the directory and process tree through cleanup.

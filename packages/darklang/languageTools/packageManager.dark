@@ -316,18 +316,23 @@ module Test =
   /// Valid only inside the withStoreSnapshot callback that created it.
   type Run = { id: Uuid }
 
-  /// Share a starting store across the tests executed by <param run>. Every
-  /// test that cannot run in-process (see `runsInProcess`) gets a private
-  /// writable copy and a fresh process. Cached-only runs create no snapshot;
-  /// cleanup also runs if the callback fails.
-  let withStoreSnapshot(run: Run -> 'a): 'a =
-    Builtin.pmTestWithStoreSnapshot(fun id -> run(Run { id = id }))
-
   /// Whether this test runs inside the runner rather than in a fresh process
   /// with its own store copy: true only when analysis shows it needs no effect
   /// at all and calls only pure builtins.
   let runsInProcess(hash: ProgramTypes.Hash): Bool =
     Builtin.pmTestRunsInProcess(hash)
+
+  /// Share a read-only starting store on <param branchId> across the tests executed
+  /// by <param run>. Every test that cannot run in-process gets a fresh process on
+  /// it; one that writes reruns on a private copy. Cached-only runs create no
+  /// snapshot; cleanup also runs if the callback fails.
+  let withStoreSnapshot(branchId: Uuid, run: Run -> 'a): 'a =
+    Builtin.pmTestWithStoreSnapshot(branchId, fun id -> run(Run { id = id }))
+
+  /// Whether the test <param hash> wrote to <param run>'s shared snapshot and so
+  /// ran again on a private copy.
+  let reran(run: Run, hash: ProgramTypes.Hash): Bool =
+    Builtin.pmTestReran(run.id, hash)
 
   /// Conservative proof that a passing result is reusable. Dynamic calls and
   /// branch-dependent rendering are not treated as cache-safe.
@@ -476,7 +481,7 @@ module Test =
     branchId: Uuid,
     hash: ProgramTypes.Hash)
     : Stdlib.Result.Result<Stdlib.Test.Result, LanguageTools.RuntimeTypes.RuntimeError.Error> =
-    withStoreSnapshot(fun run -> executeInRun(run, branchId, hash))
+    withStoreSnapshot(branchId, fun run -> executeInRun(run, branchId, hash))
 
 
 /// Replace provisional hashes with SCC-aware content hashes, including references

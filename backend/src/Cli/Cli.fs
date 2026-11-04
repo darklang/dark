@@ -377,6 +377,10 @@ let private runCli (args : string[]) : int =
     // obtain, so taking this first is what keeps the measurement from including itself.
     let mainEntry = System.DateTime.UtcNow
 
+    // A test worker on the shared store reports refused writes. Install before
+    // opening any database.
+    LibDB.TestProcess.SharedStoreWrites.watchIfShared ()
+
     // Measure startup before cli.total, including runtime and assembly loading.
     let telemetryEnabled =
       match System.Environment.GetEnvironmentVariable "DARK_TELEMETRY" with

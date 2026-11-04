@@ -25,6 +25,8 @@ type Counts =
     ran: Int
     /// Of those that ran, how many needed their own process and store copy.
     isolated: Int
+    /// Of those isolated, how many wrote to the shared store and reran on a copy.
+    reran: Int
     timings: List<Timing> }
 
 val usage =
@@ -156,7 +158,9 @@ let isCacheable(
   mayCache(test)
   && LanguageTools.PackageManager.Test.isCacheSafe(test.hash)
 
-let printOutcome(name: String, outcome: Outcome): Unit =
+/// <param reran>: the test wrote to the shared store, so this is its run on a copy.
+let printOutcome(name: String, outcome: Outcome, reran: Bool): Unit =
+  let name = if reran then $"{name} (reran on a copy)" else name
   match outcome with
   | Passed ->
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"PASS {name}"))
@@ -274,7 +278,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 /// where it allows, print each one, and fail the command if any failed or
 /// nothing matched.
 let runTests(state: Cli.AppState, args: List<String>): Cli.AppState =
-  LanguageTools.PackageManager.Test.withStoreSnapshot(fun run -> runTestsInRun(run, state, args))
+  LanguageTools.PackageManager.Test.withStoreSnapshot(state.currentBranchId, fun run ->
+    runTestsInRun(run, state, args))
 
 type RunOptions =
   { force: Bool
@@ -310,6 +315,7 @@ type FinishedTest =
     outcome: Outcome
     wasCached: Bool
     inProcess: Bool
+    reran: Bool
     ms: Int }
 
 let finishTest(
@@ -323,7 +329,7 @@ let finishTest(
     | Some(context), _ when isCacheable(finished.test) ->
       storeOutcome(context, finished.test.hash, finished.outcome)
     | _ -> ()
-  printOutcome(finished.name, finished.outcome)
+  printOutcome(finished.name, finished.outcome, finished.reran)
   Counts
     { passed = counts.passed + (if isPassed(finished.outcome) then 1 else 0)
       failed = counts.failed + (if isPassed(finished.outcome) then 0 else 1)
@@ -332,6 +338,7 @@ let finishTest(
       isolated =
         counts.isolated
         + (if finished.wasCached || finished.inProcess then 0 else 1)
+      reran = counts.reran + (if finished.reran then 1 else 0)
       timings =
         if finished.wasCached then
           counts.timings
@@ -375,6 +382,7 @@ let runSelected(
           outcome = outcome
           wasCached = true
           inProcess = false
+          reran = false
           ms = 0 }
       runSelected(run, branchId, options, cache, rest, running, finishTest(cache, counts, finished))
     | None ->
@@ -389,6 +397,7 @@ let runSelected(
             outcome = outcome
             wasCached = false
             inProcess = inProcess
+            reran = LanguageTools.PackageManager.Test.reran(run, item.entity.hash)
             ms = Stdlib.DateTime.__monotonicMilliseconds() - started })
       runSelected(run, branchId, options, cache, rest, Stdlib.List.prepend(running, handle), counts)
   | _ ->
@@ -455,7 +464,7 @@ let runTestsInRun(
         || Stdlib.List.any(options.filters, fun f -> selects(f, fullPath(item))))
 
     let initial =
-      Counts { passed = 0, failed = 0, cached = 0, ran = 0, isolated = 0, timings = [] }
+      Counts { passed = 0, failed = 0, cached = 0, ran = 0, isolated = 0, reran = 0, timings = [] }
     let counts =
       runSelected(
         run,
@@ -472,8 +481,13 @@ let runTestsInRun(
     else
       printSlowest(counts.timings)
       Stdlib.printLine("")
+      // Said only when it happened, so a run where every test started writing
+      // shows up here rather than only as a slower run.
+      let reranNote =
+        if counts.reran == 0 then ""
+        else $"; {Stdlib.toString(counts.reran)} wrote to the store and reran on a copy"
       Stdlib.printLine(
-        $"{Stdlib.toString(counts.passed)} passed, {Stdlib.toString(counts.failed)} failed; {Stdlib.toString(counts.ran)} ran, {Stdlib.toString(counts.cached)} cached; {Stdlib.toString(counts.isolated)} isolated")
+        $"{Stdlib.toString(counts.passed)} passed, {Stdlib.toString(counts.failed)} failed; {Stdlib.toString(counts.ran)} ran, {Stdlib.toString(counts.cached)} cached; {Stdlib.toString(counts.isolated)} isolated{reranNote}")
 
     if counts.failed > 0 || total == 0 then
       { state with exitCode = 1 }

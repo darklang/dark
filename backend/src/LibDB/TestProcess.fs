@@ -154,6 +154,13 @@ module WorkerResult =
 let private runs =
   System.Collections.Concurrent.ConcurrentDictionary<System.Guid, Host.FileSnapshot>()
 
+type private TestHashes =
+  System.Collections.Concurrent.ConcurrentDictionary<string, unit>
+
+/// The tests in each run that wrote to the shared store and ran again on a copy.
+let private reruns =
+  System.Collections.Concurrent.ConcurrentDictionary<System.Guid, TestHashes>()
+
 let withStoreSnapshot
   (snapshot : Host.FileSnapshot)
   (run : System.Guid -> Ply<'a>)
@@ -166,24 +173,123 @@ let withStoreSnapshot
       return! run id
     finally
       runs.TryRemove id |> ignore<bool * Host.FileSnapshot>
+      reruns.TryRemove id |> ignore<bool * TestHashes>
   }
+
+/// Whether the test with this hash wrote to the run's shared store and so ran
+/// again on a copy.
+let reranIn (id : System.Guid) (testHash : string) : bool =
+  match reruns.TryGetValue id with
+  | true, tests -> tests.ContainsKey testHash
+  | false, _ -> false
+
+let private changedInRun (id : System.Guid) : bool =
+  match runs.TryGetValue id with
+  | true, snapshot -> snapshot.Changed()
+  | false, _ -> false
 
 let copyFromRun (id : System.Guid) (target : string) : Result<unit, string> =
   match runs.TryGetValue id with
   | true, snapshot -> snapshot.CopyTo target
   | false, _ -> Error "The package test run has already ended"
 
+/// Link <param target> to the run's snapshot, read-only and shared with the other
+/// workers. Return an error if the snapshot can't be shared.
+let private linkFromRun (id : System.Guid) (target : string) : Result<unit, string> =
+  match runs.TryGetValue id with
+  | true, snapshot -> snapshot.LinkTo target
+  | false, _ -> Error "The package test run has already ended"
+
+/// Where a worker's store comes from.
+type Store =
+  /// A private writable copy, made by the supplied function.
+  | Copy of (string -> Result<unit, string>)
+  /// The snapshot of the test run with this id, linked read-only for every
+  /// worker. A worker that tries to write to it runs again on a private copy;
+  /// only the second result is used. If linking fails, the worker starts on a copy.
+  | Shared of run : System.Guid
+
+/// Detect refused writes through SQLite's error log, even when a test catches
+/// or ignores the error. The runner uses the marker to retry on a private copy.
+module SharedStoreWrites =
+  let private gate = obj ()
+  let mutable private marker : Option<string> = None
+
+  let private mark (why : string) : unit =
+    lock gate (fun () ->
+      match marker with
+      | Some path ->
+        marker <- None
+        // The runner checks only whether the file exists. Its contents explain
+        // why the test needs a retry.
+        System.IO.File.WriteAllText(path, why)
+      | None -> ())
+
+  // Kept here so the collector can't free it while SQLite still calls it.
+  let private log =
+    SQLitePCL.strdelegate_log (fun _ code message ->
+      // SQLITE_READONLY, with or without an extended code.
+      if code &&& 0xff = 8 then mark message)
+
+  /// A worker on the shared store finds this link beside its store. It points
+  /// outside the worker's directory, so the runner can check it after cleanup.
+  let markerIn (storeDir : string) : string =
+    System.IO.Path.Combine(storeDir, "data.db-wrote")
+
+  /// If the store directory under HOME has a marker link, write through it on the
+  /// first refused write, or if the watcher can't be installed. Call before opening
+  /// any database, to register SQLite's log callback. Any `dark` process the worker
+  /// starts shares its HOME, so it watches too.
+  let watchIfShared () : unit =
+    let link = markerIn (LibConfig.StoreLocation.defaultDirectory ())
+    if not (isNull (System.IO.FileInfo link).LinkTarget) then
+      marker <- Some link
+      SQLitePCL.Batteries_V2.Init()
+      // If writes can't be detected, request a retry on a private copy.
+      if SQLitePCL.raw.sqlite3_config_log (log, null) <> 0 then
+        mark "Could not watch for writes"
+
+let private setConfig (path : string) (settings : List<string * string>) : unit =
+  let builder = Microsoft.Data.Sqlite.SqliteConnectionStringBuilder()
+  builder.DataSource <- path
+  builder.Pooling <- false
+  use connection = new Microsoft.Data.Sqlite.SqliteConnection(builder.ToString())
+  connection.Open()
+  for key, value in settings do
+    use command = connection.CreateCommand()
+    command.CommandText <-
+      "INSERT OR REPLACE INTO config_v0(key, value) VALUES (@key, @value)"
+    command.Parameters.AddWithValue("@key", key)
+    |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
+    command.Parameters.AddWithValue("@value", value)
+    |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
+    command.ExecuteNonQuery() |> ignore<int>
+
 /// Disable automatic publishing only in the disposable copy.
 let private prepareStore (path : string) : unit =
-  let settings = Microsoft.Data.Sqlite.SqliteConnectionStringBuilder()
-  settings.DataSource <- path
-  settings.Pooling <- false
-  use connection = new Microsoft.Data.Sqlite.SqliteConnection(settings.ToString())
-  connection.Open()
-  use command = connection.CreateCommand()
-  command.CommandText <-
-    "INSERT OR REPLACE INTO config_v0(key, value) VALUES ('live.autopush', 'off')"
-  command.ExecuteNonQuery() |> ignore<int>
+  setConfig path [ "live.autopush", "off" ]
+
+/// Prepare the run's starting store with its branch and autopush settings so
+/// workers can read those settings without writing at startup.
+///
+/// Use rollback journal mode to avoid WAL sidecar files for the shared snapshot.
+/// Backups from the shared store were observed to hang with read-only WAL in this
+/// setup. Sql.initializeConnection switches writable copies back to WAL.
+let createRunSnapshot
+  (branchId : System.Guid)
+  (path : string)
+  : Result<unit, string> =
+  LibDB.Sqlite.Backup.toTestBaseline path
+  |> Result.map (fun () ->
+    setConfig path [ "live.autopush", "off"; "current_branch", string branchId ]
+    let builder = Microsoft.Data.Sqlite.SqliteConnectionStringBuilder()
+    builder.DataSource <- path
+    builder.Pooling <- false
+    use connection = new Microsoft.Data.Sqlite.SqliteConnection(builder.ToString())
+    connection.Open()
+    use command = connection.CreateCommand()
+    command.CommandText <- "PRAGMA journal_mode=DELETE"
+    command.ExecuteNonQuery() |> ignore<int>)
 
 
 type Outcome =
@@ -193,10 +299,14 @@ type Outcome =
     result : Option<Dval>
     cleanupErrors : List<string> }
 
-/// The request and result travel separately from stdout. The host owns the
-/// temporary directory and process tree, and reports cleanup failures even after success.
-let run
-  (snapshot : Option<string -> Result<unit, string>>)
+/// Run one worker. <param shared> records whether it used the shared snapshot;
+/// if linking fails, it uses a private copy. A worker using the shared snapshot
+/// creates <param marker>, through a link beside its store, when SQLite refuses a
+/// write or the watcher can't start.
+let private runOnce
+  (store : Store)
+  (marker : string)
+  (shared : bool ref)
   (state : ExecutionState)
   (vm : VMState)
   (access : Permissions.Access)
@@ -227,14 +337,27 @@ let run
       let prepare (directory : string) =
         let dir = directory.Replace('\\', '/')
         let path name = System.IO.Path.Combine(dir, name).Replace('\\', '/')
-        let backup =
-          snapshot |> Option.defaultValue LibDB.Sqlite.Backup.toTestBaseline
         // The worker's HOME is `dir`; `directories` below are made too late for the store.
         System.IO.Directory.CreateDirectory(path ".darklang")
         |> ignore<System.IO.DirectoryInfo>
-        backup (path ".darklang/data.db")
+        let db = path ".darklang/data.db"
+        let copyTo copy = copy db |> Result.map (fun () -> prepareStore db)
+        let ready =
+          match store with
+          | Copy copy -> copyTo copy
+          | Shared run ->
+            match linkFromRun run db with
+            | Ok() ->
+              shared.Value <- true
+              System.IO.File.CreateSymbolicLink(
+                SharedStoreWrites.markerIn (path ".darklang"),
+                marker
+              )
+              |> ignore<System.IO.FileSystemInfo>
+              Ok()
+            | Error _ -> copyTo (copyFromRun run)
+        ready
         |> Result.map (fun () ->
-          prepareStore (path ".darklang/data.db")
           let spec : Host.ProcessWorkspace =
             { program = executable
               arguments =
@@ -280,4 +403,62 @@ let run
       | _ -> return Error "Invalid isolated test response"
     with e ->
       return Error $"Isolated test failed: {e.Message}"
+  }
+
+/// The request and result travel separately from stdout. The host owns the
+/// temporary directory and process tree, and reports cleanup failures even after success.
+let run
+  (store : Store)
+  (state : ExecutionState)
+  (vm : VMState)
+  (access : Permissions.Access)
+  (branchId : System.Guid)
+  (workerHash : string)
+  (request : Request)
+  (timeoutMs : int)
+  (columns : int)
+  (rows : int)
+  : Ply<Result<Outcome, string>> =
+  uply {
+    // Keep the marker outside the workspace so it survives cleanup. Check it
+    // even if the worker failed or timed out after attempting a write.
+    let marker =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-test-{System.Guid.NewGuid()}.wrote"
+      )
+    let shared = ref false
+    let once store =
+      runOnce
+        store
+        marker
+        shared
+        state
+        vm
+        access
+        branchId
+        workerHash
+        request
+        timeoutMs
+        columns
+        rows
+    let! outcome = once store
+    let wrote = shared.Value && System.IO.File.Exists marker
+    if wrote then System.IO.File.Delete marker
+    match store with
+    // Checked after every reader, so the failure lands on the test that was
+    // running when it happened, not only on the ones that start after.
+    | Shared run when shared.Value && changedInRun run ->
+      return
+        Error
+          "The run's shared store changed while this test was reading it, so this \
+           and every later test fail. Something running then made it writable."
+    | Shared run when wrote ->
+      match request.target with
+      | Target.PackageTest testHash ->
+        reruns.GetOrAdd(run, (fun _ -> TestHashes()))[testHash] <- ()
+      | Target.TestCallback _ -> ()
+      shared.Value <- false
+      return! once (Copy(copyFromRun run))
+    | _ -> return outcome
   }
