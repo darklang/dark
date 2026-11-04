@@ -223,14 +223,27 @@ test aDeniedScriptStopsAndApprovalIsSaved =
         Instance.says(later, "AFTER_APPROVAL", "a later run completes") ]))
 
 
-/// Advisory findings do not stop execution, and a runtime failure comes after the
-/// effects that ran before it.
-test runAndEvalHaveNoAtRestGate =
+/// `run` and `eval` type-check the code first, and a definite error stops it before
+/// anything runs: the `printLine` ahead of the error must not print. A dropped value counts,
+/// whether it is on the top level, in a branch that would not be taken, in a lambda, or in a
+/// script's own function.
+test runAndEvalRefuseADefiniteTypeErrorBeforeRunning =
   Instance.withInstance(fun i ->
-    [ ("let bad(): Int = true\nStdlib.printLine(\"SCRIPT_RAN\")\n0L", 0)
-      ("Stdlib.printLine(\"SCRIPT_RAN\")\nStdlib.List.length(\"bad\")", 1) ]
-    |> Stdlib.List.map(fun((source, expectedExit)) ->
-      let path = script(i, "advisory.dark", source)
+    let first = "Stdlib.printLine(\"SCRIPT_RAN\")\n"
+
+    [ ("a dropped value", first + "5\n0", "line 2, column 1")
+      ("a dropped value in a branch that is not taken",
+       first + "if false then\n  5\n  ()\nelse\n  ()\n0",
+       "line 3, column 3")
+      ("a dropped value in a lambda",
+       first + "let f = fun x ->\n  x + 1\n  ()\n0",
+       "line 3, column 3")
+      ("a dropped value in the script's own function",
+       "let helper(n: Int): Unit =\n  n + 1\n  ()\n" + first + "0",
+       "Function helper")
+      ("a wrong argument", first + "Stdlib.List.length(\"bad\")", "line 2, column 20") ]
+    |> Stdlib.List.map(fun((label, source, where)) ->
+      let path = script(i, "refused.dark", source)
 
       [ [ "eval", source ], [ "run", path ] ]
       |> Stdlib.List.map(fun(args) ->
@@ -238,10 +251,29 @@ test runAndEvalHaveNoAtRestGate =
         let cmd = Stdlib.List.head(args) |> Stdlib.Option.withDefault("")
 
         Stdlib.Test.all(
-          [ Instance.exitedWith(code, expectedExit, $"{cmd}: only a runtime error fails it")
-            Instance.says(out, "SCRIPT_RAN", $"{cmd}: earlier effects run")
-            Instance.doesNotSay(out, "Static type check failed", $"{cmd}: no pre-run checker") ]))
+          [ Instance.exitedWith(code, 1, $"{cmd}, {label}: refused")
+            Instance.says(out, "Static type check failed, so nothing ran", $"{cmd}, {label}: says why")
+            Instance.says(out, where, $"{cmd}, {label}: says where")
+            Instance.doesNotSay(out, "SCRIPT_RAN", $"{cmd}, {label}: nothing ran") ]))
       |> Stdlib.Test.all)
+    |> Stdlib.Test.all)
+
+
+/// What the check cannot prove wrong still runs: a value discarded with `let _ =`, and a
+/// final expression of any type.
+test runAndEvalRunWhatTheCheckAccepts =
+  Instance.withInstance(fun i ->
+    let source = "Stdlib.printLine(\"SCRIPT_RAN\")\nlet _ = 5\nif false then\n  let _ = 6\n  ()\nelse\n  ()\n0"
+    let path = script(i, "accepted.dark", source)
+
+    [ [ "eval", source ], [ "run", path ] ]
+    |> Stdlib.List.map(fun(args) ->
+      let (code, out) = Instance.ran(i, args)
+      let cmd = Stdlib.List.head(args) |> Stdlib.Option.withDefault("")
+
+      Stdlib.Test.all(
+        [ Instance.exitedWith(code, 0, $"{cmd}: runs")
+          Instance.says(out, "SCRIPT_RAN", $"{cmd}: its effects happen") ]))
     |> Stdlib.Test.all)
 
 

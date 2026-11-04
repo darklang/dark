@@ -5054,12 +5054,13 @@ let private runSyncInstructions
           [ "exprId", exprId ]
 
       // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
-      | CheckIfFirstExprIsUnit reg ->
+      | CheckIfFirstExprIsUnit(exprId, reg) ->
         match registers[reg] with
         | DUnit -> ()
         | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
         | dval ->
           RTE.Statements.FirstExpressionMustBeUnit(
+            exprId,
             ValueType.Known KTUnit,
             Dval.toValueType dval,
             dval

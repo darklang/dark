@@ -34,4 +34,7 @@ module CliScript =
       submodules : Definitions
       /// Eval expressions or script functions that take `args`.
       exprs : List<PT.Expr>
+      /// Where each node of `exprs` came from, by node id.
+      sourceRanges :
+        System.Collections.Generic.Dictionary<id, LibParser.WrittenTypes.Range>
     }

@@ -9,6 +9,17 @@ let content(): String =
   if cond then a else b
   // comment
 
+## Statements
+  Stdlib.printLine("start")        // a line before the last must return Unit
+  let _ = Stdlib.List.length(xs)   // to drop any other value, bind it to _
+  total                            // the last line is the block's value
+
+This holds in every block: a function body, a lambda, an if or match branch,
+and the top level of a script. When the code has more than one statement,
+`dark run` and `eval` type-check it first and run none of it if a line drops
+a value or has any other definite type error, even in a branch that would not
+be taken. A save reports the same error, and `commit` refuses it.
+
 ## Functions
   let greet(name: String): String = $"Hello, {name}"
   let twice(f: Int -> Int, x: Int): Int = f(f(x))   // one argument: A -> B

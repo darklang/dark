@@ -199,7 +199,10 @@ let private parsedType (tsrc : string) : WT.TypeReference =
 let private toPT (e : WT.Expr) : PT.Expr =
   let emptyBuiltins : RTT.Builtins = LibExecution.Builtin.make [] []
   let ctx : WT2PT.Context =
-    { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
+    { currentFnName = None
+      argMap = Map.empty
+      localBindings = Set.empty
+      sourceRanges = None }
   (WT2PT.Expr.toPT emptyBuiltins PT.PackageManager.empty NR.OnMissing.Allow [] ctx e
    |> Ply.toTask)
     .Result
@@ -281,7 +284,8 @@ let private loweringRegressionTests =
   let context args locals : WT2PT.Context =
     { currentFnName = Some [ "Darklang"; "Test"; "outer" ]
       argMap = args
-      localBindings = locals }
+      localBindings = locals
+      sourceRanges = None }
   testList
     "lowering-regressions"
     [ testCase "applied argument shadows a same-named package function" (fun _ ->
@@ -319,7 +323,8 @@ let private loweringRegressionTests =
           let collisionContext : WT2PT.Context =
             { currentFnName = Some [ "Darklang"; "Test"; "map" ]
               argMap = Map.empty
-              localBindings = Set.empty }
+              localBindings = Set.empty
+              sourceRanges = None }
           match
             toPTWithInModule
               [ "Darklang"; "Test" ]

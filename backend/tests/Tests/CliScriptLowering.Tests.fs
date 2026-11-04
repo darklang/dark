@@ -243,17 +243,24 @@ let private testTopLevelSequencing =
       testTask label {
         let! result, effects = run code
         match result with
-        | Error(error, _) ->
+        | Error(RT.RuntimeError.Statement(RT.RuntimeError.Statements.FirstExpressionMustBeUnit(exprId,
+                                                                                               _,
+                                                                                               _,
+                                                                                               _)) as error,
+                _) ->
+          Expect.notEqual exprId 0UL "the error names the statement"
           Expect.equal
             error
             (RT.RuntimeError.Statement(
               RT.RuntimeError.Statements.FirstExpressionMustBeUnit(
+                exprId,
                 LibExecution.ValueType.unit,
                 LibExecution.ValueType.int64,
                 RT.DInt64 1L
               )
             ))
             "a non-Unit intermediate uses the ordinary statement error"
+        | Error(other, _) -> failtest $"expected a statement error, got %A{other}"
         | Ok value -> failtest $"expected a statement error, got %A{value}"
         Expect.equal effects expectedEffects "nothing after the error executes"
       }

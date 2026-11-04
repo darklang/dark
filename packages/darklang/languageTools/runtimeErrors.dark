@@ -135,7 +135,12 @@ module Applications =
 
 module Statements =
   type Error =
-    | FirstExpressionMustBeUnit of expectedType: ValueType * actualType: ValueType * actualValue: Dval
+    /// `exprId` is the statement, so whatever has the source can say where it is.
+    | FirstExpressionMustBeUnit of
+        exprId: ID *
+        expectedType: ValueType *
+        actualType: ValueType *
+        actualValue: Dval
 
 module Unwraps =
   type Error =

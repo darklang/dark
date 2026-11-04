@@ -1067,7 +1067,8 @@ module Instruction =
         [ names |> List.map DString |> Dval.list KTString
           NameResolutionError.toDT err ]
       | VarNotFound(t, name) -> "VarNotFound", [ reg t; DString name ]
-      | CheckIfFirstExprIsUnit r -> "CheckIfFirstExprIsUnit", [ reg r ]
+      | CheckIfFirstExprIsUnit(exprId, r) ->
+        "CheckIfFirstExprIsUnit", [ DUInt64 exprId; reg r ]
       | TraceExpr(exprId, r) -> "TraceExpr", [ DUInt64 exprId; reg r ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
@@ -1755,11 +1756,13 @@ module RuntimeError =
 
       let (caseName, fields) =
         match e with
-        | RuntimeError.Statements.FirstExpressionMustBeUnit(expectedType,
+        | RuntimeError.Statements.FirstExpressionMustBeUnit(exprId,
+                                                            expectedType,
                                                             actualType,
                                                             actualValue) ->
           "FirstExpressionMustBeUnit",
-          [ ValueType.toDT expectedType
+          [ DUInt64 exprId
+            ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
 
@@ -1771,8 +1774,9 @@ module RuntimeError =
               _,
               [],
               "FirstExpressionMustBeUnit",
-              [ expectedType; actualType; actualValue ]) ->
+              [ exprId; expectedType; actualType; actualValue ]) ->
         RuntimeError.Statements.FirstExpressionMustBeUnit(
+          D.uInt64 exprId,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue

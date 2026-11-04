@@ -396,6 +396,10 @@ Rules:
   pipe straight into an operator (`n |> + 1` won't parse), so write `n + 1`, or
   use a lambda mid-pipe: `|> (fun v -> v + 1)`. If the left side is an `if` or
   `match`, wrap it in parentheses: `(if c then a else b) |> fn`.
+- Every line of a block except the last must return Unit; drop any other value with
+  `let _ = f(x)`. `run` and `eval` type-check code with more than one statement first, and
+  run none of it when a line drops a value or has another definite type error, even in a
+  branch that is not taken.
 - Lists: [1, 2, 3] (commas; a semicolon is a parse error)
 - Spread joins lists: `[x, ...xs]`, `[...a, ...b]`. There is no `::` or `@`.
 - Dicts and records use commas or newlines, never semicolons:

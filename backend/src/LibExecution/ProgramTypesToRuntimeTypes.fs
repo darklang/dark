@@ -1351,7 +1351,8 @@ module Expr =
       let firstExpr = toRT symbols rc currentFnName expr
       let nextExpr = toRT symbols firstExpr.registerCount currentFnName next
 
-      let checkIfFirstIsUnit = [ RT.CheckIfFirstExprIsUnit(firstExpr.resultIn) ]
+      let checkIfFirstIsUnit =
+        [ RT.CheckIfFirstExprIsUnit(PT.Expr.toID expr, firstExpr.resultIn) ]
 
       { registerCount = nextExpr.registerCount
         instructions =

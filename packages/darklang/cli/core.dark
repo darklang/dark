@@ -234,7 +234,11 @@ module ExecutionError =
   /// structured payload — no flattening to strings at the boundary.
   type ExecutionError =
     | Parse of LanguageTools.Parser.CliScript.ParseError
-    | TypeCheck of LanguageTools.AtRestTypeChecker.Report
+    /// A definite type error found before anything ran, and where each node the report
+    /// names starts in the source: (node id, line, column), both 1-based.
+    | TypeCheck of
+        report: LanguageTools.AtRestTypeChecker.Report *
+        locations: List<(UInt64 * Int * Int)>
     | Runtime of
         error: LanguageTools.RuntimeTypes.RuntimeError.Error *
         callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>
@@ -244,7 +248,8 @@ module ExecutionError =
   let toString(branchId: Uuid, err: ExecutionError): String =
     match err with
     | Parse(pe) -> LanguageTools.Parser.CliScript.ParseError.toString(pe)
-    | TypeCheck(report) -> Packages.AtRestCheck.scriptReport(branchId, report)
+    | TypeCheck(report, locations) ->
+      Packages.AtRestCheck.scriptReport(branchId, report, locations)
     | Runtime(rte, _) ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
     | Denied(denied) ->
