@@ -740,7 +740,7 @@ let packageTestsRespectParallelLimit =
           // launch is a first attempt.
           let sharing = LibExecution.HostPosix.getuid () <> 0u
           let firstAttempt =
-            if sharing then "[ -n \"$DARK_TEST_WRITE_MARKER\" ]" else "true"
+            if sharing then "[ -L \"${HOME}/.darklang/data.db\" ]" else "true"
           for jobs in [ 1; 2 ] do
             let barriers =
               System.IO.Directory

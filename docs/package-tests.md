@@ -90,8 +90,10 @@ test starts on a private copy. Sharing is disabled on Windows and for users who
 can write to the snapshot despite its read-only file mode.
 
 Workers using the shared snapshot, and any `dark` processes they start, watch
-SQLite's error log for refused writes. They create a marker file even if the test
-catches or ignores the error. The runner checks the marker after cleanup,
+SQLite's error log for refused writes. The runner puts a link beside the
+worker's store, `data.db-wrote`, pointing outside the worker's directory; a
+refused write creates the file it points to, even if the test catches or ignores
+the error. The runner checks the marker after cleanup,
 including when the worker fails or times out. If the watcher can't be installed,
 it creates the marker to request a retry on a private copy.
 

@@ -209,10 +209,6 @@ type Store =
   /// only the second result is used. If linking fails, the worker starts on a copy.
   | Shared of run : System.Guid
 
-/// The marker file path for a worker using the shared store. Any `dark` process
-/// it starts inherits this variable so it can report refused writes too.
-let writeMarkerVariable = "DARK_TEST_WRITE_MARKER"
-
 /// Detect refused writes through SQLite's error log, even when a test catches
 /// or ignores the error. The runner uses the marker to retry on a private copy.
 module SharedStoreWrites =
@@ -235,14 +231,23 @@ module SharedStoreWrites =
       // SQLITE_READONLY, with or without an extended code.
       if code &&& 0xff = 8 then mark message)
 
-  /// Create <param path> on the first refused write, or if the watcher can't be
-  /// installed. Call before opening any database to register SQLite's log callback.
-  let watch (path : string) : unit =
-    marker <- Some path
-    SQLitePCL.Batteries_V2.Init()
-    // If writes can't be detected, request a retry on a private copy.
-    if SQLitePCL.raw.sqlite3_config_log (log, null) <> 0 then
-      mark "Could not watch for writes"
+  /// A worker on the shared store finds this link beside its store. It points
+  /// outside the worker's directory, so the runner can check it after cleanup.
+  let markerIn (storeDir : string) : string =
+    System.IO.Path.Combine(storeDir, "data.db-wrote")
+
+  /// If the store directory under HOME has a marker link, write through it on the
+  /// first refused write, or if the watcher can't be installed. Call before opening
+  /// any database, to register SQLite's log callback. Any `dark` process the worker
+  /// starts shares its HOME, so it watches too.
+  let watchIfShared () : unit =
+    let link = markerIn (LibConfig.StoreLocation.defaultDirectory ())
+    if not (isNull (System.IO.FileInfo link).LinkTarget) then
+      marker <- Some link
+      SQLitePCL.Batteries_V2.Init()
+      // If writes can't be detected, request a retry on a private copy.
+      if SQLitePCL.raw.sqlite3_config_log (log, null) <> 0 then
+        mark "Could not watch for writes"
 
 let private setConfig (path : string) (settings : List<string * string>) : unit =
   let builder = Microsoft.Data.Sqlite.SqliteConnectionStringBuilder()
@@ -296,7 +301,8 @@ type Outcome =
 
 /// Run one worker. <param shared> records whether it used the shared snapshot;
 /// if linking fails, it uses a private copy. A worker using the shared snapshot
-/// creates <param marker> when SQLite refuses a write or the watcher can't start.
+/// creates <param marker>, through a link beside its store, when SQLite refuses a
+/// write or the watcher can't start.
 let private runOnce
   (store : Store)
   (marker : string)
@@ -343,6 +349,11 @@ let private runOnce
             match linkFromRun run db with
             | Ok() ->
               shared.Value <- true
+              System.IO.File.CreateSymbolicLink(
+                SharedStoreWrites.markerIn (path ".darklang"),
+                marker
+              )
+              |> ignore<System.IO.FileSystemInfo>
               Ok()
             | Error _ -> copyTo (copyFromRun run)
         ready
@@ -359,8 +370,6 @@ let private runOnce
               environment =
                 [ "DARK_MATTER_WRITE_SECRET", None
                   "DARK_BRANCH", None
-                  // Clear the inherited marker when a nested worker uses a copy.
-                  writeMarkerVariable, (if shared.Value then Some marker else None)
                   "DARK_CONFIG_DB_NAME", Some "data.db"
                   "HOME", Some dir
                   "USERPROFILE", Some dir
