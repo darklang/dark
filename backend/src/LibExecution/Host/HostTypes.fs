@@ -380,3 +380,32 @@ let redactAuditDetail (op : Operation) (detail : string) : string =
   | Operation.HttpRequest _
   | Operation.HttpStreamOpen _ -> redactUrl detail
   | _ -> detail
+
+/// The layer as the audit log has always spelled it (what `%A` gave), without `%A`.
+let private auditLayer (layer : Permission.Layer) : string =
+  match layer with
+  | Permission.Layer.Instance -> "Instance"
+  | Permission.Layer.Run -> "Run"
+  | Permission.Layer.Package id -> $"Package \"{id}\""
+  | Permission.Layer.Function id -> $"Function \"{id}\""
+
+/// One line of the host audit log: `{"decision","detail","layer","op","ts"}`.
+/// Written with the writer, never the reflecting serializer, which the published (AOT)
+/// binary does not have: there it threw, the sink swallowed it, and nothing was logged.
+let auditLine (now : System.DateTime) (op : Operation) (outcome : Outcome) : string =
+  let decision, layer, detail =
+    match outcome with
+    | Outcome.Success _ -> "allowed", "", ""
+    | Outcome.Denied(layer, _, resource, _) -> "denied", auditLayer layer, resource
+    | Outcome.Failed failure -> "failed", "", failure.message
+    | Outcome.Rejected m -> "rejected", "", m
+  use buffer = new System.IO.MemoryStream()
+  (use w = new System.Text.Json.Utf8JsonWriter(buffer)
+   w.WriteStartObject()
+   w.WriteString("decision", decision)
+   w.WriteString("detail", redactAuditDetail op detail)
+   w.WriteString("layer", layer)
+   w.WriteString("op", describeOperation op)
+   w.WriteString("ts", now.ToString "o")
+   w.WriteEndObject())
+  System.Text.Encoding.UTF8.GetString(buffer.ToArray())
