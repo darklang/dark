@@ -13,7 +13,7 @@ let a(datestr: String, seconds: Int): DateTime =
 let sub(datestr: String, seconds: Int): DateTime =
   Stdlib.DateTime.subtractSeconds(d(datestr), seconds)
 
-let s(first: String, second: String): Int =
+let s(first: String, second: String): Stdlib.Duration.Duration =
   Stdlib.DateTime.subtract(d(first), d(second))
 
 let dMs(datestr: String): DateTime = d(datestr)
@@ -370,16 +370,16 @@ test subtractSeconds =
 
 test subtract =
   Stdlib.Test.all(
-    [ s("2020-11-26T04:37:46Z", "2020-11-26T04:37:46Z") |> Stdlib.Test.equal(0)
-      s("2020-11-26T04:37:46Z", "2020-11-26T04:37:45Z") |> Stdlib.Test.equal(1)
-      s("2020-11-26T04:37:46Z", "2020-11-26T04:37:36Z") |> Stdlib.Test.equal(10)
-      s("2020-11-26T04:37:46Z", "2020-11-26T04:37:56Z") |> Stdlib.Test.equal(-10)
-      s("2020-11-26T04:37:46Z", "2020-11-14T14:51:06Z") |> Stdlib.Test.equal(1000000)
-      s("2020-11-14T14:51:06Z", "2020-11-26T04:37:46Z") |> Stdlib.Test.equal(-1000000)
+    [ s("2020-11-26T04:37:46Z", "2020-11-26T04:37:46Z") |> Stdlib.Test.equal(Stdlib.Duration.Duration { seconds = 0 })
+      s("2020-11-26T04:37:46Z", "2020-11-26T04:37:45Z") |> Stdlib.Test.equal(Stdlib.Duration.Duration { seconds = 1 })
+      s("2020-11-26T04:37:46Z", "2020-11-26T04:37:36Z") |> Stdlib.Test.equal(Stdlib.Duration.Duration { seconds = 10 })
+      s("2020-11-26T04:37:46Z", "2020-11-26T04:37:56Z") |> Stdlib.Test.equal(Stdlib.Duration.Duration { seconds = -10 })
+      s("2020-11-26T04:37:46Z", "2020-11-14T14:51:06Z") |> Stdlib.Test.equal(Stdlib.Duration.Duration { seconds = 1000000 })
+      s("2020-11-14T14:51:06Z", "2020-11-26T04:37:46Z") |> Stdlib.Test.equal(Stdlib.Duration.Duration { seconds = -1000000 })
       s("1921-01-01T12:00:00Z", "2021-01-01T12:00:00Z")
-      |> Stdlib.Test.equal(-3155760000)
+      |> Stdlib.Test.equal(Stdlib.Duration.Duration { seconds = -3155760000 })
       s("2021-01-01T12:00:00Z", "1921-01-01T12:00:00Z")
-      |> Stdlib.Test.equal(3155760000) ])
+      |> Stdlib.Test.equal(Stdlib.Duration.Duration { seconds = 3155760000 }) ])
 
 // Fractional seconds are now accepted
 test parseMilliseconds =
