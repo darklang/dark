@@ -245,6 +245,19 @@ module ExecutionError =
     | Denied of PermissionDenied
     | Unhandled of Unhandled
 
+  /// `. Did you mean `X`?` for a name that did not resolve, when the standard library has it
+  /// somewhere else; the same hint `dark fn` gives (<fn Packages.Errors.stdlibSuggestion>).
+  let nameSuggestion(
+    branchId: Uuid,
+    rte: LanguageTools.RuntimeTypes.RuntimeError.Error)
+    : String =
+    match rte with
+    | ParseTimeNameResolution(originalName, NotFound) ->
+      match Packages.Errors.stdlibSuggestion(branchId, originalName) with
+      | Some(name) -> $". Did you mean `{name}`?"
+      | None -> ""
+    | _ -> ""
+
   let toString(branchId: Uuid, err: ExecutionError): String =
     match err with
     | Parse(pe) -> LanguageTools.Parser.CliScript.ParseError.toString(pe)
@@ -252,6 +265,7 @@ module ExecutionError =
       Packages.AtRestCheck.scriptReport(branchId, report, locations)
     | Runtime(rte, _) ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
+      + nameSuggestion(branchId, rte)
     | Denied(denied) ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, denied.error)
     | Unhandled(u) ->
