@@ -122,6 +122,17 @@ let sortGroups(
   Stdlib.List.concat(knownInOrder, unknown)
 
 
+/// The builtin values whose name contains <param filter>, or all of them without one.
+let matchingValues(
+  filter: Stdlib.Option.Option<String>)
+  : List<LanguageTools.BuiltinValue> =
+  let all = LanguageTools.allBuiltinValues()
+  match filter with
+  | None -> all
+  | Some(pattern) ->
+    all |> Stdlib.List.filter(fun v -> Stdlib.String.contains(v.name.name, pattern))
+
+
 let execute(state: AppState, args: List<String>): AppState =
   let allBuiltins = LanguageTools.allBuiltinFns()
 
@@ -223,16 +234,48 @@ let execute(state: AppState, args: List<String>): AppState =
       Stdlib.printLine("")
       Stdlib.printLine($"{Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, getDisplayName(group))}: {names}"))
 
+  let values = matchingValues(filter)
+  let valuesHeading =
+    Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, "Values")
+
+  if Stdlib.List.isEmpty(values) then
+    ()
+  else if withSigs then
+    Stdlib.printLine("")
+    Stdlib.printLine(valuesHeading)
+
+    values
+    |> Stdlib.List.iter(fun v ->
+      let typStr =
+        PrettyPrinter.RuntimeTypes.typeReference(
+          SCM.Branch.mainBranchId,
+          v.``type``)
+
+      Stdlib.printLine($"  {v.name.name}{versionSuffix(v.name.version)}: {typStr}"))
+  else
+    let names =
+      values
+      |> Stdlib.List.map(fun v -> $"{v.name.name}{versionSuffix(v.name.version)}")
+      |> Stdlib.String.join(", ")
+
+    Stdlib.printLine("")
+    Stdlib.printLine($"{valuesHeading}: {names}")
+
   let totalCount =
     filteredGroups
     |> Stdlib.List.map(fun pair -> Stdlib.List.length(Stdlib.Tuple2.second(pair)))
     |> Stdlib.List.fold(0, fun(acc, n) -> acc + n)
 
+  let fnCount = Stdlib.toString(totalCount)
+  let valueCount = Stdlib.List.length(values)
+  let valueText =
+    Stdlib.toString(valueCount) + (if valueCount == 1 then " value" else " values")
+
   let summary =
     match filter with
-    | None -> $"Total: {Stdlib.toString(totalCount)} builtin functions"
+    | None -> $"Total: {fnCount} builtin functions, {valueText}"
     | Some(pattern) ->
-      $"Showing {Stdlib.toString(totalCount)} functions matching '{pattern}'"
+      $"Showing {fnCount} functions and {valueText} matching '{pattern}'"
 
   [ ""
     Stdlib.Cli.UI.Colors.hint(summary) ]
@@ -247,14 +290,14 @@ let execute(state: AppState, args: List<String>): AppState =
 let help(_state: AppState): String =
   [ "Usage: builtins [--with-sigs] [--with-purity] [filter]"
     ""
-    "Lists all builtin functions grouped by category."
+    "Lists all builtin functions grouped by category, then the builtin values."
     ""
     "Options:"
     "  --with-sigs    Show full function signatures with parameter types"
     "  --with-purity  Tag each fn with [pure] / [impure-previewable] / [impure]"
     ""
     "Arguments:"
-    "  filter         Optional pattern to filter functions by name or group"
+    "  filter         Optional pattern to filter fns by name or group, values by name"
     ""
     "Examples:"
     "  builtins                                - List all builtins (compact)"
