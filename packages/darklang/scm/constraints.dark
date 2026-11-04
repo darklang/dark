@@ -164,76 +164,25 @@ let findingId(
 /// main-scoped, on purpose: this is a property of the STORE, of what main's log binds and depends on,
 /// not of the branch the process stands on.
 let detectOutdatedUsages(): List<Finding> =
-  // Stale (name, version) pairs first, then the edges and live usages behind them. The obvious
-  // join, from each live usage to its edges, looks every edge's name up: one lookup per edge in
-  // the store, on the common path where none is stale. MATERIALIZED and CROSS JOIN hold that
-  // order against the planner, which otherwise drives from the ORDER BY. The ORDER BY's tail
-  // restates the order the obvious join produced, so ties come out as they always did.
-  Stdlib.Sqlite.rowsP(
-    localDb(),
-    "WITH stale AS MATERIALIZED (
-       SELECT t.depends_on_owner AS o, t.depends_on_modules AS m, t.depends_on_name AS n,
-              t.depends_on_hash AS h, cur.item_hash AS ch, cur.item_type AS ct, cur.rowid AS crow
-       FROM (SELECT DISTINCT depends_on_owner, depends_on_modules, depends_on_name, depends_on_hash
-             FROM package_dependencies WHERE depends_on_owner IS NOT NULL) t
-       JOIN locations cur
-         ON cur.owner = t.depends_on_owner
-        AND cur.modules = t.depends_on_modules
-        AND cur.name = t.depends_on_name
-        AND cur.unlisted_at IS NULL
-       WHERE cur.item_hash <> t.depends_on_hash)
-     SELECT l.owner, l.modules, l.name, l.item_type,
-            pd.depends_on_owner AS d_owner, pd.depends_on_modules AS d_modules,
-            pd.depends_on_name AS d_name, pd.depends_on_item_type AS d_type,
-            pd.depends_on_hash AS using_hash, s.ch AS current_hash,
-            s.ct AS current_type
-     FROM stale s
-     CROSS JOIN package_dependencies pd
-     CROSS JOIN locations l
-     WHERE pd.depends_on_owner = s.o AND pd.depends_on_modules = s.m
-       AND pd.depends_on_name = s.n AND pd.depends_on_hash = s.h
-       AND l.item_hash = pd.item_hash AND l.unlisted_at IS NULL
-     ORDER BY l.owner, l.modules, l.name, l.item_type, l.rowid,
-              pd.depends_on_hash, pd.depends_on_item_type,
-              pd.depends_on_owner, pd.depends_on_modules, pd.depends_on_name, s.ct, s.crow",
-    [],
-    fun row ->
-      let txt(col: String): String =
-        Stdlib.Sqlite.textField(row, col) |> Stdlib.Option.withDefault("")
+  Deps.query(Deps.DepQuery.Outdated)
+  |> Stdlib.List.map(fun e ->
+    let usage = Deps.locationOf(e.owner, e.modules, e.name)
+    let dependency = Deps.locationOf(e.dependsOnOwner, e.dependsOnModules, e.dependsOnName)
+    let using = LanguageTools.ProgramTypes.Hash.Hash(e.dependsOnHash)
 
-      let usage = Deps.locationOf(txt("owner"), txt("modules"), txt("name"))
+    // Same query answers both: a name whose current binding differs from the one this usage recorded.
+    // WHICH finding it is depends on whether the kind moved too.
+    let kind = if e.currentType == e.dependsOnType then Kind.StaleUsage else Kind.KindChanged
 
-      let dependency =
-        Deps.locationOf(txt("d_owner"), txt("d_modules"), txt("d_name"))
-
-      let using = LanguageTools.ProgramTypes.Hash.Hash(txt("using_hash"))
-
-      // Same query answers both: a name whose current binding differs from the one this usage recorded.
-      // WHICH finding it is depends on whether the kind moved too.
-      let kind =
-        if (txt("current_type")) == (txt("d_type")) then
-          Kind.StaleUsage
-        else
-          Kind.KindChanged
-
-      Stdlib.Option.Option.Some(
-        Finding
-          { kind = kind
-            id =
-              findingId(
-                usage,
-                dependency,
-                LanguageTools.ProgramTypes.hashToString(using))
-            usage = usage
-            usageKind = Deps.kindOf(txt("item_type"))
-            dependency = dependency
-            dependencyKind = Deps.kindOf(txt("d_type"))
-            detail =
-              FindingDetail.Versions(
-                using,
-                LanguageTools.ProgramTypes.Hash.Hash(txt("current_hash"))
-              ) }
-      ))
+    Finding
+      { kind = kind
+        id = findingId(usage, dependency, e.dependsOnHash)
+        usage = usage
+        usageKind = Deps.kindOf(e.itemType)
+        dependency = dependency
+        dependencyKind = Deps.kindOf(e.dependsOnType)
+        detail =
+          FindingDetail.Versions(using, LanguageTools.ProgramTypes.Hash.Hash(e.currentHash)) })
 
 
 /// Ack ids, read from the shared conflicts record.
@@ -423,27 +372,15 @@ let detectOutdatedUsagesOn(branchId: Uuid): List<Finding> =
     let chain = PackageOps.chainBindingEntries(branchId)
     let bindings = chain |> Stdlib.List.filterMap(fun w -> w.binding)
 
-    let txt(row: Dict<String, Stdlib.Sqlite.Value>, col: String): String =
-      Stdlib.Sqlite.textField(row, col) |> Stdlib.Option.withDefault("")
-
     // Each binding's edges in rowid order, which is the order its own `item_hash = ?` read gave.
     let edgesByHash =
-      Stdlib.Sqlite.rowsOrEmptyP(
-        localDb(),
-        "SELECT item_hash, depends_on_owner AS d_owner, depends_on_modules AS d_modules,
-                depends_on_name AS d_name, depends_on_item_type AS d_type,
-                depends_on_hash AS using_hash
-         FROM package_dependencies
-         WHERE item_hash IN (SELECT value FROM json_each(@p0))
-         ORDER BY rowid",
-        [ Stdlib.Json.serialize<List<String>>(bindings |> Stdlib.List.map(fun b -> b.hash)) ])
+      Deps.query(Deps.DepQuery.EdgesOfAll(bindings |> Stdlib.List.map(fun b -> b.hash)))
       |> Stdlib.List.reverse
-      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, row) ->
-        let h = txt(row, "item_hash")
-        let rest = Stdlib.Dict.get(acc, h) |> Stdlib.Option.withDefault([])
-        Stdlib.Dict.set(acc, h, Stdlib.List.prepend(rest, row)))
+      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, e) ->
+        let rest = Stdlib.Dict.get(acc, e.itemHash) |> Stdlib.Option.withDefault([])
+        Stdlib.Dict.set(acc, e.itemHash, Stdlib.List.prepend(rest, e)))
 
-    let edgesOf(b: Conflicts.Binding): List<Dict<String, Stdlib.Sqlite.Value>> =
+    let edgesOf(b: Conflicts.Binding): List<Deps.DepEdge> =
       Stdlib.Dict.get(edgesByHash, b.hash) |> Stdlib.Option.withDefault([])
 
     let live =
@@ -453,34 +390,34 @@ let detectOutdatedUsagesOn(branchId: Uuid): List<Finding> =
         (bindings
          |> Stdlib.List.map(fun b -> edgesOf(b))
          |> Stdlib.List.flatten
-         |> Stdlib.List.map(fun row ->
-           Deps.locationOf(txt(row, "d_owner"), txt(row, "d_modules"), txt(row, "d_name")))))
+         |> Stdlib.List.map(fun e ->
+           Deps.locationOf(e.dependsOnOwner, e.dependsOnModules, e.dependsOnName))))
 
     bindings
     |> Stdlib.List.map(fun b ->
       edgesOf(b)
-      |> Stdlib.List.filterMap(fun row ->
-        let (owner, modules, name) = (txt(row, "d_owner"), txt(row, "d_modules"), txt(row, "d_name"))
+      |> Stdlib.List.filterMap(fun e ->
+        let (owner, modules, name) = (e.dependsOnOwner, e.dependsOnModules, e.dependsOnName)
         let dependency = Deps.locationOf(owner, modules, name)
 
         match Stdlib.Dict.get(live, Conflicts.bindingKey(owner, modules, name)) with
         | None -> Stdlib.Option.Option.None
         | Some(cur) ->
-          if cur.hash == (txt(row, "using_hash")) then
+          if cur.hash == e.dependsOnHash then
             Stdlib.Option.Option.None
           else
             let usage = Deps.locationOf(b.owner, b.modules, b.name)
-            let using = LanguageTools.ProgramTypes.Hash.Hash(txt(row, "using_hash"))
+            let using = LanguageTools.ProgramTypes.Hash.Hash(e.dependsOnHash)
 
             Stdlib.Option.Option.Some(
               Finding
                 { kind =
-                    if cur.itemType == (txt(row, "d_type")) then Kind.StaleUsage else Kind.KindChanged
-                  id = findingId(usage, dependency, txt(row, "using_hash"))
+                    if cur.itemType == e.dependsOnType then Kind.StaleUsage else Kind.KindChanged
+                  id = findingId(usage, dependency, e.dependsOnHash)
                   usage = usage
                   usageKind = Deps.kindOf(b.itemType)
                   dependency = dependency
-                  dependencyKind = Deps.kindOf(txt(row, "d_type"))
+                  dependencyKind = Deps.kindOf(e.dependsOnType)
                   detail =
                     FindingDetail.Versions(using, LanguageTools.ProgramTypes.Hash.Hash(cur.hash)) }
             )))

@@ -88,15 +88,8 @@ let draftDepsOf(pending: List<String>, hashes: List<String>): List<String> =
   if Stdlib.List.isEmpty(hashes) then
     []
   else
-    let quoted =
-      hashes |> Stdlib.List.map(fun h -> $"'{h}'") |> Stdlib.String.join(", ")
-
-    (Stdlib.Sqlite.columnP(
-      localDb(),
-      $"SELECT DISTINCT depends_on_hash AS h FROM package_dependencies
-        WHERE item_hash IN ({quoted}) AND depends_on_hash != ''",
-      [],
-      "h"))
+    SCM.Deps.query(SCM.Deps.DepQuery.Closure(hashes))
+    |> Stdlib.List.map(fun e -> e.dependsOnHash)
     |> Stdlib.List.filter(fun h -> Stdlib.List.contains(pending, h))
 
 /// One round of closure: referenced hashes with draft content or names not yet in acc.
@@ -152,36 +145,12 @@ let closeOverDepFqns(names: List<String>): List<String> =
           |> Stdlib.List.findFirst(fun pair -> let (f, _) = pair in f == fqn)
           |> Stdlib.Option.map(fun pair -> let (_, h) = pair in h)
 
-        let byHash(hash: String): List<Dict<String, Stdlib.Sqlite.Value>> =
-          Stdlib.Sqlite.rowsOrEmptyP(
-            SCM.localDb(),
-            "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
-             FROM package_dependencies d
-             WHERE d.item_hash = @p0 AND d.depends_on_name <> ''",
-            [ hash ])
-
         (match viaDraft with
-         | Some(hash) -> byHash(hash)
-         | None ->
-           Stdlib.Sqlite.rowsOrEmptyP(
-             SCM.localDb(),
-             "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
-              FROM package_dependencies d
-              JOIN locations l ON l.item_hash = d.item_hash
-              WHERE l.owner || '.' || (CASE WHEN l.modules = '' THEN '' ELSE l.modules || '.' END)
-                    || l.name = @p0
-                AND d.depends_on_name <> ''",
-             [ fqn ]))
-          |> Stdlib.List.filterMap(fun row ->
-            match
-              (Stdlib.Sqlite.textField(row, "o"),
-               Stdlib.Sqlite.textField(row, "m"),
-               Stdlib.Sqlite.textField(row, "n"))
-            with
-            | (Some(o), Some(m), Some(n)) ->
-              let mid = if m == "" then "" else m + "."
-              Stdlib.Option.Option.Some(o + "." + mid + n)
-            | _ -> Stdlib.Option.Option.None))
+         | Some(hash) -> SCM.Deps.query(SCM.Deps.DepQuery.NamesOf(hash))
+         | None -> SCM.Deps.query(SCM.Deps.DepQuery.NamesOfFqn(fqn)))
+          |> Stdlib.List.map(fun e ->
+            let mid = if e.dependsOnModules == "" then "" else e.dependsOnModules + "."
+            e.dependsOnOwner + "." + mid + e.dependsOnName))
       |> Stdlib.List.flatten
     Stdlib.List.unique(Stdlib.List.concat(acc, next))
 
