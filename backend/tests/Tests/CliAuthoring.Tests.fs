@@ -112,6 +112,68 @@ let aNameThatDisagreesWithTheDeclarationIsRefused =
         do! clean state "a refused save leaves no draft behind"
       })
 
+/// A name needs no module: `Owner.name` is saved, shown, run and committed like any other, and
+/// resolves from beside it unqualified and from another owner's module by its two-part name.
+let anOwnerLevelNameNeedsNoModule =
+  instanceTest "an Owner.name with no module is a name like any other" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.ownerDouble" "(x: Int64): Int64 = x * 2L"
+      do! value state "Tests.ownerSeed" "7406L"
+      do!
+        shows state [ "view"; "Tests.ownerDouble" ] "x * 2L" "view shows its source"
+      do!
+        evals
+          state
+          "Tests.ownerDouble(Tests.ownerSeed)"
+          "14812"
+          "it is callable by its two-part name"
+      do! commit state "owner-level"
+
+      do! fn state "Tests.ownerSibling" "(): Int64 = ownerDouble(3L)"
+      do! fn state "Elsewhere.Mod.useIt" "(): Int64 = Tests.ownerDouble(1L)"
+      do! commit state "owner-level callers"
+      do! evals state "Tests.ownerSibling()" "6" "a sibling reaches it unqualified"
+      do!
+        evals state "Elsewhere.Mod.useIt()" "2" "another module reaches it by name"
+      do!
+        showsAll
+          state
+          [ "ls"; "Tests" ]
+          [ "ownerDouble"; "ownerSeed"; "ownerSibling" ]
+          "its owner lists it"
+      do!
+        shows
+          state
+          [ "deps"; "Tests.ownerDouble" ]
+          "Elsewhere.Mod"
+          "and its dependents are found"
+      do! clean state "both commits took everything"
+    })
+
+/// A conflict on an owner-level name is found by that name, as the listing prints it.
+let anOwnerLevelConflictIsFoundByName =
+  instanceTest "a conflict on an Owner.name is found by its name" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.ownerClash" "(): Int64 = 1L"
+      do! commit state "base"
+      do! switch state "owner-clash"
+      do! fn state "Tests.ownerClash" "(): Int64 = 2L"
+      do! commit state "branch side"
+      do! onMain state
+      do! fn state "Tests.ownerClash" "(): Int64 = 3L"
+      do! commit state "main side"
+      do! switch state "owner-clash"
+      do! rebase state "owner-clash"
+      do!
+        shows
+          state
+          [ "conflicts"; "show"; "Tests.ownerClash" ]
+          "two live versions"
+          "the conflict is found by its two-part name"
+    })
+
 let branchPropagationIgnoresMainDraftCallers =
   instanceTest "branch propagation ignores main draft callers" (fun state ->
     task {
@@ -989,7 +1051,7 @@ let aFailedModuleSaveDoesNotEndOnATick =
 
 /// Every example in the authoring help pages and the agent guide RUNS.
 ///
-/// Each of these used to be refused as printed: bare names where three parts are needed, the
+/// Each of these used to be refused as printed: bare names with no owner, the
 /// reserved `Darklang` owner, and `./scripts/run-cli`, which nobody who installed the CLI has.
 /// An example nobody executed is how that happened, so this executes them: every `dark ...` line
 /// in a page, and every `<<'EOF'` block with its body on stdin, in order, in a fresh store, and
@@ -1252,6 +1314,8 @@ let tests : List<Test> =
     traitsAreAuthoredListedAndDisambiguated
     aParseErrorChangesNothing
     aNameThatDisagreesWithTheDeclarationIsRefused
+    anOwnerLevelNameNeedsNoModule
+    anOwnerLevelConflictIsFoundByName
     deleteRefusesWhileSomethingStillCallsIt
     branchPropagationIgnoresMainDraftCallers
     failedAliasValuesLeaveNoReferenceMetadata

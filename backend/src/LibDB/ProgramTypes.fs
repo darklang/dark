@@ -11,6 +11,7 @@ open LibDB.Sqlite
 
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
+module PackageLocation = LibDB.PackageLocation
 
 
 // Single-scope "main": every row is on the main branch, so name resolution needs
@@ -88,7 +89,7 @@ let private getItemLocations
       |> Sql.executeAsync (fun read ->
         let modulesStr = read.string "modules"
         { owner = read.string "owner"
-          modules = modulesStr.Split('.') |> Array.toList
+          modules = PackageLocation.modulesOfColumn modulesStr
           name = read.string "name" })
   }
 
@@ -118,7 +119,7 @@ let private getItemLocationsEverNamed
       |> Sql.executeAsync (fun read ->
         let modulesStr = read.string "modules"
         { owner = read.string "owner"
-          modules = modulesStr.Split('.') |> Array.toList
+          modules = PackageLocation.modulesOfColumn modulesStr
           name = read.string "name" })
   }
 
@@ -216,8 +217,7 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
       let (submoduleCondition, sqlParams) =
         if query.exactMatch then
           if System.String.IsNullOrEmpty query.text then
-            let parts = currentModule.Split('.') |> Array.toList
-            match parts with
+            match query.currentModule with
             | [ owner ] -> ("""(owner = @owner)""", [ "owner", Sql.string owner ])
             | owner :: moduleParts ->
               let modulesPath = String.concat "." moduleParts
@@ -225,8 +225,8 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
                [ "owner", Sql.string owner; "modulesPath", Sql.string modulesPath ])
             | [] -> ("""(1 = 1)""", [])
           else
-            ("""(modules = @currentModule || '.' || @searchText)
-               OR (owner || '.' || modules = @currentModule || '.' || @searchText)""",
+            ($"(l.modules = @currentModule || '.' || @searchText)
+               OR ({PackageLocation.modulePathSql} = @currentModule || '.' || @searchText)",
              [ "currentModule", Sql.string currentModule
                "searchText", Sql.string query.text ])
         else if System.String.IsNullOrEmpty currentModule then
@@ -235,22 +235,22 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
             ("""(owner LIKE '%' || @searchText || '%')""",
              [ "searchText", Sql.string query.text ])
           | PT.Search.SearchDepth.AllDescendants ->
-            ("""((owner LIKE '%' || @searchText || '%')
-                  OR (modules LIKE '%' || @searchText || '%')
-                  OR (owner || '.' || modules LIKE '%' || @searchText || '%'))""",
+            ($"((owner LIKE '%%' || @searchText || '%%')
+                  OR (modules LIKE '%%' || @searchText || '%%')
+                  OR ({PackageLocation.modulePathSql} LIKE '%%' || @searchText || '%%'))",
              [ "searchText", Sql.string query.text ])
         else
           let directChildPattern = currentModule + ".%"
           match query.searchDepth with
           | PT.Search.SearchDepth.OnlyDirectDescendants ->
-            ("""((modules LIKE @directChildPattern AND modules LIKE '%' || @searchText || '%')
-                  OR (owner || '.' || modules LIKE @directChildPattern AND owner || '.' || modules LIKE '%' || @searchText || '%'))""",
+            ($"((modules LIKE @directChildPattern AND modules LIKE '%%' || @searchText || '%%')
+                  OR ({PackageLocation.modulePathSql} LIKE @directChildPattern AND {PackageLocation.modulePathSql} LIKE '%%' || @searchText || '%%'))",
              [ "currentModule", Sql.string currentModule
                "directChildPattern", Sql.string directChildPattern
                "searchText", Sql.string query.text ])
           | PT.Search.SearchDepth.AllDescendants ->
-            ("""((modules LIKE @directChildPattern AND modules LIKE '%' || @searchText || '%')
-                  OR (owner || '.' || modules LIKE @directChildPattern AND owner || '.' || modules LIKE '%' || @searchText || '%'))""",
+            ($"((modules LIKE @directChildPattern AND modules LIKE '%%' || @searchText || '%%')
+                  OR ({PackageLocation.modulePathSql} LIKE @directChildPattern AND {PackageLocation.modulePathSql} LIKE '%%' || @searchText || '%%'))",
              [ "currentModule", Sql.string currentModule
                "directChildPattern", Sql.string directChildPattern
                "searchText", Sql.string query.text ])
@@ -267,7 +267,7 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
       |> Sql.executeAsync (fun read ->
         let owner = read.string "owner"
         let modulesStr = read.string "modules"
-        let moduleParts = modulesStr.Split('.') |> Array.toList
+        let moduleParts = PackageLocation.modulesOfColumn modulesStr
         if List.tryHead moduleParts = Some owner then
           moduleParts
         else
@@ -301,19 +301,19 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
           |> List.mapi (fun i _ ->
             // Match each token against the qualified location and docs. Restricting
             // this to the item name would prevent module-path tokens from matching.
-            let qualifiedName = "(l.owner || '.' || l.modules || '.' || l.name)"
+            let qualifiedName = PackageLocation.qualifiedNameSql
 
             $"({qualifiedName} LIKE '%%' || @tok{i} || '%%' "
             + $"OR c.description LIKE '%%' || @tok{i} || '%%')")
           |> String.concat " AND "
         elif query.exactMatch then
           if isQualified then
-            "((l.owner || '.' || l.modules || '.' || l.name) = @searchText
-              OR (l.owner || '.' || l.modules || '.' || l.name) LIKE '%.' || @searchText)"
+            $"({PackageLocation.qualifiedNameSql} = @searchText
+              OR {PackageLocation.qualifiedNameSql} LIKE '%%.' || @searchText)"
           else
             "l.name = @searchText"
         else if isQualified then
-          "(l.owner || '.' || l.modules || '.' || l.name) LIKE '%' || @searchText || '%'"
+          $"{PackageLocation.qualifiedNameSql} LIKE '%%' || @searchText || '%%'"
         else if String.length query.text > 2 then
           "(l.name LIKE '%' || @searchText || '%'
             OR c.description LIKE '%' || @searchText || '%')"
@@ -332,14 +332,16 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
           && query.searchDepth = PT.Search.SearchDepth.AllDescendants
         then
           "1 = 1"
+        // Nothing lives directly at the root: its children are owners, which are submodules.
         else if System.String.IsNullOrEmpty currentModule then
-          "((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname))"
+          "0 = 1"
         else
+          let path = PackageLocation.modulePathSql
           match query.searchDepth with
           | PT.Search.SearchDepth.OnlyDirectDescendants ->
-            "((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname))"
+            $"((l.modules = @modules) OR ({path} = @fqname))"
           | PT.Search.SearchDepth.AllDescendants ->
-            "((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname) OR (l.modules LIKE @modules || '.%') OR (l.owner || '.' || l.modules LIKE @fqname || '.%'))"
+            $"((l.modules = @modules) OR ({path} = @fqname) OR (l.modules LIKE @modules || '.%%') OR ({path} LIKE @fqname || '.%%'))"
 
       $"SELECT c.{joinColumn} as lookup_id, c.pt_def, l.owner, l.modules, l.name\n"
       + $"FROM locations l\n"
@@ -370,7 +372,7 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
         let entity = deserializeFn hash definition
         let location : PT.PackageLocation =
           { owner = owner
-            modules = modulesStr.Split('.') |> Array.toList
+            modules = PackageLocation.modulesOfColumn modulesStr
             name = name }
         ({ entity = entity; location = location } : PT.LocatedItem<_>))
 

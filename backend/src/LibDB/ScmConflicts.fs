@@ -114,11 +114,11 @@ let query (q : Query) : Task<List<Row>> =
     // pending ones, so the command acting on the listing has to agree with it. Ordering rather than
     // filtering: `show <id>` of a settled conflict should still find it.
     run
-      "SELECT id, owner, modules, name, item_type, COALESCE(part,'') AS part, kind, candidates,
+      $"SELECT id, owner, modules, name, item_type, COALESCE(part,'') AS part, kind, candidates,
               auto_resolved_to, reason, status, COALESCE(resolved_by,'') AS resolved_by
-       FROM conflicts
-       WHERE (id LIKE @ref || '%'
-              OR (owner || '.' || modules || '.' || name) = @ref
+       FROM conflicts l
+       WHERE (id LIKE @ref || '%%'
+              OR {PackageLocation.qualifiedNameSql} = @ref
               OR name = @ref)
          AND branch_id = @branch
        ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, created_at

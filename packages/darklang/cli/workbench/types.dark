@@ -133,7 +133,7 @@ let emptyRepl(): ReplState =
 
 
 /// What the footer's message reports. Its own value rather than read off the text: the footer used
-/// to pick its mark by substring ("fail", "conflict"), so "need at least owner.Module", "no matches
+/// to pick its mark by substring ("fail", "conflict"), so "need an owner", "no matches
 /// for ..." and "no relay yet" all went out behind a green tick. Not `Ok`, which would collide with
 /// `Result`'s case in a bare pattern.
 type MessageKind =
@@ -262,8 +262,8 @@ type InputState =
 type EditingState =
   { kind: String
     nameStr: String
-    /// The module (owner.Module...) the item saves into - from the tree location, or asked for when you're too
-    /// shallow to have one. Lets you author from anywhere, not just inside a module.
+    /// The owner or module (Owner.Module...) the item saves into - from the tree location, or asked for at
+    /// the root. Lets you author from anywhere.
     targetModule: List<String>
     buf: Stdlib.Cli.UI.Editor.Buf
     err: String }
