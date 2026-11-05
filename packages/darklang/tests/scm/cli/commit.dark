@@ -1,0 +1,117 @@
+/// `dark commit`, `dark undo`: saving into the draft and committing it, on main and on a branch.
+/// The helpers are in `helpers.dark`.
+module Darklang.SCM.Tests.Cli
+
+
+test aSaveIsADraftUntilItIsCommitted =
+  scenario(fun dark ->
+    [ draftIsEmpty(dark, "a fresh store has an empty draft")
+
+      saveNumber(dark, "Tests.App.a", "1")
+      says(dark, [ "status" ], "draft: 1 item changed", "status counts the save")
+      same(draft(dark), [ "new Tests.App.a" ], "status --json names it as new")
+      evals(dark, "Tests.App.a()", "1", "a saved function runs straight away")
+      same(commits(dark), [], "but nothing is committed yet")
+
+      says(dark, [ "commit", "save a", "-y" ], "commit ", "commit prints the commit it made")
+      draftIsEmpty(dark, "the commit took the whole draft")
+      says(dark, [ "status" ], "clean", "status says so")
+      same(commits(dark), [ "save a" ], "the commit is in history")
+      same(commitMessages(dark, [ "log", "--json" ]), [ "save a" ], "on main, log lists the commits")
+      evals(dark, "Tests.App.a()", "1", "the committed version runs") ])
+
+
+test aCommitOnABranchStaysOnTheBranch =
+  scenario(fun dark ->
+    [ switch(dark, "feat")
+      onBranch(dark, "feat", "status names the branch")
+
+      saveNumber(dark, "Tests.App.a", "1")
+      same(draft(dark), [ "new Tests.App.a" ], "the save is in the branch's draft")
+      same(draftOn(dark, "main"), [], "and not in main's")
+
+      commit(dark, "on feat")
+      draftIsEmpty(dark, "the commit took the branch's draft")
+      says(dark, [ "log" ], "SetName Tests.App.a", "on a branch, log lists the branch's ops")
+      same(commits(dark), [ "on feat" ], "the branch has the commit")
+      same(commitsOnMain(dark), [], "main does not")
+      notFoundOn(dark, "main", "Tests.App.a()", "main cannot run the branch's work") ])
+
+
+test savingANameTwiceCommitsOnlyTheLastVersion =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.a", "1")
+      commit(dark, "one")
+
+      saveNumber(dark, "Tests.App.a", "2")
+      saveNumber(dark, "Tests.App.a", "3")
+      same(draft(dark), [ "updated Tests.App.a" ], "two saves of one name are one change")
+
+      commit(dark, "two")
+      evals(dark, "Tests.App.a()", "3", "the last save is what was committed")
+      same(timesNewestCommitSets(dark, "Tests.App.a"), 1, "the commit sets the name once")
+      says(dark, [ "show", newestCommit(dark) ], "follows", "show names the commit it follows")
+
+      run(dark, [ "undo", "Tests.App.a" ])
+      evals(dark, "Tests.App.a()", "1", "undo skips the version that was never committed") ])
+
+
+test commitIncludeTakesWhatTheNameNeedsAndJsonOnlyPreviews =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.helper", "1")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 1L")
+      saveNumber(dark, "Tests.App.other", "3")
+
+      // `--json` without `-y` only previews.
+      same(
+        field(json(dark, [ "commit", "dry", "--include=Tests.App.caller", "--json" ]), "committed"),
+        Stdlib.AltJson.Json.Bool(false),
+        "commit --json without -y does not commit")
+      same(
+        draft(dark),
+        [ "new Tests.App.caller", "new Tests.App.helper", "new Tests.App.other" ],
+        "the draft is untouched")
+      same(commits(dark), [], "and so is history")
+
+      says(
+        dark,
+        [ "commit", "caller", "--include=Tests.App.caller", "-y" ],
+        "still in the draft",
+        "a partial commit says what it left behind")
+      same(draft(dark), [ "new Tests.App.other" ], "the caller took its helper with it; the rest stayed")
+      same(commits(dark), [ "caller" ], "one commit") ])
+
+
+test undoStepsBackOneCommittedVersionAtATime =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.a", "1")
+      commit(dark, "one")
+      saveNumber(dark, "Tests.App.a", "2")
+      commit(dark, "two")
+      saveNumber(dark, "Tests.App.a", "3")
+      commit(dark, "three")
+
+      run(dark, [ "undo", "Tests.App.a" ])
+      evals(dark, "Tests.App.a()", "2", "one step back")
+      run(dark, [ "undo", "Tests.App.a" ])
+      evals(dark, "Tests.App.a()", "1", "two steps back")
+      says(dark, [ "undo", "Tests.App.a" ], "first version", "a third undo says there is nothing further")
+      evals(dark, "Tests.App.a()", "1", "and stays put")
+
+      commit(dark, "undone")
+      draftIsEmpty(dark, "the undo commits like any edit")
+      evals(dark, "Tests.App.a()", "1", "the first version is now committed") ])
+
+
+test aTypeErrorIsSavedButRefusesToCommit =
+  scenario(fun dark ->
+    [ says(dark, [ "fn", "Tests.App.bad", "(): Int64 = \"text\"" ], "type error", "the save warns")
+      same(draft(dark), [ "new Tests.App.bad" ], "but the function is saved")
+
+      refuses(dark, [ "commit", "bad", "-y" ], "cannot commit", "commit refuses it")
+      draftIsNotEmpty(dark, "the draft is still there")
+      same(commits(dark), [], "and nothing was committed")
+
+      run(dark, [ "commit", "bad", "-y", "--allow-type-errors" ])
+      draftIsEmpty(dark, "--allow-type-errors commits it anyway")
+      same(commits(dark), [ "bad" ], "as one commit") ])

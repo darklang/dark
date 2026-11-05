@@ -1,0 +1,272 @@
+/// `dark conflicts`, `dark resolve`: what happens when a branch and its parent both changed one
+/// name, and settling it afterwards. The rule: the newer edit wins and the loser is recorded.
+/// The helpers are in `helpers.dark`.
+module Darklang.SCM.Tests.Cli
+
+
+test whenMainChangedANameLastMainWinsAndTheBranchIsRecorded =
+  scenario(fun dark ->
+    let setup =
+      Stdlib.Test.all(
+        [ saveNumber(dark, "Tests.App.a", "1")
+          commit(dark, "base")
+          featThenMainEdit(dark, "Tests.App.a", "2", "3") ])
+    let previewIds = conflictIds(dark, [ "conflicts", "branch", "feat", "--json" ])
+
+    [ setup
+      same(
+        mergePreview(dark, "feat"),
+        [ "Tests.App.a: main kept over feat (later-origin-ts)" ],
+        "the preview says main's newer version would be kept")
+      same(conflictIds(dark, [ "conflicts", "branch", "feat", "--json" ]), previewIds, "a second preview gives the same id")
+      same(conflicts(dark), [], "a preview records nothing")
+
+      says(dark, [ "merge", "feat", "-y" ], "1 conflict(s) auto-resolved", "the merge says it recorded one")
+      evals(dark, "Tests.App.a()", "3", "main's newer version runs")
+      same(conflicts(dark), [ "Tests.App.a: main kept over feat (later-origin-ts)" ], "and the branch's is recorded")
+      same(conflictIds(dark, [ "conflicts", "--json" ]), previewIds, "under the id the preview gave it")
+      same(
+        rows(field(status(dark), "conflicts")) |> Stdlib.List.map(conflictLine),
+        [ "Tests.App.a: main kept over feat (later-origin-ts)" ],
+        "status shows it too")
+      says(dark, [ "conflicts", "list" ], "B (feat, lost)", "the listing shows both sides") ])
+
+
+// Bug today: main's version is lost with nothing recorded. The branch's second edit is stored as
+// if made on top of main's change, which the branch never saw. When fixed, `conflicts` should
+// list main's version as the loser.
+test whenTheBranchChangesANameAgainAfterMainDidTheBranchWins =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.a", "1")
+      commit(dark, "base")
+      featThenMainEdit(dark, "Tests.App.a", "2", "3")
+      switch(dark, "feat")
+      evals(dark, "Tests.App.a()", "2", "the branch still runs its own version")
+      saveNumber(dark, "Tests.App.a", "4")
+      commit(dark, "feat edits again")
+
+      switch(dark, "main")
+      merge(dark, "feat")
+      evals(dark, "Tests.App.a()", "4", "the branch's newer version runs")
+      same(conflicts(dark), [], "today: nothing is recorded")
+      bugToday(
+        "a branch's second edit after its parent changed the name hides the conflict",
+        same(
+          conflicts(dark),
+          [ "Tests.App.a: feat kept over main (later-origin-ts)" ],
+          "main's version should be recorded as the loser")) ])
+
+
+// Odd, but today's behaviour: two creations of one name are recorded as
+// `same-name-different-hash`, never `independent-creation`.
+test whenBothSidesCreateTheSameNameTheNewerWins =
+  scenario(fun dark ->
+    [ switch(dark, "feat")
+      saveNumber(dark, "Tests.App.a", "1")
+      commit(dark, "feat creates")
+      switch(dark, "main")
+      saveNumber(dark, "Tests.App.a", "2")
+      commit(dark, "main creates")
+
+      merge(dark, "feat")
+      evals(dark, "Tests.App.a()", "2", "main's newer one runs")
+      same(conflicts(dark), [ "Tests.App.a: main kept over feat (later-origin-ts)" ], "the branch's is recorded")
+      same(
+        rows(field(json(dark, [ "conflicts", "--json" ]), "conflicts")) |> Stdlib.List.map(fun c -> text(c, "kind")),
+        [ "same-name-different-hash" ],
+        "as a same-name conflict") ])
+
+
+// Bug today: when the branch renames `a` away and main later edits `a`, main's edit wins but the
+// removal it beat is not recorded. When fixed, `conflicts` should list the branch's removal.
+test aRenameOnTheBranchLosesToANewerEditOnMain =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.a", "1")
+      saveNumber(dark, "Tests.App.x", "2")
+      commit(dark, "base")
+
+      switch(dark, "feat")
+      run(dark, [ "rename", "Tests.App.a", "Tests.App.b" ])
+      same(
+        field(status(dark), "removed"),
+        Stdlib.AltJson.Json.Array([ Stdlib.AltJson.Json.String("Tests.App.a") ]),
+        "status lists the old name as removed")
+      commit(dark, "feat renames a")
+
+      switch(dark, "main")
+      saveNumber(dark, "Tests.App.a", "3")
+      saveNumber(dark, "Tests.App.x", "4")
+      commit(dark, "main edits a and x")
+
+      // A rename made AFTER main's edit is newer, so it wins.
+      switch(dark, "feat")
+      run(dark, [ "rename", "Tests.App.x", "Tests.App.y" ])
+      commit(dark, "feat renames x")
+
+      switch(dark, "main")
+      merge(dark, "feat")
+      evals(dark, "Tests.App.a()", "3", "main's newer edit beats the older rename")
+      evals(dark, "Tests.App.b()", "1", "and the new name still holds what was renamed")
+      notFound(dark, "Tests.App.x()", "the newer rename of x wins")
+      evals(dark, "Tests.App.y()", "4", "carrying main's version of x")
+      same(conflicts(dark), [], "today: nothing is recorded")
+      bugToday(
+        "a removal that loses to a newer edit is not recorded",
+        same(
+          conflicts(dark),
+          [ "Tests.App.a: main kept over feat (later-origin-ts)" ],
+          "the beaten removal should be recorded")) ])
+
+
+test ackKeepsTheWinnerAndOverrideTakesTheLoser =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.a", "9341")
+      saveNumber(dark, "Tests.App.b", "9342")
+      commit(dark, "base")
+      switch(dark, "feat")
+      saveNumber(dark, "Tests.App.a", "9343")
+      saveNumber(dark, "Tests.App.b", "9344")
+      commit(dark, "feat edits")
+      switch(dark, "main")
+      saveNumber(dark, "Tests.App.a", "9345")
+      saveNumber(dark, "Tests.App.b", "9346")
+      commit(dark, "main edits")
+      merge(dark, "feat")
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: main kept over feat (later-origin-ts)"
+          "Tests.App.b: main kept over feat (later-origin-ts)" ],
+        "both names are recorded")
+
+      says(dark, [ "conflicts", "show", "Tests.App.a" ], "9343", "show prints the losing version")
+      says(dark, [ "conflicts", "show", "Tests.App.a" ], "9345", "and the kept one")
+
+      says(dark, [ "conflicts", "ack", "Tests.App.a" ], "the auto-pick stands", "ack keeps the winner")
+      evals(dark, "Tests.App.a()", "9345", "so a does not change")
+
+      says(dark, [ "conflicts", "override", "Tests.App.b", "B" ], "overrode", "override takes the loser")
+      evals(dark, "Tests.App.b()", "9344", "so b now runs the branch's version")
+      same(draft(dark), [ "updated Tests.App.b" ], "as a draft edit on main")
+      same(conflicts(dark), [], "nothing is left to settle")
+
+      commit(dark, "take feat's b")
+      draftIsEmpty(dark, "the override commits like any edit")
+      evals(dark, "Tests.App.b()", "9344", "and stays") ])
+
+
+// Odd, but today's behaviour: the caller's own conflict stays open after the override moved it.
+test overridingANameAlsoRepointsItsCallers =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.helper", "1")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 100L")
+      commit(dark, "base")
+      featThenMainEdit(dark, "Tests.App.helper", "2", "3")
+      merge(dark, "feat")
+      evals(dark, "Tests.App.helper()", "3", "main's newer helper runs")
+      evals(dark, "Tests.App.caller()", "103", "and the caller follows it")
+      same(
+        conflicts(dark),
+        [ "Tests.App.caller: main kept over feat (later-origin-ts)"
+          "Tests.App.helper: main kept over feat (later-origin-ts)" ],
+        "the caller followed on both sides, so both are recorded")
+
+      says(dark, [ "conflicts", "override", "Tests.App.helper", "B" ], "overrode", "override the helper")
+      evals(dark, "Tests.App.helper()", "2", "the branch's helper runs")
+      evals(dark, "Tests.App.caller()", "102", "and the caller follows it")
+      same(
+        draft(dark),
+        [ "followed Tests.App.caller", "updated Tests.App.helper" ],
+        "both are in the draft")
+      same(
+        conflicts(dark),
+        [ "Tests.App.caller: main kept over feat (later-origin-ts)" ],
+        "today: the caller's conflict is still open")
+
+      commit(dark, "take feat's helper")
+      evals(dark, "Tests.App.caller()", "102", "the commit keeps it")
+      draftIsEmpty(dark, "and empties the draft") ])
+
+
+test overridingTheCallerFirstThenTheHelperSettlesBoth =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.helper", "1")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 100L")
+      commit(dark, "base")
+      featThenMainEdit(dark, "Tests.App.helper", "2", "3")
+      same(
+        mergePreview(dark, "feat"),
+        [ "Tests.App.caller: main kept over feat (later-origin-ts)"
+          "Tests.App.helper: main kept over feat (later-origin-ts)" ],
+        "the preview names the helper and its caller")
+      merge(dark, "feat")
+
+      run(dark, [ "conflicts", "override", "Tests.App.caller", "B" ])
+      evals(dark, "Tests.App.caller()", "102", "the caller now runs the branch's version")
+      evals(dark, "Tests.App.helper()", "3", "while the helper is still main's")
+      same(staleCallers(dark), 1, "so status counts the caller as pointing at an old helper")
+      same(conflicts(dark), [ "Tests.App.helper: main kept over feat (later-origin-ts)" ], "the helper is still open")
+
+      run(dark, [ "conflicts", "override", "Tests.App.helper", "B" ])
+      evals(dark, "Tests.App.helper()", "2", "now the helper is the branch's too")
+      evals(dark, "Tests.App.caller()", "102", "and the caller agrees with it")
+      same(staleCallers(dark), 0, "with nothing stale")
+      same(draft(dark), [ "updated Tests.App.caller", "updated Tests.App.helper" ], "both are draft edits")
+      same(conflicts(dark), [], "and nothing is left to settle") ])
+
+
+test resolveOnABranchTakesTheirsOrKeepsMine =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.theirs", "1")
+      saveNumber(dark, "Tests.App.mine", "2")
+      commit(dark, "base")
+      switch(dark, "feat")
+      saveNumber(dark, "Tests.App.theirs", "3")
+      saveNumber(dark, "Tests.App.mine", "4")
+      commit(dark, "feat edits")
+      switch(dark, "main")
+      saveNumber(dark, "Tests.App.theirs", "5")
+      saveNumber(dark, "Tests.App.mine", "6")
+      commit(dark, "main edits")
+
+      switch(dark, "feat")
+      says(dark, [ "resolve", "feat", "Tests.App.theirs", "theirs" ], "took the parent's", "theirs takes main's version")
+      evals(dark, "Tests.App.theirs()", "5", "and the branch runs it")
+      says(dark, [ "resolve", "feat", "Tests.App.mine", "mine" ], "kept the branch's", "mine keeps the branch's version")
+      same(draft(dark), [ "updated Tests.App.mine" ], "as a draft edit")
+      same(mergePreview(dark, "feat"), [], "and the merge preview is clean")
+
+      switch(dark, "main")
+      refuses(dark, [ "merge", "feat", "-y" ], "uncommitted", "the merge waits for that edit to be committed")
+      switch(dark, "feat")
+      commit(dark, "settled")
+      switch(dark, "main")
+      merge(dark, "feat")
+      evals(dark, "Tests.App.theirs()", "5", "main's version stayed")
+      evals(dark, "Tests.App.mine()", "4", "the branch's version landed")
+      same(conflicts(dark), [], "with nothing recorded") ])
+
+
+// Odd, but today's behaviour: after `theirs`, the caller still runs the branch's dropped helper.
+test resolveTheirsDropsTheBranchsVersionSoMineHasNothingToKeep =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.helper", "1")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10L")
+      commit(dark, "base")
+      featThenMainEdit(dark, "Tests.App.helper", "2", "3")
+
+      switch(dark, "feat")
+      says(
+        dark,
+        [ "resolve", "feat", "Tests.App.helper", "theirs" ],
+        "took the parent's Tests.App.helper",
+        "theirs takes main's helper")
+      evals(dark, "Tests.App.helper()", "3", "the branch runs main's helper")
+      evals(dark, "Tests.App.caller()", "12", "today: the caller still runs the branch's dropped helper")
+      same(staleCallers(dark), 1, "which status counts as pointing at an old version")
+
+      refuses(
+        dark,
+        [ "resolve", "feat", "Tests.App.helper", "mine" ],
+        "nothing to resolve",
+        "after theirs, the branch has no version of its own left to keep")
+      evals(dark, "Tests.App.helper()", "3", "the helper is still main's") ])
