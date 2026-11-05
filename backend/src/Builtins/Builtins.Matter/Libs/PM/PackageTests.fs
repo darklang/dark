@@ -446,11 +446,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 let key : FQFnName.Builtin = { name = name; version = version }
                 // These calls observe branch-dependent rendering or mutable
                 // test-local state despite needing no host permissions.
-                if
-                  name = "toRepr"
-                  || name = "testIncrementCounter"
-                  || name = "testCounterValue"
-                then
+                if name = "toRepr" || name = "testCounter" then
                   None
                 else
                   match state.fns.builtIn.TryGetValue key with
@@ -468,40 +464,27 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
-    { name = fn "testIncrementCounter" 0
-      typeParams = [ "a" ]
-      parameters = [ Param.make "value" (TVariable "a") "The value to return" ]
-      returnType = TVariable "a"
-      description =
-        "Increments this test's counter and returns the value unchanged. "
-        + "Use to check how often a callback or expression runs. "
-        + "Only available while a package test is running."
-      fn =
-        (function
-        | state, _, _, [| value |] ->
-          requireRunningPackageTest state "incrementCounter"
-          let _ = System.Threading.Interlocked.Increment(&state.test.sideEffectCount)
-          Ply value
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-    { name = fn "testCounterValue" 0
+    { name = fn "testCounter" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters =
+        [ Param.make "increment" TBool "Whether to add one to the counter first" ]
       returnType = TInt64
       description =
-        "Returns this test's counter, which starts at zero for each test run. "
+        "This test's counter, which starts at zero for each test run, after adding one "
+        + "if <param increment>. Use to check how often a callback or expression runs. "
         + "Only available while a package test is running."
       fn =
         (function
-        | state, _, _, [| DUnit |] ->
-          requireRunningPackageTest state "counterValue"
-          System.Threading.Volatile.Read(&state.test.sideEffectCount)
-          |> int64
-          |> Dval.int64
-          |> Ply
+        | state, _, _, [| DBool increment |] ->
+          requireRunningPackageTest
+            state
+            (if increment then "incrementCounter" else "counterValue")
+          let count =
+            if increment then
+              System.Threading.Interlocked.Increment(&state.test.sideEffectCount)
+            else
+              System.Threading.Volatile.Read(&state.test.sideEffectCount)
+          count |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

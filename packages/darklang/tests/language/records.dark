@@ -165,7 +165,7 @@ module FieldAccess =
       (let x = MyRecord { col1 = 1L } in x.fieldName)
       => raises "Tried to access field `fieldName`, but it doesn't exist"
 
-    // `(Builtin.testRuntimeError "error").fieldName` is in errorPropagation.dark.
+    // `(Stdlib.Test.raiseRuntimeError("error")).fieldName` is in errorPropagation.dark.
 
     test accessOnInt64Raises =
       (let x = 6L in x.fieldName)

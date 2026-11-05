@@ -155,7 +155,7 @@ let private earliestErrorWins =
     let code =
       "Stdlib.List.map(Stdlib.List.range(1, 40), fun i -> if i == 3 then (let _ = ("
       + uneven
-      + "(1)) in 1 / 0) else if i == 38 then Builtin.testRuntimeError(\"late\") else i)"
+      + "(1)) in 1 / 0) else if i == 38 then i % 0 else i)"
     let! spread = run state code
     let! serial = runWith state false code
     match spread, serial with
