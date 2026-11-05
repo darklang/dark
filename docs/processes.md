@@ -967,6 +967,8 @@ function instead:
 
     dark config set exec.policy Darklang.Stdlib.Exec.Policy.youngestFirst
 
+`dark config unset exec.policy` goes back to round robin.
+
 The function takes the runnable
 processes of the scheduler that is asking, as `List<Stdlib.Exec.Summary>`,
 oldest first, and answers `Option<Uuid>`: the one to step, or `None` for no
@@ -1063,7 +1065,7 @@ What is deliberately not here, and where the seams are:
   `Timer` event; same effect, one less path through the scheduler.
 - A cancel of a process parked on a task that never completes waits forever; that is
   what `ps kill` is for, said in the ps help. A stop reason is a string on the process
-  ("cancelled", "stopped by ps kill", "its parent finished") and the awaiter sees it as
+  ("cancelled", "killed from ps", "its parent finished") and the awaiter sees it as
   an `UncaughtException` with that message.
 - `ps` shows the tree from the `parent` field; a process whose parent has been forgotten
   (the finished-process cap, 64 per scheduler) becomes a root.

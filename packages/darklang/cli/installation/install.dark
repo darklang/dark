@@ -9,14 +9,18 @@ let hasFlag(args: List<String>, longFlag: String, shortFlag: String): Bool =
 let execute(state: AppState, args: List<String>): AppState =
   let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
   let autoConfirm = hasFlag(args, "--yes", "-y")
-  let target = Installation.System.installedBinaryPath(host)
+  match Installation.System.installedBinaryPath(host) with
+  | Error(e) ->
+    Stdlib.printErrorLine(View.formatError(e))
+    Cli.exitWith(state, false)
+  | Ok(target) ->
 
-  if Installation.System.isRunningInstalled(host) then
+  if Installation.System.isRunningInstalled(target) then
     Stdlib.printLine(View.formatSuccess($"Already installed at {target}"))
     state
   else
     let go =
-      if Installation.System.isInstalled(host) then
+      if Installation.System.isInstalled(target) then
         Cli.Prompt.confirmExplicit(
           autoConfirm,
           $"A dark is already installed at {target}. Replace it with this one? (y/n): ")

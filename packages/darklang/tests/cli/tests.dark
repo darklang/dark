@@ -338,6 +338,42 @@ test moduleRejectsDuplicateNames =
        + $"module={moduleOutput}; search={searchOutput}"))
 
 
+// A module save that fails the type check says which function each error is in.
+test moduleSaveNamesTheFunctionsWithTypeErrors =
+  let suffix = Stdlib.toString(Stdlib.Int.random(100000, 999999))
+  let branchName = "cli-module-type-errors-test-" + suffix
+  let moduleName = "Tests.CliModuleTypeErrors"
+  let source =
+    [ "let addsText(n: Int): Int = n + \"x\""
+      ""
+      "let multipliesText(n: Int): Int = n * \"y\""
+      ""
+      "let fine(n: Int): Int = n"
+    ] |> Stdlib.String.join("\n")
+  let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
+  let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
+  let _ = runWithCommand(["branch", "create", branchName])
+  let output =
+    runWithBothStreams(
+      [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
+  let _ = runWithCommand(["branch", "archive", branchName, "-y"])
+  let _ = Stdlib.Cli.File.delete(sourcePath)
+
+  let namedAboveItsError(fnName: String): Bool =
+    Stdlib.String.contains(
+      output,
+      $"  {moduleName}.{fnName}:\n    - [TypeMismatch]")
+
+  if
+    namedAboveItsError("addsText")
+    && namedAboveItsError("multipliesText")
+    && Stdlib.Bool.not(Stdlib.String.contains(output, $"{moduleName}.fine:"))
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Expected each failing function named above its error; got {output}")
+
+
 // Merge a child into a throwaway parent so the test leaves no function on main.
 // Commit the changes before merging and pass -y to avoid an interactive prompt.
 test mergeRoundTrip =

@@ -58,8 +58,8 @@ let configRoundTrips =
         shows
           state
           [ "config"; "unset"; "instance.name" ]
-          "Unset instance.name"
-          "unset says what it unset"
+          "instance.name is back to its default (this machine's hostname)"
+          "unset says what applies now"
       do!
         shows
           state
@@ -77,14 +77,14 @@ let configRoundTrips =
           state
           [ "config"; "unset"; "instance.id" ]
           "cannot be unset"
-          "Unset "
+          "back to its default"
           "instance.id has no default to go back to"
       do!
         refuses
           state
           [ "config"; "unset"; "trace.recrod" ]
           "Did you mean trace.record?"
-          "Unset "
+          "back to its default"
           "unset refuses a typo like set does"
     })
 
@@ -186,7 +186,14 @@ let configRefusesUnknownKeysAndBadValues =
               "Darklang.Stdlib.Exec.Policy.roundRobin" ]
             "Set exec.policy"
             "a policy that resolves is stored"
-        do! run state [ "config"; "set"; "exec.policy"; "" ]
+        do!
+          refuses
+            state
+            [ "config"; "set"; "exec.policy"; "" ]
+            "config unset exec.policy"
+            "Set "
+            "an empty value is refused, pointing at unset"
+        do! run state [ "config"; "unset"; "exec.policy" ]
         do!
           refuses
             state

@@ -2,19 +2,20 @@
 module Darklang.Cli.Installation.System
 
 
-/// Where the installed binary lives.
-let installedBinaryPath(host: Stdlib.Cli.Host.Host): String =
-  $"{Config.getDarklangHomeDir(host)}/bin/dark"
+/// Where the installed binary lives, or why there is no home to put it in.
+let installedBinaryPath(host: Stdlib.Cli.Host.Host): Stdlib.Result.Result<String, String> =
+  Config.getDarklangHomeDir(host)
+  |> Stdlib.Result.map(fun home -> $"{home}/bin/dark")
 
 
-/// Is the running binary the installed one?
-let isRunningInstalled(host: Stdlib.Cli.Host.Host): Bool =
-  Stdlib.Cli.Sys.currentExecutablePath() == installedBinaryPath(host)
+/// Is the running binary the installed one, at <param installed>?
+let isRunningInstalled(installed: String): Bool =
+  Stdlib.Cli.Sys.currentExecutablePath() == installed
 
 
-/// Is there an installed binary at all?
-let isInstalled(host: Stdlib.Cli.Host.Host): Bool =
-  Stdlib.Cli.Unix.fileExists(installedBinaryPath(host))
+/// Is there an installed binary at <param installed>?
+let isInstalled(installed: String): Bool =
+  Stdlib.Cli.Unix.fileExists(installed)
 
 
 /// Is this binary the latest release?
@@ -28,11 +29,13 @@ let isLatestBuild(currentVersion: String): Stdlib.Result.Result<Bool, String> =
 
 /// Copy the running binary to `~/.darklang/bin/dark` and put it on the PATH.
 let installFromCurrentBinary(host: Stdlib.Cli.Host.Host): Stdlib.Result.Result<String, String> =
-  let currentBinaryPath = Stdlib.Cli.Sys.currentExecutablePath()
-  let darklangHomeDir = Config.getDarklangHomeDir(host)
+  match Config.getDarklangHomeDir(host) with
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(darklangHomeDir) ->
 
+  let currentBinaryPath = Stdlib.Cli.Sys.currentExecutablePath()
   let globalBinDir = $"{darklangHomeDir}/bin/"
-  let globalBinaryPath = installedBinaryPath(host)
+  let globalBinaryPath = $"{darklangHomeDir}/bin/dark"
 
   let copied =
     match Stdlib.Cli.Unix.ensureDirectoryExists(globalBinDir) with
@@ -83,9 +86,13 @@ let updateIfAvailable(
 /// Uninstall the CLI with user confirmation
 /// If autoConfirm is true, skips confirmation prompt
 let uninstallWithConfirmation(host: Stdlib.Cli.Host.Host, autoConfirm: Bool): Stdlib.Result.Result<String, String> =
+  match Config.getDarklangHomeDir(host) with
+  | Error(e) -> Stdlib.Result.Result.Error($"refusing to uninstall: {e}")
+  | Ok(darklangHomeDir) ->
+
   if Cli.Prompt.confirmExplicit(
        autoConfirm,
-       $"Uninstall removes {Config.getDarklangHomeDir(host)}, including everything you've made. Are you sure? (y/n): ") then
+       $"Uninstall removes {darklangHomeDir}, including everything you've made. Are you sure? (y/n): ") then
     Stdlib.printErrorLine("Uninstalling...")
     match Uninstall.runUninstall(host) with
     | Ok(_) -> Stdlib.Result.Result.Ok("Uninstall complete")

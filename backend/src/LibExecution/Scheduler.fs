@@ -204,9 +204,10 @@ let stateForProcess
 
 type Scheduler(quantum : int64) =
   /// Who is waiting on `ExecDone` for which process, across every scheduler in the process:
-  /// registered at subscribe time, taken at finish. So a finish posts to the schedulers that
-  /// asked, not to every worker in the group: with one worker per core that was fifty queue
-  /// posts per finished process, most of a server's per-request cost.
+  /// registered at subscribe time, taken at finish or when the subscription is dropped. So a
+  /// finish posts to the schedulers that asked, not to every worker in the group: with one
+  /// worker per core that was fifty queue posts per finished process, most of a server's
+  /// per-request cost.
   static let execDoneWatchers =
     System.Collections.Concurrent.ConcurrentDictionary<ProcessId, Scheduler list>()
 
@@ -291,6 +292,12 @@ type Scheduler(quantum : int64) =
     match box current.Value with
     | null -> None
     | _ -> current.Value
+
+  /// Test-only: how many `ExecDone` watchers are registered for `pid`, across the group.
+  static member ExecDoneWatchers(pid : ProcessId) : int =
+    match execDoneWatchers.TryGetValue pid with
+    | true, ws -> List.length ws
+    | false, _ -> 0
 
   /// The process being stepped, for a builtin that wants to park it on events.
   static member CurrentProcess : Option<Process> =
@@ -549,6 +556,7 @@ type Scheduler(quantum : int64) =
     let stdinRefusal (msg : string) : exn =
       RT.RuntimeErrorException(None, RTE.UncaughtException(msg, []))
     let refuse (msg : string) = wake.SetException(stdinRefusal msg)
+    let subscribed = ref false
     lock sync (fun () ->
       let wantsKey = List.contains HE.EventSpec.Key specs
       let wantsStore = List.contains HE.EventSpec.StoreChanged specs
@@ -591,6 +599,7 @@ type Scheduler(quantum : int64) =
         p.parkHint <- ValueSome(OnEvent specs)
         let sub = { proc = p; specs = specs; wake = wake; timers = [] }
         subscriptions.Add sub
+        subscribed.Value <- true
         for spec in specs do
           match spec with
           | HE.EventSpec.Key -> HE.Shared.requestKey queue
@@ -606,9 +615,7 @@ type Scheduler(quantum : int64) =
               match HE.Shared.requestStdin queue wanted with
               | Ok() -> stdinOutstanding <- Some wanted
               | Error e ->
-                subscriptions.Remove sub |> ignore<bool>
-                for (_, timer) in sub.timers do
-                  timer.Dispose()
+                this.Drop sub |> ignore<bool>
                 wake.TrySetException(stdinRefusal e) |> ignore<bool>
             | None, _ -> ()
           | HE.EventSpec.ExecDone pid ->
@@ -616,9 +623,9 @@ type Scheduler(quantum : int64) =
             // does come later finds no subscription and does nothing.
             if Set.contains pid alreadyOver then
               this.Satisfy(sub, HE.HostEvent.ExecDone pid))
-    // Answered without parking: the watchers are not needed, and one for a process already
-    // over would stay in the table for good, since only a finish takes them.
-    if wake.Task.IsCompleted then
+    // Answered before a subscription was made: the watchers are not needed, and one for a
+    // process already over would stay in the table for good, since only a finish takes them.
+    if not subscribed.Value then
       for pid in watched do
         this.Unwatch pid
     wake.Task
@@ -644,12 +651,23 @@ type Scheduler(quantum : int64) =
           else
             execDoneWatchers.TryUpdate(pid, rest, ws)
 
+  /// Take a subscription out with its timers and `ExecDone` watchers, whatever ends it: a
+  /// watcher left behind would stay until that process finishes, one more per pass of a loop
+  /// waiting on a long-running process and a timer. False if it was already gone.
+  member private this.Drop(sub : Subscription) : bool =
+    let removed = subscriptions.Remove sub
+    if removed then
+      for (_, timer) in sub.timers do
+        timer.Dispose()
+      for spec in List.distinct sub.specs do
+        match spec with
+        | HE.EventSpec.ExecDone pid -> this.Unwatch pid
+        | _ -> ()
+    removed
+
   /// Wake a subscription and drop it.
-  member private _.Satisfy(sub : Subscription, ev : HE.HostEvent) : unit =
-    subscriptions.Remove sub |> ignore<bool>
-    for (_, timer) in sub.timers do
-      timer.Dispose()
-    sub.wake.TrySetResult ev |> ignore<bool>
+  member private this.Satisfy(sub : Subscription, ev : HE.HostEvent) : unit =
+    if this.Drop sub then sub.wake.TrySetResult ev |> ignore<bool>
 
   /// Route one event. Scheduler thread only.
   member private this.Dispatch(ev : HE.HostEvent) : unit =
@@ -1078,9 +1096,7 @@ type Scheduler(quantum : int64) =
         let mine =
           subscriptions |> Seq.filter (fun s -> s.proc.id = pid) |> List.ofSeq
         for sub in mine do
-          subscriptions.Remove sub |> ignore<bool>
-          for (_, timer) in sub.timers do
-            timer.Dispose()
+          this.Drop sub |> ignore<bool>
           sub.wake.TrySetCanceled() |> ignore<bool>)
       // A hard stop abandons the wait: the turn is posted now. A soft one lets it land; a
       // cut event subscription lands on its own (the cancelled wake posts like any completion).

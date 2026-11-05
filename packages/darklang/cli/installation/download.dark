@@ -109,7 +109,9 @@ let installRelease(
   host: Stdlib.Cli.Host.Host,
   pinned: Stdlib.Option.Option<String>)
   : Stdlib.Result.Result<String, String> =
-  let darklangHomeDir = Config.getDarklangHomeDir(host)
+  match Config.getDarklangHomeDir(host) with
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(darklangHomeDir) ->
 
   let (binDir, target) = ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark")
 

@@ -111,7 +111,9 @@ let check
   let onOff =
     [ "trace.record"; "http.loopback"; "http.private"; "exec.spreadPredict" ]
   let wholeNumber () = Error $"{key} takes a whole number (0 = none), not {value}"
-  if List.contains key int32Keys then
+  if value = "" && List.contains key settings then
+    Error $"{key} needs a value; `dark config unset {key}` goes back to the default"
+  elif List.contains key int32Keys then
     match System.Int32.TryParse value with
     // The boot ignores a poll under 10 ms (`Cli.fs`), so refuse it here rather than store it.
     | true, n when key = "exec.storePollMs" && n < 10 ->
@@ -129,8 +131,7 @@ let check
   elif List.contains key onOff then
     if value = "on" || value = "off" then Ok() else Error $"{key} is on or off"
   elif key = "exec.policy" then
-    // Empty is the round-robin default again.
-    if value = "" || policyResolves value then
+    if policyResolves value then
       Ok()
     else
       Error $"{key} names a package function, and {value} is not one on main"

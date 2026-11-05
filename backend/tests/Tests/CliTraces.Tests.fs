@@ -504,7 +504,7 @@ let tests =
     "CliTraces"
     (Tests.CliSurface.tests
      @ Tests.CliScm.tests
-     @ [ testTerminalPrinterFallback ]
+     @ [ testTerminalPrinterFallback; testMkdirRecursiveUnderPolicyAncestor ]
      @ [ // Trace store
          testRecordingSettings
          testTracesIdPrefixIsPlainText

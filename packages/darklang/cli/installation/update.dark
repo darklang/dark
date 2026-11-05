@@ -19,9 +19,15 @@ let execute(state: AppState, args: List<String>): AppState =
 
   let pinned = Cli.FlagParser.getOption(parsed, "--to")
 
-  if Stdlib.Bool.not(Installation.System.isRunningInstalled(host)) then
+  match Installation.System.installedBinaryPath(host) with
+  | Error(e) ->
+    Stdlib.printErrorLine(View.formatError(e))
+    Cli.exitWith(state, false)
+  | Ok(target) ->
+
+  if Stdlib.Bool.not(Installation.System.isRunningInstalled(target)) then
     Cli.printErr(
-      $"This dark isn't the installed one ({Installation.System.installedBinaryPath(host)}), so there's nothing to update.")
+      $"This dark isn't the installed one ({target}), so there's nothing to update.")
     Cli.printHint("  dark install installs this one; the installed dark updates itself")
     Cli.exitWith(state, false)
   else

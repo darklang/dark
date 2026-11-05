@@ -1610,6 +1610,50 @@ match woke with
   }
 
 
+let private execDoneWatcherGoesWithItsWait =
+  testTask
+    "Host.await [ExecDone id; Timer] in a loop keeps one watcher on a process still running" {
+    Gates.reset ()
+    let! state = executionStateFor pmPT false
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """(let child = Stdlib.Exec.spawn(fun () -> Builtin.testGateWait(64L))
+ let poll(id: Uuid, n: Int64): Int64 =
+   if n == 0L then
+     0L
+   else
+     let _ =
+       Stdlib.Host.await(
+         [ Stdlib.Host.EventSpec.ExecDone(id); Stdlib.Host.EventSpec.Timer(1L) ]
+       )
+     poll(id, n - 1L)
+ let _ = poll(child.id, 20L)
+ Stdlib.Host.await([ Stdlib.Host.EventSpec.ExecDone(child.id) ]))"""
+    let running = runOnThread s p
+    // Past the loop: parked on the child alone.
+    waitFor "the last wait to park" (fun () ->
+      match p.status with
+      | Scheduler.Parked(Scheduler.OnEvent [ HE.EventSpec.ExecDone _ ]) -> true
+      | _ -> false)
+    let c =
+      s.Snapshot() |> List.tryFind (fun q -> q.parent = Some p.id) |> Option.get
+    Expect.equal
+      (Scheduler.Scheduler.ExecDoneWatchers c.id)
+      1
+      "the timer-woken waits took their watchers with them"
+    Gates.release 64L
+    let! result = running
+    expectOk result "the program" |> ignore<RT.Dval>
+    Expect.equal
+      (Scheduler.Scheduler.ExecDoneWatchers c.id)
+      0
+      "the finish took the last one"
+  }
+
+
 let private httpGetIsARead =
   testTask
     "the HTTP client's GET and HEAD builtin is a read, and the request builtin is not" {
@@ -2236,6 +2280,7 @@ let tests =
         spawnedErrorReachesAwait
         execDoneAnswersAFinishedProcess
         execDoneWakesForAFinishInTheGap
+        execDoneWatcherGoesWithItsWait
         httpGetIsARead
         parkedInsideMapShowsTheLambda
         budgetYieldInsideMap
