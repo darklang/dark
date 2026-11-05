@@ -84,6 +84,14 @@ trait ShiftRight<'a> =
   let shiftRight(a: 'a, b: 'a): 'a
 
 
+/// How two values compare: what a comparator, such as the one
+/// `List.sortWith` takes, returns.
+type Ordering =
+  | Less
+  | Equal
+  | Greater
+
+
 /// `<`, `<=`, `>`, `>=`
 trait Compare<'a> =
   let lessThan(a: 'a, b: 'a): Bool
