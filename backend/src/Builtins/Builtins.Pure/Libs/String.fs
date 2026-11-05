@@ -56,6 +56,86 @@ let private normalizeEgcIndex (len : int) (d : DarkInt) : int =
   | DarkInt.Infinite b -> if b.Sign > 0 then len else 0
 
 
+/// The UTF-16 length of the cluster that starts at `offset`.
+let private clusterLength (s : string) (offset : int) : int =
+  StringInfo.GetNextTextElementLength(System.MemoryExtensions.AsSpan(s, offset))
+
+/// The first offset at or after `offset` whose char is not ASCII or is CR, or `s.Length`. Every
+/// char before it, except perhaps the last, is a cluster of its own: that one may combine with
+/// the char after.
+let private asciiRunEnd (s : string) (offset : int) : int =
+  let rest = System.MemoryExtensions.AsSpan(s, offset)
+  let nonAscii =
+    System.MemoryExtensions.IndexOfAnyExceptInRange(rest, char 0, char 0x7F)
+  let runEnd = if nonAscii < 0 then s.Length else offset + nonAscii
+  let cr = s.IndexOf('\r', offset, runEnd - offset)
+  if cr < 0 then runEnd else cr
+
+/// Whether walking clusters from the boundary `start` lands exactly on `target`.
+let private endsOnBoundary (s : string) (start : int) (target : int) : bool =
+  let mutable offset = start
+  while offset < target do
+    offset <- offset + clusterLength s offset
+  offset = target
+
+/// The UTF-16 offset of the first `needle` in `s` at or after `from` that starts and ends on
+/// cluster boundaries, or -1. `needle` is not empty.
+///
+/// `offset` is a cluster boundary at or before `from`, and `index` the number of clusters before
+/// it. Both move forward as the search walks, so a search that carries on from a match does not
+/// walk the text again. Searches ordinally and walks only as far as a hit, so a miss costs what
+/// ordinal `IndexOf` does, and a run of ASCII is jumped rather than walked.
+let private nextEgcMatch
+  (s : string)
+  (needle : string)
+  (from : int)
+  (offset : byref<int>)
+  (index : byref<int>)
+  : int =
+  let mutable at = s.IndexOf(needle, from, System.StringComparison.Ordinal)
+  let mutable found = -1
+  let mutable runEnd = offset
+  while found < 0 && at >= 0 do
+    while offset < at do
+      if offset >= runEnd then runEnd <- asciiRunEnd s offset
+      // Jump over ASCII, one cluster per char, rather than asking for each cluster.
+      let jump = min at (runEnd - 1)
+      if jump > offset then
+        index <- index + (jump - offset)
+        offset <- jump
+      else
+        offset <- offset + clusterLength s offset
+        index <- index + 1
+    if offset = at && endsOnBoundary s at (at + needle.Length) then
+      found <- at
+    else
+      at <- s.IndexOf(needle, at + 1, System.StringComparison.Ordinal)
+  found
+
+/// The cluster index of the first whole-cluster `needle` in `s`, or -1. `needle` is not empty.
+let private egcIndexOf (s : string) (needle : string) : int =
+  if String.isCharwise s then
+    s.IndexOf(needle, System.StringComparison.Ordinal)
+  else
+    let mutable offset = 0
+    let mutable index = 0
+    if nextEgcMatch s needle 0 &offset &index < 0 then -1 else index
+
+/// The cluster index of the last whole-cluster `needle` in `s`, or -1. `needle` is not empty.
+let private egcLastIndexOf (s : string) (needle : string) : int =
+  if String.isCharwise s then
+    s.LastIndexOf(needle, System.StringComparison.Ordinal)
+  else
+    let mutable offset = 0
+    let mutable index = 0
+    let mutable last = -1
+    let mutable at = nextEgcMatch s needle 0 &offset &index
+    while at >= 0 do
+      last <- index
+      at <- nextEgcMatch s needle (at + 1) &offset &index
+    last
+
+
 /// Return a byte from `s`'s UTF-8 encoding without encoding the whole string.
 /// UTF-8 offsets use int64 because the encoding can exceed Int32.MaxValue bytes.
 let private utf8ByteAt (s : string) (index : int64) : byte option =
@@ -102,12 +182,11 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TString ""; Param.make "b" TString "" ]
       returnType = TInt64
       description =
-        "Orders two strings: a negative number when <param a> sorts first, 0 when they are equal, a positive number when <param b> sorts first. Compares raw UTF-16 units rather than language-aware collation, so every machine orders the same pair the same way. Only the sign is meaningful."
+        "Orders two strings by code point: a negative number when <param a> sorts first, 0 when they are equal, a positive number when <param b> sorts first. Code point order is also UTF-8 byte order, and not language-aware, so every machine orders the same pair the same way. Only the sign is meaningful."
       fn =
         (function
         | _, _, _, [| DString a; DString b |] ->
-          // Ordinal so the ordering is the same on every machine; see the description.
-          Ply(DInt64(int64 (System.String.CompareOrdinal(a, b))))
+          Ply(DInt64(int64 (String.compareByCodepoint a b)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -142,32 +221,36 @@ let fns () : List<BuiltInFn> =
           Param.make "replaceWith" TString "" ]
       returnType = TString
       description =
-        "Replace all instances on <param searchFor> in <param s> with <param "
-        + "replaceWith>"
+        "Replace every <param searchFor> in <param s> with <param replaceWith>. Matches whole "
+        + "characters (extended grapheme clusters) only, so a skin-tone emoji does not match the "
+        + "plain emoji inside it. An empty <param searchFor> matches between every two characters "
+        + "and at both ends."
       fn =
         (function
         | _, _, _, [| DString s; DString search; DString replace |] ->
-          if search = "" then
-            if s = "" then
-              Ply(DString replace)
+          let replaced =
+            if search = "" then
+              // `replace` around and between the clusters.
+              let sb = StringBuilder(replace)
+              for egc in String.toEgcSeq s do
+                sb.Append(egc).Append(replace) |> ignore<StringBuilder>
+              sb.ToString()
+            elif String.isCharwise s then
+              s.Replace(search, replace)
             else
-              // .Net Replace doesn't allow empty string, but we do.
-              // intersperse `replace` between each grapheme cluster, then
-              // wrap with `replace` on both ends.
-              let interspersed =
-                String.toEgcSeq s
-                |> Seq.toList
-                |> function
-                  | [] -> []
-                  | head :: tail ->
-                    head :: (tail |> List.collect (fun y -> [ replace; y ]))
-              interspersed
-              |> (fun l -> replace :: l @ [ replace ])
-              |> String.concat ""
-              |> DString
-              |> Ply
-          else
-            Ply(DString(s.Replace(search, replace)))
+              let sb = StringBuilder()
+              let mutable offset = 0
+              let mutable index = 0
+              let mutable copied = 0
+              let mutable at = nextEgcMatch s search 0 &offset &index
+              while at >= 0 do
+                sb.Append(s, copied, at - copied).Append(replace)
+                |> ignore<StringBuilder>
+                copied <- at + search.Length
+                at <- nextEgcMatch s search copied &offset &index
+              sb.Append(s, copied, s.Length - copied).ToString()
+          // A replacement can start with a mark that composes with what precedes it.
+          replaced |> String.normalize |> DString |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -508,11 +591,13 @@ let fns () : List<BuiltInFn> =
           Param.make "searchingFor" TString "The substring to look for" ]
       returnType = TBool
       description =
-        "Returns {{true}} if <param lookingIn> contains <param searchingFor>."
+        "Returns {{true}} if <param lookingIn> contains <param searchingFor> as whole characters "
+        + "(extended grapheme clusters): half a flag, or the plain emoji inside a skin-tone one, "
+        + "does not count."
       fn =
         (function
         | _, _, _, [| DString lookingIn; DString searchingFor |] ->
-          Ply(DBool(lookingIn.Contains(searchingFor)))
+          Ply(DBool(searchingFor = "" || egcIndexOf lookingIn searchingFor >= 0))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -529,82 +614,14 @@ let fns () : List<BuiltInFn> =
             "The string to search for within <param str>" ]
       returnType = TInt
       description =
-        "Returns the index of the first occurrence of <param searchFor> in "
-        + "<param str>, measured in UTF-16 code units (the .NET string "
-        + "representation). Returns -1 if <param searchFor> does not occur. For "
-        + "an index that pairs with {{String.length}}, {{String.slice}}, "
-        + "{{String.first}}, and {{String.dropFirst}} (which are all "
-        + "EGC-indexed), use {{stringIndexOfEgc}}.\n\nNote on SQL: SQLite's INSTR "
-        + "and .NET's IndexOf both tell us whether a substring was found, but "
-        + "they count positions differently for some Unicode text. SQLite counts "
-        + "Unicode characters; .NET IndexOf counts UTF-16 code units. For "
-        + "example, SQLite reports the \"a\" in \"😄a\" at index 1, while .NET "
-        + "reports it at index 2 because the emoji takes two UTF-16 code units. "
-        + "So {{String.contains}} is portable in SQL because it only checks "
-        + "found/not-found, but {{String.indexOf}} may return different numeric "
-        + "indexes outside simple ASCII text."
+        "Returns the index of the first <param searchFor> in <param str>, counted in characters "
+        + "(extended grapheme clusters) like {{String.length}} and {{String.slice}}. Returns -1 if "
+        + "it does not occur. Matches whole characters only."
       fn =
         (function
         | _, _, _, [| DString str; DString search |] ->
-          let index = str.IndexOf(search)
+          let index = if search = "" then 0 else egcIndexOf str search
           Ply(Dval.int (bigint index))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "stringIndexOfEgc" 0
-      typeParams = []
-      parameters =
-        [ Param.make "str" TString "The string to search in"
-          Param.make
-            "searchFor"
-            TString
-            "The string to search for within <param str>" ]
-      returnType = TInt
-      description =
-        "Returns the index of the first occurrence of <param searchFor> in "
-        + "<param str>, measured in extended grapheme clusters (consistent with "
-        + "{{String.length}}, {{String.slice}}, {{String.first}}, and "
-        + "{{String.dropFirst}}). Returns -1 if <param searchFor> does not occur. "
-        + "The match must begin and end on EGC boundaries — partial-grapheme "
-        + "matches (e.g. finding a skin-tone modifier alone inside a full "
-        + "skin-toned emoji) are not reported."
-      fn =
-        (function
-        | _, _, _, [| DString str; DString search |] ->
-          if search = "" then
-            Ply(Dval.int (bigint 0))
-          else
-            // EGC start offsets (UTF-16) of str. A valid match must start at one
-            // of these AND end at one of these (or at str.Length).
-            let starts = StringInfo.ParseCombiningCharacters(str)
-            let mutable foundAt = -1
-            let mutable boundaryPtr = 0
-            let mutable egcIndex = 0
-            while foundAt = -1 && egcIndex < starts.Length do
-              let elementIndex = starts[egcIndex]
-              let targetEnd = elementIndex + search.Length
-              while boundaryPtr < starts.Length && starts[boundaryPtr] < targetEnd do
-                boundaryPtr <- boundaryPtr + 1
-              let endIsBoundary =
-                if boundaryPtr < starts.Length then
-                  starts[boundaryPtr] = targetEnd
-                else
-                  targetEnd = str.Length
-              let matches =
-                System.String.Compare(
-                  str,
-                  elementIndex,
-                  search,
-                  0,
-                  search.Length,
-                  System.StringComparison.Ordinal
-                ) = 0
-              if endIsBoundary && matches then foundAt <- egcIndex
-              egcIndex <- egcIndex + 1
-            Ply(Dval.int (bigint foundAt))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -621,69 +638,18 @@ let fns () : List<BuiltInFn> =
             "The string to search for within <param str>" ]
       returnType = TInt
       description =
-        "Returns the index of the last occurrence of <param searchFor> in "
-        + "<param str>, measured in UTF-16 code units. Returns -1 if <param "
-        + "searchFor> does not occur. For an EGC-indexed result that pairs with "
-        + "{{String.length}} / {{String.slice}}, use {{stringLastIndexOfEgc}}."
+        "Returns the index of the last <param searchFor> in <param str>, counted in characters "
+        + "(extended grapheme clusters) like {{String.length}} and {{String.slice}}. Returns -1 if "
+        + "it does not occur. Matches whole characters only."
       fn =
         (function
         | _, _, _, [| DString str; DString search |] ->
-          let index = str.LastIndexOf(search)
+          let index =
+            if search = "" then
+              String.lengthInEgcs str
+            else
+              egcLastIndexOf str search
           Ply(Dval.int (bigint index))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "stringLastIndexOfEgc" 0
-      typeParams = []
-      parameters =
-        [ Param.make "str" TString "The string to search in"
-          Param.make
-            "searchFor"
-            TString
-            "The string to search for within <param str>" ]
-      returnType = TInt
-      description =
-        "Returns the index of the last occurrence of <param searchFor> in "
-        + "<param str>, measured in extended grapheme clusters (consistent with "
-        + "{{String.length}}, {{String.slice}}, {{String.first}}, and "
-        + "{{String.dropFirst}}). Returns -1 if <param searchFor> does not occur. "
-        + "The match must begin and end on EGC boundaries — partial-grapheme "
-        + "matches are not reported."
-      fn =
-        (function
-        | _, _, _, [| DString str; DString search |] ->
-          if search = "" then
-            Ply(Dval.int (bigint (StringInfo(str).LengthInTextElements)))
-          else
-            let starts = StringInfo.ParseCombiningCharacters(str)
-            let mutable lastFound = -1
-            let mutable boundaryPtr = 0
-            let mutable egcIndex = 0
-            while egcIndex < starts.Length do
-              let elementIndex = starts[egcIndex]
-              let targetEnd = elementIndex + search.Length
-              while boundaryPtr < starts.Length && starts[boundaryPtr] < targetEnd do
-                boundaryPtr <- boundaryPtr + 1
-              let endIsBoundary =
-                if boundaryPtr < starts.Length then
-                  starts[boundaryPtr] = targetEnd
-                else
-                  targetEnd = str.Length
-              let matches =
-                System.String.Compare(
-                  str,
-                  elementIndex,
-                  search,
-                  0,
-                  search.Length,
-                  System.StringComparison.Ordinal
-                ) = 0
-              if endIsBoundary && matches then lastFound <- egcIndex
-              egcIndex <- egcIndex + 1
-            Ply(Dval.int (bigint lastFound))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

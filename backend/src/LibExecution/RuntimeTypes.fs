@@ -1108,8 +1108,8 @@ and DvalOrdering private () =
     | DUInt128 x, DUInt128 y -> compare x y
     | DInt x, DInt y -> DarkInt.compare x y
     | DFloat x, DFloat y -> compare x y
-    | DChar x, DChar y -> compare x y
-    | DString x, DString y -> compare x y
+    | DChar x, DChar y -> String.compareByCodepoint x y
+    | DString x, DString y -> String.compareByCodepoint x y
     | DDateTime x, DDateTime y -> compare x y
     | DUuid x, DUuid y -> compare x y
 

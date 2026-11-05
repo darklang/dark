@@ -13,6 +13,15 @@ let eCombiningAcute(): Char =
 let family(): Char =
   "👩‍👩‍👧‍👦" |> Stdlib.String.head |> Builtin.unwrap
 
+// Decoded rather than written, so the parser does not compose it into `é`.
+let decomposedE(): Char =
+  Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 101uy, 204uy, 129uy ]))
+  |> Stdlib.String.head
+  |> Builtin.unwrap
+
+let flag(): Char =
+  "🇵🇷" |> Stdlib.String.head |> Builtin.unwrap
+
 test toLowercase =
   Stdlib.Test.all(
     [ Stdlib.Char.toLowercase('A') |> Stdlib.Test.equal('a')
@@ -191,7 +200,17 @@ test isLessThan =
       Stdlib.Char.isLessThan('a', smiley()) |> Stdlib.Test.equal(true)
       Stdlib.Char.isLessThan('a', hand()) |> Stdlib.Test.equal(true)
       Stdlib.Char.isLessThan('a', family()) |> Stdlib.Test.equal(true)
-      Stdlib.Char.isLessThan(smiley(), hand()) |> Stdlib.Test.equal(false) ])
+      Stdlib.Char.isLessThan(smiley(), hand()) |> Stdlib.Test.equal(false)
+      // By code point: U+FF71 sorts before every emoji, though its UTF-16 unit is larger
+      // than their first ones.
+      Stdlib.Char.isLessThan('ｱ', smiley()) |> Stdlib.Test.equal(true)
+      Stdlib.Char.isLessThan('ｱ', family()) |> Stdlib.Test.equal(true)
+      Stdlib.Char.isLessThan('ｱ', flag()) |> Stdlib.Test.equal(true)
+      Stdlib.Char.isLessThan('ｱ', hand()) |> Stdlib.Test.equal(false)
+      // `e` then a combining accent sorts before the composed `é`, U+00E9.
+      Stdlib.Char.isLessThan(decomposedE(), 'é') |> Stdlib.Test.equal(true)
+      'ｱ' < smiley() |> Stdlib.Test.equal(true)
+      smiley() >= 'ｱ' |> Stdlib.Test.equal(true) ])
 
 test isGreaterThan =
   Stdlib.Test.all(

@@ -39,14 +39,17 @@ let hexDigitChar(n: Int): String =
 let encodeChar(c: Char): String =
   match Stdlib.Char.toAsciiCode(c) with
   | None ->
-    // Multi-unit graphemes can contain a backslash plus combining marks, or
-    // CRLF. Escape those without dropping the rest of the grapheme. Escape
-    // backslashes first so the escapes added for CR and LF stay intact.
+    // A grapheme of several code points can hold a backslash plus combining
+    // marks, or CRLF. `replaceAll` matches whole graphemes only, so escape it
+    // code point by code point, keeping the rest of the grapheme.
     c
     |> Stdlib.toString
-    |> Stdlib.String.replaceAll("\\", "\\\\")
-    |> Stdlib.String.replaceAll("\r", "\\r")
-    |> Stdlib.String.replaceAll("\n", "\\n")
+    |> Stdlib.String.toCodepoints
+    |> Stdlib.List.map(fun cp ->
+      match Stdlib.Char.fromCodepoint(cp) with
+      | Some(one) -> if cp < 128ul then encodeChar(one) else Stdlib.toString(one)
+      | None -> "")
+    |> Stdlib.String.join("")
   | Some(code) ->
     if code == 92 then "\\\\"
     else if code == 7 then "\\a"

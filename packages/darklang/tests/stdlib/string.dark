@@ -1,5 +1,13 @@
 module Darklang.Stdlib.String.Tests
 
+// Text the parser has not seen, so not normalized: `e` then a combining acute accent, then `x`.
+let decomposedEx(): String =
+  Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 101uy, 204uy, 129uy, 120uy ]))
+
+// A combining acute accent on its own.
+let acute(): String =
+  Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 204uy, 129uy ]))
+
 test stringEquality =
   Stdlib.Test.all(
     [ "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" == "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
@@ -143,7 +151,25 @@ test join =
       Stdlib.String.join([ "🧟‍♀️🧟‍♂️‍", "🧟‍♀️🧑🏽‍🦰‍‍" ], "")
       |> Stdlib.Test.equal("🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍")
       Stdlib.String.join([ "🧑🏽‍🦰‍", "🧑🏼‍💻‍‍" ], "")
-      |> Stdlib.Test.equal("🧑🏽‍🦰‍🧑🏼‍💻‍‍") ])
+      |> Stdlib.Test.equal("🧑🏽‍🦰‍🧑🏼‍💻‍‍")
+      // Joining normalizes the way `+` does.
+      Stdlib.String.join([ "e", acute() ], "") |> Stdlib.Test.equal("e" + acute())
+      Stdlib.String.join([ "🇵", "🇷" ], "") |> Stdlib.Test.equal("🇵🇷")
+      Stdlib.String.join([ "👍", "🏽" ], "") |> Stdlib.Test.equal("👍🏽") ])
+
+test interpolationNormalizesLikeAppend =
+  let pr = [ "🇵", "🇷" ]
+  let thumb = "👍"
+  let tone = "🏽"
+  let woman = "👩"
+  let girl = "👧"
+
+  Stdlib.Test.all(
+    [ $"e{acute()}" |> Stdlib.Test.equal("e" + acute())
+      $"{Stdlib.String.join(pr, "")}!" |> Stdlib.Test.equal("🇵🇷!")
+      $"{thumb}{tone}" |> Stdlib.Test.equal(thumb + tone)
+      $"{thumb}{tone}" |> Stdlib.String.length |> Stdlib.Test.equal(1)
+      $"{woman}‍{girl}" |> Stdlib.Test.equal("👩‍👧") ])
 
 test startsWith =
   Stdlib.Test.all(
@@ -481,7 +507,7 @@ test splitN =
       |> Stdlib.Test.equal([ "hello", "world😄sun" ])
       Stdlib.String.splitN("a==b==c==d", "==", 3)
       |> Stdlib.Test.equal([ "a", "b", "c==d" ])
-      // ZWJ-bearing prefixes work because splitN routes through indexOfEgc.
+      // ZWJ-bearing prefixes: indexOf counts in EGCs, as first / dropFirst do.
       Stdlib.String.splitN("🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼", "|", 2)
       |> Stdlib.Test.equal([ "🧑🏽‍🦰", "🧑🏼‍💻|🧑🏻‍🍼" ])
       Stdlib.String.splitN("🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼", "|", 3)
@@ -542,7 +568,18 @@ test replaceAll =
       Stdlib.String.replaceAll("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "👨‍❤️‍💋‍👨", "👨‍❤️‍💋‍👨")
       |> Stdlib.Test.equal("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷")
       Stdlib.String.replaceAll("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", "🧑🏻‍🍼", "🧟‍♂️")
-      |> Stdlib.Test.equal("żółw🧑🏽‍🦰🧟‍♂️✋✋🏻✋🏿") ])
+      |> Stdlib.Test.equal("żółw🧑🏽‍🦰🧟‍♂️✋✋🏻✋🏿")
+      // Only whole EGCs are replaced.
+      Stdlib.String.replaceAll("👍🏽👍", "👍", "👎") |> Stdlib.Test.equal("👍🏽👎")
+      Stdlib.String.replaceAll("👩‍👩‍👧", "👧", "x") |> Stdlib.Test.equal("👩‍👩‍👧")
+      Stdlib.String.replaceAll("🇵🇷🇺🇸", "🇷🇺", "x") |> Stdlib.Test.equal("🇵🇷🇺🇸")
+      Stdlib.String.replaceAll("🇵🇷🇺🇸🇵🇷", "🇵🇷", "x") |> Stdlib.Test.equal("x🇺🇸x")
+      Stdlib.String.replaceAll(decomposedEx(), "e", "a") |> Stdlib.Test.equal(decomposedEx())
+      Stdlib.String.replaceAll(decomposedEx(), "x", "y") |> Stdlib.String.length |> Stdlib.Test.equal(2)
+      Stdlib.String.replaceAll("éxé", "é", "a") |> Stdlib.Test.equal("axa")
+      Stdlib.String.replaceAll("<p>👍🏽</p>", "<", "[") |> Stdlib.Test.equal("[p>👍🏽[/p>")
+      Stdlib.String.replaceAll("a\r\nb", "\n", " ") |> Stdlib.Test.equal("a\r\nb")
+      Stdlib.String.replaceAll("a\r\nb", "\r\n", " ") |> Stdlib.Test.equal("a b") ])
 
 test toLowercase =
   Stdlib.Test.all(
@@ -813,7 +850,18 @@ test contains =
       Stdlib.String.contains("اختبار", "اختبار") |> Stdlib.Test.equal(true)
       Stdlib.String.contains("", "") |> Stdlib.Test.equal(true)
       Stdlib.String.contains("a", "") |> Stdlib.Test.equal(true)
-      Stdlib.String.contains("", "a") |> Stdlib.Test.equal(false) ])
+      Stdlib.String.contains("", "a") |> Stdlib.Test.equal(false)
+      // Only whole EGCs match: not half a flag, a skin-tone emoji's base, or part of a ZWJ sequence.
+      Stdlib.String.contains("🇵🇷🇺🇸", "🇷🇺") |> Stdlib.Test.equal(false)
+      Stdlib.String.contains("🇵🇷🇺🇸", "🇺🇸") |> Stdlib.Test.equal(true)
+      Stdlib.String.contains("👍🏽", "👍") |> Stdlib.Test.equal(false)
+      Stdlib.String.contains("👍👍🏽", "👍") |> Stdlib.Test.equal(true)
+      Stdlib.String.contains("👩‍👩‍👧", "👩") |> Stdlib.Test.equal(false)
+      Stdlib.String.contains(decomposedEx(), "e") |> Stdlib.Test.equal(false)
+      Stdlib.String.contains(decomposedEx(), "x") |> Stdlib.Test.equal(true)
+      Stdlib.String.contains("éx", "e") |> Stdlib.Test.equal(false)
+      Stdlib.String.contains("a\r\nb", "\n") |> Stdlib.Test.equal(false)
+      Stdlib.String.contains("a\r\nb", "\r\n") |> Stdlib.Test.equal(true) ])
 
 test slice =
   Stdlib.Test.all(
@@ -921,68 +969,80 @@ test indexOf =
       Stdlib.String.indexOf("", "") |> Stdlib.Test.equal(Some(0))
       Stdlib.String.indexOf("hello", "") |> Stdlib.Test.equal(Some(0))
       Stdlib.String.indexOf("", "hello") |> Stdlib.Test.equal(None)
+      // Counted in EGCs: "👱👱🏻" is 2, "👨‍❤️‍💋‍👨" is 1, "żółw" is 4.
       Stdlib.String.indexOf("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼👱🏽")
-      |> Stdlib.Test.equal(Some(6))
+      |> Stdlib.Test.equal(Some(2))
       Stdlib.String.indexOf("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼👱🏿")
       |> Stdlib.Test.equal(None)
       Stdlib.String.indexOf("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "👩‍👩‍👧‍👦")
-      |> Stdlib.Test.equal(Some(11))
+      |> Stdlib.Test.equal(Some(1))
       Stdlib.String.indexOf("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", "🧑🏽‍🦰")
       |> Stdlib.Test.equal(Some(4))
       Stdlib.String.indexOf("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", "👱🏽")
       |> Stdlib.Test.equal(None)
       Stdlib.String.indexOf("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "🧑🏻‍🍼")
-      |> Stdlib.Test.equal(None) ])
-
-test indexOfEgc =
-  Stdlib.Test.all(
-    [ // Mirror of the IndexOf module above, but in EGC units. Pair with first /
-      // dropFirst / slice / length for correct emoji-safe slicing.
-      Stdlib.String.indexOfEgc("hello world", "world") |> Stdlib.Test.equal(Some(6))
-      Stdlib.String.indexOfEgc("hello world", "earth") |> Stdlib.Test.equal(None)
-      Stdlib.String.indexOfEgc("", "") |> Stdlib.Test.equal(Some(0))
-      Stdlib.String.indexOfEgc("hello", "") |> Stdlib.Test.equal(Some(0))
-      Stdlib.String.indexOfEgc("", "hello") |> Stdlib.Test.equal(None)
-      // "👱👱🏻" is 2 EGCs, "👨‍❤️‍💋‍👨" is 1 EGC, "żółw" is 4 EGCs.
-      Stdlib.String.indexOfEgc("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼👱🏽")
-      |> Stdlib.Test.equal(Some(2))
-      Stdlib.String.indexOfEgc("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼👱🏿")
       |> Stdlib.Test.equal(None)
-      Stdlib.String.indexOfEgc("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "👩‍👩‍👧‍👦")
-      |> Stdlib.Test.equal(Some(1))
-      Stdlib.String.indexOfEgc("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", "🧑🏽‍🦰")
-      |> Stdlib.Test.equal(Some(4))
-      // Matches must align to EGC boundaries on both sides. Searching for a
-      // partial grapheme inside a full one returns None: 🧑 is not a complete EGC of
-      // 🧑🏼‍💻.
-      Stdlib.String.indexOfEgc("🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None)
-      // Standalone 🧑 at EGC index 0 is matchable when it stands on its own.
-      Stdlib.String.indexOfEgc("🧑🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(Some(0)) ])
+      Stdlib.String.indexOf("🇺🇸🇵🇷", "🇵🇷") |> Stdlib.Test.equal(Some(1))
+      Stdlib.String.indexOf(decomposedEx(), "x") |> Stdlib.Test.equal(Some(1))
+      Stdlib.String.indexOf("éx", "x") |> Stdlib.Test.equal(Some(1))
+      // A match must start and end on EGC boundaries.
+      Stdlib.String.indexOf("🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None)
+      Stdlib.String.indexOf("🧑🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(Some(0))
+      Stdlib.String.indexOf("👍🏽👍", "👍") |> Stdlib.Test.equal(Some(1))
+      Stdlib.String.indexOf("👩‍👩‍👧👩", "👩") |> Stdlib.Test.equal(Some(1))
+      Stdlib.String.indexOf("🇵🇷🇺🇸", "🇷🇺") |> Stdlib.Test.equal(None)
+      Stdlib.String.indexOf(decomposedEx(), "e") |> Stdlib.Test.equal(None)
+      // Mostly ASCII, with clusters that are not before, between and after the matches.
+      Stdlib.String.indexOf("hello 👍🏽 world 👍", "👍") |> Stdlib.Test.equal(Some(14))
+      Stdlib.String.indexOf("a b👍🏽 a", "a") |> Stdlib.Test.equal(Some(0))
+      Stdlib.String.indexOf("ab" + decomposedEx(), "x") |> Stdlib.Test.equal(Some(3))
+      Stdlib.String.indexOf("ab" + decomposedEx(), "be") |> Stdlib.Test.equal(None) ])
 
-test lastIndexOfEgc =
+test lastIndexOf =
   Stdlib.Test.all(
-    [ // Basic ASCII: last occurrence wins.
-      Stdlib.String.lastIndexOfEgc("hello world hello", "hello")
+    [ Stdlib.String.lastIndexOf("hello world hello", "hello")
       |> Stdlib.Test.equal(Some(12))
-      Stdlib.String.lastIndexOfEgc("hello world", "earth") |> Stdlib.Test.equal(None)
-      Stdlib.String.lastIndexOfEgc("", "hello") |> Stdlib.Test.equal(None)
-      // Empty-string searches return string length in EGCs.
-      Stdlib.String.lastIndexOfEgc("", "") |> Stdlib.Test.equal(Some(0))
-      Stdlib.String.lastIndexOfEgc("hello", "") |> Stdlib.Test.equal(Some(5))
-      // "👱👱🏻" is 2 EGCs even though it's 4 UTF-16 code units.
-      Stdlib.String.lastIndexOfEgc("👱👱🏻", "") |> Stdlib.Test.equal(Some(2))
-      // EGC offsets across multi-codepoint graphemes.
-      Stdlib.String.lastIndexOfEgc("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼")
+      Stdlib.String.lastIndexOf("hello world", "earth") |> Stdlib.Test.equal(None)
+      Stdlib.String.lastIndexOf("", "hello") |> Stdlib.Test.equal(None)
+      // An empty search finds the end of the string.
+      Stdlib.String.lastIndexOf("", "") |> Stdlib.Test.equal(Some(0))
+      Stdlib.String.lastIndexOf("hello", "") |> Stdlib.Test.equal(Some(5))
+      Stdlib.String.lastIndexOf("👱👱🏻", "") |> Stdlib.Test.equal(Some(2))
+      Stdlib.String.lastIndexOf("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼")
       |> Stdlib.Test.equal(Some(2))
-      Stdlib.String.lastIndexOfEgc("a🧑🏼‍💻b🧑🏼‍💻c", "🧑🏼‍💻")
+      Stdlib.String.lastIndexOf("a🧑🏼‍💻b🧑🏼‍💻c", "🧑🏼‍💻")
       |> Stdlib.Test.equal(Some(3))
-      Stdlib.String.lastIndexOfEgc("żółw🧑🏽‍🦰🧑🏻‍🍼", "🧑🏻‍🍼")
+      Stdlib.String.lastIndexOf("żółw🧑🏽‍🦰🧑🏻‍🍼", "🧑🏻‍🍼")
       |> Stdlib.Test.equal(Some(5))
-      // Partial-grapheme search returns None on both sides (start and end must
-      // align to EGC boundaries).
-      Stdlib.String.lastIndexOfEgc("🧑🏼‍💻🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None)
-      // Standalone 🧑 at the end is matchable when it stands on its own.
-      Stdlib.String.lastIndexOfEgc("🧑🏼‍💻🧑", "🧑") |> Stdlib.Test.equal(Some(1)) ])
+      Stdlib.String.lastIndexOf("🇵🇷🇺🇸🇵🇷", "🇵🇷") |> Stdlib.Test.equal(Some(2))
+      Stdlib.String.lastIndexOf("éxéx", "x") |> Stdlib.Test.equal(Some(3))
+      // A match must start and end on EGC boundaries.
+      Stdlib.String.lastIndexOf("🧑🏼‍💻🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None)
+      Stdlib.String.lastIndexOf("🧑🏼‍💻🧑", "🧑") |> Stdlib.Test.equal(Some(1))
+      Stdlib.String.lastIndexOf("👍👍🏽", "👍") |> Stdlib.Test.equal(Some(0))
+      Stdlib.String.lastIndexOf("👩👩‍👩‍👧", "👩") |> Stdlib.Test.equal(Some(0))
+      Stdlib.String.lastIndexOf("🇵🇷🇺🇸", "🇷🇺") |> Stdlib.Test.equal(None)
+      Stdlib.String.lastIndexOf(decomposedEx(), "e") |> Stdlib.Test.equal(None)
+      Stdlib.String.lastIndexOf(decomposedEx(), "x") |> Stdlib.Test.equal(Some(1))
+      Stdlib.String.lastIndexOf("a👍 b👍🏽 c👍", "👍") |> Stdlib.Test.equal(Some(7)) ])
+
+test compare =
+  Stdlib.Test.all(
+    [ Stdlib.String.compare("a", "b") < 0L |> Stdlib.Test.equal(true)
+      Stdlib.String.compare("ab", "abc") < 0L |> Stdlib.Test.equal(true)
+      Stdlib.String.compare("é", "é") |> Stdlib.Test.equal(0L)
+      // By code point: U+FF71 sorts before U+1F600, though its UTF-16 unit is larger than
+      // the emoji's first one.
+      Stdlib.String.compare("ｱ", "😀") < 0L |> Stdlib.Test.equal(true)
+      Stdlib.String.compare("😀", "ｱ") > 0L |> Stdlib.Test.equal(true)
+      "ｱ" < "😀" |> Stdlib.Test.equal(true)
+      "ｱ" < "🇵🇷" |> Stdlib.Test.equal(true)
+      "ｱ" < "👍🏽" |> Stdlib.Test.equal(true)
+      "ｱ" < "👩‍👩‍👧" |> Stdlib.Test.equal(true)
+      "👍" < "👍🏽" |> Stdlib.Test.equal(true)
+      decomposedEx() < "éx" |> Stdlib.Test.equal(true)
+      Stdlib.List.sort([ "😀", "ｱ", "é", "a" ])
+      |> Stdlib.Test.equal([ "a", "é", "ｱ", "😀" ]) ])
 
 test head =
   Stdlib.Test.all(

@@ -19,10 +19,12 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
-      description = "Return whether <param c1> is less than <param c2>"
+      description =
+        "Return whether <param c1> sorts before <param c2>, by code point"
       fn =
         function
-        | _, _, _, [| DChar c1; DChar c2 |] -> (c1 < c2) |> DBool |> Ply
+        | _, _, _, [| DChar c1; DChar c2 |] ->
+          String.compareByCodepoint c1 c2 < 0 |> DBool |> Ply
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -33,10 +35,12 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
-      description = "Return whether <param c1> is less than <param c2>"
+      description =
+        "Return whether <param c1> sorts before or equal to <param c2>, by code point"
       fn =
         function
-        | _, _, _, [| DChar c1; DChar c2 |] -> (c1 <= c2) |> DBool |> Ply
+        | _, _, _, [| DChar c1; DChar c2 |] ->
+          String.compareByCodepoint c1 c2 <= 0 |> DBool |> Ply
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -47,10 +51,11 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
-      description = "Return whether <param c1> is greater than <param c2>"
+      description = "Return whether <param c1> sorts after <param c2>, by code point"
       fn =
         function
-        | _, _, _, [| DChar c1; DChar c2 |] -> (c1 > c2) |> DBool |> Ply
+        | _, _, _, [| DChar c1; DChar c2 |] ->
+          String.compareByCodepoint c1 c2 > 0 |> DBool |> Ply
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -61,10 +66,12 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
-      description = "Return whether <param c1> is greater than <param c2>"
+      description =
+        "Return whether <param c1> sorts after or equal to <param c2>, by code point"
       fn =
         function
-        | _, _, _, [| DChar c1; DChar c2 |] -> (c1 >= c2) |> DBool |> Ply
+        | _, _, _, [| DChar c1; DChar c2 |] ->
+          String.compareByCodepoint c1 c2 >= 0 |> DBool |> Ply
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty

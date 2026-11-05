@@ -76,25 +76,25 @@ let toAsciiCode(c: Char): Stdlib.Option.Option<Int> =
   | None -> Stdlib.Option.Option.None
 
 
-/// Return whether <param c1> is less than <param c2>
+/// Return whether <param c1> sorts before <param c2>, by code point
 let isLessThan(c1: Char, c2: Char): Bool = Builtin.charIsLessThan(c1, c2)
 
 
-/// Return whether <param c1> is less than or equal to <param c2>
+/// Return whether <param c1> sorts before or equal to <param c2>, by code point
 let isLessThanOrEqualTo(c1: Char, c2: Char): Bool =
   Builtin.charIsLessThanOrEqualTo(c1, c2)
 
 
-/// Return whether <param c1> is greater than <param c2>
+/// Return whether <param c1> sorts after <param c2>, by code point
 let isGreaterThan(c1: Char, c2: Char): Bool =
   Builtin.charIsGreaterThan(c1, c2)
 
 
-/// Return whether <param c1> is greater than or equal to <param c2>
+/// Return whether <param c1> sorts after or equal to <param c2>, by code point
 let isGreaterThanOrEqualTo(c1: Char, c2: Char): Bool =
   Builtin.charIsGreaterThanOrEqualTo(c1, c2)
 
-/// `a < b` on Chars: ordinal, the rule the four comparisons above already use.
+/// `a < b` on Chars: by code point, the rule the four comparisons above use.
 impl Compare for Char =
   let lessThan = Stdlib.Char.isLessThan
   let lessThanOrEqualTo = Stdlib.Char.isLessThanOrEqualTo
