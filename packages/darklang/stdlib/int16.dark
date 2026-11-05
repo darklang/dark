@@ -181,3 +181,55 @@ impl Zero for Int16 =
 
 impl One for Int16 =
   let one(): Int16 = 1s
+
+
+// Checked arithmetic. The operators wrap on overflow; these return
+// {{Error Overflow}} instead, going below 0 included.
+
+/// Adds <param a> and <param b>, or {{Error Overflow}} where `+` would wrap
+let checkedAdd(
+  a: Int16,
+  b: Int16)
+  : Stdlib.Result.Result<Int16, Stdlib.Int.Overflow> =
+  let sum = a + b
+  let wrapped = if b < 0s then sum > a else sum < a
+  if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
+
+
+/// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
+let checkedSubtract(
+  a: Int16,
+  b: Int16)
+  : Stdlib.Result.Result<Int16, Stdlib.Int.Overflow> =
+  let difference = a - b
+  let wrapped = if b < 0s then difference < a else difference > a
+  if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(difference)
+
+
+/// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
+let checkedMultiply(
+  a: Int16,
+  b: Int16)
+  : Stdlib.Result.Result<Int16, Stdlib.Int.Overflow> =
+  let product = Stdlib.Int.fromInt16(a) * Stdlib.Int.fromInt16(b)
+  match Stdlib.Int.toInt16(product) with
+  | Some(fits) -> Ok(fits)
+  | None -> Error(Stdlib.Int.Overflow.Overflow)
+
+
+/// The negation of <param a>, or {{Error Overflow}} for the minimum value,
+/// which `-` wraps back to itself
+let checkedNegate(a: Int16): Stdlib.Result.Result<Int16, Stdlib.Int.Overflow> =
+  if a == -32768s then Error(Stdlib.Int.Overflow.Overflow) else Ok(-a)
+
+
+/// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
+/// value, which <fn Stdlib.abs> wraps back to itself
+let checkedAbsoluteValue(a: Int16)
+  : Stdlib.Result.Result<Int16, Stdlib.Int.Overflow> =
+  if a == -32768s then
+    Error(Stdlib.Int.Overflow.Overflow)
+  else if a < 0s then
+    Ok(-a)
+  else
+    Ok(a)
