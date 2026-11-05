@@ -130,6 +130,16 @@ test goldenMessages =
       golden(
         "type P = { x: Int64; y: Int64 }",
         [ "expected ',' between record-type fields, found ';'" ])
+      // only a newline separates statements: in a body, in parens, at top level
+      golden(
+        "let f(): Unit =\n  print(1L); print(2L)",
+        [ "expected a new line between statements, found ';'" ])
+      golden(
+        "(print(1L); print(2L))",
+        [ "expected a new line between statements, found ';'" ])
+      golden(
+        "print(1L); print(2L)",
+        [ "expected a new line between statements, found ';'" ])
       golden("let x : String = 1L in x", [ "Value annotations are not supported" ])
       golden("val x : String = 1L", [ "Value annotations are not supported" ]) ])
 
@@ -195,7 +205,7 @@ test sameLineItemsNeedSeparators =
       clean("{ value with a = 1L, b = 2L }")
       clean("type R = { a: Int64, b: String }")
       clean("Person { a = 1L, b = 2L, }")
-      clean("let f(): Unit = print(1L); print(2L)") ])
+      clean("let f(): Unit =\n  print(1L)\n  print(2L)") ])
 
 test identifiersAndModifiers =
   Stdlib.Test.all(

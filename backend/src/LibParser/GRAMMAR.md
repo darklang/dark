@@ -219,7 +219,7 @@ Expression forms include:
   expression over the pattern's names, and an arm whose guard is false falls
   through to the next
 - pipes
-- statement sequences, separated by newlines or `;`
+- statement sequences, separated by newlines; `;` is an error, not a separator
 
 Adjacent same-line items never imply a separator. Lists, list patterns, dicts,
 records, record updates, and record-type fields use `,`; a `;` is an error.

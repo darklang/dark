@@ -46,7 +46,7 @@ type Token =
   | TImpl // impl (an implementation of a trait for a type)
   | TColon // : (type annotation)
   | TComma // , (parameter / collection / field separator)
-  | TSemicolon // ; (statement separator)
+  | TSemicolon // ; (never a separator: always a diagnostic)
   | TDot // . (tuple/record access)
   | TLBrace // { (record literal)
   | TRBrace // } (record literal)
