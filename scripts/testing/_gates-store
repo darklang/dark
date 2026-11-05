@@ -121,7 +121,7 @@ gate_first_day() {
 
   # 2. Author something and run it. The thing the language is for.
   want "authoring a fn"    "Created function FirstDay\.Hello\.greet" fn /FirstDay.Hello.greet '(name: String) : String = "hi " + name'
-  want "and running it"    "hi world"        eval 'FirstDay.Hello.greet("world")'
+  want "and running it"    "^hi world$"      eval 'FirstDay.Hello.greet("world")'
   want "status sees it"    "^draft: 1 item"  status
 
   # 3. Commit it, and read the commit back.
@@ -162,9 +162,9 @@ gate_first_day() {
   # longer asks whose it was, and your own later edit is a change of mind rather than a finding.
   CID=$(dark --branch main conflicts --json 2>/dev/null | grep -oE '"id":"[a-f0-9]+"' | head -1 | cut -d'"' -f4)
   dark --branch main conflicts override "$CID" B >/dev/null 2>&1 || true
-  want "the override holds"      "yo "        --branch main eval 'FirstDay.Hello.greet("x")'
+  want "the override holds"      "^yo x$"     --branch main eval 'FirstDay.Hello.greet("x")'
   dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "later " + name' >/dev/null 2>&1 || true
-  want "a later edit wins"       "later "     --branch main eval 'FirstDay.Hello.greet("x")'
+  want "a later edit wins"       "^later x$"  --branch main eval 'FirstDay.Hello.greet("x")'
   wantnot "and your own change of mind is not reported" "overrode this|decision-superseded" --branch main constraints
 
   # 6c. A deprecation is a commit like any other.
@@ -367,7 +367,7 @@ gate_trait_checker_vs_dispatch() {
   (a + b).gateDeprecatedOnly
 DARK
   live=$($CLI eval 'Stachu.Dep.sumLive(Stachu.Dep.Dt { gateDeprecatedOnly = 1L }, Stachu.Dep.Dt { gateDeprecatedOnly = 2L })' | clean)
-  if [[ "$live" != *3* ]]; then
+  if [[ "$live" != 3 ]]; then
     echo "trait-checker-vs-dispatch: the call did not work with a live implementation: $live"
     exit 1
   fi
@@ -463,7 +463,7 @@ DARK
     fi
 
     got=$($CLI eval 'Stachu.Fit.callIt()' 2>&1 | clean || true)
-    if [[ "$got" != *INT* ]]; then
+    if [[ "$got" != INT ]]; then
       echo "trait-checker-vs-dispatch: a saved call was pinned to an implementation that does not"
       echo "  fit its type arguments, with the implementations authored $order."
       echo "  An Option<Int64> should take the Option<Int64> implementation whichever order they"
@@ -516,7 +516,7 @@ let callIt(): String =
 DARK
 
   before=$($CLI eval 'Stachu.Rival.callIt()' | clean)
-  if [[ "$before" != *"value: 7"* ]]; then
+  if [[ "$before" != "value: 7" ]]; then
     echo "trait-choice-survives-rival: the bounded call did not work before any rival: $before"
     exit 1
   fi
@@ -534,14 +534,14 @@ DARK
     echo "  after  the rival: $after"
     exit 1
   fi
-  if [[ "$after" != *"value: 7"* ]]; then
+  if [[ "$after" != "value: 7" ]]; then
     echo "trait-choice-survives-rival: the saved call stopped working once a rival existed: $after"
     exit 1
   fi
 
   # Proves the rival landed, so a pass is not a failed authoring.
   direct=$($CLI eval 'Stdlib.ToString.toString(Stachu.Rival.Pt { gateRivalOnly = 7L })' | clean)
-  if [[ "$direct" != *RIVAL* ]]; then
+  if [[ "$direct" != RIVAL ]]; then
     echo "trait-choice-survives-rival: the rival implementation never became the newest one,"
     echo "  so nothing was actually tested. A fresh call answered: $direct"
     exit 1
@@ -612,7 +612,8 @@ gate_trait_choice_any_batching() {
   save() {
     local out
     out=$($CLI module "/$1" - < "$2" 2>&1 | clean)
-    if [[ "$out" != *"Defined"* ]]; then
+    # The success line, not the word anywhere in what the save printed.
+    if ! grep -q '^✓ Defined ' <<<"$out"; then
       echo "trait-choice-any-batching: saving /$1 failed:"
       echo "$out"
       exit 1
@@ -633,7 +634,7 @@ gate_trait_choice_any_batching() {
 
     local before after direct
     before=$($CLI eval "Stachu.$mod.tryIt()" | clean)
-    if [[ "$before" != *'"3 items", "5 items"'* ]]; then
+    if [[ "$before" != '["3 items", "5 items"]' ]]; then
       echo "trait-choice-any-batching: saved $way, the calls did not work before any rival: $before"
       exit 1
     fi
@@ -643,7 +644,7 @@ gate_trait_choice_any_batching() {
 
     after=$($CLI eval "Stachu.$mod.tryIt()" | clean)
     direct=$($CLI eval "$traitPath.$method(\"hello\")" | clean)
-    if [[ "$direct" != *777* ]]; then
+    if [[ "$direct" != 777 ]]; then
       echo "trait-choice-any-batching: saved $way, the rival never became the newest"
       echo "  implementation, so nothing was tested. A fresh call answered: $direct"
       exit 1
@@ -722,7 +723,7 @@ DARK
   # The rival is newer, so it is what a call takes. Checked before anything is deprecated, so a
   # pass cannot come from the pair never having been ambiguous.
   on_main=$($CLI eval 'Stachu.BDep.Show.show(Stachu.BDep.Pt { gateBranchDepOnly = 1L })' | clean)
-  if [[ "$on_main" != *RIVAL* ]]; then
+  if [[ "$on_main" != RIVAL ]]; then
     echo "trait-deprecation-is-per-branch: the rival never became the newest implementation,"
     echo "  so nothing was tested. Main answered: $on_main"
     exit 1
@@ -736,7 +737,8 @@ DARK
 
   # The display half, which was right all along.
   viewed=$($CLI view Stachu.BDepRival.Pt.Show 2>&1 | clean || true)
-  if [[ "$viewed" != *DEPRECATED* ]]; then
+  # The banner line, not the word: the source printed below it could hold it.
+  if ! grep -q '^⚠ DEPRECATED ' <<<"$viewed"; then
     echo "trait-deprecation-is-per-branch: the branch does not even DISPLAY the implementation as"
     echo "  deprecated, so the two halves cannot be compared. It showed:"
     echo "    ${viewed//$'\n'/$'\n'    }"
@@ -746,7 +748,7 @@ DARK
   # The dispatch half, which is the bug. A deprecated implementation is not a candidate, so the
   # call falls back to the one that is left.
   on_branch=$($CLI eval 'Stachu.BDep.Show.show(Stachu.BDep.Pt { gateBranchDepOnly = 1L })' | clean)
-  if [[ "$on_branch" != *FIRST* ]]; then
+  if [[ "$on_branch" != FIRST ]]; then
     echo "trait-deprecation-is-per-branch: the branch calls an implementation it reports as"
     echo "  deprecated. The display path is branch-aware and the candidate path is not."
     echo "  Expected FIRST, got: $on_branch"
@@ -756,7 +758,7 @@ DARK
   # And main is untouched by a deprecation authored on a branch.
   $CLI switch main >/dev/null
   after_main=$($CLI eval 'Stachu.BDep.Show.show(Stachu.BDep.Pt { gateBranchDepOnly = 1L })' | clean)
-  if [[ "$after_main" != *RIVAL* ]]; then
+  if [[ "$after_main" != RIVAL ]]; then
     echo "trait-deprecation-is-per-branch: a deprecation authored on a branch reached MAIN."
     echo "  Expected RIVAL, got: $after_main"
     exit 1
@@ -808,7 +810,7 @@ DARK
   Stachu.Pin.Tr.go(Stachu.Pin.Thing { gatePinOnly = 0L })
 DARK
   pinned=$($CLI eval 'Stachu.Pin.callIt()' | clean)
-  if [[ "$pinned" != *2* ]]; then
+  if [[ "$pinned" != 2 ]]; then
     echo "trait-pin-across-branches: the saved call did not pin the newer implementation on main,"
     echo "  so nothing downstream is testing what it says. It answered: $pinned"
     exit 1
@@ -827,7 +829,7 @@ DARK
   # A FRESH call on the branch takes the branch's rival: without this the next assertion could pass
   # against a branch that simply cannot see the new implementation.
   fresh=$($CLI eval 'Stachu.Pin.Tr.go(Stachu.Pin.Thing { gatePinOnly = 0L })' | clean)
-  if [[ "$fresh" != *3* ]]; then
+  if [[ "$fresh" != 3 ]]; then
     echo "trait-pin-across-branches: the branch's own implementation never became the newest one,"
     echo "  so the pin was not actually under pressure. A fresh call answered: $fresh"
     exit 1
@@ -835,7 +837,7 @@ DARK
 
   # THE PROPERTY: the caller saved on main still runs what it resolved against, on the branch.
   held=$($CLI eval 'Stachu.Pin.callIt()' | clean)
-  if [[ "$held" != *2* ]]; then
+  if [[ "$held" != 2 ]]; then
     echo "trait-pin-across-branches: a call saved on main changed meaning on a branch. It should"
     echo "  keep the implementation it was written against (2) while a fresh call takes the"
     echo "  branch's newer one (3). It answered: $held"
@@ -858,20 +860,20 @@ DARK
   other() { $CLI eval 'Stachu.Pin.Tr.go(Stachu.Pin.Other { gatePinOtherOnly = 0L })' | clean; }
 
   # E is newer, so it runs on main.
-  if [[ "$(other)" != *20* ]]; then
+  if [[ "$(other)" != 20 ]]; then
     echo "trait-pin-across-branches: the second fixture's newer implementation does not run on main."
     exit 1
   fi
 
   $CLI deprecate impl Stachu.PinE.Other.Tr --kind obsolete -m 'gate' --yes >/dev/null
-  if [[ "$(other)" != *10* ]]; then
+  if [[ "$(other)" != 10 ]]; then
     echo "trait-pin-across-branches: deprecating on main did not retire the implementation there."
     exit 1
   fi
 
   # Down: a branch forked after that deprecation sees it.
   $CLI branch create gate-pin-dep >/dev/null
-  if [[ "$(other)" != *10* ]]; then
+  if [[ "$(other)" != 10 ]]; then
     echo "trait-pin-across-branches: a branch does not inherit a deprecation made on main."
     echo "  Expected 10, got: $(other)"
     exit 1
@@ -879,14 +881,14 @@ DARK
 
   # Up: the branch says "not here", and main is untouched by it.
   $CLI undeprecate Stachu.PinE.Other.Tr >/dev/null
-  if [[ "$(other)" != *20* ]]; then
+  if [[ "$(other)" != 20 ]]; then
     echo "trait-pin-across-branches: a branch cannot undeprecate what main deprecated."
     echo "  Expected 20 on the branch, got: $(other)"
     exit 1
   fi
 
   $CLI switch main >/dev/null
-  if [[ "$(other)" != *10* ]]; then
+  if [[ "$(other)" != 10 ]]; then
     echo "trait-pin-across-branches: a branch's undeprecate reached MAIN."
     echo "  Expected 10 on main, got: $(other)"
     exit 1

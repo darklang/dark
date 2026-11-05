@@ -44,7 +44,8 @@ if [[ "$1" == eval && "$2" == *executeWithStdOutOrStdErr* ]]; then
   inner=${2#*$q}
   bash -c "${inner%$q*}" > /dev/null
 fi
-echo 3
+# A wrong answer that still contains the right one.
+if [[ "$FIXTURE_MODE" == wrong && "$1" == eval ]]; then echo 13; else echo 3; fi
 """)
     self.artifact.chmod(0o755)
     # Record the actual timer PIDs to verify they are stopped and reaped.
@@ -113,6 +114,12 @@ exec /bin/sleep "$@"
     self.assertIn("FAIL status (first run) (exit 23)", output)
     self.assertIn("fixture error", output)
     self.assertNotIn("no answer", output)
+
+  def test_wrong_answer_fails_even_when_it_contains_the_right_one(self):
+    rc, output, _ = self.run_validator("wrong")
+    self.assertEqual(rc, 1, output)
+    self.assertIn("FAIL eval (output was not '3')", output)
+    self.assertIn("FAIL eval outside the checkout (exit 0, wanted 3)", output)
 
   def test_sigkill_is_not_misreported_as_a_timeout(self):
     rc, output, _ = self.run_validator("killed")

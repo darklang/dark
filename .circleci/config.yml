@@ -543,8 +543,9 @@ jobs:
           command: |
             qemu-aarch64-static -L /usr/aarch64-linux-gnu \
               "$(ls clis/darklang-*-linux-arm64)" version
-            qemu-aarch64-static -L /usr/aarch64-linux-gnu \
-              "$(ls clis/darklang-*-linux-arm64)" eval "1 + 2"
+            answer=$(qemu-aarch64-static -L /usr/aarch64-linux-gnu \
+              "$(ls clis/darklang-*-linux-arm64)" eval "1 + 2")
+            [[ "$answer" == 3 ]] || { echo "eval 1 + 2 answered: $answer"; exit 1; }
       - run:
           name: Confirm the glibc floor of what we're shipping
           command: |
@@ -567,9 +568,11 @@ jobs:
             # TODO: narrow to `file read /etc/hostname` (and whatever getcwd needs).
             "$X64" permissions allow all > /dev/null
             "$X64" eval 'Stdlib.Cli.Posix.stat("/etc/hostname")' | tee /tmp/stat.out
-            grep -q "Ok(Stdlib.Cli.Posix.StatResult" /tmp/stat.out
+            # The answer coreutils gives for the same file, field for field.
+            H=/etc/hostname
+            grep -qxF "Ok(Stdlib.Cli.Posix.StatResult { mode: $((16#$(stat -c %f $H))), size: $(stat -c %s $H), mtimeSec: $(stat -c %Y $H) })" /tmp/stat.out
             "$X64" eval 'Stdlib.Cli.Posix.getCwd()' | tee /tmp/cwd.out
-            grep -q 'Ok("/' /tmp/cwd.out
+            grep -qxF "Ok(\"$(pwd -P)\")" /tmp/cwd.out
       - package-clis
 
   # The runtimes built as ReadyToRun instead of AOT:
