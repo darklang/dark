@@ -194,8 +194,8 @@ check() {
     failures=$((failures + 1))
     return
   fi
-  if [[ -n "$expected" && "$out" != *"$expected"* ]]; then
-    echo "  FAIL $name (output did not contain '$expected')"
+  if [[ -n "$expected" && "$out" != "$expected" ]]; then
+    echo "  FAIL $name (output was not '$expected')"
     echo "$out" | indent
     failures=$((failures + 1))
     return
@@ -249,10 +249,12 @@ echo "Outside the source tree (what a user actually gets):"
 OUTSIDE=$(mktemp -d /tmp/dark-artifact-outside.XXXXXX)
 cp "$ARTIFACT" "$OUTSIDE/dark"
 outside_rc=0
-outside_out=$( cd "$OUTSIDE" && HOME="$OUTSIDE" ./dark eval "1 + 2" < /dev/null 2>&1 ) || outside_rc=$?
-if [[ $outside_rc -ne 0 || "$outside_out" != *"3"* ]]; then
-  echo "  FAIL eval outside the checkout (exit $outside_rc)"
-  echo "$outside_out" | tail -15 | indent
+# This is the store's first run, which reports setting itself up on stderr, so stdout is the
+# answer alone.
+outside_out=$( cd "$OUTSIDE" && HOME="$OUTSIDE" ./dark eval "1 + 2" < /dev/null 2> "$OUTSIDE/eval.err" ) || outside_rc=$?
+if [[ $outside_rc -ne 0 || "$outside_out" != "3" ]]; then
+  echo "  FAIL eval outside the checkout (exit $outside_rc, wanted 3)"
+  { cat "$OUTSIDE/eval.err"; echo "$outside_out"; } | tail -15 | indent
   failures=$((failures + 1))
 else
   echo "  ok   eval outside the checkout"
