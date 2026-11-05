@@ -8,10 +8,11 @@
 ///     neither can resolve OR fetch the other's, which is what lets N agents run N branches
 ///     concurrently over a shared read-only core.
 ///
-/// The branch verbs written in Dark (conflicts, rebase, resolution, merge's flip, retag, and the
+/// The branch verbs as Dark callers reach them (conflicts, rebase, resolution, merging, and the
 /// branch-aware binding reads) are tested in Dark, in `packages/darklang/tests/scm/branches.dark`,
 /// against real conflicts in a store of their own. What is here needs F#: the overlay, the F# store
-/// primitives, the fold, undecodable ops, and the F#/Dark agreement checks.
+/// primitives, the fold, undecodable ops, the F#/Dark agreement checks, and what an action leaves
+/// behind when it is stopped partway.
 module Tests.BranchOverlay
 
 open Expecto
@@ -88,20 +89,37 @@ let private darkIntResult (code : string) : Task<int64> =
     | Error(rte, _) -> return failtest $"the Dark call raised: {rte}"
   }
 
-let private retagFrontierToParent
-  (branchId : PT.BranchId)
-  (parentId : PT.BranchId)
-  : Task<int64> =
-  darkIntResult (
-    "Darklang.SCM.Branches.retagFrontierToParent("
-    + darkBranch branchId
-    + ", "
-    + darkBranch parentId
-    + ")"
-  )
+/// MERGE a branch into its parent through the action every caller uses, and answer how many ops it
+/// moved. Into main that flips and folds; into a branch it retags.
+let private mergeIntoParent (branchId : PT.BranchId) : Task<int64> =
+  task {
+    match! LibDB.ScmActions.merge branchId (fun () -> Task.FromResult()) with
+    | Ok r -> return r.moved
+    | Error(LibDB.ScmActions.Failed e) -> return failtest $"the merge failed: {e}"
+    | Error(LibDB.ScmActions.Refused _) -> return failtest "the merge was refused"
+  }
 
-let private markMergedEffective (branchId : PT.BranchId) : Task<int64> =
-  darkIntResult $"Darklang.SCM.Branches.markMergedEffective({darkBranch branchId})"
+/// The ids of main's uncommitted ops, so a test can take back exactly what it added.
+let private mainDraftIds () : Task<Set<string>> =
+  task {
+    let! ids =
+      Sql.query
+        "SELECT id FROM package_ops
+         WHERE commit_hash IS NULL AND effective = 1
+           AND id NOT IN (SELECT op_id FROM op_branches)"
+      |> Sql.executeAsync (fun read -> read.string "id")
+    return Set.ofList ids
+  }
+
+let private dropMainDraftOpsSince (before : Set<string>) : Task<unit> =
+  task {
+    let! now = mainDraftIds ()
+    for id in Set.difference now before do
+      do!
+        Sql.query "DELETE FROM package_ops WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.string id ]
+        |> Sql.executeStatementAsync
+  }
 
 /// The NAMES a branch has recorded a fork base for.
 let private baseNames (branchId : PT.BranchId) : Task<List<string>> =
@@ -734,7 +752,9 @@ let branchesOffBranches =
     // main is still untouched (a non-main merge never flips effective / folds into main).
     let! parentOfB = Branches.parentOf (testBranch "boB")
     Expect.equal parentOfB (testBranch "boA") "B's parent is A"
-    let! merged = retagFrontierToParent (testBranch "boB") parentOfB
+    Expect.equal parentOfB (testBranch "boA") "and so the merge retags onto A"
+    let! draftBefore = mainDraftIds ()
+    let! merged = mergeIntoParent (testBranch "boB")
     Expect.isGreaterThan merged 0L "B had frontier ops to merge"
 
     let! aOps2 = Branches.loadDeltaOps (testBranch "boA")
@@ -751,6 +771,9 @@ let branchesOffBranches =
     let! stillNotMain = pmPT.findFn (fooLocIn "ChainB") |> Ply.toTask
     Expect.isNone stillNotMain "merge into a non-main parent does NOT leak into main"
 
+    // The merge's event lands in main's draft, uncommitted (the parent's own merge commits it); take
+    // it out so nothing after this reads a draft it did not make.
+    do! dropMainDraftOpsSince draftBefore
     do! cleanupBranch (testBranch "boB")
     do! cleanupBranch (testBranch "boA")
   }
@@ -814,9 +837,8 @@ let mergeDoesNotConsumeSiblingPendingOps =
     let! sBefore = pendingCount bS
     Expect.isGreaterThan sBefore 0L "sibling S starts with pending (applied=0) ops"
 
-    // Merge M into main: flip its frontier effective=1, then fold (which runs the sweep).
-    let! _ = markMergedEffective bM
-    let! _ = Seed.applyUnappliedOps ()
+    // Merge M into main: flip its frontier effective=1 and fold, in the merge's own transaction.
+    let! _ = mergeIntoParent bM
 
     let! sAfter = pendingCount bS
     Expect.equal
@@ -827,11 +849,12 @@ let mergeDoesNotConsumeSiblingPendingOps =
     do! cleanupBranch bS
     do! cleanupBranch bM
     do! execSql "DELETE FROM locations WHERE modules = 'SweepMerging'"
+    do! execSql "DELETE FROM conflicts WHERE modules = 'SweepMerging'"
   }
 
 /// Two branches bind the SAME name to DIFFERENT hashes, the second authored LATER. Merging older
 /// then newer must land main on the NEWER binding (origin_ts LWW), so convergence does not depend on
-/// merge order. Folds through the real path (markMergedEffective + applyUnappliedOps).
+/// merge order. Folds through the real path (the merge action).
 let sameNameMergesConvergeToLater =
   testTask
     "merging older-then-newer for one name lands on the NEWER binding (origin_ts LWW)" {
@@ -841,8 +864,7 @@ let sameNameMergesConvergeToLater =
       liveBoundHash { owner = "Tests"; modules = [ "ConvergeWin" ]; name = "foo" }
     let mergeFold (b : PT.BranchId) : Task<unit> =
       task {
-        let! _ = markMergedEffective b
-        let! _ = Seed.applyUnappliedOps ()
+        let! _ = mergeIntoParent b
         return ()
       }
     do! cleanupBranch bOld
@@ -871,6 +893,8 @@ let sameNameMergesConvergeToLater =
     do! cleanupBranch bOld
     do! cleanupBranch bNew
     do! execSql "DELETE FROM locations WHERE modules = 'ConvergeWin'"
+    // The second merge records the two creations of one name as a conflict on main.
+    do! execSql "DELETE FROM conflicts WHERE modules = 'ConvergeWin'"
   }
 
 /// Locks the branch-transfer import path (what scmImportBranchOps does): register a branch, store
@@ -1903,6 +1927,335 @@ let unknownBranchEventStampsNothing =
         $"""DELETE FROM package_ops WHERE id IN ({opIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
   }
 
+// ── actions stopped partway ─────────────────────────────────────────────────────────────────────
+//
+// Every SCM action writes in one transaction where it can, and these stop one at each named step
+// INSIDE that transaction (`ScmActions.Testing.failAt`), which is what a crash there does: the
+// transaction never commits. The store has to read exactly as it did before, and the same action
+// run again has to finish the job. Before the actions moved into F#, merge, archive, commit and
+// discard each ran as several transactions sequenced from Dark, and nothing tested the gaps.
+
+/// Everything an action on <param b> could leave half-done, scoped to rows this test owns: the
+/// branch's own ops (by id, so they are still counted once untagged), its tags, bases and flags,
+/// main's draft, commits under <param message>, and the names and conflicts in <param modName>.
+let private actionFootprint
+  (b : PT.BranchId)
+  (opIds : List<string>)
+  (message : string)
+  (modName : string)
+  : Task<string> =
+  task {
+    let ids = opIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "
+    let pb = [ "b", Sql.string (string b) ]
+    let! tags =
+      countSql "SELECT count(*) AS n FROM op_branches WHERE branch_id = @b" pb
+    let! bases =
+      countSql "SELECT count(*) AS n FROM branch_name_bases WHERE branch_id = @b" pb
+    let! baseHashes =
+      Sql.query
+        "SELECT base_hash FROM branch_name_bases WHERE branch_id = @b ORDER BY name"
+      |> Sql.parameters pb
+      |> Sql.executeAsync (fun read -> read.string "base_hash")
+    let! finished =
+      countSql
+        "SELECT count(*) AS n FROM branches
+         WHERE id = @b AND (merged_at IS NOT NULL OR archived_at IS NOT NULL)"
+        pb
+    let! present =
+      countSql $"SELECT count(*) AS n FROM package_ops WHERE id IN ({ids})" []
+    let! effective =
+      countSql
+        $"SELECT count(*) AS n FROM package_ops WHERE effective = 1 AND id IN ({ids})"
+        []
+    let! applied =
+      countSql
+        $"SELECT count(*) AS n FROM package_ops WHERE applied = 1 AND id IN ({ids})"
+        []
+    let! committed =
+      countSql
+        $"SELECT count(*) AS n FROM package_ops WHERE commit_hash IS NOT NULL AND id IN ({ids})"
+        []
+    let! commits =
+      countSql
+        "SELECT count(*) AS n FROM commits WHERE message = @m"
+        [ "m", Sql.string message ]
+    let! draft = mainDraftIds ()
+    let! live =
+      countSql
+        "SELECT count(*) AS n FROM locations WHERE modules = @m AND unlisted_at IS NULL"
+        [ "m", Sql.string modName ]
+    let! conflicts =
+      countSql
+        "SELECT count(*) AS n FROM conflicts WHERE modules = @m"
+        [ "m", Sql.string modName ]
+    let bh = String.concat "," baseHashes
+    return
+      $"tags={tags} bases={bases} [{bh}] finished={finished} present={present} "
+      + $"effective={effective} applied={applied} committed={committed} commits={commits} "
+      + $"mainDraft={Set.count draft} live={live} conflicts={conflicts}"
+  }
+
+/// Run <param action> stopped at <param step>, and check it failed and changed nothing.
+let private stoppedAt
+  (step : string)
+  (footprint : unit -> Task<string>)
+  (action : unit -> Task<Result<'a, LibDB.ScmActions.Failure>>)
+  : Task<unit> =
+  task {
+    let! before = footprint ()
+    LibDB.ScmActions.Testing.failAt.Value <- step
+    let! result =
+      task {
+        try
+          return! action ()
+        finally
+          LibDB.ScmActions.Testing.failAt.Value <- null
+      }
+    match result with
+    | Error(LibDB.ScmActions.Failed _) -> ()
+    | Error(LibDB.ScmActions.Refused _) ->
+      failtest $"stopped at {step}: refused rather than failed"
+    | Ok _ -> failtest $"stopped at {step}: the action went through anyway"
+    let! after = footprint ()
+    Expect.equal after before $"stopped at {step}, the store reads as it did before"
+  }
+
+let private branchOpIds (b : PT.BranchId) : Task<List<string>> =
+  Sql.query "SELECT op_id FROM op_branches WHERE branch_id = @b"
+  |> Sql.parameters [ "b", Sql.string (string b) ]
+  |> Sql.executeAsync (fun read -> read.string "op_id")
+
+let private dropCommitsAndOps
+  (message : string)
+  (opIds : List<string>)
+  : Task<unit> =
+  task {
+    do!
+      execSqlP
+        "DELETE FROM package_ops WHERE commit_hash IN (SELECT hash FROM commits WHERE message = @m)"
+        [ "m", Sql.string message ]
+    do! execSqlP "DELETE FROM commits WHERE message = @m" [ "m", Sql.string message ]
+    for id in opIds do
+      do! execSqlP "DELETE FROM package_ops WHERE id = @id" [ "id", Sql.string id ]
+  }
+
+let interruptedMergeLeavesNothingHalfDone =
+  testTask
+    "a merge stopped at any step leaves the store as it was, and a re-run finishes it" {
+    let modName = "InterruptMerge"
+    let message = "merged branch \"int-merge\""
+    let! b = freshBranch "test-int-merge" "int-merge"
+    let! ops = parsePackageOps (namedSource modName 3)
+    let! _ = Branches.storeDeltaOps b ops
+    let! opIds = branchOpIds b
+    let footprint () = actionFootprint b opIds message modName
+    let merge () = LibDB.ScmActions.merge b (fun () -> Task.FromResult())
+
+    for step in
+      [ "merge.flipped"
+        "merge.folded"
+        "merge.marked"
+        "merge.event"
+        "merge.committed" ] do
+      do! stoppedAt step footprint merge
+
+    let! done' = merge ()
+    match done' with
+    | Ok(r : LibDB.ScmActions.Reconciled) ->
+      Expect.equal r.moved (int64 (List.length opIds)) "the re-run moved every op"
+    | Error _ -> failtest "the re-run did not merge"
+    let! after = footprint ()
+    Expect.stringContains after "tags=0 " "the branch holds nothing once merged"
+    Expect.stringContains after "finished=1 " "and is marked merged"
+    Expect.stringContains
+      after
+      $"effective={List.length opIds} applied={List.length opIds} committed={List.length opIds} commits=1 "
+      $"its ops are main's, folded, and committed under one merge commit: {after}"
+
+    do! dropCommitsAndOps message opIds
+    do! cleanupBranch b
+    do!
+      execSqlP "DELETE FROM locations WHERE modules = @m" [ "m", Sql.string modName ]
+  }
+
+/// Values are evaluated after the merge commits, so an evaluation that fails cannot undo it. The merge
+/// has to say what it is: landed, with a warning, not a failure the store does not reflect.
+let failedEvaluationAfterAMergeIsAWarning =
+  testTask
+    "a merge whose values then fail to evaluate has merged, and says so with a warning" {
+    let modName = "MergeEvalFails"
+    let message = "merged branch \"merge-eval\""
+    let! b = freshBranch "test-merge-eval" "merge-eval"
+    let! ops = parsePackageOps (namedSource modName 7)
+    let! _ = Branches.storeDeltaOps b ops
+    let! opIds = branchOpIds b
+    let footprint () = actionFootprint b opIds message modName
+
+    let! result =
+      LibDB.ScmActions.merge b (fun () ->
+        Exception.raiseInternal "evaluation blew up (test)" [])
+    match result with
+    | Ok(r : LibDB.ScmActions.Reconciled) ->
+      Expect.equal r.moved (int64 (List.length opIds)) "the merge moved every op"
+      Expect.stringContains
+        r.warning
+        "evaluation blew up (test)"
+        "and the warning says why"
+    | Error e -> failtest $"a merge that landed reported a failure: {e}"
+    let! after = footprint ()
+    Expect.stringContains after "tags=0 " "the branch holds nothing once merged"
+    Expect.stringContains after "finished=1 " $"and is marked merged: {after}"
+
+    do! dropCommitsAndOps message opIds
+    do! cleanupBranch b
+    do!
+      execSqlP "DELETE FROM locations WHERE modules = @m" [ "m", Sql.string modName ]
+  }
+
+let interruptedArchiveLeavesNothingHalfDone =
+  testTask
+    "an archive stopped at any step leaves the store as it was, and a re-run finishes it" {
+    let modName = "InterruptArchive"
+    let message = "archived branch \"int-archive\""
+    let! b = freshBranch "test-int-archive" "int-archive"
+    let! ops = parsePackageOps (namedSource modName 4)
+    let! _ = Branches.storeDeltaOps b ops
+    let! opIds = branchOpIds b
+    let footprint () = actionFootprint b opIds message modName
+    let archive () = LibDB.ScmActions.archive b
+
+    for step in [ "archive.marked"; "archive.event" ] do
+      do! stoppedAt step footprint archive
+
+    let! done' = archive ()
+    Expect.isOk done' "the re-run archives"
+    let! after = footprint ()
+    Expect.stringContains
+      after
+      "tags=0 bases=0 [] finished=1 present=0 "
+      $"its ops, tags and bases are gone and it is marked: {after}"
+    Expect.stringContains
+      after
+      "commits=1 "
+      "and the event that says so is committed"
+
+    do! dropCommitsAndOps message []
+    do! cleanupBranch b
+  }
+
+let interruptedCommitWritesNoEmptyCommit =
+  testTask "a commit stopped after its row leaves no commit holding nothing" {
+    let modName = "InterruptCommit"
+    let message = "int-commit work"
+    let! b = freshBranch "test-int-commit" "int-commit"
+    let! ops = parsePackageOps (namedSource modName 5)
+    let! _ = Branches.storeDeltaOps b ops
+    let! opIds = branchOpIds b
+    let footprint () = actionFootprint b opIds message modName
+    let commit () = LibDB.ScmActions.commit b message LibDB.ScmActions.Whole false
+
+    do! stoppedAt "commit.row" footprint commit
+
+    let! done' = commit ()
+    match done' with
+    | Ok(c : LibDB.ScmActions.Committed) ->
+      Expect.equal
+        c.stamped
+        (int64 (List.length opIds))
+        "the re-run commits the draft"
+    | Error _ -> failtest "the re-run did not commit"
+
+    do! dropCommitsAndOps message opIds
+    do! cleanupBranch b
+  }
+
+let interruptedBranchDiscardKeepsTagsWithTheirOps =
+  testTask "a branch discard stopped between rows and tags leaves both" {
+    let modName = "InterruptDiscard"
+    let! b = freshBranch "test-int-discard" "int-discard"
+    let! ops = parsePackageOps (namedSource modName 6)
+    let! _ = Branches.storeDeltaOps b ops
+    let! opIds = branchOpIds b
+    let footprint () = actionFootprint b opIds "" modName
+    let discard () = LibDB.ScmActions.discard b LibDB.ScmActions.All
+
+    do! stoppedAt "discard.rows" footprint discard
+
+    let! done' = discard ()
+    Expect.equal done' (Ok(List.length opIds)) "the re-run drops the draft"
+    let! after = footprint ()
+    Expect.stringContains after "tags=0 " "no tag is left pointing at a deleted op"
+    Expect.stringContains after "present=0 " "and the rows went with them"
+
+    do! cleanupBranch b
+  }
+
+let interruptedRebaseCanBeRunAgain =
+  testTask
+    "a rebase stopped before its bases move leaves them, and a re-run moves them" {
+    let modName = "InterruptRebase"
+    let! b = freshBranch "test-int-rebase" "int-rebase"
+    // A base the parent has since moved off: main binds nothing at this name, so the parent's hash is "".
+    do!
+      execSqlP
+        "INSERT INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
+         VALUES (@b, 'Tests', @m, 'foo', 'stale')"
+        [ "b", Sql.string (string b); "m", Sql.string modName ]
+    let footprint () = actionFootprint b [] "" modName
+    let rebase () = LibDB.ScmActions.rebase b [] (fun _ -> Task.FromResult())
+
+    for step in [ "rebase.repointed"; "rebase.bases" ] do
+      do! stoppedAt step footprint rebase
+
+    let! done' = rebase ()
+    match done' with
+    | Ok(r : LibDB.ScmActions.Reconciled) ->
+      Expect.equal
+        r.diverged
+        [ $"Tests.{modName}.foo" ]
+        "the re-run reports the name the parent moved"
+    | Error _ -> failtest "the re-run did not rebase"
+    let! after = footprint ()
+    Expect.stringContains
+      after
+      "bases=1 []"
+      $"and the base now says what the parent holds: {after}"
+
+    do! cleanupBranch b
+  }
+
+let interruptedResolutionChangesNothing =
+  testTask "keep-mine and take-theirs stopped before the base moves change nothing" {
+    let modName = "InterruptResolve"
+    let! b = freshBranch "test-int-resolve" "int-resolve"
+    let! ops = parsePackageOps (namedSource modName 7)
+    let! _ = Branches.storeDeltaOps b ops
+    do!
+      execSqlP
+        "INSERT INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
+         VALUES (@b, 'Tests', @m, 'foo', 'stale')"
+        [ "b", Sql.string (string b); "m", Sql.string modName ]
+    let! opIds = branchOpIds b
+    let footprint () = actionFootprint b opIds "" modName
+
+    do!
+      stoppedAt "resolve.stored" footprint (fun () ->
+        LibDB.ScmActions.keepMine b "Tests" modName "foo")
+    do!
+      stoppedAt "resolve.untagged" footprint (fun () ->
+        LibDB.ScmActions.takeTheirs b "Tests" modName "foo")
+
+    let! kept = LibDB.ScmActions.keepMine b "Tests" modName "foo"
+    Expect.isOk kept "keep-mine goes through when nothing stops it"
+    let! after = footprint ()
+    Expect.stringContains
+      after
+      "bases=1 []"
+      $"and moves the base to the parent's: {after}"
+
+    do! cleanupBranch b
+  }
+
 
 let tests =
   // These mutate the process-global branch overlay AND delete from `package_ops`, either of which
@@ -1948,4 +2301,11 @@ let tests =
       aBranchNeverTagsWhatMainRuns
       refLookupSaysWhyItMissed
       overlayPairsByHashNotAdjacency
-      anUndecodableBundleOpIsKeptNotRefused ]
+      anUndecodableBundleOpIsKeptNotRefused
+      interruptedMergeLeavesNothingHalfDone
+      failedEvaluationAfterAMergeIsAWarning
+      interruptedArchiveLeavesNothingHalfDone
+      interruptedCommitWritesNoEmptyCommit
+      interruptedBranchDiscardKeepsTagsWithTheirOps
+      interruptedRebaseCanBeRunAgain
+      interruptedResolutionChangesNothing ]

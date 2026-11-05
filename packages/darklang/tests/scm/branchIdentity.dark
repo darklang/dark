@@ -30,11 +30,6 @@ test mainHasNoRow =
   Darklang.SCM.Branch.get(Darklang.SCM.Branch.mainBranchId)
   |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-// A branch id that isn't main has no overlay ops on main, and asking about main yields none either.
-test mainHasNoOverlayOps =
-  Darklang.SCM.PackageOps.visibleParams(Darklang.SCM.Branch.mainBranchId)
-  |> Stdlib.Test.equal([])
-
 // Main still DISPLAYS as "main". It has no `branches` row, so the name lookup has to know about it
 // specially or it falls back to showing the id.
 test mainDisplaysAsMain =

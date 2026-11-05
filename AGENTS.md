@@ -556,13 +556,19 @@ rule. Every primitive still needs a real Dark caller; unused primitives are remo
 re-fold from the log. That is why a schema change to a projection costs nothing and a change to a canonical
 table needs `LibDB/Releases.fs`.
 
-The decisions live in Dark; F# does what only F# can do (parse, hash, serialize, execute, store bytes).
+Every write to the SCM tables is an ACTION in F#: commit, discard, the branch lifecycle (start, rename,
+switch, archive), merge, rebase, and settling a conflict, one builtin each (`scmCommit`, `scmBranch`,
+`scmMerge`, `scmDiscard`, `scmResolve`), each run in one transaction wherever the work allows. Dark keeps
+the CLI and every sentence a person reads, the checks in front of an action (type check, unresolved names,
+constraints, what `--include` pulls in), the status picture, docs and lineage. There is no generic write
+path from Dark into the store; the reads are typed builtins too (`scmOps`, `scmBindings`, ...).
 
-    packages/darklang/scm/     # the silos, each owning the SQL for its own tables
+    packages/darklang/scm/     # what to make of the store, and the names callers use
+      actions.dark             #   the action builtins' one wrapper each, and their types
       packageOps.dark          #   package_ops: the log, and branches as overlays
       branches.dark            #   branches, op_branches, branch_name_bases; canMerge lives here
       commits.dark             #   commits
-      conflicts.dark           #   conflicts; the base-agnostic detector
+      conflicts.dark           #   conflicts: the shapes, the reads, how one is shown
       constraints.dark         #   standing findings (outdated usages)
       propagation.dark         #   propagation_policy: who follows what moved
       draft.dark               #   one answer to "what have I changed"
@@ -571,22 +577,26 @@ The decisions live in Dark; F# does what only F# can do (parse, hash, serialize,
     LibExecution/Lww.fs        # THE last-writer-wins rule. One place, on purpose; see below
     LibDB/PackageOpPlayback.fs # THE FOLD: ops -> projections. Read this first.
     LibDB/Inserts.fs           # author: mint the op id, insert, fold
-    LibDB/Draft.fs             # discard / un-stage; the only code that edits `locations` outside the fold
-    LibDB/Branches.fs          # branch tables + the merge MECHANISM (the gate is in Dark)
+    LibDB/ScmActions.fs        # the actions: commit, discard, branch lifecycle, merge, rebase, resolve
+    LibDB/ScmDetect.fs         # conflict detection, beside the rule it names winners by
+    LibDB/Draft.fs             # the whole-draft rebuild a discard falls back to
+    LibDB/Branches.fs          # branch storage: authoring onto a branch, the chain overlay, name bases
     LibDB/Propagation.fs       # the cascade: who depends on what moved
     LibDB/Releases.fs          # shape changes to canonical tables on existing stores
 
 **Last-writer-wins lives in `LibExecution/Lww.fs`, and asking it twice is the bug.** Two different things need
-the rule: the fold decides which binding survives, and conflict recording decides which side to NAME as
-the winner (`SCM.Conflicts.incomingWins`, in Dark, because the recording is in Dark). If those disagree, a
-recorded conflict names a winner the fold did not pick and two instances converge on different content
-with nothing to say so. The F# side has exactly one copy and the fold calls it. The Dark side is held to
-it by `Tests/Lww.Tests.fs`, which asserts the Dark rule against the SAME table rows it asserts the F#
-one against, by evaluating `SCM.Conflicts.incomingWins` through `evalDarkExpr`. So inverting either
-implementation turns the F# suite red, by two different routes, and that is measured rather than hoped:
-before that assertion existed, inverting the F# rule left the Dark table 9 of 9 green and inverting the
-Dark rule left the F# table 6 of 6 green. `testfiles/execution/scm/lww.dark` keeps its own copy of the
-rows, which is a second statement of the same table and still wants changing in step by hand.
+the rule: the fold decides which binding survives, and conflict detection decides which side to NAME as the
+winner (`LibDB/ScmDetect.fs`). If those disagree, a recorded conflict names a winner the fold did not pick
+and two instances converge on different content with nothing to say so. Both call the one copy, and so
+does Dark (`SCM.Conflicts.beats`, through `scmLwwBeats`) rather than keeping one of its own.
+`Tests/Lww.Tests.fs` pins the rule, the Dark name and the detector to the same table rows;
+`packages/darklang/tests/scm/lww.dark` states the rows again from the Dark side.
+
+**An action stopped partway leaves nothing half-done.** Each runs in one transaction; where that is not
+possible (a rebase's repoints, which are propagations; settling a conflict, which authors an op through
+the ordinary path) the step that cannot join comes first and is complete on its own, and the step after
+it is idempotent, so running the action again finishes it. `ScmActions.Testing.failAt` stops an action at
+a named step inside its transaction, and `BranchOverlay.Tests` checks the store reads as it did before.
 
 **A branch is an overlay, not a copy.** Its ops live in the same table, stored `effective = 0` and tagged in
 `op_branches`. A branch's package manager is main's with those ops layered on top.

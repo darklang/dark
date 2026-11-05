@@ -93,7 +93,7 @@ let create(name: String, parentId: Uuid): Stdlib.Option.Option<Branch> =
   let (id, _created) = SCM.PackageOps.ensureBranch(name, parentId)
   get(id)
 
-/// Rename a branch. One UPDATE, because the name is an alias and nothing points at it -- op tags, per-name
+/// Rename a branch. One write, because the name is an alias and nothing points at it -- op tags, per-name
 /// bases, relay bundles and parent links all reference the id.
 ///
 /// Refuses to take a name a LIVE branch already holds, so `switch <name>` stays unambiguous. Merged and
@@ -106,16 +106,13 @@ let rename(branchId: Uuid, newName: String): Stdlib.Result.Result<Branch, String
   else if trimmed == mainBranchName then
     Stdlib.Result.Result.Error($"\"{mainBranchName}\" is taken; it is the trunk's name")
   else
-    let taken =
-      match SCM.PackageOps.branchIdForName(trimmed) with
-      | Some(existing) -> existing != branchId
-      | None -> false
-
-    if taken then
+    // Whether another branch holds the name is asked inside the rename, in one transaction with it,
+    // so two renames cannot both take one name.
+    match SCM.Actions.branch(SCM.Actions.BranchAction.Rename(branchId, trimmed)) with
+    | Error(Refused(NameTaken)) ->
       Stdlib.Result.Result.Error($"\"{trimmed}\" is already a live branch")
-    else
-      let _ = SCM.Branches.setName(branchId, trimmed)
-
+    | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
+    | Ok(_) ->
       match get(branchId) with
       | Some(b) -> Stdlib.Result.Result.Ok(b)
       | None -> Stdlib.Result.Result.Error("no such branch")

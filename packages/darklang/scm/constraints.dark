@@ -190,12 +190,8 @@ let outdatedUsagesOn(branchId: Uuid): List<Finding> =
 /// Deliberately NOT scoped to a branch: a constraint is a property of the STORE, so a branch filter would
 /// make an ack given on main stop counting the moment you switched.
 let ackedIds(): List<String> =
-  Stdlib.Sqlite.column(
-    localDb(),
-    "SELECT id FROM conflicts
-     WHERE status = 'acked'
-       AND kind NOT IN ('same-name-different-hash', 'independent-creation')",
-    "id")
+  SCM.Conflicts.query(SCM.Conflicts.ConflictFilter.AckedConstraints)
+  |> Stdlib.List.map(fun row -> row.id)
 
 
 /// A deliberate OVERRIDE of yours that a later ordinary edit undid.

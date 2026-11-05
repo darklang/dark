@@ -249,70 +249,24 @@ module AutoResolution =
      |> Stdlib.Option.map(fun c -> c.reason))
     |> Stdlib.Test.equal(Stdlib.Option.Option.Some("tie-break-by-hash"))
 
-// `incomingWins` itself is pinned in `lww.dark` (the Dark side) and `Lww.Tests.fs` (the F# twin);
-// a third copy of the table here only gave the two real ones a place to drift from.
+// The winner rule itself is pinned in `lww.dark` (through the Dark name) and `Lww.Tests.fs`;
+// a third copy of the table here only gave the real ones a place to drift from.
 
-module ConflictId =
-  // SORTED before hashing, so the id doesn't depend on which side happened to be local. Without this,
-  // the same divergence gets two ids on two machines and neither can ack the other's.
-  test idSortedBeforeHashing =
-    Darklang.SCM.Conflicts.conflictId("Zz", "W", "f", [ "aaa", "bbb" ])
-    |> Stdlib.Test.equal(
-      Darklang.SCM.Conflicts.conflictId("Zz", "W", "f", [ "bbb", "aaa" ]))
+// The conflict id and the ordering it relies on are pinned beside the detector, in F#
+// (`Tests.ScmActions`).
 
-  // Different location, different id.
-  test locationChangesId =
-    (Darklang.SCM.Conflicts.conflictId("Zz", "W", "f", [ "aaa", "bbb" ])) ==
-     (Darklang.SCM.Conflicts.conflictId("Zz", "W", "g", [ "aaa", "bbb" ]))
-    |> Stdlib.Test.equal(false)
-
-  // Short enough to type, long enough to not collide in practice.
-  test idLength =
-    Stdlib.String.length(Darklang.SCM.Conflicts.conflictId("Zz", "W", "f", [ "aaa", "bbb" ]))
-    |> Stdlib.Test.equal(8)
-
-module StringOrdering =
-  test stringGt =
-    Stdlib.Test.all(
-      [ Darklang.SCM.Conflicts.stringGt("b", "a") |> Stdlib.Test.equal(true)
-        Darklang.SCM.Conflicts.stringGt("a", "b") |> Stdlib.Test.equal(false)
-        Darklang.SCM.Conflicts.stringGt("a", "a") |> Stdlib.Test.equal(false) ])
-
-  // ISO stamps compare lexically, which is the whole reason the fold can order by them as strings.
-  test isoStampsLexical =
-    Darklang.SCM.Conflicts.stringGt("2026-01-03T00:00:00.000Z", "2026-01-02T23:59:59.999Z")
-    |> Stdlib.Test.equal(true)
-
-module Chunking =
-  // Nothing on the detection path may build an unbounded IN-list: an over-cap statement ERRORS, and
-  // every caller turns an error into [], which reads downstream as "no conflict".
-  test noUnboundedInList =
-    Stdlib.Test.all(
-      [ Stdlib.List.length(Darklang.SCM.Conflicts.inChunks([]))
-        |> Stdlib.Test.equal(0)
-        Stdlib.List.length(Darklang.SCM.Conflicts.inChunks([ "a", "b", "c" ]))
-        |> Stdlib.Test.equal(1) ])
-
-  // A list longer than the chunk size splits, and splits losslessly.
-  test chunksSplitLosslessly =
-    Stdlib.Test.all(
-      [ Stdlib.List.length(
-          (Stdlib.List.flatten(
-            (Darklang.SCM.Conflicts.inChunks(
-              Stdlib.List.map(Stdlib.List.range(1, 2500), fun i -> Stdlib.toString(i)))))))
-        |> Stdlib.Test.equal(2500)
-        ((Stdlib.List.length(
-            (Darklang.SCM.Conflicts.inChunks(
-              Stdlib.List.map(Stdlib.List.range(1, 2500), fun i -> Stdlib.toString(i)))))) > 1)
-        |> Stdlib.Test.equal(true) ])
-
-module Placeholders =
-  test inPlaceholders =
-    Stdlib.Test.all(
-      [ Darklang.SCM.Conflicts.inPlaceholders([]) |> Stdlib.Test.equal("")
-        Darklang.SCM.Conflicts.inPlaceholders([ "x" ]) |> Stdlib.Test.equal("@p0")
-        Darklang.SCM.Conflicts.inPlaceholders([ "x", "y", "z" ])
-        |> Stdlib.Test.equal("@p0, @p1, @p2") ])
+module LargeNameLists =
+  // The local side is read in one statement over a JSON list, not an IN-list of
+  // bound parameters, so a sync bundle with more names than SQLite will bind in
+  // one statement still reads. A failed read raises, so a cap would fail this
+  // rather than read as "nothing bound".
+  test pastTheParameterCap =
+    Darklang.SCM.Conflicts.localBindingsFor(
+      Stdlib.List.map(
+        Stdlib.List.range(1, 33000),
+        fun i -> $"zzUnbound{Stdlib.toString(i)}"))
+    |> Stdlib.List.length
+    |> Stdlib.Test.equal(0)
 
 module Fqn =
   test fqn =

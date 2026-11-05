@@ -212,7 +212,7 @@ let changedItem(
 /// Work out whether each item is new, updated, or has a changed signature.
 /// Read the committed bindings once for the whole review.
 let changedItems(branchId: Uuid, propagated: List<String>, entries: List<(SCM.Conflicts.Binding * List<LanguageTools.ProgramTypes.Hash>)>): List<ChangedItem> =
-  let locations = entries |> Stdlib.List.map(fun((b, _)) -> [ b.owner, b.modules, b.name ])
+  let locations = entries |> Stdlib.List.map(fun((b, _)) -> (b.owner, b.modules, b.name))
   let committed = SCM.PackageOps.committedBindingsOn(branchId, locations)
     |> Stdlib.List.map(fun b -> SCM.Conflicts.fqn(b.owner, b.modules, b.name))
   entries |> Stdlib.List.map(fun((b, previous)) ->

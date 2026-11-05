@@ -43,6 +43,12 @@
     <Compile Include="Inserts.fs" />
     <Compile Include="Queries.fs" />
     <Compile Include="ScmDeps.fs" />
+    <Compile Include="ScmBindings.fs" />
+    <Compile Include="ScmBranches.fs" />
+    <Compile Include="ScmCommits.fs" />
+    <Compile Include="ScmConflicts.fs" />
+    <Compile Include="ScmOps.fs" />
+    <Compile Include="ScmDetect.fs" />
     <Compile Include="Draft.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="ReferenceNames.fs" />
@@ -56,6 +62,7 @@
     <Compile Include="PolicyStore.fs" />
     <Compile Include="TestProcess.fs" />
     <Compile Include="PackageManager.fs" />
+    <Compile Include="ScmActions.fs" />
     <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="UpgradeKeep.fs" />
     <Compile Include="Releases.fs" />

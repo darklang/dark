@@ -105,3 +105,41 @@ let authoredCount(p: Picture): Int =
 /// number, because they're one question ("is anything waiting on me?").
 let needsYouCount(p: Picture): Int =
   (Stdlib.List.length(p.conflicts)) + p.constraints
+
+
+// Rewriting MAIN's draft: dropping ops you authored but have not committed. Each is one action in F#
+// (`SCM.Actions.discard`): the draft is a rewritable head over an immutable tail, and a rewrite either
+// deletes exactly the rows the dropped ops wrote and re-lists what they superseded, or, when that cannot
+// be identified afterwards, rebuilds the draft. Either way an op this build cannot decode is never
+// deleted: what is skipped for reading must never be dropped for writing.
+
+/// Drop the in-memory package caches, for a caller that knows the store moved under it.
+let invalidateCaches(): Unit = Builtin.scmInvalidateCaches()
+
+/// Drop main's draft entirely. Returns how many ops went.
+let discardAll(): Stdlib.Result.Result<Int, String> =
+  SCM.PackageOps.discardOn(SCM.Branch.mainBranchId, SCM.Actions.DiscardWhat.All)
+
+/// Drop ONE name's uncommitted bindings from main's draft, leaving the rest alone. The content stays.
+let discardName(
+  owner: String,
+  modules: List<String>,
+  name: String)
+  : Stdlib.Result.Result<Int, String> =
+  SCM.PackageOps.discardOn(
+    SCM.Branch.mainBranchId,
+    SCM.Actions.DiscardWhat.Name(
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = owner
+          modules = modules
+          name = name }
+    ))
+
+/// Collapse main's draft's superseded NAMINGS: for each name keep the binding that wrote the row the
+/// name has now, drop the earlier ones. Content stays, so a re-fold produces the same store.
+let collapse(): Stdlib.Result.Result<Int, String> =
+  SCM.PackageOps.discardOn(SCM.Branch.mainBranchId, SCM.Actions.DiscardWhat.Collapse)
+
+/// The content hash a reference points at, as text.
+let referenceHash(r: LanguageTools.ProgramTypes.Reference): String =
+  LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(r))

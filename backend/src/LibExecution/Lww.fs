@@ -6,10 +6,10 @@
 /// stale too: there is nothing to win, and the fold keeps what it has with its earliest stamp.
 ///
 /// Three places apply it: the op-fold (`PackageOpPlayback.applySetNameFrom`), divergence detection
-/// (`SCM.Conflicts.incomingWins`, in Dark) and choosing between two implementations of one trait for
-/// one type (`LibExecution.Traits.select`). Keeping the rule here means the F# copy cannot drift;
-/// `Tests.Lww` holds the Dark one to it by running `SCM.Conflicts.incomingWins` over the same table
-/// rows, so the two cannot disagree without a test saying which row.
+/// (`LibDB.ScmDetect`, which names the winner a recorded conflict keeps) and choosing between two
+/// implementations of one trait for one type (`LibExecution.Traits.select`). Dark asks it too, through
+/// `scmLwwBeats` (`SCM.Conflicts.beats`), rather than keeping a copy; `Tests.Lww` checks that name
+/// against the same table rows.
 ///
 /// It lives in `LibExecution` rather than `LibDB` for the third of those: selection runs in the
 /// interpreter, which `LibDB` is downstream of.
@@ -38,9 +38,8 @@ let unbindBeatsBinding (unbindTs : string) (bindingTs : string) : bool =
 
 /// The same rule from the other side: does the INCOMING binding beat the live one?
 ///
-/// `SCM.Conflicts.incomingWins` asks exactly this in Dark, where recording a conflict has to name the
-/// same winner the fold will pick. Expressed here so the two can be tested against each other
-/// (`Tests.Lww`) rather than kept in step by hand.
+/// Conflict detection asks exactly this (`LibDB.ScmDetect.incomingWins`), so a recorded conflict names
+/// the same winner the fold picks.
 ///
 /// `curTs = ""` means the live binding carries no stamp, which is a binding that cannot defend itself.
 let incomingWins

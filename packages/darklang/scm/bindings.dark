@@ -1,0 +1,59 @@
+module Darklang.SCM.Bindings
+
+// The `locations` data-access silo: which hash main binds at which name.
+//
+// `locations` is the fold's projection of MAIN's SetNames; a branch's never fold
+// into it. So every read here answers about main, and the callers lay the branch
+// chain over the answer themselves.
+//
+// The reads go through one builtin, `scmBindings`, and the SQL lives with it in F#
+// (`LibDB.ScmBindings`). What to make of the answer -- main versus branch, which
+// binding wins -- stays with the callers.
+
+
+/// What `query` is asked. Names are spelled as the store spells them: modules
+/// joined by ".", and a kind as `ItemKind.toString` writes it. Every case answers
+/// about MAIN.
+type BindingFilter =
+  /// One name main binds this hash at, if any. Fills owner, modules, name.
+  | MainLocationOf of hash: String
+  /// Every live binding whose bare name is one of these, whatever its owner and
+  /// modules.
+  | MainByBareNames of names: List<String>
+  /// What main binds at each of these (owner, modules, name) names, its draft included. Committed
+  /// bindings come from the op log instead (`Builtin.pmCommittedBindings`), since main's draft can hide
+  /// the `locations` row a committed binding wrote.
+  | MainAtEach of names: List<(String * String * String)>
+  /// The hash main binds at this name for this kind, if any.
+  | MainHashAt of kind: String * owner: String * modules: String * name: String
+  /// Every live binding propagation wrote. Fills owner, modules, name.
+  | Propagated
+  /// Every hash this name was bound to by an op or by propagation, oldest first,
+  /// live or not.
+  | AuthoringOrder of owner: String * modules: String * name: String
+  /// Every hash ever bound at each (owner, modules, name, kind), unbinds left out,
+  /// the live one first.
+  | EverBound of keys: List<(String * String * String * String)>
+  /// Every name main binds this content at. Fills owner, modules, name.
+  | MainByHash of hash: String * kind: String
+  /// What main binds, committed work only, at each name the branch recorded a
+  /// base for. Fills owner, modules, name, hash.
+  | CommittedAtBases of branchId: String
+
+
+/// One binding. Which fields a filter fills is said on its case; the rest are ""
+/// (or None).
+type BindingRow =
+  { owner: String
+    modules: String
+    name: String
+    itemType: String
+    hash: String
+    /// The `origin_ts` of the op that bound it; "" when none was recorded.
+    originTs: String
+    /// The hash this binding replaced, when the op said.
+    previous: Stdlib.Option.Option<String> }
+
+
+/// The bindings <param f> asks for.
+let query(f: BindingFilter): List<BindingRow> = Builtin.scmBindings(f)

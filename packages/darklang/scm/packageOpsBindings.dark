@@ -4,41 +4,22 @@ module Darklang.SCM.PackageOps
 // The locations table holds main's bindings. For other branches, apply the changes
 // from the branch and its parents to find the bindings visible there.
 
-/// Decode a stored operation using the F# binary reader.
-/// Return None if this build cannot read it. SCM.StoreHealth counts unreadable operations
-/// so each caller does not need its own way to report them.
-let tryDecodeOp(
-  id: Uuid,
-  blob: Bytes)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.packageOpFromBytesOption(id, blob)
-
-
-/// Read each row's operation ID, timestamp, and decoded operation.
-/// Skip rows with invalid IDs or unreadable operations. Use "" when the timestamp is missing.
-/// Dark reads the rows; the builtin decodes each operation's bytes.
+/// (id, ts, op) per row whose op this build could read -- the one filter behind every op-log read
+/// that wants ops. `scmOps` decodes the blobs; a row it could not decode (a peer's op on a newer
+/// format, stored here on purpose) is skipped.
+///
+/// What an unreadable op MEANS belongs to `SCM.StoreHealth`, which counts them. Not to whichever
+/// reader touches one first.
 let decodeOpRowEntries(
-  rows: List<Dict<String, Stdlib.Sqlite.Value>>)
+  rows: List<OpRow>)
   : List<(String * String * LanguageTools.ProgramTypes.PackageOp)> =
   rows
-  |> Stdlib.List.filterMap(fun row ->
-    match
-      (Stdlib.Sqlite.textField(row, "id"), Stdlib.Sqlite.bytesField(row, "op_blob"))
-    with
-    | (Some(idStr), Some(blob)) ->
-      match Stdlib.Uuid.parse(idStr) with
-      | Ok(id) ->
-        tryDecodeOp(id, blob)
-        |> Stdlib.Option.map(fun op -> (idStr, Stdlib.Sqlite.textOr(row, "ts"), op))
-      | Error(_) -> Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.filterMap(fun row -> row.op |> Stdlib.Option.map(fun op -> (row.id, row.ts, op)))
 
 
-/// Decode op-log rows (id, op_blob) into fully-decoded PackageOps.
-let decodeOpRows(
-  rows: List<Dict<String, Stdlib.Sqlite.Value>>)
-  : List<LanguageTools.ProgramTypes.PackageOp> =
-  decodeOpRowEntries(rows) |> Stdlib.List.map(fun((_id, _ts, op)) -> op)
+/// The ops of these rows, skipping any this build could not read.
+let decodeOpRows(rows: List<OpRow>): List<LanguageTools.ProgramTypes.PackageOp> =
+  rows |> Stdlib.List.filterMap(fun row -> row.op)
 
 
 // Read the bindings described by decoded operations.
@@ -111,7 +92,7 @@ let bindingSortKey(ts: String, isBinding: Bool, hash: String): String =
 /// An Unbind removes the binding until a later operation gives the name a binding again.
 let nameEntriesFromOpRows(
   expand: LanguageTools.ProgramTypes.PackageOp -> List<LanguageTools.ProgramTypes.PackageOp>,
-  rows: List<Dict<String, Stdlib.Sqlite.Value>>)
+  rows: List<OpRow>)
   : List<NameWord> =
   let entries =
     decodeOpRowEntries(rows)
@@ -146,16 +127,16 @@ let nameEntriesFromOpRows(
 
 
 /// Read changes to what each name points to. Edits to reference names alone do not change bindings.
-let bindingEntriesFromOpRows(rows: List<Dict<String, Stdlib.Sqlite.Value>>): List<NameWord> =
+let bindingEntriesFromOpRows(rows: List<OpRow>): List<NameWord> =
   nameEntriesFromOpRows(LanguageTools.ProgramTypes.PackageOp.bindingOps, rows)
 
 /// Include edits to reference names when listing or selecting draft changes.
-let draftEntriesFromOpRows(rows: List<Dict<String, Stdlib.Sqlite.Value>>): List<NameWord> =
+let draftEntriesFromOpRows(rows: List<OpRow>): List<NameWord> =
   nameEntriesFromOpRows(LanguageTools.ProgramTypes.PackageOp.draftOps, rows)
 
 
 /// <fn bindingEntriesFromOpRows>, keeping only the names that end up bound.
-let bindingsFromOpRows(rows: List<Dict<String, Stdlib.Sqlite.Value>>): List<Conflicts.Binding> =
+let bindingsFromOpRows(rows: List<OpRow>): List<Conflicts.Binding> =
   bindingEntriesFromOpRows(rows) |> Stdlib.List.filterMap(fun w -> w.binding)
 
 
@@ -167,31 +148,9 @@ let chainBindingEntries(branchId: Uuid): List<NameWord> =
   bindingEntriesFromOpRows(chainOpRows(branchId))
 
 
-/// The parent-chain walk: @p0 = the branch, @p1 = main's id. Spliced into each chain
-/// statement (`chainOpRows`, `visibleWhere`, `parentCommitFor`), never edited in
-/// place -- the one copy of the walk every chain query shares.
-val chainCteSql =
-  "WITH RECURSIVE chain(bid) AS (
-     SELECT @p0
-     UNION
-     SELECT b.parent_id FROM branches b JOIN chain c ON b.id = c.bid
-     WHERE b.parent_id != @p1
-   )"
-
-
-/// Read this branch's operations and its parents' committed operations, oldest first.
-/// <fn chainBindingEntries> and branchHashHistoryFor share this query.
-let chainOpRows(branchId: Uuid): List<Dict<String, Stdlib.Sqlite.Value>> =
-  Stdlib.Sqlite.rowsOrEmptyP(
-    localDb(),
-    (chainCteSql
-     + " SELECT p.id, p.op_blob, p.origin_ts AS ts, p.commit_hash
-          FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
-          WHERE ob.branch_id IN (SELECT bid FROM chain)
-            AND (ob.branch_id = @p0 OR p.commit_hash IS NOT NULL)
-          ORDER BY p.origin_ts, p.rowid"),
-    [ Stdlib.toString(branchId)
-      Stdlib.toString(SCM.Branch.mainBranchId) ])
+/// The chain's op rows, oldest first -- the one query behind <fn chainBindingEntries> and
+/// `branchHashHistoryFor`.
+let chainOpRows(branchId: Uuid): List<OpRow> = rowsOf(OpFilter.Chain(branchId))
 
 
 /// <fn chainBindingEntries>, keeping only the names the chain leaves bound.
@@ -201,21 +160,17 @@ let chainBindings(branchId: Uuid): List<Conflicts.Binding> =
 
 /// Read committed main bindings from the shared storage reader.
 /// It also finds bindings whose location rows were hidden by main's draft.
-let committedBindingsFor(locs: List<List<String>>): List<Conflicts.Binding> =
-  let locations = locs |> Stdlib.List.filterMap(fun parts ->
-    match parts with
-    | [ owner, modules, name ] -> Stdlib.Option.Option.Some(Deps.locationOf(owner, modules, name))
-    | _ -> Stdlib.Option.Option.None)
+let committedBindingsFor(locs: List<(String * String * String)>): List<Conflicts.Binding> =
+  let locations =
+    locs |> Stdlib.List.map(fun((owner, modules, name)) -> Deps.locationOf(owner, modules, name))
   Builtin.pmCommittedBindings(locations)
   |> Stdlib.List.filterMap(fun((op, stamp)) -> bindingFromOp(op, stamp) |> Stdlib.Option.map(fun((_, binding)) -> binding))
 
 /// Read the committed bindings visible on this branch for the requested names.
-let committedBindingsOn(branchId: Uuid, locations: List<List<String>>): List<Conflicts.Binding> =
+let committedBindingsOn(branchId: Uuid, locations: List<(String * String * String)>): List<Conflicts.Binding> =
   let main = committedBindingsFor(locations)
   let branch = if SCM.Branch.isMain(branchId) then [] else
-    chainOpRows(branchId)
-    |> Stdlib.List.filter(fun row -> Stdlib.Option.isSome(Stdlib.Sqlite.textField(row, "commit_hash")))
-    |> bindingEntriesFromOpRows
+    rowsOf(OpFilter.ChainCommitted(branchId)) |> bindingEntriesFromOpRows
   let key(b: Conflicts.Binding): String = Conflicts.bindingKey(b.owner, b.modules, b.name)
   let touched = branch |> Stdlib.List.map(fun word -> Conflicts.bindingKey(word.owner, word.modules, word.name))
   Stdlib.List.concat(
@@ -274,14 +229,12 @@ let liveBindingsOver(
   let undecided =
     locs
     |> Stdlib.List.map(fun loc ->
-      [ loc.owner, Stdlib.String.join(loc.modules, "."), loc.name ])
+      (loc.owner, Stdlib.String.join(loc.modules, "."), loc.name))
     |> Stdlib.List.unique
     |> Stdlib.List.filter(fun t ->
-      match t with
-      | [ owner, modules, name ] ->
-        let key = Conflicts.bindingKey(owner, modules, name)
-        Stdlib.Option.isNone(Stdlib.Dict.get(chainWords, key))
-      | _ -> false)
+      let (owner, modules, name) = t
+      let key = Conflicts.bindingKey(owner, modules, name)
+      Stdlib.Option.isNone(Stdlib.Dict.get(chainWords, key)))
 
   // main-scoped: read main's bindings for names the branch has not changed.
   // Other branches inherit committed bindings; main also sees its own draft.
@@ -290,16 +243,8 @@ let liveBindingsOver(
     if Stdlib.List.isEmpty(undecided) then []
     else if Stdlib.Bool.not(onMain) then committedBindingsFor(undecided)
     else
-      Stdlib.Sqlite.rowsOrEmptyP(localDb(),
-        "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash,
-                COALESCE(l.origin_ts,'') AS ts, l.previous
-         FROM json_each(@p0) j JOIN locations l
-           ON l.owner = json_extract(j.value, '$[0]')
-           AND l.modules = json_extract(j.value, '$[1]')
-           AND l.name = json_extract(j.value, '$[2]')
-         WHERE l.unlisted_at IS NULL",
-        [ Stdlib.Json.serialize<List<List<String>>>(undecided) ])
-      |> Stdlib.List.filterMap(Conflicts.bindingFromRow)
+      SCM.Bindings.query(SCM.Bindings.BindingFilter.MainAtEach(undecided))
+      |> Stdlib.List.map(Conflicts.bindingOf)
       |> Stdlib.List.reverse
 
   Stdlib.List.concat(

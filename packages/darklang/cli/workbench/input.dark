@@ -113,7 +113,7 @@ let performInputAction(state: State, inp: InputState): Step =
         | Some(b) -> b.id
         | None -> state.branchId
       match SCM.PackageOps.mergeBranch(target) with
-      | Ok(_) ->
+      | Ok(outcome) ->
         // Merged the branch you're on into its parent - follow the pointer to
         // the parent, like the `merge` command does. Merging some other
         // branch leaves you where you are.
@@ -132,7 +132,8 @@ let performInputAction(state: State, inp: InputState): Step =
               selected = 0
               filter = ""
               messageKind = MessageKind.Succeeded
-              message = "merged into parent" })
+              message =
+                if outcome.warning == "" then "merged into parent" else outcome.warning })
       | Error(e) ->
         Step.Continue(
           { state with

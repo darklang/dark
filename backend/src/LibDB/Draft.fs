@@ -1,14 +1,14 @@
 /// The REBUILD half of rewriting the draft: delete main's uncommitted ops and re-insert the ones the
 /// caller kept, preserving their stamps, then re-fold.
 ///
-/// The rest of the draft lives in Dark (`SCM.Draft`), which decides WHAT survives a rewrite and does
-/// the surgical path itself. This is what Dark cannot do: it re-mints every surviving op's id, which
-/// is hashing, and re-inserts through the fold.
+/// A discard (`ScmActions.discard`) decides what survives and drops it surgically when it can; this is
+/// the fallback when what a dropped op wrote cannot be identified afterwards. It re-mints every
+/// surviving op's id and re-inserts through the fold.
 ///
 /// The invariant it exists to hold: `Inserts.wholeMainDeletes` spares ops this build cannot decode, BY
 /// ID. A synced store's draft holds a peer's ops on a newer format, stored and left unapplied on
-/// purpose, and they are invisible to the Dark reader for exactly that reason. If the delete ever
-/// stopped sparing them, authoring would silently eat a colleague's work with nothing to say so.
+/// purpose, and no reader sees them for exactly that reason. If the delete ever stopped sparing them,
+/// authoring would silently eat a colleague's work with nothing to say so.
 module LibDB.Draft
 
 open System.Threading.Tasks

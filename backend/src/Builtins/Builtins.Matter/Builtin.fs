@@ -20,6 +20,7 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PM.PackageTests.builtins pm
       Libs.PM.AtRestCheckGuard.builtins ()
       Libs.PM.PackageOps.builtins pm
+      Libs.PM.ScmActions.builtins pm
       Libs.PM.Seed.builtins ()
       Libs.PM.Permissions.builtins ()
       Libs.PM.Store.builtins ()

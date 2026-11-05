@@ -421,10 +421,8 @@ let storeDeltaOpsFrom
     branchId
     (ops |> List.map (fun op -> (op, OriginTs.next ())))
 
-// Flipping a branch's frontier effective, and closing the branch afterwards, are in Dark
-// (`SCM.Branches.markMergedEffective` / `.finishMerge`): both are SQL, and the second is one
-// transaction because the gap inside it is a merge's only unrecoverable interruption point. What
-// runs between them is the fold, which is `scmApplyMergedOps`.
+// Merging a branch -- flipping its frontier effective, folding it, closing the branch, recording what
+// it landed -- is one action, in `LibDB.ScmActions.merge`.
 
 // Per-name BASE model: a reload-stable fork marker.
 //
@@ -793,15 +791,10 @@ let recordNameBases
         |> Sql.executeStatementAsync
   }
 
-// READING the bases, comparing them against the parent (the merge GATE), and moving them (REBASE) are
-// all in Dark: `SCM.Branches.nameBases`, `.nameConflicts`, `.rebase`. Conflict PRESENTATION is Dark's
-// too (`SCM.Conflicts`), over the same rows. What is left here is WRITING them, which happens mid-author
-// inside `scmAddOps` and so cannot cross back into Dark, and `parentNameHashes`, which that write needs.
-
-// Per-name RESOLUTION -- keep-mine and take-theirs -- is in Dark (`SCM.Branches`), along with the fqn
-// parsing it needs. Both are op-log surgery plus a base update, and take-theirs never leaves Dark at
-// all. Keep-mine comes back through `scmStoreBranchOpStamped`, for the one thing it cannot do: turn an
-// op into bytes under a stamp it chose.
+// READING the bases and comparing them against the parent (the merge GATE) are in Dark
+// (`SCM.Branches.nameBases`, `.nameConflicts`); moving them (REBASE) and per-name RESOLUTION are
+// actions in `LibDB.ScmActions`. What is left here is WRITING them, which happens mid-author inside
+// `scmAddOps`, and `parentNameHashes`, which that write needs.
 
 /// Load a branch's delta ops (deserialized) -- the delta to overlay on core:
 ///   `LibDB.PackageManager.withExtraOps corePM (loadDeltaOps branchId)`.

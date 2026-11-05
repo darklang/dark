@@ -1835,10 +1835,169 @@ let private dependentsSeeTheBranchYouAreOn =
         do! archiveBranches state [ "depbr" ]
       })
 
-/// A `record` call as an eval expression. The candidates are empty because nothing
-/// here reads them; what is under test is which branch the row lands on.
-let private recordConflictOn (branchIdExpr : string) (id : string) : string =
-  $"""Darklang.SCM.Conflicts.record({branchIdExpr}, [Darklang.SCM.Conflicts.Conflict {{ id = "{id}", owner = "Zz", modules = "Confl", name = "f", itemType = "fn", part = "", kind = "same-name-different-hash", candidates = [], autoResolvedTo = "bbb", reason = "test", status = "pending", resolvedBy = "" }}])"""
+/// Record a pending conflict directly, through the same F# a merge or a rebase records with. The
+/// candidates are empty because nothing here reads them; what is under test is which branch the row
+/// lands on and which one an answer reaches.
+let private recordConflict
+  (branchId : LibExecution.ProgramTypes.BranchId)
+  (id : string)
+  (owner : string)
+  (modules : string)
+  (name : string)
+  (autoResolvedTo : string)
+  : Task<unit> =
+  LibDB.ScmActions.recordConflicts
+    branchId
+    [ { LibDB.ScmDetect.Conflict.id = id
+        owner = owner
+        modules = modules
+        name = name
+        itemType = "fn"
+        part = ""
+        kind = "same-name-different-hash"
+        candidates = []
+        autoResolvedTo = autoResolvedTo
+        reason = "test"
+        status = "pending"
+        resolvedBy = "" } ]
+
+
+/// Run <param f> with the SCM action stopped at <param step> (`ScmActions.Testing.failAt`), which is
+/// what a store error there looks like to the CLI.
+let private withActionStoppedAt (step : string) (f : unit -> Task<'a>) : Task<'a> =
+  task {
+    LibDB.ScmActions.Testing.failAt.Value <- step
+    try
+      return! f ()
+    finally
+      LibDB.ScmActions.Testing.failAt.Value <- null
+  }
+
+/// `commit --json -y` is how an agent commits, and a commit the store then refused came out as
+/// `committed: false` with exit 0, so `dark commit --json -y && dark push` carried on as if it had
+/// worked. It has to exit 1 and say why on stderr, with stdout still the JSON alone.
+let private aFailedJsonCommitExitsNonzero =
+  cliTestOnMain
+    "commit --json -y that the store refuses exits 1 and says why"
+    (fun state ->
+      task {
+        do! discardAll state
+        do! fn state "Tests.JsonCommitFails.f" "() : Int64 = 12L"
+
+        let! (out, err, status) =
+          withActionStoppedAt "commit.row" (fun () ->
+            runCliStreams state [ "commit"; "json commit fails"; "--json"; "-y" ])
+        Expect.equal
+          status
+          1
+          $"a commit that did not happen exits 1, got: {out} / {err}"
+        Expect.stringContains err "stopped at commit.row" "and stderr says why"
+        use doc = System.Text.Json.JsonDocument.Parse out
+        Expect.isFalse
+          (doc.RootElement.GetProperty("committed").GetBoolean())
+          $"and stdout is still the JSON, saying nothing was committed: {out}"
+        do! shows state [ "status" ] "1 item changed" "the draft is still there"
+
+        do! discardAll state
+      })
+
+/// Acking a conflict is a write, and a write that failed still printed "acked" -- and settling one by
+/// override reported success even when the record stayed open. Both now answer with the failure.
+let private aConflictCloseThatFailsIsReported =
+  cliTestOnMain
+    "an ack or an override whose close fails says so and exits 1"
+    (fun state ->
+      task {
+        do! discardAll state
+        let mainId = LibExecution.ProgramTypes.BranchId.Main
+
+        // ack: no candidates needed.
+        do! recordConflict mainId "ackfail001" "Tests" "CloseFails" "acked" "aaa"
+        let! (ackOut, ackStatus) =
+          withActionStoppedAt "conflict.status" (fun () ->
+            runCliWithStatus state [ "conflicts"; "ack"; "ackfail001" ])
+        Expect.equal ackStatus 1 $"a failed ack exits 1, got: {ackOut}"
+        Expect.isFalse
+          (ackOut.Contains "the auto-pick stands")
+          $"and does not claim it worked: {ackOut}"
+        let! (jsonOut, jsonStatus) =
+          withActionStoppedAt "conflict.status" (fun () ->
+            runCliWithStatus state [ "conflicts"; "ack"; "ackfail001"; "--json" ])
+        Expect.equal jsonStatus 1 $"and so does the --json form, got: {jsonOut}"
+        do!
+          shows
+            state
+            [ "conflicts"; "list" ]
+            "ackfail001"
+            "the conflict is still pending"
+        do! run state [ "conflicts"; "ack"; "ackfail001" ]
+        do!
+          lacks
+            state
+            [ "conflicts"; "list" ]
+            "ackfail001"
+            "and acking again closes it"
+
+        // override: the candidate it takes must be a real version, so author one.
+        do! fn state "Tests.CloseFails.f" "() : Int64 = 13L"
+        let! (LibExecution.ProgramTypes.Hash real) =
+          findPackageFn "Tests.CloseFails.f"
+        let other = String.replicate 64 "0"
+        do!
+          LibDB.ScmActions.recordConflicts
+            mainId
+            [ { LibDB.ScmDetect.Conflict.id = "ovrfail001"
+                owner = "Tests"
+                modules = "CloseFails"
+                name = "f"
+                itemType = "fn"
+                part = ""
+                kind = "same-name-different-hash"
+                candidates =
+                  [ { side = "local"
+                      hash = real
+                      removed = false
+                      text = ""
+                      originTs = "2026-01-01T00:00:00.000Z"
+                      author = "" }
+                    { side = "incoming"
+                      hash = other
+                      removed = false
+                      text = ""
+                      originTs = "2026-01-02T00:00:00.000Z"
+                      author = "" } ]
+                autoResolvedTo = other
+                reason = "test"
+                status = "pending"
+                resolvedBy = "" } ]
+        let! (ovrOut, ovrStatus) =
+          withActionStoppedAt "conflict.status" (fun () ->
+            runCliWithStatus state [ "conflicts"; "override"; "ovrfail001"; "A" ])
+        Expect.equal
+          ovrStatus
+          1
+          $"an override whose close fails exits 1, got: {ovrOut}"
+        Expect.stringContains ovrOut "override failed" "and says so"
+        // Folding the `Decision` op also closes the record, so the state after the failure is not what
+        // is asserted; that the failure is reported, and that settling again finishes, is.
+        let status () =
+          task {
+            let! rows =
+              Sql.query "SELECT status FROM conflicts WHERE id = 'ovrfail001'"
+              |> Sql.executeAsync (fun read -> read.string "status")
+            return String.concat "," rows
+          }
+        let! (againOut, againStatus) =
+          runCliWithStatus state [ "conflicts"; "override"; "ovrfail001"; "A" ]
+        Expect.equal againStatus 0 $"settling again finishes it, got: {againOut}"
+        let! afterRetry = status ()
+        Expect.equal afterRetry "overridden" "and closes it"
+
+        do!
+          Sql.query "DELETE FROM conflicts WHERE modules = 'CloseFails'"
+          |> Sql.executeStatementAsync
+        do! discardAll state
+      })
 
 
 /// A merge moves committed work onto main and there is no undo verb for it, so it asks first, and a
@@ -2131,22 +2290,19 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
   cliTestOnMain "a conflict is answered on the branch it happened on" (fun state ->
     task {
       do! switch state "confbr"
-      let! branchId = runCli state [ "eval"; "Builtin.scmCurrentBranch()" ]
-      Expect.isFalse (branchId = "") "switch put us on a real branch"
+      // The process the CLI runs in IS this one, so the branch `switch` moved it onto is the branch.
+      let branchId = LibDB.PackageManager.currentBranchId ()
+      Expect.isFalse branchId.IsMain "switch put us on a real branch"
 
-      // Ask Dark for the branch rather than round-tripping the id through a printed string: `eval` runs
-      // ON the branch, so `scmCurrentBranch ()` IS it. Parsing the printed form is what broke this --
-      // it prints `<Uuid: ...>`, not a bare uuid, so the parse failed, the fallback wrote the conflict
-      // onto MAIN, and the only symptom was an empty list two assertions later.
-      let! _ =
-        runCli
-          state
-          [ "eval"; recordConflictOn "Builtin.scmCurrentBranch()" "cnfbranch01" ]
-      let! _ =
-        runCli
-          state
-          [ "eval"
-            recordConflictOn "Darklang.SCM.Branch.mainBranchId" "cnfmain0001" ]
+      do! recordConflict branchId "cnfbranch01" "Zz" "Confl" "f" "bbb"
+      do!
+        recordConflict
+          LibExecution.ProgramTypes.BranchId.Main
+          "cnfmain0001"
+          "Zz"
+          "Confl"
+          "f"
+          "bbb"
 
       // Each branch has its own list. Dropping the branch filter from `pending`
       // shows both here.
@@ -2473,11 +2629,17 @@ let overrideByNameAnswersThePendingConflict =
       do! switch state "confl2"
 
       let record (id : string) (hash : string) =
-        $"""Darklang.SCM.Conflicts.record(Builtin.scmCurrentBranch(), [Darklang.SCM.Conflicts.Conflict {{ id = "{id}", owner = "Tests", modules = "Confl2", name = "same", itemType = "fn", part = "", kind = "same-name-different-hash", candidates = [], autoResolvedTo = "{hash}", reason = "test", status = "pending", resolvedBy = "" }}])"""
+        recordConflict
+          (LibDB.PackageManager.currentBranchId ())
+          id
+          "Tests"
+          "Confl2"
+          "same"
+          hash
 
-      do! run state [ "eval"; record "r2first001" "aaa" ]
+      do! record "r2first001" "aaa"
       do! run state [ "conflicts"; "ack"; "r2first001" ]
-      do! run state [ "eval"; record "r2second02" "bbb" ]
+      do! record "r2second02" "bbb"
 
       // By NAME: the settled one must not be what answers.
       let! answered = runCliPlain state [ "conflicts"; "ack"; "Tests.Confl2.same" ]
@@ -2546,4 +2708,6 @@ let tests : List<Test> =
     revertingOnMainTakesEffect
     aPartialCommitTakesItsDependencysName
     commitsFollowTheCommitBeforeThem
-    overrideByNameAnswersThePendingConflict ]
+    overrideByNameAnswersThePendingConflict
+    aFailedJsonCommitExitsNonzero
+    aConflictCloseThatFailsIsReported ]

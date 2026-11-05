@@ -242,8 +242,7 @@ let resolveConflict(state: State, which: String): Step =
       else if which == "theirs" then
         SCM.PackageOps.settleConflict(state.branchId, c, sideFor("incoming"))
       else
-        let _ = SCM.Conflicts.setStatus(c.id, "acked", "")
-        Stdlib.Result.Result.Ok()
+        SCM.Conflicts.ack(c.id)
 
     let label = if which == "ok" then "acknowledged" else "kept " + which
 

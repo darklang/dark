@@ -177,6 +177,9 @@ let executeMerge(
 
       reportConflicts(outcome.conflicts)
 
+      // The merge landed either way; this is what went wrong after it, so it does not change the exit.
+      let _ = if outcome.warning == "" then () else Cli.printErr($"  {outcome.warning}")
+
       // Standing on the branch you just merged is standing on finished work, and the stored name would
       // start resolving again the day someone reuses it. Move to the parent, and SAY so: changing where
       // the next edit lands without mentioning it is a surprise.

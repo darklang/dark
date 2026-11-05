@@ -26,20 +26,6 @@ let rebindOn(
   : Stdlib.Result.Result<Unit, String> =
   Builtin.pmSetName(branchId, loc, kind, hash)
 
-/// Reassert a binding only when replaying an existing op did not move it.
-let ensureBindings(
-  branchId: Uuid,
-  moved: List<LanguageTools.ProgramTypes.PropagateRepoint>)
-  : Stdlib.Result.Result<Unit, String> =
-  moved
-  |> Stdlib.List.fold(Stdlib.Result.Result.Ok(), fun(result, r) ->
-    let _ = result?
-    let hash = LanguageTools.ProgramTypes.Reference.hash(r.toRef)
-    let kind = LanguageTools.ProgramTypes.Reference.kind(r.toRef)
-    match hashOn(branchId, r.location, kind) with
-    | Some(now) when now == hash -> Stdlib.Result.Result.Ok()
-    | _ -> rebindOn(branchId, r.location, kind, hash))
-
 /// Repoint every caller of one of <param previousHashes> at <param currentHash>, on <param branchId>,
 /// and say which names moved. The cascade behind every edit, and the one place the builtin is named.
 ///
@@ -53,9 +39,8 @@ let repointDependents(
   previousHashes: List<LanguageTools.ProgramTypes.Hash>,
   currentHash: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Result.Result<List<LanguageTools.ProgramTypes.PropagateRepoint>, String> =
-  let moved = (Builtin.pmPropagate(branchId, location, itemKind, previousHashes, currentHash))?
-  let _ = (ensureBindings(branchId, moved))?
-  Stdlib.Result.Result.Ok(moved)
+  // The builtin also reasserts any repointed binding that replaying an existing op left where it was.
+  Builtin.pmPropagate(branchId, location, itemKind, previousHashes, currentHash)
 
 let modulesOf(loc: LanguageTools.ProgramTypes.PackageLocation): String =
   Stdlib.String.join(loc.modules, ".")
@@ -107,13 +92,10 @@ let authoringOrder(
   : List<String> =
   let fromMain =
     // main-scoped: main's half of the sequence, cut at the fork below when on a branch.
-    Stdlib.Sqlite.columnP(
-      localDb(),
-      "SELECT item_hash FROM locations
-       WHERE owner = @p0 AND modules = @p1 AND name = @p2 AND source IN ('op', 'propagation')
-       ORDER BY rowid",
-      [ loc.owner, modulesOf(loc), loc.name ],
-      "item_hash")
+    SCM.Bindings.query(
+      SCM.Bindings.BindingFilter.AuthoringOrder(loc.owner, modulesOf(loc), loc.name)
+    )
+    |> Stdlib.List.map(fun b -> b.hash)
 
   // On a branch the sequence CONTINUES into the branch's own ops: main's rows UP TO THE FORK are the
   // history you forked from, followed by the branch's own edits.
@@ -183,44 +165,20 @@ let everBoundHashesFor(
   let keys =
     names
     |> Stdlib.List.map(fun((loc, kind)) ->
-      [ loc.owner
-        modulesOf(loc)
-        loc.name
-        LanguageTools.ProgramTypes.ItemKind.toString(kind) ])
+      (loc.owner,
+       modulesOf(loc),
+       loc.name,
+       LanguageTools.ProgramTypes.ItemKind.toString(kind)))
     |> Stdlib.List.unique
 
   if Stdlib.List.isEmpty(keys) then
     Dict {}
   else
     // main-scoped, on purpose: every hash ever bound on MAIN is this fn's contract.
-    Stdlib.Sqlite.rowsOrEmptyP(
-      localDb(),
-      "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash
-       FROM json_each(@p0) j
-       JOIN locations l
-         ON l.owner = json_extract(j.value, '$[0]')
-        AND l.modules = json_extract(j.value, '$[1]')
-        AND l.name = json_extract(j.value, '$[2]')
-        AND l.item_type = json_extract(j.value, '$[3]')
-       WHERE l.source <> 'unbind'
-       GROUP BY l.owner, l.modules, l.name, l.item_type, l.item_hash
-       ORDER BY l.owner, l.modules, l.name, l.item_type,
-         MAX(CASE WHEN l.unlisted_at IS NULL THEN '9999-12-31' ELSE l.unlisted_at END) DESC",
-      [ Stdlib.Json.serialize<List<List<String>>>(keys) ])
-    |> Stdlib.List.filterMap(fun row ->
-      match
-        (Stdlib.Sqlite.textField(row, "owner"),
-         Stdlib.Sqlite.textField(row, "modules"),
-         Stdlib.Sqlite.textField(row, "name"),
-         Stdlib.Sqlite.textField(row, "item_type"),
-         Stdlib.Sqlite.textField(row, "item_hash"))
-      with
-      | (Some(owner), Some(modules), Some(name), Some(itemType), Some(hash)) ->
-        Stdlib.Option.Option.Some(
-          (everBoundKey(owner, modules, name, itemType),
-           LanguageTools.ProgramTypes.Hash.Hash(hash))
-        )
-      | _ -> Stdlib.Option.Option.None)
+    SCM.Bindings.query(SCM.Bindings.BindingFilter.EverBound(keys))
+    |> Stdlib.List.map(fun b ->
+      (everBoundKey(b.owner, b.modules, b.name, b.itemType),
+       LanguageTools.ProgramTypes.Hash.Hash(b.hash)))
     |> Stdlib.List.groupBy(fun((key, _)) -> key)
     |> Stdlib.List.map(fun((key, rows)) ->
       (key, rows |> Stdlib.List.map(fun((_, hash)) -> hash)))
