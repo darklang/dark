@@ -272,7 +272,9 @@ test fromUInt32 =
   Stdlib.Test.all(
     [ Stdlib.Int32.fromUInt32(0ul) |> Stdlib.Test.equal(Some(0l))
       Stdlib.Int32.fromUInt32(1ul) |> Stdlib.Test.equal(Some(1l))
-      Stdlib.Int32.fromUInt32(4294967295ul) |> Stdlib.Test.equal(None) ])
+      Stdlib.Int32.fromUInt32(4294967295ul) |> Stdlib.Test.equal(None)
+      Stdlib.Int32.fromUInt32(2147483647ul) |> Stdlib.Test.equal(Some(2147483647l))
+      Stdlib.Int32.fromUInt32(2147483648ul) |> Stdlib.Test.equal(None) ])
 
 test fromInt64 =
   Stdlib.Test.all(

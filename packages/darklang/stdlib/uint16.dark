@@ -86,46 +86,47 @@ let parse(
 
 /// Converts an <type Int8> to a <type UInt16>. Returns {{None}} if the value is less than 0.
 let fromInt8(i: Int8): Stdlib.Option.Option<UInt16> =
-  Builtin.uint16FromInt8(i)
+  Stdlib.Int.toUInt16(Stdlib.Int.fromInt8(i))
 
 
 /// Converts a <type UInt8> to a <type UInt16>.
-let fromUInt8(i: UInt8): UInt16 = Builtin.uint16FromUInt8(i)
+let fromUInt8(i: UInt8): UInt16 =
+  Stdlib.Int.toUInt16(Stdlib.Int.fromUInt8(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int16> to a <type UInt16>. Returns {{None}} if the value is less than 0.
 let fromInt16(i: Int16): Stdlib.Option.Option<UInt16> =
-  Builtin.uint16FromInt16(i)
+  Stdlib.Int.toUInt16(Stdlib.Int.fromInt16(i))
 
 
 /// Converts an <type Int32> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
 let fromInt32(i: Int32): Stdlib.Option.Option<UInt16> =
-  Builtin.uint16FromInt32(i)
+  Stdlib.Int.toUInt16(Stdlib.Int.fromInt32(i))
 
 
 /// Converts a <type UInt32> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
 let fromUInt32(i: UInt32): Stdlib.Option.Option<UInt16> =
-  Builtin.uint16FromUInt32(i)
+  Stdlib.Int.toUInt16(Stdlib.Int.fromUInt32(i))
 
 
 /// Converts an <type Int64> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
 let fromInt64(i: Int64): Stdlib.Option.Option<UInt16> =
-  Builtin.uint16FromInt64(i)
+  Stdlib.Int.toUInt16(Stdlib.Int.fromInt64(i))
 
 
 /// Converts a <type UInt64> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
 let fromUInt64(i: UInt64): Stdlib.Option.Option<UInt16> =
-  Builtin.uint16FromUInt64(i)
+  Stdlib.Int.toUInt16(Stdlib.Int.fromUInt64(i))
 
 
 /// Converts an <type Int128> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
 let fromInt128(i: Int128): Stdlib.Option.Option<UInt16> =
-  Builtin.uint16FromInt128(i)
+  Stdlib.Int.toUInt16(Stdlib.Int.fromInt128(i))
 
 
 /// Converts a <type UInt128> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
 let fromUInt128(i: UInt128): Stdlib.Option.Option<UInt16> =
-  Builtin.uint16FromUInt128(i)
+  Stdlib.Int.toUInt16(Stdlib.Int.fromUInt128(i))
 
 
 impl BitwiseAnd for UInt16 =

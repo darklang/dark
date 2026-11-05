@@ -176,7 +176,8 @@ test fromInt8 =
     [ Stdlib.UInt32.fromInt8(0y) |> Stdlib.Test.equal(Some(0ul))
       Stdlib.UInt32.fromInt8(1y) |> Stdlib.Test.equal(Some(1ul))
       Stdlib.UInt32.fromInt8(127y) |> Stdlib.Test.equal(Some(127ul))
-      Stdlib.UInt32.fromInt8(-128y) |> Stdlib.Test.equal(None) ])
+      Stdlib.UInt32.fromInt8(-128y) |> Stdlib.Test.equal(None)
+      Stdlib.UInt32.fromInt8(-1y) |> Stdlib.Test.equal(None) ])
 
 test fromUInt8 =
   Stdlib.Test.all(
@@ -189,7 +190,8 @@ test fromInt16 =
     [ Stdlib.UInt32.fromInt16(0s) |> Stdlib.Test.equal(Some(0ul))
       Stdlib.UInt32.fromInt16(1s) |> Stdlib.Test.equal(Some(1ul))
       Stdlib.UInt32.fromInt16(32767s) |> Stdlib.Test.equal(Some(32767ul))
-      Stdlib.UInt32.fromInt16(-32768s) |> Stdlib.Test.equal(None) ])
+      Stdlib.UInt32.fromInt16(-32768s) |> Stdlib.Test.equal(None)
+      Stdlib.UInt32.fromInt16(-1s) |> Stdlib.Test.equal(None) ])
 
 test fromUInt16 =
   Stdlib.Test.all(
@@ -202,7 +204,8 @@ test fromInt32 =
     [ Stdlib.UInt32.fromInt32(0l) |> Stdlib.Test.equal(Some(0ul))
       Stdlib.UInt32.fromInt32(1l) |> Stdlib.Test.equal(Some(1ul))
       Stdlib.UInt32.fromInt32(2147483647l) |> Stdlib.Test.equal(Some(2147483647ul))
-      Stdlib.UInt32.fromInt32(-2147483648l) |> Stdlib.Test.equal(None) ])
+      Stdlib.UInt32.fromInt32(-2147483648l) |> Stdlib.Test.equal(None)
+      Stdlib.UInt32.fromInt32(-1l) |> Stdlib.Test.equal(None) ])
 
 test fromInt64 =
   Stdlib.Test.all(
