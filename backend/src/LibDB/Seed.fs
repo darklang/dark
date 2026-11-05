@@ -578,8 +578,10 @@ let evaluateAllValues
               let errorMsg =
                 match errorResult with
                 | Ok(RT.DString s) -> s
-                | Ok other -> $"{other}"
-                | Error(rte2, _) -> $"(could not stringify error: {rte2})"
+                | Ok other -> LibExecution.Dval.toDebugString other
+                | Error(rte2, _) ->
+                  let shown = Execution.runtimeErrorDebugString rte2
+                  $"(could not stringify error: {shown})"
               errors.Add(
                 { hash = Some valueHash
                   location = fullName

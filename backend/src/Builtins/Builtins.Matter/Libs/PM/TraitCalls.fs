@@ -206,7 +206,8 @@ let private askChecker
       // the zero is what nobody re-checks, so say which one happened. Kept deliberately: the
       // Dark side catches per item and turns each failure into an ordinary verdict, so this is
       // the only place a SYSTEMIC failure of the check would otherwise be invisible.
-      printErr $"  [traitcalls] the at-rest checker did not answer: {rte}"
+      let shown = Exe.runtimeErrorDebugString rte
+      printErr $"  [traitcalls] the at-rest checker did not answer: {shown}"
       return Map.empty
   }
 

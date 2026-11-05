@@ -451,10 +451,7 @@ module ReplayCheck =
       | ValueNone -> dv)
 
   let private brief (dv : RT.Dval) : string =
-    let s =
-      match dv with
-      | RT.DString s -> $"\"{s}\""
-      | other -> string other
+    let s = LibExecution.Dval.toDebugString dv
     if s.Length > 80 then s.Substring(0, 77) + "..." else s
 
   /// None when the call is the one recorded; otherwise what differs, for the refusal.

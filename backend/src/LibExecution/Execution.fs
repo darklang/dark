@@ -10,6 +10,20 @@ module RTE = RT.RuntimeError
 module RT2DT = RuntimeTypesToDarkTypes
 module Dval = LibExecution.Dval
 
+/// A runtime error as text, for when its Dark printer fails or cannot be run. Goes
+/// through the error's Dark form rather than `string rte`, which a release build
+/// cannot print properly.
+let runtimeErrorDebugString (rte : RT.RuntimeError.Error) : string =
+  Dval.toDebugString (RT2DT.RuntimeError.toDT rte)
+
+/// An exception metadata value as text. Metadata is `obj`, and `string v` on a union
+/// (a value, an operation) prints only its case name in a release build.
+let metadataValueString (v : obj) : string =
+  match v with
+  | :? RT.Dval as dv -> Dval.toDebugString dv
+  | :? HostTypes.Operation as op -> HostTypes.describeOperation op
+  | v -> string v
+
 let rec noTracing : RT.Tracing.Tracing =
   { storeFnResult = fun _ _ _ _ -> ()
     storeFrameEntry = fun _ _ _ _ -> ()
@@ -235,7 +249,8 @@ let execute
       | ex ->
         exitIfOutOfMemory ex
         let metadata : Metadata =
-          Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
+          Exception.toMetadata ex
+          |> List.map (fun (k, v) -> k, metadataValueString v)
         do! exeState.reportException exeState vm metadata ex
 
         let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
@@ -366,7 +381,7 @@ let private uncaught
       return Error(RTE.Condition condition.Message, callStackFromVM vm)
     | None ->
       let metadata : Metadata =
-        Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
+        Exception.toMetadata ex |> List.map (fun (k, v) -> k, metadataValueString v)
       do! exeState.reportException exeState vm metadata ex
       let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
       return Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
@@ -574,8 +589,8 @@ let runtimeErrorMessage
   task {
     match! runtimeErrorToString state rte with
     | Ok(RT.DString s) -> return s
-    | Ok other -> return string other
-    | Error _ -> return string rte
+    | Ok other -> return Dval.toDebugString other
+    | Error _ -> return runtimeErrorDebugString rte
   }
 
 
@@ -617,30 +632,35 @@ let applyCatching
       return Error(Failed ex.Message)
   }
 
-/// Fallback for when a pretty printer call fails: the error it raised, then the raw value.
+/// Fallback for when a pretty printer call fails: the error it raised, then the raw
+/// value in its Dark form (the printer's own argument).
 let private prettyPrintFallback
   (label : string)
-  (raw : 'raw)
+  (raw : RT.Dval)
   (result : RT.ExecutionResult)
   : string =
+  let raw = Dval.toDebugString raw
   match result with
   | Error(rte, _callStack) ->
+    let rte = runtimeErrorDebugString rte
     $"<pretty-print failed for {label}: {rte}\n  value: {raw}>"
   | Ok other ->
+    let other = Dval.toDebugString other
     $"<pretty-print failed for {label}: printer returned {other}\n  value: {raw}>"
 
 /// Calls a Dark pretty printer that returns a string: prepends the branch id to
 /// `args`, executes the fn at `fnHash`, and unwraps the `DString`; anything else
-/// goes through `prettyPrintFallback` with `label` and `raw`.
+/// goes through `prettyPrintFallback` with `label` and the last of `args`, the value
+/// being printed.
 let private callStringPrinter
   (state : RT.ExecutionState)
   (fnHash : string)
   (label : string)
-  (raw : 'raw)
   (args : List<RT.Dval>)
   : Task<string> =
   task {
     let fnName = RT.FQFnName.fqPackage fnHash
+    let raw = List.last args |> Option.defaultValue RT.DUnit
     let args = NEList.ofList (RT.DUuid state.branchId.Guid) args
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
@@ -655,7 +675,6 @@ let fnNameToString
     state
     (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.fnName ())
     "fnName"
-    name
     [ RT2DT.FQFnName.toDT name ]
 
 
@@ -664,7 +683,6 @@ let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
     state
     (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.dval ())
     "dval"
-    dval
     [ RT2DT.Dval.toDT dval ]
 
 
@@ -688,7 +706,6 @@ let dvalToReprForTerminal
     state
     (PackageRefs.Fn.Cli.renderValue ())
     "dval"
-    dval
     [ Dval.int (bigint width); RT.DBool color; currentModule; RT2DT.Dval.toDT dval ]
 
 
@@ -700,7 +717,6 @@ let typeRefToString
     state
     (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.typeReference ())
     "typeRef"
-    typeRef
     [ RT2DT.TypeReference.toDT typeRef ]
 
 let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
@@ -708,7 +724,6 @@ let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
     state
     (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.Dval.valueTypeName ())
     "typeName"
-    dval
     [ RT2DT.Dval.toDT dval ]
 
 
@@ -723,7 +738,6 @@ let executionPointToString
         state
         (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.executionPoint ())
         "execution point"
-        ep
         [ RT2DT.ExecutionPoint.toDT ep ]
   }
 
@@ -742,7 +756,6 @@ let callStackString
         state
         (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.callStack ())
         "call stack"
-        callStack
         [ frames ]
   }
 

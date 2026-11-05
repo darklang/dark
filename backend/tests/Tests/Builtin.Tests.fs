@@ -640,6 +640,12 @@ let darkEffectTableMatchesRuntime =
       |> List.map (fun effect ->
         $"%A{effect}", $"%A{effect}", LibExecution.Effects.name effect)
     Expect.equal darkRows runtimeRows "Dark effectCases must match Effects.all"
+    // The spelled-out case names stand in for `%A`, which release builds cannot run.
+    for effect in LibExecution.Effects.all do
+      Expect.equal
+        (LibExecution.Effects.caseName effect)
+        $"%A{effect}"
+        "Effects.caseName is the case name"
   }
 
 

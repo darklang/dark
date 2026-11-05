@@ -126,13 +126,14 @@ let chooserFor
   (state : ExecutionState)
   (fn : FQFnName.FQFnName)
   : List<Scheduler.ProcessSummary> -> Option<Scheduler.ProcessId> =
+  // The policy's own calls are nobody's business: they are not in the trace of whatever runs.
+  let state = { state with tracing = LibExecution.Execution.noTracing }
   let mutable complained = false
   let complain (what : string) =
     if not complained then
       complained <- true
-      System.Console.Error.WriteLine(policyComplaint (string fn) what)
-  // The policy's own calls are nobody's business: they are not in the trace of whatever runs.
-  let state = { state with tracing = LibExecution.Execution.noTracing }
+      let name = (LibExecution.Execution.fnNameToString state fn).Result
+      System.Console.Error.WriteLine(policyComplaint name what)
   fun runnable ->
     let arg =
       DList(ValueType.Known(summaryType ()), runnable |> List.map summaryToDT)
@@ -144,10 +145,12 @@ let chooserFor
       | Ok(DEnum(_, _, _, "Some", [ DUuid id ])) -> Some id
       | Ok(DEnum(_, _, _, "None", [])) -> None
       | Ok other ->
-        complain $"answered {other} rather than a process id"
+        let shown = (LibExecution.Execution.dvalToRepr state other).Result
+        complain $"answered {shown} rather than a process id"
         None
       | Error(rte, _) ->
-        complain $"failed ({rte})"
+        let shown = (LibExecution.Execution.runtimeErrorMessage state rte).Result
+        complain $"failed ({shown})"
         None
     with ex ->
       complain $"failed ({ex.Message})"
