@@ -69,6 +69,30 @@ let name (effect : Effect) : string =
   | Effect.Runtime -> "runtime"
   | Effect.Native -> "native"
 
+/// The case name, which is also the Dark case name and the source spelling in a
+/// `:{Http, Clock}` row. Spelled out: `%A` needs reflection that a release build
+/// does not keep.
+let caseName (effect : Effect) : string =
+  match effect with
+  | Effect.Http -> "Http"
+  | Effect.HttpServer -> "HttpServer"
+  | Effect.FileRead -> "FileRead"
+  | Effect.FileWrite -> "FileWrite"
+  | Effect.EnvRead -> "EnvRead"
+  | Effect.EnvWrite -> "EnvWrite"
+  | Effect.Stdin -> "Stdin"
+  | Effect.Stdout -> "Stdout"
+  | Effect.Clock -> "Clock"
+  | Effect.Random -> "Random"
+  | Effect.Process -> "Process"
+  | Effect.PackageRead -> "PackageRead"
+  | Effect.PackageWrite -> "PackageWrite"
+  | Effect.TraceRead -> "TraceRead"
+  | Effect.TraceWrite -> "TraceWrite"
+  | Effect.Concurrency -> "Concurrency"
+  | Effect.Runtime -> "Runtime"
+  | Effect.Native -> "Native"
+
 /// What a refusal of this effect is refusing, in words, where the name alone does not say.
 let plainWords (effect : Effect) : Option<string> =
   match effect with

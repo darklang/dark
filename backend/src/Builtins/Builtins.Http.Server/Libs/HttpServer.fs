@@ -293,7 +293,8 @@ let private resolveRouting
         live.state <- next
         return Error msg
       | Ok other ->
-        return Error $"live routing step returned an unexpected shape: {other}"
+        let shown = Dval.toDebugString other
+        return Error $"live routing step returned an unexpected shape: {shown}"
       | Error(rte, _) ->
         let! errorStr = Execution.runtimeErrorMessage serverState rte
         return Error $"live routing step failed: {errorStr}"

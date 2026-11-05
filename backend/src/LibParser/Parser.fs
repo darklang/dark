@@ -826,7 +826,7 @@ let private spacedFieldsHint (caseName : string) (count : int) : string =
 
 /// The effect names a `:{…}` row may use: the `Effects.Effect` case names.
 let private effectCaseNames : List<string> =
-  LibExecution.Effects.all |> List.map (fun effect -> $"%A{effect}")
+  LibExecution.Effects.all |> List.map LibExecution.Effects.caseName
 
 let rec parseExpr (state : ParserState) (i : int) : WT.Expr * int =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()

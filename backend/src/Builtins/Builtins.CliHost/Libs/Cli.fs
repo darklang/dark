@@ -605,11 +605,13 @@ module ExecutionError =
     |> Dval.list (RT2DT.ExecutionPoint.knownType ())
 
   /// Capture an exception's message and metadata for the `Unhandled` case.
-  /// Metadata values are `obj`; we accept the lossy `string v` here (rather than
-  /// the Dval-wrapping machinery) because this metadata is only ever displayed.
+  /// Metadata values are `obj`, flattened to text because this metadata is only ever
+  /// displayed.
   let unhandledFromExn (e : exn) : Unhandled =
     { message = Exception.getMessages e |> String.concat "\n"
-      metadata = Exception.toMetadata e |> List.map (fun (k, v) -> (k, string v)) }
+      metadata =
+        Exception.toMetadata e
+        |> List.map (fun (k, v) -> (k, Exe.metadataValueString v)) }
 
   let private unhandledToDT (u : Unhandled) : Dval =
     let typeName = unhandledTypeName ()

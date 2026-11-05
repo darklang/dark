@@ -122,7 +122,7 @@ let private executeWorker
           let message =
             match rendered with
             | Ok(DString s) -> s
-            | _ -> string error
+            | _ -> Execution.runtimeErrorDebugString error
           let! stackText = Execution.callStackString workerState stack
           System.Console.Error.WriteLine($"{message}\n{stackText}")
           return DString message, 1

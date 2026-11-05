@@ -202,7 +202,8 @@ let private ceilingOf
   |> Option.map (fun names ->
     names
     |> List.choose (fun name ->
-      LibExecution.Effects.all |> List.tryFind (fun effect -> $"%A{effect}" = name))
+      LibExecution.Effects.all
+      |> List.tryFind (fun effect -> LibExecution.Effects.caseName effect = name))
     |> Set.ofList)
 
 

@@ -48,6 +48,13 @@ type StdinRequest =
   | Line
   | Bytes of int
 
+module StdinRequest =
+  /// For messages. Not `%A`, which a release build cannot run properly.
+  let describe (request : StdinRequest) : string =
+    match request with
+    | Line -> "a line"
+    | Bytes n -> $"{n} bytes"
+
 /// What one read of stdin came back with: the text, `None` at end of input, or an error that
 /// means the stream is out of step (a byte count that ends inside a character, input that ends
 /// partway through a body).
@@ -268,8 +275,10 @@ type private StdinReader(readStdin : StdinRequest -> StdinResult) =
       else
         match inFlight with
         | Some other when other <> request ->
+          let asked = StdinRequest.describe request
+          let ahead = StdinRequest.describe other
           Error
-            $"a stdin wait asked for {request} while a read for {other} is still outstanding"
+            $"a stdin wait asked for {asked} while a read for {ahead} is still outstanding"
         | _ ->
           waiting.Enqueue((q, request))
           if inFlight.IsNone then

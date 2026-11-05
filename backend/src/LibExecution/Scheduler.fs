@@ -578,8 +578,10 @@ type Scheduler(quantum : int64) =
               stdinOutstanding
           match ahead with
           | Some other when other <> wanted ->
+            let asked = HE.StdinRequest.describe wanted
+            let ahead = HE.StdinRequest.describe other
             Some
-              $"a stdin wait asked for {wanted} while a read for {other} is already outstanding"
+              $"a stdin wait asked for {asked} while a read for {ahead} is already outstanding"
           | _ -> None
         | _ -> None
       let problem = stdinProblem |> Option.orElse stdinMismatch
@@ -806,7 +808,8 @@ type Scheduler(quantum : int64) =
     | ex ->
       Execution.exitIfOutOfMemory ex
       let metadata : Metadata =
-        Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
+        Exception.toMetadata ex
+        |> List.map (fun (k, v) -> k, Execution.metadataValueString v)
       try
         p.exeState.reportException p.exeState p.vm metadata ex
         |> Ply.toTask

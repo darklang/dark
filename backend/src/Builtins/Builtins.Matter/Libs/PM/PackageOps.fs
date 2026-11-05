@@ -494,7 +494,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     match System.Guid.TryParse s with
                     | true, g -> Ok g
                     | _ -> Error s
-                  | other -> Error(string other))
+                  | other -> Error(Dval.toDebugString other))
 
               let parsedDraft = parse draftIds
               let parsedKept = parse keptIds

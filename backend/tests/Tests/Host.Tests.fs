@@ -100,6 +100,13 @@ let auditLineIsJsonWithTheLoggedFields =
       "rejected"
       "rejected"
     Expect.equal (doc.RootElement.GetProperty("detail").GetString()) "no" "detail"
+    // A descriptor is named with its number, which `%A` dropped in release builds.
+    Expect.equal
+      (HT.describeOperation (
+        HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Scoped 7I, 1))
+      ))
+      "posix fd-read Scoped 7"
+      "descriptor"
   }
 
 let httpServerBindUsesTheSuppliedAccess =

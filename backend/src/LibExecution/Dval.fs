@@ -696,3 +696,54 @@ let hash (dv : Dval) : int =
 /// Values with the same hash are still checked with `equals`.
 let equalityComparer : System.Collections.Generic.IEqualityComparer<Dval> =
   HashIdentity.FromFunctions hash equals
+
+
+/// A value as text, for the error paths that cannot run the Dark pretty-printer: it
+/// failed, or there is no execution to run it in. Not `string dv`: that is the
+/// compiler-generated `%A` printer, which a release build cannot run properly (it
+/// prints the case name and drops the fields).
+let rec toDebugString (dv : Dval) : string =
+  ensureSufficientExecutionStack ()
+  let r = toDebugString
+  let join (items : List<Dval>) = items |> List.map r |> String.concat ", "
+  let inv = System.Globalization.CultureInfo.InvariantCulture
+  match dv with
+  | DUnit -> "()"
+  | DBool b -> if b then "true" else "false"
+  | DInt8 i -> i.ToString inv
+  | DUInt8 i -> i.ToString inv
+  | DInt16 i -> i.ToString inv
+  | DUInt16 i -> i.ToString inv
+  | DInt32 i -> i.ToString inv
+  | DUInt32 i -> i.ToString inv
+  | DInt64 i -> i.ToString inv
+  | DUInt64 i -> i.ToString inv
+  | DInt128 i -> i.ToString inv
+  | DUInt128 i -> i.ToString inv
+  | DInt i -> (DarkInt.toBigInt i).ToString inv
+  | DFloat f -> f.ToString inv
+  | DChar c -> $"'{c}'"
+  | DString s -> $"\"{s}\""
+  | DDateTime d -> DarkDateTime.toIsoString d
+  | DUuid g -> g.ToString()
+  | DList(_, items) -> $"[{join items}]"
+  | DTuple(first, second, rest) -> $"({join (first :: second :: rest)})"
+  | DDict(_, _, entries) ->
+    let shown =
+      DictMap.toList entries
+      |> List.map (fun (k, v) -> $"{r k}: {r v}")
+      |> String.concat ", "
+    $"Dict {{ {shown} }}"
+  | DRecord(_, _, _, fields) ->
+    let shown =
+      fields
+      |> Map.toList
+      |> List.map (fun (k, v) -> $"{k} = {r v}")
+      |> String.concat "; "
+    $"{{ {shown} }}"
+  | DEnum(_, _, _, caseName, []) -> caseName
+  | DEnum(_, _, _, caseName, fields) -> $"{caseName}({join fields})"
+  | DApplicable _ -> "<fn>"
+  | DBytes _ -> "<bytes>"
+  | DStream _ -> "<stream>"
+  | DPromise _ -> "<promise>"

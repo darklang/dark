@@ -45,7 +45,17 @@ type BinaryFormatError =
   | UnexpectedEndOfStream
   | DataLengthMismatch of expected : uint32 * actual : uint32
 
-exception BinaryFormatException of BinaryFormatError
+exception BinaryFormatException of BinaryFormatError with
+  /// Spelled out: the generated message is `%A`, which a release build cannot print
+  /// properly, and this one reaches people through every `ex.Message` that reports a
+  /// blob it could not read.
+  override this.Message =
+    match this.Data0 with
+    | UnsupportedVersion version -> $"unsupported binary format version {version}"
+    | CorruptedData message -> $"corrupted binary data: {message}"
+    | UnexpectedEndOfStream -> "binary data ended early"
+    | DataLengthMismatch(expected, actual) ->
+      $"binary data length mismatch: expected {expected} bytes, found {actual}"
 
 
 /// Varint: small values in fewer bytes; high bit marks continuation.

@@ -36,6 +36,14 @@ type FileDescriptor =
   | Raw of int
   | Scoped of bigint
 
+module FileDescriptor =
+  /// How the audit log names a descriptor. Spelled out: `%A` needs reflection that a
+  /// release build does not keep, so it printed `Scoped` and dropped the number.
+  let describe (fd : FileDescriptor) : string =
+    match fd with
+    | FileDescriptor.Raw n -> $"Raw {n}"
+    | FileDescriptor.Scoped n -> $"Scoped {n}"
+
 /// A flag for the kernel's openat() call, named rather than numbered.
 /// `Host.openFlag` turns it into the platform's number.
 [<RequireQualifiedAccess>]
@@ -295,6 +303,7 @@ let private redactUrl (url : string) : string =
 /// content (file bytes, request bodies) is deliberately omitted — the audit
 /// records what was attempted, not the payload.
 let describeOperation (op : Operation) : string =
+  let fdName = FileDescriptor.describe
   let posix (p : PosixOp) : string =
     match p with
     | PosixOp.Chdir path -> $"chdir {path}"
@@ -317,38 +326,39 @@ let describeOperation (op : Operation) : string =
     | PosixOp.MachTimebaseInfo -> "mach_timebase_info"
     | PosixOp.Nanosleep(seconds, nanos) -> $"nanosleep {seconds} {nanos}"
     | PosixOp.InotifyInit1 flags -> $"inotify_init1 {flags}"
-    | PosixOp.InotifyAddWatch(fd, path, _) -> $"inotify_add_watch {fd} {path}"
+    | PosixOp.InotifyAddWatch(fd, path, _) -> $"inotify_add_watch {fdName fd} {path}"
     | PosixOp.Ppoll(fds, timeout) -> $"ppoll {List.length fds} {timeout}"
     | PosixOp.PollDarwin(fds, timeout) -> $"poll {List.length fds} {timeout}"
     | PosixOp.Kqueue -> "kqueue"
     | PosixOp.KeventVnode(fd, changes, capacity, timeout) ->
-      $"kevent-vnode {fd} {List.length changes} {capacity} {timeout}"
+      $"kevent-vnode {fdName fd} {List.length changes} {capacity} {timeout}"
     | PosixOp.Mkstemp prefix -> $"mkstemp {prefix}"
     | PosixOp.Mkdtemp prefix -> $"mkdtemp {prefix}"
     | PosixOp.ListDir path -> $"listdir {path}"
     | PosixOp.Stat path -> $"stat {path}"
     | PosixOp.StatBuffer path -> $"stat-bytes {path}"
-    | PosixOp.DirectoryBytes(fd, _) -> $"directory-bytes {fd}"
+    | PosixOp.DirectoryBytes(fd, _) -> $"directory-bytes {fdName fd}"
     | PosixOp.CopyFileRange(source, destination, _) ->
-      $"copy-file-range {source} -> {destination}"
-    | PosixOp.CloneFile(source, destination) -> $"clone {source} -> {destination}"
+      $"copy-file-range {fdName source} -> {fdName destination}"
+    | PosixOp.CloneFile(source, destination) ->
+      $"clone {fdName source} -> {fdName destination}"
     | PosixOp.FclonefileAt(source, destination, _) ->
-      $"fclonefileat {source} -> {destination}"
-    | PosixOp.Ftruncate(fd, _) -> $"ftruncate {fd}"
-    | PosixOp.Fchmod(fd, _) -> $"fchmod {fd}"
-    | PosixOp.Fstat fd -> $"fstat {fd}"
+      $"fclonefileat {fdName source} -> {destination}"
+    | PosixOp.Ftruncate(fd, _) -> $"ftruncate {fdName fd}"
+    | PosixOp.Fchmod(fd, _) -> $"fchmod {fdName fd}"
+    | PosixOp.Fstat fd -> $"fstat {fdName fd}"
     | PosixOp.Getentropy count -> $"getentropy {count}"
-    | PosixOp.Pread(fd, _, _) -> $"pread {fd}"
-    | PosixOp.Pwrite(fd, _, _) -> $"pwrite {fd}"
+    | PosixOp.Pread(fd, _, _) -> $"pread {fdName fd}"
+    | PosixOp.Pwrite(fd, _, _) -> $"pwrite {fdName fd}"
     | PosixOp.Open(path, _, _) -> $"open {path}"
     | PosixOp.GetcwdBytes _ -> "getcwd"
     | PosixOp.FcntlGetPath _ -> "fcntlGetPath"
     | PosixOp.Kill(pid, signal) -> $"kill {pid} {signal}"
-    | PosixOp.FdRead(fd, _) -> $"fd-read {fd}"
-    | PosixOp.FdSeek(fd, _, _) -> $"fd-seek {fd}"
-    | PosixOp.FdWrite(fd, _) -> $"fd-write {fd}"
-    | PosixOp.FdClose fd -> $"fd-close {fd}"
-    | PosixOp.Flock(fd, _) -> $"flock {fd}"
+    | PosixOp.FdRead(fd, _) -> $"fd-read {fdName fd}"
+    | PosixOp.FdSeek(fd, _, _) -> $"fd-seek {fdName fd}"
+    | PosixOp.FdWrite(fd, _) -> $"fd-write {fdName fd}"
+    | PosixOp.FdClose fd -> $"fd-close {fdName fd}"
+    | PosixOp.Flock(fd, _) -> $"flock {fdName fd}"
     | PosixOp.FileOwner path -> $"file-owner {path}"
     | PosixOp.HomeDir path -> $"home-dir {path}"
   match op with

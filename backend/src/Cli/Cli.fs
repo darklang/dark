@@ -902,10 +902,14 @@ let private runCli (args : string[]) : int =
             $"Encountered a Runtime Error:\n{s}{staleStoreHint}\n\n{errorCallStackStr}\n  "
 
         | Ok otherVal ->
+          let rte = Exe.runtimeErrorDebugString rte
+          let otherVal = Dval.toDebugString otherVal
           logError
             $"Encountered a Runtime Error, stringified it, but somehow a non-string was returned.\nRuntime Error: {rte}\n'Stringified':\n{otherVal}\n{errorCallStackStr}"
 
-        | Error newErr ->
+        | Error(newErr, _) ->
+          let rte = Exe.runtimeErrorDebugString rte
+          let newErr = Exe.runtimeErrorDebugString newErr
           logError
             $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed.\nOriginal Error: {rte}\n{errorCallStackStr}\n\nError encountered when trying to stringify:\n{newErr}"
 

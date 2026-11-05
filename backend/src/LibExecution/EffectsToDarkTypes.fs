@@ -17,7 +17,7 @@ module Effect =
 
   /// The DU case name, which is also the Dark case name and the source
   /// spelling in a `:{Http, Clock}` row.
-  let caseName (effect : E.Effect) : string = sprintf "%A" effect
+  let caseName (effect : E.Effect) : string = E.caseName effect
 
   let toDT (effect : E.Effect) : Dval =
     DEnum(typeName (), typeName (), [], caseName effect, [])

@@ -1614,6 +1614,37 @@ module LambdaResultChecks =
   let tests = testList "LambdaResultChecks" [ sameWhetherOrNotWrapperIsSkipped ]
 
 
+/// The text error paths fall back to when the Dark printer cannot run. Release
+/// builds cannot run `%A`, so these must not lean on `string dv`.
+module DebugText =
+  let valuesKeepTheirContents =
+    test "a value's fallback text keeps its contents" {
+      let tn = RT.FQTypeName.fqPackage "00000000000000000000000000000000"
+      let dv =
+        RT.DTuple(
+          RT.DInt64 5L,
+          RT.DString "hi",
+          [ RT.DList(RT.ValueType.Unknown, [ RT.DBool true; RT.DUnit ])
+            RT.DEnum(tn, tn, [], "Some", [ RT.DFloat 1.5 ])
+            RT.DRecord(tn, tn, [], Map [ "a", RT.DChar "x" ]) ]
+        )
+      Expect.equal
+        (LibExecution.Dval.toDebugString dv)
+        "(5, \"hi\", [true, ()], Some(1.5), { a = 'x' })"
+        "contents"
+      let rte = RT.RuntimeError.UncaughtException("boom", [ "k", RT.DInt64 1L ])
+      let shown = LibExecution.Execution.runtimeErrorDebugString rte
+      Expect.stringContains shown "UncaughtException" "the case"
+      Expect.stringContains shown "boom" "the message"
+      Expect.equal
+        (LibExecution.Execution.metadataValueString (box (RT.DInt64 3L)))
+        "3"
+        "a value in metadata"
+    }
+
+  let tests = testList "DebugText" [ valuesKeepTheirContents ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -1629,4 +1660,5 @@ let tests =
       DeepValues.tests
       Reload.tests
       BoundMemo.tests
-      LambdaResultChecks.tests ]
+      LambdaResultChecks.tests
+      DebugText.tests ]
