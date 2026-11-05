@@ -593,6 +593,65 @@ test unresolvedNameGuidance =
        + $"PACKAGE={packageOutput}"))
 
 
+/// Eval with stdout and stderr apart, for an error whose text and exit code are both asserted.
+let evalOutcome(expr: String): Stdlib.Cli.ExecutionOutcome =
+  let cli = Stdlib.Cli.Process.shellQuote(cliUnderTest())
+  let quoted = Stdlib.Cli.Process.shellQuote(expr)
+  Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"{cli} eval {quoted}")
+
+
+// #6024: agents guessed `Stdlib.Int64.toString`; the function is `Stdlib.toString`, and the error
+// should say so. A name with nothing near it gets no guess.
+test notFoundSuggestsTheEnclosingStdlibName =
+  let moved = evalOutcome("Stdlib.Int64.toString(5L)")
+  let nowhere = evalOutcome("Stdlib.Nope.zzz(5L)")
+
+  if
+    moved.exitCode != 0
+    && Stdlib.String.contains(moved.stderr, "Did you mean `Stdlib.toString`?")
+    && nowhere.exitCode != 0
+    && Stdlib.String.contains(nowhere.stderr, "Stdlib.Nope.zzz not found")
+    && Stdlib.Bool.not(Stdlib.String.contains(nowhere.stderr, "Did you mean"))
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      ($"Expected a suggestion for the moved name only; moved={moved.stderr}; "
+       + $"nowhere={nowhere.stderr}"))
+
+
+/// The written names <fn Darklang.Cli.Packages.Errors.stdlibSuggestion> would try, in order.
+let suggestionCandidates(name: String): List<String> =
+  Darklang.Cli.Packages.Errors.stdlibSuggestionCandidates(Stdlib.String.split(name, "."))
+  |> Stdlib.List.map(fun((written, _)) -> written)
+
+
+test stdlibSuggestionCandidatesWalkUpWithinStdlib =
+  Stdlib.Test.all(
+    [ suggestionCandidates("Bool.not") |> Stdlib.Test.equal([ "Stdlib.Bool.not" ])
+      suggestionCandidates("Stdlib.Int64.toString") |> Stdlib.Test.equal([ "Stdlib.toString" ])
+      suggestionCandidates("Stdlib.A.B.name")
+      |> Stdlib.Test.equal([ "Stdlib.A.name", "Stdlib.name" ])
+      suggestionCandidates("Darklang.Stdlib.Int64.toString")
+      |> Stdlib.Test.equal([ "Darklang.Stdlib.toString" ])
+      suggestionCandidates("Stdlib.toString") |> Stdlib.Test.equal([])
+      suggestionCandidates("Darklang.Cli.foo") |> Stdlib.Test.equal([])
+      suggestionCandidates("toString") |> Stdlib.Test.equal([]) ])
+
+
+test stdlibSuggestionFindsTheRealName =
+  let branch = Darklang.SCM.Branch.mainBranchId
+  let suggest = fun name ->
+    Darklang.Cli.Packages.Errors.stdlibSuggestion(branch, Stdlib.String.split(name, "."))
+
+  Stdlib.Test.all(
+    [ suggest("Stdlib.Int64.toString")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.toString"))
+      suggest("Stdlib.List.Nope.length")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.length"))
+      suggest("Bool.not") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Bool.not"))
+      suggest("Stdlib.Nope.zzz") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 test listTypes =
   let output = runWithCommand(["ls", "Stdlib.Option"])
   if Stdlib.String.contains(output, "Types") &&

@@ -28,29 +28,71 @@ let splitLast(
     Stdlib.Option.Option.Some((Stdlib.List.reverse(reversedModules), name))
 
 
-/// Suggest the `Stdlib.`-qualified form of an unresolved multi-part name when
-/// an item exists at that standard-library location.
+/// One place a name could live in the standard library: how the user would write it, and where it is.
+/// <param writtenPrefix> is how they spelled the root, `Stdlib` or `Darklang.Stdlib`, and
+/// <param modules> are the modules below it.
+let stdlibCandidate(
+  writtenPrefix: List<String>,
+  modules: List<String>,
+  name: String)
+  : (String * LanguageTools.ProgramTypes.PackageLocation) =
+  let written =
+    Stdlib.List.flatten([ writtenPrefix, modules, [ name ] ])
+    |> Stdlib.String.join(".")
+  let location =
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang"
+        modules = Stdlib.List.prepend(modules, "Stdlib")
+        name = name }
+  (written, location)
+
+
+/// The modules enclosing <param modules>, nearest first, down to the empty root:
+/// `[Int64, Bits]` gives `[Int64]` then `[]`.
+let enclosingModules(modules: List<String>): List<List<String>> =
+  match modules with
+  | [] -> []
+  | _ ->
+    let parent = Stdlib.List.dropLast(modules)
+    Stdlib.List.prepend(enclosingModules(parent), parent)
+
+
+/// Where an unresolved name might really be, in the order <fn stdlibSuggestion> tries them.
+///
+/// A name without a `Stdlib.` prefix gets one: `Bool.not` -> `Stdlib.Bool.not`. A name already under
+/// `Stdlib.` tries its final name in each enclosing module, nearest first, down to the `Stdlib` root:
+/// `Stdlib.Int64.toString` -> `Stdlib.toString`. Only standard-library names walk up, because an
+/// unprefixed one may be the user's own module that does not exist yet.
+let stdlibSuggestionCandidates(
+  originalName: List<String>)
+  : List<(String * LanguageTools.ProgramTypes.PackageLocation)> =
+  match splitLast(originalName) with
+  | None -> []
+  | Some((modules, name)) ->
+    let walkUp =
+      fun(writtenPrefix, inner) ->
+        enclosingModules(inner)
+        |> Stdlib.List.map(fun m -> stdlibCandidate(writtenPrefix, m, name))
+
+    match modules with
+    | [] -> []
+    | ["Stdlib", ...inner] -> walkUp([ "Stdlib" ], inner)
+    | ["Darklang", "Stdlib", ...inner] -> walkUp([ "Darklang", "Stdlib" ], inner)
+    | ["Darklang", ...] -> []
+    | ["PACKAGE", ...] -> []
+    | _ -> [ stdlibCandidate([ "Stdlib" ], modules, name) ]
+
+
+/// Suggest the standard-library name an unresolved name probably meant, when an item exists there:
+/// the first of <fn stdlibSuggestionCandidates> that is on the branch.
 let stdlibSuggestion(
   branchId: Uuid,
   originalName: List<String>)
   : Stdlib.Option.Option<String> =
-  match originalName with
-  | ["Stdlib", ...]
-  | ["Darklang", ...]
-  | ["PACKAGE", ...] -> Stdlib.Option.Option.None
-  | _ ->
-    match splitLast(originalName) with
-    | Some((modules, name)) when Stdlib.Bool.not(Stdlib.List.isEmpty(modules)) ->
-      let location =
-        LanguageTools.ProgramTypes.PackageLocation
-          { owner = "Darklang"
-            modules = Stdlib.List.prepend(modules, "Stdlib")
-            name = name }
-      match LanguageTools.PackageManager.findAny(branchId, location) with
-      | Some(_) ->
-        Stdlib.Option.Option.Some("Stdlib." + (Stdlib.String.join(originalName, ".")))
-      | None -> Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None
+  stdlibSuggestionCandidates(originalName)
+  |> Stdlib.List.findFirst(fun((_, location)) ->
+    Stdlib.Option.isSome(LanguageTools.PackageManager.findAny(branchId, location)))
+  |> Stdlib.Option.map(fun((written, _)) -> written)
 
 
 /// Prints the first parse diagnostic. Returns true when parsing failed.
