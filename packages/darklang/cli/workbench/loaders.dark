@@ -38,7 +38,7 @@ let moduleRows(
   describe: Bool)
   : List<BodyItem> =
   let modulePath = Packages.modulePathOf(location)
-  let results = Packages.Query.allDirectDescendants(branchId, modulePath)
+  let results = Packages.Query.withoutInternal(Packages.Query.allDirectDescendants(branchId, modulePath))
   let subs = Packages.Query.getDirectSubmodules(results, Stdlib.List.length(modulePath))
   // Anchored at the module being listed, so a signature spells its neighbours
   // by their short names.
@@ -450,7 +450,7 @@ let runSearch(branchId: Uuid, queryText: String): List<SearchHit> =
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
         entityTypes = []
         exactMatch = false }
-  let r = LanguageTools.PackageManager.Search.search(branchId, query)
+  let r = Packages.Query.withoutInternal(LanguageTools.PackageManager.Search.search(branchId, query))
   let hit(tag: String, location: LanguageTools.ProgramTypes.PackageLocation): SearchHit =
     let modules = Stdlib.List.prepend(location.modules, location.owner)
     let full = Stdlib.String.join(Stdlib.List.append(modules, location.name), ".")

@@ -225,13 +225,14 @@ let entityRows(
     let submodules =
       LanguageTools.PackageManager.Search.readerSubmodules(directSubmodules, implNames)
 
+    // Internal `__` helpers are left out, as in `ls`; `view` of one by name still shows it.
     let sectionRows(header: String, suffix: String, names: List<String>): List<String> =
-      if Stdlib.List.isEmpty(names) then
-        []
-      else
+      match Query.withoutInternalNames(names) with
+      | [] -> []
+      | shown ->
         Stdlib.List.flatten([
           [ Display.getSectionHeader(header) ]
-          names |> Stdlib.List.map(fun name -> $"  {name}{suffix}")
+          shown |> Stdlib.List.map(fun name -> $"  {name}{suffix}")
           [ "" ]
         ])
 

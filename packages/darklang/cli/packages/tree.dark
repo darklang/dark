@@ -119,6 +119,7 @@ let execute(state: AppState, args: List<String>): AppState =
   let showToc = Stdlib.List.any(args, fun arg -> arg == "--toc")
   let includeDeprecated =
     Stdlib.List.contains(args, "--include-deprecated")
+  let includeInternal = Stdlib.List.contains(args, "--include-internal")
 
   if showToc then
     displayTableOfContents()
@@ -168,7 +169,7 @@ let execute(state: AppState, args: List<String>): AppState =
       let locationStr = Packages.formatLocation(startLocation)
       Stdlib.printLine($"Package tree from {locationStr}:")
       Stdlib.printLine("")
-      displayTree(branchId, startLocation, maxDepth, 0, "", depSets, includeDeprecated)
+      displayTree(branchId, startLocation, maxDepth, 0, "", depSets, includeDeprecated, includeInternal)
 
       state
 
@@ -176,7 +177,8 @@ let execute(state: AppState, args: List<String>): AppState =
 // Display tree recursively from a given location.
 //
 // `depSets` lets us mark deprecated rows with ⚠ and (unless includeDeprecated)
-// hide items whose hash is in the "hidden" set per the visibility rule.
+// hide items whose hash is in the "hidden" set per the visibility rule. Internal
+// `__` helpers are hidden unless includeInternal.
 let displayTree(
   branchId: Uuid,
   location: PackageLocation,
@@ -184,7 +186,8 @@ let displayTree(
   currentDepth: Int,
   prefix: String,
   depSets: Query.DeprecationSets,
-  includeDeprecated: Bool)
+  includeDeprecated: Bool,
+  includeInternal: Bool)
   : Unit =
   if remainingDepth <= 0 then
     ()
@@ -197,12 +200,12 @@ let displayTree(
       Query.allDirectDescendantNamesAndHashes(branchId, modulePath)
 
     // Entity names paired with their hash, so we can mark deprecated rows.
-    let fnEntries = Query.filterDeprecatedPairs(rawFns, depSets, includeDeprecated)
-    let typeEntries = Query.filterDeprecatedPairs(rawTypes, depSets, includeDeprecated)
-    let valueEntries = Query.filterDeprecatedPairs(rawValues, depSets, includeDeprecated)
-    let traitEntries = Query.filterDeprecatedPairs(rawTraits, depSets, includeDeprecated)
-    let implEntries = Query.filterDeprecatedPairs(rawImpls, depSets, includeDeprecated)
-    let testEntries = Query.filterDeprecatedPairs(rawTests, depSets, includeDeprecated)
+    let fnEntries = Query.filterHiddenPairs(rawFns, depSets, includeDeprecated, includeInternal)
+    let typeEntries = Query.filterHiddenPairs(rawTypes, depSets, includeDeprecated, includeInternal)
+    let valueEntries = Query.filterHiddenPairs(rawValues, depSets, includeDeprecated, includeInternal)
+    let traitEntries = Query.filterHiddenPairs(rawTraits, depSets, includeDeprecated, includeInternal)
+    let implEntries = Query.filterHiddenPairs(rawImpls, depSets, includeDeprecated, includeInternal)
+    let testEntries = Query.filterHiddenPairs(rawTests, depSets, includeDeprecated, includeInternal)
 
     // Combine all entities with their types in proper order: modules, types, values, functions.
     // Modules have no hash, use an empty-string placeholder.
@@ -281,7 +284,8 @@ let displayTree(
           currentDepth + 1,
           newPrefix,
           depSets,
-          includeDeprecated))
+          includeDeprecated,
+          includeInternal))
     |> Stdlib.List.iter(fun _ -> ())
 
 
@@ -299,17 +303,19 @@ let complete(state: AppState, args: List<String>): List<Completion.CompletionIte
 
 
 let help(_state: AppState): String =
-  [ "Usage: tree [path] [--depth=N] [--toc] [--include-deprecated]"
+  [ "Usage: tree [path] [--depth=N] [--toc] [--include-deprecated] [--include-internal]"
     "       packages [path] [--depth=N] [--toc]"
     ""
     "Display package hierarchy in tree format."
     "Deprecated items with no live callers are hidden by default."
     "Pass --include-deprecated to show them; visible deprecations are marked ⚠."
+    "Internal helpers (names starting with __) are hidden too; --include-internal shows them."
     ""
     "Options:"
     "  --depth=N              Set maximum depth (1-10, default: 2)"
     "  --toc                  Show table of contents overview"
     "  --include-deprecated   Include items deprecated with no live callers"
+    "  --include-internal     Include internal helpers (names starting with __)"
     ""
     "Examples:"
     "  tree                         - Show tree with icons, depth 2"

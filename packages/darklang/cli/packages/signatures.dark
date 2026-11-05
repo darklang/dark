@@ -146,6 +146,7 @@ type ParsedArgs =
   { root: List<String>
     includeTypes: Bool
     includeDeprecated: Bool
+    includeInternal: Bool
     filter: Stdlib.Option.Option<String>
     all: Bool
     parseErrors: List<FlagParser.ParseError> }
@@ -154,7 +155,7 @@ type ParsedArgs =
 val argSpec =
   FlagParser.Spec
     { flags =
-        [ ("--types", []), ("--include-deprecated", []), ("--all", []) ]
+        [ ("--types", []), ("--include-deprecated", []), ("--include-internal", []), ("--all", []) ]
       valueFlags = [ ("--module", []) ] }
 
 
@@ -170,6 +171,7 @@ let parseArgs(args: List<String>): ParsedArgs =
     { root = root
       includeTypes = FlagParser.hasFlag(p, "--types")
       includeDeprecated = FlagParser.hasFlag(p, "--include-deprecated")
+      includeInternal = FlagParser.hasFlag(p, "--include-internal")
       filter = Stdlib.List.head(p.positionals)
       all = FlagParser.hasFlag(p, "--all")
       parseErrors = p.errors }
@@ -180,6 +182,7 @@ let executeFiltered(
   rootPath: List<String>,
   includeTypes: Bool,
   includeDeprecated: Bool,
+  includeInternal: Bool,
   filterText: Stdlib.Option.Option<String>)
   : Cli.AppState =
   let rootName = Stdlib.String.join(rootPath, ".")
@@ -198,7 +201,7 @@ let executeFiltered(
 
   let raw = LanguageTools.PackageManager.Search.search(branchId, query)
   let depSets = Cli.Packages.Query.loadDeprecationSets(branchId)
-  let unfiltered = Cli.Packages.Query.filterDeprecated(raw, depSets, includeDeprecated)
+  let unfiltered = Cli.Packages.Query.filterHidden(raw, depSets, includeDeprecated, includeInternal)
 
   let results =
     match filterText with
@@ -311,11 +314,12 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       parsed.root,
       parsed.includeTypes,
       parsed.includeDeprecated,
+      parsed.includeInternal,
       parsed.filter)
 
 
 let help(_state: Cli.AppState): String =
-  [ "Usage: docs signatures [filter|module] [--types] [--module <path>] [--all] [--include-deprecated]"
+  [ "Usage: docs signatures [filter|module] [--types] [--module <path>] [--all] [--include-deprecated] [--include-internal]"
     ""
     "Token-tight dump of stdlib functions with full type signatures."
     "Designed for AI agents needing an API map for a specific module or task."
@@ -328,6 +332,7 @@ let help(_state: Cli.AppState): String =
     "  --module <path>        Scope to a specific module (e.g. Stdlib.Http)"
     "  --all                  Dump every stdlib fn at once (heavy)"
     "  --include-deprecated   Include deprecated items hidden by default"
+    "  --include-internal     Include internal helpers (names starting with __)"
     ""
     "Examples:"
     "  docs signatures                                # cheap overview"
@@ -348,7 +353,7 @@ let complete(
   match Stdlib.List.last(args) with
   | Some(last) ->
     if Stdlib.String.startsWith(last, "--") then
-      [ "--types", "--module", "--include-deprecated" ]
+      [ "--types", "--module", "--include-deprecated", "--include-internal" ]
       |> Stdlib.List.filter(fun f -> Stdlib.String.startsWith(f, last))
       |> Stdlib.List.map(Cli.Completion.simple)
     else []

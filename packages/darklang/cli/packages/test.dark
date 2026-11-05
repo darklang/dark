@@ -452,7 +452,7 @@ let runTestsInRun(
             entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Test ]
             exactMatch = false }))
     // `delete` deprecates rather than unbinding, so a deleted test would
-    // otherwise keep running. Not `Query.filterDeprecated`: that keeps items
+    // otherwise keep running. Not `Query.filterHidden`: that keeps items
     // with live callers and, on a branch, anything the branch deprecated.
     let depSets = Query.loadDeprecationSets(state.currentBranchId)
     let liveTests =

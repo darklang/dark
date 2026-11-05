@@ -13,7 +13,7 @@ let loadThingItems(branchId: Uuid): List<BodyItem> =
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
         entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
         exactMatch = false }
-  (LanguageTools.PackageManager.Search.search(branchId, q)).values
+  (Packages.Query.withoutInternal(LanguageTools.PackageManager.Search.search(branchId, q))).values
   |> Stdlib.List.map(fun i ->
     let full =
       Stdlib.String.join(Stdlib.List.flatten([ [ i.location.owner ], i.location.modules, [ i.location.name ] ]), ".")

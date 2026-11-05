@@ -158,6 +158,9 @@ never against what you typed.
 
 - `Stdlib.X` expands to `Darklang.Stdlib.X`. Cross-owner names need a full path.
 - Never write `PACKAGE.` in source or search; it is internal notation.
+- A package item named `__name` is an internal helper, not public API. `ls`,
+  `tree`, `search`, `docs` and completion hide it (`--include-internal` shows
+  it); `view`, calls and `deps` reach it by its full name.
 - Lists use commas: `[1, 2]`; chars use single quotes: `'a'`.
 - `|>` passes the value on its left in as the first argument. If that value is
   an `if` or `match`, put it in parentheses, or only its last branch gets piped.

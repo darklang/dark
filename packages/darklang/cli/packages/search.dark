@@ -222,6 +222,7 @@ type ParsedArgs =
     withDocs: Bool
     shallow: Bool
     includeDeprecated: Bool
+    includeInternal: Bool
     includeTests: Bool
     asJson: Bool
     parseErrors: List<FlagParser.ParseError> }
@@ -243,6 +244,7 @@ val argSpec =
           ("--shallow", [])
           ("--with-docs", [])
           ("--include-deprecated", [])
+          ("--include-internal", [])
           ("--include-tests", [])
           ("--json", []) ]
       valueFlags = [] }
@@ -285,13 +287,14 @@ let parseArgs(args: List<String>): ParsedArgs =
       withDocs = FlagParser.hasFlag(p, "--with-docs")
       shallow = FlagParser.hasFlag(p, "--shallow")
       includeDeprecated = FlagParser.hasFlag(p, "--include-deprecated")
+      includeInternal = FlagParser.hasFlag(p, "--include-internal")
       includeTests = FlagParser.hasFlag(p, "--include-tests")
       asJson = FlagParser.hasFlag(p, "--json")
       parseErrors = p.errors }
 
 
 val usage =
-  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--trait] [--impl] [--test] [--exact] [--shallow] [--with-docs] [--include-deprecated] [--include-tests]"
+  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--trait] [--impl] [--test] [--exact] [--shallow] [--with-docs] [--include-deprecated] [--include-internal] [--include-tests]"
 
 
 // The --json rendering. Typed results for the command an agent runs most; the signatures are the
@@ -445,7 +448,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
 
         let rawResults = LanguageTools.PackageManager.Search.search(state.currentBranchId, query)
         let depSets = Query.loadDeprecationSets(state.currentBranchId)
-        let results = Query.filterDeprecated(rawResults, depSets, parsed.includeDeprecated)
+        let results = Query.filterHidden(rawResults, depSets, parsed.includeDeprecated, parsed.includeInternal)
 
         // An implementation is one result. Its method fns live under it and its path reads as a
         // module, so without this each one was listed three times.
@@ -660,6 +663,7 @@ let help(state: Cli.AppState): String =
     "  --shallow              Search only direct descendants (default: all descendants)"
     "  --with-docs            Also show doc comments"
     "  --include-deprecated   Include items deprecated with no live callers"
+    "  --include-internal     Include internal helpers (names starting with __)"
     "  --json                 The results, typed, for an agent"
     ""
     "Examples:"
@@ -688,7 +692,7 @@ let complete(_state: Cli.AppState, args: List<String>): List<Cli.Completion.Comp
   match Stdlib.List.last(args) with
   | Some(lastArg) ->
     if Stdlib.String.startsWith(lastArg, "--") then
-      ["--batch", "--type", "--fn", "--val", "--trait", "--impl", "--test", "--exact", "--shallow", "--with-docs", "--include-deprecated", "--include-tests"]
+      ["--batch", "--type", "--fn", "--val", "--trait", "--impl", "--test", "--exact", "--shallow", "--with-docs", "--include-deprecated", "--include-internal", "--include-tests"]
       |> Stdlib.List.filter(fun flag -> Stdlib.String.startsWith(flag, lastArg))
       |> Stdlib.List.map(Cli.Completion.simple)
     else
