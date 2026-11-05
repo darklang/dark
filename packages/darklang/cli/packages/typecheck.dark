@@ -76,19 +76,44 @@ let fallbackLabel(reference: LanguageTools.ProgramTypes.Reference): String =
     LanguageTools.ProgramTypes.hashToShort(LanguageTools.ProgramTypes.Reference.hash(reference))
   $"{kind} {hash}"
 
-let itemLabel(
+/// Whether <param path> is <param scope> or lies below it. An empty scope holds everything.
+let inScope(scope: List<String>, path: String): Bool =
+  match scope with
+  | [] -> true
+  | _ ->
+    let prefix = Stdlib.String.join(scope, ".")
+    path == prefix || Stdlib.String.startsWith(path, prefix + ".")
+
+/// The name, or names, the audit lists an item under.
+///
+/// Items are content-addressed, so one hash can live under several names: a fn
+/// `render(n: Int): String = Stdlib.toString(n)` is the same item as any other fn with that
+/// signature and body, an impl method included. An audit scoped to a module names the item only
+/// by the names inside that module, since the others are not what was asked about. The
+/// whole-branch audit lists every name.
+let itemLabelIn(
   branchId: Uuid,
+  scope: List<String>,
   reference: LanguageTools.ProgramTypes.Reference)
   : String =
-  let paths =
+  let all =
     locationsFor(branchId, reference)
     |> Stdlib.List.map(fullPath)
     |> Stdlib.List.unique
     |> Stdlib.List.sort
+  let inside = Stdlib.List.filter(all, fun p -> inScope(scope, p))
+  let paths = if Stdlib.List.isEmpty(inside) then all else inside
   match paths with
   | [] -> fallbackLabel(reference)
   | [ path ] -> path
   | _ -> Stdlib.String.join(paths, ", ")
+
+/// The item under every name it has on the branch.
+let itemLabel(
+  branchId: Uuid,
+  reference: LanguageTools.ProgramTypes.Reference)
+  : String =
+  itemLabelIn(branchId, [], reference)
 
 /// Whether the item names something that resolves to nothing. At save that means "not decided
 /// yet", since a caller may be written before its callee; in an audit of what is stored it means
@@ -145,12 +170,13 @@ let shows(
 /// breaks ties on the item itself, so sorting only the listed items keeps their order.
 let listed(
   branchId: Uuid,
+  scope: List<String>,
   outputFilter: OutputFilter,
   items: List<LanguageTools.AtRestTypeChecker.ItemReport>)
   : List<(String * LanguageTools.AtRestTypeChecker.ItemReport)> =
   items
   |> Stdlib.List.filter(fun item -> shows(outputFilter, item))
-  |> Stdlib.List.map(fun item -> (itemLabel(branchId, item.item), item))
+  |> Stdlib.List.map(fun item -> (itemLabelIn(branchId, scope, item.item), item))
   |> Stdlib.List.sortBy(fun((label, _)) -> label)
 
 let printItem(
@@ -183,6 +209,7 @@ let printItem(
 // edits is this command's main consumer. Items are filtered the same way the human view is.
 let jsonReport(
   branchId: Uuid,
+  scope: List<String>,
   outputFilter: OutputFilter,
   report: LanguageTools.AtRestTypeChecker.Report,
   totals: Counts,
@@ -195,7 +222,7 @@ let jsonReport(
     | Incomplete -> "incomplete"
 
   let items =
-    listed(branchId, outputFilter, report.items)
+    listed(branchId, scope, outputFilter, report.items)
     |> Stdlib.List.map(fun((label, item)) ->
       let issues =
         Stdlib.List.concat(
@@ -238,12 +265,14 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     // A module scopes the audit to that subtree. Without one it is the whole branch, which
     // on a full store is thousands of declarations and tens of seconds; a caller that wants
     // an answer about one module should not pay for the rest.
-    let report =
+    let scope =
       match parsed.positionals with
+      | [ one ] -> Stdlib.String.split(one, ".")
+      | _ -> []
+    let report =
+      match scope with
       | [] -> AtRestCheck.checkBranch(state.currentBranchId)
-      | [ one ] ->
-        AtRestCheck.checkModule(state.currentBranchId, Stdlib.String.split(one, "."))
-      | _ -> AtRestCheck.checkBranch(state.currentBranchId)
+      | _ -> AtRestCheck.checkModule(state.currentBranchId, scope)
     let totals = counts(report.items)
     let total = Stdlib.List.length(report.items)
 
@@ -270,7 +299,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       { state with exitCode = 1 }
     else if parsed.asJson then
       Stdlib.printLine(
-        jsonReport(state.currentBranchId, parsed.outputFilter, report, totals, total))
+        jsonReport(state.currentBranchId, scope, parsed.outputFilter, report, totals, total))
       finished
     else
 
@@ -286,7 +315,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText("At-rest package type audit"))
     Stdlib.printLine($"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}")
 
-    listed(state.currentBranchId, parsed.outputFilter, report.items)
+    listed(state.currentBranchId, scope, parsed.outputFilter, report.items)
     |> Stdlib.List.iter(fun((label, item)) ->
       printItem(state.currentBranchId, parsed.outputFilter, label, item))
 
