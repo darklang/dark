@@ -8,17 +8,10 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 
-/// Return the first Unicode scalar in a grapheme cluster.
-let private firstRune (s : string) : System.Text.Rune option =
-  let mutable rune = Unchecked.defaultof<System.Text.Rune>
-  if System.Text.Rune.TryGetRuneAt(s, 0, &rune) then Some rune else None
-
-
-/// Apply a character predicate to the cluster's first scalar.
-let private firstRuneIs (pred : System.Text.Rune -> bool) (s : string) : bool =
-  match firstRune s with
-  | Some r -> pred r
-  | None -> false
+/// Apply a Unicode predicate, returning false for invalid scalars.
+let private checkCodepoint (pred : System.Text.Rune -> bool) (cp : uint32) : bool =
+  let mutable rune = System.Text.Rune(0)
+  System.Text.Rune.TryCreate(cp, &rune) && pred rune
 
 
 let fns () : List<BuiltInFn> =
@@ -94,76 +87,72 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "charFromCodepoint" 0
       typeParams = []
-      parameters = [ Param.make "codepoint" TInt "" ]
+      parameters = [ Param.make "codepoint" TUInt32 "" ]
       returnType = TypeReference.option TChar
       description =
         "Return {{Some <var c>}} for the Unicode codepoint <param codepoint>, "
         + "or {{None}} if the value is not a valid scalar codepoint (i.e. "
-        + "negative, greater than 0x10FFFF, or a surrogate)."
+        + "greater than 0x10FFFF, or a surrogate)."
       fn =
         function
-        | _, _, _, [| DInt cp |] ->
-          let cp = DarkInt.toBigInt cp
-          if
-            cp < bigint 0
-            || cp > bigint 0x10FFFF
-            || (cp >= bigint 0xD800 && cp <= bigint 0xDFFF)
-          then
-            Dval.optionNone KTChar |> Ply
+        | _, _, _, [| DUInt32 cp |] ->
+          // TryCreate needs a mutable output variable; zero is just its initial value.
+          let mutable rune = System.Text.Rune(0)
+          if System.Text.Rune.TryCreate(cp, &rune) then
+            Dval.optionSome KTChar (DChar(rune.ToString())) |> Ply
           else
-            let s = System.Char.ConvertFromUtf32(int cp)
-            Dval.optionSome KTChar (DChar s) |> Ply
+            Dval.optionNone KTChar |> Ply
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "charIsLetter" 0
+    { name = fn "codepointIsLetter" 0
       typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
+      parameters = [ Param.make "c" TUInt32 "" ]
       returnType = TBool
       description =
         "Return whether <param c> is a Unicode letter, in any script rather than just "
         + "ASCII. Digits, punctuation, symbols and emoji are not letters."
       fn =
         function
-        | _, _, _, [| DChar c |] ->
-          Ply(DBool(firstRuneIs System.Text.Rune.IsLetter c))
+        | _, _, _, [| DUInt32 c |] ->
+          Ply(DBool(checkCodepoint System.Text.Rune.IsLetter c))
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "charIsWhitespace" 0
+    { name = fn "codepointIsWhitespace" 0
       typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
+      parameters = [ Param.make "c" TUInt32 "" ]
       returnType = TBool
       description =
         "Return whether <param c> is whitespace -- a space, a tab, a newline, or any of "
         + "Unicode's other space characters."
       fn =
         function
-        | _, _, _, [| DChar c |] ->
-          Ply(DBool(firstRuneIs System.Text.Rune.IsWhiteSpace c))
+        | _, _, _, [| DUInt32 c |] ->
+          Ply(DBool(checkCodepoint System.Text.Rune.IsWhiteSpace c))
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "charIsAlphanumeric" 0
+    { name = fn "codepointIsAlphanumeric" 0
       typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
+      parameters = [ Param.make "c" TUInt32 "" ]
       returnType = TBool
       description =
         "Return whether <param c> is a letter or a digit, in any script rather than just "
         + "ASCII."
       fn =
         function
-        | _, _, _, [| DChar c |] ->
-          Ply(DBool(firstRuneIs System.Text.Rune.IsLetterOrDigit c))
+        | _, _, _, [| DUInt32 c |] ->
+          Ply(DBool(checkCodepoint System.Text.Rune.IsLetterOrDigit c))
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty

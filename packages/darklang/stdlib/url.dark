@@ -633,7 +633,7 @@ let percentEncode(s: String): String =
   |> Stdlib.List.map(fun b ->
     let code = Stdlib.Int.fromUInt8(b)
 
-    match Stdlib.Char.fromCodepoint(code) with
+    match Stdlib.Char.fromCodepoint(Stdlib.UInt32.fromUInt8(b)) with
     | Some(c) when code < 128 && isUnreserved(c) -> Stdlib.String.fromChar(c)
     | _ -> "%" + Stdlib.Hex.encode(Stdlib.Bytes.fromList([ b ])))
   |> Stdlib.String.join("")

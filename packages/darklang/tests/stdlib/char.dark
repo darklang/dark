@@ -230,19 +230,17 @@ test toString =
 test fromCodepoint =
   Stdlib.Test.all(
     [ // Valid codepoints
-      Stdlib.Char.fromCodepoint(65) |> Stdlib.Test.equal(Some('A'))
-      Stdlib.Char.fromCodepoint(233) |> Stdlib.Test.equal(Some('é'))
+      Stdlib.Char.fromCodepoint(65ul) |> Stdlib.Test.equal(Some('A'))
+      Stdlib.Char.fromCodepoint(233ul) |> Stdlib.Test.equal(Some('é'))
       // Non-BMP: pins the surrogate-pair path through ConvertFromUtf32. 0x1F602 = 😂
-      Stdlib.Char.fromCodepoint(128514) |> Stdlib.Test.equal(Some(smiley()))
+      Stdlib.Char.fromCodepoint(128514ul) |> Stdlib.Test.equal(Some(smiley()))
       // Invalid: surrogate range (D800..DFFF) — reserved for UTF-16 surrogate pairs
-      Stdlib.Char.fromCodepoint(55296) |> Stdlib.Test.equal(None)
-      Stdlib.Char.fromCodepoint(56319) |> Stdlib.Test.equal(None)
-      Stdlib.Char.fromCodepoint(57343) |> Stdlib.Test.equal(None)
+      Stdlib.Char.fromCodepoint(55296ul) |> Stdlib.Test.equal(None)
+      Stdlib.Char.fromCodepoint(56319ul) |> Stdlib.Test.equal(None)
+      Stdlib.Char.fromCodepoint(57343ul) |> Stdlib.Test.equal(None)
       // Invalid: above Unicode max (0x10FFFF)
-      Stdlib.Char.fromCodepoint(1114112) |> Stdlib.Test.equal(None)
-      Stdlib.Char.fromCodepoint(2147483647) |> Stdlib.Test.equal(None)
-      Stdlib.Char.fromCodepoint(-1) |> Stdlib.Test.equal(None)
-      Stdlib.Char.fromCodepoint(-1000) |> Stdlib.Test.equal(None) ])
+      Stdlib.Char.fromCodepoint(1114112ul) |> Stdlib.Test.equal(None)
+      Stdlib.Char.fromCodepoint(4294967295ul) |> Stdlib.Test.equal(None) ])
 
 test isLetter =
   Stdlib.Test.all(
@@ -286,17 +284,17 @@ test isAlphanumeric =
 test toCodepoint =
   Stdlib.Test.all(
     [ // Single-scalar Chars return their codepoint.
-      Stdlib.Char.toCodepoint('a') |> Stdlib.Test.equal(Some(97))
-      Stdlib.Char.toCodepoint('A') |> Stdlib.Test.equal(Some(65))
-      Stdlib.Char.toCodepoint('3') |> Stdlib.Test.equal(Some(51))
-      Stdlib.Char.toCodepoint('é') |> Stdlib.Test.equal(Some(233))
-      Stdlib.Char.toCodepoint('ż') |> Stdlib.Test.equal(Some(380))
-      Stdlib.Char.toCodepoint(smiley()) |> Stdlib.Test.equal(Some(128514))
+      Stdlib.Char.toCodepoint('a') |> Stdlib.Test.equal(Some(97ul))
+      Stdlib.Char.toCodepoint('A') |> Stdlib.Test.equal(Some(65ul))
+      Stdlib.Char.toCodepoint('3') |> Stdlib.Test.equal(Some(51ul))
+      Stdlib.Char.toCodepoint('é') |> Stdlib.Test.equal(Some(233ul))
+      Stdlib.Char.toCodepoint('ż') |> Stdlib.Test.equal(Some(380ul))
+      Stdlib.Char.toCodepoint(smiley()) |> Stdlib.Test.equal(Some(128514ul))
       // Multi-scalar Chars return None.
       Stdlib.Char.toCodepoint(hand()) |> Stdlib.Test.equal(None)
       Stdlib.Char.toCodepoint(family()) |> Stdlib.Test.equal(None)
       // Round-trip BMP and non-BMP scalars.
-      Stdlib.Char.toCodepoint(Stdlib.Char.fromCodepoint(65) |> Builtin.unwrap)
-      |> Stdlib.Test.equal(Some(65))
-      Stdlib.Char.toCodepoint(Stdlib.Char.fromCodepoint(128514) |> Builtin.unwrap)
-      |> Stdlib.Test.equal(Some(128514)) ])
+      Stdlib.Char.toCodepoint(Stdlib.Char.fromCodepoint(65ul) |> Builtin.unwrap)
+      |> Stdlib.Test.equal(Some(65ul))
+      Stdlib.Char.toCodepoint(Stdlib.Char.fromCodepoint(128514ul) |> Builtin.unwrap)
+      |> Stdlib.Test.equal(Some(128514ul)) ])

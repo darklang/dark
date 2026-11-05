@@ -693,7 +693,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "stringToCodepoints" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TList TInt
+      returnType = TList TUInt32
       description =
         "Return the Unicode codepoints of <param s>, in order. A different question from "
         + "<fn String.toList>, which cuts <param s> into grapheme clusters: a flag, or an "
@@ -702,9 +702,9 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s |] ->
           s.EnumerateRunes()
-          |> Seq.map (fun rune -> Dval.int (bigint rune.Value))
+          |> Seq.map (fun rune -> DUInt32(uint32 rune.Value))
           |> Seq.toList
-          |> Dval.list KTInt
+          |> Dval.list KTUInt32
           |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
