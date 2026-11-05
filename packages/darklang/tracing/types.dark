@@ -113,7 +113,8 @@ type TraceData =
     functionCalls: List<FnCall> }
 
 
-/// Which runs to read. Every answer is newest first; `Tracing.Store` is where these are asked.
+/// What to read from the trace store. Every read goes through `Tracing.Store.query`, which hands
+/// back a `TraceAnswer`; the first five cases are runs, newest first.
 type TraceQuery =
   /// The newest runs.
   | Newest of limit: Int
@@ -124,6 +125,44 @@ type TraceQuery =
   | WentThrough of fnName: String * fnHash: String * limit: Int
   /// One run by its full id.
   | ById of traceID: String
+  /// The newest runs whose input, result or any recorded call's args or result contains this
+  /// text (case-sensitive), searching the newest 2000 runs.
+  | Containing of pattern: String * limit: Int
+  /// One run with its inputs and its calls.
+  | Detail of traceID: String
+  /// The ids that start with this text, newest first, at most six.
+  | IdsStartingWith of prefix: String
+  /// A run's saved CLI input, without its result.
+  | SavedInput of traceID: String
+  /// The package functions one run went through, with the hash it went through.
+  | FnsOf of traceID: String
+  /// How many times each loop in one run went round, as recorded.
+  | LoopPasses of traceID: String
+  /// Which package functions the last N runs went through, and in how many runs each.
+  | FnCounts of traceLimit: Int64
+  /// Impure call timings over the last N runs, per function.
+  | Hotspots of traceLimit: Int
+  /// Run timings over the last N runs, per entry.
+  | StatsByHandler of traceLimit: Int
+
+
+/// What a `TraceQuery` answers. Which field is filled depends on the query; the rest are empty.
+/// `runs` answers `Newest`, `Calling`, `WentThrough`, `ById` and `Containing`.
+type TraceAnswer =
+  { runs: List<Trace>
+    /// `Detail`.
+    detail: Stdlib.Option.Option<TraceData>
+    /// `IdsStartingWith`.
+    ids: List<String>
+    /// `SavedInput`.
+    savedInput: Stdlib.Option.Option<ScriptOrEvalInput>
+    /// `FnsOf`: (name, hash).
+    fns: List<(String * String)>
+    /// `LoopPasses`: (call site, passes). `FnCounts`: (function name, runs).
+    counts: List<(String * Int64)>
+    /// `Hotspots`: (function name, calls, total ms, max ms). `StatsByHandler`: (entry, runs,
+    /// total ms, max ms).
+    totals: List<(String * Int * Int * Int)> }
 
 
 /// Which runs to delete.

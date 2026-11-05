@@ -1,9 +1,9 @@
 /// Reads and maintenance over the recorded trace store.
 ///
-/// These are thin wrappers over the `traces*` builtins, typed to the shapes
-/// in `Darklang.Tracing`: the builtins return bare `List<'a>`, so without a
-/// wrapper every caller re-states the type it expects. Consumers (the CLI
-/// `traces` command, the workbench, dashboards) go through here.
+/// Every read is one builtin, `tracesQuery`, asked through `query` with a `TraceQuery`; the
+/// functions below keep the names callers use and pick their field out of the answer. Writes
+/// and the recording switch are a builtin each. Consumers (the CLI `traces` command, the
+/// workbench, dashboards) go through here.
 ///
 /// No SQL here: the trace tables belong to F# (`LibDB.Traces`), and every read
 /// and write of them is a builtin.
@@ -33,10 +33,15 @@ let setRecording(on: Bool): Unit =
   Builtin.tracesApplyRecording(on)
 
 
-/// The runs <param query> asks for, newest first. `list`, `listByFn`, `get` and `wentThrough`
-/// are the names callers use.
-let read(query: TraceQuery): List<Trace> =
-  Builtin.tracesRead(query)
+/// What <param q> asks of the trace store. The one way Dark reads it.
+let query(q: TraceQuery): TraceAnswer =
+  Builtin.tracesQuery(q)
+
+
+/// The runs <param q> asks for, newest first. `list`, `listByFn`, `find`, `get` and
+/// `wentThrough` are the names callers use.
+let read(q: TraceQuery): List<Trace> =
+  (query(q)).runs
 
 
 /// The most recent <param limit> traces, newest first.
@@ -52,18 +57,18 @@ let listByFn(fnName: String, limit: Int): List<Trace> =
 /// The most recent <param limit> traces whose inputs, args or results
 /// contain <param pattern>.
 let find(pattern: String, limit: Int): List<Trace> =
-  Builtin.tracesFind(pattern, limit)
+  read(TraceQuery.Containing(pattern, limit))
 
 
 /// Full payload for one trace: its row, its inputs and its calls.
 let view(traceID: String): Stdlib.Option.Option<TraceData> =
-  Builtin.tracesView(traceID)
+  (query(TraceQuery.Detail(traceID))).detail
 
 
 /// Read saved CLI input without loading the result.
 /// Returns None for HTTP traces, older traces, or missing or corrupt input.
 let getScriptOrEvalInput(traceID: String): Stdlib.Option.Option<ScriptOrEvalInput> =
-  Builtin.tracesGetScriptOrEvalInput(traceID)
+  (query(TraceQuery.SavedInput(traceID))).savedInput
 
 
 /// One trace by id, if it is still here.
@@ -94,7 +99,7 @@ let setPinned(traceID: String, pinned: Bool): Bool =
 /// rather than a function; the hashes are what `traces resume` compares against the
 /// store to say which of a trace's callees have been edited since.
 let fnsWithHashes(traceID: String): List<String * String> =
-  Builtin.tracesFnsOf(traceID)
+  (query(TraceQuery.FnsOf(traceID))).fns
 
 
 /// How many times each loop in a run actually went round, as RECORDED.
@@ -104,7 +109,7 @@ let fnsWithHashes(traceID: String): List<String * String> =
 /// including passes a replay that stopped early will never get to. Empty for a run recorded
 /// before the shape was kept, which is an honest answer rather than a wrong one.
 let recordedLoopPasses(traceID: String): List<String * Int64> =
-  Builtin.tracesLoopPasses(traceID)
+  (query(TraceQuery.LoopPasses(traceID))).counts
 
 
 /// Just the names of `fnsWithHashes`.
@@ -120,7 +125,7 @@ let fnsOf(traceID: String): List<String> =
 /// function", this one answers "I have not got a function in mind, what have the runs been
 /// about". `hotspots` reads the effect log and so can only ever name builtins.
 let fnCounts(traceLimit: Int64): List<String * Int64> =
-  Builtin.tracesFnCounts(traceLimit)
+  (query(TraceQuery.FnCounts(traceLimit))).counts
 
 
 /// The runs that went through a function, newest first.
@@ -241,16 +246,15 @@ let viewTrace(
 
 /// Expand a trace-ID prefix to the full ID, or say why it can't be.
 ///
-/// What was typed is matched as plain text, quotes and wildcards included. The builtin hands
-/// back up to six candidates when there is not exactly one, enough to tell "one more" from
-/// "several more"; the message shows five.
+/// What was typed is matched as plain text, quotes and wildcards included. The store hands
+/// back up to six ids, enough to tell "one more" from "several more"; the message shows five.
 let resolveID(input: String): Stdlib.Result.Result<String, String> =
-  match Builtin.tracesResolveId(input) with
-  | Ok(fullID) -> Stdlib.Result.Result.Ok(fullID)
-  | Error([]) ->
+  match (query(TraceQuery.IdsStartingWith(input))).ids with
+  | [ fullID ] -> Stdlib.Result.Result.Ok(fullID)
+  | [] ->
     Stdlib.Result.Result.Error(
       $"no trace whose id starts with {input} -- `dark traces` lists them")
-  | Error(candidates) ->
+  | candidates ->
     // Six were asked for, so a sixth means "at least one more", not "one more".
     let shown = Stdlib.List.take(candidates, 5)
     let suffix =
@@ -264,15 +268,15 @@ let resolveID(input: String): Stdlib.Result.Result<String, String> =
 
 
 /// Per-fn totals over the last <param traceLimit> traces:
-/// (fnName, totalMs, maxMs, callCount).
+/// (fnName, callCount, totalMs, maxMs), most total time first.
 let hotspots(traceLimit: Int): List<(String * Int * Int * Int)> =
-  Builtin.tracesHotspots(traceLimit)
+  (query(TraceQuery.Hotspots(traceLimit))).totals
 
 
 /// Per-handler totals over the last <param traceLimit> traces:
-/// (handler, totalMs, maxMs, traceCount).
+/// (handler, traceCount, totalMs, maxMs).
 let statsByHandler(traceLimit: Int): List<(String * Int * Int * Int)> =
-  Builtin.tracesStatsByHandler(traceLimit)
+  (query(TraceQuery.StatsByHandler(traceLimit))).totals
 
 
 /// Delete the runs <param which> names, with their calls. Returns how many went. The four below
