@@ -49,3 +49,27 @@ test measurementCarriesItsBuild =
    || (m.buildMode == "release-aot")
    || (m.buildMode == "release-r2r"))
   |> Stdlib.Test.equal(true)
+
+test bestKeepsTheLowestOfEachField =
+  (let (m, _) = LanguageTools.Perf.measure(fun () -> ())
+   let hi = { m with allocBytes = 900L, instructions = 5L }
+   let lo = { m with allocBytes = 100L, instructions = 9L }
+
+   match LanguageTools.Perf.best([ hi, lo ]) with
+   | Some(b) -> (b.allocBytes == 100L) && (b.instructions == 5L)
+   | None -> false)
+  |> Stdlib.Test.equal(true)
+
+test bestOfNothingIsNone =
+  LanguageTools.Perf.best([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+// The counters are exact, so `ab` can be checked on them: 50 lambda applications against 10.
+test abMeasuresEachSideSeparately =
+  (let (a, b) =
+    LanguageTools.Perf.ab(
+      fun () -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 50), fun x -> x + 1)),
+      fun () -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 10), fun x -> x + 1)),
+      3)
+
+   (a.framePushes, b.framePushes))
+  |> Stdlib.Test.equal((50L, 10L))
