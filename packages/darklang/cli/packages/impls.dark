@@ -185,7 +185,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             | _ -> ""
 
           Stdlib.printLine(
-            $"  {Stdlib.String.padEndToWidth(selfStr, selfWidth)} {Stdlib.Cli.UI.Colors.dimText(sourceName)}{note}"))
+            $"  {Stdlib.Text.padEndToWidth(selfStr, selfWidth)} {Stdlib.Cli.UI.Colors.dimText(sourceName)}{note}"))
       state
   | _ ->
     Cli.printErr("Usage: impls <trait> [--json]          e.g. `dark impls ToString`")

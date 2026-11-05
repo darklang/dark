@@ -242,8 +242,8 @@ let listing(branchId: Uuid, instrs: LanguageTools.RuntimeTypes.Instructions): St
   let body =
     instrs.instructions
     |> Stdlib.List.indexedMap(fun(index, i) ->
-      let idx = Stdlib.String.padStartToWidth(Stdlib.toString(index), 4)
-      let op = Stdlib.String.padEndToWidth(opcode(i), 24)
+      let idx = Stdlib.Text.padStartToWidth(Stdlib.toString(index), 4)
+      let op = Stdlib.Text.padEndToWidth(opcode(i), 24)
       $"{idx}  {op} {operands(branchId, index, i)}")
     |> Stdlib.String.join("\n")
 

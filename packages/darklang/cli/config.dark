@@ -141,7 +141,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     let lines =
       Config.settings()
       |> Stdlib.List.map(fun s ->
-        let key = Stdlib.String.padEndToWidth(s.key, 25)
+        let key = Stdlib.Text.padEndToWidth(s.key, 25)
         $"  {key}- {s.what} (default: {s.byDefault})")
 
     Stdlib.List.flatten(

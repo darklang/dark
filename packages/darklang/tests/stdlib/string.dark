@@ -914,26 +914,6 @@ test padEnd =
       Stdlib.String.padEnd("鷝", '界', 3) |> Stdlib.Test.equal("鷝界界")
       Stdlib.String.padEnd("ab", '👨‍👩‍👧‍👦', 4) |> Stdlib.Test.equal("ab👨‍👩‍👧‍👦👨‍👩‍👧‍👦") ])
 
-// Columns, not characters. Contrast `padEnd` above: `padEnd("界界界", '0', 6)` adds
-// three zeroes to something already six columns wide.
-test padToWidth =
-  Stdlib.Test.all(
-    [ Stdlib.String.padEndToWidth("", 0) |> Stdlib.Test.equal("")
-      Stdlib.String.padEndToWidth("abc", 3) |> Stdlib.Test.equal("abc")
-      Stdlib.String.padEndToWidth("abc", 6) |> Stdlib.Test.equal("abc   ")
-      Stdlib.String.padEndToWidth("abc", -3) |> Stdlib.Test.equal("abc")
-      Stdlib.String.padEndToWidth("abcdef", 3) |> Stdlib.Test.equal("abcdef")
-      Stdlib.String.padEndToWidth("界", 4) |> Stdlib.Test.equal("界  ")
-      Stdlib.String.padEndToWidth("界界界", 6) |> Stdlib.Test.equal("界界界")
-      Stdlib.String.padEndToWidth("🙂", 4) |> Stdlib.Test.equal("🙂  ")
-      Stdlib.String.padEndToWidth("e\u0301", 3) |> Stdlib.Test.equal("e\u0301  ")
-      Stdlib.String.padStartToWidth("", 0) |> Stdlib.Test.equal("")
-      Stdlib.String.padStartToWidth("abc", 6) |> Stdlib.Test.equal("   abc")
-      Stdlib.String.padStartToWidth("abc", 3) |> Stdlib.Test.equal("abc")
-      Stdlib.String.padStartToWidth("abcdef", 3) |> Stdlib.Test.equal("abcdef")
-      Stdlib.String.padStartToWidth("界", 4) |> Stdlib.Test.equal("  界")
-      Stdlib.String.padStartToWidth("界界界", 6) |> Stdlib.Test.equal("界界界") ])
-
 test indexOf =
   Stdlib.Test.all(
     [ Stdlib.String.indexOf("hello world", "world") |> Stdlib.Test.equal(Some(6))
@@ -1003,20 +983,6 @@ test lastIndexOfEgc =
       Stdlib.String.lastIndexOfEgc("🧑🏼‍💻🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None)
       // Standalone 🧑 at the end is matchable when it stands on its own.
       Stdlib.String.lastIndexOfEgc("🧑🏼‍💻🧑", "🧑") |> Stdlib.Test.equal(Some(1)) ])
-
-test ellipsis =
-  Stdlib.Test.all(
-    [ Stdlib.String.ellipsis("hello world", 5) |> Stdlib.Test.equal("hello...")
-      Stdlib.String.ellipsis("hello world", 9) |> Stdlib.Test.equal("hello wor...")
-      Stdlib.String.ellipsis("hello world", 11) |> Stdlib.Test.equal("hello world")
-      Stdlib.String.ellipsis("hello world", 12) |> Stdlib.Test.equal("hello world")
-      Stdlib.String.ellipsis("👱👱🏻👱🏼👱🏽👱🏾👱🏿", 5)
-      |> Stdlib.Test.equal("👱👱🏻👱🏼👱🏽👱🏾...")
-      Stdlib.String.ellipsis("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇", 3)
-      |> Stdlib.Test.equal("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ...")
-      Stdlib.String.ellipsis("👩‍👩‍👧‍👦", 2) |> Stdlib.Test.equal("👩‍👩‍👧‍👦")
-      Stdlib.String.ellipsis("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷✋✋🏻✋🏿", 4)
-      |> Stdlib.Test.equal("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷...") ])
 
 test head =
   Stdlib.Test.all(

@@ -120,7 +120,7 @@ module RuntimeError =
           | InlineValue(dv) ->
             // CLEANUP for strings that are cut off, the closing `"` is missing.
             (dval(branchId, dv))
-            |> Stdlib.String.ellipsis(10)
+            |> Stdlib.Text.ellipsis(13)
             |> Stdlib.String.splitOnNewline
             |> Stdlib.String.join("")
           | FullValue(dv) -> dval(branchId, dv)

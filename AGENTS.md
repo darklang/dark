@@ -1420,8 +1420,10 @@ calls each is 3,000 operations, and that is the number that decides whether some
 
 Widths are display cells, never `String.length`. `Stdlib.String.displayWidth` measures them and is
 medium-independent; `Cli.Tui.Text` is only for rows that carry escape sequences.
-`padEndToWidth`/`padStartToWidth` pad by cell, `padEnd`/`padStart` count characters and go ragged on
-the first wide glyph.
+`Stdlib.Text` aligns plain text in columns using screen-cell widths. `padEndToWidth` and
+`padStartToWidth` add padding to reach a given width; `clipToWidth` and `ellipsis` shorten text to
+fit. By comparison, `String.padEnd` and `String.padStart` count characters, so wide glyphs can
+throw columns out of alignment.
 
 ## Keep this file honest
 

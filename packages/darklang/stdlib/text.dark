@@ -1,0 +1,77 @@
+/// Functions for padding and shortening plain text to fit columns.
+///
+/// Widths are measured in display cells using `Stdlib.String.displayWidth`. For example, `界`
+/// is one character but occupies two cells.
+///
+/// These functions work with plain, single-line text. For text containing terminal escape
+/// sequences, use `Cli.Tui.Text` to preserve styling.
+module Darklang.Stdlib.Text
+
+
+/// Adds leading spaces to <param s> until it is at least <param width> display cells wide.
+///
+/// Returns <param s> unchanged if it already meets or exceeds <param width>.
+/// To shorten text that is too wide, use <fn clipToWidth> or <fn ellipsis>.
+let padStartToWidth(s: String, width: Int): String =
+  let padding = width - (Stdlib.String.displayWidth(s))
+  if padding <= 0 then s else (Stdlib.String.repeat(" ", padding)) + s
+
+
+/// Adds trailing spaces to <param s> until it is at least <param width> display cells wide.
+///
+/// Returns <param s> unchanged if it already meets or exceeds <param width>.
+/// To shorten text that is too wide, use <fn clipToWidth> or <fn ellipsis>.
+let padEndToWidth(s: String, width: Int): String =
+  let padding = width - (Stdlib.String.displayWidth(s))
+  if padding <= 0 then s else s + (Stdlib.String.repeat(" ", padding))
+
+
+/// Returns the longest prefix of <param s> that fits within <param width> display cells.
+///
+/// Keeps whole characters, so the result may be one cell narrower than <param width> if the next
+/// character is too wide to fit. Returns {{""}} if <param width> is zero or negative.
+let clipToWidth(s: String, width: Int): String =
+  if width <= 0 then
+    ""
+  else if Stdlib.String.displayWidth(s) <= width then
+    s
+  else
+    // Prefix widths never decrease, so binary search finds the cut without measuring every prefix.
+    let fits(n: Int): Bool =
+      Stdlib.String.displayWidth(Stdlib.String.slice(s, 0, n)) <= width
+
+    // The first `lo` characters fit; the first `hi` characters exceed the width.
+    let search(lo: Int, hi: Int): Int =
+      if hi - lo <= 1 then
+        lo
+      else
+        let mid = (lo + hi) / 2
+        if fits(mid) then search(mid, hi) else search(lo, mid)
+
+    Stdlib.String.slice(s, 0, search(0, Stdlib.String.length(s)))
+
+
+/// The marker appended by <fn ellipsis> when text is shortened.
+val ellipsisMarker = "..."
+
+
+/// Shortens <param s> to fit within <param width> display cells, adding "..." if text is removed.
+///
+/// The marker counts toward the width: {{ellipsis("abcdef", 5)}} returns {{"ab..."}}.
+/// Returns text that already fits unchanged. Keeps whole characters, so the result may be one
+/// cell narrower than <param width>. Use <fn padEndToWidth> to fill the remaining space if needed.
+///
+/// If text needs shortening and <param width> is less than three, shortens the marker too:
+/// {{ellipsis("abcdef", 2)}} returns {{".."}}. Returns {{""}} if <param width> is zero or negative.
+let ellipsis(s: String, width: Int): String =
+  if width <= 0 then
+    ""
+  else if Stdlib.String.displayWidth(s) <= width then
+    s
+  else
+    let room = width - (Stdlib.String.displayWidth(ellipsisMarker))
+
+    if room < 0 then
+      clipToWidth(ellipsisMarker, width)
+    else
+      (clipToWidth(s, room)) + ellipsisMarker

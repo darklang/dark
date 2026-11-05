@@ -5,15 +5,6 @@ module Darklang.Stdlib.String
 val newline = "\n"
 
 
-/// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
-/// to it if the original string exceeds the given length. Otherwise, returns the original string.
-let ellipsis(s: String, length: Int): String =
-  if String.length(s) > length then
-    (String.slice(s, 0, length)) + "..."
-  else
-    s
-
-
 /// Returns {{true}} if <param s> is the empty string {{""}}
 let isEmpty(s: String): Bool = Builtin.stringIsEmpty(s)
 
@@ -302,7 +293,7 @@ let dropFirst(string: String, characterCount: Int): String =
 /// result to have <param goalLength>.
 /// If <param string> is <param goalLength> characters or longer, returns an unchanged copy of <param string>.
 ///
-/// Counts characters, not display cells. To line up columns of text, use <fn padStartToWidth>.
+/// Counts characters, not display cells. To line up columns of text, use `Stdlib.Text.padStartToWidth`.
 let padStart(string: String, padWith: Char, goalLength: Int): String =
   let padCount = goalLength - String.length(string)
 
@@ -317,7 +308,7 @@ let padStart(string: String, padWith: Char, goalLength: Int): String =
 /// result to have <param goalLength>.
 /// If <param string> is <param goalLength> characters or longer, returns an unchanged copy of <param string>.
 ///
-/// Counts characters, not display cells. To line up columns of text, use <fn padEndToWidth>.
+/// Counts characters, not display cells. To line up columns of text, use `Stdlib.Text.padEndToWidth`.
 let padEnd(string: String, padWith: Char, goalLength: Int): String =
   let padCount = goalLength - String.length(string)
 
@@ -325,22 +316,6 @@ let padEnd(string: String, padWith: Char, goalLength: Int): String =
     string
   else
     string + (String.repeat(String.fromChar(padWith), padCount))
-
-
-/// Pad <param s> with leading spaces to at least <param width> display cells.
-///
-/// This is the padding that lines up columns: `界` is one character two cells wide, so <fn padStart>
-/// leaves them ragged. Longer text comes back unclipped; styled text wants `Cli.Tui.Text.fitToWidth`.
-let padStartToWidth(s: String, width: Int): String =
-  let padding = width - (String.displayWidth(s))
-  if padding <= 0 then s else (String.repeat(" ", padding)) + s
-
-
-/// Pad <param s> with trailing spaces to at least <param width> display cells.
-/// See <fn padStartToWidth> for why this measures cells.
-let padEndToWidth(s: String, width: Int): String =
-  let padding = width - (String.displayWidth(s))
-  if padding <= 0 then s else s + (String.repeat(" ", padding))
 
 
 // TODO: re-write in dark

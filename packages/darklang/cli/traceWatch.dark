@@ -158,8 +158,8 @@ let reload(
     |> Stdlib.List.indexedMap(fun(i, r) ->
       let mark = if i == cursor then "> " else "  "
       let id = Cli.Text.shortIdText(r.id)
-      let at = Stdlib.String.padEndToWidth(clockFreeTime(r.created), 16)
-      let status = Stdlib.String.padEndToWidth(Cli.TraceVerbs.statusText(r.status), 10)
+      let at = Stdlib.Text.padEndToWidth(clockFreeTime(r.created), 16)
+      let status = Stdlib.Text.padEndToWidth(Cli.TraceVerbs.statusText(r.status), 10)
       let input = Darklang.Tracing.Format.inputText(r)
       $"{mark}{id}  {status}{at}{Cli.Text.oneLineAt(40, input)}")
 

@@ -56,7 +56,7 @@ let lines(node: Node.Node<'msg>): List<String> =
         columns
         |> Stdlib.List.map(fun col ->
           let (width, ls) = col
-          Stdlib.String.padEndToWidth(Stdlib.List.getAt(ls, i) |> Stdlib.Option.withDefault(""), width))
+          Stdlib.Text.padEndToWidth(Stdlib.List.getAt(ls, i) |> Stdlib.Option.withDefault(""), width))
         |> Stdlib.String.join(" ")
         |> Stdlib.String.trimEnd)
 

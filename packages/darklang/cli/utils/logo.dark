@@ -52,7 +52,7 @@ let combineLogoAndText(logoStr: String, textLines: List<String>, color: String):
   let paddedLogoLines =
     logoLines
     |> Stdlib.List.map(fun line ->
-      let paddedLine = Stdlib.String.padEndToWidth(line, maxLogoWidth)
+      let paddedLine = Stdlib.Text.padEndToWidth(line, maxLogoWidth)
       if Stdlib.String.isEmpty(Stdlib.String.trim(line)) then
         paddedLine
       else

@@ -979,7 +979,7 @@ let executeFnCounts(
       rows
       |> Stdlib.List.iter(fun row ->
         let (name, runs) = row
-        let padded = Stdlib.String.padEndToWidth(display(name), width)
+        let padded = Stdlib.Text.padEndToWidth(display(name), width)
         let n = Stdlib.toString(runs)
         let word = if runs == 1L then "run" else "runs"
         Stdlib.printLine($"  {padded}  {n} {word}"))
@@ -1500,7 +1500,7 @@ let formatFnCalls(
       fnCalls
       |> Stdlib.List.filter(fun call -> isVisible(opts, call))
       |> Stdlib.List.map(fun call ->
-        let pos = Stdlib.String.padStartToWidth(Stdlib.toString(call.seq), 5)
+        let pos = Stdlib.Text.padStartToWidth(Stdlib.toString(call.seq), 5)
         let who = letterFor(call)
         let resultRepr = compactDval(branchId, call.result)
         let took =
