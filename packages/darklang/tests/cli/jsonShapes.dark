@@ -303,6 +303,44 @@ test typecheckFailsACallToNothing =
         Instance.expectExit(i, [ "typecheck", "Tests.TcGone" ], 1) ]))
 
 
+/// Items are content-addressed, so two fns with the same signature and body are one item under
+/// two names. A module-scoped audit names the item only by its names inside that module: here
+/// `typecheck Tests.TcScope` listed `Tests.TcElsewhere.show` beside `render`, a fn the module
+/// never mentions. A scope that holds both names still lists both, which pins that they really
+/// are one item.
+test typecheckNamesOnlyWhatIsInScope =
+  Instance.withInstance(fun i ->
+    let names = fun(j) ->
+      rows(field(j, "items")) |> Stdlib.List.map(fun(r) -> string(r, "name"))
+    // Setup runs before the text is read, so it is bound first rather than listed below.
+    let setup =
+      [ step(i, [ "fn", "Tests.TcElsewhere.show", "(n: Int): String = Stdlib.toString(n)" ])
+        step(i, [ "fn", "Tests.TcScope.render", "(n: Int): String = Stdlib.toString(n)" ]) ]
+    let text =
+      match Instance.run(i, [ "typecheck", "Tests.TcScope", "--all" ]) with
+      | Ok(out) -> out.stdout
+      | Error(e) -> e
+
+    Stdlib.Test.all(
+      [ Stdlib.Test.all(setup)
+        check(
+          i,
+          [ "typecheck", "Tests.TcScope", "--all", "--json" ],
+          [ fun(j) -> names(j) |> Stdlib.Test.equal([ "Tests.TcScope.render" ]) ])
+        check(
+          i,
+          [ "typecheck", "Tests", "--all", "--json" ],
+          [ fun(j) ->
+              names(j)
+              |> Stdlib.Test.equal([ "Tests.TcElsewhere.show, Tests.TcScope.render" ]) ])
+        isTrue(
+          Stdlib.String.contains(text, "Tests.TcScope.render"),
+          $"the text lists the item in scope, it said: {text}")
+        isTrue(
+          Stdlib.Bool.not(Stdlib.String.contains(text, "TcElsewhere")),
+          $"the text names nothing outside the scope, it said: {text}") ]))
+
+
 /// An implementation is one result. Its method fn lives one level under it and its path
 /// reads as a module, so without collapsing them `search %` listed every `Modulo`
 /// implementation three times: as an impl, as a fn and as a module.
