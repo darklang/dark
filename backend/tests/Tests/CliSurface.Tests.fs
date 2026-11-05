@@ -1336,7 +1336,21 @@ let private refusalsOnStderr : List<string * List<string>> =
     "traces calls --json, no such function",
     [ "traces"; "calls"; "Zzz.Nope.nope"; "--json" ]
     "permissions revoke-package, a hash never approved",
-    [ "permissions"; "revoke-package"; "0123456789abcdef" ] ]
+    [ "permissions"; "revoke-package"; "0123456789abcdef" ]
+    "ls, a function where a module goes", [ "ls"; "Darklang.Stdlib.List.map" ]
+    "docs signatures --module, no such module",
+    [ "docs"; "signatures"; "--module"; "Zzz.Nope" ]
+    "traces tail, past the oldest trace", [ "traces"; "tail"; "999999" ]
+    "diff --json, no such branch", [ "diff"; "zzznope"; "--json" ]
+    "conflicts branch --json, no such branch",
+    [ "conflicts"; "branch"; "zzznope"; "--json" ]
+    "deps usedby --json, no such name",
+    [ "deps"; "usedby"; "Zzz.Nope.nope"; "--json" ]
+    "ps cancel --json, no such process", [ "ps"; "cancel"; "zzznope"; "--json" ]
+    "traces show --json, no such function",
+    [ "traces"; "show"; "Zzz.Nope.nope"; "--json" ]
+    "traces inspect --json, no such trace",
+    [ "traces"; "inspect"; "zzznope"; "--json" ] ]
 
 let private refusalsKeepStdoutEmpty =
   cliTestOnMain

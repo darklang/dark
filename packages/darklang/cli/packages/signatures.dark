@@ -247,27 +247,41 @@ let executeFiltered(
     |> Stdlib.List.map(fun xs -> Stdlib.List.length(xs))
     |> Stdlib.List.fold(0, fun(a, b) -> a + b)
 
-  let title =
-    match filterText with
-    | None -> $"# {rootName}"
-    | Some(t) -> $"# {rootName}  (filter: {t})"
+  // A module exists only through what it holds, so a root that holds nothing is a typo, and
+  // "0 fns across 0 modules" would read as an answer.
+  if
+    Stdlib.List.isEmpty(raw.submodules)
+    && Stdlib.List.isEmpty(raw.types)
+    && Stdlib.List.isEmpty(raw.values)
+    && Stdlib.List.isEmpty(raw.fns)
+    && Stdlib.List.isEmpty(raw.traits)
+    && Stdlib.List.isEmpty(raw.impls)
+    && Stdlib.List.isEmpty(raw.tests)
+  then
+    Cli.printErr($"no module named {rootName} on this branch")
+    Cli.exitWith(state, false)
+  else
+    let title =
+      match filterText with
+      | None -> $"# {rootName}"
+      | Some(t) -> $"# {rootName}  (filter: {t})"
 
-  Stdlib.printLine(title)
-  Stdlib.printLine("")
-  Stdlib.printLine(Stdlib.String.join(sections, "\n\n"))
-  Stdlib.printLine("")
+    Stdlib.printLine(title)
+    Stdlib.printLine("")
+    Stdlib.printLine(Stdlib.String.join(sections, "\n\n"))
+    Stdlib.printLine("")
 
-  let typesNote =
-    if includeTypes then $", {Stdlib.toString(totalTypes)} types"
-    else ""
+    let typesNote =
+      if includeTypes then $", {Stdlib.toString(totalTypes)} types"
+      else ""
 
-  let summary = $"{Stdlib.toString(totalFns)} fns{typesNote} across {Stdlib.toString(Stdlib.List.length(allKeys))} modules"
-  Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(summary))
+    let summary = $"{Stdlib.toString(totalFns)} fns{typesNote} across {Stdlib.toString(Stdlib.List.length(allKeys))} modules"
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(summary))
 
-  if Stdlib.Bool.not(includeTypes) then
-    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use --types to include type definitions. `view <name>` shows source/docs."))
+    if Stdlib.Bool.not(includeTypes) then
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use --types to include type definitions. `view <name>` shows source/docs."))
 
-  state
+    state
 
 
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
