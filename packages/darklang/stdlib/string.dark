@@ -71,7 +71,7 @@ let length(s: String): Int = Builtin.stringLength(s)
 
 
 /// Return the Unicode codepoints in <param s>.
-let toCodepoints(s: String): List<Int> = Builtin.stringToCodepoints(s)
+let toCodepoints(s: String): List<UInt32> = Builtin.stringToCodepoints(s)
 
 
 /// Return the number of Unicode codepoints in <param s>.

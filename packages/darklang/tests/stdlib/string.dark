@@ -1047,12 +1047,12 @@ test repeat =
 test toCodepoints =
   Stdlib.Test.all(
     [ Stdlib.String.toCodepoints("") |> Stdlib.Test.equal([])
-      Stdlib.String.toCodepoints("abc") |> Stdlib.Test.equal([ 97, 98, 99 ])
+      Stdlib.String.toCodepoints("abc") |> Stdlib.Test.equal([ 97ul, 98ul, 99ul ])
       Stdlib.String.toCodepoints("héllo")
-      |> Stdlib.Test.equal([ 104, 233, 108, 108, 111 ])
+      |> Stdlib.Test.equal([ 104ul, 233ul, 108ul, 108ul, 111ul ])
       // One cluster containing three codepoints.
       Stdlib.String.toCodepoints("👩‍👧")
-      |> Stdlib.Test.equal([ 128105, 8205, 128103 ]) ])
+      |> Stdlib.Test.equal([ 128105ul, 8205ul, 128103ul ]) ])
 
 test codepointLength =
   Stdlib.Test.all(

@@ -24,6 +24,7 @@ val knownGroups =
     ("float", "Float")
     ("bool", "Bool")
     ("char", "Char")
+    ("codepoint", "Codepoint")
     ("string", "String")
     ("list", "List")
     ("dict", "Dict")

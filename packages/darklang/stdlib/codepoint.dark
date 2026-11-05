@@ -1,0 +1,20 @@
+module Darklang.Stdlib.Codepoint
+
+
+/// Return whether the value is a Unicode scalar: at most 0x10FFFF and not
+/// a surrogate (0xD800..0xDFFF). Unassigned codepoints are valid scalars.
+let isValidScalar(codepoint: UInt32): Bool =
+  codepoint <= 1114111ul
+  && (codepoint < 55296ul || codepoint > 57343ul)
+
+
+/// Return whether the scalar is a Unicode letter. Invalid scalars return false.
+let isLetter(codepoint: UInt32): Bool = Builtin.codepointIsLetter(codepoint)
+
+
+/// Return whether the scalar is Unicode whitespace. Invalid scalars return false.
+let isWhitespace(codepoint: UInt32): Bool = Builtin.codepointIsWhitespace(codepoint)
+
+
+/// Return whether the scalar is a Unicode letter or digit. Invalid scalars return false.
+let isAlphanumeric(codepoint: UInt32): Bool = Builtin.codepointIsAlphanumeric(codepoint)
