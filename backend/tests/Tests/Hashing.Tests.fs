@@ -328,12 +328,12 @@ let private fnHashTests =
       // The implementation a call resolved to is part of what the call MEANS, so it is part of
       // the hash: that is what makes a newer implementation an ordinary version move that
       // propagation can offer, rather than something that changes the same item's behaviour.
-      test "the implementation a call pins is part of its hash" {
-        let call (pinned : PT.FQFnName.ImplChoice) : PT.Expr =
+      test "the implementation a call records is part of its hash" {
+        let call (choice : PT.FQFnName.ImplChoice) : PT.Expr =
           let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
             PT.NameResolution.ok (
               PT.FQFnName.TraitMethod
-                { trait_ = PT.Hash "trait-show"; method_ = "show"; implFn = pinned }
+                { trait_ = PT.Hash "trait-show"; method_ = "show"; implFn = choice }
             )
           PT.EApply(
             gid (),
@@ -341,7 +341,7 @@ let private fnHashTests =
             [],
             NEList.singleton (eVar "x")
           )
-        let unpinned = h [ "x" ] (call PT.FQFnName.Unknown)
+        let unresolved = h [ "x" ] (call PT.FQFnName.Unknown)
         let onFirst =
           h
             [ "x" ]
@@ -360,7 +360,7 @@ let private fnHashTests =
                   location =
                     Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } }
             ))
-        Expect.notEqual unpinned onFirst "resolving the call changes what it is"
+        Expect.notEqual unresolved onFirst "resolving the call changes what it is"
         Expect.notEqual
           onFirst
           onSecond
@@ -380,7 +380,7 @@ let private fnHashTests =
         // same as deferring to a different param.
         let onParamA = h [ "x" ] (call (PT.FQFnName.FromTypeParam "a"))
         let onParamB = h [ "x" ] (call (PT.FQFnName.FromTypeParam "b"))
-        Expect.notEqual unpinned onParamA "deferring is not the same as unknown"
+        Expect.notEqual unresolved onParamA "deferring is not the same as unknown"
         Expect.notEqual onFirst onParamA "nor the same as choosing one"
         Expect.notEqual onParamA onParamB "and which param is part of it"
       } ]

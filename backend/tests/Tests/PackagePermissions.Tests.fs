@@ -579,14 +579,14 @@ module private Operators =
       test "a caller that recorded the bound supplies the implementation" {
         let caller =
           unitFn
-            "displays-pinned"
+            "displays-chosen"
             (callDisplay
               [ { param = "a"
                   trait_ = showTrait
                   method_ = "show"
                   choice = chosen "effectful-add" } ])
         let result =
-          requirementsOf [ effectfulAdd; deferringDisplay; caller ] "displays-pinned"
+          requirementsOf [ effectfulAdd; deferringDisplay; caller ] "displays-chosen"
         Expect.isTrue result.complete "the bound is recorded at the call"
         Expect.equal
           result.requiredEffects
@@ -596,8 +596,8 @@ module private Operators =
 
       test "a caller that recorded no bound leaves the deferred call unresolved" {
         // Nothing in the frame, so the callee asks the store at run time.
-        let caller = unitFn "displays-unpinned" (callDisplay [])
-        let result = requirementsOf [ deferringDisplay; caller ] "displays-unpinned"
+        let caller = unitFn "displays-unchosen" (callDisplay [])
+        let result = requirementsOf [ deferringDisplay; caller ] "displays-unchosen"
         Expect.isFalse result.complete "the store decides at run time"
       } ]
 let testBodiesUseTransitiveCacheSafetyAnalysis =

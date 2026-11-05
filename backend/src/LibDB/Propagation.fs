@@ -441,7 +441,7 @@ let private buildSeedMapping
     // Propagation moves hashes; it never re-resolves a trait call. A dependent that follows a
     // newer implementation does it through the ordinary fn edge, which `byHash` above covers.
     referenceName = None
-    pins = Map.empty
+    resolvedImpls = Map.empty
     boundImpls = Map.empty }
 
 

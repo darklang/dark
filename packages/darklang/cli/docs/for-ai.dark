@@ -416,7 +416,7 @@ Rules:
   `nested.1.2`. `.0` and past-the-end are errors.
 - String concat: +
 - String interpolation: $"x = {expr}; total = {a + b}" -- requires `ToString`;
-  its implementation is resolved and pinned when saved.
+  its implementation is resolved and recorded when saved.
 - Most operators are traits: `+ - * / % **` and `-x` are Add Subtract Multiply Divide Modulo
   Power Negate; `< <= > >=` are Compare; `& | ^ << >>` and `~x` are BitwiseAnd BitwiseOr
   BitwiseXor ShiftLeft ShiftRight BitwiseNot. `==` and `!=` are NOT traits: structural on

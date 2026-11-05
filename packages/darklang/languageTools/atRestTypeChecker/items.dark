@@ -15,7 +15,7 @@ type Outcome =
     /// Which implementation each trait call in this declaration resolved to, in the
     /// order the solver saw them. Empty unless the declaration is Checked, for the same
     /// reason scheme is: these come off a type assignment, and one the checker rejected
-    /// is not something to pin a stored call to.
+    /// is not something to resolve a stored call to.
     ///
     /// That gate is deliberate and predates this field under another name. Relaxing it so
     /// that Incomplete declarations pin too would make the checker's own uncertainty

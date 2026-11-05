@@ -419,7 +419,7 @@ let traitsAreAuthoredListedAndDisambiguated =
             "and it dispatches"
 
         // A saved caller stores the implementation it resolved to, so it keeps running that
-        // one however the store moves afterwards. This is the whole point of the pin, and the
+        // one however the store moves afterwards. This is the whole point of recording it, and the
         // rival below is what would otherwise change it underneath.
         do!
           run
@@ -474,7 +474,7 @@ let traitsAreAuthoredListedAndDisambiguated =
             "naming the one that runs"
 
         // Editing the implementation's OTHER method leaves this caller alone. This is why the
-        // call pins the method's fn rather than the implementation item: an unrelated edit to
+        // call records the method's fn rather than the implementation item: an unrelated edit to
         // the same implementation is not a change to what this call does.
         do!
           run
@@ -1099,20 +1099,20 @@ let helpExamplesRun : List<Test> =
     HelpExamples.runPage [ "docs"; "for-ai" ] true 2 ]
 
 
-/// A save that REPLACES an implementation must not pin its own calls to the one it replaces.
+/// A save that REPLACES an implementation must not resolve its own calls to the one it replaces.
 ///
 /// An implementation is named by its module, the head name of its self type and its trait, so
 /// `impl Tag for B.Box` in module `M` lands on the name `impl Tag for A.Box` held, and replaces it.
-/// Save-time pinning runs before the batch is stored and read implementations by name, so it still
-/// saw the old one: `h` below was pinned to it, propagation moved that name to the new
+/// Save-time resolution runs before the batch is stored and read implementations by name, so it
+/// still saw the old one: `h` below was resolved to it, propagation moved that name to the new
 /// implementation's fn, and `h` raised a parameter mismatch at run time.
 ///
 /// The other half is what must not break, and it fails as a `MissingImpl` at save rather than at
 /// run time: a call to an implementation the batch does not replace, including one the batch
 /// re-saves unchanged, still sees it.
-let aReplacedImplementationIsNotPinned =
+let aReplacedImplementationIsNotChosen =
   instanceTest
-    "a save does not pin its calls to an implementation it replaces"
+    "a save does not resolve its calls to an implementation it replaces"
     (fun state ->
       task {
         do! start state
@@ -1178,11 +1178,11 @@ let aReplacedImplementationIsNotPinned =
             state
             "Tests.ReplM.h(Tests.ReplA.Box { replA = 1L })"
             "has no implementation"
-            "and the other was not pinned to the implementation the save replaced"
+            "and the other was not resolved to the implementation the save replaced"
       })
 
-let interpolationPinsItsImplementation =
-  instanceTest "string interpolation pins its ToString implementation" (fun state ->
+let interpolationRecordsItsImpl =
+  instanceTest "an interpolation records its ToString implementation" (fun state ->
     task {
       do! start state
       do! run state [ "type"; "Tests.Interp.Point"; "{ n: Int64 }" ]
@@ -1232,7 +1232,7 @@ let interpolationPinsItsImplementation =
 
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
-    interpolationPinsItsImplementation
+    interpolationRecordsItsImpl
     traitsAreAuthoredListedAndDisambiguated
     aParseErrorChangesNothing
     aNameThatDisagreesWithTheDeclarationIsRefused
@@ -1249,5 +1249,5 @@ let tests : List<Test> =
     commitRefusesABoundThatNamesNothing
     aMismatchedImplementationIsReportedAtSave
     aFailedModuleSaveDoesNotEndOnATick
-    aReplacedImplementationIsNotPinned ]
+    aReplacedImplementationIsNotChosen ]
   @ helpExamplesRun

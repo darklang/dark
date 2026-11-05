@@ -961,7 +961,7 @@ let isUsableDictKeyReference(
 ///
 /// Matching the head alone is NOT enough, and that was a real defect once: with
 /// `impl T for Option<Int64>` and `impl T for Option<String>` both counted as candidates, the
-/// save picked between them by timestamp and pinned whichever was newer, so a green save raised
+/// save picked between them by timestamp and chose whichever was newer, so a green save raised
 /// on its first call.
 ///
 /// A type variable in the implementation's self type applies to anything, which is how
@@ -979,7 +979,7 @@ let implApplies(self: Model.Ty, subject: Model.Ty): Bool =
   // NOT a match when the subject is still undecided. `Traits.argsAgree` is permissive about
   // an unknown because at RUN TIME it has a value in hand and an untracked value type must
   // not block dispatch. At CHECK time an undecided type means "not yet", and answering `true`
-  // here made `Option<Int64>` match an `impl for Option<String>`, so the save pinned by
+  // here made `Option<Int64>` match an `impl for Option<String>`, so the save chose by
   // timestamp and a green save raised on its first call. Callers WAIT instead; see
   // `fullyResolved`.
   | (_, TError) -> true

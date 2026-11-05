@@ -87,7 +87,7 @@ module HandleCommand =
         // `packages/` tree that was just parsed off disk, not a guest's, and the checker has to
         // read the package store to answer which implementations exist. Without this the
         // reload's own policy refuses `package-read` and 795 items come back Incomplete, with
-        // the pins silently absent rather than any error.
+        // the chosen implementations silently absent rather than any error.
         //
         // The real package manager, not `Builtins.all`'s empty one: the checker loads from the
         // store whatever a body uses that the batch does not carry.
@@ -102,18 +102,18 @@ module HandleCommand =
                 LibExecution.Permissions.Policy.allowAll }
 
       let checkTimer = System.Diagnostics.Stopwatch.StartNew()
-      let! pinned =
+      let! chosen =
         Builtins.Matter.Libs.PM.TraitCalls.resolveTraitCalls
           exeState
           BranchId.Main
           PM.pt
           true
           ops
-      // The pins are written at the hashes in hand, then moved by the rehash, exactly as the
+      // The choices are written at the hashes in hand, then moved by the rehash, exactly as the
       // authoring path does it.
-      let resolved = LibDB.HashStabilization.computeRealHashes pinned
+      let resolved = LibDB.HashStabilization.computeRealHashes chosen
       // Ops, not items: recording the implementation changes the item's content hash, and every
-      // caller's hash moves with it, so the count is larger than the number of calls pinned.
+      // caller's hash moves with it, so the count is larger than the number of calls resolved.
       let changed (after : List<PackageOp>) =
         List.zip ops after |> List.filter (fun (a, b) -> a <> b) |> List.length
       let bodies =
@@ -126,11 +126,11 @@ module HandleCommand =
           | _ -> false)
         |> List.length
       print
-        $"Resolved trait calls: {changed resolved} op(s) moved; {changed pinned} of {bodies} bodies pinned in {checkTimer.Elapsed.TotalSeconds:F1}s"
+        $"Resolved trait calls: {changed resolved} op(s) moved; {changed chosen} of {bodies} bodies resolved in {checkTimer.Elapsed.TotalSeconds:F1}s"
       if resolved <> ops then
         do! fill true resolved
       else
-        // Nothing to pin, so the first fill is the final one; it still needs the baseline commit,
+        // Nothing to resolve, so the first fill is the final one; it still needs the baseline commit,
         // and the hash file it did not write.
         let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
         do! LibDB.PackageRefsGenerator.generate true

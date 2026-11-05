@@ -168,7 +168,7 @@ let select (candidates : List<ImplCandidate>) (self : KnownType) : Selection =
     // TODO: nothing stops the later one belonging to somebody who owns neither the trait nor the
     // type. Writing `impl Stdlib.ToString for Int64` in your own package is allowed, the save says
     // only `Created`, and from then on `Stdlib.toString 42L` answers what you wrote, for all new
-    // code; already-saved calls keep what they pinned, so the exposure is to what is written next.
+    // code; saved calls keep what they resolved to, so the exposure is to what is written next.
     // Which of our stable traits that can reach is currently an accident of `FastOps`, not a
     // policy: `1L + 2L` ignores a rival because the fast path answers builtin numeric pairs
     // directly, and `10L / 2L` takes it, because `Divide` is not in that table. `ToString` is not

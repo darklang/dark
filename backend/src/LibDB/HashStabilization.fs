@@ -188,7 +188,7 @@ let stabilize (seedMapping : AT.HashMapping) (input : Input) : Stabilization =
       { byLocation = byLocation
         byHash = byHash
         referenceName = seedMapping.referenceName
-        pins = seedMapping.pins
+        resolvedImpls = seedMapping.resolvedImpls
         boundImpls = seedMapping.boundImpls } }
 
 
