@@ -493,10 +493,11 @@ let withState (f : Target -> Task<'a>) : Task<'a> =
 /// `cliTest "name" body` collapses the `testTask "..." { do! withState ... }`
 /// boilerplate. Body receives the target and returns a Task<unit>.
 ///
-/// In-process, so the whole list it lives in has to be sequenced. Prefer `instanceTest`
-/// for anything that only reads what a command printed.
+/// In-process, so it is sequenced here rather than by whatever list it lands in: the
+/// suites mix these with `instanceTest`s, which run beside everything else. Prefer
+/// `instanceTest` for anything that only reads what a command printed.
 let cliTest (name : string) (body : Target -> Task<unit>) : Test =
-  testTask name { do! withState body }
+  testSequenced (testTask name { do! withState body })
 
 /// `cliTest`, but the commands run as a child against a store of this test's own.
 ///
@@ -511,6 +512,27 @@ let instanceTest (name : string) (body : Target -> Task<unit>) : Test =
     finally
       Tests.CliInstance.dispose i
   }
+
+/// `countSql`, against the store the target drives: an instance's own file, opened read-only
+/// through SQLite so whatever is still in its WAL counts, or this process's store.
+///
+/// What lets a test that checks a row or two run on an instance rather than in-process.
+let countSqlIn (target : Target) (sql : string) : Task<int64> =
+  match target with
+  | InProcess _ -> countSql sql []
+  | Instance i ->
+    task {
+      let path = System.IO.Path.Combine(i.dir, "data.db")
+      use conn =
+        new Microsoft.Data.Sqlite.SqliteConnection(
+          $"Data Source={path};Mode=ReadOnly"
+        )
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <- sql
+      let! n = cmd.ExecuteScalarAsync()
+      return System.Convert.ToInt64 n
+    }
 
 /// For a test that must start on main and might not end there. The precondition is ASSERTED, not
 /// arranged: a test that silently switched itself back to main would hide whichever earlier test left

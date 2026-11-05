@@ -237,9 +237,9 @@ case "$cmd" in
     fi
     ;;
   ci)
-    # Serial by default. In CI they run at the end of build-cli, which finishes before the backend
-    # tests anyway, so running them at once would not shorten a PR's wait, and would put nine CLIs
-    # on one machine.
+    # Serial by default, for reading one gate's output as it happens. CI passes --parallel and runs
+    # package-tests beside them: they are the tail of build-cli, and the jobs a PR waits on are
+    # about level now, so a minute off this one is a minute off the wait.
     if [[ "${1:-}" == "--parallel" ]]; then
       run_parallel bound "${CI_GATES[@]}"
     else

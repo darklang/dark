@@ -1,7 +1,8 @@
 /// The CLI cases that reach past what a command prints -- the recorder's settings and limits,
 /// the trace tables, the host's policy and process registry -- plus the single composition
-/// point for all three CLI integration suites: `tests` below is the one sequenced list the
-/// runner sees, in an order that is deliberate (the slow sweeps run last).
+/// point for all three CLI integration suites: `tests` below is the one list the runner sees.
+/// Its in-process cases run one at a time, in an order that is deliberate (the slow sweeps run
+/// last); the cases on CLI instances run beside the rest of the suite.
 ///
 /// What a person sees at a shell from `eval`, `run` and `traces` is tested in Dark, in
 /// `packages/darklang/tests/cli/evalAndRun.dark` and `traces.dark`.
@@ -497,10 +498,10 @@ let private slowCliTests =
 ///
 /// Assert on counts and identifiers here, not on op bodies; anything needing real blobs
 /// belongs in a suite that does not trace, like `MultiInstance`.
-
+/// Not sequenced as a whole: the in-process cases sequence themselves (`cliTest`), and the
+/// ones on instances run beside the rest of the suite.
 let tests =
-  testSequenced
-  <| testList
+  testList
     "CliTraces"
     (Tests.CliSurface.tests
      @ Tests.CliScm.tests

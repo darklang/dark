@@ -157,6 +157,30 @@ commands:
       - run: rm -Rf /home/dark/app/*
       - checkout
 
+  # The same tree in about 3s instead of about 40s, for the jobs every PR waits on.
+  #
+  # The built-in `checkout` needs ssh, which dark-base doesn't have, so it falls back to
+  # CircleCI's own git client and clones the whole history (over 250k objects) every job.
+  # Nothing in these jobs reads history: they ask git for HEAD and for `status`, both of
+  # which a one-commit fetch answers. The repo is public, so this goes over https and needs
+  # no key. A fork's PR commit is fetchable from darklang/dark through its `refs/pull` ref.
+  shallow-checkout:
+    steps:
+      - run:
+          name: Checkout code (this commit only)
+          command: |
+            rm -Rf /home/dark/app/*
+            git init -q .
+            git remote add origin "https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git"
+            if ! git fetch -q --depth=1 origin "$CIRCLE_SHA1"; then
+              # Fetching by hash is the normal path; a PR's own ref is the fallback.
+              git fetch -q --depth=1 origin "refs/pull/${CIRCLE_PULL_REQUEST##*/}/head"
+            fi
+            git checkout -q --detach FETCH_HEAD
+            [[ "$(git rev-parse HEAD)" == "$CIRCLE_SHA1" ]] \
+              || { echo "checked out $(git rev-parse HEAD), expected $CIRCLE_SHA1"; exit 1; }
+            git log -1 --format='HEAD is now at %h %s'
+
   ##########################
   # Setup app
   ##########################
@@ -180,38 +204,6 @@ jobs:
   #
   ## All jobs related to the 'build' of Darklang
 
-  static-checks:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - run: scripts/linting/shellchecker
-      # There are currently no yaml files
-      # - run: scripts/linting/yamllinter
-      - run:
-          name: Check formatting
-          command: |
-            fantomas --version
-            dotnet --list-runtimes
-            if scripts/formatting/format check; then
-              exit 0
-            else
-              format_status=$?
-            fi
-            # On failure, format the CI copy and print the diff for diagnosis.
-            # Still fail the job so formatting errors cannot pass silently.
-            scripts/formatting/format format --fsharp-only
-            git diff -- '*.fs' '*.fsi'
-            exit "$format_status"
-      - run:
-          name: Test the build's planning and readiness logic
-          command: scripts/testing/test-build-planning.py
-      - run:
-          name: Test CI diagnostic collection
-          command: python3 .circleci/test_collect_diagnostics.py
-      - run:
-          name: Test artifact validation timeouts
-          command: python3 .circleci/test_artifact_validation.py
-
   # Build server binaries and run tests
   # Cleanup: consider splitting into (1) build debug (2) prepare .db (3) build release
   build-backend:
@@ -234,7 +226,7 @@ jobs:
     # finish early. It becomes worth turning on when the sequenced groups are small, which
     # means the remaining CLI suites moving onto `CliInstance`.
     steps:
-      - darkcheckout
+      - shallow-checkout
       - setup-app
       - run:
           name: Setup backend build environment
@@ -274,12 +266,15 @@ jobs:
 
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
 
-      # Some suites spawn this published CLI once per command, so it pays JIT startup every
-      # time. Pointing `DARK_TEST_CLI` at a NativeAOT build instead was measured and does
-      # not pay for itself: the whole suite goes 438s to 378s, and publishing the AOT
-      # binary here costs 57s warm, 116s cold. 302s of that 438s is a sequenced in-process
-      # phase that spawns nothing, which is why halving the spawning suites moves so
-      # little. `build-cli` still does it, because it builds that binary anyway.
+      # The CLI the instance-backed suites drive, built the way we ship it. They start it once
+      # per command, a couple of thousand times a run, and the JIT-published one spends most
+      # of a CPU-second starting up each time: on four cores that was most of the suite's CPU.
+      # Measured on a 4-core box, the same suite took about half as long on this binary and
+      # used about a third of the CPU. It used not to pay, back when a long in-process phase
+      # that spawns nothing set the suite's length; that phase is now mostly on instances too.
+      - run:
+          name: Build the CLI the tests drive
+          command: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db
 
       # Bounded, so a wedged suite dies at a known point with its log intact rather than
       # running until CircleCI's job cap. The runner emits a heartbeat every 30s, so the
@@ -290,6 +285,7 @@ jobs:
             # The package load above already exported this build's seed.
             # Give tests their own copy instead of parsing the same sources again.
             # --split runs the sequenced tests in a second process alongside the rest.
+            DARK_TEST_CLI="$PWD/$(ls clis/darklang-*-linux-x64)" \
             DARK_CONFIG_PACKAGES_SOURCE=seed python3 .circleci/collect_diagnostics.py \
               --run backend-tests -- timeout 20m scripts/run-backend-tests --published --split
 
@@ -311,8 +307,38 @@ jobs:
     # under 3 GB, so it is only slower during short bursts of compiling.
     resource_class: large
     steps:
-      - darkcheckout
+      - shallow-checkout
       - setup-app
+      # What used to be the `static-checks` job: lint, format and the CI scripts' own tests.
+      # Under half a minute here, against a job of its own that spent longer starting up
+      # than checking. This job finishes well before build-backend, so it has the room.
+      - run: scripts/linting/shellchecker
+      # There are currently no yaml files
+      # - run: scripts/linting/yamllinter
+      - run:
+          name: Check formatting
+          command: |
+            fantomas --version
+            dotnet --list-runtimes
+            if scripts/formatting/format check; then
+              exit 0
+            else
+              format_status=$?
+            fi
+            # On failure, format the CI copy and print the diff for diagnosis.
+            # Still fail the job so formatting errors cannot pass silently.
+            scripts/formatting/format format --fsharp-only
+            git diff -- '*.fs' '*.fsi'
+            exit "$format_status"
+      - run:
+          name: Test the build's planning and readiness logic
+          command: scripts/testing/test-build-planning.py
+      - run:
+          name: Test CI diagnostic collection
+          command: python3 .circleci/test_collect_diagnostics.py
+      - run:
+          name: Test artifact validation timeouts
+          command: python3 .circleci/test_artifact_validation.py
       - show-large-files-and-directories
       # For tests
       - run: shasum backend/paket.lock backend/global.json > ../checksum
@@ -373,21 +399,33 @@ jobs:
           name: First-day gate on the built CLI
           command: timeout 5m scripts/testing/gates first-day "$(ls clis/darklang-*-linux-x64)"
 
-      # Each package test starts a fresh process. Use the NativeAOT CLI built here
-      # to avoid paying managed-runtime startup for every test.
+      # The package tests and the gate scripts, at the same time. Both run the shipped binary,
+      # and each gate has its own rundir and HOME, which is what lets `gates all` run every gate
+      # at once locally; package-tests is one of those gates. One after the other they were
+      # about three minutes, the longest stretch of this job.
+      #
+      # Each package test starts a fresh process, so they use the NativeAOT CLI built here
+      # rather than paying managed-runtime startup for every test.
+      #
+      # The gates are end-to-end checks on the shipped binary. Keep them after the allocation
+      # check: they write to the store it measures.
       - run:
-          name: Run package tests
+          name: Package tests and gate scripts (the CI subset)
           command: |
-            CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64" \
-              timeout 20m scripts/testing/gates package-tests
-
-      # End-to-end checks on the shipped binary. Keep after the allocation check: the gates
-      # write to the store it measures.
-      - run:
-          name: Gate scripts (the CI subset)
-          command: |
-            CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64" \
-              timeout 15m scripts/testing/gates ci
+            export CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64"
+            # The gates print a summary when they finish; the package tests stream, which
+            # keeps the step's no-output timer quiet while both run.
+            timeout 15m scripts/testing/gates ci --parallel > /tmp/gates-ci.log 2>&1 &
+            gates=$!
+            set +e
+            timeout 20m scripts/testing/gates package-tests
+            package_tests=$?
+            wait "$gates"
+            gates_status=$?
+            set -e
+            echo; echo "==> gate scripts (the CI subset)"; cat /tmp/gates-ci.log
+            echo; echo "package tests exited $package_tests, gate scripts exited $gates_status"
+            [[ "$package_tests" -eq 0 && "$gates_status" -eq 0 ]]
       # A gate must not write to the source tree; `gates all` runs them at once.
       - assert-clean-worktree
 
@@ -783,15 +821,13 @@ workflows:
   build-and-deploy:
     jobs:
       # Build jobs
-      - static-checks
       - build-backend
       - build-cli
 
-      # Passes only when all three above did. scripts/deployment/release checks
+      # Passes only when both above did. scripts/deployment/release checks
       # it before tagging, and tag-release waits on it.
       - ok-to-deploy:
           requires:
-            - static-checks
             - build-backend
             - build-cli
 
