@@ -20,10 +20,13 @@ let removeDirectory(path: String): Result.Result<Unit, String> =
 let ensureDirectoryExists(path: String): Result.Result<Unit, String> =
   Cli.executeWithUnitOrStdErr($"mkdir -p -- {quote(path)}")
 
-/// Grants execute permissions to the specified file. (chmod +x <param path>)
-/// If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+/// Grants execute permissions to <param path>, respecting the current umask (`chmod +x`).
+/// If successful, returns {{Ok ()}}; otherwise returns {{Error <var stderr>}}.
 let grantExecutePermission(path: String): Result.Result<Unit, String> =
-  Cli.executeWithUnitOrStdErr($"chmod +x -- {quote(path)}")
+  // macOS chmod does not accept -- after +x. Add ./ to paths starting with -
+  // so chmod treats them as file names on both macOS and Linux.
+  let operand = if String.startsWith(path, "-") then $"./{path}" else path
+  Cli.executeWithUnitOrStdErr($"chmod +x {quote(operand)}")
 
 /// Executes a command in the given directory and redirects output to a file.
 let executeInDirectoryAndRedirectToFile(directory: String, command: String, outputFile: String): Result.Result<Unit, String> =
