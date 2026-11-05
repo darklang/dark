@@ -215,3 +215,52 @@ test shiftRight =
       (0Z >> 5Z) |> Stdlib.Test.equal(0Z)
       (1Z >> 0Z) |> Stdlib.Test.equal(1Z)
       (40Z >> 3Z) |> Stdlib.Test.equal(5Z) ])
+
+test checkedAdd =
+  Stdlib.Test.all(
+    [ Stdlib.UInt128.checkedAdd(340282366920938463463374607431768211455Z, 1Z)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt128.checkedAdd(340282366920938463463374607431768211455Z, 340282366920938463463374607431768211455Z)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt128.checkedAdd(340282366920938463463374607431768211455Z, 0Z)
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455Z))
+      Stdlib.UInt128.checkedAdd(340282366920938463463374607431768211454Z, 1Z)
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455Z)) ])
+
+test checkedSubtract =
+  Stdlib.Test.all(
+    [ Stdlib.UInt128.checkedSubtract(0Z, 1Z)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt128.checkedSubtract(1Z, 340282366920938463463374607431768211455Z)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt128.checkedSubtract(340282366920938463463374607431768211455Z, 340282366920938463463374607431768211455Z)
+      |> Stdlib.Test.equal(Ok(0Z))
+      Stdlib.UInt128.checkedSubtract(340282366920938463463374607431768211455Z, 0Z)
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455Z)) ])
+
+test checkedMultiply =
+  Stdlib.Test.all(
+    [ Stdlib.UInt128.checkedMultiply(340282366920938463463374607431768211455Z, 2Z)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt128.checkedMultiply(340282366920938463463374607431768211455Z, 340282366920938463463374607431768211455Z)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt128.checkedMultiply(340282366920938463463374607431768211455Z, 1Z)
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455Z))
+      Stdlib.UInt128.checkedMultiply(340282366920938463463374607431768211455Z, 0Z)
+      |> Stdlib.Test.equal(Ok(0Z))
+      Stdlib.UInt128.checkedMultiply(170141183460469231731687303715884105727Z, 2Z)
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211454Z)) ])
+
+test checkedNegate =
+  Stdlib.Test.all(
+    [ Stdlib.UInt128.checkedNegate(1Z)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt128.checkedNegate(340282366920938463463374607431768211455Z)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt128.checkedNegate(0Z) |> Stdlib.Test.equal(Ok(0Z)) ])
+
+test checkedAbsoluteValue =
+  Stdlib.Test.all(
+    [ Stdlib.UInt128.checkedAbsoluteValue(340282366920938463463374607431768211455Z)
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455Z))
+      Stdlib.UInt128.checkedAbsoluteValue(0Z) |> Stdlib.Test.equal(Ok(0Z)) ])

@@ -138,3 +138,47 @@ impl Zero for UInt128 =
 
 impl One for UInt128 =
   let one(): UInt128 = 1Z
+
+
+// Checked arithmetic. The operators wrap on overflow; these return
+// {{Error Overflow}} instead, going below 0 included.
+
+/// Adds <param a> and <param b>, or {{Error Overflow}} where `+` would wrap
+let checkedAdd(
+  a: UInt128,
+  b: UInt128)
+  : Stdlib.Result.Result<UInt128, Stdlib.Int.Overflow> =
+  let sum = a + b
+  if sum < a then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
+
+
+/// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
+let checkedSubtract(
+  a: UInt128,
+  b: UInt128)
+  : Stdlib.Result.Result<UInt128, Stdlib.Int.Overflow> =
+  if b > a then Error(Stdlib.Int.Overflow.Overflow) else Ok(a - b)
+
+
+/// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
+let checkedMultiply(
+  a: UInt128,
+  b: UInt128)
+  : Stdlib.Result.Result<UInt128, Stdlib.Int.Overflow> =
+  let product = Stdlib.Int.fromUInt128(a) * Stdlib.Int.fromUInt128(b)
+  match Stdlib.Int.toUInt128(product) with
+  | Some(fits) -> Ok(fits)
+  | None -> Error(Stdlib.Int.Overflow.Overflow)
+
+
+/// The negation of <param a>: {{Ok 0}} for 0, and {{Error Overflow}} for
+/// anything else, which has no unsigned negation
+let checkedNegate(a: UInt128): Stdlib.Result.Result<UInt128, Stdlib.Int.Overflow> =
+  if a == 0Z then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
+
+
+/// The distance of <param a> from zero, which for an unsigned value is always
+/// <param a> itself. Here so every fixed-width type has the same checked set.
+let checkedAbsoluteValue(a: UInt128)
+  : Stdlib.Result.Result<UInt128, Stdlib.Int.Overflow> =
+  Ok(a)

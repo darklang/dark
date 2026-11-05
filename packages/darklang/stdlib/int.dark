@@ -191,3 +191,9 @@ impl Zero for Int =
 
 impl One for Int =
   let one(): Int = 1
+
+
+/// What a fixed-width `checked` function returns where the operator would wrap:
+/// `Int8.checkedAdd(127y, 1y)` is {{Error Overflow}}. Going below 0 on an unsigned
+/// type is an Overflow too. <type Int> itself never overflows.
+type Overflow = | Overflow

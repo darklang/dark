@@ -506,3 +506,70 @@ test shiftRight =
       (4611686018427387904L >> 62L) |> Stdlib.Test.equal(1L)
       ((-1L) >> 1L) |> Stdlib.Test.equal(-1L)
       (40L >> 3L) |> Stdlib.Test.equal(5L) ])
+
+test checkedAdd =
+  Stdlib.Test.all(
+    [ Stdlib.Int64.checkedAdd(9223372036854775807L, 1L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedAdd(-9223372036854775808L, -1L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedAdd(9223372036854775807L, -1L)
+      |> Stdlib.Test.equal(Ok(9223372036854775806L))
+      Stdlib.Int64.checkedAdd(-9223372036854775808L, 1L)
+      |> Stdlib.Test.equal(Ok(-9223372036854775807L))
+      Stdlib.Int64.checkedAdd(9223372036854775807L, -9223372036854775808L)
+      |> Stdlib.Test.equal(Ok(-1L))
+      Stdlib.Int64.checkedAdd(-9223372036854775808L, 0L)
+      |> Stdlib.Test.equal(Ok(-9223372036854775808L)) ])
+
+test checkedSubtract =
+  Stdlib.Test.all(
+    [ Stdlib.Int64.checkedSubtract(-9223372036854775808L, 1L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedSubtract(9223372036854775807L, -1L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedSubtract(0L, -9223372036854775808L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedSubtract(-1L, -9223372036854775808L)
+      |> Stdlib.Test.equal(Ok(9223372036854775807L))
+      Stdlib.Int64.checkedSubtract(9223372036854775807L, 9223372036854775807L)
+      |> Stdlib.Test.equal(Ok(0L))
+      Stdlib.Int64.checkedSubtract(-9223372036854775808L, -1L)
+      |> Stdlib.Test.equal(Ok(-9223372036854775807L)) ])
+
+test checkedMultiply =
+  Stdlib.Test.all(
+    [ Stdlib.Int64.checkedMultiply(9223372036854775807L, 2L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedMultiply(-9223372036854775808L, -1L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedMultiply(-1L, -9223372036854775808L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedMultiply(-9223372036854775808L, 2L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedMultiply(9223372036854775807L, -1L)
+      |> Stdlib.Test.equal(Ok(-9223372036854775807L))
+      Stdlib.Int64.checkedMultiply(-9223372036854775808L, 1L)
+      |> Stdlib.Test.equal(Ok(-9223372036854775808L))
+      Stdlib.Int64.checkedMultiply(-9223372036854775808L, 0L)
+      |> Stdlib.Test.equal(Ok(0L))
+      Stdlib.Int64.checkedMultiply(-2L, 4611686018427387903L)
+      |> Stdlib.Test.equal(Ok(-9223372036854775806L)) ])
+
+test checkedNegate =
+  Stdlib.Test.all(
+    [ Stdlib.Int64.checkedNegate(-9223372036854775808L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedNegate(9223372036854775807L)
+      |> Stdlib.Test.equal(Ok(-9223372036854775807L))
+      Stdlib.Int64.checkedNegate(0L) |> Stdlib.Test.equal(Ok(0L)) ])
+
+test checkedAbsoluteValue =
+  Stdlib.Test.all(
+    [ Stdlib.Int64.checkedAbsoluteValue(-9223372036854775808L)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int64.checkedAbsoluteValue(-9223372036854775807L)
+      |> Stdlib.Test.equal(Ok(9223372036854775807L))
+      Stdlib.Int64.checkedAbsoluteValue(9223372036854775807L)
+      |> Stdlib.Test.equal(Ok(9223372036854775807L))
+      Stdlib.Int64.checkedAbsoluteValue(0L) |> Stdlib.Test.equal(Ok(0L)) ])

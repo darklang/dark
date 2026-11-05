@@ -279,3 +279,49 @@ test shiftRight =
       (1us >> 0us) |> Stdlib.Test.equal(1us)
       (32768us >> 15us) |> Stdlib.Test.equal(1us)
       (40us >> 3us) |> Stdlib.Test.equal(5us) ])
+
+test checkedAdd =
+  Stdlib.Test.all(
+    [ Stdlib.UInt16.checkedAdd(65535us, 1us)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt16.checkedAdd(65535us, 65535us)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt16.checkedAdd(65535us, 0us) |> Stdlib.Test.equal(Ok(65535us))
+      Stdlib.UInt16.checkedAdd(65534us, 1us) |> Stdlib.Test.equal(Ok(65535us)) ])
+
+test checkedSubtract =
+  Stdlib.Test.all(
+    [ Stdlib.UInt16.checkedSubtract(0us, 1us)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt16.checkedSubtract(1us, 65535us)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt16.checkedSubtract(65535us, 65535us)
+      |> Stdlib.Test.equal(Ok(0us))
+      Stdlib.UInt16.checkedSubtract(65535us, 0us)
+      |> Stdlib.Test.equal(Ok(65535us)) ])
+
+test checkedMultiply =
+  Stdlib.Test.all(
+    [ Stdlib.UInt16.checkedMultiply(65535us, 2us)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt16.checkedMultiply(65535us, 65535us)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt16.checkedMultiply(65535us, 1us)
+      |> Stdlib.Test.equal(Ok(65535us))
+      Stdlib.UInt16.checkedMultiply(65535us, 0us) |> Stdlib.Test.equal(Ok(0us))
+      Stdlib.UInt16.checkedMultiply(32767us, 2us)
+      |> Stdlib.Test.equal(Ok(65534us)) ])
+
+test checkedNegate =
+  Stdlib.Test.all(
+    [ Stdlib.UInt16.checkedNegate(1us)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt16.checkedNegate(65535us)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt16.checkedNegate(0us) |> Stdlib.Test.equal(Ok(0us)) ])
+
+test checkedAbsoluteValue =
+  Stdlib.Test.all(
+    [ Stdlib.UInt16.checkedAbsoluteValue(65535us)
+      |> Stdlib.Test.equal(Ok(65535us))
+      Stdlib.UInt16.checkedAbsoluteValue(0us) |> Stdlib.Test.equal(Ok(0us)) ])

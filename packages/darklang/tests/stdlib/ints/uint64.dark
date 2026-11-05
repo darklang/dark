@@ -308,3 +308,52 @@ test shiftRight =
       (1UL >> 0UL) |> Stdlib.Test.equal(1UL)
       (9223372036854775808UL >> 63UL) |> Stdlib.Test.equal(1UL)
       (40UL >> 3UL) |> Stdlib.Test.equal(5UL) ])
+
+test checkedAdd =
+  Stdlib.Test.all(
+    [ Stdlib.UInt64.checkedAdd(18446744073709551615UL, 1UL)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt64.checkedAdd(18446744073709551615UL, 18446744073709551615UL)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt64.checkedAdd(18446744073709551615UL, 0UL)
+      |> Stdlib.Test.equal(Ok(18446744073709551615UL))
+      Stdlib.UInt64.checkedAdd(18446744073709551614UL, 1UL)
+      |> Stdlib.Test.equal(Ok(18446744073709551615UL)) ])
+
+test checkedSubtract =
+  Stdlib.Test.all(
+    [ Stdlib.UInt64.checkedSubtract(0UL, 1UL)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt64.checkedSubtract(1UL, 18446744073709551615UL)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt64.checkedSubtract(18446744073709551615UL, 18446744073709551615UL)
+      |> Stdlib.Test.equal(Ok(0UL))
+      Stdlib.UInt64.checkedSubtract(18446744073709551615UL, 0UL)
+      |> Stdlib.Test.equal(Ok(18446744073709551615UL)) ])
+
+test checkedMultiply =
+  Stdlib.Test.all(
+    [ Stdlib.UInt64.checkedMultiply(18446744073709551615UL, 2UL)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt64.checkedMultiply(18446744073709551615UL, 18446744073709551615UL)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt64.checkedMultiply(18446744073709551615UL, 1UL)
+      |> Stdlib.Test.equal(Ok(18446744073709551615UL))
+      Stdlib.UInt64.checkedMultiply(18446744073709551615UL, 0UL)
+      |> Stdlib.Test.equal(Ok(0UL))
+      Stdlib.UInt64.checkedMultiply(9223372036854775807UL, 2UL)
+      |> Stdlib.Test.equal(Ok(18446744073709551614UL)) ])
+
+test checkedNegate =
+  Stdlib.Test.all(
+    [ Stdlib.UInt64.checkedNegate(1UL)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt64.checkedNegate(18446744073709551615UL)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt64.checkedNegate(0UL) |> Stdlib.Test.equal(Ok(0UL)) ])
+
+test checkedAbsoluteValue =
+  Stdlib.Test.all(
+    [ Stdlib.UInt64.checkedAbsoluteValue(18446744073709551615UL)
+      |> Stdlib.Test.equal(Ok(18446744073709551615UL))
+      Stdlib.UInt64.checkedAbsoluteValue(0UL) |> Stdlib.Test.equal(Ok(0UL)) ])

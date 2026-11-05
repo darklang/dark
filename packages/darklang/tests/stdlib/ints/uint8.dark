@@ -280,3 +280,44 @@ test shiftRight =
       (1uy >> 0uy) |> Stdlib.Test.equal(1uy)
       (128uy >> 7uy) |> Stdlib.Test.equal(1uy)
       (40uy >> 3uy) |> Stdlib.Test.equal(5uy) ])
+
+test checkedAdd =
+  Stdlib.Test.all(
+    [ Stdlib.UInt8.checkedAdd(255uy, 1uy)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt8.checkedAdd(255uy, 255uy)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt8.checkedAdd(255uy, 0uy) |> Stdlib.Test.equal(Ok(255uy))
+      Stdlib.UInt8.checkedAdd(254uy, 1uy) |> Stdlib.Test.equal(Ok(255uy)) ])
+
+test checkedSubtract =
+  Stdlib.Test.all(
+    [ Stdlib.UInt8.checkedSubtract(0uy, 1uy)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt8.checkedSubtract(1uy, 255uy)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt8.checkedSubtract(255uy, 255uy) |> Stdlib.Test.equal(Ok(0uy))
+      Stdlib.UInt8.checkedSubtract(255uy, 0uy) |> Stdlib.Test.equal(Ok(255uy)) ])
+
+test checkedMultiply =
+  Stdlib.Test.all(
+    [ Stdlib.UInt8.checkedMultiply(255uy, 2uy)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt8.checkedMultiply(255uy, 255uy)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt8.checkedMultiply(255uy, 1uy) |> Stdlib.Test.equal(Ok(255uy))
+      Stdlib.UInt8.checkedMultiply(255uy, 0uy) |> Stdlib.Test.equal(Ok(0uy))
+      Stdlib.UInt8.checkedMultiply(127uy, 2uy) |> Stdlib.Test.equal(Ok(254uy)) ])
+
+test checkedNegate =
+  Stdlib.Test.all(
+    [ Stdlib.UInt8.checkedNegate(1uy)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt8.checkedNegate(255uy)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt8.checkedNegate(0uy) |> Stdlib.Test.equal(Ok(0uy)) ])
+
+test checkedAbsoluteValue =
+  Stdlib.Test.all(
+    [ Stdlib.UInt8.checkedAbsoluteValue(255uy) |> Stdlib.Test.equal(Ok(255uy))
+      Stdlib.UInt8.checkedAbsoluteValue(0uy) |> Stdlib.Test.equal(Ok(0uy)) ])

@@ -277,3 +277,52 @@ test shiftRight =
       (1ul >> 0ul) |> Stdlib.Test.equal(1ul)
       (2147483648ul >> 31ul) |> Stdlib.Test.equal(1ul)
       (40ul >> 3ul) |> Stdlib.Test.equal(5ul) ])
+
+test checkedAdd =
+  Stdlib.Test.all(
+    [ Stdlib.UInt32.checkedAdd(4294967295ul, 1ul)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt32.checkedAdd(4294967295ul, 4294967295ul)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt32.checkedAdd(4294967295ul, 0ul)
+      |> Stdlib.Test.equal(Ok(4294967295ul))
+      Stdlib.UInt32.checkedAdd(4294967294ul, 1ul)
+      |> Stdlib.Test.equal(Ok(4294967295ul)) ])
+
+test checkedSubtract =
+  Stdlib.Test.all(
+    [ Stdlib.UInt32.checkedSubtract(0ul, 1ul)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt32.checkedSubtract(1ul, 4294967295ul)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt32.checkedSubtract(4294967295ul, 4294967295ul)
+      |> Stdlib.Test.equal(Ok(0ul))
+      Stdlib.UInt32.checkedSubtract(4294967295ul, 0ul)
+      |> Stdlib.Test.equal(Ok(4294967295ul)) ])
+
+test checkedMultiply =
+  Stdlib.Test.all(
+    [ Stdlib.UInt32.checkedMultiply(4294967295ul, 2ul)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt32.checkedMultiply(4294967295ul, 4294967295ul)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt32.checkedMultiply(4294967295ul, 1ul)
+      |> Stdlib.Test.equal(Ok(4294967295ul))
+      Stdlib.UInt32.checkedMultiply(4294967295ul, 0ul)
+      |> Stdlib.Test.equal(Ok(0ul))
+      Stdlib.UInt32.checkedMultiply(2147483647ul, 2ul)
+      |> Stdlib.Test.equal(Ok(4294967294ul)) ])
+
+test checkedNegate =
+  Stdlib.Test.all(
+    [ Stdlib.UInt32.checkedNegate(1ul)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt32.checkedNegate(4294967295ul)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.UInt32.checkedNegate(0ul) |> Stdlib.Test.equal(Ok(0ul)) ])
+
+test checkedAbsoluteValue =
+  Stdlib.Test.all(
+    [ Stdlib.UInt32.checkedAbsoluteValue(4294967295ul)
+      |> Stdlib.Test.equal(Ok(4294967295ul))
+      Stdlib.UInt32.checkedAbsoluteValue(0ul) |> Stdlib.Test.equal(Ok(0ul)) ])

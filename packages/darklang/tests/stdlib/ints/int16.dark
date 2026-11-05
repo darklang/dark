@@ -338,3 +338,56 @@ test shiftRight =
       (16384s >> 14s) |> Stdlib.Test.equal(1s)
       ((-1s) >> 1s) |> Stdlib.Test.equal(-1s)
       (40s >> 3s) |> Stdlib.Test.equal(5s) ])
+
+test checkedAdd =
+  Stdlib.Test.all(
+    [ Stdlib.Int16.checkedAdd(32767s, 1s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedAdd(-32768s, -1s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedAdd(32767s, -1s) |> Stdlib.Test.equal(Ok(32766s))
+      Stdlib.Int16.checkedAdd(-32768s, 1s) |> Stdlib.Test.equal(Ok(-32767s))
+      Stdlib.Int16.checkedAdd(32767s, -32768s) |> Stdlib.Test.equal(Ok(-1s))
+      Stdlib.Int16.checkedAdd(-32768s, 0s) |> Stdlib.Test.equal(Ok(-32768s)) ])
+
+test checkedSubtract =
+  Stdlib.Test.all(
+    [ Stdlib.Int16.checkedSubtract(-32768s, 1s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedSubtract(32767s, -1s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedSubtract(0s, -32768s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedSubtract(-1s, -32768s) |> Stdlib.Test.equal(Ok(32767s))
+      Stdlib.Int16.checkedSubtract(32767s, 32767s) |> Stdlib.Test.equal(Ok(0s))
+      Stdlib.Int16.checkedSubtract(-32768s, -1s) |> Stdlib.Test.equal(Ok(-32767s)) ])
+
+test checkedMultiply =
+  Stdlib.Test.all(
+    [ Stdlib.Int16.checkedMultiply(32767s, 2s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedMultiply(-32768s, -1s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedMultiply(-1s, -32768s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedMultiply(-32768s, 2s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedMultiply(32767s, -1s) |> Stdlib.Test.equal(Ok(-32767s))
+      Stdlib.Int16.checkedMultiply(-32768s, 1s) |> Stdlib.Test.equal(Ok(-32768s))
+      Stdlib.Int16.checkedMultiply(-32768s, 0s) |> Stdlib.Test.equal(Ok(0s))
+      Stdlib.Int16.checkedMultiply(-2s, 16383s) |> Stdlib.Test.equal(Ok(-32766s)) ])
+
+test checkedNegate =
+  Stdlib.Test.all(
+    [ Stdlib.Int16.checkedNegate(-32768s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedNegate(32767s) |> Stdlib.Test.equal(Ok(-32767s))
+      Stdlib.Int16.checkedNegate(0s) |> Stdlib.Test.equal(Ok(0s)) ])
+
+test checkedAbsoluteValue =
+  Stdlib.Test.all(
+    [ Stdlib.Int16.checkedAbsoluteValue(-32768s)
+      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      Stdlib.Int16.checkedAbsoluteValue(-32767s) |> Stdlib.Test.equal(Ok(32767s))
+      Stdlib.Int16.checkedAbsoluteValue(32767s) |> Stdlib.Test.equal(Ok(32767s))
+      Stdlib.Int16.checkedAbsoluteValue(0s) |> Stdlib.Test.equal(Ok(0s)) ])
