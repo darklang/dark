@@ -79,7 +79,9 @@ let toFloat(a: UInt8): Float = Builtin.uint8ToFloat(a)
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type UInt8> range).
 let parse(s: String): Stdlib.Result.Result<UInt8, Stdlib.UInt8.ParseError> =
-  Builtin.uint8Parse(s)
+  match Stdlib.Int.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toUInt8(n), Stdlib.UInt8.ParseError.OutOfRange)
+  | Error(_) -> Error(Stdlib.UInt8.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to a <type UInt8>. Returns {{None}} if the value is less than 0.

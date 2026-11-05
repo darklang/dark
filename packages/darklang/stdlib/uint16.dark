@@ -81,7 +81,9 @@ let toFloat(a: UInt16): Float = Builtin.uint16ToFloat(a)
 let parse(
   s: String)
   : Stdlib.Result.Result<UInt16, Stdlib.UInt16.ParseError> =
-  Builtin.uint16Parse(s)
+  match Stdlib.Int.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toUInt16(n), Stdlib.UInt16.ParseError.OutOfRange)
+  | Error(_) -> Error(Stdlib.UInt16.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to a <type UInt16>. Returns {{None}} if the value is less than 0.

@@ -6,25 +6,8 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
 module NoModule = Builtins.Pure.Libs.NoModule
-
-
-module ParseError =
-  type ParseError =
-    | BadFormat
-    | OutOfRange
-
-  let toDT (e : ParseError) : Dval =
-    let (caseName, fields) =
-      match e with
-      | BadFormat -> "BadFormat", []
-      | OutOfRange -> "OutOfRange", []
-
-    let typeName =
-      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint128ParseError ())
-    DEnum(typeName, typeName, [], caseName, fields)
 
 
 let fns () : List<BuiltInFn> =
@@ -230,41 +213,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUInt128 a |] -> Ply(DFloat(sqrt (float a)))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "uint128Parse" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType =
-        TypeReference.result
-          TUInt128
-          (TCustomType(
-            { originalName = []
-              resolved =
-                Ok(
-                  FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint128ParseError ())
-                ) },
-            []
-          ))
-      description = "Returns the <type UInt128> value of a <type String>"
-      fn =
-        let typeName =
-          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint128ParseError ())
-        let resultOk = Dval.resultOk KTUInt128 (KTCustomType(typeName, []))
-        let resultError = Dval.resultError KTUInt128 (KTCustomType(typeName, []))
-        (function
-        | _, _, _, [| DString s |] ->
-          try
-            s |> System.UInt128.Parse |> DUInt128 |> resultOk |> Ply
-          with
-          | :? System.FormatException ->
-            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
-          | :? System.OverflowException ->
-            ParseError.OutOfRange |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

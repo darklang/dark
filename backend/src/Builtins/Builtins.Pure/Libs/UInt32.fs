@@ -6,25 +6,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
-module NR = LibExecution.RuntimeTypes.NameResolution
-
-
-module ParseError =
-  type ParseError =
-    | BadFormat
-    | OutOfRange
-
-  let toDT (e : ParseError) : Dval =
-    let (caseName, fields) =
-      match e with
-      | BadFormat -> "BadFormat", []
-      | OutOfRange -> "OutOfRange", []
-
-    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint32ParseError ())
-    DEnum(typeName, typeName, [], caseName, fields)
-
 
 
 let fns () : List<BuiltInFn> =
@@ -228,36 +210,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUInt32 a |] -> Ply(DFloat(sqrt (float a)))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "uint32Parse" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType =
-        let errorType =
-          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint32ParseError ())
-        TypeReference.result TUInt32 (TCustomType(NR.ok errorType, []))
-      description = "Returns the <type UInt32> value of a <type String>"
-      fn =
-        let typeName =
-          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint32ParseError ())
-        let resultOk = Dval.resultOk KTUInt32 (KTCustomType(typeName, []))
-        let resultError = Dval.resultError KTUInt32 (KTCustomType(typeName, []))
-        (function
-        | _, _, _, [| DString s |] ->
-          try
-            s |> System.Convert.ToUInt32 |> DUInt32 |> resultOk |> Ply
-          with
-          | :? System.OverflowException ->
-            ParseError.OutOfRange |> ParseError.toDT |> resultError |> Ply
-
-          | :? System.FormatException ->
-            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
-
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

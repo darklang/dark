@@ -98,7 +98,9 @@ let fromFloatRounded(a: Float): Stdlib.Option.Option<UInt64> =
 let parse(
   s: String)
   : Stdlib.Result.Result<UInt64, Stdlib.UInt64.ParseError> =
-  Builtin.uint64Parse(s)
+  match Stdlib.Int.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toUInt64(n), Stdlib.UInt64.ParseError.OutOfRange)
+  | Error(_) -> Error(Stdlib.UInt64.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0

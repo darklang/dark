@@ -93,7 +93,9 @@ let toFloat(a: Int32): Float = Builtin.int32ToFloat(a)
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int32> range).
 let parse(s: String): Stdlib.Result.Result<Int32, Stdlib.Int32.ParseError> =
-  Builtin.int32Parse(s)
+  match Stdlib.Int.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toInt32(n), Stdlib.Int32.ParseError.OutOfRange)
+  | Error(_) -> Error(Stdlib.Int32.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to a <type Int32>.

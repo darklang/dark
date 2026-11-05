@@ -6,24 +6,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
-
-
-module ParseError =
-  type ParseError =
-    | BadFormat
-    | OutOfRange
-
-  let toDT (e : ParseError) : Dval =
-    let (caseName, fields) =
-      match e with
-      | BadFormat -> "BadFormat", []
-      | OutOfRange -> "OutOfRange", []
-
-    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint64ParseError ())
-    DEnum(typeName, typeName, [], caseName, fields)
-
 
 
 let fns () : List<BuiltInFn> =
@@ -215,41 +198,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUInt64 a |] -> Ply(DFloat(float a))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "uint64Parse" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType =
-        TypeReference.result
-          TUInt64
-          (TCustomType(
-            { originalName = []
-              resolved =
-                Ok(
-                  FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint64ParseError ())
-                ) },
-            []
-          ))
-      description = "Returns the <type UInt64> value of a <type String>"
-      fn =
-        let typeName =
-          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint64ParseError ())
-        let resultOk = Dval.resultOk KTUInt64 (KTCustomType(typeName, []))
-        let resultError = Dval.resultError KTUInt64 (KTCustomType(typeName, []))
-        (function
-        | _, _, _, [| DString s |] ->
-          try
-            s |> System.Convert.ToUInt64 |> DUInt64 |> resultOk |> Ply
-          with
-          | :? System.FormatException ->
-            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
-          | :? System.OverflowException ->
-            ParseError.OutOfRange |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

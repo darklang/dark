@@ -88,7 +88,9 @@ let toFloat(a: Int128): Float = Builtin.int128ToFloat(a)
 let parse(
   s: String)
   : Stdlib.Result.Result<Int128, Stdlib.Int128.ParseError> =
-  Builtin.int128Parse(s)
+  match Stdlib.Int.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toInt128(n), Stdlib.Int128.ParseError.OutOfRange)
+  | Error(_) -> Error(Stdlib.Int128.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type Int128>.

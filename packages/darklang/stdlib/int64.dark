@@ -113,7 +113,9 @@ let fromFloatRounded(a: Float): Stdlib.Option.Option<Int64> =
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int64> range).
 let parse(s: String): Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
-  Builtin.int64Parse(s)
+  match Stdlib.Int.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toInt64(n), Stdlib.Int64.ParseError.OutOfRange)
+  | Error(_) -> Error(Stdlib.Int64.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type Int64>.
