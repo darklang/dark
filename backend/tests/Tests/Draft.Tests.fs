@@ -3,8 +3,9 @@
 /// What `dark discard` and collapse drop, and what they must leave, is tested in Dark, in
 /// `packages/darklang/tests/scm/draft.dark`. The tests here stay because they inject a failure
 /// into the rewrite (`rewriteOpsAtomically`), open a race window through an F# hook
-/// (`refreshWith`, `rebuildWith`, a `rebuild` handed a stale read), or plant an op blob this
-/// build cannot decode.
+/// (`refreshWith`, `rebuildWith`, a `rebuild` handed a stale read), plant an op blob this
+/// build cannot decode, or read where committed ops sit in the log, which nothing in the SCM
+/// reports.
 module Tests.Draft
 
 open Expecto
@@ -379,6 +380,42 @@ let anAuthorAfterTheDraftWasChosenFromSurvivesARebuild =
   }
 
 
+/// Where main's oldest committed op sits in the log. A rebuild deletes and re-inserts every main
+/// op, which moves this; a surgical drop does not.
+let private firstCommittedRowid () : Task<int64> =
+  Sql.query
+    "SELECT COALESCE(MIN(rowid), -1) AS n FROM package_ops
+     WHERE commit_hash IS NOT NULL AND id NOT IN (SELECT op_id FROM op_branches)"
+  |> Sql.executeRowAsync (fun read -> read.int64 "n")
+
+/// Rebuilding main to drop a draft op leaves every other reader a half-empty store while it runs,
+/// and a rebuild with nothing to remove is pure risk. A discard touches only the rows the draft
+/// wrote, with or without a draft to drop, and an unmoved committed rowid is the evidence.
+let aDiscardLeavesTheCommittedLogInPlace =
+  testTask "a discard leaves the committed log in place" {
+    let m = "DraftTestScoped"
+    do! cleanup m
+
+    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet s(): Int64 = 7001L"
+    let! _ = commitAll "draft test: scoped"
+    let! rowidBefore = firstCommittedRowid ()
+    Expect.notEqual rowidBefore -1L "there is a committed op to watch"
+
+    let! empty = runDarkResult "Darklang.SCM.Draft.discardAll()"
+    Expect.equal empty (Ok 0L) "an empty draft drops nothing"
+    let! afterEmpty = firstCommittedRowid ()
+    Expect.equal afterEmpty rowidBefore "and rewrites nothing"
+
+    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet d(): Int64 = 7002L"
+    let! dropped = runDarkResult "Darklang.SCM.Draft.discardAll()"
+    Expect.isGreaterThan (unwrap dropped) 0L "the draft op was dropped"
+    let! afterDrop = firstCommittedRowid ()
+    Expect.equal afterDrop rowidBefore "and the committed log did not move"
+
+    do! cleanup m
+  }
+
+
 let tests =
   // The draft is SHARED: `discard` drops every uncommitted op on main, which includes whatever a
   // concurrently-running test just authored. Anything that drops the draft has to run alone, so
@@ -391,4 +428,5 @@ let tests =
       aFailedRewriteLeavesTheDraftIntact
       aRefreshDoesNotEatAnAuthorThatLandedMidway
       aPullInsideARebuildsWindowSurvivesIt
-      anAuthorAfterTheDraftWasChosenFromSurvivesARebuild ]
+      anAuthorAfterTheDraftWasChosenFromSurvivesARebuild
+      aDiscardLeavesTheCommittedLogInPlace ]

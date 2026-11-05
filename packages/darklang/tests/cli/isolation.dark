@@ -59,18 +59,9 @@ test stateAndEnvironmentAreIsolated =
 /// Ignore the write error to check that the runner still detects it and retries
 /// on a writable copy. When sharing is unavailable, the test starts on a copy.
 test writingTestGetsItsOwnCopy =
-  let db = Stdlib.LocalStore.path()
-  let _ =
-    Stdlib.Sqlite.exec(
-      db,
-      "INSERT OR REPLACE INTO config_v0 (key, value) VALUES ('isolation-probe', 'written')"
-    )
-  Stdlib.Sqlite.column(
-    db,
-    "SELECT value FROM config_v0 WHERE key = 'isolation-probe'",
-    "value"
-  )
-  |> Stdlib.Test.equal([ "written" ])
+  let _ = Stdlib.LocalStore.configSet("test.isolation-probe", "written")
+  Stdlib.LocalStore.configGet("test.isolation-probe")
+  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("written"))
 
 
 let runtimeFailure(): Int =

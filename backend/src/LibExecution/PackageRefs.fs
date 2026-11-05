@@ -210,8 +210,6 @@ module Type =
     let option = p [ "Option" ] "Option"
     let test = p [ "Test" ] "Result"
 
-
-    let sqliteValue = p [ "Sqlite" ] "Value"
     let localStoreBackup = p [ "LocalStore" ] "Backup"
     let localStoreBackupAction = p [ "LocalStore" ] "BackupAction"
 

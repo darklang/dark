@@ -10,32 +10,15 @@ module Darklang.SCM.Tests.Draft
 //
 // What stays in `Draft.Tests.fs`: the tests that inject a failure or open a race window
 // through F# hooks (`rewriteOpsAtomically`, `refreshWith`, `rebuildWith`, a stale
-// `rebuild` read), and the one that plants an undecodable op blob.
-
-module Store =
-  /// Direct reads, for the two facts nothing in the SCM reports: how many committed ops
-  /// main's log holds, and where the oldest one sits.
-  let committedOpCount(): Int64 =
-    Stdlib.Sqlite.scalarIntP(
-      Darklang.SCM.localDb(),
-      "SELECT count(*) AS n FROM package_ops
-       WHERE commit_hash IS NOT NULL AND id NOT IN (SELECT op_id FROM op_branches)",
-      [],
-      "n")
-    |> Stdlib.Option.withDefault(-1L)
-
-  /// A rebuild deletes and re-inserts every main op, which moves this; a surgical drop
-  /// does not.
-  let firstCommittedRowid(): Int64 =
-    Stdlib.Sqlite.scalarIntP(
-      Darklang.SCM.localDb(),
-      "SELECT MIN(rowid) AS n FROM package_ops
-       WHERE commit_hash IS NOT NULL AND id NOT IN (SELECT op_id FROM op_branches)",
-      [],
-      "n")
-    |> Stdlib.Option.withDefault(-1L)
+// `rebuild` read), the one that plants an undecodable op blob, and the one that reads
+// where committed ops sit in the log, which nothing in the SCM reports.
 
 let draftCount(): Int64 = Darklang.SCM.PackageOps.draftOpCountFor(Authoring.main())
+
+/// The ops in effect that are not main's draft: the committed ones, and any a merge brought in.
+/// A discard must leave every one of them alone.
+let committedOpCount(): Int64 =
+  Darklang.SCM.PackageOps.countOf(Darklang.SCM.PackageOps.OpFilter.Effective) - draftCount()
 
 let commit(message: String): Stdlib.Result.Result<String, String> =
   Darklang.SCM.PackageOps.commitDraft(Authoring.main(), message)
@@ -50,7 +33,7 @@ test discardDropsTheDraftAndLeavesCommittedOpsAlone =
   let m = "DraftTestOnly"
   let setup = Authoring.author(m, "let keep(): Int64 = 4001L")
   let committed = commit("draft test: committed")
-  let committedBefore = Store.committedOpCount()
+  let committedBefore = committedOpCount()
   let keepBefore = Authoring.fnHash(m, "keep")
   let edit = Authoring.author(m, "let dropMe(): Int64 = 4002L")
   let draftBefore = draftCount()
@@ -62,7 +45,7 @@ test discardDropsTheDraftAndLeavesCommittedOpsAlone =
       (draftBefore > 0L) |> Stdlib.Test.equal(true)
       dropped |> Stdlib.Test.equal(Ok(Stdlib.Int.fromInt64(draftBefore)))
       draftCount() |> Stdlib.Test.equal(0L)
-      Store.committedOpCount() |> Stdlib.Test.equal(committedBefore)
+      committedOpCount() |> Stdlib.Test.equal(committedBefore)
       Authoring.fnHash(m, "dropMe") |> Stdlib.Test.equal(Stdlib.Option.Option.None)
       Authoring.fnHash(m, "keep") |> Stdlib.Test.equal(keepBefore) ])
 
@@ -92,34 +75,14 @@ test discardingAnEmptyDraftChangesNothing =
   let m = "DraftTestEmpty"
   let setup = Authoring.author(m, "let e(): Int64 = 6001L")
   let committed = commit("draft test: empty")
-  let committedBefore = Store.committedOpCount()
-  let rowidBefore = Store.firstCommittedRowid()
+  let committedBefore = committedOpCount()
   let before = Authoring.fnHash(m, "e")
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(committed)
       discardAll() |> Stdlib.Test.equal(Ok(0))
-      Store.committedOpCount() |> Stdlib.Test.equal(committedBefore)
-      Store.firstCommittedRowid() |> Stdlib.Test.equal(rowidBefore)
+      committedOpCount() |> Stdlib.Test.equal(committedBefore)
       Authoring.fnHash(m, "e") |> Stdlib.Test.equal(before) ])
-
-
-// Rebuilding main to drop a draft op leaves every other reader a half-empty store while
-// it runs. A surgical drop touches only the rows the draft wrote, and an unmoved
-// committed rowid is the evidence.
-test discardingADraftLeavesTheCommittedLogInPlace =
-  let m = "DraftTestScoped"
-  let setup = Authoring.author(m, "let s(): Int64 = 7001L")
-  let committed = commit("draft test: scoped")
-  let rowidBefore = Store.firstCommittedRowid()
-  let edit = Authoring.author(m, "let d(): Int64 = 7002L")
-  let dropped = discardAll()
-  Stdlib.Test.all(
-    [ Authoring.ok(setup)
-      Authoring.ok(committed)
-      Authoring.ok(edit)
-      (dropped |> Stdlib.Result.map(fun n -> n > 0)) |> Stdlib.Test.equal(Ok(true))
-      Store.firstCommittedRowid() |> Stdlib.Test.equal(rowidBefore) ])
 
 
 // Collapsing drops namings of versions that stopped being what the name meant before

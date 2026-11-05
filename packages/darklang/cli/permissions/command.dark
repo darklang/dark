@@ -914,8 +914,8 @@ let help(_state: Cli.AppState): String =
     "  file read|write|read+write [ROOT]"
     "  env read|write|read+write [NAME]"
     "  process <ABSOLUTE-EXECUTABLE|*> [ARG…]"
-    "  native                           builtins that can reach anything (SQLite SQL, raw"
-    "                                   descriptors, process handles); no narrower form exists"
+    "  native                           builtins that can reach anything (raw descriptors,"
+    "                                   process handles); no narrower form exists"
     "  all"
     "  deny <rule> (in `set`)           an explicit deny; deny beats allow" ]
   |> Stdlib.String.join("\n")

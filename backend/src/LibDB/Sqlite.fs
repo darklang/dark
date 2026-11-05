@@ -19,11 +19,8 @@ let private defaultConnString = connStringFor LibConfig.Config.dbPath
 /// under a test that repointed it.
 ///
 /// Held beside `connString` rather than parsed back out of it, and it is what `Builtin.localDbPath`
-/// answers. That matters because Dark reaches the store through `Stdlib.Sqlite`, which opens the path
-/// this reports: if it answered the CONFIG path while `useStoreForTesting` moved only the F#
-/// connection, a two-instance test would run every Dark-side read -- push, pull, conflict detection,
-/// resolve -- against the default store while believing it was on instance B, and the whole Dark half
-/// of sync would be unreachable from the harness.
+/// answers, so a test that repoints the store with `useStoreForTesting` sees the same path from Dark
+/// as the F# connection uses.
 let mutable currentDbPath = LibConfig.Config.dbPath
 
 // `mutable` only so tests can repoint LibDB at a fresh store (see `Sql.useStoreForTesting`). Production
@@ -163,9 +160,8 @@ module Sql =
 
   /// Count and time every SQL statement this process runs.
   ///
-  /// Instrumenting only package-item loads leaves everything Dark code issues through `Stdlib.Sqlite`,
-  /// `pmSearch` and the SCM builtins invisible, which is most of it, and makes SQL time easy to mistake
-  /// for interpreter cost.
+  /// Instrumenting only package-item loads leaves everything issued through `pmSearch` and the SCM
+  /// builtins invisible, which is most of it, and makes SQL time easy to mistake for interpreter cost.
   ///
   /// Gated, and per-statement rather than per-row: a timestamp costs ~1.27 us on an HPET clocksource.
   let inline private timedTask (name : string) (f : unit -> Task<'a>) : Task<'a> =

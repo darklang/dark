@@ -1526,10 +1526,10 @@ let private invokeBuiltin
       []
     )
     |> raiseRTE vm.threadID
-  if not (Set.isEmpty fn.callEffects || Effects.checkedInBody fn.name.name) then
+  if not (Set.isEmpty fn.callEffects) then
     // `Native` names what no rule can scope, so a policy grants it whole or not at all --
-    // which would put `dark status` behind `permissions allow native` on a stock install,
-    // since the SCM reads its own store through raw SQLite. Bundled first-party code is
+    // which would put the CLI's own commands (the test runner, seed export, raw descriptors)
+    // behind `permissions allow native` on a stock install. Bundled first-party code is
     // trusted for it instead, the same boundary the private-network sync transport uses;
     // a pulled package calling the same builtin still needs the grant. Every other effect
     // is checked for everyone.

@@ -345,17 +345,9 @@ CPU counts from the permitted kernel inputs. HTTP server binds also cross the
 boundary; the host returns an opaque listener handle only after the exact port
 request is allowed and the bind succeeds.
 
-Arbitrary SQLite SQL is deliberately `Native`, not scoped `FileRead` or
-`FileWrite`. SQLite statements can attach, vacuum into, or otherwise open paths
-that are not the primary connection path, and the managed API does not expose a
-complete SQLite authorizer. Treating only that first path as confinement would
-be unsound.
-
-The sqlite builtins therefore declare the worst case, `native` plus the store's
-`package-read` (and `package-write` for the writers), which is what analysis and
-approval read. The interpreter does not check that declaration before the body
-(`Effects.checkedInBody`): the body knows the path and the SQL, and asks for
-exactly `package-read`/`package-write` on the store or `native` elsewhere.
+Dark code has no raw SQL. The package store is read and changed only through
+the typed package and SCM builtins, which declare `package-read` and
+`package-write`.
 
 The migration is enforced mechanically: `HostBoundary.Tests` scans compiled
 IL and fails when resource-opening OS APIs (filesystem, process, HTTP client,

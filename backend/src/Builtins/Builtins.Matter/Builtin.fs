@@ -12,10 +12,7 @@ let fnRenames : Builtin.FnRenames = []
 
 let builtins (pm : PT.PackageManager) : Builtins =
   Builtin.combine
-    [ // The raw general-purpose SQLite floor
-      Libs.Sqlite.builtins ()
-
-      // PM (package manager: packages, branches, ops)
+    [ // PM (package manager: packages, branches, ops)
       Libs.PM.Packages.builtins pm
       Libs.PM.PackageTests.builtins pm
       Libs.PM.AtRestCheckGuard.builtins ()

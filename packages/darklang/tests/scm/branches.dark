@@ -116,18 +116,13 @@ test takeTheirsAfterKeepMineDropsTheOverride =
 
 // An op's origin_ts is portable: last-writer-wins compares it on every machine holding
 // the op. So keep-mine records a NEW op and rewrites no existing stamp anywhere in the
-// store. Read straight from the log, because no command shows a stamp.
+// store. Read from the whole op log, because no command shows a stamp.
 test keepMineAddsAnOpAndRestampsNothing =
   let m = "RestampTest"
   let (b, setup) = conflicted("restamp", m)
   let stamps(): List<String> =
-    Stdlib.Sqlite.rowsP(
-      Darklang.SCM.localDb(),
-      "SELECT id, origin_ts FROM package_ops ORDER BY id",
-      [],
-      fun row ->
-        Stdlib.Option.Option.Some(
-          (Stdlib.Sqlite.textOr(row, "id")) + "=" + (Stdlib.Sqlite.textOr(row, "origin_ts"))))
+    Darklang.SCM.PackageOps.rowsOf(Darklang.SCM.PackageOps.OpFilter.Recent)
+    |> Stdlib.List.map(fun r -> r.id + "=" + r.ts)
   let before = stamps()
   let keptMine = Darklang.SCM.Branches.resolveKeepMine(b, "Tests.RestampTest.foo")
   let after = stamps()
