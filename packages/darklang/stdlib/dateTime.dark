@@ -301,6 +301,56 @@ let subtractMs(d1: DateTime, d2: DateTime): Int =
   __roundedDifference(d1, d2, 86400000, 1000000.0)
 
 
+/// Writes <param n> with leading zeros up to <param width> digits
+let zeroPadded(n: Int, width: Int): String =
+  Stdlib.String.padStart(Stdlib.toString(n), '0', width)
+
+/// The text for one {{format}} directive (the character after {{%}}), or {{None}} if it is not a directive
+let formatDirective(date: DateTime, directive: Char): Stdlib.Option.Option<String> =
+  match directive with
+  | 'Y' ->
+    let y = year(date)
+    Stdlib.Option.Option.Some(if y < 0 then "-" + zeroPadded(0 - y, 4) else zeroPadded(y, 4))
+  | 'm' -> Stdlib.Option.Option.Some(zeroPadded(month(date), 2))
+  | 'd' -> Stdlib.Option.Option.Some(zeroPadded(day(date), 2))
+  | 'H' -> Stdlib.Option.Option.Some(zeroPadded(hour(date), 2))
+  | 'M' -> Stdlib.Option.Option.Some(zeroPadded(minute(date), 2))
+  | 'S' -> Stdlib.Option.Option.Some(zeroPadded(second(date), 2))
+  | 'f' -> Stdlib.Option.Option.Some(zeroPadded(millisecond(date), 3))
+  | '%' -> Stdlib.Option.Option.Some("%")
+  | _ -> Stdlib.Option.Option.None
+
+/// Writes <param chars> of a {{format}} pattern after <param written> (kept in reverse order)
+let formatChars(date: DateTime, chars: List<Char>, written: List<String>)
+  : Stdlib.Result.Result<String, String> =
+  match chars with
+  | [] -> Stdlib.Result.Result.Ok(Stdlib.String.join(Stdlib.List.reverse(written), ""))
+  | [ '%' ] ->
+    Stdlib.Result.Result.Error("The pattern ends in a lone %; write %% for a literal %")
+  | [ '%', directive, ...rest ] ->
+    match formatDirective(date, directive) with
+    | Some(text) -> formatChars(date, rest, Stdlib.List.prepend(written, text))
+    | None ->
+      Stdlib.Result.Result.Error(
+        "Unknown directive %"
+        + Stdlib.String.fromChar(directive)
+        + "; the directives are %Y %m %d %H %M %S %f %%")
+  | [ c, ...rest ] ->
+    formatChars(date, rest, Stdlib.List.prepend(written, Stdlib.String.fromChar(c)))
+
+
+/// Writes <param date> (always UTC) using <param pattern>, where each directive is
+/// replaced by a zero-padded field and every other character is copied as is:
+/// {{%Y}} year, four digits ({{0001}}; negative years get a leading {{-}}),
+/// {{%m}} month {{01}}-{{12}}, {{%d}} day {{01}}-{{31}},
+/// {{%H}} hour {{00}}-{{23}}, {{%M}} minute {{00}}-{{59}}, {{%S}} second {{00}}-{{59}},
+/// {{%f}} milliseconds {{000}}-{{999}} (truncated, not rounded), {{%%}} a literal {{%}}.
+/// Any other {{%}} sequence, or a lone {{%}} at the end, is an {{Error}}.
+/// For example, {{format(d, "%Y-%m-%d %H:%M:%S.%f")}} gives {{Ok("2019-07-28 22:42:36.500")}}.
+let format(date: DateTime, pattern: String): Stdlib.Result.Result<String, String> =
+  formatChars(date, Stdlib.String.toList(pattern), [])
+
+
 // Shared clock implementation.
 /// Clock record decoding, scaling and interrupted-sleep retries in shared Dark.
 
