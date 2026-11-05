@@ -238,51 +238,95 @@ test greaterThanOrEqualTo =
 test fields =
   Stdlib.Test.all(
     [ Stdlib.DateTime.year(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(2019)
-      Stdlib.DateTime.month(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(7)
-      Stdlib.DateTime.day(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(28)
+      Stdlib.DateTime.month(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(Stdlib.DateTime.Month.July)
+      Stdlib.DateTime.day(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(28uy)
       // Leif's test case
-      Stdlib.DateTime.hour(d("2019-12-27T03:27:36Z")) |> Stdlib.Test.equal(3)
-      Stdlib.DateTime.minute(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(42)
-      // Monday
-      Stdlib.DateTime.weekday(d("2019-07-22T22:42:36Z")) |> Stdlib.Test.equal(1)
-      Stdlib.DateTime.weekday(d("2019-07-23T22:42:36Z")) |> Stdlib.Test.equal(2)
-      Stdlib.DateTime.weekday(d("2019-07-24T22:42:36Z")) |> Stdlib.Test.equal(3)
-      Stdlib.DateTime.weekday(d("2019-07-25T22:42:36Z")) |> Stdlib.Test.equal(4)
-      Stdlib.DateTime.weekday(d("2019-07-26T22:42:36Z")) |> Stdlib.Test.equal(5)
-      Stdlib.DateTime.weekday(d("2019-07-27T22:42:36Z")) |> Stdlib.Test.equal(6)
-      Stdlib.DateTime.weekday(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(7) ])
+      Stdlib.DateTime.hour(d("2019-12-27T03:27:36Z")) |> Stdlib.Test.equal(3uy)
+      Stdlib.DateTime.minute(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(42uy) ])
 
 test fieldsIn1919 =
   Stdlib.Test.all(
     [ Stdlib.DateTime.year(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(1919)
-      Stdlib.DateTime.month(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(7)
-      Stdlib.DateTime.day(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(28)
-      Stdlib.DateTime.weekday(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(1)
-      Stdlib.DateTime.hour(d("1919-12-27T03:27:36Z")) |> Stdlib.Test.equal(3)
-      Stdlib.DateTime.minute(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(42)
-      Stdlib.DateTime.second(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(36) ])
+      Stdlib.DateTime.month(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(Stdlib.DateTime.Month.July)
+      Stdlib.DateTime.day(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(28uy)
+      Stdlib.DateTime.weekday(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(Stdlib.DateTime.Weekday.Monday)
+      Stdlib.DateTime.hour(d("1919-12-27T03:27:36Z")) |> Stdlib.Test.equal(3uy)
+      Stdlib.DateTime.minute(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(42uy)
+      Stdlib.DateTime.second(d("1919-07-28T22:42:36Z")) |> Stdlib.Test.equal(36uy) ])
 
 test fieldsIn1969 =
   Stdlib.Test.all(
     [ Stdlib.DateTime.year(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(1969)
-      Stdlib.DateTime.month(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(7)
-      Stdlib.DateTime.day(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(28)
-      Stdlib.DateTime.weekday(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(1)
-      Stdlib.DateTime.hour(d("1969-12-27T03:27:36Z")) |> Stdlib.Test.equal(3)
-      Stdlib.DateTime.minute(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(42)
-      Stdlib.DateTime.second(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(36) ])
+      Stdlib.DateTime.month(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(Stdlib.DateTime.Month.July)
+      Stdlib.DateTime.day(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(28uy)
+      Stdlib.DateTime.weekday(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(Stdlib.DateTime.Weekday.Monday)
+      Stdlib.DateTime.hour(d("1969-12-27T03:27:36Z")) |> Stdlib.Test.equal(3uy)
+      Stdlib.DateTime.minute(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(42uy)
+      Stdlib.DateTime.second(d("1969-07-28T22:42:36Z")) |> Stdlib.Test.equal(36uy) ])
 
 test fieldsIn1970 =
   Stdlib.Test.all(
     [ Stdlib.DateTime.year(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(1970)
-      Stdlib.DateTime.month(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(7)
-      Stdlib.DateTime.day(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(28)
-      Stdlib.DateTime.weekday(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(2)
-      Stdlib.DateTime.hour(d("1970-12-27T03:27:36Z")) |> Stdlib.Test.equal(3)
-      Stdlib.DateTime.minute(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(42)
-      Stdlib.DateTime.minute(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(42)
-      Stdlib.DateTime.second(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(36)
-      Stdlib.DateTime.second(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(36) ])
+      Stdlib.DateTime.month(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(Stdlib.DateTime.Month.July)
+      Stdlib.DateTime.day(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(28uy)
+      Stdlib.DateTime.weekday(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(Stdlib.DateTime.Weekday.Tuesday)
+      Stdlib.DateTime.hour(d("1970-12-27T03:27:36Z")) |> Stdlib.Test.equal(3uy)
+      Stdlib.DateTime.minute(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(42uy)
+      Stdlib.DateTime.minute(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(42uy)
+      Stdlib.DateTime.second(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(36uy)
+      Stdlib.DateTime.second(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(36uy) ])
+
+// A month read from a date, its number both ways, and how `%m` prints it
+let monthCase(mm: String, n: UInt8, month: Stdlib.DateTime.Month): Stdlib.Test.Result =
+  let date = d("2019-" + mm + "-15T12:00:00Z")
+  Stdlib.Test.all(
+    [ Stdlib.DateTime.month(date) |> Stdlib.Test.equal(month)
+      Stdlib.DateTime.Month.toNumber(month) |> Stdlib.Test.equal(n)
+      Stdlib.DateTime.Month.fromNumber(n) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(month))
+      Stdlib.DateTime.format(date, "%m") |> Stdlib.Test.equal(Ok(mm)) ])
+
+test everyMonth =
+  Stdlib.Test.all(
+    [ monthCase("01", 1uy, Stdlib.DateTime.Month.January)
+      monthCase("02", 2uy, Stdlib.DateTime.Month.February)
+      monthCase("03", 3uy, Stdlib.DateTime.Month.March)
+      monthCase("04", 4uy, Stdlib.DateTime.Month.April)
+      monthCase("05", 5uy, Stdlib.DateTime.Month.May)
+      monthCase("06", 6uy, Stdlib.DateTime.Month.June)
+      monthCase("07", 7uy, Stdlib.DateTime.Month.July)
+      monthCase("08", 8uy, Stdlib.DateTime.Month.August)
+      monthCase("09", 9uy, Stdlib.DateTime.Month.September)
+      monthCase("10", 10uy, Stdlib.DateTime.Month.October)
+      monthCase("11", 11uy, Stdlib.DateTime.Month.November)
+      monthCase("12", 12uy, Stdlib.DateTime.Month.December) ])
+
+test monthFromNumberOutOfRange =
+  Stdlib.Test.all(
+    [ Stdlib.DateTime.Month.fromNumber(0uy) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.DateTime.Month.fromNumber(13uy) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.DateTime.Month.fromNumber(255uy) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+let weekdayCase(date: String, n: UInt8, weekday: Stdlib.DateTime.Weekday): Stdlib.Test.Result =
+  Stdlib.Test.all(
+    [ Stdlib.DateTime.weekday(d(date + "T12:00:00Z")) |> Stdlib.Test.equal(weekday)
+      Stdlib.DateTime.Weekday.toNumber(weekday) |> Stdlib.Test.equal(n)
+      Stdlib.DateTime.Weekday.fromNumber(n) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(weekday)) ])
+
+test everyWeekday =
+  Stdlib.Test.all(
+    [ weekdayCase("2019-07-22", 1uy, Stdlib.DateTime.Weekday.Monday)
+      weekdayCase("2019-07-23", 2uy, Stdlib.DateTime.Weekday.Tuesday)
+      weekdayCase("2019-07-24", 3uy, Stdlib.DateTime.Weekday.Wednesday)
+      weekdayCase("2019-07-25", 4uy, Stdlib.DateTime.Weekday.Thursday)
+      weekdayCase("2019-07-26", 5uy, Stdlib.DateTime.Weekday.Friday)
+      weekdayCase("2019-07-27", 6uy, Stdlib.DateTime.Weekday.Saturday)
+      weekdayCase("2019-07-28", 7uy, Stdlib.DateTime.Weekday.Sunday) ])
+
+test weekdayFromNumberOutOfRange =
+  Stdlib.Test.all(
+    [ Stdlib.DateTime.Weekday.fromNumber(0uy) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.DateTime.Weekday.fromNumber(8uy) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.DateTime.Weekday.fromNumber(255uy) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 test toString =
   Stdlib.toString(d("2019-07-28T22:42:36Z"))
@@ -425,20 +469,20 @@ test fromMilliseconds =
 test millisecond =
   Stdlib.Test.all(
     [ Stdlib.DateTime.millisecond(dMs("2019-07-28T22:42:36.456Z"))
-      |> Stdlib.Test.equal(456)
+      |> Stdlib.Test.equal(456us)
       Stdlib.DateTime.millisecond(dMs("2019-07-28T22:42:36.000Z"))
-      |> Stdlib.Test.equal(0)
-      Stdlib.DateTime.millisecond(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(0)
+      |> Stdlib.Test.equal(0us)
+      Stdlib.DateTime.millisecond(d("2019-07-28T22:42:36Z")) |> Stdlib.Test.equal(0us)
       Stdlib.DateTime.millisecond(dMs("2019-07-28T22:42:36.001Z"))
-      |> Stdlib.Test.equal(1)
+      |> Stdlib.Test.equal(1us)
       Stdlib.DateTime.millisecond(dMs("2019-07-28T22:42:36.999Z"))
-      |> Stdlib.Test.equal(999) ])
+      |> Stdlib.Test.equal(999us) ])
 
 test addMilliseconds =
   Stdlib.Test.all(
     [ ams("2020-11-26T04:37:46Z", 0) |> Stdlib.Test.equal(d("2020-11-26T04:37:46Z"))
       (ams("2020-11-26T04:37:46Z", 500)) |> Stdlib.DateTime.millisecond
-      |> Stdlib.Test.equal(500)
+      |> Stdlib.Test.equal(500us)
       ams("2020-11-26T04:37:46Z", 1000) |> Stdlib.Test.equal(d("2020-11-26T04:37:47Z"))
       (ams("2020-11-26T04:37:46Z", 1500)) |> Stdlib.toString
       |> Stdlib.Test.equal("2020-11-26T04:37:47.500Z")
@@ -449,7 +493,7 @@ test subtractMilliseconds =
   Stdlib.Test.all(
     [ sms("2020-11-26T04:37:46Z", 0) |> Stdlib.Test.equal(d("2020-11-26T04:37:46Z"))
       (sms("2020-11-26T04:37:46Z", 500)) |> Stdlib.DateTime.millisecond
-      |> Stdlib.Test.equal(500)
+      |> Stdlib.Test.equal(500us)
       sms("2020-11-26T04:37:46Z", 1000) |> Stdlib.Test.equal(d("2020-11-26T04:37:45Z"))
       (sms("2020-11-26T04:37:46Z", -500)) |> Stdlib.toString
       |> Stdlib.Test.equal("2020-11-26T04:37:46.500Z") ])

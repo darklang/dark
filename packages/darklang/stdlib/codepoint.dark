@@ -1,4 +1,12 @@
+/// Unicode codepoints, as <type UInt32>. A string can hold any scalar value: a
+/// codepoint up to {{0x10FFFF}} that is not a surrogate ({{0xD800}} to
+/// {{0xDFFF}}). Unassigned codepoints are still scalars. <type Char> stays a
+/// grapheme cluster; <fn Char.toCodepoint> and <fn Char.fromCodepoint> convert.
 module Darklang.Stdlib.Codepoint
+
+
+/// The largest codepoint, {{0x10FFFF}}.
+let max(): UInt32 = 1114111ul
 
 
 /// Return whether the value is a Unicode scalar: at most 0x10FFFF and not
@@ -6,6 +14,18 @@ module Darklang.Stdlib.Codepoint
 let isValidScalar(codepoint: UInt32): Bool =
   codepoint <= 1114111ul
   && (codepoint < 55296ul || codepoint > 57343ul)
+
+
+/// Return {{Some}} codepoint for <param i> if it is a Unicode scalar value,
+/// otherwise {{None}}: negative, past {{0x10FFFF}}, or a surrogate.
+let fromInt(i: Int): Stdlib.Option.Option<UInt32> =
+  match Stdlib.Int.toUInt32(i) with
+  | Some(codepoint) ->
+    if isValidScalar(codepoint) then
+      Stdlib.Option.Option.Some(codepoint)
+    else
+      Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
 
 
 /// Return whether the scalar is a Unicode letter. Invalid scalars return false.

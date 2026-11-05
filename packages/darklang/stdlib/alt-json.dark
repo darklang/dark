@@ -261,7 +261,7 @@ module Parse =
 
   /// {{None}} for a surrogate, which is not a scalar a string can hold.
   let codepointText(codepoint: Int): Option.Option<String> =
-    Int.toUInt32(codepoint)
+    Codepoint.fromInt(codepoint)
     |> Option.andThen(Char.fromCodepoint)
     |> Option.map(String.fromChar)
 

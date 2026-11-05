@@ -1078,7 +1078,10 @@ test toCodepoints =
       |> Stdlib.Test.equal([ 104ul, 233ul, 108ul, 108ul, 111ul ])
       // One cluster containing three codepoints.
       Stdlib.String.toCodepoints("👩‍👧")
-      |> Stdlib.Test.equal([ 128105ul, 8205ul, 128103ul ]) ])
+      |> Stdlib.Test.equal([ 128105ul, 8205ul, 128103ul ])
+      // 0, the top of Latin-1, and the largest codepoint.
+      Stdlib.String.toCodepoints("\u0000ÿ\U0010FFFF")
+      |> Stdlib.Test.equal([ 0ul, 255ul, 1114111ul ]) ])
 
 test codepointLength =
   Stdlib.Test.all(

@@ -51,17 +51,18 @@ let encodeChar(c: Char): String =
       | None -> "")
     |> Stdlib.String.join("")
   | Some(code) ->
-    if code == 92 then "\\\\"
-    else if code == 7 then "\\a"
-    else if code == 8 then "\\b"
-    else if code == 9 then "\\t"
-    else if code == 10 then "\\n"
-    else if code == 11 then "\\v"
-    else if code == 12 then "\\f"
-    else if code == 13 then "\\r"
-    else if code < 32 || code == 127 then
-      let hi = code / 16
-      let lo = code % 16
+    if code == 92uy then "\\\\"
+    else if code == 7uy then "\\a"
+    else if code == 8uy then "\\b"
+    else if code == 9uy then "\\t"
+    else if code == 10uy then "\\n"
+    else if code == 11uy then "\\v"
+    else if code == 12uy then "\\f"
+    else if code == 13uy then "\\r"
+    else if code < 32uy || code == 127uy then
+      let n = Stdlib.Int.fromUInt8(code)
+      let hi = n / 16
+      let lo = n % 16
       $"\\x{hexDigitChar(hi)}{hexDigitChar(lo)}"
     else
       Stdlib.toString(c)
