@@ -75,12 +75,7 @@ let performInputAction(state: State, inp: InputState): Step =
           match Packages.Location.parseRelativeTo(state.location, inp.field.text) with
           | Error(e) -> Step.Continue({ state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Failed, message = "rename failed: " + e })
           | Ok(newLoc) ->
-            // Three separate fields, never one tuple: `SetName((a, b, c))` passes a single tuple and
-            // fails at runtime with "Expected 3 fields ... but got 1", which takes the CLI down.
-            //
-            // The predecessor is None because a rename binds this content at a name that was not in use:
-            // "no predecessor known" is the honest answer, and the divergence detector only concludes
-            // anything when BOTH sides claim one.
+            // Bindings and caller reference names are one refactoring operation.
             // `modules` is `modulePathOf`, owner first; a location keeps the owner apart. Using the whole
             // path here unbound a name that does not exist, so the old name stayed bound.
             let oldLoc =
@@ -95,7 +90,7 @@ let performInputAction(state: State, inp: InputState): Step =
             match
               SCM.PackageOps.add(
                 state.branchId,
-                Packages.Rename.ops(oldLoc, newLoc, reference))
+                Packages.Rename.ops(state.branchId, oldLoc, newLoc, reference))
             with
             | Ok(_) ->
               Step.Continue(

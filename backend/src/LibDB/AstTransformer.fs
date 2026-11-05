@@ -20,13 +20,14 @@ module PackageItem = LibDB.PackageItem
 /// resolutions written before location tracking, or test-factory data
 /// that bypasses the resolver).
 ///
-/// `byLocationRename` updates the stored location on refs when a source item
-/// moved names but kept the same content hash.
 type HashMapping =
   {
     byLocation : Map<PT.PackageLocation, Hash>
     byHash : Map<Hash, Hash>
-    byLocationRename : Map<PT.PackageLocation, PT.PackageLocation>
+    referenceName :
+      Option<Option<PT.Reference>
+        -> Option<PT.PackageLocation>
+        -> Option<PT.PackageLocation>>
 
     /// The implementation each trait-method call resolved to, by the node its name is at.
     ///
@@ -45,7 +46,7 @@ type HashMapping =
 let emptyMapping : HashMapping =
   { byLocation = Map.empty
     byHash = Map.empty
-    byLocationRename = Map.empty
+    referenceName = None
     pins = Map.empty
     boundImpls = Map.empty }
 
@@ -65,6 +66,7 @@ let private transformNameResolution
   (nr : PT.NameResolution<'a>)
   (transform : Hash -> 'a) // rebuild the value from a new Hash
   (getPackageId : 'a -> Option<Hash>) // extracts the Hash from a resolved name
+  (kind : PT.ItemKind)
   : PT.NameResolution<'a> =
   match nr.resolved with
   | Ok resolved ->
@@ -72,16 +74,25 @@ let private transformNameResolution
     | Some hash ->
       let newHash = replaceHash mapping resolved.location hash
       let newLocation =
-        resolved.location
-        |> Option.map (fun loc ->
-          Map.tryFind loc mapping.byLocationRename |> Option.defaultValue loc)
+        match mapping.referenceName with
+        | Some rename ->
+          rename (Some(PT.Reference.fromHashAndKind (hash, kind))) resolved.location
+        | None -> resolved.location
       if newHash = hash && newLocation = resolved.location then
         nr
       else
         { nr with
             resolved = Ok { name = transform newHash; location = newLocation } }
-    | None -> nr
-  | Error _ -> nr
+    | None ->
+      mapping.referenceName
+      |> Option.iter (fun visit ->
+        visit None resolved.location |> ignore<Option<PT.PackageLocation>>)
+      nr
+  | Error _ ->
+    mapping.referenceName
+    |> Option.iter (fun visit ->
+      visit None None |> ignore<Option<PT.PackageLocation>>)
+    nr
 
 /// The implementation the save chose for the trait-method call at this node, written onto its
 /// name. Nothing else can be pinned, and a node the save had no answer for is left alone: a
@@ -94,9 +105,9 @@ let private movedRef
   { r with
       name = replaceHash mapping r.location r.name
       location =
-        r.location
-        |> Option.map (fun loc ->
-          Map.tryFind loc mapping.byLocationRename |> Option.defaultValue loc) }
+        match mapping.referenceName with
+        | Some rename -> rename (Some(PT.PackageFn r.name)) r.location
+        | None -> r.location }
 
 
 let private pinAt
@@ -205,6 +216,7 @@ let private transformFnName
         asTrait
         PT.FQTraitName.Package
         PackageItem.traitPackageHash
+        PT.ItemKind.Trait
     match moved.resolved with
     | Ok { name = PT.FQTraitName.Package newHash; location = newLoc } ->
       { nr with
@@ -216,7 +228,12 @@ let private transformFnName
                 location = newLoc } }
     | Error _ -> nr
   | _ ->
-    transformNameResolution mapping nr PT.FQFnName.Package PackageItem.fnPackageHash
+    transformNameResolution
+      mapping
+      nr
+      PT.FQFnName.Package
+      PackageItem.fnPackageHash
+      PT.ItemKind.Fn
 
 let rec private transformTypeRef
   (mapping : HashMapping)
@@ -263,7 +280,8 @@ let rec private transformTypeRef
         mapping
         nr
         PT.FQTypeName.Package
-        PackageItem.typePackageHash,
+        PackageItem.typePackageHash
+        PT.ItemKind.Type,
       typeArgs |> List.map (transformTypeRef mapping)
     )
 
@@ -333,7 +351,8 @@ and private transformPipeExpr
         mapping
         nr
         PT.FQTypeName.Package
-        PackageItem.typePackageHash,
+        PackageItem.typePackageHash
+        PT.ItemKind.Type,
       caseName,
       fields |> List.map (transformExpr mapping)
     )
@@ -449,7 +468,8 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
         mapping
         nr
         PT.FQTypeName.Package
-        PackageItem.typePackageHash,
+        PackageItem.typePackageHash
+        PT.ItemKind.Type,
       typeArgs |> List.map (transformTypeRef mapping),
       fields |> List.map (fun (name, expr) -> (name, transformExpr mapping expr))
     )
@@ -471,7 +491,8 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
         mapping
         nr
         PT.FQTypeName.Package
-        PackageItem.typePackageHash,
+        PackageItem.typePackageHash
+        PT.ItemKind.Type,
       typeArgs |> List.map (transformTypeRef mapping),
       caseName,
       fields |> List.map (transformExpr mapping)
@@ -485,6 +506,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
         nr
         PT.FQValueName.Package
         PackageItem.valuePackageHash
+        PT.ItemKind.Value
     )
 
   | PT.EUnwrap(id, operand) -> PT.EUnwrap(id, transformExpr mapping operand)
@@ -501,6 +523,7 @@ let private transformTraitRef
         t.trait_
         PT.FQTraitName.Package
         PackageItem.traitPackageHash
+        PT.ItemKind.Trait
     typeArgs = t.typeArgs |> List.map (transformTypeRef mapping) }
 
 let private transformBound (mapping : HashMapping) (b : PT.Bound) : PT.Bound =

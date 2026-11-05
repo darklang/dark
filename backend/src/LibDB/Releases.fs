@@ -8,16 +8,9 @@
 /// which is not shipped. So a projection whose shape changed needs a step here too, and `locations` has
 /// two. Fixing that properly means teaching startup to notice the drift and re-fold; until then, a step.
 ///
-/// This is THE mechanism, and the only one. There used to be a second (`migrations/incremental/*.sql`,
-/// now deleted) with no written rule for choosing between them, which is how the same migration got
-/// written twice and failed in both directions: a raw `.sql` file runs on FRESH stores too, where the
-/// schema has already created the table with the new shape, and `ALTER TABLE ... ADD COLUMN` then fails
-/// with "duplicate column name" -- SQLite has no `ADD COLUMN IF NOT EXISTS`. A step has to LOOK at the
-/// store before acting, which a raw SQL file cannot.
-///
-/// So steps are code: stable name, at most once per store, recorded in `system_migrations_v0` inside a
-/// transaction. Every step must be safe against a store that already has the desired shape, since that is
-/// what a fresh store is. `addColumnIfMissing` checks before it acts.
+/// Dated schema files may add columns with ALTER TABLE ... ADD COLUMN. The schema
+/// runner guards those statements with addColumnIfMissing before release steps
+/// and indexes run. Release steps remain responsible for data migrations.
 module LibDB.Releases
 
 open Fumble
@@ -76,24 +69,38 @@ type Step = { name : string; run : unit -> unit }
 exception StepFailed of step : string * inner : exn
 
 
+/// Fill in operation kinds for rows we can decode. Leave their saved bytes unchanged.
+let populateOpKinds () : unit =
+  let rows =
+    Sql.query "SELECT id, op_blob FROM package_ops WHERE op_kind = 'unknown'"
+    |> Sql.execute (fun r -> r.uuid "id", r.bytes "op_blob")
+  let rows =
+    match rows with
+    | Ok rows -> rows
+    | Error error -> raise error
+  let updates =
+    rows
+    |> List.choose (fun (id, blob) ->
+      let kind =
+        LibSerialization.Binary.Serialization.PT.PackageOp.kindOfBlob id blob
+      if kind = "unknown" then
+        None
+      else
+        Some [ "id", Sql.uuid id; "kind", Sql.string kind ])
+  if not (List.isEmpty updates) then
+    Sql.executeTransactionSync
+      [ "UPDATE package_ops SET op_kind = @kind WHERE id = @id", updates ]
+    |> ignore<List<int>>
+
 let steps : List<Step> =
-  // EMPTY, and that is the state this file was reset to rather than a mechanism nobody wired up.
-  //
-  // Every step this list used to hold brought a store up to a shape from BEFORE the schema was cut
-  // into one file (`migrations/schema/00-initial-schema.sql`). A store that old cannot be opened by
-  // this build whatever these did -- the molt dropped the sync tables, the user-space tables and
-  // `commits.author` -- so carrying them would have been pretending to support an upgrade that
-  // does not work. They are in git, at the commit that cut the schema, if one is ever wanted as a
-  // model.
-  //
-  // The mechanism is untouched and is the one to use for the NEXT change. APPEND ONLY: a step's
-  // name is how a store remembers having run it, so renaming one re-runs it and reordering changes
-  // what "already applied" means. `scripts/migrations/new` scaffolds a step and its schema half
-  // together, which is the point: `CREATE TABLE IF NOT EXISTS` never reaches a store that already
-  // has the table, so the schema file alone changes nothing for anybody who has run this before.
-  //
-  // NEW STEPS GO HERE.
-  []
+  [ { name = "package-op-kind"
+      run =
+        fun () ->
+          addColumnIfMissing
+            "package_ops"
+            "op_kind"
+            "TEXT NOT NULL DEFAULT 'unknown'"
+          populateOpKinds () } ]
 
 
 let private alreadyRun () : Set<string> =
@@ -108,19 +115,18 @@ let private alreadyRun () : Set<string> =
 
 /// Replay the schema statements that `keep` selects, against an existing store.
 ///
-/// Every statement in that file is `CREATE ... IF NOT EXISTS` or `INSERT OR IGNORE`, so this is safe on
-/// every startup and does nothing once the store is current. Passed in rather than read from disk: the
-/// shipped binary has no `backend/migrations` beside it.
+/// Schema text is passed in because shipped binaries have no migrations directory.
+/// CREATE and INSERT statements are idempotent; ADD COLUMN is guarded separately.
 ///
 /// Split in three on purpose, because ORDER matters against an existing store:
 ///
-///   1. tables   -- `CREATE TABLE IF NOT EXISTS` brings across anything wholly new
-///   2. columns  -- `steps` below, which is the only thing that can widen a table that already exists
+///   1. tables   -- create tables and apply guarded ADD COLUMN declarations
+///   2. steps    -- migrate existing data and support previously recorded releases
 ///   3. indexes  -- `CREATE INDEX IF NOT EXISTS`, which FAILS if it names a column step 2 just added
 ///
 /// Doing it in one pass fails exactly there: the schema indexes `package_ops(effective)`, and on a
 /// store predating that column the index cannot be created.
-let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
+let private schemaStatements (schemaSql : string) =
   // Comments FIRST, then split. The schema's comments contain semicolons ("NULL = DRAFT; Gates
   // nothing"), so splitting first cuts statements in half and SQLite reports "incomplete input".
   // No `--` appears inside a string literal in that file, so truncating at one is safe here.
@@ -132,10 +138,14 @@ let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
       | i -> line.Substring(0, i))
     |> String.concat "\n"
 
+  stripped.Split(';')
+  |> Array.map (fun st -> st.Trim())
+  |> Array.filter (fun st -> st <> "")
+
+let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
   let statements =
-    stripped.Split(';')
-    |> Array.map (fun st -> st.Trim())
-    |> Array.filter (fun st -> st <> "" && keep (st.ToUpperInvariant()))
+    schemaStatements schemaSql
+    |> Array.filter (fun st -> keep (st.ToUpperInvariant()))
 
   if not (Array.isEmpty statements) then
     use conn = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
@@ -146,12 +156,33 @@ let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
       cmd.CommandText <- st
       cmd.ExecuteNonQuery() |> ignore<int>
 
-/// Step 1: tables (and the seeded account row), which carry a wholly new table to an existing store.
+/// Step 1: tables, seeded rows, and guarded columns from the schema files.
 let applySchemaTables (schemaSql : string) : unit =
   runStatements
     (fun upper ->
       upper.StartsWith "CREATE TABLE" || upper.StartsWith "INSERT OR IGNORE")
     schemaSql
+  // SQLite lacks ADD COLUMN IF NOT EXISTS. Guard the declarations in dated
+  // files so both fresh stores and repeated startup use the same schema source.
+  for statement in schemaStatements schemaSql do
+    if
+      statement.StartsWith("ALTER TABLE", System.StringComparison.OrdinalIgnoreCase)
+    then
+      let matched =
+        System.Text.RegularExpressions.Regex.Match(
+          statement,
+          @"^ALTER\s+TABLE\s+([A-Za-z_][A-Za-z0-9_]*)\s+ADD\s+COLUMN\s+([A-Za-z_][A-Za-z0-9_]*)\s+(.+)$",
+          System.Text.RegularExpressions.RegexOptions.IgnoreCase
+          ||| System.Text.RegularExpressions.RegexOptions.Singleline
+        )
+      if not matched.Success then
+        Exception.raiseInternal
+          "Unsupported schema ALTER TABLE statement"
+          [ "sql", statement ]
+      addColumnIfMissing
+        matched.Groups[1].Value
+        matched.Groups[2].Value
+        matched.Groups[3].Value
 
 /// Step 3: indexes, once every column they name exists. `UNIQUE` has to be matched separately:
 /// `CREATE UNIQUE INDEX` does not start with "CREATE INDEX", and `package_dependencies` has one.
@@ -162,13 +193,9 @@ let applySchemaIndexes (schemaSql : string) : unit =
     schemaSql
 
 
-/// Step 2: run every step this store has not run, in order. `steps` carry new COLUMNS, which `IF NOT
-/// EXISTS` cannot. Called after the schema bootstrap, so on a fresh store every step is a no-op that
-/// records itself.
-///
-/// There is no test suite over this. Each step's guard (`addColumnIfMissing`, `tableExists`) is what
-/// makes it safe to run against a store of any age, so a new step that skips those has nothing
-/// checking it.
+/// Step 2: run unrecorded data migrations and legacy column additions in order.
+/// Schema declarations have already established the shape. Keep each step guarded
+/// because a fresh store or an earlier startup may already have applied its changes.
 let runPending () : unit =
   // A step's name is its identity in `system_migrations_v0`, so two steps sharing one would run as
   // one and record as one, silently. Refused here, where every store passes on startup, because no
@@ -206,3 +233,9 @@ let runPending () : unit =
           // the step rather than leaving it empty.
           "sql", Sql.string $"(release step: {step.name})" ]
       |> Sql.executeStatementSync
+
+
+  // A newer decoder may now understand operations received after the column
+  // migration ran. Reclassify unknown rows on startup, including when every
+  // release step has already been recorded. Canonical bytes stay unchanged.
+  populateOpKinds ()

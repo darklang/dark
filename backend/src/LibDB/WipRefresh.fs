@@ -1,13 +1,10 @@
-/// Refreshes MAIN's DRAFT by re-resolving unresolved NameResolution nodes and recomputing
-/// content-addressed hashes. Branch ops are branch-pending rather than main WIP, and committed ops
-/// are history; `Queries.getDraftOps` excludes both and this never sees them.
+/// Resolve references in main's draft when their declarations become available,
+/// then update the affected hashes and saved reference names.
+/// Keep older versions needed by renames, reference snapshots, or undo.
 ///
-/// The draft and only the draft, because `compactWipOps` and `HashStabilization.computeRealHashes`
-/// both keep ONE version per name. That is right for a draft, whose newest edit is the one that
-/// counts, and it destroys history the moment committed ops are fed through it: an ordinary
-/// authoring session (a forward reference, then the thing it referred to) takes every earlier
-/// committed version of every name out of the canonical log. `Draft.rebuild` is the path that
-/// handles the whole log, and it does not stabilize.
+/// Only main's uncommitted operations are read here. Other branches' drafts and
+/// committed operations stay unchanged. `Draft.rebuild` replays committed history
+/// without recalculating its hashes.
 module LibDB.WipRefresh
 
 open System.Threading.Tasks
@@ -21,86 +18,28 @@ module DR = LibDB.DeferredResolver
 module PackageLocation = LibDB.PackageLocation
 
 
-/// Drop superseded Add+SetName pairs so each (FQN, kind) appears at most once. Necessary,
-/// not cosmetic: WIP ops are ordered by `created_at` (1s resolution), so successive
-/// refreshes can read duplicates in non-deterministic order, and replaying out of order
-/// overwrites the latest body with an older one. One pair per FQN sidesteps that entirely.
-let private compactWipOps (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
-  let opsArr = List.toArray ops
-  let n = opsArr.Length
-
-  // Walk in reverse, recording the LAST Add+SetName pair index per (FQN, kind).
-  let lastPairIndices = System.Collections.Generic.HashSet<int>()
-  let seenFqnKinds = System.Collections.Generic.HashSet<string * string>()
-
-  let mutable i = n - 1
-  while i > 0 do
-    let key =
-      match opsArr[i - 1], opsArr[i] with
-      | PT.PackageOp.AddType _, PT.PackageOp.SetName(loc, PT.PackageType _, _) ->
-        Some(PackageLocation.toFQN loc, "type")
-      | PT.PackageOp.AddFn _, PT.PackageOp.SetName(loc, PT.PackageFn _, _) ->
-        Some(PackageLocation.toFQN loc, "fn")
-      | PT.PackageOp.AddValue _, PT.PackageOp.SetName(loc, PT.PackageValue _, _) ->
-        Some(PackageLocation.toFQN loc, "value")
-      | PT.PackageOp.AddTrait _, PT.PackageOp.SetName(loc, PT.PackageTrait _, _) ->
-        Some(PackageLocation.toFQN loc, "trait")
-      | PT.PackageOp.AddTraitImpl _,
-        PT.PackageOp.SetName(loc, PT.PackageTraitImpl _, _) ->
-        Some(PackageLocation.toFQN loc, "impl")
-      | PT.PackageOp.AddTest _, PT.PackageOp.SetName(loc, PT.PackageTest _, _) ->
-        Some(PackageLocation.toFQN loc, "test")
-      | _ -> None
-
-    match key with
-    | Some k ->
-      if not (seenFqnKinds.Contains k) then
-        seenFqnKinds.Add k |> ignore<bool>
-        lastPairIndices.Add(i - 1) |> ignore<bool>
-        lastPairIndices.Add i |> ignore<bool>
-      i <- i - 2
-    | None -> i <- i - 1
-
-  // Forward pass: keep last-pair indices and all non-pair ops.
-  let result = ResizeArray<PT.PackageOp>()
-  let mutable j = 0
-  while j < n do
-    let isPair =
-      j + 1 < n
-      && match opsArr[j], opsArr[j + 1] with
-         | PT.PackageOp.AddType _, PT.PackageOp.SetName(_, PT.PackageType _, _)
-         | PT.PackageOp.AddFn _, PT.PackageOp.SetName(_, PT.PackageFn _, _)
-         | PT.PackageOp.AddValue _, PT.PackageOp.SetName(_, PT.PackageValue _, _)
-         | PT.PackageOp.AddTrait _, PT.PackageOp.SetName(_, PT.PackageTrait _, _)
-         | PT.PackageOp.AddTraitImpl _,
-           PT.PackageOp.SetName(_, PT.PackageTraitImpl _, _)
-         | PT.PackageOp.AddTest _, PT.PackageOp.SetName(_, PT.PackageTest _, _) ->
-           true
-         | _ -> false
-
-    if isPair then
-      if lastPairIndices.Contains j then
-        result.Add opsArr[j]
-        result.Add opsArr[j + 1]
-      j <- j + 2
-    else
-      result.Add opsArr[j]
-      j <- j + 1
-
-  result |> Seq.toList
-
-
-/// Re-resolve all items in Add+SetName pairs, using the location for context.
-///
-/// ITERATIVE, not recursive. A recursive walk (`do! processOps rest`) is one nested task
-/// per op, and F#'s task builder doesn't make that a tail call, so stack depth would grow
-/// with the size of the op log -- which on main is the whole log, on every author. Walking
-/// an array with a `while` keeps depth O(1) whatever the log size.
+/// Resolve missing references using each declaration's owner and module.
+/// Use a loop so a large draft doesn't build up nested tasks.
 let private reResolveAllItems
   (pm : PT.PackageManager)
   (ops : List<PT.PackageOp>)
   : Task<List<PT.PackageOp>> =
   task {
+    let! referenceNames = ReferenceNames.load PT.BranchId.Main
+    let referenceNames =
+      ops
+      // For a -> b -> c, copy reference names back from c to b, then b to a.
+      // That gives the original declaration the names used after both renames.
+      |> List.rev
+      |> List.fold
+        (fun state op ->
+          match op with
+          | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
+            match Map.tryFind (newLocation, target) state with
+            | Some names -> Map.add (oldLocation, target) names state
+            | None -> state
+          | _ -> state)
+        referenceNames
     let result = ResizeArray<PT.PackageOp>()
     let arr = List.toArray ops
     let mutable i = 0
@@ -111,6 +50,7 @@ let private reResolveAllItems
       match pair with
       | Some(PT.PackageOp.AddType t,
              PT.PackageOp.SetName(loc, (PT.PackageType _ as target), prev)) ->
+        let t = ReferenceNames.patchType referenceNames loc t
         let! reResolved = DR.reResolveType pm loc.owner loc.modules t |> Ply.toTask
         result.Add(PT.PackageOp.AddType reResolved)
         result.Add(PT.PackageOp.SetName(loc, target, prev))
@@ -118,6 +58,7 @@ let private reResolveAllItems
 
       | Some(PT.PackageOp.AddFn f,
              PT.PackageOp.SetName(loc, (PT.PackageFn _ as target), prev)) ->
+        let f = ReferenceNames.patchFn referenceNames loc f
         let! reResolved = DR.reResolveFn pm loc.owner loc.modules f |> Ply.toTask
         result.Add(PT.PackageOp.AddFn reResolved)
         result.Add(PT.PackageOp.SetName(loc, target, prev))
@@ -125,6 +66,7 @@ let private reResolveAllItems
 
       | Some(PT.PackageOp.AddValue v,
              PT.PackageOp.SetName(loc, (PT.PackageValue _ as target), prev)) ->
+        let v = ReferenceNames.patchValue referenceNames loc v
         let! reResolved = DR.reResolveValue pm loc.owner loc.modules v |> Ply.toTask
         result.Add(PT.PackageOp.AddValue reResolved)
         result.Add(PT.PackageOp.SetName(loc, target, prev))
@@ -132,6 +74,7 @@ let private reResolveAllItems
 
       | Some(PT.PackageOp.AddTrait t,
              PT.PackageOp.SetName(loc, (PT.PackageTrait _ as target), prev)) ->
+        let t = ReferenceNames.patchTrait referenceNames loc t
         let! reResolved = DR.reResolveTrait pm loc.owner loc.modules t |> Ply.toTask
         result.Add(PT.PackageOp.AddTrait reResolved)
         result.Add(PT.PackageOp.SetName(loc, target, prev))
@@ -139,6 +82,7 @@ let private reResolveAllItems
 
       | Some(PT.PackageOp.AddTraitImpl impl,
              PT.PackageOp.SetName(loc, (PT.PackageTraitImpl _ as target), prev)) ->
+        let impl = ReferenceNames.patchImpl referenceNames loc impl
         let! reResolved =
           DR.reResolveImpl pm loc.owner loc.modules loc.name impl |> Ply.toTask
         result.Add(PT.PackageOp.AddTraitImpl reResolved)
@@ -147,6 +91,7 @@ let private reResolveAllItems
 
       | Some(PT.PackageOp.AddTest test,
              PT.PackageOp.SetName(loc, (PT.PackageTest _ as target), prev)) ->
+        let test = ReferenceNames.patchTest referenceNames loc test
         let! reResolved =
           DR.reResolveTest pm loc.owner loc.modules test |> Ply.toTask
         result.Add(PT.PackageOp.AddTest reResolved)
@@ -161,65 +106,284 @@ let private reResolveAllItems
   }
 
 
-/// Refresh all of MAIN's WIP items:
-/// 1. Get all WIP ops
-/// 2. Compact superseded edits to one pair per FQN (required for correctness;
-///    runs before re-resolution so we don't re-resolve N copies of the same
-///    item's NRs only to throw the older copies away).
-/// 3. Re-resolve unresolved NameResolutions using current PM
-/// 4. Run HashStabilization.computeRealHashes
-/// 5. If the ops changed at all, discard old WIP and re-insert, unless the draft moved since step 1
-/// 6. Return count of changed items, or `None` if the draft moved and nothing was written
+/// Find each declaration's name after the renames that follow it.
+let private currentDeclarationLocations ops =
+  let indexed = List.indexed ops
+  let renames =
+    indexed
+    |> List.choose (fun (i, op) ->
+      match op with
+      | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
+        Some(i, oldLocation, newLocation, target)
+      | _ -> None)
+  indexed
+  |> List.pairwise
+  |> List.choose (fun ((_, declaration), (i, binding)) ->
+    PT.tryDeclarationBinding (declaration, binding)
+    |> Option.map (fun (location, target) ->
+      let current =
+        renames
+        |> List.fold
+          (fun current (j, oldLocation, newLocation, renamed) ->
+            if j > i && current = oldLocation && target = renamed then
+              newLocation
+            else
+              current)
+          location
+      i, current))
+  |> Map.ofList
+
+/// Select the declaration each name currently binds, including restored versions.
+/// Return a function that puts the refreshed declarations back into the original
+/// operation list, keeping older versions unchanged.
+let private refreshableOps ops =
+  let indexed = List.indexed ops
+  let locations = currentDeclarationLocations ops
+  let live =
+    ops
+    |> List.collect PT.packageOpBindingEffects
+    |> List.fold
+      (fun bindings op ->
+        match op with
+        | PT.PackageOp.SetName(location, target, _)
+        | PT.PackageOp.Decision(_, location, _, PT.DecisionKind.Override target) ->
+          Map.add location target bindings
+        | PT.PackageOp.Unbind(location, _) -> Map.remove location bindings
+        | _ -> bindings)
+      Map.empty
+  let latest =
+    indexed
+    |> List.choose (fun (i, op) ->
+      match op, Map.tryFind i locations with
+      | PT.PackageOp.SetName(_, target, _), Some location when
+        Map.tryFind location live = Some target
+        ->
+        Some(location, i)
+      | _ -> None)
+    |> Map.ofList
+  let frozen =
+    locations
+    |> Map.toList
+    |> List.collect (fun (i, location) ->
+      if Map.tryFind location latest = Some i then [] else [ i - 1; i ])
+    |> Set.ofList
+  indexed
+  |> List.filter (fun (i, _) -> not (Set.contains i frozen))
+  |> List.map snd,
+  fun (refreshed : List<PT.PackageOp>) ->
+    let active = indexed |> List.filter (fun (i, _) -> not (Set.contains i frozen))
+    let replacements =
+      List.zip active refreshed
+      |> List.map (fun ((i, _), replacement) -> i, replacement)
+      |> Map.ofList
+    indexed
+    |> List.map (fun (i, op) -> Map.tryFind i replacements |> Option.defaultValue op)
+
+/// Calculate hashes using the declarations' current names so recursive calls
+/// still connect to the declarations they refer to after a rename.
+/// Then put the original SetName locations back so the saved renames replay in order.
+let private stabilizeAtCurrentNames ops =
+  let indexed = List.indexed ops
+  let locations = currentDeclarationLocations ops
+  let forHashing =
+    indexed
+    |> List.map (fun (i, op) ->
+      match op, Map.tryFind i locations with
+      | PT.PackageOp.SetName(_, target, previous), Some location ->
+        PT.PackageOp.SetName(location, target, previous)
+      | _ -> op)
+  HS.computeRealHashes forHashing
+  |> List.map2
+    (fun original refreshed ->
+      match original, refreshed with
+      | PT.PackageOp.SetName(location, _, _),
+        PT.PackageOp.SetName(_, target, previous) ->
+        PT.PackageOp.SetName(location, target, previous)
+      | _ -> refreshed)
+    ops
+
+/// Update bindings and saved reference names to match the refreshed declarations.
+/// Update undo's revision IDs too, since changing an operation changes its ID.
+/// The caller keeps the original timestamps when saving these operations.
+let private refreshSnapshots before after =
+  let replacements =
+    List.zip (List.pairwise before) (List.pairwise after)
+    |> List.choose
+      (fun ((oldDeclaration, oldBinding), (newDeclaration, newBinding)) ->
+        match
+          PT.tryDeclarationBinding (oldDeclaration, oldBinding),
+          PT.tryDeclarationBinding (newDeclaration, newBinding)
+        with
+        | Some(location, oldTarget), Some(_, newTarget) when oldTarget <> newTarget ->
+          Some(
+            (location, oldTarget),
+            (newTarget,
+             ReferenceNamesContent.refreshNames oldDeclaration newDeclaration)
+          )
+        | _ -> None)
+    |> Map.ofList
+  // A declaration can move more than once before its forward references resolve.
+  // Carry its refreshed version through each rename, so a -> b -> c updates c too.
+  let replacements =
+    after
+    |> List.fold
+      (fun replacements op ->
+        match op with
+        | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
+          match Map.tryFind (oldLocation, target) replacements with
+          | Some replacement ->
+            Map.add (newLocation, target) replacement replacements
+          | None -> replacements
+        | _ -> replacements)
+      replacements
+  let snapshot (snapshot : PT.ReferenceNamesSnapshot) =
+    match Map.tryFind (snapshot.location, snapshot.target) replacements with
+    | Some(target, refreshNames) ->
+      { snapshot with target = target; names = refreshNames snapshot.names }
+    | None -> snapshot
+  let updated =
+    after
+    |> List.map (function
+      | PT.PackageOp.SetName(location, target, previous) ->
+        let target =
+          Map.tryFind (location, target) replacements
+          |> Option.map fst
+          |> Option.defaultValue target
+        PT.PackageOp.SetName(location, target, previous)
+      | PT.PackageOp.Decision(id, location, reason, PT.DecisionKind.Override target) ->
+        let target =
+          Map.tryFind (location, target) replacements
+          |> Option.map fst
+          |> Option.defaultValue target
+        PT.PackageOp.Decision(id, location, reason, PT.DecisionKind.Override target)
+      | PT.PackageOp.Rename(oldLocation, newLocation, target, snapshots, stamp) ->
+        let newTarget =
+          Map.tryFind (oldLocation, target) replacements
+          |> Option.map fst
+          |> Option.defaultValue target
+        let snapshots =
+          snapshots
+          |> List.map (fun original ->
+            let updated = snapshot original
+            if original.location = newLocation && original.target = target then
+              match Map.tryFind (oldLocation, target) replacements with
+              | Some(target, refreshNames) ->
+                { updated with
+                    target = target
+                    names = refreshNames original.names }
+              | None -> updated
+            else
+              updated)
+        PT.PackageOp.Rename(oldLocation, newLocation, newTarget, snapshots, stamp)
+      | PT.PackageOp.SetReferenceNames(location, target, names, restating) ->
+        let updated =
+          snapshot
+            { location = location
+              target = target
+              names = names
+              restating = restating }
+        PT.PackageOp.SetReferenceNames(
+          updated.location,
+          updated.target,
+          updated.names,
+          updated.restating
+        )
+      | PT.PackageOp.Decision(id,
+                              location,
+                              reason,
+                              PT.DecisionKind.Restore(revision, target, names)) ->
+        let saved =
+          snapshot
+            { location = location; target = target; names = names; restating = None }
+        PT.PackageOp.Decision(
+          id,
+          location,
+          reason,
+          PT.DecisionKind.Restore(revision, saved.target, saved.names)
+        )
+      | op -> op)
+  let revisions =
+    List.zip before updated
+    |> List.map (fun (oldOp, newOp) ->
+      Inserts.computeOpHash oldOp, Inserts.computeOpHash newOp)
+    |> Map.ofList
+  updated
+  |> List.map (function
+    | PT.PackageOp.Decision(id,
+                            location,
+                            reason,
+                            PT.DecisionKind.Restore(revision, target, names)) ->
+      let revision = Map.tryFind revision revisions |> Option.defaultValue revision
+      PT.PackageOp.Decision(
+        id,
+        location,
+        reason,
+        PT.DecisionKind.Restore(revision, target, names)
+      )
+    | op -> op)
+
+
+/// Read main's draft, resolve missing references, and update hashes and saved names.
+/// Save the refreshed draft only if nobody has changed it since we read it.
+/// Return the number of new hashes, or None if another edit means we need to retry.
 let private refreshOnce
   (afterRead : unit -> Task<unit>)
   (pm : PT.PackageManager)
   : Task<Option<int64>> =
   task {
-    // 1. Get the draft. Not `getWipOps`, which returns committed ops too; see the module doc.
+    // Read only the draft; getWipOps would include committed operations too.
     let! (draftIds, wipOps) = Queries.getDraftOpsWithIds ()
     do! afterRead ()
 
     if List.isEmpty wipOps then
       return Some 0L
     else
-      // 2. Compact superseded edits. Required for correctness (see compactWipOps), and
-      // doing it before re-resolution avoids re-resolving copies about to be dropped.
-      let compactedOps = compactWipOps wipOps
+      // Refresh live declarations, retaining inactive revisions for undo.
+      let activeOps, restore = refreshableOps wipOps
+      let! reResolvedOps = reResolveAllItems pm activeOps
 
-      // 3. Re-resolve unresolved names
-      let! reResolvedOps = reResolveAllItems pm compactedOps
-
-      // If re-resolution changed nothing, stabilization is a no-op: the ops were
-      // stabilized before insert (scmAddOps), so re-hashing gives the same hashes --
-      // after an SCC rehash of the whole log. Skip it; any dependent that exists
-      // re-resolves to a new hash and takes the full path.
-      if reResolvedOps = compactedOps then
+      // These declarations were hashed when saved. If resolving references changed
+      // nothing, we can skip recalculating their hashes and rewriting the draft.
+      if reResolvedOps = activeOps then
         return Some 0L
       else
 
-        // 4. Stabilize hashes (SCC-aware)
-        let stabilizedOps = HS.computeRealHashes reResolvedOps
+        // Recalculate hashes together so mutually recursive declarations stay connected.
+        let stabilizedOps =
+          stabilizeAtCurrentNames reResolvedOps |> restore |> refreshSnapshots wipOps
 
-        // 5. Compare old and new hashes
+        // Compare the hashes referenced by SetName operations before and after refresh.
         let oldHashes = HS.extractAllHashes wipOps |> Set.ofList
         let newHashes = HS.extractAllHashes stabilizedOps |> Set.ofList
 
-        // Hashes PLUS op count: compaction is detectable without comparing transient Add-item
-        // hashes, which stabilization may fill differently on each load.
+        // Check the operation count too, so removing older declarations counts as a change.
+        // Use the binding hashes rather than temporary hashes on Add operations.
         if
           oldHashes = newHashes && List.length stabilizedOps = List.length wipOps
         then
           return Some 0L
         else
-          // Count changed items (items that got a new hash)
+          // Count the new hashes introduced by refresh.
           let changedCount = Set.difference newHashes oldHashes |> Set.count |> int64
 
-          // 6. Discard the old draft and re-insert the updated one, as ONE transaction: split in
-          //    two, a crash between them deletes the draft with nothing to put back. Capture the
-          //    existing origin_ts FIRST, so an op whose hash didn't change comes back with its own
-          //    stamp rather than a fresh one. No commit: nothing here is committed, by construction.
-          //    A failure raises into the author's `try/with` rather than reporting 0 changed.
+          // Replace the draft in one transaction so a failure cannot leave it half-written.
+          // Preserve timestamps even when an operation's ID changes, so earlier edits
+          // keep their place in history. The operations remain uncommitted.
+          // A write failure reaches the caller instead of reporting that nothing changed.
           let! preserveTs = Queries.getWipOpOriginTs ()
+          let preserveTs =
+            List.zip wipOps stabilizedOps
+            |> List.fold
+              (fun stamps (oldOp, newOp) ->
+                match Map.tryFind (Inserts.computeOpHash oldOp) preserveTs with
+                | Some ts -> Map.add (Inserts.computeOpHash newOp) ts stamps
+                | None -> stamps)
+              preserveTs
+          // Resolving forward references can make two bodies identical.
+          // Save their reference names before those bodies are combined.
+          let! referenceOps =
+            ReferenceNames.captureForStorage PT.BranchId.Main stabilizedOps
+          let stabilizedOps = stabilizedOps @ referenceOps
           match!
             Inserts.rewriteDraftIfUnchanged
               draftIds
@@ -233,15 +397,16 @@ let private refreshOnce
           | None -> return None
   }
 
-/// `afterRead` runs between reading the draft and rewriting it, so a test can land an author there.
+/// Run afterRead between reading and rewriting the draft, so tests can save
+/// another edit at that point and check that refresh retries safely.
 let refreshWith
   (afterRead : unit -> Task<unit>)
   (pm : PT.PackageManager)
   : Task<int64> =
   Telemetry.timeTask "author.wipRefresh" [] (fun () ->
     task {
-      // Another author moving the draft mid-refresh is the only reason to go round again, and an
-      // attempt is short, so ten misses in a row is not ordinary contention.
+      // Retry if another edit changed the draft while we were refreshing it.
+      // Stop after ten attempts rather than retrying indefinitely.
       let mutable result = None
       let mutable attempts = 0
       while Option.isNone result && attempts < 10 do
@@ -251,8 +416,8 @@ let refreshWith
       match result with
       | Some n -> return n
       | None ->
-        // The caller's ops are already stored by now; only re-resolving the draft around them
-        // is missing. The CLI prints this after "Could not save <item>:", hence how it starts.
+        // The edit is already saved; refreshing the surrounding draft is what failed.
+        // This message follows "Could not save <item>:", so explain that distinction.
         return
           Exception.raiseInternal
             ("it is stored, but the draft kept changing while names across it were "

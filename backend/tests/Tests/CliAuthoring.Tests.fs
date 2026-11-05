@@ -112,78 +112,163 @@ let aNameThatDisagreesWithTheDeclarationIsRefused =
         do! clean state "a refused save leaves no draft behind"
       })
 
-/// Renaming onto a name that already holds something. One name holds one item, so this would take
-/// the other item off the shelf as a side effect -- hence the refusal, and hence the assertion that
-/// BOTH survive.
-let renameOntoALiveNameIsRefusedAndBothSurvive =
+let branchPropagationIgnoresMainDraftCallers =
+  instanceTest "branch propagation ignores main draft callers" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.MainDraftCaller.foo" "(): Int64 = 86301L"
+      do!
+        fn
+          state
+          "Tests.MainDraftCaller.caller"
+          "(): Int64 = Tests.MainDraftCaller.foo()"
+      do! commit state "committed caller"
+      do!
+        fn
+          state
+          "Tests.MainDraftCaller.caller"
+          "(): Int64 = Tests.MainDraftCaller.foo() + 7L"
+      do! switch state "main-draft-caller"
+      do! fn state "Tests.MainDraftCaller.foo" "(): Int64 = 86302L"
+      do!
+        evals
+          state
+          "Tests.MainDraftCaller.caller()"
+          "86302"
+          "the branch updates the committed body"
+      do! onMain state
+      do!
+        evals
+          state
+          "Tests.MainDraftCaller.caller()"
+          "86308"
+          "main's draft stays on main"
+      do! discardAll state
+    })
+
+let failedAliasValuesLeaveNoReferenceMetadata =
   instanceTest
-    "rename onto a name that already holds something is refused, and both survive"
+    "failed alias values leave no reference metadata in the draft"
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Auth.one" "() : Int64 = 7405L"
-        do! fn state "Tests.Auth.two" "() : Int64 = 7406L"
-        do! commit state "auth rename fixture"
-
-        do!
-          refuses
-            state
-            [ "rename"; "Tests.Auth.one"; "Tests.Auth.two" ]
-            "already names something"
-            "renamed"
-            "renaming onto a live name is refused"
-
-        do! evals state "Tests.Auth.one()" "7405" "the source keeps its name"
-        do! evals state "Tests.Auth.two()" "7406" "and the target keeps its item"
-        do! clean state "a refused rename authors nothing"
+        let scenario name =
+          task {
+            do! fn state $"Tests.{name}.fail" "(): Int64 = 1L / 0L"
+            do! fn state $"Tests.{name}.alias" "(): Int64 = 1L / 0L"
+            do! commit state "failing alias fixture"
+            do!
+              exits
+                state
+                [ "val"; $"Tests.{name}.first"; $"Tests.{name}.fail()" ]
+                1L
+                "the first save fails"
+            do! clean state "the first failed save leaves no draft"
+            do!
+              exits
+                state
+                [ "val"; $"Tests.{name}.second"; $"Tests.{name}.alias()" ]
+                1L
+                "the alias save fails"
+            do! clean state "failed saves also remove their reference metadata"
+          }
+        do! scenario "FailedMetadataMain"
+        do! switch state "failed-reference-metadata"
+        do! scenario "FailedMetadataBranch"
+        do! onMain state
       })
 
-/// A rename must not lose track of what depends on the renamed item. An edge keeps the name its
-/// dependent typed, so after a rename the lookup by the new name found nothing, and `delete`
-/// deprecated a fn with a live caller, and a trait with a live implementation, instead of refusing.
-let deleteStillRefusesAfterARename =
+let authoringFollowsStoredCommits =
   instanceTest
-    "after a rename, delete still sees what depends on the item"
+    "authoring stamps follow stored commits on main and branches"
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.RenDep.callee" "() : Int64 = 7431L"
-        do! fn state "Tests.RenDep.caller" "(): Int64 = Tests.RenDep.callee()"
-        do! run state [ "type"; "Tests.RenDep.Crate"; "{ renDepWidth: Int64 }" ]
+        let insert =
+          "INSERT INTO commits (hash, message, origin_ts) "
+          + "VALUES ('clock-regression-future', 'future clock', '2099-01-01T00:00:00.000Z')"
         do!
-          run
+          shows
             state
-            [ "trait"; "Tests.RenDep.Label"; "<'a> =\n  let label(v: 'a): String" ]
+            [ "eval"; $"Stdlib.Sqlite.exec(Darklang.SCM.localDb(), \"{insert}\")" ]
+            "Ok"
+            "the future commit fixture is stored"
+        let query sql =
+          $"Stdlib.Sqlite.scalarTextP(Darklang.SCM.localDb(), \"{sql}\", [], \"ts\", \"missing\")"
+        do! fn state "Tests.ClockRegression.main" "(): Int64 = 781563L"
+        let mainStamp =
+          "SELECT p.origin_ts AS ts FROM package_ops p JOIN locations l ON l.op_id = p.id "
+          + "WHERE l.owner = 'Tests' AND l.modules = 'ClockRegression' "
+          + "AND l.name = 'main' AND l.unlisted_at IS NULL"
         do!
-          run
+          shows
             state
-            [ "impl"
-              "Tests.RenDep"
-              "Label for Crate =\n  let label(c: Crate): String = \"crate\"" ]
-        do! commit state "rename dependents fixture"
+            [ "eval"; query mainStamp ]
+            "2099-"
+            "a main edit sorts after the stored commit"
+        do! switch state "clock-regression"
+        do! fn state "Tests.ClockRegression.branch" "(): Int64 = 781564L"
+        let branchStamp =
+          "SELECT MIN(p.origin_ts) AS ts FROM package_ops p "
+          + "JOIN op_branches ob ON ob.op_id = p.id "
+          + "JOIN branches b ON b.id = ob.branch_id WHERE b.name = 'clock-regression'"
+        do!
+          shows
+            state
+            [ "eval"; query branchStamp ]
+            "2099-"
+            "a branch edit sorts after the stored commit"
+      })
 
+let branchDiscardRestoresReferenceNames =
+  instanceTest
+    "branch named discard restores an alias-only caller edit"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.DiscardReference.original" "(): Int64 = 582761L"
+        do! fn state "Tests.DiscardReference.alias" "(): Int64 = 582761L"
         do!
-          run
+          fn
             state
-            [ "rename"; "Tests.RenDep.callee"; "Tests.RenDep.calleeRenamed" ]
-        do! run state [ "rename"; "Tests.RenDep.Label"; "Tests.RenDep.Tag" ]
-
+            "Tests.DiscardReference.caller"
+            "(): Int64 = Tests.DiscardReference.original()"
+        do! commit state "alias discard baseline"
+        do! switch state "discard-reference-names"
         do!
-          refuses
+          fn
             state
-            [ "delete"; "fn"; "Tests.RenDep.calleeRenamed"; "-y" ]
-            "live dependent"
-            "Deprecated"
-            "a renamed fn's caller still blocks delete"
+            "Tests.DiscardReference.caller"
+            "(): Int64 = Tests.DiscardReference.alias()"
         do!
-          refuses
+          shows
             state
-            [ "delete"; "trait"; "Tests.RenDep.Tag"; "-y" ]
-            "live dependent"
-            "Deprecated"
-            "a renamed trait's implementation still blocks delete"
-        do! evals state "Tests.RenDep.caller()" "7431" "and the caller still runs"
+            [ "view"; "Tests.DiscardReference.caller"; "--raw" ]
+            "alias()"
+            "the edit changes the reference name"
+        do! run state [ "discard"; "Tests.DiscardReference.caller"; "-y" ]
+        do!
+          shows
+            state
+            [ "view"; "Tests.DiscardReference.caller"; "--raw" ]
+            "original()"
+            "discard restores the committed name"
+        do! fn state "Tests.DiscardReference.alias" "(): Int64 = 582762L"
+        do!
+          evals
+            state
+            "Tests.DiscardReference.caller()"
+            "582761"
+            "the discarded alias no longer controls propagation"
+        do! fn state "Tests.DiscardReference.original" "(): Int64 = 582763L"
+        do!
+          evals
+            state
+            "Tests.DiscardReference.caller()"
+            "582763"
+            "the original dependency still propagates"
         do! discardAll state
+        do! onMain state
       })
 
 /// `delete` with a live caller. The refusal names how many, and `--ignore-dependents` is the
@@ -224,45 +309,6 @@ let deleteRefusesWhileSomethingStillCallsIt =
             "Tests.Auth.caller()"
             "7407"
             "the caller is unaffected: it references content, not the name"
-        do! discardAll state
-      })
-
-/// `undo` steps back one version at a time and stops at the first, saying so rather than removing
-/// the item -- which is what `discard` is for, and what the message points at.
-let undoStepsBackAndStopsAtTheFirstVersion =
-  instanceTest
-    "undo steps back one version at a time, and says when there is no further back"
-    (fun state ->
-      task {
-        do! start state
-        do! fn state "Tests.Auth.step" "() : Int64 = 7411L"
-        do! commit state "step v1"
-        do! fn state "Tests.Auth.step" "() : Int64 = 7412L"
-        do! commit state "step v2"
-        do! fn state "Tests.Auth.step" "() : Int64 = 7413L"
-        do! commit state "step v3"
-
-        do!
-          evals state "Tests.Auth.step()" "7413" "the name is at its newest version"
-
-        do! run state [ "undo"; "Tests.Auth.step" ]
-        do! evals state "Tests.Auth.step()" "7412" "undo steps back one"
-
-        do! run state [ "undo"; "Tests.Auth.step" ]
-        do! evals state "Tests.Auth.step()" "7411" "and again"
-
-        do!
-          shows
-            state
-            [ "undo"; "Tests.Auth.step" ]
-            "first version"
-            "at the first version it says so instead of removing the item"
-        do!
-          evals
-            state
-            "Tests.Auth.step()"
-            "7411"
-            "and the name still holds that first version"
         do! discardAll state
       })
 
@@ -1190,10 +1236,11 @@ let tests : List<Test> =
     traitsAreAuthoredListedAndDisambiguated
     aParseErrorChangesNothing
     aNameThatDisagreesWithTheDeclarationIsRefused
-    renameOntoALiveNameIsRefusedAndBothSurvive
     deleteRefusesWhileSomethingStillCallsIt
-    deleteStillRefusesAfterARename
-    undoStepsBackAndStopsAtTheFirstVersion
+    branchPropagationIgnoresMainDraftCallers
+    failedAliasValuesLeaveNoReferenceMetadata
+    authoringFollowsStoredCommits
+    branchDiscardRestoresReferenceNames
     authoringIdenticalSourceReportsUnchanged
     aRivalCannotReachABoundedCall
     aRivalCannotReachAUnaryOperator

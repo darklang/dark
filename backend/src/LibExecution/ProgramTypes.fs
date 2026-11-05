@@ -998,6 +998,27 @@ type PackageOp =
     previous : Option<Hash> *
     restating : Option<string>
 
+  /// Save which name each package reference uses in this declaration.
+  /// For example, `double` and `twice` can point to the same function hash.
+  /// Renaming `double` should update calls to `double`, leaving calls to `twice` alone.
+  /// The hash cannot tell those names apart, so we save the names here.
+  /// We collect references as we walk the declaration's AST and read this list
+  /// back in the same order. `double() + double()` needs two entries, one per call.
+  | SetReferenceNames of
+    location : PackageLocation *
+    target : Reference *
+    names : List<Reference * Option<PackageLocation>> *
+    restating : Option<string>
+
+  /// Rename an item and update the names its callers use, all in one operation.
+  /// `references` includes saved names for the callers and the item being moved.
+  | Rename of
+    oldLocation : PackageLocation *
+    newLocation : PackageLocation *
+    target : Reference *
+    references : List<ReferenceNamesSnapshot> *
+    stamp : string
+
   /// A human's judgment about a NAME, recorded so that it travels.
   ///
   /// One op rather than two because overriding a binding and acking a finding are the same class of act:
@@ -1045,6 +1066,16 @@ type PackageOp =
 //   | TypeIntroducedButNotReferenced of FQTypeName.Package
 //   | ...IntroducedButNotReferenced of ...
 
+
+/// Keep the reference names for one declaration at a particular package location.
+/// `target` says which content hash these names belong to.
+/// Keep one entry per package reference, in AST traversal order, so we can match
+/// each saved name back to its reference.
+and ReferenceNamesSnapshot =
+  { location : PackageLocation
+    target : Reference
+    names : List<Reference * Option<PackageLocation>>
+    restating : Option<string> }
 
 /// The kind of package item (function, type, value, trait, impl, or test)
 and ItemKind =
@@ -1149,6 +1180,14 @@ and DecisionKind =
   /// `discard` will not wipe it, and closes the conflict as `overridden`.
   | Override of target : Reference
 
+  /// Used by `dark undo` to bring back an earlier edit.
+  /// Restore both the declaration's content and the names its references used.
+  /// `revision` records which edit we returned to, so the next undo can go further back.
+  | Restore of
+    revision : System.Guid *
+    target : Reference *
+    names : List<Reference * Option<PackageLocation>>
+
   /// A standing finding has been seen and accepted. Closes it as `acked`. Binds nothing: an ack changes
   /// what you are asked about, never what a name resolves to.
   | Ack of findingId : string
@@ -1178,6 +1217,52 @@ and DeprecationKind =
 and PropagateRepoint =
   { location : PackageLocation; fromRef : Reference; toRef : Reference }
 
+
+/// A `Rename` removes the old name with `Unbind` and adds the new name with `SetName`.
+/// A `Restore` uses `SetName` to put the earlier version back at its name.
+/// Other operations stay as they are.
+/// LibDB.ReferenceNames reads the original operation to update reference names.
+/// If two renames change different calls in the same declaration, it keeps both changes.
+let packageOpBindingEffects (op : PackageOp) : List<PackageOp> =
+  match op with
+  | PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
+    [ PackageOp.Unbind(oldLocation, Some target.hash)
+      PackageOp.SetName(newLocation, target, None) ]
+  | PackageOp.Decision(_, location, _, DecisionKind.Restore(_, target, _)) ->
+    [ PackageOp.SetName(location, target, None) ]
+  | _ -> [ op ]
+
+/// `Rename`, `Restore`, and `SetReferenceNames` all carry saved reference names.
+/// Return them as snapshots so validation can check that the references match
+/// the declaration. LibDB.ReferenceNames handles applying the name changes.
+let packageOpReferenceSnapshots (op : PackageOp) : List<ReferenceNamesSnapshot> =
+  match op with
+  | PackageOp.Rename(_, _, _, snapshots, _) -> snapshots
+  | PackageOp.SetReferenceNames(location, target, names, restating) ->
+    [ { location = location; target = target; names = names; restating = restating } ]
+  | PackageOp.Decision(_, location, _, DecisionKind.Restore(_, target, names)) ->
+    [ { location = location; target = target; names = names; restating = None } ]
+  | _ -> []
+
+/// Saving a function produces an `AddFn` followed by a `SetName`.
+/// The `AddFn` holds the declaration; the `SetName` binds its package name.
+/// Recognize that pair for any declaration kind and return its location and reference.
+let tryDeclarationBinding (declaration : PackageOp, binding : PackageOp) =
+  let target =
+    match declaration with
+    | PackageOp.AddType item -> Some(PackageType item.hash)
+    | PackageOp.AddFn item -> Some(PackageFn item.hash)
+    | PackageOp.AddValue item -> Some(PackageValue item.hash)
+    | PackageOp.AddTrait item -> Some(PackageTrait item.hash)
+    | PackageOp.AddTraitImpl item -> Some(PackageTraitImpl item.hash)
+    | PackageOp.AddTest item -> Some(PackageTest item.hash)
+    | _ -> None
+  match binding, target with
+  | PackageOp.SetName(location, reference, _), Some expected when
+    expected.kind = reference.kind
+    ->
+    Some(location, reference)
+  | _ -> None
 
 /// A package entity paired with its location
 /// The op that says a binding AGAIN, or `None` for an op that is not a binding.
@@ -1209,6 +1294,8 @@ let restating (ts : string) (op : PackageOp) : Option<PackageOp> =
         DecisionKind.Override target
       )
     )
+  | PackageOp.SetReferenceNames(location, target, names, _) ->
+    Some(PackageOp.SetReferenceNames(location, target, names, Some ts))
   | PackageOp.UpdateDoc(location, part, text, previous, _) ->
     Some(PackageOp.UpdateDoc(location, part, text, previous, Some ts))
   // Deprecation is the same shape again, with the inverse spelled out as its own op rather than

@@ -30,14 +30,16 @@ type Picture =
 /// Read the whole picture. One call, five reads, and the only place they happen.
 let read(unit: Unit): Picture =
   let bindings = SCM.PackageOps.draftBindings()
+  let (stale, repoints) = SCM.PackageOps.dependencyReview(bindings)
+  let pendingConstraints = SCM.Constraints.pendingWithOutdated(SCM.Constraints.outdatedFindings(stale))
 
   Picture
     { bindings = bindings
       removed = SCM.PackageOps.draftRemovals()
       propagated = SCM.PackageOps.propagatedNames()
-      repoints = SCM.PackageOps.draftRepoints(bindings)
+      repoints = SCM.PackageOps.repointsFromReview(repoints)
       conflicts = SCM.Conflicts.pending()
-      constraints = Stdlib.List.length((SCM.Constraints.pending()).findings)
+      constraints = Stdlib.List.length(pendingConstraints.findings)
       ops = SCM.PackageOps.draftOpCount() }
 
 /// Just the counts, for the hot path.
@@ -59,12 +61,13 @@ type Counts =
 
 let counts(unit: Unit): Counts =
   let bindings = SCM.PackageOps.draftBindings()
+  let (stale, repoints) = SCM.PackageOps.dependencyReview(bindings)
+  let pendingConstraints = SCM.Constraints.pendingWithOutdated(SCM.Constraints.outdatedFindings(stale))
   let propagated = SCM.PackageOps.propagatedNames()
-  let pendingConstraints = (SCM.Constraints.pending()).findings
   let draftNames =
     bindings |> Stdlib.List.map(fun b -> SCM.Conflicts.fqn(b.owner, b.modules, b.name))
   let fromDraft =
-    pendingConstraints
+    pendingConstraints.findings
     |> Stdlib.List.filter(fun f ->
       (Stdlib.List.contains(draftNames, SCM.Constraints.fqnOf(f.dependency)))
       || (Stdlib.List.contains(draftNames, SCM.Constraints.fqnOf(f.usage))))
@@ -77,9 +80,9 @@ let counts(unit: Unit): Counts =
           Stdlib.List.contains(propagated, SCM.Conflicts.fqn(b.owner, b.modules, b.name)))
         |> Stdlib.List.length
       removed = Stdlib.List.length(SCM.PackageOps.draftRemovals())
-      repoints = Stdlib.List.length(SCM.PackageOps.draftRepoints(bindings))
+      repoints = Stdlib.List.length(repoints)
       conflicts = SCM.Conflicts.pendingCount()
-      constraints = Stdlib.List.length(pendingConstraints)
+      constraints = Stdlib.List.length(pendingConstraints.findings)
       constraintsFromDraft = Stdlib.List.length(fromDraft)
       ops = SCM.PackageOps.draftOpCount() }
 

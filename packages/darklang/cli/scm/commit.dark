@@ -245,16 +245,47 @@ let review(state: AppState): Review =
     { changed = p.bindings
       withPrevious = withPrevious
       items =
-        withPrevious
-        |> Stdlib.List.map(fun entry ->
-          let (b, previous) = entry
-          ScmJson.changedItem(state.currentBranchId, p.propagated, b, previous))
+        ScmJson.changedItems(state.currentBranchId, p.propagated, withPrevious)
       removed = p.removed
       propagates = p.repoints
       conflicts = p.conflicts
       branch =
         // The NAME, like everywhere else user-facing: what `--json`'s reader can pass to another command.
         SCM.PackageOps.branchName(SCM.PackageOps.currentBranch()) }
+
+/// Show the versions this selection will commit. A rename can need an earlier
+/// caller version while the caller's newest edit stays in the draft.
+let selectedReview(state: AppState, all: Review, names: List<String>): Review =
+  if Stdlib.List.isEmpty(names) then all else
+    match SCM.PartialCommit.plan(names) with
+    | Error(_) -> all
+    | Ok((ids, _)) ->
+      let rows = SCM.PackageOps.draftOpRowsFor(SCM.PackageOps.currentBranch())
+        |> Stdlib.List.filter(fun row ->
+          Stdlib.Sqlite.textField(row, "id") |> Stdlib.Option.map(fun id -> Stdlib.List.contains(ids, id)) |> Stdlib.Option.withDefault(false))
+      let words = SCM.PackageOps.draftEntriesFromOpRows(rows)
+      let bindings = words |> Stdlib.List.filterMap(fun word -> word.binding)
+      let previous = previousHashesOfAll(state.currentBranchId, bindings)
+      // Keep all.withPrevious so propagation can still update callers for the whole draft.
+      { all with changed = bindings
+                 items = ScmJson.changedItems(state.currentBranchId, [], previous)
+                 removed = words |> Stdlib.List.filterMap(fun word ->
+                   if Stdlib.Option.isNone(word.binding) then
+                     Stdlib.Option.Option.Some(SCM.Conflicts.fqn(word.owner, word.modules, word.name))
+                   else Stdlib.Option.Option.None) }
+
+/// Validate the versions selected for this commit, including historical callers
+/// captured by a rename. Later fixes left in the draft cannot validate those versions.
+let typeCheckSelection(names: List<String>): LanguageTools.AtRestTypeChecker.Report =
+  let branch = SCM.PackageOps.currentBranch()
+  if Stdlib.List.isEmpty(names) then SCM.PackageOps.typeCheckDraft(branch) else
+    match SCM.PartialCommit.plan(names) with
+    | Error(_) -> SCM.PackageOps.typeCheckDraft(branch)
+    | Ok((ids, _)) ->
+      SCM.PackageOps.draftEntriesFor(branch)
+      |> Stdlib.List.filter(fun entry -> Stdlib.List.contains(ids, entry.id))
+      |> Stdlib.List.map(fun entry -> entry.op)
+      |> SCM.PackageOps.typeCheckOps
 
 /// Repoint every dependent of every name the draft changed, and count what moved. Both commit paths run
 /// it: a repoint is a consequence of the EDIT, not of which ops you chose to stamp.
@@ -330,7 +361,7 @@ let commit(
 
 let executeJson(state: AppState, args: List<String>): AppState =
   let parsed = parseArgs(ScmJson.stripJson(args))
-  let r = review(state)
+  let r = selectedReview(state, review(state), parsed.include)
 
   // --json implies non-interactive: there is nobody to prompt. -y is still required to actually commit, so a
   // plain `dark commit --json` is a safe dry review an agent can look at before deciding.
@@ -349,7 +380,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
     then
       "unresolved-names"
     else if Stdlib.Bool.not(parsed.allowTypeErrors) then
-      let report = SCM.PackageOps.typeCheckDraft(SCM.PackageOps.currentBranch())
+      let report = typeCheckSelection(parsed.include)
 
       match report.verdict with
       | Failed -> "type-errors"
@@ -440,7 +471,7 @@ let refuseTypeErrors(parsed: Args): Bool =
   if parsed.allowTypeErrors then
     false
   else
-    let report = SCM.PackageOps.typeCheckDraft(SCM.PackageOps.currentBranch())
+    let report = typeCheckSelection(parsed.include)
 
     match report.verdict with
     | Checked -> false
@@ -488,7 +519,7 @@ let refuseTypeErrors(parsed: Args): Bool =
 
 let executePretty(state: AppState, args: List<String>): AppState =
   let parsed = parseArgs(args)
-  let r = review(state)
+  let r = selectedReview(state, review(state), parsed.include)
   let changed = r.changed
 
   // Ask the DRAFT, not the changed-bindings list. A `Deprecate` op binds no name, so it never appears in
@@ -570,8 +601,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
 
       Cli.Stderr.line(Stdlib.Cli.UI.Colors.hint("    -> `dark conflicts` to inspect / override"))
 
-    // The review above always shows the whole draft; when a selection is in force, say what will
-    // actually commit before asking.
+    // Show the requested names before asking for confirmation.
     let _ =
       if Stdlib.List.isEmpty(parsed.include) then
         ()

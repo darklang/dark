@@ -148,9 +148,12 @@ let main (args : string array) : int =
         // Executions: in-process CLI runs, so sequenced like CliTraces (the console capture
         // is process-global), and after it, since it flips trace detail on.
         testSequenced (testList "CliTraceVerbs" Tests.CliTraceVerbs.tests)
-        // Instance-backed: their commands run as children with a store each, so unlike
-        // the rest of the CLI suites these need no sequencing.
+        // These suites mostly use private CLI instances. Any case that touches
+        // the shared process or store marks itself sequenced.
         testList "CliAuthoring" Tests.CliAuthoring.tests
+        testList "CliRename" Tests.CliRename.tests
+        testList "CliUndo" Tests.CliUndo.tests
+        testList "CliPartialCommit" Tests.CliPartialCommit.tests
         testList "CliWorkspace" Tests.CliWorkspace.tests
         testList "CliScmRegression" Tests.CliScmRegression.tests
         testList "CliPackages" Tests.CliPackages.tests
@@ -161,6 +164,7 @@ let main (args : string array) : int =
         Tests.Lww.tests
         Tests.BranchOverlay.tests
         Tests.OpsProjections.tests
+        Tests.ReferenceNames.tests
         Tests.Stream.tests
         Tests.Permissions.tests
         Tests.PackagePermissions.tests

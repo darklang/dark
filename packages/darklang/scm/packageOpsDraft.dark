@@ -73,11 +73,11 @@ let draftOpIdsFor(branchId: Uuid): List<String> =
 let draftOpIds(): List<String> = draftOpIdsFor(currentBranch())
 
 
-/// What the draft BINDS: one entry per name, latest edit wins. Five edits to one fn collapse to one entry
-/// here, which is why propagation runs at commit time -- the intermediate versions never need to be shown
-/// or propagated to.
+/// Read the latest draft binding for each name, including edits to its reference names.
+/// The review shows the latest version, even when the draft holds several edits to that name.
 let draftBindingsFor(branchId: Uuid): List<Conflicts.Binding> =
-  bindingsFromOpRows(draftOpRowsFor(branchId))
+  draftEntriesFromOpRows(draftOpRowsFor(branchId))
+  |> Stdlib.List.filterMap(fun word -> word.binding)
 
 
 /// The draft's op rows for <param branchId>, oldest first -- the one query behind
@@ -157,22 +157,25 @@ let propagatedNames(): List<String> =
     // The branch's own record, `op_branches.source`: the LAST op binding each name decides. Main's
     // followers are not this branch's, so `locations.source` cannot answer for a branch.
     SCM.Branches.ownFrontierOpsWithSource(branchId)
-    |> Stdlib.List.filterMap(fun entry ->
-      match entry with
-      | (_, SetName(loc, _, _), source) ->
-        Stdlib.Option.Option.Some(
-          (Conflicts.fqn(loc.owner, Stdlib.String.join(loc.modules, "."), loc.name), source)
-        )
-      | (_, Decision(_, loc, _, Override(_)), source) ->
-        Stdlib.Option.Option.Some(
-          (Conflicts.fqn(loc.owner, Stdlib.String.join(loc.modules, "."), loc.name), source)
-        )
-      | _ -> Stdlib.Option.Option.None)
-    // Oldest first, so the later binder of a name overwrites the earlier: the LAST binder decides.
+    |> Stdlib.List.map(fun((_, op, source)) ->
+      LanguageTools.ProgramTypes.PackageOp.bindingOps(op)
+      |> Stdlib.List.filterMap(fun effect ->
+        match effect with
+        | SetName(loc, _, _) ->
+          Stdlib.Option.Option.Some((Conflicts.fqn(loc.owner, Stdlib.String.join(loc.modules, "."), loc.name), Stdlib.Option.Option.Some(source)))
+        | Decision(_, loc, _, Override(_)) ->
+          Stdlib.Option.Option.Some((Conflicts.fqn(loc.owner, Stdlib.String.join(loc.modules, "."), loc.name), Stdlib.Option.Option.Some(source)))
+        | Unbind(loc, _) ->
+          Stdlib.Option.Option.Some((Conflicts.fqn(loc.owner, Stdlib.String.join(loc.modules, "."), loc.name), Stdlib.Option.Option.None))
+        | _ -> Stdlib.Option.Option.None))
+    |> Stdlib.List.flatten
     |> Stdlib.Dict.fromEntries
     |> Stdlib.Dict.toEntries
     |> Stdlib.List.filterMap(fun((name, source)) ->
-      if source == "propagation" then Stdlib.Option.Option.Some(name) else Stdlib.Option.Option.None)
+      match source with
+      | Some("propagation") -> Stdlib.Option.Option.Some(name)
+      | _ -> Stdlib.Option.Option.None)
+
 
 
 /// The draft, decoded, oldest first. Same predicate as `draftWhere`, so this and the counts can't disagree
@@ -287,12 +290,13 @@ let typeCheckOps(
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : LanguageTools.AtRestTypeChecker.Report =
 
-  // Last SetName per location wins; ops are oldest-first, so a later fold entry replaces an earlier.
-  // Keyed on location while that rule is being applied, then re-keyed on hash
-  // below, because the filter asks "is this hash a live target" and a Dict keyed
-  // on location cannot answer that.
+  let effects = ops |> Stdlib.List.map(LanguageTools.ProgramTypes.PackageOp.bindingOps) |> Stdlib.List.flatten
+
+  // Work out what each name points to after these operations.
+  // Later bindings replace earlier ones, and Unbind removes the name.
+  // Then collect the hashes still bound to names for the type-check filter below.
   let liveTargetsByLocation =
-    ops
+    effects
     |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, op) ->
       match op with
       | SetName(loc, target, _) ->
@@ -300,11 +304,13 @@ let typeCheckOps(
           acc,
           decisionKey(loc),
           LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target)))
+      | Decision(_, loc, _, Override(target)) ->
+        Stdlib.Dict.set(acc, decisionKey(loc), LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target)))
+      | Unbind(loc, _) -> Stdlib.Dict.remove(acc, decisionKey(loc))
       | _ -> acc)
 
-  // Dict, not `List.contains`: the filter below tests every op against both sets,
-  // so a linear scan per op is O(ops x names) on a path `commit` and `merge` both
-  // take. See `packageOpsBranch`.
+  // Use Dict lookups so checking each operation does not scan the whole list of names.
+  // Both commit and merge use this filter.
   let liveTargets =
     liveTargetsByLocation
     |> Stdlib.Dict.values
@@ -312,7 +318,7 @@ let typeCheckOps(
     |> Stdlib.Dict.fromEntries
 
   let namedHashes =
-    ops
+    effects
     |> Stdlib.List.filterMap(fun op ->
       match op with
       | SetName(_, target, _) ->
@@ -602,7 +608,16 @@ let discardDraftName(
       |> Stdlib.List.filter(fun entry ->
         let (id, op) = entry
         (Stdlib.List.contains(uncommitted, Stdlib.toString(id)))
-        && (Stdlib.Option.isSome(SCM.Branches.opBindsKey(op, key))))
+        && (match op with
+            | SetReferenceNames(loc, _, _, _) ->
+              loc.owner == owner && loc.modules == modules && loc.name == name
+            | _ ->
+              LanguageTools.ProgramTypes.PackageOp.bindingOps(op)
+              |> Stdlib.List.any(fun effect ->
+                match effect with
+                | Unbind(loc, _) ->
+                  loc.owner == owner && loc.modules == modules && loc.name == name
+                | _ -> Stdlib.Option.isSome(SCM.Branches.opBindsKey(effect, key)))))
       |> Stdlib.List.map(fun entry ->
         let (id, _) = entry
         Stdlib.toString(id))

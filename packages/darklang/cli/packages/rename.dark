@@ -1,35 +1,16 @@
 module Darklang.Cli.Packages.Rename
 
-// `dark rename <old> <new>` -- give an item a different name, without touching its content.
-//
-// A name is a binding, so a rename is two ops: the old name ends (`Unbind`), and the same content
-// gets bound at the new one (`SetName`). Nothing is re-authored and no hash changes, which is why
-// callers are unaffected: they reference content, not names.
-//
-// Two ops rather than one: identical content is one item, so no heuristic over a single `SetName`
-// can tell "rename this name" from "bind this content somewhere else too". Saying both halves out
-// loud says exactly what happened, and both travel.
+// A rename changes bindings and the current branch's reference names atomically.
+// Reference names are metadata; content hashes remain unchanged.
 
-/// The ops a rename authors: end the old name, bind the content at the new one.
-///
-/// `previous = Some hash` on the `Unbind` records what the name held, for the same reason
-/// `SetName` carries one: a merge wants to know what was replaced. The `SetName`'s predecessor is
-/// None because the new name was not in use -- "no predecessor known" is the honest answer, and
-/// the divergence detector only concludes anything when both sides claim one.
+/// Prepare one atomic rename, including its current callers' reference names.
 let ops(
+  branchId: Uuid,
   oldLocation: LanguageTools.ProgramTypes.PackageLocation,
   newLocation: LanguageTools.ProgramTypes.PackageLocation,
   reference: LanguageTools.ProgramTypes.Reference)
   : List<LanguageTools.ProgramTypes.PackageOp> =
-  [ LanguageTools.ProgramTypes.PackageOp.Unbind(
-      oldLocation,
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.hash(reference))
-    )
-    LanguageTools.ProgramTypes.PackageOp.SetName(
-      newLocation,
-      reference,
-      Stdlib.Option.Option.None
-    ) ]
+  SCM.PackageOps.prepareRename(branchId, oldLocation, newLocation, reference)
 
 
 /// What lives at <param location> right now, as the reference a rename rebinds. `None` when the
@@ -116,12 +97,13 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             Cli.printHint("  pick another name, or retire that one first (`dark delete`).")
             { state with exitCode = 1 }
           | None ->
-            match SCM.PackageOps.add(state.currentBranchId, ops(oldLoc, newLoc, reference)) with
+            let changes = ops(state.currentBranchId, oldLoc, newLoc, reference)
+            match SCM.PackageOps.add(state.currentBranchId, changes) with
             | Ok(_) ->
               Cli.printOk($"renamed {dotted(oldLoc)} -> {dotted(newLoc)}.")
 
               Cli.printHint(
-                "  callers are unaffected: they reference content, not names. `dark status` shows it as a change.")
+                "  callers now use the new name; content hashes are unchanged. `dark status` shows the change.")
 
               state
             | Error(e) ->
@@ -138,11 +120,11 @@ let help(_state: Cli.AppState): String =
   [ ""
     "  dark rename <name> <new-name>"
     ""
-    "  The content does not change and neither does its hash, so everything that"
-    "  calls it goes on working: a reference points at content, not at a name."
+    "  The item and its callers keep their content hashes. References on this"
+    "  branch use the new name, and subsequent edits keep reaching those callers."
     ""
-    "  Two ops are authored -- the old name ends, the new one binds the same"
-    "  content -- so `dark status` shows both."
+    "  The old binding ends, the new binding starts, and reference names update"
+    "  together. `dark status` shows the change."
     ""
     "  Refused when the new name already holds something: one name holds one"
     "  item, so that would take the other one off the shelf." ]

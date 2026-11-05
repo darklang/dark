@@ -187,7 +187,7 @@ let stabilize (seedMapping : AT.HashMapping) (input : Input) : Stabilization =
     mapping =
       { byLocation = byLocation
         byHash = byHash
-        byLocationRename = seedMapping.byLocationRename
+        referenceName = seedMapping.referenceName
         pins = seedMapping.pins
         boundImpls = seedMapping.boundImpls } }
 
@@ -240,64 +240,28 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   // Walk the op list pairwise to collect items keyed by FQN, paired with
   // their SetName hashes and locations. Add* is always followed by SetName.
   //
-  // TODO: this walk pairs an `Add*` with the NEXT `SetName` of its kind however far away,
-  // while `processOps` below pairs them only when ADJACENT. Every producer emits the two
-  // together (`LibParser/Package.fs`, the Dark lowering, the CLI authoring paths) and
-  // `compactWipOps` requires adjacency on the WIP path, so the two rules agree on every list
-  // that reaches here today. On a list with something in between they would not: this walk
-  // would put the item in the SCC graph while `processOps` left both its ops holding the
-  // stale hash. One rule, not two. Not urgent, and not something to change casually, since
-  // it decides content hashes.
   let mutable typeMap = Map.empty
   let mutable fnMap = Map.empty
   let mutable valueMap = Map.empty
   let mutable traitMap = Map.empty
   let mutable implMap = Map.empty
 
-  let mutable pendingType : Option<PT.PackageType.PackageType> = None
-  let mutable pendingFn : Option<PT.PackageFn.PackageFn> = None
-  let mutable pendingValue : Option<PT.PackageValue.PackageValue> = None
-  let mutable pendingTrait : Option<PT.Trait.Trait> = None
-  let mutable pendingImpl : Option<PT.TraitImpl.TraitImpl> = None
-
-  for op in ops do
-    match op with
-    | PT.PackageOp.AddType t -> pendingType <- Some t
-    | PT.PackageOp.SetName(loc, PT.PackageType hash, _) ->
-      match pendingType with
-      | Some t ->
-        typeMap <- Map.add (PackageLocation.toFQN loc) (t, hash, loc) typeMap
-        pendingType <- None
-      | None -> ()
-    | PT.PackageOp.AddFn f -> pendingFn <- Some f
-    | PT.PackageOp.SetName(loc, PT.PackageFn hash, _) ->
-      match pendingFn with
-      | Some f ->
-        fnMap <- Map.add (PackageLocation.toFQN loc) (f, hash, loc) fnMap
-        pendingFn <- None
-      | None -> ()
-    | PT.PackageOp.AddValue v -> pendingValue <- Some v
-    | PT.PackageOp.SetName(loc, PT.PackageValue hash, _) ->
-      match pendingValue with
-      | Some v ->
-        valueMap <- Map.add (PackageLocation.toFQN loc) (v, hash, loc) valueMap
-        pendingValue <- None
-      | None -> ()
-    | PT.PackageOp.AddTrait t -> pendingTrait <- Some t
-    | PT.PackageOp.SetName(loc, PT.PackageTrait hash, _) ->
-      match pendingTrait with
-      | Some t ->
-        traitMap <- Map.add (PackageLocation.toFQN loc) (t, hash, loc) traitMap
-        pendingTrait <- None
-      | None -> ()
-    | PT.PackageOp.AddTraitImpl i -> pendingImpl <- Some i
-    | PT.PackageOp.SetName(loc, PT.PackageTraitImpl hash, _) ->
-      match pendingImpl with
-      | Some i ->
-        implMap <- Map.add (PackageLocation.toFQN loc) (i, hash, loc) implMap
-        pendingImpl <- None
-      | None -> ()
-    | _ -> ()
+  for (declaration, binding) in List.pairwise ops do
+    match PT.tryDeclarationBinding (declaration, binding) with
+    | None -> ()
+    | Some(loc, target) ->
+      let key = PackageLocation.toFQN loc
+      let hash = target.hash
+      match declaration with
+      | PT.PackageOp.AddType item -> typeMap <- Map.add key (item, hash, loc) typeMap
+      | PT.PackageOp.AddFn item -> fnMap <- Map.add key (item, hash, loc) fnMap
+      | PT.PackageOp.AddValue item ->
+        valueMap <- Map.add key (item, hash, loc) valueMap
+      | PT.PackageOp.AddTrait item ->
+        traitMap <- Map.add key (item, hash, loc) traitMap
+      | PT.PackageOp.AddTraitImpl item ->
+        implMap <- Map.add key (item, hash, loc) implMap
+      | _ -> ()
 
   let s =
     stabilize

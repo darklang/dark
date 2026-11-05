@@ -2172,6 +2172,80 @@ module BranchEventKind =
     | _ -> Exception.raiseInternal "Invalid BranchEventKind" []
 
 
+module ReferenceNamesSnapshot =
+  let typeName =
+    Dval.memoTypeName
+      PackageRefs.Type.LanguageTools.ProgramTypes.referenceNamesSnapshot
+  let knownType () = KTCustomType(typeName (), [])
+
+  let namesToDT (names : List<PT.Reference * Option<PT.PackageLocation>>) : Dval =
+    names
+    |> List.map (fun (reference, location) ->
+      DTuple(
+        Reference.toDT reference,
+        Dval.option
+          (PackageLocation.knownType ())
+          (Option.map PackageLocation.toDT location),
+        []
+      ))
+    |> Dval.list (
+      KTTuple(
+        VT.known (Reference.knownType ()),
+        VT.known (
+          KTCustomType(
+            Dval.optionType (),
+            [ VT.known (PackageLocation.knownType ()) ]
+          )
+        ),
+        []
+      )
+    )
+
+  let namesFromDT (value : Dval) =
+    match value with
+    | DList(_, names) ->
+      names
+      |> List.map (function
+        | DTuple(reference, DEnum(_, _, _, "Some", [ location ]), []) ->
+          Reference.fromDT reference, Some(PackageLocation.fromDT location)
+        | DTuple(reference, DEnum(_, _, _, "None", []), []) ->
+          Reference.fromDT reference, None
+        | value ->
+          Exception.raiseInternal "Invalid reference name" [ "value", value ])
+    | _ -> Exception.raiseInternal "Invalid reference names" [ "value", value ]
+
+  let toDT (snapshot : PT.ReferenceNamesSnapshot) : Dval =
+    let name = typeName ()
+    DRecord(
+      name,
+      name,
+      [],
+      Map.ofList
+        [ "location", PackageLocation.toDT snapshot.location
+          "target", Reference.toDT snapshot.target
+          "names", namesToDT snapshot.names
+          "restating", Dval.option KTString (Option.map DString snapshot.restating) ]
+    )
+
+  let fromDT (value : Dval) : PT.ReferenceNamesSnapshot =
+    match value with
+    | DRecord(_, _, _, fields) ->
+      { location =
+          PackageLocation.fromDT (
+            Microsoft.FSharp.Collections.Map.find "location" fields
+          )
+        target =
+          Reference.fromDT (Microsoft.FSharp.Collections.Map.find "target" fields)
+        names = namesFromDT (Microsoft.FSharp.Collections.Map.find "names" fields)
+        restating =
+          match Microsoft.FSharp.Collections.Map.find "restating" fields with
+          | DEnum(_, _, _, "Some", [ DString stamp ]) -> Some stamp
+          | DEnum(_, _, _, "None", []) -> None
+          | value ->
+            Exception.raiseInternal "Invalid reference stamp" [ "value", value ] }
+    | _ -> Exception.raiseInternal "Invalid reference snapshot" [ "value", value ]
+
+
 module DecisionKind =
   let typeName () =
     FQTypeName.fqPackage (
@@ -2183,6 +2257,11 @@ module DecisionKind =
     let (caseName, fields) =
       match k with
       | PT.DecisionKind.Override target -> "Override", [ Reference.toDT target ]
+      | PT.DecisionKind.Restore(revision, target, names) ->
+        "Restore",
+        [ DUuid revision
+          Reference.toDT target
+          ReferenceNamesSnapshot.namesToDT names ]
       | PT.DecisionKind.Ack findingId -> "Ack", [ DString findingId ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
@@ -2190,8 +2269,15 @@ module DecisionKind =
     match d with
     | DEnum(_, _, [], "Override", [ target ]) ->
       PT.DecisionKind.Override(Reference.fromDT target)
+    | DEnum(_, _, [], "Restore", [ DUuid revision; target; names ]) ->
+      PT.DecisionKind.Restore(
+        revision,
+        Reference.fromDT target,
+        ReferenceNamesSnapshot.namesFromDT names
+      )
     | DEnum(_, _, [], "Ack", [ DString findingId ]) -> PT.DecisionKind.Ack findingId
     | _ -> Exception.raiseInternal "Invalid DecisionKind" []
+
 
 
 module PackageOp =
@@ -2243,6 +2329,21 @@ module PackageOp =
           stampToDT restating ]
       | PT.PackageOp.Undeprecate(target, restating) ->
         "Undeprecate", [ Reference.toDT target; stampToDT restating ]
+      | PT.PackageOp.Rename(oldLocation, newLocation, target, references, stamp) ->
+        "Rename",
+        [ PackageLocation.toDT oldLocation
+          PackageLocation.toDT newLocation
+          Reference.toDT target
+          references
+          |> List.map ReferenceNamesSnapshot.toDT
+          |> Dval.list (ReferenceNamesSnapshot.knownType ())
+          DString stamp ]
+      | PT.PackageOp.SetReferenceNames(location, target, names, restating) ->
+        "SetReferenceNames",
+        [ PackageLocation.toDT location
+          Reference.toDT target
+          ReferenceNamesSnapshot.namesToDT names
+          stampToDT restating ]
       | PT.PackageOp.UpdateDoc(location, part, text, previous, restating) ->
         "UpdateDoc",
         [ PackageLocation.toDT location
@@ -2296,6 +2397,33 @@ module PackageOp =
       )
     | DEnum(_, _, [], "Undeprecate", [ target; restating ]) ->
       Some(PT.PackageOp.Undeprecate(Reference.fromDT target, stampFromDT restating))
+    | DEnum(_,
+            _,
+            [],
+            "Rename",
+            [ oldLocation; newLocation; target; DList(_, references); DString stamp ]) ->
+      Some(
+        PT.PackageOp.Rename(
+          PackageLocation.fromDT oldLocation,
+          PackageLocation.fromDT newLocation,
+          Reference.fromDT target,
+          references |> List.map ReferenceNamesSnapshot.fromDT,
+          stamp
+        )
+      )
+    | DEnum(_,
+            _,
+            [],
+            "SetReferenceNames",
+            [ location; target; (DList(_, _) as names); restating ]) ->
+      Some(
+        PT.PackageOp.SetReferenceNames(
+          PackageLocation.fromDT location,
+          Reference.fromDT target,
+          ReferenceNamesSnapshot.namesFromDT names,
+          stampFromDT restating
+        )
+      )
     | DEnum(_,
             _,
             [],

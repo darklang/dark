@@ -21,6 +21,31 @@ module PackageLocation = LibDB.PackageLocation
 open LibSerialization.Hashing
 
 
+let reservedOwners : Set<string> = Set.ofList [ "Darklang" ]
+
+/// Reject changes to package names under a reserved owner, such as `Darklang`.
+/// A rename also updates its callers, so check their package locations too.
+/// Calling a `Darklang` function is allowed; changing a `Darklang` declaration is not.
+let reservedOwnerViolation ops =
+  let bindings =
+    ops
+    |> List.collect PT.packageOpBindingEffects
+    |> List.choose (function
+      | PT.PackageOp.SetName(location, _, _)
+      | PT.PackageOp.Unbind(location, _)
+      | PT.PackageOp.Decision(_, location, _, PT.DecisionKind.Override _) ->
+        Some location.owner
+      | _ -> None)
+  let references =
+    ops
+    |> List.collect PT.packageOpReferenceSnapshots
+    |> List.map (fun snapshot -> snapshot.location.owner)
+  bindings @ references
+  |> List.tryFind (fun owner -> Set.contains owner reservedOwners)
+  |> Option.map (fun owner ->
+    $"cannot change a package name under the reserved owner \"{owner}\"; it is reserved for the bundled standard library")
+
+
 /// The hashes in <param ops> that more than one body claims, as ready-to-print
 /// messages. Empty when the batch is consistent.
 ///
@@ -49,6 +74,8 @@ let hashClashes (ops : List<PT.PackageOp>) : List<string> =
     | PT.PackageOp.Unbind _
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
+    | PT.PackageOp.Rename _
+    | PT.PackageOp.SetReferenceNames _
     | PT.PackageOp.UpdateDoc _
     | PT.PackageOp.Decision _
     | PT.PackageOp.BranchEvent _ -> None

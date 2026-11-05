@@ -167,6 +167,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
+              do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
 
               let branchId = PT.BranchId.Id branchId
 
@@ -190,7 +191,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   do! LibDB.Branches.registerIfNew branchId "" PT.BranchId.Main
 
                   let stabilized = LibDB.HashStabilization.computeRealHashes ops
+                  let! referenceNames =
+                    LibDB.ReferenceNames.captureForStorage branchId stabilized
+                  // Capture while each declaration still has its SetName. A repeated
+                  // revert becomes an Override, which no longer forms that pair.
                   let! stabilized = LibDB.Branches.restateReverts branchId stabilized
+                  let stabilized = stabilized @ referenceNames
                   let! n = LibDB.Branches.storeDeltaOps branchId stabilized
                   // The parent's current hash per name touched, so a later merge can tell whether the
                   // parent moved the same name.
@@ -247,6 +253,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 // targets would too, and the only thing that repairs those is `WipRefresh.refresh`
                 // rewriting the ENTIRE log.
                 let stabilizedOps = LibDB.HashStabilization.computeRealHashes ops
+                // The store keeps one body per content hash. Two callers with that hash can
+                // still use different aliases, such as `double` and `twice`.
+                // Save each caller's reference names before storing the shared body.
+                let! referenceNames =
+                  LibDB.ReferenceNames.captureForStorage branchId stabilizedOps
+                let stabilizedOps = stabilizedOps @ referenceNames
 
                 // These package changes came from running Dark code, so they land uncommitted AND
                 // through the guarded path: reserved bundled names and placeholder hashes are

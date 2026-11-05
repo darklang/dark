@@ -76,13 +76,14 @@ let referenceHash(r: LanguageTools.ProgramTypes.Reference): String =
 /// Can dropping this op be undone by deleting the rows it wrote and re-listing what it superseded?
 ///
 /// Yes for `Add*`, whose rows are content-addressed by hash: leaving one behind breaks nothing, since
-/// content is immutable and shared and an orphan is a GC question. Yes for an `Override` decision and for
-/// a `SetName` paired with an `Add` in the same draft, which each wrote one `locations` row identifiable
-/// by (name, hash, origin_ts).
+/// content is immutable and shared and an orphan is a GC question. Yes for an `Override` or `Restore`
+/// decision and for a `SetName` paired with an `Add` in the same draft, which each wrote one `locations`
+/// row identifiable by (name, hash, origin_ts). A `Restore`'s reference names are read from the op log,
+/// so deleting its op row undoes them too.
 ///
 /// No for a STANDALONE SetName: that is a rename, and the fold also unlists every other row holding the
 /// hash, rows this cannot identify afterwards since `unlisted_at` is a wall-clock second. No for
-/// `Deprecate`/`Undeprecate` (`deprecations` has no `origin_ts` to trace a row back by), a non-override
+/// `Deprecate`/`Undeprecate` (`deprecations` has no `origin_ts` to trace a row back by), any other
 /// `Decision` (records an acknowledgement), or a `BranchEvent`
 /// (`branches` records no origin_ts). No for `Unbind`: what it unlisted is identifiable only by
 /// `unlisted_at`, the same wall-clock second as a rename.
@@ -100,10 +101,13 @@ let surgicallyUndoable(
   | SetName(_, target, _) ->
     Stdlib.List.contains(added, referenceHash(target))
   | Decision(_, _, _, Override(_)) -> true
+  | Decision(_, _, _, Restore(_, _, _)) -> true
   | Decision(_, _, _, _) -> false
   | Unbind(_, _) -> false
   | Deprecate(_, _, _, _) -> false
   | Undeprecate(_, _) -> false
+  | Rename(_, _, _, _, _) -> false
+  | SetReferenceNames(_, _, _, _) -> false
   | UpdateDoc(_, _, _, _, _) -> false
   | BranchEvent(_, _, _) -> false
 
@@ -118,7 +122,8 @@ let locationRowOf(d: DraftOp): Stdlib.Option.Option<(String * String * String * 
        loc.name,
        referenceHash(target),
        d.ts))
-  | Decision(_, loc, _, Override(target)) ->
+  | Decision(_, loc, _, Override(target))
+  | Decision(_, loc, _, Restore(_, target, _)) ->
     Stdlib.Option.Option.Some(
       (loc.owner,
        Stdlib.String.join(loc.modules, "."),
@@ -283,7 +288,11 @@ let discardName(
     draft
     |> Stdlib.List.filter(fun d ->
       match d.op with
+      | Rename(oldLocation, newLocation, _, _, _) ->
+        Stdlib.Bool.not(bindsThisName(oldLocation) || bindsThisName(newLocation))
+      | SetReferenceNames(loc, _, _, _) -> Stdlib.Bool.not(bindsThisName(loc))
       | SetName(loc, _, _) -> Stdlib.Bool.not(bindsThisName(loc))
+      | Decision(_, loc, _, Restore(_, _, _))
       | Decision(_, loc, _, Override(_)) -> Stdlib.Bool.not(bindsThisName(loc))
       | _ -> true))
 
@@ -331,11 +340,18 @@ let collapse(): Stdlib.Result.Result<Int, String> =
 
     let keeperForName = draft |> Stdlib.List.fold(Stdlib.Dict.empty, step)
 
+    // Restore stores a revision ID, not just its content. Keep the named revision
+    // so undo can still find its predecessor after this draft is committed.
+    let restoredRevisions = draft |> Stdlib.List.filterMap(fun d ->
+      match d.op with
+      | Decision(_, _, _, Restore(revision, _, _)) -> Some(Stdlib.toString(revision))
+      | _ -> None)
+
     draft
     |> Stdlib.List.filter(fun d ->
       match d.op with
       | SetName(loc, _, _) ->
         match Stdlib.Dict.get(keeperForName, nameKey(loc)) with
-        | Some((keeperId, _)) -> keeperId == d.id
+        | Some((keeperId, _)) -> keeperId == d.id || Stdlib.List.contains(restoredRevisions, d.id)
         | None -> true
       | _ -> true))

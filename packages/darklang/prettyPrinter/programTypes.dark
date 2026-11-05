@@ -2015,6 +2015,15 @@ module PackageOp =
       let hash = LanguageTools.ProgramTypes.Reference.hash(target)
       $"Undeprecate [{LanguageTools.ProgramTypes.hashToShort(hash)}]"
 
+    | Rename(oldLocation, newLocation, _target, _references, _stamp) ->
+      let oldName = PackageLocation.packageLocation(oldLocation)
+      let newName = PackageLocation.packageLocation(newLocation)
+      $"Rename {oldName} -> {newName}"
+
+    | SetReferenceNames(location, _target, _names, _restating) ->
+      let path = PackageLocation.packageLocation(location)
+      $"SetReferenceNames {path}"
+
     | UpdateDoc(location, part, text, _previous, _restating) ->
       let path = PackageLocation.packageLocation(location)
       // The first line of it, and only that: an op listing is for scanning, and a doc comment is
@@ -2043,6 +2052,9 @@ module PackageOp =
       let why = if reason == "" then "" else $" ({reason})"
 
       match kind with
+      | Restore(_, target, _) ->
+        let hash = LanguageTools.ProgramTypes.Reference.hash(target)
+        $"Restore #{id} {name} -> [{LanguageTools.ProgramTypes.hashToShort(hash)}]{why}"
       | Override(target) ->
         let hash = LanguageTools.ProgramTypes.Reference.hash(target)
         $"Override #{id} {name} -> [{LanguageTools.ProgramTypes.hashToShort(hash)}]{why}"

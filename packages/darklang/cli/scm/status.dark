@@ -12,9 +12,7 @@ let statusJson(state: AppState): ScmJson.StatusJson =
   let p = SCM.Draft.read()
 
   let items =
-    Commit.previousHashesOfAll(state.currentBranchId, p.bindings)
-    |> Stdlib.List.map(fun((b, previous)) ->
-      ScmJson.changedItem(state.currentBranchId, p.propagated, b, previous))
+    ScmJson.changedItems(state.currentBranchId, p.propagated, Commit.previousHashesOfAll(state.currentBranchId, p.bindings))
 
   ScmJson.StatusJson
     { branch =

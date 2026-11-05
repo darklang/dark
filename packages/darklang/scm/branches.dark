@@ -551,18 +551,21 @@ let opBindsKey(
     && ((Stdlib.String.join(loc.modules, ".")) == modules)
     && (loc.name == name)
 
-  match op with
-  | SetName(loc, target, _) ->
-    if matches(loc) then
-      Stdlib.Option.Option.Some((loc, target))
-    else
-      Stdlib.Option.Option.None
-  | Decision(_, loc, _, Override(target)) ->
-    if matches(loc) then
-      Stdlib.Option.Option.Some((loc, target))
-    else
-      Stdlib.Option.Option.None
-  | _ -> Stdlib.Option.Option.None
+  LanguageTools.ProgramTypes.PackageOp.bindingOps(op)
+  |> Stdlib.List.filterMap(fun effect ->
+    match effect with
+    | SetName(loc, target, _) ->
+      if matches(loc) then
+        Stdlib.Option.Option.Some((loc, target))
+      else
+        Stdlib.Option.Option.None
+    | Decision(_, loc, _, Override(target)) ->
+      if matches(loc) then
+        Stdlib.Option.Option.Some((loc, target))
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.last
 
 
 /// Set the branch's recorded base for one name to the parent's CURRENT hash. This is what clears a
@@ -603,11 +606,14 @@ let resolveTakeTheirs(
       |> Stdlib.List.filterMap(fun entry ->
         let (id, op) = entry
 
-        match opBindsKey(op, key) with
-        | Some(_) ->
+        let changesName = match op with
+          | SetReferenceNames(location, _, _, _) ->
+            (location.owner, Stdlib.String.join(location.modules, "."), location.name) == key
+          | _ -> Stdlib.Option.isSome(opBindsKey(op, key))
+        if changesName then
           Stdlib.Option.Option.Some(
             [ Stdlib.toString(id), Stdlib.toString(branchId) ])
-        | None -> Stdlib.Option.Option.None)
+        else Stdlib.Option.Option.None)
 
     match ids with
     // The NAME, because this reaches a person through `dark resolve` and a name is what they typed.

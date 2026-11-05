@@ -155,34 +155,27 @@ let findingId(
   Stdlib.String.toLowercase(Stdlib.String.first(digest, 8))
 
 
-/// Every live item whose recorded dependency edge points at a version that is no longer current.
-///
-/// One query, two findings, split on whether the KIND moved as well as the hash. The edge carries the
-/// NAME it was resolved by, so a dependency that has moved on is still findable -- resolving its old hash
-/// through `locations` would find nothing, which is precisely the case that matters here.
-///
-/// main-scoped, on purpose: this is a property of the STORE, of what main's log binds and depends on,
-/// not of the branch the process stands on.
-let detectOutdatedUsages(): List<Finding> =
-  Deps.query(Deps.DepQuery.Outdated)
-  |> Stdlib.List.map(fun e ->
-    let usage = Deps.locationOf(e.owner, e.modules, e.name)
-    let dependency = Deps.locationOf(e.dependsOnOwner, e.dependsOnModules, e.dependsOnName)
-    let using = LanguageTools.ProgramTypes.Hash.Hash(e.dependsOnHash)
-
-    // Same query answers both: a name whose current binding differs from the one this usage recorded.
-    // WHICH finding it is depends on whether the kind moved too.
-    let kind = if e.currentType == e.dependsOnType then Kind.StaleUsage else Kind.KindChanged
-
+/// Find callers that still use an older version of a dependency.
+/// Check each caller's reference names, since callers can follow different aliases.
+let outdatedFindings(edges: List<Deps.StaleReference>): List<Finding> =
+  edges
+  |> Stdlib.List.map(fun((usage, caller, target, dependency, current)) ->
+    let using = LanguageTools.ProgramTypes.Reference.hash(target)
+    let dependencyKind = LanguageTools.ProgramTypes.Reference.kind(target)
     Finding
-      { kind = kind
-        id = findingId(usage, dependency, e.dependsOnHash)
+      { kind = if LanguageTools.ProgramTypes.Reference.kind(current) == dependencyKind then Kind.StaleUsage else Kind.KindChanged
+        id = findingId(usage, dependency, LanguageTools.ProgramTypes.hashToString(using))
         usage = usage
-        usageKind = Deps.kindOf(e.itemType)
+        usageKind = LanguageTools.ProgramTypes.Reference.kind(caller)
         dependency = dependency
-        dependencyKind = Deps.kindOf(e.dependsOnType)
-        detail =
-          FindingDetail.Versions(using, LanguageTools.ProgramTypes.Hash.Hash(e.currentHash)) })
+        dependencyKind = dependencyKind
+        detail = FindingDetail.Versions(using, LanguageTools.ProgramTypes.Reference.hash(current)) })
+  |> Stdlib.List.uniqueBy(fun f -> f.id)
+  |> Stdlib.List.sortBy(fun f -> fqnOf(f.usage) + ":" + fqnOf(f.dependency))
+
+let outdatedUsagesOn(branchId: Uuid): List<Finding> =
+  let (stale, _) = Deps.review(branchId, [])
+  outdatedFindings(stale)
 
 
 /// Ack ids, read from the shared conflicts record.
@@ -355,73 +348,9 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
   |> Stdlib.List.flatten
 
 
-/// The same finding, for what the BRANCH binds.
-///
-/// `detectOutdatedUsages` reads `locations`, which is main's, so an item bound on a branch is never a
-/// usage there. Without this pass a branch whose caller of `f` was left behind when main moved `f` has
-/// no finding at all, and `rebase` answers "already current" because the branch never touched `f`
-/// itself: the branch goes on running main's old version with nothing saying so.
-///
-/// Three reads whatever the branch holds: the chain, every edge out of what it binds, and what
-/// each dependency means now. Asked per binding and per edge, a branch re-decoded its whole chain
-/// once for every edge.
+/// Find outdated references on a non-main branch, including inherited callers.
 let detectOutdatedUsagesOn(branchId: Uuid): List<Finding> =
-  if SCM.Branch.isMain(branchId) then
-    []
-  else
-    let chain = PackageOps.chainBindingEntries(branchId)
-    let bindings = chain |> Stdlib.List.filterMap(fun w -> w.binding)
-
-    // Each binding's edges in rowid order, which is the order its own `item_hash = ?` read gave.
-    let edgesByHash =
-      Deps.query(Deps.DepQuery.EdgesOfAll(bindings |> Stdlib.List.map(fun b -> b.hash)))
-      |> Stdlib.List.reverse
-      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, e) ->
-        let rest = Stdlib.Dict.get(acc, e.itemHash) |> Stdlib.Option.withDefault([])
-        Stdlib.Dict.set(acc, e.itemHash, Stdlib.List.prepend(rest, e)))
-
-    let edgesOf(b: Conflicts.Binding): List<Deps.DepEdge> =
-      Stdlib.Dict.get(edgesByHash, b.hash) |> Stdlib.Option.withDefault([])
-
-    let live =
-      PackageOps.liveBindingsOver(
-        branchId,
-        chain,
-        (bindings
-         |> Stdlib.List.map(fun b -> edgesOf(b))
-         |> Stdlib.List.flatten
-         |> Stdlib.List.map(fun e ->
-           Deps.locationOf(e.dependsOnOwner, e.dependsOnModules, e.dependsOnName))))
-
-    bindings
-    |> Stdlib.List.map(fun b ->
-      edgesOf(b)
-      |> Stdlib.List.filterMap(fun e ->
-        let (owner, modules, name) = (e.dependsOnOwner, e.dependsOnModules, e.dependsOnName)
-        let dependency = Deps.locationOf(owner, modules, name)
-
-        match Stdlib.Dict.get(live, Conflicts.bindingKey(owner, modules, name)) with
-        | None -> Stdlib.Option.Option.None
-        | Some(cur) ->
-          if cur.hash == e.dependsOnHash then
-            Stdlib.Option.Option.None
-          else
-            let usage = Deps.locationOf(b.owner, b.modules, b.name)
-            let using = LanguageTools.ProgramTypes.Hash.Hash(e.dependsOnHash)
-
-            Stdlib.Option.Option.Some(
-              Finding
-                { kind =
-                    if cur.itemType == e.dependsOnType then Kind.StaleUsage else Kind.KindChanged
-                  id = findingId(usage, dependency, e.dependsOnHash)
-                  usage = usage
-                  usageKind = Deps.kindOf(b.itemType)
-                  dependency = dependency
-                  dependencyKind = Deps.kindOf(e.dependsOnType)
-                  detail =
-                    FindingDetail.Versions(using, LanguageTools.ProgramTypes.Hash.Hash(cur.hash)) }
-            )))
-    |> Stdlib.List.flatten
+  if SCM.Branch.isMain(branchId) then [] else outdatedUsagesOn(branchId)
 
 
 /// Everything detection turned up, and everything it could not look at.
@@ -433,7 +362,7 @@ type Detection =
     /// One sentence per detector that could not run. Empty is the normal case.
     blocked: List<String> }
 
-let detectAll(): Detection =
+let detectWithOutdated(outdated: List<Finding>): Detection =
   // Detection and acknowledgement are independent of dependency upgrades.
   let (decisions, decisionsBlocked) =
     match detectSupersededDecisions() with
@@ -443,21 +372,20 @@ let detectAll(): Detection =
   Detection
     { findings =
         Stdlib.List.flatten(
-          [ detectOutdatedUsages()
-            detectOutdatedUsagesOn(PackageOps.currentBranch())
+          [ outdated
             decisions
             detectRivalImplementations(PackageOps.currentBranch()) ])
       blocked = decisionsBlocked }
 
 
 /// Findings that have not been acknowledged.
-let pending(): Detection =
+let pendingWithOutdated(outdated: List<Finding>): Detection =
   let ackedSet =
     ackedIds()
     |> Stdlib.List.map(fun a -> (a, true))
     |> Stdlib.Dict.fromEntries
 
-  let detected = detectAll()
+  let detected = detectWithOutdated(outdated)
 
   // Blockers pass through: an ack answers a finding, and a detector that never ran produced none.
   Detection
@@ -471,6 +399,13 @@ let pending(): Detection =
 
           Stdlib.Bool.not(isAcked))
       blocked = detected.blocked }
+
+
+let detectAll(): Detection =
+  detectWithOutdated(outdatedUsagesOn(PackageOps.currentBranch()))
+
+let pending(): Detection =
+  pendingWithOutdated(outdatedUsagesOn(PackageOps.currentBranch()))
 
 
 /// Record "I've seen this one, leave it" -- as an OP, so the ack travels. An ack that lives only on the

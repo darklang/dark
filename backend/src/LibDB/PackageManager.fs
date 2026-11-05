@@ -106,6 +106,8 @@ let withLocationDocs
         fun query ->
           uply {
             let! r = pm.search query
+            let! referenceNames = ReferenceNames.load branchId
+            let r = ReferenceNames.patchResults referenceNames r
 
             let locations =
               (r.types |> List.map _.location)
@@ -301,7 +303,7 @@ let createInMemoryOver
     | PT.PackageTraitImpl h -> implLocs[loc] <- h
     | PT.PackageTest h -> testLocs[loc] <- h
 
-  for op in ops do
+  for op in List.collect PT.packageOpBindingEffects ops do
     match op with
     | PT.PackageOp.SetName(loc, target, _) -> bind loc target
     | PT.PackageOp.Unbind(loc, _) -> unbind loc
@@ -317,11 +319,14 @@ let createInMemoryOver
     // BranchEvent is about the branch -- so an overlay of bindings has nothing to do here.
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
+    | PT.PackageOp.Rename _
+    | PT.PackageOp.SetReferenceNames _
     | PT.PackageOp.UpdateDoc _
     | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Ack _)
     | PT.PackageOp.BranchEvent _ -> ()
 
     // An override binds a name like a SetName does; the overlay only cares about the binding.
+    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _))
     | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
       bind loc target
 
@@ -745,11 +750,13 @@ let combine
 /// overlay of bindings can only add; this is what it takes away from whatever is underneath.
 let unboundBy (ops : List<PT.PackageOp>) : Set<PT.PackageLocation> =
   ops
+  |> List.collect PT.packageOpBindingEffects
   |> List.fold
     (fun (hidden : Set<PT.PackageLocation>) op ->
       match op with
       | PT.PackageOp.Unbind(loc, _) -> Set.add loc hidden
       | PT.PackageOp.SetName(loc, _, _)
+      | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, _, _))
       | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override _) ->
         Set.remove loc hidden
       | _ -> hidden)
@@ -1035,6 +1042,7 @@ let branchLocationsFor
     (fun (acc : Map<string, PT.PackageLocation * Hash>) op ->
       match op with
       | PT.PackageOp.SetName(loc, target, _)
+      | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _))
       | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) when
         target.kind = kind
         ->
@@ -1066,6 +1074,7 @@ let branchLocationsEverNamed
   |> List.choose (fun op ->
     match op with
     | PT.PackageOp.SetName(loc, target, _)
+    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _))
     | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) when
       target.kind = kind && target.hash = hash
       ->

@@ -220,8 +220,8 @@ let rec insertAndApplyOpsWith
           let insert =
             """
             INSERT INTO package_ops
-              (id, op_blob, applied, origin_ts, commit_hash)
-            VALUES (@id, @op_blob, @applied, @origin_ts, @commit_hash)
+              (id, op_blob, op_kind, applied, origin_ts, commit_hash)
+            VALUES (@id, @op_blob, @op_kind, @applied, @origin_ts, @commit_hash)
             ON CONFLICT(id) DO UPDATE
               SET effective = 1,
                   applied = 0,
@@ -233,6 +233,7 @@ let rec insertAndApplyOpsWith
           let parameters =
             [ "id", Sql.uuid opId
               "op_blob", Sql.bytes opBlob
+              "op_kind", Sql.string (BS.PT.PackageOp.kind _op)
               "applied", Sql.bool false
               "origin_ts", Sql.string originTs
               "commit_hash",
@@ -328,32 +329,7 @@ let rec insertAndApplyOpsWith
   }
 
 
-/// Insert PackageOps and fold them into the projections. Returns the count actually inserted, so an
-/// op the store already runs counts 0. Insert with applied=false, fold, then mark applied=true, so a
-/// mid-fold failure leaves the ops identifiable and retryable. Commit-free: no commit_hash, so every
-/// op is live.
-/// The `owner` field is the first part of a package name, such as
-/// `Darklang.Stdlib.List.map`. Names beginning with `Darklang` are treated as
-/// bundled first-party code, so only trusted seeding may create those bindings;
-/// guest and sync writes reject them.
-let reservedOwners : Set<string> = Set.ofList [ "Darklang" ]
-
-/// The first operation that binds OR unbinds a name under a protected owner.
-/// `None` means no protected location is touched. (The old model also had to
-/// chase renames unlisting other bindings of a shared hash; that heuristic is
-/// gone -- a `SetName` changes exactly its own location, and retiring a name is
-/// an explicit `Unbind` -- so the location arms here are the whole surface.)
-let reservedOwnerViolation (ops : List<PT.PackageOp>) : Option<string> =
-  let ownersBound (op : PT.PackageOp) : List<string> =
-    match op with
-    | PT.PackageOp.SetName(loc, _, _) -> [ loc.owner ]
-    | PT.PackageOp.Unbind(loc, _) -> [ loc.owner ]
-    | _ -> []
-  ops
-  |> List.collect ownersBound
-  |> List.tryFind (fun owner -> Set.contains owner reservedOwners)
-  |> Option.map (fun owner ->
-    $"cannot bind a package name under the reserved owner \"{owner}\"; it is reserved for the bundled standard library")
+let reservedOwnerViolation = OpValidation.reservedOwnerViolation
 
 /// Detect a parser placeholder instead of a real content hash. Placeholders
 /// are empty or contain the package location; real hashes contain only hex
@@ -372,7 +348,8 @@ let placeholderHashViolation (ops : List<PT.PackageOp>) : Option<string> =
     | PT.PackageOp.AddTrait t -> [ t.hash ]
     | PT.PackageOp.AddTraitImpl i -> [ i.hash ]
     | PT.PackageOp.AddTest test -> [ test.hash ]
-    | PT.PackageOp.SetName(_, target, _) -> [ target.hash ]
+    | PT.PackageOp.SetName(_, target, _)
+    | PT.PackageOp.Rename(_, _, target, _, _) -> [ target.hash ]
     | _ -> []
   ops
   |> List.collect hashesOf
@@ -414,8 +391,12 @@ let insertUntrustedOps (ops : List<PT.PackageOp>) : Task<Result<int64, string>> 
     | Some reason, _
     | None, Some reason -> return Error reason
     | None, None ->
-      let! count = insertAndApplyOpsAsWip ops
-      return Ok count
+      let! invalid = ReferenceNamesContent.validate ops
+      match invalid with
+      | Some reason -> return Error reason
+      | None ->
+        let! count = insertAndApplyOpsAsWip ops
+        return Ok count
   }
 
 /// Which `package_ops` rows are main's draft. The read (`Queries.getDraftOps`), the delete
@@ -513,14 +494,15 @@ let private rewriteOpsAtomicallyIf
           let opId = computeOpHash op
           let blob = BS.PT.PackageOp.serialize opId op
           let! n =
-            PreparedBatch.execRows ctx "INSERT INTO package_ops (id, op_blob, applied, origin_ts, commit_hash)
-             VALUES ($id, $blob, 1, $ts, $commit)
+            PreparedBatch.execRows ctx "INSERT INTO package_ops (id, op_blob, op_kind, applied, origin_ts, commit_hash)
+             VALUES ($id, $blob, $kind, 1, $ts, $commit)
              ON CONFLICT(id) DO UPDATE
                SET effective = 1, applied = 1,
                    origin_ts = excluded.origin_ts, commit_hash = excluded.commit_hash
                WHERE package_ops.effective = 0" (fun cmd ->
               PreparedBatch.pUuid cmd "$id" opId
               PreparedBatch.p cmd "$blob" blob
+              PreparedBatch.p cmd "$kind" (BS.PT.PackageOp.kind op)
               PreparedBatch.p cmd "$ts" (tsFor opId)
               PreparedBatch.pOpt cmd "$commit" (commitFor opId))
           do!
@@ -610,6 +592,22 @@ let importOpsBulk
     if List.isEmpty records then
       return 0L
     else
+      let decoded =
+        records
+        |> List.choose (fun (id, blob, _) ->
+          try
+            BS.PT.PackageOp.tryDeserialize
+              (System.Guid.Parse id)
+              (System.Convert.FromHexString blob)
+          with _ ->
+            None)
+      match OpValidation.reservedOwnerViolation decoded with
+      | Some reason -> Exception.raiseInternal reason []
+      | None -> ()
+      let! invalid = ReferenceNamesContent.validate decoded
+      match invalid with
+      | Some reason -> Exception.raiseInternal reason []
+      | None -> ()
       // Advance our clock past everything in this batch BEFORE anything is stored, so the next
       // thing authored here sorts after what we just learned about. See `OriginTs.observe`: a peer
       // whose clock is ahead would otherwise win every contested name forever.
@@ -625,6 +623,12 @@ let importOpsBulk
             Some
               [ "id", Sql.uuid (System.Guid.Parse id)
                 "op_blob", Sql.bytes (System.Convert.FromHexString blobHex)
+                "op_kind",
+                Sql.string (
+                  BS.PT.PackageOp.kindOfBlob
+                    (System.Guid.Parse id)
+                    (System.Convert.FromHexString blobHex)
+                )
                 "origin_ts", Sql.string originTs
                 "commit_hash",
                 (if commitHash = "" then Sql.dbnull else Sql.string commitHash) ]
@@ -640,8 +644,8 @@ let importOpsBulk
         let sql =
           """
           INSERT OR IGNORE INTO package_ops
-            (id, op_blob, applied, effective, origin_ts, commit_hash)
-          VALUES (@id, @op_blob, 0, 1, @origin_ts, @commit_hash)
+            (id, op_blob, op_kind, applied, effective, origin_ts, commit_hash)
+          VALUES (@id, @op_blob, @op_kind, 0, 1, @origin_ts, @commit_hash)
           """
 
         // An op id is a content hash, so an op arriving from a peer's MAIN can already be here as

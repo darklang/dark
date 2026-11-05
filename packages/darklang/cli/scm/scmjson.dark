@@ -170,10 +170,11 @@ let branchDiffJson(es: List<SCM.PackageOps.BranchDiffEntry>): String =
 let changeKind(
   branchId: Uuid,
   b: SCM.Conflicts.Binding,
+  existed: Bool,
   previous: List<LanguageTools.ProgramTypes.Hash>)
   : String =
   match previous with
-  | [] -> "new"
+  | [] -> if existed then "updated" else "new"
   | [prev, ...] ->
     if b.itemType != "fn" then
       "updated"
@@ -196,6 +197,7 @@ let changedItem(
   branchId: Uuid,
   propagated: List<String>,
   b: SCM.Conflicts.Binding,
+  existed: Bool,
   previous: List<LanguageTools.ProgramTypes.Hash>)
   : ChangedItem =
   let name = SCM.Conflicts.fqn(b.owner, b.modules, b.name)
@@ -204,8 +206,18 @@ let changedItem(
     { kind = b.itemType
       name = name
       hash = b.hash
-      change = changeKind(branchId, b, previous)
+      change = changeKind(branchId, b, existed, previous)
       followed = Stdlib.List.contains(propagated, name) }
+
+/// Work out whether each item is new, updated, or has a changed signature.
+/// Read the committed bindings once for the whole review.
+let changedItems(branchId: Uuid, propagated: List<String>, entries: List<(SCM.Conflicts.Binding * List<LanguageTools.ProgramTypes.Hash>)>): List<ChangedItem> =
+  let locations = entries |> Stdlib.List.map(fun((b, _)) -> [ b.owner, b.modules, b.name ])
+  let committed = SCM.PackageOps.committedBindingsOn(branchId, locations)
+    |> Stdlib.List.map(fun b -> SCM.Conflicts.fqn(b.owner, b.modules, b.name))
+  entries |> Stdlib.List.map(fun((b, previous)) ->
+    let existed = Stdlib.List.contains(committed, SCM.Conflicts.fqn(b.owner, b.modules, b.name))
+    changedItem(branchId, propagated, b, existed, previous))
 
 /// Right-pad to <param width> so a column of names lines up under each other.
 let pad(s: String, width: Int): String =

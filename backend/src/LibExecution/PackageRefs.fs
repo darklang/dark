@@ -543,6 +543,7 @@ module Type =
         let searchQuery = p [] "SearchQuery"
         let searchResults = p [] "SearchResults"
 
+      let referenceNamesSnapshot = p [] "ReferenceNamesSnapshot"
       let packageOp = p [] "PackageOp"
       let itemKind = p [] "ItemKind"
       let reference = p [] "Reference"

@@ -45,12 +45,29 @@ let private branchParam : Param =
     "the branch to resolve against; main is `SCM.Branch.mainBranchId`. Passed rather than ambient, so a caller can ask about a branch it is not sitting on"
 
 
+/// Shared decoding for dependency reads, snapshots, and review seeds.
+let private referenceSourcesFromDT (sources : List<Dval>) =
+  sources
+  |> List.map (function
+    | DTuple(location, target, []) ->
+      PT2DT.PackageLocation.fromDT location, PT2DT.Reference.fromDT target
+    | value -> Exception.raiseInternal "Invalid reference source" [ "value", value ])
+
+let private cutoffFromDT (value : Dval) =
+  match value with
+  | DEnum(_, _, _, "Some", [ DString stamp ]) -> Some stamp
+  | DEnum(_, _, _, "None", []) -> None
+  | value -> Exception.raiseInternal "Invalid history cutoff" [ "value", value ]
+
 /// Persist a computed cascade on its branch and refresh the process overlay.
 let private persistPropagation
   (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
   : Ply<unit> =
   uply {
+    do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
+    let! names = LibDB.ReferenceNames.captureForStorage branch ops
+    let ops = ops @ names
     if branch.IsMain then
       // Marked as PROPAGATED, not authored. It's the only point at which the difference is known.
       let! _ = LibDB.Inserts.insertAndApplyPropagatedOps ops
@@ -915,6 +932,432 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
+
+    // Dependency queries and propagation must agree on who calls what after a rename.
+    // Share that logic here and fetch only the callers of the requested items.
+    { name = fn "pmDependents" 0
+      typeParams = []
+      parameters =
+        [ branchParam
+          Param.make
+            "targets"
+            (TList(
+              TTuple(
+                TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
+                TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []),
+                []
+              )
+            ))
+            "Names to find callers for" ]
+      returnType =
+        TList(
+          TTuple(
+            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
+            TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
+            [ TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []) ]
+          )
+        )
+      description = "Find callers using this branch's reference names."
+      fn =
+        (function
+        | _, _, _, [| DUuid branchGuid; DList(_, targets) |] ->
+          uply {
+            let branch = branchOfParam branchGuid
+            let targets : List<LibDB.Queries.LocationTarget> =
+              targets
+              |> List.map (function
+                | DTuple(location, kind, []) ->
+                  { location = PT2DT.PackageLocation.fromDT location
+                    itemKind = PT2DT.ItemKind.fromDT kind
+                    hashes = [] }
+                | v ->
+                  Exception.raiseInternal "Invalid dependency target" [ "value", v ])
+            let! state = LibDB.ReferenceNames.load branch
+            let! bindings = LibDB.ReferenceNames.branchBindings branch
+            let! dependents =
+              LibDB.ReferenceDependencies.dependents state bindings targets
+            let tupleKT =
+              KTTuple(
+                VT.known (PT2DT.Hash.knownType ()),
+                VT.known (PT2DT.PackageLocation.knownType ()),
+                [ VT.known (PT2DT.ItemKind.knownType ()) ]
+              )
+            return
+              dependents
+              |> List.map (fun d ->
+                DTuple(
+                  PT2DT.Hash.toDT d.itemHash,
+                  PT2DT.PackageLocation.toDT d.itemLocation,
+                  [ PT2DT.ItemKind.toDT d.itemKind ]
+                ))
+              |> Dval.list tupleKT
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmLiveReferenceSources" 0
+      typeParams = []
+      parameters = [ branchParam ]
+      returnType =
+        TList(
+          TTuple(
+            TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
+            TCustomType(NR.ok (PT2DT.Reference.typeName ()), []),
+            []
+          )
+        )
+      description = "Read the declarations visible on a branch, including its draft."
+      fn =
+        (function
+        | _, _, _, [| DUuid branch |] ->
+          uply {
+            let! bindings =
+              LibDB.ReferenceDependencies.liveBindings (branchOfParam branch)
+            return
+              bindings
+              |> Map.toList
+              |> List.map (fun (location, target) ->
+                DTuple(
+                  PT2DT.PackageLocation.toDT location,
+                  PT2DT.Reference.toDT target,
+                  []
+                ))
+              |> Dval.list (
+                KTTuple(
+                  VT.known (PT2DT.PackageLocation.knownType ()),
+                  VT.known (PT2DT.Reference.knownType ()),
+                  []
+                )
+              )
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    // Read the graph in one native batch so status and commit avoid per-reference interpreter work.
+    { name = fn "pmNamedReferences" 0
+      typeParams = []
+      parameters =
+        [ branchParam
+          Param.make
+            "sources"
+            (TList(
+              TTuple(
+                TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
+                TCustomType(NR.ok (PT2DT.Reference.typeName ()), []),
+                []
+              )
+            ))
+            "Callers to read, or an empty list for all visible callers" ]
+      returnType =
+        TypeReference.result
+          (TList(
+            TTuple(
+              TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
+              TCustomType(NR.ok (PT2DT.Reference.typeName ()), []),
+              [ TCustomType(NR.ok (PT2DT.Reference.typeName ()), [])
+                TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []) ]
+            )
+          ))
+          TString
+      description = "Read callers' dependencies using this branch's reference names."
+      fn =
+        (function
+        | _, _, _, [| DUuid branch; DList(_, sources) |] ->
+          uply {
+            let sources = referenceSourcesFromDT sources
+            let! edges =
+              LibDB.ReferenceDependencies.namedReferences
+                (branchOfParam branch)
+                sources
+            let edgeKT =
+              KTTuple(
+                VT.known (PT2DT.PackageLocation.knownType ()),
+                VT.known (PT2DT.Reference.knownType ()),
+                [ VT.known (PT2DT.Reference.knownType ())
+                  VT.known (PT2DT.PackageLocation.knownType ()) ]
+              )
+            let listKT = KTList(VT.known edgeKT)
+            match edges with
+            | Error message ->
+              return Dval.resultError listKT KTString (DString message)
+            | Ok edges ->
+              let values =
+                edges
+                |> List.map (fun (location, caller, target, name) ->
+                  DTuple(
+                    PT2DT.PackageLocation.toDT location,
+                    PT2DT.Reference.toDT caller,
+                    [ PT2DT.Reference.toDT target; PT2DT.PackageLocation.toDT name ]
+                  ))
+              return Dval.resultOk listKT KTString (Dval.list edgeKT values)
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmDependencyReview" 0
+      typeParams = []
+      parameters =
+        [ branchParam
+          Param.make
+            "changed"
+            (TList(
+              TTuple(
+                TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
+                TCustomType(NR.ok (PT2DT.Reference.typeName ()), []),
+                []
+              )
+            ))
+            "Changed names and their current versions, in review order" ]
+      returnType =
+        let location = TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), [])
+        let reference = TCustomType(NR.ok (PT2DT.Reference.typeName ()), [])
+        TypeReference.result
+          (TTuple(
+            TList(TTuple(location, reference, [ reference; location; reference ])),
+            TList(TTuple(location, location, [])),
+            []
+          ))
+          TString
+      description =
+        "Review stale references and reachable caller updates using one branch snapshot."
+      fn =
+        (function
+        | _, _, _, [| DUuid branch; DList(_, changed) |] ->
+          uply {
+            let changed = referenceSourcesFromDT changed
+            let! result =
+              LibDB.ReferenceDependencies.dependencyReview
+                (branchOfParam branch)
+                changed
+            let location = VT.known (PT2DT.PackageLocation.knownType ())
+            let reference = VT.known (PT2DT.Reference.knownType ())
+            let staleKT =
+              KTTuple(location, reference, [ reference; location; reference ])
+            let repointKT = KTTuple(location, location, [])
+            let resultKT =
+              KTTuple(
+                VT.known (KTList(VT.known staleKT)),
+                VT.known (KTList(VT.known repointKT)),
+                []
+              )
+            match result with
+            | Error message ->
+              return Dval.resultError resultKT KTString (DString message)
+            | Ok(stale, repoints) ->
+              let stale =
+                stale
+                |> List.map (fun ((usage, caller, target, dependency), current) ->
+                  DTuple(
+                    PT2DT.PackageLocation.toDT usage,
+                    PT2DT.Reference.toDT caller,
+                    [ PT2DT.Reference.toDT target
+                      PT2DT.PackageLocation.toDT dependency
+                      PT2DT.Reference.toDT current ]
+                  ))
+                |> Dval.list staleKT
+              let repoints =
+                repoints
+                |> List.map (fun (usage, dependency) ->
+                  DTuple(
+                    PT2DT.PackageLocation.toDT usage,
+                    PT2DT.PackageLocation.toDT dependency,
+                    []
+                  ))
+                |> Dval.list repointKT
+              return Dval.resultOk resultKT KTString (DTuple(stale, repoints, []))
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmRevisionOperations" 0
+      typeParams = []
+      parameters =
+        [ branchParam
+          Param.make "inherited" TBool "Read only committed ancestor history"
+          Param.make
+            "before"
+            (TypeReference.option TString)
+            "Optional history cutoff" ]
+      returnType =
+        TList(
+          TTuple(
+            TString,
+            TString,
+            [ TCustomType(NR.ok (PT2DT.PackageOp.typeName ()), []) ]
+          )
+        )
+      description = "Read one branch's operations for undo history."
+      fn =
+        (function
+        | _, _, _, [| DUuid branchGuid; DBool inherited; before |] ->
+          uply {
+            let before = cutoffFromDT before
+            let! operations =
+              LibDB.OpHistory.revisionOperations
+                (branchOfParam branchGuid)
+                inherited
+                before
+            return
+              operations
+              |> List.map (fun (id, stamp, op) ->
+                DTuple(DString id, DString stamp, [ PT2DT.PackageOp.toDT op ]))
+              |> Dval.list (
+                KTTuple(
+                  VT.known KTString,
+                  VT.known KTString,
+                  [ VT.known (KTCustomType(PT2DT.PackageOp.typeName (), [])) ]
+                )
+              )
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmReferenceNameOverrides" 0
+      typeParams = []
+      parameters =
+        [ branchParam
+          Param.make
+            "targets"
+            (TList(TCustomType(NR.ok (PT2DT.Reference.typeName ()), [])))
+            "Declaration versions to read saved reference names for"
+          Param.make
+            "before"
+            (TypeReference.option TString)
+            "Read names as they were at this timestamp, or use None for current names" ]
+      returnType =
+        TList(TCustomType(NR.ok (PT2DT.ReferenceNamesSnapshot.typeName ()), []))
+      description = "Read this branch's saved reference names."
+      fn =
+        (function
+        | _, _, _, [| DUuid branchGuid; DList(_, targets); before |] ->
+          uply {
+            let before = cutoffFromDT before
+            let! snapshots =
+              LibDB.ReferenceNames.overrides
+                (branchOfParam branchGuid)
+                (List.map PT2DT.Reference.fromDT targets)
+                before
+            return
+              snapshots
+              |> List.map PT2DT.ReferenceNamesSnapshot.toDT
+              |> Dval.list (PT2DT.ReferenceNamesSnapshot.knownType ())
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmApplyReferenceNames" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "snapshots"
+            (TList(TCustomType(NR.ok (PT2DT.ReferenceNamesSnapshot.typeName ()), [])))
+            "Saved reference names before this operation"
+          Param.make
+            "op"
+            (TCustomType(NR.ok (PT2DT.PackageOp.typeName ()), []))
+            "The original operation to apply to these reference names" ]
+      returnType =
+        TList(TCustomType(NR.ok (PT2DT.ReferenceNamesSnapshot.typeName ()), []))
+      description = "Apply an operation's changes to saved reference names."
+      fn =
+        (function
+        | _, _, _, [| DList(_, snapshots); operation |] ->
+          match PT2DT.PackageOp.fromDT operation with
+          | None -> incorrectArgs ()
+          | Some op ->
+            LibDB.ReferenceNames.applySnapshots
+              (List.map PT2DT.ReferenceNamesSnapshot.fromDT snapshots)
+              op
+            |> List.map PT2DT.ReferenceNamesSnapshot.toDT
+            |> Dval.list (PT2DT.ReferenceNamesSnapshot.knownType ())
+            |> Ply
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "pmStoredReferenceSnapshots" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "sources"
+            (TList(
+              TTuple(
+                TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
+                TCustomType(NR.ok (PT2DT.Reference.typeName ()), []),
+                []
+              )
+            ))
+            "Locations and versions of the declarations to read" ]
+      returnType =
+        TList(TCustomType(NR.ok (PT2DT.ReferenceNamesSnapshot.typeName ()), []))
+      description = "Read the reference names from stored declarations."
+      fn =
+        (function
+        | _, _, _, [| DList(_, sources) |] ->
+          uply {
+            let sources = referenceSourcesFromDT sources
+            let! snapshots = LibDB.ReferenceNamesContent.storedSnapshots sources
+            return
+              snapshots
+              |> List.map PT2DT.ReferenceNamesSnapshot.toDT
+              |> Dval.list (PT2DT.ReferenceNamesSnapshot.knownType ())
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmCommittedBindings" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "locations"
+            (TList(TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), [])))
+            "Names to resolve on committed main" ]
+      returnType =
+        TList(
+          TTuple(TCustomType(NR.ok (PT2DT.PackageOp.typeName ()), []), TString, [])
+        )
+      description =
+        "Find the operations that give these names their committed bindings on main, including their timestamps."
+      fn =
+        (function
+        | _, _, _, [| DList(_, locations) |] ->
+          uply {
+            let! bindings =
+              LibDB.Queries.committedBindingOperationsFor (
+                List.map PT2DT.PackageLocation.fromDT locations
+              )
+            return
+              bindings
+              |> Map.toList
+              |> List.map (fun (_, (op, stamp)) ->
+                DTuple(PT2DT.PackageOp.toDT op, DString stamp, []))
+              |> Dval.list (
+                KTTuple(
+                  VT.known (KTCustomType(PT2DT.PackageOp.typeName (), [])),
+                  VT.known KTString,
+                  []
+                )
+              )
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
 
     // Execute propagation of an update to all dependents
     { name = fn "pmPropagate" 0

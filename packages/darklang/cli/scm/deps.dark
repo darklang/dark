@@ -185,11 +185,14 @@ let showTransitiveDependents(
 /// by; a hash lookup answers "what is called this hash", which differs whenever two names share content --
 /// and has no answer once the dependency has moved on, which is precisely when you're asking.
 let showDependencies(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind,
   sourceHash: LanguageTools.ProgramTypes.Hash,
   entityName: String,
   cap: Bool)
   : Unit =
-  match SCM.Deps.dependencyEdges(sourceHash) with
+  match SCM.Deps.dependencyEdges(branchId, location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) with
   | [] -> Stdlib.printLine($"No dependencies found for {entityName}")
   | deps ->
     let count = Stdlib.List.length(deps)
@@ -288,7 +291,7 @@ let executeJson(
   kind: LanguageTools.ProgramTypes.ItemKind,
   entityName: String)
   : AppState =
-  let dependencies = SCM.Deps.dependencyEdges(sourceHash) |> Stdlib.List.map(edgeJson)
+  let dependencies = SCM.Deps.dependencyEdges(state.currentBranchId, loc, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) |> Stdlib.List.map(edgeJson)
 
   let dependents =
     SCM.Deps.dependentsOf([ (loc, kind) ])
@@ -358,7 +361,7 @@ let execute(state: AppState, args: List<String>): AppState =
         executeJson(state, hash, loc, entityType, name)
       else
 
-      showDependencies(hash, name, cap)
+      showDependencies(branchId, loc, entityType, hash, name, cap)
       state
 
   | ["usedby", pathArg] ->
@@ -396,7 +399,7 @@ let execute(state: AppState, args: List<String>): AppState =
         executeJson(state, hash, loc, entityType, name)
       else
 
-      showDependencies(hash, name, cap)
+      showDependencies(branchId, loc, entityType, hash, name, cap)
       Stdlib.printLine("")
 
       if deep then

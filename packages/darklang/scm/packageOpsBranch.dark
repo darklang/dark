@@ -110,7 +110,13 @@ let branchPreview(branchId: Uuid): List<Conflicts.Conflict> =
 /// Returns a record rather than rendered lines: both renderers below read it, so the human and the JSON
 /// caller cannot be told different things.
 let branchDiffEntries(branchId: Uuid): List<BranchDiffEntry> =
-  let branchBinds = branchBindings(branchId)
+  // Include reference-only edits, then resolve their actual live bindings.
+  let candidates = draftEntriesFromOpRows(Branches.ownOpRows(branchId))
+    |> Stdlib.List.filterMap(fun word -> word.binding)
+  let locations = candidates |> Stdlib.List.map(fun b -> Deps.locationOf(b.owner, b.modules, b.name))
+  let live = liveBindingsFor(branchId, locations)
+  let branchBinds = candidates |> Stdlib.List.filterMap(fun b ->
+    Stdlib.Dict.get(live, Conflicts.bindingKey(b.owner, b.modules, b.name)))
   let names = Branches.touchedNames(branchId)
   let parent = branchParentOf(branchId)
   let parentBinds = parentBindings(parent, names)
@@ -120,14 +126,27 @@ let branchDiffEntries(branchId: Uuid): List<BranchDiffEntry> =
     |> Stdlib.List.map(fun b -> (Conflicts.bindingKey(b.owner, b.modules, b.name), b.hash))
     |> Stdlib.Dict.fromEntries
 
+  let shared = branchBinds |> Stdlib.List.filter(fun b ->
+    Stdlib.Dict.get(parentByKey, Conflicts.bindingKey(b.owner, b.modules, b.name)) == Some(b.hash))
+    |> Stdlib.List.map(sourceOfBinding)
+  let namesBySource(scope: Uuid): ReferenceNamesBySource =
+    referenceSnapshots(scope, shared) |> indexReferenceSnapshots
+  let branchNames = namesBySource(branchId)
+  let parentNames = namesBySource(parent)
+  let namesAt(index: ReferenceNamesBySource, b: Conflicts.Binding)
+    : List<(LanguageTools.ProgramTypes.Reference * Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)> =
+    Stdlib.Dict.get(index, sourceOfBinding(b))
+    |> Stdlib.Option.map(fun snapshot -> snapshot.names)
+    |> Stdlib.Option.withDefault([])
+
   branchBinds
   |> Stdlib.List.filterMap(fun b ->
     let parentHash =
       Stdlib.Dict.get(parentByKey, Conflicts.bindingKey(b.owner, b.modules, b.name))
       |> Stdlib.Option.withDefault("")
 
-    if b.hash == parentHash then
-      Stdlib.Option.Option.None // the branch re-bound to what the parent already has
+    if b.hash == parentHash && namesAt(branchNames, b) == namesAt(parentNames, b) then
+      Stdlib.Option.Option.None
     else
       let change = if parentHash == "" then "new" else "changed"
 
@@ -318,6 +337,8 @@ let branchHashHistoryFor(
 let branchHashHistories(branchId: Uuid): Dict<String, List<String>> =
   // Deliberately SetName-only: an Override is a decision, not authoring history.
   decodeOpRows(chainOpRows(branchId))
+  |> Stdlib.List.map(LanguageTools.ProgramTypes.PackageOp.bindingOps)
+  |> Stdlib.List.flatten
   |> Stdlib.List.filterMap(fun op ->
     match op with
     | SetName(location, target, _) ->

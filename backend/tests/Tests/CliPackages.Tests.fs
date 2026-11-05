@@ -22,6 +22,77 @@ open Tests.CliTestHarness
 open Tests.CliDsl
 
 
+/// An upgrade must restore each bundled operation with its original ID and kind.
+let upgradeRestoresSeedOperationKinds =
+  Tests.CliInstance.instanceTest
+    "an upgrade restores bundled operations with their original kinds"
+    (fun instance ->
+      task {
+#if DEBUG
+        // Debug binaries do not contain the bundled seed used by this test.
+        skiptest "Seed restoration needs a published build; run with --published."
+#endif
+        let dbPath = System.IO.Path.Combine(instance.dir, "data.db")
+        // Start from the binary's bundled seed, rather than the copied test store.
+        for suffix in [ ""; "-wal"; "-shm" ] do
+          System.IO.File.Delete(dbPath + suffix)
+        let! initial = Tests.CliInstance.runRaw instance [ "eval"; "1L + 1L" ]
+        let (code, output, error) = initial
+        Expect.equal code 0 $"the private installation starts successfully: {error}"
+        Expect.equal (output.Trim()) "2" "the seeded installation can evaluate code"
+        let readOperations () =
+          use conn =
+            new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
+          conn.Open()
+          use command = conn.CreateCommand()
+          command.CommandText <-
+            "SELECT p.id, p.op_kind FROM package_ops p
+             JOIN seed_ops s ON s.op_id = p.id"
+          use reader = command.ExecuteReader()
+          [ while reader.Read() do
+              yield reader.GetString(0), reader.GetString(1) ]
+          |> Map.ofList
+        let original = readOperations ()
+        Expect.isNonEmpty original "the installation contains bundled operations"
+        let removed =
+          original |> Map.toList |> Microsoft.FSharp.Collections.List.distinctBy snd
+        for (_, kind) in removed do
+          Expect.isFalse
+            (System.String.IsNullOrWhiteSpace kind)
+            "bundled operations have a kind"
+        do
+          use conn =
+            new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
+          conn.Open()
+          for (id, _) in removed do
+            use command = conn.CreateCommand()
+            command.CommandText <- "DELETE FROM package_ops WHERE id = $id"
+            command.Parameters.AddWithValue("$id", id) |> ignore
+            Expect.equal
+              (command.ExecuteNonQuery())
+              1
+              "remove one bundled operation of each kind"
+          use stamp = conn.CreateCommand()
+          stamp.CommandText <- "DELETE FROM store_stamp_v0"
+          stamp.ExecuteNonQuery() |> ignore
+        let remaining = readOperations ()
+        for (id, _) in removed do
+          Expect.isFalse
+            (Map.containsKey id remaining)
+            "the operation is absent before upgrading"
+        let! (code, output, error) =
+          Tests.CliInstance.runRaw instance [ "eval"; "1L + 1L" ]
+        Expect.equal code 0 $"the upgrade succeeds: {error}"
+        Expect.equal (output.Trim()) "2" "evaluation works after the upgrade"
+        let restored = readOperations ()
+        for (id, kind) in removed do
+          Expect.equal
+            (Map.tryFind id restored)
+            (Some kind)
+            "restore the same operation ID and kind"
+      })
+
+
 // ─── looking around ───────────────────────────────────────────────────────
 
 let lsNamesWhatIsThere =
@@ -1297,10 +1368,13 @@ let searchLeavesTestsOutUnlessAsked =
     })
 
 /// A Code-view workbench state standing in <paramref name="modules"/>, with the cursor on the row named
-/// <paramref name="row"/>, as one line of Dark for `eval`. Built from `initialState`, so no terminal.
+/// <paramref name="row"/>, as one line of Dark for `eval`.
 let private workbenchAt (modules : List<string>) (row : string) : string =
   let path = modules |> List.map (fun m -> $"\"{m}\"") |> String.concat ", "
-  "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.PackageOps.currentBranch(), Stdlib.Option.Option.None, \"i\", false) in "
+  // These tests open Matter directly. Skip Home's dependency and constraint reads.
+  let draft =
+    "Darklang.SCM.Draft.Picture { bindings = [], propagated = [], removed = [], repoints = [], conflicts = [], constraints = 0, ops = 0L }"
+  $"let st = Darklang.Cli.Workbench.initialStateFrom(Darklang.SCM.PackageOps.currentBranch(), Stdlib.Option.Option.None, \"i\", false, {draft}) in "
   + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module([ {path} ]) }} in "
   + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems(s0) } in "
   + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap(s1.items, fun(i, it) -> (i, it.name)) |> Stdlib.List.findFirst(fun((_, nm)) -> nm == \"{row}\") |> Stdlib.Option.map(fun((i, _)) -> i) |> Stdlib.Option.withDefault(0)) }} in "
@@ -2141,6 +2215,7 @@ let tests : List<Test> =
     pureTestsRunInProcess
     isolatedTestsRejectUnsuccessfulWorkers
     testsUseInstanceAndFunctionPolicies
+    upgradeRestoresSeedOperationKinds
     workbenchShowsTests
     workbenchRenameEndsTheOldName
     searchFindsByText

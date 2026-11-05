@@ -383,6 +383,330 @@ let durableReleaseCarriesForward =
     do! execSql "DROP INDEX IF EXISTS idx_release_migration_demo"
   }
 
+let invalidReferenceSnapshotsAreRejectedBeforeStorage =
+  testTask "invalid and protected reference snapshots are rejected before storage" {
+    let location : PT.PackageLocation =
+      { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "head" }
+    let! hash = LibDB.ProgramTypes.Fn.find location |> Ply.toTask
+    let hash =
+      hash |> Option.defaultWith (fun () -> failtest "missing List.head fixture")
+    let target = PT.PackageFn hash
+    let! names = LibDB.ReferenceNamesContent.storedNames target
+    let names =
+      names |> Option.defaultWith (fun () -> failtest "missing head content")
+    Expect.isNonEmpty names "the fixture has references to validate"
+    let own : PT.PackageLocation =
+      { owner = "Tests"
+        modules = [ "SnapshotValidation" ]
+        name = System.Guid.NewGuid().ToString("N") }
+    let ownNew = { own with name = own.name + "Moved" }
+    let invalid = PT.PackageOp.SetReferenceNames(own, target, [], None)
+    let protectedOp = PT.PackageOp.SetReferenceNames(location, target, names, None)
+    let nested =
+      PT.PackageOp.Rename(
+        own,
+        ownNew,
+        target,
+        [ { location = location; target = target; names = names; restating = None } ],
+        "invalid-owner"
+      )
+    let nestedInvalid =
+      PT.PackageOp.Rename(
+        own,
+        ownNew,
+        target,
+        [ { location = own; target = target; names = []; restating = None } ],
+        "invalid-content"
+      )
+    let restore location names =
+      PT.PackageOp.Decision(
+        System.Guid.NewGuid().ToString(),
+        location,
+        "undo",
+        PT.DecisionKind.Restore(System.Guid.NewGuid(), target, names)
+      )
+    let! valid =
+      LibDB.ReferenceNamesContent.validate
+        [ PT.PackageOp.Rename(
+            own,
+            ownNew,
+            target,
+            [ { location = ownNew; target = target; names = names; restating = None } ],
+            "valid-content"
+          )
+          restore own names ]
+    Expect.isNone valid "valid rename and restore snapshots pass validation"
+    let! validProtected = LibDB.ReferenceNamesContent.validate [ protectedOp ]
+    Expect.isNone
+      validProtected
+      "content validation leaves reserved-owner policy to the write paths"
+    let branch = PT.BranchId.Id(System.Guid.NewGuid())
+    do!
+      LibDB.Branches.registerIfNew
+        branch
+        ("snapshot-validation-" + branch.Guid.ToString("N"))
+        PT.BranchId.Main
+    let! before = countRows "package_ops"
+    let protectedRename =
+      PT.PackageOp.Rename(location, ownNew, target, [], "protected-source")
+    let protectedDestination =
+      PT.PackageOp.Rename(own, location, target, [], "protected-destination")
+    let protectedOverride =
+      PT.PackageOp.Decision(
+        System.Guid.NewGuid().ToString(),
+        location,
+        "test",
+        PT.DecisionKind.Override target
+      )
+    let expectRejected label (write : unit -> Task<int64>) =
+      task {
+        let mutable rejected = false
+        try
+          let! _ = write ()
+          ()
+        with _ ->
+          rejected <- true
+        Expect.isTrue rejected label
+      }
+    for op in
+      [ invalid
+        protectedOp
+        nested
+        nestedInvalid
+        restore own []
+        restore location names
+        protectedRename
+        protectedDestination
+        protectedOverride
+        PT.PackageOp.Unbind(location, None)
+        PT.PackageOp.SetName(location, target, None) ] do
+      let! result = LibDB.Inserts.insertUntrustedOps [ op ]
+      match result with
+      | Error _ -> ()
+      | Ok _ -> failtest "invalid reference metadata was accepted"
+      do!
+        expectRejected "branch writes reject the same invalid metadata" (fun () ->
+          LibDB.Branches.storeDeltaOps branch [ op ])
+      let id = LibDB.Inserts.computeOpHash op
+      let bytes = LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
+      do!
+        expectRejected "decoded imports reject invalid reference metadata" (fun () ->
+          LibDB.Inserts.importOpsBulk
+            ""
+            [ string id,
+              System.Convert.ToHexString bytes,
+              "2026-11-03T00:00:00.000Z" ])
+      do!
+        expectRejected "raw branch imports validate decodable metadata" (fun () ->
+          LibDB.Branches.storeDeltaBlobsStamped
+            branch
+            [ id, bytes, "2026-11-03T00:00:00.000Z" ])
+    let invalidPropagation =
+      PT.PackageOp.SetReferenceNames(location, target, [], None)
+    do!
+      expectRejected "propagation still validates declaration content" (fun () ->
+        LibDB.Branches.storeDeltaOpsFrom "propagation" branch [ invalidPropagation ])
+    let! after = countRows "package_ops"
+    Expect.equal after before "rejected snapshots never enter the log"
+    let trusted =
+      PT.PackageOp.SetReferenceNames(
+        location,
+        target,
+        names,
+        Some(branch.Guid.ToString("N"))
+      )
+    let! inserted = LibDB.Branches.storeDeltaOpsFrom "propagation" branch [ trusted ]
+    Expect.equal
+      inserted
+      1L
+      "propagation can update bundled callers' reference names"
+    let trustedId = LibDB.Inserts.computeOpHash trusted
+    let parameters = [ [ "id", Sql.uuid trustedId ] ]
+    Sql.executeTransactionSync
+      [ "DELETE FROM op_branches WHERE op_id = @id", parameters
+        "DELETE FROM package_ops WHERE id = @id", parameters ]
+    |> ignore<List<int>>
+    do!
+      Sql.query "DELETE FROM branches WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.string (string branch) ]
+      |> Sql.executeStatementAsync
+  }
+
+let committedBindingsSurviveMainDraftSuppression =
+  testTask
+    "committed binding reads include operations suppressed by a newer main draft" {
+    let location : PT.PackageLocation =
+      { owner = "Tests"
+        modules = [ "CommittedLog" ]
+        name = System.Guid.NewGuid().ToString("N") }
+    let target digit = PT.PackageFn(PT.Hash(String.replicate 64 digit))
+    let baseline = PT.PackageOp.SetName(location, target "a", None)
+    let draft = PT.PackageOp.SetName(location, target "c", None)
+    let incoming = PT.PackageOp.SetName(location, target "b", None)
+    let write stamp committed op =
+      LibDB.Inserts.insertAndApplyOpsWith
+        (fun _ -> stamp)
+        (fun _ -> committed)
+        "op"
+        [ op ]
+    let! _ = write "2026-11-03T00:00:00.010Z" (Some "baseline") baseline
+    let! _ = write "2026-11-03T00:00:00.030Z" None draft
+    let! _ = write "2026-11-03T00:00:00.020Z" (Some "merged") incoming
+    let! materialized =
+      Sql.query "SELECT count(*) AS n FROM locations WHERE op_id = @id"
+      |> Sql.parameters
+        [ "id", Sql.string (string (LibDB.Inserts.computeOpHash incoming)) ]
+      |> Sql.executeRowAsync (fun row -> row.int64 "n")
+    Expect.equal
+      materialized
+      0L
+      "the main draft suppressed the committed location row"
+    let! committed = LibDB.Queries.committedBindingsFor [ location ]
+    Expect.equal
+      (Map.tryFind location committed)
+      (Some(target "b"))
+      "the committed log still contains the merged binding"
+    let! mask = LibDB.Queries.mainDraftMaskOps ()
+    Expect.contains
+      mask
+      incoming
+      "the branch mask restores the merged binding, not the baseline"
+    let branch = System.Guid.NewGuid()
+    let code =
+      $"Darklang.SCM.PackageOps.liveBindingFor(Stdlib.Result.withDefault(Stdlib.Uuid.parse(\"{branch}\"), Darklang.SCM.Branch.mainBranchId), Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"Tests\", modules = [\"CommittedLog\"], name = \"{location.name}\" }}) |> Stdlib.Option.map(fun binding -> binding.hash)"
+    let! result = evalDarkExpr code
+    match result with
+    | Ok(RT.DEnum(_, _, _, "Some", [ RT.DString hash ])) ->
+      Expect.equal hash (String.replicate 64 "b") "the Dark branch reader agrees"
+    | other -> failtestf "unexpected committed binding: %A" other
+    let! _ =
+      write
+        "2026-11-03T00:00:00.025Z"
+        (Some "removed")
+        (PT.PackageOp.Unbind(location, None))
+    let! committed = LibDB.Queries.committedBindingsFor [ location ]
+    Expect.isFalse
+      (Map.containsKey location committed)
+      "a committed unbind hidden by the main draft still removes the name"
+    let! _ =
+      write
+        "2026-11-03T00:00:00.025Z"
+        (Some "tie")
+        (PT.PackageOp.SetName(location, target "d", None))
+    let! committed = LibDB.Queries.committedBindingsFor [ location ]
+    Expect.equal
+      (Map.tryFind location committed)
+      (Some(target "d"))
+      "a binding beats a tombstone on an equal stamp"
+    for op in
+      [ baseline
+        draft
+        incoming
+        PT.PackageOp.Unbind(location, None)
+        PT.PackageOp.SetName(location, target "d", None) ] do
+      do!
+        Sql.query
+          "DELETE FROM locations WHERE op_id = @id; DELETE FROM package_ops WHERE id = @id"
+        |> Sql.parameters
+          [ "id", Sql.string (string (LibDB.Inserts.computeOpHash op)) ]
+        |> Sql.executeStatementAsync
+    LibDB.Caching.invalidateAll ()
+  }
+
+let schemaColumnAdditionsAreRepeatable =
+  testTask "dated schema column additions preserve rows and can run twice" {
+    do!
+      Sql.query
+        "CREATE TABLE schema_column_test (id INTEGER PRIMARY KEY); INSERT INTO schema_column_test VALUES (1)"
+      |> Sql.executeStatementAsync
+    try
+      let schema =
+        "ALTER TABLE schema_column_test ADD COLUMN kind TEXT NOT NULL DEFAULT 'unknown';
+         CREATE INDEX IF NOT EXISTS idx_schema_column_test_kind ON schema_column_test(kind);"
+      LibDB.Releases.applySchemaTables schema
+      LibDB.Releases.applySchemaIndexes schema
+      LibDB.Releases.applySchemaTables schema
+      LibDB.Releases.applySchemaIndexes schema
+      let! kind =
+        Sql.query "SELECT kind FROM schema_column_test WHERE id = 1"
+        |> Sql.executeRowAsync (fun r -> r.string "kind")
+      Expect.equal kind "unknown" "the existing row survives with its column default"
+    finally
+      Sql.query "DROP TABLE schema_column_test" |> Sql.executeStatementSync
+  }
+
+
+let operationKindsBackfillFromTheLog =
+  testTask
+    "operation kind backfill preserves canonical bytes and indexes reference metadata" {
+    let id = System.Guid.NewGuid()
+    let location : PT.PackageLocation =
+      { owner = "Tests"; modules = [ "OpKind" ]; name = "caller" }
+    let op =
+      PT.PackageOp.SetReferenceNames(
+        location,
+        PT.PackageFn(PT.Hash(String.replicate 64 "a")),
+        [],
+        None
+      )
+    let blob = LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
+    do!
+      Sql.query "INSERT INTO package_ops (id, op_blob) VALUES (@id, @blob)"
+      |> Sql.parameters [ "id", Sql.uuid id; "blob", Sql.bytes blob ]
+      |> Sql.executeStatementAsync
+    try
+      LibDB.Releases.runPending ()
+      // Simulate an operation that becomes readable after the migration was
+      // recorded. Startup must classify it without rerunning that migration.
+      do!
+        Sql.query "UPDATE package_ops SET op_kind = 'unknown' WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.uuid id ]
+        |> Sql.executeStatementAsync
+      LibDB.Releases.runPending ()
+      let! (kind, stored) =
+        Sql.query "SELECT op_kind, op_blob FROM package_ops WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.uuid id ]
+        |> Sql.executeRowAsync (fun r -> r.string "op_kind", r.bytes "op_blob")
+      Expect.equal kind "reference-names" "old rows become discoverable by kind"
+      Expect.equal
+        stored
+        blob
+        "classification never rewrites the canonical operation"
+    finally
+      Sql.query "DELETE FROM package_ops WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeStatementSync
+  }
+
+
+let unreadableReferenceMetadataIsRetained =
+  testTask "reference-name reads skip unreadable operations without deleting them" {
+    let! before = LibDB.ReferenceNames.load PT.BranchId.Main
+    let id = System.Guid.NewGuid()
+    do!
+      Sql.query
+        "INSERT INTO package_ops (id, op_blob, op_kind, applied)
+         VALUES (@id, @blob, 'rename', 1)"
+      |> Sql.parameters [ "id", Sql.uuid id; "blob", Sql.bytes [| 0uy |] ]
+      |> Sql.executeStatementAsync
+    try
+      let! after = LibDB.ReferenceNames.load PT.BranchId.Main
+      Expect.equal
+        after
+        before
+        "an unreadable operation leaves known reference names intact"
+      let retained =
+        Sql.query "SELECT 1 FROM package_ops WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.uuid id ]
+        |> Sql.executeExistsSync
+      Expect.isTrue retained "the original operation stays in the log"
+    finally
+      Sql.query "DELETE FROM package_ops WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeStatementSync
+      LibDB.Caching.invalidateAll ()
+  }
+
 let registryCoversProjections =
   // The COUNT is in the name on purpose: adding a projection to the registry without adding it here
   // is exactly the drift this catches.
@@ -523,6 +847,11 @@ let tests =
       refoldReproducesContent
       originTsStrictlyIncreasing
       durableReleaseCarriesForward
+      invalidReferenceSnapshotsAreRejectedBeforeStorage
+      schemaColumnAdditionsAreRepeatable
+      committedBindingsSurviveMainDraftSuppression
+      operationKindsBackfillFromTheLog
+      unreadableReferenceMetadataIsRetained
       registryCoversProjections
       noCanonicalInDropSet
       schemaChangeKeepsWork

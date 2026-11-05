@@ -187,7 +187,21 @@ jobs:
       - run: scripts/linting/shellchecker
       # There are currently no yaml files
       # - run: scripts/linting/yamllinter
-      - run: scripts/formatting/format check
+      - run:
+          name: Check formatting
+          command: |
+            fantomas --version
+            dotnet --list-runtimes
+            if scripts/formatting/format check; then
+              exit 0
+            else
+              format_status=$?
+            fi
+            # On failure, format the CI copy and print the diff for diagnosis.
+            # Still fail the job so formatting errors cannot pass silently.
+            scripts/formatting/format format --fsharp-only
+            git diff -- '*.fs' '*.fsi'
+            exit "$format_status"
       - run:
           name: Test the build's planning and readiness logic
           command: scripts/testing/test-build-planning.py

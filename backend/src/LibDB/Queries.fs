@@ -12,6 +12,18 @@ open LibDB.Sqlite
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
 
+/// Make sure new edits get timestamps after everything already saved.
+let ensureAuthoringClockIsCurrent () : Task<unit> =
+  task {
+    let! latest =
+      Sql.query
+        "SELECT MAX(stamp) AS stamp FROM
+         (SELECT MAX(origin_ts) AS stamp FROM package_ops
+          UNION ALL SELECT MAX(origin_ts) AS stamp FROM commits)"
+      |> Sql.executeRowAsync (fun row -> row.stringOrNone "stamp")
+    latest |> Option.iter OriginTs.observe
+  }
+
 
 
 /// Decode an op_blob into a PackageOp. The one F# primitive Dark needs to read STRUCTURED ops, since
@@ -48,43 +60,6 @@ let getDependencies (itemHash : Hash) : Task<List<PackageDep>> =
       |> Sql.executeAsync (fun read ->
         { itemHash = Hash(read.string "depends_on_hash")
           itemKind = read.string "item_type" |> PT.ItemKind.fromString })
-  }
-
-
-let getUnlistedLocationsForRefs
-  (itemKind : PT.ItemKind)
-  (hashes : List<Hash>)
-  : Task<List<PT.PackageLocation>> =
-  task {
-    if List.isEmpty hashes then
-      return []
-    else
-      let hashParams =
-        hashes
-        |> List.distinct
-        |> List.mapi (fun i (Hash h) -> $"loc_ref_hash_{i}", Sql.string h)
-      let hashInClause =
-        hashParams
-        |> List.mapi (fun i _ -> $"@loc_ref_hash_{i}")
-        |> String.concat ", "
-
-      return!
-        Sql.query
-          $"""
-          SELECT DISTINCT owner, modules, name
-          FROM locations
-          WHERE item_hash IN ({hashInClause})
-            AND item_type = @item_type
-            AND unlisted_at IS NOT NULL
-          """
-        |> Sql.parameters (
-          [ "item_type", Sql.string (itemKind.toString ()) ] @ hashParams
-        )
-        |> Sql.executeAsync (fun read ->
-          let modulesStr = read.string "modules"
-          { owner = read.string "owner"
-            modules = modulesStr.Split('.') |> Array.toList
-            name = read.string "name" })
   }
 
 
@@ -232,7 +207,8 @@ let getLiveLocationsForHashes
           read.string "item_hash",
           (read.string "item_type" |> PT.ItemKind.fromString,
            { owner = read.string "owner"
-             modules = modulesStr.Split('.') |> Array.toList
+             modules =
+               if modulesStr = "" then [] else modulesStr.Split('.') |> Array.toList
              name = read.string "name" }))
 
       return groupToMap rows
@@ -281,47 +257,142 @@ let getDraftOps () : Task<List<PT.PackageOp>> =
   }
 
 
-/// The mask that keeps main's uncommitted draft out of a branch's view: for every name whose LIVE
-/// binding was written by a draft op, a synthetic `SetName` back to the name's last COMMITTED
-/// version, or a synthetic `Unbind` when the name was born in the draft. Prepended to a branch's
-/// overlay, so a branch resolves through committed main plus its own work -- the branch's own ops
-/// come later in the overlay list and win over the mask.
-///
-/// Synthetic means never stored: these ops exist only inside an in-memory overlay PM.
+/// Find main's committed bindings for these names, which branches inherit.
+/// Main's draft may have changed the locations table, so read the committed
+/// operations to keep those unfinished edits out of the branch's view.
+let committedBindingOperationsFor (locations : List<PT.PackageLocation>) =
+  task {
+    if List.isEmpty locations then
+      return Map.empty
+    else
+      let wanted = Set.ofList locations
+      // Pass the names to SQL as JSON. Write it directly so this also works in AOT builds.
+      use buffer = new System.IO.MemoryStream()
+      use writer = new System.Text.Json.Utf8JsonWriter(buffer)
+      writer.WriteStartArray()
+      for location in locations do
+        writer.WriteStartArray()
+        writer.WriteStringValue(location.owner)
+        writer.WriteStringValue(String.concat "." location.modules)
+        writer.WriteStringValue(location.name)
+        writer.WriteEndArray()
+      writer.WriteEndArray()
+      writer.Flush()
+      let names = System.Text.Encoding.UTF8.GetString(buffer.ToArray())
+      let! rows =
+        Sql.query
+          """
+          SELECT p.id, p.op_blob, p.origin_ts
+          FROM package_ops p
+          WHERE p.effective = 1 AND p.commit_hash IS NOT NULL
+            AND p.id NOT IN (SELECT op_id FROM op_branches)
+            AND p.op_kind IN ('set-name', 'unbind', 'rename', 'decision')
+            AND ((p.op_kind = 'rename' AND (SELECT count(*) FROM locations l WHERE l.op_id = p.id) < 2)
+              OR p.id IN (
+                SELECT l.op_id FROM json_each(@names) j JOIN locations l
+                  ON l.owner = json_extract(j.value, '$[0]')
+                  AND l.modules = json_extract(j.value, '$[1]')
+                  AND l.name = json_extract(j.value, '$[2]'))
+              OR NOT EXISTS (SELECT 1 FROM locations l WHERE l.op_id = p.id))
+          ORDER BY p.created_at, p.rowid
+          """
+        |> Sql.parameters [ "names", Sql.string names ]
+        |> Sql.executeAsync (fun row ->
+          BS.PT.PackageOp.tryDeserialize (row.uuid "id") (row.bytes "op_blob"),
+          row.stringOrNone "origin_ts")
+      let mutable live : Map<PT.PackageLocation, PT.Reference * Option<string>> =
+        Map.empty
+      let mutable winners = Map.empty
+      let mutable unbound : Map<PT.PackageLocation, string> = Map.empty
+      let bind location (target : PT.Reference) ts op =
+        if Set.contains location wanted then
+          let stale =
+            match Map.tryFind location live, ts with
+            | Some(current, Some currentTs), Some stamp ->
+              if current.hash = target.hash then
+                stamp >= currentTs
+              else
+                LibExecution.Lww.isStale
+                  stamp
+                  (let (PT.Hash h) = target.hash in h)
+                  currentTs
+                  (let (PT.Hash h) = current.hash in h)
+            | _ -> false
+          let removed =
+            match Map.tryFind location unbound, ts with
+            | Some tombstone, Some stamp ->
+              LibExecution.Lww.unbindBeatsBinding tombstone stamp
+            | _ -> false
+          if not stale && not removed then
+            live <- Map.add location (target, ts) live
+            winners <- Map.add location (op, Option.defaultValue "" ts) winners
+      for (op, ts) in rows do
+        for effect in op |> Option.toList |> List.collect PT.packageOpBindingEffects do
+          match effect with
+          | PT.PackageOp.SetName(location, target, _)
+          | PT.PackageOp.Decision(_, location, _, PT.DecisionKind.Override target) ->
+            bind location target ts effect
+          | PT.PackageOp.Unbind(location, _) when Set.contains location wanted ->
+            let stale =
+              match Map.tryFind location live, ts with
+              | Some(_, Some currentTs), Some stamp ->
+                not (LibExecution.Lww.unbindBeatsBinding stamp currentTs)
+              | _ -> false
+            if not stale then
+              live <- Map.remove location live
+              winners <- Map.remove location winners
+              match ts with
+              | Some stamp ->
+                let latest =
+                  Map.tryFind location unbound
+                  |> Option.map (max stamp)
+                  |> Option.defaultValue stamp
+                unbound <- Map.add location latest unbound
+              | None -> ()
+          | _ -> ()
+      return winners
+  }
+
+let committedBindingsFor locations =
+  task {
+    let! operations = committedBindingOperationsFor locations
+    return
+      operations
+      |> Microsoft.FSharp.Collections.Map.map (fun _ (op, _) ->
+        match op with
+        | PT.PackageOp.SetName(_, target, _)
+        | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Override target) -> target
+        | _ -> Exception.raiseInternal "Expected a winning binding" [])
+  }
+
+/// Keep main's uncommitted edits out of the branch's view.
+/// Restore the committed names first, then apply the branch's own changes.
 let mainDraftMaskOps () : Task<List<PT.PackageOp>> =
   task {
     let! rows =
       Sql.query
-        """
-        SELECT l.owner, l.modules, l.name, l.item_type,
-          (SELECT l2.item_hash
-           FROM locations l2 JOIN package_ops p2 ON p2.id = l2.op_id
-           WHERE l2.owner = l.owner AND l2.modules = l.modules AND l2.name = l.name
-             AND l2.source <> 'unbind' AND p2.commit_hash IS NOT NULL
-           ORDER BY l2.origin_ts DESC LIMIT 1) AS committed_hash
-        FROM locations l JOIN package_ops p ON p.id = l.op_id
-        WHERE l.unlisted_at IS NULL AND l.source <> 'unbind'
-          AND p.commit_hash IS NULL
-          AND p.id NOT IN (SELECT op_id FROM op_branches)
-        """
-      |> Sql.executeAsync (fun read ->
-        let loc : PT.PackageLocation =
-          { owner = read.string "owner"
-            modules = (read.string "modules").Split('.') |> Array.toList
-            name = read.string "name" }
-        let kind = read.string "item_type" |> PT.ItemKind.fromString
-        (loc, kind, read.stringOrNone "committed_hash"))
-    return
+        $"SELECT id, op_blob FROM package_ops WHERE {Inserts.draftWhere}
+                   AND op_kind IN ('set-name', 'unbind', 'rename', 'decision')"
+      |> Sql.executeAsync (fun row ->
+        BS.PT.PackageOp.tryDeserialize (row.uuid "id") (row.bytes "op_blob"))
+    let locations =
       rows
-      |> List.map (fun (loc, kind, committed) ->
-        match committed with
-        | Some hash ->
-          PT.PackageOp.SetName(
-            loc,
-            PT.Reference.fromHashAndKind (PT.Hash hash, kind),
-            None
-          )
-        | None -> PT.PackageOp.Unbind(loc, None))
+      |> List.choose (fun op -> op)
+      |> List.collect PT.packageOpBindingEffects
+      |> List.choose (function
+        | PT.PackageOp.SetName(location, _, _)
+        | PT.PackageOp.Unbind(location, _)
+        | PT.PackageOp.Decision(_, location, _, PT.DecisionKind.Override _) ->
+          Some location
+        | _ -> None)
+      |> List.distinct
+    let! committed = committedBindingsFor locations
+    return
+      locations
+      |> List.map (fun location ->
+        match Map.tryFind location committed with
+        | Some target -> PT.PackageOp.SetName(location, target, None)
+        | None -> PT.PackageOp.Unbind(location, None))
   }
 
 
@@ -471,7 +542,7 @@ let getDeprecationSets () : Task<DeprecationSets> =
 ///
 /// The fold is main-only by design: a branch's ops sit inert and never reach a projection, so a
 /// `Deprecate` authored on a branch would change nothing there. Names solve that with an in-memory
-/// overlay rather than a per-branch table (`chainBindingsByHash`), and deprecations get the same
+/// overlay rather than a per-branch table, and deprecations get the same
 /// treatment. Ops arrive oldest-first and the last one wins.
 ///
 /// `Undeprecate` is what lets a branch say "not here" about something main deprecated, which is the
