@@ -706,6 +706,10 @@ type DecisionKind =
   /// already exists and folds nothing. Binds with source='resolution' and closes the conflict as
   /// `overridden`.
   | Override of target: Reference
+  /// Used by `dark undo` to bring back an earlier edit.
+  /// Restore both the declaration's content and the names its references used.
+  /// `revision` records which edit we returned to, so the next undo can go further back.
+  | Restore of revision: Uuid * target: Reference * names: List<(Reference * Stdlib.Option.Option<PackageLocation>)>
   /// A standing finding has been seen and accepted. Closes it as `acked`, and binds nothing.
   | Ack of findingId: String
 /// WHICH piece of prose an `UpdateDoc` sets: the declaration's own, or one named part of it.
@@ -742,6 +746,16 @@ module DocPart =
     | EnumCase(name) -> $"case {name}"
     | Parameter(index) -> $"parameter {Stdlib.toString(index + 1)}"
 
+
+/// Keep the reference names for one declaration at a particular package location.
+/// `target` says which content hash these names belong to.
+/// Keep one entry per package reference, in AST traversal order, so we can match
+/// each saved name back to its reference.
+type ReferenceNamesSnapshot =
+  { location: PackageLocation
+    target: Reference
+    names: List<(Reference * Stdlib.Option.Option<PackageLocation>)>
+    restating: Stdlib.Option.Option<String> }
 
 type PackageOp =
   | AddType of PackageType.PackageType
@@ -793,6 +807,25 @@ type PackageOp =
       text: String *
       previous: Stdlib.Option.Option<Hash> *
       restating: Stdlib.Option.Option<String>
+  /// Save which name each package reference uses in this declaration.
+  /// For example, `double` and `twice` can point to the same function hash.
+  /// Renaming `double` should update calls to `double`, leaving calls to `twice` alone.
+  /// The hash cannot tell those names apart, so we save the names here.
+  /// We collect references as we walk the declaration's AST and read this list
+  /// back in the same order. `double() + double()` needs two entries, one per call.
+  | SetReferenceNames of
+      location: PackageLocation *
+      target: Reference *
+      names: List<(Reference * Stdlib.Option.Option<PackageLocation>)> *
+      restating: Stdlib.Option.Option<String>
+  /// Rename an item and update the names its callers use, all in one operation.
+  /// `references` includes saved names for the callers and the item being moved.
+  | Rename of
+      oldLocation: PackageLocation *
+      newLocation: PackageLocation *
+      target: Reference *
+      references: List<ReferenceNamesSnapshot> *
+      stamp: String
   /// A human's judgment about a NAME, recorded so that it travels. Overriding a binding and acking a
   /// finding are one class of act -- someone decided something about a location, and it has to hold on
   /// every machine -- so they are one op differing by `kind`. `id` is what makes each decision distinct,
@@ -806,6 +839,31 @@ type PackageOp =
   /// they become main ops; the FACT of the merge does not, so without this a colleague's copy of a branch
   /// goes on listing it as live work after you land it.
   | BranchEvent of branchId: Uuid * event: BranchEventKind * at: String
+
+
+module PackageOp =
+  /// A `Rename` removes the old name with `Unbind` and adds the new name with `SetName`.
+  /// A `Restore` uses `SetName` to put the earlier version back at its name.
+  /// Other operations stay as they are.
+  /// LibDB.ReferenceNames reads the original operation to update reference names.
+  /// If two renames change different calls in the same declaration, it keeps both changes.
+  let bindingOps(op: PackageOp): List<PackageOp> =
+    match op with
+    | Rename(oldLocation, newLocation, target, _, _) ->
+      [ PackageOp.Unbind(oldLocation, Stdlib.Option.Option.Some(Reference.hash(target)))
+        PackageOp.SetName(newLocation, target, Stdlib.Option.Option.None) ]
+    | Decision(_, location, _, Restore(_, target, _)) ->
+      [ PackageOp.SetName(location, target, Stdlib.Option.Option.None) ]
+    | _ -> [ op ]
+
+  /// A caller can switch from `double` to `twice` without changing its content hash.
+  /// Return a `SetName` so draft listings and partial commits can see that edit.
+  /// The stored operation stays `SetReferenceNames`.
+  let draftOps(op: PackageOp): List<PackageOp> =
+    match op with
+    | SetReferenceNames(location, target, _, _) ->
+      [ PackageOp.SetName(location, target, Stdlib.Option.Option.None) ]
+    | _ -> bindingOps(op)
 
 
 module Search =

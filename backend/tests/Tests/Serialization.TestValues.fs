@@ -956,6 +956,25 @@ module ProgramTypes =
         Reference.PackageValue hashPT,
         Some "2026-01-01T00:00:00.000Z-0002"
       )
+      Rename(
+        loc,
+        otherLoc,
+        Reference.PackageFn hashPT,
+        [ { location = otherLoc
+            target = Reference.PackageFn hashPT
+            names = [ Reference.PackageFn hashPT, Some otherLoc ]
+            restating = None } ],
+        "rename-stamp"
+      )
+      SetReferenceNames(loc, Reference.PackageFn hashPT, [], None)
+      SetReferenceNames(
+        loc,
+        Reference.PackageFn hashPT,
+        [ Reference.PackageFn shortHash, Some otherLoc
+          Reference.PackageFn shortHash, Some loc
+          Reference.PackageType hashPT, None ],
+        Some "restated"
+      )
       UpdateDoc(loc, DocPart.WholeItem, "What it says about itself.", None, None)
       // The empty text is a real op: it is how a doc is cleared.
       UpdateDoc(loc, DocPart.WholeItem, "", Some shortHash, None)
@@ -992,6 +1011,17 @@ module ProgramTypes =
         DecisionKind.Override(Reference.PackageFn hashPT)
       )
       Decision("d2", loc, "", DecisionKind.Ack "finding-7")
+      Decision(
+        "d3",
+        loc,
+        "undo",
+        DecisionKind.Restore(
+          System.Guid.Parse "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          Reference.PackageFn hashPT,
+          [ Reference.PackageFn shortHash, Some otherLoc
+            Reference.PackageType hashPT, None ]
+        )
+      )
       BranchEvent(branchId, BranchEventKind.Archived, "2026-01-01T00:00:00.000Z")
       BranchEvent(branchId, BranchEventKind.Merged [], "2026-01-01T00:00:00.000Z")
       BranchEvent(

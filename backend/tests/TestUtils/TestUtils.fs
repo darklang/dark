@@ -1415,7 +1415,10 @@ let parsePackageOps (source : string) : Task<List<PT.PackageOp>> =
 let authorIntoMain (source : string) : Task<List<PT.PackageOp>> =
   task {
     let! stabilized = parsePackageOps source
-    let! _ = LibDB.Inserts.insertAndApplyOpsAsWip stabilized
+    do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
+    // Match scmAddOps: save reference names before duplicate bodies are combined.
+    let! names = LibDB.ReferenceNames.captureForStorage PT.BranchId.Main stabilized
+    let! _ = LibDB.Inserts.insertAndApplyOpsAsWip (stabilized @ names)
     // The same second step the authoring builtin takes: re-resolve names and recompute
     // SCC-aware hashes now that the new items exist. Skipping it leaves forward
     // references unresolved, so the dependency edges a cascade reads are never written.

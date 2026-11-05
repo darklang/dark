@@ -49,7 +49,12 @@ let execute(state: AppState, args: List<String>): AppState =
         |> Stdlib.List.filter(fun b ->
           (b.owner == loc.owner) && (b.name == loc.name) && (b.modules == mods))
 
-      if Stdlib.List.isEmpty(inDraft) then
+      let isRenamed = SCM.PackageOps.draftEntries() |> Stdlib.List.any(fun entry ->
+        match entry.op with
+        | Rename(oldLocation, newLocation, _, _, _) -> oldLocation == loc || newLocation == loc
+        | _ -> false)
+
+      if Stdlib.List.isEmpty(inDraft) && Stdlib.Bool.not(isRenamed) then
         Cli.Stderr.ok($"{dotted} isn't in your draft on {scope} -- nothing to discard.")
         Cli.printHint("  `dark status` lists what is.")
         state

@@ -1,24 +1,7 @@
 module Darklang.Cli.Undo
 
-// `dark undo <name>` -- step an item back through the versions you authored, one at a time. Repeatedly:
-// undo three times from v4 and you are on v1, then it says there is nothing further.
-//
-// The question to ask is "where am I in the sequence things were WRITTEN in", never "what changed last".
-// `locations` keeps a row per binding and marks rebinds (undo or a conflict override) as
-// `source = 'resolution'` against `'op'` for ordinary authoring. Filter to 'op', order by rowid, and that
-// IS the authoring sequence -- a rebind appends a row, it never reorders existing ones. Locate the live
-// hash and step to its predecessor. Asking "what was most recently unlisted" instead oscillates, since
-// after an undo that is the version just stepped off.
-//
-// On a branch, two things have to line up:
-//
-//   - the SEQUENCE is the branch's `SetName` ops in authoring order, from `branchHashHistoryFor`, which
-//     reads the ops directly; it is deduped keeping first occurrences, never sorted.
-//   - `currentHash` must count a `Resolve` as a binding, since a rebind is one. If the sequence and the
-//     current position disagree about what is live, the walk oscillates rather than stepping back.
-//
-// The rebind is an ordinary authoring op and routes to whichever branch you are on, so undoing on a branch
-// never touches main.
+// Undo follows authored revisions, including reference-only edits.
+// A restore records its selected revision so repeated undo keeps moving backward.
 
 let execute(state: AppState, args: List<String>): AppState =
   // A `--flag` is not a name. Without this it reaches the location parser, which answers that a name
@@ -44,43 +27,28 @@ let execute(state: AppState, args: List<String>): AppState =
         Cli.printErr($"nothing named {PropagateCmd.dotted(loc)}.")
         Cli.printHint("  `dark ls <module>` lists what's there; `dark status` shows what you've changed.")
         Cli.exitWith(state, false)
-      | Some(kind) ->
-        // Captured BEFORE the rebind: what anything above is pointed at, and so what the cascade back
-        // down has to move them from.
+      | Some(_) ->
+        // Keep the old hash so callers can follow the restored version.
         let wasAt =
           SCM.Propagation.currentHash(loc)
           |> Stdlib.Option.withDefault(LanguageTools.ProgramTypes.Hash.Hash(""))
 
-        (
-          match SCM.Propagation.previousAuthored(loc) with
-          | None ->
-            // `undo` steps back a VERSION, and a first version has none. Say what DOES remove it,
-            // rather than stopping at "can't": a new item with a typo in it blocks `commit`, and the
-            // route out is `discard <name>`, not the whole draft.
-            Cli.printOk(
-              $"{PropagateCmd.dotted(loc)} is at its first version -- nothing further to undo.")
-
-            Cli.printHint(
-              $"  to remove it from your draft entirely: dark discard {PropagateCmd.dotted(loc)}")
-
-            state
-          | Some(prev) ->
-            match SCM.Propagation.rebind(loc, kind, prev) with
-            | Error(e) ->
-              Cli.printErr($"couldn't undo: {e}")
-              Cli.exitWith(state, false)
-            | Ok(_) ->
-              Cli.printOk(
-                $"{PropagateCmd.dotted(loc)} is back on the version before that edit ({Cli.shortHash(prev)}).")
-
-              // Anything above it followed the version we just stepped off, so it comes back down too --
-              // otherwise the undo fixes one item and leaves its callers on something you just undid.
-              let followed = PropagateCmd.cascadeAndForce(state, loc, kind, wasAt, prev)
-
-              Cli.printHint(
-                "  nothing is lost: every version stays in the store, and `dark undo` again steps back further.")
-
-              Cli.exitWith(state, followed))
+        match SCM.PackageOps.previousRevision(state.currentBranchId, loc) with
+        | None ->
+          Cli.printOk($"{PropagateCmd.dotted(loc)} is at its first version -- nothing further to undo.")
+          Cli.printHint($"  to remove it from your draft entirely: dark discard {PropagateCmd.dotted(loc)}")
+          state
+        | Some((revision, snapshot)) ->
+          match SCM.PackageOps.restoreRevision(state.currentBranchId, revision, snapshot) with
+          | Error(error) ->
+            Cli.printErr($"couldn't undo: {error}")
+            Cli.exitWith(state, false)
+          | Ok(_) ->
+            let prev = LanguageTools.ProgramTypes.Reference.hash(snapshot.target)
+            Cli.printOk($"{PropagateCmd.dotted(loc)} is back on the version before that edit ({Cli.shortHash(prev)}).")
+            let followed =
+              if prev == wasAt then true else PropagateCmd.cascadeAndForce(state, loc, LanguageTools.ProgramTypes.Reference.kind(snapshot.target), wasAt, prev)
+            Cli.exitWith(state, followed)
 
   | _ ->
     Cli.printErr("usage: dark undo <name>")

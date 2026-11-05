@@ -100,14 +100,8 @@ let forkBaseOf(
     |> Stdlib.Option.map(fun b -> b.baseHash)
 
 
-/// The versions created for this name, oldest first, including propagated versions.
-///
-/// `locations` accumulates a row per binding; rebinds (undo or a conflict override) are
-/// marked `source = 'resolution'`. Authored and propagated versions both belong in
-/// the sequence, so propagated changes can be undone too.
-///
-/// Undo needs "where am I in the sequence", not "what was most recently unlisted", which after an undo is
-/// the version just stepped off.
+/// Body versions for history displays and live values, including propagated versions.
+/// Undo uses PackageOps.previousRevision so it can also distinguish reference-only edits.
 let authoringOrder(
   loc: LanguageTools.ProgramTypes.PackageLocation)
   : List<String> =
@@ -122,9 +116,7 @@ let authoringOrder(
       "item_hash")
 
   // On a branch the sequence CONTINUES into the branch's own ops: main's rows UP TO THE FORK are the
-  // history you forked from, the branch's edits are what you did after. Stopping at the fork leaves a
-  // branch-authored version with nowhere to step back to; running past it makes `undo` step onto a
-  // version main authored after you forked, which the branch never had.
+  // history you forked from, followed by the branch's own edits.
   match SCM.PackageOps.currentBranch() with
   | id when SCM.Branch.isMain(id) -> fromMain
   | branch ->
@@ -150,31 +142,6 @@ let authoringOrder(
     Stdlib.List.concat(
       mainUpToFork,
       fromBranch |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(mainUpToFork, h))))
-
-
-/// The version authored immediately before the one that's live now. None at the start of the sequence.
-///
-/// Works however many times you step back, because it locates the CURRENT hash within the authoring order
-/// rather than asking what changed most recently. Undoing to v2 then asking again correctly yields v1.
-let previousAuthored(
-  loc: LanguageTools.ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
-  match currentHash(loc) with
-  | None -> Stdlib.Option.Option.None
-  | Some(live) ->
-    let liveStr = LanguageTools.ProgramTypes.hashToString(live)
-    let versions = authoringOrder(loc)
-
-    match Stdlib.List.findFirstIndex(versions, fun h -> h == liveStr) with
-    | None ->
-      // The live binding isn't in the authored sequence at all -- it came from somewhere else entirely
-      // (a merge, a synced peer's version). Stepping "back" has no defined meaning there.
-      Stdlib.Option.Option.None
-    | Some(0) -> Stdlib.Option.Option.None
-    | Some(i) ->
-      match Stdlib.List.getAt(versions, i - 1) with
-      | Some(h) -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash(h))
-      | None -> Stdlib.Option.Option.None
 
 
 /// Every hash that has ever been bound at <param loc> on MAIN, newest first.

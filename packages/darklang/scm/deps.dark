@@ -1,70 +1,32 @@
 module Darklang.SCM.Deps
 
-// The `package_dependencies` data-access silo: who references whom.
+// Read package_dependencies to find references between declarations.
+// Caller lookups use the same branch and reference-name rules as propagation.
 //
-// The edges are recorded per item hash with the user-typed FQN alongside, which is what lets two distinct
-// names that happen to share a hash stay distinct here. That distinction is load-bearing: identical content
-// IS one item, so a hash routinely lives at several names, and collapsing them loses dependents.
+// Each dependency records the content hash and the full name used by the caller.
+// Several names can point at the same content, so keep the names separate when finding callers.
 //
-// The reads go through one builtin, `scmDeps`, and the SQL lives with it in F# (`LibDB.ScmDeps`). What to
-// make of the answer -- main versus branch, which name a hash goes by -- stays here.
+// Plain edge reads by hash go through `scmDeps`, and the SQL lives with it in F# (`LibDB.ScmDeps`).
+// Name-aware reads (callers, reference names) go through `pmDependents` and `namedReferencesFor`.
 
 
-/// What `query` is asked. Names are spelled as the store spells them: modules joined by ".", and a kind
-/// as `ItemKind.toString` writes it.
+/// What `query` is asked.
 type DepQuery =
   /// What one item references, as distinct (hash, kind) pairs.
   | Of of hash: String
-  /// What one item references, with the name each edge recorded. Edges with no name are left out.
-  | EdgesOf of hash: String
-  /// Every edge out of these items, in the order they were recorded. A missing name reads as "".
-  | EdgesOfAll of hashes: List<String>
-  /// The names one item references, skipping edges with no name.
-  | NamesOf of hash: String
-  /// The names referenced by whatever MAIN binds at this fully-qualified name.
-  | NamesOfFqn of fqn: String
   /// The distinct hashes these items reference.
   | Closure of hashes: List<String>
-  /// Who references this name, with the name MAIN binds each of them at. Main-scoped.
-  | Dependents of kind: String * owner: String * modules: String * name: String
-  /// Who references this name, by hash only, so branch-authored dependents are included.
-  | DependentHashes of kind: String * owner: String * modules: String * name: String
-  /// The other names dependents wrote for the content `hash`, besides the one given.
-  | RenamedAway of
-    hash: String *
-    kind: String *
-    owner: String *
-    modules: String *
-    name: String
   /// Whether anything references this hash: at most one edge comes back.
   | Referenced of hash: String
-  /// Every live item on main whose edge points at a version its name no longer holds.
-  | Outdated
-  /// Everything that transitively references an old version of each seed, given as
-  /// (owner, modules, name, current hash), tagged with the seed's index.
-  | StaleBySeed of seeds: List<(String * String * String * String)>
 
 
-/// One recorded edge. Which fields a query fills is said on its case; the rest are "" (or 0).
+/// One recorded edge. `Closure` leaves `dependsOnType` as "".
 type DepEdge =
   { /// The item holding the reference.
     itemHash: String
-    /// Where main binds that item, when the query looked it up.
-    itemType: String
-    owner: String
-    modules: String
-    name: String
     /// What it references, as the edge recorded it.
     dependsOnHash: String
-    dependsOnType: String
-    dependsOnOwner: String
-    dependsOnModules: String
-    dependsOnName: String
-    /// `Outdated` only: what the referenced name holds now.
-    currentHash: String
-    currentType: String
-    /// `StaleBySeed` only: the index of the seed this item was reached from.
-    seed: Int64 }
+    dependsOnType: String }
 
 
 /// The recorded dependency edges <param q> asks for.
@@ -114,146 +76,22 @@ let branchOverlayBindings(
       (b.hash, locationOf(b.owner, b.modules, b.name), kindOf(b.itemType)))
 
 
-/// The hash <param loc> holds as a <param kind> on the current branch, if anything.
-let hashAt(
-  loc: LanguageTools.ProgramTypes.PackageLocation,
-  kind: LanguageTools.ProgramTypes.ItemKind)
-  : Stdlib.Option.Option<String> =
-  let branchId = SCM.PackageOps.currentBranch()
-
-  let found =
-    match kind with
-    | Fn -> LanguageTools.PackageManager.Function.find(branchId, loc)
-    | Type -> LanguageTools.PackageManager.Type.find(branchId, loc)
-    | Value -> LanguageTools.PackageManager.Value.find(branchId, loc)
-    | Trait -> LanguageTools.PackageManager.Trait.find(branchId, loc)
-    | TraitImpl -> LanguageTools.PackageManager.TraitImpl.find(branchId, loc)
-    | Test -> LanguageTools.PackageManager.Test.find(branchId, loc)
-
-  found |> Stdlib.Option.map(LanguageTools.ProgramTypes.hashToString)
-
-
-/// Names that dependents wrote for what <param loc> holds now, and that no longer hold it: what a
-/// rename leaves on every edge written before it, since an edge keeps the name its dependent typed.
-///
-/// A name that still holds the same content is NOT one of these. Identical content is one item, so
-/// it can be live at another name too, and an edge written against that name belongs to it; counting
-/// it here would let one name's callers block deleting the other.
-///
-/// Follows only the content <param loc> holds NOW, so an edge written against an older version
-/// under the old name (renamed, then edited) is still not found.
-let renamedAwayNames(
-  loc: LanguageTools.ProgramTypes.PackageLocation,
-  kind: LanguageTools.ProgramTypes.ItemKind)
-  : List<LanguageTools.ProgramTypes.PackageLocation> =
-  match hashAt(loc, kind) with
-  | None -> []
-  | Some(h) ->
-    query(
-      DepQuery.RenamedAway(
-        h,
-        LanguageTools.ProgramTypes.ItemKind.toString(kind),
-        loc.owner,
-        Stdlib.String.join(loc.modules, "."),
-        loc.name
-      )
-    )
-    |> Stdlib.List.map(fun e ->
-      locationOf(e.dependsOnOwner, e.dependsOnModules, e.dependsOnName))
-    |> Stdlib.List.filter(fun old -> hashAt(old, kind) != Stdlib.Option.Option.Some(h))
-
-
-/// `dependentsOf` for exactly the names given, by the name each edge recorded.
-let dependentsByName(
+/// Find callers of these names using this branch's saved reference names.
+/// A rename updates these names without changing the caller's content hash.
+let dependentsFor(
+  branch: Uuid,
   targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
-  let overlay = branchOverlayBindings()
+  Builtin.pmDependents(branch, targets)
 
-  targets
-  |> Stdlib.List.map(fun target ->
-    let (loc, kind) = target
-    let modules = Stdlib.String.join(loc.modules, ".")
-    let kindName = LanguageTools.ProgramTypes.ItemKind.toString(kind)
+let dependentsByName(targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>): List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
+  dependentsFor(SCM.PackageOps.currentBranch(), targets)
 
-    // TWO queries, not a join and not one per caller.
-    //
-    // A join to `locations` answers about MAIN: a branch-authored item has no row there, so the join
-    // drops it and the list comes back looking complete. The edge is always there -- the fold records
-    // `package_dependencies` for a branch's ops like any other -- so only the name is missing.
-    //
-    // Resolving every dependent through the overlay instead would be correct and slow: an item with
-    // four hundred callers pays four hundred lookups where a join did one. So main answers by join, and
-    // only the hashes the join could not name are looked up in the overlay, which on a branch is a
-    // handful and on main is none.
-    let mainResolved =
-      // main-scoped: main's half, by join; the overlay half below answers for the branch.
-      query(DepQuery.Dependents(kindName, loc.owner, modules, loc.name))
-      |> Stdlib.List.map(fun e ->
-        (LanguageTools.ProgramTypes.Hash.Hash(e.itemHash),
-         locationOf(e.owner, e.modules, e.name),
-         kindOf(e.itemType)))
-
-    if Stdlib.List.isEmpty(overlay) then
-      mainResolved
-    else
-      // Main's row for a name the chain has REBOUND is main's version of that caller, not this branch's:
-      // the branch re-authored it, and whether the new version still depends on the target is what the
-      // overlay half below answers. Keyed by name, not hash: one hash at two names with only one of them
-      // rebound keeps the other.
-      let mainResolved =
-        mainResolved
-        |> Stdlib.List.filter(fun d ->
-          match d with
-          | (h, dloc, _) ->
-            let hs = LanguageTools.ProgramTypes.hashToString(h)
-            overlay
-            |> Stdlib.List.findFirst(fun entry ->
-              match entry with
-              | (oh, oloc, _) -> (oloc == dloc) && (oh != hs))
-            |> Stdlib.Option.isNone)
-
-      let named =
-        mainResolved
-        |> Stdlib.List.map(fun d ->
-          match d with
-          | (h, _, _) -> LanguageTools.ProgramTypes.hashToString(h))
-
-      let fromOverlay =
-        query(DepQuery.DependentHashes(kindName, loc.owner, modules, loc.name))
-        |> Stdlib.List.filterMap(fun e ->
-          let h = e.itemHash
-          if Stdlib.List.contains(named, h) then
-            Stdlib.Option.Option.None
-          else
-            overlay
-            |> Stdlib.List.findFirst(fun entry ->
-              match entry with
-              | (oh, _, _) -> oh == h)
-            |> Stdlib.Option.map(fun entry ->
-              match entry with
-              | (oh, oloc, okind) ->
-                (LanguageTools.ProgramTypes.Hash.Hash(oh), oloc, okind)))
-
-      Stdlib.List.concat(mainResolved, fromOverlay))
-  |> Stdlib.List.flatten
-
-
-/// Items that reference any of <param targets> (reverse dependencies), as (hash, location, kind).
-/// Matches on the target's NAME rather than its hash, so a dependent pointing at an older version of the
-/// name is still found -- which is the case propagation cares about. A name the target's content was
-/// renamed away from counts as the target's (`renamedAwayNames`), or a rename would orphan every
-/// dependent written before it.
+/// Items that reference any target name, including older versions of that name.
 let dependentsOf(
   targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
-  targets
-  |> Stdlib.List.map(fun target ->
-    let (loc, kind) = target
-    Stdlib.List.prepend(
-      renamedAwayNames(loc, kind) |> Stdlib.List.map(fun old -> (old, kind)),
-      (loc, kind)))
-  |> Stdlib.List.flatten
-  |> dependentsByName
+  dependentsByName(targets)
 
 
 /// The name `locations` gives this hash, if any.
@@ -308,17 +146,21 @@ let resolveLocations(
       | None -> Stdlib.Option.Option.None)
 
 
-/// Everything <param source> references, WITH the name it referenced them by: (hash, kind, location).
-///
-/// Distinct from `dependenciesOf` because the name is recorded on the EDGE, not looked up from the hash.
-/// That matters exactly when the dependency has moved on: its old hash is unlisted, so resolving it through
-/// `locations` finds nothing and the edge silently disappears -- which is the one case a caller asking
-/// "what am I behind on" actually cares about.
+/// A named edge: caller location, caller version, referenced version, referenced name.
+type NamedReference =
+  (LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference * LanguageTools.ProgramTypes.Reference * LanguageTools.ProgramTypes.PackageLocation)
+
+/// Read the reference names used by each caller at its current location and version.
+let namedReferences(branchId: Uuid): List<NamedReference> =
+  namedReferencesFor(branchId, [])
+
+/// Read what this caller references, using the names it follows on this branch.
 let dependencyEdges(
-  source: LanguageTools.ProgramTypes.Hash)
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  source: LanguageTools.ProgramTypes.Reference)
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.ItemKind * LanguageTools.ProgramTypes.PackageLocation)> =
-  query(DepQuery.EdgesOf(LanguageTools.ProgramTypes.hashToString(source)))
-  |> Stdlib.List.map(fun e ->
-    (LanguageTools.ProgramTypes.Hash.Hash(e.dependsOnHash),
-     kindOf(e.dependsOnType),
-     locationOf(e.dependsOnOwner, e.dependsOnModules, e.dependsOnName)))
+  namedReferencesFor(branchId, [ (location, source) ])
+  |> Stdlib.List.map(fun((_, _, target, name)) ->
+    (LanguageTools.ProgramTypes.Reference.hash(target), LanguageTools.ProgramTypes.Reference.kind(target), name))
+  |> Stdlib.List.unique

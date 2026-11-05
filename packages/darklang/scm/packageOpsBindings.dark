@@ -1,17 +1,12 @@
 module Darklang.SCM.PackageOps
 
-// Turning op rows into bindings: what each op says about a name, and what a name holds NOW.
-//
-// The half the fold and the branch overlay both lean on. A binding is not stored anywhere for a
-// branch -- `locations` is main-only, which is the isolation guarantee -- so a branch's answer to
-// "what does this name hold" is computed here, by walking its chain and folding the ops it finds.
+// Read operations to work out what each name points to.
+// The locations table holds main's bindings. For other branches, apply the changes
+// from the branch and its parents to find the bindings visible there.
 
-/// The ONE Dark call into the op-blob decoder, and it answers None when this build cannot read the
-/// blob. The binary op format isn't Dark-decodable, so this single primitive is all F# has to hand
-/// over for reading ops; the queries and folding are Dark on top of it.
-///
-/// What an unreadable op MEANS belongs to `SCM.StoreHealth`, which counts them. Not to whichever
-/// reader touches one first.
+/// Decode a stored operation using the F# binary reader.
+/// Return None if this build cannot read it. SCM.StoreHealth counts unreadable operations
+/// so each caller does not need its own way to report them.
 let tryDecodeOp(
   id: Uuid,
   blob: Bytes)
@@ -19,10 +14,9 @@ let tryDecodeOp(
   Builtin.packageOpFromBytesOption(id, blob)
 
 
-/// (id text, ts, decoded op) per decodable row -- the one id/blob/ts decode behind every
-/// op-log read. A row whose id won't parse or whose blob this build can't read is
-/// skipped; a row without a `ts` column reads as "". The QUERY is Dark; only the
-/// per-row blob decode is a builtin, so there's no read builtin at all.
+/// Read each row's operation ID, timestamp, and decoded operation.
+/// Skip rows with invalid IDs or unreadable operations. Use "" when the timestamp is missing.
+/// Dark reads the rows; the builtin decodes each operation's bytes.
 let decodeOpRowEntries(
   rows: List<Dict<String, Stdlib.Sqlite.Value>>)
   : List<(String * String * LanguageTools.ProgramTypes.PackageOp)> =
@@ -47,23 +41,18 @@ let decodeOpRows(
   decodeOpRowEntries(rows) |> Stdlib.List.map(fun((_id, _ts, op)) -> op)
 
 
-// reading an INCOMING side (op blobs -> the names they bind)
+// Read the bindings described by decoded operations.
 
 
-/// A decoded op + its stamp -> the name it BINDS, keyed for the latest-wins fold.
-///
-/// TWO ops bind a name: `SetName`, and a `Decision` whose kind is `Override`. Everything else is
-/// content, which is content-addressed and so can never contend.
-///
-/// The override must be included. The F# fold (`PackageOpPlayback.applySetNameFrom`) and the in-memory
-/// overlay (`PackageManager.createInMemoryOver`) both treat it as a binding; omitting it here makes Dark
-/// report the last SetName while execution runs the override.
+/// Read the binding from a SetName or an Override decision, with its timestamp.
+/// Callers first split renames and restores into binding changes.
+/// Include overrides so Dark reports the same binding that F# uses when running the code.
 let bindingFromOp(
   op: LanguageTools.ProgramTypes.PackageOp,
   ts: String)
   : Stdlib.Option.Option<(String * Conflicts.Binding)> =
-  // Split because only a SetName carries a predecessor. An Override is a human overriding a binding, and
-  // "what it replaced" is the version the fold picked, which is not lineage in the sense this asks about.
+  // Only SetName records the version this edit was based on.
+  // An Override chooses a binding without recording an earlier version.
   let previous =
     match op with
     | SetName(_, _, Some(h)) ->
@@ -90,7 +79,7 @@ let bindingFromOp(
           itemType = itemType
           hash = hash
           originTs = ts
-          // Filled in by the wire path when the sender told us; a local fold has nobody to name.
+          // These operations do not include an author.
           author = ""
           previous = previous }
 
@@ -98,8 +87,8 @@ let bindingFromOp(
   | _ -> Stdlib.Option.Option.None
 
 
-/// A run of ops' last word on one name: `binding` is what the name ends up bound to, or None for a name
-/// left unbound, which hides whatever is underneath.
+/// What a name points to after applying the operations.
+/// None means the name was unbound, which also hides any inherited binding.
 type NameWord =
   { owner: String
     modules: String
@@ -107,64 +96,43 @@ type NameWord =
     binding: Stdlib.Option.Option<Conflicts.Binding> }
 
 
-/// Orders ops so the one the fold would keep sorts LAST, since the fold below takes the last word.
-///
-/// The rule is `LibDB.Lww`'s, and it has to be: equal stamps go to the greater bound hash
-/// (`isStale`), and a binding beats an `Unbind` (`unbindBeatsBinding` is strict `>`). SQL order
-/// cannot supply it -- its tie-break is `rowid`, which is arrival order, so two stores holding the
-/// same ops would answer differently.
-///
-/// One string rather than a tuple: the stamp is fixed-width ISO, so lexical is chronological and the
-/// rank and hash follow it.
+/// Sort the binding to keep last, using the same rules as F#.
+/// The newest timestamp wins. At equal timestamps, a binding beats an Unbind,
+/// and the greater hash wins between bindings.
+/// SQL row order depends on arrival order, so it cannot settle these ties consistently.
+/// Timestamps have a fixed format, so sorting this string also sorts them by time.
 let bindingSortKey(ts: String, isBinding: Bool, hash: String): String =
   let rank = if isBinding then "1" else "0"
   $"{ts}|{rank}|{hash}"
 
 
-/// Fold a run of (op, origin_ts) rows into what the run BINDS, latest-stamp-wins per name.
-///
-/// Sorted by <fn bindingSortKey> first, so the answer is the same whatever order the rows arrived in.
-/// An `Unbind` is the name's latest word too: it takes the name out, until a later op binds it again.
-let bindingEntriesFromOpRows(
+/// Read the operations and keep the latest change for each name.
+/// Sort by <fn bindingSortKey> so the result does not depend on the order rows arrived in.
+/// An Unbind removes the binding until a later operation gives the name a binding again.
+let nameEntriesFromOpRows(
+  expand: LanguageTools.ProgramTypes.PackageOp -> List<LanguageTools.ProgramTypes.PackageOp>,
   rows: List<Dict<String, Stdlib.Sqlite.Value>>)
   : List<NameWord> =
   let entries =
-    rows
-    |> Stdlib.List.filterMap(fun row ->
-      match
-        (Stdlib.Sqlite.textField(row, "id"), Stdlib.Sqlite.bytesField(row, "op_blob"))
-      with
-      | (Some(idStr), Some(blob)) ->
-        match Stdlib.Uuid.parse(idStr) with
-        | Ok(id) ->
-          let ts = Stdlib.Sqlite.textField(row, "ts") |> Stdlib.Option.withDefault("")
-
-          match tryDecodeOp(id, blob) with
-          | Some(Unbind(location, _)) ->
-            let modules = Stdlib.String.join(location.modules, ".")
-            Stdlib.Option.Option.Some(
-              (bindingSortKey(ts, false, ""),
-               Conflicts.bindingKey(location.owner, modules, location.name),
-               NameWord
-                 { owner = location.owner
-                   modules = modules
-                   name = location.name
-                   binding = Stdlib.Option.Option.None })
-            )
-          | Some(op) ->
-            bindingFromOp(op, ts)
-            |> Stdlib.Option.map(fun pair ->
-              let (k, b) = pair
-              (bindingSortKey(b.originTs, true, b.hash),
-               k,
-               NameWord
-                 { owner = b.owner
-                   modules = b.modules
-                   name = b.name
-                   binding = Stdlib.Option.Option.Some(b) }))
-          | None -> Stdlib.Option.Option.None
-        | Error(_) -> Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
+    decodeOpRowEntries(rows)
+    |> Stdlib.List.map(fun((_, ts, op)) ->
+      expand(op)
+      |> Stdlib.List.filterMap(fun effect ->
+        match effect with
+        | Unbind(location, _) ->
+          let modules = Stdlib.String.join(location.modules, ".")
+          Stdlib.Option.Option.Some(
+            (bindingSortKey(ts, false, ""),
+             Conflicts.bindingKey(location.owner, modules, location.name),
+             NameWord { owner = location.owner, modules = modules, name = location.name
+                        binding = Stdlib.Option.Option.None }))
+        | _ ->
+          bindingFromOp(effect, ts)
+          |> Stdlib.Option.map(fun((k, b)) ->
+            (bindingSortKey(b.originTs, true, b.hash), k,
+             NameWord { owner = b.owner, modules = b.modules, name = b.name
+                        binding = Stdlib.Option.Option.Some(b) }))))
+    |> Stdlib.List.flatten
 
   entries
   |> Stdlib.List.sortBy(fun e ->
@@ -177,19 +145,24 @@ let bindingEntriesFromOpRows(
   |> Stdlib.Dict.values
 
 
+/// Read changes to what each name points to. Edits to reference names alone do not change bindings.
+let bindingEntriesFromOpRows(rows: List<Dict<String, Stdlib.Sqlite.Value>>): List<NameWord> =
+  nameEntriesFromOpRows(LanguageTools.ProgramTypes.PackageOp.bindingOps, rows)
+
+/// Include edits to reference names when listing or selecting draft changes.
+let draftEntriesFromOpRows(rows: List<Dict<String, Stdlib.Sqlite.Value>>): List<NameWord> =
+  nameEntriesFromOpRows(LanguageTools.ProgramTypes.PackageOp.draftOps, rows)
+
+
 /// <fn bindingEntriesFromOpRows>, keeping only the names that end up bound.
 let bindingsFromOpRows(rows: List<Dict<String, Stdlib.Sqlite.Value>>): List<Conflicts.Binding> =
   bindingEntriesFromOpRows(rows) |> Stdlib.List.filterMap(fun w -> w.binding)
 
 
-/// What a branch CHAIN binds (the branch, then its ancestors up to main), for a non-main parent -- which is
-/// never materialized in `locations`, only ever an overlay. The Dark mirror of the F# overlay walk in
-/// `LibDB.Branches.chainOverlayOps`, so a name resolves the same whichever side asks.
-///
-/// `@p1` is main's ID, bound, never the literal "main". `SCM.Branch.mainBranchId` exists to enforce exactly that, and
-/// SQL is where it drifts unnoticed, because no type checker reads a string: against a store whose
-/// `parent_id` holds main's uuid, comparing to `'main'` is true for every row and the recursion walks
-/// past main instead of stopping at it.
+/// Read binding changes from this branch and its parents, stopping before main.
+/// Use the same ordering as LibDB.Branches.chainOverlayOps so Dark and F# agree.
+/// The query uses main's UUID as @p1. Comparing parent_id with the text "main"
+/// would miss that boundary because parent_id stores a UUID.
 let chainBindingEntries(branchId: Uuid): List<NameWord> =
   bindingEntriesFromOpRows(chainOpRows(branchId))
 
@@ -206,15 +179,16 @@ val chainCteSql =
    )"
 
 
-/// The chain's op rows (the chain CTE plus the id/op_blob/ts SELECT), oldest first --
-/// the one query behind <fn chainBindingEntries> and `branchHashHistoryFor`.
+/// Read this branch's operations and its parents' committed operations, oldest first.
+/// <fn chainBindingEntries> and branchHashHistoryFor share this query.
 let chainOpRows(branchId: Uuid): List<Dict<String, Stdlib.Sqlite.Value>> =
   Stdlib.Sqlite.rowsOrEmptyP(
     localDb(),
     (chainCteSql
-     + " SELECT p.id, p.op_blob, p.origin_ts AS ts
+     + " SELECT p.id, p.op_blob, p.origin_ts AS ts, p.commit_hash
           FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
           WHERE ob.branch_id IN (SELECT bid FROM chain)
+            AND (ob.branch_id = @p0 OR p.commit_hash IS NOT NULL)
           ORDER BY p.origin_ts, p.rowid"),
     [ Stdlib.toString(branchId)
       Stdlib.toString(SCM.Branch.mainBranchId) ])
@@ -225,67 +199,49 @@ let chainBindings(branchId: Uuid): List<Conflicts.Binding> =
   chainBindingEntries(branchId) |> Stdlib.List.filterMap(fun w -> w.binding)
 
 
-/// What <param loc> resolves to on <param branchId>: the chain overlay first, then main's projection,
-/// which is where every chain ends. THE branch-aware read of a live binding.
-///
-/// `locations` is main's projection and a branch's SetName never folds into it, so a read that goes
-/// straight to the table answers about MAIN while you stand on a branch, and answers plausibly. Every
-/// "what is live at this name" question goes through here; a direct read of `locations` is for a
-/// question that is genuinely about main, and says so.
-///
-/// Its own three-key query rather than `Conflicts.localBindingsFor`, which matches on bare name across
-/// owners. A caller asking about N names builds `chainBindings` once and looks up, the way
-/// `Deps.branchOverlayBindings` does; this is the one-name form.
+/// Read committed main bindings from the shared storage reader.
+/// It also finds bindings whose location rows were hidden by main's draft.
+let committedBindingsFor(locs: List<List<String>>): List<Conflicts.Binding> =
+  let locations = locs |> Stdlib.List.filterMap(fun parts ->
+    match parts with
+    | [ owner, modules, name ] -> Stdlib.Option.Option.Some(Deps.locationOf(owner, modules, name))
+    | _ -> Stdlib.Option.Option.None)
+  Builtin.pmCommittedBindings(locations)
+  |> Stdlib.List.filterMap(fun((op, stamp)) -> bindingFromOp(op, stamp) |> Stdlib.Option.map(fun((_, binding)) -> binding))
+
+/// Read the committed bindings visible on this branch for the requested names.
+let committedBindingsOn(branchId: Uuid, locations: List<List<String>>): List<Conflicts.Binding> =
+  let main = committedBindingsFor(locations)
+  let branch = if SCM.Branch.isMain(branchId) then [] else
+    chainOpRows(branchId)
+    |> Stdlib.List.filter(fun row -> Stdlib.Option.isSome(Stdlib.Sqlite.textField(row, "commit_hash")))
+    |> bindingEntriesFromOpRows
+  let key(b: Conflicts.Binding): String = Conflicts.bindingKey(b.owner, b.modules, b.name)
+  let touched = branch |> Stdlib.List.map(fun word -> Conflicts.bindingKey(word.owner, word.modules, word.name))
+  Stdlib.List.concat(
+    main |> Stdlib.List.filter(fun b -> Stdlib.Bool.not(Stdlib.List.contains(touched, key(b)))),
+    branch |> Stdlib.List.filterMap(fun word -> word.binding))
+
+type ReferenceSource =
+  (LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)
+
+let sourceOfBinding(binding: Conflicts.Binding): ReferenceSource =
+  (Deps.locationOf(binding.owner, binding.modules, binding.name),
+   LanguageTools.ProgramTypes.Reference.fromHashAndKind(
+     LanguageTools.ProgramTypes.Hash.Hash(binding.hash), Deps.kindOf(binding.itemType)))
+
+/// List the declarations visible on this branch, including its own draft.
+let liveReferenceSources(branchId: Uuid): List<ReferenceSource> =
+  Builtin.pmLiveReferenceSources(branchId)
+
+
+/// Resolve one name through the same branch-aware batch reader as dependency checks.
 let liveBindingFor(
   branchId: Uuid,
   loc: LanguageTools.ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<Conflicts.Binding> =
-  let modules = Stdlib.String.join(loc.modules, ".")
-
-  // The chain's last word on the name: bound to something, unbound (an `Unbind` with no later binding,
-  // which hides whatever main holds), or nothing said.
-  let onBranch =
-    if SCM.Branch.isMain(branchId) then
-      Stdlib.Option.Option.None
-    else
-      chainBindingEntries(branchId)
-      |> Stdlib.List.findFirst(fun w ->
-        (w.owner == loc.owner) && (w.modules == modules) && (w.name == loc.name))
-
-  match onBranch with
-  | Some(w) -> w.binding
-  | None ->
-    match
-      // main-scoped: the fallback half of THE branch-aware read, after the chain overlay above.
-      //
-      // From a BRANCH, committed bindings only: a parent's draft is invisible downstream. Main
-      // authors live-on-write, so its `locations` carry uncommitted work too, and without the
-      // clause a branch resolves names through whatever main has half-written -- and a rebase
-      // then repoints the branch's callers at it.
-      //
-      // From MAIN, no such clause: main's draft IS main's live state, and hiding it would have
-      // `status`, `view` and `eval` disagree with the edit just made.
-      Stdlib.Sqlite.queryOneP(
-        localDb(),
-        (if SCM.Branch.isMain(branchId) then
-           "SELECT owner, modules, name, item_type, item_hash,
-                   COALESCE(origin_ts,'') AS ts, previous
-            FROM locations
-            WHERE owner = @p0 AND modules = @p1 AND name = @p2 AND unlisted_at IS NULL
-            LIMIT 1"
-         else
-           "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash,
-                   COALESCE(l.origin_ts,'') AS ts, l.previous
-            FROM locations l
-            JOIN package_ops p ON p.id = l.op_id
-            WHERE l.owner = @p0 AND l.modules = @p1 AND l.name = @p2
-              AND l.unlisted_at IS NULL
-              AND p.commit_hash IS NOT NULL
-            LIMIT 1"),
-        [ loc.owner, modules, loc.name ])
-    with
-    | Some(row) -> Conflicts.bindingFromRow(row)
-    | None -> Stdlib.Option.Option.None
+  Stdlib.Dict.get(liveBindingsFor(branchId, [ loc ]),
+    Conflicts.bindingKey(loc.owner, Stdlib.String.join(loc.modules, "."), loc.name))
 
 
 /// <fn liveBindingFor> for many names at once, keyed by `Conflicts.bindingKey`; a name that resolves
@@ -327,35 +283,21 @@ let liveBindingsOver(
         Stdlib.Option.isNone(Stdlib.Dict.get(chainWords, key))
       | _ -> false)
 
-  // main-scoped: the fallback half, after the chain overlay above. The same two statements as
-  // <fn liveBindingFor>, driven from the list, and reversed before the dict so the FIRST row for a
-  // name wins, as its `LIMIT 1` does.
+  // main-scoped: read main's bindings for names the branch has not changed.
+  // Other branches inherit committed bindings; main also sees its own draft.
+  // Reverse the rows before building the Dict so the first row for each name wins.
   let fromMain =
-    if Stdlib.List.isEmpty(undecided) then
-      []
+    if Stdlib.List.isEmpty(undecided) then []
+    else if Stdlib.Bool.not(onMain) then committedBindingsFor(undecided)
     else
-      Stdlib.Sqlite.rowsOrEmptyP(
-        localDb(),
-        (if onMain then
-           "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash,
-                   COALESCE(l.origin_ts,'') AS ts, l.previous
-            FROM json_each(@p0) j
-            JOIN locations l
-              ON l.owner = json_extract(j.value, '$[0]')
-             AND l.modules = json_extract(j.value, '$[1]')
-             AND l.name = json_extract(j.value, '$[2]')
-            WHERE l.unlisted_at IS NULL"
-         else
-           "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash,
-                   COALESCE(l.origin_ts,'') AS ts, l.previous
-            FROM json_each(@p0) j
-            JOIN locations l
-              ON l.owner = json_extract(j.value, '$[0]')
-             AND l.modules = json_extract(j.value, '$[1]')
-             AND l.name = json_extract(j.value, '$[2]')
-            JOIN package_ops p ON p.id = l.op_id
-            WHERE l.unlisted_at IS NULL
-              AND p.commit_hash IS NOT NULL"),
+      Stdlib.Sqlite.rowsOrEmptyP(localDb(),
+        "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash,
+                COALESCE(l.origin_ts,'') AS ts, l.previous
+         FROM json_each(@p0) j JOIN locations l
+           ON l.owner = json_extract(j.value, '$[0]')
+           AND l.modules = json_extract(j.value, '$[1]')
+           AND l.name = json_extract(j.value, '$[2]')
+         WHERE l.unlisted_at IS NULL",
         [ Stdlib.Json.serialize<List<List<String>>>(undecided) ])
       |> Stdlib.List.filterMap(Conflicts.bindingFromRow)
       |> Stdlib.List.reverse

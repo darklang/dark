@@ -155,6 +155,25 @@ module PT =
     let serialize id value = makeSerializer PT.PackageOp.write id value
     let deserialize id data = makeDeserializerV PT.PackageOp.read id data
 
+    /// The operation kind stored in the database so queries can filter without decoding it.
+    let kind (op : PT.PackageOp) : string =
+      match op with
+      | PT.PackageOp.AddType _ -> "add-type"
+      | PT.PackageOp.AddValue _ -> "add-value"
+      | PT.PackageOp.AddFn _ -> "add-fn"
+      | PT.PackageOp.AddTrait _ -> "add-trait"
+      | PT.PackageOp.AddTraitImpl _ -> "add-impl"
+      | PT.PackageOp.AddTest _ -> "add-test"
+      | PT.PackageOp.SetName _ -> "set-name"
+      | PT.PackageOp.Unbind _ -> "unbind"
+      | PT.PackageOp.Deprecate _ -> "deprecate"
+      | PT.PackageOp.Undeprecate _ -> "undeprecate"
+      | PT.PackageOp.Rename _ -> "rename"
+      | PT.PackageOp.SetReferenceNames _ -> "reference-names"
+      | PT.PackageOp.UpdateDoc _ -> "update-doc"
+      | PT.PackageOp.Decision _ -> "decision"
+      | PT.PackageOp.BranchEvent _ -> "branch-event"
+
     /// The op, or None when THIS BUILD cannot read it. Nearly every reader wants this
     /// one rather than `deserialize`: a synced store's own log legitimately holds ops
     /// a peer authored on a newer format -- stored and left unapplied so a later
@@ -168,6 +187,10 @@ module PT =
         Some(deserialize id data)
       with _ ->
         None
+
+    /// Unknown incoming formats remain stored and can be classified by a later build.
+    let kindOfBlob id data =
+      tryDeserialize id data |> Option.map kind |> Option.defaultValue "unknown"
 
 module RT =
   // TODO upstream, it might be better to serialize a slightly lower type,

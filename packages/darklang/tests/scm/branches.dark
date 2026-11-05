@@ -208,19 +208,20 @@ test liveBindingForReadsTheBranchThenMain =
 // main's draft (which a branch must not see), one nobody binds, and a repeat.
 test liveBindingsForAgreesWithTheOneNameRead =
   let b = Authoring.branchOff("live-bindings-proof", Authoring.main())
-  let filterLoc =
-    Darklang.LanguageTools.ProgramTypes.PackageLocation
-      { owner = "Darklang", modules = [ "Stdlib", "List" ], name = "filter" }
+  let hidden = "LiveBindManyHidden"
+  let filterLoc = fooAt(hidden)
   let mapLoc =
     Darklang.LanguageTools.ProgramTypes.PackageLocation
       { owner = "Darklang", modules = [ "Stdlib", "List" ], name = "map" }
+  let committed = committedOnMain(hidden, "19")
   let setup =
-    Stdlib.Result.andThen(onBranch(b, "LiveBindMany", "42"), fun _ ->
-      Stdlib.Result.andThen(
-        Darklang.SCM.PackageOps.add(
-          b,
-          [ Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(filterLoc, Stdlib.Option.Option.None) ]),
-        fun _ -> onMain("LiveBindManyMainDraft", "7")))
+    Stdlib.Result.andThen(committed, fun _ ->
+      Stdlib.Result.andThen(onBranch(b, "LiveBindMany", "42"), fun _ ->
+        Stdlib.Result.andThen(
+          Darklang.SCM.PackageOps.add(
+            b,
+            [ Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(filterLoc, Stdlib.Option.Option.None) ]),
+          fun _ -> onMain("LiveBindManyMainDraft", "7"))))
   let locs =
     [ fooAt("LiveBindMany"), mapLoc, filterLoc, fooAt("LiveBindManyMainDraft"), fooAt("LiveBindManyNobody"), mapLoc ]
   // "<hash>" when the two reads agree, else both.

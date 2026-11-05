@@ -316,6 +316,12 @@ let commitAuthored(
   let updates = Propagate.updatedItems(branchId, ops)
   let isUpdate = (Stdlib.List.isEmpty(previousHashes)) |> Stdlib.Bool.not
 
+  let referenceNamesBefore = match Stdlib.List.head(previousHashes) with
+    | None -> []
+    | Some(previous) -> SCM.PackageOps.referenceSnapshots(branchId,
+        [ (location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(previous, kind)) ])
+        |> Stdlib.List.map(fun snapshot -> snapshot.names)
+
   match SCM.PackageOps.addAuthored(branchId, ops) with
   | Ok(report) ->
     // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
@@ -347,7 +353,11 @@ let commitAuthored(
     // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
     // it already had and carries no new text saved NOTHING, and re-running the same authoring
     // command does exactly that. Reporting it as an update is how a dropped edit stays hidden.
-    let landed = (Stdlib.Bool.not(isUpdate)) || docOnly || movedVersion || reverted
+    let referenceNamesAfter = SCM.PackageOps.referenceSnapshots(branchId,
+      [ (location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(boundHash, kind)) ])
+      |> Stdlib.List.map(fun snapshot -> snapshot.names)
+    let namesChanged = referenceNamesBefore != referenceNamesAfter
+    let landed = (Stdlib.Bool.not(isUpdate)) || docOnly || movedVersion || reverted || namesChanged
 
     // Repoint dependents NOW, into the draft, so you can run them against this change before
     // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing. A

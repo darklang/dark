@@ -86,7 +86,28 @@ let schemaMatchesWhatTheRunnerCreated =
           let old = System.IO.Path.Combine(dir, "old.db")
           let fresh = System.IO.Path.Combine(dir, "fresh.db")
           exec old oldRunnerDdl
-          exec fresh (schemaSql ())
+          // Create the store in the same order as startup: tables, release steps,
+          // then indexes. New indexes may need columns added by a release step.
+          LibDB.Sqlite.Sql.useStoreForTesting fresh
+          try
+            let schema = schemaSql ()
+            LibDB.Releases.applySchemaTables schema
+            LibDB.Releases.applySchemaTables schema
+            // The dated schema declares the column without relying on release steps.
+            use conn =
+              new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={fresh}")
+            conn.Open()
+            use command = conn.CreateCommand()
+            command.CommandText <-
+              "SELECT COUNT(*) FROM pragma_table_info('package_ops') WHERE name = 'op_kind'"
+            Expect.equal
+              (command.ExecuteScalar() |> unbox<int64>)
+              1L
+              "schema columns exist before migrations and tolerate replay"
+            LibDB.Releases.runPending ()
+            LibDB.Releases.applySchemaIndexes schema
+          finally
+            LibDB.Sqlite.Sql.resetStoreForTesting ()
           let freshShape = shape fresh
           Expect.isNonEmpty freshShape "a fresh store has the table"
           Expect.equal
@@ -138,6 +159,6 @@ let oldStoreKeepsItsResults =
 let tests =
   testList
     "TestResultCache"
-    [ schemaMatchesWhatTheRunnerCreated
+    [ testSequenced schemaMatchesWhatTheRunnerCreated
       // Repoints the process-wide store, so nothing else may run beside it.
       testSequenced oldStoreKeepsItsResults ]

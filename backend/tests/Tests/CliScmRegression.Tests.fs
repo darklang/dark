@@ -372,9 +372,8 @@ let private mergeIsGatedLikeCommit =
 
 // ─── rename ───────────────────────────────────────────────────────────────
 
-/// Ocean #4 and #5. The workbench's rename authored a lone `SetName` and leaned on a fold heuristic
-/// this PR deleted, so it added a second name and kept the first; and there was no CLI rename at all.
-/// A rename is two ops: the old name ends, the same content binds at the new one.
+/// The workbench used to add a new name without removing the old one.
+/// A rename should move the name in one operation, keeping the same content.
 let private renameMovesANameNotItsContent =
   instanceTest "rename moves a name and leaves its callers alone" (fun state ->
     task {

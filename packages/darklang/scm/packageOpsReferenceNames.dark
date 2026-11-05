@@ -1,0 +1,71 @@
+module Darklang.SCM.PackageOps
+
+/// Read reference names for several declarations at once.
+/// Keep them in code order, with a separate entry for each use of a name.
+let referenceSnapshots(branch: Uuid, sources: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)>): List<LanguageTools.ProgramTypes.ReferenceNamesSnapshot> =
+  referenceSnapshotsAt(branch, sources, Stdlib.Option.Option.None)
+
+type ReferenceNamesBySource =
+  Dict<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference), LanguageTools.ProgramTypes.ReferenceNamesSnapshot>
+
+/// Read this branch's saved reference names using the same rules as F# branch reads.
+let referenceNameOverrides(
+  branch: Uuid,
+  targets: List<LanguageTools.ProgramTypes.Reference>,
+  before: Stdlib.Option.Option<String>)
+  : List<LanguageTools.ProgramTypes.ReferenceNamesSnapshot> =
+  Builtin.pmReferenceNameOverrides(branch, targets, before)
+
+let indexReferenceSnapshots(snapshots: List<LanguageTools.ProgramTypes.ReferenceNamesSnapshot>): ReferenceNamesBySource =
+  snapshots
+  |> Stdlib.List.map(fun snapshot -> ((snapshot.location, snapshot.target), snapshot))
+  |> Stdlib.Dict.fromEntries
+
+/// Use saved names when present, checking that they still match the body's references.
+let withSavedReferenceNames(
+  original: LanguageTools.ProgramTypes.ReferenceNamesSnapshot,
+  saved: ReferenceNamesBySource)
+  : LanguageTools.ProgramTypes.ReferenceNamesSnapshot =
+  match Stdlib.Dict.get(saved, (original.location, original.target)) with
+  | None -> original
+  | Some(snapshot) ->
+    let targets(names: List<(LanguageTools.ProgramTypes.Reference * Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)>): List<LanguageTools.ProgramTypes.Reference> =
+      names |> Stdlib.List.map(fun((target, _)) -> target)
+    if targets(original.names) == targets(snapshot.names) then snapshot
+    else Builtin.unwrap(Stdlib.Result.Result.Error("Reference names do not match declaration content"))
+
+/// Read reference names at the requested timestamp, or current names when none is given.
+let referenceSnapshotsAt(branch: Uuid, sources: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)>, before: Stdlib.Option.Option<String>): List<LanguageTools.ProgramTypes.ReferenceNamesSnapshot> =
+  let sources = Stdlib.List.unique(sources)
+  let targets = sources |> Stdlib.List.map(fun((_, target)) -> target) |> Stdlib.List.unique
+  let saved = referenceNameOverrides(branch, targets, before) |> indexReferenceSnapshots
+  let originals = storedReferenceSnapshots(sources) |> indexReferenceSnapshots
+  sources |> Stdlib.List.map(fun source ->
+    match Stdlib.Dict.get(originals, source) with
+    | Some(original) -> withSavedReferenceNames(original, saved)
+    | None -> Builtin.unwrap(Stdlib.Result.Result.Error("Reference content is missing")))
+
+/// Prepare one operation that moves the item and updates its callers' reference names.
+let prepareRename(branch: Uuid, oldLocation: LanguageTools.ProgramTypes.PackageLocation, newLocation: LanguageTools.ProgramTypes.PackageLocation, target: LanguageTools.ProgramTypes.Reference): List<LanguageTools.ProgramTypes.PackageOp> =
+  let kind = LanguageTools.ProgramTypes.Reference.kind(target)
+  let callers = Deps.dependentsFor(branch, [ (oldLocation, kind) ])
+  let sources = Stdlib.List.prepend(
+    callers |> Stdlib.List.map(fun((hash, location, itemKind)) ->
+      (location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(hash, itemKind))),
+    (oldLocation, target)) |> Stdlib.List.unique
+  let stamp = Commits.nextStamp()
+  let snapshots = referenceSnapshots(branch, sources) |> Stdlib.List.map(fun snapshot ->
+    let names = snapshot.names |> Stdlib.List.map(fun((reference, name)) ->
+      (reference, if LanguageTools.ProgramTypes.Reference.kind(reference) == kind && name == Stdlib.Option.Option.Some(oldLocation) then
+        Stdlib.Option.Option.Some(newLocation) else name))
+    { snapshot with location = if snapshot.location == oldLocation then newLocation else snapshot.location
+                    names = names
+                    restating = Stdlib.Option.Option.Some(stamp) })
+  [ LanguageTools.ProgramTypes.PackageOp.Rename(oldLocation, newLocation, target, snapshots, stamp) ]
+
+/// Restore a whole revision in one operation, so partial commits cannot split it.
+let restoreRevision(branch: Uuid, revision: Uuid, snapshot: LanguageTools.ProgramTypes.ReferenceNamesSnapshot): Stdlib.Result.Result<Unit, String> =
+  let _ = add(branch, [ LanguageTools.ProgramTypes.PackageOp.Decision(
+    Commits.nextStamp(), snapshot.location, "undo",
+    LanguageTools.ProgramTypes.DecisionKind.Restore(revision, snapshot.target, snapshot.names)) ])?
+  Stdlib.Result.Result.Ok(())

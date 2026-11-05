@@ -183,10 +183,15 @@ let private upsertContentAddressed
           storedFingerprint
 
       if mayRewriteExisting then
-        let assignments =
-          names |> List.map (fun name -> $"{name} = ${name}") |> String.concat ", "
-
-        do! exec ctx $"UPDATE {table} SET {assignments} WHERE hash = $hash" bind
+        // Reference-name snapshots use the first stored body as their baseline.
+        // Promoting branch content to main must not change that baseline.
+        let metadata = names |> List.filter (fun name -> name <> "pt_def")
+        if not (List.isEmpty metadata) then
+          let assignments =
+            metadata
+            |> List.map (fun name -> $"{name} = ${name}")
+            |> String.concat ", "
+          do! exec ctx $"UPDATE {table} SET {assignments} WHERE hash = $hash" bind
   }
 
 
@@ -669,6 +674,7 @@ let private applyDecision
     let! ts = originTsOf ctx opId |> Task.map (Option.defaultValue "")
 
     match kind with
+    | PT.DecisionKind.Restore _
     | PT.DecisionKind.Override _ ->
       // Folded as a binding, not here. Kept explicit so adding a case to `DecisionKind` is a compile
       // error in both places rather than a silent no-op in one of them.
@@ -938,6 +944,10 @@ let private applyOp
     | PT.PackageOp.Undeprecate(target, _) ->
       let! ts = originTsOf ctx (Hashing.computeOpRowId op)
       do! applyUndeprecate ctx ts target
+    | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
+      do! applyUnbind ctx op oldLocation (Some target.hash)
+      do! applySetNameFrom ctx source op target.hash newLocation target.kind
+    | PT.PackageOp.SetReferenceNames _ -> ()
     | PT.PackageOp.UpdateDoc(location, part, text, previous, _) ->
       // The op's own time, so the NEWEST statement wins rather than the last to arrive.
       let! ts = originTsOf ctx (Hashing.computeOpRowId op)
@@ -954,6 +964,8 @@ let private applyOp
           previous
     | PT.PackageOp.Decision(id, loc, reason, kind) ->
       match kind with
+      | PT.DecisionKind.Restore(_, target, _) ->
+        do! applySetNameFrom ctx "resolution" op target.hash loc target.kind
       | PT.DecisionKind.Override target ->
         // An override answers ONE name, so it binds one name. Unlisting every other location that
         // happens to share the hash would be collateral damage.

@@ -1,0 +1,16 @@
+module Darklang.SCM.Deps
+
+/// Read selected callers, or all visible callers when sources is empty.
+/// Read the graph in one batch, keeping each caller's reference names separate.
+let namedReferencesFor(branchId: Uuid, sources: List<PackageOps.ReferenceSource>): List<NamedReference> =
+  Builtin.pmNamedReferences(branchId, sources) |> Builtin.unwrap
+
+/// Only stale references cross into Dark during a review, with the current target.
+type StaleReference =
+  (LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference * LanguageTools.ProgramTypes.Reference * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)
+
+type DependencyReview =
+  (List<StaleReference> * List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.PackageLocation)>)
+
+let review(branchId: Uuid, changed: List<PackageOps.ReferenceSource>): DependencyReview =
+  Builtin.pmDependencyReview(branchId, changed) |> Builtin.unwrap

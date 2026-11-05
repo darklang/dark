@@ -4,11 +4,8 @@ module Darklang.SCM.PackageOps
 //
 // Propagation's read half: all callers follow.
 
-/// Every name bound to <param hash>, as <param branchId> sees it: main's, plus the branch's own frontier.
-///
-/// Deprecation is keyed on CONTENT, so it applies to every name holding that hash, which for a trivial
-/// value can be many unrelated ones. `locations` answers for MAIN only, so reading it alone under-reports
-/// the collateral on a branch -- precisely where a caller is about to warn someone about it.
+/// Find names for this content using main's bindings and the branch's binding changes.
+/// Deprecating content affects every name that points to it, so include inherited names too.
 let namesAtContent(branchId: Uuid, hash: String, itemType: String): List<String> =
   let mainNames =
     // main-scoped: main's names for this content; the chain's names and rebinds are applied below.
@@ -29,8 +26,8 @@ let namesAtContent(branchId: Uuid, hash: String, itemType: String): List<String>
   if SCM.Branch.isMain(branchId) then
     mainNames
   else
-    // The whole CHAIN, not the branch's own frontier: a parent branch's name for this content is
-    // collateral too. And main's name is not, when the chain has rebound it away from this content.
+    // Include names inherited from parent branches.
+    // Remove main's names when the branch or a parent now binds them to different content.
     let chain = chainBindings(branchId)
 
     let branchNames =
@@ -55,125 +52,25 @@ let namesAtContent(branchId: Uuid, hash: String, itemType: String): List<String>
     Stdlib.List.unique(Stdlib.List.concat(mainStill, branchNames))
 
 
-/// Where MAIN says each of <param hashes> lives. LIST-valued per hash on purpose: identical content is the
-/// same item, so one hash is routinely live at several names, and picking one would drop the others from
-/// the preview -- the same mistake that would drop them from the cascade itself.
-///
-/// main-scoped, by name and on purpose: the cascade preview asks what MAIN binds, and a branch's
-/// own names are added by the caller from the overlay.
-let mainNamesForHashes(hashes: List<String>): List<(String * String)> =
-  match hashes with
-  | [] -> []
-  | _ ->
-    // Chunked for the same reason as `Conflicts.localBindingsFor`: a wide cascade can produce more stale
-    // hashes than SQLite will bind in one statement, and the over-cap failure reads as an empty repoint list.
-    Stdlib.List.unique(hashes)
-    |> Conflicts.inChunks
-    |> Stdlib.List.map(fun chunk ->
-      let sql =
-        "SELECT item_hash, owner, modules, name FROM locations
-         WHERE unlisted_at IS NULL AND item_hash IN ("
-        + (Conflicts.inPlaceholders(chunk))
-        + ")"
-
-      Stdlib.Sqlite.rowsP(
-        localDb(),
-        sql,
-        chunk,
-        fun row ->
-          match
-            (Stdlib.Sqlite.textField(row, "item_hash"),
-             Stdlib.Sqlite.textField(row, "owner"),
-             Stdlib.Sqlite.textField(row, "modules"),
-             Stdlib.Sqlite.textField(row, "name"))
-          with
-          | (Some(h), Some(o), Some(m), Some(n)) ->
-            Stdlib.Option.Option.Some((h, Conflicts.fqn(o, m, n)))
-          | _ -> Stdlib.Option.Option.None))
-    |> Stdlib.List.flatten
-
-
-/// One knock-on repoint: <param name> moves because <param uses> did. Carrying the CAUSE is what lets the
-/// commit view read as an outcome ("Home.render -> uses User.format") instead of a bare list of names.
+/// A caller update and the dependency that caused it.
+/// The commit preview uses both names to explain why the caller will change.
 type Repoint =
   { name: String
     uses: String }
 
 
-/// Every name the draft would touch as a knock-on, because it references an old
-/// version of something the draft changed. Never a name the draft itself changed, which is listed as a
-/// change rather than an effect.
-///
-/// The recursion is the cascade: if X repoints it gets a new hash, so anything referencing X repoints
-/// too. A stale hash is named through the branch overlay first, then main; a branch's items have no
-/// `locations` row, and main alone would undercount what the commit will move.
-///
-/// Three reads for the whole draft: the cascade, tagged with the binding it started from, the chain,
-/// and main's names. Asked per binding, a branch decoded its whole chain once per changed name.
-let draftRepoints(
-  changed: List<Conflicts.Binding>)
-  : List<Repoint> =
-  let changedNames =
-    changed |> Stdlib.List.map(fun b -> Conflicts.fqn(b.owner, b.modules, b.name))
-
-  // `seed` is the binding's index in <param changed>, as `json_each` numbers it.
-  let staleBySeed =
-    if Stdlib.List.isEmpty(changed) then
-      Stdlib.Dict.empty
-    else
-      SCM.Deps.query(
-        SCM.Deps.DepQuery.StaleBySeed(
-          changed |> Stdlib.List.map(fun b -> (b.owner, b.modules, b.name, b.hash))
-        )
-      )
-      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, e) ->
-        let seed = Stdlib.toString(e.seed)
-        let rest = Stdlib.Dict.get(acc, seed) |> Stdlib.Option.withDefault([])
-        Stdlib.Dict.set(acc, seed, Stdlib.List.prepend(rest, e.itemHash)))
-
-  let overlay =
-    match currentBranch() with
-    | id when SCM.Branch.isMain(id) -> []
-    | branch ->
-      chainBindings(branch)
-      |> Stdlib.List.map(fun bind ->
-        (bind.hash, Conflicts.fqn(bind.owner, bind.modules, bind.name)))
-
-  let overlayHashes = overlay |> Stdlib.List.map(fun pair -> Stdlib.Tuple2.first(pair))
-
-  // Main answers only for hashes the branch doesn't already place.
-  let mainNames =
-    staleBySeed
-    |> Stdlib.Dict.values
-    |> Stdlib.List.flatten
-    |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(overlayHashes, h)))
-    |> mainNamesForHashes
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, pair) ->
-      let (h, n) = pair
-      let rest = Stdlib.Dict.get(acc, h) |> Stdlib.Option.withDefault([])
-      Stdlib.Dict.set(acc, h, Stdlib.List.prepend(rest, n)))
-
-  changed
-  |> Stdlib.List.indexedMap(fun(i, b) ->
-    let cause = Conflicts.fqn(b.owner, b.modules, b.name)
-    let hashes = Stdlib.Dict.get(staleBySeed, Stdlib.toString(i)) |> Stdlib.Option.withDefault([])
-
-    let fromOverlay =
-      overlay
-      |> Stdlib.List.filter(fun pair -> Stdlib.List.contains(hashes, Stdlib.Tuple2.first(pair)))
-      |> Stdlib.List.map(fun pair -> Stdlib.Tuple2.second(pair))
-
-    let fromMain =
-      hashes
-      |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(overlayHashes, h)))
-      |> Stdlib.List.map(fun h -> Stdlib.Dict.get(mainNames, h) |> Stdlib.Option.withDefault([]))
-      |> Stdlib.List.flatten
-
-    Stdlib.List.concat(fromOverlay, fromMain)
-    |> Stdlib.List.unique
-    |> Stdlib.List.map(fun n -> Repoint { name = n, uses = cause }))
-  |> Stdlib.List.flatten
-  |> Stdlib.List.filter(fun r ->
-    Stdlib.Bool.not(Stdlib.List.contains(changedNames, r.name)))
-  |> Stdlib.List.uniqueBy(fun r -> r.name)
+/// Render the native traversal's result. First changed seed wins when causes overlap.
+let repointsFromReview(pairs: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.PackageLocation)>): List<Repoint> =
+  pairs |> Stdlib.List.map(fun((usage, dependency)) ->
+    Repoint { name = Conflicts.fqn(usage.owner, Stdlib.String.join(usage.modules, "."), usage.name)
+              uses = Conflicts.fqn(dependency.owner, Stdlib.String.join(dependency.modules, "."), dependency.name) })
   |> Stdlib.List.sortBy(fun r -> r.name)
+
+/// Shared native review for constraints and caller updates.
+let dependencyReview(changed: List<Conflicts.Binding>): Deps.DependencyReview =
+  Deps.review(currentBranch(), changed |> Stdlib.List.map(sourceOfBinding))
+
+let draftRepoints(changed: List<Conflicts.Binding>): List<Repoint> =
+  if Stdlib.List.isEmpty(changed) then [] else
+    let (_, repoints) = dependencyReview(changed)
+    repointsFromReview(repoints)

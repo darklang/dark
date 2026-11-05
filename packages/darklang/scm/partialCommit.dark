@@ -1,32 +1,28 @@
 module Darklang.SCM.PartialCommit
 
-// Committing PART of the draft: `dark commit "msg" --include=Ux.A,Ux.B`.
+// Select the operations for `dark commit "msg" --include=Ux.A,Ux.B`.
+// A partial commit uses the normal commit write, limited to the selected operations.
 //
-// The whole-draft commit is one UPDATE over a predicate. This is the same UPDATE narrowed to a chosen set of
-// ops, and everything hard about it is deciding WHICH ops. Three rules, and each one exists because breaking
-// it produces a commit that is internally inconsistent:
+// 1. Include a name's content. A committed binding must not point at draft content.
+// 2. Include the draft versions and names that content references, following their
+//    dependencies too. Report any extra names added to the selection.
+// 3. A propagated edit belongs to the caller that changed. Selecting that caller
+//    includes the dependency it now uses. Selecting the dependency alone leaves
+//    the caller's edit in the draft.
 //
-//   1. A name comes with its CONTENT. Committing `SetName(A -> h)` while `AddFn h` stays in the draft commits a
-//      binding to something uncommitted -- history pointing at a keystroke.
-//   2. A name comes with what its content NEEDS. If A's body references B's draft version, committing A alone
-//      commits a reference to an uncommitted hash. So the selection closes over draft dependencies, transitively,
-//      and says which items it pulled in.
-//   3. A repoint belongs to the item it renamed, not to the edit that caused it. Naming a dependent pulls in
-//      the source it now points at (rule 2 does that, since the repointed body references the source's draft
-//      content). Naming the SOURCE does not drag its dependents' repoints along: those are changes to other
-//      items, they stay in the draft, and they are still consistent because what they reference just got
-//      committed. That is not a separate switch; it falls out of rule 2.
-//
-// What this deliberately does NOT do is let you commit an item while excluding something it depends on. That is
-// expressible, and it is always wrong, so the closure is automatic and reported rather than optional.
+// A rename also needs the caller versions recorded with it. Later caller edits
+// stay in the draft. Dependencies are included automatically so every committed
+// reference has the content and name it needs.
 
 
-/// One draft naming, with the row that wrote it.
+/// A draft binding or reference-name change, with the operation ID and timestamp that recorded it.
 type Selected =
   { fqn: String
     itemType: String
     hash: String
-    opId: String }
+    opId: String
+    ts: String
+    metadataBefore: Stdlib.Option.Option<String> }
 
 /// `owner.modules.name` for a location, which is what a person types at `--include=`.
 let fqnOf(location: LanguageTools.ProgramTypes.PackageLocation): String =
@@ -35,32 +31,37 @@ let fqnOf(location: LanguageTools.ProgramTypes.PackageLocation): String =
 
   Stdlib.String.join(parts, ".")
 
-/// The namings the draft holds, newest LAST, one entry per op (not per name -- a name edited twice has two,
-/// and both have to be committed together or the earlier one is left behind describing a version nobody has).
-let draftNamings(): List<Selected> =
-  SCM.PackageOps.draftEntries()
-  |> Stdlib.List.filterMap(fun e ->
-    match e.op with
-    | Decision(_, location, _, Override(target))
-    | SetName(location, target, _) ->
-      let itemType =
-        LanguageTools.ProgramTypes.ItemKind.toString(LanguageTools.ProgramTypes.Reference.kind(target))
+/// List draft bindings and reference-name changes in order, with their operation IDs.
+/// Keep repeated edits to a name so a commit can include the earlier revisions it needs.
+let namingsFrom(entries: List<SCM.PackageOps.DraftEntry>): List<Selected> =
+  entries
+  |> Stdlib.List.map(fun e ->
+    LanguageTools.ProgramTypes.PackageOp.draftOps(e.op)
+    |> Stdlib.List.filterMap(fun op ->
+      match op with
+      | Decision(_, location, _, Override(target))
+      | SetName(location, target, _) ->
+        let itemType =
+          LanguageTools.ProgramTypes.ItemKind.toString(LanguageTools.ProgramTypes.Reference.kind(target))
 
-      Stdlib.Option.Option.Some(
-        Selected
-          { fqn = fqnOf(location)
-            itemType = itemType
-            hash =
-              LanguageTools.ProgramTypes.hashToString(
-                LanguageTools.ProgramTypes.Reference.hash(target))
-            opId = e.id }
-      )
-    | _ -> Stdlib.Option.Option.None)
+        Stdlib.Option.Option.Some(
+          Selected
+            { fqn = fqnOf(location)
+              itemType = itemType
+              hash =
+                LanguageTools.ProgramTypes.hashToString(
+                  LanguageTools.ProgramTypes.Reference.hash(target))
+              opId = e.id
+              ts = e.ts
+              metadataBefore = Stdlib.Option.Option.None }
+        )
+      | _ -> Stdlib.Option.Option.None))
+  |> Stdlib.List.flatten
 
-/// The content hashes the draft ADDS. The dependency closure also includes draft
-/// names for existing content: committing the content does not commit a new name.
-let draftAddedHashes(): List<String> =
-  SCM.PackageOps.draftEntries()
+/// List the content hashes added by the draft.
+/// Dependency selection also needs new names for content that is already committed.
+let draftAddedHashes(entries: List<SCM.PackageOps.DraftEntry>): List<String> =
+  entries
   |> Stdlib.List.filterMap(fun e ->
     match e.op with
     | AddFn(f) ->
@@ -77,13 +78,9 @@ let draftAddedHashes(): List<String> =
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(test.hash))
     | _ -> Stdlib.Option.Option.None)
 
-/// What <param hashes> reference, restricted to <param pending> (draft content or names).
-///
-/// Reads the recorded edges rather than the bodies: `package_dependencies` is written by the same fold that
-/// wrote the content, so it can't disagree with what the item actually references.
-///
-/// `pending` is a parameter: computing it decodes every draft blob, and the set can't change mid-closure
-/// (see `closeOverDeps`).
+/// Find dependencies of these hashes that still have draft content or names.
+/// The dependency index records the hashes referenced by each stored body.
+/// Reuse the pending hashes from closeOverDeps so each step does not read the draft again.
 let draftDepsOf(pending: List<String>, hashes: List<String>): List<String> =
   if Stdlib.List.isEmpty(hashes) then
     []
@@ -92,7 +89,7 @@ let draftDepsOf(pending: List<String>, hashes: List<String>): List<String> =
     |> Stdlib.List.map(fun e -> e.dependsOnHash)
     |> Stdlib.List.filter(fun h -> Stdlib.List.contains(pending, h))
 
-/// One round of closure: referenced hashes with draft content or names not yet in acc.
+/// Add draft dependencies that are not yet selected.
 let closeStep(pending: List<String>, acc: List<String>): List<String> =
   let next =
     draftDepsOf(pending, acc)
@@ -100,67 +97,24 @@ let closeStep(pending: List<String>, acc: List<String>): List<String> =
 
   Stdlib.List.concat(acc, next)
 
-/// Close a hash set over draft dependencies.
-///
-/// Folded a bounded number of times rather than recursed to a fixpoint, and the bound is the termination
-/// argument: each round either adds a hash the draft holds or changes nothing, so the draft's own size is
-/// more rounds than can ever be needed. A cycle therefore can't hang it.
-let closeOverDeps(hashes: List<String>): List<String> =
-  // Read ONCE, then passed down: it decodes every blob in the draft, and both the round count and every
-  // round need it, so asking per use is N+1 full decodes of the draft to commit a subset of it.
-  // A new name may point at content already committed under another name. It
-  // still needs to travel with callers that refer to it. The name filter in
-  // `plan` keeps unrelated aliases of the same hash out of the selection.
+/// Include draft dependencies until no new content is found.
+/// Each round adds only unseen hashes, so cycles terminate too.
+let closeOverDeps(entries: List<SCM.PackageOps.DraftEntry>, namings: List<Selected>, hashes: List<String>): List<String> =
+  // Build this list once and reuse it in every round.
+  // Include new names for existing content: callers need those names committed too.
+  // plan selects the names separately so unrelated aliases stay in the draft.
   let pending =
     Stdlib.List.concat(
-      draftAddedHashes(),
-      draftNamings() |> Stdlib.List.map(fun s -> s.hash))
+      draftAddedHashes(entries),
+      namings |> Stdlib.List.map(fun s -> s.hash))
     |> Stdlib.List.unique
-  let rounds = Stdlib.List.length(pending) + 1
+  let walk(acc: List<String>): List<String> =
+    let next = closeStep(pending, acc)
+    if next == acc then acc else walk(next)
+  walk(Stdlib.List.unique(hashes))
 
-  Stdlib.List.range(1, rounds)
-  |> Stdlib.List.fold(Stdlib.List.unique(hashes), fun(acc, _) -> closeStep(pending, acc))
-
-/// The names <param names> depend on, transitively, by NAME rather than by content hash.
-///
-/// `package_dependencies` records edges as owner/modules/name, which is what makes this able to
-/// tell "B is a dependency of A" from "B happens to have A's body". Bounded the same way
-/// `closeOverDeps` is bounded, and for the same reason.
-let closeOverDepFqns(names: List<String>): List<String> =
-  // Through the DRAFT first, then main's `locations`. A branch's items have no `locations` row --
-  // that is the name isolation -- so joining it alone found nothing on a branch, and the closure
-  // returned the caller without the dependency whose name it needs.
-  //
-  // The fallback read IS main-scoped, and correctly: it answers for names the draft does not touch,
-  // which are main's by definition. What the draft holds is answered above it, branch and all.
-  let draftHashes =
-    draftNamings() |> Stdlib.List.map(fun s -> (s.fqn, s.hash))
-
-  let step(acc: List<String>): List<String> =
-    let next =
-      acc
-      |> Stdlib.List.map(fun fqn ->
-        let viaDraft =
-          draftHashes
-          |> Stdlib.List.findFirst(fun pair -> let (f, _) = pair in f == fqn)
-          |> Stdlib.Option.map(fun pair -> let (_, h) = pair in h)
-
-        (match viaDraft with
-         | Some(hash) -> SCM.Deps.query(SCM.Deps.DepQuery.NamesOf(hash))
-         | None -> SCM.Deps.query(SCM.Deps.DepQuery.NamesOfFqn(fqn)))
-          |> Stdlib.List.map(fun e ->
-            let mid = if e.dependsOnModules == "" then "" else e.dependsOnModules + "."
-            e.dependsOnOwner + "." + mid + e.dependsOnName))
-      |> Stdlib.List.flatten
-    Stdlib.List.unique(Stdlib.List.concat(acc, next))
-
-  Stdlib.List.range(1, 8)
-  |> Stdlib.List.fold(Stdlib.List.unique(names), fun(acc, _) -> step(acc))
-
-
-/// The op id of <param e>, when it carries CONTENT (or a deprecation) for one of <param wantedHashes>.
-///
-/// Deprecations are keyed on content rather than on a name, so they travel with the hash.
+/// Return this operation's ID if it adds content or changes deprecation for a wanted hash.
+/// Deprecations belong to content, so include them with that content.
 let contentIdIfWanted(
   wantedHashes: List<String>,
   e: SCM.PackageOps.DraftEntry)
@@ -191,73 +145,103 @@ let contentIdIfWanted(
       Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
-/// The op id of <param e>, when it is a doc edit for one of <param wantedFqns>.
-///
-/// By NAME, not by hash: an `UpdateDoc` says what a name means, so `--include=` of that name takes
-/// its doc edits and nothing else's.
+/// Return this operation's ID if it updates documentation for a selected name.
+/// Documentation belongs to the name, so select these edits by name.
 let docIdIfWanted(
   wantedFqns: List<String>,
   e: SCM.PackageOps.DraftEntry)
   : Stdlib.Option.Option<String> =
-  match e.op with
-  | UpdateDoc(location, _, _, _, _) ->
-    if Stdlib.List.contains(wantedFqns, fqnOf(location)) then
-      Stdlib.Option.Option.Some(e.id)
-    else
-      Stdlib.Option.Option.None
-  | _ -> Stdlib.Option.Option.None
+  let location =
+    match e.op with
+    | UpdateDoc(location, _, _, _, _) -> Stdlib.Option.Option.Some(location)
+    | _ -> Stdlib.Option.Option.None
+  match location with
+  | Some(loc) ->
+    if Stdlib.List.contains(wantedFqns, fqnOf(loc)) then Stdlib.Option.Option.Some(e.id)
+    else Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
 
 
 /// Which names `--include=` asked for that the draft doesn't hold.
 let unknownNames(names: List<String>): List<String> =
-  let held = draftNamings() |> Stdlib.List.map(fun s -> s.fqn) |> Stdlib.List.unique
+  let held = namingsFrom(SCM.PackageOps.draftEntries()) |> Stdlib.List.map(fun s -> s.fqn) |> Stdlib.List.unique
 
   names |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(Stdlib.List.contains(held, n)))
 
-/// The ops to commit for <param names>, and the FQNs that came along by closure.
-///
-/// Returns Error for a name the draft doesn't hold: `--include=` naming something with no draft changes is a
-/// typo or a misunderstanding, and committing the whole draft (or nothing) in response are both worse than
-/// saying so.
+/// Include the versions needed by the selected changes.
+/// For a rename, keep later edits to its callers in the draft.
+let closeOverNamings(entries: List<SCM.PackageOps.DraftEntry>, namings: List<Selected>, selected: List<Selected>): List<Selected> =
+  let required(location: LanguageTools.ProgramTypes.PackageLocation, target: LanguageTools.ProgramTypes.Reference, before: Stdlib.Option.Option<String>): List<Selected> =
+    let name = fqnOf(location)
+    let hash = LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target))
+    let kind = LanguageTools.ProgramTypes.ItemKind.toString(LanguageTools.ProgramTypes.Reference.kind(target))
+    let matches(naming: Selected): Bool =
+      let sameVersion = naming.fqn == name && naming.hash == hash && naming.itemType == kind
+      let earlyEnough = match before with
+        | Some(stamp) -> Stdlib.Bool.not(SCM.Conflicts.stringGt(naming.ts, stamp))
+        | None -> true
+      sameVersion && earlyEnough
+    match namings |> Stdlib.List.filter(matches) |> Stdlib.List.last with
+    | None -> []
+    | Some(chosen) ->
+      // Include earlier versions too. Otherwise they remain in the draft
+      // and appear as outstanding edits after the newer version is committed.
+      namings |> Stdlib.List.filter(fun naming ->
+        naming.fqn == name && naming.itemType == kind
+        && Stdlib.Bool.not(SCM.Conflicts.stringGt(naming.ts, chosen.ts)))
+      |> Stdlib.List.map(fun naming -> { naming with metadataBefore = before })
+  let walk(pending: List<Selected>, selected: List<Selected>): List<Selected> =
+    let ids = pending |> Stdlib.List.map(fun naming -> naming.opId)
+    let dependencies = pending |> Stdlib.List.map(fun naming ->
+      let version = LanguageTools.ProgramTypes.Reference.fromHashAndKind(
+        LanguageTools.ProgramTypes.Hash.Hash(naming.hash), Deps.kindOf(naming.itemType))
+      // For a rename, read dependency names as they were when the rename was made.
+      let edges = match SCM.Branches.parseFqn(naming.fqn) with
+        | None -> []
+        | Some((owner, modules, name)) ->
+          PackageOps.referenceSnapshotsAt(PackageOps.currentBranch(), [ (Deps.locationOf(owner, modules, name), version) ], naming.metadataBefore)
+          |> Stdlib.List.map(fun snapshot -> snapshot.names)
+          |> Stdlib.List.flatten
+          |> Stdlib.List.filterMap(fun((target, name)) -> name |> Stdlib.Option.map(fun location -> (target, location)))
+      edges |> Stdlib.List.map(fun((target, location)) -> required(location, target, naming.metadataBefore)) |> Stdlib.List.flatten)
+      |> Stdlib.List.flatten
+    let renameVersions = entries |> Stdlib.List.filterMap(fun entry ->
+      if Stdlib.List.contains(ids, entry.id) then
+        match entry.op with
+        | Rename(oldLocation, _, target, snapshots, _) ->
+          Stdlib.Option.Option.Some(Stdlib.List.concat(
+            required(oldLocation, target, Stdlib.Option.Option.Some(entry.ts)),
+            snapshots |> Stdlib.List.map(fun snapshot -> required(snapshot.location, snapshot.target, Stdlib.Option.Option.Some(entry.ts))) |> Stdlib.List.flatten))
+        | _ -> Stdlib.Option.Option.None
+      else Stdlib.Option.Option.None) |> Stdlib.List.flatten
+    let next = Stdlib.List.unique(Stdlib.List.concat(dependencies, renameVersions))
+      |> Stdlib.List.filter(fun naming -> Stdlib.Bool.not(Stdlib.List.contains(selected, naming)))
+    if Stdlib.List.isEmpty(next) then selected else walk(next, Stdlib.List.concat(selected, next))
+  let roots = Stdlib.List.unique(selected)
+  walk(roots, roots)
+
+
+/// Choose the operations needed to commit these names, and list any extra names they require.
+/// Return an error if a requested name has no draft changes.
 let plan(
   names: List<String>)
   : Stdlib.Result.Result<(List<String> * List<String>), String> =
-  match unknownNames(names) with
+  let entries = SCM.PackageOps.draftEntries()
+  let namings = namingsFrom(entries)
+  let held = namings |> Stdlib.List.map(fun naming -> naming.fqn)
+  match names |> Stdlib.List.filter(fun name -> Stdlib.Bool.not(Stdlib.List.contains(held, name))) with
   | [] ->
-    let namings = draftNamings()
 
-    // Every naming for a requested name, not just the last: an intermediate naming left in the draft would
-    // describe a version that is no longer what the name means, with nothing to collapse it later.
-    let directly =
-      namings |> Stdlib.List.filter(fun s -> Stdlib.List.contains(names, s.fqn))
-
-    let wantedHashes =
-      closeOverDeps(directly |> Stdlib.List.map(fun s -> s.hash))
-
-    // A naming counts if its target is in the closed hash set AND the name is one the selection is
-    // actually about: requested outright, or reachable from a requested item through the dependency
-    // graph.
-    //
-    // The hash test alone was not enough, because a hash is CONTENT: two unrelated names with
-    // identical bodies share one, so `--include=` of a finished function also committed a private
-    // half-done one that happened to have the same body, and reported it as "needed by what you
-    // named". Nothing depended on it; it just looked the same.
-    let reachableFqns = closeOverDepFqns(names)
-
-    let keptNamings =
-      namings
-      |> Stdlib.List.filter(fun s ->
-        (Stdlib.List.contains(wantedHashes, s.hash))
-        && ((Stdlib.List.contains(names, s.fqn))
-            || (Stdlib.List.contains(reachableFqns, s.fqn))))
+    // Include every draft edit to each requested name so older edits are not left behind.
+    let directly = namings |> Stdlib.List.filter(fun s -> Stdlib.List.contains(names, s.fqn))
+    let keptNamings = closeOverNamings(entries, namings, directly)
+    let wantedHashes = closeOverDeps(entries, namings, keptNamings |> Stdlib.List.map(fun s -> s.hash))
 
     let namingIds = keptNamings |> Stdlib.List.map(fun s -> s.opId)
 
     // Content and deprecations for the same hashes (see `contentIdIfWanted`), plus the doc edits
     // for the names in play, which are selected by name rather than by hash.
-    let wantedFqns = Stdlib.List.unique(Stdlib.List.concat(names, reachableFqns))
-
-    let entries = SCM.PackageOps.draftEntries()
+    let wantedFqns = Stdlib.List.unique(Stdlib.List.concat(names, keptNamings |> Stdlib.List.map(fun s -> s.fqn)))
 
     let otherIds =
       Stdlib.List.concat(

@@ -89,6 +89,20 @@ module DecisionKind =
     | Override target ->
       w.Write(0uy)
       Reference.write w target
+    | Restore(revision, target, names) ->
+      w.Write(2uy)
+      Guid.write w revision
+      Reference.write w target
+      List.write
+        w
+        (fun w (reference, location) ->
+          Reference.write w reference
+          match location with
+          | None -> w.Write(0uy)
+          | Some location ->
+            w.Write(1uy)
+            PackageLocation.write w location)
+        names
     | Ack findingId ->
       w.Write(1uy)
       String.write w findingId
@@ -97,7 +111,21 @@ module DecisionKind =
     match r.ReadByte() with
     | 0uy -> Override(Reference.read r)
     | 1uy -> Ack(String.read r)
+    | 2uy ->
+      let revision = Guid.read r
+      let target = Reference.read r
+      let names =
+        List.read r (fun r ->
+          let reference = Reference.read r
+          let location =
+            match r.ReadByte() with
+            | 0uy -> None
+            | 1uy -> Some(PackageLocation.read r)
+            | b -> raiseFormatError $"Invalid reference location tag: {b}"
+          reference, location)
+      Restore(revision, target, names)
     | b -> raiseFormatError $"Invalid DecisionKind tag: {b}"
+
 
 
 // -- DocPart --
@@ -163,6 +191,50 @@ let private writeTrailingStamp (w : BinaryWriter) (stamp : Option<string>) : uni
     String.write w stamp
 
 
+let private writeSnapshot (w : BinaryWriter) (snapshot : ReferenceNamesSnapshot) =
+  let { location = location; target = target; names = names; restating = restating } =
+    snapshot
+  PackageLocation.write w location
+  Reference.write w target
+  w.Write(List.length names)
+  for (reference, location) in names do
+    Reference.write w reference
+    match location with
+    | None -> w.Write(0uy)
+    | Some loc ->
+      w.Write(1uy)
+      PackageLocation.write w loc
+  // Unlike the legacy deprecation tags, this payload is self-delimiting:
+  // snapshots can be nested inside an atomic Rename.
+  match restating with
+  | None -> w.Write(0uy)
+  | Some stamp ->
+    w.Write(1uy)
+    String.write w stamp
+
+let private readSnapshot (r : BinaryReader) : ReferenceNamesSnapshot =
+  let location = PackageLocation.read r
+  let target = Reference.read r
+  let count = r.ReadInt32()
+  if count < 0 then raiseFormatError "Invalid reference names count"
+  let names =
+    List.init count (fun _ ->
+      let reference = Reference.read r
+      let location =
+        match r.ReadByte() with
+        | 0uy -> None
+        | 1uy -> Some(PackageLocation.read r)
+        | b -> raiseFormatError $"Invalid reference location tag: {b}"
+      reference, location)
+  let restating =
+    match r.ReadByte() with
+    | 0uy -> None
+    | 1uy -> Some(String.read r)
+    | b -> raiseFormatError $"Invalid reference names restating tag: {b}"
+  { location = location; target = target; names = names; restating = restating }
+
+
+
 let write (w : BinaryWriter) (op : PackageOp) : unit =
   match op with
   | PackageOp.AddType typ ->
@@ -216,6 +288,21 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     w.Write(5uy)
     Reference.write w target
     writeTrailingStamp w restating
+  | PackageOp.Rename(oldLocation, newLocation, target, references, stamp) ->
+    w.Write(19uy)
+    PackageLocation.write w oldLocation
+    PackageLocation.write w newLocation
+    Reference.write w target
+    w.Write(List.length references)
+    for reference in references do
+      w.Write(18uy)
+      writeSnapshot w reference
+    String.write w stamp
+  | PackageOp.SetReferenceNames(location, target, names, restating) ->
+    w.Write(18uy)
+    writeSnapshot
+      w
+      { location = location; target = target; names = names; restating = restating }
   | PackageOp.UpdateDoc(location, part, text, previous, restating) ->
     w.Write(14uy)
     PackageLocation.write w location
@@ -291,6 +378,27 @@ let read (version : uint32) (r : BinaryReader) : PackageOp =
   | 5uy ->
     let target = Reference.read r
     PackageOp.Undeprecate(target, readTrailingStamp r)
+  | 19uy ->
+    let oldLocation = PackageLocation.read r
+    let newLocation = PackageLocation.read r
+    let target = Reference.read r
+    let count = r.ReadInt32()
+    if count < 0 then raiseFormatError "Invalid rename reference count"
+    // Retain the existing tag-18 payload inside tag 19 for byte-for-byte compatibility.
+    let references =
+      List.init count (fun _ ->
+        if r.ReadByte() <> 18uy then
+          raiseFormatError "A rename may contain only reference-name snapshots"
+        readSnapshot r)
+    PackageOp.Rename(oldLocation, newLocation, target, references, String.read r)
+  | 18uy ->
+    let snapshot = readSnapshot r
+    PackageOp.SetReferenceNames(
+      snapshot.location,
+      snapshot.target,
+      snapshot.names,
+      snapshot.restating
+    )
   | 14uy ->
     let location = PackageLocation.read r
     let part = DocPart.read r

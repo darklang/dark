@@ -141,21 +141,21 @@ let private parentHashLinesFromDark
 // A branch's source: one fn `foo` returning `answer`, computed via a CORE call
 // ((+)), so executing its body ALSO proves the overlay resolves core names.
 let private branchSource (answer : int) : string =
-  $"""module Darklang.BranchTestOverlay
+  $"""module Tests.BranchTestOverlay
 
 let foo(x: Int64): Int64 = {answer - 2}L + 2L"""
 
 let private fooLoc : PT.PackageLocation =
-  { owner = "Darklang"; modules = [ "BranchTestOverlay" ]; name = "foo" }
+  { owner = "Tests"; modules = [ "BranchTestOverlay" ]; name = "foo" }
 
 // A source whose module name varies, so two branches can author DISTINCT fns.
 let private namedSource (modName : string) (answer : int) : string =
-  $"""module Darklang.{modName}
+  $"""module Tests.{modName}
 
 let foo(x: Int64): Int64 = {answer - 2}L + 2L"""
 
 let private fooLocIn (modName : string) : PT.PackageLocation =
-  { owner = "Darklang"; modules = [ modName ]; name = "foo" }
+  { owner = "Tests"; modules = [ modName ]; name = "foo" }
 
 /// Execute the body of `foo` from a set of ops against `pm`. Proves the branch's code runs.
 let private runFooBody
@@ -465,7 +465,7 @@ let overlaySearchAgreesWithFindFn =
     Expect.isSome bound "the branch binds the name"
 
     let query : PT.Search.SearchQuery =
-      { currentModule = [ "Darklang"; "SearchAgrees" ]
+      { currentModule = [ "Tests"; "SearchAgrees" ]
         text = "foo"
         searchDepth = PT.Search.SearchDepth.OnlyDirectDescendants
         entityTypes = []
@@ -838,7 +838,7 @@ let sameNameMergesConvergeToLater =
     let bOld = testBranch "test-cvg-old"
     let bNew = testBranch "test-cvg-new"
     let liveHash () : Task<Option<string>> =
-      liveBoundHash { owner = "Darklang"; modules = [ "ConvergeWin" ]; name = "foo" }
+      liveBoundHash { owner = "Tests"; modules = [ "ConvergeWin" ]; name = "foo" }
     let mergeFold (b : PT.BranchId) : Task<unit> =
       task {
         let! _ = markMergedEffective b
@@ -991,7 +991,7 @@ let reuseBranchIdRevives =
 let branchValueContentFoldIsolatesName =
   testTask
     "folding a branch value's AddValue content populates package_values but NOT locations" {
-    let source = "module Darklang.BranchValFoldTest\n\nval vv = 3L + 4L"
+    let source = "module Tests.BranchValFoldTest\n\nval vv = 3L + 4L"
     let! ops = parsePackageOps source
     let addValueOps =
       ops

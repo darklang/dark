@@ -253,12 +253,15 @@ let private storeInertTagged
   (records : List<System.Guid * byte[] * string>)
   : int64 =
   let insertOps =
-    "INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts)
-     VALUES (@id, @op_blob, 0, 0, @origin_ts)"
+    "INSERT OR IGNORE INTO package_ops (id, op_blob, op_kind, applied, effective, origin_ts)
+     VALUES (@id, @op_blob, @op_kind, 0, 0, @origin_ts)"
   let opRows =
     records
     |> List.map (fun (id, blob, ts) ->
-      [ "id", Sql.uuid id; "op_blob", Sql.bytes blob; "origin_ts", Sql.string ts ])
+      [ "id", Sql.uuid id
+        "op_blob", Sql.bytes blob
+        "op_kind", Sql.string (BS.PT.PackageOp.kindOfBlob id blob)
+        "origin_ts", Sql.string ts ])
   let insertTags =
     "INSERT OR IGNORE INTO op_branches (op_id, branch_id, source)
      SELECT @op_id, @branch_id, @source
@@ -338,6 +341,17 @@ let storeDeltaOpsStampedFrom
     if List.isEmpty ops then
       return 0L
     else
+      let operations = List.map fst ops
+      // Allow propagation to update bundled code that calls a changed dependency.
+      // Reject other edits to names under reserved owners, such as Darklang.
+      if source <> "propagation" then
+        match OpValidation.reservedOwnerViolation operations with
+        | Some reason -> Exception.raiseInternal reason []
+        | None -> ()
+      let! invalid = ReferenceNamesContent.validate operations
+      match invalid with
+      | Some reason -> Exception.raiseInternal reason []
+      | None -> ()
       // A branch bundle carries its author's stamps, so it is a receive path like any other:
       // advance our clock past them or our own later edits on this branch lose to them forever.
       // See `OriginTs.observe`.
@@ -378,6 +392,16 @@ let storeDeltaBlobsStamped
     if List.isEmpty records then
       return 0L
     else
+      let decoded =
+        records
+        |> List.choose (fun (id, blob, _) -> BS.PT.PackageOp.tryDeserialize id blob)
+      match OpValidation.reservedOwnerViolation decoded with
+      | Some reason -> Exception.raiseInternal reason []
+      | None -> ()
+      let! invalid = ReferenceNamesContent.validate decoded
+      match invalid with
+      | Some reason -> Exception.raiseInternal reason []
+      | None -> ()
       records |> List.iter (fun (_, _, ts) -> OriginTs.observe ts)
       return storeInertTagged branchId "op" records
   }
@@ -416,11 +440,21 @@ let storeDeltaOpsFrom
 /// Skips what this build cannot decode, like every other reader of the log. This one matters most: it
 /// is the overlay a process RESOLVES through, loaded at boot for whatever branch you are standing on, so
 /// raising here does not fail one command, it fails the CLI.
-let chainOverlayOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
+let private chainOverlayOpsWith
+  (expand : bool)
+  (before : Option<string>)
+  (branchId : PT.BranchId)
+  : Task<List<PT.PackageOp>> =
   task {
+    let metadataFilter =
+      if expand then
+        ""
+      else
+        "AND p.op_kind IN ('rename', 'reference-names', 'decision')"
+    let visibility = OpHistory.visibility "ob.branch_id = @start" before
     let! decoded =
       Sql.query
-        "WITH RECURSIVE chain(bid) AS (
+        $"WITH RECURSIVE chain(bid) AS (
            SELECT @start
            UNION
            SELECT b.parent_id FROM branches b JOIN chain c ON b.id = c.bid
@@ -430,9 +464,10 @@ let chainOverlayOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
          FROM package_ops p
          JOIN op_branches ob ON ob.op_id = p.id
          WHERE ob.branch_id IN (SELECT bid FROM chain)
+           {metadataFilter}
            -- An ancestor's WIP stays its own: only the branch itself contributes uncommitted
            -- ops to the view; parents contribute what they committed.
-           AND (ob.branch_id = @start OR p.commit_hash IS NOT NULL)
+           AND {visibility}
          -- `p.id`, not `p.rowid`: rowid is ARRIVAL order, which is a fact about this machine, so
          -- two stores holding the same ops applied them in different orders whenever two stamps
          -- tied exactly, and showed different code. An op id is a content hash, so this order is
@@ -446,9 +481,13 @@ let chainOverlayOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
       // NAME is true of every row, and the walk then terminates only because main has no `branches`
       // row. The same drift `Branching.BranchId` exists to stop, in SQL, where no type checker reads
       // it.
-      |> Sql.parameters
+      |> Sql.parameters (
         [ "start", Sql.string (string branchId)
           "mainId", Sql.string (string PT.BranchId.Main) ]
+        @ (before
+           |> Option.toList
+           |> List.map (fun stamp -> "before", Sql.string stamp))
+      )
       |> Sql.executeAsync (fun read ->
         (read.string "ts",
          BS.PT.PackageOp.tryDeserialize (read.uuid "id") (read.bytes "op_blob")))
@@ -466,9 +505,21 @@ let chainOverlayOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
     return
       decoded
       |> List.choose (fun (ts, o) -> o |> Option.map (fun op -> (ts, op)))
+      |> List.collect (fun (ts, op) ->
+        (if expand then PT.packageOpBindingEffects op else [ op ])
+        |> List.map (fun effect -> ts, effect))
       |> List.sortBy sortKey
       |> List.map snd
   }
+
+/// Read this branch's changes and the committed changes from its parent branches.
+/// Turn renames into Unbind and SetName, and restores into SetName,
+/// then order the operations so each name resolves to the right version.
+let chainOverlayOps branchId = chainOverlayOpsWith true None branchId
+
+/// Keep each rename together so different renames can update the same caller.
+let chainOverlayOperations branchId before =
+  chainOverlayOpsWith false before branchId
 
 /// Re-arm every branch event <param branchId>'s bundle may have been waiting on, so
 /// the next fold looks again.
@@ -581,6 +632,7 @@ type NameEffect =
 let nameEffect (op : PT.PackageOp) : Option<NameEffect> =
   match op with
   | PT.PackageOp.SetName(loc, target, _)
+  | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _))
   | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
     let (Hash h) = target.hash
     Some(Binds(loc, target.kind, h))
@@ -698,44 +750,6 @@ let restateReverts
             op)
   }
 
-/// The branch chain's LIVE bindings, inverted: item-hash -> (kind, location).
-///
-/// Answers "where does this dependent live, as this branch sees it". A branch's items have no
-/// `locations` row -- that is the name isolation -- so the main projection cannot answer it and a
-/// branch-authored dependent would be invisible to discovery. Folded latest-stamp-wins per NAME
-/// before inverting, so a hash the branch has moved off does not come back as live.
-let chainBindingsByHash
-  (branchId : PT.BranchId)
-  : Task<Map<string, List<PT.ItemKind * PT.PackageLocation>>> =
-  task {
-    let! ops = chainOverlayOps branchId
-
-    let byLocation =
-      ops
-      |> List.fold
-        (fun (m : Map<PT.PackageLocation, PT.ItemKind * string>) op ->
-          match nameEffect op with
-          | Some(Binds(loc, kind, h)) -> Map.add loc (kind, h) m
-          | Some(Ends loc) -> Map.remove loc m
-          | None -> m)
-        Map.empty
-
-    // LIST-valued: one hash can be bound at several names, since identical content IS one item.
-    let pairs =
-      byLocation
-      |> Map.toList
-      |> List.map (fun (loc, (kind, hash)) -> (hash, (kind, loc)))
-
-    return
-      pairs
-      |> List.fold
-        (fun (m : Map<string, List<PT.ItemKind * PT.PackageLocation>>) (h, entry) ->
-          let existing = Map.tryFind h m |> Option.defaultValue []
-          Map.add h (existing @ [ entry ]) m)
-        Map.empty
-  }
-
-
 /// The locations a set of ops rebinds.
 ///
 /// A name bound solely by resolving a conflict still needs its `branch_name_bases` row: without a
@@ -743,6 +757,7 @@ let chainBindingsByHash
 /// `nameEffect`, which counts an `Override` as the rebind it is.
 let private rebindKeys (ops : List<PT.PackageOp>) : List<PT.PackageLocation> =
   ops
+  |> List.collect PT.packageOpBindingEffects
   |> List.choose (fun op ->
     match nameEffect op with
     | Some(Binds(loc, _, _)) -> Some loc

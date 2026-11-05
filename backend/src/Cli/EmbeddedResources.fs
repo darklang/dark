@@ -272,8 +272,8 @@ let private reseedFromEmbedded (dbPath : string) : bool =
           "ATTACH DATABASE $seed AS seed;
            INSERT OR IGNORE INTO commits (hash, message, origin_ts)
              SELECT hash, message, origin_ts FROM seed.commits;
-           INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts, commit_hash)
-             SELECT id, op_blob, 0, 1, origin_ts, commit_hash FROM seed.package_ops;
+           INSERT OR IGNORE INTO package_ops (id, op_blob, op_kind, applied, effective, origin_ts, commit_hash)
+             SELECT id, op_blob, op_kind, 0, 1, origin_ts, commit_hash FROM seed.package_ops;
            -- An op already PRESENT but INERT has to be woken up, and `INSERT OR IGNORE` cannot do it.
            -- A relay stores what its clients push at `effective = 0`, and ops are content-addressed, so
            -- a client pushing its package tree lands the SAME ids this seed carries: the insert above

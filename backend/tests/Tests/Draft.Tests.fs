@@ -266,7 +266,7 @@ let aPullInsideARebuildsWindowSurvivesIt =
     do! cleanup m
 
     let! mine = authorIntoMain $"module Darklang.{m}\n\nlet mine(): Int64 = 1L"
-    let! peerOps = parsePackageOps $"module Darklang.{m}\n\nlet peer(): Int64 = 2L"
+    let! peerOps = parsePackageOps $"module Tests.{m}\n\nlet peer(): Int64 = 2L"
 
     // An op kind this build has no tag for, which is what a newer build's op looks like here.
     let alienId = System.Guid.NewGuid()
@@ -316,7 +316,7 @@ let aPullInsideARebuildsWindowSurvivesIt =
         draft
         Set.empty
 
-    let! peer = liveHash m "peer"
+    let! peer = liveBoundHash { owner = "Tests"; modules = [ m ]; name = "peer" }
     Expect.isSome peer "the pulled, committed fn is still bound"
     let! alienKept = opIsInTheLog alienId
     Expect.isTrue alienKept "the op this build cannot decode is still in the log"
@@ -331,7 +331,8 @@ let aPullInsideARebuildsWindowSurvivesIt =
     Expect.isTrue rebuilt "the second read matches, so the rebuild writes"
     let! mineAfter = liveHash m "mine"
     Expect.isNone mineAfter "the draft is gone"
-    let! peerAfter = liveHash m "peer"
+    let! peerAfter =
+      liveBoundHash { owner = "Tests"; modules = [ m ]; name = "peer" }
     Expect.equal peerAfter peer "the pulled fn is still bound after a real rebuild"
     let! alienAfter = opIsInTheLog alienId
     Expect.isTrue alienAfter "and so is the alien op"

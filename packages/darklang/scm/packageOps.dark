@@ -12,6 +12,8 @@ module Darklang.SCM.PackageOps
 //   packageOpsMerge      commit, merge, rebase, archive, settle a conflict
 //   packageOpsBranch     branch registry and frontier reads
 //   packageOpsCommits    the commit rows themselves
+//   packageOpsReferenceNames   rename preparation and saved reference names
+//   packageOpsUndo       authored revision history and undo
 //
 // Dark lets several files contribute to one module and see each other's definitions unqualified, so
 // the split is physical only: no new silo, and `package_ops` still has exactly one owner. It is a
@@ -160,6 +162,9 @@ let unbind(
           LanguageTools.ProgramTypes.Reference.hash(target))
 
       Stdlib.List.contains(bindings, (loc, hash))
+    | SetReferenceNames(loc, target, _, _) ->
+      Stdlib.List.contains(bindings,
+        (loc, LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target))))
     | AddValue(v) ->
       Stdlib.List.contains(hashes, LanguageTools.ProgramTypes.hashToString(v.hash))
     | _ -> false
@@ -205,4 +210,3 @@ type BranchRefResult =
   | UnknownId of Uuid
   /// The prefix matched more than one branch.
   | Ambiguous
-

@@ -54,6 +54,9 @@
     <Compile Include="CliPackages.Tests.fs" />
     <Compile Include="CliWorkspace.Tests.fs" />
     <Compile Include="CliAuthoring.Tests.fs" />
+    <Compile Include="CliRename.Tests.fs" />
+    <Compile Include="CliUndo.Tests.fs" />
+    <Compile Include="CliPartialCommit.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
     <Compile Include="CliTraceVerbs.Tests.fs" />
     <Compile Include="CliScriptLowering.Tests.fs" />
@@ -71,6 +74,7 @@
     <Compile Include="Purge.Tests.fs" />
     <Compile Include="TestResultCache.Tests.fs" />
     <Compile Include="OpsProjections.Tests.fs" />
+    <Compile Include="ReferenceNames.Tests.fs" />
     <Compile Include="Lww.Tests.fs" />
     <Compile Include="Stream.Tests.fs" />
     <Compile Include="Permissions.Tests.fs" />

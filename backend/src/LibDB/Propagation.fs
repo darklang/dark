@@ -32,7 +32,8 @@ type PropagationResult = { repoints : List<PT.PropagateRepoint> }
 ///
 /// Propagate the updated version to every caller on this branch, regardless of owner.
 let private discoverDependents
-  (branchBindings : Map<string, List<PT.ItemKind * PT.PackageLocation>>)
+  (referenceNames : ReferenceNames.State)
+  (branchBindings : Map<PT.PackageLocation, Option<PT.Reference>>)
   (sourceLocations : List<PT.PackageLocation>)
   (sourceItemKind : PT.ItemKind)
   (fromSourceHashes : List<Hash>)
@@ -40,38 +41,6 @@ let private discoverDependents
   task {
     let key (target : PMQueries.LocationTarget) =
       (target.itemKind.toString (), PackageLocation.toFQN target.location)
-
-    // What the BRANCH binds at each location, by name. `branchBindings` is keyed by hash, which
-    // answers "where does this content live"; this answers the other direction, "what lives at
-    // this name here", and that is the question a dependent has to pass.
-    let branchHashAt : Map<string * string, string> =
-      branchBindings
-      |> Map.fold
-        (fun acc h locs ->
-          locs
-          |> List.fold
-            (fun acc (kind : PT.ItemKind, loc : PT.PackageLocation) ->
-              Map.add (kind.toString (), PackageLocation.toFQN loc) h acc)
-            acc)
-        Map.empty
-
-    /// Is this dependent the version that actually lives at its name on this branch?
-    ///
-    /// A branch that rebound a name has its OWN body there, and that body may not reference the
-    /// source at all. Main's body still does, so it turns up as a dependent, resolves to the same
-    /// name, and the cascade rewrites it -- overwriting the branch's version with main's, which is
-    /// the one thing a branch must never do. When the branch binds the name, only the branch's hash
-    /// counts; when it does not, main's answer stands.
-    let liveOnThisBranch (d : PMQueries.LocationDependent) : bool =
-      match
-        Map.tryFind
-          (d.itemKind.toString (), PackageLocation.toFQN d.itemLocation)
-          branchHashAt
-      with
-      | None -> true
-      | Some branchHash ->
-        let (Hash h) = d.itemHash
-        h = branchHash
 
     let dependentTarget
       (d : PMQueries.LocationDependent)
@@ -95,34 +64,13 @@ let private discoverDependents
             toProcess
             |> List.fold (fun acc target -> Set.add (key target) acc) processed
 
-          let! hashes = PMQueries.getDependentHashesByTargets toProcess
-          let! mainLocations = PMQueries.getLiveLocationsForHashes hashes
-
-          // The UNION of where the branch says a hash lives and where main says it
-          // does. One hash is routinely live at several names (content-addressing
-          // makes `x + 1L` in two modules literally one item), and each is a
-          // dependent that has to repoint: branch-alone drops main-only dependents,
-          // main-alone drops branch-introduced ones.
-          let batchDependents =
-            hashes
-            |> List.collect (fun h ->
-              let fromBranch =
-                Map.tryFind h branchBindings |> Option.defaultValue []
-              let fromMain = Map.tryFind h mainLocations |> Option.defaultValue []
-
-              // Branch first so it wins the dedup below for a location both describe.
-              let resolved = (fromBranch @ fromMain) |> List.distinctBy snd
-              resolved
-              |> List.map (fun (kind, loc) ->
-                ({ itemHash = Hash h; itemKind = kind; itemLocation = loc }
-                : PMQueries.LocationDependent)))
+          let! batchDependents =
+            ReferenceDependencies.dependents referenceNames branchBindings toProcess
 
           let unseen =
             batchDependents
             |> List.filter (fun d ->
               not (Set.contains (key (dependentTarget d)) newProcessed))
-            // See `liveOnThisBranch`: never repoint a name away from what the branch put there.
-            |> List.filter liveOnThisBranch
             |> List.distinctBy (fun d -> key (dependentTarget d))
 
           let newPending = unseen |> List.map dependentTarget
@@ -230,6 +178,10 @@ let private resolveCurrentHash
                 match op with
                 | PT.PackageOp.SetName(l, target, _) when l = loc ->
                   Some(if target.kind = kind then Some target.hash else None)
+                | PT.PackageOp.Decision(_,
+                                        l,
+                                        _,
+                                        PT.DecisionKind.Restore(_, target, _))
                 | PT.PackageOp.Decision(_, l, _, PT.DecisionKind.Override target) when
                   l = loc
                   ->
@@ -258,6 +210,7 @@ let private resolveCurrentHash
 
 /// Fetch one item from the PM by hash + kind, tagged with FQN/location.
 let private fetchAffected
+  (referenceNames : ReferenceNames.State)
   (fqn : string)
   (loc : PT.PackageLocation)
   (kind : PT.ItemKind)
@@ -268,37 +221,85 @@ let private fetchAffected
     | PT.ItemKind.Type ->
       let! item = Ply.toTask (PMTypes.Type.get hash)
       match item with
-      | Some t -> return Ok(AffectedType(fqn, t, hash, loc))
+      | Some t ->
+        return
+          Ok(
+            AffectedType(
+              fqn,
+              ReferenceNames.patchType referenceNames loc t,
+              hash,
+              loc
+            )
+          )
       | None -> return Error $"Type at {hash} not found"
     | PT.ItemKind.Fn ->
       let! item = Ply.toTask (PMTypes.Fn.get hash)
       match item with
-      | Some f -> return Ok(AffectedFn(fqn, f, hash, loc))
+      | Some f ->
+        return
+          Ok(AffectedFn(fqn, ReferenceNames.patchFn referenceNames loc f, hash, loc))
       | None -> return Error $"Fn at {hash} not found"
     | PT.ItemKind.Value ->
       let! item = Ply.toTask (PMTypes.Value.get hash)
       match item with
-      | Some v -> return Ok(AffectedValue(fqn, v, hash, loc))
+      | Some v ->
+        return
+          Ok(
+            AffectedValue(
+              fqn,
+              ReferenceNames.patchValue referenceNames loc v,
+              hash,
+              loc
+            )
+          )
       | None -> return Error $"Value at {hash} not found"
     | PT.ItemKind.Trait ->
       let! item = Ply.toTask (PMTypes.Trait.get hash)
       match item with
-      | Some t -> return Ok(AffectedTrait(fqn, t, hash, loc))
+      | Some t ->
+        return
+          Ok(
+            AffectedTrait(
+              fqn,
+              ReferenceNames.patchTrait referenceNames loc t,
+              hash,
+              loc
+            )
+          )
       | None -> return Error $"Trait at {hash} not found"
     | PT.ItemKind.TraitImpl ->
       let! item = Ply.toTask (PMTypes.TraitImpl.get hash)
       match item with
-      | Some i -> return Ok(AffectedTraitImpl(fqn, i, hash, loc))
+      | Some i ->
+        return
+          Ok(
+            AffectedTraitImpl(
+              fqn,
+              ReferenceNames.patchImpl referenceNames loc i,
+              hash,
+              loc
+            )
+          )
       | None -> return Error $"Impl at {hash} not found"
     | PT.ItemKind.Test ->
       let! item = Ply.toTask (PMTypes.Test.get hash)
       match item with
-      | Some test -> return Ok(AffectedTest(fqn, test, hash, loc))
+      | Some test ->
+        return
+          Ok(
+            AffectedTest(
+              fqn,
+              ReferenceNames.patchTest referenceNames loc test,
+              hash,
+              loc
+            )
+          )
       | None -> return Error $"Test at {hash} not found"
   }
 
 
 let private fetchAffectedDependents
+  (referenceNames : ReferenceNames.State)
   (dependents : List<PMQueries.LocationDependent>)
   : Task<Result<List<Affected>, string>> =
   let rec loop remaining acc =
@@ -307,7 +308,14 @@ let private fetchAffectedDependents
       | [] -> return Ok(List.rev acc)
       | (dep : PMQueries.LocationDependent) :: rest ->
         let depFqn = PackageLocation.toFQN dep.itemLocation
-        match! fetchAffected depFqn dep.itemLocation dep.itemKind dep.itemHash with
+        match!
+          fetchAffected
+            referenceNames
+            depFqn
+            dep.itemLocation
+            dep.itemKind
+            dep.itemHash
+        with
         | Ok a -> return! loop rest (a :: acc)
         | Error e -> return Error e
     }
@@ -421,7 +429,6 @@ let private applyStabilization
 
 let private buildSeedMapping
   (sourceLocations : List<PT.PackageLocation>)
-  (sourceLocation : PT.PackageLocation)
   (fromSourceHashes : List<Hash>)
   (resolvedSourceHash : Hash)
   : AT.HashMapping =
@@ -431,12 +438,9 @@ let private buildSeedMapping
     byHash =
       fromSourceHashes
       |> List.fold (fun m h -> Map.add h resolvedSourceHash m) Map.empty
-    byLocationRename =
-      sourceLocations
-      |> List.filter (fun loc -> loc <> sourceLocation)
-      |> List.fold (fun m loc -> Map.add loc sourceLocation m) Map.empty
     // Propagation moves hashes; it never re-resolves a trait call. A dependent that follows a
     // newer implementation does it through the ordinary fn edge, which `byHash` above covers.
+    referenceName = None
     pins = Map.empty
     boundImpls = Map.empty }
 
@@ -447,6 +451,7 @@ let private buildSeedMapping
 /// SCC hashing is required for mutually-recursive package items; location
 /// data lets stale refs be matched without relying only on old hashes.
 let private createAllItems
+  (referenceNames : ReferenceNames.State)
   (branch : PT.BranchId)
   (fromSourceHashes : List<Hash>)
   (toSourceHash : Hash)
@@ -469,7 +474,7 @@ let private createAllItems
       let! resolvedSourceHash =
         resolveCurrentHash branch sourceLocation sourceItemKind toSourceHash
 
-      match! fetchAffectedDependents dependents with
+      match! fetchAffectedDependents referenceNames dependents with
       | Error e -> return Error e
       | Ok dependentsAffected ->
         // Only include source when mutual recursion makes it part of the
@@ -490,6 +495,7 @@ let private createAllItems
             task {
               match!
                 fetchAffected
+                  referenceNames
                   sourceFqn
                   sourceLocation
                   sourceItemKind
@@ -508,11 +514,7 @@ let private createAllItems
           // for legacy/null-location refs. Hashing and AST rewriting must see
           // the same substitutions.
           let seedMapping =
-            buildSeedMapping
-              sourceLocations
-              sourceLocation
-              fromSourceHashes
-              resolvedSourceHash
+            buildSeedMapping sourceLocations fromSourceHashes resolvedSourceHash
 
           let stabilization = stabilizationFromAffected seedMapping affected
 
@@ -550,20 +552,15 @@ let propagate
   (toSourceHash : Hash)
   : Task<Result<Option<PropagationResult * List<PT.PackageOp>>, string>> =
   task {
-    let! previousSourceLocations =
-      PMQueries.getUnlistedLocationsForRefs sourceItemKind fromSourceHashes
-    let sourceLocations =
-      (sourceLocation :: previousSourceLocations) |> List.distinct
+    let! referenceNames = ReferenceNames.load branch
+    let sourceLocations = [ sourceLocation ]
 
     // On a branch, resolve dependents through the branch's own bindings first.
-    let! branchBindings =
-      if branch.IsMain then
-        Task.FromResult Map.empty
-      else
-        Branches.chainBindingsByHash branch
+    let! branchBindings = ReferenceNames.branchBindings branch
 
     let! dependents =
       discoverDependents
+        referenceNames
         branchBindings
         sourceLocations
         sourceItemKind
@@ -574,6 +571,7 @@ let propagate
     | _ ->
       let! result =
         createAllItems
+          referenceNames
           branch
           fromSourceHashes
           toSourceHash
