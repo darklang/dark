@@ -950,8 +950,47 @@ let private runCli (args : string[]) : int =
       1
 
 
+#if DARK_STATIC_OPENSSL
+/// Only in the statically linked musl build, which carries its own OpenSSL.
+///
+/// That OpenSSL reads the HOST's openssl.cnf, which was written for the host's
+/// own OpenSSL build. Fedora's sets `config_diagnostics = 1` and a Red Hat-only
+/// option, which upstream OpenSSL rejects; every TLS context then fails to be
+/// created, and .NET's shim aborts the process on the first HTTPS call.
+///
+/// So unless the user names a config with OPENSSL_CONF, OpenSSL is told not to
+/// load one: built-in defaults, as in an empty container. CA certificates don't
+/// come from the config, so they are still found in /etc/ssl as before (or via
+/// SSL_CERT_FILE / SSL_CERT_DIR). The config can only be skipped by the FIRST
+/// OpenSSL init in the process, which is why this runs before anything else.
+module private StaticOpenSsl =
+  open System.Runtime.InteropServices
+
+  // An `extern` compiles to a body that calls `failwith`, which Prelude bans.
+  // Same shadow as HostKernel.
+  let private failwith (s : string) : 'a = raise (Exception(s))
+
+  // Bound at link time to the static libcrypto (DirectPInvoke in Cli.fsproj).
+  [<DllImport("libcrypto", EntryPoint = "OPENSSL_init_crypto")>]
+  extern int private initCrypto(uint64 opts, nativeint settings)
+
+  let private noLoadConfig = 0x00000080UL
+  // .NET passes this too: OpenSSL must not tear itself down at exit while the
+  // runtime's threads may still use it, and the first init decides.
+  let private noAtExit = 0x00080000UL
+
+  let skipHostConfig () : unit =
+    if isNull (Environment.GetEnvironmentVariable "OPENSSL_CONF") then
+      initCrypto (noLoadConfig ||| noAtExit, 0n) |> ignore<int>
+#endif
+
+
 [<EntryPoint>]
 let main (args : string[]) : int =
+#if DARK_STATIC_OPENSSL
+  StaticOpenSsl.skipHostConfig ()
+#endif
+
   // Run on a thread we start, for its STACK SIZE, and not for concurrency.
   //
   // The interpreter recurses over nested types behind

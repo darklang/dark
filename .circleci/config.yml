@@ -599,7 +599,10 @@ jobs:
       - run:
           name: Install build dependencies
           command: |
-            apk add --no-cache bash git curl clang build-base zlib-dev zig openssl icu-libs
+            # cmake, openssl-dev and openssl-libs-static: the musl binary links OpenSSL
+            # statically, and .NET builds its OpenSSL shim from source to do that.
+            apk add --no-cache bash git curl clang build-base zlib-dev zig openssl icu-libs \
+              cmake openssl-dev openssl-libs-static
             # build-sqlite.sh looks for zig at $HOME/zig/zig, same as everywhere else
             mkdir -p "$HOME/zig" && ln -sf "$(command -v zig)" "$HOME/zig/zig"
       - checkout
@@ -630,13 +633,49 @@ jobs:
               --seed=seed.db \
               --runtimes=linux-musl-x64
       # Natively runnable here, unlike the cross-built targets: this job *is*
-      # Alpine, so the musl loader and libs the binary needs are present.
+      # Alpine. The binary no longer needs that, which the next step checks.
       - run:
           name: Validate the musl artifact
           command: |
             ./scripts/testing/validate-cli-artifact \
               "$(ls clis/darklang-*-linux-musl-x64)" \
               --skip-suite
+      # The point of linking it statically: it needs nothing from the system. musl's
+      # `ldd` can't say so (it is the loader itself and lists itself), so read the ELF
+      # for a loader or a needed library, then run the binary in an empty root that
+      # holds only it, the CA bundle, the DNS config and the basic device nodes. That
+      # is a `FROM scratch` container without needing docker here.
+      - run:
+          name: Confirm the musl artifact needs no system libraries
+          command: |
+            B="$(ls clis/darklang-*-linux-musl-x64)"
+            if readelf -lW "$B" | grep -q INTERP || readelf -dW "$B" | grep -q NEEDED; then
+              echo "$B is dynamically linked:"
+              readelf -lW "$B" | grep -A1 INTERP || true
+              readelf -dW "$B" | grep NEEDED || true
+              exit 1
+            fi
+            ROOT=$(mktemp -d)
+            mkdir -p "$ROOT/etc/ssl/certs" "$ROOT/tmp" "$ROOT/dev"
+            cp "$B" "$ROOT/dark"
+            # The device nodes every container has. .NET reads its random bytes from here.
+            cp -a /dev/null /dev/zero /dev/random /dev/urandom "$ROOT/dev/"
+            cp /etc/ssl/certs/ca-certificates.crt "$ROOT/etc/ssl/certs/"
+            cp /etc/resolv.conf /etc/hosts "$ROOT/etc/"
+            in_empty_root() { HOME=/tmp chroot "$ROOT" /dark "$@" < /dev/null; }
+            in_empty_root eval "1 + 2" | tee /tmp/eval.out
+            grep -qx 3 /tmp/eval.out
+            in_empty_root permissions allow all > /dev/null
+            # The TLS stack is what static OpenSSL changes, so make one real HTTPS request.
+            # Retried, so a network blip isn't read as a broken binary.
+            for attempt in 1 2 3; do
+              in_empty_root eval \
+                'Stdlib.HttpClient.get("https://example.com", []) |> Stdlib.Result.map(fun r -> r.statusCode)' \
+                | tee /tmp/https.out
+              grep -q 'Ok(200)' /tmp/https.out && break
+              [ "$attempt" = 3 ] && exit 1
+              sleep 5
+            done
       - package-clis
 
   build-cli-macos:

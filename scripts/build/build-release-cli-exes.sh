@@ -328,6 +328,30 @@ build_for_runtime() {
       )
     fi
 
+    # linux-musl-x64 links fully static, OpenSSL included, so the same binary runs
+    # on Alpine, on glibc distros and in a `FROM scratch` container.
+    # Without this, it needs musl's loader (which a glibc system doesn't have),
+    # and .NET dlopens the system's libssl/libcrypto on first TLS use.
+    #
+    # Only here, because only musl links statically in a supported way: glibc's
+    # NSS and iconv dlopen behind your back, and macOS has no static libSystem.
+    # StaticOpenSslLinking compiles .NET's OpenSSL shim from source at publish
+    # time, so the build host needs cmake, openssl-dev and openssl-libs-static
+    # (the Alpine CI job installs them).
+    #
+    # What still comes from the system at runtime: CA certificates, from
+    # /etc/ssl (Alpine's OpenSSL is built with that OPENSSLDIR). The host's
+    # openssl.cnf is NOT read unless OPENSSL_CONF names one: it was written for
+    # the host's OpenSSL, and Fedora's aborts ours. See StaticOpenSsl in Cli.fs.
+    local static_args=()
+    if [[ "$rt" == "linux-musl-x64" ]]; then
+      echo "  linking statically, OpenSSL included"
+      static_args=(
+        /p:StaticExecutable=true
+        /p:StaticOpenSslLinking=true
+      )
+    fi
+
     # AOT mode: native compilation, no PublishReadyToRun, no PublishSingleFile
     # (AOT already produces a single native binary).
     ./scripts/build/_dotnet-wrapper publish \
@@ -337,6 +361,7 @@ build_for_runtime() {
       /p:DebugSymbols=false \
       /p:PublishAot=true \
       ${cross_args[@]+"${cross_args[@]}"} \
+      ${static_args[@]+"${static_args[@]}"} \
       --self-contained true \
       --runtime "$rt"
   else
