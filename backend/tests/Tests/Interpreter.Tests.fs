@@ -143,7 +143,7 @@ module Lambdas =
 
       // VM-B lives inside executeApplicable — a fresh VMState is created there
       // to run the Apply. If lambdaInstrCache were still per-VM, VM-B's cache
-      // would be empty and this call would raise "lambda not found".
+      // would be empty and this call would fail with `LambdaNotAvailable`.
       let! result =
         LibExecution.Execution.executeApplicable
           exeState
@@ -158,8 +158,49 @@ module Lambdas =
       | Error(rte, _) -> failtestf "executeApplicable errored: %A" rte
     }
 
+  /// A lambda whose instructions this execution never registered: what a lambda
+  /// stored by an earlier run looks like when it is read back. Applying it is a
+  /// runtime error the person can act on, not an internal "lambda not found"
+  /// exception carrying only an id.
+  let staleLambda =
+    testTask "applying a lambda from another execution is a runtime error" {
+      // The real packages: the message comes from the Dark printer.
+      let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
+
+      let applicable =
+        RT.AppLambda
+          { exprId = 987654321UL
+            closedRegisters = [||]
+            typeSymbolTable = RT.TST.empty
+            access = exeState.access
+            expectedReturn = ValueNone
+            writtenIn = ValueNone }
+
+      let! result =
+        LibExecution.Execution.executeApplicable
+          exeState
+          exeState.access
+          applicable
+          (NEList.singleton (RT.DInt64 42L))
+        |> Ply.toTask
+
+      match result with
+      | Error((RTE.Apply(RTE.Applications.LambdaNotAvailable exprId) as rte), _) ->
+        Expect.equal exprId 987654321UL "names the lambda it could not find"
+        // The printer is where the hint lives: it says what to write instead.
+        match! LibExecution.Execution.runtimeErrorToString exeState rte with
+        | Ok(RT.DString message) ->
+          Expect.stringContains message "earlier run" "says what happened"
+          Expect.stringContains message "let f() =" "says what to write instead"
+        | other -> failtestf "expected a rendered message, got %A" other
+      | Error(rte, _) -> failtestf "expected LambdaNotAvailable, got %A" rte
+      | Ok dval -> failtestf "expected an error, got %A" dval
+    }
+
   let tests =
-    testList "Lambdas" [ identity; add; addTuple; addToClosedVars; crossVM ]
+    testList
+      "Lambdas"
+      [ identity; add; addTuple; addToClosedVars; crossVM; staleLambda ]
 
 
 module Fns =
@@ -278,7 +319,7 @@ module SyncUnify =
 
   let agreesWithAsyncPath =
     testTask "sync unifier agrees with the async one, or declines" {
-      let! (exeState : RT.ExecutionState) = executionStateFor TestValues.pm false
+      let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
       let mutable asyncAccepted = 0
       let mutable answeredWhenAccepted = 0
 
