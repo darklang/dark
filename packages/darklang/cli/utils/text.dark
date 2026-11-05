@@ -32,7 +32,7 @@ let shortId(id: Uuid): String = shortIdText(Stdlib.toString(id))
 /// break the row. `Table.print` pads to the widest cell and never wraps, so a cell that is
 /// allowed to be long costs every row below it.
 let oneLineAt(width: Int, text: String): String =
-  let flat = Stdlib.String.replaceAll(text, "\n", " ")
+  let flat = Stdlib.String.join(Stdlib.String.splitOnNewline(text), " ")
   if Stdlib.String.length(flat) > width then
     (Stdlib.String.slice(flat, 0, width - 3)) + "..."
   else

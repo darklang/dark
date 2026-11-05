@@ -19,15 +19,10 @@ let toEgcSeq (s : string) : seq<string> =
 /// on which branch is taken, so if in doubt, return false.
 ///
 /// CR is rejected along with non-ASCII, because CRLF is a single cluster. Rejecting outright rather
-/// than looking ahead keeps this to one comparison per char.
+/// than looking ahead keeps this to two vectorized scans.
 let isCharwise (s : string) : bool =
-  let mutable i = 0
-  let mutable ok = true
-  while ok && i < s.Length do
-    let c = s[i]
-    if c >= '\u0080' || c = '\r' then ok <- false
-    i <- i + 1
-  ok
+  System.Text.Ascii.IsValid(System.MemoryExtensions.AsSpan s)
+  && s.IndexOf('\r') < 0
 
 /// Return Some(c) if the string is a single EGC character, otherwise None
 let toEgcChar (str : string) : Option<string> =
@@ -51,6 +46,28 @@ let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
 let normalize (s : string) : string = s.Normalize()
+
+/// Orders two strings by code point, which is also the order of their UTF-8 bytes. Only the sign
+/// of the result is meaningful.
+///
+/// Ordinal UTF-16 order differs only where a surrogate pair meets a char in U+E000..U+FFFF: the
+/// pair is the larger code point, but its first unit is the smaller char.
+let compareByCodepoint (a : string) (b : string) : int =
+  let i =
+    System.MemoryExtensions.CommonPrefixLength(
+      System.MemoryExtensions.AsSpan a,
+      System.MemoryExtensions.AsSpan b
+    )
+  if i = a.Length || i = b.Length then
+    a.Length - b.Length
+  else
+    // Moves the surrogates above U+E000..U+FFFF and leaves everything below U+D800 alone.
+    let rank (c : char) =
+      let n = int c
+      if n < 0xD800 then n
+      elif n >= 0xE000 then n - 0x800
+      else n + 0x2000
+    rank a[i] - rank b[i]
 
 
 /// `s` repeated `n` times; "" when `n` is not positive or `s` is empty.

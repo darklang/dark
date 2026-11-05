@@ -96,11 +96,12 @@ let moveToEnd(state: State): State =
 /// Control characters reach here as text (Tab as "\t", Enter as "\r"), and inserting them puts an
 /// invisible byte in the middle of a line that nothing can see and everything has to carry.
 let isTypeable(c: String): Bool =
+  // By code point: CRLF is one Char, and `contains` would not find the "\r" inside it.
   c != ""
-  && (Stdlib.Bool.not(Stdlib.String.contains(c, "\t")))
-  && (Stdlib.Bool.not(Stdlib.String.contains(c, "\n")))
-  && (Stdlib.Bool.not(Stdlib.String.contains(c, "\r")))
-  && (Stdlib.Bool.not(Stdlib.String.contains(c, "\u001b")))
+  && Stdlib.Bool.not(
+    Stdlib.List.any(
+      Stdlib.String.toCodepoints(c),
+      fun cp -> cp == 9ul || cp == 10ul || cp == 13ul || cp == 27ul))
 
 
 let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =

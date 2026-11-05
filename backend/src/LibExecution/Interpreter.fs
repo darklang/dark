@@ -4873,7 +4873,9 @@ let private runSyncInstructions
             rest <- tail
           | [] -> ()
 
-        if not retry then registers[targetReg] <- DString(sb.ToString())
+        // Normalized as `+` and `String.join` are, so equal text compares equal however built.
+        if not retry then
+          registers[targetReg] <- DString(String.normalize (sb.ToString()))
 
 
       // == Flow Control ==

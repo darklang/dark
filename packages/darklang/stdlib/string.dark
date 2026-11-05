@@ -43,7 +43,8 @@ let flatMap(s: String, fn: Char -> String): String =
 let toList(s: String): List<Char> = Builtin.stringToList(s)
 
 
-/// Replace all instances on <param searchFor> in <param s> with <param replaceWith>
+/// Replace every <param searchFor> in <param s> with <param replaceWith>. Matches
+/// whole Chars (EGC, not byte) only: replacing {{"👍"}} leaves {{"👍🏽"}} alone.
 let replaceAll(s: String, searchFor: String, replaceWith: String): String =
   Builtin.stringReplaceAll(s, searchFor, replaceWith)
 
@@ -139,8 +140,7 @@ let splitFirst(
   if separator == "" then
     Option.Option.None
   else
-    // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
-    match String.indexOfEgc(string, separator) with
+    match String.indexOf(string, separator) with
     | None -> Option.Option.None
     | Some(i) ->
       let before = String.first(string, i)
@@ -160,8 +160,7 @@ let splitLast(
   if separator == "" then
     Option.Option.None
   else
-    // lastIndexOfEgc (not lastIndexOf) because first / dropFirst / length are EGC-indexed.
-    match String.lastIndexOfEgc(string, separator) with
+    match String.lastIndexOf(string, separator) with
     | None -> Option.Option.None
     | Some(i) ->
       let before = String.first(string, i)
@@ -182,8 +181,7 @@ let splitN(
   if n <= 1 || separator == "" then
     [ string ]
   else
-    // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
-    match String.indexOfEgc(string, separator) with
+    match String.indexOf(string, separator) with
     | None -> [ string ]
     | Some(i) ->
       let before = String.first(string, i)
@@ -228,7 +226,8 @@ let random(length: Int): Result.Result<String, String> =
     Result.Result.Ok(result)
 
 
-/// Checks if <param lookingIn> contains <param searchingFor>.
+/// Checks if <param lookingIn> contains <param searchingFor> as whole Chars (EGC, not
+/// byte): {{contains "👍🏽" "👍"}} is {{false}}, and so is finding half of a flag.
 let contains(lookingIn: String, searchingFor: String): Bool =
   Builtin.stringContains(lookingIn, searchingFor)
 
@@ -380,48 +379,23 @@ let stripSuffix(subject: String, suffix: String): Option.Option<String> =
     Option.Option.None
 
 
-/// Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>,
-/// measured in UTF-16 code units. Returns {{None}} if <param searchFor> does not occur.
-/// The returned index is **not** suitable for arithmetic with {{first}}, {{dropFirst}},
-/// or {{slice}}, which are all EGC-indexed — for that, use {{indexOfEgc}}.
+/// Returns {{Some index}} of the first <param searchFor> in <param str>, counted in
+/// Chars (EGC, not byte) like {{length}}, {{slice}} and {{dropFirst}}. Returns {{None}}
+/// if <param searchFor> does not occur. Matches whole Chars only: {{"👍"}} is not found
+/// in {{"👍🏽"}}.
 let indexOf(str: String, searchFor: String): Option.Option<Int> =
   let idx = Builtin.stringIndexOf(str, searchFor)
   if idx == -1 then Option.Option.None else Option.Option.Some(idx)
 
 
-/// Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>,
-/// measured in extended grapheme clusters (consistent with {{length}}, {{slice}},
-/// {{first}}, and {{dropFirst}}). Returns {{None}} if <param searchFor> does not occur.
-/// The match must begin and end on EGC boundaries — searching for a partial grapheme
-/// (e.g. a base codepoint inside a ZWJ sequence) will not match.
-let indexOfEgc(str: String, searchFor: String): Option.Option<Int> =
-  let idx = Builtin.stringIndexOfEgc(str, searchFor)
-  if idx == -1 then Option.Option.None else Option.Option.Some(idx)
-
-
-/// Returns {{Some index}} of the last occurrence of <param searchFor> in <param str>,
-/// measured in UTF-16 code units. Returns {{None}} if <param searchFor> does not occur.
-/// For an EGC-indexed result, use {{lastIndexOfEgc}}.
+/// Returns {{Some index}} of the last <param searchFor> in <param str>, counted in Chars
+/// (EGC, not byte). Returns {{None}} if <param searchFor> does not occur. Matches whole
+/// Chars only, as <fn indexOf> does.
 let lastIndexOf(
   str: String,
   searchFor: String)
   : Option.Option<Int> =
   let lastIndex = Builtin.stringLastIndexOf(str, searchFor)
-
-  if lastIndex == -1 then
-    Option.Option.None
-  else
-    Option.Option.Some(lastIndex)
-
-
-/// Returns {{Some index}} of the last occurrence of <param searchFor> in <param str>,
-/// measured in extended grapheme clusters. Returns {{None}} if <param searchFor>
-/// does not occur. The match must begin and end on EGC boundaries.
-let lastIndexOfEgc(
-  str: String,
-  searchFor: String)
-  : Option.Option<Int> =
-  let lastIndex = Builtin.stringLastIndexOfEgc(str, searchFor)
 
   if lastIndex == -1 then
     Option.Option.None
@@ -459,9 +433,10 @@ let charAt(str: String, index: Int): Option.Option<Char> =
   str |> String.toList |> List.getAt(index)
 
 
-/// Orders two strings: negative when <param a> sorts first, 0 when they are equal, positive
-/// when <param b> does. Only the sign is meaningful. Ordinal rather than language-aware, so
-/// two machines order the same pair the same way.
+/// Orders two strings by code point: negative when <param a> sorts first, 0 when they
+/// are equal, positive when <param b> does. Only the sign is meaningful. Code point
+/// order is also UTF-8 byte order. It is not language-aware, so two machines order the
+/// same pair the same way.
 let compare(a: String, b: String): Int64 = Builtin.stringCompare(a, b)
 
 
